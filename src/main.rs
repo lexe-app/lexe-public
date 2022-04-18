@@ -154,8 +154,9 @@ impl
         )
         .is_err()
         {
-            // Persistence errors here are non-fatal as we can just fetch the routing graph
-            // again later, but they may indicate a disk error which could be fatal elsewhere.
+            // Persistence errors here are non-fatal as we can just fetch the
+            // routing graph again later, but they may indicate a disk error
+            // which could be fatal elsewhere.
             eprintln!("Warning: Failed to persist network graph, check your disk and permissions");
         }
 
@@ -179,8 +180,8 @@ async fn handle_ldk_events(
             output_script,
             ..
         } => {
-            // Construct the raw transaction with one output, that is paid the amount of the
-            // channel.
+            // Construct the raw transaction with one output, that is paid the
+            // amount of the channel.
             let addr = WitnessProgram::from_scriptpubkey(
                 &output_script[..],
                 match network {
@@ -205,8 +206,8 @@ async fn handle_ldk_events(
                 .insert(addr, *channel_value_satoshis as f64 / 100_000_000.0);
             let raw_tx = bitcoind_client.create_raw_transaction(outputs).await;
 
-            // Have your wallet put the inputs into the transaction such that the output is
-            // satisfied.
+            // Have your wallet put the inputs into the transaction such that
+            // the output is satisfied.
             let funded_tx = bitcoind_client.fund_raw_transaction(raw_tx).await;
 
             // Sign the final funding transaction and broadcast it.
@@ -388,8 +389,9 @@ async fn handle_ldk_events(
             io::stdout().flush().unwrap();
         }
         Event::DiscardFunding { .. } => {
-            // A "real" node should probably "lock" the UTXOs spent in funding transactions until
-            // the funding transaction either confirms, or this event is generated.
+            // A "real" node should probably "lock" the UTXOs spent in funding
+            // transactions until the funding transaction either confirms, or
+            // this event is generated.
         }
     }
 }
@@ -441,7 +443,8 @@ async fn start_ldk() {
     // ## Setup
     // Step 1: Initialize the FeeEstimator
 
-    // BitcoindClient implements the FeeEstimator trait, so it'll act as our fee estimator.
+    // BitcoindClient implements the FeeEstimator trait, so it'll act as our fee
+    // estimator.
     let fee_estimator = bitcoind_client.clone();
 
     // Step 2: Initialize the Logger
@@ -449,8 +452,8 @@ async fn start_ldk() {
 
     // Step 3: Initialize the BroadcasterInterface
 
-    // BitcoindClient implements the BroadcasterInterface trait, so it'll act as our transaction
-    // broadcaster.
+    // BitcoindClient implements the BroadcasterInterface trait, so it'll act as
+    // our transaction broadcaster.
     let broadcaster = bitcoind_client.clone();
 
     // Step 4: Initialize Persist
@@ -468,8 +471,8 @@ async fn start_ldk() {
 
     // Step 6: Initialize the KeysManager
 
-    // The key seed that we use to derive the node privkey (that corresponds to the node pubkey) and
-    // other secret key material.
+    // The key seed that we use to derive the node privkey (that corresponds to
+    // the node pubkey) and other secret key material.
     let keys_seed_path = format!("{}/keys_seed", ldk_data_dir.clone());
     let keys_seed = if let Ok(seed) = fs::read(keys_seed_path.clone()) {
         assert_eq!(seed.len(), 32);
@@ -734,8 +737,9 @@ async fn start_ldk() {
             )
             .is_err()
             {
-                // Persistence errors here are non-fatal as channels will be re-scored as payments
-                // fail, but they may indicate a disk error which could be fatal elsewhere.
+                // Persistence errors here are non-fatal as channels will be
+                // re-scored as payments fail, but they may indicate a disk
+                // error which could be fatal elsewhere.
                 eprintln!("Warning: Failed to persist scorer, check your disk and permissions");
             }
         }
@@ -813,10 +817,11 @@ async fn start_ldk() {
         }
     });
 
-    // Regularly broadcast our node_announcement. This is only required (or possible) if we have
-    // some public channels, and is only useful if we have public listen address(es) to announce.
-    // In a production environment, this should occur only after the announcement of new channels
-    // to avoid churn in the global network graph.
+    // Regularly broadcast our node_announcement. This is only required (or
+    // possible) if we have some public channels, and is only useful if we have
+    // public listen address(es) to announce. In a production environment, this
+    // should occur only after the announcement of new channels to avoid churn
+    // in the global network graph.
     let chan_manager = Arc::clone(&channel_manager);
     let network = args.network;
     if !args.ldk_announced_listen_addr.is_empty() {
@@ -847,8 +852,9 @@ async fn start_ldk() {
     )
     .await;
 
-    // Disconnect our peers and stop accepting new connections. This ensures we don't continue
-    // updating our channel data after we've stopped the background processor.
+    // Disconnect our peers and stop accepting new connections. This ensures we
+    // don't continue updating our channel data after we've stopped the
+    // background processor.
     stop_listen_connect.store(true, Ordering::Release);
     peer_manager.disconnect_all_peers();
 
