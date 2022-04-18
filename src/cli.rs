@@ -45,15 +45,15 @@ pub(crate) fn parse_startup_args() -> Result<LdkUserInfo, ()> {
         println!("ldk-tutorial-node requires 3 arguments: `cargo run <bitcoind-rpc-username>:<bitcoind-rpc-password>@<bitcoind-rpc-host>:<bitcoind-rpc-port> ldk_storage_directory_path [<ldk-incoming-peer-listening-port>] [bitcoin-network] [announced-node-name announced-listen-addr*]`");
         return Err(());
     }
-    let bitcoind_rpc_info = env::args().skip(1).next().unwrap();
+    let bitcoind_rpc_info = env::args().nth(1).unwrap();
     let bitcoind_rpc_info_parts: Vec<&str> =
-        bitcoind_rpc_info.rsplitn(2, "@").collect();
+        bitcoind_rpc_info.rsplitn(2, '@').collect();
     if bitcoind_rpc_info_parts.len() != 2 {
         println!("ERROR: bad bitcoind RPC URL provided");
         return Err(());
     }
     let rpc_user_and_password: Vec<&str> =
-        bitcoind_rpc_info_parts[1].split(":").collect();
+        bitcoind_rpc_info_parts[1].split(':').collect();
     if rpc_user_and_password.len() != 2 {
         println!("ERROR: bad bitcoind RPC username/password combo provided");
         return Err(());
@@ -61,7 +61,7 @@ pub(crate) fn parse_startup_args() -> Result<LdkUserInfo, ()> {
     let bitcoind_rpc_username = rpc_user_and_password[0].to_string();
     let bitcoind_rpc_password = rpc_user_and_password[1].to_string();
     let bitcoind_rpc_path: Vec<&str> =
-        bitcoind_rpc_info_parts[0].split(":").collect();
+        bitcoind_rpc_info_parts[0].split(':').collect();
     if bitcoind_rpc_path.len() != 2 {
         println!("ERROR: bad bitcoind RPC path provided");
         return Err(());
@@ -69,11 +69,11 @@ pub(crate) fn parse_startup_args() -> Result<LdkUserInfo, ()> {
     let bitcoind_rpc_host = bitcoind_rpc_path[0].to_string();
     let bitcoind_rpc_port = bitcoind_rpc_path[1].parse::<u16>().unwrap();
 
-    let ldk_storage_dir_path = env::args().skip(2).next().unwrap();
+    let ldk_storage_dir_path = env::args().nth(2).unwrap();
 
     let mut ldk_peer_port_set = true;
     let ldk_peer_listening_port: u16 =
-        match env::args().skip(3).next().map(|p| p.parse()) {
+        match env::args().nth(3).map(|p| p.parse()) {
             Some(Ok(p)) => p,
             Some(Err(_)) => {
                 ldk_peer_port_set = false;
@@ -89,12 +89,7 @@ pub(crate) fn parse_startup_args() -> Result<LdkUserInfo, ()> {
         true => 4,
         false => 3,
     };
-    let network: Network = match env::args()
-        .skip(arg_idx)
-        .next()
-        .as_ref()
-        .map(String::as_str)
-    {
+    let network: Network = match env::args().nth(arg_idx).as_deref() {
         Some("testnet") => Network::Testnet,
         Some("regtest") => Network::Regtest,
         Some("signet") => Network::Signet,
@@ -104,43 +99,39 @@ pub(crate) fn parse_startup_args() -> Result<LdkUserInfo, ()> {
         None => Network::Testnet,
     };
 
-    let ldk_announced_node_name =
-        match env::args().skip(arg_idx + 1).next().as_ref() {
-            Some(s) => {
-                if s.len() > 32 {
-                    panic!("Node Alias can not be longer than 32 bytes");
-                }
-                arg_idx += 1;
-                let mut bytes = [0; 32];
-                bytes[..s.len()].copy_from_slice(s.as_bytes());
-                bytes
+    let ldk_announced_node_name = match env::args().nth(arg_idx + 1).as_ref() {
+        Some(s) => {
+            if s.len() > 32 {
+                panic!("Node Alias can not be longer than 32 bytes");
             }
-            None => [0; 32],
-        };
+            arg_idx += 1;
+            let mut bytes = [0; 32];
+            bytes[..s.len()].copy_from_slice(s.as_bytes());
+            bytes
+        }
+        None => [0; 32],
+    };
 
     let mut ldk_announced_listen_addr = Vec::new();
-    loop {
-        match env::args().skip(arg_idx + 1).next().as_ref() {
-            Some(s) => match IpAddr::from_str(s) {
-                Ok(IpAddr::V4(a)) => {
-                    ldk_announced_listen_addr.push(NetAddress::IPv4 {
-                        addr: a.octets(),
-                        port: ldk_peer_listening_port,
-                    });
-                    arg_idx += 1;
-                }
-                Ok(IpAddr::V6(a)) => {
-                    ldk_announced_listen_addr.push(NetAddress::IPv6 {
-                        addr: a.octets(),
-                        port: ldk_peer_listening_port,
-                    });
-                    arg_idx += 1;
-                }
-                Err(_) => panic!(
-                    "Failed to parse announced-listen-addr into an IP address"
-                ),
-            },
-            None => break,
+    while let Some(s) = env::args().nth(arg_idx + 1).as_ref() {
+        match IpAddr::from_str(s) {
+            Ok(IpAddr::V4(a)) => {
+                ldk_announced_listen_addr.push(NetAddress::IPv4 {
+                    addr: a.octets(),
+                    port: ldk_peer_listening_port,
+                });
+                arg_idx += 1;
+            }
+            Ok(IpAddr::V6(a)) => {
+                ldk_announced_listen_addr.push(NetAddress::IPv6 {
+                    addr: a.octets(),
+                    port: ldk_peer_listening_port,
+                });
+                arg_idx += 1;
+            }
+            Err(_) => panic!(
+                "Failed to parse announced-listen-addr into an IP address"
+            ),
         }
     }
 
@@ -157,6 +148,7 @@ pub(crate) fn parse_startup_args() -> Result<LdkUserInfo, ()> {
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn poll_for_user_input<E: EventHandler>(
     invoice_payer: Arc<InvoicePayer<E>>,
     peer_manager: Arc<PeerManager>,
@@ -491,7 +483,7 @@ fn list_channels(
 ) {
     print!("[");
     for chan_info in channel_manager.list_channels() {
-        println!("");
+        println!();
         println!("\t{{");
         println!(
             "\t\tchannel_id: {},",
@@ -552,7 +544,7 @@ fn list_payments(
     let outbound = outbound_payments.lock().unwrap();
     print!("[");
     for (payment_hash, payment_info) in inbound.deref() {
-        println!("");
+        println!();
         println!("\t{{");
         println!("\t\tamount_millisatoshis: {},", payment_info.amt_msat);
         println!("\t\tpayment_hash: {},", hex_utils::hex_str(&payment_hash.0));
@@ -570,7 +562,7 @@ fn list_payments(
     }
 
     for (payment_hash, payment_info) in outbound.deref() {
-        println!("");
+        println!();
         println!("\t{{");
         println!("\t\tamount_millisatoshis: {},", payment_info.amt_msat);
         println!("\t\tpayment_hash: {},", hex_utils::hex_str(&payment_hash.0));
@@ -671,11 +663,11 @@ fn open_channel(
     ) {
         Ok(_) => {
             println!("EVENT: initiated channel with peer {}. ", peer_pubkey);
-            return Ok(());
+            Ok(())
         }
         Err(e) => {
             println!("ERROR: failed to open channel: {:?}", e);
-            return Err(());
+            Err(())
         }
     }
 }
@@ -712,8 +704,8 @@ fn send_payment<E: EventHandler>(
             HTLCStatus::Failed
         }
     };
-    let payment_hash = PaymentHash(invoice.payment_hash().clone().into_inner());
-    let payment_secret = Some(invoice.payment_secret().clone());
+    let payment_hash = PaymentHash(invoice.payment_hash().into_inner());
+    let payment_secret = Some(*invoice.payment_secret());
 
     let mut payments = payment_storage.lock().unwrap();
     payments.insert(
@@ -810,12 +802,12 @@ fn get_invoice(
         }
     };
 
-    let payment_hash = PaymentHash(invoice.payment_hash().clone().into_inner());
+    let payment_hash = PaymentHash(invoice.payment_hash().into_inner());
     payments.insert(
         payment_hash,
         PaymentInfo {
             preimage: None,
-            secret: Some(invoice.payment_secret().clone()),
+            secret: Some(*invoice.payment_secret()),
             status: HTLCStatus::Pending,
             amt_msat: MillisatAmount(Some(amt_msat)),
         },
@@ -842,7 +834,7 @@ fn force_close_channel(
 pub(crate) fn parse_peer_info(
     peer_pubkey_and_ip_addr: String,
 ) -> Result<(PublicKey, SocketAddr), std::io::Error> {
-    let mut pubkey_and_addr = peer_pubkey_and_ip_addr.split("@");
+    let mut pubkey_and_addr = peer_pubkey_and_ip_addr.split('@');
     let pubkey = pubkey_and_addr.next();
     let peer_addr_str = pubkey_and_addr.next();
     if peer_addr_str.is_none() || peer_addr_str.is_none() {
