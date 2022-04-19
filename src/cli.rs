@@ -42,7 +42,7 @@ pub(crate) struct LdkUserInfo {
 
 pub(crate) fn parse_startup_args() -> Result<LdkUserInfo, ()> {
     if env::args().len() < 3 {
-        println!("ldk-tutorial-node requires 3 arguments: `cargo run <bitcoind-rpc-username>:<bitcoind-rpc-password>@<bitcoind-rpc-host>:<bitcoind-rpc-port> ldk_storage_directory_path [<ldk-incoming-peer-listening-port>] [bitcoin-network] [announced-node-name announced-listen-addr*]`");
+        println!("lexe-node requires 3 arguments: `cargo run <bitcoind-rpc-username>:<bitcoind-rpc-password>@<bitcoind-rpc-host>:<bitcoind-rpc-port> ldk_storage_directory_path [<ldk-incoming-peer-listening-port>] [bitcoin-network] [announced-node-name announced-listen-addr*]`");
         return Err(());
     }
     let bitcoind_rpc_info = env::args().nth(1).unwrap();
@@ -790,7 +790,7 @@ fn get_invoice(
         keys_manager,
         currency,
         Some(amt_msat),
-        "ldk-tutorial-node".to_string(),
+        "lexe-node".to_string(),
     ) {
         Ok(inv) => {
             println!("SUCCESS: generated invoice: {}", inv);
