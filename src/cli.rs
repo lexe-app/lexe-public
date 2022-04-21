@@ -40,6 +40,8 @@ pub(crate) struct LdkUserInfo {
     pub(crate) network: Network,
 }
 
+// NOTE(max): If this arg parsing becomes too unwieldy at some point, it can be
+// rewritten with the minimal crate `argh`.
 pub(crate) fn parse_startup_args() -> Result<LdkUserInfo, ()> {
     if env::args().len() < 3 {
         println!("lexe-node requires 3 arguments: `cargo run <bitcoind-rpc-username>:<bitcoind-rpc-password>@<bitcoind-rpc-host>:<bitcoind-rpc-port> ldk_storage_directory_path [<ldk-incoming-peer-listening-port>] [bitcoin-network] [announced-node-name announced-listen-addr*]`");
@@ -71,10 +73,13 @@ pub(crate) fn parse_startup_args() -> Result<LdkUserInfo, ()> {
 
     let ldk_storage_dir_path = env::args().nth(2).unwrap();
 
-    let mut ldk_peer_port_set = true;
+    let ldk_peer_port_set;
     let ldk_peer_listening_port: u16 =
         match env::args().nth(3).map(|p| p.parse()) {
-            Some(Ok(p)) => p,
+            Some(Ok(p)) => {
+                ldk_peer_port_set = true;
+                p
+            }
             Some(Err(_)) => {
                 ldk_peer_port_set = false;
                 9735
