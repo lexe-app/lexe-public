@@ -316,8 +316,9 @@ impl BroadcasterInterface for BitcoindClient {
         let tx_serialized = serde_json::json!(encode::serialize_hex(tx));
         self.handle.spawn(async move {
             let mut rpc = bitcoind_rpc_client.lock().await;
-            // This may error due to RL calling `broadcast_transaction` with the same transaction
-            // multiple times, but the error is safe to ignore.
+            // This may error due to RL calling `broadcast_transaction` with the
+            // same transaction multiple times, but the error is
+            // safe to ignore.
             match rpc
                 .call_method::<Txid>("sendrawtransaction", &[tx_serialized])
                 .await

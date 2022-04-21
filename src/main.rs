@@ -423,7 +423,8 @@ async fn start_ldk() {
         }
     };
 
-    // Check that the bitcoind we've connected to is running the network we expect
+    // Check that the bitcoind we've connected to is running the network we
+    // expect
     let bitcoind_chain = bitcoind_client.get_blockchain_info().await.chain;
     if bitcoind_chain
         != match args.network {

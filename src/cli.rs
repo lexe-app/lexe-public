@@ -469,7 +469,8 @@ fn list_peers(peer_manager: Arc<PeerManager>) {
     println!("\t}},");
 }
 
-/// Takes some untrusted bytes and returns a sanitized string that is safe to print
+/// Takes some untrusted bytes and returns a sanitized string that is safe to
+/// print
 fn sanitize_string(bytes: &[u8]) -> String {
     let mut ret = String::with_capacity(bytes.len());
     // We should really support some sane subset of UTF-8 here, but limiting to
