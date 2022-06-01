@@ -2,22 +2,32 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use bitcoin::hash_types;
+use bitcoin::hashes::hex::ToHex;
 use lightning::chain::{
     self, chainmonitor, channelmonitor, keysinterface, transaction,
 };
 use lightning::ln::channelmanager;
 use lightning::routing::network_graph;
+use lightning::util::ser::Writeable;
 use lightning_background_processor::Persister;
 
 use crate::bitcoind_client::BitcoindClient;
 use crate::disk::FilesystemLogger; // TODO replace with db logger
-use crate::ChainMonitorType;
+use crate::{ChainMonitorType, ChannelManagerType};
 
 pub struct PostgresPersister {}
 
 impl PostgresPersister {
     pub fn new() -> Self {
         Self {}
+    }
+
+    // Replaces `ldk-sample/main::start_ldk` "Step 8: Init ChannelManager"
+    pub fn read_channelmanager(
+        &self,
+    ) -> Result<(hash_types::BlockHash, ChannelManagerType), std::io::Error>
+    {
+        unimplemented!(); // TODO implement
     }
 
     // Replaces equivalent method in lightning_persister::FilesystemPersister
@@ -34,7 +44,7 @@ impl PostgresPersister {
     where
         K::Target: keysinterface::KeysInterface<Signer = Signer> + Sized,
     {
-        unimplemented!(); // TODO implement
+        Ok(Vec::new()) // TODO implement
     }
 }
 
@@ -57,6 +67,10 @@ impl
             FilesystemLogger,
         >,
     ) -> Result<(), std::io::Error> {
+        // Original FilesystemPersister filename: "manager"
+        let plaintext_bytes = channel_manager.encode();
+        println!("Channel manager: {:?}", plaintext_bytes);
+
         Ok(()) // TODO implement
     }
 
@@ -64,6 +78,10 @@ impl
         &self,
         network_graph: &network_graph::NetworkGraph,
     ) -> Result<(), std::io::Error> {
+        // Original FilesystemPersister filename: "network_graph"
+        let plaintext_bytes = network_graph.encode();
+        println!("Network graph: {:?}", plaintext_bytes);
+
         Ok(()) // TODO implement
     }
 }
@@ -82,6 +100,14 @@ impl<ChannelSigner: keysinterface::Sign> chainmonitor::Persist<ChannelSigner>
         monitor: &channelmonitor::ChannelMonitor<ChannelSigner>,
         _update_id: chainmonitor::MonitorUpdateId,
     ) -> Result<(), chain::ChannelMonitorUpdateErr> {
+        // Original FilesystemPersister filename: `id`, under folder "monitors"
+        let id = format!("{}_{}", funding_txo.txid.to_hex(), funding_txo.index);
+        let txo_plaintext_bytes = id.into_bytes();
+        println!("Persisting new channel {:?}", txo_plaintext_bytes);
+
+        let monitor_plaintext_bytes = monitor.encode();
+        println!("Channel monitor: {:?}", monitor_plaintext_bytes);
+
         Ok(()) // TODO implement
     }
 
@@ -92,6 +118,14 @@ impl<ChannelSigner: keysinterface::Sign> chainmonitor::Persist<ChannelSigner>
         monitor: &channelmonitor::ChannelMonitor<ChannelSigner>,
         _update_id: chainmonitor::MonitorUpdateId,
     ) -> Result<(), chain::ChannelMonitorUpdateErr> {
+        // Original FilesystemPersister filename: `id`, under folder "monitors"
+        let id = format!("{}_{}", funding_txo.txid.to_hex(), funding_txo.index);
+        let txo_plaintext_bytes = id.into_bytes();
+        println!("Updating persisted channel {:?}", txo_plaintext_bytes);
+
+        let monitor_plaintext_bytes = monitor.encode();
+        println!("Channel monitor: {:?}", monitor_plaintext_bytes);
+
         Ok(()) // TODO implement
     }
 }

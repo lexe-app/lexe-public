@@ -16,7 +16,7 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
 
-pub(crate) struct FilesystemLogger {
+pub struct FilesystemLogger {
     data_dir: String,
 }
 impl FilesystemLogger {
