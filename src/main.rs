@@ -65,13 +65,13 @@ mod hex_utils;
 #[allow(unused_variables, dead_code)]
 mod persister;
 
-pub(crate) enum HTLCStatus {
+enum HTLCStatus {
     Pending,
     Succeeded,
     Failed,
 }
 
-pub(crate) struct MillisatAmount(Option<u64>);
+struct MillisatAmount(Option<u64>);
 
 impl fmt::Display for MillisatAmount {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -82,15 +82,14 @@ impl fmt::Display for MillisatAmount {
     }
 }
 
-pub(crate) struct PaymentInfo {
+struct PaymentInfo {
     preimage: Option<PaymentPreimage>,
     secret: Option<PaymentSecret>,
     status: HTLCStatus,
     amt_msat: MillisatAmount,
 }
 
-pub(crate) type PaymentInfoStorageType =
-    Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
+type PaymentInfoStorageType = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
 
 type ChainMonitorType = chainmonitor::ChainMonitor<
     InMemorySigner,
@@ -101,7 +100,7 @@ type ChainMonitorType = chainmonitor::ChainMonitor<
     Arc<PostgresPersister>,
 >;
 
-pub(crate) type PeerManagerType = SimpleArcPeerManager<
+type PeerManagerType = SimpleArcPeerManager<
     SocketDescriptor,
     ChainMonitorType,
     BitcoindClient,
@@ -110,14 +109,14 @@ pub(crate) type PeerManagerType = SimpleArcPeerManager<
     FilesystemLogger,
 >;
 
-pub(crate) type ChannelManagerType = SimpleArcChannelManager<
+type ChannelManagerType = SimpleArcChannelManager<
     ChainMonitorType,
     BitcoindClient,
     BitcoindClient,
     FilesystemLogger,
 >;
 
-pub(crate) type InvoicePayerType<E> = payment::InvoicePayer<
+type InvoicePayerType<E> = payment::InvoicePayer<
     Arc<ChannelManagerType>,
     RouterType,
     Arc<Mutex<ProbabilisticScorer<Arc<NetworkGraph>>>>,

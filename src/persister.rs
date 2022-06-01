@@ -11,6 +11,7 @@ use lightning_background_processor::Persister;
 
 use crate::bitcoind_client::BitcoindClient;
 use crate::disk::FilesystemLogger; // TODO replace with db logger
+use crate::ChainMonitorType;
 
 pub struct PostgresPersister {}
 
@@ -19,6 +20,7 @@ impl PostgresPersister {
         Self {}
     }
 
+    // Replaces equivalent method in lightning_persister::FilesystemPersister
     pub fn read_channelmonitors<Signer: keysinterface::Sign, K: Deref>(
         &self,
         keys_manager: K,
@@ -39,16 +41,7 @@ impl PostgresPersister {
 impl
     Persister<
         keysinterface::InMemorySigner,
-        Arc<
-            chainmonitor::ChainMonitor<
-                keysinterface::InMemorySigner,
-                Arc<dyn chain::Filter + Send + Sync>,
-                Arc<BitcoindClient>,
-                Arc<BitcoindClient>,
-                Arc<FilesystemLogger>,
-                Arc<PostgresPersister>,
-            >,
-        >,
+        Arc<ChainMonitorType>,
         Arc<BitcoindClient>,
         Arc<keysinterface::KeysManager>,
         Arc<BitcoindClient>,
@@ -58,14 +51,7 @@ impl
     fn persist_manager(
         &self,
         channel_manager: &channelmanager::SimpleArcChannelManager<
-            chainmonitor::ChainMonitor<
-                keysinterface::InMemorySigner,
-                Arc<dyn chain::Filter + Send + Sync>,
-                Arc<BitcoindClient>,
-                Arc<BitcoindClient>,
-                Arc<FilesystemLogger>,
-                Arc<PostgresPersister>,
-            >,
+            ChainMonitorType,
             BitcoindClient,
             BitcoindClient,
             FilesystemLogger,
