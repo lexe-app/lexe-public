@@ -1,5 +1,7 @@
+use std::ops::Deref;
 use std::sync::Arc;
 
+use bitcoin::hash_types;
 use lightning::chain::{
     self, chainmonitor, channelmonitor, keysinterface, transaction,
 };
@@ -11,6 +13,28 @@ use crate::bitcoind_client::BitcoindClient;
 use crate::disk::FilesystemLogger; // TODO replace with db logger
 
 pub struct PostgresPersister {}
+
+impl PostgresPersister {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn read_channelmonitors<Signer: keysinterface::Sign, K: Deref>(
+        &self,
+        keys_manager: K,
+    ) -> Result<
+        Vec<(
+            hash_types::BlockHash,
+            channelmonitor::ChannelMonitor<Signer>,
+        )>,
+        std::io::Error,
+    >
+    where
+        K::Target: keysinterface::KeysInterface<Signer = Signer> + Sized,
+    {
+        unimplemented!(); // TODO implement
+    }
+}
 
 impl
     Persister<

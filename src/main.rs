@@ -54,6 +54,7 @@ use lightning_persister::FilesystemPersister;
 
 use crate::bitcoind_client::BitcoindClient;
 use crate::disk::FilesystemLogger;
+use crate::persister::PostgresPersister;
 
 pub mod bitcoind_client;
 mod cli;
@@ -97,7 +98,7 @@ type ChainMonitorType = chainmonitor::ChainMonitor<
     Arc<BitcoindClient>,
     Arc<BitcoindClient>,
     Arc<FilesystemLogger>,
-    Arc<FilesystemPersister>,
+    Arc<PostgresPersister>,
 >;
 
 pub(crate) type PeerManagerType = SimpleArcPeerManager<
@@ -464,7 +465,7 @@ async fn start_ldk() {
     let broadcaster = bitcoind_client.clone();
 
     // Step 4: Initialize Persist
-    let persister = Arc::new(FilesystemPersister::new(ldk_data_dir.clone()));
+    let persister = Arc::new(PostgresPersister::new());
 
     // Step 5: Initialize the ChainMonitor
     let chain_monitor: Arc<ChainMonitorType> =
