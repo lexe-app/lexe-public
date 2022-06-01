@@ -1,14 +1,18 @@
-pub mod bitcoind_client;
-mod cli;
-mod convert;
-mod disk;
-mod hex_utils;
-// TODO remove after implementation is complete
-#[allow(unused_variables, dead_code)]
-mod persister;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
+use std::fmt;
+use std::fs;
+use std::fs::File;
+use std::io;
+use std::io::Write;
+use std::ops::Deref;
+use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime};
 
-use crate::bitcoind_client::BitcoindClient;
-use crate::disk::FilesystemLogger;
+use rand::{thread_rng, Rng};
+
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
@@ -47,19 +51,18 @@ use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_persister::FilesystemPersister;
-use rand::{thread_rng, Rng};
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use std::fmt;
-use std::fs;
-use std::fs::File;
-use std::io;
-use std::io::Write;
-use std::ops::Deref;
-use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime};
+
+use crate::bitcoind_client::BitcoindClient;
+use crate::disk::FilesystemLogger;
+
+pub mod bitcoind_client;
+mod cli;
+mod convert;
+mod disk;
+mod hex_utils;
+// TODO remove after implementation is complete
+#[allow(unused_variables, dead_code)]
+mod persister;
 
 pub(crate) enum HTLCStatus {
     Pending,
@@ -85,28 +88,10 @@ pub(crate) struct PaymentInfo {
     amt_msat: MillisatAmount,
 }
 
-// These type aliases might come handy
-
-// type ChainMonitorType = chainmonitor::ChainMonitor<
-//     keysinterface::InMemorySigner,
-//     Arc<dyn chain::Filter + Send + Sync>,
-//     Arc<BitcoindClient>,
-//     Arc<BitcoindClient>,
-//     Arc<FilesystemLogger>,
-//     Arc<PostgresPersister>,
-// >;
-
-// type ChannelManagerType = channelmanager::SimpleArcChannelManager<
-//     ChainMonitorType,
-//     BitcoindClient,
-//     BitcoindClient,
-//     FilesystemLogger,
-// >;
-
-pub(crate) type PaymentInfoStorage =
+pub(crate) type PaymentInfoStorageType =
     Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
 
-type ChainMonitor = chainmonitor::ChainMonitor<
+type ChainMonitorType = chainmonitor::ChainMonitor<
     InMemorySigner,
     Arc<dyn Filter + Send + Sync>,
     Arc<BitcoindClient>,
@@ -115,31 +100,31 @@ type ChainMonitor = chainmonitor::ChainMonitor<
     Arc<FilesystemPersister>,
 >;
 
-pub(crate) type PeerManager = SimpleArcPeerManager<
+pub(crate) type PeerManagerType = SimpleArcPeerManager<
     SocketDescriptor,
-    ChainMonitor,
+    ChainMonitorType,
     BitcoindClient,
     BitcoindClient,
     dyn chain::Access + Send + Sync,
     FilesystemLogger,
 >;
 
-pub(crate) type ChannelManager = SimpleArcChannelManager<
-    ChainMonitor,
+pub(crate) type ChannelManagerType = SimpleArcChannelManager<
+    ChainMonitorType,
     BitcoindClient,
     BitcoindClient,
     FilesystemLogger,
 >;
 
-pub(crate) type InvoicePayer<E> = payment::InvoicePayer<
-    Arc<ChannelManager>,
-    Router,
+pub(crate) type InvoicePayerType<E> = payment::InvoicePayer<
+    Arc<ChannelManagerType>,
+    RouterType,
     Arc<Mutex<ProbabilisticScorer<Arc<NetworkGraph>>>>,
     Arc<FilesystemLogger>,
     E,
 >;
 
-type Router = DefaultRouter<Arc<NetworkGraph>, Arc<FilesystemLogger>>;
+type RouterType = DefaultRouter<Arc<NetworkGraph>, Arc<FilesystemLogger>>;
 
 struct DataPersister {
     data_dir: String,
@@ -148,7 +133,7 @@ struct DataPersister {
 impl
     Persister<
         InMemorySigner,
-        Arc<ChainMonitor>,
+        Arc<ChainMonitorType>,
         Arc<BitcoindClient>,
         Arc<KeysManager>,
         Arc<BitcoindClient>,
@@ -157,7 +142,7 @@ impl
 {
     fn persist_manager(
         &self,
-        channel_manager: &ChannelManager,
+        channel_manager: &ChannelManagerType,
     ) -> Result<(), std::io::Error> {
         FilesystemPersister::persist_manager(
             self.data_dir.clone(),
@@ -186,11 +171,11 @@ impl
 }
 
 async fn handle_ldk_events(
-    channel_manager: Arc<ChannelManager>,
+    channel_manager: Arc<ChannelManagerType>,
     bitcoind_client: Arc<BitcoindClient>,
     keys_manager: Arc<KeysManager>,
-    inbound_payments: PaymentInfoStorage,
-    outbound_payments: PaymentInfoStorage,
+    inbound_payments: PaymentInfoStorageType,
+    outbound_payments: PaymentInfoStorageType,
     network: Network,
     event: &Event,
 ) {
@@ -482,7 +467,7 @@ async fn start_ldk() {
     let persister = Arc::new(FilesystemPersister::new(ldk_data_dir.clone()));
 
     // Step 5: Initialize the ChainMonitor
-    let chain_monitor: Arc<ChainMonitor> =
+    let chain_monitor: Arc<ChainMonitorType> =
         Arc::new(chainmonitor::ChainMonitor::new(
             None,
             broadcaster.clone(),
@@ -557,7 +542,7 @@ async fn start_ldk() {
                 user_config,
                 channel_monitor_mut_references,
             );
-            <(BlockHash, ChannelManager)>::read(&mut f, read_args).unwrap()
+            <(BlockHash, ChannelManagerType)>::read(&mut f, read_args).unwrap()
         } else {
             // We're starting a fresh node.
             restarting_node = false;
@@ -647,14 +632,14 @@ async fn start_ldk() {
     ));
 
     // Step 12: Initialize the PeerManager
-    let channel_manager: Arc<ChannelManager> = Arc::new(channel_manager);
+    let channel_manager: Arc<ChannelManagerType> = Arc::new(channel_manager);
     let mut ephemeral_bytes = [0; 32];
     rand::thread_rng().fill_bytes(&mut ephemeral_bytes);
     let lightning_msg_handler = MessageHandler {
         chan_handler: channel_manager.clone(),
         route_handler: network_gossip.clone(),
     };
-    let peer_manager: Arc<PeerManager> = Arc::new(PeerManager::new(
+    let peer_manager: Arc<PeerManagerType> = Arc::new(PeerManagerType::new(
         lightning_msg_handler,
         keys_manager.get_node_secret(Recipient::Node).unwrap(),
         &ephemeral_bytes,
@@ -721,9 +706,9 @@ async fn start_ldk() {
     let channel_manager_event_listener = channel_manager.clone();
     let keys_manager_listener = keys_manager.clone();
     // TODO: persist payment info to disk
-    let inbound_payments: PaymentInfoStorage =
+    let inbound_payments: PaymentInfoStorageType =
         Arc::new(Mutex::new(HashMap::new()));
-    let outbound_payments: PaymentInfoStorage =
+    let outbound_payments: PaymentInfoStorageType =
         Arc::new(Mutex::new(HashMap::new()));
     let inbound_pmts_for_events = inbound_payments.clone();
     let outbound_pmts_for_events = outbound_payments.clone();
@@ -773,7 +758,7 @@ async fn start_ldk() {
         logger.clone(),
         keys_manager.get_secure_random_bytes(),
     );
-    let invoice_payer = Arc::new(InvoicePayer::new(
+    let invoice_payer = Arc::new(InvoicePayerType::new(
         channel_manager.clone(),
         router,
         scorer.clone(),

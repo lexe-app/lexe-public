@@ -10,19 +10,21 @@ use lightning_background_processor::Persister;
 use crate::bitcoind_client::BitcoindClient;
 use crate::disk::FilesystemLogger; // TODO replace with db logger
 
-struct PostgresPersister {}
+pub struct PostgresPersister {}
 
 impl
     Persister<
         keysinterface::InMemorySigner,
-        Arc<chainmonitor::ChainMonitor<
-            keysinterface::InMemorySigner,
-            Arc<dyn chain::Filter + Send + Sync>,
-            Arc<BitcoindClient>,
-            Arc<BitcoindClient>,
-            Arc<FilesystemLogger>,
-            Arc<PostgresPersister>,
-        >>,
+        Arc<
+            chainmonitor::ChainMonitor<
+                keysinterface::InMemorySigner,
+                Arc<dyn chain::Filter + Send + Sync>,
+                Arc<BitcoindClient>,
+                Arc<BitcoindClient>,
+                Arc<FilesystemLogger>,
+                Arc<PostgresPersister>,
+            >,
+        >,
         Arc<BitcoindClient>,
         Arc<keysinterface::KeysManager>,
         Arc<BitcoindClient>,
@@ -45,14 +47,14 @@ impl
             FilesystemLogger,
         >,
     ) -> Result<(), std::io::Error> {
-        unimplemented!(); // TODO implement
+        Ok(()) // TODO implement
     }
 
     fn persist_graph(
         &self,
         network_graph: &network_graph::NetworkGraph,
     ) -> Result<(), std::io::Error> {
-        unimplemented!(); // TODO implement
+        Ok(()) // TODO implement
     }
 }
 
@@ -70,7 +72,7 @@ impl<ChannelSigner: keysinterface::Sign> chainmonitor::Persist<ChannelSigner>
         monitor: &channelmonitor::ChannelMonitor<ChannelSigner>,
         _update_id: chainmonitor::MonitorUpdateId,
     ) -> Result<(), chain::ChannelMonitorUpdateErr> {
-        unimplemented!(); // TODO implement
+        Ok(()) // TODO implement
     }
 
     fn update_persisted_channel(
@@ -80,6 +82,6 @@ impl<ChannelSigner: keysinterface::Sign> chainmonitor::Persist<ChannelSigner>
         monitor: &channelmonitor::ChannelMonitor<ChannelSigner>,
         _update_id: chainmonitor::MonitorUpdateId,
     ) -> Result<(), chain::ChannelMonitorUpdateErr> {
-        unimplemented!(); // TODO implement
+        Ok(()) // TODO implement
     }
 }

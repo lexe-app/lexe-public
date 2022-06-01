@@ -1,8 +1,8 @@
 use crate::disk;
 use crate::hex_utils;
 use crate::{
-    ChannelManager, HTLCStatus, InvoicePayer, MillisatAmount, PaymentInfo,
-    PaymentInfoStorage, PeerManager,
+    ChannelManagerType, HTLCStatus, InvoicePayerType, MillisatAmount,
+    PaymentInfo, PaymentInfoStorageType, PeerManagerType,
 };
 use bitcoin::hashes::sha256::Hash as Sha256;
 use bitcoin::hashes::Hash;
@@ -155,13 +155,13 @@ pub(crate) fn parse_startup_args() -> Result<LdkUserInfo, ()> {
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn poll_for_user_input<E: EventHandler>(
-    invoice_payer: Arc<InvoicePayer<E>>,
-    peer_manager: Arc<PeerManager>,
-    channel_manager: Arc<ChannelManager>,
+    invoice_payer: Arc<InvoicePayerType<E>>,
+    peer_manager: Arc<PeerManagerType>,
+    channel_manager: Arc<ChannelManagerType>,
     keys_manager: Arc<KeysManager>,
     network_graph: Arc<NetworkGraph>,
-    inbound_payments: PaymentInfoStorage,
-    outbound_payments: PaymentInfoStorage,
+    inbound_payments: PaymentInfoStorageType,
+    outbound_payments: PaymentInfoStorageType,
     ldk_data_dir: String,
     network: Network,
 ) {
@@ -444,8 +444,8 @@ fn help() {
 }
 
 fn node_info(
-    channel_manager: &Arc<ChannelManager>,
-    peer_manager: &Arc<PeerManager>,
+    channel_manager: &Arc<ChannelManagerType>,
+    peer_manager: &Arc<PeerManagerType>,
 ) {
     println!("\t{{");
     println!("\t\t node_pubkey: {}", channel_manager.get_our_node_id());
@@ -461,7 +461,7 @@ fn node_info(
     println!("\t}},");
 }
 
-fn list_peers(peer_manager: Arc<PeerManager>) {
+fn list_peers(peer_manager: Arc<PeerManagerType>) {
     println!("\t{{");
     for pubkey in peer_manager.get_peer_node_ids() {
         println!("\t\t pubkey: {}", pubkey);
@@ -484,7 +484,7 @@ fn sanitize_string(bytes: &[u8]) -> String {
 }
 
 fn list_channels(
-    channel_manager: &Arc<ChannelManager>,
+    channel_manager: &Arc<ChannelManagerType>,
     network_graph: &Arc<NetworkGraph>,
 ) {
     print!("[");
@@ -543,8 +543,8 @@ fn list_channels(
 }
 
 fn list_payments(
-    inbound_payments: PaymentInfoStorage,
-    outbound_payments: PaymentInfoStorage,
+    inbound_payments: PaymentInfoStorageType,
+    outbound_payments: PaymentInfoStorageType,
 ) {
     let inbound = inbound_payments.lock().unwrap();
     let outbound = outbound_payments.lock().unwrap();
@@ -590,7 +590,7 @@ fn list_payments(
 pub(crate) async fn connect_peer_if_necessary(
     pubkey: PublicKey,
     peer_addr: SocketAddr,
-    peer_manager: Arc<PeerManager>,
+    peer_manager: Arc<PeerManagerType>,
 ) -> Result<(), ()> {
     for node_pubkey in peer_manager.get_peer_node_ids() {
         if node_pubkey == pubkey {
@@ -607,7 +607,7 @@ pub(crate) async fn connect_peer_if_necessary(
 pub(crate) async fn do_connect_peer(
     pubkey: PublicKey,
     peer_addr: SocketAddr,
-    peer_manager: Arc<PeerManager>,
+    peer_manager: Arc<PeerManagerType>,
 ) -> Result<(), ()> {
     match lightning_net_tokio::connect_outbound(
         Arc::clone(&peer_manager),
@@ -645,7 +645,7 @@ fn open_channel(
     peer_pubkey: PublicKey,
     channel_amt_sat: u64,
     announced_channel: bool,
-    channel_manager: Arc<ChannelManager>,
+    channel_manager: Arc<ChannelManagerType>,
 ) -> Result<(), ()> {
     let config = UserConfig {
         peer_channel_config_limits: ChannelHandshakeLimits {
@@ -679,9 +679,9 @@ fn open_channel(
 }
 
 fn send_payment<E: EventHandler>(
-    invoice_payer: &InvoicePayer<E>,
+    invoice_payer: &InvoicePayerType<E>,
     invoice: &Invoice,
-    payment_storage: PaymentInfoStorage,
+    payment_storage: PaymentInfoStorageType,
 ) {
     let status = match invoice_payer.pay_invoice(invoice) {
         Ok(_payment_id) => {
@@ -726,11 +726,11 @@ fn send_payment<E: EventHandler>(
 }
 
 fn keysend<E: EventHandler, K: KeysInterface>(
-    invoice_payer: &InvoicePayer<E>,
+    invoice_payer: &InvoicePayerType<E>,
     payee_pubkey: PublicKey,
     amt_msat: u64,
     keys: &K,
-    payment_storage: PaymentInfoStorage,
+    payment_storage: PaymentInfoStorageType,
 ) {
     let payment_preimage = keys.get_secure_random_bytes();
 
@@ -779,8 +779,8 @@ fn keysend<E: EventHandler, K: KeysInterface>(
 
 fn get_invoice(
     amt_msat: u64,
-    payment_storage: PaymentInfoStorage,
-    channel_manager: Arc<ChannelManager>,
+    payment_storage: PaymentInfoStorageType,
+    channel_manager: Arc<ChannelManagerType>,
     keys_manager: Arc<KeysManager>,
     network: Network,
 ) {
@@ -820,7 +820,10 @@ fn get_invoice(
     );
 }
 
-fn close_channel(channel_id: [u8; 32], channel_manager: Arc<ChannelManager>) {
+fn close_channel(
+    channel_id: [u8; 32],
+    channel_manager: Arc<ChannelManagerType>,
+) {
     match channel_manager.close_channel(&channel_id) {
         Ok(()) => println!("EVENT: initiating channel close"),
         Err(e) => println!("ERROR: failed to close channel: {:?}", e),
@@ -829,7 +832,7 @@ fn close_channel(channel_id: [u8; 32], channel_manager: Arc<ChannelManager>) {
 
 fn force_close_channel(
     channel_id: [u8; 32],
-    channel_manager: Arc<ChannelManager>,
+    channel_manager: Arc<ChannelManagerType>,
 ) {
     match channel_manager.force_close_channel(&channel_id) {
         Ok(()) => println!("EVENT: initiating channel force-close"),
