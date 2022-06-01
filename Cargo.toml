@@ -18,6 +18,13 @@ lightning-net-tokio = { version = "0.0.106" }
 lightning-persister = { version = "0.0.106" }
 lightning-background-processor = { version = "0.0.106" }
 
+# lightning = { git = "https://github.com/lightningdevkit/rust-lightning", features = ["max_level_trace"] }
+# lightning-block-sync = { git = "https://github.com/lightningdevkit/rust-lightning", features = [ "rpc-client" ] }
+# lightning-invoice = { git = "https://github.com/lightningdevkit/rust-lightning" }
+# lightning-net-tokio = { git = "https://github.com/lightningdevkit/rust-lightning" }
+# lightning-persister = { git = "https://github.com/lightningdevkit/rust-lightning" }
+# lightning-background-processor = { git = "https://github.com/lightningdevkit/rust-lightning" }
+
 base64 = "0.13.0"
 bitcoin = "0.27"
 bitcoin-bech32 = "0.12"

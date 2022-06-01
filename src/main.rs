@@ -3,6 +3,9 @@ mod cli;
 mod convert;
 mod disk;
 mod hex_utils;
+// TODO remove after implementation is complete
+#[allow(unused_variables, dead_code)]
+mod persister;
 
 use crate::bitcoind_client::BitcoindClient;
 use crate::disk::FilesystemLogger;
@@ -81,6 +84,24 @@ pub(crate) struct PaymentInfo {
     status: HTLCStatus,
     amt_msat: MillisatAmount,
 }
+
+// These type aliases might come handy
+
+// type ChainMonitorType = chainmonitor::ChainMonitor<
+//     keysinterface::InMemorySigner,
+//     Arc<dyn chain::Filter + Send + Sync>,
+//     Arc<BitcoindClient>,
+//     Arc<BitcoindClient>,
+//     Arc<FilesystemLogger>,
+//     Arc<PostgresPersister>,
+// >;
+
+// type ChannelManagerType = channelmanager::SimpleArcChannelManager<
+//     ChainMonitorType,
+//     BitcoindClient,
+//     BitcoindClient,
+//     FilesystemLogger,
+// >;
 
 pub(crate) type PaymentInfoStorage =
     Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
