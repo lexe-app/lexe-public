@@ -2,22 +2,20 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt;
 use std::fs;
-use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::ops::Deref;
 use std::path::Path;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
-
-use anyhow::bail;
-use rand::{thread_rng, Rng};
 
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
 use bitcoin::network::constants::Network;
+use bitcoin::secp256k1::key::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::BlockHash;
 use bitcoin_bech32::WitnessProgram;
@@ -53,6 +51,11 @@ use lightning_invoice::utils::DefaultRouter;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_persister::FilesystemPersister;
 
+use anyhow::{bail, ensure, Context};
+use rand::{thread_rng, Rng};
+use reqwest::Client;
+
+use crate::api::Node;
 use crate::bitcoind_client::BitcoindClient;
 use crate::disk::FilesystemLogger;
 use crate::persister::PostgresPersister;
@@ -479,41 +482,76 @@ async fn start_ldk() -> anyhow::Result<()> {
 
     // Step 6: Initialize the KeysManager
 
-    // The key seed that we use to derive the node privkey (that corresponds to
-    // the node pubkey) and other secret key material.
-    let keys_seed_path = format!("{}/keys_seed", ldk_data_dir.clone());
-    let keys_seed = if let Ok(seed) = fs::read(keys_seed_path.clone()) {
-        assert_eq!(seed.len(), 32);
-        let mut key = [0; 32];
-        key.copy_from_slice(&seed);
-        key
-    } else {
-        let mut key = [0; 32];
-        thread_rng().fill_bytes(&mut key);
-        match File::create(keys_seed_path.clone()) {
-            Ok(mut f) => {
-                f.write_all(&key)
-                    .expect("Failed to write node keys seed to disk");
-                f.sync_all().expect("Failed to sync node keys seed to disk");
-            }
-            Err(e) => {
-                bail!(
-                    "ERROR: Unable to create keys seed file {}: {}",
-                    keys_seed_path,
-                    e
-                );
-            }
-        }
-        key
-    };
-    let cur = SystemTime::now()
+    // Get the key seed that we use to derive the node privkey (that corresponds
+    // to the node pubkey) and other secret key material.
+    let client = Client::new();
+    let node_res = api::get_node(&client).await;
+    let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap();
-    let keys_manager = Arc::new(KeysManager::new(
-        &keys_seed,
-        cur.as_secs(),
-        cur.subsec_nanos(),
-    ));
+    let keys_manager = match node_res {
+        Ok(node) => {
+            // Existing node
+            ensure!(node.keys_seed.len() == 32, "Incorrect seed length");
+
+            let mut key_buf = [0; 32];
+            key_buf.copy_from_slice(&node.keys_seed);
+
+            // FIXME(security): KeysManager::new() MUST be given a unique
+            // `starting_time_secs` and `starting_time_nanos` for security.
+            // Since secure timekeeping within an enclave is not a solved
+            // problem, we should just take a random u64, u32 instead.
+            // See KeysManager::new() doc comment for details.
+            let keys_manager =
+                KeysManager::new(&key_buf, now.as_secs(), now.subsec_nanos());
+            let derived_pubkey = convert::get_pubkey(&keys_manager)
+                .context("Could not get our pubkey")?;
+            let given_pubkey = PublicKey::from_str(&node.public_key)
+                .context("Could not deserialize PublicKey from LowerHex")?;
+            ensure!(
+                given_pubkey == derived_pubkey,
+                "Derived pubkey doesn't match pubkey returned from API"
+            );
+            // Check the lowerhex encoding as well
+            let given_pubkey_hex = &node.public_key;
+            let derived_pubkey_hex = &format!("{:x}", derived_pubkey);
+            ensure!(
+                given_pubkey_hex == derived_pubkey_hex,
+                "Derived pubkey string doesn't match given pubkey string"
+            );
+
+            keys_manager
+        }
+        Err(_api_err) => {
+            // New node
+            let mut new_key = [0; 32];
+            rand::thread_rng().fill_bytes(&mut new_key);
+
+            // FIXME(security): KeysManager::new() MUST be given a unique
+            // `starting_time_secs` and `starting_time_nanos` for security.
+            // Since secure timekeeping within an enclave is not a solved
+            // problem, we should just take a random u64, u32 instead.
+            // See KeysManager::new() doc comment for details.
+            let keys_manager =
+                KeysManager::new(&new_key, now.as_secs(), now.subsec_nanos());
+            let public_key = convert::get_pubkey(&keys_manager)
+                .context("Could not get our pubkey")?;
+            // Format using secp256k1's fmt::LowerHex impl
+            let public_key = format!("{:x}", public_key);
+
+            let node = Node {
+                public_key,
+                // FIXME(security): Encrypt seed before sending it (obviously)
+                keys_seed: new_key.to_vec(),
+            };
+            api::create_node(&client, node)
+                .await
+                .context("Could not persist newly created node")?;
+
+            keys_manager
+        }
+    };
+    let keys_manager = Arc::new(keys_manager);
 
     // Step 7: Read ChannelMonitor state from disk
     let mut channelmonitors = persister

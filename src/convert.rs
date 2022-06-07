@@ -1,7 +1,25 @@
-use bitcoin::hashes::hex::FromHex;
-use bitcoin::BlockHash;
-use lightning_block_sync::http::JsonResponse;
 use std::convert::TryInto;
+
+use bitcoin::hashes::hex::FromHex;
+use bitcoin::secp256k1::key::PublicKey;
+use bitcoin::secp256k1::Secp256k1;
+use bitcoin::BlockHash;
+use lightning::chain::keysinterface::{KeysInterface, KeysManager, Recipient};
+use lightning_block_sync::http::JsonResponse;
+
+use anyhow::anyhow;
+
+/// Extracts the network public key (node id) from the KeysManager.
+pub fn get_pubkey(keys_manager: &KeysManager) -> anyhow::Result<PublicKey> {
+    // let node_secret =
+    let privkey = keys_manager
+        .get_node_secret(Recipient::Node)
+        .map_err(|()| anyhow!("Decode error: invalid value"))?;
+    let mut secp = Secp256k1::new();
+    secp.seeded_randomize(&keys_manager.get_secure_random_bytes());
+    let derived_pubkey = PublicKey::from_secret_key(&secp, &privkey);
+    Ok(derived_pubkey)
+}
 
 pub struct FundedTx {
     pub changepos: i64,
