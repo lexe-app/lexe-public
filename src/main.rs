@@ -56,6 +56,7 @@ use crate::bitcoind_client::BitcoindClient;
 use crate::disk::FilesystemLogger;
 use crate::persister::PostgresPersister;
 
+mod api;
 pub mod bitcoind_client;
 mod cli;
 mod convert;
