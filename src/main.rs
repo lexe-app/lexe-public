@@ -482,37 +482,35 @@ async fn start_ldk() -> anyhow::Result<()> {
 
     // Step 6: Initialize the KeysManager
 
-    // Get the key seed that we use to derive the node privkey (that corresponds
-    // to the node pubkey) and other secret key material.
+    // Fetch our node pubkey, seed from data store
     let client = Client::new();
-    let node_res = api::get_node(&client).await;
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap();
-    let keys_manager = match node_res {
-        Ok(node) => {
+    let node_opt = api::get_node(&client)
+        .await
+        .context("Error while fetching node")?;
+
+    // Init the KeysManager, generating and persisting the seed / pubkey if
+    // no node was found in the data store
+    let keys_manager = match node_opt {
+        Some(node) => {
             // Existing node
             ensure!(node.keys_seed.len() == 32, "Incorrect seed length");
 
-            let mut key_buf = [0; 32];
-            key_buf.copy_from_slice(&node.keys_seed);
+            // Check that the key seed is valid
+            let mut existing_seed = [0; 32];
+            existing_seed.copy_from_slice(&node.keys_seed);
 
-            // FIXME(security): KeysManager::new() MUST be given a unique
-            // `starting_time_secs` and `starting_time_nanos` for security.
-            // Since secure timekeeping within an enclave is not a solved
-            // problem, we should just take a random u64, u32 instead.
-            // See KeysManager::new() doc comment for details.
-            let keys_manager =
-                KeysManager::new(&key_buf, now.as_secs(), now.subsec_nanos());
+            // Check that the derived pubkey matches the given one
+            let keys_manager = init_key_manager(&existing_seed);
             let derived_pubkey = convert::get_pubkey(&keys_manager)
-                .context("Could not get our pubkey")?;
+                .context("Could not get derive our pubkey from seed")?;
             let given_pubkey = PublicKey::from_str(&node.public_key)
                 .context("Could not deserialize PublicKey from LowerHex")?;
             ensure!(
                 given_pubkey == derived_pubkey,
                 "Derived pubkey doesn't match pubkey returned from API"
             );
-            // Check the lowerhex encoding as well
+
+            // Check the hex encodings as well
             let given_pubkey_hex = &node.public_key;
             let derived_pubkey_hex = &format!("{:x}", derived_pubkey);
             ensure!(
@@ -522,27 +520,24 @@ async fn start_ldk() -> anyhow::Result<()> {
 
             keys_manager
         }
-        Err(_api_err) => {
+        None => {
             // New node
-            let mut new_key = [0; 32];
-            rand::thread_rng().fill_bytes(&mut new_key);
 
-            // FIXME(security): KeysManager::new() MUST be given a unique
-            // `starting_time_secs` and `starting_time_nanos` for security.
-            // Since secure timekeeping within an enclave is not a solved
-            // problem, we should just take a random u64, u32 instead.
-            // See KeysManager::new() doc comment for details.
-            let keys_manager =
-                KeysManager::new(&new_key, now.as_secs(), now.subsec_nanos());
+            // Generate a new seed
+            let mut new_seed = [0; 32];
+            rand::thread_rng().fill_bytes(&mut new_seed);
+
+            // Persist the new seed along with its public key
+            let keys_manager = init_key_manager(&new_seed);
             let public_key = convert::get_pubkey(&keys_manager)
-                .context("Could not get our pubkey")?;
-            // Format using secp256k1's fmt::LowerHex impl
-            let public_key = format!("{:x}", public_key);
+                .context("Could not get derive our pubkey from seed")?;
+            let public_key_hex = format!("{:x}", public_key);
 
+            // Persist the node
             let node = Node {
-                public_key,
-                // FIXME(security): Encrypt seed before sending it (obviously)
-                keys_seed: new_key.to_vec(),
+                public_key: public_key_hex,
+                // FIXME(encryption): Encrypt seed before sending it (obviously)
+                keys_seed: new_seed.to_vec(),
             };
             api::create_node(&client, node)
                 .await
@@ -916,4 +911,17 @@ pub async fn main() {
         Ok(()) => {}
         Err(e) => println!("Error: {:#}", e),
     }
+}
+
+/// Securely initializes a KeyManager from a given seed
+fn init_key_manager(seed: &[u8; 32]) -> KeysManager {
+    // FIXME(randomness): KeysManager::new() MUST be given a unique
+    // `starting_time_secs` and `starting_time_nanos` for security. Since secure
+    // timekeeping within an enclave is difficult, we should just take a
+    // (securely) random u64, u32 instead. See KeysManager::new() for details.
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .expect("Literally 1984");
+
+    KeysManager::new(seed, now.as_secs(), now.subsec_nanos())
 }

@@ -35,7 +35,7 @@ pub async fn create_node(client: &Client, node: Node) -> Result<(), ApiError> {
         .map_err(|e| e.into())
 }
 
-pub async fn get_node(client: &Client) -> Result<Node, ApiError> {
+pub async fn get_node(client: &Client) -> Result<Option<Node>, ApiError> {
     let method = Method::POST;
     let endpoint = "/node";
     let url = format!("{}{}", API_URL, endpoint);
