@@ -3,7 +3,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-const API_URL: &str = "localhost:3030/v1";
+const API_URL: &str = "http://127.0.0.1:3030/v1";
 
 #[derive(Error, Debug)]
 pub enum ApiError {
@@ -19,29 +19,39 @@ pub struct Node {
     pub keys_seed: Vec<u8>,
 }
 
-pub async fn create_node(client: &Client, node: Node) -> Result<(), ApiError> {
+pub async fn create_node(
+    client: &Client,
+    node: Node,
+) -> Result<String, ApiError> {
     let method = Method::POST;
     let endpoint = "/node";
     let url = format!("{}{}", API_URL, endpoint);
     let body = serde_json::to_string(&node)?;
+
+    // Debugging
+    // let debug_resp: String = client
+    //     .request(method.clone(), url.clone())
+    //     .send()
+    //     .await?
+    //     .text_with_charset("utf-8")
+    //     .await?;
+    // panic!("{:#?}", debug_resp);
 
     client
         .request(method, url)
         .body(body)
         .send()
         .await?
-        .json()
+        .text()
         .await
         .map_err(|e| e.into())
 }
 
 pub async fn get_node(client: &Client) -> Result<Option<Node>, ApiError> {
-    let method = Method::POST;
+    let method = Method::GET;
     let endpoint = "/node";
     let url = format!("{}{}", API_URL, endpoint);
 
-    // TODO Detect NotFound and return Option<Node> instead, Ok/Err should
-    // indicate whether the API call succeeded or not
     client
         .request(method, url)
         .send()
