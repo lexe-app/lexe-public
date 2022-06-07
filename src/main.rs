@@ -11,6 +11,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
+use anyhow::bail;
 use rand::{thread_rng, Rng};
 
 use bitcoin::blockdata::constants::genesis_block;
@@ -403,10 +404,10 @@ async fn handle_ldk_events(
     }
 }
 
-async fn start_ldk() {
+async fn start_ldk() -> anyhow::Result<()> {
     let args = match cli::parse_startup_args() {
         Ok(user_args) => user_args,
-        Err(()) => return,
+        Err(()) => bail!("Could not parse startup args"),
     };
 
     // Initialize the LDK data directory if necessary.
@@ -425,8 +426,7 @@ async fn start_ldk() {
     {
         Ok(client) => Arc::new(client),
         Err(e) => {
-            println!("Failed to connect to bitcoind client: {}", e);
-            return;
+            bail!("Failed to connect to bitcoind client: {}", e);
         }
     };
 
@@ -441,11 +441,11 @@ async fn start_ldk() {
             bitcoin::Network::Signet => "signet",
         }
     {
-        println!(
+        bail!(
             "Chain argument ({}) didn't match bitcoind chain ({})",
-            args.network, bitcoind_chain
+            args.network,
+            bitcoind_chain
         );
-        return;
     }
 
     // ## Setup
@@ -497,11 +497,11 @@ async fn start_ldk() {
                 f.sync_all().expect("Failed to sync node keys seed to disk");
             }
             Err(e) => {
-                println!(
+                bail!(
                     "ERROR: Unable to create keys seed file {}: {}",
-                    keys_seed_path, e
+                    keys_seed_path,
+                    e
                 );
-                return;
             }
         }
         key
@@ -868,9 +868,14 @@ async fn start_ldk() {
 
     // Stop the background processor.
     background_processor.stop().unwrap();
+
+    Ok(())
 }
 
 #[tokio::main]
 pub async fn main() {
-    start_ldk().await;
+    match start_ldk().await {
+        Ok(()) => {}
+        Err(e) => println!("Error: {:#}", e),
+    }
 }
