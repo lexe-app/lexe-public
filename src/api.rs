@@ -1,5 +1,6 @@
 use http::Method;
 use reqwest::Client;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -22,38 +23,31 @@ pub struct Node {
 pub async fn create_node(
     client: &Client,
     node: Node,
-) -> Result<String, ApiError> {
-    let method = Method::POST;
-    let endpoint = "/node";
-    let url = format!("{}{}", API_URL, endpoint);
-    let body = serde_json::to_string(&node)?;
+) -> Result<Node, ApiError> {
+    request(client, Method::POST, "/node", node).await
+}
 
-    // Debugging
-    // let debug_resp: String = client
-    //     .request(method.clone(), url.clone())
-    //     .send()
-    //     .await?
-    //     .text_with_charset("utf-8")
-    //     .await?;
-    // panic!("{:#?}", debug_resp);
+pub async fn get_node(client: &Client) -> Result<Option<Node>, ApiError> {
+    request(client, Method::GET, "/node", EmptyBody).await
+}
+
+/// An empty request body which can be used for e.g. GET requests
+#[derive(Serialize)]
+struct EmptyBody;
+
+/// Builds and executes the API request
+async fn request<B: Serialize, T: DeserializeOwned>(
+    client: &Client,
+    method: Method,
+    endpoint: &str,
+    body: B,
+) -> Result<T, ApiError> {
+    let url = format!("{}{}", API_URL, endpoint);
+    let body = serde_json::to_string(&body)?;
 
     client
         .request(method, url)
         .body(body)
-        .send()
-        .await?
-        .text()
-        .await
-        .map_err(|e| e.into())
-}
-
-pub async fn get_node(client: &Client) -> Result<Option<Node>, ApiError> {
-    let method = Method::GET;
-    let endpoint = "/node";
-    let url = format!("{}{}", API_URL, endpoint);
-
-    client
-        .request(method, url)
         .send()
         .await?
         .json()
