@@ -31,6 +31,21 @@ pub async fn get_node(client: &Client) -> Result<Option<Node>, ApiError> {
     request(client, Method::GET, "/node", EmptyBody).await
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct ChannelMonitor {
+    pub node_public_key: String,
+    pub tx_id: String,
+    pub tx_index: i16,
+    pub state: Vec<u8>,
+}
+
+pub async fn create_channel_monitor(
+    client: &Client,
+    channel_monitor: ChannelMonitor,
+) -> Result<ChannelMonitor, ApiError> {
+    request(client, Method::POST, "/channel_monitor", channel_monitor).await
+}
+
 /// An empty request body which can be used for e.g. GET requests
 #[derive(Serialize)]
 struct EmptyBody;
