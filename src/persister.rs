@@ -1,16 +1,22 @@
 use std::convert::TryInto;
+use std::io;
 use std::ops::Deref;
 use std::sync::Arc;
 
-use bitcoin::hash_types;
+use bitcoin::hash_types::BlockHash;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::secp256k1::key::PublicKey;
-use lightning::chain::{
-    chainmonitor, channelmonitor, keysinterface, transaction,
-    ChannelMonitorUpdateErr,
+use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
+use lightning::chain::channelmonitor::{
+    ChannelMonitor as LdkChannelMonitor, ChannelMonitorUpdate,
 };
-use lightning::ln::channelmanager;
-use lightning::routing::network_graph;
+use lightning::chain::keysinterface::{
+    InMemorySigner, KeysInterface, KeysManager, Sign,
+};
+use lightning::chain::transaction::OutPoint;
+use lightning::chain::ChannelMonitorUpdateErr;
+use lightning::ln::channelmanager::SimpleArcChannelManager;
+use lightning::routing::network_graph::NetworkGraph;
 use lightning::util::ser::Writeable;
 use lightning_background_processor::Persister;
 
@@ -38,25 +44,18 @@ impl PostgresPersister {
     // Replaces `ldk-sample/main::start_ldk` "Step 8: Init ChannelManager"
     pub fn read_channelmanager(
         &self,
-    ) -> Result<(hash_types::BlockHash, ChannelManagerType), std::io::Error>
-    {
+    ) -> Result<(BlockHash, ChannelManagerType), io::Error> {
         // FIXME(decrypt): Decrypt first
-        unimplemented!(); // TODO implement
+        todo!(); // TODO implement
     }
 
     // Replaces equivalent method in lightning_persister::FilesystemPersister
-    pub fn read_channelmonitors<Signer: keysinterface::Sign, K: Deref>(
+    pub fn read_channelmonitors<Signer: Sign, K: Deref>(
         &self,
         keys_manager: K,
-    ) -> Result<
-        Vec<(
-            hash_types::BlockHash,
-            channelmonitor::ChannelMonitor<Signer>,
-        )>,
-        std::io::Error,
-    >
+    ) -> Result<Vec<(BlockHash, LdkChannelMonitor<Signer>)>, io::Error>
     where
-        K::Target: keysinterface::KeysInterface<Signer = Signer> + Sized,
+        K::Target: KeysInterface<Signer = Signer> + Sized,
     {
         // FIXME(decrypt): Decrypt first
         Ok(Vec::new()) // TODO implement
@@ -65,23 +64,23 @@ impl PostgresPersister {
 
 impl
     Persister<
-        keysinterface::InMemorySigner,
+        InMemorySigner,
         Arc<ChainMonitorType>,
         Arc<BitcoindClient>,
-        Arc<keysinterface::KeysManager>,
+        Arc<KeysManager>,
         Arc<BitcoindClient>,
         Arc<FilesystemLogger>,
     > for PostgresPersister
 {
     fn persist_manager(
         &self,
-        channel_manager: &channelmanager::SimpleArcChannelManager<
+        channel_manager: &SimpleArcChannelManager<
             ChainMonitorType,
             BitcoindClient,
             BitcoindClient,
             FilesystemLogger,
         >,
-    ) -> Result<(), std::io::Error> {
+    ) -> Result<(), io::Error> {
         // Original FilesystemPersister filename: "manager"
         let plaintext_bytes = channel_manager.encode();
         // FIXME(encrypt): Encrypt before send
@@ -92,8 +91,8 @@ impl
 
     fn persist_graph(
         &self,
-        network_graph: &network_graph::NetworkGraph,
-    ) -> Result<(), std::io::Error> {
+        network_graph: &NetworkGraph,
+    ) -> Result<(), io::Error> {
         // Original FilesystemPersister filename: "network_graph"
         let plaintext_bytes = network_graph.encode();
         // FIXME(encrypt): Encrypt before send
@@ -103,14 +102,12 @@ impl
     }
 }
 
-impl<ChannelSigner: keysinterface::Sign> chainmonitor::Persist<ChannelSigner>
-    for PostgresPersister
-{
+impl<ChannelSigner: Sign> Persist<ChannelSigner> for PostgresPersister {
     fn persist_new_channel(
         &self,
-        funding_txo: transaction::OutPoint,
-        monitor: &channelmonitor::ChannelMonitor<ChannelSigner>,
-        _update_id: chainmonitor::MonitorUpdateId,
+        funding_txo: OutPoint,
+        monitor: &LdkChannelMonitor<ChannelSigner>,
+        _update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
         let tx_id = funding_txo.txid.to_hex();
         let tx_index = funding_txo.index.try_into().unwrap();
@@ -140,10 +137,10 @@ impl<ChannelSigner: keysinterface::Sign> chainmonitor::Persist<ChannelSigner>
 
     fn update_persisted_channel(
         &self,
-        funding_txo: transaction::OutPoint,
-        _update: &Option<channelmonitor::ChannelMonitorUpdate>,
-        monitor: &channelmonitor::ChannelMonitor<ChannelSigner>,
-        _update_id: chainmonitor::MonitorUpdateId,
+        funding_txo: OutPoint,
+        _update: &Option<ChannelMonitorUpdate>,
+        monitor: &LdkChannelMonitor<ChannelSigner>,
+        _update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
         let tx_id = funding_txo.txid.to_hex();
         let tx_index = funding_txo.index.try_into().unwrap();
