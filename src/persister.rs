@@ -1,25 +1,38 @@
+use std::convert::TryInto;
 use std::ops::Deref;
 use std::sync::Arc;
 
 use bitcoin::hash_types;
 use bitcoin::hashes::hex::ToHex;
+use bitcoin::secp256k1::key::PublicKey;
 use lightning::chain::{
-    self, chainmonitor, channelmonitor, keysinterface, transaction,
+    chainmonitor, channelmonitor, keysinterface, transaction,
+    ChannelMonitorUpdateErr,
 };
 use lightning::ln::channelmanager;
 use lightning::routing::network_graph;
 use lightning::util::ser::Writeable;
 use lightning_background_processor::Persister;
 
+use reqwest::Client;
+use tokio::runtime::Handle;
+
+use crate::api::{self, ChannelMonitor};
 use crate::bitcoind_client::BitcoindClient;
 use crate::disk::FilesystemLogger; // TODO replace with db logger
 use crate::{ChainMonitorType, ChannelManagerType};
 
-pub struct PostgresPersister {}
+pub struct PostgresPersister {
+    client: Client,
+    pubkey: String,
+}
 
 impl PostgresPersister {
-    pub fn new() -> Self {
-        Self {}
+    pub fn new(client: &Client, pubkey: PublicKey) -> Self {
+        Self {
+            client: client.clone(),
+            pubkey: format!("{:x}", pubkey),
+        }
     }
 
     // Replaces `ldk-sample/main::start_ldk` "Step 8: Init ChannelManager"
@@ -93,28 +106,36 @@ impl
 impl<ChannelSigner: keysinterface::Sign> chainmonitor::Persist<ChannelSigner>
     for PostgresPersister
 {
-    // TODO: We really need a way for the persister to inform the user that its
-    // time to crash/shut down once these start returning failure.
-    // A PermanentFailure implies we need to shut down since we're force-closing
-    // channels without even broadcasting!
-
     fn persist_new_channel(
         &self,
         funding_txo: transaction::OutPoint,
         monitor: &channelmonitor::ChannelMonitor<ChannelSigner>,
         _update_id: chainmonitor::MonitorUpdateId,
-    ) -> Result<(), chain::ChannelMonitorUpdateErr> {
-        // Original FilesystemPersister filename: `id`, under folder "monitors"
-        let id = format!("{}_{}", funding_txo.txid.to_hex(), funding_txo.index);
-        let txo_plaintext_bytes = id.into_bytes();
-        // FIXME(encrypt): Encrypt before send
-        println!("Persisting new channel {:?}", txo_plaintext_bytes);
+    ) -> Result<(), ChannelMonitorUpdateErr> {
+        let tx_id = funding_txo.txid.to_hex();
+        let tx_index = funding_txo.index.try_into().unwrap();
+        println!("Persisting new channel {}_{}", tx_id, tx_index);
+        let channel_monitor = ChannelMonitor {
+            node_public_key: self.pubkey.clone(),
+            tx_id,
+            tx_index,
+            // FIXME(encrypt): Encrypt before send
+            state: monitor.encode(),
+        };
 
-        let monitor_plaintext_bytes = monitor.encode();
-        // FIXME(encrypt): Encrypt before send
-        println!("Channel monitor: {:?}", monitor_plaintext_bytes);
-
-        Ok(()) // TODO implement
+        // Run an async fn inside a sync fn inside a Tokio runtime
+        tokio::task::block_in_place(|| {
+            Handle::current().block_on(async move {
+                api::create_channel_monitor(&self.client, channel_monitor).await
+            })
+        })
+        .map(|_| ())
+        .map_err(|e| {
+            // Even though this is a temporary failure that can be retried,
+            // we should still log it
+            println!("Could not persist new channel monitor: {:#}", e);
+            ChannelMonitorUpdateErr::TemporaryFailure
+        })
     }
 
     fn update_persisted_channel(
@@ -123,7 +144,7 @@ impl<ChannelSigner: keysinterface::Sign> chainmonitor::Persist<ChannelSigner>
         _update: &Option<channelmonitor::ChannelMonitorUpdate>,
         monitor: &channelmonitor::ChannelMonitor<ChannelSigner>,
         _update_id: chainmonitor::MonitorUpdateId,
-    ) -> Result<(), chain::ChannelMonitorUpdateErr> {
+    ) -> Result<(), ChannelMonitorUpdateErr> {
         // Original FilesystemPersister filename: `id`, under folder "monitors"
         let id = format!("{}_{}", funding_txo.txid.to_hex(), funding_txo.index);
         let txo_plaintext_bytes = id.into_bytes();

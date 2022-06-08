@@ -467,20 +467,7 @@ async fn start_ldk() -> anyhow::Result<()> {
     // our transaction broadcaster.
     let broadcaster = bitcoind_client.clone();
 
-    // Step 4: Initialize Persist
-    let persister = Arc::new(PostgresPersister::new());
-
-    // Step 5: Initialize the ChainMonitor
-    let chain_monitor: Arc<ChainMonitorType> =
-        Arc::new(chainmonitor::ChainMonitor::new(
-            None,
-            broadcaster.clone(),
-            logger.clone(),
-            fee_estimator.clone(),
-            persister.clone(),
-        ));
-
-    // Step 6: Initialize the KeysManager
+    // Step 4: Initialize the KeysManager
 
     // Fetch our node pubkey, seed from data store
     let client = Client::new();
@@ -490,7 +477,7 @@ async fn start_ldk() -> anyhow::Result<()> {
 
     // Init the KeysManager, generating and persisting the seed / pubkey if
     // no node was found in the data store
-    let keys_manager = match node_opt {
+    let (pubkey, keys_manager) = match node_opt {
         Some(node) => {
             // Existing node
             println!("Found existing node in DB");
@@ -519,7 +506,7 @@ async fn start_ldk() -> anyhow::Result<()> {
                 "Derived pubkey string doesn't match given pubkey string"
             );
 
-            keys_manager
+            (derived_pubkey, keys_manager)
         }
         None => {
             // New node
@@ -545,10 +532,23 @@ async fn start_ldk() -> anyhow::Result<()> {
                 .await
                 .context("Could not persist newly created node")?;
 
-            keys_manager
+            (pubkey, keys_manager)
         }
     };
     let keys_manager = Arc::new(keys_manager);
+
+    // Step 5: Initialize Persister
+    let persister = Arc::new(PostgresPersister::new(&client, pubkey));
+
+    // Step 6: Initialize the ChainMonitor
+    let chain_monitor: Arc<ChainMonitorType> =
+        Arc::new(chainmonitor::ChainMonitor::new(
+            None,
+            broadcaster.clone(),
+            logger.clone(),
+            fee_estimator.clone(),
+            persister.clone(),
+        ));
 
     // Step 7: Retrieve ChannelMonitor state from DB
     let mut channelmonitors = persister
