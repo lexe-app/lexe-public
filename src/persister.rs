@@ -145,16 +145,29 @@ impl<ChannelSigner: keysinterface::Sign> chainmonitor::Persist<ChannelSigner>
         monitor: &channelmonitor::ChannelMonitor<ChannelSigner>,
         _update_id: chainmonitor::MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
-        // Original FilesystemPersister filename: `id`, under folder "monitors"
-        let id = format!("{}_{}", funding_txo.txid.to_hex(), funding_txo.index);
-        let txo_plaintext_bytes = id.into_bytes();
-        // FIXME(encrypt): Encrypt before send
-        println!("Updating persisted channel {:?}", txo_plaintext_bytes);
+        let tx_id = funding_txo.txid.to_hex();
+        let tx_index = funding_txo.index.try_into().unwrap();
+        println!("Updating persisted channel {}_{}", tx_id, tx_index);
+        let channel_monitor = ChannelMonitor {
+            node_public_key: self.pubkey.clone(),
+            tx_id,
+            tx_index,
+            // FIXME(encrypt): Encrypt before send
+            state: monitor.encode(),
+        };
 
-        let monitor_plaintext_bytes = monitor.encode();
-        // FIXME(encrypt): Encrypt before send
-        println!("Channel monitor: {:?}", monitor_plaintext_bytes);
-
-        Ok(()) // TODO implement
+        // Run an async fn inside a sync fn inside a Tokio runtime
+        tokio::task::block_in_place(|| {
+            Handle::current().block_on(async move {
+                api::update_channel_monitor(&self.client, channel_monitor).await
+            })
+        })
+        .map(|_| ())
+        .map_err(|e| {
+            // Even though this is a temporary failure that can be retried,
+            // we should still log it
+            println!("Could not update persisted channel monitor: {:#}", e);
+            ChannelMonitorUpdateErr::TemporaryFailure
+        })
     }
 }
