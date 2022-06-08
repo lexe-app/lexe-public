@@ -16,6 +16,18 @@ pub enum ApiError {
     QueryStringSerialization(#[from] serde_qs::Error),
 }
 
+/// Struct which can be used to make requests with no data attached
+///
+/// Is defined with {} otherwise serde_qs vomits
+#[derive(Serialize)]
+pub struct EmptyData {}
+
+/// Struct which can be used to query data based on a node's public key
+#[derive(Serialize)]
+pub struct GetByPublicKey {
+    pub public_key: String,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Node {
     pub public_key: String,
@@ -30,7 +42,7 @@ pub async fn create_node(
 }
 
 pub async fn get_node(client: &Client) -> Result<Option<Node>, ApiError> {
-    request(client, Method::GET, "/node", EmptyBody).await
+    request(client, Method::GET, "/node", EmptyData {}).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -48,16 +60,20 @@ pub async fn create_channel_monitor(
     request(client, Method::POST, "/channel_monitor", channel_monitor).await
 }
 
+pub async fn get_channel_monitors(
+    client: &Client,
+    public_key: String,
+) -> Result<Vec<ChannelMonitor>, ApiError> {
+    let get_by_pubkey = GetByPublicKey { public_key };
+    request(client, Method::GET, "/channel_monitor", get_by_pubkey).await
+}
+
 pub async fn update_channel_monitor(
     client: &Client,
     channel_monitor: ChannelMonitor,
 ) -> Result<ChannelMonitor, ApiError> {
     request(client, Method::PUT, "/channel_monitor", channel_monitor).await
 }
-
-/// An empty request body which can be used for e.g. GET requests
-#[derive(Serialize)]
-struct EmptyBody;
 
 /// Builds and executes the API request
 async fn request<D: Serialize, T: DeserializeOwned>(
@@ -80,12 +96,25 @@ async fn request<D: Serialize, T: DeserializeOwned>(
             url.push_str(&query_str);
         }
     }
+    println!("{} {}", method, url);
 
     // If PUT or POST, serialize the data in the request body
     let body = match method {
         Method::PUT | Method::POST => serde_json::to_string(&data)?,
         _ => String::new(),
     };
+    // println!("    Body: {}", body);
+
+    // Uncomment to debug response
+    // let text = client
+    //     .request(method.clone(), url.clone())
+    //     .body(body.clone())
+    //     .send()
+    //     .await?
+    //     .text()
+    //     .await?;
+    // println!("    Response: {}", text);
+    // return serde_json::from_str(&text).map_err(|e| e.into());
 
     client
         .request(method, url)
