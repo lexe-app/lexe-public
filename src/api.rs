@@ -9,9 +9,11 @@ const API_URL: &str = "http://127.0.0.1:3030/v1";
 #[derive(Error, Debug)]
 pub enum ApiError {
     #[error("Reqwest error")]
-    ReqwestError(#[from] reqwest::Error),
+    Reqwest(#[from] reqwest::Error),
     #[error("JSON serialization error")]
-    JsonSerializeError(#[from] serde_json::Error),
+    JsonSerialization(#[from] serde_json::Error),
+    #[error("Query string serialization error")]
+    QueryStringSerialization(#[from] serde_qs::Error),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -58,14 +60,32 @@ pub async fn update_channel_monitor(
 struct EmptyBody;
 
 /// Builds and executes the API request
-async fn request<B: Serialize, T: DeserializeOwned>(
+async fn request<D: Serialize, T: DeserializeOwned>(
     client: &Client,
     method: Method,
     endpoint: &str,
-    body: B,
+    data: D,
 ) -> Result<T, ApiError> {
-    let url = format!("{}{}", API_URL, endpoint);
-    let body = serde_json::to_string(&body)?;
+    let mut url = format!("{}{}", API_URL, endpoint);
+
+    // If GET, serialize the data in a query string
+    let query_str = match method {
+        Method::GET => Some(serde_qs::to_string(&data)?),
+        _ => None,
+    };
+    // Append directly to url since RequestBuilder.param() API is unwieldy
+    if let Some(query_str) = query_str {
+        if !query_str.is_empty() {
+            url.push('?');
+            url.push_str(&query_str);
+        }
+    }
+
+    // If PUT or POST, serialize the data in the request body
+    let body = match method {
+        Method::PUT | Method::POST => serde_json::to_string(&data)?,
+        _ => String::new(),
+    };
 
     client
         .request(method, url)
