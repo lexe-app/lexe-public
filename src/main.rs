@@ -493,6 +493,7 @@ async fn start_ldk() -> anyhow::Result<()> {
     let keys_manager = match node_opt {
         Some(node) => {
             // Existing node
+            println!("Found existing node in DB");
             ensure!(node.keys_seed.len() == 32, "Incorrect seed length");
 
             // Check that the key seed is valid
@@ -522,6 +523,7 @@ async fn start_ldk() -> anyhow::Result<()> {
         }
         None => {
             // New node
+            println!("Creating new node from new seed");
 
             // Generate a new seed
             let mut new_seed = [0; 32];
@@ -529,14 +531,14 @@ async fn start_ldk() -> anyhow::Result<()> {
 
             // Persist the new seed along with its public key
             let keys_manager = init_key_manager(&new_seed);
-            let public_key = convert::get_pubkey(&keys_manager)
+            let pubkey = convert::get_pubkey(&keys_manager)
                 .context("Could not get derive our pubkey from seed")?;
-            let public_key_hex = format!("{:x}", public_key);
+            let pubkey_hex = format!("{:x}", pubkey);
 
             // Persist the node
             let node = Node {
-                public_key: public_key_hex,
-                // FIXME(encryption): Encrypt seed before sending it (obviously)
+                public_key: pubkey_hex,
+                // FIXME(encrypt): Encrypt seed before sending it (obviously)
                 keys_seed: new_seed.to_vec(),
             };
             api::create_node(&client, node)
@@ -548,7 +550,7 @@ async fn start_ldk() -> anyhow::Result<()> {
     };
     let keys_manager = Arc::new(keys_manager);
 
-    // Step 7: Read ChannelMonitor state from disk
+    // Step 7: Retrieve ChannelMonitor state from DB
     let mut channelmonitors = persister
         .read_channelmonitors(keys_manager.clone())
         .unwrap();

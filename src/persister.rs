@@ -27,6 +27,7 @@ impl PostgresPersister {
         &self,
     ) -> Result<(hash_types::BlockHash, ChannelManagerType), std::io::Error>
     {
+        // FIXME(decrypt): Decrypt first
         unimplemented!(); // TODO implement
     }
 
@@ -44,6 +45,7 @@ impl PostgresPersister {
     where
         K::Target: keysinterface::KeysInterface<Signer = Signer> + Sized,
     {
+        // FIXME(decrypt): Decrypt first
         Ok(Vec::new()) // TODO implement
     }
 }
@@ -69,6 +71,7 @@ impl
     ) -> Result<(), std::io::Error> {
         // Original FilesystemPersister filename: "manager"
         let plaintext_bytes = channel_manager.encode();
+        // FIXME(encrypt): Encrypt before send
         println!("Channel manager: {:?}", plaintext_bytes);
 
         Ok(()) // TODO implement
@@ -80,6 +83,7 @@ impl
     ) -> Result<(), std::io::Error> {
         // Original FilesystemPersister filename: "network_graph"
         let plaintext_bytes = network_graph.encode();
+        // FIXME(encrypt): Encrypt before send
         println!("Network graph: {:?}", plaintext_bytes);
 
         Ok(()) // TODO implement
@@ -103,9 +107,11 @@ impl<ChannelSigner: keysinterface::Sign> chainmonitor::Persist<ChannelSigner>
         // Original FilesystemPersister filename: `id`, under folder "monitors"
         let id = format!("{}_{}", funding_txo.txid.to_hex(), funding_txo.index);
         let txo_plaintext_bytes = id.into_bytes();
+        // FIXME(encrypt): Encrypt before send
         println!("Persisting new channel {:?}", txo_plaintext_bytes);
 
         let monitor_plaintext_bytes = monitor.encode();
+        // FIXME(encrypt): Encrypt before send
         println!("Channel monitor: {:?}", monitor_plaintext_bytes);
 
         Ok(()) // TODO implement
@@ -121,9 +127,11 @@ impl<ChannelSigner: keysinterface::Sign> chainmonitor::Persist<ChannelSigner>
         // Original FilesystemPersister filename: `id`, under folder "monitors"
         let id = format!("{}_{}", funding_txo.txid.to_hex(), funding_txo.index);
         let txo_plaintext_bytes = id.into_bytes();
+        // FIXME(encrypt): Encrypt before send
         println!("Updating persisted channel {:?}", txo_plaintext_bytes);
 
         let monitor_plaintext_bytes = monitor.encode();
+        // FIXME(encrypt): Encrypt before send
         println!("Channel monitor: {:?}", monitor_plaintext_bytes);
 
         Ok(()) // TODO implement
