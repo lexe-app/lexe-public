@@ -1,10 +1,10 @@
 use std::convert::TryInto;
-use std::io;
+use std::io::{self, Cursor};
 use std::ops::Deref;
 use std::sync::Arc;
 
-use bitcoin::hash_types::BlockHash;
-use bitcoin::hashes::hex::ToHex;
+use bitcoin::hash_types::{BlockHash, Txid};
+use bitcoin::hashes::hex::{FromHex, ToHex};
 use bitcoin::secp256k1::key::PublicKey;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
 use lightning::chain::channelmonitor::{
@@ -17,9 +17,10 @@ use lightning::chain::transaction::OutPoint;
 use lightning::chain::ChannelMonitorUpdateErr;
 use lightning::ln::channelmanager::SimpleArcChannelManager;
 use lightning::routing::network_graph::NetworkGraph;
-use lightning::util::ser::Writeable;
+use lightning::util::ser::{ReadableArgs, Writeable};
 use lightning_background_processor::Persister;
 
+use anyhow::{anyhow, ensure, Context};
 use reqwest::Client;
 use tokio::runtime::Handle;
 
@@ -44,7 +45,7 @@ impl PostgresPersister {
     // Replaces `ldk-sample/main::start_ldk` "Step 8: Init ChannelManager"
     pub fn read_channelmanager(
         &self,
-    ) -> Result<(BlockHash, ChannelManagerType), io::Error> {
+    ) -> anyhow::Result<(BlockHash, ChannelManagerType)> {
         // FIXME(decrypt): Decrypt first
         todo!(); // TODO implement
     }
@@ -53,12 +54,48 @@ impl PostgresPersister {
     pub fn read_channelmonitors<Signer: Sign, K: Deref>(
         &self,
         keys_manager: K,
-    ) -> Result<Vec<(BlockHash, LdkChannelMonitor<Signer>)>, io::Error>
+    ) -> anyhow::Result<Vec<(BlockHash, LdkChannelMonitor<Signer>)>>
     where
         K::Target: KeysInterface<Signer = Signer> + Sized,
     {
-        // FIXME(decrypt): Decrypt first
-        Ok(Vec::new()) // TODO implement
+        let cm_vec = tokio::task::block_in_place(|| {
+            Handle::current().block_on(async move {
+                api::get_channel_monitors(&self.client, self.pubkey.clone())
+                    .await
+            })
+        })
+        .map_err(|e| {
+            println!("{:?}", e);
+            e
+        })
+        .context("Could not fetch channel monitors from DB")?;
+
+        let mut result = Vec::new();
+
+        for cm in cm_vec {
+            let tx_id = Txid::from_hex(cm.tx_id.as_str())
+                .context("Invalid tx_id returned from DB")?;
+            let tx_index: u16 = cm.tx_index.try_into().unwrap();
+
+            let mut state_buf = Cursor::new(&cm.state);
+
+            let (blockhash, channel_monitor) =
+                <(BlockHash, LdkChannelMonitor<Signer>)>::read(
+                    &mut state_buf,
+                    &*keys_manager,
+                )
+                // LDK's DecodeError is Debug but doesn't impl std::error::Error
+                .map_err(|e| anyhow!("{:?}", e))
+                .context("Failed to deserialize Channel Monitor")?;
+
+            let (output, _script) = channel_monitor.get_funding_txo();
+            ensure!(output.txid == tx_id, "Deserialized txid don' match");
+            ensure!(output.index == tx_index, "Deserialized index don' match");
+
+            result.push((blockhash, channel_monitor));
+        }
+
+        Ok(result)
     }
 }
 
@@ -116,7 +153,7 @@ impl<ChannelSigner: Sign> Persist<ChannelSigner> for PostgresPersister {
             node_public_key: self.pubkey.clone(),
             tx_id,
             tx_index,
-            // FIXME(encrypt): Encrypt before send
+            // FIXME(encrypt): Encrypt under key derived from seed
             state: monitor.encode(),
         };
 
@@ -149,7 +186,7 @@ impl<ChannelSigner: Sign> Persist<ChannelSigner> for PostgresPersister {
             node_public_key: self.pubkey.clone(),
             tx_id,
             tx_index,
-            // FIXME(encrypt): Encrypt before send
+            // FIXME(encrypt): Encrypt under key derived from seed
             state: monitor.encode(),
         };
 

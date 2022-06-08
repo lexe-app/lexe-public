@@ -553,7 +553,7 @@ async fn start_ldk() -> anyhow::Result<()> {
     // Step 7: Retrieve ChannelMonitor state from DB
     let mut channelmonitors = persister
         .read_channelmonitors(keys_manager.clone())
-        .unwrap();
+        .context("Could not read channel monitors")?;
 
     // Step 8: Initialize the ChannelManager
     let mut user_config = UserConfig::default();
