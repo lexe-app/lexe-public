@@ -195,11 +195,12 @@ impl
         network_graph: &NetworkGraph,
     ) -> Result<(), io::Error> {
         // Original FilesystemPersister filename: "network_graph"
-        let plaintext_bytes = network_graph.encode();
         // FIXME(encrypt): Encrypt under key derived from seed
-        println!("Network graph: {:?}", plaintext_bytes);
+        let _plaintext_bytes = network_graph.encode();
+        // println!("Network graph: {:?}", plaintext_bytes);
 
-        Ok(()) // TODO implement
+        // NOTE: We don't really need to implement this for now
+        Ok(())
     }
 }
 
