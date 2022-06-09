@@ -447,7 +447,6 @@ dependencies = [
  "lightning-block-sync",
  "lightning-invoice",
  "lightning-net-tokio",
- "lightning-persister",
  "rand",
  "reqwest",
  "serde",

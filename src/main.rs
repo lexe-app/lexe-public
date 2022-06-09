@@ -1,7 +1,6 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt;
-use std::fs;
 use std::io;
 use std::io::Write;
 use std::ops::Deref;
@@ -37,7 +36,7 @@ use lightning::routing::network_graph::{NetGraphMsgHandler, NetworkGraph};
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::util::config::UserConfig;
 use lightning::util::events::{Event, PaymentPurpose};
-use lightning_background_processor::{BackgroundProcessor, Persister};
+use lightning_background_processor::BackgroundProcessor;
 use lightning_block_sync::init;
 use lightning_block_sync::poll;
 use lightning_block_sync::SpvClient;
@@ -45,7 +44,6 @@ use lightning_block_sync::UnboundedCache;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use lightning_net_tokio::SocketDescriptor;
-use lightning_persister::FilesystemPersister;
 
 use anyhow::{bail, ensure, Context};
 use rand::{thread_rng, Rng};
@@ -126,50 +124,6 @@ type InvoicePayerType<E> = payment::InvoicePayer<
 >;
 
 type RouterType = DefaultRouter<Arc<NetworkGraph>, Arc<FilesystemLogger>>;
-
-struct DataPersister {
-    data_dir: String,
-}
-
-impl
-    Persister<
-        InMemorySigner,
-        Arc<ChainMonitorType>,
-        Arc<BitcoindClient>,
-        Arc<KeysManager>,
-        Arc<BitcoindClient>,
-        Arc<FilesystemLogger>,
-    > for DataPersister
-{
-    fn persist_manager(
-        &self,
-        channel_manager: &ChannelManagerType,
-    ) -> Result<(), std::io::Error> {
-        FilesystemPersister::persist_manager(
-            self.data_dir.clone(),
-            channel_manager,
-        )
-    }
-
-    fn persist_graph(
-        &self,
-        network_graph: &NetworkGraph,
-    ) -> Result<(), std::io::Error> {
-        if FilesystemPersister::persist_network_graph(
-            self.data_dir.clone(),
-            network_graph,
-        )
-        .is_err()
-        {
-            // Persistence errors here are non-fatal as we can just fetch the
-            // routing graph again later, but they may indicate a disk error
-            // which could be fatal elsewhere.
-            eprintln!("Warning: Failed to persist network graph, check your disk and permissions");
-        }
-
-        Ok(())
-    }
-}
 
 async fn handle_ldk_events(
     channel_manager: Arc<ChannelManagerType>,
@@ -409,9 +363,7 @@ async fn start_ldk() -> anyhow::Result<()> {
         Err(()) => bail!("Could not parse startup args"),
     };
 
-    // Initialize the LDK data directory if necessary.
     let ldk_data_dir = format!("{}/.ldk", args.ldk_storage_dir_path);
-    fs::create_dir_all(ldk_data_dir.clone()).unwrap();
 
     // Initialize our bitcoind client.
     let bitcoind_client = match BitcoindClient::new(
@@ -797,14 +749,9 @@ async fn start_ldk() -> anyhow::Result<()> {
         payment::RetryAttempts(5),
     ));
 
-    // Step 18: Persist ChannelManager and NetworkGraph
-    let persister = DataPersister {
-        data_dir: ldk_data_dir.clone(),
-    };
-
-    // Step 19: Background Processing
+    // Step 18: Background Processing
     let background_processor = BackgroundProcessor::start(
-        persister,
+        (*persister).clone(),
         invoice_payer.clone(),
         chain_monitor.clone(),
         channel_manager.clone(),

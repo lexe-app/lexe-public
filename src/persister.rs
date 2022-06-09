@@ -32,6 +32,7 @@ use crate::bitcoind_client::BitcoindClient;
 use crate::disk::FilesystemLogger; // TODO replace with db logger
 use crate::{ChainMonitorType, ChannelManagerType};
 
+#[derive(Clone)]
 pub struct PostgresPersister {
     client: Client,
     pubkey: String,
