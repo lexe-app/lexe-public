@@ -27,6 +27,7 @@ pub struct EmptyData {}
 pub struct GetByPublicKey {
     pub public_key: String,
 }
+// TODO impl From<PublicKey> for GetByPublicKey
 
 #[derive(Serialize, Deserialize)]
 pub struct Node {
@@ -79,6 +80,14 @@ pub async fn update_channel_monitor(
 pub struct ChannelManager {
     pub node_public_key: String,
     pub state: Vec<u8>,
+}
+
+pub async fn get_channel_manager(
+    client: &Client,
+    public_key: String,
+) -> Result<Option<ChannelManager>, ApiError> {
+    let get_by_pubkey = GetByPublicKey { public_key };
+    request(client, Method::GET, "/channel_manager", get_by_pubkey).await
 }
 
 pub async fn update_channel_manager(
