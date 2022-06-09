@@ -15,8 +15,11 @@ use lightning::chain::keysinterface::{
 };
 use lightning::chain::transaction::OutPoint;
 use lightning::chain::ChannelMonitorUpdateErr;
-use lightning::ln::channelmanager::SimpleArcChannelManager;
+use lightning::ln::channelmanager::{
+    ChannelManagerReadArgs, SimpleArcChannelManager,
+};
 use lightning::routing::network_graph::NetworkGraph;
+use lightning::util::config::UserConfig;
 use lightning::util::ser::{ReadableArgs, Writeable};
 use lightning_background_processor::Persister;
 
@@ -43,10 +46,63 @@ impl PostgresPersister {
     }
 
     // Replaces `ldk-sample/main::start_ldk` "Step 8: Init ChannelManager"
+    #[allow(clippy::too_many_arguments)]
     pub async fn read_channelmanager(
         &self,
-    ) -> anyhow::Result<(BlockHash, ChannelManagerType)> {
-        todo!(); // TODO implement
+        channelmonitors: &mut [(
+            BlockHash,
+            LdkChannelMonitor<InMemorySigner>,
+        )],
+        keys_manager: Arc<KeysManager>,
+        fee_estimator: Arc<BitcoindClient>,
+        chain_monitor: Arc<ChainMonitorType>,
+        broadcaster: Arc<BitcoindClient>,
+        logger: Arc<FilesystemLogger>,
+        user_config: UserConfig,
+    ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
+        let cm_opt =
+            api::get_channel_manager(&self.client, self.pubkey.clone())
+                .await
+                .map_err(|e| {
+                    println!("{:#}", e);
+                    e
+                })
+                .context("Could not fetch channel manager from DB")?;
+
+        let cm_opt = match cm_opt {
+            Some(cm) => {
+                let mut channel_monitor_mut_refs = Vec::new();
+                for (_, channel_monitor) in channelmonitors.iter_mut() {
+                    channel_monitor_mut_refs.push(channel_monitor);
+                }
+                let read_args = ChannelManagerReadArgs::new(
+                    keys_manager,
+                    fee_estimator,
+                    chain_monitor,
+                    broadcaster,
+                    logger,
+                    user_config,
+                    channel_monitor_mut_refs,
+                );
+
+                let mut state_buf = Cursor::new(&cm.state);
+
+                let (blockhash, channel_manager) = <(
+                    BlockHash,
+                    ChannelManagerType,
+                )>::read(
+                    &mut state_buf, read_args
+                )
+                // LDK DecodeError is Debug but doesn't impl std::error::Error
+                .map_err(|e| anyhow!("{:?}", e))
+                .context("Failed to deserialize ChannelManager")?;
+
+                Some((blockhash, channel_manager))
+            }
+            None => None,
+        };
+
+        Ok(cm_opt)
     }
 
     // Replaces equivalent method in lightning_persister::FilesystemPersister
@@ -61,7 +117,7 @@ impl PostgresPersister {
             api::get_channel_monitors(&self.client, self.pubkey.clone())
                 .await
                 .map_err(|e| {
-                    println!("{:?}", e);
+                    println!("{:#}", e);
                     e
                 })
                 .context("Could not fetch channel monitors from DB")?;
@@ -80,7 +136,7 @@ impl PostgresPersister {
                     &mut state_buf,
                     &*keys_manager,
                 )
-                // LDK's DecodeError is Debug but doesn't impl std::error::Error
+                // LDK DecodeError is Debug but doesn't impl std::error::Error
                 .map_err(|e| anyhow!("{:?}", e))
                 .context("Failed to deserialize Channel Monitor")?;
 

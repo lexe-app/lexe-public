@@ -17,7 +17,6 @@ use bitcoin::consensus::encode;
 use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::key::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
-use bitcoin::BlockHash;
 use bitcoin_bech32::WitnessProgram;
 use lightning::chain;
 use lightning::chain::chaininterface::{
@@ -29,9 +28,7 @@ use lightning::chain::keysinterface::{
 };
 use lightning::chain::{BestBlock, Filter, Watch};
 use lightning::ln::channelmanager;
-use lightning::ln::channelmanager::{
-    ChainParameters, ChannelManagerReadArgs, SimpleArcChannelManager,
-};
+use lightning::ln::channelmanager::{ChainParameters, SimpleArcChannelManager};
 use lightning::ln::peer_handler::{
     IgnoringMessageHandler, MessageHandler, SimpleArcPeerManager,
 };
@@ -40,7 +37,6 @@ use lightning::routing::network_graph::{NetGraphMsgHandler, NetworkGraph};
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::util::config::UserConfig;
 use lightning::util::events::{Event, PaymentPurpose};
-use lightning::util::ser::ReadableArgs;
 use lightning_background_processor::{BackgroundProcessor, Persister};
 use lightning_block_sync::init;
 use lightning_block_sync::poll;
@@ -562,25 +558,22 @@ async fn start_ldk() -> anyhow::Result<()> {
         .peer_channel_config_limits
         .force_announced_channel_preference = false;
     let mut restarting_node = true;
-    let (channel_manager_blockhash, channel_manager) = {
-        if let Ok(mut f) =
-            fs::File::open(format!("{}/manager", ldk_data_dir.clone()))
-        {
-            let mut channel_monitor_mut_references = Vec::new();
-            for (_, channel_monitor) in channelmonitors.iter_mut() {
-                channel_monitor_mut_references.push(channel_monitor);
-            }
-            let read_args = ChannelManagerReadArgs::new(
-                keys_manager.clone(),
-                fee_estimator.clone(),
-                chain_monitor.clone(),
-                broadcaster.clone(),
-                logger.clone(),
-                user_config,
-                channel_monitor_mut_references,
-            );
-            <(BlockHash, ChannelManagerType)>::read(&mut f, read_args).unwrap()
-        } else {
+    let channel_manager_opt = persister
+        .read_channelmanager(
+            &mut channelmonitors,
+            keys_manager.clone(),
+            fee_estimator.clone(),
+            chain_monitor.clone(),
+            broadcaster.clone(),
+            logger.clone(),
+            user_config,
+        )
+        .await
+        .context("Could not read ChannelManager from DB")?;
+    let (channel_manager_blockhash, channel_manager) = match channel_manager_opt
+    {
+        Some((blockhash, mgr)) => (blockhash, mgr),
+        None => {
             // We're starting a fresh node.
             restarting_node = false;
             let getinfo_resp = bitcoind_client.get_blockchain_info().await;
