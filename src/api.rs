@@ -14,6 +14,8 @@ pub enum ApiError {
     JsonSerialization(#[from] serde_json::Error),
     #[error("Query string serialization error")]
     QueryStringSerialization(#[from] serde_qs::Error),
+    #[error("Server Error: {0}")]
+    Server(String),
 }
 
 /// Struct which can be used to make requests with no data attached
@@ -148,23 +150,13 @@ async fn request<D: Serialize, T: DeserializeOwned>(
     };
     // println!("    Body: {}", body);
 
-    // Uncomment to debug response
-    // let text = client
-    //     .request(method.clone(), url.clone())
-    //     .body(body.clone())
-    //     .send()
-    //     .await?
-    //     .text()
-    //     .await?;
-    // println!("    Response: {}", text);
-    // return serde_json::from_str(&text).map_err(|e| e.into());
+    let response = client.request(method, url).body(body).send().await?;
 
-    client
-        .request(method, url)
-        .body(body)
-        .send()
-        .await?
-        .json()
-        .await
-        .map_err(|e| e.into())
+    if response.status().is_success() {
+        // Deserialize into JSON, return Ok(json)
+        response.json().await.map_err(|e| e.into())
+    } else {
+        // Deserialize into String, return Err(ApiError::Server(string))
+        Err(ApiError::Server(response.text().await?))
+    }
 }
