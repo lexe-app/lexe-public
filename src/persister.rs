@@ -19,6 +19,10 @@ use lightning::ln::channelmanager::{
     ChannelManagerReadArgs, SimpleArcChannelManager,
 };
 use lightning::routing::network_graph::NetworkGraph;
+use lightning::routing::scoring::{
+    ProbabilisticScorer as LdkProbabilisticScorer,
+    ProbabilisticScoringParameters,
+};
 use lightning::util::config::UserConfig;
 use lightning::util::ser::{ReadableArgs, Writeable};
 use lightning_background_processor::Persister;
@@ -149,6 +153,37 @@ impl PostgresPersister {
         }
 
         Ok(result)
+    }
+
+    pub async fn read_probabilisticscorer(
+        &self,
+        graph: Arc<NetworkGraph>,
+    ) -> anyhow::Result<LdkProbabilisticScorer<Arc<NetworkGraph>>> {
+        let params = ProbabilisticScoringParameters::default();
+        let ps_opt =
+            api::get_probabilistic_scorer(&self.client, self.pubkey.clone())
+                .await
+                .map_err(|e| {
+                    println!("{:#}", e);
+                    e
+                })
+                .context("Could not fetch probabilistic scorer from DB")?;
+
+        let ps = match ps_opt {
+            Some(ps) => {
+                let mut state_buf = Cursor::new(&ps.state);
+                LdkProbabilisticScorer::read(
+                    &mut state_buf,
+                    (params, Arc::clone(&graph)),
+                )
+                // LDK DecodeError is Debug but doesn't impl std::error::Error
+                .map_err(|e| anyhow!("{:?}", e))
+                .context("Failed to deserialize ProbabilisticScorer")?
+            }
+            None => LdkProbabilisticScorer::new(params, graph),
+        };
+
+        Ok(ps)
     }
 }
 

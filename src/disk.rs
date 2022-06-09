@@ -3,11 +3,9 @@ use bitcoin::secp256k1::key::PublicKey;
 use bitcoin::BlockHash;
 use chrono::Utc;
 use lightning::routing::network_graph::NetworkGraph;
-use lightning::routing::scoring::{
-    ProbabilisticScorer, ProbabilisticScoringParameters,
-};
+use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::util::logger::{Logger, Record};
-use lightning::util::ser::{Readable, ReadableArgs, Writeable, Writer};
+use lightning::util::ser::{Readable, Writeable, Writer};
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
@@ -113,20 +111,4 @@ pub(crate) fn persist_scorer(
     } else {
         Ok(())
     }
-}
-
-pub(crate) fn read_scorer(
-    path: &Path,
-    graph: Arc<NetworkGraph>,
-) -> ProbabilisticScorer<Arc<NetworkGraph>> {
-    let params = ProbabilisticScoringParameters::default();
-    if let Ok(file) = File::open(path) {
-        if let Ok(scorer) = ProbabilisticScorer::read(
-            &mut BufReader::new(file),
-            (params, Arc::clone(&graph)),
-        ) {
-            return scorer;
-        }
-    }
-    ProbabilisticScorer::new(params, graph)
 }

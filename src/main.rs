@@ -711,10 +711,11 @@ async fn start_ldk() -> anyhow::Result<()> {
 
     // Step 16: Initialize routing ProbabilisticScorer
     let scorer_path = format!("{}/prob_scorer", ldk_data_dir.clone());
-    let scorer = Arc::new(Mutex::new(disk::read_scorer(
-        Path::new(&scorer_path),
-        Arc::clone(&network_graph),
-    )));
+    let scorer = persister
+        .read_probabilisticscorer(Arc::clone(&network_graph))
+        .await
+        .context("Could not read probabilistic scorer")?;
+    let scorer = Arc::new(Mutex::new(scorer));
     let scorer_persist = Arc::clone(&scorer);
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(600));
