@@ -97,6 +97,27 @@ pub async fn update_channel_manager(
     request(client, Method::POST, "/channel_manager", channel_manager).await
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct ProbabilisticScorer {
+    pub node_public_key: String,
+    pub state: Vec<u8>,
+}
+
+pub async fn get_probabilistic_scorer(
+    client: &Client,
+    public_key: String,
+) -> Result<Option<ProbabilisticScorer>, ApiError> {
+    let get_by_pubkey = GetByPublicKey { public_key };
+    request(client, Method::GET, "/probabilistic_scorer", get_by_pubkey).await
+}
+
+pub async fn update_probabilistic_scorer(
+    client: &Client,
+    ps: ProbabilisticScorer,
+) -> Result<ProbabilisticScorer, ApiError> {
+    request(client, Method::POST, "/probabilistic_scorer", ps).await
+}
+
 /// Builds and executes the API request
 async fn request<D: Serialize, T: DeserializeOwned>(
     client: &Client,
