@@ -36,6 +36,7 @@ use lightning::routing::network_graph::{NetGraphMsgHandler, NetworkGraph};
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::util::config::UserConfig;
 use lightning::util::events::{Event, PaymentPurpose};
+use lightning::util::ser::Writeable;
 use lightning_background_processor::BackgroundProcessor;
 use lightning_block_sync::init;
 use lightning_block_sync::poll;
@@ -49,7 +50,7 @@ use anyhow::{bail, ensure, Context};
 use rand::{thread_rng, Rng};
 use reqwest::Client;
 
-use crate::api::Node;
+use crate::api::{Node, ProbabilisticScorer as ApiProbabilisticScorer};
 use crate::bitcoind_client::BitcoindClient;
 use crate::disk::FilesystemLogger;
 use crate::persister::PostgresPersister;
@@ -710,28 +711,35 @@ async fn start_ldk() -> anyhow::Result<()> {
     };
 
     // Step 16: Initialize routing ProbabilisticScorer
-    let scorer_path = format!("{}/prob_scorer", ldk_data_dir.clone());
     let scorer = persister
         .read_probabilistic_scorer(Arc::clone(&network_graph))
         .await
         .context("Could not read probabilistic scorer")?;
     let scorer = Arc::new(Mutex::new(scorer));
-    let scorer_persist = Arc::clone(&scorer);
+    let moved_scorer = Arc::clone(&scorer);
+    let moved_persister = Arc::clone(&persister);
     tokio::spawn(async move {
+        // TODO This isn't realistic for the Lexe usecase
         let mut interval = tokio::time::interval(Duration::from_secs(600));
+        let pubkey = format!("{:x}", pubkey);
+
         loop {
             interval.tick().await;
-            if disk::persist_scorer(
-                Path::new(&scorer_path),
-                &scorer_persist.lock().unwrap(),
-            )
-            .is_err()
-            {
-                // Persistence errors here are non-fatal as channels will be
-                // re-scored as payments fail, but they may indicate a disk
-                // error which could be fatal elsewhere.
-                eprintln!("Warning: Failed to persist scorer, check your disk and permissions");
-            }
+
+            let ps = {
+                let scorer_lock = moved_scorer.lock().unwrap();
+                ApiProbabilisticScorer {
+                    node_public_key: pubkey.clone(),
+                    state: scorer_lock.encode(),
+                }
+            };
+
+            let _ = moved_persister
+                .persist_probabilistic_scorer(ps)
+                .await
+                .map_err(|e| {
+                    println!("Warning: Failed to persist scorer: {:#}", e)
+                });
         }
     });
 

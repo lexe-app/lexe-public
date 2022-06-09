@@ -31,7 +31,7 @@ use anyhow::{anyhow, ensure, Context};
 use reqwest::Client;
 use tokio::runtime::Handle;
 
-use crate::api::{self, ChannelManager, ChannelMonitor};
+use crate::api::{self, ChannelManager, ChannelMonitor, ProbabilisticScorer};
 use crate::bitcoind_client::BitcoindClient;
 use crate::disk::FilesystemLogger; // TODO replace with db logger
 use crate::{ChainMonitorType, ChannelManagerType};
@@ -184,6 +184,25 @@ impl PostgresPersister {
         };
 
         Ok(ps)
+    }
+
+    /// This function does not borrow a `LdkProbabilisticScorer` like the others
+    /// would because the LdkProbabilisticScorer is wrapped in an
+    /// `Arc<Mutex<T>>` in the calling function, which requires that the
+    /// `MutexGuard` to the LdkProbabilisticScorer is held across
+    /// `update_probabilistic_scorer().await`. However, this cannot be done
+    /// since MutexGuard is not `Send`.
+    ///
+    /// Taking in the api::ProbabilisticScorer struct directly avoids this
+    /// problem but necessitates a bit more code in the caller.
+    pub async fn persist_probabilistic_scorer(
+        &self,
+        ps: ProbabilisticScorer,
+    ) -> anyhow::Result<()> {
+        api::update_probabilistic_scorer(&self.client, ps)
+            .await
+            .map(|_| ())
+            .context("Could not persist probabilistic scorer to DB")
     }
 }
 

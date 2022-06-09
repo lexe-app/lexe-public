@@ -3,16 +3,14 @@ use bitcoin::secp256k1::key::PublicKey;
 use bitcoin::BlockHash;
 use chrono::Utc;
 use lightning::routing::network_graph::NetworkGraph;
-use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::util::logger::{Logger, Record};
-use lightning::util::ser::{Readable, Writeable, Writer};
+use lightning::util::ser::{Readable, Writer};
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter};
+use std::io::{BufRead, BufReader};
 use std::net::SocketAddr;
 use std::path::Path;
-use std::sync::Arc;
 
 pub struct FilesystemLogger {
     data_dir: String,
@@ -92,23 +90,4 @@ pub(crate) fn read_network(
         }
     }
     NetworkGraph::new(genesis_hash)
-}
-
-pub(crate) fn persist_scorer(
-    path: &Path,
-    scorer: &ProbabilisticScorer<Arc<NetworkGraph>>,
-) -> std::io::Result<()> {
-    let mut tmp_path = path.to_path_buf().into_os_string();
-    tmp_path.push(".tmp");
-    let file = fs::OpenOptions::new()
-        .write(true)
-        .create(true)
-        .open(&tmp_path)?;
-    let write_res = scorer.write(&mut BufWriter::new(file));
-    if let Err(e) = write_res.and_then(|_| fs::rename(&tmp_path, path)) {
-        let _ = fs::remove_file(&tmp_path);
-        Err(e)
-    } else {
-        Ok(())
-    }
 }
