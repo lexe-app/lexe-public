@@ -43,32 +43,28 @@ impl PostgresPersister {
     }
 
     // Replaces `ldk-sample/main::start_ldk` "Step 8: Init ChannelManager"
-    pub fn read_channelmanager(
+    pub async fn read_channelmanager(
         &self,
     ) -> anyhow::Result<(BlockHash, ChannelManagerType)> {
-        // FIXME(decrypt): Decrypt first
         todo!(); // TODO implement
     }
 
     // Replaces equivalent method in lightning_persister::FilesystemPersister
-    pub fn read_channelmonitors<Signer: Sign, K: Deref>(
+    pub async fn read_channelmonitors<Signer: Sign, K: Deref>(
         &self,
         keys_manager: K,
     ) -> anyhow::Result<Vec<(BlockHash, LdkChannelMonitor<Signer>)>>
     where
         K::Target: KeysInterface<Signer = Signer> + Sized,
     {
-        let cm_vec = tokio::task::block_in_place(|| {
-            Handle::current().block_on(async move {
-                api::get_channel_monitors(&self.client, self.pubkey.clone())
-                    .await
-            })
-        })
-        .map_err(|e| {
-            println!("{:?}", e);
-            e
-        })
-        .context("Could not fetch channel monitors from DB")?;
+        let cm_vec =
+            api::get_channel_monitors(&self.client, self.pubkey.clone())
+                .await
+                .map_err(|e| {
+                    println!("{:?}", e);
+                    e
+                })
+                .context("Could not fetch channel monitors from DB")?;
 
         let mut result = Vec::new();
 
