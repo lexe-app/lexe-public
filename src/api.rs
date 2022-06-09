@@ -75,6 +75,19 @@ pub async fn update_channel_monitor(
     request(client, Method::PUT, "/channel_monitor", channel_monitor).await
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct ChannelManager {
+    pub node_public_key: String,
+    pub state: Vec<u8>,
+}
+
+pub async fn create_channel_manager(
+    client: &Client,
+    channel_manager: ChannelManager,
+) -> Result<ChannelManager, ApiError> {
+    request(client, Method::POST, "/channel_manager", channel_manager).await
+}
+
 /// Builds and executes the API request
 async fn request<D: Serialize, T: DeserializeOwned>(
     client: &Client,
