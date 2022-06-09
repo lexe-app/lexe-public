@@ -500,7 +500,7 @@ async fn start_ldk() -> anyhow::Result<()> {
 
     // Step 7: Retrieve ChannelMonitor state from DB
     let mut channelmonitors = persister
-        .read_channelmonitors(keys_manager.clone())
+        .read_channel_monitors(keys_manager.clone())
         .await
         .context("Could not read channel monitors")?;
 
@@ -511,7 +511,7 @@ async fn start_ldk() -> anyhow::Result<()> {
         .force_announced_channel_preference = false;
     let mut restarting_node = true;
     let channel_manager_opt = persister
-        .read_channelmanager(
+        .read_channel_manager(
             &mut channelmonitors,
             keys_manager.clone(),
             fee_estimator.clone(),
@@ -712,7 +712,7 @@ async fn start_ldk() -> anyhow::Result<()> {
     // Step 16: Initialize routing ProbabilisticScorer
     let scorer_path = format!("{}/prob_scorer", ldk_data_dir.clone());
     let scorer = persister
-        .read_probabilisticscorer(Arc::clone(&network_graph))
+        .read_probabilistic_scorer(Arc::clone(&network_graph))
         .await
         .context("Could not read probabilistic scorer")?;
     let scorer = Arc::new(Mutex::new(scorer));

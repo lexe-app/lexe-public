@@ -52,7 +52,7 @@ impl PostgresPersister {
 
     // Replaces `ldk-sample/main::start_ldk` "Step 8: Init ChannelManager"
     #[allow(clippy::too_many_arguments)]
-    pub async fn read_channelmanager(
+    pub async fn read_channel_manager(
         &self,
         channelmonitors: &mut [(
             BlockHash,
@@ -111,7 +111,7 @@ impl PostgresPersister {
     }
 
     // Replaces equivalent method in lightning_persister::FilesystemPersister
-    pub async fn read_channelmonitors<Signer: Sign, K: Deref>(
+    pub async fn read_channel_monitors<Signer: Sign, K: Deref>(
         &self,
         keys_manager: K,
     ) -> anyhow::Result<Vec<(BlockHash, LdkChannelMonitor<Signer>)>>
@@ -155,7 +155,7 @@ impl PostgresPersister {
         Ok(result)
     }
 
-    pub async fn read_probabilisticscorer(
+    pub async fn read_probabilistic_scorer(
         &self,
         graph: Arc<NetworkGraph>,
     ) -> anyhow::Result<LdkProbabilisticScorer<Arc<NetworkGraph>>> {
