@@ -115,7 +115,7 @@ pub async fn update_probabilistic_scorer(
     client: &Client,
     ps: ProbabilisticScorer,
 ) -> Result<ProbabilisticScorer, ApiError> {
-    request(client, Method::POST, "/probabilistic_scorer", ps).await
+    request(client, Method::PUT, "/probabilistic_scorer", ps).await
 }
 
 /// Builds and executes the API request
