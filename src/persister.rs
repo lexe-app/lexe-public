@@ -1,5 +1,5 @@
 use std::convert::TryInto;
-use std::io::{self, Cursor};
+use std::io::{self, Cursor, ErrorKind};
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -24,7 +24,7 @@ use anyhow::{anyhow, ensure, Context};
 use reqwest::Client;
 use tokio::runtime::Handle;
 
-use crate::api::{self, ChannelMonitor};
+use crate::api::{self, ChannelManager, ChannelMonitor};
 use crate::bitcoind_client::BitcoindClient;
 use crate::disk::FilesystemLogger; // TODO replace with db logger
 use crate::{ChainMonitorType, ChannelManagerType};
@@ -118,12 +118,24 @@ impl
             FilesystemLogger,
         >,
     ) -> Result<(), io::Error> {
-        // Original FilesystemPersister filename: "manager"
-        let plaintext_bytes = channel_manager.encode();
-        // FIXME(encrypt): Encrypt before send
-        println!("Channel manager: {:?}", plaintext_bytes);
+        println!("Persisting channel manager");
+        let channel_manager = ChannelManager {
+            node_public_key: self.pubkey.clone(),
+            // FIXME(encrypt): Encrypt under key derived from seed
+            state: channel_manager.encode(),
+        };
 
-        Ok(()) // TODO implement
+        // Run an async fn inside a sync fn inside a Tokio runtime
+        tokio::task::block_in_place(|| {
+            Handle::current().block_on(async move {
+                api::update_channel_manager(&self.client, channel_manager).await
+            })
+        })
+        .map(|_| ())
+        .map_err(|api_err| {
+            println!("Could not persist channel manager: {:#}", api_err);
+            io::Error::new(ErrorKind::Other, api_err)
+        })
     }
 
     fn persist_graph(
@@ -132,7 +144,7 @@ impl
     ) -> Result<(), io::Error> {
         // Original FilesystemPersister filename: "network_graph"
         let plaintext_bytes = network_graph.encode();
-        // FIXME(encrypt): Encrypt before send
+        // FIXME(encrypt): Encrypt under key derived from seed
         println!("Network graph: {:?}", plaintext_bytes);
 
         Ok(()) // TODO implement
