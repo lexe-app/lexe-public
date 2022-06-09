@@ -81,7 +81,7 @@ pub struct ChannelManager {
     pub state: Vec<u8>,
 }
 
-pub async fn create_channel_manager(
+pub async fn update_channel_manager(
     client: &Client,
     channel_manager: ChannelManager,
 ) -> Result<ChannelManager, ApiError> {
