@@ -1,13 +1,7 @@
-use crate::cli;
-use bitcoin::secp256k1::key::PublicKey;
 use chrono::Utc;
 use lightning::util::logger::{Logger, Record};
 use lightning::util::ser::Writer;
-use std::collections::HashMap;
 use std::fs;
-use std::fs::File;
-use std::io::{BufRead, BufReader};
-use std::net::SocketAddr;
 use std::path::Path;
 
 pub struct FilesystemLogger {
@@ -47,6 +41,7 @@ impl Logger for FilesystemLogger {
             .unwrap();
     }
 }
+
 pub(crate) fn persist_channel_peer(
     path: &Path,
     peer_info: &str,
@@ -56,24 +51,4 @@ pub(crate) fn persist_channel_peer(
         .append(true)
         .open(path)?;
     file.write_all(format!("{}\n", peer_info).as_bytes())
-}
-
-pub(crate) fn read_channel_peer_data(
-    path: &Path,
-) -> Result<HashMap<PublicKey, SocketAddr>, std::io::Error> {
-    let mut peer_data = HashMap::new();
-    if !Path::new(&path).exists() {
-        return Ok(HashMap::new());
-    }
-    let file = File::open(path)?;
-    let reader = BufReader::new(file);
-    for line in reader.lines() {
-        match cli::parse_peer_info(line.unwrap()) {
-            Ok((pubkey, socket_addr)) => {
-                peer_data.insert(pubkey, socket_addr);
-            }
-            Err(e) => return Err(e),
-        }
-    }
-    Ok(peer_data)
 }

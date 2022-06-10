@@ -4,7 +4,6 @@ use std::fmt;
 use std::io;
 use std::io::Write;
 use std::ops::Deref;
-use std::path::Path;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -772,18 +771,18 @@ async fn start_ldk() -> anyhow::Result<()> {
     );
 
     // Regularly reconnect to channel peers.
-    let connect_cm = Arc::clone(&channel_manager);
-    let connect_pm = Arc::clone(&peer_manager);
-    let peer_data_path = format!("{}/channel_peer_data", ldk_data_dir.clone());
+    let connect_channel_manager = Arc::clone(&channel_manager);
+    let connect_peer_manager = Arc::clone(&peer_manager);
     let stop_connect = Arc::clone(&stop_listen_connect);
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(1));
         loop {
             interval.tick().await;
-            match disk::read_channel_peer_data(Path::new(&peer_data_path)) {
-                Ok(info) => {
-                    let peers = connect_pm.get_peer_node_ids();
-                    for node_id in connect_cm
+
+            match persister.read_channel_peers().await {
+                Ok(cp_vec) => {
+                    let peers = connect_peer_manager.get_peer_node_ids();
+                    for node_id in connect_channel_manager
                         .list_channels()
                         .iter()
                         .map(|chan| chan.counterparty.node_id)
@@ -792,22 +791,21 @@ async fn start_ldk() -> anyhow::Result<()> {
                         if stop_connect.load(Ordering::Acquire) {
                             return;
                         }
-                        for (pubkey, peer_addr) in info.iter() {
+                        for (pubkey, peer_addr) in cp_vec.iter() {
                             if *pubkey == node_id {
                                 let _ = cli::do_connect_peer(
                                     *pubkey,
                                     *peer_addr,
-                                    Arc::clone(&connect_pm),
+                                    Arc::clone(&connect_peer_manager),
                                 )
                                 .await;
                             }
                         }
                     }
                 }
-                Err(e) => println!(
-                    "ERROR: errored reading channel peer info from disk: {:?}",
-                    e
-                ),
+                Err(e) => {
+                    println!("ERROR: Could not read channel peers: {}", e)
+                }
             }
         }
     });

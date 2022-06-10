@@ -1,6 +1,8 @@
 use std::convert::TryInto;
 use std::io::{self, Cursor, ErrorKind};
+use std::net::SocketAddr;
 use std::ops::Deref;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use bitcoin::hash_types::{BlockHash, Txid};
@@ -230,6 +232,32 @@ impl PostgresPersister {
         };
 
         Ok(ng)
+    }
+
+    pub async fn read_channel_peers(
+        &self,
+    ) -> anyhow::Result<Vec<(PublicKey, SocketAddr)>> {
+        println!("Reading channel peers");
+        let cp_vec = api::get_channel_peers(&self.client, self.pubkey.clone())
+            .await
+            .map_err(|e| {
+                println!("{:#}", e);
+                e
+            })
+            .context("Could not fetch channel peers from DB")?;
+
+        let mut result = Vec::new();
+
+        for cp in cp_vec {
+            let peer_pubkey = PublicKey::from_str(&cp.peer_public_key)
+                .context("Could not deserialize PublicKey from LowerHex")?;
+            let peer_addr = SocketAddr::from_str(&cp.peer_address)
+                .context("Could not parse socket address from string")?;
+
+            result.push((peer_pubkey, peer_addr));
+        }
+
+        Ok(result)
     }
 }
 
