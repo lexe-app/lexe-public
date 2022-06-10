@@ -28,8 +28,9 @@ use lightning::util::ser::{ReadableArgs, Writeable};
 use lightning_background_processor::Persister;
 
 use anyhow::{anyhow, ensure, Context};
+use once_cell::sync::{Lazy, OnceCell};
 use reqwest::Client;
-use tokio::runtime::Handle;
+use tokio::runtime::{Builder, Handle, Runtime};
 
 use crate::api::{self, ChannelManager, ChannelMonitor, ProbabilisticScorer};
 use crate::bitcoind_client::BitcoindClient;
@@ -206,6 +207,24 @@ impl PostgresPersister {
     }
 }
 
+/// A Tokio runtime which can be used to run async closures in sync fns
+/// downstream of thread::spawn()
+static PERSISTER_RUNTIME: Lazy<OnceCell<Runtime>> = Lazy::new(|| {
+    Builder::new_current_thread()
+        .enable_io()
+        .build()
+        .unwrap()
+        .into()
+});
+
+/// This trait is defined in the `lightning-background-processor` crate.
+///
+/// The methods in this trait are called downstream of
+/// `BackgroundProcessor::start()` which calls `thread::spawn()` internally,
+/// meaning that the thread-local context for these fns do not already contain
+/// an async (Tokio) runtime. Thus, we offer a lazily-initialized
+/// `PERSISTER_RUNTIME` above which `persist_manager` and `persist_graph` hook
+/// into to run async closures.
 impl
     Persister<
         InMemorySigner,
@@ -232,17 +251,18 @@ impl
             state: channel_manager.encode(),
         };
 
-        // Run an async fn inside a sync fn inside a Tokio runtime
-        tokio::task::block_in_place(|| {
-            Handle::current().block_on(async move {
+        // Run an async fn inside a sync fn downstream of thread::spawn()
+        PERSISTER_RUNTIME
+            .get()
+            .unwrap()
+            .block_on(async move {
                 api::update_channel_manager(&self.client, channel_manager).await
             })
-        })
-        .map(|_| ())
-        .map_err(|api_err| {
-            println!("Could not persist channel manager: {:#}", api_err);
-            io::Error::new(ErrorKind::Other, api_err)
-        })
+            .map(|_| ())
+            .map_err(|api_err| {
+                println!("Could not persist channel manager: {:#}", api_err);
+                io::Error::new(ErrorKind::Other, api_err)
+            })
     }
 
     fn persist_graph(
@@ -253,6 +273,7 @@ impl
         // FIXME(encrypt): Encrypt under key derived from seed
         let _plaintext_bytes = network_graph.encode();
         // println!("Network graph: {:?}", plaintext_bytes);
+        // Run an async fn inside a sync fn downstream of thread::spawn()
 
         // NOTE: We don't really need to implement this for now
         Ok(())

@@ -447,6 +447,7 @@ dependencies = [
  "lightning-block-sync",
  "lightning-invoice",
  "lightning-net-tokio",
+ "once_cell",
  "rand",
  "reqwest",
  "serde",
