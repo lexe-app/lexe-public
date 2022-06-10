@@ -1,5 +1,5 @@
-use crate::disk;
 use crate::hex_utils;
+use crate::persister::PostgresPersister;
 use crate::{
     ChannelManagerType, HTLCStatus, InvoicePayerType, MillisatAmount,
     PaymentInfo, PaymentInfoStorageType, PeerManagerType,
@@ -23,7 +23,6 @@ use std::io;
 use std::io::{BufRead, Write};
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::ops::Deref;
-use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
@@ -162,7 +161,7 @@ pub(crate) async fn poll_for_user_input<E: EventHandler>(
     network_graph: Arc<NetworkGraph>,
     inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
-    ldk_data_dir: String,
+    persister: Arc<PostgresPersister>,
     network: Network,
 ) {
     println!("LDK startup successful. To view available commands: \"help\".");
@@ -240,14 +239,17 @@ pub(crate) async fn poll_for_user_input<E: EventHandler>(
                     )
                     .is_ok()
                     {
-                        let peer_data_path = format!(
-                            "{}/channel_peer_data",
-                            ldk_data_dir.clone()
-                        );
-                        let _ = disk::persist_channel_peer(
-                            Path::new(&peer_data_path),
-                            peer_pubkey_and_ip_addr,
-                        );
+                        if let Err(e) = persister
+                            .persist_channel_peer(
+                                peer_pubkey_and_ip_addr.to_owned(),
+                            )
+                            .await
+                        {
+                            println!(
+                                "ERROR Could not persist channel peer: {}",
+                                e
+                            );
+                        }
                     }
                 }
                 "sendpayment" => {
@@ -840,6 +842,7 @@ fn force_close_channel(
     }
 }
 
+// TODO Refactor this fn away by operating directly on native types
 pub(crate) fn parse_peer_info(
     peer_pubkey_and_ip_addr: String,
 ) -> Result<(PublicKey, SocketAddr), std::io::Error> {

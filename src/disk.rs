@@ -2,7 +2,6 @@ use chrono::Utc;
 use lightning::util::logger::{Logger, Record};
 use lightning::util::ser::Writer;
 use std::fs;
-use std::path::Path;
 
 pub struct FilesystemLogger {
     data_dir: String,
@@ -40,15 +39,4 @@ impl Logger for FilesystemLogger {
             .write_all(log.as_bytes())
             .unwrap();
     }
-}
-
-pub(crate) fn persist_channel_peer(
-    path: &Path,
-    peer_info: &str,
-) -> std::io::Result<()> {
-    let mut file = fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)?;
-    file.write_all(format!("{}\n", peer_info).as_bytes())
 }

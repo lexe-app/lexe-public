@@ -774,12 +774,13 @@ async fn start_ldk() -> anyhow::Result<()> {
     let connect_channel_manager = Arc::clone(&channel_manager);
     let connect_peer_manager = Arc::clone(&peer_manager);
     let stop_connect = Arc::clone(&stop_listen_connect);
+    let connect_persister = Arc::clone(&persister);
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(1));
         loop {
             interval.tick().await;
 
-            match persister.read_channel_peers().await {
+            match connect_persister.read_channel_peers().await {
                 Ok(cp_vec) => {
                     let peers = connect_peer_manager.get_peer_node_ids();
                     for node_id in connect_channel_manager
@@ -840,7 +841,7 @@ async fn start_ldk() -> anyhow::Result<()> {
         Arc::clone(&network_graph),
         inbound_payments,
         outbound_payments,
-        ldk_data_dir.clone(),
+        persister.clone(),
         network,
     )
     .await;

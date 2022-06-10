@@ -35,9 +35,11 @@ use reqwest::Client;
 use tokio::runtime::{Builder, Handle, Runtime};
 
 use crate::api::{
-    self, ChannelManager, ChannelMonitor, NetworkGraph, ProbabilisticScorer,
+    self, ChannelManager, ChannelMonitor, ChannelPeer, NetworkGraph,
+    ProbabilisticScorer,
 };
 use crate::bitcoind_client::BitcoindClient;
+use crate::cli;
 use crate::disk::FilesystemLogger; // TODO replace with db logger
 use crate::{ChainMonitorType, ChannelManagerType};
 
@@ -258,6 +260,26 @@ impl PostgresPersister {
         }
 
         Ok(result)
+    }
+
+    pub async fn persist_channel_peer(
+        &self,
+        peer_info_str: String,
+    ) -> anyhow::Result<()> {
+        let (peer_pubkey, peer_addr) = cli::parse_peer_info(peer_info_str)
+            .context("Could not parse peer info from string")?;
+
+        println!("Persisting new channel peer");
+        let cp = ChannelPeer {
+            node_public_key: self.pubkey.clone(),
+            peer_public_key: format!("{:x}", peer_pubkey),
+            peer_address: peer_addr.to_string(),
+        };
+
+        api::create_channel_peer(&self.client, cp)
+            .await
+            .map(|_| ())
+            .map_err(|e| e.into())
     }
 }
 
