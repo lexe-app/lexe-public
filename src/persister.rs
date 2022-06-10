@@ -18,7 +18,7 @@ use lightning::chain::ChannelMonitorUpdateErr;
 use lightning::ln::channelmanager::{
     ChannelManagerReadArgs, SimpleArcChannelManager,
 };
-use lightning::routing::network_graph::NetworkGraph;
+use lightning::routing::network_graph::NetworkGraph as LdkNetworkGraph;
 use lightning::routing::scoring::{
     ProbabilisticScorer as LdkProbabilisticScorer,
     ProbabilisticScoringParameters,
@@ -32,7 +32,9 @@ use once_cell::sync::{Lazy, OnceCell};
 use reqwest::Client;
 use tokio::runtime::{Builder, Handle, Runtime};
 
-use crate::api::{self, ChannelManager, ChannelMonitor, ProbabilisticScorer};
+use crate::api::{
+    self, ChannelManager, ChannelMonitor, NetworkGraph, ProbabilisticScorer,
+};
 use crate::bitcoind_client::BitcoindClient;
 use crate::disk::FilesystemLogger; // TODO replace with db logger
 use crate::{ChainMonitorType, ChannelManagerType};
@@ -160,8 +162,8 @@ impl PostgresPersister {
 
     pub async fn read_probabilistic_scorer(
         &self,
-        graph: Arc<NetworkGraph>,
-    ) -> anyhow::Result<LdkProbabilisticScorer<Arc<NetworkGraph>>> {
+        graph: Arc<LdkNetworkGraph>,
+    ) -> anyhow::Result<LdkProbabilisticScorer<Arc<LdkNetworkGraph>>> {
         println!("Reading probabilistic scorer");
         let params = ProbabilisticScoringParameters::default();
         let ps_opt =
@@ -275,17 +277,28 @@ impl
 
     fn persist_graph(
         &self,
-        network_graph: &NetworkGraph,
+        network_graph: &LdkNetworkGraph,
     ) -> Result<(), io::Error> {
         println!("Persisting network graph");
-        // Original FilesystemPersister filename: "network_graph"
-        // FIXME(encrypt): Encrypt under key derived from seed
-        let _plaintext_bytes = network_graph.encode();
-        // println!("Network graph: {:?}", plaintext_bytes);
-        // Run an async fn inside a sync fn downstream of thread::spawn()
+        let network_graph = NetworkGraph {
+            node_public_key: self.pubkey.clone(),
+            // FIXME(encrypt): Encrypt under key derived from seed
+            state: network_graph.encode(),
+        };
 
-        // NOTE: We don't really need to implement this for now
-        Ok(())
+        // Run an async fn inside a sync fn downstream of thread::spawn()
+        PERSISTER_RUNTIME
+            .get()
+            .unwrap()
+            .block_on(async move {
+                api::create_or_update_network_graph(&self.client, network_graph)
+                    .await
+            })
+            .map(|_| ())
+            .map_err(|api_err| {
+                println!("Could not persist network graph: {:#}", api_err);
+                io::Error::new(ErrorKind::Other, api_err)
+            })
     }
 }
 
