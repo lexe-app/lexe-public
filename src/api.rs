@@ -141,6 +141,28 @@ pub async fn create_or_update_network_graph(
     request(client, Method::PUT, "/network_graph", ng).await
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct ChannelPeer {
+    pub node_public_key: String,
+    pub peer_public_key: String,
+    pub peer_address: String,
+}
+
+pub async fn create_channel_peer(
+    client: &Client,
+    channel_peer: ChannelPeer,
+) -> Result<ChannelPeer, ApiError> {
+    request(client, Method::POST, "/channel_peer", channel_peer).await
+}
+
+pub async fn get_channel_peers(
+    client: &Client,
+    public_key: String,
+) -> Result<Vec<ChannelPeer>, ApiError> {
+    let get_by_pubkey = GetByPublicKey { public_key };
+    request(client, Method::GET, "/channel_peer", get_by_pubkey).await
+}
+
 /// Builds and executes the API request
 async fn request<D: Serialize, T: DeserializeOwned>(
     client: &Client,
