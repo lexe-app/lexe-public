@@ -195,27 +195,6 @@ impl PostgresPersister {
         Ok(ps)
     }
 
-    // TODO update this description
-    /// This function does not borrow a `ProbabilisticScorer` like the others
-    /// would because the ProbabilisticScorer is wrapped in an
-    /// `Arc<Mutex<T>>` in the calling function, which requires that the
-    /// `MutexGuard` to the ProbabilisticScorer is held across
-    /// `create_or_update_probabilistic_scorer().await`. However, this cannot be
-    /// done since MutexGuard is not `Send`.
-    ///
-    /// Taking in the api::ProbabilisticScorer struct directly avoids this
-    /// problem but necessitates a bit more code in the caller.
-    pub async fn persist_probabilistic_scorer(
-        &self,
-        ps: ApiProbabilisticScorer,
-    ) -> anyhow::Result<()> {
-        println!("Persisting probabilistic scorer");
-        api::create_or_update_probabilistic_scorer(&self.client, ps)
-            .await
-            .map(|_| ())
-            .context("Could not persist probabilistic scorer to DB")
-    }
-
     pub async fn read_network_graph(
         &self,
         genesis_hash: BlockHash,
@@ -380,10 +359,24 @@ impl<'a>
 
     fn persist_scorer(
         &self,
-        _scorer: &Mutex<ProbabilisticScorerType>,
+        scorer_mutex: &Mutex<ProbabilisticScorerType>,
     ) -> Result<(), io::Error> {
-        // TODO
-        Ok(())
+        println!("Persisting probabilistic scorer");
+
+        let ps = {
+            let scorer = scorer_mutex.lock().unwrap();
+            ApiProbabilisticScorer {
+                node_public_key: self.pubkey.clone(),
+                state: scorer.encode(),
+            }
+        };
+
+        PERSISTER_RUNTIME.get().unwrap().block_on(async move {
+            api::create_or_update_probabilistic_scorer(&self.client, ps)
+                .await
+                .map(|_| ())
+                .map_err(|api_err| io::Error::new(ErrorKind::Other, api_err))
+        })
     }
 }
 

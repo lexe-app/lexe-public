@@ -35,7 +35,7 @@ use lightning::routing::gossip::{NetworkGraph, NodeId, P2PGossipSync};
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::util::config::UserConfig;
 use lightning::util::events::{Event, PaymentPurpose};
-use lightning::util::ser::Writeable;
+use lightning::util::persist::Persister;
 use lightning_background_processor::BackgroundProcessor;
 use lightning_block_sync::init;
 use lightning_block_sync::poll;
@@ -50,7 +50,7 @@ use anyhow::{bail, ensure, Context};
 use rand::{thread_rng, Rng};
 use reqwest::Client;
 
-use crate::api::{Node, ProbabilisticScorer as ApiProbabilisticScorer};
+use crate::api::Node;
 use crate::bitcoind_client::BitcoindClient;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
@@ -820,28 +820,17 @@ async fn start_ldk() -> anyhow::Result<()> {
         .await
         .context("Could not read probabilistic scorer")?;
     let scorer = Arc::new(Mutex::new(scorer));
-    let moved_scorer = Arc::clone(&scorer);
-    let moved_persister = Arc::clone(&persister);
+    let inner_scorer = Arc::clone(&scorer);
+    let inner_persister = Arc::clone(&persister);
     tokio::spawn(async move {
         // TODO This isn't realistic for the Lexe usecase
         let mut interval = tokio::time::interval(Duration::from_secs(600));
-        let pubkey = format!("{:x}", pubkey);
 
         loop {
             interval.tick().await;
 
-            let ps = {
-                let scorer_lock = moved_scorer.lock().unwrap();
-                ApiProbabilisticScorer {
-                    node_public_key: pubkey.clone(),
-                    state: scorer_lock.encode(),
-                }
-            };
-
-            let _ = moved_persister
-                .persist_probabilistic_scorer(ps)
-                .await
-                .map_err(|e| {
+            let _ =
+                inner_persister.persist_scorer(&inner_scorer).map_err(|e| {
                     println!("Warning: Failed to persist scorer: {:#}", e)
                 });
         }
