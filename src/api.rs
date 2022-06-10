@@ -120,6 +120,27 @@ pub async fn create_or_update_probabilistic_scorer(
     request(client, Method::PUT, "/probabilistic_scorer", ps).await
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct NetworkGraph {
+    pub node_public_key: String,
+    pub state: Vec<u8>,
+}
+
+pub async fn get_network_graph(
+    client: &Client,
+    public_key: String,
+) -> Result<Option<NetworkGraph>, ApiError> {
+    let get_by_pubkey = GetByPublicKey { public_key };
+    request(client, Method::GET, "/network_graph", get_by_pubkey).await
+}
+
+pub async fn create_or_update_network_graph(
+    client: &Client,
+    ng: NetworkGraph,
+) -> Result<NetworkGraph, ApiError> {
+    request(client, Method::PUT, "/network_graph", ng).await
+}
+
 /// Builds and executes the API request
 async fn request<D: Serialize, T: DeserializeOwned>(
     client: &Client,

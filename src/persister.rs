@@ -66,6 +66,7 @@ impl PostgresPersister {
         logger: Arc<FilesystemLogger>,
         user_config: UserConfig,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
+        println!("Reading channel manager");
         let cm_opt =
             api::get_channel_manager(&self.client, self.pubkey.clone())
                 .await
@@ -119,6 +120,7 @@ impl PostgresPersister {
     where
         K::Target: KeysInterface<Signer = Signer> + Sized,
     {
+        println!("Reading channel monitors");
         let cm_vec =
             api::get_channel_monitors(&self.client, self.pubkey.clone())
                 .await
@@ -160,6 +162,7 @@ impl PostgresPersister {
         &self,
         graph: Arc<NetworkGraph>,
     ) -> anyhow::Result<LdkProbabilisticScorer<Arc<NetworkGraph>>> {
+        println!("Reading probabilistic scorer");
         let params = ProbabilisticScoringParameters::default();
         let ps_opt =
             api::get_probabilistic_scorer(&self.client, self.pubkey.clone())
@@ -200,6 +203,7 @@ impl PostgresPersister {
         &self,
         ps: ProbabilisticScorer,
     ) -> anyhow::Result<()> {
+        println!("Persisting probabilistic scorer");
         api::create_or_update_probabilistic_scorer(&self.client, ps)
             .await
             .map(|_| ())
@@ -273,6 +277,7 @@ impl
         &self,
         network_graph: &NetworkGraph,
     ) -> Result<(), io::Error> {
+        println!("Persisting network graph");
         // Original FilesystemPersister filename: "network_graph"
         // FIXME(encrypt): Encrypt under key derived from seed
         let _plaintext_bytes = network_graph.encode();
