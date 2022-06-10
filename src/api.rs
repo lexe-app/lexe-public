@@ -113,7 +113,7 @@ pub async fn get_probabilistic_scorer(
     request(client, Method::GET, "/probabilistic_scorer", get_by_pubkey).await
 }
 
-pub async fn update_probabilistic_scorer(
+pub async fn create_or_update_probabilistic_scorer(
     client: &Client,
     ps: ProbabilisticScorer,
 ) -> Result<ProbabilisticScorer, ApiError> {

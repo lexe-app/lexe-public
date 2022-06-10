@@ -191,8 +191,8 @@ impl PostgresPersister {
     /// would because the LdkProbabilisticScorer is wrapped in an
     /// `Arc<Mutex<T>>` in the calling function, which requires that the
     /// `MutexGuard` to the LdkProbabilisticScorer is held across
-    /// `update_probabilistic_scorer().await`. However, this cannot be done
-    /// since MutexGuard is not `Send`.
+    /// `create_or_update_probabilistic_scorer().await`. However, this cannot be
+    /// done since MutexGuard is not `Send`.
     ///
     /// Taking in the api::ProbabilisticScorer struct directly avoids this
     /// problem but necessitates a bit more code in the caller.
@@ -200,7 +200,7 @@ impl PostgresPersister {
         &self,
         ps: ProbabilisticScorer,
     ) -> anyhow::Result<()> {
-        api::update_probabilistic_scorer(&self.client, ps)
+        api::create_or_update_probabilistic_scorer(&self.client, ps)
             .await
             .map(|_| ())
             .context("Could not persist probabilistic scorer to DB")
