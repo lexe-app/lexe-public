@@ -472,8 +472,7 @@ checksum = "349d5a591cd28b49e1d1037471617a32ddcda5731b99419008085f72d5a53836"
 [[package]]
 name = "lightning"
 version = "0.0.107"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9d26c0da268a793c9c9a37365c4f6c496bfdbcbe8e17f74f226ce04cca3d721"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.107#064ae34c7fffc55fa43edaa6b8bf8e4dd5b0577b"
 dependencies = [
  "bitcoin",
 ]
@@ -481,8 +480,7 @@ dependencies = [
 [[package]]
 name = "lightning-background-processor"
 version = "0.0.107"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d7ab2cb885578117635c9389dbc30ab74c4532e2dddc530215bc7aae5fb6d5f6"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.107#064ae34c7fffc55fa43edaa6b8bf8e4dd5b0577b"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -492,8 +490,7 @@ dependencies = [
 [[package]]
 name = "lightning-block-sync"
 version = "0.0.107"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a90da35aa25b605224c7b99d4d2232183545253570d1edce5ddf007ef4cdb485"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.107#064ae34c7fffc55fa43edaa6b8bf8e4dd5b0577b"
 dependencies = [
  "bitcoin",
  "chunked_transfer",
@@ -506,8 +503,7 @@ dependencies = [
 [[package]]
 name = "lightning-invoice"
 version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "40813315a166d0bc053c396b6d2d99b26adcb6db937e073755ca13460eb71630"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.107#064ae34c7fffc55fa43edaa6b8bf8e4dd5b0577b"
 dependencies = [
  "bech32",
  "bitcoin_hashes",
@@ -519,8 +515,7 @@ dependencies = [
 [[package]]
 name = "lightning-net-tokio"
 version = "0.0.107"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e1007cef0f7121a2ca68bcf6aadaab4618e2e63570e84dbcb26e17902c1f943"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.107#064ae34c7fffc55fa43edaa6b8bf8e4dd5b0577b"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -530,8 +525,7 @@ dependencies = [
 [[package]]
 name = "lightning-rapid-gossip-sync"
 version = "0.0.107"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f80f7131856f0ae61c22665edf953b11890c53a10e83f6d8f2dc01a5026be3d4"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.107#064ae34c7fffc55fa43edaa6b8bf8e4dd5b0577b"
 dependencies = [
  "bitcoin",
  "lightning",

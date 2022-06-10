@@ -749,7 +749,7 @@ async fn start_ldk() -> anyhow::Result<()> {
             tokio::spawn(async move {
                 lightning_net_tokio::setup_inbound(
                     peer_mgr.clone(),
-                    tcp_stream.into_std().unwrap(),
+                    tcp_stream,
                 )
                 .await;
             });
