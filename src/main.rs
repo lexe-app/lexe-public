@@ -51,17 +51,15 @@ use reqwest::Client;
 
 use crate::api::{Node, ProbabilisticScorer as ApiProbabilisticScorer};
 use crate::bitcoind_client::BitcoindClient;
-use crate::disk::FilesystemLogger;
+use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
 
 mod api;
 pub mod bitcoind_client;
 mod cli;
 mod convert;
-mod disk;
 mod hex_utils;
-// TODO remove after implementation is complete
-#[allow(unused_variables, dead_code)]
+mod logger;
 mod persister;
 
 enum HTLCStatus {
@@ -95,7 +93,7 @@ type ChainMonitorType = chainmonitor::ChainMonitor<
     Arc<dyn Filter + Send + Sync>,
     Arc<BitcoindClient>,
     Arc<BitcoindClient>,
-    Arc<FilesystemLogger>,
+    Arc<StdOutLogger>,
     Arc<PostgresPersister>,
 >;
 
@@ -105,25 +103,25 @@ type PeerManagerType = SimpleArcPeerManager<
     BitcoindClient,
     BitcoindClient,
     dyn chain::Access + Send + Sync,
-    FilesystemLogger,
+    StdOutLogger,
 >;
 
 type ChannelManagerType = SimpleArcChannelManager<
     ChainMonitorType,
     BitcoindClient,
     BitcoindClient,
-    FilesystemLogger,
+    StdOutLogger,
 >;
 
 type InvoicePayerType<E> = payment::InvoicePayer<
     Arc<ChannelManagerType>,
     RouterType,
     Arc<Mutex<ProbabilisticScorer<Arc<NetworkGraph>>>>,
-    Arc<FilesystemLogger>,
+    Arc<StdOutLogger>,
     E,
 >;
 
-type RouterType = DefaultRouter<Arc<NetworkGraph>, Arc<FilesystemLogger>>;
+type RouterType = DefaultRouter<Arc<NetworkGraph>, Arc<StdOutLogger>>;
 
 async fn handle_ldk_events(
     channel_manager: Arc<ChannelManagerType>,
@@ -363,8 +361,6 @@ async fn start_ldk() -> anyhow::Result<()> {
         Err(()) => bail!("Could not parse startup args"),
     };
 
-    let ldk_data_dir = format!("{}/.ldk", args.ldk_storage_dir_path);
-
     // Initialize our bitcoind client.
     let bitcoind_client = match BitcoindClient::new(
         args.bitcoind_rpc_host.clone(),
@@ -407,7 +403,7 @@ async fn start_ldk() -> anyhow::Result<()> {
     let fee_estimator = bitcoind_client.clone();
 
     // Step 2: Initialize the Logger
-    let logger = Arc::new(FilesystemLogger::new(ldk_data_dir.clone()));
+    let logger = Arc::new(StdOutLogger {});
 
     // Step 3: Initialize the BroadcasterInterface
 

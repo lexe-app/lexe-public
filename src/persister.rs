@@ -40,7 +40,7 @@ use crate::api::{
 };
 use crate::bitcoind_client::BitcoindClient;
 use crate::cli;
-use crate::disk::FilesystemLogger; // TODO replace with db logger
+use crate::logger::StdOutLogger;
 use crate::{ChainMonitorType, ChannelManagerType};
 
 #[derive(Clone)]
@@ -69,7 +69,7 @@ impl PostgresPersister {
         fee_estimator: Arc<BitcoindClient>,
         chain_monitor: Arc<ChainMonitorType>,
         broadcaster: Arc<BitcoindClient>,
-        logger: Arc<FilesystemLogger>,
+        logger: Arc<StdOutLogger>,
         user_config: UserConfig,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         println!("Reading channel manager");
@@ -308,7 +308,7 @@ impl
         Arc<BitcoindClient>,
         Arc<KeysManager>,
         Arc<BitcoindClient>,
-        Arc<FilesystemLogger>,
+        Arc<StdOutLogger>,
     > for PostgresPersister
 {
     fn persist_manager(
@@ -317,7 +317,7 @@ impl
             ChainMonitorType,
             BitcoindClient,
             BitcoindClient,
-            FilesystemLogger,
+            StdOutLogger,
         >,
     ) -> Result<(), io::Error> {
         println!("Persisting channel manager");

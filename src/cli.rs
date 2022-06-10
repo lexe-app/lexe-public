@@ -27,6 +27,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+#[allow(dead_code)]
 pub(crate) struct LdkUserInfo {
     pub(crate) bitcoind_rpc_username: String,
     pub(crate) bitcoind_rpc_password: String,
