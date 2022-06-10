@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
 use bitcoin::hashes::hex::FromHex;
-use bitcoin::secp256k1::key::PublicKey;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin::BlockHash;
 use lightning::chain::keysinterface::{KeysInterface, KeysManager, Recipient};

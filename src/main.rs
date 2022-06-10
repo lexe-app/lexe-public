@@ -13,7 +13,7 @@ use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
 use bitcoin::network::constants::Network;
-use bitcoin::secp256k1::key::PublicKey;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin_bech32::WitnessProgram;
 use lightning::chain;
@@ -31,7 +31,7 @@ use lightning::ln::peer_handler::{
     IgnoringMessageHandler, MessageHandler, SimpleArcPeerManager,
 };
 use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
-use lightning::routing::network_graph::{NetGraphMsgHandler, NetworkGraph};
+use lightning::routing::gossip::{NetworkGraph, NodeId, P2PGossipSync};
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::util::config::UserConfig;
 use lightning::util::events::{Event, PaymentPurpose};
@@ -44,6 +44,7 @@ use lightning_block_sync::UnboundedCache;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use lightning_net_tokio::SocketDescriptor;
+use lightning_rapid_gossip_sync::RapidGossipSync;
 
 use anyhow::{bail, ensure, Context};
 use rand::{thread_rng, Rng};
@@ -116,25 +117,58 @@ type ChannelManagerType = SimpleArcChannelManager<
 type InvoicePayerType<E> = payment::InvoicePayer<
     Arc<ChannelManagerType>,
     RouterType,
-    Arc<Mutex<ProbabilisticScorer<Arc<NetworkGraph>>>>,
+    Arc<Mutex<ProbabilisticScorerType>>,
     Arc<StdOutLogger>,
     E,
 >;
 
-type RouterType = DefaultRouter<Arc<NetworkGraph>, Arc<StdOutLogger>>;
+type ProbabilisticScorerType =
+    ProbabilisticScorer<Arc<NetworkGraphType>, LoggerType>;
 
+type RouterType = DefaultRouter<Arc<NetworkGraphType>, LoggerType>;
+
+type GossipSync<P, G, A, L> = lightning_background_processor::GossipSync<
+    P,
+    Arc<RapidGossipSync<G, L>>,
+    G,
+    A,
+    L,
+>;
+
+type NetworkGraphType = NetworkGraph<LoggerType>;
+
+type LoggerType = Arc<StdOutLogger>;
+
+struct NodeAlias<'a>(&'a [u8; 32]);
+
+impl fmt::Display for NodeAlias<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let alias = self
+            .0
+            .iter()
+            .map(|b| *b as char)
+            .take_while(|c| *c != '\0')
+            .filter(|c| c.is_ascii_graphic() || *c == ' ')
+            .collect::<String>();
+        write!(f, "{}", alias)
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 async fn handle_ldk_events(
-    channel_manager: Arc<ChannelManagerType>,
-    bitcoind_client: Arc<BitcoindClient>,
-    keys_manager: Arc<KeysManager>,
-    inbound_payments: PaymentInfoStorageType,
-    outbound_payments: PaymentInfoStorageType,
+    channel_manager: &Arc<ChannelManagerType>,
+    bitcoind_client: &BitcoindClient,
+    network_graph: &NetworkGraphType,
+    keys_manager: &KeysManager,
+    inbound_payments: &PaymentInfoStorageType,
+    outbound_payments: &PaymentInfoStorageType,
     network: Network,
     event: &Event,
 ) {
     match event {
         Event::FundingGenerationReady {
             temporary_channel_id,
+            counterparty_node_id,
             channel_value_satoshis,
             output_script,
             ..
@@ -180,7 +214,11 @@ async fn handle_ldk_events(
             .unwrap();
             // Give the funding transaction back to LDK for opening the channel.
             if channel_manager
-                .funding_transaction_generated(temporary_channel_id, final_tx)
+                .funding_transaction_generated(
+                    temporary_channel_id,
+                    counterparty_node_id,
+                    final_tx,
+                )
                 .is_err()
             {
                 println!(
@@ -192,10 +230,35 @@ async fn handle_ldk_events(
         Event::PaymentReceived {
             payment_hash,
             purpose,
-            amt,
-            ..
+            amount_msat,
         } => {
-            let mut payments = inbound_payments.lock().unwrap();
+            println!(
+				"\nEVENT: received payment from payment hash {} of {} millisatoshis",
+				hex_utils::hex_str(&payment_hash.0),
+				amount_msat,
+			);
+            print!("> ");
+            io::stdout().flush().unwrap();
+            let payment_preimage = match purpose {
+                PaymentPurpose::InvoicePayment {
+                    payment_preimage, ..
+                } => *payment_preimage,
+                PaymentPurpose::SpontaneousPayment(preimage) => Some(*preimage),
+            };
+            channel_manager.claim_funds(payment_preimage.unwrap());
+        }
+        Event::PaymentClaimed {
+            payment_hash,
+            purpose,
+            amount_msat,
+        } => {
+            println!(
+				"\nEVENT: claimed payment from payment hash {} of {} millisatoshis",
+				hex_utils::hex_str(&payment_hash.0),
+				amount_msat,
+			);
+            print!("> ");
+            io::stdout().flush().unwrap();
             let (payment_preimage, payment_secret) = match purpose {
                 PaymentPurpose::InvoicePayment {
                     payment_preimage,
@@ -206,24 +269,11 @@ async fn handle_ldk_events(
                     (Some(*preimage), None)
                 }
             };
-            let status =
-                match channel_manager.claim_funds(payment_preimage.unwrap()) {
-                    true => {
-                        println!(
-						"\nEVENT: received payment from payment hash {} of {} millisatoshis",
-						hex_utils::hex_str(&payment_hash.0),
-						amt
-					);
-                        print!("> ");
-                        io::stdout().flush().unwrap();
-                        HTLCStatus::Succeeded
-                    }
-                    _ => HTLCStatus::Failed,
-                };
+            let mut payments = inbound_payments.lock().unwrap();
             match payments.entry(*payment_hash) {
                 Entry::Occupied(mut e) => {
                     let payment = e.get_mut();
-                    payment.status = status;
+                    payment.status = HTLCStatus::Succeeded;
                     payment.preimage = payment_preimage;
                     payment.secret = payment_secret;
                 }
@@ -231,8 +281,8 @@ async fn handle_ldk_events(
                     e.insert(PaymentInfo {
                         preimage: payment_preimage,
                         secret: payment_secret,
-                        status,
-                        amt_msat: MillisatAmount(Some(*amt)),
+                        status: HTLCStatus::Succeeded,
+                        amt_msat: MillisatAmount(Some(*amount_msat)),
                     });
                 }
             }
@@ -285,9 +335,61 @@ async fn handle_ldk_events(
             }
         }
         Event::PaymentForwarded {
+            prev_channel_id,
+            next_channel_id,
             fee_earned_msat,
             claim_from_onchain_tx,
         } => {
+            let read_only_network_graph = network_graph.read_only();
+            let nodes = read_only_network_graph.nodes();
+            let channels = channel_manager.list_channels();
+
+            let node_str = |channel_id: &Option<[u8; 32]>| match channel_id {
+                None => String::new(),
+                Some(channel_id) => {
+                    match channels.iter().find(|c| c.channel_id == *channel_id)
+                    {
+                        None => String::new(),
+                        Some(channel) => {
+                            match nodes.get(&NodeId::from_pubkey(
+                                &channel.counterparty.node_id,
+                            )) {
+                                None => " from private node".to_string(),
+                                Some(node) => match &node.announcement_info {
+                                    None => " from unnamed node".to_string(),
+                                    Some(announcement) => {
+                                        format!(
+                                            " from node {}",
+                                            NodeAlias(&announcement.alias)
+                                        )
+                                    }
+                                },
+                            }
+                        }
+                    }
+                }
+            };
+            let channel_str = |channel_id: &Option<[u8; 32]>| {
+                channel_id
+                    .map(|channel_id| {
+                        format!(
+                            " with channel {}",
+                            hex_utils::hex_str(&channel_id)
+                        )
+                    })
+                    .unwrap_or_default()
+            };
+            let from_prev_str = format!(
+                "{}{}",
+                node_str(prev_channel_id),
+                channel_str(prev_channel_id)
+            );
+            let to_next_str = format!(
+                "{}{}",
+                node_str(next_channel_id),
+                channel_str(next_channel_id)
+            );
+
             let from_onchain_str = if *claim_from_onchain_tx {
                 "from onchain downstream claim"
             } else {
@@ -295,13 +397,13 @@ async fn handle_ldk_events(
             };
             if let Some(fee_earned) = fee_earned_msat {
                 println!(
-                    "\nEVENT: Forwarded payment, earning {} msat {}",
-                    fee_earned, from_onchain_str
+                    "\nEVENT: Forwarded payment{}{}, earning {} msat {}",
+                    from_prev_str, to_next_str, fee_earned, from_onchain_str
                 );
             } else {
                 println!(
-                    "\nEVENT: Forwarded payment, claiming onchain {}",
-                    from_onchain_str
+                    "\nEVENT: Forwarded payment{}{}, claiming onchain {}",
+                    from_prev_str, to_next_str, from_onchain_str
                 );
             }
             print!("> ");
@@ -598,14 +700,14 @@ async fn start_ldk() -> anyhow::Result<()> {
             .unwrap();
     }
 
-    // Step 11: Optional: Initialize the NetGraphMsgHandler
+    // Step 11: Optional: Initialize the P2PGossipSync
     let genesis = genesis_block(args.network).header.block_hash();
     let network_graph = persister
-        .read_network_graph(genesis)
+        .read_network_graph(genesis, logger.clone())
         .await
         .context("Could not read network graph")?;
     let network_graph = Arc::new(network_graph);
-    let network_gossip = Arc::new(NetGraphMsgHandler::new(
+    let gossip_sync = Arc::new(P2PGossipSync::new(
         Arc::clone(&network_graph),
         None::<Arc<dyn chain::Access + Send + Sync>>,
         logger.clone(),
@@ -617,7 +719,7 @@ async fn start_ldk() -> anyhow::Result<()> {
     rand::thread_rng().fill_bytes(&mut ephemeral_bytes);
     let lightning_msg_handler = MessageHandler {
         chan_handler: channel_manager.clone(),
-        route_handler: network_gossip.clone(),
+        route_handler: gossip_sync.clone(),
     };
     let peer_manager: Arc<PeerManagerType> = Arc::new(PeerManagerType::new(
         lightning_msg_handler,
@@ -694,14 +796,16 @@ async fn start_ldk() -> anyhow::Result<()> {
     let outbound_pmts_for_events = outbound_payments.clone();
     let network = args.network;
     let bitcoind_rpc = bitcoind_client.clone();
+    let network_graph_events = network_graph.clone();
     let handle = tokio::runtime::Handle::current();
     let event_handler = move |event: &Event| {
         handle.block_on(handle_ldk_events(
-            channel_manager_event_listener.clone(),
-            bitcoind_rpc.clone(),
-            keys_manager_listener.clone(),
-            inbound_pmts_for_events.clone(),
-            outbound_pmts_for_events.clone(),
+            &channel_manager_event_listener,
+            &bitcoind_rpc,
+            &network_graph_events,
+            &keys_manager_listener,
+            &inbound_pmts_for_events,
+            &outbound_pmts_for_events,
             network,
             event,
         ));
@@ -709,7 +813,10 @@ async fn start_ldk() -> anyhow::Result<()> {
 
     // Step 16: Initialize routing ProbabilisticScorer
     let scorer = persister
-        .read_probabilistic_scorer(Arc::clone(&network_graph))
+        .read_probabilistic_scorer(
+            Arc::clone(&network_graph),
+            Arc::clone(&logger),
+        )
         .await
         .context("Could not read probabilistic scorer")?;
     let scorer = Arc::new(Mutex::new(scorer));
@@ -752,18 +859,19 @@ async fn start_ldk() -> anyhow::Result<()> {
         scorer.clone(),
         logger.clone(),
         event_handler,
-        payment::RetryAttempts(5),
+        payment::Retry::Timeout(Duration::from_secs(10)),
     ));
 
     // Step 18: Background Processing
     let background_processor = BackgroundProcessor::start(
-        (*persister).clone(),
+        Arc::clone(&persister),
         invoice_payer.clone(),
         chain_monitor.clone(),
         channel_manager.clone(),
-        Some(network_gossip.clone()),
+        GossipSync::P2P(gossip_sync.clone()),
         peer_manager.clone(),
         logger.clone(),
+        Some(scorer.clone()),
     );
 
     // Regularly reconnect to channel peers.

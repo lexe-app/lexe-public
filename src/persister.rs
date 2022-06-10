@@ -3,11 +3,11 @@ use std::io::{self, Cursor, ErrorKind};
 use std::net::SocketAddr;
 use std::ops::Deref;
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use bitcoin::hash_types::{BlockHash, Txid};
 use bitcoin::hashes::hex::{FromHex, ToHex};
-use bitcoin::secp256k1::key::PublicKey;
+use bitcoin::secp256k1::PublicKey;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
 use lightning::chain::channelmonitor::{
     ChannelMonitor as LdkChannelMonitor, ChannelMonitorUpdate,
@@ -20,14 +20,13 @@ use lightning::chain::ChannelMonitorUpdateErr;
 use lightning::ln::channelmanager::{
     ChannelManagerReadArgs, SimpleArcChannelManager,
 };
-use lightning::routing::network_graph::NetworkGraph as LdkNetworkGraph;
+use lightning::routing::gossip::NetworkGraph as LdkNetworkGraph;
 use lightning::routing::scoring::{
-    ProbabilisticScorer as LdkProbabilisticScorer,
-    ProbabilisticScoringParameters,
+    ProbabilisticScorer, ProbabilisticScoringParameters,
 };
 use lightning::util::config::UserConfig;
-use lightning::util::ser::{Readable, ReadableArgs, Writeable};
-use lightning_background_processor::Persister;
+use lightning::util::persist::Persister;
+use lightning::util::ser::{ReadableArgs, Writeable};
 
 use anyhow::{anyhow, ensure, Context};
 use once_cell::sync::{Lazy, OnceCell};
@@ -36,12 +35,15 @@ use tokio::runtime::{Builder, Handle, Runtime};
 
 use crate::api::{
     self, ChannelManager, ChannelMonitor, ChannelPeer, NetworkGraph,
-    ProbabilisticScorer,
+    ProbabilisticScorer as ApiProbabilisticScorer,
 };
 use crate::bitcoind_client::BitcoindClient;
 use crate::cli;
 use crate::logger::StdOutLogger;
-use crate::{ChainMonitorType, ChannelManagerType};
+use crate::{
+    ChainMonitorType, ChannelManagerType, LoggerType, NetworkGraphType,
+    ProbabilisticScorerType,
+};
 
 #[derive(Clone)]
 pub struct PostgresPersister {
@@ -166,8 +168,9 @@ impl PostgresPersister {
 
     pub async fn read_probabilistic_scorer(
         &self,
-        graph: Arc<LdkNetworkGraph>,
-    ) -> anyhow::Result<LdkProbabilisticScorer<Arc<LdkNetworkGraph>>> {
+        graph: Arc<NetworkGraphType>,
+        logger: LoggerType,
+    ) -> anyhow::Result<ProbabilisticScorerType> {
         println!("Reading probabilistic scorer");
         let params = ProbabilisticScoringParameters::default();
         let ps_opt =
@@ -178,24 +181,25 @@ impl PostgresPersister {
         let ps = match ps_opt {
             Some(ps) => {
                 let mut state_buf = Cursor::new(&ps.state);
-                LdkProbabilisticScorer::read(
+                ProbabilisticScorer::read(
                     &mut state_buf,
-                    (params, Arc::clone(&graph)),
+                    (params, Arc::clone(&graph), logger),
                 )
                 // LDK DecodeError is Debug but doesn't impl std::error::Error
                 .map_err(|e| anyhow!("{:?}", e))
                 .context("Failed to deserialize ProbabilisticScorer")?
             }
-            None => LdkProbabilisticScorer::new(params, graph),
+            None => ProbabilisticScorer::new(params, graph, logger),
         };
 
         Ok(ps)
     }
 
-    /// This function does not borrow a `LdkProbabilisticScorer` like the others
-    /// would because the LdkProbabilisticScorer is wrapped in an
+    // TODO update this description
+    /// This function does not borrow a `ProbabilisticScorer` like the others
+    /// would because the ProbabilisticScorer is wrapped in an
     /// `Arc<Mutex<T>>` in the calling function, which requires that the
-    /// `MutexGuard` to the LdkProbabilisticScorer is held across
+    /// `MutexGuard` to the ProbabilisticScorer is held across
     /// `create_or_update_probabilistic_scorer().await`. However, this cannot be
     /// done since MutexGuard is not `Send`.
     ///
@@ -203,7 +207,7 @@ impl PostgresPersister {
     /// problem but necessitates a bit more code in the caller.
     pub async fn persist_probabilistic_scorer(
         &self,
-        ps: ProbabilisticScorer,
+        ps: ApiProbabilisticScorer,
     ) -> anyhow::Result<()> {
         println!("Persisting probabilistic scorer");
         api::create_or_update_probabilistic_scorer(&self.client, ps)
@@ -215,7 +219,8 @@ impl PostgresPersister {
     pub async fn read_network_graph(
         &self,
         genesis_hash: BlockHash,
-    ) -> anyhow::Result<LdkNetworkGraph> {
+        logger: LoggerType,
+    ) -> anyhow::Result<NetworkGraphType> {
         println!("Reading network graph");
         let ng_opt = api::get_network_graph(&self.client, self.pubkey.clone())
             .await
@@ -224,13 +229,13 @@ impl PostgresPersister {
         let ng = match ng_opt {
             Some(ng) => {
                 let mut state_buf = Cursor::new(&ng.state);
-                LdkNetworkGraph::read(&mut state_buf)
+                LdkNetworkGraph::read(&mut state_buf, logger.clone())
                     // LDK DecodeError is Debug but doesn't impl
                     // std::error::Error
                     .map_err(|e| anyhow!("{:?}", e))
                     .context("Failed to deserialize NetworkGraph")?
             }
-            None => LdkNetworkGraph::new(genesis_hash),
+            None => LdkNetworkGraph::new(genesis_hash, logger),
         };
 
         Ok(ng)
@@ -301,14 +306,16 @@ static PERSISTER_RUNTIME: Lazy<OnceCell<Runtime>> = Lazy::new(|| {
 /// an async (Tokio) runtime. Thus, we offer a lazily-initialized
 /// `PERSISTER_RUNTIME` above which `persist_manager` and `persist_graph` hook
 /// into to run async closures.
-impl
+impl<'a>
     Persister<
+        'a,
         InMemorySigner,
         Arc<ChainMonitorType>,
         Arc<BitcoindClient>,
         Arc<KeysManager>,
         Arc<BitcoindClient>,
         Arc<StdOutLogger>,
+        Mutex<ProbabilisticScorerType>,
     > for PostgresPersister
 {
     fn persist_manager(
@@ -347,7 +354,7 @@ impl
 
     fn persist_graph(
         &self,
-        network_graph: &LdkNetworkGraph,
+        network_graph: &NetworkGraphType,
     ) -> Result<(), io::Error> {
         println!("Persisting network graph");
         let network_graph = NetworkGraph {
@@ -369,6 +376,14 @@ impl
                 println!("Could not persist network graph: {:#}", api_err);
                 io::Error::new(ErrorKind::Other, api_err)
             })
+    }
+
+    fn persist_scorer(
+        &self,
+        _scorer: &Mutex<ProbabilisticScorerType>,
+    ) -> Result<(), io::Error> {
+        // TODO
+        Ok(())
     }
 }
 
