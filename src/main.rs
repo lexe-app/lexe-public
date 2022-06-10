@@ -605,9 +605,11 @@ async fn start_ldk() -> anyhow::Result<()> {
 
     // Step 11: Optional: Initialize the NetGraphMsgHandler
     let genesis = genesis_block(args.network).header.block_hash();
-    let network_graph_path = format!("{}/network_graph", ldk_data_dir.clone());
-    let network_graph =
-        Arc::new(disk::read_network(Path::new(&network_graph_path), genesis));
+    let network_graph = persister
+        .read_network_graph(genesis)
+        .await
+        .context("Could not read network graph")?;
+    let network_graph = Arc::new(network_graph);
     let network_gossip = Arc::new(NetGraphMsgHandler::new(
         Arc::clone(&network_graph),
         None::<Arc<dyn chain::Access + Send + Sync>>,

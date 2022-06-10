@@ -24,7 +24,7 @@ use lightning::routing::scoring::{
     ProbabilisticScoringParameters,
 };
 use lightning::util::config::UserConfig;
-use lightning::util::ser::{ReadableArgs, Writeable};
+use lightning::util::ser::{Readable, ReadableArgs, Writeable};
 use lightning_background_processor::Persister;
 
 use anyhow::{anyhow, ensure, Context};
@@ -169,10 +169,6 @@ impl PostgresPersister {
         let ps_opt =
             api::get_probabilistic_scorer(&self.client, self.pubkey.clone())
                 .await
-                .map_err(|e| {
-                    println!("{:#}", e);
-                    e
-                })
                 .context("Could not fetch probabilistic scorer from DB")?;
 
         let ps = match ps_opt {
@@ -210,6 +206,30 @@ impl PostgresPersister {
             .await
             .map(|_| ())
             .context("Could not persist probabilistic scorer to DB")
+    }
+
+    pub async fn read_network_graph(
+        &self,
+        genesis_hash: BlockHash,
+    ) -> anyhow::Result<LdkNetworkGraph> {
+        println!("Reading network graph");
+        let ng_opt = api::get_network_graph(&self.client, self.pubkey.clone())
+            .await
+            .context("Could not fetch network graph from DB")?;
+
+        let ng = match ng_opt {
+            Some(ng) => {
+                let mut state_buf = Cursor::new(&ng.state);
+                LdkNetworkGraph::read(&mut state_buf)
+                    // LDK DecodeError is Debug but doesn't impl
+                    // std::error::Error
+                    .map_err(|e| anyhow!("{:?}", e))
+                    .context("Failed to deserialize NetworkGraph")?
+            }
+            None => LdkNetworkGraph::new(genesis_hash),
+        };
+
+        Ok(ng)
     }
 }
 

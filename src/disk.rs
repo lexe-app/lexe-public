@@ -1,10 +1,8 @@
 use crate::cli;
 use bitcoin::secp256k1::key::PublicKey;
-use bitcoin::BlockHash;
 use chrono::Utc;
-use lightning::routing::network_graph::NetworkGraph;
 use lightning::util::logger::{Logger, Record};
-use lightning::util::ser::{Readable, Writer};
+use lightning::util::ser::Writer;
 use std::collections::HashMap;
 use std::fs;
 use std::fs::File;
@@ -78,16 +76,4 @@ pub(crate) fn read_channel_peer_data(
         }
     }
     Ok(peer_data)
-}
-
-pub(crate) fn read_network(
-    path: &Path,
-    genesis_hash: BlockHash,
-) -> NetworkGraph {
-    if let Ok(file) = File::open(path) {
-        if let Ok(graph) = NetworkGraph::read(&mut BufReader::new(file)) {
-            return graph;
-        }
-    }
-    NetworkGraph::new(genesis_hash)
 }
