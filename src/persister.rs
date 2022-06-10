@@ -256,7 +256,11 @@ impl
             .get()
             .unwrap()
             .block_on(async move {
-                api::update_channel_manager(&self.client, channel_manager).await
+                api::create_or_update_channel_manager(
+                    &self.client,
+                    channel_manager,
+                )
+                .await
             })
             .map(|_| ())
             .map_err(|api_err| {

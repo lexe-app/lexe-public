@@ -92,11 +92,11 @@ pub async fn get_channel_manager(
     request(client, Method::GET, "/channel_manager", get_by_pubkey).await
 }
 
-pub async fn update_channel_manager(
+pub async fn create_or_update_channel_manager(
     client: &Client,
     channel_manager: ChannelManager,
 ) -> Result<ChannelManager, ApiError> {
-    request(client, Method::POST, "/channel_manager", channel_manager).await
+    request(client, Method::PUT, "/channel_manager", channel_manager).await
 }
 
 #[derive(Serialize, Deserialize)]
