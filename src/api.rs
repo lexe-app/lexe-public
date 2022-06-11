@@ -18,23 +18,43 @@ pub enum ApiError {
     Server(String),
 }
 
-/// Struct which can be used to make requests with no data attached
+/// Query parameter struct for fetching with no data attached
 ///
 /// Is defined with {} otherwise serde_qs vomits
 #[derive(Serialize)]
 pub struct EmptyData {}
 
-/// Struct which can be used to query data based on a node's public key
+/// Query parameter struct for fetching by user id
+#[derive(Serialize)]
+pub struct GetByUserId {
+    pub user_id: i64,
+}
+
+/// Query parameter struct for fetching by user id and measurement
+#[derive(Serialize)]
+pub struct GetByUserIdAndMeasurement {
+    pub user_id: i64,
+    pub measurement: String,
+}
+
+/// Query parameter struct for fetching by instance id
+#[derive(Serialize)]
+pub struct GetByInstanceId {
+    pub instance_id: String,
+}
+
+/// Query parameter struct for fetching by node public key
 #[derive(Serialize)]
 pub struct GetByPublicKey {
     pub public_key: String,
 }
+
 // TODO impl From<PublicKey> for GetByPublicKey
 
 #[derive(Serialize, Deserialize)]
 pub struct Node {
     pub public_key: String,
-    pub keys_seed: Vec<u8>,
+    pub user_id: i64,
 }
 
 pub async fn create_node(
@@ -44,8 +64,38 @@ pub async fn create_node(
     request(client, Method::POST, "/node", node).await
 }
 
-pub async fn get_node(client: &Client) -> Result<Option<Node>, ApiError> {
-    request(client, Method::GET, "/node", EmptyData {}).await
+pub async fn get_node(
+    client: &Client,
+    user_id: i64,
+) -> Result<Option<Node>, ApiError> {
+    request(client, Method::GET, "/node", GetByUserId { user_id }).await
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Instance {
+    pub id: String,
+    pub measurement: String,
+    pub node_public_key: String,
+    pub seed: Vec<u8>,
+}
+
+pub async fn create_instance(
+    client: &Client,
+    instance: Instance,
+) -> Result<Instance, ApiError> {
+    request(client, Method::POST, "/instance", instance).await
+}
+
+pub async fn get_instance(
+    client: &Client,
+    user_id: i64,
+    measurement: String,
+) -> Result<Option<Instance>, ApiError> {
+    let req = GetByUserIdAndMeasurement {
+        user_id,
+        measurement,
+    };
+    request(client, Method::GET, "/instance", req).await
 }
 
 #[derive(Serialize, Deserialize)]

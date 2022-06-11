@@ -50,7 +50,7 @@ use anyhow::{bail, ensure, Context};
 use rand::{thread_rng, Rng};
 use reqwest::Client;
 
-use crate::api::Node;
+use crate::api::{Instance, Node};
 use crate::bitcoind_client::BitcoindClient;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
@@ -515,33 +515,43 @@ async fn start_ldk() -> anyhow::Result<()> {
 
     // Step 4: Initialize the KeysManager
 
-    // Fetch our node pubkey, seed from data store
+    // Fetch our node pubkey and instance data from the data store
+
+    // TODO take in the user id from program args
     let client = Client::new();
-    let node_opt = api::get_node(&client)
-        .await
-        .context("Error while fetching node")?;
+    let user_id = 1;
+    // TODO(sgx) Insert this enclave's measurement
+    let measurement = String::from("measurement");
+    let (node_res, instance_res) = tokio::join!(
+        api::get_node(&client, user_id),
+        api::get_instance(&client, user_id, measurement.clone()),
+    );
+    let node_opt = node_res.context("Error while fetching node")?;
+    let instance_opt = instance_res.context("Error while fetching instance")?;
 
-    // Init the KeysManager, generating and persisting the seed / pubkey if
-    // no node was found in the data store
-    let (pubkey, keys_manager) = match node_opt {
-        Some(node) => {
-            // Existing node
-            println!("Found existing node in DB");
-            ensure!(node.keys_seed.len() == 32, "Incorrect seed length");
+    let (pubkey, keys_manager) = match (node_opt, instance_opt) {
+        (Some(node), Some(instance)) => {
+            println!("Found existing instance in DB");
 
-            // Check that the key seed is valid
-            let mut existing_seed = [0; 32];
-            existing_seed.copy_from_slice(&node.keys_seed);
+            // TODO(decrypt): Decrypt under enclave sealing key to get the seed
+            let seed = instance.seed;
 
-            // Check that the derived pubkey matches the given one
-            let keys_manager = init_key_manager(&existing_seed);
+            // Validate the seed
+            ensure!(seed.len() == 32, "Incorrect seed length");
+            let mut seed_buf = [0; 32];
+            seed_buf.copy_from_slice(&seed);
+
+            // Derive the node pubkey from the seed
+            let keys_manager = init_key_manager(&seed_buf);
             let derived_pubkey = convert::get_pubkey(&keys_manager)
                 .context("Could not get derive our pubkey from seed")?;
+
+            // Validate the pubkey returned from the DB against the derived one
             let given_pubkey = PublicKey::from_str(&node.public_key)
                 .context("Could not deserialize PublicKey from LowerHex")?;
             ensure!(
                 given_pubkey == derived_pubkey,
-                "Derived pubkey doesn't match pubkey returned from API"
+                "Derived pubkey doesn't match the pubkey returned from the DB"
             );
 
             // Check the hex encodings as well
@@ -554,29 +564,61 @@ async fn start_ldk() -> anyhow::Result<()> {
 
             (derived_pubkey, keys_manager)
         }
-        None => {
-            // New node
-            println!("Creating new node from new seed");
-
-            // Generate a new seed
+        (None, Some(_instance)) => {
+            // This should never happen; the instance table is (non-null)
+            // foreign keyed to the node table.
+            bail!("Existing instances should always have existing nodes")
+        }
+        (Some(node), None) => {
+            // If this is the second startup for a completely new user,
+            //
+            // If this instance was bootstrapped from an old instance, the old
+            // instance should have created the DB entry for this new instance,
+            // which contains the encrypted seed (sealed under this instance's
+            // enclave measurement) required for recovering the Lightning node.
+            //
+            // If a previous run of this instance generated a seed + node (e.g.
+            // for a completely new user), the Node and Instance should have
+            // been persisted together. Like above, we cannot recover the node
+            // because we do not have access to the encrypted seed.
+            bail!("Missing Instance data for node {}", node.public_key)
+        }
+        (None, None) => {
+            // No node exists yet, create a new one
+            println!("Generating new seed");
             let mut new_seed = [0; 32];
             rand::thread_rng().fill_bytes(&mut new_seed);
 
-            // Persist the new seed along with its public key
+            // Derive pubkey
             let keys_manager = init_key_manager(&new_seed);
             let pubkey = convert::get_pubkey(&keys_manager)
                 .context("Could not get derive our pubkey from seed")?;
             let pubkey_hex = format!("{:x}", pubkey);
 
-            // Persist the node
+            // Build API structs for persisting the new node + instance
             let node = Node {
-                public_key: pubkey_hex,
-                // FIXME(encrypt): Encrypt seed before sending it (obviously)
-                keys_seed: new_seed.to_vec(),
+                public_key: pubkey_hex.clone(),
+                user_id,
             };
+            // TODO(crypto) id derivation scheme;
+            // probably hash(pubkey || measurement)
+            let id = format!("{}_{}", pubkey_hex, measurement);
+            let instance = Instance {
+                id,
+                measurement,
+                node_public_key: pubkey_hex,
+                // TODO (sgx): Seal seed under this enclave's pubkey
+                seed: new_seed.to_vec(),
+            };
+
+            // Persist the node along with the instance
+            // TODO query create_node_and_instance endpoint
             api::create_node(&client, node)
                 .await
                 .context("Could not persist newly created node")?;
+            api::create_instance(&client, instance)
+                .await
+                .context("Could not persist newly created instance")?;
 
             (pubkey, keys_manager)
         }
