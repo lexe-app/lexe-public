@@ -471,16 +471,16 @@ checksum = "349d5a591cd28b49e1d1037471617a32ddcda5731b99419008085f72d5a53836"
 
 [[package]]
 name = "lightning"
-version = "0.0.107"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.107#064ae34c7fffc55fa43edaa6b8bf8e4dd5b0577b"
+version = "0.0.108"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.108#9ac223c843deb15d136c7bfdb4959782a9f1e6f9"
 dependencies = [
  "bitcoin",
 ]
 
 [[package]]
 name = "lightning-background-processor"
-version = "0.0.107"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.107#064ae34c7fffc55fa43edaa6b8bf8e4dd5b0577b"
+version = "0.0.108"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.108#9ac223c843deb15d136c7bfdb4959782a9f1e6f9"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -489,8 +489,8 @@ dependencies = [
 
 [[package]]
 name = "lightning-block-sync"
-version = "0.0.107"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.107#064ae34c7fffc55fa43edaa6b8bf8e4dd5b0577b"
+version = "0.0.108"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.108#9ac223c843deb15d136c7bfdb4959782a9f1e6f9"
 dependencies = [
  "bitcoin",
  "chunked_transfer",
@@ -502,8 +502,8 @@ dependencies = [
 
 [[package]]
 name = "lightning-invoice"
-version = "0.15.0"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.107#064ae34c7fffc55fa43edaa6b8bf8e4dd5b0577b"
+version = "0.16.0"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.108#9ac223c843deb15d136c7bfdb4959782a9f1e6f9"
 dependencies = [
  "bech32",
  "bitcoin_hashes",
@@ -514,8 +514,8 @@ dependencies = [
 
 [[package]]
 name = "lightning-net-tokio"
-version = "0.0.107"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.107#064ae34c7fffc55fa43edaa6b8bf8e4dd5b0577b"
+version = "0.0.108"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.108#9ac223c843deb15d136c7bfdb4959782a9f1e6f9"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -524,8 +524,8 @@ dependencies = [
 
 [[package]]
 name = "lightning-rapid-gossip-sync"
-version = "0.0.107"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.107#064ae34c7fffc55fa43edaa6b8bf8e4dd5b0577b"
+version = "0.0.108"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lightning-net-tokio-sgx-v0.0.108#9ac223c843deb15d136c7bfdb4959782a9f1e6f9"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -567,7 +567,7 @@ checksum = "2a60c7ce501c71e03a9c9c0d35b861413ae925bd979cc7a4e30d060069aaac8d"
 [[package]]
 name = "mio"
 version = "0.7.6"
-source = "git+https://github.com/lexe-tech/mio?branch=mio-sgx-0.7.6#3222d04d328049c133b6bc061e9229ef9b9d0630"
+source = "git+https://github.com/lexe-tech/mio?branch=mio-sgx-0.7.6#61d12d86838ded9f9b47780ae6420bcc22090a93"
 dependencies = [
  "async-usercalls",
  "crossbeam-channel 0.4.4",
@@ -706,9 +706,9 @@ dependencies = [
 
 [[package]]
 name = "reqwest"
-version = "0.11.10"
+version = "0.11.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46a1f7aa4f35e5e8b4160449f51afc758f0ce6454315a9fa7d0d113e958c41eb"
+checksum = "b75aa69a3f06bbcc66ede33af2af253c6f7a86b1ca0033f60c580a27074fbf92"
 dependencies = [
  "base64",
  "bytes",
@@ -730,6 +730,7 @@ dependencies = [
  "serde_json",
  "serde_urlencoded",
  "tokio",
+ "tower-service",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -891,7 +892,7 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 [[package]]
 name = "tokio"
 version = "1.15.0"
-source = "git+https://github.com/lexe-tech/tokio?branch=tokio-sgx-1.15.0#a64e5ebcd0167f3db6264ff0d7572f91f2d5a92b"
+source = "git+https://github.com/lexe-tech/tokio?branch=tokio-sgx-1.15.0#1123412aaeb904ff030ec469e9471f11392d35d2"
 dependencies = [
  "bytes",
  "libc",
@@ -906,7 +907,7 @@ dependencies = [
 [[package]]
 name = "tokio-macros"
 version = "1.7.0"
-source = "git+https://github.com/lexe-tech/tokio?branch=tokio-sgx-1.15.0#a64e5ebcd0167f3db6264ff0d7572f91f2d5a92b"
+source = "git+https://github.com/lexe-tech/tokio?branch=tokio-sgx-1.15.0#1123412aaeb904ff030ec469e9471f11392d35d2"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -979,9 +980,9 @@ checksum = "099b7128301d285f79ddd55b9a83d5e6b9e97c92e0ea0daebee7263e932de992"
 
 [[package]]
 name = "unicode-ident"
-version = "1.0.0"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d22af068fba1eb5edcb4aea19d382b2a3deb4c8f9d475c589b6ada9e0fd493ee"
+checksum = "5bd2fe26506023ed7b5e1e315add59d6f584c621d037f9368fea9cfb988f368c"
 
 [[package]]
 name = "unicode-normalization"
