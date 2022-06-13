@@ -49,13 +49,6 @@ pub struct Node {
     pub user_id: i64,
 }
 
-pub async fn create_node(
-    client: &Client,
-    node: Node,
-) -> Result<Node, ApiError> {
-    request(client, Method::POST, "/node", node).await
-}
-
 pub async fn get_node(
     client: &Client,
     user_id: i64,
@@ -71,13 +64,6 @@ pub struct Instance {
     pub seed: Vec<u8>,
 }
 
-pub async fn create_instance(
-    client: &Client,
-    instance: Instance,
-) -> Result<Instance, ApiError> {
-    request(client, Method::POST, "/instance", instance).await
-}
-
 pub async fn get_instance(
     client: &Client,
     user_id: i64,
@@ -88,6 +74,19 @@ pub async fn get_instance(
         measurement,
     };
     request(client, Method::GET, "/instance", req).await
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct NodeAndInstance {
+    pub node: Node,
+    pub instance: Instance,
+}
+
+pub async fn create_node_and_instance(
+    client: &Client,
+    node_and_instance: NodeAndInstance,
+) -> Result<Node, ApiError> {
+    request(client, Method::POST, "/acid", node_and_instance).await
 }
 
 #[derive(Serialize, Deserialize)]

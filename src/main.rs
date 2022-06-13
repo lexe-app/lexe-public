@@ -47,7 +47,7 @@ use anyhow::{bail, ensure, Context};
 use rand::{thread_rng, Rng};
 use reqwest::Client;
 
-use crate::api::{Instance, Node};
+use crate::api::{Instance, Node, NodeAndInstance};
 use crate::bitcoind_client::BitcoindClient;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
@@ -605,14 +605,14 @@ async fn start_ldk() -> anyhow::Result<()> {
                 seed: new_seed.to_vec(),
             };
 
-            // Persist the node along with the instance
-            // TODO query create_node_and_instance endpoint
-            api::create_node(&client, node)
+            // Persist node and instance together in one db txn to ensure that
+            // we never end up with a node without a corresponding instance
+            let node_and_instance = NodeAndInstance { node, instance };
+            api::create_node_and_instance(&client, node_and_instance)
                 .await
-                .context("Could not persist newly created node")?;
-            api::create_instance(&client, instance)
-                .await
-                .context("Could not persist newly created instance")?;
+                .context(
+                    "Could not atomically persist new node and instance",
+                )?;
 
             (pubkey, keys_manager)
         }
