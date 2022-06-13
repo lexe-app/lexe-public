@@ -891,7 +891,7 @@ async fn start_ldk() -> anyhow::Result<()> {
     let stop_connect = Arc::clone(&stop_listen_connect);
     let connect_persister = Arc::clone(&persister);
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(1));
+        let mut interval = tokio::time::interval(Duration::from_secs(60));
         loop {
             interval.tick().await;
 
