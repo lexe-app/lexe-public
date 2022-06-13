@@ -84,9 +84,9 @@ pub struct NodeAndInstance {
 
 pub async fn create_node_and_instance(
     client: &Client,
-    node_and_instance: NodeAndInstance,
+    req: NodeAndInstance,
 ) -> Result<Node, ApiError> {
-    request(client, Method::POST, "/acid", node_and_instance).await
+    request(client, Method::POST, "/acid/node_and_instance", req).await
 }
 
 #[derive(Serialize, Deserialize)]
