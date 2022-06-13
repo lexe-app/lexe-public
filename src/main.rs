@@ -858,21 +858,6 @@ async fn start_ldk() -> anyhow::Result<()> {
         .await
         .context("Could not read probabilistic scorer")?;
     let scorer = Arc::new(Mutex::new(scorer));
-    let inner_scorer = Arc::clone(&scorer);
-    let inner_persister = Arc::clone(&persister);
-    tokio::spawn(async move {
-        // TODO This isn't realistic for the Lexe usecase
-        let mut interval = tokio::time::interval(Duration::from_secs(600));
-
-        loop {
-            interval.tick().await;
-
-            let _ =
-                inner_persister.persist_scorer(&inner_scorer).map_err(|e| {
-                    println!("Warning: Failed to persist scorer: {:#}", e)
-                });
-        }
-    });
 
     // Step 17: Create InvoicePayer
     let router = DefaultRouter::new(

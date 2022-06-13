@@ -284,14 +284,13 @@ static PERSISTER_RUNTIME: Lazy<OnceCell<Runtime>> = Lazy::new(|| {
         .into()
 });
 
-/// This trait is defined in the `lightning-background-processor` crate.
+/// This trait is defined in lightning::util::Persist.
 ///
-/// The methods in this trait are called downstream of
-/// `BackgroundProcessor::start()` which calls `thread::spawn()` internally,
-/// meaning that the thread-local context for these fns do not already contain
-/// an async (Tokio) runtime. Thus, we offer a lazily-initialized
-/// `PERSISTER_RUNTIME` above which `persist_manager` and `persist_graph` hook
-/// into to run async closures.
+/// The methods in this trait are called inside a `thread::spawn()` within
+/// `BackgroundProcessor::start()`, meaning that the thread-local context for
+/// these function do not contain a Tokio (async) runtime. Thus, we offer a
+/// lazily-initialized `PERSISTER_RUNTIME` above which the `Persister` methods
+/// use to run async closures inside their synchronous functions.
 impl<'a>
     Persister<
         'a,
