@@ -43,14 +43,6 @@ pub struct GetByInstanceId {
     pub instance_id: String,
 }
 
-/// Query parameter struct for fetching by node public key
-#[derive(Serialize)]
-pub struct GetByPublicKey {
-    pub public_key: String,
-}
-
-// TODO impl From<PublicKey> for GetByPublicKey
-
 #[derive(Serialize, Deserialize)]
 pub struct Node {
     pub public_key: String,
@@ -115,10 +107,10 @@ pub async fn create_channel_monitor(
 
 pub async fn get_channel_monitors(
     client: &Client,
-    public_key: String,
+    instance_id: String,
 ) -> Result<Vec<ChannelMonitor>, ApiError> {
-    let get_by_pubkey = GetByPublicKey { public_key };
-    request(client, Method::GET, "/channel_monitor", get_by_pubkey).await
+    let req = GetByInstanceId { instance_id };
+    request(client, Method::GET, "/channel_monitor", req).await
 }
 
 pub async fn update_channel_monitor(
@@ -136,10 +128,10 @@ pub struct ChannelManager {
 
 pub async fn get_channel_manager(
     client: &Client,
-    public_key: String,
+    instance_id: String,
 ) -> Result<Option<ChannelManager>, ApiError> {
-    let get_by_pubkey = GetByPublicKey { public_key };
-    request(client, Method::GET, "/channel_manager", get_by_pubkey).await
+    let req = GetByInstanceId { instance_id };
+    request(client, Method::GET, "/channel_manager", req).await
 }
 
 pub async fn create_or_update_channel_manager(
@@ -157,10 +149,10 @@ pub struct ProbabilisticScorer {
 
 pub async fn get_probabilistic_scorer(
     client: &Client,
-    public_key: String,
+    instance_id: String,
 ) -> Result<Option<ProbabilisticScorer>, ApiError> {
-    let get_by_pubkey = GetByPublicKey { public_key };
-    request(client, Method::GET, "/probabilistic_scorer", get_by_pubkey).await
+    let req = GetByInstanceId { instance_id };
+    request(client, Method::GET, "/probabilistic_scorer", req).await
 }
 
 pub async fn create_or_update_probabilistic_scorer(
@@ -178,10 +170,10 @@ pub struct NetworkGraph {
 
 pub async fn get_network_graph(
     client: &Client,
-    public_key: String,
+    instance_id: String,
 ) -> Result<Option<NetworkGraph>, ApiError> {
-    let get_by_pubkey = GetByPublicKey { public_key };
-    request(client, Method::GET, "/network_graph", get_by_pubkey).await
+    let req = GetByInstanceId { instance_id };
+    request(client, Method::GET, "/network_graph", req).await
 }
 
 pub async fn create_or_update_network_graph(
@@ -207,10 +199,10 @@ pub async fn create_channel_peer(
 
 pub async fn get_channel_peers(
     client: &Client,
-    public_key: String,
+    instance_id: String,
 ) -> Result<Vec<ChannelPeer>, ApiError> {
-    let get_by_pubkey = GetByPublicKey { public_key };
-    request(client, Method::GET, "/channel_peer", get_by_pubkey).await
+    let req = GetByInstanceId { instance_id };
+    request(client, Method::GET, "/channel_peer", req).await
 }
 
 /// Builds and executes the API request

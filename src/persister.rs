@@ -50,13 +50,15 @@ use crate::{
 pub struct PostgresPersister {
     client: Client,
     pubkey: String,
+    instance_id: String,
 }
 
 impl PostgresPersister {
-    pub fn new(client: &Client, pubkey: &PublicKey) -> Self {
+    pub fn new(client: &Client, pubkey: &PublicKey, measurement: &str) -> Self {
         Self {
             client: client.clone(),
             pubkey: convert::pubkey_to_hex(pubkey),
+            instance_id: convert::get_instance_id(pubkey, measurement),
         }
     }
 
@@ -77,7 +79,7 @@ impl PostgresPersister {
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         println!("Reading channel manager");
         let cm_opt =
-            api::get_channel_manager(&self.client, self.pubkey.clone())
+            api::get_channel_manager(&self.client, self.instance_id.clone())
                 .await
                 .map_err(|e| {
                     println!("{:#}", e);
@@ -131,7 +133,7 @@ impl PostgresPersister {
     {
         println!("Reading channel monitors");
         let cm_vec =
-            api::get_channel_monitors(&self.client, self.pubkey.clone())
+            api::get_channel_monitors(&self.client, self.instance_id.clone())
                 .await
                 .map_err(|e| {
                     println!("{:#}", e);
@@ -174,10 +176,12 @@ impl PostgresPersister {
     ) -> anyhow::Result<ProbabilisticScorerType> {
         println!("Reading probabilistic scorer");
         let params = ProbabilisticScoringParameters::default();
-        let ps_opt =
-            api::get_probabilistic_scorer(&self.client, self.pubkey.clone())
-                .await
-                .context("Could not fetch probabilistic scorer from DB")?;
+        let ps_opt = api::get_probabilistic_scorer(
+            &self.client,
+            self.instance_id.clone(),
+        )
+        .await
+        .context("Could not fetch probabilistic scorer from DB")?;
 
         let ps = match ps_opt {
             Some(ps) => {
@@ -202,9 +206,10 @@ impl PostgresPersister {
         logger: LoggerType,
     ) -> anyhow::Result<NetworkGraphType> {
         println!("Reading network graph");
-        let ng_opt = api::get_network_graph(&self.client, self.pubkey.clone())
-            .await
-            .context("Could not fetch network graph from DB")?;
+        let ng_opt =
+            api::get_network_graph(&self.client, self.instance_id.clone())
+                .await
+                .context("Could not fetch network graph from DB")?;
 
         let ng = match ng_opt {
             Some(ng) => {
@@ -225,13 +230,14 @@ impl PostgresPersister {
         &self,
     ) -> anyhow::Result<Vec<(PublicKey, SocketAddr)>> {
         println!("Reading channel peers");
-        let cp_vec = api::get_channel_peers(&self.client, self.pubkey.clone())
-            .await
-            .map_err(|e| {
-                println!("{:#}", e);
-                e
-            })
-            .context("Could not fetch channel peers from DB")?;
+        let cp_vec =
+            api::get_channel_peers(&self.client, self.instance_id.clone())
+                .await
+                .map_err(|e| {
+                    println!("{:#}", e);
+                    e
+                })
+                .context("Could not fetch channel peers from DB")?;
 
         let mut result = Vec::new();
 

@@ -600,7 +600,7 @@ async fn start_ldk() -> anyhow::Result<()> {
             let id = convert::get_instance_id(&pubkey, &measurement);
             let instance = Instance {
                 id,
-                measurement,
+                measurement: measurement.clone(),
                 node_public_key: pubkey_hex,
                 // TODO (sgx): Seal seed under this enclave's pubkey
                 seed: new_seed.to_vec(),
@@ -621,7 +621,8 @@ async fn start_ldk() -> anyhow::Result<()> {
     let keys_manager = Arc::new(keys_manager);
 
     // Step 5: Initialize Persister
-    let persister = Arc::new(PostgresPersister::new(&client, &pubkey));
+    let persister =
+        Arc::new(PostgresPersister::new(&client, &pubkey, &measurement));
 
     // Step 6: Initialize the ChainMonitor
     let chain_monitor: Arc<ChainMonitorType> =
