@@ -779,7 +779,8 @@ async fn start_ldk() -> anyhow::Result<()> {
 			.expect("Failed to bind to listen port - is something else already listening on it?");
         loop {
             let peer_mgr = peer_manager_connection_handler.clone();
-            let tcp_stream = listener.accept().await.unwrap().0;
+            let (tcp_stream, _peer_addr) = listener.accept().await.unwrap();
+            let tcp_stream = tcp_stream.into_std().unwrap();
             if stop_listen.load(Ordering::Acquire) {
                 return;
             }
