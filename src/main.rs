@@ -4,7 +4,6 @@ use std::fmt;
 use std::io;
 use std::io::Write;
 use std::ops::Deref;
-use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
@@ -13,7 +12,6 @@ use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
 use bitcoin::network::constants::Network;
-use bitcoin::secp256k1::PublicKey;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin_bech32::WitnessProgram;
 use lightning::chain;
@@ -543,12 +541,11 @@ async fn start_ldk() -> anyhow::Result<()> {
 
             // Derive the node pubkey from the seed
             let keys_manager = init_key_manager(&seed_buf);
-            let derived_pubkey = convert::get_pubkey(&keys_manager)
+            let derived_pubkey = convert::derive_pubkey(&keys_manager)
                 .context("Could not get derive our pubkey from seed")?;
 
             // Validate the pubkey returned from the DB against the derived one
-            let given_pubkey = PublicKey::from_str(&node.public_key)
-                .context("Could not deserialize PublicKey from LowerHex")?;
+            let given_pubkey = convert::pubkey_from_hex(&node.public_key)?;
             ensure!(
                 given_pubkey == derived_pubkey,
                 "Derived pubkey doesn't match the pubkey returned from the DB"
@@ -556,7 +553,7 @@ async fn start_ldk() -> anyhow::Result<()> {
 
             // Check the hex encodings as well
             let given_pubkey_hex = &node.public_key;
-            let derived_pubkey_hex = &format!("{:x}", derived_pubkey);
+            let derived_pubkey_hex = &convert::pubkey_to_hex(&derived_pubkey);
             ensure!(
                 given_pubkey_hex == derived_pubkey_hex,
                 "Derived pubkey string doesn't match given pubkey string"
@@ -591,18 +588,16 @@ async fn start_ldk() -> anyhow::Result<()> {
 
             // Derive pubkey
             let keys_manager = init_key_manager(&new_seed);
-            let pubkey = convert::get_pubkey(&keys_manager)
+            let pubkey = convert::derive_pubkey(&keys_manager)
                 .context("Could not get derive our pubkey from seed")?;
-            let pubkey_hex = format!("{:x}", pubkey);
+            let pubkey_hex = convert::pubkey_to_hex(&pubkey);
 
             // Build API structs for persisting the new node + instance
             let node = Node {
                 public_key: pubkey_hex.clone(),
                 user_id,
             };
-            // TODO(crypto) id derivation scheme;
-            // probably hash(pubkey || measurement)
-            let id = format!("{}_{}", pubkey_hex, measurement);
+            let id = convert::get_instance_id(&pubkey, &measurement);
             let instance = Instance {
                 id,
                 measurement,
@@ -626,7 +621,7 @@ async fn start_ldk() -> anyhow::Result<()> {
     let keys_manager = Arc::new(keys_manager);
 
     // Step 5: Initialize Persister
-    let persister = Arc::new(PostgresPersister::new(&client, pubkey));
+    let persister = Arc::new(PostgresPersister::new(&client, &pubkey));
 
     // Step 6: Initialize the ChainMonitor
     let chain_monitor: Arc<ChainMonitorType> =

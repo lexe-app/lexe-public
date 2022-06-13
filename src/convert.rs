@@ -1,4 +1,5 @@
 use std::convert::TryInto;
+use std::str::FromStr;
 
 use bitcoin::hashes::hex::FromHex;
 use bitcoin::secp256k1::PublicKey;
@@ -7,11 +8,10 @@ use bitcoin::BlockHash;
 use lightning::chain::keysinterface::{KeysInterface, KeysManager, Recipient};
 use lightning_block_sync::http::JsonResponse;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, Context};
 
-/// Extracts the network public key (node id) from the KeysManager.
-pub fn get_pubkey(keys_manager: &KeysManager) -> anyhow::Result<PublicKey> {
-    // let node_secret =
+/// Rederives the node public key from the KeysManager
+pub fn derive_pubkey(keys_manager: &KeysManager) -> anyhow::Result<PublicKey> {
     let privkey = keys_manager
         .get_node_secret(Recipient::Node)
         .map_err(|()| anyhow!("Decode error: invalid value"))?;
@@ -19,6 +19,30 @@ pub fn get_pubkey(keys_manager: &KeysManager) -> anyhow::Result<PublicKey> {
     secp.seeded_randomize(&keys_manager.get_secure_random_bytes());
     let derived_pubkey = PublicKey::from_secret_key(&secp, &privkey);
     Ok(derived_pubkey)
+}
+
+/// Converts a secp PublicKey into a lower hex-encoded String.
+///
+/// NOTE: Use this function instead of the equivalent in hex_utils.rs
+pub fn pubkey_to_hex(pubkey: &PublicKey) -> String {
+    format!("{:x}", pubkey)
+}
+
+/// Attempts to convert a lower hex-encoded String into a secp PublicKey.
+///
+/// NOTE: Use this function instead of the equivalent in hex_utils.rs
+pub fn pubkey_from_hex(pubkey: &str) -> anyhow::Result<PublicKey> {
+    PublicKey::from_str(pubkey)
+        .context("Could not deserialize PublicKey from LowerHex")
+}
+
+/// Derives the instance id from the node public key and enclave measurement.
+pub fn get_instance_id(pubkey: &PublicKey, measurement: &str) -> String {
+    let pubkey_hex = pubkey_to_hex(pubkey);
+
+    // TODO(crypto) id derivation scheme;
+    // probably hash(pubkey || measurement)
+    format!("{}_{}", pubkey_hex, measurement)
 }
 
 pub struct FundedTx {

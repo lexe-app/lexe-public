@@ -39,6 +39,7 @@ use crate::api::{
 };
 use crate::bitcoind_client::BitcoindClient;
 use crate::cli;
+use crate::convert;
 use crate::logger::StdOutLogger;
 use crate::{
     ChainMonitorType, ChannelManagerType, LoggerType, NetworkGraphType,
@@ -52,10 +53,10 @@ pub struct PostgresPersister {
 }
 
 impl PostgresPersister {
-    pub fn new(client: &Client, pubkey: PublicKey) -> Self {
+    pub fn new(client: &Client, pubkey: &PublicKey) -> Self {
         Self {
             client: client.clone(),
-            pubkey: format!("{:x}", pubkey),
+            pubkey: convert::pubkey_to_hex(pubkey),
         }
     }
 
@@ -256,7 +257,7 @@ impl PostgresPersister {
         println!("Persisting new channel peer");
         let cp = ChannelPeer {
             node_public_key: self.pubkey.clone(),
-            peer_public_key: format!("{:x}", peer_pubkey),
+            peer_public_key: convert::pubkey_to_hex(&peer_pubkey),
             peer_address: peer_addr.to_string(),
         };
 
