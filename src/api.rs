@@ -92,7 +92,7 @@ pub async fn get_instance(
 
 #[derive(Serialize, Deserialize)]
 pub struct ChannelMonitor {
-    pub node_public_key: String,
+    pub instance_id: String,
     pub tx_id: String,
     pub tx_index: i16,
     pub state: Vec<u8>,
@@ -122,7 +122,7 @@ pub async fn update_channel_monitor(
 
 #[derive(Serialize, Deserialize)]
 pub struct ChannelManager {
-    pub node_public_key: String,
+    pub instance_id: String,
     pub state: Vec<u8>,
 }
 
@@ -143,7 +143,7 @@ pub async fn create_or_update_channel_manager(
 
 #[derive(Serialize, Deserialize)]
 pub struct ProbabilisticScorer {
-    pub node_public_key: String,
+    pub instance_id: String,
     pub state: Vec<u8>,
 }
 
@@ -164,7 +164,7 @@ pub async fn create_or_update_probabilistic_scorer(
 
 #[derive(Serialize, Deserialize)]
 pub struct NetworkGraph {
-    pub node_public_key: String,
+    pub instance_id: String,
     pub state: Vec<u8>,
 }
 
@@ -185,7 +185,7 @@ pub async fn create_or_update_network_graph(
 
 #[derive(Serialize, Deserialize)]
 pub struct ChannelPeer {
-    pub node_public_key: String,
+    pub instance_id: String,
     pub peer_public_key: String,
     pub peer_address: String,
 }

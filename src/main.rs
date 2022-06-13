@@ -33,7 +33,6 @@ use lightning::routing::gossip::{NetworkGraph, NodeId, P2PGossipSync};
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning::util::config::UserConfig;
 use lightning::util::events::{Event, PaymentPurpose};
-use lightning::util::persist::Persister;
 use lightning_background_processor::BackgroundProcessor;
 use lightning_block_sync::init;
 use lightning_block_sync::poll;

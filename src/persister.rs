@@ -49,7 +49,6 @@ use crate::{
 #[derive(Clone)]
 pub struct PostgresPersister {
     client: Client,
-    pubkey: String,
     instance_id: String,
 }
 
@@ -57,7 +56,6 @@ impl PostgresPersister {
     pub fn new(client: &Client, pubkey: &PublicKey, measurement: &str) -> Self {
         Self {
             client: client.clone(),
-            pubkey: convert::pubkey_to_hex(pubkey),
             instance_id: convert::get_instance_id(pubkey, measurement),
         }
     }
@@ -262,7 +260,7 @@ impl PostgresPersister {
 
         println!("Persisting new channel peer");
         let cp = ChannelPeer {
-            node_public_key: self.pubkey.clone(),
+            instance_id: self.instance_id.clone(),
             peer_public_key: convert::pubkey_to_hex(&peer_pubkey),
             peer_address: peer_addr.to_string(),
         };
@@ -314,7 +312,7 @@ impl<'a>
     ) -> Result<(), io::Error> {
         println!("Persisting channel manager");
         let channel_manager = ChannelManager {
-            node_public_key: self.pubkey.clone(),
+            instance_id: self.instance_id.clone(),
             // FIXME(encrypt): Encrypt under key derived from seed
             state: channel_manager.encode(),
         };
@@ -343,7 +341,7 @@ impl<'a>
     ) -> Result<(), io::Error> {
         println!("Persisting network graph");
         let network_graph = NetworkGraph {
-            node_public_key: self.pubkey.clone(),
+            instance_id: self.instance_id.clone(),
             // FIXME(encrypt): Encrypt under key derived from seed
             state: network_graph.encode(),
         };
@@ -372,7 +370,7 @@ impl<'a>
         let ps = {
             let scorer = scorer_mutex.lock().unwrap();
             ApiProbabilisticScorer {
-                node_public_key: self.pubkey.clone(),
+                instance_id: self.instance_id.clone(),
                 state: scorer.encode(),
             }
         };
@@ -397,7 +395,7 @@ impl<ChannelSigner: Sign> Persist<ChannelSigner> for PostgresPersister {
         let tx_index = funding_txo.index.try_into().unwrap();
         println!("Persisting new channel {}_{}", tx_id, tx_index);
         let channel_monitor = ChannelMonitor {
-            node_public_key: self.pubkey.clone(),
+            instance_id: self.instance_id.clone(),
             tx_id,
             tx_index,
             // FIXME(encrypt): Encrypt under key derived from seed
@@ -430,7 +428,7 @@ impl<ChannelSigner: Sign> Persist<ChannelSigner> for PostgresPersister {
         let tx_index = funding_txo.index.try_into().unwrap();
         println!("Updating persisted channel {}_{}", tx_id, tx_index);
         let channel_monitor = ChannelMonitor {
-            node_public_key: self.pubkey.clone(),
+            instance_id: self.instance_id.clone(),
             tx_id,
             tx_index,
             // FIXME(encrypt): Encrypt under key derived from seed
