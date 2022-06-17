@@ -528,60 +528,8 @@ async fn start_ldk() -> anyhow::Result<()> {
     let instance_opt = instance_res.context("Error while fetching instance")?;
     let enclave_opt = enclave_res.context("Error while fetching enclave")?;
 
-    let (pubkey, keys_manager) = match (node_opt, enclave_opt) {
-        (Some(node), Some(enclave)) => {
-            println!("Found existing enclave in DB");
-
-            // TODO(decrypt): Decrypt under enclave sealing key to get the seed
-            let seed = enclave.seed;
-
-            // Validate the seed
-            ensure!(seed.len() == 32, "Incorrect seed length");
-            let mut seed_buf = [0; 32];
-            seed_buf.copy_from_slice(&seed);
-
-            // Derive the node pubkey from the seed
-            let keys_manager = init_key_manager(&seed_buf);
-            let derived_pubkey = convert::derive_pubkey(&keys_manager)
-                .context("Could not get derive our pubkey from seed")?;
-
-            // Validate the pubkey returned from the DB against the derived one
-            let given_pubkey = convert::pubkey_from_hex(&node.public_key)?;
-            ensure!(
-                given_pubkey == derived_pubkey,
-                "Derived pubkey doesn't match the pubkey returned from the DB"
-            );
-
-            // Check the hex encodings as well
-            let given_pubkey_hex = &node.public_key;
-            let derived_pubkey_hex = &convert::pubkey_to_hex(&derived_pubkey);
-            ensure!(
-                given_pubkey_hex == derived_pubkey_hex,
-                "Derived pubkey string doesn't match given pubkey string"
-            );
-
-            (derived_pubkey, keys_manager)
-        }
-        (None, Some(_enclave)) => {
-            // This should never happen; the enclave table is foreign keyed to
-            // the instance table which is foreign keyed to the node table
-            bail!("Existing enclaves should always have existing nodes")
-        }
-        (Some(node), None) => {
-            // If this is the second startup for a completely new user,
-            //
-            // If this enclave was bootstrapped from an old enclave, the old
-            // enclave should have created the DB entry for this new enclave,
-            // which contains the encrypted seed (sealed under this enclave's
-            // KEYREQUEST) required for recovering the Lightning node.
-            //
-            // If a previous run of this enclave generated a seed + node (e.g.
-            // for a completely new user), the Node, Instance, and Enclave
-            // should have been persisted together. As above, we cannot recover
-            // the node because we do not have access to the encrypted seed.
-            bail!("Missing enclave data for node {}", node.public_key)
-        }
-        (None, None) => {
+    let (pubkey, keys_manager) = match (node_opt, instance_opt, enclave_opt) {
+        (None, None, None) => {
             // No node exists yet, create a new one
             println!("Generating new seed");
             let mut new_seed = [0; 32];
@@ -615,7 +563,7 @@ async fn start_ldk() -> anyhow::Result<()> {
 
             // Persist node, instance, and enclave together in one db txn to
             // ensure that we never end up with a node without a corresponding
-            // enclave that can unseal the associated seed
+            // instance + enclave that can unseal the associated seed
             let node_instance_enclave = NodeInstanceEnclave {
                 node,
                 instance,
@@ -624,10 +572,59 @@ async fn start_ldk() -> anyhow::Result<()> {
             api::create_node_instance_enclave(&client, node_instance_enclave)
                 .await
                 .context(
-                    "Could not atomically persist new node, instance, and enclave",
+                    "Could not atomically create new node + instance + enclave",
                 )?;
 
             (pubkey, keys_manager)
+        }
+        (None, Some(_instance), _) => {
+            // This should never happen; the instance table is foreign keyed to
+            // the node table
+            bail!("Existing instances should always have existing nodes")
+        }
+        (None, None, Some(_enclave)) => {
+            // This should never happen; the enclave table is foreign keyed to
+            // the instance table
+            bail!("Existing enclaves should always have existing instances")
+        }
+        (Some(_node), None, _) => {
+            bail!("User has not provisioned this instance yet");
+        }
+        (Some(_node), Some(_instance), None) => {
+            bail!("Provisioner should have sealed the seed for this enclave");
+        }
+        (Some(node), Some(_instance), Some(enclave)) => {
+            println!("Found existing instance + enclave");
+
+            // TODO(decrypt): Decrypt under enclave sealing key to get the seed
+            let seed = enclave.seed;
+
+            // Validate the seed
+            ensure!(seed.len() == 32, "Incorrect seed length");
+            let mut seed_buf = [0; 32];
+            seed_buf.copy_from_slice(&seed);
+
+            // Derive the node pubkey from the seed
+            let keys_manager = init_key_manager(&seed_buf);
+            let derived_pubkey = convert::derive_pubkey(&keys_manager)
+                .context("Could not get derive our pubkey from seed")?;
+
+            // Validate the pubkey returned from the DB against the derived one
+            let given_pubkey = convert::pubkey_from_hex(&node.public_key)?;
+            ensure!(
+                given_pubkey == derived_pubkey,
+                "Derived pubkey doesn't match the pubkey returned from the DB"
+            );
+
+            // Check the hex encodings as well
+            let given_pubkey_hex = &node.public_key;
+            let derived_pubkey_hex = &convert::pubkey_to_hex(&derived_pubkey);
+            ensure!(
+                given_pubkey_hex == derived_pubkey_hex,
+                "Derived pubkey string doesn't match given pubkey string"
+            );
+
+            (derived_pubkey, keys_manager)
         }
     };
     let keys_manager = Arc::new(keys_manager);
