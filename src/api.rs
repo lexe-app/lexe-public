@@ -61,7 +61,6 @@ pub struct Instance {
     pub id: String,
     pub measurement: String,
     pub node_public_key: String,
-    pub seed: Vec<u8>,
 }
 
 pub async fn get_instance(
@@ -77,16 +76,36 @@ pub async fn get_instance(
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct NodeAndInstance {
-    pub node: Node,
-    pub instance: Instance,
+pub struct Enclave {
+    pub id: String,
+    pub instance_id: String,
+    pub seed: Vec<u8>,
 }
 
-pub async fn create_node_and_instance(
+pub async fn get_enclave(
     client: &Client,
-    req: NodeAndInstance,
+    user_id: i64,
+    measurement: String,
+) -> Result<Option<Enclave>, ApiError> {
+    let req = GetByUserIdAndMeasurement {
+        user_id,
+        measurement,
+    };
+    request(client, Method::GET, "/enclave", req).await
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct NodeInstanceEnclave {
+    pub node: Node,
+    pub instance: Instance,
+    pub enclave: Enclave,
+}
+
+pub async fn create_node_instance_enclave(
+    client: &Client,
+    req: NodeInstanceEnclave,
 ) -> Result<Node, ApiError> {
-    request(client, Method::POST, "/acid/node_and_instance", req).await
+    request(client, Method::POST, "/acid/node_instance_enclave", req).await
 }
 
 #[derive(Serialize, Deserialize)]

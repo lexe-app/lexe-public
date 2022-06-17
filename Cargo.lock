@@ -433,37 +433,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
-name = "lexe-node"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "base64",
- "bech32",
- "bitcoin",
- "bitcoin-bech32",
- "chrono",
- "futures",
- "hex",
- "http",
- "hyper",
- "lightning",
- "lightning-background-processor",
- "lightning-block-sync",
- "lightning-invoice",
- "lightning-net-tokio",
- "lightning-rapid-gossip-sync",
- "mio",
- "once_cell",
- "rand",
- "reqwest",
- "serde",
- "serde_json",
- "serde_qs",
- "thiserror",
- "tokio",
-]
-
-[[package]]
 name = "libc"
 version = "0.2.126"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -591,6 +560,37 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b9f1c5b025cda876f66ef43a113f91ebc9f4ccef34843000e0adf6ebbab84e21"
 dependencies = [
  "winapi",
+]
+
+[[package]]
+name = "node"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "base64",
+ "bech32",
+ "bitcoin",
+ "bitcoin-bech32",
+ "chrono",
+ "futures",
+ "hex",
+ "http",
+ "hyper",
+ "lightning",
+ "lightning-background-processor",
+ "lightning-block-sync",
+ "lightning-invoice",
+ "lightning-net-tokio",
+ "lightning-rapid-gossip-sync",
+ "mio",
+ "once_cell",
+ "rand",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_qs",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

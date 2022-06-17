@@ -47,7 +47,7 @@ use anyhow::{bail, ensure, Context};
 use rand::{thread_rng, Rng};
 use reqwest::Client;
 
-use crate::api::{Instance, Node, NodeAndInstance};
+use crate::api::{Enclave, Instance, Node, NodeInstanceEnclave};
 use crate::bitcoind_client::BitcoindClient;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
@@ -519,19 +519,21 @@ async fn start_ldk() -> anyhow::Result<()> {
     let user_id = 1;
     // TODO(sgx) Insert this enclave's measurement
     let measurement = String::from("measurement");
-    let (node_res, instance_res) = tokio::join!(
+    let (node_res, instance_res, enclave_res) = tokio::join!(
         api::get_node(&client, user_id),
         api::get_instance(&client, user_id, measurement.clone()),
+        api::get_enclave(&client, user_id, measurement.clone()),
     );
     let node_opt = node_res.context("Error while fetching node")?;
     let instance_opt = instance_res.context("Error while fetching instance")?;
+    let enclave_opt = enclave_res.context("Error while fetching enclave")?;
 
-    let (pubkey, keys_manager) = match (node_opt, instance_opt) {
-        (Some(node), Some(instance)) => {
-            println!("Found existing instance in DB");
+    let (pubkey, keys_manager) = match (node_opt, enclave_opt) {
+        (Some(node), Some(enclave)) => {
+            println!("Found existing enclave in DB");
 
             // TODO(decrypt): Decrypt under enclave sealing key to get the seed
-            let seed = instance.seed;
+            let seed = enclave.seed;
 
             // Validate the seed
             ensure!(seed.len() == 32, "Incorrect seed length");
@@ -560,30 +562,31 @@ async fn start_ldk() -> anyhow::Result<()> {
 
             (derived_pubkey, keys_manager)
         }
-        (None, Some(_instance)) => {
-            // This should never happen; the instance table is (non-null)
-            // foreign keyed to the node table.
-            bail!("Existing instances should always have existing nodes")
+        (None, Some(_enclave)) => {
+            // This should never happen; the enclave table is foreign keyed to
+            // the instance table which is foreign keyed to the node table
+            bail!("Existing enclaves should always have existing nodes")
         }
         (Some(node), None) => {
             // If this is the second startup for a completely new user,
             //
-            // If this instance was bootstrapped from an old instance, the old
-            // instance should have created the DB entry for this new instance,
-            // which contains the encrypted seed (sealed under this instance's
-            // enclave measurement) required for recovering the Lightning node.
+            // If this enclave was bootstrapped from an old enclave, the old
+            // enclave should have created the DB entry for this new enclave,
+            // which contains the encrypted seed (sealed under this enclave's
+            // KEYREQUEST) required for recovering the Lightning node.
             //
-            // If a previous run of this instance generated a seed + node (e.g.
-            // for a completely new user), the Node and Instance should have
-            // been persisted together. Like above, we cannot recover the node
-            // because we do not have access to the encrypted seed.
-            bail!("Missing Instance data for node {}", node.public_key)
+            // If a previous run of this enclave generated a seed + node (e.g.
+            // for a completely new user), the Node, Instance, and Enclave
+            // should have been persisted together. As above, we cannot recover
+            // the node because we do not have access to the encrypted seed.
+            bail!("Missing enclave data for node {}", node.public_key)
         }
         (None, None) => {
             // No node exists yet, create a new one
             println!("Generating new seed");
             let mut new_seed = [0; 32];
             rand::thread_rng().fill_bytes(&mut new_seed);
+            // TODO (sgx): Seal seed under this enclave's pubkey
 
             // Derive pubkey
             let keys_manager = init_key_manager(&new_seed);
@@ -591,27 +594,37 @@ async fn start_ldk() -> anyhow::Result<()> {
                 .context("Could not get derive our pubkey from seed")?;
             let pubkey_hex = convert::pubkey_to_hex(&pubkey);
 
-            // Build API structs for persisting the new node + instance
+            // Build structs for persisting the new node + instance + enclave
             let node = Node {
                 public_key: pubkey_hex.clone(),
                 user_id,
             };
-            let id = convert::get_instance_id(&pubkey, &measurement);
+            let instance_id = convert::get_instance_id(&pubkey, &measurement);
             let instance = Instance {
-                id,
+                id: instance_id.clone(),
                 measurement: measurement.clone(),
                 node_public_key: pubkey_hex,
-                // TODO (sgx): Seal seed under this enclave's pubkey
+            };
+            // TODO Derive from a subset of KEYREQUEST
+            let enclave_id = format!("{}_{}", instance_id, "my_cpu_id");
+            let enclave = Enclave {
+                id: enclave_id,
                 seed: new_seed.to_vec(),
+                instance_id,
             };
 
-            // Persist node and instance together in one db txn to ensure that
-            // we never end up with a node without a corresponding instance
-            let node_and_instance = NodeAndInstance { node, instance };
-            api::create_node_and_instance(&client, node_and_instance)
+            // Persist node, instance, and enclave together in one db txn to
+            // ensure that we never end up with a node without a corresponding
+            // enclave that can unseal the associated seed
+            let node_instance_enclave = NodeInstanceEnclave {
+                node,
+                instance,
+                enclave,
+            };
+            api::create_node_instance_enclave(&client, node_instance_enclave)
                 .await
                 .context(
-                    "Could not atomically persist new node and instance",
+                    "Could not atomically persist new node, instance, and enclave",
                 )?;
 
             (pubkey, keys_manager)
