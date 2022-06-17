@@ -78,8 +78,8 @@ pub async fn get_instance(
 #[derive(Serialize, Deserialize)]
 pub struct Enclave {
     pub id: String,
-    pub instance_id: String,
     pub seed: Vec<u8>,
+    pub instance_id: String,
 }
 
 pub async fn get_enclave(
@@ -104,7 +104,7 @@ pub struct NodeInstanceEnclave {
 pub async fn create_node_instance_enclave(
     client: &Client,
     req: NodeInstanceEnclave,
-) -> Result<Node, ApiError> {
+) -> Result<NodeInstanceEnclave, ApiError> {
     request(client, Method::POST, "/acid/node_instance_enclave", req).await
 }
 
@@ -256,6 +256,11 @@ async fn request<D: Serialize, T: DeserializeOwned>(
     let response = client.request(method, url).body(body).send().await?;
 
     if response.status().is_success() {
+        // Uncomment for debugging
+        // let text = response.text().await?;
+        // println!("Response: {}", text);
+        // serde_json::from_str(&text).map_err(|e| e.into())
+
         // Deserialize into JSON, return Ok(json)
         response.json().await.map_err(|e| e.into())
     } else {
