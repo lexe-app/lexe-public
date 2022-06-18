@@ -518,7 +518,7 @@ async fn start_ldk() -> anyhow::Result<()> {
     let client = Client::new();
     let user_id = 1;
     // TODO(sgx) Insert this enclave's measurement
-    let measurement = String::from("measurement");
+    let measurement = String::from("default");
     let (node_res, instance_res, enclave_res) = tokio::join!(
         api::get_node(&client, user_id),
         api::get_instance(&client, user_id, measurement.clone()),
