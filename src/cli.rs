@@ -19,10 +19,9 @@ use lightning::util::config::{
 use lightning::util::events::EventHandler;
 use lightning_invoice::payment::PaymentError;
 use lightning_invoice::{utils, Currency, Invoice};
-use std::env;
 use std::io;
 use std::io::{BufRead, Write};
-use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
+use std::net::{SocketAddr, ToSocketAddrs};
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -32,22 +31,56 @@ use anyhow::{bail, Context};
 
 use crate::LexeArgs;
 
-// TODO Turn the bitcoind fields into a substruct
 #[allow(dead_code)]
 pub struct LdkUserInfo {
     pub bitcoind_rpc: BitcoindRpcInfo,
-    pub ldk_peer_listening_port: u16,
+    pub peer_port: u16,
     pub ldk_announced_listen_addr: Vec<NetAddress>,
     pub ldk_announced_node_name: [u8; 32],
     pub network: Network,
+    pub warp_port: u16,
 }
 
-/// Attempts to parse `LexeArgs` into `LdkUserInfo`
-pub fn _build_startup_args(lexe_args: LexeArgs) -> anyhow::Result<LdkUserInfo> {
-    let _bitcoind_rpc = parse_bitcoind_rpc(lexe_args.bitcoind_rpc)
+/// Attempts to convert `LexeArgs` into `LdkUserInfo`
+pub fn convert_lexe_args(lexe_args: LexeArgs) -> anyhow::Result<LdkUserInfo> {
+    let bitcoind_rpc = parse_bitcoind_rpc(lexe_args.bitcoind_rpc)
         .context("Could not parse bitcoind rpc args")?;
 
-    todo!()
+    let peer_port = lexe_args.peer_port;
+
+    let ldk_announced_listen_addr = Vec::new();
+
+    let ldk_announced_node_name = match lexe_args.announced_node_name {
+        Some(name) => {
+            if name.len() > 32 {
+                bail!("Node Alias can not be longer than 32 bytes");
+            }
+            let mut bytes = [0; 32];
+            bytes[..name.len()].copy_from_slice(name.as_bytes());
+            bytes
+        }
+        None => [0; 32],
+    };
+
+    let network = match lexe_args.network {
+        n if n == "testnet" => Network::Testnet,
+        // NOTE: Disable mainnet for now
+        // n if n == "mainnet" || n == "bitcoin" => Network::Bitcoin,
+        n => bail!("Network `{}` is not supported.", n),
+    };
+
+    let warp_port = lexe_args.warp_port;
+
+    let ldk_info = LdkUserInfo {
+        bitcoind_rpc,
+        peer_port,
+        ldk_announced_listen_addr,
+        ldk_announced_node_name,
+        network,
+        warp_port,
+    };
+
+    Ok(ldk_info)
 }
 
 /// The information required to connect to a bitcoind instance via RPC
@@ -84,94 +117,6 @@ fn parse_bitcoind_rpc(info: String) -> anyhow::Result<BitcoindRpcInfo> {
     };
 
     Ok(bitcoind_rpc)
-}
-
-// NOTE(max): If this arg parsing becomes too unwieldy at some point, it can be
-// rewritten with the minimal crate `argh`.
-pub(crate) fn parse_startup_args() -> Result<LdkUserInfo, ()> {
-    if env::args().len() < 3 {
-        println!("lexe-node requires 3 arguments: `cargo run <bitcoind-rpc-username>:<bitcoind-rpc-password>@<bitcoind-rpc-host>:<bitcoind-rpc-port> ldk_storage_directory_path [<ldk-incoming-peer-listening-port>] [bitcoin-network] [announced-node-name announced-listen-addr*]`");
-        return Err(());
-    }
-    let bitcoind_rpc_info = env::args().nth(1).unwrap();
-    let bitcoind_rpc = parse_bitcoind_rpc(bitcoind_rpc_info).unwrap();
-
-    let _ldk_storage_dir_path = env::args().nth(2).unwrap();
-
-    let ldk_peer_port_set;
-    let ldk_peer_listening_port: u16 =
-        match env::args().nth(3).map(|p| p.parse()) {
-            Some(Ok(p)) => {
-                ldk_peer_port_set = true;
-                p
-            }
-            Some(Err(_)) => {
-                ldk_peer_port_set = false;
-                9735
-            }
-            None => {
-                ldk_peer_port_set = false;
-                9735
-            }
-        };
-
-    let mut arg_idx = match ldk_peer_port_set {
-        true => 4,
-        false => 3,
-    };
-    let network: Network = match env::args().nth(arg_idx).as_deref() {
-        Some("testnet") => Network::Testnet,
-        Some("regtest") => Network::Regtest,
-        Some("signet") => Network::Signet,
-        Some(net) => {
-            panic!("Unsupported network provided. Options are: `regtest`, `testnet`, and `signet`. Got {}", net);
-        }
-        None => Network::Testnet,
-    };
-
-    let ldk_announced_node_name = match env::args().nth(arg_idx + 1).as_ref() {
-        Some(s) => {
-            if s.len() > 32 {
-                panic!("Node Alias can not be longer than 32 bytes");
-            }
-            arg_idx += 1;
-            let mut bytes = [0; 32];
-            bytes[..s.len()].copy_from_slice(s.as_bytes());
-            bytes
-        }
-        None => [0; 32],
-    };
-
-    let mut ldk_announced_listen_addr = Vec::new();
-    while let Some(s) = env::args().nth(arg_idx + 1).as_ref() {
-        match IpAddr::from_str(s) {
-            Ok(IpAddr::V4(a)) => {
-                ldk_announced_listen_addr.push(NetAddress::IPv4 {
-                    addr: a.octets(),
-                    port: ldk_peer_listening_port,
-                });
-                arg_idx += 1;
-            }
-            Ok(IpAddr::V6(a)) => {
-                ldk_announced_listen_addr.push(NetAddress::IPv6 {
-                    addr: a.octets(),
-                    port: ldk_peer_listening_port,
-                });
-                arg_idx += 1;
-            }
-            Err(_) => panic!(
-                "Failed to parse announced-listen-addr into an IP address"
-            ),
-        }
-    }
-
-    Ok(LdkUserInfo {
-        bitcoind_rpc,
-        ldk_peer_listening_port,
-        ldk_announced_listen_addr,
-        ldk_announced_node_name,
-        network,
-    })
 }
 
 #[allow(clippy::too_many_arguments)]

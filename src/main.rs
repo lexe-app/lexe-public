@@ -68,21 +68,21 @@ pub struct LexeArgs {
     /// bitcoind rpc info, in the format <username>:<password>@<host>:<-port>
     bitcoind_rpc: String,
 
-    #[argh(option, default = "999")] // TODO actually use the port
-    /// the port warp uses to accept TLS connections from the owner
-    warp_port: u16,
+    #[argh(option, default = "9735")]
+    /// the port on which to accept Lightning P2P connections
+    peer_port: u16,
+
+    #[argh(option)]
+    /// this node's Lightning Network alias
+    announced_node_name: Option<String>,
 
     #[argh(option, default = "String::from(\"testnet\")")]
     /// testnet or mainnet. Defaults to testnet.
     network: String,
 
-    #[argh(option)]
-    /// the port on which to accept Lightning P2P connections
-    ldk_port: Option<u16>,
-
-    #[argh(switch)]
-    /// whether to disable logging for this run
-    no_log: bool,
+    #[argh(option, default = "999")] // TODO actually use the port
+    /// the port warp uses to accept TLS connections from the owner
+    warp_port: u16,
 }
 
 enum HTLCStatus {
@@ -480,15 +480,9 @@ async fn handle_ldk_events(
 }
 
 async fn start_ldk() -> anyhow::Result<()> {
-    let _lexe_args: LexeArgs = argh::from_env();
-    // TODO Uncomment
-    // let args = cli::build_startup_args(lexe_args)
-    //     .context("Could not parse command line args")?;
-
-    let args = match cli::parse_startup_args() {
-        Ok(user_args) => user_args,
-        Err(()) => bail!("Could not parse startup args"),
-    };
+    let lexe_args: LexeArgs = argh::from_env();
+    let args = cli::convert_lexe_args(lexe_args)
+        .context("Could not parse command line args")?;
 
     // Initialize our bitcoind client.
     let bitcoind_client = match BitcoindClient::new(
@@ -810,7 +804,7 @@ async fn start_ldk() -> anyhow::Result<()> {
     // Step 13: Initialize networking
 
     let peer_manager_connection_handler = peer_manager.clone();
-    let listening_port = args.ldk_peer_listening_port;
+    let listening_port = args.peer_port;
     let stop_listen_connect = Arc::new(AtomicBool::new(false));
     let stop_listen = Arc::clone(&stop_listen_connect);
     tokio::spawn(async move {
