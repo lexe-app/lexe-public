@@ -47,6 +47,7 @@ use anyhow::{bail, ensure, Context};
 use argh::FromArgs;
 use rand::{thread_rng, Rng};
 use reqwest::Client;
+use warp::Filter as WarpFilter;
 
 use crate::api::{Enclave, Instance, Node, NodeInstanceEnclave};
 use crate::bitcoind_client::BitcoindClient;
@@ -981,6 +982,11 @@ async fn start_ldk() -> anyhow::Result<()> {
             }
         });
     }
+
+    // Start warp at the given port
+    warp::serve(warp::path::end().map(|| "This is a Lexe user node"))
+        .run(([127, 0, 0, 1], args.warp_port))
+        .await;
 
     // Start the CLI.
     cli::poll_for_user_input(
