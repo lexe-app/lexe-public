@@ -11,6 +11,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+
+# ---BITCOIN--- #
+
+bitcoin = "0.28.1"
+bitcoin-bech32 = "0.12"
+# bech32 = "0.8"
+base64 = "0.13.0"
+
+# ---LIGHTNING--- #
+
 lightning = { version = "0.0.108", features = ["max_level_trace"] }
 lightning-block-sync = { version = "0.0.108", features = [ "rpc-client" ] }
 lightning-invoice = { version = "0.16" }
@@ -25,33 +35,37 @@ lightning-rapid-gossip-sync = { version = "0.0.108" }
 # lightning-background-processor = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lightning-net-tokio-sgx-v0.0.108" }
 # lightning-rapid-gossip-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lightning-net-tokio-sgx-v0.0.108" }
 
+# ---UTILITIES--- #
+
 # Ad hoc error definition, easy error propagation, error chains
 anyhow = "1"
 # Easy error definition
 thiserror = "1"
 # Derive-based command line argument parsing
 argh = "0"
-
-base64 = "0.13.0"
-bitcoin = "0.28.1"
-bitcoin-bech32 = "0.12"
-bech32 = "0.8"
-hex = "0.3"
-
-futures = "0.3"
-chrono = "0.4"
+# Hex tools
+# hex = "0.3"
 # Used to specify the HTTP methods used to interact with the API
 http = "0.2"
-
+# Used to generate a seed TODO Replace with SGX secure randomness
+rand = "0.4"
+# Used in logging
+chrono = "0.4"
+# Used to manually poll a future in ldk-sample's networking code TODO remove
+futures = "0.3"
 # Used to hold a Tokio runtime used by the sync fns in the Persister trait impl
 once_cell = "1"
-rand = "0.4"
-# Used to make reqwests to the API
-reqwest = { version = "0.11", default-features = false, features = ["json"] }
 # Used to serialize / deserialize from API
 serde = { version = "1", features = ["derive"] }
 serde_qs = "0"
 serde_json = "1"
+
+# ---MAJOR DEPENDENCIES--- #
+
+# Used to make HTTP requests to the API
+reqwest = { version = "0.11", default-features = false, features = ["json"] }
+
+# ---PATCHED DEPENDENCIES--- #
 
 # Use the specific patched versions
 hyper = "=0.14.18"
@@ -74,8 +88,7 @@ tokio = { git = "https://github.com/lexe-tech/tokio",  branch = "tokio-sgx-1.15.
 [package.metadata.fortanix-sgx]
 # stack size (in bytes) for each thread, the default stack size is 0x20000.
 stack-size=0x200000
-# Gotcha: Don't forget to count the main thread when counting number of
-# threads.
+# Gotcha: Don't forget to count the main thread when counting number of threads
 threads=7
 
 [profile.release]
