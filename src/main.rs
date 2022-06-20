@@ -984,9 +984,11 @@ async fn start_ldk() -> anyhow::Result<()> {
     }
 
     // Start warp at the given port
-    warp::serve(warp::path::end().map(|| "This is a Lexe user node"))
-        .run(([127, 0, 0, 1], args.warp_port))
-        .await;
+    tokio::spawn(async move {
+        warp::serve(warp::path::end().map(|| "This is a Lexe user node"))
+            .run(([127, 0, 0, 1], args.warp_port))
+            .await;
+    });
 
     // Start the CLI.
     cli::poll_for_user_input(
