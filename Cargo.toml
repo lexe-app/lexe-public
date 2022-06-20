@@ -29,6 +29,8 @@ lightning-rapid-gossip-sync = { version = "0.0.108" }
 anyhow = "1"
 # Easy error definition
 thiserror = "1"
+# Derive-based command line argument parsing
+argh = "0"
 
 base64 = "0.13.0"
 bitcoin = "0.28.1"

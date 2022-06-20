@@ -44,6 +44,7 @@ use lightning_net_tokio::SocketDescriptor;
 use lightning_rapid_gossip_sync::RapidGossipSync;
 
 use anyhow::{bail, ensure, Context};
+use argh::FromArgs;
 use rand::{thread_rng, Rng};
 use reqwest::Client;
 
@@ -59,6 +60,30 @@ mod convert;
 mod hex_utils;
 mod logger;
 mod persister;
+
+#[derive(FromArgs, PartialEq, Debug)]
+/// Arguments accepted by a Lexe node
+pub struct LexeArgs {
+    #[argh(positional)]
+    /// bitcoind rpc info, in the format <username>:<password>@<host>:<-port>
+    bitcoind_rpc: String,
+
+    #[argh(option, default = "999")] // TODO actually use the port
+    /// the port warp uses to accept TLS connections from the owner
+    warp_port: u16,
+
+    #[argh(option, default = "String::from(\"testnet\")")]
+    /// testnet or mainnet. Defaults to testnet.
+    network: String,
+
+    #[argh(option)]
+    /// the port on which to accept Lightning P2P connections
+    ldk_port: Option<u16>,
+
+    #[argh(switch)]
+    /// whether to disable logging for this run
+    no_log: bool,
+}
 
 enum HTLCStatus {
     Pending,
@@ -455,6 +480,11 @@ async fn handle_ldk_events(
 }
 
 async fn start_ldk() -> anyhow::Result<()> {
+    let _lexe_args: LexeArgs = argh::from_env();
+    // TODO Uncomment
+    // let args = cli::build_startup_args(lexe_args)
+    //     .context("Could not parse command line args")?;
+
     let args = match cli::parse_startup_args() {
         Ok(user_args) => user_args,
         Err(()) => bail!("Could not parse startup args"),
@@ -462,10 +492,10 @@ async fn start_ldk() -> anyhow::Result<()> {
 
     // Initialize our bitcoind client.
     let bitcoind_client = match BitcoindClient::new(
-        args.bitcoind_rpc_host.clone(),
-        args.bitcoind_rpc_port,
-        args.bitcoind_rpc_username.clone(),
-        args.bitcoind_rpc_password.clone(),
+        args.bitcoind_rpc.host.clone(),
+        args.bitcoind_rpc.port,
+        args.bitcoind_rpc.username.clone(),
+        args.bitcoind_rpc.password.clone(),
         tokio::runtime::Handle::current(),
     )
     .await

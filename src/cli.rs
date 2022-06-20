@@ -28,17 +28,62 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::{bail, Context};
+
+use crate::LexeArgs;
+
+// TODO Turn the bitcoind fields into a substruct
 #[allow(dead_code)]
-pub(crate) struct LdkUserInfo {
-    pub(crate) bitcoind_rpc_username: String,
-    pub(crate) bitcoind_rpc_password: String,
-    pub(crate) bitcoind_rpc_port: u16,
-    pub(crate) bitcoind_rpc_host: String,
-    pub(crate) ldk_storage_dir_path: String,
-    pub(crate) ldk_peer_listening_port: u16,
-    pub(crate) ldk_announced_listen_addr: Vec<NetAddress>,
-    pub(crate) ldk_announced_node_name: [u8; 32],
-    pub(crate) network: Network,
+pub struct LdkUserInfo {
+    pub bitcoind_rpc: BitcoindRpcInfo,
+    pub ldk_peer_listening_port: u16,
+    pub ldk_announced_listen_addr: Vec<NetAddress>,
+    pub ldk_announced_node_name: [u8; 32],
+    pub network: Network,
+}
+
+/// Attempts to parse `LexeArgs` into `LdkUserInfo`
+pub fn _build_startup_args(lexe_args: LexeArgs) -> anyhow::Result<LdkUserInfo> {
+    let _bitcoind_rpc = parse_bitcoind_rpc(lexe_args.bitcoind_rpc)
+        .context("Could not parse bitcoind rpc args")?;
+
+    todo!()
+}
+
+/// The information required to connect to a bitcoind instance via RPC
+pub struct BitcoindRpcInfo {
+    pub username: String,
+    pub password: String,
+    pub host: String,
+    pub port: u16,
+}
+
+fn parse_bitcoind_rpc(info: String) -> anyhow::Result<BitcoindRpcInfo> {
+    let parts: Vec<&str> = info.rsplitn(2, '@').collect();
+    if parts.len() != 2 {
+        bail!("ERROR: bad bitcoind RPC URL provided");
+    }
+    let rpc_user_and_password: Vec<&str> = parts[1].split(':').collect();
+    if rpc_user_and_password.len() != 2 {
+        bail!("ERROR: bad bitcoind RPC username/password combo provided");
+    }
+    let username = rpc_user_and_password[0].to_string();
+    let password = rpc_user_and_password[1].to_string();
+    let path: Vec<&str> = parts[0].split(':').collect();
+    if path.len() != 2 {
+        bail!("ERROR: bad bitcoind RPC path provided");
+    }
+    let host = path[0].to_string();
+    let port = path[1].parse::<u16>().unwrap();
+
+    let bitcoind_rpc = BitcoindRpcInfo {
+        username,
+        password,
+        host,
+        port,
+    };
+
+    Ok(bitcoind_rpc)
 }
 
 // NOTE(max): If this arg parsing becomes too unwieldy at some point, it can be
@@ -49,30 +94,9 @@ pub(crate) fn parse_startup_args() -> Result<LdkUserInfo, ()> {
         return Err(());
     }
     let bitcoind_rpc_info = env::args().nth(1).unwrap();
-    let bitcoind_rpc_info_parts: Vec<&str> =
-        bitcoind_rpc_info.rsplitn(2, '@').collect();
-    if bitcoind_rpc_info_parts.len() != 2 {
-        println!("ERROR: bad bitcoind RPC URL provided");
-        return Err(());
-    }
-    let rpc_user_and_password: Vec<&str> =
-        bitcoind_rpc_info_parts[1].split(':').collect();
-    if rpc_user_and_password.len() != 2 {
-        println!("ERROR: bad bitcoind RPC username/password combo provided");
-        return Err(());
-    }
-    let bitcoind_rpc_username = rpc_user_and_password[0].to_string();
-    let bitcoind_rpc_password = rpc_user_and_password[1].to_string();
-    let bitcoind_rpc_path: Vec<&str> =
-        bitcoind_rpc_info_parts[0].split(':').collect();
-    if bitcoind_rpc_path.len() != 2 {
-        println!("ERROR: bad bitcoind RPC path provided");
-        return Err(());
-    }
-    let bitcoind_rpc_host = bitcoind_rpc_path[0].to_string();
-    let bitcoind_rpc_port = bitcoind_rpc_path[1].parse::<u16>().unwrap();
+    let bitcoind_rpc = parse_bitcoind_rpc(bitcoind_rpc_info).unwrap();
 
-    let ldk_storage_dir_path = env::args().nth(2).unwrap();
+    let _ldk_storage_dir_path = env::args().nth(2).unwrap();
 
     let ldk_peer_port_set;
     let ldk_peer_listening_port: u16 =
@@ -142,11 +166,7 @@ pub(crate) fn parse_startup_args() -> Result<LdkUserInfo, ()> {
     }
 
     Ok(LdkUserInfo {
-        bitcoind_rpc_username,
-        bitcoind_rpc_password,
-        bitcoind_rpc_host,
-        bitcoind_rpc_port,
-        ldk_storage_dir_path,
+        bitcoind_rpc,
         ldk_peer_listening_port,
         ldk_announced_listen_addr,
         ldk_announced_node_name,
