@@ -1,7 +1,6 @@
 use crate::convert::{
     BlockchainInfo, FeeResponse, FundedTx, NewAddress, RawTx, SignedTx,
 };
-use base64;
 use bitcoin::blockdata::block::Block;
 use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
@@ -15,7 +14,6 @@ use lightning_block_sync::rpc::RpcClient;
 use lightning_block_sync::{
     AsyncBlockSourceResult, BlockHeaderData, BlockSource,
 };
-use serde_json;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
