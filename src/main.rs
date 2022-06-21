@@ -1,6 +1,5 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::fmt;
 use std::io;
 use std::io::Write;
 use std::ops::Deref;
@@ -19,18 +18,12 @@ use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
 };
 use lightning::chain::chainmonitor;
-use lightning::chain::keysinterface::{
-    InMemorySigner, KeysInterface, KeysManager, Recipient,
-};
-use lightning::chain::{BestBlock, Filter, Watch};
+use lightning::chain::keysinterface::{KeysInterface, KeysManager, Recipient};
+use lightning::chain::{BestBlock, Watch};
 use lightning::ln::channelmanager;
-use lightning::ln::channelmanager::{ChainParameters, SimpleArcChannelManager};
-use lightning::ln::peer_handler::{
-    IgnoringMessageHandler, MessageHandler, SimpleArcPeerManager,
-};
-use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
-use lightning::routing::gossip::{NetworkGraph, NodeId, P2PGossipSync};
-use lightning::routing::scoring::ProbabilisticScorer;
+use lightning::ln::channelmanager::ChainParameters;
+use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
+use lightning::routing::gossip::{NodeId, P2PGossipSync};
 use lightning::util::config::UserConfig;
 use lightning::util::events::{Event, PaymentPurpose};
 use lightning_background_processor::BackgroundProcessor;
@@ -40,8 +33,6 @@ use lightning_block_sync::SpvClient;
 use lightning_block_sync::UnboundedCache;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
-use lightning_net_tokio::SocketDescriptor;
-use lightning_rapid_gossip_sync::RapidGossipSync;
 
 use anyhow::{bail, ensure, Context};
 use argh::FromArgs;
@@ -53,6 +44,12 @@ use crate::api::{Enclave, Instance, Node, NodeInstanceEnclave, UserPort};
 use crate::bitcoind_client::BitcoindClient;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
+use crate::types::{
+    ChainMonitorType, ChannelManagerType, GossipSyncType, HTLCStatus,
+    InvoicePayerType, LoggerType, MillisatAmount, NetworkGraphType, NodeAlias,
+    PaymentInfo, PaymentInfoStorageType, PeerManagerType, Port,
+    ProbabilisticScorerType, UserId,
+};
 
 mod api;
 pub mod bitcoind_client;
@@ -61,6 +58,7 @@ mod convert;
 mod hex_utils;
 mod logger;
 mod persister;
+mod types;
 
 #[derive(FromArgs, PartialEq, Debug)]
 /// Arguments accepted by a Lexe node
@@ -84,100 +82,6 @@ pub struct LexeArgs {
     #[argh(option, default = "999")] // TODO actually use the port
     /// the port warp uses to accept TLS connections from the owner
     warp_port: Port,
-}
-
-pub type UserId = i64;
-pub type Port = u16;
-
-enum HTLCStatus {
-    Pending,
-    Succeeded,
-    Failed,
-}
-
-struct MillisatAmount(Option<u64>);
-
-impl fmt::Display for MillisatAmount {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.0 {
-            Some(amt) => write!(f, "{}", amt),
-            None => write!(f, "unknown"),
-        }
-    }
-}
-
-struct PaymentInfo {
-    preimage: Option<PaymentPreimage>,
-    secret: Option<PaymentSecret>,
-    status: HTLCStatus,
-    amt_msat: MillisatAmount,
-}
-
-type PaymentInfoStorageType = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
-
-type ChainMonitorType = chainmonitor::ChainMonitor<
-    InMemorySigner,
-    Arc<dyn Filter + Send + Sync>,
-    Arc<BitcoindClient>,
-    Arc<BitcoindClient>,
-    Arc<StdOutLogger>,
-    Arc<PostgresPersister>,
->;
-
-type PeerManagerType = SimpleArcPeerManager<
-    SocketDescriptor,
-    ChainMonitorType,
-    BitcoindClient,
-    BitcoindClient,
-    dyn chain::Access + Send + Sync,
-    StdOutLogger,
->;
-
-type ChannelManagerType = SimpleArcChannelManager<
-    ChainMonitorType,
-    BitcoindClient,
-    BitcoindClient,
-    StdOutLogger,
->;
-
-type InvoicePayerType<E> = payment::InvoicePayer<
-    Arc<ChannelManagerType>,
-    RouterType,
-    Arc<Mutex<ProbabilisticScorerType>>,
-    Arc<StdOutLogger>,
-    E,
->;
-
-type ProbabilisticScorerType =
-    ProbabilisticScorer<Arc<NetworkGraphType>, LoggerType>;
-
-type RouterType = DefaultRouter<Arc<NetworkGraphType>, LoggerType>;
-
-type GossipSync<P, G, A, L> = lightning_background_processor::GossipSync<
-    P,
-    Arc<RapidGossipSync<G, L>>,
-    G,
-    A,
-    L,
->;
-
-type NetworkGraphType = NetworkGraph<LoggerType>;
-
-type LoggerType = Arc<StdOutLogger>;
-
-struct NodeAlias<'a>(&'a [u8; 32]);
-
-impl fmt::Display for NodeAlias<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let alias = self
-            .0
-            .iter()
-            .map(|b| *b as char)
-            .take_while(|c| *c != '\0')
-            .filter(|c| c.is_ascii_graphic() || *c == ' ')
-            .collect::<String>();
-        write!(f, "{}", alias)
-    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -918,7 +822,7 @@ async fn start_ldk() -> anyhow::Result<()> {
         invoice_payer.clone(),
         chain_monitor.clone(),
         channel_manager.clone(),
-        GossipSync::P2P(gossip_sync.clone()),
+        GossipSyncType::P2P(gossip_sync.clone()),
         peer_manager.clone(),
         logger.clone(),
         Some(scorer.clone()),
