@@ -21,9 +21,9 @@ use rand::{thread_rng, Rng};
 
 use crate::bitcoind_client::BitcoindClient;
 use crate::hex_utils;
+use crate::structs::{HTLCStatus, MillisatAmount, NodeAlias, PaymentInfo};
 use crate::types::{
-    ChannelManagerType, HTLCStatus, MillisatAmount, NetworkGraphType,
-    NodeAlias, PaymentInfo, PaymentInfoStorageType,
+    ChannelManagerType, NetworkGraphType, PaymentInfoStorageType,
 };
 
 /// The core functionality used inside the `event_handler` closure

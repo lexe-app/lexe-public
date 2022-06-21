@@ -7,6 +7,7 @@ mod hex_utils;
 mod init;
 mod logger;
 mod persister;
+mod structs;
 mod types;
 
 #[tokio::main]

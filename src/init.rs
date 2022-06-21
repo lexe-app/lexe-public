@@ -32,11 +32,12 @@ use crate::api::{
     self, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
 };
 use crate::bitcoind_client::BitcoindClient;
-use crate::cli::{self, LexeArgs};
+use crate::cli;
 use crate::convert;
 use crate::event_handler;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
+use crate::structs::{LdkArgs, LexeArgs};
 use crate::types::{
     ChainMonitorType, ChannelManagerType, GossipSyncType, InvoicePayerType,
     PaymentInfoStorageType, PeerManagerType,
@@ -44,7 +45,8 @@ use crate::types::{
 
 pub async fn start_ldk() -> anyhow::Result<()> {
     let lexe_args: LexeArgs = argh::from_env();
-    let args = cli::convert_lexe_args(lexe_args)
+    let args: LdkArgs = lexe_args
+        .try_into()
         .context("Could not parse command line args")?;
 
     // Initialize our bitcoind client.

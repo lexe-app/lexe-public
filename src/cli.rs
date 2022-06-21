@@ -12,7 +12,6 @@ use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::PublicKey;
 
 use lightning::chain::keysinterface::{KeysInterface, KeysManager, Recipient};
-use lightning::ln::msgs::NetAddress;
 use lightning::ln::{PaymentHash, PaymentPreimage};
 use lightning::routing::gossip::NodeId;
 use lightning::util::config::{
@@ -22,128 +21,13 @@ use lightning::util::events::EventHandler;
 use lightning_invoice::payment::PaymentError;
 use lightning_invoice::{utils, Currency, Invoice};
 
-use anyhow::{bail, Context};
-use argh::FromArgs;
-
 use crate::hex_utils;
 use crate::persister::PostgresPersister;
+use crate::structs::{HTLCStatus, MillisatAmount, NodeAlias, PaymentInfo};
 use crate::types::{
-    ChannelManagerType, HTLCStatus, InvoicePayerType, MillisatAmount,
-    NetworkGraphType, NodeAlias, PaymentInfo, PaymentInfoStorageType,
-    PeerManagerType, Port,
+    ChannelManagerType, InvoicePayerType, NetworkGraphType,
+    PaymentInfoStorageType, PeerManagerType,
 };
-
-#[derive(FromArgs, PartialEq, Debug)]
-/// Arguments accepted by a Lexe node
-pub struct LexeArgs {
-    #[argh(positional)]
-    /// bitcoind rpc info, in the format <username>:<password>@<host>:<-port>
-    bitcoind_rpc: String,
-
-    #[argh(option, default = "9735")]
-    /// the port on which to accept Lightning P2P connections
-    peer_port: Port,
-
-    #[argh(option)]
-    /// this node's Lightning Network alias
-    announced_node_name: Option<String>,
-
-    #[argh(option, default = "String::from(\"testnet\")")]
-    /// testnet or mainnet. Defaults to testnet.
-    network: String,
-
-    #[argh(option, default = "999")] // TODO actually use the port
-    /// the port warp uses to accept TLS connections from the owner
-    warp_port: Port,
-}
-
-#[allow(dead_code)]
-pub struct LdkUserInfo {
-    pub bitcoind_rpc: BitcoindRpcInfo,
-    pub peer_port: u16,
-    pub ldk_announced_listen_addr: Vec<NetAddress>,
-    pub ldk_announced_node_name: [u8; 32],
-    pub network: Network,
-    pub warp_port: u16,
-}
-
-/// Attempts to convert `LexeArgs` into `LdkUserInfo`
-pub fn convert_lexe_args(lexe_args: LexeArgs) -> anyhow::Result<LdkUserInfo> {
-    let bitcoind_rpc = parse_bitcoind_rpc(lexe_args.bitcoind_rpc)
-        .context("Could not parse bitcoind rpc args")?;
-
-    let peer_port = lexe_args.peer_port;
-
-    let ldk_announced_listen_addr = Vec::new();
-
-    let ldk_announced_node_name = match lexe_args.announced_node_name {
-        Some(name) => {
-            if name.len() > 32 {
-                bail!("Node Alias can not be longer than 32 bytes");
-            }
-            let mut bytes = [0; 32];
-            bytes[..name.len()].copy_from_slice(name.as_bytes());
-            bytes
-        }
-        None => [0; 32],
-    };
-
-    let network = match lexe_args.network {
-        n if n == "testnet" => Network::Testnet,
-        // NOTE: Disable mainnet for now
-        // n if n == "mainnet" || n == "bitcoin" => Network::Bitcoin,
-        n => bail!("Network `{}` is not supported.", n),
-    };
-
-    let warp_port = lexe_args.warp_port;
-
-    let ldk_info = LdkUserInfo {
-        bitcoind_rpc,
-        peer_port,
-        ldk_announced_listen_addr,
-        ldk_announced_node_name,
-        network,
-        warp_port,
-    };
-
-    Ok(ldk_info)
-}
-
-/// The information required to connect to a bitcoind instance via RPC
-pub struct BitcoindRpcInfo {
-    pub username: String,
-    pub password: String,
-    pub host: String,
-    pub port: Port,
-}
-
-fn parse_bitcoind_rpc(info: String) -> anyhow::Result<BitcoindRpcInfo> {
-    let parts: Vec<&str> = info.rsplitn(2, '@').collect();
-    if parts.len() != 2 {
-        bail!("ERROR: bad bitcoind RPC URL provided");
-    }
-    let rpc_user_and_password: Vec<&str> = parts[1].split(':').collect();
-    if rpc_user_and_password.len() != 2 {
-        bail!("ERROR: bad bitcoind RPC username/password combo provided");
-    }
-    let username = rpc_user_and_password[0].to_string();
-    let password = rpc_user_and_password[1].to_string();
-    let path: Vec<&str> = parts[0].split(':').collect();
-    if path.len() != 2 {
-        bail!("ERROR: bad bitcoind RPC path provided");
-    }
-    let host = path[0].to_string();
-    let port = path[1].parse::<u16>().unwrap();
-
-    let bitcoind_rpc = BitcoindRpcInfo {
-        username,
-        password,
-        host,
-        port,
-    };
-
-    Ok(bitcoind_rpc)
-}
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn poll_for_user_input<E: EventHandler>(
