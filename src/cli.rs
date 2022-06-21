@@ -28,8 +28,33 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{bail, Context};
+use argh::FromArgs;
 
-use crate::{LexeArgs, Port};
+use crate::types::Port;
+
+#[derive(FromArgs, PartialEq, Debug)]
+/// Arguments accepted by a Lexe node
+pub struct LexeArgs {
+    #[argh(positional)]
+    /// bitcoind rpc info, in the format <username>:<password>@<host>:<-port>
+    bitcoind_rpc: String,
+
+    #[argh(option, default = "9735")]
+    /// the port on which to accept Lightning P2P connections
+    peer_port: Port,
+
+    #[argh(option)]
+    /// this node's Lightning Network alias
+    announced_node_name: Option<String>,
+
+    #[argh(option, default = "String::from(\"testnet\")")]
+    /// testnet or mainnet. Defaults to testnet.
+    network: String,
+
+    #[argh(option, default = "999")] // TODO actually use the port
+    /// the port warp uses to accept TLS connections from the owner
+    warp_port: Port,
+}
 
 #[allow(dead_code)]
 pub struct LdkUserInfo {
