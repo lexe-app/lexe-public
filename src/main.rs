@@ -1,4 +1,5 @@
 mod api;
+mod attest;
 mod bitcoind_client;
 mod cli;
 mod convert;

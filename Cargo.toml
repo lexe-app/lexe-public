@@ -35,6 +35,16 @@ lightning-rapid-gossip-sync = { version = "0.0.108" }
 # lightning-background-processor = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lightning-net-tokio-sgx-v0.0.108" }
 # lightning-rapid-gossip-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lightning-net-tokio-sgx-v0.0.108" }
 
+# ---ATTESTATION--- #
+
+# Easily generate self-signed x509 certs with ring
+rcgen = { version = "0.9", default-features = false, features = [] }
+# Used for cert validitity range
+time = "0.3"
+# For constructing/parsing ASN.1 data in x509 certs
+yasna = { version = "0.2", default-features = false }
+
+
 # ---UTILITIES--- #
 
 # Ad hoc error definition, easy error propagation, error chains
@@ -86,7 +96,7 @@ tokio = { git = "https://github.com/lexe-tech/tokio",  branch = "tokio-sgx-1.15.
 # lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lightning-net-tokio-sgx-v0.0.107"}
 # These two are not needed yet
 # atty = { git = "https://github.com/softprops/atty", rev = "6633c0e1446aa19e6cd00e00e39770da43081bda" }
-# ring = { git = "https://github.com/lexe-tech/ring", branch = "support-sgx-0.16.20" }
+ring = { git = "https://github.com/lexe-tech/ring", branch = "support-sgx-0.16.20" }
 
 [package.metadata.fortanix-sgx]
 # stack size (in bytes) for each thread, the default stack size is 0x20000.

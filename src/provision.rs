@@ -25,7 +25,12 @@ struct UserId(i64);
 pub fn provision(dns_name: String, _userid: UserId, _auth_token: String) {
     // Q: we could wait to init cert + TLS until we've gotten a TCP connection?
 
-    // # sgx
+    // # pre setup
+    //
+    // 1. enclave parses args
+    // 2. run provision command w/ params
+
+    // # case 1: sgx
     //
     // 1. self report
     // 2. sample cert keypair
@@ -35,12 +40,28 @@ pub fn provision(dns_name: String, _userid: UserId, _auth_token: String) {
     // 6. get Report binding cert pubkey hash
     // 7. get enclave Report quoted -> Quote
     // 8. (?) verify Quote - could be fake AESM, but user would just reject
-    // anyway? 9. build enclave cert
-    // 10. bind tcp listener
-    // 11. orchestrator readiness ping
-    // 12.
+    //    anyway?
+    // 9. gen self-signed cert w/ real quote embedded
 
-    // # local
-    // 1. gen self-signed cert w/ fake quote
-    // 2. listen
+    // # case 2: local
+    //
+    // 1. sample cert keypair
+    // 2. gen self-signed cert w/ fake quote embedded
+
+    // # post setup
+    //
+    // 1. bind tcp listener (queue up any inbound connections)
+    // 2. orchestrator readiness ping
+    // 3. rustls TLS config; use self-signed cert & given subject name - or warp
+    //    directly?
+    // 4. start accepting connections from bound TCP listener
+
+    // # provision service (idk)
+    //
+    // POST /provision
+    // BEARER <AUTH-TOKEN>
+    //
+    // {
+    //   shared_secret: "87089d313793a902a25b0126439ab1ac"
+    // }
 }
