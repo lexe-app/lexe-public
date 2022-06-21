@@ -4,7 +4,9 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-const API_URL: &str = "http://127.0.0.1:3030/v1";
+/// The base url for the node-backend (persistence) API
+const PERSIST: &str = "http://127.0.0.1:3030/v1";
+const _RUNNER: &str = "http://127.0.0.1:5050";
 
 #[derive(Error, Debug)]
 pub enum ApiError {
@@ -50,10 +52,10 @@ pub struct Node {
 }
 
 pub async fn get_node(
-    client: &Client,
+    cli: &Client,
     user_id: i64,
 ) -> Result<Option<Node>, ApiError> {
-    request(client, Method::GET, "/node", GetByUserId { user_id }).await
+    request(cli, Method::GET, PERSIST, "/node", GetByUserId { user_id }).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -64,7 +66,7 @@ pub struct Instance {
 }
 
 pub async fn get_instance(
-    client: &Client,
+    cli: &Client,
     user_id: i64,
     measurement: String,
 ) -> Result<Option<Instance>, ApiError> {
@@ -72,7 +74,7 @@ pub async fn get_instance(
         user_id,
         measurement,
     };
-    request(client, Method::GET, "/instance", req).await
+    request(cli, Method::GET, PERSIST, "/instance", req).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -83,7 +85,7 @@ pub struct Enclave {
 }
 
 pub async fn get_enclave(
-    client: &Client,
+    cli: &Client,
     user_id: i64,
     measurement: String,
 ) -> Result<Option<Enclave>, ApiError> {
@@ -91,7 +93,7 @@ pub async fn get_enclave(
         user_id,
         measurement,
     };
-    request(client, Method::GET, "/enclave", req).await
+    request(cli, Method::GET, PERSIST, "/enclave", req).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -102,10 +104,11 @@ pub struct NodeInstanceEnclave {
 }
 
 pub async fn create_node_instance_enclave(
-    client: &Client,
+    cli: &Client,
     req: NodeInstanceEnclave,
 ) -> Result<NodeInstanceEnclave, ApiError> {
-    request(client, Method::POST, "/acid/node_instance_enclave", req).await
+    let endpoint = "/acid/node_instance_enclave";
+    request(cli, Method::POST, PERSIST, endpoint, req).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -117,25 +120,25 @@ pub struct ChannelMonitor {
 }
 
 pub async fn create_channel_monitor(
-    client: &Client,
-    channel_monitor: ChannelMonitor,
+    cli: &Client,
+    req: ChannelMonitor,
 ) -> Result<ChannelMonitor, ApiError> {
-    request(client, Method::POST, "/channel_monitor", channel_monitor).await
+    request(cli, Method::POST, PERSIST, "/channel_monitor", req).await
 }
 
 pub async fn get_channel_monitors(
-    client: &Client,
+    cli: &Client,
     instance_id: String,
 ) -> Result<Vec<ChannelMonitor>, ApiError> {
     let req = GetByInstanceId { instance_id };
-    request(client, Method::GET, "/channel_monitor", req).await
+    request(cli, Method::GET, PERSIST, "/channel_monitor", req).await
 }
 
 pub async fn update_channel_monitor(
-    client: &Client,
-    channel_monitor: ChannelMonitor,
+    cli: &Client,
+    req: ChannelMonitor,
 ) -> Result<ChannelMonitor, ApiError> {
-    request(client, Method::PUT, "/channel_monitor", channel_monitor).await
+    request(cli, Method::PUT, PERSIST, "/channel_monitor", req).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -145,18 +148,18 @@ pub struct ChannelManager {
 }
 
 pub async fn get_channel_manager(
-    client: &Client,
+    cli: &Client,
     instance_id: String,
 ) -> Result<Option<ChannelManager>, ApiError> {
     let req = GetByInstanceId { instance_id };
-    request(client, Method::GET, "/channel_manager", req).await
+    request(cli, Method::GET, PERSIST, "/channel_manager", req).await
 }
 
 pub async fn create_or_update_channel_manager(
-    client: &Client,
-    channel_manager: ChannelManager,
+    cli: &Client,
+    req: ChannelManager,
 ) -> Result<ChannelManager, ApiError> {
-    request(client, Method::PUT, "/channel_manager", channel_manager).await
+    request(cli, Method::PUT, PERSIST, "/channel_manager", req).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -166,18 +169,18 @@ pub struct ProbabilisticScorer {
 }
 
 pub async fn get_probabilistic_scorer(
-    client: &Client,
+    cli: &Client,
     instance_id: String,
 ) -> Result<Option<ProbabilisticScorer>, ApiError> {
     let req = GetByInstanceId { instance_id };
-    request(client, Method::GET, "/probabilistic_scorer", req).await
+    request(cli, Method::GET, PERSIST, "/probabilistic_scorer", req).await
 }
 
 pub async fn create_or_update_probabilistic_scorer(
-    client: &Client,
+    cli: &Client,
     ps: ProbabilisticScorer,
 ) -> Result<ProbabilisticScorer, ApiError> {
-    request(client, Method::PUT, "/probabilistic_scorer", ps).await
+    request(cli, Method::PUT, PERSIST, "/probabilistic_scorer", ps).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -187,18 +190,18 @@ pub struct NetworkGraph {
 }
 
 pub async fn get_network_graph(
-    client: &Client,
+    cli: &Client,
     instance_id: String,
 ) -> Result<Option<NetworkGraph>, ApiError> {
     let req = GetByInstanceId { instance_id };
-    request(client, Method::GET, "/network_graph", req).await
+    request(cli, Method::GET, PERSIST, "/network_graph", req).await
 }
 
 pub async fn create_or_update_network_graph(
-    client: &Client,
+    cli: &Client,
     ng: NetworkGraph,
 ) -> Result<NetworkGraph, ApiError> {
-    request(client, Method::PUT, "/network_graph", ng).await
+    request(cli, Method::PUT, PERSIST, "/network_graph", ng).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -209,28 +212,29 @@ pub struct ChannelPeer {
 }
 
 pub async fn create_channel_peer(
-    client: &Client,
+    cli: &Client,
     channel_peer: ChannelPeer,
 ) -> Result<ChannelPeer, ApiError> {
-    request(client, Method::POST, "/channel_peer", channel_peer).await
+    request(cli, Method::POST, PERSIST, "/channel_peer", channel_peer).await
 }
 
 pub async fn get_channel_peers(
-    client: &Client,
+    cli: &Client,
     instance_id: String,
 ) -> Result<Vec<ChannelPeer>, ApiError> {
     let req = GetByInstanceId { instance_id };
-    request(client, Method::GET, "/channel_peer", req).await
+    request(cli, Method::GET, PERSIST, "/channel_peer", req).await
 }
 
 /// Builds and executes the API request
 async fn request<D: Serialize, T: DeserializeOwned>(
-    client: &Client,
+    cli: &Client,
     method: Method,
+    base_url: &str,
     endpoint: &str,
     data: D,
 ) -> Result<T, ApiError> {
-    let mut url = format!("{}{}", API_URL, endpoint);
+    let mut url = format!("{}{}", base_url, endpoint);
 
     // If GET, serialize the data in a query string
     let query_str = match method {
@@ -253,7 +257,7 @@ async fn request<D: Serialize, T: DeserializeOwned>(
     };
     // println!("    Body: {}", body);
 
-    let response = client.request(method, url).body(body).send().await?;
+    let response = cli.request(method, url).body(body).send().await?;
 
     if response.status().is_success() {
         // Uncomment for debugging
