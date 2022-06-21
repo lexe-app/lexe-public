@@ -9,7 +9,7 @@ use lightning::ln::{PaymentPreimage, PaymentSecret};
 use anyhow::{bail, Context};
 use argh::FromArgs;
 
-use crate::types::Port;
+use crate::types::{Port, UserId};
 
 #[derive(FromArgs, PartialEq, Debug)]
 /// Arguments accepted by a Lexe node
@@ -30,6 +30,10 @@ pub struct LexeArgs {
     /// testnet or mainnet. Defaults to testnet.
     network: String,
 
+    #[argh(option, default = "1")]
+    /// the Lexe user id used in queries to the persistence API
+    user_id: UserId,
+
     #[argh(option, default = "999")] // TODO actually use the port
     /// the port warp uses to accept TLS connections from the owner
     warp_port: Port,
@@ -42,6 +46,7 @@ pub struct LdkArgs {
     pub ldk_announced_listen_addr: Vec<NetAddress>,
     pub ldk_announced_node_name: [u8; 32],
     pub network: Network,
+    pub user_id: UserId,
     pub warp_port: u16,
 }
 
@@ -79,6 +84,7 @@ impl TryFrom<LexeArgs> for LdkArgs {
             ldk_announced_listen_addr: Vec::new(),
             ldk_announced_node_name,
             network,
+            user_id: lexe_args.user_id,
             warp_port: lexe_args.warp_port,
         };
 

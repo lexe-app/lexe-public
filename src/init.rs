@@ -67,9 +67,8 @@ pub async fn start_ldk() -> anyhow::Result<()> {
 
     // Fetch our node pubkey and instance data from the data store
 
-    // TODO take in the user id from program args
     let client = Client::new();
-    let user_id = 1;
+    let user_id = args.user_id;
     // TODO(sgx) Insert this enclave's measurement
     let measurement = String::from("default");
     let (node_res, instance_res, enclave_res) = tokio::join!(
