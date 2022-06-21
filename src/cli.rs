@@ -29,7 +29,7 @@ use std::time::Duration;
 
 use anyhow::{bail, Context};
 
-use crate::LexeArgs;
+use crate::{LexeArgs, Port};
 
 #[allow(dead_code)]
 pub struct LdkUserInfo {
@@ -88,7 +88,7 @@ pub struct BitcoindRpcInfo {
     pub username: String,
     pub password: String,
     pub host: String,
-    pub port: u16,
+    pub port: Port,
 }
 
 fn parse_bitcoind_rpc(info: String) -> anyhow::Result<BitcoindRpcInfo> {

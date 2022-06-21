@@ -49,7 +49,7 @@ use rand::{thread_rng, Rng};
 use reqwest::Client;
 use warp::Filter as WarpFilter;
 
-use crate::api::{Enclave, Instance, Node, NodeInstanceEnclave};
+use crate::api::{Enclave, Instance, Node, NodeInstanceEnclave, UserPort};
 use crate::bitcoind_client::BitcoindClient;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
@@ -71,7 +71,7 @@ pub struct LexeArgs {
 
     #[argh(option, default = "9735")]
     /// the port on which to accept Lightning P2P connections
-    peer_port: u16,
+    peer_port: Port,
 
     #[argh(option)]
     /// this node's Lightning Network alias
@@ -83,8 +83,11 @@ pub struct LexeArgs {
 
     #[argh(option, default = "999")] // TODO actually use the port
     /// the port warp uses to accept TLS connections from the owner
-    warp_port: u16,
+    warp_port: Port,
 }
+
+pub type UserId = i64;
+pub type Port = u16;
 
 enum HTLCStatus {
     Pending,
@@ -990,6 +993,16 @@ async fn start_ldk() -> anyhow::Result<()> {
             .run(([127, 0, 0, 1], args.warp_port))
             .await;
     });
+
+    // Let the runner know that we're ready
+    let user_port = UserPort {
+        user_id,
+        port: args.warp_port,
+    };
+    println!("\n\nNotifying runner\n\n"); // \n o.w. its gets buried in stdout
+    api::notify_runner(&client, user_port)
+        .await
+        .context("Could not notify runner of ready status")?;
 
     // Start the CLI.
     cli::poll_for_user_input(

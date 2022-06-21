@@ -4,9 +4,11 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::{Port, UserId};
+
 /// The base url for the node-backend (persistence) API
 const PERSIST: &str = "http://127.0.0.1:3030/v1";
-const _RUNNER: &str = "http://127.0.0.1:5050";
+const RUNNER: &str = "http://127.0.0.1:5050";
 
 #[derive(Error, Debug)]
 pub enum ApiError {
@@ -29,13 +31,13 @@ pub struct EmptyData {}
 /// Query parameter struct for fetching by user id
 #[derive(Serialize)]
 pub struct GetByUserId {
-    pub user_id: i64,
+    pub user_id: UserId,
 }
 
 /// Query parameter struct for fetching by user id and measurement
 #[derive(Serialize)]
 pub struct GetByUserIdAndMeasurement {
-    pub user_id: i64,
+    pub user_id: UserId,
     pub measurement: String,
 }
 
@@ -48,12 +50,12 @@ pub struct GetByInstanceId {
 #[derive(Serialize, Deserialize)]
 pub struct Node {
     pub public_key: String,
-    pub user_id: i64,
+    pub user_id: UserId,
 }
 
 pub async fn get_node(
     cli: &Client,
-    user_id: i64,
+    user_id: UserId,
 ) -> Result<Option<Node>, ApiError> {
     request(cli, Method::GET, PERSIST, "/node", GetByUserId { user_id }).await
 }
@@ -67,7 +69,7 @@ pub struct Instance {
 
 pub async fn get_instance(
     cli: &Client,
-    user_id: i64,
+    user_id: UserId,
     measurement: String,
 ) -> Result<Option<Instance>, ApiError> {
     let req = GetByUserIdAndMeasurement {
@@ -86,7 +88,7 @@ pub struct Enclave {
 
 pub async fn get_enclave(
     cli: &Client,
-    user_id: i64,
+    user_id: UserId,
     measurement: String,
 ) -> Result<Option<Enclave>, ApiError> {
     let req = GetByUserIdAndMeasurement {
@@ -224,6 +226,19 @@ pub async fn get_channel_peers(
 ) -> Result<Vec<ChannelPeer>, ApiError> {
     let req = GetByInstanceId { instance_id };
     request(cli, Method::GET, PERSIST, "/channel_peer", req).await
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UserPort {
+    pub user_id: UserId,
+    pub port: Port,
+}
+
+pub async fn notify_runner(
+    cli: &Client,
+    req: UserPort,
+) -> Result<UserPort, ApiError> {
+    request(cli, Method::POST, RUNNER, "/ready", req).await
 }
 
 /// Builds and executes the API request
