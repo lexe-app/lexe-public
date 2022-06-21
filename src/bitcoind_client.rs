@@ -27,7 +27,6 @@ pub struct BitcoindClient {
     rpc_user: String,
     rpc_password: String,
     fees: Arc<HashMap<Target, AtomicU32>>,
-    handle: tokio::runtime::Handle,
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -75,7 +74,6 @@ impl BitcoindClient {
         port: u16,
         rpc_user: String,
         rpc_password: String,
-        handle: tokio::runtime::Handle,
     ) -> std::io::Result<Self> {
         let http_endpoint =
             HttpEndpoint::for_host(host.clone()).with_port(port);
@@ -104,12 +102,10 @@ impl BitcoindClient {
             rpc_user,
             rpc_password,
             fees: Arc::new(fees),
-            handle: handle.clone(),
         };
         BitcoindClient::poll_for_fee_estimates(
             client.fees.clone(),
             client.bitcoind_rpc_client.clone(),
-            handle,
         );
         Ok(client)
     }
@@ -117,9 +113,8 @@ impl BitcoindClient {
     fn poll_for_fee_estimates(
         fees: Arc<HashMap<Target, AtomicU32>>,
         rpc_client: Arc<RpcClient>,
-        handle: tokio::runtime::Handle,
     ) {
-        handle.spawn(async move {
+        tokio::spawn(async move {
             loop {
                 let background_estimate = {
                     let background_conf_target = serde_json::json!(144);
@@ -300,7 +295,7 @@ impl BroadcasterInterface for BitcoindClient {
     fn broadcast_transaction(&self, tx: &Transaction) {
         let bitcoind_rpc_client = self.bitcoind_rpc_client.clone();
         let tx_serialized = serde_json::json!(encode::serialize_hex(tx));
-        self.handle.spawn(async move {
+        tokio::spawn(async move {
             // This may error due to RL calling `broadcast_transaction` with the
             // same transaction multiple times, but the error is
             // safe to ignore.

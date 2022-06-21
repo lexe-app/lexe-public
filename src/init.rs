@@ -23,7 +23,7 @@ use lightning_block_sync::UnboundedCache;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 
-use anyhow::{bail, ensure, Context};
+use anyhow::{anyhow, bail, ensure, Context};
 use rand::Rng;
 use reqwest::Client;
 use warp::Filter as WarpFilter;
@@ -44,59 +44,23 @@ use crate::types::{
 };
 
 pub async fn start_ldk() -> anyhow::Result<()> {
+    // Parse command line args
     let lexe_args: LexeArgs = argh::from_env();
     let args: LdkArgs = lexe_args
         .try_into()
         .context("Could not parse command line args")?;
 
-    // Initialize our bitcoind client.
-    let bitcoind_client = match BitcoindClient::new(
-        args.bitcoind_rpc.host.clone(),
-        args.bitcoind_rpc.port,
-        args.bitcoind_rpc.username.clone(),
-        args.bitcoind_rpc.password.clone(),
-        tokio::runtime::Handle::current(),
-    )
-    .await
-    {
-        Ok(client) => Arc::new(client),
-        Err(e) => {
-            bail!("Failed to connect to bitcoind client: {}", e);
-        }
-    };
-
-    // Check that the bitcoind we've connected to is running the network we
-    // expect
-    let bitcoind_chain = bitcoind_client.get_blockchain_info().await.chain;
-    if bitcoind_chain
-        != match args.network {
-            bitcoin::Network::Bitcoin => "main",
-            bitcoin::Network::Testnet => "test",
-            bitcoin::Network::Regtest => "regtest",
-            bitcoin::Network::Signet => "signet",
-        }
-    {
-        bail!(
-            "Chain argument ({}) didn't match bitcoind chain ({})",
-            args.network,
-            bitcoind_chain
-        );
-    }
-
-    // ## Setup
-    // Step 1: Initialize the FeeEstimator
-
-    // BitcoindClient implements the FeeEstimator trait, so it'll act as our fee
-    // estimator.
-    let fee_estimator = bitcoind_client.clone();
-
-    // Step 2: Initialize the Logger
+    // Initialize the Logger
     let logger = Arc::new(StdOutLogger {});
 
-    // Step 3: Initialize the BroadcasterInterface
-
-    // BitcoindClient implements the BroadcasterInterface trait, so it'll act as
-    // our transaction broadcaster.
+    // Initialize our BitcoindClient, which also implements these traits:
+    // - BroadcasterInterface
+    // - FeeEstimator
+    // TODO tokio::join! this
+    let bitcoind_client = init_bitcoind_client(&args)
+        .await
+        .context("Failed to init bitcoind client")?;
+    let fee_estimator = bitcoind_client.clone();
     let broadcaster = bitcoind_client.clone();
 
     // Step 4: Initialize the KeysManager
@@ -591,6 +555,44 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     background_processor.stop().unwrap();
 
     Ok(())
+}
+
+/// Initializes and validates a BitcoindClient given an LdkArgs
+pub async fn init_bitcoind_client(
+    args: &LdkArgs,
+) -> anyhow::Result<Arc<BitcoindClient>> {
+    let new_res = BitcoindClient::new(
+        args.bitcoind_rpc.host.clone(),
+        args.bitcoind_rpc.port,
+        args.bitcoind_rpc.username.clone(),
+        args.bitcoind_rpc.password.clone(),
+    )
+    .await;
+
+    let client = match new_res {
+        Ok(cli) => Arc::new(cli),
+        Err(e) => bail!("Failed to connect to bitcoind client: {}", e),
+    };
+
+    // Check that the bitcoind we've connected to is running the network we
+    // expect
+    let bitcoind_chain = client.get_blockchain_info().await.chain;
+    let chain_str = match args.network {
+        bitcoin::Network::Bitcoin => "main",
+        bitcoin::Network::Testnet => "test",
+        bitcoin::Network::Regtest => "regtest",
+        bitcoin::Network::Signet => "signet",
+    };
+    ensure!(
+        bitcoind_chain == chain_str,
+        anyhow!(
+            "Chain argument ({}) didn't match bitcoind chain ({})",
+            args.network,
+            bitcoind_chain
+        )
+    );
+
+    Ok(client)
 }
 
 /// Securely initializes a KeyManager from a given seed
