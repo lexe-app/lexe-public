@@ -26,6 +26,7 @@ use lightning_invoice::utils::DefaultRouter;
 use anyhow::{anyhow, bail, ensure, Context};
 use rand::Rng;
 use reqwest::Client;
+use tokio::runtime::Handle;
 use warp::Filter as WarpFilter;
 
 use crate::api::{
@@ -565,6 +566,7 @@ pub async fn init_bitcoind_client(
         args.bitcoind_rpc.port,
         args.bitcoind_rpc.username.clone(),
         args.bitcoind_rpc.password.clone(),
+        Handle::current(),
     )
     .await;
 

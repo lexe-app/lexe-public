@@ -1,6 +1,9 @@
-use crate::convert::{
-    BlockchainInfo, FeeResponse, FundedTx, NewAddress, RawTx, SignedTx,
-};
+use std::collections::HashMap;
+use std::str::FromStr;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
+
 use bitcoin::blockdata::block::Block;
 use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
@@ -9,16 +12,18 @@ use bitcoin::util::address::Address;
 use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
 };
+
 use lightning_block_sync::http::HttpEndpoint;
 use lightning_block_sync::rpc::RpcClient;
 use lightning_block_sync::{
     AsyncBlockSourceResult, BlockHeaderData, BlockSource,
 };
-use std::collections::HashMap;
-use std::str::FromStr;
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::Arc;
-use std::time::Duration;
+
+use tokio::runtime::Handle;
+
+use crate::convert::{
+    BlockchainInfo, FeeResponse, FundedTx, NewAddress, RawTx, SignedTx,
+};
 
 pub struct BitcoindClient {
     bitcoind_rpc_client: Arc<RpcClient>,
@@ -27,6 +32,7 @@ pub struct BitcoindClient {
     rpc_user: String,
     rpc_password: String,
     fees: Arc<HashMap<Target, AtomicU32>>,
+    handle: Handle,
 }
 
 #[derive(Clone, Eq, Hash, PartialEq)]
@@ -69,11 +75,14 @@ impl BlockSource for &BitcoindClient {
 const MIN_FEERATE: u32 = 253;
 
 impl BitcoindClient {
+    // A runtime handle has to be passed in explicitly, otherwise these fns may
+    // panic when called from the (non-Tokio) background processor thread
     pub async fn new(
         host: String,
         port: u16,
         rpc_user: String,
         rpc_password: String,
+        handle: Handle,
     ) -> std::io::Result<Self> {
         let http_endpoint =
             HttpEndpoint::for_host(host.clone()).with_port(port);
@@ -102,8 +111,9 @@ impl BitcoindClient {
             rpc_user,
             rpc_password,
             fees: Arc::new(fees),
+            handle: handle.clone(),
         };
-        BitcoindClient::poll_for_fee_estimates(
+        client.poll_for_fee_estimates(
             client.fees.clone(),
             client.bitcoind_rpc_client.clone(),
         );
@@ -111,10 +121,11 @@ impl BitcoindClient {
     }
 
     fn poll_for_fee_estimates(
+        &self,
         fees: Arc<HashMap<Target, AtomicU32>>,
         rpc_client: Arc<RpcClient>,
     ) {
-        tokio::spawn(async move {
+        self.handle.spawn(async move {
             loop {
                 let background_estimate = {
                     let background_conf_target = serde_json::json!(144);
@@ -295,7 +306,7 @@ impl BroadcasterInterface for BitcoindClient {
     fn broadcast_transaction(&self, tx: &Transaction) {
         let bitcoind_rpc_client = self.bitcoind_rpc_client.clone();
         let tx_serialized = serde_json::json!(encode::serialize_hex(tx));
-        tokio::spawn(async move {
+        self.handle.spawn(async move {
             // This may error due to RL calling `broadcast_transaction` with the
             // same transaction multiple times, but the error is
             // safe to ignore.
