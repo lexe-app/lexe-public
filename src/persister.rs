@@ -41,7 +41,7 @@ use crate::bitcoind_client::BitcoindClient;
 use crate::cli;
 use crate::convert;
 use crate::logger::StdOutLogger;
-use crate::{
+use crate::types::{
     ChainMonitorType, ChannelManagerType, LoggerType, NetworkGraphType,
     ProbabilisticScorerType,
 };

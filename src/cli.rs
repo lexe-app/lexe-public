@@ -1,14 +1,16 @@
-use crate::hex_utils;
-use crate::persister::PostgresPersister;
-use crate::{
-    ChannelManagerType, HTLCStatus, InvoicePayerType, MillisatAmount,
-    NetworkGraphType, NodeAlias, PaymentInfo, PaymentInfoStorageType,
-    PeerManagerType,
-};
+use std::io;
+use std::io::{BufRead, Write};
+use std::net::{SocketAddr, ToSocketAddrs};
+use std::ops::Deref;
+use std::str::FromStr;
+use std::sync::Arc;
+use std::time::Duration;
+
 use bitcoin::hashes::sha256::Hash as Sha256;
 use bitcoin::hashes::Hash;
 use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::PublicKey;
+
 use lightning::chain::keysinterface::{KeysInterface, KeysManager, Recipient};
 use lightning::ln::msgs::NetAddress;
 use lightning::ln::{PaymentHash, PaymentPreimage};
@@ -19,18 +21,17 @@ use lightning::util::config::{
 use lightning::util::events::EventHandler;
 use lightning_invoice::payment::PaymentError;
 use lightning_invoice::{utils, Currency, Invoice};
-use std::io;
-use std::io::{BufRead, Write};
-use std::net::{SocketAddr, ToSocketAddrs};
-use std::ops::Deref;
-use std::str::FromStr;
-use std::sync::Arc;
-use std::time::Duration;
 
 use anyhow::{bail, Context};
 use argh::FromArgs;
 
-use crate::types::Port;
+use crate::hex_utils;
+use crate::persister::PostgresPersister;
+use crate::types::{
+    ChannelManagerType, HTLCStatus, InvoicePayerType, MillisatAmount,
+    NetworkGraphType, NodeAlias, PaymentInfo, PaymentInfoStorageType,
+    PeerManagerType, Port,
+};
 
 #[derive(FromArgs, PartialEq, Debug)]
 /// Arguments accepted by a Lexe node

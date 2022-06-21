@@ -1,10 +1,3 @@
-use crate::types::{
-    ChainMonitorType, ChannelManagerType, GossipSyncType, HTLCStatus,
-    InvoicePayerType, LoggerType, MillisatAmount, NetworkGraphType, NodeAlias,
-    PaymentInfo, PaymentInfoStorageType, PeerManagerType, Port,
-    ProbabilisticScorerType, UserId,
-};
-
 mod api;
 mod bitcoind_client;
 mod cli;

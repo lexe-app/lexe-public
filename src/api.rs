@@ -4,7 +4,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{Port, UserId};
+use crate::types::{Port, UserId};
 
 /// The base url for the node-backend (persistence) API
 const PERSIST: &str = "http://127.0.0.1:3030/v1";
