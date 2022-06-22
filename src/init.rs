@@ -8,13 +8,13 @@ use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::BlockHash;
 
-use lightning::chain;
 use lightning::chain::chainmonitor;
 use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::keysinterface::{
     InMemorySigner, KeysInterface, KeysManager, Recipient,
 };
-use lightning::chain::{BestBlock, Watch};
+use lightning::chain::transaction::OutPoint;
+use lightning::chain::{self, BestBlock, Watch};
 use lightning::ln::channelmanager;
 use lightning::ln::channelmanager::ChainParameters;
 use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
@@ -23,7 +23,7 @@ use lightning::util::config::UserConfig;
 use lightning::util::events::Event;
 use lightning_background_processor::BackgroundProcessor;
 use lightning_block_sync::init as blocksyncinit;
-use lightning_block_sync::poll;
+use lightning_block_sync::poll::{self, ValidatedBlockHeader};
 use lightning_block_sync::SpvClient;
 use lightning_block_sync::UnboundedCache;
 use lightning_invoice::payment;
@@ -45,7 +45,7 @@ use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
 use crate::structs::{LdkArgs, LexeArgs};
 use crate::types::{
-    ChannelManagerType, GossipSyncType, InvoicePayerType,
+    ChainMonitorType, ChannelManagerType, GossipSyncType, InvoicePayerType,
     PaymentInfoStorageType, PeerManagerType, UserId,
 };
 
@@ -100,92 +100,43 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         .context("Could not read channel monitors")?;
 
     // Step 8: Initialize the ChannelManager
-    let mut user_config = UserConfig::default();
-    user_config
-        .peer_channel_config_limits
-        .force_announced_channel_preference = false;
+    // TODO tokio::join! this
     let mut restarting_node = true;
-    let channel_manager_opt = persister
-        .read_channel_manager(
-            &mut channel_monitors,
-            keys_manager.clone(),
-            fee_estimator.clone(),
-            chain_monitor.clone(),
-            broadcaster.clone(),
-            logger.clone(),
-            user_config,
-        )
-        .await
-        .context("Could not read ChannelManager from DB")?;
-    let (channel_manager_blockhash, channel_manager) = match channel_manager_opt
-    {
-        Some((blockhash, mgr)) => (blockhash, mgr),
-        None => {
-            // We're starting a fresh node.
-            restarting_node = false;
-            let getinfo_resp = bitcoind_client.get_blockchain_info().await;
-
-            let chain_params = ChainParameters {
-                network: args.network,
-                best_block: BestBlock::new(
-                    getinfo_resp.latest_blockhash,
-                    getinfo_resp.latest_height as u32,
-                ),
-            };
-            let fresh_channel_manager = channelmanager::ChannelManager::new(
-                fee_estimator.clone(),
-                chain_monitor.clone(),
-                broadcaster.clone(),
-                logger.clone(),
-                keys_manager.clone(),
-                user_config,
-                chain_params,
-            );
-            (getinfo_resp.latest_blockhash, fresh_channel_manager)
-        }
-    };
+    let (channel_manager_blockhash, channel_manager) = channel_manager(
+        &args,
+        &persister,
+        &mut channel_monitors,
+        &keys_manager,
+        &fee_estimator,
+        &chain_monitor,
+        &broadcaster,
+        &logger,
+        &bitcoind_client,
+        &mut restarting_node,
+    )
+    .await
+    .context("Could not init ChannelManager")?;
 
     // Step 9: Sync channel_monitors and ChannelManager to chain tip
     let mut chain_listener_channel_monitors = Vec::new();
     let mut cache = UnboundedCache::new();
-    let mut chain_tip: Option<poll::ValidatedBlockHeader> = None;
+    let mut chain_tip: Option<ValidatedBlockHeader> = None;
     if restarting_node {
-        let mut chain_listeners = vec![(
+        sync(
+            &args,
+            &channel_manager,
+            &bitcoind_client,
+            &broadcaster,
+            &fee_estimator,
+            &logger,
             channel_manager_blockhash,
-            &channel_manager as &dyn chain::Listen,
-        )];
-
-        for (blockhash, channel_monitor) in channel_monitors.drain(..) {
-            let outpoint = channel_monitor.get_funding_txo().0;
-            chain_listener_channel_monitors.push((
-                blockhash,
-                (
-                    channel_monitor,
-                    broadcaster.clone(),
-                    fee_estimator.clone(),
-                    logger.clone(),
-                ),
-                outpoint,
-            ));
-        }
-
-        for monitor_listener_info in chain_listener_channel_monitors.iter_mut()
-        {
-            chain_listeners.push((
-                monitor_listener_info.0,
-                &monitor_listener_info.1 as &dyn chain::Listen,
-            ));
-        }
-        chain_tip = Some(
-            blocksyncinit::synchronize_listeners(
-                &mut bitcoind_client.deref(),
-                args.network,
-                &mut cache,
-                chain_listeners,
-            )
-            .await
-            .unwrap(),
-        );
+            channel_monitors,
+            &mut chain_listener_channel_monitors,
+            &mut cache,
+            &mut chain_tip,
+        )
+        .await
+        .context("Could not sync channel monitors and channel manager")?;
     }
 
     // Step 10: Give channel_monitors to ChainMonitor
@@ -628,7 +579,7 @@ fn keys_manager_from_seed(seed: &[u8; 32]) -> KeysManager {
     KeysManager::new(seed, now.as_secs(), now.subsec_nanos())
 }
 
-/// Initializes a ChannelMonitor
+/// Initializes the ChannelMonitors
 async fn channel_monitors(
     persister: &Arc<PostgresPersister>,
     keys_manager: &Arc<KeysManager>,
@@ -637,4 +588,130 @@ async fn channel_monitors(
         .read_channel_monitors(keys_manager.clone())
         .await
         .context("Could not read channel monitors")
+}
+
+/// Initializes the ChannelManager
+#[allow(clippy::too_many_arguments)]
+async fn channel_manager(
+    args: &LdkArgs,
+    persister: &Arc<PostgresPersister>,
+    channel_monitors: &mut [(BlockHash, ChannelMonitor<InMemorySigner>)],
+    keys_manager: &Arc<KeysManager>,
+    fee_estimator: &Arc<BitcoindClient>,
+    chain_monitor: &Arc<ChainMonitorType>,
+    broadcaster: &Arc<BitcoindClient>,
+    logger: &Arc<StdOutLogger>,
+    bitcoind_client: &Arc<BitcoindClient>,
+    restarting_node: &mut bool,
+) -> anyhow::Result<(BlockHash, ChannelManagerType)> {
+    let mut user_config = UserConfig::default();
+    user_config
+        .peer_channel_config_limits
+        .force_announced_channel_preference = false;
+    let channel_manager_opt = persister
+        .read_channel_manager(
+            channel_monitors,
+            keys_manager.clone(),
+            fee_estimator.clone(),
+            chain_monitor.clone(),
+            broadcaster.clone(),
+            logger.clone(),
+            user_config,
+        )
+        .await
+        .context("Could not read ChannelManager from DB")?;
+    let (channel_manager_blockhash, channel_manager) = match channel_manager_opt
+    {
+        Some((blockhash, mgr)) => (blockhash, mgr),
+        None => {
+            // We're starting a fresh node.
+            *restarting_node = false;
+            let getinfo_resp = bitcoind_client.get_blockchain_info().await;
+
+            let chain_params = ChainParameters {
+                network: args.network,
+                best_block: BestBlock::new(
+                    getinfo_resp.latest_blockhash,
+                    getinfo_resp.latest_height as u32,
+                ),
+            };
+            let fresh_channel_manager = channelmanager::ChannelManager::new(
+                fee_estimator.clone(),
+                chain_monitor.clone(),
+                broadcaster.clone(),
+                logger.clone(),
+                keys_manager.clone(),
+                user_config,
+                chain_params,
+            );
+            (getinfo_resp.latest_blockhash, fresh_channel_manager)
+        }
+    };
+
+    Ok((channel_manager_blockhash, channel_manager))
+}
+
+/// Syncs the channel monitors and ChannelManager to chain tip
+#[allow(clippy::type_complexity)] // TODO Turn the Vec<tuple> into Vec<struct>
+#[allow(clippy::too_many_arguments)]
+async fn sync(
+    args: &LdkArgs,
+    channel_manager: &ChannelManagerType,
+    bitcoind_client: &Arc<BitcoindClient>,
+    broadcaster: &Arc<BitcoindClient>,
+    fee_estimator: &Arc<BitcoindClient>,
+    logger: &Arc<StdOutLogger>,
+    channel_manager_blockhash: BlockHash,
+    mut channel_monitors: Vec<(BlockHash, ChannelMonitor<InMemorySigner>)>,
+    chain_listener_channel_monitors: &mut Vec<(
+        BlockHash,
+        (
+            ChannelMonitor<InMemorySigner>,
+            Arc<BitcoindClient>,
+            Arc<BitcoindClient>,
+            Arc<StdOutLogger>,
+        ),
+        OutPoint,
+    )>,
+    cache: &mut HashMap<BlockHash, ValidatedBlockHeader>,
+    chain_tip: &mut Option<ValidatedBlockHeader>,
+) -> anyhow::Result<()> {
+    let mut chain_listeners = vec![(
+        channel_manager_blockhash,
+        channel_manager as &dyn chain::Listen,
+    )];
+
+    for (blockhash, channel_monitor) in channel_monitors.drain(..) {
+        let outpoint = channel_monitor.get_funding_txo().0;
+        chain_listener_channel_monitors.push((
+            blockhash,
+            (
+                channel_monitor,
+                broadcaster.clone(),
+                fee_estimator.clone(),
+                logger.clone(),
+            ),
+            outpoint,
+        ));
+    }
+
+    for monitor_listener_info in chain_listener_channel_monitors.iter_mut() {
+        chain_listeners.push((
+            monitor_listener_info.0,
+            &monitor_listener_info.1 as &dyn chain::Listen,
+        ));
+    }
+
+    *chain_tip = Some(
+        blocksyncinit::synchronize_listeners(
+            &&**bitcoind_client,
+            args.network,
+            cache,
+            chain_listeners,
+        )
+        .await
+        .unwrap(),
+    );
+
+    Ok(())
 }
