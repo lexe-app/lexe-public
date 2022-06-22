@@ -57,26 +57,26 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     // Initialize the Logger
     let logger = Arc::new(StdOutLogger {});
 
-    // Initialize our BitcoindClient, which, by implementing FeeEstimator and
-    // BroadcasterInterface, serves as our fee estimator and tx broadcaster.
-    // TODO tokio::join! this
-    let bitcoind_client = bitcoind_client(&args)
-        .await
-        .context("Failed to init bitcoind client")?;
-    let fee_estimator = bitcoind_client.clone();
-    let broadcaster = bitcoind_client.clone();
-
-    // Get user_id and measurement, used throughout init
+    // Get user_id, measurement, and HTTP client, used throughout init
     let user_id = args.user_id;
     // TODO(sgx) Insert this enclave's measurement
     let measurement = String::from("default");
-
-    // Initialize the KeysManager
     let client = reqwest::Client::new();
-    // TODO tokio::join! this
-    let (pubkey, keys_manager) = keys_manager(&client, user_id, &measurement)
-        .await
-        .context("Could not init KeysManager")?;
+
+    // tokio::join! doesn't "fail fast" but produces better error chains
+    let (bitcoind_client_res, keys_manager_res) = tokio::join!(
+        bitcoind_client(&args),
+        keys_manager(&client, user_id, &measurement),
+    );
+    let bitcoind_client =
+        bitcoind_client_res.context("Failed to init bitcoind client")?;
+    let (pubkey, keys_manager) =
+        keys_manager_res.context("Could not init KeysManager")?;
+
+    // BitcoindClient implements FeeEstimator and BroadcasterInterface and thus
+    // serves these functions. This can be customized later.
+    let fee_estimator = bitcoind_client.clone();
+    let broadcaster = bitcoind_client.clone();
 
     // Initialize Persister
     let persister =
@@ -97,8 +97,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         .await
         .context("Could not read channel monitors")?;
 
-    // Step 8: Initialize the ChannelManager
-    // TODO tokio::join! this
+    // Initialize the ChannelManager
     let mut restarting_node = true;
     let (channel_manager_blockhash, channel_manager) = channel_manager(
         &args,
@@ -115,10 +114,10 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     .await
     .context("Could not init ChannelManager")?;
 
-    // Step 9: Sync channel_monitors and ChannelManager to chain tip
+    // Sync channel_monitors and ChannelManager to chain tip
     let mut blockheader_cache = UnboundedCache::new();
     let (chain_listener_channel_monitors, chain_tip) = if restarting_node {
-        sync(
+        sync_chain_listeners(
             &args,
             &channel_manager,
             &bitcoind_client,
@@ -130,7 +129,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
             &mut blockheader_cache,
         )
         .await
-        .context("Could not sync channel monitors and channel manager")?
+        .context("Could not sync channel listeners")?
     } else {
         let clcm = Vec::new();
         let chain_tip = blocksyncinit::validate_best_block_header(
@@ -142,16 +141,17 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         (clcm, chain_tip)
     };
 
-    // Step 10: Give channel_monitors to ChainMonitor
+    // Give channel_monitors to ChainMonitor
     for cmcl in chain_listener_channel_monitors {
         let channel_monitor = cmcl.channel_monitor_listener.0;
         let funding_outpoint = cmcl.funding_outpoint;
         chain_monitor
             .watch_channel(funding_outpoint, channel_monitor)
-            .unwrap();
+            .map_err(|e| anyhow!("{:?}", e))
+            .context("Could not watch channel")?;
     }
 
-    // Step 11: Optional: Initialize the P2PGossipSync
+    // Optional: Initialize the P2PGossipSync
     let genesis = genesis_block(args.network).header.block_hash();
     let network_graph = persister
         .read_network_graph(genesis, logger.clone())
@@ -653,7 +653,7 @@ struct ChannelMonitorChainListener {
 
 /// Syncs the channel monitors and ChannelManager to the chain tip
 #[allow(clippy::too_many_arguments)]
-async fn sync(
+async fn sync_chain_listeners(
     args: &LdkArgs,
     channel_manager: &ChannelManagerType,
     bitcoind_client: &Arc<BitcoindClient>,
