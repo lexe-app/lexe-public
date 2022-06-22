@@ -6,10 +6,14 @@ use std::time::{Duration, SystemTime};
 
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::secp256k1::PublicKey;
+use bitcoin::BlockHash;
 
 use lightning::chain;
 use lightning::chain::chainmonitor;
-use lightning::chain::keysinterface::{KeysInterface, KeysManager, Recipient};
+use lightning::chain::channelmonitor::ChannelMonitor;
+use lightning::chain::keysinterface::{
+    InMemorySigner, KeysInterface, KeysManager, Recipient,
+};
 use lightning::chain::{BestBlock, Watch};
 use lightning::ln::channelmanager;
 use lightning::ln::channelmanager::ChainParameters;
@@ -41,7 +45,7 @@ use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
 use crate::structs::{LdkArgs, LexeArgs};
 use crate::types::{
-    ChainMonitorType, ChannelManagerType, GossipSyncType, InvoicePayerType,
+    ChannelManagerType, GossipSyncType, InvoicePayerType,
     PaymentInfoStorageType, PeerManagerType, UserId,
 };
 
@@ -64,7 +68,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     let fee_estimator = bitcoind_client.clone();
     let broadcaster = bitcoind_client.clone();
 
-    // user_id and measurement
+    // Get user_id and measurement, used throughout init
     let user_id = args.user_id;
     // TODO(sgx) Insert this enclave's measurement
     let measurement = String::from("default");
@@ -81,19 +85,17 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         Arc::new(PostgresPersister::new(&client, &pubkey, &measurement));
 
     // Initialize the ChainMonitor
-    let chain_monitor: Arc<ChainMonitorType> =
-        Arc::new(chainmonitor::ChainMonitor::new(
-            None,
-            broadcaster.clone(),
-            logger.clone(),
-            fee_estimator.clone(),
-            persister.clone(),
-        ));
+    let chain_monitor = Arc::new(chainmonitor::ChainMonitor::new(
+        None,
+        broadcaster.clone(),
+        logger.clone(),
+        fee_estimator.clone(),
+        persister.clone(),
+    ));
 
-    // Step 7: Retrieve ChannelMonitor state from DB
+    // Retrieve ChannelMonitor state from DB
     // TODO tokio::join! this
-    let mut channelmonitors = persister
-        .read_channel_monitors(keys_manager.clone())
+    let mut channel_monitors = channel_monitors(&persister, &keys_manager)
         .await
         .context("Could not read channel monitors")?;
 
@@ -105,7 +107,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     let mut restarting_node = true;
     let channel_manager_opt = persister
         .read_channel_manager(
-            &mut channelmonitors,
+            &mut channel_monitors,
             keys_manager.clone(),
             fee_estimator.clone(),
             chain_monitor.clone(),
@@ -143,7 +145,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         }
     };
 
-    // Step 9: Sync ChannelMonitors and ChannelManager to chain tip
+    // Step 9: Sync channel_monitors and ChannelManager to chain tip
     let mut chain_listener_channel_monitors = Vec::new();
     let mut cache = UnboundedCache::new();
     let mut chain_tip: Option<poll::ValidatedBlockHeader> = None;
@@ -153,7 +155,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
             &channel_manager as &dyn chain::Listen,
         )];
 
-        for (blockhash, channel_monitor) in channelmonitors.drain(..) {
+        for (blockhash, channel_monitor) in channel_monitors.drain(..) {
             let outpoint = channel_monitor.get_funding_txo().0;
             chain_listener_channel_monitors.push((
                 blockhash,
@@ -186,7 +188,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         );
     }
 
-    // Step 10: Give ChannelMonitors to ChainMonitor
+    // Step 10: Give channel_monitors to ChainMonitor
     for item in chain_listener_channel_monitors.drain(..) {
         let channel_monitor = item.1 .0;
         let funding_outpoint = item.2;
@@ -530,7 +532,7 @@ async fn keys_manager(
                 public_key: pubkey_hex.clone(),
                 user_id,
             };
-            let instance_id = convert::get_instance_id(&pubkey, &measurement);
+            let instance_id = convert::get_instance_id(&pubkey, measurement);
             let instance = Instance {
                 id: instance_id.clone(),
                 measurement: measurement.to_owned(),
@@ -624,4 +626,15 @@ fn keys_manager_from_seed(seed: &[u8; 32]) -> KeysManager {
         .expect("Literally 1984");
 
     KeysManager::new(seed, now.as_secs(), now.subsec_nanos())
+}
+
+/// Initializes a ChannelMonitor
+async fn channel_monitors(
+    persister: &Arc<PostgresPersister>,
+    keys_manager: &Arc<KeysManager>,
+) -> anyhow::Result<Vec<(BlockHash, ChannelMonitor<InMemorySigner>)>> {
+    persister
+        .read_channel_monitors(keys_manager.clone())
+        .await
+        .context("Could not read channel monitors")
 }
