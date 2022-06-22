@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 
 use lightning::chain;
 use lightning::chain::chainmonitor;
+use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::keysinterface::InMemorySigner;
 use lightning::chain::Filter;
 use lightning::ln::channelmanager::SimpleArcChannelManager;
@@ -49,6 +50,16 @@ pub type ChannelManagerType = SimpleArcChannelManager<
     BitcoindClient,
     StdOutLogger,
 >;
+
+pub type ChannelMonitorType = ChannelMonitor<InMemorySigner>;
+
+/// We use this strange tuple because LDK impl'd `Listen` for it
+pub type ChannelMonitorListenerType = (
+    ChannelMonitorType,
+    Arc<BitcoindClient>,
+    Arc<BitcoindClient>,
+    Arc<StdOutLogger>,
+);
 
 pub type InvoicePayerType<E> = payment::InvoicePayer<
     Arc<ChannelManagerType>,

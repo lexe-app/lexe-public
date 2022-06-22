@@ -64,7 +64,7 @@ impl PostgresPersister {
     #[allow(clippy::too_many_arguments)]
     pub async fn read_channel_manager(
         &self,
-        channelmonitors: &mut [(
+        channel_monitors: &mut [(
             BlockHash,
             LdkChannelMonitor<InMemorySigner>,
         )],
@@ -88,7 +88,7 @@ impl PostgresPersister {
         let cm_opt = match cm_opt {
             Some(cm) => {
                 let mut channel_monitor_mut_refs = Vec::new();
-                for (_, channel_monitor) in channelmonitors.iter_mut() {
+                for (_, channel_monitor) in channel_monitors.iter_mut() {
                     channel_monitor_mut_refs.push(channel_monitor);
                 }
                 let read_args = ChannelManagerReadArgs::new(

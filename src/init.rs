@@ -9,10 +9,7 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::BlockHash;
 
 use lightning::chain::chainmonitor;
-use lightning::chain::channelmonitor::ChannelMonitor;
-use lightning::chain::keysinterface::{
-    InMemorySigner, KeysInterface, KeysManager, Recipient,
-};
+use lightning::chain::keysinterface::{KeysInterface, KeysManager, Recipient};
 use lightning::chain::transaction::OutPoint;
 use lightning::chain::{self, BestBlock, Watch};
 use lightning::ln::channelmanager;
@@ -45,7 +42,8 @@ use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
 use crate::structs::{LdkArgs, LexeArgs};
 use crate::types::{
-    ChainMonitorType, ChannelManagerType, GossipSyncType, InvoicePayerType,
+    ChainMonitorType, ChannelManagerType, ChannelMonitorListenerType,
+    ChannelMonitorType, GossipSyncType, InvoicePayerType,
     PaymentInfoStorageType, PeerManagerType, UserId,
 };
 
@@ -118,10 +116,8 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     .context("Could not init ChannelManager")?;
 
     // Step 9: Sync channel_monitors and ChannelManager to chain tip
-    let mut chain_listener_channel_monitors = Vec::new();
-    let mut cache = UnboundedCache::new();
-    let mut chain_tip: Option<ValidatedBlockHeader> = None;
-    if restarting_node {
+    let mut blockheader_cache = UnboundedCache::new();
+    let (chain_listener_channel_monitors, chain_tip) = if restarting_node {
         sync(
             &args,
             &channel_manager,
@@ -131,18 +127,25 @@ pub async fn start_ldk() -> anyhow::Result<()> {
             &logger,
             channel_manager_blockhash,
             channel_monitors,
-            &mut chain_listener_channel_monitors,
-            &mut cache,
-            &mut chain_tip,
+            &mut blockheader_cache,
         )
         .await
-        .context("Could not sync channel monitors and channel manager")?;
-    }
+        .context("Could not sync channel monitors and channel manager")?
+    } else {
+        let clcm = Vec::new();
+        let chain_tip = blocksyncinit::validate_best_block_header(
+            &mut bitcoind_client.deref(),
+        )
+        .await
+        .map_err(|e| anyhow!(e.into_inner()))
+        .context("Could not validate best block header")?;
+        (clcm, chain_tip)
+    };
 
     // Step 10: Give channel_monitors to ChainMonitor
-    for item in chain_listener_channel_monitors.drain(..) {
-        let channel_monitor = item.1 .0;
-        let funding_outpoint = item.2;
+    for cmcl in chain_listener_channel_monitors {
+        let channel_monitor = cmcl.channel_monitor_listener.0;
+        let funding_outpoint = cmcl.funding_outpoint;
         chain_monitor
             .watch_channel(funding_outpoint, channel_monitor)
             .unwrap();
@@ -206,15 +209,6 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     });
 
     // Step 14: Connect and Disconnect Blocks
-    if chain_tip.is_none() {
-        chain_tip = Some(
-            blocksyncinit::validate_best_block_header(
-                &mut bitcoind_client.deref(),
-            )
-            .await
-            .unwrap(),
-        );
-    }
     let channel_manager_listener = channel_manager.clone();
     let chain_monitor_listener = chain_monitor.clone();
     let bitcoind_block_source = bitcoind_client.clone();
@@ -224,9 +218,9 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         let chain_poller = poll::ChainPoller::new(&mut derefed, network);
         let chain_listener = (chain_monitor_listener, channel_manager_listener);
         let mut spv_client = SpvClient::new(
-            chain_tip.unwrap(),
+            chain_tip,
             chain_poller,
-            &mut cache,
+            &mut blockheader_cache,
             &chain_listener,
         );
         loop {
@@ -583,7 +577,7 @@ fn keys_manager_from_seed(seed: &[u8; 32]) -> KeysManager {
 async fn channel_monitors(
     persister: &Arc<PostgresPersister>,
     keys_manager: &Arc<KeysManager>,
-) -> anyhow::Result<Vec<(BlockHash, ChannelMonitor<InMemorySigner>)>> {
+) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
     persister
         .read_channel_monitors(keys_manager.clone())
         .await
@@ -595,7 +589,7 @@ async fn channel_monitors(
 async fn channel_manager(
     args: &LdkArgs,
     persister: &Arc<PostgresPersister>,
-    channel_monitors: &mut [(BlockHash, ChannelMonitor<InMemorySigner>)],
+    channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
     keys_manager: &Arc<KeysManager>,
     fee_estimator: &Arc<BitcoindClient>,
     chain_monitor: &Arc<ChainMonitorType>,
@@ -651,8 +645,13 @@ async fn channel_manager(
     Ok((channel_manager_blockhash, channel_manager))
 }
 
-/// Syncs the channel monitors and ChannelManager to chain tip
-#[allow(clippy::type_complexity)] // TODO Turn the Vec<tuple> into Vec<struct>
+struct ChannelMonitorChainListener {
+    channel_monitor_blockhash: BlockHash,
+    channel_monitor_listener: ChannelMonitorListenerType,
+    funding_outpoint: OutPoint,
+}
+
+/// Syncs the channel monitors and ChannelManager to the chain tip
 #[allow(clippy::too_many_arguments)]
 async fn sync(
     args: &LdkArgs,
@@ -662,56 +661,48 @@ async fn sync(
     fee_estimator: &Arc<BitcoindClient>,
     logger: &Arc<StdOutLogger>,
     channel_manager_blockhash: BlockHash,
-    mut channel_monitors: Vec<(BlockHash, ChannelMonitor<InMemorySigner>)>,
-    chain_listener_channel_monitors: &mut Vec<(
-        BlockHash,
-        (
-            ChannelMonitor<InMemorySigner>,
-            Arc<BitcoindClient>,
-            Arc<BitcoindClient>,
-            Arc<StdOutLogger>,
-        ),
-        OutPoint,
-    )>,
-    cache: &mut HashMap<BlockHash, ValidatedBlockHeader>,
-    chain_tip: &mut Option<ValidatedBlockHeader>,
-) -> anyhow::Result<()> {
+    channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
+    blockheader_cache: &mut HashMap<BlockHash, ValidatedBlockHeader>,
+) -> anyhow::Result<(Vec<ChannelMonitorChainListener>, ValidatedBlockHeader)> {
+    let mut chain_listener_channel_monitors = Vec::new();
+
     let mut chain_listeners = vec![(
         channel_manager_blockhash,
         channel_manager as &dyn chain::Listen,
     )];
 
-    for (blockhash, channel_monitor) in channel_monitors.drain(..) {
-        let outpoint = channel_monitor.get_funding_txo().0;
-        chain_listener_channel_monitors.push((
-            blockhash,
-            (
+    for (channel_monitor_blockhash, channel_monitor) in channel_monitors {
+        let (funding_outpoint, _script) = channel_monitor.get_funding_txo();
+        let cmcl = ChannelMonitorChainListener {
+            channel_monitor_blockhash,
+            channel_monitor_listener: (
                 channel_monitor,
                 broadcaster.clone(),
                 fee_estimator.clone(),
                 logger.clone(),
             ),
-            outpoint,
-        ));
+            funding_outpoint,
+        };
+        chain_listener_channel_monitors.push(cmcl);
     }
 
     for monitor_listener_info in chain_listener_channel_monitors.iter_mut() {
         chain_listeners.push((
-            monitor_listener_info.0,
-            &monitor_listener_info.1 as &dyn chain::Listen,
+            monitor_listener_info.channel_monitor_blockhash,
+            &monitor_listener_info.channel_monitor_listener
+                as &dyn chain::Listen,
         ));
     }
 
-    *chain_tip = Some(
-        blocksyncinit::synchronize_listeners(
-            &&**bitcoind_client,
-            args.network,
-            cache,
-            chain_listeners,
-        )
-        .await
-        .unwrap(),
-    );
+    let chain_tip = blocksyncinit::synchronize_listeners(
+        &&**bitcoind_client,
+        args.network,
+        blockheader_cache,
+        chain_listeners,
+    )
+    .await
+    .map_err(|e| anyhow!(e.into_inner()))
+    .context("Could not synchronize chain listeners")?;
 
-    Ok(())
+    Ok((chain_listener_channel_monitors, chain_tip))
 }
