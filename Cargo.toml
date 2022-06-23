@@ -88,6 +88,9 @@ tokio = { version = "=1.15.0", default-features = false, features = [ "io-util",
 # tokio = { version = "=1.15.0", default-features = false, features = [
 # "io-util", "macros", "net", "rt", "time"] }
 
+[dev-dependencies]
+pretty-hex = "0.3"
+
 [patch.crates-io]
 async-usercalls = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 hyper = { git = "https://github.com/lexe-tech/hyper", branch = "hyper-sgx-0.14.18" }

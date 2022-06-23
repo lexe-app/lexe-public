@@ -1,12 +1,31 @@
 //! Generate a self-signed x509 certificate containing enclave remote
-//! attestation endorsements.
+//! attestation endorsements. Used for initial provisioning from clients.
 
 #![allow(dead_code)]
 
-use rcgen::SanType;
+use rcgen::{Certificate, DnType, KeyPair, RcgenError, SanType};
 use std::borrow::Cow;
 use time::OffsetDateTime;
 use yasna::models::ObjectIdentifier;
+
+/// The subset of [`rcgen::CertificateParams`] that we need to generate a cert.
+pub struct CertificateParams<'a, 'b> {
+    /// The cert key pair.
+    pub key_pair: KeyPair,
+
+    /// The DNS name(s) for the unprovisioned node.
+    ///
+    /// Note: technically subject alt names can be other things, like ip or
+    /// email addresses, but we only care about DNS names here.
+    pub dns_names: Vec<String>,
+
+    /// The time range this cert is valid for.
+    pub not_before: OffsetDateTime,
+    pub not_after: OffsetDateTime,
+
+    /// The enclave remote attestation evidence.
+    pub sgx_attestation: SgxAttestationExtension<'a, 'b>,
+}
 
 // TODO(phlip9): attestation extension type should be shared w/ client
 // verifiers.
@@ -28,6 +47,58 @@ pub struct SgxAttestationExtension<'a, 'b> {
     //    4. TODO: QE identity sig + cert chain
     //    5. TODO: locally verifiable Report
 }
+
+// -- impl CertificateParams -- //
+
+impl<'a, 'b> CertificateParams<'a, 'b> {
+    pub fn gen_cert(self) -> Result<Certificate, RcgenError> {
+        let params = rcgen::CertificateParams::try_from(self)?;
+        Certificate::from_params(params)
+    }
+}
+
+impl<'a, 'b> TryFrom<CertificateParams<'a, 'b>> for rcgen::CertificateParams {
+    type Error = RcgenError;
+
+    fn try_from(params: CertificateParams) -> Result<Self, Self::Error> {
+        // always use ed25519
+        let alg = &rcgen::PKCS_ED25519;
+
+        // ensure key pair is using expected algorithm
+        if !params.key_pair.is_compatible(alg) {
+            return Err(RcgenError::UnsupportedSignatureAlgorithm);
+        }
+
+        // TODO(phlip9): don't know how much DN matters...
+        let mut name = rcgen::DistinguishedName::new();
+        name.push(DnType::CountryName, "US");
+        name.push(DnType::StateOrProvinceName, "CA");
+        name.push(DnType::OrganizationName, "lexe-tech");
+        name.push(DnType::CommonName, "lexe-node");
+
+        let subject_alt_names = params
+            .dns_names
+            .into_iter()
+            .map(|dns_name| SanType::DnsName(dns_name))
+            .collect::<Vec<_>>();
+
+        let mut new_params = rcgen::CertificateParams::default();
+
+        new_params.alg = alg;
+        new_params.key_pair = Some(params.key_pair);
+        new_params.not_before = params.not_before;
+        new_params.not_after = params.not_after;
+        new_params.distinguished_name = name;
+        new_params.subject_alt_names = subject_alt_names;
+        new_params
+            .custom_extensions
+            .push(params.sgx_attestation.to_cert_extension());
+
+        Ok(new_params)
+    }
+}
+
+// -- impl SgxAttestationExtension -- //
 
 impl<'a, 'b> SgxAttestationExtension<'a, 'b> {
     /// This is the Intel SGX OID prefix + 1337.7
@@ -86,16 +157,71 @@ impl SgxAttestationExtension<'static, 'static> {
     }
 }
 
-pub struct CertificateParams<'a, 'b> {
-    subject_alt_names: Vec<SanType>,
-    not_before: OffsetDateTime,
-    not_after: OffsetDateTime,
-    sgx_attestation: SgxAttestationExtension<'a, 'b>,
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
+    use rcgen::date_time_ymd;
+
+    #[test]
+    fn test_keypair_pubkey_len() {
+        let key_pair = rcgen::KeyPair::generate(&rcgen::PKCS_ED25519).unwrap();
+        let pubkey_raw = key_pair.public_key_raw();
+        assert_eq!(pubkey_raw.len(), 32);
+    }
+
+    #[test]
+    fn test_gen_cert() {
+        let key_pair = rcgen::KeyPair::generate(&rcgen::PKCS_ED25519).unwrap();
+        let params = CertificateParams {
+            key_pair,
+            dns_names: vec!["hello.world".to_string()],
+            not_before: date_time_ymd(2022, 05, 22),
+            not_after: date_time_ymd(2032, 05, 22),
+            sgx_attestation: SgxAttestationExtension {
+                quote: b"aaaaa".as_slice().into(),
+                qe_report: b"zzzzzz".as_slice().into(),
+            },
+        };
+        let cert = params.gen_cert().unwrap();
+        let _cert_bytes = cert.serialize_der().unwrap();
+        // println!("cert:\n{}", pretty_hex(&cert_bytes));
+
+        // example: `openssl -in cert.pem -text
+        //
+        // Certificate:
+        //     Data:
+        //         Version: 3 (0x2)
+        //         Serial Number: 7046315113334772949 (0x61c98a4339c914d5)
+        //     Signature Algorithm: Ed25519
+        //         Issuer: C=US, ST=CA, O=lexe-tech, CN=lexe-node
+        //         Validity
+        //             Not Before: May 22 00:00:00 2022 GMT
+        //             Not After : May 22 00:00:00 2032 GMT
+        //         Subject: C=US, ST=CA, O=lexe-tech, CN=lexe-node
+        //         Subject Public Key Info:
+        //             Public Key Algorithm: Ed25519
+        //             Unable to load Public Key
+        //         X509v3 extensions:
+        //             X509v3 Subject Alternative Name:
+        //                 DNS:hello.world
+        //             1.2.840.113741.1337.7:
+        //                 0...aaaaa..zzzzzz
+        //     Signature Algorithm: Ed25519
+        //          7c:4d:d3:40:c5:cf:9c:8b:2f:80:66:37:64:19:2c:51:0a:53:
+        //          89:b3:cd:1c:85:5f:99:18:b7:3d:68:ad:48:2c:c2:83:02:79:
+        //          c2:79:bf:fb:85:76:5d:58:82:59:0f:43:58:4b:db:b3:b4:ba:
+        //          0e:62:cb:55:31:17:95:57:71:00
+        // -----BEGIN CERTIFICATE-----
+        // MIIBdDCCASagAwIBAgIIYcmKQznJFNUwBQYDK2VwMEIxCzAJBgNVBAYMAlVTMQsw
+        // CQYDVQQIDAJDQTESMBAGA1UECgwJbGV4ZS10ZWNoMRIwEAYDVQQDDAlsZXhlLW5v
+        // ZGUwHhcNMjIwNTIyMDAwMDAwWhcNMzIwNTIyMDAwMDAwWjBCMQswCQYDVQQGDAJV
+        // UzELMAkGA1UECAwCQ0ExEjAQBgNVBAoMCWxleGUtdGVjaDESMBAGA1UEAwwJbGV4
+        // ZS1ub2RlMCowBQYDK2VwAyEAzDQWHWaB67h4H0Oz32httyHwv0dz2hdkLizhsfg+
+        // ncSjOjA4MBYGA1UdEQQPMA2CC2hlbGxvLndvcmxkMB4GCSqGSIb4TYo5BwQRMA8E
+        // BWFhYWFhBAZ6enp6enowBQYDK2VwA0EAfE3TQMXPnIsvgGY3ZBksUQpTibPNHIVf
+        // mRi3PWitSCzCgwJ5wnm/+4V2XViCWQ9DWEvbs7S6DmLLVTEXlVdxAA==
+        // -----END CERTIFICATE-----
+    }
 
     #[test]
     fn test_sgx_attestation_ext_oid_der_bytes() {
