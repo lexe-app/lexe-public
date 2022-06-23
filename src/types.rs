@@ -97,4 +97,7 @@ pub type P2PGossipSyncType = P2PGossipSync<
 
 pub type NetworkGraphType = NetworkGraph<LoggerType>;
 
+pub type BroadcasterType = BitcoindClient;
+pub type FeeEstimatorType = BitcoindClient;
+
 pub type LoggerType = Arc<StdOutLogger>;

@@ -43,9 +43,10 @@ use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
 use crate::structs::{LdkArgs, LexeArgs};
 use crate::types::{
-    ChainMonitorType, ChannelManagerType, ChannelMonitorListenerType,
-    ChannelMonitorType, GossipSyncType, InvoicePayerType, NetworkGraphType,
-    P2PGossipSyncType, PaymentInfoStorageType, PeerManagerType, Port, UserId,
+    BroadcasterType, ChainMonitorType, ChannelManagerType,
+    ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType,
+    GossipSyncType, InvoicePayerType, NetworkGraphType, P2PGossipSyncType,
+    PaymentInfoStorageType, PeerManagerType, Port, UserId,
 };
 
 pub async fn start_ldk() -> anyhow::Result<()> {
@@ -95,7 +96,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
 
     // Initialize the `P2PGossipSync` and `ChannelMonitor`s
     let (channel_monitors_res, gossip_sync_res) = tokio::join!(
-        channel_monitors(&persister, &keys_manager),
+        channel_monitors(persister.as_ref(), keys_manager.clone()),
         gossip_sync(&args, &persister, logger.clone())
     );
     let mut channel_monitors =
@@ -107,15 +108,15 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     let mut restarting_node = true;
     let (channel_manager_blockhash, channel_manager) = channel_manager(
         &args,
-        &persister,
-        &mut channel_monitors,
-        &keys_manager,
-        &fee_estimator,
-        &chain_monitor,
-        &broadcaster,
-        &logger,
-        &bitcoind_client,
+        persister.as_ref(),
+        bitcoind_client.as_ref(),
         &mut restarting_node,
+        &mut channel_monitors,
+        keys_manager.clone(),
+        fee_estimator.clone(),
+        chain_monitor.clone(),
+        broadcaster.clone(),
+        logger.clone(),
     )
     .await
     .context("Could not init ChannelManager")?;
@@ -126,10 +127,10 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         sync_chain_listeners(
             &args,
             &channel_manager,
-            &bitcoind_client,
-            &broadcaster,
-            &fee_estimator,
-            &logger,
+            bitcoind_client.as_ref(),
+            broadcaster.clone(),
+            fee_estimator.clone(),
+            logger.clone(),
             channel_manager_blockhash,
             channel_monitors,
             &mut blockheader_cache,
@@ -532,11 +533,11 @@ fn keys_manager_from_seed(seed: &[u8; 32]) -> KeysManager {
 
 /// Initializes the ChannelMonitors
 async fn channel_monitors(
-    persister: &Arc<PostgresPersister>,
-    keys_manager: &Arc<KeysManager>,
+    persister: &PostgresPersister,
+    keys_manager: Arc<KeysManager>,
 ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
     persister
-        .read_channel_monitors(keys_manager.clone())
+        .read_channel_monitors(keys_manager)
         .await
         .context("Could not read channel monitors")
 }
@@ -545,15 +546,15 @@ async fn channel_monitors(
 #[allow(clippy::too_many_arguments)]
 async fn channel_manager(
     args: &LdkArgs,
-    persister: &Arc<PostgresPersister>,
-    channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
-    keys_manager: &Arc<KeysManager>,
-    fee_estimator: &Arc<BitcoindClient>,
-    chain_monitor: &Arc<ChainMonitorType>,
-    broadcaster: &Arc<BitcoindClient>,
-    logger: &Arc<StdOutLogger>,
-    bitcoind_client: &Arc<BitcoindClient>,
+    persister: &PostgresPersister,
+    bitcoind_client: &BitcoindClient,
     restarting_node: &mut bool,
+    channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
+    keys_manager: Arc<KeysManager>,
+    fee_estimator: Arc<FeeEstimatorType>,
+    chain_monitor: Arc<ChainMonitorType>,
+    broadcaster: Arc<BroadcasterType>,
+    logger: Arc<StdOutLogger>,
 ) -> anyhow::Result<(BlockHash, Arc<ChannelManagerType>)> {
     let mut user_config = UserConfig::default();
     user_config
@@ -587,11 +588,11 @@ async fn channel_manager(
                 ),
             };
             let fresh_channel_manager = channelmanager::ChannelManager::new(
-                fee_estimator.clone(),
-                chain_monitor.clone(),
-                broadcaster.clone(),
-                logger.clone(),
-                keys_manager.clone(),
+                fee_estimator,
+                chain_monitor,
+                broadcaster,
+                logger,
+                keys_manager,
                 user_config,
                 chain_params,
             );
@@ -614,10 +615,10 @@ struct ChannelMonitorChainListener {
 async fn sync_chain_listeners(
     args: &LdkArgs,
     channel_manager: &ChannelManagerType,
-    bitcoind_client: &Arc<BitcoindClient>,
-    broadcaster: &Arc<BitcoindClient>,
-    fee_estimator: &Arc<BitcoindClient>,
-    logger: &Arc<StdOutLogger>,
+    bitcoind_client: &BitcoindClient,
+    broadcaster: Arc<BroadcasterType>,
+    fee_estimator: Arc<FeeEstimatorType>,
+    logger: Arc<StdOutLogger>,
     channel_manager_blockhash: BlockHash,
     channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
     blockheader_cache: &mut HashMap<BlockHash, ValidatedBlockHeader>,
@@ -653,7 +654,7 @@ async fn sync_chain_listeners(
     }
 
     let chain_tip = blocksyncinit::synchronize_listeners(
-        &&**bitcoind_client,
+        &bitcoind_client,
         args.network,
         blockheader_cache,
         chain_listeners,
