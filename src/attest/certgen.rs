@@ -79,7 +79,7 @@ impl<'a, 'b> TryFrom<CertificateParams<'a, 'b>> for rcgen::CertificateParams {
         let subject_alt_names = params
             .dns_names
             .into_iter()
-            .map(|dns_name| SanType::DnsName(dns_name))
+            .map(SanType::DnsName)
             .collect::<Vec<_>>();
 
         let mut new_params = rcgen::CertificateParams::default();
