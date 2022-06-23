@@ -34,7 +34,7 @@ pub struct LexeArgs {
     /// the Lexe user id used in queries to the persistence API
     user_id: UserId,
 
-    #[argh(option, default = "999")] // TODO actually use the port
+    #[argh(option, default = "1999")]
     /// the port warp uses to accept TLS connections from the owner
     warp_port: Port,
 }
