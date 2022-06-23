@@ -55,6 +55,14 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         .try_into()
         .context("Could not parse command line args")?;
 
+    // Start warp at the given port
+    tokio::spawn(async move {
+        println!("Serving warp at port {}", args.warp_port);
+        warp::serve(warp::path::end().map(|| "This is a Lexe user node"))
+            .run(([127, 0, 0, 1], args.warp_port))
+            .await;
+    });
+
     // Initialize the Logger
     let logger = Arc::new(StdOutLogger {});
 
@@ -65,7 +73,6 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     let client = reqwest::Client::new();
 
     // Initialize BitcoindClient and KeysManager
-    // tokio::join! doesn't "fail fast" but produces better error chains
     let (bitcoind_client_res, keys_manager_res) = tokio::join!(
         bitcoind_client(&args),
         keys_manager(&client, user_id, &measurement),
@@ -93,7 +100,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         persister.clone(),
     ));
 
-    // Initialize the `P2PGossipSync` and `ChannelMonitor`s
+    // Read the `ChannelMonitor`s and initialize the `P2PGossipSync`
     let (channel_monitors_res, gossip_sync_res) = tokio::join!(
         channel_monitors(persister.as_ref(), keys_manager.clone()),
         gossip_sync(&args, &persister, logger.clone())
@@ -126,43 +133,6 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     let scorer = scorer_res.context("Could not read probabilistic scorer")?;
     let scorer = Arc::new(Mutex::new(scorer));
 
-    // Sync channel_monitors and ChannelManager to chain tip
-    let mut blockheader_cache = UnboundedCache::new();
-    let (chain_listener_channel_monitors, chain_tip) = if restarting_node {
-        sync_chain_listeners(
-            &args,
-            &channel_manager,
-            bitcoind_client.as_ref(),
-            broadcaster.clone(),
-            fee_estimator.clone(),
-            logger.clone(),
-            channel_manager_blockhash,
-            channel_monitors,
-            &mut blockheader_cache,
-        )
-        .await
-        .context("Could not sync channel listeners")?
-    } else {
-        let chain_tip = blocksyncinit::validate_best_block_header(
-            &mut bitcoind_client.deref(),
-        )
-        .await
-        .map_err(|e| anyhow!(e.into_inner()))
-        .context("Could not validate best block header")?;
-
-        (Vec::new(), chain_tip)
-    };
-
-    // Give channel_monitors to ChainMonitor
-    for cmcl in chain_listener_channel_monitors {
-        let channel_monitor = cmcl.channel_monitor_listener.0;
-        let funding_outpoint = cmcl.funding_outpoint;
-        chain_monitor
-            .watch_channel(funding_outpoint, channel_monitor)
-            .map_err(|e| anyhow!("{:?}", e))
-            .context("Could not watch channel")?;
-    }
-
     // Initialize PeerManager
     let peer_manager = peer_manager(
         keys_manager.as_ref(),
@@ -172,24 +142,12 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     )
     .context("Could not initialize peer manager")?;
 
-    // ## Running LDK
-
     // Set up listening for inbound P2P connections
     let stop_listen_connect = Arc::new(AtomicBool::new(false));
     spawn_p2p_listener(
         args.peer_port,
         stop_listen_connect.clone(),
         peer_manager.clone(),
-    );
-
-    // Set up SPV client
-    spawn_spv_client(
-        args.network,
-        chain_tip,
-        blockheader_cache,
-        channel_manager.clone(),
-        chain_monitor.clone(),
-        bitcoind_client.clone(),
     );
 
     // Initialize the event handler
@@ -244,23 +202,66 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         persister.clone(),
     );
 
-    // Start warp at the given port
-    println!("Serving warp at port {}", args.warp_port);
-    tokio::spawn(async move {
-        warp::serve(warp::path::end().map(|| "This is a Lexe user node"))
-            .run(([127, 0, 0, 1], args.warp_port))
-            .await;
-    });
-
     // Let the runner know that we're ready
     let user_port = UserPort {
         user_id,
         port: args.warp_port,
     };
-    println!("\n\nNotifying runner\n\n"); // \n o.w. its gets buried in stdout
+    println!("Node is ready to accept commands; notifying runner");
     api::notify_runner(&client, user_port)
         .await
         .context("Could not notify runner of ready status")?;
+
+    // ## Sync
+
+    // Sync channel_monitors and ChannelManager to chain tip
+    let mut blockheader_cache = UnboundedCache::new();
+    let (chain_listener_channel_monitors, chain_tip) = if restarting_node {
+        sync_chain_listeners(
+            &args,
+            &channel_manager,
+            bitcoind_client.as_ref(),
+            broadcaster.clone(),
+            fee_estimator.clone(),
+            logger.clone(),
+            channel_manager_blockhash,
+            channel_monitors,
+            &mut blockheader_cache,
+        )
+        .await
+        .context("Could not sync channel listeners")?
+    } else {
+        let chain_tip = blocksyncinit::validate_best_block_header(
+            &mut bitcoind_client.deref(),
+        )
+        .await
+        .map_err(|e| anyhow!(e.into_inner()))
+        .context("Could not validate best block header")?;
+
+        (Vec::new(), chain_tip)
+    };
+
+    // Give channel_monitors to ChainMonitor
+    for cmcl in chain_listener_channel_monitors {
+        let channel_monitor = cmcl.channel_monitor_listener.0;
+        let funding_outpoint = cmcl.funding_outpoint;
+        chain_monitor
+            .watch_channel(funding_outpoint, channel_monitor)
+            .map_err(|e| anyhow!("{:?}", e))
+            .context("Could not watch channel")?;
+    }
+
+    // Set up SPV client
+    spawn_spv_client(
+        args.network,
+        chain_tip,
+        blockheader_cache,
+        channel_manager.clone(),
+        chain_monitor.clone(),
+        bitcoind_client.clone(),
+    );
+
+    // ## Ready
 
     // Start the CLI.
     cli::poll_for_user_input(
@@ -275,6 +276,8 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         args.network,
     )
     .await;
+
+    // ## Shutdown
 
     // Disconnect our peers and stop accepting new connections. This ensures we
     // don't continue updating our channel data after we've stopped the
@@ -326,7 +329,7 @@ async fn bitcoind_client(
         )
     );
 
-    println!("    Initialized bitcoind client.");
+    println!("    bitcoind client done.");
     Ok(client)
 }
 
@@ -337,6 +340,7 @@ async fn keys_manager(
     user_id: UserId,
     measurement: &str,
 ) -> anyhow::Result<(PublicKey, Arc<KeysManager>)> {
+    println!("Initializing keys manager");
     // Fetch our node pubkey, instance, and enclave data from the data store
     let (node_res, instance_res, enclave_res) = tokio::join!(
         api::get_node(client, user_id),
@@ -446,6 +450,8 @@ async fn keys_manager(
             (derived_pubkey, keys_manager)
         }
     };
+
+    println!("    keys manager done.");
     Ok((pubkey, Arc::new(keys_manager)))
 }
 
@@ -467,10 +473,14 @@ async fn channel_monitors(
     persister: &PostgresPersister,
     keys_manager: Arc<KeysManager>,
 ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
-    persister
+    println!("Reading channel monitors from DB");
+    let result = persister
         .read_channel_monitors(keys_manager)
         .await
-        .context("Could not read channel monitors")
+        .context("Could not read channel monitors");
+
+    println!("    channel monitors done.");
+    result
 }
 
 /// Initializes the ChannelManager
@@ -487,6 +497,7 @@ async fn channel_manager(
     broadcaster: Arc<BroadcasterType>,
     logger: Arc<StdOutLogger>,
 ) -> anyhow::Result<(BlockHash, Arc<ChannelManagerType>)> {
+    println!("Initializing the channel manager");
     let mut user_config = UserConfig::default();
     user_config
         .peer_channel_config_limits
@@ -532,6 +543,7 @@ async fn channel_manager(
     };
     let channel_manager = Arc::new(channel_manager);
 
+    println!("    channel manager done.");
     Ok((channel_manager_blockhash, channel_manager))
 }
 
@@ -554,6 +566,7 @@ async fn sync_chain_listeners(
     channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
     blockheader_cache: &mut HashMap<BlockHash, ValidatedBlockHeader>,
 ) -> anyhow::Result<(Vec<ChannelMonitorChainListener>, ValidatedBlockHeader)> {
+    println!("Syncing chain listeners");
     let mut chain_listener_channel_monitors = Vec::new();
 
     let mut chain_listeners = vec![(
@@ -594,6 +607,7 @@ async fn sync_chain_listeners(
     .map_err(|e| anyhow!(e.into_inner()))
     .context("Could not synchronize chain listeners")?;
 
+    println!("    chain listener sync done.");
     Ok((chain_listener_channel_monitors, chain_tip))
 }
 
@@ -603,6 +617,7 @@ async fn gossip_sync(
     persister: &Arc<PostgresPersister>,
     logger: Arc<StdOutLogger>,
 ) -> anyhow::Result<(Arc<NetworkGraphType>, Arc<P2PGossipSyncType>)> {
+    println!("Initializing gossip sync and network graph");
     let genesis = genesis_block(args.network).header.block_hash();
 
     let network_graph = persister
@@ -618,6 +633,7 @@ async fn gossip_sync(
     );
     let gossip_sync = Arc::new(gossip_sync);
 
+    println!("    gossip sync and network graph done.");
     Ok((network_graph, gossip_sync))
 }
 
