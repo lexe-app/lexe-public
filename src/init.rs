@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
 use bitcoin::blockdata::constants::genesis_block;
+use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::BlockHash;
 
@@ -136,14 +137,14 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         .await
         .context("Could not sync channel listeners")?
     } else {
-        let clcm = Vec::new();
         let chain_tip = blocksyncinit::validate_best_block_header(
             &mut bitcoind_client.deref(),
         )
         .await
         .map_err(|e| anyhow!(e.into_inner()))
         .context("Could not validate best block header")?;
-        (clcm, chain_tip)
+
+        (Vec::new(), chain_tip)
     };
 
     // Give channel_monitors to ChainMonitor
@@ -167,7 +168,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
 
     // ## Running LDK
 
-    // Initialize networking
+    // Set up listening for inbound P2P connections
     let stop_listen_connect = Arc::new(AtomicBool::new(false));
     setup_p2p_listener(
         args.peer_port,
@@ -175,26 +176,15 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         peer_manager.clone(),
     );
 
-    // Step 14: Connect and Disconnect Blocks
-    let channel_manager_listener = channel_manager.clone();
-    let chain_monitor_listener = chain_monitor.clone();
-    let bitcoind_block_source = bitcoind_client.clone();
-    let network = args.network;
-    tokio::spawn(async move {
-        let mut derefed = bitcoind_block_source.deref();
-        let chain_poller = poll::ChainPoller::new(&mut derefed, network);
-        let chain_listener = (chain_monitor_listener, channel_manager_listener);
-        let mut spv_client = SpvClient::new(
-            chain_tip,
-            chain_poller,
-            &mut blockheader_cache,
-            &chain_listener,
-        );
-        loop {
-            spv_client.poll_best_tip().await.unwrap();
-            tokio::time::sleep(Duration::from_secs(1)).await;
-        }
-    });
+    // Set up SPV client
+    setup_spv_client(
+        args.network,
+        chain_tip,
+        blockheader_cache,
+        channel_manager.clone(),
+        chain_monitor.clone(),
+        bitcoind_client.clone(),
+    );
 
     // Step 15: Handle LDK Events
     let channel_manager_event_listener = channel_manager.clone();
@@ -725,8 +715,8 @@ fn peer_manager(
     Ok(Arc::new(peer_manager))
 }
 
-/// Sets up a TcpListener to listen on 0.0.0.0:<port>, handing off resultant
-/// `TcpStream`s to the `PeerManager`
+/// Sets up a TcpListener to listen on 0.0.0.0:<listening_port>, handing off
+/// resultant `TcpStream`s for the `PeerManager` to manage
 fn setup_p2p_listener(
     listening_port: Port,
     stop_listen: Arc<AtomicBool>,
@@ -751,6 +741,34 @@ fn setup_p2p_listener(
                 )
                 .await;
             });
+        }
+    });
+}
+
+/// Sets up an SpvClient to continuously poll the block source for new blocks.
+fn setup_spv_client(
+    network: Network,
+    chain_tip: ValidatedBlockHeader,
+    mut blockheader_cache: HashMap<BlockHash, ValidatedBlockHeader>,
+    channel_manager: Arc<ChannelManagerType>,
+    chain_monitor: Arc<ChainMonitorType>,
+    bitcoind_block_source: Arc<BitcoindClient>,
+) {
+    let channel_manager_clone = channel_manager.clone(); // TODO remove
+    let chain_monitor_listener = chain_monitor.clone(); // TODO remove
+    tokio::spawn(async move {
+        let mut derefed = bitcoind_block_source.deref();
+        let chain_poller = poll::ChainPoller::new(&mut derefed, network);
+        let chain_listener = (chain_monitor_listener, channel_manager_clone);
+        let mut spv_client = SpvClient::new(
+            chain_tip,
+            chain_poller,
+            &mut blockheader_cache,
+            &chain_listener,
+        );
+        loop {
+            spv_client.poll_best_tip().await.unwrap();
+            tokio::time::sleep(Duration::from_secs(1)).await;
         }
     });
 }
