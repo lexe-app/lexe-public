@@ -44,7 +44,7 @@ use crate::structs::{LdkArgs, LexeArgs};
 use crate::types::{
     ChainMonitorType, ChannelManagerType, ChannelMonitorListenerType,
     ChannelMonitorType, GossipSyncType, InvoicePayerType, NetworkGraphType,
-    P2PGossipSyncType, PaymentInfoStorageType, PeerManagerType, UserId,
+    P2PGossipSyncType, PaymentInfoStorageType, PeerManagerType, Port, UserId,
 };
 
 pub async fn start_ldk() -> anyhow::Result<()> {
@@ -166,32 +166,14 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     .context("Could not initialize peer manager")?;
 
     // ## Running LDK
-    // Step 13: Initialize networking
 
-    let peer_manager_connection_handler = peer_manager.clone();
-    let listening_port = args.peer_port;
+    // Initialize networking
     let stop_listen_connect = Arc::new(AtomicBool::new(false));
-    let stop_listen = Arc::clone(&stop_listen_connect);
-    tokio::spawn(async move {
-        let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", listening_port))
-			.await
-			.expect("Failed to bind to listen port - is something else already listening on it?");
-        loop {
-            let peer_mgr = peer_manager_connection_handler.clone();
-            let (tcp_stream, _peer_addr) = listener.accept().await.unwrap();
-            let tcp_stream = tcp_stream.into_std().unwrap();
-            if stop_listen.load(Ordering::Acquire) {
-                return;
-            }
-            tokio::spawn(async move {
-                lightning_net_tokio::setup_inbound(
-                    peer_mgr.clone(),
-                    tcp_stream,
-                )
-                .await;
-            });
-        }
-    });
+    setup_p2p_listener(
+        args.peer_port,
+        stop_listen_connect.clone(),
+        peer_manager.clone(),
+    );
 
     // Step 14: Connect and Disconnect Blocks
     let channel_manager_listener = channel_manager.clone();
@@ -741,4 +723,34 @@ fn peer_manager(
     );
 
     Ok(Arc::new(peer_manager))
+}
+
+/// Sets up a TcpListener to listen on 0.0.0.0:<port>, handing off resultant
+/// `TcpStream`s to the `PeerManager`
+fn setup_p2p_listener(
+    listening_port: Port,
+    stop_listen: Arc<AtomicBool>,
+    peer_manager: Arc<PeerManagerType>,
+) {
+    tokio::spawn(async move {
+        let address = format!("0.0.0.0:{}", listening_port);
+        let listener = tokio::net::TcpListener::bind(address)
+			.await
+			.expect("Failed to bind to listen port - is something else already listening on it?");
+        loop {
+            let (tcp_stream, _peer_addr) = listener.accept().await.unwrap();
+            let tcp_stream = tcp_stream.into_std().unwrap();
+            let peer_manager_clone = peer_manager.clone();
+            if stop_listen.load(Ordering::Acquire) {
+                return;
+            }
+            tokio::spawn(async move {
+                lightning_net_tokio::setup_inbound(
+                    peer_manager_clone,
+                    tcp_stream,
+                )
+                .await;
+            });
+        }
+    });
 }
