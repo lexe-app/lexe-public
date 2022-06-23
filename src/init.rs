@@ -203,7 +203,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         Handle::current(),
     );
 
-    // Step 16: Initialize routing ProbabilisticScorer
+    // Initialize routing ProbabilisticScorer
     let scorer = persister
         .read_probabilistic_scorer(
             Arc::clone(&network_graph),
@@ -213,7 +213,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         .context("Could not read probabilistic scorer")?;
     let scorer = Arc::new(Mutex::new(scorer));
 
-    // Step 17: Create InvoicePayer
+    // Initialize InvoicePayer
     let router = DefaultRouter::new(
         network_graph.clone(),
         logger.clone(),
@@ -228,7 +228,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         payment::Retry::Timeout(Duration::from_secs(10)),
     ));
 
-    // Step 18: Background Processing
+    // Start Background Processing
     let background_processor = BackgroundProcessor::start(
         Arc::clone(&persister),
         invoice_payer.clone(),
@@ -240,46 +240,13 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         Some(scorer.clone()),
     );
 
-    // Regularly reconnect to channel peers.
-    let connect_channel_manager = Arc::clone(&channel_manager);
-    let connect_peer_manager = Arc::clone(&peer_manager);
-    let stop_connect = Arc::clone(&stop_listen_connect);
-    let connect_persister = Arc::clone(&persister);
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(60));
-        loop {
-            interval.tick().await;
-
-            match connect_persister.read_channel_peers().await {
-                Ok(cp_vec) => {
-                    let peers = connect_peer_manager.get_peer_node_ids();
-                    for node_id in connect_channel_manager
-                        .list_channels()
-                        .iter()
-                        .map(|chan| chan.counterparty.node_id)
-                        .filter(|id| !peers.contains(id))
-                    {
-                        if stop_connect.load(Ordering::Acquire) {
-                            return;
-                        }
-                        for (pubkey, peer_addr) in cp_vec.iter() {
-                            if *pubkey == node_id {
-                                let _ = cli::do_connect_peer(
-                                    *pubkey,
-                                    *peer_addr,
-                                    Arc::clone(&connect_peer_manager),
-                                )
-                                .await;
-                            }
-                        }
-                    }
-                }
-                Err(e) => {
-                    println!("ERROR: Could not read channel peers: {}", e)
-                }
-            }
-        }
-    });
+    // Spawn a task to regularly reconnect to channel peers
+    spawn_p2p_reconnect_task(
+        channel_manager.clone(),
+        peer_manager.clone(),
+        stop_listen_connect.clone(),
+        persister.clone(),
+    );
 
     // Regularly broadcast our node_announcement. This is only required (or
     // possible) if we have some public channels, and is only useful if we have
@@ -731,6 +698,50 @@ fn spawn_p2p_listener(
                 )
                 .await;
             });
+        }
+    });
+}
+
+/// Spawns a task that regularly reconnects to the channel peers stored in DB.
+fn spawn_p2p_reconnect_task(
+    channel_manager: Arc<ChannelManagerType>,
+    peer_manager: Arc<PeerManagerType>,
+    stop_listen_connect: Arc<AtomicBool>,
+    persister: Arc<PostgresPersister>,
+) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(Duration::from_secs(60));
+        loop {
+            interval.tick().await;
+
+            match persister.read_channel_peers().await {
+                Ok(cp_vec) => {
+                    let peers = peer_manager.get_peer_node_ids();
+                    for node_id in channel_manager
+                        .list_channels()
+                        .iter()
+                        .map(|chan| chan.counterparty.node_id)
+                        .filter(|id| !peers.contains(id))
+                    {
+                        if stop_listen_connect.load(Ordering::Acquire) {
+                            return;
+                        }
+                        for (pubkey, peer_addr) in cp_vec.iter() {
+                            if *pubkey == node_id {
+                                let _ = cli::do_connect_peer(
+                                    *pubkey,
+                                    *peer_addr,
+                                    peer_manager.clone(),
+                                )
+                                .await;
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    println!("ERROR: Could not read channel peers: {}", e)
+                }
+            }
         }
     });
 }
