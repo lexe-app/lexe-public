@@ -1,4 +1,6 @@
-# Compile to the SGX toolchain by default.
-# TODO: Uncomment the following when the crate builds for SGX for the first time.
-# [build]
-# target = "x86_64-fortanix-unknown-sgx"
+[target.x86_64-fortanix-unknown-sgx]
+linker = "x86_64-unknown-linux-gnu-ld"
+
+[env]
+CC_x86_64-fortanix-unknown-sgx = "x86_64-unknown-linux-gnu-gcc"
+AR_x86_64-fortanix-unknown-sgx = "x86_64-unknown-linux-gnu-ar"
