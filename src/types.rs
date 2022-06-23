@@ -1,16 +1,17 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use lightning::chain;
 use lightning::chain::chainmonitor;
 use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::keysinterface::InMemorySigner;
 use lightning::chain::Filter;
+use lightning::chain::{self, Access};
 use lightning::ln::channelmanager::SimpleArcChannelManager;
 use lightning::ln::peer_handler::SimpleArcPeerManager;
 use lightning::ln::PaymentHash;
-use lightning::routing::gossip::NetworkGraph;
+use lightning::routing::gossip::{NetworkGraph, P2PGossipSync};
 use lightning::routing::scoring::ProbabilisticScorer;
+use lightning_background_processor::GossipSync;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use lightning_net_tokio::SocketDescriptor;
@@ -74,14 +75,25 @@ pub type ProbabilisticScorerType =
 
 pub type RouterType = DefaultRouter<Arc<NetworkGraphType>, LoggerType>;
 
-pub type GossipSyncType<P, G, A, L> =
-    lightning_background_processor::GossipSync<
-        P,
-        Arc<RapidGossipSync<G, L>>,
-        G,
-        A,
-        L,
-    >;
+pub type GossipSyncType = GossipSync<
+    Arc<
+        P2PGossipSync<
+            Arc<NetworkGraphType>,
+            Arc<dyn Access + Send + Sync>,
+            LoggerType,
+        >,
+    >,
+    Arc<RapidGossipSync<Arc<NetworkGraphType>, LoggerType>>,
+    Arc<NetworkGraphType>,
+    Arc<dyn Access + Send + Sync>,
+    LoggerType,
+>;
+
+pub type P2PGossipSyncType = P2PGossipSync<
+    Arc<NetworkGraphType>,
+    Arc<dyn Access + Send + Sync>,
+    LoggerType,
+>;
 
 pub type NetworkGraphType = NetworkGraph<LoggerType>;
 

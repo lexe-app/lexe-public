@@ -43,8 +43,8 @@ use crate::persister::PostgresPersister;
 use crate::structs::{LdkArgs, LexeArgs};
 use crate::types::{
     ChainMonitorType, ChannelManagerType, ChannelMonitorListenerType,
-    ChannelMonitorType, GossipSyncType, InvoicePayerType,
-    PaymentInfoStorageType, PeerManagerType, UserId,
+    ChannelMonitorType, GossipSyncType, InvoicePayerType, NetworkGraphType,
+    P2PGossipSyncType, PaymentInfoStorageType, PeerManagerType, UserId,
 };
 
 pub async fn start_ldk() -> anyhow::Result<()> {
@@ -152,22 +152,16 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     }
 
     // Optional: Initialize the P2PGossipSync
-    let genesis = genesis_block(args.network).header.block_hash();
-    let network_graph = persister
-        .read_network_graph(genesis, logger.clone())
-        .await
-        .context("Could not read network graph")?;
-    let network_graph = Arc::new(network_graph);
-    let gossip_sync = Arc::new(P2PGossipSync::new(
-        Arc::clone(&network_graph),
-        None::<Arc<dyn chain::Access + Send + Sync>>,
-        logger.clone(),
-    ));
+    let (network_graph, gossip_sync) =
+        gossip_sync(&args, &persister, logger.clone())
+            .await
+            .context("Could not initialize gossip sync")?;
 
     // Step 12: Initialize the PeerManager
     let channel_manager: Arc<ChannelManagerType> = Arc::new(channel_manager);
     let mut ephemeral_bytes = [0; 32];
     rand::thread_rng().fill_bytes(&mut ephemeral_bytes);
+    // NOTE GossipSync impls RoutingMessageHandler required by route_handler
     let lightning_msg_handler = MessageHandler {
         chan_handler: channel_manager.clone(),
         route_handler: gossip_sync.clone(),
@@ -705,4 +699,28 @@ async fn sync_chain_listeners(
     .context("Could not synchronize chain listeners")?;
 
     Ok((chain_listener_channel_monitors, chain_tip))
+}
+
+/// Initializes a GossipSync and NetworkGraph
+async fn gossip_sync(
+    args: &LdkArgs,
+    persister: &Arc<PostgresPersister>,
+    logger: Arc<StdOutLogger>,
+) -> anyhow::Result<(Arc<NetworkGraphType>, Arc<P2PGossipSyncType>)> {
+    let genesis = genesis_block(args.network).header.block_hash();
+
+    let network_graph = persister
+        .read_network_graph(genesis, logger.clone())
+        .await
+        .context("Could not read network graph")?;
+    let network_graph = Arc::new(network_graph);
+
+    let gossip_sync = P2PGossipSync::new(
+        Arc::clone(&network_graph),
+        None::<Arc<dyn chain::Access + Send + Sync>>,
+        logger.clone(),
+    );
+    let gossip_sync = Arc::new(gossip_sync);
+
+    Ok((network_graph, gossip_sync))
 }
