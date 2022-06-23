@@ -248,27 +248,6 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         persister.clone(),
     );
 
-    // Regularly broadcast our node_announcement. This is only required (or
-    // possible) if we have some public channels, and is only useful if we have
-    // public listen address(es) to announce. In a production environment, this
-    // should occur only after the announcement of new channels to avoid churn
-    // in the global network graph.
-    let chan_manager = Arc::clone(&channel_manager);
-    let network = args.network;
-    if !args.ldk_announced_listen_addr.is_empty() {
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(60));
-            loop {
-                interval.tick().await;
-                chan_manager.broadcast_node_announcement(
-                    [0; 3],
-                    args.ldk_announced_node_name,
-                    args.ldk_announced_listen_addr.clone(),
-                );
-            }
-        });
-    }
-
     // Start warp at the given port
     println!("Serving warp at port {}", args.warp_port);
     tokio::spawn(async move {
@@ -297,7 +276,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         inbound_payments,
         outbound_payments,
         persister.clone(),
-        network,
+        args.network,
     )
     .await;
 
