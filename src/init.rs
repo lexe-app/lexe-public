@@ -103,22 +103,28 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     let (network_graph, gossip_sync) =
         gossip_sync_res.context("Could not initialize gossip sync")?;
 
-    // Initialize the ChannelManager
+    // Initialize the ChannelManager and ProbabilisticScorer
     let mut restarting_node = true;
-    let (channel_manager_blockhash, channel_manager) = channel_manager(
-        &args,
-        persister.as_ref(),
-        bitcoind_client.as_ref(),
-        &mut restarting_node,
-        &mut channel_monitors,
-        keys_manager.clone(),
-        fee_estimator.clone(),
-        chain_monitor.clone(),
-        broadcaster.clone(),
-        logger.clone(),
-    )
-    .await
-    .context("Could not init ChannelManager")?;
+    let (channel_manager_res, scorer_res) = tokio::join!(
+        channel_manager(
+            &args,
+            persister.as_ref(),
+            bitcoind_client.as_ref(),
+            &mut restarting_node,
+            &mut channel_monitors,
+            keys_manager.clone(),
+            fee_estimator.clone(),
+            chain_monitor.clone(),
+            broadcaster.clone(),
+            logger.clone(),
+        ),
+        persister
+            .read_probabilistic_scorer(network_graph.clone(), logger.clone()),
+    );
+    let (channel_manager_blockhash, channel_manager) =
+        channel_manager_res.context("Could not init ChannelManager")?;
+    let scorer = scorer_res.context("Could not read probabilistic scorer")?;
+    let scorer = Arc::new(Mutex::new(scorer));
 
     // Sync channel_monitors and ChannelManager to chain tip
     let mut blockheader_cache = UnboundedCache::new();
@@ -157,7 +163,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
             .context("Could not watch channel")?;
     }
 
-    // Step 12: Initialize the PeerManager
+    // Initialize PeerManager
     let peer_manager = peer_manager(
         keys_manager.as_ref(),
         channel_manager.clone(),
@@ -202,16 +208,6 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         outbound_payments.clone(),
         Handle::current(),
     );
-
-    // Initialize routing ProbabilisticScorer
-    let scorer = persister
-        .read_probabilistic_scorer(
-            Arc::clone(&network_graph),
-            Arc::clone(&logger),
-        )
-        .await
-        .context("Could not read probabilistic scorer")?;
-    let scorer = Arc::new(Mutex::new(scorer));
 
     // Initialize InvoicePayer
     let router = DefaultRouter::new(
