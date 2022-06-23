@@ -15,9 +15,10 @@ use lightning::chain::chaininterface::{
 };
 use lightning::chain::keysinterface::KeysManager;
 use lightning::routing::gossip::NodeId;
-use lightning::util::events::{Event, PaymentPurpose};
+use lightning::util::events::{Event, EventHandler, PaymentPurpose};
 
 use rand::{thread_rng, Rng};
+use tokio::runtime::Handle;
 
 use crate::bitcoind_client::BitcoindClient;
 use crate::hex_utils;
@@ -26,9 +27,59 @@ use crate::types::{
     ChannelManagerType, NetworkGraphType, PaymentInfoStorageType,
 };
 
-/// The core functionality used inside the `event_handler` closure
+pub struct LdkEventHandler {
+    network: Network,
+    channel_manager: Arc<ChannelManagerType>,
+    keys_manager: Arc<KeysManager>,
+    bitcoind_client: Arc<BitcoindClient>,
+    network_graph: Arc<NetworkGraphType>,
+    inbound_payments: PaymentInfoStorageType,
+    outbound_payments: PaymentInfoStorageType,
+    handle: Handle,
+}
+
+impl LdkEventHandler {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        network: Network,
+        channel_manager: Arc<ChannelManagerType>,
+        keys_manager: Arc<KeysManager>,
+        bitcoind_client: Arc<BitcoindClient>,
+        network_graph: Arc<NetworkGraphType>,
+        inbound_payments: PaymentInfoStorageType,
+        outbound_payments: PaymentInfoStorageType,
+        handle: Handle,
+    ) -> Self {
+        Self {
+            network,
+            channel_manager,
+            keys_manager,
+            bitcoind_client,
+            network_graph,
+            inbound_payments,
+            outbound_payments,
+            handle,
+        }
+    }
+}
+
+impl EventHandler for LdkEventHandler {
+    fn handle_event(&self, event: &Event) {
+        self.handle.block_on(handle_event(
+            &self.channel_manager,
+            &self.bitcoind_client,
+            &self.network_graph,
+            &self.keys_manager,
+            &self.inbound_payments,
+            &self.outbound_payments,
+            self.network,
+            event,
+        ));
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
-pub async fn handle_ldk_events(
+pub async fn handle_event(
     channel_manager: &Arc<ChannelManagerType>,
     bitcoind_client: &BitcoindClient,
     network_graph: &NetworkGraphType,

@@ -18,7 +18,6 @@ use lightning::ln::channelmanager::ChainParameters;
 use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::util::config::UserConfig;
-use lightning::util::events::Event;
 use lightning_background_processor::BackgroundProcessor;
 use lightning_block_sync::init as blocksyncinit;
 use lightning_block_sync::poll::{self, ValidatedBlockHeader};
@@ -38,7 +37,7 @@ use crate::api::{
 use crate::bitcoind_client::BitcoindClient;
 use crate::cli;
 use crate::convert;
-use crate::event_handler;
+use crate::event_handler::LdkEventHandler;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
 use crate::structs::{LdkArgs, LexeArgs};
@@ -171,14 +170,14 @@ pub async fn start_ldk() -> anyhow::Result<()> {
 
     // Set up listening for inbound P2P connections
     let stop_listen_connect = Arc::new(AtomicBool::new(false));
-    setup_p2p_listener(
+    spawn_p2p_listener(
         args.peer_port,
         stop_listen_connect.clone(),
         peer_manager.clone(),
     );
 
     // Set up SPV client
-    setup_spv_client(
+    spawn_spv_client(
         args.network,
         chain_tip,
         blockheader_cache,
@@ -187,32 +186,22 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         bitcoind_client.clone(),
     );
 
-    // Step 15: Handle LDK Events
-    let channel_manager_event_listener = channel_manager.clone();
-    let keys_manager_listener = keys_manager.clone();
-    // TODO: persist payment info to disk
+    // Initialize the event handler
+    // TODO: persist payment info
     let inbound_payments: PaymentInfoStorageType =
         Arc::new(Mutex::new(HashMap::new()));
     let outbound_payments: PaymentInfoStorageType =
         Arc::new(Mutex::new(HashMap::new()));
-    let inbound_pmts_for_events = inbound_payments.clone();
-    let outbound_pmts_for_events = outbound_payments.clone();
-    let network = args.network;
-    let bitcoind_rpc = bitcoind_client.clone();
-    let network_graph_events = network_graph.clone();
-    let handle = tokio::runtime::Handle::current();
-    let event_handler = move |event: &Event| {
-        handle.block_on(event_handler::handle_ldk_events(
-            &channel_manager_event_listener,
-            &bitcoind_rpc,
-            &network_graph_events,
-            &keys_manager_listener,
-            &inbound_pmts_for_events,
-            &outbound_pmts_for_events,
-            network,
-            event,
-        ));
-    };
+    let event_handler = LdkEventHandler::new(
+        args.network,
+        channel_manager.clone(),
+        keys_manager.clone(),
+        bitcoind_client.clone(),
+        network_graph.clone(),
+        inbound_payments.clone(),
+        outbound_payments.clone(),
+        Handle::current(),
+    );
 
     // Step 16: Initialize routing ProbabilisticScorer
     let scorer = persister
@@ -718,7 +707,7 @@ fn peer_manager(
 
 /// Sets up a TcpListener to listen on 0.0.0.0:<listening_port>, handing off
 /// resultant `TcpStream`s for the `PeerManager` to manage
-fn setup_p2p_listener(
+fn spawn_p2p_listener(
     listening_port: Port,
     stop_listen: Arc<AtomicBool>,
     peer_manager: Arc<PeerManagerType>,
@@ -747,7 +736,7 @@ fn setup_p2p_listener(
 }
 
 /// Sets up an SpvClient to continuously poll the block source for new blocks.
-fn setup_spv_client(
+fn spawn_spv_client(
     network: Network,
     chain_tip: ValidatedBlockHeader,
     mut blockheader_cache: HashMap<BlockHash, ValidatedBlockHeader>,
