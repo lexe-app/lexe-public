@@ -157,20 +157,13 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     }
 
     // Step 12: Initialize the PeerManager
-    let channel_manager: Arc<ChannelManagerType> = Arc::new(channel_manager);
-    let mut ephemeral_bytes = [0; 32];
-    rand::thread_rng().fill_bytes(&mut ephemeral_bytes);
-    let lightning_msg_handler = MessageHandler {
-        chan_handler: channel_manager.clone(),
-        route_handler: gossip_sync.clone(),
-    };
-    let peer_manager: Arc<PeerManagerType> = Arc::new(PeerManagerType::new(
-        lightning_msg_handler,
-        keys_manager.get_node_secret(Recipient::Node).unwrap(),
-        &ephemeral_bytes,
+    let peer_manager = peer_manager(
+        keys_manager.as_ref(),
+        channel_manager.clone(),
+        gossip_sync.clone(),
         logger.clone(),
-        Arc::new(IgnoringMessageHandler {}),
-    ));
+    )
+    .context("Could not initialize peer manager")?;
 
     // ## Running LDK
     // Step 13: Initialize networking
@@ -589,7 +582,7 @@ async fn channel_manager(
     logger: &Arc<StdOutLogger>,
     bitcoind_client: &Arc<BitcoindClient>,
     restarting_node: &mut bool,
-) -> anyhow::Result<(BlockHash, ChannelManagerType)> {
+) -> anyhow::Result<(BlockHash, Arc<ChannelManagerType>)> {
     let mut user_config = UserConfig::default();
     user_config
         .peer_channel_config_limits
@@ -633,6 +626,7 @@ async fn channel_manager(
             (getinfo_resp.latest_blockhash, fresh_channel_manager)
         }
     };
+    let channel_manager = Arc::new(channel_manager);
 
     Ok((channel_manager_blockhash, channel_manager))
 }
@@ -721,4 +715,30 @@ async fn gossip_sync(
     let gossip_sync = Arc::new(gossip_sync);
 
     Ok((network_graph, gossip_sync))
+}
+
+/// Initializes a PeerManager
+fn peer_manager(
+    keys_manager: &KeysManager,
+    channel_manager: Arc<ChannelManagerType>,
+    gossip_sync: Arc<P2PGossipSyncType>,
+    logger: Arc<StdOutLogger>,
+) -> anyhow::Result<Arc<PeerManagerType>> {
+    let mut ephemeral_bytes = [0; 32];
+    rand::thread_rng().fill_bytes(&mut ephemeral_bytes);
+    let lightning_msg_handler = MessageHandler {
+        chan_handler: channel_manager,
+        route_handler: gossip_sync,
+    };
+    let peer_manager: PeerManagerType = PeerManagerType::new(
+        lightning_msg_handler,
+        keys_manager
+            .get_node_secret(Recipient::Node)
+            .map_err(|()| anyhow!("Could not get node secret"))?,
+        &ephemeral_bytes,
+        logger,
+        Arc::new(IgnoringMessageHandler {}),
+    );
+
+    Ok(Arc::new(peer_manager))
 }
