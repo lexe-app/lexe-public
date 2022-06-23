@@ -166,6 +166,7 @@ mod test {
     fn test_keypair_pubkey_len() {
         let key_pair = rcgen::KeyPair::generate(&rcgen::PKCS_ED25519).unwrap();
         let pubkey_raw = key_pair.public_key_raw();
+        // sanity check ed25519 pubkey length is what we expect
         assert_eq!(pubkey_raw.len(), 32);
     }
 
