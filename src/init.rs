@@ -63,6 +63,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     let measurement = String::from("default");
     let client = reqwest::Client::new();
 
+    // Initialize BitcoindClient and KeysManager
     // tokio::join! doesn't "fail fast" but produces better error chains
     let (bitcoind_client_res, keys_manager_res) = tokio::join!(
         bitcoind_client(&args),
@@ -91,11 +92,15 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         persister.clone(),
     ));
 
-    // Retrieve ChannelMonitor state from DB
-    // TODO tokio::join! this
-    let mut channel_monitors = channel_monitors(&persister, &keys_manager)
-        .await
-        .context("Could not read channel monitors")?;
+    // Initialize the `P2PGossipSync` and `ChannelMonitor`s
+    let (channel_monitors_res, gossip_sync_res) = tokio::join!(
+        channel_monitors(&persister, &keys_manager),
+        gossip_sync(&args, &persister, logger.clone())
+    );
+    let mut channel_monitors =
+        channel_monitors_res.context("Could not read channel monitors")?;
+    let (network_graph, gossip_sync) =
+        gossip_sync_res.context("Could not initialize gossip sync")?;
 
     // Initialize the ChannelManager
     let mut restarting_node = true;
@@ -151,17 +156,10 @@ pub async fn start_ldk() -> anyhow::Result<()> {
             .context("Could not watch channel")?;
     }
 
-    // Optional: Initialize the P2PGossipSync
-    let (network_graph, gossip_sync) =
-        gossip_sync(&args, &persister, logger.clone())
-            .await
-            .context("Could not initialize gossip sync")?;
-
     // Step 12: Initialize the PeerManager
     let channel_manager: Arc<ChannelManagerType> = Arc::new(channel_manager);
     let mut ephemeral_bytes = [0; 32];
     rand::thread_rng().fill_bytes(&mut ephemeral_bytes);
-    // NOTE GossipSync impls RoutingMessageHandler required by route_handler
     let lightning_msg_handler = MessageHandler {
         chan_handler: channel_manager.clone(),
         route_handler: gossip_sync.clone(),
