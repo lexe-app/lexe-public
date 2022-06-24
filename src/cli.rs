@@ -1,7 +1,7 @@
+use argh::FromArgs;
+
 use crate::init;
 use crate::types::{BitcoindRpcInfo, Network, NodeAlias, Port, UserId};
-
-use argh::FromArgs;
 
 /// the Lexe node CLI
 #[derive(Debug, PartialEq, Eq, FromArgs)]

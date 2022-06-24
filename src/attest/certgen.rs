@@ -3,10 +3,11 @@
 
 #![allow(dead_code)]
 
+use std::borrow::Cow;
+
 use rcgen::{
     Certificate, CustomExtension, DnType, KeyPair, RcgenError, SanType,
 };
-use std::borrow::Cow;
 use time::OffsetDateTime;
 use yasna::models::ObjectIdentifier;
 
@@ -160,8 +161,9 @@ impl SgxAttestationExtension<'static, 'static> {
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use rcgen::date_time_ymd;
+
+    use super::*;
 
     #[test]
     fn test_keypair_pubkey_len() {

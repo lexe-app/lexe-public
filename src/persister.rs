@@ -5,6 +5,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
+use anyhow::{anyhow, ensure, Context};
 use bitcoin::hash_types::{BlockHash, Txid};
 use bitcoin::hashes::hex::{FromHex, ToHex};
 use bitcoin::secp256k1::PublicKey;
@@ -27,8 +28,6 @@ use lightning::routing::scoring::{
 use lightning::util::config::UserConfig;
 use lightning::util::persist::Persister;
 use lightning::util::ser::{ReadableArgs, Writeable};
-
-use anyhow::{anyhow, ensure, Context};
 use once_cell::sync::{Lazy, OnceCell};
 use reqwest::Client;
 use tokio::runtime::{Builder, Handle, Runtime};

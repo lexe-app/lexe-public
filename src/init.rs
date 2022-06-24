@@ -4,29 +4,24 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime};
 
+use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::BlockHash;
-
-use lightning::chain::chainmonitor;
 use lightning::chain::keysinterface::{KeysInterface, KeysManager, Recipient};
 use lightning::chain::transaction::OutPoint;
-use lightning::chain::{self, BestBlock, Watch};
+use lightning::chain::{self, chainmonitor, BestBlock, Watch};
 use lightning::ln::channelmanager;
 use lightning::ln::channelmanager::ChainParameters;
 use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::util::config::UserConfig;
 use lightning_background_processor::BackgroundProcessor;
-use lightning_block_sync::init as blocksyncinit;
 use lightning_block_sync::poll::{self, ValidatedBlockHeader};
-use lightning_block_sync::SpvClient;
-use lightning_block_sync::UnboundedCache;
+use lightning_block_sync::{init as blocksyncinit, SpvClient, UnboundedCache};
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
-
-use anyhow::{anyhow, bail, ensure, Context};
 use rand::Rng;
 use tokio::runtime::Handle;
 use warp::Filter as WarpFilter;
@@ -36,17 +31,16 @@ use crate::api::{
 };
 use crate::bitcoind_client::BitcoindClient;
 use crate::cli::StartCommand;
-use crate::convert;
 use crate::event_handler::LdkEventHandler;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
-use crate::repl;
 use crate::types::{
     BroadcasterType, ChainMonitorType, ChannelManagerType,
     ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType,
     GossipSyncType, InvoicePayerType, NetworkGraphType, P2PGossipSyncType,
     PaymentInfoStorageType, PeerManagerType, Port, UserId,
 };
+use crate::{convert, repl};
 
 pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
     // Start warp at the given port

@@ -1,5 +1,6 @@
-use bitcoin::secp256k1::PublicKey;
 use std::fmt::Write;
+
+use bitcoin::secp256k1::PublicKey;
 
 #[inline]
 fn is_even(x: usize) -> bool {
@@ -55,10 +56,12 @@ pub fn to_compressed_pubkey(hex: &str) -> Option<PublicKey> {
 
 #[cfg(test)]
 mod test {
+    use proptest::arbitrary::any;
+    use proptest::collection::vec;
+    use proptest::strategy::Strategy;
+    use proptest::{char, proptest};
+
     use super::*;
-    use proptest::{
-        arbitrary::any, char, collection::vec, proptest, strategy::Strategy,
-    };
 
     #[test]
     fn test_hex() {

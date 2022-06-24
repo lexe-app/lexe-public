@@ -16,7 +16,6 @@ use lightning::chain::chaininterface::{
 use lightning::chain::keysinterface::KeysManager;
 use lightning::routing::gossip::NodeId;
 use lightning::util::events::{Event, EventHandler, PaymentPurpose};
-
 use rand::{thread_rng, Rng};
 use tokio::runtime::Handle;
 

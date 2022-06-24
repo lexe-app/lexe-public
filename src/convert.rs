@@ -1,14 +1,12 @@
 use std::convert::TryInto;
 use std::str::FromStr;
 
+use anyhow::{anyhow, Context};
 use bitcoin::hashes::hex::FromHex;
-use bitcoin::secp256k1::PublicKey;
-use bitcoin::secp256k1::Secp256k1;
+use bitcoin::secp256k1::{PublicKey, Secp256k1};
 use bitcoin::BlockHash;
 use lightning::chain::keysinterface::{KeysInterface, KeysManager, Recipient};
 use lightning_block_sync::http::JsonResponse;
-
-use anyhow::{anyhow, Context};
 
 /// Rederives the node public key from the KeysManager
 pub fn derive_pubkey(keys_manager: &KeysManager) -> anyhow::Result<PublicKey> {

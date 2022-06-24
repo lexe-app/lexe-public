@@ -4,11 +4,9 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{ensure, format_err};
-use lightning::chain::chainmonitor;
 use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::keysinterface::InMemorySigner;
-use lightning::chain::Filter;
-use lightning::chain::{self, Access};
+use lightning::chain::{self, chainmonitor, Access, Filter};
 use lightning::ln::channelmanager::SimpleArcChannelManager;
 use lightning::ln::peer_handler::SimpleArcPeerManager;
 use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};

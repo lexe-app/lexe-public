@@ -5,25 +5,29 @@
 
 #![allow(dead_code)]
 
-use bytemuck::{Pod, Zeroable};
-use rcgen::KeyPair;
 use std::fmt;
 
+use bytemuck::{Pod, Zeroable};
+use rcgen::KeyPair;
+
+#[rustfmt::skip]
 #[cfg(target_env = "sgx")]
 pub use sgx::quote_enclave;
-
 #[cfg(not(target_env = "sgx"))]
 pub use not_sgx::quote_enclave;
 
 #[cfg(target_env = "sgx")]
 mod sgx {
-    use super::{ErrString, QlAttKeyIdExt, ReportData};
-    use crate::attest::certgen::SgxAttestationExtension;
-    use aesm_client::{sgx::AesmClientExt, AesmClient};
+    use std::net::TcpStream;
+
+    use aesm_client::sgx::AesmClientExt;
+    use aesm_client::AesmClient;
     use anyhow::{format_err, Context, Result};
     use rcgen::{CustomExtension, KeyPair};
     use sgx_isa::{Report, Targetinfo};
-    use std::net::TcpStream;
+
+    use super::{ErrString, QlAttKeyIdExt, ReportData};
+    use crate::attest::certgen::SgxAttestationExtension;
 
     // TODO(phlip9): probably use local wrapper type for crypto keypair
     pub fn quote_enclave(cert_key_pair: KeyPair) -> Result<CustomExtension> {
@@ -114,9 +118,10 @@ mod sgx {
 
 #[cfg(not(target_env = "sgx"))]
 mod not_sgx {
-    use crate::attest::certgen::SgxAttestationExtension;
     use anyhow::Result;
     use rcgen::{CustomExtension, KeyPair};
+
+    use crate::attest::certgen::SgxAttestationExtension;
 
     pub fn quote_enclave(_cert_key_pair: KeyPair) -> Result<CustomExtension> {
         // TODO(phlip9): use a different dummy extension?
