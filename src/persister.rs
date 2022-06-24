@@ -40,7 +40,6 @@ use crate::api::{
 use crate::bitcoind_client::BitcoindClient;
 use crate::convert;
 use crate::logger::StdOutLogger;
-use crate::repl;
 use crate::types::{
     ChainMonitorType, ChannelManagerType, LoggerType, NetworkGraphType,
     ProbabilisticScorerType,
@@ -253,16 +252,14 @@ impl PostgresPersister {
 
     pub async fn persist_channel_peer(
         &self,
-        peer_info_str: String,
+        peer_pubkey: PublicKey,
+        peer_address: SocketAddr,
     ) -> anyhow::Result<()> {
-        let (peer_pubkey, peer_addr) = repl::parse_peer_info(peer_info_str)
-            .context("Could not parse peer info from string")?;
-
         println!("Persisting new channel peer");
         let cp = ChannelPeer {
             instance_id: self.instance_id.clone(),
             peer_public_key: convert::pubkey_to_hex(&peer_pubkey),
-            peer_address: peer_addr.to_string(),
+            peer_address: peer_address.to_string(),
         };
 
         api::create_channel_peer(&self.client, cp)

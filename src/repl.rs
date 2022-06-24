@@ -118,9 +118,7 @@ pub(crate) async fn poll_for_user_input<E: EventHandler>(
                     .is_ok()
                     {
                         if let Err(e) = persister
-                            .persist_channel_peer(
-                                peer_pubkey_and_ip_addr.to_owned(),
-                            )
+                            .persist_channel_peer(pubkey, peer_addr)
                             .await
                         {
                             println!(
@@ -521,6 +519,9 @@ fn list_payments(
     }
     println!("]");
 }
+
+// TODO(phlip9): connect_peer_if_necessary and do_connect_peer should probably
+// live somewhere else.
 
 pub(crate) async fn connect_peer_if_necessary(
     pubkey: PublicKey,
