@@ -3,13 +3,15 @@
 
 #![allow(dead_code)]
 
-use rcgen::{Certificate, DnType, KeyPair, RcgenError, SanType};
+use rcgen::{
+    Certificate, CustomExtension, DnType, KeyPair, RcgenError, SanType,
+};
 use std::borrow::Cow;
 use time::OffsetDateTime;
 use yasna::models::ObjectIdentifier;
 
 /// The subset of [`rcgen::CertificateParams`] that we need to generate a cert.
-pub struct CertificateParams<'a, 'b> {
+pub struct CertificateParams {
     /// The cert key pair.
     pub key_pair: KeyPair,
 
@@ -23,8 +25,9 @@ pub struct CertificateParams<'a, 'b> {
     pub not_before: OffsetDateTime,
     pub not_after: OffsetDateTime,
 
-    /// The enclave remote attestation evidence.
-    pub sgx_attestation: SgxAttestationExtension<'a, 'b>,
+    /// The enclave remote attestation evidence as a custom x509 cert
+    /// extension.
+    pub attestation: CustomExtension,
 }
 
 // TODO(phlip9): attestation extension type should be shared w/ client
@@ -50,14 +53,14 @@ pub struct SgxAttestationExtension<'a, 'b> {
 
 // -- impl CertificateParams -- //
 
-impl<'a, 'b> CertificateParams<'a, 'b> {
+impl CertificateParams {
     pub fn gen_cert(self) -> Result<Certificate, RcgenError> {
         let params = rcgen::CertificateParams::try_from(self)?;
         Certificate::from_params(params)
     }
 }
 
-impl<'a, 'b> TryFrom<CertificateParams<'a, 'b>> for rcgen::CertificateParams {
+impl TryFrom<CertificateParams> for rcgen::CertificateParams {
     type Error = RcgenError;
 
     fn try_from(params: CertificateParams) -> Result<Self, Self::Error> {
@@ -90,9 +93,7 @@ impl<'a, 'b> TryFrom<CertificateParams<'a, 'b>> for rcgen::CertificateParams {
         new_params.not_after = params.not_after;
         new_params.distinguished_name = name;
         new_params.subject_alt_names = subject_alt_names;
-        new_params
-            .custom_extensions
-            .push(params.sgx_attestation.to_cert_extension());
+        new_params.custom_extensions.push(params.attestation);
 
         Ok(new_params)
     }
@@ -178,10 +179,11 @@ mod test {
             dns_names: vec!["hello.world".to_string()],
             not_before: date_time_ymd(2022, 05, 22),
             not_after: date_time_ymd(2032, 05, 22),
-            sgx_attestation: SgxAttestationExtension {
+            attestation: SgxAttestationExtension {
                 quote: b"aaaaa".as_slice().into(),
                 qe_report: b"zzzzzz".as_slice().into(),
-            },
+            }
+            .to_cert_extension(),
         };
         let cert = params.gen_cert().unwrap();
         let _cert_bytes = cert.serialize_der().unwrap();
