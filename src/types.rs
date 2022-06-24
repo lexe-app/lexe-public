@@ -1,6 +1,9 @@
 use std::collections::HashMap;
+use std::fmt;
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
+use anyhow::{ensure, format_err};
 use lightning::chain::chainmonitor;
 use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::keysinterface::InMemorySigner;
@@ -8,7 +11,7 @@ use lightning::chain::Filter;
 use lightning::chain::{self, Access};
 use lightning::ln::channelmanager::SimpleArcChannelManager;
 use lightning::ln::peer_handler::SimpleArcPeerManager;
-use lightning::ln::PaymentHash;
+use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
 use lightning::routing::gossip::{NetworkGraph, P2PGossipSync};
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning_background_processor::GossipSync;
@@ -20,7 +23,6 @@ use lightning_rapid_gossip_sync::RapidGossipSync;
 use crate::bitcoind_client::BitcoindClient;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
-use crate::structs::PaymentInfo;
 
 pub type UserId = i64;
 pub type Port = u16;
@@ -101,3 +103,184 @@ pub type BroadcasterType = BitcoindClient;
 pub type FeeEstimatorType = BitcoindClient;
 
 pub type LoggerType = Arc<StdOutLogger>;
+
+pub struct PaymentInfo {
+    pub preimage: Option<PaymentPreimage>,
+    pub secret: Option<PaymentSecret>,
+    pub status: HTLCStatus,
+    pub amt_msat: MillisatAmount,
+}
+
+pub enum HTLCStatus {
+    Pending,
+    Succeeded,
+    Failed,
+}
+
+pub struct MillisatAmount(pub Option<u64>);
+
+impl fmt::Display for MillisatAmount {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.0 {
+            Some(amt) => write!(f, "{}", amt),
+            None => write!(f, "unknown"),
+        }
+    }
+}
+
+/// The information required to connect to a bitcoind instance via RPC
+#[derive(Debug, PartialEq, Eq)]
+pub struct BitcoindRpcInfo {
+    pub username: String,
+    pub password: String,
+    pub host: String,
+    pub port: Port,
+}
+
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+pub struct NodeAlias([u8; 32]);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Network(bitcoin::Network);
+
+// -- impl BitcoindRpcInfo -- //
+
+impl BitcoindRpcInfo {
+    fn parse_str(s: &str) -> Option<Self> {
+        // format: <username>:<password>@<host>:<port>
+
+        let mut parts = s.split(':');
+        let (username, pass_host, port) =
+            match (parts.next(), parts.next(), parts.next(), parts.next()) {
+                (Some(username), Some(pass_host), Some(port), None) => {
+                    (username, pass_host, port)
+                }
+                _ => return None,
+            };
+
+        let mut parts = pass_host.split('@');
+        let (password, host) = match (parts.next(), parts.next(), parts.next())
+        {
+            (Some(password), Some(host), None) => (password, host),
+            _ => return None,
+        };
+
+        let port = Port::from_str(port).ok()?;
+
+        Some(Self {
+            username: username.to_string(),
+            password: password.to_string(),
+            host: host.to_string(),
+            port,
+        })
+    }
+}
+
+impl FromStr for BitcoindRpcInfo {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse_str(s)
+            .ok_or_else(|| format_err!("Invalid bitcoind rpc URL"))
+    }
+}
+
+// -- impl NodeAlias -- //
+
+impl NodeAlias {
+    pub fn new(inner: [u8; 32]) -> Self {
+        Self(inner)
+    }
+}
+
+impl FromStr for NodeAlias {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bytes = s.as_bytes();
+        ensure!(
+            bytes.len() <= 32,
+            "node alias can't be longer than 32 bytes"
+        );
+
+        let mut alias = [0_u8; 32];
+        alias[..bytes.len()].copy_from_slice(bytes);
+
+        Ok(Self(alias))
+    }
+}
+
+impl fmt::Display for NodeAlias {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for b in self.0.iter() {
+            let c = *b as char;
+            if c == '\0' {
+                break;
+            }
+            if c.is_ascii_graphic() || c == ' ' {
+                continue;
+            }
+            write!(f, "{c}")?;
+        }
+        Ok(())
+    }
+}
+
+impl fmt::Debug for NodeAlias {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self, f)
+    }
+}
+
+// -- impl Network -- //
+
+impl Network {
+    pub fn into_inner(self) -> bitcoin::Network {
+        self.0
+    }
+}
+
+impl Default for Network {
+    fn default() -> Self {
+        Self(bitcoin::Network::Testnet)
+    }
+}
+
+impl FromStr for Network {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let network = bitcoin::Network::from_str(s)?;
+        ensure!(
+            network == bitcoin::Network::Testnet,
+            "only support testnet for now"
+        );
+        Ok(Self(network))
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_parse_bitcoind_rpc_info() {
+        let expected = BitcoindRpcInfo {
+            username: "hello".to_string(),
+            password: "world".to_string(),
+            host: "foo.bar".to_string(),
+            port: 1234,
+        };
+        let actual =
+            BitcoindRpcInfo::from_str("hello:world@foo.bar:1234").unwrap();
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_parse_node_alias() {
+        let expected = NodeAlias(*b"hello, world - this is lexe\0\0\0\0\0");
+        let actual =
+            NodeAlias::from_str("hello, world - this is lexe").unwrap();
+        assert_eq!(expected, actual);
+    }
+}

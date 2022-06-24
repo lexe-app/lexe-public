@@ -35,12 +35,12 @@ use crate::api::{
     self, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
 };
 use crate::bitcoind_client::BitcoindClient;
+use crate::cli::StartCommand;
 use crate::convert;
 use crate::event_handler::LdkEventHandler;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
 use crate::repl;
-use crate::structs::{LdkArgs, LexeArgs};
 use crate::types::{
     BroadcasterType, ChainMonitorType, ChannelManagerType,
     ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType,
@@ -48,13 +48,7 @@ use crate::types::{
     PaymentInfoStorageType, PeerManagerType, Port, UserId,
 };
 
-pub async fn start_ldk() -> anyhow::Result<()> {
-    // Parse command line args
-    let lexe_args: LexeArgs = argh::from_env();
-    let args: LdkArgs = lexe_args
-        .try_into()
-        .context("Could not parse command line args")?;
-
+pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
     // Start warp at the given port
     tokio::spawn(async move {
         println!("Serving warp at port {}", args.warp_port);
@@ -62,6 +56,8 @@ pub async fn start_ldk() -> anyhow::Result<()> {
             .run(([127, 0, 0, 1], args.warp_port))
             .await;
     });
+
+    let network = args.network.into_inner();
 
     // Initialize the Logger
     let logger = Arc::new(StdOutLogger {});
@@ -157,7 +153,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     let outbound_payments: PaymentInfoStorageType =
         Arc::new(Mutex::new(HashMap::new()));
     let event_handler = LdkEventHandler::new(
-        args.network,
+        network,
         channel_manager.clone(),
         keys_manager.clone(),
         bitcoind_client.clone(),
@@ -253,7 +249,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
 
     // Set up SPV client
     spawn_spv_client(
-        args.network,
+        network,
         chain_tip,
         blockheader_cache,
         channel_manager.clone(),
@@ -273,7 +269,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
         inbound_payments,
         outbound_payments,
         persister.clone(),
-        args.network,
+        network,
     )
     .await;
 
@@ -293,7 +289,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
 
 /// Initializes and validates a BitcoindClient given an LdkArgs
 async fn bitcoind_client(
-    args: &LdkArgs,
+    args: &StartCommand,
 ) -> anyhow::Result<Arc<BitcoindClient>> {
     // NOTE could write a wrapper that does this printing automagically
     println!("Initializing bitcoind client");
@@ -314,7 +310,7 @@ async fn bitcoind_client(
     // Check that the bitcoind we've connected to is running the network we
     // expect
     let bitcoind_chain = client.get_blockchain_info().await.chain;
-    let chain_str = match args.network {
+    let chain_str = match args.network.into_inner() {
         bitcoin::Network::Bitcoin => "main",
         bitcoin::Network::Testnet => "test",
         bitcoin::Network::Regtest => "regtest",
@@ -322,11 +318,9 @@ async fn bitcoind_client(
     };
     ensure!(
         bitcoind_chain == chain_str,
-        anyhow!(
-            "Chain argument ({}) didn't match bitcoind chain ({})",
-            args.network,
-            bitcoind_chain
-        )
+        "Chain argument ({}) didn't match bitcoind chain ({})",
+        chain_str,
+        bitcoind_chain,
     );
 
     println!("    bitcoind client done.");
@@ -486,7 +480,7 @@ async fn channel_monitors(
 /// Initializes the ChannelManager
 #[allow(clippy::too_many_arguments)]
 async fn channel_manager(
-    args: &LdkArgs,
+    args: &StartCommand,
     persister: &PostgresPersister,
     bitcoind_client: &BitcoindClient,
     restarting_node: &mut bool,
@@ -523,7 +517,7 @@ async fn channel_manager(
             let getinfo_resp = bitcoind_client.get_blockchain_info().await;
 
             let chain_params = ChainParameters {
-                network: args.network,
+                network: args.network.into_inner(),
                 best_block: BestBlock::new(
                     getinfo_resp.latest_blockhash,
                     getinfo_resp.latest_height as u32,
@@ -556,7 +550,7 @@ struct ChannelMonitorChainListener {
 /// Syncs the channel monitors and ChannelManager to the chain tip
 #[allow(clippy::too_many_arguments)]
 async fn sync_chain_listeners(
-    args: &LdkArgs,
+    args: &StartCommand,
     channel_manager: &ChannelManagerType,
     bitcoind_client: &BitcoindClient,
     broadcaster: Arc<BroadcasterType>,
@@ -599,7 +593,7 @@ async fn sync_chain_listeners(
 
     let chain_tip = blocksyncinit::synchronize_listeners(
         &bitcoind_client,
-        args.network,
+        args.network.into_inner(),
         blockheader_cache,
         chain_listeners,
     )
@@ -613,12 +607,12 @@ async fn sync_chain_listeners(
 
 /// Initializes a GossipSync and NetworkGraph
 async fn gossip_sync(
-    args: &LdkArgs,
+    args: &StartCommand,
     persister: &Arc<PostgresPersister>,
     logger: Arc<StdOutLogger>,
 ) -> anyhow::Result<(Arc<NetworkGraphType>, Arc<P2PGossipSyncType>)> {
     println!("Initializing gossip sync and network graph");
-    let genesis = genesis_block(args.network).header.block_hash();
+    let genesis = genesis_block(args.network.into_inner()).header.block_hash();
 
     let network_graph = persister
         .read_network_graph(genesis, logger.clone())

@@ -177,8 +177,8 @@ mod test {
         let params = CertificateParams {
             key_pair,
             dns_names: vec!["hello.world".to_string()],
-            not_before: date_time_ymd(2022, 05, 22),
-            not_after: date_time_ymd(2032, 05, 22),
+            not_before: date_time_ymd(2022, 5, 22),
+            not_after: date_time_ymd(2032, 5, 22),
             attestation: SgxAttestationExtension {
                 quote: b"aaaaa".as_slice().into(),
                 qe_report: b"zzzzzz".as_slice().into(),

@@ -22,9 +22,9 @@ use tokio::runtime::Handle;
 
 use crate::bitcoind_client::BitcoindClient;
 use crate::hex_utils;
-use crate::structs::{HTLCStatus, MillisatAmount, NodeAlias, PaymentInfo};
 use crate::types::{
-    ChannelManagerType, NetworkGraphType, PaymentInfoStorageType,
+    ChannelManagerType, HTLCStatus, MillisatAmount, NetworkGraphType,
+    NodeAlias, PaymentInfo, PaymentInfoStorageType,
 };
 
 pub struct LdkEventHandler {
@@ -286,7 +286,7 @@ pub async fn handle_event(
                                     Some(announcement) => {
                                         format!(
                                             " from node {}",
-                                            NodeAlias(&announcement.alias)
+                                            NodeAlias::new(announcement.alias)
                                         )
                                     }
                                 },

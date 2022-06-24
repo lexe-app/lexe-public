@@ -23,10 +23,10 @@ use lightning_invoice::{utils, Currency, Invoice};
 
 use crate::hex_utils;
 use crate::persister::PostgresPersister;
-use crate::structs::{HTLCStatus, MillisatAmount, NodeAlias, PaymentInfo};
 use crate::types::{
-    ChannelManagerType, InvoicePayerType, NetworkGraphType,
-    PaymentInfoStorageType, PeerManagerType,
+    ChannelManagerType, HTLCStatus, InvoicePayerType, MillisatAmount,
+    NetworkGraphType, NodeAlias, PaymentInfo, PaymentInfoStorageType,
+    PeerManagerType,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -443,7 +443,10 @@ fn list_channels(
             .get(&NodeId::from_pubkey(&chan_info.counterparty.node_id))
         {
             if let Some(announcement) = &node_info.announcement_info {
-                println!("\t\tpeer_alias: {}", NodeAlias(&announcement.alias));
+                println!(
+                    "\t\tpeer_alias: {}",
+                    NodeAlias::new(announcement.alias)
+                );
             }
         }
 
