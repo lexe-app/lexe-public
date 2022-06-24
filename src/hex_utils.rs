@@ -1,6 +1,16 @@
 use bitcoin::secp256k1::PublicKey;
+use std::fmt::Write;
+
+#[inline]
+fn is_even(x: usize) -> bool {
+    x & 1 == 0
+}
 
 pub fn to_vec(hex: &str) -> Option<Vec<u8>> {
+    if !is_even(hex.len()) {
+        return None;
+    }
+
     let mut out = Vec::with_capacity(hex.len() / 2);
 
     let mut b = 0;
@@ -21,11 +31,10 @@ pub fn to_vec(hex: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
-#[inline]
-pub fn hex_str(value: &[u8]) -> String {
-    let mut res = String::with_capacity(64);
-    for v in value {
-        res += &format!("{:02x}", v);
+pub fn hex_str(bytes: &[u8]) -> String {
+    let mut res = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        write!(&mut res, "{:02x}", byte).unwrap();
     }
     res
 }
@@ -41,5 +50,54 @@ pub fn to_compressed_pubkey(hex: &str) -> Option<PublicKey> {
     match PublicKey::from_slice(&data) {
         Ok(pk) => Some(pk),
         Err(_) => None,
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use proptest::{
+        arbitrary::any, char, collection::vec, proptest, strategy::Strategy,
+    };
+
+    #[test]
+    fn test_hex() {
+        assert_eq!("", hex_str(&[]));
+        assert_eq!(
+            "01348900abff",
+            hex_str(&[0x01, 0x34, 0x89, 0x00, 0xab, 0xff])
+        );
+    }
+
+    #[test]
+    fn test_roundtrip_b2s2b() {
+        let bytes = &[0x01, 0x34, 0x89, 0x00, 0xab, 0xff];
+        assert_eq!(bytes.as_slice(), to_vec(&hex_str(bytes)).unwrap());
+
+        proptest!(|(bytes in vec(any::<u8>(), 0..10))| {
+            assert_eq!(bytes.as_slice(), to_vec(&hex_str(&bytes)).unwrap());
+        })
+    }
+
+    #[test]
+    fn test_roundtrip_s2b2s() {
+        let hex = "01348900abff";
+        assert_eq!(hex, hex_str(&to_vec(hex).unwrap()));
+
+        let hex_char =
+            char::ranges(['0'..='9', 'a'..='f', 'A'..='F'].as_slice().into());
+        let hex_chars = vec(hex_char, 0..10);
+        let hex_strs =
+            hex_chars.prop_filter_map("no odd length hex strings", |chars| {
+                if is_even(chars.len()) {
+                    Some(String::from_iter(chars))
+                } else {
+                    None
+                }
+            });
+
+        proptest!(|(hex in hex_strs)| {
+            assert_eq!(hex.to_ascii_lowercase(), hex_str(&to_vec(&hex).unwrap()));
+        })
     }
 }

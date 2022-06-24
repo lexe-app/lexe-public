@@ -98,6 +98,11 @@ sgx-isa = "=0.4.0"
 
 [dev-dependencies]
 pretty-hex = "0.3"
+# property based testing
+proptest = { version = "1", default-features = false, features = ["alloc"] }
+
+# [target.'cfg(target_env = "sgx")'.dev-dependencies]
+# proptest = { version = "1", default-features = false, features = ["alloc", "harware-rng"] }
 
 [patch.crates-io]
 aesm-client = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
