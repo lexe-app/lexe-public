@@ -35,11 +35,11 @@ use crate::api::{
     self, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
 };
 use crate::bitcoind_client::BitcoindClient;
-use crate::cli;
 use crate::convert;
 use crate::event_handler::LdkEventHandler;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
+use crate::repl;
 use crate::structs::{LdkArgs, LexeArgs};
 use crate::types::{
     BroadcasterType, ChainMonitorType, ChannelManagerType,
@@ -264,7 +264,7 @@ pub async fn start_ldk() -> anyhow::Result<()> {
     // ## Ready
 
     // Start the CLI.
-    cli::poll_for_user_input(
+    repl::poll_for_user_input(
         Arc::clone(&invoice_payer),
         Arc::clone(&peer_manager),
         Arc::clone(&channel_manager),
@@ -719,7 +719,7 @@ fn spawn_p2p_reconnect_task(
                         }
                         for (pubkey, peer_addr) in cp_vec.iter() {
                             if *pubkey == node_id {
-                                let _ = cli::do_connect_peer(
+                                let _ = repl::do_connect_peer(
                                     *pubkey,
                                     *peer_addr,
                                     peer_manager.clone(),

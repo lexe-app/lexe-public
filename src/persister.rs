@@ -38,9 +38,9 @@ use crate::api::{
     ProbabilisticScorer as ApiProbabilisticScorer,
 };
 use crate::bitcoind_client::BitcoindClient;
-use crate::cli;
 use crate::convert;
 use crate::logger::StdOutLogger;
+use crate::repl;
 use crate::types::{
     ChainMonitorType, ChannelManagerType, LoggerType, NetworkGraphType,
     ProbabilisticScorerType,
@@ -255,7 +255,7 @@ impl PostgresPersister {
         &self,
         peer_info_str: String,
     ) -> anyhow::Result<()> {
-        let (peer_pubkey, peer_addr) = cli::parse_peer_info(peer_info_str)
+        let (peer_pubkey, peer_addr) = repl::parse_peer_info(peer_info_str)
             .context("Could not parse peer info from string")?;
 
         println!("Persisting new channel peer");
