@@ -194,7 +194,8 @@ pub async fn handle_event(
                 }
             };
             let mut payments = inbound_payments.lock().unwrap();
-            match payments.entry(*payment_hash) {
+            let payment_entry = payments.entry(*payment_hash);
+            match payment_entry {
                 Entry::Occupied(mut e) => {
                     let payment = e.get_mut();
                     payment.status = HTLCStatus::Succeeded;
@@ -218,7 +219,8 @@ pub async fn handle_event(
             ..
         } => {
             let mut payments = outbound_payments.lock().unwrap();
-            for (hash, payment) in payments.iter_mut() {
+            let payments_iter = payments.iter_mut();
+            for (hash, payment) in payments_iter {
                 if *hash == *payment_hash {
                     payment.preimage = Some(*payment_preimage);
                     payment.status = HTLCStatus::Succeeded;

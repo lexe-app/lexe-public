@@ -51,7 +51,8 @@ pub(crate) async fn poll_for_user_input<E: EventHandler>(
     loop {
         print!("> ");
         io::stdout().flush().unwrap(); // Without flushing, the `>` doesn't print
-        let line = match line_reader.next() {
+        let maybe_line = line_reader.next();
+        let line = match maybe_line {
             Some(l) => l.unwrap(),
             None => break,
         };
@@ -479,9 +480,9 @@ fn list_payments(
     outbound_payments: PaymentInfoStorageType,
 ) {
     let inbound = inbound_payments.lock().unwrap();
-    let outbound = outbound_payments.lock().unwrap();
+    let inbound = inbound.deref();
     print!("[");
-    for (payment_hash, payment_info) in inbound.deref() {
+    for (payment_hash, payment_info) in inbound {
         println!();
         println!("\t{{");
         println!("\t\tamount_millisatoshis: {},", payment_info.amt_msat);
@@ -499,7 +500,9 @@ fn list_payments(
         println!("\t}},");
     }
 
-    for (payment_hash, payment_info) in outbound.deref() {
+    let outbound = outbound_payments.lock().unwrap();
+    let outbound = outbound.deref();
+    for (payment_hash, payment_info) in outbound {
         println!();
         println!("\t{{");
         println!("\t\tamount_millisatoshis: {},", payment_info.amt_msat);

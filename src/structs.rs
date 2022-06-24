@@ -11,7 +11,7 @@ use argh::FromArgs;
 
 use crate::types::{Port, UserId};
 
-#[derive(FromArgs, PartialEq, Debug)]
+#[derive(Debug, FromArgs, PartialEq, Eq)]
 /// Arguments accepted by a Lexe node
 pub struct LexeArgs {
     #[argh(positional)]
