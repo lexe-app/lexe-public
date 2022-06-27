@@ -37,7 +37,7 @@ pub struct CertificateParams {
 /// The x509 cert extension containing all the evidence a client needs to verify
 /// an SGX remote attestation.
 ///
-/// ```
+/// ```asn.1
 /// SgxAttestationExtension ::= SEQUENCE {
 ///     QUOTE      OCTET STRING
 ///     QE_REPORT  OCTET STRING

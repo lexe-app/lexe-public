@@ -4,7 +4,7 @@ components = ["clippy", "rustfmt"]
 targets = [
     # # Remote azure host target
     # "x86_64-unknown-linux-musl",
-    # Enclave target
+    # SGX Enclave target
     "x86_64-fortanix-unknown-sgx",
 ]
 profile = "minimal"
