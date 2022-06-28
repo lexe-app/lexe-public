@@ -29,6 +29,22 @@ use crate::types::{
 };
 
 #[allow(clippy::too_many_arguments)]
+#[cfg(target_env = "sgx")]
+pub(crate) async fn poll_for_user_input<E: EventHandler>(
+    invoice_payer: Arc<InvoicePayerType<E>>,
+    peer_manager: Arc<PeerManagerType>,
+    channel_manager: Arc<ChannelManagerType>,
+    keys_manager: Arc<KeysManager>,
+    network_graph: Arc<NetworkGraphType>,
+    inbound_payments: PaymentInfoStorageType,
+    outbound_payments: PaymentInfoStorageType,
+    persister: Arc<PostgresPersister>,
+    network: Network,
+) {
+}
+
+#[allow(clippy::too_many_arguments)]
+#[cfg(not(target_env = "sgx"))]
 pub(crate) async fn poll_for_user_input<E: EventHandler>(
     invoice_payer: Arc<InvoicePayerType<E>>,
     peer_manager: Arc<PeerManagerType>,

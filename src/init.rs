@@ -253,19 +253,21 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
 
     // ## Ready
 
-    // Start the CLI.
-    repl::poll_for_user_input(
-        Arc::clone(&invoice_payer),
-        Arc::clone(&peer_manager),
-        Arc::clone(&channel_manager),
-        Arc::clone(&keys_manager),
-        Arc::clone(&network_graph),
-        inbound_payments,
-        outbound_payments,
-        persister.clone(),
-        network,
-    )
-    .await;
+    // Start the REPL if it was specified to start in the CLI args.
+    if args.repl {
+        repl::poll_for_user_input(
+            Arc::clone(&invoice_payer),
+            Arc::clone(&peer_manager),
+            Arc::clone(&channel_manager),
+            Arc::clone(&keys_manager),
+            Arc::clone(&network_graph),
+            inbound_payments,
+            outbound_payments,
+            persister.clone(),
+            network,
+        )
+        .await;
+    }
 
     // ## Shutdown
 

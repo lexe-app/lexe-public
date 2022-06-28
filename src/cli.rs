@@ -62,9 +62,9 @@ pub struct StartCommand {
     #[argh(switch)]
     pub shutdown_after_sync: bool,
 
-    /// whether to start the repl, for debugging purposes. Only valid when
-    /// running the node outside of SGX.
-    #[argh(option, default = "true")]
+    /// whether to start the REPL, for debugging purposes. Only takes effect if
+    /// the node is run outside of SGX.
+    #[argh(switch)]
     pub repl: bool,
 }
 
