@@ -44,7 +44,8 @@ pub struct StartCommand {
     #[argh(option)]
     pub user_id: UserId,
 
-    /// the port warp uses to accept TLS connections from the owner
+    /// the port warp uses to accept commands and TLS connections from the
+    /// owner
     #[argh(option, default = "1999")]
     pub warp_port: Port,
 
@@ -53,7 +54,7 @@ pub struct StartCommand {
     /// connection or detects some activity, the timer resets. Defaults to 3600
     /// seconds or 1 hour.
     #[argh(option, default = "3600")]
-    pub inactivity_timer_sec: usize,
+    pub inactivity_timer_sec: u64,
 
     /// whether the node expects to shut down after completing sync and other
     /// maintenance tasks. The only exception is if the node receives a

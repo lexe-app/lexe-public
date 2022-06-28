@@ -25,7 +25,6 @@ use lightning_invoice::utils::DefaultRouter;
 use rand::Rng;
 use tokio::runtime::Handle;
 use tokio::time;
-use warp::Filter as WarpFilter;
 
 use crate::api::{
     self, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
@@ -41,13 +40,13 @@ use crate::types::{
     GossipSyncType, InvoicePayerType, NetworkGraphType, P2PGossipSyncType,
     PaymentInfoStorageType, PeerManagerType, Port, UserId,
 };
-use crate::{convert, repl};
+use crate::{command_server, convert, repl};
 
 pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
     // Start warp at the given port
     tokio::spawn(async move {
         println!("Serving warp at port {}", args.warp_port);
-        warp::serve(warp::path::end().map(|| "This is a Lexe user node"))
+        warp::serve(command_server::routes())
             .run(([127, 0, 0, 1], args.warp_port))
             .await;
     });

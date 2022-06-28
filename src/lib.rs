@@ -7,6 +7,7 @@ pub mod cli;
 mod api;
 mod attest;
 mod bitcoind_client;
+mod command_server;
 mod convert;
 mod event_handler;
 mod hex;
