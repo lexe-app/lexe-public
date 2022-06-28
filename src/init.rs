@@ -24,6 +24,7 @@ use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use rand::Rng;
 use tokio::runtime::Handle;
+use tokio::time;
 use warp::Filter as WarpFilter;
 
 use crate::api::{
@@ -230,6 +231,7 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
 
         (Vec::new(), chain_tip)
     };
+    println!("Node has finished syncing");
 
     // Give channel_monitors to ChainMonitor
     for cmcl in chain_listener_channel_monitors {
@@ -255,6 +257,7 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
 
     // Start the REPL if it was specified to start in the CLI args.
     if args.repl {
+        println!("Starting REPL");
         repl::poll_for_user_input(
             Arc::clone(&invoice_payer),
             Arc::clone(&peer_manager),
@@ -267,7 +270,15 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
             network,
         )
         .await;
+        println!("REPL complete.");
     }
+
+    // Start the inactivity timer.
+    println!("Starting inactivity timer");
+    let inactivity_timer =
+        time::sleep(Duration::from_secs(args.inactivity_timer_sec));
+    inactivity_timer.await;
+    println!("Inactivity timer complete.");
 
     // ## Shutdown
 
