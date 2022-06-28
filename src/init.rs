@@ -24,7 +24,7 @@ use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use rand::Rng;
 use tokio::runtime::Handle;
-use tokio::time;
+use tokio::sync::{broadcast, mpsc};
 
 use crate::api::{
     self, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
@@ -32,6 +32,7 @@ use crate::api::{
 use crate::bitcoind_client::BitcoindClient;
 use crate::cli::StartCommand;
 use crate::event_handler::LdkEventHandler;
+use crate::inactivity_timer::InactivityTimer;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
 use crate::types::{
@@ -42,7 +43,14 @@ use crate::types::{
 };
 use crate::{command_server, convert, repl};
 
+const DEFAULT_CHANNEL_SIZE: usize = 256;
+
 pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
+    // Init channels
+    let (_activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
+    let (shutdown_tx, mut shutdown_rx) =
+        broadcast::channel(DEFAULT_CHANNEL_SIZE);
+
     // Start warp at the given port
     tokio::spawn(async move {
         println!("Serving warp at port {}", args.warp_port);
@@ -274,12 +282,22 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
 
     // Start the inactivity timer.
     println!("Starting inactivity timer");
-    let inactivity_timer =
-        time::sleep(Duration::from_secs(args.inactivity_timer_sec));
-    inactivity_timer.await;
-    println!("Inactivity timer complete.");
+    let timer_shutdown_rx = shutdown_tx.subscribe();
+    let mut inactivity_timer = InactivityTimer::new(
+        args.inactivity_timer_sec,
+        activity_rx,
+        shutdown_tx,
+        timer_shutdown_rx,
+    );
+    tokio::spawn(async move {
+        inactivity_timer.start().await;
+    });
+
+    // Pause here and wait for the shutdown signal
+    let _ = shutdown_rx.recv().await;
 
     // ## Shutdown
+    println!("Main thread shutting down");
 
     // Disconnect our peers and stop accepting new connections. This ensures we
     // don't continue updating our channel data after we've stopped the

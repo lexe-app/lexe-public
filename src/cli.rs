@@ -44,15 +44,13 @@ pub struct StartCommand {
     #[argh(option)]
     pub user_id: UserId,
 
-    /// the port warp uses to accept commands and TLS connections from the
-    /// owner
+    /// the port warp uses to accept commands and TLS connections
     #[argh(option, default = "1999")]
     pub warp_port: Port,
 
-    /// how long the node waits (in seconds) without any inbound connections
-    /// before shutting itself down. Whenever the node receives a new
-    /// connection or detects some activity, the timer resets. Defaults to 3600
-    /// seconds or 1 hour.
+    /// how long the node will stay online (in seconds) without any activity
+    /// before shutting itself down. The timer resets whenever the node
+    /// receives some activity. Defaults to 3600 seconds (1 hour)
     #[argh(option, default = "3600")]
     pub inactivity_timer_sec: u64,
 
