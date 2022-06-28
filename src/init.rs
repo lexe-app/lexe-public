@@ -47,14 +47,14 @@ const DEFAULT_CHANNEL_SIZE: usize = 256;
 
 pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
     // Init channels
-    let (_activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
+    let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
     let (shutdown_tx, mut shutdown_rx) =
         broadcast::channel(DEFAULT_CHANNEL_SIZE);
 
     // Start warp at the given port
     tokio::spawn(async move {
         println!("Serving warp at port {}", args.warp_port);
-        warp::serve(command_server::routes())
+        warp::serve(command_server::routes(activity_tx))
             .run(([127, 0, 0, 1], args.warp_port))
             .await;
     });
@@ -238,7 +238,6 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
 
         (Vec::new(), chain_tip)
     };
-    println!("Node has finished syncing");
 
     // Give channel_monitors to ChainMonitor
     for cmcl in chain_listener_channel_monitors {

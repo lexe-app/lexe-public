@@ -13,6 +13,7 @@
 use http::response::Response;
 use http::status::StatusCode;
 use thiserror::Error;
+use tokio::sync::mpsc;
 use warp::hyper::Body;
 use warp::{Filter, Rejection, Reply};
 
@@ -35,11 +36,12 @@ impl Reply for ApiError {
 // TODO(max): Write a decorater that injects channel manager, peer manager, etc
 
 /// All routes exposed by the command server.
-pub fn routes() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone
-{
+pub fn routes(
+    activity_tx: mpsc::Sender<()>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     let root = warp::path::end().map(|| "This is a Lexe user node.");
 
-    let owner = owner();
+    let owner = owner(activity_tx);
     let lexe = lexe();
 
     // TODO return a 404 not found if no routes were hit
@@ -47,17 +49,23 @@ pub fn routes() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone
 }
 
 /// Endpoints that can only be called by the node owner.
-fn owner() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+fn owner(
+    activity_tx: mpsc::Sender<()>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     // TODO Add owner authentication to this base path
-    let owner = warp::path("owner");
+    let owner = warp::path("owner")
+        .map(move || {
+            // Hitting any endpoint under /owner counts as activity
+            println!("Sending activity event");
+            let _ = activity_tx.try_send(());
+        })
+        .untuple_one();
 
-    // Endpoints for sequences of database operations with ACID guarantees
     let node_info = warp::path("node_info")
         .and(warp::get())
         // .and(with_db(db.clone()))
         // .and(warp::query())
         .then(owner::node_info);
-    // let node = warp::path("node").and(get_node);
 
     owner.and(node_info)
 }
@@ -67,7 +75,6 @@ fn lexe() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     // TODO Add Lexe authentication to this base path
     let lexe = warp::path("lexe");
 
-    // Endpoints for sequences of database operations with ACID guarantees
     let status = warp::path("status")
         .and(warp::get())
         // .and(with_db(db.clone()))

@@ -3,6 +3,7 @@ use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 use tokio::time::{self, Instant};
 
+// TODO(max): Also count Lightning Network events as activity events
 /// A simple actor that keeps track of an inactivity timer held in the stack of
 /// its `start()` fn.
 ///
@@ -57,13 +58,14 @@ impl InactivityTimer {
                     match activity_opt {
                         Some(()) => {
                             println!(
-                                "Inactivity timer received activity,
-                                resetting timer"
+                                "Inactivity timer received activity, resetting"
                             );
                             timer.as_mut().reset(Instant::now() + self.duration);
                         }
-                        // All senders dropped, just shut down
-                        None => break,
+                        None => {
+                            println!("All activity_tx dropped, shutting down");
+                            break
+                        },
                     }
                 }
                 _ = self.shutdown_rx.recv() => {
