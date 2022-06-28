@@ -11,5 +11,6 @@ mod hex_utils;
 mod init;
 mod logger;
 mod persister;
+mod provision;
 mod repl;
 mod types;

@@ -1,6 +1,7 @@
 use argh::FromArgs;
 
 use crate::init;
+use crate::provision::provision;
 use crate::types::{BitcoindRpcInfo, Network, NodeAlias, Port, UserId};
 
 /// the Lexe node CLI
@@ -53,6 +54,20 @@ pub struct ProvisionCommand {
     /// the Lexe user id to provision the node for
     #[argh(option)]
     pub user_id: UserId,
+
+    /// IDK yet. need to authenticate client connections pre-provision somehow
+    #[argh(option)]
+    pub auth_token: String,
+
+    /// the DNS name the node enclave should include in its remote attestation
+    /// certificate and the client will expect in its connection
+    #[argh(option)]
+    pub node_dns_name: String,
+
+    /// the port to accept a TLS connection from the client for the
+    /// provisioning process.
+    #[argh(option)]
+    pub port: Port,
 }
 
 // -- impl Args -- //
@@ -60,7 +75,7 @@ pub struct ProvisionCommand {
 impl Args {
     pub fn run(self) -> anyhow::Result<()> {
         match self.cmd {
-            Command::Start(start_cmd) => {
+            Command::Start(args) => {
                 // TODO(phlip9): set runtime max_blocking_threads and
                 // worker_threads to a reasonable value, then match that value
                 // in the Cargo.toml SGX metadata.
@@ -68,9 +83,15 @@ impl Args {
                     .enable_all()
                     .build()
                     .expect("Failed to build tokio runtime");
-                rt.block_on(init::start_ldk(start_cmd))
+                rt.block_on(init::start_ldk(args))
             }
-            Command::Provision(_provision_cmd) => Ok(()),
+            Command::Provision(args) => {
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("Failed to init tokio runtime");
+                rt.block_on(provision(args))
+            }
         }
     }
 }
