@@ -1,20 +1,36 @@
 use std::fmt::Write;
 
 use bitcoin::secp256k1::PublicKey;
+use thiserror::Error;
+
+#[derive(Clone, Copy, Error, Debug)]
+pub enum DecodeError {
+    #[error("hex decode error: output buffer length != half input length")]
+    BadOutputLength,
+
+    #[error("hex decode error: input contains non-hex character")]
+    InvalidCharacter,
+
+    #[error("hex decode error: input string length must be even")]
+    OddInputLength,
+}
 
 #[inline]
-fn decode_nibble(x: u8) -> Option<u8> {
+fn decode_nibble(x: u8) -> Result<u8, DecodeError> {
     match x {
-        b'0'..=b'9' => Some(x - b'0'),
-        b'a'..=b'f' => Some(x - b'a' + 10),
-        b'A'..=b'F' => Some(x - b'A' + 10),
-        _ => None,
+        b'0'..=b'9' => Ok(x - b'0'),
+        b'a'..=b'f' => Ok(x - b'a' + 10),
+        b'A'..=b'F' => Ok(x - b'A' + 10),
+        _ => Err(DecodeError::InvalidCharacter),
     }
 }
 
-fn decode_to_slice_inner(hex_chunks: &[[u8; 2]], out: &mut [u8]) -> Option<()> {
+fn decode_to_slice_inner(
+    hex_chunks: &[[u8; 2]],
+    out: &mut [u8],
+) -> Result<(), DecodeError> {
     if hex_chunks.len() != out.len() {
-        return None;
+        return Err(DecodeError::BadOutputLength);
     }
 
     for (&[c_hi, c_lo], out_i) in hex_chunks.iter().zip(out) {
@@ -23,27 +39,28 @@ fn decode_to_slice_inner(hex_chunks: &[[u8; 2]], out: &mut [u8]) -> Option<()> {
         *out_i = (b_hi << 4) | b_lo;
     }
 
-    Some(())
+    Ok(())
 }
 
 // TODO(phlip9): need a constant time hex decode for deserializing secrets...
 
-pub fn decode(hex: &str) -> Option<Vec<u8>> {
+fn hex_str_to_chunks(hex: &str) -> Result<&[[u8; 2]], DecodeError> {
     let (hex_chunks, extra) = hex.as_bytes().as_chunks::<2>();
-    if !extra.is_empty() {
-        return None;
+    if extra.is_empty() {
+        Ok(hex_chunks)
+    } else {
+        Err(DecodeError::OddInputLength)
     }
+}
 
+pub fn decode(hex: &str) -> Result<Vec<u8>, DecodeError> {
+    let hex_chunks = hex_str_to_chunks(hex)?;
     let mut out = vec![0u8; hex_chunks.len()];
     decode_to_slice_inner(hex_chunks, &mut out).map(|()| out)
 }
 
-pub fn decode_to_slice(hex: &str, out: &mut [u8]) -> Option<()> {
-    let (hex_chunks, extra) = hex.as_bytes().as_chunks::<2>();
-    if !extra.is_empty() {
-        return None;
-    }
-
+pub fn decode_to_slice(hex: &str, out: &mut [u8]) -> Result<(), DecodeError> {
+    let hex_chunks = hex_str_to_chunks(hex)?;
     decode_to_slice_inner(hex_chunks, out)
 }
 
@@ -60,8 +77,8 @@ pub fn to_compressed_pubkey(hex: &str) -> Option<PublicKey> {
         return None;
     }
     let data = match decode(&hex[0..33 * 2]) {
-        Some(bytes) => bytes,
-        None => return None,
+        Ok(bytes) => bytes,
+        Err(_) => return None,
     };
     match PublicKey::from_slice(&data) {
         Ok(pk) => Some(pk),

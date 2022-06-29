@@ -282,7 +282,7 @@ pub(crate) async fn poll_for_user_input<E: EventHandler>(
                         continue;
                     }
                     let channel_id_vec = hex::decode(channel_id_str.unwrap());
-                    if channel_id_vec.is_none()
+                    if channel_id_vec.is_err()
                         || channel_id_vec.as_ref().unwrap().len() != 32
                     {
                         println!("ERROR: couldn't parse channel_id");
@@ -298,9 +298,11 @@ pub(crate) async fn poll_for_user_input<E: EventHandler>(
                     }
                     let peer_pubkey_vec =
                         match hex::decode(peer_pubkey_str.unwrap()) {
-                            Some(peer_pubkey_vec) => peer_pubkey_vec,
-                            None => {
-                                println!("ERROR: couldn't parse peer_pubkey");
+                            Ok(peer_pubkey_vec) => peer_pubkey_vec,
+                            Err(err) => {
+                                println!(
+                                    "ERROR: couldn't parse peer_pubkey: {err}"
+                                );
                                 continue;
                             }
                         };
@@ -326,7 +328,7 @@ pub(crate) async fn poll_for_user_input<E: EventHandler>(
                         continue;
                     }
                     let channel_id_vec = hex::decode(channel_id_str.unwrap());
-                    if channel_id_vec.is_none()
+                    if channel_id_vec.is_err()
                         || channel_id_vec.as_ref().unwrap().len() != 32
                     {
                         println!("ERROR: couldn't parse channel_id");
@@ -342,17 +344,21 @@ pub(crate) async fn poll_for_user_input<E: EventHandler>(
                     }
                     let peer_pubkey_vec =
                         match hex::decode(peer_pubkey_str.unwrap()) {
-                            Some(peer_pubkey_vec) => peer_pubkey_vec,
-                            None => {
-                                println!("ERROR: couldn't parse peer_pubkey");
+                            Ok(peer_pubkey_vec) => peer_pubkey_vec,
+                            Err(err) => {
+                                println!(
+                                    "ERROR: couldn't parse peer_pubkey: {err}"
+                                );
                                 continue;
                             }
                         };
                     let peer_pubkey =
                         match PublicKey::from_slice(&peer_pubkey_vec) {
                             Ok(peer_pubkey) => peer_pubkey,
-                            Err(_) => {
-                                println!("ERROR: couldn't parse peer_pubkey");
+                            Err(err) => {
+                                println!(
+                                    "ERROR: couldn't parse peer_pubkey: {err}"
+                                );
                                 continue;
                             }
                         };

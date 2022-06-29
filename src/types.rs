@@ -294,15 +294,12 @@ impl PartialEq for AuthToken {
 impl Eq for AuthToken {}
 
 impl FromStr for AuthToken {
-    type Err = anyhow::Error;
+    type Err = hex::DecodeError;
 
     fn from_str(hex: &str) -> Result<Self, Self::Err> {
         let mut bytes = [0u8; Self::LENGTH];
         hex::decode_to_slice(hex, bytes.as_mut_slice())
             .map(|()| Self::new(bytes))
-            .ok_or_else(|| {
-                format_err!("Invalid AuthToken: not valid hex string")
-            })
     }
 }
 
