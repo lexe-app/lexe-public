@@ -131,10 +131,9 @@ pub async fn handle_event(
                 .sign_raw_transaction_with_wallet(funded_tx.hex)
                 .await;
             assert!(signed_tx.complete);
-            let final_tx: Transaction = encode::deserialize(
-                &hex::decode(&signed_tx.hex).unwrap(),
-            )
-            .unwrap();
+            let final_tx: Transaction =
+                encode::deserialize(&hex::decode(&signed_tx.hex).unwrap())
+                    .unwrap();
             // Give the funding transaction back to LDK for opening the channel.
             if channel_manager
                 .funding_transaction_generated(
@@ -297,10 +296,7 @@ pub async fn handle_event(
             let channel_str = |channel_id: &Option<[u8; 32]>| {
                 channel_id
                     .map(|channel_id| {
-                        format!(
-                            " with channel {}",
-                            hex::encode(&channel_id)
-                        )
+                        format!(" with channel {}", hex::encode(&channel_id))
                     })
                     .unwrap_or_default()
             };

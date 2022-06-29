@@ -281,8 +281,7 @@ pub(crate) async fn poll_for_user_input<E: EventHandler>(
                         println!("ERROR: closechannel requires a channel ID: `closechannel <channel_id> <peer_pubkey>`");
                         continue;
                     }
-                    let channel_id_vec =
-                        hex::decode(channel_id_str.unwrap());
+                    let channel_id_vec = hex::decode(channel_id_str.unwrap());
                     if channel_id_vec.is_none()
                         || channel_id_vec.as_ref().unwrap().len() != 32
                     {
@@ -326,8 +325,7 @@ pub(crate) async fn poll_for_user_input<E: EventHandler>(
                         println!("ERROR: forceclosechannel requires a channel ID: `forceclosechannel <channel_id> <peer_pubkey>`");
                         continue;
                     }
-                    let channel_id_vec =
-                        hex::decode(channel_id_str.unwrap());
+                    let channel_id_vec = hex::decode(channel_id_str.unwrap());
                     if channel_id_vec.is_none()
                         || channel_id_vec.as_ref().unwrap().len() != 32
                     {
