@@ -17,8 +17,10 @@ use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_rapid_gossip_sync::RapidGossipSync;
+use subtle::ConstantTimeEq;
 
 use crate::bitcoind_client::BitcoindClient;
+use crate::hex;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
 
@@ -141,6 +143,9 @@ pub struct NodeAlias([u8; 32]);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Network(bitcoin::Network);
 
+#[derive(Clone)]
+pub struct AuthToken([u8; Self::LENGTH]);
+
 // -- impl BitcoindRpcInfo -- //
 
 impl BitcoindRpcInfo {
@@ -254,6 +259,57 @@ impl FromStr for Network {
             "only support testnet for now"
         );
         Ok(Self(network))
+    }
+}
+
+// -- impl AuthToken -- //
+
+impl AuthToken {
+    const LENGTH: usize = 32;
+
+    pub fn new(bytes: [u8; Self::LENGTH]) -> Self {
+        Self(bytes)
+    }
+
+    #[cfg(test)]
+    pub fn string(&self) -> String {
+        hex::encode(self.0.as_slice())
+    }
+}
+
+// AuthToken is a secret. We need to compare in constant time.
+
+impl ConstantTimeEq for AuthToken {
+    fn ct_eq(&self, other: &Self) -> subtle::Choice {
+        self.0.as_slice().ct_eq(other.0.as_slice())
+    }
+}
+
+impl PartialEq for AuthToken {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
+}
+
+impl Eq for AuthToken {}
+
+impl FromStr for AuthToken {
+    type Err = anyhow::Error;
+
+    fn from_str(hex: &str) -> Result<Self, Self::Err> {
+        let mut bytes = [0u8; Self::LENGTH];
+        hex::decode_to_slice(hex, bytes.as_mut_slice())
+            .map(|()| Self::new(bytes))
+            .ok_or_else(|| {
+                format_err!("Invalid AuthToken: not valid hex string")
+            })
+    }
+}
+
+impl fmt::Debug for AuthToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Avoid formatting secrets.
+        f.write_str("AuthToken(..)")
     }
 }
 
