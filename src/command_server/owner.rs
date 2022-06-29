@@ -7,7 +7,6 @@ use crate::command_server::ApiError;
 use crate::convert;
 use crate::types::{ChannelManagerType, PeerManagerType};
 
-/// Used to atomically create a Node and Instance
 #[derive(Serialize)]
 pub struct NodeInfo {
     pub pubkey: String,
@@ -17,6 +16,7 @@ pub struct NodeInfo {
     pub num_peers: usize,
 }
 
+/// GET /owner/node_info -> NodeInfo
 pub async fn node_info(
     channel_manager: Arc<ChannelManagerType>,
     peer_manager: Arc<PeerManagerType>,
