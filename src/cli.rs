@@ -44,9 +44,27 @@ pub struct StartCommand {
     #[argh(option)]
     pub user_id: UserId,
 
-    /// the port warp uses to accept TLS connections from the owner
+    /// the port warp uses to accept commands and TLS connections
     #[argh(option, default = "1999")]
     pub warp_port: Port,
+
+    /// whether the node should shut down after completing sync and other
+    /// maintenance tasks. This only applies if no activity was detected prior
+    /// to the completion of sync (which is usually what happens). Useful when
+    /// starting nodes for maintenance purposes. Defaults to false.
+    #[argh(switch, short = 's')]
+    pub shutdown_after_sync_if_no_activity: bool,
+
+    /// how long the node will stay online (in seconds) without any activity
+    /// before shutting itself down. The timer resets whenever the node
+    /// receives some activity. Defaults to 3600 seconds (1 hour)
+    #[argh(option, default = "3600")]
+    pub inactivity_timer_sec: u64,
+
+    /// whether to start the REPL, for debugging purposes. Only takes effect if
+    /// the node is run outside of SGX.
+    #[argh(switch)]
+    pub repl: bool,
 }
 
 /// Provision a new Lexe node for a user

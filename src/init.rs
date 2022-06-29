@@ -24,7 +24,7 @@ use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use rand::Rng;
 use tokio::runtime::Handle;
-use warp::Filter as WarpFilter;
+use tokio::sync::{broadcast, mpsc};
 
 use crate::api::{
     self, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
@@ -32,6 +32,7 @@ use crate::api::{
 use crate::bitcoind_client::BitcoindClient;
 use crate::cli::StartCommand;
 use crate::event_handler::LdkEventHandler;
+use crate::inactivity_timer::InactivityTimer;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
 use crate::types::{
@@ -40,17 +41,11 @@ use crate::types::{
     GossipSyncType, InvoicePayerType, NetworkGraphType, P2PGossipSyncType,
     PaymentInfoStorageType, PeerManagerType, Port, UserId,
 };
-use crate::{convert, repl};
+use crate::{command_server, convert, repl};
+
+const DEFAULT_CHANNEL_SIZE: usize = 256;
 
 pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
-    // Start warp at the given port
-    tokio::spawn(async move {
-        println!("Serving warp at port {}", args.warp_port);
-        warp::serve(warp::path::end().map(|| "This is a Lexe user node"))
-            .run(([127, 0, 0, 1], args.warp_port))
-            .await;
-    });
-
     let network = args.network.into_inner();
 
     // Initialize the Logger
@@ -140,6 +135,35 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
         peer_manager.clone(),
     );
 
+    // Init Tokio channels
+    let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
+    let (shutdown_tx, mut shutdown_rx) =
+        broadcast::channel(DEFAULT_CHANNEL_SIZE);
+
+    // Start warp at the given port
+    let routes = command_server::routes(
+        channel_manager.clone(),
+        peer_manager.clone(),
+        activity_tx,
+        shutdown_tx.clone(),
+    );
+    tokio::spawn(async move {
+        println!("Serving warp at port {}", args.warp_port);
+        warp::serve(routes)
+            .run(([127, 0, 0, 1], args.warp_port))
+            .await;
+    });
+
+    // Let the runner know that we're ready
+    let user_port = UserPort {
+        user_id,
+        port: args.warp_port,
+    };
+    println!("Node is ready to accept commands; notifying runner");
+    api::notify_runner(&client, user_port)
+        .await
+        .context("Could not notify runner of ready status")?;
+
     // Initialize the event handler
     // TODO: persist payment info
     let inbound_payments: PaymentInfoStorageType =
@@ -192,16 +216,6 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
         persister.clone(),
     );
 
-    // Let the runner know that we're ready
-    let user_port = UserPort {
-        user_id,
-        port: args.warp_port,
-    };
-    println!("Node is ready to accept commands; notifying runner");
-    api::notify_runner(&client, user_port)
-        .await
-        .context("Could not notify runner of ready status")?;
-
     // ## Sync
 
     // Sync channel_monitors and ChannelManager to chain tip
@@ -253,21 +267,43 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
 
     // ## Ready
 
-    // Start the CLI.
-    repl::poll_for_user_input(
-        Arc::clone(&invoice_payer),
-        Arc::clone(&peer_manager),
-        Arc::clone(&channel_manager),
-        Arc::clone(&keys_manager),
-        Arc::clone(&network_graph),
-        inbound_payments,
-        outbound_payments,
-        persister.clone(),
-        network,
-    )
-    .await;
+    // Start the REPL if it was specified to start in the CLI args.
+    if args.repl {
+        println!("Starting REPL");
+        repl::poll_for_user_input(
+            Arc::clone(&invoice_payer),
+            Arc::clone(&peer_manager),
+            Arc::clone(&channel_manager),
+            Arc::clone(&keys_manager),
+            Arc::clone(&network_graph),
+            inbound_payments,
+            outbound_payments,
+            persister.clone(),
+            network,
+        )
+        .await;
+        println!("REPL complete.");
+    }
+
+    // Start the inactivity timer.
+    println!("Starting inactivity timer");
+    let timer_shutdown_rx = shutdown_tx.subscribe();
+    let mut inactivity_timer = InactivityTimer::new(
+        args.shutdown_after_sync_if_no_activity,
+        args.inactivity_timer_sec,
+        activity_rx,
+        shutdown_tx,
+        timer_shutdown_rx,
+    );
+    tokio::spawn(async move {
+        inactivity_timer.start().await;
+    });
+
+    // Pause here and wait for the shutdown signal
+    let _ = shutdown_rx.recv().await;
 
     // ## Shutdown
+    println!("Main thread shutting down");
 
     // Disconnect our peers and stop accepting new connections. This ensures we
     // don't continue updating our channel data after we've stopped the
