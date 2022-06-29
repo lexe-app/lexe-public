@@ -105,6 +105,7 @@ impl InactivityTimer {
 
 #[cfg(test)]
 mod tests {
+    use std::future::Future;
 
     use tokio::sync::{broadcast, mpsc};
     use tokio::time::{self, Duration};
@@ -145,6 +146,36 @@ mod tests {
         }
     }
 
+    /// Tests that a given `InactivityTimer::start()` Future finishes within
+    /// given time bounds. Also tests that it sends a shutdown signal.
+    async fn bound_finish(
+        actor_fut: impl Future<Output = ()>,
+        mut shutdown_rx: broadcast::Receiver<()>,
+        lower_bound_ms: Option<u64>,
+        upper_bound_ms: Option<u64>,
+    ) {
+        let lower_bound =
+            lower_bound_ms.map(|l| time::sleep(Duration::from_millis(l)));
+        let upper_bound =
+            upper_bound_ms.map(|u| time::sleep(Duration::from_millis(u)));
+        tokio::pin!(actor_fut);
+        if let Some(lower) = lower_bound {
+            tokio::select! {
+                () = &mut actor_fut => panic!("Actor finished too quickly"),
+                () = lower => {}
+            }
+        }
+        if let Some(upper) = upper_bound {
+            tokio::select! {
+                () = &mut actor_fut => {}
+                () = upper => panic!("Took too long to finish"),
+            }
+        }
+        shutdown_rx
+            .try_recv()
+            .expect("Should have received shutdown signal");
+    }
+
     /// Case 1: shutdown_after_sync enabled, no activity
     #[tokio::test]
     async fn case_1() {
@@ -157,14 +188,7 @@ mod tests {
         let actor_fut = mats.actor.start();
 
         // Actor should finish instantly
-        let upper_bound = time::sleep(Duration::from_millis(10));
-        tokio::select! {
-            () = actor_fut => {}
-            () = upper_bound => panic!("Should've finished instantly"),
-        }
-        mats.shutdown_rx
-            .try_recv()
-            .expect("Should have received shutdown signal");
+        bound_finish(actor_fut, mats.shutdown_rx, None, Some(10)).await;
     }
 
     /// Case 2: shutdown_after_sync enabled, *with* activity
@@ -180,20 +204,7 @@ mod tests {
         let actor_fut = mats.actor.start();
 
         // Actor should finish at about 1000ms (1 sec)
-        let lower_bound = time::sleep(Duration::from_millis(900));
-        let upper_bound = time::sleep(Duration::from_millis(1100));
-        tokio::pin!(actor_fut);
-        tokio::select! {
-            () = &mut actor_fut => panic!("Actor finished too quickly"),
-            () = lower_bound => {}
-        }
-        tokio::select! {
-            () = &mut actor_fut => {}
-            () = upper_bound => panic!("Took too long to finish"),
-        }
-        mats.shutdown_rx
-            .try_recv()
-            .expect("Should have received shutdown signal");
+        bound_finish(actor_fut, mats.shutdown_rx, Some(900), Some(1100)).await;
     }
 
     /// Case 3: shutdown_after_sync not enabled, no activity
@@ -208,20 +219,7 @@ mod tests {
         let actor_fut = mats.actor.start();
 
         // Actor should finish at about 1000ms (1 sec)
-        let lower_bound = time::sleep(Duration::from_millis(900));
-        let upper_bound = time::sleep(Duration::from_millis(1100));
-        tokio::pin!(actor_fut);
-        tokio::select! {
-            () = &mut actor_fut => panic!("Actor finished too quickly"),
-            () = lower_bound => {}
-        }
-        tokio::select! {
-            () = &mut actor_fut => {}
-            () = upper_bound => panic!("Took too long to finish"),
-        }
-        mats.shutdown_rx
-            .try_recv()
-            .expect("Should have received shutdown signal");
+        bound_finish(actor_fut, mats.shutdown_rx, Some(900), Some(1100)).await;
     }
 
     /// Case 4: shutdown_after_sync not enabled, *with* activity; i.e. the
@@ -244,20 +242,7 @@ mod tests {
         });
 
         // Actor should finish at about 1500ms
-        let lower_bound = time::sleep(Duration::from_millis(1400));
-        let upper_bound = time::sleep(Duration::from_millis(1600));
-        tokio::pin!(actor_fut);
-        tokio::select! {
-            () = &mut actor_fut => panic!("Actor finished too quickly"),
-            () = lower_bound => {}
-        }
-        tokio::select! {
-            () = &mut actor_fut => {}
-            () = upper_bound => panic!("Took too long to finish"),
-        }
-        mats.shutdown_rx
-            .try_recv()
-            .expect("Should have received shutdown signal");
+        bound_finish(actor_fut, mats.shutdown_rx, Some(1400), Some(1600)).await;
     }
 
     /// Case 5: shutdown_after_sync not enabled, *with* activity, *with*
@@ -284,19 +269,6 @@ mod tests {
         });
 
         // Actor should finish at about 750ms despite receiving activity
-        let lower_bound = time::sleep(Duration::from_millis(700));
-        let upper_bound = time::sleep(Duration::from_millis(800));
-        tokio::pin!(actor_fut);
-        tokio::select! {
-            () = &mut actor_fut => panic!("Actor finished too quickly"),
-            () = lower_bound => {}
-        }
-        tokio::select! {
-            () = &mut actor_fut => {}
-            () = upper_bound => panic!("Took too long to finish"),
-        }
-        mats.shutdown_rx
-            .try_recv()
-            .expect("Should have received shutdown signal");
+        bound_finish(actor_fut, mats.shutdown_rx, Some(700), Some(800)).await;
     }
 }
