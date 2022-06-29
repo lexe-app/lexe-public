@@ -283,6 +283,7 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
     println!("Starting inactivity timer");
     let timer_shutdown_rx = shutdown_tx.subscribe();
     let mut inactivity_timer = InactivityTimer::new(
+        args.shutdown_after_sync_if_no_activity,
         args.inactivity_timer_sec,
         activity_rx,
         shutdown_tx,
