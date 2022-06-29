@@ -52,9 +52,10 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
         broadcast::channel(DEFAULT_CHANNEL_SIZE);
 
     // Start warp at the given port
+    let routes = command_server::routes(activity_tx, shutdown_tx.clone());
     tokio::spawn(async move {
         println!("Serving warp at port {}", args.warp_port);
-        warp::serve(command_server::routes(activity_tx))
+        warp::serve(routes)
             .run(([127, 0, 0, 1], args.warp_port))
             .await;
     });

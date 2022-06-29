@@ -13,10 +13,11 @@
 use http::response::Response;
 use http::status::StatusCode;
 use thiserror::Error;
-use tokio::sync::mpsc;
+use tokio::sync::{broadcast, mpsc};
 use warp::hyper::Body;
 use warp::{Filter, Rejection, Reply};
 
+mod inject;
 mod lexe;
 mod owner;
 
@@ -38,11 +39,12 @@ impl Reply for ApiError {
 /// All routes exposed by the command server.
 pub fn routes(
     activity_tx: mpsc::Sender<()>,
+    shutdown_tx: broadcast::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     let root = warp::path::end().map(|| "This is a Lexe user node.");
 
     let owner = owner(activity_tx);
-    let lexe = lexe();
+    let lexe = lexe(shutdown_tx);
 
     // TODO return a 404 not found if no routes were hit
     root.or(lexe).or(owner)
@@ -71,7 +73,9 @@ fn owner(
 }
 
 /// Endpoints that can only be called by Lexe.
-fn lexe() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+fn lexe(
+    shutdown_tx: broadcast::Sender<()>,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     // TODO Add Lexe authentication to this base path
     let lexe = warp::path("lexe");
 
@@ -82,8 +86,7 @@ fn lexe() -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
         .then(lexe::status);
     let shutdown = warp::path("shutdown")
         .and(warp::post())
-        // .and(with_db(db.clone()))
-        // .and(warp::body::json())
+        .and(inject::shutdown_tx(shutdown_tx))
         .then(lexe::shutdown);
 
     lexe.and(status.or(shutdown))
