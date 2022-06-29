@@ -132,7 +132,7 @@ pub async fn handle_event(
                 .await;
             assert!(signed_tx.complete);
             let final_tx: Transaction = encode::deserialize(
-                &hex_utils::to_vec(&signed_tx.hex).unwrap(),
+                &hex_utils::decode(&signed_tx.hex).unwrap(),
             )
             .unwrap();
             // Give the funding transaction back to LDK for opening the channel.
@@ -157,7 +157,7 @@ pub async fn handle_event(
         } => {
             println!(
 				"\nEVENT: received payment from payment hash {} of {} millisatoshis",
-				hex_utils::hex_str(&payment_hash.0),
+				hex_utils::encode(&payment_hash.0),
 				amount_msat,
 			);
             print!("> ");
@@ -177,7 +177,7 @@ pub async fn handle_event(
         } => {
             println!(
 				"\nEVENT: claimed payment from payment hash {} of {} millisatoshis",
-				hex_utils::hex_str(&payment_hash.0),
+				hex_utils::encode(&payment_hash.0),
 				amount_msat,
 			);
             print!("> ");
@@ -232,8 +232,8 @@ pub async fn handle_event(
 						} else {
 							"".to_string()
 						},
-						hex_utils::hex_str(&payment_hash.0),
-						hex_utils::hex_str(&payment_preimage.0)
+						hex_utils::encode(&payment_hash.0),
+						hex_utils::encode(&payment_preimage.0)
 					);
                     print!("> ");
                     io::stdout().flush().unwrap();
@@ -248,7 +248,7 @@ pub async fn handle_event(
         Event::PaymentFailed { payment_hash, .. } => {
             print!(
 				"\nEVENT: Failed to send payment to payment hash {:?}: exhausted payment retry attempts",
-				hex_utils::hex_str(&payment_hash.0)
+				hex_utils::encode(&payment_hash.0)
 			);
             print!("> ");
             io::stdout().flush().unwrap();
@@ -299,7 +299,7 @@ pub async fn handle_event(
                     .map(|channel_id| {
                         format!(
                             " with channel {}",
-                            hex_utils::hex_str(&channel_id)
+                            hex_utils::encode(&channel_id)
                         )
                     })
                     .unwrap_or_default()
@@ -368,7 +368,7 @@ pub async fn handle_event(
         } => {
             println!(
                 "\nEVENT: Channel {} closed due to: {:?}",
-                hex_utils::hex_str(channel_id),
+                hex_utils::encode(channel_id),
                 reason
             );
             print!("> ");

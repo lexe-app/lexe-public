@@ -1,5 +1,7 @@
 //! Managed Lightning Network node that runs in a secure enclave.
 
+#![feature(slice_as_chunks)]
+
 pub mod cli;
 
 mod api;

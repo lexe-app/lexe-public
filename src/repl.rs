@@ -266,7 +266,7 @@ pub(crate) async fn poll_for_user_input<E: EventHandler>(
                         continue;
                     }
                     let channel_id_vec =
-                        hex_utils::to_vec(channel_id_str.unwrap());
+                        hex_utils::decode(channel_id_str.unwrap());
                     if channel_id_vec.is_none()
                         || channel_id_vec.as_ref().unwrap().len() != 32
                     {
@@ -282,7 +282,7 @@ pub(crate) async fn poll_for_user_input<E: EventHandler>(
                         continue;
                     }
                     let peer_pubkey_vec =
-                        match hex_utils::to_vec(peer_pubkey_str.unwrap()) {
+                        match hex_utils::decode(peer_pubkey_str.unwrap()) {
                             Some(peer_pubkey_vec) => peer_pubkey_vec,
                             None => {
                                 println!("ERROR: couldn't parse peer_pubkey");
@@ -311,7 +311,7 @@ pub(crate) async fn poll_for_user_input<E: EventHandler>(
                         continue;
                     }
                     let channel_id_vec =
-                        hex_utils::to_vec(channel_id_str.unwrap());
+                        hex_utils::decode(channel_id_str.unwrap());
                     if channel_id_vec.is_none()
                         || channel_id_vec.as_ref().unwrap().len() != 32
                     {
@@ -327,7 +327,7 @@ pub(crate) async fn poll_for_user_input<E: EventHandler>(
                         continue;
                     }
                     let peer_pubkey_vec =
-                        match hex_utils::to_vec(peer_pubkey_str.unwrap()) {
+                        match hex_utils::decode(peer_pubkey_str.unwrap()) {
                             Some(peer_pubkey_vec) => peer_pubkey_vec,
                             None => {
                                 println!("ERROR: couldn't parse peer_pubkey");
@@ -426,7 +426,7 @@ fn list_channels(
         println!("\t{{");
         println!(
             "\t\tchannel_id: {},",
-            hex_utils::hex_str(&chan_info.channel_id[..])
+            hex_utils::encode(&chan_info.channel_id[..])
         );
         if let Some(funding_txo) = chan_info.funding_txo {
             println!("\t\tfunding_txid: {},", funding_txo.txid);
@@ -434,7 +434,7 @@ fn list_channels(
 
         println!(
             "\t\tpeer_pubkey: {},",
-            hex_utils::hex_str(&chan_info.counterparty.node_id.serialize())
+            hex_utils::encode(&chan_info.counterparty.node_id.serialize())
         );
         if let Some(node_info) = network_graph
             .read_only()
@@ -486,7 +486,7 @@ fn list_payments(
         println!();
         println!("\t{{");
         println!("\t\tamount_millisatoshis: {},", payment_info.amt_msat);
-        println!("\t\tpayment_hash: {},", hex_utils::hex_str(&payment_hash.0));
+        println!("\t\tpayment_hash: {},", hex_utils::encode(&payment_hash.0));
         println!("\t\thtlc_direction: inbound,");
         println!(
             "\t\thtlc_status: {},",
@@ -506,7 +506,7 @@ fn list_payments(
         println!();
         println!("\t{{");
         println!("\t\tamount_millisatoshis: {},", payment_info.amt_msat);
-        println!("\t\tpayment_hash: {},", hex_utils::hex_str(&payment_hash.0));
+        println!("\t\tpayment_hash: {},", hex_utils::encode(&payment_hash.0));
         println!("\t\thtlc_direction: outbound,");
         println!(
             "\t\thtlc_status: {},",
