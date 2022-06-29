@@ -102,3 +102,201 @@ impl InactivityTimer {
         println!("Inactivity timer complete.");
     }
 }
+
+#[cfg(test)]
+mod tests {
+
+    use tokio::sync::{broadcast, mpsc};
+    use tokio::time::{self, Duration};
+
+    use super::*;
+    use crate::init::DEFAULT_CHANNEL_SIZE;
+
+    /// A simple struct that holds all the materials required to test the
+    /// InactivityTimer.
+    struct TestMaterials {
+        actor: InactivityTimer,
+        activity_tx: mpsc::Sender<()>,
+        shutdown_tx: broadcast::Sender<()>,
+        shutdown_rx: broadcast::Receiver<()>,
+    }
+
+    fn get_test_materials(
+        shutdown_after_sync_if_no_activity: bool,
+        inactivity_timer_sec: u64,
+    ) -> TestMaterials {
+        let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
+        let (shutdown_tx, shutdown_rx) =
+            broadcast::channel(DEFAULT_CHANNEL_SIZE);
+        let actor_shutdown_rx = shutdown_tx.subscribe();
+        let actor = InactivityTimer::new(
+            shutdown_after_sync_if_no_activity,
+            inactivity_timer_sec,
+            activity_rx,
+            shutdown_tx.clone(),
+            actor_shutdown_rx,
+        );
+
+        TestMaterials {
+            actor,
+            activity_tx,
+            shutdown_tx,
+            shutdown_rx,
+        }
+    }
+
+    /// Case 1: shutdown_after_sync enabled, no activity
+    #[tokio::test]
+    async fn case_1() {
+        let shutdown_after_sync_if_no_activity = true;
+        let inactivity_timer_sec = 1;
+        let mut mats = get_test_materials(
+            shutdown_after_sync_if_no_activity,
+            inactivity_timer_sec,
+        );
+        let actor_fut = mats.actor.start();
+
+        // Actor should finish instantly
+        let upper_bound = time::sleep(Duration::from_millis(10));
+        tokio::select! {
+            () = actor_fut => {}
+            () = upper_bound => panic!("Should've finished instantly"),
+        }
+        mats.shutdown_rx
+            .try_recv()
+            .expect("Should have received shutdown signal");
+    }
+
+    /// Case 2: shutdown_after_sync enabled, *with* activity
+    #[tokio::test]
+    async fn case_2() {
+        let shutdown_after_sync_if_no_activity = true;
+        let inactivity_timer_sec = 1;
+        let mut mats = get_test_materials(
+            shutdown_after_sync_if_no_activity,
+            inactivity_timer_sec,
+        );
+        let _ = mats.activity_tx.send(()).await;
+        let actor_fut = mats.actor.start();
+
+        // Actor should finish at about 1000ms (1 sec)
+        let lower_bound = time::sleep(Duration::from_millis(900));
+        let upper_bound = time::sleep(Duration::from_millis(1100));
+        tokio::pin!(actor_fut);
+        tokio::select! {
+            () = &mut actor_fut => panic!("Actor finished too quickly"),
+            () = lower_bound => {}
+        }
+        tokio::select! {
+            () = &mut actor_fut => {}
+            () = upper_bound => panic!("Took too long to finish"),
+        }
+        mats.shutdown_rx
+            .try_recv()
+            .expect("Should have received shutdown signal");
+    }
+
+    /// Case 3: shutdown_after_sync not enabled, no activity
+    #[tokio::test]
+    async fn case_3() {
+        let shutdown_after_sync_if_no_activity = false;
+        let inactivity_timer_sec = 1;
+        let mut mats = get_test_materials(
+            shutdown_after_sync_if_no_activity,
+            inactivity_timer_sec,
+        );
+        let actor_fut = mats.actor.start();
+
+        // Actor should finish at about 1000ms (1 sec)
+        let lower_bound = time::sleep(Duration::from_millis(900));
+        let upper_bound = time::sleep(Duration::from_millis(1100));
+        tokio::pin!(actor_fut);
+        tokio::select! {
+            () = &mut actor_fut => panic!("Actor finished too quickly"),
+            () = lower_bound => {}
+        }
+        tokio::select! {
+            () = &mut actor_fut => {}
+            () = upper_bound => panic!("Took too long to finish"),
+        }
+        mats.shutdown_rx
+            .try_recv()
+            .expect("Should have received shutdown signal");
+    }
+
+    /// Case 4: shutdown_after_sync not enabled, *with* activity; i.e. the
+    /// inactivity timer resets
+    #[tokio::test]
+    async fn case_4() {
+        let shutdown_after_sync_if_no_activity = false;
+        let inactivity_timer_sec = 1;
+        let mut mats = get_test_materials(
+            shutdown_after_sync_if_no_activity,
+            inactivity_timer_sec,
+        );
+        let actor_fut = mats.actor.start();
+
+        // Spawn a task to generate an activity event 500ms in
+        let activity_tx = mats.activity_tx.clone();
+        tokio::spawn(async move {
+            time::sleep(Duration::from_millis(500)).await;
+            let _ = activity_tx.send(()).await;
+        });
+
+        // Actor should finish at about 1500ms
+        let lower_bound = time::sleep(Duration::from_millis(1400));
+        let upper_bound = time::sleep(Duration::from_millis(1600));
+        tokio::pin!(actor_fut);
+        tokio::select! {
+            () = &mut actor_fut => panic!("Actor finished too quickly"),
+            () = lower_bound => {}
+        }
+        tokio::select! {
+            () = &mut actor_fut => {}
+            () = upper_bound => panic!("Took too long to finish"),
+        }
+        mats.shutdown_rx
+            .try_recv()
+            .expect("Should have received shutdown signal");
+    }
+
+    /// Case 5: shutdown_after_sync not enabled, *with* activity, *with*
+    /// shutdown signal. The shutdown signal should take precedence over the
+    /// activity timer
+    #[tokio::test]
+    async fn case_5() {
+        let shutdown_after_sync_if_no_activity = false;
+        let inactivity_timer_sec = 1;
+        let mut mats = get_test_materials(
+            shutdown_after_sync_if_no_activity,
+            inactivity_timer_sec,
+        );
+        let actor_fut = mats.actor.start();
+
+        // Spawn a task to generate an activity event 500ms in and a shutdown
+        // signal 750ms in
+        let activity_tx = mats.activity_tx.clone();
+        tokio::spawn(async move {
+            time::sleep(Duration::from_millis(500)).await;
+            let _ = activity_tx.send(()).await;
+            time::sleep(Duration::from_millis(250)).await;
+            let _ = mats.shutdown_tx.send(());
+        });
+
+        // Actor should finish at about 750ms despite receiving activity
+        let lower_bound = time::sleep(Duration::from_millis(700));
+        let upper_bound = time::sleep(Duration::from_millis(800));
+        tokio::pin!(actor_fut);
+        tokio::select! {
+            () = &mut actor_fut => panic!("Actor finished too quickly"),
+            () = lower_bound => {}
+        }
+        tokio::select! {
+            () = &mut actor_fut => {}
+            () = upper_bound => panic!("Took too long to finish"),
+        }
+        mats.shutdown_rx
+            .try_recv()
+            .expect("Should have received shutdown signal");
+    }
+}

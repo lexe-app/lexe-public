@@ -43,7 +43,7 @@ use crate::types::{
 };
 use crate::{command_server, convert, repl};
 
-const DEFAULT_CHANNEL_SIZE: usize = 256;
+pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 
 pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
     let network = args.network.into_inner();
