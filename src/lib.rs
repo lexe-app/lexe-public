@@ -9,7 +9,7 @@ mod attest;
 mod bitcoind_client;
 mod convert;
 mod event_handler;
-mod hex_utils;
+mod hex;
 mod init;
 mod logger;
 mod persister;
