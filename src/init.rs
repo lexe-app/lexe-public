@@ -46,20 +46,6 @@ use crate::{command_server, convert, repl};
 const DEFAULT_CHANNEL_SIZE: usize = 256;
 
 pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
-    // Init channels
-    let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
-    let (shutdown_tx, mut shutdown_rx) =
-        broadcast::channel(DEFAULT_CHANNEL_SIZE);
-
-    // Start warp at the given port
-    let routes = command_server::routes(activity_tx, shutdown_tx.clone());
-    tokio::spawn(async move {
-        println!("Serving warp at port {}", args.warp_port);
-        warp::serve(routes)
-            .run(([127, 0, 0, 1], args.warp_port))
-            .await;
-    });
-
     let network = args.network.into_inner();
 
     // Initialize the Logger
@@ -149,6 +135,35 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
         peer_manager.clone(),
     );
 
+    // Init Tokio channels
+    let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
+    let (shutdown_tx, mut shutdown_rx) =
+        broadcast::channel(DEFAULT_CHANNEL_SIZE);
+
+    // Start warp at the given port
+    let routes = command_server::routes(
+        channel_manager.clone(),
+        peer_manager.clone(),
+        activity_tx,
+        shutdown_tx.clone(),
+    );
+    tokio::spawn(async move {
+        println!("Serving warp at port {}", args.warp_port);
+        warp::serve(routes)
+            .run(([127, 0, 0, 1], args.warp_port))
+            .await;
+    });
+
+    // Let the runner know that we're ready
+    let user_port = UserPort {
+        user_id,
+        port: args.warp_port,
+    };
+    println!("Node is ready to accept commands; notifying runner");
+    api::notify_runner(&client, user_port)
+        .await
+        .context("Could not notify runner of ready status")?;
+
     // Initialize the event handler
     // TODO: persist payment info
     let inbound_payments: PaymentInfoStorageType =
@@ -200,16 +215,6 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
         stop_listen_connect.clone(),
         persister.clone(),
     );
-
-    // Let the runner know that we're ready
-    let user_port = UserPort {
-        user_id,
-        port: args.warp_port,
-    };
-    println!("Node is ready to accept commands; notifying runner");
-    api::notify_runner(&client, user_port)
-        .await
-        .context("Could not notify runner of ready status")?;
 
     // ## Sync
 

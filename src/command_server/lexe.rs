@@ -5,7 +5,7 @@ use crate::command_server::ApiError;
 
 pub async fn status() -> Result<impl Reply, ApiError> {
     // TODO Implement
-    Ok(String::from("Status"))
+    Ok(String::from("OK"))
 }
 
 pub async fn shutdown(

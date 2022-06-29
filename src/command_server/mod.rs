@@ -10,12 +10,16 @@
 //! TODO Implement owner authentication
 //! TODO Implement authentication of Lexe
 
+use std::sync::Arc;
+
 use http::response::Response;
 use http::status::StatusCode;
 use thiserror::Error;
 use tokio::sync::{broadcast, mpsc};
 use warp::hyper::Body;
 use warp::{Filter, Rejection, Reply};
+
+use crate::types::{ChannelManagerType, PeerManagerType};
 
 mod inject;
 mod lexe;
@@ -34,16 +38,16 @@ impl Reply for ApiError {
     }
 }
 
-// TODO(max): Write a decorater that injects channel manager, peer manager, etc
-
 /// All routes exposed by the command server.
 pub fn routes(
+    channel_manager: Arc<ChannelManagerType>,
+    peer_manager: Arc<PeerManagerType>,
     activity_tx: mpsc::Sender<()>,
     shutdown_tx: broadcast::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     let root = warp::path::end().map(|| "This is a Lexe user node.");
 
-    let owner = owner(activity_tx);
+    let owner = owner(channel_manager, peer_manager, activity_tx);
     let lexe = lexe(shutdown_tx);
 
     // TODO return a 404 not found if no routes were hit
@@ -52,6 +56,8 @@ pub fn routes(
 
 /// Endpoints that can only be called by the node owner.
 fn owner(
+    channel_manager: Arc<ChannelManagerType>,
+    peer_manager: Arc<PeerManagerType>,
     activity_tx: mpsc::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     // TODO Add owner authentication to this base path
@@ -65,8 +71,8 @@ fn owner(
 
     let node_info = warp::path("node_info")
         .and(warp::get())
-        // .and(with_db(db.clone()))
-        // .and(warp::query())
+        .and(inject::channel_manager(channel_manager))
+        .and(inject::peer_manager(peer_manager))
         .then(owner::node_info);
 
     owner.and(node_info)
