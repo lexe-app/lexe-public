@@ -13,6 +13,10 @@ fn decode_nibble(x: u8) -> Option<u8> {
 }
 
 fn decode_to_slice_inner(hex_chunks: &[[u8; 2]], out: &mut [u8]) -> Option<()> {
+    if hex_chunks.len() != out.len() {
+        return None;
+    }
+
     for (&[c_hi, c_lo], out_i) in hex_chunks.iter().zip(out) {
         let b_hi = decode_nibble(c_hi)?;
         let b_lo = decode_nibble(c_lo)?;
