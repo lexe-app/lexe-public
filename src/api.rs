@@ -40,7 +40,7 @@ enum ApiVersion {
 impl Display for ApiVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self {
-            &V1 => write!(f, "v1"),
+            &V1 => write!(f, "/v1"),
         }
     }
 }
