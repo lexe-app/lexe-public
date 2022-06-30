@@ -83,7 +83,7 @@ impl InactivityTimer {
                     match activity_opt {
                         Some(()) => {
                             println!(
-                                "Inactivity timer received activity, resetting"
+                                "Received activity event, resetting"
                             );
                             timer.as_mut().reset(Instant::now() + self.duration);
                         }
@@ -99,7 +99,7 @@ impl InactivityTimer {
                 }
             }
         }
-        println!("Inactivity timer complete.");
+        println!("Inactivity timer finished.");
     }
 }
 
@@ -177,7 +177,7 @@ mod tests {
     }
 
     /// Case 1: shutdown_after_sync enabled, no activity
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn case_1() {
         let shutdown_after_sync_if_no_activity = true;
         let inactivity_timer_sec = 1;
@@ -188,11 +188,11 @@ mod tests {
         let actor_fut = mats.actor.start();
 
         // Actor should finish instantly
-        bound_finish(actor_fut, mats.shutdown_rx, None, Some(10)).await;
+        bound_finish(actor_fut, mats.shutdown_rx, None, Some(1)).await;
     }
 
     /// Case 2: shutdown_after_sync enabled, *with* activity
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn case_2() {
         let shutdown_after_sync_if_no_activity = true;
         let inactivity_timer_sec = 1;
@@ -203,12 +203,12 @@ mod tests {
         let _ = mats.activity_tx.send(()).await;
         let actor_fut = mats.actor.start();
 
-        // Actor should finish at about 1000ms (1 sec)
-        bound_finish(actor_fut, mats.shutdown_rx, Some(900), Some(1100)).await;
+        // Actor should finish at 1000ms (1 sec)
+        bound_finish(actor_fut, mats.shutdown_rx, Some(999), Some(1001)).await;
     }
 
     /// Case 3: shutdown_after_sync not enabled, no activity
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn case_3() {
         let shutdown_after_sync_if_no_activity = false;
         let inactivity_timer_sec = 1;
@@ -219,12 +219,12 @@ mod tests {
         let actor_fut = mats.actor.start();
 
         // Actor should finish at about 1000ms (1 sec)
-        bound_finish(actor_fut, mats.shutdown_rx, Some(900), Some(1100)).await;
+        bound_finish(actor_fut, mats.shutdown_rx, Some(999), Some(1001)).await;
     }
 
     /// Case 4: shutdown_after_sync not enabled, *with* activity; i.e. the
     /// inactivity timer resets
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn case_4() {
         let shutdown_after_sync_if_no_activity = false;
         let inactivity_timer_sec = 1;
@@ -242,13 +242,13 @@ mod tests {
         });
 
         // Actor should finish at about 1500ms
-        bound_finish(actor_fut, mats.shutdown_rx, Some(1400), Some(1600)).await;
+        bound_finish(actor_fut, mats.shutdown_rx, Some(1499), Some(1501)).await;
     }
 
     /// Case 5: shutdown_after_sync not enabled, *with* activity, *with*
     /// shutdown signal. The shutdown signal should take precedence over the
     /// activity timer
-    #[tokio::test]
+    #[tokio::test(start_paused = true)]
     async fn case_5() {
         let shutdown_after_sync_if_no_activity = false;
         let inactivity_timer_sec = 1;
@@ -269,6 +269,6 @@ mod tests {
         });
 
         // Actor should finish at about 750ms despite receiving activity
-        bound_finish(actor_fut, mats.shutdown_rx, Some(700), Some(800)).await;
+        bound_finish(actor_fut, mats.shutdown_rx, Some(749), Some(751)).await;
     }
 }
