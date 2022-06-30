@@ -87,6 +87,7 @@ warp = { git = "https://github.com/lexe-tech/warp", branch = "reply-for-result",
 # Use the specific patched versions
 hyper = "=0.14.18"
 mio = "=0.7.6"
+ring = "=0.16.20"
 tokio = { version = "=1.15.0", default-features = false, features = [
     "io-util",
     "macros",
@@ -106,6 +107,8 @@ sgx-isa = "=0.4.0"
 pretty-hex = "0.3"
 # property based testing
 proptest = { version = "1", default-features = false, features = ["alloc"] }
+# Arbitrary derive macro
+proptest-derive = "0.3"
 
 tokio = { version = "=1.15.0", default-features = false, features = [
     "io-util",
@@ -116,6 +119,9 @@ tokio = { version = "=1.15.0", default-features = false, features = [
     "test-util", # Used to pause time in inactivity_timer::tests
     "time"
 ] }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+proptest = "1"
 
 # [target.'cfg(target_env = "sgx")'.dev-dependencies]
 # proptest = { version = "1", default-features = false, features = ["alloc", "harware-rng"] }
@@ -139,5 +145,5 @@ threads=7
 [profile.release]
 panic = "abort"
 
-[profile.dev]
-panic = "abort"
+# [profile.dev]
+# panic = "abort"
