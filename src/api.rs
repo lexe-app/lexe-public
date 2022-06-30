@@ -1,4 +1,5 @@
 use std::env;
+use std::fmt::{self, Display};
 
 use http::Method;
 use once_cell::sync::{Lazy, OnceCell};
@@ -6,6 +7,7 @@ use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use ApiVersion::*;
 use BaseUrl::*;
 
 use crate::types::{Port, UserId};
@@ -14,14 +16,14 @@ use crate::types::{Port, UserId};
 /// Can be overridden with BACKEND_URL env var.
 static BACKEND_URL: Lazy<OnceCell<String>> = Lazy::new(|| {
     env::var("BACKEND_URL")
-        .unwrap_or("http://127.0.0.1:3030/v1".to_string())
+        .unwrap_or_else(|_e| "http://127.0.0.1:3030".to_string())
         .into()
 });
 
 /// The base url for the runner. Can be overridden with RUNNER_URL env var.
 static RUNNER_URL: Lazy<OnceCell<String>> = Lazy::new(|| {
     env::var("RUNNER_URL")
-        .unwrap_or("http://127.0.0.1:5050".to_string())
+        .unwrap_or_else(|_e| "http://127.0.0.1:5050".to_string())
         .into()
 });
 
@@ -29,6 +31,18 @@ static RUNNER_URL: Lazy<OnceCell<String>> = Lazy::new(|| {
 enum BaseUrl {
     Backend,
     Runner,
+}
+
+enum ApiVersion {
+    V1,
+}
+
+impl Display for ApiVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self {
+            &V1 => write!(f, "v1"),
+        }
+    }
 }
 
 #[derive(Error, Debug)]
@@ -78,7 +92,8 @@ pub async fn get_node(
     cli: &Client,
     user_id: UserId,
 ) -> Result<Option<Node>, ApiError> {
-    request(cli, Method::GET, Backend, "/node", GetByUserId { user_id }).await
+    let req = GetByUserId { user_id };
+    request(cli, Method::GET, Backend, V1, "/node", req).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -97,7 +112,7 @@ pub async fn get_instance(
         user_id,
         measurement,
     };
-    request(cli, Method::GET, Backend, "/instance", req).await
+    request(cli, Method::GET, Backend, V1, "/instance", req).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -116,7 +131,7 @@ pub async fn get_enclave(
         user_id,
         measurement,
     };
-    request(cli, Method::GET, Backend, "/enclave", req).await
+    request(cli, Method::GET, Backend, V1, "/enclave", req).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -131,7 +146,7 @@ pub async fn create_node_instance_enclave(
     req: NodeInstanceEnclave,
 ) -> Result<NodeInstanceEnclave, ApiError> {
     let endpoint = "/acid/node_instance_enclave";
-    request(cli, Method::POST, Backend, endpoint, req).await
+    request(cli, Method::POST, Backend, V1, endpoint, req).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -146,7 +161,7 @@ pub async fn create_channel_monitor(
     cli: &Client,
     req: ChannelMonitor,
 ) -> Result<ChannelMonitor, ApiError> {
-    request(cli, Method::POST, Backend, "/channel_monitor", req).await
+    request(cli, Method::POST, Backend, V1, "/channel_monitor", req).await
 }
 
 pub async fn get_channel_monitors(
@@ -154,14 +169,14 @@ pub async fn get_channel_monitors(
     instance_id: String,
 ) -> Result<Vec<ChannelMonitor>, ApiError> {
     let req = GetByInstanceId { instance_id };
-    request(cli, Method::GET, Backend, "/channel_monitor", req).await
+    request(cli, Method::GET, Backend, V1, "/channel_monitor", req).await
 }
 
 pub async fn update_channel_monitor(
     cli: &Client,
     req: ChannelMonitor,
 ) -> Result<ChannelMonitor, ApiError> {
-    request(cli, Method::PUT, Backend, "/channel_monitor", req).await
+    request(cli, Method::PUT, Backend, V1, "/channel_monitor", req).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -175,14 +190,14 @@ pub async fn get_channel_manager(
     instance_id: String,
 ) -> Result<Option<ChannelManager>, ApiError> {
     let req = GetByInstanceId { instance_id };
-    request(cli, Method::GET, Backend, "/channel_manager", req).await
+    request(cli, Method::GET, Backend, V1, "/channel_manager", req).await
 }
 
 pub async fn create_or_update_channel_manager(
     cli: &Client,
     req: ChannelManager,
 ) -> Result<ChannelManager, ApiError> {
-    request(cli, Method::PUT, Backend, "/channel_manager", req).await
+    request(cli, Method::PUT, Backend, V1, "/channel_manager", req).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -196,14 +211,14 @@ pub async fn get_probabilistic_scorer(
     instance_id: String,
 ) -> Result<Option<ProbabilisticScorer>, ApiError> {
     let req = GetByInstanceId { instance_id };
-    request(cli, Method::GET, Backend, "/probabilistic_scorer", req).await
+    request(cli, Method::GET, Backend, V1, "/probabilistic_scorer", req).await
 }
 
 pub async fn create_or_update_probabilistic_scorer(
     cli: &Client,
     ps: ProbabilisticScorer,
 ) -> Result<ProbabilisticScorer, ApiError> {
-    request(cli, Method::PUT, Backend, "/probabilistic_scorer", ps).await
+    request(cli, Method::PUT, Backend, V1, "/probabilistic_scorer", ps).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -217,14 +232,14 @@ pub async fn get_network_graph(
     instance_id: String,
 ) -> Result<Option<NetworkGraph>, ApiError> {
     let req = GetByInstanceId { instance_id };
-    request(cli, Method::GET, Backend, "/network_graph", req).await
+    request(cli, Method::GET, Backend, V1, "/network_graph", req).await
 }
 
 pub async fn create_or_update_network_graph(
     cli: &Client,
     ng: NetworkGraph,
 ) -> Result<NetworkGraph, ApiError> {
-    request(cli, Method::PUT, Backend, "/network_graph", ng).await
+    request(cli, Method::PUT, Backend, V1, "/network_graph", ng).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -236,9 +251,9 @@ pub struct ChannelPeer {
 
 pub async fn create_channel_peer(
     cli: &Client,
-    channel_peer: ChannelPeer,
+    req: ChannelPeer,
 ) -> Result<ChannelPeer, ApiError> {
-    request(cli, Method::POST, Backend, "/channel_peer", channel_peer).await
+    request(cli, Method::POST, Backend, V1, "/channel_peer", req).await
 }
 
 pub async fn get_channel_peers(
@@ -246,7 +261,7 @@ pub async fn get_channel_peers(
     instance_id: String,
 ) -> Result<Vec<ChannelPeer>, ApiError> {
     let req = GetByInstanceId { instance_id };
-    request(cli, Method::GET, Backend, "/channel_peer", req).await
+    request(cli, Method::GET, Backend, V1, "/channel_peer", req).await
 }
 
 #[derive(Serialize, Deserialize)]
@@ -259,7 +274,7 @@ pub async fn notify_runner(
     cli: &Client,
     req: UserPort,
 ) -> Result<UserPort, ApiError> {
-    request(cli, Method::POST, Runner, "/ready", req).await
+    request(cli, Method::POST, Runner, V1, "/ready", req).await
 }
 
 /// Builds and executes the API request
@@ -267,14 +282,16 @@ async fn request<D: Serialize, T: DeserializeOwned>(
     cli: &Client,
     method: Method,
     base_url: BaseUrl,
+    api_version: ApiVersion,
     endpoint: &str,
     data: D,
 ) -> Result<T, ApiError> {
-    let base = match base_url {
-        BaseUrl::Backend => BACKEND_URL.get().unwrap(),
-        BaseUrl::Runner => RUNNER_URL.get().unwrap(),
+    // Node backend api is versioned but runner api is not
+    let (base, version) = match base_url {
+        Backend => (BACKEND_URL.get().unwrap(), api_version.to_string()),
+        Runner => (RUNNER_URL.get().unwrap(), String::new()),
     };
-    let mut url = format!("{}{}", base, endpoint);
+    let mut url = format!("{}{}{}", base, version, endpoint);
 
     // If GET, serialize the data in a query string
     let query_str = match method {

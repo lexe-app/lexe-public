@@ -22,6 +22,14 @@ $ curl --proto '=https' --tlsv1.3 -sSf https://sh.rustup.rs | bash
 # modify PATH variable: yes
 ```
 
+The urls of the node backend (persistence api) and runner can be specified using
+environment variables. The variables and defaults are as follows:
+
+```bash
+BACKEND_URL=http://127.0.0.1:3030
+RUNNER_URL=http://127.0.0.1:5050
+```
+
 Build and test locally. This runs on non-SGX hardware and simulates some of
 the SGX enclave environment.
 
@@ -39,7 +47,7 @@ $ cargo test
 
 # TODO(phlip9): better example here. include bitcoind setup.
 # Run the node locally
-$ cargo run -- user:pass@<bitcoind-host>:<bitcoind-port> \
+$ cargo run -- start user:pass@<bitcoind-host>:<bitcoind-port> \
     [--peer-port <peer-port>] \
     [--announced-node-name <announced-node-name>] \
     [--network mainnet|testnet|regtest|signet] \
