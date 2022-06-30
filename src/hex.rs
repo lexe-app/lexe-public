@@ -42,8 +42,6 @@ fn decode_to_slice_inner(
     Ok(())
 }
 
-// TODO(phlip9): need a constant time hex decode for deserializing secrets...
-
 fn hex_str_to_chunks(hex: &str) -> Result<&[[u8; 2]], DecodeError> {
     let (hex_chunks, extra) = hex.as_bytes().as_chunks::<2>();
     if extra.is_empty() {
@@ -62,6 +60,16 @@ pub fn decode(hex: &str) -> Result<Vec<u8>, DecodeError> {
 pub fn decode_to_slice(hex: &str, out: &mut [u8]) -> Result<(), DecodeError> {
     let hex_chunks = hex_str_to_chunks(hex)?;
     decode_to_slice_inner(hex_chunks, out)
+}
+
+/// Decode a hex string into an output buffer in constant time.
+/// This prevents leakage of e.g. # of digits vs # abcdef.
+pub fn decode_to_slice_ct(
+    hex: &str,
+    out: &mut [u8],
+) -> Result<(), DecodeError> {
+    // TODO(phlip9): make this actually constant time
+    decode_to_slice(hex, out)
 }
 
 pub fn encode(bytes: &[u8]) -> String {

@@ -17,6 +17,7 @@ use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_rapid_gossip_sync::RapidGossipSync;
+use serde::{de, Deserialize, Deserializer};
 use subtle::ConstantTimeEq;
 
 use crate::bitcoind_client::BitcoindClient;
@@ -145,6 +146,9 @@ pub struct Network(bitcoin::Network);
 
 #[derive(Clone)]
 pub struct AuthToken([u8; Self::LENGTH]);
+
+/// The user's root seed from which we derive all child secrets.
+pub struct RootSeed([u8; Self::LENGTH]);
 
 // -- impl BitcoindRpcInfo -- //
 
@@ -298,7 +302,7 @@ impl FromStr for AuthToken {
 
     fn from_str(hex: &str) -> Result<Self, Self::Err> {
         let mut bytes = [0u8; Self::LENGTH];
-        hex::decode_to_slice(hex, bytes.as_mut_slice())
+        hex::decode_to_slice_ct(hex, bytes.as_mut_slice())
             .map(|()| Self::new(bytes))
     }
 }
@@ -307,6 +311,90 @@ impl fmt::Debug for AuthToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Avoid formatting secrets.
         f.write_str("AuthToken(..)")
+    }
+}
+
+// -- impl RootSeed -- //
+
+// TODO(phlip9): zeroize on drop
+
+impl RootSeed {
+    pub const LENGTH: usize = 32;
+
+    pub fn new(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    #[cfg(test)]
+    fn as_bytes(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+}
+
+impl FromStr for RootSeed {
+    type Err = hex::DecodeError;
+
+    fn from_str(hex: &str) -> Result<Self, Self::Err> {
+        let mut bytes = [0u8; Self::LENGTH];
+        hex::decode_to_slice_ct(hex, bytes.as_mut_slice())
+            .map(|()| Self::new(bytes))
+    }
+}
+
+impl fmt::Debug for RootSeed {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Avoid formatting secrets.
+        f.write_str("RootSeed(..)")
+    }
+}
+
+impl TryFrom<&[u8]> for RootSeed {
+    type Error = anyhow::Error;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        if bytes.len() != Self::LENGTH {
+            return Err(format_err!("input must be {} bytes", Self::LENGTH));
+        }
+        let mut out = [0u8; 32];
+        out[..].copy_from_slice(bytes);
+        Ok(Self::new(out))
+    }
+}
+
+struct RootSeedVisitor;
+
+impl<'de> de::Visitor<'de> for RootSeedVisitor {
+    type Value = RootSeed;
+
+    fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        f.write_str("hex-encoded RootSeed or raw bytes")
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        RootSeed::from_str(v).map_err(serde::de::Error::custom)
+    }
+
+    fn visit_bytes<E>(self, b: &[u8]) -> Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        RootSeed::try_from(b).map_err(de::Error::custom)
+    }
+}
+
+impl<'de> Deserialize<'de> for RootSeed {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        if deserializer.is_human_readable() {
+            deserializer.deserialize_str(RootSeedVisitor)
+        } else {
+            deserializer.deserialize_bytes(RootSeedVisitor)
+        }
     }
 }
 
@@ -333,5 +421,39 @@ mod test {
         let actual =
             NodeAlias::from_str("hello, world - this is lexe").unwrap();
         assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn test_root_seed_serde() {
+        let input =
+            "7f83b1657ff1fc53b92dc18148a1d65dfc2d4b1fa3d677284addd200126d9069";
+        let input_json = format!("\"{input}\"");
+        let seed_bytes = hex::decode(input).unwrap();
+
+        let seed = RootSeed::from_str(input).unwrap();
+        assert_eq!(seed.as_bytes(), &seed_bytes);
+
+        let seed2: RootSeed = serde_json::from_str(&input_json).unwrap();
+        assert_eq!(seed2.as_bytes(), &seed_bytes);
+
+        #[derive(Deserialize)]
+        struct Foo {
+            x: u32,
+            seed: RootSeed,
+            y: String,
+        }
+
+        let foo_json = format!(
+            "{{\n\
+            \"x\": 123,\n\
+            \"seed\": \"{input}\",\n\
+            \"y\": \"asdf\"\n\
+        }}"
+        );
+
+        let foo2: Foo = serde_json::from_str(&foo_json).unwrap();
+        assert_eq!(foo2.x, 123);
+        assert_eq!(foo2.seed.as_bytes(), &seed_bytes);
+        assert_eq!(foo2.y, "asdf");
     }
 }
