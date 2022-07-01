@@ -73,6 +73,8 @@ serde_json = "1"
 bytemuck = { version = "1.9.1", default-features = false, features = ["derive", "min_const_generics"] }
 # Constant-time comparisons
 subtle = { version = "2.4", default-features = false }
+# A wrapper type for carefully handling secrets
+secrecy = "0.8"
 
 # ---MAJOR DEPENDENCIES--- #
 

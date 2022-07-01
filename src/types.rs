@@ -21,8 +21,7 @@ use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_rapid_gossip_sync::RapidGossipSync;
-#[cfg(test)]
-use proptest_derive::Arbitrary;
+use secrecy::{ExposeSecret, Secret, SecretVec};
 use serde::{de, Deserialize, Deserializer};
 use subtle::ConstantTimeEq;
 
@@ -154,8 +153,7 @@ pub struct Network(bitcoin::Network);
 pub struct AuthToken([u8; Self::LENGTH]);
 
 /// The user's root seed from which we derive all child secrets.
-#[cfg_attr(test, derive(Arbitrary))]
-pub struct RootSeed([u8; Self::LENGTH]);
+pub struct RootSeed(Secret<[u8; Self::LENGTH]>);
 
 // -- impl BitcoindRpcInfo -- //
 
@@ -328,31 +326,32 @@ impl fmt::Debug for AuthToken {
 impl RootSeed {
     pub const LENGTH: usize = 32;
 
+    /// An HKDF can't extract more than `255 * hash_output_size` bytes for a
+    /// single secret.
     const HKDF_MAX_OUT_LEN: usize = 8160 /* 255*32 */;
 
     /// The HKDF domain separation value as a human-readable byte string.
     #[cfg(test)]
-    const HKDF_SALT_STR: &'static [u8] = b"LEXE-HASH-REALM";
+    const HKDF_SALT_STR: &'static [u8] = b"LEXE-HASH-REALM::RootSeed";
 
     /// We salt the HKDF for domain separation purposes. The raw bytes here are
-    /// equal to the hash value: `SHA-256(b"LEXE-HASH-REALM")`.
+    /// equal to the hash value: `SHA-256(b"LEXE-HASH-REALM::RootSeed")`.
     const HKDF_SALT: [u8; 32] = [
-        0x8a, 0x7a, 0xb4, 0x24, 0x5b, 0xfe, 0xf4, 0x52, 0x28, 0xcf, 0x9a, 0xe1,
-        0xb7, 0x66, 0xce, 0x07, 0x40, 0x2a, 0xfe, 0x4e, 0x67, 0xba, 0xdf, 0xf9,
-        0xa9, 0x66, 0x6f, 0x77, 0xef, 0x56, 0xf7, 0xad,
+        0x36, 0x3b, 0x11, 0x6b, 0xe1, 0x69, 0x0f, 0xcd, 0x48, 0x1f, 0x2d, 0x40,
+        0x14, 0x81, 0x2a, 0xae, 0xcf, 0xf2, 0x41, 0x1b, 0x86, 0x11, 0x98, 0xee,
+        0xc4, 0x2c, 0x6e, 0x31, 0xd8, 0x0a, 0x28, 0xa4,
     ];
 
-    pub fn new(bytes: [u8; 32]) -> Self {
+    pub fn new(bytes: Secret<[u8; Self::LENGTH]>) -> Self {
         Self(bytes)
     }
 
-    fn hkdf(&self) -> ring::hkdf::Prk {
-        // TODO(phlip9): docs claim this is expensive. bench?
+    fn extract(&self) -> ring::hkdf::Prk {
         let salted_hkdf = ring::hkdf::Salt::new(
             ring::hkdf::HKDF_SHA256,
             Self::HKDF_SALT.as_slice(),
         );
-        salted_hkdf.extract(self.0.as_slice())
+        salted_hkdf.extract(self.0.expose_secret().as_slice())
     }
 
     /// Derive a new child secret with `label` into a prepared buffer `out`.
@@ -369,24 +368,31 @@ impl RootSeed {
 
         let label = &[label];
 
-        self.hkdf()
+        self.extract()
             .expand(label, OkmLength(out.len()))
             .expect("should not fail")
             .fill(out)
             .expect("should not fail")
     }
 
+    /// Derive a new child secret with `label` to a hash-output-sized buffer.
+    pub fn derive(&self, label: &[u8]) -> Secret<[u8; 32]> {
+        let mut out = [0u8; 32];
+        self.derive_to_slice(label, &mut out);
+        Secret::new(out)
+    }
+
     /// Convenience method to derive a new child secret with `label` into a
     /// `Vec<u8>` of size `out_len`.
-    pub fn derive_vec(&self, label: &[u8], out_len: usize) -> Vec<u8> {
+    pub fn derive_vec(&self, label: &[u8], out_len: usize) -> SecretVec<u8> {
         let mut out = vec![0u8; out_len];
         self.derive_to_slice(label, &mut out);
-        out
+        SecretVec::new(out)
     }
 
     #[cfg(test)]
     fn as_bytes(&self) -> &[u8] {
-        self.0.as_slice()
+        self.0.expose_secret().as_slice()
     }
 }
 
@@ -396,7 +402,7 @@ impl FromStr for RootSeed {
     fn from_str(hex: &str) -> Result<Self, Self::Err> {
         let mut bytes = [0u8; Self::LENGTH];
         hex::decode_to_slice_ct(hex, bytes.as_mut_slice())
-            .map(|()| Self::new(bytes))
+            .map(|()| Self::new(Secret::new(bytes)))
     }
 }
 
@@ -414,9 +420,9 @@ impl TryFrom<&[u8]> for RootSeed {
         if bytes.len() != Self::LENGTH {
             return Err(format_err!("input must be {} bytes", Self::LENGTH));
         }
-        let mut out = [0u8; 32];
+        let mut out = [0u8; Self::LENGTH];
         out[..].copy_from_slice(bytes);
-        Ok(Self::new(out))
+        Ok(Self::new(Secret::new(out)))
     }
 }
 
@@ -458,6 +464,20 @@ impl<'de> Deserialize<'de> for RootSeed {
 }
 
 #[cfg(test)]
+impl proptest::arbitrary::Arbitrary for RootSeed {
+    type Strategy = proptest::strategy::BoxedStrategy<Self>;
+    type Parameters = ();
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        use proptest::strategy::Strategy;
+
+        proptest::arbitrary::any::<[u8; 32]>()
+            .prop_map(|buf| Self::new(Secret::new(buf)))
+            .boxed()
+    }
+}
+
+#[cfg(test)]
 mod test {
     use proptest::arbitrary::any;
     use proptest::collection::vec;
@@ -472,6 +492,7 @@ mod test {
         ring::digest::digest(&ring::digest::SHA256, input)
     }
 
+    // an inefficient impl of HMAC-SHA256 for equivalence testing
     fn hmac_sha256(key: &[u8], msg: &[u8]) -> Digest {
         let h_key = sha256(key);
         let mut zero_pad_key = [0u8; 64];
@@ -511,6 +532,7 @@ mod test {
         sha256(&m_o)
     }
 
+    // an inefficient impl of HKDF-SHA256 for equivalence testing
     fn hkdf_sha256(
         ikm: &[u8],
         salt: &[u8],
@@ -525,7 +547,7 @@ mod test {
         let n = u8::try_from(n).expect("out_len too large");
 
         // T := T(1) | T(2) | .. | T(N)
-        // T(0) := [0; 32]
+        // T(0) := b"" (empty byte string)
         // T(i+1) := hmac_sha256(prk, T(i) || info || [ i+1 ])
 
         let mut t_i = [0u8; 32];
@@ -607,20 +629,44 @@ mod test {
     }
     #[test]
     fn test_root_seed_hkdf_salt() {
-        let salt = sha256(RootSeed::HKDF_SALT_STR);
-        assert_eq!(salt.as_ref(), RootSeed::HKDF_SALT.as_slice());
+        let actual = RootSeed::HKDF_SALT.as_slice();
+        let expected = sha256(RootSeed::HKDF_SALT_STR);
+
+        // // print out salt
+        // let hex = hex::encode(expected.as_ref());
+        // let (chunks, _) = hex.as_bytes().as_chunks::<2>();
+        // for &[hi, lo] in chunks {
+        //     let hi = hi as char;
+        //     let lo = lo as char;
+        //     println!("0x{hi}{lo},");
+        // }
+
+        // compare hex encode for easier debugging
+        assert_eq!(hex::encode(actual), hex::encode(expected.as_ref()),);
     }
 
     #[test]
     fn test_root_seed_derive() {
-        let seed = RootSeed::new([0x42; 32]);
+        let seed = RootSeed::new(Secret::new([0x42; 32]));
 
         let out8 = seed.derive_vec(b"very cool secret", 8);
         let out16 = seed.derive_vec(b"very cool secret", 16);
-        assert_eq!("4c0310264a33a190", hex::encode(&out8));
-        assert_eq!("4c0310264a33a190ae3620e12cc465c8", hex::encode(&out16));
+        let out32 = seed.derive_vec(b"very cool secret", 32);
+        let out32_2 = seed.derive(b"very cool secret");
+
+        assert_eq!("49fb6bebcd2acb22", hex::encode(out8.expose_secret()));
+        assert_eq!(
+            "49fb6bebcd2acb223a802f726bd5159d",
+            hex::encode(out16.expose_secret())
+        );
+        assert_eq!(
+            "49fb6bebcd2acb223a802f726bd5159d4c982732c550c698aa0558f95575e8c1",
+            hex::encode(out32.expose_secret())
+        );
+        assert_eq!(out32.expose_secret(), out32_2.expose_secret());
     }
 
+    // Fuzz our KDF against a basic, readable implementation of HKDF-SHA256.
     #[test]
     fn test_root_seed_derive_equiv() {
         let arb_seed = any::<RootSeed>();
@@ -637,7 +683,7 @@ mod test {
 
             let actual = seed.derive_vec(&label, len);
 
-            assert_eq!(expected, actual);
+            assert_eq!(&expected, actual.expose_secret());
         });
     }
 }
