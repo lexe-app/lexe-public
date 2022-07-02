@@ -28,6 +28,10 @@ pub struct StartCommand {
     #[argh(positional)]
     pub bitcoind_rpc: BitcoindRpcInfo,
 
+    /// the Lexe user id used in queries to the persistence API
+    #[argh(option)]
+    pub user_id: UserId,
+
     /// the port on which to accept Lightning P2P connections
     #[argh(option, default = "9735")]
     pub peer_port: Port,
@@ -39,10 +43,6 @@ pub struct StartCommand {
     /// testnet or mainnet. Defaults to testnet.
     #[argh(option, default = "Network::default()")]
     pub network: Network,
-
-    /// the Lexe user id used in queries to the persistence API
-    #[argh(option)]
-    pub user_id: UserId,
 
     /// the port warp uses to accept commands and TLS connections
     #[argh(option, default = "1999")]
@@ -58,7 +58,7 @@ pub struct StartCommand {
     /// how long the node will stay online (in seconds) without any activity
     /// before shutting itself down. The timer resets whenever the node
     /// receives some activity. Defaults to 3600 seconds (1 hour)
-    #[argh(option, default = "3600")]
+    #[argh(option, short = 'i', default = "3600")]
     pub inactivity_timer_sec: u64,
 
     /// whether to start the REPL, for debugging purposes. Only takes effect if
