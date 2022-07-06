@@ -113,7 +113,9 @@ pretty-hex = "0.3"
 proptest = { version = "1", default-features = false, features = ["alloc"] }
 # Arbitrary derive macro
 proptest-derive = "0.3"
-
+# Testing TLS handshake
+tokio-rustls = "0.23"
+# Tokio features used when testing
 tokio = { version = "=1.15.0", default-features = false, features = [
     "io-util",
     "macros",
@@ -123,6 +125,8 @@ tokio = { version = "=1.15.0", default-features = false, features = [
     "test-util", # Used to pause time in inactivity_timer::tests
     "time"
 ] }
+# Test that our generated certs are well formed
+webpki = "0.22"
 
 # Add some useful proptest features when testing during development
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
