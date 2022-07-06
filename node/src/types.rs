@@ -26,9 +26,9 @@ use serde::{de, Deserialize, Deserializer};
 use subtle::ConstantTimeEq;
 
 use crate::bitcoind_client::BitcoindClient;
-use crate::hex;
 use crate::logger::StdOutLogger;
 use crate::persister::PostgresPersister;
+use crate::{ed25519, hex};
 
 pub type UserId = i64;
 pub type Port = u16;
@@ -388,6 +388,13 @@ impl RootSeed {
         let mut out = vec![0u8; out_len];
         self.derive_to_slice(label, &mut out);
         SecretVec::new(out)
+    }
+
+    /// Derive the CA cert that endorses client and node certs. These certs
+    /// provide mutual authentication for client <-> node connections.
+    pub fn derive_client_ca_key_pair(&self) -> rcgen::KeyPair {
+        let seed = self.derive(b"client ca key pair");
+        ed25519::from_seed(seed.expose_secret())
     }
 
     #[cfg(test)]

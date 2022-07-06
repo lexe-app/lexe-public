@@ -9,6 +9,7 @@ mod attest;
 mod bitcoind_client;
 mod command_server;
 mod convert;
+mod ed25519;
 mod event_handler;
 mod hex;
 mod inactivity_timer;
