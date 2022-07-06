@@ -1,4 +1,10 @@
+//! Utilities for working w/ ed25519 keys (used to sign x509 certs for now).
+
+use rcgen::RcgenError;
 use ring::signature::KeyPair as _;
+
+// TODO(phlip9): patch ring/rcgen so `Ed25519KeyPair` derives `Default` so we
+// can wrap it in `Secret<..>`
 
 pub fn from_seed(seed: &[u8; 32]) -> rcgen::KeyPair {
     let key_pair =
@@ -15,6 +21,19 @@ pub fn from_seed(seed: &[u8; 32]) -> rcgen::KeyPair {
     )
 }
 
+pub fn verify_compatible(
+    key_pair: rcgen::KeyPair,
+) -> Result<rcgen::KeyPair, RcgenError> {
+    if key_pair.is_compatible(&rcgen::PKCS_ED25519) {
+        Ok(key_pair)
+    } else {
+        Err(RcgenError::UnsupportedSignatureAlgorithm)
+    }
+}
+
+// Note: The `PKCS_TEMPLATE_PREFIX` and `PKCS_TEMPLATE_MIDDLE` are pulled from
+// this pkcs8 "template" file in the `ring` repo.
+//
 // $ hexdump -C ring/src/ec/curve25519/ed25519/ed25519_pkcs8_v2_template.der
 // 00000000  30 53 02 01 01 30 05 06  03 2b 65 70 04 22 04 20
 // 00000010  a1 23 03 21 00
@@ -26,7 +45,7 @@ const PKCS_TEMPLATE_PREFIX: &[u8] = &[
 const PKCS_TEMPLATE_MIDDLE: &[u8] = &[0xa1, 0x23, 0x03, 0x21, 0x00];
 const PKCS_TEMPLATE_KEY_IDX: usize = 16;
 
-/// Formats a private key as `prefix || key || middle || pubkey`, where `prefix`
+/// Formats a key pair as `prefix || key || middle || pubkey`, where `prefix`
 /// and `middle` are two pre-computed blobs.
 ///
 /// Note: adapted from `ring`, which doesn't let you serialize as pkcs#8 via

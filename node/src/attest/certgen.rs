@@ -11,6 +11,8 @@ use rcgen::{
 use time::OffsetDateTime;
 use yasna::models::ObjectIdentifier;
 
+use crate::ed25519;
+
 /// The subset of [`rcgen::CertificateParams`] that we need to generate a cert.
 pub struct CertificateParams {
     /// The cert key pair.
@@ -65,20 +67,9 @@ impl TryFrom<CertificateParams> for rcgen::CertificateParams {
     type Error = RcgenError;
 
     fn try_from(params: CertificateParams) -> Result<Self, Self::Error> {
-        // always use ed25519
-        let alg = &rcgen::PKCS_ED25519;
-
-        // ensure key pair is using expected algorithm
-        if !params.key_pair.is_compatible(alg) {
-            return Err(RcgenError::UnsupportedSignatureAlgorithm);
-        }
-
         // TODO(phlip9): don't know how much DN matters...
-        let mut name = rcgen::DistinguishedName::new();
-        name.push(DnType::CountryName, "US");
-        name.push(DnType::StateOrProvinceName, "CA");
-        name.push(DnType::OrganizationName, "lexe-tech");
-        name.push(DnType::CommonName, "lexe-node");
+        let mut name = crate::cert::lexe_distinguished_name_prefix();
+        name.push(DnType::CommonName, "node provisioning cert");
 
         let subject_alt_names = params
             .dns_names
@@ -88,8 +79,9 @@ impl TryFrom<CertificateParams> for rcgen::CertificateParams {
 
         let mut new_params = rcgen::CertificateParams::default();
 
-        new_params.alg = alg;
-        new_params.key_pair = Some(params.key_pair);
+        new_params.alg = &rcgen::PKCS_ED25519;
+        new_params.key_pair =
+            Some(ed25519::verify_compatible(params.key_pair)?);
         new_params.not_before = params.not_before;
         new_params.not_after = params.not_after;
         new_params.distinguished_name = name;
