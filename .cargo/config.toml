@@ -2,18 +2,6 @@
 linker = "x86_64-unknown-linux-gnu-ld"
 runner = "ftxsgx-runner-cargo"
 
-# FIXME(max): This is just a temporary fix, remove it once ld is working
-[target.x86_64-apple-darwin]
-rustflags = [
-  "-C", "link-arg=-undefined",
-  "-C", "link-arg=dynamic_lookup",
-]
-# [target.aarch64-apple-darwin]
-# rustflags = [
-#   "-C", "link-arg=-undefined",
-#   "-C", "link-arg=dynamic_lookup",
-# ]
-
 [env]
 CC_x86_64-fortanix-unknown-sgx = "x86_64-unknown-linux-gnu-gcc"
 AR_x86_64-fortanix-unknown-sgx = "x86_64-unknown-linux-gnu-ar"
