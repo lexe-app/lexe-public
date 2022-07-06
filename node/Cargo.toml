@@ -1,0 +1,137 @@
+[package]
+name = "node"
+version = "0.1.0"
+authors = [
+    "Max Fang <protonmail.com@maxfa.ng>",
+    "Philip Hayes <philiphayes9@gmail.com>"
+]
+license = "MIT"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+# ---BITCOIN--- #
+
+bitcoin = "0.28.1"
+bitcoin-bech32 = "0.12"
+# bech32 = "0.8"
+base64 = "0.13.0"
+
+# ---LIGHTNING--- #
+
+lightning = { version = "0.0.108", features = ["max_level_trace"] }
+lightning-block-sync = { version = "0.0.108", features = [ "rpc-client" ] }
+lightning-invoice = { version = "0.16" }
+lightning-net-tokio = { version = "0.0.108" }
+lightning-background-processor = { version = "0.0.108" }
+lightning-rapid-gossip-sync = { version = "0.0.108" }
+
+# lightning = { git = "https://github.com/lexe-tech/rust-lightning", features = ["max_level_trace"], branch = "lightning-net-tokio-sgx-v0.0.108" }
+# lightning-block-sync = { git = "https://github.com/lexe-tech/rust-lightning", features = [ "rpc-client" ], branch = "lightning-net-tokio-sgx-v0.0.108" }
+# lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lightning-net-tokio-sgx-v0.0.108" }
+# lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lightning-net-tokio-sgx-v0.0.108" }
+# lightning-background-processor = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lightning-net-tokio-sgx-v0.0.108" }
+# lightning-rapid-gossip-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lightning-net-tokio-sgx-v0.0.108" }
+
+# ---ATTESTATION--- #
+
+# Easily generate self-signed x509 certs with ring
+rcgen = { version = "0.9", default-features = false, features = [] }
+# Used for cert validitity range
+time = "0.3"
+# For constructing/parsing ASN.1 data in x509 certs
+yasna = { version = "0.2", default-features = false }
+
+
+# ---UTILITIES--- #
+
+# Ad hoc error definition, easy error propagation, error chains
+anyhow = "1"
+# Easy error definition
+thiserror = "1"
+# Derive-based command line argument parsing
+argh = "0"
+# Hex tools
+# hex = "0.3"
+# Used to specify the HTTP methods used to interact with the API
+http = "0.2"
+# Used to generate a seed TODO Replace with SGX secure randomness
+rand = "0.4"
+# Used in logging
+chrono = "0.4"
+# Used to manually poll a future in ldk-sample's networking code TODO remove
+futures = "0.3"
+# Used to hold a Tokio runtime used by the sync fns in the Persister trait impl
+once_cell = "1"
+# Used to serialize / deserialize from API
+serde = { version = "1", features = ["derive"] }
+serde_qs = "0"
+serde_json = "1"
+# For casting byte buffers to/from the AESM client from/to actual structured data.
+bytemuck = { version = "1.9.1", default-features = false, features = ["derive", "min_const_generics"] }
+# Constant-time comparisons
+subtle = { version = "2.4", default-features = false }
+# A wrapper type for carefully handling secrets
+secrecy = "0.8"
+
+# ---MAJOR DEPENDENCIES--- #
+
+# Used to make HTTP requests to the API
+reqwest = { version = "0.11", default-features = false, features = ["json"] }
+# Filter-based webserver
+# This branch implements Reply for Result<impl Reply, impl Reply>
+warp = { git = "https://github.com/lexe-tech/warp", branch = "reply-for-result", default-features = false, features = ["tls"] }
+
+# ---PATCHED DEPENDENCIES--- #
+
+# See the root Cargo.toml for patch declarations
+
+# Use the specific patched versions
+hyper = "=0.14.18"
+mio = "=0.7.6"
+ring = "=0.16.20"
+tokio = { version = "=1.15.0", default-features = false, features = [
+    "io-util",
+    "macros",
+    "rt",
+    "rt-multi-thread",
+    "sync",
+    "time"
+] }
+
+[target.'cfg(target_env = "sgx")'.dependencies]
+# A client for the Intel AESM service. Used in the attestation process to get quoted.
+aesm-client = "=0.5.4"
+# The base SGX types and platform intrinsics (for sealing, reports, etc...)
+sgx-isa = "=0.4.0"
+
+[dev-dependencies]
+pretty-hex = "0.3"
+# property based testing
+proptest = { version = "1", default-features = false, features = ["alloc"] }
+# Arbitrary derive macro
+proptest-derive = "0.3"
+
+tokio = { version = "=1.15.0", default-features = false, features = [
+    "io-util",
+    "macros",
+    "rt",
+    "rt-multi-thread",
+    "sync",
+    "test-util", # Used to pause time in inactivity_timer::tests
+    "time"
+] }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+proptest = "1"
+
+# [target.'cfg(target_env = "sgx")'.dev-dependencies]
+# proptest = { version = "1", default-features = false, features = ["alloc", "harware-rng"] }
+
+[package.metadata.fortanix-sgx]
+# stack size (in bytes) for each thread, the default stack size is 0x20000.
+stack-size=0x200000
+# Gotcha: Don't forget to count the main thread when counting number of threads
+threads=7
