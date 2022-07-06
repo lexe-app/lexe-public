@@ -1,6 +1,5 @@
 use std::fmt::Write;
 
-use bitcoin::secp256k1::PublicKey;
 use thiserror::Error;
 
 #[derive(Clone, Copy, Error, Debug)]
@@ -80,7 +79,11 @@ pub fn encode(bytes: &[u8]) -> String {
     res
 }
 
-pub fn to_compressed_pubkey(hex: &str) -> Option<PublicKey> {
+#[cfg(not(target_env = "sgx"))] // TODO Remove once this fn is used in sgx
+pub fn to_compressed_pubkey(
+    hex: &str,
+) -> Option<bitcoin::secp256k1::PublicKey> {
+    use bitcoin::secp256k1::PublicKey; // TODO Likewise
     if hex.len() != 33 * 2 {
         return None;
     }

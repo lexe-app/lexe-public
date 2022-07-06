@@ -41,7 +41,7 @@ use crate::types::{
     GossipSyncType, InvoicePayerType, NetworkGraphType, P2PGossipSyncType,
     PaymentInfoStorageType, PeerManagerType, Port, UserId,
 };
-use crate::{command_server, convert, repl};
+use crate::{command_server, convert, peer, repl};
 
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 
@@ -743,7 +743,7 @@ fn spawn_p2p_reconnect_task(
                         }
                         for (pubkey, peer_addr) in cp_vec.iter() {
                             if *pubkey == node_id {
-                                let _ = repl::do_connect_peer(
+                                let _ = peer::do_connect_peer(
                                     *pubkey,
                                     *peer_addr,
                                     peer_manager.clone(),

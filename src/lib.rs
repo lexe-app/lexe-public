@@ -14,6 +14,7 @@ mod hex;
 mod inactivity_timer;
 mod init;
 mod logger;
+mod peer;
 mod persister;
 mod provision;
 mod repl;

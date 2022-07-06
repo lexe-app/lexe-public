@@ -249,6 +249,7 @@ pub struct ChannelPeer {
     pub peer_address: String,
 }
 
+#[cfg(not(target_env = "sgx"))] // TODO Remove once this fn is used in sgx
 pub async fn create_channel_peer(
     cli: &Client,
     req: ChannelPeer,

@@ -33,7 +33,7 @@ use reqwest::Client;
 use tokio::runtime::{Builder, Handle, Runtime};
 
 use crate::api::{
-    self, ChannelManager, ChannelMonitor, ChannelPeer, NetworkGraph,
+    self, ChannelManager, ChannelMonitor, NetworkGraph,
     ProbabilisticScorer as ApiProbabilisticScorer,
 };
 use crate::bitcoind_client::BitcoindClient;
@@ -249,11 +249,13 @@ impl PostgresPersister {
         Ok(result)
     }
 
+    #[cfg(not(target_env = "sgx"))] // TODO Remove once this fn is used in sgx
     pub async fn persist_channel_peer(
         &self,
         peer_pubkey: PublicKey,
         peer_address: SocketAddr,
     ) -> anyhow::Result<()> {
+        use crate::api::ChannelPeer;
         println!("Persisting new channel peer");
         let cp = ChannelPeer {
             instance_id: self.instance_id.clone(),
