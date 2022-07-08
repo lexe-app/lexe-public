@@ -91,7 +91,7 @@ fn lexe(
         // .and(warp::query())
         .then(lexe::status);
     let shutdown = warp::path("shutdown")
-        .and(warp::post())
+        .and(warp::get())
         .and(inject::shutdown_tx(shutdown_tx))
         .then(lexe::shutdown);
 
