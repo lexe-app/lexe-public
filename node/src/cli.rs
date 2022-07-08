@@ -1,7 +1,7 @@
 use argh::FromArgs;
 
 use crate::init;
-use crate::provision::provision;
+use crate::provision::{provision, LexeRunner};
 use crate::types::{BitcoindRpcInfo, Network, NodeAlias, Port, UserId};
 
 /// the Lexe node CLI
@@ -104,7 +104,8 @@ impl Args {
                     .enable_all()
                     .build()
                     .expect("Failed to init tokio runtime");
-                rt.block_on(provision(args))
+                let runner = LexeRunner::new();
+                rt.block_on(provision(args, runner))
             }
         }
     }

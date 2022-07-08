@@ -49,6 +49,8 @@ yasna = { version = "0.2", default-features = false }
 
 # Ad hoc error definition, easy error propagation, error chains
 anyhow = "1"
+# async fn's in trait methods
+async-trait = "0.1"
 # Easy error definition
 thiserror = "1"
 # Derive-based command line argument parsing
@@ -81,10 +83,10 @@ tokio-rustls = "0.23"
 # ---MAJOR DEPENDENCIES--- #
 
 # Used to make HTTP requests to the API
-reqwest = { version = "0.11", default-features = false, features = ["json"] }
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls-manual-roots"] }
 # Filter-based webserver
 # This branch implements Reply for Result<impl Reply, impl Reply>
-warp = { git = "https://github.com/lexe-tech/warp", branch = "reply-for-result", default-features = false, features = ["tls"] }
+warp = { git = "https://github.com/lexe-tech/warp", branch = "lexe", default-features = false, features = ["tls"] }
 
 # ---PATCHED DEPENDENCIES--- #
 

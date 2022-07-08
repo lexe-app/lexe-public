@@ -70,6 +70,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6f8c380fa28aa1b36107cd97f0196474bb7241bb95a453c5c01a15ac74b2eac"
 
 [[package]]
+name = "async-trait"
+version = "0.1.56"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96cf8829f67d2eab0b2dfa42c5d0ef737e0724e4a82b01b3e292456202b19716"
+dependencies = [
+ "proc-macro2 1.0.39",
+ "quote 1.0.18",
+ "syn 1.0.96",
+]
+
+[[package]]
 name = "async-usercalls"
 version = "0.1.0"
 source = "git+https://github.com/lexe-tech/rust-sgx?branch=lexe#3363da7254cdcee89b8da666440f77f91ed5bd81"
@@ -630,6 +641,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "hyper-rustls"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d87c48c02e0dc5e3b849a2041db3029fd066650f8f717c07bf8ed78ccb895cac"
+dependencies = [
+ "http",
+ "hyper",
+ "rustls",
+ "tokio",
+ "tokio-rustls",
+]
+
+[[package]]
 name = "idna"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -860,6 +884,7 @@ dependencies = [
  "aesm-client",
  "anyhow",
  "argh",
+ "async-trait",
  "base64",
  "bitcoin",
  "bitcoin-bech32",
@@ -1252,6 +1277,7 @@ dependencies = [
  "http",
  "http-body",
  "hyper",
+ "hyper-rustls",
  "ipnet",
  "js-sys",
  "lazy_static",
@@ -1259,10 +1285,13 @@ dependencies = [
  "mime",
  "percent-encoding",
  "pin-project-lite",
+ "rustls",
+ "rustls-pemfile 1.0.0",
  "serde",
  "serde_json",
  "serde_urlencoded",
  "tokio",
+ "tokio-rustls",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -1308,6 +1337,15 @@ name = "rustls-pemfile"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5eebeaeb360c87bfb72e84abdb3447159c0eaececf1bef2aecd65a8be949d1c9"
+dependencies = [
+ "base64",
+]
+
+[[package]]
+name = "rustls-pemfile"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7522c9de787ff061458fe9a829dc790a3f5b22dc571694fc5883f448b94d9a9"
 dependencies = [
  "base64",
 ]
@@ -1793,7 +1831,7 @@ dependencies = [
 [[package]]
 name = "warp"
 version = "0.3.2"
-source = "git+https://github.com/lexe-tech/warp?branch=reply-for-result#71d725698940e134c2dadd1f2af341a9e0baea6d"
+source = "git+https://github.com/lexe-tech/warp?branch=lexe#87205b32ced7f1ee31cb7b72b11955ef2a122e72"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -1806,7 +1844,7 @@ dependencies = [
  "mime_guess",
  "percent-encoding",
  "pin-project",
- "rustls-pemfile",
+ "rustls-pemfile 0.2.1",
  "scoped-tls",
  "serde",
  "serde_json",

@@ -265,7 +265,7 @@ pub async fn get_channel_peers(
     request(cli, Method::GET, Backend, V1, "/channel_peer", req).await
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct UserPort {
     pub user_id: UserId,
     pub port: Port,

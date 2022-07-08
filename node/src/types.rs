@@ -22,7 +22,7 @@ use lightning_invoice::utils::DefaultRouter;
 use lightning_net_tokio::SocketDescriptor;
 use lightning_rapid_gossip_sync::RapidGossipSync;
 use secrecy::{ExposeSecret, Secret, SecretVec};
-use serde::{de, Deserialize, Deserializer};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use subtle::ConstantTimeEq;
 
 use crate::bitcoind_client::BitcoindClient;
@@ -466,6 +466,20 @@ impl<'de> Deserialize<'de> for RootSeed {
             deserializer.deserialize_str(RootSeedVisitor)
         } else {
             deserializer.deserialize_bytes(RootSeedVisitor)
+        }
+    }
+}
+
+impl Serialize for RootSeed {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if serializer.is_human_readable() {
+            let hex_str = hex::encode(self.0.expose_secret());
+            serializer.serialize_str(&hex_str)
+        } else {
+            serializer.serialize_bytes(self.0.expose_secret())
         }
     }
 }
