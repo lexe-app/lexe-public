@@ -22,11 +22,9 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use anyhow::{format_err, Context, Result};
-use futures::future;
 use http::{Response, StatusCode};
 use rcgen::date_time_ymd;
 use serde::Deserialize;
-use subtle::ConstantTimeEq;
 use thiserror::Error;
 use tokio::sync::mpsc;
 use warp::hyper::Body;
@@ -36,7 +34,7 @@ use warp::{Filter, Rejection, Reply};
 use crate::api::{self, UserPort};
 use crate::attest;
 use crate::cli::ProvisionCommand;
-use crate::types::{AuthToken, Port, UserId};
+use crate::types::{Port, UserId};
 
 const RUNNER_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
@@ -54,10 +52,8 @@ async fn notify_runner(user_id: UserId, port: Port) -> Result<()> {
 }
 
 #[derive(Error, Debug)]
-enum ApiError {
-    #[error("unauthorized request: invalid auth token")]
-    InvalidAuthToken,
-}
+#[error("todo")]
+struct ApiError;
 
 impl Reply for ApiError {
     fn into_response(self) -> Response<Body> {
@@ -71,19 +67,6 @@ impl Reply for ApiError {
 
 impl Reject for ApiError {}
 
-fn check_auth(
-    expected_token: AuthToken,
-) -> impl Filter<Extract = (AuthToken,), Error = Rejection> + Clone {
-    warp::header::<AuthToken>("BEARER").and_then(move |token: AuthToken| {
-        let res = if token.ct_eq(&expected_token).into() {
-            Ok(token)
-        } else {
-            Err(warp::reject::custom(ApiError::InvalidAuthToken))
-        };
-        future::ready(res)
-    })
-}
-
 fn with_shutdown_tx(
     shutdown_tx: mpsc::Sender<()>,
 ) -> impl Filter<Extract = (mpsc::Sender<()>,), Error = Infallible> + Clone {
@@ -92,19 +75,17 @@ fn with_shutdown_tx(
 
 #[derive(Deserialize)]
 struct ProvisionRequest {
-    root_secret: String,
+    root_seed: String,
 }
 
 // # provision service
 //
 // POST /provision
-// BEARER <AUTH-TOKEN>
 //
 // {
-//   root_secret: "0x87089d313793a902a25b0126439ab1ac"
+//   root_seed: "87089d313793a902a25b0126439ab1ac"
 // }
 async fn provision_request(
-    _token: AuthToken,
     shutdown_tx: mpsc::Sender<()>,
     _req: ProvisionRequest,
 ) -> Result<impl Reply, ApiError> {
@@ -116,7 +97,6 @@ async fn provision_request(
 
 fn provision_routes(
     shutdown_tx: mpsc::Sender<()>,
-    auth_token: AuthToken,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     // 3. read root secret
     // 4. seal root secret w/ platform key
@@ -130,7 +110,6 @@ fn provision_routes(
     // POST /provision
     warp::path::path("provision")
         .and(warp::post())
-        .and(check_auth(auth_token))
         .and(with_shutdown_tx(shutdown_tx))
         .and(warp::body::json())
         .then(provision_request)
@@ -184,7 +163,7 @@ pub async fn provision(args: ProvisionCommand) -> Result<()> {
     // TODO(phlip9): how to best avoid handling more than one connection/request
     // at once?
     let addr = SocketAddr::from(([127, 0, 0, 1], args.port));
-    let routes = provision_routes(shutdown_tx, args.auth_token);
+    let routes = provision_routes(shutdown_tx);
     let (_listen_addr, service) = warp::serve(routes)
         .tls()
         .cert(&cert_der)
@@ -210,39 +189,5 @@ pub async fn provision(args: ProvisionCommand) -> Result<()> {
         _ = service => {
             Err(format_err!("warp provisioning service future should never resolve"))
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_check_auth() {
-        let token = AuthToken::new([42u8; 32]);
-
-        let route = warp::path("hello")
-            .and(check_auth(token.clone()))
-            .map(|_| "hello, world");
-
-        // success: token matches
-        let resp = warp::test::request()
-            .path("/hello")
-            .header("BEARER", token.string())
-            .filter(&route)
-            .await;
-        assert_eq!(resp.unwrap(), "hello, world");
-
-        // fail: no token
-        let resp = warp::test::request().path("/hello").filter(&route).await;
-        resp.unwrap_err();
-
-        // fail: token doesn't match
-        let resp = warp::test::request()
-            .path("/hello")
-            .header("BEARER", "fasdfasdf")
-            .filter(&route)
-            .await;
-        resp.unwrap_err();
     }
 }

@@ -2,9 +2,7 @@ use argh::FromArgs;
 
 use crate::init;
 use crate::provision::provision;
-use crate::types::{
-    AuthToken, BitcoindRpcInfo, Network, NodeAlias, Port, UserId,
-};
+use crate::types::{BitcoindRpcInfo, Network, NodeAlias, Port, UserId};
 
 /// the Lexe node CLI
 #[derive(Debug, PartialEq, Eq, FromArgs)]
@@ -74,10 +72,6 @@ pub struct ProvisionCommand {
     /// the Lexe user id to provision the node for
     #[argh(option)]
     pub user_id: UserId,
-
-    /// IDK yet. need to authenticate client connections pre-provision somehow
-    #[argh(option)]
-    pub auth_token: AuthToken,
 
     /// the DNS name the node enclave should include in its remote attestation
     /// certificate and the client will expect in its connection
