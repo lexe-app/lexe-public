@@ -2,7 +2,7 @@ use std::env;
 use std::fmt::{self, Display};
 
 use http::Method;
-use once_cell::sync::{Lazy, OnceCell};
+use once_cell::sync::Lazy;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -14,17 +14,15 @@ use crate::types::{Port, UserId};
 
 /// The base url for the node-backend (persistence) API.
 /// Can be overridden with BACKEND_URL env var.
-static BACKEND_URL: Lazy<OnceCell<String>> = Lazy::new(|| {
+static BACKEND_URL: Lazy<String> = Lazy::new(|| {
     env::var("BACKEND_URL")
         .unwrap_or_else(|_e| "http://127.0.0.1:3030".to_string())
-        .into()
 });
 
 /// The base url for the runner. Can be overridden with RUNNER_URL env var.
-static RUNNER_URL: Lazy<OnceCell<String>> = Lazy::new(|| {
+static RUNNER_URL: Lazy<String> = Lazy::new(|| {
     env::var("RUNNER_URL")
         .unwrap_or_else(|_e| "http://127.0.0.1:5050".to_string())
-        .into()
 });
 
 /// Enumerates the base urls that can be used in an API call.
@@ -289,8 +287,8 @@ async fn request<D: Serialize, T: DeserializeOwned>(
 ) -> Result<T, ApiError> {
     // Node backend api is versioned but runner api is not
     let (base, version) = match base_url {
-        Backend => (BACKEND_URL.get().unwrap(), api_version.to_string()),
-        Runner => (RUNNER_URL.get().unwrap(), String::new()),
+        Backend => (&*BACKEND_URL, api_version.to_string()),
+        Runner => (&*RUNNER_URL, String::new()),
     };
     let mut url = format!("{}{}{}", base, version, endpoint);
 
