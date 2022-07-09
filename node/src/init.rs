@@ -130,7 +130,7 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
     // Set up listening for inbound P2P connections
     let stop_listen_connect = Arc::new(AtomicBool::new(false));
     spawn_p2p_listener(
-        args.peer_port,
+        args.peer_port.inner(),
         stop_listen_connect.clone(),
         peer_manager.clone(),
     );
@@ -148,16 +148,16 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
         shutdown_tx.clone(),
     );
     tokio::spawn(async move {
-        println!("Serving warp at port {}", args.warp_port);
+        println!("Serving warp at port {}", args.warp_port.inner());
         warp::serve(routes)
-            .run(([127, 0, 0, 1], args.warp_port))
+            .run(([127, 0, 0, 1], args.warp_port.inner()))
             .await;
     });
 
     // Let the runner know that we're ready
     let user_port = UserPort {
         user_id,
-        port: args.warp_port,
+        port: args.warp_port.inner(),
     };
     println!("Node is ready to accept commands; notifying runner");
     api::notify_runner(&client, user_port)

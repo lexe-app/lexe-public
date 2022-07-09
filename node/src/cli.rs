@@ -2,7 +2,9 @@ use argh::FromArgs;
 
 use crate::init;
 use crate::provision::{provision, LexeRunner};
-use crate::types::{BitcoindRpcInfo, Network, NodeAlias, Port, UserId};
+use crate::types::{
+    BitcoindRpcInfo, Network, NodeAlias, Port, UserId, WrappedPort,
+};
 
 /// the Lexe node CLI
 #[derive(Debug, PartialEq, Eq, FromArgs)]
@@ -30,9 +32,10 @@ pub struct StartCommand {
     #[argh(option)]
     pub user_id: UserId,
 
-    /// the port on which to accept Lightning P2P connections
-    #[argh(option, default = "9735")]
-    pub peer_port: Port,
+    /// the port on which to accept Lightning P2P connections.
+    /// Defaults to a random available port assigned by the OS.
+    #[argh(option, default = "WrappedPort::default()")]
+    pub peer_port: WrappedPort,
 
     /// this node's Lightning Network alias
     #[argh(option, default = "NodeAlias::default()")]
@@ -42,9 +45,10 @@ pub struct StartCommand {
     #[argh(option, default = "Network::default()")]
     pub network: Network,
 
-    /// the port warp uses to accept commands and TLS connections
-    #[argh(option, default = "1999")]
-    pub warp_port: Port,
+    /// the port warp uses to accept commands and TLS connections.
+    /// Defaults to a random available port assigned by the OS.
+    #[argh(option, default = "WrappedPort::default()")]
+    pub warp_port: WrappedPort,
 
     /// whether the node should shut down after completing sync and other
     /// maintenance tasks. This only applies if no activity was detected prior

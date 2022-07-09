@@ -14,5 +14,5 @@ pub async fn shutdown(
     shutdown_tx: broadcast::Sender<()>,
 ) -> Result<impl Reply, ApiError> {
     let _ = shutdown_tx.send(());
-    Ok("Shutdown signal sent")
+    Ok("OK")
 }

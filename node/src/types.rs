@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 use std::fmt;
+use std::net::{TcpListener, TcpStream};
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
@@ -149,6 +150,11 @@ pub struct NodeAlias([u8; 32]);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Network(bitcoin::Network);
 
+/// A thin wrapper around `Port` that enables implementing some custom utils,
+/// most notably getting a random available port assigned by the OS.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WrappedPort(Port);
+
 #[derive(Clone)]
 pub struct AuthToken([u8; Self::LENGTH]);
 
@@ -268,6 +274,63 @@ impl FromStr for Network {
             "only support testnet for now"
         );
         Ok(Self(network))
+    }
+}
+
+// -- impl WrappedPort -- //
+
+impl WrappedPort {
+    pub fn inner(&self) -> Port {
+        // Port is u16 which is Copy
+        self.0
+    }
+
+    /// Return a random port that, if on UNIX, should be available for a short
+    /// time period (roughly 60s on some Linux systems). On UNIX systems, the
+    /// port returned will be in the TIME_WAIT state ensuring that the OS won't
+    /// hand out this port for some grace period. Callers should be able to bind
+    /// to this port given they use SO_REUSEADDR.
+    pub fn get_available_port() -> Port {
+        const MAX_PORT_RETRIES: u32 = 10;
+
+        for _ in 0..MAX_PORT_RETRIES {
+            if let Ok(port) = Self::try_get_available_port() {
+                return port;
+            }
+        }
+
+        panic!("Error: could not find an available port");
+    }
+
+    fn try_get_available_port() -> std::io::Result<Port> {
+        // Request a random available port from the OS
+        let listener = TcpListener::bind(("localhost", 0))?;
+        let addr = listener.local_addr()?;
+
+        // Create and accept a connection (which we'll promptly drop) in order
+        // to force the port into the TIME_WAIT state, ensuring that the
+        // port will be reserved from some limited amount of time
+        // (roughly 60s on some Linux systems)
+        let _sender = TcpStream::connect(addr)?;
+        let _incoming = listener.accept()?;
+
+        Ok(addr.port())
+    }
+}
+
+impl Default for WrappedPort {
+    fn default() -> Self {
+        let port = WrappedPort::get_available_port();
+        Self(port)
+    }
+}
+
+impl FromStr for WrappedPort {
+    type Err = std::num::ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let port = u16::from_str(s)?;
+        Ok(Self(port))
     }
 }
 
