@@ -3,6 +3,7 @@
 #![feature(slice_as_chunks)]
 
 pub mod cli;
+pub mod logger;
 
 mod api;
 mod attest;
@@ -15,7 +16,6 @@ mod event_handler;
 mod hex;
 mod inactivity_timer;
 mod init;
-mod logger;
 mod peer;
 mod persister;
 mod provision;

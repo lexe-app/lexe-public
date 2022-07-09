@@ -61,8 +61,6 @@ argh = "0"
 http = "0.2"
 # Used to generate a seed TODO Replace with SGX secure randomness
 rand = "0.4"
-# Used in logging
-chrono = "0.4"
 # Used to manually poll a future in ldk-sample's networking code TODO remove
 futures = "0.3"
 # Used to hold a Tokio runtime used by the sync fns in the Persister trait impl
@@ -79,6 +77,14 @@ subtle = { version = "2.4", default-features = false }
 secrecy = "0.8"
 # lower-level async TLS interface
 tokio-rustls = "0.23"
+# Logging
+tracing = "0.1"
+tracing-core = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "std",
+    "fmt",
+    "tracing-log",
+] }
 
 # ---MAJOR DEPENDENCIES--- #
 
@@ -126,12 +132,6 @@ tokio = { version = "=1.15.0", default-features = false, features = [
     "sync",
     "test-util", # Used to pause time in inactivity_timer::tests
     "time"
-] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", default-features = false, features = [
-    "std",
-    "fmt",
-    "tracing-log",
 ] }
 # Test that our generated certs are well formed
 webpki = "0.22"

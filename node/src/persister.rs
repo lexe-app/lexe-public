@@ -38,7 +38,7 @@ use crate::api::{
 };
 use crate::bitcoind_client::BitcoindClient;
 use crate::convert;
-use crate::logger::StdOutLogger;
+use crate::logger::LdkTracingLogger;
 use crate::types::{
     ChainMonitorType, ChannelManagerType, LoggerType, NetworkGraphType,
     ProbabilisticScorerType,
@@ -70,7 +70,7 @@ impl PostgresPersister {
         fee_estimator: Arc<BitcoindClient>,
         chain_monitor: Arc<ChainMonitorType>,
         broadcaster: Arc<BitcoindClient>,
-        logger: Arc<StdOutLogger>,
+        logger: Arc<LdkTracingLogger>,
         user_config: UserConfig,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         println!("Reading channel manager");
@@ -295,7 +295,7 @@ impl<'a>
         Arc<BitcoindClient>,
         Arc<KeysManager>,
         Arc<BitcoindClient>,
-        Arc<StdOutLogger>,
+        Arc<LdkTracingLogger>,
         Mutex<ProbabilisticScorerType>,
     > for PostgresPersister
 {
@@ -305,7 +305,7 @@ impl<'a>
             ChainMonitorType,
             BitcoindClient,
             BitcoindClient,
-            StdOutLogger,
+            LdkTracingLogger,
         >,
     ) -> Result<(), io::Error> {
         println!("Persisting channel manager");

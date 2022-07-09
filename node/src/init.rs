@@ -33,7 +33,7 @@ use crate::bitcoind_client::BitcoindClient;
 use crate::cli::StartCommand;
 use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
-use crate::logger::StdOutLogger;
+use crate::logger::LdkTracingLogger;
 use crate::persister::PostgresPersister;
 use crate::types::{
     BroadcasterType, ChainMonitorType, ChannelManagerType,
@@ -49,7 +49,7 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
     let network = args.network.into_inner();
 
     // Initialize the Logger
-    let logger = Arc::new(StdOutLogger {});
+    let logger = Arc::new(LdkTracingLogger {});
 
     // Get user_id, measurement, and HTTP client, used throughout init
     let user_id = args.user_id;
@@ -519,7 +519,7 @@ async fn channel_manager(
     fee_estimator: Arc<FeeEstimatorType>,
     chain_monitor: Arc<ChainMonitorType>,
     broadcaster: Arc<BroadcasterType>,
-    logger: Arc<StdOutLogger>,
+    logger: Arc<LdkTracingLogger>,
 ) -> anyhow::Result<(BlockHash, Arc<ChannelManagerType>)> {
     println!("Initializing the channel manager");
     let mut user_config = UserConfig::default();
@@ -585,7 +585,7 @@ async fn sync_chain_listeners(
     bitcoind_client: &BitcoindClient,
     broadcaster: Arc<BroadcasterType>,
     fee_estimator: Arc<FeeEstimatorType>,
-    logger: Arc<StdOutLogger>,
+    logger: Arc<LdkTracingLogger>,
     channel_manager_blockhash: BlockHash,
     channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
     blockheader_cache: &mut HashMap<BlockHash, ValidatedBlockHeader>,
@@ -639,7 +639,7 @@ async fn sync_chain_listeners(
 async fn gossip_sync(
     args: &StartCommand,
     persister: &Arc<PostgresPersister>,
-    logger: Arc<StdOutLogger>,
+    logger: Arc<LdkTracingLogger>,
 ) -> anyhow::Result<(Arc<NetworkGraphType>, Arc<P2PGossipSyncType>)> {
     println!("Initializing gossip sync and network graph");
     let genesis = genesis_block(args.network.into_inner()).header.block_hash();
@@ -666,7 +666,7 @@ fn peer_manager(
     keys_manager: &KeysManager,
     channel_manager: Arc<ChannelManagerType>,
     gossip_sync: Arc<P2PGossipSyncType>,
-    logger: Arc<StdOutLogger>,
+    logger: Arc<LdkTracingLogger>,
 ) -> anyhow::Result<Arc<PeerManagerType>> {
     let mut ephemeral_bytes = [0; 32];
     rand::thread_rng().fill_bytes(&mut ephemeral_bytes);

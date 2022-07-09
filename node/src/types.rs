@@ -26,7 +26,7 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use subtle::ConstantTimeEq;
 
 use crate::bitcoind_client::BitcoindClient;
-use crate::logger::StdOutLogger;
+use crate::logger::LdkTracingLogger;
 use crate::persister::PostgresPersister;
 use crate::{ed25519, hex};
 
@@ -40,7 +40,7 @@ pub type ChainMonitorType = chainmonitor::ChainMonitor<
     Arc<dyn Filter + Send + Sync>,
     Arc<BitcoindClient>,
     Arc<BitcoindClient>,
-    Arc<StdOutLogger>,
+    Arc<LdkTracingLogger>,
     Arc<PostgresPersister>,
 >;
 
@@ -50,14 +50,14 @@ pub type PeerManagerType = SimpleArcPeerManager<
     BitcoindClient,
     BitcoindClient,
     dyn chain::Access + Send + Sync,
-    StdOutLogger,
+    LdkTracingLogger,
 >;
 
 pub type ChannelManagerType = SimpleArcChannelManager<
     ChainMonitorType,
     BitcoindClient,
     BitcoindClient,
-    StdOutLogger,
+    LdkTracingLogger,
 >;
 
 pub type ChannelMonitorType = ChannelMonitor<InMemorySigner>;
@@ -67,14 +67,14 @@ pub type ChannelMonitorListenerType = (
     ChannelMonitorType,
     Arc<BitcoindClient>,
     Arc<BitcoindClient>,
-    Arc<StdOutLogger>,
+    Arc<LdkTracingLogger>,
 );
 
 pub type InvoicePayerType<E> = payment::InvoicePayer<
     Arc<ChannelManagerType>,
     RouterType,
     Arc<Mutex<ProbabilisticScorerType>>,
-    Arc<StdOutLogger>,
+    Arc<LdkTracingLogger>,
     E,
 >;
 
@@ -108,7 +108,7 @@ pub type NetworkGraphType = NetworkGraph<LoggerType>;
 pub type BroadcasterType = BitcoindClient;
 pub type FeeEstimatorType = BitcoindClient;
 
-pub type LoggerType = Arc<StdOutLogger>;
+pub type LoggerType = Arc<LdkTracingLogger>;
 
 pub struct PaymentInfo {
     pub preimage: Option<PaymentPreimage>,
