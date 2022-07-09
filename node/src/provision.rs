@@ -248,26 +248,7 @@ mod test {
     use tokio_rustls::rustls::{Certificate, ServerName};
 
     use super::*;
-    use crate::cli;
-
-    // TODO(phlip9): move
-    mod logger {
-        use std::str::FromStr;
-
-        use tracing::Level;
-
-        pub fn init_for_testing() {
-            let level = std::env::var("RUST_LOG")
-                .ok()
-                .and_then(|rust_log| Level::from_str(&rust_log).ok())
-                .unwrap_or(Level::INFO);
-
-            let _ = tracing_subscriber::fmt()
-                .without_time()
-                .with_max_level(level)
-                .try_init();
-        }
-    }
+    use crate::{cli, logger};
 
     struct AttestCertVerifier;
 
