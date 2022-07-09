@@ -59,8 +59,6 @@ argh = "0"
 # hex = "0.3"
 # Used to specify the HTTP methods used to interact with the API
 http = "0.2"
-# Used to generate a seed TODO Replace with SGX secure randomness
-rand = "0.4"
 # Used to manually poll a future in ldk-sample's networking code TODO remove
 futures = "0.3"
 # Used to hold a Tokio runtime used by the sync fns in the Persister trait impl

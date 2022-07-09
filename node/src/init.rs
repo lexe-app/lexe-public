@@ -22,7 +22,7 @@ use lightning_block_sync::poll::{self, ValidatedBlockHeader};
 use lightning_block_sync::{init as blocksyncinit, SpvClient, UnboundedCache};
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
-use rand::Rng;
+use ring::rand::{self, SecureRandom};
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
 
@@ -50,6 +50,7 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
 
     // Initialize the Logger
     let logger = Arc::new(LdkTracingLogger {});
+    let rng = rand::SystemRandom::new();
 
     // Get user_id, measurement, and HTTP client, used throughout init
     let user_id = args.user_id;
@@ -60,7 +61,7 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
     // Initialize BitcoindClient and KeysManager
     let (bitcoind_client_res, keys_manager_res) = tokio::join!(
         bitcoind_client(&args),
-        keys_manager(&client, user_id, &measurement),
+        keys_manager(&rng, &client, user_id, &measurement),
     );
     let bitcoind_client =
         bitcoind_client_res.context("Failed to init bitcoind client")?;
@@ -120,6 +121,7 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
 
     // Initialize PeerManager
     let peer_manager = peer_manager(
+        &rng,
         keys_manager.as_ref(),
         channel_manager.clone(),
         gossip_sync.clone(),
@@ -360,6 +362,7 @@ async fn bitcoind_client(
 /// Initializes a KeysManager (and grabs the node public key) based on sealed +
 /// persisted data
 async fn keys_manager(
+    rng: &dyn SecureRandom,
     client: &reqwest::Client,
     user_id: UserId,
     measurement: &str,
@@ -379,8 +382,7 @@ async fn keys_manager(
         (None, None, None) => {
             // No node exists yet, create a new one
             println!("Generating new seed");
-            let mut new_seed = [0; 32];
-            rand::thread_rng().fill_bytes(&mut new_seed);
+            let new_seed = rand::generate::<[u8; 32]>(rng).unwrap().expose();
             // TODO (sgx): Seal seed under this enclave's pubkey
 
             // Derive pubkey
@@ -663,13 +665,13 @@ async fn gossip_sync(
 
 /// Initializes a PeerManager
 fn peer_manager(
+    rng: &dyn SecureRandom,
     keys_manager: &KeysManager,
     channel_manager: Arc<ChannelManagerType>,
     gossip_sync: Arc<P2PGossipSyncType>,
     logger: Arc<LdkTracingLogger>,
 ) -> anyhow::Result<Arc<PeerManagerType>> {
-    let mut ephemeral_bytes = [0; 32];
-    rand::thread_rng().fill_bytes(&mut ephemeral_bytes);
+    let ephemeral_bytes = rand::generate::<[u8; 32]>(rng).unwrap().expose();
     let lightning_msg_handler = MessageHandler {
         chan_handler: channel_manager,
         route_handler: gossip_sync,

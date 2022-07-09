@@ -16,7 +16,6 @@ use lightning::chain::chaininterface::{
 use lightning::chain::keysinterface::KeysManager;
 use lightning::routing::gossip::NodeId;
 use lightning::util::events::{Event, EventHandler, PaymentPurpose};
-use rand::{thread_rng, Rng};
 use tokio::runtime::Handle;
 
 use crate::bitcoind_client::BitcoindClient;
@@ -332,10 +331,8 @@ pub async fn handle_event(
         }
         Event::PendingHTLCsForwardable { time_forwardable } => {
             let forwarding_channel_manager = channel_manager.clone();
-            let min = time_forwardable.as_millis() as u64;
+            let millis_to_sleep = time_forwardable.as_millis() as u64;
             tokio::spawn(async move {
-                let millis_to_sleep =
-                    thread_rng().gen_range(min, min * 5) as u64;
                 tokio::time::sleep(Duration::from_millis(millis_to_sleep))
                     .await;
                 forwarding_channel_manager.process_pending_htlc_forwards();
