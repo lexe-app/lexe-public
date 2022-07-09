@@ -142,24 +142,27 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
     let (shutdown_tx, mut shutdown_rx) =
         broadcast::channel(DEFAULT_CHANNEL_SIZE);
 
-    // Start warp at the given port
+    // Start warp at the given port, or bind to an ephemeral port if not given
     let routes = command_server::routes(
         channel_manager.clone(),
         peer_manager.clone(),
         activity_tx,
         shutdown_tx.clone(),
     );
+    let (addr, server_fut) = warp::serve(routes)
+        // A value of 0 indicates that the OS will assign a port for us
+        .try_bind_ephemeral(([127, 0, 0, 1], args.warp_port.unwrap_or(0)))
+        .context("Failed to bind warp")?;
+    let warp_port = addr.port();
+    println!("Serving warp at port {}", warp_port);
     tokio::spawn(async move {
-        println!("Serving warp at port {}", args.warp_port);
-        warp::serve(routes)
-            .run(([127, 0, 0, 1], args.warp_port))
-            .await;
+        server_fut.await;
     });
 
     // Let the runner know that we're ready
     let user_port = UserPort {
         user_id,
-        port: args.warp_port,
+        port: warp_port,
     };
     println!("Node is ready to accept commands; notifying runner");
     api::notify_runner(&client, user_port)
@@ -689,18 +692,21 @@ fn peer_manager(
     Ok(Arc::new(peer_manager))
 }
 
-/// Sets up a TcpListener to listen on 0.0.0.0:<listening_port>, handing off
+/// Sets up a TcpListener to listen on 0.0.0.0:<peer_port>, handing off
 /// resultant `TcpStream`s for the `PeerManager` to manage
 fn spawn_p2p_listener(
-    listening_port: Port,
+    peer_port_opt: Option<Port>,
     stop_listen: Arc<AtomicBool>,
     peer_manager: Arc<PeerManagerType>,
 ) {
     tokio::spawn(async move {
-        let address = format!("0.0.0.0:{}", listening_port);
+        // A value of 0 indicates that the OS will assign a port for us
+        let address = format!("0.0.0.0:{}", peer_port_opt.unwrap_or(0));
         let listener = tokio::net::TcpListener::bind(address)
-			.await
-			.expect("Failed to bind to listen port - is something else already listening on it?");
+            .await
+            .expect("Failed to bind to peer port");
+        let peer_port = listener.local_addr().unwrap().port();
+        println!("Listening for P2P connections at port {}", peer_port);
         loop {
             let (tcp_stream, _peer_addr) = listener.accept().await.unwrap();
             let tcp_stream = tcp_stream.into_std().unwrap();
