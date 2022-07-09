@@ -19,7 +19,7 @@
 
 use std::convert::Infallible;
 use std::net::SocketAddr;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
@@ -29,14 +29,15 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc;
 use tokio_rustls::rustls;
+use tracing::{debug, info, instrument, warn};
 use warp::hyper::Body;
 use warp::reject::Reject;
 use warp::{Filter, Rejection, Reply};
 
 use crate::api::{self, UserPort};
-use crate::attest;
 use crate::cli::ProvisionCommand;
 use crate::types::{Port, RootSeed, UserId};
+use crate::{attest, hex};
 
 const RUNNER_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
@@ -79,7 +80,7 @@ async fn provision_request(
     shutdown_tx: mpsc::Sender<()>,
     _req: ProvisionRequest,
 ) -> Result<impl Reply, ApiError> {
-    println!("provision: received provision request");
+    debug!("received provision request");
 
     // 3. read root secret
     // 4. seal root secret w/ platform key
@@ -148,17 +149,21 @@ impl Runner for LexeRunner {
 /// Both `userid` and `auth_token` are given by the orchestrator so we know
 /// which user we should provision to and have a simple method to authenticate
 /// their connection.
+#[instrument(skip_all)]
 pub async fn provision<R: Runner>(
     args: ProvisionCommand,
     runner: R,
 ) -> Result<()> {
-    // Q: we could wait to init cert + TLS until we've gotten a TCP connection?
+    debug!(args.user_id, args.port, %args.node_dns_name, "provisioning");
 
     // TODO(phlip9): zeroize secrets
 
     // Generate a fresh key pair, which we'll use for the provisioning cert.
     let cert_key_pair = attest::gen_ed25519_key_pair()
         .context("Failed to generate ed25519 cert key pair")?;
+
+    let cert_pubkey = cert_key_pair.public_key_raw();
+    debug!(cert_pubkey = %hex::display(cert_pubkey), "attesting to pubkey");
 
     // Get our enclave measurement and cert pubkey quoted by the enclave
     // platform. This process binds the cert pubkey to the quote evidence. When
@@ -169,6 +174,7 @@ pub async fn provision<R: Runner>(
     //
     // Returns the quote as an x509 cert extension that we'll embed in our
     // self-signed provisioning cert.
+    let attest_start = Instant::now();
     let attestation = attest::quote_enclave(&cert_key_pair)
         .context("Failed to get node enclave quoted")?;
 
@@ -187,6 +193,12 @@ pub async fn provision<R: Runner>(
     let cert_der = cert.serialize_der().expect("Failed to DER serialize cert");
     let cert_key_der = cert.serialize_private_key_der();
 
+    debug!(
+        "acquired attestation: cert size: {} B, time elapsed: {:?}",
+        cert_der.len(),
+        attest_start.elapsed()
+    );
+
     let tls_config = rustls::ServerConfig::builder()
         .with_safe_defaults()
         .with_no_client_auth()
@@ -203,10 +215,12 @@ pub async fn provision<R: Runner>(
         match tokio::time::timeout(PROVISION_TIMEOUT, shutdown_rx.recv()).await
         {
             Ok(_) => {
-                println!("provision: received shutdown");
+                debug!("received shutdown; done provisioning");
             }
             Err(_) => {
-                println!("provision: timeout");
+                warn!(
+                    "timeout waiting for successful client provision request"
+                );
             }
         }
     };
@@ -220,7 +234,7 @@ pub async fn provision<R: Runner>(
         .bind_with_graceful_shutdown(addr, shutdown);
     let port = listen_addr.port();
 
-    println!("provision: listening on {listen_addr}");
+    info!(%listen_addr, "listening for connections");
 
     // notify the runner that we're ready for a client connection
     runner
@@ -228,10 +242,9 @@ pub async fn provision<R: Runner>(
         .await
         .context("Failed to notify runner of our readiness")?;
 
-    println!("provision: notified runner; awaiting client connection");
+    debug!("notified runner; awaiting client request");
     service.await;
 
-    println!("provision: done provisioning");
     Ok(())
 }
 
@@ -246,6 +259,7 @@ mod test {
         ServerCertVerified, ServerCertVerifier,
     };
     use tokio_rustls::rustls::{Certificate, ServerName};
+    use tracing::trace;
 
     use super::*;
     use crate::{cli, logger};
@@ -262,7 +276,7 @@ mod test {
             ocsp_response: &[u8],
             now: SystemTime,
         ) -> Result<ServerCertVerified, rustls::Error> {
-            println!("client: verify_server_cert");
+            trace!("client: verify_server_cert");
 
             // there should be no intermediate certs
             if !intermediates.is_empty() {
@@ -292,6 +306,9 @@ mod test {
                 now,
             )?;
 
+            // in addition to the typical cert checks, we also need to extract
+            // the enclave attestation quote from the cert and verify that.
+
             // TODO(phlip9): parse quote
 
             // 1. parse out subjectPublicKeyInfo
@@ -319,6 +336,7 @@ mod test {
                 port: Port,
             ) -> Result<(), api::ApiError> {
                 let req = UserPort { user_id, port };
+                trace!("mock runner: received ready notification");
                 self.0.send(req).await.unwrap();
                 Ok(())
             }
@@ -342,8 +360,6 @@ mod test {
             let runner_req = runner_req_rx.recv().await.unwrap();
             assert_eq!(runner_req.user_id, user_id);
             let port = runner_req.port;
-
-            println!("runner: received ready notification: port: {port}");
 
             let mut tls_config = rustls::ClientConfig::builder()
                 .with_safe_defaults()

@@ -1,9 +1,22 @@
+use std::time::Instant;
+
 use node::cli::Args;
 use node::logger;
+use tracing::{debug, error};
 
-pub fn main() -> anyhow::Result<()> {
+pub fn main() {
+    let start = Instant::now();
     logger::init();
 
     let args = argh::from_env::<Args>();
-    args.run()
+    let result = args.run();
+
+    let time_elapsed = start.elapsed();
+    match result {
+        Ok(()) => debug!(?time_elapsed, "completed without error"),
+        Err(error) => {
+            error!(?time_elapsed, "error running command: {:#}", error);
+            std::process::exit(1);
+        }
+    }
 }

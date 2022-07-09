@@ -32,8 +32,7 @@ pub fn try_init() -> Result<(), TracingError> {
         .unwrap_or(Level::INFO);
 
     tracing_subscriber::fmt()
-        .with_file(true)
-        .with_line_number(true)
+        .compact()
         .with_level(true)
         .with_max_level(level)
         .try_init()

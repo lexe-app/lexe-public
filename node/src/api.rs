@@ -7,6 +7,7 @@ use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::debug;
 use ApiVersion::*;
 use BaseUrl::*;
 
@@ -304,7 +305,7 @@ async fn request<D: Serialize, T: DeserializeOwned>(
             url.push_str(&query_str);
         }
     }
-    println!("{} {}", method, url);
+    debug!(%method, %url, "sending request");
 
     // If PUT or POST, serialize the data in the request body
     let body = match method {

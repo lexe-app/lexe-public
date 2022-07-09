@@ -1,4 +1,4 @@
-use std::fmt::Write;
+use std::fmt::{self, Write};
 
 use thiserror::Error;
 
@@ -73,10 +73,31 @@ pub fn decode_to_slice_ct(
 
 pub fn encode(bytes: &[u8]) -> String {
     let mut res = String::with_capacity(bytes.len() * 2);
-    for byte in bytes {
-        write!(&mut res, "{:02x}", byte).unwrap();
-    }
+    write!(&mut res, "{}", display(bytes)).unwrap();
     res
+}
+
+pub struct HexDisplay<'a>(&'a [u8]);
+
+impl<'a> fmt::Display for HexDisplay<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for byte in self.0 {
+            write!(f, "{:02x}", byte)?
+        }
+        Ok(())
+    }
+}
+
+impl<'a> fmt::Debug for HexDisplay<'a> {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
+
+#[inline]
+pub fn display(bytes: &[u8]) -> HexDisplay<'_> {
+    HexDisplay(bytes)
 }
 
 #[cfg(not(target_env = "sgx"))] // TODO Remove once this fn is used in sgx

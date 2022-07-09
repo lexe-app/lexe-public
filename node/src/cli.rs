@@ -1,3 +1,4 @@
+use anyhow::Context;
 use argh::FromArgs;
 
 use crate::init;
@@ -98,6 +99,7 @@ impl Args {
                     .build()
                     .expect("Failed to build tokio runtime");
                 rt.block_on(init::start_ldk(args))
+                    .context("Error running node")
             }
             Command::Provision(args) => {
                 let rt = tokio::runtime::Builder::new_current_thread()
@@ -106,6 +108,7 @@ impl Args {
                     .expect("Failed to init tokio runtime");
                 let runner = LexeRunner::new();
                 rt.block_on(provision(args, runner))
+                    .context("error while provisioning")
             }
         }
     }
