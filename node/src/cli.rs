@@ -31,9 +31,10 @@ pub struct StartCommand {
     #[argh(option)]
     pub user_id: UserId,
 
-    /// the port on which to accept Lightning P2P connections
-    #[argh(option, default = "9735")]
-    pub peer_port: Port,
+    /// the port on which to accept Lightning P2P connections.
+    /// Defaults to a port assigned by the OS
+    #[argh(option)]
+    pub peer_port: Option<Port>,
 
     /// this node's Lightning Network alias
     #[argh(option, default = "NodeAlias::default()")]
@@ -43,9 +44,10 @@ pub struct StartCommand {
     #[argh(option, default = "Network::default()")]
     pub network: Network,
 
-    /// the port warp uses to accept commands and TLS connections
-    #[argh(option, default = "1999")]
-    pub warp_port: Port,
+    /// the port warp uses to accept commands and TLS connections.
+    #[argh(option)]
+    /// Defaults to a port assigned by the OS
+    pub warp_port: Option<Port>,
 
     /// whether the node should shut down after completing sync and other
     /// maintenance tasks. This only applies if no activity was detected prior
