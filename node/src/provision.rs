@@ -23,6 +23,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+use common::hex;
 use http::{Response, StatusCode};
 use rcgen::date_time_ymd;
 use serde::{Deserialize, Serialize};
@@ -35,9 +36,9 @@ use warp::reject::Reject;
 use warp::{Filter, Rejection, Reply};
 
 use crate::api::{self, UserPort};
+use crate::attest;
 use crate::cli::ProvisionCommand;
 use crate::types::{Port, RootSeed, UserId};
-use crate::{attest, hex};
 
 const RUNNER_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);

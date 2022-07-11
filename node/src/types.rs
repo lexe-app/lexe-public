@@ -8,6 +8,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{ensure, format_err};
+use common::hex;
 use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::keysinterface::InMemorySigner;
 use lightning::chain::{self, chainmonitor, Access, Filter};
@@ -26,9 +27,9 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use subtle::ConstantTimeEq;
 
 use crate::bitcoind_client::BitcoindClient;
+use crate::ed25519;
 use crate::logger::LdkTracingLogger;
 use crate::persister::PostgresPersister;
-use crate::{ed25519, hex};
 
 pub type UserId = i64;
 pub type Port = u16;

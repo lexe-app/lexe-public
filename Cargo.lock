@@ -283,6 +283,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fff857943da45f546682664a79488be82e69e43c1a7a2307679ab9afb3a66d2e"
 
 [[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "proptest",
+ "proptest-derive",
+ "thiserror",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -947,6 +956,7 @@ dependencies = [
  "bitcoin",
  "bitcoin-bech32",
  "bytemuck",
+ "common",
  "futures",
  "http",
  "hyper",

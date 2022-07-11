@@ -3,13 +3,12 @@
 use std::fmt;
 
 use asn1_rs::{oid, Oid};
+use common::hex;
 use rcgen::RcgenError;
 use ring::signature::KeyPair as _;
 use thiserror::Error;
 use tokio_rustls::rustls;
 use x509_parser::x509::SubjectPublicKeyInfo;
-
-use crate::hex;
 
 /// The standard PKCS OID for Ed25519
 #[rustfmt::skip]

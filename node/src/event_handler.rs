@@ -10,6 +10,7 @@ use bitcoin::consensus::encode;
 use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin_bech32::WitnessProgram;
+use common::hex;
 use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
 };
@@ -19,7 +20,6 @@ use lightning::util::events::{Event, EventHandler, PaymentPurpose};
 use tokio::runtime::Handle;
 
 use crate::bitcoind_client::BitcoindClient;
-use crate::hex;
 use crate::types::{
     ChannelManagerType, HTLCStatus, MillisatAmount, NetworkGraphType,
     NodeAlias, PaymentInfo, PaymentInfoStorageType,

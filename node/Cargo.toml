@@ -12,6 +12,9 @@ edition = "2021"
 
 [dependencies]
 
+# ---LEXE--- #
+common = { path = "../common" }
+
 # ---BITCOIN--- #
 
 bitcoin = "0.28.1"

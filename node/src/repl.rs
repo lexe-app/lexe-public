@@ -45,6 +45,7 @@ mod not_sgx {
     use bitcoin::hashes::Hash;
     use bitcoin::network::constants::Network;
     use bitcoin::secp256k1::PublicKey;
+    use common::hex;
     use lightning::chain::keysinterface::{
         KeysInterface, KeysManager, Recipient,
     };
@@ -57,13 +58,13 @@ mod not_sgx {
     use lightning_invoice::payment::PaymentError;
     use lightning_invoice::{utils, Currency, Invoice};
 
+    use crate::peer;
     use crate::persister::PostgresPersister;
     use crate::types::{
         ChannelManagerType, HTLCStatus, InvoicePayerType, MillisatAmount,
         NetworkGraphType, NodeAlias, PaymentInfo, PaymentInfoStorageType,
         PeerManagerType,
     };
-    use crate::{hex, peer};
 
     #[allow(clippy::too_many_arguments)]
     #[cfg(not(target_env = "sgx"))]
@@ -192,7 +193,7 @@ mod not_sgx {
                     "keysend" => {
                         let dest_pubkey = match words.next() {
                             Some(dest) => {
-                                match hex::to_compressed_pubkey(dest) {
+                                match hex_to_compressed_pubkey(dest) {
                                     Some(pk) => pk,
                                     None => {
                                         println!("ERROR: couldn't parse destination pubkey");
@@ -804,7 +805,7 @@ mod not_sgx {
             ));
         }
 
-        let pubkey = hex::to_compressed_pubkey(pubkey.unwrap());
+        let pubkey = hex_to_compressed_pubkey(pubkey.unwrap());
         if pubkey.is_none() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
@@ -813,5 +814,19 @@ mod not_sgx {
         }
 
         Ok((pubkey.unwrap(), peer_addr.unwrap().unwrap()))
+    }
+
+    fn hex_to_compressed_pubkey(hex: &str) -> Option<PublicKey> {
+        if hex.len() != 33 * 2 {
+            return None;
+        }
+        let data = match hex::decode(&hex[0..33 * 2]) {
+            Ok(bytes) => bytes,
+            Err(_) => return None,
+        };
+        match PublicKey::from_slice(&data) {
+            Ok(pk) => Some(pk),
+            Err(_) => None,
+        }
     }
 }

@@ -100,24 +100,6 @@ pub fn display(bytes: &[u8]) -> HexDisplay<'_> {
     HexDisplay(bytes)
 }
 
-#[cfg(not(target_env = "sgx"))] // TODO Remove once this fn is used in sgx
-pub fn to_compressed_pubkey(
-    hex: &str,
-) -> Option<bitcoin::secp256k1::PublicKey> {
-    use bitcoin::secp256k1::PublicKey; // TODO Likewise
-    if hex.len() != 33 * 2 {
-        return None;
-    }
-    let data = match decode(&hex[0..33 * 2]) {
-        Ok(bytes) => bytes,
-        Err(_) => return None,
-    };
-    match PublicKey::from_slice(&data) {
-        Ok(pk) => Some(pk),
-        Err(_) => None,
-    }
-}
-
 #[cfg(test)]
 mod test {
     use proptest::arbitrary::any;
