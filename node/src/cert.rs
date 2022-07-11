@@ -233,13 +233,13 @@ impl NodeCert {
 mod test {
     use std::sync::Arc;
 
+    use common::root_seed::RootSeed;
     use futures::future::join;
     use secrecy::Secret;
     use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt};
     use tokio_rustls::rustls;
 
     use super::*;
-    use crate::types::RootSeed;
 
     #[test]
     fn test_certs_parse_successfully() {

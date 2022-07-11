@@ -286,11 +286,15 @@ checksum = "fff857943da45f546682664a79488be82e69e43c1a7a2307679ab9afb3a66d2e"
 name = "common"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "asn1-rs",
  "proptest",
  "proptest-derive",
  "rcgen",
  "ring",
+ "secrecy",
+ "serde",
+ "serde_json",
  "thiserror",
  "x509-parser",
 ]

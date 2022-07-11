@@ -6,3 +6,4 @@
 
 pub mod ed25519;
 pub mod hex;
+pub mod root_seed;
