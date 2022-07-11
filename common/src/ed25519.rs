@@ -3,12 +3,12 @@
 use std::fmt;
 
 use asn1_rs::{oid, Oid};
-use common::hex;
 use rcgen::RcgenError;
 use ring::signature::KeyPair as _;
 use thiserror::Error;
-use tokio_rustls::rustls;
 use x509_parser::x509::SubjectPublicKeyInfo;
+
+use crate::hex;
 
 /// The standard PKCS OID for Ed25519
 #[rustfmt::skip]
@@ -21,12 +21,6 @@ pub enum Error {
 
     #[error("the algorithm OID doesn't match the standard ed25519 OID")]
     UnexpectedAlgorithm,
-}
-
-impl From<Error> for rustls::Error {
-    fn from(err: Error) -> rustls::Error {
-        rustls::Error::InvalidCertificateData(err.to_string())
-    }
 }
 
 /// An ed25519 public key

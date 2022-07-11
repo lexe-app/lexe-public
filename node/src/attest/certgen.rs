@@ -6,14 +6,12 @@
 use std::borrow::Cow;
 use std::fmt;
 
-use common::hex;
+use common::{ed25519, hex};
 use rcgen::{
     Certificate, CustomExtension, DnType, KeyPair, RcgenError, SanType,
 };
 use time::OffsetDateTime;
 use yasna::models::ObjectIdentifier;
-
-use crate::ed25519;
 
 /// The subset of [`rcgen::CertificateParams`] that we need to generate a cert.
 pub struct CertificateParams {

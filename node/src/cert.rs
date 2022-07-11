@@ -16,13 +16,12 @@
 #![allow(dead_code)]
 
 use anyhow::Context;
+use common::ed25519;
 use rcgen::{
     date_time_ymd, BasicConstraints, CertificateParams, DistinguishedName,
     DnType, IsCa, RcgenError, SanType,
 };
 use tokio_rustls::rustls;
-
-use crate::ed25519;
 
 /// The CA cert used as the trust anchor for both client and node.
 ///

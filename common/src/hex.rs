@@ -1,3 +1,5 @@
+//! Utilities for encoding, decoding, and displaying hex-formatted data.
+
 use std::fmt::{self, Write};
 
 use thiserror::Error;

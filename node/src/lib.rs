@@ -9,7 +9,6 @@ mod bitcoind_client;
 mod cert;
 mod command_server;
 mod convert;
-mod ed25519;
 mod event_handler;
 mod inactivity_timer;
 mod init;

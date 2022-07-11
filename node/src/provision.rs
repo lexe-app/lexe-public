@@ -255,6 +255,7 @@ mod test {
     use std::time::SystemTime;
 
     use asn1_rs::FromDer;
+    use common::ed25519;
     use secrecy::Secret;
     use tokio::sync::mpsc;
     use tokio_rustls::rustls::client::{
@@ -266,7 +267,7 @@ mod test {
 
     use super::*;
     use crate::attest::SgxAttestationExtension;
-    use crate::{cli, ed25519, logger};
+    use crate::{cli, logger};
 
     struct AttestCertVerifier {
         is_debug: bool,
@@ -333,7 +334,10 @@ mod test {
                 })?;
 
             // TODO(phlip9): check binding b/w cert pubkey and Quote report data
-            let _cert_pubkey = ed25519::PublicKey::try_from(cert.public_key())?;
+            let _cert_pubkey = ed25519::PublicKey::try_from(cert.public_key())
+                .map_err(|err| {
+                    rustls::Error::InvalidCertificateData(err.to_string())
+                })?;
 
             for ext in cert.extensions() {
                 debug!(ext_oid = %ext.oid, ext_value = %hex::display(ext.value));
