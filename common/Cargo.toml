@@ -16,8 +16,10 @@ anyhow = "1"
 # Easily generate x509 certs with ring
 rcgen = { version = "0.9", default-features = false, features = [] }
 # Safe and small crypto primitives based on BoringSSL
-# NOTE: the version must match the patched version in the workspace Cargo.toml
+# NOTE: version must exactly match patched version
 ring = "=0.16.20"
+# TLS library
+rustls = { version = "0.20", default-features = false }
 # A wrapper type for carefully handling secrets
 secrecy = "0.8"
 # Serializing/deserializing types
@@ -36,6 +38,22 @@ proptest = { version = "1", default-features = false, features = ["alloc"] }
 proptest-derive = "0.3"
 # Testing serde
 serde_json = "1"
+# Utilities for manipulating Rust Futures
+futures = "0.3"
+# Tokio features used when testing
+# NOTE: version must exactly match patched version
+tokio = { version = "=1.15.0", default-features = false, features = [
+    "io-util",
+    "macros",
+    "rt",
+    "sync",
+    "test-util",
+    "time"
+] }
+# lower-level async TLS interface
+tokio-rustls = { version = "0.23", default-features = false }
+# Test that our generated certs are well formed
+webpki = "0.22"
 
 # Add some useful proptest features when testing during development
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]

@@ -288,14 +288,19 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "asn1-rs",
+ "futures",
  "proptest",
  "proptest-derive",
  "rcgen",
  "ring",
+ "rustls",
  "secrecy",
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
+ "tokio-rustls",
+ "webpki",
  "x509-parser",
 ]
 

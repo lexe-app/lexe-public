@@ -6,6 +6,7 @@
 use std::borrow::Cow;
 use std::fmt;
 
+use common::client_node_certs::lexe_distinguished_name_prefix;
 use common::{ed25519, hex};
 use rcgen::{
     Certificate, CustomExtension, DnType, KeyPair, RcgenError, SanType,
@@ -68,7 +69,7 @@ impl TryFrom<CertificateParams> for rcgen::CertificateParams {
 
     fn try_from(params: CertificateParams) -> Result<Self, Self::Error> {
         // TODO(phlip9): don't know how much DN matters...
-        let mut name = crate::cert::lexe_distinguished_name_prefix();
+        let mut name = lexe_distinguished_name_prefix();
         name.push(DnType::CommonName, "node provisioning cert");
 
         let subject_alt_names = params
