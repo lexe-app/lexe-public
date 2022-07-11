@@ -29,6 +29,8 @@ use crate::ed25519;
 /// The key pair for the CA cert is normally derived from the [`RootSeed`],
 /// meaning both client and node can independently derive the CA credentials
 /// once the seed is provisioned.
+///
+/// [`RootSeed`]: crate::types::RootSeed
 pub struct CaCert(rcgen::Certificate);
 
 /// The end-entity cert used by the client. Signed by the CA cert.

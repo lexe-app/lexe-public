@@ -3,7 +3,7 @@
 mod certgen;
 mod quote;
 
-pub use certgen::CertificateParams;
+pub use certgen::{CertificateParams, SgxAttestationExtension};
 pub use quote::quote_enclave;
 use rcgen::{KeyPair, RcgenError, PKCS_ED25519};
 

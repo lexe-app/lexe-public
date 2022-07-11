@@ -4,6 +4,7 @@
 #![allow(dead_code)]
 
 use std::borrow::Cow;
+use std::fmt;
 
 use rcgen::{
     Certificate, CustomExtension, DnType, KeyPair, RcgenError, SanType,
@@ -11,7 +12,7 @@ use rcgen::{
 use time::OffsetDateTime;
 use yasna::models::ObjectIdentifier;
 
-use crate::ed25519;
+use crate::{ed25519, hex};
 
 /// The subset of [`rcgen::CertificateParams`] that we need to generate a cert.
 pub struct CertificateParams {
@@ -45,7 +46,7 @@ pub struct CertificateParams {
 ///     QE_REPORT  OCTET STRING
 /// }
 /// ```
-#[derive(Debug, PartialEq, Eq)]
+#[derive(PartialEq, Eq)]
 pub struct SgxAttestationExtension<'a, 'b> {
     pub quote: Cow<'a, [u8]>,
     pub qe_report: Cow<'b, [u8]>,
@@ -108,6 +109,12 @@ impl<'a, 'b> SgxAttestationExtension<'a, 'b> {
         ObjectIdentifier::from_slice(Self::OID)
     }
 
+    #[rustfmt::skip]
+    pub const fn oid_asn1_rs() -> asn1_rs::Oid<'static> {
+        // TODO(phlip9): won't parse OID_DER...
+        asn1_rs::oid!(1.2.840.113741.1337.7)
+    }
+
     /// Clients that don't understand a critical extension will immediately
     /// reject the cert. Unfortunately, setting this to true seems to break
     /// clients...
@@ -136,6 +143,14 @@ impl<'a, 'b> SgxAttestationExtension<'a, 'b> {
 }
 
 impl SgxAttestationExtension<'static, 'static> {
+    /// Build a dummy attestation for testing on non-SGX platforms
+    pub const fn dummy() -> Self {
+        Self {
+            quote: Cow::Borrowed(b"dummy quote"),
+            qe_report: Cow::Borrowed(b"dummy qe_report"),
+        }
+    }
+
     /// Deserialize the attestation from DER bytes.
     pub fn from_der_bytes(buf: &[u8]) -> yasna::ASN1Result<Self> {
         yasna::parse_der(buf, |reader| {
@@ -148,6 +163,15 @@ impl SgxAttestationExtension<'static, 'static> {
                 })
             })
         })
+    }
+}
+
+impl<'a, 'b> fmt::Debug for SgxAttestationExtension<'a, 'b> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SgxAttestationExtension")
+            .field("quote", &hex::display(&self.quote))
+            .field("qe_report", &hex::display(&self.qe_report))
+            .finish()
     }
 }
 

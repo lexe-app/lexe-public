@@ -126,11 +126,8 @@ mod not_sgx {
     pub fn quote_enclave(_cert_key_pair: &KeyPair) -> Result<CustomExtension> {
         // TODO(phlip9): use a different dummy extension?
 
-        let attestation = SgxAttestationExtension {
-            quote: b"dummy quote".as_slice().into(),
-            qe_report: b"dummy qe_report".as_slice().into(),
-        };
-        Ok(attestation.to_cert_extension())
+        let dummy_attestation = SgxAttestationExtension::dummy();
+        Ok(dummy_attestation.to_cert_extension())
     }
 }
 
