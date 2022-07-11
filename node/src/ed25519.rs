@@ -1,7 +1,97 @@
 //! Utilities for working w/ ed25519 keys (used to sign x509 certs for now).
 
+use std::fmt;
+
+use asn1_rs::{oid, Oid};
 use rcgen::RcgenError;
 use ring::signature::KeyPair as _;
+use thiserror::Error;
+use tokio_rustls::rustls;
+use x509_parser::x509::SubjectPublicKeyInfo;
+
+use crate::hex;
+
+/// The standard PKCS OID for Ed25519
+#[rustfmt::skip]
+pub const PKCD_OID: Oid<'static> = oid!(1.3.101.112);
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("ed25519 public key must be exactly 32 bytes")]
+    InvalidPubkeyLength,
+
+    #[error("the algorithm OID doesn't match the standard ed25519 OID")]
+    UnexpectedAlgorithm,
+}
+
+impl From<Error> for rustls::Error {
+    fn from(err: Error) -> rustls::Error {
+        rustls::Error::InvalidCertificateData(err.to_string())
+    }
+}
+
+/// An ed25519 public key
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub struct PublicKey([u8; 32]);
+
+impl PublicKey {
+    pub fn new(bytes: [u8; 32]) -> Self {
+        // TODO(phlip9): check for malleability/small-order subgroup
+        // https://github.com/aptos-labs/aptos-core/blob/3f437b5597b5d537d03755e599f395a2242f2b91/crates/aptos-crypto/src/ed25519.rs#L358
+        Self(bytes)
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+}
+
+impl TryFrom<&[u8]> for PublicKey {
+    type Error = Error;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        if bytes.len() != 32 {
+            return Err(Error::InvalidPubkeyLength);
+        }
+
+        let mut pubkey = [0u8; 32];
+        pubkey.copy_from_slice(bytes);
+        Ok(Self::new(pubkey))
+    }
+}
+
+impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
+    type Error = Error;
+
+    fn try_from(spki: &SubjectPublicKeyInfo<'_>) -> Result<Self, Self::Error> {
+        let alg = &spki.algorithm;
+        if !(alg.oid() == &PKCD_OID) {
+            return Err(Error::UnexpectedAlgorithm);
+        }
+
+        Self::try_from(spki.subject_public_key.as_ref())
+    }
+}
+
+impl AsRef<[u8]> for PublicKey {
+    fn as_ref(&self) -> &[u8] {
+        self.as_bytes()
+    }
+}
+
+impl fmt::Display for PublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::display(self.as_bytes()))
+    }
+}
+
+impl fmt::Debug for PublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ed25519::PublicKey")
+            .field(&hex::display(self.as_bytes()))
+            .finish()
+    }
+}
 
 // TODO(phlip9): patch ring/rcgen so `Ed25519KeyPair` derives `Default` so we
 // can wrap it in `Secret<..>`
@@ -108,5 +198,15 @@ mod test {
             let key_pair = crate::ed25519::from_seed(&seed);
             assert!(key_pair.is_compatible(&rcgen::PKCS_ED25519));
         })
+    }
+
+    #[test]
+    fn test_from_rcgen() {
+        proptest!(|(seed in any::<[u8; 32]>())| {
+            let key_pair = crate::ed25519::from_seed(&seed);
+            let pubkey_bytes = key_pair.public_key_raw();
+            let pubkey = PublicKey::try_from(pubkey_bytes).unwrap();
+            assert_eq!(pubkey.as_bytes(), pubkey_bytes);
+        });
     }
 }

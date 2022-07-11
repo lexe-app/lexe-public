@@ -43,7 +43,10 @@ rcgen = { version = "0.9", default-features = false, features = [] }
 time = "0.3"
 # For constructing/parsing ASN.1 data in x509 certs
 yasna = { version = "0.2", default-features = false }
-
+# Parsing x509 cert extensions
+# TODO(phlip9): avoid this extra dependency and just use `yasna` directly
+x509-parser = { version = "0.14", default-features = false }
+asn1-rs = { version = "0.5", default-features = false }
 
 # ---UTILITIES--- #
 
