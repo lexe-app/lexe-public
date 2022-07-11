@@ -23,10 +23,11 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use common::hex;
 use common::root_seed::RootSeed;
+use common::{ed25519, hex};
 use http::{Response, StatusCode};
 use rcgen::date_time_ymd;
+use ring::rand::SecureRandom;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc;
@@ -154,6 +155,7 @@ impl Runner for LexeRunner {
 #[instrument(skip_all)]
 pub async fn provision<R: Runner>(
     args: ProvisionCommand,
+    rng: &dyn SecureRandom,
     runner: R,
 ) -> Result<()> {
     debug!(args.user_id, args.port, %args.node_dns_name, "provisioning");
@@ -161,9 +163,7 @@ pub async fn provision<R: Runner>(
     // TODO(phlip9): zeroize secrets
 
     // Generate a fresh key pair, which we'll use for the provisioning cert.
-    let cert_key_pair = attest::gen_ed25519_key_pair()
-        .context("Failed to generate ed25519 cert key pair")?;
-
+    let cert_key_pair = ed25519::gen_key_pair(rng)?;
     let cert_pubkey = cert_key_pair.public_key_raw();
     debug!(cert_pubkey = %hex::display(cert_pubkey), "attesting to pubkey");
 
@@ -257,6 +257,7 @@ mod test {
 
     use asn1_rs::FromDer;
     use common::ed25519;
+    use ring::rand::SystemRandom;
     use secrecy::Secret;
     use tokio::sync::mpsc;
     use tokio_rustls::rustls::client::{
@@ -409,8 +410,9 @@ mod test {
         };
 
         let (runner_req_tx, mut runner_req_rx) = mpsc::channel(1);
+        let rng = SystemRandom::new();
         let runner = MockRunner(runner_req_tx);
-        let provision_task = provision(args, runner);
+        let provision_task = provision(args, &rng, runner);
 
         let test_task = async {
             // runner recv ready notification w/ listening port

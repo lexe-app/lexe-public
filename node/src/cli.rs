@@ -1,5 +1,6 @@
 use anyhow::Context;
 use argh::FromArgs;
+use ring::rand::SystemRandom;
 
 use crate::init;
 use crate::provision::{provision, LexeRunner};
@@ -108,8 +109,9 @@ impl Args {
                     .enable_all()
                     .build()
                     .expect("Failed to init tokio runtime");
+                let rng = SystemRandom::new();
                 let runner = LexeRunner::new();
-                rt.block_on(provision(args, runner))
+                rt.block_on(provision(args, &rng, runner))
                     .context("error while provisioning")
             }
         }
