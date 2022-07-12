@@ -12,17 +12,18 @@ edition = "2021"
 
 [dependencies]
 
-# ---LEXE--- #
+# --- LEXE --- #
+
 common = { path = "../common" }
 
-# ---BITCOIN--- #
+# --- BITCOIN --- #
 
 bitcoin = "0.28.1"
 bitcoin-bech32 = "0.12"
 # bech32 = "0.8"
 base64 = "0.13.0"
 
-# ---LIGHTNING--- #
+# --- LIGHTNING --- #
 
 lightning = { version = "0.0.108", features = ["max_level_trace"] }
 lightning-block-sync = { version = "0.0.108", features = [ "rpc-client" ] }
@@ -38,39 +39,36 @@ lightning-rapid-gossip-sync = { version = "0.0.108" }
 # lightning-background-processor = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lightning-net-tokio-sgx-v0.0.108" }
 # lightning-rapid-gossip-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lightning-net-tokio-sgx-v0.0.108" }
 
-# ---ATTESTATION--- #
-
-# Easily generate self-signed x509 certs with ring
-rcgen = { version = "0.9", default-features = false, features = [] }
-
 # ---UTILITIES--- #
 
 # Ad hoc error definition, easy error propagation, error chains
 anyhow = "1"
-# async fn's in trait methods
-async-trait = "0.1"
-# Easy error definition
-thiserror = "1"
 # Derive-based command line argument parsing
 argh = "0"
-# Hex tools
-# hex = "0.3"
-# Used to specify the HTTP methods used to interact with the API
-http = "0.2"
+# async fn's in trait methods
+async-trait = "0.1"
+# For casting byte buffers to/from the AESM client from/to actual structured data.
+bytemuck = { version = "1.9.1", default-features = false, features = ["derive", "min_const_generics"] }
 # Used to manually poll a future in ldk-sample's networking code TODO remove
 futures = "0.3"
+# Used to specify the HTTP methods used to interact with the API
+http = "0.2"
 # Used to hold a Tokio runtime used by the sync fns in the Persister trait impl
 once_cell = "1"
 # Used to serialize / deserialize from API
 serde = { version = "1", features = ["derive"] }
 serde_qs = "0"
 serde_json = "1"
-# For casting byte buffers to/from the AESM client from/to actual structured data.
-bytemuck = { version = "1.9.1", default-features = false, features = ["derive", "min_const_generics"] }
+# Easily generate self-signed x509 certs with ring
+rcgen = { version = "0.9", default-features = false, features = [] }
+# Used to make HTTP requests to the API
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls-manual-roots"] }
 # Constant-time comparisons
 subtle = { version = "2.4", default-features = false }
 # A wrapper type for carefully handling secrets
 secrecy = "0.8"
+# Easy error definition
+thiserror = "1"
 # lower-level async TLS interface
 tokio-rustls = "0.23"
 # Logging
@@ -81,13 +79,9 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
     "fmt",
     "tracing-log",
 ] }
-
-# ---MAJOR DEPENDENCIES--- #
-
-# Used to make HTTP requests to the API
-reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls-manual-roots"] }
 # Filter-based webserver
-# This branch implements Reply for Result<impl Reply, impl Reply>
+# NOTE: This branch implements (1) Reply for Result<impl Reply, impl Reply> and
+#       (2) allows setting a prebuilt rustls TLS server config
 warp = { git = "https://github.com/lexe-tech/warp", branch = "lexe", default-features = false, features = ["tls"] }
 
 # ---PATCHED DEPENDENCIES--- #
