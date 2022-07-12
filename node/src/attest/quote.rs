@@ -23,11 +23,11 @@ mod sgx {
     use aesm_client::sgx::AesmClientExt;
     use aesm_client::AesmClient;
     use anyhow::{format_err, Context, Result};
+    use common::attest::cert::SgxAttestationExtension;
     use rcgen::{CustomExtension, KeyPair};
     use sgx_isa::{Report, Targetinfo};
 
     use super::{ErrString, QlAttKeyIdExt, ReportData};
-    use crate::attest::certgen::SgxAttestationExtension;
 
     // TODO(phlip9): probably use local wrapper type for crypto keypair
     pub fn quote_enclave(cert_key_pair: &KeyPair) -> Result<CustomExtension> {
@@ -119,9 +119,8 @@ mod sgx {
 #[cfg(not(target_env = "sgx"))]
 mod not_sgx {
     use anyhow::Result;
+    use common::attest::cert::SgxAttestationExtension;
     use rcgen::{CustomExtension, KeyPair};
-
-    use crate::attest::certgen::SgxAttestationExtension;
 
     pub fn quote_enclave(_cert_key_pair: &KeyPair) -> Result<CustomExtension> {
         // TODO(phlip9): use a different dummy extension?

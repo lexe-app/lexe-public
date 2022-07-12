@@ -23,6 +23,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+use common::attest::cert::CertificateParams;
 use common::root_seed::RootSeed;
 use common::{ed25519, hex};
 use http::{Response, StatusCode};
@@ -181,7 +182,7 @@ pub async fn provision<R: Runner>(
         .context("Failed to get node enclave quoted")?;
 
     // Generate a self-signed x509 cert with the remote attestation embedded.
-    let cert_params = attest::CertificateParams {
+    let cert_params = CertificateParams {
         key_pair: cert_key_pair,
         dns_names: vec![args.node_dns_name],
         // TODO(phlip9): choose a very narrow validity range, like ~1 hour
@@ -256,6 +257,7 @@ mod test {
     use std::time::SystemTime;
 
     use asn1_rs::FromDer;
+    use common::attest::cert::SgxAttestationExtension;
     use common::ed25519;
     use ring::rand::SystemRandom;
     use secrecy::Secret;
@@ -268,7 +270,6 @@ mod test {
     use x509_parser::certificate::X509Certificate;
 
     use super::*;
-    use crate::attest::SgxAttestationExtension;
     use crate::{cli, logger};
 
     struct AttestCertVerifier {

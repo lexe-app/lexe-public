@@ -298,10 +298,12 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "time",
  "tokio",
  "tokio-rustls",
  "webpki",
  "x509-parser",
+ "yasna 0.2.2",
 ]
 
 [[package]]
@@ -994,7 +996,6 @@ dependencies = [
  "sgx-isa",
  "subtle",
  "thiserror",
- "time",
  "tokio",
  "tokio-rustls",
  "tracing",
@@ -1003,7 +1004,6 @@ dependencies = [
  "warp",
  "webpki",
  "x509-parser",
- "yasna 0.2.2",
 ]
 
 [[package]]

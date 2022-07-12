@@ -13,8 +13,6 @@
 //! that clients and nodes can authenticate each other and build a secure
 //! channel via mTLS (mutual-auth TLS).
 
-#![allow(dead_code)]
-
 use anyhow::Context;
 use rcgen::{
     date_time_ymd, BasicConstraints, CertificateParams, DistinguishedName,

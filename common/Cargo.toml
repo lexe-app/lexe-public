@@ -24,12 +24,16 @@ rustls = { version = "0.20", default-features = false }
 secrecy = "0.8"
 # Serializing/deserializing types
 serde = { version = "1", features = ["derive"] }
+# Used for cert validitity range
+time = "0.3"
 # Easy error definition
 thiserror = "1"
 # Parsing x509 cert extensions
 # TODO(phlip9): avoid this extra dependency and just use `yasna` directly
 x509-parser = { version = "0.14", default-features = false }
 asn1-rs = { version = "0.5", default-features = false }
+# For constructing/parsing ASN.1 data in x509 certs
+yasna = { version = "0.2", default-features = false }
 
 [dev-dependencies]
 # property based testing

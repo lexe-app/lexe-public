@@ -6,13 +6,14 @@
 use std::borrow::Cow;
 use std::fmt;
 
-use common::client_node_certs::lexe_distinguished_name_prefix;
-use common::{ed25519, hex};
 use rcgen::{
     Certificate, CustomExtension, DnType, KeyPair, RcgenError, SanType,
 };
 use time::OffsetDateTime;
 use yasna::models::ObjectIdentifier;
+
+use crate::client_node_certs::lexe_distinguished_name_prefix;
+use crate::{ed25519, hex};
 
 /// The subset of [`rcgen::CertificateParams`] that we need to generate a cert.
 pub struct CertificateParams {
