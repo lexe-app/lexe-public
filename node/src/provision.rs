@@ -247,132 +247,15 @@ pub async fn provision<R: Runner>(
 #[cfg(test)]
 mod test {
     use std::sync::Arc;
-    use std::time::SystemTime;
 
-    use asn1_rs::FromDer;
-    use common::attest::cert::SgxAttestationExtension;
-    use common::ed25519;
+    use common::attest;
     use ring::rand::SystemRandom;
     use secrecy::Secret;
     use tokio::sync::mpsc;
-    use tokio_rustls::rustls::client::{
-        ServerCertVerified, ServerCertVerifier,
-    };
-    use tokio_rustls::rustls::{Certificate, ServerName};
     use tracing::trace;
-    use x509_parser::certificate::X509Certificate;
 
     use super::*;
     use crate::{cli, logger};
-
-    struct AttestCertVerifier {
-        is_debug: bool,
-    }
-
-    impl AttestCertVerifier {
-        fn real() -> Self {
-            Self { is_debug: false }
-        }
-
-        fn debug() -> Self {
-            Self { is_debug: true }
-        }
-    }
-
-    impl ServerCertVerifier for AttestCertVerifier {
-        fn verify_server_cert(
-            &self,
-            end_entity: &Certificate,
-            intermediates: &[Certificate],
-            server_name: &ServerName,
-            scts: &mut dyn Iterator<Item = &[u8]>,
-            ocsp_response: &[u8],
-            now: SystemTime,
-        ) -> Result<ServerCertVerified, rustls::Error> {
-            trace!("client: verify_server_cert");
-
-            // there should be no intermediate certs
-            if !intermediates.is_empty() {
-                return Err(rustls::Error::General(
-                    "received unexpected intermediate certs".to_owned(),
-                ));
-            }
-
-            // verify the self-signed cert "normally"; ensure everything is
-            // well-formed, signatures verify, validity ranges OK, SNI matches,
-            // etc...
-            let mut trust_roots = rustls::RootCertStore::empty();
-            trust_roots.add(end_entity).map_err(|err| {
-                rustls::Error::InvalidCertificateData(err.to_string())
-            })?;
-
-            let ct_policy = None;
-            let webpki_verifier =
-                rustls::client::WebPkiVerifier::new(trust_roots, ct_policy);
-
-            let verified_token = webpki_verifier.verify_server_cert(
-                end_entity,
-                &[],
-                server_name,
-                scts,
-                ocsp_response,
-                now,
-            )?;
-
-            // in addition to the typical cert checks, we also need to extract
-            // the enclave attestation quote from the cert and verify that.
-
-            // TODO(phlip9): parse quote
-
-            let (_, cert) =
-                X509Certificate::from_der(&end_entity.0).map_err(|err| {
-                    rustls::Error::InvalidCertificateData(err.to_string())
-                })?;
-
-            // TODO(phlip9): check binding b/w cert pubkey and Quote report data
-            let _cert_pubkey = ed25519::PublicKey::try_from(cert.public_key())
-                .map_err(|err| {
-                    rustls::Error::InvalidCertificateData(err.to_string())
-                })?;
-
-            for ext in cert.extensions() {
-                debug!(ext_oid = %ext.oid, ext_value = %hex::display(ext.value));
-            }
-
-            let sgx_ext_oid = SgxAttestationExtension::oid_asn1_rs();
-            let cert_ext = cert
-                .get_extension_unique(&sgx_ext_oid)
-                .map_err(|err| {
-                    rustls::Error::InvalidCertificateData(err.to_string())
-                })?
-                .ok_or_else(|| {
-                    rustls::Error::InvalidCertificateData(
-                        "no SGX attestation extension".to_string(),
-                    )
-                })?;
-
-            let attest =
-                SgxAttestationExtension::from_der_bytes(cert_ext.value)
-                    .map_err(|err| {
-                        rustls::Error::InvalidCertificateData(format!(
-                            "invalid SGX attestation: {err}"
-                        ))
-                    })?;
-
-            if !self.is_debug {
-                // 4. (if not dev mode) parse out quote and quote report
-                // 5. (if not dev mode) ensure report contains the pubkey hash
-                // 6. (if not dev mode) verify quote and quote report
-                todo!()
-            } else if attest != SgxAttestationExtension::dummy() {
-                return Err(rustls::Error::InvalidCertificateData(
-                    "invalid SGX attestation".to_string(),
-                ));
-            }
-
-            Ok(verified_token)
-        }
-    }
 
     #[tokio::test]
     async fn test_provision() {
@@ -417,7 +300,9 @@ mod test {
             let mut tls_config = rustls::ClientConfig::builder()
                 .with_safe_defaults()
                 .with_custom_certificate_verifier(Arc::new(
-                    AttestCertVerifier::debug(),
+                    attest::ServerCertVerifier {
+                        expect_dummy_quote: true,
+                    },
                 ))
                 .with_no_client_auth();
             tls_config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
