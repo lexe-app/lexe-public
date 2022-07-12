@@ -2,16 +2,15 @@
 
 use std::fmt;
 
-use anyhow::format_err;
 use asn1_rs::{oid, Oid};
 use rcgen::RcgenError;
-use ring::rand::SecureRandom;
 use ring::signature::KeyPair as _;
-use secrecy::{ExposeSecret, Secret};
+use secrecy::zeroize::Zeroizing;
 use thiserror::Error;
 use x509_parser::x509::SubjectPublicKeyInfo;
 
 use crate::hex;
+use crate::rng::Crng;
 
 /// The standard PKCS OID for Ed25519
 #[rustfmt::skip]
@@ -92,17 +91,10 @@ impl fmt::Debug for PublicKey {
 // TODO(phlip9): patch ring/rcgen so `Ed25519KeyPair` derives `Default` so we
 // can wrap it in `Secret<..>`
 
-pub fn gen_key_pair(rng: &dyn SecureRandom) -> anyhow::Result<rcgen::KeyPair> {
-    let seed = Secret::new(
-        ring::rand::generate::<[u8; 32]>(rng)
-            .map_err(|_| {
-                format_err!(
-                    "Failed to generate randomness for ed25519 key pair"
-                )
-            })?
-            .expose(),
-    );
-    Ok(self::from_seed(seed.expose_secret()))
+pub fn gen_key_pair(rng: &mut dyn Crng) -> rcgen::KeyPair {
+    let mut seed = Zeroizing::new([0u8; 32]);
+    rng.fill_bytes(seed.as_mut_slice());
+    self::from_seed(&seed)
 }
 
 pub fn from_seed(seed: &[u8; 32]) -> rcgen::KeyPair {

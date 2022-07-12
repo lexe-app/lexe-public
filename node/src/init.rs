@@ -9,6 +9,7 @@ use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::BlockHash;
+use common::rng::Crng;
 use lightning::chain::keysinterface::{KeysInterface, KeysManager, Recipient};
 use lightning::chain::transaction::OutPoint;
 use lightning::chain::{self, chainmonitor, BestBlock, Watch};
@@ -22,7 +23,7 @@ use lightning_block_sync::poll::{self, ValidatedBlockHeader};
 use lightning_block_sync::{init as blocksyncinit, SpvClient, UnboundedCache};
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
-use ring::rand::{self, SecureRandom};
+use secrecy::zeroize::Zeroizing;
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
 
@@ -45,12 +46,14 @@ use crate::{command_server, convert, peer, repl};
 
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 
-pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
+pub async fn start_ldk(
+    rng: &mut dyn Crng,
+    args: StartCommand,
+) -> anyhow::Result<()> {
     let network = args.network.into_inner();
 
     // Initialize the Logger
     let logger = Arc::new(LdkTracingLogger {});
-    let rng = rand::SystemRandom::new();
 
     // Get user_id, measurement, and HTTP client, used throughout init
     let user_id = args.user_id;
@@ -61,7 +64,7 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
     // Initialize BitcoindClient and KeysManager
     let (bitcoind_client_res, keys_manager_res) = tokio::join!(
         bitcoind_client(&args),
-        keys_manager(&rng, &client, user_id, &measurement),
+        keys_manager(rng, &client, user_id, &measurement),
     );
     let bitcoind_client =
         bitcoind_client_res.context("Failed to init bitcoind client")?;
@@ -121,7 +124,7 @@ pub async fn start_ldk(args: StartCommand) -> anyhow::Result<()> {
 
     // Initialize PeerManager
     let peer_manager = peer_manager(
-        &rng,
+        rng,
         keys_manager.as_ref(),
         channel_manager.clone(),
         gossip_sync.clone(),
@@ -365,7 +368,7 @@ async fn bitcoind_client(
 /// Initializes a KeysManager (and grabs the node public key) based on sealed +
 /// persisted data
 async fn keys_manager(
-    rng: &dyn SecureRandom,
+    rng: &mut dyn Crng,
     client: &reqwest::Client,
     user_id: UserId,
     measurement: &str,
@@ -385,7 +388,8 @@ async fn keys_manager(
         (None, None, None) => {
             // No node exists yet, create a new one
             println!("Generating new seed");
-            let new_seed = rand::generate::<[u8; 32]>(rng).unwrap().expose();
+            let mut new_seed = Zeroizing::new([0u8; 32]);
+            rng.fill_bytes(new_seed.as_mut_slice());
             // TODO (sgx): Seal seed under this enclave's pubkey
 
             // Derive pubkey
@@ -668,13 +672,15 @@ async fn gossip_sync(
 
 /// Initializes a PeerManager
 fn peer_manager(
-    rng: &dyn SecureRandom,
+    rng: &mut dyn Crng,
     keys_manager: &KeysManager,
     channel_manager: Arc<ChannelManagerType>,
     gossip_sync: Arc<P2PGossipSyncType>,
     logger: Arc<LdkTracingLogger>,
 ) -> anyhow::Result<Arc<PeerManagerType>> {
-    let ephemeral_bytes = rand::generate::<[u8; 32]>(rng).unwrap().expose();
+    let mut ephemeral_bytes = Zeroizing::new([0u8; 32]);
+    rng.fill_bytes(ephemeral_bytes.as_mut_slice());
+
     let lightning_msg_handler = MessageHandler {
         chan_handler: channel_manager,
         route_handler: gossip_sync,

@@ -9,8 +9,17 @@ use crate::attest::cert::SgxAttestationExtension;
 use crate::ed25519;
 
 // 1. server cert verifier (server cert should contain dns names)
-// 2. client cert verifier (dns names ignored)
+// 2. TODO(phlip9): client cert verifier (dns names ignored)
 
+/// An x509 certificate verifier that also checks embedded remote attestation
+/// evidence.
+///
+/// Clients use this verifier to check that
+/// (1) a server's certificate is valid,
+/// (2) the remote attestation is valid (according to the client's policy), and
+/// (3) the remote attestation binds to the server's certificate key pair. Once
+/// these checks are successful, the client and secure can establish a secure
+/// TLS channel.
 #[derive(Default)]
 pub struct ServerCertVerifier {
     pub expect_dummy_quote: bool,
@@ -109,21 +118,21 @@ mod test {
     use std::iter;
     use std::time::Duration;
 
-    use ring::rand::SystemRandom;
     use rustls::client::ServerCertVerifier as _;
 
     use super::*;
     use crate::attest::cert::{AttestationCert, SgxAttestationExtension};
     use crate::ed25519;
+    use crate::rng::SysRng;
 
     #[test]
     fn test_verify_dummy_server_cert() {
-        let rng = SystemRandom::new();
+        let mut rng = SysRng::new();
 
         let dns_name = "node.lexe.tech";
         let dns_names = vec![dns_name.to_owned()];
 
-        let cert_key_pair = ed25519::gen_key_pair(&rng).unwrap();
+        let cert_key_pair = ed25519::gen_key_pair(&mut rng);
         let attestation = SgxAttestationExtension::dummy().to_cert_extension();
         let cert = AttestationCert::new(cert_key_pair, dns_names, attestation)
             .unwrap();

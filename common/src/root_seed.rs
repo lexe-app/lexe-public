@@ -2,6 +2,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use anyhow::format_err;
+use rand_core::{CryptoRng, RngCore};
 use secrecy::{ExposeSecret, Secret, SecretVec};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -31,6 +32,15 @@ impl RootSeed {
 
     pub fn new(bytes: Secret<[u8; Self::LENGTH]>) -> Self {
         Self(bytes)
+    }
+
+    pub fn from_rng<R>(rng: &mut R) -> Self
+    where
+        R: RngCore + CryptoRng,
+    {
+        let mut seed = [0u8; Self::LENGTH];
+        rng.fill_bytes(&mut seed);
+        Self(Secret::new(seed))
     }
 
     fn extract(&self) -> ring::hkdf::Prk {

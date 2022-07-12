@@ -1,6 +1,6 @@
 use anyhow::Context;
 use argh::FromArgs;
-use ring::rand::SystemRandom;
+use common::rng::SysRng;
 
 use crate::init;
 use crate::provision::{provision, LexeRunner};
@@ -101,7 +101,8 @@ impl Args {
                     .enable_all()
                     .build()
                     .expect("Failed to build tokio runtime");
-                rt.block_on(init::start_ldk(args))
+                let mut rng = SysRng::new();
+                rt.block_on(init::start_ldk(&mut rng, args))
                     .context("Error running node")
             }
             Command::Provision(args) => {
@@ -109,9 +110,9 @@ impl Args {
                     .enable_all()
                     .build()
                     .expect("Failed to init tokio runtime");
-                let rng = SystemRandom::new();
+                let mut rng = SysRng::new();
                 let runner = LexeRunner::new();
-                rt.block_on(provision(args, &rng, runner))
+                rt.block_on(provision(args, &mut rng, runner))
                     .context("error while provisioning")
             }
         }

@@ -291,6 +291,7 @@ dependencies = [
  "futures",
  "proptest",
  "proptest-derive",
+ "rand_core",
  "rcgen",
  "ring",
  "rustls",
