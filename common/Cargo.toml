@@ -24,8 +24,6 @@ rustls = { version = "0.20", default-features = false }
 secrecy = "0.8"
 # Serializing/deserializing types
 serde = { version = "1", features = ["derive"] }
-# Used for cert validitity range
-time = "0.3"
 # Easy error definition
 thiserror = "1"
 # Parsing x509 cert extensions

@@ -23,11 +23,10 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
-use common::attest::cert::CertificateParams;
+use common::attest::cert::AttestationCert;
 use common::root_seed::RootSeed;
 use common::{ed25519, hex};
 use http::{Response, StatusCode};
-use rcgen::date_time_ymd;
 use ring::rand::SecureRandom;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -182,19 +181,13 @@ pub async fn provision<R: Runner>(
         .context("Failed to get node enclave quoted")?;
 
     // Generate a self-signed x509 cert with the remote attestation embedded.
-    let cert_params = CertificateParams {
-        key_pair: cert_key_pair,
-        dns_names: vec![args.node_dns_name],
-        // TODO(phlip9): choose a very narrow validity range, like ~1 hour
-        not_before: date_time_ymd(1975, 1, 1),
-        not_after: date_time_ymd(4096, 1, 1),
-        attestation,
-    };
-    let cert = cert_params
-        .gen_cert()
+    let dns_names = vec![args.node_dns_name];
+    let cert = AttestationCert::new(cert_key_pair, dns_names, attestation)
         .context("Failed to generate remote attestation cert")?;
-    let cert_der = cert.serialize_der().expect("Failed to DER serialize cert");
-    let cert_key_der = cert.serialize_private_key_der();
+    let cert_der = cert
+        .serialize_der_signed()
+        .expect("Failed to sign and serialize attestation cert");
+    let cert_key_der = cert.serialize_key_der();
 
     debug!(
         "acquired attestation: cert size: {} B, time elapsed: {:?}",

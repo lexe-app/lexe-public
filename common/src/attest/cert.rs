@@ -1,39 +1,18 @@
-//! Generate a self-signed x509 certificate containing enclave remote
-//! attestation endorsements. Used for initial provisioning from clients.
-
-#![allow(dead_code)]
+//! Manage self-signed x509 certificate containing enclave remote attestation
+//! endorsements.
 
 use std::borrow::Cow;
 use std::fmt;
 
-use rcgen::{
-    Certificate, CustomExtension, DnType, KeyPair, RcgenError, SanType,
-};
-use time::OffsetDateTime;
+use rcgen::{date_time_ymd, DnType, RcgenError, SanType};
 use yasna::models::ObjectIdentifier;
 
 use crate::client_node_certs::lexe_distinguished_name_prefix;
 use crate::{ed25519, hex};
 
-/// The subset of [`rcgen::CertificateParams`] that we need to generate a cert.
-pub struct CertificateParams {
-    /// The cert key pair.
-    pub key_pair: KeyPair,
-
-    /// The DNS name(s) for the unprovisioned node.
-    ///
-    /// Note: technically subject alt names can be other things, like ip or
-    /// email addresses, but we only care about DNS names here.
-    pub dns_names: Vec<String>,
-
-    /// The time range this cert is valid for.
-    pub not_before: OffsetDateTime,
-    pub not_after: OffsetDateTime,
-
-    /// The enclave remote attestation evidence as a custom x509 cert
-    /// extension.
-    pub attestation: CustomExtension,
-}
+/// An x509 certificate containing remote attestation endorsements, usually
+/// owned by the lexe node.
+pub struct AttestationCert(rcgen::Certificate);
 
 // TODO(phlip9): attestation extension type should be shared w/ client
 // verifiers.
@@ -58,39 +37,45 @@ pub struct SgxAttestationExtension<'a, 'b> {
 
 // -- impl CertificateParams -- //
 
-impl CertificateParams {
-    pub fn gen_cert(self) -> Result<Certificate, RcgenError> {
-        let params = rcgen::CertificateParams::try_from(self)?;
-        Certificate::from_params(params)
-    }
-}
-
-impl TryFrom<CertificateParams> for rcgen::CertificateParams {
-    type Error = RcgenError;
-
-    fn try_from(params: CertificateParams) -> Result<Self, Self::Error> {
+impl AttestationCert {
+    /// Generate a new attestation certificate using the given `key_pair`, node
+    /// `dns_names`, and enclave remote `attestation` evidence (provided as a
+    /// custom x509 cert extension).
+    pub fn new(
+        key_pair: rcgen::KeyPair,
+        dns_names: Vec<String>,
+        attestation: rcgen::CustomExtension,
+    ) -> Result<Self, RcgenError> {
         // TODO(phlip9): don't know how much DN matters...
         let mut name = lexe_distinguished_name_prefix();
         name.push(DnType::CommonName, "node provisioning cert");
 
-        let subject_alt_names = params
-            .dns_names
+        let subject_alt_names = dns_names
             .into_iter()
             .map(SanType::DnsName)
             .collect::<Vec<_>>();
 
-        let mut new_params = rcgen::CertificateParams::default();
+        let mut params = rcgen::CertificateParams::default();
 
-        new_params.alg = &rcgen::PKCS_ED25519;
-        new_params.key_pair =
-            Some(ed25519::verify_compatible(params.key_pair)?);
-        new_params.not_before = params.not_before;
-        new_params.not_after = params.not_after;
-        new_params.distinguished_name = name;
-        new_params.subject_alt_names = subject_alt_names;
-        new_params.custom_extensions.push(params.attestation);
+        params.alg = &rcgen::PKCS_ED25519;
+        params.key_pair = Some(ed25519::verify_compatible(key_pair)?);
+        // no expiration
+        // TODO(phlip9): attest certs should be short lived or ephemeral
+        params.not_before = date_time_ymd(1975, 1, 1);
+        params.not_after = date_time_ymd(4096, 1, 1);
+        params.distinguished_name = name;
+        params.subject_alt_names = subject_alt_names;
+        params.custom_extensions.push(attestation);
 
-        Ok(new_params)
+        Ok(Self(rcgen::Certificate::from_params(params)?))
+    }
+
+    pub fn serialize_der_signed(&self) -> Result<Vec<u8>, RcgenError> {
+        self.0.serialize_der()
+    }
+
+    pub fn serialize_key_der(&self) -> Vec<u8> {
+        self.0.serialize_private_key_der()
     }
 }
 
@@ -178,8 +163,6 @@ impl<'a, 'b> fmt::Debug for SgxAttestationExtension<'a, 'b> {
 
 #[cfg(test)]
 mod test {
-    use rcgen::date_time_ymd;
-
     use super::*;
 
     #[test]
@@ -193,19 +176,15 @@ mod test {
     #[test]
     fn test_gen_cert() {
         let key_pair = rcgen::KeyPair::generate(&rcgen::PKCS_ED25519).unwrap();
-        let params = CertificateParams {
-            key_pair,
-            dns_names: vec!["hello.world".to_string()],
-            not_before: date_time_ymd(2022, 5, 22),
-            not_after: date_time_ymd(2032, 5, 22),
-            attestation: SgxAttestationExtension {
-                quote: b"aaaaa".as_slice().into(),
-                qe_report: b"zzzzzz".as_slice().into(),
-            }
-            .to_cert_extension(),
-        };
-        let cert = params.gen_cert().unwrap();
-        let _cert_bytes = cert.serialize_der().unwrap();
+        let dns_names = vec!["hello.world".to_string()];
+        let attestation = SgxAttestationExtension {
+            quote: b"aaaaa".as_slice().into(),
+            qe_report: b"zzzzzz".as_slice().into(),
+        }
+        .to_cert_extension();
+        let cert =
+            AttestationCert::new(key_pair, dns_names, attestation).unwrap();
+        let _cert_bytes = cert.serialize_der_signed().unwrap();
         // println!("cert:\n{}", pretty_hex(&cert_bytes));
 
         // example: `openssl -in cert.pem -text
