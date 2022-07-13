@@ -114,7 +114,8 @@ impl AsyncWrite for AesmProxyStream {
         // from the AESM. We need to open a fresh socket to handle the next
         // request.
         if self.just_read || self.aesm_sock.is_none() {
-            // Blocking open here just to keep things simple for now.
+            // Blocking open here just to keep things simple for now. O/w would
+            // need separate connection state + pin project :/
             let aesm_sock = StdUnixStream::connect(DEFAULT_AESM_SOCKET_PATH)?;
             let aesm_sock = UnixStream::from_std(aesm_sock)?;
             self.aesm_sock = Some(aesm_sock);

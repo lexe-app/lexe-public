@@ -232,7 +232,6 @@ impl NodeCert {
 mod test {
     use std::sync::Arc;
 
-    use futures::future::join;
     use secrecy::Secret;
     use tokio::io::{duplex, AsyncReadExt, AsyncWriteExt};
     use tokio_rustls::rustls;
@@ -266,8 +265,8 @@ mod test {
             webpki::EndEntityCert::try_from(node_cert_der.as_slice()).unwrap();
     }
 
-    #[test]
-    fn test_tls_handshake_succeeds() {
+    #[tokio::test]
+    async fn test_tls_handshake_succeeds() {
         // a fake pair of connected streams
         let (client_stream, server_stream) = duplex(4096);
 
@@ -334,6 +333,6 @@ mod test {
             stream.shutdown().await.unwrap();
         };
 
-        futures::executor::block_on(join(client, node));
+        tokio::join!(client, node);
     }
 }

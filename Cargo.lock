@@ -289,7 +289,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "asn1-rs",
- "futures",
  "proptest",
  "proptest-derive",
  "rand_core",

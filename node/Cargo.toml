@@ -44,7 +44,7 @@ lightning-rapid-gossip-sync = { version = "0.0.108" }
 # Ad hoc error definition, easy error propagation, error chains
 anyhow = "1"
 # Derive-based command line argument parsing
-argh = "0"
+argh = "0.1"
 # async fn's in trait methods
 async-trait = "0.1"
 # For casting byte buffers to/from the AESM client from/to actual structured data.
