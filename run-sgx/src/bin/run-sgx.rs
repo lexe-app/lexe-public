@@ -16,12 +16,12 @@ pub struct Args {
 #[derive(Debug, FromArgs)]
 pub struct Options {
     /// path to the ".sgxs" enclave binary
-    #[argh(option, short = 'b')]
+    #[argh(positional)]
     pub bin: String,
 
     /// path to the ".sig" enclave SIGSTRUCT file. defaults to the binary path
     /// with ".sig" instead of ".sgxs" if unset.
-    #[argh(option, short = 's')]
+    #[argh(positional)]
     pub sig: Option<String>,
 }
 

@@ -15,6 +15,9 @@ edition = "2021"
 anyhow = "1"
 # Derive-based command line argument parsing
 argh = "0.1"
+# Used to serialize / deserialize enclave config from Cargo.toml
+serde = { version = "1", features = ["derive"] }
+toml = "0.5"
 
 [target.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.dependencies]
 # A client for the Intel AESM service. Used in the attestation process to get quoted.
