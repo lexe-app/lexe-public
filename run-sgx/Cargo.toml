@@ -1,0 +1,29 @@
+[package]
+name = "run-sgx"
+version = "0.1.0"
+authors = [
+    "Max Fang <protonmail.com@maxfa.ng>",
+    "Philip Hayes <philiphayes9@gmail.com>"
+]
+license = "MIT"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# Ad hoc error definition, easy error propagation, error chains
+anyhow = "1"
+# Derive-based command line argument parsing
+argh = "0.1"
+
+[target.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.dependencies]
+# A client for the Intel AESM service. Used in the attestation process to get quoted.
+# NOTE: version must exactly match patched version
+aesm-client = { version = "=0.5.4", default-features = false, features = ["sgxs"] }
+# The base SGX types and platform intrinsics (for sealing, reports, etc...)
+# NOTE: version must exactly match patched version
+sgx-isa = "=0.4.0"
+# NOTE: version must exactly match patched version
+sgxs-loaders = "=0.3.3"
+# NOTE: version must exactly match patched version
+enclave-runner = { version = "=0.5.1", default-features = false, features = [] }

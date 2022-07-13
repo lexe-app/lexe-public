@@ -4,15 +4,18 @@ resolver = "2"
 members = [
     "common",
     "node",
+    "run-sgx",
 ]
 
 [patch.crates-io]
 aesm-client = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 async-usercalls = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
+enclave-runner = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 hyper = { git = "https://github.com/lexe-tech/hyper", branch = "hyper-sgx-0.14.18" }
 mio = { git = "https://github.com/lexe-tech/mio", branch = "mio-sgx-0.7.6" }
 ring = { git = "https://github.com/lexe-tech/ring", branch = "support-sgx-0.16.20" }
 sgx-isa = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
+sgxs-loaders = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 tokio = { git = "https://github.com/lexe-tech/tokio",  branch = "tokio-sgx-1.15.0" }
 # atty = { git = "https://github.com/softprops/atty", rev = "6633c0e1446aa19e6cd00e00e39770da43081bda" }
 
