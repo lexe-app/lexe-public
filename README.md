@@ -91,3 +91,8 @@ environment variables. The variables (and their defaults) are as follows:
 BACKEND_URL=http://127.0.0.1:3030
 RUNNER_URL=http://127.0.0.1:5050
 ```
+
+## License
+
+All files in this repository are licensed under the [PolyForm Noncommercial
+License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0/).
