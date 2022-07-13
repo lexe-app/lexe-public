@@ -1496,6 +1496,7 @@ dependencies = [
  "enclave-runner",
  "sgx-isa",
  "sgxs-loaders",
+ "tokio",
 ]
 
 [[package]]

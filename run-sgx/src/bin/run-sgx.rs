@@ -36,6 +36,7 @@ impl Args {
         use aesm_client::AesmClient;
         use anyhow::Context;
         use enclave_runner::EnclaveBuilder;
+        use run_sgx::aesm_proxy::AesmProxy;
         use sgxs_loaders::isgx;
 
         let bin_path = Path::new(&self.opts.bin);
@@ -49,8 +50,10 @@ impl Args {
 
         let mut enclave = EnclaveBuilder::new(bin_path);
 
-        // TODO(phlip9): add the AESM TCP proxy
-        // enclave.usercall_extension(EnclaveAesmService);
+        // problem: enclave can't talk to the AESM (fs access denied).
+        // solution: proxy TCP connections from "aesm.local" to the local AESM
+        // unix socket.
+        enclave.usercall_extension(AesmProxy);
 
         // EnclaveBuilder already adds the "coresident" .sig file by default.
         if let Some(sig) = self.opts.sig.as_ref() {

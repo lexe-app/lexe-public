@@ -20,10 +20,15 @@ argh = "0.1"
 # A client for the Intel AESM service. Used in the attestation process to get quoted.
 # NOTE: version must exactly match patched version
 aesm-client = { version = "=0.5.4", default-features = false, features = ["sgxs"] }
+# NOTE: version must exactly match patched version
+enclave-runner = { version = "=0.5.1", default-features = false, features = [] }
 # The base SGX types and platform intrinsics (for sealing, reports, etc...)
 # NOTE: version must exactly match patched version
 sgx-isa = "=0.4.0"
 # NOTE: version must exactly match patched version
 sgxs-loaders = "=0.3.3"
+# Tokio async runtime
 # NOTE: version must exactly match patched version
-enclave-runner = { version = "=0.5.1", default-features = false, features = [] }
+tokio = { version = "=1.15.0", default-features = false, features = [
+    "net"
+] }
