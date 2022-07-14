@@ -1,7 +1,11 @@
 //! TODO
 
+#![allow(dead_code)]
+
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 use std::path::{Path, PathBuf};
 use std::process::Command;
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 use std::{env, fs};
 
 use anyhow::{format_err, Context, Result};
