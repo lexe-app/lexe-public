@@ -97,11 +97,7 @@ fn lexe(
     // TODO Add Lexe authentication to this base path
     let lexe = warp::path("lexe");
 
-    let status = warp::path("status")
-        .and(warp::get())
-        // .and(with_db(db.clone()))
-        // .and(warp::query())
-        .then(lexe::status);
+    let status = warp::path("status").and(warp::get()).then(lexe::status);
     let shutdown = warp::path("shutdown")
         .and(warp::get())
         .and(inject::shutdown_tx(shutdown_tx))
