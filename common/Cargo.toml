@@ -63,3 +63,9 @@ webpki = "0.22"
 # Add some useful proptest features when testing during development
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 proptest = "1"
+
+[package.metadata.fortanix-sgx]
+# stack size (in bytes) for each thread, the default stack size is 0x20000.
+stack-size=0x200_000
+# Gotcha: Don't forget to count the main thread when counting number of threads
+threads=4

@@ -12,14 +12,14 @@ use anyhow::{format_err, Context, Result};
 use argh::{EarlyExit, FromArgs, TopLevelCommand};
 use serde::Deserialize;
 
-const DEBUG_SIGNER_KEY_PEM_BYTES: &[u8] =
-    std::include_bytes!("../../data/debug-signer-key.pem");
+// const DEBUG_SIGNER_KEY_PEM_BYTES: &[u8] =
+//     std::include_bytes!("../../data/debug-signer-key.pem");
 
 // default SGX config
 const DEBUG: bool = true;
-const HEAP_SIZE: u64 = 0x2000000; // 32 MiB
+const HEAP_SIZE: u64 = 0x0200_0000; // 32 MiB
 const SSAFRAMESIZE: u32 = 1;
-const STACK_SIZE: u32 = 0x20000; // 128 KiB
+const STACK_SIZE: u32 = 0x0002_0000; // 128 KiB
 const THREADS: u32 = 4;
 
 #[derive(Debug)]
@@ -138,32 +138,37 @@ impl Args {
 
         // TODO(phlip9): inline? would remove error-prone setup step
 
-        // dump debug signer key to file
-        let mut key_path = sgxs_bin_path.clone();
-        key_path.set_file_name("debug-signer-key.pem");
-
-        fs::write(&key_path, &DEBUG_SIGNER_KEY_PEM_BYTES).with_context(
-            || {
-                format!(
-                    "Failed to write debug key file: {}",
-                    key_path.display(),
-                )
-            },
-        )?;
-
-        let mut sigstruct_path = sgxs_bin_path.clone();
-        sigstruct_path.set_extension("sig");
-
-        let mut sgxs_sign_cmd = Command::new("sgxs-sign");
-        sgxs_sign_cmd
-            // input .sgxs
-            .arg(&sgxs_bin_path)
-            // output .sig sigstruct
-            .arg(&sigstruct_path)
-            .arg("--key")
-            .arg(&key_path);
-
-        run_cmd(sgxs_sign_cmd).context("Failed to sign enclave")?;
+        // TODO(phlip9): figure out why this isn't working
+        // // dump debug signer key to file
+        // let mut key_path = sgxs_bin_path.clone();
+        // key_path.set_file_name("debug-signer-key.pem");
+        //
+        // fs::write(&key_path, &DEBUG_SIGNER_KEY_PEM_BYTES).with_context(
+        //     || {
+        //         format!(
+        //             "Failed to write debug key file: {}",
+        //             key_path.display(),
+        //         )
+        //     },
+        // )?;
+        //
+        // let mut sigstruct_path = sgxs_bin_path.clone();
+        // sigstruct_path.set_extension("sig");
+        //
+        // let mut sgxs_sign_cmd = Command::new("sgxs-sign");
+        // sgxs_sign_cmd
+        //     // input .sgxs
+        //     .arg(&sgxs_bin_path)
+        //     // output .sig sigstruct
+        //     .arg(&sigstruct_path)
+        //     .arg("--key")
+        //     .arg(&key_path);
+        //
+        // if debug {
+        //     sgxs_sign_cmd.arg("--debug");
+        // }
+        //
+        // run_cmd(sgxs_sign_cmd).context("Failed to sign enclave")?;
 
         // 4. run the enclave with `run-sgx`
 
@@ -227,7 +232,6 @@ fn run_cmd(mut cmd: Command) -> Result<()> {
 
 fn main() {
     let args = argh::from_env::<Args>();
-    println!("args: {args:?}");
 
     if let Err(err) = args.run() {
         eprintln!("Error: {err:#?}");

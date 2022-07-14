@@ -24,7 +24,7 @@ toml = "0.5"
 # NOTE: version must exactly match patched version
 aesm-client = { version = "=0.5.4", default-features = false, features = ["sgxs"] }
 # NOTE: version must exactly match patched version
-enclave-runner = { version = "=0.5.1", default-features = false, features = [] }
+enclave-runner = { version = "=0.5.1", default-features = false, features = ["crypto-openssl"] }
 # The base SGX types and platform intrinsics (for sealing, reports, etc...)
 # NOTE: version must exactly match patched version
 sgx-isa = "=0.4.0"

@@ -324,6 +324,15 @@ mod test {
         assert_eq!(foo2.seed.as_bytes(), &seed_bytes);
         assert_eq!(foo2.y, "asdf");
     }
+
+    #[test]
+    fn test_sha256() {
+        let actual = hex::encode(sha256(b"").as_ref());
+        let expected =
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
+        assert_eq!(&actual, expected);
+    }
+
     #[test]
     fn test_root_seed_hkdf_salt() {
         let actual = RootSeed::HKDF_SALT.as_slice();
@@ -339,7 +348,7 @@ mod test {
         // }
 
         // compare hex encode for easier debugging
-        assert_eq!(hex::encode(actual), hex::encode(expected.as_ref()),);
+        assert_eq!(hex::encode(actual), hex::encode(expected.as_ref()));
     }
 
     #[test]

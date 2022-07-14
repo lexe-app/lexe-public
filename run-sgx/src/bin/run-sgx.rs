@@ -31,6 +31,7 @@ impl Args {
     // Can only load real enclaves on x86_64-unknown-linux
     #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
     pub fn run(self) -> Result<()> {
+        // use std::path::{Path, PathBuf};
         use std::path::Path;
 
         use aesm_client::AesmClient;
@@ -39,8 +40,6 @@ impl Args {
         use run_sgx::aesm_proxy::AesmProxy;
         use sgxs_loaders::isgx;
 
-        let bin_path = Path::new(&self.opts.bin);
-
         let aesm_client = AesmClient::new();
 
         let mut device = isgx::Device::new()
@@ -48,6 +47,7 @@ impl Args {
             .einittoken_provider(aesm_client)
             .build();
 
+        let bin_path = Path::new(&self.opts.bin);
         let mut enclave = EnclaveBuilder::new(bin_path);
 
         // problem: enclave can't talk to the AESM (fs access denied).
@@ -55,13 +55,18 @@ impl Args {
         // unix socket.
         enclave.usercall_extension(AesmProxy);
 
-        // EnclaveBuilder already adds the "coresident" .sig file by default.
-        if let Some(sig) = self.opts.sig.as_ref() {
-            let sig_path = Path::new(sig);
-            enclave
-                .signature(sig_path)
-                .context("Failed to read .sig sigstruct")?;
-        }
+        // works for now
+        enclave.dummy_signature();
+
+        // TODO(phlip9): figure out why this isn't working
+        // let maybe_sig = self.opts.sig.as_ref();
+        // let sig_path = maybe_sig
+        //     .map(PathBuf::from)
+        //     .unwrap_or_else(|| bin_path.with_extension("sig"));
+        // dbg!(&sig_path);
+        // enclave
+        //     .signature(sig_path)
+        //     .context("Failed to read .sig sigstruct")?;
 
         // attach the enclave's args
         enclave.args(self.enclave_args);
@@ -135,7 +140,7 @@ fn main() {
     let result = args.run();
 
     if let Err(err) = result {
-        eprintln!("Error: {err:#}");
+        eprintln!("run-sgx error: {err:#}");
         std::process::exit(1);
     }
 }
