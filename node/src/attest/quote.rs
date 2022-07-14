@@ -8,7 +8,7 @@
 use std::fmt;
 
 use bytemuck::{Pod, Zeroable};
-use rcgen::KeyPair;
+use common::ed25519;
 
 #[rustfmt::skip]
 #[cfg(target_env = "sgx")]
@@ -24,14 +24,16 @@ mod sgx {
     use aesm_client::AesmClient;
     use anyhow::{format_err, Context, Result};
     use common::attest::cert::SgxAttestationExtension;
-    use rcgen::{CustomExtension, KeyPair};
+    use common::ed25519;
+    use rcgen::CustomExtension;
     use sgx_isa::{Report, Targetinfo};
 
     use super::{ErrString, QlAttKeyIdExt, ReportData};
 
-    // TODO(phlip9): probably use local wrapper type for crypto keypair
-    pub fn quote_enclave(cert_key_pair: &KeyPair) -> Result<CustomExtension> {
-        // TODO(phlip9): retries
+    pub fn quote_enclave(
+        cert_pubkey: &ed25519::PublicKey,
+    ) -> Result<CustomExtension> {
+        // TODO(phlip9): AESM retries
 
         // 1. Connect to the local AESM service
 
@@ -84,7 +86,7 @@ mod sgx {
         // the verifier checks the attestation evidence, this linkage is
         // what allows them to then trust the associated certificate.
 
-        let report_data = ReportData::new(cert_key_pair);
+        let report_data = ReportData::new(cert_pubkey);
         let qe_target_info =
             Targetinfo::try_copy_from(qe_quote_info.target_info())
                 .context("Failed to deserialize QE Quote Targetinfo")?;
@@ -120,9 +122,12 @@ mod sgx {
 mod not_sgx {
     use anyhow::Result;
     use common::attest::cert::SgxAttestationExtension;
-    use rcgen::{CustomExtension, KeyPair};
+    use common::ed25519;
+    use rcgen::CustomExtension;
 
-    pub fn quote_enclave(_cert_key_pair: &KeyPair) -> Result<CustomExtension> {
+    pub fn quote_enclave(
+        _cert_pubkey: &ed25519::PublicKey,
+    ) -> Result<CustomExtension> {
         // TODO(phlip9): use a different dummy extension?
 
         let dummy_attestation = SgxAttestationExtension::dummy();
@@ -245,17 +250,11 @@ impl QlAttKeyIdExt {
 struct ReportData([u8; 64]);
 
 impl ReportData {
-    fn new(key_pair: &KeyPair) -> Self {
-        assert!(
-            key_pair.is_compatible(&rcgen::PKCS_ED25519),
-            "We only support ed25519 cert key pairs",
-        );
-
+    fn new(pubkey: &ed25519::PublicKey) -> Self {
         let mut report_data = [0u8; 64];
         // ed25519 pubkeys are always 32 bytes. This will panic if this internal
         // invariant is somehow not true.
-        report_data[..32].copy_from_slice(key_pair.public_key_raw());
-
+        report_data[..32].copy_from_slice(pubkey.as_bytes());
         Self(report_data)
     }
 

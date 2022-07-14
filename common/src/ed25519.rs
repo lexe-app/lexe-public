@@ -39,6 +39,22 @@ impl PublicKey {
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_slice()
     }
+
+    pub fn into_inner(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+impl TryFrom<&rcgen::KeyPair> for PublicKey {
+    type Error = Error;
+
+    fn try_from(key_pair: &rcgen::KeyPair) -> Result<Self, Self::Error> {
+        if !key_pair.is_compatible(&rcgen::PKCS_ED25519) {
+            return Err(Error::UnexpectedAlgorithm);
+        }
+
+        Self::try_from(key_pair.public_key_raw())
+    }
 }
 
 impl TryFrom<&[u8]> for PublicKey {

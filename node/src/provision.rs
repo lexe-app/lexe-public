@@ -177,7 +177,8 @@ pub async fn provision<R: Runner>(
     // Returns the quote as an x509 cert extension that we'll embed in our
     // self-signed provisioning cert.
     let attest_start = Instant::now();
-    let attestation = attest::quote_enclave(&cert_key_pair)
+    let cert_pubkey = ed25519::PublicKey::try_from(&cert_key_pair).unwrap();
+    let attestation = attest::quote_enclave(&cert_pubkey)
         .context("Failed to get node enclave quoted")?;
 
     // Generate a self-signed x509 cert with the remote attestation embedded.
