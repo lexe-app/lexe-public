@@ -20,11 +20,10 @@ use tokio::sync::{broadcast, mpsc};
 use warp::hyper::Body;
 use warp::{reply, Filter, Rejection, Reply};
 
+use crate::command::{lexe, owner};
 use crate::types::{ChannelManagerType, PeerManagerType};
 
 mod inject;
-mod lexe;
-mod owner;
 
 /// Errors that can be returned to callers of the command API.
 #[derive(Error, Debug)]
