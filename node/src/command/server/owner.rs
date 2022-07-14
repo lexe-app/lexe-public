@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use serde::Serialize;
-use warp::{reply, Reply};
 
 use crate::command::server::ApiError;
 use crate::convert;
@@ -20,7 +19,7 @@ pub struct NodeInfo {
 pub async fn node_info(
     channel_manager: Arc<ChannelManagerType>,
     peer_manager: Arc<PeerManagerType>,
-) -> Result<impl Reply, ApiError> {
+) -> Result<NodeInfo, ApiError> {
     let pubkey = channel_manager.get_our_node_id();
     let pubkey = convert::pubkey_to_hex(&pubkey);
 
@@ -39,5 +38,5 @@ pub async fn node_info(
         num_peers,
     };
 
-    Ok(reply::json(&resp))
+    Ok(resp)
 }

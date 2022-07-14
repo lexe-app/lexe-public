@@ -14,10 +14,11 @@ use std::sync::Arc;
 
 use http::response::Response;
 use http::status::StatusCode;
+use serde::Serialize;
 use thiserror::Error;
 use tokio::sync::{broadcast, mpsc};
 use warp::hyper::Body;
-use warp::{Filter, Rejection, Reply};
+use warp::{reply, Filter, Rejection, Reply};
 
 use crate::types::{ChannelManagerType, PeerManagerType};
 
@@ -35,6 +36,17 @@ impl Reply for ApiError {
             .status(StatusCode::INTERNAL_SERVER_ERROR)
             .body(self.to_string().into())
             .expect("Could not construct Response")
+    }
+}
+
+/// Converts Result<S, E> into Response<Body>, avoiding the need to call
+/// reply::json(&resp) in every handler or to implement warp::Reply manually
+fn into_response<S: Serialize, E: Reply>(
+    reply_res: Result<S, E>,
+) -> Response<Body> {
+    match reply_res {
+        Ok(resp) => reply::json(&resp).into_response(),
+        Err(err) => err.into_response(),
     }
 }
 
@@ -73,7 +85,8 @@ fn owner(
         .and(warp::get())
         .and(inject::channel_manager(channel_manager))
         .and(inject::peer_manager(peer_manager))
-        .then(owner::node_info);
+        .then(owner::node_info)
+        .map(into_response);
 
     owner.and(node_info)
 }
