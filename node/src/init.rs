@@ -163,11 +163,11 @@ pub async fn start_ldk(
     });
 
     // Let the runner know that we're ready
+    println!("Node is ready to accept commands; notifying runner");
     let user_port = UserPort {
         user_id,
         port: warp_port,
     };
-    println!("Node is ready to accept commands; notifying runner");
     api::notify_runner(&client, user_port)
         .await
         .context("Could not notify runner of ready status")?;
