@@ -295,6 +295,7 @@ dependencies = [
  "rcgen",
  "ring",
  "rustls",
+ "rustls-pemfile 1.0.0",
  "secrecy",
  "serde",
  "serde_json",

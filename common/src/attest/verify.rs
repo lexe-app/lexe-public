@@ -8,6 +8,54 @@ use x509_parser::certificate::X509Certificate;
 use crate::attest::cert::SgxAttestationExtension;
 use crate::ed25519;
 
+pub struct AttestEvidence<'a> {
+    pub cert_pubkey: ed25519::PublicKey,
+    pub attest: SgxAttestationExtension<'a, 'a>,
+}
+
+impl<'a> AttestEvidence<'a> {
+    pub fn parse_cert_der(cert_der: &'a [u8]) -> Result<Self, rustls::Error> {
+        use rustls::Error;
+
+        // TODO(phlip9): manually parse the cert fields we care about w/ yasna
+        // instead of pulling in a whole extra x509 cert parser...
+
+        let (unparsed_data, cert) = X509Certificate::from_der(cert_der)
+            .map_err(|err| Error::InvalidCertificateData(err.to_string()))?;
+
+        if !unparsed_data.is_empty() {
+            return Err(Error::InvalidCertificateData(
+                "leftover unparsed cert data".to_string(),
+            ));
+        }
+
+        let cert_pubkey = ed25519::PublicKey::try_from(cert.public_key())
+            .map_err(|err| Error::InvalidCertificateData(err.to_string()))?;
+
+        let sgx_ext_oid = SgxAttestationExtension::oid_asn1_rs();
+        let cert_ext = cert
+            .get_extension_unique(&sgx_ext_oid)
+            .map_err(|err| Error::InvalidCertificateData(err.to_string()))?
+            .ok_or_else(|| {
+                Error::InvalidCertificateData(
+                    "no SGX attestation extension".to_string(),
+                )
+            })?;
+
+        let attest = SgxAttestationExtension::from_der_bytes(cert_ext.value)
+            .map_err(|err| {
+                Error::InvalidCertificateData(format!(
+                    "invalid SGX attestation: {err}"
+                ))
+            })?;
+
+        Ok(Self {
+            cert_pubkey,
+            attest,
+        })
+    }
+}
+
 // 1. server cert verifier (server cert should contain dns names)
 // 2. TODO(phlip9): client cert verifier (dns names ignored)
 
@@ -63,47 +111,18 @@ impl rustls::client::ServerCertVerifier for ServerCertVerifier {
             now,
         )?;
 
-        // in addition to the typical cert checks, we also need to extract
-        // the enclave attestation quote from the cert and verify that.
-
         // TODO(phlip9): parse quote
 
-        let (_, cert) =
-            X509Certificate::from_der(&end_entity.0).map_err(|err| {
-                rustls::Error::InvalidCertificateData(err.to_string())
-            })?;
-
-        // TODO(phlip9): check binding b/w cert pubkey and Quote report data
-        let _cert_pubkey = ed25519::PublicKey::try_from(cert.public_key())
-            .map_err(|err| {
-                rustls::Error::InvalidCertificateData(err.to_string())
-            })?;
-
-        let sgx_ext_oid = SgxAttestationExtension::oid_asn1_rs();
-        let cert_ext = cert
-            .get_extension_unique(&sgx_ext_oid)
-            .map_err(|err| {
-                rustls::Error::InvalidCertificateData(err.to_string())
-            })?
-            .ok_or_else(|| {
-                rustls::Error::InvalidCertificateData(
-                    "no SGX attestation extension".to_string(),
-                )
-            })?;
-
-        let attest = SgxAttestationExtension::from_der_bytes(cert_ext.value)
-            .map_err(|err| {
-                rustls::Error::InvalidCertificateData(format!(
-                    "invalid SGX attestation: {err}"
-                ))
-            })?;
+        // in addition to the typical cert checks, we also need to extract
+        // the enclave attestation quote from the cert and verify that.
+        let evidence = AttestEvidence::parse_cert_der(&end_entity.0)?;
 
         if !self.expect_dummy_quote {
             // 4. (if not dev mode) parse out quote and quote report
             // 5. (if not dev mode) ensure report contains the pubkey hash
             // 6. (if not dev mode) verify quote and quote report
             todo!()
-        } else if attest != SgxAttestationExtension::dummy() {
+        } else if evidence.attest != SgxAttestationExtension::dummy() {
             return Err(rustls::Error::InvalidCertificateData(
                 "invalid SGX attestation".to_string(),
             ));
@@ -115,15 +134,40 @@ impl rustls::client::ServerCertVerifier for ServerCertVerifier {
 
 #[cfg(test)]
 mod test {
-    use std::iter;
+    use std::io::Cursor;
     use std::time::Duration;
+    use std::{include_str, iter};
 
     use rustls::client::ServerCertVerifier as _;
 
     use super::*;
     use crate::attest::cert::{AttestationCert, SgxAttestationExtension};
-    use crate::ed25519;
     use crate::rng::SysRng;
+    use crate::{ed25519, hex};
+
+    const MRENCLAVE_HEX: &str = include_str!("../../test_data/mrenclave.hex");
+    const SGX_SERVER_CERT_PEM: &str =
+        include_str!("../../test_data/attest_cert.pem");
+
+    fn parse_cert_pem_as_der(s: &str) -> Vec<u8> {
+        let mut cursor = Cursor::new(s.as_bytes());
+
+        let item = rustls_pemfile::read_one(&mut cursor)
+            .expect("Expected at least one entry in the PEM file")
+            .expect("Not valid PEM-encoded cert");
+
+        match item {
+            rustls_pemfile::Item::X509Certificate(der) => der,
+            _ => panic!("Not an x509 certificate: {:?}", item),
+        }
+    }
+
+    #[test]
+    fn test_verify_sgx_server_cert() {
+        let cert_der = parse_cert_pem_as_der(SGX_SERVER_CERT_PEM);
+        let _evidence = AttestEvidence::parse_cert_der(&cert_der).unwrap();
+        let _expected_mrenclave = hex::decode(MRENCLAVE_HEX.trim()).unwrap();
+    }
 
     #[test]
     fn test_verify_dummy_server_cert() {

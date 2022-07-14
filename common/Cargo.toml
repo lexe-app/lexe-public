@@ -43,6 +43,8 @@ yasna = { version = "0.2", default-features = false }
 proptest = { version = "1", default-features = false, features = ["alloc"] }
 # Arbitrary derive macro
 proptest-derive = "0.3"
+# Deserialize test data cert
+rustls-pemfile = "1"
 # Testing serde
 serde_json = "1"
 # Tokio features used when testing

@@ -258,6 +258,31 @@ mod test {
     use super::*;
     use crate::{cli, logger};
 
+    #[cfg(target_env = "sgx")]
+    #[test]
+    #[ignore] // << uncomment to dump fresh attestation cert
+    fn dump_attest_cert() {
+        let cert_key_pair = ed25519::from_seed(&[0x42; 32]);
+        let cert_pubkey = ed25519::PublicKey::try_from(&cert_key_pair).unwrap();
+        let attestation = crate::attest::quote_enclave(&cert_pubkey).unwrap();
+        let dns_names = vec!["localhost".to_string()];
+
+        let attest_cert =
+            AttestationCert::new(cert_key_pair, dns_names, attestation)
+                .unwrap();
+
+        let self_report = sgx_isa::Report::for_self();
+        println!("MRENCLAVE: '{}'", hex::display(&self_report.mrenclave));
+        println!("cert_pubkey: '{cert_pubkey}'");
+
+        let cert_der = attest_cert.serialize_der_signed().unwrap();
+
+        println!("attestation certificate:");
+        println!("-----BEGIN CERTIFICATE-----");
+        println!("{}", base64::encode(&cert_der));
+        println!("-----END CERTIFICATE-----");
+    }
+
     #[tokio::test]
     async fn test_provision() {
         logger::init_for_testing();
@@ -298,12 +323,12 @@ mod test {
             assert_eq!(runner_req.user_id, user_id);
             let port = runner_req.port;
 
+            let expect_dummy_quote = cfg!(not(target_env = "sgx"));
+
             let mut tls_config = rustls::ClientConfig::builder()
                 .with_safe_defaults()
                 .with_custom_certificate_verifier(Arc::new(
-                    attest::ServerCertVerifier {
-                        expect_dummy_quote: true,
-                    },
+                    attest::ServerCertVerifier { expect_dummy_quote },
                 ))
                 .with_no_client_auth();
             tls_config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
