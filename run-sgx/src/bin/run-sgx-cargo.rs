@@ -8,6 +8,9 @@ use anyhow::{format_err, Context, Result};
 use argh::{EarlyExit, FromArgs, TopLevelCommand};
 use serde::Deserialize;
 
+const DEBUG_SIGNER_KEY_PEM_BYTES: &[u8] =
+    std::include_bytes!("../../data/debug-signer-key.pem");
+
 // default SGX config
 const DEBUG: bool = true;
 const HEAP_SIZE: u64 = 0x2000000; // 32 MiB
@@ -131,6 +134,19 @@ impl Args {
 
         // TODO(phlip9): inline? would remove error-prone setup step
 
+        // dump debug signer key to file
+        let mut key_path = sgxs_bin_path.clone();
+        key_path.set_file_name("debug-signer-key.pem");
+
+        fs::write(&key_path, &DEBUG_SIGNER_KEY_PEM_BYTES).with_context(
+            || {
+                format!(
+                    "Failed to write debug key file: {}",
+                    key_path.display(),
+                )
+            },
+        )?;
+
         let mut sigstruct_path = sgxs_bin_path.clone();
         sigstruct_path.set_extension("sig");
 
@@ -141,7 +157,7 @@ impl Args {
             // output .sig sigstruct
             .arg(&sigstruct_path)
             .arg("--key")
-            .arg("debug-signer-key.pem");
+            .arg(&key_path);
 
         run_cmd(sgxs_sign_cmd).context("Failed to sign enclave")?;
 
