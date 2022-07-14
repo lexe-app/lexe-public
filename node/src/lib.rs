@@ -6,7 +6,7 @@ pub mod logger;
 mod api;
 mod attest;
 mod bitcoind_client;
-mod command_server;
+mod command;
 mod convert;
 mod event_handler;
 mod inactivity_timer;

@@ -42,7 +42,7 @@ use crate::types::{
     GossipSyncType, InvoicePayerType, NetworkGraphType, P2PGossipSyncType,
     PaymentInfoStorageType, PeerManagerType, Port, UserId,
 };
-use crate::{command_server, convert, peer, repl};
+use crate::{command, convert, peer, repl};
 
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 
@@ -146,7 +146,7 @@ pub async fn start_ldk(
         broadcast::channel(DEFAULT_CHANNEL_SIZE);
 
     // Start warp at the given port, or bind to an ephemeral port if not given
-    let routes = command_server::routes(
+    let routes = command::server::routes(
         channel_manager.clone(),
         peer_manager.clone(),
         activity_tx,

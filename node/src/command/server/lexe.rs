@@ -1,7 +1,7 @@
 use tokio::sync::broadcast;
 use warp::Reply;
 
-use crate::command_server::ApiError;
+use crate::command::server::ApiError;
 
 /// GET /lexe/status -> TODO
 pub async fn status() -> Result<impl Reply, ApiError> {

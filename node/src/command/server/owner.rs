@@ -3,7 +3,7 @@ use std::sync::Arc;
 use serde::Serialize;
 use warp::{reply, Reply};
 
-use crate::command_server::ApiError;
+use crate::command::server::ApiError;
 use crate::convert;
 use crate::types::{ChannelManagerType, PeerManagerType};
 
