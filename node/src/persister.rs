@@ -5,8 +5,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, ensure, Context};
-use bitcoin::hash_types::{BlockHash, Txid};
-use bitcoin::hashes::hex::{FromHex, ToHex};
+use bitcoin::hash_types::BlockHash;
 use bitcoin::secp256k1::PublicKey;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
 use lightning::chain::channelmonitor::{
@@ -159,20 +158,8 @@ impl PostgresPersister {
         for cm_file in cm_file_vec {
             // <txid>_<txindex>
             let id = cm_file.name;
-            let mut txid_and_txindex = id.split('_');
-            let tx_id_str = txid_and_txindex
-                .next()
-                .context("Missing <txid> in <txid>_<txindex>")?;
-            let tx_index_str = txid_and_txindex
-                .next()
-                .context("Missing <txindex> in <txid>_<txindex>")?;
-
-            let tx_id = Txid::from_hex(tx_id_str)
-                .context("Invalid tx_id returned from DB")?;
-            let tx_index: u16 = tx_index_str
-                .to_string()
-                .parse()
-                .context("Could not parse tx_index into u16")?;
+            let (txid, index) = convert::txid_and_index_from_string(id)
+                .context("Invalid channel id")?;
 
             let mut state_buf = Cursor::new(&cm_file.data);
 
@@ -186,8 +173,8 @@ impl PostgresPersister {
                 .context("Failed to deserialize Channel Monitor")?;
 
             let (output, _script) = channel_monitor.get_funding_txo();
-            ensure!(output.txid == tx_id, "Deserialized txid don' match");
-            ensure!(output.index == tx_index, "Deserialized index don' match");
+            ensure!(output.txid == txid, "Deserialized txid don' match");
+            ensure!(output.index == index, "Deserialized index don' match");
 
             result.push((blockhash, channel_monitor));
         }
@@ -456,10 +443,10 @@ impl<ChannelSigner: Sign> Persist<ChannelSigner> for PostgresPersister {
         monitor: &LdkChannelMonitor<ChannelSigner>,
         _update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
-        let tx_id = funding_txo.txid.to_hex();
-        let tx_index = funding_txo.index.to_string();
-        // <txid>_<txindex>
-        let id = [tx_id, tx_index].join("_");
+        let id = convert::txid_and_index_to_string(
+            funding_txo.txid,
+            funding_txo.index,
+        );
         println!("Persisting new channel {}", id);
 
         let cm_file = File {
@@ -491,10 +478,10 @@ impl<ChannelSigner: Sign> Persist<ChannelSigner> for PostgresPersister {
         monitor: &LdkChannelMonitor<ChannelSigner>,
         _update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
-        let tx_id = funding_txo.txid.to_hex();
-        let tx_index = funding_txo.index.to_string();
-        // <txid>_<txindex>
-        let id = [tx_id, tx_index].join("_");
+        let id = convert::txid_and_index_to_string(
+            funding_txo.txid,
+            funding_txo.index,
+        );
         println!("Updating persisted channel {}", id);
 
         let cm_file = File {
