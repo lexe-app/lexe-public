@@ -6,9 +6,6 @@ use crate::command::server::ApiError;
 use crate::convert;
 use crate::types::{ChannelManagerType, PeerManagerType};
 
-#[cfg(test)]
-mod test;
-
 #[derive(Serialize)]
 pub struct NodeInfo {
     pub pubkey: String,
