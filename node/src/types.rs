@@ -30,6 +30,7 @@ use crate::persister::LexePersister;
 
 pub type UserId = i64;
 pub type Port = u16;
+pub type InstanceId = String;
 
 pub type PaymentInfoStorageType = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
 

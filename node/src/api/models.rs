@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::types::{Port, UserId};
+use crate::types::{InstanceId, Port, UserId};
 
 /// Query parameter struct for fetching with no data attached
 ///
@@ -24,13 +24,13 @@ pub struct GetByUserIdAndMeasurement {
 /// Query parameter struct for fetching by instance id
 #[derive(Serialize)]
 pub struct GetByInstanceId {
-    pub instance_id: String,
+    pub instance_id: InstanceId,
 }
 
 /// Uniquely identifies a file in the node's virtual file system.
 #[derive(Serialize)]
 pub struct FileId {
-    pub instance_id: String,
+    pub instance_id: InstanceId,
     pub directory: String,
     pub name: String,
 }
@@ -38,7 +38,7 @@ pub struct FileId {
 /// Uniquely identifies a directory in the node's virtual file system.
 #[derive(Serialize)]
 pub struct DirectoryId {
-    pub instance_id: String,
+    pub instance_id: InstanceId,
     pub directory: String,
 }
 
@@ -59,7 +59,7 @@ pub struct Instance {
 pub struct Enclave {
     pub id: String,
     pub seed: Vec<u8>,
-    pub instance_id: String,
+    pub instance_id: InstanceId,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -71,7 +71,7 @@ pub struct NodeInstanceEnclave {
 
 #[derive(Serialize, Deserialize)]
 pub struct File {
-    pub instance_id: String,
+    pub instance_id: InstanceId,
     pub directory: String,
     pub name: String,
     pub data: Vec<u8>,
