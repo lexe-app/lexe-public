@@ -14,7 +14,7 @@ use webpki::{TlsServerTrustAnchors, TrustAnchor};
 use x509_parser::certificate::X509Certificate;
 
 use crate::attest::cert::SgxAttestationExtension;
-use crate::ed25519;
+use crate::{ed25519, sha256};
 
 /// The DER-encoded Intel SGX trust anchor cert.
 const INTEL_SGX_ROOT_CA_CERT_DER: &[u8] =
@@ -261,7 +261,7 @@ impl SgxQuoteVerifier {
 
         // expected_report_data :=
         //   SHA-256(attestation_public_key || authentication_data)
-        let expected_report_data = sha256_parts(&[
+        let expected_report_data = sha256::digest_many(&[
             sig.attestation_public_key(),
             sig.authentication_data(),
         ]);
@@ -399,14 +399,6 @@ fn report_try_from_truncated(bytes: &[u8]) -> Result<sgx_isa::Report> {
     unpadded[..Report::TRUNCATED_SIZE].copy_from_slice(bytes);
 
     Ok(Report::try_copy_from(&unpadded).expect("Should never fail"))
-}
-
-fn sha256_parts(inputs: &[&[u8]]) -> ring::digest::Digest {
-    let mut ctx = ring::digest::Context::new(&ring::digest::SHA256);
-    for input in inputs {
-        ctx.update(input);
-    }
-    ctx.finish()
 }
 
 #[cfg(test)]

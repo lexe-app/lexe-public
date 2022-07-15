@@ -203,16 +203,13 @@ mod test {
     use ring::digest::Digest;
 
     use super::*;
+    use crate::sha256;
 
     // simple implementations of some crypto functions for equivalence testing
 
-    fn sha256(input: &[u8]) -> Digest {
-        ring::digest::digest(&ring::digest::SHA256, input)
-    }
-
     // an inefficient impl of HMAC-SHA256 for equivalence testing
     fn hmac_sha256(key: &[u8], msg: &[u8]) -> Digest {
-        let h_key = sha256(key);
+        let h_key = sha256::digest(key);
         let mut zero_pad_key = [0u8; 64];
 
         // make key match the internal block size
@@ -236,18 +233,11 @@ mod test {
             *i_key_i = key_i ^ 0x36;
         }
 
-        // m_i := i_key || msg
-        let mut m_i = i_key.to_vec();
-        m_i.extend_from_slice(msg);
-
-        let h_i = sha256(&m_i);
-
-        // m_o := o_key || H(m_i)
-        let mut m_o = o_key.to_vec();
-        m_o.extend_from_slice(h_i.as_ref());
+        // h_i := H(i_key || msg)
+        let h_i = sha256::digest_many(&[&i_key, msg]);
 
         // output := H(o_key || H(i_key || msg))
-        sha256(&m_o)
+        sha256::digest_many(&[&o_key, h_i.as_ref()])
     }
 
     // an inefficient impl of HKDF-SHA256 for equivalence testing
@@ -326,17 +316,9 @@ mod test {
     }
 
     #[test]
-    fn test_sha256() {
-        let actual = hex::encode(sha256(b"").as_ref());
-        let expected =
-            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-        assert_eq!(&actual, expected);
-    }
-
-    #[test]
     fn test_root_seed_hkdf_salt() {
         let actual = RootSeed::HKDF_SALT.as_slice();
-        let expected = sha256(RootSeed::HKDF_SALT_STR);
+        let expected = sha256::digest(RootSeed::HKDF_SALT_STR);
 
         // // print out salt
         // let hex = hex::encode(expected.as_ref());

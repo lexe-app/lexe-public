@@ -12,3 +12,4 @@ pub mod ed25519;
 pub mod hex;
 pub mod rng;
 pub mod root_seed;
+pub mod sha256;
