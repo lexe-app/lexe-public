@@ -299,6 +299,8 @@ impl LexePersister {
 static PERSISTER_RUNTIME: Lazy<OnceCell<Runtime>> = Lazy::new(|| {
     Builder::new_current_thread()
         .enable_io()
+        // Because our reqwest::Client has a configured timeout
+        .enable_time()
         .build()
         .unwrap()
         .into()
