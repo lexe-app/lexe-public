@@ -59,8 +59,7 @@ pub async fn start_ldk(
     let user_id = args.user_id;
     // TODO(sgx) Insert this enclave's measurement
     let measurement = String::from("default");
-    let client = reqwest::Client::new();
-    let api = ApiClient::from(client);
+    let api = ApiClient::new(args.backend_url.clone(), args.runner_url.clone());
 
     // Initialize BitcoindClient and KeysManager
     let (bitcoind_client_res, keys_manager_res) = tokio::join!(

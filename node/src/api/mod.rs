@@ -1,8 +1,7 @@
-use std::env;
 use std::fmt::{self, Display};
+use std::time::Duration;
 
 use http::Method;
-use once_cell::sync::Lazy;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -17,18 +16,7 @@ mod models;
 
 pub use models::*;
 
-/// The base url for the node-backend (persistence) API.
-/// Can be overridden with BACKEND_URL env var.
-static BACKEND_URL: Lazy<String> = Lazy::new(|| {
-    env::var("BACKEND_URL")
-        .unwrap_or_else(|_e| "http://127.0.0.1:3030".to_string())
-});
-
-/// The base url for the runner. Can be overridden with RUNNER_URL env var.
-static RUNNER_URL: Lazy<String> = Lazy::new(|| {
-    env::var("RUNNER_URL")
-        .unwrap_or_else(|_e| "http://127.0.0.1:5050".to_string())
-});
+const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Enumerates the base urls that can be used in an API call.
 enum BaseUrl {
@@ -63,15 +51,23 @@ pub enum ApiError {
 #[derive(Clone)]
 pub struct ApiClient {
     client: Client,
-}
-
-impl From<Client> for ApiClient {
-    fn from(client: Client) -> Self {
-        Self { client }
-    }
+    backend_url: String,
+    runner_url: String,
 }
 
 impl ApiClient {
+    pub fn new(backend_url: String, runner_url: String) -> Self {
+        let client = reqwest::Client::builder()
+            .timeout(API_REQUEST_TIMEOUT)
+            .build()
+            .expect("Failed to build reqwest Client");
+        Self {
+            client,
+            backend_url,
+            runner_url,
+        }
+    }
+
     pub async fn get_node(
         &self,
         user_id: UserId,
@@ -226,8 +222,8 @@ impl ApiClient {
     ) -> Result<T, ApiError> {
         // Node backend api is versioned but runner api is not
         let (base, version) = match base_url {
-            Backend => (&*BACKEND_URL, api_version.to_string()),
-            Runner => (&*RUNNER_URL, String::new()),
+            Backend => (&self.backend_url, api_version.to_string()),
+            Runner => (&self.runner_url, String::new()),
         };
         let mut url = format!("{}{}{}", base, version, endpoint);
 

@@ -6,6 +6,9 @@ use crate::init;
 use crate::provision::{provision, LexeRunner};
 use crate::types::{BitcoindRpcInfo, Network, NodeAlias, Port, UserId};
 
+pub const DEFAULT_BACKEND_URL: &str = "http://127.0.0.1:3030";
+pub const DEFAULT_RUNNER_URL: &str = "http://127.0.0.1:5050";
+
 /// the Lexe node CLI
 #[derive(Debug, PartialEq, Eq, FromArgs)]
 pub struct Args {
@@ -67,6 +70,14 @@ pub struct StartCommand {
     /// the node is run outside of SGX.
     #[argh(switch)]
     pub repl: bool,
+
+    /// protocol://host:port of the node backend.
+    #[argh(option, default = "DEFAULT_BACKEND_URL.into()")]
+    pub backend_url: String,
+
+    /// protocol://host:port of the runner.
+    #[argh(option, default = "DEFAULT_RUNNER_URL.into()")]
+    pub runner_url: String,
 }
 
 /// Provision a new Lexe node for a user
@@ -86,6 +97,14 @@ pub struct ProvisionCommand {
     /// provisioning process.
     #[argh(option)]
     pub port: Port,
+
+    /// protocol://host:port of the node backend.
+    #[argh(option, default = "DEFAULT_BACKEND_URL.into()")]
+    pub backend_url: String,
+
+    /// protocol://host:port of the runner.
+    #[argh(option, default = "DEFAULT_RUNNER_URL.into()")]
+    pub runner_url: String,
 }
 
 // -- impl Args -- //
@@ -111,7 +130,10 @@ impl Args {
                     .build()
                     .expect("Failed to init tokio runtime");
                 let mut rng = SysRng::new();
-                let runner = LexeRunner::new();
+                let runner = LexeRunner::new(
+                    args.backend_url.clone(),
+                    args.runner_url.clone(),
+                );
                 rt.block_on(provision(args, &mut rng, runner))
                     .context("error while provisioning")
             }
