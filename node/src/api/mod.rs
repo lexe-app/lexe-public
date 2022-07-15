@@ -176,24 +176,6 @@ impl ApiClient {
             .await
     }
 
-    #[cfg(not(target_env = "sgx"))] // TODO Remove once this fn is used in sgx
-    pub async fn create_channel_peer(
-        &self,
-        req: ChannelPeer,
-    ) -> Result<ChannelPeer, ApiError> {
-        self.request(Method::POST, Backend, V1, "/channel_peer", req)
-            .await
-    }
-
-    pub async fn get_channel_peers(
-        &self,
-        instance_id: String,
-    ) -> Result<Vec<ChannelPeer>, ApiError> {
-        let req = GetByInstanceId { instance_id };
-        self.request(Method::GET, Backend, V1, "/channel_peer", req)
-            .await
-    }
-
     pub async fn notify_runner(
         &self,
         req: UserPort,

@@ -63,6 +63,13 @@ pub struct Enclave {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct NodeInstanceEnclave {
+    pub node: Node,
+    pub instance: Instance,
+    pub enclave: Enclave,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct File {
     pub instance_id: String,
     pub directory: String,
@@ -71,25 +78,11 @@ pub struct File {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct NodeInstanceEnclave {
-    pub node: Node,
-    pub instance: Instance,
-    pub enclave: Enclave,
-}
-
-#[derive(Serialize, Deserialize)]
 pub struct ChannelMonitor {
     pub instance_id: String,
     pub tx_id: String,
     pub tx_index: i16,
     pub state: Vec<u8>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct ChannelPeer {
-    pub instance_id: String,
-    pub peer_public_key: String,
-    pub peer_address: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

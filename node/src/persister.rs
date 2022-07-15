@@ -31,7 +31,7 @@ use lightning::util::ser::{ReadableArgs, Writeable};
 use once_cell::sync::{Lazy, OnceCell};
 use tokio::runtime::{Builder, Handle, Runtime};
 
-use crate::api::{ApiClient, ChannelMonitor, File, FileId};
+use crate::api::{ApiClient, ChannelMonitor, DirectoryId, File, FileId};
 use crate::bitcoind_client::BitcoindClient;
 use crate::convert;
 use crate::logger::LdkTracingLogger;
@@ -45,6 +45,8 @@ const SINGLETON_DIRECTORY: &str = ".";
 const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 const NETWORK_GRAPH_FILENAME: &str = "network_graph";
 const SCORER_FILENAME: &str = "scorer";
+
+const CHANNEL_PEERS_DIRECTORY: &str = "channel_peers";
 
 #[derive(Clone)]
 pub struct PostgresPersister {
@@ -244,9 +246,14 @@ impl PostgresPersister {
         &self,
     ) -> anyhow::Result<Vec<(PublicKey, SocketAddr)>> {
         println!("Reading channel peers");
-        let cp_vec = self
+        let cp_dir_id = DirectoryId {
+            instance_id: self.instance_id.clone(),
+            directory: CHANNEL_PEERS_DIRECTORY.to_owned(),
+        };
+
+        let cp_file_vec = self
             .api
-            .get_channel_peers(self.instance_id.clone())
+            .get_directory(cp_dir_id)
             .await
             .map_err(|e| {
                 println!("{:#}", e);
@@ -254,12 +261,24 @@ impl PostgresPersister {
             })
             .context("Could not fetch channel peers from DB")?;
 
-        let mut result = Vec::new();
+        let mut result = Vec::with_capacity(cp_file_vec.len());
 
-        for cp in cp_vec {
-            let peer_pubkey = PublicKey::from_str(&cp.peer_public_key)
+        for cp_file in cp_file_vec {
+            // <pubkey>@<addr>
+            let pubkey_at_addr = cp_file.name;
+
+            // vec![<pubkey>, <addr>]
+            let mut pubkey_and_addr = pubkey_at_addr.split('@');
+            let pubkey_str = pubkey_and_addr
+                .next()
+                .context("Missing <pubkey> in <pubkey>@<addr> peer address")?;
+            let addr_str = pubkey_and_addr
+                .next()
+                .context("Missing <addr> in <pubkey>@<addr> peer address")?;
+
+            let peer_pubkey = PublicKey::from_str(pubkey_str)
                 .context("Could not deserialize PublicKey from LowerHex")?;
-            let peer_addr = SocketAddr::from_str(&cp.peer_address)
+            let peer_addr = SocketAddr::from_str(addr_str)
                 .context("Could not parse socket address from string")?;
 
             result.push((peer_pubkey, peer_addr));
@@ -274,16 +293,23 @@ impl PostgresPersister {
         peer_pubkey: PublicKey,
         peer_address: SocketAddr,
     ) -> anyhow::Result<()> {
-        use crate::api::ChannelPeer;
         println!("Persisting new channel peer");
-        let cp = ChannelPeer {
+        let pubkey_str = convert::pubkey_to_hex(&peer_pubkey);
+        let addr_str = peer_address.to_string();
+
+        // <pubkey>@<addr>
+        let pubkey_at_addr = [pubkey_str, addr_str].join("@");
+
+        let cp_file = File {
             instance_id: self.instance_id.clone(),
-            peer_public_key: convert::pubkey_to_hex(&peer_pubkey),
-            peer_address: peer_address.to_string(),
+            directory: CHANNEL_PEERS_DIRECTORY.to_owned(),
+            name: pubkey_at_addr.to_owned(),
+            // There is no 'data' associated with a channel peer
+            data: Vec::new(),
         };
 
         self.api
-            .create_channel_peer(cp)
+            .create_file(cp_file)
             .await
             .map(|_| ())
             .map_err(|e| e.into())
