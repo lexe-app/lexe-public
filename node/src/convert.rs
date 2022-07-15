@@ -2,7 +2,8 @@ use std::convert::TryInto;
 use std::str::FromStr;
 
 use anyhow::{anyhow, Context};
-use bitcoin::hashes::hex::FromHex;
+use bitcoin::hash_types::Txid;
+use bitcoin::hashes::hex::{FromHex, ToHex};
 use bitcoin::secp256k1::{PublicKey, Secp256k1};
 use bitcoin::BlockHash;
 use lightning::chain::keysinterface::{KeysInterface, KeysManager, Recipient};
@@ -41,6 +42,35 @@ pub fn get_instance_id(pubkey: &PublicKey, measurement: &str) -> String {
     // TODO(crypto) id derivation scheme;
     // probably hash(pubkey || measurement)
     format!("{}_{}", pubkey_hex, measurement)
+}
+
+/// Serializes a txid and index into a String of the form <txid>_<index>.
+pub fn txid_and_index_to_string(txid: Txid, index: u16) -> String {
+    let txid = txid.to_hex();
+    let index = index.to_string();
+
+    // <txid>_<index>
+    [txid, index].join("_")
+}
+
+/// Attempts to parse a Txid and index from a String of the form <txid>_<index>.
+pub fn txid_and_index_from_string(id: String) -> anyhow::Result<(Txid, u16)> {
+    let mut txid_and_txindex = id.split('_');
+    let txid_str = txid_and_txindex
+        .next()
+        .context("Missing <txid> in <txid>_<index>")?;
+    let index_str = txid_and_txindex
+        .next()
+        .context("Missing <index> in <txid>_<index>")?;
+
+    let txid =
+        Txid::from_hex(txid_str).context("Invalid txid returned from DB")?;
+    let index: u16 = index_str
+        .to_string()
+        .parse()
+        .context("Could not parse index into u16")?;
+
+    Ok((txid, index))
 }
 
 pub struct FundedTx {
