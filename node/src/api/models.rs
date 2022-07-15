@@ -27,6 +27,21 @@ pub struct GetByInstanceId {
     pub instance_id: String,
 }
 
+/// Uniquely identifies a file in the node's virtual file system.
+#[derive(Serialize)]
+pub struct FileId {
+    pub instance_id: String,
+    pub directory: String,
+    pub name: String,
+}
+
+/// Uniquely identifies a directory in the node's virtual file system.
+#[derive(Serialize)]
+pub struct DirectoryId {
+    pub instance_id: String,
+    pub directory: String,
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct Node {
     pub public_key: String,
@@ -45,6 +60,14 @@ pub struct Enclave {
     pub id: String,
     pub seed: Vec<u8>,
     pub instance_id: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct File {
+    pub instance_id: String,
+    pub directory: String,
+    pub name: String,
+    pub data: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize)]

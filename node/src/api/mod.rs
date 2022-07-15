@@ -110,6 +110,48 @@ impl ApiClient {
         self.request(Method::POST, Backend, V1, endpoint, req).await
     }
 
+    #[allow(dead_code)] // TODO remove
+    pub async fn get_file(
+        &self,
+        req: FileId,
+    ) -> Result<Option<File>, ApiError> {
+        let endpoint = "/file";
+        self.request(Method::GET, Backend, V1, endpoint, req).await
+    }
+
+    #[allow(dead_code)] // TODO remove
+    pub async fn create_file(&self, req: File) -> Result<File, ApiError> {
+        let endpoint = "/file";
+        self.request(Method::POST, Backend, V1, endpoint, req).await
+    }
+
+    #[allow(dead_code)] // TODO remove
+    pub async fn create_or_update_file(
+        &self,
+        req: File,
+    ) -> Result<File, ApiError> {
+        let endpoint = "/file";
+        self.request(Method::PUT, Backend, V1, endpoint, req).await
+    }
+
+    // TODO We want to delete channel peers / monitors when channels close
+    /// Returns "OK" if exactly one row was deleted.
+    #[allow(dead_code)]
+    pub async fn delete_file(&self, req: FileId) -> Result<String, ApiError> {
+        let endpoint = "/file";
+        self.request(Method::DELETE, Backend, V1, endpoint, req)
+            .await
+    }
+
+    #[allow(dead_code)] // TODO remove
+    pub async fn get_directory(
+        &self,
+        req: DirectoryId,
+    ) -> Result<Vec<File>, ApiError> {
+        let endpoint = "/directory";
+        self.request(Method::GET, Backend, V1, endpoint, req).await
+    }
+
     pub async fn create_channel_monitor(
         &self,
         req: ChannelMonitor,
