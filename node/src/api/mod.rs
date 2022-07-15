@@ -5,13 +5,13 @@ use http::Method;
 use once_cell::sync::Lazy;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use thiserror::Error;
 use tracing::debug;
 use ApiVersion::*;
 use BaseUrl::*;
 
-use crate::types::{Port, UserId};
+use crate::types::UserId;
 
 /// The base url for the node-backend (persistence) API.
 /// Can be overridden with BACKEND_URL env var.
@@ -25,6 +25,10 @@ static RUNNER_URL: Lazy<String> = Lazy::new(|| {
     env::var("RUNNER_URL")
         .unwrap_or_else(|_e| "http://127.0.0.1:5050".to_string())
 });
+
+mod models;
+
+pub use models::*;
 
 /// Enumerates the base urls that can be used in an API call.
 enum BaseUrl {
@@ -56,50 +60,12 @@ pub enum ApiError {
     Server(String),
 }
 
-/// Query parameter struct for fetching with no data attached
-///
-/// Is defined with {} otherwise serde_qs vomits
-#[derive(Serialize)]
-pub struct EmptyData {}
-
-/// Query parameter struct for fetching by user id
-#[derive(Serialize)]
-pub struct GetByUserId {
-    pub user_id: UserId,
-}
-
-/// Query parameter struct for fetching by user id and measurement
-#[derive(Serialize)]
-pub struct GetByUserIdAndMeasurement {
-    pub user_id: UserId,
-    pub measurement: String,
-}
-
-/// Query parameter struct for fetching by instance id
-#[derive(Serialize)]
-pub struct GetByInstanceId {
-    pub instance_id: String,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Node {
-    pub public_key: String,
-    pub user_id: UserId,
-}
-
 pub async fn get_node(
     cli: &Client,
     user_id: UserId,
 ) -> Result<Option<Node>, ApiError> {
     let req = GetByUserId { user_id };
     request(cli, Method::GET, Backend, V1, "/node", req).await
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Instance {
-    pub id: String,
-    pub measurement: String,
-    pub node_public_key: String,
 }
 
 pub async fn get_instance(
@@ -114,13 +80,6 @@ pub async fn get_instance(
     request(cli, Method::GET, Backend, V1, "/instance", req).await
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct Enclave {
-    pub id: String,
-    pub seed: Vec<u8>,
-    pub instance_id: String,
-}
-
 pub async fn get_enclave(
     cli: &Client,
     user_id: UserId,
@@ -133,27 +92,12 @@ pub async fn get_enclave(
     request(cli, Method::GET, Backend, V1, "/enclave", req).await
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct NodeInstanceEnclave {
-    pub node: Node,
-    pub instance: Instance,
-    pub enclave: Enclave,
-}
-
 pub async fn create_node_instance_enclave(
     cli: &Client,
     req: NodeInstanceEnclave,
 ) -> Result<NodeInstanceEnclave, ApiError> {
     let endpoint = "/acid/node_instance_enclave";
     request(cli, Method::POST, Backend, V1, endpoint, req).await
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct ChannelMonitor {
-    pub instance_id: String,
-    pub tx_id: String,
-    pub tx_index: i16,
-    pub state: Vec<u8>,
 }
 
 pub async fn create_channel_monitor(
@@ -178,12 +122,6 @@ pub async fn update_channel_monitor(
     request(cli, Method::PUT, Backend, V1, "/channel_monitor", req).await
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct ChannelManager {
-    pub instance_id: String,
-    pub state: Vec<u8>,
-}
-
 pub async fn get_channel_manager(
     cli: &Client,
     instance_id: String,
@@ -197,12 +135,6 @@ pub async fn create_or_update_channel_manager(
     req: ChannelManager,
 ) -> Result<ChannelManager, ApiError> {
     request(cli, Method::PUT, Backend, V1, "/channel_manager", req).await
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct ProbabilisticScorer {
-    pub instance_id: String,
-    pub state: Vec<u8>,
 }
 
 pub async fn get_probabilistic_scorer(
@@ -220,12 +152,6 @@ pub async fn create_or_update_probabilistic_scorer(
     request(cli, Method::PUT, Backend, V1, "/probabilistic_scorer", ps).await
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct NetworkGraph {
-    pub instance_id: String,
-    pub state: Vec<u8>,
-}
-
 pub async fn get_network_graph(
     cli: &Client,
     instance_id: String,
@@ -239,13 +165,6 @@ pub async fn create_or_update_network_graph(
     ng: NetworkGraph,
 ) -> Result<NetworkGraph, ApiError> {
     request(cli, Method::PUT, Backend, V1, "/network_graph", ng).await
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct ChannelPeer {
-    pub instance_id: String,
-    pub peer_public_key: String,
-    pub peer_address: String,
 }
 
 #[cfg(not(target_env = "sgx"))] // TODO Remove once this fn is used in sgx
@@ -262,12 +181,6 @@ pub async fn get_channel_peers(
 ) -> Result<Vec<ChannelPeer>, ApiError> {
     let req = GetByInstanceId { instance_id };
     request(cli, Method::GET, Backend, V1, "/channel_peer", req).await
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct UserPort {
-    pub user_id: UserId,
-    pub port: Port,
 }
 
 pub async fn notify_runner(
