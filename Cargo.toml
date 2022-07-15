@@ -10,6 +10,7 @@ members = [
 [patch.crates-io]
 aesm-client = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 async-usercalls = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
+dcap-ql = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 enclave-runner = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 hyper = { git = "https://github.com/lexe-tech/hyper", branch = "hyper-sgx-0.14.18" }
 mio = { git = "https://github.com/lexe-tech/mio", branch = "mio-sgx-0.7.6" }
@@ -21,6 +22,12 @@ tokio = { git = "https://github.com/lexe-tech/tokio",  branch = "tokio-sgx-1.15.
 
 [profile.release]
 panic = "abort"
+# NOTE(phlip9): enable for smaller binary size
+# codegen-units = 1
+# lto = true
+# opt-level = "s"
+# debug = 0
+# strip = "debuginfo"
 
 # [profile.dev]
 # panic = "abort"

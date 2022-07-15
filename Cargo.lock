@@ -350,6 +350,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "asn1-rs",
+ "dcap-ql",
+ "num-bigint",
+ "once_cell",
  "proptest",
  "proptest-derive",
  "rand_core",
@@ -360,12 +363,13 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
+ "sgx-isa",
  "thiserror",
  "tokio",
  "tokio-rustls",
  "webpki 0.22.0",
  "x509-parser",
- "yasna 0.2.2",
+ "yasna",
 ]
 
 [[package]]
@@ -524,6 +528,19 @@ name = "data-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ee2393c4a91429dffb4bedf19f4d6abf27d8a732c8ce4980305d782e5426d57"
+
+[[package]]
+name = "dcap-ql"
+version = "0.3.4"
+source = "git+https://github.com/lexe-tech/rust-sgx?branch=lexe#70d11205fed08e49886bb25a1ea3df19928e8287"
+dependencies = [
+ "byteorder",
+ "failure",
+ "lazy_static",
+ "num-derive",
+ "num-traits",
+ "sgx-isa",
+]
 
 [[package]]
 name = "der-parser"
@@ -1320,6 +1337,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "num-derive"
+version = "0.2.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eafd0b45c5537c3ba526f79d3e75120036502bebacbb3f3220914067ce39dbf2"
+dependencies = [
+ "proc-macro2 0.4.30",
+ "quote 0.6.13",
+ "syn 0.15.44",
+]
+
+[[package]]
 name = "num-integer"
 version = "0.1.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1658,7 +1686,7 @@ checksum = "d7fa2d386df8533b02184941c76ae2e0d0c1d053f5d43339169d80f21275fc5e"
 dependencies = [
  "ring",
  "time 0.3.10",
- "yasna 0.5.0",
+ "yasna",
 ]
 
 [[package]]
@@ -2794,16 +2822,11 @@ dependencies = [
 
 [[package]]
 name = "yasna"
-version = "0.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79af3189e6b0484c9fd54208f8eeb8818cadee00ec81438b67a64c8e6f2f3694"
-
-[[package]]
-name = "yasna"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "346d34a236c9d3e5f3b9b74563f238f955bbd05fa0b8b4efa53c130c43982f4c"
 dependencies = [
+ "num-bigint",
  "time 0.3.10",
 ]
 
