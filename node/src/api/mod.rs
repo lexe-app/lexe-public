@@ -123,10 +123,7 @@ impl ApiClient {
         self.request(Method::POST, Backend, V1, endpoint, req).await
     }
 
-    pub async fn create_or_update_file(
-        &self,
-        req: File,
-    ) -> Result<File, ApiError> {
+    pub async fn save_file(&self, req: File) -> Result<File, ApiError> {
         let endpoint = "/file";
         self.request(Method::PUT, Backend, V1, endpoint, req).await
     }
