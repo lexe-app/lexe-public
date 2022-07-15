@@ -31,10 +31,7 @@ use lightning::util::ser::{ReadableArgs, Writeable};
 use once_cell::sync::{Lazy, OnceCell};
 use tokio::runtime::{Builder, Handle, Runtime};
 
-use crate::api::{
-    ApiClient, ChannelMonitor, File, FileId,
-    ProbabilisticScorer as ApiProbabilisticScorer,
-};
+use crate::api::{ApiClient, ChannelMonitor, File, FileId};
 use crate::bitcoind_client::BitcoindClient;
 use crate::convert;
 use crate::logger::LdkTracingLogger;
@@ -47,6 +44,7 @@ use crate::types::{
 const SINGLETON_DIRECTORY: &str = ".";
 const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 const NETWORK_GRAPH_FILENAME: &str = "network_graph";
+const SCORER_FILENAME: &str = "scorer";
 
 #[derive(Clone)]
 pub struct PostgresPersister {
@@ -77,14 +75,14 @@ impl PostgresPersister {
         user_config: UserConfig,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         println!("Reading channel manager");
-        let file_id = FileId {
+        let cm_file_id = FileId {
             instance_id: self.instance_id.clone(),
             directory: SINGLETON_DIRECTORY.to_owned(),
             name: CHANNEL_MANAGER_FILENAME.to_owned(),
         };
-        let file_opt = self
+        let cm_file_opt = self
             .api
-            .get_file(file_id)
+            .get_file(cm_file_id)
             .await
             .map_err(|e| {
                 println!("{:#}", e);
@@ -92,8 +90,8 @@ impl PostgresPersister {
             })
             .context("Could not fetch channel manager from DB")?;
 
-        let cm_opt = match file_opt {
-            Some(file) => {
+        let cm_opt = match cm_file_opt {
+            Some(cm_file) => {
                 let mut channel_monitor_mut_refs = Vec::new();
                 for (_, channel_monitor) in channel_monitors.iter_mut() {
                     channel_monitor_mut_refs.push(channel_monitor);
@@ -108,7 +106,7 @@ impl PostgresPersister {
                     channel_monitor_mut_refs,
                 );
 
-                let mut state_buf = Cursor::new(&file.data);
+                let mut state_buf = Cursor::new(&cm_file.data);
 
                 let (blockhash, channel_manager) = <(
                     BlockHash,
@@ -182,15 +180,20 @@ impl PostgresPersister {
     ) -> anyhow::Result<ProbabilisticScorerType> {
         println!("Reading probabilistic scorer");
         let params = ProbabilisticScoringParameters::default();
-        let ps_opt = self
+        let scorer_file_id = FileId {
+            instance_id: self.instance_id.clone(),
+            directory: SINGLETON_DIRECTORY.to_owned(),
+            name: SCORER_FILENAME.to_owned(),
+        };
+        let scorer_file_opt = self
             .api
-            .get_probabilistic_scorer(self.instance_id.clone())
+            .get_file(scorer_file_id)
             .await
             .context("Could not fetch probabilistic scorer from DB")?;
 
-        let ps = match ps_opt {
-            Some(ps) => {
-                let mut state_buf = Cursor::new(&ps.state);
+        let scorer = match scorer_file_opt {
+            Some(scorer_file) => {
+                let mut state_buf = Cursor::new(&scorer_file.data);
                 ProbabilisticScorer::read(
                     &mut state_buf,
                     (params, Arc::clone(&graph), logger),
@@ -202,7 +205,7 @@ impl PostgresPersister {
             None => ProbabilisticScorer::new(params, graph, logger),
         };
 
-        Ok(ps)
+        Ok(scorer)
     }
 
     pub async fn read_network_graph(
@@ -211,20 +214,20 @@ impl PostgresPersister {
         logger: LoggerType,
     ) -> anyhow::Result<NetworkGraphType> {
         println!("Reading network graph");
-        let file_id = FileId {
+        let ng_file_id = FileId {
             instance_id: self.instance_id.clone(),
             directory: SINGLETON_DIRECTORY.to_owned(),
             name: NETWORK_GRAPH_FILENAME.to_owned(),
         };
-        let file_opt = self
+        let ng_file_opt = self
             .api
-            .get_file(file_id)
+            .get_file(ng_file_id)
             .await
             .context("Could not fetch network graph from DB")?;
 
-        let ng = match file_opt {
-            Some(file) => {
-                let mut state_buf = Cursor::new(&file.data);
+        let ng = match ng_file_opt {
+            Some(ng_file) => {
+                let mut state_buf = Cursor::new(&ng_file.data);
                 LdkNetworkGraph::read(&mut state_buf, logger.clone())
                     // LDK DecodeError is Debug but doesn't impl
                     // std::error::Error
@@ -326,7 +329,7 @@ impl<'a>
         >,
     ) -> Result<(), io::Error> {
         println!("Persisting channel manager");
-        let file = File {
+        let cm_file = File {
             instance_id: self.instance_id.clone(),
             directory: SINGLETON_DIRECTORY.to_owned(),
             name: CHANNEL_MANAGER_FILENAME.to_owned(),
@@ -338,7 +341,9 @@ impl<'a>
         PERSISTER_RUNTIME
             .get()
             .unwrap()
-            .block_on(async move { self.api.create_or_update_file(file).await })
+            .block_on(
+                async move { self.api.create_or_update_file(cm_file).await },
+            )
             .map(|_| ())
             .map_err(|api_err| {
                 println!("Could not persist channel manager: {:#}", api_err);
@@ -377,17 +382,20 @@ impl<'a>
     ) -> Result<(), io::Error> {
         println!("Persisting probabilistic scorer");
 
-        let ps = {
+        let scorer_file = {
             let scorer = scorer_mutex.lock().unwrap();
-            ApiProbabilisticScorer {
+
+            File {
                 instance_id: self.instance_id.clone(),
-                state: scorer.encode(),
+                directory: SINGLETON_DIRECTORY.to_owned(),
+                name: SCORER_FILENAME.to_owned(),
+                data: scorer.encode(),
             }
         };
 
         PERSISTER_RUNTIME.get().unwrap().block_on(async move {
             self.api
-                .create_or_update_probabilistic_scorer(ps)
+                .create_or_update_file(scorer_file)
                 .await
                 .map(|_| ())
                 .map_err(|api_err| io::Error::new(ErrorKind::Other, api_err))

@@ -176,23 +176,6 @@ impl ApiClient {
             .await
     }
 
-    pub async fn get_probabilistic_scorer(
-        &self,
-        instance_id: String,
-    ) -> Result<Option<ProbabilisticScorer>, ApiError> {
-        let req = GetByInstanceId { instance_id };
-        self.request(Method::GET, Backend, V1, "/probabilistic_scorer", req)
-            .await
-    }
-
-    pub async fn create_or_update_probabilistic_scorer(
-        &self,
-        ps: ProbabilisticScorer,
-    ) -> Result<ProbabilisticScorer, ApiError> {
-        self.request(Method::PUT, Backend, V1, "/probabilistic_scorer", ps)
-            .await
-    }
-
     #[cfg(not(target_env = "sgx"))] // TODO Remove once this fn is used in sgx
     pub async fn create_channel_peer(
         &self,
