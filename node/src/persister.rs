@@ -32,7 +32,7 @@ use once_cell::sync::{Lazy, OnceCell};
 use tokio::runtime::{Builder, Handle, Runtime};
 
 use crate::api::{
-    ApiClient, ChannelMonitor, File, FileId, NetworkGraph,
+    ApiClient, ChannelMonitor, File, FileId,
     ProbabilisticScorer as ApiProbabilisticScorer,
 };
 use crate::bitcoind_client::BitcoindClient;
@@ -45,6 +45,8 @@ use crate::types::{
 
 const CHANNEL_MANAGER_DIRECTORY: &str = ".";
 const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
+const NETWORK_GRAPH_DIRECTORY: &str = ".";
+const NETWORK_GRAPH_FILENAME: &str = "network_graph";
 
 #[derive(Clone)]
 pub struct PostgresPersister {
@@ -209,15 +211,20 @@ impl PostgresPersister {
         logger: LoggerType,
     ) -> anyhow::Result<NetworkGraphType> {
         println!("Reading network graph");
-        let ng_opt = self
+        let file_id = FileId {
+            instance_id: self.instance_id.clone(),
+            directory: NETWORK_GRAPH_DIRECTORY.to_owned(),
+            name: NETWORK_GRAPH_FILENAME.to_owned(),
+        };
+        let file_opt = self
             .api
-            .get_network_graph(self.instance_id.clone())
+            .get_file(file_id)
             .await
             .context("Could not fetch network graph from DB")?;
 
-        let ng = match ng_opt {
-            Some(ng) => {
-                let mut state_buf = Cursor::new(&ng.state);
+        let ng = match file_opt {
+            Some(file) => {
+                let mut state_buf = Cursor::new(&file.data);
                 LdkNetworkGraph::read(&mut state_buf, logger.clone())
                     // LDK DecodeError is Debug but doesn't impl
                     // std::error::Error
@@ -344,19 +351,19 @@ impl<'a>
         network_graph: &NetworkGraphType,
     ) -> Result<(), io::Error> {
         println!("Persisting network graph");
-        let network_graph = NetworkGraph {
+        let file = File {
             instance_id: self.instance_id.clone(),
+            directory: NETWORK_GRAPH_DIRECTORY.to_owned(),
+            name: NETWORK_GRAPH_FILENAME.to_owned(),
             // FIXME(encrypt): Encrypt under key derived from seed
-            state: network_graph.encode(),
+            data: network_graph.encode(),
         };
 
         // Run an async fn inside a sync fn downstream of thread::spawn()
         PERSISTER_RUNTIME
             .get()
             .unwrap()
-            .block_on(async move {
-                self.api.create_or_update_network_graph(network_graph).await
-            })
+            .block_on(async move { self.api.create_or_update_file(file).await })
             .map(|_| ())
             .map_err(|api_err| {
                 println!("Could not persist network graph: {:#}", api_err);
