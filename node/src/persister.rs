@@ -32,7 +32,7 @@ use once_cell::sync::{Lazy, OnceCell};
 use tokio::runtime::{Builder, Handle, Runtime};
 
 use crate::api::{
-    ApiClient, ChannelManager, ChannelMonitor, NetworkGraph,
+    ApiClient, ChannelMonitor, File, FileId, NetworkGraph,
     ProbabilisticScorer as ApiProbabilisticScorer,
 };
 use crate::bitcoind_client::BitcoindClient;
@@ -42,6 +42,9 @@ use crate::types::{
     ChainMonitorType, ChannelManagerType, LoggerType, NetworkGraphType,
     ProbabilisticScorerType,
 };
+
+const CHANNEL_MANAGER_DIRECTORY: &str = ".";
+const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 
 #[derive(Clone)]
 pub struct PostgresPersister {
@@ -57,7 +60,6 @@ impl PostgresPersister {
         }
     }
 
-    // Replaces `ldk-sample/main::start_ldk` "Step 8: Init ChannelManager"
     #[allow(clippy::too_many_arguments)]
     pub async fn read_channel_manager(
         &self,
@@ -73,9 +75,14 @@ impl PostgresPersister {
         user_config: UserConfig,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         println!("Reading channel manager");
-        let cm_opt = self
+        let file_id = FileId {
+            instance_id: self.instance_id.clone(),
+            directory: CHANNEL_MANAGER_DIRECTORY.to_owned(),
+            name: CHANNEL_MANAGER_FILENAME.to_owned(),
+        };
+        let file_opt = self
             .api
-            .get_channel_manager(self.instance_id.clone())
+            .get_file(file_id)
             .await
             .map_err(|e| {
                 println!("{:#}", e);
@@ -83,8 +90,8 @@ impl PostgresPersister {
             })
             .context("Could not fetch channel manager from DB")?;
 
-        let cm_opt = match cm_opt {
-            Some(cm) => {
+        let cm_opt = match file_opt {
+            Some(file) => {
                 let mut channel_monitor_mut_refs = Vec::new();
                 for (_, channel_monitor) in channel_monitors.iter_mut() {
                     channel_monitor_mut_refs.push(channel_monitor);
@@ -99,7 +106,7 @@ impl PostgresPersister {
                     channel_monitor_mut_refs,
                 );
 
-                let mut state_buf = Cursor::new(&cm.state);
+                let mut state_buf = Cursor::new(&file.data);
 
                 let (blockhash, channel_manager) = <(
                     BlockHash,
@@ -312,21 +319,19 @@ impl<'a>
         >,
     ) -> Result<(), io::Error> {
         println!("Persisting channel manager");
-        let channel_manager = ChannelManager {
+        let file = File {
             instance_id: self.instance_id.clone(),
+            directory: CHANNEL_MANAGER_DIRECTORY.to_owned(),
+            name: CHANNEL_MANAGER_FILENAME.to_owned(),
             // FIXME(encrypt): Encrypt under key derived from seed
-            state: channel_manager.encode(),
+            data: channel_manager.encode(),
         };
 
         // Run an async fn inside a sync fn downstream of thread::spawn()
         PERSISTER_RUNTIME
             .get()
             .unwrap()
-            .block_on(async move {
-                self.api
-                    .create_or_update_channel_manager(channel_manager)
-                    .await
-            })
+            .block_on(async move { self.api.create_or_update_file(file).await })
             .map(|_| ())
             .map_err(|api_err| {
                 println!("Could not persist channel manager: {:#}", api_err);

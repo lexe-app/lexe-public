@@ -177,23 +177,6 @@ impl ApiClient {
             .await
     }
 
-    pub async fn get_channel_manager(
-        &self,
-        instance_id: String,
-    ) -> Result<Option<ChannelManager>, ApiError> {
-        let req = GetByInstanceId { instance_id };
-        self.request(Method::GET, Backend, V1, "/channel_manager", req)
-            .await
-    }
-
-    pub async fn create_or_update_channel_manager(
-        &self,
-        req: ChannelManager,
-    ) -> Result<ChannelManager, ApiError> {
-        self.request(Method::PUT, Backend, V1, "/channel_manager", req)
-            .await
-    }
-
     pub async fn get_probabilistic_scorer(
         &self,
         instance_id: String,

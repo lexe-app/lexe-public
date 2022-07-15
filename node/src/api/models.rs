@@ -86,12 +86,6 @@ pub struct ChannelMonitor {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct ChannelManager {
-    pub instance_id: String,
-    pub state: Vec<u8>,
-}
-
-#[derive(Serialize, Deserialize)]
 pub struct ProbabilisticScorer {
     pub instance_id: String,
     pub state: Vec<u8>,
