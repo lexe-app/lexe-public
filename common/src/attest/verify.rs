@@ -175,15 +175,20 @@ impl rustls::client::ServerCertVerifier for ServerCertVerifier {
 }
 
 pub struct SgxQuoteVerifier {
-    pub expect_dummy_quote: bool,
     pub now: SystemTime,
 }
 
 impl SgxQuoteVerifier {
-    pub fn verify(&self, quote: &[u8], _qe3_report: &[u8]) -> Result<()> {
-        let quote = Quote::parse(quote)
+    pub fn verify(
+        &self,
+        quote_bytes: &[u8],
+        _qe3_report: &[u8],
+    ) -> Result<sgx_isa::Report> {
+        let quote = Quote::parse(quote_bytes)
             .map_err(DisplayErr::new)
             .context("Failed to parse SGX Quote")?;
+
+        // Only support DCAP + ECDSA P256 for now
 
         let sig = quote
             .signature::<Quote3SignatureEcdsaP256>()
@@ -240,8 +245,13 @@ impl SgxQuoteVerifier {
         // 2. Verify the Platform Certification Enclave (PCE) endorses the
         //    Quoting Enclave (QE) Report.
 
-        // TODO(phlip9): parse cert alg?
-        verify_sig_using_any_alg(&pck_cert, qe3_report_bytes, &qe3_sig)
+        // TODO(phlip9): parse PCK cert pubkey + algorithm?
+        pck_cert
+            .verify_signature(
+                &webpki::ECDSA_P256_SHA256,
+                qe3_report_bytes,
+                &qe3_sig,
+            )
             .context(
                 "PCK cert's signature on the Quoting Enclave Report is invalid",
             )?;
@@ -249,6 +259,8 @@ impl SgxQuoteVerifier {
         // 3. Verify the local Quoting Enclave's Report binds to its attestation
         //    pubkey, which it uses to sign application enclave Reports.
 
+        // expected_report_data :=
+        //   SHA-256(attestation_public_key || authentication_data)
         let expected_report_data = sha256_parts(&[
             sig.attestation_public_key(),
             sig.authentication_data(),
@@ -267,10 +279,27 @@ impl SgxQuoteVerifier {
         );
 
         // TODO(phlip9): verify QE identity
-        // TODO(phlip9): verify Quote signature signed by attestation pubkey
-        // TODO(phlip9): extract application enclave report
 
-        Ok(())
+        // 4. Verify the attestation key endorses the Quote Header and our
+        //    application enclave Rport
+
+        let attestation_public_key =
+            read_attestation_pubkey(sig.attestation_public_key())?;
+
+        // msg := Quote Header || Application Enclave Report
+        let msg_len = 432;
+        ensure!(quote_bytes.len() >= msg_len, "Quote malformed");
+        let msg = &quote_bytes[..432];
+
+        attestation_public_key.verify(msg, sig.signature())
+            .map_err(|_| format_err!("QE signature on application enclave report failed to verify"))?;
+
+        // 5. Return the endorsed application enclave report
+
+        let report = report_try_from_truncated(quote.report_body())
+            .context("Invalid application enclave Report")?;
+
+        Ok(report)
     }
 }
 
@@ -310,28 +339,6 @@ fn parse_cert_pem_to_der(s: &str) -> Result<Vec<u8>> {
     }
 }
 
-// TODO(phlip9): avoid using this...
-// From: <https://github.com/rustls/rustls/blob/v/0.20.6/rustls/src/verify.rs#L658>
-fn verify_sig_using_any_alg(
-    cert: &webpki::EndEntityCert,
-    message: &[u8],
-    sig: &[u8],
-) -> Result<(), webpki::Error> {
-    // TLS doesn't itself give us enough info to map to a single
-    // webpki::SignatureAlgorithm. Therefore, convert_algs maps to several
-    // and we try them all.
-    for alg in SUPPORTED_SIG_ALGS {
-        match cert.verify_signature(alg, message, sig) {
-            Err(webpki::Error::UnsupportedSignatureAlgorithmForPublicKey) => {
-                continue
-            }
-            res => return res,
-        }
-    }
-
-    Err(webpki::Error::UnsupportedSignatureAlgorithmForPublicKey)
-}
-
 /// Convert a (presumably) fixed `r || s` ECDSA signature to ASN.1 format
 ///
 /// From: <https://github.com/fortanix/rust-sgx/blob/3fea4337f774fe9563a62352ce62d3cad7af746d/intel-sgx/dcap-ql/src/quote.rs#L212>
@@ -361,6 +368,21 @@ fn get_ecdsa_sig_der(sig: &[u8]) -> Result<Vec<u8>> {
     });
 
     Ok(der)
+}
+
+fn read_attestation_pubkey(
+    bytes: &[u8],
+) -> Result<ring::signature::UnparsedPublicKey<[u8; 65]>> {
+    ensure!(bytes.len() == 64, "Attestation public key is in an unrecognized format; expected exactly 64 bytes, actual len: {}", bytes.len());
+
+    let mut attestation_public_key = [0u8; 65];
+    attestation_public_key[0] = 0x4;
+    attestation_public_key[1..].copy_from_slice(bytes);
+
+    Ok(ring::signature::UnparsedPublicKey::new(
+        &ring::signature::ECDSA_P256_SHA256_FIXED,
+        attestation_public_key,
+    ))
 }
 
 fn report_try_from_truncated(bytes: &[u8]) -> Result<sgx_isa::Report> {
@@ -421,15 +443,16 @@ mod test {
     fn test_verify_sgx_server_cert() {
         let cert_der = parse_cert_pem_to_der(SGX_SERVER_CERT_PEM).unwrap();
         let evidence = AttestEvidence::parse_cert_der(&cert_der).unwrap();
-        let _expected_mrenclave = hex::decode(MRENCLAVE_HEX.trim()).unwrap();
+        let expected_mrenclave = hex::decode(MRENCLAVE_HEX.trim()).unwrap();
 
         let verifier = SgxQuoteVerifier {
-            expect_dummy_quote: false,
             now: SystemTime::now(),
         };
-        verifier
+        let report = verifier
             .verify(&evidence.attest.quote, &evidence.attest.qe_report)
             .unwrap();
+
+        assert_eq!(report.mrenclave.as_slice(), expected_mrenclave);
     }
 
     #[test]
