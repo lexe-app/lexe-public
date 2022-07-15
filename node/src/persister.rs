@@ -33,8 +33,8 @@ use crate::bitcoind_client::BitcoindClient;
 use crate::convert;
 use crate::logger::LdkTracingLogger;
 use crate::types::{
-    ChainMonitorType, ChannelManagerType, LoggerType, NetworkGraphType,
-    ProbabilisticScorerType,
+    ChainMonitorType, ChannelManagerType, InstanceId, LoggerType,
+    NetworkGraphType, ProbabilisticScorerType,
 };
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
@@ -50,7 +50,7 @@ const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 #[derive(Clone)]
 pub struct LexePersister {
     api: ApiClient,
-    instance_id: String,
+    instance_id: InstanceId,
 }
 
 impl LexePersister {
