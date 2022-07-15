@@ -54,11 +54,8 @@ pub struct LexePersister {
 }
 
 impl LexePersister {
-    pub fn new(api: ApiClient, pubkey: &PublicKey, measurement: &str) -> Self {
-        Self {
-            api,
-            instance_id: convert::get_instance_id(pubkey, measurement),
-        }
+    pub fn new(api: ApiClient, instance_id: InstanceId) -> Self {
+        Self { api, instance_id }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -85,10 +82,6 @@ impl LexePersister {
             .api
             .get_file(cm_file_id)
             .await
-            .map_err(|e| {
-                println!("{:#}", e);
-                e
-            })
             .context("Could not fetch channel manager from DB")?;
 
         let cm_opt = match cm_file_opt {
@@ -146,10 +139,6 @@ impl LexePersister {
             .api
             .get_directory(cm_dir_id)
             .await
-            .map_err(|e| {
-                println!("{:#}", e);
-                e
-            })
             .context("Could not fetch channel monitors from DB")?;
 
         let mut result = Vec::new();
@@ -261,10 +250,6 @@ impl LexePersister {
             .api
             .get_directory(cp_dir_id)
             .await
-            .map_err(|e| {
-                println!("{:#}", e);
-                e
-            })
             .context("Could not fetch channel peers from DB")?;
 
         let mut result = Vec::with_capacity(cp_file_vec.len());

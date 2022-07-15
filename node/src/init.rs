@@ -70,6 +70,7 @@ pub async fn start_ldk(
         bitcoind_client_res.context("Failed to init bitcoind client")?;
     let (pubkey, keys_manager) =
         keys_manager_res.context("Could not init KeysManager")?;
+    let instance_id = convert::get_instance_id(&pubkey, &measurement);
 
     // BitcoindClient implements FeeEstimator and BroadcasterInterface and thus
     // serves these functions. This can be customized later.
@@ -77,8 +78,7 @@ pub async fn start_ldk(
     let broadcaster = bitcoind_client.clone();
 
     // Initialize Persister
-    let persister =
-        Arc::new(LexePersister::new(api.clone(), &pubkey, &measurement));
+    let persister = Arc::new(LexePersister::new(api.clone(), instance_id));
 
     // Initialize the ChainMonitor
     let chain_monitor = Arc::new(chainmonitor::ChainMonitor::new(
