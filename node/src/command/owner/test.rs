@@ -5,7 +5,7 @@ use std::str::FromStr;
 use bitcoind::{self, BitcoinD, Conf};
 use common::rng::SysRng;
 
-use crate::cli::StartCommand;
+use crate::cli::{StartCommand, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
 use crate::init;
 use crate::types::{BitcoindRpcInfo, Network, NodeAlias};
 
@@ -47,6 +47,8 @@ impl OwnerTestHarness {
             shutdown_after_sync_if_no_activity: true, // TODO change to false
             inactivity_timer_sec: 3600,
             repl: false,
+            backend_url: DEFAULT_BACKEND_URL.into(),
+            runner_url: DEFAULT_RUNNER_URL.into(),
         };
 
         // NOTE: Several refactors needed before this works. The main issue is

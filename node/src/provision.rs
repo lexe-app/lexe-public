@@ -37,12 +37,11 @@ use warp::hyper::Body;
 use warp::reject::Reject;
 use warp::{Filter, Rejection, Reply};
 
-use crate::api::{self, UserPort};
+use crate::api::{self, ApiClient, UserPort};
 use crate::attest;
 use crate::cli::ProvisionCommand;
 use crate::types::{Port, UserId};
 
-const RUNNER_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Error, Debug)]
@@ -122,16 +121,13 @@ pub trait Runner {
 
 #[derive(Clone)]
 pub struct LexeRunner {
-    client: reqwest::Client,
+    api: ApiClient,
 }
 
 impl LexeRunner {
-    pub fn new() -> Self {
-        let client = reqwest::Client::builder()
-            .timeout(RUNNER_REQUEST_TIMEOUT)
-            .build()
-            .expect("Failed to build reqwest Client");
-        Self { client }
+    pub fn new(backend_url: String, runner_url: String) -> Self {
+        let api = ApiClient::new(backend_url, runner_url);
+        Self { api }
     }
 }
 
@@ -143,7 +139,7 @@ impl Runner for LexeRunner {
         port: Port,
     ) -> Result<(), api::ApiError> {
         let req = UserPort { user_id, port };
-        api::notify_runner(&self.client, req).await.map(|_| ())
+        self.api.notify_runner(req).await.map(|_| ())
     }
 }
 
@@ -256,7 +252,8 @@ mod test {
     use tracing::trace;
 
     use super::*;
-    use crate::{cli, logger};
+    use crate::cli::{self, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
+    use crate::logger;
 
     #[cfg(target_env = "sgx")]
     #[test]
@@ -310,6 +307,8 @@ mod test {
             user_id,
             node_dns_name: node_dns_name.to_owned(),
             port: 0,
+            backend_url: DEFAULT_BACKEND_URL.into(),
+            runner_url: DEFAULT_RUNNER_URL.into(),
         };
 
         let (runner_req_tx, mut runner_req_rx) = mpsc::channel(1);

@@ -28,7 +28,7 @@ use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
 
 use crate::api::{
-    self, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
+    ApiClient, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
 };
 use crate::bitcoind_client::BitcoindClient;
 use crate::cli::StartCommand;
@@ -59,12 +59,12 @@ pub async fn start_ldk(
     let user_id = args.user_id;
     // TODO(sgx) Insert this enclave's measurement
     let measurement = String::from("default");
-    let client = reqwest::Client::new();
+    let api = ApiClient::new(args.backend_url.clone(), args.runner_url.clone());
 
     // Initialize BitcoindClient and KeysManager
     let (bitcoind_client_res, keys_manager_res) = tokio::join!(
         bitcoind_client(&args),
-        keys_manager(rng, &client, user_id, &measurement),
+        keys_manager(rng, &api, user_id, &measurement),
     );
     let bitcoind_client =
         bitcoind_client_res.context("Failed to init bitcoind client")?;
@@ -78,7 +78,7 @@ pub async fn start_ldk(
 
     // Initialize Persister
     let persister =
-        Arc::new(PostgresPersister::new(&client, &pubkey, &measurement));
+        Arc::new(PostgresPersister::new(api.clone(), &pubkey, &measurement));
 
     // Initialize the ChainMonitor
     let chain_monitor = Arc::new(chainmonitor::ChainMonitor::new(
@@ -168,7 +168,7 @@ pub async fn start_ldk(
         user_id,
         port: warp_port,
     };
-    api::notify_runner(&client, user_port)
+    api.notify_runner(user_port)
         .await
         .context("Could not notify runner of ready status")?;
 
@@ -369,16 +369,16 @@ async fn bitcoind_client(
 /// persisted data
 async fn keys_manager(
     rng: &mut dyn Crng,
-    client: &reqwest::Client,
+    api: &ApiClient,
     user_id: UserId,
     measurement: &str,
 ) -> anyhow::Result<(PublicKey, Arc<KeysManager>)> {
     println!("Initializing keys manager");
     // Fetch our node pubkey, instance, and enclave data from the data store
     let (node_res, instance_res, enclave_res) = tokio::join!(
-        api::get_node(client, user_id),
-        api::get_instance(client, user_id, measurement.to_owned()),
-        api::get_enclave(client, user_id, measurement.to_owned()),
+        api.get_node(user_id),
+        api.get_instance(user_id, measurement.to_owned()),
+        api.get_enclave(user_id, measurement.to_owned()),
     );
     let node_opt = node_res.context("Error while fetching node")?;
     let instance_opt = instance_res.context("Error while fetching instance")?;
@@ -425,7 +425,7 @@ async fn keys_manager(
                 instance,
                 enclave,
             };
-            api::create_node_instance_enclave(client, node_instance_enclave)
+            api.create_node_instance_enclave(node_instance_enclave)
                 .await
                 .context(
                     "Could not atomically create new node + instance + enclave",
