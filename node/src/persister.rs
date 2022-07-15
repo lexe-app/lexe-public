@@ -48,12 +48,12 @@ const CHANNEL_PEERS_DIRECTORY: &str = "channel_peers";
 const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 
 #[derive(Clone)]
-pub struct PostgresPersister {
+pub struct LexePersister {
     api: ApiClient,
     instance_id: String,
 }
 
-impl PostgresPersister {
+impl LexePersister {
     pub fn new(api: ApiClient, pubkey: &PublicKey, measurement: &str) -> Self {
         Self {
             api,
@@ -336,7 +336,7 @@ impl<'a>
         Arc<BitcoindClient>,
         Arc<LdkTracingLogger>,
         Mutex<ProbabilisticScorerType>,
-    > for PostgresPersister
+    > for LexePersister
 {
     fn persist_manager(
         &self,
@@ -422,7 +422,7 @@ impl<'a>
     }
 }
 
-impl<ChannelSigner: Sign> Persist<ChannelSigner> for PostgresPersister {
+impl<ChannelSigner: Sign> Persist<ChannelSigner> for LexePersister {
     fn persist_new_channel(
         &self,
         funding_txo: OutPoint,

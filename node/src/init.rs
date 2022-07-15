@@ -35,7 +35,7 @@ use crate::cli::StartCommand;
 use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
 use crate::logger::LdkTracingLogger;
-use crate::persister::PostgresPersister;
+use crate::persister::LexePersister;
 use crate::types::{
     BroadcasterType, ChainMonitorType, ChannelManagerType,
     ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType,
@@ -78,7 +78,7 @@ pub async fn start_ldk(
 
     // Initialize Persister
     let persister =
-        Arc::new(PostgresPersister::new(api.clone(), &pubkey, &measurement));
+        Arc::new(LexePersister::new(api.clone(), &pubkey, &measurement));
 
     // Initialize the ChainMonitor
     let chain_monitor = Arc::new(chainmonitor::ChainMonitor::new(
@@ -503,7 +503,7 @@ fn keys_manager_from_seed(seed: &[u8; 32]) -> KeysManager {
 
 /// Initializes the ChannelMonitors
 async fn channel_monitors(
-    persister: &PostgresPersister,
+    persister: &LexePersister,
     keys_manager: Arc<KeysManager>,
 ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
     println!("Reading channel monitors from DB");
@@ -520,7 +520,7 @@ async fn channel_monitors(
 #[allow(clippy::too_many_arguments)]
 async fn channel_manager(
     args: &StartCommand,
-    persister: &PostgresPersister,
+    persister: &LexePersister,
     bitcoind_client: &BitcoindClient,
     restarting_node: &mut bool,
     channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
@@ -647,7 +647,7 @@ async fn sync_chain_listeners(
 /// Initializes a GossipSync and NetworkGraph
 async fn gossip_sync(
     args: &StartCommand,
-    persister: &Arc<PostgresPersister>,
+    persister: &Arc<LexePersister>,
     logger: Arc<LdkTracingLogger>,
 ) -> anyhow::Result<(Arc<NetworkGraphType>, Arc<P2PGossipSyncType>)> {
     println!("Initializing gossip sync and network graph");
@@ -736,7 +736,7 @@ fn spawn_p2p_reconnect_task(
     channel_manager: Arc<ChannelManagerType>,
     peer_manager: Arc<PeerManagerType>,
     stop_listen_connect: Arc<AtomicBool>,
-    persister: Arc<PostgresPersister>,
+    persister: Arc<LexePersister>,
 ) {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(60));

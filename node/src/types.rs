@@ -26,7 +26,7 @@ use subtle::ConstantTimeEq;
 
 use crate::bitcoind_client::BitcoindClient;
 use crate::logger::LdkTracingLogger;
-use crate::persister::PostgresPersister;
+use crate::persister::LexePersister;
 
 pub type UserId = i64;
 pub type Port = u16;
@@ -39,7 +39,7 @@ pub type ChainMonitorType = chainmonitor::ChainMonitor<
     Arc<BitcoindClient>,
     Arc<BitcoindClient>,
     Arc<LdkTracingLogger>,
-    Arc<PostgresPersister>,
+    Arc<LexePersister>,
 >;
 
 pub type PeerManagerType = SimpleArcPeerManager<

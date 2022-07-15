@@ -11,7 +11,7 @@ mod sgx {
     use lightning::chain::keysinterface::KeysManager;
     use lightning::util::events::EventHandler;
 
-    use crate::persister::PostgresPersister;
+    use crate::persister::LexePersister;
     use crate::types::{
         ChannelManagerType, InvoicePayerType, NetworkGraphType,
         PaymentInfoStorageType, PeerManagerType,
@@ -26,7 +26,7 @@ mod sgx {
         _network_graph: Arc<NetworkGraphType>,
         _inbound_payments: PaymentInfoStorageType,
         _outbound_payments: PaymentInfoStorageType,
-        _persister: Arc<PostgresPersister>,
+        _persister: Arc<LexePersister>,
         _network: Network,
     ) {
     }
@@ -59,7 +59,7 @@ mod not_sgx {
     use lightning_invoice::{utils, Currency, Invoice};
 
     use crate::peer;
-    use crate::persister::PostgresPersister;
+    use crate::persister::LexePersister;
     use crate::types::{
         ChannelManagerType, HTLCStatus, InvoicePayerType, MillisatAmount,
         NetworkGraphType, NodeAlias, PaymentInfo, PaymentInfoStorageType,
@@ -76,7 +76,7 @@ mod not_sgx {
         network_graph: Arc<NetworkGraphType>,
         inbound_payments: PaymentInfoStorageType,
         outbound_payments: PaymentInfoStorageType,
-        persister: Arc<PostgresPersister>,
+        persister: Arc<LexePersister>,
         network: Network,
     ) {
         println!(
