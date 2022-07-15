@@ -345,9 +345,7 @@ impl<'a>
         PERSISTER_RUNTIME
             .get()
             .unwrap()
-            .block_on(
-                async move { self.api.create_or_update_file(cm_file).await },
-            )
+            .block_on(async move { self.api.save_file(cm_file).await })
             .map(|_| ())
             .map_err(|api_err| {
                 println!("Could not persist channel manager: {:#}", api_err);
@@ -372,7 +370,7 @@ impl<'a>
         PERSISTER_RUNTIME
             .get()
             .unwrap()
-            .block_on(async move { self.api.create_or_update_file(file).await })
+            .block_on(async move { self.api.save_file(file).await })
             .map(|_| ())
             .map_err(|api_err| {
                 println!("Could not persist network graph: {:#}", api_err);
@@ -399,7 +397,7 @@ impl<'a>
 
         PERSISTER_RUNTIME.get().unwrap().block_on(async move {
             self.api
-                .create_or_update_file(scorer_file)
+                .save_file(scorer_file)
                 .await
                 .map(|_| ())
                 .map_err(|api_err| io::Error::new(ErrorKind::Other, api_err))
@@ -465,11 +463,8 @@ impl<ChannelSigner: Sign> Persist<ChannelSigner> for LexePersister {
 
         // Run an async fn inside a sync fn inside a Tokio runtime
         tokio::task::block_in_place(|| {
-            Handle::current().block_on(async move {
-                // TODO Change to just update_file once other persist methods
-                // follow REST conventions
-                self.api.create_or_update_file(cm_file).await
-            })
+            Handle::current()
+                .block_on(async move { self.api.save_file(cm_file).await })
         })
         .map(|_| ())
         .map_err(|e| {
