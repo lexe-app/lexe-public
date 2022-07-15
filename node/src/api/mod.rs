@@ -125,7 +125,6 @@ impl ApiClient {
         self.request(Method::POST, Backend, V1, endpoint, req).await
     }
 
-    #[allow(dead_code)] // TODO remove
     pub async fn create_or_update_file(
         &self,
         req: File,

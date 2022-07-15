@@ -43,9 +43,9 @@ use crate::types::{
     ProbabilisticScorerType,
 };
 
-const CHANNEL_MANAGER_DIRECTORY: &str = ".";
+/// The "directory" used when persisting singleton objects
+const SINGLETON_DIRECTORY: &str = ".";
 const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
-const NETWORK_GRAPH_DIRECTORY: &str = ".";
 const NETWORK_GRAPH_FILENAME: &str = "network_graph";
 
 #[derive(Clone)]
@@ -79,7 +79,7 @@ impl PostgresPersister {
         println!("Reading channel manager");
         let file_id = FileId {
             instance_id: self.instance_id.clone(),
-            directory: CHANNEL_MANAGER_DIRECTORY.to_owned(),
+            directory: SINGLETON_DIRECTORY.to_owned(),
             name: CHANNEL_MANAGER_FILENAME.to_owned(),
         };
         let file_opt = self
@@ -213,7 +213,7 @@ impl PostgresPersister {
         println!("Reading network graph");
         let file_id = FileId {
             instance_id: self.instance_id.clone(),
-            directory: NETWORK_GRAPH_DIRECTORY.to_owned(),
+            directory: SINGLETON_DIRECTORY.to_owned(),
             name: NETWORK_GRAPH_FILENAME.to_owned(),
         };
         let file_opt = self
@@ -328,7 +328,7 @@ impl<'a>
         println!("Persisting channel manager");
         let file = File {
             instance_id: self.instance_id.clone(),
-            directory: CHANNEL_MANAGER_DIRECTORY.to_owned(),
+            directory: SINGLETON_DIRECTORY.to_owned(),
             name: CHANNEL_MANAGER_FILENAME.to_owned(),
             // FIXME(encrypt): Encrypt under key derived from seed
             data: channel_manager.encode(),
@@ -353,7 +353,7 @@ impl<'a>
         println!("Persisting network graph");
         let file = File {
             instance_id: self.instance_id.clone(),
-            directory: NETWORK_GRAPH_DIRECTORY.to_owned(),
+            directory: SINGLETON_DIRECTORY.to_owned(),
             name: NETWORK_GRAPH_FILENAME.to_owned(),
             // FIXME(encrypt): Encrypt under key derived from seed
             data: network_graph.encode(),
