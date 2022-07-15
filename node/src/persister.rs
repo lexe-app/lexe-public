@@ -29,11 +29,10 @@ use lightning::util::config::UserConfig;
 use lightning::util::persist::Persister;
 use lightning::util::ser::{ReadableArgs, Writeable};
 use once_cell::sync::{Lazy, OnceCell};
-use reqwest::Client;
 use tokio::runtime::{Builder, Handle, Runtime};
 
 use crate::api::{
-    self, ChannelManager, ChannelMonitor, NetworkGraph,
+    ApiClient, ChannelManager, ChannelMonitor, NetworkGraph,
     ProbabilisticScorer as ApiProbabilisticScorer,
 };
 use crate::bitcoind_client::BitcoindClient;
@@ -46,14 +45,14 @@ use crate::types::{
 
 #[derive(Clone)]
 pub struct PostgresPersister {
-    client: Client,
+    api: ApiClient,
     instance_id: String,
 }
 
 impl PostgresPersister {
-    pub fn new(client: &Client, pubkey: &PublicKey, measurement: &str) -> Self {
+    pub fn new(api: ApiClient, pubkey: &PublicKey, measurement: &str) -> Self {
         Self {
-            client: client.clone(),
+            api,
             instance_id: convert::get_instance_id(pubkey, measurement),
         }
     }
@@ -74,14 +73,15 @@ impl PostgresPersister {
         user_config: UserConfig,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         println!("Reading channel manager");
-        let cm_opt =
-            api::get_channel_manager(&self.client, self.instance_id.clone())
-                .await
-                .map_err(|e| {
-                    println!("{:#}", e);
-                    e
-                })
-                .context("Could not fetch channel manager from DB")?;
+        let cm_opt = self
+            .api
+            .get_channel_manager(self.instance_id.clone())
+            .await
+            .map_err(|e| {
+                println!("{:#}", e);
+                e
+            })
+            .context("Could not fetch channel manager from DB")?;
 
         let cm_opt = match cm_opt {
             Some(cm) => {
@@ -128,14 +128,15 @@ impl PostgresPersister {
         K::Target: KeysInterface<Signer = Signer> + Sized,
     {
         println!("Reading channel monitors");
-        let cm_vec =
-            api::get_channel_monitors(&self.client, self.instance_id.clone())
-                .await
-                .map_err(|e| {
-                    println!("{:#}", e);
-                    e
-                })
-                .context("Could not fetch channel monitors from DB")?;
+        let cm_vec = self
+            .api
+            .get_channel_monitors(self.instance_id.clone())
+            .await
+            .map_err(|e| {
+                println!("{:#}", e);
+                e
+            })
+            .context("Could not fetch channel monitors from DB")?;
 
         let mut result = Vec::new();
 
@@ -172,12 +173,11 @@ impl PostgresPersister {
     ) -> anyhow::Result<ProbabilisticScorerType> {
         println!("Reading probabilistic scorer");
         let params = ProbabilisticScoringParameters::default();
-        let ps_opt = api::get_probabilistic_scorer(
-            &self.client,
-            self.instance_id.clone(),
-        )
-        .await
-        .context("Could not fetch probabilistic scorer from DB")?;
+        let ps_opt = self
+            .api
+            .get_probabilistic_scorer(self.instance_id.clone())
+            .await
+            .context("Could not fetch probabilistic scorer from DB")?;
 
         let ps = match ps_opt {
             Some(ps) => {
@@ -202,10 +202,11 @@ impl PostgresPersister {
         logger: LoggerType,
     ) -> anyhow::Result<NetworkGraphType> {
         println!("Reading network graph");
-        let ng_opt =
-            api::get_network_graph(&self.client, self.instance_id.clone())
-                .await
-                .context("Could not fetch network graph from DB")?;
+        let ng_opt = self
+            .api
+            .get_network_graph(self.instance_id.clone())
+            .await
+            .context("Could not fetch network graph from DB")?;
 
         let ng = match ng_opt {
             Some(ng) => {
@@ -226,14 +227,15 @@ impl PostgresPersister {
         &self,
     ) -> anyhow::Result<Vec<(PublicKey, SocketAddr)>> {
         println!("Reading channel peers");
-        let cp_vec =
-            api::get_channel_peers(&self.client, self.instance_id.clone())
-                .await
-                .map_err(|e| {
-                    println!("{:#}", e);
-                    e
-                })
-                .context("Could not fetch channel peers from DB")?;
+        let cp_vec = self
+            .api
+            .get_channel_peers(self.instance_id.clone())
+            .await
+            .map_err(|e| {
+                println!("{:#}", e);
+                e
+            })
+            .context("Could not fetch channel peers from DB")?;
 
         let mut result = Vec::new();
 
@@ -263,7 +265,8 @@ impl PostgresPersister {
             peer_address: peer_address.to_string(),
         };
 
-        api::create_channel_peer(&self.client, cp)
+        self.api
+            .create_channel_peer(cp)
             .await
             .map(|_| ())
             .map_err(|e| e.into())
@@ -320,11 +323,9 @@ impl<'a>
             .get()
             .unwrap()
             .block_on(async move {
-                api::create_or_update_channel_manager(
-                    &self.client,
-                    channel_manager,
-                )
-                .await
+                self.api
+                    .create_or_update_channel_manager(channel_manager)
+                    .await
             })
             .map(|_| ())
             .map_err(|api_err| {
@@ -349,8 +350,7 @@ impl<'a>
             .get()
             .unwrap()
             .block_on(async move {
-                api::create_or_update_network_graph(&self.client, network_graph)
-                    .await
+                self.api.create_or_update_network_graph(network_graph).await
             })
             .map(|_| ())
             .map_err(|api_err| {
@@ -374,7 +374,8 @@ impl<'a>
         };
 
         PERSISTER_RUNTIME.get().unwrap().block_on(async move {
-            api::create_or_update_probabilistic_scorer(&self.client, ps)
+            self.api
+                .create_or_update_probabilistic_scorer(ps)
                 .await
                 .map(|_| ())
                 .map_err(|api_err| io::Error::new(ErrorKind::Other, api_err))
@@ -403,7 +404,7 @@ impl<ChannelSigner: Sign> Persist<ChannelSigner> for PostgresPersister {
         // Run an async fn inside a sync fn inside a Tokio runtime
         tokio::task::block_in_place(|| {
             Handle::current().block_on(async move {
-                api::create_channel_monitor(&self.client, channel_monitor).await
+                self.api.create_channel_monitor(channel_monitor).await
             })
         })
         .map(|_| ())
@@ -436,7 +437,7 @@ impl<ChannelSigner: Sign> Persist<ChannelSigner> for PostgresPersister {
         // Run an async fn inside a sync fn inside a Tokio runtime
         tokio::task::block_in_place(|| {
             Handle::current().block_on(async move {
-                api::update_channel_monitor(&self.client, channel_monitor).await
+                self.api.update_channel_monitor(channel_monitor).await
             })
         })
         .map(|_| ())

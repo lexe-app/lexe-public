@@ -37,7 +37,7 @@ use warp::hyper::Body;
 use warp::reject::Reject;
 use warp::{Filter, Rejection, Reply};
 
-use crate::api::{self, UserPort};
+use crate::api::{self, ApiClient, UserPort};
 use crate::attest;
 use crate::cli::ProvisionCommand;
 use crate::types::{Port, UserId};
@@ -122,7 +122,7 @@ pub trait Runner {
 
 #[derive(Clone)]
 pub struct LexeRunner {
-    client: reqwest::Client,
+    api: ApiClient,
 }
 
 impl LexeRunner {
@@ -131,7 +131,8 @@ impl LexeRunner {
             .timeout(RUNNER_REQUEST_TIMEOUT)
             .build()
             .expect("Failed to build reqwest Client");
-        Self { client }
+        let api = ApiClient::from(client);
+        Self { api }
     }
 }
 
@@ -143,7 +144,7 @@ impl Runner for LexeRunner {
         port: Port,
     ) -> Result<(), api::ApiError> {
         let req = UserPort { user_id, port };
-        api::notify_runner(&self.client, req).await.map(|_| ())
+        self.api.notify_runner(req).await.map(|_| ())
     }
 }
 
