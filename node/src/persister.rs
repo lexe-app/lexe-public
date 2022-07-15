@@ -1,7 +1,6 @@
 use std::io::{self, Cursor, ErrorKind};
 use std::net::SocketAddr;
 use std::ops::Deref;
-use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, ensure, Context};
@@ -274,19 +273,9 @@ impl PostgresPersister {
             // <pubkey>@<addr>
             let pubkey_at_addr = cp_file.name;
 
-            // vec![<pubkey>, <addr>]
-            let mut pubkey_and_addr = pubkey_at_addr.split('@');
-            let pubkey_str = pubkey_and_addr
-                .next()
-                .context("Missing <pubkey> in <pubkey>@<addr> peer address")?;
-            let addr_str = pubkey_and_addr
-                .next()
-                .context("Missing <addr> in <pubkey>@<addr> peer address")?;
-
-            let peer_pubkey = PublicKey::from_str(pubkey_str)
-                .context("Could not deserialize PublicKey from LowerHex")?;
-            let peer_addr = SocketAddr::from_str(addr_str)
-                .context("Could not parse socket address from string")?;
+            let (peer_pubkey, peer_addr) =
+                convert::peer_pubkey_addr_from_string(pubkey_at_addr)
+                    .context("Invalid peer <pubkey>@<addr>")?;
 
             result.push((peer_pubkey, peer_addr));
         }
@@ -301,11 +290,8 @@ impl PostgresPersister {
         peer_address: SocketAddr,
     ) -> anyhow::Result<()> {
         println!("Persisting new channel peer");
-        let pubkey_str = convert::pubkey_to_hex(&peer_pubkey);
-        let addr_str = peer_address.to_string();
-
-        // <pubkey>@<addr>
-        let pubkey_at_addr = [pubkey_str, addr_str].join("@");
+        let pubkey_at_addr =
+            convert::peer_pubkey_addr_to_string(peer_pubkey, peer_address);
 
         let cp_file = File {
             instance_id: self.instance_id.clone(),
