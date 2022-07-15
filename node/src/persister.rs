@@ -1,4 +1,3 @@
-use std::convert::TryInto;
 use std::io::{self, Cursor, ErrorKind};
 use std::net::SocketAddr;
 use std::ops::Deref;
@@ -31,7 +30,7 @@ use lightning::util::ser::{ReadableArgs, Writeable};
 use once_cell::sync::{Lazy, OnceCell};
 use tokio::runtime::{Builder, Handle, Runtime};
 
-use crate::api::{ApiClient, ChannelMonitor, DirectoryId, File, FileId};
+use crate::api::{ApiClient, DirectoryId, File, FileId};
 use crate::bitcoind_client::BitcoindClient;
 use crate::convert;
 use crate::logger::LdkTracingLogger;
@@ -40,13 +39,15 @@ use crate::types::{
     ProbabilisticScorerType,
 };
 
-/// The "directory" used when persisting singleton objects
+// Singleton objects use SINGLETON_DIRECTORY with a fixed filename
 const SINGLETON_DIRECTORY: &str = ".";
 const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 const NETWORK_GRAPH_FILENAME: &str = "network_graph";
 const SCORER_FILENAME: &str = "scorer";
 
+// Non-singleton objects use a fixed directory with dynamic filenames
 const CHANNEL_PEERS_DIRECTORY: &str = "channel_peers";
+const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 
 #[derive(Clone)]
 pub struct PostgresPersister {
@@ -137,9 +138,15 @@ impl PostgresPersister {
         K::Target: KeysInterface<Signer = Signer> + Sized,
     {
         println!("Reading channel monitors");
-        let cm_vec = self
+
+        let cm_dir_id = DirectoryId {
+            instance_id: self.instance_id.clone(),
+            directory: CHANNEL_MONITORS_DIRECTORY.to_owned(),
+        };
+
+        let cm_file_vec = self
             .api
-            .get_channel_monitors(self.instance_id.clone())
+            .get_directory(cm_dir_id)
             .await
             .map_err(|e| {
                 println!("{:#}", e);
@@ -149,12 +156,25 @@ impl PostgresPersister {
 
         let mut result = Vec::new();
 
-        for cm in cm_vec {
-            let tx_id = Txid::from_hex(cm.tx_id.as_str())
-                .context("Invalid tx_id returned from DB")?;
-            let tx_index: u16 = cm.tx_index.try_into().unwrap();
+        for cm_file in cm_file_vec {
+            // <txid>_<txindex>
+            let id = cm_file.name;
+            let mut txid_and_txindex = id.split('_');
+            let tx_id_str = txid_and_txindex
+                .next()
+                .context("Missing <txid> in <txid>_<txindex>")?;
+            let tx_index_str = txid_and_txindex
+                .next()
+                .context("Missing <txindex> in <txid>_<txindex>")?;
 
-            let mut state_buf = Cursor::new(&cm.state);
+            let tx_id = Txid::from_hex(tx_id_str)
+                .context("Invalid tx_id returned from DB")?;
+            let tx_index: u16 = tx_index_str
+                .to_string()
+                .parse()
+                .context("Could not parse tx_index into u16")?;
+
+            let mut state_buf = Cursor::new(&cm_file.data);
 
             let (blockhash, channel_monitor) =
                 <(BlockHash, LdkChannelMonitor<Signer>)>::read(
@@ -437,21 +457,23 @@ impl<ChannelSigner: Sign> Persist<ChannelSigner> for PostgresPersister {
         _update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
         let tx_id = funding_txo.txid.to_hex();
-        let tx_index = funding_txo.index.try_into().unwrap();
-        println!("Persisting new channel {}_{}", tx_id, tx_index);
-        let channel_monitor = ChannelMonitor {
+        let tx_index = funding_txo.index.to_string();
+        // <txid>_<txindex>
+        let id = [tx_id, tx_index].join("_");
+        println!("Persisting new channel {}", id);
+
+        let cm_file = File {
             instance_id: self.instance_id.clone(),
-            tx_id,
-            tx_index,
+            directory: CHANNEL_MONITORS_DIRECTORY.to_owned(),
+            name: id,
             // FIXME(encrypt): Encrypt under key derived from seed
-            state: monitor.encode(),
+            data: monitor.encode(),
         };
 
         // Run an async fn inside a sync fn inside a Tokio runtime
         tokio::task::block_in_place(|| {
-            Handle::current().block_on(async move {
-                self.api.create_channel_monitor(channel_monitor).await
-            })
+            Handle::current()
+                .block_on(async move { self.api.create_file(cm_file).await })
         })
         .map(|_| ())
         .map_err(|e| {
@@ -470,20 +492,25 @@ impl<ChannelSigner: Sign> Persist<ChannelSigner> for PostgresPersister {
         _update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
         let tx_id = funding_txo.txid.to_hex();
-        let tx_index = funding_txo.index.try_into().unwrap();
-        println!("Updating persisted channel {}_{}", tx_id, tx_index);
-        let channel_monitor = ChannelMonitor {
+        let tx_index = funding_txo.index.to_string();
+        // <txid>_<txindex>
+        let id = [tx_id, tx_index].join("_");
+        println!("Updating persisted channel {}", id);
+
+        let cm_file = File {
             instance_id: self.instance_id.clone(),
-            tx_id,
-            tx_index,
+            directory: CHANNEL_MONITORS_DIRECTORY.to_owned(),
+            name: id,
             // FIXME(encrypt): Encrypt under key derived from seed
-            state: monitor.encode(),
+            data: monitor.encode(),
         };
 
         // Run an async fn inside a sync fn inside a Tokio runtime
         tokio::task::block_in_place(|| {
             Handle::current().block_on(async move {
-                self.api.update_channel_monitor(channel_monitor).await
+                // TODO Change to just update_file once other persist methods
+                // follow REST conventions
+                self.api.create_or_update_file(cm_file).await
             })
         })
         .map(|_| ())

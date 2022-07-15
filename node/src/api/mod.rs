@@ -110,7 +110,6 @@ impl ApiClient {
         self.request(Method::POST, Backend, V1, endpoint, req).await
     }
 
-    #[allow(dead_code)] // TODO remove
     pub async fn get_file(
         &self,
         req: FileId,
@@ -119,7 +118,6 @@ impl ApiClient {
         self.request(Method::GET, Backend, V1, endpoint, req).await
     }
 
-    #[allow(dead_code)] // TODO remove
     pub async fn create_file(&self, req: File) -> Result<File, ApiError> {
         let endpoint = "/file";
         self.request(Method::POST, Backend, V1, endpoint, req).await
@@ -142,38 +140,12 @@ impl ApiClient {
             .await
     }
 
-    #[allow(dead_code)] // TODO remove
     pub async fn get_directory(
         &self,
         req: DirectoryId,
     ) -> Result<Vec<File>, ApiError> {
         let endpoint = "/directory";
         self.request(Method::GET, Backend, V1, endpoint, req).await
-    }
-
-    pub async fn create_channel_monitor(
-        &self,
-        req: ChannelMonitor,
-    ) -> Result<ChannelMonitor, ApiError> {
-        self.request(Method::POST, Backend, V1, "/channel_monitor", req)
-            .await
-    }
-
-    pub async fn get_channel_monitors(
-        &self,
-        instance_id: String,
-    ) -> Result<Vec<ChannelMonitor>, ApiError> {
-        let req = GetByInstanceId { instance_id };
-        self.request(Method::GET, Backend, V1, "/channel_monitor", req)
-            .await
-    }
-
-    pub async fn update_channel_monitor(
-        &self,
-        req: ChannelMonitor,
-    ) -> Result<ChannelMonitor, ApiError> {
-        self.request(Method::PUT, Backend, V1, "/channel_monitor", req)
-            .await
     }
 
     pub async fn notify_runner(

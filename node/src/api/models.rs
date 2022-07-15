@@ -77,14 +77,6 @@ pub struct File {
     pub data: Vec<u8>,
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct ChannelMonitor {
-    pub instance_id: String,
-    pub tx_id: String,
-    pub tx_index: i16,
-    pub state: Vec<u8>,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct UserPort {
     pub user_id: UserId,
