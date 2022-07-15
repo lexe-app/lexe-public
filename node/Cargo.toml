@@ -122,6 +122,8 @@ tokio = { version = "=1.15.0", default-features = false, features = [
     "test-util", # Used to pause time in inactivity_timer::tests
     "time"
 ] }
+# Run bitcoin regtest for tests
+bitcoind = { version = "0.26", features = [ "22_0" ] }
 
 # Add some useful proptest features when testing during development
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]

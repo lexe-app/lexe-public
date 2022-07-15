@@ -259,8 +259,8 @@ impl FromStr for Network {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let network = bitcoin::Network::from_str(s)?;
         ensure!(
-            network == bitcoin::Network::Testnet,
-            "only support testnet for now"
+            !matches!(network, bitcoin::Network::Bitcoin),
+            "Mainnet is disabled for now"
         );
         Ok(Self(network))
     }
