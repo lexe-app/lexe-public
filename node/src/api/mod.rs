@@ -194,23 +194,6 @@ impl ApiClient {
             .await
     }
 
-    pub async fn get_network_graph(
-        &self,
-        instance_id: String,
-    ) -> Result<Option<NetworkGraph>, ApiError> {
-        let req = GetByInstanceId { instance_id };
-        self.request(Method::GET, Backend, V1, "/network_graph", req)
-            .await
-    }
-
-    pub async fn create_or_update_network_graph(
-        &self,
-        ng: NetworkGraph,
-    ) -> Result<NetworkGraph, ApiError> {
-        self.request(Method::PUT, Backend, V1, "/network_graph", ng)
-            .await
-    }
-
     #[cfg(not(target_env = "sgx"))] // TODO Remove once this fn is used in sgx
     pub async fn create_channel_peer(
         &self,
