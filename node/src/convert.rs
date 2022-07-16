@@ -2,24 +2,12 @@ use std::convert::TryInto;
 use std::net::SocketAddr;
 use std::str::FromStr;
 
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use bitcoin::hash_types::Txid;
 use bitcoin::hashes::hex::{FromHex, ToHex};
-use bitcoin::secp256k1::{PublicKey, Secp256k1};
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::BlockHash;
-use lightning::chain::keysinterface::{KeysInterface, KeysManager, Recipient};
 use lightning_block_sync::http::JsonResponse;
-
-/// Rederives the node public key from the KeysManager
-pub fn derive_pubkey(keys_manager: &KeysManager) -> anyhow::Result<PublicKey> {
-    let privkey = keys_manager
-        .get_node_secret(Recipient::Node)
-        .map_err(|()| anyhow!("Decode error: invalid value"))?;
-    let mut secp = Secp256k1::new();
-    secp.seeded_randomize(&keys_manager.get_secure_random_bytes());
-    let derived_pubkey = PublicKey::from_secret_key(&secp, &privkey);
-    Ok(derived_pubkey)
-}
 
 /// Converts a secp PublicKey into a lower hex-encoded String.
 ///

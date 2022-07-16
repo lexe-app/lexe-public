@@ -11,6 +11,7 @@ mod convert;
 mod event_handler;
 mod inactivity_timer;
 mod init;
+mod keys_manager;
 mod peer;
 mod persister;
 mod provision;

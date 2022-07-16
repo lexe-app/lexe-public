@@ -9,11 +9,12 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{ensure, format_err};
 use common::hex;
+use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::keysinterface::InMemorySigner;
-use lightning::chain::{self, chainmonitor, Access, Filter};
-use lightning::ln::channelmanager::SimpleArcChannelManager;
-use lightning::ln::peer_handler::SimpleArcPeerManager;
+use lightning::chain::{Access, Filter};
+use lightning::ln::channelmanager::ChannelManager;
+use lightning::ln::peer_handler::{IgnoringMessageHandler, PeerManager};
 use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
 use lightning::routing::gossip::{NetworkGraph, P2PGossipSync};
 use lightning::routing::scoring::ProbabilisticScorer;
@@ -25,38 +26,47 @@ use lightning_rapid_gossip_sync::RapidGossipSync;
 use subtle::ConstantTimeEq;
 
 use crate::bitcoind_client::BitcoindClient;
+use crate::keys_manager::LexeKeysManager;
 use crate::logger::LdkTracingLogger;
 use crate::persister::LexePersister;
 
 pub type UserId = i64;
 pub type Port = u16;
 pub type InstanceId = String;
+pub type Seed = [u8; 32];
 
 pub type PaymentInfoStorageType = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
 
-pub type ChainMonitorType = chainmonitor::ChainMonitor<
+pub type ChainMonitorType = ChainMonitor<
     InMemorySigner,
     Arc<dyn Filter + Send + Sync>,
-    Arc<BitcoindClient>,
-    Arc<BitcoindClient>,
+    Arc<BroadcasterType>,
+    Arc<FeeEstimatorType>,
     Arc<LdkTracingLogger>,
     Arc<LexePersister>,
 >;
 
-pub type PeerManagerType = SimpleArcPeerManager<
+pub type PeerManagerType = PeerManager<
     SocketDescriptor,
-    ChainMonitorType,
-    BitcoindClient,
-    BitcoindClient,
-    dyn chain::Access + Send + Sync,
-    LdkTracingLogger,
+    Arc<ChannelManagerType>,
+    Arc<
+        P2PGossipSync<
+            Arc<NetworkGraph<Arc<LdkTracingLogger>>>,
+            Arc<ChainAccessType>,
+            Arc<LdkTracingLogger>,
+        >,
+    >,
+    Arc<LdkTracingLogger>,
+    Arc<IgnoringMessageHandler>,
 >;
 
-pub type ChannelManagerType = SimpleArcChannelManager<
-    ChainMonitorType,
-    BitcoindClient,
-    BitcoindClient,
-    LdkTracingLogger,
+pub type ChannelManagerType = ChannelManager<
+    InMemorySigner,
+    Arc<ChainMonitorType>,
+    Arc<BroadcasterType>,
+    Arc<LexeKeysManager>,
+    Arc<FeeEstimatorType>,
+    Arc<LdkTracingLogger>,
 >;
 
 pub type ChannelMonitorType = ChannelMonitor<InMemorySigner>;
@@ -64,8 +74,8 @@ pub type ChannelMonitorType = ChannelMonitor<InMemorySigner>;
 /// We use this strange tuple because LDK impl'd `Listen` for it
 pub type ChannelMonitorListenerType = (
     ChannelMonitorType,
-    Arc<BitcoindClient>,
-    Arc<BitcoindClient>,
+    Arc<BroadcasterType>,
+    Arc<FeeEstimatorType>,
     Arc<LdkTracingLogger>,
 );
 
@@ -83,26 +93,19 @@ pub type ProbabilisticScorerType =
 pub type RouterType = DefaultRouter<Arc<NetworkGraphType>, LoggerType>;
 
 pub type GossipSyncType = GossipSync<
-    Arc<
-        P2PGossipSync<
-            Arc<NetworkGraphType>,
-            Arc<dyn Access + Send + Sync>,
-            LoggerType,
-        >,
-    >,
+    Arc<P2PGossipSync<Arc<NetworkGraphType>, Arc<ChainAccessType>, LoggerType>>,
     Arc<RapidGossipSync<Arc<NetworkGraphType>, LoggerType>>,
     Arc<NetworkGraphType>,
-    Arc<dyn Access + Send + Sync>,
+    Arc<ChainAccessType>,
     LoggerType,
 >;
 
-pub type P2PGossipSyncType = P2PGossipSync<
-    Arc<NetworkGraphType>,
-    Arc<dyn Access + Send + Sync>,
-    LoggerType,
->;
+pub type P2PGossipSyncType =
+    P2PGossipSync<Arc<NetworkGraphType>, Arc<ChainAccessType>, LoggerType>;
 
 pub type NetworkGraphType = NetworkGraph<LoggerType>;
+
+pub type ChainAccessType = dyn Access + Send + Sync;
 
 pub type BroadcasterType = BitcoindClient;
 pub type FeeEstimatorType = BitcoindClient;
