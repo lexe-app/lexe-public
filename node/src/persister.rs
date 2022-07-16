@@ -10,14 +10,10 @@ use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
 use lightning::chain::channelmonitor::{
     ChannelMonitor as LdkChannelMonitor, ChannelMonitorUpdate,
 };
-use lightning::chain::keysinterface::{
-    InMemorySigner, KeysInterface, KeysManager, Sign,
-};
+use lightning::chain::keysinterface::{InMemorySigner, KeysInterface, Sign};
 use lightning::chain::transaction::OutPoint;
 use lightning::chain::ChannelMonitorUpdateErr;
-use lightning::ln::channelmanager::{
-    ChannelManagerReadArgs, SimpleArcChannelManager,
-};
+use lightning::ln::channelmanager::ChannelManagerReadArgs;
 use lightning::routing::gossip::NetworkGraph as LdkNetworkGraph;
 use lightning::routing::scoring::{
     ProbabilisticScorer, ProbabilisticScoringParameters,
@@ -31,10 +27,11 @@ use tokio::runtime::{Builder, Handle, Runtime};
 use crate::api::{ApiClient, DirectoryId, File, FileId};
 use crate::bitcoind_client::BitcoindClient;
 use crate::convert;
+use crate::keys_manager::LexeKeysManager;
 use crate::logger::LdkTracingLogger;
 use crate::types::{
-    ChainMonitorType, ChannelManagerType, InstanceId, LoggerType,
-    NetworkGraphType, ProbabilisticScorerType,
+    BroadcasterType, ChainMonitorType, ChannelManagerType, FeeEstimatorType,
+    InstanceId, LoggerType, NetworkGraphType, ProbabilisticScorerType,
 };
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
@@ -65,10 +62,10 @@ impl LexePersister {
             BlockHash,
             LdkChannelMonitor<InMemorySigner>,
         )],
-        keys_manager: Arc<KeysManager>,
-        fee_estimator: Arc<BitcoindClient>,
+        keys_manager: Arc<LexeKeysManager>,
+        fee_estimator: Arc<FeeEstimatorType>,
         chain_monitor: Arc<ChainMonitorType>,
-        broadcaster: Arc<BitcoindClient>,
+        broadcaster: Arc<BroadcasterType>,
         logger: Arc<LdkTracingLogger>,
         user_config: UserConfig,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
@@ -319,7 +316,7 @@ impl<'a>
         InMemorySigner,
         Arc<ChainMonitorType>,
         Arc<BitcoindClient>,
-        Arc<KeysManager>,
+        Arc<LexeKeysManager>,
         Arc<BitcoindClient>,
         Arc<LdkTracingLogger>,
         Mutex<ProbabilisticScorerType>,
@@ -327,12 +324,7 @@ impl<'a>
 {
     fn persist_manager(
         &self,
-        channel_manager: &SimpleArcChannelManager<
-            ChainMonitorType,
-            BitcoindClient,
-            BitcoindClient,
-            LdkTracingLogger,
-        >,
+        channel_manager: &ChannelManagerType,
     ) -> Result<(), io::Error> {
         println!("Persisting channel manager");
         let cm_file = File {

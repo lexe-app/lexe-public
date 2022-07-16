@@ -14,12 +14,12 @@ use common::hex;
 use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
 };
-use lightning::chain::keysinterface::KeysManager;
 use lightning::routing::gossip::NodeId;
 use lightning::util::events::{Event, EventHandler, PaymentPurpose};
 use tokio::runtime::Handle;
 
 use crate::bitcoind_client::BitcoindClient;
+use crate::keys_manager::LexeKeysManager;
 use crate::types::{
     ChannelManagerType, HTLCStatus, MillisatAmount, NetworkGraphType,
     NodeAlias, PaymentInfo, PaymentInfoStorageType,
@@ -28,7 +28,7 @@ use crate::types::{
 pub struct LdkEventHandler {
     network: Network,
     channel_manager: Arc<ChannelManagerType>,
-    keys_manager: Arc<KeysManager>,
+    keys_manager: Arc<LexeKeysManager>,
     bitcoind_client: Arc<BitcoindClient>,
     network_graph: Arc<NetworkGraphType>,
     inbound_payments: PaymentInfoStorageType,
@@ -41,7 +41,7 @@ impl LdkEventHandler {
     pub fn new(
         network: Network,
         channel_manager: Arc<ChannelManagerType>,
-        keys_manager: Arc<KeysManager>,
+        keys_manager: Arc<LexeKeysManager>,
         bitcoind_client: Arc<BitcoindClient>,
         network_graph: Arc<NetworkGraphType>,
         inbound_payments: PaymentInfoStorageType,
@@ -81,7 +81,7 @@ pub async fn handle_event(
     channel_manager: &Arc<ChannelManagerType>,
     bitcoind_client: &BitcoindClient,
     network_graph: &NetworkGraphType,
-    keys_manager: &KeysManager,
+    keys_manager: &LexeKeysManager,
     inbound_payments: &PaymentInfoStorageType,
     outbound_payments: &PaymentInfoStorageType,
     network: Network,

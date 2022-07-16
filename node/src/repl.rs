@@ -8,9 +8,9 @@ mod sgx {
     use std::sync::Arc;
 
     use bitcoin::network::constants::Network;
-    use lightning::chain::keysinterface::KeysManager;
     use lightning::util::events::EventHandler;
 
+    use crate::keys_manager::LexeKeysManager;
     use crate::persister::LexePersister;
     use crate::types::{
         ChannelManagerType, InvoicePayerType, NetworkGraphType,
@@ -22,7 +22,7 @@ mod sgx {
         _invoice_payer: Arc<InvoicePayerType<E>>,
         _peer_manager: Arc<PeerManagerType>,
         _channel_manager: Arc<ChannelManagerType>,
-        _keys_manager: Arc<KeysManager>,
+        _keys_manager: Arc<LexeKeysManager>,
         _network_graph: Arc<NetworkGraphType>,
         _inbound_payments: PaymentInfoStorageType,
         _outbound_payments: PaymentInfoStorageType,
@@ -46,9 +46,7 @@ mod not_sgx {
     use bitcoin::network::constants::Network;
     use bitcoin::secp256k1::PublicKey;
     use common::hex;
-    use lightning::chain::keysinterface::{
-        KeysInterface, KeysManager, Recipient,
-    };
+    use lightning::chain::keysinterface::{KeysInterface, Recipient};
     use lightning::ln::{PaymentHash, PaymentPreimage};
     use lightning::routing::gossip::NodeId;
     use lightning::util::config::{
@@ -58,6 +56,7 @@ mod not_sgx {
     use lightning_invoice::payment::PaymentError;
     use lightning_invoice::{utils, Currency, Invoice};
 
+    use crate::keys_manager::LexeKeysManager;
     use crate::peer;
     use crate::persister::LexePersister;
     use crate::types::{
@@ -72,7 +71,7 @@ mod not_sgx {
         invoice_payer: Arc<InvoicePayerType<E>>,
         peer_manager: Arc<PeerManagerType>,
         channel_manager: Arc<ChannelManagerType>,
-        keys_manager: Arc<KeysManager>,
+        keys_manager: Arc<LexeKeysManager>,
         network_graph: Arc<NetworkGraphType>,
         inbound_payments: PaymentInfoStorageType,
         outbound_payments: PaymentInfoStorageType,
@@ -715,7 +714,7 @@ mod not_sgx {
         amt_msat: u64,
         payment_storage: PaymentInfoStorageType,
         channel_manager: Arc<ChannelManagerType>,
-        keys_manager: Arc<KeysManager>,
+        keys_manager: Arc<LexeKeysManager>,
         network: Network,
         expiry_secs: u32,
     ) {

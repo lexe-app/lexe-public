@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime};
+use std::time::Duration;
 
 use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin::blockdata::constants::genesis_block;
@@ -10,7 +10,7 @@ use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::BlockHash;
 use common::rng::Crng;
-use lightning::chain::keysinterface::{KeysInterface, KeysManager, Recipient};
+use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::chain::transaction::OutPoint;
 use lightning::chain::{self, chainmonitor, BestBlock, Watch};
 use lightning::ln::channelmanager;
@@ -34,6 +34,7 @@ use crate::bitcoind_client::BitcoindClient;
 use crate::cli::StartCommand;
 use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
+use crate::keys_manager::LexeKeysManager;
 use crate::logger::LdkTracingLogger;
 use crate::persister::LexePersister;
 use crate::types::{
@@ -61,7 +62,7 @@ pub async fn start_ldk(
     let measurement = String::from("default");
     let api = ApiClient::new(args.backend_url.clone(), args.runner_url.clone());
 
-    // Initialize BitcoindClient and KeysManager
+    // Initialize BitcoindClient and LexeKeysManager
     let (bitcoind_client_res, keys_manager_res) = tokio::join!(
         bitcoind_client(&args),
         keys_manager(rng, &api, user_id, &measurement),
@@ -69,7 +70,7 @@ pub async fn start_ldk(
     let bitcoind_client =
         bitcoind_client_res.context("Failed to init bitcoind client")?;
     let (pubkey, keys_manager) =
-        keys_manager_res.context("Could not init KeysManager")?;
+        keys_manager_res.context("Could not init LexeKeysManager")?;
     let instance_id = convert::get_instance_id(&pubkey, &measurement);
 
     // BitcoindClient implements FeeEstimator and BroadcasterInterface and thus
@@ -365,14 +366,14 @@ async fn bitcoind_client(
     Ok(client)
 }
 
-/// Initializes a KeysManager (and grabs the node public key) based on sealed +
-/// persisted data
+/// Initializes a LexeKeysManager (and grabs the node public key) based on
+/// sealed + persisted data
 async fn keys_manager(
     rng: &mut dyn Crng,
     api: &ApiClient,
     user_id: UserId,
     measurement: &str,
-) -> anyhow::Result<(PublicKey, Arc<KeysManager>)> {
+) -> anyhow::Result<(PublicKey, Arc<LexeKeysManager>)> {
     println!("Initializing keys manager");
     // Fetch our node pubkey, instance, and enclave data from the data store
     let (node_res, instance_res, enclave_res) = tokio::join!(
@@ -388,13 +389,15 @@ async fn keys_manager(
         (None, None, None) => {
             // No node exists yet, create a new one
             println!("Generating new seed");
-            let mut new_seed = Zeroizing::new([0u8; 32]);
+
+            // TODO Get and use the root seed from provisioning step
+            let mut new_seed: [u8; 32] = [0u8; 32];
             rng.fill_bytes(new_seed.as_mut_slice());
-            // TODO (sgx): Seal seed under this enclave's pubkey
 
             // Derive pubkey
-            let keys_manager = keys_manager_from_seed(&new_seed);
-            let pubkey = convert::derive_pubkey(&keys_manager)
+            let keys_manager = LexeKeysManager::from_seed(&new_seed);
+            let pubkey = keys_manager
+                .derive_pubkey()
                 .context("Could not get derive our pubkey from seed")?;
             let pubkey_hex = convert::pubkey_to_hex(&pubkey);
 
@@ -413,6 +416,7 @@ async fn keys_manager(
             let enclave_id = format!("{}_{}", instance_id, "my_cpu_id");
             let enclave = Enclave {
                 id: enclave_id,
+                // TODO (sgx): Seal root seed under this enclave's pubkey
                 seed: new_seed.to_vec(),
                 instance_id,
             };
@@ -461,8 +465,9 @@ async fn keys_manager(
             seed_buf.copy_from_slice(&seed);
 
             // Derive the node pubkey from the seed
-            let keys_manager = keys_manager_from_seed(&seed_buf);
-            let derived_pubkey = convert::derive_pubkey(&keys_manager)
+            let keys_manager = LexeKeysManager::from_seed(&seed_buf);
+            let derived_pubkey = keys_manager
+                .derive_pubkey()
                 .context("Could not get derive our pubkey from seed")?;
 
             // Validate the pubkey returned from the DB against the derived one
@@ -488,23 +493,10 @@ async fn keys_manager(
     Ok((pubkey, Arc::new(keys_manager)))
 }
 
-/// Securely initializes a KeyManager from a given seed
-fn keys_manager_from_seed(seed: &[u8; 32]) -> KeysManager {
-    // FIXME(randomness): KeysManager::new() MUST be given a unique
-    // `starting_time_secs` and `starting_time_nanos` for security. Since secure
-    // timekeeping within an enclave is difficult, we should just take a
-    // (securely) random u64, u32 instead. See KeysManager::new() for details.
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .expect("Literally 1984");
-
-    KeysManager::new(seed, now.as_secs(), now.subsec_nanos())
-}
-
 /// Initializes the ChannelMonitors
 async fn channel_monitors(
     persister: &LexePersister,
-    keys_manager: Arc<KeysManager>,
+    keys_manager: Arc<LexeKeysManager>,
 ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
     println!("Reading channel monitors from DB");
     let result = persister
@@ -524,7 +516,7 @@ async fn channel_manager(
     bitcoind_client: &BitcoindClient,
     restarting_node: &mut bool,
     channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
-    keys_manager: Arc<KeysManager>,
+    keys_manager: Arc<LexeKeysManager>,
     fee_estimator: Arc<FeeEstimatorType>,
     chain_monitor: Arc<ChainMonitorType>,
     broadcaster: Arc<BroadcasterType>,
@@ -673,7 +665,7 @@ async fn gossip_sync(
 /// Initializes a PeerManager
 fn peer_manager(
     rng: &mut dyn Crng,
-    keys_manager: &KeysManager,
+    keys_manager: &LexeKeysManager,
     channel_manager: Arc<ChannelManagerType>,
     gossip_sync: Arc<P2PGossipSyncType>,
     logger: Arc<LdkTracingLogger>,
@@ -685,11 +677,12 @@ fn peer_manager(
         chan_handler: channel_manager,
         route_handler: gossip_sync,
     };
+    let node_secret = keys_manager
+        .get_node_secret(Recipient::Node)
+        .map_err(|()| anyhow!("Could not get node secret"))?;
     let peer_manager: PeerManagerType = PeerManagerType::new(
         lightning_msg_handler,
-        keys_manager
-            .get_node_secret(Recipient::Node)
-            .map_err(|()| anyhow!("Could not get node secret"))?,
+        node_secret,
         &ephemeral_bytes,
         logger,
         Arc::new(IgnoringMessageHandler {}),
