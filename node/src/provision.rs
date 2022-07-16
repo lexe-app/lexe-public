@@ -246,6 +246,7 @@ mod test {
     use std::sync::Arc;
 
     use common::attest;
+    use common::attest::verify::EnclavePolicy;
     use common::rng::SysRng;
     use secrecy::Secret;
     use tokio::sync::mpsc;
@@ -327,7 +328,10 @@ mod test {
             let mut tls_config = rustls::ClientConfig::builder()
                 .with_safe_defaults()
                 .with_custom_certificate_verifier(Arc::new(
-                    attest::ServerCertVerifier { expect_dummy_quote },
+                    attest::ServerCertVerifier {
+                        expect_dummy_quote,
+                        enclave_policy: EnclavePolicy::trust_self(),
+                    },
                 ))
                 .with_no_client_auth();
             tls_config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];

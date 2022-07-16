@@ -93,7 +93,7 @@ impl<'a> fmt::Display for HexDisplay<'a> {
 impl<'a> fmt::Debug for HexDisplay<'a> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "\"{}\"", self)
     }
 }
 

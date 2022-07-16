@@ -14,7 +14,7 @@ use webpki::{TlsServerTrustAnchors, TrustAnchor};
 use x509_parser::certificate::X509Certificate;
 
 use crate::attest::cert::SgxAttestationExtension;
-use crate::{ed25519, sha256};
+use crate::{ed25519, hex, sha256};
 
 /// The DER-encoded Intel SGX trust anchor cert.
 const INTEL_SGX_ROOT_CA_CERT_DER: &[u8] =
@@ -50,13 +50,100 @@ static SUPPORTED_SIG_ALGS: &[&webpki::SignatureAlgorithm] = &[
     &webpki::RSA_PKCS1_3072_8192_SHA384,
 ];
 
-pub struct AttestEvidence<'a> {
-    pub cert_pubkey: ed25519::PublicKey,
-    pub attest: SgxAttestationExtension<'a, 'a>,
+// 1. server cert verifier (server cert should contain dns names)
+// 2. TODO(phlip9): client cert verifier (dns names ignored)
+
+/// An x509 certificate verifier that also checks embedded remote attestation
+/// evidence.
+///
+/// Clients use this verifier to check that
+/// (1) a server's certificate is valid,
+/// (2) the remote attestation is valid (according to the client's policy), and
+/// (3) the remote attestation binds to the server's certificate key pair. Once
+/// these checks are successful, the client and secure can establish a secure
+/// TLS channel.
+pub struct ServerCertVerifier {
+    /// if `true`, expect a fake dummy quote. Used only for testing.
+    pub expect_dummy_quote: bool,
+    /// the verifier's policy for trusting the remote enclave.
+    pub enclave_policy: EnclavePolicy,
+}
+
+impl rustls::client::ServerCertVerifier for ServerCertVerifier {
+    fn verify_server_cert(
+        &self,
+        end_entity: &rustls::Certificate,
+        intermediates: &[rustls::Certificate],
+        server_name: &rustls::ServerName,
+        scts: &mut dyn Iterator<Item = &[u8]>,
+        ocsp_response: &[u8],
+        now: SystemTime,
+    ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
+        // there should be no intermediate certs
+        if !intermediates.is_empty() {
+            return Err(rustls_err("received unexpected intermediate certs"));
+        }
+
+        // 1. verify the self-signed cert "normally"; ensure everything is
+        //    well-formed, signatures verify, validity ranges OK, SNI matches,
+        //    etc...
+        let mut trust_roots = rustls::RootCertStore::empty();
+        trust_roots.add(end_entity).map_err(rustls_err)?;
+
+        let ct_policy = None;
+        let webpki_verifier =
+            rustls::client::WebPkiVerifier::new(trust_roots, ct_policy);
+
+        let verified_token = webpki_verifier.verify_server_cert(
+            end_entity,
+            &[],
+            server_name,
+            scts,
+            ocsp_response,
+            now,
+        )?;
+
+        // 2. extract enclave attestation quote from the cert
+        let evidence = AttestEvidence::parse_cert_der(&end_entity.0)?;
+
+        if !self.expect_dummy_quote {
+            // 3. verify Quote
+            let quote_verifier = SgxQuoteVerifier;
+            let enclave_report =
+                quote_verifier.verify(&evidence.attest.quote, now).map_err(
+                    |err| rustls_err(format!("invalid SGX Quote: {err:#}")),
+                )?;
+
+            // 4. decide if we can trust this enclave
+            let reportdata =
+                self.enclave_policy.verify(&enclave_report).map_err(|err| {
+                    rustls_err(format!(
+                        "our trust policy rejected the remote enclave: {err:#}"
+                    ))
+                })?;
+
+            // 5. check that the pubkey in the enclave Report matches the one in
+            //    this x509 cert.
+            if &reportdata[..32] != evidence.cert_pubkey.as_bytes() {
+                return Err(rustls_err(
+                    "enclave's report is not actually binding to the presented x509 cert"
+                ));
+            }
+        } else if evidence.attest != SgxAttestationExtension::dummy() {
+            return Err(rustls_err("invalid SGX attestation"));
+        }
+
+        Ok(verified_token)
+    }
+}
+
+struct AttestEvidence<'a> {
+    cert_pubkey: ed25519::PublicKey,
+    attest: SgxAttestationExtension<'a, 'a>,
 }
 
 impl<'a> AttestEvidence<'a> {
-    pub fn parse_cert_der(cert_der: &'a [u8]) -> Result<Self, rustls::Error> {
+    fn parse_cert_der(cert_der: &'a [u8]) -> Result<Self, rustls::Error> {
         use rustls::Error;
 
         // TODO(phlip9): manually parse the cert fields we care about w/ yasna
@@ -98,95 +185,25 @@ impl<'a> AttestEvidence<'a> {
     }
 }
 
-// 1. server cert verifier (server cert should contain dns names)
-// 2. TODO(phlip9): client cert verifier (dns names ignored)
-
-/// An x509 certificate verifier that also checks embedded remote attestation
-/// evidence.
+/// A verifier for validating SGX [`Quote`]s.
 ///
-/// Clients use this verifier to check that
-/// (1) a server's certificate is valid,
-/// (2) the remote attestation is valid (according to the client's policy), and
-/// (3) the remote attestation binds to the server's certificate key pair. Once
-/// these checks are successful, the client and secure can establish a secure
-/// TLS channel.
-#[derive(Default)]
-pub struct ServerCertVerifier {
-    pub expect_dummy_quote: bool,
-}
-
-impl rustls::client::ServerCertVerifier for ServerCertVerifier {
-    fn verify_server_cert(
-        &self,
-        end_entity: &rustls::Certificate,
-        intermediates: &[rustls::Certificate],
-        server_name: &rustls::ServerName,
-        scts: &mut dyn Iterator<Item = &[u8]>,
-        ocsp_response: &[u8],
-        now: SystemTime,
-    ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
-        // there should be no intermediate certs
-        if !intermediates.is_empty() {
-            return Err(rustls::Error::General(
-                "received unexpected intermediate certs".to_owned(),
-            ));
-        }
-
-        // verify the self-signed cert "normally"; ensure everything is
-        // well-formed, signatures verify, validity ranges OK, SNI matches,
-        // etc...
-        let mut trust_roots = rustls::RootCertStore::empty();
-        trust_roots.add(end_entity).map_err(|err| {
-            rustls::Error::InvalidCertificateData(err.to_string())
-        })?;
-
-        let ct_policy = None;
-        let webpki_verifier =
-            rustls::client::WebPkiVerifier::new(trust_roots, ct_policy);
-
-        let verified_token = webpki_verifier.verify_server_cert(
-            end_entity,
-            &[],
-            server_name,
-            scts,
-            ocsp_response,
-            now,
-        )?;
-
-        // TODO(phlip9): parse quote
-
-        // in addition to the typical cert checks, we also need to extract
-        // the enclave attestation quote from the cert and verify that.
-        let evidence = AttestEvidence::parse_cert_der(&end_entity.0)?;
-
-        if !self.expect_dummy_quote {
-            // 4. (if not dev mode) parse out quote and quote report
-            // 5. (if not dev mode) ensure report contains the pubkey hash
-            // 6. (if not dev mode) verify quote and quote report
-            todo!()
-        } else if evidence.attest != SgxAttestationExtension::dummy() {
-            return Err(rustls::Error::InvalidCertificateData(
-                "invalid SGX attestation".to_string(),
-            ));
-        }
-
-        Ok(verified_token)
-    }
-}
-
-pub struct SgxQuoteVerifier {
-    pub now: SystemTime,
-}
+/// To read a more in-depth explanation of the verification logic and see some
+/// pretty pictures showing the chain of trust from the Intel SGX root CA down
+/// to the application enclave's ReportData, visit:
+/// [phlip9.com/notes - SGX Remote Attestation Quote Verification](https://phlip9.com/notes/confidential%20computing/intel%20SGX/remote%20attestation/#remote-attestation-quote-verification)
+struct SgxQuoteVerifier;
 
 impl SgxQuoteVerifier {
-    pub fn verify(
+    fn verify(
         &self,
         quote_bytes: &[u8],
-        _qe3_report: &[u8],
+        now: SystemTime,
     ) -> Result<sgx_isa::Report> {
         let quote = Quote::parse(quote_bytes)
             .map_err(DisplayErr::new)
             .context("Failed to parse SGX Quote")?;
+
+        // TODO(phlip9): what is `quote.header().user_data` for?
 
         // Only support DCAP + ECDSA P256 for now
 
@@ -221,8 +238,8 @@ impl SgxQuoteVerifier {
         let pck_cert = webpki::EndEntityCert::try_from(pck_cert_der.as_slice())
             .context("Invalid PCK cert")?;
 
-        let now = webpki::Time::try_from(self.now)
-            .context("Our time source is bad")?;
+        let now =
+            webpki::Time::try_from(now).context("Our time source is bad")?;
 
         // We don't use the full `rustls::WebPkiVerifier` here since the PCK
         // certs aren't truly webpki certs, as they don't bind to DNS names.
@@ -245,7 +262,7 @@ impl SgxQuoteVerifier {
         // 2. Verify the Platform Certification Enclave (PCE) endorses the
         //    Quoting Enclave (QE) Report.
 
-        // TODO(phlip9): parse PCK cert pubkey + algorithm?
+        // TODO(phlip9): parse PCK cert pubkey + algorithm vs hard-coding scheme
         pck_cert
             .verify_signature(
                 &webpki::ECDSA_P256_SHA256,
@@ -259,8 +276,6 @@ impl SgxQuoteVerifier {
         // 3. Verify the local Quoting Enclave's Report binds to its attestation
         //    pubkey, which it uses to sign application enclave Reports.
 
-        // expected_report_data :=
-        //   SHA-256(attestation_public_key || authentication_data)
         let expected_report_data = sha256::digest_many(&[
             sig.attestation_public_key(),
             sig.authentication_data(),
@@ -286,11 +301,12 @@ impl SgxQuoteVerifier {
         let attestation_public_key =
             read_attestation_pubkey(sig.attestation_public_key())?;
 
-        // msg := Quote Header || Application Enclave Report
+        // signature := Ecdsa-P256-SHA256-Sign_{AK}(
+        //   Quote Header || Application Enclave Report
+        // )
         let msg_len = 432;
         ensure!(quote_bytes.len() >= msg_len, "Quote malformed");
         let msg = &quote_bytes[..432];
-
         attestation_public_key.verify(msg, sig.signature())
             .map_err(|_| format_err!("QE signature on application enclave report failed to verify"))?;
 
@@ -330,12 +346,100 @@ fn parse_cert_pem_to_der(s: &str) -> Result<Vec<u8>> {
     let mut cursor = Cursor::new(s.as_bytes());
 
     let item = rustls_pemfile::read_one(&mut cursor)
-        .context("Expected at least one entry in the PEM file")?
-        .ok_or_else(|| format_err!("Not valid PEM-encoded cert"))?;
+        .context("Not valid PEM-encoded cert")?
+        .ok_or_else(|| format_err!("The PEM file contains no entries"))?;
 
     match item {
         rustls_pemfile::Item::X509Certificate(der) => Ok(der),
-        _ => bail!("Not an x509 certificate PEM label"),
+        _ => bail!("First entry in PEM file is not a cert"),
+    }
+}
+
+// TODO(phlip9): expand functionality. parse+verify sig from QE3 Identity json
+// and convert to an `EnclavePolicy`.
+// TODO(phlip9): check `cpusvn`, `isvsvn`, `isvprodid`
+
+/// A verifier's policy for which enclaves it should trust.
+pub struct EnclavePolicy {
+    /// Allow enclaves in DEBUG mode. This should only be used in development.
+    pub allow_debug: bool,
+    // TODO(phlip9): new type
+    /// The set of trusted enclave measurements. If set to `None`, ignore the
+    /// `mrenclave` field.
+    pub trusted_mrenclaves: Option<Vec<[u8; 32]>>,
+    // TODO(phlip9): new type
+    /// The trusted enclave signer key id. If set to `None`, ignore the
+    /// `mrsigner` field.
+    pub trusted_mrsigner: Option<[u8; 32]>,
+}
+
+impl EnclavePolicy {
+    /// A policy that trusts any enclave.
+    pub fn dangerous_trust_any() -> Self {
+        Self {
+            allow_debug: true,
+            trusted_mrenclaves: None,
+            trusted_mrsigner: None,
+        }
+    }
+
+    /// A policy that trusts only the local enclave. Useful in tests.
+    pub fn trust_self() -> Self {
+        #[cfg(target_env = "sgx")]
+        {
+            let self_report = sgx_isa::Report::for_self();
+            let allow_debug = self_report
+                .attributes
+                .flags
+                .contains(sgx_isa::AttributesFlags::DEBUG);
+            let trusted_mrenclaves = Some(vec![self_report.mrenclave]);
+            let trusted_mrsigner = Some(self_report.mrsigner);
+            Self {
+                allow_debug,
+                trusted_mrenclaves,
+                trusted_mrsigner,
+            }
+        }
+        #[cfg(not(target_env = "sgx"))]
+        {
+            // TODO(phlip9): add some SGX interface that will provide fixed
+            // dummy values outside SGX
+            Self::dangerous_trust_any()
+        }
+    }
+
+    /// Verify that an enclave [`sgx_isa::Report`] is trustworthy according to
+    /// this policy. Returns the `ReportData` if the verification is successful.
+    pub fn verify<'a>(
+        &self,
+        report: &'a sgx_isa::Report,
+    ) -> Result<&'a [u8; 64]> {
+        if !self.allow_debug {
+            let is_debug = report
+                .attributes
+                .flags
+                .contains(sgx_isa::AttributesFlags::DEBUG);
+            ensure!(!is_debug, "enclave is in debug mode",);
+        }
+
+        if let Some(mrenclaves) = self.trusted_mrenclaves.as_ref() {
+            ensure!(
+                mrenclaves.contains(&report.mrenclave),
+                "enclave measurement '{}' is not trusted",
+                hex::display(&report.mrenclave),
+            );
+        }
+
+        if let Some(mrsigner) = self.trusted_mrsigner.as_ref() {
+            ensure!(
+                mrsigner == &report.mrsigner,
+                "enclave signer '{}' is not trusted, trusted signer: '{}'",
+                hex::display(&report.mrsigner),
+                hex::display(mrsigner),
+            );
+        }
+
+        Ok(&report.reportdata)
     }
 }
 
@@ -385,6 +489,11 @@ fn read_attestation_pubkey(
     ))
 }
 
+/// The serialized [`Report`] in the Quote has its `keyid` and `mac`
+/// fields removed. This function pads the input with `\x00` to match the
+/// expected [`Report`] size, then deserializes it.
+///
+/// [`Report`]: sgx_isa::Report
 fn report_try_from_truncated(bytes: &[u8]) -> Result<sgx_isa::Report> {
     use sgx_isa::Report;
 
@@ -399,6 +508,31 @@ fn report_try_from_truncated(bytes: &[u8]) -> Result<sgx_isa::Report> {
     unpadded[..Report::TRUNCATED_SIZE].copy_from_slice(bytes);
 
     Ok(Report::try_copy_from(&unpadded).expect("Should never fail"))
+}
+
+/// A small struct for pretty-printing a [`sgx_isa::Report`].
+struct ReportDebug<'a>(&'a sgx_isa::Report);
+
+impl<'a> fmt::Debug for ReportDebug<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Report")
+            .field("cpusvn", &hex::display(&self.0.cpusvn))
+            .field("miscselect", &self.0.miscselect)
+            .field("attributes", &self.0.attributes.flags)
+            .field("xfrm", &format!("{:016x}", self.0.attributes.xfrm))
+            .field("mrenclave", &hex::display(&self.0.mrenclave))
+            .field("mrsigner", &hex::display(&self.0.mrsigner))
+            .field("isvprodid", &self.0.isvprodid)
+            .field("isvsvn", &self.0.isvsvn)
+            .field("reportdata", &hex::display(&self.0.reportdata))
+            .field("keyid", &hex::display(&self.0.keyid))
+            .field("mac", &hex::display(&self.0.mac))
+            .finish()
+    }
+}
+
+fn rustls_err(s: impl fmt::Display) -> rustls::Error {
+    rustls::Error::General(s.to_string())
 }
 
 #[cfg(test)]
@@ -420,6 +554,22 @@ mod test {
     const INTEL_SGX_ROOT_CA_CERT_PEM: &str =
         include_str!("../../test_data/intel-sgx-root-ca.pem");
 
+    // TODO(phlip9): test verification catches bad evidence
+
+    fn example_mrenclave() -> [u8; 32] {
+        let mut mrenclave = [0u8; 32];
+        hex::decode_to_slice(MRENCLAVE_HEX.trim(), mrenclave.as_mut_slice())
+            .unwrap();
+        mrenclave
+    }
+
+    fn mock_timestamp() -> SystemTime {
+        // some time in 2022 lol
+        SystemTime::UNIX_EPOCH
+            .checked_add(Duration::from_secs(1_660_000_000))
+            .unwrap()
+    }
+
     #[test]
     fn test_intel_sgx_trust_anchor_der_pem_equal() {
         let sgx_trust_anchor_der = INTEL_SGX_ROOT_CA_CERT_DER;
@@ -432,19 +582,51 @@ mod test {
     }
 
     #[test]
-    fn test_verify_sgx_server_cert() {
+    fn test_verify_sgx_server_quote() {
         let cert_der = parse_cert_pem_to_der(SGX_SERVER_CERT_PEM).unwrap();
         let evidence = AttestEvidence::parse_cert_der(&cert_der).unwrap();
-        let expected_mrenclave = hex::decode(MRENCLAVE_HEX.trim()).unwrap();
 
-        let verifier = SgxQuoteVerifier {
-            now: SystemTime::now(),
+        let now = SystemTime::now();
+        let verifier = SgxQuoteVerifier;
+        let report = verifier.verify(&evidence.attest.quote, now).unwrap();
+
+        // println!("{:#?}", ReportDebug(&report));
+
+        let enclave_policy = EnclavePolicy {
+            allow_debug: true,
+            trusted_mrenclaves: Some(vec![example_mrenclave()]),
+            trusted_mrsigner: None,
         };
-        let report = verifier
-            .verify(&evidence.attest.quote, &evidence.attest.qe_report)
-            .unwrap();
+        enclave_policy.verify(&report).unwrap();
+    }
 
-        assert_eq!(report.mrenclave.as_slice(), expected_mrenclave);
+    #[test]
+    fn test_verify_sgx_server_cert() {
+        let cert_der = parse_cert_pem_to_der(SGX_SERVER_CERT_PEM).unwrap();
+
+        let verifier = ServerCertVerifier {
+            expect_dummy_quote: false,
+            enclave_policy: EnclavePolicy {
+                allow_debug: true,
+                trusted_mrenclaves: Some(vec![example_mrenclave()]),
+                trusted_mrsigner: None,
+            },
+        };
+
+        let intermediates = &[];
+        let mut scts = iter::empty();
+        let ocsp_response = &[];
+
+        verifier
+            .verify_server_cert(
+                &rustls::Certificate(cert_der),
+                intermediates,
+                &rustls::ServerName::try_from("localhost").unwrap(),
+                &mut scts,
+                ocsp_response,
+                mock_timestamp(),
+            )
+            .unwrap();
     }
 
     #[test]
@@ -462,12 +644,8 @@ mod test {
 
         let verifier = ServerCertVerifier {
             expect_dummy_quote: true,
+            enclave_policy: EnclavePolicy::dangerous_trust_any(),
         };
-
-        // some time in 2022 lol
-        let now = SystemTime::UNIX_EPOCH
-            .checked_add(Duration::from_secs(1_650_000_000))
-            .unwrap();
 
         let intermediates = &[];
         let mut scts = iter::empty();
@@ -480,7 +658,7 @@ mod test {
                 &rustls::ServerName::try_from(dns_name).unwrap(),
                 &mut scts,
                 ocsp_response,
-                now,
+                mock_timestamp(),
             )
             .unwrap();
     }
