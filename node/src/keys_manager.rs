@@ -1,6 +1,6 @@
 use std::time::SystemTime;
 
-use anyhow::anyhow;
+use anyhow::ensure;
 use bitcoin::blockdata::script::Script;
 use bitcoin::blockdata::transaction::{Transaction, TxOut};
 use bitcoin::secp256k1::ecdsa::RecoverableSignature;
@@ -13,6 +13,8 @@ use lightning::chain::keysinterface::{
 use lightning::ln::msgs::DecodeError;
 use lightning::ln::script::ShutdownScript;
 
+use crate::api::{Enclave, Node};
+use crate::convert;
 use crate::types::Seed;
 
 /// A thin wrapper around LDK's KeysManager which provides a cleaner init API
@@ -21,31 +23,60 @@ pub struct LexeKeysManager {
     inner: KeysManager,
 }
 
+impl TryFrom<(Node, Enclave)> for LexeKeysManager {
+    type Error = anyhow::Error;
+
+    fn try_from(node_enclave: (Node, Enclave)) -> anyhow::Result<Self> {
+        let (node, enclave) = node_enclave;
+
+        // TODO(decrypt): Decrypt under enclave sealing key to get the seed
+        let seed = enclave.seed;
+
+        // Validate the seed
+        ensure!(seed.len() == 32, "Incorrect seed length");
+        let mut seed_buf = [0; 32];
+        seed_buf.copy_from_slice(&seed);
+
+        // Build the inner KeysManager from the validated seed
+        let inner = helpers::get_inner_from_seed(&seed_buf);
+
+        // Derive a pubkey from the inner KeysManager
+        let derived_pubkey = helpers::get_pubkey_from_inner(&inner);
+
+        // Deserialize the pubkey returned from the DB (given pubkey)
+        let given_pubkey_hex = node.public_key;
+        let given_pubkey = convert::pubkey_from_hex(&given_pubkey_hex)?;
+
+        // Check the given pubkey against the derived one
+        ensure!(
+            given_pubkey == derived_pubkey,
+            "Derived pubkey doesn't match the pubkey returned from the DB"
+        );
+
+        // Check the hex encodings as well
+        let derived_pubkey_hex = convert::pubkey_to_hex(&derived_pubkey);
+        ensure!(
+            given_pubkey_hex == derived_pubkey_hex,
+            "Derived pubkey string doesn't match given pubkey string"
+        );
+
+        // Validation complete, return Self
+        Ok(Self { inner })
+    }
+}
+
 impl LexeKeysManager {
     // TODO Replace this with a From<RootSeed> impl
+    /// Builds a new LexeKeysManager from a given seed. Since this does not
+    /// validate the seed against data returned from the backend, this function
+    /// should only be called from within the provisioning flow.
     pub fn from_seed(seed: &Seed) -> Self {
-        // FIXME(secure randomness): KeysManager::new() MUST be given a unique
-        // `starting_time_secs` and `starting_time_nanos` for security. Since
-        // secure timekeeping within an enclave is difficult, we should just
-        // take a (securely) random u64, u32 instead. See KeysManager::new().
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .expect("Literally 1984");
-
-        let inner = KeysManager::new(seed, now.as_secs(), now.subsec_nanos());
-
+        let inner = helpers::get_inner_from_seed(seed);
         Self { inner }
     }
 
-    pub fn derive_pubkey(&self) -> anyhow::Result<PublicKey> {
-        let privkey = self
-            .inner
-            .get_node_secret(Recipient::Node)
-            .map_err(|()| anyhow!("Decode error: invalid value"))?;
-        let mut secp = Secp256k1::new();
-        secp.seeded_randomize(&self.inner.get_secure_random_bytes());
-        let derived_pubkey = PublicKey::from_secret_key(&secp, &privkey);
-        Ok(derived_pubkey)
+    pub fn derive_pubkey(&self) -> PublicKey {
+        helpers::get_pubkey_from_inner(&self.inner)
     }
 
     pub fn spend_spendable_outputs<C: Signing>(
@@ -63,6 +94,33 @@ impl LexeKeysManager {
             feerate_sat_per_1000_weight,
             secp_ctx,
         )
+    }
+}
+
+/// Helper fns which can be called without requiring that a LexeKeysManager is
+/// initialized
+mod helpers {
+    use super::*;
+
+    pub(super) fn get_inner_from_seed(seed: &Seed) -> KeysManager {
+        // FIXME(secure randomness): KeysManager::new() MUST be given a unique
+        // `starting_time_secs` and `starting_time_nanos` for security. Since
+        // secure timekeeping within an enclave is difficult, we should just
+        // take a (securely) random u64, u32 instead. See KeysManager::new().
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("Time went backwards");
+
+        KeysManager::new(seed, now.as_secs(), now.subsec_nanos())
+    }
+
+    pub(super) fn get_pubkey_from_inner(inner: &KeysManager) -> PublicKey {
+        let privkey = inner
+            .get_node_secret(Recipient::Node)
+            .expect("Always succeeds when called with Recipient::Node");
+        let mut secp = Secp256k1::new();
+        secp.seeded_randomize(&inner.get_secure_random_bytes());
+        PublicKey::from_secret_key(&secp, &privkey)
     }
 }
 

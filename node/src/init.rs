@@ -7,7 +7,6 @@ use std::time::Duration;
 use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::network::constants::Network;
-use bitcoin::secp256k1::PublicKey;
 use bitcoin::BlockHash;
 use common::rng::Crng;
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
@@ -62,15 +61,32 @@ pub async fn start_ldk(
     let measurement = String::from("default");
     let api = ApiClient::new(args.backend_url.clone(), args.runner_url.clone());
 
-    // Initialize BitcoindClient and LexeKeysManager
-    let (bitcoind_client_res, keys_manager_res) = tokio::join!(
+    // Initialize BitcoindClient, fetch provisioned data
+    let (bitcoind_client_res, provisioned_data_res) = tokio::join!(
         bitcoind_client(&args),
-        keys_manager(rng, &api, user_id, &measurement),
+        fetch_provisioned_data(&api, user_id, &measurement),
     );
     let bitcoind_client =
         bitcoind_client_res.context("Failed to init bitcoind client")?;
-    let (pubkey, keys_manager) =
-        keys_manager_res.context("Could not init LexeKeysManager")?;
+    let provisioned_data =
+        provisioned_data_res.context("Failed to fetch provisioned data")?;
+
+    // Build LexeKeysManager from node init data
+    let keys_manager = match provisioned_data {
+        (Some(node), Some(_i), Some(enclave)) => {
+            LexeKeysManager::try_from((node, enclave))
+                .context("Could not construct keys manager")?
+        }
+        (None, None, None) => {
+            // TODO remove this path once provisioning command works
+            provision_new_node(rng, &api, user_id, &measurement)
+                .await
+                .context("Failed to provision new node")?
+        }
+        _ => panic!("Node init data should have been persisted atomically"),
+    };
+    let keys_manager = Arc::new(keys_manager);
+    let pubkey = keys_manager.derive_pubkey();
     let instance_id = convert::get_instance_id(&pubkey, &measurement);
 
     // BitcoindClient implements FeeEstimator and BroadcasterInterface and thus
@@ -366,16 +382,17 @@ async fn bitcoind_client(
     Ok(client)
 }
 
-/// Initializes a LexeKeysManager (and grabs the node public key) based on
-/// sealed + persisted data
-async fn keys_manager(
-    rng: &mut dyn Crng,
+// TODO: After the provision flow has been implemented, this function should be
+// changed to error if any of these endpoints returned None - indicating that
+// the provisioned components (Node, Instance, Enclave) were not persisted
+// atomically.
+/// Fetches previously provisioned data from the API.
+async fn fetch_provisioned_data(
     api: &ApiClient,
     user_id: UserId,
     measurement: &str,
-) -> anyhow::Result<(PublicKey, Arc<LexeKeysManager>)> {
-    println!("Initializing keys manager");
-    // Fetch our node pubkey, instance, and enclave data from the data store
+) -> anyhow::Result<(Option<Node>, Option<Instance>, Option<Enclave>)> {
+    println!("Fetching provisioned data");
     let (node_res, instance_res, enclave_res) = tokio::join!(
         api.get_node(user_id),
         api.get_instance(user_id, measurement.to_owned()),
@@ -385,112 +402,63 @@ async fn keys_manager(
     let instance_opt = instance_res.context("Error while fetching instance")?;
     let enclave_opt = enclave_res.context("Error while fetching enclave")?;
 
-    let (pubkey, keys_manager) = match (node_opt, instance_opt, enclave_opt) {
-        (None, None, None) => {
-            // No node exists yet, create a new one
-            println!("Generating new seed");
+    Ok((node_opt, instance_opt, enclave_opt))
+}
 
-            // TODO Get and use the root seed from provisioning step
-            let mut new_seed: [u8; 32] = [0u8; 32];
-            rng.fill_bytes(new_seed.as_mut_slice());
+/// A temporary helper to provision a new node when running the start command.
+/// Once we have end-to-end provisioning with the client, this function should
+/// be removed entirely. TODO: Remove this function
+async fn provision_new_node(
+    rng: &mut dyn Crng,
+    api: &ApiClient,
+    user_id: UserId,
+    measurement: &str,
+) -> anyhow::Result<LexeKeysManager> {
+    // No node exists yet, create a new one
+    println!("Generating new seed");
 
-            // Derive pubkey
-            let keys_manager = LexeKeysManager::from_seed(&new_seed);
-            let pubkey = keys_manager
-                .derive_pubkey()
-                .context("Could not get derive our pubkey from seed")?;
-            let pubkey_hex = convert::pubkey_to_hex(&pubkey);
+    // TODO Get and use the root seed from provisioning step
+    let mut new_seed: [u8; 32] = [0u8; 32];
+    rng.fill_bytes(new_seed.as_mut_slice());
 
-            // Build structs for persisting the new node + instance + enclave
-            let node = Node {
-                public_key: pubkey_hex.clone(),
-                user_id,
-            };
-            let instance_id = convert::get_instance_id(&pubkey, measurement);
-            let instance = Instance {
-                id: instance_id.clone(),
-                measurement: measurement.to_owned(),
-                node_public_key: pubkey_hex,
-            };
-            // TODO Derive from a subset of KEYREQUEST
-            let enclave_id = format!("{}_{}", instance_id, "my_cpu_id");
-            let enclave = Enclave {
-                id: enclave_id,
-                // TODO (sgx): Seal root seed under this enclave's pubkey
-                seed: new_seed.to_vec(),
-                instance_id,
-            };
+    // Derive pubkey
+    let keys_manager = LexeKeysManager::from_seed(&new_seed);
+    let pubkey = keys_manager.derive_pubkey();
+    let pubkey_hex = convert::pubkey_to_hex(&pubkey);
 
-            // Persist node, instance, and enclave together in one db txn to
-            // ensure that we never end up with a node without a corresponding
-            // instance + enclave that can unseal the associated seed
-            let node_instance_enclave = NodeInstanceEnclave {
-                node,
-                instance,
-                enclave,
-            };
-            api.create_node_instance_enclave(node_instance_enclave)
-                .await
-                .context(
-                    "Could not atomically create new node + instance + enclave",
-                )?;
-
-            (pubkey, keys_manager)
-        }
-        (None, Some(_instance), _) => {
-            // This should never happen; the instance table is foreign keyed to
-            // the node table
-            bail!("Existing instances should always have existing nodes")
-        }
-        (None, None, Some(_enclave)) => {
-            // This should never happen; the enclave table is foreign keyed to
-            // the instance table
-            bail!("Existing enclaves should always have existing instances")
-        }
-        (Some(_node), None, _) => {
-            bail!("User has not provisioned this instance yet");
-        }
-        (Some(_node), Some(_instance), None) => {
-            bail!("Provisioner should have sealed the seed for this enclave");
-        }
-        (Some(node), Some(_instance), Some(enclave)) => {
-            println!("Found existing instance + enclave");
-
-            // TODO(decrypt): Decrypt under enclave sealing key to get the seed
-            let seed = enclave.seed;
-
-            // Validate the seed
-            ensure!(seed.len() == 32, "Incorrect seed length");
-            let mut seed_buf = [0; 32];
-            seed_buf.copy_from_slice(&seed);
-
-            // Derive the node pubkey from the seed
-            let keys_manager = LexeKeysManager::from_seed(&seed_buf);
-            let derived_pubkey = keys_manager
-                .derive_pubkey()
-                .context("Could not get derive our pubkey from seed")?;
-
-            // Validate the pubkey returned from the DB against the derived one
-            let given_pubkey = convert::pubkey_from_hex(&node.public_key)?;
-            ensure!(
-                given_pubkey == derived_pubkey,
-                "Derived pubkey doesn't match the pubkey returned from the DB"
-            );
-
-            // Check the hex encodings as well
-            let given_pubkey_hex = &node.public_key;
-            let derived_pubkey_hex = &convert::pubkey_to_hex(&derived_pubkey);
-            ensure!(
-                given_pubkey_hex == derived_pubkey_hex,
-                "Derived pubkey string doesn't match given pubkey string"
-            );
-
-            (derived_pubkey, keys_manager)
-        }
+    // Build structs for persisting the new node + instance + enclave
+    let node = Node {
+        public_key: pubkey_hex.clone(),
+        user_id,
+    };
+    let instance_id = convert::get_instance_id(&pubkey, measurement);
+    let instance = Instance {
+        id: instance_id.clone(),
+        measurement: measurement.to_owned(),
+        node_public_key: pubkey_hex,
+    };
+    // TODO Derive from a subset of KEYREQUEST
+    let enclave_id = format!("{}_{}", instance_id, "my_cpu_id");
+    let enclave = Enclave {
+        id: enclave_id,
+        // TODO (sgx): Seal root seed under this enclave's pubkey
+        seed: new_seed.to_vec(),
+        instance_id,
     };
 
-    println!("    keys manager done.");
-    Ok((pubkey, Arc::new(keys_manager)))
+    // Persist node, instance, and enclave together in one db txn to
+    // ensure that we never end up with a node without a corresponding
+    // instance + enclave that can unseal the associated seed
+    let node_instance_enclave = NodeInstanceEnclave {
+        node,
+        instance,
+        enclave,
+    };
+    api.create_node_instance_enclave(node_instance_enclave)
+        .await
+        .context("Could not atomically create new node + instance + enclave")?;
+
+    Ok(keys_manager)
 }
 
 /// Initializes the ChannelMonitors
