@@ -136,7 +136,7 @@ impl fmt::Display for MillisatAmount {
 }
 
 /// The information required to connect to a bitcoind instance via RPC
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BitcoindRpcInfo {
     pub username: String,
     pub password: String,

@@ -4,15 +4,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use anyhow::{anyhow, bail, ensure, Context};
+use anyhow::{anyhow, Context};
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::network::constants::Network;
 use bitcoin::BlockHash;
 use common::rng::Crng;
 use common::root_seed::RootSeed;
+use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::chain::transaction::OutPoint;
-use lightning::chain::{self, chainmonitor, BestBlock, Watch};
+use lightning::chain::{self, BestBlock, Watch};
 use lightning::ln::channelmanager;
 use lightning::ln::channelmanager::ChainParameters;
 use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
@@ -65,7 +66,7 @@ pub async fn start_ldk<R: Crng>(
 
     // Initialize BitcoindClient, fetch provisioned data
     let (bitcoind_client_res, provisioned_data_res) = tokio::join!(
-        bitcoind_client(&args),
+        BitcoindClient::init(args.bitcoind_rpc.clone(), args.network),
         fetch_provisioned_data(&api, user_id, &measurement),
     );
     let bitcoind_client =
@@ -100,7 +101,7 @@ pub async fn start_ldk<R: Crng>(
     let persister = Arc::new(LexePersister::new(api.clone(), instance_id));
 
     // Initialize the ChainMonitor
-    let chain_monitor = Arc::new(chainmonitor::ChainMonitor::new(
+    let chain_monitor = Arc::new(ChainMonitor::new(
         None,
         broadcaster.clone(),
         logger.clone(),
@@ -342,46 +343,6 @@ pub async fn start_ldk<R: Crng>(
     background_processor.stop().unwrap();
 
     Ok(())
-}
-
-/// Initializes and validates a BitcoindClient given an LdkArgs
-async fn bitcoind_client(
-    args: &StartCommand,
-) -> anyhow::Result<Arc<BitcoindClient>> {
-    // NOTE could write a wrapper that does this printing automagically
-    println!("Initializing bitcoind client");
-    let new_res = BitcoindClient::new(
-        args.bitcoind_rpc.host.clone(),
-        args.bitcoind_rpc.port,
-        args.bitcoind_rpc.username.clone(),
-        args.bitcoind_rpc.password.clone(),
-        Handle::current(),
-    )
-    .await;
-
-    let client = match new_res {
-        Ok(cli) => Arc::new(cli),
-        Err(e) => bail!("Failed to connect to bitcoind client: {}", e),
-    };
-
-    // Check that the bitcoind we've connected to is running the network we
-    // expect
-    let bitcoind_chain = client.get_blockchain_info().await.chain;
-    let chain_str = match args.network.into_inner() {
-        bitcoin::Network::Bitcoin => "main",
-        bitcoin::Network::Testnet => "test",
-        bitcoin::Network::Regtest => "regtest",
-        bitcoin::Network::Signet => "signet",
-    };
-    ensure!(
-        bitcoind_chain == chain_str,
-        "Chain argument ({}) didn't match bitcoind chain ({})",
-        chain_str,
-        bitcoind_chain,
-    );
-
-    println!("    bitcoind client done.");
-    Ok(client)
 }
 
 // TODO: After the provision flow has been implemented, this function should be
