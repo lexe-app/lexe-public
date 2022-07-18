@@ -5,9 +5,10 @@ use std::str::FromStr;
 use bitcoind::{self, BitcoinD, Conf};
 use common::rng::SysRng;
 
+use crate::bitcoind_client::BitcoindRpcInfo;
 use crate::cli::{StartCommand, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
 use crate::init;
-use crate::types::{BitcoindRpcInfo, Network, NodeAlias};
+use crate::types::{Network, NodeAlias};
 
 const DEFAULT_TEST_USER_ID: i64 = 1;
 
