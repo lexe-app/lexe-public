@@ -6,7 +6,6 @@ use std::time::Duration;
 
 use anyhow::{anyhow, Context};
 use bitcoin::blockdata::constants::genesis_block;
-use bitcoin::network::constants::Network;
 use bitcoin::BlockHash;
 use common::rng::Crng;
 use common::root_seed::RootSeed;
@@ -42,8 +41,8 @@ use crate::persister::LexePersister;
 use crate::types::{
     BroadcasterType, ChainMonitorType, ChannelManagerType,
     ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType,
-    GossipSyncType, InvoicePayerType, NetworkGraphType, P2PGossipSyncType,
-    PaymentInfoStorageType, PeerManagerType, Port, UserId,
+    GossipSyncType, InvoicePayerType, Network, NetworkGraphType,
+    P2PGossipSyncType, PaymentInfoStorageType, PeerManagerType, Port, UserId,
 };
 use crate::{command, convert, peer, repl};
 
@@ -53,8 +52,6 @@ pub async fn start_ldk<R: Crng>(
     rng: &mut R,
     args: StartCommand,
 ) -> anyhow::Result<()> {
-    let network = args.network.into_inner();
-
     // Initialize the Logger
     let logger = Arc::new(LdkTracingLogger {});
 
@@ -112,7 +109,7 @@ pub async fn start_ldk<R: Crng>(
     // Read the `ChannelMonitor`s and initialize the `P2PGossipSync`
     let (channel_monitors_res, gossip_sync_res) = tokio::join!(
         channel_monitors(persister.as_ref(), keys_manager.clone()),
-        gossip_sync(&args, &persister, logger.clone())
+        gossip_sync(args.network, &persister, logger.clone())
     );
     let mut channel_monitors =
         channel_monitors_res.context("Could not read channel monitors")?;
@@ -199,7 +196,7 @@ pub async fn start_ldk<R: Crng>(
     let outbound_payments: PaymentInfoStorageType =
         Arc::new(Mutex::new(HashMap::new()));
     let event_handler = LdkEventHandler::new(
-        network,
+        args.network,
         channel_manager.clone(),
         keys_manager.clone(),
         bitcoind_client.clone(),
@@ -285,7 +282,7 @@ pub async fn start_ldk<R: Crng>(
 
     // Set up SPV client
     spawn_spv_client(
-        network,
+        args.network,
         chain_tip,
         blockheader_cache,
         channel_manager.clone(),
@@ -307,7 +304,7 @@ pub async fn start_ldk<R: Crng>(
             inbound_payments,
             outbound_payments,
             persister.clone(),
-            network,
+            args.network,
         )
         .await;
         println!("REPL complete.");
@@ -570,12 +567,12 @@ async fn sync_chain_listeners(
 
 /// Initializes a GossipSync and NetworkGraph
 async fn gossip_sync(
-    args: &StartCommand,
+    network: Network,
     persister: &Arc<LexePersister>,
     logger: Arc<LdkTracingLogger>,
 ) -> anyhow::Result<(Arc<NetworkGraphType>, Arc<P2PGossipSyncType>)> {
     println!("Initializing gossip sync and network graph");
-    let genesis = genesis_block(args.network.into_inner()).header.block_hash();
+    let genesis = genesis_block(network.into_inner()).header.block_hash();
 
     let network_graph = persister
         .read_network_graph(genesis, logger.clone())
@@ -713,7 +710,8 @@ fn spawn_spv_client(
     let chain_monitor_listener = chain_monitor.clone(); // TODO remove
     tokio::spawn(async move {
         let mut derefed = bitcoind_block_source.deref();
-        let chain_poller = poll::ChainPoller::new(&mut derefed, network);
+        let chain_poller =
+            poll::ChainPoller::new(&mut derefed, network.into_inner());
         let chain_listener = (chain_monitor_listener, channel_manager_clone);
         let mut spv_client = SpvClient::new(
             chain_tip,
