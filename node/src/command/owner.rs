@@ -4,7 +4,8 @@ use serde::Serialize;
 
 use crate::command::server::ApiError;
 use crate::convert;
-use crate::types::{ChannelManagerType, PeerManagerType};
+use crate::peer_manager::LexePeerManager;
+use crate::types::ChannelManagerType;
 
 #[derive(Serialize)]
 pub struct NodeInfo {
@@ -18,7 +19,7 @@ pub struct NodeInfo {
 /// GET /owner/node_info -> NodeInfo
 pub async fn node_info(
     channel_manager: Arc<ChannelManagerType>,
-    peer_manager: Arc<PeerManagerType>,
+    peer_manager: Arc<LexePeerManager>,
 ) -> Result<NodeInfo, ApiError> {
     let pubkey = channel_manager.get_our_node_id();
     let pubkey = convert::pubkey_to_hex(&pubkey);

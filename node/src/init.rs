@@ -10,12 +10,11 @@ use bitcoin::BlockHash;
 use common::rng::Crng;
 use common::root_seed::RootSeed;
 use lightning::chain::chainmonitor::ChainMonitor;
-use lightning::chain::keysinterface::{KeysInterface, Recipient};
+use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::transaction::OutPoint;
 use lightning::chain::{self, BestBlock, Watch};
 use lightning::ln::channelmanager;
 use lightning::ln::channelmanager::ChainParameters;
-use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::util::config::UserConfig;
 use lightning_background_processor::BackgroundProcessor;
@@ -23,7 +22,6 @@ use lightning_block_sync::poll::{self, ValidatedBlockHeader};
 use lightning_block_sync::{init as blocksyncinit, SpvClient, UnboundedCache};
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
-use secrecy::zeroize::Zeroizing;
 use secrecy::ExposeSecret;
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
@@ -37,14 +35,15 @@ use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
 use crate::keys_manager::LexeKeysManager;
 use crate::logger::LdkTracingLogger;
+use crate::peer_manager::{self, LexePeerManager};
 use crate::persister::LexePersister;
 use crate::types::{
     BroadcasterType, ChainMonitorType, ChannelManagerType,
     ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType,
     GossipSyncType, InvoicePayerType, Network, NetworkGraphType,
-    P2PGossipSyncType, PaymentInfoStorageType, PeerManagerType, Port, UserId,
+    P2PGossipSyncType, PaymentInfoStorageType, Port, UserId,
 };
-use crate::{command, convert, peer, repl};
+use crate::{command, convert, repl};
 
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 
@@ -140,14 +139,14 @@ pub async fn start_ldk<R: Crng>(
     let scorer = Arc::new(Mutex::new(scorer));
 
     // Initialize PeerManager
-    let peer_manager = peer_manager(
+    let peer_manager = LexePeerManager::init(
         rng,
         keys_manager.as_ref(),
         channel_manager.clone(),
         gossip_sync.clone(),
         logger.clone(),
-    )
-    .context("Could not initialize peer manager")?;
+    );
+    let peer_manager = Arc::new(peer_manager);
 
     // Set up listening for inbound P2P connections
     let stop_listen_connect = Arc::new(AtomicBool::new(false));
@@ -228,7 +227,7 @@ pub async fn start_ldk<R: Crng>(
         chain_monitor.clone(),
         channel_manager.clone(),
         GossipSyncType::P2P(gossip_sync.clone()),
-        peer_manager.clone(),
+        peer_manager.as_arc_inner(),
         logger.clone(),
         Some(scorer.clone()),
     );
@@ -591,41 +590,12 @@ async fn gossip_sync(
     Ok((network_graph, gossip_sync))
 }
 
-/// Initializes a PeerManager
-fn peer_manager(
-    rng: &mut dyn Crng,
-    keys_manager: &LexeKeysManager,
-    channel_manager: Arc<ChannelManagerType>,
-    gossip_sync: Arc<P2PGossipSyncType>,
-    logger: Arc<LdkTracingLogger>,
-) -> anyhow::Result<Arc<PeerManagerType>> {
-    let mut ephemeral_bytes = Zeroizing::new([0u8; 32]);
-    rng.fill_bytes(ephemeral_bytes.as_mut_slice());
-
-    let lightning_msg_handler = MessageHandler {
-        chan_handler: channel_manager,
-        route_handler: gossip_sync,
-    };
-    let node_secret = keys_manager
-        .get_node_secret(Recipient::Node)
-        .map_err(|()| anyhow!("Could not get node secret"))?;
-    let peer_manager: PeerManagerType = PeerManagerType::new(
-        lightning_msg_handler,
-        node_secret,
-        &ephemeral_bytes,
-        logger,
-        Arc::new(IgnoringMessageHandler {}),
-    );
-
-    Ok(Arc::new(peer_manager))
-}
-
 /// Sets up a TcpListener to listen on 0.0.0.0:<peer_port>, handing off
 /// resultant `TcpStream`s for the `PeerManager` to manage
 fn spawn_p2p_listener(
     peer_port_opt: Option<Port>,
     stop_listen: Arc<AtomicBool>,
-    peer_manager: Arc<PeerManagerType>,
+    peer_manager: Arc<LexePeerManager>,
 ) {
     tokio::spawn(async move {
         // A value of 0 indicates that the OS will assign a port for us
@@ -638,7 +608,7 @@ fn spawn_p2p_listener(
         loop {
             let (tcp_stream, _peer_addr) = listener.accept().await.unwrap();
             let tcp_stream = tcp_stream.into_std().unwrap();
-            let peer_manager_clone = peer_manager.clone();
+            let peer_manager_clone = peer_manager.as_arc_inner();
             if stop_listen.load(Ordering::Acquire) {
                 return;
             }
@@ -656,7 +626,7 @@ fn spawn_p2p_listener(
 /// Spawns a task that regularly reconnects to the channel peers stored in DB.
 fn spawn_p2p_reconnect_task(
     channel_manager: Arc<ChannelManagerType>,
-    peer_manager: Arc<PeerManagerType>,
+    peer_manager: Arc<LexePeerManager>,
     stop_listen_connect: Arc<AtomicBool>,
     persister: Arc<LexePersister>,
 ) {
@@ -679,7 +649,7 @@ fn spawn_p2p_reconnect_task(
                         }
                         for (pubkey, peer_addr) in cp_vec.iter() {
                             if *pubkey == node_id {
-                                let _ = peer::do_connect_peer(
+                                let _ = peer_manager::do_connect_peer(
                                     *pubkey,
                                     *peer_addr,
                                     peer_manager.clone(),

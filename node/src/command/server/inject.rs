@@ -7,7 +7,8 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use warp::Filter;
 
-use crate::types::{ChannelManagerType, PeerManagerType};
+use crate::peer_manager::LexePeerManager;
+use crate::types::ChannelManagerType;
 
 /// Injects a shutdown_tx.
 pub fn shutdown_tx(
@@ -27,8 +28,8 @@ pub fn channel_manager(
 
 /// Injects a peer manager.
 pub fn peer_manager(
-    peer_manager: Arc<PeerManagerType>,
-) -> impl Filter<Extract = (Arc<PeerManagerType>,), Error = Infallible> + Clone
+    peer_manager: Arc<LexePeerManager>,
+) -> impl Filter<Extract = (Arc<LexePeerManager>,), Error = Infallible> + Clone
 {
     warp::any().map(move || peer_manager.clone())
 }
