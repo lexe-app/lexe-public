@@ -27,6 +27,7 @@ mod sgx {
     use cmac::digest::generic_array::GenericArray;
     use cmac::{Cmac, Mac};
     use common::attest::cert::SgxAttestationExtension;
+    use common::attest::verify::EnclavePolicy;
     use common::rng::Crng;
     use common::{ed25519, hex, sha256};
     use rcgen::CustomExtension;
@@ -124,6 +125,12 @@ mod sgx {
         let qe_report = sgx_isa::Report::try_copy_from(quote_res.qe_report())
             .context("AESM or QE returned an invalid Report")?;
 
+        // TODO(phlip9): request QE identity from IAC?
+        // Just check QE MRSIGNER for now
+        EnclavePolicy::trust_intel_qe()
+            .verify(&qe_report)
+            .context("Invalid QE identity")?;
+
         #[cfg(not(target_feature = "aes"))]
         std::compile_error!("Intel AES-NI intrinsics must be enabled at compile time via RUSTFLAGS");
 
@@ -136,8 +143,6 @@ mod sgx {
             cmac.verify(&mac).is_ok()
         });
         ensure!(is_valid_mac, "QE Report MAC failed to verify");
-
-        // TODO(phlip9): verify QE identity is trustworthy
 
         // The QE ReportData field should commit to our nonce (to ensure
         // freshness) and our Quote (to ensure the Quote was gen'd in an
