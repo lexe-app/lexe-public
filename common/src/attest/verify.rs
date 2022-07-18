@@ -383,6 +383,30 @@ impl EnclavePolicy {
         }
     }
 
+    /// A policy that trusts the current Intel Quoting Enclave (QE).
+    ///
+    /// Just checks against an expected QE MRSIGNER for now. In the future this
+    /// should take a signed QE identity json from the Intel Trusted Services
+    /// API.
+    ///
+    /// You can get the current QE identity from:
+    ///
+    /// ```bash
+    /// $ curl https://api.trustedservices.intel.com/sgx/certification/v3/qe/identity \
+    ///     | jq .enclaveIdentity.mrsigner
+    /// ```
+    pub fn trust_intel_qe() -> Self {
+        const QE_IDENTITY_MRSIGNER: [u8; 32] = hex::decode_const(
+            b"8c4f5775d796503e96137f77c68a829a0056ac8ded70140b081b094490c57bff",
+        );
+
+        Self {
+            allow_debug: false,
+            trusted_mrenclaves: None,
+            trusted_mrsigner: Some(QE_IDENTITY_MRSIGNER),
+        }
+    }
+
     /// A policy that trusts only the local enclave. Useful in tests.
     pub fn trust_self() -> Self {
         #[cfg(target_env = "sgx")]
