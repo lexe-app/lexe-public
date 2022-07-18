@@ -12,7 +12,7 @@ mod event_handler;
 mod inactivity_timer;
 mod init;
 mod keys_manager;
-mod peer;
+mod peer_manager;
 mod persister;
 mod provision;
 mod repl;

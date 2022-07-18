@@ -10,16 +10,17 @@ mod sgx {
     use lightning::util::events::EventHandler;
 
     use crate::keys_manager::LexeKeysManager;
+    use crate::peer_manager::LexePeerManager;
     use crate::persister::LexePersister;
     use crate::types::{
         ChannelManagerType, InvoicePayerType, Network, NetworkGraphType,
-        PaymentInfoStorageType, PeerManagerType,
+        PaymentInfoStorageType,
     };
 
     #[allow(clippy::too_many_arguments)]
     pub async fn poll_for_user_input<E: EventHandler>(
         _invoice_payer: Arc<InvoicePayerType<E>>,
-        _peer_manager: Arc<PeerManagerType>,
+        _peer_manager: Arc<LexePeerManager>,
         _channel_manager: Arc<ChannelManagerType>,
         _keys_manager: Arc<LexeKeysManager>,
         _network_graph: Arc<NetworkGraphType>,
@@ -55,19 +56,19 @@ mod not_sgx {
     use lightning_invoice::{utils, Currency, Invoice};
 
     use crate::keys_manager::LexeKeysManager;
-    use crate::peer;
+    use crate::peer_manager::{self, LexePeerManager};
     use crate::persister::LexePersister;
     use crate::types::{
         ChannelManagerType, HTLCStatus, InvoicePayerType, MillisatAmount,
         Network, NetworkGraphType, NodeAlias, PaymentInfo,
-        PaymentInfoStorageType, PeerManagerType,
+        PaymentInfoStorageType,
     };
 
     #[allow(clippy::too_many_arguments)]
     #[cfg(not(target_env = "sgx"))]
     pub async fn poll_for_user_input<E: EventHandler>(
         invoice_payer: Arc<InvoicePayerType<E>>,
-        peer_manager: Arc<PeerManagerType>,
+        peer_manager: Arc<LexePeerManager>,
         channel_manager: Arc<ChannelManagerType>,
         keys_manager: Arc<LexeKeysManager>,
         network_graph: Arc<NetworkGraphType>,
@@ -125,7 +126,7 @@ mod not_sgx {
                             continue;
                         }
 
-                        if peer::connect_peer_if_necessary(
+                        if peer_manager::connect_peer_if_necessary(
                             pubkey,
                             peer_addr,
                             peer_manager.clone(),
@@ -279,7 +280,7 @@ mod not_sgx {
                                 continue;
                             }
                         };
-                        if peer::connect_peer_if_necessary(
+                        if peer_manager::connect_peer_if_necessary(
                             pubkey,
                             peer_addr,
                             peer_manager.clone(),
@@ -438,7 +439,7 @@ mod not_sgx {
 
     fn node_info(
         channel_manager: &Arc<ChannelManagerType>,
-        peer_manager: &Arc<PeerManagerType>,
+        peer_manager: &Arc<LexePeerManager>,
     ) {
         println!("\t{{");
         println!("\t\t node_pubkey: {}", channel_manager.get_our_node_id());
@@ -455,7 +456,7 @@ mod not_sgx {
         println!("\t}},");
     }
 
-    fn list_peers(peer_manager: Arc<PeerManagerType>) {
+    fn list_peers(peer_manager: Arc<LexePeerManager>) {
         println!("\t{{");
         for pubkey in peer_manager.get_peer_node_ids() {
             println!("\t\t pubkey: {}", pubkey);
