@@ -48,8 +48,8 @@ use crate::{command, convert, peer, repl};
 
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 
-pub async fn start_ldk(
-    rng: &mut dyn Crng,
+pub async fn start_ldk<R: Crng>(
+    rng: &mut R,
     args: StartCommand,
 ) -> anyhow::Result<()> {
     let network = args.network.into_inner();
@@ -410,8 +410,8 @@ async fn fetch_provisioned_data(
 /// A temporary helper to provision a new node when running the start command.
 /// Once we have end-to-end provisioning with the client, this function should
 /// be removed entirely. TODO: Remove this function
-async fn provision_new_node(
-    rng: &mut dyn Crng,
+async fn provision_new_node<R: Crng>(
+    rng: &mut R,
     api: &ApiClient,
     user_id: UserId,
     measurement: &str,

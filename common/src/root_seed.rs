@@ -36,7 +36,7 @@ impl RootSeed {
 
     pub fn from_rng<R>(rng: &mut R) -> Self
     where
-        R: RngCore + CryptoRng + ?Sized,
+        R: RngCore + CryptoRng,
     {
         let mut seed = [0u8; Self::LENGTH];
         rng.fill_bytes(&mut seed);
