@@ -7,7 +7,6 @@ use std::time::Duration;
 
 use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
-use bitcoin::network::constants::Network;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin_bech32::WitnessProgram;
 use common::hex;
@@ -21,7 +20,7 @@ use tokio::runtime::Handle;
 use crate::bitcoind_client::BitcoindClient;
 use crate::keys_manager::LexeKeysManager;
 use crate::types::{
-    ChannelManagerType, HTLCStatus, MillisatAmount, NetworkGraphType,
+    ChannelManagerType, HTLCStatus, MillisatAmount, Network, NetworkGraphType,
     NodeAlias, PaymentInfo, PaymentInfoStorageType,
 };
 
@@ -99,20 +98,7 @@ pub async fn handle_event(
             // amount of the channel.
             let addr = WitnessProgram::from_scriptpubkey(
                 &output_script[..],
-                match network {
-                    Network::Bitcoin => {
-                        bitcoin_bech32::constants::Network::Bitcoin
-                    }
-                    Network::Testnet => {
-                        bitcoin_bech32::constants::Network::Testnet
-                    }
-                    Network::Regtest => {
-                        bitcoin_bech32::constants::Network::Regtest
-                    }
-                    Network::Signet => {
-                        bitcoin_bech32::constants::Network::Signet
-                    }
-                },
+                bitcoin_bech32::constants::Network::from(network),
             )
             .expect("Lightning funding tx should always be to a SegWit output")
             .to_address();

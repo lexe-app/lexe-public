@@ -19,8 +19,8 @@ use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
 use lightning::routing::gossip::{NetworkGraph, P2PGossipSync};
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning_background_processor::GossipSync;
-use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
+use lightning_invoice::{payment, Currency};
 use lightning_net_tokio::SocketDescriptor;
 use lightning_rapid_gossip_sync::RapidGossipSync;
 use subtle::ConstantTimeEq;
@@ -248,6 +248,15 @@ impl Network {
     pub fn into_inner(self) -> bitcoin::Network {
         self.0
     }
+
+    pub fn to_str(self) -> &'static str {
+        match self.into_inner() {
+            bitcoin::Network::Bitcoin => "main",
+            bitcoin::Network::Testnet => "test",
+            bitcoin::Network::Regtest => "regtest",
+            bitcoin::Network::Signet => "signet",
+        }
+    }
 }
 
 impl Default for Network {
@@ -266,6 +275,36 @@ impl FromStr for Network {
             "Mainnet is disabled for now"
         );
         Ok(Self(network))
+    }
+}
+
+impl From<Network> for bitcoin_bech32::constants::Network {
+    fn from(network: Network) -> Self {
+        match network.into_inner() {
+            bitcoin::Network::Bitcoin => {
+                bitcoin_bech32::constants::Network::Bitcoin
+            }
+            bitcoin::Network::Testnet => {
+                bitcoin_bech32::constants::Network::Testnet
+            }
+            bitcoin::Network::Regtest => {
+                bitcoin_bech32::constants::Network::Regtest
+            }
+            bitcoin::Network::Signet => {
+                bitcoin_bech32::constants::Network::Signet
+            }
+        }
+    }
+}
+
+impl From<Network> for Currency {
+    fn from(network: Network) -> Self {
+        match network.into_inner() {
+            bitcoin::Network::Bitcoin => Currency::Bitcoin,
+            bitcoin::Network::Testnet => Currency::BitcoinTestnet,
+            bitcoin::Network::Regtest => Currency::Regtest,
+            bitcoin::Network::Signet => Currency::Signet,
+        }
     }
 }
 

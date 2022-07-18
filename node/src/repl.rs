@@ -7,13 +7,12 @@ pub use sgx::*;
 mod sgx {
     use std::sync::Arc;
 
-    use bitcoin::network::constants::Network;
     use lightning::util::events::EventHandler;
 
     use crate::keys_manager::LexeKeysManager;
     use crate::persister::LexePersister;
     use crate::types::{
-        ChannelManagerType, InvoicePayerType, NetworkGraphType,
+        ChannelManagerType, InvoicePayerType, Network, NetworkGraphType,
         PaymentInfoStorageType, PeerManagerType,
     };
 
@@ -43,7 +42,6 @@ mod not_sgx {
 
     use bitcoin::hashes::sha256::Hash as Sha256;
     use bitcoin::hashes::Hash;
-    use bitcoin::network::constants::Network;
     use bitcoin::secp256k1::PublicKey;
     use common::hex;
     use lightning::chain::keysinterface::{KeysInterface, Recipient};
@@ -61,8 +59,8 @@ mod not_sgx {
     use crate::persister::LexePersister;
     use crate::types::{
         ChannelManagerType, HTLCStatus, InvoicePayerType, MillisatAmount,
-        NetworkGraphType, NodeAlias, PaymentInfo, PaymentInfoStorageType,
-        PeerManagerType,
+        Network, NetworkGraphType, NodeAlias, PaymentInfo,
+        PaymentInfoStorageType, PeerManagerType,
     };
 
     #[allow(clippy::too_many_arguments)]
@@ -719,12 +717,7 @@ mod not_sgx {
         expiry_secs: u32,
     ) {
         let mut payments = payment_storage.lock().unwrap();
-        let currency = match network {
-            Network::Bitcoin => Currency::Bitcoin,
-            Network::Testnet => Currency::BitcoinTestnet,
-            Network::Regtest => Currency::Regtest,
-            Network::Signet => Currency::Signet,
-        };
+        let currency = Currency::from(network);
         let invoice = match utils::create_invoice_from_channelmanager(
             &channel_manager,
             keys_manager,

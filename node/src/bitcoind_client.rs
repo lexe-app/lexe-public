@@ -94,12 +94,7 @@ impl BitcoindClient {
         // Check that the bitcoind we've connected to is running the network we
         // expect
         let bitcoind_chain = client.get_blockchain_info().await.chain;
-        let chain_str = match network.into_inner() {
-            bitcoin::Network::Bitcoin => "main",
-            bitcoin::Network::Testnet => "test",
-            bitcoin::Network::Regtest => "regtest",
-            bitcoin::Network::Signet => "signet",
-        };
+        let chain_str = network.to_str();
         ensure!(
             bitcoind_chain == chain_str,
             "Chain argument ({}) didn't match bitcoind chain ({})",
