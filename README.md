@@ -42,6 +42,18 @@ $ brew tap MaterializeInc/homebrew-crosstools https://github.com/MaterializeInc/
 $ brew install materializeinc/crosstools/x86_64-unknown-linux-gnu
 ```
 
+Non-x86_64 linux hosts should also add the following to their
+`~/.cargo/config.toml`:
+
+```toml
+[target.x86_64-fortanix-unknown-sgx]
+linker = "x86_64-unknown-linux-gnu-ld"
+
+[env]
+CC_x86_64-fortanix-unknown-sgx = "x86_64-unknown-linux-gnu-gcc"
+AR_x86_64-fortanix-unknown-sgx = "x86_64-unknown-linux-gnu-ar"
+```
+
 Clone the monorepo
 
 ```bash
