@@ -6,20 +6,24 @@ use bitcoin::blockdata::transaction::{Transaction, TxOut};
 use bitcoin::secp256k1::ecdsa::RecoverableSignature;
 use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey, Signing};
 use bitcoin_bech32::u5;
+use common::root_seed::RootSeed;
 use lightning::chain::keysinterface::{
     InMemorySigner, KeyMaterial, KeysInterface, KeysManager, Recipient,
     SpendableOutputDescriptor,
 };
 use lightning::ln::msgs::DecodeError;
 use lightning::ln::script::ShutdownScript;
+use secrecy::{ExposeSecret, Secret};
 
 use crate::api::{Enclave, Node};
 use crate::convert;
-use crate::types::Seed;
 
 /// A thin wrapper around LDK's KeysManager which provides a cleaner init API
 /// and some custom functionalities.
+#[allow(dead_code)]
 pub struct LexeKeysManager {
+    // This field is currently never read, but we may need it later
+    root_seed: RootSeed,
     inner: KeysManager,
 }
 
@@ -37,8 +41,11 @@ impl TryFrom<(Node, Enclave)> for LexeKeysManager {
         let mut seed_buf = [0; 32];
         seed_buf.copy_from_slice(&seed);
 
-        // Build the inner KeysManager from the validated seed
-        let inner = helpers::get_inner_from_seed(&seed_buf);
+        // Build the RootSeed
+        let root_seed = RootSeed::new(Secret::new(seed_buf));
+
+        // Build the inner KeysManager from the RootSeed
+        let inner = helpers::get_inner_from_seed(&root_seed);
 
         // Derive a pubkey from the inner KeysManager
         let derived_pubkey = helpers::get_pubkey_from_inner(&inner);
@@ -61,20 +68,18 @@ impl TryFrom<(Node, Enclave)> for LexeKeysManager {
         );
 
         // Validation complete, return Self
-        Ok(Self { inner })
+        Ok(Self { root_seed, inner })
+    }
+}
+
+impl From<RootSeed> for LexeKeysManager {
+    fn from(root_seed: RootSeed) -> Self {
+        let inner = helpers::get_inner_from_seed(&root_seed);
+        Self { root_seed, inner }
     }
 }
 
 impl LexeKeysManager {
-    // TODO Replace this with a From<RootSeed> impl
-    /// Builds a new LexeKeysManager from a given seed. Since this does not
-    /// validate the seed against data returned from the backend, this function
-    /// should only be called from within the provisioning flow.
-    pub fn from_seed(seed: &Seed) -> Self {
-        let inner = helpers::get_inner_from_seed(seed);
-        Self { inner }
-    }
-
     pub fn derive_pubkey(&self) -> PublicKey {
         helpers::get_pubkey_from_inner(&self.inner)
     }
@@ -102,7 +107,7 @@ impl LexeKeysManager {
 mod helpers {
     use super::*;
 
-    pub(super) fn get_inner_from_seed(seed: &Seed) -> KeysManager {
+    pub(super) fn get_inner_from_seed(root_seed: &RootSeed) -> KeysManager {
         // FIXME(secure randomness): KeysManager::new() MUST be given a unique
         // `starting_time_secs` and `starting_time_nanos` for security. Since
         // secure timekeeping within an enclave is difficult, we should just
@@ -111,7 +116,11 @@ mod helpers {
             .duration_since(SystemTime::UNIX_EPOCH)
             .expect("Time went backwards");
 
-        KeysManager::new(seed, now.as_secs(), now.subsec_nanos())
+        KeysManager::new(
+            root_seed.expose_secret(),
+            now.as_secs(),
+            now.subsec_nanos(),
+        )
     }
 
     pub(super) fn get_pubkey_from_inner(inner: &KeysManager) -> PublicKey {

@@ -9,6 +9,7 @@ use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::network::constants::Network;
 use bitcoin::BlockHash;
 use common::rng::Crng;
+use common::root_seed::RootSeed;
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::chain::transaction::OutPoint;
 use lightning::chain::{self, chainmonitor, BestBlock, Watch};
@@ -23,6 +24,7 @@ use lightning_block_sync::{init as blocksyncinit, SpvClient, UnboundedCache};
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use secrecy::zeroize::Zeroizing;
+use secrecy::ExposeSecret;
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
 
@@ -418,11 +420,12 @@ async fn provision_new_node(
     println!("Generating new seed");
 
     // TODO Get and use the root seed from provisioning step
-    let mut new_seed: [u8; 32] = [0u8; 32];
-    rng.fill_bytes(new_seed.as_mut_slice());
+    // TODO (sgx): Seal seed under this enclave's pubkey
+    let root_seed = RootSeed::from_rng(rng);
+    let sealed_seed = root_seed.expose_secret().to_vec();
 
     // Derive pubkey
-    let keys_manager = LexeKeysManager::from_seed(&new_seed);
+    let keys_manager = LexeKeysManager::from(root_seed);
     let pubkey = keys_manager.derive_pubkey();
     let pubkey_hex = convert::pubkey_to_hex(&pubkey);
 
@@ -441,8 +444,8 @@ async fn provision_new_node(
     let enclave_id = format!("{}_{}", instance_id, "my_cpu_id");
     let enclave = Enclave {
         id: enclave_id,
-        // TODO (sgx): Seal root seed under this enclave's pubkey
-        seed: new_seed.to_vec(),
+        // NOTE: This should be sealed
+        seed: sealed_seed,
         instance_id,
     };
 
