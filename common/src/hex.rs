@@ -17,7 +17,7 @@ pub enum DecodeError {
 }
 
 #[inline]
-fn decode_nibble(x: u8) -> Result<u8, DecodeError> {
+const fn decode_nibble(x: u8) -> Result<u8, DecodeError> {
     match x {
         b'0'..=b'9' => Ok(x - b'0'),
         b'a'..=b'f' => Ok(x - b'a' + 10),
@@ -73,6 +73,33 @@ pub fn decode_to_slice_ct(
     decode_to_slice(hex, out)
 }
 
+const fn unwrap_const(res: Result<u8, DecodeError>) -> u8 {
+    match res {
+        Ok(x) => x,
+        Err(_) => panic!("invalid hex character"),
+    }
+}
+
+/// A `const fn` for decoding a hex string at compile time.
+pub const fn decode_const<const N: usize>(hex: &[u8]) -> [u8; N] {
+    if hex.len() != N * 2 {
+        panic!("hex input is the wrong length");
+    }
+
+    let mut bytes = [0u8; N];
+    let mut idx = 0;
+
+    while idx < N {
+        let hi = unwrap_const(decode_nibble(hex[2 * idx]));
+        let lo = unwrap_const(decode_nibble(hex[(2 * idx) + 1]));
+        let c = (hi << 4) | lo;
+        bytes[idx] = c;
+        idx += 1;
+    }
+
+    bytes
+}
+
 pub fn encode(bytes: &[u8]) -> String {
     let mut res = String::with_capacity(bytes.len() * 2);
     write!(&mut res, "{}", display(bytes)).unwrap();
@@ -123,6 +150,12 @@ mod test {
             "01348900abff",
             encode(&[0x01, 0x34, 0x89, 0x00, 0xab, 0xff])
         );
+    }
+
+    #[test]
+    fn test_decode_const() {
+        const FOO: [u8; 6] = decode_const(b"01348900abff");
+        assert_eq!(&FOO, &[0x01, 0x34, 0x89, 0x00, 0xab, 0xff]);
     }
 
     #[test]
