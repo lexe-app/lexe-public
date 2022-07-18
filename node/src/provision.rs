@@ -174,7 +174,7 @@ pub async fn provision<R: Runner>(
     // self-signed provisioning cert.
     let attest_start = Instant::now();
     let cert_pubkey = ed25519::PublicKey::try_from(&cert_key_pair).unwrap();
-    let attestation = attest::quote_enclave(&cert_pubkey)
+    let attestation = attest::quote_enclave(rng, &cert_pubkey)
         .context("Failed to get node enclave quoted")?;
 
     // Generate a self-signed x509 cert with the remote attestation embedded.
@@ -260,9 +260,11 @@ mod test {
     #[test]
     #[ignore] // << uncomment to dump fresh attestation cert
     fn dump_attest_cert() {
+        let mut rng = SysRng::new();
         let cert_key_pair = ed25519::from_seed(&[0x42; 32]);
         let cert_pubkey = ed25519::PublicKey::try_from(&cert_key_pair).unwrap();
-        let attestation = crate::attest::quote_enclave(&cert_pubkey).unwrap();
+        let attestation =
+            crate::attest::quote_enclave(&mut rng, &cert_pubkey).unwrap();
         let dns_names = vec!["localhost".to_string()];
 
         let attest_cert =
