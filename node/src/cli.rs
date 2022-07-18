@@ -2,9 +2,10 @@ use anyhow::Context;
 use argh::FromArgs;
 use common::rng::SysRng;
 
+use crate::bitcoind_client::BitcoindRpcInfo;
 use crate::init;
 use crate::provision::{provision, LexeRunner};
-use crate::types::{BitcoindRpcInfo, Network, NodeAlias, Port, UserId};
+use crate::types::{Network, NodeAlias, Port, UserId};
 
 pub const DEFAULT_BACKEND_URL: &str = "http://127.0.0.1:3030";
 pub const DEFAULT_RUNNER_URL: &str = "http://127.0.0.1:5050";

@@ -7,7 +7,7 @@ use std::fmt;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
-use anyhow::{ensure, format_err};
+use anyhow::ensure;
 use common::hex;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::channelmonitor::ChannelMonitor;
@@ -135,15 +135,6 @@ impl fmt::Display for MillisatAmount {
     }
 }
 
-/// The information required to connect to a bitcoind instance via RPC
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BitcoindRpcInfo {
-    pub username: String,
-    pub password: String,
-    pub host: String,
-    pub port: Port,
-}
-
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub struct NodeAlias([u8; 32]);
 
@@ -152,48 +143,6 @@ pub struct Network(bitcoin::Network);
 
 #[derive(Clone)]
 pub struct AuthToken([u8; Self::LENGTH]);
-
-// -- impl BitcoindRpcInfo -- //
-
-impl BitcoindRpcInfo {
-    fn parse_str(s: &str) -> Option<Self> {
-        // format: <username>:<password>@<host>:<port>
-
-        let mut parts = s.split(':');
-        let (username, pass_host, port) =
-            match (parts.next(), parts.next(), parts.next(), parts.next()) {
-                (Some(username), Some(pass_host), Some(port), None) => {
-                    (username, pass_host, port)
-                }
-                _ => return None,
-            };
-
-        let mut parts = pass_host.split('@');
-        let (password, host) = match (parts.next(), parts.next(), parts.next())
-        {
-            (Some(password), Some(host), None) => (password, host),
-            _ => return None,
-        };
-
-        let port = Port::from_str(port).ok()?;
-
-        Some(Self {
-            username: username.to_string(),
-            password: password.to_string(),
-            host: host.to_string(),
-            port,
-        })
-    }
-}
-
-impl FromStr for BitcoindRpcInfo {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::parse_str(s)
-            .ok_or_else(|| format_err!("Invalid bitcoind rpc URL"))
-    }
-}
 
 // -- impl NodeAlias -- //
 
@@ -359,6 +308,7 @@ impl fmt::Debug for AuthToken {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::bitcoind_client::BitcoindRpcInfo;
 
     #[test]
     fn test_parse_bitcoind_rpc_info() {

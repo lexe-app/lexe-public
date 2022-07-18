@@ -20,10 +20,11 @@ use lightning_block_sync::{
 };
 use tokio::runtime::Handle;
 
-use crate::convert::{
-    BlockchainInfo, FeeResponse, FundedTx, NewAddress, RawTx, SignedTx,
-};
-use crate::types::{BitcoindRpcInfo, Network};
+use crate::types::Network;
+
+mod types;
+
+pub use types::*;
 
 pub struct BitcoindClient {
     bitcoind_rpc_client: Arc<RpcClient>,
