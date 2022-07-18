@@ -126,8 +126,7 @@ mod sgx {
             .context("AESM or QE returned an invalid Report")?;
 
         // TODO(phlip9): request QE identity from IAC?
-        // Just check QE MRSIGNER for now
-        EnclavePolicy::trust_intel_qe()
+        let qe_reportdata = EnclavePolicy::trust_intel_qe()
             .verify(&qe_report)
             .context("Invalid QE identity")?;
 
@@ -154,11 +153,13 @@ mod sgx {
         expected_reportdata[0..32].copy_from_slice(h_nonce_quote.as_ref());
 
         ensure!(
-            expected_reportdata == qe_report.reportdata,
+            &expected_reportdata == qe_reportdata,
             "QE ReportData doesn't match the expected value: actual: '{}', expected: '{}'",
-            hex::display(qe_report.reportdata.as_slice()),
+            hex::display(qe_reportdata.as_slice()),
             hex::display(expected_reportdata.as_slice()),
         );
+
+        // TODO(phlip9): check that quote actually contains our report?
 
         // 7. Collect the attestation evidence into an x509 cert extension
 

@@ -276,7 +276,7 @@ impl SgxQuoteVerifier {
         // 3. Verify the local Quoting Enclave's Report binds to its attestation
         //    pubkey, which it uses to sign application enclave Reports.
 
-        let expected_report_data = sha256::digest_many(&[
+        let expected_reportdata = sha256::digest_many(&[
             sig.attestation_public_key(),
             sig.authentication_data(),
         ]);
@@ -284,19 +284,21 @@ impl SgxQuoteVerifier {
         let qe3_report = report_try_from_truncated(qe3_report_bytes)
             .context("Invalid QE Report")?;
 
-        ensure!(
-            &qe3_report.reportdata[..32] == expected_report_data.as_ref(),
-            "Quoting Enclave's Report data doesn't match the Quote attestation pubkey",
-        );
-        ensure!(
-            qe3_report.reportdata[32..] == [0u8; 32],
-            "Quoting Enclave's Report contains unrecognized data",
-        );
+        // TODO(phlip9): request QE identity from IAC?
+        let qe3_reportdata = EnclavePolicy::trust_intel_qe()
+            .verify(&qe3_report)
+            .context("Invalid QE identity")?;
 
-        // TODO(phlip9): verify QE identity
+        ensure!(
+            &qe3_reportdata[..32] == expected_reportdata.as_ref(),
+            "Quoting Enclave's Report data doesn't match the Quote attestation pubkey: \
+             actual: '{}', expected: '{}'",
+            hex::display(&qe3_reportdata[..32]),
+            hex::display(expected_reportdata.as_ref()),
+        );
 
         // 4. Verify the attestation key endorses the Quote Header and our
-        //    application enclave Rport
+        //    application enclave Report
 
         let attestation_public_key =
             read_attestation_pubkey(sig.attestation_public_key())?;
