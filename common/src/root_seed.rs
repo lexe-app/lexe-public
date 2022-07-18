@@ -36,7 +36,7 @@ impl RootSeed {
 
     pub fn from_rng<R>(rng: &mut R) -> Self
     where
-        R: RngCore + CryptoRng,
+        R: RngCore + CryptoRng + ?Sized,
     {
         let mut seed = [0u8; Self::LENGTH];
         rng.fill_bytes(&mut seed);
@@ -97,6 +97,12 @@ impl RootSeed {
     #[cfg(test)]
     fn as_bytes(&self) -> &[u8] {
         self.0.expose_secret().as_slice()
+    }
+}
+
+impl ExposeSecret<[u8; Self::LENGTH]> for RootSeed {
+    fn expose_secret(&self) -> &[u8; Self::LENGTH] {
+        self.0.expose_secret()
     }
 }
 

@@ -33,7 +33,6 @@ use crate::persister::LexePersister;
 pub type UserId = i64;
 pub type Port = u16;
 pub type InstanceId = String;
-pub type Seed = [u8; 32];
 
 pub type PaymentInfoStorageType = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
 
