@@ -1,4 +1,4 @@
-use std::convert::TryInto;
+use std::convert::TryFrom;
 use std::str::FromStr;
 
 use anyhow::anyhow;
@@ -61,22 +61,24 @@ pub struct FundedTx {
     pub hex: String,
 }
 
-impl TryInto<FundedTx> for JsonResponse {
+// TODO Use serde::Deserialize
+impl TryFrom<JsonResponse> for FundedTx {
     type Error = std::io::Error;
-    fn try_into(self) -> std::io::Result<FundedTx> {
+    fn try_from(resp: JsonResponse) -> std::io::Result<FundedTx> {
         Ok(FundedTx {
-            changepos: self.0["changepos"].as_i64().unwrap(),
-            hex: self.0["hex"].as_str().unwrap().to_string(),
+            changepos: resp.0["changepos"].as_i64().unwrap(),
+            hex: resp.0["hex"].as_str().unwrap().to_string(),
         })
     }
 }
 
 pub struct RawTx(pub String);
 
-impl TryInto<RawTx> for JsonResponse {
+// TODO Use serde::Deserialize
+impl TryFrom<JsonResponse> for RawTx {
     type Error = std::io::Error;
-    fn try_into(self) -> std::io::Result<RawTx> {
-        Ok(RawTx(self.0.as_str().unwrap().to_string()))
+    fn try_from(resp: JsonResponse) -> std::io::Result<RawTx> {
+        Ok(RawTx(resp.0.as_str().unwrap().to_string()))
     }
 }
 
@@ -85,21 +87,24 @@ pub struct SignedTx {
     pub hex: String,
 }
 
-impl TryInto<SignedTx> for JsonResponse {
+// TODO Use serde::Deserialize
+impl TryFrom<JsonResponse> for SignedTx {
     type Error = std::io::Error;
-    fn try_into(self) -> std::io::Result<SignedTx> {
+    fn try_from(resp: JsonResponse) -> std::io::Result<SignedTx> {
         Ok(SignedTx {
-            hex: self.0["hex"].as_str().unwrap().to_string(),
-            complete: self.0["complete"].as_bool().unwrap(),
+            hex: resp.0["hex"].as_str().unwrap().to_string(),
+            complete: resp.0["complete"].as_bool().unwrap(),
         })
     }
 }
 
 pub struct NewAddress(pub String);
-impl TryInto<NewAddress> for JsonResponse {
+
+// TODO Use serde::Deserialize
+impl TryFrom<JsonResponse> for NewAddress {
     type Error = std::io::Error;
-    fn try_into(self) -> std::io::Result<NewAddress> {
-        Ok(NewAddress(self.0.as_str().unwrap().to_string()))
+    fn try_from(resp: JsonResponse) -> std::io::Result<NewAddress> {
+        Ok(NewAddress(resp.0.as_str().unwrap().to_string()))
     }
 }
 
@@ -108,17 +113,18 @@ pub struct FeeResponse {
     pub errored: bool,
 }
 
-impl TryInto<FeeResponse> for JsonResponse {
+// TODO Use serde::Deserialize
+impl TryFrom<JsonResponse> for FeeResponse {
     type Error = std::io::Error;
-    fn try_into(self) -> std::io::Result<FeeResponse> {
-        let errored = !self.0["errors"].is_null();
+    fn try_from(resp: JsonResponse) -> std::io::Result<FeeResponse> {
+        let errored = !resp.0["errors"].is_null();
         Ok(FeeResponse {
             errored,
             // Bitcoin Core gives us a feerate in BTC/KvB, which we need to
             // convert to satoshis/KW. Thus, we first multiply by 10^8 to get
             // satoshis, then divide by 4 to convert virtual-bytes into weight
             // units.
-            feerate_sat_per_kw: self.0["feerate"].as_f64().map(
+            feerate_sat_per_kw: resp.0["feerate"].as_f64().map(
                 |feerate_btc_per_kvbyte| {
                     (feerate_btc_per_kvbyte * 100_000_000.0 / 4.0).round()
                         as u32
@@ -134,16 +140,17 @@ pub struct BlockchainInfo {
     pub chain: String,
 }
 
-impl TryInto<BlockchainInfo> for JsonResponse {
+// TODO Use serde::Deserialize
+impl TryFrom<JsonResponse> for BlockchainInfo {
     type Error = std::io::Error;
-    fn try_into(self) -> std::io::Result<BlockchainInfo> {
+    fn try_from(resp: JsonResponse) -> std::io::Result<BlockchainInfo> {
         Ok(BlockchainInfo {
-            latest_height: self.0["blocks"].as_u64().unwrap() as usize,
+            latest_height: resp.0["blocks"].as_u64().unwrap() as usize,
             latest_blockhash: BlockHash::from_hex(
-                self.0["bestblockhash"].as_str().unwrap(),
+                resp.0["bestblockhash"].as_str().unwrap(),
             )
             .unwrap(),
-            chain: self.0["chain"].as_str().unwrap().to_string(),
+            chain: resp.0["chain"].as_str().unwrap().to_string(),
         })
     }
 }
