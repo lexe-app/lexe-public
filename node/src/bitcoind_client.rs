@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::{ensure, Context};
 use bitcoin::blockdata::block::Block;
 use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
@@ -22,6 +23,7 @@ use tokio::runtime::Handle;
 use crate::convert::{
     BlockchainInfo, FeeResponse, FundedTx, NewAddress, RawTx, SignedTx,
 };
+use crate::types::{BitcoindRpcInfo, Network};
 
 pub struct BitcoindClient {
     bitcoind_rpc_client: Arc<RpcClient>,
@@ -73,9 +75,45 @@ impl BlockSource for &BitcoindClient {
 const MIN_FEERATE: u32 = 253;
 
 impl BitcoindClient {
+    pub async fn init(
+        bitcoind_rpc: BitcoindRpcInfo,
+        network: Network,
+    ) -> anyhow::Result<Arc<Self>> {
+        println!("Initializing bitcoind client");
+        let client = BitcoindClient::new(
+            bitcoind_rpc.host,
+            bitcoind_rpc.port,
+            bitcoind_rpc.username,
+            bitcoind_rpc.password,
+            Handle::current(),
+        )
+        .await
+        .context("Failed to connect to bitcoind client")?;
+        let client = Arc::new(client);
+
+        // Check that the bitcoind we've connected to is running the network we
+        // expect
+        let bitcoind_chain = client.get_blockchain_info().await.chain;
+        let chain_str = match network.into_inner() {
+            bitcoin::Network::Bitcoin => "main",
+            bitcoin::Network::Testnet => "test",
+            bitcoin::Network::Regtest => "regtest",
+            bitcoin::Network::Signet => "signet",
+        };
+        ensure!(
+            bitcoind_chain == chain_str,
+            "Chain argument ({}) didn't match bitcoind chain ({})",
+            chain_str,
+            bitcoind_chain,
+        );
+
+        println!("    bitcoind client done.");
+        Ok(client)
+    }
+
     // A runtime handle has to be passed in explicitly, otherwise these fns may
     // panic when called from the (non-Tokio) background processor thread
-    pub async fn new(
+    async fn new(
         host: String,
         port: u16,
         rpc_user: String,

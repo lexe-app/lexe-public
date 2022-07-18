@@ -56,10 +56,10 @@ impl OwnerTestHarness {
         // are all inaccessible to the node. External API calls need to be
         // mocked so that node functions can be tested in isolation.
         //
-        // - Specify `RUNNER_URL` and `BACKEND_URL` using args so that they can
-        //   be set here during tests
-        // - Implement KV persistence so that one can more easily create a mock
-        //   node backend
+        // - DONE Specify `RUNNER_URL` and `BACKEND_URL` using args so that they
+        //   can be set here during tests
+        // - DONE: Implement KV persistence so that one can more easily create a
+        //   mock node backend
         // - Implement MockRunner
         // - Implement MockNodeBackend
 
