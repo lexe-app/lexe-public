@@ -73,7 +73,7 @@ pub async fn start_ldk<R: Crng>(
     // Build LexeKeysManager from node init data
     let keys_manager = match provisioned_data {
         (Some(node), Some(_i), Some(enclave)) => {
-            LexeKeysManager::try_from((node, enclave))
+            LexeKeysManager::init(rng, node.public_key, enclave.seed)
                 .context("Could not construct keys manager")?
         }
         (None, None, None) => {
@@ -85,7 +85,7 @@ pub async fn start_ldk<R: Crng>(
         _ => panic!("Node init data should have been persisted atomically"),
     };
     let keys_manager = Arc::new(keys_manager);
-    let pubkey = keys_manager.derive_pubkey();
+    let pubkey = keys_manager.derive_pubkey(rng);
     let instance_id = convert::get_instance_id(&pubkey, &measurement);
 
     // BitcoindClient implements FeeEstimator and BroadcasterInterface and thus
@@ -382,8 +382,8 @@ async fn provision_new_node<R: Crng>(
     let sealed_seed = root_seed.expose_secret().to_vec();
 
     // Derive pubkey
-    let keys_manager = LexeKeysManager::from(root_seed);
-    let pubkey = keys_manager.derive_pubkey();
+    let keys_manager = LexeKeysManager::unchecked_init(rng, root_seed);
+    let pubkey = keys_manager.derive_pubkey(rng);
     let pubkey_hex = convert::pubkey_to_hex(&pubkey);
 
     // Build structs for persisting the new node + instance + enclave
