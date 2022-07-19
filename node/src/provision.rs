@@ -37,7 +37,7 @@ use warp::hyper::Body;
 use warp::reject::Reject;
 use warp::{Filter, Rejection, Reply};
 
-use crate::api::{self, LexeApiClient, UserPort};
+use crate::api::{self, ApiClient, LexeApiClient, UserPort};
 use crate::attest;
 use crate::cli::ProvisionCommand;
 use crate::types::{Port, UserId};
