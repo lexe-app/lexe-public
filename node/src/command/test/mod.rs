@@ -10,11 +10,11 @@ use crate::init;
 use crate::types::{Network, NodeAlias};
 
 #[allow(dead_code)] // TODO remove after bitcoind field is read
-struct OwnerTestHarness {
+struct CommandTestHarness {
     bitcoind: BitcoinD,
 }
 
-impl OwnerTestHarness {
+impl CommandTestHarness {
     async fn init() -> Self {
         // Construct bitcoin.conf
         let mut conf = Conf::default();
@@ -64,5 +64,5 @@ impl OwnerTestHarness {
 // Multi-threaded runtime required due to the background processor
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn init() {
-    OwnerTestHarness::init().await;
+    CommandTestHarness::init().await;
 }

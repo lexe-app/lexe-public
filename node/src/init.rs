@@ -341,8 +341,8 @@ pub async fn start_ldk<R: Crng>(
     Ok(())
 }
 
-/// Constructs a Arc<dyn ApiClient> based on whether we are running in SGX, and
-/// on whether `args.mock` is set to true
+/// Constructs a Arc<dyn ApiClient> based on whether we are running in SGX,
+/// and whether `args.mock` is set to true
 fn init_api(args: &StartCommand) -> ApiClientType {
     // Production can only use the real api client
     #[cfg(all(target_env = "sgx", not(test)))]
@@ -702,13 +702,11 @@ fn spawn_spv_client(
     chain_monitor: Arc<ChainMonitorType>,
     bitcoind_block_source: Arc<BitcoindClient>,
 ) {
-    let channel_manager_clone = channel_manager.clone(); // TODO remove
-    let chain_monitor_listener = chain_monitor.clone(); // TODO remove
     tokio::spawn(async move {
         let mut derefed = bitcoind_block_source.deref();
         let chain_poller =
             poll::ChainPoller::new(&mut derefed, network.into_inner());
-        let chain_listener = (chain_monitor_listener, channel_manager_clone);
+        let chain_listener = (chain_monitor, channel_manager);
         let mut spv_client = SpvClient::new(
             chain_tip,
             chain_poller,

@@ -20,7 +20,7 @@ use tokio::sync::{broadcast, mpsc};
 use warp::hyper::Body;
 use warp::{reply, Filter, Rejection, Reply};
 
-use crate::command::{lexe, owner};
+use crate::command::{host, owner};
 use crate::peer_manager::LexePeerManager;
 use crate::types::ChannelManagerType;
 
@@ -60,10 +60,10 @@ pub fn routes(
     let root = warp::path::end().map(|| "This is a Lexe user node.");
 
     let owner = owner(channel_manager, peer_manager, activity_tx);
-    let lexe = lexe(shutdown_tx);
+    let host = host(shutdown_tx);
 
     // TODO return a 404 not found if no routes were hit
-    root.or(lexe).or(owner)
+    root.or(host).or(owner)
 }
 
 /// Endpoints that can only be called by the node owner.
@@ -91,18 +91,18 @@ fn owner(
     owner.and(node_info)
 }
 
-/// Endpoints that can only be called by Lexe.
-fn lexe(
+/// Endpoints that can only be called by the host (Lexe).
+fn host(
     shutdown_tx: broadcast::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    // TODO Add Lexe authentication to this base path
-    let lexe = warp::path("lexe");
+    // TODO Add host authentication to this base path
+    let host = warp::path("host");
 
-    let status = warp::path("status").and(warp::get()).then(lexe::status);
+    let status = warp::path("status").and(warp::get()).then(host::status);
     let shutdown = warp::path("shutdown")
         .and(warp::get())
         .and(inject::shutdown_tx(shutdown_tx))
-        .then(lexe::shutdown);
+        .then(host::shutdown);
 
-    lexe.and(status.or(shutdown))
+    host.and(status.or(shutdown))
 }
