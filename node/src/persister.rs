@@ -24,7 +24,7 @@ use lightning::util::ser::{ReadableArgs, Writeable};
 use once_cell::sync::{Lazy, OnceCell};
 use tokio::runtime::{Builder, Handle, Runtime};
 
-use crate::api::{LexeApiClient, DirectoryId, File, FileId};
+use crate::api::{ApiClient, DirectoryId, File, FileId, LexeApiClient};
 use crate::bitcoind_client::BitcoindClient;
 use crate::convert;
 use crate::keys_manager::LexeKeysManager;

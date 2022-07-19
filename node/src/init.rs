@@ -27,7 +27,8 @@ use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
 
 use crate::api::{
-    LexeApiClient, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
+    ApiClient, Enclave, Instance, LexeApiClient, Node, NodeInstanceEnclave,
+    UserPort,
 };
 use crate::bitcoind_client::BitcoindClient;
 use crate::cli::StartCommand;
@@ -58,7 +59,8 @@ pub async fn start_ldk<R: Crng>(
     let user_id = args.user_id;
     // TODO(sgx) Insert this enclave's measurement
     let measurement = String::from("default");
-    let api = LexeApiClient::new(args.backend_url.clone(), args.runner_url.clone());
+    let api =
+        LexeApiClient::new(args.backend_url.clone(), args.runner_url.clone());
 
     // Initialize BitcoindClient, fetch provisioned data
     let (bitcoind_client_res, provisioned_data_res) = tokio::join!(
