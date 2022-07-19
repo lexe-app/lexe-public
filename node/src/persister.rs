@@ -24,7 +24,7 @@ use lightning::util::ser::{ReadableArgs, Writeable};
 use once_cell::sync::{Lazy, OnceCell};
 use tokio::runtime::{Builder, Handle, Runtime};
 
-use crate::api::{ApiClient, DirectoryId, File, FileId};
+use crate::api::{LexeApiClient, DirectoryId, File, FileId};
 use crate::bitcoind_client::BitcoindClient;
 use crate::convert;
 use crate::keys_manager::LexeKeysManager;
@@ -46,12 +46,12 @@ pub const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 
 #[derive(Clone)]
 pub struct LexePersister {
-    api: ApiClient,
+    api: LexeApiClient,
     instance_id: InstanceId,
 }
 
 impl LexePersister {
-    pub fn new(api: ApiClient, instance_id: InstanceId) -> Self {
+    pub fn new(api: LexeApiClient, instance_id: InstanceId) -> Self {
         Self { api, instance_id }
     }
 

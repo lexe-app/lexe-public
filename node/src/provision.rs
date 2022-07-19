@@ -37,7 +37,7 @@ use warp::hyper::Body;
 use warp::reject::Reject;
 use warp::{Filter, Rejection, Reply};
 
-use crate::api::{self, ApiClient, UserPort};
+use crate::api::{self, LexeApiClient, UserPort};
 use crate::attest;
 use crate::cli::ProvisionCommand;
 use crate::types::{Port, UserId};
@@ -121,12 +121,12 @@ pub trait Runner {
 
 #[derive(Clone)]
 pub struct LexeRunner {
-    api: ApiClient,
+    api: LexeApiClient,
 }
 
 impl LexeRunner {
     pub fn new(backend_url: String, runner_url: String) -> Self {
-        let api = ApiClient::new(backend_url, runner_url);
+        let api = LexeApiClient::new(backend_url, runner_url);
         Self { api }
     }
 }

@@ -27,7 +27,7 @@ use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
 
 use crate::api::{
-    ApiClient, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
+    LexeApiClient, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
 };
 use crate::bitcoind_client::BitcoindClient;
 use crate::cli::StartCommand;
@@ -58,7 +58,7 @@ pub async fn start_ldk<R: Crng>(
     let user_id = args.user_id;
     // TODO(sgx) Insert this enclave's measurement
     let measurement = String::from("default");
-    let api = ApiClient::new(args.backend_url.clone(), args.runner_url.clone());
+    let api = LexeApiClient::new(args.backend_url.clone(), args.runner_url.clone());
 
     // Initialize BitcoindClient, fetch provisioned data
     let (bitcoind_client_res, provisioned_data_res) = tokio::join!(
@@ -348,7 +348,7 @@ pub async fn start_ldk<R: Crng>(
 /// Fetches previously provisioned data from the API.
 #[cfg(not(test))]
 async fn fetch_provisioned_data(
-    api: &ApiClient,
+    api: &LexeApiClient,
     user_id: UserId,
     measurement: &str,
 ) -> anyhow::Result<(Option<Node>, Option<Instance>, Option<Enclave>)> {
@@ -368,7 +368,7 @@ async fn fetch_provisioned_data(
 /// Returns dummy provisioned data for use in tests.
 #[cfg(test)]
 async fn fetch_provisioned_data(
-    _api: &ApiClient,
+    _api: &LexeApiClient,
     _user_id: UserId,
     _measurement: &str,
 ) -> anyhow::Result<(Option<Node>, Option<Instance>, Option<Enclave>)> {
@@ -403,7 +403,7 @@ async fn fetch_provisioned_data(
 /// be removed entirely. TODO: Remove this function
 async fn provision_new_node<R: Crng>(
     rng: &mut R,
-    api: &ApiClient,
+    api: &LexeApiClient,
     user_id: UserId,
     measurement: &str,
 ) -> anyhow::Result<LexeKeysManager> {
