@@ -1,4 +1,4 @@
-#![allow(dead_code)]
+#![allow(dead_code)] // TODO remove
 
 use std::str::FromStr;
 
@@ -6,9 +6,11 @@ use bitcoind::{self, BitcoinD, Conf};
 use common::rng::SysRng;
 
 use crate::bitcoind_client::BitcoindRpcInfo;
-use crate::cli::{StartCommand, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
+use crate::cli::{StartCommand, DEFAULT_BACKEND_URL};
 use crate::init;
 use crate::types::{Network, NodeAlias};
+
+mod mock_runner;
 
 const DEFAULT_TEST_USER_ID: i64 = 1;
 
@@ -31,6 +33,16 @@ impl OwnerTestHarness {
         let host = bitcoind.params.rpc_socket.ip().to_string();
         let port = bitcoind.params.rpc_socket.port();
 
+        // Start mock runner service
+        let (runner_addr, runner_fut) = warp::serve(mock_runner::routes())
+            // Let the OS assign a port for us
+            .bind_ephemeral(([127, 0, 0, 1], 0));
+        tokio::spawn(async move {
+            runner_fut.await;
+        });
+        let runner_port = runner_addr.port();
+        let runner_url = format!("http://127.0.0.1:{}", runner_port);
+
         // Construct args to be used in tests
         let rpc_info = BitcoindRpcInfo {
             username: String::from("kek"),
@@ -49,7 +61,7 @@ impl OwnerTestHarness {
             inactivity_timer_sec: 3600,
             repl: false,
             backend_url: DEFAULT_BACKEND_URL.into(),
-            runner_url: DEFAULT_RUNNER_URL.into(),
+            runner_url,
         };
 
         // NOTE: Several refactors needed before this works. The main issue is
@@ -61,7 +73,7 @@ impl OwnerTestHarness {
         //   can be set here during tests
         // - DONE: Implement KV persistence so that one can more easily create a
         //   mock node backend
-        // - Implement MockRunner
+        // - DONE: Implement MockRunner
         // - Implement MockNodeBackend
 
         // Init node
