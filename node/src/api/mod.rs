@@ -50,13 +50,13 @@ pub enum ApiError {
 }
 
 #[derive(Clone)]
-pub struct ApiClient {
+pub struct LexeApiClient {
     client: Client,
     backend_url: String,
     runner_url: String,
 }
 
-impl ApiClient {
+impl LexeApiClient {
     pub fn new(backend_url: String, runner_url: String) -> Self {
         let client = reqwest::Client::builder()
             .timeout(API_REQUEST_TIMEOUT)
