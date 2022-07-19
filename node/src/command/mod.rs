@@ -1,7 +1,6 @@
 pub mod server;
+#[cfg(all(test, not(target_env = "sgx")))]
+pub mod test;
 
 mod lexe;
 mod owner;
-
-#[cfg(all(test, not(target_env = "sgx")))]
-mod test;

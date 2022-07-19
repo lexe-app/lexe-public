@@ -6,6 +6,8 @@ use bitcoin::hash_types::Txid;
 use bitcoin::hashes::hex::{FromHex, ToHex};
 use bitcoin::secp256k1::PublicKey;
 
+use crate::types::{EnclaveId, InstanceId};
+
 /// Converts a secp PublicKey into a lower hex-encoded String.
 ///
 /// NOTE: Use this function instead of the equivalent in hex.rs
@@ -22,7 +24,7 @@ pub fn pubkey_from_hex(pubkey: &str) -> anyhow::Result<PublicKey> {
 }
 
 /// Derives the instance id from the node public key and enclave measurement.
-pub fn get_instance_id(pubkey: &PublicKey, measurement: &str) -> String {
+pub fn get_instance_id(pubkey: &PublicKey, measurement: &str) -> InstanceId {
     let pubkey_hex = pubkey_to_hex(pubkey);
 
     // TODO(crypto) id derivation scheme;
@@ -31,7 +33,7 @@ pub fn get_instance_id(pubkey: &PublicKey, measurement: &str) -> String {
 }
 
 /// Constructs an enclave id given the instance id and CPU id.
-pub fn get_enclave_id(instance_id: &str, cpu_id: &str) -> String {
+pub fn get_enclave_id(instance_id: &str, cpu_id: &str) -> EnclaveId {
     format!("{}_{}", instance_id, cpu_id)
 }
 

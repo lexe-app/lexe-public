@@ -35,14 +35,14 @@ use crate::types::{
 };
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
-const SINGLETON_DIRECTORY: &str = ".";
+pub const SINGLETON_DIRECTORY: &str = ".";
 const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 const NETWORK_GRAPH_FILENAME: &str = "network_graph";
 const SCORER_FILENAME: &str = "scorer";
 
 // Non-singleton objects use a fixed directory with dynamic filenames
-const CHANNEL_PEERS_DIRECTORY: &str = "channel_peers";
-const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
+pub const CHANNEL_PEERS_DIRECTORY: &str = "channel_peers";
+pub const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 
 #[derive(Clone)]
 pub struct LexePersister {
