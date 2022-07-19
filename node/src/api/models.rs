@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::types::{InstanceId, Port, UserId};
+use crate::types::{EnclaveId, InstanceId, Port, UserId};
 
 /// Query parameter struct for fetching with no data attached
 ///
@@ -27,21 +27,6 @@ pub struct GetByInstanceId {
     pub instance_id: InstanceId,
 }
 
-/// Uniquely identifies a file in the node's virtual file system.
-#[derive(Serialize)]
-pub struct FileId {
-    pub instance_id: InstanceId,
-    pub directory: String,
-    pub name: String,
-}
-
-/// Uniquely identifies a directory in the node's virtual file system.
-#[derive(Serialize)]
-pub struct DirectoryId {
-    pub instance_id: InstanceId,
-    pub directory: String,
-}
-
 #[derive(Serialize, Deserialize)]
 pub struct Node {
     pub public_key: String,
@@ -50,14 +35,14 @@ pub struct Node {
 
 #[derive(Serialize, Deserialize)]
 pub struct Instance {
-    pub id: String,
+    pub id: InstanceId,
     pub measurement: String,
     pub node_public_key: String,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Enclave {
-    pub id: String,
+    pub id: EnclaveId,
     pub seed: Vec<u8>,
     pub instance_id: InstanceId,
 }
@@ -69,7 +54,22 @@ pub struct NodeInstanceEnclave {
     pub enclave: Enclave,
 }
 
-#[derive(Serialize, Deserialize)]
+/// Uniquely identifies a file in the node's virtual file system.
+#[derive(Clone, Deserialize, Serialize)]
+pub struct FileId {
+    pub instance_id: InstanceId,
+    pub directory: String,
+    pub name: String,
+}
+
+/// Uniquely identifies a directory in the node's virtual file system.
+#[derive(Hash, Eq, PartialEq, Deserialize, Serialize)]
+pub struct DirectoryId {
+    pub instance_id: InstanceId,
+    pub directory: String,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
 pub struct File {
     pub instance_id: InstanceId,
     pub directory: String,
