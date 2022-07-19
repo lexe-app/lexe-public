@@ -27,8 +27,7 @@ use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
 
 use crate::api::{
-    ApiClient, Enclave, Instance, LexeApiClient, Node, NodeInstanceEnclave,
-    UserPort,
+    ApiClient, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
 };
 use crate::bitcoind_client::BitcoindClient;
 use crate::cli::StartCommand;
@@ -39,7 +38,7 @@ use crate::logger::LdkTracingLogger;
 use crate::peer_manager::{self, LexePeerManager};
 use crate::persister::LexePersister;
 use crate::types::{
-    BroadcasterType, ChainMonitorType, ChannelManagerType,
+    ApiClientType, BroadcasterType, ChainMonitorType, ChannelManagerType,
     ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType,
     GossipSyncType, InvoicePayerType, Network, NetworkGraphType,
     P2PGossipSyncType, PaymentInfoStorageType, Port, UserId,
@@ -60,12 +59,13 @@ pub async fn start_ldk<R: Crng>(
     // TODO(sgx) Insert this enclave's measurement
     let measurement = String::from("default");
     let api =
-        LexeApiClient::new(args.backend_url.clone(), args.runner_url.clone());
+        ApiClientType::new(args.backend_url.clone(), args.runner_url.clone());
+    let api = Arc::new(api);
 
     // Initialize BitcoindClient, fetch provisioned data
     let (bitcoind_client_res, provisioned_data_res) = tokio::join!(
         BitcoindClient::init(args.bitcoind_rpc.clone(), args.network),
-        fetch_provisioned_data(&api, user_id, &measurement),
+        fetch_provisioned_data(api.as_ref(), user_id, &measurement),
     );
     let bitcoind_client =
         bitcoind_client_res.context("Failed to init bitcoind client")?;
@@ -80,7 +80,7 @@ pub async fn start_ldk<R: Crng>(
         }
         (None, None, None) => {
             // TODO remove this path once provisioning command works
-            provision_new_node(rng, &api, user_id, &measurement)
+            provision_new_node(rng, api.as_ref(), user_id, &measurement)
                 .await
                 .context("Failed to provision new node")?
         }
@@ -348,9 +348,8 @@ pub async fn start_ldk<R: Crng>(
 // the provisioned components (Node, Instance, Enclave) were not persisted
 // atomically.
 /// Fetches previously provisioned data from the API.
-#[cfg(not(test))]
 async fn fetch_provisioned_data(
-    api: &LexeApiClient,
+    api: &ApiClientType,
     user_id: UserId,
     measurement: &str,
 ) -> anyhow::Result<(Option<Node>, Option<Instance>, Option<Enclave>)> {
@@ -367,45 +366,12 @@ async fn fetch_provisioned_data(
     Ok((node_opt, instance_opt, enclave_opt))
 }
 
-/// Returns dummy provisioned data for use in tests.
-#[cfg(test)]
-async fn fetch_provisioned_data(
-    _api: &LexeApiClient,
-    _user_id: UserId,
-    _measurement: &str,
-) -> anyhow::Result<(Option<Node>, Option<Instance>, Option<Enclave>)> {
-    use crate::command::test;
-
-    let node = Node {
-        public_key: test::PUBKEY.into(),
-        user_id: test::USER_ID.into(),
-    };
-
-    let instance = Instance {
-        id: test::instance_id(),
-        measurement: test::MEASUREMENT.into(),
-        node_public_key: test::PUBKEY.into(),
-    };
-
-    let enclave = Enclave {
-        id: test::enclave_id(),
-        seed: test::seed(),
-        instance_id: test::instance_id(),
-    };
-
-    let node_opt = Some(node);
-    let instance_opt = Some(instance);
-    let enclave_opt = Some(enclave);
-
-    Ok((node_opt, instance_opt, enclave_opt))
-}
-
 /// A temporary helper to provision a new node when running the start command.
 /// Once we have end-to-end provisioning with the client, this function should
 /// be removed entirely. TODO: Remove this function
 async fn provision_new_node<R: Crng>(
     rng: &mut R,
-    api: &LexeApiClient,
+    api: &ApiClientType,
     user_id: UserId,
     measurement: &str,
 ) -> anyhow::Result<LexeKeysManager> {

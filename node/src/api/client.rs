@@ -25,8 +25,8 @@ enum ApiVersion {
     V1,
 }
 
-use BaseUrl::*;
 use ApiVersion::*;
+use BaseUrl::*;
 
 impl Display for ApiVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -36,15 +36,15 @@ impl Display for ApiVersion {
     }
 }
 
-#[derive(Clone)]
 pub struct LexeApiClient {
     client: Client,
     backend_url: String,
     runner_url: String,
 }
 
-impl LexeApiClient {
-    pub fn new(backend_url: String, runner_url: String) -> Self {
+#[async_trait]
+impl ApiClient for LexeApiClient {
+    fn new(backend_url: String, runner_url: String) -> Self {
         let client = reqwest::Client::builder()
             .timeout(API_REQUEST_TIMEOUT)
             .build()
@@ -56,63 +56,6 @@ impl LexeApiClient {
         }
     }
 
-    /// Builds and executes the API request
-    async fn request<D: Serialize, T: DeserializeOwned>(
-        &self,
-        method: Method,
-        base_url: BaseUrl,
-        api_version: ApiVersion,
-        endpoint: &str,
-        data: D,
-    ) -> Result<T, ApiError> {
-        // Node backend api is versioned but runner api is not
-        let (base, version) = match base_url {
-            Backend => (&self.backend_url, api_version.to_string()),
-            Runner => (&self.runner_url, String::new()),
-        };
-        let mut url = format!("{}{}{}", base, version, endpoint);
-
-        // If GET, serialize the data in a query string
-        let query_str = match method {
-            Method::GET => Some(serde_qs::to_string(&data)?),
-            _ => None,
-        };
-        // Append directly to url since RequestBuilder.param() API is unwieldy
-        if let Some(query_str) = query_str {
-            if !query_str.is_empty() {
-                url.push('?');
-                url.push_str(&query_str);
-            }
-        }
-        debug!(%method, %url, "sending request");
-
-        // If PUT or POST, serialize the data in the request body
-        let body = match method {
-            Method::PUT | Method::POST => serde_json::to_string(&data)?,
-            _ => String::new(),
-        };
-        // println!("    Body: {}", body);
-
-        let response =
-            self.client.request(method, url).body(body).send().await?;
-
-        if response.status().is_success() {
-            // Uncomment for debugging
-            // let text = response.text().await?;
-            // println!("Response: {}", text);
-            // serde_json::from_str(&text).map_err(|e| e.into())
-
-            // Deserialize into JSON, return Ok(json)
-            response.json().await.map_err(|e| e.into())
-        } else {
-            // Deserialize into String, return Err(ApiError::Server(string))
-            Err(ApiError::Server(response.text().await?))
-        }
-    }
-}
-
-#[async_trait]
-impl ApiClient for LexeApiClient {
     async fn get_node(
         &self,
         user_id: UserId,
@@ -189,5 +132,61 @@ impl ApiClient for LexeApiClient {
 
     async fn notify_runner(&self, req: UserPort) -> Result<UserPort, ApiError> {
         self.request(Method::POST, Runner, V1, "/ready", req).await
+    }
+}
+
+impl LexeApiClient {
+    /// Builds and executes the API request
+    async fn request<D: Serialize, T: DeserializeOwned>(
+        &self,
+        method: Method,
+        base_url: BaseUrl,
+        api_version: ApiVersion,
+        endpoint: &str,
+        data: D,
+    ) -> Result<T, ApiError> {
+        // Node backend api is versioned but runner api is not
+        let (base, version) = match base_url {
+            Backend => (&self.backend_url, api_version.to_string()),
+            Runner => (&self.runner_url, String::new()),
+        };
+        let mut url = format!("{}{}{}", base, version, endpoint);
+
+        // If GET, serialize the data in a query string
+        let query_str = match method {
+            Method::GET => Some(serde_qs::to_string(&data)?),
+            _ => None,
+        };
+        // Append directly to url since RequestBuilder.param() API is unwieldy
+        if let Some(query_str) = query_str {
+            if !query_str.is_empty() {
+                url.push('?');
+                url.push_str(&query_str);
+            }
+        }
+        debug!(%method, %url, "sending request");
+
+        // If PUT or POST, serialize the data in the request body
+        let body = match method {
+            Method::PUT | Method::POST => serde_json::to_string(&data)?,
+            _ => String::new(),
+        };
+        // println!("    Body: {}", body);
+
+        let response =
+            self.client.request(method, url).body(body).send().await?;
+
+        if response.status().is_success() {
+            // Uncomment for debugging
+            // let text = response.text().await?;
+            // println!("Response: {}", text);
+            // serde_json::from_str(&text).map_err(|e| e.into())
+
+            // Deserialize into JSON, return Ok(json)
+            response.json().await.map_err(|e| e.into())
+        } else {
+            // Deserialize into String, return Err(ApiError::Server(string))
+            Err(ApiError::Server(response.text().await?))
+        }
     }
 }
