@@ -68,6 +68,7 @@ impl ApiClient {
         }
     }
 
+    #[cfg(not(test))]
     pub async fn get_node(
         &self,
         user_id: UserId,
@@ -76,6 +77,7 @@ impl ApiClient {
         self.request(Method::GET, Backend, V1, "/node", req).await
     }
 
+    #[cfg(not(test))]
     pub async fn get_instance(
         &self,
         user_id: UserId,
@@ -89,6 +91,7 @@ impl ApiClient {
             .await
     }
 
+    #[cfg(not(test))]
     pub async fn get_enclave(
         &self,
         user_id: UserId,

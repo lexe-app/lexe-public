@@ -346,6 +346,7 @@ pub async fn start_ldk<R: Crng>(
 // the provisioned components (Node, Instance, Enclave) were not persisted
 // atomically.
 /// Fetches previously provisioned data from the API.
+#[cfg(not(test))]
 async fn fetch_provisioned_data(
     api: &ApiClient,
     user_id: UserId,
@@ -360,6 +361,49 @@ async fn fetch_provisioned_data(
     let node_opt = node_res.context("Error while fetching node")?;
     let instance_opt = instance_res.context("Error while fetching instance")?;
     let enclave_opt = enclave_res.context("Error while fetching enclave")?;
+
+    Ok((node_opt, instance_opt, enclave_opt))
+}
+
+/// Returns dummy provisioned data for use in tests.
+#[cfg(test)]
+async fn fetch_provisioned_data(
+    _api: &ApiClient,
+    _user_id: UserId,
+    _measurement: &str,
+) -> anyhow::Result<(Option<Node>, Option<Instance>, Option<Enclave>)> {
+    use common::hex;
+
+    const TEST_PUBKEY: &str =
+        "02692f6894d5cb51bb785cc3c54f457889faf674fedea54a906f7ec99e88832d18";
+    const TEST_MEASUREMENT: &str = "default";
+    const TEST_HEX_SEED: &str =
+        "39ee00e3e23a9cd7e6509f56ff66daaf021cb5502e4ab3c6c393b522a6782d03";
+    const TEST_CPU_ID: &str = "my_cpu_id";
+
+    let node = Node {
+        public_key: String::from(TEST_PUBKEY),
+        user_id: 1,
+    };
+
+    let instance_id = format!("{}_{}", TEST_PUBKEY, TEST_MEASUREMENT);
+    let instance = Instance {
+        id: instance_id.clone(),
+        measurement: String::from(TEST_MEASUREMENT),
+        node_public_key: String::from(TEST_PUBKEY),
+    };
+
+    let seed = hex::decode(TEST_HEX_SEED).unwrap();
+    let enclave_id = convert::get_enclave_id(instance_id.as_str(), TEST_CPU_ID);
+    let enclave = Enclave {
+        id: enclave_id,
+        seed,
+        instance_id,
+    };
+
+    let node_opt = Some(node);
+    let instance_opt = Some(instance);
+    let enclave_opt = Some(enclave);
 
     Ok((node_opt, instance_opt, enclave_opt))
 }
@@ -397,8 +441,9 @@ async fn provision_new_node<R: Crng>(
         measurement: measurement.to_owned(),
         node_public_key: pubkey_hex,
     };
-    // TODO Derive from a subset of KEYREQUEST
-    let enclave_id = format!("{}_{}", instance_id, "my_cpu_id");
+    // TODO Actually get the CPU id from within SGX
+    let cpu_id = "my_cpu_id";
+    let enclave_id = convert::get_enclave_id(instance_id.as_str(), cpu_id);
     let enclave = Enclave {
         id: enclave_id,
         // NOTE: This should be sealed

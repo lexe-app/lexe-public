@@ -30,6 +30,11 @@ pub fn get_instance_id(pubkey: &PublicKey, measurement: &str) -> String {
     format!("{}_{}", pubkey_hex, measurement)
 }
 
+/// Constructs an enclave id given the instance id and CPU id.
+pub fn get_enclave_id(instance_id: &str, cpu_id: &str) -> String {
+    format!("{}_{}", instance_id, cpu_id)
+}
+
 /// Serializes a txid and index into a String of the form <txid>_<index>.
 pub fn txid_and_index_to_string(txid: Txid, index: u16) -> String {
     let txid = txid.to_hex();
