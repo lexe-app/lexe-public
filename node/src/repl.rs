@@ -9,9 +9,9 @@ mod sgx {
 
     use lightning::util::events::EventHandler;
 
-    use crate::keys_manager::LexeKeysManager;
-    use crate::peer_manager::LexePeerManager;
-    use crate::persister::LexePersister;
+    use crate::lexe::keys_manager::LexeKeysManager;
+    use crate::lexe::peer_manager::LexePeerManager;
+    use crate::lexe::persister::LexePersister;
     use crate::types::{
         ChannelManagerType, InvoicePayerType, Network, NetworkGraphType,
         PaymentInfoStorageType,
@@ -55,9 +55,9 @@ mod not_sgx {
     use lightning_invoice::payment::PaymentError;
     use lightning_invoice::{utils, Currency, Invoice};
 
-    use crate::keys_manager::LexeKeysManager;
-    use crate::peer_manager::{self, LexePeerManager};
-    use crate::persister::LexePersister;
+    use crate::lexe::keys_manager::LexeKeysManager;
+    use crate::lexe::peer_manager::{self, LexePeerManager};
+    use crate::lexe::persister::LexePersister;
     use crate::types::{
         ChannelManagerType, HTLCStatus, InvoicePayerType, MillisatAmount,
         Network, NetworkGraphType, NodeAlias, PaymentInfo,

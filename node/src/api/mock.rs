@@ -8,8 +8,9 @@ use crate::api::{
     ApiClient, ApiError, DirectoryId, Enclave, File, FileId, Instance, Node,
     NodeInstanceEnclave, UserPort,
 };
+use crate::convert;
+use crate::lexe::persister;
 use crate::types::{EnclaveId, InstanceId, UserId};
-use crate::{convert, persister};
 
 type FileName = String;
 type Data = Vec<u8>;

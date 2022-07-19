@@ -21,7 +21,7 @@ use warp::hyper::Body;
 use warp::{reply, Filter, Rejection, Reply};
 
 use crate::command::{host, owner};
-use crate::peer_manager::LexePeerManager;
+use crate::lexe::peer_manager::LexePeerManager;
 use crate::types::ChannelManagerType;
 
 mod inject;

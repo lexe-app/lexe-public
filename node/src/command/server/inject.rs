@@ -7,7 +7,7 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use warp::Filter;
 
-use crate::peer_manager::LexePeerManager;
+use crate::lexe::peer_manager::LexePeerManager;
 use crate::types::ChannelManagerType;
 
 /// Injects a shutdown_tx.

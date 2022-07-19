@@ -33,10 +33,10 @@ use crate::bitcoind_client::BitcoindClient;
 use crate::cli::StartCommand;
 use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
-use crate::keys_manager::LexeKeysManager;
+use crate::lexe::keys_manager::LexeKeysManager;
+use crate::lexe::peer_manager::{self, LexePeerManager};
+use crate::lexe::persister::LexePersister;
 use crate::logger::LdkTracingLogger;
-use crate::peer_manager::{self, LexePeerManager};
-use crate::persister::LexePersister;
 use crate::types::{
     ApiClientType, BroadcasterType, ChainMonitorType, ChannelManagerType,
     ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType,

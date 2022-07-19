@@ -27,7 +27,7 @@ use tokio::runtime::{Builder, Handle, Runtime};
 use crate::api::{DirectoryId, File, FileId};
 use crate::bitcoind_client::BitcoindClient;
 use crate::convert;
-use crate::keys_manager::LexeKeysManager;
+use crate::lexe::keys_manager::LexeKeysManager;
 use crate::logger::LdkTracingLogger;
 use crate::types::{
     ApiClientType, BroadcasterType, ChainMonitorType, ChannelManagerType,

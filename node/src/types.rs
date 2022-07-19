@@ -27,9 +27,9 @@ use subtle::ConstantTimeEq;
 
 use crate::api::ApiClient;
 use crate::bitcoind_client::BitcoindClient;
-use crate::keys_manager::LexeKeysManager;
+use crate::lexe::keys_manager::LexeKeysManager;
+use crate::lexe::persister::LexePersister;
 use crate::logger::LdkTracingLogger;
-use crate::persister::LexePersister;
 
 pub type UserId = i64;
 pub type Port = u16;

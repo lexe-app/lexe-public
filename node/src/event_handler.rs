@@ -18,7 +18,7 @@ use lightning::util::events::{Event, EventHandler, PaymentPurpose};
 use tokio::runtime::Handle;
 
 use crate::bitcoind_client::BitcoindClient;
-use crate::keys_manager::LexeKeysManager;
+use crate::lexe::keys_manager::LexeKeysManager;
 use crate::types::{
     ChannelManagerType, HTLCStatus, MillisatAmount, Network, NetworkGraphType,
     NodeAlias, PaymentInfo, PaymentInfoStorageType,

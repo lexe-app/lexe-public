@@ -4,7 +4,7 @@ use serde::Serialize;
 
 use crate::command::server::ApiError;
 use crate::convert;
-use crate::peer_manager::LexePeerManager;
+use crate::lexe::peer_manager::LexePeerManager;
 use crate::types::ChannelManagerType;
 
 #[derive(Serialize)]

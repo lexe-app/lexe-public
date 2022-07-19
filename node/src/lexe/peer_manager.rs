@@ -9,7 +9,7 @@ use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
 use secrecy::zeroize::Zeroizing;
 
-use crate::keys_manager::LexeKeysManager;
+use crate::lexe::keys_manager::LexeKeysManager;
 use crate::logger::LdkTracingLogger;
 use crate::types::{ChannelManagerType, P2PGossipSyncType, PeerManagerType};
 
