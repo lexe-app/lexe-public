@@ -18,13 +18,17 @@ pub struct MockApiClient {
     vfs: Mutex<VirtualFileSystem>,
 }
 
-#[async_trait]
-impl ApiClient for MockApiClient {
-    fn new(_backend_url: String, _runner_url: String) -> Self {
+impl MockApiClient {
+    // We add these unnecessary parameters so that the API exactly matches that
+    // of LexeApiClient::new().
+    pub fn new() -> Self {
         let vfs = Mutex::new(VirtualFileSystem::new());
         Self { vfs }
     }
+}
 
+#[async_trait]
+impl ApiClient for MockApiClient {
     /// Always return the dummy version
     async fn get_node(
         &self,

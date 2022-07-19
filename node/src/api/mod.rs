@@ -23,10 +23,6 @@ pub enum ApiError {
 
 #[async_trait]
 pub trait ApiClient {
-    // Having the constructor in the trait allows using `ApiClientType::new()`
-    // without having to add cfg flags for the different new() APIs
-    fn new(backend_url: String, runner_url: String) -> Self;
-
     async fn get_node(&self, user_id: UserId)
         -> Result<Option<Node>, ApiError>;
     async fn get_instance(

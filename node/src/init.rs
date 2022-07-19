@@ -50,6 +50,7 @@ pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 pub async fn start_ldk<R: Crng>(
     rng: &mut R,
     args: StartCommand,
+    api: ApiClientType,
 ) -> anyhow::Result<()> {
     // Initialize the Logger
     let logger = Arc::new(LdkTracingLogger {});
@@ -58,9 +59,6 @@ pub async fn start_ldk<R: Crng>(
     let user_id = args.user_id;
     // TODO(sgx) Insert this enclave's measurement
     let measurement = String::from("default");
-    let api =
-        ApiClientType::new(args.backend_url.clone(), args.runner_url.clone());
-    let api = Arc::new(api);
 
     // Initialize BitcoindClient, fetch provisioned data
     let (bitcoind_client_res, provisioned_data_res) = tokio::join!(
@@ -349,7 +347,7 @@ pub async fn start_ldk<R: Crng>(
 // atomically.
 /// Fetches previously provisioned data from the API.
 async fn fetch_provisioned_data(
-    api: &ApiClientType,
+    api: &dyn ApiClient,
     user_id: UserId,
     measurement: &str,
 ) -> anyhow::Result<(Option<Node>, Option<Instance>, Option<Enclave>)> {
@@ -371,7 +369,7 @@ async fn fetch_provisioned_data(
 /// be removed entirely. TODO: Remove this function
 async fn provision_new_node<R: Crng>(
     rng: &mut R,
-    api: &ApiClientType,
+    api: &dyn ApiClient,
     user_id: UserId,
     measurement: &str,
 ) -> anyhow::Result<LexeKeysManager> {

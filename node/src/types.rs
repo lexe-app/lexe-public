@@ -25,6 +25,7 @@ use lightning_net_tokio::SocketDescriptor;
 use lightning_rapid_gossip_sync::RapidGossipSync;
 use subtle::ConstantTimeEq;
 
+use crate::api::ApiClient;
 use crate::bitcoind_client::BitcoindClient;
 use crate::keys_manager::LexeKeysManager;
 use crate::logger::LdkTracingLogger;
@@ -37,12 +38,7 @@ pub type EnclaveId = String;
 
 pub type PaymentInfoStorageType = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
 
-// Use the MockApiClient for non-SGX tests, regular client otherwise.
-// Specifying these types avoids the need to add <A: ApiClient> everywhere
-#[cfg(all(test, not(target_env = "sgx")))]
-pub type ApiClientType = crate::command::test::mock_api::MockApiClient;
-#[cfg(not(all(test, not(target_env = "sgx"))))]
-pub type ApiClientType = crate::api::LexeApiClient;
+pub type ApiClientType = Arc<dyn ApiClient + Send + Sync>;
 
 pub type ChainMonitorType = ChainMonitor<
     InMemorySigner,
