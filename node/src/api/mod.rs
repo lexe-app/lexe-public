@@ -10,6 +10,7 @@ use tracing::debug;
 use ApiVersion::*;
 use BaseUrl::*;
 
+#[cfg(not(test))]
 use crate::types::UserId;
 
 mod models;
