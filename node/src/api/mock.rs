@@ -1,26 +1,45 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use common::hex;
 use tokio::sync::Mutex;
 
 use crate::api::{
     ApiClient, ApiError, DirectoryId, Enclave, File, FileId, Instance, Node,
     NodeInstanceEnclave, UserPort,
 };
-use crate::command::test;
-use crate::persister;
-use crate::types::UserId;
+use crate::types::{EnclaveId, InstanceId, UserId};
+use crate::{convert, persister};
 
 type FileName = String;
 type Data = Vec<u8>;
+
+// --- Consts used in the MockApiClient ---
+
+pub const USER_ID: i64 = 1;
+pub const PUBKEY: &str =
+    "02692f6894d5cb51bb785cc3c54f457889faf674fedea54a906f7ec99e88832d18";
+pub const MEASUREMENT: &str = "default";
+pub const HEX_SEED: &str =
+    "39ee00e3e23a9cd7e6509f56ff66daaf021cb5502e4ab3c6c393b522a6782d03";
+pub const CPU_ID: &str = "my_cpu_id";
+pub fn instance_id() -> InstanceId {
+    format!("{}_{}", PUBKEY, MEASUREMENT)
+}
+pub fn seed() -> Vec<u8> {
+    hex::decode(HEX_SEED).unwrap()
+}
+pub fn enclave_id() -> EnclaveId {
+    convert::get_enclave_id(instance_id().as_str(), CPU_ID)
+}
+
+// --- The MockApiClient ---
 
 pub struct MockApiClient {
     vfs: Mutex<VirtualFileSystem>,
 }
 
 impl MockApiClient {
-    // We add these unnecessary parameters so that the API exactly matches that
-    // of LexeApiClient::new().
     pub fn new() -> Self {
         let vfs = Mutex::new(VirtualFileSystem::new());
         Self { vfs }
@@ -35,8 +54,8 @@ impl ApiClient for MockApiClient {
         _user_id: UserId,
     ) -> Result<Option<Node>, ApiError> {
         let node = Node {
-            public_key: test::PUBKEY.into(),
-            user_id: test::USER_ID.into(),
+            public_key: PUBKEY.into(),
+            user_id: USER_ID,
         };
         Ok(Some(node))
     }
@@ -48,9 +67,9 @@ impl ApiClient for MockApiClient {
         _measurement: String,
     ) -> Result<Option<Instance>, ApiError> {
         let instance = Instance {
-            id: test::instance_id(),
-            measurement: test::MEASUREMENT.into(),
-            node_public_key: test::PUBKEY.into(),
+            id: instance_id(),
+            measurement: MEASUREMENT.into(),
+            node_public_key: PUBKEY.into(),
         };
         Ok(Some(instance))
     }
@@ -62,9 +81,9 @@ impl ApiClient for MockApiClient {
         _measurement: String,
     ) -> Result<Option<Enclave>, ApiError> {
         let enclave = Enclave {
-            id: test::enclave_id(),
-            seed: test::seed(),
-            instance_id: test::instance_id(),
+            id: enclave_id(),
+            seed: seed(),
+            instance_id: instance_id(),
         };
         Ok(Some(enclave))
     }
@@ -128,15 +147,15 @@ impl VirtualFileSystem {
 
         // Insert all directories used by the persister
         let singleton_dir = DirectoryId {
-            instance_id: test::instance_id(),
+            instance_id: instance_id(),
             directory: persister::SINGLETON_DIRECTORY.into(),
         };
         let channel_peers_dir = DirectoryId {
-            instance_id: test::instance_id(),
+            instance_id: instance_id(),
             directory: persister::CHANNEL_PEERS_DIRECTORY.into(),
         };
         let channel_monitors_dir = DirectoryId {
-            instance_id: test::instance_id(),
+            instance_id: instance_id(),
             directory: persister::CHANNEL_MONITORS_DIRECTORY.into(),
         };
         inner.insert(singleton_dir, HashMap::new());

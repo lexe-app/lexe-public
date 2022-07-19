@@ -43,14 +43,13 @@ use crate::types::{
     GossipSyncType, InvoicePayerType, Network, NetworkGraphType,
     P2PGossipSyncType, PaymentInfoStorageType, Port, UserId,
 };
-use crate::{command, convert, repl};
+use crate::{api, command, convert, repl};
 
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 
 pub async fn start_ldk<R: Crng>(
     rng: &mut R,
     args: StartCommand,
-    api: ApiClientType,
 ) -> anyhow::Result<()> {
     // Initialize the Logger
     let logger = Arc::new(LdkTracingLogger {});
@@ -59,6 +58,7 @@ pub async fn start_ldk<R: Crng>(
     let user_id = args.user_id;
     // TODO(sgx) Insert this enclave's measurement
     let measurement = String::from("default");
+    let api = init_api(&args);
 
     // Initialize BitcoindClient, fetch provisioned data
     let (bitcoind_client_res, provisioned_data_res) = tokio::join!(
@@ -339,6 +339,31 @@ pub async fn start_ldk<R: Crng>(
     background_processor.stop().unwrap();
 
     Ok(())
+}
+
+/// Constructs a Arc<dyn ApiClient> based on whether we are running in SGX, and
+/// on whether `args.mock` is set to true
+fn init_api(args: &StartCommand) -> ApiClientType {
+    // Production can only use the real api client
+    #[cfg(all(target_env = "sgx", not(test)))]
+    {
+        Arc::new(api::LexeApiClient::new(
+            args.backend_url.clone(),
+            args.runner_url.clone(),
+        ))
+    }
+    // Development can use the real OR the mock client, depending on args.mock
+    #[cfg(not(all(target_env = "sgx", not(test))))]
+    {
+        if args.mock {
+            Arc::new(api::mock::MockApiClient::new())
+        } else {
+            Arc::new(api::LexeApiClient::new(
+                args.backend_url.clone(),
+                args.runner_url.clone(),
+            ))
+        }
+    }
 }
 
 // TODO: After the provision flow has been implemented, this function should be

@@ -3,6 +3,10 @@ use thiserror::Error;
 
 use crate::types::UserId;
 
+// The mock client is only available during tests or when running outside of SGX
+#[cfg(any(test, not(target_env = "sgx")))]
+pub mod mock;
+
 mod client;
 mod models;
 
