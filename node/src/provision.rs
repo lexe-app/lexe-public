@@ -87,7 +87,6 @@ async fn provision_request(
 
     // 3. read root secret
     // 4. seal root secret w/ platform key
-    // 5. derive node cert? node sends CSR to client?
     // 6. push sealed root secret and extras to persistent storage
     // 7. return success & exit node
 
