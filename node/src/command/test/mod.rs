@@ -1,5 +1,3 @@
-#![allow(dead_code)] // TODO remove
-
 use std::str::FromStr;
 
 use bitcoind::{self, BitcoinD, Conf};
@@ -7,12 +5,11 @@ use common::hex;
 use common::rng::SysRng;
 
 use crate::bitcoind_client::BitcoindRpcInfo;
-use crate::cli::StartCommand;
+use crate::cli::{StartCommand, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
 use crate::types::{EnclaveId, InstanceId, Network, NodeAlias};
 use crate::{convert, init};
 
-mod mock_backend;
-mod mock_runner;
+pub mod mock_api;
 
 // --- Consts used in tests ---
 
@@ -33,6 +30,9 @@ pub fn enclave_id() -> EnclaveId {
     convert::get_enclave_id(instance_id().as_str(), CPU_ID)
 }
 
+// --- Test harness ---
+
+#[allow(dead_code)] // TODO remove after bitcoind field is read
 struct OwnerTestHarness {
     bitcoind: BitcoinD,
 }
@@ -52,26 +52,6 @@ impl OwnerTestHarness {
         let host = bitcoind.params.rpc_socket.ip().to_string();
         let port = bitcoind.params.rpc_socket.port();
 
-        // Start mock runner service
-        let (runner_addr, runner_fut) = warp::serve(mock_runner::routes())
-            // Let the OS assign a port for us
-            .bind_ephemeral(([127, 0, 0, 1], 0));
-        tokio::spawn(async move {
-            runner_fut.await;
-        });
-        let runner_port = runner_addr.port();
-        let runner_url = format!("http://127.0.0.1:{}", runner_port);
-
-        // Start mock backend service
-        let (backend_addr, backend_fut) = warp::serve(mock_backend::routes())
-            // Let the OS assign a port for us
-            .bind_ephemeral(([127, 0, 0, 1], 0));
-        tokio::spawn(async move {
-            backend_fut.await;
-        });
-        let backend_port = backend_addr.port();
-        let backend_url = format!("http://127.0.0.1:{}", backend_port);
-
         // Construct args to be used in tests
         let rpc_info = BitcoindRpcInfo {
             username: String::from("kek"),
@@ -89,8 +69,8 @@ impl OwnerTestHarness {
             shutdown_after_sync_if_no_activity: true, // TODO change to false
             inactivity_timer_sec: 3600,
             repl: false,
-            backend_url,
-            runner_url,
+            backend_url: DEFAULT_BACKEND_URL.into(),
+            runner_url: DEFAULT_RUNNER_URL.into(),
         };
 
         // Init node

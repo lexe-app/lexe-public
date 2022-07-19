@@ -24,14 +24,15 @@ use lightning::util::ser::{ReadableArgs, Writeable};
 use once_cell::sync::{Lazy, OnceCell};
 use tokio::runtime::{Builder, Handle, Runtime};
 
-use crate::api::{ApiClient, DirectoryId, File, FileId, LexeApiClient};
+use crate::api::{ApiClient, DirectoryId, File, FileId};
 use crate::bitcoind_client::BitcoindClient;
 use crate::convert;
 use crate::keys_manager::LexeKeysManager;
 use crate::logger::LdkTracingLogger;
 use crate::types::{
-    BroadcasterType, ChainMonitorType, ChannelManagerType, FeeEstimatorType,
-    InstanceId, LoggerType, NetworkGraphType, ProbabilisticScorerType,
+    ApiClientType, BroadcasterType, ChainMonitorType, ChannelManagerType,
+    FeeEstimatorType, InstanceId, LoggerType, NetworkGraphType,
+    ProbabilisticScorerType,
 };
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
@@ -46,12 +47,12 @@ pub const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 
 #[derive(Clone)]
 pub struct LexePersister {
-    api: LexeApiClient,
+    api: Arc<ApiClientType>,
     instance_id: InstanceId,
 }
 
 impl LexePersister {
-    pub fn new(api: LexeApiClient, instance_id: InstanceId) -> Self {
+    pub fn new(api: Arc<ApiClientType>, instance_id: InstanceId) -> Self {
         Self { api, instance_id }
     }
 

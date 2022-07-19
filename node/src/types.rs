@@ -37,6 +37,13 @@ pub type EnclaveId = String;
 
 pub type PaymentInfoStorageType = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
 
+// Use the MockApiClient for non-SGX tests, regular client otherwise.
+// Specifying these types avoids the need to add <A: ApiClient> everywhere
+#[cfg(all(test, not(target_env = "sgx")))]
+pub type ApiClientType = crate::command::test::mock_api::MockApiClient;
+#[cfg(not(all(test, not(target_env = "sgx"))))]
+pub type ApiClientType = crate::api::LexeApiClient;
+
 pub type ChainMonitorType = ChainMonitor<
     InMemorySigner,
     Arc<dyn Filter + Send + Sync>,

@@ -23,6 +23,10 @@ pub enum ApiError {
 
 #[async_trait]
 pub trait ApiClient {
+    // Having the constructor in the trait allows using `ApiClientType::new()`
+    // without having to add cfg flags for the different new() APIs
+    fn new(backend_url: String, runner_url: String) -> Self;
+
     async fn get_node(&self, user_id: UserId)
         -> Result<Option<Node>, ApiError>;
     async fn get_instance(
@@ -45,9 +49,9 @@ pub trait ApiClient {
     async fn get_file(&self, file_id: FileId)
         -> Result<Option<File>, ApiError>;
 
-    async fn create_file(&self, file_id: File) -> Result<File, ApiError>;
+    async fn create_file(&self, file: File) -> Result<File, ApiError>;
 
-    async fn upsert_file(&self, file_id: File) -> Result<File, ApiError>;
+    async fn upsert_file(&self, file: File) -> Result<File, ApiError>;
 
     // TODO We want to delete channel peers / monitors when channels close
     /// Returns "OK" if exactly one row was deleted.
@@ -55,11 +59,11 @@ pub trait ApiClient {
 
     async fn get_directory(
         &self,
-        file_id: DirectoryId,
+        dir_id: DirectoryId,
     ) -> Result<Vec<File>, ApiError>;
 
     async fn notify_runner(
         &self,
-        file_id: UserPort,
+        user_port: UserPort,
     ) -> Result<UserPort, ApiError>;
 }

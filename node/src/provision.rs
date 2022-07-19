@@ -37,10 +37,10 @@ use warp::hyper::Body;
 use warp::reject::Reject;
 use warp::{Filter, Rejection, Reply};
 
-use crate::api::{self, ApiClient, LexeApiClient, UserPort};
+use crate::api::{self, ApiClient, UserPort};
 use crate::attest;
 use crate::cli::ProvisionCommand;
-use crate::types::{Port, UserId};
+use crate::types::{ApiClientType, Port, UserId};
 
 const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -119,14 +119,13 @@ pub trait Runner {
     ) -> Result<(), api::ApiError>;
 }
 
-#[derive(Clone)]
 pub struct LexeRunner {
-    api: LexeApiClient,
+    api: ApiClientType,
 }
 
 impl LexeRunner {
     pub fn new(backend_url: String, runner_url: String) -> Self {
-        let api = LexeApiClient::new(backend_url, runner_url);
+        let api = ApiClientType::new(backend_url, runner_url);
         Self { api }
     }
 }
