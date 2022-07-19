@@ -1,7 +1,10 @@
+use std::sync::Arc;
+
 use anyhow::Context;
 use argh::FromArgs;
 use common::rng::SysRng;
 
+use crate::api::LexeApiClient;
 use crate::bitcoind_client::BitcoindRpcInfo;
 use crate::init;
 use crate::provision::{provision, LexeRunner};
@@ -122,7 +125,11 @@ impl Args {
                     .build()
                     .expect("Failed to build tokio runtime");
                 let mut rng = SysRng::new();
-                rt.block_on(init::start_ldk(&mut rng, args))
+                let api = Arc::new(LexeApiClient::new(
+                    args.backend_url.clone(),
+                    args.runner_url.clone(),
+                ));
+                rt.block_on(init::start_ldk(&mut rng, args, api))
                     .context("Error running node")
             }
             Command::Provision(args) => {

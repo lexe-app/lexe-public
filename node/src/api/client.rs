@@ -42,9 +42,8 @@ pub struct LexeApiClient {
     runner_url: String,
 }
 
-#[async_trait]
-impl ApiClient for LexeApiClient {
-    fn new(backend_url: String, runner_url: String) -> Self {
+impl LexeApiClient {
+    pub fn new(backend_url: String, runner_url: String) -> Self {
         let client = reqwest::Client::builder()
             .timeout(API_REQUEST_TIMEOUT)
             .build()
@@ -55,7 +54,10 @@ impl ApiClient for LexeApiClient {
             runner_url,
         }
     }
+}
 
+#[async_trait]
+impl ApiClient for LexeApiClient {
     async fn get_node(
         &self,
         user_id: UserId,

@@ -19,6 +19,7 @@
 
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
@@ -37,7 +38,7 @@ use warp::hyper::Body;
 use warp::reject::Reject;
 use warp::{Filter, Rejection, Reply};
 
-use crate::api::{self, ApiClient, UserPort};
+use crate::api::{self, LexeApiClient, UserPort};
 use crate::attest;
 use crate::cli::ProvisionCommand;
 use crate::types::{ApiClientType, Port, UserId};
@@ -125,7 +126,7 @@ pub struct LexeRunner {
 
 impl LexeRunner {
     pub fn new(backend_url: String, runner_url: String) -> Self {
-        let api = ApiClientType::new(backend_url, runner_url);
+        let api = Arc::new(LexeApiClient::new(backend_url, runner_url));
         Self { api }
     }
 }

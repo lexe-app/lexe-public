@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::sync::Arc;
 
 use bitcoind::{self, BitcoinD, Conf};
 use common::hex;
@@ -6,6 +7,7 @@ use common::rng::SysRng;
 
 use crate::bitcoind_client::BitcoindRpcInfo;
 use crate::cli::{StartCommand, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
+use crate::command::test::mock_api::MockApiClient;
 use crate::types::{EnclaveId, InstanceId, Network, NodeAlias};
 use crate::{convert, init};
 
@@ -75,7 +77,8 @@ impl OwnerTestHarness {
 
         // Init node
         let mut rng = SysRng::new();
-        init::start_ldk(&mut rng, args)
+        let api = Arc::new(MockApiClient::new());
+        init::start_ldk(&mut rng, args, api)
             .await
             .expect("Error starting ldk");
 
