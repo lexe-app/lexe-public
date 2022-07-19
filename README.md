@@ -84,9 +84,10 @@ Run the node (add `--target=x86_64-fortanix-unknown-sgx` if running in SGX)
 ```bash
 cargo run --bin node -- start user:pass@<bitcoindrpchost>:<bitcoindrpcport> \
     --user-id <user-id> \
-    [--warp-port <warp-port>]
+    [--warp-port <warp-port>] \
     [--peer-port <peer-port>] \
     [--network mainnet|testnet|regtest|signet] \
+    [--mock]
 ```
 - If running in SGX, make sure that you are running on real Intel hardware with
   SGX enabled.

@@ -1,38 +1,13 @@
 use std::str::FromStr;
-use std::sync::Arc;
 
 use bitcoind::{self, BitcoinD, Conf};
-use common::hex;
 use common::rng::SysRng;
 
+use crate::api::mock;
 use crate::bitcoind_client::BitcoindRpcInfo;
 use crate::cli::{StartCommand, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
-use crate::command::test::mock_api::MockApiClient;
-use crate::types::{EnclaveId, InstanceId, Network, NodeAlias};
-use crate::{convert, init};
-
-pub mod mock_api;
-
-// --- Consts used in tests ---
-
-pub const USER_ID: i64 = 1;
-pub const PUBKEY: &str =
-    "02692f6894d5cb51bb785cc3c54f457889faf674fedea54a906f7ec99e88832d18";
-pub const MEASUREMENT: &str = "default";
-pub const HEX_SEED: &str =
-    "39ee00e3e23a9cd7e6509f56ff66daaf021cb5502e4ab3c6c393b522a6782d03";
-pub const CPU_ID: &str = "my_cpu_id";
-pub fn instance_id() -> InstanceId {
-    format!("{}_{}", PUBKEY, MEASUREMENT)
-}
-pub fn seed() -> Vec<u8> {
-    hex::decode(HEX_SEED).unwrap()
-}
-pub fn enclave_id() -> EnclaveId {
-    convert::get_enclave_id(instance_id().as_str(), CPU_ID)
-}
-
-// --- Test harness ---
+use crate::init;
+use crate::types::{Network, NodeAlias};
 
 #[allow(dead_code)] // TODO remove after bitcoind field is read
 struct OwnerTestHarness {
@@ -63,7 +38,7 @@ impl OwnerTestHarness {
         };
         let args = StartCommand {
             bitcoind_rpc: rpc_info,
-            user_id: USER_ID,
+            user_id: mock::USER_ID,
             peer_port: None,
             announced_node_name: NodeAlias::default(),
             network: Network::from_str("regtest").unwrap(),
@@ -73,12 +48,12 @@ impl OwnerTestHarness {
             repl: false,
             backend_url: DEFAULT_BACKEND_URL.into(),
             runner_url: DEFAULT_RUNNER_URL.into(),
+            mock: true,
         };
 
         // Init node
         let mut rng = SysRng::new();
-        let api = Arc::new(MockApiClient::new());
-        init::start_ldk(&mut rng, args, api)
+        init::start_ldk(&mut rng, args)
             .await
             .expect("Error starting ldk");
 
