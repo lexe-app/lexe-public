@@ -167,7 +167,7 @@ impl NonceSequence for OnlyOnce {
 pub fn seal(
     rng: &mut dyn Crng,
     label: &[u8],
-    data: &[u8],
+    data: Cow<'_, [u8]>,
 ) -> Result<Sealed<'static>, Error> {
     // TODO(phlip9): put a more reasonable max length
     if data.len() > decrypted_len(usize::MAX) {
@@ -178,16 +178,10 @@ pub fn seal(
     let keyrequest = KeyRequest::gen_sealing_request(rng, &self_report);
     let mut sealing_key = keyrequest.derive_sealing_key(label)?;
 
-    // TODO(phlip9): allow sealing in place w/o allocating
-
-    let mut ciphertext = vec![0u8; encrypted_len(data.len())];
-    ciphertext[0..data.len()].copy_from_slice(data);
-
-    let tag = sealing_key.seal_in_place_separate_tag(
-        Aad::empty(),
-        &mut ciphertext[0..data.len()],
-    )?;
-    ciphertext[data.len()..].copy_from_slice(tag.as_ref());
+    let mut ciphertext = data.into_owned();
+    let tag = sealing_key
+        .seal_in_place_separate_tag(Aad::empty(), &mut ciphertext)?;
+    ciphertext.extend_from_slice(tag.as_ref());
 
     Ok(Sealed {
         keyrequest: keyrequest.as_bytes().to_vec().into(),
@@ -235,11 +229,13 @@ mod test {
     fn test_sealing_roundtrip_basic() {
         let mut rng = SmallRng::new();
 
-        let sealed = seal(&mut rng, b"", b"").unwrap();
+        let sealed = seal(&mut rng, b"", b"".as_slice().into()).unwrap();
         let unsealed = unseal(b"", sealed).unwrap();
         assert_eq!(&unsealed, b"");
 
-        let sealed = seal(&mut rng, b"cool label", b"cool data").unwrap();
+        let sealed =
+            seal(&mut rng, b"cool label", b"cool data".as_slice().into())
+                .unwrap();
         let unsealed = unseal(b"cool label", sealed).unwrap();
         assert_eq!(&unsealed, b"cool data");
     }
@@ -250,7 +246,7 @@ mod test {
         let arb_data = any::<Vec<u8>>();
 
         proptest!(|(mut rng in arb_rng(), label in arb_label, data in arb_data)| {
-            let sealed = seal(&mut rng, &label, &data).unwrap();
+            let sealed = seal(&mut rng, &label, data.clone().into()).unwrap();
             let unsealed = unseal(&label, sealed).unwrap();
             assert_eq!(&data, &unsealed);
         });
@@ -271,7 +267,7 @@ mod test {
             data in arb_data,
             mutation in arb_mutation,
         )| {
-            let sealed = seal(&mut rng, &label, &data).unwrap();
+            let sealed = seal(&mut rng, &label, data.into()).unwrap();
 
             let keyrequest = sealed.keyrequest;
             let ciphertext_original = sealed.ciphertext.into_owned();

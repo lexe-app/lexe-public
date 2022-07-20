@@ -1,12 +1,14 @@
 #![allow(dead_code)]
 
+use std::borrow::Cow;
+
 use crate::enclave::{Error, Sealed};
 use crate::rng::Crng;
 
 pub fn seal(
     _rng: &mut dyn Crng,
     _label: &[u8],
-    _data: &[u8],
+    _data: Cow<'_, [u8]>,
 ) -> Result<Sealed<'static>, Error> {
     Err(Error::Other)
 }
