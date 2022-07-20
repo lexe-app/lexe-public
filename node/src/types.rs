@@ -42,13 +42,15 @@ pub type PaymentInfoStorageType = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
 
 pub type ApiClientType = Arc<dyn ApiClient + Send + Sync>;
 
+pub type SignerType = InMemorySigner;
+
 pub type ChainMonitorType = ChainMonitor<
-    InMemorySigner,
+    SignerType,
     Arc<dyn Filter + Send + Sync>,
     Arc<BroadcasterType>,
     Arc<FeeEstimatorType>,
     Arc<LexeTracingLogger>,
-    Arc<LexePersister>,
+    LexePersister,
 >;
 
 pub type PeerManagerType = PeerManager<
@@ -66,7 +68,7 @@ pub type PeerManagerType = PeerManager<
 >;
 
 pub type ChannelManagerType = ChannelManager<
-    InMemorySigner,
+    SignerType,
     Arc<ChainMonitorType>,
     Arc<BroadcasterType>,
     LexeKeysManager,
@@ -74,7 +76,7 @@ pub type ChannelManagerType = ChannelManager<
     Arc<LexeTracingLogger>,
 >;
 
-pub type ChannelMonitorType = ChannelMonitor<InMemorySigner>;
+pub type ChannelMonitorType = ChannelMonitor<SignerType>;
 
 /// We use this strange tuple because LDK impl'd `Listen` for it
 pub type ChannelMonitorListenerType = (

@@ -7,10 +7,7 @@ use anyhow::{anyhow, ensure, Context};
 use bitcoin::hash_types::BlockHash;
 use bitcoin::secp256k1::PublicKey;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
-use lightning::chain::channelmonitor::{
-    ChannelMonitor as LdkChannelMonitor, ChannelMonitorUpdate,
-};
-use lightning::chain::keysinterface::{InMemorySigner, KeysInterface, Sign};
+use lightning::chain::channelmonitor::ChannelMonitorUpdate;
 use lightning::chain::transaction::OutPoint;
 use lightning::chain::ChannelMonitorUpdateErr;
 use lightning::ln::channelmanager::ChannelManagerReadArgs;
@@ -31,8 +28,8 @@ use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::types::{
     ApiClientType, BroadcasterType, ChainMonitorType, ChannelManagerType,
-    FeeEstimatorType, InstanceId, LoggerType, NetworkGraphType,
-    ProbabilisticScorerType,
+    ChannelMonitorType, FeeEstimatorType, InstanceId, LoggerType,
+    NetworkGraphType, ProbabilisticScorerType, SignerType,
 };
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
@@ -45,24 +42,43 @@ const SCORER_FILENAME: &str = "scorer";
 pub const CHANNEL_PEERS_DIRECTORY: &str = "channel_peers";
 pub const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 
-#[derive(Clone)]
+/// An Arc is held internally, so it is fine to clone and use directly.
+#[derive(Clone)] // TODO Try removing this
 pub struct LexePersister {
-    api: ApiClientType,
-    instance_id: InstanceId,
+    inner: InnerPersister,
 }
 
 impl LexePersister {
     pub fn new(api: ApiClientType, instance_id: InstanceId) -> Self {
+        let inner = InnerPersister::new(api, instance_id);
+        Self { inner }
+    }
+}
+
+impl Deref for LexePersister {
+    type Target = InnerPersister;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+/// The thing that actually impls the Persist trait. LDK requires that
+/// LexePersister Derefs to it.
+#[derive(Clone)]
+pub struct InnerPersister {
+    api: ApiClientType,
+    instance_id: InstanceId,
+}
+
+impl InnerPersister {
+    fn new(api: ApiClientType, instance_id: InstanceId) -> Self {
         Self { api, instance_id }
     }
 
     #[allow(clippy::too_many_arguments)]
     pub async fn read_channel_manager(
         &self,
-        channel_monitors: &mut [(
-            BlockHash,
-            LdkChannelMonitor<InMemorySigner>,
-        )],
+        channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
         keys_manager: LexeKeysManager,
         fee_estimator: Arc<FeeEstimatorType>,
         chain_monitor: Arc<ChainMonitorType>,
@@ -119,13 +135,10 @@ impl LexePersister {
     }
 
     // Replaces equivalent method in lightning_persister::FilesystemPersister
-    pub async fn read_channel_monitors<Signer: Sign, K: Deref>(
+    pub async fn read_channel_monitors(
         &self,
-        keys_manager: K,
-    ) -> anyhow::Result<Vec<(BlockHash, LdkChannelMonitor<Signer>)>>
-    where
-        K::Target: KeysInterface<Signer = Signer> + Sized,
-    {
+        keys_manager: LexeKeysManager,
+    ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
         println!("Reading channel monitors");
 
         let cm_dir_id = DirectoryId {
@@ -150,7 +163,7 @@ impl LexePersister {
             let mut state_buf = Cursor::new(&cm_file.data);
 
             let (blockhash, channel_monitor) =
-                <(BlockHash, LdkChannelMonitor<Signer>)>::read(
+                <(BlockHash, ChannelMonitorType)>::read(
                     &mut state_buf,
                     &*keys_manager,
                 )
@@ -314,14 +327,14 @@ static PERSISTER_RUNTIME: Lazy<OnceCell<Runtime>> = Lazy::new(|| {
 impl<'a>
     Persister<
         'a,
-        InMemorySigner,
+        SignerType,
         Arc<ChainMonitorType>,
         Arc<LexeBitcoind>,
         LexeKeysManager,
         Arc<LexeBitcoind>,
         Arc<LexeTracingLogger>,
         Mutex<ProbabilisticScorerType>,
-    > for LexePersister
+    > for InnerPersister
 {
     fn persist_manager(
         &self,
@@ -400,11 +413,11 @@ impl<'a>
     }
 }
 
-impl<ChannelSigner: Sign> Persist<ChannelSigner> for LexePersister {
+impl Persist<SignerType> for InnerPersister {
     fn persist_new_channel(
         &self,
         funding_txo: OutPoint,
-        monitor: &LdkChannelMonitor<ChannelSigner>,
+        monitor: &ChannelMonitorType,
         _update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
         let id = convert::txid_and_index_to_string(
@@ -439,7 +452,7 @@ impl<ChannelSigner: Sign> Persist<ChannelSigner> for LexePersister {
         &self,
         funding_txo: OutPoint,
         _update: &Option<ChannelMonitorUpdate>,
-        monitor: &LdkChannelMonitor<ChannelSigner>,
+        monitor: &ChannelMonitorType,
         _update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
         let id = convert::txid_and_index_to_string(

@@ -24,7 +24,7 @@ mod sgx {
         _network_graph: Arc<NetworkGraphType>,
         _inbound_payments: PaymentInfoStorageType,
         _outbound_payments: PaymentInfoStorageType,
-        _persister: Arc<LexePersister>,
+        _persister: LexePersister,
         _network: Network,
     ) {
     }
@@ -71,7 +71,7 @@ mod not_sgx {
         network_graph: Arc<NetworkGraphType>,
         inbound_payments: PaymentInfoStorageType,
         outbound_payments: PaymentInfoStorageType,
-        persister: Arc<LexePersister>,
+        persister: LexePersister,
         network: Network,
     ) {
         println!(
