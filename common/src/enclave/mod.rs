@@ -65,7 +65,7 @@ impl fmt::Debug for Sealed<'_> {
 pub fn seal<'a>(
     rng: &mut dyn Crng,
     label: &[u8],
-    data: &[u8], // TODO(phlip9): allow sealing in-place
+    data: Cow<'_, [u8]>,
 ) -> Result<Sealed<'a>, Error> {
     #[cfg(not(target_env = "sgx"))]
     let result = mock::seal(rng, label, data);
