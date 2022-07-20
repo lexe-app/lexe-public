@@ -5,7 +5,7 @@ use common::rng::SysRng;
 
 use crate::api::mock;
 use crate::cli::{StartCommand, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
-use crate::init;
+use crate::init::LexeContext;
 use crate::lexe::bitcoind::BitcoindRpcInfo;
 use crate::types::{Network, NodeAlias};
 
@@ -53,9 +53,12 @@ impl CommandTestHarness {
 
         // Init node
         let mut rng = SysRng::new();
-        init::start_ldk(&mut rng, args)
+        LexeContext::init(&mut rng, args)
             .await
-            .expect("Error starting ldk");
+            .expect("Error during init")
+            .run()
+            .await
+            .expect("Error while running");
 
         Self { bitcoind }
     }

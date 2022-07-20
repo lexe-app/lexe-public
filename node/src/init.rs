@@ -47,296 +47,314 @@ use crate::{api, command, convert, repl};
 
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 
-pub async fn start_ldk<R: Crng>(
-    rng: &mut R,
-    args: StartCommand,
-) -> anyhow::Result<()> {
-    // Initialize the Logger
-    let logger = Arc::new(LexeTracingLogger {});
+// TODO: Eventually move this into the `lexe` module once init is cleaned up
+pub struct LexeContext {}
 
-    // Get user_id, measurement, and HTTP client, used throughout init
-    let user_id = args.user_id;
-    // TODO(sgx) Insert this enclave's measurement
-    let measurement = String::from("default");
-    let api = init_api(&args);
+impl LexeContext {
+    pub async fn init<R: Crng>(
+        rng: &mut R,
+        args: StartCommand,
+    ) -> anyhow::Result<Self> {
+        // Initialize the Logger
+        let logger = Arc::new(LexeTracingLogger {});
 
-    // Initialize LexeBitcoind, fetch provisioned data
-    let (bitcoind_res, provisioned_data_res) = tokio::join!(
-        LexeBitcoind::init(args.bitcoind_rpc.clone(), args.network),
-        fetch_provisioned_data(api.as_ref(), user_id, &measurement),
-    );
-    let bitcoind = bitcoind_res.context("Failed to init bitcoind client")?;
-    let provisioned_data =
-        provisioned_data_res.context("Failed to fetch provisioned data")?;
+        // Build the LexeContext
+        let ctx = LexeContext {};
 
-    // Build LexeKeysManager from node init data
-    let keys_manager = match provisioned_data {
-        (Some(node), Some(_i), Some(enclave)) => {
-            LexeKeysManager::init(rng, node.public_key, enclave.seed)
-                .context("Could not construct keys manager")?
-        }
-        (None, None, None) => {
-            // TODO remove this path once provisioning command works
-            provision_new_node(rng, api.as_ref(), user_id, &measurement)
-                .await
-                .context("Failed to provision new node")?
-        }
-        _ => panic!("Node init data should have been persisted atomically"),
-    };
-    let keys_manager = Arc::new(keys_manager);
-    let pubkey = keys_manager.derive_pubkey(rng);
-    let instance_id = convert::get_instance_id(&pubkey, &measurement);
+        // Get user_id, measurement, and HTTP client, used throughout init
+        let user_id = args.user_id;
+        // TODO(sgx) Insert this enclave's measurement
+        let measurement = String::from("default");
+        let api = init_api(&args);
 
-    // LexeBitcoind implements FeeEstimator and BroadcasterInterface and thus
-    // serves these functions. This can be customized later.
-    let fee_estimator = bitcoind.clone();
-    let broadcaster = bitcoind.clone();
+        // Initialize LexeBitcoind, fetch provisioned data
+        let (bitcoind_res, provisioned_data_res) = tokio::join!(
+            LexeBitcoind::init(args.bitcoind_rpc.clone(), args.network),
+            fetch_provisioned_data(api.as_ref(), user_id, &measurement),
+        );
+        let bitcoind =
+            bitcoind_res.context("Failed to init bitcoind client")?;
+        let provisioned_data =
+            provisioned_data_res.context("Failed to fetch provisioned data")?;
 
-    // Initialize Persister
-    let persister = Arc::new(LexePersister::new(api.clone(), instance_id));
+        // Build LexeKeysManager from node init data
+        let keys_manager = match provisioned_data {
+            (Some(node), Some(_i), Some(enclave)) => {
+                LexeKeysManager::init(rng, node.public_key, enclave.seed)
+                    .context("Could not construct keys manager")?
+            }
+            (None, None, None) => {
+                // TODO remove this path once provisioning command works
+                provision_new_node(rng, api.as_ref(), user_id, &measurement)
+                    .await
+                    .context("Failed to provision new node")?
+            }
+            _ => panic!("Node init data should have been persisted atomically"),
+        };
+        let keys_manager = Arc::new(keys_manager);
+        let pubkey = keys_manager.derive_pubkey(rng);
+        let instance_id = convert::get_instance_id(&pubkey, &measurement);
 
-    // Initialize the ChainMonitor
-    let chain_monitor = Arc::new(ChainMonitor::new(
-        None,
-        broadcaster.clone(),
-        logger.clone(),
-        fee_estimator.clone(),
-        persister.clone(),
-    ));
+        // LexeBitcoind implements FeeEstimator and BroadcasterInterface and
+        // thus serves these functions. This can be customized later.
+        let fee_estimator = bitcoind.clone();
+        let broadcaster = bitcoind.clone();
 
-    // Read the `ChannelMonitor`s and initialize the `P2PGossipSync`
-    let (channel_monitors_res, gossip_sync_res) = tokio::join!(
-        channel_monitors(persister.as_ref(), keys_manager.clone()),
-        gossip_sync(args.network, &persister, logger.clone())
-    );
-    let mut channel_monitors =
-        channel_monitors_res.context("Could not read channel monitors")?;
-    let (network_graph, gossip_sync) =
-        gossip_sync_res.context("Could not initialize gossip sync")?;
+        // Initialize Persister
+        let persister = Arc::new(LexePersister::new(api.clone(), instance_id));
 
-    // Initialize the ChannelManager and ProbabilisticScorer
-    let mut restarting_node = true;
-    let (channel_manager_res, scorer_res) = tokio::join!(
-        channel_manager(
-            &args,
-            persister.as_ref(),
-            bitcoind.as_ref(),
-            &mut restarting_node,
-            &mut channel_monitors,
-            keys_manager.clone(),
-            fee_estimator.clone(),
-            chain_monitor.clone(),
+        // Initialize the ChainMonitor
+        let chain_monitor = Arc::new(ChainMonitor::new(
+            None,
             broadcaster.clone(),
             logger.clone(),
-        ),
-        persister
-            .read_probabilistic_scorer(network_graph.clone(), logger.clone()),
-    );
-    let (channel_manager_blockhash, channel_manager) =
-        channel_manager_res.context("Could not init ChannelManager")?;
-    let scorer = scorer_res.context("Could not read probabilistic scorer")?;
-    let scorer = Arc::new(Mutex::new(scorer));
-
-    // Initialize PeerManager
-    let peer_manager = LexePeerManager::init(
-        rng,
-        keys_manager.as_ref(),
-        channel_manager.clone(),
-        gossip_sync.clone(),
-        logger.clone(),
-    );
-    let peer_manager = Arc::new(peer_manager);
-
-    // Set up listening for inbound P2P connections
-    let stop_listen_connect = Arc::new(AtomicBool::new(false));
-    spawn_p2p_listener(
-        args.peer_port,
-        stop_listen_connect.clone(),
-        peer_manager.clone(),
-    );
-
-    // Init Tokio channels
-    let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
-    let (shutdown_tx, mut shutdown_rx) =
-        broadcast::channel(DEFAULT_CHANNEL_SIZE);
-
-    // Start warp at the given port, or bind to an ephemeral port if not given
-    let routes = command::server::routes(
-        channel_manager.clone(),
-        peer_manager.clone(),
-        activity_tx,
-        shutdown_tx.clone(),
-    );
-    let (addr, server_fut) = warp::serve(routes)
-        // A value of 0 indicates that the OS will assign a port for us
-        .try_bind_ephemeral(([127, 0, 0, 1], args.warp_port.unwrap_or(0)))
-        .context("Failed to bind warp")?;
-    let warp_port = addr.port();
-    println!("Serving warp at port {}", warp_port);
-    tokio::spawn(async move {
-        server_fut.await;
-    });
-
-    // Let the runner know that we're ready
-    println!("Node is ready to accept commands; notifying runner");
-    let user_port = UserPort {
-        user_id,
-        port: warp_port,
-    };
-    api.notify_runner(user_port)
-        .await
-        .context("Could not notify runner of ready status")?;
-
-    // Initialize the event handler
-    // TODO: persist payment info
-    let inbound_payments: PaymentInfoStorageType =
-        Arc::new(Mutex::new(HashMap::new()));
-    let outbound_payments: PaymentInfoStorageType =
-        Arc::new(Mutex::new(HashMap::new()));
-    let event_handler = LdkEventHandler::new(
-        args.network,
-        channel_manager.clone(),
-        keys_manager.clone(),
-        bitcoind.clone(),
-        network_graph.clone(),
-        inbound_payments.clone(),
-        outbound_payments.clone(),
-        Handle::current(),
-    );
-
-    // Initialize InvoicePayer
-    let router = DefaultRouter::new(
-        network_graph.clone(),
-        logger.clone(),
-        keys_manager.get_secure_random_bytes(),
-    );
-    let invoice_payer = Arc::new(InvoicePayerType::new(
-        channel_manager.clone(),
-        router,
-        scorer.clone(),
-        logger.clone(),
-        event_handler,
-        payment::Retry::Timeout(Duration::from_secs(10)),
-    ));
-
-    // Start Background Processing
-    let background_processor = BackgroundProcessor::start(
-        Arc::clone(&persister),
-        invoice_payer.clone(),
-        chain_monitor.clone(),
-        channel_manager.clone(),
-        GossipSyncType::P2P(gossip_sync.clone()),
-        peer_manager.as_arc_inner(),
-        logger.clone(),
-        Some(scorer.clone()),
-    );
-
-    // Spawn a task to regularly reconnect to channel peers
-    spawn_p2p_reconnect_task(
-        channel_manager.clone(),
-        peer_manager.clone(),
-        stop_listen_connect.clone(),
-        persister.clone(),
-    );
-
-    // ## Sync
-
-    // Sync channel_monitors and ChannelManager to chain tip
-    let mut blockheader_cache = UnboundedCache::new();
-    let (chain_listener_channel_monitors, chain_tip) = if restarting_node {
-        sync_chain_listeners(
-            &args,
-            &channel_manager,
-            bitcoind.as_ref(),
-            broadcaster.clone(),
             fee_estimator.clone(),
-            logger.clone(),
-            channel_manager_blockhash,
-            channel_monitors,
-            &mut blockheader_cache,
-        )
-        .await
-        .context("Could not sync channel listeners")?
-    } else {
-        let chain_tip =
-            blocksyncinit::validate_best_block_header(&mut bitcoind.deref())
-                .await
-                .map_err(|e| anyhow!(e.into_inner()))
-                .context("Could not validate best block header")?;
-
-        (Vec::new(), chain_tip)
-    };
-
-    // Give channel_monitors to ChainMonitor
-    for cmcl in chain_listener_channel_monitors {
-        let channel_monitor = cmcl.channel_monitor_listener.0;
-        let funding_outpoint = cmcl.funding_outpoint;
-        chain_monitor
-            .watch_channel(funding_outpoint, channel_monitor)
-            .map_err(|e| anyhow!("{:?}", e))
-            .context("Could not watch channel")?;
-    }
-
-    // Set up SPV client
-    spawn_spv_client(
-        args.network,
-        chain_tip,
-        blockheader_cache,
-        channel_manager.clone(),
-        chain_monitor.clone(),
-        bitcoind.clone(),
-    );
-
-    // ## Ready
-
-    // Start the REPL if it was specified to start in the CLI args.
-    if args.repl {
-        println!("Starting REPL");
-        repl::poll_for_user_input(
-            Arc::clone(&invoice_payer),
-            Arc::clone(&peer_manager),
-            Arc::clone(&channel_manager),
-            Arc::clone(&keys_manager),
-            Arc::clone(&network_graph),
-            inbound_payments,
-            outbound_payments,
             persister.clone(),
+        ));
+
+        // Read the `ChannelMonitor`s and initialize the `P2PGossipSync`
+        let (channel_monitors_res, gossip_sync_res) = tokio::join!(
+            channel_monitors(persister.as_ref(), keys_manager.clone()),
+            gossip_sync(args.network, &persister, logger.clone())
+        );
+        let mut channel_monitors =
+            channel_monitors_res.context("Could not read channel monitors")?;
+        let (network_graph, gossip_sync) =
+            gossip_sync_res.context("Could not initialize gossip sync")?;
+
+        // Initialize the ChannelManager and ProbabilisticScorer
+        let mut restarting_node = true;
+        let (channel_manager_res, scorer_res) = tokio::join!(
+            channel_manager(
+                &args,
+                persister.as_ref(),
+                bitcoind.as_ref(),
+                &mut restarting_node,
+                &mut channel_monitors,
+                keys_manager.clone(),
+                fee_estimator.clone(),
+                chain_monitor.clone(),
+                broadcaster.clone(),
+                logger.clone(),
+            ),
+            persister.read_probabilistic_scorer(
+                network_graph.clone(),
+                logger.clone()
+            ),
+        );
+        let (channel_manager_blockhash, channel_manager) =
+            channel_manager_res.context("Could not init ChannelManager")?;
+        let scorer =
+            scorer_res.context("Could not read probabilistic scorer")?;
+        let scorer = Arc::new(Mutex::new(scorer));
+
+        // Initialize PeerManager
+        let peer_manager = LexePeerManager::init(
+            rng,
+            keys_manager.as_ref(),
+            channel_manager.clone(),
+            gossip_sync.clone(),
+            logger.clone(),
+        );
+        let peer_manager = Arc::new(peer_manager);
+
+        // Set up listening for inbound P2P connections
+        let stop_listen_connect = Arc::new(AtomicBool::new(false));
+        spawn_p2p_listener(
+            args.peer_port,
+            stop_listen_connect.clone(),
+            peer_manager.clone(),
+        );
+
+        // Init Tokio channels
+        let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
+        let (shutdown_tx, mut shutdown_rx) =
+            broadcast::channel(DEFAULT_CHANNEL_SIZE);
+
+        // Start warp at the given port, or bind to an ephemeral port if not
+        // given
+        let routes = command::server::routes(
+            channel_manager.clone(),
+            peer_manager.clone(),
+            activity_tx,
+            shutdown_tx.clone(),
+        );
+        let (addr, server_fut) = warp::serve(routes)
+            // A value of 0 indicates that the OS will assign a port for us
+            .try_bind_ephemeral(([127, 0, 0, 1], args.warp_port.unwrap_or(0)))
+            .context("Failed to bind warp")?;
+        let warp_port = addr.port();
+        println!("Serving warp at port {}", warp_port);
+        tokio::spawn(async move {
+            server_fut.await;
+        });
+
+        // Let the runner know that we're ready
+        println!("Node is ready to accept commands; notifying runner");
+        let user_port = UserPort {
+            user_id,
+            port: warp_port,
+        };
+        api.notify_runner(user_port)
+            .await
+            .context("Could not notify runner of ready status")?;
+
+        // Initialize the event handler
+        // TODO: persist payment info
+        let inbound_payments: PaymentInfoStorageType =
+            Arc::new(Mutex::new(HashMap::new()));
+        let outbound_payments: PaymentInfoStorageType =
+            Arc::new(Mutex::new(HashMap::new()));
+        let event_handler = LdkEventHandler::new(
             args.network,
-        )
-        .await;
-        println!("REPL complete.");
+            channel_manager.clone(),
+            keys_manager.clone(),
+            bitcoind.clone(),
+            network_graph.clone(),
+            inbound_payments.clone(),
+            outbound_payments.clone(),
+            Handle::current(),
+        );
+
+        // Initialize InvoicePayer
+        let router = DefaultRouter::new(
+            network_graph.clone(),
+            logger.clone(),
+            keys_manager.get_secure_random_bytes(),
+        );
+        let invoice_payer = Arc::new(InvoicePayerType::new(
+            channel_manager.clone(),
+            router,
+            scorer.clone(),
+            logger.clone(),
+            event_handler,
+            payment::Retry::Timeout(Duration::from_secs(10)),
+        ));
+
+        // Start Background Processing
+        let background_processor = BackgroundProcessor::start(
+            Arc::clone(&persister),
+            invoice_payer.clone(),
+            chain_monitor.clone(),
+            channel_manager.clone(),
+            GossipSyncType::P2P(gossip_sync.clone()),
+            peer_manager.as_arc_inner(),
+            logger.clone(),
+            Some(scorer.clone()),
+        );
+
+        // Spawn a task to regularly reconnect to channel peers
+        spawn_p2p_reconnect_task(
+            channel_manager.clone(),
+            peer_manager.clone(),
+            stop_listen_connect.clone(),
+            persister.clone(),
+        );
+
+        // ## Sync
+
+        // Sync channel_monitors and ChannelManager to chain tip
+        let mut blockheader_cache = UnboundedCache::new();
+        let (chain_listener_channel_monitors, chain_tip) = if restarting_node {
+            sync_chain_listeners(
+                &args,
+                &channel_manager,
+                bitcoind.as_ref(),
+                broadcaster.clone(),
+                fee_estimator.clone(),
+                logger.clone(),
+                channel_manager_blockhash,
+                channel_monitors,
+                &mut blockheader_cache,
+            )
+            .await
+            .context("Could not sync channel listeners")?
+        } else {
+            let chain_tip = blocksyncinit::validate_best_block_header(
+                &mut bitcoind.deref(),
+            )
+            .await
+            .map_err(|e| anyhow!(e.into_inner()))
+            .context("Could not validate best block header")?;
+
+            (Vec::new(), chain_tip)
+        };
+
+        // Give channel_monitors to ChainMonitor
+        for cmcl in chain_listener_channel_monitors {
+            let channel_monitor = cmcl.channel_monitor_listener.0;
+            let funding_outpoint = cmcl.funding_outpoint;
+            chain_monitor
+                .watch_channel(funding_outpoint, channel_monitor)
+                .map_err(|e| anyhow!("{:?}", e))
+                .context("Could not watch channel")?;
+        }
+
+        // Set up SPV client
+        spawn_spv_client(
+            args.network,
+            chain_tip,
+            blockheader_cache,
+            channel_manager.clone(),
+            chain_monitor.clone(),
+            bitcoind.clone(),
+        );
+
+        // ## Ready
+
+        // Start the REPL if it was specified to start in the CLI args.
+        if args.repl {
+            println!("Starting REPL");
+            repl::poll_for_user_input(
+                Arc::clone(&invoice_payer),
+                Arc::clone(&peer_manager),
+                Arc::clone(&channel_manager),
+                Arc::clone(&keys_manager),
+                Arc::clone(&network_graph),
+                inbound_payments,
+                outbound_payments,
+                persister.clone(),
+                args.network,
+            )
+            .await;
+            println!("REPL complete.");
+        }
+
+        // Start the inactivity timer.
+        println!("Starting inactivity timer");
+        let timer_shutdown_rx = shutdown_tx.subscribe();
+        let mut inactivity_timer = InactivityTimer::new(
+            args.shutdown_after_sync_if_no_activity,
+            args.inactivity_timer_sec,
+            activity_rx,
+            shutdown_tx,
+            timer_shutdown_rx,
+        );
+        tokio::spawn(async move {
+            inactivity_timer.start().await;
+        });
+
+        // Pause here and wait for the shutdown signal
+        let _ = shutdown_rx.recv().await;
+
+        // ## Shutdown
+        println!("Main thread shutting down");
+
+        // Disconnect our peers and stop accepting new connections. This ensures
+        // we don't continue updating our channel data after we've
+        // stopped the background processor.
+        stop_listen_connect.store(true, Ordering::Release);
+        peer_manager.disconnect_all_peers();
+
+        // Stop the background processor.
+        background_processor.stop().unwrap();
+
+        Ok(ctx)
     }
 
-    // Start the inactivity timer.
-    println!("Starting inactivity timer");
-    let timer_shutdown_rx = shutdown_tx.subscribe();
-    let mut inactivity_timer = InactivityTimer::new(
-        args.shutdown_after_sync_if_no_activity,
-        args.inactivity_timer_sec,
-        activity_rx,
-        shutdown_tx,
-        timer_shutdown_rx,
-    );
-    tokio::spawn(async move {
-        inactivity_timer.start().await;
-    });
-
-    // Pause here and wait for the shutdown signal
-    let _ = shutdown_rx.recv().await;
-
-    // ## Shutdown
-    println!("Main thread shutting down");
-
-    // Disconnect our peers and stop accepting new connections. This ensures we
-    // don't continue updating our channel data after we've stopped the
-    // background processor.
-    stop_listen_connect.store(true, Ordering::Release);
-    peer_manager.disconnect_all_peers();
-
-    // Stop the background processor.
-    background_processor.stop().unwrap();
-
-    Ok(())
+    pub async fn run(&mut self) -> anyhow::Result<()> {
+        Ok(())
+    }
 }
 
 /// Constructs a Arc<dyn ApiClient> based on whether we are running in SGX,
