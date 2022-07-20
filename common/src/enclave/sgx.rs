@@ -92,7 +92,7 @@ impl KeyRequest {
     fn try_from_bytes(bytes: &[u8]) -> Result<Self, Error> {
         let valid_size = Self::TRUNCATED_SIZE..=Self::UNPADDED_SIZE;
         if !valid_size.contains(&bytes.len()) {
-            return Err(Error::Other);
+            return Err(Error::InvalidKeyRequestLength);
         }
 
         let mut buf = [0u8; Self::UNPADDED_SIZE];
@@ -172,18 +172,14 @@ pub fn seal(
     label: &[u8],
     data: Cow<'_, [u8]>,
 ) -> Result<Sealed<'static>, Error> {
-    // TODO(phlip9): put a more reasonable max length
-    if data.len() > decrypted_len(usize::MAX) {
-        return Err(Error::Other);
-    }
-
     let self_report = Report::for_self();
     let keyrequest = KeyRequest::gen_sealing_request(rng, &self_report);
     let mut sealing_key = keyrequest.derive_sealing_key(label)?;
 
     let mut ciphertext = data.into_owned();
     let tag = sealing_key
-        .seal_in_place_separate_tag(Aad::empty(), &mut ciphertext)?;
+        .seal_in_place_separate_tag(Aad::empty(), &mut ciphertext)
+        .map_err(|_| Error::SealInputTooLarge)?;
     ciphertext.extend_from_slice(tag.as_ref());
 
     Ok(Sealed {
@@ -195,15 +191,16 @@ pub fn seal(
 pub fn unseal(label: &[u8], sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
     // the ciphertext is too small
     if sealed.ciphertext.len() < TAG_LEN {
-        return Err(Error::Other);
+        return Err(Error::UnsealInputTooSmall);
     }
 
     let keyrequest = KeyRequest::try_from_bytes(&sealed.keyrequest)?;
     let mut unsealing_key = keyrequest.derive_unsealing_key(label)?;
 
     let mut ciphertext = sealed.ciphertext.into_owned();
-    let plaintext_ref =
-        unsealing_key.open_in_place(Aad::empty(), &mut ciphertext)?;
+    let plaintext_ref = unsealing_key
+        .open_in_place(Aad::empty(), &mut ciphertext)
+        .map_err(|_| Error::UnsealDecryptionError)?;
     let plaintext_len = plaintext_ref.len();
 
     // unsealing happens in-place. set the length of the now decrypted
@@ -293,4 +290,5 @@ mod test {
     }
 
     // TODO(phlip9): test KeyRequest mutations
+    // TODO(phlip9): test truncate/extend mutations
 }

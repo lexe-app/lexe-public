@@ -10,9 +10,11 @@ pub fn seal(
     _label: &[u8],
     _data: Cow<'_, [u8]>,
 ) -> Result<Sealed<'static>, Error> {
-    Err(Error::Other)
+    // TODO(phlip9): impl
+    Err(Error::SealInputTooLarge)
 }
 
 pub fn unseal(_label: &[u8], _sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
-    Err(Error::Other)
+    // TODO(phlip9): impl
+    Err(Error::UnsealDecryptionError)
 }
