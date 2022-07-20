@@ -13,6 +13,8 @@ use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::types::{ChannelManagerType, P2PGossipSyncType, PeerManagerType};
 
+/// LexePeerManager holds an Arc internally, so it is fine to clone it directly.
+#[derive(Clone)]
 pub struct LexePeerManager(Arc<PeerManagerType>);
 
 impl Deref for LexePeerManager {
@@ -61,7 +63,7 @@ impl LexePeerManager {
 pub async fn connect_peer_if_necessary(
     pubkey: PublicKey,
     peer_addr: SocketAddr,
-    peer_manager: Arc<LexePeerManager>,
+    peer_manager: LexePeerManager,
 ) -> Result<(), ()> {
     for node_pubkey in peer_manager.get_peer_node_ids() {
         if node_pubkey == pubkey {
@@ -78,7 +80,7 @@ pub async fn connect_peer_if_necessary(
 pub async fn do_connect_peer(
     pubkey: PublicKey,
     peer_addr: SocketAddr,
-    peer_manager: Arc<LexePeerManager>,
+    peer_manager: LexePeerManager,
 ) -> Result<(), ()> {
     match lightning_net_tokio::connect_outbound(
         peer_manager.as_arc_inner(),

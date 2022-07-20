@@ -28,8 +28,7 @@ pub fn channel_manager(
 
 /// Injects a peer manager.
 pub fn peer_manager(
-    peer_manager: Arc<LexePeerManager>,
-) -> impl Filter<Extract = (Arc<LexePeerManager>,), Error = Infallible> + Clone
-{
+    peer_manager: LexePeerManager,
+) -> impl Filter<Extract = (LexePeerManager,), Error = Infallible> + Clone {
     warp::any().map(move || peer_manager.clone())
 }

@@ -87,7 +87,7 @@ impl CommandTestHarness {
         self.ctx.channel_manager.clone()
     }
 
-    fn peer_manager(&self) -> Arc<LexePeerManager> {
+    fn peer_manager(&self) -> LexePeerManager {
         self.ctx.peer_manager.clone()
     }
 }

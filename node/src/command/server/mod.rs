@@ -53,7 +53,7 @@ fn into_response<S: Serialize, E: Reply>(
 /// All routes exposed by the command server.
 pub fn routes(
     channel_manager: Arc<ChannelManagerType>,
-    peer_manager: Arc<LexePeerManager>,
+    peer_manager: LexePeerManager,
     activity_tx: mpsc::Sender<()>,
     shutdown_tx: broadcast::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
@@ -69,7 +69,7 @@ pub fn routes(
 /// Endpoints that can only be called by the node owner.
 fn owner(
     channel_manager: Arc<ChannelManagerType>,
-    peer_manager: Arc<LexePeerManager>,
+    peer_manager: LexePeerManager,
     activity_tx: mpsc::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     // TODO Add owner authentication to this base path
