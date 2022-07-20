@@ -27,7 +27,7 @@ use crate::types::{
 pub struct LdkEventHandler {
     network: Network,
     channel_manager: Arc<ChannelManagerType>,
-    keys_manager: Arc<LexeKeysManager>,
+    keys_manager: LexeKeysManager,
     bitcoind: Arc<LexeBitcoind>,
     network_graph: Arc<NetworkGraphType>,
     inbound_payments: PaymentInfoStorageType,
@@ -40,7 +40,7 @@ impl LdkEventHandler {
     pub fn new(
         network: Network,
         channel_manager: Arc<ChannelManagerType>,
-        keys_manager: Arc<LexeKeysManager>,
+        keys_manager: LexeKeysManager,
         bitcoind: Arc<LexeBitcoind>,
         network_graph: Arc<NetworkGraphType>,
         inbound_payments: PaymentInfoStorageType,
