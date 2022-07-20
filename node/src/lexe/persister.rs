@@ -25,10 +25,10 @@ use once_cell::sync::{Lazy, OnceCell};
 use tokio::runtime::{Builder, Handle, Runtime};
 
 use crate::api::{DirectoryId, File, FileId};
-use crate::bitcoind_client::BitcoindClient;
 use crate::convert;
+use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::keys_manager::LexeKeysManager;
-use crate::logger::LdkTracingLogger;
+use crate::lexe::logger::LexeTracingLogger;
 use crate::types::{
     ApiClientType, BroadcasterType, ChainMonitorType, ChannelManagerType,
     FeeEstimatorType, InstanceId, LoggerType, NetworkGraphType,
@@ -67,7 +67,7 @@ impl LexePersister {
         fee_estimator: Arc<FeeEstimatorType>,
         chain_monitor: Arc<ChainMonitorType>,
         broadcaster: Arc<BroadcasterType>,
-        logger: Arc<LdkTracingLogger>,
+        logger: Arc<LexeTracingLogger>,
         user_config: UserConfig,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         println!("Reading channel manager");
@@ -316,10 +316,10 @@ impl<'a>
         'a,
         InMemorySigner,
         Arc<ChainMonitorType>,
-        Arc<BitcoindClient>,
+        Arc<LexeBitcoind>,
         Arc<LexeKeysManager>,
-        Arc<BitcoindClient>,
-        Arc<LdkTracingLogger>,
+        Arc<LexeBitcoind>,
+        Arc<LexeTracingLogger>,
         Mutex<ProbabilisticScorerType>,
     > for LexePersister
 {

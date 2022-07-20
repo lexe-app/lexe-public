@@ -2,8 +2,8 @@ use anyhow::Context;
 use argh::FromArgs;
 use common::rng::SysRng;
 
-use crate::bitcoind_client::BitcoindRpcInfo;
 use crate::init;
+use crate::lexe::bitcoind::BitcoindRpcInfo;
 use crate::provision::{provision, LexeRunner};
 use crate::types::{Network, NodeAlias, Port, UserId};
 

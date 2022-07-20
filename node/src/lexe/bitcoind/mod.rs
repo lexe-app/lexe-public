@@ -26,7 +26,7 @@ mod types;
 
 pub use types::*;
 
-pub struct BitcoindClient {
+pub struct LexeBitcoind {
     bitcoind_rpc_client: Arc<RpcClient>,
     host: String,
     port: u16,
@@ -43,7 +43,7 @@ pub enum Target {
     HighPriority,
 }
 
-impl BlockSource for &BitcoindClient {
+impl BlockSource for &LexeBitcoind {
     fn get_header<'a>(
         &'a self,
         header_hash: &'a BlockHash,
@@ -75,13 +75,13 @@ impl BlockSource for &BitcoindClient {
 /// The minimum feerate we are allowed to send, as specify by LDK.
 const MIN_FEERATE: u32 = 253;
 
-impl BitcoindClient {
+impl LexeBitcoind {
     pub async fn init(
         bitcoind_rpc: BitcoindRpcInfo,
         network: Network,
     ) -> anyhow::Result<Arc<Self>> {
         println!("Initializing bitcoind client");
-        let client = BitcoindClient::new(
+        let client = LexeBitcoind::new(
             bitcoind_rpc.host,
             bitcoind_rpc.port,
             bitcoind_rpc.username,
@@ -309,7 +309,7 @@ impl BitcoindClient {
     }
 }
 
-impl FeeEstimator for BitcoindClient {
+impl FeeEstimator for LexeBitcoind {
     fn get_est_sat_per_1000_weight(
         &self,
         confirmation_target: ConfirmationTarget,
@@ -334,7 +334,7 @@ impl FeeEstimator for BitcoindClient {
     }
 }
 
-impl BroadcasterInterface for BitcoindClient {
+impl BroadcasterInterface for LexeBitcoind {
     fn broadcast_transaction(&self, tx: &Transaction) {
         let bitcoind_rpc_client = self.bitcoind_rpc_client.clone();
         let tx_serialized = serde_json::json!(encode::serialize_hex(tx));

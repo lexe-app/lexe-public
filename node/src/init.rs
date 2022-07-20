@@ -29,14 +29,14 @@ use tokio::sync::{broadcast, mpsc};
 use crate::api::{
     ApiClient, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
 };
-use crate::bitcoind_client::BitcoindClient;
 use crate::cli::StartCommand;
 use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
+use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::keys_manager::LexeKeysManager;
+use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::{self, LexePeerManager};
 use crate::lexe::persister::LexePersister;
-use crate::logger::LdkTracingLogger;
 use crate::types::{
     ApiClientType, BroadcasterType, ChainMonitorType, ChannelManagerType,
     ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType,
@@ -52,7 +52,7 @@ pub async fn start_ldk<R: Crng>(
     args: StartCommand,
 ) -> anyhow::Result<()> {
     // Initialize the Logger
-    let logger = Arc::new(LdkTracingLogger {});
+    let logger = Arc::new(LexeTracingLogger {});
 
     // Get user_id, measurement, and HTTP client, used throughout init
     let user_id = args.user_id;
@@ -60,13 +60,12 @@ pub async fn start_ldk<R: Crng>(
     let measurement = String::from("default");
     let api = init_api(&args);
 
-    // Initialize BitcoindClient, fetch provisioned data
-    let (bitcoind_client_res, provisioned_data_res) = tokio::join!(
-        BitcoindClient::init(args.bitcoind_rpc.clone(), args.network),
+    // Initialize LexeBitcoind, fetch provisioned data
+    let (bitcoind_res, provisioned_data_res) = tokio::join!(
+        LexeBitcoind::init(args.bitcoind_rpc.clone(), args.network),
         fetch_provisioned_data(api.as_ref(), user_id, &measurement),
     );
-    let bitcoind_client =
-        bitcoind_client_res.context("Failed to init bitcoind client")?;
+    let bitcoind = bitcoind_res.context("Failed to init bitcoind client")?;
     let provisioned_data =
         provisioned_data_res.context("Failed to fetch provisioned data")?;
 
@@ -88,10 +87,10 @@ pub async fn start_ldk<R: Crng>(
     let pubkey = keys_manager.derive_pubkey(rng);
     let instance_id = convert::get_instance_id(&pubkey, &measurement);
 
-    // BitcoindClient implements FeeEstimator and BroadcasterInterface and thus
+    // LexeBitcoind implements FeeEstimator and BroadcasterInterface and thus
     // serves these functions. This can be customized later.
-    let fee_estimator = bitcoind_client.clone();
-    let broadcaster = bitcoind_client.clone();
+    let fee_estimator = bitcoind.clone();
+    let broadcaster = bitcoind.clone();
 
     // Initialize Persister
     let persister = Arc::new(LexePersister::new(api.clone(), instance_id));
@@ -121,7 +120,7 @@ pub async fn start_ldk<R: Crng>(
         channel_manager(
             &args,
             persister.as_ref(),
-            bitcoind_client.as_ref(),
+            bitcoind.as_ref(),
             &mut restarting_node,
             &mut channel_monitors,
             keys_manager.clone(),
@@ -198,7 +197,7 @@ pub async fn start_ldk<R: Crng>(
         args.network,
         channel_manager.clone(),
         keys_manager.clone(),
-        bitcoind_client.clone(),
+        bitcoind.clone(),
         network_graph.clone(),
         inbound_payments.clone(),
         outbound_payments.clone(),
@@ -248,7 +247,7 @@ pub async fn start_ldk<R: Crng>(
         sync_chain_listeners(
             &args,
             &channel_manager,
-            bitcoind_client.as_ref(),
+            bitcoind.as_ref(),
             broadcaster.clone(),
             fee_estimator.clone(),
             logger.clone(),
@@ -259,12 +258,11 @@ pub async fn start_ldk<R: Crng>(
         .await
         .context("Could not sync channel listeners")?
     } else {
-        let chain_tip = blocksyncinit::validate_best_block_header(
-            &mut bitcoind_client.deref(),
-        )
-        .await
-        .map_err(|e| anyhow!(e.into_inner()))
-        .context("Could not validate best block header")?;
+        let chain_tip =
+            blocksyncinit::validate_best_block_header(&mut bitcoind.deref())
+                .await
+                .map_err(|e| anyhow!(e.into_inner()))
+                .context("Could not validate best block header")?;
 
         (Vec::new(), chain_tip)
     };
@@ -286,7 +284,7 @@ pub async fn start_ldk<R: Crng>(
         blockheader_cache,
         channel_manager.clone(),
         chain_monitor.clone(),
-        bitcoind_client.clone(),
+        bitcoind.clone(),
     );
 
     // ## Ready
@@ -467,14 +465,14 @@ async fn channel_monitors(
 async fn channel_manager(
     args: &StartCommand,
     persister: &LexePersister,
-    bitcoind_client: &BitcoindClient,
+    bitcoind: &LexeBitcoind,
     restarting_node: &mut bool,
     channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
     keys_manager: Arc<LexeKeysManager>,
     fee_estimator: Arc<FeeEstimatorType>,
     chain_monitor: Arc<ChainMonitorType>,
     broadcaster: Arc<BroadcasterType>,
-    logger: Arc<LdkTracingLogger>,
+    logger: Arc<LexeTracingLogger>,
 ) -> anyhow::Result<(BlockHash, Arc<ChannelManagerType>)> {
     println!("Initializing the channel manager");
     let mut user_config = UserConfig::default();
@@ -499,7 +497,7 @@ async fn channel_manager(
         None => {
             // We're starting a fresh node.
             *restarting_node = false;
-            let getinfo_resp = bitcoind_client.get_blockchain_info().await;
+            let getinfo_resp = bitcoind.get_blockchain_info().await;
 
             let chain_params = ChainParameters {
                 network: args.network.into_inner(),
@@ -537,10 +535,10 @@ struct ChannelMonitorChainListener {
 async fn sync_chain_listeners(
     args: &StartCommand,
     channel_manager: &ChannelManagerType,
-    bitcoind_client: &BitcoindClient,
+    bitcoind: &LexeBitcoind,
     broadcaster: Arc<BroadcasterType>,
     fee_estimator: Arc<FeeEstimatorType>,
-    logger: Arc<LdkTracingLogger>,
+    logger: Arc<LexeTracingLogger>,
     channel_manager_blockhash: BlockHash,
     channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
     blockheader_cache: &mut HashMap<BlockHash, ValidatedBlockHeader>,
@@ -577,7 +575,7 @@ async fn sync_chain_listeners(
     }
 
     let chain_tip = blocksyncinit::synchronize_listeners(
-        &bitcoind_client,
+        &bitcoind,
         args.network.into_inner(),
         blockheader_cache,
         chain_listeners,
@@ -594,7 +592,7 @@ async fn sync_chain_listeners(
 async fn gossip_sync(
     network: Network,
     persister: &Arc<LexePersister>,
-    logger: Arc<LdkTracingLogger>,
+    logger: Arc<LexeTracingLogger>,
 ) -> anyhow::Result<(Arc<NetworkGraphType>, Arc<P2PGossipSyncType>)> {
     println!("Initializing gossip sync and network graph");
     let genesis = genesis_block(network.into_inner()).header.block_hash();
@@ -700,7 +698,7 @@ fn spawn_spv_client(
     mut blockheader_cache: HashMap<BlockHash, ValidatedBlockHeader>,
     channel_manager: Arc<ChannelManagerType>,
     chain_monitor: Arc<ChainMonitorType>,
-    bitcoind_block_source: Arc<BitcoindClient>,
+    bitcoind_block_source: Arc<LexeBitcoind>,
 ) {
     tokio::spawn(async move {
         let mut derefed = bitcoind_block_source.deref();

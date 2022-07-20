@@ -10,7 +10,7 @@ use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
 use secrecy::zeroize::Zeroizing;
 
 use crate::lexe::keys_manager::LexeKeysManager;
-use crate::logger::LdkTracingLogger;
+use crate::lexe::logger::LexeTracingLogger;
 use crate::types::{ChannelManagerType, P2PGossipSyncType, PeerManagerType};
 
 pub struct LexePeerManager(Arc<PeerManagerType>);
@@ -28,7 +28,7 @@ impl LexePeerManager {
         keys_manager: &LexeKeysManager,
         channel_manager: Arc<ChannelManagerType>,
         gossip_sync: Arc<P2PGossipSyncType>,
-        logger: Arc<LdkTracingLogger>,
+        logger: Arc<LexeTracingLogger>,
     ) -> Self {
         let mut ephemeral_bytes = Zeroizing::new([0u8; 32]);
         rng.fill_bytes(ephemeral_bytes.as_mut_slice());

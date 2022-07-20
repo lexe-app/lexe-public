@@ -254,7 +254,7 @@ mod test {
 
     use super::*;
     use crate::cli::{self, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
-    use crate::logger;
+    use crate::lexe::logger;
 
     #[cfg(target_env = "sgx")]
     #[test]

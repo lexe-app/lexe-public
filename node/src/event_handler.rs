@@ -17,7 +17,7 @@ use lightning::routing::gossip::NodeId;
 use lightning::util::events::{Event, EventHandler, PaymentPurpose};
 use tokio::runtime::Handle;
 
-use crate::bitcoind_client::BitcoindClient;
+use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::types::{
     ChannelManagerType, HTLCStatus, MillisatAmount, Network, NetworkGraphType,
@@ -28,7 +28,7 @@ pub struct LdkEventHandler {
     network: Network,
     channel_manager: Arc<ChannelManagerType>,
     keys_manager: Arc<LexeKeysManager>,
-    bitcoind_client: Arc<BitcoindClient>,
+    bitcoind: Arc<LexeBitcoind>,
     network_graph: Arc<NetworkGraphType>,
     inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
@@ -41,7 +41,7 @@ impl LdkEventHandler {
         network: Network,
         channel_manager: Arc<ChannelManagerType>,
         keys_manager: Arc<LexeKeysManager>,
-        bitcoind_client: Arc<BitcoindClient>,
+        bitcoind: Arc<LexeBitcoind>,
         network_graph: Arc<NetworkGraphType>,
         inbound_payments: PaymentInfoStorageType,
         outbound_payments: PaymentInfoStorageType,
@@ -51,7 +51,7 @@ impl LdkEventHandler {
             network,
             channel_manager,
             keys_manager,
-            bitcoind_client,
+            bitcoind,
             network_graph,
             inbound_payments,
             outbound_payments,
@@ -64,7 +64,7 @@ impl EventHandler for LdkEventHandler {
     fn handle_event(&self, event: &Event) {
         self.handle.block_on(handle_event(
             &self.channel_manager,
-            &self.bitcoind_client,
+            &self.bitcoind,
             &self.network_graph,
             &self.keys_manager,
             &self.inbound_payments,
@@ -78,7 +78,7 @@ impl EventHandler for LdkEventHandler {
 #[allow(clippy::too_many_arguments)]
 pub async fn handle_event(
     channel_manager: &Arc<ChannelManagerType>,
-    bitcoind_client: &BitcoindClient,
+    bitcoind: &LexeBitcoind,
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
     inbound_payments: &PaymentInfoStorageType,
@@ -105,14 +105,14 @@ pub async fn handle_event(
             let mut outputs = vec![HashMap::with_capacity(1)];
             outputs[0]
                 .insert(addr, *channel_value_satoshis as f64 / 100_000_000.0);
-            let raw_tx = bitcoind_client.create_raw_transaction(outputs).await;
+            let raw_tx = bitcoind.create_raw_transaction(outputs).await;
 
             // Have your wallet put the inputs into the transaction such that
             // the output is satisfied.
-            let funded_tx = bitcoind_client.fund_raw_transaction(raw_tx).await;
+            let funded_tx = bitcoind.fund_raw_transaction(raw_tx).await;
 
             // Sign the final funding transaction and broadcast it.
-            let signed_tx = bitcoind_client
+            let signed_tx = bitcoind
                 .sign_raw_transaction_with_wallet(funded_tx.hex)
                 .await;
             assert!(signed_tx.complete);
@@ -325,9 +325,9 @@ pub async fn handle_event(
             });
         }
         Event::SpendableOutputs { outputs } => {
-            let destination_address = bitcoind_client.get_new_address().await;
+            let destination_address = bitcoind.get_new_address().await;
             let output_descriptors = &outputs.iter().collect::<Vec<_>>();
-            let tx_feerate = bitcoind_client
+            let tx_feerate = bitcoind
                 .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
             let spending_tx = keys_manager
                 .spend_spendable_outputs(
@@ -338,7 +338,7 @@ pub async fn handle_event(
                     &Secp256k1::new(),
                 )
                 .unwrap();
-            bitcoind_client.broadcast_transaction(&spending_tx);
+            bitcoind.broadcast_transaction(&spending_tx);
         }
         Event::ChannelClosed {
             channel_id,

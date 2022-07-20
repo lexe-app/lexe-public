@@ -1,7 +1,7 @@
 use std::time::Instant;
 
 use node::cli::Args;
-use node::logger;
+use node::lexe::logger;
 use tracing::{debug, error};
 
 pub fn main() {

@@ -108,6 +108,8 @@ impl LexeKeysManager {
         PublicKey::from_secret_key(&secp, &privkey)
     }
 
+    // Bad fn signature is inherited from LDK
+    #[allow(clippy::result_unit_err)]
     pub fn spend_spendable_outputs<C: Signing>(
         &self,
         descriptors: &[&SpendableOutputDescriptor],

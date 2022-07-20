@@ -49,16 +49,16 @@ pub fn init_for_testing() {
     let _ = try_init();
 }
 
-// -- LdkTracingLogger -- //
+// -- LexeTracingLogger -- //
 
 /// An adapter that impls LDK's [`Logger`] trait and dispatches LDK logs to the
 /// current registered [`tracing`] log backend.
 ///
 /// [`Logger`]: lightning::util::logger::Logger
 /// [`tracing`]: https://crates.io/crates/tracing
-pub struct LdkTracingLogger;
+pub struct LexeTracingLogger;
 
-impl Logger for LdkTracingLogger {
+impl Logger for LexeTracingLogger {
     /// Convert LDK log records to [`tracing::Event`]s and then dispatch them
     /// to the current registered [`tracing::Subscriber`].
     fn log(&self, record: &Record) {
@@ -230,7 +230,7 @@ mod test {
         let dispatch = Dispatch::new(MockSubscriber);
 
         dispatcher::with_default(&dispatch, || {
-            let ldk_logger = LdkTracingLogger;
+            let ldk_logger = LexeTracingLogger;
             lightning::log_error!(ldk_logger, "hello: {}", 123);
         });
     }

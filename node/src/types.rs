@@ -26,10 +26,10 @@ use lightning_rapid_gossip_sync::RapidGossipSync;
 use subtle::ConstantTimeEq;
 
 use crate::api::ApiClient;
-use crate::bitcoind_client::BitcoindClient;
+use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::keys_manager::LexeKeysManager;
+use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::persister::LexePersister;
-use crate::logger::LdkTracingLogger;
 
 pub type UserId = i64;
 pub type Port = u16;
@@ -45,7 +45,7 @@ pub type ChainMonitorType = ChainMonitor<
     Arc<dyn Filter + Send + Sync>,
     Arc<BroadcasterType>,
     Arc<FeeEstimatorType>,
-    Arc<LdkTracingLogger>,
+    Arc<LexeTracingLogger>,
     Arc<LexePersister>,
 >;
 
@@ -54,12 +54,12 @@ pub type PeerManagerType = PeerManager<
     Arc<ChannelManagerType>,
     Arc<
         P2PGossipSync<
-            Arc<NetworkGraph<Arc<LdkTracingLogger>>>,
+            Arc<NetworkGraph<Arc<LexeTracingLogger>>>,
             Arc<ChainAccessType>,
-            Arc<LdkTracingLogger>,
+            Arc<LexeTracingLogger>,
         >,
     >,
-    Arc<LdkTracingLogger>,
+    Arc<LexeTracingLogger>,
     Arc<IgnoringMessageHandler>,
 >;
 
@@ -69,7 +69,7 @@ pub type ChannelManagerType = ChannelManager<
     Arc<BroadcasterType>,
     Arc<LexeKeysManager>,
     Arc<FeeEstimatorType>,
-    Arc<LdkTracingLogger>,
+    Arc<LexeTracingLogger>,
 >;
 
 pub type ChannelMonitorType = ChannelMonitor<InMemorySigner>;
@@ -79,14 +79,14 @@ pub type ChannelMonitorListenerType = (
     ChannelMonitorType,
     Arc<BroadcasterType>,
     Arc<FeeEstimatorType>,
-    Arc<LdkTracingLogger>,
+    Arc<LexeTracingLogger>,
 );
 
 pub type InvoicePayerType<E> = payment::InvoicePayer<
     Arc<ChannelManagerType>,
     RouterType,
     Arc<Mutex<ProbabilisticScorerType>>,
-    Arc<LdkTracingLogger>,
+    Arc<LexeTracingLogger>,
     E,
 >;
 
@@ -110,10 +110,10 @@ pub type NetworkGraphType = NetworkGraph<LoggerType>;
 
 pub type ChainAccessType = dyn Access + Send + Sync;
 
-pub type BroadcasterType = BitcoindClient;
-pub type FeeEstimatorType = BitcoindClient;
+pub type BroadcasterType = LexeBitcoind;
+pub type FeeEstimatorType = LexeBitcoind;
 
-pub type LoggerType = Arc<LdkTracingLogger>;
+pub type LoggerType = Arc<LexeTracingLogger>;
 
 pub struct PaymentInfo {
     pub preimage: Option<PaymentPreimage>,
@@ -312,7 +312,7 @@ impl fmt::Debug for AuthToken {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::bitcoind_client::BitcoindRpcInfo;
+    use crate::lexe::bitcoind::BitcoindRpcInfo;
 
     #[test]
     fn test_parse_bitcoind_rpc_info() {

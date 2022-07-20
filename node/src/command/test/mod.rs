@@ -4,9 +4,9 @@ use bitcoind::{self, BitcoinD, Conf};
 use common::rng::SysRng;
 
 use crate::api::mock;
-use crate::bitcoind_client::BitcoindRpcInfo;
 use crate::cli::{StartCommand, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
 use crate::init;
+use crate::lexe::bitcoind::BitcoindRpcInfo;
 use crate::types::{Network, NodeAlias};
 
 #[allow(dead_code)] // TODO remove after bitcoind field is read
