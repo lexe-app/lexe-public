@@ -23,19 +23,22 @@ pub enum Error {
     #[error("SGX error: {0:?}")]
     SgxError(sgx_isa::ErrorCode),
 
-    #[error("temp")]
-    Other,
+    #[error("sealing: input data is too large")]
+    SealInputTooLarge,
+
+    #[error("unsealing: ciphertext is too small")]
+    UnsealInputTooSmall,
+
+    #[error("keyrequest is not a valid length")]
+    InvalidKeyRequestLength,
+
+    #[error("unseal error: ciphertext or metadata may be corrupted")]
+    UnsealDecryptionError,
 }
 
 impl From<sgx_isa::ErrorCode> for Error {
     fn from(err: sgx_isa::ErrorCode) -> Self {
         Self::SgxError(err)
-    }
-}
-
-impl From<ring::error::Unspecified> for Error {
-    fn from(_: ring::error::Unspecified) -> Self {
-        Self::Other
     }
 }
 
