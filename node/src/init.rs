@@ -50,9 +50,10 @@ pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 // TODO: Eventually move this into the `lexe` module once init is cleaned up
 pub struct LexeContext {
     args: StartCommand,
+    shutdown_tx: broadcast::Sender<()>,
 
-    channel_manager: Arc<ChannelManagerType>,
-    peer_manager: Arc<LexePeerManager>,
+    pub channel_manager: Arc<ChannelManagerType>,
+    pub peer_manager: Arc<LexePeerManager>,
     keys_manager: Arc<LexeKeysManager>,
     persister: Arc<LexePersister>,
     chain_monitor: Arc<ChainMonitorType>,
@@ -73,7 +74,6 @@ struct SyncContext {
     channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
     channel_manager_blockhash: BlockHash,
     activity_rx: mpsc::Receiver<()>,
-    shutdown_tx: broadcast::Sender<()>,
 }
 
 /// Variables that only run() uses, or which run() requires ownership of
@@ -292,7 +292,6 @@ impl LexeContext {
             channel_manager_blockhash,
             channel_monitors,
             activity_rx,
-            shutdown_tx,
         };
         let run_ctx = RunContext {
             inbound_payments,
@@ -303,6 +302,7 @@ impl LexeContext {
         };
         let ctx = LexeContext {
             args,
+            shutdown_tx,
 
             channel_manager,
             peer_manager,
@@ -376,12 +376,12 @@ impl LexeContext {
 
         // Sync is complete; start the inactivity timer.
         println!("Starting inactivity timer");
-        let timer_shutdown_rx = sync_ctx.shutdown_tx.subscribe();
+        let timer_shutdown_rx = self.shutdown_tx.subscribe();
         let mut inactivity_timer = InactivityTimer::new(
             self.args.shutdown_after_sync_if_no_activity,
             self.args.inactivity_timer_sec,
             sync_ctx.activity_rx,
-            sync_ctx.shutdown_tx,
+            self.shutdown_tx.clone(),
             timer_shutdown_rx,
         );
         tokio::spawn(async move {
