@@ -69,7 +69,7 @@ pub type ChannelManagerType = ChannelManager<
     InMemorySigner,
     Arc<ChainMonitorType>,
     Arc<BroadcasterType>,
-    Arc<LexeKeysManager>,
+    LexeKeysManager,
     Arc<FeeEstimatorType>,
     Arc<LexeTracingLogger>,
 >;

@@ -13,7 +13,7 @@ use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::types::{ChannelManagerType, P2PGossipSyncType, PeerManagerType};
 
-/// LexePeerManager holds an Arc internally, so it is fine to clone it directly.
+/// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]
 pub struct LexePeerManager(Arc<PeerManagerType>);
 

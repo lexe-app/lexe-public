@@ -1,43 +1,48 @@
+use std::ops::Deref;
+use std::sync::Arc;
+
 use anyhow::ensure;
 use bitcoin::blockdata::script::Script;
 use bitcoin::blockdata::transaction::{Transaction, TxOut};
-use bitcoin::secp256k1::ecdsa::RecoverableSignature;
-use bitcoin::secp256k1::{PublicKey, Secp256k1, SecretKey, Signing};
-use bitcoin_bech32::u5;
+use bitcoin::secp256k1::{PublicKey, Secp256k1, Signing};
 use common::rng::Crng;
 use common::root_seed::RootSeed;
 use lightning::chain::keysinterface::{
-    InMemorySigner, KeyMaterial, KeysInterface, KeysManager, Recipient,
-    SpendableOutputDescriptor,
+    KeysInterface, KeysManager, Recipient, SpendableOutputDescriptor,
 };
-use lightning::ln::msgs::DecodeError;
-use lightning::ln::script::ShutdownScript;
 use secrecy::{ExposeSecret, Secret};
 
 use crate::convert;
 
 /// A thin wrapper around LDK's KeysManager which provides a cleaner init API
 /// and some custom functionalities.
-#[allow(dead_code)]
+///
+/// An Arc is held internally, so it is fine to clone directly.
+#[derive(Clone)]
 pub struct LexeKeysManager {
-    // This field is currently never read, but we may need it later
-    root_seed: RootSeed,
-    inner: KeysManager,
+    inner: Arc<KeysManager>,
+}
+
+impl Deref for LexeKeysManager {
+    type Target = KeysManager;
+    fn deref(&self) -> &Self::Target {
+        self.inner.as_ref()
+    }
 }
 
 impl LexeKeysManager {
     /// A helper used to (insecurely) initialize a LexeKeysManager in the
     /// temporary provision flow. Once provisioning works, this fn should be
     /// removed entirely. TODO: Remove
-    pub fn unchecked_init<R: Crng>(rng: &mut R, root_seed: RootSeed) -> Self {
+    pub fn unchecked_init<R: Crng>(rng: &mut R, root_seed: &RootSeed) -> Self {
         let random_secs = rng.next_u64();
         let random_nanos = rng.next_u32();
-        let inner = KeysManager::new(
+        let inner = Arc::new(KeysManager::new(
             root_seed.expose_secret(),
             random_secs,
             random_nanos,
-        );
-        Self { root_seed, inner }
+        ));
+        Self { inner }
     }
 
     /// A RIIV (Resource Initialization Is Validation) initializer.
@@ -67,14 +72,14 @@ impl LexeKeysManager {
         // u32 instead. See KeysManager::new() for more info.
         let random_secs = rng.next_u64();
         let random_nanos = rng.next_u32();
-        let inner = KeysManager::new(
+        let inner = Arc::new(KeysManager::new(
             root_seed.expose_secret(),
             random_secs,
             random_nanos,
-        );
+        ));
 
         // Construct the LexeKeysManager, but validation isn't done yet
-        let keys_manager = Self { root_seed, inner };
+        let keys_manager = Self { inner };
 
         // Derive the pubkey from the inner KeysManager
         let derived_pubkey = keys_manager.derive_pubkey(rng);
@@ -125,54 +130,5 @@ impl LexeKeysManager {
             feerate_sat_per_1000_weight,
             secp_ctx,
         )
-    }
-}
-
-impl KeysInterface for LexeKeysManager {
-    type Signer = InMemorySigner;
-
-    fn get_node_secret(&self, recipient: Recipient) -> Result<SecretKey, ()> {
-        self.inner.get_node_secret(recipient)
-    }
-
-    fn get_destination_script(&self) -> Script {
-        self.inner.get_destination_script()
-    }
-
-    fn get_shutdown_scriptpubkey(&self) -> ShutdownScript {
-        self.inner.get_shutdown_scriptpubkey()
-    }
-
-    fn get_channel_signer(
-        &self,
-        inbound: bool,
-        channel_value_satoshis: u64,
-    ) -> Self::Signer {
-        self.inner
-            .get_channel_signer(inbound, channel_value_satoshis)
-    }
-
-    fn get_secure_random_bytes(&self) -> [u8; 32] {
-        self.inner.get_secure_random_bytes()
-    }
-
-    fn read_chan_signer(
-        &self,
-        reader: &[u8],
-    ) -> Result<Self::Signer, DecodeError> {
-        self.inner.read_chan_signer(reader)
-    }
-
-    fn sign_invoice(
-        &self,
-        hrp_bytes: &[u8],
-        invoice_data: &[u5],
-        recipient: Recipient,
-    ) -> Result<RecoverableSignature, ()> {
-        self.inner.sign_invoice(hrp_bytes, invoice_data, recipient)
-    }
-
-    fn get_inbound_payment_key_material(&self) -> KeyMaterial {
-        self.inner.get_inbound_payment_key_material()
     }
 }

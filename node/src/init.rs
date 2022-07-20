@@ -54,7 +54,7 @@ pub struct LexeContext {
 
     pub channel_manager: Arc<ChannelManagerType>,
     pub peer_manager: LexePeerManager,
-    keys_manager: Arc<LexeKeysManager>,
+    keys_manager: LexeKeysManager,
     persister: Arc<LexePersister>,
     chain_monitor: Arc<ChainMonitorType>,
     network_graph: Arc<NetworkGraphType>,
@@ -123,7 +123,6 @@ impl LexeContext {
             }
             _ => panic!("Node init data should have been persisted atomically"),
         };
-        let keys_manager = Arc::new(keys_manager);
         let pubkey = keys_manager.derive_pubkey(rng);
         let instance_id = convert::get_instance_id(&pubkey, &measurement);
 
@@ -186,7 +185,7 @@ impl LexeContext {
         // Initialize PeerManager
         let peer_manager = LexePeerManager::init(
             rng,
-            keys_manager.as_ref(),
+            &keys_manager,
             channel_manager.clone(),
             gossip_sync.clone(),
             logger.clone(),
@@ -496,7 +495,7 @@ async fn provision_new_node<R: Crng>(
     let sealed_seed = root_seed.expose_secret().to_vec();
 
     // Derive pubkey
-    let keys_manager = LexeKeysManager::unchecked_init(rng, root_seed);
+    let keys_manager = LexeKeysManager::unchecked_init(rng, &root_seed);
     let pubkey = keys_manager.derive_pubkey(rng);
     let pubkey_hex = convert::pubkey_to_hex(&pubkey);
 
@@ -539,7 +538,7 @@ async fn provision_new_node<R: Crng>(
 /// Initializes the ChannelMonitors
 async fn channel_monitors(
     persister: &LexePersister,
-    keys_manager: Arc<LexeKeysManager>,
+    keys_manager: LexeKeysManager,
 ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
     println!("Reading channel monitors from DB");
     let result = persister
@@ -559,7 +558,7 @@ async fn channel_manager(
     block_source: &BlockSourceType,
     restarting_node: &mut bool,
     channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
-    keys_manager: Arc<LexeKeysManager>,
+    keys_manager: LexeKeysManager,
     fee_estimator: Arc<FeeEstimatorType>,
     chain_monitor: Arc<ChainMonitorType>,
     broadcaster: Arc<BroadcasterType>,
