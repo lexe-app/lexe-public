@@ -46,14 +46,17 @@ impl KeyRequest {
     /// field.
     const TRUNCATED_SIZE: usize = 76; // == 512 - 436
 
-    /// Generate a request for a unique, one-time-use sealing key. The sealing
-    /// key will only be recoverable on enclaves with the same `MRENCLAVE`
-    /// measurement.
+    /// Generate a request for a unique, encrypt-at-most-once sealing key. The\
+    /// sealing key will only be recoverable on enclaves with the same
+    /// `MRENCLAVE` measurement.
     fn gen_sealing_request(rng: &mut dyn Crng, self_report: &Report) -> Self {
         let mut keyid = [0u8; 32];
         rng.fill_bytes(&mut keyid);
 
         // TODO(phlip9): take another pass at choosing attribute masks.
+
+        // adapted from:
+        // <https://github.com/openenclave/openenclave/blob/e79d334c7f3b9fb2ab3efddbacf215d1713c2413/include/openenclave/bits/sgx/sgxtypes.h#L1097>
 
         // ignore reserved bits + PROVISIONKEY + EINITTOKENKEY
         let attribute_mask: u64 = !(0xffffffffffffc0
