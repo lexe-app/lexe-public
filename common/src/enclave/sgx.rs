@@ -218,10 +218,11 @@ pub fn unseal(label: &[u8], sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
 #[cfg(test)]
 mod test {
     use proptest::arbitrary::any;
-    use proptest::proptest;
+    use proptest::strategy::Strategy;
+    use proptest::{prop_assume, proptest};
 
     use super::*;
-    use crate::rng::SysRng;
+    use crate::rng::{arb_rng, SmallRng};
     use crate::sha256;
 
     #[test]
@@ -232,7 +233,7 @@ mod test {
 
     #[test]
     fn test_sealing_roundtrip_basic() {
-        let mut rng = SysRng::new();
+        let mut rng = SmallRng::new();
 
         let sealed = seal(&mut rng, b"", b"").unwrap();
         let unsealed = unseal(b"", sealed).unwrap();
@@ -248,11 +249,49 @@ mod test {
         let arb_label = any::<Vec<u8>>();
         let arb_data = any::<Vec<u8>>();
 
-        proptest!(|(label in arb_label, data in arb_data)| {
-            let mut rng = SysRng::new();
+        proptest!(|(mut rng in arb_rng(), label in arb_label, data in arb_data)| {
             let sealed = seal(&mut rng, &label, &data).unwrap();
             let unsealed = unseal(&label, sealed).unwrap();
             assert_eq!(&data, &unsealed);
         });
     }
+
+    #[test]
+    fn test_sealing_detects_ciphertext_change() {
+        let arb_label = any::<Vec<u8>>();
+        let arb_data = any::<Vec<u8>>();
+        let arb_mutation = any::<Vec<u8>>()
+            .prop_filter("can't be empty or all zeroes", |m| {
+                !m.is_empty() && !m.iter().all(|x| x == &0u8)
+            });
+
+        proptest!(|(
+            mut rng in arb_rng(),
+            label in arb_label,
+            data in arb_data,
+            mutation in arb_mutation,
+        )| {
+            let sealed = seal(&mut rng, &label, &data).unwrap();
+
+            let keyrequest = sealed.keyrequest;
+            let ciphertext_original = sealed.ciphertext.into_owned();
+            let mut ciphertext = ciphertext_original.clone();
+
+            for (c, m) in ciphertext.iter_mut().zip(mutation.iter()) {
+                *c ^= m;
+            }
+
+            prop_assume!(ciphertext != ciphertext_original);
+
+            let sealed = Sealed {
+                keyrequest,
+                ciphertext: ciphertext.into(),
+            };
+
+            // TODO(phlip9): check error
+            unseal(&label, sealed).unwrap_err();
+        });
+    }
+
+    // TODO(phlip9): test KeyRequest mutations
 }
