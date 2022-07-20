@@ -62,7 +62,7 @@ pub struct LexeContext {
     block_source: Arc<BlockSourceType>,
     fee_estimator: Arc<FeeEstimatorType>,
     broadcaster: Arc<BroadcasterType>,
-    logger: Arc<LexeTracingLogger>,
+    logger: LexeTracingLogger,
 
     sync_ctx: Option<SyncContext>,
     run_ctx: Option<RunContext>,
@@ -91,7 +91,7 @@ impl LexeContext {
         args: StartCommand,
     ) -> anyhow::Result<Self> {
         // Initialize the Logger
-        let logger = Arc::new(LexeTracingLogger {});
+        let logger = LexeTracingLogger::new();
 
         // Get user_id, measurement, and HTTP client, used throughout init
         let user_id = args.user_id;
@@ -562,7 +562,7 @@ async fn channel_manager(
     fee_estimator: Arc<FeeEstimatorType>,
     chain_monitor: Arc<ChainMonitorType>,
     broadcaster: Arc<BroadcasterType>,
-    logger: Arc<LexeTracingLogger>,
+    logger: LexeTracingLogger,
 ) -> anyhow::Result<(BlockHash, Arc<ChannelManagerType>)> {
     println!("Initializing the channel manager");
     let mut user_config = UserConfig::default();
@@ -628,7 +628,7 @@ async fn sync_chain_listeners(
     block_source: &BlockSourceType,
     broadcaster: Arc<BroadcasterType>,
     fee_estimator: Arc<FeeEstimatorType>,
-    logger: Arc<LexeTracingLogger>,
+    logger: LexeTracingLogger,
     channel_manager_blockhash: BlockHash,
     channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
     blockheader_cache: &mut HashMap<BlockHash, ValidatedBlockHeader>,
@@ -682,7 +682,7 @@ async fn sync_chain_listeners(
 async fn gossip_sync(
     network: Network,
     persister: &LexePersister,
-    logger: Arc<LexeTracingLogger>,
+    logger: LexeTracingLogger,
 ) -> anyhow::Result<(Arc<NetworkGraphType>, Arc<P2PGossipSyncType>)> {
     println!("Initializing gossip sync and network graph");
     let genesis = genesis_block(network.into_inner()).header.block_hash();

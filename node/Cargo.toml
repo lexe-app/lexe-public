@@ -25,19 +25,20 @@ base64 = "0.13.0"
 
 # --- LIGHTNING --- #
 
-lightning = { version = "0.0.108", features = ["max_level_trace"] }
-lightning-block-sync = { version = "0.0.108", features = [ "rpc-client" ] }
-lightning-invoice = { version = "0.16" }
-lightning-net-tokio = { version = "0.0.108" }
-lightning-background-processor = { version = "0.0.108" }
-lightning-rapid-gossip-sync = { version = "0.0.108" }
+# lightning = { version = "0.0.108", features = ["max_level_trace"] }
+# lightning-block-sync = { version = "0.0.108", features = [ "rpc-client" ] }
+# lightning-invoice = { version = "0.16" }
+# lightning-net-tokio = { version = "0.0.108" }
+# lightning-background-processor = { version = "0.0.108" }
+# lightning-rapid-gossip-sync = { version = "0.0.108" }
 
-# lightning = { git = "https://github.com/lexe-tech/rust-lightning", features = ["max_level_trace"], branch = "lightning-net-tokio-sgx-v0.0.108" }
-# lightning-block-sync = { git = "https://github.com/lexe-tech/rust-lightning", features = [ "rpc-client" ], branch = "lightning-net-tokio-sgx-v0.0.108" }
-# lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lightning-net-tokio-sgx-v0.0.108" }
-# lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lightning-net-tokio-sgx-v0.0.108" }
-# lightning-background-processor = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lightning-net-tokio-sgx-v0.0.108" }
-# lightning-rapid-gossip-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lightning-net-tokio-sgx-v0.0.108" }
+# TODO Switch to back to vanilla version after fix is merged
+lightning = { git = "https://github.com/lexe-tech/rust-lightning", features = ["max_level_trace"], branch = "net-tokio-connect-v0.0.108" }
+lightning-block-sync = { git = "https://github.com/lexe-tech/rust-lightning", features = [ "rpc-client" ], branch = "net-tokio-connect-v0.0.108" }
+lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "net-tokio-connect-v0.0.108" }
+lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "net-tokio-connect-v0.0.108" }
+lightning-background-processor = { git = "https://github.com/lexe-tech/rust-lightning", branch = "net-tokio-connect-v0.0.108" }
+lightning-rapid-gossip-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "net-tokio-connect-v0.0.108" }
 
 # ---UTILITIES--- #
 

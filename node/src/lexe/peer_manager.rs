@@ -30,7 +30,7 @@ impl LexePeerManager {
         keys_manager: &LexeKeysManager,
         channel_manager: Arc<ChannelManagerType>,
         gossip_sync: Arc<P2PGossipSyncType>,
-        logger: Arc<LexeTracingLogger>,
+        logger: LexeTracingLogger,
     ) -> Self {
         let mut ephemeral_bytes = Zeroizing::new([0u8; 32]);
         rng.fill_bytes(ephemeral_bytes.as_mut_slice());

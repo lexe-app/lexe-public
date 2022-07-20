@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::ops::Deref;
 use std::str::FromStr;
 
 use lightning::util::logger::{Level as LdkLevel, Logger, Record};
@@ -54,11 +55,36 @@ pub fn init_for_testing() {
 /// An adapter that impls LDK's [`Logger`] trait and dispatches LDK logs to the
 /// current registered [`tracing`] log backend.
 ///
+/// An Arc is held internally, so it is fine to clone and use directly.
+///
 /// [`Logger`]: lightning::util::logger::Logger
 /// [`tracing`]: https://crates.io/crates/tracing
-pub struct LexeTracingLogger;
+#[derive(Clone)]
+pub struct LexeTracingLogger(InnerTracingLogger);
 
-impl Logger for LexeTracingLogger {
+impl LexeTracingLogger {
+    pub fn new() -> Self {
+        Self(InnerTracingLogger)
+    }
+}
+
+impl Deref for LexeTracingLogger {
+    type Target = InnerTracingLogger;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl Default for LexeTracingLogger {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Clone)]
+pub struct InnerTracingLogger;
+
+impl Logger for InnerTracingLogger {
     /// Convert LDK log records to [`tracing::Event`]s and then dispatch them
     /// to the current registered [`tracing::Subscriber`].
     fn log(&self, record: &Record) {
@@ -230,7 +256,7 @@ mod test {
         let dispatch = Dispatch::new(MockSubscriber);
 
         dispatcher::with_default(&dispatch, || {
-            let ldk_logger = LexeTracingLogger;
+            let ldk_logger = LexeTracingLogger::new();
             lightning::log_error!(ldk_logger, "hello: {}", 123);
         });
     }
