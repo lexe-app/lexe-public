@@ -53,12 +53,11 @@ impl CommandTestHarness {
 
         // Init node
         let mut rng = SysRng::new();
-        LexeContext::init(&mut rng, args)
+        let mut ctx = LexeContext::init(&mut rng, args)
             .await
-            .expect("Error during init")
-            .run()
-            .await
-            .expect("Error while running");
+            .expect("Error during init");
+        ctx.sync().await.expect("Error while running");
+        ctx.run().await.expect("Error while running");
 
         Self { bitcoind }
     }

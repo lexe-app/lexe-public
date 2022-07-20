@@ -7,8 +7,6 @@ pub use sgx::*;
 mod sgx {
     use std::sync::Arc;
 
-    use lightning::util::events::EventHandler;
-
     use crate::lexe::keys_manager::LexeKeysManager;
     use crate::lexe::peer_manager::LexePeerManager;
     use crate::lexe::persister::LexePersister;
@@ -18,8 +16,8 @@ mod sgx {
     };
 
     #[allow(clippy::too_many_arguments)]
-    pub async fn poll_for_user_input<E: EventHandler>(
-        _invoice_payer: Arc<InvoicePayerType<E>>,
+    pub async fn poll_for_user_input(
+        _invoice_payer: Arc<InvoicePayerType>,
         _peer_manager: Arc<LexePeerManager>,
         _channel_manager: Arc<ChannelManagerType>,
         _keys_manager: Arc<LexeKeysManager>,
@@ -51,7 +49,6 @@ mod not_sgx {
     use lightning::util::config::{
         ChannelConfig, ChannelHandshakeLimits, UserConfig,
     };
-    use lightning::util::events::EventHandler;
     use lightning_invoice::payment::PaymentError;
     use lightning_invoice::{utils, Currency, Invoice};
 
@@ -66,8 +63,8 @@ mod not_sgx {
 
     #[allow(clippy::too_many_arguments)]
     #[cfg(not(target_env = "sgx"))]
-    pub async fn poll_for_user_input<E: EventHandler>(
-        invoice_payer: Arc<InvoicePayerType<E>>,
+    pub async fn poll_for_user_input(
+        invoice_payer: Arc<InvoicePayerType>,
         peer_manager: Arc<LexePeerManager>,
         channel_manager: Arc<ChannelManagerType>,
         keys_manager: Arc<LexeKeysManager>,
@@ -610,8 +607,8 @@ mod not_sgx {
         }
     }
 
-    fn send_payment<E: EventHandler>(
-        invoice_payer: &InvoicePayerType<E>,
+    fn send_payment(
+        invoice_payer: &InvoicePayerType,
         invoice: &Invoice,
         payment_storage: PaymentInfoStorageType,
     ) {
@@ -657,8 +654,8 @@ mod not_sgx {
         );
     }
 
-    fn keysend<E: EventHandler, K: KeysInterface>(
-        invoice_payer: &InvoicePayerType<E>,
+    fn keysend<K: KeysInterface>(
+        invoice_payer: &InvoicePayerType,
         payee_pubkey: PublicKey,
         amt_msat: u64,
         keys: &K,

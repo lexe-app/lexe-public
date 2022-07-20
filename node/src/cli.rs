@@ -25,7 +25,7 @@ pub enum Command {
 }
 
 /// Start the Lexe node
-#[derive(Debug, PartialEq, Eq, FromArgs)]
+#[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand, name = "start")]
 pub struct StartCommand {
     /// bitcoind rpc info, in the format <username>:<password>@<host>:<port>
@@ -128,6 +128,7 @@ impl Args {
                 let mut rng = SysRng::new();
                 rt.block_on(async {
                     let mut ctx = LexeContext::init(&mut rng, args).await?;
+                    ctx.sync().await?;
                     ctx.run().await
                 })
                 .context("Error running node")
