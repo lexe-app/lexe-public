@@ -49,7 +49,7 @@ pub type ChainMonitorType = ChainMonitor<
     Arc<dyn Filter + Send + Sync>,
     Arc<BroadcasterType>,
     Arc<FeeEstimatorType>,
-    Arc<LexeTracingLogger>,
+    LexeTracingLogger,
     LexePersister,
 >;
 
@@ -58,12 +58,12 @@ pub type PeerManagerType = PeerManager<
     Arc<ChannelManagerType>,
     Arc<
         P2PGossipSync<
-            Arc<NetworkGraph<Arc<LexeTracingLogger>>>,
+            Arc<NetworkGraph<LexeTracingLogger>>,
             Arc<ChainAccessType>,
-            Arc<LexeTracingLogger>,
+            LexeTracingLogger,
         >,
     >,
-    Arc<LexeTracingLogger>,
+    LexeTracingLogger,
     Arc<IgnoringMessageHandler>,
 >;
 
@@ -73,7 +73,7 @@ pub type ChannelManagerType = ChannelManager<
     Arc<BroadcasterType>,
     LexeKeysManager,
     Arc<FeeEstimatorType>,
-    Arc<LexeTracingLogger>,
+    LexeTracingLogger,
 >;
 
 pub type ChannelMonitorType = ChannelMonitor<SignerType>;
@@ -83,14 +83,14 @@ pub type ChannelMonitorListenerType = (
     ChannelMonitorType,
     Arc<BroadcasterType>,
     Arc<FeeEstimatorType>,
-    Arc<LexeTracingLogger>,
+    LexeTracingLogger,
 );
 
 pub type InvoicePayerType = payment::InvoicePayer<
     Arc<ChannelManagerType>,
     RouterType,
     Arc<Mutex<ProbabilisticScorerType>>,
-    Arc<LexeTracingLogger>,
+    LexeTracingLogger,
     LdkEventHandler,
 >;
 
@@ -118,7 +118,7 @@ pub type BlockSourceType = LexeBitcoind;
 pub type BroadcasterType = LexeBitcoind;
 pub type FeeEstimatorType = LexeBitcoind;
 
-pub type LoggerType = Arc<LexeTracingLogger>;
+pub type LoggerType = LexeTracingLogger;
 
 pub struct PaymentInfo {
     pub preimage: Option<PaymentPreimage>,

@@ -83,7 +83,7 @@ impl InnerPersister {
         fee_estimator: Arc<FeeEstimatorType>,
         chain_monitor: Arc<ChainMonitorType>,
         broadcaster: Arc<BroadcasterType>,
-        logger: Arc<LexeTracingLogger>,
+        logger: LexeTracingLogger,
         user_config: UserConfig,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         println!("Reading channel manager");
@@ -332,7 +332,7 @@ impl<'a>
         Arc<LexeBitcoind>,
         LexeKeysManager,
         Arc<LexeBitcoind>,
-        Arc<LexeTracingLogger>,
+        LexeTracingLogger,
         Mutex<ProbabilisticScorerType>,
     > for InnerPersister
 {
