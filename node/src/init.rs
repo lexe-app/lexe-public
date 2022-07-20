@@ -55,7 +55,7 @@ pub struct LexeContext {
     pub channel_manager: Arc<ChannelManagerType>,
     pub peer_manager: LexePeerManager,
     keys_manager: LexeKeysManager,
-    persister: Arc<LexePersister>,
+    persister: LexePersister,
     chain_monitor: Arc<ChainMonitorType>,
     network_graph: Arc<NetworkGraphType>,
     invoice_payer: Arc<InvoicePayerType>,
@@ -135,7 +135,7 @@ impl LexeContext {
         let broadcaster = bitcoind.clone();
 
         // Initialize Persister
-        let persister = Arc::new(LexePersister::new(api.clone(), instance_id));
+        let persister = LexePersister::new(api.clone(), instance_id);
 
         // Initialize the ChainMonitor
         let chain_monitor = Arc::new(ChainMonitor::new(
@@ -148,7 +148,7 @@ impl LexeContext {
 
         // Read the `ChannelMonitor`s and initialize the `P2PGossipSync`
         let (channel_monitors_res, gossip_sync_res) = tokio::join!(
-            channel_monitors(persister.as_ref(), keys_manager.clone()),
+            channel_monitors(&persister, keys_manager.clone()),
             gossip_sync(args.network, &persister, logger.clone())
         );
         let mut channel_monitors =
@@ -161,7 +161,7 @@ impl LexeContext {
         let (channel_manager_res, scorer_res) = tokio::join!(
             channel_manager(
                 &args,
-                persister.as_ref(),
+                &persister,
                 block_source.as_ref(),
                 &mut restarting_node,
                 &mut channel_monitors,
@@ -266,7 +266,7 @@ impl LexeContext {
 
         // Start Background Processing
         let background_processor = BackgroundProcessor::start(
-            Arc::clone(&persister),
+            persister.clone(),
             invoice_payer.clone(),
             chain_monitor.clone(),
             channel_manager.clone(),
@@ -681,7 +681,7 @@ async fn sync_chain_listeners(
 /// Initializes a GossipSync and NetworkGraph
 async fn gossip_sync(
     network: Network,
-    persister: &Arc<LexePersister>,
+    persister: &LexePersister,
     logger: Arc<LexeTracingLogger>,
 ) -> anyhow::Result<(Arc<NetworkGraphType>, Arc<P2PGossipSyncType>)> {
     println!("Initializing gossip sync and network graph");
@@ -742,7 +742,7 @@ fn spawn_p2p_reconnect_task(
     channel_manager: Arc<ChannelManagerType>,
     peer_manager: LexePeerManager,
     stop_listen_connect: Arc<AtomicBool>,
-    persister: Arc<LexePersister>,
+    persister: LexePersister,
 ) {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(60));
