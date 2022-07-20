@@ -19,7 +19,7 @@ pub struct NodeInfo {
 /// GET /owner/node_info -> NodeInfo
 pub async fn node_info(
     channel_manager: Arc<ChannelManagerType>,
-    peer_manager: Arc<LexePeerManager>,
+    peer_manager: LexePeerManager,
 ) -> Result<NodeInfo, ApiError> {
     let pubkey = channel_manager.get_our_node_id();
     let pubkey = convert::pubkey_to_hex(&pubkey);

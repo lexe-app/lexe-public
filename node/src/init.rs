@@ -53,7 +53,7 @@ pub struct LexeContext {
     shutdown_tx: broadcast::Sender<()>,
 
     pub channel_manager: Arc<ChannelManagerType>,
-    pub peer_manager: Arc<LexePeerManager>,
+    pub peer_manager: LexePeerManager,
     keys_manager: Arc<LexeKeysManager>,
     persister: Arc<LexePersister>,
     chain_monitor: Arc<ChainMonitorType>,
@@ -191,7 +191,6 @@ impl LexeContext {
             gossip_sync.clone(),
             logger.clone(),
         );
-        let peer_manager = Arc::new(peer_manager);
 
         // Set up listening for inbound P2P connections
         let stop_listen_connect = Arc::new(AtomicBool::new(false));
@@ -711,7 +710,7 @@ async fn gossip_sync(
 fn spawn_p2p_listener(
     peer_port_opt: Option<Port>,
     stop_listen: Arc<AtomicBool>,
-    peer_manager: Arc<LexePeerManager>,
+    peer_manager: LexePeerManager,
 ) {
     tokio::spawn(async move {
         // A value of 0 indicates that the OS will assign a port for us
@@ -742,7 +741,7 @@ fn spawn_p2p_listener(
 /// Spawns a task that regularly reconnects to the channel peers stored in DB.
 fn spawn_p2p_reconnect_task(
     channel_manager: Arc<ChannelManagerType>,
-    peer_manager: Arc<LexePeerManager>,
+    peer_manager: LexePeerManager,
     stop_listen_connect: Arc<AtomicBool>,
     persister: Arc<LexePersister>,
 ) {

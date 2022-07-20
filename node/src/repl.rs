@@ -18,7 +18,7 @@ mod sgx {
     #[allow(clippy::too_many_arguments)]
     pub async fn poll_for_user_input(
         _invoice_payer: Arc<InvoicePayerType>,
-        _peer_manager: Arc<LexePeerManager>,
+        _peer_manager: LexePeerManager,
         _channel_manager: Arc<ChannelManagerType>,
         _keys_manager: Arc<LexeKeysManager>,
         _network_graph: Arc<NetworkGraphType>,
@@ -65,7 +65,7 @@ mod not_sgx {
     #[cfg(not(target_env = "sgx"))]
     pub async fn poll_for_user_input(
         invoice_payer: Arc<InvoicePayerType>,
-        peer_manager: Arc<LexePeerManager>,
+        peer_manager: LexePeerManager,
         channel_manager: Arc<ChannelManagerType>,
         keys_manager: Arc<LexeKeysManager>,
         network_graph: Arc<NetworkGraphType>,
@@ -436,7 +436,7 @@ mod not_sgx {
 
     fn node_info(
         channel_manager: &Arc<ChannelManagerType>,
-        peer_manager: &Arc<LexePeerManager>,
+        peer_manager: &LexePeerManager,
     ) {
         println!("\t{{");
         println!("\t\t node_pubkey: {}", channel_manager.get_our_node_id());
@@ -453,7 +453,7 @@ mod not_sgx {
         println!("\t}},");
     }
 
-    fn list_peers(peer_manager: Arc<LexePeerManager>) {
+    fn list_peers(peer_manager: LexePeerManager) {
         println!("\t{{");
         for pubkey in peer_manager.get_peer_node_ids() {
             println!("\t\t pubkey: {}", pubkey);
