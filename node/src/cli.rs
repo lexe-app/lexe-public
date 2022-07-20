@@ -2,7 +2,7 @@ use anyhow::Context;
 use argh::FromArgs;
 use common::rng::SysRng;
 
-use crate::init;
+use crate::init::LexeContext;
 use crate::lexe::bitcoind::BitcoindRpcInfo;
 use crate::provision::{provision, LexeRunner};
 use crate::types::{Network, NodeAlias, Port, UserId};
@@ -126,8 +126,11 @@ impl Args {
                     .build()
                     .expect("Failed to build tokio runtime");
                 let mut rng = SysRng::new();
-                rt.block_on(init::start_ldk(&mut rng, args))
-                    .context("Error running node")
+                rt.block_on(async {
+                    let mut ctx = LexeContext::init(&mut rng, args).await?;
+                    ctx.run().await
+                })
+                .context("Error running node")
             }
             Command::Provision(args) => {
                 let rt = tokio::runtime::Builder::new_current_thread()
