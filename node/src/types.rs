@@ -26,6 +26,7 @@ use lightning_rapid_gossip_sync::RapidGossipSync;
 use subtle::ConstantTimeEq;
 
 use crate::api::ApiClient;
+use crate::event_handler::LdkEventHandler;
 use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
@@ -35,6 +36,7 @@ pub type UserId = i64;
 pub type Port = u16;
 pub type InstanceId = String;
 pub type EnclaveId = String;
+pub type Measurement = String;
 
 pub type PaymentInfoStorageType = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
 
@@ -82,12 +84,12 @@ pub type ChannelMonitorListenerType = (
     Arc<LexeTracingLogger>,
 );
 
-pub type InvoicePayerType<E> = payment::InvoicePayer<
+pub type InvoicePayerType = payment::InvoicePayer<
     Arc<ChannelManagerType>,
     RouterType,
     Arc<Mutex<ProbabilisticScorerType>>,
     Arc<LexeTracingLogger>,
-    E,
+    LdkEventHandler,
 >;
 
 pub type ProbabilisticScorerType =
@@ -110,6 +112,7 @@ pub type NetworkGraphType = NetworkGraph<LoggerType>;
 
 pub type ChainAccessType = dyn Access + Send + Sync;
 
+pub type BlockSourceType = LexeBitcoind;
 pub type BroadcasterType = LexeBitcoind;
 pub type FeeEstimatorType = LexeBitcoind;
 

@@ -38,17 +38,52 @@ use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::{self, LexePeerManager};
 use crate::lexe::persister::LexePersister;
 use crate::types::{
-    ApiClientType, BroadcasterType, ChainMonitorType, ChannelManagerType,
-    ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType,
-    GossipSyncType, InvoicePayerType, Network, NetworkGraphType,
-    P2PGossipSyncType, PaymentInfoStorageType, Port, UserId,
+    ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
+    ChannelManagerType, ChannelMonitorListenerType, ChannelMonitorType,
+    FeeEstimatorType, GossipSyncType, InvoicePayerType, Network,
+    NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, Port, UserId,
 };
 use crate::{api, command, convert, repl};
 
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 
 // TODO: Eventually move this into the `lexe` module once init is cleaned up
-pub struct LexeContext {}
+pub struct LexeContext {
+    args: StartCommand,
+
+    channel_manager: Arc<ChannelManagerType>,
+    peer_manager: Arc<LexePeerManager>,
+    keys_manager: Arc<LexeKeysManager>,
+    persister: Arc<LexePersister>,
+    chain_monitor: Arc<ChainMonitorType>,
+    network_graph: Arc<NetworkGraphType>,
+    invoice_payer: Arc<InvoicePayerType>,
+    block_source: Arc<BlockSourceType>,
+    fee_estimator: Arc<FeeEstimatorType>,
+    broadcaster: Arc<BroadcasterType>,
+    logger: Arc<LexeTracingLogger>,
+
+    sync_ctx: Option<SyncContext>,
+    run_ctx: Option<RunContext>,
+}
+
+/// Variables that only sync() uses, or which sync() requires ownership of
+struct SyncContext {
+    restarting_node: bool,
+    channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
+    channel_manager_blockhash: BlockHash,
+    activity_rx: mpsc::Receiver<()>,
+    shutdown_tx: broadcast::Sender<()>,
+}
+
+/// Variables that only run() uses, or which run() requires ownership of
+struct RunContext {
+    inbound_payments: PaymentInfoStorageType,
+    outbound_payments: PaymentInfoStorageType,
+    shutdown_rx: broadcast::Receiver<()>,
+    stop_listen_connect: Arc<AtomicBool>,
+    background_processor: BackgroundProcessor,
+}
 
 impl LexeContext {
     pub async fn init<R: Crng>(
@@ -57,9 +92,6 @@ impl LexeContext {
     ) -> anyhow::Result<Self> {
         // Initialize the Logger
         let logger = Arc::new(LexeTracingLogger {});
-
-        // Build the LexeContext
-        let ctx = LexeContext {};
 
         // Get user_id, measurement, and HTTP client, used throughout init
         let user_id = args.user_id;
@@ -95,8 +127,11 @@ impl LexeContext {
         let pubkey = keys_manager.derive_pubkey(rng);
         let instance_id = convert::get_instance_id(&pubkey, &measurement);
 
-        // LexeBitcoind implements FeeEstimator and BroadcasterInterface and
-        // thus serves these functions. This can be customized later.
+        // LexeBitcoind implements BlockSource, FeeEstimator and
+        // BroadcasterInterface, and thus serves these functions. A new type
+        // alias is defined for each of these in case these functions need to be
+        // handled separately later.
+        let block_source = bitcoind.clone();
         let fee_estimator = bitcoind.clone();
         let broadcaster = bitcoind.clone();
 
@@ -128,7 +163,7 @@ impl LexeContext {
             channel_manager(
                 &args,
                 persister.as_ref(),
-                bitcoind.as_ref(),
+                block_source.as_ref(),
                 &mut restarting_node,
                 &mut channel_monitors,
                 keys_manager.clone(),
@@ -168,7 +203,7 @@ impl LexeContext {
 
         // Init Tokio channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
-        let (shutdown_tx, mut shutdown_rx) =
+        let (shutdown_tx, shutdown_rx) =
             broadcast::channel(DEFAULT_CHANNEL_SIZE);
 
         // Start warp at the given port, or bind to an ephemeral port if not
@@ -251,40 +286,79 @@ impl LexeContext {
             persister.clone(),
         );
 
-        // ## Sync
+        // Build and return the LexeContext
+        let sync_ctx = SyncContext {
+            restarting_node,
+            channel_manager_blockhash,
+            channel_monitors,
+            activity_rx,
+            shutdown_tx,
+        };
+        let run_ctx = RunContext {
+            inbound_payments,
+            outbound_payments,
+            shutdown_rx,
+            stop_listen_connect,
+            background_processor,
+        };
+        let ctx = LexeContext {
+            args,
+
+            channel_manager,
+            peer_manager,
+            keys_manager,
+            persister,
+            chain_monitor,
+            network_graph,
+            invoice_payer,
+
+            block_source,
+            fee_estimator,
+            broadcaster,
+            logger,
+
+            sync_ctx: Some(sync_ctx),
+            run_ctx: Some(run_ctx),
+        };
+        Ok(ctx)
+    }
+
+    pub async fn sync(&mut self) -> anyhow::Result<()> {
+        let sync_ctx = self.sync_ctx.take().expect("Was set during init");
 
         // Sync channel_monitors and ChannelManager to chain tip
         let mut blockheader_cache = UnboundedCache::new();
-        let (chain_listener_channel_monitors, chain_tip) = if restarting_node {
-            sync_chain_listeners(
-                &args,
-                &channel_manager,
-                bitcoind.as_ref(),
-                broadcaster.clone(),
-                fee_estimator.clone(),
-                logger.clone(),
-                channel_manager_blockhash,
-                channel_monitors,
-                &mut blockheader_cache,
-            )
-            .await
-            .context("Could not sync channel listeners")?
-        } else {
-            let chain_tip = blocksyncinit::validate_best_block_header(
-                &mut bitcoind.deref(),
-            )
-            .await
-            .map_err(|e| anyhow!(e.into_inner()))
-            .context("Could not validate best block header")?;
+        let (chain_listener_channel_monitors, chain_tip) =
+            if sync_ctx.restarting_node {
+                sync_chain_listeners(
+                    &self.args,
+                    self.channel_manager.as_ref(),
+                    self.block_source.as_ref(),
+                    self.broadcaster.clone(),
+                    self.fee_estimator.clone(),
+                    self.logger.clone(),
+                    sync_ctx.channel_manager_blockhash,
+                    sync_ctx.channel_monitors,
+                    &mut blockheader_cache,
+                )
+                .await
+                .context("Could not sync channel listeners")?
+            } else {
+                let chain_tip = blocksyncinit::validate_best_block_header(
+                    &mut self.block_source.deref(),
+                )
+                .await
+                .map_err(|e| anyhow!(e.into_inner()))
+                .context("Could not validate best block header")?;
 
-            (Vec::new(), chain_tip)
-        };
+                (Vec::new(), chain_tip)
+            };
 
         // Give channel_monitors to ChainMonitor
         for cmcl in chain_listener_channel_monitors {
             let channel_monitor = cmcl.channel_monitor_listener.0;
             let funding_outpoint = cmcl.funding_outpoint;
-            chain_monitor
+            self.chain_monitor
                 .watch_channel(funding_outpoint, channel_monitor)
                 .map_err(|e| anyhow!("{:?}", e))
                 .context("Could not watch channel")?;
@@ -292,50 +366,54 @@ impl LexeContext {
 
         // Set up SPV client
         spawn_spv_client(
-            args.network,
+            self.args.network,
             chain_tip,
             blockheader_cache,
-            channel_manager.clone(),
-            chain_monitor.clone(),
-            bitcoind.clone(),
+            self.channel_manager.clone(),
+            self.chain_monitor.clone(),
+            self.block_source.clone(),
         );
 
-        // ## Ready
-
-        // Start the REPL if it was specified to start in the CLI args.
-        if args.repl {
-            println!("Starting REPL");
-            repl::poll_for_user_input(
-                Arc::clone(&invoice_payer),
-                Arc::clone(&peer_manager),
-                Arc::clone(&channel_manager),
-                Arc::clone(&keys_manager),
-                Arc::clone(&network_graph),
-                inbound_payments,
-                outbound_payments,
-                persister.clone(),
-                args.network,
-            )
-            .await;
-            println!("REPL complete.");
-        }
-
-        // Start the inactivity timer.
+        // Sync is complete; start the inactivity timer.
         println!("Starting inactivity timer");
-        let timer_shutdown_rx = shutdown_tx.subscribe();
+        let timer_shutdown_rx = sync_ctx.shutdown_tx.subscribe();
         let mut inactivity_timer = InactivityTimer::new(
-            args.shutdown_after_sync_if_no_activity,
-            args.inactivity_timer_sec,
-            activity_rx,
-            shutdown_tx,
+            self.args.shutdown_after_sync_if_no_activity,
+            self.args.inactivity_timer_sec,
+            sync_ctx.activity_rx,
+            sync_ctx.shutdown_tx,
             timer_shutdown_rx,
         );
         tokio::spawn(async move {
             inactivity_timer.start().await;
         });
 
+        Ok(())
+    }
+
+    pub async fn run(&mut self) -> anyhow::Result<()> {
+        let mut run_ctx = self.run_ctx.take().expect("Was set during init");
+
+        // Start the REPL if it was specified to start in the CLI args.
+        if self.args.repl {
+            println!("Starting REPL");
+            repl::poll_for_user_input(
+                self.invoice_payer.clone(),
+                self.peer_manager.clone(),
+                self.channel_manager.clone(),
+                self.keys_manager.clone(),
+                self.network_graph.clone(),
+                run_ctx.inbound_payments,
+                run_ctx.outbound_payments,
+                self.persister.clone(),
+                self.args.network,
+            )
+            .await;
+            println!("REPL complete.");
+        }
+
         // Pause here and wait for the shutdown signal
-        let _ = shutdown_rx.recv().await;
+        let _ = run_ctx.shutdown_rx.recv().await;
 
         // ## Shutdown
         println!("Main thread shutting down");
@@ -343,16 +421,12 @@ impl LexeContext {
         // Disconnect our peers and stop accepting new connections. This ensures
         // we don't continue updating our channel data after we've
         // stopped the background processor.
-        stop_listen_connect.store(true, Ordering::Release);
-        peer_manager.disconnect_all_peers();
+        run_ctx.stop_listen_connect.store(true, Ordering::Release);
+        self.peer_manager.disconnect_all_peers();
 
         // Stop the background processor.
-        background_processor.stop().unwrap();
+        run_ctx.background_processor.stop().unwrap();
 
-        Ok(ctx)
-    }
-
-    pub async fn run(&mut self) -> anyhow::Result<()> {
         Ok(())
     }
 }
@@ -483,7 +557,7 @@ async fn channel_monitors(
 async fn channel_manager(
     args: &StartCommand,
     persister: &LexePersister,
-    bitcoind: &LexeBitcoind,
+    block_source: &BlockSourceType,
     restarting_node: &mut bool,
     channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
     keys_manager: Arc<LexeKeysManager>,
@@ -515,7 +589,7 @@ async fn channel_manager(
         None => {
             // We're starting a fresh node.
             *restarting_node = false;
-            let getinfo_resp = bitcoind.get_blockchain_info().await;
+            let getinfo_resp = block_source.get_blockchain_info().await;
 
             let chain_params = ChainParameters {
                 network: args.network.into_inner(),
@@ -553,7 +627,7 @@ struct ChannelMonitorChainListener {
 async fn sync_chain_listeners(
     args: &StartCommand,
     channel_manager: &ChannelManagerType,
-    bitcoind: &LexeBitcoind,
+    block_source: &BlockSourceType,
     broadcaster: Arc<BroadcasterType>,
     fee_estimator: Arc<FeeEstimatorType>,
     logger: Arc<LexeTracingLogger>,
@@ -593,7 +667,7 @@ async fn sync_chain_listeners(
     }
 
     let chain_tip = blocksyncinit::synchronize_listeners(
-        &bitcoind,
+        &block_source,
         args.network.into_inner(),
         blockheader_cache,
         chain_listeners,
@@ -716,10 +790,10 @@ fn spawn_spv_client(
     mut blockheader_cache: HashMap<BlockHash, ValidatedBlockHeader>,
     channel_manager: Arc<ChannelManagerType>,
     chain_monitor: Arc<ChainMonitorType>,
-    bitcoind_block_source: Arc<LexeBitcoind>,
+    block_source: Arc<BlockSourceType>,
 ) {
     tokio::spawn(async move {
-        let mut derefed = bitcoind_block_source.deref();
+        let mut derefed = block_source.deref();
         let chain_poller =
             poll::ChainPoller::new(&mut derefed, network.into_inner());
         let chain_listener = (chain_monitor, channel_manager);
