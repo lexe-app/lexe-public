@@ -72,8 +72,12 @@ tokio = { version = "=1.15.0", default-features = false, features = [
 # lower-level async TLS interface
 tokio-rustls = { version = "0.23", default-features = false }
 
-# Add some useful proptest features when testing during development
+[target.'cfg(target_env = "sgx")'.dev-dependencies]
+# Print backtraces in tests
+sgx-panic-backtrace = "0.1"
+
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
+# Add some useful proptest features when testing during development
 proptest = "1"
 
 [package.metadata.fortanix-sgx]

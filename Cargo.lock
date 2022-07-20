@@ -397,6 +397,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sgx-isa",
+ "sgx-panic-backtrace",
  "thiserror",
  "tokio",
  "tokio-rustls",
@@ -2048,6 +2049,15 @@ version = "0.4.0"
 source = "git+https://github.com/lexe-tech/rust-sgx?branch=lexe#70d11205fed08e49886bb25a1ea3df19928e8287"
 dependencies = [
  "bitflags",
+]
+
+[[package]]
+name = "sgx-panic-backtrace"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "06abcbfe35077dbd9a87319479da1e01fd58b7c035b137a9c9b5c08a0cdf6c81"
+dependencies = [
+ "backtrace",
 ]
 
 [[package]]

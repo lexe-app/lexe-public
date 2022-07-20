@@ -5,12 +5,12 @@ use crate::rng::Crng;
 
 pub fn seal(
     _rng: &mut dyn Crng,
-    _label: [u8; 16],
+    _label: &[u8],
     _data: &[u8],
 ) -> Result<Sealed<'static>, Error> {
     Err(Error::Other)
 }
 
-pub fn unseal(_label: [u8; 16], _sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
+pub fn unseal(_label: &[u8], _sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
     Err(Error::Other)
 }
