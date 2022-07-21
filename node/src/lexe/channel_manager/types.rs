@@ -1,7 +1,7 @@
 use lightning::ln::channelmanager::{ChannelCounterparty, ChannelDetails};
 use serde::Serialize;
 
-use crate::types::{LxOutPoint, LxPublicKey};
+use crate::lexe::types::{LxOutPoint, LxPublicKey};
 
 #[derive(Serialize)]
 pub struct LxChannelDetails {
