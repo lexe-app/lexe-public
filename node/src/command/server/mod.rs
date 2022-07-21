@@ -22,7 +22,7 @@ use warp::{reply, Filter, Rejection, Reply};
 
 use crate::command::{host, owner};
 use crate::lexe::peer_manager::LexePeerManager;
-use crate::types::ChannelManagerType;
+use crate::types::{ChannelManagerType, NetworkGraphType};
 
 mod inject;
 
@@ -54,12 +54,14 @@ fn into_response<S: Serialize, E: Reply>(
 pub fn routes(
     channel_manager: Arc<ChannelManagerType>,
     peer_manager: LexePeerManager,
+    network_graph: Arc<NetworkGraphType>,
     activity_tx: mpsc::Sender<()>,
     shutdown_tx: broadcast::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     let root = warp::path::end().map(|| "This is a Lexe user node.");
 
-    let owner = owner(channel_manager, peer_manager, activity_tx);
+    let owner =
+        owner(channel_manager, peer_manager, network_graph, activity_tx);
     let host = host(shutdown_tx);
 
     // TODO return a 404 not found if no routes were hit
@@ -70,6 +72,7 @@ pub fn routes(
 fn owner(
     channel_manager: Arc<ChannelManagerType>,
     peer_manager: LexePeerManager,
+    network_graph: Arc<NetworkGraphType>,
     activity_tx: mpsc::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     // TODO Add owner authentication to this base path
@@ -83,12 +86,19 @@ fn owner(
 
     let node_info = warp::path("node_info")
         .and(warp::get())
-        .and(inject::channel_manager(channel_manager))
+        .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::peer_manager(peer_manager))
         .then(owner::node_info)
         .map(into_response);
 
-    owner.and(node_info)
+    let list_channels = warp::path("channels")
+        .and(warp::get())
+        .and(inject::channel_manager(channel_manager))
+        .and(inject::network_graph(network_graph))
+        .then(owner::list_channels)
+        .map(into_response);
+
+    owner.and(node_info.or(list_channels))
 }
 
 /// Endpoints that can only be called by the host (Lexe).

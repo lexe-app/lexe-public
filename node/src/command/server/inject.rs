@@ -8,7 +8,7 @@ use tokio::sync::broadcast;
 use warp::Filter;
 
 use crate::lexe::peer_manager::LexePeerManager;
-use crate::types::ChannelManagerType;
+use crate::types::{ChannelManagerType, NetworkGraphType};
 
 /// Injects a shutdown_tx.
 pub fn shutdown_tx(
@@ -31,4 +31,12 @@ pub fn peer_manager(
     peer_manager: LexePeerManager,
 ) -> impl Filter<Extract = (LexePeerManager,), Error = Infallible> + Clone {
     warp::any().map(move || peer_manager.clone())
+}
+
+/// Injects a network graph.
+pub fn network_graph(
+    network_graph: Arc<NetworkGraphType>,
+) -> impl Filter<Extract = (Arc<NetworkGraphType>,), Error = Infallible> + Clone
+{
+    warp::any().map(move || network_graph.clone())
 }
