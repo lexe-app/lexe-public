@@ -16,8 +16,9 @@ use crate::cli::{StartCommand, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
 use crate::command::owner;
 use crate::init::LexeContext;
 use crate::lexe::bitcoind::BitcoindRpcInfo;
+use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::peer_manager::LexePeerManager;
-use crate::types::{ChannelManagerType, Network, NetworkGraphType, NodeAlias};
+use crate::types::{Network, NetworkGraphType, NodeAlias};
 
 /// Helper to return a default StartCommand struct for testing.
 fn default_test_args() -> StartCommand {
@@ -83,7 +84,7 @@ impl CommandTestHarness {
         self.ctx.run().await.expect("Error while running");
     }
 
-    fn channel_manager(&self) -> Arc<ChannelManagerType> {
+    fn channel_manager(&self) -> LexeChannelManager {
         self.ctx.channel_manager.clone()
     }
 

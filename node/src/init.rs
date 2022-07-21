@@ -12,11 +12,8 @@ use common::root_seed::RootSeed;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::transaction::OutPoint;
-use lightning::chain::{self, BestBlock, Watch};
-use lightning::ln::channelmanager;
-use lightning::ln::channelmanager::ChainParameters;
+use lightning::chain::{self, Watch};
 use lightning::routing::gossip::P2PGossipSync;
-use lightning::util::config::UserConfig;
 use lightning_background_processor::BackgroundProcessor;
 use lightning_block_sync::poll::{self, ValidatedBlockHeader};
 use lightning_block_sync::{init as blocksyncinit, SpvClient, UnboundedCache};
@@ -33,15 +30,16 @@ use crate::cli::StartCommand;
 use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
 use crate::lexe::bitcoind::LexeBitcoind;
+use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::{self, LexePeerManager};
 use crate::lexe::persister::LexePersister;
 use crate::types::{
     ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
-    ChannelManagerType, ChannelMonitorListenerType, ChannelMonitorType,
-    FeeEstimatorType, GossipSyncType, InvoicePayerType, Network,
-    NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, Port, UserId,
+    ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType,
+    GossipSyncType, InvoicePayerType, Network, NetworkGraphType,
+    P2PGossipSyncType, PaymentInfoStorageType, Port, UserId,
 };
 use crate::{api, command, convert, repl};
 
@@ -52,7 +50,7 @@ pub struct LexeContext {
     args: StartCommand,
     shutdown_tx: broadcast::Sender<()>,
 
-    pub channel_manager: Arc<ChannelManagerType>,
+    pub channel_manager: LexeChannelManager,
     pub peer_manager: LexePeerManager,
     keys_manager: LexeKeysManager,
     persister: LexePersister,
@@ -159,7 +157,7 @@ impl LexeContext {
         // Initialize the ChannelManager and ProbabilisticScorer
         let mut restarting_node = true;
         let (channel_manager_res, scorer_res) = tokio::join!(
-            channel_manager(
+            LexeChannelManager::init(
                 &args,
                 &persister,
                 block_source.as_ref(),
@@ -330,7 +328,7 @@ impl LexeContext {
             if sync_ctx.restarting_node {
                 sync_chain_listeners(
                     &self.args,
-                    self.channel_manager.as_ref(),
+                    &self.channel_manager,
                     self.block_source.as_ref(),
                     self.broadcaster.clone(),
                     self.fee_estimator.clone(),
@@ -550,81 +548,17 @@ async fn channel_monitors(
     result
 }
 
-/// Initializes the ChannelManager
-#[allow(clippy::too_many_arguments)]
-async fn channel_manager(
-    args: &StartCommand,
-    persister: &LexePersister,
-    block_source: &BlockSourceType,
-    restarting_node: &mut bool,
-    channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
-    keys_manager: LexeKeysManager,
-    fee_estimator: Arc<FeeEstimatorType>,
-    chain_monitor: Arc<ChainMonitorType>,
-    broadcaster: Arc<BroadcasterType>,
-    logger: LexeTracingLogger,
-) -> anyhow::Result<(BlockHash, Arc<ChannelManagerType>)> {
-    println!("Initializing the channel manager");
-    let mut user_config = UserConfig::default();
-    user_config
-        .peer_channel_config_limits
-        .force_announced_channel_preference = false;
-    let channel_manager_opt = persister
-        .read_channel_manager(
-            channel_monitors,
-            keys_manager.clone(),
-            fee_estimator.clone(),
-            chain_monitor.clone(),
-            broadcaster.clone(),
-            logger.clone(),
-            user_config,
-        )
-        .await
-        .context("Could not read ChannelManager from DB")?;
-    let (channel_manager_blockhash, channel_manager) = match channel_manager_opt
-    {
-        Some((blockhash, mgr)) => (blockhash, mgr),
-        None => {
-            // We're starting a fresh node.
-            *restarting_node = false;
-            let getinfo_resp = block_source.get_blockchain_info().await;
-
-            let chain_params = ChainParameters {
-                network: args.network.into_inner(),
-                best_block: BestBlock::new(
-                    getinfo_resp.latest_blockhash,
-                    getinfo_resp.latest_height as u32,
-                ),
-            };
-            let fresh_channel_manager = channelmanager::ChannelManager::new(
-                fee_estimator,
-                chain_monitor,
-                broadcaster,
-                logger,
-                keys_manager,
-                user_config,
-                chain_params,
-            );
-            (getinfo_resp.latest_blockhash, fresh_channel_manager)
-        }
-    };
-    let channel_manager = Arc::new(channel_manager);
-
-    println!("    channel manager done.");
-    Ok((channel_manager_blockhash, channel_manager))
-}
-
 struct ChannelMonitorChainListener {
     channel_monitor_blockhash: BlockHash,
     channel_monitor_listener: ChannelMonitorListenerType,
     funding_outpoint: OutPoint,
 }
 
-/// Syncs the channel monitors and ChannelManager to the chain tip
+/// Syncs the channel monitors and LexeChannelManager to the chain tip
 #[allow(clippy::too_many_arguments)]
 async fn sync_chain_listeners(
     args: &StartCommand,
-    channel_manager: &ChannelManagerType,
+    channel_manager: &LexeChannelManager,
     block_source: &BlockSourceType,
     broadcaster: Arc<BroadcasterType>,
     fee_estimator: Arc<FeeEstimatorType>,
@@ -638,7 +572,7 @@ async fn sync_chain_listeners(
 
     let mut chain_listeners = vec![(
         channel_manager_blockhash,
-        channel_manager as &dyn chain::Listen,
+        channel_manager.deref() as &dyn chain::Listen,
     )];
 
     for (channel_monitor_blockhash, channel_monitor) in channel_monitors {
@@ -739,7 +673,7 @@ fn spawn_p2p_listener(
 
 /// Spawns a task that regularly reconnects to the channel peers stored in DB.
 fn spawn_p2p_reconnect_task(
-    channel_manager: Arc<ChannelManagerType>,
+    channel_manager: LexeChannelManager,
     peer_manager: LexePeerManager,
     stop_listen_connect: Arc<AtomicBool>,
     persister: LexePersister,
@@ -786,7 +720,7 @@ fn spawn_spv_client(
     network: Network,
     chain_tip: ValidatedBlockHeader,
     mut blockheader_cache: HashMap<BlockHash, ValidatedBlockHeader>,
-    channel_manager: Arc<ChannelManagerType>,
+    channel_manager: LexeChannelManager,
     chain_monitor: Arc<ChainMonitorType>,
     block_source: Arc<BlockSourceType>,
 ) {

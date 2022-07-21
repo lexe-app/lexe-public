@@ -21,8 +21,9 @@ use warp::hyper::Body;
 use warp::{reply, Filter, Rejection, Reply};
 
 use crate::command::{host, owner};
+use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::peer_manager::LexePeerManager;
-use crate::types::{ChannelManagerType, NetworkGraphType};
+use crate::types::NetworkGraphType;
 
 mod inject;
 
@@ -52,7 +53,7 @@ fn into_response<S: Serialize, E: Reply>(
 
 /// All routes exposed by the command server.
 pub fn routes(
-    channel_manager: Arc<ChannelManagerType>,
+    channel_manager: LexeChannelManager,
     peer_manager: LexePeerManager,
     network_graph: Arc<NetworkGraphType>,
     activity_tx: mpsc::Sender<()>,
@@ -70,7 +71,7 @@ pub fn routes(
 
 /// Endpoints that can only be called by the node owner.
 fn owner(
-    channel_manager: Arc<ChannelManagerType>,
+    channel_manager: LexeChannelManager,
     peer_manager: LexePeerManager,
     network_graph: Arc<NetworkGraphType>,
     activity_tx: mpsc::Sender<()>,

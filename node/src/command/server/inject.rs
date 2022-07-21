@@ -7,8 +7,9 @@ use std::sync::Arc;
 use tokio::sync::broadcast;
 use warp::Filter;
 
+use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::peer_manager::LexePeerManager;
-use crate::types::{ChannelManagerType, NetworkGraphType};
+use crate::types::NetworkGraphType;
 
 /// Injects a shutdown_tx.
 pub fn shutdown_tx(
@@ -20,9 +21,8 @@ pub fn shutdown_tx(
 
 /// Injects a channel manager.
 pub fn channel_manager(
-    channel_manager: Arc<ChannelManagerType>,
-) -> impl Filter<Extract = (Arc<ChannelManagerType>,), Error = Infallible> + Clone
-{
+    channel_manager: LexeChannelManager,
+) -> impl Filter<Extract = (LexeChannelManager,), Error = Infallible> + Clone {
     warp::any().map(move || channel_manager.clone())
 }
 
