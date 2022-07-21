@@ -111,3 +111,80 @@ pub fn unseal(label: &[u8], sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
 
     result
 }
+
+#[cfg(test)]
+mod test {
+    use proptest::arbitrary::any;
+    use proptest::strategy::Strategy;
+    use proptest::{prop_assume, proptest};
+
+    use super::*;
+    use crate::rng::{arb_rng, SmallRng};
+
+    #[test]
+    fn test_sealing_roundtrip_basic() {
+        let mut rng = SmallRng::new();
+
+        let sealed = seal(&mut rng, b"", b"".as_slice().into()).unwrap();
+        let unsealed = unseal(b"", sealed).unwrap();
+        assert_eq!(&unsealed, b"");
+
+        let sealed =
+            seal(&mut rng, b"cool label", b"cool data".as_slice().into())
+                .unwrap();
+        let unsealed = unseal(b"cool label", sealed).unwrap();
+        assert_eq!(&unsealed, b"cool data");
+    }
+
+    #[test]
+    fn test_sealing_roundtrip_proptest() {
+        let arb_label = any::<Vec<u8>>();
+        let arb_data = any::<Vec<u8>>();
+
+        proptest!(|(mut rng in arb_rng(), label in arb_label, data in arb_data)| {
+            let sealed = seal(&mut rng, &label, data.clone().into()).unwrap();
+            let unsealed = unseal(&label, sealed).unwrap();
+            assert_eq!(&data, &unsealed);
+        });
+    }
+
+    #[test]
+    fn test_sealing_detects_ciphertext_change() {
+        let arb_label = any::<Vec<u8>>();
+        let arb_data = any::<Vec<u8>>();
+        let arb_mutation = any::<Vec<u8>>()
+            .prop_filter("can't be empty or all zeroes", |m| {
+                !m.is_empty() && !m.iter().all(|x| x == &0u8)
+            });
+
+        proptest!(|(
+            mut rng in arb_rng(),
+            label in arb_label,
+            data in arb_data,
+            mutation in arb_mutation,
+        )| {
+            let sealed = seal(&mut rng, &label, data.into()).unwrap();
+
+            let keyrequest = sealed.keyrequest;
+            let ciphertext_original = sealed.ciphertext.into_owned();
+            let mut ciphertext = ciphertext_original.clone();
+
+            for (c, m) in ciphertext.iter_mut().zip(mutation.iter()) {
+                *c ^= m;
+            }
+
+            prop_assume!(ciphertext != ciphertext_original);
+
+            let sealed = Sealed {
+                keyrequest,
+                ciphertext: ciphertext.into(),
+            };
+
+            // TODO(phlip9): check error
+            unseal(&label, sealed).unwrap_err();
+        });
+    }
+
+    // TODO(phlip9): test KeyRequest mutations
+    // TODO(phlip9): test truncate/extend mutations
+}
