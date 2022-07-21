@@ -11,6 +11,7 @@ use crate::types::{EnclaveId, InstanceId};
 /// Converts a secp PublicKey into a lower hex-encoded String.
 ///
 /// NOTE: Use this function instead of the equivalent in hex.rs
+/// TODO: Replace all PublicKey with LxPublicKey
 pub fn pubkey_to_hex(pubkey: &PublicKey) -> String {
     format!("{:x}", pubkey)
 }
@@ -18,6 +19,7 @@ pub fn pubkey_to_hex(pubkey: &PublicKey) -> String {
 /// Tries to convert a lower hex-encoded String into a secp PublicKey.
 ///
 /// NOTE: Use this function instead of the equivalent in hex.rs
+/// TODO: Replace all PublicKey with LxPublicKey
 pub fn pubkey_from_hex(pubkey: &str) -> anyhow::Result<PublicKey> {
     PublicKey::from_str(pubkey)
         .context("Could not deserialize PublicKey from LowerHex")
