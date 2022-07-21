@@ -1,12 +1,13 @@
-use bitcoin::secp256k1::PublicKey;
 use lightning::ln::channelmanager::{ChannelCounterparty, ChannelDetails};
 use serde::Serialize;
 
+use crate::types::{LxOutPoint, LxPublicKey};
+
 #[derive(Serialize)]
-pub struct LexeChannelDetails {
+pub struct LxChannelDetails {
     pub channel_id: [u8; 32],
-    // pub counterparty: LexeChannelCounterparty, // TODO Fix Serialize
-    // pub funding_txo: Option<LexeOutPoint>, // TODO
+    pub counterparty: LxChannelCounterparty,
+    pub funding_txo: Option<LxOutPoint>,
     // pub channel_type: Option<ChannelTypeFeatures>, // Sealed
     pub short_channel_id: Option<u64>,
     pub outbound_scid_alias: Option<u64>,
@@ -28,13 +29,12 @@ pub struct LexeChannelDetails {
     pub inbound_htlc_maximum_msat: Option<u64>,
 }
 
-impl From<ChannelDetails> for LexeChannelDetails {
+impl From<ChannelDetails> for LxChannelDetails {
     fn from(cd: ChannelDetails) -> Self {
         Self {
             channel_id: cd.channel_id,
-            // counterparty: LexeChannelCounterparty::from(cd.counterparty),
-            // funding_txo: cd.funding_txo.map(LexeOutPoint::from),
-            // channel_type: cd.channel_type,
+            counterparty: LxChannelCounterparty::from(cd.counterparty),
+            funding_txo: cd.funding_txo.map(LxOutPoint::from),
             short_channel_id: cd.short_channel_id,
             outbound_scid_alias: cd.outbound_scid_alias,
             inbound_scid_alias: cd.inbound_scid_alias,
@@ -57,8 +57,9 @@ impl From<ChannelDetails> for LexeChannelDetails {
     }
 }
 
-pub struct LexeChannelCounterparty {
-    pub node_id: PublicKey,
+#[derive(Serialize)]
+pub struct LxChannelCounterparty {
+    pub node_id: LxPublicKey,
     // pub features: InitFeatures,                              // Sealed
     pub unspendable_punishment_reserve: u64,
     // pub forwarding_info: Option<CounterpartyForwardingInfo>, // Not needed
@@ -66,10 +67,10 @@ pub struct LexeChannelCounterparty {
     pub outbound_htlc_maximum_msat: Option<u64>,
 }
 
-impl From<ChannelCounterparty> for LexeChannelCounterparty {
+impl From<ChannelCounterparty> for LxChannelCounterparty {
     fn from(ccp: ChannelCounterparty) -> Self {
         Self {
-            node_id: ccp.node_id, // CCP's node id lol
+            node_id: LxPublicKey::from(ccp.node_id), // CCP's node id lol
             unspendable_punishment_reserve: ccp.unspendable_punishment_reserve,
             outbound_htlc_minimum_msat: ccp.outbound_htlc_minimum_msat,
             outbound_htlc_maximum_msat: ccp.outbound_htlc_maximum_msat,
