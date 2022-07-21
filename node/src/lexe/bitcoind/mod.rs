@@ -20,7 +20,7 @@ use lightning_block_sync::{
 };
 use tokio::runtime::Handle;
 
-use crate::types::Network;
+use crate::cli::{BitcoindRpcInfo, Network};
 
 mod types;
 

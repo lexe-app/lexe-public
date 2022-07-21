@@ -1,60 +1,8 @@
 use std::convert::TryFrom;
-use std::str::FromStr;
 
-use anyhow::anyhow;
 use bitcoin::hashes::hex::FromHex;
 use bitcoin::BlockHash;
 use lightning_block_sync::http::JsonResponse;
-
-use crate::types::Port;
-
-/// The information required to connect to a bitcoind instance via RPC
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BitcoindRpcInfo {
-    pub username: String,
-    pub password: String,
-    pub host: String,
-    pub port: Port,
-}
-
-impl BitcoindRpcInfo {
-    fn parse_str(s: &str) -> Option<Self> {
-        // format: <username>:<password>@<host>:<port>
-
-        let mut parts = s.split(':');
-        let (username, pass_host, port) =
-            match (parts.next(), parts.next(), parts.next(), parts.next()) {
-                (Some(username), Some(pass_host), Some(port), None) => {
-                    (username, pass_host, port)
-                }
-                _ => return None,
-            };
-
-        let mut parts = pass_host.split('@');
-        let (password, host) = match (parts.next(), parts.next(), parts.next())
-        {
-            (Some(password), Some(host), None) => (password, host),
-            _ => return None,
-        };
-
-        let port = Port::from_str(port).ok()?;
-
-        Some(Self {
-            username: username.to_string(),
-            password: password.to_string(),
-            host: host.to_string(),
-            port,
-        })
-    }
-}
-
-impl FromStr for BitcoindRpcInfo {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::parse_str(s).ok_or_else(|| anyhow!("Invalid bitcoind rpc URL"))
-    }
-}
 
 pub struct FundedTx {
     pub changepos: i64,

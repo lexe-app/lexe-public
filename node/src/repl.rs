@@ -7,12 +7,13 @@ pub use sgx::*;
 mod sgx {
     use std::sync::Arc;
 
+    use crate::cli::Network;
     use crate::lexe::channel_manager::LexeChannelManager;
     use crate::lexe::keys_manager::LexeKeysManager;
     use crate::lexe::peer_manager::LexePeerManager;
     use crate::lexe::persister::LexePersister;
     use crate::types::{
-        InvoicePayerType, Network, NetworkGraphType, PaymentInfoStorageType,
+        InvoicePayerType, NetworkGraphType, PaymentInfoStorageType,
     };
 
     #[allow(clippy::too_many_arguments)]
@@ -52,13 +53,14 @@ mod not_sgx {
     use lightning_invoice::payment::PaymentError;
     use lightning_invoice::{utils, Currency, Invoice};
 
+    use crate::cli::{Network, NodeAlias};
     use crate::lexe::channel_manager::LexeChannelManager;
     use crate::lexe::keys_manager::LexeKeysManager;
     use crate::lexe::peer_manager::{self, LexePeerManager};
     use crate::lexe::persister::LexePersister;
     use crate::types::{
-        HTLCStatus, InvoicePayerType, MillisatAmount, Network,
-        NetworkGraphType, NodeAlias, PaymentInfo, PaymentInfoStorageType,
+        HTLCStatus, InvoicePayerType, MillisatAmount, NetworkGraphType,
+        PaymentInfo, PaymentInfoStorageType,
     };
 
     #[allow(clippy::too_many_arguments)]

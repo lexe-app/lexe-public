@@ -17,12 +17,13 @@ use lightning::routing::gossip::NodeId;
 use lightning::util::events::{Event, EventHandler, PaymentPurpose};
 use tokio::runtime::Handle;
 
+use crate::cli::{Network, NodeAlias};
 use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::types::{
-    HTLCStatus, MillisatAmount, Network, NetworkGraphType, NodeAlias,
-    PaymentInfo, PaymentInfoStorageType,
+    HTLCStatus, MillisatAmount, NetworkGraphType, PaymentInfo,
+    PaymentInfoStorageType,
 };
 
 pub struct LdkEventHandler {

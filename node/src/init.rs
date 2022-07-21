@@ -26,7 +26,7 @@ use tokio::sync::{broadcast, mpsc};
 use crate::api::{
     ApiClient, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
 };
-use crate::cli::StartCommand;
+use crate::cli::{Network, StartCommand};
 use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
 use crate::lexe::bitcoind::LexeBitcoind;
@@ -38,8 +38,8 @@ use crate::lexe::persister::LexePersister;
 use crate::types::{
     ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
     ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType,
-    GossipSyncType, InvoicePayerType, Network, NetworkGraphType,
-    P2PGossipSyncType, PaymentInfoStorageType, Port, UserId,
+    GossipSyncType, InvoicePayerType, NetworkGraphType, P2PGossipSyncType,
+    PaymentInfoStorageType, Port, UserId,
 };
 use crate::{api, command, convert, repl};
 
