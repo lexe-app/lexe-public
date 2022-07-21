@@ -17,7 +17,7 @@ use crate::command::owner;
 use crate::init::LexeContext;
 use crate::lexe::bitcoind::BitcoindRpcInfo;
 use crate::lexe::peer_manager::LexePeerManager;
-use crate::types::{ChannelManagerType, Network, NodeAlias};
+use crate::types::{ChannelManagerType, Network, NetworkGraphType, NodeAlias};
 
 /// Helper to return a default StartCommand struct for testing.
 fn default_test_args() -> StartCommand {
@@ -90,6 +90,10 @@ impl CommandTestHarness {
     fn peer_manager(&self) -> LexePeerManager {
         self.ctx.peer_manager.clone()
     }
+
+    fn network_graph(&self) -> Arc<NetworkGraphType> {
+        self.ctx.network_graph.clone()
+    }
 }
 
 /// Tests that a node can initialize, sync, and shutdown.
@@ -103,13 +107,24 @@ async fn init_sync_shutdown() {
     h.run().await;
 }
 
-/// Tests the node_info endpoint.
+/// Tests the node_info handler.
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
-async fn node_info1() {
+async fn node_info() {
     let args = default_test_args();
     let h = CommandTestHarness::init(args).await;
 
     owner::node_info(h.channel_manager(), h.peer_manager())
+        .await
+        .unwrap();
+}
+
+/// Tests the list_channels handler.
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn list_channels() {
+    let args = default_test_args();
+    let h = CommandTestHarness::init(args).await;
+
+    owner::list_channels(h.channel_manager(), h.network_graph())
         .await
         .unwrap();
 }

@@ -57,7 +57,7 @@ pub struct LexeContext {
     keys_manager: LexeKeysManager,
     persister: LexePersister,
     chain_monitor: Arc<ChainMonitorType>,
-    network_graph: Arc<NetworkGraphType>,
+    pub network_graph: Arc<NetworkGraphType>,
     invoice_payer: Arc<InvoicePayerType>,
     block_source: Arc<BlockSourceType>,
     fee_estimator: Arc<FeeEstimatorType>,
@@ -209,6 +209,7 @@ impl LexeContext {
         let routes = command::server::routes(
             channel_manager.clone(),
             peer_manager.clone(),
+            network_graph.clone(),
             activity_tx,
             shutdown_tx.clone(),
         );
@@ -309,7 +310,6 @@ impl LexeContext {
             chain_monitor,
             network_graph,
             invoice_payer,
-
             block_source,
             fee_estimator,
             broadcaster,
