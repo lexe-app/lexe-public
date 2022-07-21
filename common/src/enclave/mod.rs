@@ -44,7 +44,7 @@ impl From<sgx_isa::ErrorCode> for Error {
 
 /// Sealed and encrypted data
 pub struct Sealed<'a> {
-    /// A truncated [`KeyRequest`](crate::enclave::sgx::KeyRequest)
+    /// A truncated [`sgx_isa::Keyrequest`].
     ///
     /// This field contains all the data needed to correctly recover the
     /// underlying seal key material inside an enclave. Currently this field is
