@@ -24,11 +24,9 @@ impl RootSeed {
 
     /// We salt the HKDF for domain separation purposes. The raw bytes here are
     /// equal to the hash value: `SHA-256(b"LEXE-HASH-REALM::RootSeed")`.
-    const HKDF_SALT: [u8; 32] = [
-        0x36, 0x3b, 0x11, 0x6b, 0xe1, 0x69, 0x0f, 0xcd, 0x48, 0x1f, 0x2d, 0x40,
-        0x14, 0x81, 0x2a, 0xae, 0xcf, 0xf2, 0x41, 0x1b, 0x86, 0x11, 0x98, 0xee,
-        0xc4, 0x2c, 0x6e, 0x31, 0xd8, 0x0a, 0x28, 0xa4,
-    ];
+    const HKDF_SALT: [u8; 32] = hex::decode_const(
+        b"363b116be1690fcd481f2d4014812aaecff2411b861198eec42c6e31d80a28a4",
+    );
 
     pub fn new(bytes: Secret<[u8; Self::LENGTH]>) -> Self {
         Self(bytes)
