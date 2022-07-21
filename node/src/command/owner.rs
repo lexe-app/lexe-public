@@ -4,9 +4,9 @@ use serde::Serialize;
 
 use crate::command::server::ApiError;
 use crate::convert;
+use crate::lexe::channel_manager::{LexeChannelDetails, LexeChannelManager};
 use crate::lexe::peer_manager::LexePeerManager;
-use crate::lexe::types::LexeChannelDetails;
-use crate::types::{ChannelManagerType, NetworkGraphType};
+use crate::types::NetworkGraphType;
 
 #[derive(Serialize)]
 pub struct NodeInfo {
@@ -20,7 +20,7 @@ pub struct NodeInfo {
 // TODO Make non-async
 /// GET /owner/node_info -> NodeInfo
 pub async fn node_info(
-    channel_manager: Arc<ChannelManagerType>,
+    channel_manager: LexeChannelManager,
     peer_manager: LexePeerManager,
 ) -> Result<NodeInfo, ApiError> {
     let pubkey = channel_manager.get_our_node_id();
@@ -52,7 +52,7 @@ pub struct ListChannels {
 // TODO Make non-async
 /// GET /owner/channels -> ListChannels
 pub async fn list_channels(
-    channel_manager: Arc<ChannelManagerType>,
+    channel_manager: LexeChannelManager,
     _network_graph: Arc<NetworkGraphType>, // TODO REPL uses it, do we need it?
 ) -> Result<ListChannels, ApiError> {
     let channel_details = channel_manager

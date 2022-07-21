@@ -9,9 +9,10 @@ use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
 use secrecy::zeroize::Zeroizing;
 
+use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
-use crate::types::{ChannelManagerType, P2PGossipSyncType, PeerManagerType};
+use crate::types::{P2PGossipSyncType, PeerManagerType};
 
 /// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]
@@ -28,7 +29,7 @@ impl LexePeerManager {
     pub fn init(
         rng: &mut dyn Crng,
         keys_manager: &LexeKeysManager,
-        channel_manager: Arc<ChannelManagerType>,
+        channel_manager: LexeChannelManager,
         gossip_sync: Arc<P2PGossipSyncType>,
         logger: LexeTracingLogger,
     ) -> Self {

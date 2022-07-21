@@ -18,15 +18,16 @@ use lightning::util::events::{Event, EventHandler, PaymentPurpose};
 use tokio::runtime::Handle;
 
 use crate::lexe::bitcoind::LexeBitcoind;
+use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::types::{
-    ChannelManagerType, HTLCStatus, MillisatAmount, Network, NetworkGraphType,
-    NodeAlias, PaymentInfo, PaymentInfoStorageType,
+    HTLCStatus, MillisatAmount, Network, NetworkGraphType, NodeAlias,
+    PaymentInfo, PaymentInfoStorageType,
 };
 
 pub struct LdkEventHandler {
     network: Network,
-    channel_manager: Arc<ChannelManagerType>,
+    channel_manager: LexeChannelManager,
     keys_manager: LexeKeysManager,
     bitcoind: Arc<LexeBitcoind>,
     network_graph: Arc<NetworkGraphType>,
@@ -39,7 +40,7 @@ impl LdkEventHandler {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         network: Network,
-        channel_manager: Arc<ChannelManagerType>,
+        channel_manager: LexeChannelManager,
         keys_manager: LexeKeysManager,
         bitcoind: Arc<LexeBitcoind>,
         network_graph: Arc<NetworkGraphType>,
@@ -77,7 +78,7 @@ impl EventHandler for LdkEventHandler {
 
 #[allow(clippy::too_many_arguments)]
 pub async fn handle_event(
-    channel_manager: &Arc<ChannelManagerType>,
+    channel_manager: &LexeChannelManager,
     bitcoind: &LexeBitcoind,
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,

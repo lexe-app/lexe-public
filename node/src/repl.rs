@@ -7,19 +7,19 @@ pub use sgx::*;
 mod sgx {
     use std::sync::Arc;
 
+    use crate::lexe::channel_manager::LexeChannelManager;
     use crate::lexe::keys_manager::LexeKeysManager;
     use crate::lexe::peer_manager::LexePeerManager;
     use crate::lexe::persister::LexePersister;
     use crate::types::{
-        ChannelManagerType, InvoicePayerType, Network, NetworkGraphType,
-        PaymentInfoStorageType,
+        InvoicePayerType, Network, NetworkGraphType, PaymentInfoStorageType,
     };
 
     #[allow(clippy::too_many_arguments)]
     pub async fn poll_for_user_input(
         _invoice_payer: Arc<InvoicePayerType>,
         _peer_manager: LexePeerManager,
-        _channel_manager: Arc<ChannelManagerType>,
+        _channel_manager: LexeChannelManager,
         _keys_manager: LexeKeysManager,
         _network_graph: Arc<NetworkGraphType>,
         _inbound_payments: PaymentInfoStorageType,
@@ -52,13 +52,13 @@ mod not_sgx {
     use lightning_invoice::payment::PaymentError;
     use lightning_invoice::{utils, Currency, Invoice};
 
+    use crate::lexe::channel_manager::LexeChannelManager;
     use crate::lexe::keys_manager::LexeKeysManager;
     use crate::lexe::peer_manager::{self, LexePeerManager};
     use crate::lexe::persister::LexePersister;
     use crate::types::{
-        ChannelManagerType, HTLCStatus, InvoicePayerType, MillisatAmount,
-        Network, NetworkGraphType, NodeAlias, PaymentInfo,
-        PaymentInfoStorageType,
+        HTLCStatus, InvoicePayerType, MillisatAmount, Network,
+        NetworkGraphType, NodeAlias, PaymentInfo, PaymentInfoStorageType,
     };
 
     #[allow(clippy::too_many_arguments)]
@@ -66,7 +66,7 @@ mod not_sgx {
     pub async fn poll_for_user_input(
         invoice_payer: Arc<InvoicePayerType>,
         peer_manager: LexePeerManager,
-        channel_manager: Arc<ChannelManagerType>,
+        channel_manager: LexeChannelManager,
         keys_manager: LexeKeysManager,
         network_graph: Arc<NetworkGraphType>,
         inbound_payments: PaymentInfoStorageType,
@@ -435,7 +435,7 @@ mod not_sgx {
     }
 
     fn node_info(
-        channel_manager: &Arc<ChannelManagerType>,
+        channel_manager: &LexeChannelManager,
         peer_manager: &LexePeerManager,
     ) {
         println!("\t{{");
@@ -462,7 +462,7 @@ mod not_sgx {
     }
 
     fn list_channels(
-        channel_manager: &Arc<ChannelManagerType>,
+        channel_manager: &LexeChannelManager,
         network_graph: &Arc<NetworkGraphType>,
     ) {
         print!("[");
@@ -571,7 +571,7 @@ mod not_sgx {
         peer_pubkey: PublicKey,
         channel_amt_sat: u64,
         announced_channel: bool,
-        channel_manager: Arc<ChannelManagerType>,
+        channel_manager: LexeChannelManager,
     ) -> Result<(), ()> {
         let config = UserConfig {
             peer_channel_config_limits: ChannelHandshakeLimits {
@@ -709,7 +709,7 @@ mod not_sgx {
     fn get_invoice(
         amt_msat: u64,
         payment_storage: PaymentInfoStorageType,
-        channel_manager: Arc<ChannelManagerType>,
+        channel_manager: LexeChannelManager,
         keys_manager: LexeKeysManager,
         network: Network,
         expiry_secs: u32,
@@ -749,7 +749,7 @@ mod not_sgx {
     fn close_channel(
         channel_id: [u8; 32],
         counterparty_node_id: PublicKey,
-        channel_manager: Arc<ChannelManagerType>,
+        channel_manager: LexeChannelManager,
     ) {
         match channel_manager.close_channel(&channel_id, &counterparty_node_id)
         {
@@ -761,7 +761,7 @@ mod not_sgx {
     fn force_close_channel(
         channel_id: [u8; 32],
         counterparty_node_id: PublicKey,
-        channel_manager: Arc<ChannelManagerType>,
+        channel_manager: LexeChannelManager,
     ) {
         match channel_manager
             .force_close_channel(&channel_id, &counterparty_node_id)

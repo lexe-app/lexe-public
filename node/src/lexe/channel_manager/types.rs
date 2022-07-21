@@ -1,6 +1,4 @@
-use bitcoin::hash_types::Txid;
 use bitcoin::secp256k1::PublicKey;
-use lightning::chain::transaction::OutPoint;
 use lightning::ln::channelmanager::{ChannelCounterparty, ChannelDetails};
 use serde::Serialize;
 
@@ -8,7 +6,7 @@ use serde::Serialize;
 pub struct LexeChannelDetails {
     pub channel_id: [u8; 32],
     // pub counterparty: LexeChannelCounterparty, // TODO Fix Serialize
-    // pub funding_txo: Option<LexeOutpoint>, // TODO
+    // pub funding_txo: Option<LexeOutPoint>, // TODO
     // pub channel_type: Option<ChannelTypeFeatures>, // Sealed
     pub short_channel_id: Option<u64>,
     pub outbound_scid_alias: Option<u64>,
@@ -35,7 +33,7 @@ impl From<ChannelDetails> for LexeChannelDetails {
         Self {
             channel_id: cd.channel_id,
             // counterparty: LexeChannelCounterparty::from(cd.counterparty),
-            // funding_txo: cd.funding_txo.map(LexeOutpoint::from),
+            // funding_txo: cd.funding_txo.map(LexeOutPoint::from),
             // channel_type: cd.channel_type,
             short_channel_id: cd.short_channel_id,
             outbound_scid_alias: cd.outbound_scid_alias,
@@ -75,21 +73,6 @@ impl From<ChannelCounterparty> for LexeChannelCounterparty {
             unspendable_punishment_reserve: ccp.unspendable_punishment_reserve,
             outbound_htlc_minimum_msat: ccp.outbound_htlc_minimum_msat,
             outbound_htlc_maximum_msat: ccp.outbound_htlc_maximum_msat,
-        }
-    }
-}
-
-// #[derive(Serialize)] // TODO Fix Serialize
-pub struct LexeOutpoint {
-    pub txid: Txid, // TODO Needs to be LexeTxid
-    pub index: u16,
-}
-
-impl From<OutPoint> for LexeOutpoint {
-    fn from(op: OutPoint) -> Self {
-        Self {
-            txid: op.txid,
-            index: op.index,
         }
     }
 }

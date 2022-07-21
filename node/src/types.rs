@@ -8,10 +8,12 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use anyhow::ensure;
+use bitcoin::hash_types::Txid;
 use common::hex;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::keysinterface::InMemorySigner;
+use lightning::chain::transaction::OutPoint;
 use lightning::chain::{Access, Filter};
 use lightning::ln::channelmanager::ChannelManager;
 use lightning::ln::peer_handler::{IgnoringMessageHandler, PeerManager};
@@ -28,6 +30,7 @@ use subtle::ConstantTimeEq;
 use crate::api::ApiClient;
 use crate::event_handler::LdkEventHandler;
 use crate::lexe::bitcoind::LexeBitcoind;
+use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::persister::LexePersister;
@@ -55,7 +58,7 @@ pub type ChainMonitorType = ChainMonitor<
 
 pub type PeerManagerType = PeerManager<
     SocketDescriptor,
-    Arc<ChannelManagerType>,
+    LexeChannelManager,
     Arc<
         P2PGossipSync<
             Arc<NetworkGraph<LexeTracingLogger>>,
@@ -87,7 +90,7 @@ pub type ChannelMonitorListenerType = (
 );
 
 pub type InvoicePayerType = payment::InvoicePayer<
-    Arc<ChannelManagerType>,
+    LexeChannelManager,
     RouterType,
     Arc<Mutex<ProbabilisticScorerType>>,
     LexeTracingLogger,
@@ -152,6 +155,21 @@ pub struct Network(bitcoin::Network);
 
 #[derive(Clone)]
 pub struct AuthToken([u8; Self::LENGTH]);
+
+// #[derive(Serialize)] // TODO Fix Serialize
+pub struct LexeOutPoint {
+    pub txid: Txid, // TODO Needs to be LexeTxid
+    pub index: u16,
+}
+
+impl From<OutPoint> for LexeOutPoint {
+    fn from(op: OutPoint) -> Self {
+        Self {
+            txid: op.txid,
+            index: op.index,
+        }
+    }
+}
 
 // -- impl NodeAlias -- //
 
