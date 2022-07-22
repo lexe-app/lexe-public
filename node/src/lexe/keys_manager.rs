@@ -1,7 +1,8 @@
 use std::ops::Deref;
+use std::str::FromStr;
 use std::sync::Arc;
 
-use anyhow::ensure;
+use anyhow::{ensure, Context};
 use bitcoin::blockdata::script::Script;
 use bitcoin::blockdata::transaction::{Transaction, TxOut};
 use bitcoin::secp256k1::{PublicKey, Secp256k1, Signing};
@@ -11,8 +12,6 @@ use lightning::chain::keysinterface::{
     KeysInterface, KeysManager, Recipient, SpendableOutputDescriptor,
 };
 use secrecy::{ExposeSecret, Secret};
-
-use crate::convert;
 
 /// A thin wrapper around LDK's KeysManager which provides a cleaner init API
 /// and some custom functionalities.
@@ -85,7 +84,8 @@ impl LexeKeysManager {
         let derived_pubkey = keys_manager.derive_pubkey(rng);
 
         // Deserialize the pubkey returned from the DB (given pubkey)
-        let given_pubkey = convert::pubkey_from_hex(&given_pubkey_hex)?;
+        let given_pubkey = PublicKey::from_str(&given_pubkey_hex)
+            .context("Could not deserialize PublicKey from LowerHex")?;
 
         // Check the given pubkey against the derived one
         ensure!(

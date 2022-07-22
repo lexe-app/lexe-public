@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
+use bitcoin::secp256k1::PublicKey;
 use serde::Serialize;
 
 use crate::command::server::ApiError;
-use crate::convert;
 use crate::lexe::channel_manager::{LexeChannelManager, LxChannelDetails};
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::types::NetworkGraphType;
 
 #[derive(Serialize)]
 pub struct NodeInfo {
-    pub pubkey: String,
+    pub pubkey: PublicKey,
     pub num_channels: usize,
     pub num_usable_channels: usize,
     pub local_balance_msat: u64,
@@ -24,7 +24,6 @@ pub async fn node_info(
     peer_manager: LexePeerManager,
 ) -> Result<NodeInfo, ApiError> {
     let pubkey = channel_manager.get_our_node_id();
-    let pubkey = convert::pubkey_to_hex(&pubkey);
 
     let channels = channel_manager.list_channels();
     let num_channels = channels.len();
