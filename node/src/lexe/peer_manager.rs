@@ -11,11 +11,15 @@ use common::rng::Crng;
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
 use secrecy::zeroize::Zeroizing;
+use tokio::net::TcpStream;
+use tokio::time;
 
 use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::types::{P2PGossipSyncType, PeerManagerType};
+
+const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]
@@ -61,6 +65,48 @@ impl LexePeerManager {
     pub fn as_arc_inner(&self) -> Arc<PeerManagerType> {
         self.0.clone()
     }
+
+    #[allow(dead_code)] // TODO Remove once this fn is used in sgx
+    pub async fn connect_peer_if_necessary(
+        &self,
+        channel_peer: ChannelPeer,
+    ) -> anyhow::Result<()> {
+        // Return immediately if we're already connected to the peer
+        if self.get_peer_node_ids().contains(&channel_peer.pubkey) {
+            return Ok(());
+        }
+
+        // Otherwise, initiate the connection
+        self.do_connect_peer(channel_peer)
+            .await
+            .context("Failed to connect to peer")
+    }
+
+    pub async fn do_connect_peer(
+        &self,
+        channel_peer: ChannelPeer,
+    ) -> anyhow::Result<()> {
+        let stream = time::timeout(
+            CONNECT_TIMEOUT,
+            TcpStream::connect(channel_peer.addr),
+        )
+        .await
+        .context("Connect request timed out")?
+        .context("TcpStream::connect() failed")?
+        .into_std()
+        .context("Could not convert tokio TcpStream to std TcpStream")?;
+
+        // `setup_outbound()` returns a future which completes when the
+        // connection closes, which we do not need to poll because a
+        // task was spawned for it.
+        let _ = lightning_net_tokio::setup_outbound(
+            self.as_arc_inner(),
+            channel_peer.pubkey,
+            stream,
+        );
+
+        Ok(())
+    }
 }
 
 #[derive(Clone)]
@@ -101,58 +147,5 @@ impl FromStr for ChannelPeer {
 impl Display for ChannelPeer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}@{}", self.pubkey, self.addr)
-    }
-}
-
-#[cfg(not(target_env = "sgx"))] // TODO Remove once this fn is used in sgx
-pub async fn connect_peer_if_necessary(
-    channel_peer: ChannelPeer,
-    peer_manager: LexePeerManager,
-) -> Result<(), ()> {
-    for node_pubkey in peer_manager.get_peer_node_ids() {
-        if node_pubkey == channel_peer.pubkey {
-            return Ok(());
-        }
-    }
-    let res = do_connect_peer(channel_peer, peer_manager).await;
-    if res.is_err() {
-        println!("ERROR: failed to connect to peer");
-    }
-    res
-}
-
-pub async fn do_connect_peer(
-    channel_peer: ChannelPeer,
-    peer_manager: LexePeerManager,
-) -> Result<(), ()> {
-    match lightning_net_tokio::connect_outbound(
-        peer_manager.as_arc_inner(),
-        channel_peer.pubkey,
-        channel_peer.addr,
-    )
-    .await
-    {
-        Some(connection_closed_future) => {
-            let mut connection_closed_future =
-                Box::pin(connection_closed_future);
-            loop {
-                match futures::poll!(&mut connection_closed_future) {
-                    std::task::Poll::Ready(_) => {
-                        return Err(());
-                    }
-                    std::task::Poll::Pending => {}
-                }
-                // Avoid blocking the tokio context by sleeping a bit
-                match peer_manager
-                    .get_peer_node_ids()
-                    .iter()
-                    .find(|id| **id == channel_peer.pubkey)
-                {
-                    Some(_) => return Ok(()),
-                    None => tokio::time::sleep(Duration::from_millis(10)).await,
-                }
-            }
-        }
-        None => Err(()),
     }
 }
