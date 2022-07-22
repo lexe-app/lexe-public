@@ -2,8 +2,6 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 
 use anyhow::Context;
-use bitcoin::hash_types::Txid;
-use bitcoin::hashes::hex::{FromHex, ToHex};
 use bitcoin::secp256k1::PublicKey;
 
 use crate::types::{EnclaveId, InstanceId};
@@ -39,15 +37,6 @@ pub fn get_enclave_id(instance_id: &str, cpu_id: &str) -> EnclaveId {
     format!("{}_{}", instance_id, cpu_id)
 }
 
-/// Serializes a txid and index into a String of the form <txid>_<index>.
-pub fn txid_and_index_to_string(txid: Txid, index: u16) -> String {
-    let txid = txid.to_hex();
-    let index = index.to_string();
-
-    // <txid>_<index>
-    [txid, index].join("_")
-}
-
 /// Serializes a peer's PublicKey and SocketAddr to <pubkey>@<addr>.
 #[cfg(not(target_env = "sgx"))] // TODO Remove once this fn is used in sgx
 pub fn peer_pubkey_addr_to_string(
@@ -78,24 +67,4 @@ pub fn peer_pubkey_addr_from_string(
         .context("Could not parse socket address from string")?;
 
     Ok((peer_pubkey, peer_addr))
-}
-
-/// Attempts to parse a Txid and index from a String of the form <txid>_<index>.
-pub fn txid_and_index_from_string(id: String) -> anyhow::Result<(Txid, u16)> {
-    let mut txid_and_txindex = id.split('_');
-    let txid_str = txid_and_txindex
-        .next()
-        .context("Missing <txid> in <txid>_<index>")?;
-    let index_str = txid_and_txindex
-        .next()
-        .context("Missing <index> in <txid>_<index>")?;
-
-    let txid =
-        Txid::from_hex(txid_str).context("Invalid txid returned from DB")?;
-    let index: u16 = index_str
-        .to_string()
-        .parse()
-        .context("Could not parse index into u16")?;
-
-    Ok((txid, index))
 }

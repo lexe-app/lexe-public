@@ -18,7 +18,7 @@ common = { path = "../common" }
 
 # --- BITCOIN --- #
 
-bitcoin = "0.28.1"
+bitcoin = { version = "0.28.1", features = ["use-serde"] }
 bitcoin-bech32 = "0.12"
 # bech32 = "0.8"
 base64 = "0.13.0"
