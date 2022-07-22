@@ -3,7 +3,7 @@
 use std::num::NonZeroU32;
 
 use rand_core::le::read_u32_into;
-use rand_core::{CryptoRng, RngCore, SeedableRng};
+pub use rand_core::{CryptoRng, RngCore, SeedableRng};
 use ring::rand::SecureRandom;
 
 const RAND_ERROR_CODE: NonZeroU32 =

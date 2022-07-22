@@ -8,9 +8,9 @@ use ring::aead::{
 };
 use ring::hkdf::{self, HKDF_SHA256};
 use secrecy::zeroize::Zeroizing;
-use sgx_isa::{AttributesFlags, Keyname, Keypolicy, Report};
+use sgx_isa::{AttributesFlags, Keyname, Keypolicy};
 
-use crate::enclave::{Error, Sealed};
+use crate::enclave::{Error, Sealed, MIN_SGX_CPUSVN};
 use crate::hex;
 use crate::rng::Crng;
 
@@ -49,7 +49,7 @@ impl KeyRequest {
     /// Generate a request for a unique, encrypt-at-most-once sealing key. The\
     /// sealing key will only be recoverable on enclaves with the same
     /// `MRENCLAVE` measurement.
-    fn gen_sealing_request(rng: &mut dyn Crng, self_report: &Report) -> Self {
+    fn gen_sealing_request(rng: &mut dyn Crng) -> Self {
         let mut keyid = [0u8; 32];
         rng.fill_bytes(&mut keyid);
 
@@ -67,11 +67,25 @@ impl KeyRequest {
         // bind upper byte
         let misc_mask: u32 = 0xf0000000;
 
+        // Since we only ever use the `MRENCLAVE` key policy, the ISVSVN doesn't
+        // provide us any value. If there was a vulnerability discovered in the
+        // node enclave, we would need to cut a new release, which has a
+        // different MRENCLAVE anyway and therefore the old version can't unseal
+        // the new data.
+        let isvsvn = 0;
+
+        // Commit to a _fixed_ CPUSVN checkpoint to reduce operational
+        // complexity. When we need to bump the CPUSVN committed version (either
+        // periodically or in response to a vulnerability disclosure), we'll cut
+        // a new release (i.e., different MRENCLAVE) with the updated CPUSVN.
+        // TODO(phlip9): update this just before prod release
+        let cpusvn = MIN_SGX_CPUSVN;
+
         Self(sgx_isa::Keyrequest {
             keyname: Keyname::Seal as _,
             keypolicy: Keypolicy::MRENCLAVE,
-            isvsvn: self_report.isvsvn,
-            cpusvn: self_report.cpusvn,
+            isvsvn,
+            cpusvn,
             attributemask: [attribute_mask, xfrm_mask],
             miscmask: misc_mask,
             keyid,
@@ -172,8 +186,7 @@ pub fn seal(
     label: &[u8],
     data: Cow<'_, [u8]>,
 ) -> Result<Sealed<'static>, Error> {
-    let self_report = Report::for_self();
-    let keyrequest = KeyRequest::gen_sealing_request(rng, &self_report);
+    let keyrequest = KeyRequest::gen_sealing_request(rng);
     let mut sealing_key = keyrequest.derive_sealing_key(label)?;
 
     let mut ciphertext = data.into_owned();
@@ -211,12 +224,7 @@ pub fn unseal(label: &[u8], sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
 
 #[cfg(test)]
 mod test {
-    use proptest::arbitrary::any;
-    use proptest::strategy::Strategy;
-    use proptest::{prop_assume, proptest};
-
     use super::*;
-    use crate::rng::{arb_rng, SmallRng};
     use crate::sha256;
 
     #[test]

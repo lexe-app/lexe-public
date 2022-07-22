@@ -17,6 +17,11 @@ use thiserror::Error;
 use crate::hex;
 use crate::rng::Crng;
 
+/// In SGX enclaves, this is the current CPUSVN we commit to when
+/// sealing data.
+pub const MIN_SGX_CPUSVN: [u8; 16] =
+    hex::decode_const(b"08080e0dffff01000000000000000000");
+
 #[derive(Debug, Error)]
 #[error("error")]
 pub enum Error {
