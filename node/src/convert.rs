@@ -6,26 +6,9 @@ use bitcoin::secp256k1::PublicKey;
 
 use crate::types::{EnclaveId, InstanceId};
 
-/// Converts a secp PublicKey into a lower hex-encoded String.
-///
-/// NOTE: Use this function instead of the equivalent in hex.rs
-/// TODO: Replace all PublicKey with LxPublicKey
-pub fn pubkey_to_hex(pubkey: &PublicKey) -> String {
-    format!("{:x}", pubkey)
-}
-
-/// Tries to convert a lower hex-encoded String into a secp PublicKey.
-///
-/// NOTE: Use this function instead of the equivalent in hex.rs
-/// TODO: Replace all PublicKey with LxPublicKey
-pub fn pubkey_from_hex(pubkey: &str) -> anyhow::Result<PublicKey> {
-    PublicKey::from_str(pubkey)
-        .context("Could not deserialize PublicKey from LowerHex")
-}
-
 /// Derives the instance id from the node public key and enclave measurement.
 pub fn get_instance_id(pubkey: &PublicKey, measurement: &str) -> InstanceId {
-    let pubkey_hex = pubkey_to_hex(pubkey);
+    let pubkey_hex = pubkey.to_string();
 
     // TODO(crypto) id derivation scheme;
     // probably hash(pubkey || measurement)
@@ -43,7 +26,7 @@ pub fn peer_pubkey_addr_to_string(
     peer_pubkey: PublicKey,
     peer_address: SocketAddr,
 ) -> String {
-    let pubkey_str = pubkey_to_hex(&peer_pubkey);
+    let pubkey_str = peer_pubkey.to_string();
     let addr_str = peer_address.to_string();
     [pubkey_str, addr_str].join("@")
 }

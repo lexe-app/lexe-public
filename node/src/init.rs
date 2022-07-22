@@ -495,7 +495,7 @@ async fn provision_new_node<R: Crng>(
     // Derive pubkey
     let keys_manager = LexeKeysManager::unchecked_init(rng, &root_seed);
     let pubkey = keys_manager.derive_pubkey(rng);
-    let pubkey_hex = convert::pubkey_to_hex(&pubkey);
+    let pubkey_hex = pubkey.to_string();
 
     // Build structs for persisting the new node + instance + enclave
     let node = Node {

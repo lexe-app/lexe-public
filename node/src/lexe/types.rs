@@ -61,3 +61,5 @@ impl Display for LxOutPoint {
         write!(f, "{}_{}", self.txid, self.index)
     }
 }
+
+// TODO Add an outpoint roundtrip test
