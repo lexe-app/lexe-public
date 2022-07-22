@@ -1,6 +1,7 @@
 use std::io::{self, Cursor, ErrorKind};
 use std::net::SocketAddr;
 use std::ops::Deref;
+use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, ensure, Context};
@@ -26,6 +27,7 @@ use crate::convert;
 use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
+use crate::lexe::types::LxOutPoint;
 use crate::types::{
     ApiClientType, BroadcasterType, ChainMonitorType, ChannelManagerType,
     ChannelMonitorType, FeeEstimatorType, InstanceId, LoggerType,
@@ -155,10 +157,8 @@ impl InnerPersister {
         let mut result = Vec::new();
 
         for cm_file in cm_file_vec {
-            // <txid>_<txindex>
-            let id = cm_file.name;
-            let (txid, index) = convert::txid_and_index_from_string(id)
-                .context("Invalid channel id")?;
+            let given = LxOutPoint::from_str(&cm_file.name)
+                .context("Invalid funding txo string")?;
 
             let mut state_buf = Cursor::new(&cm_file.data);
 
@@ -171,9 +171,9 @@ impl InnerPersister {
                 .map_err(|e| anyhow!("{:?}", e))
                 .context("Failed to deserialize Channel Monitor")?;
 
-            let (output, _script) = channel_monitor.get_funding_txo();
-            ensure!(output.txid == txid, "Deserialized txid don' match");
-            ensure!(output.index == index, "Deserialized index don' match");
+            let (derived, _script) = channel_monitor.get_funding_txo();
+            ensure!(derived.txid == given.txid, "outpoint txid don' match");
+            ensure!(derived.index == given.index, "outpoint index don' match");
 
             result.push((blockhash, channel_monitor));
         }
@@ -420,16 +420,14 @@ impl Persist<SignerType> for InnerPersister {
         monitor: &ChannelMonitorType,
         _update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
-        let id = convert::txid_and_index_to_string(
-            funding_txo.txid,
-            funding_txo.index,
-        );
-        println!("Persisting new channel {}", id);
+        let outpoint = LxOutPoint::from(funding_txo);
+        let outpoint_str = outpoint.to_string();
+        println!("Persisting new channel {}", outpoint_str);
 
         let cm_file = File {
             instance_id: self.instance_id.clone(),
             directory: CHANNEL_MONITORS_DIRECTORY.to_owned(),
-            name: id,
+            name: outpoint_str,
             // FIXME(encrypt): Encrypt under key derived from seed
             data: monitor.encode(),
         };
@@ -455,16 +453,14 @@ impl Persist<SignerType> for InnerPersister {
         monitor: &ChannelMonitorType,
         _update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
-        let id = convert::txid_and_index_to_string(
-            funding_txo.txid,
-            funding_txo.index,
-        );
-        println!("Updating persisted channel {}", id);
+        let outpoint = LxOutPoint::from(funding_txo);
+        let outpoint_str = outpoint.to_string();
+        println!("Updating persisted channel {}", outpoint_str);
 
         let cm_file = File {
             instance_id: self.instance_id.clone(),
             directory: CHANNEL_MONITORS_DIRECTORY.to_owned(),
-            name: id,
+            name: outpoint_str,
             // FIXME(encrypt): Encrypt under key derived from seed
             data: monitor.encode(),
         };

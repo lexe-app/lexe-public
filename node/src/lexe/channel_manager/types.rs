@@ -1,7 +1,8 @@
+use bitcoin::secp256k1::PublicKey;
 use lightning::ln::channelmanager::{ChannelCounterparty, ChannelDetails};
 use serde::Serialize;
 
-use crate::lexe::types::{LxOutPoint, LxPublicKey};
+use crate::lexe::types::LxOutPoint;
 
 #[derive(Serialize)]
 pub struct LxChannelDetails {
@@ -59,7 +60,7 @@ impl From<ChannelDetails> for LxChannelDetails {
 
 #[derive(Serialize)]
 pub struct LxChannelCounterparty {
-    pub node_id: LxPublicKey,
+    pub node_id: PublicKey,
     // pub features: InitFeatures,                              // Sealed
     pub unspendable_punishment_reserve: u64,
     // pub forwarding_info: Option<CounterpartyForwardingInfo>, // Not needed
@@ -70,7 +71,7 @@ pub struct LxChannelCounterparty {
 impl From<ChannelCounterparty> for LxChannelCounterparty {
     fn from(ccp: ChannelCounterparty) -> Self {
         Self {
-            node_id: LxPublicKey::from(ccp.node_id), // CCP's node id lol
+            node_id: ccp.node_id, // CCP's node id lol
             unspendable_punishment_reserve: ccp.unspendable_punishment_reserve,
             outbound_htlc_minimum_msat: ccp.outbound_htlc_minimum_msat,
             outbound_htlc_maximum_msat: ccp.outbound_htlc_maximum_msat,
