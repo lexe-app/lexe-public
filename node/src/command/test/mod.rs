@@ -116,9 +116,7 @@ async fn node_info() {
     let args = default_test_args();
     let h = CommandTestHarness::init(args).await;
 
-    owner::node_info(h.channel_manager(), h.peer_manager())
-        .await
-        .unwrap();
+    owner::node_info(h.channel_manager(), h.peer_manager()).unwrap();
 }
 
 /// Tests the list_channels handler.
@@ -127,7 +125,5 @@ async fn list_channels() {
     let args = default_test_args();
     let h = CommandTestHarness::init(args).await;
 
-    owner::list_channels(h.channel_manager(), h.network_graph())
-        .await
-        .unwrap();
+    owner::list_channels(h.channel_manager(), h.network_graph()).unwrap();
 }

@@ -89,14 +89,14 @@ fn owner(
         .and(warp::get())
         .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::peer_manager(peer_manager))
-        .then(owner::node_info)
+        .map(owner::node_info)
         .map(into_response);
 
     let list_channels = warp::path("channels")
         .and(warp::get())
         .and(inject::channel_manager(channel_manager))
         .and(inject::network_graph(network_graph))
-        .then(owner::list_channels)
+        .map(owner::list_channels)
         .map(into_response);
 
     owner.and(node_info.or(list_channels))

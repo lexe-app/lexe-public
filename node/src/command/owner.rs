@@ -17,9 +17,8 @@ pub struct NodeInfo {
     pub num_peers: usize,
 }
 
-// TODO Make non-async
 /// GET /owner/node_info -> NodeInfo
-pub async fn node_info(
+pub fn node_info(
     channel_manager: LexeChannelManager,
     peer_manager: LexePeerManager,
 ) -> Result<NodeInfo, ApiError> {
@@ -48,9 +47,8 @@ pub struct ListChannels {
     pub channel_details: Vec<LxChannelDetails>,
 }
 
-// TODO Make non-async
 /// GET /owner/channels -> ListChannels
-pub async fn list_channels(
+pub fn list_channels(
     channel_manager: LexeChannelManager,
     _network_graph: Arc<NetworkGraphType>, // TODO REPL uses it, do we need it?
 ) -> Result<ListChannels, ApiError> {
