@@ -33,7 +33,7 @@ use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
-use crate::lexe::peer_manager::{self, LexePeerManager};
+use crate::lexe::peer_manager::LexePeerManager;
 use crate::lexe::persister::LexePersister;
 use crate::types::{
     ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
@@ -697,11 +697,11 @@ fn spawn_p2p_reconnect_task(
                         }
                         for channel_peer in cp_vec.iter() {
                             if channel_peer.pubkey == node_id {
-                                let _ = peer_manager::do_connect_peer(
-                                    channel_peer.deref().clone(),
-                                    peer_manager.clone(),
-                                )
-                                .await;
+                                let _ = peer_manager
+                                    .do_connect_peer(
+                                        channel_peer.deref().clone(),
+                                    )
+                                    .await;
                             }
                         }
                     }

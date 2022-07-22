@@ -56,7 +56,7 @@ mod not_sgx {
     use crate::cli::{Network, NodeAlias};
     use crate::lexe::channel_manager::LexeChannelManager;
     use crate::lexe::keys_manager::LexeKeysManager;
-    use crate::lexe::peer_manager::{self, ChannelPeer, LexePeerManager};
+    use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
     use crate::lexe::persister::LexePersister;
     use crate::types::{
         HTLCStatus, InvoicePayerType, MillisatAmount, NetworkGraphType,
@@ -127,12 +127,10 @@ mod not_sgx {
 
                         let channel_peer =
                             ChannelPeer::from((pubkey, peer_addr));
-                        if peer_manager::connect_peer_if_necessary(
-                            channel_peer.clone(),
-                            peer_manager.clone(),
-                        )
-                        .await
-                        .is_err()
+                        if peer_manager
+                            .connect_peer_if_necessary(channel_peer.clone())
+                            .await
+                            .is_err()
                         {
                             continue;
                         };
@@ -282,12 +280,10 @@ mod not_sgx {
                         };
                         let channel_peer =
                             ChannelPeer::from((pubkey, peer_addr));
-                        if peer_manager::connect_peer_if_necessary(
-                            channel_peer.clone(),
-                            peer_manager.clone(),
-                        )
-                        .await
-                        .is_ok()
+                        if peer_manager
+                            .connect_peer_if_necessary(channel_peer.clone())
+                            .await
+                            .is_ok()
                         {
                             println!(
                                 "SUCCESS: connected to peer {}",
