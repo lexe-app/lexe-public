@@ -695,11 +695,10 @@ fn spawn_p2p_reconnect_task(
                         if stop_listen_connect.load(Ordering::Acquire) {
                             return;
                         }
-                        for (pubkey, peer_addr) in cp_vec.iter() {
-                            if *pubkey == node_id {
+                        for channel_peer in cp_vec.iter() {
+                            if channel_peer.pubkey == node_id {
                                 let _ = peer_manager::do_connect_peer(
-                                    *pubkey,
-                                    *peer_addr,
+                                    channel_peer.deref().clone(),
                                     peer_manager.clone(),
                                 )
                                 .await;

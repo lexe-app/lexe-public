@@ -56,7 +56,7 @@ mod not_sgx {
     use crate::cli::{Network, NodeAlias};
     use crate::lexe::channel_manager::LexeChannelManager;
     use crate::lexe::keys_manager::LexeKeysManager;
-    use crate::lexe::peer_manager::{self, LexePeerManager};
+    use crate::lexe::peer_manager::{self, ChannelPeer, LexePeerManager};
     use crate::lexe::persister::LexePersister;
     use crate::types::{
         HTLCStatus, InvoicePayerType, MillisatAmount, NetworkGraphType,
@@ -125,9 +125,10 @@ mod not_sgx {
                             continue;
                         }
 
+                        let channel_peer =
+                            ChannelPeer::from((pubkey, peer_addr));
                         if peer_manager::connect_peer_if_necessary(
-                            pubkey,
-                            peer_addr,
+                            channel_peer.clone(),
                             peer_manager.clone(),
                         )
                         .await
@@ -147,7 +148,7 @@ mod not_sgx {
                         };
 
                         if open_channel(
-                            pubkey,
+                            channel_peer.pubkey,
                             chan_amt_sat.unwrap(),
                             announce_channel,
                             channel_manager.clone(),
@@ -155,7 +156,7 @@ mod not_sgx {
                         .is_ok()
                         {
                             if let Err(e) = persister
-                                .persist_channel_peer(pubkey, peer_addr)
+                                .persist_channel_peer(channel_peer)
                                 .await
                             {
                                 println!(
@@ -279,15 +280,19 @@ mod not_sgx {
                                 continue;
                             }
                         };
+                        let channel_peer =
+                            ChannelPeer::from((pubkey, peer_addr));
                         if peer_manager::connect_peer_if_necessary(
-                            pubkey,
-                            peer_addr,
+                            channel_peer.clone(),
                             peer_manager.clone(),
                         )
                         .await
                         .is_ok()
                         {
-                            println!("SUCCESS: connected to peer {}", pubkey);
+                            println!(
+                                "SUCCESS: connected to peer {}",
+                                channel_peer.pubkey
+                            );
                         }
                     }
                     "listchannels" => {
