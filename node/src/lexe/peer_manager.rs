@@ -1,8 +1,11 @@
+use std::fmt::{self, Display};
 use std::net::SocketAddr;
 use std::ops::Deref;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::Context;
 use bitcoin::secp256k1::PublicKey;
 use common::rng::Crng;
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
@@ -60,18 +63,58 @@ impl LexePeerManager {
     }
 }
 
+#[derive(Clone)]
+pub struct ChannelPeer {
+    pub pubkey: PublicKey,
+    pub addr: SocketAddr,
+}
+
+impl From<(PublicKey, SocketAddr)> for ChannelPeer {
+    fn from((pubkey, addr): (PublicKey, SocketAddr)) -> Self {
+        Self { pubkey, addr }
+    }
+}
+
+/// <pubkey>@<addr>
+impl FromStr for ChannelPeer {
+    type Err = anyhow::Error;
+    fn from_str(pubkey_at_addr: &str) -> anyhow::Result<Self> {
+        // vec![<pubkey>, <addr>]
+        let mut pubkey_and_addr = pubkey_at_addr.split('@');
+        let pubkey_str = pubkey_and_addr
+            .next()
+            .context("Missing <pubkey> in <pubkey>@<addr> peer address")?;
+        let addr_str = pubkey_and_addr
+            .next()
+            .context("Missing <addr> in <pubkey>@<addr> peer address")?;
+
+        let pubkey = PublicKey::from_str(pubkey_str)
+            .context("Could not deserialize PublicKey from LowerHex")?;
+        let addr = SocketAddr::from_str(addr_str)
+            .context("Could not parse socket address from string")?;
+
+        Ok(Self { pubkey, addr })
+    }
+}
+
+/// <pubkey>@<addr>
+impl Display for ChannelPeer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}@{}", self.pubkey, self.addr)
+    }
+}
+
 #[cfg(not(target_env = "sgx"))] // TODO Remove once this fn is used in sgx
 pub async fn connect_peer_if_necessary(
-    pubkey: PublicKey,
-    peer_addr: SocketAddr,
+    channel_peer: ChannelPeer,
     peer_manager: LexePeerManager,
 ) -> Result<(), ()> {
     for node_pubkey in peer_manager.get_peer_node_ids() {
-        if node_pubkey == pubkey {
+        if node_pubkey == channel_peer.pubkey {
             return Ok(());
         }
     }
-    let res = do_connect_peer(pubkey, peer_addr, peer_manager).await;
+    let res = do_connect_peer(channel_peer, peer_manager).await;
     if res.is_err() {
         println!("ERROR: failed to connect to peer");
     }
@@ -79,14 +122,13 @@ pub async fn connect_peer_if_necessary(
 }
 
 pub async fn do_connect_peer(
-    pubkey: PublicKey,
-    peer_addr: SocketAddr,
+    channel_peer: ChannelPeer,
     peer_manager: LexePeerManager,
 ) -> Result<(), ()> {
     match lightning_net_tokio::connect_outbound(
         peer_manager.as_arc_inner(),
-        pubkey,
-        peer_addr,
+        channel_peer.pubkey,
+        channel_peer.addr,
     )
     .await
     {
@@ -104,7 +146,7 @@ pub async fn do_connect_peer(
                 match peer_manager
                     .get_peer_node_ids()
                     .iter()
-                    .find(|id| **id == pubkey)
+                    .find(|id| **id == channel_peer.pubkey)
                 {
                     Some(_) => return Ok(()),
                     None => tokio::time::sleep(Duration::from_millis(10)).await,

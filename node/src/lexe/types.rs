@@ -9,7 +9,7 @@
 //! the `Display` (`format!("{}", foo)`, `to_string()`) and `FromStr`
 //! (`Foo::from_str()`) impls if they are provided (as opposed to `FromHex` /
 //! `ToHex`); otherwise, implement `Display` and `FromStr` (e.g. as with
-//! [`LxOutPoint`] below) and add a serialize / deserialize round trip test.
+//! [`LxOutPoint`] below), perhaps with a serialization round trip test.
 
 use std::fmt::{self, Display};
 use std::str::FromStr;
@@ -61,5 +61,3 @@ impl Display for LxOutPoint {
         write!(f, "{}_{}", self.txid, self.index)
     }
 }
-
-// TODO Add an outpoint roundtrip test

@@ -1,12 +1,10 @@
 use std::io::{self, Cursor, ErrorKind};
-use std::net::SocketAddr;
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, ensure, Context};
 use bitcoin::hash_types::BlockHash;
-use bitcoin::secp256k1::PublicKey;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
 use lightning::chain::channelmonitor::ChannelMonitorUpdate;
 use lightning::chain::transaction::OutPoint;
@@ -23,10 +21,10 @@ use once_cell::sync::{Lazy, OnceCell};
 use tokio::runtime::{Builder, Handle, Runtime};
 
 use crate::api::{DirectoryId, File, FileId};
-use crate::convert;
 use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
+use crate::lexe::peer_manager::ChannelPeer;
 use crate::lexe::types::LxOutPoint;
 use crate::types::{
     ApiClientType, BroadcasterType, ChainMonitorType, ChannelManagerType,
@@ -248,9 +246,7 @@ impl InnerPersister {
         Ok(ng)
     }
 
-    pub async fn read_channel_peers(
-        &self,
-    ) -> anyhow::Result<Vec<(PublicKey, SocketAddr)>> {
+    pub async fn read_channel_peers(&self) -> anyhow::Result<Vec<ChannelPeer>> {
         println!("Reading channel peers");
         let cp_dir_id = DirectoryId {
             instance_id: self.instance_id.clone(),
@@ -269,30 +265,30 @@ impl InnerPersister {
             // <pubkey>@<addr>
             let pubkey_at_addr = cp_file.name;
 
-            let (peer_pubkey, peer_addr) =
-                convert::peer_pubkey_addr_from_string(pubkey_at_addr)
-                    .context("Invalid peer <pubkey>@<addr>")?;
+            let channel_peer = ChannelPeer::from_str(&pubkey_at_addr)
+                .context("Could not deserialize channel peer")?;
 
-            result.push((peer_pubkey, peer_addr));
+            result.push(channel_peer);
         }
 
         Ok(result)
     }
 
+    // TODO use ChannelPeer abstraction
     #[cfg(not(target_env = "sgx"))] // TODO Remove once this fn is used in sgx
     pub async fn persist_channel_peer(
         &self,
-        peer_pubkey: PublicKey,
-        peer_address: SocketAddr,
+        channel_peer: ChannelPeer,
     ) -> anyhow::Result<()> {
         println!("Persisting new channel peer");
-        let pubkey_at_addr =
-            convert::peer_pubkey_addr_to_string(peer_pubkey, peer_address);
+        let channel_peer =
+            ChannelPeer::from((channel_peer.pubkey, channel_peer.addr));
+        let pubkey_at_addr = channel_peer.to_string();
 
         let cp_file = File {
             instance_id: self.instance_id.clone(),
             directory: CHANNEL_PEERS_DIRECTORY.to_owned(),
-            name: pubkey_at_addr.to_owned(),
+            name: pubkey_at_addr,
             // There is no 'data' associated with a channel peer
             data: Vec::new(),
         };
