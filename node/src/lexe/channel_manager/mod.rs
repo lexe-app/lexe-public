@@ -43,7 +43,7 @@ pub use types::*;
 /// TODO: Implement recurring verification of the security report
 const TIME_TO_CONTEST_FRAUDULENT_TXNS: u16 = 6 * 24 * 7;
 
-const USER_CONFIG: UserConfig = UserConfig {
+pub const USER_CONFIG: UserConfig = UserConfig {
     own_channel_config: OWN_CHANNEL_CONFIG,
     peer_channel_config_limits: PEER_CHANNEL_CONFIG_LIMITS,
     channel_options: CHANNEL_OPTIONS,
@@ -141,7 +141,6 @@ impl LexeChannelManager {
         logger: LexeTracingLogger,
     ) -> anyhow::Result<(BlockHash, Self)> {
         println!("Initializing channel manager");
-        let user_config = USER_CONFIG;
         let inner_opt = persister
             .read_channel_manager(
                 channel_monitors,
@@ -150,7 +149,6 @@ impl LexeChannelManager {
                 chain_monitor.clone(),
                 broadcaster.clone(),
                 logger.clone(),
-                user_config, // TODO remove
             )
             .await
             .context("Could not read ChannelManager from DB")?;
@@ -174,7 +172,7 @@ impl LexeChannelManager {
                     broadcaster,
                     logger,
                     keys_manager,
-                    user_config,
+                    USER_CONFIG,
                     chain_params,
                 );
                 (getinfo_resp.latest_blockhash, fresh_inner)
@@ -197,23 +195,13 @@ impl LexeChannelManager {
         &self,
         peer_pubkey: PublicKey,
         channel_amt_sat: u64,
-        announced_channel: bool,
     ) -> anyhow::Result<()> {
-        let config = UserConfig {
-            peer_channel_config_limits: ChannelHandshakeLimits::default(),
-            channel_options: ChannelConfig {
-                announced_channel,
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
         match self.deref().create_channel(
             peer_pubkey,
             channel_amt_sat,
             0,
             0,
-            Some(config),
+            Some(USER_CONFIG),
         ) {
             Ok(_) => {
                 println!(

@@ -364,6 +364,7 @@ impl LexeContext {
         let mut run_ctx = self.run_ctx.take().expect("Was set during init");
 
         // Start the REPL if it was specified to start in the CLI args.
+        #[cfg(not(sgx))]
         if self.args.repl {
             println!("Starting REPL");
             repl::poll_for_user_input(

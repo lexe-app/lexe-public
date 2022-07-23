@@ -40,6 +40,7 @@ mod not_sgx {
     use std::str::FromStr;
     use std::sync::Arc;
 
+    use anyhow::Context;
     use bitcoin::hashes::sha256::Hash as Sha256;
     use bitcoin::hashes::Hash;
     use bitcoin::secp256k1::PublicKey;
@@ -95,69 +96,17 @@ mod not_sgx {
                 match word {
                     "help" => help(),
                     "openchannel" => {
-                        let peer_pubkey_and_ip_addr = words.next();
-                        let channel_value_sat = words.next();
-                        if peer_pubkey_and_ip_addr.is_none()
-                            || channel_value_sat.is_none()
-                        {
-                            println!("ERROR: openchannel has 2 required arguments: `openchannel pubkey@host:port channel_amt_satoshis` [--public]");
-                            continue;
-                        }
-                        let peer_pubkey_and_ip_addr =
-                            peer_pubkey_and_ip_addr.unwrap();
-                        let (pubkey, peer_addr) = match parse_peer_info(
-                            peer_pubkey_and_ip_addr.to_string(),
-                        ) {
-                            Ok(info) => info,
-                            Err(e) => {
-                                println!("{:?}", e.into_inner().unwrap());
-                                continue;
-                            }
-                        };
-
-                        let chan_amt_sat: Result<u64, _> =
-                            channel_value_sat.unwrap().parse();
-                        if chan_amt_sat.is_err() {
-                            println!("ERROR: channel amount must be a number");
-                            continue;
-                        }
-
-                        let channel_peer = ChannelPeer::new(pubkey, peer_addr);
-                        if peer_manager
-                            .connect_peer_if_necessary(channel_peer.clone())
-                            .await
-                            .is_err()
-                        {
-                            continue;
-                        };
-
-                        let announce_channel = match words.next() {
-                            Some("--public") | Some("--public=true") => true,
-                            Some("--public=false") => false,
-                            Some(_) => {
-                                println!("ERROR: invalid `--public` command format. Valid formats: `--public`, `--public=true` `--public=false`");
-                                continue;
-                            }
-                            None => false,
-                        };
-
-                        if channel_manager
-                            .open_channel(
-                                channel_peer.pubkey,
-                                chan_amt_sat.unwrap(),
-                                announce_channel,
-                            )
-                            .is_ok()
-                        {
-                            if let Err(e) = persister
-                                .persist_channel_peer(channel_peer)
-                                .await
-                            {
-                                println!(
-                                    "ERROR Could not persist channel peer: {}",
-                                    e
-                                );
-                            }
+                        // TODO eventually do this once for all commands
+                        let res = open_channel(
+                            words,
+                            &peer_manager,
+                            &channel_manager,
+                            &persister,
+                        )
+                        .await;
+                        if let Err(e) = res {
+                            // Print the entire error chain on one line
+                            println!("{:#}", e);
                         }
                     }
                     "sendpayment" => {
@@ -702,6 +651,41 @@ mod not_sgx {
                 amt_msat: MillisatAmount(Some(amt_msat)),
             },
         );
+    }
+
+    async fn open_channel<'a, I: Iterator<Item = &'a str>>(
+        mut words: I,
+        peer_manager: &LexePeerManager,
+        channel_manager: &LexeChannelManager,
+        persister: &LexePersister,
+    ) -> anyhow::Result<()> {
+        let peer_pubkey_at_addr = words
+            .next()
+            .context("Missing first argument: pubkey@host:port")?;
+        let channel_value_sat = words
+            .next()
+            .context("Missing second argument: channel_value_sat")?;
+
+        let channel_peer = ChannelPeer::from_str(peer_pubkey_at_addr)
+            .context("Failed to parse channel peer: pubkey@host:port")?;
+        let channel_value_sat = u64::from_str(channel_value_sat)
+            .context("channel_value_sat must be a number")?;
+
+        peer_manager
+            .connect_peer_if_necessary(channel_peer.clone())
+            .await
+            .context("Could not connect to peer")?;
+
+        channel_manager
+            .open_channel(channel_peer.pubkey, channel_value_sat)
+            .context("Failed to open channel")?;
+
+        persister
+            .persist_channel_peer(channel_peer)
+            .await
+            .context("Could not persist channel peer")?;
+
+        Ok(())
     }
 
     fn close_channel(
