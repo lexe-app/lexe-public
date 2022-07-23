@@ -14,7 +14,6 @@ use lightning::routing::gossip::NetworkGraph as LdkNetworkGraph;
 use lightning::routing::scoring::{
     ProbabilisticScorer, ProbabilisticScoringParameters,
 };
-use lightning::util::config::UserConfig;
 use lightning::util::persist::Persister;
 use lightning::util::ser::{ReadableArgs, Writeable};
 use once_cell::sync::{Lazy, OnceCell};
@@ -22,6 +21,7 @@ use tokio::runtime::{Builder, Handle, Runtime};
 
 use crate::api::{DirectoryId, File, FileId};
 use crate::lexe::bitcoind::LexeBitcoind;
+use crate::lexe::channel_manager::USER_CONFIG;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::ChannelPeer;
@@ -84,7 +84,6 @@ impl InnerPersister {
         chain_monitor: Arc<ChainMonitorType>,
         broadcaster: Arc<BroadcasterType>,
         logger: LexeTracingLogger,
-        user_config: UserConfig,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         println!("Reading channel manager");
         let cm_file_id = FileId {
@@ -110,7 +109,7 @@ impl InnerPersister {
                     chain_monitor,
                     broadcaster,
                     logger,
-                    user_config,
+                    USER_CONFIG,
                     channel_monitor_mut_refs,
                 );
 
