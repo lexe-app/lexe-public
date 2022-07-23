@@ -4,19 +4,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::BlockHash;
 use common::rng::Crng;
 use common::root_seed::RootSeed;
+use lightning::chain;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
-use lightning::chain::transaction::OutPoint;
-use lightning::chain::{self, Watch};
 use lightning::routing::gossip::P2PGossipSync;
 use lightning_background_processor::BackgroundProcessor;
-use lightning_block_sync::poll::{self, ValidatedBlockHeader};
-use lightning_block_sync::{init as blocksyncinit, SpvClient, UnboundedCache};
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use secrecy::ExposeSecret;
@@ -35,11 +32,11 @@ use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::lexe::persister::LexePersister;
+use crate::lexe::sync::SyncedChainListeners;
 use crate::types::{
     ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
-    ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType,
-    GossipSyncType, InvoicePayerType, NetworkGraphType, P2PGossipSyncType,
-    PaymentInfoStorageType, Port, UserId,
+    ChannelMonitorType, FeeEstimatorType, GossipSyncType, InvoicePayerType,
+    NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, Port, UserId,
 };
 use crate::{api, command, convert, repl};
 
@@ -322,53 +319,25 @@ impl LexeContext {
     pub async fn sync(&mut self) -> anyhow::Result<()> {
         let sync_ctx = self.sync_ctx.take().expect("Was set during init");
 
-        // Sync channel_monitors and ChannelManager to chain tip
-        let mut blockheader_cache = UnboundedCache::new();
-        let (chain_listener_channel_monitors, chain_tip) =
-            if sync_ctx.restarting_node {
-                sync_chain_listeners(
-                    &self.args,
-                    &self.channel_manager,
-                    self.block_source.as_ref(),
-                    self.broadcaster.clone(),
-                    self.fee_estimator.clone(),
-                    self.logger.clone(),
-                    sync_ctx.channel_manager_blockhash,
-                    sync_ctx.channel_monitors,
-                    &mut blockheader_cache,
-                )
-                .await
-                .context("Could not sync channel listeners")?
-            } else {
-                let chain_tip = blocksyncinit::validate_best_block_header(
-                    &mut self.block_source.deref(),
-                )
-                .await
-                .map_err(|e| anyhow!(e.into_inner()))
-                .context("Could not validate best block header")?;
-
-                (Vec::new(), chain_tip)
-            };
-
-        // Give channel_monitors to ChainMonitor
-        for cmcl in chain_listener_channel_monitors {
-            let channel_monitor = cmcl.channel_monitor_listener.0;
-            let funding_outpoint = cmcl.funding_outpoint;
-            self.chain_monitor
-                .watch_channel(funding_outpoint, channel_monitor)
-                .map_err(|e| anyhow!("{:?}", e))
-                .context("Could not watch channel")?;
-        }
-
-        // Set up SPV client
-        spawn_spv_client(
+        // Sync channel manager and channel monitors to chain tip
+        let synced_chain_listeners = SyncedChainListeners::init_and_sync(
             self.args.network,
-            chain_tip,
-            blockheader_cache,
             self.channel_manager.clone(),
-            self.chain_monitor.clone(),
+            sync_ctx.channel_manager_blockhash,
+            sync_ctx.channel_monitors,
             self.block_source.clone(),
-        );
+            self.broadcaster.clone(),
+            self.fee_estimator.clone(),
+            self.logger.clone(),
+            sync_ctx.restarting_node,
+        )
+        .await
+        .context("Could not sync channel listeners")?;
+
+        // Populate / feed the chain monitor and spawn the SPV client
+        synced_chain_listeners
+            .feed_chain_monitor_and_spawn_spv(self.chain_monitor.clone())
+            .context("Error wrapping up sync")?;
 
         // Sync is complete; start the inactivity timer.
         println!("Starting inactivity timer");
@@ -548,70 +517,6 @@ async fn channel_monitors(
     result
 }
 
-struct ChannelMonitorChainListener {
-    channel_monitor_blockhash: BlockHash,
-    channel_monitor_listener: ChannelMonitorListenerType,
-    funding_outpoint: OutPoint,
-}
-
-/// Syncs the channel monitors and LexeChannelManager to the chain tip
-#[allow(clippy::too_many_arguments)]
-async fn sync_chain_listeners(
-    args: &StartCommand,
-    channel_manager: &LexeChannelManager,
-    block_source: &BlockSourceType,
-    broadcaster: Arc<BroadcasterType>,
-    fee_estimator: Arc<FeeEstimatorType>,
-    logger: LexeTracingLogger,
-    channel_manager_blockhash: BlockHash,
-    channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
-    blockheader_cache: &mut HashMap<BlockHash, ValidatedBlockHeader>,
-) -> anyhow::Result<(Vec<ChannelMonitorChainListener>, ValidatedBlockHeader)> {
-    println!("Syncing chain listeners");
-    let mut chain_listener_channel_monitors = Vec::new();
-
-    let mut chain_listeners = vec![(
-        channel_manager_blockhash,
-        channel_manager.deref() as &dyn chain::Listen,
-    )];
-
-    for (channel_monitor_blockhash, channel_monitor) in channel_monitors {
-        let (funding_outpoint, _script) = channel_monitor.get_funding_txo();
-        let cmcl = ChannelMonitorChainListener {
-            channel_monitor_blockhash,
-            channel_monitor_listener: (
-                channel_monitor,
-                broadcaster.clone(),
-                fee_estimator.clone(),
-                logger.clone(),
-            ),
-            funding_outpoint,
-        };
-        chain_listener_channel_monitors.push(cmcl);
-    }
-
-    for monitor_listener_info in chain_listener_channel_monitors.iter_mut() {
-        chain_listeners.push((
-            monitor_listener_info.channel_monitor_blockhash,
-            &monitor_listener_info.channel_monitor_listener
-                as &dyn chain::Listen,
-        ));
-    }
-
-    let chain_tip = blocksyncinit::synchronize_listeners(
-        &block_source,
-        args.network.into_inner(),
-        blockheader_cache,
-        chain_listeners,
-    )
-    .await
-    .map_err(|e| anyhow!(e.into_inner()))
-    .context("Could not synchronize chain listeners")?;
-
-    println!("    chain listener sync done.");
-    Ok((chain_listener_channel_monitors, chain_tip))
-}
-
 /// Initializes a GossipSync and NetworkGraph
 async fn gossip_sync(
     network: Network,
@@ -710,33 +615,6 @@ fn spawn_p2p_reconnect_task(
                     println!("ERROR: Could not read channel peers: {}", e)
                 }
             }
-        }
-    });
-}
-
-/// Sets up an SpvClient to continuously poll the block source for new blocks.
-fn spawn_spv_client(
-    network: Network,
-    chain_tip: ValidatedBlockHeader,
-    mut blockheader_cache: HashMap<BlockHash, ValidatedBlockHeader>,
-    channel_manager: LexeChannelManager,
-    chain_monitor: Arc<ChainMonitorType>,
-    block_source: Arc<BlockSourceType>,
-) {
-    tokio::spawn(async move {
-        let mut derefed = block_source.deref();
-        let chain_poller =
-            poll::ChainPoller::new(&mut derefed, network.into_inner());
-        let chain_listener = (chain_monitor, channel_manager);
-        let mut spv_client = SpvClient::new(
-            chain_tip,
-            chain_poller,
-            &mut blockheader_cache,
-            &chain_listener,
-        );
-        loop {
-            spv_client.poll_best_tip().await.unwrap();
-            tokio::time::sleep(Duration::from_secs(1)).await;
         }
     });
 }

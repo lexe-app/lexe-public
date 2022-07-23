@@ -62,7 +62,7 @@ pub type ChannelManagerType = ChannelManager<
 
 pub type ChannelMonitorType = ChannelMonitor<SignerType>;
 
-/// We use this strange tuple because LDK impl'd `Listen` for it
+/// This is the tuple that LDK impl'd `Listen` for
 pub type ChannelMonitorListenerType = (
     ChannelMonitorType,
     Arc<BroadcasterType>,
