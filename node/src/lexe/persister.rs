@@ -282,7 +282,7 @@ impl InnerPersister {
     ) -> anyhow::Result<()> {
         println!("Persisting new channel peer");
         let channel_peer =
-            ChannelPeer::from((channel_peer.pubkey, channel_peer.addr));
+            ChannelPeer::new(channel_peer.pubkey, channel_peer.addr);
         let pubkey_at_addr = channel_peer.to_string();
 
         let cp_file = File {

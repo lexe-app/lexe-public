@@ -125,8 +125,7 @@ mod not_sgx {
                             continue;
                         }
 
-                        let channel_peer =
-                            ChannelPeer::from((pubkey, peer_addr));
+                        let channel_peer = ChannelPeer::new(pubkey, peer_addr);
                         if peer_manager
                             .connect_peer_if_necessary(channel_peer.clone())
                             .await
@@ -278,8 +277,7 @@ mod not_sgx {
                                 continue;
                             }
                         };
-                        let channel_peer =
-                            ChannelPeer::from((pubkey, peer_addr));
+                        let channel_peer = ChannelPeer::new(pubkey, peer_addr);
                         if peer_manager
                             .connect_peer_if_necessary(channel_peer.clone())
                             .await

@@ -115,8 +115,8 @@ pub struct ChannelPeer {
     pub addr: SocketAddr,
 }
 
-impl From<(PublicKey, SocketAddr)> for ChannelPeer {
-    fn from((pubkey, addr): (PublicKey, SocketAddr)) -> Self {
+impl ChannelPeer {
+    pub fn new(pubkey: PublicKey, addr: SocketAddr) -> Self {
         Self { pubkey, addr }
     }
 }
