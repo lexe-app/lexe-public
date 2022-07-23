@@ -47,9 +47,6 @@ mod not_sgx {
     use lightning::chain::keysinterface::{KeysInterface, Recipient};
     use lightning::ln::{PaymentHash, PaymentPreimage};
     use lightning::routing::gossip::NodeId;
-    use lightning::util::config::{
-        ChannelConfig, ChannelHandshakeLimits, UserConfig,
-    };
     use lightning_invoice::payment::PaymentError;
     use lightning_invoice::{utils, Currency, Invoice};
 
@@ -144,13 +141,13 @@ mod not_sgx {
                             None => false,
                         };
 
-                        if open_channel(
-                            channel_peer.pubkey,
-                            chan_amt_sat.unwrap(),
-                            announce_channel,
-                            channel_manager.clone(),
-                        )
-                        .is_ok()
+                        if channel_manager
+                            .open_channel(
+                                channel_peer.pubkey,
+                                chan_amt_sat.unwrap(),
+                                announce_channel,
+                            )
+                            .is_ok()
                         {
                             if let Err(e) = persister
                                 .persist_channel_peer(channel_peer)
@@ -566,46 +563,6 @@ mod not_sgx {
             println!("\t}},");
         }
         println!("]");
-    }
-
-    fn open_channel(
-        peer_pubkey: PublicKey,
-        channel_amt_sat: u64,
-        announced_channel: bool,
-        channel_manager: LexeChannelManager,
-    ) -> Result<(), ()> {
-        let config = UserConfig {
-            peer_channel_config_limits: ChannelHandshakeLimits {
-                // lnd's max to_self_delay is 2016, so we want to be compatible.
-                their_to_self_delay: 2016,
-                ..Default::default()
-            },
-            channel_options: ChannelConfig {
-                announced_channel,
-                ..Default::default()
-            },
-            ..Default::default()
-        };
-
-        match channel_manager.create_channel(
-            peer_pubkey,
-            channel_amt_sat,
-            0,
-            0,
-            Some(config),
-        ) {
-            Ok(_) => {
-                println!(
-                    "EVENT: initiated channel with peer {}. ",
-                    peer_pubkey
-                );
-                Ok(())
-            }
-            Err(e) => {
-                println!("ERROR: failed to open channel: {:?}", e);
-                Err(())
-            }
-        }
     }
 
     fn send_payment(
