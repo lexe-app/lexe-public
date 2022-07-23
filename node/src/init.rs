@@ -39,11 +39,13 @@ use crate::types::{
     ChannelMonitorType, FeeEstimatorType, GossipSyncType, InvoicePayerType,
     NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, Port, UserId,
 };
-use crate::{api, command, convert, repl};
+use crate::{api, command, convert};
 
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 
 // TODO: Eventually move this into the `lexe` module once init is cleaned up
+// TODO: Remove once keys_manager, persister, invoice_payer are read in SGX
+#[allow(dead_code)]
 pub struct LexeContext {
     args: StartCommand,
     shutdown_tx: broadcast::Sender<()>,
@@ -73,6 +75,7 @@ struct SyncContext {
 }
 
 /// Variables that only run() uses, or which run() requires ownership of
+#[allow(dead_code)] // TODO: Remove once in/outbound payments are read in SGX
 struct RunContext {
     inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
@@ -364,10 +367,10 @@ impl LexeContext {
         let mut run_ctx = self.run_ctx.take().expect("Was set during init");
 
         // Start the REPL if it was specified to start in the CLI args.
-        #[cfg(not(sgx))]
+        #[cfg(not(target_env = "sgx"))]
         if self.args.repl {
             println!("Starting REPL");
-            repl::poll_for_user_input(
+            crate::repl::poll_for_user_input(
                 self.invoice_payer.clone(),
                 self.peer_manager.clone(),
                 self.channel_manager.clone(),
