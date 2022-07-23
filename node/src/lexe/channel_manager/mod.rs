@@ -1,8 +1,7 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
-use anyhow::{bail, Context};
-use bitcoin::secp256k1::PublicKey;
+use anyhow::{anyhow, Context};
 use bitcoin::BlockHash;
 use lightning::chain::BestBlock;
 use lightning::ln::channelmanager::{
@@ -11,10 +10,12 @@ use lightning::ln::channelmanager::{
 use lightning::util::config::{
     ChannelConfig, ChannelHandshakeConfig, ChannelHandshakeLimits, UserConfig,
 };
+use tracing::info;
 
 use crate::cli::StartCommand;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
+use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
 use crate::lexe::persister::LexePersister;
 use crate::types::{
     BlockSourceType, BroadcasterType, ChainMonitorType, ChannelManagerType,
@@ -157,16 +158,17 @@ impl LexeChannelManager {
             None => {
                 // We're starting a fresh node.
                 *restarting_node = false;
-                let getinfo_resp = block_source.get_blockchain_info().await;
+                let blockchain_info = block_source.get_blockchain_info().await;
 
+                let best_block = BestBlock::new(
+                    blockchain_info.latest_blockhash,
+                    blockchain_info.latest_height as u32,
+                );
                 let chain_params = ChainParameters {
                     network: args.network.into_inner(),
-                    best_block: BestBlock::new(
-                        getinfo_resp.latest_blockhash,
-                        getinfo_resp.latest_height as u32,
-                    ),
+                    best_block,
                 };
-                let fresh_inner = ChannelManager::new(
+                let inner = ChannelManager::new(
                     fee_estimator,
                     chain_monitor,
                     broadcaster,
@@ -175,7 +177,7 @@ impl LexeChannelManager {
                     USER_CONFIG,
                     chain_params,
                 );
-                (getinfo_resp.latest_blockhash, fresh_inner)
+                (blockchain_info.latest_blockhash, inner)
             }
         };
 
@@ -185,32 +187,50 @@ impl LexeChannelManager {
         Ok((channel_manager_blockhash, channel_manager))
     }
 
-    pub fn _open_channel(_peer_pubkey: PublicKey) -> anyhow::Result<()> {
-        let _peer_channel_config_limits = PEER_CHANNEL_CONFIG_LIMITS;
-        todo!()
-    }
-
-    // TODO: Review this function and clean up accordingly
-    pub fn open_channel(
+    /// Handles the full logic of opening a channel, including:
+    ///
+    /// - Connecting to the peer
+    /// - Creating the channel
+    /// - Persisting the newly created channel
+    ///
+    /// All of these actions should be done together, so the peer manager and
+    /// persister are pulled into this fn to make it harder to screw up.
+    pub async fn open_channel(
         &self,
-        peer_pubkey: PublicKey,
-        channel_amt_sat: u64,
+        peer_manager: &LexePeerManager,
+        persister: &LexePersister,
+        channel_peer: ChannelPeer,
+        channel_value_sat: u64,
     ) -> anyhow::Result<()> {
-        match self.deref().create_channel(
-            peer_pubkey,
-            channel_amt_sat,
-            0,
-            0,
-            Some(USER_CONFIG),
-        ) {
-            Ok(_) => {
-                println!(
-                    "EVENT: initiated channel with peer {}. ",
-                    peer_pubkey
-                );
-                Ok(())
-            }
-            Err(e) => bail!("ERROR: failed to open channel: {:?}", e),
-        }
+        // Make sure that we're connected to the channel peer
+        peer_manager
+            .connect_peer_if_necessary(channel_peer.clone())
+            .await
+            .context("Could not connect to peer")?;
+
+        // Create the channel
+        let user_channel_id = 1; // Not important, just use a default value
+        let push_msat = 0; // No need for this yet
+        self.0
+            .create_channel(
+                channel_peer.pubkey,
+                channel_value_sat,
+                push_msat,
+                user_channel_id,
+                Some(USER_CONFIG),
+            )
+            // LDK's APIError doesn't impl std::error::Error
+            .map_err(|e| anyhow!("{:?}", e))
+            .context("Could not create channel")?;
+
+        // Persist the channel
+        persister
+            .persist_channel_peer(channel_peer.clone())
+            .await
+            .context("Could not persist channel peer")?;
+
+        info!("Successfully opened channel with {}", channel_peer);
+
+        Ok(())
     }
 }

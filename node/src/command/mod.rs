@@ -3,5 +3,7 @@ pub mod server;
 #[cfg(all(test, not(target_env = "sgx")))]
 pub mod test;
 
+/// Commands that can only be initiated by the host (Lexe).
 mod host;
+/// Commands that can only be initiated by the node owner.
 mod owner;

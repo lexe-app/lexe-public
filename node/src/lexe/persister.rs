@@ -273,15 +273,11 @@ impl InnerPersister {
         Ok(result)
     }
 
-    // TODO use ChannelPeer abstraction
-    #[cfg(not(target_env = "sgx"))] // TODO Remove once this fn is used in sgx
     pub async fn persist_channel_peer(
         &self,
         channel_peer: ChannelPeer,
     ) -> anyhow::Result<()> {
         println!("Persisting new channel peer");
-        let channel_peer =
-            ChannelPeer::new(channel_peer.pubkey, channel_peer.addr);
         let pubkey_at_addr = channel_peer.to_string();
 
         let cp_file = File {
