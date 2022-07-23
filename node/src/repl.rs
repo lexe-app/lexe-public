@@ -63,8 +63,8 @@ pub async fn poll_for_user_input(
                     // TODO eventually do this once for all commands
                     let res = open_channel(
                         words,
-                        &peer_manager,
                         &channel_manager,
+                        &peer_manager,
                         &persister,
                     )
                     .await;
@@ -612,10 +612,11 @@ fn get_invoice(
     );
 }
 
+/// Parses the channel peer and channel value and opens a channel.
 async fn open_channel<'a, I: Iterator<Item = &'a str>>(
     mut words: I,
-    peer_manager: &LexePeerManager,
     channel_manager: &LexeChannelManager,
+    peer_manager: &LexePeerManager,
     persister: &LexePersister,
 ) -> anyhow::Result<()> {
     let peer_pubkey_at_addr = words
@@ -630,21 +631,10 @@ async fn open_channel<'a, I: Iterator<Item = &'a str>>(
     let channel_value_sat = u64::from_str(channel_value_sat)
         .context("channel_value_sat must be a number")?;
 
-    peer_manager
-        .connect_peer_if_necessary(channel_peer.clone())
-        .await
-        .context("Could not connect to peer")?;
-
     channel_manager
-        .open_channel(channel_peer.pubkey, channel_value_sat)
-        .context("Failed to open channel")?;
-
-    persister
-        .persist_channel_peer(channel_peer)
+        .open_channel(peer_manager, persister, channel_peer, channel_value_sat)
         .await
-        .context("Could not persist channel peer")?;
-
-    Ok(())
+        .context("Could not open channel")
 }
 
 fn close_channel(
