@@ -12,6 +12,7 @@ mod mock;
 use std::borrow::Cow;
 use std::fmt;
 
+use cfg_if::cfg_if;
 use thiserror::Error;
 
 use crate::hex;
@@ -95,26 +96,26 @@ pub fn seal(
     label: &[u8],
     data: Cow<'_, [u8]>,
 ) -> Result<Sealed<'static>, Error> {
-    #[cfg(not(target_env = "sgx"))]
-    let result = mock::seal(rng, label, data);
-
-    #[cfg(target_env = "sgx")]
-    let result = sgx::seal(rng, label, data);
-
-    result
+    cfg_if! {
+        if #[cfg(target_env = "sgx")] {
+            sgx::seal(rng, label, data)
+        } else {
+            mock::seal(rng, label, data)
+        }
+    }
 }
 
 /// Unseal and decrypt data previously sealed with [`seal`].
 ///
 /// See [`seal`] for more details.
 pub fn unseal(label: &[u8], sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
-    #[cfg(not(target_env = "sgx"))]
-    let result = mock::unseal(label, sealed);
-
-    #[cfg(target_env = "sgx")]
-    let result = sgx::unseal(label, sealed);
-
-    result
+    cfg_if! {
+        if #[cfg(target_env = "sgx")] {
+            sgx::unseal(label, sealed)
+        } else {
+            mock::unseal(label, sealed)
+        }
+    }
 }
 
 /// Return the current enclave measurement.
@@ -131,13 +132,13 @@ pub fn unseal(label: &[u8], sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
 ///
 /// [`MRENCLAVE`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#enclave-measurement-mrenclave
 pub fn measurement() -> [u8; 32] {
-    #[cfg(not(target_env = "sgx"))]
-    let result = mock::measurement();
-
-    #[cfg(target_env = "sgx")]
-    let result = sgx::measurement();
-
-    result
+    cfg_if! {
+        if #[cfg(target_env = "sgx")] {
+            sgx::measurement()
+        } else {
+            mock::measurement()
+        }
+    }
 }
 
 #[cfg(test)]

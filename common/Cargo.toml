@@ -13,6 +13,8 @@ edition = "2021"
 [dependencies]
 # Ad hoc error definition, easy error propagation, error chains
 anyhow = "1"
+# Conveniently write #[cfg(..)] if-else statements without repeating clauses
+cfg-if = "1"
 # SGX Quote types
 # NOTE: version must exactly match patched version
 dcap-ql = { version = "=0.3.4", default-features = false, features = [] }
