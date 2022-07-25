@@ -1,8 +1,7 @@
 use std::ops::Deref;
-use std::str::FromStr;
 use std::sync::Arc;
 
-use anyhow::{ensure, Context};
+use anyhow::ensure;
 use bitcoin::blockdata::script::Script;
 use bitcoin::blockdata::transaction::{Transaction, TxOut};
 use bitcoin::secp256k1::{PublicKey, Secp256k1, Signing};
@@ -11,7 +10,7 @@ use common::root_seed::RootSeed;
 use lightning::chain::keysinterface::{
     KeysInterface, KeysManager, Recipient, SpendableOutputDescriptor,
 };
-use secrecy::{ExposeSecret, Secret};
+use secrecy::ExposeSecret;
 
 /// A thin wrapper around LDK's KeysManager which provides a cleaner init API
 /// and some custom functionalities.
@@ -44,26 +43,13 @@ impl LexeKeysManager {
         Self { inner }
     }
 
-    /// A RIIV (Resource Initialization Is Validation) initializer.
-    ///
-    /// For validation purposes, `given_pubkey_hex` must be the hex-encoded
-    /// pubkey returned from the DB.
+    /// Initialize a `LexeKeysManager` from a given [`RootSeed`]. Verifies that
+    /// the derived node public matches `given_pubkey`.
     pub fn init<R: Crng>(
         rng: &mut R,
-        given_pubkey_hex: String,
-        sealed_seed: Vec<u8>,
+        given_pubkey: &PublicKey,
+        root_seed: &RootSeed,
     ) -> anyhow::Result<Self> {
-        // TODO: This assignment should decrypt the sealed seed
-        let seed = sealed_seed;
-
-        // Validate the seed
-        ensure!(seed.len() == 32, "Incorrect seed length");
-        let mut seed_buf = [0; 32];
-        seed_buf.copy_from_slice(&seed);
-
-        // Build the RootSeed
-        let root_seed = RootSeed::new(Secret::new(seed_buf));
-
         // Build the inner KeysManager from the RootSeed.
         // NOTE: KeysManager::new() MUST be given a unique `starting_time_secs`
         // and `starting_time_nanos` for security. Since secure timekeeping
@@ -83,14 +69,10 @@ impl LexeKeysManager {
         // Derive the pubkey from the inner KeysManager
         let derived_pubkey = keys_manager.derive_pubkey(rng);
 
-        // Deserialize the pubkey returned from the DB (given pubkey)
-        let given_pubkey = PublicKey::from_str(&given_pubkey_hex)
-            .context("Could not deserialize PublicKey from LowerHex")?;
-
         // Check the given pubkey against the derived one
         ensure!(
-            given_pubkey == derived_pubkey,
-            "Derived pubkey doesn't match the pubkey returned from the DB"
+            given_pubkey == &derived_pubkey,
+            "Derived pubkey doesn't match the given pubkey"
         );
 
         // Validation complete, finally return the LexeKeysManager

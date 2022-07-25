@@ -1,11 +1,13 @@
 use std::collections::HashMap;
 use std::ops::Deref;
+use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::Context;
 use bitcoin::blockdata::constants::genesis_block;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::BlockHash;
 use common::rng::Crng;
 use common::root_seed::RootSeed;
@@ -107,7 +109,13 @@ impl LexeContext {
         // Build LexeKeysManager from node init data
         let keys_manager = match provisioned_data {
             (Some(node), Some(_i), Some(enclave)) => {
-                LexeKeysManager::init(rng, node.public_key, enclave.seed)
+                // TODO(phlip9): actually unseal seed
+                let root_seed = RootSeed::try_from(enclave.seed.as_slice())
+                    .context("Invalid root seed")?;
+
+                let node_pubkey = PublicKey::from_str(&node.public_key)
+                    .context("Failed to deserialize node pubkey")?;
+                LexeKeysManager::init(rng, &node_pubkey, &root_seed)
                     .context("Could not construct keys manager")?
             }
             (None, None, None) => {
