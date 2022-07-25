@@ -222,6 +222,10 @@ pub fn unseal(label: &[u8], sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
     Ok(ciphertext)
 }
 
+pub fn measurement() -> [u8; 32] {
+    sgx_isa::Report::for_self().mrenclave
+}
+
 #[cfg(test)]
 mod test {
     use super::*;

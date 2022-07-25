@@ -117,6 +117,29 @@ pub fn unseal(label: &[u8], sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
     result
 }
 
+/// Return the current enclave measurement.
+///
+/// + In SGX, this is often called the [`MRENCLAVE`].
+///
+/// + In mock mode, this returns a fixed value.
+///
+/// + The enclave measurement is a SHA-256 hash summary of the enclave code and
+///   initial memory contents.
+///
+/// + This hash uniquely identifies an enclave; any change to the code will also
+///   change the measurement.
+///
+/// [`MRENCLAVE`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#enclave-measurement-mrenclave
+pub fn measurement() -> [u8; 32] {
+    #[cfg(not(target_env = "sgx"))]
+    let result = mock::measurement();
+
+    #[cfg(target_env = "sgx")]
+    let result = sgx::measurement();
+
+    result
+}
+
 #[cfg(test)]
 mod test {
     use proptest::arbitrary::any;
@@ -188,6 +211,13 @@ mod test {
             // TODO(phlip9): check error
             unseal(&label, sealed).unwrap_err();
         });
+    }
+
+    #[test]
+    fn test_measurement_consistent() {
+        let m1 = measurement();
+        let m2 = measurement();
+        assert_eq!(m1, m2);
     }
 
     // TODO(phlip9): test KeyRequest mutations

@@ -75,3 +75,7 @@ pub fn unseal(label: &[u8], sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
     ciphertext.truncate(plaintext_len);
     Ok(ciphertext)
 }
+
+pub fn measurement() -> [u8; 32] {
+    *b"~~~~~~~ LEXE MOCK ENCLAVE ~~~~~~"
+}
