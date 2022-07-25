@@ -18,6 +18,7 @@ use lightning::util::persist::Persister;
 use lightning::util::ser::{ReadableArgs, Writeable};
 use once_cell::sync::{Lazy, OnceCell};
 use tokio::runtime::{Builder, Handle, Runtime};
+use tracing::{debug, error};
 
 use crate::api::{DirectoryId, File, FileId};
 use crate::lexe::bitcoind::LexeBitcoind;
@@ -85,7 +86,7 @@ impl InnerPersister {
         broadcaster: Arc<BroadcasterType>,
         logger: LexeTracingLogger,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
-        println!("Reading channel manager");
+        debug!("Reading channel manager");
         let cm_file_id = FileId {
             instance_id: self.instance_id.clone(),
             directory: SINGLETON_DIRECTORY.to_owned(),
@@ -138,7 +139,7 @@ impl InnerPersister {
         &self,
         keys_manager: LexeKeysManager,
     ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
-        println!("Reading channel monitors");
+        debug!("Reading channel monitors");
 
         let cm_dir_id = DirectoryId {
             instance_id: self.instance_id.clone(),
@@ -183,7 +184,7 @@ impl InnerPersister {
         graph: Arc<NetworkGraphType>,
         logger: LoggerType,
     ) -> anyhow::Result<ProbabilisticScorerType> {
-        println!("Reading probabilistic scorer");
+        debug!("Reading probabilistic scorer");
         let params = ProbabilisticScoringParameters::default();
         let scorer_file_id = FileId {
             instance_id: self.instance_id.clone(),
@@ -218,7 +219,7 @@ impl InnerPersister {
         genesis_hash: BlockHash,
         logger: LoggerType,
     ) -> anyhow::Result<NetworkGraphType> {
-        println!("Reading network graph");
+        debug!("Reading network graph");
         let ng_file_id = FileId {
             instance_id: self.instance_id.clone(),
             directory: SINGLETON_DIRECTORY.to_owned(),
@@ -246,7 +247,7 @@ impl InnerPersister {
     }
 
     pub async fn read_channel_peers(&self) -> anyhow::Result<Vec<ChannelPeer>> {
-        println!("Reading channel peers");
+        debug!("Reading channel peers");
         let cp_dir_id = DirectoryId {
             instance_id: self.instance_id.clone(),
             directory: CHANNEL_PEERS_DIRECTORY.to_owned(),
@@ -277,7 +278,7 @@ impl InnerPersister {
         &self,
         channel_peer: ChannelPeer,
     ) -> anyhow::Result<()> {
-        println!("Persisting new channel peer");
+        debug!("Persisting new channel peer");
         let pubkey_at_addr = channel_peer.to_string();
 
         let cp_file = File {
@@ -331,7 +332,7 @@ impl<'a>
         &self,
         channel_manager: &ChannelManagerType,
     ) -> Result<(), io::Error> {
-        println!("Persisting channel manager");
+        debug!("Persisting channel manager");
         let cm_file = File {
             instance_id: self.instance_id.clone(),
             directory: SINGLETON_DIRECTORY.to_owned(),
@@ -347,7 +348,7 @@ impl<'a>
             .block_on(async move { self.api.upsert_file(cm_file).await })
             .map(|_| ())
             .map_err(|api_err| {
-                println!("Could not persist channel manager: {:#}", api_err);
+                error!("Could not persist channel manager: {:#}", api_err);
                 io::Error::new(ErrorKind::Other, api_err)
             })
     }
@@ -356,7 +357,7 @@ impl<'a>
         &self,
         network_graph: &NetworkGraphType,
     ) -> Result<(), io::Error> {
-        println!("Persisting network graph");
+        debug!("Persisting network graph");
         let file = File {
             instance_id: self.instance_id.clone(),
             directory: SINGLETON_DIRECTORY.to_owned(),
@@ -372,7 +373,7 @@ impl<'a>
             .block_on(async move { self.api.upsert_file(file).await })
             .map(|_| ())
             .map_err(|api_err| {
-                println!("Could not persist network graph: {:#}", api_err);
+                error!("Could not persist network graph: {:#}", api_err);
                 io::Error::new(ErrorKind::Other, api_err)
             })
     }
@@ -381,7 +382,7 @@ impl<'a>
         &self,
         scorer_mutex: &Mutex<ProbabilisticScorerType>,
     ) -> Result<(), io::Error> {
-        println!("Persisting probabilistic scorer");
+        debug!("Persisting probabilistic scorer");
 
         let scorer_file = {
             let scorer = scorer_mutex.lock().unwrap();
@@ -413,7 +414,7 @@ impl Persist<SignerType> for InnerPersister {
     ) -> Result<(), ChannelMonitorUpdateErr> {
         let outpoint = LxOutPoint::from(funding_txo);
         let outpoint_str = outpoint.to_string();
-        println!("Persisting new channel {}", outpoint_str);
+        debug!("Persisting new channel {}", outpoint_str);
 
         let cm_file = File {
             instance_id: self.instance_id.clone(),
@@ -432,7 +433,7 @@ impl Persist<SignerType> for InnerPersister {
         .map_err(|e| {
             // Even though this is a temporary failure that can be retried,
             // we should still log it
-            println!("Could not persist new channel monitor: {:#}", e);
+            error!("Could not persist new channel monitor: {:#}", e);
             ChannelMonitorUpdateErr::TemporaryFailure
         })
     }
@@ -446,7 +447,7 @@ impl Persist<SignerType> for InnerPersister {
     ) -> Result<(), ChannelMonitorUpdateErr> {
         let outpoint = LxOutPoint::from(funding_txo);
         let outpoint_str = outpoint.to_string();
-        println!("Updating persisted channel {}", outpoint_str);
+        debug!("Updating persisted channel {}", outpoint_str);
 
         let cm_file = File {
             instance_id: self.instance_id.clone(),
@@ -465,7 +466,7 @@ impl Persist<SignerType> for InnerPersister {
         .map_err(|e| {
             // Even though this is a temporary failure that can be retried,
             // we should still log it
-            println!("Could not update persisted channel monitor: {:#}", e);
+            error!("Could not update persisted channel monitor: {:#}", e);
             ChannelMonitorUpdateErr::TemporaryFailure
         })
     }
