@@ -13,7 +13,6 @@ pub type UserId = i64;
 pub type Port = u16;
 pub type InstanceId = String;
 pub type EnclaveId = String;
-pub type Measurement = String;
 
 pub type ApiClientType = Arc<dyn ApiClient + Send + Sync>;
 

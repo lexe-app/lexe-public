@@ -1,10 +1,13 @@
+#![allow(dead_code)]
+
 use std::collections::HashMap;
+use std::sync::Mutex;
 
 use async_trait::async_trait;
 use bitcoin::secp256k1::PublicKey;
 use common::enclave::{self, Measurement};
 use common::hex;
-use tokio::sync::Mutex;
+use tokio::sync::mpsc;
 
 use crate::api::{
     ApiClient, ApiError, DirectoryId, Enclave, File, FileId, Instance, Node,
@@ -64,12 +67,28 @@ fn enclave_id(user_id: UserId) -> EnclaveId {
 
 pub struct MockApiClient {
     vfs: Mutex<VirtualFileSystem>,
+    notifs_tx: mpsc::Sender<UserPort>,
+    notifs_rx: Mutex<Option<mpsc::Receiver<UserPort>>>,
 }
 
 impl MockApiClient {
     pub fn new() -> Self {
         let vfs = Mutex::new(VirtualFileSystem::new());
-        Self { vfs }
+        let (notifs_tx, notifs_rx) = mpsc::channel(8);
+        let notifs_rx = Mutex::new(Some(notifs_rx));
+        Self {
+            vfs,
+            notifs_tx,
+            notifs_rx,
+        }
+    }
+
+    pub fn notifs_rx(&self) -> mpsc::Receiver<UserPort> {
+        self.notifs_rx
+            .lock()
+            .unwrap()
+            .take()
+            .expect("Someone already subscribed")
     }
 }
 
@@ -127,24 +146,24 @@ impl ApiClient for MockApiClient {
         &self,
         file_id: FileId,
     ) -> Result<Option<File>, ApiError> {
-        let file_opt = self.vfs.lock().await.get(file_id.clone());
+        let file_opt = self.vfs.lock().unwrap().get(file_id);
         Ok(file_opt)
     }
 
     async fn create_file(&self, file: File) -> Result<File, ApiError> {
-        let file_opt = self.vfs.lock().await.insert(file.clone());
+        let file_opt = self.vfs.lock().unwrap().insert(file.clone());
         assert!(file_opt.is_none());
         Ok(file)
     }
 
     async fn upsert_file(&self, file: File) -> Result<File, ApiError> {
-        self.vfs.lock().await.insert(file.clone());
+        self.vfs.lock().unwrap().insert(file.clone());
         Ok(file)
     }
 
     /// Returns "OK" if exactly one row was deleted.
     async fn delete_file(&self, file_id: FileId) -> Result<String, ApiError> {
-        let file_opt = self.vfs.lock().await.remove(file_id);
+        let file_opt = self.vfs.lock().unwrap().remove(file_id);
         assert!(file_opt.is_none());
         Ok(String::from("OK"))
     }
@@ -153,7 +172,7 @@ impl ApiClient for MockApiClient {
         &self,
         dir_id: DirectoryId,
     ) -> Result<Vec<File>, ApiError> {
-        let files_vec = self.vfs.lock().await.get_dir(dir_id);
+        let files_vec = self.vfs.lock().unwrap().get_dir(dir_id);
         Ok(files_vec)
     }
 
@@ -161,6 +180,7 @@ impl ApiClient for MockApiClient {
         &self,
         user_port: UserPort,
     ) -> Result<UserPort, ApiError> {
+        let _ = self.notifs_tx.try_send(user_port.clone());
         Ok(user_port)
     }
 }
