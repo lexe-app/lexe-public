@@ -10,7 +10,7 @@ use ring::hkdf::{self, HKDF_SHA256};
 use secrecy::zeroize::Zeroizing;
 use sgx_isa::{AttributesFlags, Keyname, Keypolicy};
 
-use crate::enclave::{Error, Measurement, Sealed, MIN_SGX_CPUSVN};
+use crate::enclave::{Error, MachineId, Measurement, Sealed, MIN_SGX_CPUSVN};
 use crate::hex;
 use crate::rng::Crng;
 
@@ -224,6 +224,46 @@ pub fn unseal(label: &[u8], sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
 
 pub fn measurement() -> Measurement {
     Measurement::new(sgx_isa::Report::for_self().mrenclave)
+}
+
+pub fn machine_id() -> MachineId {
+    // use a fixed keyid
+    let keyid = *b"~~~~ LEXE MACHINE ID KEY ID ~~~~";
+
+    // bind the signer (lexe) not the enclave. this way all our enclaves can get
+    // the same machine id
+    let keypolicy = Keypolicy::MRSIGNER;
+
+    // bind none, not even DEBUG
+    let attribute_mask: u64 = 0;
+    // bind none
+    let xfrm_mask: u64 = 0;
+    // bind none
+    let misc_mask: u32 = 0;
+
+    // Not a secret value. No reason to ever bump this.
+    let isvsvn = 0;
+
+    // Prevent very old platforms from getting the identifier. This is not a
+    // security mitigation, just an early signal that a platform wasn't brought
+    // up correctly.
+    let cpusvn = MIN_SGX_CPUSVN;
+
+    let keyrequest = sgx_isa::Keyrequest {
+        keyname: Keyname::Seal as _,
+        keypolicy,
+        isvsvn,
+        cpusvn,
+        attributemask: [attribute_mask, xfrm_mask],
+        miscmask: misc_mask,
+        keyid,
+        ..Default::default()
+    };
+
+    // This should never panic unless we run on very old SGX hardware.
+    let bytes = keyrequest.egetkey().expect("Failed to get machine id");
+
+    MachineId::new(bytes)
 }
 
 #[cfg(test)]
