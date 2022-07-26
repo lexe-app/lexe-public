@@ -13,6 +13,7 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::util::address::Address;
 use bitcoind::bitcoincore_rpc::RpcApi;
 use bitcoind::{self, BitcoinD, Conf};
+use common::api::UserPk;
 use common::rng::SysRng;
 
 use crate::cli::{
@@ -24,14 +25,14 @@ use crate::init::LexeContext;
 use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
 use crate::lexe::persister::LexePersister;
-use crate::types::{NetworkGraphType, UserId};
+use crate::types::NetworkGraphType;
 
 /// Helper to return a default StartCommand struct for testing.
 fn default_args() -> StartCommand {
-    default_args_for_user(1)
+    default_args_for_user(UserPk::new(1))
 }
 
-fn default_args_for_user(user_id: UserId) -> StartCommand {
+fn default_args_for_user(user_pk: UserPk) -> StartCommand {
     StartCommand {
         bitcoind_rpc: BitcoindRpcInfo {
             username: String::from("kek"),
@@ -39,7 +40,7 @@ fn default_args_for_user(user_id: UserId) -> StartCommand {
             host: String::new(), // Filled in when BitcoinD initializes
             port: 6969,          // Filled in when BitcoinD initializes
         },
-        user_id,
+        user_pk,
         peer_port: None,
         announced_node_name: NodeAlias::default(),
         network: Network::from_str("regtest").unwrap(),
@@ -180,8 +181,8 @@ async fn list_channels() {
 /// Tests connecting two nodes to each other.
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn connect_peer() {
-    let args1 = default_args_for_user(1);
-    let args2 = default_args_for_user(2);
+    let args1 = default_args_for_user(UserPk::new(1));
+    let args2 = default_args_for_user(UserPk::new(2));
     let (node1, node2) = tokio::join!(
         CommandTestHarness::init(args1),
         CommandTestHarness::init(args2),
@@ -229,8 +230,8 @@ async fn connect_peer() {
 /// Tests opening a channel
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn open_channel() {
-    let mut args1 = default_args_for_user(1);
-    let mut args2 = default_args_for_user(2);
+    let mut args1 = default_args_for_user(UserPk::new(1));
+    let mut args2 = default_args_for_user(UserPk::new(2));
     args1.shutdown_after_sync_if_no_activity = true;
     args2.shutdown_after_sync_if_no_activity = true;
 

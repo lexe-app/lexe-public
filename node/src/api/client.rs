@@ -4,6 +4,7 @@ use std::fmt::{self, Display};
 use std::time::Duration;
 
 use async_trait::async_trait;
+use common::api::UserPk;
 use common::enclave::Measurement;
 use http::Method;
 use reqwest::Client;
@@ -12,7 +13,6 @@ use serde::Serialize;
 use tracing::debug;
 
 use crate::api::*;
-use crate::types::UserId;
 
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -61,19 +61,19 @@ impl LexeApiClient {
 impl ApiClient for LexeApiClient {
     async fn get_node(
         &self,
-        user_id: UserId,
+        user_pk: UserPk,
     ) -> Result<Option<Node>, ApiError> {
-        let req = GetByUserId { user_id };
+        let req = GetByUserPk { user_pk };
         self.request(Method::GET, Backend, V1, "/node", req).await
     }
 
     async fn get_instance(
         &self,
-        user_id: UserId,
+        user_pk: UserPk,
         measurement: Measurement,
     ) -> Result<Option<Instance>, ApiError> {
-        let req = GetByUserIdAndMeasurement {
-            user_id,
+        let req = GetByUserPkAndMeasurement {
+            user_pk,
             measurement,
         };
         self.request(Method::GET, Backend, V1, "/instance", req)
@@ -82,11 +82,11 @@ impl ApiClient for LexeApiClient {
 
     async fn get_enclave(
         &self,
-        user_id: UserId,
+        user_pk: UserPk,
         measurement: Measurement,
     ) -> Result<Option<Enclave>, ApiError> {
-        let req = GetByUserIdAndMeasurement {
-            user_id,
+        let req = GetByUserPkAndMeasurement {
+            user_pk,
             measurement,
         };
         self.request(Method::GET, Backend, V1, "/enclave", req)
