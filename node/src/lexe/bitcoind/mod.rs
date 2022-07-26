@@ -19,6 +19,7 @@ use lightning_block_sync::{
     AsyncBlockSourceResult, BlockHeaderData, BlockSource,
 };
 use tokio::runtime::Handle;
+use tracing::{debug, error};
 
 use crate::cli::{BitcoindRpcInfo, Network};
 
@@ -343,6 +344,7 @@ impl FeeEstimator for LexeBitcoind {
 
 impl BroadcasterInterface for LexeBitcoind {
     fn broadcast_transaction(&self, tx: &Transaction) {
+        debug!("Broadcasting transaction");
         let bitcoind_rpc_client = self.bitcoind_rpc_client.clone();
         let tx_serialized = serde_json::json!(encode::serialize_hex(tx));
         self.handle.spawn(async move {
@@ -354,20 +356,7 @@ impl BroadcasterInterface for LexeBitcoind {
                 .await
             {
                 Ok(_) => {}
-                Err(e) => {
-                    let err_str = e.get_ref().unwrap().to_string();
-                    if !err_str.contains("Transaction already in block chain")
-                        && !err_str.contains("Inputs missing or spent")
-                        && !err_str.contains("bad-txns-inputs-missingorspent")
-                        && !err_str.contains("txn-mempool-conflict")
-                        && !err_str.contains("non-BIP68-final")
-                        && !err_str.contains(
-                            "insufficient fee, rejecting replacement ",
-                        )
-                    {
-                        panic!("{}", e);
-                    }
-                }
+                Err(e) => error!("Error broadcasting transaction: {:?}", e),
             }
         });
     }
