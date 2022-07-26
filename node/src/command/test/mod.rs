@@ -121,18 +121,30 @@ impl CommandTestHarness {
     /// Funds the node with some generated blocks,
     /// returning the address the funds were sent to.
     async fn fund_node(&self) -> Address {
-        let address = self.ctx.wallet.get_new_address().await;
         // Coinbase funds can only be spent after 100 blocks
-        self.bitcoind
-            .client
-            .generate_to_address(101, &address)
-            .expect("Failed to generate blocks");
+        let address = self.ctx.wallet.get_new_address().await;
+        self.mine_n_blocks_to_address(101, &address).await;
         address
     }
 
+    /// Mines 6 blocks.
     #[allow(dead_code)]
     async fn mine_6_blocks(&self) {
-        self.bitcoind.client.generate(6, None).unwrap();
+        // Plain bitcoind.client.generate() returns a deprecated error, so we
+        // repeat `fund_node()`
+        let address = self.ctx.wallet.get_new_address().await;
+        self.mine_n_blocks_to_address(6, &address).await;
+    }
+
+    async fn mine_n_blocks_to_address(
+        &self,
+        num_blocks: u64,
+        address: &Address,
+    ) {
+        self.bitcoind
+            .client
+            .generate_to_address(num_blocks, address)
+            .expect("Failed to generate blocks");
     }
 }
 
@@ -214,13 +226,15 @@ async fn connect_peer() {
     assert_eq!(peer_manager2.get_peer_node_ids().len(), 1);
 }
 
-#[should_panic] // TODO: Fix
 /// Tests opening a channel
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn open_channel() {
-    let args1 = default_args_for_user(1);
-    let args2 = default_args_for_user(2);
-    let (node1, node2) = tokio::join!(
+    let mut args1 = default_args_for_user(1);
+    let mut args2 = default_args_for_user(2);
+    args1.shutdown_after_sync_if_no_activity = true;
+    args2.shutdown_after_sync_if_no_activity = true;
+
+    let (mut node1, mut node2) = tokio::join!(
         CommandTestHarness::init(args1),
         CommandTestHarness::init(args2),
     );
@@ -230,31 +244,43 @@ async fn open_channel() {
     node2.fund_node().await;
 
     // Prepare open channel prerequisites
-    let channel_manager1 = node1.channel_manager();
-    let peer_manager1 = node1.peer_manager();
-    let persister1 = node1.persister();
-    let addr2 = node2.p2p_address();
     let channel_peer = ChannelPeer {
         pubkey: node2.pubkey(),
-        addr: addr2,
+        addr: node2.p2p_address(),
     };
     let channel_value_sat = 1_000_000;
 
-    // Debugging
-    let node_info =
+    // Prior to opening
+    let pre_node_info =
         owner::node_info(node1.channel_manager(), node1.peer_manager())
             .unwrap();
-    println!("Node info: {:?}", node_info);
+    assert_eq!(pre_node_info.num_channels, 0);
 
     // Open the channel
     println!("Opening channel");
-    channel_manager1
+    node1
+        .channel_manager()
         .open_channel(
-            &peer_manager1,
-            &persister1,
+            &node1.peer_manager(),
+            &node1.persister(),
             channel_peer,
             channel_value_sat,
         )
         .await
         .expect("Failed to open channel");
+
+    // After opening
+    let post_node_info =
+        owner::node_info(node1.channel_manager(), node1.peer_manager())
+            .unwrap();
+    assert_eq!(post_node_info.num_channels, 1);
+
+    // Wait for a graceful shutdown to complete before exiting this test (and
+    // thus dropping BitcoinD which kills the bitcoind process) so that the
+    // event handler has enough time to handle the FundingGenerationReady event
+    // before BitcoinD is dropped (and `kill`ed), otherwise this test fails.
+    node1.sync().await;
+    node1.run().await;
+    node2.sync().await;
+    node2.run().await;
 }

@@ -16,6 +16,7 @@ use lightning::chain::chaininterface::{
 use lightning::routing::gossip::NodeId;
 use lightning::util::events::{Event, EventHandler, PaymentPurpose};
 use tokio::runtime::Handle;
+use tracing::debug;
 
 use crate::cli::{Network, NodeAlias};
 use crate::lexe::bitcoind::LexeBitcoind;
@@ -96,6 +97,7 @@ pub async fn handle_event(
             output_script,
             ..
         } => {
+            debug!("Handling FundingGenerationReady event");
             // Construct the raw transaction with one output, that is paid the
             // amount of the channel.
             let addr = WitnessProgram::from_scriptpubkey(

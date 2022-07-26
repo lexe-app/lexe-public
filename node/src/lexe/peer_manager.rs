@@ -111,8 +111,7 @@ impl LexePeerManager {
         // `peer_manager.get_peer_node_ids()` to see if the connection has been
         // registered yet.
         //
-        // The code in `lightning-net-tokio` is disgusting, unsafe, and should
-        // be rewritten / replaced entirely.
+        // TODO: Rewrite / replace lightning-net-tokio entirely
         let connection_closed_fut = lightning_net_tokio::setup_outbound(
             self.as_arc_inner(),
             channel_peer.pubkey,
