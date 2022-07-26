@@ -18,6 +18,7 @@ use lightning_background_processor::BackgroundProcessor;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use secrecy::ExposeSecret;
+use tokio::net::TcpListener;
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
 
@@ -38,6 +39,7 @@ use crate::types::{
     ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
     ChannelMonitorType, FeeEstimatorType, GossipSyncType, InvoicePayerType,
     NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, Port, UserId,
+    WalletType,
 };
 use crate::{api, command, convert};
 
@@ -49,14 +51,16 @@ pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 pub struct LexeContext {
     args: StartCommand,
     shutdown_tx: broadcast::Sender<()>,
+    pub peer_port: Port,
 
     pub channel_manager: LexeChannelManager,
     pub peer_manager: LexePeerManager,
-    keys_manager: LexeKeysManager,
-    persister: LexePersister,
+    pub keys_manager: LexeKeysManager,
+    pub persister: LexePersister,
     chain_monitor: Arc<ChainMonitorType>,
     pub network_graph: Arc<NetworkGraphType>,
     invoice_payer: Arc<InvoicePayerType>,
+    pub wallet: Arc<WalletType>,
     block_source: Arc<BlockSourceType>,
     fee_estimator: Arc<FeeEstimatorType>,
     broadcaster: Arc<BroadcasterType>,
@@ -129,9 +133,10 @@ impl LexeContext {
         let instance_id = convert::get_instance_id(&pubkey, &measurement);
 
         // LexeBitcoind implements BlockSource, FeeEstimator and
-        // BroadcasterInterface, and thus serves these functions. A new type
-        // alias is defined for each of these in case these functions need to be
-        // handled separately later.
+        // BroadcasterInterface, and thus serves these functions. It also
+        // serves as the wallet for now. A type alias is defined for each of
+        // these in case they need to be split apart later.
+        let wallet = bitcoind.clone();
         let block_source = bitcoind.clone();
         let fee_estimator = bitcoind.clone();
         let broadcaster = bitcoind.clone();
@@ -195,11 +200,12 @@ impl LexeContext {
 
         // Set up listening for inbound P2P connections
         let stop_listen_connect = Arc::new(AtomicBool::new(false));
-        spawn_p2p_listener(
+        let peer_port = spawn_p2p_listener(
             args.peer_port,
             stop_listen_connect.clone(),
             peer_manager.clone(),
-        );
+        )
+        .await;
 
         // Init Tokio channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
@@ -304,6 +310,7 @@ impl LexeContext {
         let ctx = LexeContext {
             args,
             shutdown_tx,
+            peer_port,
 
             channel_manager,
             peer_manager,
@@ -312,6 +319,7 @@ impl LexeContext {
             chain_monitor,
             network_graph,
             invoice_payer,
+            wallet,
             block_source,
             fee_estimator,
             broadcaster,
@@ -391,8 +399,8 @@ impl LexeContext {
         // ## Shutdown
         println!("Main thread shutting down");
 
-        // Disconnect our peers and stop accepting new connections. This ensures
-        // we don't continue updating our channel data after we've
+        // Disconnect from peers and stop accepting new connections. This
+        // ensures we don't continue updating our channel data after we've
         // stopped the background processor.
         run_ctx.stop_listen_connect.store(true, Ordering::Release);
         self.peer_manager.disconnect_all_peers();
@@ -470,7 +478,7 @@ async fn provision_new_node<R: Crng>(
     let sealed_seed = root_seed.expose_secret().to_vec();
 
     // Derive pubkey
-    let keys_manager = LexeKeysManager::unchecked_init(rng, &root_seed);
+    let keys_manager = LexeKeysManager::insecure_init(rng, &root_seed);
     let node_public_key = keys_manager.derive_pubkey(rng);
 
     // Build structs for persisting the new node + instance + enclave
@@ -550,21 +558,21 @@ async fn gossip_sync(
     Ok((network_graph, gossip_sync))
 }
 
-/// Sets up a TcpListener to listen on 0.0.0.0:<peer_port>, handing off
+/// Sets up a `TcpListener` to listen on 0.0.0.0:<peer_port>, handing off
 /// resultant `TcpStream`s for the `PeerManager` to manage
-fn spawn_p2p_listener(
+async fn spawn_p2p_listener(
     peer_port_opt: Option<Port>,
     stop_listen: Arc<AtomicBool>,
     peer_manager: LexePeerManager,
-) {
+) -> Port {
+    // A value of 0 indicates that the OS will assign a port for us
+    let address = format!("0.0.0.0:{}", peer_port_opt.unwrap_or(0));
+    let listener = TcpListener::bind(address)
+        .await
+        .expect("Failed to bind to peer port");
+    let peer_port = listener.local_addr().unwrap().port();
+    println!("Listening for P2P connections at port {}", peer_port);
     tokio::spawn(async move {
-        // A value of 0 indicates that the OS will assign a port for us
-        let address = format!("0.0.0.0:{}", peer_port_opt.unwrap_or(0));
-        let listener = tokio::net::TcpListener::bind(address)
-            .await
-            .expect("Failed to bind to peer port");
-        let peer_port = listener.local_addr().unwrap().port();
-        println!("Listening for P2P connections at port {}", peer_port);
         loop {
             let (tcp_stream, _peer_addr) = listener.accept().await.unwrap();
             let tcp_stream = tcp_stream.into_std().unwrap();
@@ -573,14 +581,17 @@ fn spawn_p2p_listener(
                 return;
             }
             tokio::spawn(async move {
-                lightning_net_tokio::setup_inbound(
+                // `setup_inbound()` returns a future that completes when the
+                // connection is closed.
+                let connection_closed = lightning_net_tokio::setup_inbound(
                     peer_manager_clone,
                     tcp_stream,
-                )
-                .await;
+                );
+                connection_closed.await;
             });
         }
     });
+    peer_port
 }
 
 /// Spawns a task that regularly reconnects to the channel peers stored in DB.

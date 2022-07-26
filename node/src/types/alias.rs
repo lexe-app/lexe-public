@@ -98,6 +98,7 @@ pub type NetworkGraphType = NetworkGraph<LoggerType>;
 
 pub type ChainAccessType = dyn Access + Send + Sync;
 
+pub type WalletType = LexeBitcoind;
 pub type BlockSourceType = LexeBitcoind;
 pub type BroadcasterType = LexeBitcoind;
 pub type FeeEstimatorType = LexeBitcoind;
