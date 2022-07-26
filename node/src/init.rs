@@ -1,14 +1,13 @@
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::Context;
 use bitcoin::blockdata::constants::genesis_block;
-use bitcoin::secp256k1::PublicKey;
 use bitcoin::BlockHash;
+use common::enclave::{self, Measurement};
 use common::rng::Crng;
 use common::root_seed::RootSeed;
 use lightning::chain;
@@ -92,14 +91,13 @@ impl LexeContext {
 
         // Get user_id, measurement, and HTTP client, used throughout init
         let user_id = args.user_id;
-        // TODO(sgx) Insert this enclave's measurement
-        let measurement = String::from("default");
+        let measurement = enclave::measurement();
         let api = init_api(&args);
 
         // Initialize LexeBitcoind, fetch provisioned data
         let (bitcoind_res, provisioned_data_res) = tokio::join!(
             LexeBitcoind::init(args.bitcoind_rpc.clone(), args.network),
-            fetch_provisioned_data(api.as_ref(), user_id, &measurement),
+            fetch_provisioned_data(api.as_ref(), user_id, measurement),
         );
         let bitcoind =
             bitcoind_res.context("Failed to init bitcoind client")?;
@@ -113,14 +111,12 @@ impl LexeContext {
                 let root_seed = RootSeed::try_from(enclave.seed.as_slice())
                     .context("Invalid root seed")?;
 
-                let node_pubkey = PublicKey::from_str(&node.public_key)
-                    .context("Failed to deserialize node pubkey")?;
-                LexeKeysManager::init(rng, &node_pubkey, &root_seed)
+                LexeKeysManager::init(rng, &node.public_key, &root_seed)
                     .context("Could not construct keys manager")?
             }
             (None, None, None) => {
                 // TODO remove this path once provisioning command works
-                provision_new_node(rng, api.as_ref(), user_id, &measurement)
+                provision_new_node(rng, api.as_ref(), user_id, measurement)
                     .await
                     .context("Failed to provision new node")?
             }
@@ -437,13 +433,13 @@ fn init_api(args: &StartCommand) -> ApiClientType {
 async fn fetch_provisioned_data(
     api: &dyn ApiClient,
     user_id: UserId,
-    measurement: &str,
+    measurement: Measurement,
 ) -> anyhow::Result<(Option<Node>, Option<Instance>, Option<Enclave>)> {
     println!("Fetching provisioned data");
     let (node_res, instance_res, enclave_res) = tokio::join!(
         api.get_node(user_id),
-        api.get_instance(user_id, measurement.to_owned()),
-        api.get_enclave(user_id, measurement.to_owned()),
+        api.get_instance(user_id, measurement),
+        api.get_enclave(user_id, measurement),
     );
     let node_opt = node_res.context("Error while fetching node")?;
     let instance_opt = instance_res.context("Error while fetching instance")?;
@@ -459,7 +455,7 @@ async fn provision_new_node<R: Crng>(
     rng: &mut R,
     api: &dyn ApiClient,
     user_id: UserId,
-    measurement: &str,
+    measurement: Measurement,
 ) -> anyhow::Result<LexeKeysManager> {
     // No node exists yet, create a new one
     println!("Generating new seed");
@@ -471,19 +467,18 @@ async fn provision_new_node<R: Crng>(
 
     // Derive pubkey
     let keys_manager = LexeKeysManager::unchecked_init(rng, &root_seed);
-    let pubkey = keys_manager.derive_pubkey(rng);
-    let pubkey_hex = pubkey.to_string();
+    let node_public_key = keys_manager.derive_pubkey(rng);
 
     // Build structs for persisting the new node + instance + enclave
     let node = Node {
-        public_key: pubkey_hex.clone(),
+        public_key: node_public_key,
         user_id,
     };
-    let instance_id = convert::get_instance_id(&pubkey, measurement);
+    let instance_id = convert::get_instance_id(&node_public_key, &measurement);
     let instance = Instance {
         id: instance_id.clone(),
-        measurement: measurement.to_owned(),
-        node_public_key: pubkey_hex,
+        measurement,
+        node_public_key,
     };
     // TODO Actually get the CPU id from within SGX
     let cpu_id = "my_cpu_id";

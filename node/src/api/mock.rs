@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use bitcoin::secp256k1::PublicKey;
+use common::enclave::{self, Measurement};
 use common::hex;
 use tokio::sync::Mutex;
 
@@ -18,20 +20,36 @@ type Data = Vec<u8>;
 // --- Consts used in the MockApiClient ---
 
 pub const USER_ID: i64 = 1;
-pub const PUBKEY: &str =
-    "02692f6894d5cb51bb785cc3c54f457889faf674fedea54a906f7ec99e88832d18";
-pub const MEASUREMENT: &str = "default";
-pub const HEX_SEED: &str =
-    "39ee00e3e23a9cd7e6509f56ff66daaf021cb5502e4ab3c6c393b522a6782d03";
+pub const PUBKEY: [u8; 33] = hex::decode_const(
+    b"02692f6894d5cb51bb785cc3c54f457889faf674fedea54a906f7ec99e88832d18",
+);
+pub const HEX_SEED: [u8; 32] = hex::decode_const(
+    b"39ee00e3e23a9cd7e6509f56ff66daaf021cb5502e4ab3c6c393b522a6782d03",
+);
 pub const CPU_ID: &str = "my_cpu_id";
-pub fn instance_id() -> InstanceId {
-    format!("{}_{}", PUBKEY, MEASUREMENT)
+
+fn pubkey() -> PublicKey {
+    PublicKey::from_slice(&PUBKEY).unwrap()
 }
-pub fn seed() -> Vec<u8> {
-    hex::decode(HEX_SEED).unwrap()
+
+fn instance() -> Instance {
+    let measurement = enclave::measurement();
+    let node_public_key = pubkey();
+    Instance {
+        id: convert::get_instance_id(&node_public_key, &measurement),
+        measurement,
+        node_public_key,
+    }
 }
-pub fn enclave_id() -> EnclaveId {
-    convert::get_enclave_id(instance_id().as_str(), CPU_ID)
+
+fn instance_id() -> InstanceId {
+    let measurement = enclave::measurement();
+    let node_public_key = pubkey();
+    convert::get_instance_id(&node_public_key, &measurement)
+}
+
+fn enclave_id() -> EnclaveId {
+    convert::get_enclave_id(&instance_id(), CPU_ID)
 }
 
 // --- The MockApiClient ---
@@ -55,7 +73,7 @@ impl ApiClient for MockApiClient {
         _user_id: UserId,
     ) -> Result<Option<Node>, ApiError> {
         let node = Node {
-            public_key: PUBKEY.into(),
+            public_key: pubkey(),
             user_id: USER_ID,
         };
         Ok(Some(node))
@@ -65,25 +83,20 @@ impl ApiClient for MockApiClient {
     async fn get_instance(
         &self,
         _user_id: UserId,
-        _measurement: String,
+        _measurement: Measurement,
     ) -> Result<Option<Instance>, ApiError> {
-        let instance = Instance {
-            id: instance_id(),
-            measurement: MEASUREMENT.into(),
-            node_public_key: PUBKEY.into(),
-        };
-        Ok(Some(instance))
+        Ok(Some(instance()))
     }
 
     /// Always return the dummy version
     async fn get_enclave(
         &self,
         _user_id: UserId,
-        _measurement: String,
+        _measurement: Measurement,
     ) -> Result<Option<Enclave>, ApiError> {
         let enclave = Enclave {
             id: enclave_id(),
-            seed: seed(),
+            seed: HEX_SEED.to_vec(),
             instance_id: instance_id(),
         };
         Ok(Some(enclave))

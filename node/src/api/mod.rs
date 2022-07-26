@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use common::enclave::Measurement;
 use thiserror::Error;
 
 use crate::types::UserId;
@@ -29,16 +30,17 @@ pub enum ApiError {
 pub trait ApiClient {
     async fn get_node(&self, user_id: UserId)
         -> Result<Option<Node>, ApiError>;
+
     async fn get_instance(
         &self,
         user_id: UserId,
-        measurement: String,
+        measurement: Measurement,
     ) -> Result<Option<Instance>, ApiError>;
 
     async fn get_enclave(
         &self,
         user_id: UserId,
-        measurement: String,
+        measurement: Measurement,
     ) -> Result<Option<Enclave>, ApiError>;
 
     async fn create_node_instance_enclave(

@@ -4,6 +4,7 @@ use std::fmt::{self, Display};
 use std::time::Duration;
 
 use async_trait::async_trait;
+use common::enclave::Measurement;
 use http::Method;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
@@ -69,7 +70,7 @@ impl ApiClient for LexeApiClient {
     async fn get_instance(
         &self,
         user_id: UserId,
-        measurement: String,
+        measurement: Measurement,
     ) -> Result<Option<Instance>, ApiError> {
         let req = GetByUserIdAndMeasurement {
             user_id,
@@ -82,7 +83,7 @@ impl ApiClient for LexeApiClient {
     async fn get_enclave(
         &self,
         user_id: UserId,
-        measurement: String,
+        measurement: Measurement,
     ) -> Result<Option<Enclave>, ApiError> {
         let req = GetByUserIdAndMeasurement {
             user_id,

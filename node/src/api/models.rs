@@ -1,3 +1,5 @@
+use bitcoin::secp256k1::PublicKey;
+use common::enclave::Measurement;
 use serde::{Deserialize, Serialize};
 
 use crate::types::{EnclaveId, InstanceId, Port, UserId};
@@ -18,7 +20,7 @@ pub struct GetByUserId {
 #[derive(Serialize)]
 pub struct GetByUserIdAndMeasurement {
     pub user_id: UserId,
-    pub measurement: String,
+    pub measurement: Measurement,
 }
 
 /// Query parameter struct for fetching by instance id
@@ -29,15 +31,15 @@ pub struct GetByInstanceId {
 
 #[derive(Serialize, Deserialize)]
 pub struct Node {
-    pub public_key: String,
+    pub public_key: PublicKey,
     pub user_id: UserId,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Instance {
     pub id: InstanceId,
-    pub measurement: String,
-    pub node_public_key: String,
+    pub measurement: Measurement,
+    pub node_public_key: PublicKey,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -77,7 +79,7 @@ pub struct File {
     pub data: Vec<u8>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserPort {
     pub user_id: UserId,
     pub port: Port,
