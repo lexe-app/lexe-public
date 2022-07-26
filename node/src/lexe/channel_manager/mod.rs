@@ -37,8 +37,8 @@ pub use types::*;
 /// verify the security report e.g. once every day. This appears to be possible
 /// with Android's `JobScheduler`, but more difficult (or not possible) on iOS.
 ///
-/// Note that this value must be <= 2016 (two weeks), since it is the maximum
-/// value that LDK accepts for `ChannelHandshakeLimits::their_to_self_delay`.
+/// Note that the minimum and maximum values allowed by LDK are 144 blocks (1
+/// day, i.e. `BREAKDOWN_TIMEOUT`) and 2016 blocks (two weeks) respectively.
 ///
 /// TODO: Implement security report which checks for channel closes
 /// TODO: Implement recurring verification of the security report
@@ -191,14 +191,8 @@ impl LexeChannelManager {
         Ok((channel_manager_blockhash, channel_manager))
     }
 
-    /// Handles the full logic of opening a channel, including:
-    ///
-    /// - Connecting to the peer
-    /// - Creating the channel
-    /// - Persisting the newly created channel
-    ///
-    /// All of these actions should be done together, so the peer manager and
-    /// persister are pulled into this fn to make it harder to screw up.
+    /// Handles the full logic of opening a channel, including connecting to the
+    /// peer, creating the channel, and persisting the newly created channel.
     pub async fn open_channel(
         &self,
         peer_manager: &LexePeerManager,
