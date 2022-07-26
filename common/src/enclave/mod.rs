@@ -10,8 +10,9 @@ mod sgx;
 mod mock;
 
 use std::borrow::Cow;
-use std::fmt;
+use std::{fmt, mem};
 
+use bytes::{Buf, BufMut};
 use cfg_if::cfg_if;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -41,6 +42,9 @@ pub enum Error {
 
     #[error("unseal error: ciphertext or metadata may be corrupted")]
     UnsealDecryptionError,
+
+    #[error("deserialize: input is malformed")]
+    DeserializationError,
 }
 
 impl From<sgx_isa::ErrorCode> for Error {
@@ -83,6 +87,7 @@ impl fmt::Debug for Measurement {
 }
 
 /// Sealed and encrypted data
+#[derive(PartialEq, Eq)]
 pub struct Sealed<'a> {
     /// A truncated [`sgx_isa::Keyrequest`].
     ///
@@ -92,6 +97,56 @@ pub struct Sealed<'a> {
     keyrequest: Cow<'a, [u8]>,
     /// Encrypted ciphertext
     ciphertext: Cow<'a, [u8]>,
+}
+
+// TODO(phlip9): use a real serialization format like CBOR or something
+
+fn read_u32_le(mut bytes: &[u8]) -> Result<(u32, &[u8]), Error> {
+    if bytes.len() >= mem::size_of::<u32>() {
+        Ok((bytes.get_u32_le(), bytes))
+    } else {
+        Err(Error::DeserializationError)
+    }
+}
+
+fn read_bytes(bytes: &[u8]) -> Result<(&[u8], &[u8]), Error> {
+    let (len, bytes) = read_u32_le(bytes)?;
+    let len = len as usize;
+    if bytes.len() >= len {
+        Ok(bytes.split_at(len))
+    } else {
+        Err(Error::DeserializationError)
+    }
+}
+
+impl<'a> Sealed<'a> {
+    pub fn serialize(&self) -> Vec<u8> {
+        let out_len = mem::size_of::<u32>()
+            + self.keyrequest.len()
+            + mem::size_of::<u32>()
+            + self.ciphertext.len();
+        let mut out = Vec::with_capacity(out_len);
+
+        out.put_u32_le(self.keyrequest.len() as u32);
+        out.put(self.keyrequest.as_ref());
+        out.put_u32_le(self.ciphertext.len() as u32);
+        out.put(self.ciphertext.as_ref());
+        out
+    }
+
+    pub fn deserialize(bytes: &'a [u8]) -> Result<Self, Error> {
+        let (keyrequest, bytes) = read_bytes(bytes)?;
+        let (ciphertext, bytes) = read_bytes(bytes)?;
+
+        if bytes.is_empty() {
+            Ok(Self {
+                keyrequest: Cow::Borrowed(keyrequest),
+                ciphertext: Cow::Borrowed(ciphertext),
+            })
+        } else {
+            Err(Error::DeserializationError)
+        }
+    }
 }
 
 impl fmt::Debug for Sealed<'_> {
@@ -208,6 +263,24 @@ mod test {
             let sealed = seal(&mut rng, &label, data.clone().into()).unwrap();
             let unsealed = unseal(&label, sealed).unwrap();
             assert_eq!(&data, &unsealed);
+        });
+    }
+
+    #[test]
+    fn test_sealed_serialization() {
+        let arb_keyrequest = any::<Vec<u8>>();
+        let arb_ciphertext = any::<Vec<u8>>();
+        let arb_sealed = (arb_keyrequest, arb_ciphertext).prop_map(
+            |(keyrequest, ciphertext)| Sealed {
+                keyrequest: keyrequest.into(),
+                ciphertext: ciphertext.into(),
+            },
+        );
+
+        proptest!(|(sealed in arb_sealed)| {
+            let bytes = sealed.serialize();
+            let sealed2 = Sealed::deserialize(&bytes).unwrap();
+            assert_eq!(sealed, sealed2);
         });
     }
 
