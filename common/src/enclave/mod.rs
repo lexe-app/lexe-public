@@ -10,6 +10,7 @@ mod sgx;
 mod mock;
 
 use std::borrow::Cow;
+use std::str::FromStr;
 use std::{fmt, mem};
 
 use bytes::{Buf, BufMut};
@@ -17,8 +18,13 @@ use cfg_if::cfg_if;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::hex::{self, FromHex};
+use crate::hexstr_or_bytes;
 use crate::rng::Crng;
-use crate::{hex, hexstr_or_bytes};
+
+pub const MOCK_MEASUREMENT: Measurement =
+    Measurement::new(*b"~~~~~~~ LEXE MOCK ENCLAVE ~~~~~~");
+pub const MOCK_MACHINE_ID: MachineId = MachineId::new(*b"!MOCK MACHINE ID");
 
 /// In SGX enclaves, this is the current CPUSVN we commit to when
 /// sealing data.
@@ -61,7 +67,7 @@ impl From<sgx_isa::ErrorCode> for Error {
 pub struct Measurement(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 impl Measurement {
-    pub fn new(bytes: [u8; 32]) -> Self {
+    pub const fn new(bytes: [u8; 32]) -> Self {
         Self(bytes)
     }
 
@@ -83,6 +89,59 @@ impl fmt::Display for Measurement {
 impl fmt::Debug for Measurement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self)
+    }
+}
+
+/// A unique identifier for a particular hardware enclave.
+///
+/// The intention with this identifier is to compactly communicate whether a
+/// piece of hardware with this id (in its current state) has the _capability_
+/// to [`unseal`] some [`Sealed`] data that was [`seal'ed`](seal) on hardware
+/// possessing the same id.
+///
+/// An easy way to show unsealing capability is to actually derive a key from
+/// the SGX platform. Rather than encrypting some data with this key, we'll
+/// instead use it as a public identifier. For different enclaves to still
+/// derive the same machine id, we'll use the enclave signer (Lexe) in our key
+/// derivation instead of the per-enclave measurement.
+///
+/// As an added bonus, if the machine operator ever bumps the [`OWNER_EPOCH`] in
+/// the BIOS, the machine id will automatically change to a different value,
+/// correctly reflecting this machine's inability to unseal the old data.
+///
+/// NOTE: on SGX this capability is modulo the [CPUSVN] (i.e., doesn't commit to
+///       the CPUSVN) since it allows us to easily upgrade the SGX TCB platform
+///       without needing to also online-migrate sealed enclave state.
+///
+/// [CPUSVN]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#security-version-number-svn
+/// [`OWNER_EPOCH`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#owner-epoch
+#[derive(Copy, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct MachineId(#[serde(with = "hexstr_or_bytes")] [u8; 16]);
+
+impl MachineId {
+    pub const fn new(bytes: [u8; 16]) -> Self {
+        Self(bytes)
+    }
+}
+
+impl FromStr for MachineId {
+    type Err = hex::DecodeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        <[u8; 16]>::from_hex(s).map(Self::new)
+    }
+}
+
+impl fmt::Display for MachineId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::display(&self.0))
+    }
+}
+
+impl fmt::Debug for MachineId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("MachineId")
+            .field(&hex::display(&self.0))
+            .finish()
     }
 }
 
@@ -230,6 +289,19 @@ pub fn measurement() -> Measurement {
     }
 }
 
+/// Get the current machine id from inside an enclave.
+///
+/// See: [`MachineId`]
+pub fn machine_id() -> MachineId {
+    cfg_if! {
+        if #[cfg(target_env = "sgx")] {
+            sgx::machine_id()
+        } else {
+            mock::machine_id()
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use proptest::arbitrary::any;
@@ -325,6 +397,13 @@ mod test {
     fn test_measurement_consistent() {
         let m1 = measurement();
         let m2 = measurement();
+        assert_eq!(m1, m2);
+    }
+
+    #[test]
+    fn test_machine_id_consistent() {
+        let m1 = machine_id();
+        let m2 = machine_id();
         assert_eq!(m1, m2);
     }
 

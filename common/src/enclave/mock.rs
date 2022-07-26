@@ -8,7 +8,8 @@ use std::borrow::Cow;
 use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
 use ring::hkdf::{self, HKDF_SHA256};
 
-use crate::enclave::{Error, Measurement, Sealed};
+use super::MOCK_MEASUREMENT;
+use crate::enclave::{Error, MachineId, Measurement, Sealed, MOCK_MACHINE_ID};
 use crate::rng::Crng;
 
 struct MockKeyRequest {
@@ -77,5 +78,9 @@ pub fn unseal(label: &[u8], sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
 }
 
 pub fn measurement() -> Measurement {
-    Measurement::new(*b"~~~~~~~ LEXE MOCK ENCLAVE ~~~~~~")
+    MOCK_MEASUREMENT
+}
+
+pub fn machine_id() -> MachineId {
+    MOCK_MACHINE_ID
 }
