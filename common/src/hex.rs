@@ -1,5 +1,6 @@
 //! Utilities for encoding, decoding, and displaying hex-formatted data.
 
+use std::borrow::Cow;
 use std::fmt::{self, Write};
 
 use thiserror::Error;
@@ -127,6 +128,31 @@ impl<'a> fmt::Debug for HexDisplay<'a> {
 #[inline]
 pub fn display(bytes: &[u8]) -> HexDisplay<'_> {
     HexDisplay(bytes)
+}
+
+/// A trait to deserialize something from a hex-encoded string slice.
+pub trait FromHex: Sized {
+    fn from_hex(s: &str) -> Result<Self, DecodeError>;
+}
+
+impl FromHex for Vec<u8> {
+    fn from_hex(s: &str) -> Result<Self, DecodeError> {
+        decode(s)
+    }
+}
+
+impl FromHex for Cow<'_, [u8]> {
+    fn from_hex(s: &str) -> Result<Self, DecodeError> {
+        decode(s).map(Cow::Owned)
+    }
+}
+
+impl<const N: usize> FromHex for [u8; N] {
+    fn from_hex(s: &str) -> Result<Self, DecodeError> {
+        let mut out = [0u8; N];
+        decode_to_slice(s, out.as_mut_slice())?;
+        Ok(out)
+    }
 }
 
 #[cfg(test)]

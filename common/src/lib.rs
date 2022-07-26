@@ -13,6 +13,7 @@ pub mod client_node_certs;
 pub mod ed25519;
 pub mod enclave;
 pub mod hex;
+pub mod hexstr_or_bytes;
 pub mod rng;
 pub mod root_seed;
 pub mod sha256;

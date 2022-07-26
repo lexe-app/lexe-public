@@ -1,0 +1,113 @@
+//! [`serde`] serialize and deserialize helpers for types that should be
+//! hex-encoded for human-readable formats and raw-bytes for binary codecs.
+//!
+//! ## Example:
+//!
+//! ```rust
+//! use common::hexstr_or_bytes;
+//! use serde::{Deserialize, Serialize};
+//!
+//! #[derive(Deserialize, Serialize)]
+//! struct Foo(#[serde(with = "hexstr_or_bytes")] Vec<u8>);
+//! ```
+
+// TODO(phlip9): use `serde_bytes` for more efficient ser/de with binary codecs.
+// TODO(phlip9): add `[u8; N]` impls to `serde_bytes`...
+
+use std::fmt;
+use std::marker::PhantomData;
+
+use serde::{de, ser, Deserializer, Serializer};
+
+use crate::hex::{self, FromHex};
+
+pub fn serialize<S, T>(data: T, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+    T: ser::Serialize + AsRef<[u8]>,
+{
+    if serializer.is_human_readable() {
+        let s = hex::encode(data.as_ref());
+        serializer.serialize_str(&s)
+    } else {
+        data.serialize(serializer)
+    }
+}
+
+pub fn deserialize<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+where
+    D: Deserializer<'de>,
+    T: de::Deserialize<'de> + FromHex,
+{
+    struct HexVisitor<T>(PhantomData<T>);
+
+    impl<'de, T: FromHex> de::Visitor<'de> for HexVisitor<T> {
+        type Value = T;
+
+        fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            f.write_str("expecting hex string")
+        }
+
+        fn visit_str<E: de::Error>(self, s: &str) -> Result<Self::Value, E> {
+            T::from_hex(s).map_err(de::Error::custom)
+        }
+    }
+
+    if deserializer.is_human_readable() {
+        deserializer.deserialize_str(HexVisitor(PhantomData))
+    } else {
+        T::deserialize(deserializer)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::borrow::Cow;
+
+    use serde::{Deserialize, Serialize};
+
+    use crate::hexstr_or_bytes;
+
+    // TODO(phlip9): test w/ binary codec
+
+    #[test]
+    fn test_hexstr_or_bytes() {
+        #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+        struct Foo {
+            #[serde(with = "hexstr_or_bytes")]
+            a: [u8; 32],
+
+            #[serde(with = "hexstr_or_bytes")]
+            b: Vec<u8>,
+
+            #[serde(with = "hexstr_or_bytes")]
+            c: Cow<'static, [u8]>,
+
+            d: u64,
+        }
+
+        let foo = Foo {
+            a: [0x42; 32],
+            b: vec![1, 2, 5, 6, 9, 0, 0x42],
+            c: Cow::Borrowed(b"asdf"),
+            d: 1234,
+        };
+
+        let actual = serde_json::to_value(&foo).unwrap();
+
+        assert_eq!(
+            &actual,
+            &serde_json::json!({
+                "a": "4242424242424242424242424242424242424242424242424242424242424242",
+                "b": "01020506090042",
+                "c": "61736466",
+                "d": 1234,
+            })
+        );
+
+        let s = serde_json::to_string(&foo).unwrap();
+        let foo2: Foo = serde_json::from_str(&s).unwrap();
+
+        assert_eq!(foo, foo2);
+    }
+}
