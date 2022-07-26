@@ -8,6 +8,8 @@ members = [
 ]
 
 [patch.crates-io]
+# NOTE: Make sure to duplicate any changes to the `server`'s root Cargo.toml,
+# otherwise the `server`'s dependency versions won't match.
 aesm-client = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 async-usercalls = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 dcap-ql = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
