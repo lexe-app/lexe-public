@@ -5,13 +5,16 @@
 //! `BackgroundProcessor` which requires its own OS thread. A single worker
 //! thread should be enough.
 
+use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 
+use bitcoin::secp256k1::PublicKey;
+use bitcoin::util::address::Address;
+use bitcoind::bitcoincore_rpc::RpcApi;
 use bitcoind::{self, BitcoinD, Conf};
 use common::rng::SysRng;
 
-use crate::api::mock;
 use crate::cli::{
     BitcoindRpcInfo, Network, NodeAlias, StartCommand, DEFAULT_BACKEND_URL,
     DEFAULT_RUNNER_URL,
@@ -19,11 +22,16 @@ use crate::cli::{
 use crate::command::owner;
 use crate::init::LexeContext;
 use crate::lexe::channel_manager::LexeChannelManager;
-use crate::lexe::peer_manager::LexePeerManager;
-use crate::types::NetworkGraphType;
+use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
+use crate::lexe::persister::LexePersister;
+use crate::types::{NetworkGraphType, UserId};
 
 /// Helper to return a default StartCommand struct for testing.
-fn default_test_args() -> StartCommand {
+fn default_args() -> StartCommand {
+    default_args_for_user(1)
+}
+
+fn default_args_for_user(user_id: UserId) -> StartCommand {
     StartCommand {
         bitcoind_rpc: BitcoindRpcInfo {
             username: String::from("kek"),
@@ -31,7 +39,7 @@ fn default_test_args() -> StartCommand {
             host: String::new(), // Filled in when BitcoinD initializes
             port: 6969,          // Filled in when BitcoinD initializes
         },
-        user_id: mock::USER_ID,
+        user_id,
         peer_port: None,
         announced_node_name: NodeAlias::default(),
         network: Network::from_str("regtest").unwrap(),
@@ -45,7 +53,6 @@ fn default_test_args() -> StartCommand {
     }
 }
 
-#[allow(dead_code)] // TODO remove after bitcoind field is read
 struct CommandTestHarness {
     bitcoind: BitcoinD,
     ctx: LexeContext,
@@ -94,15 +101,45 @@ impl CommandTestHarness {
         self.ctx.peer_manager.clone()
     }
 
+    fn persister(&self) -> LexePersister {
+        self.ctx.persister.clone()
+    }
+
     fn network_graph(&self) -> Arc<NetworkGraphType> {
         self.ctx.network_graph.clone()
+    }
+
+    fn pubkey(&self) -> PublicKey {
+        let mut rng = SysRng::new();
+        self.ctx.keys_manager.derive_pubkey(&mut rng)
+    }
+
+    fn p2p_address(&self) -> SocketAddr {
+        SocketAddr::from(([127, 0, 0, 1], self.ctx.peer_port))
+    }
+
+    /// Funds the node with some generated blocks,
+    /// returning the address the funds were sent to.
+    async fn fund_node(&self) -> Address {
+        let address = self.ctx.wallet.get_new_address().await;
+        // Coinbase funds can only be spent after 100 blocks
+        self.bitcoind
+            .client
+            .generate_to_address(101, &address)
+            .expect("Failed to generate blocks");
+        address
+    }
+
+    #[allow(dead_code)]
+    async fn mine_6_blocks(&self) {
+        self.bitcoind.client.generate(6, None).unwrap();
     }
 }
 
 /// Tests that a node can initialize, sync, and shutdown.
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn init_sync_shutdown() {
-    let mut args = default_test_args();
+    let mut args = default_args();
     args.shutdown_after_sync_if_no_activity = true;
 
     let mut h = CommandTestHarness::init(args).await;
@@ -113,7 +150,7 @@ async fn init_sync_shutdown() {
 /// Tests the node_info handler.
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn node_info() {
-    let args = default_test_args();
+    let args = default_args();
     let h = CommandTestHarness::init(args).await;
 
     owner::node_info(h.channel_manager(), h.peer_manager()).unwrap();
@@ -122,8 +159,102 @@ async fn node_info() {
 /// Tests the list_channels handler.
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn list_channels() {
-    let args = default_test_args();
+    let args = default_args();
     let h = CommandTestHarness::init(args).await;
 
     owner::list_channels(h.channel_manager(), h.network_graph()).unwrap();
+}
+
+/// Tests connecting two nodes to each other.
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn connect_peer() {
+    let args1 = default_args_for_user(1);
+    let args2 = default_args_for_user(2);
+    let (node1, node2) = tokio::join!(
+        CommandTestHarness::init(args1),
+        CommandTestHarness::init(args2),
+    );
+
+    // Build prereqs
+    let peer_manager1 = node1.peer_manager();
+    let peer_manager2 = node2.peer_manager();
+    let channel_peer = ChannelPeer {
+        pubkey: node2.pubkey(),
+        addr: node2.p2p_address(),
+    };
+
+    // Prior to connecting
+    let pre_node_info1 =
+        owner::node_info(node1.channel_manager(), node1.peer_manager())
+            .unwrap();
+    assert_eq!(pre_node_info1.num_peers, 0);
+    let pre_node_info2 =
+        owner::node_info(node2.channel_manager(), node2.peer_manager())
+            .unwrap();
+    assert_eq!(pre_node_info2.num_peers, 0);
+    assert!(peer_manager1.get_peer_node_ids().is_empty());
+    assert!(peer_manager2.get_peer_node_ids().is_empty());
+
+    // Connect
+    peer_manager1
+        .connect_peer_if_necessary(channel_peer)
+        .await
+        .expect("Failed to connect");
+
+    // After connecting
+    let post_node_info1 =
+        owner::node_info(node1.channel_manager(), node1.peer_manager())
+            .unwrap();
+    assert_eq!(post_node_info1.num_peers, 1);
+    let post_node_info2 =
+        owner::node_info(node2.channel_manager(), node2.peer_manager())
+            .unwrap();
+    assert_eq!(post_node_info2.num_peers, 1);
+    assert_eq!(peer_manager1.get_peer_node_ids().len(), 1);
+    assert_eq!(peer_manager2.get_peer_node_ids().len(), 1);
+}
+
+#[should_panic] // TODO: Fix
+/// Tests opening a channel
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn open_channel() {
+    let args1 = default_args_for_user(1);
+    let args2 = default_args_for_user(2);
+    let (node1, node2) = tokio::join!(
+        CommandTestHarness::init(args1),
+        CommandTestHarness::init(args2),
+    );
+
+    // Fund both nodes
+    node1.fund_node().await;
+    node2.fund_node().await;
+
+    // Prepare open channel prerequisites
+    let channel_manager1 = node1.channel_manager();
+    let peer_manager1 = node1.peer_manager();
+    let persister1 = node1.persister();
+    let addr2 = node2.p2p_address();
+    let channel_peer = ChannelPeer {
+        pubkey: node2.pubkey(),
+        addr: addr2,
+    };
+    let channel_value_sat = 1_000_000;
+
+    // Debugging
+    let node_info =
+        owner::node_info(node1.channel_manager(), node1.peer_manager())
+            .unwrap();
+    println!("Node info: {:?}", node_info);
+
+    // Open the channel
+    println!("Opening channel");
+    channel_manager1
+        .open_channel(
+            &peer_manager1,
+            &persister1,
+            channel_peer,
+            channel_value_sat,
+        )
+        .await
+        .expect("Failed to open channel");
 }

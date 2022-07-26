@@ -152,6 +152,7 @@ impl LexeBitcoind {
         Ok(client)
     }
 
+    // TODO: There are unwrap()s everywhere downstream of network reqs, remove
     fn poll_for_fee_estimates(
         &self,
         fees: Arc<HashMap<Target, AtomicU32>>,
@@ -235,6 +236,7 @@ impl LexeBitcoind {
         RpcClient::new(&rpc_credentials, http_endpoint)
     }
 
+    // TODO: There are unwrap()s everywhere downstream of network reqs, remove
     pub async fn create_raw_transaction(
         &self,
         outputs: Vec<HashMap<String, f64>>,
@@ -249,6 +251,7 @@ impl LexeBitcoind {
             .unwrap()
     }
 
+    // TODO: There are unwrap()s everywhere downstream of network reqs, remove
     pub async fn fund_raw_transaction(&self, raw_tx: RawTx) -> FundedTx {
         let raw_tx_json = serde_json::json!(raw_tx.0);
         let options = serde_json::json!({
@@ -272,6 +275,7 @@ impl LexeBitcoind {
             .unwrap()
     }
 
+    // TODO: There are unwrap()s everywhere downstream of network reqs, remove
     pub async fn send_raw_transaction(&self, raw_tx: RawTx) {
         let raw_tx_json = serde_json::json!(raw_tx.0);
         self.bitcoind_rpc_client
@@ -280,6 +284,7 @@ impl LexeBitcoind {
             .unwrap();
     }
 
+    // TODO: There are unwrap()s everywhere downstream of network reqs, remove
     pub async fn sign_raw_transaction_with_wallet(
         &self,
         tx_hex: String,
@@ -291,6 +296,7 @@ impl LexeBitcoind {
             .unwrap()
     }
 
+    // TODO: There are unwrap()s everywhere downstream of network reqs, remove
     pub async fn get_new_address(&self) -> Address {
         let addr_args = vec![serde_json::json!("LDK output address")];
         let addr = self
@@ -301,6 +307,7 @@ impl LexeBitcoind {
         Address::from_str(addr.0.as_str()).unwrap()
     }
 
+    // TODO: There are unwrap()s everywhere downstream of network reqs, remove
     pub async fn get_blockchain_info(&self) -> BlockchainInfo {
         self.bitcoind_rpc_client
             .call_method::<BlockchainInfo>("getblockchaininfo", &[])

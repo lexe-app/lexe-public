@@ -5,7 +5,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::Context;
+use anyhow::{bail, Context};
 use bitcoin::secp256k1::PublicKey;
 use common::rng::Crng;
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
@@ -96,14 +96,51 @@ impl LexePeerManager {
         .into_std()
         .context("Could not convert tokio TcpStream to std TcpStream")?;
 
-        // `setup_outbound()` returns a future which completes when the
-        // connection closes, which we do not need to poll because a
-        // task was spawned for it.
-        let _ = lightning_net_tokio::setup_outbound(
+        // NOTE: `setup_outbound()` returns a future which completes when the
+        // connection closes, which we do not need to poll because a task was
+        // spawned for it. However, in the case of an error, the future returned
+        // by `setup_outbound()` completes immediately, and does not propagate
+        // the error from `peer_manager.new_outbound_connection()`. So, in order
+        // to check that there was no error while establishing the connection we
+        // have to manually poll the future, and if it completed, return an
+        // error (which we don't have access to because `lightning-net-tokio`
+        // failed to surface it to us).
+        //
+        // On the other hand, since LDK's API doesn't let you know when the
+        // connection is established, you have to keep calling
+        // `peer_manager.get_peer_node_ids()` to see if the connection has been
+        // registered yet.
+        //
+        // The code in `lightning-net-tokio` is disgusting, unsafe, and should
+        // be rewritten / replaced entirely.
+        let connection_closed_fut = lightning_net_tokio::setup_outbound(
             self.as_arc_inner(),
             channel_peer.pubkey,
             stream,
         );
+        let mut connection_closed_fut = Box::pin(connection_closed_fut);
+        loop {
+            // Check if the connection has been closed
+            match futures::poll!(&mut connection_closed_fut) {
+                std::task::Poll::Ready(_) => {
+                    bail!("Failed initial connection to peer - error unknown");
+                }
+                std::task::Poll::Pending => {}
+            }
+
+            // Check if the connection has been established
+            if self
+                .get_peer_node_ids()
+                .iter()
+                .any(|pk| *pk == channel_peer.pubkey)
+            {
+                // Connection confirmed, break and return Ok
+                break;
+            } else {
+                // Connection not confirmed yet, wait before checking again
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        }
 
         Ok(())
     }

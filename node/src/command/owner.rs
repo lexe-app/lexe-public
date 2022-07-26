@@ -8,7 +8,7 @@ use crate::lexe::channel_manager::{LexeChannelManager, LxChannelDetails};
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::types::NetworkGraphType;
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct NodeInfo {
     pub pubkey: PublicKey,
     pub num_channels: usize,

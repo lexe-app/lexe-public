@@ -31,8 +31,8 @@ impl Deref for LexeKeysManager {
 impl LexeKeysManager {
     /// A helper used to (insecurely) initialize a LexeKeysManager in the
     /// temporary provision flow. Once provisioning works, this fn should be
-    /// removed entirely. TODO: Remove
-    pub fn unchecked_init<R: Crng>(rng: &mut R, root_seed: &RootSeed) -> Self {
+    /// cfg'd to be available only for non-SGX or for tests. TODO Do that
+    pub fn insecure_init<R: Crng>(rng: &mut R, root_seed: &RootSeed) -> Self {
         let random_secs = rng.next_u64();
         let random_nanos = rng.next_u32();
         let inner = Arc::new(KeysManager::new(

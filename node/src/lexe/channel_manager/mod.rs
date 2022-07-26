@@ -42,7 +42,11 @@ pub use types::*;
 ///
 /// TODO: Implement security report which checks for channel closes
 /// TODO: Implement recurring verification of the security report
+#[cfg(all(target_env = "sgx", not(test)))]
 const TIME_TO_CONTEST_FRAUDULENT_TXNS: u16 = 6 * 24 * 7;
+// Use less secure parameters during development
+#[cfg(any(not(target_env = "sgx"), test))]
+const TIME_TO_CONTEST_FRAUDULENT_TXNS: u16 = BREAKDOWN_TIMEOUT;
 
 pub const USER_CONFIG: UserConfig = UserConfig {
     own_channel_config: OWN_CHANNEL_CONFIG,
@@ -219,7 +223,7 @@ impl LexeChannelManager {
                 user_channel_id,
                 Some(USER_CONFIG),
             )
-            // LDK's APIError doesn't impl std::error::Error
+            // LDK's APIError impls Debug but not Error
             .map_err(|e| anyhow!("{:?}", e))
             .context("Could not create channel")?;
 
