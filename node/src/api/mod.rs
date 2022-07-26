@@ -1,8 +1,7 @@
 use async_trait::async_trait;
+use common::api::UserPk;
 use common::enclave::Measurement;
 use thiserror::Error;
-
-use crate::types::UserId;
 
 // The mock client is only available during tests or when running outside of SGX
 #[cfg(any(test, not(target_env = "sgx")))]
@@ -28,18 +27,18 @@ pub enum ApiError {
 
 #[async_trait]
 pub trait ApiClient {
-    async fn get_node(&self, user_id: UserId)
+    async fn get_node(&self, user_pk: UserPk)
         -> Result<Option<Node>, ApiError>;
 
     async fn get_instance(
         &self,
-        user_id: UserId,
+        user_pk: UserPk,
         measurement: Measurement,
     ) -> Result<Option<Instance>, ApiError>;
 
     async fn get_enclave(
         &self,
-        user_id: UserId,
+        user_pk: UserPk,
         measurement: Measurement,
     ) -> Result<Option<Enclave>, ApiError>;
 

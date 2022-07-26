@@ -5,6 +5,7 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use bitcoin::secp256k1::PublicKey;
+use common::api::UserPk;
 use common::enclave::{self, Measurement};
 use common::hex;
 use tokio::sync::mpsc;
@@ -15,7 +16,7 @@ use crate::api::{
 };
 use crate::convert;
 use crate::lexe::persister;
-use crate::types::{EnclaveId, InstanceId, UserId};
+use crate::types::{EnclaveId, InstanceId};
 
 type FileName = String;
 type Data = Vec<u8>;
@@ -35,30 +36,30 @@ pub const HEX_SEED2: [u8; 32] = hex::decode_const(
     b"2a784ea82ef7002ec929b435e1af283a1998878575e8ccbad73e5d0cb3a95f59",
 );
 
-fn pubkey(user_id: UserId) -> PublicKey {
-    match user_id {
+fn pubkey(user_pk: UserPk) -> PublicKey {
+    match user_pk.inner() {
         1 => PublicKey::from_slice(&PUBKEY1).unwrap(),
         2 => PublicKey::from_slice(&PUBKEY2).unwrap(),
         _ => todo!("TODO(max): Programmatically generate for new users"),
     }
 }
 
-pub fn seed(user_id: UserId) -> Vec<u8> {
-    match user_id {
+pub fn seed(user_pk: UserPk) -> Vec<u8> {
+    match user_pk.inner() {
         1 => HEX_SEED1.to_vec(),
         2 => HEX_SEED2.to_vec(),
         _ => todo!("TODO(max): Programmatically generate for new users"),
     }
 }
 
-fn instance_id(user_id: UserId) -> InstanceId {
+fn instance_id(user_pk: UserPk) -> InstanceId {
     let measurement = enclave::measurement();
-    let node_public_key = pubkey(user_id);
+    let node_public_key = pubkey(user_pk);
     convert::get_instance_id(&node_public_key, &measurement)
 }
 
-fn enclave_id(user_id: UserId) -> EnclaveId {
-    let instance_id = instance_id(user_id);
+fn enclave_id(user_pk: UserPk) -> EnclaveId {
+    let instance_id = instance_id(user_pk);
     let machine_id = enclave::machine_id();
     convert::get_enclave_id(instance_id.as_str(), machine_id)
 }
@@ -97,11 +98,11 @@ impl ApiClient for MockApiClient {
     /// Always return the dummy version
     async fn get_node(
         &self,
-        user_id: UserId,
+        user_pk: UserPk,
     ) -> Result<Option<Node>, ApiError> {
         let node = Node {
-            public_key: pubkey(user_id),
-            user_id,
+            public_key: pubkey(user_pk),
+            user_pk,
         };
         Ok(Some(node))
     }
@@ -109,13 +110,13 @@ impl ApiClient for MockApiClient {
     /// Always return the dummy version
     async fn get_instance(
         &self,
-        user_id: UserId,
+        user_pk: UserPk,
         _measurement: Measurement,
     ) -> Result<Option<Instance>, ApiError> {
         let instance = Instance {
-            id: instance_id(user_id),
+            id: instance_id(user_pk),
             measurement: enclave::measurement(),
-            node_public_key: pubkey(user_id),
+            node_public_key: pubkey(user_pk),
         };
 
         Ok(Some(instance))
@@ -124,13 +125,13 @@ impl ApiClient for MockApiClient {
     /// Always return the dummy version
     async fn get_enclave(
         &self,
-        user_id: UserId,
+        user_pk: UserPk,
         _measurement: Measurement,
     ) -> Result<Option<Enclave>, ApiError> {
         let enclave = Enclave {
-            id: enclave_id(user_id),
-            seed: seed(user_id),
-            instance_id: instance_id(user_id),
+            id: enclave_id(user_pk),
+            seed: seed(user_pk),
+            instance_id: instance_id(user_pk),
         };
         Ok(Some(enclave))
     }
@@ -194,16 +195,17 @@ impl VirtualFileSystem {
         let mut inner = HashMap::new();
 
         // Insert all directories used by the persister
+        let user_pk1 = UserPk::new(1);
         let singleton_dir = DirectoryId {
-            instance_id: instance_id(1),
+            instance_id: instance_id(user_pk1),
             directory: persister::SINGLETON_DIRECTORY.into(),
         };
         let channel_peers_dir = DirectoryId {
-            instance_id: instance_id(1),
+            instance_id: instance_id(user_pk1),
             directory: persister::CHANNEL_PEERS_DIRECTORY.into(),
         };
         let channel_monitors_dir = DirectoryId {
-            instance_id: instance_id(1),
+            instance_id: instance_id(user_pk1),
             directory: persister::CHANNEL_MONITORS_DIRECTORY.into(),
         };
         inner.insert(singleton_dir, HashMap::new());
@@ -211,16 +213,17 @@ impl VirtualFileSystem {
         inner.insert(channel_monitors_dir, HashMap::new());
 
         // Insert all directories used by the persister
+        let user_pk2 = UserPk::new(2);
         let singleton_dir = DirectoryId {
-            instance_id: instance_id(2),
+            instance_id: instance_id(user_pk2),
             directory: persister::SINGLETON_DIRECTORY.into(),
         };
         let channel_peers_dir = DirectoryId {
-            instance_id: instance_id(2),
+            instance_id: instance_id(user_pk2),
             directory: persister::CHANNEL_PEERS_DIRECTORY.into(),
         };
         let channel_monitors_dir = DirectoryId {
-            instance_id: instance_id(2),
+            instance_id: instance_id(user_pk2),
             directory: persister::CHANNEL_MONITORS_DIRECTORY.into(),
         };
         inner.insert(singleton_dir, HashMap::new());

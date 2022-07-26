@@ -7,6 +7,7 @@ use std::time::Duration;
 use anyhow::Context;
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::BlockHash;
+use common::api::UserPk;
 use common::enclave::{self, Measurement};
 use common::rng::Crng;
 use common::root_seed::RootSeed;
@@ -38,7 +39,7 @@ use crate::lexe::sync::SyncedChainListeners;
 use crate::types::{
     ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
     ChannelMonitorType, FeeEstimatorType, GossipSyncType, InvoicePayerType,
-    NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, Port, UserId,
+    NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, Port,
     WalletType,
 };
 use crate::{api, command, convert};
@@ -96,15 +97,15 @@ impl LexeContext {
         // Initialize the Logger
         let logger = LexeTracingLogger::new();
 
-        // Get user_id, measurement, and HTTP client, used throughout init
-        let user_id = args.user_id;
+        // Get user_pk, measurement, and HTTP client, used throughout init
+        let user_pk = args.user_pk;
         let measurement = enclave::measurement();
         let api = init_api(&args);
 
         // Initialize LexeBitcoind, fetch provisioned data
         let (bitcoind_res, provisioned_data_res) = tokio::join!(
             LexeBitcoind::init(args.bitcoind_rpc.clone(), args.network),
-            fetch_provisioned_data(api.as_ref(), user_id, measurement),
+            fetch_provisioned_data(api.as_ref(), user_pk, measurement),
         );
         let bitcoind =
             bitcoind_res.context("Failed to init bitcoind client")?;
@@ -123,7 +124,7 @@ impl LexeContext {
             }
             (None, None, None) => {
                 // TODO remove this path once provisioning command works
-                provision_new_node(rng, api.as_ref(), user_id, measurement)
+                provision_new_node(rng, api.as_ref(), user_pk, measurement)
                     .await
                     .context("Failed to provision new node")?
             }
@@ -234,7 +235,7 @@ impl LexeContext {
         // Let the runner know that we're ready
         println!("Node is ready to accept commands; notifying runner");
         let user_port = UserPort {
-            user_id,
+            user_pk,
             port: warp_port,
         };
         api.notify_runner(user_port)
@@ -444,14 +445,14 @@ fn init_api(args: &StartCommand) -> ApiClientType {
 /// Fetches previously provisioned data from the API.
 async fn fetch_provisioned_data(
     api: &dyn ApiClient,
-    user_id: UserId,
+    user_pk: UserPk,
     measurement: Measurement,
 ) -> anyhow::Result<(Option<Node>, Option<Instance>, Option<Enclave>)> {
     println!("Fetching provisioned data");
     let (node_res, instance_res, enclave_res) = tokio::join!(
-        api.get_node(user_id),
-        api.get_instance(user_id, measurement),
-        api.get_enclave(user_id, measurement),
+        api.get_node(user_pk),
+        api.get_instance(user_pk, measurement),
+        api.get_enclave(user_pk, measurement),
     );
     let node_opt = node_res.context("Error while fetching node")?;
     let instance_opt = instance_res.context("Error while fetching instance")?;
@@ -466,7 +467,7 @@ async fn fetch_provisioned_data(
 async fn provision_new_node<R: Crng>(
     rng: &mut R,
     api: &dyn ApiClient,
-    user_id: UserId,
+    user_pk: UserPk,
     measurement: Measurement,
 ) -> anyhow::Result<LexeKeysManager> {
     // No node exists yet, create a new one
@@ -484,7 +485,7 @@ async fn provision_new_node<R: Crng>(
     // Build structs for persisting the new node + instance + enclave
     let node = Node {
         public_key: node_public_key,
-        user_id,
+        user_pk,
     };
     let instance_id = convert::get_instance_id(&node_public_key, &measurement);
     let instance = Instance {

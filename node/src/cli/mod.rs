@@ -2,13 +2,14 @@ use std::sync::Arc;
 
 use anyhow::{ensure, Context};
 use argh::FromArgs;
+use common::api::UserPk;
 use common::enclave::{self, MachineId};
 use common::rng::SysRng;
 
 use crate::api::LexeApiClient;
 use crate::init::LexeContext;
 use crate::provision::provision;
-use crate::types::{Port, UserId};
+use crate::types::Port;
 
 mod types;
 
@@ -39,9 +40,9 @@ pub struct StartCommand {
     #[argh(positional)]
     pub bitcoind_rpc: BitcoindRpcInfo,
 
-    /// the Lexe user id used in queries to the persistence API
+    /// the Lexe user pk used in queries to the persistence API
     #[argh(option)]
-    pub user_id: UserId,
+    pub user_pk: UserPk,
 
     /// the port on which to accept Lightning P2P connections.
     /// Defaults to a port assigned by the OS
@@ -103,9 +104,9 @@ pub struct ProvisionCommand {
     #[argh(option)]
     pub machine_id: MachineId,
 
-    /// the Lexe user id to provision the node for
+    /// the Lexe user pk to provision the node for
     #[argh(option)]
-    pub user_id: UserId,
+    pub user_pk: UserPk,
 
     /// the DNS name the node enclave should include in its remote attestation
     /// certificate and the client will expect in its connection

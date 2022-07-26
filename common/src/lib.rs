@@ -8,6 +8,7 @@
 // Used in `enclave/sgx` module for sealing.
 #![feature(split_array)]
 
+pub mod api;
 pub mod attest;
 pub mod client_node_certs;
 pub mod ed25519;

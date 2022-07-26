@@ -23,6 +23,7 @@ use std::time::{Duration, Instant};
 
 use anyhow::{ensure, Context, Result};
 use bitcoin::secp256k1::PublicKey;
+use common::api::UserPk;
 use common::attest::cert::AttestationCert;
 use common::enclave::{self, MachineId, Measurement, Sealed};
 use common::rng::{Crng, SysRng};
@@ -44,7 +45,7 @@ use crate::attest;
 use crate::cli::ProvisionCommand;
 use crate::convert::{get_enclave_id, get_instance_id};
 use crate::lexe::keys_manager::LexeKeysManager;
-use crate::types::{ApiClientType, UserId};
+use crate::types::ApiClientType;
 
 const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -72,7 +73,7 @@ fn with_request_context(
 
 #[derive(Clone)]
 struct RequestContext {
-    expected_user_id: UserId,
+    expected_user_id: UserPk,
     machine_id: MachineId,
     measurement: Measurement,
     shutdown_tx: mpsc::Sender<()>,
@@ -85,7 +86,7 @@ struct RequestContext {
 #[derive(Serialize, Deserialize)]
 struct ProvisionRequest {
     /// The client's user id.
-    user_id: UserId,
+    user_pk: UserPk,
     /// The client's node public key, derived from the root seed. The node
     /// should sanity check by re-deriving the node pubkey and checking that it
     /// equals the client's expected value.
@@ -98,16 +99,16 @@ impl ProvisionRequest {
     fn verify<R: Crng>(
         self,
         rng: &mut R,
-        expected_user_id: UserId,
-    ) -> Result<(UserId, PublicKey, ProvisionedSecrets)> {
-        ensure!(self.user_id == expected_user_id);
+        expected_user_id: UserPk,
+    ) -> Result<(UserPk, PublicKey, ProvisionedSecrets)> {
+        ensure!(self.user_pk == expected_user_id);
 
         // TODO(phlip9): derive just the node pubkey without all the extra junk
         // that gets derived constructing a whole KeysManager
         let _keys_manager =
             LexeKeysManager::init(rng, &self.node_pubkey, &self.root_seed)?;
         Ok((
-            self.user_id,
+            self.user_pk,
             self.node_pubkey,
             ProvisionedSecrets {
                 root_seed: self.root_seed,
@@ -148,7 +149,7 @@ impl ProvisionedSecrets {
 //
 // ```json
 // {
-//   "user_id": 123,
+//   "user_pk": UserPk::new(123),
 //   "node_pubkey": "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),
 //   "root_seed": "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7".parse().unwrap(),
 // }
@@ -159,7 +160,7 @@ async fn provision_request(
 ) -> Result<impl Reply, ApiError> {
     debug!("received provision request");
 
-    let (user_id, node_public_key, provisioned_secrets) = req
+    let (user_pk, node_public_key, provisioned_secrets) = req
         .verify(&mut ctx.rng, ctx.expected_user_id)
         .map_err(|_| ApiError)?;
 
@@ -170,7 +171,7 @@ async fn provision_request(
     // TODO(phlip9): add some constructors / ID newtypes
     let node = Node {
         public_key: node_public_key,
-        user_id,
+        user_pk,
     };
     let instance_id = get_instance_id(&node_public_key, &ctx.measurement);
     let instance = Instance {
@@ -216,7 +217,7 @@ fn provision_routes(
 
 /// Provision a new lexe node
 ///
-/// Both `userid` and `auth_token` are given by the orchestrator so we know
+/// Both `UserPk` and `auth_token` are given by the orchestrator so we know
 /// which user we should provision to and have a simple method to authenticate
 /// their connection.
 #[instrument(skip_all)]
@@ -226,7 +227,7 @@ pub async fn provision(
     api: ApiClientType,
     rng: &mut dyn Crng,
 ) -> Result<()> {
-    debug!(args.user_id, args.port, %args.machine_id, %args.node_dns_name, "provisioning");
+    debug!(%args.user_pk, args.port, %args.machine_id, %args.node_dns_name, "provisioning");
 
     // TODO(phlip9): zeroize secrets
 
@@ -293,7 +294,7 @@ pub async fn provision(
     // bind TCP listener on port (queues up any inbound connections).
     let addr = SocketAddr::from(([127, 0, 0, 1], args.port));
     let ctx = RequestContext {
-        expected_user_id: args.user_id,
+        expected_user_id: args.user_pk,
         machine_id: args.machine_id,
         measurement,
         shutdown_tx,
@@ -311,8 +312,8 @@ pub async fn provision(
     info!(%listen_addr, "listening for connections");
 
     // notify the runner that we're ready for a client connection
-    let user_id = args.user_id;
-    api.notify_runner(UserPort { user_id, port })
+    let user_pk = args.user_pk;
+    api.notify_runner(UserPort { user_pk, port })
         .await
         .context("Failed to notify runner of our readiness")?;
 
@@ -326,6 +327,7 @@ pub async fn provision(
 mod test {
     use std::sync::Arc;
 
+    use common::api::UserPk;
     use common::attest;
     use common::attest::verify::EnclavePolicy;
     use common::rng::SysRng;
@@ -335,7 +337,6 @@ mod test {
     use crate::api::mock::MockApiClient;
     use crate::cli::{self, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
     use crate::lexe::logger;
-    use crate::types::UserId;
 
     #[cfg(target_env = "sgx")]
     #[test]
@@ -366,13 +367,13 @@ mod test {
     #[test]
     fn test_provision_request_serde() {
         let req = ProvisionRequest {
-            user_id: 123,
+            user_pk: UserPk::new(123),
             node_pubkey: "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),         root_seed:
         "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7".parse().unwrap(),
         };
         let actual = serde_json::to_value(&req).unwrap();
         let expected = serde_json::json!({
-            "user_id": 123,
+            "user_pk": UserPk::new(123),
             "node_pubkey": "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4",
             "root_seed": "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7",
         });
@@ -383,14 +384,14 @@ mod test {
     async fn test_provision() {
         logger::init_for_testing();
 
-        let user_id: UserId = 123;
+        let user_pk = UserPk::new(123);
         let node_dns_name = "localhost";
         let machine_id = enclave::machine_id();
         let measurement = enclave::measurement();
 
         let args = cli::ProvisionCommand {
             machine_id,
-            user_id,
+            user_pk,
             node_dns_name: node_dns_name.to_owned(),
             port: 0,
             backend_url: DEFAULT_BACKEND_URL.into(),
@@ -408,7 +409,7 @@ mod test {
         let test_task = async {
             // runner recv ready notification w/ listening port
             let req = notifs_rx.recv().await.unwrap();
-            assert_eq!(req.user_id, user_id);
+            assert_eq!(req.user_pk, user_pk);
             let port = req.port;
 
             let expect_dummy_quote = cfg!(not(target_env = "sgx"));
@@ -426,7 +427,7 @@ mod test {
 
             // client sends provision request to node
             let provision_req = ProvisionRequest {
-                user_id,
+                user_pk,
                 node_pubkey: "031f7d233e27e9eaa68b770717c22fddd3bdd58656995d9edc32e84e6611182241".parse().unwrap(),
                 root_seed: RootSeed::new(Secret::new([0x42; 32])),
             };
@@ -448,7 +449,7 @@ mod test {
         // test that we can unseal the provisioned data
 
         // TODO(phlip9): add mock db
-        // let node = api.get_node(user_id).await.unwrap().unwrap();
-        // assert_eq!(node.user_id, user_id);
+        // let node = api.get_node(user_pk).await.unwrap().unwrap();
+        // assert_eq!(node.user_pk, user_pk);
     }
 }

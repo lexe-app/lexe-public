@@ -9,7 +9,6 @@ use subtle::ConstantTimeEq;
 
 use crate::api::ApiClient;
 
-pub type UserId = i64;
 pub type Port = u16;
 pub type InstanceId = String;
 pub type EnclaveId = String;
