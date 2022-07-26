@@ -1,9 +1,13 @@
+use std::sync::Arc;
+
 use anyhow::Context;
 use argh::FromArgs;
+use common::enclave::MachineId;
 use common::rng::SysRng;
 
+use crate::api::LexeApiClient;
 use crate::init::LexeContext;
-use crate::provision::{provision, LexeRunner};
+use crate::provision::provision;
 use crate::types::{Port, UserId};
 
 mod types;
@@ -92,6 +96,13 @@ pub struct StartCommand {
 #[derive(Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand, name = "provision")]
 pub struct ProvisionCommand {
+    /// identifies the current CPU hardware we're running on. The node enclave
+    /// should be able to unseal its own sealed data if this id is the same
+    /// (unless we're trying to unseal data sealed with a newer CPUSVN or
+    /// different enclave measurement).
+    #[argh(option)]
+    pub machine_id: MachineId,
+
     /// the Lexe user id to provision the node for
     #[argh(option)]
     pub user_id: UserId,
@@ -142,11 +153,11 @@ impl Args {
                     .build()
                     .expect("Failed to init tokio runtime");
                 let mut rng = SysRng::new();
-                let runner = LexeRunner::new(
+                let api = Arc::new(LexeApiClient::new(
                     args.backend_url.clone(),
                     args.runner_url.clone(),
-                );
-                rt.block_on(provision(args, &mut rng, runner))
+                ));
+                rt.block_on(provision(args, api, &mut rng))
                     .context("error while provisioning")
             }
         }

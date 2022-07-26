@@ -19,16 +19,17 @@
 
 use std::convert::Infallible;
 use std::net::SocketAddr;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use anyhow::{Context, Result};
-use async_trait::async_trait;
+use anyhow::{ensure, Context, Result};
+use bitcoin::secp256k1::PublicKey;
 use common::attest::cert::AttestationCert;
-use common::rng::Crng;
+use common::enclave::{self, Sealed};
+use common::rng::{Crng, SysRng};
 use common::root_seed::RootSeed;
 use common::{ed25519, hex};
 use http::{Response, StatusCode};
+use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc;
@@ -38,10 +39,12 @@ use warp::hyper::Body;
 use warp::reject::Reject;
 use warp::{Filter, Rejection, Reply};
 
-use crate::api::{self, LexeApiClient, UserPort};
+use crate::api::{Enclave, Instance, Node, NodeInstanceEnclave, UserPort};
 use crate::attest;
 use crate::cli::ProvisionCommand;
-use crate::types::{ApiClientType, Port, UserId};
+use crate::convert::{get_enclave_id, get_instance_id};
+use crate::lexe::keys_manager::LexeKeysManager;
+use crate::types::{ApiClientType, UserId};
 
 const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -67,79 +70,151 @@ fn with_shutdown_tx(
     warp::any().map(move || shutdown_tx.clone())
 }
 
+fn with_api_client(
+    api: ApiClientType,
+) -> impl Filter<Extract = (ApiClientType,), Error = Infallible> + Clone {
+    warp::any().map(move || api.clone())
+}
+
+/// The client sends this provisioning request to the node.
 #[derive(Serialize, Deserialize)]
 struct ProvisionRequest {
+    /// The client's user id.
+    user_id: UserId,
+    /// The client's node public key, derived from the root seed. The node
+    /// should sanity check by re-deriving the node pubkey and checking that it
+    /// equals the client's expected value.
+    node_pubkey: PublicKey,
+    /// The secret root seed the client wants to provision into the node.
     root_seed: RootSeed,
+}
+
+impl ProvisionRequest {
+    fn verify<R: Crng>(
+        self,
+        rng: &mut R,
+        expected_user_id: &UserId,
+    ) -> Result<(UserId, PublicKey, ProvisionedSecrets)> {
+        ensure!(&self.user_id == expected_user_id);
+
+        // TODO(phlip9): derive just the node pubkey without all the extra junk
+        // that gets derived constructing a whole KeysManager
+        let _keys_manager =
+            LexeKeysManager::init(rng, &self.node_pubkey, &self.root_seed)?;
+        Ok((
+            self.user_id,
+            self.node_pubkey,
+            ProvisionedSecrets {
+                root_seed: self.root_seed,
+            },
+        ))
+    }
+}
+
+/// The enclave's provisioned secrets that it will seal and persist using its
+/// platform enclave keys that are software and version specific.
+///
+/// See: [`common::enclave::seal`]
+struct ProvisionedSecrets {
+    pub root_seed: RootSeed,
+}
+
+impl ProvisionedSecrets {
+    const LABEL: &'static [u8] = b"provisioned secrets";
+
+    fn seal(&self, rng: &mut dyn Crng) -> Result<Sealed<'_>> {
+        let root_seed_ref = self.root_seed.expose_secret().as_slice();
+        enclave::seal(rng, Self::LABEL, root_seed_ref.into())
+            .context("Failed to seal provisioned secrets")
+    }
+
+    fn unseal(sealed: Sealed<'_>) -> Result<Self> {
+        let bytes = enclave::unseal(Self::LABEL, sealed)
+            .context("Failed to unseal provisioned secrets")?;
+        let root_seed = RootSeed::try_from(bytes.as_slice())
+            .context("Failed to deserialize root seed")?;
+        Ok(Self { root_seed })
+    }
 }
 
 // # provision service
 //
 // POST /provision
 //
+// ```json
 // {
-//   root_seed: "87089d313793a902a25b0126439ab1ac"
+//   "user_id": 123,
+//   "node_pubkey": "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),
+//   "root_seed": "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7".parse().unwrap(),
 // }
+// ```
 async fn provision_request(
+    api: ApiClientType,
     shutdown_tx: mpsc::Sender<()>,
-    _req: ProvisionRequest,
+    req: ProvisionRequest,
 ) -> Result<impl Reply, ApiError> {
     debug!("received provision request");
 
-    // 3. read root secret
-    // 4. seal root secret w/ platform key
-    // 6. push sealed root secret and extras to persistent storage
-    // 7. return success & exit node
+    let user_id: UserId = 123;
+
+    // TODO(phlip9): inject rng?
+    let mut rng = SysRng::new();
+
+    let (user_id, node_public_key, provisioned_secrets) =
+        req.verify(&mut rng, &user_id).map_err(|_| ApiError)?;
+
+    let sealed_secrets =
+        provisioned_secrets.seal(&mut rng).map_err(|_| ApiError)?;
+
+    // TODO(phlip9): add some constructors / ID newtypes
+    let measurement = enclave::measurement();
+    let node = Node {
+        public_key: node_public_key,
+        user_id,
+    };
+    let instance_id = get_instance_id(&node_public_key, &measurement);
+    let instance = Instance {
+        id: instance_id.clone(),
+        node_public_key,
+        measurement,
+    };
+    let machine_id = enclave::machine_id();
+    let machine_id_str = format!("{}", machine_id);
+    let enclave = Enclave {
+        id: get_enclave_id(&instance_id, &machine_id_str),
+        seed: sealed_secrets.serialize(),
+        instance_id,
+    };
+
+    let batch = NodeInstanceEnclave {
+        node,
+        instance,
+        enclave,
+    };
+
+    // TODO(phlip9): auth using user id derived from root seed
+
+    api.create_node_instance_enclave(batch)
+        .await
+        .map_err(|_| ApiError)?;
 
     // Provisioning done. Stop node.
     let _ = shutdown_tx.try_send(());
 
-    Ok("hello, world")
+    Ok("OK")
 }
 
 fn provision_routes(
+    api: ApiClientType,
     shutdown_tx: mpsc::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    // TODO(phlip9): need to decide how client connects to node after
-    // provisioning...
-
     // POST /provision
     warp::path::path("provision")
         .and(warp::post())
+        .and(with_api_client(api))
         .and(with_shutdown_tx(shutdown_tx))
         .and(warp::body::json())
         .then(provision_request)
-}
-
-#[async_trait]
-pub trait Runner {
-    async fn ready(
-        &self,
-        user_id: UserId,
-        port: Port,
-    ) -> Result<(), api::ApiError>;
-}
-
-pub struct LexeRunner {
-    api: ApiClientType,
-}
-
-impl LexeRunner {
-    pub fn new(backend_url: String, runner_url: String) -> Self {
-        let api = Arc::new(LexeApiClient::new(backend_url, runner_url));
-        Self { api }
-    }
-}
-
-#[async_trait]
-impl Runner for LexeRunner {
-    async fn ready(
-        &self,
-        user_id: UserId,
-        port: Port,
-    ) -> Result<(), api::ApiError> {
-        let req = UserPort { user_id, port };
-        self.api.notify_runner(req).await.map(|_| ())
-    }
 }
 
 /// Provision a new lexe node
@@ -148,10 +223,10 @@ impl Runner for LexeRunner {
 /// which user we should provision to and have a simple method to authenticate
 /// their connection.
 #[instrument(skip_all)]
-pub async fn provision<R: Runner>(
+pub async fn provision(
     args: ProvisionCommand,
+    api: ApiClientType,
     rng: &mut dyn Crng,
-    runner: R,
 ) -> Result<()> {
     debug!(args.user_id, args.port, %args.node_dns_name, "provisioning");
 
@@ -219,7 +294,7 @@ pub async fn provision<R: Runner>(
 
     // bind TCP listener on port (queues up any inbound connections).
     let addr = SocketAddr::from(([127, 0, 0, 1], args.port));
-    let routes = provision_routes(shutdown_tx);
+    let routes = provision_routes(api.clone(), shutdown_tx);
     let (listen_addr, service) = warp::serve(routes)
         .tls()
         .preconfigured_tls(tls_config)
@@ -229,8 +304,8 @@ pub async fn provision<R: Runner>(
     info!(%listen_addr, "listening for connections");
 
     // notify the runner that we're ready for a client connection
-    runner
-        .ready(args.user_id, port)
+    let user_id = args.user_id;
+    api.notify_runner(UserPort { user_id, port })
         .await
         .context("Failed to notify runner of our readiness")?;
 
@@ -248,12 +323,12 @@ mod test {
     use common::attest::verify::EnclavePolicy;
     use common::rng::SysRng;
     use secrecy::Secret;
-    use tokio::sync::mpsc;
-    use tracing::trace;
 
     use super::*;
+    use crate::api::mock::MockApiClient;
     use crate::cli::{self, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
     use crate::lexe::logger;
+    use crate::types::UserId;
 
     #[cfg(target_env = "sgx")]
     #[test]
@@ -270,8 +345,7 @@ mod test {
             AttestationCert::new(cert_key_pair, dns_names, attestation)
                 .unwrap();
 
-        let self_report = sgx_isa::Report::for_self();
-        println!("MRENCLAVE: '{}'", hex::display(&self_report.mrenclave));
+        println!("measurement: '{}'", enclave::measurement());
         println!("cert_pubkey: '{cert_pubkey}'");
 
         let cert_der = attest_cert.serialize_der_signed().unwrap();
@@ -282,30 +356,31 @@ mod test {
         println!("-----END CERTIFICATE-----");
     }
 
+    #[test]
+    fn test_provision_request_serde() {
+        let req = ProvisionRequest {
+            user_id: 123,
+            node_pubkey: "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),         root_seed:
+        "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7".parse().unwrap(),
+        };
+        let actual = serde_json::to_value(&req).unwrap();
+        let expected = serde_json::json!({
+            "user_id": 123,
+            "node_pubkey": "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4",
+            "root_seed": "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7",
+        });
+        assert_eq!(&actual, &expected);
+    }
+
     #[tokio::test]
     async fn test_provision() {
         logger::init_for_testing();
-
-        struct MockRunner(mpsc::Sender<UserPort>);
-
-        #[async_trait]
-        impl Runner for MockRunner {
-            async fn ready(
-                &self,
-                user_id: UserId,
-                port: Port,
-            ) -> Result<(), api::ApiError> {
-                let req = UserPort { user_id, port };
-                trace!("mock runner: received ready notification");
-                self.0.send(req).await.unwrap();
-                Ok(())
-            }
-        }
 
         let user_id: UserId = 123;
         let node_dns_name = "localhost";
 
         let args = cli::ProvisionCommand {
+            machine_id: enclave::machine_id(),
             user_id,
             node_dns_name: node_dns_name.to_owned(),
             port: 0,
@@ -313,16 +388,19 @@ mod test {
             runner_url: DEFAULT_RUNNER_URL.into(),
         };
 
-        let (runner_req_tx, mut runner_req_rx) = mpsc::channel(1);
         let mut rng = SysRng::new();
-        let runner = MockRunner(runner_req_tx);
-        let provision_task = provision(args, &mut rng, runner);
+        let api = Arc::new(MockApiClient::new());
+        let mut notifs_rx = api.notifs_rx();
+
+        let provision_task = async {
+            provision(args, api, &mut rng).await.unwrap();
+        };
 
         let test_task = async {
             // runner recv ready notification w/ listening port
-            let runner_req = runner_req_rx.recv().await.unwrap();
-            assert_eq!(runner_req.user_id, user_id);
-            let port = runner_req.port;
+            let req = notifs_rx.recv().await.unwrap();
+            assert_eq!(req.user_id, user_id);
+            let port = req.port;
 
             let expect_dummy_quote = cfg!(not(target_env = "sgx"));
 
@@ -339,6 +417,8 @@ mod test {
 
             // client sends provision request to node
             let provision_req = ProvisionRequest {
+                user_id,
+                node_pubkey: "031f7d233e27e9eaa68b770717c22fddd3bdd58656995d9edc32e84e6611182241".parse().unwrap(),
                 root_seed: RootSeed::new(Secret::new([0x42; 32])),
             };
             let client = reqwest::Client::builder()
@@ -355,5 +435,11 @@ mod test {
         };
 
         let (_, _) = tokio::join!(provision_task, test_task);
+
+        // test that we can unseal the provisioned data
+
+        // TODO(phlip9): add mock db
+        // let node = api.get_node(user_id).await.unwrap().unwrap();
+        // assert_eq!(node.user_id, user_id);
     }
 }
