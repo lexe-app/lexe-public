@@ -10,7 +10,7 @@ use ring::hkdf::{self, HKDF_SHA256};
 use secrecy::zeroize::Zeroizing;
 use sgx_isa::{AttributesFlags, Keyname, Keypolicy};
 
-use crate::enclave::{Error, Sealed, MIN_SGX_CPUSVN};
+use crate::enclave::{Error, Measurement, Sealed, MIN_SGX_CPUSVN};
 use crate::hex;
 use crate::rng::Crng;
 
@@ -222,8 +222,8 @@ pub fn unseal(label: &[u8], sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
     Ok(ciphertext)
 }
 
-pub fn measurement() -> [u8; 32] {
-    sgx_isa::Report::for_self().mrenclave
+pub fn measurement() -> Measurement {
+    Measurement::new(sgx_isa::Report::for_self().mrenclave)
 }
 
 #[cfg(test)]

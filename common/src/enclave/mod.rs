@@ -13,10 +13,11 @@ use std::borrow::Cow;
 use std::fmt;
 
 use cfg_if::cfg_if;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::hex;
 use crate::rng::Crng;
+use crate::{hex, hexstr_or_bytes};
 
 /// In SGX enclaves, this is the current CPUSVN we commit to when
 /// sealing data.
@@ -45,6 +46,39 @@ pub enum Error {
 impl From<sgx_isa::ErrorCode> for Error {
     fn from(err: sgx_isa::ErrorCode) -> Self {
         Self::SgxError(err)
+    }
+}
+
+/// An enclave measurement.
+///
+/// Get the current enclave's measurement with
+/// [`enclave::measurement()`](measurement).
+#[derive(Copy, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct Measurement(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+
+impl Measurement {
+    pub fn new(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    pub fn into_inner(self) -> [u8; 32] {
+        self.0
+    }
+
+    pub fn as_inner(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl fmt::Display for Measurement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::display(self.0.as_slice()))
+    }
+}
+
+impl fmt::Debug for Measurement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
     }
 }
 
@@ -131,7 +165,7 @@ pub fn unseal(label: &[u8], sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
 ///   change the measurement.
 ///
 /// [`MRENCLAVE`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#enclave-measurement-mrenclave
-pub fn measurement() -> [u8; 32] {
+pub fn measurement() -> Measurement {
     cfg_if! {
         if #[cfg(target_env = "sgx")] {
             sgx::measurement()
