@@ -119,7 +119,7 @@ impl LexeContext {
                 let root_seed = RootSeed::try_from(enclave.seed.as_slice())
                     .context("Invalid root seed")?;
 
-                LexeKeysManager::init(rng, &node.public_key, &root_seed)
+                LexeKeysManager::init(rng, &node.node_pubkey, &root_seed)
                     .context("Could not construct keys manager")?
             }
             (None, None, None) => {
@@ -480,18 +480,18 @@ async fn provision_new_node<R: Crng>(
 
     // Derive pubkey
     let keys_manager = LexeKeysManager::insecure_init(rng, &root_seed);
-    let node_public_key = keys_manager.derive_pubkey(rng);
+    let node_pubkey = keys_manager.derive_pubkey(rng);
 
     // Build structs for persisting the new node + instance + enclave
     let node = Node {
-        public_key: node_public_key,
+        node_pubkey,
         user_pk,
     };
-    let instance_id = convert::get_instance_id(&node_public_key, &measurement);
+    let instance_id = convert::get_instance_id(&node_pubkey, &measurement);
     let instance = Instance {
         id: instance_id.clone(),
         measurement,
-        node_public_key,
+        node_pubkey,
     };
     let machine_id = enclave::machine_id();
     let enclave_id = convert::get_enclave_id(instance_id.as_str(), machine_id);

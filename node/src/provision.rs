@@ -160,7 +160,7 @@ async fn provision_request(
 ) -> Result<impl Reply, ApiError> {
     debug!("received provision request");
 
-    let (user_pk, node_public_key, provisioned_secrets) = req
+    let (user_pk, node_pubkey, provisioned_secrets) = req
         .verify(&mut ctx.rng, ctx.expected_user_id)
         .map_err(|_| ApiError)?;
 
@@ -170,13 +170,13 @@ async fn provision_request(
 
     // TODO(phlip9): add some constructors / ID newtypes
     let node = Node {
-        public_key: node_public_key,
+        node_pubkey,
         user_pk,
     };
-    let instance_id = get_instance_id(&node_public_key, &ctx.measurement);
+    let instance_id = get_instance_id(&node_pubkey, &ctx.measurement);
     let instance = Instance {
         id: instance_id.clone(),
-        node_public_key,
+        node_pubkey,
         measurement: ctx.measurement,
     };
     let enclave = Enclave {
