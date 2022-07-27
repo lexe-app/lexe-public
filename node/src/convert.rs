@@ -1,5 +1,5 @@
 use bitcoin::secp256k1::PublicKey;
-use common::enclave::Measurement;
+use common::enclave::{MachineId, Measurement};
 
 use crate::types::{EnclaveId, InstanceId};
 
@@ -15,7 +15,7 @@ pub fn get_instance_id(
 }
 
 // TODO Refactor this away
-/// Constructs an enclave id given the instance id and CPU id.
-pub fn get_enclave_id(instance_id: &str, cpu_id: &str) -> EnclaveId {
-    format!("{}_{}", instance_id, cpu_id)
+/// Constructs an enclave id given the instance id and machine id.
+pub fn get_enclave_id(instance_id: &str, machine_id: MachineId) -> EnclaveId {
+    format!("{}_{}", instance_id, machine_id)
 }

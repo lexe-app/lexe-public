@@ -178,10 +178,8 @@ async fn provision_request(
         node_public_key,
         measurement,
     };
-    let machine_id = enclave::machine_id();
-    let machine_id_str = format!("{}", machine_id);
     let enclave = Enclave {
-        id: get_enclave_id(&instance_id, &machine_id_str),
+        id: get_enclave_id(&instance_id, enclave::machine_id()),
         seed: sealed_secrets.serialize(),
         instance_id,
     };

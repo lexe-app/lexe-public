@@ -492,9 +492,8 @@ async fn provision_new_node<R: Crng>(
         measurement,
         node_public_key,
     };
-    // TODO Actually get the CPU id from within SGX
-    let cpu_id = "my_cpu_id";
-    let enclave_id = convert::get_enclave_id(instance_id.as_str(), cpu_id);
+    let machine_id = enclave::machine_id();
+    let enclave_id = convert::get_enclave_id(instance_id.as_str(), machine_id);
     let enclave = Enclave {
         id: enclave_id,
         // NOTE: This should be sealed
