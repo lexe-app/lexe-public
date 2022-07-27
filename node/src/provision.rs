@@ -88,9 +88,9 @@ struct ProvisionRequest {
     /// The client's user id.
     user_pk: UserPk,
     /// The client's node public key, derived from the root seed. The node
-    /// should sanity check by re-deriving the node pubkey and checking that it
+    /// should sanity check by re-deriving the node pk and checking that it
     /// equals the client's expected value.
-    node_pubkey: PublicKey,
+    node_pk: PublicKey,
     /// The secret root seed the client wants to provision into the node.
     root_seed: RootSeed,
 }
@@ -103,13 +103,13 @@ impl ProvisionRequest {
     ) -> Result<(UserPk, PublicKey, ProvisionedSecrets)> {
         ensure!(self.user_pk == expected_user_id);
 
-        // TODO(phlip9): derive just the node pubkey without all the extra junk
+        // TODO(phlip9): derive just the node pk without all the extra junk
         // that gets derived constructing a whole KeysManager
         let _keys_manager =
-            LexeKeysManager::init(rng, &self.node_pubkey, &self.root_seed)?;
+            LexeKeysManager::init(rng, &self.node_pk, &self.root_seed)?;
         Ok((
             self.user_pk,
-            self.node_pubkey,
+            self.node_pk,
             ProvisionedSecrets {
                 root_seed: self.root_seed,
             },
@@ -150,7 +150,7 @@ impl ProvisionedSecrets {
 // ```json
 // {
 //   "user_pk": UserPk::new(123),
-//   "node_pubkey": "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),
+//   "node_pk": "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),
 //   "root_seed": "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7".parse().unwrap(),
 // }
 // ```
@@ -160,7 +160,7 @@ async fn provision_request(
 ) -> Result<impl Reply, ApiError> {
     debug!("received provision request");
 
-    let (user_pk, node_pubkey, provisioned_secrets) = req
+    let (user_pk, node_pk, provisioned_secrets) = req
         .verify(&mut ctx.rng, ctx.expected_user_id)
         .map_err(|_| ApiError)?;
 
@@ -169,14 +169,11 @@ async fn provision_request(
         .map_err(|_| ApiError)?;
 
     // TODO(phlip9): add some constructors / ID newtypes
-    let node = Node {
-        node_pubkey,
-        user_pk,
-    };
-    let instance_id = get_instance_id(&node_pubkey, &ctx.measurement);
+    let node = Node { node_pk, user_pk };
+    let instance_id = get_instance_id(&node_pk, &ctx.measurement);
     let instance = Instance {
         id: instance_id.clone(),
-        node_pubkey,
+        node_pk,
         measurement: ctx.measurement,
     };
     let enclave = Enclave {
@@ -368,13 +365,13 @@ mod test {
     fn test_provision_request_serde() {
         let req = ProvisionRequest {
             user_pk: UserPk::new(123),
-            node_pubkey: "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),         root_seed:
+            node_pk: "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),         root_seed:
         "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7".parse().unwrap(),
         };
         let actual = serde_json::to_value(&req).unwrap();
         let expected = serde_json::json!({
             "user_pk": UserPk::new(123),
-            "node_pubkey": "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4",
+            "node_pk": "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4",
             "root_seed": "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7",
         });
         assert_eq!(&actual, &expected);
@@ -428,7 +425,7 @@ mod test {
             // client sends provision request to node
             let provision_req = ProvisionRequest {
                 user_pk,
-                node_pubkey: "031f7d233e27e9eaa68b770717c22fddd3bdd58656995d9edc32e84e6611182241".parse().unwrap(),
+                node_pk: "031f7d233e27e9eaa68b770717c22fddd3bdd58656995d9edc32e84e6611182241".parse().unwrap(),
                 root_seed: RootSeed::new(Secret::new([0x42; 32])),
             };
             let client = reqwest::Client::builder()

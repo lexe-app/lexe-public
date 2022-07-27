@@ -54,8 +54,8 @@ pub fn seed(user_pk: UserPk) -> Vec<u8> {
 
 fn instance_id(user_pk: UserPk) -> InstanceId {
     let measurement = enclave::measurement();
-    let node_pubkey = pubkey(user_pk);
-    convert::get_instance_id(&node_pubkey, &measurement)
+    let node_pk = pubkey(user_pk);
+    convert::get_instance_id(&node_pk, &measurement)
 }
 
 fn enclave_id(user_pk: UserPk) -> EnclaveId {
@@ -101,7 +101,7 @@ impl ApiClient for MockApiClient {
         user_pk: UserPk,
     ) -> Result<Option<Node>, ApiError> {
         let node = Node {
-            node_pubkey: pubkey(user_pk),
+            node_pk: pubkey(user_pk),
             user_pk,
         };
         Ok(Some(node))
@@ -116,7 +116,7 @@ impl ApiClient for MockApiClient {
         let instance = Instance {
             id: instance_id(user_pk),
             measurement: enclave::measurement(),
-            node_pubkey: pubkey(user_pk),
+            node_pk: pubkey(user_pk),
         };
 
         Ok(Some(instance))
