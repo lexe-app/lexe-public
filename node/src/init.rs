@@ -130,8 +130,8 @@ impl LexeContext {
             }
             _ => panic!("Node init data should have been persisted atomically"),
         };
-        let pubkey = keys_manager.derive_pubkey(rng);
-        let instance_id = convert::get_instance_id(&pubkey, &measurement);
+        let pk = keys_manager.derive_pk(rng);
+        let instance_id = convert::get_instance_id(&pk, &measurement);
 
         // LexeBitcoind implements BlockSource, FeeEstimator and
         // BroadcasterInterface, and thus serves these functions. It also
@@ -474,13 +474,13 @@ async fn provision_new_node<R: Crng>(
     println!("Generating new seed");
 
     // TODO Get and use the root seed from provisioning step
-    // TODO (sgx): Seal seed under this enclave's pubkey
+    // TODO (sgx): Seal seed under this enclave's pk
     let root_seed = RootSeed::from_rng(rng);
     let sealed_seed = root_seed.expose_secret().to_vec();
 
-    // Derive pubkey
+    // Derive pk
     let keys_manager = LexeKeysManager::insecure_init(rng, &root_seed);
-    let node_pk = keys_manager.derive_pubkey(rng);
+    let node_pk = keys_manager.derive_pk(rng);
 
     // Build structs for persisting the new node + instance + enclave
     let node = Node { node_pk, user_pk };
@@ -616,7 +616,7 @@ fn spawn_p2p_reconnect_task(
                             return;
                         }
                         for channel_peer in cp_vec.iter() {
-                            if channel_peer.pubkey == node_id {
+                            if channel_peer.pk == node_id {
                                 let _ = peer_manager
                                     .do_connect_peer(
                                         channel_peer.deref().clone(),

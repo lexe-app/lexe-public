@@ -211,7 +211,7 @@ impl LexeChannelManager {
         let push_msat = 0; // No need for this yet
         self.0
             .create_channel(
-                channel_peer.pubkey,
+                channel_peer.pk,
                 channel_value_sat,
                 push_msat,
                 user_channel_id,

@@ -6,12 +6,12 @@ use crate::types::{EnclaveId, InstanceId};
 // TODO Refactor this away
 /// Derives the instance id from the node public key and enclave measurement.
 pub fn get_instance_id(
-    pubkey: &PublicKey,
+    pk: &PublicKey,
     measurement: &Measurement,
 ) -> InstanceId {
     // TODO(crypto) id derivation scheme;
-    // probably hash(pubkey || measurement)
-    format!("{}_{}", pubkey, measurement)
+    // probably hash(pk || measurement)
+    format!("{}_{}", pk, measurement)
 }
 
 // TODO Refactor this away
