@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use anyhow::Context;
+use anyhow::{ensure, Context};
 use argh::FromArgs;
-use common::enclave::MachineId;
+use common::enclave::{self, MachineId};
 use common::rng::SysRng;
 
 use crate::api::LexeApiClient;
@@ -148,16 +148,25 @@ impl Args {
                 .context("Error running node")
             }
             Command::Provision(args) => {
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .expect("Failed to init tokio runtime");
+                let machine_id = enclave::machine_id();
+                ensure!(
+                    args.machine_id == machine_id,
+                    "cli machine id '{}' != derived machine id '{}'",
+                    args.machine_id,
+                    machine_id,
+                );
+                let measurement = enclave::measurement();
                 let mut rng = SysRng::new();
                 let api = Arc::new(LexeApiClient::new(
                     args.backend_url.clone(),
                     args.runner_url.clone(),
                 ));
-                rt.block_on(provision(args, api, &mut rng))
+
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("Failed to init tokio runtime");
+                rt.block_on(provision(args, measurement, api, &mut rng))
                     .context("error while provisioning")
             }
         }
