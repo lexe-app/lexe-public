@@ -37,7 +37,7 @@ mod sgx {
 
     pub fn quote_enclave(
         rng: &mut dyn Crng,
-        cert_pubkey: &ed25519::PublicKey,
+        cert_pk: &ed25519::PublicKey,
     ) -> Result<CustomExtension> {
         // TODO(phlip9): AESM retries
 
@@ -52,7 +52,7 @@ mod sgx {
             .context("Failed to connect to AESM service")?;
         let aesm_client = AesmClient::new(aesm_sock);
 
-        // 2. Get the ECDSA-P256 Attestation Key Id (pubkey hash)
+        // 2. Get the ECDSA-P256 Attestation Key Id (pk hash)
 
         let supported_key_ids = aesm_client
             .get_supported_att_key_ids()
@@ -91,11 +91,11 @@ mod sgx {
 
         // 4. Build our enclave Report
         //
-        // Bind the cert pubkey and QE Targetinfo to our enclave Report. When
+        // Bind the cert pk and QE Targetinfo to our enclave Report. When
         // the verifier checks the attestation evidence, this linkage is
         // what allows them to then trust the associated certificate.
 
-        let report_data = ReportData::new(cert_pubkey);
+        let report_data = ReportData::new(cert_pk);
         let qe_target_info =
             Targetinfo::try_copy_from(qe_quote_info.target_info())
                 .context("Failed to deserialize QE Quote Targetinfo")?;
@@ -181,7 +181,7 @@ mod not_sgx {
 
     pub fn quote_enclave(
         _rng: &mut dyn Crng,
-        _cert_pubkey: &ed25519::PublicKey,
+        _cert_pk: &ed25519::PublicKey,
     ) -> Result<CustomExtension> {
         // TODO(phlip9): use a different dummy extension?
 
@@ -267,7 +267,7 @@ pub struct QlAttKeyIdExt {
     pub version: u16,
     /// Number of valid bytes in `mrsigner`
     pub mrsigner_len: u16,
-    /// SHA256 or SHA384 hash of the pubkey that signed the QE
+    /// SHA256 or SHA384 hash of the pk that signed the QE
     pub mrsigner: [u8; 48],
 
     /// Legacy Product ID of the QE
@@ -305,11 +305,11 @@ impl QlAttKeyIdExt {
 struct ReportData([u8; 64]);
 
 impl ReportData {
-    fn new(pubkey: &ed25519::PublicKey) -> Self {
+    fn new(pk: &ed25519::PublicKey) -> Self {
         let mut report_data = [0u8; 64];
-        // ed25519 pubkeys are always 32 bytes. This will panic if this internal
+        // ed25519 pks are always 32 bytes. This will panic if this internal
         // invariant is somehow not true.
-        report_data[..32].copy_from_slice(pubkey.as_bytes());
+        report_data[..32].copy_from_slice(pk.as_bytes());
         Self(report_data)
     }
 

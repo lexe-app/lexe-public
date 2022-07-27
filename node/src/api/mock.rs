@@ -23,10 +23,10 @@ type Data = Vec<u8>;
 
 // --- Consts used in the MockApiClient ---
 
-pub const PUBKEY1: [u8; 33] = hex::decode_const(
+pub const NODE_PK1: [u8; 33] = hex::decode_const(
     b"02692f6894d5cb51bb785cc3c54f457889faf674fedea54a906f7ec99e88832d18",
 );
-pub const PUBKEY2: [u8; 33] = hex::decode_const(
+pub const NODE_PK2: [u8; 33] = hex::decode_const(
     b"025336702e1317fcb55cdce19b26bd154b5d5612b87d04ff41f807372513f02b6a",
 );
 pub const HEX_SEED1: [u8; 32] = hex::decode_const(
@@ -36,10 +36,10 @@ pub const HEX_SEED2: [u8; 32] = hex::decode_const(
     b"2a784ea82ef7002ec929b435e1af283a1998878575e8ccbad73e5d0cb3a95f59",
 );
 
-fn pubkey(user_pk: UserPk) -> PublicKey {
+fn node_pk(user_pk: UserPk) -> PublicKey {
     match user_pk.inner() {
-        1 => PublicKey::from_slice(&PUBKEY1).unwrap(),
-        2 => PublicKey::from_slice(&PUBKEY2).unwrap(),
+        1 => PublicKey::from_slice(&NODE_PK1).unwrap(),
+        2 => PublicKey::from_slice(&NODE_PK2).unwrap(),
         _ => todo!("TODO(max): Programmatically generate for new users"),
     }
 }
@@ -54,7 +54,7 @@ pub fn seed(user_pk: UserPk) -> Vec<u8> {
 
 fn instance_id(user_pk: UserPk) -> InstanceId {
     let measurement = enclave::measurement();
-    let node_pk = pubkey(user_pk);
+    let node_pk = node_pk(user_pk);
     convert::get_instance_id(&node_pk, &measurement)
 }
 
@@ -101,7 +101,7 @@ impl ApiClient for MockApiClient {
         user_pk: UserPk,
     ) -> Result<Option<Node>, ApiError> {
         let node = Node {
-            node_pk: pubkey(user_pk),
+            node_pk: node_pk(user_pk),
             user_pk,
         };
         Ok(Some(node))
@@ -116,7 +116,7 @@ impl ApiClient for MockApiClient {
         let instance = Instance {
             id: instance_id(user_pk),
             measurement: enclave::measurement(),
-            node_pk: pubkey(user_pk),
+            node_pk: node_pk(user_pk),
         };
 
         Ok(Some(instance))

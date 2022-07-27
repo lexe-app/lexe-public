@@ -19,7 +19,7 @@ pub const PKCD_OID: Oid<'static> = oid!(1.3.101.112);
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("ed25519 public key must be exactly 32 bytes")]
-    InvalidPubkeyLength,
+    InvalidPkLength,
 
     #[error("the algorithm OID doesn't match the standard ed25519 OID")]
     UnexpectedAlgorithm,
@@ -62,12 +62,12 @@ impl TryFrom<&[u8]> for PublicKey {
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         if bytes.len() != 32 {
-            return Err(Error::InvalidPubkeyLength);
+            return Err(Error::InvalidPkLength);
         }
 
-        let mut pubkey = [0u8; 32];
-        pubkey.copy_from_slice(bytes);
-        Ok(Self::new(pubkey))
+        let mut pk = [0u8; 32];
+        pk.copy_from_slice(bytes);
+        Ok(Self::new(pk))
     }
 }
 
@@ -120,8 +120,8 @@ pub fn from_seed(seed: &[u8; 32]) -> rcgen::KeyPair {
                 "This should never fail, as the secret is exactly 32 bytes",
             );
     let key_bytes = seed.as_slice();
-    let pubkey_bytes = key_pair.public_key().as_ref();
-    let pkcs8_bytes = serialize_pkcs8(key_bytes, pubkey_bytes);
+    let pk_bytes = key_pair.public_key().as_ref();
+    let pkcs8_bytes = serialize_pkcs8(key_bytes, pk_bytes);
 
     rcgen::KeyPair::try_from(pkcs8_bytes).expect(
         "Deserializing a freshly serialized ed25519 key pair should never fail",
@@ -152,7 +152,7 @@ const PKCS_TEMPLATE_PREFIX: &[u8] = &[
 const PKCS_TEMPLATE_MIDDLE: &[u8] = &[0xa1, 0x23, 0x03, 0x21, 0x00];
 const PKCS_TEMPLATE_KEY_IDX: usize = 16;
 
-/// Formats a key pair as `prefix || key || middle || pubkey`, where `prefix`
+/// Formats a key pair as `prefix || key || middle || pk`, where `prefix`
 /// and `middle` are two pre-computed blobs.
 ///
 /// Note: adapted from `ring`, which doesn't let you serialize as pkcs#8 via
@@ -192,7 +192,7 @@ mod test {
         let seed = [0x42; 32];
         let key_pair1 =
             Ed25519KeyPair::from_seed_unchecked(seed.as_slice()).unwrap();
-        let pubkey_bytes: &[u8] = key_pair1.public_key().as_ref();
+        let pk_bytes: &[u8] = key_pair1.public_key().as_ref();
 
         let key_pair1_bytes =
             serialize_pkcs8(seed.as_slice(), key_pair1.public_key().as_ref());
@@ -204,7 +204,7 @@ mod test {
         let sig_bytes: &[u8] = sig.as_ref();
 
         EdDSAParameters
-            .verify(pubkey_bytes.into(), msg.into(), sig_bytes.into())
+            .verify(pk_bytes.into(), msg.into(), sig_bytes.into())
             .unwrap();
     }
 
@@ -221,9 +221,9 @@ mod test {
     fn test_from_rcgen() {
         proptest!(|(seed in any::<[u8; 32]>())| {
             let key_pair = crate::ed25519::from_seed(&seed);
-            let pubkey_bytes = key_pair.public_key_raw();
-            let pubkey = PublicKey::try_from(pubkey_bytes).unwrap();
-            assert_eq!(pubkey.as_bytes(), pubkey_bytes);
+            let pk_bytes = key_pair.public_key_raw();
+            let pk = PublicKey::try_from(pk_bytes).unwrap();
+            assert_eq!(pk.as_bytes(), pk_bytes);
         });
     }
 }

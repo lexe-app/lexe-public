@@ -96,25 +96,25 @@ pub async fn poll_for_user_input(
                     );
                 }
                 "keysend" => {
-                    let dest_pubkey = match words.next() {
-                        Some(dest) => {
-                            match hex_to_compressed_pubkey(dest) {
-                                Some(pk) => pk,
-                                None => {
-                                    println!("ERROR: couldn't parse destination pubkey");
-                                    continue;
-                                }
+                    let dest_pk = match words.next() {
+                        Some(dest) => match hex_to_compressed_pk(dest) {
+                            Some(pk) => pk,
+                            None => {
+                                println!(
+                                    "ERROR: couldn't parse destination pk"
+                                );
+                                continue;
                             }
-                        }
+                        },
                         None => {
-                            println!("ERROR: keysend requires a destination pubkey: `keysend <dest_pubkey> <amt_msat>`");
+                            println!("ERROR: keysend requires a destination pk: `keysend <dest_pk> <amt_msat>`");
                             continue;
                         }
                     };
                     let amt_msat_str = match words.next() {
                         Some(amt) => amt,
                         None => {
-                            println!("ERROR: keysend requires an amount in millisatoshis: `keysend <dest_pubkey> <amt_msat>`");
+                            println!("ERROR: keysend requires an amount in millisatoshis: `keysend <dest_pk> <amt_msat>`");
                             continue;
                         }
                     };
@@ -130,7 +130,7 @@ pub async fn poll_for_user_input(
                     };
                     keysend(
                         &*invoice_payer,
-                        dest_pubkey,
+                        dest_pk,
                         amt_msat,
                         &*keys_manager,
                         outbound_payments.clone(),
@@ -173,13 +173,13 @@ pub async fn poll_for_user_input(
                     );
                 }
                 "connectpeer" => {
-                    let peer_pubkey_and_ip_addr = words.next();
-                    if peer_pubkey_and_ip_addr.is_none() {
-                        println!("ERROR: connectpeer requires peer connection info: `connectpeer pubkey@host:port`");
+                    let peer_pk_and_ip_addr = words.next();
+                    if peer_pk_and_ip_addr.is_none() {
+                        println!("ERROR: connectpeer requires peer connection info: `connectpeer pk@host:port`");
                         continue;
                     }
-                    let (pubkey, peer_addr) = match parse_peer_info(
-                        peer_pubkey_and_ip_addr.unwrap().to_string(),
+                    let (pk, peer_addr) = match parse_peer_info(
+                        peer_pk_and_ip_addr.unwrap().to_string(),
                     ) {
                         Ok(info) => info,
                         Err(e) => {
@@ -187,7 +187,7 @@ pub async fn poll_for_user_input(
                             continue;
                         }
                     };
-                    let channel_peer = ChannelPeer::new(pubkey, peer_addr);
+                    let channel_peer = ChannelPeer::new(pk, peer_addr);
                     if peer_manager
                         .connect_peer_if_necessary(channel_peer.clone())
                         .await
@@ -195,7 +195,7 @@ pub async fn poll_for_user_input(
                     {
                         println!(
                             "SUCCESS: connected to peer {}",
-                            channel_peer.pubkey
+                            channel_peer.pk
                         );
                     }
                 }
@@ -209,7 +209,7 @@ pub async fn poll_for_user_input(
                 "closechannel" => {
                     let channel_id_str = words.next();
                     if channel_id_str.is_none() {
-                        println!("ERROR: closechannel requires a channel ID: `closechannel <channel_id> <peer_pubkey>`");
+                        println!("ERROR: closechannel requires a channel ID: `closechannel <channel_id> <peer_pk>`");
                         continue;
                     }
                     let channel_id_vec = hex::decode(channel_id_str.unwrap());
@@ -222,40 +222,32 @@ pub async fn poll_for_user_input(
                     let mut channel_id = [0; 32];
                     channel_id.copy_from_slice(&channel_id_vec.unwrap());
 
-                    let peer_pubkey_str = words.next();
-                    if peer_pubkey_str.is_none() {
-                        println!("ERROR: closechannel requires a peer pubkey: `closechannel <channel_id> <peer_pubkey>`");
+                    let peer_pk_str = words.next();
+                    if peer_pk_str.is_none() {
+                        println!("ERROR: closechannel requires a peer pk: `closechannel <channel_id> <peer_pk>`");
                         continue;
                     }
-                    let peer_pubkey_vec =
-                        match hex::decode(peer_pubkey_str.unwrap()) {
-                            Ok(peer_pubkey_vec) => peer_pubkey_vec,
-                            Err(err) => {
-                                println!(
-                                    "ERROR: couldn't parse peer_pubkey: {err}"
-                                );
-                                continue;
-                            }
-                        };
-                    let peer_pubkey =
-                        match PublicKey::from_slice(&peer_pubkey_vec) {
-                            Ok(peer_pubkey) => peer_pubkey,
-                            Err(_) => {
-                                println!("ERROR: couldn't parse peer_pubkey");
-                                continue;
-                            }
-                        };
+                    let peer_pk_vec = match hex::decode(peer_pk_str.unwrap()) {
+                        Ok(peer_pk_vec) => peer_pk_vec,
+                        Err(err) => {
+                            println!("ERROR: couldn't parse peer_pk: {err}");
+                            continue;
+                        }
+                    };
+                    let peer_pk = match PublicKey::from_slice(&peer_pk_vec) {
+                        Ok(peer_pk) => peer_pk,
+                        Err(_) => {
+                            println!("ERROR: couldn't parse peer_pk");
+                            continue;
+                        }
+                    };
 
-                    close_channel(
-                        channel_id,
-                        peer_pubkey,
-                        channel_manager.clone(),
-                    );
+                    close_channel(channel_id, peer_pk, channel_manager.clone());
                 }
                 "forceclosechannel" => {
                     let channel_id_str = words.next();
                     if channel_id_str.is_none() {
-                        println!("ERROR: forceclosechannel requires a channel ID: `forceclosechannel <channel_id> <peer_pubkey>`");
+                        println!("ERROR: forceclosechannel requires a channel ID: `forceclosechannel <channel_id> <peer_pk>`");
                         continue;
                     }
                     let channel_id_vec = hex::decode(channel_id_str.unwrap());
@@ -268,35 +260,29 @@ pub async fn poll_for_user_input(
                     let mut channel_id = [0; 32];
                     channel_id.copy_from_slice(&channel_id_vec.unwrap());
 
-                    let peer_pubkey_str = words.next();
-                    if peer_pubkey_str.is_none() {
-                        println!("ERROR: forceclosechannel requires a peer pubkey: `forceclosechannel <channel_id> <peer_pubkey>`");
+                    let peer_pk_str = words.next();
+                    if peer_pk_str.is_none() {
+                        println!("ERROR: forceclosechannel requires a peer pk: `forceclosechannel <channel_id> <peer_pk>`");
                         continue;
                     }
-                    let peer_pubkey_vec =
-                        match hex::decode(peer_pubkey_str.unwrap()) {
-                            Ok(peer_pubkey_vec) => peer_pubkey_vec,
-                            Err(err) => {
-                                println!(
-                                    "ERROR: couldn't parse peer_pubkey: {err}"
-                                );
-                                continue;
-                            }
-                        };
-                    let peer_pubkey =
-                        match PublicKey::from_slice(&peer_pubkey_vec) {
-                            Ok(peer_pubkey) => peer_pubkey,
-                            Err(err) => {
-                                println!(
-                                    "ERROR: couldn't parse peer_pubkey: {err}"
-                                );
-                                continue;
-                            }
-                        };
+                    let peer_pk_vec = match hex::decode(peer_pk_str.unwrap()) {
+                        Ok(peer_pk_vec) => peer_pk_vec,
+                        Err(err) => {
+                            println!("ERROR: couldn't parse peer_pk: {err}");
+                            continue;
+                        }
+                    };
+                    let peer_pk = match PublicKey::from_slice(&peer_pk_vec) {
+                        Ok(peer_pk) => peer_pk,
+                        Err(err) => {
+                            println!("ERROR: couldn't parse peer_pk: {err}");
+                            continue;
+                        }
+                    };
 
                     force_close_channel(
                         channel_id,
-                        peer_pubkey,
+                        peer_pk,
                         channel_manager.clone(),
                     );
                 }
@@ -327,15 +313,15 @@ pub async fn poll_for_user_input(
 }
 
 fn help() {
-    println!("openchannel pubkey@host:port <amt_satoshis>");
+    println!("openchannel pk@host:port <amt_satoshis>");
     println!("sendpayment <invoice>");
-    println!("keysend <dest_pubkey> <amt_msats>");
+    println!("keysend <dest_pk> <amt_msats>");
     println!("getinvoice <amt_msats> <expiry_secs>");
-    println!("connectpeer pubkey@host:port");
+    println!("connectpeer pk@host:port");
     println!("listchannels");
     println!("listpayments");
-    println!("closechannel <channel_id> <peer_pubkey>");
-    println!("forceclosechannel <channel_id> <peer_pubkey>");
+    println!("closechannel <channel_id> <peer_pk>");
+    println!("forceclosechannel <channel_id> <peer_pk>");
     println!("nodeinfo");
     println!("listpeers");
     println!("signmessage <message>");
@@ -361,8 +347,8 @@ fn node_info(
 
 fn list_peers(peer_manager: LexePeerManager) {
     println!("\t{{");
-    for pubkey in peer_manager.get_peer_node_ids() {
-        println!("\t\t pubkey: {}", pubkey);
+    for pk in peer_manager.get_peer_node_ids() {
+        println!("\t\t pk: {}", pk);
     }
     println!("\t}},");
 }
@@ -384,7 +370,7 @@ fn list_channels(
         }
 
         println!(
-            "\t\tpeer_pubkey: {},",
+            "\t\tpeer_pk: {},",
             hex::encode(&chan_info.counterparty.node_id.serialize())
         );
         if let Some(node_info) = network_graph
@@ -480,11 +466,11 @@ fn send_payment(
 ) {
     let status = match invoice_payer.pay_invoice(invoice) {
         Ok(_payment_id) => {
-            let payee_pubkey = invoice.recover_payee_pub_key();
+            let payee_pk = invoice.recover_payee_pub_key();
             let amt_msat = invoice.amount_milli_satoshis().unwrap();
             println!(
                 "EVENT: initiated sending {} msats to {}",
-                amt_msat, payee_pubkey
+                amt_msat, payee_pk
             );
             print!("> ");
             HTLCStatus::Pending
@@ -522,7 +508,7 @@ fn send_payment(
 
 fn keysend<K: KeysInterface>(
     invoice_payer: &InvoicePayerType,
-    payee_pubkey: PublicKey,
+    payee_pk: PublicKey,
     amt_msat: u64,
     keys: &K,
     payment_storage: PaymentInfoStorageType,
@@ -530,7 +516,7 @@ fn keysend<K: KeysInterface>(
     let payment_preimage = keys.get_secure_random_bytes();
 
     let status = match invoice_payer.pay_pubkey(
-        payee_pubkey,
+        payee_pk,
         PaymentPreimage(payment_preimage),
         amt_msat,
         40,
@@ -538,7 +524,7 @@ fn keysend<K: KeysInterface>(
         Ok(_payment_id) => {
             println!(
                 "EVENT: initiated sending {} msats to {}",
-                amt_msat, payee_pubkey
+                amt_msat, payee_pk
             );
             print!("> ");
             HTLCStatus::Pending
@@ -619,15 +605,15 @@ async fn open_channel<'a, I: Iterator<Item = &'a str>>(
     peer_manager: &LexePeerManager,
     persister: &LexePersister,
 ) -> anyhow::Result<()> {
-    let peer_pubkey_at_addr = words
+    let peer_pk_at_addr = words
         .next()
-        .context("Missing first argument: pubkey@host:port")?;
+        .context("Missing first argument: pk@host:port")?;
     let channel_value_sat = words
         .next()
         .context("Missing second argument: channel_value_sat")?;
 
-    let channel_peer = ChannelPeer::from_str(peer_pubkey_at_addr)
-        .context("Failed to parse channel peer: pubkey@host:port")?;
+    let channel_peer = ChannelPeer::from_str(peer_pk_at_addr)
+        .context("Failed to parse channel peer: pk@host:port")?;
     let channel_value_sat = u64::from_str(channel_value_sat)
         .context("channel_value_sat must be a number")?;
 
@@ -662,15 +648,15 @@ fn force_close_channel(
 }
 
 fn parse_peer_info(
-    peer_pubkey_and_ip_addr: String,
+    peer_pk_and_ip_addr: String,
 ) -> Result<(PublicKey, SocketAddr), std::io::Error> {
-    let mut pubkey_and_addr = peer_pubkey_and_ip_addr.split('@');
-    let pubkey = pubkey_and_addr.next();
-    let peer_addr_str = pubkey_and_addr.next();
+    let mut pk_and_addr = peer_pk_and_ip_addr.split('@');
+    let pk = pk_and_addr.next();
+    let peer_addr_str = pk_and_addr.next();
     if peer_addr_str.is_none() || peer_addr_str.is_none() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::Other,
-            "ERROR: incorrectly formatted peer info. Should be formatted as: `pubkey@host:port`",
+            "ERROR: incorrectly formatted peer info. Should be formatted as: `pk@host:port`",
         ));
     }
 
@@ -681,22 +667,22 @@ fn parse_peer_info(
     if peer_addr.is_err() || peer_addr.as_ref().unwrap().is_none() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::Other,
-            "ERROR: couldn't parse pubkey@host:port into a socket address",
+            "ERROR: couldn't parse pk@host:port into a socket address",
         ));
     }
 
-    let pubkey = hex_to_compressed_pubkey(pubkey.unwrap());
-    if pubkey.is_none() {
+    let pk = hex_to_compressed_pk(pk.unwrap());
+    if pk.is_none() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::Other,
-            "ERROR: unable to parse given pubkey for node",
+            "ERROR: unable to parse given pk for node",
         ));
     }
 
-    Ok((pubkey.unwrap(), peer_addr.unwrap().unwrap()))
+    Ok((pk.unwrap(), peer_addr.unwrap().unwrap()))
 }
 
-fn hex_to_compressed_pubkey(hex: &str) -> Option<PublicKey> {
+fn hex_to_compressed_pk(hex: &str) -> Option<PublicKey> {
     if hex.len() != 33 * 2 {
         return None;
     }

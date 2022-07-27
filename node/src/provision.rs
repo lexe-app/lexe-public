@@ -230,11 +230,11 @@ pub async fn provision(
 
     // Generate a fresh key pair, which we'll use for the provisioning cert.
     let cert_key_pair = ed25519::gen_key_pair(rng);
-    let cert_pubkey = cert_key_pair.public_key_raw();
-    debug!(cert_pubkey = %hex::display(cert_pubkey), "attesting to pubkey");
+    let cert_pk = cert_key_pair.public_key_raw();
+    debug!(cert_pk = %hex::display(cert_pk), "attesting to pk");
 
-    // Get our enclave measurement and cert pubkey quoted by the enclave
-    // platform. This process binds the cert pubkey to the quote evidence. When
+    // Get our enclave measurement and cert pk quoted by the enclave
+    // platform. This process binds the cert pk to the quote evidence. When
     // a client verifies the Quote, they can also trust that the cert was
     // generated on a valid, genuine enclave. Once this trust is settled,
     // they can safely provision secrets onto the enclave via the newly
@@ -243,8 +243,8 @@ pub async fn provision(
     // Returns the quote as an x509 cert extension that we'll embed in our
     // self-signed provisioning cert.
     let attest_start = Instant::now();
-    let cert_pubkey = ed25519::PublicKey::try_from(&cert_key_pair).unwrap();
-    let attestation = attest::quote_enclave(rng, &cert_pubkey)
+    let cert_pk = ed25519::PublicKey::try_from(&cert_key_pair).unwrap();
+    let attestation = attest::quote_enclave(rng, &cert_pk)
         .context("Failed to get node enclave quoted")?;
 
     // Generate a self-signed x509 cert with the remote attestation embedded.
@@ -341,9 +341,9 @@ mod test {
     fn dump_attest_cert() {
         let mut rng = SysRng::new();
         let cert_key_pair = ed25519::from_seed(&[0x42; 32]);
-        let cert_pubkey = ed25519::PublicKey::try_from(&cert_key_pair).unwrap();
+        let cert_pk = ed25519::PublicKey::try_from(&cert_key_pair).unwrap();
         let attestation =
-            crate::attest::quote_enclave(&mut rng, &cert_pubkey).unwrap();
+            crate::attest::quote_enclave(&mut rng, &cert_pk).unwrap();
         let dns_names = vec!["localhost".to_string()];
 
         let attest_cert =
@@ -351,7 +351,7 @@ mod test {
                 .unwrap();
 
         println!("measurement: '{}'", enclave::measurement());
-        println!("cert_pubkey: '{cert_pubkey}'");
+        println!("cert_pk: '{cert_pk}'");
 
         let cert_der = attest_cert.serialize_der_signed().unwrap();
 

@@ -10,7 +10,7 @@ use crate::types::NetworkGraphType;
 
 #[derive(Debug, Serialize)]
 pub struct NodeInfo {
-    pub pubkey: PublicKey,
+    pub node_pk: PublicKey,
     pub num_channels: usize,
     pub num_usable_channels: usize,
     pub local_balance_msat: u64,
@@ -22,7 +22,7 @@ pub fn node_info(
     channel_manager: LexeChannelManager,
     peer_manager: LexePeerManager,
 ) -> Result<NodeInfo, ApiError> {
-    let pubkey = channel_manager.get_our_node_id();
+    let node_pk = channel_manager.get_our_node_id();
 
     let channels = channel_manager.list_channels();
     let num_channels = channels.len();
@@ -32,7 +32,7 @@ pub fn node_info(
     let num_peers = peer_manager.get_peer_node_ids().len();
 
     let resp = NodeInfo {
-        pubkey,
+        node_pk,
         num_channels,
         num_usable_channels,
         local_balance_msat,

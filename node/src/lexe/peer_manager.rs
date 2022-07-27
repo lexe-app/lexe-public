@@ -72,7 +72,7 @@ impl LexePeerManager {
         channel_peer: ChannelPeer,
     ) -> anyhow::Result<()> {
         // Return immediately if we're already connected to the peer
-        if self.get_peer_node_ids().contains(&channel_peer.pubkey) {
+        if self.get_peer_node_ids().contains(&channel_peer.pk) {
             return Ok(());
         }
 
@@ -114,7 +114,7 @@ impl LexePeerManager {
         // TODO: Rewrite / replace lightning-net-tokio entirely
         let connection_closed_fut = lightning_net_tokio::setup_outbound(
             self.as_arc_inner(),
-            channel_peer.pubkey,
+            channel_peer.pk,
             stream,
         );
         let mut connection_closed_fut = Box::pin(connection_closed_fut);
@@ -131,7 +131,7 @@ impl LexePeerManager {
             if self
                 .get_peer_node_ids()
                 .iter()
-                .any(|pk| *pk == channel_peer.pubkey)
+                .any(|pk| *pk == channel_peer.pk)
             {
                 // Connection confirmed, break and return Ok
                 break;
@@ -147,41 +147,41 @@ impl LexePeerManager {
 
 #[derive(Clone)]
 pub struct ChannelPeer {
-    pub pubkey: PublicKey,
+    pub pk: PublicKey,
     pub addr: SocketAddr,
 }
 
 impl ChannelPeer {
-    pub fn new(pubkey: PublicKey, addr: SocketAddr) -> Self {
-        Self { pubkey, addr }
+    pub fn new(pk: PublicKey, addr: SocketAddr) -> Self {
+        Self { pk, addr }
     }
 }
 
-/// <pubkey>@<addr>
+/// <pk>@<addr>
 impl FromStr for ChannelPeer {
     type Err = anyhow::Error;
-    fn from_str(pubkey_at_addr: &str) -> anyhow::Result<Self> {
-        // vec![<pubkey>, <addr>]
-        let mut pubkey_and_addr = pubkey_at_addr.split('@');
-        let pubkey_str = pubkey_and_addr
+    fn from_str(pk_at_addr: &str) -> anyhow::Result<Self> {
+        // vec![<pk>, <addr>]
+        let mut pk_and_addr = pk_at_addr.split('@');
+        let pk_str = pk_and_addr
             .next()
-            .context("Missing <pubkey> in <pubkey>@<addr> peer address")?;
-        let addr_str = pubkey_and_addr
+            .context("Missing <pk> in <pk>@<addr> peer address")?;
+        let addr_str = pk_and_addr
             .next()
-            .context("Missing <addr> in <pubkey>@<addr> peer address")?;
+            .context("Missing <addr> in <pk>@<addr> peer address")?;
 
-        let pubkey = PublicKey::from_str(pubkey_str)
+        let pk = PublicKey::from_str(pk_str)
             .context("Could not deserialize PublicKey from LowerHex")?;
         let addr = SocketAddr::from_str(addr_str)
             .context("Could not parse socket address from string")?;
 
-        Ok(Self { pubkey, addr })
+        Ok(Self { pk, addr })
     }
 }
 
-/// <pubkey>@<addr>
+/// <pk>@<addr>
 impl Display for ChannelPeer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}@{}", self.pubkey, self.addr)
+        write!(f, "{}@{}", self.pk, self.addr)
     }
 }

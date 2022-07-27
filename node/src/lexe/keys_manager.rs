@@ -44,10 +44,10 @@ impl LexeKeysManager {
     }
 
     /// Initialize a `LexeKeysManager` from a given [`RootSeed`]. Verifies that
-    /// the derived node public matches `given_pubkey`.
+    /// the derived node public matches `given_pk`.
     pub fn init<R: Crng>(
         rng: &mut R,
-        given_pubkey: &PublicKey,
+        given_pk: &PublicKey,
         root_seed: &RootSeed,
     ) -> anyhow::Result<Self> {
         // Build the inner KeysManager from the RootSeed.
@@ -66,20 +66,20 @@ impl LexeKeysManager {
         // Construct the LexeKeysManager, but validation isn't done yet
         let keys_manager = Self { inner };
 
-        // Derive the pubkey from the inner KeysManager
-        let derived_pubkey = keys_manager.derive_pubkey(rng);
+        // Derive the pk from the inner KeysManager
+        let derived_pk = keys_manager.derive_pk(rng);
 
-        // Check the given pubkey against the derived one
+        // Check the given pk against the derived one
         ensure!(
-            given_pubkey == &derived_pubkey,
-            "Derived pubkey doesn't match the given pubkey"
+            given_pk == &derived_pk,
+            "Derived pk doesn't match the given pk"
         );
 
         // Validation complete, finally return the LexeKeysManager
         Ok(keys_manager)
     }
 
-    pub fn derive_pubkey<R: Crng>(&self, rng: &mut R) -> PublicKey {
+    pub fn derive_pk<R: Crng>(&self, rng: &mut R) -> PublicKey {
         // Initialize and seed the Secp256k1 context with some random bytes for
         // some extra side-channel resistance.
         let mut secp_random_bytes = [0; 32];

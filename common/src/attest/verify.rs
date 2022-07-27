@@ -122,9 +122,9 @@ impl rustls::client::ServerCertVerifier for ServerCertVerifier {
                     ))
                 })?;
 
-            // 5. check that the pubkey in the enclave Report matches the one in
+            // 5. check that the pk in the enclave Report matches the one in
             //    this x509 cert.
-            if &reportdata[..32] != evidence.cert_pubkey.as_bytes() {
+            if &reportdata[..32] != evidence.cert_pk.as_bytes() {
                 return Err(rustls_err(
                     "enclave's report is not actually binding to the presented x509 cert"
                 ));
@@ -138,7 +138,7 @@ impl rustls::client::ServerCertVerifier for ServerCertVerifier {
 }
 
 struct AttestEvidence<'a> {
-    cert_pubkey: ed25519::PublicKey,
+    cert_pk: ed25519::PublicKey,
     attest: SgxAttestationExtension<'a, 'a>,
 }
 
@@ -158,7 +158,7 @@ impl<'a> AttestEvidence<'a> {
             ));
         }
 
-        let cert_pubkey = ed25519::PublicKey::try_from(cert.public_key())
+        let cert_pk = ed25519::PublicKey::try_from(cert.public_key())
             .map_err(|err| Error::InvalidCertificateData(err.to_string()))?;
 
         let sgx_ext_oid = SgxAttestationExtension::oid_asn1_rs();
@@ -178,10 +178,7 @@ impl<'a> AttestEvidence<'a> {
                 ))
             })?;
 
-        Ok(Self {
-            cert_pubkey,
-            attest,
-        })
+        Ok(Self { cert_pk, attest })
     }
 }
 
@@ -262,7 +259,7 @@ impl SgxQuoteVerifier {
         // 2. Verify the Platform Certification Enclave (PCE) endorses the
         //    Quoting Enclave (QE) Report.
 
-        // TODO(phlip9): parse PCK cert pubkey + algorithm vs hard-coding scheme
+        // TODO(phlip9): parse PCK cert pk + algorithm vs hard-coding scheme
         pck_cert
             .verify_signature(
                 &webpki::ECDSA_P256_SHA256,
@@ -274,7 +271,7 @@ impl SgxQuoteVerifier {
             )?;
 
         // 3. Verify the local Quoting Enclave's Report binds to its attestation
-        //    pubkey, which it uses to sign application enclave Reports.
+        //    pk, which it uses to sign application enclave Reports.
 
         let expected_reportdata = sha256::digest_many(&[
             sig.attestation_public_key(),
@@ -291,7 +288,7 @@ impl SgxQuoteVerifier {
 
         ensure!(
             &qe3_reportdata[..32] == expected_reportdata.as_ref(),
-            "Quoting Enclave's Report data doesn't match the Quote attestation pubkey: \
+            "Quoting Enclave's Report data doesn't match the Quote attestation pk: \
              actual: '{}', expected: '{}'",
             hex::display(&qe3_reportdata[..32]),
             hex::display(expected_reportdata.as_ref()),
@@ -301,7 +298,7 @@ impl SgxQuoteVerifier {
         //    application enclave Report
 
         let attestation_public_key =
-            read_attestation_pubkey(sig.attestation_public_key())?;
+            read_attestation_pk(sig.attestation_public_key())?;
 
         // signature := Ecdsa-P256-SHA256-Sign_{AK}(
         //   Quote Header || Application Enclave Report
@@ -500,7 +497,7 @@ fn get_ecdsa_sig_der(sig: &[u8]) -> Result<Vec<u8>> {
     Ok(der)
 }
 
-fn read_attestation_pubkey(
+fn read_attestation_pk(
     bytes: &[u8],
 ) -> Result<ring::signature::UnparsedPublicKey<[u8; 65]>> {
     ensure!(bytes.len() == 64, "Attestation public key is in an unrecognized format; expected exactly 64 bytes, actual len: {}", bytes.len());

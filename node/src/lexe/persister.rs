@@ -262,10 +262,10 @@ impl InnerPersister {
         let mut result = Vec::with_capacity(cp_file_vec.len());
 
         for cp_file in cp_file_vec {
-            // <pubkey>@<addr>
-            let pubkey_at_addr = cp_file.name;
+            // <pk>@<addr>
+            let pk_at_addr = cp_file.name;
 
-            let channel_peer = ChannelPeer::from_str(&pubkey_at_addr)
+            let channel_peer = ChannelPeer::from_str(&pk_at_addr)
                 .context("Could not deserialize channel peer")?;
 
             result.push(channel_peer);
@@ -279,12 +279,12 @@ impl InnerPersister {
         channel_peer: ChannelPeer,
     ) -> anyhow::Result<()> {
         debug!("Persisting new channel peer");
-        let pubkey_at_addr = channel_peer.to_string();
+        let pk_at_addr = channel_peer.to_string();
 
         let cp_file = File {
             instance_id: self.instance_id.clone(),
             directory: CHANNEL_PEERS_DIRECTORY.to_owned(),
-            name: pubkey_at_addr,
+            name: pk_at_addr,
             // There is no 'data' associated with a channel peer
             data: Vec::new(),
         };
