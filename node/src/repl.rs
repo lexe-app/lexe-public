@@ -346,7 +346,7 @@ fn node_info(
     peer_manager: &LexePeerManager,
 ) {
     println!("\t{{");
-    println!("\t\t node_pubkey: {}", channel_manager.get_our_node_id());
+    println!("\t\t node_pk: {}", channel_manager.get_our_node_id());
     let chans = channel_manager.list_channels();
     println!("\t\t num_channels: {}", chans.len());
     println!(

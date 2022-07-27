@@ -32,7 +32,7 @@ pub struct GetByInstanceId {
 
 #[derive(Serialize, Deserialize)]
 pub struct Node {
-    pub node_pubkey: PublicKey,
+    pub node_pk: PublicKey,
     pub user_pk: UserPk,
 }
 
@@ -40,7 +40,7 @@ pub struct Node {
 pub struct Instance {
     pub id: InstanceId,
     pub measurement: Measurement,
-    pub node_pubkey: PublicKey,
+    pub node_pk: PublicKey,
 }
 
 #[derive(Serialize, Deserialize)]
