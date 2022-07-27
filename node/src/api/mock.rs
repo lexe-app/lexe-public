@@ -34,7 +34,6 @@ pub const HEX_SEED1: [u8; 32] = hex::decode_const(
 pub const HEX_SEED2: [u8; 32] = hex::decode_const(
     b"2a784ea82ef7002ec929b435e1af283a1998878575e8ccbad73e5d0cb3a95f59",
 );
-pub const CPU_ID: &str = "my_cpu_id";
 
 fn pubkey(user_id: UserId) -> PublicKey {
     match user_id {
@@ -60,7 +59,8 @@ fn instance_id(user_id: UserId) -> InstanceId {
 
 fn enclave_id(user_id: UserId) -> EnclaveId {
     let instance_id = instance_id(user_id);
-    convert::get_enclave_id(instance_id.as_str(), CPU_ID)
+    let machine_id = enclave::machine_id();
+    convert::get_enclave_id(instance_id.as_str(), machine_id)
 }
 
 // --- The MockApiClient ---
