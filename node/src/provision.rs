@@ -24,7 +24,7 @@ use std::time::{Duration, Instant};
 use anyhow::{ensure, Context, Result};
 use bitcoin::secp256k1::PublicKey;
 use common::attest::cert::AttestationCert;
-use common::enclave::{self, Sealed};
+use common::enclave::{self, MachineId, Measurement, Sealed};
 use common::rng::{Crng, SysRng};
 use common::root_seed::RootSeed;
 use common::{ed25519, hex};
@@ -64,16 +64,21 @@ impl Reply for ApiError {
 
 impl Reject for ApiError {}
 
-fn with_shutdown_tx(
-    shutdown_tx: mpsc::Sender<()>,
-) -> impl Filter<Extract = (mpsc::Sender<()>,), Error = Infallible> + Clone {
-    warp::any().map(move || shutdown_tx.clone())
+fn with_request_context(
+    ctx: RequestContext,
+) -> impl Filter<Extract = (RequestContext,), Error = Infallible> + Clone {
+    warp::any().map(move || ctx.clone())
 }
 
-fn with_api_client(
+#[derive(Clone)]
+struct RequestContext {
+    expected_user_id: UserId,
+    machine_id: MachineId,
+    measurement: Measurement,
+    shutdown_tx: mpsc::Sender<()>,
     api: ApiClientType,
-) -> impl Filter<Extract = (ApiClientType,), Error = Infallible> + Clone {
-    warp::any().map(move || api.clone())
+    // TODO(phlip9): make generic, use test rng in test
+    rng: SysRng,
 }
 
 /// The client sends this provisioning request to the node.
@@ -93,9 +98,9 @@ impl ProvisionRequest {
     fn verify<R: Crng>(
         self,
         rng: &mut R,
-        expected_user_id: &UserId,
+        expected_user_id: UserId,
     ) -> Result<(UserId, PublicKey, ProvisionedSecrets)> {
-        ensure!(&self.user_id == expected_user_id);
+        ensure!(self.user_id == expected_user_id);
 
         // TODO(phlip9): derive just the node pubkey without all the extra junk
         // that gets derived constructing a whole KeysManager
@@ -149,37 +154,32 @@ impl ProvisionedSecrets {
 // }
 // ```
 async fn provision_request(
-    api: ApiClientType,
-    shutdown_tx: mpsc::Sender<()>,
+    mut ctx: RequestContext,
     req: ProvisionRequest,
 ) -> Result<impl Reply, ApiError> {
     debug!("received provision request");
 
-    let user_id: UserId = 123;
+    let (user_id, node_public_key, provisioned_secrets) = req
+        .verify(&mut ctx.rng, ctx.expected_user_id)
+        .map_err(|_| ApiError)?;
 
-    // TODO(phlip9): inject rng?
-    let mut rng = SysRng::new();
-
-    let (user_id, node_public_key, provisioned_secrets) =
-        req.verify(&mut rng, &user_id).map_err(|_| ApiError)?;
-
-    let sealed_secrets =
-        provisioned_secrets.seal(&mut rng).map_err(|_| ApiError)?;
+    let sealed_secrets = provisioned_secrets
+        .seal(&mut ctx.rng)
+        .map_err(|_| ApiError)?;
 
     // TODO(phlip9): add some constructors / ID newtypes
-    let measurement = enclave::measurement();
     let node = Node {
         public_key: node_public_key,
         user_id,
     };
-    let instance_id = get_instance_id(&node_public_key, &measurement);
+    let instance_id = get_instance_id(&node_public_key, &ctx.measurement);
     let instance = Instance {
         id: instance_id.clone(),
         node_public_key,
-        measurement,
+        measurement: ctx.measurement,
     };
     let enclave = Enclave {
-        id: get_enclave_id(&instance_id, enclave::machine_id()),
+        id: get_enclave_id(&instance_id, ctx.machine_id),
         seed: sealed_secrets.serialize(),
         instance_id,
     };
@@ -192,25 +192,24 @@ async fn provision_request(
 
     // TODO(phlip9): auth using user id derived from root seed
 
-    api.create_node_instance_enclave(batch)
+    ctx.api
+        .create_node_instance_enclave(batch)
         .await
         .map_err(|_| ApiError)?;
 
     // Provisioning done. Stop node.
-    let _ = shutdown_tx.try_send(());
+    let _ = ctx.shutdown_tx.try_send(());
 
     Ok("OK")
 }
 
 fn provision_routes(
-    api: ApiClientType,
-    shutdown_tx: mpsc::Sender<()>,
+    ctx: RequestContext,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     // POST /provision
     warp::path::path("provision")
         .and(warp::post())
-        .and(with_api_client(api))
-        .and(with_shutdown_tx(shutdown_tx))
+        .and(with_request_context(ctx))
         .and(warp::body::json())
         .then(provision_request)
 }
@@ -223,10 +222,11 @@ fn provision_routes(
 #[instrument(skip_all)]
 pub async fn provision(
     args: ProvisionCommand,
+    measurement: Measurement,
     api: ApiClientType,
     rng: &mut dyn Crng,
 ) -> Result<()> {
-    debug!(args.user_id, args.port, %args.node_dns_name, "provisioning");
+    debug!(args.user_id, args.port, %args.machine_id, %args.node_dns_name, "provisioning");
 
     // TODO(phlip9): zeroize secrets
 
@@ -292,7 +292,16 @@ pub async fn provision(
 
     // bind TCP listener on port (queues up any inbound connections).
     let addr = SocketAddr::from(([127, 0, 0, 1], args.port));
-    let routes = provision_routes(api.clone(), shutdown_tx);
+    let ctx = RequestContext {
+        expected_user_id: args.user_id,
+        machine_id: args.machine_id,
+        measurement,
+        shutdown_tx,
+        api: api.clone(),
+        // TODO(phlip9): use passed in rng
+        rng: SysRng::new(),
+    };
+    let routes = provision_routes(ctx);
     let (listen_addr, service) = warp::serve(routes)
         .tls()
         .preconfigured_tls(tls_config)
@@ -376,9 +385,11 @@ mod test {
 
         let user_id: UserId = 123;
         let node_dns_name = "localhost";
+        let machine_id = enclave::machine_id();
+        let measurement = enclave::measurement();
 
         let args = cli::ProvisionCommand {
-            machine_id: enclave::machine_id(),
+            machine_id,
             user_id,
             node_dns_name: node_dns_name.to_owned(),
             port: 0,
@@ -391,7 +402,7 @@ mod test {
         let mut notifs_rx = api.notifs_rx();
 
         let provision_task = async {
-            provision(args, api, &mut rng).await.unwrap();
+            provision(args, measurement, api, &mut rng).await.unwrap();
         };
 
         let test_task = async {
