@@ -23,9 +23,10 @@ use std::time::{Duration, Instant};
 
 use anyhow::{ensure, Context, Result};
 use bitcoin::secp256k1::PublicKey;
+use common::api::provision::{Instance, Node, NodeInstanceSeed, SealedSeed};
 use common::api::UserPk;
 use common::attest::cert::AttestationCert;
-use common::enclave::{self, MachineId, Measurement, Sealed};
+use common::enclave::{self, MachineId, Measurement, Sealed, MIN_SGX_CPUSVN};
 use common::rng::{Crng, SysRng};
 use common::root_seed::RootSeed;
 use common::{ed25519, hex};
@@ -40,10 +41,9 @@ use warp::hyper::Body;
 use warp::reject::Reject;
 use warp::{Filter, Rejection, Reply};
 
-use crate::api::{Enclave, Instance, Node, NodeInstanceEnclave, UserPort};
+use crate::api::UserPort;
 use crate::attest;
 use crate::cli::ProvisionCommand;
-use crate::convert::{get_enclave_id, get_instance_id};
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::types::ApiClientType;
 
@@ -170,28 +170,28 @@ async fn provision_request(
 
     // TODO(phlip9): add some constructors / ID newtypes
     let node = Node { node_pk, user_pk };
-    let instance_id = get_instance_id(&node_pk, &ctx.measurement);
     let instance = Instance {
-        id: instance_id.clone(),
         node_pk,
         measurement: ctx.measurement,
     };
-    let enclave = Enclave {
-        id: get_enclave_id(&instance_id, ctx.machine_id),
+    let sealed_seed = SealedSeed {
+        node_pk,
+        measurement: enclave::measurement(),
+        machine_id: enclave::machine_id(),
+        min_cpusvn: MIN_SGX_CPUSVN,
         seed: sealed_secrets.serialize(),
-        instance_id,
     };
 
-    let batch = NodeInstanceEnclave {
+    let batch = NodeInstanceSeed {
         node,
         instance,
-        enclave,
+        sealed_seed,
     };
 
     // TODO(phlip9): auth using user pk derived from root seed
 
     ctx.api
-        .create_node_instance_enclave(batch)
+        .create_node_instance_seed(batch)
         .await
         .map_err(|_| ApiError)?;
 

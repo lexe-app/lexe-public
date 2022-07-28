@@ -7,8 +7,9 @@ use std::time::Duration;
 use anyhow::Context;
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::BlockHash;
+use common::api::provision::{Instance, Node, NodeInstanceSeed, SealedSeed};
 use common::api::UserPk;
-use common::enclave::{self, Measurement};
+use common::enclave::{self, Measurement, MIN_SGX_CPUSVN};
 use common::rng::Crng;
 use common::root_seed::RootSeed;
 use lightning::chain;
@@ -23,9 +24,7 @@ use tokio::net::TcpListener;
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
 
-use crate::api::{
-    ApiClient, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
-};
+use crate::api::{ApiClient, UserPort};
 use crate::cli::{Network, StartCommand};
 use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
@@ -42,7 +41,7 @@ use crate::types::{
     NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, Port,
     WalletType,
 };
-use crate::{api, command, convert};
+use crate::{api, command};
 
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 
@@ -114,9 +113,9 @@ impl LexeContext {
 
         // Build LexeKeysManager from node init data
         let keys_manager = match provisioned_data {
-            (Some(node), Some(_i), Some(enclave)) => {
+            (Some(node), Some(_i), Some(sealed_seed)) => {
                 // TODO(phlip9): actually unseal seed
-                let root_seed = RootSeed::try_from(enclave.seed.as_slice())
+                let root_seed = RootSeed::try_from(sealed_seed.seed.as_slice())
                     .context("Invalid root seed")?;
 
                 LexeKeysManager::init(rng, &node.node_pk, &root_seed)
@@ -439,25 +438,26 @@ fn init_api(args: &StartCommand) -> ApiClientType {
 
 // TODO: After the provision flow has been implemented, this function should be
 // changed to error if any of these endpoints returned None - indicating that
-// the provisioned components (Node, Instance, Enclave) were not persisted
+// the provisioned components (Node, Instance, SealedSeed) were not persisted
 // atomically.
 /// Fetches previously provisioned data from the API.
 async fn fetch_provisioned_data(
     api: &dyn ApiClient,
     user_pk: UserPk,
     measurement: Measurement,
-) -> anyhow::Result<(Option<Node>, Option<Instance>, Option<Enclave>)> {
+) -> anyhow::Result<(Option<Node>, Option<Instance>, Option<SealedSeed>)> {
     println!("Fetching provisioned data");
-    let (node_res, instance_res, enclave_res) = tokio::join!(
+    let (node_res, instance_res, sealed_seed_res) = tokio::join!(
         api.get_node(user_pk),
         api.get_instance(user_pk, measurement),
-        api.get_enclave(user_pk, measurement),
+        api.get_sealed_seed(user_pk, measurement),
     );
     let node_opt = node_res.context("Error while fetching node")?;
     let instance_opt = instance_res.context("Error while fetching instance")?;
-    let enclave_opt = enclave_res.context("Error while fetching enclave")?;
+    let sealed_seed_opt =
+        sealed_seed_res.context("Error while fetching seed")?;
 
-    Ok((node_opt, instance_opt, enclave_opt))
+    Ok((node_opt, instance_opt, sealed_seed_opt))
 }
 
 /// A temporary helper to provision a new node when running the start command.
@@ -481,34 +481,31 @@ async fn provision_new_node<R: Crng>(
     let keys_manager = LexeKeysManager::insecure_init(rng, &root_seed);
     let node_pk = keys_manager.derive_pk(rng);
 
-    // Build structs for persisting the new node + instance + enclave
+    // Build structs for persisting the new node + instance + seed
     let node = Node { node_pk, user_pk };
-    let instance_id = convert::get_instance_id(&node_pk, &measurement);
     let instance = Instance {
-        id: instance_id.clone(),
         measurement,
         node_pk,
     };
     let machine_id = enclave::machine_id();
-    let enclave_id = convert::get_enclave_id(instance_id.as_str(), machine_id);
-    let enclave = Enclave {
-        id: enclave_id,
-        // NOTE: This should be sealed
+    let min_cpusvn = MIN_SGX_CPUSVN;
+    let sealed_seed = SealedSeed {
+        node_pk,
+        measurement,
+        machine_id,
+        min_cpusvn,
         seed: sealed_seed,
-        instance_id,
     };
 
-    // Persist node, instance, and enclave together in one db txn to
-    // ensure that we never end up with a node without a corresponding
-    // instance + enclave that can unseal the associated seed
-    let node_instance_enclave = NodeInstanceEnclave {
+    // Persist node, instance, and seed together in one db txn
+    let node_instance_seed = NodeInstanceSeed {
         node,
         instance,
-        enclave,
+        sealed_seed,
     };
-    api.create_node_instance_enclave(node_instance_enclave)
+    api.create_node_instance_seed(node_instance_seed)
         .await
-        .context("Could not atomically create new node + instance + enclave")?;
+        .context("Could not atomically create new node + instance + seed")?;
 
     Ok(keys_manager)
 }

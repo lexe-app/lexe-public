@@ -28,8 +28,8 @@ pub const MOCK_MACHINE_ID: MachineId = MachineId::new(*b"!MOCK MACHINE ID");
 
 /// In SGX enclaves, this is the current CPUSVN we commit to when
 /// sealing data.
-pub const MIN_SGX_CPUSVN: [u8; 16] =
-    hex::decode_const(b"08080e0dffff01000000000000000000");
+pub const MIN_SGX_CPUSVN: MinCpusvn =
+    MinCpusvn::new(hex::decode_const(b"08080e0dffff01000000000000000000"));
 
 #[derive(Debug, Error)]
 #[error("error")]
@@ -140,6 +140,40 @@ impl fmt::Display for MachineId {
 impl fmt::Debug for MachineId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("MachineId")
+            .field(&hex::display(&self.0))
+            .finish()
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct MinCpusvn(#[serde(with = "hexstr_or_bytes")] [u8; 16]);
+
+impl MinCpusvn {
+    pub const fn new(bytes: [u8; 16]) -> Self {
+        Self(bytes)
+    }
+
+    pub const fn inner(self) -> [u8; 16] {
+        self.0
+    }
+}
+
+impl FromStr for MinCpusvn {
+    type Err = hex::DecodeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        <[u8; 16]>::from_hex(s).map(Self::new)
+    }
+}
+
+impl fmt::Display for MinCpusvn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::display(&self.0))
+    }
+}
+
+impl fmt::Debug for MinCpusvn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("MinCpusvn")
             .field(&hex::display(&self.0))
             .finish()
     }

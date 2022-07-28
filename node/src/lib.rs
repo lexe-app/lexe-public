@@ -6,7 +6,6 @@ pub mod lexe;
 mod api;
 mod attest;
 mod command;
-mod convert;
 mod event_handler;
 mod inactivity_timer;
 mod init;
