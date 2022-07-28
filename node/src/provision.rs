@@ -85,7 +85,7 @@ struct RequestContext {
 /// The client sends this provisioning request to the node.
 #[derive(Serialize, Deserialize)]
 struct ProvisionRequest {
-    /// The client's user id.
+    /// The client's user pk.
     user_pk: UserPk,
     /// The client's node public key, derived from the root seed. The node
     /// should sanity check by re-deriving the node pk and checking that it
@@ -149,7 +149,7 @@ impl ProvisionedSecrets {
 //
 // ```json
 // {
-//   "user_pk": UserPk::new(123),
+//   "user_pk": UserPk::from_i64(123),
 //   "node_pk": "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),
 //   "root_seed": "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7".parse().unwrap(),
 // }
@@ -188,7 +188,7 @@ async fn provision_request(
         enclave,
     };
 
-    // TODO(phlip9): auth using user id derived from root seed
+    // TODO(phlip9): auth using user pk derived from root seed
 
     ctx.api
         .create_node_instance_enclave(batch)
@@ -364,13 +364,13 @@ mod test {
     #[test]
     fn test_provision_request_serde() {
         let req = ProvisionRequest {
-            user_pk: UserPk::new(123),
+            user_pk: UserPk::from_i64(123),
             node_pk: "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),         root_seed:
         "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7".parse().unwrap(),
         };
         let actual = serde_json::to_value(&req).unwrap();
         let expected = serde_json::json!({
-            "user_pk": UserPk::new(123),
+            "user_pk": UserPk::from_i64(123),
             "node_pk": "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4",
             "root_seed": "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7",
         });
@@ -381,7 +381,7 @@ mod test {
     async fn test_provision() {
         logger::init_for_testing();
 
-        let user_pk = UserPk::new(123);
+        let user_pk = UserPk::from_i64(123);
         let node_dns_name = "localhost";
         let machine_id = enclave::machine_id();
         let measurement = enclave::measurement();
