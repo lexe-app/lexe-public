@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use common::api::provision::{Instance, Node, NodeInstanceSeed, SealedSeed};
 use common::api::vfs::{Directory, File, FileId};
 use common::api::UserPk;
 use common::enclave::Measurement;
@@ -37,16 +38,16 @@ pub trait ApiClient {
         measurement: Measurement,
     ) -> Result<Option<Instance>, ApiError>;
 
-    async fn get_enclave(
+    async fn get_sealed_seed(
         &self,
         user_pk: UserPk,
         measurement: Measurement,
-    ) -> Result<Option<Enclave>, ApiError>;
+    ) -> Result<Option<SealedSeed>, ApiError>;
 
-    async fn create_node_instance_enclave(
+    async fn create_node_instance_seed(
         &self,
-        req: NodeInstanceEnclave,
-    ) -> Result<NodeInstanceEnclave, ApiError>;
+        req: NodeInstanceSeed,
+    ) -> Result<NodeInstanceSeed, ApiError>;
 
     async fn get_file(&self, file_id: FileId)
         -> Result<Option<File>, ApiError>;

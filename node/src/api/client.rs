@@ -81,23 +81,23 @@ impl ApiClient for LexeApiClient {
             .await
     }
 
-    async fn get_enclave(
+    async fn get_sealed_seed(
         &self,
         user_pk: UserPk,
         measurement: Measurement,
-    ) -> Result<Option<Enclave>, ApiError> {
+    ) -> Result<Option<SealedSeed>, ApiError> {
         let req = GetByUserPkAndMeasurement {
             user_pk,
             measurement,
         };
-        self.request(Method::GET, Backend, V1, "/enclave", req)
+        self.request(Method::GET, Backend, V1, "/sealed_seed", req)
             .await
     }
 
-    async fn create_node_instance_enclave(
+    async fn create_node_instance_seed(
         &self,
-        req: NodeInstanceEnclave,
-    ) -> Result<NodeInstanceEnclave, ApiError> {
+        req: NodeInstanceSeed,
+    ) -> Result<NodeInstanceSeed, ApiError> {
         let endpoint = "/acid/node_instance_enclave";
         self.request(Method::POST, Backend, V1, endpoint, req).await
     }

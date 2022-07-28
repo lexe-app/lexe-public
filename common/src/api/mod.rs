@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::hex::{self, FromHex};
 use crate::hexstr_or_bytes;
 
+pub mod provision;
 pub mod vfs;
 
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]

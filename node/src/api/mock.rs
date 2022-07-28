@@ -5,18 +5,15 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use bitcoin::secp256k1::PublicKey;
+use common::api::provision::{Instance, Node, NodeInstanceSeed, SealedSeed};
 use common::api::vfs::{Directory, File, FileId};
 use common::api::UserPk;
-use common::enclave::{self, Measurement};
+use common::enclave::{self, Measurement, MIN_SGX_CPUSVN};
 use common::hex;
 use tokio::sync::mpsc;
 
-use crate::api::{
-    ApiClient, ApiError, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
-};
-use crate::convert;
+use crate::api::{ApiClient, ApiError, UserPort};
 use crate::lexe::persister;
-use crate::types::{EnclaveId, InstanceId};
 
 type FileName = String;
 type Data = Vec<u8>;
@@ -54,18 +51,6 @@ fn node_pk(user_pk: UserPk) -> PublicKey {
 fn measurement(_user_pk: UserPk) -> Measurement {
     // It's the same for now but we may want to use different ones later
     enclave::measurement()
-}
-
-fn instance_id(user_pk: UserPk) -> InstanceId {
-    let measurement = enclave::measurement();
-    let node_pk = node_pk(user_pk);
-    convert::get_instance_id(&node_pk, &measurement)
-}
-
-fn enclave_id(user_pk: UserPk) -> EnclaveId {
-    let instance_id = instance_id(user_pk);
-    let machine_id = enclave::machine_id();
-    convert::get_enclave_id(instance_id.as_str(), machine_id)
 }
 
 // --- The MockApiClient ---
@@ -118,32 +103,33 @@ impl ApiClient for MockApiClient {
         _measurement: Measurement,
     ) -> Result<Option<Instance>, ApiError> {
         let instance = Instance {
-            id: instance_id(user_pk),
-            measurement: enclave::measurement(),
             node_pk: node_pk(user_pk),
+            measurement: enclave::measurement(),
         };
 
         Ok(Some(instance))
     }
 
     /// Always return the dummy version
-    async fn get_enclave(
+    async fn get_sealed_seed(
         &self,
         user_pk: UserPk,
         _measurement: Measurement,
-    ) -> Result<Option<Enclave>, ApiError> {
-        let enclave = Enclave {
-            id: enclave_id(user_pk),
+    ) -> Result<Option<SealedSeed>, ApiError> {
+        let sealed_seed = SealedSeed {
+            node_pk: node_pk(user_pk),
+            measurement: enclave::measurement(),
+            machine_id: enclave::machine_id(),
+            min_cpusvn: MIN_SGX_CPUSVN,
             seed: seed(user_pk),
-            instance_id: instance_id(user_pk),
         };
-        Ok(Some(enclave))
+        Ok(Some(sealed_seed))
     }
 
-    async fn create_node_instance_enclave(
+    async fn create_node_instance_seed(
         &self,
-        req: NodeInstanceEnclave,
-    ) -> Result<NodeInstanceEnclave, ApiError> {
+        req: NodeInstanceSeed,
+    ) -> Result<NodeInstanceSeed, ApiError> {
         Ok(req)
     }
 
