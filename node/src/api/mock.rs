@@ -37,7 +37,7 @@ pub const HEX_SEED2: [u8; 32] = hex::decode_const(
 );
 
 fn node_pk(user_pk: UserPk) -> PublicKey {
-    match user_pk.inner() {
+    match user_pk.to_i64() {
         1 => PublicKey::from_slice(&NODE_PK1).unwrap(),
         2 => PublicKey::from_slice(&NODE_PK2).unwrap(),
         _ => todo!("TODO(max): Programmatically generate for new users"),
@@ -45,7 +45,7 @@ fn node_pk(user_pk: UserPk) -> PublicKey {
 }
 
 pub fn seed(user_pk: UserPk) -> Vec<u8> {
-    match user_pk.inner() {
+    match user_pk.to_i64() {
         1 => HEX_SEED1.to_vec(),
         2 => HEX_SEED2.to_vec(),
         _ => todo!("TODO(max): Programmatically generate for new users"),
@@ -195,7 +195,7 @@ impl VirtualFileSystem {
         let mut inner = HashMap::new();
 
         // Insert all directories used by the persister
-        let user_pk1 = UserPk::new(1);
+        let user_pk1 = UserPk::from_i64(1);
         let singleton_dir = DirectoryId {
             instance_id: instance_id(user_pk1),
             directory: persister::SINGLETON_DIRECTORY.into(),
@@ -213,7 +213,7 @@ impl VirtualFileSystem {
         inner.insert(channel_monitors_dir, HashMap::new());
 
         // Insert all directories used by the persister
-        let user_pk2 = UserPk::new(2);
+        let user_pk2 = UserPk::from_i64(2);
         let singleton_dir = DirectoryId {
             instance_id: instance_id(user_pk2),
             directory: persister::SINGLETON_DIRECTORY.into(),

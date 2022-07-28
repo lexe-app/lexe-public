@@ -29,7 +29,7 @@ use crate::types::NetworkGraphType;
 
 /// Helper to return a default StartCommand struct for testing.
 fn default_args() -> StartCommand {
-    default_args_for_user(UserPk::new(1))
+    default_args_for_user(UserPk::from_i64(1))
 }
 
 fn default_args_for_user(user_pk: UserPk) -> StartCommand {
@@ -181,8 +181,8 @@ async fn list_channels() {
 /// Tests connecting two nodes to each other.
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn connect_peer() {
-    let args1 = default_args_for_user(UserPk::new(1));
-    let args2 = default_args_for_user(UserPk::new(2));
+    let args1 = default_args_for_user(UserPk::from_i64(1));
+    let args2 = default_args_for_user(UserPk::from_i64(2));
     let (node1, node2) = tokio::join!(
         CommandTestHarness::init(args1),
         CommandTestHarness::init(args2),
@@ -230,8 +230,8 @@ async fn connect_peer() {
 /// Tests opening a channel
 #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
 async fn open_channel() {
-    let mut args1 = default_args_for_user(UserPk::new(1));
-    let mut args2 = default_args_for_user(UserPk::new(2));
+    let mut args1 = default_args_for_user(UserPk::from_i64(1));
+    let mut args2 = default_args_for_user(UserPk::from_i64(2));
     args1.shutdown_after_sync_if_no_activity = true;
     args2.shutdown_after_sync_if_no_activity = true;
 
