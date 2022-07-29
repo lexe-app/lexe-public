@@ -80,6 +80,13 @@ impl Measurement {
     }
 }
 
+impl FromStr for Measurement {
+    type Err = hex::DecodeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        <[u8; 32]>::from_hex(s).map(Self::new)
+    }
+}
+
 impl fmt::Display for Measurement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", hex::display(self.0.as_slice()))

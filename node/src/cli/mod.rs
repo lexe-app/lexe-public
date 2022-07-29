@@ -2,14 +2,13 @@ use std::sync::Arc;
 
 use anyhow::{ensure, Context};
 use argh::FromArgs;
-use common::api::UserPk;
+use common::api::{Port, UserPk};
 use common::enclave::{self, MachineId};
 use common::rng::SysRng;
 
 use crate::api::LexeApiClient;
 use crate::init::LexeContext;
 use crate::provision::provision;
-use crate::types::Port;
 
 mod types;
 

@@ -1,5 +1,7 @@
-group_imports = "StdExternalCrate"
-imports_granularity = "Module"
 max_width = 80
 use_field_init_shorthand = true
 wrap_comments = true
+
+# Requires nightly
+group_imports = "StdExternalCrate"
+imports_granularity = "Module"

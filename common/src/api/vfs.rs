@@ -14,12 +14,16 @@ pub struct Directory {
 /// Uniquely identifies a file in the node's virtual file system.
 #[derive(Clone, Deserialize, Serialize)]
 pub struct FileId {
+    // Flattened because serde_qs doesn't play well with nested structs
+    #[serde(flatten)]
     pub dir: Directory,
     pub filename: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct File {
+    // Flattened because serde_qs doesn't play well with nested structs
+    #[serde(flatten)]
     pub id: FileId,
     pub data: Vec<u8>,
 }

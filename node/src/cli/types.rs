@@ -2,9 +2,8 @@ use std::fmt;
 use std::str::FromStr;
 
 use anyhow::{anyhow, ensure};
+use common::api::Port;
 use lightning_invoice::Currency;
-
-use crate::types::Port;
 
 /// The information required to connect to a bitcoind instance via RPC
 #[derive(Clone, Debug, PartialEq, Eq)]

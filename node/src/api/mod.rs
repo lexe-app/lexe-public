@@ -1,19 +1,18 @@
 use async_trait::async_trait;
-use common::api::provision::{Instance, Node, NodeInstanceSeed, SealedSeed};
+use common::api::provision::{
+    Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
+};
 use common::api::vfs::{Directory, File, FileId};
-use common::api::UserPk;
+use common::api::{UserPk, UserPort};
 use common::enclave::Measurement;
 use thiserror::Error;
 
-// The mock client is only available during tests or when running outside of SGX
 #[cfg(any(test, not(target_env = "sgx")))]
 pub mod mock;
 
 mod client;
-mod models;
 
 pub use client::*;
-pub use models::*;
 
 #[derive(Error, Debug)]
 pub enum ApiError {
@@ -40,8 +39,7 @@ pub trait ApiClient {
 
     async fn get_sealed_seed(
         &self,
-        user_pk: UserPk,
-        measurement: Measurement,
+        req: SealedSeedId,
     ) -> Result<Option<SealedSeed>, ApiError>;
 
     async fn create_node_instance_seed(

@@ -7,7 +7,17 @@ use crate::hex::{self, FromHex};
 use crate::hexstr_or_bytes;
 
 pub mod provision;
+/// For serializing / deserializing query strings
+pub mod qs;
 pub mod vfs;
+
+pub type Port = u16;
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UserPort {
+    pub user_pk: UserPk,
+    pub port: Port,
+}
 
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct UserPk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);

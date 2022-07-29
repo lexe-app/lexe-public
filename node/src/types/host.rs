@@ -9,8 +9,6 @@ use subtle::ConstantTimeEq;
 
 use crate::api::ApiClient;
 
-pub type Port = u16;
-
 pub type ApiClientType = Arc<dyn ApiClient + Send + Sync>;
 
 #[derive(Clone)]

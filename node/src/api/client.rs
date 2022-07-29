@@ -4,8 +4,10 @@ use std::fmt::{self, Display};
 use std::time::Duration;
 
 use async_trait::async_trait;
+use common::api::provision::SealedSeedId;
+use common::api::qs::{GetByUserPk, GetByUserPkAndMeasurement};
 use common::api::vfs::{Directory, File, FileId};
-use common::api::UserPk;
+use common::api::{UserPk, UserPort};
 use common::enclave::Measurement;
 use http::Method;
 use reqwest::Client;
@@ -83,13 +85,8 @@ impl ApiClient for LexeApiClient {
 
     async fn get_sealed_seed(
         &self,
-        user_pk: UserPk,
-        measurement: Measurement,
+        req: SealedSeedId,
     ) -> Result<Option<SealedSeed>, ApiError> {
-        let req = GetByUserPkAndMeasurement {
-            user_pk,
-            measurement,
-        };
         self.request(Method::GET, Backend, V1, "/sealed_seed", req)
             .await
     }
@@ -98,7 +95,7 @@ impl ApiClient for LexeApiClient {
         &self,
         req: NodeInstanceSeed,
     ) -> Result<NodeInstanceSeed, ApiError> {
-        let endpoint = "/acid/node_instance_enclave";
+        let endpoint = "/acid/node_instance_seed";
         self.request(Method::POST, Backend, V1, endpoint, req).await
     }
 
