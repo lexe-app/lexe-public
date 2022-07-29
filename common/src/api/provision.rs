@@ -16,13 +16,40 @@ pub struct Instance {
     pub measurement: Measurement,
 }
 
+/// Uniquely identifies a sealed seed using its primary key fields.
 #[derive(Serialize, Deserialize)]
-pub struct SealedSeed {
+pub struct SealedSeedId {
     pub node_pk: PublicKey,
     pub measurement: Measurement,
     pub machine_id: MachineId,
     pub min_cpusvn: MinCpusvn,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct SealedSeed {
+    #[serde(flatten)]
+    pub id: SealedSeedId,
     pub seed: Vec<u8>,
+}
+
+impl SealedSeed {
+    pub fn new(
+        node_pk: PublicKey,
+        measurement: Measurement,
+        machine_id: MachineId,
+        min_cpusvn: MinCpusvn,
+        seed: Vec<u8>,
+    ) -> Self {
+        Self {
+            id: SealedSeedId {
+                node_pk,
+                measurement,
+                machine_id,
+                min_cpusvn,
+            },
+            seed,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]

@@ -5,14 +5,16 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use bitcoin::secp256k1::PublicKey;
-use common::api::provision::{Instance, Node, NodeInstanceSeed, SealedSeed};
+use common::api::provision::{
+    Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
+};
 use common::api::vfs::{Directory, File, FileId};
-use common::api::UserPk;
-use common::enclave::{self, Measurement, MIN_SGX_CPUSVN};
+use common::api::{UserPk, UserPort};
+use common::enclave::{self, Measurement};
 use common::hex;
 use tokio::sync::mpsc;
 
-use crate::api::{ApiClient, ApiError, UserPort};
+use crate::api::{ApiClient, ApiError};
 use crate::lexe::persister;
 
 type FileName = String;
@@ -25,11 +27,15 @@ const HEX_SEED2: [u8; 32] = hex::decode_const(
     b"2a784ea82ef7002ec929b435e1af283a1998878575e8ccbad73e5d0cb3a95f59",
 );
 
-pub fn seed(user_pk: UserPk) -> Vec<u8> {
-    match user_pk.to_i64() {
-        1 => HEX_SEED1.to_vec(),
-        2 => HEX_SEED2.to_vec(),
-        _ => todo!("TODO(max): Programmatically generate for new users"),
+pub fn seed(node_pk: PublicKey) -> Vec<u8> {
+    let node_pk_bytes = node_pk.serialize();
+
+    if node_pk_bytes == NODE_PK1 {
+        HEX_SEED1.to_vec()
+    } else if node_pk_bytes == NODE_PK2 {
+        HEX_SEED2.to_vec()
+    } else {
+        todo!("TODO(max): Programmatically generate for new users")
     }
 }
 
@@ -113,16 +119,15 @@ impl ApiClient for MockApiClient {
     /// Always return the dummy version
     async fn get_sealed_seed(
         &self,
-        user_pk: UserPk,
-        _measurement: Measurement,
+        req: SealedSeedId,
     ) -> Result<Option<SealedSeed>, ApiError> {
-        let sealed_seed = SealedSeed {
-            node_pk: node_pk(user_pk),
-            measurement: enclave::measurement(),
-            machine_id: enclave::machine_id(),
-            min_cpusvn: MIN_SGX_CPUSVN,
-            seed: seed(user_pk),
-        };
+        let sealed_seed = SealedSeed::new(
+            req.node_pk,
+            req.measurement,
+            req.machine_id,
+            req.min_cpusvn,
+            seed(req.node_pk),
+        );
         Ok(Some(sealed_seed))
     }
 

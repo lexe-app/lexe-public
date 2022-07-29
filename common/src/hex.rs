@@ -3,6 +3,7 @@
 use std::borrow::Cow;
 use std::fmt::{self, Write};
 
+use bitcoin::secp256k1;
 use thiserror::Error;
 
 #[derive(Clone, Copy, Error, Debug)]
@@ -15,6 +16,10 @@ pub enum DecodeError {
 
     #[error("hex decode error: input string length must be even")]
     OddInputLength,
+
+    // Used in entity::impls
+    #[error("pubkey decode error: {0}")]
+    InvalidPublicKey(#[from] secp256k1::Error),
 }
 
 #[inline]

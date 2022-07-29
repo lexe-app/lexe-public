@@ -7,9 +7,13 @@ use std::time::Duration;
 use anyhow::Context;
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::BlockHash;
-use common::api::provision::{Instance, Node, NodeInstanceSeed, SealedSeed};
-use common::api::UserPk;
-use common::enclave::{self, Measurement, MIN_SGX_CPUSVN};
+use common::api::provision::{
+    Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
+};
+use common::api::{Port, UserPk, UserPort};
+use common::enclave::{
+    self, MachineId, Measurement, MinCpusvn, MIN_SGX_CPUSVN,
+};
 use common::rng::Crng;
 use common::root_seed::RootSeed;
 use lightning::chain;
@@ -24,7 +28,7 @@ use tokio::net::TcpListener;
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
 
-use crate::api::{ApiClient, UserPort};
+use crate::api::ApiClient;
 use crate::cli::{Network, StartCommand};
 use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
@@ -38,8 +42,7 @@ use crate::lexe::sync::SyncedChainListeners;
 use crate::types::{
     ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
     ChannelMonitorType, FeeEstimatorType, GossipSyncType, InvoicePayerType,
-    NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, Port,
-    WalletType,
+    NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, WalletType,
 };
 use crate::{api, command};
 
@@ -99,12 +102,20 @@ impl LexeContext {
         // Get user_pk, measurement, and HTTP client, used throughout init
         let user_pk = args.user_pk;
         let measurement = enclave::measurement();
+        let machine_id = enclave::machine_id();
+        let min_cpusvn = MIN_SGX_CPUSVN;
         let api = init_api(&args);
 
         // Initialize LexeBitcoind, fetch provisioned data
         let (bitcoind_res, provisioned_data_res) = tokio::join!(
             LexeBitcoind::init(args.bitcoind_rpc.clone(), args.network),
-            fetch_provisioned_data(api.as_ref(), user_pk, measurement),
+            fetch_provisioned_data(
+                api.as_ref(),
+                user_pk,
+                measurement,
+                machine_id,
+                min_cpusvn
+            ),
         );
         let bitcoind =
             bitcoind_res.context("Failed to init bitcoind client")?;
@@ -113,7 +124,7 @@ impl LexeContext {
 
         // Build LexeKeysManager from node init data
         let keys_manager = match provisioned_data {
-            (Some(node), Some(_i), Some(sealed_seed)) => {
+            Some((node, _instance, sealed_seed)) => {
                 // TODO(phlip9): actually unseal seed
                 let root_seed = RootSeed::try_from(sealed_seed.seed.as_slice())
                     .context("Invalid root seed")?;
@@ -121,13 +132,19 @@ impl LexeContext {
                 LexeKeysManager::init(rng, &node.node_pk, &root_seed)
                     .context("Could not construct keys manager")?
             }
-            (None, None, None) => {
+            None => {
                 // TODO remove this path once provisioning command works
-                provision_new_node(rng, api.as_ref(), user_pk, measurement)
-                    .await
-                    .context("Failed to provision new node")?
+                provision_new_node(
+                    rng,
+                    api.as_ref(),
+                    user_pk,
+                    measurement,
+                    machine_id,
+                    min_cpusvn,
+                )
+                .await
+                .context("Failed to provision new node")?
             }
-            _ => panic!("Node init data should have been persisted atomically"),
         };
         let node_pk = keys_manager.derive_pk(rng);
 
@@ -445,19 +462,43 @@ async fn fetch_provisioned_data(
     api: &dyn ApiClient,
     user_pk: UserPk,
     measurement: Measurement,
-) -> anyhow::Result<(Option<Node>, Option<Instance>, Option<SealedSeed>)> {
+    machine_id: MachineId,
+    min_cpusvn: MinCpusvn,
+) -> anyhow::Result<Option<(Node, Instance, SealedSeed)>> {
     println!("Fetching provisioned data");
-    let (node_res, instance_res, sealed_seed_res) = tokio::join!(
+    let (node_res, instance_res) = tokio::join!(
         api.get_node(user_pk),
         api.get_instance(user_pk, measurement),
-        api.get_sealed_seed(user_pk, measurement),
     );
+
     let node_opt = node_res.context("Error while fetching node")?;
     let instance_opt = instance_res.context("Error while fetching instance")?;
-    let sealed_seed_opt =
-        sealed_seed_res.context("Error while fetching seed")?;
 
-    Ok((node_opt, instance_opt, sealed_seed_opt))
+    // FIXME(max): It is faster to query for the sealed seed using the user_pk
+    // in place of the node_pk, but that requires joining across four tables.
+    // This is a quick optimization that can be done to decrease boot time.
+    let tuple_opt = match (node_opt, instance_opt) {
+        (Some(node), Some(instance)) => {
+            let sealed_seed_id = SealedSeedId {
+                node_pk: node.node_pk,
+                measurement,
+                machine_id,
+                min_cpusvn,
+            };
+
+            let sealed_seed = api
+                .get_sealed_seed(sealed_seed_id)
+                .await
+                .context("Error while fetching sealed seed")?
+                .expect("Sealed seed wasn't persisted with node & instance");
+
+            Some((node, instance, sealed_seed))
+        }
+        (None, None) => None,
+        _ => panic!("Node and instance should have been persisted together"),
+    };
+
+    Ok(tuple_opt)
 }
 
 /// A temporary helper to provision a new node when running the start command.
@@ -468,6 +509,8 @@ async fn provision_new_node<R: Crng>(
     api: &dyn ApiClient,
     user_pk: UserPk,
     measurement: Measurement,
+    machine_id: MachineId,
+    min_cpusvn: MinCpusvn,
 ) -> anyhow::Result<LexeKeysManager> {
     // No node exists yet, create a new one
     println!("Generating new seed");
@@ -475,7 +518,7 @@ async fn provision_new_node<R: Crng>(
     // TODO Get and use the root seed from provisioning step
     // TODO (sgx): Seal seed under this enclave's public key
     let root_seed = RootSeed::from_rng(rng);
-    let sealed_seed = root_seed.expose_secret().to_vec();
+    let seed = root_seed.expose_secret().to_vec();
 
     // Derive node pk
     let keys_manager = LexeKeysManager::insecure_init(rng, &root_seed);
@@ -487,15 +530,8 @@ async fn provision_new_node<R: Crng>(
         measurement,
         node_pk,
     };
-    let machine_id = enclave::machine_id();
-    let min_cpusvn = MIN_SGX_CPUSVN;
-    let sealed_seed = SealedSeed {
-        node_pk,
-        measurement,
-        machine_id,
-        min_cpusvn,
-        seed: sealed_seed,
-    };
+    let sealed_seed =
+        SealedSeed::new(node_pk, measurement, machine_id, min_cpusvn, seed);
 
     // Persist node, instance, and seed together in one db txn
     let node_instance_seed = NodeInstanceSeed {

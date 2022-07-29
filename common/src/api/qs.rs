@@ -1,8 +1,7 @@
-use common::api::UserPk;
-use common::enclave::Measurement;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
-use crate::types::Port;
+use crate::api::UserPk;
+use crate::enclave::Measurement;
 
 /// Query parameter struct for fetching with no data attached
 ///
@@ -21,10 +20,4 @@ pub struct GetByUserPk {
 pub struct GetByUserPkAndMeasurement {
     pub user_pk: UserPk,
     pub measurement: Measurement,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct UserPort {
-    pub user_pk: UserPk,
-    pub port: Port,
 }

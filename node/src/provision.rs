@@ -24,7 +24,7 @@ use std::time::{Duration, Instant};
 use anyhow::{ensure, Context, Result};
 use bitcoin::secp256k1::PublicKey;
 use common::api::provision::{Instance, Node, NodeInstanceSeed, SealedSeed};
-use common::api::UserPk;
+use common::api::{UserPk, UserPort};
 use common::attest::cert::AttestationCert;
 use common::enclave::{self, MachineId, Measurement, Sealed, MIN_SGX_CPUSVN};
 use common::rng::{Crng, SysRng};
@@ -41,7 +41,6 @@ use warp::hyper::Body;
 use warp::reject::Reject;
 use warp::{Filter, Rejection, Reply};
 
-use crate::api::UserPort;
 use crate::attest;
 use crate::cli::ProvisionCommand;
 use crate::lexe::keys_manager::LexeKeysManager;
@@ -174,13 +173,13 @@ async fn provision_request(
         node_pk,
         measurement: ctx.measurement,
     };
-    let sealed_seed = SealedSeed {
+    let sealed_seed = SealedSeed::new(
         node_pk,
-        measurement: enclave::measurement(),
-        machine_id: enclave::machine_id(),
-        min_cpusvn: MIN_SGX_CPUSVN,
-        seed: sealed_secrets.serialize(),
-    };
+        enclave::measurement(),
+        enclave::machine_id(),
+        MIN_SGX_CPUSVN,
+        sealed_secrets.serialize(),
+    );
 
     let batch = NodeInstanceSeed {
         node,
