@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use common::api::vfs::{Directory, File, FileId};
 use common::api::UserPk;
 use common::enclave::Measurement;
 use thiserror::Error;
@@ -60,7 +61,7 @@ pub trait ApiClient {
 
     async fn get_directory(
         &self,
-        dir_id: DirectoryId,
+        dir: Directory,
     ) -> Result<Vec<File>, ApiError>;
 
     async fn notify_runner(

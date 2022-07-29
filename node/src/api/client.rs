@@ -4,6 +4,7 @@ use std::fmt::{self, Display};
 use std::time::Duration;
 
 use async_trait::async_trait;
+use common::api::vfs::{Directory, File, FileId};
 use common::api::UserPk;
 use common::enclave::Measurement;
 use http::Method;
@@ -127,7 +128,7 @@ impl ApiClient for LexeApiClient {
 
     async fn get_directory(
         &self,
-        req: DirectoryId,
+        req: Directory,
     ) -> Result<Vec<File>, ApiError> {
         let endpoint = "/directory";
         self.request(Method::GET, Backend, V1, endpoint, req).await

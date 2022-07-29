@@ -5,6 +5,9 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, ensure, Context};
 use bitcoin::hash_types::BlockHash;
+use bitcoin::secp256k1::PublicKey;
+use common::api::vfs::{Directory, File, FileId};
+use common::enclave::Measurement;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
 use lightning::chain::channelmonitor::ChannelMonitorUpdate;
 use lightning::chain::transaction::OutPoint;
@@ -20,7 +23,6 @@ use once_cell::sync::{Lazy, OnceCell};
 use tokio::runtime::{Builder, Handle, Runtime};
 use tracing::{debug, error};
 
-use crate::api::{DirectoryId, File, FileId};
 use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::USER_CONFIG;
 use crate::lexe::keys_manager::LexeKeysManager;
@@ -29,8 +31,8 @@ use crate::lexe::peer_manager::ChannelPeer;
 use crate::lexe::types::LxOutPoint;
 use crate::types::{
     ApiClientType, BroadcasterType, ChainMonitorType, ChannelManagerType,
-    ChannelMonitorType, FeeEstimatorType, InstanceId, LoggerType,
-    NetworkGraphType, ProbabilisticScorerType, SignerType,
+    ChannelMonitorType, FeeEstimatorType, LoggerType, NetworkGraphType,
+    ProbabilisticScorerType, SignerType,
 };
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
@@ -50,8 +52,12 @@ pub struct LexePersister {
 }
 
 impl LexePersister {
-    pub fn new(api: ApiClientType, instance_id: InstanceId) -> Self {
-        let inner = InnerPersister::new(api, instance_id);
+    pub fn new(
+        api: ApiClientType,
+        node_pk: PublicKey,
+        measurement: Measurement,
+    ) -> Self {
+        let inner = InnerPersister::new(api, node_pk, measurement);
         Self { inner }
     }
 }
@@ -68,12 +74,21 @@ impl Deref for LexePersister {
 #[derive(Clone)]
 pub struct InnerPersister {
     api: ApiClientType,
-    instance_id: InstanceId,
+    node_pk: PublicKey,
+    measurement: Measurement,
 }
 
 impl InnerPersister {
-    fn new(api: ApiClientType, instance_id: InstanceId) -> Self {
-        Self { api, instance_id }
+    fn new(
+        api: ApiClientType,
+        node_pk: PublicKey,
+        measurement: Measurement,
+    ) -> Self {
+        Self {
+            api,
+            node_pk,
+            measurement,
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -87,11 +102,12 @@ impl InnerPersister {
         logger: LexeTracingLogger,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         debug!("Reading channel manager");
-        let cm_file_id = FileId {
-            instance_id: self.instance_id.clone(),
-            directory: SINGLETON_DIRECTORY.to_owned(),
-            name: CHANNEL_MANAGER_FILENAME.to_owned(),
-        };
+        let cm_file_id = FileId::new(
+            self.node_pk,
+            self.measurement,
+            SINGLETON_DIRECTORY.to_owned(),
+            CHANNEL_MANAGER_FILENAME.to_owned(),
+        );
         let cm_file_opt = self
             .api
             .get_file(cm_file_id)
@@ -141,21 +157,22 @@ impl InnerPersister {
     ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
         debug!("Reading channel monitors");
 
-        let cm_dir_id = DirectoryId {
-            instance_id: self.instance_id.clone(),
-            directory: CHANNEL_MONITORS_DIRECTORY.to_owned(),
+        let cm_dir = Directory {
+            node_pk: self.node_pk,
+            measurement: self.measurement,
+            dirname: CHANNEL_MONITORS_DIRECTORY.to_owned(),
         };
 
         let cm_file_vec = self
             .api
-            .get_directory(cm_dir_id)
+            .get_directory(cm_dir)
             .await
             .context("Could not fetch channel monitors from DB")?;
 
         let mut result = Vec::new();
 
         for cm_file in cm_file_vec {
-            let given = LxOutPoint::from_str(&cm_file.name)
+            let given = LxOutPoint::from_str(&cm_file.id.filename)
                 .context("Invalid funding txo string")?;
 
             let mut state_buf = Cursor::new(&cm_file.data);
@@ -186,11 +203,13 @@ impl InnerPersister {
     ) -> anyhow::Result<ProbabilisticScorerType> {
         debug!("Reading probabilistic scorer");
         let params = ProbabilisticScoringParameters::default();
-        let scorer_file_id = FileId {
-            instance_id: self.instance_id.clone(),
-            directory: SINGLETON_DIRECTORY.to_owned(),
-            name: SCORER_FILENAME.to_owned(),
-        };
+
+        let scorer_file_id = FileId::new(
+            self.node_pk,
+            self.measurement,
+            SINGLETON_DIRECTORY.to_owned(),
+            SCORER_FILENAME.to_owned(),
+        );
         let scorer_file_opt = self
             .api
             .get_file(scorer_file_id)
@@ -220,11 +239,12 @@ impl InnerPersister {
         logger: LoggerType,
     ) -> anyhow::Result<NetworkGraphType> {
         debug!("Reading network graph");
-        let ng_file_id = FileId {
-            instance_id: self.instance_id.clone(),
-            directory: SINGLETON_DIRECTORY.to_owned(),
-            name: NETWORK_GRAPH_FILENAME.to_owned(),
-        };
+        let ng_file_id = FileId::new(
+            self.node_pk,
+            self.measurement,
+            SINGLETON_DIRECTORY.to_owned(),
+            NETWORK_GRAPH_FILENAME.to_owned(),
+        );
         let ng_file_opt = self
             .api
             .get_file(ng_file_id)
@@ -248,14 +268,15 @@ impl InnerPersister {
 
     pub async fn read_channel_peers(&self) -> anyhow::Result<Vec<ChannelPeer>> {
         debug!("Reading channel peers");
-        let cp_dir_id = DirectoryId {
-            instance_id: self.instance_id.clone(),
-            directory: CHANNEL_PEERS_DIRECTORY.to_owned(),
+        let cp_dir = Directory {
+            node_pk: self.node_pk,
+            measurement: self.measurement,
+            dirname: CHANNEL_PEERS_DIRECTORY.to_owned(),
         };
 
         let cp_file_vec = self
             .api
-            .get_directory(cp_dir_id)
+            .get_directory(cp_dir)
             .await
             .context("Could not fetch channel peers from DB")?;
 
@@ -263,7 +284,7 @@ impl InnerPersister {
 
         for cp_file in cp_file_vec {
             // <pk>@<addr>
-            let pk_at_addr = cp_file.name;
+            let pk_at_addr = cp_file.id.filename;
 
             let channel_peer = ChannelPeer::from_str(&pk_at_addr)
                 .context("Could not deserialize channel peer")?;
@@ -281,13 +302,14 @@ impl InnerPersister {
         debug!("Persisting new channel peer");
         let pk_at_addr = channel_peer.to_string();
 
-        let cp_file = File {
-            instance_id: self.instance_id.clone(),
-            directory: CHANNEL_PEERS_DIRECTORY.to_owned(),
-            name: pk_at_addr,
+        let cp_file = File::new(
+            self.node_pk,
+            self.measurement,
+            CHANNEL_PEERS_DIRECTORY.to_owned(),
+            pk_at_addr,
             // There is no 'data' associated with a channel peer
-            data: Vec::new(),
-        };
+            Vec::new(),
+        );
 
         self.api
             .create_file(cp_file)
@@ -333,13 +355,17 @@ impl<'a>
         channel_manager: &ChannelManagerType,
     ) -> Result<(), io::Error> {
         debug!("Persisting channel manager");
-        let cm_file = File {
-            instance_id: self.instance_id.clone(),
-            directory: SINGLETON_DIRECTORY.to_owned(),
-            name: CHANNEL_MANAGER_FILENAME.to_owned(),
-            // FIXME(encrypt): Encrypt under key derived from seed
-            data: channel_manager.encode(),
-        };
+
+        // FIXME(encrypt): Encrypt under key derived from seed
+        let data = channel_manager.encode();
+
+        let cm_file = File::new(
+            self.node_pk,
+            self.measurement,
+            SINGLETON_DIRECTORY.to_owned(),
+            CHANNEL_MANAGER_FILENAME.to_owned(),
+            data,
+        );
 
         // Run an async fn inside a sync fn downstream of thread::spawn()
         PERSISTER_RUNTIME
@@ -358,13 +384,16 @@ impl<'a>
         network_graph: &NetworkGraphType,
     ) -> Result<(), io::Error> {
         debug!("Persisting network graph");
-        let file = File {
-            instance_id: self.instance_id.clone(),
-            directory: SINGLETON_DIRECTORY.to_owned(),
-            name: NETWORK_GRAPH_FILENAME.to_owned(),
-            // FIXME(encrypt): Encrypt under key derived from seed
-            data: network_graph.encode(),
-        };
+        // FIXME(encrypt): Encrypt under key derived from seed
+        let data = network_graph.encode();
+
+        let file = File::new(
+            self.node_pk,
+            self.measurement,
+            SINGLETON_DIRECTORY.to_owned(),
+            NETWORK_GRAPH_FILENAME.to_owned(),
+            data,
+        );
 
         // Run an async fn inside a sync fn downstream of thread::spawn()
         PERSISTER_RUNTIME
@@ -387,12 +416,16 @@ impl<'a>
         let scorer_file = {
             let scorer = scorer_mutex.lock().unwrap();
 
-            File {
-                instance_id: self.instance_id.clone(),
-                directory: SINGLETON_DIRECTORY.to_owned(),
-                name: SCORER_FILENAME.to_owned(),
-                data: scorer.encode(),
-            }
+            // FIXME(encrypt): Encrypt under key derived from seed
+            let data = scorer.encode();
+
+            File::new(
+                self.node_pk,
+                self.measurement,
+                SINGLETON_DIRECTORY.to_owned(),
+                SCORER_FILENAME.to_owned(),
+                data,
+            )
         };
 
         PERSISTER_RUNTIME.get().unwrap().block_on(async move {
@@ -416,13 +449,16 @@ impl Persist<SignerType> for InnerPersister {
         let outpoint_str = outpoint.to_string();
         debug!("Persisting new channel {}", outpoint_str);
 
-        let cm_file = File {
-            instance_id: self.instance_id.clone(),
-            directory: CHANNEL_MONITORS_DIRECTORY.to_owned(),
-            name: outpoint_str,
-            // FIXME(encrypt): Encrypt under key derived from seed
-            data: monitor.encode(),
-        };
+        // FIXME(encrypt): Encrypt under key derived from seed
+        let data = monitor.encode();
+
+        let cm_file = File::new(
+            self.node_pk,
+            self.measurement,
+            CHANNEL_MONITORS_DIRECTORY.to_owned(),
+            outpoint_str,
+            data,
+        );
 
         // Run an async fn inside a sync fn inside a Tokio runtime
         tokio::task::block_in_place(|| {
@@ -449,13 +485,16 @@ impl Persist<SignerType> for InnerPersister {
         let outpoint_str = outpoint.to_string();
         debug!("Updating persisted channel {}", outpoint_str);
 
-        let cm_file = File {
-            instance_id: self.instance_id.clone(),
-            directory: CHANNEL_MONITORS_DIRECTORY.to_owned(),
-            name: outpoint_str,
-            // FIXME(encrypt): Encrypt under key derived from seed
-            data: monitor.encode(),
-        };
+        // FIXME(encrypt): Encrypt under key derived from seed
+        let data = monitor.encode();
+
+        let cm_file = File::new(
+            self.node_pk,
+            self.measurement,
+            CHANNEL_MONITORS_DIRECTORY.to_owned(),
+            outpoint_str,
+            data,
+        );
 
         // Run an async fn inside a sync fn inside a Tokio runtime
         tokio::task::block_in_place(|| {

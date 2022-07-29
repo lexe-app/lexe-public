@@ -130,8 +130,7 @@ impl LexeContext {
             }
             _ => panic!("Node init data should have been persisted atomically"),
         };
-        let pk = keys_manager.derive_pk(rng);
-        let instance_id = convert::get_instance_id(&pk, &measurement);
+        let node_pk = keys_manager.derive_pk(rng);
 
         // LexeBitcoind implements BlockSource, FeeEstimator and
         // BroadcasterInterface, and thus serves these functions. It also
@@ -143,7 +142,7 @@ impl LexeContext {
         let broadcaster = bitcoind.clone();
 
         // Initialize Persister
-        let persister = LexePersister::new(api.clone(), instance_id);
+        let persister = LexePersister::new(api.clone(), node_pk, measurement);
 
         // Initialize the ChainMonitor
         let chain_monitor = Arc::new(ChainMonitor::new(
@@ -474,11 +473,11 @@ async fn provision_new_node<R: Crng>(
     println!("Generating new seed");
 
     // TODO Get and use the root seed from provisioning step
-    // TODO (sgx): Seal seed under this enclave's pk
+    // TODO (sgx): Seal seed under this enclave's public key
     let root_seed = RootSeed::from_rng(rng);
     let sealed_seed = root_seed.expose_secret().to_vec();
 
-    // Derive pk
+    // Derive node pk
     let keys_manager = LexeKeysManager::insecure_init(rng, &root_seed);
     let node_pk = keys_manager.derive_pk(rng);
 

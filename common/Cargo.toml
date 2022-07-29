@@ -11,6 +11,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+# --- BITCOIN --- #
+
+bitcoin = { version = "0.28.1", features = ["use-serde"] }
+
+# --- GENERAL --- #
+
 # Ad hoc error definition, easy error propagation, error chains
 anyhow = "1"
 # Working with bytes
