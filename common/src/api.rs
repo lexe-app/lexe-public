@@ -53,11 +53,10 @@ impl Display for UserPk {
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use proptest::arbitrary::any;
+    use proptest::{prop_assert_eq, proptest};
 
-    const TEST_USER_PK: UserPk = UserPk::new(hex::decode_const(
-        b"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    ));
+    use super::*;
 
     #[test]
     fn user_pk_consistent() {
@@ -70,11 +69,13 @@ mod test {
         assert_eq!(user_pk1, user_pk2);
     }
 
-    #[test]
-    fn user_pk_tostring_fromstr_round_trip() {
-        let user_pk1 = TEST_USER_PK;
-        let user_pk_str = user_pk1.to_string();
-        let user_pk2 = UserPk::from_str(&user_pk_str).unwrap();
-        assert_eq!(user_pk1, user_pk2);
+    proptest! {
+        #[test]
+        fn user_pk_tofromstring_round_trip(inner in any::<[u8; 32]>()) {
+            let user_pk1 = UserPk::new(inner);
+            let user_pk_str = user_pk1.to_string();
+            let user_pk2 = UserPk::from_str(&user_pk_str).unwrap();
+            prop_assert_eq!(user_pk1, user_pk2);
+        }
     }
 }
