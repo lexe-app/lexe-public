@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use crate::hex::{self, FromHex};
 use crate::hexstr_or_bytes;
 
+pub mod vfs;
+
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct UserPk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 

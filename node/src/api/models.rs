@@ -57,29 +57,6 @@ pub struct NodeInstanceEnclave {
     pub enclave: Enclave,
 }
 
-/// Uniquely identifies a file in the node's virtual file system.
-#[derive(Clone, Deserialize, Serialize)]
-pub struct FileId {
-    pub instance_id: InstanceId,
-    pub directory: String,
-    pub name: String,
-}
-
-/// Uniquely identifies a directory in the node's virtual file system.
-#[derive(Hash, Eq, PartialEq, Deserialize, Serialize)]
-pub struct DirectoryId {
-    pub instance_id: InstanceId,
-    pub directory: String,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct File {
-    pub instance_id: InstanceId,
-    pub directory: String,
-    pub name: String,
-    pub data: Vec<u8>,
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct UserPort {
     pub user_pk: UserPk,

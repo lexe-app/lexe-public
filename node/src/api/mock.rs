@@ -5,14 +5,14 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use bitcoin::secp256k1::PublicKey;
+use common::api::vfs::{Directory, File, FileId};
 use common::api::UserPk;
 use common::enclave::{self, Measurement};
 use common::hex;
 use tokio::sync::mpsc;
 
 use crate::api::{
-    ApiClient, ApiError, DirectoryId, Enclave, File, FileId, Instance, Node,
-    NodeInstanceEnclave, UserPort,
+    ApiClient, ApiError, Enclave, Instance, Node, NodeInstanceEnclave, UserPort,
 };
 use crate::convert;
 use crate::lexe::persister;
@@ -21,19 +21,26 @@ use crate::types::{EnclaveId, InstanceId};
 type FileName = String;
 type Data = Vec<u8>;
 
-// --- Consts used in the MockApiClient ---
-
-pub const NODE_PK1: [u8; 33] = hex::decode_const(
-    b"02692f6894d5cb51bb785cc3c54f457889faf674fedea54a906f7ec99e88832d18",
-);
-pub const NODE_PK2: [u8; 33] = hex::decode_const(
-    b"025336702e1317fcb55cdce19b26bd154b5d5612b87d04ff41f807372513f02b6a",
-);
-pub const HEX_SEED1: [u8; 32] = hex::decode_const(
+const HEX_SEED1: [u8; 32] = hex::decode_const(
     b"39ee00e3e23a9cd7e6509f56ff66daaf021cb5502e4ab3c6c393b522a6782d03",
 );
-pub const HEX_SEED2: [u8; 32] = hex::decode_const(
+const HEX_SEED2: [u8; 32] = hex::decode_const(
     b"2a784ea82ef7002ec929b435e1af283a1998878575e8ccbad73e5d0cb3a95f59",
+);
+
+pub fn seed(user_pk: UserPk) -> Vec<u8> {
+    match user_pk.to_i64() {
+        1 => HEX_SEED1.to_vec(),
+        2 => HEX_SEED2.to_vec(),
+        _ => todo!("TODO(max): Programmatically generate for new users"),
+    }
+}
+
+const NODE_PK1: [u8; 33] = hex::decode_const(
+    b"02692f6894d5cb51bb785cc3c54f457889faf674fedea54a906f7ec99e88832d18",
+);
+const NODE_PK2: [u8; 33] = hex::decode_const(
+    b"025336702e1317fcb55cdce19b26bd154b5d5612b87d04ff41f807372513f02b6a",
 );
 
 fn node_pk(user_pk: UserPk) -> PublicKey {
@@ -44,12 +51,9 @@ fn node_pk(user_pk: UserPk) -> PublicKey {
     }
 }
 
-pub fn seed(user_pk: UserPk) -> Vec<u8> {
-    match user_pk.to_i64() {
-        1 => HEX_SEED1.to_vec(),
-        2 => HEX_SEED2.to_vec(),
-        _ => todo!("TODO(max): Programmatically generate for new users"),
-    }
+fn measurement(_user_pk: UserPk) -> Measurement {
+    // It's the same for now but we may want to use different ones later
+    enclave::measurement()
 }
 
 fn instance_id(user_pk: UserPk) -> InstanceId {
@@ -171,9 +175,9 @@ impl ApiClient for MockApiClient {
 
     async fn get_directory(
         &self,
-        dir_id: DirectoryId,
+        dir: Directory,
     ) -> Result<Vec<File>, ApiError> {
-        let files_vec = self.vfs.lock().unwrap().get_dir(dir_id);
+        let files_vec = self.vfs.lock().unwrap().get_dir(dir);
         Ok(files_vec)
     }
 
@@ -187,26 +191,31 @@ impl ApiClient for MockApiClient {
 }
 
 struct VirtualFileSystem {
-    inner: HashMap<DirectoryId, HashMap<FileName, Data>>,
+    inner: HashMap<Directory, HashMap<FileName, Data>>,
 }
 
 impl VirtualFileSystem {
     fn new() -> Self {
         let mut inner = HashMap::new();
 
+        // TODO(max): Generalize this
+
         // Insert all directories used by the persister
         let user_pk1 = UserPk::from_i64(1);
-        let singleton_dir = DirectoryId {
-            instance_id: instance_id(user_pk1),
-            directory: persister::SINGLETON_DIRECTORY.into(),
+        let singleton_dir = Directory {
+            node_pk: node_pk(user_pk1),
+            measurement: measurement(user_pk1),
+            dirname: persister::SINGLETON_DIRECTORY.into(),
         };
-        let channel_peers_dir = DirectoryId {
-            instance_id: instance_id(user_pk1),
-            directory: persister::CHANNEL_PEERS_DIRECTORY.into(),
+        let channel_peers_dir = Directory {
+            node_pk: node_pk(user_pk1),
+            measurement: measurement(user_pk1),
+            dirname: persister::CHANNEL_PEERS_DIRECTORY.into(),
         };
-        let channel_monitors_dir = DirectoryId {
-            instance_id: instance_id(user_pk1),
-            directory: persister::CHANNEL_MONITORS_DIRECTORY.into(),
+        let channel_monitors_dir = Directory {
+            node_pk: node_pk(user_pk1),
+            measurement: measurement(user_pk1),
+            dirname: persister::CHANNEL_MONITORS_DIRECTORY.into(),
         };
         inner.insert(singleton_dir, HashMap::new());
         inner.insert(channel_peers_dir, HashMap::new());
@@ -214,17 +223,20 @@ impl VirtualFileSystem {
 
         // Insert all directories used by the persister
         let user_pk2 = UserPk::from_i64(2);
-        let singleton_dir = DirectoryId {
-            instance_id: instance_id(user_pk2),
-            directory: persister::SINGLETON_DIRECTORY.into(),
+        let singleton_dir = Directory {
+            node_pk: node_pk(user_pk2),
+            measurement: measurement(user_pk2),
+            dirname: persister::SINGLETON_DIRECTORY.into(),
         };
-        let channel_peers_dir = DirectoryId {
-            instance_id: instance_id(user_pk2),
-            directory: persister::CHANNEL_PEERS_DIRECTORY.into(),
+        let channel_peers_dir = Directory {
+            node_pk: node_pk(user_pk2),
+            measurement: measurement(user_pk2),
+            dirname: persister::CHANNEL_PEERS_DIRECTORY.into(),
         };
-        let channel_monitors_dir = DirectoryId {
-            instance_id: instance_id(user_pk2),
-            directory: persister::CHANNEL_MONITORS_DIRECTORY.into(),
+        let channel_monitors_dir = Directory {
+            node_pk: node_pk(user_pk2),
+            measurement: measurement(user_pk2),
+            dirname: persister::CHANNEL_MONITORS_DIRECTORY.into(),
         };
         inner.insert(singleton_dir, HashMap::new());
         inner.insert(channel_peers_dir, HashMap::new());
@@ -234,66 +246,81 @@ impl VirtualFileSystem {
     }
 
     fn get(&self, file_id: FileId) -> Option<File> {
-        let dir_id = DirectoryId {
-            instance_id: file_id.instance_id,
-            directory: file_id.directory,
+        let dir = Directory {
+            node_pk: file_id.dir.node_pk,
+            measurement: file_id.dir.measurement,
+            dirname: file_id.dir.dirname,
         };
         self.inner
-            .get(&dir_id)
+            .get(&dir)
             .expect("Missing directory")
-            .get(&file_id.name)
-            .map(|data| File {
-                instance_id: dir_id.instance_id,
-                directory: dir_id.directory,
-                name: file_id.name,
-                data: data.clone(),
+            .get(&file_id.filename)
+            .map(|data| {
+                File::new(
+                    dir.node_pk,
+                    dir.measurement,
+                    dir.dirname,
+                    file_id.filename,
+                    data.clone(),
+                )
             })
     }
 
     fn insert(&mut self, file: File) -> Option<File> {
-        let dir_id = DirectoryId {
-            instance_id: file.instance_id,
-            directory: file.directory,
+        let dir = Directory {
+            node_pk: file.id.dir.node_pk,
+            measurement: file.id.dir.measurement,
+            dirname: file.id.dir.dirname,
         };
         self.inner
-            .get_mut(&dir_id)
+            .get_mut(&dir)
             .expect("Missing directory")
-            .insert(file.name.clone(), file.data)
-            .map(|data| File {
-                instance_id: dir_id.instance_id,
-                directory: dir_id.directory,
-                name: file.name,
-                data,
+            .insert(file.id.filename.clone(), file.data)
+            .map(|data| {
+                File::new(
+                    dir.node_pk,
+                    dir.measurement,
+                    dir.dirname,
+                    file.id.filename,
+                    data,
+                )
             })
     }
 
     fn remove(&mut self, file_id: FileId) -> Option<File> {
-        let dir_id = DirectoryId {
-            instance_id: file_id.instance_id,
-            directory: file_id.directory,
+        let dir = Directory {
+            node_pk: file_id.dir.node_pk,
+            measurement: file_id.dir.measurement,
+            dirname: file_id.dir.dirname,
         };
         self.inner
-            .get_mut(&dir_id)
+            .get_mut(&dir)
             .expect("Missing directory")
-            .remove(&file_id.name)
-            .map(|data| File {
-                instance_id: dir_id.instance_id,
-                directory: dir_id.directory,
-                name: file_id.name,
-                data,
+            .remove(&file_id.filename)
+            .map(|data| {
+                File::new(
+                    dir.node_pk,
+                    dir.measurement,
+                    dir.dirname,
+                    file_id.filename,
+                    data,
+                )
             })
     }
 
-    fn get_dir(&self, dir_id: DirectoryId) -> Vec<File> {
+    fn get_dir(&self, dir: Directory) -> Vec<File> {
         self.inner
-            .get(&dir_id)
+            .get(&dir)
             .expect("Missing directory")
             .iter()
-            .map(|(name, data)| File {
-                instance_id: dir_id.instance_id.clone(),
-                directory: dir_id.directory.clone(),
-                name: name.clone(),
-                data: data.clone(),
+            .map(|(name, data)| {
+                File::new(
+                    dir.node_pk,
+                    dir.measurement,
+                    dir.dirname.clone(),
+                    name.clone(),
+                    data.clone(),
+                )
             })
             .collect()
     }

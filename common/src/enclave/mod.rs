@@ -63,7 +63,7 @@ impl From<sgx_isa::ErrorCode> for Error {
 ///
 /// Get the current enclave's measurement with
 /// [`enclave::measurement()`](measurement).
-#[derive(Copy, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Copy, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Measurement(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 impl Measurement {
