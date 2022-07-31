@@ -2,7 +2,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use anyhow::{anyhow, ensure};
-use common::api::Port;
+use common::api::runner::Port;
 use lightning_invoice::Currency;
 
 /// The information required to connect to a bitcoind instance via RPC

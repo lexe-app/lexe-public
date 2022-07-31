@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use anyhow::{ensure, Context};
 use argh::FromArgs;
-use common::api::{Port, UserPk};
+use common::api::runner::Port;
+use common::api::UserPk;
 use common::enclave::{self, MachineId};
 use common::rng::SysRng;
 

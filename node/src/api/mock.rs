@@ -8,8 +8,9 @@ use bitcoin::secp256k1::PublicKey;
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
+use common::api::runner::UserPort;
 use common::api::vfs::{Directory, File, FileId};
-use common::api::{UserPk, UserPort};
+use common::api::UserPk;
 use common::enclave::{self, Measurement};
 use common::hex;
 use tokio::sync::mpsc;
