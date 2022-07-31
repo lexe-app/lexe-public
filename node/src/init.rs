@@ -10,7 +10,8 @@ use bitcoin::BlockHash;
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
-use common::api::{Port, UserPk, UserPort};
+use common::api::runner::{Port, UserPort};
+use common::api::UserPk;
 use common::enclave::{
     self, MachineId, Measurement, MinCpusvn, MIN_SGX_CPUSVN,
 };
