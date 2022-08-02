@@ -11,6 +11,7 @@ use anyhow::Context;
 use bitcoin::hashes::sha256::Hash as Sha256;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
+use common::cli::{Network, NodeAlias};
 use common::hex;
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::ln::{PaymentHash, PaymentPreimage};
@@ -18,7 +19,6 @@ use lightning::routing::gossip::NodeId;
 use lightning_invoice::payment::PaymentError;
 use lightning_invoice::{utils, Currency, Invoice};
 
-use crate::cli::{Network, NodeAlias};
 use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};

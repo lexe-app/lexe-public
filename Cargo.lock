@@ -382,11 +382,14 @@ name = "common"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "argh",
  "asn1-rs",
  "bitcoin",
+ "bitcoin-bech32",
  "bytes",
  "cfg-if 1.0.0",
  "dcap-ql",
+ "lightning-invoice",
  "num-bigint",
  "once_cell",
  "proptest",

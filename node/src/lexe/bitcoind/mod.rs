@@ -10,6 +10,7 @@ use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
 use bitcoin::hash_types::{BlockHash, Txid};
 use bitcoin::util::address::Address;
+use common::cli::{BitcoindRpcInfo, Network};
 use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
 };
@@ -20,8 +21,6 @@ use lightning_block_sync::{
 };
 use tokio::runtime::Handle;
 use tracing::{debug, error};
-
-use crate::cli::{BitcoindRpcInfo, Network};
 
 mod types;
 
@@ -96,6 +95,13 @@ impl LexeBitcoind {
         // Check that the bitcoind we've connected to is running the network we
         // expect
         let bitcoind_chain = client.get_blockchain_info().await.chain;
+        // getblockchaininfo truncates mainnet and testnet. Change these to
+        // match the cli::Network FromStr / Display impls.
+        let bitcoind_chain = match bitcoind_chain.as_str() {
+            "main" => "bitcoin",
+            "test" => "testnet",
+            other => other,
+        };
         let chain_str = network.to_str();
         ensure!(
             bitcoind_chain == chain_str,

@@ -14,12 +14,12 @@ use bitcoin::util::address::Address;
 use bitcoind::bitcoincore_rpc::RpcApi;
 use bitcoind::{self, BitcoinD, Conf};
 use common::api::UserPk;
-use common::rng::SysRng;
-
-use crate::cli::{
-    BitcoindRpcInfo, Network, NodeAlias, StartCommand, DEFAULT_BACKEND_URL,
+use common::cli::{
+    BitcoindRpcInfo, Network, NodeAlias, StartArgs, DEFAULT_BACKEND_URL,
     DEFAULT_RUNNER_URL,
 };
+use common::rng::SysRng;
+
 use crate::command::owner;
 use crate::init::LexeContext;
 use crate::lexe::channel_manager::LexeChannelManager;
@@ -27,13 +27,13 @@ use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
 use crate::lexe::persister::LexePersister;
 use crate::types::NetworkGraphType;
 
-/// Helper to return a default StartCommand struct for testing.
-fn default_args() -> StartCommand {
+/// Helper to return a default StartArgs struct for testing.
+fn default_args() -> StartArgs {
     default_args_for_user(UserPk::from_i64(1))
 }
 
-fn default_args_for_user(user_pk: UserPk) -> StartCommand {
-    StartCommand {
+fn default_args_for_user(user_pk: UserPk) -> StartArgs {
+    StartArgs {
         bitcoind_rpc: BitcoindRpcInfo {
             username: String::from("kek"),
             password: String::from("sadge"),
@@ -60,7 +60,7 @@ struct CommandTestHarness {
 }
 
 impl CommandTestHarness {
-    async fn init(mut args: StartCommand) -> Self {
+    async fn init(mut args: StartArgs) -> Self {
         // Construct bitcoin.conf
         let mut conf = Conf::default();
         // This rpcauth string corresponds to user `kek` and password `sadge`

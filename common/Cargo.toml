@@ -14,11 +14,40 @@ edition = "2021"
 # --- BITCOIN --- #
 
 bitcoin = { version = "0.28.1", features = ["use-serde"] }
+bitcoin-bech32 = "0.12"
+
+# --- LIGHTNING --- #
+
+# lightning = { version = "0.0.108", features = ["max_level_trace"] }
+# lightning-block-sync = { version = "0.0.108", features = [ "rpc-client" ] }
+# lightning-invoice = { version = "0.16" }
+# lightning-net-tokio = { version = "0.0.108" }
+# lightning-background-processor = { version = "0.0.108" }
+# lightning-rapid-gossip-sync = { version = "0.0.108" }
+
+# TODO Switch to back to crates.io version after LDK with lightning-net-tokio
+# patch is released
+# lightning = { git = "https://github.com/lexe-tech/rust-lightning", features = ["max_level_trace"], branch = "net-tokio-connect-v0.0.108" }
+# lightning-block-sync = { git = "https://github.com/lexe-tech/rust-lightning", features = [ "rpc-client" ], branch = "net-tokio-connect-v0.0.108" }
+lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "net-tokio-connect-v0.0.108" }
+# lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "net-tokio-connect-v0.0.108" }
+# lightning-background-processor = { git = "https://github.com/lexe-tech/rust-lightning", branch = "net-tokio-connect-v0.0.108" }
+# lightning-rapid-gossip-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "net-tokio-connect-v0.0.108" }
+
+# NOTE For debugging and testing patches during local development
+# lightning = { path = "../../ldk/lightning", features = ["max_level_trace"]}
+# lightning-block-sync = { path = "../../ldk/lightning-block-sync", features = [ "rpc-client" ] }
+# lightning-invoice = { path = "../../ldk/lightning-invoice" }
+# lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }
+# lightning-background-processor = { path = "../../ldk/lightning-background-processor" }
+# lightning-rapid-gossip-sync = { path = "../../ldk/lightning-rapid-gossip-sync" }
 
 # --- GENERAL --- #
 
 # Ad hoc error definition, easy error propagation, error chains
 anyhow = "1"
+# Derive-based command line argument parsing
+argh = "0.1"
 # Working with bytes
 bytes = "1"
 # Conveniently write #[cfg(..)] if-else statements without repeating clauses

@@ -27,6 +27,7 @@ use common::api::provision::{Instance, Node, NodeInstanceSeed, SealedSeed};
 use common::api::runner::UserPort;
 use common::api::UserPk;
 use common::attest::cert::AttestationCert;
+use common::cli::ProvisionArgs;
 use common::enclave::{self, MachineId, Measurement, Sealed, MIN_SGX_CPUSVN};
 use common::rng::{Crng, SysRng};
 use common::root_seed::RootSeed;
@@ -43,7 +44,6 @@ use warp::reject::Reject;
 use warp::{Filter, Rejection, Reply};
 
 use crate::attest;
-use crate::cli::ProvisionCommand;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::types::ApiClientType;
 
@@ -219,7 +219,7 @@ fn provision_routes(
 /// their connection.
 #[instrument(skip_all)]
 pub async fn provision(
-    args: ProvisionCommand,
+    args: ProvisionArgs,
     measurement: Measurement,
     api: ApiClientType,
     rng: &mut dyn Crng,
@@ -289,7 +289,7 @@ pub async fn provision(
     };
 
     // bind TCP listener on port (queues up any inbound connections).
-    let addr = SocketAddr::from(([127, 0, 0, 1], args.port));
+    let addr = SocketAddr::from(([127, 0, 0, 1], args.port.unwrap_or(0)));
     let ctx = RequestContext {
         expected_user_id: args.user_pk,
         machine_id: args.machine_id,
@@ -327,12 +327,12 @@ mod test {
     use common::api::UserPk;
     use common::attest;
     use common::attest::verify::EnclavePolicy;
+    use common::cli::ProvisionArgs;
     use common::rng::SysRng;
     use secrecy::Secret;
 
     use super::*;
     use crate::api::mock::MockApiClient;
-    use crate::cli::{self, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
     use crate::lexe::logger;
 
     #[cfg(target_env = "sgx")]
@@ -381,23 +381,13 @@ mod test {
     async fn test_provision() {
         logger::init_for_testing();
 
-        let user_pk = UserPk::from_i64(123);
-        let node_dns_name = "localhost";
-        let machine_id = enclave::machine_id();
-        let measurement = enclave::measurement();
-
-        let args = cli::ProvisionCommand {
-            machine_id,
-            user_pk,
-            node_dns_name: node_dns_name.to_owned(),
-            port: 0,
-            backend_url: DEFAULT_BACKEND_URL.into(),
-            runner_url: DEFAULT_RUNNER_URL.into(),
-        };
+        let args = ProvisionArgs::default();
+        let user_pk = args.user_pk;
 
         let mut rng = SysRng::new();
         let api = Arc::new(MockApiClient::new());
         let mut notifs_rx = api.notifs_rx();
+        let measurement = enclave::measurement();
 
         let provision_task = async {
             provision(args, measurement, api, &mut rng).await.unwrap();

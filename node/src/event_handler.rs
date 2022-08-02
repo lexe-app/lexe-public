@@ -9,6 +9,7 @@ use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin_bech32::WitnessProgram;
+use common::cli::{Network, NodeAlias};
 use common::hex;
 use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
@@ -18,7 +19,6 @@ use lightning::util::events::{Event, EventHandler, PaymentPurpose};
 use tokio::runtime::Handle;
 use tracing::debug;
 
-use crate::cli::{Network, NodeAlias};
 use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::keys_manager::LexeKeysManager;
