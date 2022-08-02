@@ -5,7 +5,7 @@ use crate::api::UserPk;
 pub type Port = u16;
 
 /// Used to return the port of a loaded node.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct PortReply {
     pub port: Port,
 }
