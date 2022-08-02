@@ -1,4 +1,6 @@
 use std::fmt::{self, Display};
+use std::path::Path;
+use std::process::Command;
 use std::str::FromStr;
 
 use anyhow::{anyhow, ensure};
@@ -61,6 +63,14 @@ impl NodeCommand {
             Self::Provision(args) => {
                 args.runner_url = runner_url;
             }
+        }
+    }
+
+    /// Shorthand for calling to_cmd() on either StartArgs or ProvisionArgs
+    pub fn to_cmd(&self, bin_path: &Path) -> Command {
+        match self {
+            Self::Start(args) => args.to_cmd(bin_path),
+            Self::Provision(args) => args.to_cmd(bin_path),
         }
     }
 }
@@ -147,6 +157,40 @@ impl Default for StartArgs {
     }
 }
 
+impl StartArgs {
+    /// Constructs a Command from the contained args, adding no extra options.
+    /// Requires the path to the node binary.
+    pub fn to_cmd(&self, bin_path: &Path) -> Command {
+        let mut cmd = Command::new(bin_path);
+        cmd.arg("start")
+            .arg(&self.bitcoind_rpc.to_string())
+            .arg("--user-pk")
+            .arg(&self.user_pk.to_string())
+            .arg("-i")
+            .arg(&self.inactivity_timer_sec.to_string())
+            .arg("--network")
+            .arg(&self.network.to_string())
+            .arg("--announced-node-name")
+            .arg(&self.announced_node_name.to_string())
+            .arg("--backend-url")
+            .arg(&self.backend_url)
+            .arg("--runner-url")
+            .arg(&self.runner_url);
+
+        if self.shutdown_after_sync_if_no_activity {
+            cmd.arg("-s");
+        }
+        if let Some(warp_port) = self.warp_port {
+            cmd.arg("--warp-port").arg(&warp_port.to_string());
+        }
+        if let Some(peer_port) = self.peer_port {
+            cmd.arg("--peer-port").arg(&peer_port.to_string());
+        }
+
+        cmd
+    }
+}
+
 /// Provision a new Lexe node for a user
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand, name = "provision")]
@@ -191,6 +235,31 @@ impl Default for ProvisionArgs {
             backend_url: DEFAULT_BACKEND_URL.to_owned(),
             runner_url: DEFAULT_RUNNER_URL.to_owned(),
         }
+    }
+}
+
+impl ProvisionArgs {
+    /// Constructs a Command from the contained args, adding no extra options.
+    /// Requires the path to the node binary.
+    pub fn to_cmd(&self, bin_path: &Path) -> Command {
+        let mut cmd = Command::new(bin_path);
+        cmd.arg("provision")
+            .arg("--machine-id")
+            .arg(&self.machine_id.to_string())
+            .arg("--user-pk")
+            .arg(&self.user_pk.to_string())
+            .arg("--node-dns-name")
+            .arg(&self.node_dns_name)
+            .arg("--backend-url")
+            .arg(&self.backend_url)
+            .arg("--runner-url")
+            .arg(&self.runner_url);
+
+        if let Some(port) = self.port {
+            cmd.arg("--port").arg(&port.to_string());
+        }
+
+        cmd
     }
 }
 
