@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Context};
 use bitcoin::BlockHash;
+use common::cli::StartArgs;
 use lightning::chain::BestBlock;
 use lightning::ln::channelmanager::{
     ChainParameters, ChannelManager, BREAKDOWN_TIMEOUT, MIN_CLTV_EXPIRY_DELTA,
@@ -12,7 +13,6 @@ use lightning::util::config::{
 };
 use tracing::info;
 
-use crate::cli::StartCommand;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
@@ -134,7 +134,7 @@ impl LexeChannelManager {
     // TODO: Review this function and clean up accordingly
     #[allow(clippy::too_many_arguments)]
     pub async fn init(
-        args: &StartCommand,
+        args: &StartArgs,
         persister: &LexePersister,
         block_source: &BlockSourceType,
         restarting_node: &mut bool,

@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Context};
 use bitcoin::BlockHash;
+use common::cli::Network;
 use lightning::chain::transaction::OutPoint;
 use lightning::chain::{Listen, Watch};
 use lightning_block_sync::poll::{ChainPoller, ValidatedBlockHeader};
@@ -11,7 +12,6 @@ use lightning_block_sync::{init as blocksyncinit, SpvClient};
 use tokio::time::{self, Duration};
 use tracing::warn;
 
-use crate::cli::Network;
 use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::types::{

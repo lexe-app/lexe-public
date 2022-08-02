@@ -12,6 +12,7 @@ use common::api::provision::{
 };
 use common::api::runner::{Port, UserPort};
 use common::api::UserPk;
+use common::cli::{Network, StartArgs};
 use common::enclave::{
     self, MachineId, Measurement, MinCpusvn, MIN_SGX_CPUSVN,
 };
@@ -30,7 +31,6 @@ use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
 
 use crate::api::ApiClient;
-use crate::cli::{Network, StartCommand};
 use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
 use crate::lexe::bitcoind::LexeBitcoind;
@@ -53,7 +53,7 @@ pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 // TODO: Remove once keys_manager, persister, invoice_payer are read in SGX
 #[allow(dead_code)]
 pub struct LexeContext {
-    args: StartCommand,
+    args: StartArgs,
     shutdown_tx: broadcast::Sender<()>,
     pub peer_port: Port,
 
@@ -95,7 +95,7 @@ struct RunContext {
 impl LexeContext {
     pub async fn init<R: Crng>(
         rng: &mut R,
-        args: StartCommand,
+        args: StartArgs,
     ) -> anyhow::Result<Self> {
         // Initialize the Logger
         let logger = LexeTracingLogger::new();
@@ -431,7 +431,7 @@ impl LexeContext {
 
 /// Constructs a Arc<dyn ApiClient> based on whether we are running in SGX,
 /// and whether `args.mock` is set to true
-fn init_api(args: &StartCommand) -> ApiClientType {
+fn init_api(args: &StartArgs) -> ApiClientType {
     // Production can only use the real api client
     #[cfg(all(target_env = "sgx", not(test)))]
     {
