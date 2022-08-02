@@ -418,4 +418,24 @@ mod test {
             NodeAlias::from_str("hello, world - this is lexe").unwrap();
         assert_eq!(expected, actual);
     }
+
+    #[test]
+    fn test_network_roundtrip() {
+        // Mainnet is disabled for now
+
+        // let mainnet1 = Network(bitcoin::Network::Bitcoin);
+        let testnet1 = Network(bitcoin::Network::Testnet);
+        let regtest1 = Network(bitcoin::Network::Regtest);
+        let signet1 = Network(bitcoin::Network::Signet);
+
+        // let mainnet2 = Network::from_str(&mainnet1.to_string()).unwrap();
+        let testnet2 = Network::from_str(&testnet1.to_string()).unwrap();
+        let regtest2 = Network::from_str(&regtest1.to_string()).unwrap();
+        let signet2 = Network::from_str(&signet1.to_string()).unwrap();
+
+        // assert_eq!(mainnet1, mainnet2);
+        assert_eq!(testnet1, testnet2);
+        assert_eq!(regtest1, regtest2);
+        assert_eq!(signet1, signet2);
+    }
 }
