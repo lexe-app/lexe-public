@@ -1,4 +1,4 @@
-// hello
+//! TODO
 
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use rustls::client::{ServerCertVerifier, WebPkiVerifier};
 use rustls::RootCertStore;
 
-use crate::client_node_certs::{CaCert, ClientCert, NodeCert};
+use crate::client::certs::{CaCert, ClientCert, NodeCert};
 use crate::rng::Crng;
 use crate::root_seed::RootSeed;
 use crate::{attest, ed25519};
@@ -274,10 +274,8 @@ mod test {
                     .unwrap();
             let lexe_root = rustls::Certificate(lexe_root);
 
-            let config = crate::client::client_run_tls_config(
-                &mut rng, &lexe_root, &seed,
-            )
-            .unwrap();
+            let config =
+                client_run_tls_config(&mut rng, &lexe_root, &seed).unwrap();
 
             let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
             let sni = rustls::ServerName::try_from(dns_name).unwrap();

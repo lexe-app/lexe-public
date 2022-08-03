@@ -7,8 +7,7 @@ use std::fmt;
 use rcgen::{date_time_ymd, DnType, RcgenError, SanType};
 use yasna::models::ObjectIdentifier;
 
-use crate::client_node_certs::lexe_distinguished_name_prefix;
-use crate::{ed25519, hex};
+use crate::{constants, ed25519, hex};
 
 /// An x509 certificate containing remote attestation endorsements, usually
 /// owned by the lexe node.
@@ -47,7 +46,7 @@ impl AttestationCert {
         attestation: rcgen::CustomExtension,
     ) -> Result<Self, RcgenError> {
         // TODO(phlip9): don't know how much DN matters...
-        let mut name = lexe_distinguished_name_prefix();
+        let mut name = constants::lexe_distinguished_name_prefix();
         name.push(DnType::CommonName, "node provisioning cert");
 
         let subject_alt_names = dns_names
