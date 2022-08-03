@@ -396,6 +396,7 @@ dependencies = [
  "proptest-derive",
  "rand_core",
  "rcgen",
+ "reqwest",
  "ring",
  "rustls 0.20.6",
  "rustls-pemfile 1.0.0",
