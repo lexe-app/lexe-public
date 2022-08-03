@@ -23,7 +23,9 @@ use std::time::{Duration, Instant};
 
 use anyhow::{ensure, Context, Result};
 use bitcoin::secp256k1::PublicKey;
-use common::api::provision::{Instance, Node, NodeInstanceSeed, SealedSeed};
+use common::api::provision::{
+    Instance, Node, NodeInstanceSeed, ProvisionRequest, SealedSeed,
+};
 use common::api::runner::UserPort;
 use common::api::UserPk;
 use common::attest::cert::AttestationCert;
@@ -34,7 +36,6 @@ use common::root_seed::RootSeed;
 use common::{ed25519, hex};
 use http::{Response, StatusCode};
 use secrecy::ExposeSecret;
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc;
 use tokio_rustls::rustls;
@@ -82,41 +83,6 @@ struct RequestContext {
     rng: SysRng,
 }
 
-/// The client sends this provisioning request to the node.
-#[derive(Serialize, Deserialize)]
-struct ProvisionRequest {
-    /// The client's user pk.
-    user_pk: UserPk,
-    /// The client's node public key, derived from the root seed. The node
-    /// should sanity check by re-deriving the node pk and checking that it
-    /// equals the client's expected value.
-    node_pk: PublicKey,
-    /// The secret root seed the client wants to provision into the node.
-    root_seed: RootSeed,
-}
-
-impl ProvisionRequest {
-    fn verify<R: Crng>(
-        self,
-        rng: &mut R,
-        expected_user_id: UserPk,
-    ) -> Result<(UserPk, PublicKey, ProvisionedSecrets)> {
-        ensure!(self.user_pk == expected_user_id);
-
-        // TODO(phlip9): derive just the node pk without all the extra junk
-        // that gets derived constructing a whole KeysManager
-        let _keys_manager =
-            LexeKeysManager::init(rng, &self.node_pk, &self.root_seed)?;
-        Ok((
-            self.user_pk,
-            self.node_pk,
-            ProvisionedSecrets {
-                root_seed: self.root_seed,
-            },
-        ))
-    }
-}
-
 /// The enclave's provisioned secrets that it will seal and persist using its
 /// platform enclave keys that are software and version specific.
 ///
@@ -143,13 +109,33 @@ impl ProvisionedSecrets {
     }
 }
 
+fn verify_provision_request<R: Crng>(
+    rng: &mut R,
+    expected_user_id: UserPk,
+    req: ProvisionRequest,
+) -> Result<(UserPk, PublicKey, ProvisionedSecrets)> {
+    ensure!(req.user_pk == expected_user_id);
+
+    // TODO(phlip9): derive just the node pk without all the extra junk
+    // that gets derived constructing a whole KeysManager
+    let _keys_manager =
+        LexeKeysManager::init(rng, &req.node_pk, &req.root_seed)?;
+    Ok((
+        req.user_pk,
+        req.node_pk,
+        ProvisionedSecrets {
+            root_seed: req.root_seed,
+        },
+    ))
+}
+
 // # provision service
 //
 // POST /provision
 //
 // ```json
 // {
-//   "user_pk": UserPk::from_i64(123),
+//   "user_pk": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
 //   "node_pk": "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),
 //   "root_seed": "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7".parse().unwrap(),
 // }
@@ -160,9 +146,9 @@ async fn provision_request(
 ) -> Result<impl Reply, ApiError> {
     debug!("received provision request");
 
-    let (user_pk, node_pk, provisioned_secrets) = req
-        .verify(&mut ctx.rng, ctx.expected_user_id)
-        .map_err(|_| ApiError)?;
+    let (user_pk, node_pk, provisioned_secrets) =
+        verify_provision_request(&mut ctx.rng, ctx.expected_user_id, req)
+            .map_err(|_| ApiError)?;
 
     let sealed_secrets = provisioned_secrets
         .seal(&mut ctx.rng)
@@ -198,7 +184,7 @@ async fn provision_request(
     // Provisioning done. Stop node.
     let _ = ctx.shutdown_tx.try_send(());
 
-    Ok("OK")
+    Ok(Response::new(Body::empty()))
 }
 
 fn provision_routes(

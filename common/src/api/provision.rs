@@ -3,6 +3,20 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::UserPk;
 use crate::enclave::{MachineId, Measurement, MinCpusvn};
+use crate::root_seed::RootSeed;
+
+/// The client sends this provisioning request to the node.
+#[derive(Serialize, Deserialize)]
+pub struct ProvisionRequest {
+    /// The client's user pk.
+    pub user_pk: UserPk,
+    /// The client's node public key, derived from the root seed. The node
+    /// should sanity check by re-deriving the node pk and checking that it
+    /// equals the client's expected value.
+    pub node_pk: PublicKey,
+    /// The secret root seed the client wants to provision into the node.
+    pub root_seed: RootSeed,
+}
 
 #[derive(Serialize, Deserialize)]
 pub struct Node {
