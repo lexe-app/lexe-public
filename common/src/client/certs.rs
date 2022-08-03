@@ -14,11 +14,11 @@
 //! channel via mTLS (mutual-auth TLS).
 
 use rcgen::{
-    date_time_ymd, BasicConstraints, CertificateParams, DistinguishedName,
-    DnType, IsCa, RcgenError, SanType,
+    date_time_ymd, BasicConstraints, CertificateParams, DnType, IsCa,
+    RcgenError, SanType,
 };
 
-use crate::ed25519;
+use crate::{constants, ed25519};
 
 /// The CA cert used as the trust anchor for both client and node.
 ///
@@ -39,19 +39,11 @@ pub struct ClientCert(rcgen::Certificate);
 /// The key pair for the node cert is sampled.
 pub struct NodeCert(rcgen::Certificate);
 
-pub fn lexe_distinguished_name_prefix() -> DistinguishedName {
-    let mut name = DistinguishedName::new();
-    name.push(DnType::CountryName, "US");
-    name.push(DnType::StateOrProvinceName, "CA");
-    name.push(DnType::OrganizationName, "lexe-tech");
-    name
-}
-
 // -- impl CaCert -- //
 
 impl CaCert {
     pub fn from_key_pair(key_pair: rcgen::KeyPair) -> Result<Self, RcgenError> {
-        let mut name = lexe_distinguished_name_prefix();
+        let mut name = constants::lexe_distinguished_name_prefix();
         name.push(DnType::CommonName, "client CA cert");
 
         let mut params = CertificateParams::default();
@@ -81,7 +73,7 @@ impl CaCert {
 
 impl ClientCert {
     pub fn from_key_pair(key_pair: rcgen::KeyPair) -> Result<Self, RcgenError> {
-        let mut name = lexe_distinguished_name_prefix();
+        let mut name = constants::lexe_distinguished_name_prefix();
         name.push(DnType::CommonName, "client cert");
 
         let mut params = CertificateParams::default();
@@ -123,7 +115,7 @@ impl NodeCert {
         key_pair: rcgen::KeyPair,
         dns_names: Vec<String>,
     ) -> Result<Self, RcgenError> {
-        let mut name = lexe_distinguished_name_prefix();
+        let mut name = constants::lexe_distinguished_name_prefix();
         name.push(DnType::CommonName, "node cert");
 
         let subject_alt_names = dns_names
