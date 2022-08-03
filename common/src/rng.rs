@@ -80,6 +80,10 @@ impl SmallRng {
             s1: 0xf00baa44,
         }
     }
+
+    pub fn from_u64(s: u64) -> Self {
+        Self::seed_from_u64(s)
+    }
 }
 
 impl Default for SmallRng {

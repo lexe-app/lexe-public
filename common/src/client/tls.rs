@@ -28,61 +28,50 @@ struct ClientProvisionCertVerifier {
 
 // -- rustls TLS configs -- //
 
-pub fn node_tls_config(
-    node_cert: &NodeCert,
-    ca_cert: &CaCert,
+pub fn node_run_tls_config(
+    rng: &mut dyn Crng,
+    seed: &RootSeed,
+    dns_names: Vec<String>,
 ) -> anyhow::Result<rustls::ServerConfig> {
-    let ca_cert_der = ca_cert
-        .serialize_der_signed()
-        .context("Failed to self-sign + DER-serialize CA cert")?;
-    let node_cert_der = node_cert
-        .serialize_der_signed(ca_cert)
-        .context("Failed to sign + DER-serialize node cert w/ CA cert")?;
-    let node_key_der = node_cert.serialize_key_der();
+    // derive the shared client-node CA cert from the root seed
+    let ca_cert_key_pair = seed.derive_client_ca_key_pair();
+    let ca_cert = CaCert::from_key_pair(ca_cert_key_pair)
+        .context("Failed to build node-client CA cert")?;
+    let ca_cert_der = rustls::Certificate(
+        ca_cert
+            .serialize_der_signed()
+            .context("Failed to sign and serialize node-client CA cert")?,
+    );
 
-    let mut trust_anchors = rustls::RootCertStore::empty();
-    trust_anchors
-        .add(&rustls::Certificate(ca_cert_der))
+    // build node cert and sign w/ the CA cert
+    let node_key_pair = ed25519::gen_key_pair(rng);
+    let node_cert = NodeCert::from_key_pair(node_key_pair, dns_names)
+        .context("Failed to build ephemeral node cert")?;
+    let node_cert_der = rustls::Certificate(
+        node_cert
+            .serialize_der_signed(&ca_cert)
+            .context("Failed to sign and serialize ephemeral client cert")?,
+    );
+    let node_key_der = rustls::PrivateKey(node_cert.serialize_key_der());
+
+    // client cert trust root is just the derived CA cert
+    let mut roots = rustls::RootCertStore::empty();
+    roots
+        .add(&ca_cert_der)
         .context("rustls failed to deserialize CA cert DER bytes")?;
 
+    // subject alt names for client are not useful here; just check for valid
+    // cert chain
     let client_verifier =
-        rustls::server::AllowAnyAuthenticatedClient::new(trust_anchors);
+        rustls::server::AllowAnyAuthenticatedClient::new(roots);
 
     // TODO(phlip9): use exactly TLSv1.3, ciphersuite TLS13_AES_128_GCM_SHA256,
     // and key exchange X25519
     let mut config = rustls::ServerConfig::builder()
         .with_safe_defaults()
         .with_client_cert_verifier(client_verifier)
-        .with_single_cert(
-            vec![rustls::Certificate(node_cert_der)],
-            rustls::PrivateKey(node_key_der),
-        )
+        .with_single_cert(vec![node_cert_der], node_key_der)
         .context("Failed to build rustls::ServerConfig")?;
-    config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
-
-    Ok(config)
-}
-
-pub fn client_provision_tls_config(
-    lexe_trust_anchor: &rustls::Certificate,
-    expect_dummy_quote: bool,
-    enclave_policy: attest::EnclavePolicy,
-) -> Result<rustls::ClientConfig> {
-    let verifier = ClientProvisionCertVerifier {
-        lexe_verifier: lexe_verifier(lexe_trust_anchor)?,
-        attest_verifier: attest::ServerCertVerifier {
-            expect_dummy_quote,
-            enclave_policy,
-        },
-    };
-
-    // TODO(phlip9): use exactly TLSv1.3, ciphersuite TLS13_AES_128_GCM_SHA256,
-    // and key exchange X25519
-    let mut config = rustls::ClientConfig::builder()
-        .with_safe_defaults()
-        .with_custom_certificate_verifier(Arc::new(verifier))
-        .with_no_client_auth();
-    // TODO(phlip9): ensure this matches the reqwest config
     config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
 
     Ok(config)
@@ -91,10 +80,10 @@ pub fn client_provision_tls_config(
 pub fn client_run_tls_config(
     rng: &mut dyn Crng,
     lexe_trust_anchor: &rustls::Certificate,
-    root_seed: &RootSeed,
+    seed: &RootSeed,
 ) -> Result<rustls::ClientConfig> {
     // derive the shared client-node CA cert from the root seed
-    let ca_cert_key_pair = root_seed.derive_client_ca_key_pair();
+    let ca_cert_key_pair = seed.derive_client_ca_key_pair();
     let ca_cert = CaCert::from_key_pair(ca_cert_key_pair)
         .context("Failed to build node-client CA cert")?;
     let ca_cert_der = rustls::Certificate(
@@ -135,6 +124,31 @@ pub fn client_run_tls_config(
         // send the client cert for the reverse proxy connection?
         .with_single_cert(vec![client_cert_der], client_key_der)
         .context("Failed to build rustls::ClientConfig")?;
+    // TODO(phlip9): ensure this matches the reqwest config
+    config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
+
+    Ok(config)
+}
+
+pub fn client_provision_tls_config(
+    lexe_trust_anchor: &rustls::Certificate,
+    expect_dummy_quote: bool,
+    enclave_policy: attest::EnclavePolicy,
+) -> Result<rustls::ClientConfig> {
+    let verifier = ClientProvisionCertVerifier {
+        lexe_verifier: lexe_verifier(lexe_trust_anchor)?,
+        attest_verifier: attest::ServerCertVerifier {
+            expect_dummy_quote,
+            enclave_policy,
+        },
+    };
+
+    // TODO(phlip9): use exactly TLSv1.3, ciphersuite TLS13_AES_128_GCM_SHA256,
+    // and key exchange X25519
+    let mut config = rustls::ClientConfig::builder()
+        .with_safe_defaults()
+        .with_custom_certificate_verifier(Arc::new(verifier))
+        .with_no_client_auth();
     // TODO(phlip9): ensure this matches the reqwest config
     config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
 
@@ -264,7 +278,7 @@ mod test {
         let client = async move {
             // should be able to independently derive CA key pair
             let seed = RootSeed::new(Secret::new(seed));
-            let mut rng = SmallRng::new();
+            let mut rng = SmallRng::from_u64(111);
 
             // should be unused since no proxy
             let lexe_root =
@@ -300,15 +314,11 @@ mod test {
         let node = async move {
             // should be able to independently derive CA key pair
             let seed = RootSeed::new(Secret::new(seed));
-            let ca_key_pair = seed.derive_client_ca_key_pair();
-            let ca_cert = CaCert::from_key_pair(ca_key_pair).unwrap();
+            let mut rng = SmallRng::from_u64(222);
 
-            let node_key_pair = ed25519::from_seed(&[0xf0; 32]);
             let dns_names = vec![dns_name.to_owned()];
-            let node_cert =
-                NodeCert::from_key_pair(node_key_pair, dns_names).unwrap();
-
-            let config = node_tls_config(&node_cert, &ca_cert).unwrap();
+            let config =
+                node_run_tls_config(&mut rng, &seed, dns_names).unwrap();
             let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
             let mut stream = acceptor.accept(server_stream).await.unwrap();
 
