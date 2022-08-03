@@ -97,14 +97,6 @@ See full CLI options with:
 - `cargo run --bin node -- start --help`
 - `cargo run --bin node -- provision --help`
 
-The urls of the node backend (persistence api) and runner can be specified using
-environment variables. The variables (and their defaults) are as follows:
-
-```bash
-BACKEND_URL=http://127.0.0.1:3030
-RUNNER_URL=http://127.0.0.1:5050
-```
-
 ## License
 
 All files in this repository are licensed under the [PolyForm Noncommercial
