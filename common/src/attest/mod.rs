@@ -1,4 +1,4 @@
 pub mod cert;
 pub mod verify;
 
-pub use verify::ServerCertVerifier;
+pub use verify::{EnclavePolicy, ServerCertVerifier};

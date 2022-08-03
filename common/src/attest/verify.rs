@@ -135,6 +135,10 @@ impl rustls::client::ServerCertVerifier for ServerCertVerifier {
 
         Ok(verified_token)
     }
+
+    fn request_scts(&self) -> bool {
+        false
+    }
 }
 
 struct AttestEvidence<'a> {

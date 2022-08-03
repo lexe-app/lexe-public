@@ -11,6 +11,7 @@
 pub mod api;
 pub mod attest;
 pub mod cli;
+pub mod client;
 pub mod client_node_certs;
 pub mod ed25519;
 pub mod enclave;
