@@ -82,8 +82,9 @@ $ cargo build --bin node --target=x86_64-fortanix-unknown-sgx
 
 Run the node (add `--target=x86_64-fortanix-unknown-sgx` if running in SGX)
 ```bash
-cargo run --bin node -- start user:pass@<bitcoindrpchost>:<bitcoindrpcport> \
+cargo run --bin node -- start \
     --user-pk <user-pk> \
+    --bitcoind-rpc <user>:<pass>@<bitcoindrpchost>:<bitcoindrpcport> \
     [--warp-port <warp-port>] \
     [--peer-port <peer-port>] \
     [--network mainnet|testnet|regtest|signet] \

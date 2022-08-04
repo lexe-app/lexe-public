@@ -79,13 +79,13 @@ impl NodeCommand {
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand, name = "start")]
 pub struct StartArgs {
-    /// bitcoind rpc info, in the format <username>:<password>@<host>:<port>
-    #[argh(positional)]
-    pub bitcoind_rpc: BitcoindRpcInfo,
-
     /// the Lexe user pk used in queries to the persistence API
     #[argh(option)]
     pub user_pk: UserPk,
+
+    /// bitcoind rpc info, in the format <username>:<password>@<host>:<port>
+    #[argh(option)]
+    pub bitcoind_rpc: BitcoindRpcInfo,
 
     /// the port warp uses to accept commands and TLS connections.
     #[argh(option)]
@@ -163,6 +163,7 @@ impl StartArgs {
     pub fn to_cmd(&self, bin_path: &Path) -> Command {
         let mut cmd = Command::new(bin_path);
         cmd.arg("start")
+            .arg("--bitcoind-rpc")
             .arg(&self.bitcoind_rpc.to_string())
             .arg("--user-pk")
             .arg(&self.user_pk.to_string())
@@ -195,16 +196,16 @@ impl StartArgs {
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand, name = "provision")]
 pub struct ProvisionArgs {
+    /// the Lexe user pk to provision the node for
+    #[argh(option)]
+    pub user_pk: UserPk,
+
     /// identifies the current CPU hardware we're running on. The node enclave
     /// should be able to unseal its own sealed data if this id is the same
     /// (unless we're trying to unseal data sealed with a newer CPUSVN or
     /// different enclave measurement).
     #[argh(option, default = "enclave::machine_id()")]
     pub machine_id: MachineId,
-
-    /// the Lexe user pk to provision the node for
-    #[argh(option)]
-    pub user_pk: UserPk,
 
     /// the DNS name the node enclave should include in its remote attestation
     /// certificate and the client will expect in its connection
