@@ -13,10 +13,12 @@
 //! that clients and nodes can authenticate each other and build a secure
 //! channel via mTLS (mutual-auth TLS).
 
+use asn1_rs::FromDer;
 use rcgen::{
     date_time_ymd, BasicConstraints, CertificateParams, DnType, IsCa,
     RcgenError, SanType,
 };
+use x509_parser::x509::X509Name;
 
 use crate::{constants, ed25519};
 
@@ -41,10 +43,30 @@ pub struct NodeCert(rcgen::Certificate);
 
 // -- impl CaCert -- //
 
+/// Parse CommonName from x509 DistinguishedName DER bytes
+fn is_matching_issuer_der(der: &[u8], expected: &str) -> Option<()> {
+    let (_rest, name) = X509Name::from_der(der).ok()?;
+    let common_name = name.iter_common_name().next()?;
+    let common_name = common_name.as_str().ok()?;
+    if common_name == expected {
+        Some(())
+    } else {
+        None
+    }
+}
+
 impl CaCert {
+    const COMMON_NAME: &'static str = "lexe node-client CA";
+
+    /// Returns `true` if the given DER bytes are an x509 DistinguishedName with
+    /// a CommonName matching the standard node-client CA CommonName.
+    pub fn is_matching_issuer_der(issuer_der: &[u8]) -> bool {
+        is_matching_issuer_der(issuer_der, Self::COMMON_NAME).is_some()
+    }
+
     pub fn from_key_pair(key_pair: rcgen::KeyPair) -> Result<Self, RcgenError> {
         let mut name = constants::lexe_distinguished_name_prefix();
-        name.push(DnType::CommonName, "client CA cert");
+        name.push(DnType::CommonName, Self::COMMON_NAME);
 
         let mut params = CertificateParams::default();
         params.alg = &rcgen::PKCS_ED25519;
@@ -74,7 +96,7 @@ impl CaCert {
 impl ClientCert {
     pub fn from_key_pair(key_pair: rcgen::KeyPair) -> Result<Self, RcgenError> {
         let mut name = constants::lexe_distinguished_name_prefix();
-        name.push(DnType::CommonName, "client cert");
+        name.push(DnType::CommonName, "lexe client cert");
 
         let mut params = CertificateParams::default();
         params.alg = &rcgen::PKCS_ED25519;
@@ -116,7 +138,7 @@ impl NodeCert {
         dns_names: Vec<String>,
     ) -> Result<Self, RcgenError> {
         let mut name = constants::lexe_distinguished_name_prefix();
-        name.push(DnType::CommonName, "node cert");
+        name.push(DnType::CommonName, "lexe node cert");
 
         let subject_alt_names = dns_names
             .into_iter()

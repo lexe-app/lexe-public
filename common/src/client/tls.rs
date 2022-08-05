@@ -1,10 +1,11 @@
-//! TODO
+//! Build complete TLS configurations for clients to verify remote endpoints.
 
 use std::sync::Arc;
 use std::time::SystemTime;
 
-use anyhow::{Context, Result};
-use rustls::client::{ServerCertVerifier, WebPkiVerifier};
+use anyhow::Context;
+use rustls::client::WebPkiVerifier;
+use rustls::sign::CertifiedKey;
 use rustls::RootCertStore;
 
 use crate::client::certs::{CaCert, ClientCert, NodeCert};
@@ -12,24 +13,46 @@ use crate::rng::Crng;
 use crate::root_seed::RootSeed;
 use crate::{attest, ed25519};
 
-/// A [`rustls`] TLS cert verifier for the client to connect to a now
-/// provisioned and possibly running node through the reverse proxy.
-struct ClientRunCertVerifier {
-    lexe_verifier: WebPkiVerifier,
+/// The client's [`rustls::client::ServerCertVerifier`] for verifiying a
+/// remote server's TLS certs.
+///
+/// Currently we verify 3 different cases, depending on the remote cert's dns
+/// name.
+///
+/// 1. "run.lexe.tech" =>
+///        verify one of the client's previously provisioned nodes.
+/// 2. "provision.lexe.tech" =>
+///        verify the remote attestation TLS cert for a machine the client might
+///        want to provision with their secrets.
+/// 3. other =>
+///        verify a lexe endpoint, using a pinned CA cert.
+struct ServerCertVerifier {
+    /// "run.lexe.tech" node-cert verifier
     node_verifier: WebPkiVerifier,
+
+    /// "provision.lexe.tech" remote attestation verifier
+    attest_verifier: attest::ServerCertVerifier,
+
+    /// other (e.g., lexe reverse proxy) lexe CA verifier
+    lexe_verifier: WebPkiVerifier,
 }
 
-/// A [`rustls`] TLS cert verifier for the client to connect to a provisioning
-/// node through the reverse proxy.
-struct ClientProvisionCertVerifier {
-    lexe_verifier: WebPkiVerifier,
-    attest_verifier: attest::ServerCertVerifier,
+/// The client's mTLS cert resolver. During a TLS handshake, this resolver
+/// decides whether to present the client's cert to the server.
+///
+/// Currently the client only provides their cert when connecting to their
+/// running and already-provisioned node.
+struct ClientCertResolver {
+    /// Our client's serialized cert + cert key pair
+    client_cert: Arc<CertifiedKey>,
 }
 
 // -- rustls TLS configs -- //
 
-pub fn node_run_tls_config(
-    rng: &mut dyn Crng,
+// TODO(phlip9): move `node_provision_tls_config` here?
+
+pub fn node_run_tls_config<R: Crng>(
+    rng: &mut R,
     seed: &RootSeed,
     dns_names: Vec<String>,
 ) -> anyhow::Result<rustls::ServerConfig> {
@@ -77,11 +100,12 @@ pub fn node_run_tls_config(
     Ok(config)
 }
 
-pub fn client_run_tls_config(
-    rng: &mut dyn Crng,
+pub fn client_tls_config<R: Crng>(
+    rng: &mut R,
     lexe_trust_anchor: &rustls::Certificate,
     seed: &RootSeed,
-) -> Result<rustls::ClientConfig> {
+    attest_verifier: attest::ServerCertVerifier,
+) -> anyhow::Result<rustls::ClientConfig> {
     // derive the shared client-node CA cert from the root seed
     let ca_cert_key_pair = seed.derive_client_ca_key_pair();
     let ca_cert = CaCert::from_key_pair(ca_cert_key_pair)
@@ -93,62 +117,28 @@ pub fn client_run_tls_config(
     );
 
     // the derived CA cert is our trust root for node connections
-    let mut roots = RootCertStore::empty();
-    roots
+    let mut node_roots = RootCertStore::empty();
+    node_roots
         .add(&ca_cert_der)
         .context("Failed to re-parse node-client CA cert")?;
-    let node_verifier = WebPkiVerifier::new(roots, None);
+    let node_ct_policy = None;
+    let node_verifier = WebPkiVerifier::new(node_roots, node_ct_policy);
 
-    let verifier = ClientRunCertVerifier {
+    let server_cert_verifier = ServerCertVerifier {
         lexe_verifier: lexe_verifier(lexe_trust_anchor)?,
         node_verifier,
+        attest_verifier,
     };
 
-    // sample an ephemeral key pair for the child cert
-    let client_cert_key_pair = ed25519::gen_key_pair(rng);
-    let client_cert = ClientCert::from_key_pair(client_cert_key_pair)
-        .context("Failed to build ephemeral client cert")?;
-    let client_cert_der = rustls::Certificate(
-        client_cert
-            .serialize_der_signed(&ca_cert)
-            .context("Failed to sign and serialize ephemeral client cert")?,
-    );
-    let client_key_der = rustls::PrivateKey(client_cert.serialize_key_der());
+    let client_cert_resolver = ClientCertResolver::new(rng, &ca_cert)
+        .context("Failed to build client certs")?;
 
     // TODO(phlip9): use exactly TLSv1.3, ciphersuite TLS13_AES_128_GCM_SHA256,
     // and key exchange X25519
     let mut config = rustls::ClientConfig::builder()
         .with_safe_defaults()
-        .with_custom_certificate_verifier(Arc::new(verifier))
-        // TODO(phlip9): do we need to use a custom cert resovler that doesn't
-        // send the client cert for the reverse proxy connection?
-        .with_single_cert(vec![client_cert_der], client_key_der)
-        .context("Failed to build rustls::ClientConfig")?;
-    // TODO(phlip9): ensure this matches the reqwest config
-    config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
-
-    Ok(config)
-}
-
-pub fn client_provision_tls_config(
-    lexe_trust_anchor: &rustls::Certificate,
-    expect_dummy_quote: bool,
-    enclave_policy: attest::EnclavePolicy,
-) -> Result<rustls::ClientConfig> {
-    let verifier = ClientProvisionCertVerifier {
-        lexe_verifier: lexe_verifier(lexe_trust_anchor)?,
-        attest_verifier: attest::ServerCertVerifier {
-            expect_dummy_quote,
-            enclave_policy,
-        },
-    };
-
-    // TODO(phlip9): use exactly TLSv1.3, ciphersuite TLS13_AES_128_GCM_SHA256,
-    // and key exchange X25519
-    let mut config = rustls::ClientConfig::builder()
-        .with_safe_defaults()
-        .with_custom_certificate_verifier(Arc::new(verifier))
-        .with_no_client_auth();
+        .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
+        .with_client_cert_resolver(Arc::new(client_cert_resolver));
     // TODO(phlip9): ensure this matches the reqwest config
     config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
 
@@ -157,21 +147,21 @@ pub fn client_provision_tls_config(
 
 fn lexe_verifier(
     lexe_trust_anchor: &rustls::Certificate,
-) -> Result<WebPkiVerifier> {
+) -> anyhow::Result<WebPkiVerifier> {
     let mut lexe_roots = RootCertStore::empty();
     lexe_roots
         .add(lexe_trust_anchor)
         .context("Failed to deserialize lexe trust anchor")?;
     // TODO(phlip9): our web-facing certs will actually support cert
     // transparency
-    let ct_policy = None;
-    let lexe_verifier = WebPkiVerifier::new(lexe_roots, ct_policy);
+    let lexe_ct_policy = None;
+    let lexe_verifier = WebPkiVerifier::new(lexe_roots, lexe_ct_policy);
     Ok(lexe_verifier)
 }
 
-// -- impl ClientProvisionCertVerifier -- //
+// -- impl ServerCertVerifier -- //
 
-impl ServerCertVerifier for ClientProvisionCertVerifier {
+impl rustls::client::ServerCertVerifier for ServerCertVerifier {
     fn verify_server_cert(
         &self,
         end_entity: &rustls::Certificate,
@@ -187,6 +177,16 @@ impl ServerCertVerifier for ClientProvisionCertVerifier {
         };
 
         match maybe_dns_name {
+            // Verify using derived node-client CA when node is running
+            Some("run.lexe.tech") => self.node_verifier.verify_server_cert(
+                end_entity,
+                intermediates,
+                server_name,
+                scts,
+                ocsp_response,
+                now,
+            ),
+            // Verify remote attestation cert when provisioning node
             Some("provision.lexe.tech") => {
                 self.attest_verifier.verify_server_cert(
                     end_entity,
@@ -197,6 +197,10 @@ impl ServerCertVerifier for ClientProvisionCertVerifier {
                     now,
                 )
             }
+            // Other domains (i.e., node reverse proxy) verify using pinned
+            // lexe CA
+            // TODO(phlip9): this should be a strict DNS name, like
+            // `proxy.lexe.tech`. Come back once DNS names are more solid.
             _ => self.lexe_verifier.verify_server_cert(
                 end_entity,
                 intermediates,
@@ -213,45 +217,59 @@ impl ServerCertVerifier for ClientProvisionCertVerifier {
     }
 }
 
-// -- impl ClientProvisionCertVerifier -- //
+impl ClientCertResolver {
+    /// Samples a new child cert then signs with the node-client CA.
+    fn new<R: Crng>(rng: &mut R, ca_cert: &CaCert) -> anyhow::Result<Self> {
+        // sample an ephemeral key pair for the child cert
+        let client_cert_key_pair = ed25519::gen_key_pair(rng);
+        let client_cert = ClientCert::from_key_pair(client_cert_key_pair)
+            .context("Failed to build ephemeral client cert")?;
+        let client_cert_der = rustls::Certificate(
+            client_cert.serialize_der_signed(ca_cert).context(
+                "Failed to sign and serialize ephemeral client cert",
+            )?,
+        );
+        let client_key_der =
+            rustls::PrivateKey(client_cert.serialize_key_der());
 
-impl ServerCertVerifier for ClientRunCertVerifier {
-    fn verify_server_cert(
+        // massage into rustls types
+        let signing_key = rustls::sign::any_eddsa_type(&client_key_der)
+            .context("Failed to parse client cert ed25519 sk")?;
+        let certified_key =
+            rustls::sign::CertifiedKey::new(vec![client_cert_der], signing_key);
+
+        Ok(Self {
+            client_cert: Arc::new(certified_key),
+        })
+    }
+}
+
+impl rustls::client::ResolvesClientCert for ClientCertResolver {
+    fn resolve(
         &self,
-        end_entity: &rustls::Certificate,
-        intermediates: &[rustls::Certificate],
-        server_name: &rustls::ServerName,
-        scts: &mut dyn Iterator<Item = &[u8]>,
-        ocsp_response: &[u8],
-        now: SystemTime,
-    ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
-        let maybe_dns_name = match server_name {
-            rustls::ServerName::DnsName(dns) => Some(dns.as_ref()),
-            _ => None,
-        };
+        // These are undecoded and unverified by the rustls library, but should
+        // be expected to contain DER encodinged X501 NAMEs.
+        acceptable_issuers: &[&[u8]],
+        // The server's supported signature schemes.
+        _sigschemes: &[rustls::SignatureScheme],
+    ) -> Option<Arc<rustls::sign::CertifiedKey>> {
+        // TODO(phlip9): actually check against server's advertised sigschemes.
+        // right now both sides only support ed25519, so this doesn't really
+        // matter.
 
-        match maybe_dns_name {
-            Some("run.lexe.tech") => self.node_verifier.verify_server_cert(
-                end_entity,
-                intermediates,
-                server_name,
-                scts,
-                ocsp_response,
-                now,
-            ),
-            _ => self.lexe_verifier.verify_server_cert(
-                end_entity,
-                intermediates,
-                server_name,
-                scts,
-                ocsp_response,
-                now,
-            ),
+        let remote_wants_client_cert = acceptable_issuers
+            .iter()
+            .any(|der| CaCert::is_matching_issuer_der(der));
+
+        if remote_wants_client_cert {
+            Some(self.client_cert.clone())
+        } else {
+            None
         }
     }
 
-    fn request_scts(&self) -> bool {
-        false
+    fn has_certs(&self) -> bool {
+        true
     }
 }
 
@@ -264,8 +282,10 @@ mod test {
     use tokio_rustls::rustls;
 
     use super::*;
+    use crate::attest::EnclavePolicy;
     use crate::rng::SmallRng;
 
+    // test node-client TLS handshake directly w/o any other warp/reqwest infra
     #[tokio::test]
     async fn test_tls_handshake_succeeds() {
         // a fake pair of connected streams
@@ -288,8 +308,14 @@ mod test {
                     .unwrap();
             let lexe_root = rustls::Certificate(lexe_root);
 
+            let attest_verifier = attest::ServerCertVerifier {
+                expect_dummy_quote: true,
+                enclave_policy: EnclavePolicy::dangerous_trust_any(),
+            };
+
             let config =
-                client_run_tls_config(&mut rng, &lexe_root, &seed).unwrap();
+                client_tls_config(&mut rng, &lexe_root, &seed, attest_verifier)
+                    .unwrap();
 
             let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
             let sni = rustls::ServerName::try_from(dns_name).unwrap();
