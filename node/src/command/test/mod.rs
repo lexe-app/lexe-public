@@ -23,6 +23,7 @@ use common::rng::SysRng;
 use crate::command::owner;
 use crate::init::LexeContext;
 use crate::lexe::channel_manager::LexeChannelManager;
+use crate::lexe::logger;
 use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
 use crate::lexe::persister::LexePersister;
 use crate::types::NetworkGraphType;
@@ -61,6 +62,7 @@ struct CommandTestHarness {
 
 impl CommandTestHarness {
     async fn init(mut args: StartArgs) -> Self {
+        logger::init_for_testing();
         // Construct bitcoin.conf
         let mut conf = Conf::default();
         // This rpcauth string corresponds to user `kek` and password `sadge`
@@ -119,11 +121,19 @@ impl CommandTestHarness {
         SocketAddr::from(([127, 0, 0, 1], self.ctx.peer_port))
     }
 
+    async fn get_new_address(&self) -> Address {
+        self.ctx
+            .wallet
+            .get_new_address()
+            .await
+            .expect("Failed to get new address")
+    }
+
     /// Funds the node with some generated blocks,
     /// returning the address the funds were sent to.
     async fn fund_node(&self) -> Address {
         // Coinbase funds can only be spent after 100 blocks
-        let address = self.ctx.wallet.get_new_address().await;
+        let address = self.get_new_address().await;
         self.mine_n_blocks_to_address(101, &address).await;
         address
     }
@@ -132,8 +142,8 @@ impl CommandTestHarness {
     #[allow(dead_code)]
     async fn mine_6_blocks(&self) {
         // Plain bitcoind.client.generate() returns a deprecated error, so we
-        // repeat `fund_node()`
-        let address = self.ctx.wallet.get_new_address().await;
+        // just mine some more blocks to some address
+        let address = self.get_new_address().await;
         self.mine_n_blocks_to_address(6, &address).await;
     }
 
@@ -280,6 +290,52 @@ async fn open_channel() {
     // thus dropping BitcoinD which kills the bitcoind process) so that the
     // event handler has enough time to handle the FundingGenerationReady event
     // before BitcoinD is dropped (and `kill`ed), otherwise this test fails.
+    node1.sync().await;
+    node1.run().await;
+    node2.sync().await;
+    node2.run().await;
+}
+
+/// There is a panic during a panic somewhere.
+/// This test exists solely for debugging purposes
+#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+async fn panic_during_panic() {
+    let mut args1 = default_args_for_user(UserPk::from_i64(1));
+    let mut args2 = default_args_for_user(UserPk::from_i64(2));
+    args1.shutdown_after_sync_if_no_activity = true;
+    args2.shutdown_after_sync_if_no_activity = true;
+
+    let (mut node1, mut node2) = tokio::join!(
+        CommandTestHarness::init(args1),
+        CommandTestHarness::init(args2),
+    );
+
+    // Fund both nodes
+    node1.fund_node().await;
+    node2.fund_node().await;
+
+    // Prepare open channel prerequisites
+    let channel_peer = ChannelPeer {
+        pk: node2.pk(),
+        addr: node2.p2p_address(),
+    };
+    let channel_value_sat = 1_000_000;
+
+    // Open the channel - this is required to trigger the panic during panic
+    println!("Opening channel");
+    node1
+        .channel_manager()
+        .open_channel(
+            &node1.peer_manager(),
+            &node1.persister(),
+            channel_peer,
+            channel_value_sat,
+        )
+        .await
+        .expect("Failed to open channel");
+
+    None::<Option<()>>.expect("INTENTIONAL PANIC FOR DEBUGGING");
+
     node1.sync().await;
     node1.run().await;
     node2.sync().await;

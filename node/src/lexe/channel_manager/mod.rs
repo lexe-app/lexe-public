@@ -162,7 +162,10 @@ impl LexeChannelManager {
             None => {
                 // We're starting a fresh node.
                 *restarting_node = false;
-                let blockchain_info = block_source.get_blockchain_info().await;
+                let blockchain_info = block_source
+                    .get_blockchain_info()
+                    .await
+                    .context("Could not get blockchain info")?;
 
                 let best_block = BestBlock::new(
                     blockchain_info.latest_blockhash,
