@@ -115,9 +115,7 @@ impl RootSeed {
             .ckd_priv(&secp_ctx, child_number)
             .expect("should never fail")
             .private_key;
-        let node_key_pair = KeyPair::from_secret_key(&secp_ctx, node_sk);
-
-        node_key_pair
+        KeyPair::from_secret_key(&secp_ctx, node_sk)
     }
 
     #[cfg(test)]

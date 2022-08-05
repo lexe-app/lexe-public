@@ -208,7 +208,7 @@ pub struct ProvisionArgs {
 
     /// the DNS name the node enclave should include in its remote attestation
     /// certificate and the client will expect in its connection
-    #[argh(option, default = "String::from(\"localhost\")")]
+    #[argh(option, default = "String::from(\"provision.lexe.tech\")")]
     pub node_dns_name: String,
 
     /// protocol://host:port of the node backend.
@@ -230,7 +230,7 @@ impl Default for ProvisionArgs {
         Self {
             user_pk: UserPk::from_i64(1), // Test user
             machine_id: enclave::machine_id(),
-            node_dns_name: "localhost".to_owned(),
+            node_dns_name: "provision.lexe.tech".to_owned(),
             port: None,
             backend_url: DEFAULT_BACKEND_URL.to_owned(),
             runner_url: DEFAULT_RUNNER_URL.to_owned(),
