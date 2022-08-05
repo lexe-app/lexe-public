@@ -5,6 +5,7 @@ use std::io::Write;
 use std::sync::Arc;
 use std::time::Duration;
 
+use anyhow::Context;
 use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
 use bitcoin::secp256k1::Secp256k1;
@@ -17,7 +18,7 @@ use lightning::chain::chaininterface::{
 use lightning::routing::gossip::NodeId;
 use lightning::util::events::{Event, EventHandler, PaymentPurpose};
 use tokio::runtime::Handle;
-use tracing::debug;
+use tracing::{debug, error};
 
 use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::LexeChannelManager;
@@ -89,6 +90,36 @@ pub async fn handle_event(
     network: Network,
     event: &Event,
 ) {
+    let handle_event_res = handle_event_fallible(
+        channel_manager,
+        bitcoind,
+        network_graph,
+        keys_manager,
+        inbound_payments,
+        outbound_payments,
+        network,
+        event,
+    )
+    .await;
+    match handle_event_res {
+        Ok(()) => {}
+        Err(e) => {
+            error!("Error handling event: {:#}", e);
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn handle_event_fallible(
+    channel_manager: &LexeChannelManager,
+    bitcoind: &LexeBitcoind,
+    network_graph: &NetworkGraphType,
+    keys_manager: &LexeKeysManager,
+    inbound_payments: &PaymentInfoStorageType,
+    outbound_payments: &PaymentInfoStorageType,
+    network: Network,
+    event: &Event,
+) -> anyhow::Result<()> {
     match event {
         Event::FundingGenerationReady {
             temporary_channel_id,
@@ -109,16 +140,23 @@ pub async fn handle_event(
             let mut outputs = vec![HashMap::with_capacity(1)];
             outputs[0]
                 .insert(addr, *channel_value_satoshis as f64 / 100_000_000.0);
-            let raw_tx = bitcoind.create_raw_transaction(outputs).await;
+            let raw_tx = bitcoind
+                .create_raw_transaction(outputs)
+                .await
+                .context("Could not create raw transaction")?;
 
             // Have your wallet put the inputs into the transaction such that
             // the output is satisfied.
-            let funded_tx = bitcoind.fund_raw_transaction(raw_tx).await;
+            let funded_tx = bitcoind
+                .fund_raw_transaction(raw_tx)
+                .await
+                .context("Could not fund raw transaction")?;
 
             // Sign the final funding transaction and broadcast it.
             let signed_tx = bitcoind
                 .sign_raw_transaction_with_wallet(funded_tx.hex)
-                .await;
+                .await
+                .context("Could not sign raw tx with wallet")?;
             assert!(signed_tx.complete);
             let final_tx: Transaction =
                 encode::deserialize(&hex::decode(&signed_tx.hex).unwrap())
@@ -329,7 +367,10 @@ pub async fn handle_event(
             });
         }
         Event::SpendableOutputs { outputs } => {
-            let destination_address = bitcoind.get_new_address().await;
+            let destination_address = bitcoind
+                .get_new_address()
+                .await
+                .context("Could not get new address")?;
             let output_descriptors = &outputs.iter().collect::<Vec<_>>();
             let tx_feerate = bitcoind
                 .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
@@ -363,4 +404,6 @@ pub async fn handle_event(
             // this event is generated.
         }
     }
+
+    Ok(())
 }

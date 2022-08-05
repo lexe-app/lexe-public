@@ -20,11 +20,14 @@ use lightning_block_sync::{
     AsyncBlockSourceResult, BlockHeaderData, BlockSource,
 };
 use tokio::runtime::Handle;
+use tokio::time;
 use tracing::{debug, error};
 
 mod types;
 
 pub use types::*;
+
+const POLL_FEE_ESTIMATE_INTERVAL: Duration = Duration::from_secs(60);
 
 pub struct LexeBitcoind {
     bitcoind_rpc_client: Arc<RpcClient>,
@@ -32,7 +35,9 @@ pub struct LexeBitcoind {
     port: u16,
     rpc_user: String,
     rpc_password: String,
-    fees: Arc<HashMap<Target, AtomicU32>>,
+    background_fees: Arc<AtomicU32>,
+    normal_fees: Arc<AtomicU32>,
+    high_prio_fees: Arc<AtomicU32>,
     handle: Handle,
 }
 
@@ -94,7 +99,11 @@ impl LexeBitcoind {
 
         // Check that the bitcoind we've connected to is running the network we
         // expect
-        let bitcoind_chain = client.get_blockchain_info().await.chain;
+        let bitcoind_chain = client
+            .get_blockchain_info()
+            .await
+            .context("Could not get blockchain info")?
+            .chain;
         // getblockchaininfo truncates mainnet and testnet. Change these to
         // match the cli::Network FromStr / Display impls.
         let bitcoind_chain = match bitcoind_chain.as_str() {
@@ -133,103 +142,128 @@ impl LexeBitcoind {
         let bitcoind_rpc_client =
             RpcClient::new(&rpc_credentials, http_endpoint)?;
         let _dummy = bitcoind_rpc_client
-			.call_method::<BlockchainInfo>("getblockchaininfo", &[])
-			.await
-			.map_err(|_| {
-				std::io::Error::new(std::io::ErrorKind::PermissionDenied,
-				"Failed to make initial call to bitcoind - please check your RPC user/password and access settings")
-			})?;
-        let mut fees: HashMap<Target, AtomicU32> = HashMap::new();
-        fees.insert(Target::Background, AtomicU32::new(MIN_FEERATE));
-        fees.insert(Target::Normal, AtomicU32::new(2000));
-        fees.insert(Target::HighPriority, AtomicU32::new(5000));
+            .call_method::<BlockchainInfo>("getblockchaininfo", &[])
+            .await
+            .map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::PermissionDenied,
+                "Failed to make initial call to bitcoind - please check your RPC user/password and access settings")
+            })?;
+
+        let background_fees = Arc::new(AtomicU32::new(MIN_FEERATE));
+        let normal_fees = Arc::new(AtomicU32::new(2000));
+        let high_prio_fees = Arc::new(AtomicU32::new(5000));
+
         let client = Self {
             bitcoind_rpc_client: Arc::new(bitcoind_rpc_client),
             host,
             port,
             rpc_user,
             rpc_password,
-            fees: Arc::new(fees),
+            background_fees,
+            normal_fees,
+            high_prio_fees,
             handle: handle.clone(),
         };
         client.poll_for_fee_estimates(
-            client.fees.clone(),
+            client.background_fees.clone(),
+            client.normal_fees.clone(),
+            client.high_prio_fees.clone(),
             client.bitcoind_rpc_client.clone(),
         );
         Ok(client)
     }
 
-    // TODO: There are unwrap()s everywhere downstream of network reqs, remove
     fn poll_for_fee_estimates(
         &self,
-        fees: Arc<HashMap<Target, AtomicU32>>,
+        background_fees: Arc<AtomicU32>,
+        normal_fees: Arc<AtomicU32>,
+        high_prio_fees: Arc<AtomicU32>,
         rpc_client: Arc<RpcClient>,
     ) {
         self.handle.spawn(async move {
+            let mut poll_interval = time::interval(POLL_FEE_ESTIMATE_INTERVAL);
+
             loop {
-                let background_estimate = {
-                    let background_conf_target = serde_json::json!(144);
-                    let background_estimate_mode =
-                        serde_json::json!("ECONOMICAL");
-                    let resp = rpc_client
-                        .call_method::<FeeResponse>(
-                            "estimatesmartfee",
-                            &[background_conf_target, background_estimate_mode],
-                        )
-                        .await
-                        .unwrap();
-                    match resp.feerate_sat_per_kw {
-                        Some(feerate) => std::cmp::max(feerate, MIN_FEERATE),
-                        None => MIN_FEERATE,
+                poll_interval.tick().await;
+
+                let poll_res = Self::poll_for_fee_estimates_fallible(
+                    background_fees.as_ref(),
+                    normal_fees.as_ref(),
+                    high_prio_fees.as_ref(),
+                    rpc_client.as_ref(),
+                )
+                .await;
+
+                match poll_res {
+                    Ok(()) => {}
+                    Err(e) => {
+                        error!("Error while polling fee estimates: {:#}", e);
                     }
-                };
-
-                let normal_estimate = {
-                    let normal_conf_target = serde_json::json!(18);
-                    let normal_estimate_mode = serde_json::json!("ECONOMICAL");
-                    let resp = rpc_client
-                        .call_method::<FeeResponse>(
-                            "estimatesmartfee",
-                            &[normal_conf_target, normal_estimate_mode],
-                        )
-                        .await
-                        .unwrap();
-                    match resp.feerate_sat_per_kw {
-                        Some(feerate) => std::cmp::max(feerate, MIN_FEERATE),
-                        None => 2000,
-                    }
-                };
-
-                let high_prio_estimate = {
-                    let high_prio_conf_target = serde_json::json!(6);
-                    let high_prio_estimate_mode =
-                        serde_json::json!("CONSERVATIVE");
-                    let resp = rpc_client
-                        .call_method::<FeeResponse>(
-                            "estimatesmartfee",
-                            &[high_prio_conf_target, high_prio_estimate_mode],
-                        )
-                        .await
-                        .unwrap();
-
-                    match resp.feerate_sat_per_kw {
-                        Some(feerate) => std::cmp::max(feerate, MIN_FEERATE),
-                        None => 5000,
-                    }
-                };
-
-                fees.get(&Target::Background)
-                    .unwrap()
-                    .store(background_estimate, Ordering::Release);
-                fees.get(&Target::Normal)
-                    .unwrap()
-                    .store(normal_estimate, Ordering::Release);
-                fees.get(&Target::HighPriority)
-                    .unwrap()
-                    .store(high_prio_estimate, Ordering::Release);
-                tokio::time::sleep(Duration::from_secs(60)).await;
+                }
             }
         });
+    }
+
+    async fn poll_for_fee_estimates_fallible(
+        background_fees: &AtomicU32,
+        normal_fees: &AtomicU32,
+        high_prio_fees: &AtomicU32,
+        rpc_client: &RpcClient,
+    ) -> anyhow::Result<()> {
+        let background_estimate = {
+            let background_conf_target = serde_json::json!(144);
+            let background_estimate_mode = serde_json::json!("ECONOMICAL");
+            let resp = rpc_client
+                .call_method::<FeeResponse>(
+                    "estimatesmartfee",
+                    &[background_conf_target, background_estimate_mode],
+                )
+                .await
+                .context("Failed to get background estimate")?;
+            match resp.feerate_sat_per_kw {
+                Some(feerate) => std::cmp::max(feerate, MIN_FEERATE),
+                None => MIN_FEERATE,
+            }
+        };
+
+        let normal_estimate = {
+            let normal_conf_target = serde_json::json!(18);
+            let normal_estimate_mode = serde_json::json!("ECONOMICAL");
+            let resp = rpc_client
+                .call_method::<FeeResponse>(
+                    "estimatesmartfee",
+                    &[normal_conf_target, normal_estimate_mode],
+                )
+                .await
+                .context("Failed to get normal estimate")?;
+            match resp.feerate_sat_per_kw {
+                Some(feerate) => std::cmp::max(feerate, MIN_FEERATE),
+                None => 2000,
+            }
+        };
+
+        let high_prio_estimate = {
+            let high_prio_conf_target = serde_json::json!(6);
+            let high_prio_estimate_mode = serde_json::json!("CONSERVATIVE");
+            let resp = rpc_client
+                .call_method::<FeeResponse>(
+                    "estimatesmartfee",
+                    &[high_prio_conf_target, high_prio_estimate_mode],
+                )
+                .await
+                .context("Failed to get high priority estimate")?;
+
+            match resp.feerate_sat_per_kw {
+                Some(feerate) => std::cmp::max(feerate, MIN_FEERATE),
+                None => 5000,
+            }
+        };
+
+        background_fees.store(background_estimate, Ordering::Release);
+        normal_fees.store(normal_estimate, Ordering::Release);
+        high_prio_fees.store(high_prio_estimate, Ordering::Release);
+
+        Ok(())
     }
 
     pub fn get_new_rpc_client(&self) -> std::io::Result<RpcClient> {
@@ -243,11 +277,10 @@ impl LexeBitcoind {
         RpcClient::new(&rpc_credentials, http_endpoint)
     }
 
-    // TODO: There are unwrap()s everywhere downstream of network reqs, remove
     pub async fn create_raw_transaction(
         &self,
         outputs: Vec<HashMap<String, f64>>,
-    ) -> RawTx {
+    ) -> anyhow::Result<RawTx> {
         let outputs_json = serde_json::json!(outputs);
         self.bitcoind_rpc_client
             .call_method::<RawTx>(
@@ -255,11 +288,13 @@ impl LexeBitcoind {
                 &[serde_json::json!([]), outputs_json],
             )
             .await
-            .unwrap()
+            .context("createrawtransaction RPC call failed")
     }
 
-    // TODO: There are unwrap()s everywhere downstream of network reqs, remove
-    pub async fn fund_raw_transaction(&self, raw_tx: RawTx) -> FundedTx {
+    pub async fn fund_raw_transaction(
+        &self,
+        raw_tx: RawTx,
+    ) -> anyhow::Result<FundedTx> {
         let raw_tx_json = serde_json::json!(raw_tx.0);
         let options = serde_json::json!({
             // LDK gives us feerates in satoshis per KW but Bitcoin Core here
@@ -279,47 +314,47 @@ impl LexeBitcoind {
         self.bitcoind_rpc_client
             .call_method("fundrawtransaction", &[raw_tx_json, options])
             .await
-            .unwrap()
+            .context("fundrawtransaction RPC call failed")
     }
 
-    // TODO: There are unwrap()s everywhere downstream of network reqs, remove
-    pub async fn send_raw_transaction(&self, raw_tx: RawTx) {
+    pub async fn send_raw_transaction(
+        &self,
+        raw_tx: RawTx,
+    ) -> anyhow::Result<Txid> {
         let raw_tx_json = serde_json::json!(raw_tx.0);
         self.bitcoind_rpc_client
             .call_method::<Txid>("sendrawtransaction", &[raw_tx_json])
             .await
-            .unwrap();
+            .context("sesndrawtransaction RPC call failed")
     }
 
-    // TODO: There are unwrap()s everywhere downstream of network reqs, remove
     pub async fn sign_raw_transaction_with_wallet(
         &self,
         tx_hex: String,
-    ) -> SignedTx {
+    ) -> anyhow::Result<SignedTx> {
         let tx_hex_json = serde_json::json!(tx_hex);
         self.bitcoind_rpc_client
             .call_method("signrawtransactionwithwallet", &[tx_hex_json])
             .await
-            .unwrap()
+            .context("signrawtransactionwithwallet RPC call failed")
     }
 
-    // TODO: There are unwrap()s everywhere downstream of network reqs, remove
-    pub async fn get_new_address(&self) -> Address {
+    pub async fn get_new_address(&self) -> anyhow::Result<Address> {
         let addr_args = vec![serde_json::json!("LDK output address")];
         let addr = self
             .bitcoind_rpc_client
             .call_method::<NewAddress>("getnewaddress", &addr_args)
             .await
-            .unwrap();
-        Address::from_str(addr.0.as_str()).unwrap()
+            .context("getnewaddress RPC call failed")?;
+        Address::from_str(addr.0.as_str())
+            .context("Could not parse address from string")
     }
 
-    // TODO: There are unwrap()s everywhere downstream of network reqs, remove
-    pub async fn get_blockchain_info(&self) -> BlockchainInfo {
+    pub async fn get_blockchain_info(&self) -> anyhow::Result<BlockchainInfo> {
         self.bitcoind_rpc_client
             .call_method::<BlockchainInfo>("getblockchaininfo", &[])
             .await
-            .unwrap()
+            .context("getblockchaininfo RPC call failed")
     }
 }
 
@@ -329,21 +364,15 @@ impl FeeEstimator for LexeBitcoind {
         confirmation_target: ConfirmationTarget,
     ) -> u32 {
         match confirmation_target {
-            ConfirmationTarget::Background => self
-                .fees
-                .get(&Target::Background)
-                .unwrap()
-                .load(Ordering::Acquire),
-            ConfirmationTarget::Normal => self
-                .fees
-                .get(&Target::Normal)
-                .unwrap()
-                .load(Ordering::Acquire),
-            ConfirmationTarget::HighPriority => self
-                .fees
-                .get(&Target::HighPriority)
-                .unwrap()
-                .load(Ordering::Acquire),
+            ConfirmationTarget::Background => {
+                self.background_fees.load(Ordering::Acquire)
+            }
+            ConfirmationTarget::Normal => {
+                self.normal_fees.load(Ordering::Acquire)
+            }
+            ConfirmationTarget::HighPriority => {
+                self.high_prio_fees.load(Ordering::Acquire)
+            }
         }
     }
 }
