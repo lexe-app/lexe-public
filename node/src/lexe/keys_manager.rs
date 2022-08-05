@@ -114,3 +114,23 @@ impl LexeKeysManager {
         )
     }
 }
+
+#[cfg(test)]
+mod test {
+    use common::rng::SysRng;
+
+    use super::*;
+
+    #[test]
+    fn test_derive_node_sk_equiv() {
+        // TODO(phlip9): use test rng
+        let mut rng = SysRng::new();
+        let root_seed = RootSeed::from_rng(&mut rng);
+        let node_key_pair = root_seed.derive_node_key_pair(&mut rng);
+        let node_pk = PublicKey::from(&node_key_pair);
+
+        let keys_manager =
+            LexeKeysManager::init(&mut rng, &node_pk, &root_seed).unwrap();
+        assert_eq!(node_pk, keys_manager.derive_pk(&mut rng));
+    }
+}

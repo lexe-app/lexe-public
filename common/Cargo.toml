@@ -13,7 +13,7 @@ edition = "2021"
 [dependencies]
 # --- BITCOIN --- #
 
-bitcoin = { version = "0.28.1", features = ["use-serde"] }
+bitcoin = { version = "0.28.1", features = ["std", "use-serde"] }
 bitcoin-bech32 = "0.12"
 
 # --- LIGHTNING --- #

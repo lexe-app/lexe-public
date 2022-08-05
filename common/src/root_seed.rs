@@ -2,10 +2,14 @@ use std::fmt;
 use std::str::FromStr;
 
 use anyhow::format_err;
+use bitcoin::secp256k1::Secp256k1;
+use bitcoin::util::bip32::{ChildNumber, ExtendedPrivKey};
+use bitcoin::{KeyPair, Network};
 use rand_core::{CryptoRng, RngCore};
 use secrecy::{ExposeSecret, Secret, SecretVec};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::rng::Crng;
 use crate::{ed25519, hex};
 
 /// The user's root seed from which we derive all child secrets.
@@ -90,6 +94,30 @@ impl RootSeed {
     pub fn derive_client_ca_key_pair(&self) -> rcgen::KeyPair {
         let seed = self.derive(b"client ca key pair");
         ed25519::from_seed(seed.expose_secret())
+    }
+
+    /// Derive the lightning node key pair directly, without needing to derive
+    /// all the other auxiliary node secrets.
+    pub fn derive_node_key_pair<R: Crng>(&self, rng: &mut R) -> KeyPair {
+        // NOTE: this doesn't affect the output; this randomizes the SECP256K1
+        // context for sidechannel resistance.
+        let mut secp_randomize = [0u8; 32];
+        rng.fill_bytes(&mut secp_randomize);
+        let mut secp_ctx = Secp256k1::new();
+        secp_ctx.seeded_randomize(&secp_randomize);
+
+        let master_secret =
+            ExtendedPrivKey::new_master(Network::Testnet, self.expose_secret())
+                .expect("should never fail; the sizes match up");
+        let child_number = ChildNumber::from_hardened_idx(0)
+            .expect("should never fail; index is in range");
+        let node_sk = master_secret
+            .ckd_priv(&secp_ctx, child_number)
+            .expect("should never fail")
+            .private_key;
+        let node_key_pair = KeyPair::from_secret_key(&secp_ctx, node_sk);
+
+        node_key_pair
     }
 
     #[cfg(test)]
@@ -195,6 +223,7 @@ impl proptest::arbitrary::Arbitrary for RootSeed {
 
         proptest::arbitrary::any::<[u8; 32]>()
             .prop_map(|buf| Self::new(Secret::new(buf)))
+            .no_shrink()
             .boxed()
     }
 }

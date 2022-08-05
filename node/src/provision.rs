@@ -45,7 +45,6 @@ use warp::reject::Reject;
 use warp::{Filter, Rejection, Reply};
 
 use crate::attest;
-use crate::lexe::keys_manager::LexeKeysManager;
 use crate::types::ApiClientType;
 
 const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
@@ -116,10 +115,10 @@ fn verify_provision_request<R: Crng>(
 ) -> Result<(UserPk, PublicKey, ProvisionedSecrets)> {
     ensure!(req.user_pk == expected_user_id);
 
-    // TODO(phlip9): derive just the node pk without all the extra junk
-    // that gets derived constructing a whole KeysManager
-    let _keys_manager =
-        LexeKeysManager::init(rng, &req.node_pk, &req.root_seed)?;
+    let derived_node_pk =
+        PublicKey::from(req.root_seed.derive_node_key_pair(rng));
+    ensure!(req.node_pk == derived_node_pk);
+
     Ok((
         req.user_pk,
         req.node_pk,
@@ -264,7 +263,7 @@ pub async fn provision(
         match tokio::time::timeout(PROVISION_TIMEOUT, shutdown_rx.recv()).await
         {
             Ok(_) => {
-                debug!("received shutdown; done provisioning");
+                info!("received shutdown; done provisioning");
             }
             Err(_) => {
                 warn!(
