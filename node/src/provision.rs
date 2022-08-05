@@ -366,7 +366,12 @@ mod test {
     async fn test_provision() {
         logger::init_for_testing();
 
-        let args = ProvisionArgs::default();
+        let args = ProvisionArgs {
+            // we're not going through a proxy and can't change DNS resolution
+            // here (yet), so just bind cert to "localhost".
+            node_dns_name: "localhost".to_owned(),
+            ..ProvisionArgs::default()
+        };
         let user_pk = args.user_pk;
 
         let mut rng = SysRng::new();

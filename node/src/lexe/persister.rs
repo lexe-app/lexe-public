@@ -19,7 +19,7 @@ use lightning::routing::scoring::{
 };
 use lightning::util::persist::Persister;
 use lightning::util::ser::{ReadableArgs, Writeable};
-use once_cell::sync::{Lazy, OnceCell};
+use once_cell::sync::Lazy;
 use tokio::runtime::{Builder, Handle, Runtime};
 use tracing::{debug, error};
 
@@ -321,14 +321,13 @@ impl InnerPersister {
 
 /// A Tokio runtime which can be used to run async closures in sync fns
 /// downstream of thread::spawn()
-static PERSISTER_RUNTIME: Lazy<OnceCell<Runtime>> = Lazy::new(|| {
+static PERSISTER_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
     Builder::new_current_thread()
         .enable_io()
         // Because our reqwest::Client has a configured timeout
         .enable_time()
         .build()
         .unwrap()
-        .into()
 });
 
 /// This trait is defined in lightning::util::Persist.
@@ -369,8 +368,6 @@ impl<'a>
 
         // Run an async fn inside a sync fn downstream of thread::spawn()
         PERSISTER_RUNTIME
-            .get()
-            .unwrap()
             .block_on(async move { self.api.upsert_file(cm_file).await })
             .map(|_| ())
             .map_err(|api_err| {
@@ -397,8 +394,6 @@ impl<'a>
 
         // Run an async fn inside a sync fn downstream of thread::spawn()
         PERSISTER_RUNTIME
-            .get()
-            .unwrap()
             .block_on(async move { self.api.upsert_file(file).await })
             .map(|_| ())
             .map_err(|api_err| {
@@ -428,7 +423,7 @@ impl<'a>
             )
         };
 
-        PERSISTER_RUNTIME.get().unwrap().block_on(async move {
+        PERSISTER_RUNTIME.block_on(async move {
             self.api
                 .upsert_file(scorer_file)
                 .await
