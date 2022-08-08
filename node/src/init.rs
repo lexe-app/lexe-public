@@ -53,10 +53,12 @@ pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 // TODO: Remove once keys_manager, persister, invoice_payer are read in SGX
 #[allow(dead_code)]
 pub struct LexeNode {
+    // --- General --- //
     args: StartArgs,
     shutdown_tx: broadcast::Sender<()>,
     pub peer_port: Port,
 
+    // --- Actors --- //
     pub channel_manager: LexeChannelManager,
     pub peer_manager: LexePeerManager,
     pub keys_manager: LexeKeysManager,
@@ -70,21 +72,13 @@ pub struct LexeNode {
     broadcaster: Arc<BroadcasterType>,
     logger: LexeTracingLogger,
 
-    sync_ctx: Option<SyncContext>,
-    run_ctx: Option<RunContext>,
-}
-
-/// Variables that only sync() uses, or which sync() requires ownership of
-struct SyncContext {
+    // --- Sync --- //
     restarting_node: bool,
     channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
     channel_manager_blockhash: BlockHash,
     activity_rx: mpsc::Receiver<()>,
-}
 
-/// Variables that only run() uses, or which run() requires ownership of
-#[allow(dead_code)] // TODO: Remove once in/outbound payments are read in SGX
-struct RunContext {
+    // --- Run --- //
     inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
     shutdown_rx: broadcast::Receiver<()>,
@@ -312,10 +306,12 @@ impl LexeNode {
 
         // Build and return the LexeNode
         let node = LexeNode {
+            // General
             args,
             shutdown_tx,
             peer_port,
 
+            // Actors
             channel_manager,
             peer_manager,
             keys_manager,
@@ -329,37 +325,36 @@ impl LexeNode {
             broadcaster,
             logger,
 
-            sync_ctx: Some(SyncContext {
-                restarting_node,
-                channel_manager_blockhash,
-                channel_monitors,
-                activity_rx,
-            }),
-            run_ctx: Some(RunContext {
-                inbound_payments,
-                outbound_payments,
-                shutdown_rx,
-                stop_listen_connect,
-                background_processor,
-            }),
+            // Sync
+            restarting_node,
+            channel_manager_blockhash,
+            channel_monitors,
+            activity_rx,
+
+            // Run
+            inbound_payments,
+            outbound_payments,
+            shutdown_rx,
+            stop_listen_connect,
+            background_processor,
         };
         Ok(node)
     }
 
-    pub async fn sync(&mut self) -> anyhow::Result<()> {
-        let sync_ctx = self.sync_ctx.take().expect("Was set during init");
+    pub async fn run(mut self) -> anyhow::Result<()> {
+        // --- Sync --- //
 
         // Sync channel manager and channel monitors to chain tip
         let synced_chain_listeners = SyncedChainListeners::init_and_sync(
             self.args.network,
             self.channel_manager.clone(),
-            sync_ctx.channel_manager_blockhash,
-            sync_ctx.channel_monitors,
+            self.channel_manager_blockhash,
+            self.channel_monitors,
             self.block_source.clone(),
             self.broadcaster.clone(),
             self.fee_estimator.clone(),
             self.logger.clone(),
-            sync_ctx.restarting_node,
+            self.restarting_node,
         )
         .await
         .context("Could not sync channel listeners")?;
@@ -375,7 +370,7 @@ impl LexeNode {
         let mut inactivity_timer = InactivityTimer::new(
             self.args.shutdown_after_sync_if_no_activity,
             self.args.inactivity_timer_sec,
-            sync_ctx.activity_rx,
+            self.activity_rx,
             self.shutdown_tx.clone(),
             timer_shutdown_rx,
         );
@@ -383,11 +378,7 @@ impl LexeNode {
             inactivity_timer.start().await;
         });
 
-        Ok(())
-    }
-
-    pub async fn run(&mut self) -> anyhow::Result<()> {
-        let mut run_ctx = self.run_ctx.take().expect("Was set during init");
+        // --- Run --- //
 
         // Start the REPL if it was specified to start in the CLI args.
         #[cfg(not(target_env = "sgx"))]
@@ -399,8 +390,8 @@ impl LexeNode {
                 self.channel_manager.clone(),
                 self.keys_manager.clone(),
                 self.network_graph.clone(),
-                run_ctx.inbound_payments,
-                run_ctx.outbound_payments,
+                self.inbound_payments,
+                self.outbound_payments,
                 self.persister.clone(),
                 self.args.network,
             )
@@ -409,19 +400,19 @@ impl LexeNode {
         }
 
         // Pause here and wait for the shutdown signal
-        let _ = run_ctx.shutdown_rx.recv().await;
+        let _ = self.shutdown_rx.recv().await;
 
-        // ## Shutdown
+        // --- Shutdown --- //
         println!("Main thread shutting down");
 
         // Disconnect from peers and stop accepting new connections. This
         // ensures we don't continue updating our channel data after we've
         // stopped the background processor.
-        run_ctx.stop_listen_connect.store(true, Ordering::Release);
+        self.stop_listen_connect.store(true, Ordering::Release);
         self.peer_manager.disconnect_all_peers();
 
         // Stop the background processor.
-        run_ctx.background_processor.stop().unwrap();
+        self.background_processor.stop().unwrap();
 
         Ok(())
     }

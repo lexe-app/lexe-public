@@ -30,8 +30,7 @@ impl Args {
                     .expect("Failed to build tokio runtime");
                 let mut rng = SysRng::new();
                 rt.block_on(async {
-                    let mut node = LexeNode::init(&mut rng, args).await?;
-                    node.sync().await?;
+                    let node = LexeNode::init(&mut rng, args).await?;
                     node.run().await
                 })
                 .context("Error running node")

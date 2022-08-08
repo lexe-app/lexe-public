@@ -88,11 +88,7 @@ impl CommandTestHarness {
         Self { bitcoind, node }
     }
 
-    async fn sync(&mut self) {
-        self.node.sync().await.expect("Error while running");
-    }
-
-    async fn run(&mut self) {
+    async fn run(self) {
         self.node.run().await.expect("Error while running");
     }
 
@@ -165,8 +161,7 @@ async fn init_sync_shutdown() {
     let mut args = default_args();
     args.shutdown_after_sync_if_no_activity = true;
 
-    let mut h = CommandTestHarness::init(args).await;
-    h.sync().await;
+    let h = CommandTestHarness::init(args).await;
     h.run().await;
 }
 
@@ -245,7 +240,7 @@ async fn open_channel() {
     args1.shutdown_after_sync_if_no_activity = true;
     args2.shutdown_after_sync_if_no_activity = true;
 
-    let (mut node1, mut node2) = tokio::join!(
+    let (node1, node2) = tokio::join!(
         CommandTestHarness::init(args1),
         CommandTestHarness::init(args2),
     );
@@ -290,8 +285,6 @@ async fn open_channel() {
     // thus dropping BitcoinD which kills the bitcoind process) so that the
     // event handler has enough time to handle the FundingGenerationReady event
     // before BitcoinD is dropped (and `kill`ed), otherwise this test fails.
-    node1.sync().await;
     node1.run().await;
-    node2.sync().await;
     node2.run().await;
 }
