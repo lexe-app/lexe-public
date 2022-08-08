@@ -52,7 +52,7 @@ pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 // TODO: Eventually move this into the `lexe` module once init is cleaned up
 // TODO: Remove once keys_manager, persister, invoice_payer are read in SGX
 #[allow(dead_code)]
-pub struct LexeContext {
+pub struct LexeNode {
     args: StartArgs,
     shutdown_tx: broadcast::Sender<()>,
     pub peer_port: Port,
@@ -92,7 +92,7 @@ struct RunContext {
     background_processor: BackgroundProcessor,
 }
 
-impl LexeContext {
+impl LexeNode {
     pub async fn init<R: Crng>(
         rng: &mut R,
         args: StartArgs,
@@ -310,21 +310,8 @@ impl LexeContext {
             persister.clone(),
         );
 
-        // Build and return the LexeContext
-        let sync_ctx = SyncContext {
-            restarting_node,
-            channel_manager_blockhash,
-            channel_monitors,
-            activity_rx,
-        };
-        let run_ctx = RunContext {
-            inbound_payments,
-            outbound_payments,
-            shutdown_rx,
-            stop_listen_connect,
-            background_processor,
-        };
-        let ctx = LexeContext {
+        // Build and return the LexeNode
+        let node = LexeNode {
             args,
             shutdown_tx,
             peer_port,
@@ -342,10 +329,21 @@ impl LexeContext {
             broadcaster,
             logger,
 
-            sync_ctx: Some(sync_ctx),
-            run_ctx: Some(run_ctx),
+            sync_ctx: Some(SyncContext {
+                restarting_node,
+                channel_manager_blockhash,
+                channel_monitors,
+                activity_rx,
+            }),
+            run_ctx: Some(RunContext {
+                inbound_payments,
+                outbound_payments,
+                shutdown_rx,
+                stop_listen_connect,
+                background_processor,
+            }),
         };
-        Ok(ctx)
+        Ok(node)
     }
 
     pub async fn sync(&mut self) -> anyhow::Result<()> {

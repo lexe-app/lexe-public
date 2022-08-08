@@ -1,7 +1,7 @@
 //! Command tests.
 //!
 //! Note that all tests which call `CommandTestHarness::init()` must use a
-//! multi-threaded runtime, since `LexeContext::init()` starts the
+//! multi-threaded runtime, since `LexeNode::init()` starts the
 //! `BackgroundProcessor` which requires its own OS thread. A single worker
 //! thread should be enough.
 
@@ -21,7 +21,7 @@ use common::cli::{
 use common::rng::SysRng;
 
 use crate::command::owner;
-use crate::init::LexeContext;
+use crate::init::LexeNode;
 use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::logger;
 use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
@@ -57,7 +57,7 @@ fn default_args_for_user(user_pk: UserPk) -> StartArgs {
 
 struct CommandTestHarness {
     bitcoind: BitcoinD,
-    ctx: LexeContext,
+    node: LexeNode,
 }
 
 impl CommandTestHarness {
@@ -81,48 +81,48 @@ impl CommandTestHarness {
 
         // Init node
         let mut rng = SysRng::new();
-        let ctx = LexeContext::init(&mut rng, args)
+        let node = LexeNode::init(&mut rng, args)
             .await
             .expect("Error during init");
 
-        Self { bitcoind, ctx }
+        Self { bitcoind, node }
     }
 
     async fn sync(&mut self) {
-        self.ctx.sync().await.expect("Error while running");
+        self.node.sync().await.expect("Error while running");
     }
 
     async fn run(&mut self) {
-        self.ctx.run().await.expect("Error while running");
+        self.node.run().await.expect("Error while running");
     }
 
     fn channel_manager(&self) -> LexeChannelManager {
-        self.ctx.channel_manager.clone()
+        self.node.channel_manager.clone()
     }
 
     fn peer_manager(&self) -> LexePeerManager {
-        self.ctx.peer_manager.clone()
+        self.node.peer_manager.clone()
     }
 
     fn persister(&self) -> LexePersister {
-        self.ctx.persister.clone()
+        self.node.persister.clone()
     }
 
     fn network_graph(&self) -> Arc<NetworkGraphType> {
-        self.ctx.network_graph.clone()
+        self.node.network_graph.clone()
     }
 
     fn pk(&self) -> PublicKey {
         let mut rng = SysRng::new();
-        self.ctx.keys_manager.derive_pk(&mut rng)
+        self.node.keys_manager.derive_pk(&mut rng)
     }
 
     fn p2p_address(&self) -> SocketAddr {
-        SocketAddr::from(([127, 0, 0, 1], self.ctx.peer_port))
+        SocketAddr::from(([127, 0, 0, 1], self.node.peer_port))
     }
 
     async fn get_new_address(&self) -> Address {
-        self.ctx
+        self.node
             .wallet
             .get_new_address()
             .await
