@@ -23,10 +23,11 @@ tokio = { git = "https://github.com/lexe-tech/tokio",  branch = "tokio-sgx-1.15.
 # atty = { git = "https://github.com/softprops/atty", rev = "6633c0e1446aa19e6cd00e00e39770da43081bda" }
 
 [profile.dev]
-# Fix 'warning: can't find symbol' when debugging. More info:
+# This fixes 'warning: can't find symbol' when debugging, but breaks the
+# server's build.rs, so it should always be commented out in git. More info:
 # https://github.com/rust-lang/rust/issues/40787#issuecomment-1019465942
 # https://doc.rust-lang.org/cargo/reference/profiles.html#split-debuginfo
-split-debuginfo = "packed"
+# split-debuginfo = "packed"
 
 [profile.release]
 panic = "abort"
