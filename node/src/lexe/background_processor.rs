@@ -6,7 +6,7 @@ use lightning::util::events::EventsProvider;
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 use tokio::time::{interval, interval_at, Instant};
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::peer_manager::LexePeerManager;
@@ -39,6 +39,7 @@ impl LexeBackgroundProcessor {
         event_handler: Arc<InvoicePayerType>,
         gossip_sync: Arc<P2PGossipSyncType>,
         scorer: Arc<Mutex<ProbabilisticScorerType>>,
+        shutdown_tx: broadcast::Sender<()>,
         mut shutdown_rx: broadcast::Receiver<()>,
     ) -> JoinHandle<()> {
         tokio::task::spawn(async move {
@@ -78,24 +79,43 @@ impl LexeBackgroundProcessor {
                         let needs_persist = channel_manager
                             .await_persistable_update_timeout(timeout);
                         if needs_persist {
-                            // TODO Log err and shut down if persist fails
-                            persister.persist_manager(channel_manager.deref()).await
-                                .expect("TODO: Shut down if persist fails");
+                            let persist_res = persister
+                                .persist_manager(channel_manager.deref())
+                                .await;
+                            if let Err(e) = persist_res {
+                                // Failing to persist the channel manager won't
+                                // lose funds so long as the chain monitors have
+                                // been persisted correctly, but it's still
+                                // serious - initiate a shutdown
+                                error!("Couldn't persist channel manager: {:#}", e);
+                                let _ = shutdown_tx.send(());
+                                break;
+                            }
                         }
                     }
                     _ = ng_timer.tick() => {
                         debug!("Pruning and persisting network graph");
                         let network_graph = gossip_sync.network_graph();
                         network_graph.remove_stale_channels();
-                        // TODO Log err and shut down if persist fails
-                        persister.persist_graph(network_graph).await
-                            .expect("TODO: Shut down if persist fails");
+                        let persist_res = persister
+                            .persist_graph(network_graph)
+                            .await;
+                        if let Err(e) = persist_res {
+                            // The network graph isn't super important,
+                            // but we still should log a warning.
+                            warn!("Couldn't persist network graph: {:#}", e);
+                        }
                     }
                     _ = ps_timer.tick() => {
                         debug!("Persisting probabilistic scorer");
-                        // TODO Log err and shut down if persist fails
-                        persister.persist_scorer(scorer.as_ref()).await
-                            .expect("TODO: Shut down if persist fails");
+                        let persist_res = persister
+                            .persist_scorer(scorer.as_ref())
+                            .await;
+                        if let Err(e) = persist_res {
+                            // The scorer isn't super important,
+                            // but we still should log a warning.
+                            warn!("Couldn't persist network graph: {:#}", e);
+                        }
                     }
 
                     // --- Shutdown branch --- //
