@@ -22,7 +22,6 @@ use lightning::chain;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::routing::gossip::P2PGossipSync;
-use lightning_background_processor::BackgroundProcessor;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use secrecy::ExposeSecret;
@@ -33,6 +32,7 @@ use tokio::sync::{broadcast, mpsc};
 use crate::api::ApiClient;
 use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
+use crate::lexe::background_processor::LexeBackgroundProcessor;
 use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::keys_manager::LexeKeysManager;
@@ -42,8 +42,8 @@ use crate::lexe::persister::LexePersister;
 use crate::lexe::sync::SyncedChainListeners;
 use crate::types::{
     ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
-    ChannelMonitorType, FeeEstimatorType, GossipSyncType, InvoicePayerType,
-    NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, WalletType,
+    ChannelMonitorType, FeeEstimatorType, InvoicePayerType, NetworkGraphType,
+    P2PGossipSyncType, PaymentInfoStorageType, WalletType,
 };
 use crate::{api, command};
 
@@ -83,7 +83,6 @@ pub struct LexeNode {
     outbound_payments: PaymentInfoStorageType,
     shutdown_rx: broadcast::Receiver<()>,
     stop_listen_connect: Arc<AtomicBool>,
-    background_processor: BackgroundProcessor,
 }
 
 impl LexeNode {
@@ -285,15 +284,17 @@ impl LexeNode {
         ));
 
         // Start Background Processing
-        let background_processor = BackgroundProcessor::start(
-            persister.clone(),
-            invoice_payer.clone(),
-            chain_monitor.clone(),
+        // TODO(max): Handle the handle
+        let bgp_shutdown_rx = shutdown_tx.subscribe();
+        let _bgp_handle = LexeBackgroundProcessor::start(
             channel_manager.clone(),
-            GossipSyncType::P2P(gossip_sync.clone()),
-            peer_manager.as_arc_inner(),
-            logger.clone(),
-            Some(scorer.clone()),
+            peer_manager.clone(),
+            persister.clone(),
+            chain_monitor.clone(),
+            invoice_payer.clone(),
+            gossip_sync.clone(),
+            scorer.clone(),
+            bgp_shutdown_rx,
         );
 
         // Spawn a task to regularly reconnect to channel peers
@@ -336,7 +337,6 @@ impl LexeNode {
             outbound_payments,
             shutdown_rx,
             stop_listen_connect,
-            background_processor,
         };
         Ok(node)
     }
@@ -410,9 +410,6 @@ impl LexeNode {
         // stopped the background processor.
         self.stop_listen_connect.store(true, Ordering::Release);
         self.peer_manager.disconnect_all_peers();
-
-        // Stop the background processor.
-        self.background_processor.stop().unwrap();
 
         Ok(())
     }

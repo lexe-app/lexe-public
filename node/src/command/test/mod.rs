@@ -59,6 +59,7 @@ fn default_args_for_user(user_pk: UserPk) -> StartArgs {
 /// locate the local bitcoind executable.
 ///
 /// https://github.com/RCasatta/bitcoind/issues/77
+#[rustfmt::skip]
 fn bitcoind_exe_path() -> String {
     use std::env;
     // "/Users/fang/lexe/client/target/debug/build/bitcoind-65c3b20abafd4893/out/bitcoin/bitcoin-22.0/bin/bitcoind"
