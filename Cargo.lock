@@ -381,13 +381,17 @@ dependencies = [
 name = "common"
 version = "0.1.0"
 dependencies = [
+ "aes",
+ "aesm-client",
  "anyhow",
  "argh",
  "asn1-rs",
  "bitcoin",
  "bitcoin-bech32",
+ "bytemuck",
  "bytes",
  "cfg-if 1.0.0",
+ "cmac",
  "dcap-ql",
  "lightning-invoice",
  "num-bigint",
@@ -1319,8 +1323,6 @@ dependencies = [
 name = "node"
 version = "0.1.0"
 dependencies = [
- "aes",
- "aesm-client",
  "anyhow",
  "argh",
  "async-trait",
@@ -1328,8 +1330,6 @@ dependencies = [
  "bitcoin",
  "bitcoin-bech32",
  "bitcoind",
- "bytemuck",
- "cmac",
  "common",
  "futures",
  "http",
@@ -1351,7 +1351,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_qs",
- "sgx-isa",
  "subtle",
  "thiserror",
  "tokio",

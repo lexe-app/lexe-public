@@ -8,6 +8,7 @@ use rustls::client::WebPkiVerifier;
 use rustls::sign::CertifiedKey;
 use rustls::RootCertStore;
 
+use crate::attest::cert::AttestationCert;
 use crate::client::certs::{CaCert, ClientCert, NodeCert};
 use crate::rng::Crng;
 use crate::root_seed::RootSeed;
@@ -49,7 +50,45 @@ struct ClientCertResolver {
 
 // -- rustls TLS configs -- //
 
-// TODO(phlip9): move `node_provision_tls_config` here?
+pub fn node_provision_tls_config<R: Crng>(
+    rng: &mut R,
+    dns_name: String,
+) -> anyhow::Result<rustls::ServerConfig> {
+    // Generate a fresh key pair, which we'll use for the provisioning cert.
+    let cert_key_pair = ed25519::gen_key_pair(rng);
+
+    // Get our enclave measurement and cert pk quoted by the enclave
+    // platform. This process binds the cert pk to the quote evidence. When
+    // a client verifies the Quote, they can also trust that the cert was
+    // generated on a valid, genuine enclave. Once this trust is settled,
+    // they can safely provision secrets onto the enclave via the newly
+    // established secure TLS channel.
+    //
+    // Returns the quote as an x509 cert extension that we'll embed in our
+    // self-signed provisioning cert.
+    let cert_pk = ed25519::PublicKey::try_from(&cert_key_pair).unwrap();
+    let attestation = attest::quote_enclave(rng, &cert_pk)
+        .context("Failed to get node enclave quoted")?;
+
+    // Generate a self-signed x509 cert with the remote attestation embedded.
+    let dns_names = vec![dns_name];
+    let cert = AttestationCert::new(cert_key_pair, dns_names, attestation)
+        .context("Failed to generate remote attestation cert")?;
+    let cert_der = rustls::Certificate(
+        cert.serialize_der_signed()
+            .context("Failed to sign and serialize attestation cert")?,
+    );
+    let cert_key_der = rustls::PrivateKey(cert.serialize_key_der());
+
+    let mut config = rustls::ServerConfig::builder()
+        .with_safe_defaults()
+        .with_no_client_auth()
+        .with_single_cert(vec![cert_der], cert_key_der)
+        .context("Failed to build TLS config")?;
+    config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
+
+    Ok(config)
+}
 
 pub fn node_run_tls_config<R: Crng>(
     rng: &mut R,

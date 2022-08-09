@@ -93,6 +93,16 @@ asn1-rs = { version = "0.5", default-features = false }
 # For constructing/parsing ASN.1 data in x509 certs
 yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
 
+[target.'cfg(target_env = "sgx")'.dependencies]
+# For verifying SGX Report MACs
+aes = { version = "0.8", features = ["zeroize"] }
+# A client for the Intel AESM service. Used in the attestation process to get quoted.
+aesm-client = "=0.5.4"
+# For casting byte buffers to/from the AESM client from/to actual structured data.
+bytemuck = { version = "1.9.1", default-features = false, features = ["derive", "min_const_generics"] }
+# For verifying SGX Report MACs
+cmac = { version = "0.7", features = ["std", "zeroize"] }
+
 [dev-dependencies]
 # property based testing
 proptest = { version = "1", default-features = false, features = ["alloc"] }

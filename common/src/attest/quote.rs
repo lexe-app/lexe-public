@@ -3,13 +3,6 @@
 //!
 //! On non-SGX platforms, we just return a dummy extension for now.
 
-#![allow(dead_code)]
-
-use std::fmt;
-
-use bytemuck::{Pod, Zeroable};
-use common::ed25519;
-
 #[rustfmt::skip]
 #[cfg(target_env = "sgx")]
 pub use sgx::quote_enclave;
@@ -18,22 +11,23 @@ pub use not_sgx::quote_enclave;
 
 #[cfg(target_env = "sgx")]
 mod sgx {
+    use std::fmt;
     use std::net::TcpStream;
 
     use aes::Aes128;
     use aesm_client::sgx::AesmClientExt;
     use aesm_client::AesmClient;
     use anyhow::{ensure, format_err, Context, Result};
+    use bytemuck::{Pod, Zeroable};
     use cmac::digest::generic_array::GenericArray;
     use cmac::{Cmac, Mac};
-    use common::attest::cert::SgxAttestationExtension;
-    use common::attest::verify::EnclavePolicy;
-    use common::rng::Crng;
-    use common::{ed25519, hex, sha256};
     use rcgen::CustomExtension;
     use sgx_isa::{Report, Targetinfo};
 
-    use super::{ErrString, QlAttKeyIdExt, ReportData};
+    use crate::attest::cert::SgxAttestationExtension;
+    use crate::attest::verify::EnclavePolicy;
+    use crate::rng::Crng;
+    use crate::{ed25519, hex, sha256};
 
     pub fn quote_enclave(
         rng: &mut dyn Crng,
@@ -169,15 +163,144 @@ mod sgx {
         };
         Ok(attestation.to_cert_extension())
     }
+
+    // dumb error type compatibility hack
+
+    #[derive(Debug)]
+    struct ErrString(String);
+
+    impl ErrString {
+        fn new(err: impl fmt::Display) -> Self {
+            Self(format!("{:#}", err))
+        }
+    }
+
+    impl fmt::Display for ErrString {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str(&self.0)
+        }
+    }
+
+    impl std::error::Error for ErrString {
+        fn description(&self) -> &str {
+            &self.0
+        }
+    }
+
+    #[rustfmt::skip]
+    // // C struct definitions from:
+    // // <https://github.com/intel/linux-sgx/blob/master/common/inc/sgx_quote.h>
+    //
+    // typedef enum {
+    //     SGX_QL_ALG_EPID = 0,       ///< EPID 2.0 - Anonymous
+    //     SGX_QL_ALG_RESERVED_1 = 1, ///< Reserved
+    //     SGX_QL_ALG_ECDSA_P256 = 2, ///< ECDSA-256-with-P-256 curve, Non - Anonymous
+    //     SGX_QL_ALG_ECDSA_P384 = 3, ///< ECDSA-384-with-P-384 curve (Note: currently not supported), Non-Anonymous
+    //     SGX_QL_ALG_MAX = 4
+    // } sgx_ql_attestation_algorithm_id_t;
+    //
+    // typedef struct _sgx_ql_att_key_id_t {
+    //     uint16_t    id;                              ///< Structure ID
+    //     uint16_t    version;                         ///< Structure version
+    //     uint16_t    mrsigner_length;                 ///< Number of valid bytes in MRSIGNER.
+    //     uint8_t     mrsigner[48];                    ///< SHA256 or SHA384 hash of the Public key that signed the QE.
+    //                                                  ///< The lower bytes contain MRSIGNER.  Bytes beyond mrsigner_length '0'
+    //     uint32_t    prod_id;                         ///< Legacy Product ID of the QE
+    //     uint8_t     extended_prod_id[16];            ///< Extended Product ID or the QE. All 0's for legacy format enclaves.
+    //     uint8_t     config_id[64];                   ///< Config ID of the QE.
+    //     uint8_t     family_id[16];                   ///< Family ID of the QE.
+    //     uint32_t    algorithm_id;                    ///< Identity of the attestation key algorithm.
+    // } sgx_ql_att_key_id_t;
+    //
+    // typedef struct _sgx_att_key_id_ext_t {
+    //     sgx_ql_att_key_id_t base;
+    //     uint8_t             spid[16];                ///< Service Provider ID, should be 0s for ECDSA quote
+    //     uint16_t            att_key_type;            ///< For non-EPID quote, it should be 0
+    //                                                  ///< For EPID quote, it equals to sgx_quote_sign_type_t
+    //     uint8_t             reserved[80];            ///< It should have the same size of sgx_att_key_id_t
+    // } sgx_att_key_id_ext_t;
+
+    /// ECDSA-256-with-P-256 curve, Non-Anonymous
+    pub(crate) const SGX_QL_ALG_ECDSA_P256: u32 = 2;
+
+    /// An extended SGX attestation key.
+    ///
+    /// Mirrors the C struct above [`sgx_quote.h/sgx_att_key_id_ext_t`](https://github.com/intel/linux-sgx/blob/master/common/inc/sgx_quote.h#L127).
+    ///
+    /// This struct needs `repr(C, packed)` for the memory layout to match the C
+    /// definition. The extra `packed` modifier is necessary, otherwise the
+    /// standard alignment causes some extra padding between fields, which
+    /// makes the struct larger than the original C struct.
+    #[repr(C, packed)]
+    #[derive(Copy, Clone, Pod, Zeroable)]
+    pub(crate) struct QlAttKeyIdExt {
+        // The original attestation key id type, `sgx_ql_att_key_id_t`.
+        /// Structure ID
+        pub id: u16,
+        /// Structure Version
+        pub version: u16,
+        /// Number of valid bytes in `mrsigner`
+        pub mrsigner_len: u16,
+        /// SHA256 or SHA384 hash of the pk that signed the QE
+        pub mrsigner: [u8; 48],
+
+        /// Legacy Product ID of the QE
+        pub prod_id: u32,
+        /// Extended Product ID of the QE
+        pub extended_prod_id: [u8; 16],
+        /// Config ID of the QE
+        pub config_id: [u8; 64],
+        /// Family ID of the QE
+        pub family_id: [u8; 16],
+        /// The attestation key algorithm ID
+        pub algorithm_id: u32,
+
+        // The extended attestation key id type, `sgx_att_key_id_ext_t`.
+        /// Service Provider ID, should be 0s for ECDSA quote
+        pub spid: [u8; 16],
+        /// For non-EPID quote, it should be 0
+        /// For EPID quote, it equals `sgx_quote_sign_type_t`
+        pub att_key_type: u16,
+        /// Padding so this struct has the same size as `sgx_att_key_id_t`
+        /// (read: 256 bytes).
+        reserved: [u8; 80],
+    }
+
+    // Statically guarantee that the `QlAttKeyIdExt` struct is exactly 256 bytes
+    // in size.
+    const _: [(); 256] = [(); std::mem::size_of::<QlAttKeyIdExt>()];
+
+    impl QlAttKeyIdExt {
+        pub fn is_ecdsa_p256(&self) -> bool {
+            self.algorithm_id == SGX_QL_ALG_ECDSA_P256
+        }
+    }
+
+    struct ReportData([u8; 64]);
+
+    impl ReportData {
+        fn new(pk: &ed25519::PublicKey) -> Self {
+            let mut report_data = [0u8; 64];
+            // ed25519 pks are always 32 bytes. This will panic if this internal
+            // invariant is somehow not true.
+            report_data[..32].copy_from_slice(pk.as_bytes());
+            Self(report_data)
+        }
+
+        fn as_inner(&self) -> &[u8; 64] {
+            &self.0
+        }
+    }
 }
 
 #[cfg(not(target_env = "sgx"))]
 mod not_sgx {
     use anyhow::Result;
-    use common::attest::cert::SgxAttestationExtension;
-    use common::ed25519;
-    use common::rng::Crng;
     use rcgen::CustomExtension;
+
+    use crate::attest::cert::SgxAttestationExtension;
+    use crate::ed25519;
+    use crate::rng::Crng;
 
     pub fn quote_enclave(
         _rng: &mut dyn Crng,
@@ -187,133 +310,5 @@ mod not_sgx {
 
         let dummy_attestation = SgxAttestationExtension::dummy();
         Ok(dummy_attestation.to_cert_extension())
-    }
-}
-
-// dumb error type compatibility hack
-
-#[derive(Debug)]
-struct ErrString(String);
-
-impl ErrString {
-    fn new(err: impl fmt::Display) -> Self {
-        Self(format!("{:#}", err))
-    }
-}
-
-impl fmt::Display for ErrString {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-impl std::error::Error for ErrString {
-    fn description(&self) -> &str {
-        &self.0
-    }
-}
-
-#[rustfmt::skip]
-// // C struct definitions from:
-// // <https://github.com/intel/linux-sgx/blob/master/common/inc/sgx_quote.h>
-//
-// typedef enum {
-//     SGX_QL_ALG_EPID = 0,       ///< EPID 2.0 - Anonymous
-//     SGX_QL_ALG_RESERVED_1 = 1, ///< Reserved
-//     SGX_QL_ALG_ECDSA_P256 = 2, ///< ECDSA-256-with-P-256 curve, Non - Anonymous
-//     SGX_QL_ALG_ECDSA_P384 = 3, ///< ECDSA-384-with-P-384 curve (Note: currently not supported), Non-Anonymous
-//     SGX_QL_ALG_MAX = 4
-// } sgx_ql_attestation_algorithm_id_t;
-//
-// typedef struct _sgx_ql_att_key_id_t {
-//     uint16_t    id;                              ///< Structure ID
-//     uint16_t    version;                         ///< Structure version
-//     uint16_t    mrsigner_length;                 ///< Number of valid bytes in MRSIGNER.
-//     uint8_t     mrsigner[48];                    ///< SHA256 or SHA384 hash of the Public key that signed the QE.
-//                                                  ///< The lower bytes contain MRSIGNER.  Bytes beyond mrsigner_length '0'
-//     uint32_t    prod_id;                         ///< Legacy Product ID of the QE
-//     uint8_t     extended_prod_id[16];            ///< Extended Product ID or the QE. All 0's for legacy format enclaves.
-//     uint8_t     config_id[64];                   ///< Config ID of the QE.
-//     uint8_t     family_id[16];                   ///< Family ID of the QE.
-//     uint32_t    algorithm_id;                    ///< Identity of the attestation key algorithm.
-// } sgx_ql_att_key_id_t;
-//
-// typedef struct _sgx_att_key_id_ext_t {
-//     sgx_ql_att_key_id_t base;
-//     uint8_t             spid[16];                ///< Service Provider ID, should be 0s for ECDSA quote
-//     uint16_t            att_key_type;            ///< For non-EPID quote, it should be 0
-//                                                  ///< For EPID quote, it equals to sgx_quote_sign_type_t
-//     uint8_t             reserved[80];            ///< It should have the same size of sgx_att_key_id_t
-// } sgx_att_key_id_ext_t;
-
-/// ECDSA-256-with-P-256 curve, Non-Anonymous
-pub const SGX_QL_ALG_ECDSA_P256: u32 = 2;
-
-/// An extended SGX attestation key.
-///
-/// Mirrors the C struct above [`sgx_quote.h/sgx_att_key_id_ext_t`](https://github.com/intel/linux-sgx/blob/master/common/inc/sgx_quote.h#L127).
-///
-/// This struct needs `repr(C, packed)` for the memory layout to match the C
-/// definition. The extra `packed` modifier is necessary, otherwise the standard
-/// alignment causes some extra padding between fields, which makes the struct
-/// larger than the original C struct.
-#[repr(C, packed)]
-#[derive(Copy, Clone, Pod, Zeroable)]
-pub struct QlAttKeyIdExt {
-    // The original attestation key id type, `sgx_ql_att_key_id_t`.
-    /// Structure ID
-    pub id: u16,
-    /// Structure Version
-    pub version: u16,
-    /// Number of valid bytes in `mrsigner`
-    pub mrsigner_len: u16,
-    /// SHA256 or SHA384 hash of the pk that signed the QE
-    pub mrsigner: [u8; 48],
-
-    /// Legacy Product ID of the QE
-    pub prod_id: u32,
-    /// Extended Product ID of the QE
-    pub extended_prod_id: [u8; 16],
-    /// Config ID of the QE
-    pub config_id: [u8; 64],
-    /// Family ID of the QE
-    pub family_id: [u8; 16],
-    /// The attestation key algorithm ID
-    pub algorithm_id: u32,
-
-    // The extended attestation key id type, `sgx_att_key_id_ext_t`.
-    /// Service Provider ID, should be 0s for ECDSA quote
-    pub spid: [u8; 16],
-    /// For non-EPID quote, it should be 0
-    /// For EPID quote, it equals `sgx_quote_sign_type_t`
-    pub att_key_type: u16,
-    /// Padding so this struct has the same size as `sgx_att_key_id_t`
-    /// (read: 256 bytes).
-    reserved: [u8; 80],
-}
-
-// Statically guarantee that the `QlAttKeyIdExt` struct is exactly 256 bytes
-// in size.
-const _: [(); 256] = [(); std::mem::size_of::<QlAttKeyIdExt>()];
-
-impl QlAttKeyIdExt {
-    pub fn is_ecdsa_p256(&self) -> bool {
-        self.algorithm_id == SGX_QL_ALG_ECDSA_P256
-    }
-}
-
-struct ReportData([u8; 64]);
-
-impl ReportData {
-    fn new(pk: &ed25519::PublicKey) -> Self {
-        let mut report_data = [0u8; 64];
-        // ed25519 pks are always 32 bytes. This will panic if this internal
-        // invariant is somehow not true.
-        report_data[..32].copy_from_slice(pk.as_bytes());
-        Self(report_data)
-    }
-
-    fn as_inner(&self) -> &[u8; 64] {
-        &self.0
     }
 }

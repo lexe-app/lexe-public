@@ -4,7 +4,6 @@ pub mod cli;
 pub mod lexe;
 
 mod api;
-mod attest;
 mod command;
 mod event_handler;
 mod inactivity_timer;
