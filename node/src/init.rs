@@ -294,6 +294,7 @@ impl LexeNode {
             invoice_payer.clone(),
             gossip_sync.clone(),
             scorer.clone(),
+            shutdown_tx.clone(),
             bgp_shutdown_rx,
         );
 
