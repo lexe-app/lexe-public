@@ -1,4 +1,4 @@
-use std::io::{self, Cursor, ErrorKind};
+use std::io::Cursor;
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
@@ -17,13 +17,10 @@ use lightning::routing::gossip::NetworkGraph as LdkNetworkGraph;
 use lightning::routing::scoring::{
     ProbabilisticScorer, ProbabilisticScoringParameters,
 };
-use lightning::util::persist::Persister;
 use lightning::util::ser::{ReadableArgs, Writeable};
-use once_cell::sync::Lazy;
-use tokio::runtime::{Builder, Handle, Runtime};
+use tokio::runtime::Handle;
 use tracing::{debug, error};
 
-use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::USER_CONFIG;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
@@ -317,42 +314,11 @@ impl InnerPersister {
             .map(|_| ())
             .map_err(|e| e.into())
     }
-}
 
-/// A Tokio runtime which can be used to run async closures in sync fns
-/// downstream of thread::spawn()
-static PERSISTER_RUNTIME: Lazy<Runtime> = Lazy::new(|| {
-    Builder::new_current_thread()
-        .enable_io()
-        // Because our reqwest::Client has a configured timeout
-        .enable_time()
-        .build()
-        .unwrap()
-});
-
-/// This trait is defined in lightning::util::Persist.
-///
-/// The methods in this trait are called inside a `thread::spawn()` within
-/// `BackgroundProcessor::start()`, meaning that the thread-local context for
-/// these function do not contain a Tokio (async) runtime. Thus, we offer a
-/// lazily-initialized `PERSISTER_RUNTIME` above which the `Persister` methods
-/// use to run async closures inside their synchronous functions.
-impl<'a>
-    Persister<
-        'a,
-        SignerType,
-        Arc<ChainMonitorType>,
-        Arc<LexeBitcoind>,
-        LexeKeysManager,
-        Arc<LexeBitcoind>,
-        LexeTracingLogger,
-        Mutex<ProbabilisticScorerType>,
-    > for InnerPersister
-{
-    fn persist_manager(
+    pub async fn persist_manager(
         &self,
         channel_manager: &ChannelManagerType,
-    ) -> Result<(), io::Error> {
+    ) -> anyhow::Result<()> {
         debug!("Persisting channel manager");
 
         // FIXME(encrypt): Encrypt under key derived from seed
@@ -366,20 +332,17 @@ impl<'a>
             data,
         );
 
-        // Run an async fn inside a sync fn downstream of thread::spawn()
-        PERSISTER_RUNTIME
-            .block_on(async move { self.api.upsert_file(cm_file).await })
+        self.api
+            .upsert_file(cm_file)
+            .await
             .map(|_| ())
-            .map_err(|api_err| {
-                error!("Could not persist channel manager: {:#}", api_err);
-                io::Error::new(ErrorKind::Other, api_err)
-            })
+            .context("Could not persist channel manager")
     }
 
-    fn persist_graph(
+    pub async fn persist_graph(
         &self,
         network_graph: &NetworkGraphType,
-    ) -> Result<(), io::Error> {
+    ) -> anyhow::Result<()> {
         debug!("Persisting network graph");
         // FIXME(encrypt): Encrypt under key derived from seed
         let data = network_graph.encode();
@@ -392,20 +355,17 @@ impl<'a>
             data,
         );
 
-        // Run an async fn inside a sync fn downstream of thread::spawn()
-        PERSISTER_RUNTIME
-            .block_on(async move { self.api.upsert_file(file).await })
+        self.api
+            .upsert_file(file)
+            .await
             .map(|_| ())
-            .map_err(|api_err| {
-                error!("Could not persist network graph: {:#}", api_err);
-                io::Error::new(ErrorKind::Other, api_err)
-            })
+            .context("Could not persist network graph")
     }
 
-    fn persist_scorer(
+    pub async fn persist_scorer(
         &self,
         scorer_mutex: &Mutex<ProbabilisticScorerType>,
-    ) -> Result<(), io::Error> {
+    ) -> anyhow::Result<()> {
         debug!("Persisting probabilistic scorer");
 
         let scorer_file = {
@@ -423,13 +383,11 @@ impl<'a>
             )
         };
 
-        PERSISTER_RUNTIME.block_on(async move {
-            self.api
-                .upsert_file(scorer_file)
-                .await
-                .map(|_| ())
-                .map_err(|api_err| io::Error::new(ErrorKind::Other, api_err))
-        })
+        self.api
+            .upsert_file(scorer_file)
+            .await
+            .map(|_| ())
+            .context("Could not persist scorer")
     }
 }
 
@@ -465,6 +423,7 @@ impl Persist<SignerType> for InnerPersister {
             // Even though this is a temporary failure that can be retried,
             // we should still log it
             error!("Could not persist new channel monitor: {:#}", e);
+            // TODO(max): After the async dance this failure should be permanent
             ChannelMonitorUpdateErr::TemporaryFailure
         })
     }
@@ -501,6 +460,7 @@ impl Persist<SignerType> for InnerPersister {
             // Even though this is a temporary failure that can be retried,
             // we should still log it
             error!("Could not update persisted channel monitor: {:#}", e);
+            // TODO(max): After the async dance this failure should be permanent
             ChannelMonitorUpdateErr::TemporaryFailure
         })
     }

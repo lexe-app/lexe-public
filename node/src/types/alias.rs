@@ -10,11 +10,9 @@ use lightning::ln::peer_handler::{IgnoringMessageHandler, PeerManager};
 use lightning::ln::PaymentHash;
 use lightning::routing::gossip::{NetworkGraph, P2PGossipSync};
 use lightning::routing::scoring::ProbabilisticScorer;
-use lightning_background_processor::GossipSync;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use lightning_net_tokio::SocketDescriptor;
-use lightning_rapid_gossip_sync::RapidGossipSync;
 
 use crate::event_handler::LdkEventHandler;
 use crate::lexe::bitcoind::LexeBitcoind;
@@ -40,13 +38,7 @@ pub type ChainMonitorType = ChainMonitor<
 pub type PeerManagerType = PeerManager<
     SocketDescriptor,
     LexeChannelManager,
-    Arc<
-        P2PGossipSync<
-            Arc<NetworkGraph<LexeTracingLogger>>,
-            Arc<ChainAccessType>,
-            LexeTracingLogger,
-        >,
-    >,
+    Arc<P2PGossipSyncType>,
     LexeTracingLogger,
     Arc<IgnoringMessageHandler>,
 >;
@@ -82,14 +74,6 @@ pub type ProbabilisticScorerType =
     ProbabilisticScorer<Arc<NetworkGraphType>, LoggerType>;
 
 pub type RouterType = DefaultRouter<Arc<NetworkGraphType>, LoggerType>;
-
-pub type GossipSyncType = GossipSync<
-    Arc<P2PGossipSync<Arc<NetworkGraphType>, Arc<ChainAccessType>, LoggerType>>,
-    Arc<RapidGossipSync<Arc<NetworkGraphType>, LoggerType>>,
-    Arc<NetworkGraphType>,
-    Arc<ChainAccessType>,
-    LoggerType,
->;
 
 pub type P2PGossipSyncType =
     P2PGossipSync<Arc<NetworkGraphType>, Arc<ChainAccessType>, LoggerType>;
