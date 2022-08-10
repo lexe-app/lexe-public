@@ -22,7 +22,6 @@ bitcoin-bech32 = "0.12"
 # lightning-block-sync = { version = "0.0.108", features = [ "rpc-client" ] }
 # lightning-invoice = { version = "0.16" }
 # lightning-net-tokio = { version = "0.0.108" }
-# lightning-background-processor = { version = "0.0.108" }
 # lightning-rapid-gossip-sync = { version = "0.0.108" }
 
 # TODO Switch to back to crates.io version after LDK with lightning-net-tokio
@@ -31,7 +30,6 @@ bitcoin-bech32 = "0.12"
 # lightning-block-sync = { git = "https://github.com/lexe-tech/rust-lightning", features = [ "rpc-client" ], branch = "net-tokio-connect-v0.0.108" }
 lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "net-tokio-connect-v0.0.108" }
 # lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "net-tokio-connect-v0.0.108" }
-# lightning-background-processor = { git = "https://github.com/lexe-tech/rust-lightning", branch = "net-tokio-connect-v0.0.108" }
 # lightning-rapid-gossip-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "net-tokio-connect-v0.0.108" }
 
 # NOTE For debugging and testing patches during local development
@@ -39,7 +37,6 @@ lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branc
 # lightning-block-sync = { path = "../../ldk/lightning-block-sync", features = [ "rpc-client" ] }
 # lightning-invoice = { path = "../../ldk/lightning-invoice" }
 # lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }
-# lightning-background-processor = { path = "../../ldk/lightning-background-processor" }
 # lightning-rapid-gossip-sync = { path = "../../ldk/lightning-rapid-gossip-sync" }
 
 # --- GENERAL --- #

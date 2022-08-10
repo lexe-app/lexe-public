@@ -1,10 +1,3 @@
-//! Command tests.
-//!
-//! Note that all tests which call `CommandTestHarness::init()` must use a
-//! multi-threaded runtime, since `LexeNode::init()` starts the
-//! `BackgroundProcessor` which requires its own OS thread. A single worker
-//! thread should be enough.
-
 use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -189,7 +182,7 @@ impl CommandTestHarness {
 }
 
 /// Tests that a node can initialize, sync, and shutdown.
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn init_sync_shutdown() {
     let mut args = default_args();
     args.shutdown_after_sync_if_no_activity = true;
@@ -199,7 +192,7 @@ async fn init_sync_shutdown() {
 }
 
 /// Tests the node_info handler.
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn node_info() {
     let args = default_args();
     let h = CommandTestHarness::init(args).await;
@@ -208,7 +201,7 @@ async fn node_info() {
 }
 
 /// Tests the list_channels handler.
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn list_channels() {
     let args = default_args();
     let h = CommandTestHarness::init(args).await;
@@ -217,7 +210,7 @@ async fn list_channels() {
 }
 
 /// Tests connecting two nodes to each other.
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn connect_peer() {
     let args1 = default_args_for_user(UserPk::from_i64(1));
     let args2 = default_args_for_user(UserPk::from_i64(2));
@@ -266,7 +259,7 @@ async fn connect_peer() {
 }
 
 /// Tests opening a channel
-#[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+#[tokio::test]
 async fn open_channel() {
     let mut args1 = default_args_for_user(UserPk::from_i64(1));
     let mut args2 = default_args_for_user(UserPk::from_i64(2));
