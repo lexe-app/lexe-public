@@ -1134,7 +1134,7 @@ dependencies = [
 [[package]]
 name = "lightning"
 version = "0.0.108"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=net-tokio-connect-v0.0.108#ada3d0e7052b6c6ec9f4a7377a1f9ebfef5ed0dc"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=net-tokio-connect-v0.0.108#1d9816c7b5a23d784899d1c4bf51d91b0bd737c3"
 dependencies = [
  "bitcoin",
 ]
@@ -1142,7 +1142,7 @@ dependencies = [
 [[package]]
 name = "lightning-block-sync"
 version = "0.0.108"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=net-tokio-connect-v0.0.108#ada3d0e7052b6c6ec9f4a7377a1f9ebfef5ed0dc"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=net-tokio-connect-v0.0.108#1d9816c7b5a23d784899d1c4bf51d91b0bd737c3"
 dependencies = [
  "bitcoin",
  "chunked_transfer",
@@ -1155,7 +1155,7 @@ dependencies = [
 [[package]]
 name = "lightning-invoice"
 version = "0.16.0"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=net-tokio-connect-v0.0.108#ada3d0e7052b6c6ec9f4a7377a1f9ebfef5ed0dc"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=net-tokio-connect-v0.0.108#1d9816c7b5a23d784899d1c4bf51d91b0bd737c3"
 dependencies = [
  "bech32",
  "bitcoin_hashes",
@@ -1167,7 +1167,7 @@ dependencies = [
 [[package]]
 name = "lightning-net-tokio"
 version = "0.0.108"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=net-tokio-connect-v0.0.108#ada3d0e7052b6c6ec9f4a7377a1f9ebfef5ed0dc"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=net-tokio-connect-v0.0.108#1d9816c7b5a23d784899d1c4bf51d91b0bd737c3"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1177,7 +1177,7 @@ dependencies = [
 [[package]]
 name = "lightning-rapid-gossip-sync"
 version = "0.0.108"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=net-tokio-connect-v0.0.108#ada3d0e7052b6c6ec9f4a7377a1f9ebfef5ed0dc"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=net-tokio-connect-v0.0.108#1d9816c7b5a23d784899d1c4bf51d91b0bd737c3"
 dependencies = [
  "bitcoin",
  "lightning",

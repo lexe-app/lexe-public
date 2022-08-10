@@ -74,10 +74,8 @@ impl LexeBackgroundProcessor {
                     // --- Persistence branches --- //
                     _ = cm_poll_timer.tick() => {
                         trace!("Polling channel manager for updates");
-                        // TODO Use get_persistence_condvar_value instead
-                        let timeout = Duration::from_millis(10);
                         let needs_persist = channel_manager
-                            .await_persistable_update_timeout(timeout);
+                            .get_persistence_condvar_value();
                         if needs_persist {
                             let persist_res = persister
                                 .persist_manager(channel_manager.deref())
