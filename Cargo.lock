@@ -1175,15 +1175,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lightning-rapid-gossip-sync"
-version = "0.0.108"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=net-tokio-connect-v0.0.108#1d9816c7b5a23d784899d1c4bf51d91b0bd737c3"
-dependencies = [
- "bitcoin",
- "lightning",
-]
-
-[[package]]
 name = "log"
 version = "0.4.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1328,7 +1319,6 @@ dependencies = [
  "lightning-block-sync",
  "lightning-invoice",
  "lightning-net-tokio",
- "lightning-rapid-gossip-sync",
  "mio",
  "once_cell",
  "proptest",
