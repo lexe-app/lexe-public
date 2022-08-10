@@ -19,7 +19,6 @@ use crate::types::{
 const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_millis(1000);
 const PEER_MANAGER_PING_INTERVAL: Duration = Duration::from_secs(15);
 const CHANNEL_MANAGER_TICK_INTERVAL: Duration = Duration::from_secs(60);
-const CHANNEL_MANAGER_POLL_INTERVAL: Duration = Duration::from_millis(1000);
 const NETWORK_GRAPH_INITIAL_DELAY: Duration = Duration::from_secs(60);
 const NETWORK_GRAPH_PRUNE_INTERVAL: Duration = Duration::from_secs(15 * 60);
 const PROB_SCORER_PERSIST_INTERVAL: Duration = Duration::from_secs(5 * 60);
@@ -45,7 +44,6 @@ impl LexeBackgroundProcessor {
             let mut process_timer = interval(PROCESS_EVENTS_INTERVAL);
             let mut pm_timer = interval(PEER_MANAGER_PING_INTERVAL);
             let mut cm_tick_timer = interval(CHANNEL_MANAGER_TICK_INTERVAL);
-            let mut cm_poll_timer = interval(CHANNEL_MANAGER_POLL_INTERVAL);
             let start = Instant::now() + NETWORK_GRAPH_INITIAL_DELAY;
             let mut ng_timer = interval_at(start, NETWORK_GRAPH_PRUNE_INTERVAL);
             let mut ps_timer = interval(PROB_SCORER_PERSIST_INTERVAL);
@@ -71,25 +69,19 @@ impl LexeBackgroundProcessor {
                     }
 
                     // --- Persistence branches --- //
-                    _ = cm_poll_timer.tick() => {
-                        trace!("Polling channel manager for updates");
-                        // TODO Use get_persistence_condvar_value instead
-                        let timeout = Duration::from_millis(10);
-                        let needs_persist = channel_manager
-                            .await_persistable_update_timeout(timeout);
-                        if needs_persist {
-                            let persist_res = persister
-                                .persist_manager(channel_manager.deref())
-                                .await;
-                            if let Err(e) = persist_res {
-                                // Failing to persist the channel manager won't
-                                // lose funds so long as the chain monitors have
-                                // been persisted correctly, but it's still
-                                // serious - initiate a shutdown
-                                error!("Couldn't persist channel manager: {:#}", e);
-                                shutdown.send();
-                                break;
-                            }
+                    _ = channel_manager.get_persistable_update_future() => {
+                        debug!("Persisting channel manager");
+                        let persist_res = persister
+                            .persist_manager(channel_manager.deref())
+                            .await;
+                        if let Err(e) = persist_res {
+                            // Failing to persist the channel manager won't
+                            // lose funds so long as the chain monitors have
+                            // been persisted correctly, but it's still
+                            // serious - initiate a shutdown
+                            error!("Couldn't persist channel manager: {:#}", e);
+                            shutdown.send();
+                            break;
                         }
                     }
                     _ = ng_timer.tick() => {
