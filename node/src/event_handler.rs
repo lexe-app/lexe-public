@@ -10,7 +10,7 @@ use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin_bech32::WitnessProgram;
-use common::cli::{Network, NodeAlias};
+use common::cli::Network;
 use common::hex;
 use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
@@ -271,6 +271,8 @@ async fn handle_event_fallible(
         }
         Event::PaymentPathSuccessful { .. } => {}
         Event::PaymentPathFailed { .. } => {}
+        Event::ProbeSuccessful { .. } => {}
+        Event::ProbeFailed { .. } => {}
         Event::PaymentFailed { payment_hash, .. } => {
             print!(
 				"\nEVENT: Failed to send payment to payment hash {:?}: exhausted payment retry attempts",
@@ -311,7 +313,7 @@ async fn handle_event_fallible(
                                     Some(announcement) => {
                                         format!(
                                             " from node {}",
-                                            NodeAlias::new(announcement.alias)
+                                            announcement.alias
                                         )
                                     }
                                 },
@@ -357,6 +359,7 @@ async fn handle_event_fallible(
             print!("> ");
             io::stdout().flush().unwrap();
         }
+        Event::HTLCHandlingFailed { .. } => {}
         Event::PendingHTLCsForwardable { time_forwardable } => {
             let forwarding_channel_manager = channel_manager.clone();
             let millis_to_sleep = time_forwardable.as_millis() as u64;

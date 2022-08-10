@@ -11,7 +11,7 @@ use anyhow::Context;
 use bitcoin::hashes::sha256::Hash as Sha256;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
-use common::cli::{Network, NodeAlias};
+use common::cli::Network;
 use common::hex;
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::ln::{PaymentHash, PaymentPreimage};
@@ -379,10 +379,7 @@ fn list_channels(
             .get(&NodeId::from_pubkey(&chan_info.counterparty.node_id))
         {
             if let Some(announcement) = &node_info.announcement_info {
-                println!(
-                    "\t\tpeer_alias: {}",
-                    NodeAlias::new(announcement.alias)
-                );
+                println!("\t\tpeer_alias: {}", announcement.alias);
             }
         }
 
@@ -640,7 +637,7 @@ fn force_close_channel(
     channel_manager: LexeChannelManager,
 ) {
     match channel_manager
-        .force_close_channel(&channel_id, &counterparty_node_id)
+        .force_close_broadcasting_latest_txn(&channel_id, &counterparty_node_id)
     {
         Ok(()) => println!("EVENT: initiating channel force-close"),
         Err(e) => println!("ERROR: failed to force-close channel: {:?}", e),

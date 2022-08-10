@@ -101,10 +101,6 @@ pub struct StartArgs {
     #[argh(option, default = "Network::default()")]
     pub network: Network,
 
-    /// this node's Lightning Network alias
-    #[argh(option, default = "NodeAlias::default()")]
-    pub announced_node_name: NodeAlias,
-
     /// whether the node should shut down after completing sync and other
     /// maintenance tasks. This only applies if no activity was detected prior
     /// to the completion of sync (which is usually what happens). Useful when
@@ -146,7 +142,6 @@ impl Default for StartArgs {
             warp_port: None,
             peer_port: None,
             network: Network::default(),
-            announced_node_name: NodeAlias::default(),
             shutdown_after_sync_if_no_activity: false,
             inactivity_timer_sec: 3600,
             repl: false,
@@ -171,8 +166,6 @@ impl StartArgs {
             .arg(&self.inactivity_timer_sec.to_string())
             .arg("--network")
             .arg(&self.network.to_string())
-            .arg("--announced-node-name")
-            .arg(&self.announced_node_name.to_string())
             .arg("--backend-url")
             .arg(&self.backend_url)
             .arg("--runner-url")
@@ -333,56 +326,6 @@ impl Display for BitcoindRpcInfo {
     }
 }
 
-// NOTE: NodeAlias isn't meaningfully used anywhere - it's only purpose is to
-// provide a Display impl for println! statements. Consider removing
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
-pub struct NodeAlias([u8; 32]);
-
-impl NodeAlias {
-    pub fn new(inner: [u8; 32]) -> Self {
-        Self(inner)
-    }
-}
-
-impl FromStr for NodeAlias {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let bytes = s.as_bytes();
-        ensure!(
-            bytes.len() <= 32,
-            "node alias can't be longer than 32 bytes"
-        );
-
-        let mut alias = [0_u8; 32];
-        alias[..bytes.len()].copy_from_slice(bytes);
-
-        Ok(Self(alias))
-    }
-}
-
-impl Display for NodeAlias {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        for b in self.0.iter() {
-            let c = *b as char;
-            if c == '\0' {
-                break;
-            }
-            if c.is_ascii_graphic() || c == ' ' {
-                continue;
-            }
-            write!(f, "{c}")?;
-        }
-        Ok(())
-    }
-}
-
-impl fmt::Debug for NodeAlias {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        Display::fmt(self, f)
-    }
-}
-
 /// There are slight variations is how the network is represented as strings
 /// across bitcoind rpc calls, lightning, etc. For consistency, we use the
 /// mapping defined in bitcoin::Network's FromStr impl, which is:
@@ -478,14 +421,6 @@ mod test {
         };
         let actual =
             BitcoindRpcInfo::from_str("hello:world@foo.bar:1234").unwrap();
-        assert_eq!(expected, actual);
-    }
-
-    #[test]
-    fn test_parse_node_alias() {
-        let expected = NodeAlias(*b"hello, world - this is lexe\0\0\0\0\0");
-        let actual =
-            NodeAlias::from_str("hello, world - this is lexe").unwrap();
         assert_eq!(expected, actual);
     }
 

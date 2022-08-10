@@ -49,9 +49,9 @@ const TIME_TO_CONTEST_FRAUDULENT_TXNS: u16 = 6 * 24 * 7;
 const TIME_TO_CONTEST_FRAUDULENT_TXNS: u16 = BREAKDOWN_TIMEOUT;
 
 pub const USER_CONFIG: UserConfig = UserConfig {
-    own_channel_config: OWN_CHANNEL_CONFIG,
-    peer_channel_config_limits: PEER_CHANNEL_CONFIG_LIMITS,
-    channel_options: CHANNEL_OPTIONS,
+    channel_handshake_config: CHANNEL_HANDSHAKE_CONFIG,
+    channel_handshake_limits: CHANNEL_HANDSHAKE_LIMITS,
+    channel_config: CHANNEL_CONFIG,
 
     // Do not accept any HTLC forwarding risks
     accept_forwards_to_priv_channels: false,
@@ -63,24 +63,33 @@ pub const USER_CONFIG: UserConfig = UserConfig {
     manually_accept_inbound_channels: false,
 };
 
-const OWN_CHANNEL_CONFIG: ChannelHandshakeConfig = ChannelHandshakeConfig {
-    // Wait 6 confirmations for channels to be considered locked-in.
-    minimum_depth: 6,
-    // Require the channel counterparty (Lexe's LSPs) to wait <this param> to
-    // claim funds in the case of a unilateral close. Specified in # of blocks.
-    our_to_self_delay: TIME_TO_CONTEST_FRAUDULENT_TXNS,
-    // Allow extremely small HTLCs
-    our_htlc_minimum_msat: 1,
-    // Allow up to 100% of our funds to be encumbered in inbound HTLCS.
-    max_inbound_htlc_value_in_flight_percent_of_channel: 100,
-    // Attempt to use better privacy. The LSP should have this enabled.
-    negotiate_scid_privacy: true,
-};
+const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =
+    ChannelHandshakeConfig {
+        // Wait 6 confirmations for channels to be considered locked-in.
+        minimum_depth: 6,
+        // Require the channel counterparty (Lexe's LSPs) to wait <this param>
+        // to claim funds in the case of a unilateral close. Specified
+        // in # of blocks.
+        our_to_self_delay: TIME_TO_CONTEST_FRAUDULENT_TXNS,
+        // Allow extremely small HTLCs
+        our_htlc_minimum_msat: 1,
+        // Allow up to 100% of our funds to be encumbered in inbound HTLCS.
+        max_inbound_htlc_value_in_flight_percent_of_channel: 100,
+        // Attempt to use better privacy. The LSP should have this enabled.
+        negotiate_scid_privacy: true,
+        // Do not publically announce our channels
+        announced_channel: false,
+        // The additional 'security' provided by setting is pointless.
+        // Additionally, we do not want to commit to a `shutdown_pubkey`
+        // so that it is possible to sweep all funds to an address
+        // specified at the time of channel close.
+        commit_upfront_shutdown_pubkey: false,
+    };
 
-const PEER_CHANNEL_CONFIG_LIMITS: ChannelHandshakeLimits =
+const CHANNEL_HANDSHAKE_LIMITS: ChannelHandshakeLimits =
     ChannelHandshakeLimits {
         // Force an incoming channel (from the LSP) to match the value we set
-        // for `ChannelConfig::announced_channel` (which is false)
+        // for `ChannelHandshakeConfig::announced_channel` (which is false)
         force_announced_channel_preference: true,
         // *We* (the node) wait a maximum of 6 * 24 blocks (1 day) to reclaim
         // our funds in the case of a unilateral close initiated by us.
@@ -97,19 +106,13 @@ const PEER_CHANNEL_CONFIG_LIMITS: ChannelHandshakeLimits =
         max_minimum_depth: 144,
     };
 
-const CHANNEL_OPTIONS: ChannelConfig = ChannelConfig {
+const CHANNEL_CONFIG: ChannelConfig = ChannelConfig {
     // (proportional fee) We do not forward anything so this can be 0
     forwarding_fee_proportional_millionths: 0,
     // (base fee) We do not forward anything so this can be 0
     forwarding_fee_base_msat: 0,
     // We do not forward anything so this can be the minimum
     cltv_expiry_delta: MIN_CLTV_EXPIRY_DELTA,
-    // Do not publically announce our channels
-    announced_channel: false,
-    // The additional 'security' provided by setting is pointless. Additionally,
-    // we do not want to commit to a `shutdown_pubkey` so that it is possible to
-    // sweep all funds to an address specified at the time of channel close.
-    commit_upfront_shutdown_pubkey: false,
     // LDK default
     max_dust_htlc_exposure_msat: 5_000_000,
     // Pay up to 1000 sats (50 cents assuming $50K per BTC) to avoid waiting up

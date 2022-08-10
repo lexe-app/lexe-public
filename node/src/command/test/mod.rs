@@ -8,7 +8,7 @@ use bitcoind::bitcoincore_rpc::RpcApi;
 use bitcoind::{self, BitcoinD, Conf};
 use common::api::UserPk;
 use common::cli::{
-    BitcoindRpcInfo, Network, NodeAlias, StartArgs, DEFAULT_BACKEND_URL,
+    BitcoindRpcInfo, Network, StartArgs, DEFAULT_BACKEND_URL,
     DEFAULT_RUNNER_URL,
 };
 use common::rng::SysRng;
@@ -36,7 +36,6 @@ fn default_args_for_user(user_pk: UserPk) -> StartArgs {
         },
         user_pk,
         peer_port: None,
-        announced_node_name: NodeAlias::default(),
         network: Network::from_str("regtest").unwrap(),
         warp_port: None,
         shutdown_after_sync_if_no_activity: false,
