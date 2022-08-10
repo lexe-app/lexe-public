@@ -1140,16 +1140,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lightning-background-processor"
-version = "0.0.108"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=net-tokio-connect-v0.0.108#ada3d0e7052b6c6ec9f4a7377a1f9ebfef5ed0dc"
-dependencies = [
- "bitcoin",
- "lightning",
- "lightning-rapid-gossip-sync",
-]
-
-[[package]]
 name = "lightning-block-sync"
 version = "0.0.108"
 source = "git+https://github.com/lexe-tech/rust-lightning?branch=net-tokio-connect-v0.0.108#ada3d0e7052b6c6ec9f4a7377a1f9ebfef5ed0dc"
@@ -1335,7 +1325,6 @@ dependencies = [
  "http",
  "hyper",
  "lightning",
- "lightning-background-processor",
  "lightning-block-sync",
  "lightning-invoice",
  "lightning-net-tokio",
@@ -2396,7 +2385,6 @@ dependencies = [
  "libc",
  "memchr",
  "mio",
- "num_cpus",
  "pin-project-lite",
  "tokio-macros",
  "winapi",

@@ -21,10 +21,7 @@ impl Args {
     pub fn run(self) -> anyhow::Result<()> {
         match self.cmd {
             NodeCommand::Start(args) => {
-                // TODO(phlip9): set runtime max_blocking_threads and
-                // worker_threads to a reasonable value, then match that value
-                // in the Cargo.toml SGX metadata.
-                let rt = tokio::runtime::Builder::new_multi_thread()
+                let rt = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
                     .expect("Failed to build tokio runtime");

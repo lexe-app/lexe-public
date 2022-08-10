@@ -414,18 +414,14 @@ impl Persist<SignerType> for InnerPersister {
         );
 
         // Run an async fn inside a sync fn inside a Tokio runtime
-        tokio::task::block_in_place(|| {
-            Handle::current()
-                .block_on(async move { self.api.create_file(cm_file).await })
-        })
-        .map(|_| ())
-        .map_err(|e| {
-            // Even though this is a temporary failure that can be retried,
-            // we should still log it
-            error!("Could not persist new channel monitor: {:#}", e);
-            // TODO(max): After the async dance this failure should be permanent
-            ChannelMonitorUpdateErr::TemporaryFailure
-        })
+        Handle::current()
+            .block_on(async move { self.api.create_file(cm_file).await })
+            .map(|_| ())
+            .map_err(|e| {
+                // TODO(max): Implement durability then make this err permanent
+                error!("Could not persist new channel monitor: {:#}", e);
+                ChannelMonitorUpdateErr::TemporaryFailure
+            })
     }
 
     fn update_persisted_channel(
@@ -451,17 +447,13 @@ impl Persist<SignerType> for InnerPersister {
         );
 
         // Run an async fn inside a sync fn inside a Tokio runtime
-        tokio::task::block_in_place(|| {
-            Handle::current()
-                .block_on(async move { self.api.upsert_file(cm_file).await })
-        })
-        .map(|_| ())
-        .map_err(|e| {
-            // Even though this is a temporary failure that can be retried,
-            // we should still log it
-            error!("Could not update persisted channel monitor: {:#}", e);
-            // TODO(max): After the async dance this failure should be permanent
-            ChannelMonitorUpdateErr::TemporaryFailure
-        })
+        Handle::current()
+            .block_on(async move { self.api.upsert_file(cm_file).await })
+            .map(|_| ())
+            .map_err(|e| {
+                // TODO(max): Implement durability then make this err permanent
+                error!("Could not update persisted channel monitor: {:#}", e);
+                ChannelMonitorUpdateErr::TemporaryFailure
+            })
     }
 }
