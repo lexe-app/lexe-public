@@ -85,7 +85,8 @@ impl LexeBitcoind {
         bitcoind_rpc: BitcoindRpcInfo,
         network: Network,
     ) -> anyhow::Result<Arc<Self>> {
-        println!("Initializing bitcoind client");
+        debug!(%network, "initializing bitcoind client");
+
         let client = LexeBitcoind::new(
             bitcoind_rpc.host,
             bitcoind_rpc.port,
@@ -119,7 +120,7 @@ impl LexeBitcoind {
             bitcoind_chain,
         );
 
-        println!("    bitcoind client done.");
+        debug!("bitcoind client init done");
         Ok(client)
     }
 

@@ -19,12 +19,18 @@ pub use client::*;
 pub enum ApiError {
     #[error("Reqwest error")]
     Reqwest(#[from] reqwest::Error),
+
     #[error("JSON serialization error")]
     JsonSerialization(#[from] serde_json::Error),
+
     #[error("Query string serialization error")]
     QueryStringSerialization(#[from] serde_qs::Error),
+
     #[error("Server Error: {0}")]
     Server(String),
+
+    #[error("Invalid response: {0}")]
+    ResponseError(String),
 }
 
 #[async_trait]

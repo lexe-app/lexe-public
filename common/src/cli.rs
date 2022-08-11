@@ -17,6 +17,7 @@ use proptest_derive::Arbitrary;
 
 use crate::api::runner::Port;
 use crate::api::UserPk;
+use crate::constants::{NODE_PROVISION_DNS, NODE_RUN_DNS};
 use crate::enclave::{self, MachineId};
 
 pub const DEFAULT_BACKEND_URL: &str = "http://127.0.0.1:3030";
@@ -155,6 +156,11 @@ pub struct RunArgs {
     #[argh(option, default = "DEFAULT_RUNNER_URL.to_owned()")]
     pub runner_url: String,
 
+    /// the DNS name the node enclave should include in its remote attestation
+    /// certificate and the client will expect in its connection
+    #[argh(option, default = "NODE_RUN_DNS.to_owned()")]
+    pub node_dns_name: String,
+
     /// whether to use a mock API client. Only available during development.
     #[argh(switch, short = 'm')]
     pub mock: bool,
@@ -174,6 +180,7 @@ impl Default for RunArgs {
             shutdown_after_sync_if_no_activity: false,
             inactivity_timer_sec: 3600,
             repl: false,
+            node_dns_name: NODE_RUN_DNS.to_owned(),
             backend_url: DEFAULT_BACKEND_URL.to_owned(),
             runner_url: DEFAULT_RUNNER_URL.to_owned(),
             mock: false,
@@ -198,7 +205,9 @@ impl RunArgs {
             .arg("--backend-url")
             .arg(&self.backend_url)
             .arg("--runner-url")
-            .arg(&self.runner_url);
+            .arg(&self.runner_url)
+            .arg("--node-dns-name")
+            .arg(&self.node_dns_name);
 
         if self.shutdown_after_sync_if_no_activity {
             cmd.arg("-s");
@@ -240,7 +249,7 @@ pub struct ProvisionArgs {
 
     /// the DNS name the node enclave should include in its remote attestation
     /// certificate and the client will expect in its connection
-    #[argh(option, default = "String::from(\"provision.lexe.tech\")")]
+    #[argh(option, default = "NODE_PROVISION_DNS.to_owned()")]
     pub node_dns_name: String,
 
     /// protocol://host:port of the node backend.
@@ -534,7 +543,7 @@ mod test {
     fn do_cmd_roundtrip(path_str: String, cmd1: &NodeCommand) {
         let path = Path::new(&path_str);
         // Convert to std::process::Command
-        let std_cmd = cmd1.to_cmd(&path);
+        let std_cmd = cmd1.to_cmd(path);
         // Convert to an iterator over &str args
         let mut args_iter = std_cmd.get_args().filter_map(|s| s.to_str());
         // Pop the first arg which contains the subcommand name e.g. 'run'
@@ -543,7 +552,7 @@ mod test {
         let cmd_args: Vec<&str> = args_iter.collect();
         dbg!(&cmd_args);
         // Deserialize back into struct
-        let cmd2 = NodeCommand::from_args(&[&subcommand], &cmd_args).unwrap();
+        let cmd2 = NodeCommand::from_args(&[subcommand], &cmd_args).unwrap();
         // Assert
         assert_eq!(*cmd1, cmd2);
     }
@@ -572,6 +581,7 @@ mod test {
             repl: false,
             backend_url: "".into(),
             runner_url: "".into(),
+            node_dns_name: "localhost".to_owned(),
             mock: true,
         });
         do_cmd_roundtrip(path_str, &cmd);
@@ -595,6 +605,7 @@ mod test {
             repl: true,
             backend_url: "".into(),
             runner_url: "".into(),
+            node_dns_name: "localhost".to_owned(),
             mock: false,
         });
         do_cmd_roundtrip(path_str, &cmd);

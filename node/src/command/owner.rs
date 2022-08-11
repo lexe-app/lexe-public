@@ -1,21 +1,12 @@
 use std::sync::Arc;
 
-use bitcoin::secp256k1::PublicKey;
+use common::client::NodeInfo;
 use serde::Serialize;
 
 use crate::command::server::ApiError;
 use crate::lexe::channel_manager::{LexeChannelManager, LxChannelDetails};
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::types::NetworkGraphType;
-
-#[derive(Debug, Serialize)]
-pub struct NodeInfo {
-    pub node_pk: PublicKey,
-    pub num_channels: usize,
-    pub num_usable_channels: usize,
-    pub local_balance_msat: u64,
-    pub num_peers: usize,
-}
 
 /// GET /owner/node_info -> NodeInfo
 pub fn node_info(
