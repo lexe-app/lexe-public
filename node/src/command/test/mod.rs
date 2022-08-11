@@ -8,8 +8,7 @@ use bitcoind::bitcoincore_rpc::RpcApi;
 use bitcoind::{self, BitcoinD, Conf};
 use common::api::UserPk;
 use common::cli::{
-    BitcoindRpcInfo, Network, StartArgs, DEFAULT_BACKEND_URL,
-    DEFAULT_RUNNER_URL,
+    BitcoindRpcInfo, Network, RunArgs, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL,
 };
 use common::rng::SysRng;
 
@@ -21,13 +20,13 @@ use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
 use crate::lexe::persister::LexePersister;
 use crate::types::NetworkGraphType;
 
-/// Helper to return a default StartArgs struct for testing.
-fn default_args() -> StartArgs {
+/// Helper to return a default RunArgs struct for testing.
+fn default_args() -> RunArgs {
     default_args_for_user(UserPk::from_i64(1))
 }
 
-fn default_args_for_user(user_pk: UserPk) -> StartArgs {
-    StartArgs {
+fn default_args_for_user(user_pk: UserPk) -> RunArgs {
+    RunArgs {
         bitcoind_rpc: BitcoindRpcInfo {
             username: String::from("kek"),
             password: String::from("sadge"),
@@ -88,7 +87,7 @@ struct CommandTestHarness {
 }
 
 impl CommandTestHarness {
-    async fn init(mut args: StartArgs) -> Self {
+    async fn init(mut args: RunArgs) -> Self {
         logger::init_for_testing();
         // Construct bitcoin.conf
         let mut conf = Conf::default();

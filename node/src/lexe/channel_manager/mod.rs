@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Context};
 use bitcoin::BlockHash;
-use common::cli::StartArgs;
+use common::cli::RunArgs;
 use lightning::chain::BestBlock;
 use lightning::ln::channelmanager::{
     ChainParameters, ChannelManager, BREAKDOWN_TIMEOUT, MIN_CLTV_EXPIRY_DELTA,
@@ -137,7 +137,7 @@ impl LexeChannelManager {
     // TODO: Review this function and clean up accordingly
     #[allow(clippy::too_many_arguments)]
     pub async fn init(
-        args: &StartArgs,
+        args: &RunArgs,
         persister: &LexePersister,
         block_source: &BlockSourceType,
         restarting_node: &mut bool,

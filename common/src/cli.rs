@@ -17,7 +17,7 @@ pub const DEFAULT_RUNNER_URL: &str = "http://127.0.0.1:5050";
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand)]
 pub enum NodeCommand {
-    Start(StartArgs),
+    Run(RunArgs),
     Provision(ProvisionArgs),
 }
 
@@ -25,7 +25,7 @@ impl NodeCommand {
     /// Shorthand to get the UserPk from NodeCommand
     pub fn user_pk(&self) -> UserPk {
         match self {
-            Self::Start(args) => args.user_pk,
+            Self::Run(args) => args.user_pk,
             Self::Provision(args) => args.user_pk,
         }
     }
@@ -33,7 +33,7 @@ impl NodeCommand {
     /// Overrides the contained user pk. Used during tests.
     pub fn set_user_pk(&mut self, user_pk: UserPk) {
         match self {
-            Self::Start(args) => {
+            Self::Run(args) => {
                 args.user_pk = user_pk;
             }
             Self::Provision(args) => {
@@ -45,7 +45,7 @@ impl NodeCommand {
     /// Overrides the contained backend url. Used during tests.
     pub fn set_backend_url(&mut self, backend_url: String) {
         match self {
-            Self::Start(args) => {
+            Self::Run(args) => {
                 args.backend_url = backend_url;
             }
             Self::Provision(args) => {
@@ -57,7 +57,7 @@ impl NodeCommand {
     /// Overrides the contained runner url. Used during tests.
     pub fn set_runner_url(&mut self, runner_url: String) {
         match self {
-            Self::Start(args) => {
+            Self::Run(args) => {
                 args.runner_url = runner_url;
             }
             Self::Provision(args) => {
@@ -66,19 +66,19 @@ impl NodeCommand {
         }
     }
 
-    /// Shorthand for calling to_cmd() on either StartArgs or ProvisionArgs
+    /// Shorthand for calling to_cmd() on either RunArgs or ProvisionArgs
     pub fn to_cmd(&self, bin_path: &Path) -> Command {
         match self {
-            Self::Start(args) => args.to_cmd(bin_path),
+            Self::Run(args) => args.to_cmd(bin_path),
             Self::Provision(args) => args.to_cmd(bin_path),
         }
     }
 }
 
-/// Start the Lexe node
+/// Run the Lexe node
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
-#[argh(subcommand, name = "start")]
-pub struct StartArgs {
+#[argh(subcommand, name = "run")]
+pub struct RunArgs {
     /// the Lexe user pk used in queries to the persistence API
     #[argh(option)]
     pub user_pk: UserPk,
@@ -137,7 +137,7 @@ pub struct StartArgs {
     pub mock: bool,
 }
 
-impl Default for StartArgs {
+impl Default for RunArgs {
     /// Non-Option<T> fields are required by the node, with no node defaults.
     /// Option<T> fields are not required by the node, and use node defaults.
     fn default() -> Self {
@@ -158,12 +158,12 @@ impl Default for StartArgs {
     }
 }
 
-impl StartArgs {
+impl RunArgs {
     /// Constructs a Command from the contained args, adding no extra options.
     /// Requires the path to the node binary.
     pub fn to_cmd(&self, bin_path: &Path) -> Command {
         let mut cmd = Command::new(bin_path);
-        cmd.arg("start")
+        cmd.arg("run")
             .arg("--bitcoind-rpc")
             .arg(&self.bitcoind_rpc.to_string())
             .arg("--user-pk")
