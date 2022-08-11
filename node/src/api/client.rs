@@ -6,7 +6,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use common::api::provision::SealedSeedId;
 use common::api::qs::{GetByUserPk, GetByUserPkAndMeasurement};
-use common::api::runner::UserPort;
+use common::api::runner::UserPorts;
 use common::api::vfs::{Directory, File, FileId};
 use common::api::UserPk;
 use common::enclave::Measurement;
@@ -132,7 +132,10 @@ impl ApiClient for LexeApiClient {
         self.request(Method::GET, Backend, V1, endpoint, req).await
     }
 
-    async fn notify_runner(&self, req: UserPort) -> Result<UserPort, ApiError> {
+    async fn notify_runner(
+        &self,
+        req: UserPorts,
+    ) -> Result<UserPorts, ApiError> {
         self.request(Method::POST, Runner, V1, "/ready", req).await
     }
 }

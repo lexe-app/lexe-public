@@ -85,7 +85,8 @@ Run the node (add `--target=x86_64-fortanix-unknown-sgx` if running in SGX)
 cargo run --bin node -- start \
     --user-pk <user-pk> \
     --bitcoind-rpc <user>:<pass>@<bitcoindrpchost>:<bitcoindrpcport> \
-    [--warp-port <warp-port>] \
+    [--owner-port <owner-port>] \
+    [--host-port <host-port>] \
     [--peer-port <peer-port>] \
     [--network mainnet|testnet|regtest|signet] \
     [--mock]
