@@ -20,7 +20,7 @@ pub struct Args {
 impl Args {
     pub fn run(self) -> anyhow::Result<()> {
         match self.cmd {
-            NodeCommand::Start(args) => {
+            NodeCommand::Run(args) => {
                 let rt = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()

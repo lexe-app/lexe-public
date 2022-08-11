@@ -82,7 +82,7 @@ $ cargo build --bin node --target=x86_64-fortanix-unknown-sgx
 
 Run the node (add `--target=x86_64-fortanix-unknown-sgx` if running in SGX)
 ```bash
-cargo run --bin node -- start \
+cargo run --bin node -- run \
     --user-pk <user-pk> \
     --bitcoind-rpc <user>:<pass>@<bitcoindrpchost>:<bitcoindrpcport> \
     [--owner-port <owner-port>] \
@@ -96,7 +96,7 @@ cargo run --bin node -- start \
 
 See full CLI options with:
 - `cargo run --bin node -- help`
-- `cargo run --bin node -- start --help`
+- `cargo run --bin node -- run --help`
 - `cargo run --bin node -- provision --help`
 
 ## License

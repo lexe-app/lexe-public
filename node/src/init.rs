@@ -12,7 +12,7 @@ use common::api::provision::{
 };
 use common::api::runner::{Port, UserPorts};
 use common::api::UserPk;
-use common::cli::{Network, StartArgs};
+use common::cli::{Network, RunArgs};
 use common::enclave::{
     self, MachineId, Measurement, MinCpusvn, MIN_SGX_CPUSVN,
 };
@@ -54,7 +54,7 @@ pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 #[allow(dead_code)]
 pub struct LexeNode {
     // --- General --- //
-    args: StartArgs,
+    args: RunArgs,
     shutdown_tx: broadcast::Sender<()>,
     pub peer_port: Port,
 
@@ -88,7 +88,7 @@ pub struct LexeNode {
 impl LexeNode {
     pub async fn init<R: Crng>(
         rng: &mut R,
-        args: StartArgs,
+        args: RunArgs,
     ) -> anyhow::Result<Self> {
         // Initialize the Logger
         let logger = LexeTracingLogger::new();
@@ -428,7 +428,7 @@ impl LexeNode {
 
 /// Constructs a Arc<dyn ApiClient> based on whether we are running in SGX,
 /// and whether `args.mock` is set to true
-fn init_api(args: &StartArgs) -> ApiClientType {
+fn init_api(args: &RunArgs) -> ApiClientType {
     // Production can only use the real api client
     #[cfg(all(target_env = "sgx", not(test)))]
     {
