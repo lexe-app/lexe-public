@@ -43,6 +43,7 @@ fn default_args_for_user(user_pk: UserPk) -> RunArgs {
         repl: false,
         backend_url: DEFAULT_BACKEND_URL.into(),
         runner_url: DEFAULT_RUNNER_URL.into(),
+        node_dns_name: "localhost".to_owned(),
         mock: true,
     }
 }

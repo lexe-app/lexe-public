@@ -4,30 +4,28 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use anyhow::Context;
+use anyhow::{bail, ensure, Context};
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::BlockHash;
-use common::api::provision::{
-    Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
-};
+use common::api::provision::{Node, SealedSeedId};
 use common::api::runner::{Port, UserPorts};
 use common::api::UserPk;
 use common::cli::{Network, RunArgs};
+use common::client::tls::node_run_tls_config;
 use common::enclave::{
-    self, MachineId, Measurement, MinCpusvn, MIN_SGX_CPUSVN,
+    self, MachineId, Measurement, MinCpusvn, Sealed, MIN_SGX_CPUSVN,
 };
 use common::rng::Crng;
-use common::root_seed::RootSeed;
 use lightning::chain;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
-use secrecy::ExposeSecret;
 use tokio::net::TcpListener;
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
+use tracing::{debug, error, info, instrument};
 
 use crate::api::ApiClient;
 use crate::event_handler::LdkEventHandler;
@@ -40,6 +38,7 @@ use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::lexe::persister::LexePersister;
 use crate::lexe::sync::SyncedChainListeners;
+use crate::provision::ProvisionedSecrets;
 use crate::types::{
     ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
     ChannelMonitorType, FeeEstimatorType, InvoicePayerType, NetworkGraphType,
@@ -86,12 +85,14 @@ pub struct LexeNode {
 }
 
 impl LexeNode {
+    #[instrument(skip_all)]
     pub async fn init<R: Crng>(
         rng: &mut R,
         args: RunArgs,
     ) -> anyhow::Result<Self> {
         // Initialize the Logger
         let logger = LexeTracingLogger::new();
+        info!(%args.user_pk, "initializing node");
 
         // Get user_pk, measurement, and HTTP client, used throughout init
         let user_pk = args.user_pk;
@@ -101,9 +102,9 @@ impl LexeNode {
         let api = init_api(&args);
 
         // Initialize LexeBitcoind, fetch provisioned data
-        let (bitcoind_res, provisioned_data_res) = tokio::join!(
+        let (bitcoind_res, fetch_res) = tokio::join!(
             LexeBitcoind::init(args.bitcoind_rpc.clone(), args.network),
-            fetch_provisioned_data(
+            fetch_provisioned_secrets(
                 api.as_ref(),
                 user_pk,
                 measurement,
@@ -113,33 +114,13 @@ impl LexeNode {
         );
         let bitcoind =
             bitcoind_res.context("Failed to init bitcoind client")?;
-        let provisioned_data =
-            provisioned_data_res.context("Failed to fetch provisioned data")?;
+        let (node, provisioned_secrets) =
+            fetch_res.context("Failed to fetch provisioned secrets")?;
+        let root_seed = &provisioned_secrets.root_seed;
 
         // Build LexeKeysManager from node init data
-        let keys_manager = match provisioned_data {
-            Some((node, _instance, sealed_seed)) => {
-                // TODO(phlip9): actually unseal seed
-                let root_seed = RootSeed::try_from(sealed_seed.seed.as_slice())
-                    .context("Invalid root seed")?;
-
-                LexeKeysManager::init(rng, &node.node_pk, &root_seed)
-                    .context("Could not construct keys manager")?
-            }
-            None => {
-                // TODO remove this path once provisioning command works
-                provision_new_node(
-                    rng,
-                    api.as_ref(),
-                    user_pk,
-                    measurement,
-                    machine_id,
-                    min_cpusvn,
-                )
-                .await
-                .context("Failed to provision new node")?
-            }
-        };
+        let keys_manager = LexeKeysManager::init(rng, &node.node_pk, root_seed)
+            .context("Failed to construct keys manager")?;
         let node_pk = keys_manager.derive_pk(rng);
 
         // LexeBitcoind implements BlockSource, FeeEstimator and
@@ -222,6 +203,11 @@ impl LexeNode {
         let (shutdown_tx, shutdown_rx) =
             broadcast::channel(DEFAULT_CHANNEL_SIZE);
 
+        // build owner service TLS config for authenticating owner
+        let node_dns = args.node_dns_name.clone();
+        let owner_tls = node_run_tls_config(rng, root_seed, vec![node_dns])
+            .context("Failed to build owner service TLS config")?;
+
         // Start warp service for owner
         let owner_routes = command::server::owner_routes(
             channel_manager.clone(),
@@ -229,32 +215,34 @@ impl LexeNode {
             network_graph.clone(),
             activity_tx,
         );
-        let (addr, owner_service_fut) = warp::serve(owner_routes)
+        let (owner_addr, owner_service_fut) = warp::serve(owner_routes)
+            .tls()
+            .preconfigured_tls(owner_tls)
             // A value of 0 indicates that the OS will assign a port for us
-            .try_bind_ephemeral(([127, 0, 0, 1], args.owner_port.unwrap_or(0)))
-            .context("Failed to bind warp")?;
-        let owner_port = addr.port();
-        println!("Starting owner service at port {}", owner_port);
+            .bind_ephemeral(([127, 0, 0, 1], args.owner_port.unwrap_or(0)));
+        let owner_port = owner_addr.port();
+        info!("Owner service listening on port {}", owner_port);
         // TODO(max): Handle the handle
         let _owner_service_handle = tokio::spawn(async move {
             owner_service_fut.await;
         });
 
+        // TODO(phlip9): authenticate host<->node
         // Start warp service for host
         let host_routes = command::server::host_routes(shutdown_tx.clone());
-        let (addr, host_service_fut) = warp::serve(host_routes)
+        let (host_addr, host_service_fut) = warp::serve(host_routes)
             // A value of 0 indicates that the OS will assign a port for us
             .try_bind_ephemeral(([127, 0, 0, 1], args.host_port.unwrap_or(0)))
             .context("Failed to bind warp")?;
-        let host_port = addr.port();
-        println!("Starting host service at port {}", host_port);
+        let host_port = host_addr.port();
+        info!("Host service listening on port {}", host_port);
         // TODO(max): Handle the handle
         let _host_service_handle = tokio::spawn(async move {
             host_service_fut.await;
         });
 
         // Let the runner know that we're ready
-        println!("Node is ready to accept commands; notifying runner");
+        info!("Node is ready to accept commands; notifying runner");
         let user_ports =
             UserPorts::new_run(user_pk, owner_port, host_port, peer_port);
         api.notify_runner(user_ports)
@@ -376,7 +364,7 @@ impl LexeNode {
             .context("Error wrapping up sync")?;
 
         // Sync is complete; start the inactivity timer.
-        println!("Starting inactivity timer");
+        debug!("Starting inactivity timer");
         let timer_shutdown_rx = self.shutdown_tx.subscribe();
         let mut inactivity_timer = InactivityTimer::new(
             self.args.shutdown_after_sync_if_no_activity,
@@ -394,7 +382,7 @@ impl LexeNode {
         // Start the REPL if it was specified to start in the CLI args.
         #[cfg(not(target_env = "sgx"))]
         if self.args.repl {
-            println!("Starting REPL");
+            debug!("Starting REPL");
             crate::repl::poll_for_user_input(
                 self.invoice_payer.clone(),
                 self.peer_manager.clone(),
@@ -407,14 +395,14 @@ impl LexeNode {
                 self.args.network,
             )
             .await;
-            println!("REPL complete.");
+            debug!("REPL complete.");
         }
 
         // Pause here and wait for the shutdown signal
         let _ = self.shutdown_rx.recv().await;
 
         // --- Shutdown --- //
-        println!("Main thread shutting down");
+        info!("Main thread shutting down");
 
         // Disconnect from peers and stop accepting new connections. This
         // ensures we don't continue updating our channel data after we've
@@ -451,19 +439,16 @@ fn init_api(args: &RunArgs) -> ApiClientType {
     }
 }
 
-// TODO: After the provision flow has been implemented, this function should be
-// changed to error if any of these endpoints returned None - indicating that
-// the provisioned components (Node, Instance, SealedSeed) were not persisted
-// atomically.
-/// Fetches previously provisioned data from the API.
-async fn fetch_provisioned_data(
+/// Fetches previously provisioned secrets from the API.
+async fn fetch_provisioned_secrets(
     api: &dyn ApiClient,
     user_pk: UserPk,
     measurement: Measurement,
     machine_id: MachineId,
     min_cpusvn: MinCpusvn,
-) -> anyhow::Result<Option<(Node, Instance, SealedSeed)>> {
-    println!("Fetching provisioned data");
+) -> anyhow::Result<(Node, ProvisionedSecrets)> {
+    debug!(%user_pk, %measurement, %machine_id, %min_cpusvn, "fetching provisioned secrets");
+
     let (node_res, instance_res) = tokio::join!(
         api.get_node(user_pk),
         api.get_instance(user_pk, measurement),
@@ -475,8 +460,15 @@ async fn fetch_provisioned_data(
     // FIXME(max): It is faster to query for the sealed seed using the user_pk
     // in place of the node_pk, but that requires joining across four tables.
     // This is a quick optimization that can be done to decrease boot time.
-    let tuple_opt = match (node_opt, instance_opt) {
+    match (node_opt, instance_opt) {
         (Some(node), Some(instance)) => {
+            ensure!(
+                node.node_pk == instance.node_pk,
+                "node.node_pk '{}' doesn't match instance.node_pk '{}'",
+                node.node_pk,
+                instance.node_pk,
+            );
+
             let sealed_seed_id = SealedSeedId {
                 node_pk: node.node_pk,
                 measurement,
@@ -484,64 +476,24 @@ async fn fetch_provisioned_data(
                 min_cpusvn,
             };
 
-            let sealed_seed = api
+            let raw_sealed_data = api
                 .get_sealed_seed(sealed_seed_id)
                 .await
                 .context("Error while fetching sealed seed")?
-                .expect("Sealed seed wasn't persisted with node & instance");
+                .context("Sealed seed wasn't persisted with node & instance")?;
 
-            Some((node, instance, sealed_seed))
+            let sealed_data = Sealed::deserialize(&raw_sealed_data.seed)
+                .context("Failed to deserialize sealed seed")?;
+
+            let provisioned_secrets =
+                ProvisionedSecrets::unseal(sealed_data)
+                    .context("Failed to unseal provisioned secrets")?;
+
+            Ok((node, provisioned_secrets))
         }
-        (None, None) => None,
-        _ => panic!("Node and instance should have been persisted together"),
-    };
-
-    Ok(tuple_opt)
-}
-
-/// A temporary helper to provision a new node when running the start command.
-/// Once we have end-to-end provisioning with the client, this function should
-/// be removed entirely. TODO: Remove this function
-async fn provision_new_node<R: Crng>(
-    rng: &mut R,
-    api: &dyn ApiClient,
-    user_pk: UserPk,
-    measurement: Measurement,
-    machine_id: MachineId,
-    min_cpusvn: MinCpusvn,
-) -> anyhow::Result<LexeKeysManager> {
-    // No node exists yet, create a new one
-    println!("Generating new seed");
-
-    // TODO Get and use the root seed from provisioning step
-    // TODO (sgx): Seal seed under this enclave's public key
-    let root_seed = RootSeed::from_rng(rng);
-    let seed = root_seed.expose_secret().to_vec();
-
-    // Derive node pk
-    let keys_manager = LexeKeysManager::insecure_init(rng, &root_seed);
-    let node_pk = keys_manager.derive_pk(rng);
-
-    // Build structs for persisting the new node + instance + seed
-    let node = Node { node_pk, user_pk };
-    let instance = Instance {
-        measurement,
-        node_pk,
-    };
-    let sealed_seed =
-        SealedSeed::new(node_pk, measurement, machine_id, min_cpusvn, seed);
-
-    // Persist node, instance, and seed together in one db txn
-    let node_instance_seed = NodeInstanceSeed {
-        node,
-        instance,
-        sealed_seed,
-    };
-    api.create_node_instance_seed(node_instance_seed)
-        .await
-        .context("Could not atomically create new node + instance + seed")?;
-
-    Ok(keys_manager)
+        (None, None) => bail!("Enclave version has not been provisioned yet"),
+        _ => bail!("Node and instance should have been persisted together"),
+    }
 }
 
 /// Initializes the ChannelMonitors
@@ -549,14 +501,11 @@ async fn channel_monitors(
     persister: &LexePersister,
     keys_manager: LexeKeysManager,
 ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
-    println!("Reading channel monitors from DB");
-    let result = persister
+    debug!("reading channel monitors from DB");
+    persister
         .read_channel_monitors(keys_manager)
         .await
-        .context("Could not read channel monitors");
-
-    println!("    channel monitors done.");
-    result
+        .context("Could not read channel monitors")
 }
 
 /// Initializes a GossipSync and NetworkGraph
@@ -565,7 +514,7 @@ async fn gossip_sync(
     persister: &LexePersister,
     logger: LexeTracingLogger,
 ) -> anyhow::Result<(Arc<NetworkGraphType>, Arc<P2PGossipSyncType>)> {
-    println!("Initializing gossip sync and network graph");
+    debug!("initializing gossip sync and network graph");
     let genesis = genesis_block(network.into_inner()).header.block_hash();
 
     let network_graph = persister
@@ -581,7 +530,7 @@ async fn gossip_sync(
     );
     let gossip_sync = Arc::new(gossip_sync);
 
-    println!("    gossip sync and network graph done.");
+    debug!("gossip sync and network graph done.");
     Ok((network_graph, gossip_sync))
 }
 
@@ -593,12 +542,13 @@ async fn spawn_p2p_listener(
     peer_manager: LexePeerManager,
 ) -> Port {
     // A value of 0 indicates that the OS will assign a port for us
+    // TODO(phlip9): should only listen on internal interface
     let address = format!("0.0.0.0:{}", peer_port_opt.unwrap_or(0));
     let listener = TcpListener::bind(address)
         .await
         .expect("Failed to bind to peer port");
     let peer_port = listener.local_addr().unwrap().port();
-    println!("Listening for P2P connections at port {}", peer_port);
+    info!("lightning peer listening on port {}", peer_port);
     tokio::spawn(async move {
         loop {
             let (tcp_stream, _peer_addr) = listener.accept().await.unwrap();
@@ -657,7 +607,7 @@ fn spawn_p2p_reconnect_task(
                     }
                 }
                 Err(e) => {
-                    println!("ERROR: Could not read channel peers: {}", e)
+                    error!("ERROR: Could not read channel peers: {}", e)
                 }
             }
         }

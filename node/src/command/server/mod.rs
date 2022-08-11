@@ -17,6 +17,7 @@ use http::status::StatusCode;
 use serde::Serialize;
 use thiserror::Error;
 use tokio::sync::{broadcast, mpsc};
+use tracing::trace;
 use warp::hyper::Body;
 use warp::{reply, Filter, Rejection, Reply};
 
@@ -65,7 +66,7 @@ pub fn owner_routes(
     let owner_base = warp::path("owner")
         .map(move || {
             // Hitting any endpoint under /owner counts as activity
-            println!("Sending activity event");
+            trace!("Sending activity event");
             let _ = activity_tx.try_send(());
         })
         .untuple_one();

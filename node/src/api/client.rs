@@ -80,8 +80,22 @@ impl ApiClient for LexeApiClient {
             user_pk,
             measurement,
         };
-        self.request(Method::GET, Backend, V1, "/instance", req)
-            .await
+        let maybe_instance: Option<Instance> = self
+            .request(Method::GET, Backend, V1, "/instance", req)
+            .await?;
+
+        if let Some(instance) = maybe_instance.as_ref() {
+            if instance.measurement != measurement {
+                let msg = format!(
+                    "returned instance measurement '{}' doesn't match \
+                     requested measurement '{}'",
+                    instance.measurement, measurement,
+                );
+                return Err(ApiError::ResponseError(msg));
+            }
+        }
+
+        Ok(maybe_instance)
     }
 
     async fn get_sealed_seed(

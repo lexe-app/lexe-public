@@ -83,20 +83,20 @@ struct RequestContext {
 /// platform enclave keys that are software and version specific.
 ///
 /// See: [`common::enclave::seal`]
-struct ProvisionedSecrets {
+pub struct ProvisionedSecrets {
     pub root_seed: RootSeed,
 }
 
 impl ProvisionedSecrets {
     const LABEL: &'static [u8] = b"provisioned secrets";
 
-    fn seal(&self, rng: &mut dyn Crng) -> anyhow::Result<Sealed<'_>> {
+    pub fn seal(&self, rng: &mut dyn Crng) -> anyhow::Result<Sealed<'_>> {
         let root_seed_ref = self.root_seed.expose_secret().as_slice();
         enclave::seal(rng, Self::LABEL, root_seed_ref.into())
             .context("Failed to seal provisioned secrets")
     }
 
-    fn unseal(sealed: Sealed<'_>) -> anyhow::Result<Self> {
+    pub fn unseal(sealed: Sealed<'_>) -> anyhow::Result<Self> {
         let bytes = enclave::unseal(Self::LABEL, sealed)
             .context("Failed to unseal provisioned secrets")?;
         let root_seed = RootSeed::try_from(bytes.as_slice())
@@ -150,7 +150,6 @@ async fn provision_request(
         .seal(&mut ctx.rng)
         .map_err(|_| ApiError)?;
 
-    // TODO(phlip9): add some constructors / ID newtypes
     let node = Node { node_pk, user_pk };
     let instance = Instance {
         node_pk,

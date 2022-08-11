@@ -12,45 +12,57 @@ use common::api::runner::UserPorts;
 use common::api::vfs::{Directory, File, FileId};
 use common::api::UserPk;
 use common::enclave::{self, Measurement};
-use common::hex;
+use common::rng::SysRng;
+use common::root_seed::RootSeed;
+use once_cell::sync::Lazy;
+use secrecy::{ExposeSecret, Secret};
 use tokio::sync::mpsc;
 
 use crate::api::{ApiClient, ApiError};
 use crate::lexe::persister;
+use crate::provision::ProvisionedSecrets;
 
 type FileName = String;
 type Data = Vec<u8>;
 
-const HEX_SEED1: [u8; 32] = hex::decode_const(
-    b"39ee00e3e23a9cd7e6509f56ff66daaf021cb5502e4ab3c6c393b522a6782d03",
-);
-const HEX_SEED2: [u8; 32] = hex::decode_const(
-    b"2a784ea82ef7002ec929b435e1af283a1998878575e8ccbad73e5d0cb3a95f59",
-);
+// --- test fixtures --- //
 
-pub fn seed(node_pk: PublicKey) -> Vec<u8> {
-    let node_pk_bytes = node_pk.serialize();
+fn make_seed(bytes: [u8; 32]) -> RootSeed {
+    RootSeed::new(Secret::new(bytes))
+}
+fn make_node_pk(seed: &RootSeed) -> PublicKey {
+    PublicKey::from_keypair(&seed.derive_node_key_pair(&mut SysRng::new()))
+}
+fn make_sealed_seed(seed: &RootSeed) -> Vec<u8> {
+    let seed = make_seed(*seed.expose_secret());
+    let provisioned_secrets = ProvisionedSecrets { root_seed: seed };
+    let sealed_secrets = provisioned_secrets.seal(&mut SysRng::new()).unwrap();
+    sealed_secrets.serialize()
+}
 
-    if node_pk_bytes == NODE_PK1 {
-        HEX_SEED1.to_vec()
-    } else if node_pk_bytes == NODE_PK2 {
-        HEX_SEED2.to_vec()
+static SEED1: Lazy<RootSeed> = Lazy::new(|| make_seed([0x42; 32]));
+static SEED2: Lazy<RootSeed> = Lazy::new(|| make_seed([0x69; 32]));
+
+static NODE_PK1: Lazy<PublicKey> = Lazy::new(|| make_node_pk(&SEED1));
+static NODE_PK2: Lazy<PublicKey> = Lazy::new(|| make_node_pk(&SEED2));
+
+static SEALED_SEED1: Lazy<Vec<u8>> = Lazy::new(|| make_sealed_seed(&SEED1));
+static SEALED_SEED2: Lazy<Vec<u8>> = Lazy::new(|| make_sealed_seed(&SEED2));
+
+pub fn sealed_seed(node_pk: &PublicKey) -> Vec<u8> {
+    if node_pk == &*NODE_PK1 {
+        SEALED_SEED1.clone()
+    } else if node_pk == &*NODE_PK2 {
+        SEALED_SEED2.clone()
     } else {
         todo!("TODO(max): Programmatically generate for new users")
     }
 }
 
-const NODE_PK1: [u8; 33] = hex::decode_const(
-    b"02692f6894d5cb51bb785cc3c54f457889faf674fedea54a906f7ec99e88832d18",
-);
-const NODE_PK2: [u8; 33] = hex::decode_const(
-    b"025336702e1317fcb55cdce19b26bd154b5d5612b87d04ff41f807372513f02b6a",
-);
-
 fn node_pk(user_pk: UserPk) -> PublicKey {
     match user_pk.to_i64() {
-        1 => PublicKey::from_slice(&NODE_PK1).unwrap(),
-        2 => PublicKey::from_slice(&NODE_PK2).unwrap(),
+        1 => *NODE_PK1,
+        2 => *NODE_PK2,
         _ => todo!("TODO(max): Programmatically generate for new users"),
     }
 }
@@ -127,7 +139,7 @@ impl ApiClient for MockApiClient {
             req.measurement,
             req.machine_id,
             req.min_cpusvn,
-            seed(req.node_pk),
+            sealed_seed(&req.node_pk),
         );
         Ok(Some(sealed_seed))
     }

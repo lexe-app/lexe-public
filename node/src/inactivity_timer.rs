@@ -3,6 +3,7 @@ use std::time::Duration;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::{broadcast, mpsc};
 use tokio::time::{self, Instant};
+use tracing::{debug, info, trace};
 
 // TODO(max): Also count Lightning Network events as activity events
 /// A simple actor that keeps track of an inactivity timer held in the stack of
@@ -51,15 +52,15 @@ impl InactivityTimer {
         if self.shutdown_after_sync_if_no_activity {
             match self.activity_rx.try_recv() {
                 Ok(()) => {
-                    println!("Activity detected, starting shutdown timer")
+                    trace!("Activity detected, starting shutdown timer");
                 }
                 Err(TryRecvError::Empty) => {
-                    println!("No activity detected, initiating shutdown");
+                    info!("No activity detected, initiating shutdown");
                     let _ = self.shutdown_tx.send(());
                     return;
                 }
                 Err(TryRecvError::Disconnected) => {
-                    println!("Timer channel disconnected, initiating shutdown");
+                    info!("Timer channel disconnected, initiating shutdown");
                     let _ = self.shutdown_tx.send(());
                     return;
                 }
@@ -75,31 +76,30 @@ impl InactivityTimer {
         loop {
             tokio::select! {
                 () = &mut timer => {
-                    println!("Inactivity timer hit 0, sending shutdown signal");
+                    info!("Inactivity timer hit 0, sending shutdown signal");
                     let _ = self.shutdown_tx.send(());
                     break;
                 }
                 activity_opt = self.activity_rx.recv() => {
                     match activity_opt {
                         Some(()) => {
-                            println!(
+                            debug!(
                                 "Received activity event, resetting"
                             );
                             timer.as_mut().reset(Instant::now() + self.duration);
                         }
                         None => {
-                            println!("All activity_tx dropped, shutting down");
+                            info!("All activity_tx dropped, shutting down");
                             break
                         },
                     }
                 }
                 _ = self.shutdown_rx.recv() => {
-                    println!("Inactivity timer received shutdown signal");
+                    info!("Inactivity timer received shutdown signal");
                     break;
                 }
             }
         }
-        println!("Inactivity timer finished.");
     }
 }
 

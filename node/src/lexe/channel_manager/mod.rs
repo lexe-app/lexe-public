@@ -11,7 +11,7 @@ use lightning::ln::channelmanager::{
 use lightning::util::config::{
     ChannelConfig, ChannelHandshakeConfig, ChannelHandshakeLimits, UserConfig,
 };
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
@@ -148,7 +148,8 @@ impl LexeChannelManager {
         broadcaster: Arc<BroadcasterType>,
         logger: LexeTracingLogger,
     ) -> anyhow::Result<(BlockHash, Self)> {
-        println!("Initializing channel manager");
+        debug!("Initializing channel manager");
+
         let inner_opt = persister
             .read_channel_manager(
                 channel_monitors,
@@ -160,8 +161,9 @@ impl LexeChannelManager {
             )
             .await
             .context("Could not read ChannelManager from DB")?;
-        let (channel_manager_blockhash, inner) = match inner_opt {
-            Some((blockhash, mgr)) => (blockhash, mgr),
+
+        let (blockhash, inner, label) = match inner_opt {
+            Some((blockhash, mgr)) => (blockhash, mgr, "persisted"),
             None => {
                 // We're starting a fresh node.
                 *restarting_node = false;
@@ -169,7 +171,6 @@ impl LexeChannelManager {
                     .get_blockchain_info()
                     .await
                     .context("Could not get blockchain info")?;
-
                 let best_block = BestBlock::new(
                     blockchain_info.latest_blockhash,
                     blockchain_info.latest_height as u32,
@@ -187,14 +188,14 @@ impl LexeChannelManager {
                     USER_CONFIG,
                     chain_params,
                 );
-                (blockchain_info.latest_blockhash, inner)
+                (blockchain_info.latest_blockhash, inner, "fresh")
             }
         };
 
         let channel_manager = Self(Arc::new(inner));
 
-        println!("    channel manager done.");
-        Ok((channel_manager_blockhash, channel_manager))
+        info!(%blockhash, "loaded {label} channel manager");
+        Ok((blockhash, channel_manager))
     }
 
     /// Handles the full logic of opening a channel, including connecting to the
@@ -206,11 +207,13 @@ impl LexeChannelManager {
         channel_peer: ChannelPeer,
         channel_value_sat: u64,
     ) -> anyhow::Result<()> {
+        info!("opening channel with {}", channel_peer);
+
         // Make sure that we're connected to the channel peer
         peer_manager
             .connect_peer_if_necessary(channel_peer.clone())
             .await
-            .context("Could not connect to peer")?;
+            .context("Failed to connect to peer")?;
 
         // Create the channel
         let user_channel_id = 1; // Not important, just use a default value
@@ -224,14 +227,13 @@ impl LexeChannelManager {
                 Some(USER_CONFIG),
             )
             // LDK's APIError impls Debug but not Error
-            .map_err(|e| anyhow!("{:?}", e))
-            .context("Could not create channel")?;
+            .map_err(|e| anyhow!("Failed to create channel: {:?}", e))?;
 
         // Persist the channel
         persister
             .persist_channel_peer(channel_peer.clone())
             .await
-            .context("Could not persist channel peer")?;
+            .context("Failed to persist channel peer")?;
 
         info!("Successfully opened channel with {}", channel_peer);
 
