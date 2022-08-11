@@ -35,9 +35,10 @@ fn default_args_for_user(user_pk: UserPk) -> StartArgs {
             port: 6969,          // Filled in when BitcoinD initializes
         },
         user_pk,
-        peer_port: None,
         network: Network::from_str("regtest").unwrap(),
-        warp_port: None,
+        owner_port: None,
+        host_port: None,
+        peer_port: None,
         shutdown_after_sync_if_no_activity: false,
         inactivity_timer_sec: 3600,
         repl: false,

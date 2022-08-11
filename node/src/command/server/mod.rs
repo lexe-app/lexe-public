@@ -51,33 +51,18 @@ fn into_response<S: Serialize, E: Reply>(
     }
 }
 
-/// All routes exposed by the command server.
-pub fn routes(
-    channel_manager: LexeChannelManager,
-    peer_manager: LexePeerManager,
-    network_graph: Arc<NetworkGraphType>,
-    activity_tx: mpsc::Sender<()>,
-    shutdown_tx: broadcast::Sender<()>,
-) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    let root = warp::path::end().map(|| "This is a Lexe user node.");
-
-    let owner =
-        owner(channel_manager, peer_manager, network_graph, activity_tx);
-    let host = host(shutdown_tx);
-
-    // TODO return a 404 not found if no routes were hit
-    root.or(host).or(owner)
-}
-
+// TODO Add owner authentication
 /// Endpoints that can only be called by the node owner.
-fn owner(
+pub fn owner_routes(
     channel_manager: LexeChannelManager,
     peer_manager: LexePeerManager,
     network_graph: Arc<NetworkGraphType>,
     activity_tx: mpsc::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    // TODO Add owner authentication to this base path
-    let owner = warp::path("owner")
+    let root =
+        warp::path::end().map(|| "This set of endpoints is for the owner.");
+
+    let owner_base = warp::path("owner")
         .map(move || {
             // Hitting any endpoint under /owner counts as activity
             println!("Sending activity event");
@@ -91,7 +76,6 @@ fn owner(
         .and(inject::peer_manager(peer_manager))
         .map(owner::node_info)
         .map(into_response);
-
     let list_channels = warp::path("channels")
         .and(warp::get())
         .and(inject::channel_manager(channel_manager))
@@ -99,21 +83,25 @@ fn owner(
         .map(owner::list_channels)
         .map(into_response);
 
-    owner.and(node_info.or(list_channels))
+    let owner = owner_base.and(node_info.or(list_channels));
+
+    root.or(owner)
 }
 
+// TODO Add host authentication
 /// Endpoints that can only be called by the host (Lexe).
-fn host(
+pub fn host_routes(
     shutdown_tx: broadcast::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    // TODO Add host authentication to this base path
-    let host = warp::path("host");
+    let root =
+        warp::path::end().map(|| "This set of endpoints is for the host.");
 
     let status = warp::path("status").and(warp::get()).then(host::status);
     let shutdown = warp::path("shutdown")
         .and(warp::get())
         .and(inject::shutdown_tx(shutdown_tx))
         .then(host::shutdown);
+    let host = warp::path("host").and(status.or(shutdown));
 
-    host.and(status.or(shutdown))
+    root.or(host)
 }

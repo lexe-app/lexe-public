@@ -26,7 +26,7 @@ use bitcoin::secp256k1::PublicKey;
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, ProvisionRequest, SealedSeed,
 };
-use common::api::runner::UserPort;
+use common::api::runner::UserPorts;
 use common::api::UserPk;
 use common::cli::ProvisionArgs;
 use common::client::tls::node_provision_tls_config;
@@ -183,7 +183,8 @@ async fn provision_request(
     Ok(Response::new(Body::empty()))
 }
 
-fn provision_routes(
+/// Only the node owner can make requests to these routes.
+fn owner_routes(
     ctx: RequestContext,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     // POST /provision
@@ -239,18 +240,18 @@ pub async fn provision<R: Crng>(
         // TODO(phlip9): use passed in rng
         rng: SysRng::new(),
     };
-    let routes = provision_routes(ctx);
+    let routes = owner_routes(ctx);
     let (listen_addr, service) = warp::serve(routes)
         .tls()
         .preconfigured_tls(tls_config)
         .bind_with_graceful_shutdown(addr, shutdown);
-    let port = listen_addr.port();
+    let owner_port = listen_addr.port();
 
     info!(%listen_addr, "listening for connections");
 
     // notify the runner that we're ready for a client connection
-    let user_pk = args.user_pk;
-    api.notify_runner(UserPort { user_pk, port })
+    let user_ports = UserPorts::new_provision(args.user_pk, owner_port);
+    api.notify_runner(user_ports)
         .await
         .context("Failed to notify runner of our readiness")?;
 
@@ -346,7 +347,8 @@ mod test {
             // runner recv ready notification w/ listening port
             let req = notifs_rx.recv().await.unwrap();
             assert_eq!(req.user_pk, user_pk);
-            let port = req.port;
+            let provision_ports = req.unwrap_provision();
+            let port = provision_ports.owner_port;
 
             let expect_dummy_quote = cfg!(not(target_env = "sgx"));
 

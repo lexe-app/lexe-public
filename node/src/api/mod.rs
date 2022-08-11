@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
-use common::api::runner::UserPort;
+use common::api::runner::UserPorts;
 use common::api::vfs::{Directory, File, FileId};
 use common::api::UserPk;
 use common::enclave::Measurement;
@@ -66,6 +66,6 @@ pub trait ApiClient {
 
     async fn notify_runner(
         &self,
-        user_port: UserPort,
-    ) -> Result<UserPort, ApiError>;
+        user_ports: UserPorts,
+    ) -> Result<UserPorts, ApiError>;
 }

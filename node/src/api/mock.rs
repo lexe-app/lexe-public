@@ -8,7 +8,7 @@ use bitcoin::secp256k1::PublicKey;
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
-use common::api::runner::UserPort;
+use common::api::runner::UserPorts;
 use common::api::vfs::{Directory, File, FileId};
 use common::api::UserPk;
 use common::enclave::{self, Measurement};
@@ -64,8 +64,8 @@ fn measurement(_user_pk: UserPk) -> Measurement {
 
 pub struct MockApiClient {
     vfs: Mutex<VirtualFileSystem>,
-    notifs_tx: mpsc::Sender<UserPort>,
-    notifs_rx: Mutex<Option<mpsc::Receiver<UserPort>>>,
+    notifs_tx: mpsc::Sender<UserPorts>,
+    notifs_rx: Mutex<Option<mpsc::Receiver<UserPorts>>>,
 }
 
 impl MockApiClient {
@@ -80,7 +80,7 @@ impl MockApiClient {
         }
     }
 
-    pub fn notifs_rx(&self) -> mpsc::Receiver<UserPort> {
+    pub fn notifs_rx(&self) -> mpsc::Receiver<UserPorts> {
         self.notifs_rx
             .lock()
             .unwrap()
@@ -175,10 +175,10 @@ impl ApiClient for MockApiClient {
 
     async fn notify_runner(
         &self,
-        user_port: UserPort,
-    ) -> Result<UserPort, ApiError> {
-        let _ = self.notifs_tx.try_send(user_port.clone());
-        Ok(user_port)
+        user_ports: UserPorts,
+    ) -> Result<UserPorts, ApiError> {
+        let _ = self.notifs_tx.try_send(user_ports);
+        Ok(user_ports)
     }
 }
 

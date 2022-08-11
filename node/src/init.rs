@@ -10,7 +10,7 @@ use bitcoin::BlockHash;
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
-use common::api::runner::{Port, UserPort};
+use common::api::runner::{Port, UserPorts};
 use common::api::UserPk;
 use common::cli::{Network, StartArgs};
 use common::enclave::{
@@ -222,32 +222,42 @@ impl LexeNode {
         let (shutdown_tx, shutdown_rx) =
             broadcast::channel(DEFAULT_CHANNEL_SIZE);
 
-        // Start warp at the given port, or bind to an ephemeral port if not
-        // given
-        let routes = command::server::routes(
+        // Start warp service for owner
+        let owner_routes = command::server::owner_routes(
             channel_manager.clone(),
             peer_manager.clone(),
             network_graph.clone(),
             activity_tx,
-            shutdown_tx.clone(),
         );
-        let (addr, server_fut) = warp::serve(routes)
+        let (addr, owner_service_fut) = warp::serve(owner_routes)
             // A value of 0 indicates that the OS will assign a port for us
-            .try_bind_ephemeral(([127, 0, 0, 1], args.warp_port.unwrap_or(0)))
+            .try_bind_ephemeral(([127, 0, 0, 1], args.owner_port.unwrap_or(0)))
             .context("Failed to bind warp")?;
-        let warp_port = addr.port();
-        println!("Serving warp at port {}", warp_port);
-        tokio::spawn(async move {
-            server_fut.await;
+        let owner_port = addr.port();
+        println!("Starting owner service at port {}", owner_port);
+        // TODO(max): Handle the handle
+        let _owner_service_handle = tokio::spawn(async move {
+            owner_service_fut.await;
+        });
+
+        // Start warp service for host
+        let host_routes = command::server::host_routes(shutdown_tx.clone());
+        let (addr, host_service_fut) = warp::serve(host_routes)
+            // A value of 0 indicates that the OS will assign a port for us
+            .try_bind_ephemeral(([127, 0, 0, 1], args.host_port.unwrap_or(0)))
+            .context("Failed to bind warp")?;
+        let host_port = addr.port();
+        println!("Starting host service at port {}", host_port);
+        // TODO(max): Handle the handle
+        let _host_service_handle = tokio::spawn(async move {
+            host_service_fut.await;
         });
 
         // Let the runner know that we're ready
         println!("Node is ready to accept commands; notifying runner");
-        let user_port = UserPort {
-            user_pk,
-            port: warp_port,
-        };
-        api.notify_runner(user_port)
+        let user_ports =
+            UserPorts::new_run(user_pk, owner_port, host_port, peer_port);
+        api.notify_runner(user_ports)
             .await
             .context("Could not notify runner of ready status")?;
 

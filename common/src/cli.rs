@@ -87,10 +87,15 @@ pub struct StartArgs {
     #[argh(option)]
     pub bitcoind_rpc: BitcoindRpcInfo,
 
-    /// the port warp uses to accept commands and TLS connections.
-    #[argh(option)]
+    /// the port warp uses to accept requests from the owner.
     /// Defaults to a port assigned by the OS
-    pub warp_port: Option<Port>,
+    #[argh(option)]
+    pub owner_port: Option<Port>,
+
+    /// the port warp uses to accept requests from the host (Lexe).
+    /// Defaults to a port assigned by the OS
+    #[argh(option)]
+    pub host_port: Option<Port>,
 
     /// the port on which to accept Lightning P2P connections.
     /// Defaults to a port assigned by the OS
@@ -139,7 +144,8 @@ impl Default for StartArgs {
         Self {
             bitcoind_rpc: BitcoindRpcInfo::default(),
             user_pk: UserPk::from_i64(1), // Test user
-            warp_port: None,
+            owner_port: None,
+            host_port: None,
             peer_port: None,
             network: Network::default(),
             shutdown_after_sync_if_no_activity: false,
@@ -174,8 +180,11 @@ impl StartArgs {
         if self.shutdown_after_sync_if_no_activity {
             cmd.arg("-s");
         }
-        if let Some(warp_port) = self.warp_port {
-            cmd.arg("--warp-port").arg(&warp_port.to_string());
+        if let Some(owner_port) = self.owner_port {
+            cmd.arg("--owner-port").arg(&owner_port.to_string());
+        }
+        if let Some(host_port) = self.host_port {
+            cmd.arg("--host-port").arg(&host_port.to_string());
         }
         if let Some(peer_port) = self.peer_port {
             cmd.arg("--peer-port").arg(&peer_port.to_string());
