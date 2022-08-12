@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc 9b6b18b685533029c7a61f31835bda632ef3ab83b477df1732d9b8a63991873e # shrinks to path_str = "", cmd = Run(RunArgs { user_pk: UserPk([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), bitcoind_rpc: BitcoindRpcInfo { username: "0", password: "A", host: "0.0.0.0", port: 0 }, owner_port: None, host_port: None, peer_port: None, network: Network(Bitcoin), shutdown_after_sync_if_no_activity: false, inactivity_timer_sec: 0, repl: true, backend_url: "", runner_url: "", mock: false })

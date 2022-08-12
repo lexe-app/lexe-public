@@ -12,6 +12,7 @@ pub mod qs;
 pub mod runner;
 pub mod vfs;
 
+#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct UserPk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 

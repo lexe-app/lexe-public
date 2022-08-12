@@ -122,6 +122,7 @@ impl fmt::Debug for Measurement {
 ///
 /// [CPUSVN]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#security-version-number-svn
 /// [`OWNER_EPOCH`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#owner-epoch
+#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
 #[derive(Copy, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct MachineId(#[serde(with = "hexstr_or_bytes")] [u8; 16]);
 
