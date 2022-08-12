@@ -19,13 +19,16 @@ use tracing::debug;
 use crate::api::*;
 
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
+const MAX_ATTEMPTS: usize = 3;
 
 /// Enumerates the base urls that can be used in an API call.
+#[derive(Copy, Clone)]
 enum BaseUrl {
     Backend,
     Runner,
 }
 
+#[derive(Copy, Clone)]
 enum ApiVersion {
     V1,
 }
@@ -67,8 +70,9 @@ impl ApiClient for LexeApiClient {
         &self,
         user_pk: UserPk,
     ) -> Result<Option<Node>, ApiError> {
-        let req = GetByUserPk { user_pk };
-        self.request(Method::GET, Backend, V1, "/node", req).await
+        let data = GetByUserPk { user_pk };
+        self.request(&Method::GET, Backend, V1, "/node", &data)
+            .await
     }
 
     async fn get_instance(
@@ -76,12 +80,12 @@ impl ApiClient for LexeApiClient {
         user_pk: UserPk,
         measurement: Measurement,
     ) -> Result<Option<Instance>, ApiError> {
-        let req = GetByUserPkAndMeasurement {
+        let data = GetByUserPkAndMeasurement {
             user_pk,
             measurement,
         };
         let maybe_instance: Option<Instance> = self
-            .request(Method::GET, Backend, V1, "/instance", req)
+            .request(&Method::GET, Backend, V1, "/instance", &data)
             .await?;
 
         if let Some(instance) = maybe_instance.as_ref() {
@@ -100,80 +104,108 @@ impl ApiClient for LexeApiClient {
 
     async fn get_sealed_seed(
         &self,
-        req: SealedSeedId,
+        data: SealedSeedId,
     ) -> Result<Option<SealedSeed>, ApiError> {
-        self.request(Method::GET, Backend, V1, "/sealed_seed", req)
+        self.request(&Method::GET, Backend, V1, "/sealed_seed", &data)
             .await
     }
 
     async fn create_node_instance_seed(
         &self,
-        req: NodeInstanceSeed,
+        data: NodeInstanceSeed,
     ) -> Result<NodeInstanceSeed, ApiError> {
         let endpoint = "/acid/node_instance_seed";
-        self.request(Method::POST, Backend, V1, endpoint, req).await
+        self.request(&Method::POST, Backend, V1, endpoint, &data)
+            .await
     }
 
-    async fn get_file(&self, req: FileId) -> Result<Option<File>, ApiError> {
+    async fn get_file(&self, data: FileId) -> Result<Option<File>, ApiError> {
         let endpoint = "/file";
-        self.request(Method::GET, Backend, V1, endpoint, req).await
+        self.request(&Method::GET, Backend, V1, endpoint, &data)
+            .await
     }
 
-    async fn create_file(&self, req: File) -> Result<File, ApiError> {
+    async fn create_file(&self, data: File) -> Result<File, ApiError> {
         let endpoint = "/file";
-        self.request(Method::POST, Backend, V1, endpoint, req).await
+        self.request(&Method::POST, Backend, V1, endpoint, &data)
+            .await
     }
 
-    async fn upsert_file(&self, req: File) -> Result<File, ApiError> {
+    async fn upsert_file(&self, data: File) -> Result<File, ApiError> {
         let endpoint = "/file";
-        self.request(Method::PUT, Backend, V1, endpoint, req).await
+        self.request(&Method::PUT, Backend, V1, endpoint, &data)
+            .await
     }
 
     // TODO We want to delete channel peers / monitors when channels close
     /// Returns "OK" if exactly one row was deleted.
     #[allow(dead_code)]
-    async fn delete_file(&self, req: FileId) -> Result<String, ApiError> {
+    async fn delete_file(&self, data: FileId) -> Result<String, ApiError> {
         let endpoint = "/file";
-        self.request(Method::DELETE, Backend, V1, endpoint, req)
+        self.request(&Method::DELETE, Backend, V1, endpoint, &data)
             .await
     }
 
     async fn get_directory(
         &self,
-        req: Directory,
+        data: Directory,
     ) -> Result<Vec<File>, ApiError> {
         let endpoint = "/directory";
-        self.request(Method::GET, Backend, V1, endpoint, req).await
+        self.request(&Method::GET, Backend, V1, endpoint, &data)
+            .await
     }
 
     async fn notify_runner(
         &self,
-        req: UserPorts,
+        data: UserPorts,
     ) -> Result<UserPorts, ApiError> {
-        self.request(Method::POST, Runner, V1, "/ready", req).await
+        self.request(&Method::POST, Runner, V1, "/ready", &data)
+            .await
     }
 }
 
 impl LexeApiClient {
-    /// Builds and executes the API request
+    /// Tries to complete an API request, making up to `MAX_ATTEMPTS` attempts.
     async fn request<D: Serialize, T: DeserializeOwned>(
         &self,
-        method: Method,
-        base_url: BaseUrl,
-        api_version: ApiVersion,
+        method: &Method,
+        base: BaseUrl,
+        ver: ApiVersion,
         endpoint: &str,
-        data: D,
+        data: &D,
+    ) -> Result<T, ApiError> {
+        // Try the first n-1 times, return early if successful
+        for _ in 0..MAX_ATTEMPTS - 1 {
+            let res = self.execute(method, base, ver, endpoint, data).await;
+            if res.is_ok() {
+                return res;
+            }
+        }
+
+        // Last try
+        self.execute(method, base, ver, endpoint, &data).await
+    }
+
+    /// Executes an API request once.
+    async fn execute<D: Serialize, T: DeserializeOwned>(
+        &self,
+        method: &Method,
+        base: BaseUrl,
+        ver: ApiVersion,
+        endpoint: &str,
+        data: &D,
     ) -> Result<T, ApiError> {
         // Node backend api is versioned but runner api is not
-        let (base, version) = match base_url {
-            Backend => (&self.backend_url, api_version.to_string()),
+        let (base, ver) = match base {
+            Backend => (&self.backend_url, ver.to_string()),
             Runner => (&self.runner_url, String::new()),
         };
-        let mut url = format!("{}{}{}", base, version, endpoint);
+        let mut url = format!("{}{}{}", base, ver, endpoint);
 
         // If GET, serialize the data in a query string
+        let method = method.to_owned();
         let query_str = match method {
-            Method::GET => Some(serde_qs::to_string(&data)?),
+            Method::GET => Some(serde_qs::to_string(data)?),
             _ => None,
         };
         // Append directly to url since RequestBuilder.param() API is unwieldy
@@ -187,7 +219,7 @@ impl LexeApiClient {
 
         // If PUT or POST, serialize the data in the request body
         let body = match method {
-            Method::PUT | Method::POST => serde_json::to_string(&data)?,
+            Method::PUT | Method::POST => serde_json::to_string(data)?,
             _ => String::new(),
         };
         // println!("    Body: {}", body);
