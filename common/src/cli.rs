@@ -1,4 +1,6 @@
 use std::fmt::{self, Display};
+#[cfg(test)]
+use std::net::Ipv4Addr;
 use std::path::Path;
 use std::process::Command;
 use std::str::FromStr;
@@ -6,6 +8,12 @@ use std::str::FromStr;
 use anyhow::{anyhow, ensure};
 use argh::FromArgs;
 use lightning_invoice::Currency;
+#[cfg(test)]
+use proptest::arbitrary::{any, Arbitrary};
+#[cfg(test)]
+use proptest::strategy::{BoxedStrategy, Just, Strategy};
+#[cfg(test)]
+use proptest_derive::Arbitrary;
 
 use crate::api::runner::Port;
 use crate::api::UserPk;
@@ -75,7 +83,22 @@ impl NodeCommand {
     }
 }
 
+#[cfg(test)]
+impl Arbitrary for NodeCommand {
+    type Parameters = ();
+    type Strategy = BoxedStrategy<Self>;
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        proptest::prop_oneof! {
+            any::<RunArgs>().prop_map(Self::Run),
+            any::<ProvisionArgs>().prop_map(Self::Provision),
+        }
+        .boxed()
+    }
+}
+
 /// Run the Lexe node
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand, name = "run")]
 pub struct RunArgs {
@@ -164,10 +187,10 @@ impl RunArgs {
     pub fn to_cmd(&self, bin_path: &Path) -> Command {
         let mut cmd = Command::new(bin_path);
         cmd.arg("run")
-            .arg("--bitcoind-rpc")
-            .arg(&self.bitcoind_rpc.to_string())
             .arg("--user-pk")
             .arg(&self.user_pk.to_string())
+            .arg("--bitcoind-rpc")
+            .arg(&self.bitcoind_rpc.to_string())
             .arg("-i")
             .arg(&self.inactivity_timer_sec.to_string())
             .arg("--network")
@@ -180,6 +203,12 @@ impl RunArgs {
         if self.shutdown_after_sync_if_no_activity {
             cmd.arg("-s");
         }
+        if self.mock {
+            cmd.arg("--mock");
+        }
+        if self.repl {
+            cmd.arg("--repl");
+        }
         if let Some(owner_port) = self.owner_port {
             cmd.arg("--owner-port").arg(&owner_port.to_string());
         }
@@ -189,12 +218,12 @@ impl RunArgs {
         if let Some(peer_port) = self.peer_port {
             cmd.arg("--peer-port").arg(&peer_port.to_string());
         }
-
         cmd
     }
 }
 
 /// Provision a new Lexe node for a user
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand, name = "provision")]
 pub struct ProvisionArgs {
@@ -247,21 +276,19 @@ impl ProvisionArgs {
     pub fn to_cmd(&self, bin_path: &Path) -> Command {
         let mut cmd = Command::new(bin_path);
         cmd.arg("provision")
-            .arg("--machine-id")
-            .arg(&self.machine_id.to_string())
             .arg("--user-pk")
             .arg(&self.user_pk.to_string())
+            .arg("--machine-id")
+            .arg(&self.machine_id.to_string())
             .arg("--node-dns-name")
             .arg(&self.node_dns_name)
             .arg("--backend-url")
             .arg(&self.backend_url)
             .arg("--runner-url")
             .arg(&self.runner_url);
-
         if let Some(port) = self.port {
             cmd.arg("--port").arg(&port.to_string());
         }
-
         cmd
     }
 }
@@ -289,7 +316,6 @@ impl Default for BitcoindRpcInfo {
 impl BitcoindRpcInfo {
     fn parse_str(s: &str) -> Option<Self> {
         // format: <username>:<password>@<host>:<port>
-
         let mut parts = s.split(':');
         let (username, pass_host, port) =
             match (parts.next(), parts.next(), parts.next(), parts.next()) {
@@ -332,6 +358,30 @@ impl Display for BitcoindRpcInfo {
             "{}:{}@{}:{}",
             self.username, self.password, self.host, self.port
         )
+    }
+}
+
+#[cfg(test)]
+impl Arbitrary for BitcoindRpcInfo {
+    type Parameters = ();
+    type Strategy = BoxedStrategy<Self>;
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        (
+            // + denotes "at least 1"
+            "[A-Za-z0-9]+",
+            "[A-Za-z0-9]+",
+            // NOTE: bitcoind-rpc parsing currently only supports ipv4
+            any::<Ipv4Addr>().prop_map(|x| x.to_string()),
+            any::<Port>(),
+        )
+            .prop_map(|(username, password, host, port)| Self {
+                username,
+                password,
+                host,
+                port,
+            })
+            .boxed()
     }
 }
 
@@ -417,7 +467,26 @@ impl From<Network> for Currency {
 }
 
 #[cfg(test)]
+impl Arbitrary for Network {
+    type Parameters = ();
+    type Strategy = BoxedStrategy<Self>;
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        proptest::prop_oneof! {
+            // TODO: Mainnet is disabled for now
+            // Just(Network(bitcoin::Network::Bitcoin)),
+            Just(Network(bitcoin::Network::Testnet)),
+            Just(Network(bitcoin::Network::Regtest)),
+            Just(Network(bitcoin::Network::Signet)),
+        }
+        .boxed()
+    }
+}
+
+#[cfg(test)]
 mod test {
+    use proptest::proptest;
+
     use super::*;
 
     #[test]
@@ -435,8 +504,7 @@ mod test {
 
     #[test]
     fn test_network_roundtrip() {
-        // Mainnet is disabled for now
-
+        // TODO: Mainnet is disabled for now
         // let mainnet1 = Network(bitcoin::Network::Bitcoin);
         let testnet1 = Network(bitcoin::Network::Testnet);
         let regtest1 = Network(bitcoin::Network::Regtest);
@@ -451,5 +519,84 @@ mod test {
         assert_eq!(testnet1, testnet2);
         assert_eq!(regtest1, regtest2);
         assert_eq!(signet1, signet2);
+    }
+
+    proptest! {
+        #[test]
+        fn proptest_cmd_roundtrip(
+            path_str in ".*",
+            cmd in any::<NodeCommand>(),
+        ) {
+            do_cmd_roundtrip(path_str, &cmd);
+        }
+    }
+
+    fn do_cmd_roundtrip(path_str: String, cmd1: &NodeCommand) {
+        let path = Path::new(&path_str);
+        // Convert to std::process::Command
+        let std_cmd = cmd1.to_cmd(&path);
+        // Convert to an iterator over &str args
+        let mut args_iter = std_cmd.get_args().filter_map(|s| s.to_str());
+        // Pop the first arg which contains the subcommand name e.g. 'run'
+        let subcommand = args_iter.next().unwrap();
+        // Collect the remaining args into a vec
+        let cmd_args: Vec<&str> = args_iter.collect();
+        dbg!(&cmd_args);
+        // Deserialize back into struct
+        let cmd2 = NodeCommand::from_args(&[&subcommand], &cmd_args).unwrap();
+        // Assert
+        assert_eq!(*cmd1, cmd2);
+    }
+
+    #[test]
+    fn test_cmd_regressions() {
+        use bitcoin::Network::Testnet;
+        use NodeCommand::*;
+
+        // --mock was needed
+        let path_str = String::from(".");
+        let cmd = Run(RunArgs {
+            user_pk: UserPk::from_i64(0),
+            bitcoind_rpc: BitcoindRpcInfo {
+                username: "0".into(),
+                password: "a".into(),
+                host: "0.0.0.0".into(),
+                port: 0,
+            },
+            owner_port: None,
+            host_port: None,
+            peer_port: None,
+            network: Network(Testnet),
+            shutdown_after_sync_if_no_activity: false,
+            inactivity_timer_sec: 0,
+            repl: false,
+            backend_url: "".into(),
+            runner_url: "".into(),
+            mock: true,
+        });
+        do_cmd_roundtrip(path_str, &cmd);
+
+        // --repl was needed
+        let path_str = String::from(".");
+        let cmd = Run(RunArgs {
+            user_pk: UserPk::from_i64(0),
+            bitcoind_rpc: BitcoindRpcInfo {
+                username: "0".into(),
+                password: "A".into(),
+                host: "0.0.0.0".into(),
+                port: 0,
+            },
+            owner_port: None,
+            host_port: None,
+            peer_port: None,
+            network: Network(Testnet),
+            shutdown_after_sync_if_no_activity: false,
+            inactivity_timer_sec: 0,
+            repl: true,
+            backend_url: "".into(),
+            runner_url: "".into(),
+            mock: false,
+        });
+        do_cmd_roundtrip(path_str, &cmd);
     }
 }
