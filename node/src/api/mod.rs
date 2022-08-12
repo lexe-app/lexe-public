@@ -46,12 +46,12 @@ pub trait ApiClient {
 
     async fn get_sealed_seed(
         &self,
-        req: SealedSeedId,
+        data: SealedSeedId,
     ) -> Result<Option<SealedSeed>, ApiError>;
 
     async fn create_node_instance_seed(
         &self,
-        req: NodeInstanceSeed,
+        data: NodeInstanceSeed,
     ) -> Result<NodeInstanceSeed, ApiError>;
 
     async fn get_file(&self, file_id: FileId)

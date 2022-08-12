@@ -132,23 +132,23 @@ impl ApiClient for MockApiClient {
     /// Always return the dummy version
     async fn get_sealed_seed(
         &self,
-        req: SealedSeedId,
+        data: SealedSeedId,
     ) -> Result<Option<SealedSeed>, ApiError> {
         let sealed_seed = SealedSeed::new(
-            req.node_pk,
-            req.measurement,
-            req.machine_id,
-            req.min_cpusvn,
-            sealed_seed(&req.node_pk),
+            data.node_pk,
+            data.measurement,
+            data.machine_id,
+            data.min_cpusvn,
+            sealed_seed(&data.node_pk),
         );
         Ok(Some(sealed_seed))
     }
 
     async fn create_node_instance_seed(
         &self,
-        req: NodeInstanceSeed,
+        data: NodeInstanceSeed,
     ) -> Result<NodeInstanceSeed, ApiError> {
-        Ok(req)
+        Ok(data)
     }
 
     async fn get_file(
