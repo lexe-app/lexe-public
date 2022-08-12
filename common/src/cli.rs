@@ -1,5 +1,5 @@
 use std::fmt::{self, Display};
-#[cfg(test)]
+#[cfg(all(test, not(target_env = "sgx")))]
 use std::net::Ipv4Addr;
 use std::path::Path;
 use std::process::Command;
@@ -8,11 +8,11 @@ use std::str::FromStr;
 use anyhow::{anyhow, ensure};
 use argh::FromArgs;
 use lightning_invoice::Currency;
-#[cfg(test)]
+#[cfg(all(test, not(target_env = "sgx")))]
 use proptest::arbitrary::{any, Arbitrary};
-#[cfg(test)]
+#[cfg(all(test, not(target_env = "sgx")))]
 use proptest::strategy::{BoxedStrategy, Just, Strategy};
-#[cfg(test)]
+#[cfg(all(test, not(target_env = "sgx")))]
 use proptest_derive::Arbitrary;
 
 use crate::api::runner::Port;
@@ -83,7 +83,7 @@ impl NodeCommand {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_env = "sgx")))]
 impl Arbitrary for NodeCommand {
     type Parameters = ();
     type Strategy = BoxedStrategy<Self>;
@@ -98,7 +98,7 @@ impl Arbitrary for NodeCommand {
 }
 
 /// Run the Lexe node
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand, name = "run")]
 pub struct RunArgs {
@@ -223,7 +223,7 @@ impl RunArgs {
 }
 
 /// Provision a new Lexe node for a user
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand, name = "provision")]
 pub struct ProvisionArgs {
@@ -361,7 +361,7 @@ impl Display for BitcoindRpcInfo {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_env = "sgx")))]
 impl Arbitrary for BitcoindRpcInfo {
     type Parameters = ();
     type Strategy = BoxedStrategy<Self>;
@@ -466,7 +466,7 @@ impl From<Network> for Currency {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_env = "sgx")))]
 impl Arbitrary for Network {
     type Parameters = ();
     type Strategy = BoxedStrategy<Self>;
@@ -483,7 +483,7 @@ impl Arbitrary for Network {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_env = "sgx")))]
 mod test {
     use proptest::proptest;
 

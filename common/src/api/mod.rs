@@ -1,6 +1,8 @@
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
+#[cfg(all(test, not(target_env = "sgx")))]
+use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::hex::{self, FromHex};
@@ -12,7 +14,7 @@ pub mod qs;
 pub mod runner;
 pub mod vfs;
 
-#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
+#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct UserPk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
