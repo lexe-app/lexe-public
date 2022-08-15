@@ -119,19 +119,19 @@ impl ApiClient for LexeApiClient {
             .await
     }
 
-    async fn get_file(&self, data: FileId) -> Result<Option<File>, ApiError> {
+    async fn get_file(&self, data: &FileId) -> Result<Option<File>, ApiError> {
         let endpoint = "/file";
         self.request(&Method::GET, Backend, V1, endpoint, &data)
             .await
     }
 
-    async fn create_file(&self, data: File) -> Result<File, ApiError> {
+    async fn create_file(&self, data: &File) -> Result<File, ApiError> {
         let endpoint = "/file";
         self.request(&Method::POST, Backend, V1, endpoint, &data)
             .await
     }
 
-    async fn upsert_file(&self, data: File) -> Result<File, ApiError> {
+    async fn upsert_file(&self, data: &File) -> Result<File, ApiError> {
         let endpoint = "/file";
         self.request(&Method::PUT, Backend, V1, endpoint, &data)
             .await
@@ -140,7 +140,7 @@ impl ApiClient for LexeApiClient {
     // TODO We want to delete channel peers / monitors when channels close
     /// Returns "OK" if exactly one row was deleted.
     #[allow(dead_code)]
-    async fn delete_file(&self, data: FileId) -> Result<String, ApiError> {
+    async fn delete_file(&self, data: &FileId) -> Result<String, ApiError> {
         let endpoint = "/file";
         self.request(&Method::DELETE, Backend, V1, endpoint, &data)
             .await
@@ -148,7 +148,7 @@ impl ApiClient for LexeApiClient {
 
     async fn get_directory(
         &self,
-        data: Directory,
+        data: &Directory,
     ) -> Result<Vec<File>, ApiError> {
         let endpoint = "/directory";
         self.request(&Method::GET, Backend, V1, endpoint, &data)
