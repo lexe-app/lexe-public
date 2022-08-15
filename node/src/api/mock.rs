@@ -153,35 +153,35 @@ impl ApiClient for MockApiClient {
 
     async fn get_file(
         &self,
-        file_id: FileId,
+        file_id: &FileId,
     ) -> Result<Option<File>, ApiError> {
-        let file_opt = self.vfs.lock().unwrap().get(file_id);
+        let file_opt = self.vfs.lock().unwrap().get(file_id.clone());
         Ok(file_opt)
     }
 
-    async fn create_file(&self, file: File) -> Result<File, ApiError> {
+    async fn create_file(&self, file: &File) -> Result<File, ApiError> {
         let file_opt = self.vfs.lock().unwrap().insert(file.clone());
         assert!(file_opt.is_none());
-        Ok(file)
+        Ok(file.clone())
     }
 
-    async fn upsert_file(&self, file: File) -> Result<File, ApiError> {
+    async fn upsert_file(&self, file: &File) -> Result<File, ApiError> {
         self.vfs.lock().unwrap().insert(file.clone());
-        Ok(file)
+        Ok(file.clone())
     }
 
     /// Returns "OK" if exactly one row was deleted.
-    async fn delete_file(&self, file_id: FileId) -> Result<String, ApiError> {
-        let file_opt = self.vfs.lock().unwrap().remove(file_id);
+    async fn delete_file(&self, file_id: &FileId) -> Result<String, ApiError> {
+        let file_opt = self.vfs.lock().unwrap().remove(file_id.clone());
         assert!(file_opt.is_none());
         Ok(String::from("OK"))
     }
 
     async fn get_directory(
         &self,
-        dir: Directory,
+        dir: &Directory,
     ) -> Result<Vec<File>, ApiError> {
-        let files_vec = self.vfs.lock().unwrap().get_dir(dir);
+        let files_vec = self.vfs.lock().unwrap().get_dir(dir.clone());
         Ok(files_vec)
     }
 

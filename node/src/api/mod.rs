@@ -54,20 +54,22 @@ pub trait ApiClient {
         data: NodeInstanceSeed,
     ) -> Result<NodeInstanceSeed, ApiError>;
 
-    async fn get_file(&self, file_id: FileId)
-        -> Result<Option<File>, ApiError>;
+    async fn get_file(
+        &self,
+        file_id: &FileId,
+    ) -> Result<Option<File>, ApiError>;
 
-    async fn create_file(&self, file: File) -> Result<File, ApiError>;
+    async fn create_file(&self, file: &File) -> Result<File, ApiError>;
 
-    async fn upsert_file(&self, file: File) -> Result<File, ApiError>;
+    async fn upsert_file(&self, file: &File) -> Result<File, ApiError>;
 
     // TODO We want to delete channel peers / monitors when channels close
     /// Returns "OK" if exactly one row was deleted.
-    async fn delete_file(&self, file_id: FileId) -> Result<String, ApiError>;
+    async fn delete_file(&self, file_id: &FileId) -> Result<String, ApiError>;
 
     async fn get_directory(
         &self,
-        dir: Directory,
+        dir: &Directory,
     ) -> Result<Vec<File>, ApiError>;
 
     async fn notify_runner(

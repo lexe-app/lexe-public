@@ -107,7 +107,7 @@ impl InnerPersister {
         );
         let cm_file_opt = self
             .api
-            .get_file(cm_file_id)
+            .get_file(&cm_file_id)
             .await
             .context("Could not fetch channel manager from DB")?;
 
@@ -162,7 +162,7 @@ impl InnerPersister {
 
         let cm_file_vec = self
             .api
-            .get_directory(cm_dir)
+            .get_directory(&cm_dir)
             .await
             .context("Could not fetch channel monitors from DB")?;
 
@@ -209,7 +209,7 @@ impl InnerPersister {
         );
         let scorer_file_opt = self
             .api
-            .get_file(scorer_file_id)
+            .get_file(&scorer_file_id)
             .await
             .context("Could not fetch probabilistic scorer from DB")?;
 
@@ -244,7 +244,7 @@ impl InnerPersister {
         );
         let ng_file_opt = self
             .api
-            .get_file(ng_file_id)
+            .get_file(&ng_file_id)
             .await
             .context("Could not fetch network graph from DB")?;
 
@@ -273,7 +273,7 @@ impl InnerPersister {
 
         let cp_file_vec = self
             .api
-            .get_directory(cp_dir)
+            .get_directory(&cp_dir)
             .await
             .context("Could not fetch channel peers from DB")?;
 
@@ -309,7 +309,7 @@ impl InnerPersister {
         );
 
         self.api
-            .create_file(cp_file)
+            .create_file(&cp_file)
             .await
             .map(|_| ())
             .map_err(|e| e.into())
@@ -333,7 +333,7 @@ impl InnerPersister {
         );
 
         self.api
-            .upsert_file(cm_file)
+            .upsert_file(&cm_file)
             .await
             .map(|_| ())
             .context("Could not persist channel manager")
@@ -356,7 +356,7 @@ impl InnerPersister {
         );
 
         self.api
-            .upsert_file(file)
+            .upsert_file(&file)
             .await
             .map(|_| ())
             .context("Could not persist network graph")
@@ -384,7 +384,7 @@ impl InnerPersister {
         };
 
         self.api
-            .upsert_file(scorer_file)
+            .upsert_file(&scorer_file)
             .await
             .map(|_| ())
             .context("Could not persist scorer")
@@ -415,7 +415,7 @@ impl Persist<SignerType> for InnerPersister {
 
         // Run an async fn inside a sync fn inside a Tokio runtime
         Handle::current()
-            .block_on(async move { self.api.create_file(cm_file).await })
+            .block_on(async move { self.api.create_file(&cm_file).await })
             .map(|_| ())
             .map_err(|e| {
                 // TODO(max): Implement durability then make this err permanent
@@ -448,7 +448,7 @@ impl Persist<SignerType> for InnerPersister {
 
         // Run an async fn inside a sync fn inside a Tokio runtime
         Handle::current()
-            .block_on(async move { self.api.upsert_file(cm_file).await })
+            .block_on(async move { self.api.upsert_file(&cm_file).await })
             .map(|_| ())
             .map_err(|e| {
                 // TODO(max): Implement durability then make this err permanent
