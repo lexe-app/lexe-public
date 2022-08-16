@@ -350,6 +350,16 @@ impl BitcoindRpcInfo {
             port,
         })
     }
+
+    /// Returns a base64 encoding of "<user>:<pass>" required by the BitcoinD
+    /// RPC client.
+    pub fn base64_credentials(&self) -> String {
+        base64::encode(format!(
+            "{}:{}",
+            self.username.clone(),
+            self.password.clone(),
+        ))
+    }
 }
 
 impl FromStr for BitcoindRpcInfo {

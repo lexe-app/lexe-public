@@ -121,6 +121,11 @@ impl LexeNode {
         let (node, provisioned_secrets) =
             fetch_res.context("Failed to fetch provisioned secrets")?;
         let root_seed = &provisioned_secrets.root_seed;
+        let bitcoind = Arc::new(bitcoind);
+
+        // Spawn task to refresh feerates
+        // TODO(max): Handle the handle
+        let _refresh_fees_handle = bitcoind.spawn_refresh_fees_task();
 
         // Build LexeKeysManager from node init data
         let keys_manager = LexeKeysManager::init(rng, &node.node_pk, root_seed)

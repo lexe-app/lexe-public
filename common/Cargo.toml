@@ -15,6 +15,7 @@ edition = "2021"
 
 bitcoin = { version = "0.28.1", features = ["std", "use-serde"] }
 bitcoin-bech32 = "0.12"
+base64 = "0.13.0"
 
 # --- LIGHTNING --- #
 

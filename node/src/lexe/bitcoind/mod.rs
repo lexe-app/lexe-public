@@ -19,7 +19,7 @@ use lightning_block_sync::rpc::RpcClient;
 use lightning_block_sync::{
     AsyncBlockSourceResult, BlockHeaderData, BlockSource,
 };
-use tokio::runtime::Handle;
+use tokio::task::JoinHandle;
 use tokio::time;
 use tracing::{debug, error};
 
@@ -28,78 +28,44 @@ mod types;
 pub use types::*;
 
 const POLL_FEE_ESTIMATE_INTERVAL: Duration = Duration::from_secs(60);
+/// The minimum feerate we are allowed to send, as specified by LDK.
+const MIN_FEERATE: u32 = 253;
 
 pub struct LexeBitcoind {
-    bitcoind_rpc_client: Arc<RpcClient>,
-    host: String,
-    port: u16,
-    rpc_user: String,
-    rpc_password: String,
+    rpc_client: Arc<RpcClient>,
     background_fees: Arc<AtomicU32>,
     normal_fees: Arc<AtomicU32>,
     high_prio_fees: Arc<AtomicU32>,
-    handle: Handle,
 }
-
-#[derive(Clone, Eq, Hash, PartialEq)]
-pub enum Target {
-    Background,
-    Normal,
-    HighPriority,
-}
-
-impl BlockSource for &LexeBitcoind {
-    fn get_header<'a>(
-        &'a self,
-        header_hash: &'a BlockHash,
-        height_hint: Option<u32>,
-    ) -> AsyncBlockSourceResult<'a, BlockHeaderData> {
-        Box::pin(async move {
-            self.bitcoind_rpc_client
-                .get_header(header_hash, height_hint)
-                .await
-        })
-    }
-
-    fn get_block<'a>(
-        &'a self,
-        header_hash: &'a BlockHash,
-    ) -> AsyncBlockSourceResult<'a, Block> {
-        Box::pin(async move {
-            self.bitcoind_rpc_client.get_block(header_hash).await
-        })
-    }
-
-    fn get_best_block(
-        &self,
-    ) -> AsyncBlockSourceResult<(BlockHash, Option<u32>)> {
-        Box::pin(async move { self.bitcoind_rpc_client.get_best_block().await })
-    }
-}
-
-/// The minimum feerate we are allowed to send, as specify by LDK.
-const MIN_FEERATE: u32 = 253;
 
 impl LexeBitcoind {
     pub async fn init(
         bitcoind_rpc: BitcoindRpcInfo,
         network: Network,
-    ) -> anyhow::Result<Arc<Self>> {
-        debug!(%network, "initializing bitcoind client");
+    ) -> anyhow::Result<Self> {
+        debug!(%network, "Initializing bitcoind client");
 
-        let client = LexeBitcoind::new(
-            bitcoind_rpc.host,
-            bitcoind_rpc.port,
-            bitcoind_rpc.username,
-            bitcoind_rpc.password,
-            Handle::current(),
-        )
-        .await
-        .context("Failed to connect to bitcoind client")?;
-        let client = Arc::new(client);
+        let http_endpoint = HttpEndpoint::for_host(bitcoind_rpc.host.clone())
+            .with_port(bitcoind_rpc.port);
+        let credentials = bitcoind_rpc.base64_credentials();
+        let rpc_client = RpcClient::new(&credentials, http_endpoint)
+            .context("Could not initialize RPC client")?;
+        let rpc_client = Arc::new(rpc_client);
 
-        // Check that the bitcoind we've connected to is running the network we
-        // expect
+        let background_fees = Arc::new(AtomicU32::new(MIN_FEERATE));
+        let normal_fees = Arc::new(AtomicU32::new(2000));
+        let high_prio_fees = Arc::new(AtomicU32::new(5000));
+
+        let client = Self {
+            rpc_client,
+            background_fees,
+            normal_fees,
+            high_prio_fees,
+        };
+
+        // Make an initial test call to check that the RPC client is working
+        // correctly, and also check that the bitcoind we've connected to is
+        // running the network we expect
         let bitcoind_chain = client
             .get_blockchain_info()
             .await
@@ -124,70 +90,19 @@ impl LexeBitcoind {
         Ok(client)
     }
 
-    // A runtime handle has to be passed in explicitly, otherwise these fns may
-    // panic when called from the (non-Tokio) background processor thread
-    async fn new(
-        host: String,
-        port: u16,
-        rpc_user: String,
-        rpc_password: String,
-        handle: Handle,
-    ) -> std::io::Result<Self> {
-        let http_endpoint =
-            HttpEndpoint::for_host(host.clone()).with_port(port);
-        let rpc_credentials = base64::encode(format!(
-            "{}:{}",
-            rpc_user.clone(),
-            rpc_password.clone()
-        ));
-        let bitcoind_rpc_client =
-            RpcClient::new(&rpc_credentials, http_endpoint)?;
-        let _dummy = bitcoind_rpc_client
-            .call_method::<BlockchainInfo>("getblockchaininfo", &[])
-            .await
-            .map_err(|_| {
-                std::io::Error::new(std::io::ErrorKind::PermissionDenied,
-                "Failed to make initial call to bitcoind - please check your RPC user/password and access settings")
-            })?;
+    pub fn spawn_refresh_fees_task(&self) -> JoinHandle<()> {
+        let rpc_client = self.rpc_client.clone();
+        let background_fees = self.background_fees.clone();
+        let normal_fees = self.normal_fees.clone();
+        let high_prio_fees = self.high_prio_fees.clone();
 
-        let background_fees = Arc::new(AtomicU32::new(MIN_FEERATE));
-        let normal_fees = Arc::new(AtomicU32::new(2000));
-        let high_prio_fees = Arc::new(AtomicU32::new(5000));
-
-        let client = Self {
-            bitcoind_rpc_client: Arc::new(bitcoind_rpc_client),
-            host,
-            port,
-            rpc_user,
-            rpc_password,
-            background_fees,
-            normal_fees,
-            high_prio_fees,
-            handle: handle.clone(),
-        };
-        client.poll_for_fee_estimates(
-            client.background_fees.clone(),
-            client.normal_fees.clone(),
-            client.high_prio_fees.clone(),
-            client.bitcoind_rpc_client.clone(),
-        );
-        Ok(client)
-    }
-
-    fn poll_for_fee_estimates(
-        &self,
-        background_fees: Arc<AtomicU32>,
-        normal_fees: Arc<AtomicU32>,
-        high_prio_fees: Arc<AtomicU32>,
-        rpc_client: Arc<RpcClient>,
-    ) {
-        self.handle.spawn(async move {
+        tokio::spawn(async move {
             let mut poll_interval = time::interval(POLL_FEE_ESTIMATE_INTERVAL);
 
             loop {
                 poll_interval.tick().await;
 
-                let poll_res = Self::poll_for_fee_estimates_fallible(
+                let poll_res = Self::refresh_fees(
                     background_fees.as_ref(),
                     normal_fees.as_ref(),
                     high_prio_fees.as_ref(),
@@ -202,10 +117,10 @@ impl LexeBitcoind {
                     }
                 }
             }
-        });
+        })
     }
 
-    async fn poll_for_fee_estimates_fallible(
+    async fn refresh_fees(
         background_fees: &AtomicU32,
         normal_fees: &AtomicU32,
         high_prio_fees: &AtomicU32,
@@ -267,23 +182,12 @@ impl LexeBitcoind {
         Ok(())
     }
 
-    pub fn get_new_rpc_client(&self) -> std::io::Result<RpcClient> {
-        let http_endpoint =
-            HttpEndpoint::for_host(self.host.clone()).with_port(self.port);
-        let rpc_credentials = base64::encode(format!(
-            "{}:{}",
-            self.rpc_user.clone(),
-            self.rpc_password.clone()
-        ));
-        RpcClient::new(&rpc_credentials, http_endpoint)
-    }
-
     pub async fn create_raw_transaction(
         &self,
         outputs: Vec<HashMap<String, f64>>,
     ) -> anyhow::Result<RawTx> {
         let outputs_json = serde_json::json!(outputs);
-        self.bitcoind_rpc_client
+        self.rpc_client
             .call_method::<RawTx>(
                 "createrawtransaction",
                 &[serde_json::json!([]), outputs_json],
@@ -312,7 +216,7 @@ impl LexeBitcoind {
             // the same node.
             "replaceable": false,
         });
-        self.bitcoind_rpc_client
+        self.rpc_client
             .call_method("fundrawtransaction", &[raw_tx_json, options])
             .await
             .context("fundrawtransaction RPC call failed")
@@ -323,7 +227,7 @@ impl LexeBitcoind {
         raw_tx: RawTx,
     ) -> anyhow::Result<Txid> {
         let raw_tx_json = serde_json::json!(raw_tx.0);
-        self.bitcoind_rpc_client
+        self.rpc_client
             .call_method::<Txid>("sendrawtransaction", &[raw_tx_json])
             .await
             .context("sesndrawtransaction RPC call failed")
@@ -334,7 +238,7 @@ impl LexeBitcoind {
         tx_hex: String,
     ) -> anyhow::Result<SignedTx> {
         let tx_hex_json = serde_json::json!(tx_hex);
-        self.bitcoind_rpc_client
+        self.rpc_client
             .call_method("signrawtransactionwithwallet", &[tx_hex_json])
             .await
             .context("signrawtransactionwithwallet RPC call failed")
@@ -343,7 +247,7 @@ impl LexeBitcoind {
     pub async fn get_new_address(&self) -> anyhow::Result<Address> {
         let addr_args = vec![serde_json::json!("LDK output address")];
         let addr = self
-            .bitcoind_rpc_client
+            .rpc_client
             .call_method::<NewAddress>("getnewaddress", &addr_args)
             .await
             .context("getnewaddress RPC call failed")?;
@@ -352,10 +256,35 @@ impl LexeBitcoind {
     }
 
     pub async fn get_blockchain_info(&self) -> anyhow::Result<BlockchainInfo> {
-        self.bitcoind_rpc_client
+        self.rpc_client
             .call_method::<BlockchainInfo>("getblockchaininfo", &[])
             .await
             .context("getblockchaininfo RPC call failed")
+    }
+}
+
+impl BlockSource for &LexeBitcoind {
+    fn get_header<'a>(
+        &'a self,
+        header_hash: &'a BlockHash,
+        height_hint: Option<u32>,
+    ) -> AsyncBlockSourceResult<'a, BlockHeaderData> {
+        Box::pin(async move {
+            self.rpc_client.get_header(header_hash, height_hint).await
+        })
+    }
+
+    fn get_block<'a>(
+        &'a self,
+        header_hash: &'a BlockHash,
+    ) -> AsyncBlockSourceResult<'a, Block> {
+        Box::pin(async move { self.rpc_client.get_block(header_hash).await })
+    }
+
+    fn get_best_block(
+        &self,
+    ) -> AsyncBlockSourceResult<(BlockHash, Option<u32>)> {
+        Box::pin(async move { self.rpc_client.get_best_block().await })
     }
 }
 
@@ -381,13 +310,13 @@ impl FeeEstimator for LexeBitcoind {
 impl BroadcasterInterface for LexeBitcoind {
     fn broadcast_transaction(&self, tx: &Transaction) {
         debug!("Broadcasting transaction");
-        let bitcoind_rpc_client = self.bitcoind_rpc_client.clone();
+        let rpc_client = self.rpc_client.clone();
         let tx_serialized = serde_json::json!(encode::serialize_hex(tx));
-        self.handle.spawn(async move {
+        tokio::spawn(async move {
             // This may error due to RL calling `broadcast_transaction` with the
             // same transaction multiple times, but the error is
             // safe to ignore.
-            match bitcoind_rpc_client
+            match rpc_client
                 .call_method::<Txid>("sendrawtransaction", &[tx_serialized])
                 .await
             {

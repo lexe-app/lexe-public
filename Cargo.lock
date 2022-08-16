@@ -386,6 +386,7 @@ dependencies = [
  "anyhow",
  "argh",
  "asn1-rs",
+ "base64",
  "bitcoin",
  "bitcoin-bech32",
  "bytemuck",
