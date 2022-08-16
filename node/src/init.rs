@@ -19,6 +19,7 @@ use common::rng::Crng;
 use lightning::chain;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
+use lightning::chain::transaction::OutPoint;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
@@ -26,13 +27,16 @@ use tokio::net::TcpListener;
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
 use tracing::{debug, error, info, instrument};
+use tokio::task::JoinHandle;
 
 use crate::api::ApiClient;
 use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
 use crate::lexe::background_processor::LexeBackgroundProcessor;
 use crate::lexe::bitcoind::LexeBitcoind;
-use crate::lexe::channel_manager::LexeChannelManager;
+use crate::lexe::channel_manager::{
+    LexeChannelManager, LxChannelMonitorUpdate,
+};
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::LexePeerManager;
@@ -132,8 +136,20 @@ impl LexeNode {
         let fee_estimator = bitcoind.clone();
         let broadcaster = bitcoind.clone();
 
+        // Init Tokio channels
+        let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
+        let (shutdown_tx, shutdown_rx) =
+            broadcast::channel(DEFAULT_CHANNEL_SIZE);
+        let (channel_monitor_updated_tx, channel_monitor_updated_rx) =
+            mpsc::channel(DEFAULT_CHANNEL_SIZE);
+
         // Initialize Persister
-        let persister = LexePersister::new(api.clone(), node_pk, measurement);
+        let persister = LexePersister::new(
+            api.clone(),
+            node_pk,
+            measurement,
+            channel_monitor_updated_tx,
+        );
 
         // Initialize the ChainMonitor
         let chain_monitor = Arc::new(ChainMonitor::new(
@@ -143,6 +159,16 @@ impl LexeNode {
             fee_estimator.clone(),
             persister.clone(),
         ));
+
+        // Set up the persister -> chain monitor channel
+        // TODO(max): Handle the handle
+        let channel_monitor_updated_shutdown_rx = shutdown_tx.subscribe();
+        let _channel_monitor_updated_handle =
+            spawn_channel_monitor_updated_task(
+                chain_monitor.clone(),
+                channel_monitor_updated_rx,
+                channel_monitor_updated_shutdown_rx,
+            );
 
         // Read the `ChannelMonitor`s and initialize the `P2PGossipSync`
         let (channel_monitors_res, gossip_sync_res) = tokio::join!(
@@ -198,12 +224,7 @@ impl LexeNode {
         )
         .await;
 
-        // Init Tokio channels
-        let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
-        let (shutdown_tx, shutdown_rx) =
-            broadcast::channel(DEFAULT_CHANNEL_SIZE);
-
-        // build owner service TLS config for authenticating owner
+        // Build owner service TLS config for authenticating owner
         let node_dns = args.node_dns_name.clone();
         let owner_tls = node_run_tls_config(rng, root_seed, vec![node_dns])
             .context("Failed to build owner service TLS config")?;
@@ -297,7 +318,8 @@ impl LexeNode {
         );
 
         // Spawn a task to regularly reconnect to channel peers
-        spawn_p2p_reconnect_task(
+        // TODO(max): Handle the handle
+        let _reconnect_handle = spawn_p2p_reconnect_task(
             channel_manager.clone(),
             peer_manager.clone(),
             stop_listen_connect.clone(),
@@ -577,7 +599,7 @@ fn spawn_p2p_reconnect_task(
     peer_manager: LexePeerManager,
     stop_listen_connect: Arc<AtomicBool>,
     persister: LexePersister,
-) {
+) -> JoinHandle<()> {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(Duration::from_secs(60));
         loop {
@@ -611,5 +633,39 @@ fn spawn_p2p_reconnect_task(
                 }
             }
         }
-    });
+    })
+}
+
+/// Spawns a task that that lets the persister make calls to the chain monitor.
+/// For now, it simply listens on `channel_monitor_updated_rx` and calls
+/// `ChainMonitor::channel_monitor_updated()` with any received values. This is
+/// required because (a) the chain monitor cannot be initialized without the
+/// persister, therefore (b) the persister cannot hold the chain monitor,
+/// therefore there needs to be another means of letting the persister notify
+/// the channel manager of events.
+pub fn spawn_channel_monitor_updated_task(
+    chain_monitor: Arc<ChainMonitorType>,
+    mut channel_monitor_updated_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
+    mut shutdown_rx: broadcast::Receiver<()>,
+) -> JoinHandle<()> {
+    info!("Starting channel_monitor_updated task");
+    tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                Some(update) = channel_monitor_updated_rx.recv() => {
+                    if let Err(e) = chain_monitor.channel_monitor_updated(
+                        OutPoint::from(update.funding_txo),
+                        update.update_id,
+                    ) {
+                        // ApiError impls Debug but not std::error::Error
+                        error!("channel_monitor_updated returned Err: {:?}", e);
+                    }
+                }
+                _ = shutdown_rx.recv() => {
+                    info!("channel_monitor_updated task shutting down");
+                    break;
+                }
+            }
+        }
+    })
 }

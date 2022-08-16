@@ -34,6 +34,15 @@ impl From<OutPoint> for LxOutPoint {
     }
 }
 
+impl From<LxOutPoint> for OutPoint {
+    fn from(op: LxOutPoint) -> Self {
+        Self {
+            txid: op.txid,
+            index: op.index,
+        }
+    }
+}
+
 /// Deserializes from <txid>_<index>
 impl FromStr for LxOutPoint {
     type Err = anyhow::Error;

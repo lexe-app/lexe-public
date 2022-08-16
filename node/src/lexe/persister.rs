@@ -18,10 +18,10 @@ use lightning::routing::scoring::{
     ProbabilisticScorer, ProbabilisticScoringParameters,
 };
 use lightning::util::ser::{ReadableArgs, Writeable};
-use tokio::runtime::Handle;
+use tokio::sync::mpsc;
 use tracing::{debug, error};
 
-use crate::lexe::channel_manager::USER_CONFIG;
+use crate::lexe::channel_manager::{LxChannelMonitorUpdate, USER_CONFIG};
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::ChannelPeer;
@@ -53,8 +53,14 @@ impl LexePersister {
         api: ApiClientType,
         node_pk: PublicKey,
         measurement: Measurement,
+        channel_monitor_updated_tx: mpsc::Sender<LxChannelMonitorUpdate>,
     ) -> Self {
-        let inner = InnerPersister::new(api, node_pk, measurement);
+        let inner = InnerPersister::new(
+            api,
+            node_pk,
+            measurement,
+            channel_monitor_updated_tx,
+        );
         Self { inner }
     }
 }
@@ -73,6 +79,7 @@ pub struct InnerPersister {
     api: ApiClientType,
     node_pk: PublicKey,
     measurement: Measurement,
+    channel_monitor_updated_tx: mpsc::Sender<LxChannelMonitorUpdate>,
 }
 
 impl InnerPersister {
@@ -80,11 +87,13 @@ impl InnerPersister {
         api: ApiClientType,
         node_pk: PublicKey,
         measurement: Measurement,
+        channel_monitor_updated_tx: mpsc::Sender<LxChannelMonitorUpdate>,
     ) -> Self {
         Self {
             api,
             node_pk,
             measurement,
+            channel_monitor_updated_tx,
         }
     }
 
@@ -153,6 +162,7 @@ impl InnerPersister {
         keys_manager: LexeKeysManager,
     ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
         debug!("Reading channel monitors");
+        // TODO Also attempt to read from the cloud
 
         let cm_dir = Directory {
             node_pk: self.node_pk,
@@ -396,11 +406,10 @@ impl Persist<SignerType> for InnerPersister {
         &self,
         funding_txo: OutPoint,
         monitor: &ChannelMonitorType,
-        _update_id: MonitorUpdateId,
+        update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
-        let outpoint = LxOutPoint::from(funding_txo);
-        let outpoint_str = outpoint.to_string();
-        debug!("Persisting new channel {}", outpoint_str);
+        let funding_txo = LxOutPoint::from(funding_txo);
+        debug!("Persisting new channel {}", funding_txo);
 
         // FIXME(encrypt): Encrypt under key derived from seed
         let data = monitor.encode();
@@ -409,31 +418,53 @@ impl Persist<SignerType> for InnerPersister {
             self.node_pk,
             self.measurement,
             CHANNEL_MONITORS_DIRECTORY.to_owned(),
-            outpoint_str,
+            funding_txo.to_string(),
             data,
         );
+        let update = LxChannelMonitorUpdate {
+            funding_txo,
+            update_id,
+        };
 
-        // Run an async fn inside a sync fn inside a Tokio runtime
-        Handle::current()
-            .block_on(async move { self.api.create_file(&cm_file).await })
-            .map(|_| ())
-            .map_err(|e| {
-                // TODO(max): Implement durability then make this err permanent
-                error!("Could not persist new channel monitor: {:#}", e);
-                ChannelMonitorUpdateErr::TemporaryFailure
-            })
+        // Spawn a task for persisting the channel monitor
+        let api_clone = self.api.clone();
+        let channel_monitor_updated_tx =
+            self.channel_monitor_updated_tx.clone();
+        tokio::spawn(async move {
+            // Retry indefinitely until it succeeds
+            loop {
+                // TODO Also attempt to persist to cloud backup
+                match api_clone.create_file(&cm_file).await {
+                    Ok(_file) => {
+                        if let Err(e) =
+                            channel_monitor_updated_tx.try_send(update)
+                        {
+                            error!("Couldn't notify chain monitor: {:#}", e);
+                        }
+                        return;
+                    }
+                    Err(e) => {
+                        error!("Couldn't persist new channel monitor: {:#}", e)
+                    }
+                }
+            }
+        });
+
+        // As documented in the `Persist` trait docs, return `TemporaryFailure`,
+        // which freezes the channel until persistence succeeds.
+        Err(ChannelMonitorUpdateErr::TemporaryFailure)
     }
 
     fn update_persisted_channel(
         &self,
         funding_txo: OutPoint,
+        // TODO: We probably want to use this for rollback protection
         _update: &Option<ChannelMonitorUpdate>,
         monitor: &ChannelMonitorType,
-        _update_id: MonitorUpdateId,
+        update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
-        let outpoint = LxOutPoint::from(funding_txo);
-        let outpoint_str = outpoint.to_string();
-        debug!("Updating persisted channel {}", outpoint_str);
+        let funding_txo = LxOutPoint::from(funding_txo);
+        debug!("Updating persisted channel {}", funding_txo);
 
         // FIXME(encrypt): Encrypt under key derived from seed
         let data = monitor.encode();
@@ -442,18 +473,40 @@ impl Persist<SignerType> for InnerPersister {
             self.node_pk,
             self.measurement,
             CHANNEL_MONITORS_DIRECTORY.to_owned(),
-            outpoint_str,
+            funding_txo.to_string(),
             data,
         );
+        let update = LxChannelMonitorUpdate {
+            funding_txo,
+            update_id,
+        };
 
-        // Run an async fn inside a sync fn inside a Tokio runtime
-        Handle::current()
-            .block_on(async move { self.api.upsert_file(&cm_file).await })
-            .map(|_| ())
-            .map_err(|e| {
-                // TODO(max): Implement durability then make this err permanent
-                error!("Could not update persisted channel monitor: {:#}", e);
-                ChannelMonitorUpdateErr::TemporaryFailure
-            })
+        // Spawn a task for persisting the channel monitor
+        let api_clone = self.api.clone();
+        let channel_monitor_updated_tx =
+            self.channel_monitor_updated_tx.clone();
+        tokio::spawn(async move {
+            // Retry indefinitely until it succeeds
+            loop {
+                // TODO Also attempt to persist to cloud backup
+                match api_clone.upsert_file(&cm_file).await {
+                    Ok(_) => {
+                        if let Err(e) =
+                            channel_monitor_updated_tx.try_send(update)
+                        {
+                            error!("Couldn't notify chain monitor: {:#}", e);
+                        }
+                        return;
+                    }
+                    Err(e) => {
+                        error!("Could not update channel monitor: {:#}", e)
+                    }
+                }
+            }
+        });
+
+        // As documented in the `Persist` trait docs, return `TemporaryFailure`,
+        // which freezes the channel until persistence succeeds.
+        Err(ChannelMonitorUpdateErr::TemporaryFailure)
     }
 }
