@@ -14,12 +14,17 @@ use http::Method;
 use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use tokio::time;
 use tracing::debug;
 
 use crate::api::*;
 
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 const MAX_ATTEMPTS: usize = 3;
+/// How long to wait after the second failed API request before trying again.
+/// This is relatively long since if the second try failed, it probably means
+/// that the backend is down, which could be the case for a while.
+const RETRY_INTERVAL: Duration = Duration::from_secs(15);
 
 /// Enumerates the base urls that can be used in an API call.
 #[derive(Copy, Clone)]
@@ -174,11 +179,21 @@ impl LexeApiClient {
         endpoint: &str,
         data: &D,
     ) -> Result<T, ApiError> {
+        let mut retry_timer = time::interval(RETRY_INTERVAL);
+
         // Try the first n-1 times, return early if successful
         for _ in 0..MAX_ATTEMPTS - 1 {
             let res = self.execute(method, base, ver, endpoint, data).await;
             if res.is_ok() {
                 return res;
+            } else {
+                // Since the first tick resolves immediately, and we tick only
+                // on failures, the first failed attempt is immediately followed
+                // up with second attempt (to encode that sometimes messages are
+                // dropped during normal operation), but all following attempts
+                // wait the full timeout (to encode that the node backend is
+                // probably down so we want to wait a relatively long timeout).
+                retry_timer.tick().await;
             }
         }
 
