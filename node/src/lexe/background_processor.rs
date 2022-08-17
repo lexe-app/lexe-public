@@ -11,7 +11,7 @@ use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::lexe::persister::LexePersister;
 use crate::types::{
-    ChainMonitorType, InvoicePayerType, LxHandle, P2PGossipSyncType,
+    ChainMonitorType, InvoicePayerType, LxTask, P2PGossipSyncType,
     ProbabilisticScorerType,
 };
 
@@ -40,8 +40,8 @@ impl LexeBackgroundProcessor {
         scorer: Arc<Mutex<ProbabilisticScorerType>>,
         shutdown_tx: broadcast::Sender<()>,
         mut shutdown_rx: broadcast::Receiver<()>,
-    ) -> LxHandle<()> {
-        LxHandle::spawn(async move {
+    ) -> LxTask<()> {
+        LxTask::spawn(async move {
             let mut process_timer = interval(PROCESS_EVENTS_INTERVAL);
             let mut pm_timer = interval(PEER_MANAGER_PING_INTERVAL);
             let mut cm_tick_timer = interval(CHANNEL_MANAGER_TICK_INTERVAL);

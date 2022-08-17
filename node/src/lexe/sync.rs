@@ -17,7 +17,7 @@ use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::types::{
     BlockSourceType, BroadcasterType, ChainMonitorType,
-    ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType, LxHandle,
+    ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType, LxTask,
 };
 
 /// How often the SpvClient client polls for an updated chain tip
@@ -195,7 +195,7 @@ impl SyncedChainListeners {
         mut self,
         chain_monitor: Arc<ChainMonitorType>,
         mut shutdown_rx: broadcast::Receiver<()>,
-    ) -> anyhow::Result<LxHandle<()>> {
+    ) -> anyhow::Result<LxTask<()>> {
         for cmcl in self.cmcls {
             let (channel_monitor, funding_outpoint) =
                 cmcl.into_monitor_and_outpoint();
@@ -206,7 +206,7 @@ impl SyncedChainListeners {
         }
 
         // Spawn the SPV client
-        let spv_client_handle = LxHandle::spawn(async move {
+        let spv_client_handle = LxTask::spawn(async move {
             // Need let binding o.w. the deref() ref doesn't live long enough
             let mut block_source_deref = self.block_source.deref();
 

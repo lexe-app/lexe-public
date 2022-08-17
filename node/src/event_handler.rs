@@ -23,7 +23,7 @@ use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::types::{
-    HTLCStatus, LxHandle, MillisatAmount, NetworkGraphType, PaymentInfo,
+    HTLCStatus, LxTask, MillisatAmount, NetworkGraphType, PaymentInfo,
     PaymentInfoStorageType,
 };
 
@@ -71,7 +71,7 @@ impl EventHandler for LdkEventHandler {
         let outbound_payments = self.outbound_payments.clone();
         let network = self.network;
         let event = event.clone();
-        let _ = LxHandle::spawn(async move {
+        let _ = LxTask::spawn(async move {
             handle_event(
                 &channel_manager,
                 &bitcoind,
@@ -373,7 +373,7 @@ async fn handle_event_fallible(
         Event::PendingHTLCsForwardable { time_forwardable } => {
             let forwarding_channel_manager = channel_manager.clone();
             let millis_to_sleep = time_forwardable.as_millis() as u64;
-            let _ = LxHandle::spawn(async move {
+            let _ = LxTask::spawn(async move {
                 tokio::time::sleep(Duration::from_millis(millis_to_sleep))
                     .await;
                 forwarding_channel_manager.process_pending_htlc_forwards();

@@ -43,7 +43,7 @@ use crate::lexe::persister::LexePersister;
 use crate::lexe::sync::SyncedChainListeners;
 use crate::types::{
     ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
-    ChannelMonitorType, FeeEstimatorType, InvoicePayerType, LxHandle,
+    ChannelMonitorType, FeeEstimatorType, InvoicePayerType, LxTask,
     NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, WalletType,
 };
 use crate::{api, command};
@@ -60,7 +60,7 @@ pub struct LexeNode {
     // --- General --- //
     args: RunArgs,
     pub peer_port: Port,
-    handles: Vec<LxHandle<()>>,
+    handles: Vec<LxTask<()>>,
 
     // --- Actors --- //
     pub channel_manager: LexeChannelManager,
@@ -259,7 +259,7 @@ impl LexeNode {
             .bind_ephemeral(([127, 0, 0, 1], args.owner_port.unwrap_or(0)));
         let owner_port = owner_addr.port();
         info!("Owner service listening on port {}", owner_port);
-        let owner_service_handle = LxHandle::spawn(async move {
+        let owner_service_handle = LxTask::spawn(async move {
             owner_service_fut.await;
         });
         handles.push(owner_service_handle);
@@ -273,7 +273,7 @@ impl LexeNode {
             .context("Failed to bind warp")?;
         let host_port = host_addr.port();
         info!("Host service listening on port {}", host_port);
-        let host_service_handle = LxHandle::spawn(async move {
+        let host_service_handle = LxTask::spawn(async move {
             host_service_fut.await;
         });
         handles.push(host_service_handle);
@@ -407,7 +407,7 @@ impl LexeNode {
 
         // Sync is complete; start the inactivity timer.
         debug!("Starting inactivity timer");
-        let inactivity_timer_handle = LxHandle::spawn(async move {
+        let inactivity_timer_handle = LxTask::spawn(async move {
             self.inactivity_timer.start().await;
         });
         self.handles.push(inactivity_timer_handle);
@@ -666,7 +666,7 @@ async fn spawn_p2p_listener(
     peer_manager: LexePeerManager,
     peer_port_opt: Option<Port>,
     mut shutdown_rx: broadcast::Receiver<()>,
-) -> (LxHandle<()>, Port) {
+) -> (LxTask<()>, Port) {
     // A value of 0 indicates that the OS will assign a port for us
     // TODO(phlip9): should only listen on internal interface
     let address = format!("0.0.0.0:{}", peer_port_opt.unwrap_or(0));
@@ -676,7 +676,7 @@ async fn spawn_p2p_listener(
     let peer_port = listener.local_addr().unwrap().port();
     info!("Listening for LN P2P connections on port {}", peer_port);
 
-    let handle = LxHandle::spawn(async move {
+    let handle = LxTask::spawn(async move {
         let mut child_handles = Vec::with_capacity(1);
 
         loop {
@@ -700,7 +700,7 @@ async fn spawn_p2p_listener(
 
                     // Spawn a task to await on the connection
                     let peer_manager_clone = peer_manager.as_arc_inner();
-                    let child_handle = LxHandle::spawn(async move {
+                    let child_handle = LxTask::spawn(async move {
                         // `setup_inbound()` returns a future that completes
                         // when the connection is closed. The main thread calls
                         // peer_manager.disconnect_all_peers() once it receives
@@ -739,8 +739,8 @@ fn spawn_p2p_reconnector(
     peer_manager: LexePeerManager,
     persister: LexePersister,
     mut shutdown_rx: broadcast::Receiver<()>,
-) -> LxHandle<()> {
-    LxHandle::spawn(async move {
+) -> LxTask<()> {
+    LxTask::spawn(async move {
         let mut interval = time::interval(P2P_RECONNECT_INTERVAL);
 
         loop {
@@ -808,9 +808,9 @@ pub fn spawn_channel_monitor_updated_task(
     chain_monitor: Arc<ChainMonitorType>,
     mut channel_monitor_updated_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
     mut shutdown_rx: broadcast::Receiver<()>,
-) -> LxHandle<()> {
+) -> LxTask<()> {
     debug!("Starting channel_monitor_updated task");
-    LxHandle::spawn(async move {
+    LxTask::spawn(async move {
         loop {
             tokio::select! {
                 Some(update) = channel_monitor_updated_rx.recv() => {
