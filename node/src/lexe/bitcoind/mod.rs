@@ -19,9 +19,10 @@ use lightning_block_sync::rpc::RpcClient;
 use lightning_block_sync::{
     AsyncBlockSourceResult, BlockHeaderData, BlockSource,
 };
-use tokio::task::JoinHandle;
 use tokio::time;
 use tracing::{debug, error};
+
+use crate::types::LxHandle;
 
 mod types;
 
@@ -90,13 +91,13 @@ impl LexeBitcoind {
         Ok(client)
     }
 
-    pub fn spawn_refresh_fees_task(&self) -> JoinHandle<()> {
+    pub fn spawn_refresh_fees_task(&self) -> LxHandle<()> {
         let rpc_client = self.rpc_client.clone();
         let background_fees = self.background_fees.clone();
         let normal_fees = self.normal_fees.clone();
         let high_prio_fees = self.high_prio_fees.clone();
 
-        tokio::spawn(async move {
+        LxHandle::spawn(async move {
             let mut poll_interval = time::interval(POLL_FEE_ESTIMATE_INTERVAL);
 
             loop {
@@ -312,7 +313,7 @@ impl BroadcasterInterface for LexeBitcoind {
         debug!("Broadcasting transaction");
         let rpc_client = self.rpc_client.clone();
         let tx_serialized = serde_json::json!(encode::serialize_hex(tx));
-        tokio::spawn(async move {
+        let _ = LxHandle::spawn(async move {
             // This may error due to RL calling `broadcast_transaction` with the
             // same transaction multiple times, but the error is
             // safe to ignore.

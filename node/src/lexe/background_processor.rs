@@ -4,7 +4,6 @@ use std::time::Duration;
 
 use lightning::util::events::EventsProvider;
 use tokio::sync::broadcast;
-use tokio::task::JoinHandle;
 use tokio::time::{interval, interval_at, Instant};
 use tracing::{debug, error, info, trace, warn};
 
@@ -12,7 +11,7 @@ use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::lexe::persister::LexePersister;
 use crate::types::{
-    ChainMonitorType, InvoicePayerType, P2PGossipSyncType,
+    ChainMonitorType, InvoicePayerType, LxHandle, P2PGossipSyncType,
     ProbabilisticScorerType,
 };
 
@@ -41,8 +40,8 @@ impl LexeBackgroundProcessor {
         scorer: Arc<Mutex<ProbabilisticScorerType>>,
         shutdown_tx: broadcast::Sender<()>,
         mut shutdown_rx: broadcast::Receiver<()>,
-    ) -> JoinHandle<()> {
-        tokio::task::spawn(async move {
+    ) -> LxHandle<()> {
+        LxHandle::spawn(async move {
             let mut process_timer = interval(PROCESS_EVENTS_INTERVAL);
             let mut pm_timer = interval(PEER_MANAGER_PING_INTERVAL);
             let mut cm_tick_timer = interval(CHANNEL_MANAGER_TICK_INTERVAL);
