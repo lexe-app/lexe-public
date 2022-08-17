@@ -7,7 +7,7 @@ use std::time::Duration;
 use anyhow::{bail, ensure, Context};
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::BlockHash;
-use common::api::provision::{Node, SealedSeedId};
+use common::api::provision::{Node, ProvisionedSecrets, SealedSeedId};
 use common::api::runner::{Port, UserPorts};
 use common::api::UserPk;
 use common::cli::{Network, RunArgs};
@@ -42,7 +42,6 @@ use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::lexe::persister::LexePersister;
 use crate::lexe::sync::SyncedChainListeners;
-use crate::provision::ProvisionedSecrets;
 use crate::types::{
     ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
     ChannelMonitorType, FeeEstimatorType, InvoicePayerType, NetworkGraphType,
@@ -691,7 +690,7 @@ fn spawn_p2p_reconnect_task(
                     }
                 }
                 Err(e) => {
-                    error!("ERROR: Could not read channel peers: {}", e)
+                    error!("could not read channel peers: {}", e)
                 }
             }
         }

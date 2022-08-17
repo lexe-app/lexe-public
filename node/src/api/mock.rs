@@ -6,7 +6,8 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 use bitcoin::secp256k1::PublicKey;
 use common::api::provision::{
-    Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
+    Instance, Node, NodeInstanceSeed, ProvisionedSecrets, SealedSeed,
+    SealedSeedId,
 };
 use common::api::runner::UserPorts;
 use common::api::vfs::{Directory, File, FileId};
@@ -20,7 +21,6 @@ use tokio::sync::mpsc;
 
 use crate::api::{ApiClient, ApiError};
 use crate::lexe::persister;
-use crate::provision::ProvisionedSecrets;
 
 type FileName = String;
 type Data = Vec<u8>;
