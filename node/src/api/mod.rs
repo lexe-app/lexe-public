@@ -28,9 +28,6 @@ pub enum ApiError {
 
     #[error("Server Error: {0}")]
     Server(String),
-
-    #[error("Invalid response: {0}")]
-    ResponseError(String),
 }
 
 #[async_trait]

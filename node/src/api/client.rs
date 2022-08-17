@@ -102,19 +102,8 @@ impl ApiClient for LexeApiClient {
             user_pk,
             measurement,
         };
-        let maybe_instance: Option<Instance> = self
-            .request(&GET, Backend, V1, "/instance", &data).await?;
-
-        if let Some(instance) = maybe_instance.as_ref() {
-            if instance.measurement != measurement {
-                let msg = format!(
-                    "returned instance measurement '{}' doesn't match \
-                     requested measurement '{}'",
-                    instance.measurement, measurement,
-                );
-                return Err(ApiError::ResponseError(msg));
-            }
-        }
+        let maybe_instance: Option<Instance> =
+            self.request(&GET, Backend, V1, "/instance", &data).await?;
 
         Ok(maybe_instance)
     }
