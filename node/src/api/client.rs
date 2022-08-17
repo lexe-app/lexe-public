@@ -4,6 +4,7 @@ use std::fmt::{self, Display};
 use std::time::Duration;
 
 use async_trait::async_trait;
+use bytes::Bytes;
 use common::api::provision::SealedSeedId;
 use common::api::qs::{GetByUserPk, GetByUserPkAndMeasurement};
 use common::api::runner::UserPorts;
@@ -15,7 +16,7 @@ use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::time;
-use tracing::debug;
+use tracing::{debug, trace};
 
 use self::ApiVersion::*;
 use self::BaseUrl::*;
@@ -26,6 +27,8 @@ const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 /// This is relatively long since if the second try failed, it probably means
 /// that the backend is down, which could be the case for a while.
 const RETRY_INTERVAL: Duration = Duration::from_secs(15);
+/// 0 retries by default
+const DEFAULT_RETRIES: usize = 0;
 
 // Avoid `Method::` prefix. Associated constants can't be imported
 const GET: Method = Method::GET;
@@ -51,6 +54,12 @@ impl Display for ApiVersion {
             &V1 => write!(f, "/v1"),
         }
     }
+}
+
+struct RequestParts {
+    method: Method,
+    url: String,
+    body: Bytes,
 }
 
 pub struct LexeApiClient {
@@ -184,7 +193,27 @@ impl ApiClient for LexeApiClient {
 }
 
 impl LexeApiClient {
-    /// Tries to complete an API request, retrying up to `retries` times.
+    /// Makes an API request, retrying up to `DEFAULT_RETRIES` times.
+    async fn request<D: Serialize, T: DeserializeOwned>(
+        &self,
+        method: &Method,
+        base: BaseUrl,
+        ver: ApiVersion,
+        endpoint: &str,
+        data: &D,
+    ) -> Result<T, ApiError> {
+        self.request_with_retries(
+            method,
+            base,
+            ver,
+            endpoint,
+            data,
+            DEFAULT_RETRIES,
+        )
+        .await
+    }
+
+    /// Makes an API request, retrying up to `retries` times.
     async fn request_with_retries<D: Serialize, T: DeserializeOwned>(
         &self,
         method: &Method,
@@ -196,10 +225,12 @@ impl LexeApiClient {
     ) -> Result<T, ApiError> {
         let mut retry_timer = time::interval(RETRY_INTERVAL);
 
-        // 'Do the retries first' and return early if successful.
-        // If retries == 0 this block is a noop.
+        let parts = self.serialize_parts(method, base, ver, endpoint, data)?;
+
+        // Do the 'retries' first and return early if successful.
+        // This block is a noop if retries == 0.
         for _ in 0..retries {
-            let res = self.request(method, base, ver, endpoint, data).await;
+            let res = self.send_request(&parts).await;
             if res.is_ok() {
                 return res;
             } else {
@@ -215,19 +246,19 @@ impl LexeApiClient {
             }
         }
 
-        // Do the 'main attempt'.
-        self.request(method, base, ver, endpoint, &data).await
+        // Do the 'main' attempt.
+        self.send_request(&parts).await
     }
 
-    /// Executes an API request once.
-    async fn request<D: Serialize, T: DeserializeOwned>(
+    /// Constructs the final, serialized parts of a [`reqwest::Request`].
+    fn serialize_parts<D: Serialize>(
         &self,
         method: &Method,
         base: BaseUrl,
         ver: ApiVersion,
         endpoint: &str,
         data: &D,
-    ) -> Result<T, ApiError> {
+    ) -> Result<RequestParts, ApiError> {
         // Node backend api is versioned but runner api is not
         let (base, ver) = match base {
             Backend => (&self.backend_url, ver.to_string()),
@@ -251,14 +282,31 @@ impl LexeApiClient {
         debug!(%method, %url, "sending request");
 
         // If PUT or POST, serialize the data in the request body
-        let body = match method {
+        let body_str = match method {
             PUT | POST => serde_json::to_string(data)?,
             _ => String::new(),
         };
-        // println!("    Body: {}", body);
+        trace!(%body_str);
+        let body = Bytes::from(body_str);
 
-        let response =
-            self.client.request(method, url).body(body).send().await?;
+        Ok(RequestParts { method, url, body })
+    }
+
+    /// Build a [`reqwest::Request`] from [`RequestParts`], send it, and
+    /// deserialize into the expected struct or an error message depending on
+    /// the response status.
+    async fn send_request<T: DeserializeOwned>(
+        &self,
+        parts: &RequestParts,
+    ) -> Result<T, ApiError> {
+        let response = self
+            .client
+            // Method doesn't implement Copy
+            .request(parts.method.clone(), &parts.url)
+            // body is Bytes which can be cheaply cloned
+            .body(parts.body.clone())
+            .send()
+            .await?;
 
         if response.status().is_success() {
             // Uncomment for debugging
