@@ -17,7 +17,6 @@ use lightning::chain::chaininterface::{
 };
 use lightning::routing::gossip::NodeId;
 use lightning::util::events::{Event, EventHandler, PaymentPurpose};
-use tokio::runtime::Handle;
 use tracing::{debug, error};
 
 use crate::lexe::bitcoind::LexeBitcoind;
@@ -36,11 +35,9 @@ pub struct LdkEventHandler {
     network_graph: Arc<NetworkGraphType>,
     inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
-    handle: Handle,
 }
 
 impl LdkEventHandler {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         network: Network,
         channel_manager: LexeChannelManager,
@@ -49,7 +46,6 @@ impl LdkEventHandler {
         network_graph: Arc<NetworkGraphType>,
         inbound_payments: PaymentInfoStorageType,
         outbound_payments: PaymentInfoStorageType,
-        handle: Handle,
     ) -> Self {
         Self {
             network,
@@ -59,26 +55,39 @@ impl LdkEventHandler {
             network_graph,
             inbound_payments,
             outbound_payments,
-            handle,
         }
     }
 }
 
 impl EventHandler for LdkEventHandler {
     fn handle_event(&self, event: &Event) {
-        self.handle.block_on(handle_event(
-            &self.channel_manager,
-            &self.bitcoind,
-            &self.network_graph,
-            &self.keys_manager,
-            &self.inbound_payments,
-            &self.outbound_payments,
-            self.network,
-            event,
-        ));
+        // FIXME: All this cloning wouldn't be necessary if `handle_event` and
+        // `handle_event_fallible` were non-async
+        let channel_manager = self.channel_manager.clone();
+        let bitcoind = self.bitcoind.clone();
+        let network_graph = self.network_graph.clone();
+        let keys_manager = self.keys_manager.clone();
+        let inbound_payments = self.inbound_payments.clone();
+        let outbound_payments = self.outbound_payments.clone();
+        let network = self.network;
+        let event = event.clone();
+        let _ = LxHandle::spawn(async move {
+            handle_event(
+                &channel_manager,
+                &bitcoind,
+                &network_graph,
+                &keys_manager,
+                &inbound_payments,
+                &outbound_payments,
+                network,
+                &event,
+            )
+            .await
+        });
     }
 }
 
+// TODO(max): Make this non-async by spawning tasks instead
 #[allow(clippy::too_many_arguments)]
 pub async fn handle_event(
     channel_manager: &LexeChannelManager,
@@ -109,6 +118,7 @@ pub async fn handle_event(
     }
 }
 
+// TODO(max): Make this non-async by spawning tasks instead
 #[allow(clippy::too_many_arguments)]
 async fn handle_event_fallible(
     channel_manager: &LexeChannelManager,

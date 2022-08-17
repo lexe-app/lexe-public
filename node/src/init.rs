@@ -24,7 +24,6 @@ use lightning::routing::gossip::P2PGossipSync;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use tokio::net::TcpListener;
-use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
 use tokio::time;
 use tracing::{debug, error, info, instrument, warn};
@@ -96,9 +95,10 @@ impl LexeNode {
         rng: &mut R,
         args: RunArgs,
     ) -> anyhow::Result<Self> {
+        info!(%args.user_pk, "Initializing node");
+
         // Initialize the Logger
         let logger = LexeTracingLogger::new();
-        info!(%args.user_pk, "initializing node");
 
         // Get user_pk, measurement, and HTTP client, used throughout init
         let user_pk = args.user_pk;
@@ -231,6 +231,15 @@ impl LexeNode {
         .await;
         handles.push(p2p_listener_handle);
 
+        // Spawn a task to regularly reconnect to channel peers
+        let p2p_reconnector_handle = spawn_p2p_reconnector(
+            channel_manager.clone(),
+            peer_manager.clone(),
+            persister.clone(),
+            shutdown.rx.p2p_reconnector,
+        );
+        handles.push(p2p_reconnector_handle);
+
         // Build owner service TLS config for authenticating owner
         let node_dns = args.node_dns_name.clone();
         let owner_tls = node_run_tls_config(rng, root_seed, vec![node_dns])
@@ -291,8 +300,6 @@ impl LexeNode {
             network_graph.clone(),
             inbound_payments.clone(),
             outbound_payments.clone(),
-            // TODO(max): Remove; not needed
-            Handle::current(),
         );
 
         // Initialize InvoicePayer
@@ -332,16 +339,6 @@ impl LexeNode {
             shutdown.tx.inactivity_timer,
             shutdown.rx.inactivity_timer,
         );
-
-        // TODO(max): Reorder this next to the other p2p task
-        // Spawn a task to regularly reconnect to channel peers
-        let p2p_reconnector_handle = spawn_p2p_reconnector(
-            channel_manager.clone(),
-            peer_manager.clone(),
-            persister.clone(),
-            shutdown.rx.p2p_reconnector,
-        );
-        handles.push(p2p_reconnector_handle);
 
         // Build and return the LexeNode
         let main_shutdown_rx = shutdown.rx.main;
@@ -515,8 +512,8 @@ impl ShutdownChannel {
         };
 
         // Subscribe rxs
-        let spv_client = shutdown_tx.subscribe();
         let main = shutdown_tx.subscribe();
+        let spv_client = shutdown_tx.subscribe();
         let p2p_listener = shutdown_tx.subscribe();
         let p2p_reconnector = shutdown_tx.subscribe();
         let inactivity_timer = shutdown_tx.subscribe();
@@ -749,8 +746,11 @@ fn spawn_p2p_reconnector(
         loop {
             interval.tick().await;
             tokio::select! {
-                _ = interval.tick() => {}
+                // Prevents race condition where we initiate a reconnect *after*
+                // a shutdown signal was received, causing this task to hang
+                biased;
                 _ = shutdown_rx.recv() => break info!("P2P reconnector shutting down"),
+                _ = interval.tick() => {}
             }
 
             // NOTE: Repeatedly hitting the DB here doesn't seem strictly
@@ -809,7 +809,7 @@ pub fn spawn_channel_monitor_updated_task(
     mut channel_monitor_updated_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
     mut shutdown_rx: broadcast::Receiver<()>,
 ) -> LxHandle<()> {
-    info!("Starting channel_monitor_updated task");
+    debug!("Starting channel_monitor_updated task");
     LxHandle::spawn(async move {
         loop {
             tokio::select! {

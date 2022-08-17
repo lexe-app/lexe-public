@@ -194,7 +194,7 @@ impl LexeChannelManager {
 
         let channel_manager = Self(Arc::new(inner));
 
-        info!(%blockhash, "loaded {label} channel manager");
+        info!(%blockhash, "Loaded {label} channel manager");
         Ok((blockhash, channel_manager))
     }
 
