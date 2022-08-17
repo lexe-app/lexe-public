@@ -42,6 +42,9 @@ const SCORER_FILENAME: &str = "scorer";
 pub const CHANNEL_PEERS_DIRECTORY: &str = "channel_peers";
 pub const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 
+/// The default number of retries for important persisted state
+const DEFAULT_RETRIES: usize = 3;
+
 /// An Arc is held internally, so it is fine to clone and use directly.
 #[derive(Clone)] // TODO Try removing this
 pub struct LexePersister {
@@ -318,8 +321,9 @@ impl InnerPersister {
             Vec::new(),
         );
 
+        // Retry up to 3 times
         self.api
-            .create_file(&cp_file)
+            .create_file_with_retries(&cp_file, DEFAULT_RETRIES)
             .await
             .map(|_| ())
             .map_err(|e| e.into())
@@ -342,8 +346,9 @@ impl InnerPersister {
             data,
         );
 
+        // Channel manager is more important so let's retry up to three times
         self.api
-            .upsert_file(&cm_file)
+            .upsert_file_with_retries(&cm_file, DEFAULT_RETRIES)
             .await
             .map(|_| ())
             .context("Could not persist channel manager")
@@ -432,21 +437,14 @@ impl Persist<SignerType> for InnerPersister {
             self.channel_monitor_updated_tx.clone();
         tokio::spawn(async move {
             // Retry indefinitely until it succeeds
-            loop {
-                // TODO Also attempt to persist to cloud backup
-                match api_clone.create_file(&cm_file).await {
-                    Ok(_file) => {
-                        if let Err(e) =
-                            channel_monitor_updated_tx.try_send(update)
-                        {
-                            error!("Couldn't notify chain monitor: {:#}", e);
-                        }
-                        return;
-                    }
-                    Err(e) => {
-                        error!("Couldn't persist new channel monitor: {:#}", e)
-                    }
-                }
+            // TODO Also attempt to persist to cloud backup
+            api_clone
+                .create_file_with_retries(&cm_file, usize::MAX)
+                .await
+                .expect("Unlimited retries always return Ok");
+
+            if let Err(e) = channel_monitor_updated_tx.try_send(update) {
+                error!("Couldn't notify chain monitor: {:#}", e);
             }
         });
 
@@ -487,21 +485,14 @@ impl Persist<SignerType> for InnerPersister {
             self.channel_monitor_updated_tx.clone();
         tokio::spawn(async move {
             // Retry indefinitely until it succeeds
-            loop {
-                // TODO Also attempt to persist to cloud backup
-                match api_clone.upsert_file(&cm_file).await {
-                    Ok(_) => {
-                        if let Err(e) =
-                            channel_monitor_updated_tx.try_send(update)
-                        {
-                            error!("Couldn't notify chain monitor: {:#}", e);
-                        }
-                        return;
-                    }
-                    Err(e) => {
-                        error!("Could not update channel monitor: {:#}", e)
-                    }
-                }
+            // TODO Also attempt to persist to cloud backup
+            api_clone
+                .upsert_file_with_retries(&cm_file, usize::MAX)
+                .await
+                .expect("Unlimited retries always return Ok");
+
+            if let Err(e) = channel_monitor_updated_tx.try_send(update) {
+                error!("Couldn't notify chain monitor: {:#}", e);
             }
         });
 

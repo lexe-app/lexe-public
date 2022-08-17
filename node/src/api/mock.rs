@@ -165,9 +165,25 @@ impl ApiClient for MockApiClient {
         Ok(file.clone())
     }
 
+    async fn create_file_with_retries(
+        &self,
+        file: &File,
+        _retries: usize,
+    ) -> Result<File, ApiError> {
+        self.create_file(file).await
+    }
+
     async fn upsert_file(&self, file: &File) -> Result<File, ApiError> {
         self.vfs.lock().unwrap().insert(file.clone());
         Ok(file.clone())
+    }
+
+    async fn upsert_file_with_retries(
+        &self,
+        file: &File,
+        _retries: usize,
+    ) -> Result<File, ApiError> {
+        self.upsert_file(file).await
     }
 
     /// Returns "OK" if exactly one row was deleted.

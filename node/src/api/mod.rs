@@ -61,7 +61,19 @@ pub trait ApiClient {
 
     async fn create_file(&self, file: &File) -> Result<File, ApiError>;
 
+    async fn create_file_with_retries(
+        &self,
+        file: &File,
+        retries: usize,
+    ) -> Result<File, ApiError>;
+
     async fn upsert_file(&self, file: &File) -> Result<File, ApiError>;
+
+    async fn upsert_file_with_retries(
+        &self,
+        file: &File,
+        retries: usize,
+    ) -> Result<File, ApiError>;
 
     // TODO We want to delete channel peers / monitors when channels close
     /// Returns "OK" if exactly one row was deleted.
