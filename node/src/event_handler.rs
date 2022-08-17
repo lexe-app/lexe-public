@@ -18,6 +18,7 @@ use lightning::chain::chaininterface::{
 use lightning::routing::gossip::NodeId;
 use lightning::util::events::{Event, EventHandler, PaymentPurpose};
 use tracing::{debug, error};
+use tokio::runtime::Handle;
 
 use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::LexeChannelManager;
@@ -60,27 +61,41 @@ impl LdkEventHandler {
 }
 
 impl EventHandler for LdkEventHandler {
+    /// Event handling requirements are documented in the [`EventsProvider`]
+    /// doc comments:
+    ///
+    /// - The handling of an event must *complete* before returning from this
+    ///   function. Otherwise, if the channel manager gets persisted and the the
+    ///   program crashes ("someone trips on a cable") before event handling is
+    ///   complete, the event will be lost forever.
+    /// - Event handling must be *idempotent*. It must be okay to handle the
+    ///   same event twice, since if an event is handled but the program crashes
+    ///   before the channel manager is persisted, the same event will be
+    ///   emitted again.
+    /// - The event handler must avoid reentrancy by not making direct calls to
+    ///   [`ChannelManager::process_pending_events`] or
+    ///   [`ChainMonitor::process_pending_events`], otherwise there may be a
+    ///   deadlock.
+    ///
+    /// [`EventsProvider`]: lightning::util::events::EventsProvider
+    /// [`ChannelManager::process_pending_events`]: lightning::ln::channelmanager::ChannelManager::process_pending_events
+    /// [`ChainMonitor::process_pending_events`]: lightning::chain::chainmonitor::ChainMonitor::process_pending_events
     fn handle_event(&self, event: &Event) {
-        // FIXME: All this cloning wouldn't be necessary if `handle_event` and
-        // `handle_event_fallible` were non-async
-        let channel_manager = self.channel_manager.clone();
-        let bitcoind = self.bitcoind.clone();
-        let network_graph = self.network_graph.clone();
-        let keys_manager = self.keys_manager.clone();
-        let inbound_payments = self.inbound_payments.clone();
-        let outbound_payments = self.outbound_payments.clone();
-        let network = self.network;
-        let event = event.clone();
-        let _ = LxTask::spawn(async move {
+        // FIXME: This trait requires that event handling *finishes* before
+        // returning from this function. There isn't currently a clean way to do
+        // this, so we block the *entire* program (yes, sucks) until event
+        // handling is complete, as an inefficient but safe default. Once LDK
+        // #1674 (async event handling) is fixed, we can remove the `block_on`.
+        Handle::current().block_on(async move {
             handle_event(
-                &channel_manager,
-                &bitcoind,
-                &network_graph,
-                &keys_manager,
-                &inbound_payments,
-                &outbound_payments,
-                network,
-                &event,
+                &self.channel_manager,
+                &self.bitcoind,
+                &self.network_graph,
+                &self.keys_manager,
+                &self.inbound_payments,
+                &self.outbound_payments,
+                self.network,
+                event,
             )
             .await
         });
