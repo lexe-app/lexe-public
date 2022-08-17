@@ -1315,6 +1315,7 @@ dependencies = [
  "bitcoin",
  "bitcoin-bech32",
  "bitcoind",
+ "bytes",
  "common",
  "futures",
  "http",

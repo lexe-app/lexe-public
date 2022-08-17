@@ -42,7 +42,7 @@ const SCORER_FILENAME: &str = "scorer";
 pub const CHANNEL_PEERS_DIRECTORY: &str = "channel_peers";
 pub const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 
-/// The default number of retries for important persisted state
+// The default number of persist retries for important objects
 const DEFAULT_RETRIES: usize = 3;
 
 /// An Arc is held internally, so it is fine to clone and use directly.
