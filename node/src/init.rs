@@ -58,7 +58,6 @@ pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 pub struct LexeNode {
     // --- General --- //
     args: RunArgs,
-    shutdown_tx: broadcast::Sender<()>,
     pub peer_port: Port,
 
     // --- Actors --- //
@@ -74,17 +73,17 @@ pub struct LexeNode {
     fee_estimator: Arc<FeeEstimatorType>,
     broadcaster: Arc<BroadcasterType>,
     logger: LexeTracingLogger,
+    inactivity_timer: InactivityTimer,
 
     // --- Sync --- //
     restarting_node: bool,
     channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
     channel_manager_blockhash: BlockHash,
-    activity_rx: mpsc::Receiver<()>,
 
     // --- Run --- //
     inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
-    shutdown_rx: broadcast::Receiver<()>,
+    main_thread_shutdown_rx: broadcast::Receiver<()>,
     stop_listen_connect: Arc<AtomicBool>,
 }
 
@@ -143,8 +142,7 @@ impl LexeNode {
 
         // Init Tokio channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
-        let (shutdown_tx, shutdown_rx) =
-            broadcast::channel(DEFAULT_CHANNEL_SIZE);
+        let shutdown = ShutdownChannel::new();
         let (channel_monitor_updated_tx, channel_monitor_updated_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
 
@@ -167,12 +165,11 @@ impl LexeNode {
 
         // Set up the persister -> chain monitor channel
         // TODO(max): Handle the handle
-        let channel_monitor_updated_shutdown_rx = shutdown_tx.subscribe();
         let _channel_monitor_updated_handle =
             spawn_channel_monitor_updated_task(
                 chain_monitor.clone(),
                 channel_monitor_updated_rx,
-                channel_monitor_updated_shutdown_rx,
+                shutdown.rx.channel_monitor_updated,
             );
 
         // Read the `ChannelMonitor`s and initialize the `P2PGossipSync`
@@ -255,7 +252,7 @@ impl LexeNode {
 
         // TODO(phlip9): authenticate host<->node
         // Start warp service for host
-        let host_routes = command::server::host_routes(shutdown_tx.clone());
+        let host_routes = command::server::host_routes(shutdown.tx.host_routes);
         let (host_addr, host_service_fut) = warp::serve(host_routes)
             // A value of 0 indicates that the OS will assign a port for us
             .try_bind_ephemeral(([127, 0, 0, 1], args.host_port.unwrap_or(0)))
@@ -309,7 +306,6 @@ impl LexeNode {
 
         // Start Background Processing
         // TODO(max): Handle the handle
-        let bgp_shutdown_rx = shutdown_tx.subscribe();
         let _bgp_handle = LexeBackgroundProcessor::start(
             channel_manager.clone(),
             peer_manager.clone(),
@@ -318,8 +314,17 @@ impl LexeNode {
             invoice_payer.clone(),
             gossip_sync.clone(),
             scorer.clone(),
-            shutdown_tx.clone(),
-            bgp_shutdown_rx,
+            shutdown.tx.background_processor,
+            shutdown.rx.background_processor,
+        );
+
+        // Construct (but don't start) the inactivity timer
+        let inactivity_timer = InactivityTimer::new(
+            args.shutdown_after_sync_if_no_activity,
+            args.inactivity_timer_sec,
+            activity_rx,
+            shutdown.tx.inactivity_timer,
+            shutdown.rx.inactivity_timer,
         );
 
         // Spawn a task to regularly reconnect to channel peers
@@ -332,10 +337,10 @@ impl LexeNode {
         );
 
         // Build and return the LexeNode
+        let main_thread_shutdown_rx = shutdown.rx.main_thread;
         let node = LexeNode {
             // General
             args,
-            shutdown_tx,
             peer_port,
 
             // Actors
@@ -351,17 +356,17 @@ impl LexeNode {
             fee_estimator,
             broadcaster,
             logger,
+            inactivity_timer,
 
             // Sync
             restarting_node,
             channel_manager_blockhash,
             channel_monitors,
-            activity_rx,
 
             // Run
             inbound_payments,
             outbound_payments,
-            shutdown_rx,
+            main_thread_shutdown_rx,
             stop_listen_connect,
         };
         Ok(node)
@@ -392,16 +397,8 @@ impl LexeNode {
 
         // Sync is complete; start the inactivity timer.
         debug!("Starting inactivity timer");
-        let timer_shutdown_rx = self.shutdown_tx.subscribe();
-        let mut inactivity_timer = InactivityTimer::new(
-            self.args.shutdown_after_sync_if_no_activity,
-            self.args.inactivity_timer_sec,
-            self.activity_rx,
-            self.shutdown_tx.clone(),
-            timer_shutdown_rx,
-        );
         tokio::spawn(async move {
-            inactivity_timer.start().await;
+            self.inactivity_timer.start().await;
         });
 
         // --- Run --- //
@@ -426,7 +423,7 @@ impl LexeNode {
         }
 
         // Pause here and wait for the shutdown signal
-        let _ = self.shutdown_rx.recv().await;
+        let _ = self.main_thread_shutdown_rx.recv().await;
 
         // --- Shutdown --- //
         info!("Main thread shutting down");
@@ -527,6 +524,59 @@ async fn fetch_provisioned_secrets(
         }
         (None, None) => bail!("Enclave version has not been provisioned yet"),
         _ => bail!("Node and instance should have been persisted together"),
+    }
+}
+
+struct ShutdownChannel {
+    tx: ShutdownTx,
+    rx: ShutdownRx,
+}
+
+struct ShutdownTx {
+    host_routes: broadcast::Sender<()>,
+    inactivity_timer: broadcast::Sender<()>,
+    background_processor: broadcast::Sender<()>,
+}
+
+struct ShutdownRx {
+    main_thread: broadcast::Receiver<()>,
+    inactivity_timer: broadcast::Receiver<()>,
+    background_processor: broadcast::Receiver<()>,
+    channel_monitor_updated: broadcast::Receiver<()>,
+}
+
+impl ShutdownChannel {
+    /// Initializes the `shutdown_tx` / `shutdown_rx` channel senders and
+    /// receivers. These are initialized as structs to ensure that *all* calls
+    /// to [`subscribe`] are complete before any values are sent.
+    ///
+    /// [`subscribe`]: broadcast::Sender::subscribe
+    fn new() -> Self {
+        let (shutdown_tx, _) = broadcast::channel(DEFAULT_CHANNEL_SIZE);
+
+        // Clone txs
+        let host_routes = shutdown_tx.clone();
+        let inactivity_timer = shutdown_tx.clone();
+        let background_processor = shutdown_tx.clone();
+        let tx = ShutdownTx {
+            host_routes,
+            inactivity_timer,
+            background_processor,
+        };
+
+        // Subscribe rxs
+        let main_thread = shutdown_tx.subscribe();
+        let inactivity_timer = shutdown_tx.subscribe();
+        let background_processor = shutdown_tx.subscribe();
+        let channel_monitor_updated = shutdown_tx.subscribe();
+        let rx = ShutdownRx {
+            main_thread,
+            inactivity_timer,
+            background_processor,
+            channel_monitor_updated,
+        };
+
+        Self { tx, rx }
     }
 }
 
