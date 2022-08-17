@@ -52,6 +52,7 @@ use crate::{api, command};
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 // TODO(max): p2p stuff should probably go in its own module
 const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
+const SHUTDOWN_JOIN_TIMEOUT: Duration = Duration::from_secs(15);
 
 // TODO: Eventually move this into the `lexe` module once init is cleaned up
 // TODO: Remove once keys_manager, persister, invoice_payer are read in SGX
@@ -60,6 +61,7 @@ pub struct LexeNode {
     // --- General --- //
     args: RunArgs,
     pub peer_port: Port,
+    handles: Vec<LxHandle<()>>,
 
     // --- Actors --- //
     pub channel_manager: LexeChannelManager,
@@ -123,9 +125,12 @@ impl LexeNode {
         let root_seed = &provisioned_secrets.root_seed;
         let bitcoind = Arc::new(bitcoind);
 
+        // Collect all handles to spawn tasks
+        let mut handles = Vec::with_capacity(10);
+
         // Spawn task to refresh feerates
-        // TODO(max): Handle the handle
-        let _refresh_fees_handle = bitcoind.spawn_refresh_fees_task();
+        let refresh_fees_handle = bitcoind.spawn_refresh_fees_task();
+        handles.push(refresh_fees_handle);
 
         // Build LexeKeysManager from node init data
         let keys_manager = LexeKeysManager::init(rng, &node.node_pk, root_seed)
@@ -165,13 +170,12 @@ impl LexeNode {
         ));
 
         // Set up the persister -> chain monitor channel
-        // TODO(max): Handle the handle
-        let _channel_monitor_updated_handle =
-            spawn_channel_monitor_updated_task(
-                chain_monitor.clone(),
-                channel_monitor_updated_rx,
-                shutdown.rx.channel_monitor_updated,
-            );
+        let channel_monitor_updated_handle = spawn_channel_monitor_updated_task(
+            chain_monitor.clone(),
+            channel_monitor_updated_rx,
+            shutdown.rx.channel_monitor_updated,
+        );
+        handles.push(channel_monitor_updated_handle);
 
         // Read the `ChannelMonitor`s and initialize the `P2PGossipSync`
         let (channel_monitors_res, gossip_sync_res) = tokio::join!(
@@ -219,13 +223,13 @@ impl LexeNode {
         );
 
         // Set up listening for inbound P2P connections
-        // TODO(max): Handle the handle
-        let (_handle, peer_port) = spawn_p2p_listener(
+        let (p2p_listener_handle, peer_port) = spawn_p2p_listener(
             peer_manager.clone(),
             args.peer_port,
             shutdown.rx.p2p_listener,
         )
         .await;
+        handles.push(p2p_listener_handle);
 
         // Build owner service TLS config for authenticating owner
         let node_dns = args.node_dns_name.clone();
@@ -246,10 +250,10 @@ impl LexeNode {
             .bind_ephemeral(([127, 0, 0, 1], args.owner_port.unwrap_or(0)));
         let owner_port = owner_addr.port();
         info!("Owner service listening on port {}", owner_port);
-        // TODO(max): Handle the handle
-        let _owner_service_handle = LxHandle::spawn(async move {
+        let owner_service_handle = LxHandle::spawn(async move {
             owner_service_fut.await;
         });
+        handles.push(owner_service_handle);
 
         // TODO(phlip9): authenticate host<->node
         // Start warp service for host
@@ -260,10 +264,10 @@ impl LexeNode {
             .context("Failed to bind warp")?;
         let host_port = host_addr.port();
         info!("Host service listening on port {}", host_port);
-        // TODO(max): Handle the handle
-        let _host_service_handle = LxHandle::spawn(async move {
+        let host_service_handle = LxHandle::spawn(async move {
             host_service_fut.await;
         });
+        handles.push(host_service_handle);
 
         // Let the runner know that we're ready
         info!("Node is ready to accept commands; notifying runner");
@@ -287,6 +291,7 @@ impl LexeNode {
             network_graph.clone(),
             inbound_payments.clone(),
             outbound_payments.clone(),
+            // TODO(max): Remove; not needed
             Handle::current(),
         );
 
@@ -306,8 +311,7 @@ impl LexeNode {
         ));
 
         // Start Background Processing
-        // TODO(max): Handle the handle
-        let _bgp_handle = LexeBackgroundProcessor::start(
+        let bg_processor_handle = LexeBackgroundProcessor::start(
             channel_manager.clone(),
             peer_manager.clone(),
             persister.clone(),
@@ -318,6 +322,7 @@ impl LexeNode {
             shutdown.tx.background_processor,
             shutdown.rx.background_processor,
         );
+        handles.push(bg_processor_handle);
 
         // Construct (but don't start) the inactivity timer
         let inactivity_timer = InactivityTimer::new(
@@ -328,14 +333,15 @@ impl LexeNode {
             shutdown.rx.inactivity_timer,
         );
 
+        // TODO(max): Reorder this next to the other p2p task
         // Spawn a task to regularly reconnect to channel peers
-        // TODO(max): Handle the handle
-        let _p2p_reconnector_handle = spawn_p2p_reconnector(
+        let p2p_reconnector_handle = spawn_p2p_reconnector(
             channel_manager.clone(),
             peer_manager.clone(),
             persister.clone(),
             shutdown.rx.p2p_reconnector,
         );
+        handles.push(p2p_reconnector_handle);
 
         // Build and return the LexeNode
         let main_shutdown_rx = shutdown.rx.main;
@@ -344,6 +350,7 @@ impl LexeNode {
             // General
             args,
             peer_port,
+            handles,
 
             // Actors
             channel_manager,
@@ -393,19 +400,20 @@ impl LexeNode {
         .context("Could not sync channel listeners")?;
 
         // Populate / feed the chain monitor and spawn the SPV client
-        let _spv_client_handle = synced_chain_listeners
+        let spv_client_handle = synced_chain_listeners
             .feed_chain_monitor_and_spawn_spv(
                 self.chain_monitor.clone(),
                 self.spv_client_shutdown_rx,
             )
             .context("Error wrapping up sync")?;
+        self.handles.push(spv_client_handle);
 
         // Sync is complete; start the inactivity timer.
         debug!("Starting inactivity timer");
-        // TODO(max): Handle the handle
-        let _inactivity_timer_handle = LxHandle::spawn(async move {
+        let inactivity_timer_handle = LxHandle::spawn(async move {
             self.inactivity_timer.start().await;
         });
+        self.handles.push(inactivity_timer_handle);
 
         // --- Run --- //
 
@@ -432,10 +440,30 @@ impl LexeNode {
         let _ = self.main_shutdown_rx.recv().await;
 
         // --- Shutdown --- //
-        info!("Main thread shutting down. Disconnecting all peers.");
+        info!("Main thread shutting down.");
+
+        info!("Disconnecting all peers.");
         // This ensures we don't continue updating our channel data after we've
         // stopped the background processor.
         self.peer_manager.disconnect_all_peers();
+
+        info!("Waiting on all tasks to finish");
+        let join_all_with_timeout = time::timeout(
+            SHUTDOWN_JOIN_TIMEOUT,
+            future::join_all(self.handles),
+        );
+        match join_all_with_timeout.await {
+            Ok(results) => {
+                for res in results {
+                    if let Err(e) = res {
+                        error!("Spawned task panicked: {:#}", e);
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Joining on all spawned tasks timed out: {:#}", e);
+            }
+        }
 
         Ok(())
     }
