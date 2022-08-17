@@ -26,8 +26,8 @@ use lightning_invoice::utils::DefaultRouter;
 use tokio::net::TcpListener;
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
-use tracing::{debug, error, info, instrument};
 use tokio::task::JoinHandle;
+use tracing::{debug, error, info, instrument};
 
 use crate::api::ApiClient;
 use crate::event_handler::LdkEventHandler;
@@ -489,6 +489,13 @@ async fn fetch_provisioned_secrets(
                 "node.node_pk '{}' doesn't match instance.node_pk '{}'",
                 node.node_pk,
                 instance.node_pk,
+            );
+            ensure!(
+                instance.measurement == measurement,
+                "Returned instance measurement '{}' doesn't match \
+                 requested measurement '{}'",
+                instance.measurement,
+                measurement,
             );
 
             let sealed_seed_id = SealedSeedId {
