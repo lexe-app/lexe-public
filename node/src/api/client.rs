@@ -28,8 +28,8 @@ const DEFAULT_RETRIES: usize = 0;
 
 // Exponential backup
 const INITIAL_WAIT_MS: u64 = 250;
-const EXP_MULTIPLE: u64 = 250;
 const MAXIMUM_WAIT_MS: u64 = 32_000;
+const EXP_BASE: u64 = 2;
 
 // Avoid `Method::` prefix. Associated constants can't be imported
 const GET: Method = Method::GET;
@@ -218,7 +218,7 @@ impl LexeApiClient {
 
         // Exponential backup
         let mut backup_durations = (0..)
-            .map(|index| INITIAL_WAIT_MS * EXP_MULTIPLE.pow(index))
+            .map(|index| INITIAL_WAIT_MS * EXP_BASE.pow(index))
             .map(|wait| min(wait, MAXIMUM_WAIT_MS))
             .map(Duration::from_millis);
 
