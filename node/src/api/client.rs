@@ -1,5 +1,6 @@
 //! This file contains LexeApiClient, the concrete impl of the ApiClient trait.
 
+use std::cmp::min;
 use std::fmt::{self, Display};
 use std::time::Duration;
 
@@ -16,19 +17,19 @@ use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::time;
-use tracing::{debug, trace};
+use tracing::{debug, trace, warn};
 
 use self::ApiVersion::*;
 use self::BaseUrl::*;
 use crate::api::*;
 
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
-/// How long to wait after the second failed API request before trying again.
-/// This is relatively long since if the second try failed, it probably means
-/// that the backend is down, which could be the case for a while.
-const RETRY_INTERVAL: Duration = Duration::from_secs(15);
-/// 0 retries by default
 const DEFAULT_RETRIES: usize = 0;
+
+// Exponential backup
+const INITIAL_WAIT_MS: u64 = 250;
+const EXP_MULTIPLE: u64 = 250;
+const MAXIMUM_WAIT_MS: u64 = 32_000;
 
 // Avoid `Method::` prefix. Associated constants can't be imported
 const GET: Method = Method::GET;
@@ -223,9 +224,14 @@ impl LexeApiClient {
         data: &D,
         retries: usize,
     ) -> Result<T, ApiError> {
-        let mut retry_timer = time::interval(RETRY_INTERVAL);
-
+        // Serialize request parts
         let parts = self.serialize_parts(method, base, ver, endpoint, data)?;
+
+        // Exponential backup
+        let mut backup_durations = (0..)
+            .map(|index| INITIAL_WAIT_MS * EXP_MULTIPLE.pow(index))
+            .map(|wait| min(wait, MAXIMUM_WAIT_MS))
+            .map(Duration::from_millis);
 
         // Do the 'retries' first and return early if successful.
         // This block is a noop if retries == 0.
@@ -234,15 +240,11 @@ impl LexeApiClient {
             if res.is_ok() {
                 return res;
             } else {
-                // TODO log errors here
+                let method = &parts.method;
+                let url = &parts.url;
+                warn!("{method} {url} failed.");
 
-                // Since the first tick resolves immediately, and we tick only
-                // on failures, the first failed attempt is immediately followed
-                // up with second attempt (to encode that sometimes messages are
-                // dropped during normal operation), but all following attempts
-                // wait the full timeout (to encode that the node backend is
-                // probably down so we want to wait a relatively long timeout).
-                retry_timer.tick().await;
+                time::sleep(backup_durations.next().unwrap()).await;
             }
         }
 
