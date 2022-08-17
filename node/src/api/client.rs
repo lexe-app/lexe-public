@@ -17,14 +17,21 @@ use serde::Serialize;
 use tokio::time;
 use tracing::debug;
 
+use self::ApiVersion::*;
+use self::BaseUrl::*;
 use crate::api::*;
 
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
-const MAX_ATTEMPTS: usize = 3;
 /// How long to wait after the second failed API request before trying again.
 /// This is relatively long since if the second try failed, it probably means
 /// that the backend is down, which could be the case for a while.
 const RETRY_INTERVAL: Duration = Duration::from_secs(15);
+
+// Avoid `Method::` prefix. Associated constants can't be imported
+const GET: Method = Method::GET;
+const PUT: Method = Method::PUT;
+const POST: Method = Method::POST;
+const DELETE: Method = Method::DELETE;
 
 /// Enumerates the base urls that can be used in an API call.
 #[derive(Copy, Clone)]
@@ -37,9 +44,6 @@ enum BaseUrl {
 enum ApiVersion {
     V1,
 }
-
-use ApiVersion::*;
-use BaseUrl::*;
 
 impl Display for ApiVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -76,8 +80,7 @@ impl ApiClient for LexeApiClient {
         user_pk: UserPk,
     ) -> Result<Option<Node>, ApiError> {
         let data = GetByUserPk { user_pk };
-        self.request(&Method::GET, Backend, V1, "/node", &data)
-            .await
+        self.request(&GET, Backend, V1, "/node", &data).await
     }
 
     async fn get_instance(
@@ -90,8 +93,7 @@ impl ApiClient for LexeApiClient {
             measurement,
         };
         let maybe_instance: Option<Instance> = self
-            .request(&Method::GET, Backend, V1, "/instance", &data)
-            .await?;
+            .request(&GET, Backend, V1, "/instance", &data).await?;
 
         if let Some(instance) = maybe_instance.as_ref() {
             if instance.measurement != measurement {
@@ -111,8 +113,7 @@ impl ApiClient for LexeApiClient {
         &self,
         data: SealedSeedId,
     ) -> Result<Option<SealedSeed>, ApiError> {
-        self.request(&Method::GET, Backend, V1, "/sealed_seed", &data)
-            .await
+        self.request(&GET, Backend, V1, "/sealed_seed", &data).await
     }
 
     async fn create_node_instance_seed(
@@ -120,25 +121,41 @@ impl ApiClient for LexeApiClient {
         data: NodeInstanceSeed,
     ) -> Result<NodeInstanceSeed, ApiError> {
         let endpoint = "/acid/node_instance_seed";
-        self.request(&Method::POST, Backend, V1, endpoint, &data)
-            .await
+        self.request(&POST, Backend, V1, endpoint, &data).await
     }
 
     async fn get_file(&self, data: &FileId) -> Result<Option<File>, ApiError> {
         let endpoint = "/file";
-        self.request(&Method::GET, Backend, V1, endpoint, &data)
-            .await
+        self.request(&GET, Backend, V1, endpoint, &data).await
     }
 
     async fn create_file(&self, data: &File) -> Result<File, ApiError> {
         let endpoint = "/file";
-        self.request(&Method::POST, Backend, V1, endpoint, &data)
+        self.request(&POST, Backend, V1, endpoint, &data).await
+    }
+
+    async fn create_file_with_retries(
+        &self,
+        data: &File,
+        retries: usize,
+    ) -> Result<File, ApiError> {
+        let endpoint = "/file";
+        self.request_with_retries(&POST, Backend, V1, endpoint, &data, retries)
             .await
     }
 
     async fn upsert_file(&self, data: &File) -> Result<File, ApiError> {
         let endpoint = "/file";
-        self.request(&Method::PUT, Backend, V1, endpoint, &data)
+        self.request(&PUT, Backend, V1, endpoint, &data).await
+    }
+
+    async fn upsert_file_with_retries(
+        &self,
+        data: &File,
+        retries: usize,
+    ) -> Result<File, ApiError> {
+        let endpoint = "/file";
+        self.request_with_retries(&PUT, Backend, V1, endpoint, &data, retries)
             .await
     }
 
@@ -147,8 +164,7 @@ impl ApiClient for LexeApiClient {
     #[allow(dead_code)]
     async fn delete_file(&self, data: &FileId) -> Result<String, ApiError> {
         let endpoint = "/file";
-        self.request(&Method::DELETE, Backend, V1, endpoint, &data)
-            .await
+        self.request(&DELETE, Backend, V1, endpoint, &data).await
     }
 
     async fn get_directory(
@@ -156,37 +172,39 @@ impl ApiClient for LexeApiClient {
         data: &Directory,
     ) -> Result<Vec<File>, ApiError> {
         let endpoint = "/directory";
-        self.request(&Method::GET, Backend, V1, endpoint, &data)
-            .await
+        self.request(&GET, Backend, V1, endpoint, &data).await
     }
 
     async fn notify_runner(
         &self,
         data: UserPorts,
     ) -> Result<UserPorts, ApiError> {
-        self.request(&Method::POST, Runner, V1, "/ready", &data)
-            .await
+        self.request(&POST, Runner, V1, "/ready", &data).await
     }
 }
 
 impl LexeApiClient {
-    /// Tries to complete an API request, making up to `MAX_ATTEMPTS` attempts.
-    async fn request<D: Serialize, T: DeserializeOwned>(
+    /// Tries to complete an API request, retrying up to `retries` times.
+    async fn request_with_retries<D: Serialize, T: DeserializeOwned>(
         &self,
         method: &Method,
         base: BaseUrl,
         ver: ApiVersion,
         endpoint: &str,
         data: &D,
+        retries: usize,
     ) -> Result<T, ApiError> {
         let mut retry_timer = time::interval(RETRY_INTERVAL);
 
-        // Try the first n-1 times, return early if successful
-        for _ in 0..MAX_ATTEMPTS - 1 {
-            let res = self.execute(method, base, ver, endpoint, data).await;
+        // 'Do the retries first' and return early if successful.
+        // If retries == 0 this block is a noop.
+        for _ in 0..retries {
+            let res = self.request(method, base, ver, endpoint, data).await;
             if res.is_ok() {
                 return res;
             } else {
+                // TODO log errors here
+
                 // Since the first tick resolves immediately, and we tick only
                 // on failures, the first failed attempt is immediately followed
                 // up with second attempt (to encode that sometimes messages are
@@ -197,12 +215,12 @@ impl LexeApiClient {
             }
         }
 
-        // Last try
-        self.execute(method, base, ver, endpoint, &data).await
+        // Do the 'main attempt'.
+        self.request(method, base, ver, endpoint, &data).await
     }
 
     /// Executes an API request once.
-    async fn execute<D: Serialize, T: DeserializeOwned>(
+    async fn request<D: Serialize, T: DeserializeOwned>(
         &self,
         method: &Method,
         base: BaseUrl,
@@ -220,7 +238,7 @@ impl LexeApiClient {
         // If GET, serialize the data in a query string
         let method = method.to_owned();
         let query_str = match method {
-            Method::GET => Some(serde_qs::to_string(data)?),
+            GET => Some(serde_qs::to_string(data)?),
             _ => None,
         };
         // Append directly to url since RequestBuilder.param() API is unwieldy
@@ -234,7 +252,7 @@ impl LexeApiClient {
 
         // If PUT or POST, serialize the data in the request body
         let body = match method {
-            Method::PUT | Method::POST => serde_json::to_string(data)?,
+            PUT | POST => serde_json::to_string(data)?,
             _ => String::new(),
         };
         // println!("    Body: {}", body);
