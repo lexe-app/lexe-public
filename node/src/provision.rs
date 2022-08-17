@@ -24,17 +24,16 @@ use std::time::Duration;
 use anyhow::{ensure, Context};
 use bitcoin::secp256k1::PublicKey;
 use common::api::provision::{
-    Instance, Node, NodeInstanceSeed, ProvisionRequest, SealedSeed,
+    Instance, Node, NodeInstanceSeed, ProvisionRequest, ProvisionedSecrets,
+    SealedSeed,
 };
 use common::api::runner::UserPorts;
 use common::api::UserPk;
 use common::cli::ProvisionArgs;
 use common::client::tls::node_provision_tls_config;
-use common::enclave::{self, MachineId, Measurement, Sealed, MIN_SGX_CPUSVN};
+use common::enclave::{self, MachineId, Measurement, MIN_SGX_CPUSVN};
 use common::rng::{Crng, SysRng};
-use common::root_seed::RootSeed;
 use http::{Response, StatusCode};
-use secrecy::ExposeSecret;
 use thiserror::Error;
 use tokio::sync::mpsc;
 use tracing::{debug, info, instrument, warn};
@@ -77,32 +76,6 @@ struct RequestContext {
     api: ApiClientType,
     // TODO(phlip9): make generic, use test rng in test
     rng: SysRng,
-}
-
-/// The enclave's provisioned secrets that it will seal and persist using its
-/// platform enclave keys that are software and version specific.
-///
-/// See: [`common::enclave::seal`]
-pub struct ProvisionedSecrets {
-    pub root_seed: RootSeed,
-}
-
-impl ProvisionedSecrets {
-    const LABEL: &'static [u8] = b"provisioned secrets";
-
-    pub fn seal(&self, rng: &mut dyn Crng) -> anyhow::Result<Sealed<'_>> {
-        let root_seed_ref = self.root_seed.expose_secret().as_slice();
-        enclave::seal(rng, Self::LABEL, root_seed_ref.into())
-            .context("Failed to seal provisioned secrets")
-    }
-
-    pub fn unseal(sealed: Sealed<'_>) -> anyhow::Result<Self> {
-        let bytes = enclave::unseal(Self::LABEL, sealed)
-            .context("Failed to unseal provisioned secrets")?;
-        let root_seed = RootSeed::try_from(bytes.as_slice())
-            .context("Failed to deserialize root seed")?;
-        Ok(Self { root_seed })
-    }
 }
 
 fn verify_provision_request<R: Crng>(
@@ -269,6 +242,7 @@ mod test {
     use common::attest::verify::EnclavePolicy;
     use common::cli::ProvisionArgs;
     use common::rng::SysRng;
+    use common::root_seed::RootSeed;
     use secrecy::Secret;
     use tokio_rustls::rustls;
 

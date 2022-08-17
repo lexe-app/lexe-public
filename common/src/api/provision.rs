@@ -1,8 +1,11 @@
+use anyhow::Context;
 use bitcoin::secp256k1::PublicKey;
+use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 
 use crate::api::UserPk;
-use crate::enclave::{MachineId, Measurement, MinCpusvn};
+use crate::enclave::{self, MachineId, Measurement, MinCpusvn, Sealed};
+use crate::rng::Crng;
 use crate::root_seed::RootSeed;
 
 /// The client sends this provisioning request to the node.
@@ -63,6 +66,33 @@ impl SealedSeed {
             },
             seed,
         }
+    }
+}
+
+/// The enclave's provisioned secrets that it will seal and persist using its
+/// platform enclave keys that are software and version specific.
+///
+/// See: [`common::enclave::seal`]
+// TODO(phlip9): rename this or SealedSeed?
+pub struct ProvisionedSecrets {
+    pub root_seed: RootSeed,
+}
+
+impl ProvisionedSecrets {
+    const LABEL: &'static [u8] = b"provisioned secrets";
+
+    pub fn seal(&self, rng: &mut dyn Crng) -> anyhow::Result<Sealed<'_>> {
+        let root_seed_ref = self.root_seed.expose_secret().as_slice();
+        enclave::seal(rng, Self::LABEL, root_seed_ref.into())
+            .context("Failed to seal provisioned secrets")
+    }
+
+    pub fn unseal(sealed: Sealed<'_>) -> anyhow::Result<Self> {
+        let bytes = enclave::unseal(Self::LABEL, sealed)
+            .context("Failed to unseal provisioned secrets")?;
+        let root_seed = RootSeed::try_from(bytes.as_slice())
+            .context("Failed to deserialize root seed")?;
+        Ok(Self { root_seed })
     }
 }
 

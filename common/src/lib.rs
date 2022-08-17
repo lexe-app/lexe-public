@@ -8,6 +8,10 @@
 // Used in `enclave/sgx` module for sealing.
 #![feature(split_array)]
 
+// re-export some common types from our dependencies
+pub use bitcoin::secp256k1::PublicKey;
+pub use secrecy::Secret;
+
 pub mod api;
 pub mod attest;
 pub mod cli;
