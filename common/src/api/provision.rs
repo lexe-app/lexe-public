@@ -72,7 +72,7 @@ impl SealedSeed {
 /// The enclave's provisioned secrets that it will seal and persist using its
 /// platform enclave keys that are software and version specific.
 ///
-/// See: [`common::enclave::seal`]
+/// See: [`crate::enclave::seal`]
 // TODO(phlip9): rename this or SealedSeed?
 pub struct ProvisionedSecrets {
     pub root_seed: RootSeed,
