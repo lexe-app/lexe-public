@@ -7,6 +7,8 @@
 #![feature(const_option)]
 // Used in `enclave/sgx` module for sealing.
 #![feature(split_array)]
+// Enforce disallowed methods clippy lint
+#![deny(clippy::disallowed_methods)]
 
 // re-export some common types from our dependencies
 pub use bitcoin::secp256k1::PublicKey;

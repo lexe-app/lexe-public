@@ -28,8 +28,8 @@ use crate::lexe::peer_manager::ChannelPeer;
 use crate::lexe::types::LxOutPoint;
 use crate::types::{
     ApiClientType, BroadcasterType, ChainMonitorType, ChannelManagerType,
-    ChannelMonitorType, FeeEstimatorType, LoggerType, NetworkGraphType,
-    ProbabilisticScorerType, SignerType,
+    ChannelMonitorType, FeeEstimatorType, LoggerType, LxHandle,
+    NetworkGraphType, ProbabilisticScorerType, SignerType,
 };
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
@@ -435,7 +435,7 @@ impl Persist<SignerType> for InnerPersister {
         let api_clone = self.api.clone();
         let channel_monitor_updated_tx =
             self.channel_monitor_updated_tx.clone();
-        tokio::spawn(async move {
+        let _ = LxHandle::spawn(async move {
             // Retry indefinitely until it succeeds
             // TODO Also attempt to persist to cloud backup
             api_clone
@@ -483,7 +483,7 @@ impl Persist<SignerType> for InnerPersister {
         let api_clone = self.api.clone();
         let channel_monitor_updated_tx =
             self.channel_monitor_updated_tx.clone();
-        tokio::spawn(async move {
+        let _ = LxHandle::spawn(async move {
             // Retry indefinitely until it succeeds
             // TODO Also attempt to persist to cloud backup
             api_clone

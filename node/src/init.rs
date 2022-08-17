@@ -26,7 +26,6 @@ use lightning_invoice::utils::DefaultRouter;
 use tokio::net::TcpListener;
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
-use tokio::task::JoinHandle;
 use tokio::time;
 use tracing::{debug, error, info, instrument, warn};
 
@@ -45,8 +44,8 @@ use crate::lexe::persister::LexePersister;
 use crate::lexe::sync::SyncedChainListeners;
 use crate::types::{
     ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
-    ChannelMonitorType, FeeEstimatorType, InvoicePayerType, NetworkGraphType,
-    P2PGossipSyncType, PaymentInfoStorageType, WalletType,
+    ChannelMonitorType, FeeEstimatorType, InvoicePayerType, LxHandle,
+    NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, WalletType,
 };
 use crate::{api, command};
 
@@ -144,7 +143,7 @@ impl LexeNode {
 
         // Init Tokio channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
-        let shutdown = ShutdownChannel::new();
+        let shutdown = ShutdownChannel::init();
         let (channel_monitor_updated_tx, channel_monitor_updated_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
 
@@ -248,7 +247,7 @@ impl LexeNode {
         let owner_port = owner_addr.port();
         info!("Owner service listening on port {}", owner_port);
         // TODO(max): Handle the handle
-        let _owner_service_handle = tokio::spawn(async move {
+        let _owner_service_handle = LxHandle::spawn(async move {
             owner_service_fut.await;
         });
 
@@ -262,7 +261,7 @@ impl LexeNode {
         let host_port = host_addr.port();
         info!("Host service listening on port {}", host_port);
         // TODO(max): Handle the handle
-        let _host_service_handle = tokio::spawn(async move {
+        let _host_service_handle = LxHandle::spawn(async move {
             host_service_fut.await;
         });
 
@@ -404,7 +403,7 @@ impl LexeNode {
         // Sync is complete; start the inactivity timer.
         debug!("Starting inactivity timer");
         // TODO(max): Handle the handle
-        let _inactivity_timer_handle = tokio::spawn(async move {
+        let _inactivity_timer_handle = LxHandle::spawn(async move {
             self.inactivity_timer.start().await;
         });
 
@@ -439,6 +438,73 @@ impl LexeNode {
         self.peer_manager.disconnect_all_peers();
 
         Ok(())
+    }
+}
+
+/// Holds all the `shutdown_tx` / `shutdown_rx` channel senders and receivers
+/// created during init. All senders / receivers are moved out of this struct at
+/// some point during init.
+struct ShutdownChannel {
+    tx: ShutdownTx,
+    rx: ShutdownRx,
+}
+
+struct ShutdownTx {
+    host_routes: broadcast::Sender<()>,
+    inactivity_timer: broadcast::Sender<()>,
+    background_processor: broadcast::Sender<()>,
+}
+
+struct ShutdownRx {
+    main: broadcast::Receiver<()>,
+    spv_client: broadcast::Receiver<()>,
+    p2p_listener: broadcast::Receiver<()>,
+    p2p_reconnector: broadcast::Receiver<()>,
+    inactivity_timer: broadcast::Receiver<()>,
+    background_processor: broadcast::Receiver<()>,
+    channel_monitor_updated: broadcast::Receiver<()>,
+}
+
+impl ShutdownChannel {
+    /// Initializes all senders and receivers together to ensure that all calls
+    /// to [`subscribe`] are complete before any values are sent (otherwise
+    /// those values will not be received). This prevents race conditions where
+    /// e.g. the inactivity timer sends on shutdown_tx before another task
+    /// spawned during init has had a chance to subscribe.
+    ///
+    /// [`subscribe`]: broadcast::Sender::subscribe
+    fn init() -> Self {
+        let (shutdown_tx, _) = broadcast::channel(DEFAULT_CHANNEL_SIZE);
+
+        // Clone txs
+        let host_routes = shutdown_tx.clone();
+        let inactivity_timer = shutdown_tx.clone();
+        let background_processor = shutdown_tx.clone();
+        let tx = ShutdownTx {
+            host_routes,
+            inactivity_timer,
+            background_processor,
+        };
+
+        // Subscribe rxs
+        let spv_client = shutdown_tx.subscribe();
+        let main = shutdown_tx.subscribe();
+        let p2p_listener = shutdown_tx.subscribe();
+        let p2p_reconnector = shutdown_tx.subscribe();
+        let inactivity_timer = shutdown_tx.subscribe();
+        let background_processor = shutdown_tx.subscribe();
+        let channel_monitor_updated = shutdown_tx.subscribe();
+        let rx = ShutdownRx {
+            main,
+            spv_client,
+            p2p_listener,
+            p2p_reconnector,
+            inactivity_timer,
+            background_processor,
+            channel_monitor_updated,
+        };
+
+        Self { tx, rx }
     }
 }
 
@@ -531,69 +597,6 @@ async fn fetch_provisioned_secrets(
     }
 }
 
-struct ShutdownChannel {
-    tx: ShutdownTx,
-    rx: ShutdownRx,
-}
-
-struct ShutdownTx {
-    host_routes: broadcast::Sender<()>,
-    inactivity_timer: broadcast::Sender<()>,
-    background_processor: broadcast::Sender<()>,
-}
-
-struct ShutdownRx {
-    main: broadcast::Receiver<()>,
-    spv_client: broadcast::Receiver<()>,
-    p2p_listener: broadcast::Receiver<()>,
-    p2p_reconnector: broadcast::Receiver<()>,
-    inactivity_timer: broadcast::Receiver<()>,
-    background_processor: broadcast::Receiver<()>,
-    channel_monitor_updated: broadcast::Receiver<()>,
-}
-
-impl ShutdownChannel {
-    /// Initializes the `shutdown_tx` / `shutdown_rx` channel senders and
-    /// receivers. These are initialized as structs to ensure that all calls to
-    /// [`subscribe`] are complete before any values are sent (otherwise those
-    /// values will not be received).
-    ///
-    /// [`subscribe`]: broadcast::Sender::subscribe
-    fn new() -> Self {
-        let (shutdown_tx, _) = broadcast::channel(DEFAULT_CHANNEL_SIZE);
-
-        // Clone txs
-        let host_routes = shutdown_tx.clone();
-        let inactivity_timer = shutdown_tx.clone();
-        let background_processor = shutdown_tx.clone();
-        let tx = ShutdownTx {
-            host_routes,
-            inactivity_timer,
-            background_processor,
-        };
-
-        // Subscribe rxs
-        let spv_client = shutdown_tx.subscribe();
-        let main = shutdown_tx.subscribe();
-        let p2p_listener = shutdown_tx.subscribe();
-        let p2p_reconnector = shutdown_tx.subscribe();
-        let inactivity_timer = shutdown_tx.subscribe();
-        let background_processor = shutdown_tx.subscribe();
-        let channel_monitor_updated = shutdown_tx.subscribe();
-        let rx = ShutdownRx {
-            main,
-            spv_client,
-            p2p_listener,
-            p2p_reconnector,
-            inactivity_timer,
-            background_processor,
-            channel_monitor_updated,
-        };
-
-        Self { tx, rx }
-    }
-}
-
 /// Initializes the ChannelMonitors
 async fn channel_monitors(
     persister: &LexePersister,
@@ -638,7 +641,7 @@ async fn spawn_p2p_listener(
     peer_manager: LexePeerManager,
     peer_port_opt: Option<Port>,
     mut shutdown_rx: broadcast::Receiver<()>,
-) -> (JoinHandle<()>, Port) {
+) -> (LxHandle<()>, Port) {
     // A value of 0 indicates that the OS will assign a port for us
     // TODO(phlip9): should only listen on internal interface
     let address = format!("0.0.0.0:{}", peer_port_opt.unwrap_or(0));
@@ -648,7 +651,7 @@ async fn spawn_p2p_listener(
     let peer_port = listener.local_addr().unwrap().port();
     info!("Listening for LN P2P connections on port {}", peer_port);
 
-    let handle = tokio::spawn(async move {
+    let handle = LxHandle::spawn(async move {
         let mut child_handles = Vec::with_capacity(1);
 
         loop {
@@ -672,7 +675,7 @@ async fn spawn_p2p_listener(
 
                     // Spawn a task to await on the connection
                     let peer_manager_clone = peer_manager.as_arc_inner();
-                    let child_handle = tokio::spawn(async move {
+                    let child_handle = LxHandle::spawn(async move {
                         // `setup_inbound()` returns a future that completes
                         // when the connection is closed. The main thread calls
                         // peer_manager.disconnect_all_peers() once it receives
@@ -711,8 +714,8 @@ fn spawn_p2p_reconnector(
     peer_manager: LexePeerManager,
     persister: LexePersister,
     mut shutdown_rx: broadcast::Receiver<()>,
-) -> JoinHandle<()> {
-    tokio::spawn(async move {
+) -> LxHandle<()> {
+    LxHandle::spawn(async move {
         let mut interval = time::interval(P2P_RECONNECT_INTERVAL);
 
         loop {
@@ -777,9 +780,9 @@ pub fn spawn_channel_monitor_updated_task(
     chain_monitor: Arc<ChainMonitorType>,
     mut channel_monitor_updated_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
     mut shutdown_rx: broadcast::Receiver<()>,
-) -> JoinHandle<()> {
+) -> LxHandle<()> {
     info!("Starting channel_monitor_updated task");
-    tokio::spawn(async move {
+    LxHandle::spawn(async move {
         loop {
             tokio::select! {
                 Some(update) = channel_monitor_updated_rx.recv() => {
