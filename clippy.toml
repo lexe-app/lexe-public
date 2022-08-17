@@ -1,4 +1,6 @@
 disallowed-methods = [
-    { path = "tokio::spawn",       reason = "Use LxHandle::spawn instead" },
-    { path = "tokio::task::spawn", reason = "Use LxHandle::spawn instead" },
+    { path = "tokio::spawn",                   reason = "Use LxHandle::spawn" },
+    { path = "tokio::task::spawn",             reason = "Use LxHandle::spawn" },
+    { path = "tokio::runtime::Handle::spawn",  reason = "Use LxHandle::spawn" },
+    { path = "tokio::runtime::Runtime::spawn", reason = "Use LxHandle::spawn" },
 ]
