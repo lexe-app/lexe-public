@@ -23,11 +23,11 @@ pub use ldk::*;
 /// `#[must_use]` lint to ensure that all spawned tasks are joined or explictly
 /// annotated that no joining is required.
 #[must_use]
-pub struct LxHandle<T>(JoinHandle<T>);
+pub struct LxTask<T>(JoinHandle<T>);
 
-impl<T> LxHandle<T> {
+impl<T> LxTask<T> {
     #[allow(clippy::disallowed_methods)]
-    pub fn spawn<F>(future: F) -> LxHandle<F::Output>
+    pub fn spawn<F>(future: F) -> LxTask<F::Output>
     where
         F: Future<Output = T> + Send + 'static,
         F::Output: Send + 'static,
@@ -36,7 +36,7 @@ impl<T> LxHandle<T> {
     }
 }
 
-impl<T> Future for LxHandle<T> {
+impl<T> Future for LxTask<T> {
     type Output = Result<T, JoinError>;
     fn poll(
         mut self: Pin<&mut Self>,
