@@ -17,8 +17,8 @@ use lightning::chain::chaininterface::{
 };
 use lightning::routing::gossip::NodeId;
 use lightning::util::events::{Event, EventHandler, PaymentPurpose};
-use tracing::{debug, error};
 use tokio::runtime::Handle;
+use tracing::{debug, error};
 
 use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::LexeChannelManager;
@@ -73,13 +73,11 @@ impl EventHandler for LdkEventHandler {
     ///   before the channel manager is persisted, the same event will be
     ///   emitted again.
     /// - The event handler must avoid reentrancy by not making direct calls to
-    ///   [`ChannelManager::process_pending_events`] or
-    ///   [`ChainMonitor::process_pending_events`], otherwise there may be a
+    ///   `ChannelManager::process_pending_events` or
+    ///   `ChainMonitor::process_pending_events`, otherwise there may be a
     ///   deadlock.
     ///
     /// [`EventsProvider`]: lightning::util::events::EventsProvider
-    /// [`ChannelManager::process_pending_events`]: lightning::ln::channelmanager::ChannelManager::process_pending_events
-    /// [`ChainMonitor::process_pending_events`]: lightning::chain::chainmonitor::ChainMonitor::process_pending_events
     fn handle_event(&self, event: &Event) {
         // FIXME: This trait requires that event handling *finishes* before
         // returning from this function. There isn't currently a clean way to do
