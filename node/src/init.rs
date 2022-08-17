@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -16,6 +15,7 @@ use common::enclave::{
     self, MachineId, Measurement, MinCpusvn, Sealed, MIN_SGX_CPUSVN,
 };
 use common::rng::Crng;
+use futures::future;
 use lightning::chain;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
@@ -27,7 +27,7 @@ use tokio::net::TcpListener;
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, info, instrument, warn};
 
 use crate::api::ApiClient;
 use crate::event_handler::LdkEventHandler;
@@ -50,6 +50,8 @@ use crate::types::{
 use crate::{api, command};
 
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
+// TODO(max): p2p stuff should probably go in its own module
+const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 
 // TODO: Eventually move this into the `lexe` module once init is cleaned up
 // TODO: Remove once keys_manager, persister, invoice_payer are read in SGX
@@ -83,7 +85,6 @@ pub struct LexeNode {
     inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
     main_thread_shutdown_rx: broadcast::Receiver<()>,
-    stop_listen_connect: Arc<AtomicBool>,
 }
 
 impl LexeNode {
@@ -217,11 +218,11 @@ impl LexeNode {
         );
 
         // Set up listening for inbound P2P connections
-        let stop_listen_connect = Arc::new(AtomicBool::new(false));
-        let peer_port = spawn_p2p_listener(
-            args.peer_port,
-            stop_listen_connect.clone(),
+        // TODO(max): Handle the handle
+        let (_handle, peer_port) = spawn_p2p_listener(
             peer_manager.clone(),
+            args.peer_port,
+            shutdown.rx.p2p_listener,
         )
         .await;
 
@@ -328,11 +329,11 @@ impl LexeNode {
 
         // Spawn a task to regularly reconnect to channel peers
         // TODO(max): Handle the handle
-        let _reconnect_handle = spawn_p2p_reconnect_task(
+        let _p2p_reconnector_handle = spawn_p2p_reconnector(
             channel_manager.clone(),
             peer_manager.clone(),
-            stop_listen_connect.clone(),
             persister.clone(),
+            shutdown.rx.p2p_reconnector,
         );
 
         // Build and return the LexeNode
@@ -366,7 +367,6 @@ impl LexeNode {
             inbound_payments,
             outbound_payments,
             main_thread_shutdown_rx,
-            stop_listen_connect,
         };
         Ok(node)
     }
@@ -425,12 +425,9 @@ impl LexeNode {
         let _ = self.main_thread_shutdown_rx.recv().await;
 
         // --- Shutdown --- //
-        info!("Main thread shutting down");
-
-        // Disconnect from peers and stop accepting new connections. This
-        // ensures we don't continue updating our channel data after we've
+        info!("Main thread shutting down. Disconnecting all peers.");
+        // This ensures we don't continue updating our channel data after we've
         // stopped the background processor.
-        self.stop_listen_connect.store(true, Ordering::Release);
         self.peer_manager.disconnect_all_peers();
 
         Ok(())
@@ -539,6 +536,8 @@ struct ShutdownTx {
 
 struct ShutdownRx {
     main_thread: broadcast::Receiver<()>,
+    p2p_listener: broadcast::Receiver<()>,
+    p2p_reconnector: broadcast::Receiver<()>,
     inactivity_timer: broadcast::Receiver<()>,
     background_processor: broadcast::Receiver<()>,
     channel_monitor_updated: broadcast::Receiver<()>,
@@ -546,8 +545,8 @@ struct ShutdownRx {
 
 impl ShutdownChannel {
     /// Initializes the `shutdown_tx` / `shutdown_rx` channel senders and
-    /// receivers. These are initialized as structs to ensure that *all* calls
-    /// to [`subscribe`] are complete before any values are sent.
+    /// receivers. These are initialized as structs to ensure that all calls to
+    /// [`subscribe`] are complete before any values are sent.
     ///
     /// [`subscribe`]: broadcast::Sender::subscribe
     fn new() -> Self {
@@ -565,11 +564,15 @@ impl ShutdownChannel {
 
         // Subscribe rxs
         let main_thread = shutdown_tx.subscribe();
+        let p2p_listener = shutdown_tx.subscribe();
+        let p2p_reconnector = shutdown_tx.subscribe();
         let inactivity_timer = shutdown_tx.subscribe();
         let background_processor = shutdown_tx.subscribe();
         let channel_monitor_updated = shutdown_tx.subscribe();
         let rx = ShutdownRx {
             main_thread,
+            p2p_listener,
+            p2p_reconnector,
             inactivity_timer,
             background_processor,
             channel_monitor_updated,
@@ -620,10 +623,10 @@ async fn gossip_sync(
 /// Sets up a `TcpListener` to listen on 0.0.0.0:<peer_port>, handing off
 /// resultant `TcpStream`s for the `PeerManager` to manage
 async fn spawn_p2p_listener(
-    peer_port_opt: Option<Port>,
-    stop_listen: Arc<AtomicBool>,
     peer_manager: LexePeerManager,
-) -> Port {
+    peer_port_opt: Option<Port>,
+    mut shutdown_rx: broadcast::Receiver<()>,
+) -> (JoinHandle<()>, Port) {
     // A value of 0 indicates that the OS will assign a port for us
     // TODO(phlip9): should only listen on internal interface
     let address = format!("0.0.0.0:{}", peer_port_opt.unwrap_or(0));
@@ -631,68 +634,122 @@ async fn spawn_p2p_listener(
         .await
         .expect("Failed to bind to peer port");
     let peer_port = listener.local_addr().unwrap().port();
-    info!("lightning peer listening on port {}", peer_port);
-    tokio::spawn(async move {
+    info!("Listening for LN P2P connections on port {}", peer_port);
+
+    let handle = tokio::spawn(async move {
+        let mut child_handles = Vec::with_capacity(1);
+
         loop {
-            let (tcp_stream, _peer_addr) = listener.accept().await.unwrap();
-            let tcp_stream = tcp_stream.into_std().unwrap();
-            let peer_manager_clone = peer_manager.as_arc_inner();
-            if stop_listen.load(Ordering::Acquire) {
-                return;
+            tokio::select! {
+                accept_res = listener.accept() => {
+                    // TcpStream boilerplate
+                    let (tcp_stream, _peer_addr) = match accept_res {
+                        Ok(ts) => ts,
+                        Err(e) => {
+                            warn!("Failed to accept connection: {e:#}");
+                            continue;
+                        }
+                    };
+                    let tcp_stream = match tcp_stream.into_std() {
+                        Ok(s) => s,
+                        Err(e) => {
+                            warn!("Couldn't convert to std TcpStream: {e:#}");
+                            continue;
+                        }
+                    };
+
+                    // Spawn a task to await on the connection
+                    let peer_manager_clone = peer_manager.as_arc_inner();
+                    let child_handle = tokio::spawn(async move {
+                        // `setup_inbound()` returns a future that completes
+                        // when the connection is closed. The main thread calls
+                        // peer_manager.disconnect_all_peers() once it receives
+                        // a shutdown signal so there is no need to pass in
+                        // `shutdown_rx`s here.
+                        let connection_closed = lightning_net_tokio::setup_inbound(
+                            peer_manager_clone,
+                            tcp_stream,
+                        );
+                        connection_closed.await;
+                    });
+
+                    child_handles.push(child_handle);
+                }
+                _ = shutdown_rx.recv() =>
+                    break info!("LN P2P listen task shutting down"),
             }
-            tokio::spawn(async move {
-                // `setup_inbound()` returns a future that completes when the
-                // connection is closed.
-                let connection_closed = lightning_net_tokio::setup_inbound(
-                    peer_manager_clone,
-                    tcp_stream,
-                );
-                connection_closed.await;
-            });
         }
+
+        // Wait on all child tasks to finish (i.e. all connections close).
+        for res in future::join_all(child_handles).await {
+            if let Err(e) = res {
+                error!("P2P task panicked: {:#}", e);
+            }
+        }
+
+        info!("LN P2P listen task complete");
     });
-    peer_port
+
+    (handle, peer_port)
 }
 
 /// Spawns a task that regularly reconnects to the channel peers stored in DB.
-fn spawn_p2p_reconnect_task(
+fn spawn_p2p_reconnector(
     channel_manager: LexeChannelManager,
     peer_manager: LexePeerManager,
-    stop_listen_connect: Arc<AtomicBool>,
     persister: LexePersister,
+    mut shutdown_rx: broadcast::Receiver<()>,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_secs(60));
+        let mut interval = tokio::time::interval(P2P_RECONNECT_INTERVAL);
         loop {
             interval.tick().await;
+            tokio::select! {
+                _ = interval.tick() => {}
+                _ = shutdown_rx.recv() => break info!("P2P reconnector shutting down"),
+            }
 
-            match persister.read_channel_peers().await {
-                Ok(cp_vec) => {
-                    let peers = peer_manager.get_peer_node_ids();
-                    for node_id in channel_manager
-                        .list_channels()
-                        .iter()
-                        .map(|chan| chan.counterparty.node_id)
-                        .filter(|id| !peers.contains(id))
-                    {
-                        if stop_listen_connect.load(Ordering::Acquire) {
-                            return;
-                        }
-                        for channel_peer in cp_vec.iter() {
-                            if channel_peer.pk == node_id {
-                                let _ = peer_manager
-                                    .do_connect_peer(
-                                        channel_peer.deref().clone(),
-                                    )
-                                    .await;
-                            }
-                        }
+            // NOTE: Repeatedly hitting the DB here doesn't seem strictly
+            // necessary (a channel for the channel manager to notify this task
+            // of a new peer is sufficient), but it is the simplest solution for
+            // now. This can be optimized away if it becomes a problem later.
+            let channel_peers = match persister.read_channel_peers().await {
+                Ok(cp_vec) => cp_vec,
+                Err(e) => {
+                    error!("ERROR: Could not read channel peers: {:#}", e);
+                    continue;
+                }
+            };
+
+            // Find all the peers we've been disconnected from
+            let p2p_peers = peer_manager.get_peer_node_ids();
+            let disconnected_peers: Vec<_> = channel_manager
+                .list_channels()
+                .iter()
+                .map(|chan| chan.counterparty.node_id)
+                .filter(|node_id| !p2p_peers.contains(node_id))
+                .collect();
+
+            // Match ids
+            let mut connect_futs: Vec<_> =
+                Vec::with_capacity(disconnected_peers.len());
+            for node_id in disconnected_peers {
+                for channel_peer in channel_peers.iter() {
+                    if channel_peer.pk == node_id {
+                        let connect_fut = peer_manager
+                            .do_connect_peer(channel_peer.deref().clone());
+                        connect_futs.push(connect_fut)
                     }
                 }
-                Err(e) => {
-                    error!("could not read channel peers: {}", e)
+            }
+
+            // Reconnect
+            for res in future::join_all(connect_futs).await {
+                if let Err(e) = res {
+                    warn!("Couldn't neconnect to channel peer: {:#}", e)
                 }
             }
+
         }
     })
 }
