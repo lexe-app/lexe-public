@@ -27,6 +27,7 @@ use tokio::net::TcpListener;
 use tokio::runtime::Handle;
 use tokio::sync::{broadcast, mpsc};
 use tokio::task::JoinHandle;
+use tokio::time;
 use tracing::{debug, error, info, instrument, warn};
 
 use crate::api::ApiClient;
@@ -84,7 +85,8 @@ pub struct LexeNode {
     // --- Run --- //
     inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
-    main_thread_shutdown_rx: broadcast::Receiver<()>,
+    spv_client_shutdown_rx: broadcast::Receiver<()>,
+    main_shutdown_rx: broadcast::Receiver<()>,
 }
 
 impl LexeNode {
@@ -337,7 +339,8 @@ impl LexeNode {
         );
 
         // Build and return the LexeNode
-        let main_thread_shutdown_rx = shutdown.rx.main_thread;
+        let main_shutdown_rx = shutdown.rx.main;
+        let spv_client_shutdown_rx = shutdown.rx.spv_client;
         let node = LexeNode {
             // General
             args,
@@ -366,7 +369,8 @@ impl LexeNode {
             // Run
             inbound_payments,
             outbound_payments,
-            main_thread_shutdown_rx,
+            spv_client_shutdown_rx,
+            main_shutdown_rx,
         };
         Ok(node)
     }
@@ -390,13 +394,17 @@ impl LexeNode {
         .context("Could not sync channel listeners")?;
 
         // Populate / feed the chain monitor and spawn the SPV client
-        synced_chain_listeners
-            .feed_chain_monitor_and_spawn_spv(self.chain_monitor.clone())
+        let _spv_client_handle = synced_chain_listeners
+            .feed_chain_monitor_and_spawn_spv(
+                self.chain_monitor.clone(),
+                self.spv_client_shutdown_rx,
+            )
             .context("Error wrapping up sync")?;
 
         // Sync is complete; start the inactivity timer.
         debug!("Starting inactivity timer");
-        tokio::spawn(async move {
+        // TODO(max): Handle the handle
+        let _inactivity_timer_handle = tokio::spawn(async move {
             self.inactivity_timer.start().await;
         });
 
@@ -422,7 +430,7 @@ impl LexeNode {
         }
 
         // Pause here and wait for the shutdown signal
-        let _ = self.main_thread_shutdown_rx.recv().await;
+        let _ = self.main_shutdown_rx.recv().await;
 
         // --- Shutdown --- //
         info!("Main thread shutting down. Disconnecting all peers.");
@@ -477,9 +485,9 @@ async fn fetch_provisioned_secrets(
     let node_opt = node_res.context("Error while fetching node")?;
     let instance_opt = instance_res.context("Error while fetching instance")?;
 
-    // FIXME(max): It is faster to query for the sealed seed using the user_pk
-    // in place of the node_pk, but that requires joining across four tables.
-    // This is a quick optimization that can be done to decrease boot time.
+    // FIXME(max): Querying for the sealed seed using the user_pk in place of
+    // the node_pk saves one round trip to the API, but requires joining across
+    // four tables. This optimization can decrease boot time.
     match (node_opt, instance_opt) {
         (Some(node), Some(instance)) => {
             ensure!(
@@ -535,7 +543,8 @@ struct ShutdownTx {
 }
 
 struct ShutdownRx {
-    main_thread: broadcast::Receiver<()>,
+    main: broadcast::Receiver<()>,
+    spv_client: broadcast::Receiver<()>,
     p2p_listener: broadcast::Receiver<()>,
     p2p_reconnector: broadcast::Receiver<()>,
     inactivity_timer: broadcast::Receiver<()>,
@@ -546,7 +555,8 @@ struct ShutdownRx {
 impl ShutdownChannel {
     /// Initializes the `shutdown_tx` / `shutdown_rx` channel senders and
     /// receivers. These are initialized as structs to ensure that all calls to
-    /// [`subscribe`] are complete before any values are sent.
+    /// [`subscribe`] are complete before any values are sent (otherwise those
+    /// values will not be received).
     ///
     /// [`subscribe`]: broadcast::Sender::subscribe
     fn new() -> Self {
@@ -563,14 +573,16 @@ impl ShutdownChannel {
         };
 
         // Subscribe rxs
-        let main_thread = shutdown_tx.subscribe();
+        let spv_client = shutdown_tx.subscribe();
+        let main = shutdown_tx.subscribe();
         let p2p_listener = shutdown_tx.subscribe();
         let p2p_reconnector = shutdown_tx.subscribe();
         let inactivity_timer = shutdown_tx.subscribe();
         let background_processor = shutdown_tx.subscribe();
         let channel_monitor_updated = shutdown_tx.subscribe();
         let rx = ShutdownRx {
-            main_thread,
+            main,
+            spv_client,
             p2p_listener,
             p2p_reconnector,
             inactivity_timer,
@@ -701,7 +713,8 @@ fn spawn_p2p_reconnector(
     mut shutdown_rx: broadcast::Receiver<()>,
 ) -> JoinHandle<()> {
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(P2P_RECONNECT_INTERVAL);
+        let mut interval = time::interval(P2P_RECONNECT_INTERVAL);
+
         loop {
             interval.tick().await;
             tokio::select! {
@@ -749,7 +762,6 @@ fn spawn_p2p_reconnector(
                     warn!("Couldn't neconnect to channel peer: {:#}", e)
                 }
             }
-
         }
     })
 }

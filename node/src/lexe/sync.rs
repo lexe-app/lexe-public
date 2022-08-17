@@ -9,8 +9,10 @@ use lightning::chain::transaction::OutPoint;
 use lightning::chain::{Listen, Watch};
 use lightning_block_sync::poll::{ChainPoller, ValidatedBlockHeader};
 use lightning_block_sync::{init as blocksyncinit, SpvClient};
+use tokio::sync::broadcast;
+use tokio::task::JoinHandle;
 use tokio::time::{self, Duration};
-use tracing::warn;
+use tracing::{info, warn};
 
 use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::logger::LexeTracingLogger;
@@ -188,12 +190,13 @@ impl SyncedChainListeners {
 
     /// Consumes self, passing the synced channel monitors into the chain
     /// monitor so that it can watch the chain for closing transactions,
-    /// fraudulent transactions, etc. Additionally spawns a task for the SPV
-    /// client to continue monitoring the chain.
+    /// fraudulent transactions, etc. Spawns a task for the SPV client to
+    /// continue monitoring the chain.
     pub fn feed_chain_monitor_and_spawn_spv(
         mut self,
         chain_monitor: Arc<ChainMonitorType>,
-    ) -> anyhow::Result<()> {
+        mut shutdown_rx: broadcast::Receiver<()>,
+    ) -> anyhow::Result<JoinHandle<()>> {
         for cmcl in self.cmcls {
             let (channel_monitor, funding_outpoint) =
                 cmcl.into_monitor_and_outpoint();
@@ -204,7 +207,7 @@ impl SyncedChainListeners {
         }
 
         // Spawn the SPV client
-        tokio::spawn(async move {
+        let spv_client_handle = tokio::spawn(async move {
             // Need let binding o.w. the deref() ref doesn't live long enough
             let mut block_source_deref = self.block_source.deref();
 
@@ -221,16 +224,22 @@ impl SyncedChainListeners {
                 &chain_listener,
             );
 
-            loop {
-                if let Err(e) = spv_client.poll_best_tip().await {
-                    warn!("Error polling chain tip: {:#}", e.into_inner());
-                }
+            let mut poll_timer = time::interval(CHAIN_TIP_POLL_INTERVAL);
 
-                time::sleep(CHAIN_TIP_POLL_INTERVAL).await;
+            loop {
+                tokio::select! {
+                    _ = poll_timer.tick() => {
+                        if let Err(e) = spv_client.poll_best_tip().await {
+                            warn!("Error polling chain tip: {:#}", e.into_inner());
+                        }
+                    }
+                    _ = shutdown_rx.recv() =>
+                        break info!("SPV client shutting down"),
+                }
             }
         });
 
-        Ok(())
+        Ok(spv_client_handle)
     }
 }
 
