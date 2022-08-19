@@ -18,7 +18,7 @@ use lightning::routing::scoring::{
     ProbabilisticScorer, ProbabilisticScoringParameters,
 };
 use lightning::util::ser::{ReadableArgs, Writeable};
-use tokio::sync::mpsc;
+use tokio::sync::{broadcast, mpsc};
 use tracing::{debug, error};
 
 use crate::lexe::channel_manager::{LxChannelMonitorUpdate, USER_CONFIG};
@@ -56,14 +56,17 @@ impl LexePersister {
         api: ApiClientType,
         node_pk: PublicKey,
         measurement: Measurement,
+        shutdown_tx: broadcast::Sender<()>,
         channel_monitor_updated_tx: mpsc::Sender<LxChannelMonitorUpdate>,
     ) -> Self {
-        let inner = InnerPersister::new(
+        let inner = InnerPersister {
             api,
             node_pk,
             measurement,
+            shutdown_tx,
             channel_monitor_updated_tx,
-        );
+        };
+
         Self { inner }
     }
 }
@@ -82,24 +85,11 @@ pub struct InnerPersister {
     api: ApiClientType,
     node_pk: PublicKey,
     measurement: Measurement,
+    shutdown_tx: broadcast::Sender<()>,
     channel_monitor_updated_tx: mpsc::Sender<LxChannelMonitorUpdate>,
 }
 
 impl InnerPersister {
-    fn new(
-        api: ApiClientType,
-        node_pk: PublicKey,
-        measurement: Measurement,
-        channel_monitor_updated_tx: mpsc::Sender<LxChannelMonitorUpdate>,
-    ) -> Self {
-        Self {
-            api,
-            node_pk,
-            measurement,
-            channel_monitor_updated_tx,
-        }
-    }
-
     #[allow(clippy::too_many_arguments)]
     pub async fn read_channel_manager(
         &self,
@@ -435,16 +425,30 @@ impl Persist<SignerType> for InnerPersister {
         let api_clone = self.api.clone();
         let channel_monitor_updated_tx =
             self.channel_monitor_updated_tx.clone();
+        let shutdown_tx = self.shutdown_tx.clone();
         let _ = LxTask::spawn(async move {
-            // Retry indefinitely until it succeeds
+            // Retry a few times and shut down if persist fails
             // TODO Also attempt to persist to cloud backup
-            api_clone
-                .create_file_with_retries(&cm_file, usize::MAX)
-                .await
-                .expect("Unlimited retries always return Ok");
-
-            if let Err(e) = channel_monitor_updated_tx.try_send(update) {
-                error!("Couldn't notify chain monitor: {:#}", e);
+            let persist_res = api_clone
+                .create_file_with_retries(&cm_file, DEFAULT_RETRIES)
+                .await;
+            match persist_res {
+                Ok(_) => {
+                    debug!("Persisting new channel succeeded");
+                    // Notify the chain monitor
+                    let _ = channel_monitor_updated_tx
+                        .try_send(update)
+                        .map_err(|e| {
+                            error!("Couldn't notify chain monitor: {:#}", e)
+                        });
+                }
+                Err(e) => {
+                    error!(
+                        "Fatal error: Couldn't persist new channel: {:#}",
+                        e
+                    );
+                    let _ = shutdown_tx.send(());
+                }
             }
         });
 
@@ -456,7 +460,7 @@ impl Persist<SignerType> for InnerPersister {
     fn update_persisted_channel(
         &self,
         funding_txo: OutPoint,
-        // TODO: We probably want to use this for rollback protection
+        // TODO: We probably want to use the id inside for rollback protection
         _update: &Option<ChannelMonitorUpdate>,
         monitor: &ChannelMonitorType,
         update_id: MonitorUpdateId,
@@ -483,16 +487,30 @@ impl Persist<SignerType> for InnerPersister {
         let api_clone = self.api.clone();
         let channel_monitor_updated_tx =
             self.channel_monitor_updated_tx.clone();
+        let shutdown_tx = self.shutdown_tx.clone();
         let _ = LxTask::spawn(async move {
-            // Retry indefinitely until it succeeds
+            // Retry a few times and shut down if persist fails
             // TODO Also attempt to persist to cloud backup
-            api_clone
-                .upsert_file_with_retries(&cm_file, usize::MAX)
-                .await
-                .expect("Unlimited retries always return Ok");
-
-            if let Err(e) = channel_monitor_updated_tx.try_send(update) {
-                error!("Couldn't notify chain monitor: {:#}", e);
+            let persist_res = api_clone
+                .upsert_file_with_retries(&cm_file, DEFAULT_RETRIES)
+                .await;
+            match persist_res {
+                Ok(_) => {
+                    debug!("Persisting updated channel succeeded");
+                    // Notify the chain monitor
+                    let _ = channel_monitor_updated_tx
+                        .try_send(update)
+                        .map_err(|e| {
+                            error!("Couldn't notify chain monitor: {:#}", e)
+                        });
+                }
+                Err(e) => {
+                    error!(
+                        "Fatal error: Couldn't persist updated channel: {:#}",
+                        e
+                    );
+                    let _ = shutdown_tx.send(());
+                }
             }
         });
 
