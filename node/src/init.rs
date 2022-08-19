@@ -157,6 +157,7 @@ impl LexeNode {
             api.clone(),
             node_pk,
             measurement,
+            shutdown.tx.persister,
             channel_monitor_updated_tx,
         );
 
@@ -475,6 +476,7 @@ struct ShutdownChannel {
 }
 
 struct ShutdownTx {
+    persister: broadcast::Sender<()>,
     host_routes: broadcast::Sender<()>,
     inactivity_timer: broadcast::Sender<()>,
     background_processor: broadcast::Sender<()>,
@@ -502,10 +504,12 @@ impl ShutdownChannel {
         let (shutdown_tx, _) = broadcast::channel(DEFAULT_CHANNEL_SIZE);
 
         // Clone txs
+        let persister = shutdown_tx.clone();
         let host_routes = shutdown_tx.clone();
         let inactivity_timer = shutdown_tx.clone();
         let background_processor = shutdown_tx.clone();
         let tx = ShutdownTx {
+            persister,
             host_routes,
             inactivity_timer,
             background_processor,
