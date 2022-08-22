@@ -20,6 +20,7 @@ pub trait ApiClient: BackendService + RunnerService {}
 
 impl<A: BackendService + RunnerService> ApiClient for A {}
 
+// TODO(max): This should return BackendApiError
 #[async_trait]
 pub trait BackendService {
     async fn get_node(
@@ -74,6 +75,7 @@ pub trait BackendService {
     ) -> Result<Vec<File>, RestError>;
 }
 
+// TODO(max): This should return RunnerApiError
 #[async_trait]
 pub trait RunnerService {
     async fn notify_runner(
