@@ -3,9 +3,11 @@
 use std::fmt::{self, Display};
 
 use async_trait::async_trait;
-use common::api::provision::SealedSeedId;
+use common::api::provision::{
+    Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
+};
 use common::api::qs::{GetByUserPk, GetByUserPkAndMeasurement};
-use common::api::rest::{RestClient, DELETE, GET, POST, PUT};
+use common::api::rest::{RestClient, RestError, DELETE, GET, POST, PUT};
 use common::api::runner::UserPorts;
 use common::api::vfs::{Directory, File, FileId};
 use common::api::UserPk;
@@ -13,7 +15,7 @@ use common::enclave::Measurement;
 
 use self::ApiVersion::*;
 use self::BaseUrl::*;
-use crate::api::*;
+use crate::api::{ApiClient, NodeBackendService, NodeRunnerService};
 
 /// Enumerates the base urls that can be used in an API call.
 #[derive(Copy, Clone)]
@@ -53,7 +55,32 @@ impl LexeApiClient {
 }
 
 #[async_trait]
-impl BackendService for LexeApiClient {
+impl ApiClient for LexeApiClient {
+    async fn create_file_with_retries(
+        &self,
+        data: &File,
+        retries: usize,
+    ) -> Result<File, RestError> {
+        let url = self.build_url(Backend, V1, "/file");
+        self.rest
+            .request_with_retries(POST, url, &data, retries)
+            .await
+    }
+
+    async fn upsert_file_with_retries(
+        &self,
+        data: &File,
+        retries: usize,
+    ) -> Result<File, RestError> {
+        let url = self.build_url(Backend, V1, "/file");
+        self.rest
+            .request_with_retries(PUT, url, &data, retries)
+            .await
+    }
+}
+
+#[async_trait]
+impl NodeBackendService for LexeApiClient {
     async fn get_node(
         &self,
         user_pk: UserPk,
@@ -103,33 +130,9 @@ impl BackendService for LexeApiClient {
         self.rest.request(POST, url, &data).await
     }
 
-    // TODO(max): Remove from service definition
-    async fn create_file_with_retries(
-        &self,
-        data: &File,
-        retries: usize,
-    ) -> Result<File, RestError> {
-        let url = self.build_url(Backend, V1, "/file");
-        self.rest
-            .request_with_retries(POST, url, &data, retries)
-            .await
-    }
-
     async fn upsert_file(&self, data: &File) -> Result<File, RestError> {
         let url = self.build_url(Backend, V1, "/file");
         self.rest.request(PUT, url, &data).await
-    }
-
-    // TODO(max): Remove from service definition
-    async fn upsert_file_with_retries(
-        &self,
-        data: &File,
-        retries: usize,
-    ) -> Result<File, RestError> {
-        let url = self.build_url(Backend, V1, "/file");
-        self.rest
-            .request_with_retries(PUT, url, &data, retries)
-            .await
     }
 
     // TODO We want to delete channel peers / monitors when channels close
@@ -150,7 +153,7 @@ impl BackendService for LexeApiClient {
 }
 
 #[async_trait]
-impl RunnerService for LexeApiClient {
+impl NodeRunnerService for LexeApiClient {
     async fn notify_runner(
         &self,
         data: UserPorts,
