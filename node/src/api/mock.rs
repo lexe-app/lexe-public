@@ -9,6 +9,7 @@ use common::api::provision::{
     Instance, Node, NodeInstanceSeed, ProvisionedSecrets, SealedSeed,
     SealedSeedId,
 };
+use common::api::rest::RestError;
 use common::api::runner::UserPorts;
 use common::api::vfs::{Directory, File, FileId};
 use common::api::UserPk;
@@ -19,7 +20,7 @@ use once_cell::sync::Lazy;
 use secrecy::{ExposeSecret, Secret};
 use tokio::sync::mpsc;
 
-use crate::api::{BackendService, RestError, RunnerService};
+use crate::api::{ApiClient, NodeBackendService, NodeRunnerService};
 use crate::lexe::persister;
 
 type FileName = String;
@@ -102,7 +103,26 @@ impl MockApiClient {
 }
 
 #[async_trait]
-impl BackendService for MockApiClient {
+impl ApiClient for MockApiClient {
+    async fn create_file_with_retries(
+        &self,
+        file: &File,
+        _retries: usize,
+    ) -> Result<File, RestError> {
+        self.create_file(file).await
+    }
+
+    async fn upsert_file_with_retries(
+        &self,
+        file: &File,
+        _retries: usize,
+    ) -> Result<File, RestError> {
+        self.upsert_file(file).await
+    }
+}
+
+#[async_trait]
+impl NodeBackendService for MockApiClient {
     /// Always return the dummy version
     async fn get_node(
         &self,
@@ -165,25 +185,9 @@ impl BackendService for MockApiClient {
         Ok(file.clone())
     }
 
-    async fn create_file_with_retries(
-        &self,
-        file: &File,
-        _retries: usize,
-    ) -> Result<File, RestError> {
-        self.create_file(file).await
-    }
-
     async fn upsert_file(&self, file: &File) -> Result<File, RestError> {
         self.vfs.lock().unwrap().insert(file.clone());
         Ok(file.clone())
-    }
-
-    async fn upsert_file_with_retries(
-        &self,
-        file: &File,
-        _retries: usize,
-    ) -> Result<File, RestError> {
-        self.upsert_file(file).await
     }
 
     /// Returns "OK" if exactly one row was deleted.
@@ -203,7 +207,7 @@ impl BackendService for MockApiClient {
 }
 
 #[async_trait]
-impl RunnerService for MockApiClient {
+impl NodeRunnerService for MockApiClient {
     async fn notify_runner(
         &self,
         user_ports: UserPorts,
