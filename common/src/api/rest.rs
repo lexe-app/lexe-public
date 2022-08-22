@@ -4,7 +4,7 @@ use std::time::Duration;
 use bytes::Bytes;
 use http::Method;
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::time;
 use tracing::{debug, trace, warn};
@@ -23,20 +23,33 @@ const INITIAL_WAIT_MS: u64 = 250;
 const MAXIMUM_WAIT_MS: u64 = 32_000;
 const EXP_BASE: u64 = 2;
 
-#[derive(Error, Debug)]
+#[derive(Debug, Error, Serialize, Deserialize)]
 pub enum RestError {
-    #[error("Reqwest error")]
-    Reqwest(#[from] reqwest::Error),
+    #[error("Reqwest error: {0}")]
+    Reqwest(String),
 
-    #[error("JSON serialization error")]
-    JsonSerialization(#[from] serde_json::Error),
+    #[error("JSON serialization error: {0}")]
+    JsonSerialization(String),
 
-    #[error("Query string serialization error")]
-    QueryStringSerialization(#[from] serde_qs::Error),
+    #[error("Query string serialization error: {0}")]
+    QueryStringSerialization(String),
+}
 
-    // TODO(max): This should be refactored out
-    #[error("Server Error: {0}")]
-    Server(String),
+// Have to serialize to string because these error types don't implement ser/de
+impl From<reqwest::Error> for RestError {
+    fn from(err: reqwest::Error) -> Self {
+        Self::Reqwest(format!("{err:#}"))
+    }
+}
+impl From<serde_json::Error> for RestError {
+    fn from(err: serde_json::Error) -> Self {
+        Self::Reqwest(format!("{err:#}"))
+    }
+}
+impl From<serde_qs::Error> for RestError {
+    fn from(err: serde_qs::Error) -> Self {
+        Self::Reqwest(format!("{err:#}"))
+    }
 }
 
 struct RequestParts {
@@ -65,23 +78,33 @@ impl RestClient {
     }
 
     /// Makes an API request with 0 retries.
-    pub async fn request<D: Serialize, T: DeserializeOwned>(
+    pub async fn request<D, T, E>(
         &self,
         method: Method,
         url: String,
         data: &D,
-    ) -> Result<T, RestError> {
+    ) -> Result<T, E>
+    where
+        D: Serialize,
+        T: DeserializeOwned,
+        E: DeserializeOwned + From<RestError>,
+    {
         self.request_with_retries(method, url, data, 0).await
     }
 
     /// Makes an API request, retrying up to `retries` times.
-    pub async fn request_with_retries<D: Serialize, T: DeserializeOwned>(
+    pub async fn request_with_retries<D, T, E>(
         &self,
         method: Method,
         url: String,
         data: &D,
         retries: usize,
-    ) -> Result<T, RestError> {
+    ) -> Result<T, E>
+    where
+        D: Serialize,
+        T: DeserializeOwned,
+        E: DeserializeOwned + From<RestError>,
+    {
         // Serialize request parts
         let parts = self.serialize_parts(method, url, data)?;
 
@@ -149,10 +172,14 @@ impl RestClient {
     /// Build a [`reqwest::Request`] from [`RequestParts`], send it, and
     /// deserialize into the expected struct or an error message depending on
     /// the response status.
-    async fn send_and_deserialize<T: DeserializeOwned>(
+    async fn send_and_deserialize<T, E>(
         &self,
         parts: &RequestParts,
-    ) -> Result<T, RestError> {
+    ) -> Result<T, E>
+    where
+        T: DeserializeOwned,
+        E: DeserializeOwned + From<RestError>,
+    {
         let response = self
             .client
             // Method doesn't implement Copy
@@ -160,7 +187,8 @@ impl RestClient {
             // body is Bytes which can be cheaply cloned
             .body(parts.body.clone())
             .send()
-            .await?;
+            .await
+            .map_err(RestError::from)?;
 
         if response.status().is_success() {
             // Uncomment for debugging
@@ -168,11 +196,15 @@ impl RestClient {
             // println!("Response: {}", text);
             // serde_json::from_str(&text).map_err(|e| e.into())
 
-            // Deserialize into JSON, return Ok(json)
-            response.json().await.map_err(|e| e.into())
+            // Deserialize into Ok variant, return Ok(json)
+            response
+                .json::<T>()
+                .await
+                .map_err(RestError::from)
+                .map_err(E::from)
         } else {
-            // Deserialize into String, return Err(RestError::Server(string))
-            Err(RestError::Server(response.text().await?))
+            // Deserialize into Err variant, return Err(json)
+            Err(response.json::<E>().await.map_err(RestError::from)?)
         }
     }
 }
