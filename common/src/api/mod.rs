@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use crate::hex::{self, FromHex};
 use crate::hexstr_or_bytes;
 
-/// The traits that define the various REST interfaces.
+/// Traits defining the various REST API interfaces.
 pub mod def;
 /// Data types specific to provisioning.
 pub mod provision;

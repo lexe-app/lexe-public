@@ -41,6 +41,8 @@ lightning-invoice = { version = "0.18" }
 anyhow = "1"
 # Derive-based command line argument parsing
 argh = "0.1"
+# async fn's in trait methods
+async-trait = "0.1"
 # Working with bytes
 bytes = "1"
 # Conveniently write #[cfg(..)] if-else statements without repeating clauses
