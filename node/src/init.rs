@@ -266,7 +266,8 @@ impl LexeNode {
 
         // TODO(phlip9): authenticate host<->node
         // Start warp service for host
-        let host_routes = command::server::host_routes(shutdown.tx.host_routes);
+        let host_routes =
+            command::server::host_routes(args.user_pk, shutdown.tx.host_routes);
         let (host_addr, host_service_fut) = warp::serve(host_routes)
             // A value of 0 indicates that the OS will assign a port for us
             .try_bind_ephemeral(([127, 0, 0, 1], args.host_port.unwrap_or(0)))
