@@ -4,12 +4,20 @@
 use std::convert::Infallible;
 use std::sync::Arc;
 
+use common::api::UserPk;
 use tokio::sync::broadcast;
 use warp::Filter;
 
 use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::types::NetworkGraphType;
+
+/// Injects a [`UserPk`].
+pub fn user_pk(
+    user_pk: UserPk,
+) -> impl Filter<Extract = (UserPk,), Error = Infallible> + Clone {
+    warp::any().map(move || user_pk)
+}
 
 /// Injects a shutdown_tx.
 pub fn shutdown_tx(

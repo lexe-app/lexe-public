@@ -12,6 +12,7 @@
 
 use std::sync::Arc;
 
+use common::api::UserPk;
 use http::response::Response;
 use http::status::StatusCode;
 use serde::Serialize;
@@ -30,7 +31,13 @@ mod inject;
 
 /// Errors that can be returned to callers of the command API.
 #[derive(Error, Debug)]
-pub enum ApiError {}
+pub enum ApiError {
+    #[error("Wrong user pk; expected '{expected_pk}', received '{actual_pk}'")]
+    WrongUserPk {
+        expected_pk: UserPk,
+        actual_pk: UserPk,
+    },
+}
 
 impl Reply for ApiError {
     fn into_response(self) -> Response<Body> {
@@ -92,14 +99,21 @@ pub fn owner_routes(
 // TODO Add host authentication
 /// Endpoints that can only be called by the host (Lexe).
 pub fn host_routes(
+    user_pk: UserPk,
     shutdown_tx: broadcast::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     let root =
         warp::path::end().map(|| "This set of endpoints is for the host.");
 
-    let status = warp::path("status").and(warp::get()).then(host::status);
+    let status = warp::path("status")
+        .and(warp::get())
+        .and(warp::query())
+        .and(inject::user_pk(user_pk))
+        .then(host::status);
     let shutdown = warp::path("shutdown")
         .and(warp::get())
+        .and(warp::query())
+        .and(inject::user_pk(user_pk))
         .and(inject::shutdown_tx(shutdown_tx))
         .then(host::shutdown);
     let host = warp::path("host").and(status.or(shutdown));
