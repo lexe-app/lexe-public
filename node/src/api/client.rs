@@ -172,7 +172,7 @@ impl LexeApiClient {
         ver: ApiVersion,
         endpoint: &str,
     ) -> String {
-        // Node backend api is versioned but runner api is not
+        // Backend api is versioned but runner api is not
         let (base, ver) = match base {
             Backend => (&self.backend_url, ver.to_string()),
             Runner => (&self.runner_url, String::new()),
