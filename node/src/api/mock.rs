@@ -19,7 +19,7 @@ use once_cell::sync::Lazy;
 use secrecy::{ExposeSecret, Secret};
 use tokio::sync::mpsc;
 
-use crate::api::{ApiError, BackendService, RunnerService};
+use crate::api::{RestError, BackendService, RunnerService};
 use crate::lexe::persister;
 
 type FileName = String;
@@ -107,7 +107,7 @@ impl BackendService for MockApiClient {
     async fn get_node(
         &self,
         user_pk: UserPk,
-    ) -> Result<Option<Node>, ApiError> {
+    ) -> Result<Option<Node>, RestError> {
         let node = Node {
             node_pk: node_pk(user_pk),
             user_pk,
@@ -120,7 +120,7 @@ impl BackendService for MockApiClient {
         &self,
         user_pk: UserPk,
         _measurement: Measurement,
-    ) -> Result<Option<Instance>, ApiError> {
+    ) -> Result<Option<Instance>, RestError> {
         let instance = Instance {
             node_pk: node_pk(user_pk),
             measurement: enclave::measurement(),
@@ -133,7 +133,7 @@ impl BackendService for MockApiClient {
     async fn get_sealed_seed(
         &self,
         data: SealedSeedId,
-    ) -> Result<Option<SealedSeed>, ApiError> {
+    ) -> Result<Option<SealedSeed>, RestError> {
         let sealed_seed = SealedSeed::new(
             data.node_pk,
             data.measurement,
@@ -147,19 +147,19 @@ impl BackendService for MockApiClient {
     async fn create_node_instance_seed(
         &self,
         data: NodeInstanceSeed,
-    ) -> Result<NodeInstanceSeed, ApiError> {
+    ) -> Result<NodeInstanceSeed, RestError> {
         Ok(data)
     }
 
     async fn get_file(
         &self,
         file_id: &FileId,
-    ) -> Result<Option<File>, ApiError> {
+    ) -> Result<Option<File>, RestError> {
         let file_opt = self.vfs.lock().unwrap().get(file_id.clone());
         Ok(file_opt)
     }
 
-    async fn create_file(&self, file: &File) -> Result<File, ApiError> {
+    async fn create_file(&self, file: &File) -> Result<File, RestError> {
         let file_opt = self.vfs.lock().unwrap().insert(file.clone());
         assert!(file_opt.is_none());
         Ok(file.clone())
@@ -169,11 +169,11 @@ impl BackendService for MockApiClient {
         &self,
         file: &File,
         _retries: usize,
-    ) -> Result<File, ApiError> {
+    ) -> Result<File, RestError> {
         self.create_file(file).await
     }
 
-    async fn upsert_file(&self, file: &File) -> Result<File, ApiError> {
+    async fn upsert_file(&self, file: &File) -> Result<File, RestError> {
         self.vfs.lock().unwrap().insert(file.clone());
         Ok(file.clone())
     }
@@ -182,12 +182,12 @@ impl BackendService for MockApiClient {
         &self,
         file: &File,
         _retries: usize,
-    ) -> Result<File, ApiError> {
+    ) -> Result<File, RestError> {
         self.upsert_file(file).await
     }
 
     /// Returns "OK" if exactly one row was deleted.
-    async fn delete_file(&self, file_id: &FileId) -> Result<String, ApiError> {
+    async fn delete_file(&self, file_id: &FileId) -> Result<String, RestError> {
         let file_opt = self.vfs.lock().unwrap().remove(file_id.clone());
         assert!(file_opt.is_none());
         Ok(String::from("OK"))
@@ -196,7 +196,7 @@ impl BackendService for MockApiClient {
     async fn get_directory(
         &self,
         dir: &Directory,
-    ) -> Result<Vec<File>, ApiError> {
+    ) -> Result<Vec<File>, RestError> {
         let files_vec = self.vfs.lock().unwrap().get_dir(dir.clone());
         Ok(files_vec)
     }
@@ -207,7 +207,7 @@ impl RunnerService for MockApiClient {
     async fn notify_runner(
         &self,
         user_ports: UserPorts,
-    ) -> Result<UserPorts, ApiError> {
+    ) -> Result<UserPorts, RestError> {
         let _ = self.notifs_tx.try_send(user_ports);
         Ok(user_ports)
     }

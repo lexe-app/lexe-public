@@ -6,6 +6,9 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use bytes::Bytes;
+use common::api::rest::RestClient;
+use common::api::rest::RequestParts;
+use common::api::rest::{GET, PUT, POST, DELETE};
 use common::api::provision::SealedSeedId;
 use common::api::qs::{GetByUserPk, GetByUserPkAndMeasurement};
 use common::api::runner::UserPorts;
@@ -13,7 +16,6 @@ use common::api::vfs::{Directory, File, FileId};
 use common::api::UserPk;
 use common::enclave::Measurement;
 use http::Method;
-use reqwest::Client;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::time;
@@ -23,19 +25,12 @@ use self::ApiVersion::*;
 use self::BaseUrl::*;
 use crate::api::*;
 
-const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 const DEFAULT_RETRIES: usize = 0;
 
 // Exponential backup
 const INITIAL_WAIT_MS: u64 = 250;
 const MAXIMUM_WAIT_MS: u64 = 32_000;
 const EXP_BASE: u64 = 2;
-
-// Avoid `Method::` prefix. Associated constants can't be imported
-const GET: Method = Method::GET;
-const PUT: Method = Method::PUT;
-const POST: Method = Method::POST;
-const DELETE: Method = Method::DELETE;
 
 /// Enumerates the base urls that can be used in an API call.
 #[derive(Copy, Clone)]
@@ -57,26 +52,17 @@ impl Display for ApiVersion {
     }
 }
 
-struct RequestParts {
-    method: Method,
-    url: String,
-    body: Bytes,
-}
-
 pub struct LexeApiClient {
-    client: Client,
+    rest: RestClient,
     backend_url: String,
     runner_url: String,
 }
 
 impl LexeApiClient {
     pub fn new(backend_url: String, runner_url: String) -> Self {
-        let client = reqwest::Client::builder()
-            .timeout(API_REQUEST_TIMEOUT)
-            .build()
-            .expect("Failed to build reqwest Client");
+        let rest = RestClient::new();
         Self {
-            client,
+            rest,
             backend_url,
             runner_url,
         }
@@ -88,7 +74,7 @@ impl BackendService for LexeApiClient {
     async fn get_node(
         &self,
         user_pk: UserPk,
-    ) -> Result<Option<Node>, ApiError> {
+    ) -> Result<Option<Node>, RestError> {
         let data = GetByUserPk { user_pk };
         self.request(GET, Backend, V1, "/node", &data).await
     }
@@ -97,7 +83,7 @@ impl BackendService for LexeApiClient {
         &self,
         user_pk: UserPk,
         measurement: Measurement,
-    ) -> Result<Option<Instance>, ApiError> {
+    ) -> Result<Option<Instance>, RestError> {
         let data = GetByUserPkAndMeasurement {
             user_pk,
             measurement,
@@ -111,48 +97,50 @@ impl BackendService for LexeApiClient {
     async fn get_sealed_seed(
         &self,
         data: SealedSeedId,
-    ) -> Result<Option<SealedSeed>, ApiError> {
+    ) -> Result<Option<SealedSeed>, RestError> {
         self.request(GET, Backend, V1, "/sealed_seed", &data).await
     }
 
     async fn create_node_instance_seed(
         &self,
         data: NodeInstanceSeed,
-    ) -> Result<NodeInstanceSeed, ApiError> {
+    ) -> Result<NodeInstanceSeed, RestError> {
         let endpoint = "/acid/node_instance_seed";
         self.request(POST, Backend, V1, endpoint, &data).await
     }
 
-    async fn get_file(&self, data: &FileId) -> Result<Option<File>, ApiError> {
+    async fn get_file(&self, data: &FileId) -> Result<Option<File>, RestError> {
         let endpoint = "/file";
         self.request(GET, Backend, V1, endpoint, &data).await
     }
 
-    async fn create_file(&self, data: &File) -> Result<File, ApiError> {
+    async fn create_file(&self, data: &File) -> Result<File, RestError> {
         let endpoint = "/file";
         self.request(POST, Backend, V1, endpoint, &data).await
     }
 
+    // TODO(max): Remove from service definition
     async fn create_file_with_retries(
         &self,
         data: &File,
         retries: usize,
-    ) -> Result<File, ApiError> {
+    ) -> Result<File, RestError> {
         let endpoint = "/file";
         self.request_with_retries(POST, Backend, V1, endpoint, &data, retries)
             .await
     }
 
-    async fn upsert_file(&self, data: &File) -> Result<File, ApiError> {
+    async fn upsert_file(&self, data: &File) -> Result<File, RestError> {
         let endpoint = "/file";
         self.request(PUT, Backend, V1, endpoint, &data).await
     }
 
+    // TODO(max): Remove from service definition
     async fn upsert_file_with_retries(
         &self,
         data: &File,
         retries: usize,
-    ) -> Result<File, ApiError> {
+    ) -> Result<File, RestError> {
         let endpoint = "/file";
         self.request_with_retries(PUT, Backend, V1, endpoint, &data, retries)
             .await
@@ -161,7 +149,7 @@ impl BackendService for LexeApiClient {
     // TODO We want to delete channel peers / monitors when channels close
     /// Returns "OK" if exactly one row was deleted.
     #[allow(dead_code)]
-    async fn delete_file(&self, data: &FileId) -> Result<String, ApiError> {
+    async fn delete_file(&self, data: &FileId) -> Result<String, RestError> {
         let endpoint = "/file";
         self.request(DELETE, Backend, V1, endpoint, &data).await
     }
@@ -169,7 +157,7 @@ impl BackendService for LexeApiClient {
     async fn get_directory(
         &self,
         data: &Directory,
-    ) -> Result<Vec<File>, ApiError> {
+    ) -> Result<Vec<File>, RestError> {
         let endpoint = "/directory";
         self.request(GET, Backend, V1, endpoint, &data).await
     }
@@ -180,7 +168,7 @@ impl RunnerService for LexeApiClient {
     async fn notify_runner(
         &self,
         data: UserPorts,
-    ) -> Result<UserPorts, ApiError> {
+    ) -> Result<UserPorts, RestError> {
         self.request(POST, Runner, V1, "/ready", &data).await
     }
 }
@@ -194,7 +182,7 @@ impl LexeApiClient {
         ver: ApiVersion,
         endpoint: &str,
         data: &D,
-    ) -> Result<T, ApiError> {
+    ) -> Result<T, RestError> {
         self.request_with_retries(
             method,
             base,
@@ -215,7 +203,7 @@ impl LexeApiClient {
         endpoint: &str,
         data: &D,
         retries: usize,
-    ) -> Result<T, ApiError> {
+    ) -> Result<T, RestError> {
         // Serialize request parts
         let parts = self.serialize_parts(method, base, ver, endpoint, data)?;
 
@@ -228,7 +216,7 @@ impl LexeApiClient {
         // Do the 'retries' first and return early if successful.
         // This block is a noop if retries == 0.
         for _ in 0..retries {
-            let res = self.send_request(&parts).await;
+            let res = self.rest.send_request(&parts).await;
             if res.is_ok() {
                 return res;
             } else {
@@ -241,7 +229,7 @@ impl LexeApiClient {
         }
 
         // Do the 'main' attempt.
-        self.send_request(&parts).await
+        self.rest.send_request(&parts).await
     }
 
     /// Constructs the final, serialized parts of a [`reqwest::Request`].
@@ -252,7 +240,7 @@ impl LexeApiClient {
         ver: ApiVersion,
         endpoint: &str,
         data: &D,
-    ) -> Result<RequestParts, ApiError> {
+    ) -> Result<RequestParts, RestError> {
         // Node backend api is versioned but runner api is not
         let (base, ver) = match base {
             Backend => (&self.backend_url, ver.to_string()),
@@ -285,33 +273,4 @@ impl LexeApiClient {
         Ok(RequestParts { method, url, body })
     }
 
-    /// Build a [`reqwest::Request`] from [`RequestParts`], send it, and
-    /// deserialize into the expected struct or an error message depending on
-    /// the response status.
-    async fn send_request<T: DeserializeOwned>(
-        &self,
-        parts: &RequestParts,
-    ) -> Result<T, ApiError> {
-        let response = self
-            .client
-            // Method doesn't implement Copy
-            .request(parts.method.clone(), &parts.url)
-            // body is Bytes which can be cheaply cloned
-            .body(parts.body.clone())
-            .send()
-            .await?;
-
-        if response.status().is_success() {
-            // Uncomment for debugging
-            // let text = response.text().await?;
-            // println!("Response: {}", text);
-            // serde_json::from_str(&text).map_err(|e| e.into())
-
-            // Deserialize into JSON, return Ok(json)
-            response.json().await.map_err(|e| e.into())
-        } else {
-            // Deserialize into String, return Err(ApiError::Server(string))
-            Err(ApiError::Server(response.text().await?))
-        }
-    }
 }

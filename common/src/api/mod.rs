@@ -8,10 +8,17 @@ use serde::{Deserialize, Serialize};
 use crate::hex::{self, FromHex};
 use crate::hexstr_or_bytes;
 
+/// The traits that define the various REST interfaces.
+pub mod def;
+/// Data types specific to provisioning.
 pub mod provision;
-/// For serializing / deserializing query strings
+/// Data types used to serialize / deserialize query strings.
 pub mod qs;
+/// A generic REST client enforcing common REST semantics across Lexe crates.
+pub mod rest;
+/// Data types specific to the Runner.
 pub mod runner;
+/// Data types implementing vfs-based node persistence.
 pub mod vfs;
 
 #[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
