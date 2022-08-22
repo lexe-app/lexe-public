@@ -3,7 +3,7 @@
 use std::fmt::{self, Display};
 
 use async_trait::async_trait;
-use common::api::def::{NodeBackendApi, NodeRunnerApi};
+use common::api::def::{BackendApiError, NodeBackendApi, NodeRunnerApi};
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
@@ -61,7 +61,7 @@ impl ApiClient for LexeApiClient {
         &self,
         data: &File,
         retries: usize,
-    ) -> Result<File, RestError> {
+    ) -> Result<File, BackendApiError> {
         let url = self.build_url(Backend, V1, "/file");
         self.rest
             .request_with_retries(POST, url, &data, retries)
@@ -72,7 +72,7 @@ impl ApiClient for LexeApiClient {
         &self,
         data: &File,
         retries: usize,
-    ) -> Result<File, RestError> {
+    ) -> Result<File, BackendApiError> {
         let url = self.build_url(Backend, V1, "/file");
         self.rest
             .request_with_retries(PUT, url, &data, retries)
@@ -85,7 +85,7 @@ impl NodeBackendApi for LexeApiClient {
     async fn get_node(
         &self,
         user_pk: UserPk,
-    ) -> Result<Option<Node>, RestError> {
+    ) -> Result<Option<Node>, BackendApiError> {
         let data = GetByUserPk { user_pk };
         let url = self.build_url(Backend, V1, "/node");
         self.rest.request(GET, url, &data).await
@@ -95,7 +95,7 @@ impl NodeBackendApi for LexeApiClient {
         &self,
         user_pk: UserPk,
         measurement: Measurement,
-    ) -> Result<Option<Instance>, RestError> {
+    ) -> Result<Option<Instance>, BackendApiError> {
         let data = GetByUserPkAndMeasurement {
             user_pk,
             measurement,
@@ -108,7 +108,7 @@ impl NodeBackendApi for LexeApiClient {
     async fn get_sealed_seed(
         &self,
         data: SealedSeedId,
-    ) -> Result<Option<SealedSeed>, RestError> {
+    ) -> Result<Option<SealedSeed>, BackendApiError> {
         let url = self.build_url(Backend, V1, "/sealed_seed");
         self.rest.request(GET, url, &data).await
     }
@@ -116,22 +116,25 @@ impl NodeBackendApi for LexeApiClient {
     async fn create_node_instance_seed(
         &self,
         data: NodeInstanceSeed,
-    ) -> Result<NodeInstanceSeed, RestError> {
+    ) -> Result<NodeInstanceSeed, BackendApiError> {
         let url = self.build_url(Backend, V1, "/acid/node_instance_seed");
         self.rest.request(POST, url, &data).await
     }
 
-    async fn get_file(&self, data: &FileId) -> Result<Option<File>, RestError> {
+    async fn get_file(
+        &self,
+        data: &FileId,
+    ) -> Result<Option<File>, BackendApiError> {
         let url = self.build_url(Backend, V1, "/file");
         self.rest.request(GET, url, &data).await
     }
 
-    async fn create_file(&self, data: &File) -> Result<File, RestError> {
+    async fn create_file(&self, data: &File) -> Result<File, BackendApiError> {
         let url = self.build_url(Backend, V1, "/file");
         self.rest.request(POST, url, &data).await
     }
 
-    async fn upsert_file(&self, data: &File) -> Result<File, RestError> {
+    async fn upsert_file(&self, data: &File) -> Result<File, BackendApiError> {
         let url = self.build_url(Backend, V1, "/file");
         self.rest.request(PUT, url, &data).await
     }
@@ -139,7 +142,10 @@ impl NodeBackendApi for LexeApiClient {
     // TODO We want to delete channel peers / monitors when channels close
     /// Returns "OK" if exactly one row was deleted.
     #[allow(dead_code)]
-    async fn delete_file(&self, data: &FileId) -> Result<String, RestError> {
+    async fn delete_file(
+        &self,
+        data: &FileId,
+    ) -> Result<String, BackendApiError> {
         let url = self.build_url(Backend, V1, "/file");
         self.rest.request(DELETE, url, &data).await
     }
@@ -147,7 +153,7 @@ impl NodeBackendApi for LexeApiClient {
     async fn get_directory(
         &self,
         data: &Directory,
-    ) -> Result<Vec<File>, RestError> {
+    ) -> Result<Vec<File>, BackendApiError> {
         let url = self.build_url(Backend, V1, "/directory");
         self.rest.request(GET, url, &data).await
     }

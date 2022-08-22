@@ -5,7 +5,7 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use bitcoin::secp256k1::PublicKey;
-use common::api::def::{NodeBackendApi, NodeRunnerApi};
+use common::api::def::{BackendApiError, NodeBackendApi, NodeRunnerApi};
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, ProvisionedSecrets, SealedSeed,
     SealedSeedId,
@@ -109,7 +109,7 @@ impl ApiClient for MockApiClient {
         &self,
         file: &File,
         _retries: usize,
-    ) -> Result<File, RestError> {
+    ) -> Result<File, BackendApiError> {
         self.create_file(file).await
     }
 
@@ -117,7 +117,7 @@ impl ApiClient for MockApiClient {
         &self,
         file: &File,
         _retries: usize,
-    ) -> Result<File, RestError> {
+    ) -> Result<File, BackendApiError> {
         self.upsert_file(file).await
     }
 }
@@ -128,7 +128,7 @@ impl NodeBackendApi for MockApiClient {
     async fn get_node(
         &self,
         user_pk: UserPk,
-    ) -> Result<Option<Node>, RestError> {
+    ) -> Result<Option<Node>, BackendApiError> {
         let node = Node {
             node_pk: node_pk(user_pk),
             user_pk,
@@ -141,7 +141,7 @@ impl NodeBackendApi for MockApiClient {
         &self,
         user_pk: UserPk,
         _measurement: Measurement,
-    ) -> Result<Option<Instance>, RestError> {
+    ) -> Result<Option<Instance>, BackendApiError> {
         let instance = Instance {
             node_pk: node_pk(user_pk),
             measurement: enclave::measurement(),
@@ -154,7 +154,7 @@ impl NodeBackendApi for MockApiClient {
     async fn get_sealed_seed(
         &self,
         data: SealedSeedId,
-    ) -> Result<Option<SealedSeed>, RestError> {
+    ) -> Result<Option<SealedSeed>, BackendApiError> {
         let sealed_seed = SealedSeed::new(
             data.node_pk,
             data.measurement,
@@ -168,31 +168,34 @@ impl NodeBackendApi for MockApiClient {
     async fn create_node_instance_seed(
         &self,
         data: NodeInstanceSeed,
-    ) -> Result<NodeInstanceSeed, RestError> {
+    ) -> Result<NodeInstanceSeed, BackendApiError> {
         Ok(data)
     }
 
     async fn get_file(
         &self,
         file_id: &FileId,
-    ) -> Result<Option<File>, RestError> {
+    ) -> Result<Option<File>, BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().get(file_id.clone());
         Ok(file_opt)
     }
 
-    async fn create_file(&self, file: &File) -> Result<File, RestError> {
+    async fn create_file(&self, file: &File) -> Result<File, BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().insert(file.clone());
         assert!(file_opt.is_none());
         Ok(file.clone())
     }
 
-    async fn upsert_file(&self, file: &File) -> Result<File, RestError> {
+    async fn upsert_file(&self, file: &File) -> Result<File, BackendApiError> {
         self.vfs.lock().unwrap().insert(file.clone());
         Ok(file.clone())
     }
 
     /// Returns "OK" if exactly one row was deleted.
-    async fn delete_file(&self, file_id: &FileId) -> Result<String, RestError> {
+    async fn delete_file(
+        &self,
+        file_id: &FileId,
+    ) -> Result<String, BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().remove(file_id.clone());
         assert!(file_opt.is_none());
         Ok(String::from("OK"))
@@ -201,7 +204,7 @@ impl NodeBackendApi for MockApiClient {
     async fn get_directory(
         &self,
         dir: &Directory,
-    ) -> Result<Vec<File>, RestError> {
+    ) -> Result<Vec<File>, BackendApiError> {
         let files_vec = self.vfs.lock().unwrap().get_dir(dir.clone());
         Ok(files_vec)
     }

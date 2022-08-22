@@ -84,6 +84,10 @@ sgx-isa = "=0.4.0"
 thiserror = "1"
 # Logging
 tracing = "0.1"
+# Filter-based webserver
+# NOTE: This branch implements (1) Reply for Result<impl Reply, impl Reply> and
+#       (2) allows setting a prebuilt rustls TLS server config
+warp = { git = "https://github.com/lexe-tech/warp", branch = "lexe", default-features = false, features = ["tls"] }
 # Verify x509 certificates
 webpki = "0.22"
 # Parsing x509 cert extensions
