@@ -22,8 +22,10 @@ impl<A: BackendService + RunnerService> ApiClient for A {}
 
 #[async_trait]
 pub trait BackendService {
-    async fn get_node(&self, user_pk: UserPk)
-        -> Result<Option<Node>, RestError>;
+    async fn get_node(
+        &self,
+        user_pk: UserPk,
+    ) -> Result<Option<Node>, RestError>;
 
     async fn get_instance(
         &self,

@@ -5,12 +5,9 @@ use std::fmt::{self, Display};
 use std::time::Duration;
 
 use async_trait::async_trait;
-use bytes::Bytes;
-use common::api::rest::RestClient;
-use common::api::rest::RequestParts;
-use common::api::rest::{GET, PUT, POST, DELETE};
 use common::api::provision::SealedSeedId;
 use common::api::qs::{GetByUserPk, GetByUserPkAndMeasurement};
+use common::api::rest::{RestClient, DELETE, GET, POST, PUT};
 use common::api::runner::UserPorts;
 use common::api::vfs::{Directory, File, FileId};
 use common::api::UserPk;
@@ -19,7 +16,7 @@ use http::Method;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::time;
-use tracing::{debug, trace, warn};
+use tracing::warn;
 
 use self::ApiVersion::*;
 use self::BaseUrl::*;
@@ -205,7 +202,8 @@ impl LexeApiClient {
         retries: usize,
     ) -> Result<T, RestError> {
         // Serialize request parts
-        let parts = self.serialize_parts(method, base, ver, endpoint, data)?;
+        let url = self.build_url(base, ver, endpoint);
+        let parts = self.rest.serialize_parts(method, url, data)?;
 
         // Exponential backup
         let mut backup_durations = (0..)
@@ -232,45 +230,19 @@ impl LexeApiClient {
         self.rest.send_request(&parts).await
     }
 
-    /// Constructs the final, serialized parts of a [`reqwest::Request`].
-    fn serialize_parts<D: Serialize>(
+    /// Constructs the request URL including the base, version, and endpoint
+    /// (NOT including the query string)
+    fn build_url(
         &self,
-        method: Method,
         base: BaseUrl,
         ver: ApiVersion,
         endpoint: &str,
-        data: &D,
-    ) -> Result<RequestParts, RestError> {
+    ) -> String {
         // Node backend api is versioned but runner api is not
         let (base, ver) = match base {
             Backend => (&self.backend_url, ver.to_string()),
             Runner => (&self.runner_url, String::new()),
         };
-        let mut url = format!("{}{}{}", base, ver, endpoint);
-
-        // If GET, serialize the data in a query string
-        let query_str = match method {
-            GET => Some(serde_qs::to_string(data)?),
-            _ => None,
-        };
-        // Append directly to url since RequestBuilder.param() API is unwieldy
-        if let Some(query_str) = query_str {
-            if !query_str.is_empty() {
-                url.push('?');
-                url.push_str(&query_str);
-            }
-        }
-        debug!(%method, %url, "sending request");
-
-        // If PUT or POST, serialize the data in the request body
-        let body_str = match method {
-            PUT | POST => serde_json::to_string(data)?,
-            _ => String::new(),
-        };
-        trace!(%body_str);
-        let body = Bytes::from(body_str);
-
-        Ok(RequestParts { method, url, body })
+        format!("{}{}{}", base, ver, endpoint)
     }
-
 }

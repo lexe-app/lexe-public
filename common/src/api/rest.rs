@@ -2,8 +2,10 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use http::Method;
-use thiserror::Error;
+use serde::Serialize;
 use serde::de::DeserializeOwned;
+use thiserror::Error;
+use tracing::{debug, trace};
 
 // Default parameters
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -29,6 +31,7 @@ pub enum RestError {
     Server(String),
 }
 
+// TODO(max): Does this need to be public?
 pub struct RequestParts {
     pub method: Method,
     pub url: String,
@@ -52,6 +55,42 @@ impl Default for RestClient {
 impl RestClient {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    // TODO(max): Does this need to be public?
+    /// Constructs the final, serialized parts of a [`reqwest::Request`] given
+    /// an HTTP method and url. The url should include the base, version, and
+    /// endpoint, but should NOT include the query string.
+    /// Example: "http://127.0.0.1:3030/v1/file"
+    pub fn serialize_parts<D: Serialize>(
+        &self,
+        method: Method,
+        mut url: String,
+        data: &D,
+    ) -> Result<RequestParts, RestError> {
+        // If GET, serialize the data in a query string
+        let query_str = match method {
+            GET => Some(serde_qs::to_string(data)?),
+            _ => None,
+        };
+        // Append directly to url since RequestBuilder.param() API is unwieldy
+        if let Some(query_str) = query_str {
+            if !query_str.is_empty() {
+                url.push('?');
+                url.push_str(&query_str);
+            }
+        }
+        debug!(%method, %url, "sending request");
+
+        // If PUT or POST, serialize the data in the request body
+        let body_str = match method {
+            PUT | POST => serde_json::to_string(data)?,
+            _ => String::new(),
+        };
+        trace!(%body_str);
+        let body = Bytes::from(body_str);
+
+        Ok(RequestParts { method, url, body })
     }
 
     // TODO(max): This might not need to be pub?

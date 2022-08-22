@@ -19,7 +19,7 @@ use once_cell::sync::Lazy;
 use secrecy::{ExposeSecret, Secret};
 use tokio::sync::mpsc;
 
-use crate::api::{RestError, BackendService, RunnerService};
+use crate::api::{BackendService, RestError, RunnerService};
 use crate::lexe::persister;
 
 type FileName = String;
