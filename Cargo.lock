@@ -480,6 +480,7 @@ dependencies = [
  "anyhow",
  "argh",
  "asn1-rs",
+ "async-trait",
  "base64",
  "bitcoin",
  "bitcoin-bech32",

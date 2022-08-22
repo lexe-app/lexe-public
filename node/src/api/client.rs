@@ -3,6 +3,7 @@
 use std::fmt::{self, Display};
 
 use async_trait::async_trait;
+use common::api::def::{NodeBackendApi, NodeRunnerApi};
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
@@ -15,7 +16,7 @@ use common::enclave::Measurement;
 
 use self::ApiVersion::*;
 use self::BaseUrl::*;
-use crate::api::{ApiClient, NodeBackendService, NodeRunnerService};
+use crate::api::ApiClient;
 
 /// Enumerates the base urls that can be used in an API call.
 #[derive(Copy, Clone)]
@@ -80,7 +81,7 @@ impl ApiClient for LexeApiClient {
 }
 
 #[async_trait]
-impl NodeBackendService for LexeApiClient {
+impl NodeBackendApi for LexeApiClient {
     async fn get_node(
         &self,
         user_pk: UserPk,
@@ -153,7 +154,7 @@ impl NodeBackendService for LexeApiClient {
 }
 
 #[async_trait]
-impl NodeRunnerService for LexeApiClient {
+impl NodeRunnerApi for LexeApiClient {
     async fn notify_runner(
         &self,
         data: UserPorts,

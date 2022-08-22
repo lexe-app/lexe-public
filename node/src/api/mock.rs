@@ -5,6 +5,7 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use bitcoin::secp256k1::PublicKey;
+use common::api::def::{NodeBackendApi, NodeRunnerApi};
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, ProvisionedSecrets, SealedSeed,
     SealedSeedId,
@@ -20,7 +21,7 @@ use once_cell::sync::Lazy;
 use secrecy::{ExposeSecret, Secret};
 use tokio::sync::mpsc;
 
-use crate::api::{ApiClient, NodeBackendService, NodeRunnerService};
+use crate::api::ApiClient;
 use crate::lexe::persister;
 
 type FileName = String;
@@ -122,7 +123,7 @@ impl ApiClient for MockApiClient {
 }
 
 #[async_trait]
-impl NodeBackendService for MockApiClient {
+impl NodeBackendApi for MockApiClient {
     /// Always return the dummy version
     async fn get_node(
         &self,
@@ -207,7 +208,7 @@ impl NodeBackendService for MockApiClient {
 }
 
 #[async_trait]
-impl NodeRunnerService for MockApiClient {
+impl NodeRunnerApi for MockApiClient {
     async fn notify_runner(
         &self,
         user_ports: UserPorts,
