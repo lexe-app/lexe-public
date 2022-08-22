@@ -510,6 +510,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-rustls",
+ "tracing",
  "webpki 0.22.0",
  "x509-parser",
  "yasna",

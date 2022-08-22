@@ -80,6 +80,8 @@ serde_json = "1"
 sgx-isa = "=0.4.0"
 # Easy error definition
 thiserror = "1"
+# Logging
+tracing = "0.1"
 # Verify x509 certificates
 webpki = "0.22"
 # Parsing x509 cert extensions
