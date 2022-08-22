@@ -19,7 +19,7 @@ use once_cell::sync::Lazy;
 use secrecy::{ExposeSecret, Secret};
 use tokio::sync::mpsc;
 
-use crate::api::{ApiClient, ApiError};
+use crate::api::{ApiError, BackendService, RunnerService};
 use crate::lexe::persister;
 
 type FileName = String;
@@ -102,7 +102,7 @@ impl MockApiClient {
 }
 
 #[async_trait]
-impl ApiClient for MockApiClient {
+impl BackendService for MockApiClient {
     /// Always return the dummy version
     async fn get_node(
         &self,
@@ -200,7 +200,10 @@ impl ApiClient for MockApiClient {
         let files_vec = self.vfs.lock().unwrap().get_dir(dir.clone());
         Ok(files_vec)
     }
+}
 
+#[async_trait]
+impl RunnerService for MockApiClient {
     async fn notify_runner(
         &self,
         user_ports: UserPorts,

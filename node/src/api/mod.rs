@@ -30,8 +30,13 @@ pub enum ApiError {
     Server(String),
 }
 
+/// A trait for a client that can handle requests to both the backend + runner
+pub trait ApiClient: BackendService + RunnerService {}
+
+impl<A: BackendService + RunnerService> ApiClient for A {}
+
 #[async_trait]
-pub trait ApiClient {
+pub trait BackendService {
     async fn get_node(&self, user_pk: UserPk)
         -> Result<Option<Node>, ApiError>;
 
@@ -80,7 +85,10 @@ pub trait ApiClient {
         &self,
         dir: &Directory,
     ) -> Result<Vec<File>, ApiError>;
+}
 
+#[async_trait]
+pub trait RunnerService {
     async fn notify_runner(
         &self,
         user_ports: UserPorts,

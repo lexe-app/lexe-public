@@ -84,7 +84,7 @@ impl LexeApiClient {
 }
 
 #[async_trait]
-impl ApiClient for LexeApiClient {
+impl BackendService for LexeApiClient {
     async fn get_node(
         &self,
         user_pk: UserPk,
@@ -173,7 +173,10 @@ impl ApiClient for LexeApiClient {
         let endpoint = "/directory";
         self.request(GET, Backend, V1, endpoint, &data).await
     }
+}
 
+#[async_trait]
+impl RunnerService for LexeApiClient {
     async fn notify_runner(
         &self,
         data: UserPorts,
