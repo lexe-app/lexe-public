@@ -148,7 +148,7 @@ pub struct RunArgs {
     #[argh(switch)]
     pub repl: bool,
 
-    /// protocol://host:port of the node backend.
+    /// protocol://host:port of the backend.
     #[argh(option, default = "DEFAULT_BACKEND_URL.to_owned()")]
     pub backend_url: String,
 
@@ -252,7 +252,7 @@ pub struct ProvisionArgs {
     #[argh(option, default = "NODE_PROVISION_DNS.to_owned()")]
     pub node_dns_name: String,
 
-    /// protocol://host:port of the node backend.
+    /// protocol://host:port of the backend.
     #[argh(option, default = "DEFAULT_BACKEND_URL.to_owned()")]
     pub backend_url: String,
 
