@@ -65,6 +65,7 @@ struct RequestParts {
     body: Bytes,
 }
 
+#[derive(Clone)]
 pub struct RestClient {
     client: reqwest::Client,
 }
@@ -139,6 +140,9 @@ impl RestClient {
         // Do the 'main' attempt.
         self.send_and_deserialize(&parts).await
     }
+
+    // TODO(max): Implement a request_indefinitely which keeps retrying with
+    // exponential backup until
 
     /// Constructs the final, serialized parts of a [`reqwest::Request`] given
     /// an HTTP method and url. The given url should include the base, version,

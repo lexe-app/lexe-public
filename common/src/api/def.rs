@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use crate::api::error::{BackendApiError, RunnerApiError};
+use crate::api::error::{BackendApiError, NodeApiError, RunnerApiError};
 use crate::api::provision::{
     Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
@@ -62,4 +62,11 @@ pub trait NodeRunnerApi {
         &self,
         user_ports: UserPorts,
     ) -> Result<UserPorts, RunnerApiError>;
+}
+
+/// Defines the api that the runner exposes to the host (Lexe)
+#[async_trait]
+pub trait HostNodeApi {
+    async fn status(&self, user_pk: UserPk) -> Result<String, NodeApiError>;
+    async fn shutdown(&self, user_pk: UserPk) -> Result<(), NodeApiError>;
 }
