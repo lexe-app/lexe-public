@@ -1,5 +1,6 @@
 use async_trait::async_trait;
-use common::api::def::{BackendApiError, NodeBackendApi, NodeRunnerApi};
+use common::api::def::{NodeBackendApi, NodeRunnerApi};
+use common::api::error::BackendApiError;
 use common::api::vfs::File;
 
 #[cfg(any(test, not(target_env = "sgx")))]

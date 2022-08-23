@@ -5,12 +5,12 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use bitcoin::secp256k1::PublicKey;
-use common::api::def::{BackendApiError, NodeBackendApi, NodeRunnerApi};
+use common::api::def::{NodeBackendApi, NodeRunnerApi};
+use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, ProvisionedSecrets, SealedSeed,
     SealedSeedId,
 };
-use common::api::rest::RestError;
 use common::api::runner::UserPorts;
 use common::api::vfs::{Directory, File, FileId};
 use common::api::UserPk;
@@ -215,7 +215,7 @@ impl NodeRunnerApi for MockApiClient {
     async fn notify_runner(
         &self,
         user_ports: UserPorts,
-    ) -> Result<UserPorts, RestError> {
+    ) -> Result<UserPorts, RunnerApiError> {
         let _ = self.notifs_tx.try_send(user_ports);
         Ok(user_ports)
     }

@@ -10,6 +10,8 @@ use crate::hexstr_or_bytes;
 
 /// Traits defining the various REST API interfaces.
 pub mod def;
+/// Enums for the API errors returned by the various services.
+pub mod error;
 /// Data types specific to provisioning.
 pub mod provision;
 /// Data types used to serialize / deserialize query strings.

@@ -12,15 +12,13 @@
 
 use std::sync::Arc;
 
+use common::api::rest::into_response;
 use common::api::UserPk;
-use http::response::Response;
-use http::status::StatusCode;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::{broadcast, mpsc};
 use tracing::trace;
-use warp::hyper::Body;
-use warp::{reply, Filter, Rejection, Reply};
+use warp::{Filter, Rejection, Reply};
 
 use crate::command::{host, owner};
 use crate::lexe::channel_manager::LexeChannelManager;
@@ -30,33 +28,13 @@ use crate::types::NetworkGraphType;
 mod inject;
 
 /// Errors that can be returned to callers of the command API.
-#[derive(Error, Debug)]
+#[derive(Error, Debug, Serialize, Deserialize)]
 pub enum ApiError {
     #[error("Wrong user pk; expected '{expected_pk}', received '{actual_pk}'")]
     WrongUserPk {
         expected_pk: UserPk,
         actual_pk: UserPk,
     },
-}
-
-impl Reply for ApiError {
-    fn into_response(self) -> Response<Body> {
-        Response::builder()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .body(self.to_string().into())
-            .expect("Could not construct Response")
-    }
-}
-
-/// Converts Result<S, E> into Response<Body>, avoiding the need to call
-/// reply::json(&resp) in every handler or to implement warp::Reply manually
-fn into_response<S: Serialize, E: Reply>(
-    reply_res: Result<S, E>,
-) -> Response<Body> {
-    match reply_res {
-        Ok(resp) => reply::json(&resp).into_response(),
-        Err(err) => err.into_response(),
-    }
 }
 
 // TODO Add owner authentication
@@ -109,13 +87,15 @@ pub fn host_routes(
         .and(warp::get())
         .and(warp::query())
         .and(inject::user_pk(user_pk))
-        .then(host::status);
+        .then(host::status)
+        .map(into_response);
     let shutdown = warp::path("shutdown")
         .and(warp::get())
         .and(warp::query())
         .and(inject::user_pk(user_pk))
         .and(inject::shutdown_tx(shutdown_tx))
-        .then(host::shutdown);
+        .map(host::shutdown)
+        .map(into_response);
     let host = warp::path("host").and(status.or(shutdown));
 
     root.or(host)

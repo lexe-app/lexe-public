@@ -1,7 +1,6 @@
 use common::api::qs::GetByUserPk;
 use common::api::UserPk;
 use tokio::sync::broadcast;
-use warp::Reply;
 
 use crate::command::server::ApiError;
 
@@ -9,13 +8,13 @@ use crate::command::server::ApiError;
 pub async fn status(
     query: GetByUserPk,
     user_pk: UserPk,
-) -> Result<impl Reply, ApiError> {
+) -> Result<String, ApiError> {
     let expected_pk = user_pk;
     let actual_pk = query.user_pk;
 
     if expected_pk == actual_pk {
         // TODO Actually get status
-        Ok("OK")
+        Ok(String::from("OK"))
     } else {
         Err(ApiError::WrongUserPk {
             expected_pk,
@@ -25,17 +24,17 @@ pub async fn status(
 }
 
 /// GET /host/shutdown -> "Shutdown signal sent"
-pub async fn shutdown(
+pub fn shutdown(
     query: GetByUserPk,
     user_pk: UserPk,
     shutdown_tx: broadcast::Sender<()>,
-) -> Result<impl Reply, ApiError> {
+) -> Result<String, ApiError> {
     let expected_pk = user_pk;
     let actual_pk = query.user_pk;
 
     if expected_pk == actual_pk {
         let _ = shutdown_tx.send(());
-        Ok("Shutdown signal sent")
+        Ok(String::from("Shutdown signal sent"))
     } else {
         Err(ApiError::WrongUserPk {
             expected_pk,

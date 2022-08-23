@@ -3,12 +3,13 @@
 use std::fmt::{self, Display};
 
 use async_trait::async_trait;
-use common::api::def::{BackendApiError, NodeBackendApi, NodeRunnerApi};
+use common::api::def::{NodeBackendApi, NodeRunnerApi};
+use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
 use common::api::qs::{GetByUserPk, GetByUserPkAndMeasurement};
-use common::api::rest::{RestClient, RestError, DELETE, GET, POST, PUT};
+use common::api::rest::{RestClient, DELETE, GET, POST, PUT};
 use common::api::runner::UserPorts;
 use common::api::vfs::{Directory, File, FileId};
 use common::api::UserPk;
@@ -164,7 +165,7 @@ impl NodeRunnerApi for LexeApiClient {
     async fn notify_runner(
         &self,
         data: UserPorts,
-    ) -> Result<UserPorts, RestError> {
+    ) -> Result<UserPorts, RunnerApiError> {
         let url = self.build_url(Runner, V1, "/ready");
         self.rest.request(POST, url, &data).await
     }
