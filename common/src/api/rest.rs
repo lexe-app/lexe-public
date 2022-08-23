@@ -12,7 +12,7 @@ use tracing::{debug, trace, warn};
 use warp::hyper::Body;
 use warp::{reply, Reply};
 
-use crate::api::error::RestError;
+use crate::api::error::CommonError;
 
 // Default parameters
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -95,7 +95,7 @@ impl RestClient {
     where
         D: Serialize,
         T: DeserializeOwned,
-        E: DeserializeOwned + From<RestError>,
+        E: DeserializeOwned + From<CommonError>,
     {
         self.request_with_retries(method, url, data, 0).await
     }
@@ -111,7 +111,7 @@ impl RestClient {
     where
         D: Serialize,
         T: DeserializeOwned,
-        E: DeserializeOwned + From<RestError>,
+        E: DeserializeOwned + From<CommonError>,
     {
         // Serialize request parts
         let parts = self.serialize_parts(method, url, data)?;
@@ -142,7 +142,7 @@ impl RestClient {
     }
 
     // TODO(max): Implement a request_indefinitely which keeps retrying with
-    // exponential backup until
+    // exponential backup until we receive any of a set of error codes
 
     /// Constructs the final, serialized parts of a [`reqwest::Request`] given
     /// an HTTP method and url. The given url should include the base, version,
@@ -154,7 +154,7 @@ impl RestClient {
         method: Method,
         mut url: String,
         data: &D,
-    ) -> Result<RequestParts, RestError> {
+    ) -> Result<RequestParts, CommonError> {
         // If GET, serialize the data in a query string
         let query_str = match method {
             GET => Some(serde_qs::to_string(data)?),
@@ -189,7 +189,7 @@ impl RestClient {
     ) -> Result<T, E>
     where
         T: DeserializeOwned,
-        E: DeserializeOwned + From<RestError>,
+        E: DeserializeOwned + From<CommonError>,
     {
         let response = self
             .client
@@ -199,7 +199,7 @@ impl RestClient {
             .body(parts.body.clone())
             .send()
             .await
-            .map_err(RestError::from)?;
+            .map_err(CommonError::from)?;
 
         if response.status().is_success() {
             // Uncomment for debugging
@@ -211,11 +211,11 @@ impl RestClient {
             response
                 .json::<T>()
                 .await
-                .map_err(RestError::from)
+                .map_err(CommonError::from)
                 .map_err(E::from)
         } else {
             // Deserialize into Err variant, return Err(json)
-            Err(response.json::<E>().await.map_err(RestError::from)?)
+            Err(response.json::<E>().await.map_err(CommonError::from)?)
         }
     }
 }

@@ -5,9 +5,28 @@ use tokio::sync::{mpsc, oneshot};
 use crate::api::UserPk;
 use crate::hex;
 
-/// All errors the `RestClient` can generate during serialization, request, etc.
+// pub struct ErrorResponse {
+//     code: usize,
+//     msg: String,
+// }
+
+// pub enum BackendApiError {
+//     Common(CommonError),
+//     Backend(BackendErrorKind),
+// }
+// pub enum RunnerApiError {
+//     Common(CommonError),
+//     Runner(RunnerErrorKind),
+// }
+// pub enum NodeApiError {
+//     Common(CommonError),
+//     Node(NodeErrorKind),
+// }
+
+// TODO(max): Make more generic, split out Reqwest by network, timeout, etc
+/// Common errors generated during serialization, request, etc
 #[derive(Error, Debug, Serialize, Deserialize)]
-pub enum RestError {
+pub enum CommonError {
     #[error("Reqwest error: {0}")]
     Reqwest(String),
     #[error("JSON serialization error: {0}")]
@@ -21,19 +40,21 @@ pub enum RestError {
 /// All API errors that the backend can return.
 #[derive(Error, Debug, Serialize, Deserialize)]
 pub enum BackendApiError {
+    #[error("Common error: {0:#}")]
+    Common(#[from] CommonError),
     #[error("Database error: {0}")]
     Database(String),
     #[error("Not found")]
     NotFound,
     #[error("Could not convert entity to type: {0}")]
     EntityConversion(String),
-    #[error("Rest error: {0:#}")]
-    Rest(#[from] RestError),
 }
 
 /// All API errors that the runner can return.
 #[derive(Error, Debug, Serialize, Deserialize)]
 pub enum RunnerApiError {
+    #[error("Common error: {0:#}")]
+    Common(#[from] CommonError),
     #[error("Database error: {0}")]
     Database(String),
     #[error("Mpsc receiver was full or dropped")]
@@ -42,33 +63,32 @@ pub enum RunnerApiError {
     OneshotRecv,
     #[error("Runner error: {0}")]
     Runner(String),
-    #[error("Rest error: {0:#}")]
-    Rest(#[from] RestError),
 }
 
 /// All API errors that the node can return.
 #[derive(Error, Debug, Serialize, Deserialize)]
 pub enum NodeApiError {
-    #[error("Rest error: {0:#}")]
-    Rest(#[from] RestError),
+    #[error("Common error: {0:#}")]
+    Common(#[from] CommonError),
     #[error("Wrong user pk: Node has '{saved_pk}' but received '{given_pk}'")]
     WrongUserPk { saved_pk: UserPk, given_pk: UserPk },
 }
 
-// --- RestError From impls --- //
+// --- CommonError From impls --- //
 
 // Have to serialize to string because these error types don't implement ser/de
-impl From<reqwest::Error> for RestError {
+impl From<reqwest::Error> for CommonError {
     fn from(err: reqwest::Error) -> Self {
+        // TODO(max): More granularity here
         Self::Reqwest(format!("{err:#}"))
     }
 }
-impl From<serde_json::Error> for RestError {
+impl From<serde_json::Error> for CommonError {
     fn from(err: serde_json::Error) -> Self {
         Self::Reqwest(format!("{err:#}"))
     }
 }
-impl From<serde_qs::Error> for RestError {
+impl From<serde_qs::Error> for CommonError {
     fn from(err: serde_qs::Error) -> Self {
         Self::Reqwest(format!("{err:#}"))
     }
