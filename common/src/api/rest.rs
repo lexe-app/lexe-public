@@ -2,12 +2,17 @@ use std::cmp::min;
 use std::time::Duration;
 
 use bytes::Bytes;
+use http::response::Response;
+use http::status::StatusCode;
 use http::Method;
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
+use serde::Serialize;
 use tokio::time;
 use tracing::{debug, trace, warn};
+use warp::hyper::Body;
+use warp::{reply, Reply};
+
+use crate::api::error::RestError;
 
 // Default parameters
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -23,32 +28,34 @@ const INITIAL_WAIT_MS: u64 = 250;
 const MAXIMUM_WAIT_MS: u64 = 32_000;
 const EXP_BASE: u64 = 2;
 
-#[derive(Debug, Error, Serialize, Deserialize)]
-pub enum RestError {
-    #[error("Reqwest error: {0}")]
-    Reqwest(String),
-
-    #[error("JSON serialization error: {0}")]
-    JsonSerialization(String),
-
-    #[error("Query string serialization error: {0}")]
-    QueryStringSerialization(String),
-}
-
-// Have to serialize to string because these error types don't implement ser/de
-impl From<reqwest::Error> for RestError {
-    fn from(err: reqwest::Error) -> Self {
-        Self::Reqwest(format!("{err:#}"))
-    }
-}
-impl From<serde_json::Error> for RestError {
-    fn from(err: serde_json::Error) -> Self {
-        Self::Reqwest(format!("{err:#}"))
-    }
-}
-impl From<serde_qs::Error> for RestError {
-    fn from(err: serde_qs::Error) -> Self {
-        Self::Reqwest(format!("{err:#}"))
+/// A warp helper that converts Result<T, E> into Response<Body>. This function
+/// should be used in all warp routes because `RestClient::send_and_deserialize`
+/// relies on the HTTP status code to determine whether a response should be
+/// deserialized as the requested object or as an error enum. Using this
+/// function removes the need to call reply::json(&resp) in every warp handler
+/// or to manually create the response with error code 500 every time.
+///
+/// This function should be used at the end of a warp filter chain like so:
+///
+/// ```ignore
+/// let status = warp::path("status")
+///     .and(warp::get())
+///     .and(warp::query())
+///     .and(inject::user_pk(user_pk))
+///     .then(host::status)
+///     .map(into_response);
+/// ```
+pub fn into_response<T: Serialize, E: Serialize>(
+    reply_res: Result<T, E>,
+) -> Response<Body> {
+    match reply_res {
+        Ok(resp) => reply::json(&resp).into_response(),
+        Err(err_enum) => {
+            // Use warp's reply::json but ensure the status code is always 500
+            let mut response = reply::json(&err_enum).into_response();
+            *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+            response
+        }
     }
 }
 

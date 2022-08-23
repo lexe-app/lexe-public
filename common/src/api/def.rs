@@ -1,61 +1,13 @@
 use async_trait::async_trait;
-use http::response::Response;
-use http::status::StatusCode;
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
-use warp::hyper::Body;
-use warp::Reply;
 
+use crate::api::error::{BackendApiError, RunnerApiError};
 use crate::api::provision::{
     Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
-use crate::api::rest::RestError;
 use crate::api::runner::UserPorts;
 use crate::api::vfs::{Directory, File, FileId};
 use crate::api::UserPk;
 use crate::enclave::Measurement;
-use crate::hex;
-
-/// All errors that the backend can return.
-#[derive(Debug, Error, Serialize, Deserialize)]
-pub enum BackendApiError {
-    #[error("Database error: {0}")]
-    Database(String),
-    #[error("Not found")]
-    NotFound,
-    #[error("Could not convert entity to type: {0}")]
-    EntityConversion(String),
-    #[error("Rest error: {0}")]
-    Rest(#[from] RestError),
-}
-
-impl Reply for BackendApiError {
-    fn into_response(self) -> Response<Body> {
-        let err_str = format!("{:#}", self);
-        Response::builder()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .body(err_str.into())
-            .expect("Could not construct Response")
-    }
-}
-
-// Don't want the node to depend on sea-orm via the common crate
-#[cfg(not(target_env = "sgx"))]
-impl From<sea_orm::DbErr> for BackendApiError {
-    fn from(err: sea_orm::DbErr) -> Self {
-        Self::Database(format!("{err:#}"))
-    }
-}
-impl From<bitcoin::secp256k1::Error> for BackendApiError {
-    fn from(err: bitcoin::secp256k1::Error) -> Self {
-        Self::EntityConversion(format!("Pubkey decode err: {err:#}"))
-    }
-}
-impl From<hex::DecodeError> for BackendApiError {
-    fn from(err: hex::DecodeError) -> Self {
-        Self::EntityConversion(format!("Hex decode error: {err:#}"))
-    }
-}
 
 /// Defines the api that the backend exposes to the node.
 #[async_trait]
@@ -103,12 +55,11 @@ pub trait NodeBackendApi {
     ) -> Result<Vec<File>, BackendApiError>;
 }
 
-// TODO(max): This should return RunnerApiError
-/// Defines the service that the runner exposes to the node.
+/// Defines the api that the runner exposes to the node.
 #[async_trait]
 pub trait NodeRunnerApi {
     async fn notify_runner(
         &self,
         user_ports: UserPorts,
-    ) -> Result<UserPorts, RestError>;
+    ) -> Result<UserPorts, RunnerApiError>;
 }
