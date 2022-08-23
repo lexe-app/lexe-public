@@ -14,8 +14,6 @@ use std::sync::Arc;
 
 use common::api::rest::into_response;
 use common::api::UserPk;
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use tokio::sync::{broadcast, mpsc};
 use tracing::trace;
 use warp::{Filter, Rejection, Reply};
@@ -26,16 +24,6 @@ use crate::lexe::peer_manager::LexePeerManager;
 use crate::types::NetworkGraphType;
 
 mod inject;
-
-/// Errors that can be returned to callers of the command API.
-#[derive(Error, Debug, Serialize, Deserialize)]
-pub enum ApiError {
-    #[error("Wrong user pk; expected '{expected_pk}', received '{actual_pk}'")]
-    WrongUserPk {
-        expected_pk: UserPk,
-        actual_pk: UserPk,
-    },
-}
 
 // TODO Add owner authentication
 /// Endpoints that can only be called by the node owner.

@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 
+use crate::api::UserPk;
 use crate::hex;
 
 /// All errors the `RestClient` can generate during serialization, request, etc.
@@ -43,6 +44,15 @@ pub enum RunnerApiError {
     Runner(String),
     #[error("Rest error: {0:#}")]
     Rest(#[from] RestError),
+}
+
+/// All API errors that the node can return.
+#[derive(Error, Debug, Serialize, Deserialize)]
+pub enum NodeApiError {
+    #[error("Rest error: {0:#}")]
+    Rest(#[from] RestError),
+    #[error("Wrong user pk: Node has '{saved_pk}' but received '{given_pk}'")]
+    WrongUserPk { saved_pk: UserPk, given_pk: UserPk },
 }
 
 // --- RestError From impls --- //

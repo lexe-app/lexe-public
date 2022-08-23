@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
+use common::api::error::NodeApiError;
 use common::client::NodeInfo;
 use serde::Serialize;
 
-use crate::command::server::ApiError;
 use crate::lexe::channel_manager::{LexeChannelManager, LxChannelDetails};
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::types::NetworkGraphType;
@@ -12,7 +12,7 @@ use crate::types::NetworkGraphType;
 pub fn node_info(
     channel_manager: LexeChannelManager,
     peer_manager: LexePeerManager,
-) -> Result<NodeInfo, ApiError> {
+) -> Result<NodeInfo, NodeApiError> {
     let node_pk = channel_manager.get_our_node_id();
 
     let channels = channel_manager.list_channels();
@@ -42,7 +42,7 @@ pub struct ListChannels {
 pub fn list_channels(
     channel_manager: LexeChannelManager,
     _network_graph: Arc<NetworkGraphType>, // TODO REPL uses it, do we need it?
-) -> Result<ListChannels, ApiError> {
+) -> Result<ListChannels, NodeApiError> {
     let channel_details = channel_manager
         .list_channels()
         .into_iter()
