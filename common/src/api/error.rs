@@ -1,9 +1,5 @@
 use bitcoin::secp256k1::PublicKey;
 #[cfg(all(test, not(target_env = "sgx")))]
-use proptest::arbitrary::Arbitrary;
-#[cfg(all(test, not(target_env = "sgx")))]
-use proptest::strategy::{BoxedStrategy, Just, Strategy};
-#[cfg(all(test, not(target_env = "sgx")))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -82,6 +78,7 @@ enum CommonErrorKind {
 
 /// All variants of errors that the backend can return.
 #[derive(Error, Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 pub enum BackendErrorKind {
     #[error("Unknown error")]
     Unknown,
@@ -106,6 +103,7 @@ pub enum BackendErrorKind {
 
 /// All variants of errors that the runner can return.
 #[derive(Error, Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 pub enum RunnerErrorKind {
     #[error("Unknown error")]
     Unknown,
@@ -132,6 +130,7 @@ pub enum RunnerErrorKind {
 
 /// All variants of errors that the node can return.
 #[derive(Error, Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 pub enum NodeErrorKind {
     #[error("Unknown error")]
     Unknown,
@@ -462,115 +461,6 @@ impl From<oneshot::error::RecvError> for RunnerApiError {
 }
 
 // --- Library -> NodeApiError impls --- //
-
-// --- Arbitrary impls --- //
-
-#[cfg(all(test, not(target_env = "sgx")))]
-impl Arbitrary for BackendErrorKind {
-    type Parameters = ();
-    type Strategy = BoxedStrategy<Self>;
-
-    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        // You have been brought here because you added an error variant.
-        // Add another `Just` entry for the variant you just added below.
-        match Self::Unknown {
-            Self::Unknown
-            | Self::Serialization
-            | Self::Connect
-            | Self::Timeout
-            | Self::Decode
-            | Self::Reqwest
-            | Self::Database
-            | Self::NotFound
-            | Self::EntityConversion => {}
-        }
-
-        proptest::prop_oneof! {
-            Just(Self::Unknown),
-            Just(Self::Serialization),
-            Just(Self::Connect),
-            Just(Self::Timeout),
-            Just(Self::Decode),
-            Just(Self::Reqwest),
-            Just(Self::Database),
-            Just(Self::NotFound),
-            Just(Self::EntityConversion),
-        }
-        .boxed()
-    }
-}
-
-#[cfg(all(test, not(target_env = "sgx")))]
-impl Arbitrary for RunnerErrorKind {
-    type Parameters = ();
-    type Strategy = BoxedStrategy<Self>;
-
-    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        // You have been brought here because you added an error variant.
-        // Add another `Just` entry for the variant you just added below.
-        match Self::Unknown {
-            Self::Unknown
-            | Self::Serialization
-            | Self::Connect
-            | Self::Timeout
-            | Self::Decode
-            | Self::Reqwest
-            | Self::Database
-            | Self::MpscSend
-            | Self::OneshotRecv
-            | Self::Runner => {}
-        }
-
-        proptest::prop_oneof! {
-            Just(Self::Unknown),
-            Just(Self::Serialization),
-            Just(Self::Connect),
-            Just(Self::Timeout),
-            Just(Self::Decode),
-            Just(Self::Reqwest),
-            Just(Self::Database),
-            Just(Self::MpscSend),
-            Just(Self::OneshotRecv),
-            Just(Self::Runner),
-        }
-        .boxed()
-    }
-}
-
-#[cfg(all(test, not(target_env = "sgx")))]
-impl Arbitrary for NodeErrorKind {
-    type Parameters = ();
-    type Strategy = BoxedStrategy<Self>;
-
-    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        // You have been brought here because you added an error variant.
-        // Add another `Just` entry for the variant you just added below.
-        match Self::Unknown {
-            Self::Unknown
-            | Self::Serialization
-            | Self::Connect
-            | Self::Timeout
-            | Self::Decode
-            | Self::Reqwest
-            | Self::WrongUserPk
-            | Self::WrongNodePk
-            | Self::Provision => {}
-        }
-
-        proptest::prop_oneof! {
-            Just(Self::Unknown),
-            Just(Self::Serialization),
-            Just(Self::Connect),
-            Just(Self::Timeout),
-            Just(Self::Decode),
-            Just(Self::Reqwest),
-            Just(Self::WrongUserPk),
-            Just(Self::WrongNodePk),
-            Just(Self::Provision),
-        }
-        .boxed()
-    }
-}
 
 #[cfg(all(test, not(target_env = "sgx")))]
 mod test {
