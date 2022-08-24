@@ -1,7 +1,7 @@
 use bitcoin::secp256k1::PublicKey;
 use lightning::chain::chainmonitor::MonitorUpdateId;
 use lightning::ln::channelmanager::{ChannelCounterparty, ChannelDetails};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::lexe::types::LxOutPoint;
 
@@ -10,7 +10,7 @@ pub struct LxChannelMonitorUpdate {
     pub update_id: MonitorUpdateId,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct LxChannelDetails {
     pub channel_id: [u8; 32],
     pub counterparty: LxChannelCounterparty,
@@ -64,7 +64,7 @@ impl From<ChannelDetails> for LxChannelDetails {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct LxChannelCounterparty {
     pub node_id: PublicKey,
     // pub features: InitFeatures,                              // Sealed

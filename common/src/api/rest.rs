@@ -86,6 +86,10 @@ impl RestClient {
         Self::default()
     }
 
+    pub fn from_preconfigured_client(client: reqwest::Client) -> Self {
+        Self { client }
+    }
+
     /// Makes an API request with 0 retries.
     pub async fn request<D, T, E>(
         &self,

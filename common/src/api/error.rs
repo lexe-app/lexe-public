@@ -1,3 +1,4 @@
+use bitcoin::secp256k1::PublicKey;
 #[cfg(all(test, not(target_env = "sgx")))]
 use proptest::arbitrary::Arbitrary;
 #[cfg(all(test, not(target_env = "sgx")))]
@@ -8,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 
-use crate::api::qs::GetByUserPk;
 use crate::api::UserPk;
 use crate::hex;
 
@@ -148,17 +148,28 @@ pub enum NodeErrorKind {
 
     #[error("Wrong user pk")]
     WrongUserPk,
+    #[error("Given node pk doesn't match node pk derived from seed")]
+    WrongNodePk,
+    #[error("Error occurred during provisioning")]
+    Provision,
 }
 
 // --- Misc constructors / helpers --- //
 
 impl NodeApiError {
-    pub fn wrong_user_pk(current_pk: UserPk, given: GetByUserPk) -> Self {
+    pub fn wrong_user_pk(current_pk: UserPk, given_pk: UserPk) -> Self {
         // We don't name these 'expected' and 'actual' because the meaning of
-        // those terms is swapped depending on if you're the node or the runner
-        let given_pk = given.user_pk;
+        // those terms is swapped depending on if you're the server or client.
         let msg = format!("Node has '{current_pk}' but received '{given_pk}'");
         let kind = NodeErrorKind::WrongUserPk;
+        Self { kind, msg }
+    }
+
+    pub fn wrong_node_pk(derived_pk: PublicKey, given_pk: PublicKey) -> Self {
+        // We don't name these 'expected' and 'actual' because the meaning of
+        // those terms is swapped depending on if you're the server or client.
+        let msg = format!("Derived '{derived_pk}' but received '{given_pk}'");
+        let kind = NodeErrorKind::WrongNodePk;
         Self { kind, msg }
     }
 }
@@ -279,6 +290,8 @@ impl ErrorCodeConvertible for NodeErrorKind {
             Self::Decode => 4,
             Self::Reqwest => 5,
             Self::WrongUserPk => 6,
+            Self::WrongNodePk => 7,
+            Self::Provision => 8,
         }
     }
     fn from_code(code: u16) -> Self {
@@ -290,6 +303,8 @@ impl ErrorCodeConvertible for NodeErrorKind {
             4 => Self::Decode,
             5 => Self::Reqwest,
             6 => Self::WrongUserPk,
+            7 => Self::WrongNodePk,
+            8 => Self::Provision,
             _ => Self::Unknown,
         }
     }
@@ -456,6 +471,20 @@ impl Arbitrary for BackendErrorKind {
     type Strategy = BoxedStrategy<Self>;
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        // You have been brought here because you added an error variant.
+        // Add another `Just` entry for the variant you just added below.
+        match Self::Unknown {
+            Self::Unknown
+            | Self::Serialization
+            | Self::Connect
+            | Self::Timeout
+            | Self::Decode
+            | Self::Reqwest
+            | Self::Database
+            | Self::NotFound
+            | Self::EntityConversion => {}
+        }
+
         proptest::prop_oneof! {
             Just(Self::Unknown),
             Just(Self::Serialization),
@@ -477,6 +506,21 @@ impl Arbitrary for RunnerErrorKind {
     type Strategy = BoxedStrategy<Self>;
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        // You have been brought here because you added an error variant.
+        // Add another `Just` entry for the variant you just added below.
+        match Self::Unknown {
+            Self::Unknown
+            | Self::Serialization
+            | Self::Connect
+            | Self::Timeout
+            | Self::Decode
+            | Self::Reqwest
+            | Self::Database
+            | Self::MpscSend
+            | Self::OneshotRecv
+            | Self::Runner => {}
+        }
+
         proptest::prop_oneof! {
             Just(Self::Unknown),
             Just(Self::Serialization),
@@ -499,6 +543,20 @@ impl Arbitrary for NodeErrorKind {
     type Strategy = BoxedStrategy<Self>;
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        // You have been brought here because you added an error variant.
+        // Add another `Just` entry for the variant you just added below.
+        match Self::Unknown {
+            Self::Unknown
+            | Self::Serialization
+            | Self::Connect
+            | Self::Timeout
+            | Self::Decode
+            | Self::Reqwest
+            | Self::WrongUserPk
+            | Self::WrongNodePk
+            | Self::Provision => {}
+        }
+
         proptest::prop_oneof! {
             Just(Self::Unknown),
             Just(Self::Serialization),
@@ -507,6 +565,8 @@ impl Arbitrary for NodeErrorKind {
             Just(Self::Decode),
             Just(Self::Reqwest),
             Just(Self::WrongUserPk),
+            Just(Self::WrongNodePk),
+            Just(Self::Provision),
         }
         .boxed()
     }

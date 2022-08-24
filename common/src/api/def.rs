@@ -1,8 +1,10 @@
 use async_trait::async_trait;
 
 use crate::api::error::{BackendApiError, NodeApiError, RunnerApiError};
+use crate::api::node::NodeInfo;
 use crate::api::provision::{
-    Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
+    Instance, Node, NodeInstanceSeed, ProvisionRequest, SealedSeed,
+    SealedSeedId,
 };
 use crate::api::runner::UserPorts;
 use crate::api::vfs::{Directory, File, FileId};
@@ -64,9 +66,24 @@ pub trait NodeRunnerApi {
     ) -> Result<UserPorts, RunnerApiError>;
 }
 
-/// Defines the api that the runner exposes to the host (Lexe)
+/// Defines the api that the node exposes to the host (Lexe)
 #[async_trait]
 pub trait HostNodeApi {
     async fn status(&self, user_pk: UserPk) -> Result<String, NodeApiError>;
     async fn shutdown(&self, user_pk: UserPk) -> Result<(), NodeApiError>;
+}
+
+/// Defines the api that the node exposes to the owner during provisioning.
+#[async_trait]
+pub trait OwnerNodeProvisionApi {
+    async fn provision(
+        &self,
+        data: ProvisionRequest,
+    ) -> Result<(), NodeApiError>;
+}
+
+/// Defines the api that the node exposes to the owner during normal operation.
+#[async_trait]
+pub trait OwnerNodeRunApi {
+    async fn node_info(&self) -> Result<NodeInfo, NodeApiError>;
 }

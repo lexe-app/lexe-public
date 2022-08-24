@@ -12,6 +12,8 @@ use crate::hexstr_or_bytes;
 pub mod def;
 /// Enums for the API errors returned by the various services.
 pub mod error;
+/// Data types used in APIs exposed by the node.
+pub mod node;
 /// Data types specific to provisioning.
 pub mod provision;
 /// Data types used to serialize / deserialize query strings.
