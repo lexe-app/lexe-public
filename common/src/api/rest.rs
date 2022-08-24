@@ -12,7 +12,7 @@ use tracing::{debug, trace, warn};
 use warp::hyper::Body;
 use warp::{reply, Reply};
 
-use crate::api::error::CommonError;
+use crate::api::error::{CommonError, ErrorResponse};
 
 // Default parameters
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -45,14 +45,15 @@ const EXP_BASE: u64 = 2;
 ///     .then(host::status)
 ///     .map(into_response);
 /// ```
-pub fn into_response<T: Serialize, E: Serialize>(
+pub fn into_response<T: Serialize, E: Into<ErrorResponse>>(
     reply_res: Result<T, E>,
 ) -> Response<Body> {
     match reply_res {
         Ok(resp) => reply::json(&resp).into_response(),
-        Err(err_enum) => {
+        Err(err) => {
             // Use warp's reply::json but ensure the status code is always 500
-            let mut response = reply::json(&err_enum).into_response();
+            let err_resp: ErrorResponse = err.into();
+            let mut response = reply::json(&err_resp).into_response();
             *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
             response
         }
@@ -95,7 +96,7 @@ impl RestClient {
     where
         D: Serialize,
         T: DeserializeOwned,
-        E: DeserializeOwned + From<CommonError>,
+        E: From<CommonError> + From<ErrorResponse>,
     {
         self.request_with_retries(method, url, data, 0).await
     }
@@ -111,7 +112,7 @@ impl RestClient {
     where
         D: Serialize,
         T: DeserializeOwned,
-        E: DeserializeOwned + From<CommonError>,
+        E: From<CommonError> + From<ErrorResponse>,
     {
         // Serialize request parts
         let parts = self.serialize_parts(method, url, data)?;
@@ -189,7 +190,7 @@ impl RestClient {
     ) -> Result<T, E>
     where
         T: DeserializeOwned,
-        E: DeserializeOwned + From<CommonError>,
+        E: From<CommonError> + From<ErrorResponse>,
     {
         let response = self
             .client
@@ -215,7 +216,11 @@ impl RestClient {
                 .map_err(E::from)
         } else {
             // Deserialize into Err variant, return Err(json)
-            Err(response.json::<E>().await.map_err(CommonError::from)?)
+            let error_response = response
+                .json::<ErrorResponse>()
+                .await
+                .map_err(CommonError::from)?;
+            Err(E::from(error_response))
         }
     }
 }
