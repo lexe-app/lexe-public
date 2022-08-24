@@ -12,7 +12,9 @@ use tokio::time;
 use tracing::{debug, error, trace, warn};
 use warp::hyper::Body;
 
-use crate::api::error::{CommonError, ErrorResponse, HasStatusCode};
+use crate::api::error::{
+    CommonError, ErrorCode, ErrorCodeConvertible, ErrorResponse, HasStatusCode,
+};
 
 // Default parameters
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -126,26 +128,30 @@ impl RestClient {
     where
         D: Serialize,
         T: DeserializeOwned,
-        E: From<CommonError> + From<ErrorResponse>,
+        E: ErrorCodeConvertible + From<CommonError> + From<ErrorResponse>,
     {
-        self.request_with_retries(method, url, data, 0).await
+        self.request_with_retries(method, url, data, 0, None).await
     }
 
     /// Makes an API request, retrying up to `retries` times.
     ///
     /// The given url should include the base, version, and endpoint, but should
     /// NOT include the query string. Example: "http://127.0.0.1:3030/v1/file"
+    ///
+    /// Using `stop_codes` the client can be can be configured to quit early if
+    /// the service returned any of the given error codes.
     pub async fn request_with_retries<D, T, E>(
         &self,
         method: Method,
         url: String,
         data: &D,
         retries: usize,
+        stop_codes: Option<Vec<ErrorCode>>,
     ) -> Result<T, E>
     where
         D: Serialize,
         T: DeserializeOwned,
-        E: From<CommonError> + From<ErrorResponse>,
+        E: ErrorCodeConvertible + From<CommonError> + From<ErrorResponse>,
     {
         // Serialize request parts
         let parts = self.serialize_parts(method, url, data)?;
@@ -156,27 +162,31 @@ impl RestClient {
             .map(|wait| min(wait, MAXIMUM_WAIT_MS))
             .map(Duration::from_millis);
 
-        // Do the 'retries' first and return early if successful.
+        // Do the 'retries' first and return early if successful,
+        // or if we received an error with one of the specified codes.
         // This block is a noop if retries == 0.
         for _ in 0..retries {
-            let res = self.send_and_deserialize(&parts).await;
-            if res.is_ok() {
-                return res;
-            } else {
-                let method = &parts.method;
-                let url = &parts.url;
-                warn!("{method} {url} failed.");
+            match self.send_and_deserialize::<T, E>(&parts).await {
+                Ok(data) => return Ok(data),
+                Err(e) => {
+                    let method = &parts.method;
+                    let url = &parts.url;
+                    warn!("{method} {url} failed.");
 
-                time::sleep(backup_durations.next().unwrap()).await;
+                    if let Some(ref stop_codes) = stop_codes {
+                        if stop_codes.contains(&e.to_code()) {
+                            return Err(e);
+                        }
+                    }
+
+                    time::sleep(backup_durations.next().unwrap()).await;
+                }
             }
         }
 
         // Do the 'main' attempt.
         self.send_and_deserialize(&parts).await
     }
-
-    // TODO(max): Implement a request_indefinitely which keeps retrying with
-    // exponential backup until we receive any of a set of error codes
 
     /// Constructs the serialized, reusable parts of a [`reqwest::Request`]
     /// given an HTTP method and url.
@@ -223,7 +233,7 @@ impl RestClient {
     ) -> Result<T, E>
     where
         T: DeserializeOwned,
-        E: From<CommonError> + From<ErrorResponse>,
+        E: ErrorCodeConvertible + From<CommonError> + From<ErrorResponse>,
     {
         let response = self
             .client
