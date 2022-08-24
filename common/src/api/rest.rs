@@ -2,14 +2,15 @@ use std::cmp::min;
 use std::time::Duration;
 
 use bytes::Bytes;
+use http::header::{HeaderValue, CONTENT_TYPE};
 use http::response::Response;
+use http::status::StatusCode;
 use http::Method;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::time;
-use tracing::{debug, trace, warn};
+use tracing::{debug, error, trace, warn};
 use warp::hyper::Body;
-use warp::{reply, Reply};
 
 use crate::api::error::{CommonError, ErrorResponse, HasStatusCode};
 
@@ -27,14 +28,16 @@ const INITIAL_WAIT_MS: u64 = 250;
 const MAXIMUM_WAIT_MS: u64 = 32_000;
 const EXP_BASE: u64 = 2;
 
-/// A warp helper that converts Result<T, E> into Response<Body>. This function
-/// should be used in all warp routes because `RestClient::send_and_deserialize`
-/// relies on the HTTP status code to determine whether a response should be
-/// deserialized as the requested object or as an error enum. Using this
-/// function removes the need to call reply::json(&resp) in every warp handler
-/// or to manually create the response with error code 500 every time.
+/// A warp helper that converts `Result<T, E>` into [`Response<Body>`].
+/// This function should be used in all warp routes because:
 ///
-/// This function should be used at the end of a warp filter chain like so:
+/// 1) `RestClient::send_and_deserialize` relies on the HTTP status code to
+///    determine whether a response should be deserialized as the requested
+///    object or as the error type.
+/// 2) Using this function voids the need to call reply::json(&resp) in every
+///    warp handler or to manually set the error code in every response.
+///
+/// This function can be used at the end of a warp filter chain like so:
 ///
 /// ```ignore
 /// let status = warp::path("status")
@@ -48,16 +51,32 @@ pub fn into_response<T: Serialize, E: HasStatusCode + Into<ErrorResponse>>(
     reply_res: Result<T, E>,
 ) -> Response<Body> {
     match reply_res {
-        Ok(resp) => reply::json(&resp).into_response(),
-        Err(err) => {
-            // Use warp's reply::json but be sure to override the status code
-            let status_code = err.get_status_code();
-            let err_resp: ErrorResponse = err.into();
-            let mut response = reply::json(&err_resp).into_response();
-            *response.status_mut() = status_code;
-            response
-        }
+        Ok(data) => build_json_response(StatusCode::OK, &data),
+        Err(err) => build_json_response(err.get_status_code(), &err.into()),
     }
+}
+
+/// Constructs a JSON [`Response<Body>`] from the given data and status code.
+/// If serialization fails for some reason (unlikely), log the error,
+/// default to an empty body, and override the status code to 500.
+fn build_json_response<T: Serialize>(
+    mut status: StatusCode,
+    data: &T,
+) -> Response<Body> {
+    let body = serde_json::to_vec(data)
+        .map(Body::from)
+        .unwrap_or_else(|e| {
+            error!("Couldn't serialize response: {e:#}");
+            status = StatusCode::INTERNAL_SERVER_ERROR;
+            Body::empty()
+        });
+
+    Response::builder()
+        .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
+        .status(status)
+        .body(body)
+        // Only the header could have errored by this point
+        .expect("Invalid hard-coded header")
 }
 
 struct RequestParts {
@@ -91,6 +110,13 @@ impl RestClient {
     }
 
     /// Makes an API request with 0 retries.
+    ///
+    /// The given url should include the base, version, and endpoint, but should
+    /// NOT include the query string. Example: "http://127.0.0.1:3030/v1/file"
+    ///
+    /// Pass in [`EmptyData`] if you need an empty querystring / body.
+    ///
+    /// [`EmptyData`]: crate::api::qs::EmptyData
     pub async fn request<D, T, E>(
         &self,
         method: Method,
@@ -106,6 +132,9 @@ impl RestClient {
     }
 
     /// Makes an API request, retrying up to `retries` times.
+    ///
+    /// The given url should include the base, version, and endpoint, but should
+    /// NOT include the query string. Example: "http://127.0.0.1:3030/v1/file"
     pub async fn request_with_retries<D, T, E>(
         &self,
         method: Method,
@@ -149,11 +178,11 @@ impl RestClient {
     // TODO(max): Implement a request_indefinitely which keeps retrying with
     // exponential backup until we receive any of a set of error codes
 
-    /// Constructs the final, serialized parts of a [`reqwest::Request`] given
-    /// an HTTP method and url. The given url should include the base, version,
-    /// and endpoint, but should NOT include the query string.
+    /// Constructs the serialized, reusable parts of a [`reqwest::Request`]
+    /// given an HTTP method and url.
     ///
-    /// Example: "http://127.0.0.1:3030/v1/file"
+    /// The given url should include the base, version, and endpoint, but should
+    /// NOT include the query string. Example: "http://127.0.0.1:3030/v1/file"
     fn serialize_parts<D: Serialize>(
         &self,
         method: Method,
