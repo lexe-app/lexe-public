@@ -8,7 +8,6 @@ use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::types::NetworkGraphType;
 
-/// GET /owner/node_info -> NodeInfo
 pub fn node_info(
     channel_manager: LexeChannelManager,
     peer_manager: LexePeerManager,
@@ -33,7 +32,6 @@ pub fn node_info(
     Ok(resp)
 }
 
-/// GET /owner/channels -> ListChannels
 pub fn list_channels(
     channel_manager: LexeChannelManager,
     _network_graph: Arc<NetworkGraphType>, // TODO REPL uses it, do we need it?

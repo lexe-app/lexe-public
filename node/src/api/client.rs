@@ -118,7 +118,7 @@ impl NodeBackendApi for LexeApiClient {
         &self,
         data: NodeInstanceSeed,
     ) -> Result<NodeInstanceSeed, BackendApiError> {
-        let url = self.build_url(Backend, V1, "/acid/node_instance_seed");
+        let url = self.build_url(Backend, V1, "/node_instance_seed");
         self.rest.request(POST, url, &data).await
     }
 
@@ -162,7 +162,7 @@ impl NodeBackendApi for LexeApiClient {
 
 #[async_trait]
 impl NodeRunnerApi for LexeApiClient {
-    async fn notify_runner(
+    async fn ready(
         &self,
         data: UserPorts,
     ) -> Result<UserPorts, RunnerApiError> {
