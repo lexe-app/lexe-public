@@ -5,10 +5,11 @@ use tokio::sync::broadcast;
 
 /// GET /host/status -> "OK"
 pub async fn status(
-    given_pk: GetByUserPk,
+    given: GetByUserPk,
     current_pk: UserPk,
 ) -> Result<String, NodeApiError> {
-    if current_pk == given_pk.user_pk {
+    let given_pk = given.user_pk;
+    if current_pk == given_pk {
         // TODO Actually get status
         Ok(String::from("OK"))
     } else {
@@ -18,11 +19,12 @@ pub async fn status(
 
 /// GET /host/shutdown -> ()
 pub fn shutdown(
-    given_pk: GetByUserPk,
+    given: GetByUserPk,
     current_pk: UserPk,
     shutdown_tx: broadcast::Sender<()>,
 ) -> Result<(), NodeApiError> {
-    if current_pk == given_pk.user_pk {
+    let given_pk = given.user_pk;
+    if current_pk == given_pk {
         let _ = shutdown_tx.send(());
         Ok(())
     } else {

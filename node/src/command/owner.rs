@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use common::api::error::NodeApiError;
-use common::client::NodeInfo;
-use serde::Serialize;
+use common::api::node::NodeInfo;
+use serde::{Deserialize, Serialize};
 
 use crate::lexe::channel_manager::{LexeChannelManager, LxChannelDetails};
 use crate::lexe::peer_manager::LexePeerManager;
@@ -33,7 +33,7 @@ pub fn node_info(
     Ok(resp)
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ListChannels {
     pub channel_details: Vec<LxChannelDetails>,
 }

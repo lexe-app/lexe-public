@@ -21,45 +21,27 @@ use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::time::Duration;
 
-use anyhow::{ensure, Context};
+use anyhow::Context;
 use bitcoin::secp256k1::PublicKey;
+use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, ProvisionRequest, ProvisionedSecrets,
     SealedSeed,
 };
+use common::api::rest::into_response;
 use common::api::runner::UserPorts;
 use common::api::UserPk;
 use common::cli::ProvisionArgs;
 use common::client::tls::node_provision_tls_config;
 use common::enclave::{self, MachineId, Measurement, MIN_SGX_CPUSVN};
 use common::rng::{Crng, SysRng};
-use http::{Response, StatusCode};
-use thiserror::Error;
 use tokio::sync::mpsc;
 use tracing::{debug, info, instrument, warn};
-use warp::hyper::Body;
-use warp::reject::Reject;
 use warp::{Filter, Rejection, Reply};
 
 use crate::types::ApiClientType;
 
 const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
-
-#[derive(Error, Debug)]
-#[error("todo")]
-struct ApiError;
-
-impl Reply for ApiError {
-    fn into_response(self) -> Response<Body> {
-        // TODO(phlip9): fill out
-        Response::builder()
-            .status(StatusCode::INTERNAL_SERVER_ERROR)
-            .body(self.to_string().into())
-            .expect("Could not construct Response")
-    }
-}
-
-impl Reject for ApiError {}
 
 fn with_request_context(
     ctx: RequestContext,
@@ -69,7 +51,7 @@ fn with_request_context(
 
 #[derive(Clone)]
 struct RequestContext {
-    expected_user_id: UserPk,
+    current_user_pk: UserPk,
     machine_id: MachineId,
     measurement: Measurement,
     shutdown_tx: mpsc::Sender<()>,
@@ -80,14 +62,26 @@ struct RequestContext {
 
 fn verify_provision_request<R: Crng>(
     rng: &mut R,
-    expected_user_id: UserPk,
+    current_user_pk: UserPk,
     req: ProvisionRequest,
-) -> anyhow::Result<(UserPk, PublicKey, ProvisionedSecrets)> {
-    ensure!(req.user_pk == expected_user_id);
+) -> Result<(UserPk, PublicKey, ProvisionedSecrets), NodeApiError> {
+    let given_user_pk = req.user_pk;
+    if given_user_pk != current_user_pk {
+        return Err(NodeApiError::wrong_user_pk(
+            current_user_pk,
+            given_user_pk,
+        ));
+    }
 
+    let given_node_pk = req.node_pk;
     let derived_node_pk =
         PublicKey::from(req.root_seed.derive_node_key_pair(rng));
-    ensure!(req.node_pk == derived_node_pk);
+    if derived_node_pk != given_node_pk {
+        return Err(NodeApiError::wrong_node_pk(
+            derived_node_pk,
+            given_node_pk,
+        ));
+    }
 
     Ok((
         req.user_pk,
@@ -112,16 +106,19 @@ fn verify_provision_request<R: Crng>(
 async fn provision_request(
     mut ctx: RequestContext,
     req: ProvisionRequest,
-) -> Result<impl Reply, ApiError> {
+) -> Result<(), NodeApiError> {
     debug!("received provision request");
 
     let (user_pk, node_pk, provisioned_secrets) =
-        verify_provision_request(&mut ctx.rng, ctx.expected_user_id, req)
-            .map_err(|_| ApiError)?;
+        verify_provision_request(&mut ctx.rng, ctx.current_user_pk, req)?;
 
-    let sealed_secrets = provisioned_secrets
-        .seal(&mut ctx.rng)
-        .map_err(|_| ApiError)?;
+    let sealed_secrets =
+        provisioned_secrets
+            .seal(&mut ctx.rng)
+            .map_err(|_| NodeApiError {
+                kind: NodeErrorKind::Provision,
+                msg: String::from("Could not seal secret"),
+            })?;
 
     let node = Node { node_pk, user_pk };
     let instance = Instance {
@@ -147,12 +144,15 @@ async fn provision_request(
     ctx.api
         .create_node_instance_seed(batch)
         .await
-        .map_err(|_| ApiError)?;
+        .map_err(|e| NodeApiError {
+            kind: NodeErrorKind::Provision,
+            msg: format!("Could not persist provisioned data: {e:#}"),
+        })?;
 
     // Provisioning done. Stop node.
     let _ = ctx.shutdown_tx.try_send(());
 
-    Ok(Response::new(Body::empty()))
+    Ok(())
 }
 
 /// Only the node owner can make requests to these routes.
@@ -165,6 +165,7 @@ fn owner_routes(
         .and(with_request_context(ctx))
         .and(warp::body::json())
         .then(provision_request)
+        .map(into_response)
 }
 
 /// Provision a new lexe node
@@ -204,7 +205,7 @@ pub async fn provision<R: Crng>(
     // bind TCP listener on port (queues up any inbound connections).
     let addr = SocketAddr::from(([127, 0, 0, 1], args.port.unwrap_or(0)));
     let ctx = RequestContext {
-        expected_user_id: args.user_pk,
+        current_user_pk: args.user_pk,
         machine_id: args.machine_id,
         measurement,
         shutdown_tx,
