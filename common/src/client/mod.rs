@@ -8,7 +8,7 @@ use async_trait::async_trait;
 
 use crate::api::def::{OwnerNodeProvisionApi, OwnerNodeRunApi};
 use crate::api::error::NodeApiError;
-use crate::api::node::NodeInfo;
+use crate::api::node::{ListChannels, NodeInfo};
 use crate::api::provision::ProvisionRequest;
 use crate::api::qs::EmptyData;
 use crate::api::rest::{RestClient, GET, POST};
@@ -80,6 +80,14 @@ impl OwnerNodeRunApi for NodeClient {
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError> {
         let run_url = &self.run_url;
         let url = format!("{run_url}/owner/node_info");
+        let data = EmptyData {};
+
+        self.rest.request(GET, url, &data).await
+    }
+
+    async fn list_channels(&self) -> Result<ListChannels, NodeApiError> {
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/owner/channels");
         let data = EmptyData {};
 
         self.rest.request(GET, url, &data).await

@@ -4,6 +4,8 @@ use std::sync::Arc;
 use anyhow::{anyhow, Context};
 use bitcoin::BlockHash;
 use common::cli::RunArgs;
+use common::ln::channel::LxOutPoint;
+use lightning::chain::chainmonitor::MonitorUpdateId;
 use lightning::chain::BestBlock;
 use lightning::ln::channelmanager::{
     ChainParameters, ChannelManager, BREAKDOWN_TIMEOUT, MIN_CLTV_EXPIRY_DELTA,
@@ -21,10 +23,6 @@ use crate::types::{
     BlockSourceType, BroadcasterType, ChainMonitorType, ChannelManagerType,
     ChannelMonitorType, FeeEstimatorType,
 };
-
-mod types;
-
-pub use types::*;
 
 /// NOTE: Important security parameter!!
 ///
@@ -239,4 +237,9 @@ impl LexeChannelManager {
 
         Ok(())
     }
+}
+
+pub struct LxChannelMonitorUpdate {
+    pub funding_txo: LxOutPoint,
+    pub update_id: MonitorUpdateId,
 }

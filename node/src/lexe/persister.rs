@@ -8,6 +8,7 @@ use bitcoin::hash_types::BlockHash;
 use bitcoin::secp256k1::PublicKey;
 use common::api::vfs::{Directory, File, FileId};
 use common::enclave::Measurement;
+use common::ln::channel::LxOutPoint;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
 use lightning::chain::channelmonitor::ChannelMonitorUpdate;
 use lightning::chain::transaction::OutPoint;
@@ -25,7 +26,6 @@ use crate::lexe::channel_manager::{LxChannelMonitorUpdate, USER_CONFIG};
 use crate::lexe::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::ChannelPeer;
-use crate::lexe::types::LxOutPoint;
 use crate::types::{
     ApiClientType, BroadcasterType, ChainMonitorType, ChannelManagerType,
     ChannelMonitorType, FeeEstimatorType, LoggerType, LxTask, NetworkGraphType,
