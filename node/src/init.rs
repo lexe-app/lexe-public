@@ -284,7 +284,7 @@ impl LexeNode {
         info!("Node is ready to accept commands; notifying runner");
         let user_ports =
             UserPorts::new_run(user_pk, owner_port, host_port, peer_port);
-        api.notify_runner(user_ports)
+        api.ready(user_ports)
             .await
             .context("Could not notify runner of ready status")?;
 

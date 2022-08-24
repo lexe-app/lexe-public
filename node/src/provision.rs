@@ -155,11 +155,12 @@ async fn provision_request(
     Ok(())
 }
 
-/// Only the node owner can make requests to these routes.
+/// Implements [`OwnerNodeProvisionApi`] - only callable by the node owner.
+///
+/// [`OwnerNodeProvisionApi`]: common::api::def::OwnerNodeProvisionApi
 fn owner_routes(
     ctx: RequestContext,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    // POST /provision
     warp::path::path("provision")
         .and(warp::post())
         .and(with_request_context(ctx))
@@ -224,7 +225,7 @@ pub async fn provision<R: Crng>(
 
     // notify the runner that we're ready for a client connection
     let user_ports = UserPorts::new_provision(args.user_pk, owner_port);
-    api.notify_runner(user_ports)
+    api.ready(user_ports)
         .await
         .context("Failed to notify runner of our readiness")?;
 

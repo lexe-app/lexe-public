@@ -26,7 +26,9 @@ use crate::types::NetworkGraphType;
 mod inject;
 
 // TODO Add owner authentication
-/// Endpoints that can only be called by the node owner.
+/// Implements [`OwnerNodeRunApi`] - endpoints only callable by the node owner.
+///
+/// [`OwnerNodeRunApi`]: common::api::def::OwnerNodeRunApi
 pub fn owner_routes(
     channel_manager: LexeChannelManager,
     peer_manager: LexePeerManager,
@@ -63,7 +65,9 @@ pub fn owner_routes(
 }
 
 // TODO Add host authentication
-/// Endpoints that can only be called by the host (Lexe).
+/// Implements [`HostNodeApi`] - endpoints only callable by the host (Lexe).
+///
+/// [`HostNodeApi`]: common::api::def::HostNodeApi
 pub fn host_routes(
     current_pk: UserPk,
     shutdown_tx: broadcast::Sender<()>,

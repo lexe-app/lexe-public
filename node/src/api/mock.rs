@@ -212,7 +212,7 @@ impl NodeBackendApi for MockApiClient {
 
 #[async_trait]
 impl NodeRunnerApi for MockApiClient {
-    async fn notify_runner(
+    async fn ready(
         &self,
         user_ports: UserPorts,
     ) -> Result<UserPorts, RunnerApiError> {

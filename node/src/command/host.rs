@@ -3,7 +3,6 @@ use common::api::qs::GetByUserPk;
 use common::api::UserPk;
 use tokio::sync::broadcast;
 
-/// GET /host/status -> "OK"
 pub async fn status(
     given: GetByUserPk,
     current_pk: UserPk,
@@ -17,7 +16,6 @@ pub async fn status(
     }
 }
 
-/// GET /host/shutdown -> ()
 pub fn shutdown(
     given: GetByUserPk,
     current_pk: UserPk,
