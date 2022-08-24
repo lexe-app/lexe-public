@@ -1,4 +1,5 @@
 use bitcoin::secp256k1::PublicKey;
+use http::status::StatusCode as Status; // So the consts  fit in 80 chars
 #[cfg(all(test, not(target_env = "sgx")))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -7,6 +8,15 @@ use tokio::sync::{mpsc, oneshot};
 
 use crate::api::UserPk;
 use crate::hex;
+
+// Associated constants can't be imported.
+const CLIENT_400_BAD_REQUEST: Status = Status::BAD_REQUEST;
+const CLIENT_404_NOT_FOUND: Status = Status::NOT_FOUND;
+const CLIENT_418_IM_A_TEAPOT: Status = Status::IM_A_TEAPOT;
+const SERVER_500_INTERNAL_SERVER_ERROR: Status = Status::INTERNAL_SERVER_ERROR;
+const SERVER_502_BAD_GATEWAY: Status = Status::BAD_GATEWAY;
+const SERVER_503_SERVICE_UNAVAILABLE: Status = Status::SERVICE_UNAVAILABLE;
+const SERVER_504_GATEWAY_TIMEOUT: Status = Status::GATEWAY_TIMEOUT;
 
 /// The only error struct actually sent across the wire.
 /// Everything else is converted to / from it.
@@ -21,6 +31,10 @@ pub struct ErrorResponse {
 pub trait ErrorCodeConvertible {
     fn to_code(self) -> u16;
     fn from_code(code: u16) -> Self;
+}
+
+pub trait HasStatusCode {
+    fn get_status_code(&self) -> Status;
 }
 
 // --- Error structs --- //
@@ -305,6 +319,60 @@ impl ErrorCodeConvertible for NodeErrorKind {
             7 => Self::WrongNodePk,
             8 => Self::Provision,
             _ => Self::Unknown,
+        }
+    }
+}
+
+// --- HasStatusCode impls --- //
+
+impl HasStatusCode for BackendApiError {
+    fn get_status_code(&self) -> Status {
+        use BackendErrorKind::*;
+        match self.kind {
+            Unknown => CLIENT_418_IM_A_TEAPOT,
+            Serialization => CLIENT_400_BAD_REQUEST,
+            Connect => SERVER_503_SERVICE_UNAVAILABLE,
+            Timeout => SERVER_504_GATEWAY_TIMEOUT,
+            Decode => SERVER_502_BAD_GATEWAY,
+            Reqwest => CLIENT_400_BAD_REQUEST,
+            Database => SERVER_500_INTERNAL_SERVER_ERROR,
+            NotFound => CLIENT_404_NOT_FOUND,
+            EntityConversion => SERVER_500_INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+impl HasStatusCode for RunnerApiError {
+    fn get_status_code(&self) -> Status {
+        use RunnerErrorKind::*;
+        match self.kind {
+            Unknown => CLIENT_418_IM_A_TEAPOT,
+            Serialization => CLIENT_400_BAD_REQUEST,
+            Connect => SERVER_503_SERVICE_UNAVAILABLE,
+            Timeout => SERVER_504_GATEWAY_TIMEOUT,
+            Decode => SERVER_502_BAD_GATEWAY,
+            Reqwest => CLIENT_400_BAD_REQUEST,
+            Database => SERVER_500_INTERNAL_SERVER_ERROR,
+            MpscSend => SERVER_500_INTERNAL_SERVER_ERROR,
+            OneshotRecv => SERVER_500_INTERNAL_SERVER_ERROR,
+            Runner => SERVER_500_INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+impl HasStatusCode for NodeApiError {
+    fn get_status_code(&self) -> Status {
+        use NodeErrorKind::*;
+        match self.kind {
+            Unknown => CLIENT_418_IM_A_TEAPOT,
+            Serialization => CLIENT_400_BAD_REQUEST,
+            Connect => SERVER_503_SERVICE_UNAVAILABLE,
+            Timeout => SERVER_504_GATEWAY_TIMEOUT,
+            Decode => SERVER_502_BAD_GATEWAY,
+            Reqwest => CLIENT_400_BAD_REQUEST,
+            WrongUserPk => CLIENT_400_BAD_REQUEST,
+            WrongNodePk => CLIENT_400_BAD_REQUEST,
+            Provision => SERVER_500_INTERNAL_SERVER_ERROR,
         }
     }
 }
