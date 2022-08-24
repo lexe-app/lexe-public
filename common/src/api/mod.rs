@@ -19,7 +19,7 @@ pub mod node;
 pub mod provision;
 /// Data types used to serialize / deserialize query strings.
 pub mod qs;
-/// A generic REST client enforcing common REST semantics across Lexe crates.
+/// A client and helpers that enforce common REST semantics across Lexe crates.
 pub mod rest;
 /// Data types specific to the Runner.
 pub mod runner;
