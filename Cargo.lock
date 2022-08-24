@@ -490,6 +490,7 @@ dependencies = [
  "cmac",
  "dcap-ql",
  "http",
+ "lightning",
  "lightning-invoice",
  "num-bigint",
  "once_cell",

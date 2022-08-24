@@ -12,7 +12,8 @@ use crate::hexstr_or_bytes;
 pub mod def;
 /// Enums for the API errors returned by the various services.
 pub mod error;
-/// Data types used in APIs exposed by the node.
+/// Minor data types defining what is returned by APIs exposed by the node.
+/// Bigger / more fundamental LN types should go under [`crate::ln`].
 pub mod node;
 /// Data types specific to provisioning.
 pub mod provision;

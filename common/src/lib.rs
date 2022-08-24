@@ -23,6 +23,7 @@ pub mod ed25519;
 pub mod enclave;
 pub mod hex;
 pub mod hexstr_or_bytes;
+pub mod ln;
 pub mod rng;
 pub mod root_seed;
 pub mod sha256;

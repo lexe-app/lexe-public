@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use common::api::error::NodeApiError;
-use common::api::node::NodeInfo;
-use serde::{Deserialize, Serialize};
+use common::api::node::{ListChannels, NodeInfo};
+use common::ln::channel::LxChannelDetails;
 
-use crate::lexe::channel_manager::{LexeChannelManager, LxChannelDetails};
+use crate::lexe::channel_manager::LexeChannelManager;
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::types::NetworkGraphType;
 
@@ -31,11 +31,6 @@ pub fn node_info(
     };
 
     Ok(resp)
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct ListChannels {
-    pub channel_details: Vec<LxChannelDetails>,
 }
 
 /// GET /owner/channels -> ListChannels

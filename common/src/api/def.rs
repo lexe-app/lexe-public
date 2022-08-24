@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 
 use crate::api::error::{BackendApiError, NodeApiError, RunnerApiError};
-use crate::api::node::NodeInfo;
+use crate::api::node::{ListChannels, NodeInfo};
 use crate::api::provision::{
     Instance, Node, NodeInstanceSeed, ProvisionRequest, SealedSeed,
     SealedSeedId,
@@ -86,4 +86,5 @@ pub trait OwnerNodeProvisionApi {
 #[async_trait]
 pub trait OwnerNodeRunApi {
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError>;
+    async fn list_channels(&self) -> Result<ListChannels, NodeApiError>;
 }
