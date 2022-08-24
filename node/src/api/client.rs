@@ -65,7 +65,7 @@ impl ApiClient for LexeApiClient {
     ) -> Result<File, BackendApiError> {
         let url = self.build_url(Backend, V1, "/file");
         self.rest
-            .request_with_retries(POST, url, &data, retries)
+            .request_with_retries(POST, url, &data, retries, None)
             .await
     }
 
@@ -76,7 +76,7 @@ impl ApiClient for LexeApiClient {
     ) -> Result<File, BackendApiError> {
         let url = self.build_url(Backend, V1, "/file");
         self.rest
-            .request_with_retries(PUT, url, &data, retries)
+            .request_with_retries(PUT, url, &data, retries, None)
             .await
     }
 }

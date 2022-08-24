@@ -18,19 +18,21 @@ const SERVER_502_BAD_GATEWAY: Status = Status::BAD_GATEWAY;
 const SERVER_503_SERVICE_UNAVAILABLE: Status = Status::SERVICE_UNAVAILABLE;
 const SERVER_504_GATEWAY_TIMEOUT: Status = Status::GATEWAY_TIMEOUT;
 
+pub type ErrorCode = u16;
+
 /// The only error struct actually sent across the wire.
 /// Everything else is converted to / from it.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ErrorResponse {
-    code: u16,
+    code: ErrorCode,
     msg: String,
 }
 
 /// A trait implemented on all ServiceErrorKinds that defines a
 /// backwards-compatible encoding scheme for each error varinat.
 pub trait ErrorCodeConvertible {
-    fn to_code(self) -> u16;
-    fn from_code(code: u16) -> Self;
+    fn to_code(&self) -> ErrorCode;
+    fn from_code(code: ErrorCode) -> Self;
 }
 
 pub trait HasStatusCode {
@@ -231,8 +233,35 @@ impl From<NodeApiError> for ErrorResponse {
 
 // --- ErrorCodeConvertible impls --- //
 
+impl ErrorCodeConvertible for BackendApiError {
+    fn to_code(&self) -> ErrorCode {
+        self.kind.to_code()
+    }
+    fn from_code(_code: ErrorCode) -> Self {
+        unimplemented!("Shouldn't be using this!")
+    }
+}
+
+impl ErrorCodeConvertible for RunnerApiError {
+    fn to_code(&self) -> ErrorCode {
+        self.kind.to_code()
+    }
+    fn from_code(_code: ErrorCode) -> Self {
+        unimplemented!("Shouldn't be using this!")
+    }
+}
+
+impl ErrorCodeConvertible for NodeApiError {
+    fn to_code(&self) -> ErrorCode {
+        self.kind.to_code()
+    }
+    fn from_code(_code: ErrorCode) -> Self {
+        unimplemented!("Shouldn't be using this!")
+    }
+}
+
 impl ErrorCodeConvertible for BackendErrorKind {
-    fn to_code(self) -> u16 {
+    fn to_code(&self) -> ErrorCode {
         match self {
             Self::Unknown => 0,
             Self::Serialization => 1,
@@ -245,7 +274,7 @@ impl ErrorCodeConvertible for BackendErrorKind {
             Self::EntityConversion => 8,
         }
     }
-    fn from_code(code: u16) -> Self {
+    fn from_code(code: ErrorCode) -> Self {
         match code {
             0 => Self::Unknown,
             1 => Self::Serialization,
@@ -262,7 +291,7 @@ impl ErrorCodeConvertible for BackendErrorKind {
 }
 
 impl ErrorCodeConvertible for RunnerErrorKind {
-    fn to_code(self) -> u16 {
+    fn to_code(&self) -> ErrorCode {
         match self {
             Self::Unknown => 0,
             Self::Serialization => 1,
@@ -276,7 +305,7 @@ impl ErrorCodeConvertible for RunnerErrorKind {
             Self::Runner => 9,
         }
     }
-    fn from_code(code: u16) -> Self {
+    fn from_code(code: ErrorCode) -> Self {
         match code {
             0 => Self::Unknown,
             1 => Self::Serialization,
@@ -294,7 +323,7 @@ impl ErrorCodeConvertible for RunnerErrorKind {
 }
 
 impl ErrorCodeConvertible for NodeErrorKind {
-    fn to_code(self) -> u16 {
+    fn to_code(&self) -> ErrorCode {
         match self {
             Self::Unknown => 0,
             Self::Serialization => 1,
@@ -307,7 +336,7 @@ impl ErrorCodeConvertible for NodeErrorKind {
             Self::Provision => 8,
         }
     }
-    fn from_code(code: u16) -> Self {
+    fn from_code(code: ErrorCode) -> Self {
         match code {
             0 => Self::Unknown,
             1 => Self::Serialization,
