@@ -65,7 +65,7 @@ pub fn owner_routes(
 // TODO Add host authentication
 /// Endpoints that can only be called by the host (Lexe).
 pub fn host_routes(
-    user_pk: UserPk,
+    current_pk: UserPk,
     shutdown_tx: broadcast::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     let root =
@@ -74,13 +74,13 @@ pub fn host_routes(
     let status = warp::path("status")
         .and(warp::get())
         .and(warp::query())
-        .and(inject::user_pk(user_pk))
+        .and(inject::user_pk(current_pk))
         .then(host::status)
         .map(into_response);
     let shutdown = warp::path("shutdown")
         .and(warp::get())
         .and(warp::query())
-        .and(inject::user_pk(user_pk))
+        .and(inject::user_pk(current_pk))
         .and(inject::shutdown_tx(shutdown_tx))
         .map(host::shutdown)
         .map(into_response);
