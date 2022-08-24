@@ -3,7 +3,6 @@ use std::time::Duration;
 
 use bytes::Bytes;
 use http::response::Response;
-use http::status::StatusCode;
 use http::Method;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -12,7 +11,7 @@ use tracing::{debug, trace, warn};
 use warp::hyper::Body;
 use warp::{reply, Reply};
 
-use crate::api::error::{CommonError, ErrorResponse};
+use crate::api::error::{CommonError, ErrorResponse, HasStatusCode};
 
 // Default parameters
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -45,16 +44,17 @@ const EXP_BASE: u64 = 2;
 ///     .then(host::status)
 ///     .map(into_response);
 /// ```
-pub fn into_response<T: Serialize, E: Into<ErrorResponse>>(
+pub fn into_response<T: Serialize, E: HasStatusCode + Into<ErrorResponse>>(
     reply_res: Result<T, E>,
 ) -> Response<Body> {
     match reply_res {
         Ok(resp) => reply::json(&resp).into_response(),
         Err(err) => {
-            // Use warp's reply::json but ensure the status code is always 500
+            // Use warp's reply::json but be sure to override the status code
+            let status_code = err.get_status_code();
             let err_resp: ErrorResponse = err.into();
             let mut response = reply::json(&err_resp).into_response();
-            *response.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
+            *response.status_mut() = status_code;
             response
         }
     }
