@@ -12,7 +12,6 @@ use crate::hex;
 // Associated constants can't be imported.
 const CLIENT_400_BAD_REQUEST: Status = Status::BAD_REQUEST;
 const CLIENT_404_NOT_FOUND: Status = Status::NOT_FOUND;
-const CLIENT_418_IM_A_TEAPOT: Status = Status::IM_A_TEAPOT;
 const SERVER_500_INTERNAL_SERVER_ERROR: Status = Status::INTERNAL_SERVER_ERROR;
 const SERVER_502_BAD_GATEWAY: Status = Status::BAD_GATEWAY;
 const SERVER_503_SERVICE_UNAVAILABLE: Status = Status::SERVICE_UNAVAILABLE;
@@ -20,12 +19,25 @@ const SERVER_504_GATEWAY_TIMEOUT: Status = Status::GATEWAY_TIMEOUT;
 
 pub type ErrorCode = u16;
 
-/// The only error struct actually sent across the wire.
-/// Everything else is converted to / from it.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+/// The only error struct actually sent across the wire. Everything else is
+/// converted to / from it. For displaying the full human-readable message to
+/// the user, convert [`ErrorResponse`] to the service error type first.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ErrorResponse {
     code: ErrorCode,
     msg: String,
+}
+
+/// A 'trait alias' defining all the supertraits a service error type must impl
+/// to be accepted for use in the `RestClient` and across all Lexe services.
+pub trait ServiceApiError:
+    ErrorCodeConvertible + From<CommonError> + From<ErrorResponse>
+{
+}
+
+impl<E: ErrorCodeConvertible + From<CommonError> + From<ErrorResponse>>
+    ServiceApiError for E
+{
 }
 
 /// A trait implemented on all ServiceErrorKinds that defines a
@@ -98,20 +110,20 @@ enum CommonErrorKind {
 pub enum BackendErrorKind {
     #[error("Unknown error")]
     Unknown,
-    #[error("Serialization error")]
+    #[error("Client failed to serialize the given data")]
     Serialization,
-    #[error("Couldn't connect")]
+    #[error("Couldn't connect to service")]
     Connect,
     #[error("Request timed out")]
     Timeout,
     #[error("Could not decode response")]
     Decode,
-    #[error("Reqwest error")]
+    #[error("Other reqwest error")]
     Reqwest,
 
     #[error("Database error")]
     Database,
-    #[error("Not found")]
+    #[error("Resource not found")]
     NotFound,
     #[error("Could not convert entity to type")]
     EntityConversion,
@@ -123,23 +135,23 @@ pub enum BackendErrorKind {
 pub enum RunnerErrorKind {
     #[error("Unknown error")]
     Unknown,
-    #[error("Serialization error")]
+    #[error("Client failed to serialize the given data")]
     Serialization,
-    #[error("Couldn't connect")]
+    #[error("Couldn't connect to service")]
     Connect,
     #[error("Request timed out")]
     Timeout,
     #[error("Could not decode response")]
     Decode,
-    #[error("Reqwest error")]
+    #[error("Other reqwest error")]
     Reqwest,
 
     #[error("Database error")]
     Database,
-    #[error("Mpsc receiver was full or dropped")]
-    MpscSend,
-    #[error("Oneshot sender was dropped")]
-    OneshotRecv,
+    #[error("Runner cannot take any more commands")]
+    AtCapacity,
+    #[error("Runner crashed or gave up on servicing the request")]
+    Cancelled,
     #[error("Runner error")]
     Runner,
 }
@@ -150,15 +162,15 @@ pub enum RunnerErrorKind {
 pub enum NodeErrorKind {
     #[error("Unknown error")]
     Unknown,
-    #[error("Serialization error")]
+    #[error("Client failed to serialize the given data")]
     Serialization,
-    #[error("Couldn't connect")]
+    #[error("Couldn't connect to service")]
     Connect,
     #[error("Request timed out")]
     Timeout,
     #[error("Could not decode response")]
     Decode,
-    #[error("Reqwest error")]
+    #[error("Other reqwest error")]
     Reqwest,
 
     #[error("Wrong user pk")]
@@ -300,8 +312,8 @@ impl ErrorCodeConvertible for RunnerErrorKind {
             Self::Decode => 4,
             Self::Reqwest => 5,
             Self::Database => 6,
-            Self::MpscSend => 7,
-            Self::OneshotRecv => 8,
+            Self::AtCapacity => 7,
+            Self::Cancelled => 8,
             Self::Runner => 9,
         }
     }
@@ -314,8 +326,8 @@ impl ErrorCodeConvertible for RunnerErrorKind {
             4 => Self::Decode,
             5 => Self::Reqwest,
             6 => Self::Database,
-            7 => Self::MpscSend,
-            8 => Self::OneshotRecv,
+            7 => Self::AtCapacity,
+            8 => Self::Cancelled,
             9 => Self::Runner,
             _ => Self::Unknown,
         }
@@ -358,7 +370,7 @@ impl HasStatusCode for BackendApiError {
     fn get_status_code(&self) -> Status {
         use BackendErrorKind::*;
         match self.kind {
-            Unknown => CLIENT_418_IM_A_TEAPOT,
+            Unknown => SERVER_500_INTERNAL_SERVER_ERROR,
             Serialization => CLIENT_400_BAD_REQUEST,
             Connect => SERVER_503_SERVICE_UNAVAILABLE,
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
@@ -375,15 +387,15 @@ impl HasStatusCode for RunnerApiError {
     fn get_status_code(&self) -> Status {
         use RunnerErrorKind::*;
         match self.kind {
-            Unknown => CLIENT_418_IM_A_TEAPOT,
+            Unknown => SERVER_500_INTERNAL_SERVER_ERROR,
             Serialization => CLIENT_400_BAD_REQUEST,
             Connect => SERVER_503_SERVICE_UNAVAILABLE,
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
             Reqwest => CLIENT_400_BAD_REQUEST,
             Database => SERVER_500_INTERNAL_SERVER_ERROR,
-            MpscSend => SERVER_500_INTERNAL_SERVER_ERROR,
-            OneshotRecv => SERVER_500_INTERNAL_SERVER_ERROR,
+            AtCapacity => SERVER_500_INTERNAL_SERVER_ERROR,
+            Cancelled => SERVER_500_INTERNAL_SERVER_ERROR,
             Runner => SERVER_500_INTERNAL_SERVER_ERROR,
         }
     }
@@ -393,7 +405,7 @@ impl HasStatusCode for NodeApiError {
     fn get_status_code(&self) -> Status {
         use NodeErrorKind::*;
         match self.kind {
-            Unknown => CLIENT_418_IM_A_TEAPOT,
+            Unknown => SERVER_500_INTERNAL_SERVER_ERROR,
             Serialization => CLIENT_400_BAD_REQUEST,
             Connect => SERVER_503_SERVICE_UNAVAILABLE,
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
@@ -544,14 +556,14 @@ impl From<sea_orm::DbErr> for RunnerApiError {
 }
 impl<T> From<mpsc::error::SendError<T>> for RunnerApiError {
     fn from(err: mpsc::error::SendError<T>) -> Self {
-        let kind = RunnerErrorKind::MpscSend;
+        let kind = RunnerErrorKind::AtCapacity;
         let msg = format!("{err:#}");
         Self { kind, msg }
     }
 }
 impl From<oneshot::error::RecvError> for RunnerApiError {
     fn from(err: oneshot::error::RecvError) -> Self {
-        let kind = RunnerErrorKind::OneshotRecv;
+        let kind = RunnerErrorKind::Cancelled;
         let msg = format!("{err:#}");
         Self { kind, msg }
     }
@@ -566,19 +578,79 @@ mod test {
 
     use super::*;
 
+    #[test]
+    fn context_separation() {
+        let backend_error = BackendApiError {
+            kind: BackendErrorKind::Unknown,
+            msg: format!("Additional context"),
+        };
+        let runner_error = RunnerApiError {
+            kind: RunnerErrorKind::Unknown,
+            msg: format!("Additional context"),
+        };
+        let node_error = NodeApiError {
+            kind: NodeErrorKind::Unknown,
+            msg: format!("Additional context"),
+        };
+
+        // The top-level service error types *are* human readable and should
+        // include the base help message defined alongside each variant.
+        let model_display = String::from("Unknown error: Additional context");
+        assert_eq!(model_display, format!("{backend_error}"));
+        assert_eq!(model_display, format!("{runner_error}"));
+        assert_eq!(model_display, format!("{node_error}"));
+
+        // ErrorResponse does not implement Display and is not intended to be
+        // human readable as its primary purpose is for serialization /
+        // transport. `msg` should only hold the _additional_ context.
+        let backend_err_resp = ErrorResponse::from(backend_error);
+        let runner_err_resp = ErrorResponse::from(runner_error);
+        let node_err_resp = ErrorResponse::from(node_error);
+
+        let model_err_resp = ErrorResponse {
+            code: 0,
+            msg: format!("Additional context"),
+        };
+        assert_eq!(model_err_resp, backend_err_resp);
+        assert_eq!(model_err_resp, runner_err_resp);
+        assert_eq!(model_err_resp, node_err_resp);
+    }
+
     proptest! {
         #[test]
-        fn backend_error_roundtrip(e1 in any::<BackendApiError>()) {
+        fn error_response_serde_roundtrip(
+            code in any::<ErrorCode>(),
+            msg in "[A-Za-z0-9]*",
+        ) {
+            let e1 = ErrorResponse { code, msg };
+            let e1_str = serde_json::to_string(&e1).unwrap();
+
+            // Sanity test the serialized form is what we expect
+            let msg = &e1.msg;
+            prop_assert_eq!(
+                &e1_str,
+                &format!("{{\"code\":{code},\"msg\":\"{msg}\"}}")
+            );
+
+            // Test the round trip
+            let e2: ErrorResponse = serde_json::from_str(&e1_str).unwrap();
+            prop_assert_eq!(e1, e2);
+        }
+    }
+
+    proptest! {
+        #[test]
+        fn backend_error_code_roundtrip(e1 in any::<BackendApiError>()) {
             let e2 = BackendApiError::from(ErrorResponse::from(e1.clone()));
             prop_assert_eq!(e1, e2);
         }
         #[test]
-        fn runner_error_roundtrip(e1 in any::<RunnerApiError>()) {
+        fn runner_error_code_roundtrip(e1 in any::<RunnerApiError>()) {
             let e2 = RunnerApiError::from(ErrorResponse::from(e1.clone()));
             prop_assert_eq!(e1, e2);
         }
         #[test]
-        fn node_error_roundtrip(e1 in any::<NodeApiError>()) {
+        fn node_error_code_roundtrip(e1 in any::<NodeApiError>()) {
             let e2 = NodeApiError::from(ErrorResponse::from(e1.clone()));
             prop_assert_eq!(e1, e2);
         }
