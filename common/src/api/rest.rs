@@ -13,7 +13,7 @@ use tracing::{debug, error, trace, warn};
 use warp::hyper::Body;
 
 use crate::api::error::{
-    CommonError, ErrorCode, ErrorCodeConvertible, ErrorResponse, HasStatusCode,
+    CommonError, ErrorCode, ErrorResponse, HasStatusCode, ServiceApiError,
 };
 
 // Default parameters
@@ -25,7 +25,7 @@ pub const PUT: Method = Method::PUT;
 pub const POST: Method = Method::POST;
 pub const DELETE: Method = Method::DELETE;
 
-// Exponential backup
+// Exponential backoff
 const INITIAL_WAIT_MS: u64 = 250;
 const MAXIMUM_WAIT_MS: u64 = 32_000;
 const EXP_BASE: u64 = 2;
@@ -83,7 +83,7 @@ fn build_json_response<T: Serialize>(
 
 struct RequestParts {
     method: Method,
-    url: String,
+    url_with_qs: String,
     body: Bytes,
 }
 
@@ -128,7 +128,7 @@ impl RestClient {
     where
         D: Serialize,
         T: DeserializeOwned,
-        E: ErrorCodeConvertible + From<CommonError> + From<ErrorResponse>,
+        E: ServiceApiError,
     {
         self.request_with_retries(method, url, data, 0, None).await
     }
@@ -151,13 +151,13 @@ impl RestClient {
     where
         D: Serialize,
         T: DeserializeOwned,
-        E: ErrorCodeConvertible + From<CommonError> + From<ErrorResponse>,
+        E: ServiceApiError,
     {
         // Serialize request parts
         let parts = self.serialize_parts(method, url, data)?;
 
-        // Exponential backup
-        let mut backup_durations = (0..)
+        // Exponential backoff
+        let mut backoff_durations = (0..)
             .map(|index| INITIAL_WAIT_MS * EXP_BASE.pow(index))
             .map(|wait| min(wait, MAXIMUM_WAIT_MS))
             .map(Duration::from_millis);
@@ -170,8 +170,8 @@ impl RestClient {
                 Ok(data) => return Ok(data),
                 Err(e) => {
                     let method = &parts.method;
-                    let url = &parts.url;
-                    warn!("{method} {url} failed.");
+                    let url_with_qs = &parts.url_with_qs;
+                    warn!("{method} {url_with_qs} failed.");
 
                     if let Some(ref stop_codes) = stop_codes {
                         if stop_codes.contains(&e.to_code()) {
@@ -179,7 +179,7 @@ impl RestClient {
                         }
                     }
 
-                    time::sleep(backup_durations.next().unwrap()).await;
+                    time::sleep(backoff_durations.next().unwrap()).await;
                 }
             }
         }
@@ -196,7 +196,7 @@ impl RestClient {
     fn serialize_parts<D: Serialize>(
         &self,
         method: Method,
-        mut url: String,
+        url: String,
         data: &D,
     ) -> Result<RequestParts, CommonError> {
         // If GET, serialize the data in a query string
@@ -204,14 +204,12 @@ impl RestClient {
             GET => Some(serde_qs::to_string(data)?),
             _ => None,
         };
-        // Append directly to url since RequestBuilder.param() API is unwieldy
-        if let Some(query_str) = query_str {
-            if !query_str.is_empty() {
-                url.push('?');
-                url.push_str(&query_str);
-            }
-        }
-        debug!(%method, %url, "sending request");
+        // Construct manually since RequestBuilder.param() API is unwieldy
+        let url_with_qs = match query_str {
+            Some(qs) if !qs.is_empty() => format!("{url}?{qs}"),
+            _ => url,
+        };
+        debug!(%method, %url_with_qs, "sending request");
 
         // If PUT or POST, serialize the data in the request body
         let body_str = match method {
@@ -221,7 +219,11 @@ impl RestClient {
         trace!(%body_str);
         let body = Bytes::from(body_str);
 
-        Ok(RequestParts { method, url, body })
+        Ok(RequestParts {
+            method,
+            url_with_qs,
+            body,
+        })
     }
 
     /// Build a [`reqwest::Request`] from [`RequestParts`], send it, and
@@ -233,12 +235,12 @@ impl RestClient {
     ) -> Result<T, E>
     where
         T: DeserializeOwned,
-        E: ErrorCodeConvertible + From<CommonError> + From<ErrorResponse>,
+        E: ServiceApiError,
     {
         let response = self
             .client
             // Method doesn't implement Copy
-            .request(parts.method.clone(), &parts.url)
+            .request(parts.method.clone(), &parts.url_with_qs)
             // body is Bytes which can be cheaply cloned
             .body(parts.body.clone())
             .send()
