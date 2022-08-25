@@ -146,8 +146,6 @@ pub enum RunnerErrorKind {
     #[error("Other reqwest error")]
     Reqwest,
 
-    #[error("Database error")]
-    Database,
     #[error("Runner cannot take any more commands")]
     AtCapacity,
     #[error("Runner crashed or gave up on servicing the request")]
@@ -311,10 +309,9 @@ impl ErrorCodeConvertible for RunnerErrorKind {
             Self::Timeout => 3,
             Self::Decode => 4,
             Self::Reqwest => 5,
-            Self::Database => 6,
-            Self::AtCapacity => 7,
-            Self::Cancelled => 8,
-            Self::Runner => 9,
+            Self::AtCapacity => 6,
+            Self::Cancelled => 7,
+            Self::Runner => 8,
         }
     }
     fn from_code(code: ErrorCode) -> Self {
@@ -325,10 +322,9 @@ impl ErrorCodeConvertible for RunnerErrorKind {
             3 => Self::Timeout,
             4 => Self::Decode,
             5 => Self::Reqwest,
-            6 => Self::Database,
-            7 => Self::AtCapacity,
-            8 => Self::Cancelled,
-            9 => Self::Runner,
+            6 => Self::AtCapacity,
+            7 => Self::Cancelled,
+            8 => Self::Runner,
             _ => Self::Unknown,
         }
     }
@@ -393,7 +389,6 @@ impl HasStatusCode for RunnerApiError {
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
             Reqwest => CLIENT_400_BAD_REQUEST,
-            Database => SERVER_500_INTERNAL_SERVER_ERROR,
             AtCapacity => SERVER_500_INTERNAL_SERVER_ERROR,
             Cancelled => SERVER_500_INTERNAL_SERVER_ERROR,
             Runner => SERVER_500_INTERNAL_SERVER_ERROR,
@@ -519,15 +514,6 @@ impl From<CommonErrorKind> for NodeErrorKind {
 
 // --- Library -> BackendApiError impls --- //
 
-// Don't want the node to depend on sea-orm via the common crate
-#[cfg(not(target_env = "sgx"))]
-impl From<sea_orm::DbErr> for BackendApiError {
-    fn from(err: sea_orm::DbErr) -> Self {
-        let kind = BackendErrorKind::Database;
-        let msg = format!("{err:#}");
-        Self { kind, msg }
-    }
-}
 impl From<bitcoin::secp256k1::Error> for BackendApiError {
     fn from(err: bitcoin::secp256k1::Error) -> Self {
         let kind = BackendErrorKind::EntityConversion;
@@ -545,15 +531,6 @@ impl From<hex::DecodeError> for BackendApiError {
 
 // --- Library -> RunnerApiError impls --- //
 
-// Don't want the node to depend on sea-orm via the common crate
-#[cfg(not(target_env = "sgx"))]
-impl From<sea_orm::DbErr> for RunnerApiError {
-    fn from(err: sea_orm::DbErr) -> Self {
-        let kind = RunnerErrorKind::Database;
-        let msg = format!("{err:#}");
-        Self { kind, msg }
-    }
-}
 impl<T> From<mpsc::error::SendError<T>> for RunnerApiError {
     fn from(err: mpsc::error::SendError<T>) -> Self {
         let kind = RunnerErrorKind::AtCapacity;
