@@ -124,7 +124,7 @@ impl rustls::client::ServerCertVerifier for ServerCertVerifier {
 
             // 5. check that the pk in the enclave Report matches the one in
             //    this x509 cert.
-            if &reportdata[..32] != evidence.cert_pk.as_bytes() {
+            if &reportdata[..32] != evidence.cert_pk.as_slice() {
                 return Err(rustls_err(
                     "enclave's report is not actually binding to the presented x509 cert"
                 ));
