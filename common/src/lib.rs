@@ -12,6 +12,7 @@
 
 // re-export some common types from our dependencies
 pub use bitcoin::secp256k1::PublicKey;
+use ref_cast::RefCast;
 pub use secrecy::Secret;
 
 pub mod api;
@@ -28,3 +29,8 @@ pub mod rng;
 pub mod root_seed;
 pub mod sha256;
 pub mod shutdown;
+
+///
+pub const fn const_ref_cast<T: RefCast>(from: &T::From) -> &T {
+    unsafe { &*(from as *const T::From as *const T) }
+}

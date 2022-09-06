@@ -1,20 +1,27 @@
-//! Utilities for working w/ ed25519 keys (used to sign x509 certs for now).
+//! Utilities for working w/ ed25519.
 
 use std::fmt;
 
 use asn1_rs::{oid, Oid};
 use rcgen::RcgenError;
+use ref_cast::RefCast;
 use ring::signature::KeyPair as _;
 use secrecy::zeroize::Zeroizing;
 use thiserror::Error;
 use x509_parser::x509::SubjectPublicKeyInfo;
 
-use crate::hex;
 use crate::rng::Crng;
+use crate::{const_ref_cast, hex};
+
+// TODO(phlip9): patch ring/rcgen so `Ed25519KeyPair` derives `Zeroize`
 
 /// The standard PKCS OID for Ed25519
 #[rustfmt::skip]
-pub const PKCD_OID: Oid<'static> = oid!(1.3.101.112);
+pub const PKCS_OID: Oid<'static> = oid!(1.3.101.112);
+
+pub const SECRET_KEY_LEN: usize = 32;
+pub const PUBLIC_KEY_LEN: usize = 32;
+pub const SIGNATURE_LEN: usize = 64;
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -23,25 +30,208 @@ pub enum Error {
 
     #[error("the algorithm OID doesn't match the standard ed25519 OID")]
     UnexpectedAlgorithm,
+
+    #[error("failed deserializing PKCS#8-encoded key pair")]
+    DeserializeError,
+
+    #[error("derived public key doesn't match expected public key")]
+    PublicKeyMismatch,
+
+    #[error("invalid signature")]
+    InvalidSignature,
 }
 
-/// An ed25519 public key
-#[derive(Copy, Clone, PartialEq, Eq)]
+/// An ed25519 secret key and public key.
+///
+/// Applications should always sign with a *key pair* rather than passing in
+/// the secret key and public key separately, to avoid attacks like
+/// [attacker controlled pubkey signing](https://github.com/MystenLabs/ed25519-unsafe-libs).
+pub struct KeyPair {
+    /// The ring key pair for actually signing things.
+    key_pair: ring::signature::Ed25519KeyPair,
+    /// We need to hold on to the seed so we can still serialize the key pair.
+    seed: [u8; 32],
+}
+
+/// An ed25519 public key.
+#[derive(Copy, Clone, PartialEq, Eq, RefCast)]
+#[repr(transparent)]
 pub struct PublicKey([u8; 32]);
 
+/// An ed25519 signature.
+#[derive(Copy, Clone, PartialEq, Eq, RefCast)]
+#[repr(transparent)]
+pub struct Signature([u8; 64]);
+
+/// A message whose signature we've verified was signed by the given
+/// [`ed25519::PublicKey`](PublicKey).
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct VerifiedMessage<'pk, 'msg> {
+    signer: &'pk PublicKey,
+    msg: &'msg [u8],
+}
+
+// -- impl KeyPair -- //
+
+impl KeyPair {
+    /// Create a new `ed25519::KeyPair` from a random 32-byte seed.
+    ///
+    /// Use this when deriving a key pair from a KDF like
+    /// [`RootSeed`](crate::root_seed::RootSeed).
+    pub fn from_seed(seed: &[u8; 32]) -> Self {
+        let key_pair = ring::signature::Ed25519KeyPair::from_seed_unchecked(
+            seed,
+        )
+        .expect("This should never fail, as the seed is exactly 32 bytes");
+        Self {
+            seed: *seed,
+            key_pair,
+        }
+    }
+
+    /// Create a new `ed25519::KeyPair` from a random 32-byte seed and the
+    /// expected public key. Will return an error if the derived public key
+    /// doesn't match.
+    pub fn from_seed_and_pubkey(
+        seed: &[u8; 32],
+        expected_pubkey: &[u8; 32],
+    ) -> Result<Self, Error> {
+        let key_pair =
+            ring::signature::Ed25519KeyPair::from_seed_and_public_key(
+                seed.as_slice(),
+                expected_pubkey.as_slice(),
+            )
+            .map_err(|_| Error::PublicKeyMismatch)?;
+        Ok(Self {
+            seed: *seed,
+            key_pair,
+        })
+    }
+
+    /// Sample a new `ed25519::KeyPair` from a cryptographic RNG.
+    ///
+    /// Use this when sampling a key pair for the first time or sampling an
+    /// ephemeral key pair.
+    pub fn from_rng(rng: &mut dyn Crng) -> Self {
+        let mut seed = [0u8; 32];
+        rng.fill_bytes(seed.as_mut_slice());
+        Self::from_seed(&seed)
+    }
+
+    /// Convert the current `ed25519::KeyPair` into an [`rcgen::KeyPair`].
+    pub fn to_rcgen(&self) -> rcgen::KeyPair {
+        let pkcs8_bytes = self.serialize_pkcs8();
+        rcgen::KeyPair::try_from(pkcs8_bytes.as_slice()).expect(
+            "Deserializing a freshly serialized ed25519 key pair should never fail",
+        )
+    }
+
+    pub fn to_ring(&self) -> ring::signature::Ed25519KeyPair {
+        let pkcs8_bytes = self.serialize_pkcs8();
+        ring::signature::Ed25519KeyPair::from_pkcs8(&pkcs8_bytes).unwrap()
+    }
+
+    pub fn into_ring(self) -> ring::signature::Ed25519KeyPair {
+        self.key_pair
+    }
+
+    /// Create a new `ed25519::KeyPair` from a short id number.
+    ///
+    /// NOTE: this should only be used in tests.
+    pub fn for_test(id: u64) -> Self {
+        const LEN: usize = std::mem::size_of::<u64>();
+
+        let mut seed = [0u8; 32];
+        seed[0..LEN].copy_from_slice(id.to_le_bytes().as_slice());
+        Self::from_seed(&seed)
+    }
+
+    /// Serialize the `ed25519::KeyPair` into a PKCS#8 document.
+    pub fn serialize_pkcs8(&self) -> [u8; PKCS_LEN] {
+        serialize_pkcs8(&self.seed, self.public_key().as_inner())
+    }
+
+    /// Deserialize an `ed25519::KeyPair` from a PKCS#8 document.
+    pub fn deserialize_pkcs8(bytes: &[u8]) -> Result<Self, Error> {
+        let (seed, expected_pubkey) =
+            deserialize_pkcs8(bytes).ok_or(Error::DeserializeError)?;
+        Self::from_seed_and_pubkey(seed, expected_pubkey)
+    }
+
+    /// The secret key or "seed" that generated this `ed25519::KeyPair`.
+    pub fn secret_key(&self) -> &[u8; 32] {
+        &self.seed
+    }
+
+    /// The [`PublicKey`] for this `KeyPair`.
+    pub fn public_key(&self) -> &PublicKey {
+        let pubkey_bytes =
+            <&[u8; 32]>::try_from(self.key_pair.public_key().as_ref()).unwrap();
+        PublicKey::from_ref(pubkey_bytes)
+    }
+
+    /// Sign a message with this key pair.
+    pub fn sign<'pk, 'msg>(
+        &'pk self,
+        msg: &'msg [u8],
+    ) -> (Signature, VerifiedMessage<'pk, 'msg>) {
+        let signer = self.public_key();
+        let sig = self.key_pair.sign(msg);
+        let sig = Signature::try_from(sig.as_ref()).unwrap();
+        (sig, VerifiedMessage { signer, msg })
+    }
+}
+
+impl fmt::Debug for KeyPair {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ed25519::KeyPair")
+            .field("sk", &"..")
+            .field("pk", &hex::display(self.public_key().as_slice()))
+            .finish()
+    }
+}
+
+// -- impl PublicKey --- //
+
 impl PublicKey {
-    pub fn new(bytes: [u8; 32]) -> Self {
-        // TODO(phlip9): check for malleability/small-order subgroup
+    pub const fn new(bytes: [u8; 32]) -> Self {
+        // TODO(phlip9): check for malleability/small-order subgroup?
         // https://github.com/aptos-labs/aptos-core/blob/3f437b5597b5d537d03755e599f395a2242f2b91/crates/aptos-crypto/src/ed25519.rs#L358
         Self(bytes)
     }
 
-    pub fn as_bytes(&self) -> &[u8] {
+    pub const fn from_ref(bytes: &[u8; 32]) -> &Self {
+        const_ref_cast(bytes)
+    }
+
+    pub fn verify<'pk, 'msg>(
+        &'pk self,
+        msg: &'msg [u8],
+        sig: &Signature,
+    ) -> Result<VerifiedMessage<'pk, 'msg>, Error> {
+        self.verify_raw(msg, sig.as_slice())?;
+        Ok(VerifiedMessage { signer: self, msg })
+    }
+
+    pub fn verify_raw(&self, msg: &[u8], sig: &[u8]) -> Result<(), Error> {
+        ring::signature::UnparsedPublicKey::new(
+            &ring::signature::ED25519,
+            self.as_slice(),
+        )
+        .verify(msg, sig)
+        .map_err(|_| Error::InvalidSignature)
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
         self.0.as_slice()
     }
 
     pub fn into_inner(self) -> [u8; 32] {
         self.0
+    }
+
+    pub fn as_inner(&self) -> &[u8; 32] {
+        &self.0
     }
 }
 
@@ -61,12 +251,8 @@ impl TryFrom<&[u8]> for PublicKey {
     type Error = Error;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        if bytes.len() != 32 {
-            return Err(Error::InvalidPkLength);
-        }
-
-        let mut pk = [0u8; 32];
-        pk.copy_from_slice(bytes);
+        let pk =
+            <[u8; 32]>::try_from(bytes).map_err(|_| Error::InvalidPkLength)?;
         Ok(Self::new(pk))
     }
 }
@@ -76,7 +262,7 @@ impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
 
     fn try_from(spki: &SubjectPublicKeyInfo<'_>) -> Result<Self, Self::Error> {
         let alg = &spki.algorithm;
-        if !(alg.oid() == &PKCD_OID) {
+        if !(alg.oid() == &PKCS_OID) {
             return Err(Error::UnexpectedAlgorithm);
         }
 
@@ -86,26 +272,100 @@ impl TryFrom<&SubjectPublicKeyInfo<'_>> for PublicKey {
 
 impl AsRef<[u8]> for PublicKey {
     fn as_ref(&self) -> &[u8] {
-        self.as_bytes()
+        self.as_slice()
+    }
+}
+
+impl AsRef<[u8; 32]> for PublicKey {
+    fn as_ref(&self) -> &[u8; 32] {
+        self.as_inner()
     }
 }
 
 impl fmt::Display for PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(self.as_bytes()))
+        write!(f, "{}", hex::display(self.as_slice()))
     }
 }
 
 impl fmt::Debug for PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_tuple("ed25519::PublicKey")
-            .field(&hex::display(self.as_bytes()))
+            .field(&hex::display(self.as_slice()))
             .finish()
     }
 }
 
-// TODO(phlip9): patch ring/rcgen so `Ed25519KeyPair` derives `Default` so we
-// can wrap it in `Secret<..>`
+// -- impl Signature -- //
+
+impl Signature {
+    pub const fn new(sig: [u8; 64]) -> Self {
+        Self(sig)
+    }
+
+    pub const fn from_ref(sig: &[u8; 64]) -> &Self {
+        const_ref_cast(sig)
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+
+    pub fn into_inner(self) -> [u8; 64] {
+        self.0
+    }
+
+    pub fn as_inner(&self) -> &[u8; 64] {
+        &self.0
+    }
+}
+
+impl AsRef<[u8]> for Signature {
+    fn as_ref(&self) -> &[u8] {
+        self.as_slice()
+    }
+}
+
+impl AsRef<[u8; 64]> for Signature {
+    fn as_ref(&self) -> &[u8; 64] {
+        self.as_inner()
+    }
+}
+
+impl TryFrom<&[u8]> for Signature {
+    type Error = Error;
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        <[u8; 64]>::try_from(value)
+            .map(Signature)
+            .map_err(|_| Error::InvalidSignature)
+    }
+}
+
+impl fmt::Display for Signature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::display(self.as_slice()))
+    }
+}
+
+impl fmt::Debug for Signature {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("ed25519::Signature")
+            .field(&hex::display(self.as_slice()))
+            .finish()
+    }
+}
+
+// -- impl VerifiedMessage -- //
+
+impl<'pk, 'msg> VerifiedMessage<'pk, 'msg> {
+    pub fn signer(&self) -> &'pk PublicKey {
+        self.signer
+    }
+
+    pub fn message(&self) -> &'msg [u8] {
+        self.msg
+    }
+}
 
 pub fn gen_key_pair(rng: &mut dyn Crng) -> rcgen::KeyPair {
     let mut seed = Zeroizing::new([0u8; 32]);
@@ -114,16 +374,10 @@ pub fn gen_key_pair(rng: &mut dyn Crng) -> rcgen::KeyPair {
 }
 
 pub fn from_seed(seed: &[u8; 32]) -> rcgen::KeyPair {
-    let key_pair =
-        ring::signature::Ed25519KeyPair::from_seed_unchecked(seed.as_slice())
-            .expect(
-                "This should never fail, as the secret is exactly 32 bytes",
-            );
-    let key_bytes = seed.as_slice();
-    let pk_bytes = key_pair.public_key().as_ref();
-    let pkcs8_bytes = serialize_pkcs8(key_bytes, pk_bytes);
+    let key_pair = KeyPair::from_seed(seed);
+    let pkcs8_bytes = key_pair.serialize_pkcs8();
 
-    rcgen::KeyPair::try_from(pkcs8_bytes).expect(
+    rcgen::KeyPair::try_from(pkcs8_bytes.as_slice()).expect(
         "Deserializing a freshly serialized ed25519 key pair should never fail",
     )
 }
@@ -152,65 +406,96 @@ const PKCS_TEMPLATE_PREFIX: &[u8] = &[
 const PKCS_TEMPLATE_MIDDLE: &[u8] = &[0xa1, 0x23, 0x03, 0x21, 0x00];
 const PKCS_TEMPLATE_KEY_IDX: usize = 16;
 
+// The length of an ed25519 key pair serialized as PKCS#8 v2 with embedded
+// public key.
+const PKCS_LEN: usize = PKCS_TEMPLATE_PREFIX.len()
+    + SECRET_KEY_LEN
+    + PKCS_TEMPLATE_MIDDLE.len()
+    + PUBLIC_KEY_LEN;
+
+// Should be exactly 85 bytes.
+const _: [(); 85] = [(); PKCS_LEN];
+
 /// Formats a key pair as `prefix || key || middle || pk`, where `prefix`
 /// and `middle` are two pre-computed blobs.
 ///
 /// Note: adapted from `ring`, which doesn't let you serialize as pkcs#8 via
 /// any public API...
-fn serialize_pkcs8(private_key: &[u8], public_key: &[u8]) -> Vec<u8> {
-    let len = PKCS_TEMPLATE_PREFIX.len()
-        + private_key.len()
-        + PKCS_TEMPLATE_MIDDLE.len()
-        + public_key.len();
-    let mut out = vec![0u8; len];
+fn serialize_pkcs8(
+    secret_key: &[u8; 32],
+    public_key: &[u8; 32],
+) -> [u8; PKCS_LEN] {
+    let mut out = [0u8; PKCS_LEN];
     let key_start_idx = PKCS_TEMPLATE_KEY_IDX;
 
     let prefix = PKCS_TEMPLATE_PREFIX;
     let middle = PKCS_TEMPLATE_MIDDLE;
 
-    let key_end_idx = key_start_idx + private_key.len();
+    let key_end_idx = key_start_idx + secret_key.len();
     out[..key_start_idx].copy_from_slice(prefix);
-    out[key_start_idx..key_end_idx].copy_from_slice(private_key);
+    out[key_start_idx..key_end_idx].copy_from_slice(secret_key);
     out[key_end_idx..(key_end_idx + middle.len())].copy_from_slice(middle);
     out[(key_end_idx + middle.len())..].copy_from_slice(public_key);
 
     out
 }
 
+/// Deserialize the seed and pubkey for a key pair from its PKCS#8-encoded
+/// bytes.
+fn deserialize_pkcs8(bytes: &[u8]) -> Option<(&[u8; 32], &[u8; 32])> {
+    if bytes.len() != PKCS_LEN {
+        return None;
+    }
+
+    let seed_mid_pubkey = bytes.strip_prefix(PKCS_TEMPLATE_PREFIX)?;
+    let (seed, mid_pubkey) = seed_mid_pubkey.split_at(SECRET_KEY_LEN);
+    let pubkey = mid_pubkey.strip_prefix(PKCS_TEMPLATE_MIDDLE)?;
+
+    let seed = <&[u8; 32]>::try_from(seed).unwrap();
+    let pubkey = <&[u8; 32]>::try_from(pubkey).unwrap();
+
+    Some((seed, pubkey))
+}
+
 #[cfg(test)]
 mod test {
     use proptest::arbitrary::any;
     use proptest::proptest;
-    use ring::signature::{
-        Ed25519KeyPair, EdDSAParameters, VerificationAlgorithm,
-    };
+    use proptest::strategy::Strategy;
 
     use super::*;
 
+    fn arb_seed() -> impl Strategy<Value = [u8; 32]> {
+        any::<[u8; 32]>()
+    }
+
+    fn arb_key_pair() -> impl Strategy<Value = KeyPair> {
+        arb_seed().prop_map(|seed| KeyPair::from_seed(&seed))
+    }
+
     #[test]
-    fn test_serialize_pkcs8() {
-        let seed = [0x42; 32];
-        let key_pair1 =
-            Ed25519KeyPair::from_seed_unchecked(seed.as_slice()).unwrap();
-        let pk_bytes: &[u8] = key_pair1.public_key().as_ref();
+    fn test_serde_pkcs8_roundtrip() {
+        proptest!(|(seed in arb_seed())| {
+            let key_pair1 = KeyPair::from_seed(&seed);
+            let key_pair_bytes = key_pair1.serialize_pkcs8();
+            let key_pair2 = KeyPair::deserialize_pkcs8(key_pair_bytes.as_slice()).unwrap();
 
-        let key_pair1_bytes =
-            serialize_pkcs8(seed.as_slice(), key_pair1.public_key().as_ref());
+            assert_eq!(key_pair1.secret_key(), key_pair2.secret_key());
+            assert_eq!(key_pair1.public_key(), key_pair2.public_key());
+        });
+    }
 
-        let key_pair2 = Ed25519KeyPair::from_pkcs8(&key_pair1_bytes).unwrap();
-
-        let msg: &[u8] = b"hello, world".as_slice();
-        let sig = key_pair2.sign(msg);
-        let sig_bytes: &[u8] = sig.as_ref();
-
-        EdDSAParameters
-            .verify(pk_bytes.into(), msg.into(), sig_bytes.into())
-            .unwrap();
+    #[test]
+    fn test_deserialize_pkcs8_different_lengths() {
+        for size in 0..=256 {
+            let bytes = vec![0x42_u8; size];
+            let _ = deserialize_pkcs8(&bytes);
+        }
     }
 
     #[test]
     fn test_from_seed() {
-        proptest!(|(seed in any::<[u8; 32]>())| {
+        proptest!(|(seed in arb_seed())| {
             // should never panic
             let key_pair = crate::ed25519::from_seed(&seed);
             assert!(key_pair.is_compatible(&rcgen::PKCS_ED25519));
@@ -218,12 +503,55 @@ mod test {
     }
 
     #[test]
-    fn test_from_rcgen() {
-        proptest!(|(seed in any::<[u8; 32]>())| {
+    fn test_pubkey_from_rcgen() {
+        proptest!(|(seed in arb_seed())| {
             let key_pair = crate::ed25519::from_seed(&seed);
             let pk_bytes = key_pair.public_key_raw();
             let pk = PublicKey::try_from(pk_bytes).unwrap();
-            assert_eq!(pk.as_bytes(), pk_bytes);
+            assert_eq!(pk.as_slice(), pk_bytes);
+        });
+    }
+
+    #[test]
+    fn test_to_rcgen() {
+        proptest!(|(key_pair in arb_key_pair())| {
+            let rcgen_key_pair = key_pair.to_rcgen();
+            assert_eq!(rcgen_key_pair.public_key_raw(), key_pair.public_key().as_slice());
+        });
+    }
+
+    // See: [RFC 8032 (EdDSA) > Test Vectors](https://www.rfc-editor.org/rfc/rfc8032.html#page-25)
+    #[test]
+    fn test_ed25519_test_vector() {
+        let sk: [u8; 32] = hex::decode_const(
+            b"c5aa8df43f9f837bedb7442f31dcb7b166d38535076f094b85ce3a2e0b4458f7",
+        );
+        let pk: [u8; 32] = hex::decode_const(
+            b"fc51cd8e6218a1a38da47ed00230f0580816ed13ba3303ac5deb911548908025",
+        );
+        let msg: [u8; 2] = hex::decode_const(b"af82");
+        let sig: [u8; 64] = hex::decode_const(b"6291d657deec24024827e69c3abe01a30ce548a284743a445e3680d7db5ac3ac18ff9b538d16f290ae67f760984dc6594a7c15e9716ed28dc027beceea1ec40a");
+
+        let key_pair = KeyPair::from_seed(&sk);
+        assert_eq!(key_pair.public_key().as_inner(), &pk);
+
+        let (sig2, verified_msg) = key_pair.sign(&msg);
+        assert_eq!(&sig, sig2.as_inner());
+
+        let verified_msg2 = key_pair.public_key().verify(&msg, &sig2).unwrap();
+        assert_eq!(verified_msg, verified_msg2);
+    }
+
+    #[test]
+    fn test_sign_verify() {
+        proptest!(|(key_pair in arb_key_pair(), msg in any::<Vec<u8>>())| {
+            let pubkey = key_pair.public_key();
+
+            let (sig, verified_msg) = key_pair.sign(&msg);
+            assert_eq!(verified_msg.signer(), pubkey);
+
+            let verified_msg2 = pubkey.verify(&msg, &sig).unwrap();
+            assert_eq!(verified_msg, verified_msg2);
         });
     }
 }
