@@ -2,8 +2,8 @@ use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use common::shutdown::ShutdownChannel;
 use lightning::util::events::EventsProvider;
-use tokio::sync::broadcast;
 use tokio::time::{interval, interval_at, Instant};
 use tracing::{debug, error, info, trace, warn};
 
@@ -38,8 +38,7 @@ impl LexeBackgroundProcessor {
         event_handler: Arc<InvoicePayerType>,
         gossip_sync: Arc<P2PGossipSyncType>,
         scorer: Arc<Mutex<ProbabilisticScorerType>>,
-        shutdown_tx: broadcast::Sender<()>,
-        mut shutdown_rx: broadcast::Receiver<()>,
+        shutdown: ShutdownChannel,
     ) -> LxTask<()> {
         LxTask::spawn(async move {
             let mut process_timer = interval(PROCESS_EVENTS_INTERVAL);
@@ -87,7 +86,7 @@ impl LexeBackgroundProcessor {
                                 // been persisted correctly, but it's still
                                 // serious - initiate a shutdown
                                 error!("Couldn't persist channel manager: {:#}", e);
-                                let _ = shutdown_tx.send(());
+                                shutdown.send();
                                 break;
                             }
                         }
@@ -118,7 +117,7 @@ impl LexeBackgroundProcessor {
                     }
 
                     // --- Shutdown branch --- //
-                    _ = shutdown_rx.recv() => {
+                    _ = shutdown.recv() => {
                         info!("Background processor shutting down");
                         break;
                     }

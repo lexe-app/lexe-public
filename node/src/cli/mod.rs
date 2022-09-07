@@ -24,7 +24,7 @@ impl Args {
                 let rt = tokio::runtime::Builder::new_current_thread()
                     .enable_all()
                     .build()
-                    .expect("Failed to build tokio runtime");
+                    .expect("Failed to build Tokio runtime");
                 let mut rng = SysRng::new();
                 rt.block_on(async {
                     let node = LexeNode::init(&mut rng, args).await?;

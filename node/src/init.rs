@@ -15,6 +15,7 @@ use common::enclave::{
     self, MachineId, Measurement, MinCpusvn, Sealed, MIN_SGX_CPUSVN,
 };
 use common::rng::Crng;
+use common::shutdown::ShutdownChannel;
 use futures::future;
 use lightning::chain;
 use lightning::chain::chainmonitor::ChainMonitor;
@@ -24,7 +25,7 @@ use lightning::routing::gossip::P2PGossipSync;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use tokio::net::TcpListener;
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::mpsc;
 use tokio::time;
 use tracing::{debug, error, info, instrument, warn};
 
@@ -85,8 +86,7 @@ pub struct LexeNode {
     // --- Run --- //
     inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
-    spv_client_shutdown_rx: broadcast::Receiver<()>,
-    main_shutdown_rx: broadcast::Receiver<()>,
+    shutdown: ShutdownChannel,
 }
 
 impl LexeNode {
@@ -148,7 +148,7 @@ impl LexeNode {
 
         // Init Tokio channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
-        let shutdown = ShutdownChannel::init();
+        let shutdown = ShutdownChannel::new();
         let (channel_monitor_updated_tx, channel_monitor_updated_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
 
@@ -157,7 +157,7 @@ impl LexeNode {
             api.clone(),
             node_pk,
             measurement,
-            shutdown.tx.persister,
+            shutdown.clone(),
             channel_monitor_updated_tx,
         );
 
@@ -174,7 +174,7 @@ impl LexeNode {
         let channel_monitor_updated_handle = spawn_channel_monitor_updated_task(
             chain_monitor.clone(),
             channel_monitor_updated_rx,
-            shutdown.rx.channel_monitor_updated,
+            shutdown.clone(),
         );
         handles.push(channel_monitor_updated_handle);
 
@@ -227,7 +227,7 @@ impl LexeNode {
         let (p2p_listener_handle, peer_port) = spawn_p2p_listener(
             peer_manager.clone(),
             args.peer_port,
-            shutdown.rx.p2p_listener,
+            shutdown.clone(),
         )
         .await;
         handles.push(p2p_listener_handle);
@@ -237,7 +237,7 @@ impl LexeNode {
             channel_manager.clone(),
             peer_manager.clone(),
             persister.clone(),
-            shutdown.rx.p2p_reconnector,
+            shutdown.clone(),
         );
         handles.push(p2p_reconnector_handle);
 
@@ -268,7 +268,7 @@ impl LexeNode {
         // TODO(phlip9): authenticate host<->node
         // Start warp service for host
         let host_routes =
-            command::server::host_routes(args.user_pk, shutdown.tx.host_routes);
+            command::server::host_routes(args.user_pk, shutdown.clone());
         let (host_addr, host_service_fut) = warp::serve(host_routes)
             // A value of 0 indicates that the OS will assign a port for us
             .try_bind_ephemeral(([127, 0, 0, 1], args.host_port.unwrap_or(0)))
@@ -328,8 +328,7 @@ impl LexeNode {
             invoice_payer.clone(),
             gossip_sync.clone(),
             scorer.clone(),
-            shutdown.tx.background_processor,
-            shutdown.rx.background_processor,
+            shutdown.clone(),
         );
         handles.push(bg_processor_handle);
 
@@ -338,13 +337,10 @@ impl LexeNode {
             args.shutdown_after_sync_if_no_activity,
             args.inactivity_timer_sec,
             activity_rx,
-            shutdown.tx.inactivity_timer,
-            shutdown.rx.inactivity_timer,
+            shutdown.clone(),
         );
 
         // Build and return the LexeNode
-        let main_shutdown_rx = shutdown.rx.main;
-        let spv_client_shutdown_rx = shutdown.rx.spv_client;
         let node = LexeNode {
             // General
             args,
@@ -374,8 +370,7 @@ impl LexeNode {
             // Run
             inbound_payments,
             outbound_payments,
-            spv_client_shutdown_rx,
-            main_shutdown_rx,
+            shutdown,
         };
         Ok(node)
     }
@@ -402,7 +397,7 @@ impl LexeNode {
         let spv_client_handle = synced_chain_listeners
             .feed_chain_monitor_and_spawn_spv(
                 self.chain_monitor.clone(),
-                self.spv_client_shutdown_rx,
+                self.shutdown.clone(),
             )
             .context("Error wrapping up sync")?;
         self.handles.push(spv_client_handle);
@@ -436,7 +431,7 @@ impl LexeNode {
         }
 
         // Pause here and wait for the shutdown signal
-        let _ = self.main_shutdown_rx.recv().await;
+        self.shutdown.recv().await;
 
         // --- Shutdown --- //
         info!("Main thread shutting down.");
@@ -465,76 +460,6 @@ impl LexeNode {
         }
 
         Ok(())
-    }
-}
-
-/// Holds all the `shutdown_tx` / `shutdown_rx` channel senders and receivers
-/// created during init. All senders / receivers are moved out of this struct at
-/// some point during init.
-struct ShutdownChannel {
-    tx: ShutdownTx,
-    rx: ShutdownRx,
-}
-
-struct ShutdownTx {
-    persister: broadcast::Sender<()>,
-    host_routes: broadcast::Sender<()>,
-    inactivity_timer: broadcast::Sender<()>,
-    background_processor: broadcast::Sender<()>,
-}
-
-struct ShutdownRx {
-    main: broadcast::Receiver<()>,
-    spv_client: broadcast::Receiver<()>,
-    p2p_listener: broadcast::Receiver<()>,
-    p2p_reconnector: broadcast::Receiver<()>,
-    inactivity_timer: broadcast::Receiver<()>,
-    background_processor: broadcast::Receiver<()>,
-    channel_monitor_updated: broadcast::Receiver<()>,
-}
-
-impl ShutdownChannel {
-    /// Initializes all senders and receivers together to ensure that all calls
-    /// to [`subscribe`] are complete before any values are sent (otherwise
-    /// those values will not be received). This prevents race conditions where
-    /// e.g. the inactivity timer sends on shutdown_tx before another task
-    /// spawned during init has had a chance to subscribe.
-    ///
-    /// [`subscribe`]: broadcast::Sender::subscribe
-    fn init() -> Self {
-        let (shutdown_tx, _) = broadcast::channel(DEFAULT_CHANNEL_SIZE);
-
-        // Clone txs
-        let persister = shutdown_tx.clone();
-        let host_routes = shutdown_tx.clone();
-        let inactivity_timer = shutdown_tx.clone();
-        let background_processor = shutdown_tx.clone();
-        let tx = ShutdownTx {
-            persister,
-            host_routes,
-            inactivity_timer,
-            background_processor,
-        };
-
-        // Subscribe rxs
-        let main = shutdown_tx.subscribe();
-        let spv_client = shutdown_tx.subscribe();
-        let p2p_listener = shutdown_tx.subscribe();
-        let p2p_reconnector = shutdown_tx.subscribe();
-        let inactivity_timer = shutdown_tx.subscribe();
-        let background_processor = shutdown_tx.subscribe();
-        let channel_monitor_updated = shutdown_tx.subscribe();
-        let rx = ShutdownRx {
-            main,
-            spv_client,
-            p2p_listener,
-            p2p_reconnector,
-            inactivity_timer,
-            background_processor,
-            channel_monitor_updated,
-        };
-
-        Self { tx, rx }
     }
 }
 
@@ -670,7 +595,7 @@ async fn gossip_sync(
 async fn spawn_p2p_listener(
     peer_manager: LexePeerManager,
     peer_port_opt: Option<Port>,
-    mut shutdown_rx: broadcast::Receiver<()>,
+    shutdown: ShutdownChannel,
 ) -> (LxTask<()>, Port) {
     // A value of 0 indicates that the OS will assign a port for us
     // TODO(phlip9): should only listen on internal interface
@@ -709,8 +634,8 @@ async fn spawn_p2p_listener(
                         // `setup_inbound()` returns a future that completes
                         // when the connection is closed. The main thread calls
                         // peer_manager.disconnect_all_peers() once it receives
-                        // a shutdown signal so there is no need to pass in
-                        // `shutdown_rx`s here.
+                        // a shutdown signal so there is no need to pass in a
+                        // `shutdown`s here.
                         let connection_closed = lightning_net_tokio::setup_inbound(
                             peer_manager_clone,
                             tcp_stream,
@@ -720,7 +645,7 @@ async fn spawn_p2p_listener(
 
                     child_handles.push(child_handle);
                 }
-                _ = shutdown_rx.recv() =>
+                _ = shutdown.recv() =>
                     break info!("LN P2P listen task shutting down"),
             }
         }
@@ -743,7 +668,7 @@ fn spawn_p2p_reconnector(
     channel_manager: LexeChannelManager,
     peer_manager: LexePeerManager,
     persister: LexePersister,
-    mut shutdown_rx: broadcast::Receiver<()>,
+    shutdown: ShutdownChannel,
 ) -> LxTask<()> {
     LxTask::spawn(async move {
         let mut interval = time::interval(P2P_RECONNECT_INTERVAL);
@@ -754,7 +679,7 @@ fn spawn_p2p_reconnector(
                 // Prevents race condition where we initiate a reconnect *after*
                 // a shutdown signal was received, causing this task to hang
                 biased;
-                _ = shutdown_rx.recv() => break info!("P2P reconnector shutting down"),
+                _ = shutdown.recv() => break info!("P2P reconnector shutting down"),
                 _ = interval.tick() => {}
             }
 
@@ -812,7 +737,7 @@ fn spawn_p2p_reconnector(
 pub fn spawn_channel_monitor_updated_task(
     chain_monitor: Arc<ChainMonitorType>,
     mut channel_monitor_updated_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
-    mut shutdown_rx: broadcast::Receiver<()>,
+    shutdown: ShutdownChannel,
 ) -> LxTask<()> {
     debug!("Starting channel_monitor_updated task");
     LxTask::spawn(async move {
@@ -827,7 +752,7 @@ pub fn spawn_channel_monitor_updated_task(
                         error!("channel_monitor_updated returned Err: {:?}", e);
                     }
                 }
-                _ = shutdown_rx.recv() => {
+                _ = shutdown.recv() => {
                     info!("channel_monitor_updated task shutting down");
                     break;
                 }

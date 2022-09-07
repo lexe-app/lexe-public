@@ -1,7 +1,8 @@
 use std::time::Duration;
 
+use common::shutdown::ShutdownChannel;
+use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::TryRecvError;
-use tokio::sync::{broadcast, mpsc};
 use tokio::time::{self, Instant};
 use tracing::{debug, info, trace};
 
@@ -12,7 +13,7 @@ use tracing::{debug, info, trace};
 /// - If the command server sends an activity event, the timer resets to now +
 ///   `self.duration`.
 /// - If an activity event is received via `activity_rx`, the timer is reset.
-/// - If the timer reaches 0, a shutdown signal is sent via `shutdown_tx`.
+/// - If the timer reaches 0, a shutdown signal is sent via `shutdown`.
 /// - If a shutdown signal is received, the actor shuts down.
 pub struct InactivityTimer {
     /// Whether to signal a shutdown if no activity was detected at the
@@ -24,9 +25,7 @@ pub struct InactivityTimer {
     /// Used to receive activity events from the command server.
     activity_rx: mpsc::Receiver<()>,
     /// Used to signal the rest of the program to shut down.
-    shutdown_tx: broadcast::Sender<()>,
-    /// Used to receive a shutdown signal from the /lexe/shutdown endpoint.
-    shutdown_rx: broadcast::Receiver<()>,
+    shutdown: ShutdownChannel,
 }
 
 impl InactivityTimer {
@@ -34,16 +33,14 @@ impl InactivityTimer {
         shutdown_after_sync_if_no_activity: bool,
         inactivity_timer_sec: u64,
         activity_rx: mpsc::Receiver<()>,
-        shutdown_tx: broadcast::Sender<()>,
-        shutdown_rx: broadcast::Receiver<()>,
+        shutdown: ShutdownChannel,
     ) -> Self {
         let duration = Duration::from_secs(inactivity_timer_sec);
         Self {
             shutdown_after_sync_if_no_activity,
             duration,
             activity_rx,
-            shutdown_tx,
-            shutdown_rx,
+            shutdown,
         }
     }
 
@@ -56,12 +53,12 @@ impl InactivityTimer {
                 }
                 Err(TryRecvError::Empty) => {
                     info!("No activity detected, initiating shutdown");
-                    let _ = self.shutdown_tx.send(());
+                    self.shutdown.send();
                     return;
                 }
                 Err(TryRecvError::Disconnected) => {
                     info!("Timer channel disconnected, initiating shutdown");
-                    let _ = self.shutdown_tx.send(());
+                    self.shutdown.send();
                     return;
                 }
             }
@@ -77,7 +74,7 @@ impl InactivityTimer {
             tokio::select! {
                 () = &mut timer => {
                     info!("Inactivity timer hit 0, sending shutdown signal");
-                    let _ = self.shutdown_tx.send(());
+                    self.shutdown.send();
                     break;
                 }
                 activity_opt = self.activity_rx.recv() => {
@@ -94,7 +91,7 @@ impl InactivityTimer {
                         },
                     }
                 }
-                _ = self.shutdown_rx.recv() => {
+                _ = self.shutdown.recv() => {
                     info!("Inactivity timer received shutdown signal");
                     break;
                 }
@@ -107,7 +104,7 @@ impl InactivityTimer {
 mod tests {
     use std::future::Future;
 
-    use tokio::sync::{broadcast, mpsc};
+    use tokio::sync::mpsc;
     use tokio::time::{self, Duration};
 
     use super::*;
@@ -118,8 +115,7 @@ mod tests {
     struct TestMaterials {
         actor: InactivityTimer,
         activity_tx: mpsc::Sender<()>,
-        shutdown_tx: broadcast::Sender<()>,
-        shutdown_rx: broadcast::Receiver<()>,
+        shutdown: ShutdownChannel,
     }
 
     fn get_test_materials(
@@ -127,22 +123,19 @@ mod tests {
         inactivity_timer_sec: u64,
     ) -> TestMaterials {
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
-        let (shutdown_tx, shutdown_rx) =
-            broadcast::channel(DEFAULT_CHANNEL_SIZE);
-        let actor_shutdown_rx = shutdown_tx.subscribe();
+        let shutdown = ShutdownChannel::new();
+        let actor_shutdown = shutdown.clone();
         let actor = InactivityTimer::new(
             shutdown_after_sync_if_no_activity,
             inactivity_timer_sec,
             activity_rx,
-            shutdown_tx.clone(),
-            actor_shutdown_rx,
+            actor_shutdown,
         );
 
         TestMaterials {
             actor,
             activity_tx,
-            shutdown_tx,
-            shutdown_rx,
+            shutdown,
         }
     }
 
@@ -150,7 +143,7 @@ mod tests {
     /// given time bounds. Also tests that it sends a shutdown signal.
     async fn bound_finish(
         actor_fut: impl Future<Output = ()>,
-        mut shutdown_rx: broadcast::Receiver<()>,
+        shutdown: ShutdownChannel,
         lower_bound_ms: Option<u64>,
         upper_bound_ms: Option<u64>,
     ) {
@@ -171,9 +164,7 @@ mod tests {
                 () = upper => panic!("Took too long to finish"),
             }
         }
-        shutdown_rx
-            .try_recv()
-            .expect("Should have received shutdown signal");
+        assert!(shutdown.try_recv());
     }
 
     /// Case 1: shutdown_after_sync enabled, no activity
@@ -188,7 +179,7 @@ mod tests {
         let actor_fut = mats.actor.start();
 
         // Actor should finish instantly
-        bound_finish(actor_fut, mats.shutdown_rx, None, Some(1)).await;
+        bound_finish(actor_fut, mats.shutdown, None, Some(1)).await;
     }
 
     /// Case 2: shutdown_after_sync enabled, *with* activity
@@ -204,7 +195,7 @@ mod tests {
         let actor_fut = mats.actor.start();
 
         // Actor should finish at 1000ms (1 sec)
-        bound_finish(actor_fut, mats.shutdown_rx, Some(999), Some(1001)).await;
+        bound_finish(actor_fut, mats.shutdown, Some(999), Some(1001)).await;
     }
 
     /// Case 3: shutdown_after_sync not enabled, no activity
@@ -219,7 +210,7 @@ mod tests {
         let actor_fut = mats.actor.start();
 
         // Actor should finish at about 1000ms (1 sec)
-        bound_finish(actor_fut, mats.shutdown_rx, Some(999), Some(1001)).await;
+        bound_finish(actor_fut, mats.shutdown, Some(999), Some(1001)).await;
     }
 
     /// Case 4: shutdown_after_sync not enabled, *with* activity; i.e. the
@@ -242,7 +233,7 @@ mod tests {
         });
 
         // Actor should finish at about 1500ms
-        bound_finish(actor_fut, mats.shutdown_rx, Some(1499), Some(1501)).await;
+        bound_finish(actor_fut, mats.shutdown, Some(1499), Some(1501)).await;
     }
 
     /// Case 5: shutdown_after_sync not enabled, *with* activity, *with*
@@ -261,14 +252,15 @@ mod tests {
         // Spawn a task to generate an activity event 500ms in and a shutdown
         // signal 750ms in
         let activity_tx = mats.activity_tx.clone();
+        let shutdown = mats.shutdown.clone();
         tokio::spawn(async move {
             time::sleep(Duration::from_millis(500)).await;
             let _ = activity_tx.send(()).await;
             time::sleep(Duration::from_millis(250)).await;
-            let _ = mats.shutdown_tx.send(());
+            shutdown.send();
         });
 
         // Actor should finish at about 750ms despite receiving activity
-        bound_finish(actor_fut, mats.shutdown_rx, Some(749), Some(751)).await;
+        bound_finish(actor_fut, mats.shutdown, Some(749), Some(751)).await;
     }
 }

@@ -5,7 +5,7 @@ use std::convert::Infallible;
 use std::sync::Arc;
 
 use common::api::UserPk;
-use tokio::sync::broadcast;
+use common::shutdown::ShutdownChannel;
 use warp::Filter;
 
 use crate::lexe::channel_manager::LexeChannelManager;
@@ -19,12 +19,11 @@ pub fn user_pk(
     warp::any().map(move || user_pk)
 }
 
-/// Injects a shutdown_tx.
-pub fn shutdown_tx(
-    shutdown_tx: broadcast::Sender<()>,
-) -> impl Filter<Extract = (broadcast::Sender<()>,), Error = Infallible> + Clone
-{
-    warp::any().map(move || shutdown_tx.clone())
+/// Injects a [`ShutdownChannel`].
+pub fn shutdown(
+    shutdown: ShutdownChannel,
+) -> impl Filter<Extract = (ShutdownChannel,), Error = Infallible> + Clone {
+    warp::any().map(move || shutdown.clone())
 }
 
 /// Injects a channel manager.
