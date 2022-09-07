@@ -88,6 +88,10 @@ struct RequestParts {
 }
 
 #[derive(Clone)]
+/// A generic RestClient. [`reqwest::Client`] holds an [`Arc`] internally, so
+/// likewise, [`RestClient`] can be cloned and used directly, without [`Arc`].
+///
+/// [`Arc`]: std::sync::Arc
 pub struct RestClient {
     client: reqwest::Client,
 }
