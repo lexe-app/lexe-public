@@ -148,7 +148,10 @@ pub enum RunnerErrorKind {
 
     #[error("Runner cannot take any more commands")]
     AtCapacity,
-    #[error("Runner crashed or gave up on servicing the request")]
+    #[error(
+        "Runner gave up servicing the request, \
+            most likely because it is at capacity."
+    )]
     Cancelled,
     #[error("Runner error")]
     Runner,
@@ -177,6 +180,9 @@ pub enum NodeErrorKind {
     WrongNodePk,
     #[error("Error occurred during provisioning")]
     Provision,
+
+    #[error("Could not proxy request to node")]
+    Proxy,
 }
 
 // --- Misc constructors / helpers --- //
@@ -342,6 +348,7 @@ impl ErrorCodeConvertible for NodeErrorKind {
             Self::WrongUserPk => 6,
             Self::WrongNodePk => 7,
             Self::Provision => 8,
+            Self::Proxy => 9,
         }
     }
     fn from_code(code: ErrorCode) -> Self {
@@ -355,6 +362,7 @@ impl ErrorCodeConvertible for NodeErrorKind {
             6 => Self::WrongUserPk,
             7 => Self::WrongNodePk,
             8 => Self::Provision,
+            9 => Self::Proxy,
             _ => Self::Unknown,
         }
     }
@@ -409,6 +417,7 @@ impl HasStatusCode for NodeApiError {
             WrongUserPk => CLIENT_400_BAD_REQUEST,
             WrongNodePk => CLIENT_400_BAD_REQUEST,
             Provision => SERVER_500_INTERNAL_SERVER_ERROR,
+            Proxy => SERVER_502_BAD_GATEWAY,
         }
     }
 }
@@ -512,7 +521,7 @@ impl From<CommonErrorKind> for NodeErrorKind {
     }
 }
 
-// --- Library -> BackendApiError impls --- //
+// --- Misc -> BackendApiError impls --- //
 
 impl From<bitcoin::secp256k1::Error> for BackendApiError {
     fn from(err: bitcoin::secp256k1::Error) -> Self {
@@ -529,10 +538,10 @@ impl From<hex::DecodeError> for BackendApiError {
     }
 }
 
-// --- Library -> RunnerApiError impls --- //
+// --- Misc -> RunnerApiError impls --- //
 
-impl<T> From<mpsc::error::SendError<T>> for RunnerApiError {
-    fn from(err: mpsc::error::SendError<T>) -> Self {
+impl<T> From<mpsc::error::TrySendError<T>> for RunnerApiError {
+    fn from(err: mpsc::error::TrySendError<T>) -> Self {
         let kind = RunnerErrorKind::AtCapacity;
         let msg = format!("{err:#}");
         Self { kind, msg }
@@ -546,7 +555,9 @@ impl From<oneshot::error::RecvError> for RunnerApiError {
     }
 }
 
-// --- Library -> NodeApiError impls --- //
+// --- Misc -> NodeApiError impls --- //
+
+// (Placeholder only, to stay consistent)
 
 #[cfg(all(test, not(target_env = "sgx")))]
 mod test {
