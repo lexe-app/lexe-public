@@ -283,7 +283,7 @@ mod sgx {
             let mut report_data = [0u8; 64];
             // ed25519 pks are always 32 bytes. This will panic if this internal
             // invariant is somehow not true.
-            report_data[..32].copy_from_slice(pk.as_bytes());
+            report_data[..32].copy_from_slice(pk.as_ref());
             Self(report_data)
         }
 

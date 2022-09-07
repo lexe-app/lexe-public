@@ -178,13 +178,14 @@ mod test {
 
     #[test]
     fn test_certs_parse_successfully() {
-        let ca_key_pair = ed25519::from_seed(&[0x11; 32]);
+        let ca_key_pair = ed25519::KeyPair::from_seed(&[0x11; 32]).to_rcgen();
         let ca_cert = CaCert::from_key_pair(ca_key_pair).unwrap();
         let ca_cert_der = ca_cert.serialize_der_signed().unwrap();
 
         let _ = webpki::TrustAnchor::try_from_cert_der(&ca_cert_der).unwrap();
 
-        let client_key_pair = ed25519::from_seed(&[0x22; 32]);
+        let client_key_pair =
+            ed25519::KeyPair::from_seed(&[0x22; 32]).to_rcgen();
         let client_cert = ClientCert::from_key_pair(client_key_pair).unwrap();
         let client_cert_der =
             client_cert.serialize_der_signed(&ca_cert).unwrap();
@@ -192,7 +193,7 @@ mod test {
         let _ = webpki::EndEntityCert::try_from(client_cert_der.as_slice())
             .unwrap();
 
-        let node_key_pair = ed25519::from_seed(&[0x33; 32]);
+        let node_key_pair = ed25519::KeyPair::from_seed(&[0x33; 32]).to_rcgen();
         let node_names = vec!["example.node.lexe.tech".to_owned()];
         let node_cert =
             NodeCert::from_key_pair(node_key_pair, node_names).unwrap();

@@ -261,14 +261,17 @@ mod test {
         use common::ed25519;
 
         let mut rng = SysRng::new();
-        let cert_key_pair = ed25519::from_seed(&[0x42; 32]);
-        let cert_pk = ed25519::PublicKey::try_from(&cert_key_pair).unwrap();
-        let attestation = attest::quote_enclave(&mut rng, &cert_pk).unwrap();
+        let cert_key_pair = ed25519::KeyPair::from_seed(&[0x42; 32]);
+        let cert_pk = cert_key_pair.public_key();
+        let attestation = attest::quote_enclave(&mut rng, cert_pk).unwrap();
         let dns_names = vec!["localhost".to_string()];
 
-        let attest_cert =
-            attest::AttestationCert::new(cert_key_pair, dns_names, attestation)
-                .unwrap();
+        let attest_cert = attest::AttestationCert::new(
+            cert_key_pair.to_rcgen(),
+            dns_names,
+            attestation,
+        )
+        .unwrap();
 
         println!("measurement: '{}'", enclave::measurement());
         println!("cert_pk: '{cert_pk}'");

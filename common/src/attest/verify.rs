@@ -663,7 +663,7 @@ mod test {
         let dns_name = "node.lexe.tech";
         let dns_names = vec![dns_name.to_owned()];
 
-        let cert_key_pair = ed25519::gen_key_pair(&mut rng);
+        let cert_key_pair = ed25519::KeyPair::from_rng(&mut rng).to_rcgen();
         let attestation = SgxAttestationExtension::dummy().to_cert_extension();
         let cert = AttestationCert::new(cert_key_pair, dns_names, attestation)
             .unwrap();
