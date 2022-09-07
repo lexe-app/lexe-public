@@ -5,11 +5,11 @@ use std::sync::Arc;
 use anyhow::{anyhow, Context};
 use bitcoin::BlockHash;
 use common::cli::Network;
+use common::shutdown::ShutdownChannel;
 use lightning::chain::transaction::OutPoint;
 use lightning::chain::{Listen, Watch};
 use lightning_block_sync::poll::{ChainPoller, ValidatedBlockHeader};
 use lightning_block_sync::{init as blocksyncinit, SpvClient};
-use tokio::sync::broadcast;
 use tokio::time::{self, Duration};
 use tracing::{info, warn};
 
@@ -194,7 +194,7 @@ impl SyncedChainListeners {
     pub fn feed_chain_monitor_and_spawn_spv(
         mut self,
         chain_monitor: Arc<ChainMonitorType>,
-        mut shutdown_rx: broadcast::Receiver<()>,
+        shutdown: ShutdownChannel,
     ) -> anyhow::Result<LxTask<()>> {
         for cmcl in self.cmcls {
             let (channel_monitor, funding_outpoint) =
@@ -232,7 +232,7 @@ impl SyncedChainListeners {
                             warn!("Error polling chain tip: {:#}", e.into_inner());
                         }
                     }
-                    _ = shutdown_rx.recv() =>
+                    _ = shutdown.recv() =>
                         break info!("SPV client shutting down"),
                 }
             }

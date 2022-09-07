@@ -14,7 +14,8 @@ use std::sync::Arc;
 
 use common::api::rest::into_response;
 use common::api::UserPk;
-use tokio::sync::{broadcast, mpsc};
+use common::shutdown::ShutdownChannel;
+use tokio::sync::mpsc;
 use tracing::trace;
 use warp::{Filter, Rejection, Reply};
 
@@ -70,7 +71,7 @@ pub fn owner_routes(
 /// [`HostNodeApi`]: common::api::def::HostNodeApi
 pub fn host_routes(
     current_pk: UserPk,
-    shutdown_tx: broadcast::Sender<()>,
+    shutdown: ShutdownChannel,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     let root =
         warp::path::end().map(|| "This set of endpoints is for the host.");
@@ -85,7 +86,7 @@ pub fn host_routes(
         .and(warp::get())
         .and(warp::query())
         .and(inject::user_pk(current_pk))
-        .and(inject::shutdown_tx(shutdown_tx))
+        .and(inject::shutdown(shutdown))
         .map(host::shutdown)
         .map(into_response);
     let host = warp::path("host").and(status.or(shutdown));

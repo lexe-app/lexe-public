@@ -9,6 +9,7 @@ use bitcoin::secp256k1::PublicKey;
 use common::api::vfs::{Directory, File, FileId};
 use common::enclave::Measurement;
 use common::ln::channel::LxOutPoint;
+use common::shutdown::ShutdownChannel;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
 use lightning::chain::channelmonitor::ChannelMonitorUpdate;
 use lightning::chain::transaction::OutPoint;
@@ -19,7 +20,7 @@ use lightning::routing::scoring::{
     ProbabilisticScorer, ProbabilisticScoringParameters,
 };
 use lightning::util::ser::{ReadableArgs, Writeable};
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::mpsc;
 use tracing::{debug, error};
 
 use crate::lexe::channel_manager::{LxChannelMonitorUpdate, USER_CONFIG};
@@ -56,14 +57,14 @@ impl LexePersister {
         api: ApiClientType,
         node_pk: PublicKey,
         measurement: Measurement,
-        shutdown_tx: broadcast::Sender<()>,
+        shutdown: ShutdownChannel,
         channel_monitor_updated_tx: mpsc::Sender<LxChannelMonitorUpdate>,
     ) -> Self {
         let inner = InnerPersister {
             api,
             node_pk,
             measurement,
-            shutdown_tx,
+            shutdown,
             channel_monitor_updated_tx,
         };
 
@@ -85,7 +86,7 @@ pub struct InnerPersister {
     api: ApiClientType,
     node_pk: PublicKey,
     measurement: Measurement,
-    shutdown_tx: broadcast::Sender<()>,
+    shutdown: ShutdownChannel,
     channel_monitor_updated_tx: mpsc::Sender<LxChannelMonitorUpdate>,
 }
 
@@ -425,7 +426,7 @@ impl Persist<SignerType> for InnerPersister {
         let api_clone = self.api.clone();
         let channel_monitor_updated_tx =
             self.channel_monitor_updated_tx.clone();
-        let shutdown_tx = self.shutdown_tx.clone();
+        let shutdown = self.shutdown.clone();
         let _ = LxTask::spawn(async move {
             // Retry a few times and shut down if persist fails
             // TODO Also attempt to persist to cloud backup
@@ -447,7 +448,7 @@ impl Persist<SignerType> for InnerPersister {
                         "Fatal error: Couldn't persist new channel: {:#}",
                         e
                     );
-                    let _ = shutdown_tx.send(());
+                    shutdown.send();
                 }
             }
         });
@@ -487,7 +488,7 @@ impl Persist<SignerType> for InnerPersister {
         let api_clone = self.api.clone();
         let channel_monitor_updated_tx =
             self.channel_monitor_updated_tx.clone();
-        let shutdown_tx = self.shutdown_tx.clone();
+        let shutdown = self.shutdown.clone();
         let _ = LxTask::spawn(async move {
             // Retry a few times and shut down if persist fails
             // TODO Also attempt to persist to cloud backup
@@ -509,7 +510,7 @@ impl Persist<SignerType> for InnerPersister {
                         "Fatal error: Couldn't persist updated channel: {:#}",
                         e
                     );
-                    let _ = shutdown_tx.send(());
+                    shutdown.send();
                 }
             }
         });

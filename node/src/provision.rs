@@ -35,7 +35,7 @@ use common::cli::ProvisionArgs;
 use common::client::tls::node_provision_tls_config;
 use common::enclave::{self, MachineId, Measurement, MIN_SGX_CPUSVN};
 use common::rng::{Crng, SysRng};
-use tokio::sync::mpsc;
+use common::shutdown::ShutdownChannel;
 use tracing::{debug, info, instrument, warn};
 use warp::{Filter, Rejection, Reply};
 
@@ -54,7 +54,7 @@ struct RequestContext {
     current_user_pk: UserPk,
     machine_id: MachineId,
     measurement: Measurement,
-    shutdown_tx: mpsc::Sender<()>,
+    shutdown: ShutdownChannel,
     api: ApiClientType,
     // TODO(phlip9): make generic, use test rng in test
     rng: SysRng,
@@ -150,7 +150,7 @@ async fn provision_request(
         })?;
 
     // Provisioning done. Stop node.
-    let _ = ctx.shutdown_tx.try_send(());
+    ctx.shutdown.send();
 
     Ok(())
 }
@@ -186,11 +186,13 @@ pub async fn provision<R: Crng>(
     let tls_config = node_provision_tls_config(rng, args.node_dns_name)
         .context("Failed to build TLS config for provisioning")?;
 
-    // we'll trigger `shutdown_tx` when we've completed the provisioning process
-    let (shutdown_tx, mut shutdown_rx) = mpsc::channel(1);
-    let shutdown = async move {
+    // we'll trigger `shutdown` when we've completed the provisioning process
+    let shutdown = ShutdownChannel::new();
+    let shutdown_clone = shutdown.clone();
+    let shutdown_fut = async move {
         // don't wait forever for the client
-        match tokio::time::timeout(PROVISION_TIMEOUT, shutdown_rx.recv()).await
+        match tokio::time::timeout(PROVISION_TIMEOUT, shutdown_clone.recv())
+            .await
         {
             Ok(_) => {
                 info!("received shutdown; done provisioning");
@@ -209,7 +211,7 @@ pub async fn provision<R: Crng>(
         current_user_pk: args.user_pk,
         machine_id: args.machine_id,
         measurement,
-        shutdown_tx,
+        shutdown,
         api: api.clone(),
         // TODO(phlip9): use passed in rng
         rng: SysRng::new(),
@@ -218,7 +220,7 @@ pub async fn provision<R: Crng>(
     let (listen_addr, service) = warp::serve(routes)
         .tls()
         .preconfigured_tls(tls_config)
-        .bind_with_graceful_shutdown(addr, shutdown);
+        .bind_with_graceful_shutdown(addr, shutdown_fut);
     let owner_port = listen_addr.port();
 
     info!(%listen_addr, "listening for connections");
