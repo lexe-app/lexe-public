@@ -27,3 +27,4 @@ pub mod ln;
 pub mod rng;
 pub mod root_seed;
 pub mod sha256;
+pub mod shutdown;
