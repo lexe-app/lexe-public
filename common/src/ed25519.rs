@@ -6,7 +6,6 @@ use asn1_rs::{oid, Oid};
 use rcgen::RcgenError;
 use ref_cast::RefCast;
 use ring::signature::KeyPair as _;
-use secrecy::zeroize::Zeroizing;
 use thiserror::Error;
 use x509_parser::x509::SubjectPublicKeyInfo;
 
@@ -367,21 +366,6 @@ impl<'pk, 'msg> VerifiedMessage<'pk, 'msg> {
     }
 }
 
-pub fn gen_key_pair(rng: &mut dyn Crng) -> rcgen::KeyPair {
-    let mut seed = Zeroizing::new([0u8; 32]);
-    rng.fill_bytes(seed.as_mut_slice());
-    self::from_seed(&seed)
-}
-
-pub fn from_seed(seed: &[u8; 32]) -> rcgen::KeyPair {
-    let key_pair = KeyPair::from_seed(seed);
-    let pkcs8_bytes = key_pair.serialize_pkcs8();
-
-    rcgen::KeyPair::try_from(pkcs8_bytes.as_slice()).expect(
-        "Deserializing a freshly serialized ed25519 key pair should never fail",
-    )
-}
-
 pub fn verify_compatible(
     key_pair: rcgen::KeyPair,
 ) -> Result<rcgen::KeyPair, RcgenError> {
@@ -491,25 +475,6 @@ mod test {
             let bytes = vec![0x42_u8; size];
             let _ = deserialize_pkcs8(&bytes);
         }
-    }
-
-    #[test]
-    fn test_from_seed() {
-        proptest!(|(seed in arb_seed())| {
-            // should never panic
-            let key_pair = crate::ed25519::from_seed(&seed);
-            assert!(key_pair.is_compatible(&rcgen::PKCS_ED25519));
-        })
-    }
-
-    #[test]
-    fn test_pubkey_from_rcgen() {
-        proptest!(|(seed in arb_seed())| {
-            let key_pair = crate::ed25519::from_seed(&seed);
-            let pk_bytes = key_pair.public_key_raw();
-            let pk = PublicKey::try_from(pk_bytes).unwrap();
-            assert_eq!(pk.as_slice(), pk_bytes);
-        });
     }
 
     #[test]

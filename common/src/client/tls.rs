@@ -55,7 +55,7 @@ pub fn node_provision_tls_config<R: Crng>(
     dns_name: String,
 ) -> anyhow::Result<rustls::ServerConfig> {
     // Generate a fresh key pair, which we'll use for the provisioning cert.
-    let cert_key_pair = ed25519::gen_key_pair(rng);
+    let cert_key_pair = ed25519::KeyPair::from_rng(rng).to_rcgen();
 
     // Get our enclave measurement and cert pk quoted by the enclave
     // platform. This process binds the cert pk to the quote evidence. When
@@ -106,7 +106,7 @@ pub fn node_run_tls_config<R: Crng>(
     );
 
     // build node cert and sign w/ the CA cert
-    let node_key_pair = ed25519::gen_key_pair(rng);
+    let node_key_pair = ed25519::KeyPair::from_rng(rng).to_rcgen();
     let node_cert = NodeCert::from_key_pair(node_key_pair, dns_names)
         .context("Failed to build ephemeral node cert")?;
     let node_cert_der = rustls::Certificate(
@@ -260,7 +260,7 @@ impl ClientCertResolver {
     /// Samples a new child cert then signs with the node-client CA.
     fn new<R: Crng>(rng: &mut R, ca_cert: &CaCert) -> anyhow::Result<Self> {
         // sample an ephemeral key pair for the child cert
-        let client_cert_key_pair = ed25519::gen_key_pair(rng);
+        let client_cert_key_pair = ed25519::KeyPair::from_rng(rng).to_rcgen();
         let client_cert = ClientCert::from_key_pair(client_cert_key_pair)
             .context("Failed to build ephemeral client cert")?;
         let client_cert_der = rustls::Certificate(
@@ -340,11 +340,12 @@ mod test {
             let mut rng = SmallRng::from_u64(111);
 
             // should be unused since no proxy
-            let lexe_root =
-                CaCert::from_key_pair(ed25519::from_seed(&[0xa1; 32]))
-                    .unwrap()
-                    .serialize_der_signed()
-                    .unwrap();
+            let lexe_root_key_pair =
+                ed25519::KeyPair::from_seed(&[0xa1; 32]).to_rcgen();
+            let lexe_root = CaCert::from_key_pair(lexe_root_key_pair)
+                .unwrap()
+                .serialize_der_signed()
+                .unwrap();
             let lexe_root = rustls::Certificate(lexe_root);
 
             let attest_verifier = attest::ServerCertVerifier {

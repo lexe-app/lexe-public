@@ -93,7 +93,7 @@ impl RootSeed {
     /// provide mutual authentication for client <-> node connections.
     pub fn derive_client_ca_key_pair(&self) -> rcgen::KeyPair {
         let seed = self.derive(b"client ca key pair");
-        ed25519::from_seed(seed.expose_secret())
+        ed25519::KeyPair::from_seed(seed.expose_secret()).to_rcgen()
     }
 
     /// Derive the lightning node key pair directly, without needing to derive
