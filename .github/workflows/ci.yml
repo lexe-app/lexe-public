@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+
+# TODO(phlip9): read-all?
+# https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
+permissions:
+  contents: read
+
+env:
+  # Fail CI even on rustc "warning" lints
+  RUSTFLAGS: -Dwarnings
+  LEXE_RUST_VERSION: nightly-2022-06-27
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.LEXE_RUST_VERSION }}
+          targets: x86_64-fortanix-unknown-sgx
+      - run: cargo test
+      - run: cargo test -p node --no-run --target=x86_64-fortanix-unknown-sgx
+  
+  clippy:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.LEXE_RUST_VERSION }}
+          targets: x86_64-fortanix-unknown-sgx
+          components: clippy
+      - run: cargo clippy --workspace --tests -- -Dclippy::all
+      - run: cargo clippy --workspace --tests --target=x86_64-fortanix-unknown-sgx -- -Dclippy::all
+
+  rustfmt:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.LEXE_RUST_VERSION }}
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  docs:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.LEXE_RUST_VERSION }}
+      - run: cargo doc --workspace --no-deps --document-private-items
+        env:
+          RUSTDOCFLAGS: -D warnings

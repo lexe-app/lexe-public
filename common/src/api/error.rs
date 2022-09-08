@@ -570,15 +570,15 @@ mod test {
     fn context_separation() {
         let backend_error = BackendApiError {
             kind: BackendErrorKind::Unknown,
-            msg: format!("Additional context"),
+            msg: "Additional context".to_owned(),
         };
         let runner_error = RunnerApiError {
             kind: RunnerErrorKind::Unknown,
-            msg: format!("Additional context"),
+            msg: "Additional context".to_owned(),
         };
         let node_error = NodeApiError {
             kind: NodeErrorKind::Unknown,
-            msg: format!("Additional context"),
+            msg: "Additional context".to_owned(),
         };
 
         // The top-level service error types *are* human readable and should
@@ -597,7 +597,7 @@ mod test {
 
         let model_err_resp = ErrorResponse {
             code: 0,
-            msg: format!("Additional context"),
+            msg: "Additional context".to_owned(),
         };
         assert_eq!(model_err_resp, backend_err_resp);
         assert_eq!(model_err_resp, runner_err_resp);
