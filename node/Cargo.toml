@@ -86,14 +86,13 @@ tracing-subscriber = { version = "0.3", default-features = false, features = [
 #       (2) allows setting a prebuilt rustls TLS server config
 warp = { git = "https://github.com/lexe-tech/warp", branch = "lexe", default-features = false, features = ["tls"] }
 
-# ---PATCHED DEPENDENCIES--- #
+# --- PATCHED DEPENDENCIES --- #
+# - Be sure to use the specific patched versions.
+# - See the workspace Cargo.toml for patch declarations.
+# - The versions for transitive dependencies (such as hyper, mio, ring, etc) are
+#   declared in `common`'s Cargo.toml and propagated to other crates by
+#   workspace-level dependency resolution.
 
-# See the root Cargo.toml for patch declarations
-
-# Use the specific patched versions
-hyper = "=0.14.18"
-mio = "=0.7.6"
-ring = "=0.16.20"
 tokio = { version = "=1.15.0", default-features = false, features = [
     "io-util",
     "macros",
@@ -125,8 +124,10 @@ bitcoind = { version = "0.26", features = [ "22_0" ] }
 proptest = "1"
 
 [package.metadata.fortanix-sgx]
-# stack size (in bytes) for each thread, the default stack size is 0x20000.
+# Stack size (in bytes) for each thread, the default stack size is 0x20000.
 stack-size=0x200000
-# Gotcha: Don't forget to count the main thread when counting number of threads
-# We only need 1 thread at the moment
+# Max # of threads. The node uses Tokio's current_thread rt so this is 1.
+
+# Don't forget to count the main thread when
+# counting the total number of threads.
 threads=1

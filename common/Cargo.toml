@@ -64,9 +64,6 @@ rcgen = { version = "0.9", default-features = false, features = [] }
 ref-cast = "1"
 # Used to make HTTP requests to the API
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls-manual-roots"] }
-# Safe and small crypto primitives based on BoringSSL
-# NOTE: version must exactly match patched version
-ring = "=0.16.20"
 # TLS library
 rustls = { version = "0.20", default-features = false, features = [
     "dangerous_configuration",
@@ -100,8 +97,18 @@ asn1-rs = { version = "0.5", default-features = false }
 # For constructing/parsing ASN.1 data in x509 certs
 yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
 
-# ---PATCHED DEPENDENCIES--- #
-# NOTE: version must exactly match patched version
+# --- PATCHED DEPENDENCIES --- #
+# - Be sure to use the specific patched versions.
+# - See the workspace Cargo.toml for patch declarations.
+# - The versions for transitive dependencies (such as hyper, mio, ring, etc) are
+#   declared in `common`'s Cargo.toml and propagated to other crates by
+#   workspace-level dependency resolution.
+
+hyper = "=0.14.18"
+mio = "=0.7.6"
+# Safe and small crypto primitives based on BoringSSL
+ring = "=0.16.20"
+
 tokio = { version = "=1.15.0", default-features = false, features = [
     "io-util",
     "macros",
