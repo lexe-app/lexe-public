@@ -1,7 +1,6 @@
 [target.x86_64-fortanix-unknown-sgx]
 # Use our custom SGX runner
 runner = "run-sgx-cargo"
-# Build with AES-NI intrinsics required at compile time.
-# Needed by `aes` crate to avoid runtime feature detection (which doesn't work
-# in an SGX enclave).
+# Build with AES-NI intrinsics required at compile time. Needed by `aes` crate
+# to avoid runtime feature detection (which doesn't work in an SGX enclave).
 rustflags = ["-Ctarget-feature=+aes,+ssse3"]
