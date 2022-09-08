@@ -227,13 +227,15 @@ mod tests {
 
         // Spawn a task to generate an activity event 500ms in
         let activity_tx = mats.activity_tx.clone();
-        tokio::spawn(async move {
+        use crate::types::LxTask;
+        let activity_task = LxTask::spawn(async move {
             time::sleep(Duration::from_millis(500)).await;
             let _ = activity_tx.send(()).await;
         });
 
         // Actor should finish at about 1500ms
         bound_finish(actor_fut, mats.shutdown, Some(1499), Some(1501)).await;
+        activity_task.await.unwrap();
     }
 
     /// Case 5: shutdown_after_sync not enabled, *with* activity, *with*
@@ -253,7 +255,8 @@ mod tests {
         // signal 750ms in
         let activity_tx = mats.activity_tx.clone();
         let shutdown = mats.shutdown.clone();
-        tokio::spawn(async move {
+        use crate::types::LxTask;
+        let activity_task = LxTask::spawn(async move {
             time::sleep(Duration::from_millis(500)).await;
             let _ = activity_tx.send(()).await;
             time::sleep(Duration::from_millis(250)).await;
@@ -262,5 +265,6 @@ mod tests {
 
         // Actor should finish at about 750ms despite receiving activity
         bound_finish(actor_fut, mats.shutdown, Some(749), Some(751)).await;
+        activity_task.await.unwrap();
     }
 }
