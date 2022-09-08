@@ -46,6 +46,8 @@ pub struct AesmProxy;
 ///    [`TcpStream`] like a simplex channel (read _xor_ write). That way we can
 ///    easily detect a new request just by waiting for the first write after
 ///    some reads, without actually understanding the protobuf protocol.
+///
+/// [`TcpStream`]: tokio::net::TcpStream
 pub struct AesmProxyStream {
     aesm_sock: Option<UnixStream>,
     just_read: bool,
