@@ -1,4 +1,36 @@
-//! Utilities for working w/ ed25519.
+//! Ed25519 key pairs, signatures, and public keys.
+//!
+//!
+//! ## Why not use [`ring`] directly
+//!
+//! * [`ring`]'s APIs are often too limited or too inconvenient.
+//!
+//!
+//! ## Why ed25519
+//!
+//! * More compact pubkeys (32 B) and signatures (64 B) than RSA (aside: please
+//!   don't use RSA ever).
+//!
+//! * Faster sign (~3x) + verify (~2x) than ECDSA/secp256k1.
+//!
+//! * Deterministic signatures. No key leakage on accidental secret nonce leak
+//!   or reuse.
+//!
+//! * Better side-channel attack resistance.
+//!
+//!
+//! ## Why not ed25519
+//!
+//! * Deterministic signatures more vulnerable to fault injection attacks.
+//!
+//!   We could consider using hedged signatures `Sign(random-nonce || message)`.
+//!   Fortunately hedged signatures aren't fundamentally unsafe when nonces are
+//!   reused.
+//!
+//! * Small-order torsion subgroup -> signature malleability fun
+
+// TODO(phlip9): patch ring/rcgen so `Ed25519KeyPair`/`rcgen::KeyPair` derive
+//               `Zeroize`.
 
 use std::fmt;
 
@@ -10,9 +42,7 @@ use thiserror::Error;
 use x509_parser::x509::SubjectPublicKeyInfo;
 
 use crate::rng::Crng;
-use crate::{const_ref_cast, hex};
-
-// TODO(phlip9): patch ring/rcgen so `Ed25519KeyPair` derives `Zeroize`
+use crate::{const_assert_usize_eq, const_ref_cast, hex};
 
 /// The standard PKCS OID for Ed25519
 #[rustfmt::skip]
@@ -21,24 +51,6 @@ pub const PKCS_OID: Oid<'static> = oid!(1.3.101.112);
 pub const SECRET_KEY_LEN: usize = 32;
 pub const PUBLIC_KEY_LEN: usize = 32;
 pub const SIGNATURE_LEN: usize = 64;
-
-#[derive(Debug, Error)]
-pub enum Error {
-    #[error("ed25519 public key must be exactly 32 bytes")]
-    InvalidPkLength,
-
-    #[error("the algorithm OID doesn't match the standard ed25519 OID")]
-    UnexpectedAlgorithm,
-
-    #[error("failed deserializing PKCS#8-encoded key pair")]
-    DeserializeError,
-
-    #[error("derived public key doesn't match expected public key")]
-    PublicKeyMismatch,
-
-    #[error("invalid signature")]
-    InvalidSignature,
-}
 
 /// An ed25519 secret key and public key.
 ///
@@ -68,6 +80,24 @@ pub struct Signature([u8; 64]);
 pub struct VerifiedMessage<'pk, 'msg> {
     signer: &'pk PublicKey,
     msg: &'msg [u8],
+}
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("ed25519 public key must be exactly 32 bytes")]
+    InvalidPkLength,
+
+    #[error("the algorithm OID doesn't match the standard ed25519 OID")]
+    UnexpectedAlgorithm,
+
+    #[error("failed deserializing PKCS#8-encoded key pair")]
+    DeserializeError,
+
+    #[error("derived public key doesn't match expected public key")]
+    PublicKeyMismatch,
+
+    #[error("invalid signature")]
+    InvalidSignature,
 }
 
 // -- impl KeyPair -- //
@@ -125,11 +155,19 @@ impl KeyPair {
         )
     }
 
+    /// Convert the current `ed25519::KeyPair` into a
+    /// [`ring::signature::Ed25519KeyPair`].
+    ///
+    /// Requires a small intermediate serialization step since [`ring`] key
+    /// pairs can't be cloned.
     pub fn to_ring(&self) -> ring::signature::Ed25519KeyPair {
         let pkcs8_bytes = self.serialize_pkcs8();
         ring::signature::Ed25519KeyPair::from_pkcs8(&pkcs8_bytes).unwrap()
     }
 
+    /// Convert the current `ed25519::KeyPair` into a
+    /// [`ring::signature::Ed25519KeyPair`] without an intermediate
+    /// serialization step.
     pub fn into_ring(self) -> ring::signature::Ed25519KeyPair {
         self.key_pair
     }
@@ -203,6 +241,7 @@ impl PublicKey {
         const_ref_cast(bytes)
     }
 
+    /// Verify a message was signed by this public key.
     pub fn verify<'pk, 'msg>(
         &'pk self,
         msg: &'msg [u8],
@@ -366,6 +405,8 @@ impl<'pk, 'msg> VerifiedMessage<'pk, 'msg> {
     }
 }
 
+// -- random utilities -- //
+
 pub fn verify_compatible(
     key_pair: rcgen::KeyPair,
 ) -> Result<rcgen::KeyPair, RcgenError> {
@@ -375,6 +416,12 @@ pub fn verify_compatible(
         Err(RcgenError::UnsupportedSignatureAlgorithm)
     }
 }
+
+// -- low-level PKCS#8 serialization/deserialization -- //
+
+// Since ed25519 secret keys and public keys are always serialized with the same
+// size and the PKCS#8 v2 serialization always has the same "metadata" bytes,
+// we can just manually inline the constant "metadata" bytes here.
 
 // Note: The `PKCS_TEMPLATE_PREFIX` and `PKCS_TEMPLATE_MIDDLE` are pulled from
 // this pkcs8 "template" file in the `ring` repo.
@@ -397,8 +444,8 @@ const PKCS_LEN: usize = PKCS_TEMPLATE_PREFIX.len()
     + PKCS_TEMPLATE_MIDDLE.len()
     + PUBLIC_KEY_LEN;
 
-// Should be exactly 85 bytes.
-const _: [(); 85] = [(); PKCS_LEN];
+// Ensure this doesn't accidentally change.
+const_assert_usize_eq!(PKCS_LEN, 85);
 
 /// Formats a key pair as `prefix || key || middle || pk`, where `prefix`
 /// and `middle` are two pre-computed blobs.
