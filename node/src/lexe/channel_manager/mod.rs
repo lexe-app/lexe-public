@@ -6,6 +6,7 @@ use bitcoin::BlockHash;
 use common::cli::RunArgs;
 use common::ln::channel::LxOutPoint;
 use lexe_ln::keys_manager::LexeKeysManager;
+use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain::chainmonitor::MonitorUpdateId;
 use lightning::chain::BestBlock;
 use lightning::ln::channelmanager::{
@@ -16,7 +17,6 @@ use lightning::util::config::{
 };
 use tracing::{debug, info};
 
-use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
 use crate::lexe::persister::NodePersister;
 use crate::types::{

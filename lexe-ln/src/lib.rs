@@ -2,3 +2,4 @@
 //! types (usually) defined in LDK.
 
 pub mod keys_manager;
+pub mod logger;
