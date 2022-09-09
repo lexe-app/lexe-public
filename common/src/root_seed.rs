@@ -236,7 +236,6 @@ mod test {
     use proptest::arbitrary::any;
     use proptest::collection::vec;
     use proptest::proptest;
-    use ring::digest::Digest;
 
     use super::*;
     use crate::sha256;
@@ -244,7 +243,7 @@ mod test {
     // simple implementations of some crypto functions for equivalence testing
 
     // an inefficient impl of HMAC-SHA256 for equivalence testing
-    fn hmac_sha256(key: &[u8], msg: &[u8]) -> Digest {
+    fn hmac_sha256(key: &[u8], msg: &[u8]) -> sha256::Hash {
         let h_key = sha256::digest(key);
         let mut zero_pad_key = [0u8; 64];
 

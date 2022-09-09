@@ -6,7 +6,7 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::hex::{self, FromHex};
-use crate::hexstr_or_bytes;
+use crate::{ed25519, hexstr_or_bytes};
 
 /// Traits defining the various REST API interfaces.
 pub mod def;
@@ -37,6 +37,10 @@ impl UserPk {
 
     pub fn inner(&self) -> [u8; 32] {
         self.0
+    }
+
+    pub const fn as_ed25519(&self) -> &ed25519::PublicKey {
+        ed25519::PublicKey::from_ref(&self.0)
     }
 
     /// Used to quickly construct `UserPk`s for tests.
