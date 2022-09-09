@@ -23,16 +23,16 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]
-pub struct LexePeerManager(Arc<PeerManagerType>);
+pub struct NodePeerManager(Arc<PeerManagerType>);
 
-impl Deref for LexePeerManager {
+impl Deref for NodePeerManager {
     type Target = PeerManagerType;
     fn deref(&self) -> &Self::Target {
         self.0.as_ref()
     }
 }
 
-impl LexePeerManager {
+impl NodePeerManager {
     pub fn init(
         rng: &mut dyn Crng,
         keys_manager: &LexeKeysManager,

@@ -21,7 +21,7 @@ use lightning_invoice::payment::PaymentError;
 use lightning_invoice::{utils, Currency, Invoice};
 
 use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
+use crate::lexe::peer_manager::{ChannelPeer, NodePeerManager};
 use crate::lexe::persister::NodePersister;
 use crate::types::{
     HTLCStatus, InvoicePayerType, MillisatAmount, NetworkGraphType,
@@ -31,7 +31,7 @@ use crate::types::{
 #[allow(clippy::too_many_arguments)]
 pub async fn poll_for_user_input(
     invoice_payer: Arc<InvoicePayerType>,
-    peer_manager: LexePeerManager,
+    peer_manager: NodePeerManager,
     channel_manager: NodeChannelManager,
     keys_manager: LexeKeysManager,
     network_graph: Arc<NetworkGraphType>,
@@ -329,7 +329,7 @@ fn help() {
 
 fn node_info(
     channel_manager: &NodeChannelManager,
-    peer_manager: &LexePeerManager,
+    peer_manager: &NodePeerManager,
 ) {
     println!("\t{{");
     println!("\t\t node_pk: {}", channel_manager.get_our_node_id());
@@ -345,7 +345,7 @@ fn node_info(
     println!("\t}},");
 }
 
-fn list_peers(peer_manager: LexePeerManager) {
+fn list_peers(peer_manager: NodePeerManager) {
     println!("\t{{");
     for pk in peer_manager.get_peer_node_ids() {
         println!("\t\t pk: {}", pk);
@@ -599,7 +599,7 @@ fn get_invoice(
 async fn open_channel<'a, I: Iterator<Item = &'a str>>(
     mut words: I,
     channel_manager: &NodeChannelManager,
-    peer_manager: &LexePeerManager,
+    peer_manager: &NodePeerManager,
     persister: &NodePersister,
 ) -> anyhow::Result<()> {
     let peer_pk_at_addr = words
