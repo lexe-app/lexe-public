@@ -15,7 +15,7 @@ use tokio::net::TcpStream;
 use tokio::time;
 
 use crate::lexe::channel_manager::LexeChannelManager;
-use crate::lexe::keys_manager::LexeKeysManager;
+use lexe_ln::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::types::{P2PGossipSyncType, PeerManagerType};
 

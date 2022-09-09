@@ -4,7 +4,6 @@
 pub mod background_processor;
 pub mod bitcoind;
 pub mod channel_manager;
-pub mod keys_manager;
 pub mod logger;
 pub mod peer_manager;
 pub mod persister;

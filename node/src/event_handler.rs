@@ -22,7 +22,7 @@ use tracing::{debug, error};
 
 use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::LexeChannelManager;
-use crate::lexe::keys_manager::LexeKeysManager;
+use lexe_ln::keys_manager::LexeKeysManager;
 use crate::types::{
     HTLCStatus, LxTask, MillisatAmount, NetworkGraphType, PaymentInfo,
     PaymentInfoStorageType,

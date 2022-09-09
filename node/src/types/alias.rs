@@ -17,7 +17,7 @@ use lightning_net_tokio::SocketDescriptor;
 use crate::event_handler::LdkEventHandler;
 use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::LexeChannelManager;
-use crate::lexe::keys_manager::LexeKeysManager;
+use lexe_ln::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::persister::LexePersister;
 use crate::types::PaymentInfo;

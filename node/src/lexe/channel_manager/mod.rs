@@ -15,7 +15,7 @@ use lightning::util::config::{
 };
 use tracing::{debug, info};
 
-use crate::lexe::keys_manager::LexeKeysManager;
+use lexe_ln::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
 use crate::lexe::persister::LexePersister;

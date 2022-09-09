@@ -14,7 +14,10 @@ edition = "2021"
 
 # --- LEXE --- #
 
+# Shared code
 common = { path = "../common" }
+# Shared bitcoin / lightning types
+lexe-ln = { path = "../lexe-ln" }
 
 # --- BITCOIN --- #
 
@@ -41,7 +44,7 @@ lightning-net-tokio = { version = "0.0.110" }
 # lightning-invoice = { path = "../../ldk/lightning-invoice" }
 # lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }
 
-# ---UTILITIES--- #
+# --- GENERAL --- #
 
 # Ad hoc error definition, easy error propagation, error chains
 anyhow = "1"

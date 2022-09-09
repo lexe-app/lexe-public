@@ -24,7 +24,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, error};
 
 use crate::lexe::channel_manager::{LxChannelMonitorUpdate, USER_CONFIG};
-use crate::lexe::keys_manager::LexeKeysManager;
+use lexe_ln::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::ChannelPeer;
 use crate::types::{
