@@ -14,7 +14,7 @@ use common::rng::SysRng;
 use lexe_ln::logger;
 
 use crate::command::owner;
-use crate::init::LexeNode;
+use crate::init::UserNode;
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::{ChannelPeer, NodePeerManager};
 use crate::lexe::persister::NodePersister;
@@ -84,7 +84,7 @@ fn bitcoind_exe_path() -> String {
 
 struct CommandTestHarness {
     bitcoind: BitcoinD,
-    node: LexeNode,
+    node: UserNode,
 }
 
 impl CommandTestHarness {
@@ -107,7 +107,7 @@ impl CommandTestHarness {
 
         // Init node
         let mut rng = SysRng::new();
-        let node = LexeNode::init(&mut rng, args)
+        let node = UserNode::init(&mut rng, args)
             .await
             .expect("Error during init");
 

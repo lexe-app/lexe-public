@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use lexe_ln::bitcoind::LexeBitcoind;
+use lexe_ln::alias::{BroadcasterType, FeeEstimatorType};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain::chainmonitor::ChainMonitor;
@@ -81,10 +81,5 @@ pub type P2PGossipSyncType =
 pub type NetworkGraphType = NetworkGraph<LoggerType>;
 
 pub type ChainAccessType = dyn Access + Send + Sync;
-
-pub type WalletType = LexeBitcoind;
-pub type BlockSourceType = LexeBitcoind;
-pub type BroadcasterType = LexeBitcoind;
-pub type FeeEstimatorType = LexeBitcoind;
 
 pub type LoggerType = LexeTracingLogger;

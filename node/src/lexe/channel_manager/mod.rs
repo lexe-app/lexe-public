@@ -5,6 +5,7 @@ use anyhow::{anyhow, Context};
 use bitcoin::BlockHash;
 use common::cli::RunArgs;
 use common::ln::channel::LxOutPoint;
+use lexe_ln::alias::{BlockSourceType, BroadcasterType, FeeEstimatorType};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain::chainmonitor::MonitorUpdateId;
@@ -19,10 +20,7 @@ use tracing::{debug, info};
 
 use crate::lexe::peer_manager::{ChannelPeer, NodePeerManager};
 use crate::lexe::persister::NodePersister;
-use crate::types::{
-    BlockSourceType, BroadcasterType, ChainMonitorType, ChannelManagerType,
-    ChannelMonitorType, FeeEstimatorType,
-};
+use crate::types::{ChainMonitorType, ChannelManagerType, ChannelMonitorType};
 
 /// NOTE: Important security parameter!!
 ///
