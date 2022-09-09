@@ -4,6 +4,11 @@
 // Enforce disallowed methods clippy lint
 #![deny(clippy::disallowed_methods)]
 
+/// Type aliases.
+pub mod alias;
+/// BitcoinD client.
 pub mod bitcoind;
+/// Keys manager
 pub mod keys_manager;
+/// LDK + SGX compatible logger
 pub mod logger;

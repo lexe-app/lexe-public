@@ -7,7 +7,7 @@ use common::enclave;
 use common::rng::SysRng;
 
 use crate::api::LexeApiClient;
-use crate::init::LexeNode;
+use crate::init::UserNode;
 use crate::provision::provision;
 
 /// the Lexe node CLI
@@ -27,7 +27,7 @@ impl Args {
                     .expect("Failed to build Tokio runtime");
                 let mut rng = SysRng::new();
                 rt.block_on(async {
-                    let node = LexeNode::init(&mut rng, args).await?;
+                    let node = UserNode::init(&mut rng, args).await?;
                     node.run().await
                 })
                 .context("Error running node")

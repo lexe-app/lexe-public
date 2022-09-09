@@ -18,6 +18,9 @@ use common::rng::Crng;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use futures::future;
+use lexe_ln::alias::{
+    BlockSourceType, BroadcasterType, FeeEstimatorType, WalletType,
+};
 use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
@@ -44,9 +47,8 @@ use crate::lexe::peer_manager::NodePeerManager;
 use crate::lexe::persister::NodePersister;
 use crate::lexe::sync::SyncedChainListeners;
 use crate::types::{
-    ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
-    ChannelMonitorType, FeeEstimatorType, InvoicePayerType, NetworkGraphType,
-    P2PGossipSyncType, PaymentInfoStorageType, WalletType,
+    ApiClientType, ChainMonitorType, ChannelMonitorType, InvoicePayerType,
+    NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType,
 };
 use crate::{api, command};
 
@@ -55,9 +57,7 @@ pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 const SHUTDOWN_JOIN_TIMEOUT: Duration = Duration::from_secs(15);
 
-// TODO: Remove once keys_manager, persister, invoice_payer are read in SGX
-#[allow(dead_code)]
-pub struct LexeNode {
+pub struct UserNode {
     // --- General --- //
     args: RunArgs,
     pub peer_port: Port,
@@ -70,11 +70,12 @@ pub struct LexeNode {
     pub persister: NodePersister,
     chain_monitor: Arc<ChainMonitorType>,
     pub network_graph: Arc<NetworkGraphType>,
+    #[allow(dead_code)]
     invoice_payer: Arc<InvoicePayerType>,
     pub wallet: Arc<WalletType>,
     block_source: Arc<BlockSourceType>,
-    fee_estimator: Arc<FeeEstimatorType>,
     broadcaster: Arc<BroadcasterType>,
+    fee_estimator: Arc<FeeEstimatorType>,
     logger: LexeTracingLogger,
     inactivity_timer: InactivityTimer,
 
@@ -84,12 +85,14 @@ pub struct LexeNode {
     channel_manager_blockhash: BlockHash,
 
     // --- Run --- //
+    #[allow(dead_code)]
     inbound_payments: PaymentInfoStorageType,
+    #[allow(dead_code)]
     outbound_payments: PaymentInfoStorageType,
     shutdown: ShutdownChannel,
 }
 
-impl LexeNode {
+impl UserNode {
     #[instrument(skip_all)]
     pub async fn init<R: Crng>(
         rng: &mut R,
@@ -340,8 +343,8 @@ impl LexeNode {
             shutdown.clone(),
         );
 
-        // Build and return the LexeNode
-        let node = LexeNode {
+        // Build and return the UserNode
+        let node = UserNode {
             // General
             args,
             peer_port,
