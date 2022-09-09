@@ -12,6 +12,8 @@ use bitcoin::secp256k1::Secp256k1;
 use bitcoin_bech32::WitnessProgram;
 use common::cli::Network;
 use common::hex;
+use common::task::LxTask;
+use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
@@ -21,10 +23,9 @@ use lightning::util::events::{Event, EventHandler, PaymentPurpose};
 use tokio::runtime::Handle;
 use tracing::{debug, error};
 
-use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::types::{
-    HTLCStatus, LxTask, MillisatAmount, NetworkGraphType, PaymentInfo,
+    HTLCStatus, MillisatAmount, NetworkGraphType, PaymentInfo,
     PaymentInfoStorageType,
 };
 

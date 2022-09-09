@@ -16,7 +16,9 @@ use common::enclave::{
 };
 use common::rng::Crng;
 use common::shutdown::ShutdownChannel;
+use common::task::LxTask;
 use futures::future;
+use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain;
@@ -35,7 +37,6 @@ use crate::api::ApiClient;
 use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
 use crate::lexe::background_processor::LexeBackgroundProcessor;
-use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::{
     LxChannelMonitorUpdate, NodeChannelManager,
 };
@@ -44,8 +45,8 @@ use crate::lexe::persister::NodePersister;
 use crate::lexe::sync::SyncedChainListeners;
 use crate::types::{
     ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
-    ChannelMonitorType, FeeEstimatorType, InvoicePayerType, LxTask,
-    NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, WalletType,
+    ChannelMonitorType, FeeEstimatorType, InvoicePayerType, NetworkGraphType,
+    P2PGossipSyncType, PaymentInfoStorageType, WalletType,
 };
 use crate::{api, command};
 

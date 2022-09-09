@@ -2,7 +2,6 @@
 //! (usually) defined in LDK.
 
 pub mod background_processor;
-pub mod bitcoind;
 pub mod channel_manager;
 pub mod peer_manager;
 pub mod persister;
