@@ -17,6 +17,7 @@ use common::enclave::{
 use common::rng::Crng;
 use common::shutdown::ShutdownChannel;
 use futures::future;
+use lexe_ln::keys_manager::LexeKeysManager;
 use lightning::chain;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
@@ -35,9 +36,8 @@ use crate::inactivity_timer::InactivityTimer;
 use crate::lexe::background_processor::LexeBackgroundProcessor;
 use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::{
-    LexeChannelManager, LxChannelMonitorUpdate,
+    LxChannelMonitorUpdate, NodeChannelManager,
 };
-use lexe_ln::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::lexe::persister::LexePersister;
@@ -64,7 +64,7 @@ pub struct LexeNode {
     handles: Vec<LxTask<()>>,
 
     // --- Actors --- //
-    pub channel_manager: LexeChannelManager,
+    pub channel_manager: NodeChannelManager,
     pub peer_manager: LexePeerManager,
     pub keys_manager: LexeKeysManager,
     pub persister: LexePersister,
@@ -191,7 +191,7 @@ impl LexeNode {
         // Initialize the ChannelManager and ProbabilisticScorer
         let mut restarting_node = true;
         let (channel_manager_res, scorer_res) = tokio::join!(
-            LexeChannelManager::init(
+            NodeChannelManager::init(
                 &args,
                 &persister,
                 block_source.as_ref(),
@@ -665,7 +665,7 @@ async fn spawn_p2p_listener(
 
 /// Spawns a task that regularly reconnects to the channel peers stored in DB.
 fn spawn_p2p_reconnector(
-    channel_manager: LexeChannelManager,
+    channel_manager: NodeChannelManager,
     peer_manager: LexePeerManager,
     persister: LexePersister,
     shutdown: ShutdownChannel,

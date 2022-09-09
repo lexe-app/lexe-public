@@ -4,12 +4,12 @@ use common::api::error::NodeApiError;
 use common::api::node::{ListChannels, NodeInfo};
 use common::ln::channel::LxChannelDetails;
 
-use crate::lexe::channel_manager::LexeChannelManager;
+use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::types::NetworkGraphType;
 
 pub fn node_info(
-    channel_manager: LexeChannelManager,
+    channel_manager: NodeChannelManager,
     peer_manager: LexePeerManager,
 ) -> Result<NodeInfo, NodeApiError> {
     let node_pk = channel_manager.get_our_node_id();
@@ -33,7 +33,7 @@ pub fn node_info(
 }
 
 pub fn list_channels(
-    channel_manager: LexeChannelManager,
+    channel_manager: NodeChannelManager,
     _network_graph: Arc<NetworkGraphType>, // TODO REPL uses it, do we need it?
 ) -> Result<ListChannels, NodeApiError> {
     let channel_details = channel_manager

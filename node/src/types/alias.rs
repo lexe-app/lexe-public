@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use lexe_ln::keys_manager::LexeKeysManager;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::keysinterface::InMemorySigner;
@@ -16,8 +17,7 @@ use lightning_net_tokio::SocketDescriptor;
 
 use crate::event_handler::LdkEventHandler;
 use crate::lexe::bitcoind::LexeBitcoind;
-use crate::lexe::channel_manager::LexeChannelManager;
-use lexe_ln::keys_manager::LexeKeysManager;
+use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::persister::LexePersister;
 use crate::types::PaymentInfo;
@@ -37,7 +37,7 @@ pub type ChainMonitorType = ChainMonitor<
 
 pub type PeerManagerType = PeerManager<
     SocketDescriptor,
-    LexeChannelManager,
+    NodeChannelManager,
     Arc<P2PGossipSyncType>,
     LexeTracingLogger,
     Arc<IgnoringMessageHandler>,
@@ -63,7 +63,7 @@ pub type ChannelMonitorListenerType = (
 );
 
 pub type InvoicePayerType = payment::InvoicePayer<
-    LexeChannelManager,
+    NodeChannelManager,
     RouterType,
     Arc<Mutex<ProbabilisticScorerType>>,
     LexeTracingLogger,

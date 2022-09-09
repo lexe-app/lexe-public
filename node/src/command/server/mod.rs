@@ -20,7 +20,7 @@ use tracing::trace;
 use warp::{Filter, Rejection, Reply};
 
 use crate::command::{host, owner};
-use crate::lexe::channel_manager::LexeChannelManager;
+use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::types::NetworkGraphType;
 
@@ -31,7 +31,7 @@ mod inject;
 ///
 /// [`OwnerNodeRunApi`]: common::api::def::OwnerNodeRunApi
 pub fn owner_routes(
-    channel_manager: LexeChannelManager,
+    channel_manager: NodeChannelManager,
     peer_manager: LexePeerManager,
     network_graph: Arc<NetworkGraphType>,
     activity_tx: mpsc::Sender<()>,

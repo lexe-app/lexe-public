@@ -10,6 +10,7 @@ use common::api::vfs::{Directory, File, FileId};
 use common::enclave::Measurement;
 use common::ln::channel::LxOutPoint;
 use common::shutdown::ShutdownChannel;
+use lexe_ln::keys_manager::LexeKeysManager;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
 use lightning::chain::channelmonitor::ChannelMonitorUpdate;
 use lightning::chain::transaction::OutPoint;
@@ -24,7 +25,6 @@ use tokio::sync::mpsc;
 use tracing::{debug, error};
 
 use crate::lexe::channel_manager::{LxChannelMonitorUpdate, USER_CONFIG};
-use lexe_ln::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::ChannelPeer;
 use crate::types::{
