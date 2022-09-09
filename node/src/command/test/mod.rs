@@ -11,11 +11,11 @@ use common::cli::{
     BitcoindRpcInfo, Network, RunArgs, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL,
 };
 use common::rng::SysRng;
+use lexe_ln::logger;
 
 use crate::command::owner;
 use crate::init::LexeNode;
 use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::logger;
 use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
 use crate::lexe::persister::NodePersister;
 use crate::types::NetworkGraphType;

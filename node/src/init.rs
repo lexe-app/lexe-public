@@ -18,6 +18,7 @@ use common::rng::Crng;
 use common::shutdown::ShutdownChannel;
 use futures::future;
 use lexe_ln::keys_manager::LexeKeysManager;
+use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
@@ -38,7 +39,6 @@ use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::{
     LxChannelMonitorUpdate, NodeChannelManager,
 };
-use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::lexe::persister::NodePersister;
 use crate::lexe::sync::SyncedChainListeners;

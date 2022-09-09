@@ -6,6 +6,7 @@ use anyhow::{anyhow, Context};
 use bitcoin::BlockHash;
 use common::cli::Network;
 use common::shutdown::ShutdownChannel;
+use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain::transaction::OutPoint;
 use lightning::chain::{Listen, Watch};
 use lightning_block_sync::poll::{ChainPoller, ValidatedBlockHeader};
@@ -14,7 +15,6 @@ use tokio::time::{self, Duration};
 use tracing::{info, warn};
 
 use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::logger::LexeTracingLogger;
 use crate::types::{
     BlockSourceType, BroadcasterType, ChainMonitorType,
     ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType, LxTask,

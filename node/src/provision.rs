@@ -247,12 +247,12 @@ mod test {
     use common::cli::ProvisionArgs;
     use common::rng::SysRng;
     use common::root_seed::RootSeed;
+    use lexe_ln::logger;
     use secrecy::Secret;
     use tokio_rustls::rustls;
 
     use super::*;
     use crate::api::mock::MockApiClient;
-    use crate::lexe::logger;
 
     #[cfg(target_env = "sgx")]
     #[test]

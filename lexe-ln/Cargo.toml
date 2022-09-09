@@ -46,5 +46,15 @@ lightning-net-tokio = { version = "0.0.110" }
 
 # Ad hoc error definition, easy error propagation, error chains
 anyhow = "1"
+# Used to hold a Tokio runtime used by the sync fns in the Persister trait impl
+once_cell = "1"
 # A wrapper type for carefully handling secrets
 secrecy = "0.8"
+# Logging
+tracing = "0.1"
+tracing-core = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "std",
+    "fmt",
+    "tracing-log",
+] }
