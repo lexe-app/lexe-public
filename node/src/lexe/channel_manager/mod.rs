@@ -5,6 +5,7 @@ use anyhow::{anyhow, Context};
 use bitcoin::BlockHash;
 use common::cli::RunArgs;
 use common::ln::channel::LxOutPoint;
+use lexe_ln::keys_manager::LexeKeysManager;
 use lightning::chain::chainmonitor::MonitorUpdateId;
 use lightning::chain::BestBlock;
 use lightning::ln::channelmanager::{
@@ -15,7 +16,6 @@ use lightning::util::config::{
 };
 use tracing::{debug, info};
 
-use lexe_ln::keys_manager::LexeKeysManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
 use crate::lexe::persister::LexePersister;
@@ -122,16 +122,16 @@ const CHANNEL_CONFIG: ChannelConfig = ChannelConfig {
 
 /// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]
-pub struct LexeChannelManager(Arc<ChannelManagerType>);
+pub struct NodeChannelManager(Arc<ChannelManagerType>);
 
-impl Deref for LexeChannelManager {
+impl Deref for NodeChannelManager {
     type Target = ChannelManagerType;
     fn deref(&self) -> &Self::Target {
         self.0.as_ref()
     }
 }
 
-impl LexeChannelManager {
+impl NodeChannelManager {
     // TODO: Review this function and clean up accordingly
     #[allow(clippy::too_many_arguments)]
     pub async fn init(

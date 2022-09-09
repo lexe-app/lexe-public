@@ -7,7 +7,7 @@ use lightning::util::events::EventsProvider;
 use tokio::time::{interval, interval_at, Instant};
 use tracing::{debug, error, info, trace, warn};
 
-use crate::lexe::channel_manager::LexeChannelManager;
+use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::lexe::persister::LexePersister;
 use crate::types::{
@@ -31,7 +31,7 @@ pub struct LexeBackgroundProcessor {}
 impl LexeBackgroundProcessor {
     #[allow(clippy::too_many_arguments)]
     pub fn start(
-        channel_manager: LexeChannelManager,
+        channel_manager: NodeChannelManager,
         peer_manager: LexePeerManager,
         persister: LexePersister,
         chain_monitor: Arc<ChainMonitorType>,

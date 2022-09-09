@@ -12,6 +12,7 @@ use bitcoin::secp256k1::Secp256k1;
 use bitcoin_bech32::WitnessProgram;
 use common::cli::Network;
 use common::hex;
+use lexe_ln::keys_manager::LexeKeysManager;
 use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
 };
@@ -21,8 +22,7 @@ use tokio::runtime::Handle;
 use tracing::{debug, error};
 
 use crate::lexe::bitcoind::LexeBitcoind;
-use crate::lexe::channel_manager::LexeChannelManager;
-use lexe_ln::keys_manager::LexeKeysManager;
+use crate::lexe::channel_manager::NodeChannelManager;
 use crate::types::{
     HTLCStatus, LxTask, MillisatAmount, NetworkGraphType, PaymentInfo,
     PaymentInfoStorageType,
@@ -30,7 +30,7 @@ use crate::types::{
 
 pub struct LdkEventHandler {
     network: Network,
-    channel_manager: LexeChannelManager,
+    channel_manager: NodeChannelManager,
     keys_manager: LexeKeysManager,
     bitcoind: Arc<LexeBitcoind>,
     network_graph: Arc<NetworkGraphType>,
@@ -41,7 +41,7 @@ pub struct LdkEventHandler {
 impl LdkEventHandler {
     pub fn new(
         network: Network,
-        channel_manager: LexeChannelManager,
+        channel_manager: NodeChannelManager,
         keys_manager: LexeKeysManager,
         bitcoind: Arc<LexeBitcoind>,
         network_graph: Arc<NetworkGraphType>,
@@ -103,7 +103,7 @@ impl EventHandler for LdkEventHandler {
 // TODO(max): Make this non-async by spawning tasks instead
 #[allow(clippy::too_many_arguments)]
 pub async fn handle_event(
-    channel_manager: &LexeChannelManager,
+    channel_manager: &NodeChannelManager,
     bitcoind: &LexeBitcoind,
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
@@ -134,7 +134,7 @@ pub async fn handle_event(
 // TODO(max): Make this non-async by spawning tasks instead
 #[allow(clippy::too_many_arguments)]
 async fn handle_event_fallible(
-    channel_manager: &LexeChannelManager,
+    channel_manager: &NodeChannelManager,
     bitcoind: &LexeBitcoind,
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,

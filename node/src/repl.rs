@@ -13,14 +13,14 @@ use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
 use common::cli::Network;
 use common::hex;
+use lexe_ln::keys_manager::LexeKeysManager;
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::ln::{PaymentHash, PaymentPreimage};
 use lightning::routing::gossip::NodeId;
 use lightning_invoice::payment::PaymentError;
 use lightning_invoice::{utils, Currency, Invoice};
 
-use crate::lexe::channel_manager::LexeChannelManager;
-use lexe_ln::keys_manager::LexeKeysManager;
+use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
 use crate::lexe::persister::LexePersister;
 use crate::types::{
@@ -32,7 +32,7 @@ use crate::types::{
 pub async fn poll_for_user_input(
     invoice_payer: Arc<InvoicePayerType>,
     peer_manager: LexePeerManager,
-    channel_manager: LexeChannelManager,
+    channel_manager: NodeChannelManager,
     keys_manager: LexeKeysManager,
     network_graph: Arc<NetworkGraphType>,
     inbound_payments: PaymentInfoStorageType,
@@ -328,7 +328,7 @@ fn help() {
 }
 
 fn node_info(
-    channel_manager: &LexeChannelManager,
+    channel_manager: &NodeChannelManager,
     peer_manager: &LexePeerManager,
 ) {
     println!("\t{{");
@@ -354,7 +354,7 @@ fn list_peers(peer_manager: LexePeerManager) {
 }
 
 fn list_channels(
-    channel_manager: &LexeChannelManager,
+    channel_manager: &NodeChannelManager,
     network_graph: &Arc<NetworkGraphType>,
 ) {
     print!("[");
@@ -558,7 +558,7 @@ fn keysend<K: KeysInterface>(
 fn get_invoice(
     amt_msat: u64,
     payment_storage: PaymentInfoStorageType,
-    channel_manager: LexeChannelManager,
+    channel_manager: NodeChannelManager,
     keys_manager: LexeKeysManager,
     network: Network,
     expiry_secs: u32,
@@ -598,7 +598,7 @@ fn get_invoice(
 /// Parses the channel peer and channel value and opens a channel.
 async fn open_channel<'a, I: Iterator<Item = &'a str>>(
     mut words: I,
-    channel_manager: &LexeChannelManager,
+    channel_manager: &NodeChannelManager,
     peer_manager: &LexePeerManager,
     persister: &LexePersister,
 ) -> anyhow::Result<()> {
@@ -623,7 +623,7 @@ async fn open_channel<'a, I: Iterator<Item = &'a str>>(
 fn close_channel(
     channel_id: [u8; 32],
     counterparty_node_id: PublicKey,
-    channel_manager: LexeChannelManager,
+    channel_manager: NodeChannelManager,
 ) {
     match channel_manager.close_channel(&channel_id, &counterparty_node_id) {
         Ok(()) => println!("EVENT: initiating channel close"),
@@ -634,7 +634,7 @@ fn close_channel(
 fn force_close_channel(
     channel_id: [u8; 32],
     counterparty_node_id: PublicKey,
-    channel_manager: LexeChannelManager,
+    channel_manager: NodeChannelManager,
 ) {
     match channel_manager
         .force_close_broadcasting_latest_txn(&channel_id, &counterparty_node_id)

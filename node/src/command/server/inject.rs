@@ -8,7 +8,7 @@ use common::api::UserPk;
 use common::shutdown::ShutdownChannel;
 use warp::Filter;
 
-use crate::lexe::channel_manager::LexeChannelManager;
+use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::LexePeerManager;
 use crate::types::NetworkGraphType;
 
@@ -28,8 +28,8 @@ pub fn shutdown(
 
 /// Injects a channel manager.
 pub fn channel_manager(
-    channel_manager: LexeChannelManager,
-) -> impl Filter<Extract = (LexeChannelManager,), Error = Infallible> + Clone {
+    channel_manager: NodeChannelManager,
+) -> impl Filter<Extract = (NodeChannelManager,), Error = Infallible> + Clone {
     warp::any().map(move || channel_manager.clone())
 }
 

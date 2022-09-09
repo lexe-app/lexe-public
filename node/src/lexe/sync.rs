@@ -13,7 +13,7 @@ use lightning_block_sync::{init as blocksyncinit, SpvClient};
 use tokio::time::{self, Duration};
 use tracing::{info, warn};
 
-use crate::lexe::channel_manager::LexeChannelManager;
+use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::types::{
     BlockSourceType, BroadcasterType, ChainMonitorType,
@@ -31,7 +31,7 @@ pub struct SyncedChainListeners {
     network: Network,
     block_source: Arc<BlockSourceType>,
 
-    channel_manager: LexeChannelManager,
+    channel_manager: NodeChannelManager,
     cmcls: Vec<ChannelMonitorChainListener>,
     blockheader_cache: HashMap<BlockHash, ValidatedBlockHeader>,
     chain_tip: ValidatedBlockHeader,
@@ -42,7 +42,7 @@ impl SyncedChainListeners {
     pub async fn init_and_sync(
         network: Network,
 
-        channel_manager: LexeChannelManager,
+        channel_manager: NodeChannelManager,
         channel_manager_blockhash: BlockHash,
         channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
 
@@ -75,7 +75,7 @@ impl SyncedChainListeners {
     /// Syncs our existing channel manager and channel monitors to the latest
     /// chain tip. For these two types respectively, LDK impl's Listen for:
     ///
-    /// - LexeChannelManager's inner type: `ChannelManagerType`
+    /// - NodeChannelManager's inner type: `ChannelManagerType`
     /// - A 4-tuple (`ChannelMonitorListenerType`) which contains the channel
     ///   monitor (`ChannelMonitorType`) and handles to other actors.
     ///
@@ -85,7 +85,7 @@ impl SyncedChainListeners {
     async fn from_existing(
         network: Network,
 
-        channel_manager: LexeChannelManager,
+        channel_manager: NodeChannelManager,
         channel_manager_blockhash: BlockHash,
         channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
 
@@ -155,13 +155,13 @@ impl SyncedChainListeners {
     }
 
     /// If this was a newly created node, meaning that we have 0 channel
-    /// monitors and a `LexeChannelManager` initialized from scratch, our
+    /// monitors and a `NodeChannelManager` initialized from scratch, our
     /// "SyncedChainListeners" consists of an empty
     /// `ChannelMonitorChainListener`s Vec along with the best validated block
     /// header from our block source.
     async fn from_new(
         network: Network,
-        channel_manager: LexeChannelManager,
+        channel_manager: NodeChannelManager,
         block_source: Arc<BlockSourceType>,
     ) -> anyhow::Result<Self> {
         let chain_tip = blocksyncinit::validate_best_block_header(

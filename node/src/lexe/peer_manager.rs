@@ -8,14 +8,14 @@ use std::time::Duration;
 use anyhow::{bail, Context};
 use bitcoin::secp256k1::PublicKey;
 use common::rng::Crng;
+use lexe_ln::keys_manager::LexeKeysManager;
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
 use secrecy::zeroize::Zeroizing;
 use tokio::net::TcpStream;
 use tokio::time;
 
-use crate::lexe::channel_manager::LexeChannelManager;
-use lexe_ln::keys_manager::LexeKeysManager;
+use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::logger::LexeTracingLogger;
 use crate::types::{P2PGossipSyncType, PeerManagerType};
 
@@ -36,7 +36,7 @@ impl LexePeerManager {
     pub fn init(
         rng: &mut dyn Crng,
         keys_manager: &LexeKeysManager,
-        channel_manager: LexeChannelManager,
+        channel_manager: NodeChannelManager,
         gossip_sync: Arc<P2PGossipSyncType>,
         logger: LexeTracingLogger,
     ) -> Self {

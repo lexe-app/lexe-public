@@ -14,7 +14,7 @@ use common::rng::SysRng;
 
 use crate::command::owner;
 use crate::init::LexeNode;
-use crate::lexe::channel_manager::LexeChannelManager;
+use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::logger;
 use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
 use crate::lexe::persister::LexePersister;
@@ -118,7 +118,7 @@ impl CommandTestHarness {
         self.node.run().await.expect("Error while running");
     }
 
-    fn channel_manager(&self) -> LexeChannelManager {
+    fn channel_manager(&self) -> NodeChannelManager {
         self.node.channel_manager.clone()
     }
 
