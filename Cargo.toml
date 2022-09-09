@@ -3,6 +3,7 @@ resolver = "2"
 
 members = [
     "common",
+    "lexe-ln",
     "node",
     "run-sgx",
 ]

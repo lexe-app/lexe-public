@@ -15,7 +15,7 @@ use secrecy::ExposeSecret;
 /// A thin wrapper around LDK's KeysManager which provides a cleaner init API
 /// and some custom functionalities.
 ///
-/// An Arc is held internally, so it is fine to clone directly.
+/// An Arc is held internally, so it is fine to clone and use directly.
 #[derive(Clone)]
 pub struct LexeKeysManager {
     inner: Arc<KeysManager>,
@@ -29,10 +29,9 @@ impl Deref for LexeKeysManager {
 }
 
 impl LexeKeysManager {
-    /// A helper used to (insecurely) initialize a LexeKeysManager in the
-    /// temporary provision flow. Once provisioning works, this fn should be
-    /// cfg'd to be available only for non-SGX or for tests. TODO Do that
-    pub fn insecure_init<R: Crng>(rng: &mut R, root_seed: &RootSeed) -> Self {
+    /// Initialize a [`LexeKeysManager`] from a [`RootSeed`] without supplying a
+    /// pubkey to check the derived pubkey against.
+    pub fn unchecked_init<R: Crng>(rng: &mut R, root_seed: &RootSeed) -> Self {
         let random_secs = rng.next_u64();
         let random_nanos = rng.next_u32();
         let inner = Arc::new(KeysManager::new(
