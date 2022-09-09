@@ -41,8 +41,9 @@ use ring::signature::KeyPair as _;
 use thiserror::Error;
 use x509_parser::x509::SubjectPublicKeyInfo;
 
+use crate::hex::{self, FromHex};
 use crate::rng::Crng;
-use crate::{const_assert_usize_eq, const_ref_cast, hex};
+use crate::{const_assert_usize_eq, const_ref_cast};
 
 /// The standard PKCS OID for Ed25519
 #[rustfmt::skip]
@@ -260,15 +261,15 @@ impl PublicKey {
         .map_err(|_| Error::InvalidSignature)
     }
 
-    pub fn as_slice(&self) -> &[u8] {
+    pub const fn as_slice(&self) -> &[u8] {
         self.0.as_slice()
     }
 
-    pub fn into_inner(self) -> [u8; 32] {
+    pub const fn into_inner(self) -> [u8; 32] {
         self.0
     }
 
-    pub fn as_inner(&self) -> &[u8; 32] {
+    pub const fn as_inner(&self) -> &[u8; 32] {
         &self.0
     }
 }
@@ -320,6 +321,12 @@ impl AsRef<[u8; 32]> for PublicKey {
     }
 }
 
+impl FromHex for PublicKey {
+    fn from_hex(s: &str) -> Result<Self, hex::DecodeError> {
+        <[u8; 32]>::from_hex(s).map(Self::new)
+    }
+}
+
 impl fmt::Display for PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", hex::display(self.as_slice()))
@@ -345,15 +352,15 @@ impl Signature {
         const_ref_cast(sig)
     }
 
-    pub fn as_slice(&self) -> &[u8] {
+    pub const fn as_slice(&self) -> &[u8] {
         self.0.as_slice()
     }
 
-    pub fn into_inner(self) -> [u8; 64] {
+    pub const fn into_inner(self) -> [u8; 64] {
         self.0
     }
 
-    pub fn as_inner(&self) -> &[u8; 64] {
+    pub const fn as_inner(&self) -> &[u8; 64] {
         &self.0
     }
 }
@@ -376,6 +383,12 @@ impl TryFrom<&[u8]> for Signature {
         <[u8; 64]>::try_from(value)
             .map(Signature)
             .map_err(|_| Error::InvalidSignature)
+    }
+}
+
+impl FromHex for Signature {
+    fn from_hex(s: &str) -> Result<Self, hex::DecodeError> {
+        <[u8; 64]>::from_hex(s).map(Self::new)
     }
 }
 

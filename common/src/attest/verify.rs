@@ -291,11 +291,11 @@ impl SgxQuoteVerifier {
             .context("Invalid QE identity")?;
 
         ensure!(
-            &qe3_reportdata[..32] == expected_reportdata.as_ref(),
+            &qe3_reportdata[..32] == expected_reportdata.as_slice(),
             "Quoting Enclave's Report data doesn't match the Quote attestation pk: \
              actual: '{}', expected: '{}'",
             hex::display(&qe3_reportdata[..32]),
-            hex::display(expected_reportdata.as_ref()),
+            expected_reportdata,
         );
 
         // 4. Verify the attestation key endorses the Quote Header and our
