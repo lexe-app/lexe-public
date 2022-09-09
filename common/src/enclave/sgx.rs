@@ -11,17 +11,12 @@ use secrecy::zeroize::Zeroizing;
 use sgx_isa::{AttributesFlags, Keyname, Keypolicy};
 
 use crate::enclave::{Error, MachineId, Measurement, Sealed, MIN_SGX_CPUSVN};
-use crate::hex;
 use crate::rng::Crng;
+use crate::sha256;
 
-#[cfg(test)]
-const HKDF_SALT_STR: &[u8] = b"LEXE-HASH-REALM::SgxSealing";
-
-/// We salt the HKDF for domain separation purposes. The raw bytes here are
-/// equal to the hash value: `SHA-256(b"LEXE-HASH-REALM::SgxSealing")`.
-const HKDF_SALT: [u8; 32] = hex::decode_const(
-    b"66331e89a9282101072c8879263a948ca8e48ef22c6f18eccf11d91864b3911a",
-);
+/// We salt the HKDF for domain separation purposes.
+const HKDF_SALT: [u8; 32] =
+    sha256::digest_const(b"LEXE-HASH-REALM::SgxSealing").into_inner();
 
 /// AES-256-GCM tag length
 pub const TAG_LEN: usize = 16;
@@ -269,11 +264,9 @@ pub fn machine_id() -> MachineId {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::sha256;
 
     #[test]
     fn test_constants() {
         assert_eq!(AES_256_GCM.tag_len(), TAG_LEN);
-        assert_eq!(sha256::digest(HKDF_SALT_STR).as_ref(), HKDF_SALT);
     }
 }

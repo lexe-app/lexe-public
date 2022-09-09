@@ -10,7 +10,7 @@ use secrecy::{ExposeSecret, Secret, SecretVec};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::rng::Crng;
-use crate::{ed25519, hex};
+use crate::{ed25519, hex, sha256};
 
 /// The user's root seed from which we derive all child secrets.
 pub struct RootSeed(Secret<[u8; Self::LENGTH]>);
@@ -22,15 +22,9 @@ impl RootSeed {
     /// single secret.
     const HKDF_MAX_OUT_LEN: usize = 8160 /* 255*32 */;
 
-    /// The HKDF domain separation value as a human-readable byte string.
-    #[cfg(test)]
-    const HKDF_SALT_STR: &'static [u8] = b"LEXE-HASH-REALM::RootSeed";
-
-    /// We salt the HKDF for domain separation purposes. The raw bytes here are
-    /// equal to the hash value: `SHA-256(b"LEXE-HASH-REALM::RootSeed")`.
-    const HKDF_SALT: [u8; 32] = hex::decode_const(
-        b"363b116be1690fcd481f2d4014812aaecff2411b861198eec42c6e31d80a28a4",
-    );
+    /// We salt the HKDF for domain separation purposes.
+    const HKDF_SALT: [u8; 32] =
+        sha256::digest_const(b"LEXE-HASH-REALM::RootSeed").into_inner();
 
     pub fn new(bytes: Secret<[u8; Self::LENGTH]>) -> Self {
         Self(bytes)
@@ -348,24 +342,6 @@ mod test {
         assert_eq!(foo2.x, 123);
         assert_eq!(foo2.seed.as_bytes(), &seed_bytes);
         assert_eq!(foo2.y, "asdf");
-    }
-
-    #[test]
-    fn test_root_seed_hkdf_salt() {
-        let actual = RootSeed::HKDF_SALT.as_slice();
-        let expected = sha256::digest(RootSeed::HKDF_SALT_STR);
-
-        // // print out salt
-        // let hex = hex::encode(expected.as_ref());
-        // let (chunks, _) = hex.as_bytes().as_chunks::<2>();
-        // for &[hi, lo] in chunks {
-        //     let hi = hi as char;
-        //     let lo = lo as char;
-        //     println!("0x{hi}{lo},");
-        // }
-
-        // compare hex encode for easier debugging
-        assert_eq!(hex::encode(actual), hex::encode(expected.as_ref()));
     }
 
     #[test]
