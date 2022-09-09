@@ -45,9 +45,9 @@ impl LexeBitcoind {
     ) -> anyhow::Result<Self> {
         debug!(%network, "Initializing bitcoind client");
 
-        let http_endpoint = HttpEndpoint::for_host(bitcoind_rpc.host.clone())
-            .with_port(bitcoind_rpc.port);
         let credentials = bitcoind_rpc.base64_credentials();
+        let http_endpoint = HttpEndpoint::for_host(bitcoind_rpc.host)
+            .with_port(bitcoind_rpc.port);
         let rpc_client = RpcClient::new(&credentials, http_endpoint)
             .context("Could not initialize RPC client")?;
         let rpc_client = Arc::new(rpc_client);

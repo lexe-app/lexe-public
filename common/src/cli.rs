@@ -23,7 +23,7 @@ use crate::enclave::{self, MachineId};
 pub const DEFAULT_BACKEND_URL: &str = "http://127.0.0.1:3030";
 pub const DEFAULT_RUNNER_URL: &str = "http://127.0.0.1:5050";
 
-#[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
+#[derive(Clone, Debug, Eq, PartialEq, FromArgs)]
 #[argh(subcommand)]
 pub enum NodeCommand {
     Run(RunArgs),
@@ -126,7 +126,7 @@ pub struct RunArgs {
     #[argh(option)]
     pub peer_port: Option<Port>,
 
-    /// testnet or mainnet. Defaults to testnet.
+    /// bitcoin, testnet, regtest, or signet. Defaults to testnet.
     #[argh(option, default = "Network::default()")]
     pub network: Network,
 
@@ -354,11 +354,9 @@ impl BitcoindRpcInfo {
     /// Returns a base64 encoding of "<user>:<pass>" required by the BitcoinD
     /// RPC client.
     pub fn base64_credentials(&self) -> String {
-        base64::encode(format!(
-            "{}:{}",
-            self.username.clone(),
-            self.password.clone(),
-        ))
+        let username = &self.username;
+        let password = &self.password;
+        base64::encode(format!("{username}:{password}"))
     }
 }
 
