@@ -6,6 +6,7 @@ use anyhow::{anyhow, Context};
 use bitcoin::BlockHash;
 use common::cli::Network;
 use common::shutdown::ShutdownChannel;
+use common::task::LxTask;
 use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain::transaction::OutPoint;
 use lightning::chain::{Listen, Watch};
@@ -17,7 +18,7 @@ use tracing::{info, warn};
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::types::{
     BlockSourceType, BroadcasterType, ChainMonitorType,
-    ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType, LxTask,
+    ChannelMonitorListenerType, ChannelMonitorType, FeeEstimatorType,
 };
 
 /// How often the SpvClient client polls for an updated chain tip

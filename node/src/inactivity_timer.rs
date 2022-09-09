@@ -227,7 +227,7 @@ mod tests {
 
         // Spawn a task to generate an activity event 500ms in
         let activity_tx = mats.activity_tx.clone();
-        use crate::types::LxTask;
+        use common::task::LxTask;
         let activity_task = LxTask::spawn(async move {
             time::sleep(Duration::from_millis(500)).await;
             let _ = activity_tx.send(()).await;
@@ -255,7 +255,7 @@ mod tests {
         // signal 750ms in
         let activity_tx = mats.activity_tx.clone();
         let shutdown = mats.shutdown.clone();
-        use crate::types::LxTask;
+        use common::task::LxTask;
         let activity_task = LxTask::spawn(async move {
             time::sleep(Duration::from_millis(500)).await;
             let _ = activity_tx.send(()).await;

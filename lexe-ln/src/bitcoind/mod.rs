@@ -11,6 +11,7 @@ use bitcoin::consensus::encode;
 use bitcoin::hash_types::{BlockHash, Txid};
 use bitcoin::util::address::Address;
 use common::cli::{BitcoindRpcInfo, Network};
+use common::task::LxTask;
 use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
 };
@@ -21,8 +22,6 @@ use lightning_block_sync::{
 };
 use tokio::time;
 use tracing::{debug, error};
-
-use crate::types::LxTask;
 
 mod types;
 

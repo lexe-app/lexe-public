@@ -10,6 +10,7 @@ use common::api::vfs::{Directory, File, FileId};
 use common::enclave::Measurement;
 use common::ln::channel::LxOutPoint;
 use common::shutdown::ShutdownChannel;
+use common::task::LxTask;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
@@ -29,7 +30,7 @@ use crate::lexe::channel_manager::{LxChannelMonitorUpdate, USER_CONFIG};
 use crate::lexe::peer_manager::ChannelPeer;
 use crate::types::{
     ApiClientType, BroadcasterType, ChainMonitorType, ChannelManagerType,
-    ChannelMonitorType, FeeEstimatorType, LoggerType, LxTask, NetworkGraphType,
+    ChannelMonitorType, FeeEstimatorType, LoggerType, NetworkGraphType,
     ProbabilisticScorerType, SignerType,
 };
 

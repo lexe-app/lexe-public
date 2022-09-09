@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
+use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain::chainmonitor::ChainMonitor;
@@ -17,7 +18,6 @@ use lightning_invoice::utils::DefaultRouter;
 use lightning_net_tokio::SocketDescriptor;
 
 use crate::event_handler::LdkEventHandler;
-use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::persister::NodePersister;
 use crate::types::PaymentInfo;
