@@ -39,7 +39,7 @@ use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::{
     LxChannelMonitorUpdate, NodeChannelManager,
 };
-use crate::lexe::peer_manager::LexePeerManager;
+use crate::lexe::peer_manager::NodePeerManager;
 use crate::lexe::persister::NodePersister;
 use crate::lexe::sync::SyncedChainListeners;
 use crate::types::{
@@ -54,7 +54,6 @@ pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 const SHUTDOWN_JOIN_TIMEOUT: Duration = Duration::from_secs(15);
 
-// TODO: Eventually move this into the `lexe` module once init is cleaned up
 // TODO: Remove once keys_manager, persister, invoice_payer are read in SGX
 #[allow(dead_code)]
 pub struct LexeNode {
@@ -65,7 +64,7 @@ pub struct LexeNode {
 
     // --- Actors --- //
     pub channel_manager: NodeChannelManager,
-    pub peer_manager: LexePeerManager,
+    pub peer_manager: NodePeerManager,
     pub keys_manager: LexeKeysManager,
     pub persister: NodePersister,
     chain_monitor: Arc<ChainMonitorType>,
@@ -215,7 +214,7 @@ impl LexeNode {
         let scorer = Arc::new(Mutex::new(scorer));
 
         // Initialize PeerManager
-        let peer_manager = LexePeerManager::init(
+        let peer_manager = NodePeerManager::init(
             rng,
             &keys_manager,
             channel_manager.clone(),
@@ -593,7 +592,7 @@ async fn gossip_sync(
 /// Sets up a `TcpListener` to listen on 0.0.0.0:<peer_port>, handing off
 /// resultant `TcpStream`s for the `PeerManager` to manage
 async fn spawn_p2p_listener(
-    peer_manager: LexePeerManager,
+    peer_manager: NodePeerManager,
     peer_port_opt: Option<Port>,
     shutdown: ShutdownChannel,
 ) -> (LxTask<()>, Port) {
@@ -666,7 +665,7 @@ async fn spawn_p2p_listener(
 /// Spawns a task that regularly reconnects to the channel peers stored in DB.
 fn spawn_p2p_reconnector(
     channel_manager: NodeChannelManager,
-    peer_manager: LexePeerManager,
+    peer_manager: NodePeerManager,
     persister: NodePersister,
     shutdown: ShutdownChannel,
 ) -> LxTask<()> {

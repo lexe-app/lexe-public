@@ -17,7 +17,7 @@ use lightning::util::config::{
 };
 use tracing::{debug, info};
 
-use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
+use crate::lexe::peer_manager::{ChannelPeer, NodePeerManager};
 use crate::lexe::persister::NodePersister;
 use crate::types::{
     BlockSourceType, BroadcasterType, ChainMonitorType, ChannelManagerType,
@@ -200,7 +200,7 @@ impl NodeChannelManager {
     /// peer, creating the channel, and persisting the newly created channel.
     pub async fn open_channel(
         &self,
-        peer_manager: &LexePeerManager,
+        peer_manager: &NodePeerManager,
         persister: &NodePersister,
         channel_peer: ChannelPeer,
         channel_value_sat: u64,

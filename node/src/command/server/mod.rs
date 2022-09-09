@@ -21,7 +21,7 @@ use warp::{Filter, Rejection, Reply};
 
 use crate::command::{host, owner};
 use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::peer_manager::LexePeerManager;
+use crate::lexe::peer_manager::NodePeerManager;
 use crate::types::NetworkGraphType;
 
 mod inject;
@@ -32,7 +32,7 @@ mod inject;
 /// [`OwnerNodeRunApi`]: common::api::def::OwnerNodeRunApi
 pub fn owner_routes(
     channel_manager: NodeChannelManager,
-    peer_manager: LexePeerManager,
+    peer_manager: NodePeerManager,
     network_graph: Arc<NetworkGraphType>,
     activity_tx: mpsc::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {

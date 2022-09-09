@@ -16,7 +16,7 @@ use lexe_ln::logger;
 use crate::command::owner;
 use crate::init::LexeNode;
 use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
+use crate::lexe::peer_manager::{ChannelPeer, NodePeerManager};
 use crate::lexe::persister::NodePersister;
 use crate::types::NetworkGraphType;
 
@@ -122,7 +122,7 @@ impl CommandTestHarness {
         self.node.channel_manager.clone()
     }
 
-    fn peer_manager(&self) -> LexePeerManager {
+    fn peer_manager(&self) -> NodePeerManager {
         self.node.peer_manager.clone()
     }
 
