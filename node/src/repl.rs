@@ -22,7 +22,7 @@ use lightning_invoice::{utils, Currency, Invoice};
 
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
-use crate::lexe::persister::LexePersister;
+use crate::lexe::persister::NodePersister;
 use crate::types::{
     HTLCStatus, InvoicePayerType, MillisatAmount, NetworkGraphType,
     PaymentInfo, PaymentInfoStorageType,
@@ -37,7 +37,7 @@ pub async fn poll_for_user_input(
     network_graph: Arc<NetworkGraphType>,
     inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
-    persister: LexePersister,
+    persister: NodePersister,
     network: Network,
 ) {
     println!("LDK startup successful. To view available commands: \"help\".");
@@ -600,7 +600,7 @@ async fn open_channel<'a, I: Iterator<Item = &'a str>>(
     mut words: I,
     channel_manager: &NodeChannelManager,
     peer_manager: &LexePeerManager,
-    persister: &LexePersister,
+    persister: &NodePersister,
 ) -> anyhow::Result<()> {
     let peer_pk_at_addr = words
         .next()

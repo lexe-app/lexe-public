@@ -17,7 +17,7 @@ use crate::init::LexeNode;
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::logger;
 use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
-use crate::lexe::persister::LexePersister;
+use crate::lexe::persister::NodePersister;
 use crate::types::NetworkGraphType;
 
 /// Helper to return a default RunArgs struct for testing.
@@ -126,7 +126,7 @@ impl CommandTestHarness {
         self.node.peer_manager.clone()
     }
 
-    fn persister(&self) -> LexePersister {
+    fn persister(&self) -> NodePersister {
         self.node.persister.clone()
     }
 

@@ -9,7 +9,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::LexePeerManager;
-use crate::lexe::persister::LexePersister;
+use crate::lexe::persister::NodePersister;
 use crate::types::{
     ChainMonitorType, InvoicePayerType, LxTask, P2PGossipSyncType,
     ProbabilisticScorerType,
@@ -33,7 +33,7 @@ impl LexeBackgroundProcessor {
     pub fn start(
         channel_manager: NodeChannelManager,
         peer_manager: LexePeerManager,
-        persister: LexePersister,
+        persister: NodePersister,
         chain_monitor: Arc<ChainMonitorType>,
         event_handler: Arc<InvoicePayerType>,
         gossip_sync: Arc<P2PGossipSyncType>,

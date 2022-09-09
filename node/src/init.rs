@@ -40,7 +40,7 @@ use crate::lexe::channel_manager::{
 };
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::LexePeerManager;
-use crate::lexe::persister::LexePersister;
+use crate::lexe::persister::NodePersister;
 use crate::lexe::sync::SyncedChainListeners;
 use crate::types::{
     ApiClientType, BlockSourceType, BroadcasterType, ChainMonitorType,
@@ -67,7 +67,7 @@ pub struct LexeNode {
     pub channel_manager: NodeChannelManager,
     pub peer_manager: LexePeerManager,
     pub keys_manager: LexeKeysManager,
-    pub persister: LexePersister,
+    pub persister: NodePersister,
     chain_monitor: Arc<ChainMonitorType>,
     pub network_graph: Arc<NetworkGraphType>,
     invoice_payer: Arc<InvoicePayerType>,
@@ -153,7 +153,7 @@ impl LexeNode {
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
 
         // Initialize Persister
-        let persister = LexePersister::new(
+        let persister = NodePersister::new(
             api.clone(),
             node_pk,
             measurement,
@@ -554,7 +554,7 @@ async fn fetch_provisioned_secrets(
 
 /// Initializes the ChannelMonitors
 async fn channel_monitors(
-    persister: &LexePersister,
+    persister: &NodePersister,
     keys_manager: LexeKeysManager,
 ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
     debug!("reading channel monitors from DB");
@@ -567,7 +567,7 @@ async fn channel_monitors(
 /// Initializes a GossipSync and NetworkGraph
 async fn gossip_sync(
     network: Network,
-    persister: &LexePersister,
+    persister: &NodePersister,
     logger: LexeTracingLogger,
 ) -> anyhow::Result<(Arc<NetworkGraphType>, Arc<P2PGossipSyncType>)> {
     debug!("initializing gossip sync and network graph");
@@ -667,7 +667,7 @@ async fn spawn_p2p_listener(
 fn spawn_p2p_reconnector(
     channel_manager: NodeChannelManager,
     peer_manager: LexePeerManager,
-    persister: LexePersister,
+    persister: NodePersister,
     shutdown: ShutdownChannel,
 ) -> LxTask<()> {
     LxTask::spawn(async move {
