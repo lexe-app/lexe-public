@@ -18,7 +18,7 @@ use tracing::{debug, info};
 
 use crate::lexe::logger::LexeTracingLogger;
 use crate::lexe::peer_manager::{ChannelPeer, LexePeerManager};
-use crate::lexe::persister::LexePersister;
+use crate::lexe::persister::NodePersister;
 use crate::types::{
     BlockSourceType, BroadcasterType, ChainMonitorType, ChannelManagerType,
     ChannelMonitorType, FeeEstimatorType,
@@ -136,7 +136,7 @@ impl NodeChannelManager {
     #[allow(clippy::too_many_arguments)]
     pub async fn init(
         args: &RunArgs,
-        persister: &LexePersister,
+        persister: &NodePersister,
         block_source: &BlockSourceType,
         restarting_node: &mut bool,
         channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
@@ -201,7 +201,7 @@ impl NodeChannelManager {
     pub async fn open_channel(
         &self,
         peer_manager: &LexePeerManager,
-        persister: &LexePersister,
+        persister: &NodePersister,
         channel_peer: ChannelPeer,
         channel_value_sat: u64,
     ) -> anyhow::Result<()> {

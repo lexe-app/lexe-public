@@ -48,11 +48,11 @@ const DEFAULT_RETRIES: usize = 3;
 
 /// An Arc is held internally, so it is fine to clone and use directly.
 #[derive(Clone)] // TODO Try removing this
-pub struct LexePersister {
+pub struct NodePersister {
     inner: InnerPersister,
 }
 
-impl LexePersister {
+impl NodePersister {
     pub fn new(
         api: ApiClientType,
         node_pk: PublicKey,
@@ -72,7 +72,7 @@ impl LexePersister {
     }
 }
 
-impl Deref for LexePersister {
+impl Deref for NodePersister {
     type Target = InnerPersister;
     fn deref(&self) -> &Self::Target {
         &self.inner
@@ -80,7 +80,7 @@ impl Deref for LexePersister {
 }
 
 /// The thing that actually impls the Persist trait. LDK requires that
-/// LexePersister Derefs to it.
+/// NodePersister Derefs to it.
 #[derive(Clone)]
 pub struct InnerPersister {
     api: ApiClientType,

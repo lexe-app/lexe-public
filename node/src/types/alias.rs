@@ -19,7 +19,7 @@ use crate::event_handler::LdkEventHandler;
 use crate::lexe::bitcoind::LexeBitcoind;
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::logger::LexeTracingLogger;
-use crate::lexe::persister::LexePersister;
+use crate::lexe::persister::NodePersister;
 use crate::types::PaymentInfo;
 
 pub type PaymentInfoStorageType = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
@@ -32,7 +32,7 @@ pub type ChainMonitorType = ChainMonitor<
     Arc<BroadcasterType>,
     Arc<FeeEstimatorType>,
     LexeTracingLogger,
-    LexePersister,
+    NodePersister,
 >;
 
 pub type PeerManagerType = PeerManager<
