@@ -36,7 +36,7 @@ pub mod task;
 /// two values.
 #[macro_export]
 macro_rules! const_assert_usize_eq {
-    ($x:expr, $y:expr $(,)*) => {
+    ($x:expr, $y:expr $(,)?) => {
         const _: [(); $x] = [(); $y];
     };
 }

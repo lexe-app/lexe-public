@@ -38,7 +38,7 @@ pub const fn digest_const(input: &[u8]) -> Hash {
     digest_many_const(&[input])
 }
 
-/// SHA-256 digest a multiple concatenated inputs at compile time.
+/// SHA-256 digest multiple concatenated inputs at compile time.
 pub const fn digest_many_const(mut inputs: &[&[u8]]) -> Hash {
     let mut acc = sha2_const::Sha256::new();
     while let Some((input, rest)) = inputs.split_first() {
