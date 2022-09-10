@@ -11,6 +11,7 @@ use bitcoin::consensus::encode;
 use bitcoin::hash_types::{BlockHash, Txid};
 use bitcoin::util::address::Address;
 use common::cli::{BitcoindRpcInfo, Network};
+use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
@@ -36,12 +37,14 @@ pub struct LexeBitcoind {
     background_fees: Arc<AtomicU32>,
     normal_fees: Arc<AtomicU32>,
     high_prio_fees: Arc<AtomicU32>,
+    shutdown: ShutdownChannel,
 }
 
 impl LexeBitcoind {
     pub async fn init(
         bitcoind_rpc: BitcoindRpcInfo,
         network: Network,
+        shutdown: ShutdownChannel,
     ) -> anyhow::Result<Self> {
         debug!(%network, "Initializing bitcoind client");
 
@@ -61,6 +64,7 @@ impl LexeBitcoind {
             background_fees,
             normal_fees,
             high_prio_fees,
+            shutdown,
         };
 
         // Make an initial test call to check that the RPC client is working
@@ -95,12 +99,17 @@ impl LexeBitcoind {
         let background_fees = self.background_fees.clone();
         let normal_fees = self.normal_fees.clone();
         let high_prio_fees = self.high_prio_fees.clone();
+        let shutdown = self.shutdown.clone();
 
+        // TODO(max): Instrument with shutdown
         LxTask::spawn(async move {
             let mut poll_interval = time::interval(POLL_FEE_ESTIMATE_INTERVAL);
 
             loop {
-                poll_interval.tick().await;
+                tokio::select! {
+                    _ = poll_interval.tick() => {}
+                    () = shutdown.recv() => break,
+                }
 
                 let poll_res = Self::refresh_fees(
                     background_fees.as_ref(),

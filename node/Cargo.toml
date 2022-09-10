@@ -54,7 +54,7 @@ argh = "0.1"
 async-trait = "0.1"
 # Working with bytes
 bytes = "1"
-# Used to manually poll a future in ldk-sample's networking code TODO remove
+# Utils for working with futures
 futures = "0.3"
 # Used to specify the HTTP methods used to interact with the API
 http = "0.2"
