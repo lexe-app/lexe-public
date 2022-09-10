@@ -43,6 +43,8 @@ anyhow = "1"
 argh = "0.1"
 # async fn's in trait methods
 async-trait = "0.1"
+# Binary canonical serialization format
+bcs = "0.1"
 # Working with bytes
 bytes = "1"
 # Conveniently write #[cfg(..)] if-else statements without repeating clauses

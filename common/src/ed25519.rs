@@ -38,12 +38,13 @@ use asn1_rs::{oid, Oid};
 use rcgen::RcgenError;
 use ref_cast::RefCast;
 use ring::signature::KeyPair as _;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use x509_parser::x509::SubjectPublicKeyInfo;
 
 use crate::hex::{self, FromHex};
 use crate::rng::Crng;
-use crate::{const_assert_usize_eq, const_ref_cast};
+use crate::{const_assert_usize_eq, const_ref_cast, sha256};
 
 /// The standard PKCS OID for Ed25519
 #[rustfmt::skip]
@@ -53,6 +54,10 @@ pub const SECRET_KEY_LEN: usize = 32;
 pub const PUBLIC_KEY_LEN: usize = 32;
 pub const SIGNATURE_LEN: usize = 64;
 
+/// 96 B. The added overhead for a signed struct, on top of the serialized
+/// struct size.
+pub const SIGNED_STRUCT_OVERHEAD: usize = PUBLIC_KEY_LEN + SIGNATURE_LEN;
+
 /// An ed25519 secret key and public key.
 ///
 /// Applications should always sign with a *key pair* rather than passing in
@@ -61,7 +66,10 @@ pub const SIGNATURE_LEN: usize = 64;
 pub struct KeyPair {
     /// The ring key pair for actually signing things.
     key_pair: ring::signature::Ed25519KeyPair,
-    /// We need to hold on to the seed so we can still serialize the key pair.
+
+    /// Unfortunately, [`ring`] doesn't expose the `seed` after construction,
+    /// so we need to hold on to the seed if we ever need to serialize the key
+    /// pair later.
     seed: [u8; 32],
 }
 
@@ -75,12 +83,13 @@ pub struct PublicKey([u8; 32]);
 #[repr(transparent)]
 pub struct Signature([u8; 64]);
 
-/// A message whose signature we've verified was signed by the given
-/// [`ed25519::PublicKey`](PublicKey).
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct VerifiedMessage<'pk, 'msg> {
-    signer: &'pk PublicKey,
-    msg: &'msg [u8],
+/// `Signed<T>` is a "proof" that the signature `sig` on a [`Signable`] struct
+/// `T` was actually signed by `signer`.
+#[derive(Debug, PartialEq, Eq)]
+pub struct Signed<T: Signable> {
+    signer: PublicKey,
+    sig: Signature,
+    inner: T,
 }
 
 #[derive(Debug, Error)]
@@ -99,6 +108,120 @@ pub enum Error {
 
     #[error("invalid signature")]
     InvalidSignature,
+
+    #[error("error serializing struct for signing: {0}")]
+    BcsSerialize(bcs::Error),
+
+    #[error("error deserializing struct to verify: {0}")]
+    BcsDeserialize(bcs::Error),
+
+    #[error("message was signed with a different key pair than expected")]
+    UnexpectedSigner,
+}
+
+#[derive(Debug, Error)]
+#[error("invalid signature")]
+pub struct InvalidSignature;
+
+/// `Signable` types are types that can be signed with
+/// [`ed25519::KeyPair::sign_struct`](KeyPair::sign_struct).
+///
+/// `Signable` types must have a _globally_ unique domain separation value to
+/// prevent type confusion attacks. This value is effectively prepended to the
+/// signature in order to bind that signature to only this particular type.
+pub trait Signable {
+    /// Implementors will only need to fill in this value. An example is
+    /// `"LEXE-REALM::RootSeed"`, used in the
+    /// [`RootSeed`](crate::root_seed::RootSeed).
+    ///
+    /// Any length is fine, as the value is SHA-256 hashed at compile time to
+    /// reduce it to a constant size.
+    const DOMAIN_SEPARATOR_STR: &'static [u8];
+
+    /// The actual domain separation value prepended to signatures on this type.
+    const DOMAIN_SEPARATOR: [u8; 32] =
+        sha256::digest_const(Self::DOMAIN_SEPARATOR_STR).into_inner();
+}
+
+// Blanket trait impl for &T.
+impl<T: Signable> Signable for &T {
+    const DOMAIN_SEPARATOR_STR: &'static [u8] = T::DOMAIN_SEPARATOR_STR;
+    const DOMAIN_SEPARATOR: [u8; 32] = T::DOMAIN_SEPARATOR;
+}
+
+// -- verify_signed_struct -- //
+
+/// Verify a serialized and signed [`Signable`] struct. Returns the deserialized
+/// struct inside a [`Signed`] proof that it was in fact signed by the
+/// associated [`ed25519::PublicKey`](PublicKey).
+///
+/// Signed struct signatures are created using
+/// [`ed25519::KeyPair::sign_struct`](KeyPair::sign_struct).
+pub fn verify_signed_struct<'msg, T, F>(
+    is_expected_signer: F,
+    serialized: &'msg [u8],
+) -> Result<Signed<T>, Error>
+where
+    T: Signable + Deserialize<'msg>,
+    F: FnOnce(&'msg PublicKey) -> bool,
+{
+    let (signer, sig, ser_struct) = deserialize_signed_struct(serialized)?;
+
+    // ensure the signer is expected
+    if !is_expected_signer(signer) {
+        return Err(Error::UnexpectedSigner);
+    }
+
+    // verify the signature on this serialized struct. the sig should also
+    // commit to the domain separator for this type.
+    verify_signed_struct_inner(signer, sig, ser_struct, &T::DOMAIN_SEPARATOR)
+        .map_err(|_| Error::InvalidSignature)?;
+
+    // canonically deserialize the struct; assume it's bcs-serialized
+    let inner: T =
+        bcs::from_bytes(ser_struct).map_err(Error::BcsDeserialize)?;
+
+    // wrap the deserialized struct in a "proof-carrying" type that can only
+    // be instantiated by actually verifying the signature.
+    Ok(Signed {
+        signer: *signer,
+        sig: *sig,
+        inner,
+    })
+}
+
+// NOTE: these fns are intentionally written as separate methods w/o
+// any generics to reduce binary size.
+
+fn deserialize_signed_struct(
+    serialized: &[u8],
+) -> Result<(&PublicKey, &Signature, &[u8]), Error> {
+    if serialized.len() < SIGNED_STRUCT_OVERHEAD {
+        return Err(Error::DeserializeError);
+    }
+
+    // deserialize signer public key
+    let (signer, serialized) = serialized.split_array_ref::<PUBLIC_KEY_LEN>();
+    let signer = PublicKey::from_ref(signer);
+
+    // deserialize signature
+    let (sig, ser_struct) = serialized.split_array_ref::<SIGNATURE_LEN>();
+    let sig = Signature::from_ref(sig);
+
+    Ok((signer, sig, ser_struct))
+}
+
+fn verify_signed_struct_inner(
+    signer: &PublicKey,
+    sig: &Signature,
+    ser_struct: &[u8],
+    domain_separator: &[u8; 32],
+) -> Result<(), InvalidSignature> {
+    // ring doesn't let you digest multiple values into the inner SHA-512 digest
+    // w/o just allocating + copying, so we do a quick pre-hash outside.
+
+    let msg = sha256::digest_many(&[domain_separator.as_slice(), ser_struct]);
+    signer.verify_raw(msg.as_slice(), sig)
 }
 
 // -- impl KeyPair -- //
@@ -208,15 +331,69 @@ impl KeyPair {
         PublicKey::from_ref(pubkey_bytes)
     }
 
-    /// Sign a message with this key pair.
-    pub fn sign<'pk, 'msg>(
-        &'pk self,
-        msg: &'msg [u8],
-    ) -> (Signature, VerifiedMessage<'pk, 'msg>) {
-        let signer = self.public_key();
+    /// Sign a raw message with this `KeyPair`.
+    pub fn sign_raw(&self, msg: &[u8]) -> Signature {
         let sig = self.key_pair.sign(msg);
         let sig = Signature::try_from(sig.as_ref()).unwrap();
-        (sig, VerifiedMessage { signer, msg })
+        sig
+    }
+
+    /// Canonically serialize and then sign a [`Signable`] struct `T` with this
+    /// `ed25519::KeyPair`.
+    ///
+    /// Returns a buffer that contains the signer [`PublicKey`] and generated
+    /// [`Signature`] pre-pended in front of the serialized `T`. Also returns a
+    /// [`Signed`] "proof" that asserts this `T` was signed by this key pair.
+    ///
+    /// Values are serialized using [`bcs`], a small binary format intended for
+    /// cryptographic canonical serialization.
+    ///
+    /// You can verify this signed struct using
+    /// [`ed25519::verify_signed_struct`](verify_signed_struct).
+    pub fn sign_struct<'a, T: Signable + Serialize>(
+        &self,
+        value: &'a T,
+    ) -> Result<(Vec<u8>, Signed<&'a T>), Error> {
+        let signer = self.public_key();
+
+        let struct_ser_len =
+            bcs::serialized_size(value).map_err(Error::BcsSerialize)?;
+        let mut out = Vec::with_capacity(struct_ser_len);
+
+        // out := signer || signature || serialized struct
+
+        out.extend_from_slice(signer.as_slice());
+        out.extend_from_slice([0u8; 64].as_slice());
+        bcs::serialize_into(&mut out, value).map_err(Error::BcsSerialize)?;
+
+        // sign this serialized struct using a domain separator that is unique
+        // for this type.
+        let sig = self.sign_struct_inner(
+            &out[SIGNED_STRUCT_OVERHEAD..],
+            &T::DOMAIN_SEPARATOR,
+        );
+        out[PUBLIC_KEY_LEN..SIGNED_STRUCT_OVERHEAD]
+            .copy_from_slice(sig.as_slice());
+
+        Ok((
+            out,
+            Signed {
+                signer: *signer,
+                sig,
+                inner: value,
+            },
+        ))
+    }
+
+    // Use an inner function with no generics to avoid extra code
+    // monomorphization.
+    fn sign_struct_inner(
+        &self,
+        serialized: &[u8],
+        domain_separator: &[u8],
+    ) -> Signature {
+        let msg = sha256::digest_many(&[domain_separator, serialized]);
+        self.sign_raw(msg.as_slice())
     }
 }
 
@@ -242,23 +419,28 @@ impl PublicKey {
         const_ref_cast(bytes)
     }
 
-    /// Verify a message was signed by this public key.
-    pub fn verify<'pk, 'msg>(
-        &'pk self,
-        msg: &'msg [u8],
+    /// Verify some raw bytes were signed by this public key.
+    pub fn verify_raw(
+        &self,
+        msg: &[u8],
         sig: &Signature,
-    ) -> Result<VerifiedMessage<'pk, 'msg>, Error> {
-        self.verify_raw(msg, sig.as_slice())?;
-        Ok(VerifiedMessage { signer: self, msg })
-    }
-
-    pub fn verify_raw(&self, msg: &[u8], sig: &[u8]) -> Result<(), Error> {
+    ) -> Result<(), InvalidSignature> {
         ring::signature::UnparsedPublicKey::new(
             &ring::signature::ED25519,
             self.as_slice(),
         )
-        .verify(msg, sig)
-        .map_err(|_| Error::InvalidSignature)
+        .verify(msg, sig.as_slice())
+        .map_err(|_| InvalidSignature)
+    }
+
+    /// Like [`ed25519::verify_signed_struct`](verify_signed_struct) but only
+    /// allows signatures produced by this `ed25519::PublicKey`.
+    pub fn verify_signed_struct<'msg, T: Signable + Deserialize<'msg>>(
+        &self,
+        serialized: &'msg [u8],
+    ) -> Result<Signed<T>, Error> {
+        let accept_self_signer = |signer| signer == self;
+        verify_signed_struct(accept_self_signer, serialized)
     }
 
     pub const fn as_slice(&self) -> &[u8] {
@@ -406,15 +588,31 @@ impl fmt::Debug for Signature {
     }
 }
 
-// -- impl VerifiedMessage -- //
+// -- impl Signed -- //
 
-impl<'pk, 'msg> VerifiedMessage<'pk, 'msg> {
-    pub fn signer(&self) -> &'pk PublicKey {
-        self.signer
+impl<T: Signable> Signed<T> {
+    pub fn into_parts(self) -> (PublicKey, Signature, T) {
+        (self.signer, self.sig, self.inner)
     }
 
-    pub fn message(&self) -> &'msg [u8] {
-        self.msg
+    pub fn inner(&self) -> &T {
+        &self.inner
+    }
+
+    pub fn signer(&self) -> &PublicKey {
+        &self.signer
+    }
+
+    pub fn signature(&self) -> &Signature {
+        &self.sig
+    }
+
+    pub fn as_ref(&self) -> Signed<&T> {
+        Signed {
+            signer: self.signer,
+            sig: self.sig,
+            inner: &self.inner,
+        }
     }
 }
 
@@ -558,13 +756,13 @@ mod test {
         let sig: [u8; 64] = hex::decode_const(b"6291d657deec24024827e69c3abe01a30ce548a284743a445e3680d7db5ac3ac18ff9b538d16f290ae67f760984dc6594a7c15e9716ed28dc027beceea1ec40a");
 
         let key_pair = KeyPair::from_seed(&sk);
-        assert_eq!(key_pair.public_key().as_inner(), &pk);
+        let pubkey = key_pair.public_key();
+        assert_eq!(pubkey.as_inner(), &pk);
 
-        let (sig2, verified_msg) = key_pair.sign(&msg);
+        let sig2 = key_pair.sign_raw(&msg);
         assert_eq!(&sig, sig2.as_inner());
 
-        let verified_msg2 = key_pair.public_key().verify(&msg, &sig2).unwrap();
-        assert_eq!(verified_msg, verified_msg2);
+        pubkey.verify_raw(&msg, &sig2).unwrap();
     }
 
     #[test]
@@ -572,11 +770,42 @@ mod test {
         proptest!(|(key_pair in arb_key_pair(), msg in any::<Vec<u8>>())| {
             let pubkey = key_pair.public_key();
 
-            let (sig, verified_msg) = key_pair.sign(&msg);
-            assert_eq!(verified_msg.signer(), pubkey);
+            let sig = key_pair.sign_raw(&msg);
+            pubkey.verify_raw(&msg, &sig).unwrap();
+        });
+    }
 
-            let verified_msg2 = pubkey.verify(&msg, &sig).unwrap();
-            assert_eq!(verified_msg, verified_msg2);
+    #[test]
+    fn test_sign_verify_struct() {
+        #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+        struct Foo(u32);
+
+        impl Signable for Foo {
+            const DOMAIN_SEPARATOR_STR: &'static [u8] = b"LEXE-REALM::Foo";
+        }
+
+        #[derive(Debug, Deserialize, Serialize)]
+        struct Bar(u32);
+
+        impl Signable for Bar {
+            const DOMAIN_SEPARATOR_STR: &'static [u8] = b"LEXE-REALM::Bar";
+        }
+
+        fn arb_foo() -> impl Strategy<Value = Foo> {
+            any::<u32>().prop_map(Foo)
+        }
+
+        proptest!(|(key_pair in arb_key_pair(), foo in arb_foo())| {
+            let signer = key_pair.public_key();
+            let (serialized, signed_foo) = key_pair.sign_struct::<Foo>(&foo).unwrap();
+
+            let signed_foo2 = signer.verify_signed_struct::<Foo>(&serialized).unwrap();
+            assert_eq!(signed_foo, signed_foo2.as_ref());
+
+            // trying to verify as another struct with the same serialization
+            // should be prevented by domain separation
+
+            signer.verify_signed_struct::<Bar>(&serialized).unwrap_err();
         });
     }
 }
