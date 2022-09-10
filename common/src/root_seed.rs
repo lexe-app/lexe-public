@@ -24,7 +24,7 @@ impl RootSeed {
 
     /// We salt the HKDF for domain separation purposes.
     const HKDF_SALT: [u8; 32] =
-        sha256::digest_const(b"LEXE-HASH-REALM::RootSeed").into_inner();
+        sha256::digest_const(b"LEXE-REALM::RootSeed").into_inner();
 
     pub fn new(bytes: Secret<[u8; Self::LENGTH]>) -> Self {
         Self(bytes)
@@ -353,13 +353,13 @@ mod test {
         let out32 = seed.derive_vec(b"very cool secret", 32);
         let out32_2 = seed.derive(b"very cool secret");
 
-        assert_eq!("49fb6bebcd2acb22", hex::encode(out8.expose_secret()));
+        assert_eq!("6372210b31646684", hex::encode(out8.expose_secret()));
         assert_eq!(
-            "49fb6bebcd2acb223a802f726bd5159d",
+            "6372210b31646684b8821c722239b939",
             hex::encode(out16.expose_secret())
         );
         assert_eq!(
-            "49fb6bebcd2acb223a802f726bd5159d4c982732c550c698aa0558f95575e8c1",
+            "6372210b31646684b8821c722239b939c305d049ddb0a95af9007bfc5dd0418c",
             hex::encode(out32.expose_secret())
         );
         assert_eq!(out32.expose_secret(), out32_2.expose_secret());

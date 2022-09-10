@@ -16,7 +16,7 @@ use crate::sha256;
 
 /// We salt the HKDF for domain separation purposes.
 const HKDF_SALT: [u8; 32] =
-    sha256::digest_const(b"LEXE-HASH-REALM::SgxSealing").into_inner();
+    sha256::digest_const(b"LEXE-REALM::SgxSealing").into_inner();
 
 /// AES-256-GCM tag length
 pub const TAG_LEN: usize = 16;

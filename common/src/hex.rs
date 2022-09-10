@@ -72,6 +72,7 @@ pub fn decode_to_slice_ct(
     out: &mut [u8],
 ) -> Result<(), DecodeError> {
     // TODO(phlip9): make this actually constant time
+    // https://github.com/RustCrypto/formats/blob/master/base16ct/src/lib.rs#L97
     decode_to_slice(hex, out)
 }
 
