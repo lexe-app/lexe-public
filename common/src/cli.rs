@@ -14,6 +14,7 @@ use proptest::arbitrary::{any, Arbitrary};
 use proptest::strategy::{BoxedStrategy, Just, Strategy};
 #[cfg(all(test, not(target_env = "sgx")))]
 use proptest_derive::Arbitrary;
+use serde::{Deserialize, Serialize};
 
 use crate::api::runner::Port;
 use crate::api::UserPk;
@@ -410,7 +411,7 @@ impl Arbitrary for BitcoindRpcInfo {
 /// - Testnet <-> "testnet",
 /// - Signet <-> "signet",
 /// - Regtest <-> "regtest"
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Network(bitcoin::Network);
 
 impl Network {
