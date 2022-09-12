@@ -632,7 +632,7 @@ async fn spawn_p2p_listener(
     info!("Listening for LN P2P connections on port {}", peer_port);
 
     let handle = LxTask::spawn(async move {
-        let mut child_tasks = Vec::with_capacity(1);
+        let mut child_tasks = FuturesUnordered::new();
 
         loop {
             tokio::select! {
@@ -670,15 +670,23 @@ async fn spawn_p2p_listener(
 
                     child_tasks.push(child_task);
                 }
+                // To prevent a memory leak of LxTasks, we select! on the
+                // futures unordered so that we can clear out LxTasks for peers
+                // that disconnect before the node shuts down.
+                Some(join_res) = child_tasks.next() => {
+                    if let Err(e) = join_res {
+                        error!("P2P connection task panicked: {e:#}");
+                    }
+                }
                 _ = shutdown.recv() =>
                     break info!("LN P2P listen task shutting down"),
             }
         }
 
         // Wait on all child tasks to finish (i.e. all connections close).
-        for res in future::join_all(child_tasks).await {
-            if let Err(e) = res {
-                error!("P2P task panicked: {:#}", e);
+        while let Some(join_res) = child_tasks.next().await {
+            if let Err(e) = join_res {
+                error!("P2P connection task panicked: {:#}", e);
             }
         }
 
