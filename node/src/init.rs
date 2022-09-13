@@ -494,7 +494,7 @@ fn init_api(args: &RunArgs) -> ApiClientType {
     // Production can only use the real api client
     #[cfg(all(target_env = "sgx", not(test)))]
     {
-        Arc::new(api::LexeApiClient::new(
+        Arc::new(api::NodeApiClient::new(
             args.backend_url.clone(),
             args.runner_url.clone(),
         ))
@@ -505,7 +505,7 @@ fn init_api(args: &RunArgs) -> ApiClientType {
         if args.mock {
             Arc::new(api::mock::MockApiClient::new())
         } else {
-            Arc::new(api::LexeApiClient::new(
+            Arc::new(api::NodeApiClient::new(
                 args.backend_url.clone(),
                 args.runner_url.clone(),
             ))

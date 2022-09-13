@@ -6,7 +6,7 @@ use common::cli::NodeCommand;
 use common::enclave;
 use common::rng::SysRng;
 
-use crate::api::LexeApiClient;
+use crate::api::NodeApiClient;
 use crate::init::UserNode;
 use crate::provision::provision;
 
@@ -42,7 +42,7 @@ impl Args {
                 );
                 let measurement = enclave::measurement();
                 let mut rng = SysRng::new();
-                let api = Arc::new(LexeApiClient::new(
+                let api = Arc::new(NodeApiClient::new(
                     args.backend_url.clone(),
                     args.runner_url.clone(),
                 ));
