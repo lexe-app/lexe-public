@@ -1,4 +1,4 @@
-//! This file contains LexeApiClient, the concrete impl of the ApiClient trait.
+//! This file contains NodeApiClient, the concrete impl of the ApiClient trait.
 
 use std::fmt::{self, Display};
 
@@ -39,13 +39,13 @@ impl Display for ApiVersion {
     }
 }
 
-pub struct LexeApiClient {
+pub struct NodeApiClient {
     rest: RestClient,
     backend_url: String,
     runner_url: String,
 }
 
-impl LexeApiClient {
+impl NodeApiClient {
     pub fn new(backend_url: String, runner_url: String) -> Self {
         let rest = RestClient::new();
         Self {
@@ -57,7 +57,7 @@ impl LexeApiClient {
 }
 
 #[async_trait]
-impl ApiClient for LexeApiClient {
+impl ApiClient for NodeApiClient {
     async fn create_file_with_retries(
         &self,
         data: &NodeFile,
@@ -82,7 +82,7 @@ impl ApiClient for LexeApiClient {
 }
 
 #[async_trait]
-impl NodeBackendApi for LexeApiClient {
+impl NodeBackendApi for NodeApiClient {
     async fn get_node(
         &self,
         user_pk: UserPk,
@@ -167,7 +167,7 @@ impl NodeBackendApi for LexeApiClient {
 }
 
 #[async_trait]
-impl NodeRunnerApi for LexeApiClient {
+impl NodeRunnerApi for NodeApiClient {
     async fn ready(
         &self,
         data: UserPorts,
@@ -177,7 +177,7 @@ impl NodeRunnerApi for LexeApiClient {
     }
 }
 
-impl LexeApiClient {
+impl NodeApiClient {
     /// Constructs the request URL including the base, version, and endpoint
     /// (NOT including the query string)
     fn build_url(
