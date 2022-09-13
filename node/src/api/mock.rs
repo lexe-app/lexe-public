@@ -12,7 +12,7 @@ use common::api::provision::{
     SealedSeedId,
 };
 use common::api::runner::UserPorts;
-use common::api::vfs::{Directory, File, FileId};
+use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::api::UserPk;
 use common::enclave::{self, Measurement};
 use common::rng::SysRng;
@@ -107,17 +107,17 @@ impl MockApiClient {
 impl ApiClient for MockApiClient {
     async fn create_file_with_retries(
         &self,
-        file: &File,
+        file: &NodeFile,
         _retries: usize,
-    ) -> Result<File, BackendApiError> {
+    ) -> Result<NodeFile, BackendApiError> {
         self.create_file(file).await
     }
 
     async fn upsert_file_with_retries(
         &self,
-        file: &File,
+        file: &NodeFile,
         _retries: usize,
-    ) -> Result<File, BackendApiError> {
+    ) -> Result<NodeFile, BackendApiError> {
         self.upsert_file(file).await
     }
 }
@@ -174,19 +174,25 @@ impl NodeBackendApi for MockApiClient {
 
     async fn get_file(
         &self,
-        file_id: &FileId,
-    ) -> Result<Option<File>, BackendApiError> {
+        file_id: &NodeFileId,
+    ) -> Result<Option<NodeFile>, BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().get(file_id.clone());
         Ok(file_opt)
     }
 
-    async fn create_file(&self, file: &File) -> Result<File, BackendApiError> {
+    async fn create_file(
+        &self,
+        file: &NodeFile,
+    ) -> Result<NodeFile, BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().insert(file.clone());
         assert!(file_opt.is_none());
         Ok(file.clone())
     }
 
-    async fn upsert_file(&self, file: &File) -> Result<File, BackendApiError> {
+    async fn upsert_file(
+        &self,
+        file: &NodeFile,
+    ) -> Result<NodeFile, BackendApiError> {
         self.vfs.lock().unwrap().insert(file.clone());
         Ok(file.clone())
     }
@@ -194,7 +200,7 @@ impl NodeBackendApi for MockApiClient {
     /// Returns "OK" if exactly one row was deleted.
     async fn delete_file(
         &self,
-        file_id: &FileId,
+        file_id: &NodeFileId,
     ) -> Result<String, BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().remove(file_id.clone());
         assert!(file_opt.is_none());
@@ -203,8 +209,8 @@ impl NodeBackendApi for MockApiClient {
 
     async fn get_directory(
         &self,
-        dir: &Directory,
-    ) -> Result<Vec<File>, BackendApiError> {
+        dir: &NodeDirectory,
+    ) -> Result<Vec<NodeFile>, BackendApiError> {
         let files_vec = self.vfs.lock().unwrap().get_dir(dir.clone());
         Ok(files_vec)
     }
@@ -222,7 +228,7 @@ impl NodeRunnerApi for MockApiClient {
 }
 
 struct VirtualFileSystem {
-    inner: HashMap<Directory, HashMap<FileName, Data>>,
+    inner: HashMap<NodeDirectory, HashMap<FileName, Data>>,
 }
 
 impl VirtualFileSystem {
@@ -233,17 +239,17 @@ impl VirtualFileSystem {
 
         // Insert all directories used by the persister
         let user_pk1 = UserPk::from_i64(1);
-        let singleton_dir = Directory {
+        let singleton_dir = NodeDirectory {
             node_pk: node_pk(user_pk1),
             measurement: measurement(user_pk1),
             dirname: persister::SINGLETON_DIRECTORY.into(),
         };
-        let channel_peers_dir = Directory {
+        let channel_peers_dir = NodeDirectory {
             node_pk: node_pk(user_pk1),
             measurement: measurement(user_pk1),
             dirname: persister::CHANNEL_PEERS_DIRECTORY.into(),
         };
-        let channel_monitors_dir = Directory {
+        let channel_monitors_dir = NodeDirectory {
             node_pk: node_pk(user_pk1),
             measurement: measurement(user_pk1),
             dirname: persister::CHANNEL_MONITORS_DIRECTORY.into(),
@@ -254,17 +260,17 @@ impl VirtualFileSystem {
 
         // Insert all directories used by the persister
         let user_pk2 = UserPk::from_i64(2);
-        let singleton_dir = Directory {
+        let singleton_dir = NodeDirectory {
             node_pk: node_pk(user_pk2),
             measurement: measurement(user_pk2),
             dirname: persister::SINGLETON_DIRECTORY.into(),
         };
-        let channel_peers_dir = Directory {
+        let channel_peers_dir = NodeDirectory {
             node_pk: node_pk(user_pk2),
             measurement: measurement(user_pk2),
             dirname: persister::CHANNEL_PEERS_DIRECTORY.into(),
         };
-        let channel_monitors_dir = Directory {
+        let channel_monitors_dir = NodeDirectory {
             node_pk: node_pk(user_pk2),
             measurement: measurement(user_pk2),
             dirname: persister::CHANNEL_MONITORS_DIRECTORY.into(),
@@ -276,8 +282,8 @@ impl VirtualFileSystem {
         Self { inner }
     }
 
-    fn get(&self, file_id: FileId) -> Option<File> {
-        let dir = Directory {
+    fn get(&self, file_id: NodeFileId) -> Option<NodeFile> {
+        let dir = NodeDirectory {
             node_pk: file_id.dir.node_pk,
             measurement: file_id.dir.measurement,
             dirname: file_id.dir.dirname,
@@ -287,7 +293,7 @@ impl VirtualFileSystem {
             .expect("Missing directory")
             .get(&file_id.filename)
             .map(|data| {
-                File::new(
+                NodeFile::new(
                     dir.node_pk,
                     dir.measurement,
                     dir.dirname,
@@ -297,8 +303,8 @@ impl VirtualFileSystem {
             })
     }
 
-    fn insert(&mut self, file: File) -> Option<File> {
-        let dir = Directory {
+    fn insert(&mut self, file: NodeFile) -> Option<NodeFile> {
+        let dir = NodeDirectory {
             node_pk: file.id.dir.node_pk,
             measurement: file.id.dir.measurement,
             dirname: file.id.dir.dirname,
@@ -308,7 +314,7 @@ impl VirtualFileSystem {
             .expect("Missing directory")
             .insert(file.id.filename.clone(), file.data)
             .map(|data| {
-                File::new(
+                NodeFile::new(
                     dir.node_pk,
                     dir.measurement,
                     dir.dirname,
@@ -318,8 +324,8 @@ impl VirtualFileSystem {
             })
     }
 
-    fn remove(&mut self, file_id: FileId) -> Option<File> {
-        let dir = Directory {
+    fn remove(&mut self, file_id: NodeFileId) -> Option<NodeFile> {
+        let dir = NodeDirectory {
             node_pk: file_id.dir.node_pk,
             measurement: file_id.dir.measurement,
             dirname: file_id.dir.dirname,
@@ -329,7 +335,7 @@ impl VirtualFileSystem {
             .expect("Missing directory")
             .remove(&file_id.filename)
             .map(|data| {
-                File::new(
+                NodeFile::new(
                     dir.node_pk,
                     dir.measurement,
                     dir.dirname,
@@ -339,13 +345,13 @@ impl VirtualFileSystem {
             })
     }
 
-    fn get_dir(&self, dir: Directory) -> Vec<File> {
+    fn get_dir(&self, dir: NodeDirectory) -> Vec<NodeFile> {
         self.inner
             .get(&dir)
             .expect("Missing directory")
             .iter()
             .map(|(name, data)| {
-                File::new(
+                NodeFile::new(
                     dir.node_pk,
                     dir.measurement,
                     dir.dirname.clone(),
