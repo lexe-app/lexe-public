@@ -1,5 +1,7 @@
 // user auth v1
 
+#[cfg(test)]
+use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -14,7 +16,8 @@ pub enum Error {
 
 // TODO(phlip9): do we even need any signup fields?
 /// Sign up
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct UserSignupRequest {
     pub display_name: Option<String>,
     pub email: Option<String>,
@@ -61,4 +64,20 @@ impl UserSignupRequest {
 impl ed25519::Signable for UserSignupRequest {
     const DOMAIN_SEPARATOR_STR: &'static [u8] =
         b"LEXE-REALM::UserSignupRequest";
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::test_utils::{assert_bcs_roundtrip, assert_signed_roundtrip};
+
+    #[test]
+    fn test_user_signup_request_canonical() {
+        assert_bcs_roundtrip::<UserSignupRequest>();
+    }
+
+    #[test]
+    fn test_user_signed_request_sign_verify() {
+        assert_signed_roundtrip::<UserSignupRequest>();
+    }
 }
