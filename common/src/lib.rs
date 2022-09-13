@@ -32,6 +32,9 @@ pub mod sha256;
 pub mod shutdown;
 pub mod task;
 
+#[cfg(test)]
+pub mod test_utils;
+
 /// Assert at compile time that two `usize` values are equal. This assert has a
 /// nice benefit where there compiler error will actually _print out_ the
 /// two values.
