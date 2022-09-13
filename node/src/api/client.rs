@@ -11,7 +11,7 @@ use common::api::provision::{
 use common::api::qs::{GetByUserPk, GetByUserPkAndMeasurement};
 use common::api::rest::{RestClient, DELETE, GET, POST, PUT};
 use common::api::runner::UserPorts;
-use common::api::vfs::{Directory, File, FileId};
+use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::api::UserPk;
 use common::enclave::Measurement;
 
@@ -60,9 +60,9 @@ impl LexeApiClient {
 impl ApiClient for LexeApiClient {
     async fn create_file_with_retries(
         &self,
-        data: &File,
+        data: &NodeFile,
         retries: usize,
-    ) -> Result<File, BackendApiError> {
+    ) -> Result<NodeFile, BackendApiError> {
         let url = self.build_url(Backend, V1, "/file");
         self.rest
             .request_with_retries(POST, url, &data, retries, None)
@@ -71,9 +71,9 @@ impl ApiClient for LexeApiClient {
 
     async fn upsert_file_with_retries(
         &self,
-        data: &File,
+        data: &NodeFile,
         retries: usize,
-    ) -> Result<File, BackendApiError> {
+    ) -> Result<NodeFile, BackendApiError> {
         let url = self.build_url(Backend, V1, "/file");
         self.rest
             .request_with_retries(PUT, url, &data, retries, None)
@@ -124,18 +124,24 @@ impl NodeBackendApi for LexeApiClient {
 
     async fn get_file(
         &self,
-        data: &FileId,
-    ) -> Result<Option<File>, BackendApiError> {
+        data: &NodeFileId,
+    ) -> Result<Option<NodeFile>, BackendApiError> {
         let url = self.build_url(Backend, V1, "/file");
         self.rest.request(GET, url, &data).await
     }
 
-    async fn create_file(&self, data: &File) -> Result<File, BackendApiError> {
+    async fn create_file(
+        &self,
+        data: &NodeFile,
+    ) -> Result<NodeFile, BackendApiError> {
         let url = self.build_url(Backend, V1, "/file");
         self.rest.request(POST, url, &data).await
     }
 
-    async fn upsert_file(&self, data: &File) -> Result<File, BackendApiError> {
+    async fn upsert_file(
+        &self,
+        data: &NodeFile,
+    ) -> Result<NodeFile, BackendApiError> {
         let url = self.build_url(Backend, V1, "/file");
         self.rest.request(PUT, url, &data).await
     }
@@ -145,7 +151,7 @@ impl NodeBackendApi for LexeApiClient {
     #[allow(dead_code)]
     async fn delete_file(
         &self,
-        data: &FileId,
+        data: &NodeFileId,
     ) -> Result<String, BackendApiError> {
         let url = self.build_url(Backend, V1, "/file");
         self.rest.request(DELETE, url, &data).await
@@ -153,8 +159,8 @@ impl NodeBackendApi for LexeApiClient {
 
     async fn get_directory(
         &self,
-        data: &Directory,
-    ) -> Result<Vec<File>, BackendApiError> {
+        data: &NodeDirectory,
+    ) -> Result<Vec<NodeFile>, BackendApiError> {
         let url = self.build_url(Backend, V1, "/directory");
         self.rest.request(GET, url, &data).await
     }

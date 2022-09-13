@@ -5,7 +5,7 @@ use crate::enclave::Measurement;
 
 /// Uniquely identifies a directory in the node's virtual file system.
 #[derive(Clone, Hash, Eq, PartialEq, Deserialize, Serialize)]
-pub struct Directory {
+pub struct NodeDirectory {
     pub node_pk: PublicKey,
     pub measurement: Measurement,
     pub dirname: String,
@@ -13,22 +13,22 @@ pub struct Directory {
 
 /// Uniquely identifies a file in the node's virtual file system.
 #[derive(Clone, Deserialize, Serialize)]
-pub struct FileId {
+pub struct NodeFileId {
     // Flattened because serde_qs doesn't play well with nested structs
     #[serde(flatten)]
-    pub dir: Directory,
+    pub dir: NodeDirectory,
     pub filename: String,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
-pub struct File {
+pub struct NodeFile {
     // Flattened because serde_qs doesn't play well with nested structs
     #[serde(flatten)]
-    pub id: FileId,
+    pub id: NodeFileId,
     pub data: Vec<u8>,
 }
 
-impl FileId {
+impl NodeFileId {
     pub fn new(
         node_pk: PublicKey,
         measurement: Measurement,
@@ -36,7 +36,7 @@ impl FileId {
         filename: String,
     ) -> Self {
         Self {
-            dir: Directory {
+            dir: NodeDirectory {
                 node_pk,
                 measurement,
                 dirname,
@@ -46,7 +46,7 @@ impl FileId {
     }
 }
 
-impl File {
+impl NodeFile {
     pub fn new(
         node_pk: PublicKey,
         measurement: Measurement,
@@ -55,8 +55,8 @@ impl File {
         data: Vec<u8>,
     ) -> Self {
         Self {
-            id: FileId {
-                dir: Directory {
+            id: NodeFileId {
+                dir: NodeDirectory {
                     node_pk,
                     measurement,
                     dirname,

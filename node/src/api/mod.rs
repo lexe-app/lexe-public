@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use common::api::def::{NodeBackendApi, NodeRunnerApi};
 use common::api::error::BackendApiError;
-use common::api::vfs::File;
+use common::api::vfs::NodeFile;
 
 #[cfg(any(test, not(target_env = "sgx")))]
 pub mod mock;
@@ -16,13 +16,13 @@ pub use client::*;
 pub trait ApiClient: NodeBackendApi + NodeRunnerApi {
     async fn create_file_with_retries(
         &self,
-        file: &File,
+        file: &NodeFile,
         retries: usize,
-    ) -> Result<File, BackendApiError>;
+    ) -> Result<NodeFile, BackendApiError>;
 
     async fn upsert_file_with_retries(
         &self,
-        file: &File,
+        file: &NodeFile,
         retries: usize,
-    ) -> Result<File, BackendApiError>;
+    ) -> Result<NodeFile, BackendApiError>;
 }

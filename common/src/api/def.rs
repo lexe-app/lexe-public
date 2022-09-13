@@ -11,8 +11,8 @@
 //! Each endpoint should be documented with:
 //! - 1) HTTP method e.g. `GET`
 //! - 2) Endpoint e.g. `/v1/file`
-//! - 3) Data used to make the request e.g. `FileId`
-//! - 4) The return type e.g. `Option<File>`
+//! - 3) Data used to make the request e.g. `NodeFileId`
+//! - 4) The return type e.g. `Option<NodeFile>`
 //!
 //! The methods below should resemble the data actually sent across the wire.
 
@@ -27,7 +27,7 @@ use crate::api::provision::{
     SealedSeedId,
 };
 use crate::api::runner::UserPorts;
-use crate::api::vfs::{Directory, File, FileId};
+use crate::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use crate::api::UserPk;
 use crate::enclave::Measurement;
 
@@ -63,31 +63,37 @@ pub trait NodeBackendApi {
         data: NodeInstanceSeed,
     ) -> Result<NodeInstanceSeed, BackendApiError>;
 
-    /// GET /v1/file [`File`] -> [`Option<File>`]
+    /// GET /v1/file [`NodeFileId`] -> [`Option<NodeFile>`]
     async fn get_file(
         &self,
-        file_id: &FileId,
-    ) -> Result<Option<File>, BackendApiError>;
+        file_id: &NodeFileId,
+    ) -> Result<Option<NodeFile>, BackendApiError>;
 
-    /// POST /v1/file [`File`] -> [`File`]
-    async fn create_file(&self, file: &File) -> Result<File, BackendApiError>;
+    /// POST /v1/file [`NodeFile`] -> [`NodeFile`]
+    async fn create_file(
+        &self,
+        file: &NodeFile,
+    ) -> Result<NodeFile, BackendApiError>;
 
-    /// PUT /v1/file [`File`] -> [`File`]
-    async fn upsert_file(&self, file: &File) -> Result<File, BackendApiError>;
+    /// PUT /v1/file [`NodeFile`] -> [`NodeFile`]
+    async fn upsert_file(
+        &self,
+        file: &NodeFile,
+    ) -> Result<NodeFile, BackendApiError>;
 
-    /// DELETE /v1/file [`FileId`] -> "OK"
+    /// DELETE /v1/file [`NodeFileId`] -> "OK"
     ///
     /// Returns "OK" only if exactly one row was deleted.
     async fn delete_file(
         &self,
-        file_id: &FileId,
+        file_id: &NodeFileId,
     ) -> Result<String, BackendApiError>;
 
-    /// GET /v1/directory [`Directory`] -> [`Vec<File>`]
+    /// GET /v1/directory [`NodeDirectory`] -> [`Vec<NodeFile>`]
     async fn get_directory(
         &self,
-        dir: &Directory,
-    ) -> Result<Vec<File>, BackendApiError>;
+        dir: &NodeDirectory,
+    ) -> Result<Vec<NodeFile>, BackendApiError>;
 }
 
 /// Defines the api that the runner exposes to the node.

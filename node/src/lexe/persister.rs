@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::{anyhow, ensure, Context};
 use bitcoin::hash_types::BlockHash;
 use bitcoin::secp256k1::PublicKey;
-use common::api::vfs::{Directory, File, FileId};
+use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::enclave::Measurement;
 use common::ln::channel::LxOutPoint;
 use common::shutdown::ShutdownChannel;
@@ -103,7 +103,7 @@ impl InnerPersister {
         logger: LexeTracingLogger,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         debug!("Reading channel manager");
-        let cm_file_id = FileId::new(
+        let cm_file_id = NodeFileId::new(
             self.node_pk,
             self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
@@ -159,7 +159,7 @@ impl InnerPersister {
         debug!("Reading channel monitors");
         // TODO Also attempt to read from the cloud
 
-        let cm_dir = Directory {
+        let cm_dir = NodeDirectory {
             node_pk: self.node_pk,
             measurement: self.measurement,
             dirname: CHANNEL_MONITORS_DIRECTORY.to_owned(),
@@ -206,7 +206,7 @@ impl InnerPersister {
         debug!("Reading probabilistic scorer");
         let params = ProbabilisticScoringParameters::default();
 
-        let scorer_file_id = FileId::new(
+        let scorer_file_id = NodeFileId::new(
             self.node_pk,
             self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
@@ -241,7 +241,7 @@ impl InnerPersister {
         logger: LoggerType,
     ) -> anyhow::Result<NetworkGraphType> {
         debug!("Reading network graph");
-        let ng_file_id = FileId::new(
+        let ng_file_id = NodeFileId::new(
             self.node_pk,
             self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
@@ -270,7 +270,7 @@ impl InnerPersister {
 
     pub async fn read_channel_peers(&self) -> anyhow::Result<Vec<ChannelPeer>> {
         debug!("Reading channel peers");
-        let cp_dir = Directory {
+        let cp_dir = NodeDirectory {
             node_pk: self.node_pk,
             measurement: self.measurement,
             dirname: CHANNEL_PEERS_DIRECTORY.to_owned(),
@@ -304,7 +304,7 @@ impl InnerPersister {
         debug!("Persisting new channel peer");
         let pk_at_addr = channel_peer.to_string();
 
-        let cp_file = File::new(
+        let cp_file = NodeFile::new(
             self.node_pk,
             self.measurement,
             CHANNEL_PEERS_DIRECTORY.to_owned(),
@@ -330,7 +330,7 @@ impl InnerPersister {
         // FIXME(encrypt): Encrypt under key derived from seed
         let data = channel_manager.encode();
 
-        let cm_file = File::new(
+        let cm_file = NodeFile::new(
             self.node_pk,
             self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
@@ -354,7 +354,7 @@ impl InnerPersister {
         // FIXME(encrypt): Encrypt under key derived from seed
         let data = network_graph.encode();
 
-        let file = File::new(
+        let file = NodeFile::new(
             self.node_pk,
             self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
@@ -381,7 +381,7 @@ impl InnerPersister {
             // FIXME(encrypt): Encrypt under key derived from seed
             let data = scorer.encode();
 
-            File::new(
+            NodeFile::new(
                 self.node_pk,
                 self.measurement,
                 SINGLETON_DIRECTORY.to_owned(),
@@ -411,7 +411,7 @@ impl Persist<SignerType> for InnerPersister {
         // FIXME(encrypt): Encrypt under key derived from seed
         let data = monitor.encode();
 
-        let cm_file = File::new(
+        let cm_file = NodeFile::new(
             self.node_pk,
             self.measurement,
             CHANNEL_MONITORS_DIRECTORY.to_owned(),
@@ -473,7 +473,7 @@ impl Persist<SignerType> for InnerPersister {
         // FIXME(encrypt): Encrypt under key derived from seed
         let data = monitor.encode();
 
-        let cm_file = File::new(
+        let cm_file = NodeFile::new(
             self.node_pk,
             self.measurement,
             CHANNEL_MONITORS_DIRECTORY.to_owned(),
