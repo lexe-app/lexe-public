@@ -2,7 +2,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use anyhow::format_err;
-use bitcoin::secp256k1::Secp256k1;
+use bitcoin::secp256k1::{PublicKey, Secp256k1};
 use bitcoin::util::bip32::{ChildNumber, ExtendedPrivKey};
 use bitcoin::{KeyPair, Network};
 use rand_core::{CryptoRng, RngCore};
@@ -116,6 +116,11 @@ impl RootSeed {
             .expect("should never fail")
             .private_key;
         KeyPair::from_secret_key(&secp_ctx, node_sk)
+    }
+
+    /// Derive the Lightning node pubkey.
+    pub fn derive_node_pk<R: Crng>(&self, rng: &mut R) -> PublicKey {
+        PublicKey::from(self.derive_node_key_pair(rng))
     }
 
     #[cfg(test)]
