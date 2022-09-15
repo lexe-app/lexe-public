@@ -86,6 +86,7 @@ pub struct Signature([u8; 64]);
 /// `Signed<T>` is a "proof" that the signature `sig` on a [`Signable`] struct
 /// `T` was actually signed by `signer`.
 #[derive(Debug, PartialEq, Eq)]
+#[must_use]
 pub struct Signed<T: Signable> {
     signer: PublicKey,
     sig: Signature,
@@ -435,7 +436,7 @@ impl PublicKey {
 
     /// Like [`ed25519::verify_signed_struct`](verify_signed_struct) but only
     /// allows signatures produced by this `ed25519::PublicKey`.
-    pub fn verify_signed_struct<'msg, T: Signable + Deserialize<'msg>>(
+    pub fn verify_self_signed_struct<'msg, T: Signable + Deserialize<'msg>>(
         &self,
         serialized: &'msg [u8],
     ) -> Result<Signed<T>, Error> {
@@ -702,17 +703,34 @@ fn deserialize_pkcs8(bytes: &[u8]) -> Option<(&[u8; 32], &[u8; 32])> {
 #[cfg(test)]
 mod test {
     use proptest::arbitrary::any;
-    use proptest::proptest;
     use proptest::strategy::Strategy;
+    use proptest::{prop_assume, proptest};
+    use proptest_derive::Arbitrary;
 
     use super::*;
 
     fn arb_seed() -> impl Strategy<Value = [u8; 32]> {
-        any::<[u8; 32]>()
+        any::<[u8; 32]>().no_shrink()
     }
 
     fn arb_key_pair() -> impl Strategy<Value = KeyPair> {
         arb_seed().prop_map(|seed| KeyPair::from_seed(&seed))
+    }
+
+    #[derive(Arbitrary, Deserialize, Serialize)]
+    struct SignableBytes(Vec<u8>);
+
+    impl Signable for SignableBytes {
+        const DOMAIN_SEPARATOR_STR: &'static [u8] =
+            b"LEXE-REALM::SignableBytes";
+    }
+
+    impl fmt::Debug for SignableBytes {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_tuple("SignableBytes")
+                .field(&hex::display(&self.0))
+                .finish()
+        }
     }
 
     #[test]
@@ -765,6 +783,103 @@ mod test {
         pubkey.verify_raw(&msg, &sig2).unwrap();
     }
 
+    // truncating the signed struct should cause the verification to fail.
+    #[test]
+    fn test_reject_truncated_sig() {
+        proptest!(|(key_pair in arb_key_pair(), msg in any::<SignableBytes>())| {
+            let pubkey = key_pair.public_key();
+
+            let (sig, _) = key_pair.sign_struct(&msg).unwrap();
+            let _ = pubkey
+                .verify_self_signed_struct::<SignableBytes>(&sig)
+                .unwrap();
+
+            for trunc_len in 0..SIGNED_STRUCT_OVERHEAD {
+                pubkey
+                    .verify_self_signed_struct::<SignableBytes>(&sig[..trunc_len])
+                    .unwrap_err();
+                pubkey
+                    .verify_self_signed_struct::<SignableBytes>(&sig[(trunc_len+1)..])
+                    .unwrap_err();
+            }
+        });
+    }
+
+    // inserting some random bytes into the signed struct should cause the
+    // sig verification to fail
+    #[test]
+    fn test_reject_pad_sig() {
+        let cfg = proptest::test_runner::Config::with_cases(50);
+        proptest!(cfg, |(
+            key_pair in arb_key_pair(),
+            msg in any::<SignableBytes>(),
+            padding in any::<Vec<u8>>(),
+        )| {
+            prop_assume!(!padding.is_empty());
+
+            let pubkey = key_pair.public_key();
+
+            let (sig, _) = key_pair.sign_struct(&msg).unwrap();
+            let _ = pubkey
+                .verify_self_signed_struct::<SignableBytes>(&sig)
+                .unwrap();
+
+            let mut sig2: Vec<u8> = Vec::with_capacity(sig.len() + padding.len());
+
+            for idx in 0..=sig.len() {
+                let (left, right) = sig.split_at(idx);
+
+                // sig2 := left || padding || right
+
+                sig2.clear();
+                sig2.extend_from_slice(left);
+                sig2.extend_from_slice(&padding);
+                sig2.extend_from_slice(right);
+
+                pubkey
+                    .verify_self_signed_struct::<SignableBytes>(&sig2)
+                    .unwrap_err();
+            }
+        });
+    }
+
+    // flipping some random bits in the signed struct should cause the
+    // verification to fail.
+    #[test]
+    fn test_reject_modified_sig() {
+        let arb_mutation = any::<Vec<u8>>()
+            .prop_filter("can't be empty or all zeroes", |m| {
+                !m.is_empty() && !m.iter().all(|x| x == &0u8)
+            });
+
+        proptest!(|(
+            key_pair in arb_key_pair(),
+            msg in any::<SignableBytes>(),
+            mut_offset in any::<usize>(),
+            mut mutation in arb_mutation,
+        )| {
+            let pubkey = key_pair.public_key();
+
+            let (mut sig, _) = key_pair.sign_struct(&msg).unwrap();
+
+            mutation.truncate(sig.len());
+            prop_assume!(!mutation.is_empty() && !mutation.iter().all(|x| x == &0));
+
+            let _ = pubkey
+                .verify_self_signed_struct::<SignableBytes>(&sig)
+                .unwrap();
+
+            // xor in the mutation bytes to the signature to modify it. any
+            // modified bit should cause the verification to fail.
+            for (idx_mut, m) in mutation.into_iter().enumerate() {
+                let idx_sig = idx_mut.wrapping_add(mut_offset) % sig.len();
+                sig[idx_sig] ^= m;
+            }
+
+            pubkey.verify_self_signed_struct::<SignableBytes>(&sig).unwrap_err();
+        });
+    }
+
     #[test]
     fn test_sign_verify() {
         proptest!(|(key_pair in arb_key_pair(), msg in any::<Vec<u8>>())| {
@@ -797,15 +912,17 @@ mod test {
 
         proptest!(|(key_pair in arb_key_pair(), foo in arb_foo())| {
             let signer = key_pair.public_key();
-            let (serialized, signed_foo) = key_pair.sign_struct::<Foo>(&foo).unwrap();
+            let (serialized, signed_foo) =
+                key_pair.sign_struct::<Foo>(&foo).unwrap();
 
-            let signed_foo2 = signer.verify_signed_struct::<Foo>(&serialized).unwrap();
+            let signed_foo2 =
+                signer.verify_self_signed_struct::<Foo>(&serialized).unwrap();
             assert_eq!(signed_foo, signed_foo2.as_ref());
 
-            // trying to verify as another struct with the same serialization
-            // should be prevented by domain separation
+            // trying to verify signature as another type with a valid
+            // serialization is prevented by domain separation.
 
-            signer.verify_signed_struct::<Bar>(&serialized).unwrap_err();
+            signer.verify_self_signed_struct::<Bar>(&serialized).unwrap_err();
         });
     }
 }
