@@ -1,7 +1,5 @@
 // user auth v1
 
-#[cfg(test)]
-use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -16,8 +14,11 @@ pub enum Error {
 
 // TODO(phlip9): do we even need any signup fields?
 /// Sign up
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[cfg_attr(
+    all(test, not(target_env = "sgx")),
+    derive(proptest_derive::Arbitrary)
+)]
 pub struct UserSignupRequest {
     pub display_name: Option<String>,
     pub email: Option<String>,
@@ -66,6 +67,7 @@ impl ed25519::Signable for UserSignupRequest {
         b"LEXE-REALM::UserSignupRequest";
 }
 
+#[cfg(not(target_env = "sgx"))]
 #[cfg(test)]
 mod test {
     use super::*;

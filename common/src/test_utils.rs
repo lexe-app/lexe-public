@@ -28,7 +28,7 @@ where
         let pubkey = key_pair.public_key();
 
         let (ser_value, signed_value) = key_pair.sign_struct(&value).unwrap();
-        let signed_value2 = pubkey.verify_signed_struct(&ser_value).unwrap();
+        let signed_value2 = pubkey.verify_self_signed_struct(&ser_value).unwrap();
         let (ser_value2, _) = key_pair.sign_struct(signed_value2.inner()).unwrap();
 
         assert_eq!(signed_value, signed_value2.as_ref());
