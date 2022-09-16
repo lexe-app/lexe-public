@@ -21,17 +21,17 @@ lexe-ln = { path = "../lexe-ln" }
 
 # --- BITCOIN --- #
 
-bitcoin = { version = "0.28.1", features = ["use-serde"] }
+bitcoin = { version = "0.29", features = ["serde"] }
 bitcoin-bech32 = "0.12"
 # bech32 = "0.8"
 base64 = "0.13.0"
 
 # --- LIGHTNING --- #
 
-lightning = { version = "0.0.110", features = ["max_level_trace"] }
-lightning-block-sync = { version = "0.0.110", features = [ "rpc-client" ] }
-lightning-invoice = { version = "0.18" }
-lightning-net-tokio = { version = "0.0.110" }
+lightning = { version = "0.0.111", features = ["max_level_trace"] }
+lightning-block-sync = { version = "0.0.111", features = [ "rpc-client" ] }
+lightning-invoice = { version = "0.19" }
+lightning-net-tokio = { version = "0.0.111" }
 
 # lightning = { git = "https://github.com/lexe-tech/rust-lightning", features = # ["max_level_trace"], branch = "main" }
 # lightning-block-sync = { git = "https://github.com/lexe-tech/rust-lightning", # features = [ "rpc-client" ], branch = "main" }
@@ -122,7 +122,7 @@ tokio = { version = "=1.15.0", default-features = false, features = [
 
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Run bitcoin regtest for tests
-bitcoind = { version = "0.26", features = [ "22_0" ] }
+bitcoind = { version = "0.27", features = [ "22_0" ] }
 # Enable all default features outside SGX for better test convenience
 proptest = "1"
 

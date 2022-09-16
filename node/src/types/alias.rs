@@ -11,6 +11,7 @@ use lightning::chain::{Access, Filter};
 use lightning::ln::channelmanager::ChannelManager;
 use lightning::ln::peer_handler::{IgnoringMessageHandler, PeerManager};
 use lightning::ln::PaymentHash;
+use lightning::onion_message::OnionMessenger;
 use lightning::routing::gossip::{NetworkGraph, P2PGossipSync};
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning_invoice::payment;
@@ -35,10 +36,14 @@ pub type ChainMonitorType = ChainMonitor<
     NodePersister,
 >;
 
+pub type OnionMessengerType =
+    OnionMessenger<SignerType, LexeKeysManager, LexeTracingLogger>;
+
 pub type PeerManagerType = PeerManager<
     SocketDescriptor,
     NodeChannelManager,
     Arc<P2PGossipSyncType>,
+    Arc<OnionMessengerType>,
     LexeTracingLogger,
     Arc<IgnoringMessageHandler>,
 >;
@@ -71,15 +76,16 @@ pub type InvoicePayerType = payment::InvoicePayer<
 >;
 
 pub type ProbabilisticScorerType =
-    ProbabilisticScorer<Arc<NetworkGraphType>, LoggerType>;
+    ProbabilisticScorer<Arc<NetworkGraphType>, LexeTracingLogger>;
 
-pub type RouterType = DefaultRouter<Arc<NetworkGraphType>, LoggerType>;
+pub type RouterType = DefaultRouter<Arc<NetworkGraphType>, LexeTracingLogger>;
 
-pub type P2PGossipSyncType =
-    P2PGossipSync<Arc<NetworkGraphType>, Arc<ChainAccessType>, LoggerType>;
+pub type P2PGossipSyncType = P2PGossipSync<
+    Arc<NetworkGraphType>,
+    Arc<ChainAccessType>,
+    LexeTracingLogger,
+>;
 
-pub type NetworkGraphType = NetworkGraph<LoggerType>;
+pub type NetworkGraphType = NetworkGraph<LexeTracingLogger>;
 
 pub type ChainAccessType = dyn Access + Send + Sync;
-
-pub type LoggerType = LexeTracingLogger;

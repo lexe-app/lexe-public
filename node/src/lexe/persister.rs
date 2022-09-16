@@ -31,7 +31,7 @@ use crate::lexe::channel_manager::{LxChannelMonitorUpdate, USER_CONFIG};
 use crate::lexe::peer_manager::ChannelPeer;
 use crate::types::{
     ApiClientType, ChainMonitorType, ChannelManagerType, ChannelMonitorType,
-    LoggerType, NetworkGraphType, ProbabilisticScorerType, SignerType,
+    NetworkGraphType, ProbabilisticScorerType, SignerType,
 };
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
@@ -201,7 +201,7 @@ impl InnerPersister {
     pub async fn read_probabilistic_scorer(
         &self,
         graph: Arc<NetworkGraphType>,
-        logger: LoggerType,
+        logger: LexeTracingLogger,
     ) -> anyhow::Result<ProbabilisticScorerType> {
         debug!("Reading probabilistic scorer");
         let params = ProbabilisticScoringParameters::default();
@@ -238,7 +238,7 @@ impl InnerPersister {
     pub async fn read_network_graph(
         &self,
         genesis_hash: BlockHash,
-        logger: LoggerType,
+        logger: LexeTracingLogger,
     ) -> anyhow::Result<NetworkGraphType> {
         debug!("Reading network graph");
         let ng_file_id = NodeFileId::new(
