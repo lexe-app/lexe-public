@@ -8,8 +8,7 @@ use bitcoin::secp256k1::PublicKey;
 use common::api::def::{NodeBackendApi, NodeRunnerApi};
 use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::provision::{
-    Instance, Node, NodeInstanceSeed, ProvisionedSecrets, SealedSeed,
-    SealedSeedId,
+    Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
 use common::api::runner::UserPorts;
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
@@ -18,7 +17,7 @@ use common::enclave::{self, Measurement};
 use common::rng::SysRng;
 use common::root_seed::RootSeed;
 use once_cell::sync::Lazy;
-use secrecy::{ExposeSecret, Secret};
+use secrecy::Secret;
 use tokio::sync::mpsc;
 
 use crate::api::ApiClient;
@@ -29,29 +28,27 @@ type Data = Vec<u8>;
 
 // --- test fixtures --- //
 
-fn make_seed(bytes: [u8; 32]) -> RootSeed {
+fn make_root_seed(bytes: [u8; 32]) -> RootSeed {
     RootSeed::new(Secret::new(bytes))
 }
-fn make_node_pk(seed: &RootSeed) -> PublicKey {
-    PublicKey::from_keypair(&seed.derive_node_key_pair(&mut SysRng::new()))
+fn make_node_pk(root_seed: &RootSeed) -> PublicKey {
+    root_seed.derive_node_pk(&mut SysRng::new())
 }
-fn make_sealed_seed(seed: &RootSeed) -> Vec<u8> {
-    let seed = make_seed(*seed.expose_secret());
-    let provisioned_secrets = ProvisionedSecrets { root_seed: seed };
-    let sealed_secrets = provisioned_secrets.seal(&mut SysRng::new()).unwrap();
-    sealed_secrets.serialize()
+fn make_sealed_seed(root_seed: &RootSeed) -> SealedSeed {
+    SealedSeed::seal_from_root_seed(&mut SysRng::new(), root_seed)
+        .expect("Failed to seal test root seed")
 }
 
-static SEED1: Lazy<RootSeed> = Lazy::new(|| make_seed([0x42; 32]));
-static SEED2: Lazy<RootSeed> = Lazy::new(|| make_seed([0x69; 32]));
+static SEED1: Lazy<RootSeed> = Lazy::new(|| make_root_seed([0x42; 32]));
+static SEED2: Lazy<RootSeed> = Lazy::new(|| make_root_seed([0x69; 32]));
 
 static NODE_PK1: Lazy<PublicKey> = Lazy::new(|| make_node_pk(&SEED1));
 static NODE_PK2: Lazy<PublicKey> = Lazy::new(|| make_node_pk(&SEED2));
 
-static SEALED_SEED1: Lazy<Vec<u8>> = Lazy::new(|| make_sealed_seed(&SEED1));
-static SEALED_SEED2: Lazy<Vec<u8>> = Lazy::new(|| make_sealed_seed(&SEED2));
+static SEALED_SEED1: Lazy<SealedSeed> = Lazy::new(|| make_sealed_seed(&SEED1));
+static SEALED_SEED2: Lazy<SealedSeed> = Lazy::new(|| make_sealed_seed(&SEED2));
 
-pub fn sealed_seed(node_pk: &PublicKey) -> Vec<u8> {
+pub fn sealed_seed(node_pk: &PublicKey) -> SealedSeed {
     if node_pk == &*NODE_PK1 {
         SEALED_SEED1.clone()
     } else if node_pk == &*NODE_PK2 {
@@ -155,14 +152,7 @@ impl NodeBackendApi for MockApiClient {
         &self,
         data: SealedSeedId,
     ) -> Result<Option<SealedSeed>, BackendApiError> {
-        let sealed_seed = SealedSeed::new(
-            data.node_pk,
-            data.measurement,
-            data.machine_id,
-            data.min_cpusvn,
-            sealed_seed(&data.node_pk),
-        );
-        Ok(Some(sealed_seed))
+        Ok(Some(sealed_seed(&data.node_pk)))
     }
 
     async fn create_node_instance_seed(
