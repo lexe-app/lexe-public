@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 
-use crate::api::UserPk;
+use crate::api::{auth, UserPk};
 use crate::hex;
 
 // Associated constants can't be imported.
@@ -79,6 +79,16 @@ pub struct BackendApiError {
 pub struct RunnerApiError {
     #[source]
     pub kind: RunnerErrorKind,
+    pub msg: String,
+}
+
+/// The primary error type that the gateway returns.
+#[derive(Error, Clone, Debug, Eq, PartialEq, Hash)]
+#[error("{kind}: {msg}")]
+#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+pub struct GatewayApiError {
+    #[source]
+    pub kind: GatewayErrorKind,
     pub msg: String,
 }
 
@@ -157,6 +167,27 @@ pub enum RunnerErrorKind {
     Runner,
 }
 
+/// All variants of errors that the runner can return.
+#[derive(Error, Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+pub enum GatewayErrorKind {
+    #[error("Unknown error")]
+    Unknown,
+    #[error("Client failed to serialize the given data")]
+    Serialization,
+    #[error("Couldn't connect to service")]
+    Connect,
+    #[error("Request timed out")]
+    Timeout,
+    #[error("Could not decode response")]
+    Decode,
+    #[error("Other reqwest error")]
+    Reqwest,
+
+    #[error("Invalid signed request")]
+    Signature,
+}
+
 /// All variants of errors that the node can return.
 #[derive(Error, Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
@@ -219,6 +250,12 @@ impl From<ErrorResponse> for RunnerApiError {
         Self { kind, msg }
     }
 }
+impl From<ErrorResponse> for GatewayApiError {
+    fn from(ErrorResponse { code, msg }: ErrorResponse) -> Self {
+        let kind = GatewayErrorKind::from_code(code);
+        Self { kind, msg }
+    }
+}
 impl From<ErrorResponse> for NodeApiError {
     fn from(ErrorResponse { code, msg }: ErrorResponse) -> Self {
         let kind = NodeErrorKind::from_code(code);
@@ -236,6 +273,12 @@ impl From<BackendApiError> for ErrorResponse {
 }
 impl From<RunnerApiError> for ErrorResponse {
     fn from(RunnerApiError { kind, msg }: RunnerApiError) -> Self {
+        let code = kind.to_code();
+        Self { code, msg }
+    }
+}
+impl From<GatewayApiError> for ErrorResponse {
+    fn from(GatewayApiError { kind, msg }: GatewayApiError) -> Self {
         let code = kind.to_code();
         Self { code, msg }
     }
@@ -259,6 +302,15 @@ impl ErrorCodeConvertible for BackendApiError {
 }
 
 impl ErrorCodeConvertible for RunnerApiError {
+    fn to_code(&self) -> ErrorCode {
+        self.kind.to_code()
+    }
+    fn from_code(_code: ErrorCode) -> Self {
+        unimplemented!("Shouldn't be using this!")
+    }
+}
+
+impl ErrorCodeConvertible for GatewayApiError {
     fn to_code(&self) -> ErrorCode {
         self.kind.to_code()
     }
@@ -336,6 +388,32 @@ impl ErrorCodeConvertible for RunnerErrorKind {
     }
 }
 
+impl ErrorCodeConvertible for GatewayErrorKind {
+    fn to_code(&self) -> ErrorCode {
+        match self {
+            Self::Unknown => 0,
+            Self::Serialization => 1,
+            Self::Connect => 2,
+            Self::Timeout => 3,
+            Self::Decode => 4,
+            Self::Reqwest => 5,
+            Self::Signature => 6,
+        }
+    }
+    fn from_code(code: ErrorCode) -> Self {
+        match code {
+            0 => Self::Unknown,
+            1 => Self::Serialization,
+            2 => Self::Connect,
+            3 => Self::Timeout,
+            4 => Self::Decode,
+            5 => Self::Reqwest,
+            6 => Self::Signature,
+            _ => Self::Unknown,
+        }
+    }
+}
+
 impl ErrorCodeConvertible for NodeErrorKind {
     fn to_code(&self) -> ErrorCode {
         match self {
@@ -400,6 +478,21 @@ impl HasStatusCode for RunnerApiError {
             AtCapacity => SERVER_500_INTERNAL_SERVER_ERROR,
             Cancelled => SERVER_500_INTERNAL_SERVER_ERROR,
             Runner => SERVER_500_INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+impl HasStatusCode for GatewayApiError {
+    fn get_status_code(&self) -> Status {
+        use GatewayErrorKind::*;
+        match self.kind {
+            Unknown => SERVER_500_INTERNAL_SERVER_ERROR,
+            Serialization => CLIENT_400_BAD_REQUEST,
+            Connect => SERVER_503_SERVICE_UNAVAILABLE,
+            Timeout => SERVER_504_GATEWAY_TIMEOUT,
+            Decode => SERVER_502_BAD_GATEWAY,
+            Reqwest => CLIENT_400_BAD_REQUEST,
+            Signature => CLIENT_400_BAD_REQUEST,
         }
     }
 }
@@ -471,6 +564,13 @@ impl From<CommonError> for RunnerApiError {
     }
 }
 
+impl From<CommonError> for GatewayApiError {
+    fn from(CommonError { kind, msg }: CommonError) -> Self {
+        let kind = GatewayErrorKind::from(kind);
+        Self { kind, msg }
+    }
+}
+
 impl From<CommonError> for NodeApiError {
     fn from(CommonError { kind, msg }: CommonError) -> Self {
         let kind = NodeErrorKind::from(kind);
@@ -493,7 +593,22 @@ impl From<CommonErrorKind> for BackendErrorKind {
         }
     }
 }
+
 impl From<CommonErrorKind> for RunnerErrorKind {
+    fn from(kind: CommonErrorKind) -> Self {
+        use CommonErrorKind::*;
+        match kind {
+            QueryStringSerialization => Self::Serialization,
+            JsonSerialization => Self::Serialization,
+            Connect => Self::Connect,
+            Timeout => Self::Timeout,
+            Decode => Self::Decode,
+            Reqwest => Self::Reqwest,
+        }
+    }
+}
+
+impl From<CommonErrorKind> for GatewayErrorKind {
     fn from(kind: CommonErrorKind) -> Self {
         use CommonErrorKind::*;
         match kind {
@@ -555,6 +670,16 @@ impl From<oneshot::error::RecvError> for RunnerApiError {
     }
 }
 
+// --- Misc -> GatewayErrorKind impls --- //
+
+impl From<auth::Error> for GatewayApiError {
+    fn from(err: auth::Error) -> Self {
+        let kind = GatewayErrorKind::Signature;
+        let msg = format!("{err:#}");
+        Self { kind, msg }
+    }
+}
+
 // --- Misc -> NodeApiError impls --- //
 
 // (Placeholder only, to stay consistent)
@@ -576,6 +701,10 @@ mod test {
             kind: RunnerErrorKind::Unknown,
             msg: "Additional context".to_owned(),
         };
+        let gateway_error = GatewayApiError {
+            kind: GatewayErrorKind::Unknown,
+            msg: "Additional context".to_owned(),
+        };
         let node_error = NodeApiError {
             kind: NodeErrorKind::Unknown,
             msg: "Additional context".to_owned(),
@@ -586,6 +715,7 @@ mod test {
         let model_display = String::from("Unknown error: Additional context");
         assert_eq!(model_display, format!("{backend_error}"));
         assert_eq!(model_display, format!("{runner_error}"));
+        assert_eq!(model_display, format!("{gateway_error}"));
         assert_eq!(model_display, format!("{node_error}"));
 
         // ErrorResponse does not implement Display and is not intended to be
@@ -593,6 +723,7 @@ mod test {
         // transport. `msg` should only hold the _additional_ context.
         let backend_err_resp = ErrorResponse::from(backend_error);
         let runner_err_resp = ErrorResponse::from(runner_error);
+        let gateway_err_resp = ErrorResponse::from(gateway_error);
         let node_err_resp = ErrorResponse::from(node_error);
 
         let model_err_resp = ErrorResponse {
@@ -601,6 +732,7 @@ mod test {
         };
         assert_eq!(model_err_resp, backend_err_resp);
         assert_eq!(model_err_resp, runner_err_resp);
+        assert_eq!(model_err_resp, gateway_err_resp);
         assert_eq!(model_err_resp, node_err_resp);
     }
 
@@ -635,6 +767,11 @@ mod test {
         #[test]
         fn runner_error_code_roundtrip(e1 in any::<RunnerApiError>()) {
             let e2 = RunnerApiError::from(ErrorResponse::from(e1.clone()));
+            prop_assert_eq!(e1, e2);
+        }
+        #[test]
+        fn gateway_error_code_roundtrip(e1 in any::<GatewayApiError>()) {
+            let e2 = GatewayApiError::from(ErrorResponse::from(e1.clone()));
             prop_assert_eq!(e1, e2);
         }
         #[test]
