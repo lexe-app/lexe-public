@@ -65,10 +65,8 @@ pub struct SealedSeedId {
 pub struct SealedSeed {
     #[serde(flatten)]
     pub id: SealedSeedId,
-    /// The fully serialized + sealed root seed.
-    // NOTE: This should probably be renamed to `raw` or `ciphertext` or smth
-    // but that requires a DB migration
-    pub seed: Vec<u8>,
+    /// The root seed, fully sealed + serialized.
+    pub ciphertext: Vec<u8>,
 }
 
 impl SealedSeed {
@@ -79,7 +77,7 @@ impl SealedSeed {
         measurement: Measurement,
         machine_id: MachineId,
         min_cpusvn: MinCpusvn,
-        seed: Vec<u8>,
+        ciphertext: Vec<u8>,
     ) -> Self {
         Self {
             id: SealedSeedId {
@@ -88,7 +86,7 @@ impl SealedSeed {
                 machine_id,
                 min_cpusvn,
             },
-            seed,
+            ciphertext,
         }
     }
 
@@ -100,7 +98,7 @@ impl SealedSeed {
         let root_seed_ref = root_seed.expose_secret().as_slice();
         let sealed = enclave::seal(rng, Self::LABEL, root_seed_ref.into())
             .context("Failed to seal root seed")?;
-        let sealed_bytes = sealed.serialize();
+        let ciphertext = sealed.serialize();
 
         // Derive / compute the other fields
         let node_pk = root_seed.derive_node_pk(rng);
@@ -113,7 +111,7 @@ impl SealedSeed {
             measurement,
             machine_id,
             min_cpusvn,
-            sealed_bytes,
+            ciphertext,
         ))
     }
 
@@ -141,13 +139,13 @@ impl SealedSeed {
         );
 
         // Unseal
-        let sealed = Sealed::deserialize(&self.seed)
+        let sealed = Sealed::deserialize(&self.ciphertext)
             .context("Failed to deserialize sealed seed")?;
-        let unsealed_bytes = enclave::unseal(Self::LABEL, sealed)
+        let unsealed_seed = enclave::unseal(Self::LABEL, sealed)
             .context("Failed to unseal provisioned secrets")?;
 
         // Reconstruct root seed
-        let root_seed = RootSeed::try_from(unsealed_bytes.as_slice())
+        let root_seed = RootSeed::try_from(unsealed_seed.as_slice())
             .context("Failed to deserialize root seed")?;
 
         // Validate node_pk
