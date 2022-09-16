@@ -13,16 +13,16 @@ edition = "2021"
 [dependencies]
 # --- BITCOIN --- #
 
-bitcoin = { version = "0.28.1", features = ["std", "use-serde"] }
+bitcoin = { version = "0.29", features = ["std", "serde"] }
 bitcoin-bech32 = "0.12"
 base64 = "0.13.0"
 
 # --- LIGHTNING --- #
 
-lightning = { version = "0.0.110", features = ["max_level_trace"] }
-# lightning-block-sync = { version = "0.0.110", features = [ "rpc-client" ] }
-lightning-invoice = { version = "0.18" }
-# lightning-net-tokio = { version = "0.0.110" }
+lightning = { version = "0.0.111", features = ["max_level_trace"] }
+# lightning-block-sync = { version = "0.0.111", features = [ "rpc-client" ] }
+lightning-invoice = { version = "0.19" }
+# lightning-net-tokio = { version = "0.0.111" }
 
 # lightning = { git = "https://github.com/lexe-tech/rust-lightning", features = ["max_level_trace"], branch = "main" }
 # lightning-block-sync = { git = "https://github.com/lexe-tech/rust-lightning", features = [ "rpc-client" ], branch = "main" }

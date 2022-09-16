@@ -80,6 +80,9 @@ const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =
         // so that it is possible to sweep all funds to an address
         // specified at the time of channel close.
         commit_upfront_shutdown_pubkey: false,
+        // The counterparty must reserve 1% of the total channel value to be
+        // claimable by us on-chain in the case of a channel breach.
+        their_channel_reserve_proportional_millionths: 10_000,
     };
 
 const CHANNEL_HANDSHAKE_LIMITS: ChannelHandshakeLimits =

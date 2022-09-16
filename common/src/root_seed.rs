@@ -115,7 +115,7 @@ impl RootSeed {
             .ckd_priv(&secp_ctx, child_number)
             .expect("should never fail")
             .private_key;
-        KeyPair::from_secret_key(&secp_ctx, node_sk)
+        KeyPair::from_secret_key(&secp_ctx, &node_sk)
     }
 
     /// Derive the Lightning node pubkey.

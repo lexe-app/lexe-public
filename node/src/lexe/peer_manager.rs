@@ -3,7 +3,7 @@ use std::net::SocketAddr;
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{bail, Context};
 use bitcoin::secp256k1::PublicKey;
@@ -17,7 +17,7 @@ use tokio::net::TcpStream;
 use tokio::time;
 
 use crate::lexe::channel_manager::NodeChannelManager;
-use crate::types::{P2PGossipSyncType, PeerManagerType};
+use crate::types::{OnionMessengerType, P2PGossipSyncType, PeerManagerType};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -38,6 +38,7 @@ impl NodePeerManager {
         keys_manager: &LexeKeysManager,
         channel_manager: NodeChannelManager,
         gossip_sync: Arc<P2PGossipSyncType>,
+        onion_messenger: Arc<OnionMessengerType>,
         logger: LexeTracingLogger,
     ) -> Self {
         let mut ephemeral_bytes = Zeroizing::new([0u8; 32]);
@@ -46,14 +47,27 @@ impl NodePeerManager {
         let lightning_msg_handler = MessageHandler {
             chan_handler: channel_manager,
             route_handler: gossip_sync,
+            onion_message_handler: onion_messenger,
         };
         let node_secret = keys_manager
             .get_node_secret(Recipient::Node)
             .expect("Always succeeds when called with Recipient::Node");
 
+        // `current_time` is supposed to be monotonically increasing across node
+        // restarts, but since secure timekeeping within an enclave is a hard
+        // problem, and this field is used to help peers choose between
+        // multiple node announcements (it becomes last_node_announcement_serial
+        // which then becomes the timestamp field of UnsignedNodeAnnouncement
+        // which is specified in BOLT#07), using the system time is fine.
+        let current_time = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("System time is before Unix epoch")
+            .as_secs();
+
         let peer_manager: PeerManagerType = PeerManagerType::new(
             lightning_msg_handler,
             node_secret,
+            current_time,
             &ephemeral_bytes,
             logger,
             Arc::new(IgnoringMessageHandler {}),

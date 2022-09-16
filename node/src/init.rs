@@ -29,6 +29,7 @@ use lightning::chain;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::transaction::OutPoint;
+use lightning::onion_message::OnionMessenger;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
@@ -223,12 +224,17 @@ impl UserNode {
             scorer_res.context("Could not read probabilistic scorer")?;
         let scorer = Arc::new(Mutex::new(scorer));
 
+        // Init onion messenger
+        let onion_messenger =
+            Arc::new(OnionMessenger::new(keys_manager.clone(), logger.clone()));
+
         // Initialize PeerManager
         let peer_manager = NodePeerManager::init(
             rng,
             &keys_manager,
             channel_manager.clone(),
             gossip_sync.clone(),
+            onion_messenger,
             logger.clone(),
         );
 
