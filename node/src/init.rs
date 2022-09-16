@@ -6,15 +6,16 @@ use std::time::Duration;
 use anyhow::{bail, ensure, Context};
 use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::BlockHash;
-use common::api::provision::{Node, ProvisionedSecrets, SealedSeedId};
+use common::api::provision::{Node, SealedSeedId};
 use common::api::runner::{Port, UserPorts};
 use common::api::UserPk;
 use common::cli::{Network, RunArgs};
 use common::client::tls::node_run_tls_config;
 use common::enclave::{
-    self, MachineId, Measurement, MinCpusvn, Sealed, MIN_SGX_CPUSVN,
+    self, MachineId, Measurement, MinCpusvn, MIN_SGX_CPUSVN,
 };
 use common::rng::Crng;
+use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use futures::future;
@@ -119,7 +120,7 @@ impl UserNode {
         let (channel_monitor_updated_tx, channel_monitor_updated_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
 
-        // Initialize LexeBitcoind, fetch provisioned data
+        // Initialize LexeBitcoind while fetching provisioned secrets
         let (bitcoind_res, fetch_res) = tokio::join!(
             LexeBitcoind::init(
                 args.bitcoind_rpc.clone(),
@@ -127,6 +128,7 @@ impl UserNode {
                 shutdown.clone(),
             ),
             fetch_provisioned_secrets(
+                rng,
                 api.as_ref(),
                 user_pk,
                 measurement,
@@ -136,9 +138,8 @@ impl UserNode {
         );
         let bitcoind =
             bitcoind_res.context("Failed to init bitcoind client")?;
-        let (node, provisioned_secrets) =
+        let (node, root_seed) =
             fetch_res.context("Failed to fetch provisioned secrets")?;
-        let root_seed = &provisioned_secrets.root_seed;
         let bitcoind = Arc::new(bitcoind);
 
         // Collect all handles to spawned tasks
@@ -148,8 +149,9 @@ impl UserNode {
         tasks.push(("refresh fees", bitcoind.spawn_refresh_fees_task()));
 
         // Build LexeKeysManager from node init data
-        let keys_manager = LexeKeysManager::init(rng, &node.node_pk, root_seed)
-            .context("Failed to construct keys manager")?;
+        let keys_manager =
+            LexeKeysManager::init(rng, &node.node_pk, &root_seed)
+                .context("Failed to construct keys manager")?;
         let node_pk = keys_manager.derive_pk(rng);
 
         // LexeBitcoind implements BlockSource, FeeEstimator and
@@ -252,7 +254,7 @@ impl UserNode {
 
         // Build owner service TLS config for authenticating owner
         let node_dns = args.node_dns_name.clone();
-        let owner_tls = node_run_tls_config(rng, root_seed, vec![node_dns])
+        let owner_tls = node_run_tls_config(rng, &root_seed, vec![node_dns])
             .context("Failed to build owner service TLS config")?;
 
         // Start warp service for owner
@@ -514,13 +516,14 @@ fn init_api(args: &RunArgs) -> ApiClientType {
 }
 
 /// Fetches previously provisioned secrets from the API.
-async fn fetch_provisioned_secrets(
+async fn fetch_provisioned_secrets<R: Crng>(
+    rng: &mut R,
     api: &dyn ApiClient,
     user_pk: UserPk,
     measurement: Measurement,
     machine_id: MachineId,
     min_cpusvn: MinCpusvn,
-) -> anyhow::Result<(Node, ProvisionedSecrets)> {
+) -> anyhow::Result<(Node, RootSeed)> {
     debug!(%user_pk, %measurement, %machine_id, %min_cpusvn, "fetching provisioned secrets");
 
     let (node_res, instance_res) = tokio::join!(
@@ -557,20 +560,17 @@ async fn fetch_provisioned_secrets(
                 min_cpusvn,
             };
 
-            let raw_sealed_data = api
+            let sealed_seed = api
                 .get_sealed_seed(sealed_seed_id)
                 .await
                 .context("Error while fetching sealed seed")?
                 .context("Sealed seed wasn't persisted with node & instance")?;
 
-            let sealed_data = Sealed::deserialize(&raw_sealed_data.seed)
-                .context("Failed to deserialize sealed seed")?;
+            let root_seed = sealed_seed
+                .unseal_and_validate(rng)
+                .context("Could not validate or unseal sealed seed")?;
 
-            let provisioned_secrets =
-                ProvisionedSecrets::unseal(sealed_data)
-                    .context("Failed to unseal provisioned secrets")?;
-
-            Ok((node, provisioned_secrets))
+            Ok((node, root_seed))
         }
         (None, None) => bail!("Enclave version has not been provisioned yet"),
         _ => bail!("Node and instance should have been persisted together"),

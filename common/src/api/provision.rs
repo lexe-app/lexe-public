@@ -1,4 +1,4 @@
-use anyhow::Context;
+use anyhow::{ensure, Context};
 use bitcoin::secp256k1::PublicKey;
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
@@ -22,6 +22,13 @@ pub struct ProvisionRequest {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct NodeInstanceSeed {
+    pub node: Node,
+    pub instance: Instance,
+    pub sealed_seed: SealedSeed,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct Node {
     pub user_pk: UserPk,
     pub node_pk: PublicKey,
@@ -34,7 +41,7 @@ pub struct Instance {
 }
 
 /// Uniquely identifies a sealed seed using its primary key fields.
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SealedSeedId {
     pub node_pk: PublicKey,
     pub measurement: Measurement,
@@ -42,14 +49,31 @@ pub struct SealedSeedId {
     pub min_cpusvn: MinCpusvn,
 }
 
-#[derive(Serialize, Deserialize)]
+/// The user node's provisioned seed that is sealed and persisted using its
+/// platform enclave keys that are software and version specific.
+///
+/// This struct is returned directly from the DB so it should be considered as
+/// untrusted and not-yet-validated. To validate and convert a [`SealedSeed`]
+/// into a [`RootSeed`], use [`unseal_and_validate`]. To encrypt an existing
+/// [`RootSeed`] into a [`SealedSeed`], use [`seal_from_root_seed`].
+///
+/// See [`crate::enclave::seal`] for more implementation details.
+///
+/// [`unseal_and_validate`]: Self::unseal_and_validate
+/// [`seal_from_root_seed`]: Self::seal_from_root_seed
+#[derive(Clone, Serialize, Deserialize)]
 pub struct SealedSeed {
     #[serde(flatten)]
     pub id: SealedSeedId,
+    /// The fully serialized + sealed root seed.
+    // NOTE: This should probably be renamed to `raw` or `ciphertext` or smth
+    // but that requires a DB migration
     pub seed: Vec<u8>,
 }
 
 impl SealedSeed {
+    const LABEL: &'static [u8] = b"sealed seed";
+
     pub fn new(
         node_pk: PublicKey,
         measurement: Measurement,
@@ -67,38 +91,101 @@ impl SealedSeed {
             seed,
         }
     }
-}
 
-/// The enclave's provisioned secrets that it will seal and persist using its
-/// platform enclave keys that are software and version specific.
-///
-/// See: [`crate::enclave::seal`]
-// TODO(phlip9): rename this or SealedSeed?
-pub struct ProvisionedSecrets {
-    pub root_seed: RootSeed,
-}
+    pub fn seal_from_root_seed<R: Crng>(
+        rng: &mut R,
+        root_seed: &RootSeed,
+    ) -> anyhow::Result<Self> {
+        // Construct the root seed ciphertext
+        let root_seed_ref = root_seed.expose_secret().as_slice();
+        let sealed = enclave::seal(rng, Self::LABEL, root_seed_ref.into())
+            .context("Failed to seal root seed")?;
+        let sealed_bytes = sealed.serialize();
 
-impl ProvisionedSecrets {
-    const LABEL: &'static [u8] = b"provisioned secrets";
+        // Derive / compute the other fields
+        let node_pk = root_seed.derive_node_pk(rng);
+        let measurement = enclave::measurement();
+        let machine_id = enclave::machine_id();
+        let min_cpusvn = enclave::MIN_SGX_CPUSVN;
 
-    pub fn seal(&self, rng: &mut dyn Crng) -> anyhow::Result<Sealed<'_>> {
-        let root_seed_ref = self.root_seed.expose_secret().as_slice();
-        enclave::seal(rng, Self::LABEL, root_seed_ref.into())
-            .context("Failed to seal provisioned secrets")
+        Ok(Self::new(
+            node_pk,
+            measurement,
+            machine_id,
+            min_cpusvn,
+            sealed_bytes,
+        ))
     }
 
-    pub fn unseal(sealed: Sealed<'_>) -> anyhow::Result<Self> {
-        let bytes = enclave::unseal(Self::LABEL, sealed)
+    pub fn unseal_and_validate<R: Crng>(
+        self,
+        rng: &mut R,
+    ) -> anyhow::Result<RootSeed> {
+        // Compute the SGX fields
+        let measurement = enclave::measurement();
+        let machine_id = enclave::machine_id();
+        let min_cpusvn = enclave::MIN_SGX_CPUSVN;
+
+        // Validate SGX fields
+        ensure!(
+            self.id.measurement == measurement,
+            "Saved measurement doesn't match current measurement",
+        );
+        ensure!(
+            self.id.machine_id == machine_id,
+            "Saved machine id doesn't match current machine id",
+        );
+        ensure!(
+            self.id.min_cpusvn == min_cpusvn,
+            "Saved min CPUSVN doesn't match current min CPUSVN",
+        );
+
+        // Unseal
+        let sealed = Sealed::deserialize(&self.seed)
+            .context("Failed to deserialize sealed seed")?;
+        let unsealed_bytes = enclave::unseal(Self::LABEL, sealed)
             .context("Failed to unseal provisioned secrets")?;
-        let root_seed = RootSeed::try_from(bytes.as_slice())
+
+        // Reconstruct root seed
+        let root_seed = RootSeed::try_from(unsealed_bytes.as_slice())
             .context("Failed to deserialize root seed")?;
-        Ok(Self { root_seed })
+
+        // Validate node_pk
+        let derived_node_pk = root_seed.derive_node_pk(rng);
+        ensure!(
+            self.id.node_pk == derived_node_pk,
+            "Saved node pk doesn't match derived node pk"
+        );
+
+        // Validation complete, everything OK.
+        Ok(root_seed)
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct NodeInstanceSeed {
-    pub node: Node,
-    pub instance: Instance,
-    pub sealed_seed: SealedSeed,
+#[cfg(test)]
+mod test {
+    use proptest::arbitrary::any;
+    use proptest::proptest;
+    use secrecy::ExposeSecret;
+
+    use super::*;
+    use crate::rng::SysRng;
+
+    proptest! {
+        #[test]
+        fn seal_unseal_roundtrip(root_seed1 in any::<RootSeed>()) {
+            let mut rng = SysRng::new();
+
+            let root_seed2 =
+                SealedSeed::seal_from_root_seed(&mut rng, &root_seed1)
+                    .unwrap()
+                    .unseal_and_validate(&mut rng)
+                    .unwrap();
+
+            assert_eq!(
+                root_seed1.expose_secret(),
+                root_seed2.expose_secret(),
+            );
+        }
+    }
 }

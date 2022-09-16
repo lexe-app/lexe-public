@@ -25,16 +25,16 @@ use anyhow::Context;
 use bitcoin::secp256k1::PublicKey;
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::provision::{
-    Instance, Node, NodeInstanceSeed, ProvisionRequest, ProvisionedSecrets,
-    SealedSeed,
+    Instance, Node, NodeInstanceSeed, ProvisionRequest, SealedSeed,
 };
 use common::api::rest::into_response;
 use common::api::runner::UserPorts;
 use common::api::UserPk;
 use common::cli::ProvisionArgs;
 use common::client::tls::node_provision_tls_config;
-use common::enclave::{self, MachineId, Measurement, MIN_SGX_CPUSVN};
+use common::enclave::{MachineId, Measurement};
 use common::rng::{Crng, SysRng};
+use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
 use tracing::{debug, info, instrument, warn};
 use warp::{Filter, Rejection, Reply};
@@ -64,7 +64,7 @@ fn verify_provision_request<R: Crng>(
     rng: &mut R,
     current_user_pk: UserPk,
     req: ProvisionRequest,
-) -> Result<(UserPk, PublicKey, ProvisionedSecrets), NodeApiError> {
+) -> Result<(UserPk, PublicKey, RootSeed), NodeApiError> {
     let given_user_pk = req.user_pk;
     if given_user_pk != current_user_pk {
         return Err(NodeApiError::wrong_user_pk(
@@ -83,13 +83,7 @@ fn verify_provision_request<R: Crng>(
         ));
     }
 
-    Ok((
-        req.user_pk,
-        req.node_pk,
-        ProvisionedSecrets {
-            root_seed: req.root_seed,
-        },
-    ))
+    Ok((req.user_pk, req.node_pk, req.root_seed))
 }
 
 // # provision service
@@ -109,29 +103,19 @@ async fn provision_request(
 ) -> Result<(), NodeApiError> {
     debug!("received provision request");
 
-    let (user_pk, node_pk, provisioned_secrets) =
+    let (user_pk, node_pk, root_seed) =
         verify_provision_request(&mut ctx.rng, ctx.current_user_pk, req)?;
-
-    let sealed_secrets =
-        provisioned_secrets
-            .seal(&mut ctx.rng)
-            .map_err(|_| NodeApiError {
-                kind: NodeErrorKind::Provision,
-                msg: String::from("Could not seal secret"),
-            })?;
 
     let node = Node { node_pk, user_pk };
     let instance = Instance {
         node_pk,
         measurement: ctx.measurement,
     };
-    let sealed_seed = SealedSeed::new(
-        node_pk,
-        enclave::measurement(),
-        enclave::machine_id(),
-        MIN_SGX_CPUSVN,
-        sealed_secrets.serialize(),
-    );
+    let sealed_seed = SealedSeed::seal_from_root_seed(&mut ctx.rng, &root_seed)
+        .map_err(|_| NodeApiError {
+            kind: NodeErrorKind::Provision,
+            msg: String::from("Could not seal secret"),
+        })?;
 
     let batch = NodeInstanceSeed {
         node,
@@ -242,11 +226,11 @@ mod test {
     use std::sync::Arc;
 
     use common::api::UserPk;
-    use common::attest;
     use common::attest::verify::EnclavePolicy;
     use common::cli::ProvisionArgs;
     use common::rng::SysRng;
     use common::root_seed::RootSeed;
+    use common::{attest, enclave};
     use lexe_ln::logger;
     use secrecy::Secret;
     use tokio_rustls::rustls;
