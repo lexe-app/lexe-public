@@ -3,11 +3,14 @@ use std::str::FromStr;
 
 #[cfg(all(test, not(target_env = "sgx")))]
 use proptest_derive::Arbitrary;
+use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 
 use crate::hex::{self, FromHex};
-use crate::{ed25519, hexstr_or_bytes};
+use crate::{const_ref_cast, ed25519, hexstr_or_bytes};
 
+/// Authentication and User Signup.
+pub mod auth;
 /// Traits defining the various REST API interfaces.
 pub mod def;
 /// Enums for the API errors returned by the various services.
@@ -27,12 +30,19 @@ pub mod runner;
 pub mod vfs;
 
 #[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
-#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(
+    Copy, Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize, RefCast,
+)]
+#[repr(transparent)]
 pub struct UserPk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 impl UserPk {
     pub const fn new(inner: [u8; 32]) -> Self {
         Self(inner)
+    }
+
+    pub const fn from_ref(inner: &[u8; 32]) -> &Self {
+        const_ref_cast(inner)
     }
 
     pub fn inner(&self) -> [u8; 32] {
@@ -67,6 +77,12 @@ impl FromStr for UserPk {
     type Err = hex::DecodeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         <[u8; 32]>::from_hex(s).map(Self::new)
+    }
+}
+
+impl From<ed25519::PublicKey> for UserPk {
+    fn from(pk: ed25519::PublicKey) -> Self {
+        Self::new(pk.into_inner())
     }
 }
 
