@@ -152,6 +152,12 @@ impl<T: Signable> Signable for &T {
 
 // -- verify_signed_struct -- //
 
+/// Helper fn to pass to [`ed25519::verify_signed_struct`](verify_signed_struct)
+/// that accepts any public key, so long as the signature is OK.
+pub fn accept_any_signer(_: &PublicKey) -> bool {
+    true
+}
+
 /// Verify a serialized and signed [`Signable`] struct. Returns the deserialized
 /// struct inside a [`Signed`] proof that it was in fact signed by the
 /// associated [`ed25519::PublicKey`](PublicKey).

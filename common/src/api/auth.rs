@@ -1,5 +1,7 @@
 // user auth v1
 
+#[cfg(all(test, not(target_env = "sgx")))]
+use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -12,21 +14,30 @@ pub enum Error {
     VerifyError(#[from] ed25519::Error),
 }
 
-// TODO(phlip9): do we even need any signup fields?
-/// Sign up
+#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
-#[cfg_attr(
-    all(test, not(target_env = "sgx")),
-    derive(proptest_derive::Arbitrary)
-)]
-pub struct UserSignupRequest {
+pub enum UserSignupRequest {
+    V1(UserSignupRequestV1),
+}
+
+// TODO(phlip9): do we even need any signup fields?
+#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub struct UserSignupRequestV1 {
     pub display_name: Option<String>,
     pub email: Option<String>,
 }
 
+#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub enum UserAuthRequest {
+    V1(UserAuthRequestV1),
+}
+
 /// A user client's request for auth token with certain restrictions.
-#[derive(Deserialize, Serialize)]
-pub struct UserAuthRequest {
+#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub struct UserAuthRequestV1 {
     /// The time the auth token should be issued in UTC Unix time, interpreted
     /// relative to the server clock.
     issued_timestamp: u64,
@@ -39,11 +50,17 @@ pub struct UserAuthRequest {
     btc_network: Network,
 }
 
+#[derive(Deserialize, Serialize)]
+pub struct UserAuthResponse {
+    pub user_auth_token: UserAuthToken,
+}
+
 /// An opaque user auth token for authenticating user clients against lexe infra
 /// as a particular [`UserPk`](crate::api::UserPk).
 ///
 /// Most user clients should just treat this as an opaque Bearer token with a
 /// very short expiration.
+#[derive(Deserialize, Serialize)]
 pub struct UserAuthToken(pub String);
 
 // -- impl UserSignupRequest -- //
@@ -54,10 +71,7 @@ impl UserSignupRequest {
     ) -> Result<Signed<Self>, Error> {
         // for user sign up, the signed signup request is just used to prove
         // ownership of a user_pk.
-        fn accept_any_signer(_: &ed25519::PublicKey) -> bool {
-            true
-        }
-        ed25519::verify_signed_struct(accept_any_signer, serialized)
+        ed25519::verify_signed_struct(ed25519::accept_any_signer, serialized)
             .map_err(Error::VerifyError)
     }
 }
@@ -65,6 +79,23 @@ impl UserSignupRequest {
 impl ed25519::Signable for UserSignupRequest {
     const DOMAIN_SEPARATOR_STR: &'static [u8] =
         b"LEXE-REALM::UserSignupRequest";
+}
+
+// -- impl UserAuthRequest -- //
+
+impl UserAuthRequest {
+    pub fn deserialize_verify(
+        serialized: &[u8],
+    ) -> Result<Signed<Self>, Error> {
+        // likewise, user/node auth is (currently) just used to prove ownership
+        // of a user_pk.
+        ed25519::verify_signed_struct(ed25519::accept_any_signer, serialized)
+            .map_err(Error::VerifyError)
+    }
+}
+
+impl ed25519::Signable for UserAuthRequest {
+    const DOMAIN_SEPARATOR_STR: &'static [u8] = b"LEXE-REALM::UserAuthRequest";
 }
 
 #[cfg(not(target_env = "sgx"))]
@@ -81,5 +112,15 @@ mod test {
     #[test]
     fn test_user_signed_request_sign_verify() {
         assert_signed_roundtrip::<UserSignupRequest>();
+    }
+
+    #[test]
+    fn test_user_auth_request_canonical() {
+        assert_bcs_roundtrip::<UserAuthRequest>();
+    }
+
+    #[test]
+    fn test_user_auth_request_sign_verify() {
+        assert_signed_roundtrip::<UserAuthRequest>();
     }
 }
