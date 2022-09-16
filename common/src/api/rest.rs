@@ -11,6 +11,7 @@ use serde::Serialize;
 use tokio::time;
 use tracing::{debug, error, trace, warn};
 use warp::hyper::Body;
+use warp::Rejection;
 
 use crate::api::error::{
     CommonError, ErrorCode, ErrorResponse, HasStatusCode, ServiceApiError,
@@ -55,6 +56,48 @@ pub fn into_response<T: Serialize, E: HasStatusCode + Into<ErrorResponse>>(
     match reply_res {
         Ok(data) => build_json_response(StatusCode::OK, &data),
         Err(err) => build_json_response(err.get_status_code(), &err.into()),
+    }
+}
+
+/// A warp helper for recovering one of our [`api::error`](crate::api::error)
+/// types if it was emitted from an intermediate filter's rejection and then
+/// converting into the standard json error response.
+///
+/// ## Usage
+///
+/// ```ignore
+/// let root = warp::path::end()
+///     .then(handlers::root);
+///
+/// let foo = warp::path("foo")
+///     .and(warp::get())
+///     // Some custom filter returns a `warp::reject::custom` around one of our
+///     // error types.
+///     .and(|| warp::reject::custom(GatewayApiError { .. }))
+///     .then(handlers::foo)
+///     .map(into_response);
+///
+/// root.or(foo)
+///     // recover the `GatewayApiError` from above and return standard json
+///     // error response
+///     .recover(recover_error_response::<GatewayApiError>)
+/// ```
+pub async fn recover_error_response<
+    E: Clone
+        + HasStatusCode
+        + Into<ErrorResponse>
+        + warp::reject::Reject
+        + 'static,
+>(
+    err: Rejection,
+) -> Result<Response<Body>, Rejection> {
+    if let Some(err) = err.find::<E>() {
+        let status = err.get_status_code();
+        // TODO(phlip9): find returns &E... figure out how to remove clone
+        let err: ErrorResponse = err.clone().into();
+        Ok(build_json_response(status, &err))
+    } else {
+        Err(err)
     }
 }
 

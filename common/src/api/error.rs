@@ -7,7 +7,7 @@ use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::api::{auth, UserPk};
-use crate::hex;
+use crate::{ed25519, hex};
 
 // Associated constants can't be imported.
 const CLIENT_400_BAD_REQUEST: Status = Status::BAD_REQUEST;
@@ -137,6 +137,8 @@ pub enum BackendErrorKind {
     NotFound,
     #[error("Could not convert entity to type")]
     EntityConversion,
+    #[error("Invalid signed request")]
+    Signature,
 }
 
 /// All variants of errors that the runner can return.
@@ -235,6 +237,16 @@ impl NodeApiError {
         Self { kind, msg }
     }
 }
+
+// --- warp::reject::Reject impls --- ///
+
+// Allow our error types to be returned as Rejections from warp Filters using
+// `warp::reject::custom`.
+
+impl warp::reject::Reject for BackendApiError {}
+impl warp::reject::Reject for RunnerApiError {}
+impl warp::reject::Reject for GatewayApiError {}
+impl warp::reject::Reject for NodeApiError {}
 
 // --- ErrorResponse -> ServiceApiError impls --- //
 
@@ -340,6 +352,7 @@ impl ErrorCodeConvertible for BackendErrorKind {
             Self::Database => 6,
             Self::NotFound => 7,
             Self::EntityConversion => 8,
+            Self::Signature => 9,
         }
     }
     fn from_code(code: ErrorCode) -> Self {
@@ -353,6 +366,7 @@ impl ErrorCodeConvertible for BackendErrorKind {
             6 => Self::Database,
             7 => Self::NotFound,
             8 => Self::EntityConversion,
+            9 => Self::Signature,
             _ => Self::Unknown,
         }
     }
@@ -461,6 +475,7 @@ impl HasStatusCode for BackendApiError {
             Database => SERVER_500_INTERNAL_SERVER_ERROR,
             NotFound => CLIENT_404_NOT_FOUND,
             EntityConversion => SERVER_500_INTERNAL_SERVER_ERROR,
+            Signature => CLIENT_400_BAD_REQUEST,
         }
     }
 }
@@ -652,6 +667,20 @@ impl From<hex::DecodeError> for BackendApiError {
         Self { kind, msg }
     }
 }
+impl From<auth::Error> for BackendApiError {
+    fn from(err: auth::Error) -> Self {
+        let kind = BackendErrorKind::Signature;
+        let msg = format!("{err:#}");
+        Self { kind, msg }
+    }
+}
+impl From<ed25519::Error> for BackendApiError {
+    fn from(err: ed25519::Error) -> Self {
+        let kind = BackendErrorKind::Signature;
+        let msg = format!("{err:#}");
+        Self { kind, msg }
+    }
+}
 
 // --- Misc -> RunnerApiError impls --- //
 
@@ -674,6 +703,13 @@ impl From<oneshot::error::RecvError> for RunnerApiError {
 
 impl From<auth::Error> for GatewayApiError {
     fn from(err: auth::Error) -> Self {
+        let kind = GatewayErrorKind::Signature;
+        let msg = format!("{err:#}");
+        Self { kind, msg }
+    }
+}
+impl From<ed25519::Error> for GatewayApiError {
+    fn from(err: ed25519::Error) -> Self {
         let kind = GatewayErrorKind::Signature;
         let msg = format!("{err:#}");
         Self { kind, msg }

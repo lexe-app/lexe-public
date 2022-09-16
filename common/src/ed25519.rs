@@ -102,7 +102,7 @@ pub enum Error {
     UnexpectedAlgorithm,
 
     #[error("failed deserializing PKCS#8-encoded key pair")]
-    DeserializeError,
+    KeyDeserializeError,
 
     #[error("derived public key doesn't match expected public key")]
     PublicKeyMismatch,
@@ -110,11 +110,14 @@ pub enum Error {
     #[error("invalid signature")]
     InvalidSignature,
 
-    #[error("error serializing struct for signing: {0}")]
+    #[error("error serializing inner struct for signing: {0}")]
     BcsSerialize(bcs::Error),
 
-    #[error("error deserializing struct to verify: {0}")]
+    #[error("error deserializing inner struct to verify: {0}")]
     BcsDeserialize(bcs::Error),
+
+    #[error("signed struct is too short")]
+    SignedTooShort,
 
     #[error("message was signed with a different key pair than expected")]
     UnexpectedSigner,
@@ -204,7 +207,7 @@ fn deserialize_signed_struct(
     serialized: &[u8],
 ) -> Result<(&PublicKey, &Signature, &[u8]), Error> {
     if serialized.len() < SIGNED_STRUCT_OVERHEAD {
-        return Err(Error::DeserializeError);
+        return Err(Error::SignedTooShort);
     }
 
     // deserialize signer public key
@@ -322,7 +325,7 @@ impl KeyPair {
     /// Deserialize an `ed25519::KeyPair` from a PKCS#8 document.
     pub fn deserialize_pkcs8(bytes: &[u8]) -> Result<Self, Error> {
         let (seed, expected_pubkey) =
-            deserialize_pkcs8(bytes).ok_or(Error::DeserializeError)?;
+            deserialize_pkcs8(bytes).ok_or(Error::KeyDeserializeError)?;
         Self::from_seed_and_pubkey(seed, expected_pubkey)
     }
 
