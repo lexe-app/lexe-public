@@ -626,6 +626,16 @@ impl<T: Signable> Signed<T> {
     }
 }
 
+impl<T: Signable + Clone> Signed<&T> {
+    pub fn cloned(&self) -> Signed<T> {
+        Signed {
+            signer: self.signer,
+            sig: self.sig,
+            inner: self.inner.clone(),
+        }
+    }
+}
+
 // -- random utilities -- //
 
 pub fn verify_compatible(
