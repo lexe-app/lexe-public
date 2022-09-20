@@ -90,7 +90,7 @@ pub async fn poll_for_user_input(
                     };
 
                     send_payment(
-                        &*invoice_payer,
+                        &invoice_payer,
                         &invoice,
                         outbound_payments.clone(),
                     );
@@ -129,7 +129,7 @@ pub async fn poll_for_user_input(
                         }
                     };
                     keysend(
-                        &*invoice_payer,
+                        &invoice_payer,
                         dest_pk,
                         amt_msat,
                         &*keys_manager,
