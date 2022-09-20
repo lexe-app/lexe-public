@@ -129,7 +129,7 @@ impl UserAuthRequest {
             .map_err(Error::VerifyError)
     }
 
-    /// Get the `request_timestamp` as a [`SystemTime`]. Returns `None` if the
+    /// Get the `request_timestamp` as a [`SystemTime`]. Returns `Err` if the
     /// `issued_timestamp` is too large to be represented as a unix timestamp
     /// (> 2^63 on linux).
     pub fn request_timestamp(&self) -> Result<SystemTime, Error> {
