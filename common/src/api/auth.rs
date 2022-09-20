@@ -60,14 +60,17 @@ pub enum UserAuthRequest {
 #[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct UserAuthRequestV1 {
-    /// The timestamp the auth token should be issued, in seconds since UTC
-    /// Unix time, interpreted relative to the server clock.
+    /// The timestamp of this auth request, in seconds since UTC Unix time,
+    /// interpreted relative to the server clock. Used to prevent replaying old
+    /// auth requests after the ~1 min expiration.
     ///
     /// The server will reject timestamps w/ > 1 minute clock skew from the
     /// server clock.
-    pub issued_timestamp_secs: u64,
+    pub request_timestamp_secs: u64,
 
-    /// How long the auth token should be valid, in seconds. At most 1 hour.
+    /// How long the new auth token should be valid for, in seconds. Must be at
+    /// most 1 hour. The new token expiration is generated relative to the
+    /// server clock.
     pub liftime_secs: u32,
     // /// Limit the auth token to a specific Bitcoin network.
     // pub btc_network: Network,
@@ -126,12 +129,12 @@ impl UserAuthRequest {
             .map_err(Error::VerifyError)
     }
 
-    /// Get the `issued_timestamp` as a [`SystemTime`]. Returns `None` if the
+    /// Get the `request_timestamp` as a [`SystemTime`]. Returns `None` if the
     /// `issued_timestamp` is too large to be represented as a unix timestamp
     /// (> 2^63 on linux).
-    pub fn issued_timestamp(&self) -> Result<SystemTime, Error> {
+    pub fn request_timestamp(&self) -> Result<SystemTime, Error> {
         let t_secs = match self {
-            Self::V1(req) => req.issued_timestamp_secs,
+            Self::V1(req) => req.request_timestamp_secs,
         };
         let t_dur_secs = Duration::from_secs(t_secs);
         SystemTime::UNIX_EPOCH
@@ -139,6 +142,7 @@ impl UserAuthRequest {
             .ok_or(Error::InvalidTimestamp)
     }
 
+    /// The requested token lifetime in seconds.
     pub fn lifetime_secs(&self) -> u32 {
         match self {
             Self::V1(req) => req.liftime_secs,
