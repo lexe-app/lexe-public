@@ -7,8 +7,8 @@ use common::enclave;
 use common::rng::SysRng;
 
 use crate::api::NodeApiClient;
-use crate::init::UserNode;
 use crate::provision::provision;
+use crate::run::UserNode;
 
 /// the Lexe node CLI
 #[derive(Debug, PartialEq, Eq, FromArgs)]

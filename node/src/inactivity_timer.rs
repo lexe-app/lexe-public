@@ -108,7 +108,7 @@ mod tests {
     use tokio::time::{self, Duration};
 
     use super::*;
-    use crate::init::DEFAULT_CHANNEL_SIZE;
+    use crate::run::DEFAULT_CHANNEL_SIZE;
 
     /// A simple struct that holds all the materials required to test the
     /// InactivityTimer.

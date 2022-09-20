@@ -10,7 +10,7 @@ mod api;
 mod command;
 mod event_handler;
 mod inactivity_timer;
-mod init;
 mod provision;
 mod repl;
+mod run;
 mod types;
