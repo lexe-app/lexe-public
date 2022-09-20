@@ -1,58 +1,81 @@
 // user auth v1
 
+use std::time::{Duration, SystemTime};
+
 #[cfg(all(test, not(target_env = "sgx")))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::cli::Network;
 use crate::ed25519::{self, Signed};
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("error verifying user signup request: {0}")]
+    #[error("error verifying user signed struct: {0}")]
     VerifyError(#[from] ed25519::Error),
+
+    #[error("issued timestamp is too far from current auth server clock")]
+    ClockDrift,
+
+    #[error("timestamp is not a valid unix timestamp")]
+    InvalidTimestamp,
+
+    #[error("requested token lifetime is too long")]
+    InvalidLifetime,
+
+    #[error("user not signed up yet")]
+    NoUser,
+
+    #[error("user auth token is not valid base64")]
+    Base64Decode,
 }
 
 #[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
-#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub enum UserSignupRequest {
     V1(UserSignupRequestV1),
 }
 
 // TODO(phlip9): do we even need any signup fields?
 #[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
-#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct UserSignupRequestV1 {
-    pub display_name: Option<String>,
-    pub email: Option<String>,
+    // do we need this?
+    // pub display_name: Option<String>,
+
+    // probably collect this later in a settings screen. would need email verify
+    // flow. can also just not collect email at all and send push notifs only.
+    // pub email: Option<String>,
+
+    // TODO(phlip9): other fields? region? language?
 }
 
 #[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
-#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub enum UserAuthRequest {
     V1(UserAuthRequestV1),
 }
 
 /// A user client's request for auth token with certain restrictions.
 #[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
-#[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct UserAuthRequestV1 {
-    /// The time the auth token should be issued in UTC Unix time, interpreted
-    /// relative to the server clock.
-    issued_timestamp: u64,
+    /// The timestamp the auth token should be issued, in seconds since UTC
+    /// Unix time, interpreted relative to the server clock.
+    ///
+    /// The server will reject timestamps w/ > 1 minute clock skew from the
+    /// server clock.
+    pub issued_timestamp_secs: u64,
 
     /// How long the auth token should be valid, in seconds. At most 1 hour.
-    liftime_secs: u32,
-
-    // maybe (?)
-    /// Limit the auth token to a specific Bitcoin network.
-    btc_network: Network,
+    pub liftime_secs: u32,
+    // /// Limit the auth token to a specific Bitcoin network.
+    // pub btc_network: Network,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct UserAuthResponse {
-    pub user_auth_token: UserAuthToken,
+    pub user_auth_token: OpaqueUserAuthToken,
 }
 
 /// An opaque user auth token for authenticating user clients against lexe infra
@@ -60,12 +83,16 @@ pub struct UserAuthResponse {
 ///
 /// Most user clients should just treat this as an opaque Bearer token with a
 /// very short expiration.
-#[derive(Deserialize, Serialize)]
-pub struct UserAuthToken(pub String);
+#[derive(Debug, Deserialize, Serialize)]
+pub struct OpaqueUserAuthToken(pub String);
 
 // -- impl UserSignupRequest -- //
 
 impl UserSignupRequest {
+    pub fn new() -> Self {
+        Self::V1(UserSignupRequestV1 {})
+    }
+
     pub fn deserialize_verify(
         serialized: &[u8],
     ) -> Result<Signed<Self>, Error> {
@@ -81,6 +108,12 @@ impl ed25519::Signable for UserSignupRequest {
         b"LEXE-REALM::UserSignupRequest";
 }
 
+impl Default for UserSignupRequest {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 // -- impl UserAuthRequest -- //
 
 impl UserAuthRequest {
@@ -92,10 +125,47 @@ impl UserAuthRequest {
         ed25519::verify_signed_struct(ed25519::accept_any_signer, serialized)
             .map_err(Error::VerifyError)
     }
+
+    /// Get the `issued_timestamp` as a [`SystemTime`]. Returns `None` if the
+    /// `issued_timestamp` is too large to be represented as a unix timestamp
+    /// (> 2^63 on linux).
+    pub fn issued_timestamp(&self) -> Result<SystemTime, Error> {
+        let t_secs = match self {
+            Self::V1(req) => req.issued_timestamp_secs,
+        };
+        let t_dur_secs = Duration::from_secs(t_secs);
+        SystemTime::UNIX_EPOCH
+            .checked_add(t_dur_secs)
+            .ok_or(Error::InvalidTimestamp)
+    }
+
+    pub fn lifetime_secs(&self) -> u32 {
+        match self {
+            Self::V1(req) => req.liftime_secs,
+        }
+    }
 }
 
 impl ed25519::Signable for UserAuthRequest {
     const DOMAIN_SEPARATOR_STR: &'static [u8] = b"LEXE-REALM::UserAuthRequest";
+}
+
+// -- impl OpaqueUserAuthToken -- //
+
+impl OpaqueUserAuthToken {
+    /// base64 deserialize the user auth token
+    pub fn from_bytes(signed_token_bytes: &[u8]) -> Self {
+        Self(base64::encode_config(
+            signed_token_bytes,
+            base64::URL_SAFE_NO_PAD,
+        ))
+    }
+
+    /// base64 serialize the user auth token
+    pub fn into_bytes(&self) -> Result<Vec<u8>, Error> {
+        base64::decode_config(self.0.as_str(), base64::URL_SAFE_NO_PAD)
+            .map_err(|_| Error::Base64Decode)
+    }
 }
 
 #[cfg(not(target_env = "sgx"))]
