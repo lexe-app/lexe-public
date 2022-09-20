@@ -16,23 +16,16 @@ $ curl --proto '=https' --tlsv1.3 -sSf https://sh.rustup.rs | bash
 # modify PATH variable: yes
 ```
 
-Install the enclave toolchain
+Install Protocol Buffers
 
 ```bash
-# Install the protobuf compiler
 # (Ubuntu/Debian/Pop!_OS)
 $ sudo apt install protobuf-compiler
 # (macOS)
 $ brew install protobuf
-
-$ cd ~
-$ git clone --branch lexe https://github.com/lexe-tech/rust-sgx.git
-$ cd rust-sgx
-$ cargo install --path intel-sgx/fortanix-sgx-tools
-$ cargo install --path intel-sgx/sgxs-tools
 ```
 
-For devs without x86_64 linux hosts, you'll need to set up a
+For devs without `x86_64` linux hosts, you'll need to set up a
 `x86_64-unknown-linux-gnu` cross-compilation toolchain in order to build for
 the enclave target `x86_64-fortanix-unknown-sgx`.
 
@@ -42,7 +35,17 @@ $ brew tap MaterializeInc/homebrew-crosstools https://github.com/MaterializeInc/
 $ brew install materializeinc/crosstools/x86_64-unknown-linux-gnu
 ```
 
-Non-x86_64 linux hosts should also add the following to their
+Install the enclave toolchain (does not appear to work on M1 Macs)
+
+```bash
+$ cd ~
+$ git clone --branch lexe https://github.com/lexe-tech/rust-sgx.git
+$ cd rust-sgx
+$ cargo install --path intel-sgx/fortanix-sgx-tools
+$ cargo install --path intel-sgx/sgxs-tools
+```
+
+Non-`x86_64` linux hosts should also add the following to their
 `~/.cargo/config.toml`:
 
 ```toml
