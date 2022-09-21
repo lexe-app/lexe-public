@@ -64,6 +64,11 @@ $ git clone https://github.com/lexe-tech/client
 $ cd client
 ```
 
+If running the node or running tests in SGX, install our runners:
+```bash
+$ cargo install --path run-sgx
+```
+
 ## Usage
 
 Run lints and tests

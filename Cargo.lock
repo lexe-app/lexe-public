@@ -1506,6 +1506,7 @@ version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "21158b2c33aa6d4561f1c0a6ea283ca92bc54802a93b263e910746d679a7eb53"
 dependencies = [
+ "flate2",
  "memchr",
 ]
 
@@ -1908,6 +1909,10 @@ dependencies = [
  "anyhow",
  "argh",
  "enclave-runner",
+ "memchr",
+ "object",
+ "once_cell",
+ "rustc-demangle",
  "serde",
  "sgx-isa",
  "sgxs-loaders",

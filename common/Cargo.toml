@@ -151,7 +151,12 @@ proptest = "1"
 sgx-panic-backtrace = "0.1"
 
 [package.metadata.fortanix-sgx]
-# stack size (in bytes) for each thread, the default stack size is 0x20000.
+# stack size (in bytes) for each thread, the default stack size is 0x20_000.
 stack-size=0x200_000
-# Gotcha: Don't forget to count the main thread when counting number of threads
-threads=4
+# The max number of threads we can spawn concurrently inside the SGX enclave.
+#
+# NOTE: ideally this value should be "threads=1", however, the current fortanix
+#       rust-sgx `async_usercalls` implementation requires an extra thread so
+#       until that changes, we're stuck with "threads=2".
+#       see: https://github.com/lexe-tech/rust-sgx/blob/70d11205fed08e49886bb25a1ea3df19928e8287/async-usercalls/src/queues.rs#L46
+threads=2

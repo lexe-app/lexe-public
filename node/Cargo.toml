@@ -129,8 +129,10 @@ proptest = "1"
 [package.metadata.fortanix-sgx]
 # Stack size (in bytes) for each thread, the default stack size is 0x20000.
 stack-size=0x200000
-# Max # of threads. The node uses Tokio's current_thread rt so this is 1.
-
-# Don't forget to count the main thread when
-# counting the total number of threads.
-threads=1
+# The max number of threads we can spawn concurrently inside the SGX enclave.
+#
+# NOTE: ideally this value should be "threads=1", however, the current fortanix
+#       rust-sgx `async_usercalls` implementation requires an extra thread, so
+#       until that changes, we're stuck with "threads=2".
+#       see: https://github.com/lexe-tech/rust-sgx/blob/70d11205fed08e49886bb25a1ea3df19928e8287/async-usercalls/src/queues.rs#L46
+threads=2

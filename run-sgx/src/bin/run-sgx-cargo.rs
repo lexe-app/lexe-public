@@ -175,6 +175,8 @@ impl Args {
         let mut run_sgx_cmd = Command::new("run-sgx");
         run_sgx_cmd
             .arg(&sgxs_bin_path)
+            .arg("--elf")
+            .arg(elf_bin_path)
             .arg("--")
             .args(self.enclave_args);
 
