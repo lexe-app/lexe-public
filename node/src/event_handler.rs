@@ -13,6 +13,7 @@ use bitcoin_bech32::WitnessProgram;
 use common::cli::Network;
 use common::hex;
 use common::task::LxTask;
+use lexe_ln::alias::NetworkGraphType;
 use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lightning::chain::chaininterface::{
@@ -25,8 +26,7 @@ use tracing::{debug, error};
 
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::types::{
-    HTLCStatus, MillisatAmount, NetworkGraphType, PaymentInfo,
-    PaymentInfoStorageType,
+    HTLCStatus, MillisatAmount, PaymentInfo, PaymentInfoStorageType,
 };
 
 pub(crate) struct LdkEventHandler {

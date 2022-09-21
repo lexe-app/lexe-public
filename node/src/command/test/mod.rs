@@ -11,6 +11,7 @@ use common::cli::{
     BitcoindRpcInfo, Network, RunArgs, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL,
 };
 use common::rng::SysRng;
+use lexe_ln::alias::NetworkGraphType;
 use lexe_ln::logger;
 
 use crate::command::owner;
@@ -18,7 +19,6 @@ use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::{ChannelPeer, NodePeerManager};
 use crate::lexe::persister::NodePersister;
 use crate::run::UserNode;
-use crate::types::NetworkGraphType;
 
 /// Helper to return a default RunArgs struct for testing.
 fn default_args() -> RunArgs {

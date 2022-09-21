@@ -15,6 +15,7 @@ use std::sync::Arc;
 use common::api::rest::into_response;
 use common::api::UserPk;
 use common::shutdown::ShutdownChannel;
+use lexe_ln::alias::NetworkGraphType;
 use tokio::sync::mpsc;
 use tracing::trace;
 use warp::{Filter, Rejection, Reply};
@@ -22,7 +23,6 @@ use warp::{Filter, Rejection, Reply};
 use crate::command::{host, owner};
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::NodePeerManager;
-use crate::types::NetworkGraphType;
 
 mod inject;
 

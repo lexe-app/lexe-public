@@ -7,12 +7,14 @@ use anyhow::{anyhow, ensure, Context};
 use bitcoin::hash_types::BlockHash;
 use bitcoin::secp256k1::PublicKey;
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
+use common::cli::Network;
 use common::enclave::Measurement;
 use common::ln::channel::LxOutPoint;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use lexe_ln::alias::{
-    BroadcasterType, ChannelMonitorType, FeeEstimatorType, SignerType,
+    BroadcasterType, ChannelMonitorType, FeeEstimatorType, NetworkGraphType,
+    SignerType,
 };
 use lexe_ln::channel_monitor::LxChannelMonitorUpdate;
 use lexe_ln::keys_manager::LexeKeysManager;
@@ -22,7 +24,7 @@ use lightning::chain::channelmonitor::ChannelMonitorUpdate;
 use lightning::chain::transaction::OutPoint;
 use lightning::chain::ChannelMonitorUpdateErr;
 use lightning::ln::channelmanager::ChannelManagerReadArgs;
-use lightning::routing::gossip::NetworkGraph as LdkNetworkGraph;
+use lightning::routing::gossip::NetworkGraph;
 use lightning::routing::scoring::{
     ProbabilisticScorer, ProbabilisticScoringParameters,
 };
@@ -33,7 +35,7 @@ use tracing::{debug, error};
 use crate::lexe::channel_manager::USER_CONFIG;
 use crate::lexe::peer_manager::ChannelPeer;
 use crate::types::{
-    ApiClientType, ChainMonitorType, ChannelManagerType, NetworkGraphType,
+    ApiClientType, ChainMonitorType, ChannelManagerType,
     ProbabilisticScorerType,
 };
 
@@ -240,7 +242,7 @@ impl InnerPersister {
 
     pub(crate) async fn read_network_graph(
         &self,
-        genesis_hash: BlockHash,
+        network: Network,
         logger: LexeTracingLogger,
     ) -> anyhow::Result<NetworkGraphType> {
         debug!("Reading network graph");
@@ -259,13 +261,13 @@ impl InnerPersister {
         let ng = match ng_file_opt {
             Some(ng_file) => {
                 let mut state_buf = Cursor::new(&ng_file.data);
-                LdkNetworkGraph::read(&mut state_buf, logger.clone())
+                NetworkGraph::read(&mut state_buf, logger.clone())
                     // LDK DecodeError is Debug but doesn't impl
                     // std::error::Error
-                    .map_err(|e| anyhow!("{:?}", e))
+                    .map_err(|e| anyhow!("{e:?}"))
                     .context("Failed to deserialize NetworkGraph")?
             }
-            None => LdkNetworkGraph::new(genesis_hash, logger),
+            None => NetworkGraph::new(network.genesis_hash(), logger),
         };
 
         Ok(ng)

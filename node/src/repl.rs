@@ -13,6 +13,7 @@ use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
 use common::cli::Network;
 use common::hex;
+use lexe_ln::alias::NetworkGraphType;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::ln::{PaymentHash, PaymentPreimage};
@@ -24,8 +25,8 @@ use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::{ChannelPeer, NodePeerManager};
 use crate::lexe::persister::NodePersister;
 use crate::types::{
-    HTLCStatus, InvoicePayerType, MillisatAmount, NetworkGraphType,
-    PaymentInfo, PaymentInfoStorageType,
+    HTLCStatus, InvoicePayerType, MillisatAmount, PaymentInfo,
+    PaymentInfoStorageType,
 };
 
 #[allow(clippy::too_many_arguments)]

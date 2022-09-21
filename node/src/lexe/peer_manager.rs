@@ -8,6 +8,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use anyhow::{bail, Context};
 use bitcoin::secp256k1::PublicKey;
 use common::rng::Crng;
+use lexe_ln::alias::P2PGossipSyncType;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
@@ -17,7 +18,7 @@ use tokio::net::TcpStream;
 use tokio::time;
 
 use crate::lexe::channel_manager::NodeChannelManager;
-use crate::types::{OnionMessengerType, P2PGossipSyncType, PeerManagerType};
+use crate::types::{OnionMessengerType, PeerManagerType};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
