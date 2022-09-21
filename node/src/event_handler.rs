@@ -29,7 +29,7 @@ use crate::types::{
     PaymentInfoStorageType,
 };
 
-pub struct LdkEventHandler {
+pub(crate) struct LdkEventHandler {
     network: Network,
     channel_manager: NodeChannelManager,
     keys_manager: LexeKeysManager,
@@ -40,7 +40,7 @@ pub struct LdkEventHandler {
 }
 
 impl LdkEventHandler {
-    pub fn new(
+    pub(crate) fn new(
         network: Network,
         channel_manager: NodeChannelManager,
         keys_manager: LexeKeysManager,
@@ -103,7 +103,7 @@ impl EventHandler for LdkEventHandler {
 
 // TODO(max): Make this non-async by spawning tasks instead
 #[allow(clippy::too_many_arguments)]
-pub async fn handle_event(
+pub(crate) async fn handle_event(
     channel_manager: &NodeChannelManager,
     bitcoind: &LexeBitcoind,
     network_graph: &NetworkGraphType,

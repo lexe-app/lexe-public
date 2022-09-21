@@ -26,11 +26,11 @@ const PROB_SCORER_PERSIST_INTERVAL: Duration = Duration::from_secs(5 * 60);
 /// A Tokio-native background processor that runs on a single task and does not
 /// spawn any OS threads. Modeled after the lightning-background-processor crate
 /// provided by LDK - see that crate's implementation for more details.
-pub struct LexeBackgroundProcessor {}
+pub(crate) struct LexeBackgroundProcessor {}
 
 impl LexeBackgroundProcessor {
     #[allow(clippy::too_many_arguments)]
-    pub fn start(
+    pub(crate) fn start(
         channel_manager: NodeChannelManager,
         peer_manager: NodePeerManager,
         persister: NodePersister,

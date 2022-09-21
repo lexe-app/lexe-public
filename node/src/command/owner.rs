@@ -8,7 +8,7 @@ use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::NodePeerManager;
 use crate::types::NetworkGraphType;
 
-pub fn node_info(
+pub(crate) fn node_info(
     channel_manager: NodeChannelManager,
     peer_manager: NodePeerManager,
 ) -> Result<NodeInfo, NodeApiError> {
@@ -32,7 +32,7 @@ pub fn node_info(
     Ok(resp)
 }
 
-pub fn list_channels(
+pub(crate) fn list_channels(
     channel_manager: NodeChannelManager,
     _network_graph: Arc<NetworkGraphType>, // TODO REPL uses it, do we need it?
 ) -> Result<ListChannels, NodeApiError> {

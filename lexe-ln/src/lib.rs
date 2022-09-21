@@ -8,6 +8,8 @@
 pub mod alias;
 /// BitcoinD client.
 pub mod bitcoind;
+/// Channel monitor
+pub mod channel_monitor;
 /// Keys manager
 pub mod keys_manager;
 /// LDK + SGX compatible logger

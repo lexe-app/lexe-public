@@ -30,7 +30,7 @@ mod inject;
 /// Implements [`OwnerNodeRunApi`] - endpoints only callable by the node owner.
 ///
 /// [`OwnerNodeRunApi`]: common::api::def::OwnerNodeRunApi
-pub fn owner_routes(
+pub(crate) fn owner_routes(
     channel_manager: NodeChannelManager,
     peer_manager: NodePeerManager,
     network_graph: Arc<NetworkGraphType>,
@@ -69,7 +69,7 @@ pub fn owner_routes(
 /// Implements [`HostNodeApi`] - endpoints only callable by the host (Lexe).
 ///
 /// [`HostNodeApi`]: common::api::def::HostNodeApi
-pub fn host_routes(
+pub(crate) fn host_routes(
     current_pk: UserPk,
     shutdown: ShutdownChannel,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {

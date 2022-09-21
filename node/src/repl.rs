@@ -29,7 +29,7 @@ use crate::types::{
 };
 
 #[allow(clippy::too_many_arguments)]
-pub async fn poll_for_user_input(
+pub(crate) async fn poll_for_user_input(
     invoice_payer: Arc<InvoicePayerType>,
     peer_manager: NodePeerManager,
     channel_manager: NodeChannelManager,

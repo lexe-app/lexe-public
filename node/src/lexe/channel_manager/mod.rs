@@ -4,11 +4,11 @@ use std::sync::Arc;
 use anyhow::{anyhow, Context};
 use bitcoin::BlockHash;
 use common::cli::RunArgs;
-use common::ln::channel::LxOutPoint;
-use lexe_ln::alias::{BlockSourceType, BroadcasterType, FeeEstimatorType};
+use lexe_ln::alias::{
+    BlockSourceType, BroadcasterType, ChannelMonitorType, FeeEstimatorType,
+};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
-use lightning::chain::chainmonitor::MonitorUpdateId;
 use lightning::chain::BestBlock;
 use lightning::ln::channelmanager::{
     ChainParameters, ChannelManager, BREAKDOWN_TIMEOUT, MIN_CLTV_EXPIRY_DELTA,
@@ -20,7 +20,7 @@ use tracing::{debug, info};
 
 use crate::lexe::peer_manager::{ChannelPeer, NodePeerManager};
 use crate::lexe::persister::NodePersister;
-use crate::types::{ChainMonitorType, ChannelManagerType, ChannelMonitorType};
+use crate::types::{ChainMonitorType, ChannelManagerType};
 
 /// NOTE: Important security parameter!!
 ///
@@ -44,7 +44,7 @@ const TIME_TO_CONTEST_FRAUDULENT_TXNS: u16 = 6 * 24 * 7;
 #[cfg(any(not(target_env = "sgx"), test))]
 const TIME_TO_CONTEST_FRAUDULENT_TXNS: u16 = BREAKDOWN_TIMEOUT;
 
-pub const USER_CONFIG: UserConfig = UserConfig {
+pub(crate) const USER_CONFIG: UserConfig = UserConfig {
     channel_handshake_config: CHANNEL_HANDSHAKE_CONFIG,
     channel_handshake_limits: CHANNEL_HANDSHAKE_LIMITS,
     channel_config: CHANNEL_CONFIG,
@@ -123,7 +123,7 @@ const CHANNEL_CONFIG: ChannelConfig = ChannelConfig {
 
 /// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]
-pub struct NodeChannelManager(Arc<ChannelManagerType>);
+pub(crate) struct NodeChannelManager(Arc<ChannelManagerType>);
 
 impl Deref for NodeChannelManager {
     type Target = ChannelManagerType;
@@ -135,7 +135,7 @@ impl Deref for NodeChannelManager {
 impl NodeChannelManager {
     // TODO: Review this function and clean up accordingly
     #[allow(clippy::too_many_arguments)]
-    pub async fn init(
+    pub(crate) async fn init(
         args: &RunArgs,
         persister: &NodePersister,
         block_source: &BlockSourceType,
@@ -199,7 +199,8 @@ impl NodeChannelManager {
 
     /// Handles the full logic of opening a channel, including connecting to the
     /// peer, creating the channel, and persisting the newly created channel.
-    pub async fn open_channel(
+    #[allow(dead_code)] // TODO Remove once this fn is used in sgx
+    pub(crate) async fn open_channel(
         &self,
         peer_manager: &NodePeerManager,
         persister: &NodePersister,
@@ -238,9 +239,4 @@ impl NodeChannelManager {
 
         Ok(())
     }
-}
-
-pub struct LxChannelMonitorUpdate {
-    pub funding_txo: LxOutPoint,
-    pub update_id: MonitorUpdateId,
 }

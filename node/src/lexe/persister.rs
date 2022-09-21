@@ -11,7 +11,10 @@ use common::enclave::Measurement;
 use common::ln::channel::LxOutPoint;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
-use lexe_ln::alias::{BroadcasterType, FeeEstimatorType};
+use lexe_ln::alias::{
+    BroadcasterType, ChannelMonitorType, FeeEstimatorType, SignerType,
+};
+use lexe_ln::channel_monitor::LxChannelMonitorUpdate;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
@@ -27,34 +30,34 @@ use lightning::util::ser::{ReadableArgs, Writeable};
 use tokio::sync::mpsc;
 use tracing::{debug, error};
 
-use crate::lexe::channel_manager::{LxChannelMonitorUpdate, USER_CONFIG};
+use crate::lexe::channel_manager::USER_CONFIG;
 use crate::lexe::peer_manager::ChannelPeer;
 use crate::types::{
-    ApiClientType, ChainMonitorType, ChannelManagerType, ChannelMonitorType,
-    NetworkGraphType, ProbabilisticScorerType, SignerType,
+    ApiClientType, ChainMonitorType, ChannelManagerType, NetworkGraphType,
+    ProbabilisticScorerType,
 };
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
-pub const SINGLETON_DIRECTORY: &str = ".";
+pub(crate) const SINGLETON_DIRECTORY: &str = ".";
 const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 const NETWORK_GRAPH_FILENAME: &str = "network_graph";
 const SCORER_FILENAME: &str = "scorer";
 
 // Non-singleton objects use a fixed directory with dynamic filenames
-pub const CHANNEL_PEERS_DIRECTORY: &str = "channel_peers";
-pub const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
+pub(crate) const CHANNEL_PEERS_DIRECTORY: &str = "channel_peers";
+pub(crate) const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 
-// The default number of persist retries for important objects
-const DEFAULT_RETRIES: usize = 3;
+/// The default number of persist retries for important objects
+const IMPORTANT_RETRIES: usize = 3;
 
 /// An Arc is held internally, so it is fine to clone and use directly.
 #[derive(Clone)] // TODO Try removing this
-pub struct NodePersister {
+pub(crate) struct NodePersister {
     inner: InnerPersister,
 }
 
 impl NodePersister {
-    pub fn new(
+    pub(crate) fn new(
         api: ApiClientType,
         node_pk: PublicKey,
         measurement: Measurement,
@@ -83,7 +86,7 @@ impl Deref for NodePersister {
 /// The thing that actually impls the Persist trait. LDK requires that
 /// NodePersister Derefs to it.
 #[derive(Clone)]
-pub struct InnerPersister {
+pub(crate) struct InnerPersister {
     api: ApiClientType,
     node_pk: PublicKey,
     measurement: Measurement,
@@ -93,7 +96,7 @@ pub struct InnerPersister {
 
 impl InnerPersister {
     #[allow(clippy::too_many_arguments)]
-    pub async fn read_channel_manager(
+    pub(crate) async fn read_channel_manager(
         &self,
         channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
         keys_manager: LexeKeysManager,
@@ -152,7 +155,7 @@ impl InnerPersister {
     }
 
     // Replaces equivalent method in lightning_persister::FilesystemPersister
-    pub async fn read_channel_monitors(
+    pub(crate) async fn read_channel_monitors(
         &self,
         keys_manager: LexeKeysManager,
     ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
@@ -198,7 +201,7 @@ impl InnerPersister {
         Ok(result)
     }
 
-    pub async fn read_probabilistic_scorer(
+    pub(crate) async fn read_probabilistic_scorer(
         &self,
         graph: Arc<NetworkGraphType>,
         logger: LexeTracingLogger,
@@ -235,7 +238,7 @@ impl InnerPersister {
         Ok(scorer)
     }
 
-    pub async fn read_network_graph(
+    pub(crate) async fn read_network_graph(
         &self,
         genesis_hash: BlockHash,
         logger: LexeTracingLogger,
@@ -268,7 +271,9 @@ impl InnerPersister {
         Ok(ng)
     }
 
-    pub async fn read_channel_peers(&self) -> anyhow::Result<Vec<ChannelPeer>> {
+    pub(crate) async fn read_channel_peers(
+        &self,
+    ) -> anyhow::Result<Vec<ChannelPeer>> {
         debug!("Reading channel peers");
         let cp_dir = NodeDirectory {
             node_pk: self.node_pk,
@@ -297,7 +302,7 @@ impl InnerPersister {
         Ok(result)
     }
 
-    pub async fn persist_channel_peer(
+    pub(crate) async fn persist_channel_peer(
         &self,
         channel_peer: ChannelPeer,
     ) -> anyhow::Result<()> {
@@ -315,13 +320,13 @@ impl InnerPersister {
 
         // Retry up to 3 times
         self.api
-            .create_file_with_retries(&cp_file, DEFAULT_RETRIES)
+            .create_file_with_retries(&cp_file, IMPORTANT_RETRIES)
             .await
             .map(|_| ())
             .map_err(|e| e.into())
     }
 
-    pub async fn persist_manager(
+    pub(crate) async fn persist_manager(
         &self,
         channel_manager: &ChannelManagerType,
     ) -> anyhow::Result<()> {
@@ -340,13 +345,13 @@ impl InnerPersister {
 
         // Channel manager is more important so let's retry up to three times
         self.api
-            .upsert_file_with_retries(&cm_file, DEFAULT_RETRIES)
+            .upsert_file_with_retries(&cm_file, IMPORTANT_RETRIES)
             .await
             .map(|_| ())
             .context("Could not persist channel manager")
     }
 
-    pub async fn persist_graph(
+    pub(crate) async fn persist_graph(
         &self,
         network_graph: &NetworkGraphType,
     ) -> anyhow::Result<()> {
@@ -369,7 +374,7 @@ impl InnerPersister {
             .context("Could not persist network graph")
     }
 
-    pub async fn persist_scorer(
+    pub(crate) async fn persist_scorer(
         &self,
         scorer_mutex: &Mutex<ProbabilisticScorerType>,
     ) -> anyhow::Result<()> {
@@ -424,31 +429,27 @@ impl Persist<SignerType> for InnerPersister {
         };
 
         // Spawn a task for persisting the channel monitor
-        let api_clone = self.api.clone();
+        let api = self.api.clone();
         let channel_monitor_updated_tx =
             self.channel_monitor_updated_tx.clone();
         let shutdown = self.shutdown.clone();
         let _ = LxTask::spawn(async move {
             // Retry a few times and shut down if persist fails
             // TODO Also attempt to persist to cloud backup
-            let persist_res = api_clone
-                .create_file_with_retries(&cm_file, DEFAULT_RETRIES)
+            let persist_res = api
+                .create_file_with_retries(&cm_file, IMPORTANT_RETRIES)
                 .await;
             match persist_res {
                 Ok(_) => {
                     debug!("Persisting new channel succeeded");
                     // Notify the chain monitor
-                    let _ = channel_monitor_updated_tx
-                        .try_send(update)
-                        .map_err(|e| {
-                            error!("Couldn't notify chain monitor: {:#}", e)
-                        });
+                    if let Err(e) = channel_monitor_updated_tx.try_send(update)
+                    {
+                        error!("Couldn't notify chain monitor: {e:#}");
+                    }
                 }
                 Err(e) => {
-                    error!(
-                        "Fatal error: Couldn't persist new channel: {:#}",
-                        e
-                    );
+                    error!("Fatal error: Couldn't persist new channel: {e:#}");
                     shutdown.send();
                 }
             }
@@ -486,30 +487,28 @@ impl Persist<SignerType> for InnerPersister {
         };
 
         // Spawn a task for persisting the channel monitor
-        let api_clone = self.api.clone();
+        let api = self.api.clone();
         let channel_monitor_updated_tx =
             self.channel_monitor_updated_tx.clone();
         let shutdown = self.shutdown.clone();
         let _ = LxTask::spawn(async move {
             // Retry a few times and shut down if persist fails
             // TODO Also attempt to persist to cloud backup
-            let persist_res = api_clone
-                .upsert_file_with_retries(&cm_file, DEFAULT_RETRIES)
+            let persist_res = api
+                .upsert_file_with_retries(&cm_file, IMPORTANT_RETRIES)
                 .await;
             match persist_res {
                 Ok(_) => {
                     debug!("Persisting updated channel succeeded");
                     // Notify the chain monitor
-                    let _ = channel_monitor_updated_tx
-                        .try_send(update)
-                        .map_err(|e| {
-                            error!("Couldn't notify chain monitor: {:#}", e)
-                        });
+                    if let Err(e) = channel_monitor_updated_tx.try_send(update)
+                    {
+                        error!("Couldn't notify chain monitor: {e:#}");
+                    }
                 }
                 Err(e) => {
                     error!(
-                        "Fatal error: Couldn't persist updated channel: {:#}",
-                        e
+                        "Fatal error: Couldn't persist updated channel: {e:#}"
                     );
                     shutdown.send();
                 }
