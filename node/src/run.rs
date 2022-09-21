@@ -4,12 +4,11 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::{bail, ensure, Context};
-use bitcoin::blockdata::constants::genesis_block;
 use bitcoin::BlockHash;
 use common::api::provision::{Node, SealedSeedId};
 use common::api::runner::{Port, UserPorts};
 use common::api::UserPk;
-use common::cli::{Network, RunArgs};
+use common::cli::RunArgs;
 use common::client::tls::node_run_tls_config;
 use common::enclave::{
     self, MachineId, Measurement, MinCpusvn, MIN_SGX_CPUSVN,
@@ -22,13 +21,12 @@ use futures::future;
 use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
     BlockSourceType, BroadcasterType, ChannelMonitorType, FeeEstimatorType,
-    WalletType,
+    NetworkGraphType, P2PGossipSyncType, WalletType,
 };
 use lexe_ln::bitcoind::LexeBitcoind;
-use lexe_ln::channel_monitor;
+use lexe_ln::init;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
-use lightning::chain;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::onion_message::OnionMessenger;
@@ -49,8 +47,7 @@ use crate::lexe::peer_manager::NodePeerManager;
 use crate::lexe::persister::NodePersister;
 use crate::lexe::sync::SyncedChainListeners;
 use crate::types::{
-    ApiClientType, ChainMonitorType, InvoicePayerType, NetworkGraphType,
-    P2PGossipSyncType, PaymentInfoStorageType,
+    ApiClientType, ChainMonitorType, InvoicePayerType, PaymentInfoStorageType,
 };
 use crate::{api, command};
 
@@ -61,26 +58,23 @@ const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 /// initiated before the program exits.
 const SHUTDOWN_TIME_LIMIT: Duration = Duration::from_secs(15);
 
+/// A user's node.
+#[allow(dead_code)] // Many unread fields are used as type annotations
 pub(crate) struct UserNode {
     // --- General --- //
     args: RunArgs,
-    #[allow(dead_code)] // TODO(max): Remove
     pub(crate) peer_port: Port,
     tasks: Vec<(&'static str, LxTask<()>)>,
 
     // --- Actors --- //
     pub(crate) channel_manager: NodeChannelManager,
     pub(crate) peer_manager: NodePeerManager,
-    #[allow(dead_code)] // TODO Remove once this is used in sgx
     pub(crate) keys_manager: LexeKeysManager,
-    #[allow(dead_code)] // TODO Remove once this is used in sgx
     pub(crate) persister: NodePersister,
     chain_monitor: Arc<ChainMonitorType>,
-    #[allow(dead_code)] // TODO Remove once this is used in sgx
     pub(crate) network_graph: Arc<NetworkGraphType>,
-    #[allow(dead_code)] // TODO Remove once this is used in sgx
+    gossip_sync: Arc<P2PGossipSyncType>,
     invoice_payer: Arc<InvoicePayerType>,
-    #[allow(dead_code)] // TODO(max): Remove
     pub(crate) wallet: Arc<WalletType>,
     block_source: Arc<BlockSourceType>,
     broadcaster: Arc<BroadcasterType>,
@@ -94,9 +88,7 @@ pub(crate) struct UserNode {
     channel_manager_blockhash: BlockHash,
 
     // --- Run --- //
-    #[allow(dead_code)]
     inbound_payments: PaymentInfoStorageType,
-    #[allow(dead_code)]
     outbound_payments: PaymentInfoStorageType,
     shutdown: ShutdownChannel,
 }
@@ -188,22 +180,28 @@ impl UserNode {
 
         // Set up the persister -> chain monitor channel
         let channel_monitor_updated_task =
-            channel_monitor::spawn_channel_monitor_updated_task(
+            init::spawn_channel_monitor_updated_task(
                 chain_monitor.clone(),
                 channel_monitor_updated_rx,
                 shutdown.clone(),
             );
         tasks.push(("channel monitor updated", channel_monitor_updated_task));
 
-        // Read the `ChannelMonitor`s and init `P2PGossipSync`
-        let (channel_monitors_res, gossip_sync_res) = tokio::join!(
-            channel_monitors(&persister, keys_manager.clone()),
-            gossip_sync(args.network, &persister, logger.clone())
+        // Read channel monitors while reading network graph
+        let (channel_monitors_res, network_graph_res) = tokio::join!(
+            persister.read_channel_monitors(keys_manager.clone()),
+            persister.read_network_graph(args.network, logger.clone())
         );
         let mut channel_monitors =
             channel_monitors_res.context("Could not read channel monitors")?;
-        let (network_graph, gossip_sync) =
-            gossip_sync_res.context("Could not initialize gossip sync")?;
+        let network_graph =
+            network_graph_res.context("Could not read network graph")?;
+        let network_graph = Arc::new(network_graph);
+
+        // Init gossip sync
+        let gossip_sync =
+            P2PGossipSync::new(network_graph.clone(), None, logger.clone());
+        let gossip_sync = Arc::new(gossip_sync);
 
         // Initialize the ChannelManager and ProbabilisticScorer
         let mut restarting_node = true;
@@ -384,6 +382,7 @@ impl UserNode {
             persister,
             chain_monitor,
             network_graph,
+            gossip_sync,
             invoice_payer,
             wallet,
             block_source,
@@ -586,44 +585,6 @@ async fn fetch_provisioned_secrets<R: Crng>(
         (None, None) => bail!("Enclave version has not been provisioned yet"),
         _ => bail!("Node and instance should have been persisted together"),
     }
-}
-
-/// Initializes the ChannelMonitors
-async fn channel_monitors(
-    persister: &NodePersister,
-    keys_manager: LexeKeysManager,
-) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
-    debug!("reading channel monitors from DB");
-    persister
-        .read_channel_monitors(keys_manager)
-        .await
-        .context("Could not read channel monitors")
-}
-
-/// Initializes a GossipSync and NetworkGraph
-async fn gossip_sync(
-    network: Network,
-    persister: &NodePersister,
-    logger: LexeTracingLogger,
-) -> anyhow::Result<(Arc<NetworkGraphType>, Arc<P2PGossipSyncType>)> {
-    debug!("initializing gossip sync and network graph");
-    let genesis = genesis_block(network.into_inner()).header.block_hash();
-
-    let network_graph = persister
-        .read_network_graph(genesis, logger.clone())
-        .await
-        .context("Could not read network graph")?;
-    let network_graph = Arc::new(network_graph);
-
-    let gossip_sync = P2PGossipSync::new(
-        Arc::clone(&network_graph),
-        None::<Arc<dyn chain::Access + Send + Sync>>,
-        logger.clone(),
-    );
-    let gossip_sync = Arc::new(gossip_sync);
-
-    debug!("gossip sync and network graph done.");
-    Ok((network_graph, gossip_sync))
 }
 
 /// Sets up a `TcpListener` to listen on 0.0.0.0:<peer_port>, handing off

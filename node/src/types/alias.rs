@@ -3,16 +3,14 @@ use std::sync::{Arc, Mutex};
 
 use lexe_ln::alias::{
     BroadcasterType, ChannelMonitorType, FeeEstimatorType,
-    LexeChainMonitorType, SignerType,
+    LexeChainMonitorType, NetworkGraphType, P2PGossipSyncType, SignerType,
 };
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
-use lightning::chain::Access;
 use lightning::ln::channelmanager::ChannelManager;
 use lightning::ln::peer_handler::{IgnoringMessageHandler, PeerManager};
 use lightning::ln::PaymentHash;
 use lightning::onion_message::OnionMessenger;
-use lightning::routing::gossip::{NetworkGraph, P2PGossipSync};
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
@@ -70,13 +68,3 @@ pub(crate) type ProbabilisticScorerType =
 
 pub(crate) type RouterType =
     DefaultRouter<Arc<NetworkGraphType>, LexeTracingLogger>;
-
-pub(crate) type P2PGossipSyncType = P2PGossipSync<
-    Arc<NetworkGraphType>,
-    Arc<ChainAccessType>,
-    LexeTracingLogger,
->;
-
-pub(crate) type NetworkGraphType = NetworkGraph<LexeTracingLogger>;
-
-pub(crate) type ChainAccessType = dyn Access + Send + Sync;

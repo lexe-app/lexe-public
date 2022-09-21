@@ -3,7 +3,8 @@ use std::sync::Arc;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::keysinterface::InMemorySigner;
-use lightning::chain::Filter;
+use lightning::chain::{Access, Filter};
+use lightning::routing::gossip::{NetworkGraph, P2PGossipSync};
 
 use crate::bitcoind::LexeBitcoind;
 use crate::logger::LexeTracingLogger;
@@ -24,4 +25,14 @@ pub type LexeChainMonitorType<PERSISTER> = ChainMonitor<
     Arc<FeeEstimatorType>,
     LexeTracingLogger,
     PERSISTER,
+>;
+
+pub type NetworkGraphType = NetworkGraph<LexeTracingLogger>;
+
+pub type ChainAccessType = dyn Access + Send + Sync;
+
+pub type P2PGossipSyncType = P2PGossipSync<
+    Arc<NetworkGraphType>,
+    Arc<ChainAccessType>,
+    LexeTracingLogger,
 >;

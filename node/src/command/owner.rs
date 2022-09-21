@@ -3,10 +3,10 @@ use std::sync::Arc;
 use common::api::error::NodeApiError;
 use common::api::node::{ListChannels, NodeInfo};
 use common::ln::channel::LxChannelDetails;
+use lexe_ln::alias::NetworkGraphType;
 
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::NodePeerManager;
-use crate::types::NetworkGraphType;
 
 pub(crate) fn node_info(
     channel_manager: NodeChannelManager,

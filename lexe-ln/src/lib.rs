@@ -10,6 +10,8 @@ pub mod alias;
 pub mod bitcoind;
 /// Channel monitor
 pub mod channel_monitor;
+/// Helper functions used during init
+pub mod init;
 /// Keys manager
 pub mod keys_manager;
 /// LDK + SGX compatible logger

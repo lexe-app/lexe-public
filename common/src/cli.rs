@@ -7,6 +7,8 @@ use std::str::FromStr;
 
 use anyhow::{anyhow, ensure};
 use argh::FromArgs;
+use bitcoin::blockdata::constants;
+use bitcoin::hash_types::BlockHash;
 use lightning_invoice::Currency;
 #[cfg(all(test, not(target_env = "sgx")))]
 use proptest::arbitrary::{any, Arbitrary};
@@ -426,6 +428,13 @@ impl Network {
             bitcoin::Network::Regtest => "regtest",
             bitcoin::Network::Signet => "signet",
         }
+    }
+
+    /// Gets the blockhash of the genesis block of this [`Network`]
+    pub fn genesis_hash(self) -> BlockHash {
+        constants::genesis_block(self.into_inner())
+            .header
+            .block_hash()
     }
 }
 
