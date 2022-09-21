@@ -7,7 +7,9 @@ use bitcoin::BlockHash;
 use common::cli::Network;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
-use lexe_ln::alias::{BlockSourceType, BroadcasterType, FeeEstimatorType};
+use lexe_ln::alias::{
+    BlockSourceType, BroadcasterType, ChannelMonitorType, FeeEstimatorType,
+};
 use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain::transaction::OutPoint;
 use lightning::chain::{Listen, Watch};
@@ -17,9 +19,7 @@ use tokio::time::{self, Duration};
 use tracing::{info, warn};
 
 use crate::lexe::channel_manager::NodeChannelManager;
-use crate::types::{
-    ChainMonitorType, ChannelMonitorListenerType, ChannelMonitorType,
-};
+use crate::types::{ChainMonitorType, ChannelMonitorListenerType};
 
 /// How often the SpvClient client polls for an updated chain tip
 const CHAIN_TIP_POLL_INTERVAL: Duration = Duration::from_secs(15);
@@ -28,7 +28,7 @@ const CHAIN_TIP_POLL_INTERVAL: Duration = Duration::from_secs(15);
 /// of initialization completes the synchronization of the passed in chain
 /// listeners to the latest chain tip. Finally, the object is consumed via
 /// `feed_chain_monitor_and_spawn_spv()`, ending the synchronization process.
-pub struct SyncedChainListeners {
+pub(crate) struct SyncedChainListeners {
     network: Network,
     block_source: Arc<BlockSourceType>,
 
@@ -40,7 +40,7 @@ pub struct SyncedChainListeners {
 
 impl SyncedChainListeners {
     #[allow(clippy::too_many_arguments)]
-    pub async fn init_and_sync(
+    pub(crate) async fn init_and_sync(
         network: Network,
 
         channel_manager: NodeChannelManager,
@@ -192,7 +192,7 @@ impl SyncedChainListeners {
     /// monitor so that it can watch the chain for closing transactions,
     /// fraudulent transactions, etc. Spawns a task for the SPV client to
     /// continue monitoring the chain.
-    pub fn feed_chain_monitor_and_spawn_spv(
+    pub(crate) fn feed_chain_monitor_and_spawn_spv(
         mut self,
         chain_monitor: Arc<ChainMonitorType>,
         mut shutdown: ShutdownChannel,
@@ -246,14 +246,14 @@ impl SyncedChainListeners {
 /// Associates a ChannelMonitor `Listen` impl (`ChannelMonitorListenerType`)
 /// with its latest synced block and funding outpoint. LDK calls this a
 /// "ChainListener" (as opposed to just a Listener, i.e. the `Listen` impl)
-pub struct ChannelMonitorChainListener {
-    pub blockhash: BlockHash,
-    pub listener: ChannelMonitorListenerType,
-    pub funding_outpoint: OutPoint,
+pub(crate) struct ChannelMonitorChainListener {
+    pub(crate) blockhash: BlockHash,
+    pub(crate) listener: ChannelMonitorListenerType,
+    pub(crate) funding_outpoint: OutPoint,
 }
 
 impl ChannelMonitorChainListener {
-    pub fn new(
+    pub(crate) fn new(
         channel_monitor: ChannelMonitorType,
         blockhash: BlockHash,
         broadcaster: Arc<BroadcasterType>,
@@ -273,7 +273,9 @@ impl ChannelMonitorChainListener {
     }
 
     /// Consumes self, returning the inner ChannelMonitor and funding outpoint.
-    pub fn into_monitor_and_outpoint(self) -> (ChannelMonitorType, OutPoint) {
+    pub(crate) fn into_monitor_and_outpoint(
+        self,
+    ) -> (ChannelMonitorType, OutPoint) {
         let (channel_monitor, _broadcaster, _fee_est, _log) = self.listener;
         (channel_monitor, self.funding_outpoint)
     }

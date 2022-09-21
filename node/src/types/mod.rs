@@ -8,6 +8,6 @@ mod host;
 /// TODO: These should be converted into Lexe newtypes or removed entirely.
 mod ldk;
 
-pub use alias::*;
-pub use host::*;
-pub use ldk::*;
+pub(crate) use alias::*;
+pub(crate) use host::*;
+pub(crate) use ldk::*;

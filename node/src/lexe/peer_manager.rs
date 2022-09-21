@@ -23,7 +23,7 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]
-pub struct NodePeerManager(Arc<PeerManagerType>);
+pub(crate) struct NodePeerManager(Arc<PeerManagerType>);
 
 impl Deref for NodePeerManager {
     type Target = PeerManagerType;
@@ -33,7 +33,7 @@ impl Deref for NodePeerManager {
 }
 
 impl NodePeerManager {
-    pub fn init(
+    pub(crate) fn init(
         rng: &mut dyn Crng,
         keys_manager: &LexeKeysManager,
         channel_manager: NodeChannelManager,
@@ -76,12 +76,12 @@ impl NodePeerManager {
         Self(Arc::new(peer_manager))
     }
 
-    pub fn as_arc_inner(&self) -> Arc<PeerManagerType> {
+    pub(crate) fn as_arc_inner(&self) -> Arc<PeerManagerType> {
         self.0.clone()
     }
 
     #[allow(dead_code)] // TODO Remove once this fn is used in sgx
-    pub async fn connect_peer_if_necessary(
+    pub(crate) async fn connect_peer_if_necessary(
         &self,
         channel_peer: ChannelPeer,
     ) -> anyhow::Result<()> {
@@ -96,7 +96,7 @@ impl NodePeerManager {
             .context("Failed to connect to peer")
     }
 
-    pub async fn do_connect_peer(
+    pub(crate) async fn do_connect_peer(
         &self,
         channel_peer: ChannelPeer,
     ) -> anyhow::Result<()> {
@@ -160,13 +160,14 @@ impl NodePeerManager {
 }
 
 #[derive(Clone)]
-pub struct ChannelPeer {
-    pub pk: PublicKey,
-    pub addr: SocketAddr,
+pub(crate) struct ChannelPeer {
+    pub(crate) pk: PublicKey,
+    pub(crate) addr: SocketAddr,
 }
 
 impl ChannelPeer {
-    pub fn new(pk: PublicKey, addr: SocketAddr) -> Self {
+    #[allow(dead_code)] // TODO Remove once this fn is used in sgx
+    pub(crate) fn new(pk: PublicKey, addr: SocketAddr) -> Self {
         Self { pk, addr }
     }
 }

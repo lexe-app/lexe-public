@@ -21,15 +21,16 @@ use common::task::LxTask;
 use futures::future;
 use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
-    BlockSourceType, BroadcasterType, FeeEstimatorType, WalletType,
+    BlockSourceType, BroadcasterType, ChannelMonitorType, FeeEstimatorType,
+    WalletType,
 };
 use lexe_ln::bitcoind::LexeBitcoind;
+use lexe_ln::channel_monitor;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
-use lightning::chain::transaction::OutPoint;
 use lightning::onion_message::OnionMessenger;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning_invoice::payment;
@@ -43,41 +44,44 @@ use crate::api::ApiClient;
 use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
 use crate::lexe::background_processor::LexeBackgroundProcessor;
-use crate::lexe::channel_manager::{
-    LxChannelMonitorUpdate, NodeChannelManager,
-};
+use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::NodePeerManager;
 use crate::lexe::persister::NodePersister;
 use crate::lexe::sync::SyncedChainListeners;
 use crate::types::{
-    ApiClientType, ChainMonitorType, ChannelMonitorType, InvoicePayerType,
-    NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType,
+    ApiClientType, ChainMonitorType, InvoicePayerType, NetworkGraphType,
+    P2PGossipSyncType, PaymentInfoStorageType,
 };
 use crate::{api, command};
 
-pub const DEFAULT_CHANNEL_SIZE: usize = 256;
+pub(crate) const DEFAULT_CHANNEL_SIZE: usize = 256;
 // TODO(max): p2p stuff should probably go in its own module
 const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 /// The amount of time tasks have to finish after a graceful shutdown was
 /// initiated before the program exits.
 const SHUTDOWN_TIME_LIMIT: Duration = Duration::from_secs(15);
 
-pub struct UserNode {
+pub(crate) struct UserNode {
     // --- General --- //
     args: RunArgs,
-    pub peer_port: Port,
+    #[allow(dead_code)] // TODO(max): Remove
+    pub(crate) peer_port: Port,
     tasks: Vec<(&'static str, LxTask<()>)>,
 
     // --- Actors --- //
-    pub channel_manager: NodeChannelManager,
-    pub peer_manager: NodePeerManager,
-    pub keys_manager: LexeKeysManager,
-    pub persister: NodePersister,
+    pub(crate) channel_manager: NodeChannelManager,
+    pub(crate) peer_manager: NodePeerManager,
+    #[allow(dead_code)] // TODO Remove once this is used in sgx
+    pub(crate) keys_manager: LexeKeysManager,
+    #[allow(dead_code)] // TODO Remove once this is used in sgx
+    pub(crate) persister: NodePersister,
     chain_monitor: Arc<ChainMonitorType>,
-    pub network_graph: Arc<NetworkGraphType>,
-    #[allow(dead_code)]
+    #[allow(dead_code)] // TODO Remove once this is used in sgx
+    pub(crate) network_graph: Arc<NetworkGraphType>,
+    #[allow(dead_code)] // TODO Remove once this is used in sgx
     invoice_payer: Arc<InvoicePayerType>,
-    pub wallet: Arc<WalletType>,
+    #[allow(dead_code)] // TODO(max): Remove
+    pub(crate) wallet: Arc<WalletType>,
     block_source: Arc<BlockSourceType>,
     broadcaster: Arc<BroadcasterType>,
     fee_estimator: Arc<FeeEstimatorType>,
@@ -183,11 +187,12 @@ impl UserNode {
         ));
 
         // Set up the persister -> chain monitor channel
-        let channel_monitor_updated_task = spawn_channel_monitor_updated_task(
-            chain_monitor.clone(),
-            channel_monitor_updated_rx,
-            shutdown.clone(),
-        );
+        let channel_monitor_updated_task =
+            channel_monitor::spawn_channel_monitor_updated_task(
+                chain_monitor.clone(),
+                channel_monitor_updated_rx,
+                shutdown.clone(),
+            );
         tasks.push(("channel monitor updated", channel_monitor_updated_task));
 
         // Read the `ChannelMonitor`s and init `P2PGossipSync`
@@ -765,39 +770,5 @@ fn spawn_p2p_reconnector(
         }
 
         info!("p2p reconnector task shut down");
-    })
-}
-
-/// Spawns a task that that lets the persister make calls to the chain monitor.
-/// For now, it simply listens on `channel_monitor_updated_rx` and calls
-/// `ChainMonitor::channel_monitor_updated()` with any received values. This is
-/// required because (a) the chain monitor cannot be initialized without the
-/// persister, therefore (b) the persister cannot hold the chain monitor,
-/// therefore there needs to be another means of letting the persister notify
-/// the channel manager of events.
-pub fn spawn_channel_monitor_updated_task(
-    chain_monitor: Arc<ChainMonitorType>,
-    mut channel_monitor_updated_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
-    mut shutdown: ShutdownChannel,
-) -> LxTask<()> {
-    debug!("Starting channel_monitor_updated task");
-    LxTask::spawn(async move {
-        loop {
-            tokio::select! {
-                Some(update) = channel_monitor_updated_rx.recv() => {
-                    if let Err(e) = chain_monitor.channel_monitor_updated(
-                        OutPoint::from(update.funding_txo),
-                        update.update_id,
-                    ) {
-                        // ApiError impls Debug but not std::error::Error
-                        error!("channel_monitor_updated returned Err: {:?}", e);
-                    }
-                }
-                () = shutdown.recv() => break,
-                else => break,
-            }
-        }
-
-        info!("channel_monitor_updated task shut down");
     })
 }
