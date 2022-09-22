@@ -4,9 +4,12 @@ use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::keysinterface::InMemorySigner;
 use lightning::chain::{Access, Filter};
+use lightning::ln::channelmanager::ChannelManager;
 use lightning::routing::gossip::{NetworkGraph, P2PGossipSync};
+use lightning::routing::scoring::ProbabilisticScorer;
 
 use crate::bitcoind::LexeBitcoind;
+use crate::keys_manager::LexeKeysManager;
 use crate::logger::LexeTracingLogger;
 
 pub type SignerType = InMemorySigner;
@@ -36,3 +39,15 @@ pub type P2PGossipSyncType = P2PGossipSync<
     Arc<ChainAccessType>,
     LexeTracingLogger,
 >;
+
+pub type LexeChannelManagerType<PERSISTER> = ChannelManager<
+    SignerType,
+    Arc<LexeChainMonitorType<PERSISTER>>,
+    Arc<BroadcasterType>,
+    LexeKeysManager,
+    Arc<FeeEstimatorType>,
+    LexeTracingLogger,
+>;
+
+pub type ProbabilisticScorerType =
+    ProbabilisticScorer<Arc<NetworkGraphType>, LexeTracingLogger>;

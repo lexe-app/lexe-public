@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
-use lexe_ln::alias::P2PGossipSyncType;
+use lexe_ln::alias::{P2PGossipSyncType, ProbabilisticScorerType};
 use lightning::util::events::EventsProvider;
 use tokio::time::{interval, interval_at, Instant};
 use tracing::{debug, error, info, trace, warn};
@@ -12,9 +12,7 @@ use tracing::{debug, error, info, trace, warn};
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::NodePeerManager;
 use crate::lexe::persister::NodePersister;
-use crate::types::{
-    ChainMonitorType, InvoicePayerType, ProbabilisticScorerType,
-};
+use crate::types::{ChainMonitorType, InvoicePayerType};
 
 const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_millis(1000);
 const PEER_MANAGER_PING_INTERVAL: Duration = Duration::from_secs(15);

@@ -133,11 +133,11 @@ impl UserNode {
                 min_cpusvn
             ),
         );
-        let bitcoind =
-            bitcoind_res.context("Failed to init bitcoind client")?;
+        let bitcoind = bitcoind_res
+            .map(Arc::new)
+            .context("Failed to init bitcoind client")?;
         let (node, root_seed) =
             fetch_res.context("Failed to fetch provisioned secrets")?;
-        let bitcoind = Arc::new(bitcoind);
 
         // Collect all handles to spawned tasks
         let mut tasks = Vec::with_capacity(10);
@@ -194,23 +194,22 @@ impl UserNode {
         );
         let mut channel_monitors =
             channel_monitors_res.context("Could not read channel monitors")?;
-        let network_graph =
-            network_graph_res.context("Could not read network graph")?;
-        let network_graph = Arc::new(network_graph);
+        let network_graph = network_graph_res
+            .map(Arc::new)
+            .context("Could not read network graph")?;
 
         // Init gossip sync
-        let gossip_sync =
-            P2PGossipSync::new(network_graph.clone(), None, logger.clone());
-        let gossip_sync = Arc::new(gossip_sync);
+        let gossip_sync = Arc::new(P2PGossipSync::new(
+            network_graph.clone(),
+            None,
+            logger.clone(),
+        ));
 
-        // Initialize the ChannelManager and ProbabilisticScorer
+        // Read channel manager while reading scorer
         let mut restarting_node = true;
-        let (channel_manager_res, scorer_res) = tokio::join!(
-            NodeChannelManager::init(
-                &args,
-                &persister,
-                block_source.as_ref(),
-                &mut restarting_node,
+        let (scorer_res, maybe_manager_res) = tokio::join!(
+            persister.read_scorer(network_graph.clone(), logger.clone()),
+            persister.read_channel_manager(
                 &mut channel_monitors,
                 keys_manager.clone(),
                 fee_estimator.clone(),
@@ -218,16 +217,29 @@ impl UserNode {
                 broadcaster.clone(),
                 logger.clone(),
             ),
-            persister.read_probabilistic_scorer(
-                network_graph.clone(),
-                logger.clone()
-            ),
         );
+        let scorer = scorer_res
+            .map(Mutex::new)
+            .map(Arc::new)
+            .context("Could not read probabilistic scorer")?;
+        let maybe_manager =
+            maybe_manager_res.context("Could not read channel manager")?;
+
+        // Init the NodeChannelManager
         let (channel_manager_blockhash, channel_manager) =
-            channel_manager_res.context("Could not init ChannelManager")?;
-        let scorer =
-            scorer_res.context("Could not read probabilistic scorer")?;
-        let scorer = Arc::new(Mutex::new(scorer));
+            NodeChannelManager::init(
+                args.network,
+                maybe_manager,
+                block_source.as_ref(),
+                &mut restarting_node,
+                keys_manager.clone(),
+                fee_estimator.clone(),
+                chain_monitor.clone(),
+                broadcaster.clone(),
+                logger.clone(),
+            )
+            .await
+            .context("Could not init NodeChannelManager")?;
 
         // Init onion messenger
         let onion_messenger =

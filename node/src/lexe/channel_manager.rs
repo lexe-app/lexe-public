@@ -3,15 +3,13 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Context};
 use bitcoin::BlockHash;
-use common::cli::RunArgs;
-use lexe_ln::alias::{
-    BlockSourceType, BroadcasterType, ChannelMonitorType, FeeEstimatorType,
-};
+use common::cli::Network;
+use lexe_ln::alias::{BlockSourceType, BroadcasterType, FeeEstimatorType};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain::BestBlock;
 use lightning::ln::channelmanager::{
-    ChainParameters, ChannelManager, BREAKDOWN_TIMEOUT, MIN_CLTV_EXPIRY_DELTA,
+    ChainParameters, ChannelManager, MIN_CLTV_EXPIRY_DELTA,
 };
 use lightning::util::config::{
     ChannelConfig, ChannelHandshakeConfig, ChannelHandshakeLimits, UserConfig,
@@ -22,7 +20,7 @@ use crate::lexe::peer_manager::{ChannelPeer, NodePeerManager};
 use crate::lexe::persister::NodePersister;
 use crate::types::{ChainMonitorType, ChannelManagerType};
 
-/// NOTE: Important security parameter!!
+/// NOTE: Important security parameter!! This is specified in # of blocks.
 ///
 /// Since the mobile client verifies the latest security report every time the
 /// mobile client boots, and the security report checks the blockchain for
@@ -33,16 +31,23 @@ use crate::types::{ChainMonitorType, ChannelManagerType};
 /// verify the security report e.g. once every day. This appears to be possible
 /// with Android's `JobScheduler`, but more difficult (or not possible) on iOS.
 ///
-/// Note that the minimum and maximum values allowed by LDK are 144 blocks (1
-/// day, i.e. `BREAKDOWN_TIMEOUT`) and 2016 blocks (two weeks) respectively.
+/// The minimum and maximum values allowed by LDK are 144 blocks (1
+/// day, i.e.[ `BREAKDOWN_TIMEOUT`]) and 2016 blocks (two weeks) respectively.
 ///
 /// TODO: Implement security report which checks for channel closes
 /// TODO: Implement recurring verification of the security report
 #[cfg(all(target_env = "sgx", not(test)))]
-const TIME_TO_CONTEST_FRAUDULENT_TXNS: u16 = 6 * 24 * 7;
-// Use less secure parameters during development
+const TIME_TO_CONTEST_FRAUDULENT_CLOSES: u16 = 6 * 24 * 7; // 7 days
+/// Use less secure parameters during development
 #[cfg(any(not(target_env = "sgx"), test))]
-const TIME_TO_CONTEST_FRAUDULENT_TXNS: u16 = BREAKDOWN_TIMEOUT;
+const TIME_TO_CONTEST_FRAUDULENT_CLOSES: u16 = 144; // 1 day
+
+/// The inverse of [`TIME_TO_CONTEST_FRAUDULENT_CLOSES`], specified in blocks.
+/// Defines the maximum number of blocks we're willing to wait to reclaim our
+/// funds in the case of a unilateral close initiated by us.
+///
+/// NOTE: If this value is too low, channel negotiation with the LSP will fail.
+const MAXIMUM_TIME_TO_RECLAIM_FUNDS: u16 = 6 * 24 * 3; // three days
 
 pub(crate) const USER_CONFIG: UserConfig = UserConfig {
     channel_handshake_config: CHANNEL_HANDSHAKE_CONFIG,
@@ -66,19 +71,18 @@ const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =
         // Require the channel counterparty (Lexe's LSPs) to wait <this param>
         // to claim funds in the case of a unilateral close. Specified
         // in # of blocks.
-        our_to_self_delay: TIME_TO_CONTEST_FRAUDULENT_TXNS,
+        our_to_self_delay: TIME_TO_CONTEST_FRAUDULENT_CLOSES,
         // Allow extremely small HTLCs
         our_htlc_minimum_msat: 1,
         // Allow up to 100% of our funds to be encumbered in inbound HTLCS.
         max_inbound_htlc_value_in_flight_percent_of_channel: 100,
-        // Attempt to use better privacy. The LSP should have this enabled.
+        // Attempt to use better privacy.
         negotiate_scid_privacy: true,
         // Do not publically announce our channels
         announced_channel: false,
-        // The additional 'security' provided by setting is pointless.
-        // Additionally, we do not want to commit to a `shutdown_pubkey`
-        // so that it is possible to sweep all funds to an address
-        // specified at the time of channel close.
+        // The additional 'security' provided by this setting is pointless.
+        // Also, we want to be able to sweep all funds to an address specified
+        // at the time of channel close, instead of committing upfront.
         commit_upfront_shutdown_pubkey: false,
         // The counterparty must reserve 1% of the total channel value to be
         // claimable by us on-chain in the case of a channel breach.
@@ -90,9 +94,9 @@ const CHANNEL_HANDSHAKE_LIMITS: ChannelHandshakeLimits =
         // Force an incoming channel (from the LSP) to match the value we set
         // for `ChannelHandshakeConfig::announced_channel` (which is false)
         force_announced_channel_preference: true,
-        // *We* (the node) wait a maximum of 6 * 24 blocks (1 day) to reclaim
-        // our funds in the case of a unilateral close initiated by us.
-        their_to_self_delay: BREAKDOWN_TIMEOUT,
+        // The maximum # of blocks we're willing to wait to reclaim our funds in
+        // the case of a unilateral close initiated by us. See doc comment.
+        their_to_self_delay: MAXIMUM_TIME_TO_RECLAIM_FUNDS,
         // Use LDK defaults for everything else. We can't use Default::default()
         // in a const, but it's better to explicitly specify the values anyway.
         min_funding_satoshis: 0,
@@ -136,11 +140,10 @@ impl NodeChannelManager {
     // TODO: Review this function and clean up accordingly
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn init(
-        args: &RunArgs,
-        persister: &NodePersister,
+        network: Network,
+        maybe_manager: Option<(BlockHash, ChannelManagerType)>,
         block_source: &BlockSourceType,
         restarting_node: &mut bool,
-        channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
         keys_manager: LexeKeysManager,
         fee_estimator: Arc<FeeEstimatorType>,
         chain_monitor: Arc<ChainMonitorType>,
@@ -149,19 +152,7 @@ impl NodeChannelManager {
     ) -> anyhow::Result<(BlockHash, Self)> {
         debug!("Initializing channel manager");
 
-        let inner_opt = persister
-            .read_channel_manager(
-                channel_monitors,
-                keys_manager.clone(),
-                fee_estimator.clone(),
-                chain_monitor.clone(),
-                broadcaster.clone(),
-                logger.clone(),
-            )
-            .await
-            .context("Could not read ChannelManager from DB")?;
-
-        let (blockhash, inner, label) = match inner_opt {
+        let (blockhash, inner, label) = match maybe_manager {
             Some((blockhash, mgr)) => (blockhash, mgr, "persisted"),
             None => {
                 // We're starting a fresh node.
@@ -175,7 +166,7 @@ impl NodeChannelManager {
                     blockchain_info.latest_height as u32,
                 );
                 let chain_params = ChainParameters {
-                    network: args.network.into_inner(),
+                    network: network.into_inner(),
                     best_block,
                 };
                 let inner = ChannelManager::new(

@@ -14,7 +14,7 @@ use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use lexe_ln::alias::{
     BroadcasterType, ChannelMonitorType, FeeEstimatorType, NetworkGraphType,
-    SignerType,
+    ProbabilisticScorerType, SignerType,
 };
 use lexe_ln::channel_monitor::LxChannelMonitorUpdate;
 use lexe_ln::keys_manager::LexeKeysManager;
@@ -34,15 +34,12 @@ use tracing::{debug, error};
 
 use crate::lexe::channel_manager::USER_CONFIG;
 use crate::lexe::peer_manager::ChannelPeer;
-use crate::types::{
-    ApiClientType, ChainMonitorType, ChannelManagerType,
-    ProbabilisticScorerType,
-};
+use crate::types::{ApiClientType, ChainMonitorType, ChannelManagerType};
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
 pub(crate) const SINGLETON_DIRECTORY: &str = ".";
-const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 const NETWORK_GRAPH_FILENAME: &str = "network_graph";
+const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 const SCORER_FILENAME: &str = "scorer";
 
 // Non-singleton objects use a fixed directory with dynamic filenames
@@ -108,20 +105,20 @@ impl InnerPersister {
         logger: LexeTracingLogger,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         debug!("Reading channel manager");
-        let cm_file_id = NodeFileId::new(
+        let file_id = NodeFileId::new(
             self.node_pk,
             self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
             CHANNEL_MANAGER_FILENAME.to_owned(),
         );
-        let cm_file_opt = self
+        let maybe_file = self
             .api
-            .get_file(&cm_file_id)
+            .get_file(&file_id)
             .await
             .context("Could not fetch channel manager from DB")?;
 
-        let cm_opt = match cm_file_opt {
-            Some(cm_file) => {
+        let maybe_manager = match maybe_file {
+            Some(file) => {
                 let mut channel_monitor_mut_refs = Vec::new();
                 for (_, channel_monitor) in channel_monitors.iter_mut() {
                     channel_monitor_mut_refs.push(channel_monitor);
@@ -136,7 +133,7 @@ impl InnerPersister {
                     channel_monitor_mut_refs,
                 );
 
-                let mut state_buf = Cursor::new(&cm_file.data);
+                let mut state_buf = Cursor::new(&file.data);
 
                 let (blockhash, channel_manager) = <(
                     BlockHash,
@@ -153,7 +150,7 @@ impl InnerPersister {
             None => None,
         };
 
-        Ok(cm_opt)
+        Ok(maybe_manager)
     }
 
     // Replaces equivalent method in lightning_persister::FilesystemPersister
@@ -203,7 +200,7 @@ impl InnerPersister {
         Ok(result)
     }
 
-    pub(crate) async fn read_probabilistic_scorer(
+    pub(crate) async fn read_scorer(
         &self,
         graph: Arc<NetworkGraphType>,
         logger: LexeTracingLogger,
@@ -211,21 +208,21 @@ impl InnerPersister {
         debug!("Reading probabilistic scorer");
         let params = ProbabilisticScoringParameters::default();
 
-        let scorer_file_id = NodeFileId::new(
+        let file_id = NodeFileId::new(
             self.node_pk,
             self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
             SCORER_FILENAME.to_owned(),
         );
-        let scorer_file_opt = self
+        let maybe_file = self
             .api
-            .get_file(&scorer_file_id)
+            .get_file(&file_id)
             .await
             .context("Could not fetch probabilistic scorer from DB")?;
 
-        let scorer = match scorer_file_opt {
-            Some(scorer_file) => {
-                let mut state_buf = Cursor::new(&scorer_file.data);
+        let scorer = match maybe_file {
+            Some(file) => {
+                let mut state_buf = Cursor::new(&file.data);
                 ProbabilisticScorer::read(
                     &mut state_buf,
                     (params, Arc::clone(&graph), logger),
