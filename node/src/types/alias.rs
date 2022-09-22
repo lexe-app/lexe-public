@@ -3,15 +3,14 @@ use std::sync::{Arc, Mutex};
 
 use lexe_ln::alias::{
     BroadcasterType, ChannelMonitorType, FeeEstimatorType,
-    LexeChainMonitorType, NetworkGraphType, P2PGossipSyncType, SignerType,
+    LexeChainMonitorType, LexeChannelManagerType, NetworkGraphType,
+    P2PGossipSyncType, ProbabilisticScorerType, SignerType,
 };
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
-use lightning::ln::channelmanager::ChannelManager;
 use lightning::ln::peer_handler::{IgnoringMessageHandler, PeerManager};
 use lightning::ln::PaymentHash;
 use lightning::onion_message::OnionMessenger;
-use lightning::routing::scoring::ProbabilisticScorer;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use lightning_net_tokio::SocketDescriptor;
@@ -20,6 +19,8 @@ use crate::event_handler::LdkEventHandler;
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::persister::NodePersister;
 use crate::types::PaymentInfo;
+
+pub(crate) type ChannelManagerType = LexeChannelManagerType<NodePersister>;
 
 pub(crate) type PaymentInfoStorageType =
     Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
@@ -38,15 +39,6 @@ pub(crate) type PeerManagerType = PeerManager<
     Arc<IgnoringMessageHandler>,
 >;
 
-pub(crate) type ChannelManagerType = ChannelManager<
-    SignerType,
-    Arc<ChainMonitorType>,
-    Arc<BroadcasterType>,
-    LexeKeysManager,
-    Arc<FeeEstimatorType>,
-    LexeTracingLogger,
->;
-
 /// This is the tuple that LDK impl'd `Listen` for
 pub(crate) type ChannelMonitorListenerType = (
     ChannelMonitorType,
@@ -62,9 +54,6 @@ pub(crate) type InvoicePayerType = payment::InvoicePayer<
     LexeTracingLogger,
     LdkEventHandler,
 >;
-
-pub(crate) type ProbabilisticScorerType =
-    ProbabilisticScorer<Arc<NetworkGraphType>, LexeTracingLogger>;
 
 pub(crate) type RouterType =
     DefaultRouter<Arc<NetworkGraphType>, LexeTracingLogger>;
