@@ -77,3 +77,13 @@ tokio = { version = "=1.15.0", default-features = false, features = [
     "sync",
     "time"
 ] }
+
+[dev-dependencies]
+# property based testing
+proptest = { version = "1", default-features = false, features = ["alloc"] }
+# Arbitrary derive macro
+proptest-derive = "0.3"
+
+[target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
+# Include additional useful proptest features when testing outside of SGX
+proptest = "1"

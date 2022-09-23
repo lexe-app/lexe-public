@@ -5,8 +5,11 @@ use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::keysinterface::InMemorySigner;
 use lightning::chain::{Access, Filter};
 use lightning::ln::channelmanager::ChannelManager;
+use lightning::ln::peer_handler::{IgnoringMessageHandler, PeerManager};
+use lightning::onion_message::OnionMessenger;
 use lightning::routing::gossip::{NetworkGraph, P2PGossipSync};
 use lightning::routing::scoring::ProbabilisticScorer;
+use lightning_net_tokio::SocketDescriptor;
 
 use crate::bitcoind::LexeBitcoind;
 use crate::keys_manager::LexeKeysManager;
@@ -51,3 +54,15 @@ pub type LexeChannelManagerType<PERSISTER> = ChannelManager<
 
 pub type ProbabilisticScorerType =
     ProbabilisticScorer<Arc<NetworkGraphType>, LexeTracingLogger>;
+
+pub type OnionMessengerType =
+    OnionMessenger<SignerType, LexeKeysManager, LexeTracingLogger>;
+
+pub type LexePeerManagerType<CHANNELMANAGER> = PeerManager<
+    SocketDescriptor,
+    CHANNELMANAGER,
+    Arc<P2PGossipSyncType>,
+    Arc<OnionMessengerType>,
+    LexeTracingLogger,
+    Arc<IgnoringMessageHandler>,
+>;

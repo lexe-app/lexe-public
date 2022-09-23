@@ -10,9 +10,11 @@ pub mod alias;
 pub mod bitcoind;
 /// Channel monitor
 pub mod channel_monitor;
-/// Helper functions used during init
+/// Helper *functions* used during init, typically to spawn tasks.
 pub mod init;
 /// Keys manager
 pub mod keys_manager;
 /// LDK + SGX compatible logger
 pub mod logger;
+/// Types related to peers and networking.
+pub mod peer;

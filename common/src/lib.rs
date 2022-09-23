@@ -15,20 +15,35 @@ pub use bitcoin::secp256k1::PublicKey;
 use ref_cast::RefCast;
 pub use secrecy::Secret;
 
+/// API definitions, errors, clients, and structs sent across the wire.
 pub mod api;
+/// Remote attestation.
 pub mod attest;
+/// User node CLI.
 pub mod cli;
+/// Mobile client to the node.
 pub mod client;
+/// Application-level constants
 pub mod constants;
+/// Ed25519 types.
 pub mod ed25519;
+/// SGX types.
 pub mod enclave;
+/// Hex utils
 pub mod hex;
+/// serde_with helper for bytes types.
 pub mod hexstr_or_bytes;
+/// Bitcoin / Lightning Lexe newtypes which can't go in lexe-ln
 pub mod ln;
+/// Random number generation.
 pub mod rng;
+/// `RootSeed`.
 pub mod root_seed;
+/// sha256 convenience module.
 pub mod sha256;
+/// `ShutdownChannel`.
 pub mod shutdown;
+/// `LxTask`.
 pub mod task;
 
 #[cfg(test)]

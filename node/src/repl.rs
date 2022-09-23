@@ -15,6 +15,7 @@ use common::cli::Network;
 use common::hex;
 use lexe_ln::alias::NetworkGraphType;
 use lexe_ln::keys_manager::LexeKeysManager;
+use lexe_ln::peer::ChannelPeer;
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::ln::{PaymentHash, PaymentPreimage};
 use lightning::routing::gossip::NodeId;
@@ -22,7 +23,7 @@ use lightning_invoice::payment::PaymentError;
 use lightning_invoice::{utils, Currency, Invoice};
 
 use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::peer_manager::{ChannelPeer, NodePeerManager};
+use crate::lexe::peer_manager::NodePeerManager;
 use crate::lexe::persister::NodePersister;
 use crate::types::{
     HTLCStatus, InvoicePayerType, MillisatAmount, PaymentInfo,
@@ -179,7 +180,7 @@ pub(crate) async fn poll_for_user_input(
                         println!("ERROR: connectpeer requires peer connection info: `connectpeer pk@host:port`");
                         continue;
                     }
-                    let (pk, peer_addr) = match parse_peer_info(
+                    let (pk, addr) = match parse_peer_info(
                         peer_pk_and_ip_addr.unwrap().to_string(),
                     ) {
                         Ok(info) => info,
@@ -188,7 +189,7 @@ pub(crate) async fn poll_for_user_input(
                             continue;
                         }
                     };
-                    let channel_peer = ChannelPeer::new(pk, peer_addr);
+                    let channel_peer = ChannelPeer { pk, addr };
                     if peer_manager
                         .connect_peer_if_necessary(channel_peer.clone())
                         .await

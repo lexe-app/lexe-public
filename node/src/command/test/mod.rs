@@ -13,10 +13,11 @@ use common::cli::{
 use common::rng::SysRng;
 use lexe_ln::alias::NetworkGraphType;
 use lexe_ln::logger;
+use lexe_ln::peer::ChannelPeer;
 
 use crate::command::owner;
 use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::peer_manager::{ChannelPeer, NodePeerManager};
+use crate::lexe::peer_manager::NodePeerManager;
 use crate::lexe::persister::NodePersister;
 use crate::run::UserNode;
 
