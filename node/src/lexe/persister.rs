@@ -274,23 +274,23 @@ impl InnerPersister {
         &self,
     ) -> anyhow::Result<Vec<ChannelPeer>> {
         debug!("Reading channel peers");
-        let cp_dir = NodeDirectory {
+        let dir = NodeDirectory {
             node_pk: self.node_pk,
             measurement: self.measurement,
             dirname: CHANNEL_PEERS_DIRECTORY.to_owned(),
         };
 
-        let cp_file_vec = self
+        let files = self
             .api
-            .get_directory(&cp_dir)
+            .get_directory(&dir)
             .await
             .context("Could not fetch channel peers from DB")?;
 
-        let mut result = Vec::with_capacity(cp_file_vec.len());
+        let mut result = Vec::with_capacity(files.len());
 
-        for cp_file in cp_file_vec {
+        for file in files {
             // <pk>@<addr>
-            let pk_at_addr = cp_file.id.filename;
+            let pk_at_addr = file.id.filename;
 
             let channel_peer = ChannelPeer::from_str(&pk_at_addr)
                 .context("Could not deserialize channel peer")?;
