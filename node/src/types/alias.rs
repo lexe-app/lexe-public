@@ -3,17 +3,13 @@ use std::sync::{Arc, Mutex};
 
 use lexe_ln::alias::{
     BroadcasterType, ChannelMonitorType, FeeEstimatorType,
-    LexeChainMonitorType, LexeChannelManagerType, NetworkGraphType,
-    P2PGossipSyncType, ProbabilisticScorerType, SignerType,
+    LexeChainMonitorType, LexeChannelManagerType, LexePeerManagerType,
+    NetworkGraphType, ProbabilisticScorerType,
 };
-use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
-use lightning::ln::peer_handler::{IgnoringMessageHandler, PeerManager};
 use lightning::ln::PaymentHash;
-use lightning::onion_message::OnionMessenger;
 use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
-use lightning_net_tokio::SocketDescriptor;
 
 use crate::event_handler::LdkEventHandler;
 use crate::lexe::channel_manager::NodeChannelManager;
@@ -27,17 +23,7 @@ pub(crate) type PaymentInfoStorageType =
 
 pub(crate) type ChainMonitorType = LexeChainMonitorType<NodePersister>;
 
-pub(crate) type OnionMessengerType =
-    OnionMessenger<SignerType, LexeKeysManager, LexeTracingLogger>;
-
-pub(crate) type PeerManagerType = PeerManager<
-    SocketDescriptor,
-    NodeChannelManager,
-    Arc<P2PGossipSyncType>,
-    Arc<OnionMessengerType>,
-    LexeTracingLogger,
-    Arc<IgnoringMessageHandler>,
->;
+pub(crate) type PeerManagerType = LexePeerManagerType<NodeChannelManager>;
 
 /// This is the tuple that LDK impl'd `Listen` for
 pub(crate) type ChannelMonitorListenerType = (

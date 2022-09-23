@@ -7,6 +7,7 @@ use common::cli::Network;
 use lexe_ln::alias::{BlockSourceType, BroadcasterType, FeeEstimatorType};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
+use lexe_ln::peer::ChannelPeer;
 use lightning::chain::BestBlock;
 use lightning::ln::channelmanager::{
     ChainParameters, ChannelManager, MIN_CLTV_EXPIRY_DELTA,
@@ -16,7 +17,7 @@ use lightning::util::config::{
 };
 use tracing::{debug, info};
 
-use crate::lexe::peer_manager::{ChannelPeer, NodePeerManager};
+use crate::lexe::peer_manager::NodePeerManager;
 use crate::lexe::persister::NodePersister;
 use crate::types::{ChainMonitorType, ChannelManagerType};
 

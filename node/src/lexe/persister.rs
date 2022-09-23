@@ -19,6 +19,7 @@ use lexe_ln::alias::{
 use lexe_ln::channel_monitor::LxChannelMonitorUpdate;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
+use lexe_ln::peer::ChannelPeer;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
 use lightning::chain::channelmonitor::ChannelMonitorUpdate;
 use lightning::chain::transaction::OutPoint;
@@ -33,7 +34,6 @@ use tokio::sync::mpsc;
 use tracing::{debug, error};
 
 use crate::lexe::channel_manager::USER_CONFIG;
-use crate::lexe::peer_manager::ChannelPeer;
 use crate::types::{ApiClientType, ChainMonitorType, ChannelManagerType};
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename

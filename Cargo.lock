@@ -1206,6 +1206,8 @@ dependencies = [
  "lightning-invoice",
  "lightning-net-tokio",
  "once_cell",
+ "proptest",
+ "proptest-derive",
  "secrecy",
  "serde",
  "serde_json",

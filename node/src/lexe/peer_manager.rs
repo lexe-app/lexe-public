@@ -1,16 +1,14 @@
-use std::fmt::{self, Display};
-use std::net::SocketAddr;
+use std::cmp::min;
 use std::ops::Deref;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{bail, Context};
-use bitcoin::secp256k1::PublicKey;
 use common::rng::Crng;
-use lexe_ln::alias::P2PGossipSyncType;
+use lexe_ln::alias::{OnionMessengerType, P2PGossipSyncType};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
+use lexe_ln::peer::ChannelPeer;
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
 use secrecy::zeroize::Zeroizing;
@@ -18,9 +16,14 @@ use tokio::net::TcpStream;
 use tokio::time;
 
 use crate::lexe::channel_manager::NodeChannelManager;
-use crate::types::{OnionMessengerType, PeerManagerType};
+use crate::types::PeerManagerType;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+
+// Exponential backoff
+const INITIAL_WAIT_MS: u64 = 10;
+const MAXIMUM_WAIT_MS: u64 = 30_000;
+const EXP_BASE: u64 = 2;
 
 /// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]
@@ -133,6 +136,12 @@ impl NodePeerManager {
             stream,
         );
         let mut connection_closed_fut = Box::pin(connection_closed_fut);
+        // Use exponential backoff when polling so that a stalled connection
+        // doesn't keep the node always in memory
+        let mut backoff_durations = (0..)
+            .map(|index| INITIAL_WAIT_MS * EXP_BASE.pow(index))
+            .map(|wait| min(wait, MAXIMUM_WAIT_MS))
+            .map(Duration::from_millis);
         loop {
             // Check if the connection has been closed
             match futures::poll!(&mut connection_closed_fut) {
@@ -152,52 +161,10 @@ impl NodePeerManager {
                 break;
             } else {
                 // Connection not confirmed yet, wait before checking again
-                tokio::time::sleep(Duration::from_millis(10)).await;
+                tokio::time::sleep(backoff_durations.next().unwrap()).await;
             }
         }
 
         Ok(())
-    }
-}
-
-#[derive(Clone)]
-pub(crate) struct ChannelPeer {
-    pub(crate) pk: PublicKey,
-    pub(crate) addr: SocketAddr,
-}
-
-impl ChannelPeer {
-    #[allow(dead_code)] // TODO Remove once this fn is used in sgx
-    pub(crate) fn new(pk: PublicKey, addr: SocketAddr) -> Self {
-        Self { pk, addr }
-    }
-}
-
-/// <pk>@<addr>
-impl FromStr for ChannelPeer {
-    type Err = anyhow::Error;
-    fn from_str(pk_at_addr: &str) -> anyhow::Result<Self> {
-        // vec![<pk>, <addr>]
-        let mut pk_and_addr = pk_at_addr.split('@');
-        let pk_str = pk_and_addr
-            .next()
-            .context("Missing <pk> in <pk>@<addr> peer address")?;
-        let addr_str = pk_and_addr
-            .next()
-            .context("Missing <addr> in <pk>@<addr> peer address")?;
-
-        let pk = PublicKey::from_str(pk_str)
-            .context("Could not deserialize PublicKey from LowerHex")?;
-        let addr = SocketAddr::from_str(addr_str)
-            .context("Could not parse socket address from string")?;
-
-        Ok(Self { pk, addr })
-    }
-}
-
-/// <pk>@<addr>
-impl Display for ChannelPeer {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}@{}", self.pk, self.addr)
     }
 }
