@@ -5,6 +5,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{bail, Context};
 use common::rng::Crng;
+use common::shutdown::ShutdownChannel;
+use common::task::LxTask;
+use futures::future;
 use lexe_ln::alias::{OnionMessengerType, P2PGossipSyncType};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
@@ -14,11 +17,14 @@ use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
 use secrecy::zeroize::Zeroizing;
 use tokio::net::TcpStream;
 use tokio::time;
+use tracing::{error, warn};
 
 use crate::lexe::channel_manager::NodeChannelManager;
+use crate::lexe::persister::NodePersister;
 use crate::types::PeerManagerType;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 
 // Exponential backoff
 const INITIAL_WAIT_MS: u64 = 10;
@@ -80,7 +86,7 @@ impl NodePeerManager {
         Self(Arc::new(peer_manager))
     }
 
-    pub(crate) fn as_arc_inner(&self) -> Arc<PeerManagerType> {
+    pub(crate) fn arc_inner(&self) -> Arc<PeerManagerType> {
         self.0.clone()
     }
 
@@ -131,7 +137,7 @@ impl NodePeerManager {
         //
         // TODO: Rewrite / replace lightning-net-tokio entirely
         let connection_closed_fut = lightning_net_tokio::setup_outbound(
-            self.as_arc_inner(),
+            self.arc_inner(),
             channel_peer.pk,
             stream,
         );
@@ -167,4 +173,67 @@ impl NodePeerManager {
 
         Ok(())
     }
+}
+
+/// Spawns a task that regularly reconnects to the channel peers stored in DB.
+pub(crate) fn spawn_p2p_reconnector(
+    channel_manager: NodeChannelManager,
+    peer_manager: NodePeerManager,
+    persister: NodePersister,
+    mut shutdown: ShutdownChannel,
+) -> LxTask<()> {
+    LxTask::spawn(async move {
+        let mut interval = time::interval(P2P_RECONNECT_INTERVAL);
+
+        loop {
+            tokio::select! {
+                // Prevents race condition where we initiate a reconnect *after*
+                // a shutdown signal was received, causing this task to hang
+                biased;
+                _ = shutdown.recv() => break,
+                _ = interval.tick() => {}
+            }
+
+            // NOTE: Repeatedly hitting the DB here doesn't seem strictly
+            // necessary (a channel for the channel manager to notify this task
+            // of a new peer is sufficient), but it is the simplest solution for
+            // now. This can be optimized away if it becomes a problem later.
+            let channel_peers = match persister.read_channel_peers().await {
+                Ok(cp_vec) => cp_vec,
+                Err(e) => {
+                    error!("ERROR: Could not read channel peers: {:#}", e);
+                    continue;
+                }
+            };
+
+            // Find all the peers we've been disconnected from
+            let p2p_peers = peer_manager.get_peer_node_ids();
+            let disconnected_peers: Vec<_> = channel_manager
+                .list_channels()
+                .iter()
+                .map(|chan| chan.counterparty.node_id)
+                .filter(|node_id| !p2p_peers.contains(node_id))
+                .collect();
+
+            // Match ids
+            let mut connect_futs: Vec<_> =
+                Vec::with_capacity(disconnected_peers.len());
+            for node_id in disconnected_peers {
+                for channel_peer in channel_peers.iter() {
+                    if channel_peer.pk == node_id {
+                        let connect_fut = peer_manager
+                            .do_connect_peer(channel_peer.deref().clone());
+                        connect_futs.push(connect_fut)
+                    }
+                }
+            }
+
+            // Reconnect
+            for res in future::join_all(connect_futs).await {
+                if let Err(e) = res {
+                    warn!("Couldn't neconnect to channel peer: {:#}", e)
+                }
+            }
+        }
+    })
 }

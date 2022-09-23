@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -17,7 +16,6 @@ use common::rng::Crng;
 use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
-use futures::future;
 use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
     BlockSourceType, BroadcasterType, ChannelMonitorType, FeeEstimatorType,
@@ -35,7 +33,6 @@ use lightning_invoice::payment;
 use lightning_invoice::utils::DefaultRouter;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
-use tokio::time;
 use tracing::{debug, error, info, instrument, warn};
 
 use crate::api::ApiClient;
@@ -43,7 +40,7 @@ use crate::event_handler::LdkEventHandler;
 use crate::inactivity_timer::InactivityTimer;
 use crate::lexe::background_processor::LexeBackgroundProcessor;
 use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::peer_manager::NodePeerManager;
+use crate::lexe::peer_manager::{self, NodePeerManager};
 use crate::lexe::persister::NodePersister;
 use crate::lexe::sync::SyncedChainListeners;
 use crate::types::{
@@ -52,8 +49,6 @@ use crate::types::{
 use crate::{api, command};
 
 pub(crate) const DEFAULT_CHANNEL_SIZE: usize = 256;
-// TODO(max): p2p stuff should probably go in its own module
-const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 /// The amount of time tasks have to finish after a graceful shutdown was
 /// initiated before the program exits.
 const SHUTDOWN_TIME_LIMIT: Duration = Duration::from_secs(15);
@@ -270,13 +265,13 @@ impl UserNode {
         info!("Listening for LN P2P connections on port {peer_port}");
         let p2p_listener_task = init::spawn_p2p_listener(
             listener,
-            peer_manager.as_arc_inner(),
+            peer_manager.arc_inner(),
             shutdown.clone(),
         );
         tasks.push(("p2p listener", p2p_listener_task));
 
         // Spawn a task to regularly reconnect to channel peers
-        let p2p_reconnector_task = spawn_p2p_reconnector(
+        let p2p_reconnector_task = peer_manager::spawn_p2p_reconnector(
             channel_manager.clone(),
             peer_manager.clone(),
             persister.clone(),
@@ -608,70 +603,4 @@ async fn fetch_provisioned_secrets<R: Crng>(
         (None, None) => bail!("Enclave version has not been provisioned yet"),
         _ => bail!("Node and instance should have been persisted together"),
     }
-}
-
-/// Spawns a task that regularly reconnects to the channel peers stored in DB.
-fn spawn_p2p_reconnector(
-    channel_manager: NodeChannelManager,
-    peer_manager: NodePeerManager,
-    persister: NodePersister,
-    mut shutdown: ShutdownChannel,
-) -> LxTask<()> {
-    LxTask::spawn(async move {
-        let mut interval = time::interval(P2P_RECONNECT_INTERVAL);
-
-        loop {
-            interval.tick().await;
-            tokio::select! {
-                // Prevents race condition where we initiate a reconnect *after*
-                // a shutdown signal was received, causing this task to hang
-                biased;
-                () = shutdown.recv() => break,
-                _ = interval.tick() => {}
-            }
-
-            // NOTE: Repeatedly hitting the DB here doesn't seem strictly
-            // necessary (a channel for the channel manager to notify this task
-            // of a new peer is sufficient), but it is the simplest solution for
-            // now. This can be optimized away if it becomes a problem later.
-            let channel_peers = match persister.read_channel_peers().await {
-                Ok(cp_vec) => cp_vec,
-                Err(e) => {
-                    error!("ERROR: Could not read channel peers: {:#}", e);
-                    continue;
-                }
-            };
-
-            // Find all the peers we've been disconnected from
-            let p2p_peers = peer_manager.get_peer_node_ids();
-            let disconnected_peers: Vec<_> = channel_manager
-                .list_channels()
-                .iter()
-                .map(|chan| chan.counterparty.node_id)
-                .filter(|node_id| !p2p_peers.contains(node_id))
-                .collect();
-
-            // Match ids
-            let mut connect_futs: Vec<_> =
-                Vec::with_capacity(disconnected_peers.len());
-            for node_id in disconnected_peers {
-                for channel_peer in channel_peers.iter() {
-                    if channel_peer.pk == node_id {
-                        let connect_fut = peer_manager
-                            .do_connect_peer(channel_peer.deref().clone());
-                        connect_futs.push(connect_fut)
-                    }
-                }
-            }
-
-            // Reconnect
-            for res in future::join_all(connect_futs).await {
-                if let Err(e) = res {
-                    warn!("Couldn't reconnect to channel peer: {:#}", e)
-                }
-            }
-        }
-
-        info!("p2p reconnector task shut down");
-    })
 }
