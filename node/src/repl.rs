@@ -13,9 +13,10 @@ use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
 use common::cli::Network;
 use common::hex;
-use lexe_ln::alias::NetworkGraphType;
+use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::peer::ChannelPeer;
+use lexe_ln::types::{HTLCStatus, MillisatAmount, PaymentInfo};
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::ln::{PaymentHash, PaymentPreimage};
 use lightning::routing::gossip::NodeId;
@@ -25,10 +26,7 @@ use lightning_invoice::{utils, Currency, Invoice};
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::NodePeerManager;
 use crate::lexe::persister::NodePersister;
-use crate::types::{
-    HTLCStatus, InvoicePayerType, MillisatAmount, PaymentInfo,
-    PaymentInfoStorageType,
-};
+use crate::types::InvoicePayerType;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn poll_for_user_input(

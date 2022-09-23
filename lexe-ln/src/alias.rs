@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::channelmonitor::ChannelMonitor;
@@ -6,14 +7,18 @@ use lightning::chain::keysinterface::InMemorySigner;
 use lightning::chain::{Access, Filter};
 use lightning::ln::channelmanager::ChannelManager;
 use lightning::ln::peer_handler::{IgnoringMessageHandler, PeerManager};
+use lightning::ln::PaymentHash;
 use lightning::onion_message::OnionMessenger;
 use lightning::routing::gossip::{NetworkGraph, P2PGossipSync};
 use lightning::routing::scoring::ProbabilisticScorer;
+use lightning_invoice::payment::InvoicePayer;
+use lightning_invoice::utils::DefaultRouter;
 use lightning_net_tokio::SocketDescriptor;
 
 use crate::bitcoind::LexeBitcoind;
 use crate::keys_manager::LexeKeysManager;
 use crate::logger::LexeTracingLogger;
+use crate::types::PaymentInfo;
 
 pub type SignerType = InMemorySigner;
 
@@ -65,4 +70,16 @@ pub type LexePeerManagerType<CHANNELMANAGER> = PeerManager<
     Arc<OnionMessengerType>,
     LexeTracingLogger,
     Arc<IgnoringMessageHandler>,
+>;
+
+pub type PaymentInfoStorageType = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
+
+pub type RouterType = DefaultRouter<Arc<NetworkGraphType>, LexeTracingLogger>;
+
+pub type LexeInvoicePayerType<CHANNELMANAGER, EVENTHANDLER> = InvoicePayer<
+    CHANNELMANAGER,
+    RouterType,
+    Arc<Mutex<ProbabilisticScorerType>>,
+    LexeTracingLogger,
+    EVENTHANDLER,
 >;
