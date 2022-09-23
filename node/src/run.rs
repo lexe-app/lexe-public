@@ -256,12 +256,23 @@ impl UserNode {
         );
 
         // Set up listening for inbound P2P connections
-        let (p2p_listener_task, peer_port) = spawn_p2p_listener(
-            peer_manager.clone(),
-            args.peer_port,
+        let (listener, peer_port) = {
+            // A value of 0 indicates that the OS will assign a port for us
+            // TODO(phlip9): user nodes should only listen on internal
+            // interface. LSP should should accept external connections
+            let address = format!("0.0.0.0:{}", args.peer_port.unwrap_or(0));
+            let listener = TcpListener::bind(address)
+                .await
+                .expect("Failed to bind to peer port");
+            let peer_port = listener.local_addr().unwrap().port();
+            (listener, peer_port)
+        };
+        info!("Listening for LN P2P connections on port {peer_port}");
+        let p2p_listener_task = init::spawn_p2p_listener(
+            listener,
+            peer_manager.as_arc_inner(),
             shutdown.clone(),
-        )
-        .await;
+        );
         tasks.push(("p2p listener", p2p_listener_task));
 
         // Spawn a task to regularly reconnect to channel peers
@@ -597,87 +608,6 @@ async fn fetch_provisioned_secrets<R: Crng>(
         (None, None) => bail!("Enclave version has not been provisioned yet"),
         _ => bail!("Node and instance should have been persisted together"),
     }
-}
-
-/// Sets up a `TcpListener` to listen on 0.0.0.0:<peer_port>, handing off
-/// resultant `TcpStream`s for the `PeerManager` to manage
-async fn spawn_p2p_listener(
-    peer_manager: NodePeerManager,
-    peer_port_opt: Option<Port>,
-    mut shutdown: ShutdownChannel,
-) -> (LxTask<()>, Port) {
-    // A value of 0 indicates that the OS will assign a port for us
-    // TODO(phlip9): should only listen on internal interface
-    let address = format!("0.0.0.0:{}", peer_port_opt.unwrap_or(0));
-    let listener = TcpListener::bind(address)
-        .await
-        .expect("Failed to bind to peer port");
-    let peer_port = listener.local_addr().unwrap().port();
-    info!("Listening for LN P2P connections on port {}", peer_port);
-
-    let handle = LxTask::spawn(async move {
-        let mut child_tasks = FuturesUnordered::new();
-
-        loop {
-            tokio::select! {
-                accept_res = listener.accept() => {
-                    // TcpStream boilerplate
-                    let (tcp_stream, _peer_addr) = match accept_res {
-                        Ok(ts) => ts,
-                        Err(e) => {
-                            warn!("Failed to accept connection: {e:#}");
-                            continue;
-                        }
-                    };
-                    let tcp_stream = match tcp_stream.into_std() {
-                        Ok(s) => s,
-                        Err(e) => {
-                            warn!("Couldn't convert to std TcpStream: {e:#}");
-                            continue;
-                        }
-                    };
-
-                    // Spawn a task to await on the connection
-                    let peer_manager_clone = peer_manager.as_arc_inner();
-                    let child_task = LxTask::spawn(async move {
-                        // `setup_inbound()` returns a future that completes
-                        // when the connection is closed. The main thread calls
-                        // peer_manager.disconnect_all_peers() once it receives
-                        // a shutdown signal so there is no need to pass in a
-                        // `shutdown`s here.
-                        let connection_closed = lightning_net_tokio::setup_inbound(
-                            peer_manager_clone,
-                            tcp_stream,
-                        );
-                        connection_closed.await;
-                    });
-
-                    child_tasks.push(child_task);
-                }
-                // To prevent a memory leak of LxTasks, we select! on the
-                // futures unordered so that we can clear out LxTasks for peers
-                // that disconnect before the node shuts down.
-                Some(join_res) = child_tasks.next() => {
-                    if let Err(e) = join_res {
-                        error!("P2P connection task panicked: {e:#}");
-                    }
-                }
-                () = shutdown.recv() =>
-                    break info!("LN P2P listen task shutting down"),
-            }
-        }
-
-        // Wait on all child tasks to finish (i.e. all connections close).
-        while let Some(join_res) = child_tasks.next().await {
-            if let Err(e) = join_res {
-                error!("P2P connection task panicked: {:#}", e);
-            }
-        }
-
-        info!("LN P2P listen task complete");
-    });
-
-    (handle, peer_port)
 }
 
 /// Spawns a task that regularly reconnects to the channel peers stored in DB.
