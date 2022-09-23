@@ -91,7 +91,7 @@ impl InactivityTimer {
                         },
                     }
                 }
-                _ = self.shutdown.recv() => {
+                () = self.shutdown.recv() => {
                     info!("Inactivity timer received shutdown signal");
                     break;
                 }

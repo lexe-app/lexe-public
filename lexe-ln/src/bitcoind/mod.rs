@@ -99,7 +99,7 @@ impl LexeBitcoind {
         let background_fees = self.background_fees.clone();
         let normal_fees = self.normal_fees.clone();
         let high_prio_fees = self.high_prio_fees.clone();
-        let shutdown = self.shutdown.clone();
+        let mut shutdown = self.shutdown.clone();
 
         // TODO(max): Instrument with shutdown
         LxTask::spawn(async move {

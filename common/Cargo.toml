@@ -141,6 +141,8 @@ proptest-derive = "0.3"
 serde_json = "1"
 # lower-level async TLS interface
 tokio-rustls = { version = "0.23", default-features = false }
+# Utilities for testing futures
+tokio-test = "0.4"
 
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Include additional useful proptest features when testing outside of SGX

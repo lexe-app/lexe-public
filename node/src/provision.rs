@@ -172,7 +172,7 @@ pub async fn provision<R: Crng>(
 
     // we'll trigger `shutdown` when we've completed the provisioning process
     let shutdown = ShutdownChannel::new();
-    let shutdown_clone = shutdown.clone();
+    let mut shutdown_clone = shutdown.clone();
     let shutdown_fut = async move {
         // don't wait forever for the client
         match tokio::time::timeout(PROVISION_TIMEOUT, shutdown_clone.recv())

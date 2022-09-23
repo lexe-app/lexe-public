@@ -38,7 +38,7 @@ impl LexeBackgroundProcessor {
         event_handler: Arc<InvoicePayerType>,
         gossip_sync: Arc<P2PGossipSyncType>,
         scorer: Arc<Mutex<ProbabilisticScorerType>>,
-        shutdown: ShutdownChannel,
+        mut shutdown: ShutdownChannel,
     ) -> LxTask<()> {
         LxTask::spawn(async move {
             let mut process_timer = interval(PROCESS_EVENTS_INTERVAL);
@@ -110,7 +110,7 @@ impl LexeBackgroundProcessor {
                     }
 
                     // --- Shutdown branch --- //
-                    _ = shutdown.recv() => {
+                    () = shutdown.recv() => {
                         info!("Background processor shutting down");
                         break;
                     }
