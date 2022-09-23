@@ -19,7 +19,7 @@ use common::task::LxTask;
 use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
     BlockSourceType, BroadcasterType, ChannelMonitorType, FeeEstimatorType,
-    NetworkGraphType, P2PGossipSyncType, WalletType,
+    NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, WalletType,
 };
 use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::init;
@@ -29,23 +29,21 @@ use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::onion_message::OnionMessenger;
 use lightning::routing::gossip::P2PGossipSync;
-use lightning_invoice::payment;
+use lightning_invoice::payment::Retry;
 use lightning_invoice::utils::DefaultRouter;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, instrument, warn};
 
 use crate::api::ApiClient;
-use crate::event_handler::LdkEventHandler;
+use crate::event_handler::NodeEventHandler;
 use crate::inactivity_timer::InactivityTimer;
 use crate::lexe::background_processor::LexeBackgroundProcessor;
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::{self, NodePeerManager};
 use crate::lexe::persister::NodePersister;
 use crate::lexe::sync::SyncedChainListeners;
-use crate::types::{
-    ApiClientType, ChainMonitorType, InvoicePayerType, PaymentInfoStorageType,
-};
+use crate::types::{ApiClientType, ChainMonitorType, InvoicePayerType};
 use crate::{api, command};
 
 pub(crate) const DEFAULT_CHANNEL_SIZE: usize = 256;
@@ -340,7 +338,7 @@ impl UserNode {
             Arc::new(Mutex::new(HashMap::new()));
         let outbound_payments: PaymentInfoStorageType =
             Arc::new(Mutex::new(HashMap::new()));
-        let event_handler = LdkEventHandler::new(
+        let event_handler = NodeEventHandler::new(
             args.network,
             channel_manager.clone(),
             keys_manager.clone(),
@@ -362,7 +360,7 @@ impl UserNode {
             scorer.clone(),
             logger.clone(),
             event_handler,
-            payment::Retry::Timeout(Duration::from_secs(10)),
+            Retry::Timeout(Duration::from_secs(10)),
         ));
 
         // Start Background Processing

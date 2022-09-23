@@ -13,9 +13,10 @@ use bitcoin_bech32::WitnessProgram;
 use common::cli::Network;
 use common::hex;
 use common::task::LxTask;
-use lexe_ln::alias::NetworkGraphType;
+use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::keys_manager::LexeKeysManager;
+use lexe_ln::types::{HTLCStatus, MillisatAmount, PaymentInfo};
 use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
 };
@@ -25,11 +26,8 @@ use tokio::runtime::Handle;
 use tracing::{debug, error};
 
 use crate::lexe::channel_manager::NodeChannelManager;
-use crate::types::{
-    HTLCStatus, MillisatAmount, PaymentInfo, PaymentInfoStorageType,
-};
 
-pub(crate) struct LdkEventHandler {
+pub(crate) struct NodeEventHandler {
     network: Network,
     channel_manager: NodeChannelManager,
     keys_manager: LexeKeysManager,
@@ -39,7 +37,7 @@ pub(crate) struct LdkEventHandler {
     outbound_payments: PaymentInfoStorageType,
 }
 
-impl LdkEventHandler {
+impl NodeEventHandler {
     pub(crate) fn new(
         network: Network,
         channel_manager: NodeChannelManager,
@@ -61,7 +59,7 @@ impl LdkEventHandler {
     }
 }
 
-impl EventHandler for LdkEventHandler {
+impl EventHandler for NodeEventHandler {
     /// Event handling requirements are documented in the [`EventsProvider`]
     /// doc comments:
     ///
@@ -195,7 +193,7 @@ async fn handle_event_fallible(
                 .is_err()
             {
                 println!(
-					"\nERROR: Channel went away before we could fund it. The peer disconnected or refused the channel.");
+                    "\nERROR: Channel went away before we could fund it. The peer disconnected or refused the channel.");
                 print!("> ");
                 io::stdout().flush().unwrap();
             }
@@ -206,10 +204,10 @@ async fn handle_event_fallible(
             amount_msat,
         } => {
             println!(
-				"\nEVENT: received payment from payment hash {} of {} millisatoshis",
-				hex::encode(&payment_hash.0),
-				amount_msat,
-			);
+                "\nEVENT: received payment from payment hash {} of {} millisatoshis",
+                hex::encode(&payment_hash.0),
+                amount_msat,
+            );
             print!("> ");
             io::stdout().flush().unwrap();
             let payment_preimage = match purpose {
@@ -226,10 +224,10 @@ async fn handle_event_fallible(
             amount_msat,
         } => {
             println!(
-				"\nEVENT: claimed payment from payment hash {} of {} millisatoshis",
-				hex::encode(&payment_hash.0),
-				amount_msat,
-			);
+                "\nEVENT: claimed payment from payment hash {} of {} millisatoshis",
+                hex::encode(&payment_hash.0),
+                amount_msat,
+            );
             print!("> ");
             io::stdout().flush().unwrap();
             let (payment_preimage, payment_secret) = match purpose {
@@ -274,17 +272,17 @@ async fn handle_event_fallible(
                     payment.preimage = Some(*payment_preimage);
                     payment.status = HTLCStatus::Succeeded;
                     println!(
-						"\nEVENT: successfully sent payment of {} millisatoshis{} from \
-								 payment hash {:?} with preimage {:?}",
-						payment.amt_msat,
-						if let Some(fee) = fee_paid_msat {
-							format!(" (fee {} msat)", fee)
-						} else {
-							"".to_string()
-						},
-						hex::encode(&payment_hash.0),
-						hex::encode(&payment_preimage.0)
-					);
+                        "\nEVENT: successfully sent payment of {} millisatoshis{} from \
+                                 payment hash {:?} with preimage {:?}",
+                        payment.amt_msat,
+                        if let Some(fee) = fee_paid_msat {
+                            format!(" (fee {} msat)", fee)
+                        } else {
+                            "".to_string()
+                        },
+                        hex::encode(&payment_hash.0),
+                        hex::encode(&payment_preimage.0)
+                    );
                     print!("> ");
                     io::stdout().flush().unwrap();
                 }
@@ -299,9 +297,9 @@ async fn handle_event_fallible(
         Event::ProbeFailed { .. } => {}
         Event::PaymentFailed { payment_hash, .. } => {
             print!(
-				"\nEVENT: Failed to send payment to payment hash {:?}: exhausted payment retry attempts",
-				hex::encode(&payment_hash.0)
-			);
+                "\nEVENT: Failed to send payment to payment hash {:?}: exhausted payment retry attempts",
+                hex::encode(&payment_hash.0)
+            );
             print!("> ");
             io::stdout().flush().unwrap();
 
