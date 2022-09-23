@@ -270,7 +270,7 @@ impl UserNode {
             network_graph.clone(),
             activity_tx,
         );
-        let owner_shutdown = shutdown.clone();
+        let mut owner_shutdown = shutdown.clone();
         let (owner_addr, owner_service_fut) = warp::serve(owner_routes)
             .tls()
             .preconfigured_tls(owner_tls)
@@ -290,7 +290,7 @@ impl UserNode {
         // Start warp service for host
         let host_routes =
             command::server::host_routes(args.user_pk, shutdown.clone());
-        let host_shutdown = shutdown.clone();
+        let mut host_shutdown = shutdown.clone();
         let (host_addr, host_service_fut) = warp::serve(host_routes)
             // A value of 0 indicates that the OS will assign a port for us
             .try_bind_with_graceful_shutdown(
@@ -626,7 +626,7 @@ async fn gossip_sync(
 async fn spawn_p2p_listener(
     peer_manager: NodePeerManager,
     peer_port_opt: Option<Port>,
-    shutdown: ShutdownChannel,
+    mut shutdown: ShutdownChannel,
 ) -> (LxTask<()>, Port) {
     // A value of 0 indicates that the OS will assign a port for us
     // TODO(phlip9): should only listen on internal interface
@@ -684,7 +684,7 @@ async fn spawn_p2p_listener(
                         error!("P2P connection task panicked: {e:#}");
                     }
                 }
-                _ = shutdown.recv() =>
+                () = shutdown.recv() =>
                     break info!("LN P2P listen task shutting down"),
             }
         }
@@ -707,7 +707,7 @@ fn spawn_p2p_reconnector(
     channel_manager: NodeChannelManager,
     peer_manager: NodePeerManager,
     persister: NodePersister,
-    shutdown: ShutdownChannel,
+    mut shutdown: ShutdownChannel,
 ) -> LxTask<()> {
     LxTask::spawn(async move {
         let mut interval = time::interval(P2P_RECONNECT_INTERVAL);
@@ -718,7 +718,7 @@ fn spawn_p2p_reconnector(
                 // Prevents race condition where we initiate a reconnect *after*
                 // a shutdown signal was received, causing this task to hang
                 biased;
-                _ = shutdown.recv() => break,
+                () = shutdown.recv() => break,
                 _ = interval.tick() => {}
             }
 
@@ -759,10 +759,12 @@ fn spawn_p2p_reconnector(
             // Reconnect
             for res in future::join_all(connect_futs).await {
                 if let Err(e) = res {
-                    warn!("Couldn't neconnect to channel peer: {:#}", e)
+                    warn!("Couldn't reconnect to channel peer: {:#}", e)
                 }
             }
         }
+
+        info!("p2p reconnector task shut down");
     })
 }
 
@@ -776,7 +778,7 @@ fn spawn_p2p_reconnector(
 pub fn spawn_channel_monitor_updated_task(
     chain_monitor: Arc<ChainMonitorType>,
     mut channel_monitor_updated_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
-    shutdown: ShutdownChannel,
+    mut shutdown: ShutdownChannel,
 ) -> LxTask<()> {
     debug!("Starting channel_monitor_updated task");
     LxTask::spawn(async move {
@@ -791,11 +793,11 @@ pub fn spawn_channel_monitor_updated_task(
                         error!("channel_monitor_updated returned Err: {:?}", e);
                     }
                 }
-                _ = shutdown.recv() => {
-                    info!("channel_monitor_updated task shutting down");
-                    break;
-                }
+                () = shutdown.recv() => break,
+                else => break,
             }
         }
+
+        info!("channel_monitor_updated task shut down");
     })
 }

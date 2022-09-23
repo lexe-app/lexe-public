@@ -195,7 +195,7 @@ impl SyncedChainListeners {
     pub fn feed_chain_monitor_and_spawn_spv(
         mut self,
         chain_monitor: Arc<ChainMonitorType>,
-        shutdown: ShutdownChannel,
+        mut shutdown: ShutdownChannel,
     ) -> anyhow::Result<LxTask<()>> {
         for cmcl in self.cmcls {
             let (channel_monitor, funding_outpoint) =
