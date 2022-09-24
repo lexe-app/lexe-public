@@ -4,6 +4,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Mutex};
 
 use anyhow::{anyhow, ensure, Context};
+use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
 use bitcoin::secp256k1::PublicKey;
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
@@ -20,6 +21,7 @@ use lexe_ln::channel_monitor::LxChannelMonitorUpdate;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::peer::ChannelPeer;
+use lexe_ln::traits::LexePersister;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
 use lightning::chain::channelmonitor::ChannelMonitorUpdate;
 use lightning::chain::transaction::OutPoint;
@@ -324,17 +326,20 @@ impl InnerPersister {
             .map(|_| ())
             .map_err(|e| e.into())
     }
+}
 
-    pub(crate) async fn persist_manager(
+#[async_trait]
+impl LexePersister for InnerPersister {
+    async fn persist_manager<W: Writeable + Send + Sync>(
         &self,
-        channel_manager: &ChannelManagerType,
+        channel_manager: &W,
     ) -> anyhow::Result<()> {
         debug!("Persisting channel manager");
 
         // FIXME(encrypt): Encrypt under key derived from seed
         let data = channel_manager.encode();
 
-        let cm_file = NodeFile::new(
+        let file = NodeFile::new(
             self.node_pk,
             self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
@@ -344,13 +349,13 @@ impl InnerPersister {
 
         // Channel manager is more important so let's retry up to three times
         self.api
-            .upsert_file_with_retries(&cm_file, IMPORTANT_RETRIES)
+            .upsert_file_with_retries(&file, IMPORTANT_RETRIES)
             .await
             .map(|_| ())
             .context("Could not persist channel manager")
     }
 
-    pub(crate) async fn persist_graph(
+    async fn persist_graph(
         &self,
         network_graph: &NetworkGraphType,
     ) -> anyhow::Result<()> {
@@ -373,13 +378,13 @@ impl InnerPersister {
             .context("Could not persist network graph")
     }
 
-    pub(crate) async fn persist_scorer(
+    async fn persist_scorer(
         &self,
         scorer_mutex: &Mutex<ProbabilisticScorerType>,
     ) -> anyhow::Result<()> {
         debug!("Persisting probabilistic scorer");
 
-        let scorer_file = {
+        let file = {
             let scorer = scorer_mutex.lock().unwrap();
 
             // FIXME(encrypt): Encrypt under key derived from seed
@@ -395,7 +400,7 @@ impl InnerPersister {
         };
 
         self.api
-            .upsert_file(&scorer_file)
+            .upsert_file(&file)
             .await
             .map(|_| ())
             .context("Could not persist scorer")

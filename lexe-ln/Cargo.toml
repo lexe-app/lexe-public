@@ -46,6 +46,8 @@ lightning-net-tokio = { version = "0.0.111" }
 
 # Ad hoc error definition, easy error propagation, error chains
 anyhow = "1"
+# async fn's in trait methods
+async-trait = "0.1"
 # Utils for working with futures
 futures = "0.3"
 # Used to hold a Tokio runtime used by the sync fns in the Persister trait impl
