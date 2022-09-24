@@ -6,6 +6,7 @@
 
 /// Type aliases.
 pub mod alias;
+pub mod background_processor;
 /// BitcoinD client.
 pub mod bitcoind;
 /// Channel monitor
@@ -18,5 +19,7 @@ pub mod keys_manager;
 pub mod logger;
 /// Types related to peers and networking.
 pub mod peer;
+/// Traits.
+pub mod traits;
 /// Misc types that temporarily don't fit anywhere else
 pub mod types;

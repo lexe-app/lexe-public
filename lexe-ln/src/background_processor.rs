@@ -4,15 +4,15 @@ use std::time::Duration;
 
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
-use lexe_ln::alias::{P2PGossipSyncType, ProbabilisticScorerType};
-use lightning::util::events::EventsProvider;
+use lightning::util::events::{EventHandler, EventsProvider};
 use tokio::time::{interval, interval_at, Instant};
 use tracing::{debug, error, info, trace, warn};
 
-use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::peer_manager::NodePeerManager;
-use crate::lexe::persister::NodePersister;
-use crate::types::{ChainMonitorType, InvoicePayerType};
+use crate::alias::{
+    LexeChainMonitorType, LexeChannelManagerType, LexeInvoicePayerType,
+    LexePeerManagerType, P2PGossipSyncType, ProbabilisticScorerType,
+};
+use crate::traits::LexePersister;
 
 const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_millis(1000);
 const PEER_MANAGER_PING_INTERVAL: Duration = Duration::from_secs(15);
@@ -24,20 +24,27 @@ const PROB_SCORER_PERSIST_INTERVAL: Duration = Duration::from_secs(5 * 60);
 /// A Tokio-native background processor that runs on a single task and does not
 /// spawn any OS threads. Modeled after the lightning-background-processor crate
 /// provided by LDK - see that crate's implementation for more details.
-pub(crate) struct LexeBackgroundProcessor {}
+pub struct LexeBackgroundProcessor {}
 
 impl LexeBackgroundProcessor {
     #[allow(clippy::too_many_arguments)]
-    pub(crate) fn start(
-        channel_manager: NodeChannelManager,
-        peer_manager: NodePeerManager,
-        persister: NodePersister,
-        chain_monitor: Arc<ChainMonitorType>,
-        event_handler: Arc<InvoicePayerType>,
+    pub fn start<CHANNELMANAGER, PERSISTER, EVENTHANDLER>(
+        channel_manager: CHANNELMANAGER,
+        peer_manager: Arc<LexePeerManagerType<CHANNELMANAGER>>,
+        persister: PERSISTER,
+        chain_monitor: Arc<LexeChainMonitorType<PERSISTER>>,
+        event_handler: Arc<LexeInvoicePayerType<CHANNELMANAGER, EVENTHANDLER>>,
         gossip_sync: Arc<P2PGossipSyncType>,
         scorer: Arc<Mutex<ProbabilisticScorerType>>,
         mut shutdown: ShutdownChannel,
-    ) -> LxTask<()> {
+    ) -> LxTask<()>
+    where
+        PERSISTER: Deref + Send + Sync + 'static,
+        PERSISTER::Target: LexePersister + Send + Sync,
+        CHANNELMANAGER: Deref<Target = LexeChannelManagerType<PERSISTER>>,
+        CHANNELMANAGER: Send + Sync + 'static,
+        EVENTHANDLER: EventHandler + Send + Sync + 'static,
+    {
         LxTask::spawn(async move {
             let mut process_timer = interval(PROCESS_EVENTS_INTERVAL);
             let mut pm_timer = interval(PEER_MANAGER_PING_INTERVAL);

@@ -21,6 +21,7 @@ use lexe_ln::alias::{
     BlockSourceType, BroadcasterType, ChannelMonitorType, FeeEstimatorType,
     NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, WalletType,
 };
+use lexe_ln::background_processor::LexeBackgroundProcessor;
 use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::init;
 use lexe_ln::keys_manager::LexeKeysManager;
@@ -38,7 +39,6 @@ use tracing::{debug, error, info, instrument, warn};
 use crate::api::ApiClient;
 use crate::event_handler::NodeEventHandler;
 use crate::inactivity_timer::InactivityTimer;
-use crate::lexe::background_processor::LexeBackgroundProcessor;
 use crate::lexe::channel_manager::NodeChannelManager;
 use crate::lexe::peer_manager::{self, NodePeerManager};
 use crate::lexe::persister::NodePersister;
@@ -363,10 +363,14 @@ impl UserNode {
             Retry::Timeout(Duration::from_secs(10)),
         ));
 
-        // Start Background Processing
-        let bg_processor_task = LexeBackgroundProcessor::start(
+        // Init background processor
+        let bg_processor_task = LexeBackgroundProcessor::start::<
+            NodeChannelManager,
+            NodePersister,
+            NodeEventHandler,
+        >(
             channel_manager.clone(),
-            peer_manager.clone(),
+            peer_manager.arc_inner(),
             persister.clone(),
             chain_monitor.clone(),
             invoice_payer.clone(),
