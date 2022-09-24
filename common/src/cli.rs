@@ -1,6 +1,7 @@
 use std::fmt::{self, Display};
+use std::net::IpAddr;
 #[cfg(all(test, not(target_env = "sgx")))]
-use std::net::Ipv4Addr;
+use std::net::SocketAddr;
 use std::path::Path;
 use std::process::Command;
 use std::str::FromStr;
@@ -310,6 +311,7 @@ impl ProvisionArgs {
 pub struct BitcoindRpcInfo {
     pub username: String,
     pub password: String,
+    /// NOTE: Only ip(v4/v6) addresses will be parsed - no DNS names for now
     pub host: String,
     pub port: Port,
 }
@@ -327,28 +329,39 @@ impl Default for BitcoindRpcInfo {
 
 impl BitcoindRpcInfo {
     fn parse_str(s: &str) -> Option<Self> {
-        // format: <username>:<password>@<host>:<port>
-        let mut parts = s.split(':');
-        let (username, pass_host, port) =
-            match (parts.next(), parts.next(), parts.next(), parts.next()) {
-                (Some(username), Some(pass_host), Some(port), None) => {
-                    (username, pass_host, port)
+        // expected format: "<username>:<password>@<host>:<port>"
+
+        // ["<username>:<password>", "<host>:<port>"]
+        let mut parts = s.split('@');
+        let (user_pass, host_port) =
+            match (parts.next(), parts.next(), parts.next()) {
+                (Some(user_pass), Some(host_port), None) => {
+                    (user_pass, host_port)
                 }
                 _ => return None,
             };
 
-        let mut parts = pass_host.split('@');
-        let (password, host) = match (parts.next(), parts.next(), parts.next())
-        {
-            (Some(password), Some(host), None) => (password, host),
-            _ => return None,
+        // ["<username>", "<password>"]
+        let mut user_pass = user_pass.split(':');
+        let (username, password) =
+            match (user_pass.next(), user_pass.next(), user_pass.next()) {
+                (Some(username), Some(password), None) => (username, password),
+                _ => return None,
+            };
+
+        // rsplit_once is necessary because IPv6 addresses can contain ::
+        let (host, port) = match host_port.rsplit_once(':') {
+            Some((host, port)) => (host, port),
+            None => return None,
         };
 
+        // Parse host and port
+        let host = IpAddr::from_str(host).ok()?;
         let port = Port::from_str(port).ok()?;
 
         Some(Self {
-            username: username.to_string(),
-            password: password.to_string(),
+            username: username.to_owned(),
+            password: password.to_owned(),
             host: host.to_string(),
             port,
         })
@@ -391,15 +404,14 @@ impl Arbitrary for BitcoindRpcInfo {
             // + denotes "at least 1"
             "[A-Za-z0-9]+",
             "[A-Za-z0-9]+",
-            // NOTE: bitcoind-rpc parsing currently only supports ipv4
-            any::<Ipv4Addr>().prop_map(|x| x.to_string()),
-            any::<Port>(),
+            // Only support IP addresses for now; no DNS
+            any::<SocketAddr>(),
         )
-            .prop_map(|(username, password, host, port)| Self {
+            .prop_map(|(username, password, socket_addr)| Self {
                 username,
                 password,
-                host,
-                port,
+                host: socket_addr.ip().to_string(),
+                port: socket_addr.port(),
             })
             .boxed()
     }
@@ -512,7 +524,9 @@ impl Arbitrary for Network {
 
 #[cfg(all(test, not(target_env = "sgx")))]
 mod test {
-    use proptest::proptest;
+    use std::net::Ipv4Addr;
+
+    use proptest::{prop_assert_eq, proptest};
 
     use super::*;
 
@@ -521,12 +535,19 @@ mod test {
         let expected = BitcoindRpcInfo {
             username: "hello".to_string(),
             password: "world".to_string(),
-            host: "foo.bar".to_string(),
+            host: Ipv4Addr::new(127, 0, 0, 1).to_string(),
             port: 1234,
         };
         let actual =
-            BitcoindRpcInfo::from_str("hello:world@foo.bar:1234").unwrap();
+            BitcoindRpcInfo::from_str("hello:world@127.0.0.1:1234").unwrap();
         assert_eq!(expected, actual);
+    }
+
+    proptest! {
+        fn bitcoind_rpc_roundtrip(info1 in any::<BitcoindRpcInfo>()) {
+            let info2 = BitcoindRpcInfo::from_str(&info1.to_string()).unwrap();
+            prop_assert_eq!(info1, info2);
+        }
     }
 
     #[test]
