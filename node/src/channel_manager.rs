@@ -138,6 +138,10 @@ impl Deref for NodeChannelManager {
 }
 
 impl NodeChannelManager {
+    pub(crate) fn arc_inner(&self) -> Arc<ChannelManagerType> {
+        self.0.clone()
+    }
+
     // TODO: Review this function and clean up accordingly
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn init(

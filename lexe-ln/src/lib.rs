@@ -19,6 +19,8 @@ pub mod keys_manager;
 pub mod logger;
 /// Types related to peers and networking.
 pub mod peer;
+/// Chain sync.
+pub mod sync;
 /// Traits.
 pub mod traits;
 /// Misc types that temporarily don't fit anywhere else

@@ -83,3 +83,11 @@ pub type LexeInvoicePayerType<CHANNELMANAGER, EVENTHANDLER> = InvoicePayer<
     LexeTracingLogger,
     EVENTHANDLER,
 >;
+
+/// This is the tuple that LDK impl'd `Listen` for
+pub type ChannelMonitorListenerType = (
+    ChannelMonitorType,
+    Arc<BroadcasterType>,
+    Arc<FeeEstimatorType>,
+    LexeTracingLogger,
+);
