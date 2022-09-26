@@ -106,6 +106,8 @@ tokio = { version = "=1.15.0", default-features = false, features = [
 ] }
 
 [dev-dependencies]
+# Shared code
+common = { path = "../common", features = ["test-utils"] }
 # property based testing
 proptest = { version = "1", default-features = false, features = ["alloc"] }
 # Arbitrary derive macro
@@ -121,9 +123,9 @@ tokio = { version = "=1.15.0", default-features = false, features = [
 ] }
 
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
-# Run bitcoin regtest for tests
+# Bitcoind regtest
 bitcoind = { version = "0.27", features = [ "22_0" ] }
-# Enable all default features outside SGX for better test convenience
+# Include additional useful proptest features when testing outside of SGX
 proptest = "1"
 
 [package.metadata.fortanix-sgx]

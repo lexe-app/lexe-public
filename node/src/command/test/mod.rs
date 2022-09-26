@@ -5,12 +5,13 @@ use std::sync::Arc;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::util::address::Address;
 use bitcoind::bitcoincore_rpc::RpcApi;
-use bitcoind::{self, BitcoinD, Conf};
+use bitcoind::{self, BitcoinD};
 use common::api::UserPk;
 use common::cli::{
     BitcoindRpcInfo, Network, RunArgs, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL,
 };
 use common::rng::SysRng;
+use common::test_utils;
 use lexe_ln::alias::NetworkGraphType;
 use lexe_ln::logger;
 use lexe_ln::peer::ChannelPeer;
@@ -49,40 +50,6 @@ fn default_args_for_user(user_pk: UserPk) -> RunArgs {
     }
 }
 
-/// Hacks around the recurring 'No such file or directory' error when trying to
-/// locate the local bitcoind executable.
-///
-/// https://github.com/RCasatta/bitcoind/issues/77
-#[rustfmt::skip]
-fn bitcoind_exe_path() -> String {
-    use std::env;
-    // "/Users/fang/lexe/client/target/debug/build/bitcoind-65c3b20abafd4893/out/bitcoin/bitcoin-22.0/bin/bitcoind"
-    // The path prior to `target` is wrong, everything after is correct
-    let bitcoind_path = bitcoind::downloaded_exe_path()
-        .expect("Didn't specify bitcoind version in feature flags");
-
-    // Construct the workspace path based on env::current_dir()
-    // "/Users/fang/lexe/dev/client/node"
-    let crate_dir = env::current_dir().unwrap();
-    // "/Users/fang/lexe/dev/client"
-    let workspace_dir = crate_dir.parent().unwrap().to_str().unwrap();
-
-    // Split on `target` to grab the correct half of the bitcoind_path string
-    let mut path_halves = bitcoind_path.split("target");
-    let _wrong_half = path_halves.next();
-    // "/debug/build/bitcoind-65c3b20abafd4893/out/bitcoin/bitcoin-22.0/bin/bitcoind"
-    let right_half = path_halves.next().unwrap();
-
-    let exe_path = format!("{workspace_dir}/target{right_half}");
-
-    dbg!(&bitcoind_path);
-    dbg!(&crate_dir);
-    dbg!(&workspace_dir);
-    dbg!(&exe_path);
-
-    exe_path
-}
-
 struct CommandTestHarness {
     bitcoind: BitcoinD,
     node: UserNode,
@@ -91,20 +58,10 @@ struct CommandTestHarness {
 impl CommandTestHarness {
     async fn init(mut args: RunArgs) -> Self {
         logger::init_for_testing();
-        // Construct bitcoin.conf
-        let mut conf = Conf::default();
-        // This rpcauth string corresponds to user `kek` and password `sadge`
-        conf.args.push("-rpcauth=kek:b6c15926aee7ebfbd3669ec8a6515c79$2dba596a7d651187021b1f56d339f0fe465c2ab1b81c37b05e07a320b07822d7");
 
-        // Init bitcoind
-        let exe_path = bitcoind_exe_path();
-        let bitcoind = BitcoinD::with_conf(exe_path, &conf)
-            .expect("Failed to init bitcoind");
-        let host = bitcoind.params.rpc_socket.ip().to_string();
-        let port = bitcoind.params.rpc_socket.port();
-        // Update args to include the port
-        args.bitcoind_rpc.host = host;
-        args.bitcoind_rpc.port = port;
+        // Init bitcoind and update rpc info
+        let (bitcoind, rpc_info) = test_utils::bitcoind::init_regtest();
+        args.bitcoind_rpc = rpc_info;
 
         // Init node
         let mut rng = SysRng::new();
