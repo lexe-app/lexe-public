@@ -1,9 +1,9 @@
-use std::cmp::min;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{bail, Context};
+use common::backoff;
 use common::rng::Crng;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
@@ -25,11 +25,6 @@ use crate::types::PeerManagerType;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
-
-// Exponential backoff
-const INITIAL_WAIT_MS: u64 = 10;
-const MAXIMUM_WAIT_MS: u64 = 30_000;
-const EXP_BASE: u64 = 2;
 
 /// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]
@@ -144,10 +139,7 @@ impl NodePeerManager {
         let mut connection_closed_fut = Box::pin(connection_closed_fut);
         // Use exponential backoff when polling so that a stalled connection
         // doesn't keep the node always in memory
-        let mut backoff_durations = (0..)
-            .map(|index| INITIAL_WAIT_MS * EXP_BASE.pow(index))
-            .map(|wait| min(wait, MAXIMUM_WAIT_MS))
-            .map(Duration::from_millis);
+        let mut backoff_durations = backoff::get_backoff_iter();
         loop {
             // Check if the connection has been closed
             match futures::poll!(&mut connection_closed_fut) {

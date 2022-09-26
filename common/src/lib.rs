@@ -19,6 +19,8 @@ pub use secrecy::Secret;
 pub mod api;
 /// Remote attestation.
 pub mod attest;
+/// Exponential backoff.
+pub mod backoff;
 /// User node CLI.
 pub mod cli;
 /// Mobile client to the node.
@@ -48,6 +50,19 @@ pub mod task;
 
 #[cfg(test)]
 pub mod test_utils;
+
+/// Assert at compile that that a boolean expression evaluates to true.
+/// Implementation copied from the static_assertions crate.
+#[macro_export]
+macro_rules! const_assert {
+    ($x:expr $(,)?) => {
+        #[allow(unknown_lints, clippy::eq_op)]
+        const _: [(); 0 - !{
+            const CONST_ASSERT: bool = $x;
+            CONST_ASSERT
+        } as usize] = [];
+    };
+}
 
 /// Assert at compile time that two `usize` values are equal. This assert has a
 /// nice benefit where there compiler error will actually _print out_ the
