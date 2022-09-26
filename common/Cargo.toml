@@ -10,10 +10,6 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[features]
-# Enable this feature to allow test utils to be shared across crate boundaries.
-test-utils = []
-
 [dependencies]
 # --- BITCOIN --- #
 
@@ -126,6 +122,8 @@ tokio = { version = "=1.15.0", default-features = false, features = [
     "time"
 ] }
 
+# --- DEPENDENCIES USED ONLY WITHIN SGX --- #
+
 [target.'cfg(target_env = "sgx")'.dependencies]
 # For verifying SGX Report MACs
 aes = { version = "0.8", features = ["zeroize"] }
@@ -135,6 +133,24 @@ aesm-client = "=0.5.4"
 bytemuck = { version = "1.9.1", default-features = false, features = ["derive", "min_const_generics"] }
 # For verifying SGX Report MACs
 cmac = { version = "0.7", features = ["std", "zeroize"] }
+
+# --- DEPENDENCIES NEEDED ONLY BY TEST-UTILS --- #
+# These must have `optional = true` to prevent infecting production binaries.
+
+# property based testing
+proptest = { optional = true, version = "1", default-features = false, features = ["alloc"] }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+# Bitcoind regtest
+bitcoind = { optional = true, version = "0.27", features = [ "22_0" ] }
+# Include additional useful proptest features when testing outside of SGX
+proptest = { optional = true, version = "1" }
+
+[features]
+# Enable this feature to allow test utils to be shared across crate boundaries.
+test-utils = ["dep:proptest", "dep:bitcoind"]
+
+# --- DEV DEPENDENCIES, ALL PLATFORMS --- #
 
 [dev-dependencies]
 # property based testing
@@ -148,13 +164,19 @@ tokio-rustls = { version = "0.23", default-features = false }
 # Utilities for testing futures
 tokio-test = "0.4"
 
-[target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
-# Include additional useful proptest features when testing outside of SGX
-proptest = "1"
+# --- DEV DEPENDENCIES, SGX ONLY --- #
 
 [target.'cfg(target_env = "sgx")'.dev-dependencies]
 # Print backtraces in tests
 sgx-panic-backtrace = "0.1"
+
+# --- DEV DEPENDENCIES, NON-SGX ONLY --- #
+
+[target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
+# Include additional useful proptest features when testing outside of SGX
+proptest = "1"
+
+# --- FORTANIX EDP CONFIGURATION --- #
 
 [package.metadata.fortanix-sgx]
 # stack size (in bytes) for each thread, the default stack size is 0x20_000.

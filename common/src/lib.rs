@@ -50,7 +50,7 @@ pub mod task;
 
 /// Feature-gated test utilities that can be shared across crate boundaries.
 #[cfg(any(test, feature = "test-utils"))]
-mod test_utils;
+pub mod test_utils;
 
 /// Assert at compile that that a boolean expression evaluates to true.
 /// Implementation copied from the static_assertions crate.
