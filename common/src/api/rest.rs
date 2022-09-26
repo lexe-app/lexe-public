@@ -1,4 +1,3 @@
-use std::cmp::min;
 use std::time::Duration;
 
 use bytes::Bytes;
@@ -16,6 +15,7 @@ use warp::Rejection;
 use crate::api::error::{
     CommonError, ErrorCode, ErrorResponse, HasStatusCode, ServiceApiError,
 };
+use crate::backoff;
 
 // Default parameters
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -25,11 +25,6 @@ pub const GET: Method = Method::GET;
 pub const PUT: Method = Method::PUT;
 pub const POST: Method = Method::POST;
 pub const DELETE: Method = Method::DELETE;
-
-// Exponential backoff
-const INITIAL_WAIT_MS: u64 = 250;
-const MAXIMUM_WAIT_MS: u64 = 32_000;
-const EXP_BASE: u64 = 2;
 
 /// A warp helper that converts `Result<T, E>` into [`Response<Body>`].
 /// This function should be used in all warp routes because:
@@ -204,10 +199,7 @@ impl RestClient {
         let parts = self.serialize_parts(method, url, data)?;
 
         // Exponential backoff
-        let mut backoff_durations = (0..)
-            .map(|index| INITIAL_WAIT_MS * EXP_BASE.pow(index))
-            .map(|wait| min(wait, MAXIMUM_WAIT_MS))
-            .map(Duration::from_millis);
+        let mut backoff_durations = backoff::get_backoff_iter();
 
         // Do the 'retries' first and return early if successful,
         // or if we received an error with one of the specified codes.
