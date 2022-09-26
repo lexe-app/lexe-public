@@ -15,5 +15,4 @@ mod persister;
 mod provision;
 mod repl;
 mod run;
-mod sync;
 mod types;

@@ -5,15 +5,15 @@ use std::sync::Arc;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use futures::stream::{FuturesUnordered, StreamExt};
-use lightning::chain::chainmonitor::Persist;
 use lightning::chain::transaction::OutPoint;
 use lightning::ln::msgs::ChannelMessageHandler;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
-use crate::alias::{LexeChainMonitorType, LexePeerManagerType, SignerType};
+use crate::alias::{LexeChainMonitorType, LexePeerManagerType};
 use crate::channel_monitor::LxChannelMonitorUpdate;
+use crate::traits::LexePersister;
 
 /// Spawns a task that that lets the persister make calls to the chain monitor.
 /// For now, it simply listens on `channel_monitor_updated_rx` and calls
@@ -29,7 +29,7 @@ pub fn spawn_channel_monitor_updated_task<PERSISTER>(
 ) -> LxTask<()>
 where
     PERSISTER: Deref + Send + Sync + 'static,
-    PERSISTER::Target: Persist<SignerType> + Send,
+    PERSISTER::Target: LexePersister + Send,
 {
     debug!("Starting channel_monitor_updated task");
     LxTask::spawn(async move {

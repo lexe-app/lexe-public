@@ -26,6 +26,7 @@ use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::init;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
+use lexe_ln::sync::SyncedChainListeners;
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::onion_message::OnionMessenger;
@@ -42,7 +43,6 @@ use crate::event_handler::NodeEventHandler;
 use crate::inactivity_timer::InactivityTimer;
 use crate::peer_manager::{self, NodePeerManager};
 use crate::persister::NodePersister;
-use crate::sync::SyncedChainListeners;
 use crate::types::{ApiClientType, ChainMonitorType, InvoicePayerType};
 use crate::{api, command};
 
@@ -430,7 +430,7 @@ impl UserNode {
         // Sync channel manager and channel monitors to chain tip
         let synced_chain_listeners = SyncedChainListeners::init_and_sync(
             self.args.network,
-            self.channel_manager.clone(),
+            self.channel_manager.arc_inner(),
             self.channel_manager_blockhash,
             self.channel_monitors,
             self.block_source.clone(),
@@ -485,9 +485,9 @@ impl UserNode {
         // --- Shutdown --- //
         info!("Main thread shutting down.");
 
-        info!("Disconnecting all peers.");
-        // This ensures we don't continue updating our channel data after we've
-        // stopped the background processor.
+        info!("Disconnecting all peers");
+        // This ensures we don't continue updating our channel data after
+        // the background processor has stopped.
         self.peer_manager.disconnect_all_peers();
 
         info!("Waiting on all tasks to finish");
