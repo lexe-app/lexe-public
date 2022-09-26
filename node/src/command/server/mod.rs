@@ -20,9 +20,9 @@ use tokio::sync::mpsc;
 use tracing::trace;
 use warp::{Filter, Rejection, Reply};
 
+use crate::channel_manager::NodeChannelManager;
 use crate::command::{host, owner};
-use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::peer_manager::NodePeerManager;
+use crate::peer_manager::NodePeerManager;
 
 mod inject;
 

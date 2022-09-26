@@ -7,9 +7,9 @@ use lexe_ln::alias::{
 };
 use lexe_ln::logger::LexeTracingLogger;
 
+use crate::channel_manager::NodeChannelManager;
 use crate::event_handler::NodeEventHandler;
-use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::persister::NodePersister;
+use crate::persister::NodePersister;
 
 pub(crate) type ChannelManagerType = LexeChannelManagerType<NodePersister>;
 

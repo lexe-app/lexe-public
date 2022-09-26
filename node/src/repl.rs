@@ -23,9 +23,9 @@ use lightning::routing::gossip::NodeId;
 use lightning_invoice::payment::PaymentError;
 use lightning_invoice::{utils, Currency, Invoice};
 
-use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::peer_manager::NodePeerManager;
-use crate::lexe::persister::NodePersister;
+use crate::channel_manager::NodeChannelManager;
+use crate::peer_manager::NodePeerManager;
+use crate::persister::NodePersister;
 use crate::types::InvoicePayerType;
 
 #[allow(clippy::too_many_arguments)]

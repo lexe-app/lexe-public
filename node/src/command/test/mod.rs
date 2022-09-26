@@ -15,10 +15,10 @@ use lexe_ln::alias::NetworkGraphType;
 use lexe_ln::logger;
 use lexe_ln::peer::ChannelPeer;
 
+use crate::channel_manager::NodeChannelManager;
 use crate::command::owner;
-use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::peer_manager::NodePeerManager;
-use crate::lexe::persister::NodePersister;
+use crate::peer_manager::NodePeerManager;
+use crate::persister::NodePersister;
 use crate::run::UserNode;
 
 /// Helper to return a default RunArgs struct for testing.

@@ -18,7 +18,7 @@ use lightning_block_sync::{init as blocksyncinit, SpvClient};
 use tokio::time::{self, Duration};
 use tracing::{info, warn};
 
-use crate::lexe::channel_manager::NodeChannelManager;
+use crate::channel_manager::NodeChannelManager;
 use crate::types::{ChainMonitorType, ChannelMonitorListenerType};
 
 /// How often the SpvClient client polls for an updated chain tip

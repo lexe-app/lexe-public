@@ -17,8 +17,8 @@ use lightning::util::config::{
 };
 use tracing::{debug, info};
 
-use crate::lexe::peer_manager::NodePeerManager;
-use crate::lexe::persister::NodePersister;
+use crate::peer_manager::NodePeerManager;
+use crate::persister::NodePersister;
 use crate::types::{ChainMonitorType, ChannelManagerType};
 
 /// NOTE: Important security parameter!! This is specified in # of blocks.

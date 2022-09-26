@@ -21,7 +21,7 @@ use secrecy::Secret;
 use tokio::sync::mpsc;
 
 use crate::api::ApiClient;
-use crate::lexe::persister;
+use crate::persister;
 
 type FileName = String;
 type Data = Vec<u8>;

@@ -35,7 +35,7 @@ use lightning::util::ser::{ReadableArgs, Writeable};
 use tokio::sync::mpsc;
 use tracing::{debug, error};
 
-use crate::lexe::channel_manager::USER_CONFIG;
+use crate::channel_manager::USER_CONFIG;
 use crate::types::{ApiClientType, ChainMonitorType, ChannelManagerType};
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename

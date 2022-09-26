@@ -25,7 +25,7 @@ use lightning::util::events::{Event, EventHandler, PaymentPurpose};
 use tokio::runtime::Handle;
 use tracing::{debug, error};
 
-use crate::lexe::channel_manager::NodeChannelManager;
+use crate::channel_manager::NodeChannelManager;
 
 pub(crate) struct NodeEventHandler {
     network: Network,

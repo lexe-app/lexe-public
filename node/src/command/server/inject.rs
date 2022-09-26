@@ -9,8 +9,8 @@ use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::NetworkGraphType;
 use warp::Filter;
 
-use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::peer_manager::NodePeerManager;
+use crate::channel_manager::NodeChannelManager;
+use crate::peer_manager::NodePeerManager;
 
 /// Injects a [`UserPk`].
 pub(crate) fn user_pk(

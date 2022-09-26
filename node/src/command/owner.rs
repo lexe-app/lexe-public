@@ -5,8 +5,8 @@ use common::api::node::{ListChannels, NodeInfo};
 use common::ln::channel::LxChannelDetails;
 use lexe_ln::alias::NetworkGraphType;
 
-use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::peer_manager::NodePeerManager;
+use crate::channel_manager::NodeChannelManager;
+use crate::peer_manager::NodePeerManager;
 
 pub(crate) fn node_info(
     channel_manager: NodeChannelManager,

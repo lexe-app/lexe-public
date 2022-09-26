@@ -37,12 +37,12 @@ use tokio::sync::mpsc;
 use tracing::{debug, error, info, instrument, warn};
 
 use crate::api::ApiClient;
+use crate::channel_manager::NodeChannelManager;
 use crate::event_handler::NodeEventHandler;
 use crate::inactivity_timer::InactivityTimer;
-use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::peer_manager::{self, NodePeerManager};
-use crate::lexe::persister::NodePersister;
-use crate::lexe::sync::SyncedChainListeners;
+use crate::peer_manager::{self, NodePeerManager};
+use crate::persister::NodePersister;
+use crate::sync::SyncedChainListeners;
 use crate::types::{ApiClientType, ChainMonitorType, InvoicePayerType};
 use crate::{api, command};
 

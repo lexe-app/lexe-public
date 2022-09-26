@@ -19,8 +19,8 @@ use tokio::net::TcpStream;
 use tokio::time;
 use tracing::{error, warn};
 
-use crate::lexe::channel_manager::NodeChannelManager;
-use crate::lexe::persister::NodePersister;
+use crate::channel_manager::NodeChannelManager;
+use crate::persister::NodePersister;
 use crate::types::PeerManagerType;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
