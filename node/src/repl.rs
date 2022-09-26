@@ -22,6 +22,7 @@ use lightning::ln::{PaymentHash, PaymentPreimage};
 use lightning::routing::gossip::NodeId;
 use lightning_invoice::payment::PaymentError;
 use lightning_invoice::{utils, Currency, Invoice};
+use tracing::info;
 
 use crate::channel_manager::NodeChannelManager;
 use crate::peer_manager::NodePeerManager;
@@ -40,11 +41,11 @@ pub(crate) async fn poll_for_user_input(
     persister: NodePersister,
     network: Network,
 ) {
-    println!("LDK startup successful. To view available commands: \"help\".");
-    println!(
+    info!("LDK startup successful. To view available commands: \"help\".");
+    info!(
         "LDK logs are available at <your-supplied-ldk-data-dir-path>/.ldk/logs"
     );
-    println!("Local Node ID is {}.", channel_manager.get_our_node_id());
+    info!("Local Node ID is {}.", channel_manager.get_our_node_id());
     let stdin = io::stdin();
     let mut line_reader = stdin.lock().lines();
     loop {
@@ -70,13 +71,13 @@ pub(crate) async fn poll_for_user_input(
                     .await;
                     if let Err(e) = res {
                         // Print the entire error chain on one line
-                        println!("{:#}", e);
+                        info!("{:#}", e);
                     }
                 }
                 "sendpayment" => {
                     let invoice_str = words.next();
                     if invoice_str.is_none() {
-                        println!("ERROR: sendpayment requires an invoice: `sendpayment <invoice>`");
+                        info!("ERROR: sendpayment requires an invoice: `sendpayment <invoice>`");
                         continue;
                     }
 
@@ -84,7 +85,7 @@ pub(crate) async fn poll_for_user_input(
                     {
                         Ok(inv) => inv,
                         Err(e) => {
-                            println!("ERROR: invalid invoice: {:?}", e);
+                            info!("ERROR: invalid invoice: {:?}", e);
                             continue;
                         }
                     };
@@ -100,31 +101,26 @@ pub(crate) async fn poll_for_user_input(
                         Some(dest) => match hex_to_compressed_pk(dest) {
                             Some(pk) => pk,
                             None => {
-                                println!(
-                                    "ERROR: couldn't parse destination pk"
-                                );
+                                info!("ERROR: couldn't parse destination pk");
                                 continue;
                             }
                         },
                         None => {
-                            println!("ERROR: keysend requires a destination pk: `keysend <dest_pk> <amt_msat>`");
+                            info!("ERROR: keysend requires a destination pk: `keysend <dest_pk> <amt_msat>`");
                             continue;
                         }
                     };
                     let amt_msat_str = match words.next() {
                         Some(amt) => amt,
                         None => {
-                            println!("ERROR: keysend requires an amount in millisatoshis: `keysend <dest_pk> <amt_msat>`");
+                            info!("ERROR: keysend requires an amount in millisatoshis: `keysend <dest_pk> <amt_msat>`");
                             continue;
                         }
                     };
                     let amt_msat: u64 = match amt_msat_str.parse() {
                         Ok(amt) => amt,
                         Err(e) => {
-                            println!(
-                                "ERROR: couldn't parse amount_msat: {}",
-                                e
-                            );
+                            info!("ERROR: couldn't parse amount_msat: {}", e);
                             continue;
                         }
                     };
@@ -139,18 +135,18 @@ pub(crate) async fn poll_for_user_input(
                 "getinvoice" => {
                     let amt_str = words.next();
                     if amt_str.is_none() {
-                        println!("ERROR: getinvoice requires an amount in millisatoshis");
+                        info!("ERROR: getinvoice requires an amount in millisatoshis");
                         continue;
                     }
 
                     let amt_msat: Result<u64, _> = amt_str.unwrap().parse();
                     if amt_msat.is_err() {
-                        println!("ERROR: getinvoice provided payment amount was not a number");
+                        info!("ERROR: getinvoice provided payment amount was not a number");
                         continue;
                     }
                     let expiry_secs_str = words.next();
                     if expiry_secs_str.is_none() {
-                        println!(
+                        info!(
                             "ERROR: getinvoice requires an expiry in seconds"
                         );
                         continue;
@@ -159,7 +155,7 @@ pub(crate) async fn poll_for_user_input(
                     let expiry_secs: Result<u32, _> =
                         expiry_secs_str.unwrap().parse();
                     if expiry_secs.is_err() {
-                        println!("ERROR: getinvoice provided expiry was not a number");
+                        info!("ERROR: getinvoice provided expiry was not a number");
                         continue;
                     }
 
@@ -175,7 +171,7 @@ pub(crate) async fn poll_for_user_input(
                 "connectpeer" => {
                     let peer_pk_and_ip_addr = words.next();
                     if peer_pk_and_ip_addr.is_none() {
-                        println!("ERROR: connectpeer requires peer connection info: `connectpeer pk@host:port`");
+                        info!("ERROR: connectpeer requires peer connection info: `connectpeer pk@host:port`");
                         continue;
                     }
                     let (pk, addr) = match parse_peer_info(
@@ -183,7 +179,7 @@ pub(crate) async fn poll_for_user_input(
                     ) {
                         Ok(info) => info,
                         Err(e) => {
-                            println!("{:?}", e.into_inner().unwrap());
+                            info!("{:?}", e.into_inner().unwrap());
                             continue;
                         }
                     };
@@ -193,10 +189,7 @@ pub(crate) async fn poll_for_user_input(
                         .await
                         .is_ok()
                     {
-                        println!(
-                            "SUCCESS: connected to peer {}",
-                            channel_peer.pk
-                        );
+                        info!("SUCCESS: connected to peer {}", channel_peer.pk);
                     }
                 }
                 "listchannels" => {
@@ -209,14 +202,14 @@ pub(crate) async fn poll_for_user_input(
                 "closechannel" => {
                     let channel_id_str = words.next();
                     if channel_id_str.is_none() {
-                        println!("ERROR: closechannel requires a channel ID: `closechannel <channel_id> <peer_pk>`");
+                        info!("ERROR: closechannel requires a channel ID: `closechannel <channel_id> <peer_pk>`");
                         continue;
                     }
                     let channel_id_vec = hex::decode(channel_id_str.unwrap());
                     if channel_id_vec.is_err()
                         || channel_id_vec.as_ref().unwrap().len() != 32
                     {
-                        println!("ERROR: couldn't parse channel_id");
+                        info!("ERROR: couldn't parse channel_id");
                         continue;
                     }
                     let mut channel_id = [0; 32];
@@ -224,20 +217,20 @@ pub(crate) async fn poll_for_user_input(
 
                     let peer_pk_str = words.next();
                     if peer_pk_str.is_none() {
-                        println!("ERROR: closechannel requires a peer pk: `closechannel <channel_id> <peer_pk>`");
+                        info!("ERROR: closechannel requires a peer pk: `closechannel <channel_id> <peer_pk>`");
                         continue;
                     }
                     let peer_pk_vec = match hex::decode(peer_pk_str.unwrap()) {
                         Ok(peer_pk_vec) => peer_pk_vec,
                         Err(err) => {
-                            println!("ERROR: couldn't parse peer_pk: {err}");
+                            info!("ERROR: couldn't parse peer_pk: {err}");
                             continue;
                         }
                     };
                     let peer_pk = match PublicKey::from_slice(&peer_pk_vec) {
                         Ok(peer_pk) => peer_pk,
                         Err(_) => {
-                            println!("ERROR: couldn't parse peer_pk");
+                            info!("ERROR: couldn't parse peer_pk");
                             continue;
                         }
                     };
@@ -247,14 +240,14 @@ pub(crate) async fn poll_for_user_input(
                 "forceclosechannel" => {
                     let channel_id_str = words.next();
                     if channel_id_str.is_none() {
-                        println!("ERROR: forceclosechannel requires a channel ID: `forceclosechannel <channel_id> <peer_pk>`");
+                        info!("ERROR: forceclosechannel requires a channel ID: `forceclosechannel <channel_id> <peer_pk>`");
                         continue;
                     }
                     let channel_id_vec = hex::decode(channel_id_str.unwrap());
                     if channel_id_vec.is_err()
                         || channel_id_vec.as_ref().unwrap().len() != 32
                     {
-                        println!("ERROR: couldn't parse channel_id");
+                        info!("ERROR: couldn't parse channel_id");
                         continue;
                     }
                     let mut channel_id = [0; 32];
@@ -262,20 +255,20 @@ pub(crate) async fn poll_for_user_input(
 
                     let peer_pk_str = words.next();
                     if peer_pk_str.is_none() {
-                        println!("ERROR: forceclosechannel requires a peer pk: `forceclosechannel <channel_id> <peer_pk>`");
+                        info!("ERROR: forceclosechannel requires a peer pk: `forceclosechannel <channel_id> <peer_pk>`");
                         continue;
                     }
                     let peer_pk_vec = match hex::decode(peer_pk_str.unwrap()) {
                         Ok(peer_pk_vec) => peer_pk_vec,
                         Err(err) => {
-                            println!("ERROR: couldn't parse peer_pk: {err}");
+                            info!("ERROR: couldn't parse peer_pk: {err}");
                             continue;
                         }
                     };
                     let peer_pk = match PublicKey::from_slice(&peer_pk_vec) {
                         Ok(peer_pk) => peer_pk,
                         Err(err) => {
-                            println!("ERROR: couldn't parse peer_pk: {err}");
+                            info!("ERROR: couldn't parse peer_pk: {err}");
                             continue;
                         }
                     };
@@ -291,10 +284,10 @@ pub(crate) async fn poll_for_user_input(
                 "signmessage" => {
                     const MSG_STARTPOS: usize = "signmessage".len() + 1;
                     if line.as_bytes().len() <= MSG_STARTPOS {
-                        println!("ERROR: signmsg requires a message");
+                        info!("ERROR: signmsg requires a message");
                         continue;
                     }
-                    println!(
+                    info!(
                         "{:?}",
                         lightning::util::message_signing::sign(
                             &line.as_bytes()[MSG_STARTPOS..],
@@ -304,7 +297,7 @@ pub(crate) async fn poll_for_user_input(
                         )
                     );
                 }
-                _ => println!(
+                _ => info!(
                     "Unknown command. See `\"help\" for available commands."
                 ),
             }
@@ -313,44 +306,44 @@ pub(crate) async fn poll_for_user_input(
 }
 
 fn help() {
-    println!("openchannel pk@host:port <amt_satoshis>");
-    println!("sendpayment <invoice>");
-    println!("keysend <dest_pk> <amt_msats>");
-    println!("getinvoice <amt_msats> <expiry_secs>");
-    println!("connectpeer pk@host:port");
-    println!("listchannels");
-    println!("listpayments");
-    println!("closechannel <channel_id> <peer_pk>");
-    println!("forceclosechannel <channel_id> <peer_pk>");
-    println!("nodeinfo");
-    println!("listpeers");
-    println!("signmessage <message>");
+    info!("openchannel pk@host:port <amt_satoshis>");
+    info!("sendpayment <invoice>");
+    info!("keysend <dest_pk> <amt_msats>");
+    info!("getinvoice <amt_msats> <expiry_secs>");
+    info!("connectpeer pk@host:port");
+    info!("listchannels");
+    info!("listpayments");
+    info!("closechannel <channel_id> <peer_pk>");
+    info!("forceclosechannel <channel_id> <peer_pk>");
+    info!("nodeinfo");
+    info!("listpeers");
+    info!("signmessage <message>");
 }
 
 fn node_info(
     channel_manager: &NodeChannelManager,
     peer_manager: &NodePeerManager,
 ) {
-    println!("\t{{");
-    println!("\t\t node_pk: {}", channel_manager.get_our_node_id());
+    info!("\t{{");
+    info!("\t\t node_pk: {}", channel_manager.get_our_node_id());
     let chans = channel_manager.list_channels();
-    println!("\t\t num_channels: {}", chans.len());
-    println!(
+    info!("\t\t num_channels: {}", chans.len());
+    info!(
         "\t\t num_usable_channels: {}",
         chans.iter().filter(|c| c.is_usable).count()
     );
     let local_balance_msat = chans.iter().map(|c| c.balance_msat).sum::<u64>();
-    println!("\t\t local_balance_msat: {}", local_balance_msat);
-    println!("\t\t num_peers: {}", peer_manager.get_peer_node_ids().len());
-    println!("\t}},");
+    info!("\t\t local_balance_msat: {}", local_balance_msat);
+    info!("\t\t num_peers: {}", peer_manager.get_peer_node_ids().len());
+    info!("\t}},");
 }
 
 fn list_peers(peer_manager: NodePeerManager) {
-    println!("\t{{");
+    info!("\t{{");
     for pk in peer_manager.get_peer_node_ids() {
-        println!("\t\t pk: {}", pk);
+        info!("\t\t pk: {}", pk);
     }
-    println!("\t}},");
+    info!("\t}},");
 }
 
 fn list_channels(
@@ -359,17 +352,16 @@ fn list_channels(
 ) {
     print!("[");
     for chan_info in channel_manager.list_channels() {
-        println!();
-        println!("\t{{");
-        println!(
+        info!("\t{{");
+        info!(
             "\t\tchannel_id: {},",
             hex::encode(&chan_info.channel_id[..])
         );
         if let Some(funding_txo) = chan_info.funding_txo {
-            println!("\t\tfunding_txid: {},", funding_txo.txid);
+            info!("\t\tfunding_txid: {},", funding_txo.txid);
         }
 
-        println!(
+        info!(
             "\t\tpeer_pk: {},",
             hex::encode(&chan_info.counterparty.node_id.serialize())
         );
@@ -379,34 +371,34 @@ fn list_channels(
             .get(&NodeId::from_pubkey(&chan_info.counterparty.node_id))
         {
             if let Some(announcement) = &node_info.announcement_info {
-                println!("\t\tpeer_alias: {}", announcement.alias);
+                info!("\t\tpeer_alias: {}", announcement.alias);
             }
         }
 
         if let Some(id) = chan_info.short_channel_id {
-            println!("\t\tshort_channel_id: {},", id);
+            info!("\t\tshort_channel_id: {},", id);
         }
-        println!("\t\tis_channel_ready: {},", chan_info.is_channel_ready);
-        println!(
+        info!("\t\tis_channel_ready: {},", chan_info.is_channel_ready);
+        info!(
             "\t\tchannel_value_satoshis: {},",
             chan_info.channel_value_satoshis
         );
-        println!("\t\tlocal_balance_msat: {},", chan_info.balance_msat);
+        info!("\t\tlocal_balance_msat: {},", chan_info.balance_msat);
         if chan_info.is_usable {
-            println!(
+            info!(
                 "\t\tavailable_balance_for_send_msat: {},",
                 chan_info.outbound_capacity_msat
             );
-            println!(
+            info!(
                 "\t\tavailable_balance_for_recv_msat: {},",
                 chan_info.inbound_capacity_msat
             );
         }
-        println!("\t\tchannel_can_send_payments: {},", chan_info.is_usable);
-        println!("\t\tpublic: {},", chan_info.is_public);
-        println!("\t}},");
+        info!("\t\tchannel_can_send_payments: {},", chan_info.is_usable);
+        info!("\t\tpublic: {},", chan_info.is_public);
+        info!("\t}},");
     }
-    println!("]");
+    info!("]");
 }
 
 fn list_payments(
@@ -417,12 +409,11 @@ fn list_payments(
     let inbound = inbound.deref();
     print!("[");
     for (payment_hash, payment_info) in inbound {
-        println!();
-        println!("\t{{");
-        println!("\t\tamount_millisatoshis: {},", payment_info.amt_msat);
-        println!("\t\tpayment_hash: {},", hex::encode(&payment_hash.0));
-        println!("\t\thtlc_direction: inbound,");
-        println!(
+        info!("\t{{");
+        info!("\t\tamount_millisatoshis: {},", payment_info.amt_msat);
+        info!("\t\tpayment_hash: {},", hex::encode(&payment_hash.0));
+        info!("\t\thtlc_direction: inbound,");
+        info!(
             "\t\thtlc_status: {},",
             match payment_info.status {
                 HTLCStatus::Pending => "pending",
@@ -431,18 +422,17 @@ fn list_payments(
             }
         );
 
-        println!("\t}},");
+        info!("\t}},");
     }
 
     let outbound = outbound_payments.lock().unwrap();
     let outbound = outbound.deref();
     for (payment_hash, payment_info) in outbound {
-        println!();
-        println!("\t{{");
-        println!("\t\tamount_millisatoshis: {},", payment_info.amt_msat);
-        println!("\t\tpayment_hash: {},", hex::encode(&payment_hash.0));
-        println!("\t\thtlc_direction: outbound,");
-        println!(
+        info!("\t{{");
+        info!("\t\tamount_millisatoshis: {},", payment_info.amt_msat);
+        info!("\t\tpayment_hash: {},", hex::encode(&payment_hash.0));
+        info!("\t\thtlc_direction: outbound,");
+        info!(
             "\t\thtlc_status: {},",
             match payment_info.status {
                 HTLCStatus::Pending => "pending",
@@ -451,9 +441,9 @@ fn list_payments(
             }
         );
 
-        println!("\t}},");
+        info!("\t}},");
     }
-    println!("]");
+    info!("]");
 }
 
 fn send_payment(
@@ -465,7 +455,7 @@ fn send_payment(
         Ok(_payment_id) => {
             let payee_pk = invoice.recover_payee_pub_key();
             let amt_msat = invoice.amount_milli_satoshis().unwrap();
-            println!(
+            info!(
                 "EVENT: initiated sending {} msats to {}",
                 amt_msat, payee_pk
             );
@@ -473,17 +463,17 @@ fn send_payment(
             HTLCStatus::Pending
         }
         Err(PaymentError::Invoice(e)) => {
-            println!("ERROR: invalid invoice: {}", e);
+            info!("ERROR: invalid invoice: {}", e);
             print!("> ");
             return;
         }
         Err(PaymentError::Routing(e)) => {
-            println!("ERROR: failed to find route: {}", e.err);
+            info!("ERROR: failed to find route: {}", e.err);
             print!("> ");
             return;
         }
         Err(PaymentError::Sending(e)) => {
-            println!("ERROR: failed to send payment: {:?}", e);
+            info!("ERROR: failed to send payment: {:?}", e);
             print!("> ");
             HTLCStatus::Failed
         }
@@ -519,7 +509,7 @@ fn keysend<K: KeysInterface>(
         40,
     ) {
         Ok(_payment_id) => {
-            println!(
+            info!(
                 "EVENT: initiated sending {} msats to {}",
                 amt_msat, payee_pk
             );
@@ -527,17 +517,17 @@ fn keysend<K: KeysInterface>(
             HTLCStatus::Pending
         }
         Err(PaymentError::Invoice(e)) => {
-            println!("ERROR: invalid payee: {}", e);
+            info!("ERROR: invalid payee: {}", e);
             print!("> ");
             return;
         }
         Err(PaymentError::Routing(e)) => {
-            println!("ERROR: failed to find route: {}", e.err);
+            info!("ERROR: failed to find route: {}", e.err);
             print!("> ");
             return;
         }
         Err(PaymentError::Sending(e)) => {
-            println!("ERROR: failed to send payment: {:?}", e);
+            info!("ERROR: failed to send payment: {:?}", e);
             print!("> ");
             HTLCStatus::Failed
         }
@@ -574,11 +564,11 @@ fn get_invoice(
         expiry_secs,
     ) {
         Ok(inv) => {
-            println!("SUCCESS: generated invoice: {}", inv);
+            info!("SUCCESS: generated invoice: {}", inv);
             inv
         }
         Err(e) => {
-            println!("ERROR: failed to create invoice: {:?}", e);
+            info!("ERROR: failed to create invoice: {:?}", e);
             return;
         }
     };
@@ -626,8 +616,8 @@ fn close_channel(
     channel_manager: NodeChannelManager,
 ) {
     match channel_manager.close_channel(&channel_id, &counterparty_node_id) {
-        Ok(()) => println!("EVENT: initiating channel close"),
-        Err(e) => println!("ERROR: failed to close channel: {:?}", e),
+        Ok(()) => info!("EVENT: initiating channel close"),
+        Err(e) => info!("ERROR: failed to close channel: {:?}", e),
     }
 }
 
@@ -639,8 +629,8 @@ fn force_close_channel(
     match channel_manager
         .force_close_broadcasting_latest_txn(&channel_id, &counterparty_node_id)
     {
-        Ok(()) => println!("EVENT: initiating channel force-close"),
-        Err(e) => println!("ERROR: failed to force-close channel: {:?}", e),
+        Ok(()) => info!("EVENT: initiating channel force-close"),
+        Err(e) => info!("ERROR: failed to force-close channel: {:?}", e),
     }
 }
 

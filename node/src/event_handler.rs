@@ -23,7 +23,7 @@ use lightning::chain::chaininterface::{
 use lightning::routing::gossip::NodeId;
 use lightning::util::events::{Event, EventHandler, PaymentPurpose};
 use tokio::runtime::Handle;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 use crate::channel_manager::NodeChannelManager;
 
@@ -192,8 +192,8 @@ async fn handle_event_fallible(
                 )
                 .is_err()
             {
-                println!(
-                    "\nERROR: Channel went away before we could fund it. The peer disconnected or refused the channel.");
+                error!(
+                    "ERROR: Channel went away before we could fund it. The peer disconnected or refused the channel.");
                 print!("> ");
                 io::stdout().flush().unwrap();
             }
@@ -203,8 +203,8 @@ async fn handle_event_fallible(
             purpose,
             amount_msat,
         } => {
-            println!(
-                "\nEVENT: received payment from payment hash {} of {} millisatoshis",
+            info!(
+                "EVENT: received payment from payment hash {} of {} millisatoshis",
                 hex::encode(&payment_hash.0),
                 amount_msat,
             );
@@ -223,8 +223,8 @@ async fn handle_event_fallible(
             purpose,
             amount_msat,
         } => {
-            println!(
-                "\nEVENT: claimed payment from payment hash {} of {} millisatoshis",
+            info!(
+                "EVENT: claimed payment from payment hash {} of {} millisatoshis",
                 hex::encode(&payment_hash.0),
                 amount_msat,
             );
@@ -271,8 +271,8 @@ async fn handle_event_fallible(
                 if *hash == *payment_hash {
                     payment.preimage = Some(*payment_preimage);
                     payment.status = HTLCStatus::Succeeded;
-                    println!(
-                        "\nEVENT: successfully sent payment of {} millisatoshis{} from \
+                    info!(
+                        "EVENT: successfully sent payment of {} millisatoshis{} from \
                                  payment hash {:?} with preimage {:?}",
                         payment.amt_msat,
                         if let Some(fee) = fee_paid_msat {
@@ -297,7 +297,7 @@ async fn handle_event_fallible(
         Event::ProbeFailed { .. } => {}
         Event::PaymentFailed { payment_hash, .. } => {
             print!(
-                "\nEVENT: Failed to send payment to payment hash {:?}: exhausted payment retry attempts",
+                "EVENT: Failed to send payment to payment hash {:?}: exhausted payment retry attempts",
                 hex::encode(&payment_hash.0)
             );
             print!("> ");
@@ -368,13 +368,13 @@ async fn handle_event_fallible(
                 "from HTLC fulfill message"
             };
             if let Some(fee_earned) = fee_earned_msat {
-                println!(
-                    "\nEVENT: Forwarded payment{}{}, earning {} msat {}",
+                info!(
+                    "EVENT: Forwarded payment{}{}, earning {} msat {}",
                     from_prev_str, to_next_str, fee_earned, from_onchain_str
                 );
             } else {
-                println!(
-                    "\nEVENT: Forwarded payment{}{}, claiming onchain {}",
+                info!(
+                    "EVENT: Forwarded payment{}{}, claiming onchain {}",
                     from_prev_str, to_next_str, from_onchain_str
                 );
             }
@@ -415,8 +415,8 @@ async fn handle_event_fallible(
             reason,
             user_channel_id: _,
         } => {
-            println!(
-                "\nEVENT: Channel {} closed due to: {:?}",
+            info!(
+                "EVENT: Channel {} closed due to: {:?}",
                 hex::encode(channel_id),
                 reason
             );
