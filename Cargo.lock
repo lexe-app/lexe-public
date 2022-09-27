@@ -1439,7 +1439,6 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_qs",
- "subtle",
  "thiserror",
  "tokio",
  "tokio-rustls",

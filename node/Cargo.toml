@@ -68,8 +68,6 @@ serde_json = "1"
 rcgen = { version = "0.9", default-features = false, features = [] }
 # Used to make HTTP requests to the API
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls-manual-roots"] }
-# Constant-time comparisons
-subtle = { version = "2.4", default-features = false }
 # A wrapper type for carefully handling secrets
 secrecy = "0.8"
 # Easy error definition
