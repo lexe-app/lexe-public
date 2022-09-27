@@ -14,7 +14,15 @@ use webpki::{TlsServerTrustAnchors, TrustAnchor};
 use x509_parser::certificate::X509Certificate;
 
 use crate::attest::cert::SgxAttestationExtension;
+use crate::enclave::Measurement;
 use crate::{ed25519, hex, sha256};
+
+/// The Enclave Signer Measurement (MRSIGNER) of the current Intel Quoting
+/// Enclave (QE).
+const INTEL_QE_IDENTITY_MRSIGNER: Measurement =
+    Measurement::new(hex::decode_const(
+        b"8c4f5775d796503e96137f77c68a829a0056ac8ded70140b081b094490c57bff",
+    ));
 
 /// The DER-encoded Intel SGX trust anchor cert.
 const INTEL_SGX_ROOT_CA_CERT_DER: &[u8] =
@@ -369,11 +377,11 @@ pub struct EnclavePolicy {
     // TODO(phlip9): new type
     /// The set of trusted enclave measurements. If set to `None`, ignore the
     /// `mrenclave` field.
-    pub trusted_mrenclaves: Option<Vec<[u8; 32]>>,
+    pub trusted_mrenclaves: Option<Vec<Measurement>>,
     // TODO(phlip9): new type
     /// The trusted enclave signer key id. If set to `None`, ignore the
     /// `mrsigner` field.
-    pub trusted_mrsigner: Option<[u8; 32]>,
+    pub trusted_mrsigner: Option<Measurement>,
 }
 
 impl EnclavePolicy {
@@ -399,14 +407,10 @@ impl EnclavePolicy {
     ///     | jq .enclaveIdentity.mrsigner
     /// ```
     pub fn trust_intel_qe() -> Self {
-        const QE_IDENTITY_MRSIGNER: [u8; 32] = hex::decode_const(
-            b"8c4f5775d796503e96137f77c68a829a0056ac8ded70140b081b094490c57bff",
-        );
-
         Self {
             allow_debug: false,
             trusted_mrenclaves: None,
-            trusted_mrsigner: Some(QE_IDENTITY_MRSIGNER),
+            trusted_mrsigner: Some(INTEL_QE_IDENTITY_MRSIGNER),
         }
     }
 
@@ -415,12 +419,15 @@ impl EnclavePolicy {
         #[cfg(target_env = "sgx")]
         {
             let self_report = sgx_isa::Report::for_self();
+            let report_mrenclave = Measurement::new(self_report.mrenclave);
+            let report_mrsigner = Measurement::new(self_report.mrsigner);
+
             let allow_debug = self_report
                 .attributes
                 .flags
                 .contains(sgx_isa::AttributesFlags::DEBUG);
-            let trusted_mrenclaves = Some(vec![self_report.mrenclave]);
-            let trusted_mrsigner = Some(self_report.mrsigner);
+            let trusted_mrenclaves = Some(vec![report_mrenclave]);
+            let trusted_mrsigner = Some(report_mrsigner);
             Self {
                 allow_debug,
                 trusted_mrenclaves,
@@ -449,20 +456,19 @@ impl EnclavePolicy {
             ensure!(!is_debug, "enclave is in debug mode",);
         }
 
+        let report_mrenclave = Measurement::new(report.mrenclave);
         if let Some(mrenclaves) = self.trusted_mrenclaves.as_ref() {
             ensure!(
-                mrenclaves.contains(&report.mrenclave),
-                "enclave measurement '{}' is not trusted",
-                hex::display(&report.mrenclave),
+                mrenclaves.contains(&report_mrenclave),
+                "enclave measurement '{report_mrenclave}' is not trusted",
             );
         }
 
+        let report_mrsigner = Measurement::new(report.mrsigner);
         if let Some(mrsigner) = self.trusted_mrsigner.as_ref() {
             ensure!(
-                mrsigner == &report.mrsigner,
-                "enclave signer '{}' is not trusted, trusted signer: '{}'",
-                hex::display(&report.mrsigner),
-                hex::display(mrsigner),
+                mrsigner == &report_mrsigner,
+                "enclave signer '{report_mrsigner}' is not trusted, trusted signer: '{mrsigner}'",
             );
         }
 
@@ -583,11 +589,11 @@ mod test {
 
     // TODO(phlip9): test verification catches bad evidence
 
-    fn example_mrenclave() -> [u8; 32] {
+    fn example_mrenclave() -> Measurement {
         let mut mrenclave = [0u8; 32];
         hex::decode_to_slice(MRENCLAVE_HEX.trim(), mrenclave.as_mut_slice())
             .unwrap();
-        mrenclave
+        Measurement::new(mrenclave)
     }
 
     fn mock_timestamp() -> SystemTime {

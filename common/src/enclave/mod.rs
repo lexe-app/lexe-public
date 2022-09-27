@@ -19,12 +19,16 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::hex::{self, FromHex};
-use crate::hexstr_or_bytes;
 use crate::rng::Crng;
 
 pub const MOCK_MEASUREMENT: Measurement =
     Measurement::new(*b"~~~~~~~ LEXE MOCK ENCLAVE ~~~~~~");
-pub const MOCK_MACHINE_ID: MachineId = MachineId::new(*b"!MOCK MACHINE ID");
+
+// TODO(phlip9): use the machine id of my dev machine until we build a proper
+//               get-machine-id bin util.
+pub const MOCK_MACHINE_ID: MachineId =
+    MachineId::new(hex::decode_const(b"52bc575eb9618084083ca7b3a45a2a76"));
+// pub const MOCK_MACHINE_ID: MachineId = MachineId::new(*b"!MOCK MACHINE ID");
 
 /// In SGX enclaves, this is the current CPUSVN we commit to when
 /// sealing data.
@@ -76,6 +80,10 @@ impl Measurement {
     }
 
     pub fn as_inner(&self) -> &[u8; 32] {
+        &self.0
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
         &self.0
     }
 }
