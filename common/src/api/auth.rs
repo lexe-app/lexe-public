@@ -176,7 +176,7 @@ impl OpaqueUserAuthToken {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::test_utils::{
+    use crate::test_utils::roundtrip::{
         bcs_roundtrip_proptest, signed_roundtrip_proptest,
     };
 
