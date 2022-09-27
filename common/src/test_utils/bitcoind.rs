@@ -59,10 +59,10 @@ fn bitcoind_exe_path() -> String {
 
     let exe_path = format!("{workspace_dir}/target{right_half}");
 
-    dbg!(&bitcoind_path);
-    dbg!(&crate_dir);
-    dbg!(&workspace_dir);
-    dbg!(&exe_path);
+    // dbg!(&bitcoind_path);
+    // dbg!(&crate_dir);
+    // dbg!(&workspace_dir);
+    // dbg!(&exe_path);
 
     exe_path
 }
