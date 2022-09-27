@@ -182,7 +182,7 @@ proptest = "1"
 
 [package.metadata.fortanix-sgx]
 # stack size (in bytes) for each thread, the default stack size is 0x20_000.
-stack-size=0x200_000
+stack-size=0x20_0000
 # The max number of threads we can spawn concurrently inside the SGX enclave.
 #
 # NOTE: ideally this value should be "threads=1", however, the current fortanix

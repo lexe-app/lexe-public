@@ -103,6 +103,10 @@ tokio = { version = "=1.15.0", default-features = false, features = [
     "time"
 ] }
 
+[target.'cfg(target_env = "sgx")'.dependencies]
+# print backtrace on panic in SGX enclave
+sgx-panic-backtrace = "0.1"
+
 [dev-dependencies]
 # Shared code
 common = { path = "../common", features = ["test-utils"] }
@@ -128,7 +132,7 @@ proptest = "1"
 
 [package.metadata.fortanix-sgx]
 # Stack size (in bytes) for each thread, the default stack size is 0x20000.
-stack-size=0x200000
+stack-size=0x20_0000
 # The max number of threads we can spawn concurrently inside the SGX enclave.
 #
 # NOTE: ideally this value should be "threads=1", however, the current fortanix

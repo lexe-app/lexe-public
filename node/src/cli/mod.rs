@@ -5,6 +5,7 @@ use argh::FromArgs;
 use common::cli::NodeCommand;
 use common::enclave;
 use common::rng::SysRng;
+use tracing::info;
 
 use crate::api::NodeApiClient;
 use crate::provision::provision;
@@ -19,6 +20,10 @@ pub struct Args {
 
 impl Args {
     pub fn run(self) -> anyhow::Result<()> {
+        let measurement = enclave::measurement();
+        let machine_id = enclave::machine_id();
+        info!(%measurement, %machine_id);
+
         match self.cmd {
             NodeCommand::Run(args) => {
                 let rt = tokio::runtime::Builder::new_current_thread()
@@ -33,14 +38,13 @@ impl Args {
                 .context("Error running node")
             }
             NodeCommand::Provision(args) => {
-                let machine_id = enclave::machine_id();
                 ensure!(
                     args.machine_id == machine_id,
                     "cli machine id '{}' != derived machine id '{}'",
                     args.machine_id,
                     machine_id,
                 );
-                let measurement = enclave::measurement();
+
                 let mut rng = SysRng::new();
                 let api = Arc::new(NodeApiClient::new(
                     args.backend_url.clone(),
