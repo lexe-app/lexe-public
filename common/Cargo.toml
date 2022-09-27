@@ -147,6 +147,8 @@ bitcoind = { optional = true, version = "0.27", features = [ "22_0" ] }
 proptest = { optional = true, version = "1" }
 
 [features]
+# Explicitly specify that no features should be enabled by default.
+default = []
 # Enable this feature to allow test utils to be shared across crate boundaries.
 test-utils = ["dep:proptest", "dep:bitcoind"]
 
