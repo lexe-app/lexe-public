@@ -83,6 +83,8 @@ tokio = { version = "=1.15.0", default-features = false, features = [
 ] }
 
 [dev-dependencies]
+# Shared code
+common = { path = "../common", features = ["test-utils"] }
 # property based testing
 proptest = { version = "1", default-features = false, features = ["alloc"] }
 # Arbitrary derive macro
