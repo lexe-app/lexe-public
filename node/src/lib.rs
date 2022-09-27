@@ -5,6 +5,7 @@
 
 pub mod cli;
 
+mod alias;
 mod api;
 mod channel_manager;
 mod command;

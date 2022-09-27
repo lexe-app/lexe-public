@@ -39,7 +39,7 @@ use common::shutdown::ShutdownChannel;
 use tracing::{debug, info, instrument, warn};
 use warp::{Filter, Rejection, Reply};
 
-use crate::types::ApiClientType;
+use crate::alias::ApiClientType;
 
 const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
 

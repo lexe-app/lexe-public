@@ -1,28 +1,22 @@
-#![allow(dead_code)] // TODO Remove eventually
-
 use std::fmt;
 use std::str::FromStr;
-use std::sync::Arc;
 
 use common::hex;
 use subtle::ConstantTimeEq;
 
-use crate::api::ApiClient;
-
-pub type ApiClientType = Arc<dyn ApiClient + Send + Sync>;
-
 #[derive(Clone)]
-pub struct AuthToken([u8; Self::LENGTH]);
+pub(crate) struct AuthToken([u8; Self::LENGTH]);
 
 impl AuthToken {
     const LENGTH: usize = 32;
 
-    pub fn new(bytes: [u8; Self::LENGTH]) -> Self {
+    pub(crate) fn new(bytes: [u8; Self::LENGTH]) -> Self {
         Self(bytes)
     }
 
+    #[allow(dead_code)]
     #[cfg(test)]
-    pub fn string(&self) -> String {
+    pub(crate) fn string(&self) -> String {
         hex::encode(self.0.as_slice())
     }
 }

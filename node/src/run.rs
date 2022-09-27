@@ -37,13 +37,13 @@ use tokio::net::TcpListener;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, instrument, warn};
 
+use crate::alias::{ApiClientType, ChainMonitorType, InvoicePayerType};
 use crate::api::ApiClient;
 use crate::channel_manager::NodeChannelManager;
 use crate::event_handler::NodeEventHandler;
 use crate::inactivity_timer::InactivityTimer;
 use crate::peer_manager::{self, NodePeerManager};
 use crate::persister::NodePersister;
-use crate::types::{ApiClientType, ChainMonitorType, InvoicePayerType};
 use crate::{api, command};
 
 pub(crate) const DEFAULT_CHANNEL_SIZE: usize = 256;

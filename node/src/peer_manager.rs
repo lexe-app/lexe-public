@@ -19,9 +19,9 @@ use tokio::net::TcpStream;
 use tokio::time;
 use tracing::{error, warn};
 
+use crate::alias::PeerManagerType;
 use crate::channel_manager::NodeChannelManager;
 use crate::persister::NodePersister;
-use crate::types::PeerManagerType;
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);

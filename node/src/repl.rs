@@ -24,10 +24,10 @@ use lightning_invoice::payment::PaymentError;
 use lightning_invoice::{utils, Currency, Invoice};
 use tracing::info;
 
+use crate::alias::InvoicePayerType;
 use crate::channel_manager::NodeChannelManager;
 use crate::peer_manager::NodePeerManager;
 use crate::persister::NodePersister;
-use crate::types::InvoicePayerType;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn poll_for_user_input(
