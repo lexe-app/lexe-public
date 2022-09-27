@@ -210,7 +210,7 @@ impl Serialize for RootSeed {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 impl proptest::arbitrary::Arbitrary for RootSeed {
     type Strategy = proptest::strategy::BoxedStrategy<Self>;
     type Parameters = ();

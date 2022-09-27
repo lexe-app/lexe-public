@@ -45,9 +45,7 @@ mod test {
     use common::rng::SysRng;
     use common::root_seed::RootSeed;
     use proptest::arbitrary::any;
-    use proptest::strategy::Strategy;
     use proptest::{prop_assert_eq, proptest};
-    use secrecy::Secret;
 
     use super::*;
 
@@ -72,11 +70,7 @@ mod test {
 
         #[test]
         fn channel_peer_roundtrip(
-            root_seed in any::<[u8; 32]>()
-                .prop_map(Secret::new)
-                .prop_map(RootSeed::new)
-                .no_shrink()
-            ,
+            root_seed in any::<RootSeed>(),
             addr in any::<SocketAddr>(),
         ) {
             let mut rng = SysRng::new();
