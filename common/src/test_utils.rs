@@ -5,7 +5,14 @@ use serde::Serialize;
 
 use crate::ed25519;
 
-pub fn assert_bcs_roundtrip<T>()
+/// Quickly create a roundtrip proptest for some `T` which can be serialized and
+/// deserialized.
+///
+/// ```ignore
+/// bcs_roundtrip_proptest::<UserAuthRequest>();
+/// ```
+#[cfg_attr(target_env = "sgx", allow(dead_code))]
+pub fn bcs_roundtrip_proptest<T>()
 where
     T: Arbitrary + PartialEq + Serialize + DeserializeOwned,
 {
@@ -19,7 +26,14 @@ where
     });
 }
 
-pub fn assert_signed_roundtrip<T>()
+/// Quickly create a roundtrip proptest for some `T` which can be signed.
+///
+/// # Example
+/// ```ignore
+/// signed_roundtrip_proptest::<UserAuthRequest>();
+/// ```
+#[cfg_attr(target_env = "sgx", allow(dead_code))]
+pub fn signed_roundtrip_proptest<T>()
 where
     T: Arbitrary + PartialEq + Serialize + DeserializeOwned + ed25519::Signable,
 {

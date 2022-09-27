@@ -48,8 +48,9 @@ pub mod shutdown;
 /// `LxTask`.
 pub mod task;
 
+/// Test utilities for use within `common`.
 #[cfg(test)]
-pub mod test_utils;
+mod test_utils;
 
 /// Assert at compile that that a boolean expression evaluates to true.
 /// Implementation copied from the static_assertions crate.
