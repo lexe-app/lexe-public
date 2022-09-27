@@ -86,6 +86,14 @@ impl NodeCommand {
             Self::Provision(args) => args.to_cmd(bin_path),
         }
     }
+
+    /// Shorthand for calling `append_args(cmd)` on the inner variant.
+    pub fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
+        match self {
+            Self::Run(args) => args.append_args(cmd),
+            Self::Provision(args) => args.append_args(cmd),
+        }
+    }
 }
 
 #[cfg(all(test, not(target_env = "sgx")))]
@@ -197,6 +205,12 @@ impl RunArgs {
     /// Requires the path to the node binary.
     pub fn to_cmd(&self, bin_path: &Path) -> Command {
         let mut cmd = Command::new(bin_path);
+        self.append_args(&mut cmd);
+        cmd
+    }
+
+    /// Serialize and append the args to an existing [`Command`].
+    pub fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
         cmd.arg("run")
             .arg("--user-pk")
             .arg(&self.user_pk.to_string())
@@ -288,6 +302,12 @@ impl ProvisionArgs {
     /// Requires the path to the node binary.
     pub fn to_cmd(&self, bin_path: &Path) -> Command {
         let mut cmd = Command::new(bin_path);
+        self.append_args(&mut cmd);
+        cmd
+    }
+
+    /// Serialize and append the args to an existing [`Command`].
+    pub fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
         cmd.arg("provision")
             .arg("--user-pk")
             .arg(&self.user_pk.to_string())
@@ -452,7 +472,7 @@ impl Network {
 
 impl Default for Network {
     fn default() -> Self {
-        Self(bitcoin::Network::Testnet)
+        Self(bitcoin::Network::Regtest)
     }
 }
 
