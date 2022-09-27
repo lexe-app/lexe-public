@@ -176,25 +176,27 @@ impl OpaqueUserAuthToken {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::test_utils::{assert_bcs_roundtrip, assert_signed_roundtrip};
+    use crate::test_utils::{
+        bcs_roundtrip_proptest, signed_roundtrip_proptest,
+    };
 
     #[test]
     fn test_user_signup_request_canonical() {
-        assert_bcs_roundtrip::<UserSignupRequest>();
+        bcs_roundtrip_proptest::<UserSignupRequest>();
     }
 
     #[test]
     fn test_user_signed_request_sign_verify() {
-        assert_signed_roundtrip::<UserSignupRequest>();
+        signed_roundtrip_proptest::<UserSignupRequest>();
     }
 
     #[test]
     fn test_user_auth_request_canonical() {
-        assert_bcs_roundtrip::<UserAuthRequest>();
+        bcs_roundtrip_proptest::<UserAuthRequest>();
     }
 
     #[test]
     fn test_user_auth_request_sign_verify() {
-        assert_signed_roundtrip::<UserAuthRequest>();
+        signed_roundtrip_proptest::<UserAuthRequest>();
     }
 }
