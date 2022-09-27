@@ -11,7 +11,7 @@ mod mock;
 
 use std::borrow::Cow;
 use std::str::FromStr;
-use std::{fmt, mem};
+use std::{fmt, io, mem};
 
 use bytes::{Buf, BufMut};
 use cfg_if::cfg_if;
@@ -20,6 +20,7 @@ use thiserror::Error;
 
 use crate::hex::{self, FromHex};
 use crate::rng::Crng;
+use crate::{hexstr_or_bytes, sha256};
 
 pub const MOCK_MEASUREMENT: Measurement =
     Measurement::new(*b"~~~~~~~ LEXE MOCK ENCLAVE ~~~~~~");
@@ -335,6 +336,34 @@ pub fn measurement() -> Measurement {
             sgx::measurement()
         } else {
             mock::measurement()
+        }
+    }
+}
+
+/// Compute an enclave measurement from an `.sgxs` file stream
+/// [`std::io::Read`].
+///
+/// * Enclave binaries are first converted to `.sgxs` files, which exactly
+///   mirror the memory layout of the loaded enclave binaries right before
+///   running.
+///
+/// * Conveniently, the SHA-256 hash of an enclave `.sgxs` binary is exactly the
+///   same as the actual enclave measurement hash, since the memory layout is
+///   identical (caveat: unless we use some more sophisticated extendable
+///   enclave features).
+pub fn read_measurement<R: io::Read>(
+    mut sgxs_reader: R,
+) -> io::Result<Measurement> {
+    let mut buf = [0u8; 4096];
+    let mut digest = sha256::Context::new();
+
+    loop {
+        let n = sgxs_reader.read(&mut buf)?;
+        if n == 0 {
+            let hash = digest.finish();
+            return Ok(Measurement::new(hash.into_inner()));
+        } else {
+            digest.update(&buf[0..n]);
         }
     }
 }
