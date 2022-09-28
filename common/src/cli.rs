@@ -22,11 +22,11 @@ use serde::{Deserialize, Serialize};
 use crate::api::runner::Port;
 use crate::api::UserPk;
 use crate::constants::{NODE_PROVISION_DNS, NODE_RUN_DNS};
-use crate::enclave::{self, MachineId};
 
 pub const DEFAULT_BACKEND_URL: &str = "http://127.0.0.1:3030";
 pub const DEFAULT_RUNNER_URL: &str = "http://127.0.0.1:5050";
 
+/// Commands accepted by the user node.
 #[derive(Clone, Debug, Eq, PartialEq, FromArgs)]
 #[argh(subcommand)]
 pub enum NodeCommand {
@@ -110,7 +110,7 @@ impl Arbitrary for NodeCommand {
     }
 }
 
-/// Run the Lexe node
+/// Run a user node
 #[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand, name = "run")]
@@ -249,7 +249,7 @@ impl RunArgs {
     }
 }
 
-/// Provision a new Lexe node for a user
+/// Provision a new user node
 #[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand, name = "provision")]
@@ -257,13 +257,6 @@ pub struct ProvisionArgs {
     /// the Lexe user pk to provision the node for
     #[argh(option)]
     pub user_pk: UserPk,
-
-    /// identifies the current CPU hardware we're running on. The node enclave
-    /// should be able to unseal its own sealed data if this id is the same
-    /// (unless we're trying to unseal data sealed with a newer CPUSVN or
-    /// different enclave measurement).
-    #[argh(option, default = "enclave::machine_id()")]
-    pub machine_id: MachineId,
 
     /// the DNS name the node enclave should include in its remote attestation
     /// certificate and the client will expect in its connection
@@ -288,7 +281,6 @@ impl Default for ProvisionArgs {
     fn default() -> Self {
         Self {
             user_pk: UserPk::from_i64(1), // Test user
-            machine_id: enclave::machine_id(),
             node_dns_name: "provision.lexe.tech".to_owned(),
             port: None,
             backend_url: DEFAULT_BACKEND_URL.to_owned(),
@@ -311,8 +303,6 @@ impl ProvisionArgs {
         cmd.arg("provision")
             .arg("--user-pk")
             .arg(&self.user_pk.to_string())
-            .arg("--machine-id")
-            .arg(&self.machine_id.to_string())
             .arg("--node-dns-name")
             .arg(&self.node_dns_name)
             .arg("--backend-url")

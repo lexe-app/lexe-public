@@ -3,7 +3,7 @@ use std::process::ExitCode;
 use std::time::Instant;
 
 use lexe_ln::logger;
-use node::cli::Args;
+use node::cli::NodeArgs;
 use tracing::{error, info};
 
 pub fn main() -> ExitCode {
@@ -15,19 +15,17 @@ pub fn main() -> ExitCode {
 
     logger::init();
 
-    let args = argh::from_env::<Args>();
+    let args = argh::from_env::<NodeArgs>();
     let result = args.run();
+    let elapsed = start.elapsed();
 
-    let time_elapsed = start.elapsed();
     let exit_code = match result {
         Ok(()) => {
-            info!("completed without error: time elapsed: {time_elapsed:?}");
+            info!("Node completed successfully. Time elapsed: {elapsed:?}");
             ExitCode::SUCCESS
         }
-        Err(error) => {
-            error!(
-                "error running command: {error:#}, time_elapsed: {time_elapsed:?}",
-            );
+        Err(e) => {
+            error!("Node errored: {e:#}; Time elapsed: {elapsed:?}");
             ExitCode::FAILURE
         }
     };
