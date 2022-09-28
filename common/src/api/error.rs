@@ -103,6 +103,16 @@ pub struct NodeApiError {
     pub msg: String,
 }
 
+/// The primary error type that the LSP returns.
+#[derive(Error, Clone, Debug, Eq, PartialEq, Hash)]
+#[error("{kind}: {msg}")]
+#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+pub struct LspApiError {
+    #[source]
+    pub kind: LspErrorKind,
+    pub msg: String,
+}
+
 // --- Error variants --- //
 
 /// All variants of errors that the rest client can generate.
@@ -223,6 +233,27 @@ pub enum NodeErrorKind {
     Proxy,
 }
 
+/// All variants of errors that the LSP can return.
+#[derive(Error, Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+pub enum LspErrorKind {
+    #[error("Unknown error")]
+    Unknown,
+    #[error("Client failed to serialize the given data")]
+    Serialization,
+    #[error("Couldn't connect to service")]
+    Connect,
+    #[error("Request timed out")]
+    Timeout,
+    #[error("Could not decode response")]
+    Decode,
+    #[error("Other reqwest error")]
+    Reqwest,
+
+    #[error("Error occurred during provisioning")]
+    Provision,
+}
+
 // --- Misc constructors / helpers --- //
 
 impl NodeApiError {
@@ -252,6 +283,7 @@ impl warp::reject::Reject for BackendApiError {}
 impl warp::reject::Reject for RunnerApiError {}
 impl warp::reject::Reject for GatewayApiError {}
 impl warp::reject::Reject for NodeApiError {}
+impl warp::reject::Reject for LspApiError {}
 
 // --- ErrorResponse -> ServiceApiError impls --- //
 
@@ -279,6 +311,12 @@ impl From<ErrorResponse> for NodeApiError {
         Self { kind, msg }
     }
 }
+impl From<ErrorResponse> for LspApiError {
+    fn from(ErrorResponse { code, msg }: ErrorResponse) -> Self {
+        let kind = LspErrorKind::from_code(code);
+        Self { kind, msg }
+    }
+}
 
 // --- ServiceApiError -> ErrorResponse impls --- //
 
@@ -302,6 +340,12 @@ impl From<GatewayApiError> for ErrorResponse {
 }
 impl From<NodeApiError> for ErrorResponse {
     fn from(NodeApiError { kind, msg }: NodeApiError) -> Self {
+        let code = kind.to_code();
+        Self { code, msg }
+    }
+}
+impl From<LspApiError> for ErrorResponse {
+    fn from(LspApiError { kind, msg }: LspApiError) -> Self {
         let code = kind.to_code();
         Self { code, msg }
     }
@@ -337,6 +381,15 @@ impl ErrorCodeConvertible for GatewayApiError {
 }
 
 impl ErrorCodeConvertible for NodeApiError {
+    fn to_code(&self) -> ErrorCode {
+        self.kind.to_code()
+    }
+    fn from_code(_code: ErrorCode) -> Self {
+        unimplemented!("Shouldn't be using this!")
+    }
+}
+
+impl ErrorCodeConvertible for LspApiError {
     fn to_code(&self) -> ErrorCode {
         self.kind.to_code()
     }
@@ -469,6 +522,32 @@ impl ErrorCodeConvertible for NodeErrorKind {
     }
 }
 
+impl ErrorCodeConvertible for LspErrorKind {
+    fn to_code(&self) -> ErrorCode {
+        match self {
+            Self::Unknown => 0,
+            Self::Serialization => 1,
+            Self::Connect => 2,
+            Self::Timeout => 3,
+            Self::Decode => 4,
+            Self::Reqwest => 5,
+            Self::Provision => 6,
+        }
+    }
+    fn from_code(code: ErrorCode) -> Self {
+        match code {
+            0 => Self::Unknown,
+            1 => Self::Serialization,
+            2 => Self::Connect,
+            3 => Self::Timeout,
+            4 => Self::Decode,
+            5 => Self::Reqwest,
+            6 => Self::Provision,
+            _ => Self::Unknown,
+        }
+    }
+}
+
 // --- HasStatusCode impls --- //
 
 impl HasStatusCode for BackendApiError {
@@ -541,6 +620,21 @@ impl HasStatusCode for NodeApiError {
     }
 }
 
+impl HasStatusCode for LspApiError {
+    fn get_status_code(&self) -> Status {
+        use LspErrorKind::*;
+        match self.kind {
+            Unknown => SERVER_500_INTERNAL_SERVER_ERROR,
+            Serialization => CLIENT_400_BAD_REQUEST,
+            Connect => SERVER_503_SERVICE_UNAVAILABLE,
+            Timeout => SERVER_504_GATEWAY_TIMEOUT,
+            Decode => SERVER_502_BAD_GATEWAY,
+            Reqwest => CLIENT_400_BAD_REQUEST,
+            Provision => SERVER_500_INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
 // --- Library crate -> CommonError impls --- //
 
 impl From<serde_qs::Error> for CommonError {
@@ -582,24 +676,27 @@ impl From<CommonError> for BackendApiError {
         Self { kind, msg }
     }
 }
-
 impl From<CommonError> for RunnerApiError {
     fn from(CommonError { kind, msg }: CommonError) -> Self {
         let kind = RunnerErrorKind::from(kind);
         Self { kind, msg }
     }
 }
-
 impl From<CommonError> for GatewayApiError {
     fn from(CommonError { kind, msg }: CommonError) -> Self {
         let kind = GatewayErrorKind::from(kind);
         Self { kind, msg }
     }
 }
-
 impl From<CommonError> for NodeApiError {
     fn from(CommonError { kind, msg }: CommonError) -> Self {
         let kind = NodeErrorKind::from(kind);
+        Self { kind, msg }
+    }
+}
+impl From<CommonError> for LspApiError {
+    fn from(CommonError { kind, msg }: CommonError) -> Self {
+        let kind = LspErrorKind::from(kind);
         Self { kind, msg }
     }
 }
@@ -619,7 +716,6 @@ impl From<CommonErrorKind> for BackendErrorKind {
         }
     }
 }
-
 impl From<CommonErrorKind> for RunnerErrorKind {
     fn from(kind: CommonErrorKind) -> Self {
         use CommonErrorKind::*;
@@ -633,7 +729,6 @@ impl From<CommonErrorKind> for RunnerErrorKind {
         }
     }
 }
-
 impl From<CommonErrorKind> for GatewayErrorKind {
     fn from(kind: CommonErrorKind) -> Self {
         use CommonErrorKind::*;
@@ -647,8 +742,20 @@ impl From<CommonErrorKind> for GatewayErrorKind {
         }
     }
 }
-
 impl From<CommonErrorKind> for NodeErrorKind {
+    fn from(kind: CommonErrorKind) -> Self {
+        use CommonErrorKind::*;
+        match kind {
+            QueryStringSerialization => Self::Serialization,
+            JsonSerialization => Self::Serialization,
+            Connect => Self::Connect,
+            Timeout => Self::Timeout,
+            Decode => Self::Decode,
+            Reqwest => Self::Reqwest,
+        }
+    }
+}
+impl From<CommonErrorKind> for LspErrorKind {
     fn from(kind: CommonErrorKind) -> Self {
         use CommonErrorKind::*;
         match kind {
@@ -737,7 +844,11 @@ impl From<ed25519::Error> for GatewayApiError {
 
 // --- Misc -> NodeApiError impls --- //
 
-// (Placeholder only, to stay consistent)
+// (Placeholder only, for consistency)
+
+// --- Misc -> LspApiError impls --- //
+
+// (Placeholder only, for consistency)
 
 #[cfg(all(test, not(target_env = "sgx")))]
 mod test {
@@ -764,6 +875,10 @@ mod test {
             kind: NodeErrorKind::Unknown,
             msg: "Additional context".to_owned(),
         };
+        let lsp_error = LspApiError {
+            kind: LspErrorKind::Unknown,
+            msg: "Additional context".to_owned(),
+        };
 
         // The top-level service error types *are* human readable and should
         // include the base help message defined alongside each variant.
@@ -772,6 +887,7 @@ mod test {
         assert_eq!(model_display, format!("{runner_error}"));
         assert_eq!(model_display, format!("{gateway_error}"));
         assert_eq!(model_display, format!("{node_error}"));
+        assert_eq!(model_display, format!("{lsp_error}"));
 
         // ErrorResponse does not implement Display and is not intended to be
         // human readable as its primary purpose is for serialization /
@@ -780,6 +896,7 @@ mod test {
         let runner_err_resp = ErrorResponse::from(runner_error);
         let gateway_err_resp = ErrorResponse::from(gateway_error);
         let node_err_resp = ErrorResponse::from(node_error);
+        let lsp_err_resp = ErrorResponse::from(lsp_error);
 
         let model_err_resp = ErrorResponse {
             code: 0,
@@ -789,6 +906,7 @@ mod test {
         assert_eq!(model_err_resp, runner_err_resp);
         assert_eq!(model_err_resp, gateway_err_resp);
         assert_eq!(model_err_resp, node_err_resp);
+        assert_eq!(model_err_resp, lsp_err_resp);
     }
 
     proptest! {
@@ -832,6 +950,11 @@ mod test {
         #[test]
         fn node_error_code_roundtrip(e1 in any::<NodeApiError>()) {
             let e2 = NodeApiError::from(ErrorResponse::from(e1.clone()));
+            prop_assert_eq!(e1, e2);
+        }
+        #[test]
+        fn lsp_error_code_roundtrip(e1 in any::<LspApiError>()) {
+            let e2 = LspApiError::from(ErrorResponse::from(e1.clone()));
             prop_assert_eq!(e1, e2);
         }
     }
