@@ -10,7 +10,7 @@ use async_trait::async_trait;
 use crate::api::def::{OwnerNodeProvisionApi, OwnerNodeRunApi};
 use crate::api::error::NodeApiError;
 use crate::api::node::{ListChannels, NodeInfo};
-use crate::api::provision::ProvisionRequest;
+use crate::api::provision::NodeProvisionRequest;
 use crate::api::qs::EmptyData;
 use crate::api::rest::{RestClient, GET, POST};
 use crate::api::UserPk;
@@ -67,7 +67,7 @@ impl NodeClient {
 impl OwnerNodeProvisionApi for NodeClient {
     async fn provision(
         &self,
-        data: ProvisionRequest,
+        data: NodeProvisionRequest,
     ) -> Result<(), NodeApiError> {
         let provision_url = &self.provision_url;
         let url = format!("{provision_url}/provision");
