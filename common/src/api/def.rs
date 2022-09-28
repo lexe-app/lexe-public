@@ -123,7 +123,7 @@ pub trait HostNodeApi {
 /// Defines the api that the node exposes to the owner during provisioning.
 #[async_trait]
 pub trait OwnerNodeProvisionApi {
-    /// GET /provision [`NodeProvisionRequest`] -> [`()`]
+    /// POST /provision [`NodeProvisionRequest`] -> [`()`]
     async fn provision(
         &self,
         data: NodeProvisionRequest,
