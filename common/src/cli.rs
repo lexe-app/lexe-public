@@ -259,7 +259,7 @@ pub struct ProvisionArgs {
     pub user_pk: UserPk,
 
     /// the DNS name the node enclave should include in its remote attestation
-    /// certificate and the client will expect in its connection
+    /// certificate and the which client will expect in its connection
     #[argh(option, default = "NODE_PROVISION_DNS.to_owned()")]
     pub node_dns_name: String,
 

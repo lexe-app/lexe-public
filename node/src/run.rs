@@ -256,7 +256,7 @@ impl UserNode {
             let address = format!("0.0.0.0:{}", args.peer_port.unwrap_or(0));
             let listener = TcpListener::bind(address)
                 .await
-                .expect("Failed to bind to peer port");
+                .context("Failed to bind to peer port")?;
             let peer_port = listener.local_addr().unwrap().port();
             (listener, peer_port)
         };

@@ -31,7 +31,7 @@ use common::api::rest::into_response;
 use common::api::runner::UserPorts;
 use common::api::UserPk;
 use common::cli::ProvisionArgs;
-use common::client::tls::node_provision_tls_config;
+use common::client::tls;
 use common::enclave;
 use common::enclave::Measurement;
 use common::rng::{Crng, SysRng};
@@ -44,6 +44,7 @@ use crate::alias::ApiClientType;
 
 const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// Makes a [`RequestContext`] available to subsequent [`Filter`]s.
 fn with_request_context(
     ctx: RequestContext,
 ) -> impl Filter<Extract = (RequestContext,), Error = Infallible> + Clone {
@@ -86,18 +87,20 @@ fn verify_provision_request<R: Crng>(
     Ok((req.user_pk, req.node_pk, req.root_seed))
 }
 
-// # provision service
-//
-// POST /provision
-//
-// ```json
-// {
-//   "user_pk": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-//   "node_pk": "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),
-//   "root_seed": "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7".parse().unwrap(),
-// }
-// ```
-async fn provision_request(
+/// Handles a provision request.
+///
+/// POST /provision [`ProvisionRequest`] -> ()
+///
+/// Sample provision request:
+///
+/// ```json
+/// {
+///   "user_pk": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+///   "node_pk": "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),
+///   "root_seed": "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7".parse().unwrap(),
+/// }
+/// ```
+async fn provision_handler(
     mut ctx: RequestContext,
     req: ProvisionRequest,
 ) -> Result<(), NodeApiError> {
@@ -149,41 +152,42 @@ fn owner_routes(
         .and(warp::post())
         .and(with_request_context(ctx))
         .and(warp::body::json())
-        .then(provision_request)
+        .then(provision_handler)
         .map(into_response)
 }
 
-/// Provision a new lexe node
+/// Provision a user node
 ///
-/// Both `UserPk` and `auth_token` are given by the orchestrator so we know
-/// which user we should provision to and have a simple method to authenticate
-/// their connection.
+/// The `UserPk` is given by the runner so we know which user we should
+/// provision to and have a simple method to authenticate their connection.
 #[instrument(skip_all)]
-pub async fn provision<R: Crng>(
+pub async fn provision_node<R: Crng>(
     rng: &mut R,
     args: ProvisionArgs,
     api: ApiClientType,
 ) -> anyhow::Result<()> {
     debug!(%args.user_pk, args.port, %args.node_dns_name, "provisioning");
 
-    let tls_config = node_provision_tls_config(rng, args.node_dns_name)
+    let tls_config = tls::node_provision_tls_config(rng, args.node_dns_name)
         .context("Failed to build TLS config for provisioning")?;
 
-    // we'll trigger `shutdown` when we've completed the provisioning process
     let shutdown = ShutdownChannel::new();
+
+    // Create a shutdown future that completes when either:
+    // a) Provisioning succeeds and `provision_handler` sends a shutdown signal
+    // b) Provisioning times out.
+    //
+    // This future is passed into and driven by the warp service, allowing it to
+    // gracefully shut down once either of these conditions has been reached.
     let mut shutdown_clone = shutdown.clone();
-    let shutdown_fut = async move {
-        // don't wait forever for the client
-        match tokio::time::timeout(PROVISION_TIMEOUT, shutdown_clone.recv())
-            .await
-        {
-            Ok(_) => {
-                info!("received shutdown; done provisioning");
-            }
-            Err(_) => {
-                warn!(
-                    "timeout waiting for successful client provision request"
-                );
+    let warp_shutdown_fut = async move {
+        tokio::select! {
+            () = shutdown_clone.recv() => info!("Provision succeeded"),
+            _ = tokio::time::sleep(PROVISION_TIMEOUT) => {
+                warn!("Timed out waiting for successful provision request");
+                // Send a shutdown signal just in case we later add another task
+                // that depends on it.
+                shutdown_clone.send();
             }
         }
     };
@@ -203,7 +207,7 @@ pub async fn provision<R: Crng>(
     let (listen_addr, service) = warp::serve(routes)
         .tls()
         .preconfigured_tls(tls_config)
-        .bind_with_graceful_shutdown(addr, shutdown_fut);
+        .bind_with_graceful_shutdown(addr, warp_shutdown_fut);
     let owner_port = listen_addr.port();
 
     info!(%listen_addr, "listening for connections");
@@ -302,7 +306,7 @@ mod test {
 
         let provision_task = async {
             let mut rng = SysRng::new();
-            provision(&mut rng, args, api).await.unwrap();
+            provision_node(&mut rng, args, api).await.unwrap();
         };
 
         let test_task = async {

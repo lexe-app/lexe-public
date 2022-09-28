@@ -1,6 +1,7 @@
 // TODO
 
 pub mod certs;
+/// TLS configurations for the client to the node.
 pub mod tls;
 
 use anyhow::Context;
