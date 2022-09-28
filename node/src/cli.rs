@@ -6,7 +6,7 @@ use common::cli::NodeCommand;
 use common::rng::SysRng;
 
 use crate::api::NodeApiClient;
-use crate::provision::provision;
+use crate::provision;
 use crate::run::UserNode;
 
 /// A wrapper around [`NodeCommand`] that serves as the public interface to
@@ -40,8 +40,8 @@ impl NodeArgs {
                     args.backend_url.clone(),
                     args.runner_url.clone(),
                 ));
-                rt.block_on(provision(&mut rng, args, api))
-                    .context("error while provisioning")
+                rt.block_on(provision::provision_node(&mut rng, args, api))
+                    .context("Error while provisioning")
             }
         }
     }
