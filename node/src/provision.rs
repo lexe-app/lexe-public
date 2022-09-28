@@ -32,7 +32,8 @@ use common::api::runner::UserPorts;
 use common::api::UserPk;
 use common::cli::ProvisionArgs;
 use common::client::tls::node_provision_tls_config;
-use common::enclave::{MachineId, Measurement};
+use common::enclave;
+use common::enclave::Measurement;
 use common::rng::{Crng, SysRng};
 use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
@@ -52,7 +53,6 @@ fn with_request_context(
 #[derive(Clone)]
 struct RequestContext {
     current_user_pk: UserPk,
-    machine_id: MachineId,
     measurement: Measurement,
     shutdown: ShutdownChannel,
     api: ApiClientType,
@@ -160,12 +160,11 @@ fn owner_routes(
 /// their connection.
 #[instrument(skip_all)]
 pub async fn provision<R: Crng>(
-    args: ProvisionArgs,
-    measurement: Measurement,
-    api: ApiClientType,
     rng: &mut R,
+    args: ProvisionArgs,
+    api: ApiClientType,
 ) -> anyhow::Result<()> {
-    debug!(%args.user_pk, args.port, %args.machine_id, %args.node_dns_name, "provisioning");
+    debug!(%args.user_pk, args.port, %args.node_dns_name, "provisioning");
 
     let tls_config = node_provision_tls_config(rng, args.node_dns_name)
         .context("Failed to build TLS config for provisioning")?;
@@ -191,9 +190,9 @@ pub async fn provision<R: Crng>(
 
     // bind TCP listener on port (queues up any inbound connections).
     let addr = SocketAddr::from(([127, 0, 0, 1], args.port.unwrap_or(0)));
+    let measurement = enclave::measurement();
     let ctx = RequestContext {
         current_user_pk: args.user_pk,
-        machine_id: args.machine_id,
         measurement,
         shutdown,
         api: api.clone(),
@@ -226,11 +225,11 @@ mod test {
     use std::sync::Arc;
 
     use common::api::UserPk;
+    use common::attest;
     use common::attest::verify::EnclavePolicy;
     use common::cli::ProvisionArgs;
     use common::rng::SysRng;
     use common::root_seed::RootSeed;
-    use common::{attest, enclave};
     use lexe_ln::logger;
     use secrecy::Secret;
     use tokio_rustls::rustls;
@@ -300,11 +299,10 @@ mod test {
 
         let api = Arc::new(MockApiClient::new());
         let mut notifs_rx = api.notifs_rx();
-        let measurement = enclave::measurement();
 
         let provision_task = async {
             let mut rng = SysRng::new();
-            provision(args, measurement, api, &mut rng).await.unwrap();
+            provision(&mut rng, args, api).await.unwrap();
         };
 
         let test_task = async {
