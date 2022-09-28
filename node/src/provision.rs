@@ -73,57 +73,59 @@ pub async fn provision_node<R: Crng>(
 ) -> anyhow::Result<()> {
     debug!(%args.user_pk, args.port, %args.node_dns_name, "provisioning");
 
-    let tls_config = tls::node_provision_tls_config(rng, args.node_dns_name)
-        .context("Failed to build TLS config for provisioning")?;
-
-    let shutdown = ShutdownChannel::new();
-
-    // Create a shutdown future that completes when either:
-    // a) Provisioning succeeds and `provision_handler` sends a shutdown signal
-    // b) Provisioning times out.
-    //
-    // This future is passed into and driven by the warp service, allowing it to
-    // gracefully shut down once either of these conditions has been reached.
-    let mut shutdown_clone = shutdown.clone();
-    let warp_shutdown_fut = async move {
-        tokio::select! {
-            () = shutdown_clone.recv() => info!("Provision succeeded"),
-            _ = tokio::time::sleep(PROVISION_TIMEOUT) => {
-                warn!("Timed out waiting for successful provision request");
-                // Send a shutdown signal just in case we later add another task
-                // that depends on the timeout
-                shutdown_clone.send();
-            }
-        }
-    };
-
-    // Bind TCP listener on port (queues up any inbound connections).
-    let addr = SocketAddr::from(([127, 0, 0, 1], args.port.unwrap_or(0)));
+    // Set up the request context and warp routes.
     let measurement = enclave::measurement();
+    let mut shutdown = ShutdownChannel::new();
     let ctx = RequestContext {
         current_user_pk: args.user_pk,
         measurement,
-        shutdown,
+        shutdown: shutdown.clone(),
         api: api.clone(),
         // TODO(phlip9): use passed in rng
         rng: SysRng::new(),
     };
     let routes = owner_routes(ctx);
+
+    // Set up the TLS config.
+    let tls_config = tls::node_provision_tls_config(rng, args.node_dns_name)
+        .context("Failed to build TLS config for provisioning")?;
+
+    // Set up a shutdown future that completes when either:
+    //
+    // a) Provisioning succeeds and `provision_handler` sends a shutdown signal
+    // b) Provisioning times out.
+    //
+    // This future is passed into and driven by the warp service, allowing it to
+    // gracefully shut down once either of these conditions has been reached.
+    let warp_shutdown_fut = async move {
+        tokio::select! {
+            () = shutdown.recv() => info!("Provision succeeded"),
+            _ = tokio::time::sleep(PROVISION_TIMEOUT) => {
+                warn!("Timed out waiting for successful provision request");
+                // Send a shutdown signal just in case we later add another task
+                // that depends on the timeout
+                shutdown.send();
+            }
+        }
+    };
+
+    // Finally, set up the warp service, passing in the above components.
+    let addr = SocketAddr::from(([127, 0, 0, 1], args.port.unwrap_or(0)));
     let (listen_addr, service) = warp::serve(routes)
         .tls()
         .preconfigured_tls(tls_config)
         .bind_with_graceful_shutdown(addr, warp_shutdown_fut);
     let owner_port = listen_addr.port();
-
     info!(%listen_addr, "listening for connections");
 
-    // notify the runner that we're ready for a client connection
+    // Notify the runner that we're ready for a client connection
     let user_ports = UserPorts::new_provision(args.user_pk, owner_port);
     api.ready(user_ports)
         .await
         .context("Failed to notify runner of our readiness")?;
+    debug!("Notified runner; awaiting client request");
 
-    debug!("notified runner; awaiting client request");
+    // Drive the warp service, wait for finish
     service.await;
 
     Ok(())
