@@ -25,7 +25,7 @@ use anyhow::Context;
 use bitcoin::secp256k1::PublicKey;
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::provision::{
-    Instance, Node, NodeInstanceSeed, ProvisionRequest, SealedSeed,
+    Instance, Node, NodeInstanceSeed, NodeProvisionRequest, SealedSeed,
 };
 use common::api::rest::into_response;
 use common::api::runner::UserPorts;
@@ -147,7 +147,7 @@ fn owner_routes(
 
 /// Handles a provision request.
 ///
-/// POST /provision [`ProvisionRequest`] -> ()
+/// POST /provision [`NodeProvisionRequest`] -> ()
 ///
 /// Sample provision request:
 ///
@@ -160,9 +160,9 @@ fn owner_routes(
 /// ```
 async fn provision_handler(
     mut ctx: RequestContext,
-    req: ProvisionRequest,
+    req: NodeProvisionRequest,
 ) -> Result<(), NodeApiError> {
-    debug!("received provision request");
+    debug!("Received provision request");
 
     let (user_pk, node_pk, root_seed) =
         verify_provision_request(&mut ctx.rng, ctx.current_user_pk, req)?;
@@ -194,7 +194,7 @@ async fn provision_handler(
             msg: format!("Could not persist provisioned data: {e:#}"),
         })?;
 
-    // Provisioning done. Stop node.
+    // Provisioning done. Stop the node.
     ctx.shutdown.send();
 
     Ok(())
@@ -203,7 +203,7 @@ async fn provision_handler(
 fn verify_provision_request<R: Crng>(
     rng: &mut R,
     current_user_pk: UserPk,
-    req: ProvisionRequest,
+    req: NodeProvisionRequest,
 ) -> Result<(UserPk, PublicKey, RootSeed), NodeApiError> {
     let given_user_pk = req.user_pk;
     if given_user_pk != current_user_pk {
@@ -275,7 +275,7 @@ mod test {
 
     #[test]
     fn test_provision_request_serde() {
-        let req = ProvisionRequest {
+        let req = NodeProvisionRequest {
             user_pk: UserPk::from_i64(123),
             node_pk: "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),         root_seed:
         "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7".parse().unwrap(),
@@ -332,7 +332,7 @@ mod test {
             tls_config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
 
             // client sends provision request to node
-            let provision_req = ProvisionRequest {
+            let provision_req = NodeProvisionRequest {
                 user_pk,
                 node_pk: "031f7d233e27e9eaa68b770717c22fddd3bdd58656995d9edc32e84e6611182241".parse().unwrap(),
                 root_seed,

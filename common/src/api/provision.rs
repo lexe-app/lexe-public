@@ -10,7 +10,7 @@ use crate::root_seed::RootSeed;
 
 /// The client sends this provisioning request to the node.
 #[derive(Serialize, Deserialize)]
-pub struct ProvisionRequest {
+pub struct NodeProvisionRequest {
     /// The client's user pk.
     pub user_pk: UserPk,
     /// The client's node public key, derived from the root seed. The node

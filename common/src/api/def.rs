@@ -23,7 +23,7 @@ use async_trait::async_trait;
 use crate::api::error::{BackendApiError, NodeApiError, RunnerApiError};
 use crate::api::node::{ListChannels, NodeInfo};
 use crate::api::provision::{
-    Instance, Node, NodeInstanceSeed, ProvisionRequest, SealedSeed,
+    Instance, Node, NodeInstanceSeed, NodeProvisionRequest, SealedSeed,
     SealedSeedId,
 };
 use crate::api::runner::UserPorts;
@@ -123,10 +123,10 @@ pub trait HostNodeApi {
 /// Defines the api that the node exposes to the owner during provisioning.
 #[async_trait]
 pub trait OwnerNodeProvisionApi {
-    /// GET /provision [`ProvisionRequest`] -> [`()`]
+    /// GET /provision [`NodeProvisionRequest`] -> [`()`]
     async fn provision(
         &self,
-        data: ProvisionRequest,
+        data: NodeProvisionRequest,
     ) -> Result<(), NodeApiError>;
 }
 
