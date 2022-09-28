@@ -271,8 +271,7 @@ pub struct ProvisionArgs {
     #[argh(option, default = "DEFAULT_RUNNER_URL.to_owned()")]
     pub runner_url: String,
 
-    /// the port to use to accept a TLS connection from the client for the
-    /// provisioning process.
+    /// the port on which to accept a provision request from the client.
     #[argh(option)]
     pub port: Option<Port>,
 }

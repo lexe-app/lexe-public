@@ -44,13 +44,6 @@ use crate::alias::ApiClientType;
 
 const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// Makes a [`RequestContext`] available to subsequent [`Filter`]s.
-fn with_request_context(
-    ctx: RequestContext,
-) -> impl Filter<Extract = (RequestContext,), Error = Infallible> + Clone {
-    warp::any().map(move || ctx.clone())
-}
-
 #[derive(Clone)]
 struct RequestContext {
     current_user_pk: UserPk,
@@ -61,30 +54,93 @@ struct RequestContext {
     rng: SysRng,
 }
 
-fn verify_provision_request<R: Crng>(
+/// Makes a [`RequestContext`] available to subsequent [`Filter`]s.
+fn with_request_context(
+    ctx: RequestContext,
+) -> impl Filter<Extract = (RequestContext,), Error = Infallible> + Clone {
+    warp::any().map(move || ctx.clone())
+}
+
+/// Provision a user node.
+///
+/// The `UserPk` is given by the runner so we know which user we should
+/// provision to and have a simple method to authenticate their connection.
+#[instrument(skip_all)]
+pub async fn provision_node<R: Crng>(
     rng: &mut R,
-    current_user_pk: UserPk,
-    req: ProvisionRequest,
-) -> Result<(UserPk, PublicKey, RootSeed), NodeApiError> {
-    let given_user_pk = req.user_pk;
-    if given_user_pk != current_user_pk {
-        return Err(NodeApiError::wrong_user_pk(
-            current_user_pk,
-            given_user_pk,
-        ));
-    }
+    args: ProvisionArgs,
+    api: ApiClientType,
+) -> anyhow::Result<()> {
+    debug!(%args.user_pk, args.port, %args.node_dns_name, "provisioning");
 
-    let given_node_pk = req.node_pk;
-    let derived_node_pk =
-        PublicKey::from(req.root_seed.derive_node_key_pair(rng));
-    if derived_node_pk != given_node_pk {
-        return Err(NodeApiError::wrong_node_pk(
-            derived_node_pk,
-            given_node_pk,
-        ));
-    }
+    let tls_config = tls::node_provision_tls_config(rng, args.node_dns_name)
+        .context("Failed to build TLS config for provisioning")?;
 
-    Ok((req.user_pk, req.node_pk, req.root_seed))
+    let shutdown = ShutdownChannel::new();
+
+    // Create a shutdown future that completes when either:
+    // a) Provisioning succeeds and `provision_handler` sends a shutdown signal
+    // b) Provisioning times out.
+    //
+    // This future is passed into and driven by the warp service, allowing it to
+    // gracefully shut down once either of these conditions has been reached.
+    let mut shutdown_clone = shutdown.clone();
+    let warp_shutdown_fut = async move {
+        tokio::select! {
+            () = shutdown_clone.recv() => info!("Provision succeeded"),
+            _ = tokio::time::sleep(PROVISION_TIMEOUT) => {
+                warn!("Timed out waiting for successful provision request");
+                // Send a shutdown signal just in case we later add another task
+                // that depends on the timeout
+                shutdown_clone.send();
+            }
+        }
+    };
+
+    // Bind TCP listener on port (queues up any inbound connections).
+    let addr = SocketAddr::from(([127, 0, 0, 1], args.port.unwrap_or(0)));
+    let measurement = enclave::measurement();
+    let ctx = RequestContext {
+        current_user_pk: args.user_pk,
+        measurement,
+        shutdown,
+        api: api.clone(),
+        // TODO(phlip9): use passed in rng
+        rng: SysRng::new(),
+    };
+    let routes = owner_routes(ctx);
+    let (listen_addr, service) = warp::serve(routes)
+        .tls()
+        .preconfigured_tls(tls_config)
+        .bind_with_graceful_shutdown(addr, warp_shutdown_fut);
+    let owner_port = listen_addr.port();
+
+    info!(%listen_addr, "listening for connections");
+
+    // notify the runner that we're ready for a client connection
+    let user_ports = UserPorts::new_provision(args.user_pk, owner_port);
+    api.ready(user_ports)
+        .await
+        .context("Failed to notify runner of our readiness")?;
+
+    debug!("notified runner; awaiting client request");
+    service.await;
+
+    Ok(())
+}
+
+/// Implements [`OwnerNodeProvisionApi`] - only callable by the node owner.
+///
+/// [`OwnerNodeProvisionApi`]: common::api::def::OwnerNodeProvisionApi
+fn owner_routes(
+    ctx: RequestContext,
+) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+    warp::path::path("provision")
+        .and(warp::post())
+        .and(with_request_context(ctx))
+        .and(warp::body::json())
+        .then(provision_handler)
+        .map(into_response)
 }
 
 /// Handles a provision request.
@@ -142,86 +198,30 @@ async fn provision_handler(
     Ok(())
 }
 
-/// Implements [`OwnerNodeProvisionApi`] - only callable by the node owner.
-///
-/// [`OwnerNodeProvisionApi`]: common::api::def::OwnerNodeProvisionApi
-fn owner_routes(
-    ctx: RequestContext,
-) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
-    warp::path::path("provision")
-        .and(warp::post())
-        .and(with_request_context(ctx))
-        .and(warp::body::json())
-        .then(provision_handler)
-        .map(into_response)
-}
-
-/// Provision a user node
-///
-/// The `UserPk` is given by the runner so we know which user we should
-/// provision to and have a simple method to authenticate their connection.
-#[instrument(skip_all)]
-pub async fn provision_node<R: Crng>(
+fn verify_provision_request<R: Crng>(
     rng: &mut R,
-    args: ProvisionArgs,
-    api: ApiClientType,
-) -> anyhow::Result<()> {
-    debug!(%args.user_pk, args.port, %args.node_dns_name, "provisioning");
+    current_user_pk: UserPk,
+    req: ProvisionRequest,
+) -> Result<(UserPk, PublicKey, RootSeed), NodeApiError> {
+    let given_user_pk = req.user_pk;
+    if given_user_pk != current_user_pk {
+        return Err(NodeApiError::wrong_user_pk(
+            current_user_pk,
+            given_user_pk,
+        ));
+    }
 
-    let tls_config = tls::node_provision_tls_config(rng, args.node_dns_name)
-        .context("Failed to build TLS config for provisioning")?;
+    let given_node_pk = req.node_pk;
+    let derived_node_pk =
+        PublicKey::from(req.root_seed.derive_node_key_pair(rng));
+    if derived_node_pk != given_node_pk {
+        return Err(NodeApiError::wrong_node_pk(
+            derived_node_pk,
+            given_node_pk,
+        ));
+    }
 
-    let shutdown = ShutdownChannel::new();
-
-    // Create a shutdown future that completes when either:
-    // a) Provisioning succeeds and `provision_handler` sends a shutdown signal
-    // b) Provisioning times out.
-    //
-    // This future is passed into and driven by the warp service, allowing it to
-    // gracefully shut down once either of these conditions has been reached.
-    let mut shutdown_clone = shutdown.clone();
-    let warp_shutdown_fut = async move {
-        tokio::select! {
-            () = shutdown_clone.recv() => info!("Provision succeeded"),
-            _ = tokio::time::sleep(PROVISION_TIMEOUT) => {
-                warn!("Timed out waiting for successful provision request");
-                // Send a shutdown signal just in case we later add another task
-                // that depends on it.
-                shutdown_clone.send();
-            }
-        }
-    };
-
-    // bind TCP listener on port (queues up any inbound connections).
-    let addr = SocketAddr::from(([127, 0, 0, 1], args.port.unwrap_or(0)));
-    let measurement = enclave::measurement();
-    let ctx = RequestContext {
-        current_user_pk: args.user_pk,
-        measurement,
-        shutdown,
-        api: api.clone(),
-        // TODO(phlip9): use passed in rng
-        rng: SysRng::new(),
-    };
-    let routes = owner_routes(ctx);
-    let (listen_addr, service) = warp::serve(routes)
-        .tls()
-        .preconfigured_tls(tls_config)
-        .bind_with_graceful_shutdown(addr, warp_shutdown_fut);
-    let owner_port = listen_addr.port();
-
-    info!(%listen_addr, "listening for connections");
-
-    // notify the runner that we're ready for a client connection
-    let user_ports = UserPorts::new_provision(args.user_pk, owner_port);
-    api.ready(user_ports)
-        .await
-        .context("Failed to notify runner of our readiness")?;
-
-    debug!("notified runner; awaiting client request");
-    service.await;
-
-    Ok(())
+    Ok((req.user_pk, req.node_pk, req.root_seed))
 }
 
 #[cfg(test)]
