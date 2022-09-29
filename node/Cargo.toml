@@ -94,7 +94,7 @@ warp = { git = "https://github.com/lexe-tech/warp", branch = "lexe", default-fea
 #   declared in `common`'s Cargo.toml and propagated to other crates by
 #   workspace-level dependency resolution.
 
-tokio = { version = "=1.15.0", default-features = false, features = [
+tokio = { version = "=1.21.2", default-features = false, features = [
     "io-util",
     "macros",
     "net",
@@ -115,7 +115,7 @@ proptest = { version = "1", default-features = false, features = ["alloc"] }
 # Arbitrary derive macro
 proptest-derive = "0.3"
 # Tokio features used when testing
-tokio = { version = "=1.15.0", default-features = false, features = [
+tokio = { version = "=1.21.2", default-features = false, features = [
     "io-util",
     "macros",
     "rt",
