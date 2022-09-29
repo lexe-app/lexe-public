@@ -17,11 +17,11 @@ async-usercalls = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lex
 dcap-ql = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 enclave-runner = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 hyper = { git = "https://github.com/lexe-tech/hyper", branch = "hyper-sgx-0.14.18" }
-mio = { git = "https://github.com/lexe-tech/mio", branch = "mio-sgx-0.7.6" }
+mio = { git = "https://github.com/lexe-tech/mio", branch = "mio-sgx-0.8.4" }
 ring = { git = "https://github.com/lexe-tech/ring", branch = "support-sgx-0.16.20" }
 sgx-isa = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 sgxs-loaders = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
-tokio = { git = "https://github.com/lexe-tech/tokio",  branch = "tokio-sgx-1.15.0" }
+tokio = { git = "https://github.com/lexe-tech/tokio",  branch = "tokio-sgx-1.21.2" }
 
 [profile.dev]
 # This fixes 'warning: can't find symbol' when debugging, but breaks the
