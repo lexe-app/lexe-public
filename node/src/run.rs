@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use anyhow::{bail, ensure, Context};
 use bitcoin::BlockHash;
+use common::api::ports::{Port, UserPorts};
 use common::api::provision::{Node, SealedSeedId};
-use common::api::runner::{Port, UserPorts};
 use common::api::UserPk;
 use common::cli::RunArgs;
 use common::client::tls::node_run_tls_config;

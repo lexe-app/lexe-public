@@ -22,11 +22,11 @@ use async_trait::async_trait;
 
 use crate::api::error::{BackendApiError, NodeApiError, RunnerApiError};
 use crate::api::node::{ListChannels, NodeInfo};
+use crate::api::ports::UserPorts;
 use crate::api::provision::{
     Instance, Node, NodeInstanceSeed, NodeProvisionRequest, SealedSeed,
     SealedSeedId,
 };
-use crate::api::runner::UserPorts;
 use crate::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use crate::api::UserPk;
 use crate::enclave::Measurement;

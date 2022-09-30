@@ -18,14 +18,14 @@ pub mod error;
 /// Minor data types defining what is returned by APIs exposed by the node.
 /// Bigger / more fundamental LN types should go under [`crate::ln`].
 pub mod node;
+/// `Port`, `Ports`, `UserPorts`, `RunPorts`, etc.
+pub mod ports;
 /// Data types specific to provisioning.
 pub mod provision;
 /// Data types used to serialize / deserialize query strings.
 pub mod qs;
 /// A client and helpers that enforce common REST semantics across Lexe crates.
 pub mod rest;
-/// Data types specific to the Runner.
-pub mod runner;
 /// Data types implementing vfs-based node persistence.
 pub mod vfs;
 

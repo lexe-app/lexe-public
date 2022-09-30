@@ -7,10 +7,10 @@ use async_trait::async_trait;
 use bitcoin::secp256k1::PublicKey;
 use common::api::def::{NodeBackendApi, NodeRunnerApi};
 use common::api::error::{BackendApiError, RunnerApiError};
+use common::api::ports::UserPorts;
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
-use common::api::runner::UserPorts;
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::api::UserPk;
 use common::enclave::{self, Measurement};

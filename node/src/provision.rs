@@ -24,11 +24,11 @@ use std::time::Duration;
 use anyhow::Context;
 use bitcoin::secp256k1::PublicKey;
 use common::api::error::{NodeApiError, NodeErrorKind};
+use common::api::ports::UserPorts;
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, NodeProvisionRequest, SealedSeed,
 };
 use common::api::rest::into_response;
-use common::api::runner::UserPorts;
 use common::api::UserPk;
 use common::cli::ProvisionArgs;
 use common::client::tls;

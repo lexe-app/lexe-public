@@ -19,7 +19,7 @@ use proptest::strategy::{BoxedStrategy, Just, Strategy};
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-use crate::api::runner::Port;
+use crate::api::ports::Port;
 use crate::api::UserPk;
 use crate::constants::{
     DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL, NODE_PROVISION_DNS, NODE_RUN_DNS,

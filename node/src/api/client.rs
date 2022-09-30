@@ -5,12 +5,12 @@ use std::fmt::{self, Display};
 use async_trait::async_trait;
 use common::api::def::{NodeBackendApi, NodeRunnerApi};
 use common::api::error::{BackendApiError, RunnerApiError};
+use common::api::ports::UserPorts;
 use common::api::provision::{
     Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
 use common::api::qs::{GetByUserPk, GetByUserPkAndMeasurement};
 use common::api::rest::{RestClient, DELETE, GET, POST, PUT};
-use common::api::runner::UserPorts;
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::api::UserPk;
 use common::enclave::Measurement;

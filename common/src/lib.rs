@@ -25,7 +25,7 @@ pub mod backoff;
 pub mod cli;
 /// Mobile client to the node.
 pub mod client;
-/// Application-level constants
+/// Application-level constants.
 pub mod constants;
 /// Ed25519 types.
 pub mod ed25519;

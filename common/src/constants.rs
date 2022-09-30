@@ -1,10 +1,11 @@
 use rcgen::{DistinguishedName, DnType};
 
-use crate::api::runner::Port;
+use crate::api::ports::Port;
 
 pub const DEFAULT_BACKEND_URL: &str = "http://127.0.0.1:3030";
 pub const DEFAULT_GATEWAY_URL: &str = "http://127.0.0.1:4040";
 pub const DEFAULT_RUNNER_URL: &str = "http://127.0.0.1:5050";
+
 /// The default url that user nodes use for P2P connections to the LSP
 pub const DEFAULT_LSP_USER_NODE_URL: &str = "http://127.0.0.1:6060";
 /// The default url that external LN nodes use to connect to the LSP

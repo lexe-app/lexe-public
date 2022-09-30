@@ -6,7 +6,7 @@ pub mod roundtrip;
 
 use std::net::{TcpListener, TcpStream};
 
-use crate::api::runner::Port;
+use crate::api::ports::Port;
 
 /// Returns an ephemeral port assigned by the OS which should be available for
 /// the next ~60s after this function is called
