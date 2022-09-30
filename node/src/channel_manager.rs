@@ -207,7 +207,7 @@ impl NodeChannelManager {
 
         // Make sure that we're connected to the channel peer
         peer_manager
-            .connect_peer_if_necessary(channel_peer.clone())
+            .connect_channel_peer_if_necessary(channel_peer.clone())
             .await
             .context("Failed to connect to peer")?;
 

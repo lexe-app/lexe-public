@@ -198,7 +198,7 @@ async fn connect_peer() {
 
     // Connect
     peer_manager1
-        .connect_peer_if_necessary(channel_peer)
+        .connect_channel_peer_if_necessary(channel_peer)
         .await
         .expect("Failed to connect");
 
