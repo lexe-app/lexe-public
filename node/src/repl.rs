@@ -185,7 +185,7 @@ pub(crate) async fn poll_for_user_input(
                     };
                     let channel_peer = ChannelPeer { pk, addr };
                     if peer_manager
-                        .connect_peer_if_necessary(channel_peer.clone())
+                        .connect_channel_peer_if_necessary(channel_peer.clone())
                         .await
                         .is_ok()
                     {

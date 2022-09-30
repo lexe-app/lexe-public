@@ -86,7 +86,7 @@ impl NodePeerManager {
     }
 
     #[allow(dead_code)] // TODO Remove once this fn is used in sgx
-    pub(crate) async fn connect_peer_if_necessary(
+    pub(crate) async fn connect_channel_peer_if_necessary(
         &self,
         channel_peer: ChannelPeer,
     ) -> anyhow::Result<()> {
