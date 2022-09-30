@@ -91,7 +91,5 @@ proptest = { version = "1", default-features = false, features = ["alloc"] }
 proptest-derive = "0.3"
 
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
-# Enable bitcoin regtest crate which doesn't work in SGX
-bitcoind = { version = "0.27", features = [ "22_0" ] }
 # Include additional useful proptest features when testing outside of SGX
 proptest = "1"

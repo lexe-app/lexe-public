@@ -4,13 +4,11 @@ use std::sync::Arc;
 
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::util::address::Address;
-use bitcoind::bitcoincore_rpc::RpcApi;
-use bitcoind::{self, BitcoinD};
 use common::api::UserPk;
 use common::cli::{BitcoindRpcInfo, Network, RunArgs};
 use common::constants::{DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
 use common::rng::SysRng;
-use common::test_utils;
+use common::test_utils::regtest::Regtest;
 use lexe_ln::alias::NetworkGraphType;
 use lexe_ln::logger;
 use lexe_ln::peer::ChannelPeer;
@@ -50,7 +48,7 @@ fn default_args_for_user(user_pk: UserPk) -> RunArgs {
 }
 
 struct CommandTestHarness {
-    bitcoind: BitcoinD,
+    regtest: Regtest,
     node: UserNode,
 }
 
@@ -59,7 +57,7 @@ impl CommandTestHarness {
         logger::init_for_testing();
 
         // Init bitcoind and update rpc info
-        let (bitcoind, rpc_info) = test_utils::regtest::init_regtest();
+        let (regtest, rpc_info) = Regtest::init().await;
         args.bitcoind_rpc = rpc_info;
 
         // Init node
@@ -68,7 +66,7 @@ impl CommandTestHarness {
             .await
             .expect("Error during init");
 
-        Self { bitcoind, node }
+        Self { regtest, node }
     }
 
     async fn run(self) {
@@ -113,28 +111,8 @@ impl CommandTestHarness {
     async fn fund_node(&self) -> Address {
         // Coinbase funds can only be spent after 100 blocks
         let address = self.get_new_address().await;
-        self.mine_n_blocks_to_address(101, &address).await;
+        self.regtest.fund_address(&address).await;
         address
-    }
-
-    /// Mines 6 blocks.
-    #[allow(dead_code)]
-    async fn mine_6_blocks(&self) {
-        // Plain bitcoind.client.generate() returns a deprecated error, so we
-        // just mine some more blocks to some address
-        let address = self.get_new_address().await;
-        self.mine_n_blocks_to_address(6, &address).await;
-    }
-
-    async fn mine_n_blocks_to_address(
-        &self,
-        num_blocks: u64,
-        address: &Address,
-    ) {
-        self.bitcoind
-            .client
-            .generate_to_address(num_blocks, address)
-            .expect("Failed to generate blocks");
     }
 }
 
