@@ -59,7 +59,7 @@ impl CommandTestHarness {
         logger::init_for_testing();
 
         // Init bitcoind and update rpc info
-        let (bitcoind, rpc_info) = test_utils::bitcoind::init_regtest();
+        let (bitcoind, rpc_info) = test_utils::regtest::init_regtest();
         args.bitcoind_rpc = rpc_info;
 
         // Init node
