@@ -7,9 +7,8 @@ use bitcoin::util::address::Address;
 use bitcoind::bitcoincore_rpc::RpcApi;
 use bitcoind::{self, BitcoinD};
 use common::api::UserPk;
-use common::cli::{
-    BitcoindRpcInfo, Network, RunArgs, DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL,
-};
+use common::cli::{BitcoindRpcInfo, Network, RunArgs};
+use common::constants::{DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
 use common::rng::SysRng;
 use common::test_utils;
 use lexe_ln::alias::NetworkGraphType;

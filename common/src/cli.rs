@@ -21,10 +21,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::runner::Port;
 use crate::api::UserPk;
-use crate::constants::{NODE_PROVISION_DNS, NODE_RUN_DNS};
-
-pub const DEFAULT_BACKEND_URL: &str = "http://127.0.0.1:3030";
-pub const DEFAULT_RUNNER_URL: &str = "http://127.0.0.1:5050";
+use crate::constants::{
+    DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL, NODE_PROVISION_DNS, NODE_RUN_DNS,
+};
 
 /// Commands accepted by the user node.
 #[derive(Clone, Debug, Eq, PartialEq, FromArgs)]
