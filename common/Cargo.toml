@@ -139,6 +139,8 @@ cmac = { version = "0.7", features = ["std", "zeroize"] }
 
 # property based testing
 proptest = { optional = true, version = "1", default-features = false, features = ["alloc"] }
+# Arbitrary derive macro
+proptest-derive = { optional = true, version = "0.3" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 # Bitcoind regtest
@@ -150,7 +152,7 @@ proptest = { optional = true, version = "1" }
 # Explicitly specify that no features should be enabled by default.
 default = []
 # Enable this feature to allow test utils to be shared across crate boundaries.
-test-utils = ["dep:proptest", "dep:bitcoind"]
+test-utils = ["dep:bitcoind", "dep:proptest", "dep:proptest-derive"]
 
 # --- DEV DEPENDENCIES, ALL PLATFORMS --- #
 
