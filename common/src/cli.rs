@@ -20,9 +20,10 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::api::ports::Port;
-use crate::api::UserPk;
+use crate::api::{NodePk, UserPk};
 use crate::constants::{
-    DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL, NODE_PROVISION_DNS, NODE_RUN_DNS,
+    DEFAULT_BACKEND_URL, DEFAULT_LSP_NODE_PK, DEFAULT_LSP_URL,
+    DEFAULT_RUNNER_URL, NODE_PROVISION_DNS, NODE_RUN_DNS,
 };
 
 /// Commands accepted by the user node.
@@ -167,6 +168,16 @@ pub struct RunArgs {
     #[argh(option, default = "DEFAULT_RUNNER_URL.to_owned()")]
     pub runner_url: String,
 
+    /// protocol://host:port the user node uses to connect to the LSP
+    #[argh(option, default = "DEFAULT_LSP_URL.to_owned()")]
+    pub lsp_url: String,
+
+    /// the LSP's node pk which the user node expects when connecting.
+    // TODO: This should be provisioned in a secure manner (hard-coded or after
+    // validating Lexe TLS cert) instead of being passed in insecurely via CLI.
+    #[argh(option, default = "*DEFAULT_LSP_NODE_PK")]
+    pub lsp_node_pk: NodePk,
+
     /// the DNS name the node enclave should include in its remote attestation
     /// certificate and the client will expect in its connection
     #[argh(option, default = "NODE_RUN_DNS.to_owned()")]
@@ -194,6 +205,8 @@ impl Default for RunArgs {
             node_dns_name: NODE_RUN_DNS.to_owned(),
             backend_url: DEFAULT_BACKEND_URL.to_owned(),
             runner_url: DEFAULT_RUNNER_URL.to_owned(),
+            lsp_url: DEFAULT_LSP_URL.to_owned(),
+            lsp_node_pk: DEFAULT_LSP_NODE_PK.to_owned(),
             mock: false,
         }
     }
@@ -223,6 +236,10 @@ impl RunArgs {
             .arg(&self.backend_url)
             .arg("--runner-url")
             .arg(&self.runner_url)
+            .arg("--lsp-url")
+            .arg(&self.lsp_url)
+            .arg("--lsp-node-pk")
+            .arg(&self.lsp_node_pk.to_string())
             .arg("--node-dns-name")
             .arg(&self.node_dns_name);
 
@@ -602,59 +619,5 @@ mod test {
         let cmd2 = NodeCommand::from_args(&[subcommand], &cmd_args).unwrap();
         // Assert
         assert_eq!(*cmd1, cmd2);
-    }
-
-    #[test]
-    fn test_cmd_regressions() {
-        use bitcoin::Network::Testnet;
-        use NodeCommand::*;
-
-        // --mock was needed
-        let path_str = String::from(".");
-        let cmd = Run(RunArgs {
-            user_pk: UserPk::from_i64(0),
-            bitcoind_rpc: BitcoindRpcInfo {
-                username: "0".into(),
-                password: "a".into(),
-                host: "0.0.0.0".into(),
-                port: 0,
-            },
-            owner_port: None,
-            host_port: None,
-            peer_port: None,
-            network: Network(Testnet),
-            shutdown_after_sync_if_no_activity: false,
-            inactivity_timer_sec: 0,
-            repl: false,
-            backend_url: "".into(),
-            runner_url: "".into(),
-            node_dns_name: "localhost".to_owned(),
-            mock: true,
-        });
-        do_cmd_roundtrip(path_str, &cmd);
-
-        // --repl was needed
-        let path_str = String::from(".");
-        let cmd = Run(RunArgs {
-            user_pk: UserPk::from_i64(0),
-            bitcoind_rpc: BitcoindRpcInfo {
-                username: "0".into(),
-                password: "A".into(),
-                host: "0.0.0.0".into(),
-                port: 0,
-            },
-            owner_port: None,
-            host_port: None,
-            peer_port: None,
-            network: Network(Testnet),
-            shutdown_after_sync_if_no_activity: false,
-            inactivity_timer_sec: 0,
-            repl: true,
-            backend_url: "".into(),
-            runner_url: "".into(),
-            node_dns_name: "localhost".to_owned(),
-            mock: false,
-        });
-        do_cmd_roundtrip(path_str, &cmd);
     }
 }

@@ -388,7 +388,7 @@ mod test {
     use proptest::{prop_assume, proptest};
 
     use super::*;
-    use crate::rng::{arb_rng, SmallRng};
+    use crate::rng::SmallRng;
 
     #[test]
     fn test_sealing_roundtrip_basic() {
@@ -410,7 +410,7 @@ mod test {
         let arb_label = any::<Vec<u8>>();
         let arb_data = any::<Vec<u8>>();
 
-        proptest!(|(mut rng in arb_rng(), label in arb_label, data in arb_data)| {
+        proptest!(|(mut rng in any::<SmallRng>(), label in arb_label, data in arb_data)| {
             let sealed = seal(&mut rng, &label, data.clone().into()).unwrap();
             let unsealed = unseal(&label, sealed).unwrap();
             assert_eq!(&data, &unsealed);
@@ -445,7 +445,7 @@ mod test {
             });
 
         proptest!(|(
-            mut rng in arb_rng(),
+            mut rng in any::<SmallRng>(),
             label in arb_label,
             data in arb_data,
             mutation in arb_mutation,
