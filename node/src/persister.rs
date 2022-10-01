@@ -2,11 +2,14 @@ use std::io::Cursor;
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 
 use anyhow::{anyhow, ensure, Context};
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
 use bitcoin::secp256k1::PublicKey;
+use common::api::auth::{OpaqueUserAuthToken, UserAuthenticator};
+use common::api::error::BackendApiError;
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::cli::Network;
 use common::enclave::Measurement;
@@ -59,6 +62,7 @@ pub struct NodePersister {
 impl NodePersister {
     pub(crate) fn new(
         api: ApiClientType,
+        authenticator: Arc<UserAuthenticator>,
         node_pk: PublicKey,
         measurement: Measurement,
         shutdown: ShutdownChannel,
@@ -66,6 +70,7 @@ impl NodePersister {
     ) -> Self {
         let inner = InnerPersister {
             api,
+            authenticator,
             node_pk,
             measurement,
             shutdown,
@@ -88,6 +93,7 @@ impl Deref for NodePersister {
 #[derive(Clone)]
 pub struct InnerPersister {
     api: ApiClientType,
+    authenticator: Arc<UserAuthenticator>,
     node_pk: PublicKey,
     measurement: Measurement,
     shutdown: ShutdownChannel,
@@ -95,6 +101,12 @@ pub struct InnerPersister {
 }
 
 impl InnerPersister {
+    async fn get_token(&self) -> Result<OpaqueUserAuthToken, BackendApiError> {
+        self.authenticator
+            .get_token(&*self.api, SystemTime::now())
+            .await
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn read_channel_manager(
         &self,
@@ -112,9 +124,11 @@ impl InnerPersister {
             SINGLETON_DIRECTORY.to_owned(),
             CHANNEL_MANAGER_FILENAME.to_owned(),
         );
+        let token = self.get_token().await?;
+
         let maybe_file = self
             .api
-            .get_file(&file_id)
+            .get_file(&file_id, token)
             .await
             .context("Could not fetch channel manager from DB")?;
 
@@ -167,10 +181,11 @@ impl InnerPersister {
             measurement: self.measurement,
             dirname: CHANNEL_MONITORS_DIRECTORY.to_owned(),
         };
+        let token = self.get_token().await?;
 
         let cm_file_vec = self
             .api
-            .get_directory(&cm_dir)
+            .get_directory(&cm_dir, token)
             .await
             .context("Could not fetch channel monitors from DB")?;
 
@@ -215,9 +230,11 @@ impl InnerPersister {
             SINGLETON_DIRECTORY.to_owned(),
             SCORER_FILENAME.to_owned(),
         );
+        let token = self.get_token().await?;
+
         let maybe_file = self
             .api
-            .get_file(&file_id)
+            .get_file(&file_id, token)
             .await
             .context("Could not fetch probabilistic scorer from DB")?;
 
@@ -250,9 +267,11 @@ impl InnerPersister {
             SINGLETON_DIRECTORY.to_owned(),
             NETWORK_GRAPH_FILENAME.to_owned(),
         );
+        let token = self.get_token().await?;
+
         let ng_file_opt = self
             .api
-            .get_file(&ng_file_id)
+            .get_file(&ng_file_id, token)
             .await
             .context("Could not fetch network graph from DB")?;
 
@@ -290,10 +309,11 @@ impl LexeInnerPersister for InnerPersister {
             CHANNEL_MANAGER_FILENAME.to_owned(),
             data,
         );
+        let token = self.get_token().await?;
 
         // Channel manager is more important so let's retry up to three times
         self.api
-            .upsert_file_with_retries(&file, IMPORTANT_RETRIES)
+            .upsert_file_with_retries(&file, token, IMPORTANT_RETRIES)
             .await
             .map(|_| ())
             .context("Could not persist channel manager")
@@ -314,9 +334,10 @@ impl LexeInnerPersister for InnerPersister {
             NETWORK_GRAPH_FILENAME.to_owned(),
             data,
         );
+        let token = self.get_token().await?;
 
         self.api
-            .upsert_file(&file)
+            .upsert_file(&file, token)
             .await
             .map(|_| ())
             .context("Could not persist network graph")
@@ -342,9 +363,10 @@ impl LexeInnerPersister for InnerPersister {
                 data,
             )
         };
+        let token = self.get_token().await?;
 
         self.api
-            .upsert_file(&file)
+            .upsert_file(&file, token)
             .await
             .map(|_| ())
             .context("Could not persist scorer")
@@ -387,15 +409,21 @@ impl Persist<SignerType> for InnerPersister {
 
         // Spawn a task for persisting the channel monitor
         let api = self.api.clone();
+        let authenticator = self.authenticator.clone();
         let channel_monitor_updated_tx =
             self.channel_monitor_updated_tx.clone();
         let shutdown = self.shutdown.clone();
         let _ = LxTask::spawn(async move {
             // Retry a few times and shut down if persist fails
+            let persist_res = async {
+                let token =
+                    authenticator.get_token(&*api, SystemTime::now()).await?;
+                api.create_file_with_retries(&cm_file, token, IMPORTANT_RETRIES)
+                    .await
+            }
+            .await;
+
             // TODO Also attempt to persist to cloud backup
-            let persist_res = api
-                .create_file_with_retries(&cm_file, IMPORTANT_RETRIES)
-                .await;
             match persist_res {
                 Ok(_) => {
                     debug!("Persisting new channel succeeded");
@@ -445,15 +473,20 @@ impl Persist<SignerType> for InnerPersister {
 
         // Spawn a task for persisting the channel monitor
         let api = self.api.clone();
+        let authenticator = self.authenticator.clone();
         let channel_monitor_updated_tx =
             self.channel_monitor_updated_tx.clone();
         let shutdown = self.shutdown.clone();
         let _ = LxTask::spawn(async move {
             // Retry a few times and shut down if persist fails
-            // TODO Also attempt to persist to cloud backup
-            let persist_res = api
-                .upsert_file_with_retries(&cm_file, IMPORTANT_RETRIES)
-                .await;
+            let persist_res = async {
+                let token =
+                    authenticator.get_token(&*api, SystemTime::now()).await?;
+                api.upsert_file_with_retries(&cm_file, token, IMPORTANT_RETRIES)
+                    .await
+            }
+            .await;
+
             match persist_res {
                 Ok(_) => {
                     debug!("Persisting updated channel succeeded");

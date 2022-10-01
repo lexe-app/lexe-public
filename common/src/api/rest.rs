@@ -5,6 +5,7 @@ use http::header::{HeaderValue, CONTENT_TYPE};
 use http::response::Response;
 use http::status::StatusCode;
 use http::Method;
+use reqwest::IntoUrl;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::time;
@@ -15,7 +16,11 @@ use warp::Rejection;
 use crate::api::error::{
     CommonError, ErrorCode, ErrorResponse, HasStatusCode, ServiceApiError,
 };
-use crate::backoff;
+use crate::{backoff, ed25519};
+
+/// The CONTENT-TYPE header for signed BCS-serialized structs.
+pub static CONTENT_TYPE_ED25519_BCS: HeaderValue =
+    HeaderValue::from_static("application/ed25519-bcs");
 
 // Default parameters
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
@@ -176,6 +181,137 @@ impl RestClient {
         Self { client }
     }
 
+    pub fn builder(
+        &self,
+        method: Method,
+        url: String,
+    ) -> reqwest::RequestBuilder {
+        self.client.request(method, url)
+    }
+
+    pub fn request_builder<U: IntoUrl>(
+        &self,
+        method: Method,
+        url: U,
+    ) -> reqwest::RequestBuilder {
+        self.client.request(method, url)
+    }
+
+    fn convert_response<T, E>(
+        response: Result<Result<Bytes, ErrorResponse>, CommonError>,
+    ) -> Result<T, E>
+    where
+        T: DeserializeOwned,
+        E: ServiceApiError,
+    {
+        match response {
+            Ok(Ok(bytes)) => Ok(serde_json::from_slice::<T>(&bytes)
+                .map_err(CommonError::from)?),
+            Ok(Err(err_api)) => Err(E::from(err_api)),
+            Err(err_client) => Err(E::from(err_client)),
+        }
+    }
+
+    pub async fn send<T, E>(
+        &self,
+        request_builder: reqwest::RequestBuilder,
+    ) -> Result<T, E>
+    where
+        T: DeserializeOwned,
+        E: ServiceApiError,
+    {
+        let request = request_builder.build().map_err(CommonError::from)?;
+        let response = self.send_inner(request).await;
+        Self::convert_response(response)
+    }
+
+    pub async fn send_with_retries<T, E>(
+        &self,
+        request_builder: reqwest::RequestBuilder,
+        retries: usize,
+        stop_codes: &[ErrorCode],
+    ) -> Result<T, E>
+    where
+        T: DeserializeOwned,
+        E: ServiceApiError,
+    {
+        let request = request_builder.build().map_err(CommonError::from)?;
+        let response = self
+            .send_with_retries_inner(request, retries, stop_codes)
+            .await;
+        Self::convert_response(response)
+    }
+
+    async fn send_with_retries_inner(
+        &self,
+        request: reqwest::Request,
+        retries: usize,
+        stop_codes: &[ErrorCode],
+    ) -> Result<Result<Bytes, ErrorResponse>, CommonError> {
+        let mut backoff_durations = backoff::get_backoff_iter();
+
+        let mut request = Some(request);
+
+        for _ in 1..=retries {
+            // clone the request. the request body is cheaply cloneable. the
+            // headers and url are not :'(
+            let request_clone = request
+                .as_ref()
+                .expect("this should never happen")
+                .try_clone()
+                .expect("this only happens when sending a streamed request; \
+                    can't retry this kind of request, we should just stop retrying");
+
+            // send the request and look for any error codes in the response
+            // that we should bail on and stop retrying.
+            match self.send_inner(request_clone).await {
+                Ok(Ok(bytes)) => return Ok(Ok(bytes)),
+                Ok(Err(err_api)) => {
+                    if stop_codes.contains(&err_api.code) {
+                        return Ok(Err(err_api));
+                    }
+                }
+                Err(err_client) => {
+                    // TODO(phlip9): can CommonErrorKind's get an error code?
+                    let err_code = 123_u16;
+                    if stop_codes.contains(&err_code) {
+                        return Err(err_client);
+                    }
+                }
+            }
+
+            // sleep for a bit before next retry
+            time::sleep(backoff_durations.next().unwrap()).await;
+        }
+
+        // avoid some extra copies : )
+        self.send_inner(request.take().unwrap()).await
+    }
+
+    async fn send_inner(
+        &self,
+        mut request: reqwest::Request,
+    ) -> Result<Result<Bytes, ErrorResponse>, CommonError> {
+        // set default timeout if unset
+        let timeout = request.timeout_mut();
+        if timeout.is_none() {
+            *timeout = Some(API_REQUEST_TIMEOUT);
+        }
+
+        // send the request, await the response headers
+        let resp = self.client.execute(request).await?;
+
+        if resp.status().is_success() {
+            // success => await response body
+            let bytes = resp.bytes().await?;
+            Ok(Ok(bytes))
+        } else {
+            // http error => await response json and convert to ErrorResponse
+            let err = resp.json::<ErrorResponse>().await?;
+            Ok(Err(err))
+        }
+    }
+
     /// Makes an API request with 0 retries.
     ///
     /// The given url should include the base, version, and endpoint, but should
@@ -329,5 +465,34 @@ impl RestClient {
                 .map_err(CommonError::from)?;
             Err(E::from(error_response))
         }
+    }
+}
+
+// -- impl RequestBuilderExt -- //
+
+/// Extension trait on [`reqwest::RequestBuilder`] for easily modifying requests
+/// as they're constructed.
+pub trait RequestBuilderExt: Sized {
+    /// Set the request body to a [`ed25519::Signed<T>`] serialized to BCS with
+    /// corresponding content type header.
+    fn signed_bcs<T>(
+        self,
+        signed_bcs: ed25519::Signed<T>,
+    ) -> Result<Self, ed25519::Error>
+    where
+        T: ed25519::Signable + Serialize;
+}
+
+impl RequestBuilderExt for reqwest::RequestBuilder {
+    fn signed_bcs<T>(
+        self,
+        signed_bcs: ed25519::Signed<T>,
+    ) -> Result<Self, ed25519::Error>
+    where
+        T: ed25519::Signable + Serialize,
+    {
+        Ok(self
+            .header(CONTENT_TYPE, CONTENT_TYPE_ED25519_BCS.clone())
+            .body(signed_bcs.serialize()?))
     }
 }

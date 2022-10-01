@@ -20,6 +20,9 @@
 
 use async_trait::async_trait;
 
+use crate::api::auth::{
+    OpaqueUserAuthToken, UserAuthRequest, UserAuthResponse,
+};
 use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::error::{BackendApiError, NodeApiError, RunnerApiError};
 use crate::api::ports::UserPorts;
@@ -29,6 +32,7 @@ use crate::api::provision::{
 };
 use crate::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use crate::api::UserPk;
+use crate::ed25519;
 use crate::enclave::Measurement;
 use crate::ln::invoice::LxInvoice;
 
@@ -62,24 +66,28 @@ pub trait NodeBackendApi {
     async fn create_node_instance_seed(
         &self,
         data: NodeInstanceSeed,
+        auth: OpaqueUserAuthToken,
     ) -> Result<NodeInstanceSeed, BackendApiError>;
 
     /// GET /v1/file [`NodeFileId`] -> [`Option<NodeFile>`]
     async fn get_file(
         &self,
         file_id: &NodeFileId,
+        auth: OpaqueUserAuthToken,
     ) -> Result<Option<NodeFile>, BackendApiError>;
 
     /// POST /v1/file [`NodeFile`] -> [`NodeFile`]
     async fn create_file(
         &self,
         file: &NodeFile,
+        auth: OpaqueUserAuthToken,
     ) -> Result<NodeFile, BackendApiError>;
 
     /// PUT /v1/file [`NodeFile`] -> [`NodeFile`]
     async fn upsert_file(
         &self,
         file: &NodeFile,
+        auth: OpaqueUserAuthToken,
     ) -> Result<NodeFile, BackendApiError>;
 
     /// DELETE /v1/file [`NodeFileId`] -> "OK"
@@ -88,13 +96,27 @@ pub trait NodeBackendApi {
     async fn delete_file(
         &self,
         file_id: &NodeFileId,
+        auth: OpaqueUserAuthToken,
     ) -> Result<String, BackendApiError>;
 
     /// GET /v1/directory [`NodeDirectory`] -> [`Vec<NodeFile>`]
     async fn get_directory(
         &self,
         dir: &NodeDirectory,
+        auth: OpaqueUserAuthToken,
     ) -> Result<Vec<NodeFile>, BackendApiError>;
+}
+
+/// Defines the api that the user or node uses to signup or authenticate against
+/// lexe infra.
+#[async_trait]
+pub trait UserAuthApi {
+    /// POST /user-auth [`ed25519::Signed<UserAuthRequest>`]
+    ///              -> [`UserAuthResponse`]
+    async fn user_auth(
+        &self,
+        auth_req: ed25519::Signed<UserAuthRequest>,
+    ) -> Result<UserAuthResponse, BackendApiError>;
 }
 
 /// Defines the api that the runner exposes to the node.

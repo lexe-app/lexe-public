@@ -25,8 +25,8 @@ pub type ErrorCode = u16;
 /// the user, convert [`ErrorResponse`] to the service error type first.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ErrorResponse {
-    code: ErrorCode,
-    msg: String,
+    pub code: ErrorCode,
+    pub msg: String,
 }
 
 /// A 'trait alias' defining all the supertraits a service error type must impl
@@ -233,6 +233,8 @@ pub enum NodeErrorKind {
     Provision,
     #[error("Error while executing command")]
     Command,
+    #[error("Node unable to authenticate")]
+    BadAuth,
 }
 
 /// All variants of errors that the LSP can return.
@@ -262,7 +264,8 @@ impl NodeApiError {
     pub fn wrong_user_pk(current_pk: UserPk, given_pk: UserPk) -> Self {
         // We don't name these 'expected' and 'actual' because the meaning of
         // those terms is swapped depending on if you're the server or client.
-        let msg = format!("Node has '{current_pk}' but received '{given_pk}'");
+        let msg =
+            format!("Node has UserPk '{current_pk}' but received '{given_pk}'");
         let kind = NodeErrorKind::WrongUserPk;
         Self { kind, msg }
     }
@@ -270,7 +273,8 @@ impl NodeApiError {
     pub fn wrong_node_pk(derived_pk: PublicKey, given_pk: PublicKey) -> Self {
         // We don't name these 'expected' and 'actual' because the meaning of
         // those terms is swapped depending on if you're the server or client.
-        let msg = format!("Derived '{derived_pk}' but received '{given_pk}'");
+        let msg =
+            format!("Derived NodePk '{derived_pk}' but received '{given_pk}'");
         let kind = NodeErrorKind::WrongNodePk;
         Self { kind, msg }
     }
@@ -506,6 +510,7 @@ impl ErrorCodeConvertible for NodeErrorKind {
             Self::WrongNodePk => 8,
             Self::Provision => 9,
             Self::Command => 10,
+            Self::BadAuth => 11,
         }
     }
     fn from_code(code: ErrorCode) -> Self {
@@ -521,6 +526,7 @@ impl ErrorCodeConvertible for NodeErrorKind {
             8 => Self::WrongNodePk,
             9 => Self::Provision,
             10 => Self::Command,
+            11 => Self::BadAuth,
             _ => Self::Unknown,
         }
     }
@@ -621,6 +627,7 @@ impl HasStatusCode for NodeApiError {
             WrongNodePk => CLIENT_400_BAD_REQUEST,
             Provision => SERVER_500_INTERNAL_SERVER_ERROR,
             Command => SERVER_500_INTERNAL_SERVER_ERROR,
+            BadAuth => CLIENT_401_UNAUTHORIZED,
         }
     }
 }
@@ -770,6 +777,53 @@ impl From<CommonErrorKind> for LspErrorKind {
             Timeout => Self::Timeout,
             Decode => Self::Decode,
             Reqwest => Self::Reqwest,
+        }
+    }
+}
+
+// --- ErrorKind -> Error impls --- //
+
+impl From<BackendErrorKind> for BackendApiError {
+    fn from(kind: BackendErrorKind) -> Self {
+        Self {
+            kind,
+            msg: String::new(),
+        }
+    }
+}
+
+impl From<RunnerErrorKind> for RunnerApiError {
+    fn from(kind: RunnerErrorKind) -> Self {
+        Self {
+            kind,
+            msg: String::new(),
+        }
+    }
+}
+
+impl From<GatewayErrorKind> for GatewayApiError {
+    fn from(kind: GatewayErrorKind) -> Self {
+        Self {
+            kind,
+            msg: String::new(),
+        }
+    }
+}
+
+impl From<NodeErrorKind> for NodeApiError {
+    fn from(kind: NodeErrorKind) -> Self {
+        Self {
+            kind,
+            msg: String::new(),
+        }
+    }
+}
+
+impl From<LspErrorKind> for LspApiError {
+    fn from(kind: LspErrorKind) -> Self {
+        Self {
+            kind,
+            msg: String::new(),
         }
     }
 }

@@ -35,6 +35,7 @@
 use std::fmt;
 
 use asn1_rs::{oid, Oid};
+use bytes::{BufMut, Bytes, BytesMut};
 use rcgen::RcgenError;
 use ref_cast::RefCast;
 use ring::signature::KeyPair as _;
@@ -623,6 +624,30 @@ impl<T: Signable> Signed<T> {
             sig: self.sig,
             inner: &self.inner,
         }
+    }
+}
+
+impl<T: Signable + Serialize> Signed<T> {
+    pub fn serialize(&self) -> Result<Bytes, Error> {
+        let mut bytes = BytesMut::new();
+        self.serialize_inout(&mut bytes)?;
+        Ok(bytes.freeze())
+    }
+
+    pub fn serialize_inout(&self, inout: &mut BytesMut) -> Result<(), Error> {
+        let struct_ser_len = bcs::serialized_size(&self.inner)
+            .map_err(Error::BcsSerialize)?
+            + SIGNED_STRUCT_OVERHEAD;
+        inout.reserve(struct_ser_len);
+
+        // out := signer || signature || serialized struct
+
+        inout.put_slice(self.signer.as_slice());
+        inout.put_slice(self.sig.as_slice());
+        bcs::serialize_into(&mut inout.writer(), &self.inner)
+            .map_err(Error::BcsSerialize)?;
+
+        Ok(())
     }
 }
 

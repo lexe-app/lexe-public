@@ -1,5 +1,6 @@
 // user auth v1
 
+use std::fmt;
 use std::time::{Duration, SystemTime};
 
 #[cfg(all(test, not(target_env = "sgx")))]
@@ -7,7 +8,11 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use super::def::UserAuthApi;
+use crate::api::error::BackendApiError;
 use crate::ed25519::{self, Signed};
+
+pub const DEFAULT_USER_TOKEN_LIFETIME_SECS: u32 = 10 * 60; // 10 min
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -71,7 +76,7 @@ pub struct UserAuthRequestV1 {
     /// How long the new auth token should be valid for, in seconds. Must be at
     /// most 1 hour. The new token expiration is generated relative to the
     /// server clock.
-    pub liftime_secs: u32,
+    pub lifetime_secs: u32,
     // /// Limit the auth token to a specific Bitcoin network.
     // pub btc_network: Network,
 }
@@ -86,8 +91,35 @@ pub struct UserAuthResponse {
 ///
 /// Most user clients should just treat this as an opaque Bearer token with a
 /// very short expiration.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct OpaqueUserAuthToken(pub String);
+
+/// an [`OpaqueUserAuthToken`] and its expected expiration time
+///
+/// * we actually use "true expiration" minus a few seconds so we can re-auth
+///   before the token actually expires.
+pub struct TokenWithExpiration {
+    pub expiration: SystemTime,
+    pub token: OpaqueUserAuthToken,
+}
+
+/// A `UserAuthenticator` (1) stores existing fresh auth tokens and (2)
+/// authenticates and fetches new auth tokens when they expire.
+pub struct UserAuthenticator {
+    /// The [`ed25519::KeyPair`] for the [`UserPk`], used to authenticate with
+    /// the lexe backend.
+    user_key_pair: ed25519::KeyPair,
+
+    /// The latest [`OpaqueUserAuthToken`] with its expected expiration time.
+    // NOTE: we intenionally use a tokio `Mutex` here.
+    //
+    // 1. we want only at-most-one client to try auth'ing at once
+    // 2. auth'ing involves IO (send/recv HTTPS request)
+    // 3. holding a standard blocking `Mutex` across IO await points is a
+    //    Bad Idea^tm, since it'll block all tasks on the runtime (we only use
+    //    a single thread for the user node).
+    cached_auth_token: tokio::sync::Mutex<Option<TokenWithExpiration>>,
+}
 
 // -- impl UserSignupRequest -- //
 
@@ -120,6 +152,16 @@ impl Default for UserSignupRequest {
 // -- impl UserAuthRequest -- //
 
 impl UserAuthRequest {
+    pub fn new(now: SystemTime, token_lifetime_secs: u32) -> Self {
+        Self::V1(UserAuthRequestV1 {
+            request_timestamp_secs: now
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .expect("Something is very wrong with our clock")
+                .as_secs(),
+            lifetime_secs: token_lifetime_secs,
+        })
+    }
+
     pub fn deserialize_verify(
         serialized: &[u8],
     ) -> Result<Signed<Self>, Error> {
@@ -145,7 +187,7 @@ impl UserAuthRequest {
     /// The requested token lifetime in seconds.
     pub fn lifetime_secs(&self) -> u32 {
         match self {
-            Self::V1(req) => req.liftime_secs,
+            Self::V1(req) => req.lifetime_secs,
         }
     }
 }
@@ -169,6 +211,75 @@ impl OpaqueUserAuthToken {
     pub fn into_bytes(&self) -> Result<Vec<u8>, Error> {
         base64::decode_config(self.0.as_str(), base64::URL_SAFE_NO_PAD)
             .map_err(|_| Error::Base64Decode)
+    }
+}
+
+impl fmt::Display for OpaqueUserAuthToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+// --- impl UserAuthenticator --- //
+
+impl UserAuthenticator {
+    /// Create a new `UserAuthenticator` with the auth `api` handle, the
+    /// `user_key_pair` (for signing auth requests), and an optional existing
+    /// token.
+    pub fn new(
+        user_key_pair: ed25519::KeyPair,
+        maybe_token: Option<TokenWithExpiration>,
+    ) -> Self {
+        Self {
+            user_key_pair,
+            cached_auth_token: tokio::sync::Mutex::new(maybe_token),
+        }
+    }
+
+    /// Try to either (1) return an existing, fresh token or (2) authenticate
+    /// with the backend to get a new fresh token (and cache it).
+    pub async fn get_token<T: UserAuthApi + ?Sized>(
+        &self,
+        api: &T,
+        now: SystemTime,
+    ) -> Result<OpaqueUserAuthToken, BackendApiError> {
+        let mut lock = self.cached_auth_token.lock().await;
+
+        // there's already a fresh token here; just use that.
+        if let Some(cached_token) = lock.as_ref() {
+            if cached_token.expiration > now {
+                return Ok(cached_token.token.clone());
+            }
+        }
+
+        // no token yet or expired, try to authenticate and get a new token.
+        let cached_token = self.authenticate(api, now).await?;
+        let token_clone = cached_token.token.clone();
+        *lock = Some(cached_token);
+
+        Ok(token_clone)
+    }
+
+    /// Create a new [`UserAuthRequest`], sign it, and send the request. Returns
+    /// the [`TokenWithExpiration`] if the auth request succeeds.
+    ///
+    /// NOTE: doesn't update the token cache
+    pub async fn authenticate<T: UserAuthApi + ?Sized>(
+        &self,
+        api: &T,
+        now: SystemTime,
+    ) -> Result<TokenWithExpiration, BackendApiError> {
+        let lifetime = DEFAULT_USER_TOKEN_LIFETIME_SECS;
+        let expiration = now + Duration::from_secs(lifetime as u64)
+            - Duration::from_secs(15);
+        let auth_req = UserAuthRequest::new(now, lifetime);
+        let (_, signed_req) = self.user_key_pair.sign_struct(&auth_req)?;
+        let resp = api.user_auth(signed_req.cloned()).await?;
+
+        Ok(TokenWithExpiration {
+            expiration,
+            token: resp.user_auth_token,
+        })
     }
 }
 

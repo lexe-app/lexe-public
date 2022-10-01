@@ -5,7 +5,10 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use bitcoin::secp256k1::PublicKey;
-use common::api::def::{NodeBackendApi, NodeRunnerApi};
+use common::api::auth::{
+    OpaqueUserAuthToken, UserAuthRequest, UserAuthResponse,
+};
+use common::api::def::{NodeBackendApi, NodeRunnerApi, UserAuthApi};
 use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::ports::UserPorts;
 use common::api::provision::{
@@ -13,6 +16,7 @@ use common::api::provision::{
 };
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::api::UserPk;
+use common::ed25519;
 use common::enclave::{self, Measurement};
 use common::rng::SysRng;
 use common::root_seed::RootSeed;
@@ -31,6 +35,9 @@ type Data = Vec<u8>;
 fn make_root_seed(bytes: [u8; 32]) -> RootSeed {
     RootSeed::new(Secret::new(bytes))
 }
+fn make_user_pk(root_seed: &RootSeed) -> UserPk {
+    root_seed.derive_user_pk()
+}
 fn make_node_pk(root_seed: &RootSeed) -> PublicKey {
     root_seed.derive_node_pk(&mut SysRng::new())
 }
@@ -41,6 +48,9 @@ fn make_sealed_seed(root_seed: &RootSeed) -> SealedSeed {
 
 static SEED1: Lazy<RootSeed> = Lazy::new(|| make_root_seed([0x42; 32]));
 static SEED2: Lazy<RootSeed> = Lazy::new(|| make_root_seed([0x69; 32]));
+
+pub static USER_PK1: Lazy<UserPk> = Lazy::new(|| make_user_pk(&SEED1));
+pub static USER_PK2: Lazy<UserPk> = Lazy::new(|| make_user_pk(&SEED2));
 
 static NODE_PK1: Lazy<PublicKey> = Lazy::new(|| make_node_pk(&SEED1));
 static NODE_PK2: Lazy<PublicKey> = Lazy::new(|| make_node_pk(&SEED2));
@@ -59,10 +69,13 @@ pub fn sealed_seed(node_pk: &PublicKey) -> SealedSeed {
 }
 
 fn node_pk(user_pk: UserPk) -> PublicKey {
-    match user_pk.to_i64() {
-        1 => *NODE_PK1,
-        2 => *NODE_PK2,
-        _ => todo!("TODO(max): Programmatically generate for new users"),
+    if user_pk == *USER_PK1 || /* hack: */ user_pk == UserPk::from_i64(1) {
+        *NODE_PK1
+    } else if user_pk == *USER_PK2 || /* hack: */ user_pk == UserPk::from_i64(2)
+    {
+        *NODE_PK2
+    } else {
+        todo!("TODO(max): Programmatically generate for new users")
     }
 }
 
@@ -101,21 +114,36 @@ impl MockApiClient {
 }
 
 #[async_trait]
+impl UserAuthApi for MockApiClient {
+    async fn user_auth(
+        &self,
+        _signed_req: ed25519::Signed<UserAuthRequest>,
+    ) -> Result<UserAuthResponse, BackendApiError> {
+        // TODO(phlip9): return something we can verify
+        Ok(UserAuthResponse {
+            user_auth_token: OpaqueUserAuthToken(String::new()),
+        })
+    }
+}
+
+#[async_trait]
 impl ApiClient for MockApiClient {
     async fn create_file_with_retries(
         &self,
         file: &NodeFile,
+        auth: OpaqueUserAuthToken,
         _retries: usize,
     ) -> Result<NodeFile, BackendApiError> {
-        self.create_file(file).await
+        self.create_file(file, auth).await
     }
 
     async fn upsert_file_with_retries(
         &self,
         file: &NodeFile,
+        auth: OpaqueUserAuthToken,
         _retries: usize,
     ) -> Result<NodeFile, BackendApiError> {
-        self.upsert_file(file).await
+        self.upsert_file(file, auth).await
     }
 }
 
@@ -158,6 +186,7 @@ impl NodeBackendApi for MockApiClient {
     async fn create_node_instance_seed(
         &self,
         data: NodeInstanceSeed,
+        _auth: OpaqueUserAuthToken,
     ) -> Result<NodeInstanceSeed, BackendApiError> {
         Ok(data)
     }
@@ -165,6 +194,7 @@ impl NodeBackendApi for MockApiClient {
     async fn get_file(
         &self,
         file_id: &NodeFileId,
+        _auth: OpaqueUserAuthToken,
     ) -> Result<Option<NodeFile>, BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().get(file_id.clone());
         Ok(file_opt)
@@ -173,6 +203,7 @@ impl NodeBackendApi for MockApiClient {
     async fn create_file(
         &self,
         file: &NodeFile,
+        _auth: OpaqueUserAuthToken,
     ) -> Result<NodeFile, BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().insert(file.clone());
         assert!(file_opt.is_none());
@@ -182,6 +213,7 @@ impl NodeBackendApi for MockApiClient {
     async fn upsert_file(
         &self,
         file: &NodeFile,
+        _auth: OpaqueUserAuthToken,
     ) -> Result<NodeFile, BackendApiError> {
         self.vfs.lock().unwrap().insert(file.clone());
         Ok(file.clone())
@@ -191,6 +223,7 @@ impl NodeBackendApi for MockApiClient {
     async fn delete_file(
         &self,
         file_id: &NodeFileId,
+        _auth: OpaqueUserAuthToken,
     ) -> Result<String, BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().remove(file_id.clone());
         assert!(file_opt.is_none());
@@ -200,6 +233,7 @@ impl NodeBackendApi for MockApiClient {
     async fn get_directory(
         &self,
         dir: &NodeDirectory,
+        _auth: OpaqueUserAuthToken,
     ) -> Result<Vec<NodeFile>, BackendApiError> {
         let files_vec = self.vfs.lock().unwrap().get_dir(dir.clone());
         Ok(files_vec)

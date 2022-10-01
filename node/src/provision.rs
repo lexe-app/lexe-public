@@ -19,10 +19,11 @@
 
 use std::convert::Infallible;
 use std::net::SocketAddr;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use anyhow::Context;
 use bitcoin::secp256k1::PublicKey;
+use common::api::auth::UserAuthenticator;
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::ports::UserPorts;
 use common::api::provision::{
@@ -32,11 +33,11 @@ use common::api::rest::into_response;
 use common::api::UserPk;
 use common::cli::ProvisionArgs;
 use common::client::tls;
-use common::enclave;
 use common::enclave::Measurement;
 use common::rng::{Crng, SysRng};
 use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
+use common::{ed25519, enclave};
 use tracing::{debug, info, instrument, warn};
 use warp::{Filter, Rejection, Reply};
 
@@ -164,7 +165,7 @@ async fn provision_handler(
 ) -> Result<(), NodeApiError> {
     debug!("Received provision request");
 
-    let (user_pk, node_pk, root_seed) =
+    let (user_key_pair, user_pk, node_pk, root_seed) =
         verify_provision_request(&mut ctx.rng, ctx.current_user_pk, req)?;
 
     let node = Node { node_pk, user_pk };
@@ -184,10 +185,27 @@ async fn provision_handler(
         sealed_seed,
     };
 
-    // TODO(phlip9): auth using user pk derived from root seed
+    // TODO(phlip9): [perf] could get the user to pass us their auth token in
+    // the provision request instead of reauthing here.
 
+    // authenticate as the user to the backend
+    let authenticator =
+        UserAuthenticator::new(user_key_pair, None /* maybe_token */);
+    let token = authenticator
+        .authenticate(&*ctx.api, SystemTime::now())
+        .await
+        .map_err(|err| {
+            let kind = NodeErrorKind::BadAuth;
+            NodeApiError {
+                kind,
+                msg: format!("{kind}: {err:#}"),
+            }
+        })?
+        .token;
+
+    // store the sealed seed and new node metadata in the backend
     ctx.api
-        .create_node_instance_seed(batch)
+        .create_node_instance_seed(batch, token)
         .await
         .map_err(|e| NodeApiError {
             kind: NodeErrorKind::Provision,
@@ -204,12 +222,22 @@ fn verify_provision_request<R: Crng>(
     rng: &mut R,
     current_user_pk: UserPk,
     req: NodeProvisionRequest,
-) -> Result<(UserPk, PublicKey, RootSeed), NodeApiError> {
+) -> Result<(ed25519::KeyPair, UserPk, PublicKey, RootSeed), NodeApiError> {
     let given_user_pk = req.user_pk;
     if given_user_pk != current_user_pk {
         return Err(NodeApiError::wrong_user_pk(
             current_user_pk,
             given_user_pk,
+        ));
+    }
+
+    let derived_user_key_pair = req.root_seed.derive_user_key_pair();
+    let derived_user_pk =
+        UserPk::from_ref(derived_user_key_pair.public_key().as_inner());
+    if derived_user_pk != &current_user_pk {
+        return Err(NodeApiError::wrong_user_pk(
+            current_user_pk,
+            *derived_user_pk,
         ));
     }
 
@@ -223,7 +251,12 @@ fn verify_provision_request<R: Crng>(
         ));
     }
 
-    Ok((req.user_pk, req.node_pk, req.root_seed))
+    Ok((
+        derived_user_key_pair,
+        req.user_pk,
+        req.node_pk,
+        req.root_seed,
+    ))
 }
 
 #[cfg(test)]
@@ -294,7 +327,10 @@ mod test {
         logger::init_for_testing();
 
         let root_seed = RootSeed::new(Secret::new([0x42; 32]));
-        let user_pk = UserPk::new([0x69; 32]);
+        let user_pk = root_seed.derive_user_pk();
+        // TODO(phlip9): replace SysRng w/ SmallRng when test-util feature lands
+        let node_pk = root_seed.derive_node_pk(&mut SysRng::new());
+
         let args = ProvisionArgs {
             user_pk,
             // we're not going through a proxy and can't change DNS resolution
@@ -334,7 +370,7 @@ mod test {
             // client sends provision request to node
             let provision_req = NodeProvisionRequest {
                 user_pk,
-                node_pk: "031f7d233e27e9eaa68b770717c22fddd3bdd58656995d9edc32e84e6611182241".parse().unwrap(),
+                node_pk,
                 root_seed,
             };
             let client = reqwest::Client::builder()
@@ -347,7 +383,11 @@ mod test {
                 .send()
                 .await
                 .unwrap();
-            assert!(resp.status().is_success());
+            if !resp.status().is_success() {
+                let err: common::api::error::ErrorResponse =
+                    resp.json().await.unwrap();
+                panic!("Failed to provision: {err:#?}");
+            }
         };
 
         let (_, _) = tokio::join!(provision_task, test_task);

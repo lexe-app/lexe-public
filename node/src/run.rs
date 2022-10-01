@@ -4,12 +4,15 @@ use std::time::Duration;
 
 use anyhow::{bail, ensure, Context};
 use bitcoin::BlockHash;
+use common::api::auth::UserAuthenticator;
 use common::api::ports::{Port, UserPorts};
 use common::api::provision::{Node, SealedSeedId};
+use common::api::rest::RestClient;
 use common::api::UserPk;
 use common::cli::RunArgs;
 use common::client::tls::node_run_tls_config;
 use common::constants::DEFAULT_CHANNEL_SIZE;
+use common::ed25519;
 use common::enclave::{
     self, MachineId, Measurement, MinCpusvn, MIN_SGX_CPUSVN,
 };
@@ -137,7 +140,7 @@ impl UserNode {
         let bitcoind = bitcoind_res
             .map(Arc::new)
             .context("Failed to init bitcoind client")?;
-        let (node, root_seed) =
+        let (node, root_seed, user_key_pair) =
             fetch_res.context("Failed to fetch provisioned secrets")?;
 
         // Collect all handles to spawned tasks
@@ -161,9 +164,13 @@ impl UserNode {
         let fee_estimator = bitcoind.clone();
         let broadcaster = bitcoind.clone();
 
+        let authenticator =
+            Arc::new(UserAuthenticator::new(user_key_pair, None));
+
         // Initialize Persister
         let persister = NodePersister::new(
             api.clone(),
+            authenticator,
             node_pk,
             measurement,
             shutdown.clone(),
@@ -561,6 +568,7 @@ fn init_api(args: &RunArgs) -> ApiClientType {
     #[cfg(all(target_env = "sgx", not(test)))]
     {
         Arc::new(api::NodeApiClient::new(
+            RestClient::new(),
             args.backend_url.clone(),
             args.runner_url.clone(),
         ))
@@ -572,6 +580,7 @@ fn init_api(args: &RunArgs) -> ApiClientType {
             Arc::new(api::mock::MockApiClient::new())
         } else {
             Arc::new(api::NodeApiClient::new(
+                RestClient::new(),
                 args.backend_url.clone(),
                 args.runner_url.clone(),
             ))
@@ -587,7 +596,7 @@ async fn fetch_provisioned_secrets<R: Crng>(
     measurement: Measurement,
     machine_id: MachineId,
     min_cpusvn: MinCpusvn,
-) -> anyhow::Result<(Node, RootSeed)> {
+) -> anyhow::Result<(Node, RootSeed, ed25519::KeyPair)> {
     debug!(%user_pk, %measurement, %machine_id, %min_cpusvn, "fetching provisioned secrets");
 
     let (node_res, instance_res) = tokio::join!(
@@ -634,7 +643,19 @@ async fn fetch_provisioned_secrets<R: Crng>(
                 .unseal_and_validate(rng)
                 .context("Could not validate or unseal sealed seed")?;
 
-            Ok((node, root_seed))
+            let user_key_pair = root_seed.derive_user_key_pair();
+            let derived_user_pk =
+                UserPk::from_ref(user_key_pair.public_key().as_inner());
+
+            ensure!(
+                &node.user_pk == derived_user_pk,
+                "The user_pk derived from the sealed seed '{}' doesn't match \
+                 the expected user_pk '{}'",
+                derived_user_pk,
+                node.user_pk,
+            );
+
+            Ok((node, root_seed, user_key_pair))
         }
         (None, None) => bail!("Enclave version has not been provisioned yet"),
         _ => bail!("Node and instance should have been persisted together"),
