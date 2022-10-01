@@ -6,7 +6,10 @@ use bitcoin::secp256k1::PublicKey;
 use bitcoin::util::address::Address;
 use common::api::UserPk;
 use common::cli::{BitcoindRpcInfo, Network, RunArgs};
-use common::constants::{DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL};
+use common::constants::{
+    DEFAULT_BACKEND_URL, DEFAULT_LSP_NODE_PK, DEFAULT_LSP_URL,
+    DEFAULT_RUNNER_URL,
+};
 use common::rng::SysRng;
 use common::test_utils::regtest::Regtest;
 use lexe_ln::alias::NetworkGraphType;
@@ -42,6 +45,8 @@ fn default_args_for_user(user_pk: UserPk) -> RunArgs {
         repl: false,
         backend_url: DEFAULT_BACKEND_URL.into(),
         runner_url: DEFAULT_RUNNER_URL.into(),
+        lsp_url: DEFAULT_LSP_URL.into(),
+        lsp_node_pk: *DEFAULT_LSP_NODE_PK,
         node_dns_name: "localhost".to_owned(),
         mock: true,
     }

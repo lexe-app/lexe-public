@@ -2,6 +2,10 @@
 
 use std::num::NonZeroU32;
 
+#[cfg(all(test))]
+use proptest::arbitrary::{any, Arbitrary};
+#[cfg(all(test))]
+use proptest::strategy::{BoxedStrategy, Strategy};
 use rand_core::le::read_u32_into;
 pub use rand_core::{CryptoRng, RngCore, SeedableRng};
 use ring::rand::SecureRandom;
@@ -146,15 +150,18 @@ impl SeedableRng for SmallRng {
     }
 }
 
-#[cfg(test)]
-pub fn arb_rng() -> impl proptest::strategy::Strategy<Value = SmallRng> {
-    use proptest::arbitrary::any;
-    use proptest::strategy::Strategy;
+#[cfg(all(test))]
+impl Arbitrary for SmallRng {
+    type Parameters = ();
+    type Strategy = BoxedStrategy<Self>;
 
-    // We use `no_shrink` here since shrinking an RNG seed won't produce
-    // "simpler" output samples. This setting lets `proptest` know not to waste
-    // time trying to shrink the rng seed.
-    let arb_seed = any::<[u8; 8]>().no_shrink();
-
-    arb_seed.prop_map(SmallRng::from_seed)
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        // We use `no_shrink` here since shrinking an RNG seed won't produce
+        // "simpler" output samples. This setting lets `proptest` know not to
+        // waste time trying to shrink the rng seed.
+        any::<[u8; 8]>()
+            .no_shrink()
+            .prop_map(SmallRng::from_seed)
+            .boxed()
+    }
 }

@@ -1,7 +1,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use anyhow::format_err;
+use anyhow::bail;
 use bitcoin::secp256k1::{PublicKey, Secp256k1};
 use bitcoin::util::bip32::{ChildNumber, ExtendedPrivKey};
 use bitcoin::{KeyPair, Network};
@@ -151,7 +151,7 @@ impl TryFrom<&[u8]> for RootSeed {
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         if bytes.len() != Self::LENGTH {
-            return Err(format_err!("input must be {} bytes", Self::LENGTH));
+            bail!("input must be {} bytes", Self::LENGTH);
         }
         let mut out = [0u8; Self::LENGTH];
         out[..].copy_from_slice(bytes);

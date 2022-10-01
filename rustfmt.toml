@@ -1,5 +1,6 @@
 max_width = 80
 use_field_init_shorthand = true
+merge_derives = false
 
 # Requires nightly
 wrap_comments = true
