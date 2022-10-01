@@ -9,6 +9,7 @@ use rand_core::{CryptoRng, RngCore};
 use secrecy::{ExposeSecret, Secret, SecretVec};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
+use crate::api::UserPk;
 use crate::rng::Crng;
 use crate::{ed25519, hex, sha256};
 
@@ -90,6 +91,21 @@ impl RootSeed {
         ed25519::KeyPair::from_seed(seed.expose_secret()).to_rcgen()
     }
 
+    /// Derive the user key pair, which is the key behind the [`UserPk`]. This
+    /// key pair is also used to sign up and authenticate as the user against
+    /// the lexe backend.
+    ///
+    /// [`UserPk`]: crate::api::UserPk
+    pub fn derive_user_key_pair(&self) -> ed25519::KeyPair {
+        let seed = self.derive(b"user key pair");
+        ed25519::KeyPair::from_seed(seed.expose_secret())
+    }
+
+    /// Convenience function to derive the [`UserPk`].
+    pub fn derive_user_pk(&self) -> UserPk {
+        UserPk::new(self.derive_user_key_pair().public_key().into_inner())
+    }
+
     /// Derive the lightning node key pair directly, without needing to derive
     /// all the other auxiliary node secrets.
     pub fn derive_node_key_pair<R: Crng>(&self, rng: &mut R) -> KeyPair {
@@ -112,7 +128,7 @@ impl RootSeed {
         KeyPair::from_secret_key(&secp_ctx, &node_sk)
     }
 
-    /// Derive the Lightning node pubkey.
+    /// Convenience function to derive the Lightning node pubkey.
     pub fn derive_node_pk<R: Crng>(&self, rng: &mut R) -> PublicKey {
         PublicKey::from(self.derive_node_key_pair(rng))
     }

@@ -13,6 +13,7 @@ use lexe_ln::alias::NetworkGraphType;
 use lexe_ln::{channel, command, logger, p2p};
 use tokio::sync::mpsc;
 
+use crate::api::mock;
 use crate::channel_manager::{NodeChannelManager, USER_CONFIG};
 use crate::command::owner;
 use crate::peer_manager::NodePeerManager;
@@ -21,7 +22,7 @@ use crate::run::UserNode;
 
 /// Helper to return a default RunArgs struct for testing.
 fn default_args() -> RunArgs {
-    default_args_for_user(UserPk::from_i64(1))
+    default_args_for_user(*mock::USER_PK1)
 }
 
 fn default_args_for_user(user_pk: UserPk) -> RunArgs {
@@ -135,8 +136,8 @@ async fn list_channels() {
 /// Tests connecting two nodes to each other.
 #[tokio::test]
 async fn connect_peer() {
-    let args1 = default_args_for_user(UserPk::from_i64(1));
-    let args2 = default_args_for_user(UserPk::from_i64(2));
+    let args1 = default_args_for_user(*mock::USER_PK1);
+    let args2 = default_args_for_user(*mock::USER_PK2);
     let (node1, node2) = tokio::join!(
         CommandTestHarness::init(args1),
         CommandTestHarness::init(args2),
@@ -179,8 +180,8 @@ async fn connect_peer() {
 /// Tests opening a channel
 #[tokio::test]
 async fn open_channel() {
-    let mut args1 = default_args_for_user(UserPk::from_i64(1));
-    let mut args2 = default_args_for_user(UserPk::from_i64(2));
+    let mut args1 = default_args_for_user(*mock::USER_PK1);
+    let mut args2 = default_args_for_user(*mock::USER_PK2);
     args1.shutdown_after_sync_if_no_activity = true;
     args2.shutdown_after_sync_if_no_activity = true;
 
