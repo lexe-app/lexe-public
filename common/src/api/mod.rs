@@ -2,19 +2,19 @@ use std::fmt::{self, Display};
 use std::str::FromStr;
 
 use bitcoin::secp256k1::PublicKey;
-#[cfg(all(test, not(target_env = "sgx")))]
+#[cfg(test)]
 use proptest::arbitrary::{any, Arbitrary};
-#[cfg(all(test, not(target_env = "sgx")))]
+#[cfg(test)]
 use proptest::strategy::{BoxedStrategy, Strategy};
-#[cfg(all(test, not(target_env = "sgx")))]
+#[cfg(test)]
 use proptest_derive::Arbitrary;
 use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 
 use crate::hex::{self, FromHex};
-#[cfg(all(test, not(target_env = "sgx")))]
+#[cfg(test)]
 use crate::rng::SmallRng;
-#[cfg(all(test, not(target_env = "sgx")))]
+#[cfg(test)]
 use crate::root_seed::RootSeed;
 use crate::{const_ref_cast, ed25519, hexstr_or_bytes};
 
@@ -38,7 +38,7 @@ pub mod rest;
 /// Data types implementing vfs-based node persistence.
 pub mod vfs;
 
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize, RefCast)]
 #[repr(transparent)]
@@ -150,7 +150,7 @@ impl From<NodePk> for PublicKey {
     }
 }
 
-#[cfg(all(test, not(target_env = "sgx")))]
+#[cfg(test)]
 impl Arbitrary for NodePk {
     type Parameters = ();
     type Strategy = BoxedStrategy<Self>;
@@ -166,7 +166,7 @@ impl Arbitrary for NodePk {
     }
 }
 
-#[cfg(all(test, not(target_env = "sgx")))]
+#[cfg(test)]
 mod test {
     use super::*;
     use crate::test_utils::roundtrip;

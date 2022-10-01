@@ -2,9 +2,9 @@
 
 use std::num::NonZeroU32;
 
-#[cfg(all(test))]
+#[cfg(all(any(test, feature = "test-utils")))]
 use proptest::arbitrary::{any, Arbitrary};
-#[cfg(all(test))]
+#[cfg(all(any(test, feature = "test-utils")))]
 use proptest::strategy::{BoxedStrategy, Strategy};
 use rand_core::le::read_u32_into;
 pub use rand_core::{CryptoRng, RngCore, SeedableRng};
@@ -96,9 +96,8 @@ impl Default for SmallRng {
     }
 }
 
-// TODO(phlip9): use a feature flag to enable this for users outside the crate?
 /// Only enable [`CryptoRng`] for this rng when testing.
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 impl CryptoRng for SmallRng {}
 
 impl RngCore for SmallRng {
@@ -150,7 +149,7 @@ impl SeedableRng for SmallRng {
     }
 }
 
-#[cfg(all(test))]
+#[cfg(all(any(test, feature = "test-utils")))]
 impl Arbitrary for SmallRng {
     type Parameters = ();
     type Strategy = BoxedStrategy<Self>;

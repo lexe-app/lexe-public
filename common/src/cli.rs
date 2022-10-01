@@ -12,8 +12,10 @@ use bitcoin::blockdata::constants;
 use bitcoin::hash_types::BlockHash;
 use lightning_invoice::Currency;
 #[cfg(all(test, not(target_env = "sgx")))]
-use proptest::arbitrary::{any, Arbitrary};
-#[cfg(all(test, not(target_env = "sgx")))]
+use proptest::arbitrary::any;
+#[cfg(test)]
+use proptest::arbitrary::Arbitrary;
+#[cfg(test)]
 use proptest::strategy::{BoxedStrategy, Just, Strategy};
 #[cfg(all(test, not(target_env = "sgx")))]
 use proptest_derive::Arbitrary;
@@ -530,7 +532,7 @@ impl From<Network> for Currency {
     }
 }
 
-#[cfg(all(test, not(target_env = "sgx")))]
+#[cfg(test)]
 impl Arbitrary for Network {
     type Parameters = ();
     type Strategy = BoxedStrategy<Self>;
@@ -547,8 +549,32 @@ impl Arbitrary for Network {
     }
 }
 
-#[cfg(all(test, not(target_env = "sgx")))]
+#[cfg(test)]
 mod test {
+    use super::*;
+
+    #[test]
+    fn test_network_roundtrip() {
+        // TODO: Mainnet is disabled for now
+        // let mainnet1 = Network(bitcoin::Network::Bitcoin);
+        let testnet1 = Network(bitcoin::Network::Testnet);
+        let regtest1 = Network(bitcoin::Network::Regtest);
+        let signet1 = Network(bitcoin::Network::Signet);
+
+        // let mainnet2 = Network::from_str(&mainnet1.to_string()).unwrap();
+        let testnet2 = Network::from_str(&testnet1.to_string()).unwrap();
+        let regtest2 = Network::from_str(&regtest1.to_string()).unwrap();
+        let signet2 = Network::from_str(&signet1.to_string()).unwrap();
+
+        // assert_eq!(mainnet1, mainnet2);
+        assert_eq!(testnet1, testnet2);
+        assert_eq!(regtest1, regtest2);
+        assert_eq!(signet1, signet2);
+    }
+}
+
+#[cfg(all(test, not(target_env = "sgx")))]
+mod test_notsgx {
     use std::net::Ipv4Addr;
 
     use proptest::{prop_assert_eq, proptest};
@@ -573,25 +599,6 @@ mod test {
             let info2 = BitcoindRpcInfo::from_str(&info1.to_string()).unwrap();
             prop_assert_eq!(info1, info2);
         }
-    }
-
-    #[test]
-    fn test_network_roundtrip() {
-        // TODO: Mainnet is disabled for now
-        // let mainnet1 = Network(bitcoin::Network::Bitcoin);
-        let testnet1 = Network(bitcoin::Network::Testnet);
-        let regtest1 = Network(bitcoin::Network::Regtest);
-        let signet1 = Network(bitcoin::Network::Signet);
-
-        // let mainnet2 = Network::from_str(&mainnet1.to_string()).unwrap();
-        let testnet2 = Network::from_str(&testnet1.to_string()).unwrap();
-        let regtest2 = Network::from_str(&regtest1.to_string()).unwrap();
-        let signet2 = Network::from_str(&signet1.to_string()).unwrap();
-
-        // assert_eq!(mainnet1, mainnet2);
-        assert_eq!(testnet1, testnet2);
-        assert_eq!(regtest1, regtest2);
-        assert_eq!(signet1, signet2);
     }
 
     proptest! {
