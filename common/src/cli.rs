@@ -22,11 +22,11 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::api::ports::Port;
-use crate::api::{NodePk, UserPk};
+use crate::api::UserPk;
 use crate::constants::{
-    DEFAULT_BACKEND_URL, DEFAULT_LSP_NODE_PK, DEFAULT_LSP_URL,
-    DEFAULT_RUNNER_URL, NODE_PROVISION_DNS, NODE_RUN_DNS,
+    DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL, NODE_PROVISION_DNS, NODE_RUN_DNS,
 };
+use crate::ln::peer::ChannelPeer;
 
 /// Commands accepted by the user node.
 #[derive(Clone, Debug, Eq, PartialEq, FromArgs)]
@@ -170,15 +170,9 @@ pub struct RunArgs {
     #[argh(option, default = "DEFAULT_RUNNER_URL.to_owned()")]
     pub runner_url: String,
 
-    /// protocol://host:port the user node uses to connect to the LSP
-    #[argh(option, default = "DEFAULT_LSP_URL.to_owned()")]
-    pub lsp_url: String,
-
-    /// the LSP's node pk which the user node expects when connecting.
-    // TODO: This should be provisioned in a secure manner (hard-coded or after
-    // validating Lexe TLS cert) instead of being passed in insecurely via CLI.
-    #[argh(option, default = "*DEFAULT_LSP_NODE_PK")]
-    pub lsp_node_pk: NodePk,
+    /// the <node_pk>@<sock_addr> of the LSP.
+    #[argh(option)]
+    pub lsp: Option<ChannelPeer>,
 
     /// the DNS name the node enclave should include in its remote attestation
     /// certificate and the client will expect in its connection
@@ -207,8 +201,7 @@ impl Default for RunArgs {
             node_dns_name: NODE_RUN_DNS.to_owned(),
             backend_url: DEFAULT_BACKEND_URL.to_owned(),
             runner_url: DEFAULT_RUNNER_URL.to_owned(),
-            lsp_url: DEFAULT_LSP_URL.to_owned(),
-            lsp_node_pk: DEFAULT_LSP_NODE_PK.to_owned(),
+            lsp: None,
             mock: false,
         }
     }
@@ -238,10 +231,6 @@ impl RunArgs {
             .arg(&self.backend_url)
             .arg("--runner-url")
             .arg(&self.runner_url)
-            .arg("--lsp-url")
-            .arg(&self.lsp_url)
-            .arg("--lsp-node-pk")
-            .arg(&self.lsp_node_pk.to_string())
             .arg("--node-dns-name")
             .arg(&self.node_dns_name);
 
@@ -262,6 +251,9 @@ impl RunArgs {
         }
         if let Some(peer_port) = self.peer_port {
             cmd.arg("--peer-port").arg(&peer_port.to_string());
+        }
+        if let Some(ref lsp) = self.lsp {
+            cmd.arg("--lsp").arg(&lsp.to_string());
         }
         cmd
     }

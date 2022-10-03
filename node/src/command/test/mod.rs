@@ -4,11 +4,7 @@ use std::sync::Arc;
 
 use bitcoin::util::address::Address;
 use common::api::{NodePk, UserPk};
-use common::cli::{BitcoindRpcInfo, Network, RunArgs};
-use common::constants::{
-    DEFAULT_BACKEND_URL, DEFAULT_LSP_NODE_PK, DEFAULT_LSP_URL,
-    DEFAULT_RUNNER_URL,
-};
+use common::cli::{Network, RunArgs};
 use common::ln::peer::ChannelPeer;
 use common::rng::SysRng;
 use common::test_utils::regtest::Regtest;
@@ -28,26 +24,11 @@ fn default_args() -> RunArgs {
 
 fn default_args_for_user(user_pk: UserPk) -> RunArgs {
     RunArgs {
-        bitcoind_rpc: BitcoindRpcInfo {
-            username: String::from("kek"),
-            password: String::from("sadge"),
-            host: String::new(), // Filled in when BitcoinD initializes
-            port: 6969,          // Filled in when BitcoinD initializes
-        },
         user_pk,
         network: Network::from_str("regtest").unwrap(),
-        owner_port: None,
-        host_port: None,
-        peer_port: None,
-        shutdown_after_sync_if_no_activity: false,
-        inactivity_timer_sec: 3600,
-        repl: false,
-        backend_url: DEFAULT_BACKEND_URL.into(),
-        runner_url: DEFAULT_RUNNER_URL.into(),
-        lsp_url: DEFAULT_LSP_URL.into(),
-        lsp_node_pk: *DEFAULT_LSP_NODE_PK,
         node_dns_name: "localhost".to_owned(),
         mock: true,
+        ..RunArgs::default()
     }
 }
 
