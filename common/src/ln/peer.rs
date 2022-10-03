@@ -3,7 +3,8 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 
 use anyhow::{bail, Context};
-use common::api::NodePk;
+
+use crate::api::NodePk;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ChannelPeer {
@@ -43,14 +44,14 @@ impl Display for ChannelPeer {
 
 #[cfg(all(test, not(target_env = "sgx")))]
 mod test {
-    use common::rng::SmallRng;
-    use common::root_seed::RootSeed;
-    use common::test_utils::roundtrip;
     use proptest::arbitrary::{any, Arbitrary};
     use proptest::strategy::{BoxedStrategy, Strategy};
     use proptest::{prop_assert_eq, proptest};
 
     use super::*;
+    use crate::rng::SmallRng;
+    use crate::root_seed::RootSeed;
+    use crate::test_utils::roundtrip;
 
     impl Arbitrary for ChannelPeer {
         type Parameters = ();

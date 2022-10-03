@@ -12,3 +12,5 @@
 //! serialization round trip test.
 
 pub mod channel;
+/// `ChannelPeer`.
+pub mod peer;

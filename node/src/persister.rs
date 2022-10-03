@@ -11,6 +11,7 @@ use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::cli::Network;
 use common::enclave::Measurement;
 use common::ln::channel::LxOutPoint;
+use common::ln::peer::ChannelPeer;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use lexe_ln::alias::{
@@ -20,7 +21,6 @@ use lexe_ln::alias::{
 use lexe_ln::channel_monitor::LxChannelMonitorUpdate;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
-use lexe_ln::peer::ChannelPeer;
 use lexe_ln::traits::LexePersister;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
 use lightning::chain::channelmonitor::ChannelMonitorUpdate;
