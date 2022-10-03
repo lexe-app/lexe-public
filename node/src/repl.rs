@@ -2,7 +2,6 @@
 
 use std::io;
 use std::io::{BufRead, Write};
-use std::net::{SocketAddr, ToSocketAddrs};
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -22,7 +21,7 @@ use lightning::ln::{PaymentHash, PaymentPreimage};
 use lightning::routing::gossip::NodeId;
 use lightning_invoice::payment::PaymentError;
 use lightning_invoice::{utils, Currency, Invoice};
-use tracing::info;
+use tracing::{error, info};
 
 use crate::alias::InvoicePayerType;
 use crate::channel_manager::NodeChannelManager;
@@ -169,27 +168,8 @@ pub(crate) async fn poll_for_user_input(
                     );
                 }
                 "connectpeer" => {
-                    let peer_pk_and_ip_addr = words.next();
-                    if peer_pk_and_ip_addr.is_none() {
-                        info!("ERROR: connectpeer requires peer connection info: `connectpeer pk@host:port`");
-                        continue;
-                    }
-                    let (pk, addr) = match parse_peer_info(
-                        peer_pk_and_ip_addr.unwrap().to_string(),
-                    ) {
-                        Ok(info) => info,
-                        Err(e) => {
-                            info!("{:?}", e.into_inner().unwrap());
-                            continue;
-                        }
-                    };
-                    let channel_peer = ChannelPeer { pk, addr };
-                    if peer_manager
-                        .connect_channel_peer_if_necessary(channel_peer.clone())
-                        .await
-                        .is_ok()
-                    {
-                        info!("SUCCESS: connected to peer {}", channel_peer.pk);
+                    if let Err(e) = connect_peer(words, &peer_manager).await {
+                        error!("{e:#}")
                     }
                 }
                 "listchannels" => {
@@ -446,6 +426,26 @@ fn list_payments(
     info!("]");
 }
 
+async fn connect_peer<'a, I: Iterator<Item = &'a str>>(
+    mut words: I,
+    peer_manager: &NodePeerManager,
+) -> anyhow::Result<()> {
+    let peer_pk_and_ip_addr = words
+        .next()
+        .context("connectpeer format: `connectpeer <node_pk>@<host>:<port>`")?;
+    let channel_peer = ChannelPeer::from_str(peer_pk_and_ip_addr)
+        .context("Could not parse ChannelPeer")?;
+
+    peer_manager
+        .connect_channel_peer_if_necessary(channel_peer.clone())
+        .await
+        .context("Could not connect to peer")?;
+
+    info!("Success: connected to peer {}", channel_peer.node_pk);
+
+    Ok(())
+}
+
 fn send_payment(
     invoice_payer: &InvoicePayerType,
     invoice: &Invoice,
@@ -632,41 +632,6 @@ fn force_close_channel(
         Ok(()) => info!("EVENT: initiating channel force-close"),
         Err(e) => info!("ERROR: failed to force-close channel: {:?}", e),
     }
-}
-
-fn parse_peer_info(
-    peer_pk_and_ip_addr: String,
-) -> Result<(PublicKey, SocketAddr), std::io::Error> {
-    let mut pk_and_addr = peer_pk_and_ip_addr.split('@');
-    let pk = pk_and_addr.next();
-    let peer_addr_str = pk_and_addr.next();
-    if peer_addr_str.is_none() || peer_addr_str.is_none() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "ERROR: incorrectly formatted peer info. Should be formatted as: `pk@host:port`",
-        ));
-    }
-
-    let peer_addr = peer_addr_str
-        .unwrap()
-        .to_socket_addrs()
-        .map(|mut r| r.next());
-    if peer_addr.is_err() || peer_addr.as_ref().unwrap().is_none() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "ERROR: couldn't parse pk@host:port into a socket address",
-        ));
-    }
-
-    let pk = hex_to_compressed_pk(pk.unwrap());
-    if pk.is_none() {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            "ERROR: unable to parse given pk for node",
-        ));
-    }
-
-    Ok((pk.unwrap(), peer_addr.unwrap().unwrap()))
 }
 
 fn hex_to_compressed_pk(hex: &str) -> Option<PublicKey> {
