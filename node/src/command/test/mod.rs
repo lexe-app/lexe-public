@@ -9,11 +9,11 @@ use common::constants::{
     DEFAULT_BACKEND_URL, DEFAULT_LSP_NODE_PK, DEFAULT_LSP_URL,
     DEFAULT_RUNNER_URL,
 };
+use common::ln::peer::ChannelPeer;
 use common::rng::SysRng;
 use common::test_utils::regtest::Regtest;
 use lexe_ln::alias::NetworkGraphType;
 use lexe_ln::logger;
-use lexe_ln::peer::ChannelPeer;
 
 use crate::channel_manager::NodeChannelManager;
 use crate::command::owner;

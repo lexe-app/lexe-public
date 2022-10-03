@@ -17,8 +17,6 @@ pub mod init;
 pub mod keys_manager;
 /// LDK + SGX compatible logger
 pub mod logger;
-/// Types related to peers and networking.
-pub mod peer;
 /// Chain sync.
 pub mod sync;
 /// Traits.

@@ -4,6 +4,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{bail, Context};
 use common::backoff;
+use common::ln::peer::ChannelPeer;
 use common::rng::Crng;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
@@ -11,7 +12,6 @@ use futures::future;
 use lexe_ln::alias::{OnionMessengerType, P2PGossipSyncType};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
-use lexe_ln::peer::ChannelPeer;
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
 use secrecy::zeroize::Zeroizing;
