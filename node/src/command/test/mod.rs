@@ -2,9 +2,8 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use bitcoin::secp256k1::PublicKey;
 use bitcoin::util::address::Address;
-use common::api::UserPk;
+use common::api::{NodePk, UserPk};
 use common::cli::{BitcoindRpcInfo, Network, RunArgs};
 use common::constants::{
     DEFAULT_BACKEND_URL, DEFAULT_LSP_NODE_PK, DEFAULT_LSP_URL,
@@ -94,9 +93,9 @@ impl CommandTestHarness {
         self.node.network_graph.clone()
     }
 
-    fn pk(&self) -> PublicKey {
+    fn node_pk(&self) -> NodePk {
         let mut rng = SysRng::new();
-        self.node.keys_manager.derive_pk(&mut rng)
+        NodePk(self.node.keys_manager.derive_pk(&mut rng))
     }
 
     fn p2p_address(&self) -> SocketAddr {
@@ -163,7 +162,7 @@ async fn connect_peer() {
     let peer_manager1 = node1.peer_manager();
     let peer_manager2 = node2.peer_manager();
     let channel_peer = ChannelPeer {
-        pk: node2.pk(),
+        node_pk: node2.node_pk(),
         addr: node2.p2p_address(),
     };
 
@@ -217,7 +216,7 @@ async fn open_channel() {
 
     // Prepare open channel prerequisites
     let channel_peer = ChannelPeer {
-        pk: node2.pk(),
+        node_pk: node2.node_pk(),
         addr: node2.p2p_address(),
     };
     let channel_value_sat = 1_000_000;

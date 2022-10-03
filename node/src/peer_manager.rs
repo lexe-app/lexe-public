@@ -91,7 +91,7 @@ impl NodePeerManager {
         channel_peer: ChannelPeer,
     ) -> anyhow::Result<()> {
         // Return immediately if we're already connected to the peer
-        if self.get_peer_node_ids().contains(&channel_peer.pk) {
+        if self.get_peer_node_ids().contains(&channel_peer.node_pk.0) {
             return Ok(());
         }
 
@@ -133,7 +133,7 @@ impl NodePeerManager {
         // TODO: Rewrite / replace lightning-net-tokio entirely
         let connection_closed_fut = lightning_net_tokio::setup_outbound(
             self.arc_inner(),
-            channel_peer.pk,
+            channel_peer.node_pk.0,
             stream,
         );
         let mut connection_closed_fut = Box::pin(connection_closed_fut);
@@ -153,7 +153,7 @@ impl NodePeerManager {
             if self
                 .get_peer_node_ids()
                 .iter()
-                .any(|pk| *pk == channel_peer.pk)
+                .any(|pk| *pk == channel_peer.node_pk.0)
             {
                 // Connection confirmed, break and return Ok
                 break;
@@ -212,7 +212,7 @@ pub(crate) fn spawn_p2p_reconnector(
                 Vec::with_capacity(disconnected_peers.len());
             for node_id in disconnected_peers {
                 for channel_peer in channel_peers.iter() {
-                    if channel_peer.pk == node_id {
+                    if channel_peer.node_pk.0 == node_id {
                         let connect_fut = peer_manager
                             .do_connect_peer(channel_peer.deref().clone());
                         connect_futs.push(connect_fut)

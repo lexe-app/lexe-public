@@ -216,7 +216,7 @@ impl NodeChannelManager {
         let push_msat = 0; // No need for this yet
         self.0
             .create_channel(
-                channel_peer.pk,
+                channel_peer.node_pk.0,
                 channel_value_sat,
                 push_msat,
                 user_channel_id,

@@ -2,52 +2,82 @@ use std::fmt::{self, Display};
 use std::net::SocketAddr;
 use std::str::FromStr;
 
-use anyhow::Context;
-use bitcoin::secp256k1::PublicKey;
+use anyhow::{bail, Context};
+use common::api::NodePk;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ChannelPeer {
-    pub pk: PublicKey,
+    pub node_pk: NodePk,
     pub addr: SocketAddr,
 }
 
-/// <pk>@<addr>
+/// `<node_pk>@<addr>`
 impl FromStr for ChannelPeer {
     type Err = anyhow::Error;
-    fn from_str(pk_at_addr: &str) -> anyhow::Result<Self> {
-        // vec![<pk>, <addr>]
-        let mut pk_and_addr = pk_at_addr.split('@');
-        let pk_str = pk_and_addr
-            .next()
-            .context("Missing <pk> in <pk>@<addr> peer address")?;
-        let addr_str = pk_and_addr
-            .next()
-            .context("Missing <addr> in <pk>@<addr> peer address")?;
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        // vec![<node_pk>, <addr>]
+        let mut parts = s.split('@');
+        let (pk_str, addr_str) =
+            match (parts.next(), parts.next(), parts.next()) {
+                (Some(pk_str), Some(addr_str), None) => (pk_str, addr_str),
+                _ => bail!("Should be in format <node_pk>@<socket_addr>"),
+            };
 
-        let pk = PublicKey::from_str(pk_str)
-            .context("Could not deserialize PublicKey from LowerHex")?;
-        let addr = SocketAddr::from_str(addr_str)
-            .context("Could not parse socket address from string")?;
+        let node_pk =
+            NodePk::from_str(pk_str).context("Invalid node public key")?;
+        let addr =
+            SocketAddr::from_str(addr_str).context("Invalid socket address")?;
 
-        Ok(Self { pk, addr })
+        Ok(Self { node_pk, addr })
     }
 }
 
-/// <pk>@<addr>
+/// `<node_pk>@<addr>`
 impl Display for ChannelPeer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}@{}", self.pk, self.addr)
+        let node_pk = &self.node_pk;
+        let addr = &self.addr;
+        write!(f, "{node_pk}@{addr}")
     }
 }
 
 #[cfg(all(test, not(target_env = "sgx")))]
 mod test {
-    use common::rng::SysRng;
+    use common::rng::SmallRng;
     use common::root_seed::RootSeed;
-    use proptest::arbitrary::any;
+    use common::test_utils::roundtrip;
+    use proptest::arbitrary::{any, Arbitrary};
+    use proptest::strategy::{BoxedStrategy, Strategy};
     use proptest::{prop_assert_eq, proptest};
 
     use super::*;
+
+    impl Arbitrary for ChannelPeer {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<SmallRng>(), any::<SocketAddr>())
+                .prop_map(|(mut rng, mut addr)| {
+                    let root_seed = RootSeed::from_rng(&mut rng);
+                    let node_pk = NodePk(root_seed.derive_node_pk(&mut rng));
+
+                    // Hack to prevent the IPv6 flowinfo field (which we don't
+                    // care about) from causing the equality check to fail
+                    if let SocketAddr::V6(inner) = &mut addr {
+                        inner.set_flowinfo(0);
+                    }
+
+                    Self { node_pk, addr }
+                })
+                .boxed()
+        }
+    }
+
+    #[test]
+    fn channel_peer_roundtrip() {
+        roundtrip::fromstr_display_roundtrip_proptest::<ChannelPeer>();
+    }
 
     proptest! {
         /// [`SocketAddr`] causes problems with proptest, this tests the fix.
@@ -66,28 +96,6 @@ mod test {
             }
 
             prop_assert_eq!(addr1, addr2);
-        }
-
-        #[test]
-        fn channel_peer_roundtrip(
-            root_seed in any::<RootSeed>(),
-            addr in any::<SocketAddr>(),
-        ) {
-            let mut rng = SysRng::new();
-            let pk = root_seed.derive_node_pk(&mut rng);
-            let mut channel_peer1 = ChannelPeer { pk, addr };
-            let mut channel_peer2 =
-                ChannelPeer::from_str(&channel_peer1.to_string()).unwrap();
-
-            // Hack to prevent differing IPv6 flowinfo fields (which we don't
-            // care about) from failing the equality comparison
-            if let (SocketAddr::V6(inner1), SocketAddr::V6(inner2)) =
-                (&mut channel_peer1.addr, &mut channel_peer2.addr) {
-                inner1.set_flowinfo(0);
-                inner2.set_flowinfo(0);
-            }
-
-            prop_assert_eq!(channel_peer1, channel_peer2);
         }
     }
 }
