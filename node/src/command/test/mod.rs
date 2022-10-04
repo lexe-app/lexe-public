@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -9,10 +10,10 @@ use common::ln::peer::ChannelPeer;
 use common::rng::SysRng;
 use common::test_utils::regtest::Regtest;
 use lexe_ln::alias::NetworkGraphType;
-use lexe_ln::{logger, p2p};
+use lexe_ln::{channel, logger, p2p};
 use tokio::sync::mpsc;
 
-use crate::channel_manager::NodeChannelManager;
+use crate::channel_manager::{NodeChannelManager, USER_CONFIG};
 use crate::command::owner;
 use crate::peer_manager::NodePeerManager;
 use crate::persister::NodePersister;
@@ -215,17 +216,18 @@ async fn open_channel() {
 
     // Open the channel
     println!("Opening channel");
-    node1
-        .channel_manager()
-        .open_channel(
-            &node1.peer_manager(),
-            &node1.persister(),
-            channel_peer,
-            channel_value_sat,
-            &channel_peer_tx,
-        )
-        .await
-        .expect("Failed to open channel");
+
+    channel::open_channel(
+        node1.channel_manager().deref(),
+        node1.peer_manager().arc_inner(),
+        node1.persister(),
+        channel_peer,
+        channel_value_sat,
+        &channel_peer_tx,
+        USER_CONFIG,
+    )
+    .await
+    .expect("Failed to open channel");
 
     // After opening
     let post_node_info =

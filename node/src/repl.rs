@@ -14,6 +14,7 @@ use common::cli::Network;
 use common::hex;
 use common::ln::peer::ChannelPeer;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
+use lexe_ln::channel;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::p2p::{self, ChannelPeerUpdate};
 use lexe_ln::types::{HTLCStatus, MillisatAmount, PaymentInfo};
@@ -26,7 +27,7 @@ use tokio::sync::mpsc;
 use tracing::{error, info};
 
 use crate::alias::InvoicePayerType;
-use crate::channel_manager::NodeChannelManager;
+use crate::channel_manager::{NodeChannelManager, USER_CONFIG};
 use crate::peer_manager::NodePeerManager;
 use crate::persister::NodePersister;
 
@@ -68,7 +69,7 @@ pub(crate) async fn poll_for_user_input(
                         words,
                         &channel_manager,
                         &peer_manager,
-                        &persister,
+                        persister.clone(),
                         &channel_peer_tx,
                     )
                     .await;
@@ -596,7 +597,7 @@ async fn open_channel<'a, I: Iterator<Item = &'a str>>(
     mut words: I,
     channel_manager: &NodeChannelManager,
     peer_manager: &NodePeerManager,
-    persister: &NodePersister,
+    persister: NodePersister,
     channel_peer_tx: &mpsc::Sender<ChannelPeerUpdate>,
 ) -> anyhow::Result<()> {
     let peer_pk_at_addr = words
@@ -611,16 +612,17 @@ async fn open_channel<'a, I: Iterator<Item = &'a str>>(
     let channel_value_sat = u64::from_str(channel_value_sat)
         .context("channel_value_sat must be a number")?;
 
-    channel_manager
-        .open_channel(
-            peer_manager,
-            persister,
-            channel_peer,
-            channel_value_sat,
-            channel_peer_tx,
-        )
-        .await
-        .context("Could not open channel")
+    channel::open_channel(
+        channel_manager.deref(),
+        peer_manager.arc_inner(),
+        persister,
+        channel_peer,
+        channel_value_sat,
+        channel_peer_tx,
+        USER_CONFIG,
+    )
+    .await
+    .context("Could not open channel")
 }
 
 fn close_channel(

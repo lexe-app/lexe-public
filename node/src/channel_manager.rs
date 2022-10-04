@@ -1,14 +1,12 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use bitcoin::BlockHash;
 use common::cli::Network;
-use common::ln::peer::ChannelPeer;
 use lexe_ln::alias::{BlockSourceType, BroadcasterType, FeeEstimatorType};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
-use lexe_ln::p2p::{self, ChannelPeerUpdate};
 use lightning::chain::BestBlock;
 use lightning::ln::channelmanager::{
     ChainParameters, ChannelManager, MIN_CLTV_EXPIRY_DELTA,
@@ -16,12 +14,9 @@ use lightning::ln::channelmanager::{
 use lightning::util::config::{
     ChannelConfig, ChannelHandshakeConfig, ChannelHandshakeLimits, UserConfig,
 };
-use tokio::sync::mpsc;
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 use crate::alias::{ChainMonitorType, ChannelManagerType};
-use crate::peer_manager::NodePeerManager;
-use crate::persister::NodePersister;
 
 /// NOTE: Important security parameter!! This is specified in # of blocks.
 ///
@@ -193,59 +188,6 @@ impl NodeChannelManager {
 
         info!(%blockhash, "Loaded {label} channel manager");
         Ok((blockhash, channel_manager))
-    }
-
-    /// Handles the full logic of opening a channel, including connecting to the
-    /// peer, creating the channel, and persisting the newly created channel.
-    #[allow(dead_code)] // TODO Remove once this fn is used in sgx
-    pub(crate) async fn open_channel(
-        &self,
-        peer_manager: &NodePeerManager,
-        persister: &NodePersister,
-        channel_peer: ChannelPeer,
-        channel_value_sat: u64,
-        channel_peer_tx: &mpsc::Sender<ChannelPeerUpdate>,
-    ) -> anyhow::Result<()> {
-        info!("opening channel with {}", channel_peer);
-
-        // Make sure that we're connected to the channel peer
-        p2p::connect_channel_peer_if_necessary(
-            peer_manager.arc_inner(),
-            channel_peer.clone(),
-        )
-        .await
-        .context("Failed to connect to peer")?;
-
-        // Create the channel
-        let user_channel_id = 1; // Not important, just use a default value
-        let push_msat = 0; // No need for this yet
-        self.0
-            .create_channel(
-                channel_peer.node_pk.0,
-                channel_value_sat,
-                push_msat,
-                user_channel_id,
-                Some(USER_CONFIG),
-            )
-            // LDK's APIError impls Debug but not Error
-            .map_err(|e| anyhow!("Failed to create channel: {e:?}"))?;
-
-        // Persist the channel
-        persister
-            .persist_channel_peer(channel_peer.clone())
-            .await
-            .context("Failed to persist channel peer")?;
-
-        info!("Successfully opened channel with {}", channel_peer);
-        if let Err(e) =
-            channel_peer_tx.try_send(ChannelPeerUpdate::Add(channel_peer))
-        {
-            error!(
-                "Couldn't update p2p reconnector of new channel peer: {e:#}"
-            );
-        }
-
-        Ok(())
     }
 
     // TODO: Closing a channel should delete a channel peer.
