@@ -63,9 +63,9 @@ pub type ProbabilisticScorerType =
 pub type OnionMessengerType =
     OnionMessenger<SignerType, LexeKeysManager, LexeTracingLogger>;
 
-pub type LexePeerManagerType<CHANNELMANAGER> = PeerManager<
+pub type LexePeerManagerType<CHANNEL_MANAGER> = PeerManager<
     SocketDescriptor,
-    CHANNELMANAGER,
+    CHANNEL_MANAGER,
     Arc<P2PGossipSyncType>,
     Arc<OnionMessengerType>,
     LexeTracingLogger,
@@ -76,12 +76,12 @@ pub type PaymentInfoStorageType = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
 
 pub type RouterType = DefaultRouter<Arc<NetworkGraphType>, LexeTracingLogger>;
 
-pub type LexeInvoicePayerType<CHANNELMANAGER, EVENTHANDLER> = InvoicePayer<
-    CHANNELMANAGER,
+pub type LexeInvoicePayerType<CHANNEL_MANAGER, EVENT_HANDLER> = InvoicePayer<
+    CHANNEL_MANAGER,
     RouterType,
     Arc<Mutex<ProbabilisticScorerType>>,
     LexeTracingLogger,
-    EVENTHANDLER,
+    EVENT_HANDLER,
 >;
 
 /// This is the tuple that LDK impl'd `Listen` for

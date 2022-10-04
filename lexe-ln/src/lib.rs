@@ -3,6 +3,9 @@
 
 // Enforce disallowed methods clippy lint
 #![deny(clippy::disallowed_methods)]
+// Allow e.g. `CHANNEL_MANAGER` in generics to clearly distinguish between
+// concrete and generic types
+#![allow(non_camel_case_types)]
 
 /// Type aliases.
 pub mod alias;
