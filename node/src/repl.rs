@@ -15,6 +15,7 @@ use common::hex;
 use common::ln::peer::ChannelPeer;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::keys_manager::LexeKeysManager;
+use lexe_ln::p2p;
 use lexe_ln::types::{HTLCStatus, MillisatAmount, PaymentInfo};
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::ln::{PaymentHash, PaymentPreimage};
@@ -436,10 +437,12 @@ async fn connect_peer<'a, I: Iterator<Item = &'a str>>(
     let channel_peer = ChannelPeer::from_str(peer_pk_and_ip_addr)
         .context("Could not parse ChannelPeer")?;
 
-    peer_manager
-        .connect_channel_peer_if_necessary(channel_peer.clone())
-        .await
-        .context("Could not connect to peer")?;
+    p2p::connect_channel_peer_if_necessary(
+        peer_manager.arc_inner(),
+        channel_peer.clone(),
+    )
+    .await
+    .context("Could not connect to peer")?;
 
     info!("Success: connected to peer {}", channel_peer.node_pk);
 

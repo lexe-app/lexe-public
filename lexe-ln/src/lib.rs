@@ -17,6 +17,8 @@ pub mod init;
 pub mod keys_manager;
 /// LDK + SGX compatible logger
 pub mod logger;
+/// Shared functions relating to LN P2P.
+pub mod p2p;
 /// Chain sync.
 pub mod sync;
 /// Traits.

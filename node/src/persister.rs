@@ -272,37 +272,6 @@ impl InnerPersister {
         Ok(ng)
     }
 
-    pub(crate) async fn read_channel_peers(
-        &self,
-    ) -> anyhow::Result<Vec<ChannelPeer>> {
-        debug!("Reading channel peers");
-        let dir = NodeDirectory {
-            node_pk: self.node_pk,
-            measurement: self.measurement,
-            dirname: CHANNEL_PEERS_DIRECTORY.to_owned(),
-        };
-
-        let files = self
-            .api
-            .get_directory(&dir)
-            .await
-            .context("Could not fetch channel peers from DB")?;
-
-        let mut result = Vec::with_capacity(files.len());
-
-        for file in files {
-            // <pk>@<addr>
-            let pk_at_addr = file.id.filename;
-
-            let channel_peer = ChannelPeer::from_str(&pk_at_addr)
-                .context("Could not deserialize channel peer")?;
-
-            result.push(channel_peer);
-        }
-
-        Ok(result)
-    }
-
     pub(crate) async fn persist_channel_peer(
         &self,
         channel_peer: ChannelPeer,
@@ -404,6 +373,35 @@ impl LexePersister for InnerPersister {
             .await
             .map(|_| ())
             .context("Could not persist scorer")
+    }
+
+    async fn read_channel_peers(&self) -> anyhow::Result<Vec<ChannelPeer>> {
+        debug!("Reading channel peers");
+        let dir = NodeDirectory {
+            node_pk: self.node_pk,
+            measurement: self.measurement,
+            dirname: CHANNEL_PEERS_DIRECTORY.to_owned(),
+        };
+
+        let files = self
+            .api
+            .get_directory(&dir)
+            .await
+            .context("Could not fetch channel peers from DB")?;
+
+        let mut result = Vec::with_capacity(files.len());
+
+        for file in files {
+            // <pk>@<addr>
+            let pk_at_addr = file.id.filename;
+
+            let channel_peer = ChannelPeer::from_str(&pk_at_addr)
+                .context("Could not deserialize channel peer")?;
+
+            result.push(channel_peer);
+        }
+
+        Ok(result)
     }
 }
 

@@ -23,10 +23,10 @@ use lexe_ln::alias::{
 };
 use lexe_ln::background_processor::LexeBackgroundProcessor;
 use lexe_ln::bitcoind::LexeBitcoind;
-use lexe_ln::init;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::sync::SyncedChainListeners;
+use lexe_ln::{init, p2p};
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::onion_message::OnionMessenger;
@@ -42,7 +42,7 @@ use crate::api::ApiClient;
 use crate::channel_manager::NodeChannelManager;
 use crate::event_handler::NodeEventHandler;
 use crate::inactivity_timer::InactivityTimer;
-use crate::peer_manager::{self, NodePeerManager};
+use crate::peer_manager::NodePeerManager;
 use crate::persister::NodePersister;
 use crate::{api, command};
 
@@ -251,10 +251,12 @@ impl UserNode {
         // Connect to the LSP, print a warning if not specified
         if let Some(ref lsp_channel_peer) = args.lsp {
             // TODO: This should be done concurrently to speed up init
-            peer_manager
-                .connect_channel_peer_if_necessary(lsp_channel_peer.clone())
-                .await
-                .context("Could not connect to LSP")?;
+            p2p::connect_channel_peer_if_necessary(
+                peer_manager.arc_inner(),
+                lsp_channel_peer.clone(),
+            )
+            .await
+            .context("Could not connect to LSP")?;
         } else {
             // If we're not in a test, we should've passed in LSP info. Note
             // that this warning is still triggered in some tests because
@@ -284,9 +286,9 @@ impl UserNode {
         tasks.push(("p2p listener", p2p_listener_task));
 
         // Spawn a task to regularly reconnect to channel peers
-        let p2p_reconnector_task = peer_manager::spawn_p2p_reconnector(
-            channel_manager.clone(),
-            peer_manager.clone(),
+        let p2p_reconnector_task = p2p::spawn_p2p_reconnector(
+            channel_manager.arc_inner(),
+            peer_manager.arc_inner(),
             persister.clone(),
             shutdown.clone(),
         );
