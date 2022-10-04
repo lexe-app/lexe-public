@@ -225,49 +225,22 @@ impl VirtualFileSystem {
     fn new() -> Self {
         let mut inner = HashMap::new();
 
-        // TODO(max): Generalize this
-
-        // Insert all directories used by the persister
-        let user_pk1 = UserPk::from_i64(1);
-        let singleton_dir = NodeDirectory {
-            node_pk: node_pk(user_pk1),
-            measurement: measurement(user_pk1),
-            dirname: persister::SINGLETON_DIRECTORY.into(),
-        };
-        let channel_peers_dir = NodeDirectory {
-            node_pk: node_pk(user_pk1),
-            measurement: measurement(user_pk1),
-            dirname: persister::CHANNEL_PEERS_DIRECTORY.into(),
-        };
-        let channel_monitors_dir = NodeDirectory {
-            node_pk: node_pk(user_pk1),
-            measurement: measurement(user_pk1),
-            dirname: persister::CHANNEL_MONITORS_DIRECTORY.into(),
-        };
-        inner.insert(singleton_dir, HashMap::new());
-        inner.insert(channel_peers_dir, HashMap::new());
-        inner.insert(channel_monitors_dir, HashMap::new());
-
-        // Insert all directories used by the persister
-        let user_pk2 = UserPk::from_i64(2);
-        let singleton_dir = NodeDirectory {
-            node_pk: node_pk(user_pk2),
-            measurement: measurement(user_pk2),
-            dirname: persister::SINGLETON_DIRECTORY.into(),
-        };
-        let channel_peers_dir = NodeDirectory {
-            node_pk: node_pk(user_pk2),
-            measurement: measurement(user_pk2),
-            dirname: persister::CHANNEL_PEERS_DIRECTORY.into(),
-        };
-        let channel_monitors_dir = NodeDirectory {
-            node_pk: node_pk(user_pk2),
-            measurement: measurement(user_pk2),
-            dirname: persister::CHANNEL_MONITORS_DIRECTORY.into(),
-        };
-        inner.insert(singleton_dir, HashMap::new());
-        inner.insert(channel_peers_dir, HashMap::new());
-        inner.insert(channel_monitors_dir, HashMap::new());
+        // For each user, insert all directories used by the persister
+        for i in 1..=2 {
+            let user_pk = UserPk::from_i64(i);
+            let singleton_dir = NodeDirectory {
+                node_pk: node_pk(user_pk),
+                measurement: measurement(user_pk),
+                dirname: persister::SINGLETON_DIRECTORY.into(),
+            };
+            let channel_monitors_dir = NodeDirectory {
+                node_pk: node_pk(user_pk),
+                measurement: measurement(user_pk),
+                dirname: persister::CHANNEL_MONITORS_DIRECTORY.into(),
+            };
+            inner.insert(singleton_dir, HashMap::new());
+            inner.insert(channel_monitors_dir, HashMap::new());
+        }
 
         Self { inner }
     }

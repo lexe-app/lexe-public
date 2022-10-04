@@ -45,7 +45,6 @@ const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 const SCORER_FILENAME: &str = "scorer";
 
 // Non-singleton objects use a fixed directory with dynamic filenames
-pub(crate) const CHANNEL_PEERS_DIRECTORY: &str = "channel_peers";
 pub(crate) const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 
 /// The default number of persist retries for important objects
@@ -272,59 +271,14 @@ impl InnerPersister {
         Ok(ng)
     }
 
-    pub(crate) async fn read_channel_peers(
-        &self,
-    ) -> anyhow::Result<Vec<ChannelPeer>> {
-        debug!("Reading channel peers");
-        let dir = NodeDirectory {
-            node_pk: self.node_pk,
-            measurement: self.measurement,
-            dirname: CHANNEL_PEERS_DIRECTORY.to_owned(),
-        };
-
-        let files = self
-            .api
-            .get_directory(&dir)
-            .await
-            .context("Could not fetch channel peers from DB")?;
-
-        let mut result = Vec::with_capacity(files.len());
-
-        for file in files {
-            // <pk>@<addr>
-            let pk_at_addr = file.id.filename;
-
-            let channel_peer = ChannelPeer::from_str(&pk_at_addr)
-                .context("Could not deserialize channel peer")?;
-
-            result.push(channel_peer);
-        }
-
-        Ok(result)
-    }
-
     pub(crate) async fn persist_channel_peer(
         &self,
-        channel_peer: ChannelPeer,
+        _channel_peer: ChannelPeer,
     ) -> anyhow::Result<()> {
-        debug!("Persisting new channel peer");
-        let pk_at_addr = channel_peer.to_string();
-
-        let cp_file = NodeFile::new(
-            self.node_pk,
-            self.measurement,
-            CHANNEL_PEERS_DIRECTORY.to_owned(),
-            pk_at_addr,
-            // There is no 'data' associated with a channel peer
-            Vec::new(),
-        );
-
-        // Retry up to 3 times
-        self.api
-            .create_file_with_retries(&cp_file, IMPORTANT_RETRIES)
-            .await
-            .map(|_| ())
-            .map_err(|e| e.into())
+        // User nodes will only ever have one channel peer (the LSP) whose
+        // socket address could change in between restarts, so there is nothing
+        // to do here.
+        Ok(())
     }
 }
 
