@@ -270,16 +270,6 @@ impl InnerPersister {
 
         Ok(ng)
     }
-
-    pub(crate) async fn persist_channel_peer(
-        &self,
-        _channel_peer: ChannelPeer,
-    ) -> anyhow::Result<()> {
-        // User nodes will only ever have one channel peer (the LSP) whose
-        // socket address could change in between restarts, so there is nothing
-        // to do here.
-        Ok(())
-    }
 }
 
 #[async_trait]
@@ -358,6 +348,15 @@ impl LexePersister for InnerPersister {
             .await
             .map(|_| ())
             .context("Could not persist scorer")
+    }
+
+    async fn persist_channel_peer(
+        &self,
+        _channel_peer: ChannelPeer,
+    ) -> anyhow::Result<()> {
+        // User nodes only ever have one channel peer (the LSP), whose address
+        // often changes in between restarts, so there is nothing to do here.
+        Ok(())
     }
 }
 
