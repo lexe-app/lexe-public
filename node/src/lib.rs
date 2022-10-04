@@ -4,6 +4,7 @@
 #![deny(clippy::disallowed_methods)]
 
 pub mod cli;
+pub mod run;
 
 mod alias;
 mod api;
@@ -15,4 +16,3 @@ mod peer_manager;
 mod persister;
 mod provision;
 mod repl;
-mod run;

@@ -39,7 +39,13 @@ impl Regtest {
             port,
         };
 
-        (Self(bitcoind), rpc_info)
+        let regtest = Self(bitcoind);
+
+        // Mine some blocks so that chain sync doesn't (unrealistically) see a
+        // completely empty history
+        regtest.mine_6_blocks().await;
+
+        (regtest, rpc_info)
     }
 
     /// Mines 6 blocks. Block rewards are sent to a dummy address.
