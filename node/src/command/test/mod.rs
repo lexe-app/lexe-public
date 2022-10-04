@@ -9,7 +9,7 @@ use common::ln::peer::ChannelPeer;
 use common::rng::SysRng;
 use common::test_utils::regtest::Regtest;
 use lexe_ln::alias::NetworkGraphType;
-use lexe_ln::logger;
+use lexe_ln::{logger, p2p};
 
 use crate::channel_manager::NodeChannelManager;
 use crate::command::owner;
@@ -160,10 +160,12 @@ async fn connect_peer() {
     assert!(peer_manager2.get_peer_node_ids().is_empty());
 
     // Connect
-    peer_manager1
-        .connect_channel_peer_if_necessary(channel_peer)
-        .await
-        .expect("Failed to connect");
+    p2p::connect_channel_peer_if_necessary(
+        peer_manager1.arc_inner(),
+        channel_peer,
+    )
+    .await
+    .expect("Failed to connect");
 
     // After connecting
     let post_node_info1 =

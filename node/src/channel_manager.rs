@@ -8,6 +8,7 @@ use common::ln::peer::ChannelPeer;
 use lexe_ln::alias::{BlockSourceType, BroadcasterType, FeeEstimatorType};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
+use lexe_ln::p2p;
 use lightning::chain::BestBlock;
 use lightning::ln::channelmanager::{
     ChainParameters, ChannelManager, MIN_CLTV_EXPIRY_DELTA,
@@ -206,10 +207,12 @@ impl NodeChannelManager {
         info!("opening channel with {}", channel_peer);
 
         // Make sure that we're connected to the channel peer
-        peer_manager
-            .connect_channel_peer_if_necessary(channel_peer.clone())
-            .await
-            .context("Failed to connect to peer")?;
+        p2p::connect_channel_peer_if_necessary(
+            peer_manager.arc_inner(),
+            channel_peer.clone(),
+        )
+        .await
+        .context("Failed to connect to peer")?;
 
         // Create the channel
         let user_channel_id = 1; // Not important, just use a default value
