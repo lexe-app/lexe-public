@@ -49,12 +49,15 @@ pub(crate) async fn poll_for_user_input(
         "LDK logs are available at <your-supplied-ldk-data-dir-path>/.ldk/logs"
     );
     info!("Local Node ID is {}.", channel_manager.get_our_node_id());
-    let stdin = io::stdin();
-    let mut line_reader = stdin.lock().lines();
     loop {
         print!("> ");
-        io::stdout().flush().unwrap(); // Without flushing, the `>` doesn't print
-        let maybe_line = line_reader.next();
+        // Without flushing, the `>` doesn't print
+        io::stdout().flush().unwrap();
+        // Dropping line_reader within this scope allows the node to be `Send`
+        let maybe_line = {
+            let mut line_reader = io::stdin().lock().lines();
+            line_reader.next()
+        };
         let line = match maybe_line {
             Some(l) => l.unwrap(),
             None => break,
