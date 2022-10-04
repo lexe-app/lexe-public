@@ -55,14 +55,14 @@ where
 
 /// Given a [`TcpListener`], spawns a task to await on inbound connections,
 /// handing off the resultant `TcpStream`s for the `PeerManager` to manage.
-pub fn spawn_p2p_listener<CHANNELMANAGER>(
+pub fn spawn_p2p_listener<CHANNEL_MANAGER>(
     listener: TcpListener,
-    peer_manager: Arc<LexePeerManagerType<CHANNELMANAGER>>,
+    peer_manager: Arc<LexePeerManagerType<CHANNEL_MANAGER>>,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
 where
-    CHANNELMANAGER: Deref + 'static + Send + Sync,
-    CHANNELMANAGER::Target: ChannelMessageHandler + Send + Sync,
+    CHANNEL_MANAGER: Deref + 'static + Send + Sync,
+    CHANNEL_MANAGER::Target: ChannelMessageHandler + Send + Sync,
 {
     LxTask::spawn(async move {
         let mut child_tasks = FuturesUnordered::new();

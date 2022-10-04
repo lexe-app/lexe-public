@@ -19,13 +19,13 @@ use crate::traits::LexePersister;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 
-pub async fn connect_channel_peer_if_necessary<CHANNELMANAGER>(
-    peer_manager: Arc<LexePeerManagerType<CHANNELMANAGER>>,
+pub async fn connect_channel_peer_if_necessary<CHANNEL_MANAGER>(
+    peer_manager: Arc<LexePeerManagerType<CHANNEL_MANAGER>>,
     channel_peer: ChannelPeer,
 ) -> anyhow::Result<()>
 where
-    CHANNELMANAGER: Deref + Send + Sync + 'static,
-    CHANNELMANAGER::Target: ChannelMessageHandler + Send + Sync,
+    CHANNEL_MANAGER: Deref + Send + Sync + 'static,
+    CHANNEL_MANAGER::Target: ChannelMessageHandler + Send + Sync,
 {
     debug!("Connecting to channel peer {channel_peer}");
 
@@ -44,13 +44,13 @@ where
         .context("Failed to connect to peer")
 }
 
-pub async fn do_connect_peer<CHANNELMANAGER>(
-    peer_manager: Arc<LexePeerManagerType<CHANNELMANAGER>>,
+pub async fn do_connect_peer<CHANNEL_MANAGER>(
+    peer_manager: Arc<LexePeerManagerType<CHANNEL_MANAGER>>,
     channel_peer: ChannelPeer,
 ) -> anyhow::Result<()>
 where
-    CHANNELMANAGER: Deref + Send + Sync + 'static,
-    CHANNELMANAGER::Target: ChannelMessageHandler + Send + Sync,
+    CHANNEL_MANAGER: Deref + Send + Sync + 'static,
+    CHANNEL_MANAGER::Target: ChannelMessageHandler + Send + Sync,
 {
     let stream =
         time::timeout(CONNECT_TIMEOUT, TcpStream::connect(channel_peer.addr))
@@ -113,15 +113,15 @@ where
 }
 
 /// Spawns a task that regularly reconnects to the channel peers stored in DB.
-pub fn spawn_p2p_reconnector<CHANNELMANAGER, PERSISTER>(
+pub fn spawn_p2p_reconnector<CHANNEL_MANAGER, PERSISTER>(
     channel_manager: Arc<LexeChannelManagerType<PERSISTER>>,
-    peer_manager: Arc<LexePeerManagerType<CHANNELMANAGER>>,
+    peer_manager: Arc<LexePeerManagerType<CHANNEL_MANAGER>>,
     persister: PERSISTER,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
 where
-    CHANNELMANAGER: Deref + Send + Sync + 'static,
-    CHANNELMANAGER::Target: ChannelMessageHandler + Send + Sync,
+    CHANNEL_MANAGER: Deref + Send + Sync + 'static,
+    CHANNEL_MANAGER::Target: ChannelMessageHandler + Send + Sync,
     PERSISTER: Deref + Send + Sync + 'static,
     PERSISTER::Target: LexePersister + Send + Sync,
 {
