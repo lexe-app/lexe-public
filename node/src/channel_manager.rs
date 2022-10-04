@@ -8,7 +8,7 @@ use common::ln::peer::ChannelPeer;
 use lexe_ln::alias::{BlockSourceType, BroadcasterType, FeeEstimatorType};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
-use lexe_ln::p2p;
+use lexe_ln::p2p::{self, ChannelPeerUpdate};
 use lightning::chain::BestBlock;
 use lightning::ln::channelmanager::{
     ChainParameters, ChannelManager, MIN_CLTV_EXPIRY_DELTA,
@@ -16,7 +16,8 @@ use lightning::ln::channelmanager::{
 use lightning::util::config::{
     ChannelConfig, ChannelHandshakeConfig, ChannelHandshakeLimits, UserConfig,
 };
-use tracing::{debug, info};
+use tokio::sync::mpsc;
+use tracing::{debug, error, info};
 
 use crate::alias::{ChainMonitorType, ChannelManagerType};
 use crate::peer_manager::NodePeerManager;
@@ -203,6 +204,7 @@ impl NodeChannelManager {
         persister: &NodePersister,
         channel_peer: ChannelPeer,
         channel_value_sat: u64,
+        channel_peer_tx: &mpsc::Sender<ChannelPeerUpdate>,
     ) -> anyhow::Result<()> {
         info!("opening channel with {}", channel_peer);
 
@@ -226,7 +228,7 @@ impl NodeChannelManager {
                 Some(USER_CONFIG),
             )
             // LDK's APIError impls Debug but not Error
-            .map_err(|e| anyhow!("Failed to create channel: {:?}", e))?;
+            .map_err(|e| anyhow!("Failed to create channel: {e:?}"))?;
 
         // Persist the channel
         persister
@@ -235,7 +237,16 @@ impl NodeChannelManager {
             .context("Failed to persist channel peer")?;
 
         info!("Successfully opened channel with {}", channel_peer);
+        if let Err(e) =
+            channel_peer_tx.try_send(ChannelPeerUpdate::Add(channel_peer))
+        {
+            error!(
+                "Couldn't update p2p reconnector of new channel peer: {e:#}"
+            );
+        }
 
         Ok(())
     }
+
+    // TODO: Closing a channel should delete a channel peer.
 }

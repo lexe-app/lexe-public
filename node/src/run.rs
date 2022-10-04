@@ -25,8 +25,9 @@ use lexe_ln::background_processor::LexeBackgroundProcessor;
 use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
+use lexe_ln::p2p::ChannelPeerUpdate;
 use lexe_ln::sync::SyncedChainListeners;
-use lexe_ln::{init, p2p};
+use lexe_ln::{channel_monitor, p2p};
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::onion_message::OnionMessenger;
@@ -46,6 +47,7 @@ use crate::peer_manager::NodePeerManager;
 use crate::persister::NodePersister;
 use crate::{api, command};
 
+// TODO(max): Move this to common::constants
 pub(crate) const DEFAULT_CHANNEL_SIZE: usize = 256;
 /// The amount of time tasks have to finish after a graceful shutdown was
 /// initiated before the program exits.
@@ -83,6 +85,7 @@ pub(crate) struct UserNode {
     // --- Run --- //
     inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
+    channel_peer_tx: mpsc::Sender<ChannelPeerUpdate>,
     shutdown: ShutdownChannel,
 }
 
@@ -108,6 +111,8 @@ impl UserNode {
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let shutdown = ShutdownChannel::new();
         let (channel_monitor_updated_tx, channel_monitor_updated_rx) =
+            mpsc::channel(DEFAULT_CHANNEL_SIZE);
+        let (channel_peer_tx, channel_peer_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
 
         // Initialize LexeBitcoind while fetching provisioned secrets
@@ -173,7 +178,7 @@ impl UserNode {
 
         // Set up the persister -> chain monitor channel
         let channel_monitor_updated_task =
-            init::spawn_channel_monitor_updated_task(
+            channel_monitor::spawn_channel_monitor_updated_task(
                 chain_monitor.clone(),
                 channel_monitor_updated_rx,
                 shutdown.clone(),
@@ -198,10 +203,10 @@ impl UserNode {
             logger.clone(),
         ));
 
-        // Read channel manager while reading scorer
-        let mut restarting_node = true;
-        let (scorer_res, maybe_manager_res) = tokio::join!(
+        // Concurrently read scorer, channel manager, and channel peers
+        let (scorer_res, channel_peers_res, maybe_manager_res) = tokio::join!(
             persister.read_scorer(network_graph.clone(), logger.clone()),
+            persister.read_channel_peers(),
             persister.read_channel_manager(
                 &mut channel_monitors,
                 keys_manager.clone(),
@@ -215,10 +220,13 @@ impl UserNode {
             .map(Mutex::new)
             .map(Arc::new)
             .context("Could not read probabilistic scorer")?;
+        let initial_channel_peers =
+            channel_peers_res.context("Could not read channel peers")?;
         let maybe_manager =
             maybe_manager_res.context("Could not read channel manager")?;
 
         // Init the NodeChannelManager
+        let mut restarting_node = true;
         let (channel_manager_blockhash, channel_manager) =
             NodeChannelManager::init(
                 args.network,
@@ -278,7 +286,7 @@ impl UserNode {
             (listener, peer_port)
         };
         info!("Listening for LN P2P connections on port {peer_port}");
-        let p2p_listener_task = init::spawn_p2p_listener(
+        let p2p_listener_task = p2p::spawn_p2p_listener(
             listener,
             peer_manager.arc_inner(),
             shutdown.clone(),
@@ -289,7 +297,8 @@ impl UserNode {
         let p2p_reconnector_task = p2p::spawn_p2p_reconnector(
             channel_manager.arc_inner(),
             peer_manager.arc_inner(),
-            persister.clone(),
+            initial_channel_peers,
+            channel_peer_rx,
             shutdown.clone(),
         );
         tasks.push(("p2p reconnectooor", p2p_reconnector_task));
@@ -436,6 +445,7 @@ impl UserNode {
             // Run
             inbound_payments,
             outbound_payments,
+            channel_peer_tx,
             shutdown,
         };
         Ok(node)
@@ -491,6 +501,7 @@ impl UserNode {
                 self.outbound_payments,
                 self.persister.clone(),
                 self.args.network,
+                self.channel_peer_tx.clone(),
             )
             .await;
             debug!("REPL complete.");

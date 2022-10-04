@@ -6,7 +6,7 @@ use anyhow::{bail, Context};
 
 use crate::api::NodePk;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct ChannelPeer {
     pub node_pk: NodePk,
     pub addr: SocketAddr,

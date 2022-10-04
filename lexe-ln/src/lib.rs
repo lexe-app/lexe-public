@@ -14,13 +14,11 @@ pub mod background_processor;
 pub mod bitcoind;
 /// Channel monitor
 pub mod channel_monitor;
-/// Helper *functions* used during init, typically to spawn tasks.
-pub mod init;
 /// Keys manager
 pub mod keys_manager;
 /// LDK + SGX compatible logger
 pub mod logger;
-/// Shared functions relating to LN P2P.
+/// Shared functionality relating to LN P2P.
 pub mod p2p;
 /// Chain sync.
 pub mod sync;
