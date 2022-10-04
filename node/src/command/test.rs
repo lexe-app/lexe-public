@@ -8,6 +8,7 @@ use common::api::{NodePk, UserPk};
 use common::cli::{Network, RunArgs};
 use common::ln::peer::ChannelPeer;
 use common::rng::SysRng;
+use common::shutdown::ShutdownChannel;
 use common::test_utils::regtest::Regtest;
 use lexe_ln::alias::NetworkGraphType;
 use lexe_ln::{channel, logger, p2p};
@@ -49,7 +50,8 @@ impl CommandTestHarness {
 
         // Init node
         let mut rng = SysRng::new();
-        let node = UserNode::init(&mut rng, args)
+        let shutdown = ShutdownChannel::new();
+        let node = UserNode::init(&mut rng, args, shutdown)
             .await
             .expect("Error during init");
 

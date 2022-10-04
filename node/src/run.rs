@@ -55,7 +55,7 @@ const SHUTDOWN_TIME_LIMIT: Duration = Duration::from_secs(15);
 
 /// A user's node.
 #[allow(dead_code)] // Many unread fields are used as type annotations
-pub(crate) struct UserNode {
+pub struct UserNode {
     // --- General --- //
     args: RunArgs,
     pub(crate) peer_port: Port,
@@ -94,6 +94,7 @@ impl UserNode {
     pub async fn init<R: Crng>(
         rng: &mut R,
         args: RunArgs,
+        shutdown: ShutdownChannel,
     ) -> anyhow::Result<Self> {
         info!(%args.user_pk, "Initializing node");
 
@@ -109,7 +110,6 @@ impl UserNode {
 
         // Init channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
-        let shutdown = ShutdownChannel::new();
         let (channel_monitor_updated_tx, channel_monitor_updated_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (channel_peer_tx, channel_peer_rx) =

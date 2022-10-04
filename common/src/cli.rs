@@ -137,6 +137,8 @@ pub struct RunArgs {
 
     /// the port on which to accept Lightning P2P connections.
     /// Defaults to a port assigned by the OS
+    // TODO: We should remove this since all P2P connections are initiated by
+    // the user node
     #[argh(option)]
     pub peer_port: Option<Port>,
 
