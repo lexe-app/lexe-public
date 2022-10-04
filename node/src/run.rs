@@ -248,6 +248,21 @@ impl UserNode {
             logger.clone(),
         );
 
+        // Connect to the LSP, print a warning if not specified
+        if let Some(ref lsp_channel_peer) = args.lsp {
+            // TODO: This should be done concurrently to speed up init
+            peer_manager
+                .connect_channel_peer_if_necessary(lsp_channel_peer.clone())
+                .await
+                .context("Could not connect to LSP")?;
+        } else {
+            // If we're not in a test, we should've passed in LSP info. Note
+            // that this warning is still triggered in some tests because
+            // running the node as a process does not pick up cfg(not(test)).
+            #[cfg(not(test))]
+            warn!("No LSP specified");
+        }
+
         // Set up listening for inbound P2P connections
         let (listener, peer_port) = {
             // A value of 0 indicates that the OS will assign a port for us
