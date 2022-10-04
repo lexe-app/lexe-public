@@ -17,7 +17,7 @@ use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
 use secrecy::zeroize::Zeroizing;
 use tokio::net::TcpStream;
 use tokio::time;
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 
 use crate::alias::PeerManagerType;
 use crate::channel_manager::NodeChannelManager;
@@ -85,13 +85,15 @@ impl NodePeerManager {
         self.0.clone()
     }
 
-    #[allow(dead_code)] // TODO Remove once this fn is used in sgx
     pub(crate) async fn connect_channel_peer_if_necessary(
         &self,
         channel_peer: ChannelPeer,
     ) -> anyhow::Result<()> {
+        debug!("Connecting to channel peer {channel_peer}");
+
         // Return immediately if we're already connected to the peer
         if self.get_peer_node_ids().contains(&channel_peer.node_pk.0) {
+            debug!("OK: Already connected to channel peer {channel_peer}");
             return Ok(());
         }
 
@@ -163,6 +165,7 @@ impl NodePeerManager {
             }
         }
 
+        debug!("Success: Connected to channel peer {channel_peer}");
         Ok(())
     }
 }
