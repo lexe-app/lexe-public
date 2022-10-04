@@ -204,9 +204,8 @@ impl UserNode {
         ));
 
         // Concurrently read scorer, channel manager, and channel peers
-        let (scorer_res, channel_peers_res, maybe_manager_res) = tokio::join!(
+        let (scorer_res, maybe_manager_res) = tokio::join!(
             persister.read_scorer(network_graph.clone(), logger.clone()),
-            persister.read_channel_peers(),
             persister.read_channel_manager(
                 &mut channel_monitors,
                 keys_manager.clone(),
@@ -220,8 +219,6 @@ impl UserNode {
             .map(Mutex::new)
             .map(Arc::new)
             .context("Could not read probabilistic scorer")?;
-        let initial_channel_peers =
-            channel_peers_res.context("Could not read channel peers")?;
         let maybe_manager =
             maybe_manager_res.context("Could not read channel manager")?;
 
@@ -256,23 +253,6 @@ impl UserNode {
             logger.clone(),
         );
 
-        // Connect to the LSP, print a warning if not specified
-        if let Some(ref lsp_channel_peer) = args.lsp {
-            // TODO: This should be done concurrently to speed up init
-            p2p::connect_channel_peer_if_necessary(
-                peer_manager.arc_inner(),
-                lsp_channel_peer.clone(),
-            )
-            .await
-            .context("Could not connect to LSP")?;
-        } else {
-            // If we're not in a test, we should've passed in LSP info. Note
-            // that this warning is still triggered in some tests because
-            // running the node as a process does not pick up cfg(not(test)).
-            #[cfg(not(test))]
-            warn!("No LSP specified");
-        }
-
         // Set up listening for inbound P2P connections
         let (listener, peer_port) = {
             // A value of 0 indicates that the OS will assign a port for us
@@ -293,7 +273,22 @@ impl UserNode {
         );
         tasks.push(("p2p listener", p2p_listener_task));
 
-        // Spawn a task to regularly reconnect to channel peers
+        // The LSP is the only channel peer the p2p reconnector task needs to
+        // reconnect to. Print a warning if it was not specified.
+        let initial_channel_peers = match args.lsp {
+            Some(ref lsp_cp) => vec![lsp_cp.clone()],
+            None => {
+                // If we're not in a test, we should've passed in LSP info. Note
+                // that this warning is still triggered in some tests because
+                // running the node as a process does not detect cfg(not(test)).
+                #[cfg(not(test))]
+                warn!("No LSP specified");
+
+                Vec::new()
+            }
+        };
+
+        // Spawn the task to regularly reconnect to channel peers
         let p2p_reconnector_task = p2p::spawn_p2p_reconnector(
             channel_manager.arc_inner(),
             peer_manager.arc_inner(),
