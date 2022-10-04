@@ -15,13 +15,14 @@ use common::hex;
 use common::ln::peer::ChannelPeer;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::keys_manager::LexeKeysManager;
-use lexe_ln::p2p;
+use lexe_ln::p2p::{self, ChannelPeerUpdate};
 use lexe_ln::types::{HTLCStatus, MillisatAmount, PaymentInfo};
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::ln::{PaymentHash, PaymentPreimage};
 use lightning::routing::gossip::NodeId;
 use lightning_invoice::payment::PaymentError;
 use lightning_invoice::{utils, Currency, Invoice};
+use tokio::sync::mpsc;
 use tracing::{error, info};
 
 use crate::alias::InvoicePayerType;
@@ -40,6 +41,7 @@ pub(crate) async fn poll_for_user_input(
     outbound_payments: PaymentInfoStorageType,
     persister: NodePersister,
     network: Network,
+    channel_peer_tx: mpsc::Sender<ChannelPeerUpdate>,
 ) {
     info!("LDK startup successful. To view available commands: \"help\".");
     info!(
@@ -67,6 +69,7 @@ pub(crate) async fn poll_for_user_input(
                         &channel_manager,
                         &peer_manager,
                         &persister,
+                        &channel_peer_tx,
                     )
                     .await;
                     if let Err(e) = res {
@@ -594,6 +597,7 @@ async fn open_channel<'a, I: Iterator<Item = &'a str>>(
     channel_manager: &NodeChannelManager,
     peer_manager: &NodePeerManager,
     persister: &NodePersister,
+    channel_peer_tx: &mpsc::Sender<ChannelPeerUpdate>,
 ) -> anyhow::Result<()> {
     let peer_pk_at_addr = words
         .next()
@@ -608,7 +612,13 @@ async fn open_channel<'a, I: Iterator<Item = &'a str>>(
         .context("channel_value_sat must be a number")?;
 
     channel_manager
-        .open_channel(peer_manager, persister, channel_peer, channel_value_sat)
+        .open_channel(
+            peer_manager,
+            persister,
+            channel_peer,
+            channel_value_sat,
+            channel_peer_tx,
+        )
         .await
         .context("Could not open channel")
 }

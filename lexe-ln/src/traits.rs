@@ -1,7 +1,6 @@
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use common::ln::peer::ChannelPeer;
 use lightning::chain::chainmonitor::Persist;
 use lightning::util::ser::Writeable;
 
@@ -25,8 +24,4 @@ pub trait LexePersister: Persist<SignerType> {
         &self,
         scorer_mutex: &Mutex<ProbabilisticScorerType>,
     ) -> anyhow::Result<()>;
-
-    // TODO: Remove this method from the trait once spawn_p2p_reconnector
-    // doesn't require it
-    async fn read_channel_peers(&self) -> anyhow::Result<Vec<ChannelPeer>>;
 }
