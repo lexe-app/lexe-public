@@ -45,7 +45,7 @@ const TIME_TO_CONTEST_FRAUDULENT_CLOSES: u16 = 144; // 1 day
 /// funds in the case of a unilateral close initiated by us.
 ///
 /// NOTE: If this value is too low, channel negotiation with the LSP will fail.
-const MAXIMUM_TIME_TO_RECLAIM_FUNDS: u16 = 6 * 24 * 3; // three days
+const MAXIMUM_TIME_TO_RECLAIM_FUNDS: u16 = 6 * 24 * 4; // four days
 
 pub const USER_CONFIG: UserConfig = UserConfig {
     channel_handshake_config: CHANNEL_HANDSHAKE_CONFIG,
@@ -76,8 +76,10 @@ const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =
         max_inbound_htlc_value_in_flight_percent_of_channel: 100,
         // Attempt to use better privacy.
         negotiate_scid_privacy: true,
-        // Do not publically announce our channels
-        announced_channel: false,
+        // Publically announce our channels
+        // TODO: Is there a way to *not* publicly announce our channel, but
+        // still be able to complete a channel negatiation with the LSP?
+        announced_channel: true,
         // The additional 'security' provided by this setting is pointless.
         // Also, we want to be able to sweep all funds to an address specified
         // at the time of channel close, instead of committing upfront.

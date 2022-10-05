@@ -22,7 +22,6 @@ use lightning::chain::chaininterface::{
 };
 use lightning::routing::gossip::NodeId;
 use lightning::util::events::{Event, EventHandler, PaymentPurpose};
-use tokio::runtime::Handle;
 use tracing::{debug, error, info};
 
 use crate::channel_manager::NodeChannelManager;
@@ -78,21 +77,28 @@ impl EventHandler for NodeEventHandler {
     ///
     /// [`EventsProvider`]: lightning::util::events::EventsProvider
     fn handle_event(&self, event: &Event) {
-        // FIXME: This trait requires that event handling *finishes* before
-        // returning from this function. There isn't currently a clean way to do
-        // this, so we block the *entire* program (yes, sucks) until event
-        // handling is complete, as an inefficient but safe default. Once LDK
-        // #1674 (async event handling) is fixed, we can remove the `block_on`.
-        Handle::current().block_on(async move {
+        // TODO FIXME XXX: This trait requires that event handling *finishes*
+        // before returning from this function, but LDK #1674 (async event
+        // handling) isn't implemented yet. For now, we carry out the event
+        // handling in a spawned task, but this *must* be fixed eventually.
+        let channel_manager = self.channel_manager.clone();
+        let bitcoind = self.bitcoind.clone();
+        let network_graph = self.network_graph.clone();
+        let keys_manager = self.keys_manager.clone();
+        let inbound_payments = self.inbound_payments.clone();
+        let outbound_payments = self.outbound_payments.clone();
+        let network = self.network;
+        let event = event.clone();
+        let _ = LxTask::spawn(async move {
             handle_event(
-                &self.channel_manager,
-                &self.bitcoind,
-                &self.network_graph,
-                &self.keys_manager,
-                &self.inbound_payments,
-                &self.outbound_payments,
-                self.network,
-                event,
+                &channel_manager,
+                &bitcoind,
+                &network_graph,
+                &keys_manager,
+                &inbound_payments,
+                &outbound_payments,
+                network,
+                &event,
             )
             .await
         });
