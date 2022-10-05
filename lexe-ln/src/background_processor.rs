@@ -1,18 +1,19 @@
-use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
-use lightning::util::events::{EventHandler, EventsProvider};
+use lightning::util::events::EventsProvider;
 use tokio::time::{interval, interval_at, Instant};
 use tracing::{debug, error, info, trace, warn};
 
 use crate::alias::{
-    LexeChainMonitorType, LexeChannelManagerType, LexeInvoicePayerType,
-    LexePeerManagerType, P2PGossipSyncType, ProbabilisticScorerType,
+    LexeChainMonitorType, LexeInvoicePayerType, P2PGossipSyncType,
+    ProbabilisticScorerType,
 };
-use crate::traits::LexePersister;
+use crate::traits::{
+    LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
+};
 
 const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_millis(1000);
 const PEER_MANAGER_PING_INTERVAL: Duration = Duration::from_secs(15);
@@ -28,9 +29,9 @@ pub struct LexeBackgroundProcessor {}
 
 impl LexeBackgroundProcessor {
     #[allow(clippy::too_many_arguments)]
-    pub fn start<CHANNEL_MANAGER, PERSISTER, EVENT_HANDLER>(
+    pub fn start<CHANNEL_MANAGER, PEER_MANAGER, PERSISTER, EVENT_HANDLER>(
         channel_manager: CHANNEL_MANAGER,
-        peer_manager: Arc<LexePeerManagerType<CHANNEL_MANAGER>>,
+        peer_manager: PEER_MANAGER,
         persister: PERSISTER,
         chain_monitor: Arc<LexeChainMonitorType<PERSISTER>>,
         event_handler: Arc<
@@ -41,11 +42,10 @@ impl LexeBackgroundProcessor {
         mut shutdown: ShutdownChannel,
     ) -> LxTask<()>
     where
-        PERSISTER: Deref + Send + Sync + 'static,
-        PERSISTER::Target: LexePersister + Send + Sync,
-        CHANNEL_MANAGER: Deref<Target = LexeChannelManagerType<PERSISTER>>,
-        CHANNEL_MANAGER: Send + Sync + 'static,
-        EVENT_HANDLER: EventHandler + Send + Sync + 'static,
+        CHANNEL_MANAGER: LexeChannelManager<PERSISTER>,
+        PEER_MANAGER: LexePeerManager<CHANNEL_MANAGER, PERSISTER>,
+        PERSISTER: LexePersister,
+        EVENT_HANDLER: LexeEventHandler,
     {
         LxTask::spawn(async move {
             let mut process_timer = interval(PROCESS_EVENTS_INTERVAL);
