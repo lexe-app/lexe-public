@@ -1,7 +1,7 @@
 #![cfg(not(target_env = "sgx"))]
 
 use std::io;
-use std::io::{BufRead, Write};
+use std::io::Write;
 use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -53,19 +53,11 @@ pub(crate) async fn poll_for_user_input(
         print!("> ");
         // Without flushing, the `>` doesn't print
         io::stdout().flush().unwrap();
-        // Dropping line_reader within this scope allows the node to be `Send`,
-        // but loses anything buffered after the first '\n' (FIXME). This should
-        // be fine since there are no multi-line commands and this is just the
-        // REPL, but maybe it will need to be fixed eventually.
-        // <https://github.com/lexe-tech/client/pull/57/files#r987431303>
-        let maybe_line = {
-            let mut line_reader = io::stdin().lock().lines();
-            line_reader.next()
-        };
-        let line = match maybe_line {
-            Some(l) => l.unwrap(),
-            None => break,
-        };
+        let mut line = String::new();
+        if let Err(e) = io::stdin().read_line(&mut line) {
+            break error!("{e:#}]");
+        }
+
         let mut words = line.split_whitespace();
         if let Some(word) = words.next() {
             match word {
