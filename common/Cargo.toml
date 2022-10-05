@@ -136,6 +136,8 @@ cmac = { version = "0.7", features = ["std", "zeroize"] }
 
 # --- DEPENDENCIES NEEDED ONLY BY TEST-UTILS --- #
 # These must have `optional = true` to prevent infecting production binaries.
+# If a test-utils dependency must be available in both SGX and not-SGX, put it
+# in both sections so that this ALL CAPS block can remain contiguous.
 
 # property based testing
 proptest = { optional = true, version = "1", default-features = false, features = ["alloc"] }
@@ -147,6 +149,8 @@ proptest-derive = { optional = true, version = "0.3" }
 bitcoind = { optional = true, version = "0.27", features = [ "22_0" ] }
 # Include additional useful proptest features when testing outside of SGX
 proptest = { optional = true, version = "1" }
+# Arbitrary derive macro
+proptest-derive = { optional = true, version = "0.3" }
 
 [features]
 # Explicitly specify that no features should be enabled by default.

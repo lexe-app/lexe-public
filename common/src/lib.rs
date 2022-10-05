@@ -10,9 +10,8 @@
 // Enforce disallowed methods clippy lint
 #![deny(clippy::disallowed_methods)]
 
-// re-export some common types from our dependencies
-pub use bitcoin::secp256k1::PublicKey;
 use ref_cast::RefCast;
+// re-export some common types from our dependencies
 pub use secrecy::Secret;
 
 /// API definitions, errors, clients, and structs sent across the wire.
