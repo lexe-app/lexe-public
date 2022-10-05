@@ -20,6 +20,8 @@ pub mod api;
 pub mod attest;
 /// Exponential backoff.
 pub mod backoff;
+/// [`tokio::Bytes`](bytes::Bytes) but must contain a string.
+pub mod byte_str;
 /// User node CLI.
 pub mod cli;
 /// Mobile client to the node.
