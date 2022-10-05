@@ -29,23 +29,21 @@ pub struct LexeBackgroundProcessor {}
 
 impl LexeBackgroundProcessor {
     #[allow(clippy::too_many_arguments)]
-    pub fn start<CHANNEL_MANAGER, PEER_MANAGER, PERSISTER, EVENT_HANDLER>(
-        channel_manager: CHANNEL_MANAGER,
-        peer_manager: PEER_MANAGER,
-        persister: PERSISTER,
-        chain_monitor: Arc<LexeChainMonitorType<PERSISTER>>,
-        event_handler: Arc<
-            LexeInvoicePayerType<CHANNEL_MANAGER, EVENT_HANDLER>,
-        >,
+    pub fn start<CM, PM, PS, EH>(
+        channel_manager: CM,
+        peer_manager: PM,
+        persister: PS,
+        chain_monitor: Arc<LexeChainMonitorType<PS>>,
+        event_handler: Arc<LexeInvoicePayerType<CM, EH>>,
         gossip_sync: Arc<P2PGossipSyncType>,
         scorer: Arc<Mutex<ProbabilisticScorerType>>,
         mut shutdown: ShutdownChannel,
     ) -> LxTask<()>
     where
-        CHANNEL_MANAGER: LexeChannelManager<PERSISTER>,
-        PEER_MANAGER: LexePeerManager<CHANNEL_MANAGER, PERSISTER>,
-        PERSISTER: LexePersister,
-        EVENT_HANDLER: LexeEventHandler,
+        CM: LexeChannelManager<PS>,
+        PM: LexePeerManager<CM, PS>,
+        PS: LexePersister,
+        EH: LexeEventHandler,
     {
         LxTask::spawn(async move {
             let mut process_timer = interval(PROCESS_EVENTS_INTERVAL);

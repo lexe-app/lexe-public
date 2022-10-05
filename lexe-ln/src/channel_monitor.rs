@@ -1,5 +1,3 @@
-use std::marker::Send;
-use std::ops::Deref;
 use std::sync::Arc;
 
 use common::ln::channel::LxOutPoint;
@@ -11,7 +9,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, error, info};
 
 use crate::alias::LexeChainMonitorType;
-use crate::traits::LexeInnerPersister;
+use crate::traits::LexePersister;
 
 pub struct LxChannelMonitorUpdate {
     pub funding_txo: LxOutPoint,
@@ -25,15 +23,11 @@ pub struct LxChannelMonitorUpdate {
 /// persister, therefore (b) the persister cannot hold the chain monitor,
 /// therefore there needs to be another means of letting the persister notify
 /// the channel manager of events.
-pub fn spawn_channel_monitor_updated_task<PERSISTER>(
-    chain_monitor: Arc<LexeChainMonitorType<PERSISTER>>,
+pub fn spawn_channel_monitor_updated_task<PS: LexePersister>(
+    chain_monitor: Arc<LexeChainMonitorType<PS>>,
     mut channel_monitor_updated_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
     mut shutdown: ShutdownChannel,
-) -> LxTask<()>
-where
-    PERSISTER: Deref + Send + Sync + 'static,
-    PERSISTER::Target: LexeInnerPersister + Send,
-{
+) -> LxTask<()> {
     debug!("Starting channel_monitor_updated task");
     LxTask::spawn(async move {
         loop {

@@ -33,18 +33,14 @@ pub enum ChannelPeerUpdate {
     Remove(ChannelPeer),
 }
 
-pub async fn connect_channel_peer_if_necessary<
-    CHANNEL_MANAGER,
-    PEER_MANAGER,
-    PERSISTER,
->(
-    peer_manager: PEER_MANAGER,
+pub async fn connect_channel_peer_if_necessary<CM, PM, PS>(
+    peer_manager: PM,
     channel_peer: ChannelPeer,
 ) -> anyhow::Result<()>
 where
-    CHANNEL_MANAGER: LexeChannelManager<PERSISTER>,
-    PEER_MANAGER: LexePeerManager<CHANNEL_MANAGER, PERSISTER>,
-    PERSISTER: LexePersister,
+    CM: LexeChannelManager<PS>,
+    PM: LexePeerManager<CM, PS>,
+    PS: LexePersister,
 {
     debug!("Connecting to channel peer {channel_peer}");
 
@@ -63,14 +59,14 @@ where
         .context("Failed to connect to peer")
 }
 
-pub async fn do_connect_peer<CHANNEL_MANAGER, PEER_MANAGER, PERSISTER>(
-    peer_manager: PEER_MANAGER,
+pub async fn do_connect_peer<CM, PM, PS>(
+    peer_manager: PM,
     channel_peer: ChannelPeer,
 ) -> anyhow::Result<()>
 where
-    CHANNEL_MANAGER: LexeChannelManager<PERSISTER>,
-    PEER_MANAGER: LexePeerManager<CHANNEL_MANAGER, PERSISTER>,
-    PERSISTER: LexePersister,
+    CM: LexeChannelManager<PS>,
+    PM: LexePeerManager<CM, PS>,
+    PS: LexePersister,
 {
     let stream =
         time::timeout(CONNECT_TIMEOUT, TcpStream::connect(channel_peer.addr))
@@ -133,17 +129,17 @@ where
 }
 
 /// Spawns a task that regularly reconnects to the channel peers stored in DB.
-pub fn spawn_p2p_reconnector<CHANNEL_MANAGER, PEER_MANAGER, PERSISTER>(
-    channel_manager: CHANNEL_MANAGER,
-    peer_manager: PEER_MANAGER,
+pub fn spawn_p2p_reconnector<CM, PM, PS>(
+    channel_manager: CM,
+    peer_manager: PM,
     initial_channel_peers: Vec<ChannelPeer>,
     mut channel_peer_rx: mpsc::Receiver<ChannelPeerUpdate>,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
 where
-    CHANNEL_MANAGER: LexeChannelManager<PERSISTER>,
-    PEER_MANAGER: LexePeerManager<CHANNEL_MANAGER, PERSISTER>,
-    PERSISTER: LexePersister,
+    CM: LexeChannelManager<PS>,
+    PM: LexePeerManager<CM, PS>,
+    PS: LexePersister,
 {
     LxTask::spawn(async move {
         let mut interval = time::interval(P2P_RECONNECT_INTERVAL);
@@ -205,15 +201,15 @@ where
 
 /// Given a [`TcpListener`], spawns a task to await on inbound connections,
 /// handing off the resultant `TcpStream`s for the `PeerManager` to manage.
-pub fn spawn_p2p_listener<CHANNEL_MANAGER, PEER_MANAGER, PERSISTER>(
+pub fn spawn_p2p_listener<CM, PM, PS>(
     listener: TcpListener,
-    peer_manager: PEER_MANAGER,
+    peer_manager: PM,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
 where
-    CHANNEL_MANAGER: LexeChannelManager<PERSISTER>,
-    PEER_MANAGER: LexePeerManager<CHANNEL_MANAGER, PERSISTER>,
-    PERSISTER: LexePersister,
+    CM: LexeChannelManager<PS>,
+    PM: LexePeerManager<CM, PS>,
+    PS: LexePersister,
 {
     LxTask::spawn(async move {
         let mut child_tasks = FuturesUnordered::new();

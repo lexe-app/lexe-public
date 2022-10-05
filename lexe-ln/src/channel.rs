@@ -9,19 +9,19 @@ use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
 /// Handles the full logic of opening a channel, including connecting to the
 /// peer, creating the channel, and persisting the newly created channel.
-pub async fn open_channel<CHANNEL_MANAGER, PEER_MANAGER, PERSISTER>(
-    channel_manager: CHANNEL_MANAGER,
-    peer_manager: PEER_MANAGER,
-    persister: PERSISTER,
+pub async fn open_channel<CM, PM, PS>(
+    channel_manager: CM,
+    peer_manager: PM,
+    persister: PS,
     channel_peer: ChannelPeer,
     channel_value_sat: u64,
     channel_peer_tx: &mpsc::Sender<ChannelPeerUpdate>,
     user_config: UserConfig,
 ) -> anyhow::Result<()>
 where
-    CHANNEL_MANAGER: LexeChannelManager<PERSISTER>,
-    PEER_MANAGER: LexePeerManager<CHANNEL_MANAGER, PERSISTER>,
-    PERSISTER: LexePersister,
+    CM: LexeChannelManager<PS>,
+    PM: LexePeerManager<CM, PS>,
+    PS: LexePersister,
 {
     info!("Opening channel with {}", channel_peer);
 

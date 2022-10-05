@@ -6,7 +6,7 @@
 // Allow e.g. `CHANNEL_MANAGER` in generics to clearly distinguish between
 // concrete and generic types
 #![allow(non_camel_case_types)]
-// Allow e.g. PERSISTER: Deref<Target: LexeInnerPersister> in generics
+// Allow e.g. PS: Deref<Target: LexeInnerPersister> in generics
 #![feature(associated_type_bounds)]
 
 /// Type aliases.
