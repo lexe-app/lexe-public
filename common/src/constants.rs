@@ -10,6 +10,8 @@ use crate::ln::peer::ChannelPeer;
 use crate::rng::SysRng;
 use crate::root_seed::RootSeed;
 
+pub const DEFAULT_CHANNEL_SIZE: usize = 256;
+
 pub const DEFAULT_BACKEND_URL: &str = "http://127.0.0.1:3030";
 pub const DEFAULT_GATEWAY_URL: &str = "http://127.0.0.1:4040";
 pub const DEFAULT_RUNNER_URL: &str = "http://127.0.0.1:5050";

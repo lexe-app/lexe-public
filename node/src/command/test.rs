@@ -208,7 +208,7 @@ async fn open_channel() {
     };
     let channel_value_sat = 1_000_000;
     let (channel_peer_tx, _rx) =
-        mpsc::channel(crate::run::DEFAULT_CHANNEL_SIZE);
+        mpsc::channel(common::constants::DEFAULT_CHANNEL_SIZE);
 
     // Prior to opening
     let pre_node_info =

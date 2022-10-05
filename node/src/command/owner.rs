@@ -8,7 +8,7 @@ use lexe_ln::alias::NetworkGraphType;
 use crate::channel_manager::NodeChannelManager;
 use crate::peer_manager::NodePeerManager;
 
-pub(crate) fn node_info(
+pub fn node_info(
     channel_manager: NodeChannelManager,
     peer_manager: NodePeerManager,
 ) -> Result<NodeInfo, NodeApiError> {

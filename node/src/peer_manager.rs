@@ -15,7 +15,7 @@ use crate::channel_manager::NodeChannelManager;
 
 /// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]
-pub(crate) struct NodePeerManager(Arc<PeerManagerType>);
+pub struct NodePeerManager(Arc<PeerManagerType>);
 
 impl Deref for NodePeerManager {
     type Target = PeerManagerType;
@@ -68,7 +68,7 @@ impl NodePeerManager {
         Self(Arc::new(peer_manager))
     }
 
-    pub(crate) fn arc_inner(&self) -> Arc<PeerManagerType> {
+    pub fn arc_inner(&self) -> Arc<PeerManagerType> {
         self.0.clone()
     }
 }

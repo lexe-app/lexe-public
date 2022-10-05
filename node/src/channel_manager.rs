@@ -47,7 +47,7 @@ const TIME_TO_CONTEST_FRAUDULENT_CLOSES: u16 = 144; // 1 day
 /// NOTE: If this value is too low, channel negotiation with the LSP will fail.
 const MAXIMUM_TIME_TO_RECLAIM_FUNDS: u16 = 6 * 24 * 3; // three days
 
-pub(crate) const USER_CONFIG: UserConfig = UserConfig {
+pub const USER_CONFIG: UserConfig = UserConfig {
     channel_handshake_config: CHANNEL_HANDSHAKE_CONFIG,
     channel_handshake_limits: CHANNEL_HANDSHAKE_LIMITS,
     channel_config: CHANNEL_CONFIG,
@@ -125,7 +125,7 @@ const CHANNEL_CONFIG: ChannelConfig = ChannelConfig {
 
 /// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]
-pub(crate) struct NodeChannelManager(Arc<ChannelManagerType>);
+pub struct NodeChannelManager(Arc<ChannelManagerType>);
 
 impl Deref for NodeChannelManager {
     type Target = ChannelManagerType;
@@ -135,7 +135,7 @@ impl Deref for NodeChannelManager {
 }
 
 impl NodeChannelManager {
-    pub(crate) fn arc_inner(&self) -> Arc<ChannelManagerType> {
+    pub fn arc_inner(&self) -> Arc<ChannelManagerType> {
         self.0.clone()
     }
 
