@@ -52,57 +52,44 @@ pub trait LexePersister:
 {
 }
 
-impl<PERSISTER> LexePersister for PERSISTER where
-    PERSISTER:
-        Send + Sync + 'static + Deref<Target: LexeInnerPersister + Send + Sync>
+impl<PS> LexePersister for PS where
+    PS: Send + Sync + 'static + Deref<Target: LexeInnerPersister + Send + Sync>
 {
 }
 
 /// A 'trait alias' defining all the requirements a Lexe channel manager.
-pub trait LexeChannelManager<PERSISTER>:
-    Send + Sync + 'static + Deref<Target = LexeChannelManagerType<PERSISTER>>
+pub trait LexeChannelManager<PS>:
+    Send + Sync + 'static + Deref<Target = LexeChannelManagerType<PS>>
 where
-    PERSISTER: LexePersister,
+    PS: LexePersister,
 {
 }
 
-impl<CHANNEL_MANAGER, PERSISTER> LexeChannelManager<PERSISTER>
-    for CHANNEL_MANAGER
+impl<CM, PS> LexeChannelManager<PS> for CM
 where
-    CHANNEL_MANAGER: Send
-        + Sync
-        + 'static
-        + Deref<Target = LexeChannelManagerType<PERSISTER>>,
-    PERSISTER: LexePersister,
+    CM: Send + Sync + 'static + Deref<Target = LexeChannelManagerType<PS>>,
+    PS: LexePersister,
 {
 }
 
 /// A 'trait alias' defining all the requirements of a Lexe peer manager.
-pub trait LexePeerManager<CHANNEL_MANAGER, PERSISTER>:
-    Clone + Send + Sync + 'static + ArcInner<LexePeerManagerType<CHANNEL_MANAGER>>
+pub trait LexePeerManager<CM, PS>:
+    Clone + Send + Sync + 'static + ArcInner<LexePeerManagerType<CM>>
 where
-    CHANNEL_MANAGER: LexeChannelManager<PERSISTER>,
-    PERSISTER: LexePersister,
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
 {
 }
 
-impl<PEER_MANAGER, CHANNEL_MANAGER, PERSISTER>
-    LexePeerManager<CHANNEL_MANAGER, PERSISTER> for PEER_MANAGER
+impl<PM, CM, PS> LexePeerManager<CM, PS> for PM
 where
-    PEER_MANAGER: Clone
-        + Send
-        + Sync
-        + 'static
-        + ArcInner<LexePeerManagerType<CHANNEL_MANAGER>>,
-    CHANNEL_MANAGER: LexeChannelManager<PERSISTER>,
-    PERSISTER: LexePersister,
+    PM: Clone + Send + Sync + 'static + ArcInner<LexePeerManagerType<CM>>,
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
 {
 }
 
 /// A 'trait alias' defining all the requirements of a Lexe event handler.
 pub trait LexeEventHandler: EventHandler + Send + Sync + 'static {}
 
-impl<EVENT_HANDLER> LexeEventHandler for EVENT_HANDLER where
-    EVENT_HANDLER: EventHandler + Send + Sync + 'static
-{
-}
+impl<EH> LexeEventHandler for EH where EH: EventHandler + Send + Sync + 'static {}
