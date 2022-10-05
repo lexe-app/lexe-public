@@ -59,7 +59,7 @@ impl<PS> LexePersister for PS where
 
 /// A 'trait alias' defining all the requirements a Lexe channel manager.
 pub trait LexeChannelManager<PS>:
-    Send + Sync + 'static + Deref<Target = LexeChannelManagerType<PS>>
+    Clone + Send + Sync + 'static + Deref<Target = LexeChannelManagerType<PS>>
 where
     PS: LexePersister,
 {
@@ -67,7 +67,11 @@ where
 
 impl<CM, PS> LexeChannelManager<PS> for CM
 where
-    CM: Send + Sync + 'static + Deref<Target = LexeChannelManagerType<PS>>,
+    CM: Clone
+        + Send
+        + Sync
+        + 'static
+        + Deref<Target = LexeChannelManagerType<PS>>,
     PS: LexePersister,
 {
 }

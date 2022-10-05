@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -18,10 +19,9 @@ use tracing::{info, warn};
 use crate::alias::{
     BlockSourceType, BroadcasterType, ChannelMonitorListenerType,
     ChannelMonitorType, FeeEstimatorType, LexeChainMonitorType,
-    LexeChannelManagerType,
 };
 use crate::logger::LexeTracingLogger;
-use crate::traits::LexePersister;
+use crate::traits::{LexeChannelManager, LexePersister};
 
 /// How often the [`SpvClient`] client polls for an updated chain tip.
 const CHAIN_TIP_POLL_INTERVAL: Duration = Duration::from_secs(60);
@@ -53,22 +53,26 @@ const CHAIN_TIP_POLL_INTERVAL: Duration = Duration::from_secs(60);
 /// [`ChannelManager`]: lightning::ln::channelmanager::ChannelManager
 /// [`ChannelMonitor`]: lightning::chain::channelmonitor::ChannelMonitor
 #[must_use]
-pub struct SyncedChainListeners<PS: LexePersister> {
+pub struct SyncedChainListeners<CM, PS> {
     network: Network,
     block_source: Arc<BlockSourceType>,
 
-    channel_manager: Arc<LexeChannelManagerType<PS>>,
-    chain_listeners: Vec<LxChainListener<PS>>,
+    channel_manager: CM,
+    chain_listeners: Vec<LxChainListener<CM, PS>>,
     blockheader_cache: HashMap<BlockHash, ValidatedBlockHeader>,
     chain_tip: ValidatedBlockHeader,
 }
 
-impl<PS: LexePersister> SyncedChainListeners<PS> {
+impl<CM, PS> SyncedChainListeners<CM, PS>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
     #[allow(clippy::too_many_arguments)]
     pub async fn init_and_sync(
         network: Network,
 
-        channel_manager: Arc<LexeChannelManagerType<PS>>,
+        channel_manager: CM,
         channel_manager_blockhash: BlockHash,
         channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
 
@@ -107,7 +111,7 @@ impl<PS: LexePersister> SyncedChainListeners<PS> {
     async fn from_existing(
         network: Network,
 
-        channel_manager: Arc<LexeChannelManagerType<PS>>,
+        channel_manager: CM,
         channel_manager_blockhash: BlockHash,
         channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
 
@@ -155,7 +159,7 @@ impl<PS: LexePersister> SyncedChainListeners<PS> {
             .map(|chain_listener| {
                 (chain_listener.blockhash, &chain_listener.listener)
             })
-            .collect::<Vec<(BlockHash, &LxListener<PS>)>>();
+            .collect::<Vec<(BlockHash, &LxListener<CM, PS>)>>();
 
         // Block header cache which is required for the SPV client init later.
         let mut blockheader_cache = HashMap::new();
@@ -191,7 +195,7 @@ impl<PS: LexePersister> SyncedChainListeners<PS> {
     /// header from our block source.
     async fn from_new(
         network: Network,
-        channel_manager: Arc<LexeChannelManagerType<PS>>,
+        channel_manager: CM,
         block_source: Arc<BlockSourceType>,
     ) -> anyhow::Result<Self> {
         let chain_tip = block_sync_init::validate_best_block_header(
@@ -277,9 +281,9 @@ impl<PS: LexePersister> SyncedChainListeners<PS> {
 }
 
 /// Associates a [`LxListener`] with its latest synced [`BlockHash`].
-struct LxChainListener<PS: LexePersister> {
+struct LxChainListener<CM, PS> {
     blockhash: BlockHash,
-    listener: LxListener<PS>,
+    listener: LxListener<CM, PS>,
 }
 
 /// Concretely enumerates the different kinds of `impl Listen`. This enum is
@@ -287,13 +291,20 @@ struct LxChainListener<PS: LexePersister> {
 /// [`lightning_block_sync::init::synchronize_listeners`] (as ldk-sample does)
 /// causes this sync implementation to not be [`Send`], which is required for
 /// moving the node into a task spawned during smoketests.
-enum LxListener<PS: LexePersister> {
+enum LxListener<CM, PS> {
     ChannelMonitor(ChannelMonitorChainListener),
-    ChannelManager(Arc<LexeChannelManagerType<PS>>),
+    ChannelManager(CM),
+    // Prevents Rust error E0392
+    #[allow(dead_code)]
+    Phantom(PhantomData<PS>),
 }
 
 /// This [`Listen`] impl simply delegates to the inner type.
-impl<PS: LexePersister> Listen for LxListener<PS> {
+impl<CM, PS> Listen for LxListener<CM, PS>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
     fn filtered_block_connected(
         &self,
         header: &BlockHeader,
@@ -307,6 +318,7 @@ impl<PS: LexePersister> Listen for LxListener<PS> {
             Self::ChannelManager(cm) => {
                 cm.deref().filtered_block_connected(header, txdata, height)
             }
+            Self::Phantom(_) => unimplemented!(),
         }
     }
 
@@ -318,6 +330,7 @@ impl<PS: LexePersister> Listen for LxListener<PS> {
             Self::ChannelManager(cm) => {
                 cm.deref().block_disconnected(header, height)
             }
+            Self::Phantom(_) => unimplemented!(),
         }
     }
 }

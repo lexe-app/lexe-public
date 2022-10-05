@@ -453,7 +453,7 @@ impl UserNode {
         // Sync channel manager and channel monitors to chain tip
         let synced_chain_listeners = SyncedChainListeners::init_and_sync(
             self.args.network,
-            self.channel_manager.arc_inner(),
+            self.channel_manager.clone(),
             self.channel_manager_blockhash,
             self.channel_monitors,
             self.block_source.clone(),
@@ -488,16 +488,16 @@ impl UserNode {
         if self.args.repl {
             debug!("Starting REPL");
             crate::repl::poll_for_user_input(
-                self.invoice_payer.clone(),
+                self.invoice_payer,
                 self.peer_manager.clone(),
-                self.channel_manager.clone(),
-                self.keys_manager.clone(),
-                self.network_graph.clone(),
+                self.channel_manager,
+                self.keys_manager,
+                self.network_graph,
                 self.inbound_payments,
                 self.outbound_payments,
-                self.persister.clone(),
+                self.persister,
                 self.args.network,
-                self.channel_peer_tx.clone(),
+                self.channel_peer_tx,
             )
             .await;
             debug!("REPL complete.");
