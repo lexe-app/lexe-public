@@ -52,7 +52,7 @@ const IMPORTANT_RETRIES: usize = 3;
 
 /// An Arc is held internally, so it is fine to clone and use directly.
 #[derive(Clone)] // TODO Try removing this
-pub(crate) struct NodePersister {
+pub struct NodePersister {
     inner: InnerPersister,
 }
 
@@ -86,7 +86,7 @@ impl Deref for NodePersister {
 /// The thing that actually impls the Persist trait. LDK requires that
 /// NodePersister Derefs to it.
 #[derive(Clone)]
-pub(crate) struct InnerPersister {
+pub struct InnerPersister {
     api: ApiClientType,
     node_pk: PublicKey,
     measurement: Measurement,

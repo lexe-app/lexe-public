@@ -9,6 +9,7 @@ use common::api::provision::{Node, SealedSeedId};
 use common::api::UserPk;
 use common::cli::RunArgs;
 use common::client::tls::node_run_tls_config;
+use common::constants::DEFAULT_CHANNEL_SIZE;
 use common::enclave::{
     self, MachineId, Measurement, MinCpusvn, MIN_SGX_CPUSVN,
 };
@@ -48,7 +49,6 @@ use crate::persister::NodePersister;
 use crate::{api, command};
 
 // TODO(max): Move this to common::constants
-pub(crate) const DEFAULT_CHANNEL_SIZE: usize = 256;
 /// The amount of time tasks have to finish after a graceful shutdown was
 /// initiated before the program exits.
 const SHUTDOWN_TIME_LIMIT: Duration = Duration::from_secs(15);
@@ -62,15 +62,15 @@ pub struct UserNode {
     tasks: Vec<(&'static str, LxTask<()>)>,
 
     // --- Actors --- //
-    pub(crate) channel_manager: NodeChannelManager,
-    pub(crate) peer_manager: NodePeerManager,
+    pub channel_manager: NodeChannelManager,
+    pub peer_manager: NodePeerManager,
     pub(crate) keys_manager: LexeKeysManager,
-    pub(crate) persister: NodePersister,
+    pub persister: NodePersister,
     chain_monitor: Arc<ChainMonitorType>,
     pub(crate) network_graph: Arc<NetworkGraphType>,
     gossip_sync: Arc<P2PGossipSyncType>,
     invoice_payer: Arc<InvoicePayerType>,
-    pub(crate) wallet: Arc<WalletType>,
+    pub wallet: Arc<WalletType>,
     block_source: Arc<BlockSourceType>,
     broadcaster: Arc<BroadcasterType>,
     fee_estimator: Arc<FeeEstimatorType>,

@@ -104,11 +104,11 @@ impl InactivityTimer {
 mod tests {
     use std::future::Future;
 
+    use common::constants::DEFAULT_CHANNEL_SIZE;
     use tokio::sync::mpsc;
     use tokio::time::{self, Duration};
 
     use super::*;
-    use crate::run::DEFAULT_CHANNEL_SIZE;
 
     /// A simple struct that holds all the materials required to test the
     /// InactivityTimer.
