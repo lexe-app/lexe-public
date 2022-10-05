@@ -39,9 +39,9 @@ const CHAIN_TIP_POLL_INTERVAL: Duration = Duration::from_secs(60);
 ///   of the channel monitor ([`ChannelMonitorType`]) and handles to other
 ///   actors.
 /// - The `LxListener` enum encapsulates both of these, implementing [`Listen`]
-///   by delegating to its inner lister.
-/// - Each "Listener" is associated which a [`BlockHash`] representing the
-///   latest chain tip it has been synced to.
+///   by delegating to its inner listener.
+/// - Each "Listener" is associated with a [`BlockHash`] representing the latest
+///   chain tip it has been synced to.
 /// - [`lightning_block_sync::init::synchronize_listeners`] takes a `(BlockHash,
 ///   &impl Listen)` as input.
 /// - `ldk-sample` forms the `(BlockHash, &impl Listen)`  by casting the
