@@ -1,22 +1,17 @@
-use std::ops::Deref;
-use std::sync::Arc;
-
 use anyhow::{anyhow, Context};
 use common::ln::peer::ChannelPeer;
-use lightning::ln::msgs::ChannelMessageHandler;
 use lightning::util::config::UserConfig;
 use tokio::sync::mpsc;
 use tracing::{error, info};
 
-use crate::alias::{LexeChannelManagerType, LexePeerManagerType};
 use crate::p2p::{self, ChannelPeerUpdate};
-use crate::traits::LexePersister;
+use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
 /// Handles the full logic of opening a channel, including connecting to the
 /// peer, creating the channel, and persisting the newly created channel.
-pub async fn open_channel<CHANNEL_MANAGER, PERSISTER>(
-    channel_manager: &LexeChannelManagerType<PERSISTER>,
-    peer_manager: Arc<LexePeerManagerType<CHANNEL_MANAGER>>,
+pub async fn open_channel<CHANNEL_MANAGER, PEER_MANAGER, PERSISTER>(
+    channel_manager: CHANNEL_MANAGER,
+    peer_manager: PEER_MANAGER,
     persister: PERSISTER,
     channel_peer: ChannelPeer,
     channel_value_sat: u64,
@@ -24,20 +19,16 @@ pub async fn open_channel<CHANNEL_MANAGER, PERSISTER>(
     user_config: UserConfig,
 ) -> anyhow::Result<()>
 where
-    CHANNEL_MANAGER: Deref + Send + Sync + 'static,
-    CHANNEL_MANAGER::Target: ChannelMessageHandler + Send + Sync,
-    PERSISTER: Deref,
-    PERSISTER::Target: LexePersister,
+    CHANNEL_MANAGER: LexeChannelManager<PERSISTER>,
+    PEER_MANAGER: LexePeerManager<CHANNEL_MANAGER, PERSISTER>,
+    PERSISTER: LexePersister,
 {
     info!("Opening channel with {}", channel_peer);
 
     // Make sure that we're connected to the channel peer
-    p2p::connect_channel_peer_if_necessary(
-        peer_manager.clone(),
-        channel_peer.clone(),
-    )
-    .await
-    .context("Failed to connect to peer")?;
+    p2p::connect_channel_peer_if_necessary(peer_manager, channel_peer.clone())
+        .await
+        .context("Failed to connect to peer")?;
 
     // Create the channel
     let user_channel_id = 1; // Not important, just use a default value

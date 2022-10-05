@@ -11,7 +11,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, error, info};
 
 use crate::alias::LexeChainMonitorType;
-use crate::traits::LexePersister;
+use crate::traits::LexeInnerPersister;
 
 pub struct LxChannelMonitorUpdate {
     pub funding_txo: LxOutPoint,
@@ -32,7 +32,7 @@ pub fn spawn_channel_monitor_updated_task<PERSISTER>(
 ) -> LxTask<()>
 where
     PERSISTER: Deref + Send + Sync + 'static,
-    PERSISTER::Target: LexePersister + Send,
+    PERSISTER::Target: LexeInnerPersister + Send,
 {
     debug!("Starting channel_monitor_updated task");
     LxTask::spawn(async move {

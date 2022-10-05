@@ -16,6 +16,7 @@ use common::api::rest::into_response;
 use common::api::UserPk;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::NetworkGraphType;
+use lexe_ln::command;
 use tokio::sync::mpsc;
 use tracing::trace;
 use warp::{Filter, Rejection, Reply};
@@ -51,7 +52,7 @@ pub(crate) fn owner_routes(
         .and(warp::get())
         .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::peer_manager(peer_manager))
-        .map(owner::node_info)
+        .map(command::node_info)
         .map(into_response);
     let list_channels = warp::path("channels")
         .and(warp::get())

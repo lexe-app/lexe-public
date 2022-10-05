@@ -268,7 +268,7 @@ impl UserNode {
         info!("Listening for LN P2P connections on port {peer_port}");
         let p2p_listener_task = p2p::spawn_p2p_listener(
             listener,
-            peer_manager.arc_inner(),
+            peer_manager.clone(),
             shutdown.clone(),
         );
         tasks.push(("p2p listener", p2p_listener_task));
@@ -290,8 +290,8 @@ impl UserNode {
 
         // Spawn the task to regularly reconnect to channel peers
         let p2p_reconnector_task = p2p::spawn_p2p_reconnector(
-            channel_manager.arc_inner(),
-            peer_manager.arc_inner(),
+            channel_manager.clone(),
+            peer_manager.clone(),
             initial_channel_peers,
             channel_peer_rx,
             shutdown.clone(),
@@ -387,11 +387,12 @@ impl UserNode {
         // Init background processor
         let bg_processor_task = LexeBackgroundProcessor::start::<
             NodeChannelManager,
+            NodePeerManager,
             NodePersister,
             NodeEventHandler,
         >(
             channel_manager.clone(),
-            peer_manager.arc_inner(),
+            peer_manager.clone(),
             persister.clone(),
             chain_monitor.clone(),
             invoice_payer.clone(),

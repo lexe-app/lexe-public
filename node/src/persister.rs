@@ -21,7 +21,7 @@ use lexe_ln::alias::{
 use lexe_ln::channel_monitor::LxChannelMonitorUpdate;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
-use lexe_ln::traits::LexePersister;
+use lexe_ln::traits::LexeInnerPersister;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
 use lightning::chain::channelmonitor::ChannelMonitorUpdate;
 use lightning::chain::transaction::OutPoint;
@@ -273,7 +273,7 @@ impl InnerPersister {
 }
 
 #[async_trait]
-impl LexePersister for InnerPersister {
+impl LexeInnerPersister for InnerPersister {
     async fn persist_manager<W: Writeable + Send + Sync>(
         &self,
         channel_manager: &W,

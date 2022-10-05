@@ -441,7 +441,7 @@ async fn connect_peer<'a, I: Iterator<Item = &'a str>>(
         .context("Could not parse ChannelPeer")?;
 
     p2p::connect_channel_peer_if_necessary(
-        peer_manager.arc_inner(),
+        peer_manager.clone(),
         channel_peer.clone(),
     )
     .await
@@ -612,8 +612,8 @@ async fn open_channel<'a, I: Iterator<Item = &'a str>>(
         .context("channel_value_sat must be a number")?;
 
     channel::open_channel(
-        channel_manager.deref(),
-        peer_manager.arc_inner(),
+        channel_manager.clone(),
+        peer_manager.clone(),
         persister,
         channel_peer,
         channel_value_sat,

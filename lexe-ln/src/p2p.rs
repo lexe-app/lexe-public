@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::ops::Deref;
-use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{bail, Context};
@@ -10,14 +9,12 @@ use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use futures::future;
 use futures::stream::{FuturesUnordered, StreamExt};
-use lightning::ln::msgs::ChannelMessageHandler;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 use tokio::time;
 use tracing::{debug, error, info, warn};
 
-use crate::alias::{LexeChannelManagerType, LexePeerManagerType};
-use crate::traits::LexePersister;
+use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
@@ -36,13 +33,18 @@ pub enum ChannelPeerUpdate {
     Remove(ChannelPeer),
 }
 
-pub async fn connect_channel_peer_if_necessary<CHANNEL_MANAGER>(
-    peer_manager: Arc<LexePeerManagerType<CHANNEL_MANAGER>>,
+pub async fn connect_channel_peer_if_necessary<
+    CHANNEL_MANAGER,
+    PEER_MANAGER,
+    PERSISTER,
+>(
+    peer_manager: PEER_MANAGER,
     channel_peer: ChannelPeer,
 ) -> anyhow::Result<()>
 where
-    CHANNEL_MANAGER: Deref + Send + Sync + 'static,
-    CHANNEL_MANAGER::Target: ChannelMessageHandler + Send + Sync,
+    CHANNEL_MANAGER: LexeChannelManager<PERSISTER>,
+    PEER_MANAGER: LexePeerManager<CHANNEL_MANAGER, PERSISTER>,
+    PERSISTER: LexePersister,
 {
     debug!("Connecting to channel peer {channel_peer}");
 
@@ -61,13 +63,14 @@ where
         .context("Failed to connect to peer")
 }
 
-pub async fn do_connect_peer<CHANNEL_MANAGER>(
-    peer_manager: Arc<LexePeerManagerType<CHANNEL_MANAGER>>,
+pub async fn do_connect_peer<CHANNEL_MANAGER, PEER_MANAGER, PERSISTER>(
+    peer_manager: PEER_MANAGER,
     channel_peer: ChannelPeer,
 ) -> anyhow::Result<()>
 where
-    CHANNEL_MANAGER: Deref + Send + Sync + 'static,
-    CHANNEL_MANAGER::Target: ChannelMessageHandler + Send + Sync,
+    CHANNEL_MANAGER: LexeChannelManager<PERSISTER>,
+    PEER_MANAGER: LexePeerManager<CHANNEL_MANAGER, PERSISTER>,
+    PERSISTER: LexePersister,
 {
     let stream =
         time::timeout(CONNECT_TIMEOUT, TcpStream::connect(channel_peer.addr))
@@ -94,7 +97,7 @@ where
     //
     // TODO: Rewrite / replace lightning-net-tokio entirely
     let connection_closed_fut = lightning_net_tokio::setup_outbound(
-        peer_manager.clone(),
+        peer_manager.arc_inner(),
         channel_peer.node_pk.0,
         stream,
     );
@@ -130,18 +133,17 @@ where
 }
 
 /// Spawns a task that regularly reconnects to the channel peers stored in DB.
-pub fn spawn_p2p_reconnector<CHANNEL_MANAGER, PERSISTER>(
-    channel_manager: Arc<LexeChannelManagerType<PERSISTER>>,
-    peer_manager: Arc<LexePeerManagerType<CHANNEL_MANAGER>>,
+pub fn spawn_p2p_reconnector<CHANNEL_MANAGER, PEER_MANAGER, PERSISTER>(
+    channel_manager: CHANNEL_MANAGER,
+    peer_manager: PEER_MANAGER,
     initial_channel_peers: Vec<ChannelPeer>,
     mut channel_peer_rx: mpsc::Receiver<ChannelPeerUpdate>,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
 where
-    CHANNEL_MANAGER: Deref + Send + Sync + 'static,
-    CHANNEL_MANAGER::Target: ChannelMessageHandler + Send + Sync,
-    PERSISTER: Deref + Send + Sync + 'static,
-    PERSISTER::Target: LexePersister + Send + Sync,
+    CHANNEL_MANAGER: LexeChannelManager<PERSISTER>,
+    PEER_MANAGER: LexePeerManager<CHANNEL_MANAGER, PERSISTER>,
+    PERSISTER: LexePersister,
 {
     LxTask::spawn(async move {
         let mut interval = time::interval(P2P_RECONNECT_INTERVAL);
@@ -203,14 +205,15 @@ where
 
 /// Given a [`TcpListener`], spawns a task to await on inbound connections,
 /// handing off the resultant `TcpStream`s for the `PeerManager` to manage.
-pub fn spawn_p2p_listener<CHANNEL_MANAGER>(
+pub fn spawn_p2p_listener<CHANNEL_MANAGER, PEER_MANAGER, PERSISTER>(
     listener: TcpListener,
-    peer_manager: Arc<LexePeerManagerType<CHANNEL_MANAGER>>,
+    peer_manager: PEER_MANAGER,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
 where
-    CHANNEL_MANAGER: Deref + 'static + Send + Sync,
-    CHANNEL_MANAGER::Target: ChannelMessageHandler + Send + Sync,
+    CHANNEL_MANAGER: LexeChannelManager<PERSISTER>,
+    PEER_MANAGER: LexePeerManager<CHANNEL_MANAGER, PERSISTER>,
+    PERSISTER: LexePersister,
 {
     LxTask::spawn(async move {
         let mut child_tasks = FuturesUnordered::new();
@@ -235,7 +238,7 @@ where
                     };
 
                     // Spawn a task to await on the connection
-                    let peer_manager_clone = peer_manager.clone();
+                    let peer_manager_arc_inner = peer_manager.arc_inner();
                     let child_task = LxTask::spawn(async move {
                         // `setup_inbound()` returns a future that completes
                         // when the connection is closed. The main thread calls
@@ -243,7 +246,7 @@ where
                         // a shutdown signal so there is no need to pass in a
                         // `shutdown`s here.
                         let connection_closed = lightning_net_tokio::setup_inbound(
-                            peer_manager_clone,
+                            peer_manager_arc_inner,
                             tcp_stream,
                         );
                         connection_closed.await;

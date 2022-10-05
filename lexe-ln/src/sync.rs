@@ -53,11 +53,7 @@ const CHAIN_TIP_POLL_INTERVAL: Duration = Duration::from_secs(60);
 /// [`ChannelManager`]: lightning::ln::channelmanager::ChannelManager
 /// [`ChannelMonitor`]: lightning::chain::channelmonitor::ChannelMonitor
 #[must_use]
-pub struct SyncedChainListeners<PERSISTER>
-where
-    PERSISTER: Deref + Send + Sync + 'static,
-    PERSISTER::Target: LexePersister + Send,
-{
+pub struct SyncedChainListeners<PERSISTER: LexePersister> {
     network: Network,
     block_source: Arc<BlockSourceType>,
 
@@ -67,11 +63,7 @@ where
     chain_tip: ValidatedBlockHeader,
 }
 
-impl<PERSISTER> SyncedChainListeners<PERSISTER>
-where
-    PERSISTER: Deref + Send + Sync + 'static,
-    PERSISTER::Target: LexePersister + Send,
-{
+impl<PERSISTER: LexePersister> SyncedChainListeners<PERSISTER> {
     #[allow(clippy::too_many_arguments)]
     pub async fn init_and_sync(
         network: Network,
@@ -285,11 +277,7 @@ where
 }
 
 /// Associates a [`LxListener`] with its latest synced [`BlockHash`].
-struct LxChainListener<PERSISTER>
-where
-    PERSISTER: Deref + Send + Sync + 'static,
-    PERSISTER::Target: LexePersister + Send,
-{
+struct LxChainListener<PERSISTER: LexePersister> {
     blockhash: BlockHash,
     listener: LxListener<PERSISTER>,
 }
@@ -299,21 +287,13 @@ where
 /// [`lightning_block_sync::init::synchronize_listeners`] (as ldk-sample does)
 /// causes this sync implementation to not be [`Send`], which is required for
 /// moving the node into a task spawned during smoketests.
-enum LxListener<PERSISTER>
-where
-    PERSISTER: Deref + Send + Sync + 'static,
-    PERSISTER::Target: LexePersister + Send,
-{
+enum LxListener<PERSISTER: LexePersister> {
     ChannelMonitor(ChannelMonitorChainListener),
     ChannelManager(Arc<LexeChannelManagerType<PERSISTER>>),
 }
 
 /// This [`Listen`] impl simply delegates to the inner type.
-impl<PERSISTER> Listen for LxListener<PERSISTER>
-where
-    PERSISTER: Deref + Send + Sync + 'static,
-    PERSISTER::Target: LexePersister + Send,
-{
+impl<PERSISTER: LexePersister> Listen for LxListener<PERSISTER> {
     fn filtered_block_connected(
         &self,
         header: &BlockHeader,

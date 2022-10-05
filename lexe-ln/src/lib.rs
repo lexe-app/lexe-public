@@ -6,6 +6,8 @@
 // Allow e.g. `CHANNEL_MANAGER` in generics to clearly distinguish between
 // concrete and generic types
 #![allow(non_camel_case_types)]
+// Allow e.g. PERSISTER: Deref<Target: LexeInnerPersister> in generics
+#![feature(associated_type_bounds)]
 
 /// Type aliases.
 pub mod alias;
@@ -16,6 +18,8 @@ pub mod bitcoind;
 pub mod channel;
 /// Channel monitor
 pub mod channel_monitor;
+/// Top level commands that can be initiated by the user.
+pub mod command;
 /// Keys manager
 pub mod keys_manager;
 /// LDK + SGX compatible logger
