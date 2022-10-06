@@ -8,24 +8,30 @@ use serde::Serialize;
 
 use crate::ed25519;
 
-/// Quickly create a roundtrip proptest for some `T` which can be serialized and
-/// deserialized.
+/// Quickly create a serde roundtrip proptest.
 ///
 /// ```ignore
-/// bcs_roundtrip_proptest::<UserAuthRequest>();
+/// serde_roundtrip_proptest::<UserAuthRequest>();
 /// ```
 #[cfg_attr(target_env = "sgx", allow(dead_code))]
-pub fn bcs_roundtrip_proptest<T>()
+pub fn serde_roundtrip_proptest<T>()
 where
     T: Arbitrary + PartialEq + Serialize + DeserializeOwned,
 {
-    proptest!(|(value: T)| {
-        let ser_value = bcs::to_bytes(&value).unwrap();
-        let value2 = bcs::from_bytes::<T>(&ser_value).unwrap();
-        let ser_value2 = bcs::to_bytes(&value2).unwrap();
+    proptest!(|(value1: T)| {
+        // BCS: non-human readable
+        let bcs_value1 = bcs::to_bytes(&value1).unwrap();
+        let value2 = bcs::from_bytes::<T>(&bcs_value1).unwrap();
+        let bcs_value2 = bcs::to_bytes(&value2).unwrap();
+        prop_assert_eq!(&value1, &value2);
+        prop_assert_eq!(&bcs_value1, &bcs_value2);
 
-        prop_assert_eq!(&value, &value2);
-        prop_assert_eq!(&ser_value, &ser_value2);
+        // JSON: human readable
+        let json_value1 = serde_json::to_string(&value1).unwrap();
+        let value2 = serde_json::from_str::<T>(&json_value1).unwrap();
+        let json_value2 = serde_json::to_string(&value2).unwrap();
+        prop_assert_eq!(&value1, &value2);
+        prop_assert_eq!(&json_value1, &json_value2);
     });
 }
 
