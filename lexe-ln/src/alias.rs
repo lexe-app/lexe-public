@@ -16,9 +16,9 @@ use lightning_invoice::utils::DefaultRouter;
 use lightning_net_tokio::SocketDescriptor;
 
 use crate::bitcoind::LexeBitcoind;
+use crate::invoice::PaymentInfo;
 use crate::keys_manager::LexeKeysManager;
 use crate::logger::LexeTracingLogger;
-use crate::types::PaymentInfo;
 
 pub type SignerType = InMemorySigner;
 

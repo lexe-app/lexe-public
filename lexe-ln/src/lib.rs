@@ -20,6 +20,8 @@ pub mod channel;
 pub mod channel_monitor;
 /// Top level commands that can be initiated by the user.
 pub mod command;
+/// Types related to invoices.
+pub mod invoice;
 /// Keys manager
 pub mod keys_manager;
 /// LDK + SGX compatible logger
@@ -30,5 +32,3 @@ pub mod p2p;
 pub mod sync;
 /// Traits.
 pub mod traits;
-/// Misc types that temporarily don't fit anywhere else
-pub mod types;
