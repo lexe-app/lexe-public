@@ -11,6 +11,9 @@
 //! `ToHex`); otherwise, implement `Display` and `FromStr`, perhaps with a
 //! serialization round trip test.
 
+/// Channel outpoint, details, counterparty
 pub mod channel;
+/// `LxInvoice`
+pub mod invoice;
 /// `ChannelPeer`.
 pub mod peer;
