@@ -20,7 +20,8 @@ use common::task::LxTask;
 use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
     BlockSourceType, BroadcasterType, ChannelMonitorType, FeeEstimatorType,
-    NetworkGraphType, P2PGossipSyncType, PaymentInfoStorageType, WalletType,
+    NetworkGraphType, OnionMessengerType, P2PGossipSyncType,
+    PaymentInfoStorageType, ProbabilisticScorerType, WalletType,
 };
 use lexe_ln::background_processor::LexeBackgroundProcessor;
 use lexe_ln::bitcoind::LexeBitcoind;
@@ -62,19 +63,21 @@ pub struct UserNode {
     tasks: Vec<(&'static str, LxTask<()>)>,
 
     // --- Actors --- //
-    pub channel_manager: NodeChannelManager,
-    pub peer_manager: NodePeerManager,
-    pub(crate) keys_manager: LexeKeysManager,
+    logger: LexeTracingLogger,
     pub persister: NodePersister,
+    pub wallet: Arc<WalletType>,
+    block_source: Arc<BlockSourceType>,
+    fee_estimator: Arc<FeeEstimatorType>,
+    broadcaster: Arc<BroadcasterType>,
+    pub(crate) keys_manager: LexeKeysManager,
     chain_monitor: Arc<ChainMonitorType>,
     pub(crate) network_graph: Arc<NetworkGraphType>,
     gossip_sync: Arc<P2PGossipSyncType>,
+    scorer: Arc<Mutex<ProbabilisticScorerType>>,
+    pub channel_manager: NodeChannelManager,
+    onion_messenger: Arc<OnionMessengerType>,
+    pub peer_manager: NodePeerManager,
     invoice_payer: Arc<InvoicePayerType>,
-    pub wallet: Arc<WalletType>,
-    block_source: Arc<BlockSourceType>,
-    broadcaster: Arc<BroadcasterType>,
-    fee_estimator: Arc<FeeEstimatorType>,
-    logger: LexeTracingLogger,
     inactivity_timer: InactivityTimer,
 
     // --- Sync --- //
@@ -249,7 +252,7 @@ impl UserNode {
             &keys_manager,
             channel_manager.clone(),
             gossip_sync.clone(),
-            onion_messenger,
+            onion_messenger.clone(),
             logger.clone(),
         );
 
@@ -418,19 +421,21 @@ impl UserNode {
             tasks,
 
             // Actors
-            channel_manager,
-            peer_manager,
-            keys_manager,
+            logger,
             persister,
-            chain_monitor,
-            network_graph,
-            gossip_sync,
-            invoice_payer,
             wallet,
             block_source,
             fee_estimator,
             broadcaster,
-            logger,
+            keys_manager,
+            chain_monitor,
+            network_graph,
+            gossip_sync,
+            scorer,
+            channel_manager,
+            onion_messenger,
+            peer_manager,
+            invoice_payer,
             inactivity_timer,
 
             // Sync

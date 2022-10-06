@@ -12,7 +12,8 @@
 
 use std::sync::Arc;
 
-use common::api::rest::into_response;
+use common::api::error::{NodeApiError, NodeErrorKind};
+use common::api::rest::{into_response, into_succ_response};
 use common::api::UserPk;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::NetworkGraphType;
@@ -26,6 +27,18 @@ use crate::command::{host, owner};
 use crate::peer_manager::NodePeerManager;
 
 mod inject;
+
+/// Converts the `anyhow::Result<T>`s returned by [`lexe_ln::command`] into
+/// `Result<T, NodeApiError>`s with error kind [`NodeErrorKind::Command`].
+#[allow(dead_code)] // TODO(max): Add get_invoice endpoint and use this fn
+fn into_api_result<T>(
+    anyhow_res: anyhow::Result<T>,
+) -> Result<T, NodeApiError> {
+    anyhow_res.map_err(|e| NodeApiError {
+        kind: NodeErrorKind::Command,
+        msg: format!("{e:#}"),
+    })
+}
 
 // TODO Add owner authentication
 /// Implements [`OwnerNodeRunApi`] - endpoints only callable by the node owner.
@@ -53,7 +66,7 @@ pub(crate) fn owner_routes(
         .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::peer_manager(peer_manager))
         .map(command::node_info)
-        .map(into_response);
+        .map(into_succ_response);
     let list_channels = warp::path("channels")
         .and(warp::get())
         .and(inject::channel_manager(channel_manager))
