@@ -15,8 +15,8 @@ use common::hex;
 use common::task::LxTask;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::bitcoind::LexeBitcoind;
+use lexe_ln::invoice::{HTLCStatus, MillisatAmount, PaymentInfo};
 use lexe_ln::keys_manager::LexeKeysManager;
-use lexe_ln::types::{HTLCStatus, MillisatAmount, PaymentInfo};
 use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
 };

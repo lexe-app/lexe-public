@@ -6,9 +6,9 @@ use lightning::ln::PaymentHash;
 use lightning_invoice::{Currency, Invoice};
 
 use crate::alias::PaymentInfoStorageType;
+use crate::invoice::{HTLCStatus, MillisatAmount, PaymentInfo};
 use crate::keys_manager::LexeKeysManager;
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
-use crate::types::{HTLCStatus, MillisatAmount, PaymentInfo};
 
 pub fn node_info<CM, PM, PS>(channel_manager: CM, peer_manager: PM) -> NodeInfo
 where

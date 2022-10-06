@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Display};
 
 use lightning::ln::{PaymentPreimage, PaymentSecret};
 
@@ -16,12 +16,13 @@ pub enum HTLCStatus {
     Failed,
 }
 
+// TODO(max): This struct doesn't seem important - perhaps it can be removed?
 pub struct MillisatAmount(pub Option<u64>);
 
-impl fmt::Display for MillisatAmount {
+impl Display for MillisatAmount {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.0 {
-            Some(amt) => write!(f, "{}", amt),
+            Some(amt) => write!(f, "{amt}"),
             None => write!(f, "unknown"),
         }
     }
