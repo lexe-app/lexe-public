@@ -222,15 +222,17 @@ pub enum NodeErrorKind {
     #[error("Other reqwest error")]
     Reqwest,
 
+    #[error("Could not proxy request to node")]
+    Proxy,
+
     #[error("Wrong user pk")]
     WrongUserPk,
     #[error("Given node pk doesn't match node pk derived from seed")]
     WrongNodePk,
     #[error("Error occurred during provisioning")]
     Provision,
-
-    #[error("Could not proxy request to node")]
-    Proxy,
+    #[error("Error while executing command")]
+    Command,
 }
 
 /// All variants of errors that the LSP can return.
@@ -499,10 +501,11 @@ impl ErrorCodeConvertible for NodeErrorKind {
             Self::Timeout => 3,
             Self::Decode => 4,
             Self::Reqwest => 5,
-            Self::WrongUserPk => 6,
-            Self::WrongNodePk => 7,
-            Self::Provision => 8,
-            Self::Proxy => 9,
+            Self::Proxy => 6,
+            Self::WrongUserPk => 7,
+            Self::WrongNodePk => 8,
+            Self::Provision => 9,
+            Self::Command => 10,
         }
     }
     fn from_code(code: ErrorCode) -> Self {
@@ -513,10 +516,11 @@ impl ErrorCodeConvertible for NodeErrorKind {
             3 => Self::Timeout,
             4 => Self::Decode,
             5 => Self::Reqwest,
-            6 => Self::WrongUserPk,
-            7 => Self::WrongNodePk,
-            8 => Self::Provision,
-            9 => Self::Proxy,
+            6 => Self::Proxy,
+            7 => Self::WrongUserPk,
+            8 => Self::WrongNodePk,
+            9 => Self::Provision,
+            10 => Self::Command,
             _ => Self::Unknown,
         }
     }
@@ -611,11 +615,12 @@ impl HasStatusCode for NodeApiError {
             Connect => SERVER_503_SERVICE_UNAVAILABLE,
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
+            Proxy => SERVER_502_BAD_GATEWAY,
             Reqwest => CLIENT_400_BAD_REQUEST,
             WrongUserPk => CLIENT_400_BAD_REQUEST,
             WrongNodePk => CLIENT_400_BAD_REQUEST,
             Provision => SERVER_500_INTERNAL_SERVER_ERROR,
-            Proxy => SERVER_502_BAD_GATEWAY,
+            Command => SERVER_500_INTERNAL_SERVER_ERROR,
         }
     }
 }

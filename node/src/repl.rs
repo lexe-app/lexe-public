@@ -14,15 +14,15 @@ use common::cli::Network;
 use common::hex;
 use common::ln::peer::ChannelPeer;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
-use lexe_ln::channel;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::p2p::{self, ChannelPeerUpdate};
 use lexe_ln::types::{HTLCStatus, MillisatAmount, PaymentInfo};
+use lexe_ln::{channel, command};
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
 use lightning::ln::{PaymentHash, PaymentPreimage};
 use lightning::routing::gossip::NodeId;
 use lightning_invoice::payment::PaymentError;
-use lightning_invoice::{utils, Currency, Invoice};
+use lightning_invoice::Invoice;
 use tokio::sync::mpsc;
 use tracing::{error, info};
 
@@ -73,8 +73,7 @@ pub(crate) async fn poll_for_user_input(
                     )
                     .await;
                     if let Err(e) = res {
-                        // Print the entire error chain on one line
-                        info!("{:#}", e);
+                        info!("{e:#}");
                     }
                 }
                 "sendpayment" => {
@@ -136,40 +135,15 @@ pub(crate) async fn poll_for_user_input(
                     );
                 }
                 "getinvoice" => {
-                    let amt_str = words.next();
-                    if amt_str.is_none() {
-                        info!("ERROR: getinvoice requires an amount in millisatoshis");
-                        continue;
-                    }
-
-                    let amt_msat: Result<u64, _> = amt_str.unwrap().parse();
-                    if amt_msat.is_err() {
-                        info!("ERROR: getinvoice provided payment amount was not a number");
-                        continue;
-                    }
-                    let expiry_secs_str = words.next();
-                    if expiry_secs_str.is_none() {
-                        info!(
-                            "ERROR: getinvoice requires an expiry in seconds"
-                        );
-                        continue;
-                    }
-
-                    let expiry_secs: Result<u32, _> =
-                        expiry_secs_str.unwrap().parse();
-                    if expiry_secs.is_err() {
-                        info!("ERROR: getinvoice provided expiry was not a number");
-                        continue;
-                    }
-
-                    get_invoice(
-                        amt_msat.unwrap(),
+                    if let Err(e) = get_invoice(
+                        words,
                         inbound_payments.clone(),
-                        channel_manager.clone(),
+                        &channel_manager,
                         keys_manager.clone(),
                         network,
-                        expiry_secs.unwrap(),
-                    );
+                    ) {
+                        error!("{e:#}");
+                    }
                 }
                 "connectpeer" => {
                     if let Err(e) = connect_peer(words, &peer_manager).await {
@@ -551,44 +525,38 @@ fn keysend<K: KeysInterface>(
     );
 }
 
-fn get_invoice(
-    amt_msat: u64,
-    payment_storage: PaymentInfoStorageType,
-    channel_manager: NodeChannelManager,
+fn get_invoice<'a, I: Iterator<Item = &'a str>>(
+    mut words: I,
+    inbound_payments: PaymentInfoStorageType,
+    channel_manager: &NodeChannelManager,
     keys_manager: LexeKeysManager,
     network: Network,
-    expiry_secs: u32,
-) {
-    let mut payments = payment_storage.lock().unwrap();
-    let currency = Currency::from(network);
-    let invoice = match utils::create_invoice_from_channelmanager(
-        &channel_manager,
-        keys_manager,
-        currency,
-        Some(amt_msat),
-        "lexe-node".to_string(),
-        expiry_secs,
-    ) {
-        Ok(inv) => {
-            info!("SUCCESS: generated invoice: {}", inv);
-            inv
-        }
-        Err(e) => {
-            info!("ERROR: failed to create invoice: {:?}", e);
-            return;
-        }
-    };
+) -> anyhow::Result<()> {
+    let amt_msat_str = words
+        .next()
+        .context("getinvoice requires an amount in millisatoshis")?;
+    let amt_msat = u64::from_str(amt_msat_str)
+        .context("getinvoice: provided amount was not a number")?;
 
-    let payment_hash = PaymentHash(invoice.payment_hash().into_inner());
-    payments.insert(
-        payment_hash,
-        PaymentInfo {
-            preimage: None,
-            secret: Some(*invoice.payment_secret()),
-            status: HTLCStatus::Pending,
-            amt_msat: MillisatAmount(Some(amt_msat)),
-        },
-    );
+    let expiry_secs_str = words
+        .next()
+        .context("getinvoice requires an expiry in seconds")?;
+    let expiry_secs = u32::from_str(expiry_secs_str)
+        .context("getinvoice: provided expiry was not a number")?;
+
+    let invoice = command::get_invoice(
+        channel_manager,
+        keys_manager,
+        inbound_payments,
+        network,
+        Some(amt_msat),
+        expiry_secs,
+    )
+    .context("Could not generate invoice")?;
+
+    info!("Success: Generated invoice {invoice}");
+
+    Ok(())
 }
 
 /// Parses the channel peer and channel value and opens a channel.

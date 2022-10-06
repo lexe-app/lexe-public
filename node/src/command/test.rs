@@ -120,7 +120,7 @@ async fn node_info() {
     let args = default_args();
     let h = CommandTestHarness::init(args).await;
 
-    command::node_info(h.channel_manager(), h.peer_manager()).unwrap();
+    command::node_info(h.channel_manager(), h.peer_manager());
 }
 
 /// Tests the list_channels handler.
@@ -152,12 +152,10 @@ async fn connect_peer() {
 
     // Prior to connecting
     let pre_node_info1 =
-        command::node_info(node1.channel_manager(), node1.peer_manager())
-            .unwrap();
+        command::node_info(node1.channel_manager(), node1.peer_manager());
     assert_eq!(pre_node_info1.num_peers, 0);
     let pre_node_info2 =
-        command::node_info(node2.channel_manager(), node2.peer_manager())
-            .unwrap();
+        command::node_info(node2.channel_manager(), node2.peer_manager());
     assert_eq!(pre_node_info2.num_peers, 0);
     assert!(peer_manager1.get_peer_node_ids().is_empty());
     assert!(peer_manager2.get_peer_node_ids().is_empty());
@@ -169,12 +167,10 @@ async fn connect_peer() {
 
     // After connecting
     let post_node_info1 =
-        command::node_info(node1.channel_manager(), node1.peer_manager())
-            .unwrap();
+        command::node_info(node1.channel_manager(), node1.peer_manager());
     assert_eq!(post_node_info1.num_peers, 1);
     let post_node_info2 =
-        command::node_info(node2.channel_manager(), node2.peer_manager())
-            .unwrap();
+        command::node_info(node2.channel_manager(), node2.peer_manager());
     assert_eq!(post_node_info2.num_peers, 1);
     assert_eq!(peer_manager1.get_peer_node_ids().len(), 1);
     assert_eq!(peer_manager2.get_peer_node_ids().len(), 1);
@@ -208,8 +204,7 @@ async fn open_channel() {
 
     // Prior to opening
     let pre_node_info =
-        command::node_info(node1.channel_manager(), node1.peer_manager())
-            .unwrap();
+        command::node_info(node1.channel_manager(), node1.peer_manager());
     assert_eq!(pre_node_info.num_channels, 0);
 
     // Open the channel
@@ -229,8 +224,7 @@ async fn open_channel() {
 
     // After opening
     let post_node_info =
-        command::node_info(node1.channel_manager(), node1.peer_manager())
-            .unwrap();
+        command::node_info(node1.channel_manager(), node1.peer_manager());
     assert_eq!(post_node_info.num_channels, 1);
 
     // Wait for a graceful shutdown to complete before exiting this test (and

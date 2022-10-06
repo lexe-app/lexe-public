@@ -27,15 +27,20 @@ pub const POST: Method = Method::POST;
 pub const DELETE: Method = Method::DELETE;
 
 /// A warp helper that converts `Result<T, E>` into [`Response<Body>`].
-/// This function should be used in all warp routes because:
+/// This function should be used after all *fallible* warp handlers because:
 ///
 /// 1) `RestClient::send_and_deserialize` relies on the HTTP status code to
 ///    determine whether a response should be deserialized as the requested
-///    object or as the error type.
-/// 2) Using this function voids the need to call reply::json(&resp) in every
-///    warp handler or to manually set the error code in every response.
+///    object or as the error type. This function handles this automatically and
+///    consistently across all Lexe APIs.
+/// 2) It saves time; there is no need to call reply::json(&resp) in every warp
+///    handler or to manually set the error code in every response.
+/// 3) Removing the [`warp::Reply`] serialization step from the warp handlers
+///    allows each handler to be independently unit and integration tested.
 ///
-/// This function can be used at the end of a warp filter chain like so:
+/// For infallible handlers, use [`into_succ_response`] instead.
+///
+/// ## Usage
 ///
 /// ```ignore
 /// let status = warp::path("status")
@@ -52,6 +57,24 @@ pub fn into_response<T: Serialize, E: HasStatusCode + Into<ErrorResponse>>(
         Ok(data) => build_json_response(StatusCode::OK, &data),
         Err(err) => build_json_response(err.get_status_code(), &err.into()),
     }
+}
+
+/// Like [`into_response`], but converts `T` into [`Response<Body>`]. This fn
+/// should be used for the same reasons that [`into_response`] is used, but
+/// applies only to *infallible* handlers.
+///
+/// ## Usage
+///
+/// ```ignore
+/// let node_info = warp::path("node_info")
+///     .and(warp::get())
+///     .and(inject::channel_manager(channel_manager.clone()))
+///     .and(inject::peer_manager(peer_manager))
+///     .map(command::node_info)
+///     .map(into_succ_response);
+/// ```
+pub fn into_succ_response<T: Serialize>(data: T) -> Response<Body> {
+    build_json_response(StatusCode::OK, &data)
 }
 
 /// A warp helper for recovering one of our [`api::error`](crate::api::error)
