@@ -76,6 +76,7 @@ rustls-pemfile = "1"
 secrecy = "0.8"
 # Serialization / deserialization framework
 serde = { version = "1", features = ["derive"] }
+serde_with = { version = "2", default-features = false, features = ["macros"] }
 serde_qs = "0"
 serde_json = "1"
 # Core SGX types
