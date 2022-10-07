@@ -1235,6 +1235,7 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
+ "thiserror",
  "tokio",
  "tracing",
  "tracing-core",

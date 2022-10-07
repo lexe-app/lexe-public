@@ -57,6 +57,8 @@ secrecy = "0.8"
 # Serialization / deserialization framework
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Easy error definition
+thiserror = "1"
 # Logging
 tracing = "0.1"
 tracing-core = "0.1"

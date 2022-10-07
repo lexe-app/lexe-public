@@ -15,7 +15,9 @@ use common::cli::Network;
 use common::hex;
 use common::ln::peer::ChannelPeer;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
-use lexe_ln::invoice::{HTLCStatus, MillisatAmount, PaymentInfo};
+use lexe_ln::invoice::{
+    HTLCStatus, LxPaymentError, MillisatAmount, PaymentInfo,
+};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::p2p::{self, ChannelPeerUpdate};
 use lexe_ln::{channel, command};
@@ -74,30 +76,17 @@ pub(crate) async fn poll_for_user_input(
                     )
                     .await;
                     if let Err(e) = res {
-                        info!("{e:#}");
+                        error!("{e:#}");
                     }
                 }
                 "sendpayment" => {
-                    let invoice_str = words.next();
-                    if invoice_str.is_none() {
-                        info!("ERROR: sendpayment requires an invoice: `sendpayment <invoice>`");
-                        continue;
-                    }
-
-                    let invoice = match Invoice::from_str(invoice_str.unwrap())
-                    {
-                        Ok(inv) => inv,
-                        Err(e) => {
-                            info!("ERROR: invalid invoice: {:?}", e);
-                            continue;
-                        }
-                    };
-
-                    send_payment(
+                    if let Err(e) = send_payment(
+                        words,
                         &invoice_payer,
-                        &invoice,
                         outbound_payments.clone(),
-                    );
+                    ) {
+                        error!("{e:#}");
+                    }
                 }
                 "keysend" => {
                     let dest_pk = match words.next() {
@@ -372,14 +361,7 @@ fn list_payments(
         info!("\t\tamount_millisatoshis: {},", payment_info.amt_msat);
         info!("\t\tpayment_hash: {},", hex::encode(&payment_hash.0));
         info!("\t\thtlc_direction: inbound,");
-        info!(
-            "\t\thtlc_status: {},",
-            match payment_info.status {
-                HTLCStatus::Pending => "pending",
-                HTLCStatus::Succeeded => "succeeded",
-                HTLCStatus::Failed => "failed",
-            }
-        );
+        info!("\t\thtlc_status: {},", payment_info.status);
 
         info!("\t}},");
     }
@@ -391,14 +373,7 @@ fn list_payments(
         info!("\t\tamount_millisatoshis: {},", payment_info.amt_msat);
         info!("\t\tpayment_hash: {},", hex::encode(&payment_hash.0));
         info!("\t\thtlc_direction: outbound,");
-        info!(
-            "\t\thtlc_status: {},",
-            match payment_info.status {
-                HTLCStatus::Pending => "pending",
-                HTLCStatus::Succeeded => "succeeded",
-                HTLCStatus::Failed => "failed",
-            }
-        );
+        info!("\t\thtlc_status: {},", payment_info.status);
 
         info!("\t}},");
     }
@@ -427,51 +402,48 @@ async fn connect_peer<'a, I: Iterator<Item = &'a str>>(
     Ok(())
 }
 
-fn send_payment(
+fn send_payment<'a, I: Iterator<Item = &'a str>>(
+    mut words: I,
     invoice_payer: &InvoicePayerType,
-    invoice: &Invoice,
-    payment_storage: PaymentInfoStorageType,
-) {
-    let status = match invoice_payer.pay_invoice(invoice) {
-        Ok(_payment_id) => {
-            let payee_pk = invoice.recover_payee_pub_key();
-            let amt_msat = invoice.amount_milli_satoshis().unwrap();
-            info!(
-                "EVENT: initiated sending {} msats to {}",
-                amt_msat, payee_pk
-            );
-            print!("> ");
-            HTLCStatus::Pending
-        }
-        Err(PaymentError::Invoice(e)) => {
-            info!("ERROR: invalid invoice: {}", e);
-            print!("> ");
-            return;
-        }
-        Err(PaymentError::Routing(e)) => {
-            info!("ERROR: failed to find route: {}", e.err);
-            print!("> ");
-            return;
-        }
-        Err(PaymentError::Sending(e)) => {
-            info!("ERROR: failed to send payment: {:?}", e);
-            print!("> ");
-            HTLCStatus::Failed
-        }
-    };
-    let payment_hash = PaymentHash(invoice.payment_hash().into_inner());
-    let payment_secret = Some(*invoice.payment_secret());
+    outbound_payments: PaymentInfoStorageType,
+) -> anyhow::Result<()> {
+    let invoice = words
+        .next()
+        .map(Invoice::from_str)
+        .context("sendpayment requires an invoice: `sendpayment <invoice>`")?
+        .context("Invalid invoice")?;
 
-    let mut payments = payment_storage.lock().unwrap();
-    payments.insert(
+    let payment_result = invoice_payer
+        .pay_invoice(&invoice)
+        .map_err(LxPaymentError::from);
+
+    // Store the payment in our outbound payments storage as pending or failed
+    // depending on the payment result
+    let payment_hash = PaymentHash(invoice.payment_hash().into_inner());
+    let preimage = None;
+    let secret = Some(*invoice.payment_secret());
+    let amt_msat = MillisatAmount(invoice.amount_milli_satoshis());
+    let status = if payment_result.is_ok() {
+        HTLCStatus::Pending
+    } else {
+        HTLCStatus::Failed
+    };
+    outbound_payments.lock().expect("Poisoned").insert(
         payment_hash,
         PaymentInfo {
-            preimage: None,
-            secret: payment_secret,
+            preimage,
+            secret,
+            amt_msat,
             status,
-            amt_msat: MillisatAmount(invoice.amount_milli_satoshis()),
         },
     );
+
+    let _payment_id = payment_result.context("Couldn't initiate payment")?;
+    let amt_msat = MillisatAmount(invoice.amount_milli_satoshis());
+    let payee_pk = invoice.recover_payee_pub_key();
+    info!("Success: Initiated payment of {amt_msat} msats to {payee_pk}");
+
+    Ok(())
 }
 
 fn keysend<K: KeysInterface>(
