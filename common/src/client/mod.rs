@@ -7,7 +7,7 @@ pub mod tls;
 use anyhow::Context;
 use async_trait::async_trait;
 
-use crate::api::command::{ListChannels, NodeInfo};
+use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::def::{OwnerNodeProvisionApi, OwnerNodeRunApi};
 use crate::api::error::NodeApiError;
 use crate::api::provision::NodeProvisionRequest;
@@ -15,6 +15,7 @@ use crate::api::qs::EmptyData;
 use crate::api::rest::{RestClient, GET, POST};
 use crate::api::UserPk;
 use crate::attest;
+use crate::ln::invoice::LxInvoice;
 use crate::rng::Crng;
 use crate::root_seed::RootSeed;
 
@@ -92,5 +93,15 @@ impl OwnerNodeRunApi for NodeClient {
         let data = EmptyData {};
 
         self.rest.request(GET, url, &data).await
+    }
+
+    async fn get_invoice(
+        &self,
+        req: GetInvoiceRequest,
+    ) -> Result<LxInvoice, NodeApiError> {
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/owner/get_invoice");
+
+        self.rest.request(POST, url, &req).await
     }
 }

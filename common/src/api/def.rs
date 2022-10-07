@@ -20,7 +20,7 @@
 
 use async_trait::async_trait;
 
-use crate::api::command::{ListChannels, NodeInfo};
+use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::error::{BackendApiError, NodeApiError, RunnerApiError};
 use crate::api::ports::UserPorts;
 use crate::api::provision::{
@@ -30,6 +30,7 @@ use crate::api::provision::{
 use crate::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use crate::api::UserPk;
 use crate::enclave::Measurement;
+use crate::ln::invoice::LxInvoice;
 
 /// Defines the api that the backend exposes to the node.
 #[async_trait]
@@ -142,4 +143,10 @@ pub trait OwnerNodeRunApi {
     ///
     /// [`EmptyData`]: super::qs::EmptyData
     async fn list_channels(&self) -> Result<ListChannels, NodeApiError>;
+
+    /// POST /owner/get_invoice [`GetInvoiceRequest`] -> [`ListChannels`]
+    async fn get_invoice(
+        &self,
+        req: GetInvoiceRequest,
+    ) -> Result<LxInvoice, NodeApiError>;
 }

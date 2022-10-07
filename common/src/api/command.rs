@@ -16,3 +16,9 @@ pub struct NodeInfo {
 pub struct ListChannels {
     pub channel_details: Vec<LxChannelDetails>,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct GetInvoiceRequest {
+    pub amt_msat: Option<u64>,
+    pub expiry_secs: u32,
+}

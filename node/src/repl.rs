@@ -10,6 +10,7 @@ use anyhow::Context;
 use bitcoin::hashes::sha256::Hash as Sha256;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
+use common::api::command::GetInvoiceRequest;
 use common::cli::Network;
 use common::hex;
 use common::ln::peer::ChannelPeer;
@@ -138,7 +139,7 @@ pub(crate) async fn poll_for_user_input(
                     if let Err(e) = get_invoice(
                         words,
                         inbound_payments.clone(),
-                        &channel_manager,
+                        channel_manager.clone(),
                         keys_manager.clone(),
                         network,
                     ) {
@@ -528,7 +529,7 @@ fn keysend<K: KeysInterface>(
 fn get_invoice<'a, I: Iterator<Item = &'a str>>(
     mut words: I,
     inbound_payments: PaymentInfoStorageType,
-    channel_manager: &NodeChannelManager,
+    channel_manager: NodeChannelManager,
     keys_manager: LexeKeysManager,
     network: Network,
 ) -> anyhow::Result<()> {
@@ -544,13 +545,17 @@ fn get_invoice<'a, I: Iterator<Item = &'a str>>(
     let expiry_secs = u32::from_str(expiry_secs_str)
         .context("getinvoice: provided expiry was not a number")?;
 
+    let req = GetInvoiceRequest {
+        amt_msat: Some(amt_msat),
+        expiry_secs,
+    };
+
     let invoice = command::get_invoice(
         channel_manager,
         keys_manager,
         inbound_payments,
         network,
-        Some(amt_msat),
-        expiry_secs,
+        req,
     )
     .context("Could not generate invoice")?;
 
