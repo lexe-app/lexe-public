@@ -7,9 +7,9 @@ pub mod tls;
 use anyhow::Context;
 use async_trait::async_trait;
 
+use crate::api::command::{ListChannels, NodeInfo};
 use crate::api::def::{OwnerNodeProvisionApi, OwnerNodeRunApi};
 use crate::api::error::NodeApiError;
-use crate::api::node::{ListChannels, NodeInfo};
 use crate::api::provision::NodeProvisionRequest;
 use crate::api::qs::EmptyData;
 use crate::api::rest::{RestClient, GET, POST};

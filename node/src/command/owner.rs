@@ -1,12 +1,14 @@
 use std::sync::Arc;
 
+use common::api::command::ListChannels;
 use common::api::error::NodeApiError;
-use common::api::node::ListChannels;
 use common::ln::channel::LxChannelDetails;
 use lexe_ln::alias::NetworkGraphType;
 
 use crate::channel_manager::NodeChannelManager;
 
+// TODO(max): This should be moved to lexe_ln::command, duplicated (because it
+// is so simple), or removed entirely
 pub(crate) fn list_channels(
     channel_manager: NodeChannelManager,
     _network_graph: Arc<NetworkGraphType>, // TODO REPL uses it, do we need it?

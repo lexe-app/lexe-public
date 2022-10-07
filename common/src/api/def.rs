@@ -20,8 +20,8 @@
 
 use async_trait::async_trait;
 
+use crate::api::command::{ListChannels, NodeInfo};
 use crate::api::error::{BackendApiError, NodeApiError, RunnerApiError};
-use crate::api::node::{ListChannels, NodeInfo};
 use crate::api::ports::UserPorts;
 use crate::api::provision::{
     Instance, Node, NodeInstanceSeed, NodeProvisionRequest, SealedSeed,

@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context};
 use bitcoin::hashes::Hash;
-use common::api::node::NodeInfo;
+use common::api::command::NodeInfo;
 use common::cli::Network;
 use lightning::ln::PaymentHash;
 use lightning_invoice::{Currency, Invoice};
