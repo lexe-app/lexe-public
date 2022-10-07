@@ -10,6 +10,7 @@ use thiserror::Error;
 
 use super::def::UserAuthApi;
 use crate::api::error::BackendApiError;
+use crate::byte_str::ByteStr;
 use crate::ed25519::{self, Signed};
 
 pub const DEFAULT_USER_TOKEN_LIFETIME_SECS: u32 = 10 * 60; // 10 min
@@ -81,7 +82,7 @@ pub struct UserAuthRequestV1 {
     // pub btc_network: Network,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct UserAuthResponse {
     pub user_auth_token: UserAuthToken,
 }
@@ -92,7 +93,7 @@ pub struct UserAuthResponse {
 /// Most user clients should just treat this as an opaque Bearer token with a
 /// very short expiration.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct UserAuthToken(pub String);
+pub struct UserAuthToken(pub ByteStr);
 
 /// an [`UserAuthToken`] and its expected expiration time
 ///
@@ -199,16 +200,15 @@ impl ed25519::Signable for UserAuthRequest {
 // -- impl UserAuthToken -- //
 
 impl UserAuthToken {
-    /// base64 deserialize the user auth token
-    pub fn from_bytes(signed_token_bytes: &[u8]) -> Self {
-        Self(base64::encode_config(
-            signed_token_bytes,
-            base64::URL_SAFE_NO_PAD,
-        ))
+    /// base64 serialize a user auth token from the internal raw bytes.
+    pub fn encode_from_raw_bytes(signed_token_bytes: &[u8]) -> Self {
+        let b64_token =
+            base64::encode_config(signed_token_bytes, base64::URL_SAFE_NO_PAD);
+        Self(ByteStr::from(b64_token))
     }
 
-    /// base64 serialize the user auth token
-    pub fn into_bytes(&self) -> Result<Vec<u8>, Error> {
+    /// base64 decode the user auth token into the internal raw bytes.
+    pub fn decode_into_raw_bytes(&self) -> Result<Vec<u8>, Error> {
         base64::decode_config(self.0.as_str(), base64::URL_SAFE_NO_PAD)
             .map_err(|_| Error::Base64Decode)
     }
@@ -216,7 +216,7 @@ impl UserAuthToken {
 
 impl fmt::Display for UserAuthToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
+        f.write_str(self.0.as_str())
     }
 }
 

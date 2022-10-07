@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 use std::{fmt, ops};
 
 use bytes::Bytes;
+use serde::{de, ser};
 use thiserror::Error;
 
 /// `ByteStr` is just a tokio [`Bytes`], but it maintains the internal
@@ -121,5 +122,86 @@ impl From<ByteStr> for Bytes {
     #[inline]
     fn from(bs: ByteStr) -> Self {
         bs.0
+    }
+}
+
+impl ser::Serialize for ByteStr {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> de::Deserialize<'de> for ByteStr {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct ByteStrVisitor;
+
+        impl<'de> de::Visitor<'de> for ByteStrVisitor {
+            type Value = ByteStr;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("string")
+            }
+
+            #[inline]
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(ByteStr::from(v))
+            }
+
+            #[inline]
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(ByteStr::from(v))
+            }
+        }
+
+        deserializer.deserialize_string(ByteStrVisitor)
+    }
+}
+
+// we don't support `std` feature for `proptest` in SGX yet, which means we
+// can't gen arbitrary `String`s :(
+#[cfg(all(test, not(target_env = "sgx")))]
+mod test {
+    use proptest::arbitrary::any;
+    use proptest::strategy::Strategy;
+    use proptest::{prop_assert, prop_assert_eq, prop_oneof, proptest};
+
+    use super::*;
+
+    /// Generates arbitrary [`Bytes`], but half the time the result is
+    /// guaranteed to be a valid utf8 string.
+    fn arb_bytes() -> impl Strategy<Value = Bytes> {
+        prop_oneof![
+            any::<Vec<u8>>().prop_map(Bytes::from),
+            any::<String>().prop_map(Bytes::from),
+        ]
+    }
+
+    #[test]
+    fn str_from_utf8_equiv() {
+        proptest!(|(bytes in arb_bytes())| {
+            let res1 = ByteStr::try_from_bytes(bytes.clone());
+            let res2 = std::str::from_utf8(&bytes);
+
+            match (&res1, &res2) {
+                (Ok(s1), Ok(s2)) => {
+                    prop_assert_eq!(&s1.as_str(), s2);
+                }
+                (Err(_), Err(_)) => () /* both reject => ok */,
+                (Ok(_), Err(_)) | (Err(_), Ok(_)) =>
+                    prop_assert!(false, "res1 ({res1:?}) != res2 ({res2:?})"),
+            }
+        })
     }
 }

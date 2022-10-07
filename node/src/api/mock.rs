@@ -14,6 +14,7 @@ use common::api::provision::{
 };
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::api::UserPk;
+use common::byte_str::ByteStr;
 use common::ed25519;
 use common::enclave::{self, Measurement};
 use common::rng::SysRng;
@@ -119,7 +120,7 @@ impl UserAuthApi for MockApiClient {
     ) -> Result<UserAuthResponse, BackendApiError> {
         // TODO(phlip9): return something we can verify
         Ok(UserAuthResponse {
-            user_auth_token: UserAuthToken(String::new()),
+            user_auth_token: UserAuthToken(ByteStr::new()),
         })
     }
 }
