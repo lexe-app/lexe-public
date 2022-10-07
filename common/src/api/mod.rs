@@ -61,22 +61,22 @@ impl UserPk {
     }
 
     /// Used to quickly construct `UserPk`s for tests.
-    pub fn from_i64(i: i64) -> Self {
+    pub fn from_u64(v: i64) -> Self {
         // Convert i64 to [u8; 8]
-        let i_bytes = i.to_ne_bytes();
+        let bytes = v.to_le_bytes();
 
         // Fill the first 8 bytes with the i64 bytes
         let mut inner = [0u8; 32];
-        inner[0..8].clone_from_slice(&i_bytes);
+        inner[0..8].copy_from_slice(&bytes);
 
         Self(inner)
     }
 
-    /// Used to compare inner `i64` values set during tests
-    pub fn to_i64(self) -> i64 {
-        let mut i_bytes = [0u8; 8];
-        i_bytes.clone_from_slice(&self.0[0..8]);
-        i64::from_ne_bytes(i_bytes)
+    /// Used to compare inner `u64` values set during tests
+    pub fn to_u64(self) -> u64 {
+        let mut bytes = [0u8; 8];
+        bytes.copy_from_slice(&self.0[0..8]);
+        u64::from_le_bytes(bytes)
     }
 }
 

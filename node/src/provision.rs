@@ -263,14 +263,11 @@ fn verify_provision_request<R: Crng>(
 mod test {
     use std::sync::Arc;
 
-    use common::api::UserPk;
     use common::attest;
     use common::attest::verify::EnclavePolicy;
     use common::cli::ProvisionArgs;
     use common::rng::SysRng;
     use common::root_seed::RootSeed;
-    use lexe_ln::logger;
-    use secrecy::Secret;
     use tokio_rustls::rustls;
 
     use super::*;
@@ -308,25 +305,27 @@ mod test {
 
     #[test]
     fn test_provision_request_serde() {
+        let root_seed = RootSeed::from_u64(123);
+        let user_pk = root_seed.derive_user_pk();
+        let node_pk = root_seed.derive_node_pk(&mut SysRng::new());
+
         let req = NodeProvisionRequest {
-            user_pk: UserPk::from_i64(123),
-            node_pk: "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),         root_seed:
-        "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7".parse().unwrap(),
+            user_pk,
+            node_pk,
+            root_seed,
         };
         let actual = serde_json::to_value(&req).unwrap();
         let expected = serde_json::json!({
-            "user_pk": UserPk::from_i64(123),
-            "node_pk": "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4",
-            "root_seed": "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7",
+            "user_pk": "864295390b3274b1ffd7bddc64ea602f3ab6ac8e2b752d2b8b6968070744d9e5",
+            "node_pk": "033422a640d296a69288d04b8c49b50c3c800590babf3a418f3f8eed98f86f1320",
+            "root_seed": "7b00000000000000000000000000000000000000000000000000000000000000",
         });
         assert_eq!(&actual, &expected);
     }
 
     #[tokio::test]
     async fn test_provision() {
-        logger::init_for_testing();
-
-        let root_seed = RootSeed::new(Secret::new([0x42; 32]));
+        let root_seed = RootSeed::from_u64(0x42);
         let user_pk = root_seed.derive_user_pk();
         // TODO(phlip9): replace SysRng w/ SmallRng when test-util feature lands
         let node_pk = root_seed.derive_node_pk(&mut SysRng::new());

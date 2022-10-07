@@ -31,6 +31,14 @@ impl RootSeed {
         Self(bytes)
     }
 
+    /// Quickly create a `RootSeed` for tests.
+    // #[cfg(any(test, feature = "test-util"))]
+    pub fn from_u64(v: u64) -> Self {
+        let mut seed = [0u8; 32];
+        seed[0..8].copy_from_slice(&v.to_le_bytes());
+        Self::new(Secret::new(seed))
+    }
+
     pub fn from_rng<R>(rng: &mut R) -> Self
     where
         R: RngCore + CryptoRng,
@@ -362,20 +370,20 @@ mod test {
 
     #[test]
     fn test_root_seed_derive() {
-        let seed = RootSeed::new(Secret::new([0x42; 32]));
+        let seed = RootSeed::from_u64(0x42);
 
         let out8 = seed.derive_vec(b"very cool secret", 8);
         let out16 = seed.derive_vec(b"very cool secret", 16);
         let out32 = seed.derive_vec(b"very cool secret", 32);
         let out32_2 = seed.derive(b"very cool secret");
 
-        assert_eq!("6372210b31646684", hex::encode(out8.expose_secret()));
+        assert_eq!("4ea4ee14ed456f80", hex::encode(out8.expose_secret()));
         assert_eq!(
-            "6372210b31646684b8821c722239b939",
+            "4ea4ee14ed456f801a98634ee9665c1d",
             hex::encode(out16.expose_secret())
         );
         assert_eq!(
-            "6372210b31646684b8821c722239b939c305d049ddb0a95af9007bfc5dd0418c",
+            "4ea4ee14ed456f801a98634ee9665c1d4be183f550d914097ae2dece5ece3f97",
             hex::encode(out32.expose_secret())
         );
         assert_eq!(out32.expose_secret(), out32_2.expose_secret());
