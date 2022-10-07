@@ -20,13 +20,12 @@ use crate::{const_ref_cast, ed25519, hexstr_or_bytes};
 
 /// Authentication and User Signup.
 pub mod auth;
+/// Data types used in APIs for top level commands.
+pub mod command;
 /// Traits defining the various REST API interfaces.
 pub mod def;
 /// Enums for the API errors returned by the various services.
 pub mod error;
-/// Minor data types defining what is returned by APIs exposed by the node.
-/// Bigger / more fundamental LN types should go under [`crate::ln`].
-pub mod node;
 /// `Port`, `Ports`, `UserPorts`, `RunPorts`, etc.
 pub mod ports;
 /// Data types specific to provisioning.
