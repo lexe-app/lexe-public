@@ -12,12 +12,14 @@
 
 use std::sync::Arc;
 
+use common::api::command::GetInvoiceRequest;
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::rest::{into_response, into_succ_response};
 use common::api::UserPk;
+use common::cli::Network;
 use common::shutdown::ShutdownChannel;
-use lexe_ln::alias::NetworkGraphType;
-use lexe_ln::command;
+use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
+use lexe_ln::keys_manager::LexeKeysManager;
 use tokio::sync::mpsc;
 use tracing::trace;
 use warp::{Filter, Rejection, Reply};
@@ -31,7 +33,7 @@ mod inject;
 /// Converts the `anyhow::Result<T>`s returned by [`lexe_ln::command`] into
 /// `Result<T, NodeApiError>`s with error kind [`NodeErrorKind::Command`].
 #[allow(dead_code)] // TODO(max): Add get_invoice endpoint and use this fn
-fn into_api_result<T>(
+fn into_command_api_result<T>(
     anyhow_res: anyhow::Result<T>,
 ) -> Result<T, NodeApiError> {
     anyhow_res.map_err(|e| NodeApiError {
@@ -48,6 +50,9 @@ pub(crate) fn owner_routes(
     channel_manager: NodeChannelManager,
     peer_manager: NodePeerManager,
     network_graph: Arc<NetworkGraphType>,
+    keys_manager: LexeKeysManager,
+    inbound_payments: PaymentInfoStorageType,
+    network: Network,
     activity_tx: mpsc::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
     let root =
@@ -65,16 +70,26 @@ pub(crate) fn owner_routes(
         .and(warp::get())
         .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::peer_manager(peer_manager))
-        .map(command::node_info)
+        .map(lexe_ln::command::node_info)
         .map(into_succ_response);
     let list_channels = warp::path("channels")
         .and(warp::get())
-        .and(inject::channel_manager(channel_manager))
+        .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::network_graph(network_graph))
         .map(owner::list_channels)
         .map(into_response);
+    let get_invoice = warp::path("get_invoice")
+        .and(warp::post())
+        .and(inject::channel_manager(channel_manager))
+        .and(inject::keys_manager(keys_manager))
+        .and(inject::inbound_payments(inbound_payments))
+        .and(inject::network(network))
+        .and(warp::body::json::<GetInvoiceRequest>())
+        .map(lexe_ln::command::get_invoice)
+        .map(into_command_api_result)
+        .map(into_response);
 
-    let owner = owner_base.and(node_info.or(list_channels));
+    let owner = owner_base.and(node_info.or(list_channels).or(get_invoice));
 
     root.or(owner)
 }

@@ -301,6 +301,22 @@ impl UserNode {
         );
         tasks.push(("p2p reconnectooor", p2p_reconnector_task));
 
+        // Initialize the event handler
+        // TODO: persist payment info
+        let inbound_payments: PaymentInfoStorageType =
+            Arc::new(Mutex::new(HashMap::new()));
+        let outbound_payments: PaymentInfoStorageType =
+            Arc::new(Mutex::new(HashMap::new()));
+        let event_handler = NodeEventHandler::new(
+            args.network,
+            channel_manager.clone(),
+            keys_manager.clone(),
+            bitcoind.clone(),
+            network_graph.clone(),
+            inbound_payments.clone(),
+            outbound_payments.clone(),
+        );
+
         // Build owner service TLS config for authenticating owner
         let node_dns = args.node_dns_name.clone();
         let owner_tls = node_run_tls_config(rng, &root_seed, vec![node_dns])
@@ -311,6 +327,9 @@ impl UserNode {
             channel_manager.clone(),
             peer_manager.clone(),
             network_graph.clone(),
+            keys_manager.clone(),
+            inbound_payments.clone(),
+            args.network,
             activity_tx,
         );
         let mut owner_shutdown = shutdown.clone();
@@ -355,22 +374,6 @@ impl UserNode {
         api.ready(user_ports)
             .await
             .context("Could not notify runner of ready status")?;
-
-        // Initialize the event handler
-        // TODO: persist payment info
-        let inbound_payments: PaymentInfoStorageType =
-            Arc::new(Mutex::new(HashMap::new()));
-        let outbound_payments: PaymentInfoStorageType =
-            Arc::new(Mutex::new(HashMap::new()));
-        let event_handler = NodeEventHandler::new(
-            args.network,
-            channel_manager.clone(),
-            keys_manager.clone(),
-            bitcoind.clone(),
-            network_graph.clone(),
-            inbound_payments.clone(),
-            outbound_payments.clone(),
-        );
 
         // Initialize InvoicePayer
         let router = DefaultRouter::new(

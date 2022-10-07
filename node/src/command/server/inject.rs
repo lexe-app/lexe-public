@@ -5,8 +5,10 @@ use std::convert::Infallible;
 use std::sync::Arc;
 
 use common::api::UserPk;
+use common::cli::Network;
 use common::shutdown::ShutdownChannel;
-use lexe_ln::alias::NetworkGraphType;
+use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
+use lexe_ln::keys_manager::LexeKeysManager;
 use warp::Filter;
 
 use crate::channel_manager::NodeChannelManager;
@@ -46,4 +48,26 @@ pub(crate) fn network_graph(
 ) -> impl Filter<Extract = (Arc<NetworkGraphType>,), Error = Infallible> + Clone
 {
     warp::any().map(move || network_graph.clone())
+}
+
+/// Injects a keys manager.
+pub(crate) fn keys_manager(
+    keys_manager: LexeKeysManager,
+) -> impl Filter<Extract = (LexeKeysManager,), Error = Infallible> + Clone {
+    warp::any().map(move || keys_manager.clone())
+}
+
+/// Injects the inbound payments storage.
+pub(crate) fn inbound_payments(
+    inbound_payments: PaymentInfoStorageType,
+) -> impl Filter<Extract = (PaymentInfoStorageType,), Error = Infallible> + Clone
+{
+    warp::any().map(move || inbound_payments.clone())
+}
+
+/// Injects the [`Network`] the node is running on.
+pub(crate) fn network(
+    network: Network,
+) -> impl Filter<Extract = (Network,), Error = Infallible> + Clone {
+    warp::any().map(move || network)
 }
