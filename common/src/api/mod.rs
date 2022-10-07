@@ -190,8 +190,8 @@ mod test {
     }
 
     #[test]
-    fn user_pk_bcs() {
-        roundtrip::serde_roundtrip_proptest::<UserPk>();
+    fn user_pk_json() {
+        roundtrip::json_roundtrip_proptest::<UserPk>();
     }
 
     #[test]
@@ -200,7 +200,7 @@ mod test {
     }
 
     #[test]
-    fn node_pk_bcs() {
-        roundtrip::serde_roundtrip_proptest::<NodePk>();
+    fn node_pk_json() {
+        roundtrip::json_roundtrip_proptest::<NodePk>();
     }
 }
