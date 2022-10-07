@@ -8,7 +8,7 @@ use anyhow::{anyhow, ensure, Context};
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
 use bitcoin::secp256k1::PublicKey;
-use common::api::auth::{OpaqueUserAuthToken, UserAuthenticator};
+use common::api::auth::{UserAuthToken, UserAuthenticator};
 use common::api::error::BackendApiError;
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::cli::Network;
@@ -101,7 +101,7 @@ pub struct InnerPersister {
 }
 
 impl InnerPersister {
-    async fn get_token(&self) -> Result<OpaqueUserAuthToken, BackendApiError> {
+    async fn get_token(&self) -> Result<UserAuthToken, BackendApiError> {
         self.authenticator
             .get_token(&*self.api, SystemTime::now())
             .await

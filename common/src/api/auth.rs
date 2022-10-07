@@ -83,7 +83,7 @@ pub struct UserAuthRequestV1 {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct UserAuthResponse {
-    pub user_auth_token: OpaqueUserAuthToken,
+    pub user_auth_token: UserAuthToken,
 }
 
 /// An opaque user auth token for authenticating user clients against lexe infra
@@ -92,15 +92,15 @@ pub struct UserAuthResponse {
 /// Most user clients should just treat this as an opaque Bearer token with a
 /// very short expiration.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct OpaqueUserAuthToken(pub String);
+pub struct UserAuthToken(pub String);
 
-/// an [`OpaqueUserAuthToken`] and its expected expiration time
+/// an [`UserAuthToken`] and its expected expiration time
 ///
 /// * we actually use "true expiration" minus a few seconds so we can re-auth
 ///   before the token actually expires.
 pub struct TokenWithExpiration {
     pub expiration: SystemTime,
-    pub token: OpaqueUserAuthToken,
+    pub token: UserAuthToken,
 }
 
 /// A `UserAuthenticator` (1) stores existing fresh auth tokens and (2)
@@ -110,7 +110,7 @@ pub struct UserAuthenticator {
     /// the lexe backend.
     user_key_pair: ed25519::KeyPair,
 
-    /// The latest [`OpaqueUserAuthToken`] with its expected expiration time.
+    /// The latest [`UserAuthToken`] with its expected expiration time.
     // NOTE: we intenionally use a tokio `Mutex` here.
     //
     // 1. we want only at-most-one client to try auth'ing at once
@@ -196,9 +196,9 @@ impl ed25519::Signable for UserAuthRequest {
     const DOMAIN_SEPARATOR_STR: &'static [u8] = b"LEXE-REALM::UserAuthRequest";
 }
 
-// -- impl OpaqueUserAuthToken -- //
+// -- impl UserAuthToken -- //
 
-impl OpaqueUserAuthToken {
+impl UserAuthToken {
     /// base64 deserialize the user auth token
     pub fn from_bytes(signed_token_bytes: &[u8]) -> Self {
         Self(base64::encode_config(
@@ -214,7 +214,7 @@ impl OpaqueUserAuthToken {
     }
 }
 
-impl fmt::Display for OpaqueUserAuthToken {
+impl fmt::Display for UserAuthToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)
     }
@@ -242,7 +242,7 @@ impl UserAuthenticator {
         &self,
         api: &T,
         now: SystemTime,
-    ) -> Result<OpaqueUserAuthToken, BackendApiError> {
+    ) -> Result<UserAuthToken, BackendApiError> {
         let mut lock = self.cached_auth_token.lock().await;
 
         // there's already a fresh token here; just use that.
