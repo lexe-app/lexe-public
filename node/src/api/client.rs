@@ -236,7 +236,7 @@ impl NodeRunnerApi for NodeApiClient {
         let runner = &self.runner_url;
         let req = self
             .rest
-            .builder(POST, format!("{runner}/v1/ready"))
+            .builder(POST, format!("{runner}/ready"))
             .json(&data);
         // TODO(phlip9): authenticate runner callbacks?
         // .bearer_auth(&self.auth_token().await?);

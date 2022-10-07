@@ -20,7 +20,6 @@ use common::enclave::{self, Measurement};
 use common::rng::SysRng;
 use common::root_seed::RootSeed;
 use once_cell::sync::Lazy;
-use secrecy::Secret;
 use tokio::sync::mpsc;
 
 use crate::api::ApiClient;
@@ -31,9 +30,6 @@ type Data = Vec<u8>;
 
 // --- test fixtures --- //
 
-fn make_root_seed(bytes: [u8; 32]) -> RootSeed {
-    RootSeed::new(Secret::new(bytes))
-}
 fn make_user_pk(root_seed: &RootSeed) -> UserPk {
     root_seed.derive_user_pk()
 }
@@ -45,8 +41,8 @@ fn make_sealed_seed(root_seed: &RootSeed) -> SealedSeed {
         .expect("Failed to seal test root seed")
 }
 
-static SEED1: Lazy<RootSeed> = Lazy::new(|| make_root_seed([0x42; 32]));
-static SEED2: Lazy<RootSeed> = Lazy::new(|| make_root_seed([0x69; 32]));
+static SEED1: Lazy<RootSeed> = Lazy::new(|| RootSeed::from_u64(1));
+static SEED2: Lazy<RootSeed> = Lazy::new(|| RootSeed::from_u64(2));
 
 pub static USER_PK1: Lazy<UserPk> = Lazy::new(|| make_user_pk(&SEED1));
 pub static USER_PK2: Lazy<UserPk> = Lazy::new(|| make_user_pk(&SEED2));
@@ -68,10 +64,9 @@ pub fn sealed_seed(node_pk: &PublicKey) -> SealedSeed {
 }
 
 fn node_pk(user_pk: UserPk) -> PublicKey {
-    if user_pk == *USER_PK1 || /* hack: */ user_pk == UserPk::from_i64(1) {
+    if user_pk == *USER_PK1 {
         *NODE_PK1
-    } else if user_pk == *USER_PK2 || /* hack: */ user_pk == UserPk::from_i64(2)
-    {
+    } else if user_pk == *USER_PK2 {
         *NODE_PK2
     } else {
         todo!("TODO(max): Programmatically generate for new users")
@@ -259,8 +254,7 @@ impl VirtualFileSystem {
         let mut inner = HashMap::new();
 
         // For each user, insert all directories used by the persister
-        for i in 1..=2 {
-            let user_pk = UserPk::from_i64(i);
+        for user_pk in [*USER_PK1, *USER_PK2] {
             let singleton_dir = NodeDirectory {
                 node_pk: node_pk(user_pk),
                 measurement: measurement(user_pk),

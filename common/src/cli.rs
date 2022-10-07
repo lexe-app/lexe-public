@@ -192,7 +192,7 @@ impl Default for RunArgs {
     fn default() -> Self {
         Self {
             bitcoind_rpc: BitcoindRpcInfo::default(),
-            user_pk: UserPk::from_i64(1), // Test user
+            user_pk: UserPk::from_u64(1), // Test user
             owner_port: None,
             host_port: None,
             peer_port: None,
@@ -291,7 +291,7 @@ pub struct ProvisionArgs {
 impl Default for ProvisionArgs {
     fn default() -> Self {
         Self {
-            user_pk: UserPk::from_i64(1), // Test user
+            user_pk: UserPk::from_u64(1), // Test user
             node_dns_name: "provision.lexe.tech".to_owned(),
             port: None,
             backend_url: DEFAULT_BACKEND_URL.to_owned(),
