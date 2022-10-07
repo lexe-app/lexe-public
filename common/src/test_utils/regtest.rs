@@ -4,6 +4,7 @@ use bitcoin::network::constants::Network;
 use bitcoin::util::address::{Address, Payload};
 use bitcoind::bitcoincore_rpc::RpcApi;
 use bitcoind::{self, BitcoinD, Conf};
+use tracing::debug;
 
 use crate::cli::BitcoindRpcInfo;
 
@@ -50,6 +51,7 @@ impl Regtest {
 
     /// Mines 6 blocks. Block rewards are sent to a dummy address.
     pub async fn mine_6_blocks(&self) {
+        debug!("Mining 6 blocks");
         // `bitcoind.client.generate()` returns a deprecated error, so we use
         // generate_to_address instead.
         self.mine_n_blocks_to_address(6, &get_dummy_address()).await;
@@ -58,6 +60,7 @@ impl Regtest {
     /// Mines 101 blocks to the given address. 101 blocks is needed because
     /// coinbase outputs aren't spendable until after 100 blocks.
     pub async fn fund_address(&self, address: &Address) {
+        debug!("Funding address {address} by mining 101 blocks");
         self.mine_n_blocks_to_address(101, address).await;
     }
 
