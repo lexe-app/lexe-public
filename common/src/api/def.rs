@@ -20,9 +20,7 @@
 
 use async_trait::async_trait;
 
-use crate::api::auth::{
-    OpaqueUserAuthToken, UserAuthRequest, UserAuthResponse,
-};
+use crate::api::auth::{UserAuthRequest, UserAuthResponse, UserAuthToken};
 use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::error::{BackendApiError, NodeApiError, RunnerApiError};
 use crate::api::ports::UserPorts;
@@ -66,28 +64,28 @@ pub trait NodeBackendApi {
     async fn create_node_instance_seed(
         &self,
         data: NodeInstanceSeed,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
     ) -> Result<NodeInstanceSeed, BackendApiError>;
 
     /// GET /v1/file [`NodeFileId`] -> [`Option<NodeFile>`]
     async fn get_file(
         &self,
         file_id: &NodeFileId,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
     ) -> Result<Option<NodeFile>, BackendApiError>;
 
     /// POST /v1/file [`NodeFile`] -> [`NodeFile`]
     async fn create_file(
         &self,
         file: &NodeFile,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
     ) -> Result<NodeFile, BackendApiError>;
 
     /// PUT /v1/file [`NodeFile`] -> [`NodeFile`]
     async fn upsert_file(
         &self,
         file: &NodeFile,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
     ) -> Result<NodeFile, BackendApiError>;
 
     /// DELETE /v1/file [`NodeFileId`] -> "OK"
@@ -96,14 +94,14 @@ pub trait NodeBackendApi {
     async fn delete_file(
         &self,
         file_id: &NodeFileId,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
     ) -> Result<String, BackendApiError>;
 
     /// GET /v1/directory [`NodeDirectory`] -> [`Vec<NodeFile>`]
     async fn get_directory(
         &self,
         dir: &NodeDirectory,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
     ) -> Result<Vec<NodeFile>, BackendApiError>;
 }
 

@@ -1,9 +1,7 @@
 //! This file contains NodeApiClient, the concrete impl of the ApiClient trait.
 
 use async_trait::async_trait;
-use common::api::auth::{
-    OpaqueUserAuthToken, UserAuthRequest, UserAuthResponse,
-};
+use common::api::auth::{UserAuthRequest, UserAuthResponse, UserAuthToken};
 use common::api::def::{NodeBackendApi, NodeRunnerApi, UserAuthApi};
 use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::ports::UserPorts;
@@ -64,7 +62,7 @@ impl ApiClient for NodeApiClient {
     async fn create_file_with_retries(
         &self,
         data: &NodeFile,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
         retries: usize,
     ) -> Result<NodeFile, BackendApiError> {
         let backend = &self.backend_url;
@@ -80,7 +78,7 @@ impl ApiClient for NodeApiClient {
     async fn upsert_file_with_retries(
         &self,
         data: &NodeFile,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
         retries: usize,
     ) -> Result<NodeFile, BackendApiError> {
         let backend = &self.backend_url;
@@ -144,7 +142,7 @@ impl NodeBackendApi for NodeApiClient {
     async fn create_node_instance_seed(
         &self,
         data: NodeInstanceSeed,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
     ) -> Result<NodeInstanceSeed, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -158,7 +156,7 @@ impl NodeBackendApi for NodeApiClient {
     async fn get_file(
         &self,
         data: &NodeFileId,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
     ) -> Result<Option<NodeFile>, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -172,7 +170,7 @@ impl NodeBackendApi for NodeApiClient {
     async fn create_file(
         &self,
         data: &NodeFile,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
     ) -> Result<NodeFile, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -186,7 +184,7 @@ impl NodeBackendApi for NodeApiClient {
     async fn upsert_file(
         &self,
         data: &NodeFile,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
     ) -> Result<NodeFile, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -203,7 +201,7 @@ impl NodeBackendApi for NodeApiClient {
     async fn delete_file(
         &self,
         data: &NodeFileId,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
     ) -> Result<String, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -217,7 +215,7 @@ impl NodeBackendApi for NodeApiClient {
     async fn get_directory(
         &self,
         data: &NodeDirectory,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
     ) -> Result<Vec<NodeFile>, BackendApiError> {
         let backend = &self.backend_url;
         let req = self

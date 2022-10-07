@@ -5,9 +5,7 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use bitcoin::secp256k1::PublicKey;
-use common::api::auth::{
-    OpaqueUserAuthToken, UserAuthRequest, UserAuthResponse,
-};
+use common::api::auth::{UserAuthRequest, UserAuthResponse, UserAuthToken};
 use common::api::def::{NodeBackendApi, NodeRunnerApi, UserAuthApi};
 use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::ports::UserPorts;
@@ -121,7 +119,7 @@ impl UserAuthApi for MockApiClient {
     ) -> Result<UserAuthResponse, BackendApiError> {
         // TODO(phlip9): return something we can verify
         Ok(UserAuthResponse {
-            user_auth_token: OpaqueUserAuthToken(String::new()),
+            user_auth_token: UserAuthToken(String::new()),
         })
     }
 }
@@ -131,7 +129,7 @@ impl ApiClient for MockApiClient {
     async fn create_file_with_retries(
         &self,
         file: &NodeFile,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
         _retries: usize,
     ) -> Result<NodeFile, BackendApiError> {
         self.create_file(file, auth).await
@@ -140,7 +138,7 @@ impl ApiClient for MockApiClient {
     async fn upsert_file_with_retries(
         &self,
         file: &NodeFile,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
         _retries: usize,
     ) -> Result<NodeFile, BackendApiError> {
         self.upsert_file(file, auth).await
@@ -186,7 +184,7 @@ impl NodeBackendApi for MockApiClient {
     async fn create_node_instance_seed(
         &self,
         data: NodeInstanceSeed,
-        _auth: OpaqueUserAuthToken,
+        _auth: UserAuthToken,
     ) -> Result<NodeInstanceSeed, BackendApiError> {
         Ok(data)
     }
@@ -194,7 +192,7 @@ impl NodeBackendApi for MockApiClient {
     async fn get_file(
         &self,
         file_id: &NodeFileId,
-        _auth: OpaqueUserAuthToken,
+        _auth: UserAuthToken,
     ) -> Result<Option<NodeFile>, BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().get(file_id.clone());
         Ok(file_opt)
@@ -203,7 +201,7 @@ impl NodeBackendApi for MockApiClient {
     async fn create_file(
         &self,
         file: &NodeFile,
-        _auth: OpaqueUserAuthToken,
+        _auth: UserAuthToken,
     ) -> Result<NodeFile, BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().insert(file.clone());
         assert!(file_opt.is_none());
@@ -213,7 +211,7 @@ impl NodeBackendApi for MockApiClient {
     async fn upsert_file(
         &self,
         file: &NodeFile,
-        _auth: OpaqueUserAuthToken,
+        _auth: UserAuthToken,
     ) -> Result<NodeFile, BackendApiError> {
         self.vfs.lock().unwrap().insert(file.clone());
         Ok(file.clone())
@@ -223,7 +221,7 @@ impl NodeBackendApi for MockApiClient {
     async fn delete_file(
         &self,
         file_id: &NodeFileId,
-        _auth: OpaqueUserAuthToken,
+        _auth: UserAuthToken,
     ) -> Result<String, BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().remove(file_id.clone());
         assert!(file_opt.is_none());
@@ -233,7 +231,7 @@ impl NodeBackendApi for MockApiClient {
     async fn get_directory(
         &self,
         dir: &NodeDirectory,
-        _auth: OpaqueUserAuthToken,
+        _auth: UserAuthToken,
     ) -> Result<Vec<NodeFile>, BackendApiError> {
         let files_vec = self.vfs.lock().unwrap().get_dir(dir.clone());
         Ok(files_vec)

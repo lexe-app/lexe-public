@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use common::api::auth::OpaqueUserAuthToken;
+use common::api::auth::UserAuthToken;
 use common::api::def::{NodeBackendApi, NodeRunnerApi, UserAuthApi};
 use common::api::error::BackendApiError;
 use common::api::vfs::NodeFile;
@@ -18,14 +18,14 @@ pub trait ApiClient: NodeBackendApi + NodeRunnerApi + UserAuthApi {
     async fn create_file_with_retries(
         &self,
         file: &NodeFile,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
         retries: usize,
     ) -> Result<NodeFile, BackendApiError>;
 
     async fn upsert_file_with_retries(
         &self,
         file: &NodeFile,
-        auth: OpaqueUserAuthToken,
+        auth: UserAuthToken,
         retries: usize,
     ) -> Result<NodeFile, BackendApiError>;
 }
