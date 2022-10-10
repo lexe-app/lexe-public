@@ -102,7 +102,7 @@ impl LexeBitcoind {
         let mut shutdown = self.shutdown.clone();
 
         // TODO(max): Instrument with shutdown
-        LxTask::spawn(async move {
+        LxTask::spawn_named("refresh fees", async move {
             let mut poll_interval = time::interval(POLL_FEE_ESTIMATE_INTERVAL);
 
             loop {

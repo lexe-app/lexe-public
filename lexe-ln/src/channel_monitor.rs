@@ -29,7 +29,7 @@ pub fn spawn_channel_monitor_updated_task<PS: LexePersister>(
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()> {
     debug!("Starting channel_monitor_updated task");
-    LxTask::spawn(async move {
+    LxTask::spawn_named("channel monitor updated", async move {
         loop {
             tokio::select! {
                 Some(update) = channel_monitor_updated_rx.recv() => {

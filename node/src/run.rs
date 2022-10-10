@@ -16,7 +16,7 @@ use common::enclave::{
 use common::rng::Crng;
 use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
-use common::task::LxTask;
+use common::task::{join_res_label, LxTask};
 use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
     BlockSourceType, BroadcasterType, ChannelMonitorType, FeeEstimatorType,
@@ -60,7 +60,7 @@ pub struct UserNode {
     // --- General --- //
     args: RunArgs,
     pub(crate) peer_port: Port,
-    tasks: Vec<(&'static str, LxTask<()>)>,
+    tasks: Vec<LxTask<()>>,
 
     // --- Actors --- //
     logger: LexeTracingLogger,
@@ -144,7 +144,7 @@ impl UserNode {
         let mut tasks = Vec::with_capacity(10);
 
         // Spawn task to refresh feerates
-        tasks.push(("refresh fees", bitcoind.spawn_refresh_fees_task()));
+        tasks.push(bitcoind.spawn_refresh_fees_task());
 
         // Build LexeKeysManager from node init data
         let keys_manager =
@@ -180,13 +180,11 @@ impl UserNode {
         ));
 
         // Set up the persister -> chain monitor channel
-        let channel_monitor_updated_task =
-            channel_monitor::spawn_channel_monitor_updated_task(
-                chain_monitor.clone(),
-                channel_monitor_updated_rx,
-                shutdown.clone(),
-            );
-        tasks.push(("channel monitor updated", channel_monitor_updated_task));
+        tasks.push(channel_monitor::spawn_channel_monitor_updated_task(
+            chain_monitor.clone(),
+            channel_monitor_updated_rx,
+            shutdown.clone(),
+        ));
 
         // Read channel monitors while reading network graph
         let (channel_monitors_res, network_graph_res) = tokio::join!(
@@ -269,12 +267,11 @@ impl UserNode {
             (listener, peer_port)
         };
         info!("Listening for LN P2P connections on port {peer_port}");
-        let p2p_listener_task = p2p::spawn_p2p_listener(
+        tasks.push(p2p::spawn_p2p_listener(
             listener,
             peer_manager.clone(),
             shutdown.clone(),
-        );
-        tasks.push(("p2p listener", p2p_listener_task));
+        ));
 
         // The LSP is the only channel peer the p2p reconnector task needs to
         // reconnect to. Print a warning if it was not specified.
@@ -292,14 +289,13 @@ impl UserNode {
         };
 
         // Spawn the task to regularly reconnect to channel peers
-        let p2p_reconnector_task = p2p::spawn_p2p_reconnector(
+        tasks.push(p2p::spawn_p2p_reconnector(
             channel_manager.clone(),
             peer_manager.clone(),
             initial_channel_peers,
             channel_peer_rx,
             shutdown.clone(),
-        );
-        tasks.push(("p2p reconnectooor", p2p_reconnector_task));
+        ));
 
         // Initialize the event handler
         // TODO: persist payment info
@@ -343,10 +339,7 @@ impl UserNode {
             );
         let owner_port = owner_addr.port();
         info!("Owner service listening on port {}", owner_port);
-        let owner_service_task = LxTask::spawn(async move {
-            owner_service_fut.await;
-        });
-        tasks.push(("owner service", owner_service_task));
+        tasks.push(LxTask::spawn_named("owner service", owner_service_fut));
 
         // TODO(phlip9): authenticate host<->node
         // Start warp service for host
@@ -362,10 +355,7 @@ impl UserNode {
             .context("Failed to bind warp")?;
         let host_port = host_addr.port();
         info!("Host service listening on port {}", host_port);
-        let host_service_task = LxTask::spawn(async move {
-            host_service_fut.await;
-        });
-        tasks.push(("host service", host_service_task));
+        tasks.push(LxTask::spawn_named("host service", host_service_fut));
 
         // Let the runner know that we're ready
         info!("Node is ready to accept commands; notifying runner");
@@ -406,7 +396,7 @@ impl UserNode {
             scorer.clone(),
             shutdown.clone(),
         );
-        tasks.push(("background processor", bg_processor_task));
+        tasks.push(bg_processor_task);
 
         // Construct (but don't start) the inactivity timer
         let inactivity_timer = InactivityTimer::new(
@@ -480,14 +470,14 @@ impl UserNode {
                 self.shutdown.clone(),
             )
             .context("Error wrapping up sync")?;
-        self.tasks.push(("spv client", spv_client_task));
+        self.tasks.push(spv_client_task);
 
         // Sync is complete; start the inactivity timer.
         debug!("Starting inactivity timer");
-        let inactivity_timer_task = LxTask::spawn(async move {
-            self.inactivity_timer.start().await;
-        });
-        self.tasks.push(("inactivity timer", inactivity_timer_task));
+        self.tasks
+            .push(LxTask::spawn_named("inactivity timer", async move {
+                self.inactivity_timer.start().await;
+            }));
 
         // --- Run --- //
 
@@ -511,39 +501,53 @@ impl UserNode {
             debug!("REPL complete.");
         }
 
-        // Pause here and wait for the shutdown signal
-        self.shutdown.recv().await;
+        let mut tasks = self
+            .tasks
+            .into_iter()
+            .map(|task| task.result_with_name())
+            .collect::<FuturesUnordered<_>>();
+
+        while !tasks.is_empty() {
+            tokio::select! {
+                () = self.shutdown.recv() => {
+                    break;
+                }
+                // must poll tasks while waiting for shutdown, o/w a panic in a
+                // task won't surface until later, when we start shutdown.
+                Some((result, name)) = tasks.next() => {
+                    let task_state = join_res_label(result);
+                    // tasks should probably only stop when we're shutting down.
+                    info!("'{name}' task {task_state} before shutdown");
+                }
+            }
+        }
 
         // --- Shutdown --- //
-        info!("Main thread shutting down.");
-
-        info!("Disconnecting all peers");
+        info!("Recevied shutdown; disconnecting all peers");
         // This ensures we don't continue updating our channel data after
         // the background processor has stopped.
         self.peer_manager.disconnect_all_peers();
 
         info!("Waiting on all tasks to finish");
-        let mut tasks = self
-            .tasks
-            .into_iter()
-            .map(|(name, task)| async move {
-                let join_res = task.await;
-                (name, join_res)
-            })
-            .collect::<FuturesUnordered<_>>();
         let timeout = tokio::time::sleep(SHUTDOWN_TIME_LIMIT);
         tokio::pin!(timeout);
         while !tasks.is_empty() {
             tokio::select! {
-                Some((name, join_res)) = tasks.next() => {
-                    match join_res {
-                        Ok(()) => info!("'{name}' task finished"),
-                        Err(e) => error!("'{name}' task panicked: {e:#}"),
-                    }
-                }
                 () = &mut timeout => {
-                    warn!("{} tasks failed to finish", tasks.len());
+                    let stuck_tasks = tasks
+                        .iter()
+                        .map(|task| task.name())
+                        .collect::<Vec<_>>();
+
+                    // TODO(phlip9): is there some way to get a backtrace of a
+                    //               stuck task?
+
+                    error!("{} tasks failed to finish: {stuck_tasks:?}", stuck_tasks.len());
                     break;
+                }
+                Some((result, name)) = tasks.next() => {
+                    let task_state = join_res_label(result);
+                    info!("'{name}' task {task_state}");
                 }
             }
         }
