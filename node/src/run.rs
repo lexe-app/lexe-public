@@ -16,7 +16,7 @@ use common::enclave::{
 use common::rng::Crng;
 use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
-use common::task::{join_res_label, LxTask};
+use common::task::{joined_task_state_label, LxTask};
 use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
     BlockSourceType, BroadcasterType, ChannelMonitorType, FeeEstimatorType,
@@ -38,7 +38,7 @@ use lightning_invoice::payment::Retry;
 use lightning_invoice::utils::DefaultRouter;
 use tokio::net::TcpListener;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, instrument};
 
 use crate::alias::{ApiClientType, ChainMonitorType, InvoicePayerType};
 use crate::api::ApiClient;
@@ -282,7 +282,7 @@ impl UserNode {
                 // that this warning is still triggered in some tests because
                 // running the node as a process does not detect cfg(not(test)).
                 #[cfg(not(test))]
-                warn!("No LSP specified");
+                tracing::warn!("No LSP specified");
 
                 Vec::new()
             }
@@ -509,13 +509,11 @@ impl UserNode {
 
         while !tasks.is_empty() {
             tokio::select! {
-                () = self.shutdown.recv() => {
-                    break;
-                }
+                () = self.shutdown.recv() => break,
                 // must poll tasks while waiting for shutdown, o/w a panic in a
                 // task won't surface until later, when we start shutdown.
                 Some((result, name)) = tasks.next() => {
-                    let task_state = join_res_label(result);
+                    let task_state = joined_task_state_label(result);
                     // tasks should probably only stop when we're shutting down.
                     info!("'{name}' task {task_state} before shutdown");
                 }
@@ -546,7 +544,7 @@ impl UserNode {
                     break;
                 }
                 Some((result, name)) = tasks.next() => {
-                    let task_state = join_res_label(result);
+                    let task_state = joined_task_state_label(result);
                     info!("'{name}' task {task_state}");
                 }
             }

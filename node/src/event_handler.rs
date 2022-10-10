@@ -12,7 +12,7 @@ use bitcoin::secp256k1::Secp256k1;
 use bitcoin_bech32::WitnessProgram;
 use common::cli::Network;
 use common::hex;
-use common::task::LxTask;
+use common::task::{LazyBlockingTaskRt, LxTask};
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::invoice::{HTLCStatus, MillisatAmount, PaymentInfo};
@@ -34,6 +34,8 @@ pub(crate) struct NodeEventHandler {
     network_graph: Arc<NetworkGraphType>,
     inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
+    // XXX: remove when `EventHandler` is async
+    lazy_blocking_task_rt: LazyBlockingTaskRt,
 }
 
 impl NodeEventHandler {
@@ -54,6 +56,7 @@ impl NodeEventHandler {
             network_graph,
             inbound_payments,
             outbound_payments,
+            lazy_blocking_task_rt: LazyBlockingTaskRt::new(),
         }
     }
 }
@@ -79,8 +82,14 @@ impl EventHandler for NodeEventHandler {
     fn handle_event(&self, event: &Event) {
         // TODO FIXME XXX: This trait requires that event handling *finishes*
         // before returning from this function, but LDK #1674 (async event
-        // handling) isn't implemented yet. For now, we carry out the event
-        // handling in a spawned task, but this *must* be fixed eventually.
+        // handling) isn't implemented yet.
+        //
+        // As a temporary hack and work-around, we create a new thread which
+        // only runs `handle_event` tasks. We use a single-threaded runtime for
+        // nodes (plus `sqlx::test` proc-macro also forces a single-threaded
+        // rt), so we can't use `rt-multi-threaded`, which would let us use
+        // `task::block_in_place`.
+
         let channel_manager = self.channel_manager.clone();
         let bitcoind = self.bitcoind.clone();
         let network_graph = self.network_graph.clone();
@@ -89,7 +98,11 @@ impl EventHandler for NodeEventHandler {
         let outbound_payments = self.outbound_payments.clone();
         let network = self.network;
         let event = event.clone();
-        let _ = LxTask::spawn(async move {
+
+        // NOTE: this blocks the main node event loop; if `handle_event`
+        // depends on anything happening in the normal event loop, the whole
+        // program WILL deadlock : )
+        self.lazy_blocking_task_rt.block_on(async move {
             handle_event(
                 &channel_manager,
                 &bitcoind,
