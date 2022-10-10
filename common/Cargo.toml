@@ -52,6 +52,8 @@ cfg-if = "1"
 # SGX Quote types
 # NOTE: version must exactly match patched version
 dcap-ql = { version = "=0.3.4", default-features = false, features = [] }
+# Utils for working with futures
+futures = "0.3"
 # Used to specify the HTTP methods used to interact with the API
 http = "0.2"
 # Small conversion from fixed ECDSA signature to ASN.1 format
