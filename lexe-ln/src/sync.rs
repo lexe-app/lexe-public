@@ -244,7 +244,7 @@ where
         }
 
         // Spawn the SPV client
-        let spv_client_handle = LxTask::spawn(async move {
+        let spv_client_handle = LxTask::spawn_named("spv client", async move {
             // Need let binding o.w. the deref() ref doesn't live long enough
             let mut block_source_deref = self.block_source.deref();
 

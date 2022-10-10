@@ -45,7 +45,7 @@ impl LexeBackgroundProcessor {
         PS: LexePersister,
         EH: LexeEventHandler,
     {
-        LxTask::spawn(async move {
+        LxTask::spawn_named("background processor", async move {
             let mut process_timer = interval(PROCESS_EVENTS_INTERVAL);
             let mut pm_timer = interval(PEER_MANAGER_PING_INTERVAL);
             let mut cm_tick_timer = interval(CHANNEL_MANAGER_TICK_INTERVAL);

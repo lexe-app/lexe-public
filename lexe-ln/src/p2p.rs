@@ -141,7 +141,7 @@ where
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    LxTask::spawn(async move {
+    LxTask::spawn_named("p2p reconnectooor", async move {
         let mut interval = time::interval(P2P_RECONNECT_INTERVAL);
 
         let mut channel_peers = initial_channel_peers
@@ -211,7 +211,7 @@ where
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    LxTask::spawn(async move {
+    LxTask::spawn_named("p2p listener", async move {
         let mut child_tasks = FuturesUnordered::new();
 
         loop {
