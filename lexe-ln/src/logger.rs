@@ -35,6 +35,9 @@ pub fn try_init() -> Result<(), TracingError> {
     tracing_subscriber::fmt()
         .compact()
         .with_level(true)
+        // Enable colored outputs for stdout. TODO(max): This should be disabled
+        // when outputting to files - a second subscriber is probably needed.
+        .with_ansi(true)
         .with_max_level(level)
         .try_init()
 }
