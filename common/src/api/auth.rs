@@ -109,6 +109,8 @@ pub struct TokenWithExpiration {
 pub struct UserAuthenticator {
     /// The [`ed25519::KeyPair`] for the [`UserPk`], used to authenticate with
     /// the lexe backend.
+    ///
+    /// [`UserPk`]: crate::api::UserPk
     user_key_pair: ed25519::KeyPair,
 
     /// The latest [`UserAuthToken`] with its expected expiration time.

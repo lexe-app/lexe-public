@@ -781,53 +781,6 @@ impl From<CommonErrorKind> for LspErrorKind {
     }
 }
 
-// --- ErrorKind -> Error impls --- //
-
-impl From<BackendErrorKind> for BackendApiError {
-    fn from(kind: BackendErrorKind) -> Self {
-        Self {
-            kind,
-            msg: String::new(),
-        }
-    }
-}
-
-impl From<RunnerErrorKind> for RunnerApiError {
-    fn from(kind: RunnerErrorKind) -> Self {
-        Self {
-            kind,
-            msg: String::new(),
-        }
-    }
-}
-
-impl From<GatewayErrorKind> for GatewayApiError {
-    fn from(kind: GatewayErrorKind) -> Self {
-        Self {
-            kind,
-            msg: String::new(),
-        }
-    }
-}
-
-impl From<NodeErrorKind> for NodeApiError {
-    fn from(kind: NodeErrorKind) -> Self {
-        Self {
-            kind,
-            msg: String::new(),
-        }
-    }
-}
-
-impl From<LspErrorKind> for LspApiError {
-    fn from(kind: LspErrorKind) -> Self {
-        Self {
-            kind,
-            msg: String::new(),
-        }
-    }
-}
-
 // --- Misc -> BackendApiError impls --- //
 
 impl From<bitcoin::secp256k1::Error> for BackendApiError {

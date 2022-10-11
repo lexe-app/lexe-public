@@ -7,7 +7,6 @@ use bitcoin::BlockHash;
 use common::api::auth::UserAuthenticator;
 use common::api::ports::{Port, UserPorts};
 use common::api::provision::{Node, SealedSeedId};
-use common::api::rest::RestClient;
 use common::api::UserPk;
 use common::cli::RunArgs;
 use common::client::tls::node_run_tls_config;
@@ -568,7 +567,6 @@ fn init_api(args: &RunArgs) -> ApiClientType {
     #[cfg(all(target_env = "sgx", not(test)))]
     {
         Arc::new(api::NodeApiClient::new(
-            RestClient::new(),
             args.backend_url.clone(),
             args.runner_url.clone(),
         ))
@@ -580,7 +578,6 @@ fn init_api(args: &RunArgs) -> ApiClientType {
             Arc::new(api::mock::MockApiClient::new())
         } else {
             Arc::new(api::NodeApiClient::new(
-                RestClient::new(),
                 args.backend_url.clone(),
                 args.runner_url.clone(),
             ))
