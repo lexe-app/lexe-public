@@ -11,8 +11,7 @@ use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::def::{OwnerNodeProvisionApi, OwnerNodeRunApi};
 use crate::api::error::NodeApiError;
 use crate::api::provision::NodeProvisionRequest;
-use crate::api::qs::EmptyData;
-use crate::api::rest::{RestClient, GET, POST};
+use crate::api::rest::{RestClient, GET};
 use crate::api::UserPk;
 use crate::attest;
 use crate::ln::invoice::LxInvoice;
@@ -71,9 +70,8 @@ impl OwnerNodeProvisionApi for NodeClient {
         data: NodeProvisionRequest,
     ) -> Result<(), NodeApiError> {
         let provision_url = &self.provision_url;
-        let url = format!("{provision_url}/provision");
-
-        self.rest.request(POST, url, &data).await
+        let req = self.rest.post(format!("{provision_url}/provision"), &data);
+        self.rest.send(req).await
     }
 }
 
@@ -81,27 +79,23 @@ impl OwnerNodeProvisionApi for NodeClient {
 impl OwnerNodeRunApi for NodeClient {
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError> {
         let run_url = &self.run_url;
-        let url = format!("{run_url}/owner/node_info");
-        let data = EmptyData {};
-
-        self.rest.request(GET, url, &data).await
+        let req = self.rest.builder(GET, format!("{run_url}/owner/node_info"));
+        self.rest.send(req).await
     }
 
     async fn list_channels(&self) -> Result<ListChannels, NodeApiError> {
         let run_url = &self.run_url;
-        let url = format!("{run_url}/owner/channels");
-        let data = EmptyData {};
-
-        self.rest.request(GET, url, &data).await
+        let req = self.rest.builder(GET, format!("{run_url}/owner/channels"));
+        self.rest.send(req).await
     }
 
     async fn get_invoice(
         &self,
-        req: GetInvoiceRequest,
+        data: GetInvoiceRequest,
     ) -> Result<LxInvoice, NodeApiError> {
         let run_url = &self.run_url;
         let url = format!("{run_url}/owner/get_invoice");
-
-        self.rest.request(POST, url, &req).await
+        let req = self.rest.post(url, &data);
+        self.rest.send(req).await
     }
 }

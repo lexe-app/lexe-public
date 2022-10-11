@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use argh::FromArgs;
-use common::api::rest::RestClient;
 use common::cli::NodeCommand;
 use common::rng::SysRng;
 use common::shutdown::ShutdownChannel;
@@ -38,7 +37,6 @@ impl NodeArgs {
                 .context("Error running node"),
             NodeCommand::Provision(args) => {
                 let api = Arc::new(NodeApiClient::new(
-                    RestClient::new(),
                     args.backend_url.clone(),
                     args.runner_url.clone(),
                 ));

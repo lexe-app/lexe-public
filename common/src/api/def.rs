@@ -109,7 +109,7 @@ pub trait NodeBackendApi {
 /// lexe infra.
 #[async_trait]
 pub trait UserAuthApi {
-    /// POST /user-auth [`ed25519::Signed<UserAuthRequest>`]
+    /// POST /user_auth [`ed25519::Signed<UserAuthRequest>`]
     ///              -> [`UserAuthResponse`]
     async fn user_auth(
         &self,

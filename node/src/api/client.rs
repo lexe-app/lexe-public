@@ -9,9 +9,7 @@ use common::api::provision::{
     Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
 use common::api::qs::{GetByUserPk, GetByUserPkAndMeasurement};
-use common::api::rest::{
-    RequestBuilderExt, RestClient, DELETE, GET, POST, PUT,
-};
+use common::api::rest::{RequestBuilderExt, RestClient, POST};
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::api::UserPk;
 use common::ed25519;
@@ -26,13 +24,9 @@ pub struct NodeApiClient {
 }
 
 impl NodeApiClient {
-    pub fn new(
-        rest: RestClient,
-        backend_url: String,
-        runner_url: String,
-    ) -> Self {
+    pub fn new(backend_url: String, runner_url: String) -> Self {
         Self {
-            rest,
+            rest: RestClient::new(),
             backend_url,
             runner_url,
         }
@@ -46,11 +40,8 @@ impl UserAuthApi for NodeApiClient {
         signed_req: ed25519::Signed<UserAuthRequest>,
     ) -> Result<UserAuthResponse, BackendApiError> {
         let backend = &self.backend_url;
-        let url = format!("{backend}/user-auth");
-        let req = self
-            .rest
-            .request_builder(POST, url)
-            .signed_bcs(signed_req)?;
+        let url = format!("{backend}/user_auth");
+        let req = self.rest.builder(POST, url).signed_bcs(signed_req)?;
         self.rest.send_with_retries(req, 3, &[]).await
     }
 }
@@ -67,11 +58,7 @@ impl ApiClient for NodeApiClient {
     ) -> Result<NodeFile, BackendApiError> {
         let backend = &self.backend_url;
         let url = format!("{backend}/v1/file");
-        let req = self
-            .rest
-            .request_builder(POST, url)
-            .json(data)
-            .bearer_auth(&auth);
+        let req = self.rest.post(url, data).bearer_auth(&auth);
         self.rest.send_with_retries(req, retries, &[]).await
     }
 
@@ -83,11 +70,7 @@ impl ApiClient for NodeApiClient {
     ) -> Result<NodeFile, BackendApiError> {
         let backend = &self.backend_url;
         let url = format!("{backend}/v1/file");
-        let req = self
-            .rest
-            .request_builder(PUT, url)
-            .json(data)
-            .bearer_auth(&auth);
+        let req = self.rest.put(url, data).bearer_auth(&auth);
         self.rest.send_with_retries(req, retries, &[]).await
     }
 }
@@ -101,10 +84,7 @@ impl NodeBackendApi for NodeApiClient {
     ) -> Result<Option<Node>, BackendApiError> {
         let backend = &self.backend_url;
         let data = GetByUserPk { user_pk };
-        let req = self
-            .rest
-            .builder(GET, format!("{backend}/v1/node"))
-            .query(&data);
+        let req = self.rest.get(format!("{backend}/v1/node"), &data);
         self.rest.send(req).await
     }
 
@@ -119,10 +99,7 @@ impl NodeBackendApi for NodeApiClient {
             user_pk,
             measurement,
         };
-        let req = self
-            .rest
-            .builder(GET, format!("{backend}/v1/instance"))
-            .query(&data);
+        let req = self.rest.get(format!("{backend}/v1/instance"), &data);
         self.rest.send(req).await
     }
 
@@ -132,10 +109,7 @@ impl NodeBackendApi for NodeApiClient {
         data: SealedSeedId,
     ) -> Result<Option<SealedSeed>, BackendApiError> {
         let backend = &self.backend_url;
-        let req = self
-            .rest
-            .builder(GET, format!("{backend}/v1/sealed_seed"))
-            .query(&data);
+        let req = self.rest.get(format!("{backend}/v1/sealed_seed"), &data);
         self.rest.send(req).await
     }
 
@@ -147,8 +121,7 @@ impl NodeBackendApi for NodeApiClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .builder(POST, format!("{backend}/v1/node_instance_seed"))
-            .json(&data)
+            .post(format!("{backend}/v1/node_instance_seed"), &data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -161,8 +134,7 @@ impl NodeBackendApi for NodeApiClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .builder(GET, format!("{backend}/v1/file"))
-            .query(data)
+            .get(format!("{backend}/v1/file"), data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -175,8 +147,7 @@ impl NodeBackendApi for NodeApiClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .builder(POST, format!("{backend}/v1/file"))
-            .json(data)
+            .post(format!("{backend}/v1/file"), data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -189,8 +160,7 @@ impl NodeBackendApi for NodeApiClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .builder(PUT, format!("{backend}/v1/file"))
-            .json(data)
+            .put(format!("{backend}/v1/file"), data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -206,8 +176,7 @@ impl NodeBackendApi for NodeApiClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .builder(DELETE, format!("{backend}/v1/file"))
-            .json(data)
+            .delete(format!("{backend}/v1/file"), data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -220,8 +189,7 @@ impl NodeBackendApi for NodeApiClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .builder(GET, format!("{backend}/v1/directory"))
-            .query(data)
+            .get(format!("{backend}/v1/directory"), data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -234,10 +202,7 @@ impl NodeRunnerApi for NodeApiClient {
         data: UserPorts,
     ) -> Result<UserPorts, RunnerApiError> {
         let runner = &self.runner_url;
-        let req = self
-            .rest
-            .builder(POST, format!("{runner}/ready"))
-            .json(&data);
+        let req = self.rest.post(format!("{runner}/ready"), &data);
         // TODO(phlip9): authenticate runner callbacks?
         // .bearer_auth(&self.auth_token().await?);
         self.rest.send(req).await

@@ -9,7 +9,7 @@ use reqwest::IntoUrl;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::time;
-use tracing::{debug, error, trace, warn};
+use tracing::{debug, debug_span, error, field, warn, Instrument};
 use warp::hyper::Body;
 use warp::Rejection;
 
@@ -147,17 +147,34 @@ fn build_json_response<T: Serialize>(
         .expect("Invalid hard-coded header")
 }
 
-struct RequestParts {
-    method: Method,
-    url_with_qs: String,
-    body: Bytes,
+/// Converts the concrete, non-generic Rest response result to the specific
+/// API's result type.
+///
+/// On success, this json deserializes the response body. On error, this
+/// converts the generic [`ErrorResponse`] or [`CommonError`] into the specific
+/// API error type, like [`BackendApiError`](crate::api::error::BackendApiError)
+fn convert_rest_response<T, E>(
+    response: Result<Result<Bytes, ErrorResponse>, CommonError>,
+) -> Result<T, E>
+where
+    T: DeserializeOwned,
+    E: ServiceApiError,
+{
+    match response {
+        Ok(Ok(bytes)) => {
+            Ok(serde_json::from_slice::<T>(&bytes)
+                .map_err(CommonError::from)?)
+        }
+        Ok(Err(err_api)) => Err(E::from(err_api)),
+        Err(err_client) => Err(E::from(err_client)),
+    }
 }
 
-#[derive(Clone)]
 /// A generic RestClient. [`reqwest::Client`] holds an [`Arc`] internally, so
 /// likewise, [`RestClient`] can be cloned and used directly, without [`Arc`].
 ///
 /// [`Arc`]: std::sync::Arc
+#[derive(Clone)]
 pub struct RestClient {
     client: reqwest::Client,
 }
@@ -181,37 +198,67 @@ impl RestClient {
         Self { client }
     }
 
+    // --- RequestBuilder helpers --- //
+
+    /// Return a clean slate [`reqwest::RequestBuilder`] for non-standard
+    /// requests. Otherwise prefer to use the ready-made `get`, `post`, ..., etc
+    /// helpers.
     pub fn builder(
         &self,
         method: Method,
-        url: String,
+        url: impl IntoUrl,
     ) -> reqwest::RequestBuilder {
         self.client.request(method, url)
     }
 
-    pub fn request_builder<U: IntoUrl>(
-        &self,
-        method: Method,
-        url: U,
-    ) -> reqwest::RequestBuilder {
-        self.client.request(method, url)
-    }
-
-    fn convert_response<T, E>(
-        response: Result<Result<Bytes, ErrorResponse>, CommonError>,
-    ) -> Result<T, E>
+    pub fn get<U, T>(&self, url: U, data: &T) -> reqwest::RequestBuilder
     where
-        T: DeserializeOwned,
-        E: ServiceApiError,
+        U: IntoUrl,
+        T: Serialize + ?Sized,
     {
-        match response {
-            Ok(Ok(bytes)) => Ok(serde_json::from_slice::<T>(&bytes)
-                .map_err(CommonError::from)?),
-            Ok(Err(err_api)) => Err(E::from(err_api)),
-            Err(err_client) => Err(E::from(err_client)),
-        }
+        self.builder(GET, url).query(data)
     }
 
+    pub fn post<U, T>(&self, url: U, data: &T) -> reqwest::RequestBuilder
+    where
+        U: IntoUrl,
+        T: Serialize + ?Sized,
+    {
+        self.builder(POST, url).json(data)
+    }
+
+    pub fn put<U, T>(&self, url: U, data: &T) -> reqwest::RequestBuilder
+    where
+        U: IntoUrl,
+        T: Serialize + ?Sized,
+    {
+        self.builder(PUT, url).json(data)
+    }
+
+    pub fn delete<U, T>(&self, url: U, data: &T) -> reqwest::RequestBuilder
+    where
+        U: IntoUrl,
+        T: Serialize + ?Sized,
+    {
+        self.builder(DELETE, url).json(data)
+    }
+
+    // --- Request send/recv --- //
+
+    fn request_span(req: &reqwest::Request) -> tracing::Span {
+        debug_span!(
+            "http request",
+            method = %req.method(),
+            url = %req.url(),
+            // the http response status is set in the span later on
+            status = field::Empty,
+            // the "retries left" is set in the span later on
+            retries_left = field::Empty,
+        )
+    }
+
+    /// Sends the built HTTP request once. Tries to JSON deserialize the
+    /// response body to `T`.
     pub async fn send<T, E>(
         &self,
         request_builder: reqwest::RequestBuilder,
@@ -221,10 +268,18 @@ impl RestClient {
         E: ServiceApiError,
     {
         let request = request_builder.build().map_err(CommonError::from)?;
-        let response = self.send_inner(request).await;
-        Self::convert_response(response)
+        let span = Self::request_span(&request);
+        let response = self.send_inner(request).instrument(span).await;
+        convert_rest_response(response)
     }
 
+    /// Sends the built HTTP request, retrying up to `retries` times. Tries to
+    /// JSON deserialize the response body to `T`.
+    ///
+    /// If one of the request attempts yields an error code in `stop_codes`, we
+    /// will immediately stop retrying and return that error.
+    ///
+    /// See also: [`RestClient::send`]
     pub async fn send_with_retries<T, E>(
         &self,
         request_builder: reqwest::RequestBuilder,
@@ -236,11 +291,16 @@ impl RestClient {
         E: ServiceApiError,
     {
         let request = request_builder.build().map_err(CommonError::from)?;
+        let span = Self::request_span(&request);
         let response = self
             .send_with_retries_inner(request, retries, stop_codes)
+            .instrument(span)
             .await;
-        Self::convert_response(response)
+        convert_rest_response(response)
     }
+
+    // the `send_inner` and `send_with_retries_inner` intentionally use zero
+    // generics in their function signatures to minimize code bloat.
 
     async fn send_with_retries_inner(
         &self,
@@ -252,15 +312,26 @@ impl RestClient {
 
         let mut request = Some(request);
 
-        for _ in 1..=retries {
+        for idx in 1..retries {
+            let retries_left = retries - idx + 1;
+            tracing::Span::current().record("retries_left", retries_left);
+
             // clone the request. the request body is cheaply cloneable. the
             // headers and url are not :'(
-            let request_clone = request
+            let maybe_request_clone = request
                 .as_ref()
-                .expect("this should never happen")
-                .try_clone()
-                .expect("this only happens when sending a streamed request; \
-                    can't retry this kind of request, we should just stop retrying");
+                .expect(
+                    "this should never happen; we only take the original \
+                     request on the last retry",
+                )
+                .try_clone();
+
+            let request_clone = match maybe_request_clone {
+                Some(request_clone) => request_clone,
+                // We only get None if the request body is streamed and not set
+                // up front. In this case, we can't send more than once.
+                None => break,
+            };
 
             // send the request and look for any error codes in the response
             // that we should bail on and stop retrying.
@@ -284,6 +355,8 @@ impl RestClient {
             time::sleep(backoff_durations.next().unwrap()).await;
         }
 
+        tracing::Span::current().record("retries_left", 1);
+
         // avoid some extra copies : )
         self.send_inner(request.take().unwrap()).await
     }
@@ -298,172 +371,35 @@ impl RestClient {
             *timeout = Some(API_REQUEST_TIMEOUT);
         }
 
+        debug!("sending request");
+
         // send the request, await the response headers
-        let resp = self.client.execute(request).await?;
+        let resp = self.client.execute(request).await.map_err(|err| {
+            warn!("error sending request: {err:#}");
+            err
+        })?;
+
+        // add the response http status to the current request span
+        tracing::Span::current().record("status", resp.status().as_u16());
 
         if resp.status().is_success() {
             // success => await response body
-            let bytes = resp.bytes().await?;
+            let bytes = resp.bytes().await.map_err(|err| {
+                warn!("error receiving successful response body: {err:#}");
+                err
+            })?;
+
+            debug!(body.len = %bytes.len(), "request success");
             Ok(Ok(bytes))
         } else {
             // http error => await response json and convert to ErrorResponse
-            let err = resp.json::<ErrorResponse>().await?;
+            let err = resp.json::<ErrorResponse>().await.map_err(|err| {
+                warn!("error receiving error response json: {err:#}");
+                err
+            })?;
+
+            warn!(%err.code, %err.msg, "received error response");
             Ok(Err(err))
-        }
-    }
-
-    /// Makes an API request with 0 retries.
-    ///
-    /// The given url should include the base, version, and endpoint, but should
-    /// NOT include the query string. Example: "http://127.0.0.1:3030/v1/file"
-    ///
-    /// Pass in [`EmptyData`] if you need an empty querystring / body.
-    ///
-    /// [`EmptyData`]: crate::api::qs::EmptyData
-    pub async fn request<D, T, E>(
-        &self,
-        method: Method,
-        url: String,
-        data: &D,
-    ) -> Result<T, E>
-    where
-        D: Serialize,
-        T: DeserializeOwned,
-        E: ServiceApiError,
-    {
-        self.request_with_retries(method, url, data, 0, None).await
-    }
-
-    /// Makes an API request, retrying up to `retries` times.
-    ///
-    /// The given url should include the base, version, and endpoint, but should
-    /// NOT include the query string. Example: "http://127.0.0.1:3030/v1/file"
-    ///
-    /// Using `stop_codes` the client can be can be configured to quit early if
-    /// the service returned any of the given error codes.
-    pub async fn request_with_retries<D, T, E>(
-        &self,
-        method: Method,
-        url: String,
-        data: &D,
-        retries: usize,
-        stop_codes: Option<Vec<ErrorCode>>,
-    ) -> Result<T, E>
-    where
-        D: Serialize,
-        T: DeserializeOwned,
-        E: ServiceApiError,
-    {
-        // Serialize request parts
-        let parts = self.serialize_parts(method, url, data)?;
-
-        // Exponential backoff
-        let mut backoff_durations = backoff::get_backoff_iter();
-
-        // Do the 'retries' first and return early if successful,
-        // or if we received an error with one of the specified codes.
-        // This block is a noop if retries == 0.
-        for _ in 0..retries {
-            match self.send_and_deserialize::<T, E>(&parts).await {
-                Ok(data) => return Ok(data),
-                Err(e) => {
-                    let method = &parts.method;
-                    let url_with_qs = &parts.url_with_qs;
-                    warn!("{method} {url_with_qs} failed.");
-
-                    if let Some(ref stop_codes) = stop_codes {
-                        if stop_codes.contains(&e.to_code()) {
-                            return Err(e);
-                        }
-                    }
-
-                    time::sleep(backoff_durations.next().unwrap()).await;
-                }
-            }
-        }
-
-        // Do the 'main' attempt.
-        self.send_and_deserialize(&parts).await
-    }
-
-    /// Constructs the serialized, reusable parts of a [`reqwest::Request`]
-    /// given an HTTP method and url.
-    ///
-    /// The given url should include the base, version, and endpoint, but should
-    /// NOT include the query string. Example: "http://127.0.0.1:3030/v1/file"
-    fn serialize_parts<D: Serialize>(
-        &self,
-        method: Method,
-        url: String,
-        data: &D,
-    ) -> Result<RequestParts, CommonError> {
-        // If GET, serialize the data in a query string
-        let query_str = match method {
-            GET => Some(serde_qs::to_string(data)?),
-            _ => None,
-        };
-        // Construct manually since RequestBuilder.param() API is unwieldy
-        let url_with_qs = match query_str {
-            Some(qs) if !qs.is_empty() => format!("{url}?{qs}"),
-            _ => url,
-        };
-        debug!(%method, %url_with_qs, "sending request");
-
-        // If PUT or POST, serialize the data in the request body
-        let body_str = match method {
-            PUT | POST => serde_json::to_string(data)?,
-            _ => String::new(),
-        };
-        trace!(%body_str);
-        let body = Bytes::from(body_str);
-
-        Ok(RequestParts {
-            method,
-            url_with_qs,
-            body,
-        })
-    }
-
-    /// Build a [`reqwest::Request`] from [`RequestParts`], send it, and
-    /// deserialize into the expected struct or an error message depending on
-    /// the response status.
-    async fn send_and_deserialize<T, E>(
-        &self,
-        parts: &RequestParts,
-    ) -> Result<T, E>
-    where
-        T: DeserializeOwned,
-        E: ServiceApiError,
-    {
-        let response = self
-            .client
-            // Method doesn't implement Copy
-            .request(parts.method.clone(), &parts.url_with_qs)
-            // body is Bytes which can be cheaply cloned
-            .body(parts.body.clone())
-            .send()
-            .await
-            .map_err(CommonError::from)?;
-
-        if response.status().is_success() {
-            // Uncomment for debugging
-            // let text = response.text().await?;
-            // println!("Response: {}", text);
-            // serde_json::from_str(&text).map_err(|e| e.into())
-
-            // Deserialize into Ok variant, return Ok(json)
-            response
-                .json::<T>()
-                .await
-                .map_err(CommonError::from)
-                .map_err(E::from)
-        } else {
-            // Deserialize into Err variant, return Err(json)
-            let error_response = response
-                .json::<ErrorResponse>()
-                .await
-                .map_err(CommonError::from)?;
-            Err(E::from(error_response))
         }
     }
 }
