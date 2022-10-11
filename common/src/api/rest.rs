@@ -8,7 +8,6 @@ use http::Method;
 use reqwest::IntoUrl;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tokio::time;
 use tracing::{debug, debug_span, error, field, warn, Instrument};
 use warp::hyper::Body;
 use warp::Rejection;
@@ -355,7 +354,7 @@ impl RestClient {
             }
 
             // sleep for a bit before next retry
-            time::sleep(backoff_durations.next().unwrap()).await;
+            tokio::time::sleep(backoff_durations.next().unwrap()).await;
         }
 
         tracing::Span::current().record("retries_left", 1);
