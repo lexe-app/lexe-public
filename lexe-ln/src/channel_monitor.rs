@@ -3,6 +3,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 
+use anyhow::bail;
 use common::ln::channel::LxOutPoint;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
@@ -14,13 +15,6 @@ use tracing::{debug, error, info};
 use crate::alias::LexeChainMonitorType;
 use crate::traits::LexePersister;
 
-/// The maximum number of channel monitor persist requests that can be sent to
-/// the channel monitor persistence task at once. This needs to be a bit higher
-/// than the default channel size because a bunch of channel monitor persist
-/// calls might be generated all at once by chain sync during init.
-// 2016 is the expected number of blocks generated over two weeks.
-pub const CHANNEL_MONITOR_PERSIST_TASK_CHANNEL_SIZE: usize = 2016;
-
 type BoxedAnyhowFuture =
     Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'static>>;
 
@@ -28,24 +22,13 @@ type BoxedAnyhowFuture =
 pub struct LxChannelMonitorUpdate {
     pub funding_txo: LxOutPoint,
     pub update_id: MonitorUpdateId,
-    /// A [`Future`] which makes an api call (typically with with retries) to
-    /// the backend to persist the channel monitor state, returning an
-    /// `anyhow::Result<()>` once either persistence succeeds or there were too
-    /// many failures to keep trying. We take this future as input (instead of
-    /// e.g. a `NodeFile`) because it is the cleanest and easiest way to
-    /// abstract over the user node and LSP's differing api clients, vfs
+    /// A [`Future`] which makes an api call (typically with retries) to the
+    /// backend to persist the channel monitor state, returning an
+    /// `anyhow::Result<()>` once either (1) persistence succeeds or (2) there
+    /// were too many failures to keep trying. We take this future as input
+    /// (instead of e.g. a `NodeFile`) because it is the cleanest and easiest
+    /// way to abstract over the user node and LSP's differing api clients, vfs
     /// structures, and expected error types.
-    ///
-    /// NOTE: The future passed in should persist the *total state* of the
-    /// channel monitor, rather than the incremental updates represented by
-    /// [`ChannelMonitorUpdate`].
-    ///
-    /// NOTE: Because the channel monitor persister task amortizes persist
-    /// calls, implementing code should expect that only the latest [`Future`]
-    /// in a series of updates made in quick succession will actually be
-    /// executed by the channel monitor persister task.
-    ///
-    /// [`ChannelMonitorUpdate`]: lightning::chain::channelmonitor::ChannelMonitorUpdate
     pub api_call_fut: BoxedAnyhowFuture,
     /// The sequence number of the channel monitor update, given by
     /// [`ChannelMonitorUpdate::update_id`]. Is [`None`] for new channels and
@@ -73,20 +56,9 @@ impl Display for ChannelMonitorUpdateKind {
 }
 
 /// Spawns a task which executes channel monitor persistence calls in serial.
-/// This prevents race conditions where chain sync can generate hundreds of
-/// channel monitor persist calls in the span of just a few hundred ms,
-/// overwhelming the backend and exhausting all local file descriptors.
-///
-/// In addition, this task amortizes over a series of persistence updates made
-/// in quick succession by only executing the *last* future in the series. For
-/// example, if 100 updates are made all at once, the task only runs the 100th
-/// future. If the 100th persist future succeeds, the [`MonitorUpdateId`] of all
-/// 100 updates is passed into [`ChainMonitor::channel_monitor_updated`] and
-/// channel operation can continue.
-///
-/// TODO(max): Actually implement the amortization of persist calls.
-///
-/// [`ChainMonitor::channel_monitor_updated`]: lightning::chain::chainmonitor::ChainMonitor
+/// This prevent a race conditions where two monitor updates come in quick
+/// succession and the newer channel monitor state is overwritten by the older
+/// channel monitor state.
 pub fn spawn_channel_monitor_persister_task<PS>(
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     mut channel_monitor_persister_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
@@ -95,52 +67,27 @@ pub fn spawn_channel_monitor_persister_task<PS>(
 where
     PS: LexePersister,
 {
-    debug!("Starting channel_monitor_updated task");
+    debug!("Starting channel monitor persister task");
     LxTask::spawn_named("channel monitor persister", async move {
+        let mut idx = 0;
         loop {
             tokio::select! {
                 Some(update) = channel_monitor_persister_rx.recv() => {
-                    let seq = update.sequence_num;
-                    let kind = update.kind;
-                    debug!("Running {kind} channel persist future (#{seq:?})");
+                    idx += 1;
 
-                    let persist_result = tokio::select! {
-                        res = update.api_call_fut => res,
-                        () = shutdown.recv() => break,
-                    };
+                    let handle_res = handle_update(
+                        chain_monitor.as_ref(),
+                        update,
+                        idx,
+                        &mut shutdown,
+                    ).await;
 
-                    match persist_result {
-                        Ok(()) => {
-                            debug!(
-                                "Success: persisted {kind} channel (#{seq:?})",
-                            );
-
-                            // Update the chain monitor
-                            if let Err(e) = chain_monitor
-                                .channel_monitor_updated(
-                                    OutPoint::from(update.funding_txo),
-                                    update.update_id,
-                                ) {
-                                error!(
-                                    "Chain monitor returned err: {e:?} (#{seq:?})"
-                                );
-
-                                // If the update wasn't accepted, the channel is
-                                // disabled, so no transactions can be made.
-                                // Just shut down.
-                                shutdown.send();
-                            }
-                        }
-                        Err(e) => {
-                            // Channel monitor persistence errors are serious;
-                            // shut down to prevent any loss of funds.
-                            error!(
-                                "Couldn't persist {kind} channel: {e:#} (#{seq:?})",
-                            );
-                            shutdown.send();
-                        }
+                    if let Err(e) = handle_res {
+                        error!("Channel monitor persist error: {e:#}");
+                        // All errors are considered fatal.
+                        shutdown.send();
+                        break;
                     }
-
                 }
                 () = shutdown.recv() => {
                     info!("channel monitor persister task shutting down");
@@ -149,4 +96,49 @@ where
             }
         }
     })
+}
+
+/// A helper to prevent [`spawn_channel_monitor_persister_task`]'s control flow
+/// from getting too complex.
+///
+/// Returning [`Err`] means that a fatal error was reached; the caller should
+/// send a shutdown signal and exit.
+async fn handle_update<PS: LexePersister>(
+    chain_monitor: &LexeChainMonitorType<PS>,
+    update: LxChannelMonitorUpdate,
+    idx: usize,
+    shutdown: &mut ShutdownChannel,
+) -> anyhow::Result<()> {
+    debug!("Handling channel monitor update #{idx}");
+
+    // Run the persist future
+    let kind = update.kind;
+    debug!("Running {kind} channel persist future #{idx}");
+    let persist_result = tokio::select! {
+        res = update.api_call_fut => res,
+        () = shutdown.recv() => bail!("Received shutdown signal"),
+    };
+
+    if let Err(e) = persist_result {
+        // Channel monitor persistence errors are serious;
+        // return err and shut down to prevent any loss of funds.
+        bail!("Couldn't persist {kind} channel #{idx}: {e:#}");
+    }
+
+    debug!("Success: persisted {kind} channel #{idx}");
+
+    // Update the chain monitor with the update id and funding txo the channel
+    // monitor update.
+    let chain_monitor_update_res = chain_monitor.channel_monitor_updated(
+        OutPoint::from(update.funding_txo),
+        update.update_id,
+    );
+    if let Err(e) = chain_monitor_update_res {
+        // If the update wasn't accepted, the channel is disabled, so no
+        // transactions can be made. Just return err and shut down.
+        bail!("Chain monitor returned err: {e:?}");
+    }
+
+    debug!("Success: Handled channel monitor update #{idx}");
+    Ok(())
 }
