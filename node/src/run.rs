@@ -115,7 +115,7 @@ impl UserNode {
 
         // Init channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
-        let (channel_monitor_updated_tx, channel_monitor_updated_rx) =
+        let (channel_monitor_persister_tx, channel_monitor_persister_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (channel_peer_tx, channel_peer_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
@@ -173,7 +173,7 @@ impl UserNode {
             node_pk,
             measurement,
             shutdown.clone(),
-            channel_monitor_updated_tx,
+            channel_monitor_persister_tx,
         );
 
         // Initialize the ChainMonitor
@@ -186,9 +186,9 @@ impl UserNode {
         ));
 
         // Set up the persister -> chain monitor channel
-        tasks.push(channel_monitor::spawn_channel_monitor_updated_task(
+        tasks.push(channel_monitor::spawn_channel_monitor_persister_task(
             chain_monitor.clone(),
-            channel_monitor_updated_rx,
+            channel_monitor_persister_rx,
             shutdown.clone(),
         ));
 

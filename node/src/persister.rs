@@ -16,12 +16,13 @@ use common::enclave::Measurement;
 use common::ln::channel::LxOutPoint;
 use common::ln::peer::ChannelPeer;
 use common::shutdown::ShutdownChannel;
-use common::task::LxTask;
 use lexe_ln::alias::{
     BroadcasterType, ChannelMonitorType, FeeEstimatorType, NetworkGraphType,
     ProbabilisticScorerType, SignerType,
 };
-use lexe_ln::channel_monitor::LxChannelMonitorUpdate;
+use lexe_ln::channel_monitor::{
+    ChannelMonitorUpdateKind, LxChannelMonitorUpdate,
+};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::traits::LexeInnerPersister;
@@ -66,7 +67,7 @@ impl NodePersister {
         node_pk: PublicKey,
         measurement: Measurement,
         shutdown: ShutdownChannel,
-        channel_monitor_updated_tx: mpsc::Sender<LxChannelMonitorUpdate>,
+        channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
     ) -> Self {
         let inner = InnerPersister {
             api,
@@ -74,7 +75,7 @@ impl NodePersister {
             node_pk,
             measurement,
             shutdown,
-            channel_monitor_updated_tx,
+            channel_monitor_persister_tx,
         };
 
         Self { inner }
@@ -97,7 +98,7 @@ pub struct InnerPersister {
     node_pk: PublicKey,
     measurement: Measurement,
     shutdown: ShutdownChannel,
-    channel_monitor_updated_tx: mpsc::Sender<LxChannelMonitorUpdate>,
+    channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
 }
 
 impl InnerPersister {
@@ -390,120 +391,126 @@ impl Persist<SignerType> for InnerPersister {
         update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
         let funding_txo = LxOutPoint::from(funding_txo);
-        debug!("Persisting new channel {}", funding_txo);
+        debug!("Persisting new channel {funding_txo}");
 
-        // FIXME(encrypt): Encrypt under key derived from seed
+        // XXX(encrypt): Encrypt under key derived from seed
         let data = monitor.encode();
 
-        let cm_file = NodeFile::new(
+        let file = NodeFile::new(
             self.node_pk,
             self.measurement,
             CHANNEL_MONITORS_DIRECTORY.to_owned(),
             funding_txo.to_string(),
             data,
         );
+
+        // Generate a future for making a few attempts to persist the channel
+        // monitor. It will be executed by the channel monitor persistence task.
+        let api = self.api.clone();
+        let authenticator = self.authenticator.clone();
+        let api_call_fut = Box::pin(async move {
+            // TODO(max): Also attempt to persist to cloud backup
+            let token = authenticator
+                .get_token(api.as_ref(), SystemTime::now())
+                .await
+                .context("Could not get token")?;
+            api.create_file_with_retries(&file, token, IMPORTANT_RETRIES)
+                .await
+                .map(|_| ())
+                .context("Couldn't persist updated channel monitor")
+        });
+
+        let sequence_num = None;
+        let kind = ChannelMonitorUpdateKind::New;
+
         let update = LxChannelMonitorUpdate {
             funding_txo,
             update_id,
+            api_call_fut,
+            sequence_num,
+            kind,
         };
 
-        // Spawn a task for persisting the channel monitor
-        let api = self.api.clone();
-        let authenticator = self.authenticator.clone();
-        let channel_monitor_updated_tx =
-            self.channel_monitor_updated_tx.clone();
-        let shutdown = self.shutdown.clone();
-        let _ = LxTask::spawn(async move {
-            // Retry a few times and shut down if persist fails
-            let persist_res = async {
-                let token =
-                    authenticator.get_token(&*api, SystemTime::now()).await?;
-                api.create_file_with_retries(&cm_file, token, IMPORTANT_RETRIES)
-                    .await
-            }
-            .await;
-
-            // TODO Also attempt to persist to cloud backup
-            match persist_res {
-                Ok(_) => {
-                    debug!("Persisting new channel succeeded");
-                    // Notify the chain monitor
-                    if let Err(e) = channel_monitor_updated_tx.try_send(update)
-                    {
-                        error!("Couldn't notify chain monitor: {e:#}");
-                    }
-                }
-                Err(e) => {
-                    error!("Fatal error: Couldn't persist new channel: {e:#}");
-                    shutdown.send();
-                }
-            }
-        });
+        // Queue up the channel monitor update for persisting. Shut down if we
+        // can't send the update for some reason.
+        if let Err(e) = self.channel_monitor_persister_tx.try_send(update) {
+            // NOTE: Although failing to send the channel monutor update to the
+            // channel monitor persistence task is a serious error, we do not
+            // return a PermanentFailure here because that force closes the
+            // channel, when it is much more likely that it's simply just been
+            // too long since the last time we synced to the chain tip.
+            error!("Fatal error: Couldn't send channel monitor update: {e:#}");
+            self.shutdown.send();
+        }
 
         // As documented in the `Persist` trait docs, return `TemporaryFailure`,
         // which freezes the channel until persistence succeeds.
         Err(ChannelMonitorUpdateErr::TemporaryFailure)
     }
 
+    // FIXME: lightning_block_sync triggers a separate persist call for *every*
+    // block processed during sync, including the hundreds of blocks
+    // generated during integration tests. Find a way to avoid this.
     fn update_persisted_channel(
         &self,
         funding_txo: OutPoint,
-        // TODO: We probably want to use the id inside for rollback protection
-        _update: &Option<ChannelMonitorUpdate>,
+        // TODO: We may want to use the id inside for rollback protection
+        update: &Option<ChannelMonitorUpdate>,
         monitor: &ChannelMonitorType,
         update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
         let funding_txo = LxOutPoint::from(funding_txo);
-        debug!("Updating persisted channel {}", funding_txo);
+        debug!("Updating persisted channel {funding_txo}");
 
-        // FIXME(encrypt): Encrypt under key derived from seed
+        // XXX(encrypt): Encrypt under key derived from seed
         let data = monitor.encode();
 
-        let cm_file = NodeFile::new(
+        let file = NodeFile::new(
             self.node_pk,
             self.measurement,
             CHANNEL_MONITORS_DIRECTORY.to_owned(),
             funding_txo.to_string(),
             data,
         );
+
+        // Generate a future for making a few attempts to persist the channel
+        // monitor. It will be executed by the channel monitor persistence task.
+        let api = self.api.clone();
+        let authenticator = self.authenticator.clone();
+        let api_call_fut = Box::pin(async move {
+            // TODO(max): Also attempt to persist to cloud backup
+            let token = authenticator
+                .get_token(api.as_ref(), SystemTime::now())
+                .await
+                .context("Could not get token")?;
+            api.upsert_file_with_retries(&file, token, IMPORTANT_RETRIES)
+                .await
+                .map(|_| ())
+                .context("Couldn't persist updated channel monitor")
+        });
+
+        let sequence_num = update.as_ref().map(|u| u.update_id);
+        let kind = ChannelMonitorUpdateKind::Updated;
+
         let update = LxChannelMonitorUpdate {
             funding_txo,
             update_id,
+            api_call_fut,
+            sequence_num,
+            kind,
         };
 
-        // Spawn a task for persisting the channel monitor
-        let api = self.api.clone();
-        let authenticator = self.authenticator.clone();
-        let channel_monitor_updated_tx =
-            self.channel_monitor_updated_tx.clone();
-        let shutdown = self.shutdown.clone();
-        let _ = LxTask::spawn(async move {
-            // Retry a few times and shut down if persist fails
-            let persist_res = async {
-                let token =
-                    authenticator.get_token(&*api, SystemTime::now()).await?;
-                api.upsert_file_with_retries(&cm_file, token, IMPORTANT_RETRIES)
-                    .await
-            }
-            .await;
-
-            match persist_res {
-                Ok(_) => {
-                    debug!("Persisting updated channel succeeded");
-                    // Notify the chain monitor
-                    if let Err(e) = channel_monitor_updated_tx.try_send(update)
-                    {
-                        error!("Couldn't notify chain monitor: {e:#}");
-                    }
-                }
-                Err(e) => {
-                    error!(
-                        "Fatal error: Couldn't persist updated channel: {e:#}"
-                    );
-                    shutdown.send();
-                }
-            }
-        });
+        // Queue up the channel monitor update for persisting. Shut down if we
+        // can't send the update for some reason.
+        if let Err(e) = self.channel_monitor_persister_tx.try_send(update) {
+            // NOTE: Although failing to send the channel monutor update to the
+            // channel monitor persistence task is a serious error, we do not
+            // return a PermanentFailure here because that force closes the
+            // channel, when it is much more likely that it's simply just been
+            // too long since the last time we synced to the chain tip.
+            error!("Fatal error: Couldn't send channel monitor update: {e:#}");
+            self.shutdown.send();
+        }
 
         // As documented in the `Persist` trait docs, return `TemporaryFailure`,
         // which freezes the channel until persistence succeeds.

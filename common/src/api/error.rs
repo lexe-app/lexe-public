@@ -4,6 +4,7 @@
 // Deny suspicious match names that are probably non-existent variants.
 #![deny(non_snake_case)]
 
+use std::error::Error;
 use std::fmt;
 
 use bitcoin::secp256k1::PublicKey;
@@ -48,9 +49,15 @@ pub trait ToHttpStatus {
 
 /// A 'trait alias' defining all the supertraits a service error type must impl
 /// to be accepted for use in the `RestClient` and across all Lexe services.
-pub trait ServiceApiError: From<RestClientError> + From<ErrorResponse> {}
+pub trait ServiceApiError:
+    From<RestClientError> + From<ErrorResponse> + Error
+{
+}
 
-impl<E: From<RestClientError> + From<ErrorResponse>> ServiceApiError for E {}
+impl<E: From<RestClientError> + From<ErrorResponse> + Error> ServiceApiError
+    for E
+{
+}
 
 /// `ErrorKindGenerated` is the set of methods and traits derived by the
 /// `error_kind!` macro.
