@@ -168,7 +168,7 @@ impl LazyBlockingTaskRt {
     }
 
     /// Block on `fut` until it runs to completion. The only difference b/w this
-    /// and [`tokio::task::block_in_place`] is that this "technically" works
+    /// and `tokio::task::block_in_place` is that this "technically" works
     /// inside a current-thread runtime (though it's certainly not recommended).
     pub fn block_on(&self, fut: impl Future<Output = ()> + Send + 'static) {
         self.block_on_boxed(Box::pin(fut));
