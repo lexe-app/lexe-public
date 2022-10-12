@@ -10,7 +10,7 @@ use bitcoin::secp256k1::Secp256k1;
 use bitcoin_bech32::WitnessProgram;
 use common::cli::Network;
 use common::hex;
-use common::task::{LazyBlockingTaskRt, LxTask};
+use common::task::{BlockingTaskRt, LxTask};
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::invoice::{HTLCStatus, MillisatAmount, PaymentInfo};
@@ -33,7 +33,7 @@ pub(crate) struct NodeEventHandler {
     inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
     // XXX: remove when `EventHandler` is async
-    lazy_blocking_task_rt: LazyBlockingTaskRt,
+    lazy_blocking_task_rt: BlockingTaskRt,
 }
 
 impl NodeEventHandler {
@@ -54,7 +54,7 @@ impl NodeEventHandler {
             network_graph,
             inbound_payments,
             outbound_payments,
-            lazy_blocking_task_rt: LazyBlockingTaskRt::new(),
+            lazy_blocking_task_rt: BlockingTaskRt::new(),
         }
     }
 }

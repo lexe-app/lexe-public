@@ -105,7 +105,10 @@ impl Logger for InnerTracingLogger {
                 return;
             }
 
-            dispatch.event(&Event::new(
+            let current_span = tracing::Span::current();
+
+            dispatch.event(&Event::new_child_of(
+                current_span.id(),
                 meta,
                 &meta.fields().value_set(&[
                     (&keys.message, Some(&record.args as &dyn Value)),
@@ -154,7 +157,7 @@ macro_rules! log_cs {
         static $cs: $ty = $ty;
         static $meta: Metadata<'static> = Metadata::new(
             "ldk log event",
-            "ldk-log",
+            "ldk",
             $level,
             None,
             None,

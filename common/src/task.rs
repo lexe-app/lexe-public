@@ -2,10 +2,9 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use once_cell::sync::Lazy;
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::{JoinError, JoinHandle};
-use tracing::error;
+use tracing::{error, Instrument};
 
 /// A thin wrapper around [`tokio::task::JoinHandle`] that adds the
 /// `#[must_use]` lint to ensure that all spawned tasks are joined or explictly
@@ -22,25 +21,27 @@ pub struct LxTask<T> {
 
 impl<T> LxTask<T> {
     #[inline]
-    #[allow(clippy::disallowed_methods)]
-    pub fn spawn_named<F>(name: &'static str, future: F) -> LxTask<F::Output>
-    where
-        F: Future<Output = T> + Send + 'static,
-        F::Output: Send + 'static,
-    {
-        Self {
-            task: tokio::spawn(future),
-            name,
-        }
-    }
-
-    #[inline]
     pub fn spawn<F>(future: F) -> LxTask<F::Output>
     where
         F: Future<Output = T> + Send + 'static,
         F::Output: Send + 'static,
     {
         Self::spawn_named("<no-name>", future)
+    }
+
+    #[inline]
+    #[allow(clippy::disallowed_methods)]
+    pub fn spawn_named<F>(name: &'static str, future: F) -> LxTask<F::Output>
+    where
+        F: Future<Output = T> + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        // Instrument the future so that the current tracing span propagates
+        // past spawn boundaries.
+        Self {
+            task: tokio::spawn(future.in_current_span()),
+            name,
+        }
     }
 
     #[inline]
@@ -140,42 +141,40 @@ type BoxFutWithTx = (BoxFut, oneshot::Sender<()>);
 /// this unless you have a very good reason. : )
 ///
 /// XXX: remove when LDK `EventHandler` trait is made properly async.
-pub struct LazyBlockingTaskRt(Lazy<mpsc::Sender<BoxFutWithTx>>);
+pub struct BlockingTaskRt(mpsc::Sender<BoxFutWithTx>);
 
-impl LazyBlockingTaskRt {
-    pub const fn new() -> Self {
-        Self(Lazy::new(|| {
-            // Only run one task at a time.
-            let (task_tx, mut task_rx) = mpsc::channel::<BoxFutWithTx>(1);
+impl BlockingTaskRt {
+    pub fn new() -> Self {
+        // Only run one task at a time.
+        let (task_tx, mut task_rx) = mpsc::channel::<BoxFutWithTx>(1);
 
-            std::thread::spawn(move || {
-                let rt = tokio::runtime::Builder::new_current_thread()
-                    .enable_all()
-                    .build()
-                    .unwrap();
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
 
-                rt.block_on(async move {
-                    // Only run one task at a time.
-                    while let Some((task, res_tx)) = task_rx.recv().await {
-                        task.await;
-                        let _ = res_tx.send(());
-                    }
-                });
+            rt.block_on(async move {
+                // Only run one task at a time.
+                while let Some((task, res_tx)) = task_rx.recv().await {
+                    task.await;
+                    let _ = res_tx.send(());
+                }
             });
+        });
 
-            task_tx
-        }))
+        Self(task_tx)
     }
 
     /// Block on `fut` until it runs to completion. The only difference b/w this
     /// and `tokio::task::block_in_place` is that this "technically" works
     /// inside a current-thread runtime (though it's certainly not recommended).
     pub fn block_on(&self, fut: impl Future<Output = ()> + Send + 'static) {
-        self.block_on_boxed(Box::pin(fut));
+        self.block_on_boxed(Box::pin(fut.in_current_span()));
     }
 
     pub fn block_on_boxed(&self, task: BoxFut) {
-        let blocking_task_tx = &*self.0;
+        let blocking_task_tx = &self.0;
         let (res_tx, res_rx) = oneshot::channel();
 
         // NOTE: _must_ be `futures::executor::block_on`, as
@@ -193,7 +192,7 @@ impl LazyBlockingTaskRt {
     }
 }
 
-impl Default for LazyBlockingTaskRt {
+impl Default for BlockingTaskRt {
     fn default() -> Self {
         Self::new()
     }
