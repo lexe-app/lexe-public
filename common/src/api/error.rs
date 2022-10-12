@@ -1,3 +1,11 @@
+//! Serializable api error types and error kinds returned by various lexe
+//! services.
+
+// Deny suspicious match names that are probably non-existent variants.
+#![deny(non_snake_case)]
+
+use std::fmt;
+
 use bitcoin::secp256k1::PublicKey;
 use http::status::StatusCode as Status; // So the consts  fit in 80 chars
 #[cfg(all(test, not(target_env = "sgx")))]
@@ -18,48 +26,260 @@ const SERVER_502_BAD_GATEWAY: Status = Status::BAD_GATEWAY;
 const SERVER_503_SERVICE_UNAVAILABLE: Status = Status::SERVICE_UNAVAILABLE;
 const SERVER_504_GATEWAY_TIMEOUT: Status = Status::GATEWAY_TIMEOUT;
 
+/// `ErrorCode` is the common serialized representation for all `ErrorKind`s.
 pub type ErrorCode = u16;
 
-/// The only error struct actually sent across the wire. Everything else is
-/// converted to / from it. For displaying the full human-readable message to
-/// the user, convert [`ErrorResponse`] to the service error type first.
+/// `ErrorResponse` is the common JSON-serialized representation for all
+/// `ApiError`s. It is the only error struct actually sent across the wire.
+/// Everything else is converted to / from it.
+///
+/// For displaying the full human-readable message to the user, convert
+/// `ErrorResponse` to the corresponding service error type first.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ErrorResponse {
     pub code: ErrorCode,
     pub msg: String,
 }
 
+/// Get the HTTP status code returned for a particular Error.
+pub trait ToHttpStatus {
+    fn to_http_status(&self) -> Status;
+}
+
 /// A 'trait alias' defining all the supertraits a service error type must impl
 /// to be accepted for use in the `RestClient` and across all Lexe services.
-pub trait ServiceApiError:
-    ErrorCodeConvertible + From<CommonError> + From<ErrorResponse>
-{
-}
+pub trait ServiceApiError: From<RestClientError> + From<ErrorResponse> {}
 
-impl<E: ErrorCodeConvertible + From<CommonError> + From<ErrorResponse>>
-    ServiceApiError for E
-{
-}
+impl<E: From<RestClientError> + From<ErrorResponse>> ServiceApiError for E {}
 
-/// A trait implemented on all ServiceErrorKinds that defines a
-/// backwards-compatible encoding scheme for each error varinat.
-pub trait ErrorCodeConvertible {
-    fn to_code(&self) -> ErrorCode;
+/// `ErrorKindGenerated` is the set of methods and traits derived by the
+/// `error_kind!` macro.
+///
+/// Try to keep this light, since debugging macros is a pain : )
+pub trait ErrorKindGenerated:
+    Copy
+    + Clone
+    + Default
+    + Eq
+    + PartialEq
+    + fmt::Debug
+    + fmt::Display
+    + From<ErrorCode>
+    + Sized
+    + 'static
+{
+    /// An array of all known error kind variants, excluding `Unknown(_)`.
+    const KINDS: &'static [Self];
+
+    /// Returns `true` if the error kind is unrecognized (at least by this
+    /// version of the software).
+    fn is_unknown(&self) -> bool;
+
+    /// Returns the variant name of this error kind.
+    ///
+    /// Ex: `MyErrorKind::Foo.to_name() == "Foo"`
+    fn to_name(self) -> &'static str;
+
+    /// Returns the human-readable message for this error kind. For a generated
+    /// error kind, this is the same as the variant's doc string.
+    fn to_msg(self) -> &'static str;
+
+    /// Returns the serializable [`ErrorCode`] for this error kind.
+    fn to_code(self) -> ErrorCode;
+
+    /// Returns the error kind for this raw [`ErrorCode`].
+    ///
+    /// This method is infallible as every error kind must always have an
+    /// `Unknown(_)` variant for backwards compatibility.
     fn from_code(code: ErrorCode) -> Self;
 }
 
-pub trait HasStatusCode {
-    fn get_status_code(&self) -> Status;
+// --- error_kind! macro --- //
+
+// Easily debug/view the `error_kind!` macro expansion with `cargo expand`:
+//
+// ```bash
+// $ cargo install cargo-expand
+// $ cd common/
+// $ cargo expand api::error
+// ```
+
+/// This macro takes an error kind enum declaration and generates impls for the
+/// trait [`ErrorKindGenerated`] (and its dependent traits).
+///
+/// ### Example
+///
+/// ```ignore
+/// error_kind! {
+///     #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+///     pub enum FooErrorKind {
+///         /// Unknown error
+///         Unknown(ErrorCode),
+///
+///         /// A Foo error occured
+///         Foo = 1,
+///         /// Bar failed to complete
+///         Bar = 2,
+///     }
+/// }
+/// ```
+///
+/// * All error kind types _must_ have an `Unknown(ErrorCode)` variant and it
+///   _must_ be first. This handles any unrecognized errors seen from remote
+///   services and preserves the error code for debugging / propagating.
+///
+/// * Doc strings on the error variants are used for
+///   [`ErrorKindGenerated::to_msg`] and the [`fmt::Display`] impl.
+macro_rules! error_kind {
+    {
+        $(#[$enum_meta:meta])*
+        pub enum $error_kind_name:ident {
+            $( #[doc = $unknown_msg:literal] )*
+            Unknown(ErrorCode),
+
+            $(
+                // use the doc string for the error message
+                $( #[doc = $item_msg:literal] )*
+                $item_name:ident = $item_code:literal
+            ),*
+
+            $(,)?
+        }
+    } => { // generate the error kind enum + impls
+
+        $(#[$enum_meta])*
+        pub enum $error_kind_name {
+            $( #[doc = $unknown_msg] )*
+            Unknown(ErrorCode),
+
+            $(
+                $( #[doc = $item_msg] )*
+                $item_name
+            ),*
+        }
+
+        // --- macro-generated impls --- //
+
+        impl ErrorKindGenerated for $error_kind_name {
+            const KINDS: &'static [Self] = &[
+                $( Self::$item_name, )*
+            ];
+
+            #[inline]
+            fn is_unknown(&self) -> bool {
+                matches!(self, Self::Unknown(_))
+            }
+
+            fn to_name(self) -> &'static str {
+                match self {
+                    $( Self::$item_name => stringify!($item_name), )*
+                    Self::Unknown(_) => "Unknown",
+                }
+            }
+
+            fn to_msg(self) -> &'static str {
+                match self {
+                    $( Self::$item_name => concat!($( $item_msg, )*), )*
+                    Self::Unknown(_) => concat!($( $unknown_msg, )*),
+                }
+            }
+
+            fn to_code(self) -> ErrorCode {
+                match self {
+                    $( Self::$item_name => $item_code, )*
+                    Self::Unknown(code) => code,
+                }
+            }
+
+            fn from_code(code: ErrorCode) -> Self {
+                // this deny attr makes duplicate codes a compile error : )
+                #[deny(unreachable_patterns)]
+                match code {
+                    // make 0 the first entry so any variants with 0 code will
+                    // raise a compile error.
+                    0 => Self::Unknown(0),
+                    $( $item_code => Self::$item_name, )*
+                    _ => Self::Unknown(code),
+                }
+            }
+        }
+
+        // --- standard trait impls --- //
+
+        impl Default for $error_kind_name {
+            fn default() -> Self {
+                Self::Unknown(0)
+            }
+        }
+
+        impl fmt::Display for $error_kind_name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                let name = (*self).to_name();
+                let msg = (*self).to_msg();
+                let code = (*self).to_code();
+                // ex: "[102=EntityConversion]: Could not convert entity to type"
+                write!(f, "[{code}={name}]:{msg}")
+            }
+        }
+
+        // --- impl Into/From ErrorCode --- //
+
+        impl From<ErrorCode> for $error_kind_name {
+            #[inline]
+            fn from(code: ErrorCode) -> Self {
+                Self::from_code(code)
+            }
+        }
+
+        impl From<$error_kind_name> for ErrorCode {
+            #[inline]
+            fn from(val: $error_kind_name) -> ErrorCode {
+                val.to_code()
+            }
+        }
+
+        // --- impl From RestClientErrorKind --- //
+
+        impl From<RestClientErrorKind> for $error_kind_name {
+            #[inline]
+            fn from(common: RestClientErrorKind) -> Self {
+                Self::from_code(common.to_code())
+            }
+        }
+
+        // --- impl Arbitrary --- //
+
+        // Unfortunately, we can't just derive Arbitrary since proptest will
+        // generate `Unknown(code)` with code that actually is a valid variant.
+        #[cfg(any(test, feature = "test-utils"))]
+        impl proptest::arbitrary::Arbitrary for $error_kind_name {
+            type Parameters = ();
+            type Strategy = proptest::strategy::BoxedStrategy<Self>;
+
+            fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+                use proptest::{prop_oneof, sample};
+                use proptest::arbitrary::any;
+                use proptest::strategy::Strategy;
+
+                // 9/10 sample a valid error code, o/w sample a random error
+                // code (likely unknown).
+                prop_oneof![
+                    9 => sample::select(Self::KINDS),
+                    1 => any::<ErrorCode>().prop_map(Self::from_code),
+                ].boxed()
+            }
+        }
+    }
 }
 
 // --- Error structs --- //
 
 /// Defines the common classes of errors that the `RestClient` can generate.
 /// This error should not be used directly. Rather, it serves as an intermediate
-/// representation; service api errors must define a `From<CommonError>` impl to
-/// ensure they have covered these cases.
-pub struct CommonError {
-    kind: CommonErrorKind,
+/// representation; service api errors must define a `From<RestClientError>`
+/// impl to ensure they have covered these cases.
+pub struct RestClientError {
+    kind: RestClientErrorKind,
     msg: String,
 }
 
@@ -68,7 +288,6 @@ pub struct CommonError {
 #[error("{kind}: {msg}")]
 #[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 pub struct BackendApiError {
-    #[source]
     pub kind: BackendErrorKind,
     pub msg: String,
 }
@@ -78,7 +297,6 @@ pub struct BackendApiError {
 #[error("{kind}: {msg}")]
 #[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 pub struct RunnerApiError {
-    #[source]
     pub kind: RunnerErrorKind,
     pub msg: String,
 }
@@ -88,7 +306,6 @@ pub struct RunnerApiError {
 #[error("{kind}: {msg}")]
 #[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 pub struct GatewayApiError {
-    #[source]
     pub kind: GatewayErrorKind,
     pub msg: String,
 }
@@ -98,7 +315,6 @@ pub struct GatewayApiError {
 #[error("{kind}: {msg}")]
 #[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 pub struct NodeApiError {
-    #[source]
     pub kind: NodeErrorKind,
     pub msg: String,
 }
@@ -108,154 +324,218 @@ pub struct NodeApiError {
 #[error("{kind}: {msg}")]
 #[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 pub struct LspApiError {
-    #[source]
     pub kind: LspErrorKind,
     pub msg: String,
 }
 
 // --- Error variants --- //
 
-/// All variants of errors that the rest client can generate.
-enum CommonErrorKind {
-    QueryStringSerialization,
-    JsonSerialization,
-    Connect,
-    Timeout,
-    Decode,
-    Reqwest,
+/// All variants of errors that the [`RestClient`] can generate.
+///
+/// [`RestClient`]: crate::api::rest::RestClient
+#[derive(Copy, Clone, Debug)]
+#[repr(u16)]
+pub(crate) enum RestClientErrorKind {
+    /// Unknown Reqwest client error
+    UnknownReqwest = 1,
+    /// Error building the HTTP request
+    Building = 2,
+    /// Error connecting to a remote HTTP service
+    Connect = 3,
+    /// Request timed out
+    Timeout = 4,
+    /// Error decoding/deserializing the HTTP response body
+    Decode = 5,
 }
 
-/// All variants of errors that the backend can return.
-#[derive(Error, Copy, Clone, Debug, Eq, PartialEq, Hash)]
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
-pub enum BackendErrorKind {
-    #[error("Unknown error")]
-    Unknown,
-    #[error("Client failed to serialize the given data")]
-    Serialization,
-    #[error("Couldn't connect to service")]
-    Connect,
-    #[error("Request timed out")]
-    Timeout,
-    #[error("Could not decode response")]
-    Decode,
-    #[error("Other reqwest error")]
-    Reqwest,
+error_kind! {
+    /// All variants of errors that the backend can return.
+    #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+    pub enum BackendErrorKind {
+        /// Unknown error
+        Unknown(ErrorCode),
 
-    #[error("Database error")]
-    Database,
-    #[error("Resource not found")]
-    NotFound,
-    #[error("Could not convert entity to type")]
-    EntityConversion,
-    #[error("Invalid signed auth request")]
-    InvalidAuthRequest,
-    #[error("Auth token or auth request is expired")]
-    ExpiredAuthRequest,
+        // --- Common --- //
+
+        /// Unknown Reqwest client error
+        UnknownReqwest = 1,
+        /// Error building the HTTP request
+        Building = 2,
+        /// Error connecting to a remote HTTP service
+        Connect = 3,
+        /// Request timed out
+        Timeout = 4,
+        /// Error decoding/deserializing the HTTP response body
+        Decode = 5,
+
+        // --- Backend --- //
+
+        /// Database error
+        Database = 100,
+        /// Resource not found
+        NotFound = 101,
+        /// Could not convert entity to type
+        EntityConversion = 102,
+        /// Invalid signed auth request
+        InvalidAuthRequest = 103,
+        /// Auth token or auth request is expired
+        ExpiredAuthRequest = 104,
+    }
 }
 
-/// All variants of errors that the runner can return.
-#[derive(Error, Copy, Clone, Debug, Eq, PartialEq, Hash)]
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
-pub enum RunnerErrorKind {
-    #[error("Unknown error")]
-    Unknown,
-    #[error("Client failed to serialize the given data")]
-    Serialization,
-    #[error("Couldn't connect to service")]
-    Connect,
-    #[error("Request timed out")]
-    Timeout,
-    #[error("Could not decode response")]
-    Decode,
-    #[error("Other reqwest error")]
-    Reqwest,
+error_kind! {
+    /// All variants of errors that the runner can return.
+    #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+    pub enum RunnerErrorKind {
+        /// Unknown error
+        Unknown(ErrorCode),
 
-    #[error("Runner cannot take any more commands")]
-    AtCapacity,
-    #[error(
-        "Runner gave up servicing the request, \
-            most likely because it is at capacity."
-    )]
-    Cancelled,
-    #[error("Runner error")]
-    Runner,
+        // --- Common --- //
+
+        /// Unknown Reqwest client error
+        UnknownReqwest = 1,
+        /// Error building the HTTP request
+        Building = 2,
+        /// Error connecting to a remote HTTP service
+        Connect = 3,
+        /// Request timed out
+        Timeout = 4,
+        /// Error decoding/deserializing the HTTP response body
+        Decode = 5,
+
+        // --- Runner --- //
+
+        /// Runner cannot take any more commands
+        AtCapacity = 100,
+        /// Runner gave up servicing the request, likely at capacity
+        Cancelled = 101,
+        /// Runner error
+        Runner = 102,
+    }
 }
 
-/// All variants of errors that the gateway can return.
-#[derive(Error, Copy, Clone, Debug, Eq, PartialEq, Hash)]
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
-pub enum GatewayErrorKind {
-    #[error("Unknown error")]
-    Unknown,
-    #[error("Client failed to serialize the given data")]
-    Serialization,
-    #[error("Couldn't connect to service")]
-    Connect,
-    #[error("Request timed out")]
-    Timeout,
-    #[error("Could not decode response")]
-    Decode,
-    #[error("Other reqwest error")]
-    Reqwest,
+error_kind! {
+    /// All variants of errors that the gateway can return.
+    #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+    pub enum GatewayErrorKind {
+        /// Unknown error
+        Unknown(ErrorCode),
 
-    #[error("Invalid signed auth request")]
-    InvalidAuthRequest,
-    #[error("Auth token or auth request is expired")]
-    ExpiredAuthRequest,
+        // --- Common --- //
+
+        /// Unknown Reqwest client error
+        UnknownReqwest = 1,
+        /// Error building the HTTP request
+        Building = 2,
+        /// Error connecting to a remote HTTP service
+        Connect = 3,
+        /// Request timed out
+        Timeout = 4,
+        /// Error decoding/deserializing the HTTP response body
+        Decode = 5,
+
+        // --- Gateway --- //
+
+        /// Invalid signed auth request
+        InvalidAuthRequest = 100,
+        /// Auth token or auth request is expired
+        ExpiredAuthRequest = 101,
+    }
 }
 
-/// All variants of errors that the node can return.
-#[derive(Error, Copy, Clone, Debug, Eq, PartialEq, Hash)]
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
-pub enum NodeErrorKind {
-    #[error("Unknown error")]
-    Unknown,
-    #[error("Client failed to serialize the given data")]
-    Serialization,
-    #[error("Couldn't connect to service")]
-    Connect,
-    #[error("Request timed out")]
-    Timeout,
-    #[error("Could not decode response")]
-    Decode,
-    #[error("Other reqwest error")]
-    Reqwest,
+error_kind! {
+    /// All variants of errors that the node can return.
+    #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+    pub enum NodeErrorKind {
+        /// Unknown error
+        Unknown(ErrorCode),
 
-    #[error("Could not proxy request to node")]
-    Proxy,
+        // --- Common --- //
 
-    #[error("Wrong user pk")]
-    WrongUserPk,
-    #[error("Given node pk doesn't match node pk derived from seed")]
-    WrongNodePk,
-    #[error("Error occurred during provisioning")]
-    Provision,
-    #[error("Error while executing command")]
-    Command,
-    #[error("Node unable to authenticate")]
-    BadAuth,
+        /// Unknown Reqwest client error
+        UnknownReqwest = 1,
+        /// Error building the HTTP request
+        Building = 2,
+        /// Error connecting to a remote HTTP service
+        Connect = 3,
+        /// Request timed out
+        Timeout = 4,
+        /// Error decoding/deserializing the HTTP response body
+        Decode = 5,
+
+        // --- Node --- //
+
+        /// Wrong user pk
+        WrongUserPk = 100,
+        /// Given node pk doesn't match node pk derived from seed
+        WrongNodePk = 101,
+        /// Error occurred during provisioning
+        Provision = 102,
+        /// Node unable to authenticate
+        BadAuth = 103,
+        /// Could not proxy request to node
+        Proxy = 104,
+        /// Error while executing command
+        Command = 105,
+    }
 }
 
-/// All variants of errors that the LSP can return.
-#[derive(Error, Copy, Clone, Debug, Eq, PartialEq, Hash)]
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
-pub enum LspErrorKind {
-    #[error("Unknown error")]
-    Unknown,
-    #[error("Client failed to serialize the given data")]
-    Serialization,
-    #[error("Couldn't connect to service")]
-    Connect,
-    #[error("Request timed out")]
-    Timeout,
-    #[error("Could not decode response")]
-    Decode,
-    #[error("Other reqwest error")]
-    Reqwest,
+error_kind! {
+    /// All variants of errors that the LSP can return.
+    #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+    pub enum LspErrorKind {
+        /// Unknown error
+        Unknown(ErrorCode),
 
-    #[error("Error occurred during provisioning")]
-    Provision,
+        // --- Common --- //
+
+        /// Unknown Reqwest client error
+        UnknownReqwest = 1,
+        /// Error building the HTTP request
+        Building = 2,
+        /// Error connecting to a remote HTTP service
+        Connect = 3,
+        /// Request timed out
+        Timeout = 4,
+        /// Error decoding/deserializing the HTTP response body
+        Decode = 5,
+
+        // --- LSP --- //
+
+        /// Error occurred during provisioning
+        Provision = 100,
+    }
+}
+
+// --- RestClientError impl --- //
+
+impl RestClientError {
+    pub(crate) fn new(kind: RestClientErrorKind, msg: String) -> Self {
+        Self { kind, msg }
+    }
+
+    #[inline]
+    pub(crate) fn to_code(&self) -> ErrorCode {
+        self.kind.to_code()
+    }
+}
+
+// --- RestClientErrorKind impl --- //
+
+impl RestClientErrorKind {
+    #[cfg(test)]
+    const KINDS: &'static [Self] = &[
+        Self::UnknownReqwest,
+        Self::Building,
+        Self::Connect,
+        Self::Timeout,
+        Self::Decode,
+    ];
+
+    #[inline]
+    fn to_code(self) -> ErrorCode {
+        self as ErrorCode
+    }
 }
 
 // --- Misc constructors / helpers --- //
@@ -357,219 +637,20 @@ impl From<LspApiError> for ErrorResponse {
     }
 }
 
-// --- ErrorCodeConvertible impls --- //
+// --- ToHttpStatus impls --- //
 
-impl ErrorCodeConvertible for BackendApiError {
-    fn to_code(&self) -> ErrorCode {
-        self.kind.to_code()
-    }
-    fn from_code(_code: ErrorCode) -> Self {
-        unimplemented!("Shouldn't be using this!")
-    }
-}
-
-impl ErrorCodeConvertible for RunnerApiError {
-    fn to_code(&self) -> ErrorCode {
-        self.kind.to_code()
-    }
-    fn from_code(_code: ErrorCode) -> Self {
-        unimplemented!("Shouldn't be using this!")
-    }
-}
-
-impl ErrorCodeConvertible for GatewayApiError {
-    fn to_code(&self) -> ErrorCode {
-        self.kind.to_code()
-    }
-    fn from_code(_code: ErrorCode) -> Self {
-        unimplemented!("Shouldn't be using this!")
-    }
-}
-
-impl ErrorCodeConvertible for NodeApiError {
-    fn to_code(&self) -> ErrorCode {
-        self.kind.to_code()
-    }
-    fn from_code(_code: ErrorCode) -> Self {
-        unimplemented!("Shouldn't be using this!")
-    }
-}
-
-impl ErrorCodeConvertible for LspApiError {
-    fn to_code(&self) -> ErrorCode {
-        self.kind.to_code()
-    }
-    fn from_code(_code: ErrorCode) -> Self {
-        unimplemented!("Shouldn't be using this!")
-    }
-}
-
-impl ErrorCodeConvertible for BackendErrorKind {
-    fn to_code(&self) -> ErrorCode {
-        match self {
-            Self::Unknown => 0,
-            Self::Serialization => 1,
-            Self::Connect => 2,
-            Self::Timeout => 3,
-            Self::Decode => 4,
-            Self::Reqwest => 5,
-            Self::Database => 6,
-            Self::NotFound => 7,
-            Self::EntityConversion => 8,
-            Self::InvalidAuthRequest => 9,
-            Self::ExpiredAuthRequest => 10,
-        }
-    }
-    fn from_code(code: ErrorCode) -> Self {
-        match code {
-            0 => Self::Unknown,
-            1 => Self::Serialization,
-            2 => Self::Connect,
-            3 => Self::Timeout,
-            4 => Self::Decode,
-            5 => Self::Reqwest,
-            6 => Self::Database,
-            7 => Self::NotFound,
-            8 => Self::EntityConversion,
-            9 => Self::InvalidAuthRequest,
-            10 => Self::ExpiredAuthRequest,
-            _ => Self::Unknown,
-        }
-    }
-}
-
-impl ErrorCodeConvertible for RunnerErrorKind {
-    fn to_code(&self) -> ErrorCode {
-        match self {
-            Self::Unknown => 0,
-            Self::Serialization => 1,
-            Self::Connect => 2,
-            Self::Timeout => 3,
-            Self::Decode => 4,
-            Self::Reqwest => 5,
-            Self::AtCapacity => 6,
-            Self::Cancelled => 7,
-            Self::Runner => 8,
-        }
-    }
-    fn from_code(code: ErrorCode) -> Self {
-        match code {
-            0 => Self::Unknown,
-            1 => Self::Serialization,
-            2 => Self::Connect,
-            3 => Self::Timeout,
-            4 => Self::Decode,
-            5 => Self::Reqwest,
-            6 => Self::AtCapacity,
-            7 => Self::Cancelled,
-            8 => Self::Runner,
-            _ => Self::Unknown,
-        }
-    }
-}
-
-impl ErrorCodeConvertible for GatewayErrorKind {
-    fn to_code(&self) -> ErrorCode {
-        match self {
-            Self::Unknown => 0,
-            Self::Serialization => 1,
-            Self::Connect => 2,
-            Self::Timeout => 3,
-            Self::Decode => 4,
-            Self::Reqwest => 5,
-            Self::InvalidAuthRequest => 6,
-            Self::ExpiredAuthRequest => 7,
-        }
-    }
-    fn from_code(code: ErrorCode) -> Self {
-        match code {
-            0 => Self::Unknown,
-            1 => Self::Serialization,
-            2 => Self::Connect,
-            3 => Self::Timeout,
-            4 => Self::Decode,
-            5 => Self::Reqwest,
-            6 => Self::InvalidAuthRequest,
-            7 => Self::ExpiredAuthRequest,
-            _ => Self::Unknown,
-        }
-    }
-}
-
-impl ErrorCodeConvertible for NodeErrorKind {
-    fn to_code(&self) -> ErrorCode {
-        match self {
-            Self::Unknown => 0,
-            Self::Serialization => 1,
-            Self::Connect => 2,
-            Self::Timeout => 3,
-            Self::Decode => 4,
-            Self::Reqwest => 5,
-            Self::Proxy => 6,
-            Self::WrongUserPk => 7,
-            Self::WrongNodePk => 8,
-            Self::Provision => 9,
-            Self::Command => 10,
-            Self::BadAuth => 11,
-        }
-    }
-    fn from_code(code: ErrorCode) -> Self {
-        match code {
-            0 => Self::Unknown,
-            1 => Self::Serialization,
-            2 => Self::Connect,
-            3 => Self::Timeout,
-            4 => Self::Decode,
-            5 => Self::Reqwest,
-            6 => Self::Proxy,
-            7 => Self::WrongUserPk,
-            8 => Self::WrongNodePk,
-            9 => Self::Provision,
-            10 => Self::Command,
-            11 => Self::BadAuth,
-            _ => Self::Unknown,
-        }
-    }
-}
-
-impl ErrorCodeConvertible for LspErrorKind {
-    fn to_code(&self) -> ErrorCode {
-        match self {
-            Self::Unknown => 0,
-            Self::Serialization => 1,
-            Self::Connect => 2,
-            Self::Timeout => 3,
-            Self::Decode => 4,
-            Self::Reqwest => 5,
-            Self::Provision => 6,
-        }
-    }
-    fn from_code(code: ErrorCode) -> Self {
-        match code {
-            0 => Self::Unknown,
-            1 => Self::Serialization,
-            2 => Self::Connect,
-            3 => Self::Timeout,
-            4 => Self::Decode,
-            5 => Self::Reqwest,
-            6 => Self::Provision,
-            _ => Self::Unknown,
-        }
-    }
-}
-
-// --- HasStatusCode impls --- //
-
-impl HasStatusCode for BackendApiError {
-    fn get_status_code(&self) -> Status {
+impl ToHttpStatus for BackendApiError {
+    fn to_http_status(&self) -> Status {
         use BackendErrorKind::*;
         match self.kind {
-            Unknown => SERVER_500_INTERNAL_SERVER_ERROR,
-            Serialization => CLIENT_400_BAD_REQUEST,
+            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
+
+            UnknownReqwest => CLIENT_400_BAD_REQUEST,
+            Building => CLIENT_400_BAD_REQUEST,
             Connect => SERVER_503_SERVICE_UNAVAILABLE,
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
-            Reqwest => CLIENT_400_BAD_REQUEST,
+
             Database => SERVER_500_INTERNAL_SERVER_ERROR,
             NotFound => CLIENT_404_NOT_FOUND,
             EntityConversion => SERVER_500_INTERNAL_SERVER_ERROR,
@@ -579,16 +660,18 @@ impl HasStatusCode for BackendApiError {
     }
 }
 
-impl HasStatusCode for RunnerApiError {
-    fn get_status_code(&self) -> Status {
+impl ToHttpStatus for RunnerApiError {
+    fn to_http_status(&self) -> Status {
         use RunnerErrorKind::*;
         match self.kind {
-            Unknown => SERVER_500_INTERNAL_SERVER_ERROR,
-            Serialization => CLIENT_400_BAD_REQUEST,
+            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
+
+            UnknownReqwest => CLIENT_400_BAD_REQUEST,
+            Building => CLIENT_400_BAD_REQUEST,
             Connect => SERVER_503_SERVICE_UNAVAILABLE,
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
-            Reqwest => CLIENT_400_BAD_REQUEST,
+
             AtCapacity => SERVER_500_INTERNAL_SERVER_ERROR,
             Cancelled => SERVER_500_INTERNAL_SERVER_ERROR,
             Runner => SERVER_500_INTERNAL_SERVER_ERROR,
@@ -596,188 +679,122 @@ impl HasStatusCode for RunnerApiError {
     }
 }
 
-impl HasStatusCode for GatewayApiError {
-    fn get_status_code(&self) -> Status {
+impl ToHttpStatus for GatewayApiError {
+    fn to_http_status(&self) -> Status {
         use GatewayErrorKind::*;
         match self.kind {
-            Unknown => SERVER_500_INTERNAL_SERVER_ERROR,
-            Serialization => CLIENT_400_BAD_REQUEST,
+            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
+
+            UnknownReqwest => CLIENT_400_BAD_REQUEST,
+            Building => CLIENT_400_BAD_REQUEST,
             Connect => SERVER_503_SERVICE_UNAVAILABLE,
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
-            Reqwest => CLIENT_400_BAD_REQUEST,
+
             InvalidAuthRequest => CLIENT_400_BAD_REQUEST,
             ExpiredAuthRequest => CLIENT_401_UNAUTHORIZED,
         }
     }
 }
 
-impl HasStatusCode for NodeApiError {
-    fn get_status_code(&self) -> Status {
+impl ToHttpStatus for NodeApiError {
+    fn to_http_status(&self) -> Status {
         use NodeErrorKind::*;
         match self.kind {
-            Unknown => SERVER_500_INTERNAL_SERVER_ERROR,
-            Serialization => CLIENT_400_BAD_REQUEST,
+            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
+
+            UnknownReqwest => CLIENT_400_BAD_REQUEST,
+            Building => CLIENT_400_BAD_REQUEST,
             Connect => SERVER_503_SERVICE_UNAVAILABLE,
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
-            Proxy => SERVER_502_BAD_GATEWAY,
-            Reqwest => CLIENT_400_BAD_REQUEST,
+
             WrongUserPk => CLIENT_400_BAD_REQUEST,
             WrongNodePk => CLIENT_400_BAD_REQUEST,
             Provision => SERVER_500_INTERNAL_SERVER_ERROR,
-            Command => SERVER_500_INTERNAL_SERVER_ERROR,
             BadAuth => CLIENT_401_UNAUTHORIZED,
+            Proxy => SERVER_502_BAD_GATEWAY,
+            Command => SERVER_500_INTERNAL_SERVER_ERROR,
         }
     }
 }
 
-impl HasStatusCode for LspApiError {
-    fn get_status_code(&self) -> Status {
+impl ToHttpStatus for LspApiError {
+    fn to_http_status(&self) -> Status {
         use LspErrorKind::*;
         match self.kind {
-            Unknown => SERVER_500_INTERNAL_SERVER_ERROR,
-            Serialization => CLIENT_400_BAD_REQUEST,
+            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
+
+            UnknownReqwest => CLIENT_400_BAD_REQUEST,
+            Building => CLIENT_400_BAD_REQUEST,
             Connect => SERVER_503_SERVICE_UNAVAILABLE,
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
-            Reqwest => CLIENT_400_BAD_REQUEST,
+
             Provision => SERVER_500_INTERNAL_SERVER_ERROR,
         }
     }
 }
 
-// --- Library crate -> CommonError impls --- //
+// --- Library crate -> RestClientError impls --- //
 
-impl From<serde_qs::Error> for CommonError {
-    fn from(err: serde_qs::Error) -> Self {
-        let kind = CommonErrorKind::QueryStringSerialization;
-        let msg = format!("{err:#}");
-        Self { kind, msg }
-    }
-}
-impl From<serde_json::Error> for CommonError {
+impl From<serde_json::Error> for RestClientError {
     fn from(err: serde_json::Error) -> Self {
-        let kind = CommonErrorKind::JsonSerialization;
-        let msg = format!("{err:#}");
+        let kind = RestClientErrorKind::Decode;
+        let msg = format!("Failed to deserialize response as json: {err:#}");
         Self { kind, msg }
     }
 }
+
 // Be more granular than just returning a general reqwest::Error
-impl From<reqwest::Error> for CommonError {
+impl From<reqwest::Error> for RestClientError {
     fn from(err: reqwest::Error) -> Self {
         let msg = format!("{err:#}");
-        let kind = if err.is_connect() {
-            CommonErrorKind::Connect
+        let kind = if err.is_builder() {
+            RestClientErrorKind::Building
+        } else if err.is_connect() {
+            RestClientErrorKind::Connect
         } else if err.is_timeout() {
-            CommonErrorKind::Timeout
+            RestClientErrorKind::Timeout
         } else if err.is_decode() {
-            CommonErrorKind::Decode
+            RestClientErrorKind::Decode
         } else {
-            CommonErrorKind::Reqwest
+            RestClientErrorKind::UnknownReqwest
         };
         Self { kind, msg }
     }
 }
 
-// --- CommonError -> ServiceApiError impls --- //
+// --- RestClientError -> ServiceApiError impls --- //
 
-impl From<CommonError> for BackendApiError {
-    fn from(CommonError { kind, msg }: CommonError) -> Self {
+impl From<RestClientError> for BackendApiError {
+    fn from(RestClientError { kind, msg }: RestClientError) -> Self {
         let kind = BackendErrorKind::from(kind);
         Self { kind, msg }
     }
 }
-impl From<CommonError> for RunnerApiError {
-    fn from(CommonError { kind, msg }: CommonError) -> Self {
+impl From<RestClientError> for RunnerApiError {
+    fn from(RestClientError { kind, msg }: RestClientError) -> Self {
         let kind = RunnerErrorKind::from(kind);
         Self { kind, msg }
     }
 }
-impl From<CommonError> for GatewayApiError {
-    fn from(CommonError { kind, msg }: CommonError) -> Self {
+impl From<RestClientError> for GatewayApiError {
+    fn from(RestClientError { kind, msg }: RestClientError) -> Self {
         let kind = GatewayErrorKind::from(kind);
         Self { kind, msg }
     }
 }
-impl From<CommonError> for NodeApiError {
-    fn from(CommonError { kind, msg }: CommonError) -> Self {
+impl From<RestClientError> for NodeApiError {
+    fn from(RestClientError { kind, msg }: RestClientError) -> Self {
         let kind = NodeErrorKind::from(kind);
         Self { kind, msg }
     }
 }
-impl From<CommonError> for LspApiError {
-    fn from(CommonError { kind, msg }: CommonError) -> Self {
+impl From<RestClientError> for LspApiError {
+    fn from(RestClientError { kind, msg }: RestClientError) -> Self {
         let kind = LspErrorKind::from(kind);
         Self { kind, msg }
-    }
-}
-
-// --- CommonErrorKind -> ServiceErrorKind impls --- //
-
-impl From<CommonErrorKind> for BackendErrorKind {
-    fn from(kind: CommonErrorKind) -> Self {
-        use CommonErrorKind::*;
-        match kind {
-            QueryStringSerialization => Self::Serialization,
-            JsonSerialization => Self::Serialization,
-            Connect => Self::Connect,
-            Timeout => Self::Timeout,
-            Decode => Self::Decode,
-            Reqwest => Self::Reqwest,
-        }
-    }
-}
-impl From<CommonErrorKind> for RunnerErrorKind {
-    fn from(kind: CommonErrorKind) -> Self {
-        use CommonErrorKind::*;
-        match kind {
-            QueryStringSerialization => Self::Serialization,
-            JsonSerialization => Self::Serialization,
-            Connect => Self::Connect,
-            Timeout => Self::Timeout,
-            Decode => Self::Decode,
-            Reqwest => Self::Reqwest,
-        }
-    }
-}
-impl From<CommonErrorKind> for GatewayErrorKind {
-    fn from(kind: CommonErrorKind) -> Self {
-        use CommonErrorKind::*;
-        match kind {
-            QueryStringSerialization => Self::Serialization,
-            JsonSerialization => Self::Serialization,
-            Connect => Self::Connect,
-            Timeout => Self::Timeout,
-            Decode => Self::Decode,
-            Reqwest => Self::Reqwest,
-        }
-    }
-}
-impl From<CommonErrorKind> for NodeErrorKind {
-    fn from(kind: CommonErrorKind) -> Self {
-        use CommonErrorKind::*;
-        match kind {
-            QueryStringSerialization => Self::Serialization,
-            JsonSerialization => Self::Serialization,
-            Connect => Self::Connect,
-            Timeout => Self::Timeout,
-            Decode => Self::Decode,
-            Reqwest => Self::Reqwest,
-        }
-    }
-}
-impl From<CommonErrorKind> for LspErrorKind {
-    fn from(kind: CommonErrorKind) -> Self {
-        use CommonErrorKind::*;
-        match kind {
-            QueryStringSerialization => Self::Serialization,
-            JsonSerialization => Self::Serialization,
-            Connect => Self::Connect,
-            Timeout => Self::Timeout,
-            Decode => Self::Decode,
-            Reqwest => Self::Reqwest,
-        }
     }
 }
 
@@ -862,39 +879,117 @@ impl From<ed25519::Error> for GatewayApiError {
 
 // (Placeholder only, for consistency)
 
-#[cfg(all(test, not(target_env = "sgx")))]
+// --- Testing --- //
+
+#[cfg(test)]
 mod test {
-    use proptest::arbitrary::any;
+    use proptest::arbitrary::{any, Arbitrary};
     use proptest::{prop_assert_eq, proptest};
 
     use super::*;
 
     #[test]
+    fn client_error_kinds_non_zero() {
+        for kind in RestClientErrorKind::KINDS {
+            assert_ne!(kind.to_code(), 0);
+        }
+    }
+
+    fn assert_error_kind_invariants<T>()
+    where
+        T: ErrorKindGenerated + Arbitrary,
+    {
+        // error code 0 and default error code must be unknown
+        assert!(T::from_code(0).is_unknown());
+        assert!(T::default().is_unknown());
+
+        // RestClientErrorKind is a strict subset of T
+        //
+        // Client [ _, 1, 2, 3, 4, 5, 6 ]
+        //      T [ _, 1, 2, 3, 4, 5,   , 100, 101 ]
+        //                            ^
+        //                           BAD
+        for client_kind in RestClientErrorKind::KINDS {
+            let client_code = client_kind.to_code();
+            let other_kind = T::from_code(client_kind.to_code());
+            let other_code = other_kind.to_code();
+            assert_eq!(client_code, other_code, "client codes must roundtrip");
+
+            if other_kind.is_unknown() {
+                panic!(
+                    "all RestClientErrorKind's should be covered; \
+                     missing client code: {client_code}, \
+                     client kind: {client_kind:?}",
+                );
+            }
+        }
+
+        // error kind enum isomorphic to error code representation
+        // kind -> code -> kind2 -> code2
+        for kind in T::KINDS {
+            let code = kind.to_code();
+            let kind2 = T::from_code(code);
+            let code2 = kind2.to_code();
+            assert_eq!(code, code2);
+            assert_eq!(kind, &kind2);
+        }
+
+        // try the first 200 error codes to ensure isomorphic
+        // code -> kind -> code2 -> kind2
+        for code in 0_u16..200 {
+            let kind = T::from_code(code);
+            let code2 = kind.to_code();
+            let kind2 = T::from_code(code2);
+            assert_eq!(code, code2);
+            assert_eq!(kind, kind2);
+        }
+
+        // ensure proptest generator is also well-behaved
+        proptest!(|(kind in any::<T>())| {
+            let code = kind.to_code();
+            let kind2 = T::from_code(code);
+            let code2 = kind2.to_code();
+            prop_assert_eq!(code, code2);
+            prop_assert_eq!(kind, kind2);
+        });
+    }
+
+    #[test]
+    fn error_kind_invariants() {
+        assert_error_kind_invariants::<BackendErrorKind>();
+        assert_error_kind_invariants::<RunnerErrorKind>();
+        assert_error_kind_invariants::<GatewayErrorKind>();
+        assert_error_kind_invariants::<NodeErrorKind>();
+        assert_error_kind_invariants::<LspErrorKind>();
+    }
+
+    #[test]
     fn context_separation() {
         let backend_error = BackendApiError {
-            kind: BackendErrorKind::Unknown,
+            kind: BackendErrorKind::Unknown(0),
             msg: "Additional context".to_owned(),
         };
         let runner_error = RunnerApiError {
-            kind: RunnerErrorKind::Unknown,
+            kind: RunnerErrorKind::Unknown(0),
             msg: "Additional context".to_owned(),
         };
         let gateway_error = GatewayApiError {
-            kind: GatewayErrorKind::Unknown,
+            kind: GatewayErrorKind::Unknown(0),
             msg: "Additional context".to_owned(),
         };
         let node_error = NodeApiError {
-            kind: NodeErrorKind::Unknown,
+            kind: NodeErrorKind::Unknown(0),
             msg: "Additional context".to_owned(),
         };
         let lsp_error = LspApiError {
-            kind: LspErrorKind::Unknown,
+            kind: LspErrorKind::Unknown(0),
             msg: "Additional context".to_owned(),
         };
 
         // The top-level service error types *are* human readable and should
         // include the base help message defined alongside each variant.
-        let model_display = String::from("Unknown error: Additional context");
+        let model_display =
+            String::from("[0=Unknown]: Unknown error: Additional context");
         assert_eq!(model_display, format!("{backend_error}"));
         assert_eq!(model_display, format!("{runner_error}"));
         assert_eq!(model_display, format!("{gateway_error}"));
@@ -921,6 +1016,7 @@ mod test {
         assert_eq!(model_err_resp, lsp_err_resp);
     }
 
+    #[cfg(not(target_env = "sgx"))] // no regex in SGX
     proptest! {
         #[test]
         fn error_response_serde_roundtrip(
@@ -943,6 +1039,7 @@ mod test {
         }
     }
 
+    #[cfg(not(target_env = "sgx"))] // no regex in SGX
     proptest! {
         #[test]
         fn backend_error_code_roundtrip(e1 in any::<BackendApiError>()) {

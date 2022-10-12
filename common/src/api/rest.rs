@@ -14,7 +14,8 @@ use warp::hyper::Body;
 use warp::Rejection;
 
 use crate::api::error::{
-    CommonError, ErrorCode, ErrorResponse, HasStatusCode, ServiceApiError,
+    ErrorCode, ErrorResponse, RestClientError, RestClientErrorKind,
+    ServiceApiError, ToHttpStatus,
 };
 use crate::{backoff, ed25519};
 
@@ -55,12 +56,12 @@ pub const DELETE: Method = Method::DELETE;
 ///     .then(host::status)
 ///     .map(into_response);
 /// ```
-pub fn into_response<T: Serialize, E: HasStatusCode + Into<ErrorResponse>>(
+pub fn into_response<T: Serialize, E: ToHttpStatus + Into<ErrorResponse>>(
     reply_res: Result<T, E>,
 ) -> Response<Body> {
     match reply_res {
         Ok(data) => build_json_response(StatusCode::OK, &data),
-        Err(err) => build_json_response(err.get_status_code(), &err.into()),
+        Err(err) => build_json_response(err.to_http_status(), &err.into()),
     }
 }
 
@@ -106,16 +107,12 @@ pub fn into_succ_response<T: Serialize>(data: T) -> Response<Body> {
 ///     .recover(recover_error_response::<GatewayApiError>)
 /// ```
 pub async fn recover_error_response<
-    E: Clone
-        + HasStatusCode
-        + Into<ErrorResponse>
-        + warp::reject::Reject
-        + 'static,
+    E: Clone + ToHttpStatus + Into<ErrorResponse> + warp::reject::Reject + 'static,
 >(
     err: Rejection,
 ) -> Result<Response<Body>, Rejection> {
     if let Some(err) = err.find::<E>() {
-        let status = err.get_status_code();
+        let status = err.to_http_status();
         // TODO(phlip9): find returns &E... figure out how to remove clone
         let err: ErrorResponse = err.clone().into();
         Ok(build_json_response(status, &err))
@@ -154,7 +151,7 @@ fn build_json_response<T: Serialize>(
 /// converts the generic [`ErrorResponse`] or [`CommonError`] into the specific
 /// API error type, like [`BackendApiError`](crate::api::error::BackendApiError)
 fn convert_rest_response<T, E>(
-    response: Result<Result<Bytes, ErrorResponse>, CommonError>,
+    response: Result<Result<Bytes, ErrorResponse>, RestClientError>,
 ) -> Result<T, E>
 where
     T: DeserializeOwned,
@@ -162,8 +159,11 @@ where
 {
     match response {
         Ok(Ok(bytes)) => {
-            Ok(serde_json::from_slice::<T>(&bytes)
-                .map_err(CommonError::from)?)
+            Ok(serde_json::from_slice::<T>(&bytes).map_err(|err| {
+                let kind = RestClientErrorKind::Decode;
+                let msg = format!("Failed to deser response as json: {err:#}");
+                RestClientError::new(kind, msg)
+            })?)
         }
         Ok(Err(err_api)) => Err(E::from(err_api)),
         Err(err_client) => Err(E::from(err_client)),
@@ -211,6 +211,7 @@ impl RestClient {
         self.client.request(method, url)
     }
 
+    #[inline]
     pub fn get<U, T>(&self, url: U, data: &T) -> reqwest::RequestBuilder
     where
         U: IntoUrl,
@@ -219,6 +220,7 @@ impl RestClient {
         self.builder(GET, url).query(data)
     }
 
+    #[inline]
     pub fn post<U, T>(&self, url: U, data: &T) -> reqwest::RequestBuilder
     where
         U: IntoUrl,
@@ -227,6 +229,7 @@ impl RestClient {
         self.builder(POST, url).json(data)
     }
 
+    #[inline]
     pub fn put<U, T>(&self, url: U, data: &T) -> reqwest::RequestBuilder
     where
         U: IntoUrl,
@@ -235,6 +238,7 @@ impl RestClient {
         self.builder(PUT, url).json(data)
     }
 
+    #[inline]
     pub fn delete<U, T>(&self, url: U, data: &T) -> reqwest::RequestBuilder
     where
         U: IntoUrl,
@@ -267,7 +271,7 @@ impl RestClient {
         T: DeserializeOwned,
         E: ServiceApiError,
     {
-        let request = request_builder.build().map_err(CommonError::from)?;
+        let request = request_builder.build().map_err(RestClientError::from)?;
         let span = Self::request_span(&request);
         let response = self.send_inner(request).instrument(span).await;
         convert_rest_response(response)
@@ -290,7 +294,7 @@ impl RestClient {
         T: DeserializeOwned,
         E: ServiceApiError,
     {
-        let request = request_builder.build().map_err(CommonError::from)?;
+        let request = request_builder.build().map_err(RestClientError::from)?;
         let span = Self::request_span(&request);
         let response = self
             .send_with_retries_inner(request, retries, stop_codes)
@@ -307,7 +311,7 @@ impl RestClient {
         request: reqwest::Request,
         retries: usize,
         stop_codes: &[ErrorCode],
-    ) -> Result<Result<Bytes, ErrorResponse>, CommonError> {
+    ) -> Result<Result<Bytes, ErrorResponse>, RestClientError> {
         let mut backoff_durations = backoff::get_backoff_iter();
 
         let mut request = Some(request);
@@ -343,9 +347,7 @@ impl RestClient {
                     }
                 }
                 Err(err_client) => {
-                    // TODO(phlip9): can CommonErrorKind's get an error code?
-                    let err_code = 123_u16;
-                    if stop_codes.contains(&err_code) {
+                    if stop_codes.contains(&err_client.to_code()) {
                         return Err(err_client);
                     }
                 }
@@ -364,7 +366,7 @@ impl RestClient {
     async fn send_inner(
         &self,
         mut request: reqwest::Request,
-    ) -> Result<Result<Bytes, ErrorResponse>, CommonError> {
+    ) -> Result<Result<Bytes, ErrorResponse>, RestClientError> {
         // set default timeout if unset
         let timeout = request.timeout_mut();
         if timeout.is_none() {
@@ -394,7 +396,7 @@ impl RestClient {
         } else {
             // http error => await response json and convert to ErrorResponse
             let err = resp.json::<ErrorResponse>().await.map_err(|err| {
-                warn!("error receiving error response json: {err:#}");
+                warn!("error receiving ErrorResponse json: {err:#}");
                 err
             })?;
 
