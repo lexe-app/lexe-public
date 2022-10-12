@@ -20,6 +20,8 @@ pub mod channel;
 pub mod channel_monitor;
 /// Top level commands that can be initiated by the user.
 pub mod command;
+/// Helpers related to event handling.
+pub mod event;
 /// Types related to invoices.
 pub mod invoice;
 /// Keys manager

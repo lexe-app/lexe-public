@@ -14,7 +14,7 @@ use lightning::chain::{Listen, Watch};
 use lightning_block_sync::poll::{ChainPoller, ValidatedBlockHeader};
 use lightning_block_sync::{init as block_sync_init, SpvClient};
 use tokio::time::{self, Duration};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::alias::{
     BlockSourceType, BroadcasterType, ChannelMonitorListenerType,
@@ -252,6 +252,7 @@ where
                 &mut block_source_deref,
                 self.network.into_inner(),
             );
+            // LDK impls Listen for (U, V) where U: Listen, V: Listen
             let chain_listener = (chain_monitor, self.channel_manager);
 
             let mut spv_client = SpvClient::new(
@@ -266,6 +267,7 @@ where
             loop {
                 tokio::select! {
                     _ = poll_timer.tick() => {
+                        debug!("Polling for new chain tip");
                         if let Err(e) = spv_client.poll_best_tip().await {
                             warn!("Error polling chain tip: {:#}", e.into_inner());
                         }

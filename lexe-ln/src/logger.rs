@@ -154,7 +154,7 @@ macro_rules! log_cs {
         static $cs: $ty = $ty;
         static $meta: Metadata<'static> = Metadata::new(
             "ldk log event",
-            "ldk log",
+            "ldk-log",
             $level,
             None,
             None,
