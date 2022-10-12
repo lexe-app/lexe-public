@@ -1,7 +1,5 @@
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
-use std::io;
-use std::io::Write;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -80,15 +78,19 @@ impl EventHandler for NodeEventHandler {
     ///
     /// [`EventsProvider`]: lightning::util::events::EventsProvider
     fn handle_event(&self, event: &Event) {
-        // TODO FIXME XXX: This trait requires that event handling *finishes*
-        // before returning from this function, but LDK #1674 (async event
-        // handling) isn't implemented yet.
+        // XXX: This trait requires that event handling *finishes* before
+        // returning from this function, but LDK #1674 (async event handling)
+        // isn't implemented yet.
         //
         // As a temporary hack and work-around, we create a new thread which
         // only runs `handle_event` tasks. We use a single-threaded runtime for
         // nodes (plus `sqlx::test` proc-macro also forces a single-threaded
         // rt), so we can't use `rt-multi-threaded`, which would let us use
         // `task::block_in_place`.
+
+        let event_name = lexe_ln::event::get_event_name(event);
+        info!("Handling event: {event_name}");
+        debug!("Event details: {event:?}");
 
         let channel_manager = self.channel_manager.clone();
         let bitcoind = self.bitcoind.clone();
@@ -169,7 +171,6 @@ async fn handle_event_fallible(
             output_script,
             ..
         } => {
-            debug!("Handling FundingGenerationReady event");
             // Construct the raw transaction with one output, that is paid the
             // amount of the channel.
             let addr = WitnessProgram::from_scriptpubkey(
@@ -213,8 +214,6 @@ async fn handle_event_fallible(
             {
                 error!(
                     "ERROR: Channel went away before we could fund it. The peer disconnected or refused the channel.");
-                print!("> ");
-                io::stdout().flush().unwrap();
             }
         }
         Event::PaymentReceived {
@@ -227,8 +226,6 @@ async fn handle_event_fallible(
                 hex::encode(&payment_hash.0),
                 amount_msat,
             );
-            print!("> ");
-            io::stdout().flush().unwrap();
             let payment_preimage = match purpose {
                 PaymentPurpose::InvoicePayment {
                     payment_preimage, ..
@@ -247,8 +244,6 @@ async fn handle_event_fallible(
                 hex::encode(&payment_hash.0),
                 amount_msat,
             );
-            print!("> ");
-            io::stdout().flush().unwrap();
             let (payment_preimage, payment_secret) = match purpose {
                 PaymentPurpose::InvoicePayment {
                     payment_preimage,
@@ -302,8 +297,6 @@ async fn handle_event_fallible(
                         hex::encode(&payment_hash.0),
                         hex::encode(&payment_preimage.0)
                     );
-                    print!("> ");
-                    io::stdout().flush().unwrap();
                 }
             }
         }
@@ -315,12 +308,10 @@ async fn handle_event_fallible(
         Event::ProbeSuccessful { .. } => {}
         Event::ProbeFailed { .. } => {}
         Event::PaymentFailed { payment_hash, .. } => {
-            print!(
-                "EVENT: Failed to send payment to payment hash {:?}: exhausted payment retry attempts",
+            error!(
+                "Failed to send payment to payment hash {:?}: exhausted payment retry attempts",
                 hex::encode(&payment_hash.0)
             );
-            print!("> ");
-            io::stdout().flush().unwrap();
 
             let mut payments = outbound_payments.lock().unwrap();
             if payments.contains_key(payment_hash) {
@@ -397,8 +388,6 @@ async fn handle_event_fallible(
                     from_prev_str, to_next_str, from_onchain_str
                 );
             }
-            print!("> ");
-            io::stdout().flush().unwrap();
         }
         Event::HTLCHandlingFailed { .. } => {}
         Event::PendingHTLCsForwardable { time_forwardable } => {
@@ -439,8 +428,6 @@ async fn handle_event_fallible(
                 hex::encode(channel_id),
                 reason
             );
-            print!("> ");
-            io::stdout().flush().unwrap();
         }
         Event::DiscardFunding { .. } => {
             // A "real" node should probably "lock" the UTXOs spent in funding
