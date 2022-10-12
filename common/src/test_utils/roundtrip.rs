@@ -13,7 +13,6 @@ use crate::ed25519;
 /// ```ignore
 /// bcs_roundtrip_proptest::<UserAuthRequest>();
 /// ```
-#[cfg_attr(target_env = "sgx", allow(dead_code))]
 pub fn bcs_roundtrip_proptest<T>()
 where
     T: Arbitrary + PartialEq + Serialize + DeserializeOwned,
@@ -28,13 +27,44 @@ where
     });
 }
 
-/// Quickly create a JSON roundtrip proptest.
+/// Quickly create a [`serde_json::Value`] canonical roundtrip proptest. This
+/// test is useful for dictionary-like types that serialize to/from a JSON
+/// object.
+///
+/// This proptest verifies that `T` semi-canonically roundtrips to/from json,
+/// though it uses [`serde_json::Value`] as the serialized representation,
+/// rather than the standard json string. We use `Value` since the serialized
+/// json string doesn't guarantee that order is preserved when ser/de'ing,
+/// whereas the `Value` representation will still compare successfully.
+///
+/// This semi-canonical roundtrip property is also not guaranteed to be true for
+/// all serializable types, since json value serializations are not always
+/// canonical, even if our comparison is field order-invariant.
 ///
 /// ```ignore
-/// json_roundtrip_proptest::<UserPk>();
+/// json_value_canonical_proptest::<UserAuthRequest>();
 /// ```
-#[cfg_attr(target_env = "sgx", allow(dead_code))]
-pub fn json_roundtrip_proptest<T>()
+pub fn json_value_canonical_proptest<T>()
+where
+    T: Arbitrary + PartialEq + Serialize + DeserializeOwned,
+{
+    proptest!(|(value: T)| {
+        let json_value = serde_json::to_value(&value).unwrap();
+        let value2 = serde_json::from_value(json_value.clone()).unwrap();
+        let json_value2 = serde_json::to_value(&value2).unwrap();
+
+        prop_assert_eq!(&value, &value2);
+        prop_assert_eq!(&json_value, &json_value2);
+    });
+}
+
+/// Quickly create a JSON string roundtrip proptest. This test is useful for
+/// simple data types that map to/from a single base JSON type (string, int, ..)
+///
+/// ```ignore
+/// json_string_roundtrip_proptest::<UserPk>();
+/// ```
+pub fn json_string_roundtrip_proptest<T>()
 where
     T: Arbitrary + PartialEq + Serialize + DeserializeOwned,
 {
@@ -51,7 +81,6 @@ where
 /// ```ignore
 /// signed_roundtrip_proptest::<UserAuthRequest>();
 /// ```
-#[cfg_attr(target_env = "sgx", allow(dead_code))]
 pub fn signed_roundtrip_proptest<T>()
 where
     T: Arbitrary + PartialEq + Serialize + DeserializeOwned + ed25519::Signable,
@@ -74,7 +103,6 @@ where
 /// ```ignore
 /// fromstr_display_roundtrip_proptest::<NodePk>();
 /// ```
-#[cfg_attr(target_env = "sgx", allow(dead_code))]
 pub fn fromstr_display_roundtrip_proptest<T>()
 where
     T: Arbitrary + PartialEq + FromStr + Display,

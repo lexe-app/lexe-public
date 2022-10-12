@@ -9,7 +9,7 @@ use crate::rng::Crng;
 use crate::root_seed::RootSeed;
 
 /// The client sends this provisioning request to the node.
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NodeProvisionRequest {
     /// The client's user pk.
     pub user_pk: UserPk,
@@ -160,20 +160,85 @@ impl SealedSeed {
     }
 }
 
+// --- impl Arbitrary --- //
+
+#[cfg(any(test, feature = "test-utils"))]
+pub mod prop {
+    use proptest::arbitrary::{any, Arbitrary};
+    use proptest::strategy::{BoxedStrategy, Strategy};
+
+    use super::*;
+    use crate::rng::SmallRng;
+
+    impl Arbitrary for NodeProvisionRequest {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            any::<SmallRng>()
+                .prop_map(|mut rng| {
+                    let root_seed = RootSeed::from_rng(&mut rng);
+                    Self {
+                        user_pk: root_seed.derive_user_pk(),
+                        node_pk: root_seed.derive_node_pk(&mut rng),
+                        root_seed,
+                    }
+                })
+                .boxed()
+        }
+    }
+
+    // only impl PartialEq in tests; not safe to compare root seeds w/o constant
+    // time comparison.
+
+    impl PartialEq for NodeProvisionRequest {
+        fn eq(&self, other: &Self) -> bool {
+            self.root_seed.expose_secret() == other.root_seed.expose_secret()
+                && self.user_pk == other.user_pk
+                && self.node_pk == other.node_pk
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use proptest::arbitrary::any;
     use proptest::proptest;
     use secrecy::ExposeSecret;
 
     use super::*;
-    use crate::rng::SysRng;
+    use crate::rng::SmallRng;
+    use crate::test_utils::roundtrip;
 
-    proptest! {
-        #[test]
-        fn seal_unseal_roundtrip(root_seed1 in any::<RootSeed>()) {
-            let mut rng = SysRng::new();
+    #[test]
+    fn test_node_provision_request_sample() {
+        let mut rng = SmallRng::from_u64(12345);
+        let root_seed = RootSeed::from_rng(&mut rng);
+        let user_pk = root_seed.derive_user_pk();
+        let node_pk = root_seed.derive_node_pk(&mut rng);
 
+        let req = NodeProvisionRequest {
+            user_pk,
+            node_pk,
+            root_seed,
+        };
+        let actual = serde_json::to_value(&req).unwrap();
+        let expected = serde_json::json!({
+            "user_pk": "f2c1477810973cf17a74eccd01b6ed25494457408f8d506bad6c533dd7879331",
+            "node_pk": "03da0d643b8bcd0167aaec47ae534a486eb865b75658ffa464e102b654ce146c31",
+            "root_seed": "0a7d28d375bc07250ca30e015a808a6d70d43c5a55c4d5828cdeacca640191a1",
+        });
+        assert_eq!(&actual, &expected);
+    }
+
+    #[test]
+    fn test_node_provision_request_json_canonical() {
+        roundtrip::json_value_canonical_proptest::<NodeProvisionRequest>();
+    }
+
+    #[test]
+    fn test_seal_unseal_roundtrip() {
+        proptest!(|(mut rng: SmallRng)| {
+            let root_seed1 = RootSeed::from_rng(&mut rng);
             let root_seed2 =
                 SealedSeed::seal_from_root_seed(&mut rng, &root_seed1)
                     .unwrap()
@@ -184,6 +249,6 @@ mod test {
                 root_seed1.expose_secret(),
                 root_seed2.expose_secret(),
             );
-        }
+        });
     }
 }

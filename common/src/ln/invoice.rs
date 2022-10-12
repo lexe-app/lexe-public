@@ -112,7 +112,7 @@ mod test {
 
     #[test]
     fn invoice_serde_roundtrip() {
-        roundtrip::json_roundtrip_proptest::<LxInvoice>();
+        roundtrip::json_string_roundtrip_proptest::<LxInvoice>();
     }
 
     #[test]

@@ -303,26 +303,6 @@ mod test {
         println!("-----END CERTIFICATE-----");
     }
 
-    #[test]
-    fn test_provision_request_serde() {
-        let root_seed = RootSeed::from_u64(123);
-        let user_pk = root_seed.derive_user_pk();
-        let node_pk = root_seed.derive_node_pk(&mut SysRng::new());
-
-        let req = NodeProvisionRequest {
-            user_pk,
-            node_pk,
-            root_seed,
-        };
-        let actual = serde_json::to_value(&req).unwrap();
-        let expected = serde_json::json!({
-            "user_pk": "864295390b3274b1ffd7bddc64ea602f3ab6ac8e2b752d2b8b6968070744d9e5",
-            "node_pk": "033422a640d296a69288d04b8c49b50c3c800590babf3a418f3f8eed98f86f1320",
-            "root_seed": "7b00000000000000000000000000000000000000000000000000000000000000",
-        });
-        assert_eq!(&actual, &expected);
-    }
-
     #[tokio::test]
     async fn test_provision() {
         let root_seed = RootSeed::from_u64(0x42);
