@@ -191,7 +191,7 @@ mod test {
 
     #[test]
     fn user_pk_json() {
-        roundtrip::json_roundtrip_proptest::<UserPk>();
+        roundtrip::json_string_roundtrip_proptest::<UserPk>();
     }
 
     #[test]
@@ -201,6 +201,6 @@ mod test {
 
     #[test]
     fn node_pk_json() {
-        roundtrip::json_roundtrip_proptest::<NodePk>();
+        roundtrip::json_string_roundtrip_proptest::<NodePk>();
     }
 }
