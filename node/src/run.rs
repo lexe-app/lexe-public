@@ -95,7 +95,7 @@ pub struct UserNode {
 }
 
 impl UserNode {
-    #[instrument(skip_all)]
+    #[instrument(skip_all, name = "[node]")]
     pub async fn init<R: Crng>(
         rng: &mut R,
         args: RunArgs,
@@ -451,6 +451,7 @@ impl UserNode {
         Ok(node)
     }
 
+    #[instrument(skip_all, name = "[node]")]
     pub async fn run(mut self) -> anyhow::Result<()> {
         // --- Sync --- //
 
