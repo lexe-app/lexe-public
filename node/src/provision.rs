@@ -174,9 +174,9 @@ async fn provision_handler(
         measurement: ctx.measurement,
     };
     let sealed_seed = SealedSeed::seal_from_root_seed(&mut ctx.rng, &root_seed)
-        .map_err(|_| NodeApiError {
+        .map_err(|err| NodeApiError {
             kind: NodeErrorKind::Provision,
-            msg: String::from("Could not seal secret"),
+            msg: format!("{err:#}"),
         })?;
 
     let batch = NodeInstanceSeed {
@@ -194,12 +194,9 @@ async fn provision_handler(
     let token = authenticator
         .authenticate(&*ctx.api, SystemTime::now())
         .await
-        .map_err(|err| {
-            let kind = NodeErrorKind::BadAuth;
-            NodeApiError {
-                kind,
-                msg: format!("{kind}: {err:#}"),
-            }
+        .map_err(|err| NodeApiError {
+            kind: NodeErrorKind::BadAuth,
+            msg: format!("{err:#}"),
         })?
         .token;
 

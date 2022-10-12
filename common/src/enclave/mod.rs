@@ -37,7 +37,6 @@ pub const MIN_SGX_CPUSVN: MinCpusvn =
     MinCpusvn::new(hex::decode_const(b"08080e0dffff01000000000000000000"));
 
 #[derive(Debug, Error)]
-#[error("error")]
 pub enum Error {
     #[error("SGX error: {0:?}")]
     SgxError(sgx_isa::ErrorCode),
