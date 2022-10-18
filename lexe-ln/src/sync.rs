@@ -24,7 +24,8 @@ use crate::logger::LexeTracingLogger;
 use crate::traits::{LexeChannelManager, LexePersister};
 
 /// How often the [`SpvClient`] client polls for an updated chain tip.
-const CHAIN_TIP_POLL_INTERVAL: Duration = Duration::from_secs(60);
+// TODO(max): Change this back to a higher value like 60
+const CHAIN_TIP_POLL_INTERVAL: Duration = Duration::from_secs(5);
 
 /// Represents a fully synced channel manager and channel monitors. The process
 /// of initialization completes the synchronization of the passed in chain
@@ -75,6 +76,7 @@ where
         channel_manager: CM,
         channel_manager_blockhash: BlockHash,
         channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
+        polled_chain_tip: ValidatedBlockHeader,
 
         block_source: Arc<BlockSourceType>,
         broadcaster: Arc<BroadcasterType>,
@@ -96,9 +98,14 @@ where
             .await
             .context("Could not sync existing node")
         } else {
-            Self::from_new(network, channel_manager, block_source)
-                .await
-                .context("Could not sync new node")
+            Self::from_new(
+                network,
+                channel_manager,
+                block_source,
+                polled_chain_tip,
+            )
+            .await
+            .context("Could not sync new node")
         }
     }
 
@@ -175,6 +182,7 @@ where
         // BlockSourceError doesn't impl std::error::Error but its innie does
         .map_err(|e| anyhow!(e.into_inner()))
         .context("Could not synchronize chain listeners")?;
+        debug!("Synced to chain tip: {chain_tip:?}");
 
         info!("Syncing chain listeners complete.");
 
@@ -192,19 +200,17 @@ where
     /// monitors and a channel manager initialized from scratch, our
     /// "SyncedChainListeners" consists of an empty
     /// `ChannelMonitorChainListener`s Vec along with the best validated block
-    /// header from our block source.
+    /// header polled from our block source.
     async fn from_new(
         network: Network,
         channel_manager: CM,
         block_source: Arc<BlockSourceType>,
+        polled_chain_tip: ValidatedBlockHeader,
     ) -> anyhow::Result<Self> {
-        let chain_tip = block_sync_init::validate_best_block_header(
-            &mut block_source.deref(),
-        )
-        .await
-        // BlockSourceError doesn't impl std::error::Error
-        .map_err(|e| anyhow!(e.into_inner()))
-        .context("Could not validate best block header")?;
+        debug!("Init fresh chain listeners");
+
+        debug!("Using polled chain tip: {polled_chain_tip:?}");
+        let chain_tip = polled_chain_tip;
 
         let blockheader_cache = HashMap::new();
 
