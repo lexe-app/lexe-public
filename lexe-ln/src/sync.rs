@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
-use std::ops::Deref;
 use std::sync::Arc;
 
 use anyhow::{anyhow, Context};
@@ -156,10 +155,6 @@ where
             chain_listeners.push(channel_monitor_lx_chain_listener);
         }
 
-        // Inherited from ldk-sample, BlockSource is impl'd on &LexeBitcoind.
-        // LDK blocksync then requires a ref to the impl, hence &&LexeBitcoind.
-        let block_source_ref_ref = &block_source.as_ref();
-
         // Now, build a Vec<(BlockHash, &impl Listen)> which LDK requires.
         let chain_listener_refs = chain_listeners
             .iter()
@@ -173,7 +168,7 @@ where
 
         // We can now sync our chain listeners to the latest chain tip.
         let chain_tip = block_sync_init::synchronize_listeners(
-            block_source_ref_ref,
+            block_source.as_ref(),
             network.into_inner(),
             &mut blockheader_cache,
             chain_listener_refs,
@@ -251,11 +246,8 @@ where
 
         // Spawn the SPV client
         let spv_client_handle = LxTask::spawn_named("spv client", async move {
-            // Need let binding o.w. the deref() ref doesn't live long enough
-            let mut block_source_deref = self.block_source.deref();
-
             let chain_poller = ChainPoller::new(
-                &mut block_source_deref,
+                self.block_source.as_ref(),
                 self.network.into_inner(),
             );
             // LDK impls Listen for (U, V) where U: Listen, V: Listen

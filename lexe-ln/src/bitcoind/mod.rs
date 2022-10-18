@@ -272,12 +272,13 @@ impl LexeBitcoind {
     }
 }
 
-impl BlockSource for &LexeBitcoind {
+impl BlockSource for LexeBitcoind {
     fn get_header<'a>(
         &'a self,
         header_hash: &'a BlockHash,
         height_hint: Option<u32>,
     ) -> AsyncBlockSourceResult<'a, BlockHeaderData> {
+        debug!("get_header() called for {header_hash} ({height_hint:?})");
         Box::pin(async move {
             self.rpc_client.get_header(header_hash, height_hint).await
         })
@@ -287,12 +288,14 @@ impl BlockSource for &LexeBitcoind {
         &'a self,
         header_hash: &'a BlockHash,
     ) -> AsyncBlockSourceResult<'a, Block> {
+        debug!("get_block() called for {header_hash}");
         Box::pin(async move { self.rpc_client.get_block(header_hash).await })
     }
 
     fn get_best_block(
         &self,
     ) -> AsyncBlockSourceResult<(BlockHash, Option<u32>)> {
+        debug!("get_best_block() called");
         Box::pin(async move { self.rpc_client.get_best_block().await })
     }
 }
