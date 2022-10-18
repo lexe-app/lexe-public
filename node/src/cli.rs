@@ -29,9 +29,10 @@ impl NodeArgs {
         match self.cmd {
             NodeCommand::Run(args) => rt
                 .block_on(async {
-                    let node = UserNode::init(&mut rng, args, shutdown)
+                    let mut node = UserNode::init(&mut rng, args, shutdown)
                         .await
                         .context("Error during init")?;
+                    node.sync().await.context("Error while syncing")?;
                     node.run().await.context("Error while running")
                 })
                 .context("Error running node"),

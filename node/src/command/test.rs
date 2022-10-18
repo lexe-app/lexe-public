@@ -58,6 +58,10 @@ impl CommandTestHarness {
         Self { regtest, node }
     }
 
+    async fn sync(&mut self) {
+        self.node.sync().await.expect("Error while running");
+    }
+
     async fn run(self) {
         self.node.run().await.expect("Error while running");
     }
@@ -111,7 +115,8 @@ async fn init_sync_shutdown() {
     let mut args = default_args();
     args.shutdown_after_sync_if_no_activity = true;
 
-    let h = CommandTestHarness::init(args).await;
+    let mut h = CommandTestHarness::init(args).await;
+    h.sync().await;
     h.run().await;
 }
 
@@ -185,7 +190,7 @@ async fn open_channel() {
     args1.shutdown_after_sync_if_no_activity = true;
     args2.shutdown_after_sync_if_no_activity = true;
 
-    let (node1, node2) = tokio::join!(
+    let (mut node1, mut node2) = tokio::join!(
         CommandTestHarness::init(args1),
         CommandTestHarness::init(args2),
     );
@@ -193,6 +198,10 @@ async fn open_channel() {
     // Fund both nodes
     node1.fund_node().await;
     node2.fund_node().await;
+
+    // Sync both nodes
+    node1.sync().await;
+    node2.sync().await;
 
     // Prepare open channel prerequisites
     let channel_peer = ChannelPeer {

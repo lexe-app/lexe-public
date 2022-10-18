@@ -66,6 +66,8 @@ pub struct UserNode {
     args: RunArgs,
     pub(crate) peer_port: Port,
     tasks: Vec<LxTask<()>>,
+    channel_peer_tx: mpsc::Sender<ChannelPeerUpdate>,
+    shutdown: ShutdownChannel,
 
     // --- Actors --- //
     logger: LexeTracingLogger,
@@ -84,18 +86,18 @@ pub struct UserNode {
     pub peer_manager: NodePeerManager,
     invoice_payer: Arc<InvoicePayerType>,
     inactivity_timer: InactivityTimer,
+    inbound_payments: PaymentInfoStorageType,
+    outbound_payments: PaymentInfoStorageType,
 
-    // --- Sync --- //
+    // --- Contexts --- //
+    sync: Option<SyncContext>,
+}
+
+struct SyncContext {
     restarting_node: bool,
     channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
     channel_manager_blockhash: BlockHash,
     polled_chain_tip: ValidatedBlockHeader,
-
-    // --- Run --- //
-    inbound_payments: PaymentInfoStorageType,
-    outbound_payments: PaymentInfoStorageType,
-    channel_peer_tx: mpsc::Sender<ChannelPeerUpdate>,
-    shutdown: ShutdownChannel,
 }
 
 impl UserNode {
@@ -448,6 +450,8 @@ impl UserNode {
             args,
             peer_port,
             tasks,
+            channel_peer_tx,
+            shutdown,
 
             // Actors
             logger,
@@ -467,36 +471,35 @@ impl UserNode {
             invoice_payer,
             inactivity_timer,
 
-            // Sync
-            restarting_node,
-            channel_manager_blockhash,
-            channel_monitors,
-            polled_chain_tip,
-
-            // Run
+            // Storage
             inbound_payments,
             outbound_payments,
-            channel_peer_tx,
-            shutdown,
+
+            // Contexts
+            sync: Some(SyncContext {
+                restarting_node,
+                channel_monitors,
+                channel_manager_blockhash,
+                polled_chain_tip,
+            }),
         })
     }
 
     #[instrument(skip_all, name = "[node]")]
-    pub async fn run(mut self) -> anyhow::Result<()> {
-        // --- Sync --- //
-
+    pub async fn sync(&mut self) -> anyhow::Result<()> {
+        let ctxt = self.sync.take().expect("sync() must be called only once");
         // Sync channel manager and channel monitors to chain tip
         let synced_chain_listeners = SyncedChainListeners::init_and_sync(
             self.args.network,
             self.channel_manager.clone(),
-            self.channel_manager_blockhash,
-            self.channel_monitors,
-            self.polled_chain_tip,
+            ctxt.channel_manager_blockhash,
+            ctxt.channel_monitors,
+            ctxt.polled_chain_tip,
             self.block_source.clone(),
             self.broadcaster.clone(),
             self.fee_estimator.clone(),
             self.logger.clone(),
-            self.restarting_node,
+            ctxt.restarting_node,
         )
         .await
         .context("Could not sync channel listeners")?;
@@ -509,6 +512,13 @@ impl UserNode {
             )
             .context("Error wrapping up sync")?;
         self.tasks.push(spv_client_task);
+
+        Ok(())
+    }
+
+    #[instrument(skip_all, name = "[node]")]
+    pub async fn run(mut self) -> anyhow::Result<()> {
+        assert!(self.sync.is_none(), "Must sync before run");
 
         // Sync is complete; start the inactivity timer.
         debug!("Starting inactivity timer");
