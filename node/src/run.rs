@@ -5,7 +5,7 @@ use std::time::Duration;
 use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin::BlockHash;
 use common::api::auth::UserAuthenticator;
-use common::api::ports::{Port, UserPorts};
+use common::api::ports::UserPorts;
 use common::api::provision::{Node, SealedSeedId};
 use common::api::UserPk;
 use common::cli::RunArgs;
@@ -64,7 +64,8 @@ const SHUTDOWN_TIME_LIMIT: Duration = Duration::from_secs(15);
 pub struct UserNode {
     // --- General --- //
     args: RunArgs,
-    pub(crate) peer_port: Port,
+    api: ApiClientType,
+    pub(crate) user_ports: UserPorts,
     tasks: Vec<LxTask<()>>,
     channel_peer_tx: mpsc::Sender<ChannelPeerUpdate>,
     shutdown: ShutdownChannel,
@@ -395,13 +396,9 @@ impl UserNode {
         info!("Host service listening on port {}", host_port);
         tasks.push(LxTask::spawn_named("host service", host_service_fut));
 
-        // Let the runner know that we're ready
-        info!("Node is ready to accept commands; notifying runner");
+        // Prepare the ports that we'll notify the runner of once we're ready
         let user_ports =
             UserPorts::new_run(user_pk, owner_port, host_port, peer_port);
-        api.ready(user_ports)
-            .await
-            .context("Could not notify runner of ready status")?;
 
         // Initialize InvoicePayer
         let router = DefaultRouter::new(
@@ -448,7 +445,8 @@ impl UserNode {
         Ok(Self {
             // General
             args,
-            peer_port,
+            api,
+            user_ports,
             tasks,
             channel_peer_tx,
             shutdown,
@@ -488,6 +486,7 @@ impl UserNode {
     #[instrument(skip_all, name = "[node]")]
     pub async fn sync(&mut self) -> anyhow::Result<()> {
         let ctxt = self.sync.take().expect("sync() must be called only once");
+
         // Sync channel manager and channel monitors to chain tip
         let synced_chain_listeners = SyncedChainListeners::init_and_sync(
             self.args.network,
@@ -512,6 +511,13 @@ impl UserNode {
             )
             .context("Error wrapping up sync")?;
         self.tasks.push(spv_client_task);
+
+        // Sync complete; let the runner know that we're ready
+        info!("Node is ready to accept commands; notifying runner");
+        self.api
+            .ready(self.user_ports)
+            .await
+            .context("Could not notify runner of ready status")?;
 
         Ok(())
     }

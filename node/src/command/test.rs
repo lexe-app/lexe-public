@@ -3,6 +3,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use bitcoin::util::address::Address;
+use common::api::ports::{Ports, RunPorts};
 use common::api::{NodePk, UserPk};
 use common::cli::{Network, RunArgs};
 use common::ln::peer::ChannelPeer;
@@ -88,7 +89,11 @@ impl CommandTestHarness {
     }
 
     fn p2p_address(&self) -> SocketAddr {
-        SocketAddr::from(([127, 0, 0, 1], self.node.peer_port))
+        let peer_port = match self.node.user_ports.ports {
+            Ports::Run(RunPorts { peer_port, .. }) => peer_port,
+            _ => panic!("Wrong mode"),
+        };
+        SocketAddr::from(([127, 0, 0, 1], peer_port))
     }
 
     async fn get_new_address(&self) -> Address {
