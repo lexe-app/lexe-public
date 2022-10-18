@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use anyhow::{bail, ensure, Context};
+use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin::BlockHash;
 use common::api::auth::UserAuthenticator;
 use common::api::ports::{Port, UserPorts};
@@ -34,8 +34,11 @@ use lexe_ln::sync::SyncedChainListeners;
 use lexe_ln::{channel_monitor, p2p};
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
+use lightning::chain::BestBlock;
 use lightning::onion_message::OnionMessenger;
 use lightning::routing::gossip::P2PGossipSync;
+use lightning_block_sync::poll::{Validate, ValidatedBlockHeader};
+use lightning_block_sync::BlockSource;
 use lightning_invoice::payment::Retry;
 use lightning_invoice::utils::DefaultRouter;
 use tokio::net::TcpListener;
@@ -86,6 +89,7 @@ pub struct UserNode {
     restarting_node: bool,
     channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
     channel_manager_blockhash: BlockHash,
+    polled_chain_tip: ValidatedBlockHeader,
 
     // --- Run --- //
     inbound_payments: PaymentInfoStorageType,
@@ -229,13 +233,40 @@ impl UserNode {
         let maybe_manager =
             maybe_manager_res.context("Could not read channel manager")?;
 
+        // Munge to ensure that if we are initializing a fresh channel manager
+        // and chain sync that their BestBlock and chain tip (respectively)
+        // point to the same block, which we poll using our block source.
+        // Otherwise, the channel manager will panic if the two are out of sync.
+        // TODO(max): Replace with validate_best_block_header_and_best_block()
+        // and execute concurrently once LDK#1777 is merged and released
+        let (polled_best_block_hash, maybe_best_block_height) = block_source
+            .as_ref()
+            .get_best_block()
+            .await
+            .map_err(|e| anyhow!(e.into_inner()))
+            .context("Could not get best block")?;
+        let best_block_header_data = block_source
+            .as_ref()
+            .get_header(&polled_best_block_hash, maybe_best_block_height)
+            .await
+            .map_err(|e| anyhow!(e.into_inner()))
+            .context("Could not get best block header data")?;
+        let best_block_height =
+            maybe_best_block_height.context("Missing best block height")?;
+        let polled_best_block =
+            BestBlock::new(polled_best_block_hash, best_block_height);
+        let polled_chain_tip = best_block_header_data
+            .validate(polled_best_block_hash)
+            .map_err(|e| anyhow!(e.into_inner()))
+            .context("Best block header was invalid")?;
+
         // Init the NodeChannelManager
         let mut restarting_node = true;
         let (channel_manager_blockhash, channel_manager) =
             NodeChannelManager::init(
                 args.network,
                 maybe_manager,
-                block_source.as_ref(),
+                polled_best_block,
                 &mut restarting_node,
                 keys_manager.clone(),
                 fee_estimator.clone(),
@@ -243,7 +274,6 @@ impl UserNode {
                 broadcaster.clone(),
                 logger.clone(),
             )
-            .await
             .context("Could not init NodeChannelManager")?;
 
         // Init onion messenger
@@ -413,7 +443,7 @@ impl UserNode {
         );
 
         // Build and return the UserNode
-        let node = UserNode {
+        Ok(Self {
             // General
             args,
             peer_port,
@@ -441,14 +471,14 @@ impl UserNode {
             restarting_node,
             channel_manager_blockhash,
             channel_monitors,
+            polled_chain_tip,
 
             // Run
             inbound_payments,
             outbound_payments,
             channel_peer_tx,
             shutdown,
-        };
-        Ok(node)
+        })
     }
 
     #[instrument(skip_all, name = "[node]")]
@@ -461,6 +491,7 @@ impl UserNode {
             self.channel_manager.clone(),
             self.channel_manager_blockhash,
             self.channel_monitors,
+            self.polled_chain_tip,
             self.block_source.clone(),
             self.broadcaster.clone(),
             self.fee_estimator.clone(),

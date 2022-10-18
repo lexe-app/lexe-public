@@ -1,10 +1,9 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
-use anyhow::Context;
 use bitcoin::BlockHash;
 use common::cli::Network;
-use lexe_ln::alias::{BlockSourceType, BroadcasterType, FeeEstimatorType};
+use lexe_ln::alias::{BroadcasterType, FeeEstimatorType};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain::BestBlock;
@@ -143,10 +142,10 @@ impl NodeChannelManager {
 
     // TODO: Review this function and clean up accordingly
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn init(
+    pub(crate) fn init(
         network: Network,
         maybe_manager: Option<(BlockHash, ChannelManagerType)>,
-        block_source: &BlockSourceType,
+        polled_best_block: BestBlock,
         restarting_node: &mut bool,
         keys_manager: LexeKeysManager,
         fee_estimator: Arc<FeeEstimatorType>,
@@ -161,17 +160,10 @@ impl NodeChannelManager {
             None => {
                 // We're starting a fresh node.
                 *restarting_node = false;
-                let blockchain_info = block_source
-                    .get_blockchain_info()
-                    .await
-                    .context("Could not get blockchain info")?;
-                let best_block = BestBlock::new(
-                    blockchain_info.latest_blockhash,
-                    blockchain_info.latest_height as u32,
-                );
+                let polled_best_block_hash = polled_best_block.block_hash();
                 let chain_params = ChainParameters {
                     network: network.into_inner(),
-                    best_block,
+                    best_block: polled_best_block,
                 };
                 let inner = ChannelManager::new(
                     fee_estimator,
@@ -182,7 +174,7 @@ impl NodeChannelManager {
                     USER_CONFIG,
                     chain_params,
                 );
-                (blockchain_info.latest_blockhash, inner, "fresh")
+                (polled_best_block_hash, inner, "fresh")
             }
         };
 
