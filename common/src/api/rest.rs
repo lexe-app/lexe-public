@@ -148,8 +148,9 @@ fn build_json_response<T: Serialize>(
 /// API's result type.
 ///
 /// On success, this json deserializes the response body. On error, this
-/// converts the generic [`ErrorResponse`] or [`CommonError`] into the specific
-/// API error type, like [`BackendApiError`](crate::api::error::BackendApiError)
+/// converts the generic [`ErrorResponse`] or [`RestClientError`] into the
+/// specific API error type, like
+/// [`BackendApiError`](crate::api::error::BackendApiError)
 fn convert_rest_response<T, E>(
     response: Result<Result<Bytes, ErrorResponse>, RestClientError>,
 ) -> Result<T, E>
