@@ -2,6 +2,7 @@ use bitcoin::hash_types::PubkeyHash;
 use bitcoin::hashes::Hash;
 use bitcoin::network::constants::Network;
 use bitcoin::util::address::{Address, Payload};
+use bitcoin::BlockHash;
 use bitcoind::bitcoincore_rpc::RpcApi;
 use bitcoind::{self, BitcoinD, Conf};
 use tracing::debug;
@@ -49,19 +50,28 @@ impl Regtest {
         (regtest, rpc_info)
     }
 
+    /// Mines one block. Block rewards are sent to a dummy address.
+    pub async fn mine_one_block(&self) -> BlockHash {
+        debug!("Mining one block");
+        self.mine_n_blocks_to_address(1, &get_dummy_address())
+            .await
+            .pop()
+            .expect("Missing blockhash")
+    }
+
     /// Mines 6 blocks. Block rewards are sent to a dummy address.
-    pub async fn mine_6_blocks(&self) {
+    pub async fn mine_6_blocks(&self) -> Vec<BlockHash> {
         debug!("Mining 6 blocks");
         // `bitcoind.client.generate()` returns a deprecated error, so we use
         // generate_to_address instead.
-        self.mine_n_blocks_to_address(6, &get_dummy_address()).await;
+        self.mine_n_blocks_to_address(6, &get_dummy_address()).await
     }
 
     /// Mines 101 blocks to the given address. 101 blocks is needed because
     /// coinbase outputs aren't spendable until after 100 blocks.
-    pub async fn fund_address(&self, address: &Address) {
+    pub async fn fund_address(&self, address: &Address) -> Vec<BlockHash> {
         debug!("Funding address {address} by mining 101 blocks");
-        self.mine_n_blocks_to_address(101, address).await;
+        self.mine_n_blocks_to_address(101, address).await
     }
 
     /// Mines the given number of blocks to the given [`Address`].
@@ -69,11 +79,11 @@ impl Regtest {
         &self,
         num_blocks: u64,
         address: &Address,
-    ) {
+    ) -> Vec<BlockHash> {
         self.0
             .client
             .generate_to_address(num_blocks, address)
-            .expect("Failed to generate blocks");
+            .expect("Failed to generate blocks")
     }
 }
 
