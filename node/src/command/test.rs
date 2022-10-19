@@ -6,6 +6,7 @@ use bitcoin::util::address::Address;
 use common::api::ports::{Ports, RunPorts};
 use common::api::{NodePk, UserPk};
 use common::cli::{Network, RunArgs};
+use common::constants::DEFAULT_CHANNEL_SIZE;
 use common::ln::peer::ChannelPeer;
 use common::rng::SysRng;
 use common::shutdown::ShutdownChannel;
@@ -51,8 +52,9 @@ impl CommandTestHarness {
 
         // Init node
         let mut rng = SysRng::new();
+        let (_poll_tip_tx, poll_tip_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let shutdown = ShutdownChannel::new();
-        let node = UserNode::init(&mut rng, args, shutdown)
+        let node = UserNode::init(&mut rng, args, poll_tip_rx, shutdown)
             .await
             .expect("Error during init");
 
@@ -214,8 +216,7 @@ async fn open_channel() {
         addr: node2.p2p_address(),
     };
     let channel_value_sat = 1_000_000;
-    let (channel_peer_tx, _rx) =
-        mpsc::channel(common::constants::DEFAULT_CHANNEL_SIZE);
+    let (channel_peer_tx, _rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
 
     // Prior to opening
     let pre_node_info =

@@ -99,6 +99,8 @@ struct SyncContext {
     channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
     channel_manager_blockhash: BlockHash,
     polled_chain_tip: ValidatedBlockHeader,
+    /// Notifies the SpvClient to poll for a new chain tip.
+    poll_tip_rx: mpsc::Receiver<()>,
 }
 
 impl UserNode {
@@ -106,6 +108,7 @@ impl UserNode {
     pub async fn init<R: Crng>(
         rng: &mut R,
         args: RunArgs,
+        poll_tip_rx: mpsc::Receiver<()>,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<Self> {
         info!(%args.user_pk, "Initializing node");
@@ -479,6 +482,7 @@ impl UserNode {
                 channel_monitors,
                 channel_manager_blockhash,
                 polled_chain_tip,
+                poll_tip_rx,
             }),
         })
     }
@@ -494,6 +498,7 @@ impl UserNode {
             ctxt.channel_manager_blockhash,
             ctxt.channel_monitors,
             ctxt.polled_chain_tip,
+            ctxt.poll_tip_rx,
             self.block_source.clone(),
             self.broadcaster.clone(),
             self.fee_estimator.clone(),
