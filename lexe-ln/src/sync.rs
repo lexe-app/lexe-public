@@ -12,6 +12,7 @@ use lightning::chain::transaction::{OutPoint, TransactionData};
 use lightning::chain::{Listen, Watch};
 use lightning_block_sync::poll::{ChainPoller, ValidatedBlockHeader};
 use lightning_block_sync::{init as block_sync_init, SpvClient};
+use tokio::sync::mpsc;
 use tokio::time::{self, Duration};
 use tracing::{debug, info, warn};
 
@@ -23,8 +24,7 @@ use crate::logger::LexeTracingLogger;
 use crate::traits::{LexeChannelManager, LexePersister};
 
 /// How often the [`SpvClient`] client polls for an updated chain tip.
-// TODO(max): Change this back to a higher value like 60
-const CHAIN_TIP_POLL_INTERVAL: Duration = Duration::from_secs(5);
+const CHAIN_TIP_POLL_INTERVAL: Duration = Duration::from_secs(60);
 
 /// Represents a fully synced channel manager and channel monitors. The process
 /// of initialization completes the synchronization of the passed in chain
@@ -61,6 +61,7 @@ pub struct SyncedChainListeners<CM, PS> {
     chain_listeners: Vec<LxChainListener<CM, PS>>,
     blockheader_cache: HashMap<BlockHash, ValidatedBlockHeader>,
     chain_tip: ValidatedBlockHeader,
+    poll_tip_rx: mpsc::Receiver<()>,
 }
 
 impl<CM, PS> SyncedChainListeners<CM, PS>
@@ -76,6 +77,7 @@ where
         channel_manager_blockhash: BlockHash,
         channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
         polled_chain_tip: ValidatedBlockHeader,
+        poll_tip_rx: mpsc::Receiver<()>,
 
         block_source: Arc<BlockSourceType>,
         broadcaster: Arc<BroadcasterType>,
@@ -89,6 +91,7 @@ where
                 channel_manager,
                 channel_manager_blockhash,
                 channel_monitors,
+                poll_tip_rx,
                 block_source,
                 broadcaster,
                 fee_estimator,
@@ -102,6 +105,7 @@ where
                 channel_manager,
                 block_source,
                 polled_chain_tip,
+                poll_tip_rx,
             )
             .await
             .context("Could not sync new node")
@@ -120,6 +124,7 @@ where
         channel_manager: CM,
         channel_manager_blockhash: BlockHash,
         channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
+        poll_tip_rx: mpsc::Receiver<()>,
 
         block_source: Arc<BlockSourceType>,
         broadcaster: Arc<BroadcasterType>,
@@ -188,6 +193,7 @@ where
             chain_listeners,
             blockheader_cache,
             chain_tip,
+            poll_tip_rx,
         })
     }
 
@@ -201,6 +207,7 @@ where
         channel_manager: CM,
         block_source: Arc<BlockSourceType>,
         polled_chain_tip: ValidatedBlockHeader,
+        poll_tip_rx: mpsc::Receiver<()>,
     ) -> anyhow::Result<Self> {
         debug!("Init fresh chain listeners");
 
@@ -219,6 +226,7 @@ where
             chain_listeners,
             blockheader_cache,
             chain_tip,
+            poll_tip_rx,
         })
     }
 
@@ -260,12 +268,19 @@ where
                 &chain_listener,
             );
 
+            let mut poll_tip_rx = self.poll_tip_rx;
             let mut poll_timer = time::interval(CHAIN_TIP_POLL_INTERVAL);
 
             loop {
                 tokio::select! {
                     _ = poll_timer.tick() => {
                         debug!("Polling for new chain tip");
+                        if let Err(e) = spv_client.poll_best_tip().await {
+                            warn!("Error polling chain tip: {:#}", e.into_inner());
+                        }
+                    }
+                    Some(()) = poll_tip_rx.recv() => {
+                        debug!("Received notif to poll for new chain tip");
                         if let Err(e) = spv_client.poll_best_tip().await {
                             warn!("Error polling chain tip: {:#}", e.into_inner());
                         }
