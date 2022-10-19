@@ -52,7 +52,7 @@ impl CommandTestHarness {
 
         // Init node
         let mut rng = SysRng::new();
-        let (_poll_tip_tx, poll_tip_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
+        let (_poll_tip_tx, poll_tip_rx) = mpsc::channel(1);
         let shutdown = ShutdownChannel::new();
         let node = UserNode::init(&mut rng, args, poll_tip_rx, shutdown)
             .await
