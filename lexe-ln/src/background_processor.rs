@@ -34,7 +34,7 @@ impl LexeBackgroundProcessor {
         peer_manager: PM,
         persister: PS,
         chain_monitor: Arc<LexeChainMonitorType<PS>>,
-        event_handler: Arc<LexeInvoicePayerType<CM, EH>>,
+        invoice_payer: Arc<LexeInvoicePayerType<CM, EH>>,
         gossip_sync: Arc<P2PGossipSyncType>,
         scorer: Arc<Mutex<ProbabilisticScorerType>>,
         mut shutdown: ShutdownChannel,
@@ -59,9 +59,9 @@ impl LexeBackgroundProcessor {
                     _ = process_timer.tick() => {
                         trace!("Processing pending events");
                         channel_manager
-                            .process_pending_events(&event_handler);
+                            .process_pending_events(&invoice_payer);
                         chain_monitor
-                            .process_pending_events(&event_handler);
+                            .process_pending_events(&invoice_payer);
                         peer_manager.process_events();
                     }
                     _ = pm_timer.tick() => {

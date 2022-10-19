@@ -67,6 +67,12 @@ impl Regtest {
         self.mine_n_blocks_to_address(6, &get_dummy_address()).await
     }
 
+    /// Mines n blocks. Block rewards are sent to a dummy address.
+    pub async fn mine_n_blocks(&self, n: u64) -> Vec<BlockHash> {
+        debug!("Mining {n} blocks");
+        self.mine_n_blocks_to_address(n, &get_dummy_address()).await
+    }
+
     /// Mines 101 blocks to the given address. 101 blocks is needed because
     /// coinbase outputs aren't spendable until after 100 blocks.
     pub async fn fund_address(&self, address: &Address) -> Vec<BlockHash> {
