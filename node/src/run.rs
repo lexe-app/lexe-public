@@ -85,10 +85,10 @@ pub struct UserNode {
     pub channel_manager: NodeChannelManager,
     onion_messenger: Arc<OnionMessengerType>,
     pub peer_manager: NodePeerManager,
-    invoice_payer: Arc<InvoicePayerType>,
+    pub invoice_payer: Arc<InvoicePayerType>,
     inactivity_timer: InactivityTimer,
     inbound_payments: PaymentInfoStorageType,
-    outbound_payments: PaymentInfoStorageType,
+    pub outbound_payments: PaymentInfoStorageType,
 
     // --- Contexts --- //
     sync: Option<SyncContext>,

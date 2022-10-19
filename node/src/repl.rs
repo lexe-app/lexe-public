@@ -13,11 +13,10 @@ use bitcoin::secp256k1::PublicKey;
 use common::api::command::GetInvoiceRequest;
 use common::cli::Network;
 use common::hex;
+use common::ln::invoice::LxInvoice;
 use common::ln::peer::ChannelPeer;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
-use lexe_ln::invoice::{
-    HTLCStatus, LxPaymentError, MillisatAmount, PaymentInfo,
-};
+use lexe_ln::invoice::{HTLCStatus, MillisatAmount, PaymentInfo};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::p2p::{self, ChannelPeerUpdate};
 use lexe_ln::{channel, command};
@@ -411,39 +410,11 @@ fn send_payment<'a, I: Iterator<Item = &'a str>>(
         .next()
         .map(Invoice::from_str)
         .context("sendpayment requires an invoice: `sendpayment <invoice>`")?
+        .map(LxInvoice)
         .context("Invalid invoice")?;
 
-    let payment_result = invoice_payer
-        .pay_invoice(&invoice)
-        .map_err(LxPaymentError::from);
-
-    // Store the payment in our outbound payments storage as pending or failed
-    // depending on the payment result
-    let payment_hash = PaymentHash(invoice.payment_hash().into_inner());
-    let preimage = None;
-    let secret = Some(*invoice.payment_secret());
-    let amt_msat = MillisatAmount(invoice.amount_milli_satoshis());
-    let status = if payment_result.is_ok() {
-        HTLCStatus::Pending
-    } else {
-        HTLCStatus::Failed
-    };
-    outbound_payments.lock().expect("Poisoned").insert(
-        payment_hash,
-        PaymentInfo {
-            preimage,
-            secret,
-            amt_msat,
-            status,
-        },
-    );
-
-    let _payment_id = payment_result.context("Couldn't initiate payment")?;
-    let amt_msat = MillisatAmount(invoice.amount_milli_satoshis());
-    let payee_pk = invoice.recover_payee_pub_key();
-    info!("Success: Initiated payment of {amt_msat} msats to {payee_pk}");
-
-    Ok(())
+    command::send_payment(invoice_payer, outbound_payments, invoice)
+        .context("Couldn't initiate payment")
 }
 
 fn keysend<K: KeysInterface>(

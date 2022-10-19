@@ -30,6 +30,7 @@ impl Display for HTLCStatus {
 }
 
 // TODO(max): This struct doesn't seem important - perhaps it can be removed?
+#[derive(Copy, Clone)]
 pub struct MillisatAmount(pub Option<u64>);
 
 impl Display for MillisatAmount {

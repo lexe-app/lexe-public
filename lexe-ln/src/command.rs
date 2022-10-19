@@ -5,11 +5,14 @@ use common::cli::Network;
 use common::ln::invoice::LxInvoice;
 use lightning::ln::PaymentHash;
 use lightning_invoice::Currency;
+use tracing::info;
 
-use crate::alias::PaymentInfoStorageType;
-use crate::invoice::{HTLCStatus, MillisatAmount, PaymentInfo};
+use crate::alias::{LexeInvoicePayerType, PaymentInfoStorageType};
+use crate::invoice::{HTLCStatus, LxPaymentError, MillisatAmount, PaymentInfo};
 use crate::keys_manager::LexeKeysManager;
-use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
+use crate::traits::{
+    LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
+};
 
 // TODO(max): Should these fns take e.g. &CM i.e. &Arc<impl LexeChannelManager>
 // when possible? It can avoid the atomic operation in some cases, but in
@@ -82,5 +85,49 @@ where
         },
     );
 
+    info!("Success: Generated invoice {invoice}");
+
     Ok(invoice)
+}
+
+pub fn send_payment<CM, PS, EH>(
+    invoice_payer: &LexeInvoicePayerType<CM, EH>,
+    outbound_payments: PaymentInfoStorageType,
+    invoice: LxInvoice,
+) -> anyhow::Result<()>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+    EH: LexeEventHandler,
+{
+    let payment_result = invoice_payer
+        .pay_invoice(&invoice.0)
+        .map_err(LxPaymentError::from);
+
+    // Store the payment in our outbound payments storage as pending or failed
+    // depending on the payment result
+    let payment_hash = PaymentHash(invoice.0.payment_hash().into_inner());
+    let preimage = None;
+    let secret = Some(*invoice.0.payment_secret());
+    let amt_msat = MillisatAmount(invoice.0.amount_milli_satoshis());
+    let status = if payment_result.is_ok() {
+        HTLCStatus::Pending
+    } else {
+        HTLCStatus::Failed
+    };
+    outbound_payments.lock().expect("Poisoned").insert(
+        payment_hash,
+        PaymentInfo {
+            preimage,
+            secret,
+            amt_msat,
+            status,
+        },
+    );
+
+    let _payment_id = payment_result.context("Couldn't initiate payment")?;
+    let payee_pk = invoice.0.recover_payee_pub_key();
+    info!("Success: Initiated payment of {amt_msat} msats to {payee_pk}");
+
+    Ok(())
 }
