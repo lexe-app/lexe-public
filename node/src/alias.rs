@@ -18,5 +18,5 @@ pub(crate) type ChainMonitorType = LexeChainMonitorType<NodePersister>;
 
 pub(crate) type PeerManagerType = LexePeerManagerType<NodeChannelManager>;
 
-pub(crate) type InvoicePayerType =
+pub type InvoicePayerType =
     LexeInvoicePayerType<NodeChannelManager, NodeEventHandler>;

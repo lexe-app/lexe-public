@@ -76,6 +76,7 @@ pub type PaymentInfoStorageType = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
 
 pub type RouterType = DefaultRouter<Arc<NetworkGraphType>, LexeTracingLogger>;
 
+// TODO(max): Expand this further to InvoicePayerUsingTime?
 pub type LexeInvoicePayerType<CHANNEL_MANAGER, EVENT_HANDLER> = InvoicePayer<
     CHANNEL_MANAGER,
     RouterType,

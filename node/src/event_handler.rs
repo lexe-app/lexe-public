@@ -24,7 +24,7 @@ use tracing::{debug, error, info};
 
 use crate::channel_manager::NodeChannelManager;
 
-pub(crate) struct NodeEventHandler {
+pub struct NodeEventHandler {
     network: Network,
     channel_manager: NodeChannelManager,
     keys_manager: LexeKeysManager,
