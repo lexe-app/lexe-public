@@ -45,29 +45,22 @@ impl Regtest {
 
         // Mine some blocks so that chain sync doesn't (unrealistically) see a
         // completely empty history
-        regtest.mine_6_blocks().await;
+        regtest.mine_n_blocks(6).await;
 
         (regtest, rpc_info)
     }
 
-    /// Mines one block. Block rewards are sent to a dummy address.
-    pub async fn mine_one_block(&self) -> BlockHash {
-        debug!("Mining one block");
-        self.mine_n_blocks_to_address(1, &get_dummy_address())
-            .await
-            .pop()
-            .expect("Missing blockhash")
-    }
-
-    /// Mines 6 blocks. Block rewards are sent to a dummy address.
-    pub async fn mine_6_blocks(&self) -> Vec<BlockHash> {
-        debug!("Mining 6 blocks");
-        // `bitcoind.client.generate()` returns a deprecated error, so we use
-        // generate_to_address instead.
-        self.mine_n_blocks_to_address(6, &get_dummy_address()).await
-    }
-
     /// Mines n blocks. Block rewards are sent to a dummy address.
+    ///
+    /// NOTE: If you mine more than 3 blocks at once without givinng nodes that
+    /// have completed sync a chance to finish persisting their updated channel
+    /// monitors, the ChainMonitor will error with "A ChannelMonitor sync took
+    /// longer than 3 blocks to complete." The correct ways to mine more than 3
+    /// blocks in an integration test is:
+    ///
+    /// 1) To mine them before the node has completed its `sync()` stage
+    /// 2) To mine them three blocks at a time, waiting for channel monitors to
+    ///   persist in between.
     pub async fn mine_n_blocks(&self, n: u64) -> Vec<BlockHash> {
         debug!("Mining {n} blocks");
         self.mine_n_blocks_to_address(n, &get_dummy_address()).await
@@ -75,6 +68,12 @@ impl Regtest {
 
     /// Mines 101 blocks to the given address. 101 blocks is needed because
     /// coinbase outputs aren't spendable until after 100 blocks.
+    ///
+    /// NOTE: Due to the limitations documented in [`mine_n_blocks`] above, this
+    /// function should only be called *before* the node has reached the sync()
+    /// stage.
+    ///
+    /// [`mine_n_blocks`]: Self::mine_n_blocks
     pub async fn fund_address(&self, address: &Address) -> Vec<BlockHash> {
         debug!("Funding address {address} by mining 101 blocks");
         self.mine_n_blocks_to_address(101, address).await
@@ -146,7 +145,7 @@ mod test {
     async fn dummy_address_is_valid() {
         // If the dummy address is valid, we should be able to mine blocks to it
         let (regtest, _rpc_info) = Regtest::init().await;
-        regtest.mine_6_blocks().await;
+        regtest.mine_n_blocks(6).await;
         regtest.fund_address(&get_dummy_address()).await;
     }
 }
