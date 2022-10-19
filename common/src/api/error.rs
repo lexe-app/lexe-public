@@ -383,10 +383,14 @@ error_kind! {
         NotFound = 101,
         /// Could not convert entity to type
         EntityConversion = 102,
+        /// Not authorized
+        NotAuthorized = 103,
         /// Invalid signed auth request
-        InvalidAuthRequest = 103,
+        InvalidAuthRequest = 104,
         /// Auth token or auth request is expired
-        ExpiredAuthRequest = 104,
+        ExpiredAuthRequest = 105,
+        /// Parsed request is invalid
+        InvalidParsedRequest = 106,
     }
 }
 
@@ -547,6 +551,20 @@ impl RestClientErrorKind {
 
 // --- Misc constructors / helpers --- //
 
+impl BackendApiError {
+    pub fn unauthorized_user() -> Self {
+        let kind = BackendErrorKind::NotAuthorized;
+        let msg = "current user is not authorized".to_owned();
+        Self { kind, msg }
+    }
+
+    pub fn invalid_parsed_req(msg: impl Into<String>) -> Self {
+        let kind = BackendErrorKind::InvalidParsedRequest;
+        let msg = msg.into();
+        Self { kind, msg }
+    }
+}
+
 impl NodeApiError {
     pub fn wrong_user_pk(current_pk: UserPk, given_pk: UserPk) -> Self {
         // We don't name these 'expected' and 'actual' because the meaning of
@@ -661,8 +679,10 @@ impl ToHttpStatus for BackendApiError {
             Database => SERVER_500_INTERNAL_SERVER_ERROR,
             NotFound => CLIENT_404_NOT_FOUND,
             EntityConversion => SERVER_500_INTERNAL_SERVER_ERROR,
+            NotAuthorized => CLIENT_401_UNAUTHORIZED,
             InvalidAuthRequest => CLIENT_400_BAD_REQUEST,
             ExpiredAuthRequest => CLIENT_401_UNAUTHORIZED,
+            InvalidParsedRequest => CLIENT_400_BAD_REQUEST,
         }
     }
 }

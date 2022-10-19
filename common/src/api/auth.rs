@@ -211,7 +211,12 @@ impl UserAuthToken {
 
     /// base64 decode the user auth token into the internal raw bytes.
     pub fn decode_into_raw_bytes(&self) -> Result<Vec<u8>, Error> {
-        base64::decode_config(self.0.as_str(), base64::URL_SAFE_NO_PAD)
+        Self::decode_inner_into_raw_bytes(self.0.as_bytes())
+    }
+
+    /// base64 decode a string user auth token into the internal raw bytes.
+    pub fn decode_inner_into_raw_bytes(bytes: &[u8]) -> Result<Vec<u8>, Error> {
+        base64::decode_config(bytes, base64::URL_SAFE_NO_PAD)
             .map_err(|_| Error::Base64Decode)
     }
 }

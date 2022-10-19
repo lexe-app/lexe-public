@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::UserPk;
 use crate::enclave::{self, MachineId, Measurement, MinCpusvn, Sealed};
+use crate::hexstr_or_bytes;
 use crate::rng::Crng;
 use crate::root_seed::RootSeed;
 
@@ -66,6 +67,7 @@ pub struct SealedSeed {
     #[serde(flatten)]
     pub id: SealedSeedId,
     /// The root seed, fully sealed + serialized.
+    #[serde(with = "hexstr_or_bytes")]
     pub ciphertext: Vec<u8>,
 }
 
