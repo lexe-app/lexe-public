@@ -51,6 +51,8 @@ where
         .context("Failed to persist channel peer")?;
 
     info!("Successfully opened channel with {}", channel_peer);
+
+    // Update the p2p reconnector of our new channel peer
     if let Err(e) =
         channel_peer_tx.try_send(ChannelPeerUpdate::Add(channel_peer))
     {

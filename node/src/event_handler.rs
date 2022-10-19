@@ -143,11 +143,9 @@ pub(crate) async fn handle_event(
         event,
     )
     .await;
-    match handle_event_res {
-        Ok(()) => {}
-        Err(e) => {
-            error!("Error handling event: {:#}", e);
-        }
+
+    if let Err(e) = handle_event_res {
+        error!("Error handling event: {e:#}");
     }
 }
 
