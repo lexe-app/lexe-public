@@ -33,7 +33,7 @@ pub struct NodeEventHandler {
     inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
     // XXX: remove when `EventHandler` is async
-    lazy_blocking_task_rt: BlockingTaskRt,
+    blocking_task_rt: BlockingTaskRt,
 }
 
 impl NodeEventHandler {
@@ -54,7 +54,7 @@ impl NodeEventHandler {
             network_graph,
             inbound_payments,
             outbound_payments,
-            lazy_blocking_task_rt: BlockingTaskRt::new(),
+            blocking_task_rt: BlockingTaskRt::new(),
         }
     }
 }
@@ -104,7 +104,7 @@ impl EventHandler for NodeEventHandler {
         // NOTE: this blocks the main node event loop; if `handle_event`
         // depends on anything happening in the normal event loop, the whole
         // program WILL deadlock : )
-        self.lazy_blocking_task_rt.block_on(async move {
+        self.blocking_task_rt.block_on(async move {
             handle_event(
                 &channel_manager,
                 &bitcoind,
