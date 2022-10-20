@@ -81,7 +81,7 @@ pub(crate) async fn poll_for_user_input(
                 "sendpayment" => {
                     if let Err(e) = send_payment(
                         words,
-                        &invoice_payer,
+                        invoice_payer.clone(),
                         outbound_payments.clone(),
                     ) {
                         error!("{e:#}");
@@ -403,7 +403,7 @@ async fn connect_peer<'a, I: Iterator<Item = &'a str>>(
 
 fn send_payment<'a, I: Iterator<Item = &'a str>>(
     mut words: I,
-    invoice_payer: &InvoicePayerType,
+    invoice_payer: Arc<InvoicePayerType>,
     outbound_payments: PaymentInfoStorageType,
 ) -> anyhow::Result<()> {
     let invoice = words

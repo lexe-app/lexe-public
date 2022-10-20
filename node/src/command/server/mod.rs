@@ -14,9 +14,11 @@ use std::sync::Arc;
 
 use common::api::command::GetInvoiceRequest;
 use common::api::error::{NodeApiError, NodeErrorKind};
+use common::api::qs::GetByUserPk;
 use common::api::rest::{into_response, into_succ_response};
 use common::api::UserPk;
 use common::cli::Network;
+use common::ln::invoice::LxInvoice;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::keys_manager::LexeKeysManager;
@@ -24,6 +26,7 @@ use tokio::sync::mpsc;
 use tracing::trace;
 use warp::{Filter, Rejection, Reply};
 
+use crate::alias::InvoicePayerType;
 use crate::channel_manager::NodeChannelManager;
 use crate::command::{host, owner};
 use crate::peer_manager::NodePeerManager;
@@ -46,12 +49,15 @@ fn into_command_api_result<T>(
 /// Implements [`OwnerNodeRunApi`] - endpoints only callable by the node owner.
 ///
 /// [`OwnerNodeRunApi`]: common::api::def::OwnerNodeRunApi
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn owner_routes(
     channel_manager: NodeChannelManager,
     peer_manager: NodePeerManager,
     network_graph: Arc<NetworkGraphType>,
     keys_manager: LexeKeysManager,
+    invoice_payer: Arc<InvoicePayerType>,
     inbound_payments: PaymentInfoStorageType,
+    outbound_payments: PaymentInfoStorageType,
     network: Network,
     activity_tx: mpsc::Sender<()>,
 ) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
@@ -88,13 +94,22 @@ pub(crate) fn owner_routes(
         .map(lexe_ln::command::get_invoice)
         .map(into_command_api_result)
         .map(into_response);
+    let send_payment = warp::path("send_payment")
+        .and(warp::post())
+        .and(inject::invoice_payer(invoice_payer))
+        .and(inject::outbound_payments(outbound_payments))
+        .and(warp::body::json::<LxInvoice>())
+        .map(lexe_ln::command::send_payment)
+        .map(into_command_api_result)
+        .map(into_response);
 
-    let owner = owner_base.and(node_info.or(list_channels).or(get_invoice));
+    let owner = owner_base
+        .and(node_info.or(list_channels).or(get_invoice).or(send_payment));
 
     root.or(owner)
 }
 
-// TODO Add host authentication
+// XXX: Add host authentication
 /// Implements [`HostNodeApi`] - endpoints only callable by the host (Lexe).
 ///
 /// [`HostNodeApi`]: common::api::def::HostNodeApi
@@ -107,13 +122,13 @@ pub(crate) fn host_routes(
 
     let status = warp::path("status")
         .and(warp::get())
-        .and(warp::query())
+        .and(warp::query::<GetByUserPk>())
         .and(inject::user_pk(current_pk))
         .then(host::status)
         .map(into_response);
     let shutdown = warp::path("shutdown")
         .and(warp::get())
-        .and(warp::query())
+        .and(warp::query::<GetByUserPk>())
         .and(inject::user_pk(current_pk))
         .and(inject::shutdown(shutdown))
         .map(host::shutdown)

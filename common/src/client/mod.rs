@@ -98,4 +98,14 @@ impl OwnerNodeRunApi for NodeClient {
         let req = self.rest.post(url, &data);
         self.rest.send(req).await
     }
+
+    async fn send_payment(
+        &self,
+        invoice: LxInvoice,
+    ) -> Result<(), NodeApiError> {
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/owner/send_payment");
+        let req = self.rest.post(url, &invoice);
+        self.rest.send(req).await
+    }
 }
