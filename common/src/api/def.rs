@@ -169,4 +169,7 @@ pub trait OwnerNodeRunApi {
         &self,
         req: GetInvoiceRequest,
     ) -> Result<LxInvoice, NodeApiError>;
+
+    /// POST /owner/send_payment [`LxInvoice`] -> [`()`]
+    async fn send_payment(&self, req: LxInvoice) -> Result<(), NodeApiError>;
 }

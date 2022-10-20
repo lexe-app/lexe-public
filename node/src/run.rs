@@ -355,6 +355,21 @@ impl UserNode {
             outbound_payments.clone(),
         );
 
+        // Initialize InvoicePayer
+        let router = DefaultRouter::new(
+            network_graph.clone(),
+            logger.clone(),
+            keys_manager.get_secure_random_bytes(),
+        );
+        let invoice_payer = Arc::new(InvoicePayerType::new(
+            channel_manager.clone(),
+            router,
+            scorer.clone(),
+            logger.clone(),
+            event_handler,
+            Retry::Timeout(Duration::from_secs(10)),
+        ));
+
         // Build owner service TLS config for authenticating owner
         let node_dns = args.node_dns_name.clone();
         let owner_tls = node_run_tls_config(rng, &root_seed, vec![node_dns])
@@ -366,7 +381,9 @@ impl UserNode {
             peer_manager.clone(),
             network_graph.clone(),
             keys_manager.clone(),
+            invoice_payer.clone(),
             inbound_payments.clone(),
+            outbound_payments.clone(),
             args.network,
             activity_tx,
         );
@@ -402,21 +419,6 @@ impl UserNode {
         // Prepare the ports that we'll notify the runner of once we're ready
         let user_ports =
             UserPorts::new_run(user_pk, owner_port, host_port, peer_port);
-
-        // Initialize InvoicePayer
-        let router = DefaultRouter::new(
-            network_graph.clone(),
-            logger.clone(),
-            keys_manager.get_secure_random_bytes(),
-        );
-        let invoice_payer = Arc::new(InvoicePayerType::new(
-            channel_manager.clone(),
-            router,
-            scorer.clone(),
-            logger.clone(),
-            event_handler,
-            Retry::Timeout(Duration::from_secs(10)),
-        ));
 
         // Init background processor
         let bg_processor_task = LexeBackgroundProcessor::start::<

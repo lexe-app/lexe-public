@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{anyhow, Context};
 use bitcoin::hashes::Hash;
 use common::api::command::{GetInvoiceRequest, NodeInfo};
@@ -91,7 +93,7 @@ where
 }
 
 pub fn send_payment<CM, PS, EH>(
-    invoice_payer: &LexeInvoicePayerType<CM, EH>,
+    invoice_payer: Arc<LexeInvoicePayerType<CM, EH>>,
     outbound_payments: PaymentInfoStorageType,
     invoice: LxInvoice,
 ) -> anyhow::Result<()>

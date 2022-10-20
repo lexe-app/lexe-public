@@ -11,6 +11,7 @@ use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::keys_manager::LexeKeysManager;
 use warp::Filter;
 
+use crate::alias::InvoicePayerType;
 use crate::channel_manager::NodeChannelManager;
 use crate::peer_manager::NodePeerManager;
 
@@ -57,12 +58,28 @@ pub(crate) fn keys_manager(
     warp::any().map(move || keys_manager.clone())
 }
 
+/// Injects a keys manager.
+pub(crate) fn invoice_payer(
+    invoice_payer: Arc<InvoicePayerType>,
+) -> impl Filter<Extract = (Arc<InvoicePayerType>,), Error = Infallible> + Clone
+{
+    warp::any().map(move || invoice_payer.clone())
+}
+
 /// Injects the inbound payments storage.
 pub(crate) fn inbound_payments(
     inbound_payments: PaymentInfoStorageType,
 ) -> impl Filter<Extract = (PaymentInfoStorageType,), Error = Infallible> + Clone
 {
     warp::any().map(move || inbound_payments.clone())
+}
+
+/// Injects the outbound payments storage.
+pub(crate) fn outbound_payments(
+    outbound_payments: PaymentInfoStorageType,
+) -> impl Filter<Extract = (PaymentInfoStorageType,), Error = Infallible> + Clone
+{
+    warp::any().map(move || outbound_payments.clone())
 }
 
 /// Injects the [`Network`] the node is running on.
