@@ -186,6 +186,9 @@ sgx-panic-backtrace = "0.1"
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Include additional useful proptest features when testing outside of SGX
 proptest = "1"
+# Bitcoind regtest
+bitcoind = { version = "0.27", features = [ "22_0" ] }
+
 
 # --- FORTANIX EDP CONFIGURATION --- #
 
