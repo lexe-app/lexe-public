@@ -16,7 +16,7 @@ use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 
 use crate::api::{auth, UserPk};
-use crate::{ed25519, hex};
+use crate::hex;
 
 // Associated constants can't be imported.
 const CLIENT_400_BAD_REQUEST: Status = Status::BAD_REQUEST;
@@ -383,12 +383,12 @@ error_kind! {
         NotFound = 101,
         /// Could not convert entity to type
         EntityConversion = 102,
-        /// Not authorized
-        NotAuthorized = 103,
-        /// Invalid signed auth request
-        InvalidAuthRequest = 104,
+        /// User failed authentication
+        Unauthenticated = 103,
+        /// User not authorized
+        Unauthorized = 104,
         /// Auth token or auth request is expired
-        ExpiredAuthRequest = 105,
+        AuthExpired = 105,
         /// Parsed request is invalid
         InvalidParsedRequest = 106,
     }
@@ -447,10 +447,12 @@ error_kind! {
 
         // --- Gateway --- //
 
-        /// Invalid signed auth request
-        InvalidAuthRequest = 100,
+        /// User failed authentication
+        Unauthenticated = 100,
+        /// User not authorized
+        Unauthorized = 101,
         /// Auth token or auth request is expired
-        ExpiredAuthRequest = 101,
+        AuthExpired = 102,
     }
 }
 
@@ -553,7 +555,7 @@ impl RestClientErrorKind {
 
 impl BackendApiError {
     pub fn unauthorized_user() -> Self {
-        let kind = BackendErrorKind::NotAuthorized;
+        let kind = BackendErrorKind::Unauthorized;
         let msg = "current user is not authorized".to_owned();
         Self { kind, msg }
     }
@@ -561,6 +563,12 @@ impl BackendApiError {
     pub fn invalid_parsed_req(msg: impl Into<String>) -> Self {
         let kind = BackendErrorKind::InvalidParsedRequest;
         let msg = msg.into();
+        Self { kind, msg }
+    }
+
+    pub fn bcs_serialize(err: bcs::Error) -> Self {
+        let kind = BackendErrorKind::Building;
+        let msg = format!("Failed to serialize bcs request: {err:#}");
         Self { kind, msg }
     }
 }
@@ -679,9 +687,9 @@ impl ToHttpStatus for BackendApiError {
             Database => SERVER_500_INTERNAL_SERVER_ERROR,
             NotFound => CLIENT_404_NOT_FOUND,
             EntityConversion => SERVER_500_INTERNAL_SERVER_ERROR,
-            NotAuthorized => CLIENT_401_UNAUTHORIZED,
-            InvalidAuthRequest => CLIENT_400_BAD_REQUEST,
-            ExpiredAuthRequest => CLIENT_401_UNAUTHORIZED,
+            Unauthenticated => CLIENT_401_UNAUTHORIZED,
+            Unauthorized => CLIENT_401_UNAUTHORIZED,
+            AuthExpired => CLIENT_401_UNAUTHORIZED,
             InvalidParsedRequest => CLIENT_400_BAD_REQUEST,
         }
     }
@@ -718,8 +726,9 @@ impl ToHttpStatus for GatewayApiError {
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
 
-            InvalidAuthRequest => CLIENT_400_BAD_REQUEST,
-            ExpiredAuthRequest => CLIENT_401_UNAUTHORIZED,
+            Unauthenticated => CLIENT_401_UNAUTHORIZED,
+            Unauthorized => CLIENT_401_UNAUTHORIZED,
+            AuthExpired => CLIENT_401_UNAUTHORIZED,
         }
     }
 }
@@ -841,20 +850,14 @@ impl From<hex::DecodeError> for BackendApiError {
         Self { kind, msg }
     }
 }
+
 impl From<auth::Error> for BackendApiError {
     fn from(err: auth::Error) -> Self {
         let kind = match err {
-            // TODO(phlip9): user auth token expired case
-            auth::Error::ClockDrift => BackendErrorKind::ExpiredAuthRequest,
-            _ => BackendErrorKind::InvalidAuthRequest,
+            auth::Error::ClockDrift => BackendErrorKind::AuthExpired,
+            auth::Error::Expired => BackendErrorKind::AuthExpired,
+            _ => BackendErrorKind::Unauthenticated,
         };
-        let msg = format!("{err:#}");
-        Self { kind, msg }
-    }
-}
-impl From<ed25519::Error> for BackendApiError {
-    fn from(err: ed25519::Error) -> Self {
-        let kind = BackendErrorKind::InvalidAuthRequest;
         let msg = format!("{err:#}");
         Self { kind, msg }
     }
@@ -882,17 +885,10 @@ impl From<oneshot::error::RecvError> for RunnerApiError {
 impl From<auth::Error> for GatewayApiError {
     fn from(err: auth::Error) -> Self {
         let kind = match err {
-            // TODO(phlip9): user auth token expired case
-            auth::Error::ClockDrift => GatewayErrorKind::ExpiredAuthRequest,
-            _ => GatewayErrorKind::InvalidAuthRequest,
+            auth::Error::ClockDrift => GatewayErrorKind::AuthExpired,
+            auth::Error::Expired => GatewayErrorKind::AuthExpired,
+            _ => GatewayErrorKind::Unauthenticated,
         };
-        let msg = format!("{err:#}");
-        Self { kind, msg }
-    }
-}
-impl From<ed25519::Error> for GatewayApiError {
-    fn from(err: ed25519::Error) -> Self {
-        let kind = GatewayErrorKind::InvalidAuthRequest;
         let msg = format!("{err:#}");
         Self { kind, msg }
     }

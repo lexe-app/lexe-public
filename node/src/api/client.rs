@@ -41,7 +41,11 @@ impl UserAuthApi for NodeApiClient {
     ) -> Result<UserAuthResponse, BackendApiError> {
         let backend = &self.backend_url;
         let url = format!("{backend}/user_auth");
-        let req = self.rest.builder(POST, url).signed_bcs(signed_req)?;
+        let req = self
+            .rest
+            .builder(POST, url)
+            .signed_bcs(signed_req)
+            .map_err(BackendApiError::bcs_serialize)?;
         self.rest.send_with_retries(req, 3, &[]).await
     }
 }

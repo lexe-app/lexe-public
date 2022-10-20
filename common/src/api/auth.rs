@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::def::UserAuthApi;
+use super::error::BackendErrorKind;
 use crate::api::error::BackendApiError;
 use crate::byte_str::ByteStr;
 use crate::ed25519::{self, Signed};
@@ -17,11 +18,17 @@ pub const DEFAULT_USER_TOKEN_LIFETIME_SECS: u32 = 10 * 60; // 10 min
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("error verifying user signed struct: {0}")]
-    VerifyError(#[from] ed25519::Error),
+    #[error("error verifying signed user auth request: {0}")]
+    UserVerifyError(#[source] ed25519::Error),
+
+    #[error("Decoded user auth token appears malformed")]
+    MalformedToken,
 
     #[error("issued timestamp is too far from current auth server clock")]
     ClockDrift,
+
+    #[error("auth token or auth request is expired")]
+    Expired,
 
     #[error("timestamp is not a valid unix timestamp")]
     InvalidTimestamp,
@@ -137,7 +144,7 @@ impl UserSignupRequest {
         // for user sign up, the signed signup request is just used to prove
         // ownership of a user_pk.
         ed25519::verify_signed_struct(ed25519::accept_any_signer, serialized)
-            .map_err(Error::VerifyError)
+            .map_err(Error::UserVerifyError)
     }
 }
 
@@ -171,7 +178,7 @@ impl UserAuthRequest {
         // likewise, user/node auth is (currently) just used to prove ownership
         // of a user_pk.
         ed25519::verify_signed_struct(ed25519::accept_any_signer, serialized)
-            .map_err(Error::VerifyError)
+            .map_err(Error::UserVerifyError)
     }
 
     /// Get the `request_timestamp` as a [`SystemTime`]. Returns `Err` if the
@@ -280,7 +287,14 @@ impl UserAuthenticator {
         let expiration = now + Duration::from_secs(lifetime as u64)
             - Duration::from_secs(15);
         let auth_req = UserAuthRequest::new(now, lifetime);
-        let (_, signed_req) = self.user_key_pair.sign_struct(&auth_req)?;
+        let (_, signed_req) = self
+            .user_key_pair
+            .sign_struct(&auth_req)
+            .map_err(|err| BackendApiError {
+                kind: BackendErrorKind::Building,
+                msg: format!("Error signing auth request: {err:#}"),
+            })?;
+
         let resp = api.user_auth(signed_req.cloned()).await?;
 
         Ok(TokenWithExpiration {

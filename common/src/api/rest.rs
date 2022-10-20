@@ -416,7 +416,7 @@ pub trait RequestBuilderExt: Sized {
     fn signed_bcs<T>(
         self,
         signed_bcs: ed25519::Signed<T>,
-    ) -> Result<Self, ed25519::Error>
+    ) -> Result<Self, bcs::Error>
     where
         T: ed25519::Signable + Serialize;
 }
@@ -425,7 +425,7 @@ impl RequestBuilderExt for reqwest::RequestBuilder {
     fn signed_bcs<T>(
         self,
         signed_bcs: ed25519::Signed<T>,
-    ) -> Result<Self, ed25519::Error>
+    ) -> Result<Self, bcs::Error>
     where
         T: ed25519::Signable + Serialize,
     {
