@@ -13,6 +13,7 @@ use common::hex;
 use common::task::{BlockingTaskRt, LxTask};
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::bitcoind::LexeBitcoind;
+use lexe_ln::event::{TestEvent, TestEventSender};
 use lexe_ln::invoice::{HTLCStatus, MillisatAmount, PaymentInfo};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lightning::chain::chaininterface::{
@@ -32,11 +33,13 @@ pub struct NodeEventHandler {
     network_graph: Arc<NetworkGraphType>,
     inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
+    test_event_tx: TestEventSender,
     // XXX: remove when `EventHandler` is async
     blocking_task_rt: BlockingTaskRt,
 }
 
 impl NodeEventHandler {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         network: Network,
         channel_manager: NodeChannelManager,
@@ -45,6 +48,7 @@ impl NodeEventHandler {
         network_graph: Arc<NetworkGraphType>,
         inbound_payments: PaymentInfoStorageType,
         outbound_payments: PaymentInfoStorageType,
+        test_event_tx: TestEventSender,
     ) -> Self {
         Self {
             network,
@@ -54,6 +58,7 @@ impl NodeEventHandler {
             network_graph,
             inbound_payments,
             outbound_payments,
+            test_event_tx,
             blocking_task_rt: BlockingTaskRt::new(),
         }
     }
@@ -92,12 +97,15 @@ impl EventHandler for NodeEventHandler {
         info!("Handling event: {event_name}");
         debug!("Event details: {event:?}");
 
+        // TODO(max): Should be possible to remove all clone()s once async event
+        // handlilng is supported
         let channel_manager = self.channel_manager.clone();
         let bitcoind = self.bitcoind.clone();
         let network_graph = self.network_graph.clone();
         let keys_manager = self.keys_manager.clone();
         let inbound_payments = self.inbound_payments.clone();
         let outbound_payments = self.outbound_payments.clone();
+        let test_event_tx = self.test_event_tx.clone();
         let network = self.network;
         let event = event.clone();
 
@@ -112,6 +120,7 @@ impl EventHandler for NodeEventHandler {
                 &keys_manager,
                 &inbound_payments,
                 &outbound_payments,
+                &test_event_tx,
                 network,
                 &event,
             )
@@ -129,6 +138,7 @@ pub(crate) async fn handle_event(
     keys_manager: &LexeKeysManager,
     inbound_payments: &PaymentInfoStorageType,
     outbound_payments: &PaymentInfoStorageType,
+    test_event_tx: &TestEventSender,
     network: Network,
     event: &Event,
 ) {
@@ -139,6 +149,7 @@ pub(crate) async fn handle_event(
         keys_manager,
         inbound_payments,
         outbound_payments,
+        test_event_tx,
         network,
         event,
     )
@@ -158,6 +169,7 @@ async fn handle_event_fallible(
     keys_manager: &LexeKeysManager,
     inbound_payments: &PaymentInfoStorageType,
     outbound_payments: &PaymentInfoStorageType,
+    test_event_tx: &TestEventSender,
     network: Network,
     event: &Event,
 ) -> anyhow::Result<()> {
@@ -201,17 +213,18 @@ async fn handle_event_fallible(
             let final_tx: Transaction =
                 encode::deserialize(&hex::decode(&signed_tx.hex).unwrap())
                     .unwrap();
+
             // Give the funding transaction back to LDK for opening the channel.
-            if channel_manager
-                .funding_transaction_generated(
-                    temporary_channel_id,
-                    counterparty_node_id,
-                    final_tx,
-                )
-                .is_err()
-            {
-                error!(
-                    "ERROR: Channel went away before we could fund it. The peer disconnected or refused the channel.");
+            match channel_manager.funding_transaction_generated(
+                temporary_channel_id,
+                counterparty_node_id,
+                final_tx,
+            ) {
+                Ok(()) => test_event_tx.send(TestEvent::FundingTxHandled),
+                Err(e) => error!(
+                    "Channel went away before we could fund it. \
+                    The peer disconnected or refused the channel: {e:?}"
+                ),
             }
         }
         Event::PaymentReceived {
