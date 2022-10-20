@@ -27,6 +27,7 @@ use lexe_ln::alias::{
 };
 use lexe_ln::background_processor::LexeBackgroundProcessor;
 use lexe_ln::bitcoind::LexeBitcoind;
+use lexe_ln::event::TestEventSender;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::p2p::ChannelPeerUpdate;
@@ -109,6 +110,7 @@ impl UserNode {
         rng: &mut R,
         args: RunArgs,
         poll_tip_rx: mpsc::Receiver<()>,
+        test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<Self> {
         info!(%args.user_pk, "Initializing node");
@@ -353,6 +355,7 @@ impl UserNode {
             network_graph.clone(),
             inbound_payments.clone(),
             outbound_payments.clone(),
+            test_event_tx,
         );
 
         // Initialize InvoicePayer
