@@ -833,7 +833,10 @@ mod test {
         proptest!(|(key_pair in arb_key_pair(), msg in any::<SignableBytes>())| {
             let pubkey = key_pair.public_key();
 
-            let (sig, _) = key_pair.sign_struct(&msg).unwrap();
+            let (sig, signed) = key_pair.sign_struct(&msg).unwrap();
+            let sig2 = signed.serialize().unwrap();
+            assert_eq!(&sig, &sig2);
+
             let _ = pubkey
                 .verify_self_signed_struct::<SignableBytes>(&sig)
                 .unwrap();
@@ -863,7 +866,10 @@ mod test {
 
             let pubkey = key_pair.public_key();
 
-            let (sig, _) = key_pair.sign_struct(&msg).unwrap();
+            let (sig, signed) = key_pair.sign_struct(&msg).unwrap();
+            let sig2 = signed.serialize().unwrap();
+            assert_eq!(&sig, &sig2);
+
             let _ = pubkey
                 .verify_self_signed_struct::<SignableBytes>(&sig)
                 .unwrap();
@@ -904,7 +910,9 @@ mod test {
         )| {
             let pubkey = key_pair.public_key();
 
-            let (mut sig, _) = key_pair.sign_struct(&msg).unwrap();
+            let (mut sig, signed) = key_pair.sign_struct(&msg).unwrap();
+            let sig2 = signed.serialize().unwrap();
+            assert_eq!(&sig, &sig2);
 
             mutation.truncate(sig.len());
             prop_assume!(!mutation.is_empty() && !mutation.iter().all(|x| x == &0));
@@ -956,17 +964,19 @@ mod test {
 
         proptest!(|(key_pair in arb_key_pair(), foo in arb_foo())| {
             let signer = key_pair.public_key();
-            let (serialized, signed_foo) =
+            let (sig, signed) =
                 key_pair.sign_struct::<Foo>(&foo).unwrap();
+            let sig2 = signed.serialize().unwrap();
+            assert_eq!(&sig, &sig2);
 
-            let signed_foo2 =
-                signer.verify_self_signed_struct::<Foo>(&serialized).unwrap();
-            assert_eq!(signed_foo, signed_foo2.as_ref());
+            let signed2 =
+                signer.verify_self_signed_struct::<Foo>(&sig).unwrap();
+            assert_eq!(signed, signed2.as_ref());
 
             // trying to verify signature as another type with a valid
             // serialization is prevented by domain separation.
 
-            signer.verify_self_signed_struct::<Bar>(&serialized).unwrap_err();
+            signer.verify_self_signed_struct::<Bar>(&sig).unwrap_err();
         });
     }
 }
