@@ -364,18 +364,18 @@ impl KeyPair {
     pub fn sign_struct<'a, T: Signable + Serialize>(
         &self,
         value: &'a T,
-    ) -> Result<(Vec<u8>, Signed<&'a T>), Error> {
+    ) -> Result<(Vec<u8>, Signed<&'a T>), bcs::Error> {
         let signer = self.public_key();
 
         let struct_ser_len =
-            bcs::serialized_size(value).map_err(Error::BcsSerialize)?;
+            bcs::serialized_size(value)? + SIGNED_STRUCT_OVERHEAD;
         let mut out = Vec::with_capacity(struct_ser_len);
 
         // out := signer || signature || serialized struct
 
         out.extend_from_slice(signer.as_slice());
         out.extend_from_slice([0u8; 64].as_slice());
-        bcs::serialize_into(&mut out, value).map_err(Error::BcsSerialize)?;
+        bcs::serialize_into(&mut out, value)?;
 
         // sign this serialized struct using a domain separator that is unique
         // for this type.
@@ -628,24 +628,25 @@ impl<T: Signable> Signed<T> {
 }
 
 impl<T: Signable + Serialize> Signed<T> {
-    pub fn serialize(&self) -> Result<Bytes, Error> {
+    pub fn serialize(&self) -> Result<Bytes, bcs::Error> {
         let mut bytes = BytesMut::new();
         self.serialize_inout(&mut bytes)?;
         Ok(bytes.freeze())
     }
 
-    pub fn serialize_inout(&self, inout: &mut BytesMut) -> Result<(), Error> {
-        let struct_ser_len = bcs::serialized_size(&self.inner)
-            .map_err(Error::BcsSerialize)?
-            + SIGNED_STRUCT_OVERHEAD;
+    pub fn serialize_inout(
+        &self,
+        inout: &mut BytesMut,
+    ) -> Result<(), bcs::Error> {
+        let struct_ser_len =
+            bcs::serialized_size(&self.inner)? + SIGNED_STRUCT_OVERHEAD;
         inout.reserve(struct_ser_len);
 
         // out := signer || signature || serialized struct
 
         inout.put_slice(self.signer.as_slice());
         inout.put_slice(self.sig.as_slice());
-        bcs::serialize_into(&mut inout.writer(), &self.inner)
-            .map_err(Error::BcsSerialize)?;
+        bcs::serialize_into(&mut inout.writer(), &self.inner)?;
 
         Ok(())
     }
