@@ -1,9 +1,8 @@
 use anyhow::{ensure, Context};
-use bitcoin::secp256k1::PublicKey;
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 
-use crate::api::UserPk;
+use crate::api::{NodePk, UserPk};
 use crate::enclave::{self, MachineId, Measurement, MinCpusvn, Sealed};
 use crate::hexstr_or_bytes;
 use crate::rng::Crng;
@@ -17,7 +16,7 @@ pub struct NodeProvisionRequest {
     /// The client's node public key, derived from the root seed. The node
     /// should sanity check by re-deriving the node pk and checking that it
     /// equals the client's expected value.
-    pub node_pk: PublicKey,
+    pub node_pk: NodePk,
     /// The secret root seed the client wants to provision into the node.
     pub root_seed: RootSeed,
 }
@@ -32,19 +31,19 @@ pub struct NodeInstanceSeed {
 #[derive(Serialize, Deserialize)]
 pub struct Node {
     pub user_pk: UserPk,
-    pub node_pk: PublicKey,
+    pub node_pk: NodePk,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct Instance {
-    pub node_pk: PublicKey,
+    pub node_pk: NodePk,
     pub measurement: Measurement,
 }
 
 /// Uniquely identifies a sealed seed using its primary key fields.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SealedSeedId {
-    pub node_pk: PublicKey,
+    pub node_pk: NodePk,
     pub measurement: Measurement,
     pub machine_id: MachineId,
     pub min_cpusvn: MinCpusvn,
@@ -75,7 +74,7 @@ impl SealedSeed {
     const LABEL: &'static [u8] = b"sealed seed";
 
     pub fn new(
-        node_pk: PublicKey,
+        node_pk: NodePk,
         measurement: Measurement,
         machine_id: MachineId,
         min_cpusvn: MinCpusvn,

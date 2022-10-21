@@ -7,10 +7,10 @@ use std::time::SystemTime;
 use anyhow::{anyhow, ensure, Context};
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
-use bitcoin::secp256k1::PublicKey;
 use common::api::auth::{UserAuthToken, UserAuthenticator};
 use common::api::error::BackendApiError;
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
+use common::api::NodePk;
 use common::cli::Network;
 use common::enclave::Measurement;
 use common::ln::channel::LxOutPoint;
@@ -64,7 +64,7 @@ impl NodePersister {
     pub(crate) fn new(
         api: ApiClientType,
         authenticator: Arc<UserAuthenticator>,
-        node_pk: PublicKey,
+        node_pk: NodePk,
         measurement: Measurement,
         shutdown: ShutdownChannel,
         channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
@@ -95,7 +95,7 @@ impl Deref for NodePersister {
 pub struct InnerPersister {
     api: ApiClientType,
     authenticator: Arc<UserAuthenticator>,
-    node_pk: PublicKey,
+    node_pk: NodePk,
     measurement: Measurement,
     shutdown: ShutdownChannel,
     channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,

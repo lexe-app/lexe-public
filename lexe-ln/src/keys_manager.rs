@@ -4,7 +4,8 @@ use std::sync::Arc;
 use anyhow::ensure;
 use bitcoin::blockdata::script::Script;
 use bitcoin::blockdata::transaction::{Transaction, TxOut};
-use bitcoin::secp256k1::{PublicKey, Secp256k1, Signing};
+use bitcoin::secp256k1::{self, Secp256k1, Signing};
+use common::api::NodePk;
 use common::rng::Crng;
 use common::root_seed::RootSeed;
 use lightning::chain::keysinterface::{
@@ -46,7 +47,7 @@ impl LexeKeysManager {
     /// the derived node public matches `given_pk`.
     pub fn init<R: Crng>(
         rng: &mut R,
-        given_pk: &PublicKey,
+        given_pk: &NodePk,
         root_seed: &RootSeed,
     ) -> anyhow::Result<Self> {
         // Build the inner KeysManager from the RootSeed.
@@ -65,8 +66,8 @@ impl LexeKeysManager {
         // Construct the LexeKeysManager, but validation isn't done yet
         let keys_manager = Self { inner };
 
-        // Derive the pk from the inner KeysManager
-        let derived_pk = keys_manager.derive_pk(rng);
+        // Derive the node_pk from the inner KeysManager
+        let derived_pk = keys_manager.derive_node_pk(rng);
 
         // Check the given pk against the derived one
         ensure!(
@@ -78,7 +79,7 @@ impl LexeKeysManager {
         Ok(keys_manager)
     }
 
-    pub fn derive_pk<R: Crng>(&self, rng: &mut R) -> PublicKey {
+    pub fn derive_node_pk<R: Crng>(&self, rng: &mut R) -> NodePk {
         // Initialize and seed the Secp256k1 context with some random bytes for
         // some extra side-channel resistance.
         let mut secp_random_bytes = [0; 32];
@@ -91,7 +92,7 @@ impl LexeKeysManager {
             .inner
             .get_node_secret(Recipient::Node)
             .expect("Always succeeds when called with Recipient::Node");
-        PublicKey::from_secret_key(&secp, &privkey)
+        NodePk(secp256k1::PublicKey::from_secret_key(&secp, &privkey))
     }
 
     // Bad fn signature is inherited from LDK
@@ -126,10 +127,10 @@ mod test {
         let mut rng = SysRng::new();
         let root_seed = RootSeed::from_rng(&mut rng);
         let node_key_pair = root_seed.derive_node_key_pair(&mut rng);
-        let node_pk = PublicKey::from(&node_key_pair);
+        let node_pk = NodePk(secp256k1::PublicKey::from(&node_key_pair));
 
         let keys_manager =
             LexeKeysManager::init(&mut rng, &node_pk, &root_seed).unwrap();
-        assert_eq!(node_pk, keys_manager.derive_pk(&mut rng));
+        assert_eq!(node_pk, keys_manager.derive_node_pk(&mut rng));
     }
 }

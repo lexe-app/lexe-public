@@ -61,7 +61,7 @@ mod test {
             (any::<SmallRng>(), any::<SocketAddr>())
                 .prop_map(|(mut rng, mut addr)| {
                     let root_seed = RootSeed::from_rng(&mut rng);
-                    let node_pk = NodePk(root_seed.derive_node_pk(&mut rng));
+                    let node_pk = root_seed.derive_node_pk(&mut rng);
 
                     // Hack to prevent the IPv6 flowinfo field (which we don't
                     // care about) from causing the equality check to fail

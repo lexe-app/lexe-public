@@ -7,7 +7,6 @@
 use std::error::Error;
 use std::fmt;
 
-use bitcoin::secp256k1::PublicKey;
 use http::status::StatusCode as Status; // So the consts  fit in 80 chars
 #[cfg(all(test, not(target_env = "sgx")))]
 use proptest_derive::Arbitrary;
@@ -15,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 
-use crate::api::{auth, UserPk};
+use crate::api::{auth, NodePk, UserPk};
 use crate::hex;
 
 // Associated constants can't be imported.
@@ -583,7 +582,7 @@ impl NodeApiError {
         Self { kind, msg }
     }
 
-    pub fn wrong_node_pk(derived_pk: PublicKey, given_pk: PublicKey) -> Self {
+    pub fn wrong_node_pk(derived_pk: NodePk, given_pk: NodePk) -> Self {
         // We don't name these 'expected' and 'actual' because the meaning of
         // those terms is swapped depending on if you're the server or client.
         let msg =

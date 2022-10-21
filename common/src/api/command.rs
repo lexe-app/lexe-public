@@ -1,11 +1,11 @@
-use bitcoin::secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
 
+use crate::api::NodePk;
 use crate::ln::channel::LxChannelDetails;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NodeInfo {
-    pub node_pk: PublicKey,
+    pub node_pk: NodePk,
     pub num_channels: usize,
     pub num_usable_channels: usize,
     pub local_balance_msat: u64,

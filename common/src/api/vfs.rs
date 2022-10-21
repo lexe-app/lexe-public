@@ -1,12 +1,12 @@
-use bitcoin::secp256k1::PublicKey;
 use serde::{Deserialize, Serialize};
 
+use crate::api::NodePk;
 use crate::enclave::Measurement;
 
 /// Uniquely identifies a directory in the node's virtual file system.
 #[derive(Clone, Hash, Eq, PartialEq, Deserialize, Serialize)]
 pub struct NodeDirectory {
-    pub node_pk: PublicKey,
+    pub node_pk: NodePk,
     pub measurement: Measurement,
     pub dirname: String,
 }
@@ -30,7 +30,7 @@ pub struct NodeFile {
 
 impl NodeFileId {
     pub fn new(
-        node_pk: PublicKey,
+        node_pk: NodePk,
         measurement: Measurement,
         dirname: String,
         filename: String,
@@ -48,7 +48,7 @@ impl NodeFileId {
 
 impl NodeFile {
     pub fn new(
-        node_pk: PublicKey,
+        node_pk: NodePk,
         measurement: Measurement,
         dirname: String,
         filename: String,

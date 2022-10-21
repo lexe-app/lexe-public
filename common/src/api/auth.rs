@@ -3,15 +3,14 @@
 use std::fmt;
 use std::time::{Duration, SystemTime};
 
-use bitcoin::secp256k1;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use super::def::UserAuthApi;
-use super::error::BackendErrorKind;
-use crate::api::error::BackendApiError;
+use crate::api::def::UserAuthApi;
+use crate::api::error::{BackendApiError, BackendErrorKind};
+use crate::api::NodePk;
 use crate::byte_str::ByteStr;
 use crate::ed25519::{self, Signed};
 
@@ -50,11 +49,12 @@ pub enum UserSignupRequest {
     V1(UserSignupRequestV1),
 }
 
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct UserSignupRequestV1 {
     /// The lightning node pubkey
     // TODO(phlip9): this needs to be a Proof-of-Key-Possession
-    pub node_pk: secp256k1::PublicKey,
+    pub node_pk: NodePk,
     // do we need this?
     // pub display_name: Option<String>,
 
@@ -136,7 +136,7 @@ pub struct UserAuthenticator {
 // -- impl UserSignupRequest -- //
 
 impl UserSignupRequest {
-    pub fn new(node_pk: secp256k1::PublicKey) -> Self {
+    pub fn new(node_pk: NodePk) -> Self {
         Self::V1(UserSignupRequestV1 { node_pk })
     }
 
@@ -150,7 +150,7 @@ impl UserSignupRequest {
     }
 
     #[inline]
-    pub fn node_pk(&self) -> &secp256k1::PublicKey {
+    pub fn node_pk(&self) -> &NodePk {
         match self {
             Self::V1(UserSignupRequestV1 { node_pk }) => node_pk,
         }
@@ -160,30 +160,6 @@ impl UserSignupRequest {
 impl ed25519::Signable for UserSignupRequest {
     const DOMAIN_SEPARATOR_STR: &'static [u8] =
         b"LEXE-REALM::UserSignupRequest";
-}
-
-// --- impl UserSignupRequestV1 --- //
-
-#[cfg(any(test, feature = "test-utils"))]
-impl proptest::arbitrary::Arbitrary for UserSignupRequestV1 {
-    type Strategy = proptest::strategy::BoxedStrategy<Self>;
-    type Parameters = ();
-
-    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        use proptest::arbitrary::any;
-        use proptest::strategy::Strategy;
-
-        use crate::rng::SmallRng;
-        use crate::root_seed::RootSeed;
-
-        any::<SmallRng>()
-            .prop_map(|mut rng| {
-                let node_pk =
-                    RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng);
-                Self { node_pk }
-            })
-            .boxed()
-    }
 }
 
 // -- impl UserAuthRequest -- //

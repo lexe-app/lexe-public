@@ -162,7 +162,7 @@ impl UserNode {
         let keys_manager =
             LexeKeysManager::init(rng, &node.node_pk, &root_seed)
                 .context("Failed to construct keys manager")?;
-        let node_pk = keys_manager.derive_pk(rng);
+        let node_pk = keys_manager.derive_node_pk(rng);
 
         // LexeBitcoind implements BlockSource, FeeEstimator and
         // BroadcasterInterface, and thus serves these functions. It also

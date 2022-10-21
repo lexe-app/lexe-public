@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use anyhow::Context;
 use bitcoin::hash_types::Txid;
-use bitcoin::secp256k1::PublicKey;
+use bitcoin::secp256k1;
 use lightning::chain::transaction::OutPoint;
 use lightning::ln::channelmanager::{ChannelCounterparty, ChannelDetails};
 use serde::{Deserialize, Serialize};
@@ -116,7 +116,7 @@ impl From<ChannelDetails> for LxChannelDetails {
 
 #[derive(Serialize, Deserialize)]
 pub struct LxChannelCounterparty {
-    pub node_id: PublicKey,
+    pub node_id: secp256k1::PublicKey,
     // pub features: InitFeatures,                              // Sealed
     pub unspendable_punishment_reserve: u64,
     // pub forwarding_info: Option<CounterpartyForwardingInfo>, // Not needed

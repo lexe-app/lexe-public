@@ -4,7 +4,6 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use bitcoin::secp256k1::PublicKey;
 use common::api::auth::{UserAuthRequest, UserAuthResponse, UserAuthToken};
 use common::api::def::{NodeBackendApi, NodeRunnerApi, UserAuthApi};
 use common::api::error::{BackendApiError, RunnerApiError};
@@ -13,7 +12,7 @@ use common::api::provision::{
     Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
-use common::api::UserPk;
+use common::api::{NodePk, UserPk};
 use common::byte_str::ByteStr;
 use common::ed25519;
 use common::enclave::{self, Measurement};
@@ -33,7 +32,7 @@ type Data = Vec<u8>;
 fn make_user_pk(root_seed: &RootSeed) -> UserPk {
     root_seed.derive_user_pk()
 }
-fn make_node_pk(root_seed: &RootSeed) -> PublicKey {
+fn make_node_pk(root_seed: &RootSeed) -> NodePk {
     root_seed.derive_node_pk(&mut SysRng::new())
 }
 fn make_sealed_seed(root_seed: &RootSeed) -> SealedSeed {
@@ -47,13 +46,13 @@ static SEED2: Lazy<RootSeed> = Lazy::new(|| RootSeed::from_u64(2));
 pub static USER_PK1: Lazy<UserPk> = Lazy::new(|| make_user_pk(&SEED1));
 pub static USER_PK2: Lazy<UserPk> = Lazy::new(|| make_user_pk(&SEED2));
 
-static NODE_PK1: Lazy<PublicKey> = Lazy::new(|| make_node_pk(&SEED1));
-static NODE_PK2: Lazy<PublicKey> = Lazy::new(|| make_node_pk(&SEED2));
+static NODE_PK1: Lazy<NodePk> = Lazy::new(|| make_node_pk(&SEED1));
+static NODE_PK2: Lazy<NodePk> = Lazy::new(|| make_node_pk(&SEED2));
 
 static SEALED_SEED1: Lazy<SealedSeed> = Lazy::new(|| make_sealed_seed(&SEED1));
 static SEALED_SEED2: Lazy<SealedSeed> = Lazy::new(|| make_sealed_seed(&SEED2));
 
-pub fn sealed_seed(node_pk: &PublicKey) -> SealedSeed {
+pub fn sealed_seed(node_pk: &NodePk) -> SealedSeed {
     if node_pk == &*NODE_PK1 {
         SEALED_SEED1.clone()
     } else if node_pk == &*NODE_PK2 {
@@ -63,7 +62,7 @@ pub fn sealed_seed(node_pk: &PublicKey) -> SealedSeed {
     }
 }
 
-fn node_pk(user_pk: UserPk) -> PublicKey {
+fn node_pk(user_pk: UserPk) -> NodePk {
     if user_pk == *USER_PK1 {
         *NODE_PK1
     } else if user_pk == *USER_PK2 {
@@ -149,8 +148,8 @@ impl NodeBackendApi for MockApiClient {
         user_pk: UserPk,
     ) -> Result<Option<Node>, BackendApiError> {
         let node = Node {
-            node_pk: node_pk(user_pk),
             user_pk,
+            node_pk: node_pk(user_pk),
         };
         Ok(Some(node))
     }

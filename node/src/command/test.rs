@@ -87,7 +87,7 @@ impl CommandTestHarness {
 
     fn node_pk(&self) -> NodePk {
         let mut rng = SysRng::new();
-        NodePk(self.node.keys_manager.derive_pk(&mut rng))
+        self.node.keys_manager.derive_node_pk(&mut rng)
     }
 
     fn p2p_address(&self) -> SocketAddr {

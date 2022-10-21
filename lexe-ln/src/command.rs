@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Context};
 use bitcoin::hashes::Hash;
 use common::api::command::{GetInvoiceRequest, NodeInfo};
+use common::api::NodePk;
 use common::cli::Network;
 use common::ln::invoice::LxInvoice;
 use lightning::ln::PaymentHash;
@@ -26,7 +27,7 @@ where
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    let node_pk = channel_manager.get_our_node_id();
+    let node_pk = NodePk(channel_manager.get_our_node_id());
 
     let channels = channel_manager.list_channels();
     let num_channels = channels.len();
