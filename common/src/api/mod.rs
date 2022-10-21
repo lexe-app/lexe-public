@@ -63,6 +63,12 @@ pub struct UserPk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 #[repr(transparent)]
 pub struct NodePk(pub secp256k1::PublicKey);
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct User {
+    pub user_pk: UserPk,
+    pub node_pk: NodePk,
+}
+
 // --- impl UserPk --- //
 
 impl UserPk {

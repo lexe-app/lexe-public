@@ -9,10 +9,10 @@ use common::api::def::{NodeBackendApi, NodeRunnerApi, UserAuthApi};
 use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::ports::UserPorts;
 use common::api::provision::{
-    Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
+    Instance, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
-use common::api::{NodePk, UserPk};
+use common::api::{NodePk, User, UserPk};
 use common::byte_str::ByteStr;
 use common::ed25519;
 use common::enclave::{self, Measurement};
@@ -143,15 +143,14 @@ impl ApiClient for MockApiClient {
 #[async_trait]
 impl NodeBackendApi for MockApiClient {
     /// Always return the dummy version
-    async fn get_node(
+    async fn get_user(
         &self,
         user_pk: UserPk,
-    ) -> Result<Option<Node>, BackendApiError> {
-        let node = Node {
+    ) -> Result<Option<User>, BackendApiError> {
+        Ok(Some(User {
             user_pk,
             node_pk: node_pk(user_pk),
-        };
-        Ok(Some(node))
+        }))
     }
 
     /// Always return the dummy version

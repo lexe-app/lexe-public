@@ -6,12 +6,12 @@ use common::api::def::{NodeBackendApi, NodeRunnerApi, UserAuthApi};
 use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::ports::UserPorts;
 use common::api::provision::{
-    Instance, Node, NodeInstanceSeed, SealedSeed, SealedSeedId,
+    Instance, NodeInstanceSeed, SealedSeed, SealedSeedId,
 };
 use common::api::qs::{GetByUserPk, GetByUserPkAndMeasurement};
 use common::api::rest::{RequestBuilderExt, RestClient, POST};
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
-use common::api::UserPk;
+use common::api::{User, UserPk};
 use common::ed25519;
 use common::enclave::Measurement;
 
@@ -82,13 +82,13 @@ impl ApiClient for NodeApiClient {
 #[async_trait]
 impl NodeBackendApi for NodeApiClient {
     // not authenticated, node calls this to get sealed seed on startup
-    async fn get_node(
+    async fn get_user(
         &self,
         user_pk: UserPk,
-    ) -> Result<Option<Node>, BackendApiError> {
+    ) -> Result<Option<User>, BackendApiError> {
         let backend = &self.backend_url;
         let data = GetByUserPk { user_pk };
-        let req = self.rest.get(format!("{backend}/v1/node"), &data);
+        let req = self.rest.get(format!("{backend}/v1/user"), &data);
         self.rest.send(req).await
     }
 

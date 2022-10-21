@@ -6,8 +6,8 @@ use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin::BlockHash;
 use common::api::auth::UserAuthenticator;
 use common::api::ports::UserPorts;
-use common::api::provision::{Node, SealedSeedId};
-use common::api::UserPk;
+use common::api::provision::SealedSeedId;
+use common::api::{User, UserPk};
 use common::cli::RunArgs;
 use common::client::tls::node_run_tls_config;
 use common::constants::DEFAULT_CHANNEL_SIZE;
@@ -149,7 +149,7 @@ impl UserNode {
         let bitcoind = bitcoind_res
             .map(Arc::new)
             .context("Failed to init bitcoind client")?;
-        let (node, root_seed, user_key_pair) =
+        let (user, root_seed, user_key_pair) =
             fetch_res.context("Failed to fetch provisioned secrets")?;
 
         // Collect all handles to spawned tasks
@@ -160,7 +160,7 @@ impl UserNode {
 
         // Build LexeKeysManager from node init data
         let keys_manager =
-            LexeKeysManager::init(rng, &node.node_pk, &root_seed)
+            LexeKeysManager::init(rng, &user.node_pk, &root_seed)
                 .context("Failed to construct keys manager")?;
         let node_pk = keys_manager.derive_node_pk(rng);
 
@@ -646,26 +646,26 @@ async fn fetch_provisioned_secrets<R: Crng>(
     measurement: Measurement,
     machine_id: MachineId,
     min_cpusvn: MinCpusvn,
-) -> anyhow::Result<(Node, RootSeed, ed25519::KeyPair)> {
+) -> anyhow::Result<(User, RootSeed, ed25519::KeyPair)> {
     debug!(%user_pk, %measurement, %machine_id, %min_cpusvn, "fetching provisioned secrets");
 
-    let (node_res, instance_res) = tokio::join!(
-        api.get_node(user_pk),
+    let (user_res, instance_res) = tokio::join!(
+        api.get_user(user_pk),
         api.get_instance(user_pk, measurement),
     );
 
-    let node_opt = node_res.context("Error while fetching node")?;
+    let user_opt = user_res.context("Error while fetching user")?;
     let instance_opt = instance_res.context("Error while fetching instance")?;
 
     // FIXME(max): Querying for the sealed seed using the user_pk in place of
     // the node_pk saves one round trip to the API, but requires joining across
     // four tables. This optimization can decrease boot time.
-    match (node_opt, instance_opt) {
-        (Some(node), Some(instance)) => {
+    match (user_opt, instance_opt) {
+        (Some(user), Some(instance)) => {
             ensure!(
-                node.node_pk == instance.node_pk,
-                "node.node_pk '{}' doesn't match instance.node_pk '{}'",
-                node.node_pk,
+                user.node_pk == instance.node_pk,
+                "user.node_pk '{}' doesn't match instance.node_pk '{}'",
+                user.node_pk,
                 instance.node_pk,
             );
             ensure!(
@@ -677,7 +677,7 @@ async fn fetch_provisioned_secrets<R: Crng>(
             );
 
             let sealed_seed_id = SealedSeedId {
-                node_pk: node.node_pk,
+                node_pk: user.node_pk,
                 measurement,
                 machine_id,
                 min_cpusvn,
@@ -698,14 +698,14 @@ async fn fetch_provisioned_secrets<R: Crng>(
                 UserPk::from_ref(user_key_pair.public_key().as_inner());
 
             ensure!(
-                &node.user_pk == derived_user_pk,
+                &user.user_pk == derived_user_pk,
                 "The user_pk derived from the sealed seed '{}' doesn't match \
                  the expected user_pk '{}'",
                 derived_user_pk,
-                node.user_pk,
+                user.user_pk,
             );
 
-            Ok((node, root_seed, user_key_pair))
+            Ok((user, root_seed, user_key_pair))
         }
         (None, None) => bail!("Enclave version has not been provisioned yet"),
         _ => bail!("Node and instance should have been persisted together"),
