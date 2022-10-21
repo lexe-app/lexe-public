@@ -16,6 +16,8 @@ pub fn test_event_channel() -> (TestEventSender, TestEventReceiver) {
 /// when something has happened, obviating the need for sleeps (which introduce
 /// flakiness) while keeping tests reasonably fast.
 // This is named `TestEvent` (not `LxEvent`) in case we need a `LxEvent` later.
+// NOTE: Perhaps we could allow the host (Lexe) to subscribe to a TestEvent
+// stream so that black box tests can get notifications as well, even in SGX...
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TestEvent {
     /// A [`FundingGenerationReady`] event was handled; i.e. a funding
@@ -23,8 +25,20 @@ pub enum TestEvent {
     ///
     /// [`FundingGenerationReady`]: lightning::util::events::Event::FundingGenerationReady
     FundingTxHandled,
-    /// A channel monitor updated was successfully persisted.
+    /// A channel monitor update was successfully persisted.
     ChannelMonitorPersisted,
+    /// A [`PaymentReceived`] event was handled.
+    ///
+    /// [`Xxx`]: lightning::util::events::Event::Xxx
+    PaymentReceived,
+    /// A [`PaymentClaimed`] event was handled.
+    ///
+    /// [`PaymentClaimed`]: lightning::util::events::Event::PaymentClaimed
+    PaymentClaimed,
+    /// A [`PaymentSent`] event was handled.
+    ///
+    /// [`PaymentSent`]: lightning::util::events::Event::PaymentSent
+    PaymentSent,
 }
 
 /// Wraps an [`mpsc::Sender<TestEvent>`] to allow actually sending the event to
