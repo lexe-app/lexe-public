@@ -13,6 +13,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, error, info};
 
 use crate::alias::LexeChainMonitorType;
+use crate::event::{TestEvent, TestEventSender};
 use crate::traits::LexePersister;
 
 type BoxedAnyhowFuture =
@@ -62,6 +63,7 @@ impl Display for ChannelMonitorUpdateKind {
 pub fn spawn_channel_monitor_persister_task<PS>(
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     mut channel_monitor_persister_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
+    test_event_tx: TestEventSender,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
 where
@@ -79,6 +81,7 @@ where
                         chain_monitor.as_ref(),
                         update,
                         idx,
+                        &test_event_tx,
                         &mut shutdown,
                     ).await;
 
@@ -107,6 +110,7 @@ async fn handle_update<PS: LexePersister>(
     chain_monitor: &LexeChainMonitorType<PS>,
     update: LxChannelMonitorUpdate,
     idx: usize,
+    test_event_tx: &TestEventSender,
     shutdown: &mut ShutdownChannel,
 ) -> anyhow::Result<()> {
     debug!("Handling channel monitor update #{idx}");
@@ -125,8 +129,6 @@ async fn handle_update<PS: LexePersister>(
         bail!("Couldn't persist {kind} channel #{idx}: {e:#}");
     }
 
-    debug!("Success: persisted {kind} channel #{idx}");
-
     // Update the chain monitor with the update id and funding txo the channel
     // monitor update.
     let chain_monitor_update_res = chain_monitor.channel_monitor_updated(
@@ -139,6 +141,8 @@ async fn handle_update<PS: LexePersister>(
         bail!("Chain monitor returned err: {e:?}");
     }
 
-    debug!("Success: Handled channel monitor update #{idx}");
+    info!("Success: persisted {kind} channel #{idx}");
+    test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+
     Ok(())
 }

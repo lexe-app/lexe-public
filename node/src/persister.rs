@@ -37,7 +37,7 @@ use lightning::routing::scoring::{
 };
 use lightning::util::ser::{ReadableArgs, Writeable};
 use tokio::sync::mpsc;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 use crate::alias::{ApiClientType, ChainMonitorType, ChannelManagerType};
 use crate::channel_manager::USER_CONFIG;
@@ -391,7 +391,7 @@ impl Persist<SignerType> for InnerPersister {
         update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
         let funding_txo = LxOutPoint::from(funding_txo);
-        debug!("Persisting new channel {funding_txo}");
+        info!("Persisting new channel {funding_txo}");
 
         // XXX(encrypt): Encrypt under key derived from seed
         let data = monitor.encode();
@@ -460,7 +460,7 @@ impl Persist<SignerType> for InnerPersister {
         update_id: MonitorUpdateId,
     ) -> Result<(), ChannelMonitorUpdateErr> {
         let funding_txo = LxOutPoint::from(funding_txo);
-        debug!("Updating persisted channel {funding_txo}");
+        info!("Updating persisted channel {funding_txo}");
 
         // XXX(encrypt): Encrypt under key derived from seed
         let data = monitor.encode();
