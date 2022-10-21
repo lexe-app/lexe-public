@@ -20,7 +20,7 @@ pub mod channel;
 pub mod channel_monitor;
 /// Top level commands that can be initiated by the user.
 pub mod command;
-/// Events and test events.
+/// Event helpers.
 pub mod event;
 /// Types related to invoices.
 pub mod invoice;
@@ -32,5 +32,7 @@ pub mod logger;
 pub mod p2p;
 /// Chain sync.
 pub mod sync;
+/// `TestEvent` channels and utils.
+pub mod test_event;
 /// Traits.
 pub mod traits;

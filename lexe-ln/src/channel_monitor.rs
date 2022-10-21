@@ -13,7 +13,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, error, info};
 
 use crate::alias::LexeChainMonitorType;
-use crate::event::{TestEvent, TestEventSender};
+use crate::test_event::{TestEvent, TestEventSender};
 use crate::traits::LexePersister;
 
 type BoxedAnyhowFuture =
