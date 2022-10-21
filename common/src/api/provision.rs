@@ -37,7 +37,7 @@ pub struct Instance {
 /// Uniquely identifies a sealed seed using its primary key fields.
 #[derive(Clone, Serialize, Deserialize)]
 pub struct SealedSeedId {
-    pub node_pk: NodePk,
+    pub user_pk: UserPk,
     pub measurement: Measurement,
     pub machine_id: MachineId,
     pub min_cpusvn: MinCpusvn,
@@ -68,7 +68,7 @@ impl SealedSeed {
     const LABEL: &'static [u8] = b"sealed seed";
 
     pub fn new(
-        node_pk: NodePk,
+        user_pk: UserPk,
         measurement: Measurement,
         machine_id: MachineId,
         min_cpusvn: MinCpusvn,
@@ -76,7 +76,7 @@ impl SealedSeed {
     ) -> Self {
         Self {
             id: SealedSeedId {
-                node_pk,
+                user_pk,
                 measurement,
                 machine_id,
                 min_cpusvn,
@@ -96,13 +96,13 @@ impl SealedSeed {
         let ciphertext = sealed.serialize();
 
         // Derive / compute the other fields
-        let node_pk = root_seed.derive_node_pk(rng);
+        let user_pk = root_seed.derive_user_pk();
         let measurement = enclave::measurement();
         let machine_id = enclave::machine_id();
         let min_cpusvn = enclave::MIN_SGX_CPUSVN;
 
         Ok(Self::new(
-            node_pk,
+            user_pk,
             measurement,
             machine_id,
             min_cpusvn,
@@ -110,10 +110,7 @@ impl SealedSeed {
         ))
     }
 
-    pub fn unseal_and_validate<R: Crng>(
-        self,
-        rng: &mut R,
-    ) -> anyhow::Result<RootSeed> {
+    pub fn unseal_and_validate(self) -> anyhow::Result<RootSeed> {
         // Compute the SGX fields
         let measurement = enclave::measurement();
         let machine_id = enclave::machine_id();
@@ -143,11 +140,11 @@ impl SealedSeed {
         let root_seed = RootSeed::try_from(unsealed_seed.as_slice())
             .context("Failed to deserialize root seed")?;
 
-        // Validate node_pk
-        let derived_node_pk = root_seed.derive_node_pk(rng);
+        // Validate user_pk
+        let derived_user_pk = root_seed.derive_user_pk();
         ensure!(
-            self.id.node_pk == derived_node_pk,
-            "Saved node pk doesn't match derived node pk"
+            self.id.user_pk == derived_user_pk,
+            "Saved user pk doesn't match derived user pk"
         );
 
         // Validation complete, everything OK.
@@ -237,7 +234,7 @@ mod test {
             let root_seed2 =
                 SealedSeed::seal_from_root_seed(&mut rng, &root_seed1)
                     .unwrap()
-                    .unseal_and_validate(&mut rng)
+                    .unseal_and_validate()
                     .unwrap();
 
             assert_eq!(

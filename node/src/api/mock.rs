@@ -52,10 +52,10 @@ static NODE_PK2: Lazy<NodePk> = Lazy::new(|| make_node_pk(&SEED2));
 static SEALED_SEED1: Lazy<SealedSeed> = Lazy::new(|| make_sealed_seed(&SEED1));
 static SEALED_SEED2: Lazy<SealedSeed> = Lazy::new(|| make_sealed_seed(&SEED2));
 
-pub fn sealed_seed(node_pk: &NodePk) -> SealedSeed {
-    if node_pk == &*NODE_PK1 {
+pub fn sealed_seed(user_pk: &UserPk) -> SealedSeed {
+    if user_pk == &*USER_PK1 {
         SEALED_SEED1.clone()
-    } else if node_pk == &*NODE_PK2 {
+    } else if user_pk == &*USER_PK2 {
         SEALED_SEED2.clone()
     } else {
         todo!("TODO(max): Programmatically generate for new users")
@@ -172,7 +172,7 @@ impl NodeBackendApi for MockApiClient {
         &self,
         data: SealedSeedId,
     ) -> Result<Option<SealedSeed>, BackendApiError> {
-        Ok(Some(sealed_seed(&data.node_pk)))
+        Ok(Some(sealed_seed(&data.user_pk)))
     }
 
     async fn create_user_instance_seed(
