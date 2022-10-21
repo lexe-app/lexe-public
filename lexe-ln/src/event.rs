@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use lightning::util::events::Event;
 use tokio::sync::mpsc;
 
@@ -74,13 +76,35 @@ impl TestEventReceiver {
 
     /// Waits to receive the given [`TestEvent`] on the channel, ignoring and
     /// discarding all other events. Panics if the sender was dropped.
-    pub async fn wait_on(&mut self, given: TestEvent) {
+    pub async fn wait(&mut self, given: TestEvent) {
         while let Some(recvd) = self.rx.recv().await {
             if recvd == given {
                 return;
             }
         }
         panic!("Sender dropped");
+    }
+
+    /// Wraps a call to [`wait`] with the given timeout. Does not panic on
+    /// timeout; instead, returns a [`Result`] for the caller to handle.
+    ///
+    /// ```ignore
+    /// lsp_test_event_rx
+    ///     .wait_timeout(TestEvent::ChannelMonitorPersisted, DEFAULT_TIMEOUT)
+    ///     .await
+    ///     .expect("(LSP) Timed out waiting on channel monitor persist");
+    /// ```
+    ///
+    /// [`wait`]: Self::wait
+    pub async fn wait_timeout(
+        &mut self,
+        given: TestEvent,
+        timeout: Duration,
+    ) -> Result<(), &'static str> {
+        tokio::select! {
+            () = self.wait(given) => Ok(()),
+            () = tokio::time::sleep(timeout) => Err("Timed out"),
+        }
     }
 }
 
