@@ -6,6 +6,7 @@ use cfg_if::cfg_if;
 use tokio::sync::mpsc;
 use tracing::debug;
 
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(15); // Increase if needed
 const TEST_EVENT_CHANNEL_SIZE: usize = 16; // Increase if needed
 
 /// Creates a [`TestEvent`] channel, returning a `(tx, rx)` tuple.
@@ -92,6 +93,128 @@ impl TestEventReceiver {
         while self.rx.try_recv().is_ok() {}
     }
 
+    // --- default timeout --- //
+
+    /// Waits to receive the given [`TestEvent`] on the channel, ignoring and
+    /// discarding all other events.
+    ///
+    /// - Returns [`Err`] if the default timeout was reached.
+    /// - Panics if the sender was dropped.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
+    /// # #[tokio::test]
+    /// # async fn wait() {
+    /// # let (test_event_tx, test_event_rx) = test_event_channel();
+    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// test_event_rx
+    ///     .wait(TestEvent::ChannelMonitorPersisted)
+    ///     .await
+    ///     .expect("Timed out waiting on channel monitor persist");
+    /// # }
+    /// ```
+    pub async fn wait(&mut self, event: TestEvent) -> Result<(), &'static str> {
+        self.wait_timeout(event, DEFAULT_TIMEOUT).await
+    }
+
+    /// Waits on the channel until the given [`TestEvent`] has been seen `n`
+    /// times, ignoring and discarding all other events.
+    ///
+    /// - Returns [`Err`] if the default timeout was reached.
+    /// - Panics if the sender was dropped.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
+    /// # #[tokio::test]
+    /// # async fn wait_n() {
+    /// # let (test_event_tx, test_event_rx) = test_event_channel();
+    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// test_event_rx
+    ///     .wait_n(TestEvent::ChannelMonitorPersisted, 3)
+    ///     .await
+    ///     .expect("Timed out waiting on channel monitor persist");
+    /// # }
+    /// ```
+    pub async fn wait_n(
+        &mut self,
+        event: TestEvent,
+        n: usize,
+    ) -> Result<(), &'static str> {
+        self.wait_n_timeout(event, n, DEFAULT_TIMEOUT).await
+    }
+
+    /// Waits on the channel until all given [`TestEvent`]s have been observed,
+    /// ignoring and discarding all other events.
+    ///
+    /// - Returns [`Err`] if the default timeout was reached.
+    /// - Panics if the sender was dropped.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
+    /// # #[tokio::test]
+    /// # async fn wait_all() {
+    /// # let (test_event_tx, test_event_rx) = test_event_channel();
+    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// # test_event_tx.send(TestEvent::FundingTxHandled);
+    /// test_event_rx
+    ///     .wait_all(vec![
+    ///         TestEvent::ChannelMonitorPersisted, TestEvent::FundingTxHandled,
+    ///     ])
+    ///     .await
+    ///     .expect("Timed out waiting on persist and funding tx");
+    /// # }
+    /// ```
+    pub async fn wait_all(
+        &mut self,
+        all_events: Vec<TestEvent>,
+    ) -> Result<(), &'static str> {
+        self.wait_all_timeout(all_events, DEFAULT_TIMEOUT).await
+    }
+
+    /// Waits on the channel until all given [`TestEvent`]s have been observed
+    /// `n_i` times for all `i` in `[0..all_n_events.len()]`, ignoring and
+    /// discarding all other events.
+    ///
+    /// - Returns [`Err`] if the default timeout was reached.
+    /// - Panics if the sender was dropped.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
+    /// # #[tokio::test]
+    /// # async fn wait_all_n() {
+    /// # let (test_event_tx, test_event_rx) = test_event_channel();
+    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// # test_event_tx.send(TestEvent::FundingTxHandled);
+    /// test_event_rx
+    ///     .wait_all_n(vec![
+    ///         (TestEvent::ChannelMonitorPersisted, 3),
+    ///         (TestEvent::FundingTxHandled, 1),
+    ///     ])
+    ///     .await
+    ///     .expect("Timed out waiting on persist and funding tx");
+    /// # }
+    /// ```
+    pub async fn wait_all_n(
+        &mut self,
+        all_n_events: Vec<(TestEvent, usize)>,
+    ) -> Result<(), &'static str> {
+        self.wait_all_n_timeout(all_n_events, DEFAULT_TIMEOUT).await
+    }
+
+    // --- custom timeouts --- //
+
     /// Waits to receive the given [`TestEvent`] on the channel, ignoring and
     /// discarding all other events.
     ///
@@ -104,11 +227,11 @@ impl TestEventReceiver {
     /// # use std::time::Duration;
     /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
     /// # #[tokio::test]
-    /// # async fn wait() {
+    /// # async fn wait_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
     /// test_event_rx
-    ///     .wait(
+    ///     .wait_timeout(
     ///         TestEvent::ChannelMonitorPersisted,
     ///         Duration::from_secs(15),
     ///     )
@@ -116,7 +239,7 @@ impl TestEventReceiver {
     ///     .expect("Timed out waiting on channel monitor persist");
     /// # }
     /// ```
-    pub async fn wait(
+    pub async fn wait_timeout(
         &mut self,
         event: TestEvent,
         timeout: Duration,
@@ -139,18 +262,18 @@ impl TestEventReceiver {
     /// # use std::time::Duration;
     /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
     /// # #[tokio::test]
-    /// # async fn wait_n() {
+    /// # async fn wait_n_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
     /// test_event_rx
-    ///     .wait_n(TestEvent::ChannelMonitorPersisted, 3)
+    ///     .wait_n_timeout(TestEvent::ChannelMonitorPersisted, 3)
     ///     .await
     ///     .expect("Timed out waiting on channel monitor persist");
     /// # }
     /// ```
-    pub async fn wait_n(
+    pub async fn wait_n_timeout(
         &mut self,
         event: TestEvent,
         n: usize,
@@ -174,12 +297,12 @@ impl TestEventReceiver {
     /// # use std::time::Duration;
     /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
     /// # #[tokio::test]
-    /// # async fn wait_all() {
+    /// # async fn wait_all_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
     /// # test_event_tx.send(TestEvent::FundingTxHandled);
     /// test_event_rx
-    ///     .wait_all(
+    ///     .wait_all_timeout(
     ///         vec![
     ///             TestEvent::ChannelMonitorPersisted,
     ///             TestEvent::FundingTxHandled,
@@ -190,7 +313,7 @@ impl TestEventReceiver {
     ///     .expect("Timed out waiting on persist and funding tx");
     /// # }
     /// ```
-    pub async fn wait_all(
+    pub async fn wait_all_timeout(
         &mut self,
         all_events: Vec<TestEvent>,
         timeout: Duration,
@@ -214,14 +337,14 @@ impl TestEventReceiver {
     /// # use std::time::Duration;
     /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
     /// # #[tokio::test]
-    /// # async fn wait_all_n() {
+    /// # async fn wait_all_n_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
     /// # test_event_tx.send(TestEvent::FundingTxHandled);
     /// test_event_rx
-    ///     .wait_all(
+    ///     .wait_all_n_timeout(
     ///         vec![
     ///             (TestEvent::ChannelMonitorPersisted, 3),
     ///             (TestEvent::FundingTxHandled, 1),
@@ -232,7 +355,7 @@ impl TestEventReceiver {
     ///     .expect("Timed out waiting on persist and funding tx");
     /// # }
     /// ```
-    pub async fn wait_all_n(
+    pub async fn wait_all_n_timeout(
         &mut self,
         all_n_events: Vec<(TestEvent, usize)>,
         timeout: Duration,
@@ -242,7 +365,6 @@ impl TestEventReceiver {
             () = tokio::time::sleep(timeout) => Err("Timed out"),
         }
     }
-    // TODO(max): wait_all_n
 
     // --- Inner 'wait' methods --- //
 
@@ -291,7 +413,7 @@ impl TestEventReceiver {
 
         // Wait on the channel
         while let Some(recvd) = self.rx.recv().await {
-            debug!("Received event: {recvd:?}");
+            debug!("Received test event: {recvd:?}");
 
             // Increment the quota for the recvd event if it exists
             let discriminant = mem::discriminant(&recvd);
