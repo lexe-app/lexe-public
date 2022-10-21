@@ -27,7 +27,7 @@ use common::api::auth::UserAuthenticator;
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::ports::UserPorts;
 use common::api::provision::{
-    Instance, NodeInstanceSeed, NodeProvisionRequest, SealedSeed,
+    Instance, NodeProvisionRequest, SealedSeed, UserInstanceSeed,
 };
 use common::api::rest::into_response;
 use common::api::{NodePk, User, UserPk};
@@ -179,7 +179,7 @@ async fn provision_handler(
             msg: format!("{err:#}"),
         })?;
 
-    let batch = NodeInstanceSeed {
+    let batch = UserInstanceSeed {
         user,
         instance,
         sealed_seed,
@@ -202,7 +202,7 @@ async fn provision_handler(
 
     // store the sealed seed and new node metadata in the backend
     ctx.api
-        .create_node_instance_seed(batch, token)
+        .create_user_instance_seed(batch, token)
         .await
         .map_err(|e| NodeApiError {
             kind: NodeErrorKind::Provision,

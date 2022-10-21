@@ -9,7 +9,7 @@ use common::api::def::{NodeBackendApi, NodeRunnerApi, UserAuthApi};
 use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::ports::UserPorts;
 use common::api::provision::{
-    Instance, NodeInstanceSeed, SealedSeed, SealedSeedId,
+    Instance, SealedSeed, SealedSeedId, UserInstanceSeed,
 };
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::api::{NodePk, User, UserPk};
@@ -175,11 +175,11 @@ impl NodeBackendApi for MockApiClient {
         Ok(Some(sealed_seed(&data.node_pk)))
     }
 
-    async fn create_node_instance_seed(
+    async fn create_user_instance_seed(
         &self,
-        data: NodeInstanceSeed,
+        data: UserInstanceSeed,
         _auth: UserAuthToken,
-    ) -> Result<NodeInstanceSeed, BackendApiError> {
+    ) -> Result<UserInstanceSeed, BackendApiError> {
         Ok(data)
     }
 
