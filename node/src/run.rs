@@ -140,7 +140,6 @@ impl UserNode {
                 shutdown.clone(),
             ),
             fetch_provisioned_secrets(
-                rng,
                 api.as_ref(),
                 user_pk,
                 measurement,
@@ -645,8 +644,7 @@ fn init_api(args: &RunArgs) -> ApiClientType {
 }
 
 /// Fetches previously provisioned secrets from the API.
-async fn fetch_provisioned_secrets<R: Crng>(
-    rng: &mut R,
+async fn fetch_provisioned_secrets(
     api: &dyn ApiClient,
     user_pk: UserPk,
     measurement: Measurement,
@@ -683,7 +681,7 @@ async fn fetch_provisioned_secrets<R: Crng>(
             );
 
             let sealed_seed_id = SealedSeedId {
-                node_pk: user.node_pk,
+                user_pk: user.user_pk,
                 measurement,
                 machine_id,
                 min_cpusvn,
@@ -696,7 +694,7 @@ async fn fetch_provisioned_secrets<R: Crng>(
                 .context("Sealed seed wasn't persisted with node & instance")?;
 
             let root_seed = sealed_seed
-                .unseal_and_validate(rng)
+                .unseal_and_validate()
                 .context("Could not validate or unseal sealed seed")?;
 
             let user_key_pair = root_seed.derive_user_key_pair();
