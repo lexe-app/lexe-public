@@ -93,6 +93,17 @@ common = { path = "../common", features = ["test-utils"] }
 proptest = { version = "1", default-features = false, features = ["alloc"] }
 # Arbitrary derive macro
 proptest-derive = "0.3"
+# Enable test-util feature in tests
+tokio = { version = "=1.21.2", default-features = false, features = [
+    "io-util",
+    "macros",
+    "rt",
+    "sync",
+    "test-util",
+    "time"
+] }
+# Utilities for testing futures
+tokio-test = "0.4"
 
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Include additional useful proptest features when testing outside of SGX

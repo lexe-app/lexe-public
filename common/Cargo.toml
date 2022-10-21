@@ -121,7 +121,6 @@ tokio = { version = "=1.21.2", default-features = false, features = [
     "macros",
     "rt",
     "sync",
-    "test-util",
     "time"
 ] }
 
@@ -170,6 +169,15 @@ proptest = { version = "1", default-features = false, features = ["alloc"] }
 proptest-derive = "0.3"
 # Testing serde
 serde_json = "1"
+# Enable test-util feature in tests
+tokio = { version = "=1.21.2", default-features = false, features = [
+    "io-util",
+    "macros",
+    "rt",
+    "sync",
+    "test-util",
+    "time"
+] }
 # lower-level async TLS interface
 tokio-rustls = { version = "0.23", default-features = false }
 # Utilities for testing futures
