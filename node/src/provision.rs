@@ -22,7 +22,7 @@ use std::net::SocketAddr;
 use std::time::{Duration, SystemTime};
 
 use anyhow::Context;
-use bitcoin::secp256k1::PublicKey;
+use bitcoin::secp256k1;
 use common::api::auth::UserAuthenticator;
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::ports::UserPorts;
@@ -30,7 +30,7 @@ use common::api::provision::{
     Instance, Node, NodeInstanceSeed, NodeProvisionRequest, SealedSeed,
 };
 use common::api::rest::into_response;
-use common::api::UserPk;
+use common::api::{NodePk, UserPk};
 use common::cli::ProvisionArgs;
 use common::client::tls;
 use common::enclave::Measurement;
@@ -219,7 +219,7 @@ fn verify_provision_request<R: Crng>(
     rng: &mut R,
     current_user_pk: UserPk,
     req: NodeProvisionRequest,
-) -> Result<(ed25519::KeyPair, UserPk, PublicKey, RootSeed), NodeApiError> {
+) -> Result<(ed25519::KeyPair, UserPk, NodePk, RootSeed), NodeApiError> {
     let given_user_pk = req.user_pk;
     if given_user_pk != current_user_pk {
         return Err(NodeApiError::wrong_user_pk(
@@ -239,8 +239,9 @@ fn verify_provision_request<R: Crng>(
     }
 
     let given_node_pk = req.node_pk;
-    let derived_node_pk =
-        PublicKey::from(req.root_seed.derive_node_key_pair(rng));
+    let derived_node_pk = NodePk(secp256k1::PublicKey::from(
+        req.root_seed.derive_node_key_pair(rng),
+    ));
     if derived_node_pk != given_node_pk {
         return Err(NodeApiError::wrong_node_pk(
             derived_node_pk,

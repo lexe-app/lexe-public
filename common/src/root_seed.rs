@@ -2,14 +2,14 @@ use std::fmt;
 use std::str::FromStr;
 
 use anyhow::bail;
-use bitcoin::secp256k1::{PublicKey, Secp256k1};
+use bitcoin::secp256k1::{self, Secp256k1};
 use bitcoin::util::bip32::{ChildNumber, ExtendedPrivKey};
-use bitcoin::{KeyPair, Network};
+use bitcoin::Network;
 use rand_core::{CryptoRng, RngCore};
 use secrecy::{ExposeSecret, Secret, SecretVec};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::api::UserPk;
+use crate::api::{NodePk, UserPk};
 use crate::rng::Crng;
 use crate::{ed25519, hex, sha256};
 
@@ -116,7 +116,10 @@ impl RootSeed {
 
     /// Derive the lightning node key pair directly, without needing to derive
     /// all the other auxiliary node secrets.
-    pub fn derive_node_key_pair<R: Crng>(&self, rng: &mut R) -> KeyPair {
+    pub fn derive_node_key_pair<R: Crng>(
+        &self,
+        rng: &mut R,
+    ) -> secp256k1::KeyPair {
         // NOTE: this doesn't affect the output; this randomizes the SECP256K1
         // context for sidechannel resistance.
         let mut secp_randomize = [0u8; 32];
@@ -133,12 +136,12 @@ impl RootSeed {
             .ckd_priv(&secp_ctx, child_number)
             .expect("should never fail")
             .private_key;
-        KeyPair::from_secret_key(&secp_ctx, &node_sk)
+        secp256k1::KeyPair::from_secret_key(&secp_ctx, &node_sk)
     }
 
     /// Convenience function to derive the Lightning node pubkey.
-    pub fn derive_node_pk<R: Crng>(&self, rng: &mut R) -> PublicKey {
-        PublicKey::from(self.derive_node_key_pair(rng))
+    pub fn derive_node_pk<R: Crng>(&self, rng: &mut R) -> NodePk {
+        NodePk(secp256k1::PublicKey::from(self.derive_node_key_pair(rng)))
     }
 
     #[cfg(test)]

@@ -43,6 +43,28 @@ pub mod vfs;
 #[repr(transparent)]
 pub struct UserPk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
+/// A simple wrapper around [`secp256k1::PublicKey`] which allows for
+/// `Arbitrary` and other custom impls.
+///
+/// # Notes
+///
+/// - We do not represent the inner value as `[u8; 33]` (the output of
+///   [`secp256k1::PublicKey::serialize`]) because not all `[u8; 33]`s are valid
+///   pubkeys.
+/// - We use [`PublicKey`]'s [`Serialize`] / [`Deserialize`] impls because it
+///   calls into `secp256k1` which does complicated validation to ensure that
+///   [`PublicKey`] is always valid.
+/// - We use [`PublicKey`]'s [`FromStr`] / [`Display`] impls for similar
+///   reasons. Nevertheless, we still run proptests to check for correctness.
+///
+/// [`PublicKey`]: secp256k1::PublicKey
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, RefCast)]
+#[repr(transparent)]
+pub struct NodePk(pub secp256k1::PublicKey);
+
+// --- impl UserPk --- //
+
 impl UserPk {
     pub const fn new(inner: [u8; 32]) -> Self {
         Self(inner)
@@ -99,29 +121,15 @@ impl Display for UserPk {
     }
 }
 
-/// A simple wrapper around [`secp256k1::PublicKey`] which allows for
-/// `Arbitrary` and other custom impls.
-///
-/// # Notes
-///
-/// - We do not represent the inner value as `[u8; 33]` (the output of
-///   [`secp256k1::PublicKey::serialize`]) because not all `[u8; 33]`s are valid
-///   pubkeys.
-/// - We use [`PublicKey`]'s [`Serialize`] / [`Deserialize`] impls because it
-///   calls into `secp256k1` which does complicated validation to ensure that
-///   [`PublicKey`] is always valid.
-/// - We use [`PublicKey`]'s [`FromStr`] / [`Display`] impls for similar
-///   reasons. Nevertheless, we still run proptests to check for correctness.
-///
-/// [`PublicKey`]: secp256k1::PublicKey
-#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
-#[derive(Serialize, Deserialize, RefCast)]
-#[repr(transparent)]
-pub struct NodePk(pub secp256k1::PublicKey);
+// --- impl NodePk --- //
 
 impl NodePk {
     pub fn inner(&self) -> secp256k1::PublicKey {
         self.0
+    }
+
+    pub fn as_inner(&self) -> &secp256k1::PublicKey {
+        &self.0
     }
 }
 
@@ -160,9 +168,7 @@ impl Arbitrary for NodePk {
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
         any::<SmallRng>()
             .prop_map(|mut rng| {
-                let root_seed = RootSeed::from_rng(&mut rng);
-                let inner = root_seed.derive_node_pk(&mut rng);
-                Self(inner)
+                RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng)
             })
             .boxed()
     }

@@ -25,7 +25,7 @@ pub const DEFAULT_LSP_URL: &str = "http://127.0.0.1:6060";
 pub static DEFAULT_LSP_NODE_PK: Lazy<NodePk> = Lazy::new(|| {
     let mut rng = SysRng::new();
     let root_seed = RootSeed::new(Secret::new([42u8; 32]));
-    NodePk::from(root_seed.derive_node_pk(&mut rng))
+    root_seed.derive_node_pk(&mut rng)
 });
 
 /// The node pubkey and [`SocketAddr`] of the LSP. Note that the socket address
