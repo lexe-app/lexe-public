@@ -244,6 +244,8 @@ async fn handle_event_fallible(
                 PaymentPurpose::SpontaneousPayment(preimage) => Some(*preimage),
             };
             channel_manager.claim_funds(payment_preimage.unwrap());
+
+            test_event_tx.send(TestEvent::PaymentReceived);
         }
         Event::PaymentClaimed {
             payment_hash,
@@ -283,6 +285,8 @@ async fn handle_event_fallible(
                     });
                 }
             }
+
+            test_event_tx.send(TestEvent::PaymentClaimed);
         }
         Event::PaymentSent {
             payment_preimage,
@@ -310,6 +314,8 @@ async fn handle_event_fallible(
                     );
                 }
             }
+
+            test_event_tx.send(TestEvent::PaymentSent);
         }
         Event::OpenChannelRequest { .. } => {
             // Unreachable, we don't set manually_accept_inbound_channels
