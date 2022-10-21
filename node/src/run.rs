@@ -197,13 +197,6 @@ impl UserNode {
             persister.clone(),
         ));
 
-        // Set up the persister -> chain monitor channel
-        tasks.push(channel_monitor::spawn_channel_monitor_persister_task(
-            chain_monitor.clone(),
-            channel_monitor_persister_rx,
-            shutdown.clone(),
-        ));
-
         // Read channel monitors while reading network graph
         let (channel_monitors_res, network_graph_res) = tokio::join!(
             persister.read_channel_monitors(keys_manager.clone()),
@@ -355,7 +348,7 @@ impl UserNode {
             network_graph.clone(),
             inbound_payments.clone(),
             outbound_payments.clone(),
-            test_event_tx,
+            test_event_tx.clone(),
         );
 
         // Initialize InvoicePayer
@@ -371,6 +364,14 @@ impl UserNode {
             logger.clone(),
             event_handler,
             Retry::Timeout(Duration::from_secs(10)),
+        ));
+
+        // Set up the channel monitor persistence task
+        tasks.push(channel_monitor::spawn_channel_monitor_persister_task(
+            chain_monitor.clone(),
+            channel_monitor_persister_rx,
+            test_event_tx,
+            shutdown.clone(),
         ));
 
         // Build owner service TLS config for authenticating owner

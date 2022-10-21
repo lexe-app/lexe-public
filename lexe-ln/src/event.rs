@@ -34,6 +34,8 @@ pub enum TestEvent {
     /// A [`Event::FundingGenerationReady`] event was handled; i.e. a funding
     /// tx was successfully generated, broadcasted, and fed back into LDK.
     FundingTxHandled,
+    /// A channel monitor updated was successfully persisted.
+    ChannelMonitorPersisted,
 }
 
 /// Creates a [`TestEvent`] channel, returning a `(tx, rx)` tuple.
