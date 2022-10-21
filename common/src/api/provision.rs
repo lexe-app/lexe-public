@@ -2,7 +2,7 @@ use anyhow::{ensure, Context};
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 
-use crate::api::{NodePk, UserPk};
+use crate::api::{NodePk, User, UserPk};
 use crate::enclave::{self, MachineId, Measurement, MinCpusvn, Sealed};
 use crate::hexstr_or_bytes;
 use crate::rng::Crng;
@@ -23,15 +23,9 @@ pub struct NodeProvisionRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct NodeInstanceSeed {
-    pub node: Node,
+    pub user: User,
     pub instance: Instance,
     pub sealed_seed: SealedSeed,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Node {
-    pub user_pk: UserPk,
-    pub node_pk: NodePk,
 }
 
 #[derive(Serialize, Deserialize)]

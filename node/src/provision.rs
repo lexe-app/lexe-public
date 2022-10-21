@@ -27,10 +27,10 @@ use common::api::auth::UserAuthenticator;
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::ports::UserPorts;
 use common::api::provision::{
-    Instance, Node, NodeInstanceSeed, NodeProvisionRequest, SealedSeed,
+    Instance, NodeInstanceSeed, NodeProvisionRequest, SealedSeed,
 };
 use common::api::rest::into_response;
-use common::api::{NodePk, UserPk};
+use common::api::{NodePk, User, UserPk};
 use common::cli::ProvisionArgs;
 use common::client::tls;
 use common::enclave::Measurement;
@@ -168,7 +168,7 @@ async fn provision_handler(
     let (user_key_pair, user_pk, node_pk, root_seed) =
         verify_provision_request(&mut ctx.rng, ctx.current_user_pk, req)?;
 
-    let node = Node { node_pk, user_pk };
+    let user = User { user_pk, node_pk };
     let instance = Instance {
         node_pk,
         measurement: ctx.measurement,
@@ -180,7 +180,7 @@ async fn provision_handler(
         })?;
 
     let batch = NodeInstanceSeed {
-        node,
+        user,
         instance,
         sealed_seed,
     };

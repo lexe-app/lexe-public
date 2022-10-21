@@ -25,11 +25,10 @@ use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::error::{BackendApiError, NodeApiError, RunnerApiError};
 use crate::api::ports::UserPorts;
 use crate::api::provision::{
-    Instance, Node, NodeInstanceSeed, NodeProvisionRequest, SealedSeed,
-    SealedSeedId,
+    Instance, NodeInstanceSeed, NodeProvisionRequest, SealedSeed, SealedSeedId,
 };
 use crate::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
-use crate::api::UserPk;
+use crate::api::{User, UserPk};
 use crate::ed25519;
 use crate::enclave::Measurement;
 use crate::ln::invoice::LxInvoice;
@@ -37,13 +36,13 @@ use crate::ln::invoice::LxInvoice;
 /// Defines the api that the backend exposes to the node.
 #[async_trait]
 pub trait NodeBackendApi {
-    /// GET /v1/node [`GetByUserPk`] -> [`Option<Node>`]
+    /// GET /v1/user [`GetByUserPk`] -> [`Option<User>`]
     ///
     /// [`GetByUserPk`]: super::qs::GetByUserPk
-    async fn get_node(
+    async fn get_user(
         &self,
         user_pk: UserPk,
-    ) -> Result<Option<Node>, BackendApiError>;
+    ) -> Result<Option<User>, BackendApiError>;
 
     /// GET /v1/instance [`GetByUserPkAndMeasurement`] -> [`Option<Instance>`]
     ///
