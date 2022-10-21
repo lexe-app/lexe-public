@@ -12,7 +12,7 @@ use common::rng::SysRng;
 use common::shutdown::ShutdownChannel;
 use common::test_utils::regtest::Regtest;
 use lexe_ln::alias::NetworkGraphType;
-use lexe_ln::{channel, command, event, logger, p2p};
+use lexe_ln::{channel, command, logger, p2p, test_event};
 use tokio::sync::mpsc;
 
 use crate::api::mock;
@@ -54,7 +54,7 @@ impl CommandTestHarness {
         let mut rng = SysRng::new();
         let (_poll_tip_tx, poll_tip_rx) = mpsc::channel(1);
         let shutdown = ShutdownChannel::new();
-        let (test_event_tx, _test_event_rx) = event::test_event_channel();
+        let (test_event_tx, _test_event_rx) = test_event::test_event_channel();
         let node = UserNode::init(
             &mut rng,
             args,

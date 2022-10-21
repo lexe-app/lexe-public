@@ -6,7 +6,7 @@ use common::cli::NodeCommand;
 use common::constants::DEFAULT_CHANNEL_SIZE;
 use common::rng::SysRng;
 use common::shutdown::ShutdownChannel;
-use lexe_ln::event;
+use lexe_ln::test_event;
 use tokio::sync::mpsc;
 
 use crate::api::NodeApiClient;
@@ -30,7 +30,7 @@ impl NodeArgs {
         // TODO(max): Actually use the tx once we have a pub/sub system allowing
         // nodes to subscribe to chain updates from a sync enclave
         let (_poll_tip_tx, poll_tip_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
-        let (test_event_tx, _test_event_rx) = event::test_event_channel();
+        let (test_event_tx, _test_event_rx) = test_event::test_event_channel();
         let shutdown = ShutdownChannel::new();
 
         match self.cmd {
