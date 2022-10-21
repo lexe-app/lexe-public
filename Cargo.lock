@@ -1233,6 +1233,7 @@ dependencies = [
  "base64",
  "bitcoin",
  "bitcoin-bech32",
+ "cfg-if 1.0.0",
  "common",
  "futures",
  "lightning",

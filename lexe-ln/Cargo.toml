@@ -50,6 +50,8 @@ anyhow = "1"
 async-trait = "0.1"
 # Utils for working with futures
 futures = "0.3"
+# Conveniently write #[cfg(..)] if-else statements without repeating clauses
+cfg-if = "1"
 # Used to hold a Tokio runtime used by the sync fns in the Persister trait impl
 once_cell = "1"
 # A wrapper type for carefully handling secrets
