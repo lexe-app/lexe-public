@@ -3,7 +3,8 @@
 use std::fmt;
 use std::time::{Duration, SystemTime};
 
-#[cfg(all(test, not(target_env = "sgx")))]
+use bitcoin::secp256k1;
+#[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -43,34 +44,35 @@ pub enum Error {
     Base64Decode,
 }
 
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub enum UserSignupRequest {
     V1(UserSignupRequestV1),
 }
 
-// TODO(phlip9): do we even need any signup fields?
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
-#[derive(Clone, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct UserSignupRequestV1 {
+    /// The lightning node pubkey
+    // TODO(phlip9): this needs to be a Proof-of-Key-Possession
+    pub node_pk: secp256k1::PublicKey,
     // do we need this?
     // pub display_name: Option<String>,
 
-    // probably collect this later in a settings screen. would need email verify
-    // flow. can also just not collect email at all and send push notifs only.
-    // pub email: Option<String>,
+    // probably collect this later in a settings screen. would need email
+    // verify flow. can also just not collect email at all and send push
+    // notifs only. pub email: Option<String>,
 
     // TODO(phlip9): other fields? region? language?
 }
 
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub enum UserAuthRequest {
     V1(UserAuthRequestV1),
 }
 
 /// A user client's request for auth token with certain restrictions.
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct UserAuthRequestV1 {
     /// The timestamp of this auth request, in seconds since UTC Unix time,
@@ -134,8 +136,8 @@ pub struct UserAuthenticator {
 // -- impl UserSignupRequest -- //
 
 impl UserSignupRequest {
-    pub fn new() -> Self {
-        Self::V1(UserSignupRequestV1 {})
+    pub fn new(node_pk: secp256k1::PublicKey) -> Self {
+        Self::V1(UserSignupRequestV1 { node_pk })
     }
 
     pub fn deserialize_verify(
@@ -146,6 +148,13 @@ impl UserSignupRequest {
         ed25519::verify_signed_struct(ed25519::accept_any_signer, serialized)
             .map_err(Error::UserVerifyError)
     }
+
+    #[inline]
+    pub fn node_pk(&self) -> &secp256k1::PublicKey {
+        match self {
+            Self::V1(UserSignupRequestV1 { node_pk }) => node_pk,
+        }
+    }
 }
 
 impl ed25519::Signable for UserSignupRequest {
@@ -153,9 +162,27 @@ impl ed25519::Signable for UserSignupRequest {
         b"LEXE-REALM::UserSignupRequest";
 }
 
-impl Default for UserSignupRequest {
-    fn default() -> Self {
-        Self::new()
+// --- impl UserSignupRequestV1 --- //
+
+#[cfg(any(test, feature = "test-utils"))]
+impl proptest::arbitrary::Arbitrary for UserSignupRequestV1 {
+    type Strategy = proptest::strategy::BoxedStrategy<Self>;
+    type Parameters = ();
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        use proptest::arbitrary::any;
+        use proptest::strategy::Strategy;
+
+        use crate::rng::SmallRng;
+        use crate::root_seed::RootSeed;
+
+        any::<SmallRng>()
+            .prop_map(|mut rng| {
+                let node_pk =
+                    RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng);
+                Self { node_pk }
+            })
+            .boxed()
     }
 }
 
@@ -304,7 +331,6 @@ impl UserAuthenticator {
     }
 }
 
-#[cfg(not(target_env = "sgx"))]
 #[cfg(test)]
 mod test {
     use super::*;
