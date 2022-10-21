@@ -254,12 +254,12 @@ impl VirtualFileSystem {
         // For each user, insert all directories used by the persister
         for user_pk in [*USER_PK1, *USER_PK2] {
             let singleton_dir = NodeDirectory {
-                node_pk: node_pk(user_pk),
+                user_pk,
                 measurement: measurement(user_pk),
                 dirname: persister::SINGLETON_DIRECTORY.into(),
             };
             let channel_monitors_dir = NodeDirectory {
-                node_pk: node_pk(user_pk),
+                user_pk,
                 measurement: measurement(user_pk),
                 dirname: persister::CHANNEL_MONITORS_DIRECTORY.into(),
             };
@@ -272,7 +272,7 @@ impl VirtualFileSystem {
 
     fn get(&self, file_id: NodeFileId) -> Option<NodeFile> {
         let dir = NodeDirectory {
-            node_pk: file_id.dir.node_pk,
+            user_pk: file_id.dir.user_pk,
             measurement: file_id.dir.measurement,
             dirname: file_id.dir.dirname,
         };
@@ -282,7 +282,7 @@ impl VirtualFileSystem {
             .get(&file_id.filename)
             .map(|data| {
                 NodeFile::new(
-                    dir.node_pk,
+                    dir.user_pk,
                     dir.measurement,
                     dir.dirname,
                     file_id.filename,
@@ -293,7 +293,7 @@ impl VirtualFileSystem {
 
     fn insert(&mut self, file: NodeFile) -> Option<NodeFile> {
         let dir = NodeDirectory {
-            node_pk: file.id.dir.node_pk,
+            user_pk: file.id.dir.user_pk,
             measurement: file.id.dir.measurement,
             dirname: file.id.dir.dirname,
         };
@@ -303,7 +303,7 @@ impl VirtualFileSystem {
             .insert(file.id.filename.clone(), file.data)
             .map(|data| {
                 NodeFile::new(
-                    dir.node_pk,
+                    dir.user_pk,
                     dir.measurement,
                     dir.dirname,
                     file.id.filename,
@@ -314,7 +314,7 @@ impl VirtualFileSystem {
 
     fn remove(&mut self, file_id: NodeFileId) -> Option<NodeFile> {
         let dir = NodeDirectory {
-            node_pk: file_id.dir.node_pk,
+            user_pk: file_id.dir.user_pk,
             measurement: file_id.dir.measurement,
             dirname: file_id.dir.dirname,
         };
@@ -324,7 +324,7 @@ impl VirtualFileSystem {
             .remove(&file_id.filename)
             .map(|data| {
                 NodeFile::new(
-                    dir.node_pk,
+                    dir.user_pk,
                     dir.measurement,
                     dir.dirname,
                     file_id.filename,
@@ -340,7 +340,7 @@ impl VirtualFileSystem {
             .iter()
             .map(|(name, data)| {
                 NodeFile::new(
-                    dir.node_pk,
+                    dir.user_pk,
                     dir.measurement,
                     dir.dirname.clone(),
                     name.clone(),

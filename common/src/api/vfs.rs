@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-use crate::api::NodePk;
+use crate::api::UserPk;
 use crate::enclave::Measurement;
 
 /// Uniquely identifies a directory in the node's virtual file system.
 #[derive(Clone, Hash, Eq, PartialEq, Deserialize, Serialize)]
 pub struct NodeDirectory {
-    pub node_pk: NodePk,
+    pub user_pk: UserPk,
     pub measurement: Measurement,
     pub dirname: String,
 }
@@ -30,14 +30,14 @@ pub struct NodeFile {
 
 impl NodeFileId {
     pub fn new(
-        node_pk: NodePk,
+        user_pk: UserPk,
         measurement: Measurement,
         dirname: String,
         filename: String,
     ) -> Self {
         Self {
             dir: NodeDirectory {
-                node_pk,
+                user_pk,
                 measurement,
                 dirname,
             },
@@ -48,7 +48,7 @@ impl NodeFileId {
 
 impl NodeFile {
     pub fn new(
-        node_pk: NodePk,
+        user_pk: UserPk,
         measurement: Measurement,
         dirname: String,
         filename: String,
@@ -57,7 +57,7 @@ impl NodeFile {
         Self {
             id: NodeFileId {
                 dir: NodeDirectory {
-                    node_pk,
+                    user_pk,
                     measurement,
                     dirname,
                 },

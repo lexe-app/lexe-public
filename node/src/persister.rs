@@ -10,7 +10,7 @@ use bitcoin::hash_types::BlockHash;
 use common::api::auth::{UserAuthToken, UserAuthenticator};
 use common::api::error::BackendApiError;
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
-use common::api::NodePk;
+use common::api::UserPk;
 use common::cli::Network;
 use common::enclave::Measurement;
 use common::ln::channel::LxOutPoint;
@@ -64,7 +64,7 @@ impl NodePersister {
     pub(crate) fn new(
         api: ApiClientType,
         authenticator: Arc<UserAuthenticator>,
-        node_pk: NodePk,
+        user_pk: UserPk,
         measurement: Measurement,
         shutdown: ShutdownChannel,
         channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
@@ -72,7 +72,7 @@ impl NodePersister {
         let inner = InnerPersister {
             api,
             authenticator,
-            node_pk,
+            user_pk,
             measurement,
             shutdown,
             channel_monitor_persister_tx,
@@ -95,7 +95,7 @@ impl Deref for NodePersister {
 pub struct InnerPersister {
     api: ApiClientType,
     authenticator: Arc<UserAuthenticator>,
-    node_pk: NodePk,
+    user_pk: UserPk,
     measurement: Measurement,
     shutdown: ShutdownChannel,
     channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
@@ -120,7 +120,7 @@ impl InnerPersister {
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         debug!("Reading channel manager");
         let file_id = NodeFileId::new(
-            self.node_pk,
+            self.user_pk,
             self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
             CHANNEL_MANAGER_FILENAME.to_owned(),
@@ -178,7 +178,7 @@ impl InnerPersister {
         // TODO Also attempt to read from the cloud
 
         let cm_dir = NodeDirectory {
-            node_pk: self.node_pk,
+            user_pk: self.user_pk,
             measurement: self.measurement,
             dirname: CHANNEL_MONITORS_DIRECTORY.to_owned(),
         };
@@ -226,7 +226,7 @@ impl InnerPersister {
         let params = ProbabilisticScoringParameters::default();
 
         let file_id = NodeFileId::new(
-            self.node_pk,
+            self.user_pk,
             self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
             SCORER_FILENAME.to_owned(),
@@ -263,7 +263,7 @@ impl InnerPersister {
     ) -> anyhow::Result<NetworkGraphType> {
         debug!("Reading network graph");
         let ng_file_id = NodeFileId::new(
-            self.node_pk,
+            self.user_pk,
             self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
             NETWORK_GRAPH_FILENAME.to_owned(),
@@ -304,7 +304,7 @@ impl LexeInnerPersister for InnerPersister {
         let data = channel_manager.encode();
 
         let file = NodeFile::new(
-            self.node_pk,
+            self.user_pk,
             self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
             CHANNEL_MANAGER_FILENAME.to_owned(),
@@ -329,7 +329,7 @@ impl LexeInnerPersister for InnerPersister {
         let data = network_graph.encode();
 
         let file = NodeFile::new(
-            self.node_pk,
+            self.user_pk,
             self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
             NETWORK_GRAPH_FILENAME.to_owned(),
@@ -357,7 +357,7 @@ impl LexeInnerPersister for InnerPersister {
             let data = scorer.encode();
 
             NodeFile::new(
-                self.node_pk,
+                self.user_pk,
                 self.measurement,
                 SINGLETON_DIRECTORY.to_owned(),
                 SCORER_FILENAME.to_owned(),
@@ -397,7 +397,7 @@ impl Persist<SignerType> for InnerPersister {
         let data = monitor.encode();
 
         let file = NodeFile::new(
-            self.node_pk,
+            self.user_pk,
             self.measurement,
             CHANNEL_MONITORS_DIRECTORY.to_owned(),
             funding_txo.to_string(),
@@ -466,7 +466,7 @@ impl Persist<SignerType> for InnerPersister {
         let data = monitor.encode();
 
         let file = NodeFile::new(
-            self.node_pk,
+            self.user_pk,
             self.measurement,
             CHANNEL_MONITORS_DIRECTORY.to_owned(),
             funding_txo.to_string(),
