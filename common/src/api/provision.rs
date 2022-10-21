@@ -22,7 +22,7 @@ pub struct NodeProvisionRequest {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct NodeInstanceSeed {
+pub struct UserInstanceSeed {
     pub user: User,
     pub instance: Instance,
     pub sealed_seed: SealedSeed,

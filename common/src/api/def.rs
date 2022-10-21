@@ -25,7 +25,7 @@ use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::error::{BackendApiError, NodeApiError, RunnerApiError};
 use crate::api::ports::UserPorts;
 use crate::api::provision::{
-    Instance, NodeInstanceSeed, NodeProvisionRequest, SealedSeed, SealedSeedId,
+    Instance, NodeProvisionRequest, SealedSeed, SealedSeedId, UserInstanceSeed,
 };
 use crate::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use crate::api::{User, UserPk};
@@ -59,12 +59,12 @@ pub trait NodeBackendApi {
         data: SealedSeedId,
     ) -> Result<Option<SealedSeed>, BackendApiError>;
 
-    /// POST /v1/node_instance_seed [`NodeInstanceSeed`] -> [`NodeInstanceSeed`]
-    async fn create_node_instance_seed(
+    /// POST /v1/user_instance_seed [`UserInstanceSeed`] -> [`UserInstanceSeed`]
+    async fn create_user_instance_seed(
         &self,
-        data: NodeInstanceSeed,
+        data: UserInstanceSeed,
         auth: UserAuthToken,
-    ) -> Result<NodeInstanceSeed, BackendApiError>;
+    ) -> Result<UserInstanceSeed, BackendApiError>;
 
     /// GET /v1/file [`NodeFileId`] -> [`Option<NodeFile>`]
     async fn get_file(
