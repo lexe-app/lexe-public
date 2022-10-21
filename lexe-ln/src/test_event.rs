@@ -2,14 +2,18 @@ use std::collections::HashMap;
 use std::mem::{self, Discriminant};
 use std::time::Duration;
 
+use cfg_if::cfg_if;
 use tokio::sync::mpsc;
+use tracing::debug;
 
 const TEST_EVENT_CHANNEL_SIZE: usize = 16; // Increase if needed
 
 /// Creates a [`TestEvent`] channel, returning a `(tx, rx)` tuple.
 pub fn test_event_channel() -> (TestEventSender, TestEventReceiver) {
     let (tx, rx) = mpsc::channel(TEST_EVENT_CHANNEL_SIZE);
-    (TestEventSender { tx }, TestEventReceiver { rx })
+    let sender = TestEventSender::new(tx);
+    let receiver = TestEventReceiver::new(rx);
+    (sender, receiver)
 }
 
 /// Test events emitted throughout the node that allow a white box test to know
@@ -29,7 +33,7 @@ pub enum TestEvent {
     ChannelMonitorPersisted,
     /// A [`PaymentReceived`] event was handled.
     ///
-    /// [`Xxx`]: lightning::util::events::Event::Xxx
+    /// [`PaymentReceived`]: lightning::util::events::Event::PaymentReceived
     PaymentReceived,
     /// A [`PaymentClaimed`] event was handled.
     ///
@@ -45,15 +49,30 @@ pub enum TestEvent {
 /// be cfg'd out in prod.
 #[derive(Clone)]
 pub struct TestEventSender {
-    #[cfg_attr(target_env = "sgx", allow(dead_code))]
+    #[cfg(any(test, not(target_env = "sgx")))]
     tx: mpsc::Sender<TestEvent>,
 }
 
 impl TestEventSender {
-    #[cfg_attr(target_env = "sgx", allow(unused_variables))]
+    fn new(tx: mpsc::Sender<TestEvent>) -> Self {
+        cfg_if! {
+            if #[cfg(any(test, not(target_env = "sgx")))] {
+                Self { tx }
+            } else {
+                let _ = tx;
+                Self {}
+            }
+        }
+    }
+
     pub fn send(&self, event: TestEvent) {
-        #[cfg(any(test, not(target_env = "sgx")))]
-        self.tx.try_send(event).expect("Channel was full")
+        cfg_if! {
+            if #[cfg(any(test, not(target_env = "sgx")))] {
+                self.tx.try_send(event).expect("Channel was full")
+            } else {
+                let _ = event;
+            }
+        }
     }
 }
 
@@ -64,6 +83,10 @@ pub struct TestEventReceiver {
 }
 
 impl TestEventReceiver {
+    fn new(rx: mpsc::Receiver<TestEvent>) -> Self {
+        Self { rx }
+    }
+
     /// Clears the channel of all pending messages.
     pub fn clear(&mut self) {
         while self.rx.try_recv().is_ok() {}
@@ -268,6 +291,8 @@ impl TestEventReceiver {
 
         // Wait on the channel
         while let Some(recvd) = self.rx.recv().await {
+            debug!("Received event: {recvd:?}");
+
             // Increment the quota for the recvd event if it exists
             let discriminant = mem::discriminant(&recvd);
             if let Some(quota) = quotas.get_mut(&discriminant) {
