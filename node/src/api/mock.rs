@@ -8,9 +8,7 @@ use common::api::auth::{UserAuthRequest, UserAuthResponse, UserAuthToken};
 use common::api::def::{NodeBackendApi, NodeRunnerApi, UserAuthApi};
 use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::ports::UserPorts;
-use common::api::provision::{
-    Instance, SealedSeed, SealedSeedId, UserInstanceSeed,
-};
+use common::api::provision::{SealedSeed, SealedSeedId, UserInstanceSeed};
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::api::{NodePk, User, UserPk};
 use common::byte_str::ByteStr;
@@ -151,20 +149,6 @@ impl NodeBackendApi for MockApiClient {
             user_pk,
             node_pk: node_pk(user_pk),
         }))
-    }
-
-    /// Always return the dummy version
-    async fn get_instance(
-        &self,
-        user_pk: UserPk,
-        _measurement: Measurement,
-    ) -> Result<Option<Instance>, BackendApiError> {
-        let instance = Instance {
-            node_pk: node_pk(user_pk),
-            measurement: enclave::measurement(),
-        };
-
-        Ok(Some(instance))
     }
 
     /// Always return the dummy version

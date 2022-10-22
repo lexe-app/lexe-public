@@ -27,7 +27,7 @@ use common::api::auth::UserAuthenticator;
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::ports::UserPorts;
 use common::api::provision::{
-    Instance, NodeProvisionRequest, SealedSeed, UserInstanceSeed,
+    NodeProvisionRequest, SealedSeed, UserInstanceSeed,
 };
 use common::api::rest::into_response;
 use common::api::{NodePk, User, UserPk};
@@ -169,21 +169,13 @@ async fn provision_handler(
         verify_provision_request(&mut ctx.rng, ctx.current_user_pk, req)?;
 
     let user = User { user_pk, node_pk };
-    let instance = Instance {
-        node_pk,
-        measurement: ctx.measurement,
-    };
     let sealed_seed = SealedSeed::seal_from_root_seed(&mut ctx.rng, &root_seed)
         .map_err(|err| NodeApiError {
             kind: NodeErrorKind::Provision,
             msg: format!("{err:#}"),
         })?;
 
-    let batch = UserInstanceSeed {
-        user,
-        instance,
-        sealed_seed,
-    };
+    let batch = UserInstanceSeed { user, sealed_seed };
 
     // TODO(phlip9): [perf] could get the user to pass us their auth token in
     // the provision request instead of reauthing here.
