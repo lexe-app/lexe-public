@@ -652,48 +652,26 @@ async fn fetch_provisioned_secrets(
 ) -> anyhow::Result<(User, RootSeed, ed25519::KeyPair)> {
     debug!(%user_pk, %measurement, %machine_id, %min_cpusvn, "fetching provisioned secrets");
 
-    let (user_res, instance_res) = tokio::join!(
+    let sealed_seed_id = SealedSeedId {
+        user_pk,
+        measurement,
+        machine_id,
+        min_cpusvn,
+    };
+
+    let (user_res, sealed_seed_res) = tokio::join!(
         api.get_user(user_pk),
-        api.get_instance(user_pk, measurement),
+        api.get_sealed_seed(sealed_seed_id)
     );
 
     let user_opt = user_res.context("Error while fetching user")?;
-    let instance_opt = instance_res.context("Error while fetching instance")?;
+    let sealed_seed_opt =
+        sealed_seed_res.context("Error while fetching sealed seed")?;
 
-    // FIXME(max): Querying for the sealed seed using the user_pk in place of
-    // the node_pk saves one round trip to the API, but requires joining across
-    // four tables. This optimization can decrease boot time.
-    match (user_opt, instance_opt) {
-        (Some(user), Some(instance)) => {
-            ensure!(
-                user.node_pk == instance.node_pk,
-                "user.node_pk '{}' doesn't match instance.node_pk '{}'",
-                user.node_pk,
-                instance.node_pk,
-            );
-            ensure!(
-                instance.measurement == measurement,
-                "Returned instance measurement '{}' doesn't match \
-                 requested measurement '{}'",
-                instance.measurement,
-                measurement,
-            );
-
-            let sealed_seed_id = SealedSeedId {
-                user_pk: user.user_pk,
-                measurement,
-                machine_id,
-                min_cpusvn,
-            };
-
-            let sealed_seed = api
-                .get_sealed_seed(sealed_seed_id)
-                .await
-                .context("Error while fetching sealed seed")?
-                .context("Sealed seed wasn't persisted with node & instance")?;
-
+    match (user_opt, sealed_seed_opt) {
+        (Some(user), Some(sealed_seed)) => {
             let root_seed = sealed_seed
-                .unseal_and_validate()
+                .unseal_and_validate(&measurement, &machine_id, &min_cpusvn)
                 .context("Could not validate or unseal sealed seed")?;
 
             let user_key_pair = root_seed.derive_user_key_pair();
@@ -710,7 +688,13 @@ async fn fetch_provisioned_secrets(
 
             Ok((user, root_seed, user_key_pair))
         }
-        (None, None) => bail!("Enclave version has not been provisioned yet"),
-        _ => bail!("Node and instance should have been persisted together"),
+        (None, None) => bail!("User does not exist yet"),
+        (Some(_), None) => bail!(
+            "User account exists but this node version is not provisioned yet"
+        ),
+        (None, Some(_)) => bail!(
+            "CORRUPT: somehow the User does not exist but this user node is \
+             provisioned!!!"
+        ),
     }
 }

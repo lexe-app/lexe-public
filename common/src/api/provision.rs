@@ -24,14 +24,7 @@ pub struct NodeProvisionRequest {
 #[derive(Serialize, Deserialize)]
 pub struct UserInstanceSeed {
     pub user: User,
-    pub instance: Instance,
     pub sealed_seed: SealedSeed,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct Instance {
-    pub node_pk: NodePk,
-    pub measurement: Measurement,
 }
 
 /// Uniquely identifies a sealed seed using its primary key fields.
@@ -110,23 +103,23 @@ impl SealedSeed {
         ))
     }
 
-    pub fn unseal_and_validate(self) -> anyhow::Result<RootSeed> {
-        // Compute the SGX fields
-        let measurement = enclave::measurement();
-        let machine_id = enclave::machine_id();
-        let min_cpusvn = enclave::MIN_SGX_CPUSVN;
-
+    pub fn unseal_and_validate(
+        self,
+        expected_measurement: &Measurement,
+        expected_machine_id: &MachineId,
+        expected_min_cpusvn: &MinCpusvn,
+    ) -> anyhow::Result<RootSeed> {
         // Validate SGX fields
         ensure!(
-            self.id.measurement == measurement,
+            &self.id.measurement == expected_measurement,
             "Saved measurement doesn't match current measurement",
         );
         ensure!(
-            self.id.machine_id == machine_id,
+            &self.id.machine_id == expected_machine_id,
             "Saved machine id doesn't match current machine id",
         );
         ensure!(
-            self.id.min_cpusvn == min_cpusvn,
+            &self.id.min_cpusvn == expected_min_cpusvn,
             "Saved min CPUSVN doesn't match current min CPUSVN",
         );
 
@@ -229,12 +222,20 @@ mod test {
 
     #[test]
     fn test_seal_unseal_roundtrip() {
+        let measurement = enclave::measurement();
+        let machine_id = enclave::machine_id();
+        let min_cpusvn = enclave::MIN_SGX_CPUSVN;
+
         proptest!(|(mut rng: SmallRng)| {
             let root_seed1 = RootSeed::from_rng(&mut rng);
             let root_seed2 =
                 SealedSeed::seal_from_root_seed(&mut rng, &root_seed1)
                     .unwrap()
-                    .unseal_and_validate()
+                    .unseal_and_validate(
+                        &measurement,
+                        &machine_id,
+                        &min_cpusvn,
+                    )
                     .unwrap();
 
             assert_eq!(

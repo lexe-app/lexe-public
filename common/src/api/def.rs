@@ -25,12 +25,11 @@ use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::error::{BackendApiError, NodeApiError, RunnerApiError};
 use crate::api::ports::UserPorts;
 use crate::api::provision::{
-    Instance, NodeProvisionRequest, SealedSeed, SealedSeedId, UserInstanceSeed,
+    NodeProvisionRequest, SealedSeed, SealedSeedId, UserInstanceSeed,
 };
 use crate::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use crate::api::{User, UserPk};
 use crate::ed25519;
-use crate::enclave::Measurement;
 use crate::ln::invoice::LxInvoice;
 
 /// Defines the api that the backend exposes to the node.
@@ -43,15 +42,6 @@ pub trait NodeBackendApi {
         &self,
         user_pk: UserPk,
     ) -> Result<Option<User>, BackendApiError>;
-
-    /// GET /v1/instance [`GetByUserPkAndMeasurement`] -> [`Option<Instance>`]
-    ///
-    /// [`GetByUserPkAndMeasurement`]: super::qs::GetByUserPkAndMeasurement
-    async fn get_instance(
-        &self,
-        user_pk: UserPk,
-        measurement: Measurement,
-    ) -> Result<Option<Instance>, BackendApiError>;
 
     /// GET /v1/sealed_seed [`SealedSeedId`] -> [`Option<SealedSeed>`]
     async fn get_sealed_seed(
