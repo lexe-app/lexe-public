@@ -169,11 +169,18 @@ async fn provision_handler(
         verify_provision_request(&mut ctx.rng, ctx.current_user_pk, req)?;
 
     let user = User { user_pk, node_pk };
-    let sealed_seed = SealedSeed::seal_from_root_seed(&mut ctx.rng, &root_seed)
-        .map_err(|err| NodeApiError {
-            kind: NodeErrorKind::Provision,
-            msg: format!("{err:#}"),
-        })?;
+    let sealed_seed_res = SealedSeed::seal_from_root_seed(
+        &mut ctx.rng,
+        &root_seed,
+        ctx.measurement,
+        enclave::machine_id(),
+        enclave::MIN_SGX_CPUSVN,
+    );
+
+    let sealed_seed = sealed_seed_res.map_err(|err| NodeApiError {
+        kind: NodeErrorKind::Provision,
+        msg: format!("{err:#}"),
+    })?;
 
     let batch = UserInstanceSeed { user, sealed_seed };
 
