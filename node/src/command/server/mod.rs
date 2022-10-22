@@ -35,7 +35,6 @@ mod inject;
 
 /// Converts the `anyhow::Result<T>`s returned by [`lexe_ln::command`] into
 /// `Result<T, NodeApiError>`s with error kind [`NodeErrorKind::Command`].
-#[allow(dead_code)] // TODO(max): Add get_invoice endpoint and use this fn
 fn into_command_api_result<T>(
     anyhow_res: anyhow::Result<T>,
 ) -> Result<T, NodeApiError> {
