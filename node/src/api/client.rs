@@ -5,7 +5,7 @@ use common::api::auth::{UserAuthRequest, UserAuthResponse, UserAuthToken};
 use common::api::def::{NodeBackendApi, NodeRunnerApi, UserAuthApi};
 use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::ports::UserPorts;
-use common::api::provision::{SealedSeed, SealedSeedId, UserInstanceSeed};
+use common::api::provision::{SealedSeed, SealedSeedId};
 use common::api::qs::GetByUserPk;
 use common::api::rest::{RequestBuilderExt, RestClient, POST};
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
@@ -99,15 +99,15 @@ impl NodeBackendApi for NodeApiClient {
         self.rest.send(req).await
     }
 
-    async fn create_user_instance_seed(
+    async fn create_sealed_seed(
         &self,
-        data: UserInstanceSeed,
+        data: SealedSeed,
         auth: UserAuthToken,
-    ) -> Result<UserInstanceSeed, BackendApiError> {
+    ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .post(format!("{backend}/v1/user_instance_seed"), &data)
+            .post(format!("{backend}/v1/sealed_seed"), &data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }

@@ -26,11 +26,9 @@ use bitcoin::secp256k1;
 use common::api::auth::UserAuthenticator;
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::ports::UserPorts;
-use common::api::provision::{
-    NodeProvisionRequest, SealedSeed, UserInstanceSeed,
-};
+use common::api::provision::{NodeProvisionRequest, SealedSeed};
 use common::api::rest::into_response;
-use common::api::{NodePk, User, UserPk};
+use common::api::{NodePk, UserPk};
 use common::cli::ProvisionArgs;
 use common::client::tls;
 use common::enclave::Measurement;
@@ -165,10 +163,9 @@ async fn provision_handler(
 ) -> Result<(), NodeApiError> {
     debug!("Received provision request");
 
-    let (user_key_pair, user_pk, node_pk, root_seed) =
+    let (user_key_pair, root_seed) =
         verify_provision_request(&mut ctx.rng, ctx.current_user_pk, req)?;
 
-    let user = User { user_pk, node_pk };
     let sealed_seed_res = SealedSeed::seal_from_root_seed(
         &mut ctx.rng,
         &root_seed,
@@ -181,8 +178,6 @@ async fn provision_handler(
         kind: NodeErrorKind::Provision,
         msg: format!("{err:#}"),
     })?;
-
-    let batch = UserInstanceSeed { user, sealed_seed };
 
     // TODO(phlip9): [perf] could get the user to pass us their auth token in
     // the provision request instead of reauthing here.
@@ -201,7 +196,7 @@ async fn provision_handler(
 
     // store the sealed seed and new node metadata in the backend
     ctx.api
-        .create_user_instance_seed(batch, token)
+        .create_sealed_seed(sealed_seed, token)
         .await
         .map_err(|e| NodeApiError {
             kind: NodeErrorKind::Provision,
@@ -218,7 +213,7 @@ fn verify_provision_request<R: Crng>(
     rng: &mut R,
     current_user_pk: UserPk,
     req: NodeProvisionRequest,
-) -> Result<(ed25519::KeyPair, UserPk, NodePk, RootSeed), NodeApiError> {
+) -> Result<(ed25519::KeyPair, RootSeed), NodeApiError> {
     let given_user_pk = req.user_pk;
     if given_user_pk != current_user_pk {
         return Err(NodeApiError::wrong_user_pk(
@@ -248,12 +243,7 @@ fn verify_provision_request<R: Crng>(
         ));
     }
 
-    Ok((
-        derived_user_key_pair,
-        req.user_pk,
-        req.node_pk,
-        req.root_seed,
-    ))
+    Ok((derived_user_key_pair, req.root_seed))
 }
 
 #[cfg(test)]

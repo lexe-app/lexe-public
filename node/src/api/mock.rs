@@ -8,13 +8,13 @@ use common::api::auth::{UserAuthRequest, UserAuthResponse, UserAuthToken};
 use common::api::def::{NodeBackendApi, NodeRunnerApi, UserAuthApi};
 use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::ports::UserPorts;
-use common::api::provision::{SealedSeed, SealedSeedId, UserInstanceSeed};
+use common::api::provision::{SealedSeed, SealedSeedId};
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::api::{NodePk, User, UserPk};
 use common::byte_str::ByteStr;
 use common::ed25519;
 use common::enclave::{self, Measurement};
-use common::rng::SmallRng;
+use common::rng::SysRng;
 use common::root_seed::RootSeed;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
@@ -31,11 +31,11 @@ fn make_user_pk(root_seed: &RootSeed) -> UserPk {
     root_seed.derive_user_pk()
 }
 fn make_node_pk(root_seed: &RootSeed) -> NodePk {
-    root_seed.derive_node_pk(&mut SmallRng::from_u64(912340))
+    root_seed.derive_node_pk(&mut SysRng::new())
 }
 fn make_sealed_seed(root_seed: &RootSeed) -> SealedSeed {
     SealedSeed::seal_from_root_seed(
-        &mut SmallRng::from_u64(785329),
+        &mut SysRng::new(),
         root_seed,
         enclave::measurement(),
         enclave::machine_id(),
@@ -165,12 +165,12 @@ impl NodeBackendApi for MockApiClient {
         Ok(Some(sealed_seed(&data.user_pk)))
     }
 
-    async fn create_user_instance_seed(
+    async fn create_sealed_seed(
         &self,
-        data: UserInstanceSeed,
+        _data: SealedSeed,
         _auth: UserAuthToken,
-    ) -> Result<UserInstanceSeed, BackendApiError> {
-        Ok(data)
+    ) -> Result<(), BackendApiError> {
+        Ok(())
     }
 
     async fn get_file(
