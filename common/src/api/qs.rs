@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
 
 use crate::api::UserPk;
-use crate::enclave::Measurement;
 
 /// Query parameter struct for fetching with no data attached.
 ///
@@ -13,11 +12,4 @@ pub struct EmptyData {}
 #[derive(Serialize, Deserialize)]
 pub struct GetByUserPk {
     pub user_pk: UserPk,
-}
-
-/// Query parameter struct for fetching by user pk and measurement
-#[derive(Serialize, Deserialize)]
-pub struct GetByUserPkAndMeasurement {
-    pub user_pk: UserPk,
-    pub measurement: Measurement,
 }
