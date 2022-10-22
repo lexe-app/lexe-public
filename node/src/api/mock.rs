@@ -14,7 +14,7 @@ use common::api::{NodePk, User, UserPk};
 use common::byte_str::ByteStr;
 use common::ed25519;
 use common::enclave::{self, Measurement};
-use common::rng::SysRng;
+use common::rng::SmallRng;
 use common::root_seed::RootSeed;
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
@@ -31,11 +31,17 @@ fn make_user_pk(root_seed: &RootSeed) -> UserPk {
     root_seed.derive_user_pk()
 }
 fn make_node_pk(root_seed: &RootSeed) -> NodePk {
-    root_seed.derive_node_pk(&mut SysRng::new())
+    root_seed.derive_node_pk(&mut SmallRng::from_u64(912340))
 }
 fn make_sealed_seed(root_seed: &RootSeed) -> SealedSeed {
-    SealedSeed::seal_from_root_seed(&mut SysRng::new(), root_seed)
-        .expect("Failed to seal test root seed")
+    SealedSeed::seal_from_root_seed(
+        &mut SmallRng::from_u64(785329),
+        root_seed,
+        enclave::measurement(),
+        enclave::machine_id(),
+        enclave::MIN_SGX_CPUSVN,
+    )
+    .expect("Failed to seal test root seed")
 }
 
 static SEED1: Lazy<RootSeed> = Lazy::new(|| RootSeed::from_u64(1));

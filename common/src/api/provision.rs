@@ -81,6 +81,9 @@ impl SealedSeed {
     pub fn seal_from_root_seed<R: Crng>(
         rng: &mut R,
         root_seed: &RootSeed,
+        measurement: Measurement,
+        machine_id: MachineId,
+        min_cpusvn: MinCpusvn,
     ) -> anyhow::Result<Self> {
         // Construct the root seed ciphertext
         let root_seed_ref = root_seed.expose_secret().as_slice();
@@ -90,9 +93,6 @@ impl SealedSeed {
 
         // Derive / compute the other fields
         let user_pk = root_seed.derive_user_pk();
-        let measurement = enclave::measurement();
-        let machine_id = enclave::machine_id();
-        let min_cpusvn = enclave::MIN_SGX_CPUSVN;
 
         Ok(Self::new(
             user_pk,
@@ -228,15 +228,19 @@ mod test {
 
         proptest!(|(mut rng: SmallRng)| {
             let root_seed1 = RootSeed::from_rng(&mut rng);
-            let root_seed2 =
-                SealedSeed::seal_from_root_seed(&mut rng, &root_seed1)
-                    .unwrap()
-                    .unseal_and_validate(
-                        &measurement,
-                        &machine_id,
-                        &min_cpusvn,
-                    )
-                    .unwrap();
+
+            let sealed_seed = SealedSeed::seal_from_root_seed(
+                &mut rng,
+                &root_seed1,
+                measurement,
+                machine_id,
+                min_cpusvn,
+            )
+            .unwrap();
+
+            let root_seed2 = sealed_seed
+                .unseal_and_validate(&measurement, &machine_id, &min_cpusvn)
+                .unwrap();
 
             assert_eq!(
                 root_seed1.expose_secret(),
