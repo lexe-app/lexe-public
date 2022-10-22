@@ -28,6 +28,11 @@ use crate::constants::{
 };
 use crate::ln::peer::ChannelPeer;
 
+pub const MAINNET_NETWORK: Network = Network(bitcoin::Network::Bitcoin);
+pub const TESTNET_NETWORK: Network = Network(bitcoin::Network::Testnet);
+pub const REGTEST_NETWORK: Network = Network(bitcoin::Network::Regtest);
+pub const SIGNET_NETWORK: Network = Network(bitcoin::Network::Signet);
+
 /// Commands accepted by the user node.
 #[derive(Clone, Debug, Eq, PartialEq, FromArgs)]
 #[argh(subcommand)]
