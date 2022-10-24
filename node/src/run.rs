@@ -78,7 +78,7 @@ pub struct UserNode {
     block_source: Arc<BlockSourceType>,
     fee_estimator: Arc<FeeEstimatorType>,
     broadcaster: Arc<BroadcasterType>,
-    pub(crate) keys_manager: LexeKeysManager,
+    pub keys_manager: LexeKeysManager,
     chain_monitor: Arc<ChainMonitorType>,
     pub(crate) network_graph: Arc<NetworkGraphType>,
     gossip_sync: Arc<P2PGossipSyncType>,
@@ -88,7 +88,7 @@ pub struct UserNode {
     pub peer_manager: NodePeerManager,
     pub invoice_payer: Arc<InvoicePayerType>,
     inactivity_timer: InactivityTimer,
-    inbound_payments: PaymentInfoStorageType,
+    pub inbound_payments: PaymentInfoStorageType,
     pub outbound_payments: PaymentInfoStorageType,
 
     // --- Contexts --- //
