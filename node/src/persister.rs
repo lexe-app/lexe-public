@@ -12,7 +12,6 @@ use common::api::error::BackendApiError;
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::api::UserPk;
 use common::cli::Network;
-use common::enclave::Measurement;
 use common::ln::channel::LxOutPoint;
 use common::ln::peer::ChannelPeer;
 use common::shutdown::ShutdownChannel;
@@ -65,7 +64,6 @@ impl NodePersister {
         api: ApiClientType,
         authenticator: Arc<UserAuthenticator>,
         user_pk: UserPk,
-        measurement: Measurement,
         shutdown: ShutdownChannel,
         channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
     ) -> Self {
@@ -73,7 +71,6 @@ impl NodePersister {
             api,
             authenticator,
             user_pk,
-            measurement,
             shutdown,
             channel_monitor_persister_tx,
         };
@@ -96,7 +93,6 @@ pub struct InnerPersister {
     api: ApiClientType,
     authenticator: Arc<UserAuthenticator>,
     user_pk: UserPk,
-    measurement: Measurement,
     shutdown: ShutdownChannel,
     channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
 }
@@ -121,7 +117,6 @@ impl InnerPersister {
         debug!("Reading channel manager");
         let file_id = NodeFileId::new(
             self.user_pk,
-            self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
             CHANNEL_MANAGER_FILENAME.to_owned(),
         );
@@ -179,7 +174,6 @@ impl InnerPersister {
 
         let cm_dir = NodeDirectory {
             user_pk: self.user_pk,
-            measurement: self.measurement,
             dirname: CHANNEL_MONITORS_DIRECTORY.to_owned(),
         };
         let token = self.get_token().await?;
@@ -227,7 +221,6 @@ impl InnerPersister {
 
         let file_id = NodeFileId::new(
             self.user_pk,
-            self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
             SCORER_FILENAME.to_owned(),
         );
@@ -264,7 +257,6 @@ impl InnerPersister {
         debug!("Reading network graph");
         let ng_file_id = NodeFileId::new(
             self.user_pk,
-            self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
             NETWORK_GRAPH_FILENAME.to_owned(),
         );
@@ -305,7 +297,6 @@ impl LexeInnerPersister for InnerPersister {
 
         let file = NodeFile::new(
             self.user_pk,
-            self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
             CHANNEL_MANAGER_FILENAME.to_owned(),
             data,
@@ -330,7 +321,6 @@ impl LexeInnerPersister for InnerPersister {
 
         let file = NodeFile::new(
             self.user_pk,
-            self.measurement,
             SINGLETON_DIRECTORY.to_owned(),
             NETWORK_GRAPH_FILENAME.to_owned(),
             data,
@@ -358,7 +348,6 @@ impl LexeInnerPersister for InnerPersister {
 
             NodeFile::new(
                 self.user_pk,
-                self.measurement,
                 SINGLETON_DIRECTORY.to_owned(),
                 SCORER_FILENAME.to_owned(),
                 data,
@@ -398,7 +387,6 @@ impl Persist<SignerType> for InnerPersister {
 
         let file = NodeFile::new(
             self.user_pk,
-            self.measurement,
             CHANNEL_MONITORS_DIRECTORY.to_owned(),
             funding_txo.to_string(),
             data,
@@ -467,7 +455,6 @@ impl Persist<SignerType> for InnerPersister {
 
         let file = NodeFile::new(
             self.user_pk,
-            self.measurement,
             CHANNEL_MONITORS_DIRECTORY.to_owned(),
             funding_txo.to_string(),
             data,

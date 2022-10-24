@@ -181,7 +181,6 @@ impl UserNode {
             api.clone(),
             authenticator,
             user_pk,
-            measurement,
             shutdown.clone(),
             channel_monitor_persister_tx,
         );
