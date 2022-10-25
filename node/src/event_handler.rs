@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
 use bitcoin::secp256k1::Secp256k1;
@@ -160,7 +160,6 @@ pub(crate) async fn handle_event(
     }
 }
 
-// TODO(max): Make this non-async by spawning tasks instead
 #[allow(clippy::too_many_arguments)]
 async fn handle_event_fallible(
     channel_manager: &NodeChannelManager,
@@ -174,6 +173,27 @@ async fn handle_event_fallible(
     event: &Event,
 ) -> anyhow::Result<()> {
     match event {
+        Event::OpenChannelRequest {
+            temporary_channel_id,
+            counterparty_node_id,
+            funding_satoshis: _,
+            push_msat: _,
+            channel_type: _,
+        } => {
+            // XXX(max): Only accept inbound channels from the Lexe LSP
+
+            // No need for a user channel id at the moment
+            let user_channel_id = 0;
+
+            channel_manager
+                .accept_inbound_channel(
+                    temporary_channel_id,
+                    counterparty_node_id,
+                    user_channel_id,
+                )
+                .map_err(|e| anyhow!("{e:?}"))
+                .context("Zero conf required")?;
+        }
         Event::FundingGenerationReady {
             temporary_channel_id,
             counterparty_node_id,
@@ -316,9 +336,6 @@ async fn handle_event_fallible(
             }
 
             test_event_tx.send(TestEvent::PaymentSent);
-        }
-        Event::OpenChannelRequest { .. } => {
-            // Unreachable, we don't set manually_accept_inbound_channels
         }
         Event::PaymentPathSuccessful { .. } => {}
         Event::PaymentPathFailed { .. } => {}

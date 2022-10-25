@@ -54,11 +54,11 @@ pub const USER_CONFIG: UserConfig = UserConfig {
     // Do not accept any HTLC forwarding risks
     accept_forwards_to_priv_channels: false,
     // We accept inbound channels, but only those initiated by the LSP.
-    // TODO Verify that inbound channels were opened by the LSP
     accept_inbound_channels: true,
-    // NOTE: False for now, but this will need to change to true once we
-    // implemente the check that inbound channels were initiated by the LSP.
-    manually_accept_inbound_channels: false,
+    // Manually accepting inbound channels is required for zeroconf, and for
+    // checking that the inbound channel was initiated by Lexe's LSP.
+    // See Event::OpenChannelRequest in the event handler.
+    manually_accept_inbound_channels: true,
 };
 
 const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =
