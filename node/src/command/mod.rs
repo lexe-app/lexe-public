@@ -1,7 +1,7 @@
 pub mod server;
-// BitcoinD regtest doesn't work in SGX, hence the additional not(sgx) flag
-#[cfg(all(test, not(target_env = "sgx")))]
-pub mod test;
+
+// TODO(max): this module is pretty empty aside from the server; after merge,
+// should move `host` and `owner` under server and de-nest the command module.
 
 /// Commands that can only be initiated by the host (Lexe).
 mod host;
