@@ -179,6 +179,8 @@ pub struct RunArgs {
 
     /// the <node_pk>@<sock_addr> of the LSP.
     #[argh(option)]
+    // XXX(max): We need to verify this somehow; otherwise the node may accept
+    // channels from someone pretending to be Lexe.
     pub lsp: ChannelPeer,
 
     /// the DNS name the node enclave should include in its remote attestation

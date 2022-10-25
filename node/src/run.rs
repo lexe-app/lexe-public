@@ -330,6 +330,7 @@ impl UserNode {
             Arc::new(Mutex::new(HashMap::new()));
         let event_handler = NodeEventHandler::new(
             args.network,
+            args.lsp.clone(),
             channel_manager.clone(),
             keys_manager.clone(),
             bitcoind.clone(),
