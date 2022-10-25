@@ -12,6 +12,7 @@ use common::api::NodePk;
 use common::cli::Network;
 use common::hex;
 use common::ln::peer::ChannelPeer;
+use common::shutdown::ShutdownChannel;
 use common::task::{BlockingTaskRt, LxTask};
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::bitcoind::LexeBitcoind;
@@ -39,6 +40,7 @@ pub struct NodeEventHandler {
     test_event_tx: TestEventSender,
     // XXX: remove when `EventHandler` is async
     blocking_task_rt: BlockingTaskRt,
+    shutdown: ShutdownChannel,
 }
 
 impl NodeEventHandler {
@@ -53,6 +55,7 @@ impl NodeEventHandler {
         inbound_payments: PaymentInfoStorageType,
         outbound_payments: PaymentInfoStorageType,
         test_event_tx: TestEventSender,
+        shutdown: ShutdownChannel,
     ) -> Self {
         Self {
             network,
@@ -65,6 +68,7 @@ impl NodeEventHandler {
             outbound_payments,
             test_event_tx,
             blocking_task_rt: BlockingTaskRt::new(),
+            shutdown,
         }
     }
 }
@@ -113,6 +117,7 @@ impl EventHandler for NodeEventHandler {
         let inbound_payments = self.inbound_payments.clone();
         let outbound_payments = self.outbound_payments.clone();
         let test_event_tx = self.test_event_tx.clone();
+        let shutdown = self.shutdown.clone();
         let event = event.clone();
 
         // NOTE: this blocks the main node event loop; if `handle_event`
@@ -129,6 +134,7 @@ impl EventHandler for NodeEventHandler {
                 &inbound_payments,
                 &outbound_payments,
                 &test_event_tx,
+                &shutdown,
                 &event,
             )
             .await
@@ -148,6 +154,7 @@ pub(crate) async fn handle_event(
     inbound_payments: &PaymentInfoStorageType,
     outbound_payments: &PaymentInfoStorageType,
     test_event_tx: &TestEventSender,
+    shutdown: &ShutdownChannel,
     event: &Event,
 ) {
     let handle_event_res = handle_event_fallible(
@@ -160,6 +167,7 @@ pub(crate) async fn handle_event(
         inbound_payments,
         outbound_payments,
         test_event_tx,
+        shutdown,
         event,
     )
     .await;
@@ -180,6 +188,7 @@ async fn handle_event_fallible(
     inbound_payments: &PaymentInfoStorageType,
     outbound_payments: &PaymentInfoStorageType,
     test_event_tx: &TestEventSender,
+    shutdown: &ShutdownChannel,
     event: &Event,
 ) -> anyhow::Result<()> {
     match event {
@@ -193,12 +202,11 @@ async fn handle_event_fallible(
             // Only accept inbound channels from Lexe's LSP
             let counterparty_node_pk = NodePk(*counterparty_node_id);
             if counterparty_node_pk != lsp.node_pk {
-                // Lexe's reverse proxy should have prevented any non-Lexe nodes
-                // from connecting to us. This is pretty serious; log an error.
-                // TODO(max): Should we shut down also?
+                // Lexe's proxy should have prevented non-Lexe nodes from
+                // connecting to us. Log an error and shut down.
                 error!(
                     "Received open channel request from non-Lexe node which \
-                the proxy should have prevented: {counterparty_node_pk}"
+                    the proxy should have prevented: {counterparty_node_pk}"
                 );
 
                 // Reject the channel
@@ -209,6 +217,9 @@ async fn handle_event_fallible(
                     )
                     .map_err(|e| anyhow!("{e:?}"))
                     .context("Couldn't reject channel from unknown LSP")?;
+
+                // Initiate a shutdown
+                shutdown.send();
             } else {
                 // Checks passed, accept the channel.
 

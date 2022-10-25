@@ -338,6 +338,7 @@ impl UserNode {
             inbound_payments.clone(),
             outbound_payments.clone(),
             test_event_tx.clone(),
+            shutdown.clone(),
         );
 
         // Initialize InvoicePayer
