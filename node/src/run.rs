@@ -309,18 +309,9 @@ impl UserNode {
 
         // The LSP is the only channel peer the p2p reconnector task needs to
         // reconnect to. Print a warning if it was not specified.
-        let initial_channel_peers = match args.lsp {
-            Some(ref lsp_cp) => vec![lsp_cp.clone()],
-            None => {
-                // If we're not in a test, we should've passed in LSP info. Note
-                // that this warning is still triggered in some tests because
-                // running the node as a process does not detect cfg(not(test)).
-                #[cfg(not(test))]
-                tracing::warn!("No LSP specified");
-
-                Vec::new()
-            }
-        };
+        // TODO(max): For safety, do we want to connect to the LSP only *after*
+        // we've finished sync? Seems to make sense
+        let initial_channel_peers = vec![args.lsp.clone()];
 
         // Spawn the task to regularly reconnect to channel peers
         tasks.push(p2p::spawn_p2p_reconnector(
