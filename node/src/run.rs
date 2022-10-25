@@ -10,7 +10,7 @@ use common::api::provision::SealedSeedId;
 use common::api::{User, UserPk};
 use common::cli::RunArgs;
 use common::client::tls::node_run_tls_config;
-use common::constants::DEFAULT_CHANNEL_SIZE;
+use common::constants::{DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE};
 use common::ed25519;
 use common::enclave::{
     self, MachineId, Measurement, MinCpusvn, MIN_SGX_CPUSVN,
@@ -130,7 +130,7 @@ impl UserNode {
         let (channel_monitor_persister_tx, channel_monitor_persister_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (channel_peer_tx, channel_peer_rx) =
-            mpsc::channel(DEFAULT_CHANNEL_SIZE);
+            mpsc::channel(SMALLER_CHANNEL_SIZE);
 
         // Initialize LexeBitcoind while fetching provisioned secrets
         let (bitcoind_res, fetch_res) = tokio::join!(
@@ -307,11 +307,10 @@ impl UserNode {
             shutdown.clone(),
         ));
 
-        // The LSP is the only channel peer the p2p reconnector task needs to
-        // reconnect to. Print a warning if it was not specified.
-        // TODO(max): For safety, do we want to connect to the LSP only *after*
-        // we've finished sync? Seems to make sense
-        let initial_channel_peers = vec![args.lsp.clone()];
+        // The LSP is the only peer the p2p reconnector needs to reconnect to,
+        // but we do so only *after* we have completed init and sync; it is our
+        // signal to the LSP that we are ready to receive messages.
+        let initial_channel_peers = Vec::new();
 
         // Spawn the task to regularly reconnect to channel peers
         tasks.push(p2p::spawn_p2p_reconnector(
@@ -519,6 +518,13 @@ impl UserNode {
             .ready(self.user_ports)
             .await
             .context("Could not notify runner of ready status")?;
+
+        // We connect to the LSP only *after* we have completed init and sync;
+        // it is our signal to the LSP that we are ready to receive messages.
+        let add_lsp = ChannelPeerUpdate::Add(self.args.lsp.clone());
+        if let Err(e) = self.channel_peer_tx.try_send(add_lsp) {
+            error!("Could not notify p2p reconnector to connect to LSP: {e:#}");
+        }
 
         Ok(())
     }
