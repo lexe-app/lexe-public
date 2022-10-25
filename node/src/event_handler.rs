@@ -8,8 +8,10 @@ use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
 use bitcoin::secp256k1::Secp256k1;
 use bitcoin_bech32::WitnessProgram;
+use common::api::NodePk;
 use common::cli::Network;
 use common::hex;
+use common::ln::peer::ChannelPeer;
 use common::task::{BlockingTaskRt, LxTask};
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::bitcoind::LexeBitcoind;
@@ -27,6 +29,7 @@ use crate::channel_manager::NodeChannelManager;
 
 pub struct NodeEventHandler {
     network: Network,
+    lsp: ChannelPeer,
     channel_manager: NodeChannelManager,
     keys_manager: LexeKeysManager,
     bitcoind: Arc<LexeBitcoind>,
@@ -42,6 +45,7 @@ impl NodeEventHandler {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         network: Network,
+        lsp: ChannelPeer,
         channel_manager: NodeChannelManager,
         keys_manager: LexeKeysManager,
         bitcoind: Arc<LexeBitcoind>,
@@ -52,6 +56,7 @@ impl NodeEventHandler {
     ) -> Self {
         Self {
             network,
+            lsp,
             channel_manager,
             keys_manager,
             bitcoind,
@@ -99,6 +104,8 @@ impl EventHandler for NodeEventHandler {
 
         // TODO(max): Should be possible to remove all clone()s once async event
         // handlilng is supported
+        let network = self.network;
+        let lsp = self.lsp.clone();
         let channel_manager = self.channel_manager.clone();
         let bitcoind = self.bitcoind.clone();
         let network_graph = self.network_graph.clone();
@@ -106,7 +113,6 @@ impl EventHandler for NodeEventHandler {
         let inbound_payments = self.inbound_payments.clone();
         let outbound_payments = self.outbound_payments.clone();
         let test_event_tx = self.test_event_tx.clone();
-        let network = self.network;
         let event = event.clone();
 
         // NOTE: this blocks the main node event loop; if `handle_event`
@@ -114,6 +120,8 @@ impl EventHandler for NodeEventHandler {
         // program WILL deadlock : )
         self.blocking_task_rt.block_on(async move {
             handle_event(
+                network,
+                &lsp,
                 &channel_manager,
                 &bitcoind,
                 &network_graph,
@@ -121,7 +129,6 @@ impl EventHandler for NodeEventHandler {
                 &inbound_payments,
                 &outbound_payments,
                 &test_event_tx,
-                network,
                 &event,
             )
             .await
@@ -132,6 +139,8 @@ impl EventHandler for NodeEventHandler {
 // TODO(max): Make this non-async by spawning tasks instead
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn handle_event(
+    network: Network,
+    lsp: &ChannelPeer,
     channel_manager: &NodeChannelManager,
     bitcoind: &LexeBitcoind,
     network_graph: &NetworkGraphType,
@@ -139,10 +148,11 @@ pub(crate) async fn handle_event(
     inbound_payments: &PaymentInfoStorageType,
     outbound_payments: &PaymentInfoStorageType,
     test_event_tx: &TestEventSender,
-    network: Network,
     event: &Event,
 ) {
     let handle_event_res = handle_event_fallible(
+        network,
+        lsp,
         channel_manager,
         bitcoind,
         network_graph,
@@ -150,7 +160,6 @@ pub(crate) async fn handle_event(
         inbound_payments,
         outbound_payments,
         test_event_tx,
-        network,
         event,
     )
     .await;
@@ -162,6 +171,8 @@ pub(crate) async fn handle_event(
 
 #[allow(clippy::too_many_arguments)]
 async fn handle_event_fallible(
+    network: Network,
+    lsp: &ChannelPeer,
     channel_manager: &NodeChannelManager,
     bitcoind: &LexeBitcoind,
     network_graph: &NetworkGraphType,
@@ -169,7 +180,6 @@ async fn handle_event_fallible(
     inbound_payments: &PaymentInfoStorageType,
     outbound_payments: &PaymentInfoStorageType,
     test_event_tx: &TestEventSender,
-    network: Network,
     event: &Event,
 ) -> anyhow::Result<()> {
     match event {
@@ -180,19 +190,39 @@ async fn handle_event_fallible(
             push_msat: _,
             channel_type: _,
         } => {
-            // XXX(max): Only accept inbound channels from the Lexe LSP
+            // Only accept inbound channels from Lexe's LSP
+            let counterparty_node_pk = NodePk(*counterparty_node_id);
+            if counterparty_node_pk != lsp.node_pk {
+                // Lexe's reverse proxy should have prevented any non-Lexe nodes
+                // from connecting to us. This is pretty serious; log an error.
+                // TODO(max): Should we shut down also?
+                error!(
+                    "Received open channel request from non-Lexe node which \
+                the proxy should have prevented: {counterparty_node_pk}"
+                );
 
-            // No need for a user channel id at the moment
-            let user_channel_id = 0;
+                // Reject the channel
+                channel_manager
+                    .force_close_without_broadcasting_txn(
+                        temporary_channel_id,
+                        counterparty_node_id,
+                    )
+                    .map_err(|e| anyhow!("{e:?}"))
+                    .context("Couldn't reject channel from unknown LSP")?;
+            } else {
+                // Checks passed, accept the channel.
 
-            channel_manager
-                .accept_inbound_channel(
-                    temporary_channel_id,
-                    counterparty_node_id,
-                    user_channel_id,
-                )
-                .map_err(|e| anyhow!("{e:?}"))
-                .context("Zero conf required")?;
+                // No need for a user channel id at the moment
+                let user_channel_id = 0;
+                channel_manager
+                    .accept_inbound_channel(
+                        temporary_channel_id,
+                        counterparty_node_id,
+                        user_channel_id,
+                    )
+                    .map_err(|e| anyhow!("{e:?}"))
+                    .context("Zero conf required")?;
+            }
         }
         Event::FundingGenerationReady {
             temporary_channel_id,
