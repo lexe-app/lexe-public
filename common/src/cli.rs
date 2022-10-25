@@ -147,8 +147,8 @@ pub struct RunArgs {
     #[argh(option)]
     pub peer_port: Option<Port>,
 
-    /// bitcoin, testnet, regtest, or signet. Defaults to testnet.
-    #[argh(option, default = "Network::default()")]
+    /// bitcoin, testnet, regtest, or signet.
+    #[argh(option)]
     pub network: Network,
 
     /// whether the node should shut down after completing sync and other
@@ -179,7 +179,7 @@ pub struct RunArgs {
 
     /// the <node_pk>@<sock_addr> of the LSP.
     #[argh(option)]
-    pub lsp: Option<ChannelPeer>,
+    pub lsp: ChannelPeer,
 
     /// the DNS name the node enclave should include in its remote attestation
     /// certificate and the client will expect in its connection
@@ -191,10 +191,12 @@ pub struct RunArgs {
     pub mock: bool,
 }
 
+#[cfg(any(test, feature = "test-utils"))]
 impl Default for RunArgs {
     /// Non-Option<T> fields are required by the node, with no node defaults.
     /// Option<T> fields are not required by the node, and use node defaults.
     fn default() -> Self {
+        use crate::ln::peer::DUMMY_LSP;
         Self {
             bitcoind_rpc: BitcoindRpcInfo::default(),
             user_pk: UserPk::from_u64(1), // Test user
@@ -208,7 +210,7 @@ impl Default for RunArgs {
             node_dns_name: NODE_RUN_DNS.to_owned(),
             backend_url: DEFAULT_BACKEND_URL.to_owned(),
             runner_url: DEFAULT_RUNNER_URL.to_owned(),
-            lsp: None,
+            lsp: DUMMY_LSP.clone(),
             mock: false,
         }
     }
@@ -238,6 +240,8 @@ impl RunArgs {
             .arg(&self.backend_url)
             .arg("--runner-url")
             .arg(&self.runner_url)
+            .arg("--lsp")
+            .arg(&self.lsp.to_string())
             .arg("--node-dns-name")
             .arg(&self.node_dns_name);
 
@@ -259,9 +263,7 @@ impl RunArgs {
         if let Some(peer_port) = self.peer_port {
             cmd.arg("--peer-port").arg(&peer_port.to_string());
         }
-        if let Some(ref lsp) = self.lsp {
-            cmd.arg("--lsp").arg(&lsp.to_string());
-        }
+
         cmd
     }
 }
@@ -293,6 +295,7 @@ pub struct ProvisionArgs {
     pub port: Option<Port>,
 }
 
+#[cfg(any(test, feature = "test-utils"))]
 impl Default for ProvisionArgs {
     fn default() -> Self {
         Self {
@@ -342,6 +345,7 @@ pub struct BitcoindRpcInfo {
     pub port: Port,
 }
 
+#[cfg(any(test, feature = "test-utils"))]
 impl Default for BitcoindRpcInfo {
     fn default() -> Self {
         Self {
@@ -476,6 +480,7 @@ impl Network {
     }
 }
 
+#[cfg(any(test, feature = "test-utils"))]
 impl Default for Network {
     fn default() -> Self {
         Self(bitcoin::Network::Regtest)
