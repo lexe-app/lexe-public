@@ -221,16 +221,17 @@ async fn handle_event_fallible(
                 // Initiate a shutdown
                 shutdown.send();
             } else {
-                // Checks passed, accept the channel.
+                // Checks passed, accept the (possible zero-conf) channel.
 
                 // No need for a user channel id at the moment
                 let user_channel_id = 0;
                 channel_manager
-                    .accept_inbound_channel(
+                    .accept_inbound_channel_from_trusted_peer_0conf(
                         temporary_channel_id,
                         counterparty_node_id,
                         user_channel_id,
                     )
+                    .inspect(|_| info!("Accepted zeroconf channel from LSP"))
                     .map_err(|e| anyhow!("{e:?}"))
                     .context("Zero conf required")?;
             }

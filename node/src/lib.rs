@@ -2,6 +2,8 @@
 
 // Enforce disallowed methods clippy lint
 #![deny(clippy::disallowed_methods)]
+// Easy side-effects in Result / Option chains
+#![feature(result_option_inspect)]
 
 pub mod channel_manager;
 pub mod cli;
