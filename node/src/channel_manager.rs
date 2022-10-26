@@ -93,8 +93,8 @@ pub const USER_CONFIG: UserConfig = UserConfig {
 
 const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =
     ChannelHandshakeConfig {
-        // Wait 6 confirmations for channels to be considered locked-in.
-        minimum_depth: 6,
+        // Wait 3 confirmations for channels to be considered locked-in.
+        minimum_depth: 3,
         // Require the channel counterparty (Lexe's LSPs) to wait <this param>
         // to claim funds in the case of a unilateral close. Specified
         // in # of blocks.
