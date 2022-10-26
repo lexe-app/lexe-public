@@ -15,7 +15,7 @@ pub static DUMMY_LSP: Lazy<ChannelPeer> = Lazy::new(|| {
     use crate::rng::SmallRng;
     use crate::root_seed::RootSeed;
 
-    let mut rng = SmallRng::new();
+    let mut rng = SmallRng::from_u64(17550281);
     let node_pk = RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng);
     let addr = SocketAddr::from(([127, 0, 0, 1], 42069));
 
