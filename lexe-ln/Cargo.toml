@@ -1,0 +1,112 @@
+[package]
+name = "lexe-ln"
+version = "0.1.0"
+authors = [
+    "Max Fang <protonmail.com@maxfa.ng>",
+    "Philip Hayes <philiphayes9@gmail.com>"
+]
+license = "PolyForm Noncommercial License 1.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+# --- LEXE --- #
+
+# Shared code
+common = { path = "../common" }
+
+# --- BITCOIN --- #
+
+bitcoin = { version = "0.29", features = ["serde"] }
+bitcoin-bech32 = "0.12"
+# bech32 = "0.8"
+base64 = "0.13.0"
+
+# --- LIGHTNING --- #
+
+lightning = { version = "0.0.111", features = ["max_level_trace"] }
+lightning-block-sync = { version = "0.0.111", features = [ "rpc-client" ] }
+lightning-invoice = { version = "0.19" }
+lightning-net-tokio = { version = "0.0.111" }
+
+# lightning = { git = "https://github.com/lexe-tech/rust-lightning", features = # ["max_level_trace"], branch = "main" }
+# lightning-block-sync = { git = "https://github.com/lexe-tech/rust-lightning", # features = [ "rpc-client" ], branch = "main" }
+# lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", # branch = "main" }
+# lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", # branch = "main" }
+
+# For debugging and testing patches during local development
+# lightning = { path = "../../ldk/lightning", features = ["max_level_trace"]}
+# lightning-block-sync = { path = "../../ldk/lightning-block-sync", features = [ "rpc-client" ] }
+# lightning-invoice = { path = "../../ldk/lightning-invoice" }
+# lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }
+
+# --- GENERAL --- #
+
+# Ad hoc error definition, easy error propagation, error chains
+anyhow = "1"
+# async fn's in trait methods
+async-trait = "0.1"
+# Utils for working with futures
+futures = "0.3"
+# Conveniently write #[cfg(..)] if-else statements without repeating clauses
+cfg-if = "1"
+# Used to hold a Tokio runtime used by the sync fns in the Persister trait impl
+once_cell = "1"
+# A wrapper type for carefully handling secrets
+secrecy = "0.8"
+# Serialization / deserialization framework
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Easy error definition
+thiserror = "1"
+# Logging
+tracing = "0.1"
+tracing-core = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = [
+    "std",
+    # Enable colored log outputs
+    "ansi",
+    "fmt",
+    "tracing-log",
+] }
+
+# --- PATCHED DEPENDENCIES --- #
+# - Be sure to use the specific patched versions.
+# - See the workspace Cargo.toml for patch declarations.
+# - The versions for transitive dependencies (such as hyper, mio, ring, etc) are
+#   declared in `common`'s Cargo.toml and propagated to other crates by
+#   workspace-level dependency resolution.
+
+tokio = { version = "=1.21.2", default-features = false, features = [
+    "io-util",
+    "macros",
+    "net",
+    "rt",
+    "sync",
+    "time"
+] }
+
+[dev-dependencies]
+# Shared code
+common = { path = "../common", features = ["test-utils"] }
+# property based testing
+proptest = { version = "1", default-features = false, features = ["alloc"] }
+# Arbitrary derive macro
+proptest-derive = "0.3"
+# Enable test-util feature in tests
+tokio = { version = "=1.21.2", default-features = false, features = [
+    "io-util",
+    "macros",
+    "rt",
+    "sync",
+    "test-util",
+    "time"
+] }
+# Utilities for testing futures
+tokio-test = "0.4"
+
+[target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
+# Include additional useful proptest features when testing outside of SGX
+proptest = "1"

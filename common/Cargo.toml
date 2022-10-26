@@ -1,0 +1,212 @@
+[package]
+name = "common"
+version = "0.1.0"
+authors = [
+    "Max Fang <protonmail.com@maxfa.ng>",
+    "Philip Hayes <philiphayes9@gmail.com>"
+]
+license = "PolyForm Noncommercial License 1.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# --- BITCOIN --- #
+
+bitcoin = { version = "0.29", features = ["std", "serde"] }
+bitcoin-bech32 = "0.12"
+base64 = "0.13.0"
+
+# --- LIGHTNING --- #
+
+lightning = { version = "0.0.111", features = ["max_level_trace"] }
+# lightning-block-sync = { version = "0.0.111", features = [ "rpc-client" ] }
+lightning-invoice = { version = "0.19" }
+# lightning-net-tokio = { version = "0.0.111" }
+
+# lightning = { git = "https://github.com/lexe-tech/rust-lightning", features = ["max_level_trace"], branch = "main" }
+# lightning-block-sync = { git = "https://github.com/lexe-tech/rust-lightning", features = [ "rpc-client" ], branch = "main" }
+# lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "main" }
+# lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "main" }
+
+# For debugging and testing patches during local development
+# lightning = { path = "../../ldk/lightning", features = ["max_level_trace"]}
+# lightning-block-sync = { path = "../../ldk/lightning-block-sync", features = [ "rpc-client" ] }
+# lightning-invoice = { path = "../../ldk/lightning-invoice" }
+# lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }
+
+# --- GENERAL --- #
+
+# Ad hoc error definition, easy error propagation, error chains
+anyhow = "1"
+# Derive-based command line argument parsing
+argh = "0.1"
+# async fn's in trait methods
+async-trait = "0.1"
+# Binary canonical serialization format
+bcs = "0.1"
+# Working with bytes
+bytes = "1"
+# Conveniently write #[cfg(..)] if-else statements without repeating clauses
+cfg-if = "1"
+# SGX Quote types
+# NOTE: version must exactly match patched version
+dcap-ql = { version = "=0.3.4", default-features = false, features = [] }
+# Utils for working with futures
+futures = "0.3"
+# Used to specify the HTTP methods used to interact with the API
+http = "0.2"
+# Small conversion from fixed ECDSA signature to ASN.1 format
+num-bigint = { version = "0.4", default-features = false, features = [] }
+# Lazily parse the Intel SGX Root CA cert
+once_cell = "1"
+# Core rand traits for generating randomness
+rand_core = { version = "0.6.3", default-features = false, features = ["alloc"] }
+# Easily generate x509 certs with ring
+rcgen = { version = "0.9", default-features = false, features = [] }
+# Safely cast &T to &U when T is a single field new-type
+ref-cast = "1"
+# Used to make HTTP requests to the API
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls-manual-roots"] }
+# TLS library
+rustls = { version = "0.20", default-features = false, features = [
+    "dangerous_configuration",
+] }
+# Deserialize PEM certs
+rustls-pemfile = "1"
+# A wrapper type for carefully handling secrets
+secrecy = "0.8"
+# Serialization / deserialization framework
+serde = { version = "1", features = ["derive"] }
+serde_with = { version = "2", default-features = false, features = ["macros"] }
+serde_qs = "0"
+serde_json = "1"
+# Core SGX types
+# NOTE: version must exactly match patched version
+sgx-isa = "=0.4.0"
+# Const SHA256 hash
+sha2-const = "0"
+# Easy error definition
+thiserror = "1"
+# Logging
+tracing = "0.1"
+# Filter-based webserver
+# NOTE: This branch implements (1) Reply for Result<impl Reply, impl Reply> and
+#       (2) allows setting a prebuilt rustls TLS server config
+warp = { git = "https://github.com/lexe-tech/warp", branch = "lexe", default-features = false, features = ["tls"] }
+# Verify x509 certificates
+webpki = "0.22"
+# Parsing x509 cert extensions
+# TODO(phlip9): avoid this extra dependency and just use `yasna` directly
+x509-parser = { version = "0.14", default-features = false }
+# TODO(phlip9): avoid this extra dependency and just use `yasna` directly
+asn1-rs = { version = "0.5", default-features = false }
+# For constructing/parsing ASN.1 data in x509 certs
+yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
+
+# --- PATCHED DEPENDENCIES --- #
+# - Be sure to use the specific patched versions.
+# - See the workspace Cargo.toml for patch declarations.
+# - The versions for transitive dependencies (such as hyper, mio, ring, etc) are
+#   declared in `common`'s Cargo.toml and propagated to other crates by
+#   workspace-level dependency resolution.
+
+hyper = { version = "=0.14.18", default-features = false }
+mio = "=0.8.4"
+# Safe and small crypto primitives based on BoringSSL
+ring = "=0.16.20"
+
+tokio = { version = "=1.21.2", default-features = false, features = [
+    "io-util",
+    "macros",
+    "rt",
+    "sync",
+    "time"
+] }
+
+# --- DEPENDENCIES USED ONLY WITHIN SGX --- #
+
+[target.'cfg(target_env = "sgx")'.dependencies]
+# For verifying SGX Report MACs
+aes = { version = "0.8", features = ["zeroize"] }
+# A client for the Intel AESM service. Used in the attestation process to get quoted.
+aesm-client = "=0.5.4"
+# For casting byte buffers to/from the AESM client from/to actual structured data.
+bytemuck = { version = "1.9.1", default-features = false, features = ["derive", "min_const_generics"] }
+# For verifying SGX Report MACs
+cmac = { version = "0.7", features = ["std", "zeroize"] }
+
+# --- DEPENDENCIES NEEDED ONLY BY TEST-UTILS --- #
+# These must have `optional = true` to prevent infecting production binaries.
+# If a test-utils dependency must be available in both SGX and not-SGX, put it
+# in both sections so that this ALL CAPS block can remain contiguous.
+
+# property based testing
+proptest = { optional = true, version = "1", default-features = false, features = ["alloc"] }
+# Arbitrary derive macro
+proptest-derive = { optional = true, version = "0.3" }
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies]
+# Bitcoind regtest
+bitcoind = { optional = true, version = "0.27", features = [ "22_0" ] }
+# Include additional useful proptest features when testing outside of SGX
+proptest = { optional = true, version = "1" }
+# Arbitrary derive macro
+proptest-derive = { optional = true, version = "0.3" }
+
+[features]
+# Explicitly specify that no features should be enabled by default.
+default = []
+# Enable this feature to allow test utils to be shared across crate boundaries.
+test-utils = ["dep:bitcoind", "dep:proptest", "dep:proptest-derive"]
+
+# --- DEV DEPENDENCIES, ALL PLATFORMS --- #
+
+[dev-dependencies]
+# property based testing
+proptest = { version = "1", default-features = false, features = ["alloc"] }
+# Arbitrary derive macro
+proptest-derive = "0.3"
+# Testing serde
+serde_json = "1"
+# Enable test-util feature in tests
+tokio = { version = "=1.21.2", default-features = false, features = [
+    "io-util",
+    "macros",
+    "rt",
+    "sync",
+    "test-util",
+    "time"
+] }
+# lower-level async TLS interface
+tokio-rustls = { version = "0.23", default-features = false }
+# Utilities for testing futures
+tokio-test = "0.4"
+
+# --- DEV DEPENDENCIES, SGX ONLY --- #
+
+[target.'cfg(target_env = "sgx")'.dev-dependencies]
+# Print backtraces in tests
+sgx-panic-backtrace = "0.1"
+
+# --- DEV DEPENDENCIES, NON-SGX ONLY --- #
+
+[target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
+# Include additional useful proptest features when testing outside of SGX
+proptest = "1"
+# Bitcoind regtest
+bitcoind = { version = "0.27", features = [ "22_0" ] }
+
+
+# --- FORTANIX EDP CONFIGURATION --- #
+
+[package.metadata.fortanix-sgx]
+# stack size (in bytes) for each thread, the default stack size is 0x20_000.
+stack-size=0x20_0000
+# The max number of threads we can spawn concurrently inside the SGX enclave.
+#
+# NOTE: ideally this value should be "threads=1", however, the current fortanix
+#       rust-sgx `async_usercalls` implementation requires an extra thread so
+#       until that changes, we're stuck with "threads=2".
+#       see: https://github.com/lexe-tech/rust-sgx/blob/70d11205fed08e49886bb25a1ea3df19928e8287/async-usercalls/src/queues.rs#L46
+threads=2

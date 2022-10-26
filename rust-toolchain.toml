@@ -1,0 +1,10 @@
+[toolchain]
+channel = "nightly-2022-09-20"
+components = ["clippy", "rustfmt"]
+targets = [
+    # # Remote azure host target
+    # "x86_64-unknown-linux-musl",
+    # SGX Enclave target
+    "x86_64-fortanix-unknown-sgx",
+]
+profile = "minimal"

@@ -1,0 +1,49 @@
+[workspace]
+resolver = "2"
+
+members = [
+    "common",
+    "lexe-ln",
+    "node",
+    "run-sgx",
+]
+
+[patch.crates-io]
+# NOTE: Make sure to duplicate any changes to the `server`'s root Cargo.toml,
+# otherwise the `server`'s dependency versions won't match.
+aesm-client = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
+async-usercalls = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
+# atty = { git = "https://github.com/softprops/atty", rev = "6633c0e1446aa19e6cd00e00e39770da43081bda" }
+dcap-ql = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
+enclave-runner = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
+hyper = { git = "https://github.com/lexe-tech/hyper", branch = "hyper-sgx-0.14.18" }
+mio = { git = "https://github.com/lexe-tech/mio", branch = "mio-sgx-0.8.4" }
+ring = { git = "https://github.com/lexe-tech/ring", branch = "support-sgx-0.16.20" }
+sgx-isa = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
+sgxs-loaders = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
+tokio = { git = "https://github.com/lexe-tech/tokio",  branch = "tokio-sgx-1.21.2" }
+
+# For debugging LDK or testing patches during local development
+# lightning = { path = "../ldk/lightning", features = ["max_level_trace"]}
+# lightning-block-sync = { path = "../ldk/lightning-block-sync", features = [ "rpc-client" ] }
+# lightning-invoice = { path = "../ldk/lightning-invoice" }
+# lightning-net-tokio = { path = "../ldk/lightning-net-tokio" }
+
+[profile.dev]
+# This fixes 'warning: can't find symbol' when debugging, but breaks the
+# server's build.rs, so it should always be commented out in git. More info:
+# https://github.com/rust-lang/rust/issues/40787#issuecomment-1019465942
+# https://doc.rust-lang.org/cargo/reference/profiles.html#split-debuginfo
+# split-debuginfo = "packed"
+
+[profile.release]
+panic = "abort"
+# NOTE(phlip9): enable for smaller binary size
+# codegen-units = 1
+# lto = true
+# opt-level = "s"
+# debug = 0
+# strip = "debuginfo"
+
+# [profile.dev]
+# panic = "abort"

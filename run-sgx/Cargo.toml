@@ -1,0 +1,47 @@
+[package]
+name = "run-sgx"
+version = "0.1.0"
+authors = [
+    "Max Fang <protonmail.com@maxfa.ng>",
+    "Philip Hayes <philiphayes9@gmail.com>"
+]
+license = "PolyForm Noncommercial License 1.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# Ad hoc error definition, easy error propagation, error chains
+anyhow = "1"
+# Derive-based command line argument parsing
+argh = "0.1"
+# Efficiently find newline byte in byte array
+memchr = "2"
+# For symbolizing backtrace frames from the enclave
+object = { version = "0.29", default-features = false, features = ["read_core", "compression", "elf"] }
+# Lazy init global
+once_cell = "1"
+# For demangling backtrace symbols into human-readable format
+rustc-demangle = "0.1"
+# Used to serialize / deserialize enclave config from Cargo.toml
+serde = { version = "1", features = ["derive"] }
+toml = "0.5"
+# Must match version in workspace exactly.
+tokio = { version = "=1.21.2", default-features = false, features = [
+    "net"
+] }
+
+[target.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.dependencies]
+# --- PATCHED DEPENDENCIES --- #
+# - Be sure to use the specific patched versions.
+# - See the workspace Cargo.toml for patch declarations.
+# - The versions for transitive dependencies (such as hyper, mio, ring, etc) are
+#   declared in `common`'s Cargo.toml and propagated to other crates by
+#   workspace-level dependency resolution.
+
+# A client for the Intel AESM service. Used in the attestation process to get quoted.
+aesm-client = { version = "=0.5.4", default-features = false, features = ["sgxs"] }
+enclave-runner = { version = "=0.5.1", default-features = false, features = ["crypto-openssl"] }
+# The base SGX types and platform intrinsics (for sealing, reports, etc...)
+sgx-isa = "=0.4.0"
+sgxs-loaders = "=0.3.3"
