@@ -58,6 +58,36 @@ pub const USER_CONFIG: UserConfig = UserConfig {
     // Manually accepting inbound channels is required for zeroconf, and for
     // checking that the inbound channel was initiated by Lexe's LSP.
     // See Event::OpenChannelRequest in the event handler.
+    //
+    // NOTE(zeroconf): Zeroconf channels allow you to receive Lightning payments
+    // immediately (without having to wait for confirmations) in the case that
+    // you do not yet have a channel open with Lexe's LSP. The channel is
+    // immediately usable, meaning you can use those zeroconf funds to then make
+    // an outbound payment of your own. However, zeroconf exposes you to the
+    // following risks and caveats:
+    //
+    // - If you are a merchant, theoretically Lexe could pretend to be your
+    //   customer and purchase a good or service from you using a zeroconf
+    //   channel. If you render the good or service before the zeroconf channel
+    //   has gotten least a few confirmations (3-6), Lexe could double-spend the
+    //   funding transaction, defrauding you of your payment. If you do not
+    //   trust Lexe not to double-spend the funding tx, do not render any goods
+    //   or services until the payment has been 'finalized' in the Lexe app, or
+    //   disable zeroconf entirely in your app settings.
+    // - If you are using Lexe to accept Lightning tips, theoretically Lexe
+    //   could siphon off these tips by (1) extending the Lightning payment to
+    //   your node over a zeroconf channel, (2) collecting its payment from its
+    //   previous hop, then (3) defrauding your node by double-spending the
+    //   funding tx. If you do not trust Lexe not to do this, do not enable
+    //   zeroconf channels.
+    //
+    // TODO(max): Expose payments and channel balances to the user as pending /
+    // finalized depending on channel confirmation status.
+    // TODO(max): Expose an option for enabling / disabling zeroconf.
+    // TODO(max): Convert these notes into a blog post or help article of some
+    // kind which is accessible from the users' mobile app.
+    // TODO(max): Add more notes corresponding to the results of current
+    // research on zeroconf channels in Nuclino
     manually_accept_inbound_channels: true,
 };
 
