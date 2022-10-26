@@ -192,6 +192,14 @@ async fn handle_event_fallible(
     event: &Event,
 ) -> anyhow::Result<()> {
     match event {
+        // NOTE: This event is received because manually_accept_inbound_channels
+        // is set to true. Manually accepting inbound channels is required
+        // (1) we may accept zeroconf channels (2) we need to verify that it is
+        // Lexe's LSP that is initiating the channel with us. The event MUST be
+        // resolved by (a) rejecting the channel open request by calling
+        // force_close_without_broadcasting_txn() or (b) accepting the request
+        // using accept_inbound_channel() or (c) accepting as trusted zeroconf
+        // using accept_inbound_channel_from_trusted_peer_0conf().
         Event::OpenChannelRequest {
             temporary_channel_id,
             counterparty_node_id,
