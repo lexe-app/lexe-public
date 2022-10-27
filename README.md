@@ -1,4 +1,4 @@
-# Lexe Monorepo
+# Lexe Public Monorepo
 
 This repository contains all public code including the node, verifier client,
 iOS / Android apps, and shared libraries.
