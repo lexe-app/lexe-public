@@ -63,7 +63,7 @@ once_cell = "1"
 # Core rand traits for generating randomness
 rand_core = { version = "0.6.3", default-features = false, features = ["alloc"] }
 # Easily generate x509 certs with ring
-rcgen = { version = "0.9", default-features = false, features = [] }
+rcgen = { version = "0.10", default-features = false, features = [] }
 # Safely cast &T to &U when T is a single field new-type
 ref-cast = "1"
 # Used to make HTTP requests to the API
@@ -148,7 +148,7 @@ proptest-derive = { optional = true, version = "0.3" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 # Bitcoind regtest
-bitcoind = { optional = true, version = "0.27", features = [ "22_0" ] }
+bitcoind = { optional = true, version = "0.28", features = [ "22_0" ] }
 # Include additional useful proptest features when testing outside of SGX
 proptest = { optional = true, version = "1" }
 # Arbitrary derive macro
@@ -195,7 +195,7 @@ sgx-panic-backtrace = "0.1"
 # Include additional useful proptest features when testing outside of SGX
 proptest = "1"
 # Bitcoind regtest
-bitcoind = { version = "0.27", features = [ "22_0" ] }
+bitcoind = { version = "0.28", features = [ "22_0" ] }
 
 
 # --- FORTANIX EDP CONFIGURATION --- #

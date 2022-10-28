@@ -65,7 +65,7 @@ serde = { version = "1", features = ["derive"] }
 serde_qs = "0"
 serde_json = "1"
 # Easily generate self-signed x509 certs with ring
-rcgen = { version = "0.9", default-features = false, features = [] }
+rcgen = { version = "0.10", default-features = false, features = [] }
 # Used to make HTTP requests to the API
 reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls-manual-roots"] }
 # A wrapper type for carefully handling secrets
