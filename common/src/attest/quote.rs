@@ -29,6 +29,11 @@ mod sgx {
     use crate::rng::Crng;
     use crate::{ed25519, hex, sha256};
 
+    #[cfg(not(target_feature = "aes"))]
+    std::compile_error!(
+        "Intel AES-NI intrinsics must be enabled at compile time via RUSTFLAGS"
+    );
+
     pub fn quote_enclave(
         rng: &mut dyn Crng,
         cert_pk: &ed25519::PublicKey,
@@ -124,9 +129,6 @@ mod sgx {
             .verify(&qe_report)
             .context("Invalid QE identity")?;
 
-        #[cfg(not(target_feature = "aes"))]
-        std::compile_error!("Intel AES-NI intrinsics must be enabled at compile time via RUSTFLAGS");
-
         // Verify the QE Report was produced by the QE in another local enclave
         let is_valid_mac = qe_report.verify(|key, report, mac| {
             let key = GenericArray::from(*key);
@@ -171,7 +173,7 @@ mod sgx {
 
     impl ErrString {
         fn new(err: impl fmt::Display) -> Self {
-            Self(format!("{:#}", err))
+            Self(format!("{err:#}"))
         }
     }
 
