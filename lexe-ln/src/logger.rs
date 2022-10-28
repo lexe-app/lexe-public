@@ -229,7 +229,7 @@ mod test {
                         field: &Field,
                         value: &dyn std::fmt::Debug,
                     ) {
-                        self.0.insert(field.name(), format!("{:?}", value));
+                        self.0.insert(field.name(), format!("{value:?}"));
                     }
                 }
 

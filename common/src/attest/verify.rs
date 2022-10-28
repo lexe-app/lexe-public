@@ -337,7 +337,7 @@ struct DisplayErr(String);
 
 impl DisplayErr {
     fn new(err: impl fmt::Display) -> Self {
-        Self(format!("{:#}", err))
+        Self(format!("{err:#}"))
     }
 }
 

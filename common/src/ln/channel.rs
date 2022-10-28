@@ -32,7 +32,7 @@ impl From<LxOutPoint> for OutPoint {
     }
 }
 
-/// Deserializes from <txid>_<index>
+/// Deserializes from `<txid>_<index>`
 impl FromStr for LxOutPoint {
     type Err = anyhow::Error;
     fn from_str(outpoint_str: &str) -> anyhow::Result<Self> {
@@ -53,7 +53,7 @@ impl FromStr for LxOutPoint {
     }
 }
 
-/// Serializes to <txid>_<index>
+/// Serializes to `<txid>_<index>`
 impl Display for LxOutPoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}_{}", self.txid, self.index)

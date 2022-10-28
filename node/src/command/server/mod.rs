@@ -59,7 +59,7 @@ pub(crate) fn owner_routes(
     outbound_payments: PaymentInfoStorageType,
     network: Network,
     activity_tx: mpsc::Sender<()>,
-) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     let root =
         warp::path::end().map(|| "This set of endpoints is for the owner.");
 
@@ -115,7 +115,7 @@ pub(crate) fn owner_routes(
 pub(crate) fn host_routes(
     current_pk: UserPk,
     shutdown: ShutdownChannel,
-) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     let root =
         warp::path::end().map(|| "This set of endpoints is for the host.");
 

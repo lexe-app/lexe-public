@@ -375,7 +375,7 @@ async fn handle_event_fallible(
                                  payment hash {:?} with preimage {:?}",
                         payment.amt_msat,
                         if let Some(fee) = fee_paid_msat {
-                            format!(" (fee {} msat)", fee)
+                            format!(" (fee {fee} msat)")
                         } else {
                             "".to_string()
                         },
