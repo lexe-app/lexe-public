@@ -27,8 +27,9 @@ impl Regtest {
         let password = "sadge".to_owned();
 
         // Init bitcoind
-        let exe_path = bitcoind_exe_path();
-        let bitcoind = BitcoinD::with_conf(exe_path, &conf)
+        let bitcoind_exe_path = bitcoind::downloaded_exe_path()
+            .expect("Didn't specify bitcoind version in feature flags");
+        let bitcoind = BitcoinD::with_conf(bitcoind_exe_path, &conf)
             .expect("Failed to init bitcoind");
         let host = bitcoind.params.rpc_socket.ip().to_string();
         let port = bitcoind.params.rpc_socket.port();
@@ -90,41 +91,6 @@ impl Regtest {
             .generate_to_address(num_blocks, address)
             .expect("Failed to generate blocks")
     }
-}
-
-/// Hacks around the recurring 'No such file or directory' error when trying to
-/// locate the local bitcoind executable.
-///
-/// <https://github.com/RCasatta/bitcoind/issues/77>
-#[rustfmt::skip]
-fn bitcoind_exe_path() -> String {
-    use std::env;
-    // "/Users/fang/lexe/client/target/debug/build/bitcoind-65c3b20abafd4893/out/bitcoin/bitcoin-22.0/bin/bitcoind"
-    // The path prior to `target` is wrong, everything after is correct
-    let bitcoind_path = bitcoind::downloaded_exe_path()
-        .expect("Didn't specify bitcoind version in feature flags");
-
-    // Construct the workspace path based on env::current_dir()
-    // "/Users/fang/lexe/dev/client/node"
-    let crate_dir = env::current_dir().unwrap();
-    // "/Users/fang/lexe/dev/client"
-    let workspace_dir = crate_dir.parent().unwrap().to_str().unwrap();
-
-    // Split on `target` to grab the correct half of the bitcoind_path string
-    let mut path_halves = bitcoind_path.split("target");
-    let _wrong_half = path_halves.next();
-    // "/debug/build/bitcoind-65c3b20abafd4893/out/bitcoin/bitcoin-22.0/bin/bitcoind"
-    let right_half = path_halves.next().unwrap();
-
-    let exe_path = format!("{workspace_dir}/target{right_half}");
-
-    // Uncomment for debugging when this inevitably breaks again
-    // dbg!(&bitcoind_path);
-    // dbg!(&crate_dir);
-    // dbg!(&workspace_dir);
-    // dbg!(&exe_path);
-
-    exe_path
 }
 
 /// Helper to get a dummy [`Address`] which blocks can be mined to
