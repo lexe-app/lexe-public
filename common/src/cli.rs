@@ -126,7 +126,7 @@ pub struct RunArgs {
     #[argh(option)]
     pub user_pk: UserPk,
 
-    /// bitcoind rpc info, in the format <username>:<password>@<host>:<port>
+    /// bitcoind rpc info, in the format `<username>:<password>@<host>:<port>`
     #[argh(option)]
     pub bitcoind_rpc: BitcoindRpcInfo,
 
@@ -195,8 +195,8 @@ pub struct RunArgs {
 
 #[cfg(any(test, feature = "test-utils"))]
 impl Default for RunArgs {
-    /// Non-Option<T> fields are required by the node, with no node defaults.
-    /// Option<T> fields are not required by the node, and use node defaults.
+    /// Non-`Option<T>` fields are required by the node, with no node defaults.
+    /// `Option<T>` fields are not required by the node, and use node defaults.
     fn default() -> Self {
         use crate::ln::peer::DUMMY_LSP;
         Self {
@@ -399,7 +399,7 @@ impl BitcoindRpcInfo {
         })
     }
 
-    /// Returns a base64 encoding of "<user>:<pass>" required by the BitcoinD
+    /// Returns a base64 encoding of `<user>:<pass>` required by the BitcoinD
     /// RPC client.
     pub fn base64_credentials(&self) -> String {
         let username = &self.username;

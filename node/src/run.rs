@@ -615,7 +615,7 @@ impl UserNode {
     }
 }
 
-/// Constructs a Arc<dyn ApiClient> based on whether we are running in SGX,
+/// Constructs an `Arc<dyn ApiClient>` based on whether we are running in SGX,
 /// and whether `args.mock` is set to true
 fn init_api(args: &RunArgs) -> ApiClientType {
     // Production can only use the real api client

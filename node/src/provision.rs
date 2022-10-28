@@ -135,7 +135,7 @@ pub async fn provision_node<R: Crng>(
 /// [`OwnerNodeProvisionApi`]: common::api::def::OwnerNodeProvisionApi
 fn owner_routes(
     ctx: RequestContext,
-) -> impl Filter<Extract = impl Reply, Error = Rejection> + Clone {
+) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path::path("provision")
         .and(warp::post())
         .and(with_request_context(ctx))
