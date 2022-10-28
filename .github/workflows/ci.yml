@@ -13,7 +13,7 @@ permissions:
 
 env:
   # Fail CI even on rustc "warning" lints
-  RUSTFLAGS: -Dwarnings
+  RUSTFLAGS: -D warnings
   LEXE_RUST_VERSION: nightly-2022-10-27
 
 jobs:
