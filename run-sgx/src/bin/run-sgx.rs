@@ -388,7 +388,7 @@ pub fn backtrace_symbolizer_stream<W: AsyncWrite + Unpin>(
         // in the current line, replace the raw backtrace frame with the
         // symbolized version.
         line_buf.clear();
-        writeln!(&mut line_buf, "{}", frame)
+        writeln!(&mut line_buf, "{frame}")
             .expect("Formatting into a Vec<u8> should never fail");
         line_buf
     })
