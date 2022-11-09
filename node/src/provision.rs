@@ -286,7 +286,7 @@ mod test {
 
         println!("attestation certificate:");
         println!("-----BEGIN CERTIFICATE-----");
-        println!("{}", base64::encode(&cert_der));
+        println!("{}", base64::encode(cert_der));
         println!("-----END CERTIFICATE-----");
     }
 
