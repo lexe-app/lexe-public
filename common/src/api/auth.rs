@@ -8,9 +8,9 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use super::NodePkProof;
 use crate::api::def::UserAuthApi;
 use crate::api::error::{BackendApiError, BackendErrorKind};
-use crate::api::NodePk;
 use crate::byte_str::ByteStr;
 use crate::ed25519::{self, Signed};
 
@@ -43,6 +43,18 @@ pub enum Error {
     Base64Decode,
 }
 
+/// The inner, signed part of the request a new user makes when they first sign
+/// up. We use this to prove the user owns both their claimed [`UserPk`] and
+/// [`NodePk`].
+///
+/// One caveat: we can't verify the presented, valid, signed [`UserPk`] and
+/// [`NodePk`] are actually derived from the same [`RootSeed`]. In the case that
+/// these are different, the account will be created, but the user node will
+/// fail to ever run or provision.
+///
+/// [`UserPk`]: crate::api::UserPk
+/// [`NodePk`]: crate::api::NodePk
+/// [`RootSeed`]: crate::root_seed::RootSeed
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub enum UserSignupRequest {
@@ -52,9 +64,8 @@ pub enum UserSignupRequest {
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct UserSignupRequestV1 {
-    /// The lightning node pubkey
-    // TODO(phlip9): this needs to be a Proof-of-Key-Possession
-    pub node_pk: NodePk,
+    /// The lightning node pubkey in a Proof-of-Key-Possession
+    pub node_pk_proof: NodePkProof,
     // do we need this?
     // pub display_name: Option<String>,
 
@@ -136,8 +147,8 @@ pub struct UserAuthenticator {
 // -- impl UserSignupRequest -- //
 
 impl UserSignupRequest {
-    pub fn new(node_pk: NodePk) -> Self {
-        Self::V1(UserSignupRequestV1 { node_pk })
+    pub fn new(node_pk_proof: NodePkProof) -> Self {
+        Self::V1(UserSignupRequestV1 { node_pk_proof })
     }
 
     pub fn deserialize_verify(
@@ -150,9 +161,9 @@ impl UserSignupRequest {
     }
 
     #[inline]
-    pub fn node_pk(&self) -> &NodePk {
+    pub fn node_pk_proof(&self) -> &NodePkProof {
         match self {
-            Self::V1(UserSignupRequestV1 { node_pk }) => node_pk,
+            Self::V1(UserSignupRequestV1 { node_pk_proof }) => node_pk_proof,
         }
     }
 }

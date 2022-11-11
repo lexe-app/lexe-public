@@ -80,8 +80,7 @@ impl LexeKeysManager {
     }
 
     pub fn derive_node_pk<R: Crng>(&self, rng: &mut R) -> NodePk {
-        // Initialize and seed the Secp256k1 context with some random bytes for
-        // some extra side-channel resistance.
+        // The Secp256k1 context must be randomized for side-channel resistance.
         let mut secp_random_bytes = [0; 32];
         rng.fill_bytes(&mut secp_random_bytes);
         let mut secp = Secp256k1::new();
