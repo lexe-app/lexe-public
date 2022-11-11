@@ -2,6 +2,7 @@ use std::fmt::{self, Display};
 use std::str::FromStr;
 
 use bitcoin::secp256k1;
+use bitcoin::secp256k1::Secp256k1;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::arbitrary::{any, Arbitrary};
 #[cfg(any(test, feature = "test-utils"))]
@@ -10,13 +11,16 @@ use proptest::strategy::{BoxedStrategy, Strategy};
 use proptest_derive::Arbitrary;
 use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
+use crate::ed25519::Signable;
 use crate::hex::{self, FromHex};
+use crate::rng::Crng;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::rng::SmallRng;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::root_seed::RootSeed;
-use crate::{const_ref_cast, ed25519, hexstr_or_bytes};
+use crate::{const_ref_cast, ed25519, hexstr_or_bytes, sha256};
 
 /// Authentication and User Signup.
 pub mod auth;
@@ -62,6 +66,26 @@ pub struct UserPk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 #[derive(Serialize, Deserialize, RefCast)]
 #[repr(transparent)]
 pub struct NodePk(pub secp256k1::PublicKey);
+
+/// A Proof-of-Key-Possession for a given [`NodePk`].
+///
+/// Used to ensure a user's signup request contains a [`NodePk`] actually owned
+/// by the user.
+///
+/// Like the outer [`UserSignupRequest`], this PoP is vulnerable to replay
+/// attacks in the general case.
+///
+/// [`UserSignupRequest`]: crate::api::auth::UserSignupRequest
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize)]
+pub struct NodePkProof {
+    node_pk: NodePk,
+    sig: secp256k1::ecdsa::Signature,
+}
+
+#[derive(Debug, Error)]
+#[error("invalid node pk proof signature")]
+pub struct InvalidNodePkProofSignature;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct User {
@@ -180,8 +204,74 @@ impl Arbitrary for NodePk {
     }
 }
 
+// -- impl NodePkProof -- //
+
+impl NodePkProof {
+    // msg := H(H(DSV) || node_pk)
+    fn message(node_pk: &NodePk) -> secp256k1::Message {
+        let node_pk_bytes = node_pk.0.serialize();
+        secp256k1::Message::from(sha256::digest_many(&[
+            &NodePkProof::DOMAIN_SEPARATOR,
+            &node_pk_bytes,
+        ]))
+    }
+
+    /// Given a [`secp256k1::KeyPair`], sign a new [`NodePkProof`]
+    /// Proof-of-Key-Possession for your key pair.
+    pub fn sign<R: Crng>(
+        rng: &mut R,
+        node_key_pair: &secp256k1::KeyPair,
+    ) -> Self {
+        let mut ctx = Secp256k1::signing_only();
+
+        // The Secp256k1 context must be randomized for side-channel resistance.
+        let mut secp_randomness = [0u8; 32];
+        rng.fill_bytes(&mut secp_randomness);
+        ctx.seeded_randomize(&secp_randomness);
+
+        let node_pk = NodePk::from(node_key_pair.public_key());
+        let msg = Self::message(&node_pk);
+        let sig = ctx.sign_ecdsa(&msg, &node_key_pair.secret_key());
+
+        Self { node_pk, sig }
+    }
+
+    /// Verify a [`NodePkProof`], getting the verified [`NodePk`] contained
+    /// inside on success.
+    pub fn verify(&self) -> Result<&NodePk, InvalidNodePkProofSignature> {
+        let ctx = Secp256k1::verification_only();
+
+        let msg = Self::message(&self.node_pk);
+        ctx.verify_ecdsa(&msg, &self.sig, &self.node_pk.0)
+            .map(|()| &self.node_pk)
+            .map_err(|_| InvalidNodePkProofSignature)
+    }
+}
+
+impl Signable for NodePkProof {
+    const DOMAIN_SEPARATOR_STR: &'static [u8] = b"LEXE-REALM::NodePkProof";
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+impl Arbitrary for NodePkProof {
+    type Parameters = ();
+    type Strategy = BoxedStrategy<Self>;
+
+    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+        any::<SmallRng>()
+            .prop_map(|mut rng| {
+                let key_pair =
+                    RootSeed::from_rng(&mut rng).derive_node_key_pair(&mut rng);
+                NodePkProof::sign(&mut rng, &key_pair)
+            })
+            .boxed()
+    }
+}
+
 #[cfg(test)]
 mod test {
+    use proptest::{prop_assume, proptest};
+
     use super::*;
     use crate::test_utils::roundtrip;
 
@@ -214,5 +304,66 @@ mod test {
     #[test]
     fn node_pk_json() {
         roundtrip::json_string_roundtrip_proptest::<NodePk>();
+    }
+
+    #[test]
+    fn node_pk_proof_bcs() {
+        roundtrip::bcs_roundtrip_proptest::<NodePkProof>();
+    }
+
+    #[test]
+    fn node_pk_proofs_verify() {
+        let arb_mutation = any::<Vec<u8>>()
+            .prop_filter("can't be empty or all zeroes", |m| {
+                !m.is_empty() && !m.iter().all(|x| x == &0u8)
+            });
+
+        proptest!(|(
+            mut rng: SmallRng,
+            mut_offset in any::<usize>(),
+            mut mutation in arb_mutation,
+        )| {
+            let node_key_pair = RootSeed::from_rng(&mut rng)
+                .derive_node_key_pair(&mut rng);
+            let node_pk1 = NodePk::from(node_key_pair.public_key());
+
+            let proof1 = NodePkProof::sign(&mut rng, &node_key_pair);
+            let proof2 = NodePkProof::sign(&mut rng, &node_key_pair);
+
+            // signing should be deterministic
+            assert_eq!(proof1, proof2);
+
+            // valid proof should always verify
+            let node_pk2 = proof1.verify().unwrap();
+            assert_eq!(&node_pk1, node_pk2);
+
+            let mut proof_bytes = bcs::to_bytes(&proof1).unwrap();
+            // println!("{}", hex::encode(&proof_bytes));
+
+            // mutation must not be idempotent (otherwise the proof won't change
+            // and will actually verify).
+            mutation.truncate(proof_bytes.len());
+            prop_assume!(
+                !mutation.is_empty() && !mutation.iter().all(|x| x == &0)
+            );
+
+            // xor in the mutation bytes to the proof to modify it. any modified
+            // bit should cause the verification to fail.
+            for (idx_mut, m) in mutation.into_iter().enumerate() {
+                let idx_sig = idx_mut
+                    .wrapping_add(mut_offset) % proof_bytes.len();
+                proof_bytes[idx_sig] ^= m;
+            }
+
+            // mutated proof should always fail to deserialize or verify.
+            bcs::from_bytes::<NodePkProof>(&proof_bytes)
+                .map_err(anyhow::Error::new)
+                .and_then(|proof| {
+                    proof.verify()
+                        .map(|_| ())
+                        .map_err(anyhow::Error::new)
+                })
+                .unwrap_err();
+        });
     }
 }

@@ -862,6 +862,14 @@ impl From<auth::Error> for BackendApiError {
     }
 }
 
+impl From<super::InvalidNodePkProofSignature> for BackendApiError {
+    fn from(err: super::InvalidNodePkProofSignature) -> Self {
+        let kind = BackendErrorKind::Unauthenticated;
+        let msg = err.to_string();
+        Self { kind, msg }
+    }
+}
+
 // --- Misc -> RunnerApiError impls --- //
 
 impl<T> From<mpsc::error::TrySendError<T>> for RunnerApiError {

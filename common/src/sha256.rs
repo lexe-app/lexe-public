@@ -2,6 +2,7 @@
 
 use std::{fmt, io};
 
+use bitcoin::secp256k1;
 use ref_cast::RefCast;
 
 use crate::hex::FromHex;
@@ -105,6 +106,13 @@ impl fmt::Display for Hash {
 impl fmt::Debug for Hash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self}")
+    }
+}
+
+impl secp256k1::ThirtyTwoByteHash for Hash {
+    #[inline]
+    fn into_32(self) -> [u8; 32] {
+        self.into_inner()
     }
 }
 
