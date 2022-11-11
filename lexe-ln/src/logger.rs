@@ -1,3 +1,38 @@
+//! # logger
+//!
+//! This module contains the logging config for SGX nodes.
+//!
+//! During development, the log level is configurable via the `RUST_LOG`
+//! environment variable. For example, `RUST_LOG=trace cargo run` would run the
+//! node with all logs enabled.
+//!
+//! Recall that in production, SGX enclaves won't see environment variables.
+//! In either case, the log level defaults to `RUST_LOG=info`.
+//!
+//! ### Per-Target Filtering
+//!
+//! You can also filter logs on a per-crate/per-module basis:
+//!
+//! ```bash
+//! $ RUST_LOG=warn,node=debug,warp::filters::trace=error cargo run node
+//! ```
+//!
+//! Breaking down the above example, it would:
+//!
+//! 1. expose all `DEBUG`+ logs from the `node` crate
+//! 2. silence all logs except `ERROR`s from the `trace` module in `warp`
+//! 3. default all other targets to `WARN`+
+//!
+//! ### Syntax
+//!
+//! The full syntax is, `RUST_LOG=<filter_1>,<filter_2>,...,<filter_n>`,
+//! where each `<filter_i>` is of the form:
+//!
+//! * `trace` (bare LEVEL)
+//! * `foo` (bare TARGET)
+//! * `foo=trace` (TARGET=LEVEL)
+//! * `foo[{bar,baz}]=info` (TARGET[{FIELD,+}]=LEVEL)
+
 use std::error::Error;
 use std::ops::Deref;
 use std::str::FromStr;
@@ -9,39 +44,25 @@ use tracing_core::subscriber::Interest;
 use tracing_core::{
     dispatcher, identify_callsite, Callsite, Event, Kind, Level, Metadata,
 };
+use tracing_subscriber::filter::Targets;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::{SubscriberInitExt, TryInitError};
+use tracing_subscriber::Layer;
 
 pub type TracingError = Box<dyn Error + Send + Sync + 'static>;
 
+/// Initialize the global `tracing` logger.
+///
+/// + The logger will print enabled `tracing` events and spans to stdout.
+/// + The default log level includes INFO, WARN, and ERROR events.
+///
+/// Panics if a logger is already initialized. This will fail if used in tests,
+/// since multiple test threads will compete to set the global logger.
 pub fn init() {
     try_init().expect("Failed to setup logger");
 }
 
-/// Try to initialize a global logger. Will return an `Err` if there is another
-/// global logger already set.
-///
-/// The log level is configurable via the `RUST_LOG` environment variable. For
-/// example, `RUST_LOG=trace cargo run` would run the node with all logs
-/// enabled.
-pub fn try_init() -> Result<(), TracingError> {
-    // For the node, just parse a blanket level from the env. The `env_filter`
-    // feature pulls in too many dependencies for this use-case IMO.
-    //
-    // Defaults to INFO logs if no `RUST_LOG` env var is set.
-    let level = std::env::var("RUST_LOG")
-        .ok()
-        .and_then(|rust_log| Level::from_str(&rust_log).ok())
-        .unwrap_or(Level::INFO);
-
-    tracing_subscriber::fmt()
-        .compact()
-        .with_level(true)
-        // Enable colored outputs for stdout. TODO(max): This should be disabled
-        // when outputting to files - a second subscriber is probably needed.
-        .with_ansi(true)
-        .with_max_level(level)
-        .try_init()
-}
-
+/// Use this to initialize the global logger in tests.
 pub fn init_for_testing() {
     // Quickly skip logger setup if no env var set.
     if std::env::var_os("RUST_LOG").is_none() {
@@ -51,6 +72,33 @@ pub fn init_for_testing() {
     // Don't panic if there's already a logger setup. Multiple tests might try
     // setting the global logger.
     let _ = try_init();
+}
+
+/// Try to initialize a global logger. Will return an `Err` if there is another
+/// global logger already set.
+pub fn try_init() -> Result<(), TryInitError> {
+    // For the node, just parse a simplified target filter from the env. The
+    // `env_filter` feature pulls in too many dependencies (like regex) for SGX.
+    //
+    // Defaults to INFO logs if no `RUST_LOG` env var is set or we can't parse
+    // the targets filter.
+    let rust_log_filter = std::env::var("RUST_LOG")
+        .ok()
+        .and_then(|rust_log| Targets::from_str(&rust_log).ok())
+        .unwrap_or_else(|| Targets::new().with_default(Level::INFO));
+
+    let stdout_log = tracing_subscriber::fmt::layer()
+        .compact()
+        .with_level(true)
+        .with_target(true)
+        // Enable colored outputs for stdout.
+        // TODO(max): This should be disabled when outputting to files - a
+        //            second subscriber is probably needed.
+        .with_ansi(true);
+
+    tracing_subscriber::registry()
+        .with(stdout_log.with_filter(rust_log_filter))
+        .try_init()
 }
 
 // -- LexeTracingLogger -- //
