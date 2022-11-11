@@ -28,10 +28,14 @@ use warp::{Filter, Rejection, Reply};
 
 use crate::alias::InvoicePayerType;
 use crate::channel_manager::NodeChannelManager;
-use crate::command::{host, owner};
 use crate::peer_manager::NodePeerManager;
 
+/// Handlers for commands that can only be initiated by the host (Lexe).
+mod host;
+/// Warp filters for injecting data needed by subsequent filters
 mod inject;
+/// Handlers for commands that can only be initiated by the node owner.
+mod owner;
 
 /// Converts the `anyhow::Result<T>`s returned by [`lexe_ln::command`] into
 /// `Result<T, NodeApiError>`s with error kind [`NodeErrorKind::Command`].

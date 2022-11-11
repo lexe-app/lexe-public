@@ -13,8 +13,8 @@ pub mod persister;
 pub mod run;
 
 mod api;
-mod command;
 mod event_handler;
 mod inactivity_timer;
 mod provision;
 mod repl;
+mod server;
