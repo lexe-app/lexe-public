@@ -53,7 +53,7 @@ use crate::event_handler::NodeEventHandler;
 use crate::inactivity_timer::InactivityTimer;
 use crate::peer_manager::NodePeerManager;
 use crate::persister::NodePersister;
-use crate::{api, command};
+use crate::{api, server};
 
 // TODO(max): Move this to common::constants
 /// The amount of time tasks have to finish after a graceful shutdown was
@@ -369,7 +369,7 @@ impl UserNode {
             .context("Failed to build owner service TLS config")?;
 
         // Start warp service for owner
-        let owner_routes = command::server::owner_routes(
+        let owner_routes = server::owner_routes(
             channel_manager.clone(),
             peer_manager.clone(),
             network_graph.clone(),
@@ -395,8 +395,7 @@ impl UserNode {
 
         // TODO(phlip9): authenticate host<->node
         // Start warp service for host
-        let host_routes =
-            command::server::host_routes(args.user_pk, shutdown.clone());
+        let host_routes = server::host_routes(args.user_pk, shutdown.clone());
         let mut host_shutdown = shutdown.clone();
         let (host_addr, host_service_fut) = warp::serve(host_routes)
             // A value of 0 indicates that the OS will assign a port for us
