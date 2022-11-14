@@ -20,7 +20,9 @@
 
 use async_trait::async_trait;
 
-use crate::api::auth::{UserAuthRequest, UserAuthResponse, UserAuthToken};
+use crate::api::auth::{
+    UserAuthRequest, UserAuthResponse, UserAuthToken, UserSignupRequest,
+};
 use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::error::{BackendApiError, NodeApiError, RunnerApiError};
 use crate::api::ports::UserPorts;
@@ -92,6 +94,16 @@ pub trait NodeBackendApi {
     ) -> Result<Vec<NodeFile>, BackendApiError>;
 }
 
+/// The API for a new user to signup.
+#[async_trait]
+pub trait UserSignupApi {
+    /// POST /signup [`ed25519::Signed<UserSignupRequest>`] -> [`()`]
+    async fn signup(
+        &self,
+        signed_req: ed25519::Signed<UserSignupRequest>,
+    ) -> Result<(), BackendApiError>;
+}
+
 /// Defines the api that the user or node uses to signup or authenticate against
 /// lexe infra.
 #[async_trait]
@@ -100,7 +112,7 @@ pub trait UserAuthApi {
     ///              -> [`UserAuthResponse`]
     async fn user_auth(
         &self,
-        auth_req: ed25519::Signed<UserAuthRequest>,
+        signed_req: ed25519::Signed<UserAuthRequest>,
     ) -> Result<UserAuthResponse, BackendApiError>;
 }
 
