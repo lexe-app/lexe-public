@@ -111,7 +111,7 @@ pub struct UserAuthResponse {
 /// as a particular [`UserPk`](crate::api::UserPk).
 ///
 /// Most user clients should just treat this as an opaque Bearer token with a
-/// very short expiration.
+/// very short (~15 min) expiration.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct UserAuthToken(pub ByteStr);
 
@@ -119,6 +119,7 @@ pub struct UserAuthToken(pub ByteStr);
 ///
 /// * we actually use "true expiration" minus a few seconds so we can re-auth
 ///   before the token actually expires.
+#[derive(Clone)]
 pub struct TokenWithExpiration {
     pub expiration: SystemTime,
     pub token: UserAuthToken,
@@ -134,14 +135,22 @@ pub struct UserAuthenticator {
     user_key_pair: ed25519::KeyPair,
 
     /// The latest [`UserAuthToken`] with its expected expiration time.
-    // NOTE: we intenionally use a tokio `Mutex` here.
+    // Ideally the `Option<TokenWithExpiration>` would live in the `auth_lock`
+    // (as it did previously); however, we need to read the latest cached
+    // version from a blocking context in the `NodeClient` proxy auth
+    // workaround
+    cached_auth_token: std::sync::Mutex<Option<TokenWithExpiration>>,
+
+    /// A `tokio` mutex to ensure that only one task can auth at a time, if
+    /// multiple tasks are racing to auth at the same time.
+    // NOTE: we intenionally use a tokio async `Mutex` here:
     //
     // 1. we want only at-most-one client to try auth'ing at once
     // 2. auth'ing involves IO (send/recv HTTPS request)
     // 3. holding a standard blocking `Mutex` across IO await points is a
     //    Bad Idea^tm, since it'll block all tasks on the runtime (we only use
     //    a single thread for the user node).
-    cached_auth_token: tokio::sync::Mutex<Option<TokenWithExpiration>>,
+    auth_lock: tokio::sync::Mutex<()>,
 }
 
 // -- impl UserSignupRequest -- //
@@ -260,8 +269,18 @@ impl UserAuthenticator {
     ) -> Self {
         Self {
             user_key_pair,
-            cached_auth_token: tokio::sync::Mutex::new(maybe_token),
+            cached_auth_token: std::sync::Mutex::new(maybe_token),
+            auth_lock: tokio::sync::Mutex::new(()),
         }
+    }
+
+    /// Read the currently cached and possibly expired (!) user auth token.
+    ///
+    /// This method is only exposed to support the `reqwest::Proxy` workaround
+    /// used in [`NodeClient`](crate::client::NodeClient). Try to avoid it
+    /// otherwise.
+    pub(crate) fn get_maybe_cached_token(&self) -> Option<TokenWithExpiration> {
+        self.cached_auth_token.lock().unwrap().as_ref().cloned()
     }
 
     /// Try to either (1) return an existing, fresh token or (2) authenticate
@@ -271,10 +290,12 @@ impl UserAuthenticator {
         api: &T,
         now: SystemTime,
     ) -> Result<UserAuthToken, BackendApiError> {
-        let mut lock = self.cached_auth_token.lock().await;
+        let _auth_lock = self.auth_lock.lock().await;
 
         // there's already a fresh token here; just use that.
-        if let Some(cached_token) = lock.as_ref() {
+        if let Some(cached_token) =
+            self.cached_auth_token.lock().unwrap().as_ref()
+        {
             if cached_token.expiration > now {
                 return Ok(cached_token.token.clone());
             }
@@ -283,7 +304,9 @@ impl UserAuthenticator {
         // no token yet or expired, try to authenticate and get a new token.
         let cached_token = self.authenticate(api, now).await?;
         let token_clone = cached_token.token.clone();
-        *lock = Some(cached_token);
+
+        // fill token cache with new token
+        *self.cached_auth_token.lock().unwrap() = Some(cached_token);
 
         Ok(token_clone)
     }
