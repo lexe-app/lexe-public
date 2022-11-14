@@ -1877,8 +1877,7 @@ dependencies = [
 [[package]]
 name = "reqwest"
 version = "0.11.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "431949c384f4e2ae07605ccaa56d1d9d2ecdb5cadd4f9577ccfab29f2e5149fc"
+source = "git+https://github.com/lexe-tech/reqwest?branch=lexe#70cdc0c05c248dc43e5cb899c0df3e3087f09a06"
 dependencies = [
  "base64",
  "bytes",
