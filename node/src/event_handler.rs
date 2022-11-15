@@ -301,7 +301,9 @@ async fn handle_event_fallible(
             user_channel_id: _,
             counterparty_node_id: _,
             channel_type: _,
-        } => {}
+        } => {
+            test_event_tx.send(TestEvent::ChannelReady);
+        }
         Event::PaymentReceived {
             payment_hash,
             purpose,
