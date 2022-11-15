@@ -14,20 +14,17 @@ permissions:
 env:
   # Fail CI even on rustc "warning" lints
   RUSTFLAGS: -D warnings
+  RUSTDOCFLAGS: -D warnings
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
   LEXE_RUST_VERSION: nightly-2022-10-27
 
 jobs:
-  test:
-    runs-on: ubuntu-20.04
-    steps:
-      - uses: actions/checkout@v3
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.LEXE_RUST_VERSION }}
-          targets: x86_64-fortanix-unknown-sgx
-      - run: cargo test
-      - run: cargo test -p node --no-run --target=x86_64-fortanix-unknown-sgx
-  
+
+  # FIXME: Cargo is not picking up .cargo/config.toml, hence RUSTFLAGS is used
+  # whenever the target is SGX
+
+  # --- Linting the whole workspace --- #
   clippy:
     runs-on: ubuntu-20.04
     steps:
@@ -36,27 +33,61 @@ jobs:
         with:
           toolchain: ${{ env.LEXE_RUST_VERSION }}
           targets: x86_64-fortanix-unknown-sgx
-          components: clippy
-      - run: cargo clippy --workspace --tests -- -Dclippy::all
-      - run: cargo clippy --workspace --tests --target=x86_64-fortanix-unknown-sgx -- -Dclippy::all
+      - uses: Swatinem/rust-cache@v2
+      - uses: arduino/setup-protoc@v1
+      # Native
+      - run: cargo clippy --locked --workspace
+      # Native + tests
+      - run: cargo clippy --locked --workspace --tests
+      # SGX
+      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo clippy --locked -p node -p common -p lexe-ln --target=x86_64-fortanix-unknown-sgx
+      # SGX + tests
+      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo clippy --locked -p node -p common -p lexe-ln --target=x86_64-fortanix-unknown-sgx --tests
 
-  rustfmt:
+  # --- Checking that end binaries compile without feature unification --- #
+  check:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.LEXE_RUST_VERSION }}
-          components: rustfmt
+          targets: x86_64-fortanix-unknown-sgx
+      - uses: Swatinem/rust-cache@v2
+      - uses: arduino/setup-protoc@v1
+      # Utils
+      - run: cargo check --locked -p run-sgx
+      # Node
+      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo check --locked -p node --target=x86_64-fortanix-unknown-sgx
+
+  test:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.LEXE_RUST_VERSION }}
+          # targets: x86_64-fortanix-unknown-sgx
+      - uses: Swatinem/rust-cache@v2
+      - uses: arduino/setup-protoc@v1
+      - run: cargo test --locked
+
+  fmt:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.LEXE_RUST_VERSION }}
       - run: cargo fmt --all -- --check
 
-  docs:
+  doc:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ env.LEXE_RUST_VERSION }}
-      - run: cargo doc --workspace --no-deps --document-private-items
-        env:
-          RUSTDOCFLAGS: -D warnings
+      - uses: Swatinem/rust-cache@v2
+      - uses: arduino/setup-protoc@v1
+      - run: cargo doc --locked --no-deps --document-private-items
