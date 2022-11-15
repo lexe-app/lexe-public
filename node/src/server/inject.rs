@@ -9,6 +9,7 @@ use common::cli::Network;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::keys_manager::LexeKeysManager;
+use lexe_ln::logger::LexeTracingLogger;
 use warp::Filter;
 
 use crate::alias::InvoicePayerType;
@@ -80,6 +81,13 @@ pub(crate) fn outbound_payments(
 ) -> impl Filter<Extract = (PaymentInfoStorageType,), Error = Infallible> + Clone
 {
     warp::any().map(move || outbound_payments.clone())
+}
+
+/// Injects the logger.
+pub(crate) fn logger(
+    logger: LexeTracingLogger,
+) -> impl Filter<Extract = (LexeTracingLogger,), Error = Infallible> + Clone {
+    warp::any().map(move || logger.clone())
 }
 
 /// Injects the [`Network`] the node is running on.

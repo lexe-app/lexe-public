@@ -3,7 +3,9 @@ use lightning::util::events::Event;
 // TODO(max): Perhaps we should upstream this as a Display impl?
 pub fn get_event_name(event: &Event) -> &'static str {
     match event {
+        Event::OpenChannelRequest { .. } => "open channel request",
         Event::FundingGenerationReady { .. } => "funding generation ready",
+        Event::ChannelReady { .. } => "channel ready",
         Event::PaymentReceived { .. } => "payment received",
         Event::PaymentClaimed { .. } => "payment claimed",
         Event::PaymentSent { .. } => "payment sent",
@@ -17,7 +19,6 @@ pub fn get_event_name(event: &Event) -> &'static str {
         Event::PaymentForwarded { .. } => "payment forwarded",
         Event::ChannelClosed { .. } => "channel closed",
         Event::DiscardFunding { .. } => "discard funding",
-        Event::OpenChannelRequest { .. } => "open channel request",
         Event::HTLCHandlingFailed { .. } => "HTLC handling failed",
     }
 }

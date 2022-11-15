@@ -18,6 +18,7 @@ use common::ln::peer::ChannelPeer;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::invoice::{HTLCStatus, MillisatAmount, PaymentInfo};
 use lexe_ln::keys_manager::LexeKeysManager;
+use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::p2p::{self, ChannelPeerUpdate};
 use lexe_ln::{channel, command};
 use lightning::chain::keysinterface::{KeysInterface, Recipient};
@@ -35,6 +36,7 @@ use crate::persister::NodePersister;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn poll_for_user_input(
+    logger: LexeTracingLogger,
     invoice_payer: Arc<InvoicePayerType>,
     peer_manager: NodePeerManager,
     channel_manager: NodeChannelManager,
@@ -129,6 +131,7 @@ pub(crate) async fn poll_for_user_input(
                         inbound_payments.clone(),
                         channel_manager.clone(),
                         keys_manager.clone(),
+                        logger.clone(),
                         network,
                     ) {
                         error!("{e:#}");
@@ -474,6 +477,7 @@ fn get_invoice<'a, I: Iterator<Item = &'a str>>(
     inbound_payments: PaymentInfoStorageType,
     channel_manager: NodeChannelManager,
     keys_manager: LexeKeysManager,
+    logger: LexeTracingLogger,
     network: Network,
 ) -> anyhow::Result<()> {
     let amt_msat_str = words
@@ -496,6 +500,7 @@ fn get_invoice<'a, I: Iterator<Item = &'a str>>(
     let invoice = command::get_invoice(
         channel_manager,
         keys_manager,
+        logger,
         inbound_payments,
         network,
         req,

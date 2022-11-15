@@ -91,7 +91,7 @@ impl EventHandler for NodeEventHandler {
     ///   deadlock.
     ///
     /// [`EventsProvider`]: lightning::util::events::EventsProvider
-    fn handle_event(&self, event: &Event) {
+    fn handle_event(&self, event: Event) {
         // XXX: This trait requires that event handling *finishes* before
         // returning from this function, but LDK #1674 (async event handling)
         // isn't implemented yet.
@@ -102,7 +102,7 @@ impl EventHandler for NodeEventHandler {
         // rt), so we can't use `rt-multi-threaded`, which would let us use
         // `task::block_in_place`.
 
-        let event_name = lexe_ln::event::get_event_name(event);
+        let event_name = lexe_ln::event::get_event_name(&event);
         info!("Handling event: {event_name}");
         debug!("Event details: {event:?}");
 
@@ -118,7 +118,6 @@ impl EventHandler for NodeEventHandler {
         let outbound_payments = self.outbound_payments.clone();
         let test_event_tx = self.test_event_tx.clone();
         let shutdown = self.shutdown.clone();
-        let event = event.clone();
 
         // NOTE: this blocks the main node event loop; if `handle_event`
         // depends on anything happening in the normal event loop, the whole
@@ -135,7 +134,7 @@ impl EventHandler for NodeEventHandler {
                 &outbound_payments,
                 &test_event_tx,
                 &shutdown,
-                &event,
+                event,
             )
             .await
         });
@@ -155,7 +154,7 @@ pub(crate) async fn handle_event(
     outbound_payments: &PaymentInfoStorageType,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
-    event: &Event,
+    event: Event,
 ) {
     let handle_event_res = handle_event_fallible(
         network,
@@ -189,7 +188,7 @@ async fn handle_event_fallible(
     outbound_payments: &PaymentInfoStorageType,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
-    event: &Event,
+    event: Event,
 ) -> anyhow::Result<()> {
     match event {
         // NOTE: This event is received because manually_accept_inbound_channels
@@ -208,7 +207,7 @@ async fn handle_event_fallible(
             channel_type: _,
         } => {
             // Only accept inbound channels from Lexe's LSP
-            let counterparty_node_pk = NodePk(*counterparty_node_id);
+            let counterparty_node_pk = NodePk(counterparty_node_id);
             if counterparty_node_pk != lsp.node_pk {
                 // Lexe's proxy should have prevented non-Lexe nodes from
                 // connecting to us. Log an error and shut down.
@@ -220,8 +219,8 @@ async fn handle_event_fallible(
                 // Reject the channel
                 channel_manager
                     .force_close_without_broadcasting_txn(
-                        temporary_channel_id,
-                        counterparty_node_id,
+                        &temporary_channel_id,
+                        &counterparty_node_id,
                     )
                     .map_err(|e| anyhow!("{e:?}"))
                     .context("Couldn't reject channel from unknown LSP")?;
@@ -235,8 +234,8 @@ async fn handle_event_fallible(
                 let user_channel_id = 0;
                 channel_manager
                     .accept_inbound_channel_from_trusted_peer_0conf(
-                        temporary_channel_id,
-                        counterparty_node_id,
+                        &temporary_channel_id,
+                        &counterparty_node_id,
                         user_channel_id,
                     )
                     .inspect(|_| info!("Accepted zeroconf channel from LSP"))
@@ -261,7 +260,7 @@ async fn handle_event_fallible(
             .to_address();
             let mut outputs = vec![HashMap::with_capacity(1)];
             outputs[0]
-                .insert(addr, *channel_value_satoshis as f64 / 100_000_000.0);
+                .insert(addr, channel_value_satoshis as f64 / 100_000_000.0);
             let raw_tx = bitcoind
                 .create_raw_transaction(outputs)
                 .await
@@ -286,8 +285,8 @@ async fn handle_event_fallible(
 
             // Give the funding transaction back to LDK for opening the channel.
             match channel_manager.funding_transaction_generated(
-                temporary_channel_id,
-                counterparty_node_id,
+                &temporary_channel_id,
+                &counterparty_node_id,
                 final_tx,
             ) {
                 Ok(()) => test_event_tx.send(TestEvent::FundingTxHandled),
@@ -297,6 +296,12 @@ async fn handle_event_fallible(
                 ),
             }
         }
+        Event::ChannelReady {
+            channel_id: _,
+            user_channel_id: _,
+            counterparty_node_id: _,
+            channel_type: _,
+        } => {}
         Event::PaymentReceived {
             payment_hash,
             purpose,
@@ -310,8 +315,8 @@ async fn handle_event_fallible(
             let payment_preimage = match purpose {
                 PaymentPurpose::InvoicePayment {
                     payment_preimage, ..
-                } => *payment_preimage,
-                PaymentPurpose::SpontaneousPayment(preimage) => Some(*preimage),
+                } => payment_preimage,
+                PaymentPurpose::SpontaneousPayment(preimage) => Some(preimage),
             };
             channel_manager.claim_funds(payment_preimage.unwrap());
 
@@ -332,13 +337,13 @@ async fn handle_event_fallible(
                     payment_preimage,
                     payment_secret,
                     ..
-                } => (*payment_preimage, Some(*payment_secret)),
+                } => (payment_preimage, Some(payment_secret)),
                 PaymentPurpose::SpontaneousPayment(preimage) => {
-                    (Some(*preimage), None)
+                    (Some(preimage), None)
                 }
             };
             let mut payments = inbound_payments.lock().unwrap();
-            let payment_entry = payments.entry(*payment_hash);
+            let payment_entry = payments.entry(payment_hash);
             match payment_entry {
                 Entry::Occupied(mut e) => {
                     let payment = e.get_mut();
@@ -351,7 +356,7 @@ async fn handle_event_fallible(
                         preimage: payment_preimage,
                         secret: payment_secret,
                         status: HTLCStatus::Succeeded,
-                        amt_msat: MillisatAmount(Some(*amount_msat)),
+                        amt_msat: MillisatAmount(Some(amount_msat)),
                     });
                 }
             }
@@ -367,8 +372,8 @@ async fn handle_event_fallible(
             let mut payments = outbound_payments.lock().unwrap();
             let payments_iter = payments.iter_mut();
             for (hash, payment) in payments_iter {
-                if *hash == *payment_hash {
-                    payment.preimage = Some(*payment_preimage);
+                if *hash == payment_hash {
+                    payment.preimage = Some(payment_preimage);
                     payment.status = HTLCStatus::Succeeded;
                     info!(
                         "EVENT: successfully sent payment of {} millisatoshis{} from \
@@ -398,8 +403,8 @@ async fn handle_event_fallible(
             );
 
             let mut payments = outbound_payments.lock().unwrap();
-            if payments.contains_key(payment_hash) {
-                let payment = payments.get_mut(payment_hash).unwrap();
+            if payments.contains_key(&payment_hash) {
+                let payment = payments.get_mut(&payment_hash).unwrap();
                 payment.status = HTLCStatus::Failed;
             }
         }
@@ -413,11 +418,10 @@ async fn handle_event_fallible(
             let nodes = read_only_network_graph.nodes();
             let channels = channel_manager.list_channels();
 
-            let node_str = |channel_id: &Option<[u8; 32]>| match channel_id {
+            let node_str = |channel_id: Option<[u8; 32]>| match channel_id {
                 None => String::new(),
                 Some(channel_id) => {
-                    match channels.iter().find(|c| c.channel_id == *channel_id)
-                    {
+                    match channels.iter().find(|c| c.channel_id == channel_id) {
                         None => String::new(),
                         Some(channel) => {
                             match nodes.get(&NodeId::from_pubkey(
@@ -438,7 +442,7 @@ async fn handle_event_fallible(
                     }
                 }
             };
-            let channel_str = |channel_id: &Option<[u8; 32]>| {
+            let channel_str = |channel_id: Option<[u8; 32]>| {
                 channel_id
                     .map(|channel_id| {
                         format!(" with channel {}", hex::encode(&channel_id))
@@ -456,7 +460,7 @@ async fn handle_event_fallible(
                 channel_str(next_channel_id)
             );
 
-            let from_onchain_str = if *claim_from_onchain_tx {
+            let from_onchain_str = if claim_from_onchain_tx {
                 "from onchain downstream claim"
             } else {
                 "from HTLC fulfill message"
@@ -509,7 +513,7 @@ async fn handle_event_fallible(
         } => {
             info!(
                 "EVENT: Channel {} closed due to: {:?}",
-                hex::encode(channel_id),
+                hex::encode(&channel_id),
                 reason
             );
         }

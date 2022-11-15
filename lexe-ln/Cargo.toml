@@ -26,10 +26,10 @@ base64 = "0.13.0"
 
 # --- LIGHTNING --- #
 
-lightning = { version = "0.0.111", features = ["max_level_trace"] }
-lightning-block-sync = { version = "0.0.111", features = [ "rpc-client" ] }
-lightning-invoice = { version = "0.19" }
-lightning-net-tokio = { version = "0.0.111" }
+lightning = { version = "0.0.112", features = ["max_level_trace"] }
+lightning-block-sync = { version = "0.0.112", features = [ "rpc-client" ] }
+lightning-invoice = { version = "0.20" }
+lightning-net-tokio = { version = "0.0.112" }
 
 # lightning = { git = "https://github.com/lexe-tech/rust-lightning", features = # ["max_level_trace"], branch = "main" }
 # lightning-block-sync = { git = "https://github.com/lexe-tech/rust-lightning", # features = [ "rpc-client" ], branch = "main" }

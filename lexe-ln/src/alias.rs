@@ -49,7 +49,6 @@ pub type P2PGossipSyncType = P2PGossipSync<
 >;
 
 pub type LexeChannelManagerType<PERSISTER> = ChannelManager<
-    SignerType,
     Arc<LexeChainMonitorType<PERSISTER>>,
     Arc<BroadcasterType>,
     LexeKeysManager,
@@ -61,7 +60,7 @@ pub type ProbabilisticScorerType =
     ProbabilisticScorer<Arc<NetworkGraphType>, LexeTracingLogger>;
 
 pub type OnionMessengerType =
-    OnionMessenger<SignerType, LexeKeysManager, LexeTracingLogger>;
+    OnionMessenger<LexeKeysManager, LexeTracingLogger, IgnoringMessageHandler>;
 
 pub type LexePeerManagerType<CHANNEL_MANAGER> = PeerManager<
     SocketDescriptor,
@@ -74,16 +73,15 @@ pub type LexePeerManagerType<CHANNEL_MANAGER> = PeerManager<
 
 pub type PaymentInfoStorageType = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
 
-pub type RouterType = DefaultRouter<Arc<NetworkGraphType>, LexeTracingLogger>;
+pub type RouterType = DefaultRouter<
+    Arc<NetworkGraphType>,
+    LexeTracingLogger,
+    Arc<Mutex<ProbabilisticScorerType>>,
+>;
 
 // TODO(max): Expand this further to InvoicePayerUsingTime?
-pub type LexeInvoicePayerType<CHANNEL_MANAGER, EVENT_HANDLER> = InvoicePayer<
-    CHANNEL_MANAGER,
-    RouterType,
-    Arc<Mutex<ProbabilisticScorerType>>,
-    LexeTracingLogger,
-    EVENT_HANDLER,
->;
+pub type LexeInvoicePayerType<CHANNEL_MANAGER, EVENT_HANDLER> =
+    InvoicePayer<CHANNEL_MANAGER, RouterType, LexeTracingLogger, EVENT_HANDLER>;
 
 /// This is the tuple that LDK impl'd `Listen` for
 pub type ChannelMonitorListenerType = (

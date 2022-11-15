@@ -92,7 +92,7 @@ impl LexeBackgroundProcessor {
                     _ = ng_timer.tick() => {
                         debug!("Pruning and persisting network graph");
                         let network_graph = gossip_sync.network_graph();
-                        network_graph.remove_stale_channels();
+                        network_graph.remove_stale_channels_and_tracking();
                         let persist_res = persister
                             .persist_graph(network_graph)
                             .await;
