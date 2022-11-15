@@ -30,6 +30,10 @@ pub enum TestEvent {
     ///
     /// [`FundingGenerationReady`]: lightning::util::events::Event::FundingGenerationReady
     FundingTxHandled,
+    /// A [`ChannelReady`] event was handled.
+    ///
+    /// [`ChannelReady`]: lightning::util::events::Event::ChannelReady
+    ChannelReady,
     /// A channel monitor update was successfully persisted.
     ChannelMonitorPersisted,
     /// A [`PaymentReceived`] event was handled.
