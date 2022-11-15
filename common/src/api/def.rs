@@ -94,20 +94,15 @@ pub trait NodeBackendApi {
     ) -> Result<Vec<NodeFile>, BackendApiError>;
 }
 
-/// The API for a new user to signup.
+/// The user-facing backend APIs.
 #[async_trait]
-pub trait UserSignupApi {
+pub trait UserBackendApi {
     /// POST /signup [`ed25519::Signed<UserSignupRequest>`] -> [`()`]
     async fn signup(
         &self,
         signed_req: ed25519::Signed<UserSignupRequest>,
     ) -> Result<(), BackendApiError>;
-}
 
-/// Defines the api that the user or node uses to signup or authenticate against
-/// lexe infra.
-#[async_trait]
-pub trait UserAuthApi {
     /// POST /user_auth [`ed25519::Signed<UserAuthRequest>`]
     ///              -> [`UserAuthResponse`]
     async fn user_auth(

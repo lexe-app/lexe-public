@@ -1,8 +1,10 @@
 //! This file contains NodeApiClient, the concrete impl of the ApiClient trait.
 
 use async_trait::async_trait;
-use common::api::auth::{UserAuthRequest, UserAuthResponse, UserAuthToken};
-use common::api::def::{NodeBackendApi, NodeRunnerApi, UserAuthApi};
+use common::api::auth::{
+    UserAuthRequest, UserAuthResponse, UserAuthToken, UserSignupRequest,
+};
+use common::api::def::{NodeBackendApi, NodeRunnerApi, UserBackendApi};
 use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
@@ -31,7 +33,14 @@ impl NodeApiClient {
 }
 
 #[async_trait]
-impl UserAuthApi for NodeApiClient {
+impl UserBackendApi for NodeApiClient {
+    async fn signup(
+        &self,
+        _signed_req: ed25519::Signed<UserSignupRequest>,
+    ) -> Result<(), BackendApiError> {
+        unimplemented!()
+    }
+
     async fn user_auth(
         &self,
         signed_req: ed25519::Signed<UserAuthRequest>,

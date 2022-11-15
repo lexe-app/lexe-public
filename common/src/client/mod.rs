@@ -11,9 +11,11 @@ use anyhow::Context;
 use async_trait::async_trait;
 use reqwest::{IntoProxyScheme, Url};
 
-use crate::api::auth::{UserAuthRequest, UserAuthResponse, UserAuthenticator};
+use crate::api::auth::{
+    UserAuthRequest, UserAuthResponse, UserAuthenticator, UserSignupRequest,
+};
 use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
-use crate::api::def::{OwnerNodeProvisionApi, OwnerNodeRunApi, UserAuthApi};
+use crate::api::def::{OwnerNodeProvisionApi, OwnerNodeRunApi, UserBackendApi};
 use crate::api::error::{BackendApiError, NodeApiError, NodeErrorKind};
 use crate::api::provision::NodeProvisionRequest;
 use crate::api::rest::{RequestBuilderExt, RestClient, GET, POST};
@@ -155,7 +157,20 @@ impl NodeClient {
 }
 
 #[async_trait]
-impl UserAuthApi for NodeClient {
+impl UserBackendApi for NodeClient {
+    async fn signup(
+        &self,
+        signed_req: ed25519::Signed<UserSignupRequest>,
+    ) -> Result<(), BackendApiError> {
+        let gateway_url = &self.gateway_url;
+        let req = self
+            .rest
+            .builder(POST, format!("{gateway_url}/signup"))
+            .signed_bcs(signed_req)
+            .map_err(BackendApiError::bcs_serialize)?;
+        self.rest.send(req).await
+    }
+
     async fn user_auth(
         &self,
         signed_req: ed25519::Signed<UserAuthRequest>,
