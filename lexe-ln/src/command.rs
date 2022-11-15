@@ -13,6 +13,7 @@ use tracing::info;
 use crate::alias::{LexeInvoicePayerType, PaymentInfoStorageType};
 use crate::invoice::{HTLCStatus, LxPaymentError, MillisatAmount, PaymentInfo};
 use crate::keys_manager::LexeKeysManager;
+use crate::logger::LexeTracingLogger;
 use crate::traits::{
     LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
 };
@@ -50,6 +51,7 @@ where
 pub fn get_invoice<CM, PS>(
     channel_manager: CM,
     keys_manager: LexeKeysManager,
+    logger: LexeTracingLogger,
     inbound_payments: PaymentInfoStorageType,
     network: Network,
     req: GetInvoiceRequest,
@@ -64,6 +66,7 @@ where
     let invoice = lightning_invoice::utils::create_invoice_from_channelmanager(
         &channel_manager,
         keys_manager,
+        logger,
         currency,
         req.amt_msat,
         "lexe-node".to_string(),

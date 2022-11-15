@@ -23,6 +23,15 @@ sgx-isa = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 sgxs-loaders = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 tokio = { git = "https://github.com/lexe-tech/tokio",  branch = "tokio-sgx-1.21.2" }
 
+# 0.0.112 introduced a bug which breaks our integration tests. The fix is
+# implemented in https://github.com/lightningdevkit/rust-lightning/pull/1851.
+# In the meantime, we have to use a git dependency until 0.0.113 is released.
+# TODO(max): Comment this section out once 0.0.113 is released
+lightning = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.112-with-fix" }
+lightning-block-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.112-with-fix" }
+lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.112-with-fix" }
+lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.112-with-fix" }
+
 # For debugging LDK or testing patches during local development
 # lightning = { path = "../ldk/lightning", features = ["max_level_trace"]}
 # lightning-block-sync = { path = "../ldk/lightning-block-sync", features = [ "rpc-client" ] }

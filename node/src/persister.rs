@@ -28,7 +28,7 @@ use lexe_ln::traits::LexeInnerPersister;
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
 use lightning::chain::channelmonitor::ChannelMonitorUpdate;
 use lightning::chain::transaction::OutPoint;
-use lightning::chain::ChannelMonitorUpdateErr;
+use lightning::chain::ChannelMonitorUpdateStatus;
 use lightning::ln::channelmanager::ChannelManagerReadArgs;
 use lightning::routing::gossip::NetworkGraph;
 use lightning::routing::scoring::{
@@ -378,7 +378,7 @@ impl Persist<SignerType> for InnerPersister {
         funding_txo: OutPoint,
         monitor: &ChannelMonitorType,
         update_id: MonitorUpdateId,
-    ) -> Result<(), ChannelMonitorUpdateErr> {
+    ) -> ChannelMonitorUpdateStatus {
         let funding_txo = LxOutPoint::from(funding_txo);
         info!("Persisting new channel {funding_txo}");
 
@@ -431,9 +431,9 @@ impl Persist<SignerType> for InnerPersister {
             self.shutdown.send();
         }
 
-        // As documented in the `Persist` trait docs, return `TemporaryFailure`,
+        // As documented in the `Persist` trait docs, return `InProgress`,
         // which freezes the channel until persistence succeeds.
-        Err(ChannelMonitorUpdateErr::TemporaryFailure)
+        ChannelMonitorUpdateStatus::InProgress
     }
 
     // FIXME: lightning_block_sync triggers a separate persist call for *every*
@@ -446,7 +446,7 @@ impl Persist<SignerType> for InnerPersister {
         update: &Option<ChannelMonitorUpdate>,
         monitor: &ChannelMonitorType,
         update_id: MonitorUpdateId,
-    ) -> Result<(), ChannelMonitorUpdateErr> {
+    ) -> ChannelMonitorUpdateStatus {
         let funding_txo = LxOutPoint::from(funding_txo);
         info!("Updating persisted channel {funding_txo}");
 
@@ -499,8 +499,8 @@ impl Persist<SignerType> for InnerPersister {
             self.shutdown.send();
         }
 
-        // As documented in the `Persist` trait docs, return `TemporaryFailure`,
+        // As documented in the `Persist` trait docs, return `InProgress`,
         // which freezes the channel until persistence succeeds.
-        Err(ChannelMonitorUpdateErr::TemporaryFailure)
+        ChannelMonitorUpdateStatus::InProgress
     }
 }

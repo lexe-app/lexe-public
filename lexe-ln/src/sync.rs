@@ -2,14 +2,14 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use bitcoin::blockdata::block::BlockHeader;
 use bitcoin::BlockHash;
 use common::cli::Network;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use lightning::chain::transaction::{OutPoint, TransactionData};
-use lightning::chain::{Listen, Watch};
+use lightning::chain::{ChannelMonitorUpdateStatus, Listen, Watch};
 use lightning_block_sync::poll::{ChainPoller, ValidatedBlockHeader};
 use lightning_block_sync::{init as block_sync_init, SpvClient};
 use tokio::sync::mpsc;
@@ -243,12 +243,15 @@ where
             if let LxListener::ChannelMonitor(cmcl) = chain_listener.listener {
                 let (channel_monitor, funding_outpoint) =
                     cmcl.into_monitor_and_outpoint();
-                chain_monitor
-                    .watch_channel(funding_outpoint, channel_monitor)
-                    .map_err(|e| anyhow!("{e:?}"))
-                    .context(
-                        "Couldn't pass channel monitor to chain monitor",
-                    )?;
+                let status = chain_monitor
+                    .watch_channel(funding_outpoint, channel_monitor);
+                match status {
+                    ChannelMonitorUpdateStatus::Completed => {}
+                    ChannelMonitorUpdateStatus::InProgress => {}
+                    ChannelMonitorUpdateStatus::PermanentFailure => {
+                        bail!("Channel monitor update permanently failed")
+                    }
+                }
             }
         }
 

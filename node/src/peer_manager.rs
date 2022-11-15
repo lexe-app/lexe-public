@@ -52,10 +52,12 @@ impl NodePeerManager {
         // multiple node announcements (it becomes last_node_announcement_serial
         // which then becomes the timestamp field of UnsignedNodeAnnouncement
         // which is specified in BOLT#07), using the system time is fine.
-        let current_time = SystemTime::now()
+        let current_time: u32 = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("System time is before Unix epoch")
-            .as_secs();
+            .as_secs()
+            .try_into()
+            .expect("It's the year 2038 and you own nothing");
 
         let peer_manager: PeerManagerType = PeerManagerType::new(
             lightning_msg_handler,

@@ -5,7 +5,6 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{ensure, Context};
-use bitcoin::blockdata::block::Block;
 use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
 use bitcoin::hash_types::{BlockHash, Txid};
@@ -19,7 +18,7 @@ use lightning::chain::chaininterface::{
 use lightning_block_sync::http::HttpEndpoint;
 use lightning_block_sync::rpc::RpcClient;
 use lightning_block_sync::{
-    AsyncBlockSourceResult, BlockHeaderData, BlockSource,
+    AsyncBlockSourceResult, BlockData, BlockHeaderData, BlockSource,
 };
 use tokio::time;
 use tracing::{debug, error};
@@ -287,7 +286,7 @@ impl BlockSource for LexeBitcoind {
     fn get_block<'a>(
         &'a self,
         header_hash: &'a BlockHash,
-    ) -> AsyncBlockSourceResult<'a, Block> {
+    ) -> AsyncBlockSourceResult<'a, BlockData> {
         debug!("get_block() called for {header_hash}");
         Box::pin(async move { self.rpc_client.get_block(header_hash).await })
     }

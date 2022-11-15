@@ -36,6 +36,7 @@ use lexe_ln::{channel_monitor, p2p};
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
 use lightning::chain::BestBlock;
+use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::onion_message::OnionMessenger;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning_block_sync::poll::{Validate, ValidatedBlockHeader};
@@ -72,7 +73,7 @@ pub struct UserNode {
     shutdown: ShutdownChannel,
 
     // --- Actors --- //
-    logger: LexeTracingLogger,
+    pub logger: LexeTracingLogger,
     pub persister: NodePersister,
     pub wallet: Arc<WalletType>,
     block_source: Arc<BlockSourceType>,
@@ -275,8 +276,11 @@ impl UserNode {
             .context("Could not init NodeChannelManager")?;
 
         // Init onion messenger
-        let onion_messenger =
-            Arc::new(OnionMessenger::new(keys_manager.clone(), logger.clone()));
+        let onion_messenger = Arc::new(OnionMessenger::new(
+            keys_manager.clone(),
+            logger.clone(),
+            IgnoringMessageHandler {},
+        ));
 
         // Initialize PeerManager
         let peer_manager = NodePeerManager::init(
@@ -345,11 +349,11 @@ impl UserNode {
             network_graph.clone(),
             logger.clone(),
             keys_manager.get_secure_random_bytes(),
+            scorer.clone(),
         );
         let invoice_payer = Arc::new(InvoicePayerType::new(
             channel_manager.clone(),
             router,
-            scorer.clone(),
             logger.clone(),
             event_handler,
             Retry::Timeout(Duration::from_secs(10)),
@@ -377,6 +381,7 @@ impl UserNode {
             invoice_payer.clone(),
             inbound_payments.clone(),
             outbound_payments.clone(),
+            logger.clone(),
             args.network,
             activity_tx,
         );
@@ -546,6 +551,7 @@ impl UserNode {
         if self.args.repl {
             debug!("Starting REPL");
             crate::repl::poll_for_user_input(
+                self.logger.clone(),
                 self.invoice_payer,
                 self.peer_manager.clone(),
                 self.channel_manager,
