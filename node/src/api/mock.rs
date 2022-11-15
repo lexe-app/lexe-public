@@ -4,8 +4,10 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use common::api::auth::{UserAuthRequest, UserAuthResponse, UserAuthToken};
-use common::api::def::{NodeBackendApi, NodeRunnerApi, UserAuthApi};
+use common::api::auth::{
+    UserAuthRequest, UserAuthResponse, UserAuthToken, UserSignupRequest,
+};
+use common::api::def::{NodeBackendApi, NodeRunnerApi, UserBackendApi};
 use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
@@ -111,7 +113,14 @@ impl MockApiClient {
 }
 
 #[async_trait]
-impl UserAuthApi for MockApiClient {
+impl UserBackendApi for MockApiClient {
+    async fn signup(
+        &self,
+        _signed_req: ed25519::Signed<UserSignupRequest>,
+    ) -> Result<(), BackendApiError> {
+        Ok(())
+    }
+
     async fn user_auth(
         &self,
         _signed_req: ed25519::Signed<UserAuthRequest>,
