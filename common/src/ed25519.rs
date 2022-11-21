@@ -32,6 +32,9 @@
 // TODO(phlip9): patch ring/rcgen so `Ed25519KeyPair`/`rcgen::KeyPair` derive
 //               `Zeroize`.
 
+// TODO(phlip9): Submit PR to ring for `Ed25519Ctx` support so we don't have to
+//               pre-hash.
+
 use std::fmt;
 
 use asn1_rs::{oid, Oid};
