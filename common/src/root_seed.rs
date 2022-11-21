@@ -13,6 +13,9 @@ use crate::api::{NodePk, UserPk};
 use crate::rng::Crng;
 use crate::{ed25519, hex, sha256};
 
+// TODO(phlip9): [perf] consider storing extracted `Prk` alongside seed to
+//               reduce key derivation time by ~60-70% : )
+
 /// The user's root seed from which we derive all child secrets.
 pub struct RootSeed(Secret<[u8; Self::LENGTH]>);
 
@@ -57,7 +60,7 @@ impl RootSeed {
     }
 
     /// Derive a new child secret with `label` into a prepared buffer `out`.
-    pub fn derive_to_slice(&self, label: &[u8], out: &mut [u8]) {
+    pub fn derive_to_slice(&self, label: &[&[u8]], out: &mut [u8]) {
         struct OkmLength(usize);
 
         impl ring::hkdf::KeyType for OkmLength {
@@ -68,8 +71,6 @@ impl RootSeed {
 
         assert!(out.len() <= Self::HKDF_MAX_OUT_LEN);
 
-        let label = &[label];
-
         self.extract()
             .expand(label, OkmLength(out.len()))
             .expect("should not fail")
@@ -78,7 +79,7 @@ impl RootSeed {
     }
 
     /// Derive a new child secret with `label` to a hash-output-sized buffer.
-    pub fn derive(&self, label: &[u8]) -> Secret<[u8; 32]> {
+    pub fn derive(&self, label: &[&[u8]]) -> Secret<[u8; 32]> {
         let mut out = [0u8; 32];
         self.derive_to_slice(label, &mut out);
         Secret::new(out)
@@ -86,7 +87,7 @@ impl RootSeed {
 
     /// Convenience method to derive a new child secret with `label` into a
     /// `Vec<u8>` of size `out_len`.
-    pub fn derive_vec(&self, label: &[u8], out_len: usize) -> SecretVec<u8> {
+    pub fn derive_vec(&self, label: &[&[u8]], out_len: usize) -> SecretVec<u8> {
         let mut out = vec![0u8; out_len];
         self.derive_to_slice(label, &mut out);
         SecretVec::new(out)
@@ -95,7 +96,7 @@ impl RootSeed {
     /// Derive the CA cert that endorses client and node certs. These certs
     /// provide mutual authentication for client <-> node connections.
     pub fn derive_client_ca_key_pair(&self) -> rcgen::KeyPair {
-        let seed = self.derive(b"client ca key pair");
+        let seed = self.derive(&[b"client ca key pair"]);
         ed25519::KeyPair::from_seed(seed.expose_secret()).to_rcgen()
     }
 
@@ -105,7 +106,7 @@ impl RootSeed {
     ///
     /// [`UserPk`]: crate::api::UserPk
     pub fn derive_user_key_pair(&self) -> ed25519::KeyPair {
-        let seed = self.derive(b"user key pair");
+        let seed = self.derive(&[b"user key pair"]);
         ed25519::KeyPair::from_seed(seed.expose_secret())
     }
 
@@ -300,7 +301,7 @@ mod test {
     fn hkdf_sha256(
         ikm: &[u8],
         salt: &[u8],
-        info: &[u8],
+        info: &[&[u8]],
         out_len: usize,
     ) -> Vec<u8> {
         let prk = hmac_sha256(salt, ikm);
@@ -320,7 +321,9 @@ mod test {
         for i in 1..=n {
             // m_i := T(i-1) || info || [ i ]
             let mut m_i = if i == 1 { Vec::new() } else { t_i.to_vec() };
-            m_i.extend_from_slice(info);
+            for info_part in info {
+                m_i.extend_from_slice(info_part);
+            }
             m_i.extend_from_slice(&[i]);
 
             let h_i = hmac_sha256(prk.as_ref(), &m_i);
@@ -375,10 +378,10 @@ mod test {
     fn test_root_seed_derive() {
         let seed = RootSeed::from_u64(0x42);
 
-        let out8 = seed.derive_vec(b"very cool secret", 8);
-        let out16 = seed.derive_vec(b"very cool secret", 16);
-        let out32 = seed.derive_vec(b"very cool secret", 32);
-        let out32_2 = seed.derive(b"very cool secret");
+        let out8 = seed.derive_vec(&[b"very cool secret"], 8);
+        let out16 = seed.derive_vec(&[b"very cool secret"], 16);
+        let out32 = seed.derive_vec(&[b"very cool secret"], 32);
+        let out32_2 = seed.derive(&[b"very cool secret"]);
 
         assert_eq!("4ea4ee14ed456f80", hex::encode(out8.expose_secret()));
         assert_eq!(
@@ -396,10 +399,15 @@ mod test {
     #[test]
     fn test_root_seed_derive_equiv() {
         let arb_seed = any::<RootSeed>();
-        let arb_label = vec(any::<u8>(), 0..=64);
+        let arb_label = vec(vec(any::<u8>(), 0..=64), 0..=4);
         let arb_len = 0_usize..=1024;
 
         proptest!(|(seed in arb_seed, label in arb_label, len in arb_len)| {
+            let label = label
+                .iter()
+                .map(|x| x.as_slice())
+                .collect::<Vec<_>>();
+
             let expected = hkdf_sha256(
                 seed.as_bytes(),
                 RootSeed::HKDF_SALT.as_slice(),
