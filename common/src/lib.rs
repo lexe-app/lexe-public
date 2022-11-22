@@ -42,6 +42,8 @@ pub mod ln;
 pub mod rng;
 /// `RootSeed`.
 pub mod root_seed;
+/// Seal VFS blobs for remote storage.
+pub mod seal;
 /// sha256 convenience module.
 pub mod sha256;
 /// `ShutdownChannel`.

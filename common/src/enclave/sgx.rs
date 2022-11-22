@@ -41,7 +41,7 @@ impl KeyRequest {
     /// field.
     const TRUNCATED_SIZE: usize = 76; // == 512 - 436
 
-    /// Generate a request for a unique, encrypt-at-most-once sealing key. The\
+    /// Generate a request for a unique, encrypt-at-most-once sealing key. The
     /// sealing key will only be recoverable on enclaves with the same
     /// `MRENCLAVE` measurement.
     fn gen_sealing_request(rng: &mut dyn Crng) -> Self {
