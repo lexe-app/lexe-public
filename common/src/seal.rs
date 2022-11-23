@@ -1,9 +1,10 @@
-//! Module for sealing and unsealing blobs to/from remote storage.
+//! Module for securely sealing and unsealing blobs.
 
 use bytes::{BufMut, BytesMut};
 use ref_cast::RefCast;
 use ring::aead::{self, BoundKey};
 use ring::hkdf;
+use serde::Serialize;
 use thiserror::Error;
 
 use crate::rng::Crng;
@@ -32,15 +33,32 @@ const fn sealed_len(plaintext_len: usize) -> usize {
 // time we seal something.
 pub struct VfsKey(hkdf::Prk);
 
-#[derive(RefCast)]
+#[derive(RefCast, Serialize)]
 #[repr(transparent)]
 pub struct KeyId([u8; 32]);
+
+/// `Aad` is canonically serialized and then passed to AES-256-GCM as the `aad`
+/// (additional authenticated data) parameter.
+///
+/// It serves to:
+///
+/// 1. bind the protocol version
+/// 2. bind the encryption key (via the key id)
+/// 3. bind the user-provided additional authenticated data segments, including
+///    the number of segments, and the lengths of each segment.
+#[derive(Serialize)]
+pub struct Aad<'data, 'aad> {
+    version: u8,
+    key_id: &'data KeyId,
+    aad: &'aad [&'aad [u8]],
+}
 
 pub struct SealKey(aead::SealingKey<ZeroNonce>);
 
 pub struct UnsealKey(aead::OpeningKey<ZeroNonce>);
 
-/// A nonce wrapper that panics if a nonce is used to seal/unseal more than once
+/// A single-use, all-zero nonce that panics if used to seal or unseal data more
+/// than once (for a particular instance).
 struct ZeroNonce(Option<aead::Nonce>);
 
 #[derive(Debug, Error)]
@@ -81,7 +99,7 @@ impl VfsKey {
     pub fn seal<R: Crng>(
         &self,
         rng: &mut R,
-        aad: &[u8],
+        aad: &[&[u8]],
         // A size hint so we can possibly avoid reallocing. If you don't know
         // how long the plaintext will be, just set this to None.
         data_size_hint: Option<usize>,
@@ -89,6 +107,13 @@ impl VfsKey {
     ) -> BytesMut {
         let version = 0;
         let key_id = KeyId::gen(rng);
+
+        let aad = Aad {
+            version,
+            key_id: &key_id,
+            aad,
+        }
+        .serialize();
 
         // reserve enough capacity for at least version, key_id, and tag
         let approx_sealed_len = sealed_len(data_size_hint.unwrap_or(0));
@@ -107,7 +132,7 @@ impl VfsKey {
         // data := [version] || [key_id] || [plaintext]
 
         self.derive_seal_key(&key_id).seal_in_place(
-            aad,
+            aad.as_slice(),
             &mut data,
             plaintext_offset,
         );
@@ -119,7 +144,7 @@ impl VfsKey {
 
     pub fn unseal(
         &self,
-        aad: &[u8],
+        aad: &[&[u8]],
         mut data: BytesMut,
     ) -> Result<BytesMut, UnsealError> {
         // data := [version] || [key_id] || [ciphertext] || [tag]
@@ -134,18 +159,25 @@ impl VfsKey {
             let data = data.as_ref();
             let (version, data) = data.split_array_ref::<VERSION_LEN>();
             let (key_id, _) = data.split_array_ref::<KEY_ID_LEN>();
-            (version, key_id)
+            (version[0], key_id)
         };
 
-        if version != &[0] {
+        if version != 0 {
             return Err(UnsealError);
         }
         let key_id = KeyId::from_ref(key_id);
         let unseal_key = self.derive_unseal_key(key_id);
 
+        let aad = Aad {
+            version,
+            key_id,
+            aad,
+        }
+        .serialize();
+
         let ciphertext_and_tag_offset = VERSION_LEN + KEY_ID_LEN;
         unseal_key.unseal_in_place(
-            aad,
+            &aad,
             &mut data,
             ciphertext_and_tag_offset,
         )?;
@@ -192,6 +224,7 @@ impl UnsealKey {
         // `open_within` will shift the decrypted plaintext to the start of
         // `data`.
         let aad = aead::Aad::from(aad);
+
         let plaintext_ref = self
             .0
             .open_within(aad, data, ciphertext_and_tag_offset..)
@@ -224,6 +257,18 @@ impl KeyId {
     }
 }
 
+impl<'data, 'aad> Aad<'data, 'aad> {
+    fn serialize(&self) -> Vec<u8> {
+        let len = bcs::serialized_size(self)
+            .expect("Serializing the AAD should never fail");
+
+        let mut out = Vec::with_capacity(len);
+        bcs::serialize_into(&mut out, self)
+            .expect("Serializing the AAD should never fail");
+        out
+    }
+}
+
 impl ZeroNonce {
     fn new() -> Self {
         Self(Some(aead::Nonce::assume_unique_for_key([0u8; 12])))
@@ -250,43 +295,116 @@ mod test {
     use crate::root_seed::RootSeed;
 
     #[test]
+    fn test_aad_compat() {
+        let aad = Aad {
+            version: 0,
+            key_id: KeyId::from_ref(&[0x69; 32]),
+            aad: &[],
+        }
+        .serialize();
+
+        let expected_aad = hex::decode(
+            "00\
+             6969696969696969696969696969696969696969696969696969696969696969\
+             00",
+        )
+        .unwrap();
+
+        assert_eq!(&aad, &expected_aad);
+
+        let aad = Aad {
+            version: 0,
+            key_id: KeyId::from_ref(&[0x42; 32]),
+            aad: &[b"aaaaaaaa".as_slice(), b"0123456789".as_slice()],
+        }
+        .serialize();
+
+        let expected_aad = hex::decode(
+            "00\
+             4242424242424242424242424242424242424242424242424242424242424242\
+             02\
+                08\
+                    6161616161616161\
+                0a\
+                    30313233343536373839",
+        )
+        .unwrap();
+        assert_eq!(&aad, &expected_aad);
+    }
+
+    #[test]
     fn test_unseal_compat() {
         let mut rng = SmallRng::from_u64(123);
         let root_seed = RootSeed::from_rng(&mut rng);
         let vfs_key = root_seed.derive_vfs_key();
 
-        let aad = b"my context";
-        let plaintext = b"my cool message";
+        // aad = [], plaintext = ""
+
+        // // uncomment to regen
+        // let sealed = vfs_key.seal(&mut rng, &[], None, &|_| ());
+        // println!("sealed: {}", hex::display(&sealed));
+
         let sealed = hex::decode(
-            "00b0abd2beab31c1d925c5d8059cf90068eece2c41a3a6e4454d84e36ad6858a01\
-             583fd2d2df55114ad7c601726e1c8c120351d54130a6a1cc66acdd0a459813"
-        ).unwrap();
+            "00\
+             b0abd2beab31c1d925c5d8059cf90068eece2c41a3a6e4454d84e36ad6858a01\
+             792ab866123f522acd40ca20d19ea840",
+        )
+        .unwrap();
 
         let unsealed = vfs_key
-            .unseal(aad, BytesMut::from(sealed.as_slice()))
+            .unseal(&[], BytesMut::from(sealed.as_slice()))
+            .unwrap();
+        assert_eq!(unsealed.as_ref(), b"");
+
+        // aad = ["my context"], plaintext = "my cool message"
+
+        let aad = b"my context".as_slice();
+        let plaintext = b"my cool message".as_slice();
+
+        // // uncomment to regen
+        // let sealed =
+        //     vfs_key.seal(&mut rng, &[aad], None, &|out| out.put(plaintext));
+        // println!("sealed: {}", hex::display(&sealed));
+
+        let sealed = hex::decode(
+            // [version] || [key_id] || [ciphertext] || [tag]
+            "00\
+             b0abd2beab31c1d925c5d8059cf90068eece2c41a3a6e4454d84e36ad6858a01\
+             583fd2d2df55114ad7c601726e1c8c\
+             f395785d5677d664a72ebab5123be5bb",
+        )
+        .unwrap();
+
+        let unsealed = vfs_key
+            .unseal(&[aad], BytesMut::from(sealed.as_slice()))
             .unwrap();
 
-        assert_eq!(unsealed.as_ref(), plaintext.as_slice());
+        assert_eq!(unsealed.as_ref(), plaintext);
     }
 
     #[test]
     fn test_seal_unseal_roundtrip() {
         proptest!(|(
             mut rng in any::<SmallRng>(),
-            aad in vec(any::<u8>(), 0..=64),
+            aad in vec(vec(any::<u8>(), 0..=16), 0..=4),
             plaintext in vec(any::<u8>(), 0..=256),
         )| {
             let root_seed = RootSeed::from_rng(&mut rng);
             let vfs_key = root_seed.derive_vfs_key();
 
-            let sealed = vfs_key.seal(&mut rng, &aad, Some(plaintext.len()), &|out: &mut BytesMut| {
+            let aad_ref = aad
+                .iter()
+                .map(|x| x.as_slice())
+                .collect::<Vec<_>>();
+
+            let sealed = vfs_key.seal(&mut rng, &aad_ref, Some(plaintext.len()), &|out: &mut BytesMut| {
                 out.extend_from_slice(&plaintext);
             });
 
-            let unsealed = vfs_key.unseal(&aad, sealed.clone()).unwrap();
+            let unsealed = vfs_key.unseal(&aad_ref, sealed.clone()).unwrap();
             prop_assert_eq!(&plaintext, &unsealed);
 
-            let sealed2 = vfs_key.seal(&mut rng, &aad, None, &|out: &mut BytesMut| {
+            let sealed2 = vfs_key.seal(&mut rng, &aad_ref, None, &|out: &mut BytesMut| {
                 out.extend_from_slice(&plaintext);
             });
 
