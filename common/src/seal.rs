@@ -1,4 +1,83 @@
-//! Module for securely sealing and unsealing blobs.
+//! Securely encrypt and decrypted blobs, usually for remote storage.
+//!
+//! ## Design Considerations
+//!
+//! * AES-256-GCM uses 12-byte nonces (2^96 bits).
+//! * For a given key, any nonce reuse is catastrophic w/ AES-GCM.
+//! * Synthetic nonce / nonce reuse resistant schemes like AES-SIV-GCM aren't
+//!   available in [`ring`] or have undesirable properties (multiple passes, max
+//!   2^32 encryptions).
+//! * [`ring`] doesn't support XChaCha20-Poly1305, which would let us use a
+//!   larger nonce.
+//! * We need to use [`ring`] b/c TLS. We don't want to depend on other crypto
+//!   libraries b/c attack surface and binary bloat.
+//! * For our particular use case, we don't particularly care about
+//!   single-message (key, nonce) wear-out, since our messages aren't
+//!   particularly large (at most a few MiB).
+//! * We also don't have access to a consistent monotonic counter b/c
+//!   distributed system and adversarial host, so we use random nonces.
+//! * If we had a reliable counter, we could safely encrypt ~2^64 messages
+//!   before key wear-out, which would be sufficient for us to simplify and just
+//!   use one key for all encryptions.
+//! * For a given key and perfectly random nonces, with nonce collision
+//!   probability = 2^-32 (standard NIST bound), we can expect key wear-out
+//!   after 2^32 encryptions.
+//!
+//! ## Design
+//!
+//! This scheme is inspired by "Derive Key Mode" described in
+//! [(2017) GueronLindel](https://eprint.iacr.org/2017/702.pdf).
+//! "Derive Key Mode" uses a long-term "master key" (see [`MasterKey`]), which
+//! isn't used to encrypt data; rather, it's used to derive per-message keys
+//! from a large random key-id, sampled per message (see [`KeyId`]).
+//!
+//! In our case, we use a 32-byte (2^256 bit) key id to derive each per-message
+//! [`SealKey`]/[`UnsealKey`], which gives us plenty of breathing room as far as
+//! safety bounds are concerned.
+//!
+//! For the AAD, taking a single `&[u8]` would require the caller to allocate
+//! and canonically serialize (length-prefixes, etc...) when there are multiple
+//! things to bind. Then, we would need to copy+allocate again in order to bind
+//! the `version`, `key-id`, and user AAD. To avoid this the user passes the AAD
+//! as a list of segments (like fields of a struct). For more info, see [`Aad`].
+//!
+//! We use an AES-256-GCM nonce of all zeroes, since keys are single-use and
+//! 256 bits of security are Good Enough^tm.
+//!
+//! The scheme in simplified pseudo-code, sealing only:
+//!
+//! ```ignore
+//! master-key := (secret derived from user's root seed)
+//!
+//! Aad(version, key-id, user-aad: &[&[u8]]) :=
+//! 1. return bcs::to_bytes({ version, key-id, user-aad })
+//!
+//! Seal(master-key, user-aad: &[&[u8]], plaintext) :=
+//! 1. version := 0_u8
+//! 2. key-id := random 32-byte value
+//! 3. aad := Aad(version, key-id, user-aad)
+//! 4. seal-key := HKDF-Extract-Expand(
+//!         ikm=master-key,
+//!         salt=SHA-256("LEXE-REALM::MasterKey"),
+//!         info=key-id,
+//!         out-len=32 bytes,
+//!    )
+//! 5. (ciphertext, tag) := AES-256-GCM(seal-key, nonce=[0; 12], aad, plaintext)
+//! 6. output := version || key-id || ciphertext || tag
+//! 7. return output
+//! ```
+//!
+//! ## References
+//!
+//! * [(2017) GueronLindel](https://eprint.iacr.org/2017/702.pdf) ([video](https://www.youtube.com/watch?v=WEJ451rmhk4))
+//!
+//! This paper, "Better Bounds for Block Cipher Modes of Operation via
+//! Nonce-Based Key Derivation", shows how "Derive Key Mode" significantly
+//! improves the security bounds over the standard long-lived key approach.
+//!
+//! * [(2020) Cryptographic Wear-out for Symmetric Encryption](https://soatok.blog/2020/12/24/cryptographic-wear-out-for-symmetric-encryption/)
+//!
+//! This article describes symmetric security bounds nicely.
 
 use bytes::{BufMut, BytesMut};
 use ref_cast::RefCast;
