@@ -19,23 +19,23 @@ const KEY_ID_LEN: usize = 32;
 /// serialized AES-256-GCM tag length
 const TAG_LEN: usize = 16;
 
-/// The length of an encrypted ciphertext + header + tag given an input
-/// plaintext length.
+/// The length of the final encrypted ciphertext + version byte + key_id + tag
+/// given an input plaintext length.
 const fn sealed_len(plaintext_len: usize) -> usize {
     VERSION_LEN + KEY_ID_LEN + plaintext_len + TAG_LEN
 }
 
-/// The `VfsKey` is used to derive unique single-use seal keys for encrypting
-/// a single blob.
+/// The `MasterKey` is used to derive unique single-use seal keys for encrypting
+/// or decrypting a blob.
 ///
-/// RootSeed -- derive "vfs" --> VfsKey
-// store the salted+extracted PRK directly to avoid recomputing it every
+/// `RootSeed` -- derive("vfs master key") --> `MasterKey`
+// We store the salted+extracted PRK directly to avoid recomputing it every
 // time we seal something.
-pub struct VfsKey(hkdf::Prk);
+pub struct MasterKey(hkdf::Prk);
 
 #[derive(RefCast, Serialize)]
 #[repr(transparent)]
-pub struct KeyId([u8; 32]);
+struct KeyId([u8; 32]);
 
 /// `Aad` is canonically serialized and then passed to AES-256-GCM as the `aad`
 /// (additional authenticated data) parameter.
@@ -47,15 +47,15 @@ pub struct KeyId([u8; 32]);
 /// 3. bind the user-provided additional authenticated data segments, including
 ///    the number of segments, and the lengths of each segment.
 #[derive(Serialize)]
-pub struct Aad<'data, 'aad> {
+struct Aad<'data, 'aad> {
     version: u8,
     key_id: &'data KeyId,
     aad: &'aad [&'aad [u8]],
 }
 
-pub struct SealKey(aead::SealingKey<ZeroNonce>);
+struct SealKey(aead::SealingKey<ZeroNonce>);
 
-pub struct UnsealKey(aead::OpeningKey<ZeroNonce>);
+struct UnsealKey(aead::OpeningKey<ZeroNonce>);
 
 /// A single-use, all-zero nonce that panics if used to seal or unseal data more
 /// than once (for a particular instance).
@@ -65,14 +65,14 @@ struct ZeroNonce(Option<aead::Nonce>);
 #[error("unseal error: ciphertext or metadata may be corrupted")]
 pub struct UnsealError;
 
-impl VfsKey {
+impl MasterKey {
     const HKDF_SALT: [u8; 32] =
-        sha256::digest_const(b"LEXE-REALM::VfsKey").into_inner();
+        sha256::digest_const(b"LEXE-REALM::MasterKey").into_inner();
 
-    pub fn new(seed_derived_secret: &[u8; 32]) -> Self {
+    pub fn new(root_seed_derived_secret: &[u8; 32]) -> Self {
         Self(
             hkdf::Salt::new(hkdf::HKDF_SHA256, &Self::HKDF_SALT)
-                .extract(seed_derived_secret),
+                .extract(root_seed_derived_secret),
         )
     }
 
@@ -336,7 +336,7 @@ mod test {
     fn test_unseal_compat() {
         let mut rng = SmallRng::from_u64(123);
         let root_seed = RootSeed::from_rng(&mut rng);
-        let vfs_key = root_seed.derive_vfs_key();
+        let vfs_key = root_seed.derive_vfs_master_key();
 
         // aad = [], plaintext = ""
 
@@ -345,9 +345,11 @@ mod test {
         // println!("sealed: {}", hex::display(&sealed));
 
         let sealed = hex::decode(
+            // [version] || [key_id] || [ciphertext] || [tag]
             "00\
              b0abd2beab31c1d925c5d8059cf90068eece2c41a3a6e4454d84e36ad6858a01\
-             792ab866123f522acd40ca20d19ea840",
+             \
+             522965227c47a47287ed3b9206609dcc",
         )
         .unwrap();
 
@@ -370,8 +372,8 @@ mod test {
             // [version] || [key_id] || [ciphertext] || [tag]
             "00\
              b0abd2beab31c1d925c5d8059cf90068eece2c41a3a6e4454d84e36ad6858a01\
-             583fd2d2df55114ad7c601726e1c8c\
-             f395785d5677d664a72ebab5123be5bb",
+             2f9cf8bc268de494fd4857a6506164\
+             06d86e0637d175f9c0678238be8ee7f4",
         )
         .unwrap();
 
@@ -390,7 +392,7 @@ mod test {
             plaintext in vec(any::<u8>(), 0..=256),
         )| {
             let root_seed = RootSeed::from_rng(&mut rng);
-            let vfs_key = root_seed.derive_vfs_key();
+            let vfs_key = root_seed.derive_vfs_master_key();
 
             let aad_ref = aad
                 .iter()

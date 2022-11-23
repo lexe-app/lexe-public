@@ -11,8 +11,7 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::api::{NodePk, UserPk};
 use crate::rng::Crng;
-use crate::seal::VfsKey;
-use crate::{ed25519, hex, sha256};
+use crate::{ed25519, hex, seal, sha256};
 
 // TODO(phlip9): [perf] consider storing extracted `Prk` alongside seed to
 //               reduce key derivation time by ~60-70% : )
@@ -146,9 +145,9 @@ impl RootSeed {
         NodePk(secp256k1::PublicKey::from(self.derive_node_key_pair(rng)))
     }
 
-    pub fn derive_vfs_key(&self) -> VfsKey {
-        let secret = self.derive(&[b"vfs key"]);
-        VfsKey::new(secret.expose_secret())
+    pub fn derive_vfs_master_key(&self) -> seal::MasterKey {
+        let secret = self.derive(&[b"vfs master key"]);
+        seal::MasterKey::new(secret.expose_secret())
     }
 
     #[cfg(test)]
