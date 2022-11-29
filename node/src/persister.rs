@@ -120,13 +120,16 @@ impl InnerPersister {
         // without detection currently.
         let aad = &[directory.as_bytes(), filename.as_bytes()];
         let data_size_hint = None;
-        let data =
-            self.vfs_master_key
-                .seal(&mut rng, aad, data_size_hint, &|out| {
-                    writeable.write(&mut out.writer()).expect(
+        let data = self.vfs_master_key.seal(
+            &mut rng,
+            aad,
+            data_size_hint,
+            &|out| {
+                writeable.write(&mut out.writer()).expect(
                     "Serialization into an in-memory buffer should never fail",
                 );
-                });
+            },
+        );
 
         NodeFile::new(self.user_pk, directory, filename, data)
     }
