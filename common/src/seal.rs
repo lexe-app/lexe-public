@@ -79,7 +79,7 @@
 //!
 //! This article describes symmetric security bounds nicely.
 
-use bytes::{BufMut, BytesMut};
+use bytes::BufMut;
 use ref_cast::RefCast;
 use ring::aead::{self, BoundKey};
 use ring::hkdf;
@@ -182,8 +182,8 @@ impl MasterKey {
         // A size hint so we can possibly avoid reallocing. If you don't know
         // how long the plaintext will be, just set this to None.
         data_size_hint: Option<usize>,
-        write_data_cb: &dyn Fn(&mut BytesMut),
-    ) -> BytesMut {
+        write_data_cb: &dyn Fn(&mut Vec<u8>),
+    ) -> Vec<u8> {
         let version = 0;
         let key_id = KeyId::gen(rng);
 
@@ -196,7 +196,7 @@ impl MasterKey {
 
         // reserve enough capacity for at least version, key_id, and tag
         let approx_sealed_len = sealed_len(data_size_hint.unwrap_or(0));
-        let mut data = BytesMut::with_capacity(approx_sealed_len);
+        let mut data = Vec::with_capacity(approx_sealed_len);
 
         // data := ""
 
@@ -224,8 +224,8 @@ impl MasterKey {
     pub fn unseal(
         &self,
         aad: &[&[u8]],
-        mut data: BytesMut,
-    ) -> Result<BytesMut, UnsealError> {
+        mut data: Vec<u8>,
+    ) -> Result<Vec<u8>, UnsealError> {
         // data := [version] || [key_id] || [ciphertext] || [tag]
 
         const MIN_DATA_LEN: usize = sealed_len(0 /* plaintext len */);
@@ -235,7 +235,7 @@ impl MasterKey {
 
         // parse out version and key_id w/o advancing `data`
         let (version, key_id) = {
-            let data = data.as_ref();
+            let data = data.as_slice();
             let (version, data) = data.split_array_ref::<VERSION_LEN>();
             let (key_id, _) = data.split_array_ref::<KEY_ID_LEN>();
             (version[0], key_id)
@@ -274,7 +274,7 @@ impl SealKey {
     fn seal_in_place(
         mut self,
         aad: &[u8],
-        data: &mut BytesMut,
+        data: &mut Vec<u8>,
         plaintext_offset: usize,
     ) {
         assert!(plaintext_offset <= data.len());
@@ -297,7 +297,7 @@ impl UnsealKey {
     fn unseal_in_place(
         mut self,
         aad: &[u8],
-        data: &mut BytesMut,
+        data: &mut Vec<u8>,
         ciphertext_and_tag_offset: usize,
     ) -> Result<(), UnsealError> {
         // `open_within` will shift the decrypted plaintext to the start of
@@ -432,10 +432,8 @@ mod test {
         )
         .unwrap();
 
-        let unsealed = vfs_key
-            .unseal(&[], BytesMut::from(sealed.as_slice()))
-            .unwrap();
-        assert_eq!(unsealed.as_ref(), b"");
+        let unsealed = vfs_key.unseal(&[], sealed).unwrap();
+        assert_eq!(unsealed.as_slice(), b"");
 
         // aad = ["my context"], plaintext = "my cool message"
 
@@ -456,11 +454,9 @@ mod test {
         )
         .unwrap();
 
-        let unsealed = vfs_key
-            .unseal(&[aad], BytesMut::from(sealed.as_slice()))
-            .unwrap();
+        let unsealed = vfs_key.unseal(&[aad], sealed).unwrap();
 
-        assert_eq!(unsealed.as_ref(), plaintext);
+        assert_eq!(unsealed.as_slice(), plaintext);
     }
 
     #[test]
@@ -478,14 +474,14 @@ mod test {
                 .map(|x| x.as_slice())
                 .collect::<Vec<_>>();
 
-            let sealed = vfs_key.seal(&mut rng, &aad_ref, Some(plaintext.len()), &|out: &mut BytesMut| {
+            let sealed = vfs_key.seal(&mut rng, &aad_ref, Some(plaintext.len()), &|out: &mut Vec<u8>| {
                 out.extend_from_slice(&plaintext);
             });
 
             let unsealed = vfs_key.unseal(&aad_ref, sealed.clone()).unwrap();
             prop_assert_eq!(&plaintext, &unsealed);
 
-            let sealed2 = vfs_key.seal(&mut rng, &aad_ref, None, &|out: &mut BytesMut| {
+            let sealed2 = vfs_key.seal(&mut rng, &aad_ref, None, &|out: &mut Vec<u8>| {
                 out.extend_from_slice(&plaintext);
             });
 
