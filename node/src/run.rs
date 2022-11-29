@@ -176,11 +176,13 @@ impl UserNode {
 
         let authenticator =
             Arc::new(UserAuthenticator::new(user_key_pair, None));
+        let vfs_master_key = Arc::new(root_seed.derive_vfs_master_key());
 
         // Initialize Persister
         let persister = NodePersister::new(
             api.clone(),
             authenticator,
+            vfs_master_key,
             user_pk,
             shutdown.clone(),
             channel_monitor_persister_tx,
