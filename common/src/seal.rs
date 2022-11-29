@@ -27,26 +27,26 @@
 //!
 //! This scheme is inspired by "Derive Key Mode" described in
 //! [(2017) GueronLindel](https://eprint.iacr.org/2017/702.pdf).
-//! "Derive Key Mode" uses a long-term "master key" (see [`MasterKey`]), which
+//! "Derive Key Mode" uses a long-term "master key" (see `MasterKey`), which
 //! isn't used to encrypt data; rather, it's used to derive per-message keys
-//! from a large random key-id, sampled per message (see [`KeyId`]).
+//! from a large random key-id, sampled per message (see `KeyId`).
 //!
 //! In our case, we use a 32-byte (2^256 bit) key id to derive each per-message
-//! [`SealKey`]/[`UnsealKey`], which gives us plenty of breathing room as far as
+//! `SealKey`/`UnsealKey`, which gives us plenty of breathing room as far as
 //! safety bounds are concerned.
 //!
 //! For the AAD, taking a single `&[u8]` would require the caller to allocate
 //! and canonically serialize (length-prefixes, etc...) when there are multiple
 //! things to bind. Then, we would need to copy+allocate again in order to bind
 //! the `version`, `key-id`, and user AAD. To avoid this the user passes the AAD
-//! as a list of segments (like fields of a struct). For more info, see [`Aad`].
+//! as a list of segments (like fields of a struct). For more info, see `Aad`.
 //!
 //! We use an AES-256-GCM nonce of all zeroes, since keys are single-use and
 //! 256 bits of security are Good Enough^tm.
 //!
 //! The scheme in simplified pseudo-code, sealing only:
 //!
-//! ```ignore
+//! ```text
 //! master-key := (secret derived from user's root seed)
 //!
 //! Aad(version, key-id, user-aad: &[&[u8]]) :=
