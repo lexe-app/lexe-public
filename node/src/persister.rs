@@ -7,6 +7,7 @@ use std::time::SystemTime;
 use anyhow::{anyhow, ensure, Context};
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
+use bytes::{BufMut, BytesMut};
 use common::api::auth::{UserAuthToken, UserAuthenticator};
 use common::api::error::BackendApiError;
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
@@ -14,6 +15,7 @@ use common::api::UserPk;
 use common::cli::Network;
 use common::ln::channel::LxOutPoint;
 use common::ln::peer::ChannelPeer;
+use common::seal;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::{
     BroadcasterType, ChannelMonitorType, FeeEstimatorType, NetworkGraphType,
@@ -63,6 +65,7 @@ impl NodePersister {
     pub(crate) fn new(
         api: ApiClientType,
         authenticator: Arc<UserAuthenticator>,
+        vfs_master_key: Arc<seal::MasterKey>,
         user_pk: UserPk,
         shutdown: ShutdownChannel,
         channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
@@ -70,6 +73,7 @@ impl NodePersister {
         let inner = InnerPersister {
             api,
             authenticator,
+            vfs_master_key,
             user_pk,
             shutdown,
             channel_monitor_persister_tx,
@@ -92,12 +96,59 @@ impl Deref for NodePersister {
 pub struct InnerPersister {
     api: ApiClientType,
     authenticator: Arc<UserAuthenticator>,
+    vfs_master_key: Arc<seal::MasterKey>,
     user_pk: UserPk,
     shutdown: ShutdownChannel,
     channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
 }
 
 impl InnerPersister {
+    /// Serialize an ldk [`Writeable`], seal/encrypt the serialized bytes, then
+    /// package it all up into a [`NodeFile`].
+    fn seal_file<W: Writeable>(
+        &self,
+        directory: String,
+        filename: String,
+        writeable: &W,
+    ) -> NodeFile {
+        let mut rng = common::rng::SysRng::new();
+        // bind the directory and filename so files can't be moved around. the
+        // owner identity is already bound by the key derivation path.
+        //
+        // this is only a best-effort mitigation however. files in an untrusted
+        // storage can still be deleted or rolled back to an earlier version
+        // without detection currently.
+        let aad = &[directory.as_bytes(), filename.as_bytes()];
+        let data_size_hint = None;
+        let data =
+            self.vfs_master_key
+                .seal(&mut rng, aad, data_size_hint, &|out| {
+                    writeable.write(&mut out.writer()).expect(
+                    "Serialization into an in-memory buffer should never fail",
+                );
+                });
+
+        NodeFile::new(self.user_pk, directory, filename, data.to_vec())
+    }
+
+    /// Unseal/decrypt a file from a previous call to `seal_file`.
+    fn unseal_file(
+        &self,
+        directory: &str,
+        filename: &str,
+        data: Vec<u8>,
+    ) -> anyhow::Result<BytesMut> {
+        let aad = &[directory.as_bytes(), filename.as_bytes()];
+        let data = {
+            let mut d = BytesMut::new();
+            d.extend_from_slice(&data);
+            d
+        };
+        self.vfs_master_key
+            .unseal(aad, data)
+            .context("Failed to unseal encrypted file")
+    }
+
     async fn get_token(&self) -> Result<UserAuthToken, BackendApiError> {
         self.authenticator
             .get_token(&*self.api, SystemTime::now())
@@ -130,6 +181,13 @@ impl InnerPersister {
 
         let maybe_manager = match maybe_file {
             Some(file) => {
+                let data = self.unseal_file(
+                    SINGLETON_DIRECTORY,
+                    CHANNEL_MANAGER_FILENAME,
+                    file.data,
+                )?;
+                let mut state_buf = Cursor::new(&data);
+
                 let mut channel_monitor_mut_refs = Vec::new();
                 for (_, channel_monitor) in channel_monitors.iter_mut() {
                     channel_monitor_mut_refs.push(channel_monitor);
@@ -143,8 +201,6 @@ impl InnerPersister {
                     USER_CONFIG,
                     channel_monitor_mut_refs,
                 );
-
-                let mut state_buf = Cursor::new(&file.data);
 
                 let (blockhash, channel_manager) = <(
                     BlockHash,
@@ -190,7 +246,12 @@ impl InnerPersister {
             let given = LxOutPoint::from_str(&cm_file.id.filename)
                 .context("Invalid funding txo string")?;
 
-            let mut state_buf = Cursor::new(&cm_file.data);
+            let data = self.unseal_file(
+                CHANNEL_MONITORS_DIRECTORY,
+                &cm_file.id.filename,
+                cm_file.data,
+            )?;
+            let mut state_buf = Cursor::new(&data);
 
             let (blockhash, channel_monitor) =
                 <(BlockHash, ChannelMonitorType)>::read(
@@ -234,7 +295,13 @@ impl InnerPersister {
 
         let scorer = match maybe_file {
             Some(file) => {
-                let mut state_buf = Cursor::new(&file.data);
+                let data = self.unseal_file(
+                    SINGLETON_DIRECTORY,
+                    SCORER_FILENAME,
+                    file.data,
+                )?;
+                let mut state_buf = Cursor::new(&data);
+
                 ProbabilisticScorer::read(
                     &mut state_buf,
                     (params, Arc::clone(&graph), logger),
@@ -270,7 +337,13 @@ impl InnerPersister {
 
         let ng = match ng_file_opt {
             Some(ng_file) => {
-                let mut state_buf = Cursor::new(&ng_file.data);
+                let data = self.unseal_file(
+                    SINGLETON_DIRECTORY,
+                    NETWORK_GRAPH_FILENAME,
+                    ng_file.data,
+                )?;
+                let mut state_buf = Cursor::new(&data);
+
                 NetworkGraph::read(&mut state_buf, logger.clone())
                     // LDK DecodeError is Debug but doesn't impl
                     // std::error::Error
@@ -291,17 +364,13 @@ impl LexeInnerPersister for InnerPersister {
         channel_manager: &W,
     ) -> anyhow::Result<()> {
         debug!("Persisting channel manager");
+        let token = self.get_token().await?;
 
-        // FIXME(encrypt): Encrypt under key derived from seed
-        let data = channel_manager.encode();
-
-        let file = NodeFile::new(
-            self.user_pk,
+        let file = self.seal_file(
             SINGLETON_DIRECTORY.to_owned(),
             CHANNEL_MANAGER_FILENAME.to_owned(),
-            data,
+            channel_manager,
         );
-        let token = self.get_token().await?;
 
         // Channel manager is more important so let's retry up to three times
         self.api
@@ -316,16 +385,13 @@ impl LexeInnerPersister for InnerPersister {
         network_graph: &NetworkGraphType,
     ) -> anyhow::Result<()> {
         debug!("Persisting network graph");
-        // FIXME(encrypt): Encrypt under key derived from seed
-        let data = network_graph.encode();
+        let token = self.get_token().await?;
 
-        let file = NodeFile::new(
-            self.user_pk,
+        let file = self.seal_file(
             SINGLETON_DIRECTORY.to_owned(),
             NETWORK_GRAPH_FILENAME.to_owned(),
-            data,
+            network_graph,
         );
-        let token = self.get_token().await?;
 
         self.api
             .upsert_file(&file, token)
@@ -339,21 +405,13 @@ impl LexeInnerPersister for InnerPersister {
         scorer_mutex: &Mutex<ProbabilisticScorerType>,
     ) -> anyhow::Result<()> {
         debug!("Persisting probabilistic scorer");
-
-        let file = {
-            let scorer = scorer_mutex.lock().unwrap();
-
-            // FIXME(encrypt): Encrypt under key derived from seed
-            let data = scorer.encode();
-
-            NodeFile::new(
-                self.user_pk,
-                SINGLETON_DIRECTORY.to_owned(),
-                SCORER_FILENAME.to_owned(),
-                data,
-            )
-        };
         let token = self.get_token().await?;
+
+        let file = self.seal_file(
+            SINGLETON_DIRECTORY.to_owned(),
+            SCORER_FILENAME.to_owned(),
+            scorer_mutex.lock().unwrap().deref(),
+        );
 
         self.api
             .upsert_file(&file, token)
@@ -382,14 +440,10 @@ impl Persist<SignerType> for InnerPersister {
         let funding_txo = LxOutPoint::from(funding_txo);
         info!("Persisting new channel {funding_txo}");
 
-        // XXX(encrypt): Encrypt under key derived from seed
-        let data = monitor.encode();
-
-        let file = NodeFile::new(
-            self.user_pk,
+        let file = self.seal_file(
             CHANNEL_MONITORS_DIRECTORY.to_owned(),
             funding_txo.to_string(),
-            data,
+            monitor,
         );
 
         // Generate a future for making a few attempts to persist the channel
@@ -450,14 +504,10 @@ impl Persist<SignerType> for InnerPersister {
         let funding_txo = LxOutPoint::from(funding_txo);
         info!("Updating persisted channel {funding_txo}");
 
-        // XXX(encrypt): Encrypt under key derived from seed
-        let data = monitor.encode();
-
-        let file = NodeFile::new(
-            self.user_pk,
+        let file = self.seal_file(
             CHANNEL_MONITORS_DIRECTORY.to_owned(),
             funding_txo.to_string(),
-            data,
+            monitor,
         );
 
         // Generate a future for making a few attempts to persist the channel
