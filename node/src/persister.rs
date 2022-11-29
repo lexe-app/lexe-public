@@ -7,7 +7,7 @@ use std::time::SystemTime;
 use anyhow::{anyhow, ensure, Context};
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
-use bytes::{BufMut, BytesMut};
+use bytes::BufMut;
 use common::api::auth::{UserAuthToken, UserAuthenticator};
 use common::api::error::BackendApiError;
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
@@ -128,7 +128,7 @@ impl InnerPersister {
                 );
                 });
 
-        NodeFile::new(self.user_pk, directory, filename, data.to_vec())
+        NodeFile::new(self.user_pk, directory, filename, data)
     }
 
     /// Unseal/decrypt a file from a previous call to `seal_file`.
@@ -137,13 +137,8 @@ impl InnerPersister {
         directory: &str,
         filename: &str,
         data: Vec<u8>,
-    ) -> anyhow::Result<BytesMut> {
+    ) -> anyhow::Result<Vec<u8>> {
         let aad = &[directory.as_bytes(), filename.as_bytes()];
-        let data = {
-            let mut d = BytesMut::new();
-            d.extend_from_slice(&data);
-            d
-        };
         self.vfs_master_key
             .unseal(aad, data)
             .context("Failed to unseal encrypted file")
