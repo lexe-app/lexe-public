@@ -12,7 +12,7 @@ use sgx_isa::{AttributesFlags, Keyname, Keypolicy};
 
 use crate::enclave::{Error, MachineId, Measurement, Sealed, MIN_SGX_CPUSVN};
 use crate::rng::Crng;
-use crate::sha256;
+use crate::{const_assert_usize_eq, sha256};
 
 /// We salt the HKDF for domain separation purposes.
 const HKDF_SALT: [u8; 32] =
@@ -30,6 +30,32 @@ pub const fn encrypted_len(plaintext_len: usize) -> usize {
 pub const fn decrypted_len(ciphertext_len: usize) -> usize {
     ciphertext_len - TAG_LEN
 }
+
+// [`KeyRequest::TRUNCATED_SIZE`] is calculated manually and will need to be
+// updated if [`sgx_isa::Keyrequest`] starts to include more fields.
+//
+// This block is a static assertion that [`sgx_isa::Keyrequest::_reserved2`]
+// starts exactly [`KeyRequest::TRUNCATED_SIZE`] bytes into the struct. This
+// static assertion should then cause a compile error if more fields are added
+// (hopefully!).
+const KEYREQUEST_RESERVED_BYTES_START: usize = {
+    // Get a base pointer to the struct.
+    let value = std::mem::MaybeUninit::<sgx_isa::Keyrequest>::uninit();
+    let base_ptr: *const sgx_isa::Keyrequest = value.as_ptr();
+    // `addr_of!` lets us create a pointer to the field without any intermediate
+    // dereference like `&(*base_ptr)._reserved2 as *const _` would. This lets
+    // us avoid any UB creating references to uninit data.
+    let field_ptr = unsafe { std::ptr::addr_of!((*base_ptr)._reserved2) };
+
+    // Compute the field offset.
+    unsafe {
+        (field_ptr as *const u8).offset_from(base_ptr as *const u8) as usize
+    }
+};
+const_assert_usize_eq!(
+    KeyRequest::TRUNCATED_SIZE,
+    KEYREQUEST_RESERVED_BYTES_START
+);
 
 /// A convenience wrapper around an SGX [`sgx_isa::Keyrequest`].
 struct KeyRequest(sgx_isa::Keyrequest);
