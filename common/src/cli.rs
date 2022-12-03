@@ -601,6 +601,7 @@ mod test_notsgx {
     }
 
     proptest! {
+        #[test]
         fn bitcoind_rpc_roundtrip(info1 in any::<BitcoindRpcInfo>()) {
             let info2 = BitcoindRpcInfo::from_str(&info1.to_string()).unwrap();
             prop_assert_eq!(info1, info2);
