@@ -116,8 +116,14 @@ impl RootSeed {
         UserPk::new(self.derive_user_key_pair().public_key().into_inner())
     }
 
-    /// Derive the lightning node key pair directly, without needing to derive
-    /// all the other auxiliary node secrets.
+    /// Derives the root seed used in LDK. The `KeysManager` is initialized
+    /// using this seed, and `secp256k1` keys are derived from this seed.
+    pub fn derive_ldk_seed(&self) -> Secret<[u8; 32]> {
+        self.derive(&[b"ldk seed"])
+    }
+
+    /// Derive the Lightning node key pair without needing to derive all the
+    /// other auxiliary node secrets used in the `KeysManager`.
     pub fn derive_node_key_pair<R: Crng>(
         &self,
         rng: &mut R,
@@ -129,15 +135,23 @@ impl RootSeed {
         let mut secp_ctx = Secp256k1::new();
         secp_ctx.seeded_randomize(&secp_randomize);
 
-        let master_secret =
-            ExtendedPrivKey::new_master(Network::Testnet, self.expose_secret())
-                .expect("should never fail; the sizes match up");
+        // Derive the LDK seed first.
+        let ldk_seed = self.derive_ldk_seed();
+
+        // Note that when we aren't serializing the key, network doesn't matter
+        let ldk_xprv = ExtendedPrivKey::new_master(
+            Network::Testnet,
+            ldk_seed.expose_secret(),
+        )
+        .expect("should never fail; the sizes match up");
+
         let child_number = ChildNumber::from_hardened_idx(0)
             .expect("should never fail; index is in range");
-        let node_sk = master_secret
+        let node_sk = ldk_xprv
             .ckd_priv(&secp_ctx, child_number)
             .expect("should never fail")
             .private_key;
+
         secp256k1::KeyPair::from_secret_key(&secp_ctx, &node_sk)
     }
 
