@@ -42,14 +42,14 @@ pub mod ln;
 pub mod rng;
 /// `RootSeed`.
 pub mod root_seed;
-/// Seal VFS blobs for remote storage.
-pub mod seal;
 /// sha256 convenience module.
 pub mod sha256;
 /// `ShutdownChannel`.
 pub mod shutdown;
 /// `LxTask`.
 pub mod task;
+/// Encrypt/decrypt VFS blobs for remote storage.
+pub mod vfs_encrypt;
 
 /// Feature-gated test utilities that can be shared across crate boundaries.
 #[cfg(any(test, feature = "test-utils"))]
