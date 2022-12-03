@@ -27,12 +27,12 @@
 //!
 //! This scheme is inspired by "Derive Key Mode" described in
 //! [(2017) GueronLindel](https://eprint.iacr.org/2017/702.pdf).
-//! "Derive Key Mode" uses a long-term "master key" (see `MasterKey`), which
+//! "Derive Key Mode" uses a long-term "master key" (see `VfsMasterKey`), which
 //! isn't used to encrypt data; rather, it's used to derive per-message keys
 //! from a large random key-id, sampled per message (see `KeyId`).
 //!
 //! In our case, we use a 32-byte (2^256 bit) key id to derive each per-message
-//! `SealKey`/`UnsealKey`, which gives us plenty of breathing room as far as
+//! `EncryptKey`/`DecryptKey`, which gives us plenty of breathing room as far as
 //! safety bounds are concerned.
 //!
 //! For the AAD, taking a single `&[u8]` would require the caller to allocate
@@ -44,7 +44,7 @@
 //! We use an AES-256-GCM nonce of all zeroes, since keys are single-use and
 //! 256 bits of security are Good Enough^tm.
 //!
-//! The scheme in simplified pseudo-code, sealing only:
+//! The scheme in simplified pseudo-code, encryption only:
 //!
 //! ```text
 //! master-key := (secret derived from user's root seed)
@@ -52,17 +52,17 @@
 //! Aad(version, key-id, user-aad: &[&[u8]]) :=
 //! 1. return bcs::to_bytes({ version, key-id, user-aad })
 //!
-//! Seal(master-key, user-aad: &[&[u8]], plaintext) :=
+//! Encrypt(master-key, user-aad: &[&[u8]], plaintext) :=
 //! 1. version := 0_u8
 //! 2. key-id := random 32-byte value
 //! 3. aad := Aad(version, key-id, user-aad)
-//! 4. seal-key := HKDF-Extract-Expand(
+//! 4. encrypt-key := HKDF-Extract-Expand(
 //!         ikm=master-key,
-//!         salt=SHA-256("LEXE-REALM::MasterKey"),
+//!         salt=SHA-256("LEXE-REALM::VfsMasterKey"),
 //!         info=key-id,
 //!         out-len=32 bytes,
 //!    )
-//! 5. (ciphertext, tag) := AES-256-GCM(seal-key, nonce=[0; 12], aad, plaintext)
+//! 5. (ciphertext, tag) := AES-256-GCM(encrypt-key, nonce=[0; 12], aad, plaintext)
 //! 6. output := version || key-id || ciphertext || tag
 //! 7. return output
 //! ```
@@ -100,17 +100,17 @@ const TAG_LEN: usize = 16;
 
 /// The length of the final encrypted ciphertext + version byte + key_id + tag
 /// given an input plaintext length.
-const fn sealed_len(plaintext_len: usize) -> usize {
+const fn encrypted_len(plaintext_len: usize) -> usize {
     VERSION_LEN + KEY_ID_LEN + plaintext_len + TAG_LEN
 }
 
-/// The `MasterKey` is used to derive unique single-use seal keys for encrypting
-/// or decrypting a blob.
+/// The `VfsMasterKey` is used to derive unique single-use encrypt keys for
+/// encrypting or decrypting a blob.
 ///
-/// `RootSeed` -- derive("vfs master key") --> `MasterKey`
+/// `RootSeed` -- derive("vfs master key") --> `VfsMasterKey`
 // We store the salted+extracted PRK directly to avoid recomputing it every
-// time we seal something.
-pub struct MasterKey(hkdf::Prk);
+// time we encrypt something.
+pub struct VfsMasterKey(hkdf::Prk);
 
 #[derive(RefCast, Serialize)]
 #[repr(transparent)]
@@ -132,21 +132,21 @@ struct Aad<'data, 'aad> {
     aad: &'aad [&'aad [u8]],
 }
 
-struct SealKey(aead::SealingKey<ZeroNonce>);
+struct EncryptKey(aead::SealingKey<ZeroNonce>);
 
-struct UnsealKey(aead::OpeningKey<ZeroNonce>);
+struct DecryptKey(aead::OpeningKey<ZeroNonce>);
 
-/// A single-use, all-zero nonce that panics if used to seal or unseal data more
-/// than once (for a particular instance).
+/// A single-use, all-zero nonce that panics if used to encrypt or decrypt data
+/// more than once (for a particular instance).
 struct ZeroNonce(Option<aead::Nonce>);
 
 #[derive(Debug, Error)]
-#[error("unseal error: ciphertext or metadata may be corrupted")]
-pub struct UnsealError;
+#[error("decrypt error: ciphertext or metadata may be corrupted")]
+pub struct DecryptError;
 
-impl MasterKey {
+impl VfsMasterKey {
     const HKDF_SALT: [u8; 32] =
-        sha256::digest_const(b"LEXE-REALM::MasterKey").into_inner();
+        sha256::digest_const(b"LEXE-REALM::VfsMasterKey").into_inner();
 
     pub fn new(root_seed_derived_secret: &[u8; 32]) -> Self {
         Self(
@@ -163,19 +163,19 @@ impl MasterKey {
         )
     }
 
-    fn derive_seal_key(&self, key_id: &KeyId) -> SealKey {
+    fn derive_encrypt_key(&self, key_id: &KeyId) -> EncryptKey {
         let nonce = ZeroNonce::new();
         let key = aead::SealingKey::new(self.derive_unbound_key(key_id), nonce);
-        SealKey(key)
+        EncryptKey(key)
     }
 
-    fn derive_unseal_key(&self, key_id: &KeyId) -> UnsealKey {
+    fn derive_decrypt_key(&self, key_id: &KeyId) -> DecryptKey {
         let nonce = ZeroNonce::new();
         let key = aead::OpeningKey::new(self.derive_unbound_key(key_id), nonce);
-        UnsealKey(key)
+        DecryptKey(key)
     }
 
-    pub fn seal<R: Crng>(
+    pub fn encrypt<R: Crng>(
         &self,
         rng: &mut R,
         aad: &[&[u8]],
@@ -195,8 +195,8 @@ impl MasterKey {
         .serialize();
 
         // reserve enough capacity for at least version, key_id, and tag
-        let approx_sealed_len = sealed_len(data_size_hint.unwrap_or(0));
-        let mut data = Vec::with_capacity(approx_sealed_len);
+        let approx_encrypted_len = encrypted_len(data_size_hint.unwrap_or(0));
+        let mut data = Vec::with_capacity(approx_encrypted_len);
 
         // data := ""
 
@@ -210,7 +210,7 @@ impl MasterKey {
 
         // data := [version] || [key_id] || [plaintext]
 
-        self.derive_seal_key(&key_id).seal_in_place(
+        self.derive_encrypt_key(&key_id).encrypt_in_place(
             aad.as_slice(),
             &mut data,
             plaintext_offset,
@@ -221,16 +221,16 @@ impl MasterKey {
         data
     }
 
-    pub fn unseal(
+    pub fn decrypt(
         &self,
         aad: &[&[u8]],
         mut data: Vec<u8>,
-    ) -> Result<Vec<u8>, UnsealError> {
+    ) -> Result<Vec<u8>, DecryptError> {
         // data := [version] || [key_id] || [ciphertext] || [tag]
 
-        const MIN_DATA_LEN: usize = sealed_len(0 /* plaintext len */);
+        const MIN_DATA_LEN: usize = encrypted_len(0 /* plaintext len */);
         if data.len() < MIN_DATA_LEN {
-            return Err(UnsealError);
+            return Err(DecryptError);
         }
 
         // parse out version and key_id w/o advancing `data`
@@ -242,10 +242,10 @@ impl MasterKey {
         };
 
         if version != 0 {
-            return Err(UnsealError);
+            return Err(DecryptError);
         }
         let key_id = KeyId::from_ref(key_id);
-        let unseal_key = self.derive_unseal_key(key_id);
+        let decrypt_key = self.derive_decrypt_key(key_id);
 
         let aad = Aad {
             version,
@@ -255,7 +255,7 @@ impl MasterKey {
         .serialize();
 
         let ciphertext_and_tag_offset = VERSION_LEN + KEY_ID_LEN;
-        unseal_key.unseal_in_place(
+        decrypt_key.decrypt_in_place(
             &aad,
             &mut data,
             ciphertext_and_tag_offset,
@@ -267,11 +267,11 @@ impl MasterKey {
     }
 }
 
-impl SealKey {
+impl EncryptKey {
     // aad := additional authenticated data (e.g. protocol transcripts)
     // data := [version] || [key_id] || [plaintext]
     // plaintext_offset := starting index of `[plaintext]` in `data`
-    fn seal_in_place(
+    fn encrypt_in_place(
         mut self,
         aad: &[u8],
         data: &mut Vec<u8>,
@@ -284,22 +284,22 @@ impl SealKey {
             .0
             .seal_in_place_separate_tag(aad, &mut data[plaintext_offset..])
             .expect(
-                "Cannot seal more than ~4 GiB at once (should never happen)",
+                "Cannot encrypt more than ~4 GiB at once (should never happen)",
             );
         data.extend_from_slice(tag.as_ref());
     }
 }
 
-impl UnsealKey {
+impl DecryptKey {
     // aad := additional authenticated data (e.g. protocol transcripts)
     // data := [version] || [key_id] || [ciphertext] || [tag]
     // ciphertext_and_tag_offset := starting index of `[ciphertext] || [tag]`
-    fn unseal_in_place(
+    fn decrypt_in_place(
         mut self,
         aad: &[u8],
         data: &mut Vec<u8>,
         ciphertext_and_tag_offset: usize,
-    ) -> Result<(), UnsealError> {
+    ) -> Result<(), DecryptError> {
         // `open_within` will shift the decrypted plaintext to the start of
         // `data`.
         let aad = aead::Aad::from(aad);
@@ -307,10 +307,10 @@ impl UnsealKey {
         let plaintext_ref = self
             .0
             .open_within(aad, data, ciphertext_and_tag_offset..)
-            .map_err(|_| UnsealError)?;
+            .map_err(|_| DecryptError)?;
         let plaintext_len = plaintext_ref.len();
 
-        // unsealing happens in-place. set the length of the now decrypted
+        // decrypting happens in-place. set the length of the now decrypted
         // plaintext blob.
         data.truncate(plaintext_len);
 
@@ -357,7 +357,7 @@ impl ZeroNonce {
 impl aead::NonceSequence for ZeroNonce {
     fn advance(&mut self) -> Result<aead::Nonce, ring::error::Unspecified> {
         Ok(self.0.take().expect(
-            "We somehow sealed / unseal more than once with the same key",
+            "We somehow encrypted / decrypted more than once with the same key",
         ))
     }
 }
@@ -412,7 +412,7 @@ mod test {
     }
 
     #[test]
-    fn test_unseal_compat() {
+    fn test_decrypt_compat() {
         let mut rng = SmallRng::from_u64(123);
         let root_seed = RootSeed::from_rng(&mut rng);
         let vfs_key = root_seed.derive_vfs_master_key();
@@ -420,20 +420,20 @@ mod test {
         // aad = [], plaintext = ""
 
         // // uncomment to regen
-        // let sealed = vfs_key.seal(&mut rng, &[], None, &|_| ());
-        // println!("sealed: {}", hex::display(&sealed));
+        // let encrypted = vfs_key.encrypt(&mut rng, &[], None, &|_| ());
+        // println!("encrypted: {}", hex::display(&encrypted));
 
-        let sealed = hex::decode(
+        let encrypted = hex::decode(
             // [version] || [key_id] || [ciphertext] || [tag]
             "00\
              b0abd2beab31c1d925c5d8059cf90068eece2c41a3a6e4454d84e36ad6858a01\
              \
-             522965227c47a47287ed3b9206609dcc",
+             009ab2c3ab0915889b601a750046741e",
         )
         .unwrap();
 
-        let unsealed = vfs_key.unseal(&[], sealed).unwrap();
-        assert_eq!(unsealed.as_slice(), b"");
+        let decrypted = vfs_key.decrypt(&[], encrypted).unwrap();
+        assert_eq!(decrypted.as_slice(), b"");
 
         // aad = ["my context"], plaintext = "my cool message"
 
@@ -441,26 +441,26 @@ mod test {
         let plaintext = b"my cool message".as_slice();
 
         // // uncomment to regen
-        // let sealed =
-        //     vfs_key.seal(&mut rng, &[aad], None, &|out| out.put(plaintext));
-        // println!("sealed: {}", hex::display(&sealed));
+        // let encrypted = vfs_key.encrypt(&mut rng, &[aad], None, &|out|
+        //     out.put(plaintext));
+        // println!("encrypted: {}", hex::display(&encrypted));
 
-        let sealed = hex::decode(
+        let encrypted = hex::decode(
             // [version] || [key_id] || [ciphertext] || [tag]
             "00\
              b0abd2beab31c1d925c5d8059cf90068eece2c41a3a6e4454d84e36ad6858a01\
-             2f9cf8bc268de494fd4857a6506164\
-             06d86e0637d175f9c0678238be8ee7f4",
+             5f6dfab9fead5a523038bb2a59cd22\
+             fa2880532c7dbc0692441193b100fc2a",
         )
         .unwrap();
 
-        let unsealed = vfs_key.unseal(&[aad], sealed).unwrap();
+        let decrypted = vfs_key.decrypt(&[aad], encrypted).unwrap();
 
-        assert_eq!(unsealed.as_slice(), plaintext);
+        assert_eq!(decrypted.as_slice(), plaintext);
     }
 
     #[test]
-    fn test_seal_unseal_roundtrip() {
+    fn test_encrypt_decrypt_roundtrip() {
         proptest!(|(
             mut rng in any::<SmallRng>(),
             aad in vec(vec(any::<u8>(), 0..=16), 0..=4),
@@ -474,18 +474,18 @@ mod test {
                 .map(|x| x.as_slice())
                 .collect::<Vec<_>>();
 
-            let sealed = vfs_key.seal(&mut rng, &aad_ref, Some(plaintext.len()), &|out: &mut Vec<u8>| {
+            let encrypted = vfs_key.encrypt(&mut rng, &aad_ref, Some(plaintext.len()), &|out: &mut Vec<u8>| {
                 out.extend_from_slice(&plaintext);
             });
 
-            let unsealed = vfs_key.unseal(&aad_ref, sealed.clone()).unwrap();
-            prop_assert_eq!(&plaintext, &unsealed);
+            let decrypted = vfs_key.decrypt(&aad_ref, encrypted.clone()).unwrap();
+            prop_assert_eq!(&plaintext, &decrypted);
 
-            let sealed2 = vfs_key.seal(&mut rng, &aad_ref, None, &|out: &mut Vec<u8>| {
+            let encrypted2 = vfs_key.encrypt(&mut rng, &aad_ref, None, &|out: &mut Vec<u8>| {
                 out.extend_from_slice(&plaintext);
             });
 
-            prop_assert!(sealed != sealed2);
+            prop_assert!(encrypted != encrypted2);
         });
     }
 }
