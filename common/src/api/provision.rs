@@ -203,7 +203,7 @@ mod test {
         let actual = serde_json::to_value(&req).unwrap();
         let expected = serde_json::json!({
             "user_pk": "f2c1477810973cf17a74eccd01b6ed25494457408f8d506bad6c533dd7879331",
-            "node_pk": "03da0d643b8bcd0167aaec47ae534a486eb865b75658ffa464e102b654ce146c31",
+            "node_pk": "0282407343fbe0dd3b7dafeac85265e97ec8b544679c2beca2d9602d90ee314a91",
             "root_seed": "0a7d28d375bc07250ca30e015a808a6d70d43c5a55c4d5828cdeacca640191a1",
         });
         assert_eq!(&actual, &expected);

@@ -33,10 +33,11 @@ impl LexeKeysManager {
     /// Initialize a [`LexeKeysManager`] from a [`RootSeed`] without supplying a
     /// pubkey to check the derived pubkey against.
     pub fn unchecked_init<R: Crng>(rng: &mut R, root_seed: &RootSeed) -> Self {
+        let ldk_seed = root_seed.derive_ldk_seed();
         let random_secs = rng.next_u64();
         let random_nanos = rng.next_u32();
         let inner = Arc::new(KeysManager::new(
-            root_seed.expose_secret(),
+            ldk_seed.expose_secret(),
             random_secs,
             random_nanos,
         ));
@@ -44,13 +45,15 @@ impl LexeKeysManager {
     }
 
     /// Initialize a `LexeKeysManager` from a given [`RootSeed`]. Verifies that
-    /// the derived node public matches `given_pk`.
+    /// the derived node public key matches `given_pk`.
     pub fn init<R: Crng>(
         rng: &mut R,
         given_pk: &NodePk,
         root_seed: &RootSeed,
     ) -> anyhow::Result<Self> {
-        // Build the inner KeysManager from the RootSeed.
+        // Build the KeysManager from the LDK seed derived from the root seed
+        let ldk_seed = root_seed.derive_ldk_seed();
+
         // NOTE: KeysManager::new() MUST be given a unique `starting_time_secs`
         // and `starting_time_nanos` for security. Since secure timekeeping
         // within an enclave is difficult, we just take a (secure) random u64,
@@ -58,7 +61,7 @@ impl LexeKeysManager {
         let random_secs = rng.next_u64();
         let random_nanos = rng.next_u32();
         let inner = Arc::new(KeysManager::new(
-            root_seed.expose_secret(),
+            ldk_seed.expose_secret(),
             random_secs,
             random_nanos,
         ));
@@ -91,6 +94,7 @@ impl LexeKeysManager {
             .inner
             .get_node_secret(Recipient::Node)
             .expect("Always succeeds when called with Recipient::Node");
+
         NodePk(secp256k1::PublicKey::from_secret_key(&secp, &privkey))
     }
 
