@@ -1,11 +1,13 @@
 use std::fmt;
 use std::str::FromStr;
 
-use anyhow::bail;
+use anyhow::{bail, ensure};
+use bip39::{Language, Mnemonic};
 use bitcoin::secp256k1::{self, Secp256k1};
 use bitcoin::util::bip32::{ChildNumber, ExtendedPrivKey};
 use bitcoin::Network;
 use rand_core::{CryptoRng, RngCore};
+use secrecy::zeroize::Zeroizing;
 use secrecy::{ExposeSecret, Secret, SecretVec};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -51,6 +53,19 @@ impl RootSeed {
         rng.fill_bytes(&mut seed);
         Self(Secret::new(seed))
     }
+
+    // --- BIP39 Mnemonics --- //
+
+    pub fn to_mnemonic(&self) -> Mnemonic {
+        // Requires that
+        Mnemonic::from_entropy_in(
+            Language::English,
+            self.0.expose_secret().as_slice(),
+        )
+        .expect("Always succeeds for 256 bits")
+    }
+
+    // --- Key derivations --- //
 
     fn extract(&self) -> ring::hkdf::Prk {
         let salted_hkdf = ring::hkdf::Salt::new(
@@ -207,6 +222,23 @@ impl TryFrom<&[u8]> for RootSeed {
     }
 }
 
+impl TryFrom<Mnemonic> for RootSeed {
+    type Error = anyhow::Error;
+
+    fn try_from(mnemonic: Mnemonic) -> Result<Self, Self::Error> {
+        // to_entropy_array() returns [u8; 33]
+        let (entropy, entropy_len) = mnemonic.to_entropy_array();
+        let entropy = Zeroizing::new(entropy);
+
+        ensure!(entropy_len == 32, "Should contain exactly 32 bytes");
+
+        let mut seed_buf = [0u8; Self::LENGTH];
+        seed_buf.copy_from_slice(&entropy[0..Self::LENGTH]);
+
+        Ok(Self(Secret::new(seed_buf)))
+    }
+}
+
 struct RootSeedVisitor;
 
 impl<'de> de::Visitor<'de> for RootSeedVisitor {
@@ -277,7 +309,7 @@ impl proptest::arbitrary::Arbitrary for RootSeed {
 mod test {
     use proptest::arbitrary::any;
     use proptest::collection::vec;
-    use proptest::proptest;
+    use proptest::{prop_assert_eq, proptest};
 
     use super::*;
     use crate::sha256;
@@ -439,5 +471,26 @@ mod test {
 
             assert_eq!(&expected, actual.expose_secret());
         });
+    }
+
+    #[test]
+    fn root_seed_mnemonic_round_trip() {
+        proptest!(|(root_seed1 in any::<RootSeed>())| {
+            let mnemonic = root_seed1.to_mnemonic();
+            let root_seed2 = RootSeed::try_from(mnemonic).unwrap();
+            prop_assert_eq!(
+                root_seed1.expose_secret(), root_seed2.expose_secret()
+            );
+        });
+    }
+
+    /// Check correctness of `bip39::Mnemonic`'s `FromStr` / `Display` impls
+    #[test]
+    fn mnemonic_fromstr_display_roundtrip() {
+        proptest!(|(root_seed in any::<RootSeed>())| {
+            let mnemonic1 = root_seed.to_mnemonic();
+            let mnemonic2 = Mnemonic::from_str(&mnemonic1.to_string()).unwrap();
+            prop_assert_eq!(mnemonic1, mnemonic2)
+        })
     }
 }

@@ -16,6 +16,8 @@ edition = "2021"
 bitcoin = { version = "0.29", features = ["std", "serde"] }
 bitcoin-bech32 = "0.12"
 base64 = "0.13.0"
+# TODO(max): Use feature "zeroize" once the authors release a version > 1.0.1
+bip39 = { version = "1", features = [] }
 
 # --- LIGHTNING --- #
 
