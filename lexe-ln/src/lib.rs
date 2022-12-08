@@ -36,3 +36,5 @@ pub mod sync;
 pub mod test_event;
 /// Traits.
 pub mod traits;
+/// BDK wallet.
+pub mod wallet;

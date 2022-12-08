@@ -57,7 +57,6 @@ impl RootSeed {
     // --- BIP39 Mnemonics --- //
 
     pub fn to_mnemonic(&self) -> Mnemonic {
-        // Requires that
         Mnemonic::from_entropy_in(
             Language::English,
             self.0.expose_secret().as_slice(),
@@ -131,6 +130,13 @@ impl RootSeed {
         UserPk::new(self.derive_user_key_pair().public_key().into_inner())
     }
 
+    /// Derive the master xprv used for the BDK (on-chain) wallet. Note that
+    /// BIP32/BIP84 child key derivation is handled in wallet init, not here.
+    pub fn derive_master_xprv(&self, network: Network) -> ExtendedPrivKey {
+        ExtendedPrivKey::new_master(network, self.0.expose_secret())
+            .expect("Should never fail")
+    }
+
     /// Derives the root seed used in LDK. The `KeysManager` is initialized
     /// using this seed, and `secp256k1` keys are derived from this seed.
     pub fn derive_ldk_seed(&self) -> Secret<[u8; 32]> {
@@ -155,7 +161,7 @@ impl RootSeed {
 
         // Note that when we aren't serializing the key, network doesn't matter
         let ldk_xprv = ExtendedPrivKey::new_master(
-            Network::Testnet,
+            Network::Bitcoin,
             ldk_seed.expose_secret(),
         )
         .expect("should never fail; the sizes match up");
