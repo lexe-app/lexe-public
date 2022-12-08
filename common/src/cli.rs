@@ -13,9 +13,9 @@ use bitcoin::hash_types::BlockHash;
 use lightning_invoice::Currency;
 #[cfg(all(test, not(target_env = "sgx")))]
 use proptest::arbitrary::any;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 use proptest::arbitrary::Arbitrary;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 use proptest::strategy::{BoxedStrategy, Just, Strategy};
 #[cfg(all(test, not(target_env = "sgx")))]
 use proptest_derive::Arbitrary;
@@ -538,7 +538,7 @@ impl From<Network> for Currency {
     }
 }
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 impl Arbitrary for Network {
     type Parameters = ();
     type Strategy = BoxedStrategy<Self>;
