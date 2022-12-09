@@ -2,6 +2,7 @@
 
 use std::num::NonZeroU32;
 
+use bitcoin::secp256k1::{All, Secp256k1};
 #[cfg(all(any(test, feature = "test-utils")))]
 use proptest::arbitrary::{any, Arbitrary};
 #[cfg(all(any(test, feature = "test-utils")))]
@@ -12,6 +13,16 @@ use ring::rand::SecureRandom;
 
 const RAND_ERROR_CODE: NonZeroU32 =
     NonZeroU32::new(rand_core::Error::CUSTOM_START).unwrap();
+
+/// Helper to get a `secp256k1` context randomized for side-channel resistance.
+/// Use this function instead of calling [`Secp256k1::new`] directly.
+pub fn get_randomized_secp256k1_ctx<R: Crng>(rng: &mut R) -> Secp256k1<All> {
+    let mut random_buf = [0u8; 32];
+    rng.fill_bytes(&mut random_buf);
+    let mut secp_ctx = Secp256k1::new();
+    secp_ctx.seeded_randomize(&random_buf);
+    secp_ctx
+}
 
 /// A succinct trait alias for a Cryptographically Secure PRNG.
 pub trait Crng: RngCore + CryptoRng {}
