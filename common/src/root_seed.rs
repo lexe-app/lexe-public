@@ -3,16 +3,15 @@ use std::str::FromStr;
 
 use anyhow::{bail, ensure};
 use bip39::{Language, Mnemonic};
-use bitcoin::secp256k1::{self, Secp256k1};
 use bitcoin::util::bip32::{ChildNumber, ExtendedPrivKey};
-use bitcoin::Network;
+use bitcoin::{secp256k1, Network};
 use rand_core::{CryptoRng, RngCore};
 use secrecy::zeroize::Zeroizing;
 use secrecy::{ExposeSecret, Secret, SecretVec};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::api::{NodePk, UserPk};
-use crate::rng::Crng;
+use crate::rng::{self, Crng};
 use crate::vfs_encrypt::VfsMasterKey;
 use crate::{ed25519, hex, sha256};
 
@@ -130,8 +129,9 @@ impl RootSeed {
         UserPk::new(self.derive_user_key_pair().public_key().into_inner())
     }
 
-    /// Derive the master xprv used for the BDK (on-chain) wallet. Note that
-    /// BIP32/BIP84 child key derivation is handled in wallet init, not here.
+    /// Derive the master xprv used for the BDK (on-chain) wallet as well as in
+    /// an intermediate step when deriving the LDK seed. See `LexeWallet` init
+    /// and `LexeKeysManager` init respectively for details.
     pub fn derive_master_xprv(&self, network: Network) -> ExtendedPrivKey {
         ExtendedPrivKey::new_master(network, self.0.expose_secret())
             .expect("Should never fail")
@@ -139,8 +139,20 @@ impl RootSeed {
 
     /// Derives the root seed used in LDK. The `KeysManager` is initialized
     /// using this seed, and `secp256k1` keys are derived from this seed.
-    pub fn derive_ldk_seed(&self) -> Secret<[u8; 32]> {
-        self.derive(&[b"ldk seed"])
+    pub fn derive_ldk_seed<R: Crng>(&self, rng: &mut R) -> Secret<[u8; 32]> {
+        // The [u8; 32] output will be the same regardless of the network the
+        // master_xprv uses, as tested in `when_does_network_matter`
+        let master_xprv = self.derive_master_xprv(Network::Bitcoin);
+
+        // Derive the hardened child key at `m/535h`, where 535 is T9 for "LDK"
+        let secp_ctx = rng::get_randomized_secp256k1_ctx(rng);
+        let m_535h =
+            ChildNumber::from_hardened_idx(535).expect("Is within [0, 2^31-1]");
+        let ldk_xprv = master_xprv
+            .ckd_priv(&secp_ctx, m_535h)
+            .expect("Should always succeed");
+
+        Secret::new(ldk_xprv.private_key.secret_bytes())
     }
 
     /// Derive the Lightning node key pair without needing to derive all the
@@ -149,27 +161,22 @@ impl RootSeed {
         &self,
         rng: &mut R,
     ) -> secp256k1::KeyPair {
-        // NOTE: this doesn't affect the output; this randomizes the SECP256K1
-        // context for sidechannel resistance.
-        let mut secp_randomize = [0u8; 32];
-        rng.fill_bytes(&mut secp_randomize);
-        let mut secp_ctx = Secp256k1::new();
-        secp_ctx.seeded_randomize(&secp_randomize);
-
         // Derive the LDK seed first.
-        let ldk_seed = self.derive_ldk_seed();
+        let ldk_seed = self.derive_ldk_seed(rng);
 
-        // Note that when we aren't serializing the key, network doesn't matter
+        // When deriving a secp256k1 key, the network doesn't matter.
+        // This is checked in when_does_network_matter.
         let ldk_xprv = ExtendedPrivKey::new_master(
             Network::Bitcoin,
             ldk_seed.expose_secret(),
         )
         .expect("should never fail; the sizes match up");
 
-        let child_number = ChildNumber::from_hardened_idx(0)
+        let secp_ctx = rng::get_randomized_secp256k1_ctx(rng);
+        let m_0h = ChildNumber::from_hardened_idx(0)
             .expect("should never fail; index is in range");
         let node_sk = ldk_xprv
-            .ckd_priv(&secp_ctx, child_number)
+            .ckd_priv(&secp_ctx, m_0h)
             .expect("should never fail")
             .private_key;
 
@@ -476,6 +483,87 @@ mod test {
             let actual = seed.derive_vec(&label, len);
 
             assert_eq!(&expected, actual.expose_secret());
+        });
+    }
+
+    /// A series of tests that demonstrate when the [`Network`] affects the
+    /// partial equality of key material at various stages of derivation. This
+    /// helps ensure that the APIs of our derivation methods are correct;
+    /// [`Network`] should be required when it is needed and set to a default
+    /// when it is not.
+    #[test]
+    fn when_does_network_matter() {
+        proptest!(|(
+            mut rng in any::<crate::rng::SmallRng>(),
+            root_seed in any::<RootSeed>(),
+            network1 in any::<crate::cli::Network>(),
+            network2 in any::<crate::cli::Network>(),
+        )| {
+            let network1 = network1.into_inner();
+            let network2 = network2.into_inner();
+            let secp_ctx = rng::get_randomized_secp256k1_ctx(&mut rng);
+
+            // Network DOES matter for master xprvs (and all xprvs in general).
+            let master_xprv1 = root_seed.derive_master_xprv(network1);
+            let master_xprv2 = root_seed.derive_master_xprv(network2);
+            // The following asserts:  "master xprvs equal iff networks equal"
+            let master_xprvs_equal = master_xprv1 == master_xprv2;
+            let networks_equal = network1 == network2;
+            prop_assert_eq!(master_xprvs_equal, networks_equal);
+
+            // Test derive_ldk_seed(): The [u8; 32] LDK seed should be the same
+            // regardless of the network of the master_xprv it was based on
+            let m_535h = ChildNumber::from_hardened_idx(535)
+                .expect("Is within [0, 2^31-1]");
+            let ldk_seed1 = master_xprv1
+                .ckd_priv(&secp_ctx, m_535h)
+                .expect("Should always succeed")
+                .private_key
+                .secret_bytes();
+            let ldk_seed2 = master_xprv2
+                .ckd_priv(&secp_ctx, m_535h)
+                .expect("Should always succeed")
+                .private_key
+                .secret_bytes();
+            prop_assert_eq!(ldk_seed1, ldk_seed2);
+            let ldk_seed = ldk_seed1;
+
+            // Test derive_node_key_pair() and derive_node_pk(): The outputted
+            // secp256k1::KeyPair should be the same regardless of the network
+            // of the ldk_xprv it was based on
+            let ldk_xprv1 = ExtendedPrivKey::new_master(network1, &ldk_seed)
+                .expect("Should never fail");
+            let ldk_xprv2 = ExtendedPrivKey::new_master(network2, &ldk_seed)
+                .expect("Should never fail");
+            // Network matters for xprvs: "ldk_xprvs equal iff networks equal"
+            let ldk_xprvs_equal = ldk_xprv1 == ldk_xprv2;
+            prop_assert_eq!(ldk_xprvs_equal, networks_equal);
+            // First check the node_sks
+            let m_0h = ChildNumber::from_hardened_idx(0)
+                .expect("should never fail; index is in range");
+            let node_sk1 = ldk_xprv1
+                .ckd_priv(&secp_ctx, m_0h)
+                .expect("should never fail")
+                .private_key;
+            let node_sk2 = ldk_xprv2
+                .ckd_priv(&secp_ctx, m_0h)
+                .expect("should never fail")
+                .private_key;
+            prop_assert_eq!(node_sk1, node_sk2);
+            // Then check the keypairs
+            let keypair1 =
+                secp256k1::KeyPair::from_secret_key(&secp_ctx, &node_sk1);
+            let keypair2 =
+                secp256k1::KeyPair::from_secret_key(&secp_ctx, &node_sk2);
+            prop_assert_eq!(keypair1, keypair2);
+            // Then check the node_pks
+            let node_pk1 = NodePk(secp256k1::PublicKey::from(keypair1));
+            let node_pk2 = NodePk(secp256k1::PublicKey::from(keypair2));
+            prop_assert_eq!(node_pk1, node_pk2);
+            // Then check the serialized node_pks
+            let node_pk1_str = node_pk1.to_string();
+            let node_pk2_str = node_pk2.to_string();
+            prop_assert_eq!(node_pk1_str, node_pk2_str);
         });
     }
 
