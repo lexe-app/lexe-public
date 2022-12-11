@@ -23,7 +23,7 @@ use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
     BlockSourceType, BroadcasterType, ChannelMonitorType, FeeEstimatorType,
     NetworkGraphType, OnionMessengerType, P2PGossipSyncType,
-    PaymentInfoStorageType, ProbabilisticScorerType, WalletType,
+    PaymentInfoStorageType, ProbabilisticScorerType,
 };
 use lexe_ln::background_processor::LexeBackgroundProcessor;
 use lexe_ln::bitcoind::LexeBitcoind;
@@ -32,6 +32,7 @@ use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::p2p::ChannelPeerUpdate;
 use lexe_ln::sync::SyncedChainListeners;
 use lexe_ln::test_event::TestEventSender;
+use lexe_ln::wallet::LexeWallet;
 use lexe_ln::{channel_monitor, p2p};
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
@@ -75,7 +76,8 @@ pub struct UserNode {
     // --- Actors --- //
     pub logger: LexeTracingLogger,
     pub persister: NodePersister,
-    pub wallet: Arc<WalletType>,
+    pub wallet: LexeWallet,
+    pub bitcoind_wallet: Arc<LexeBitcoind>, // TODO(max): Refactor this out
     block_source: Arc<BlockSourceType>,
     fee_estimator: Arc<FeeEstimatorType>,
     broadcaster: Arc<BroadcasterType>,
@@ -165,11 +167,14 @@ impl UserNode {
             LexeKeysManager::init(rng, &user.node_pk, &root_seed)
                 .context("Failed to construct keys manager")?;
 
-        // LexeBitcoind implements BlockSource, FeeEstimator and
-        // BroadcasterInterface, and thus serves these functions. It also
-        // serves as the wallet for now. A type alias is defined for each of
-        // these in case they need to be split apart later.
-        let wallet = bitcoind.clone();
+        // Init BDK wallet
+        let wallet = LexeWallet::new(&root_seed, args.network)
+            .context("Could not init BDK wallet")?;
+
+        // LexeBitcoind impls BlockSource, FeeEstimator and
+        // BroadcasterInterface, and thus serves these functions.
+        // A type alias is used for each as bitcoind is slowly refactored out
+        let bitcoind_wallet = bitcoind.clone();
         let block_source = bitcoind.clone();
         let fee_estimator = bitcoind.clone();
         let broadcaster = bitcoind.clone();
@@ -459,6 +464,7 @@ impl UserNode {
             logger,
             persister,
             wallet,
+            bitcoind_wallet,
             block_source,
             fee_estimator,
             broadcaster,
