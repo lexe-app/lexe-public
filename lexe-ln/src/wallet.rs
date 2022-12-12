@@ -25,7 +25,7 @@ impl LexeWallet {
     /// [BIP 44]: https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
     pub fn new(root_seed: &RootSeed, network: Network) -> anyhow::Result<Self> {
         let network = network.into_inner();
-        let master_xprv = root_seed.derive_master_xprv(network);
+        let master_xprv = root_seed.derive_bip32_master_xprv(network);
 
         // Descriptor for external (receive) addresses: `m/84h/{0,1}h/0h/0/*`
         let external_descriptor = Bip84(master_xprv, KeychainKind::External);
