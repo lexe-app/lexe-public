@@ -325,7 +325,8 @@ mod test {
     use proptest::{prop_assert_eq, proptest};
 
     use super::*;
-    use crate::sha256;
+    use crate::rng::SmallRng;
+    use crate::{hex, sha256};
 
     // simple implementations of some crypto functions for equivalence testing
 
@@ -494,7 +495,7 @@ mod test {
     #[test]
     fn when_does_network_matter() {
         proptest!(|(
-            mut rng in any::<crate::rng::SmallRng>(),
+            mut rng in any::<SmallRng>(),
             root_seed in any::<RootSeed>(),
             network1 in any::<crate::cli::Network>(),
             network2 in any::<crate::cli::Network>(),
@@ -586,5 +587,79 @@ mod test {
             let mnemonic2 = Mnemonic::from_str(&mnemonic1.to_string()).unwrap();
             prop_assert_eq!(mnemonic1, mnemonic2)
         })
+    }
+
+    /// A basic compatibility test to check that a few "known good" pairings of
+    /// [`RootSeed`] <-> [`Mnemonic`] <-> [`String`] still correspond. This
+    /// ensures that the [`bip39`] crate cannot introduce compatibility-breaking
+    /// changes without us noticing.
+    #[test]
+    fn mnemonic_compatibility_test() {
+        // This code generated the "known good" values
+        // let mut rng = SmallRng::from_u64(98592174);
+        // let seed1 = RootSeed::from_rng(&mut rng);
+        // let seed2 = RootSeed::from_rng(&mut rng);
+        // let seed3 = RootSeed::from_rng(&mut rng);
+        // let seed1_str = hex::encode(seed1.as_bytes());
+        // let seed2_str = hex::encode(seed2.as_bytes());
+        // let seed3_str = hex::encode(seed3.as_bytes());
+        // println!("{seed1_str}");
+        // println!("{seed2_str}");
+        // println!("{seed3_str}");
+        // let mnenemenmenomic1 = seed1.to_mnemonic().to_string();
+        // let mnenemenmenomic2 = seed2.to_mnemonic().to_string();
+        // let mnenemenmenomic3 = seed3.to_mnemonic().to_string();
+        // println!("{mnenemenmenomic1}");
+        // println!("{mnenemenmenomic2}");
+        // println!("{mnenemenmenomic3}");
+
+        // "Known good" seeds
+        let seed1 = RootSeed::new(Secret::new(hex::decode_const(
+            b"91f24ce8326abc2e9faef6a3b866021ce9574c11210e86b0f457a31ed8ad4cba",
+        )));
+        let seed2 = RootSeed::new(Secret::new(hex::decode_const(
+            b"5c2aa5fdd678112c8b13d745b5c1d1e1a81ace76721ec72f1424bd2eb387a8af",
+        )));
+        let seed3 = RootSeed::new(Secret::new(hex::decode_const(
+            b"51ddba4775fc71fb1dba65dfc2ffab7526dd61bae7a9b13e9f3aa550bee19360",
+        )));
+
+        // "Known good" mnemonic strings
+        let str1 = String::from(
+            "music mystery deliver gospel profit blanket leaf tell \
+            photo segment letter degree nice plastic duty canyon \
+            mammal marble bicycle economy unique find cream dune",
+        );
+        let str2 = String::from(
+            "found festival legal provide library north clump kit \
+            east puppy inner select like grunt supply duck \
+            shrimp judge ankle kid twenty sense pencil tray",
+        );
+        let str3 = String::from(
+            "fade universe mushroom typical shove work ivory erosion \
+            thank blood turn tumble horse radio twist vivid \
+            raise visual solid enjoy armor ignore eternal arrange",
+        );
+
+        // Check `Mnemonic`
+        let mnemonic_from_str1 = Mnemonic::from_str(&str1).unwrap();
+        let mnemonic_from_str2 = Mnemonic::from_str(&str2).unwrap();
+        let mnemonic_from_str3 = Mnemonic::from_str(&str3).unwrap();
+        assert_eq!(seed1.to_mnemonic(), mnemonic_from_str1);
+        assert_eq!(seed2.to_mnemonic(), mnemonic_from_str2);
+        assert_eq!(seed3.to_mnemonic(), mnemonic_from_str3);
+
+        // Check `RootSeed`
+        let seed_from_str1 = RootSeed::try_from(mnemonic_from_str1).unwrap();
+        let seed_from_str2 = RootSeed::try_from(mnemonic_from_str2).unwrap();
+        let seed_from_str3 = RootSeed::try_from(mnemonic_from_str3).unwrap();
+        assert_eq!(seed1.as_bytes(), seed_from_str1.as_bytes());
+        assert_eq!(seed2.as_bytes(), seed_from_str2.as_bytes());
+        assert_eq!(seed3.as_bytes(), seed_from_str3.as_bytes());
+
+        // Check `String`
+        assert_eq!(str1, seed1.to_mnemonic().to_string());
+        assert_eq!(str2, seed2.to_mnemonic().to_string());
+        assert_eq!(str3, seed3.to_mnemonic().to_string());
     }
 }
