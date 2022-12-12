@@ -55,6 +55,8 @@ impl RootSeed {
 
     // --- BIP39 Mnemonics --- //
 
+    /// Creates a [`bip39::Mnemonic`] from this [`RootSeed`]. Use [`Mnemonic`]'s
+    /// `Display` / `FromStr` impls to convert from / to user-facing strings.
     pub fn to_mnemonic(&self) -> Mnemonic {
         Mnemonic::from_entropy_in(
             Language::English,
@@ -245,10 +247,9 @@ impl TryFrom<Mnemonic> for RootSeed {
 
         ensure!(entropy_len == 32, "Should contain exactly 32 bytes");
 
-        let mut seed_buf = [0u8; Self::LENGTH];
-        seed_buf.copy_from_slice(&entropy[0..Self::LENGTH]);
+        let (seed_buf, _remainder) = entropy.split_array_ref::<32>();
 
-        Ok(Self(Secret::new(seed_buf)))
+        Ok(Self(Secret::new(*seed_buf)))
     }
 }
 
