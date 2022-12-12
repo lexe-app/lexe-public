@@ -131,10 +131,13 @@ impl RootSeed {
         UserPk::new(self.derive_user_key_pair().public_key().into_inner())
     }
 
-    /// Derive the master xprv used for the BDK (on-chain) wallet as well as in
-    /// an intermediate step when deriving the LDK seed. See `LexeWallet` init
-    /// and `LexeKeysManager` init respectively for details.
-    pub fn derive_master_xprv(&self, network: Network) -> ExtendedPrivKey {
+    /// Derive the BIP32 master xprv used for the BDK (on-chain) wallet as well
+    /// as in an intermediate step when deriving the LDK seed. See `LexeWallet`
+    /// init and `LexeKeysManager` init respectively for details.
+    pub fn derive_bip32_master_xprv(
+        &self,
+        network: Network,
+    ) -> ExtendedPrivKey {
         ExtendedPrivKey::new_master(network, self.0.expose_secret())
             .expect("Should never fail")
     }
@@ -144,7 +147,7 @@ impl RootSeed {
     pub fn derive_ldk_seed<R: Crng>(&self, rng: &mut R) -> Secret<[u8; 32]> {
         // The [u8; 32] output will be the same regardless of the network the
         // master_xprv uses, as tested in `when_does_network_matter`
-        let master_xprv = self.derive_master_xprv(Network::Bitcoin);
+        let master_xprv = self.derive_bip32_master_xprv(Network::Bitcoin);
 
         // Derive the hardened child key at `m/535h`, where 535 is T9 for "LDK"
         let secp_ctx = rng::get_randomized_secp256k1_ctx(rng);
@@ -506,8 +509,8 @@ mod test {
             let secp_ctx = rng::get_randomized_secp256k1_ctx(&mut rng);
 
             // Network DOES matter for master xprvs (and all xprvs in general).
-            let master_xprv1 = root_seed.derive_master_xprv(network1);
-            let master_xprv2 = root_seed.derive_master_xprv(network2);
+            let master_xprv1 = root_seed.derive_bip32_master_xprv(network1);
+            let master_xprv2 = root_seed.derive_bip32_master_xprv(network2);
             // The following asserts:  "master xprvs equal iff networks equal"
             let master_xprvs_equal = master_xprv1 == master_xprv2;
             let networks_equal = network1 == network2;
