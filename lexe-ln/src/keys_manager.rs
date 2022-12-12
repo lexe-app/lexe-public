@@ -34,6 +34,8 @@ impl LexeKeysManager {
     /// pubkey to check the derived pubkey against.
     pub fn unchecked_init<R: Crng>(rng: &mut R, root_seed: &RootSeed) -> Self {
         let ldk_seed = root_seed.derive_ldk_seed(rng);
+        // KeysManager requires a "starting_time_secs" and "starting_time_nanos"
+        // to seed an CRNG. We just provide random values from our system CRNG.
         let random_secs = rng.next_u64();
         let random_nanos = rng.next_u32();
         let inner = Arc::new(KeysManager::new(
@@ -54,10 +56,8 @@ impl LexeKeysManager {
         // Build the KeysManager from the LDK seed derived from the root seed
         let ldk_seed = root_seed.derive_ldk_seed(rng);
 
-        // NOTE: KeysManager::new() MUST be given a unique `starting_time_secs`
-        // and `starting_time_nanos` for security. Since secure timekeeping
-        // within an enclave is difficult, we just take a (secure) random u64,
-        // u32 instead. See KeysManager::new() for more info.
+        // KeysManager requires a "starting_time_secs" and "starting_time_nanos"
+        // to seed an CRNG. We just provide random values from our system CRNG.
         let random_secs = rng.next_u64();
         let random_nanos = rng.next_u32();
         let inner = Arc::new(KeysManager::new(
