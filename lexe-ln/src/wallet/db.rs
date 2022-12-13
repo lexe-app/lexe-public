@@ -17,7 +17,7 @@ use bitcoin::{OutPoint, Script, Transaction, Txid};
 /// adds the ability to serialize the entire DB for persisting.
 ///
 /// [`MemoryDatabase`]: bdk::database::memory::MemoryDatabase
-struct LexeWalletDb {
+struct WalletDb {
     path_to_script: BTreeMap<Path, Script>,
     script_to_path: BTreeMap<Script, Path>,
 }
@@ -59,9 +59,9 @@ impl Ord for Path {
     }
 }
 
-// --- impl LexeWalletDb --- //
+// --- impl WalletDb --- //
 
-impl LexeWalletDb {
+impl WalletDb {
     pub(super) fn new() -> Self {
         let path_to_script = BTreeMap::new();
         let script_to_path = BTreeMap::new();
@@ -85,7 +85,7 @@ impl LexeWalletDb {
     }
 }
 
-impl Database for LexeWalletDb {
+impl Database for WalletDb {
     fn check_descriptor_checksum<B: AsRef<[u8]>>(
         &mut self,
         _: KeychainKind,
@@ -181,7 +181,7 @@ impl Database for LexeWalletDb {
     }
 }
 
-impl BatchOperations for LexeWalletDb {
+impl BatchOperations for WalletDb {
     // Weird that the set_* methods take ref, but ok
     fn set_script_pubkey(
         &mut self,
@@ -284,7 +284,7 @@ impl BatchOperations for LexeWalletDb {
     }
 }
 
-impl BatchDatabase for LexeWalletDb {
+impl BatchDatabase for WalletDb {
     type Batch = Self;
 
     fn begin_batch(&self) -> <Self as BatchDatabase>::Batch {
@@ -325,7 +325,7 @@ mod test {
         }
 
         /// Executes the operation and asserts op-related invariants.
-        fn do_op_and_check_op_invariants(&self, db: &mut LexeWalletDb) {
+        fn do_op_and_check_op_invariants(&self, db: &mut WalletDb) {
             // Generate some intermediates used throughout. Each i produces a
             // unique and corresponding Script, KeychainKind, and u32 (child).
             let i = self.index();
@@ -401,12 +401,12 @@ mod test {
         }
     }
 
-    /// Tests that [`LexeWalletDb::iter_script_pubkeys`] filters according to
+    /// Tests that [`WalletDb::iter_script_pubkeys`] filters according to
     /// [`KeychainKind`].
     #[test]
     fn iter_script_pubkeys_filters() {
         use KeychainKind::{External, Internal};
-        let mut wallet_db = LexeWalletDb::new();
+        let mut wallet_db = WalletDb::new();
 
         // Populate the db
         let script1 = Script::from(vec![1]);
@@ -458,7 +458,7 @@ mod test {
         let any_op = any::<DbOp>();
         let any_vec_of_ops = proptest::collection::vec(any_op, 0..100);
         proptest!(|(vec_of_ops in any_vec_of_ops)| {
-            let mut db = LexeWalletDb::new();
+            let mut db = WalletDb::new();
 
             db.assert_invariants();
 
