@@ -8,6 +8,8 @@
 #![allow(non_camel_case_types)]
 // Allow e.g. PS: Deref<Target: LexeInnerPersister> in generics
 #![feature(associated_type_bounds)]
+// Allow adding side effects to Option and Result chains
+#![feature(result_option_inspect)]
 
 /// Type aliases.
 pub mod alias;
