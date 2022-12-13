@@ -71,6 +71,7 @@ impl LexeWalletDb {
         }
     }
 
+    #[cfg(test)]
     fn assert_invariants(&self) {
         // Everything in path_to_script must be in script_to_path and vice versa
         for (path1, script1) in self.path_to_script.iter() {
@@ -130,15 +131,19 @@ impl Database for LexeWalletDb {
         keychain: KeychainKind,
         child: u32,
     ) -> Result<Option<Script>, bdk::Error> {
-        let k = Path { keychain, child };
-        Ok(self.path_to_script.get(&k).cloned())
+        let path = Path { keychain, child };
+        Ok(self.path_to_script.get(&path).cloned())
     }
 
     fn get_path_from_script_pubkey(
         &self,
-        _: &Script,
+        script: &Script,
     ) -> Result<Option<(KeychainKind, u32)>, bdk::Error> {
-        todo!()
+        self.script_to_path
+            .get(script)
+            .map(|path| (path.keychain, path.child))
+            .map(Ok)
+            .transpose()
     }
 
     fn get_utxo(&self, _: &OutPoint) -> Result<Option<LocalUtxo>, bdk::Error> {
@@ -296,7 +301,105 @@ impl BatchDatabase for LexeWalletDb {
 
 #[cfg(test)]
 mod test {
+    use proptest::arbitrary::{any, Arbitrary};
+    use proptest::proptest;
+    use proptest::strategy::{BoxedStrategy, Strategy};
+
     use super::*;
+
+    #[derive(Debug)]
+    enum DbOp {
+        SetPathScript(u8),
+        DelByPath(u8),
+        DelByScript(u8),
+    }
+
+    impl DbOp {
+        /// Returns the [`u8`] contained within.
+        fn index(&self) -> u8 {
+            match self {
+                Self::SetPathScript(i) => *i,
+                Self::DelByPath(i) => *i,
+                Self::DelByScript(i) => *i,
+            }
+        }
+
+        /// Executes the operation and asserts op-related invariants.
+        fn do_op_and_check_op_invariants(&self, db: &mut LexeWalletDb) {
+            // Generate some intermediates used throughout. Each i produces a
+            // unique and corresponding Script, KeychainKind, and u32 (child).
+            let i = self.index();
+            let script = Script::from(vec![i]);
+            let keychain = if i % 2 == 0 {
+                KeychainKind::External
+            } else {
+                KeychainKind::Internal
+            };
+            let child = u32::from(i);
+
+            match self {
+                DbOp::SetPathScript(_) => {
+                    db.set_script_pubkey(&script, keychain, child).unwrap();
+
+                    let get_script = db
+                        .get_script_pubkey_from_path(keychain, child)
+                        .unwrap()
+                        .unwrap();
+                    let (get_keychain, get_child) = db
+                        .get_path_from_script_pubkey(&script)
+                        .unwrap()
+                        .unwrap();
+                    assert_eq!(get_script, script);
+                    assert_eq!(get_keychain, keychain);
+                    assert_eq!(get_child, child);
+                }
+                DbOp::DelByPath(_) => {
+                    db.del_script_pubkey_from_path(keychain, child).unwrap();
+
+                    assert!(db
+                        .get_script_pubkey_from_path(keychain, child)
+                        .unwrap()
+                        .is_none());
+                    assert!(db
+                        .get_path_from_script_pubkey(&script)
+                        .unwrap()
+                        .is_none());
+                }
+                DbOp::DelByScript(_) => {
+                    db.del_path_from_script_pubkey(&script).unwrap();
+
+                    assert!(db
+                        .get_script_pubkey_from_path(keychain, child)
+                        .unwrap()
+                        .is_none());
+                    assert!(db
+                        .get_path_from_script_pubkey(&script)
+                        .unwrap()
+                        .is_none());
+                }
+            }
+        }
+    }
+
+    impl Arbitrary for DbOp {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            use DbOp::*;
+            // If you were brought here by a compilation error, make sure to add
+            // the new enum variant to the prop_oneof! below.
+            match SetPathScript(0) {
+                SetPathScript(_) | DelByPath(_) | DelByScript(_) => {}
+            }
+            proptest::prop_oneof![
+                any::<u8>().prop_map(Self::SetPathScript),
+                any::<u8>().prop_map(Self::DelByPath),
+                any::<u8>().prop_map(Self::DelByScript),
+            ]
+            .boxed()
+        }
+    }
 
     /// Tests that [`LexeWalletDb::iter_script_pubkeys`] filters according to
     /// [`KeychainKind`].
@@ -346,6 +449,25 @@ mod test {
             (Some(s3), None) => assert_eq!(script3, s3),
             _ => panic!("Unexpected"),
         }
+    }
+
+    /// Generates an arbitrary `Vec<DbOp>` and executes each op,
+    /// checking op invariants as well as db invariants in between.
+    #[test]
+    fn fuzz_wallet_db() {
+        let any_op = any::<DbOp>();
+        let any_vec_of_ops = proptest::collection::vec(any_op, 0..100);
+        proptest!(|(vec_of_ops in any_vec_of_ops)| {
+            let mut db = LexeWalletDb::new();
+
+            db.assert_invariants();
+
+            for op in vec_of_ops {
+                op.do_op_and_check_op_invariants(&mut db);
+
+                db.assert_invariants();
+            }
+        })
     }
 
     // TODO(max): Write some proptests
