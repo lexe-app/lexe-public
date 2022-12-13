@@ -177,6 +177,7 @@ impl Database for LexeWalletDb {
 }
 
 impl BatchOperations for LexeWalletDb {
+    // Weird that the set_* methods take ref, but ok
     fn set_script_pubkey(
         &mut self,
         script: &Script,
@@ -293,4 +294,59 @@ impl BatchDatabase for LexeWalletDb {
     }
 }
 
-// TODO(max): Fuzz / proptest the db
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    /// Tests that [`LexeWalletDb::iter_script_pubkeys`] filters according to
+    /// [`KeychainKind`].
+    #[test]
+    fn iter_script_pubkeys_filters() {
+        use KeychainKind::{External, Internal};
+        let mut wallet_db = LexeWalletDb::new();
+
+        // Populate the db
+        let script1 = Script::from(vec![1]);
+        let script2 = Script::from(vec![2]);
+        let script3 = Script::from(vec![3]);
+        wallet_db.set_script_pubkey(&script1, External, 1).unwrap();
+        wallet_db.set_script_pubkey(&script2, External, 2).unwrap();
+        wallet_db.set_script_pubkey(&script3, Internal, 3).unwrap();
+
+        // Giving no filter should return all 3 elements
+        let mut iter = wallet_db.iter_script_pubkeys(None).unwrap().into_iter();
+        match (iter.next(), iter.next(), iter.next(), iter.next()) {
+            (Some(s1), Some(s2), Some(s3), None) => {
+                assert_eq!(script1, s1);
+                assert_eq!(script2, s2);
+                assert_eq!(script3, s3);
+            }
+            _ => panic!("Unexpected"),
+        }
+
+        // Filtering by External should return 2 elements (script 1 and 2)
+        let mut iter = wallet_db
+            .iter_script_pubkeys(Some(External))
+            .unwrap()
+            .into_iter();
+        match (iter.next(), iter.next(), iter.next()) {
+            (Some(s1), Some(s2), None) => {
+                assert_eq!(script1, s1);
+                assert_eq!(script2, s2);
+            }
+            _ => panic!("Unexpected"),
+        }
+
+        // Filtering by Internal should return 1 element (script 3)
+        let mut iter = wallet_db
+            .iter_script_pubkeys(Some(Internal))
+            .unwrap()
+            .into_iter();
+        match (iter.next(), iter.next()) {
+            (Some(s3), None) => assert_eq!(script3, s3),
+            _ => panic!("Unexpected"),
+        }
+    }
+
+    // TODO(max): Write some proptests
+}
