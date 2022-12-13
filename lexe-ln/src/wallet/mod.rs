@@ -8,6 +8,9 @@ use bdk::KeychainKind;
 use common::cli::Network;
 use common::root_seed::RootSeed;
 
+/// Wallet DB.
+mod db;
+
 /// A newtype wrapper around [`bdk::Wallet`]. Can be cloned and used directly.
 // The Mutex is needed because bdk::Wallet isn't thread-safe. bdk::Wallet::new
 // internally wraps the db we provide with a RefCell, which isn't Send. Thus, to
