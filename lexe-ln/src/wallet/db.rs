@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 use std::mem;
 
 use bdk::database::{BatchDatabase, BatchOperations, Database, SyncTime};
-use bdk::{KeychainKind, LocalUtxo, TransactionDetails};
+use bdk::{BlockTime, KeychainKind, LocalUtxo, TransactionDetails};
 use bitcoin::{OutPoint, Script, Transaction, Txid};
 
 /// Implements the DB traits required by BDK. Similar to [`MemoryDatabase`], but
@@ -22,6 +22,7 @@ struct WalletDb {
     script_to_path: BTreeMap<Script, Path>,
     utxos: BTreeMap<OutPoint, LocalUtxo>,
     raw_txs: BTreeMap<Txid, Transaction>,
+    tx_metas: BTreeMap<Txid, TransactionMetadata>,
 }
 
 /// Represents a [`KeychainKind`] and corresponding child path.
@@ -61,6 +62,61 @@ impl Ord for Path {
     }
 }
 
+/// [`TransactionDetails`], but without the `Option<Transaction>` field.
+/// This type-enforces that the raw txns (i.e. [`Transaction`]s) can only be
+/// stored in the `raw_txs` map. This is what BDK's provided databases do
+/// internally.
+///
+/// It is important to stick to this semantic because [`get_tx`] and [`del_tx`]
+/// include a `include_raw` parameter which affects whether the raw tx is
+/// returned or deleted respectively, and [`set_tx`] can set a raw tx if the
+/// [`transaction`] field is [`Some`]. (These are in addition to the more direct
+/// [`get_raw_tx`], [`set_raw_tx`], and [`del_raw_tx`] methods). BDK may rely on
+/// these functions returning a specific result after a sequence of mutations,
+/// so we should ensure our implementation exactly matches theirs.
+///
+///
+/// [`get_tx`]: Database::get_tx
+/// [`set_tx`]: BatchOperations::set_tx
+/// [`del_tx`]: BatchOperations::del_tx
+/// [`get_raw_tx`]: Database::get_raw_tx
+/// [`set_raw_tx`]: BatchOperations::set_raw_tx
+/// [`del_raw_tx`]: BatchOperations::del_raw_tx
+/// [`transaction`]: TransactionDetails::transaction
+#[derive(Clone)]
+struct TransactionMetadata {
+    pub txid: Txid,
+    pub received: u64,
+    pub sent: u64,
+    pub fee: Option<u64>,
+    pub confirmation_time: Option<BlockTime>,
+}
+
+impl From<TransactionDetails> for TransactionMetadata {
+    fn from(tx: TransactionDetails) -> Self {
+        Self {
+            txid: tx.txid,
+            received: tx.received,
+            sent: tx.sent,
+            fee: tx.fee,
+            confirmation_time: tx.confirmation_time,
+        }
+    }
+}
+
+impl TransactionMetadata {
+    fn into_tx(self, maybe_raw_tx: Option<Transaction>) -> TransactionDetails {
+        TransactionDetails {
+            transaction: maybe_raw_tx,
+            txid: self.txid,
+            received: self.received,
+            sent: self.sent,
+            fee: self.fee,
+            confirmation_time: self.confirmation_time,
+        }
+    }
+}
+
 // --- impl WalletDb --- //
 
 impl WalletDb {
@@ -69,12 +125,14 @@ impl WalletDb {
         let script_to_path = BTreeMap::new();
         let utxos = BTreeMap::new();
         let raw_txs = BTreeMap::new();
+        let tx_metas = BTreeMap::new();
 
         Self {
             path_to_script,
             script_to_path,
             utxos,
             raw_txs,
+            tx_metas,
         }
     }
 
@@ -129,8 +187,26 @@ impl Database for WalletDb {
         Ok(self.raw_txs.values().cloned().collect())
     }
 
-    fn iter_txs(&self, _: bool) -> Result<Vec<TransactionDetails>, bdk::Error> {
-        todo!()
+    fn iter_txs(
+        &self,
+        include_raw: bool,
+    ) -> Result<Vec<TransactionDetails>, bdk::Error> {
+        let mut txs = self
+            .tx_metas
+            .values()
+            .cloned()
+            .map(|meta| meta.into_tx(None))
+            .collect::<Vec<_>>();
+
+        if include_raw {
+            // Include any known raw_txs
+            for tx in txs.iter_mut() {
+                let maybe_raw_tx = self.raw_txs.get(&tx.txid).cloned();
+                tx.transaction = maybe_raw_tx;
+            }
+        }
+
+        Ok(txs)
     }
 
     fn get_script_pubkey_from_path(
@@ -169,10 +245,21 @@ impl Database for WalletDb {
 
     fn get_tx(
         &self,
-        _: &Txid,
-        _: bool,
+        txid: &Txid,
+        include_raw: bool,
     ) -> Result<Option<TransactionDetails>, bdk::Error> {
-        todo!()
+        let maybe_raw_tx = if include_raw {
+            self.raw_txs.get(txid).cloned()
+        } else {
+            None
+        };
+
+        self.tx_metas
+            .get(txid)
+            .cloned()
+            .map(|meta| meta.into_tx(maybe_raw_tx))
+            .map(Ok)
+            .transpose()
     }
 
     fn get_last_index(
@@ -219,8 +306,18 @@ impl BatchOperations for WalletDb {
         Ok(())
     }
 
-    fn set_tx(&mut self, _: &TransactionDetails) -> Result<(), bdk::Error> {
-        todo!()
+    fn set_tx(&mut self, tx: &TransactionDetails) -> Result<(), bdk::Error> {
+        let mut tx = tx.clone();
+        // take() the raw tx, inserting it into the raw_txs map if it existed
+        if let Some(raw_tx) = tx.transaction.take() {
+            self.raw_txs.insert(tx.txid, raw_tx);
+        }
+
+        // Convert to metadata and store the metadata
+        let meta = TransactionMetadata::from(tx);
+        self.tx_metas.insert(meta.txid, meta);
+
+        Ok(())
     }
 
     fn set_last_index(
@@ -281,10 +378,22 @@ impl BatchOperations for WalletDb {
 
     fn del_tx(
         &mut self,
-        _: &Txid,
-        _: bool,
+        txid: &Txid,
+        include_raw: bool,
     ) -> Result<Option<TransactionDetails>, bdk::Error> {
-        todo!()
+        // Delete the raw tx if include_raw == true, then return the raw tx with
+        // the tx if one existed.
+        let maybe_raw_tx = if include_raw {
+            self.raw_txs.remove(txid)
+        } else {
+            None
+        };
+
+        self.tx_metas
+            .remove(txid)
+            .map(|meta| meta.into_tx(maybe_raw_tx))
+            .map(Ok)
+            .transpose()
     }
 
     fn del_last_index(
@@ -332,6 +441,8 @@ mod test {
         DelUtxo(u8),
         SetRawTx(u8),
         DelRawTx(u8),
+        SetTx { i: u8, include_raw: bool },
+        DelTx { i: u8, include_raw: bool },
     }
 
     impl DbOp {
@@ -345,6 +456,8 @@ mod test {
                 Self::DelUtxo(i) => *i,
                 Self::SetRawTx(i) => *i,
                 Self::DelRawTx(i) => *i,
+                Self::SetTx { i, .. } => *i,
+                Self::DelTx { i, .. } => *i,
             }
         }
 
@@ -379,6 +492,13 @@ mod test {
                 },
                 keychain,
                 is_spent: i % 2 == 0,
+            };
+            let meta = TransactionMetadata {
+                txid,
+                received: u64::from(i),
+                sent: u64::from(i),
+                fee: None,
+                confirmation_time: None,
             };
 
             match self {
@@ -439,6 +559,40 @@ mod test {
                     db.del_raw_tx(&txid).unwrap();
                     assert!(db.get_raw_tx(&txid).unwrap().is_none());
                 }
+                DbOp::SetTx { include_raw, .. } => {
+                    // Include a raw tx if include_raw is true
+                    let maybe_raw_tx = if *include_raw {
+                        Some(raw_tx.clone())
+                    } else {
+                        None
+                    };
+                    let tx = meta.into_tx(maybe_raw_tx);
+
+                    db.set_tx(&tx).unwrap();
+
+                    // Tx should exist
+                    let get_tx =
+                        db.get_tx(&txid, *include_raw).unwrap().unwrap();
+                    assert_eq!(get_tx, tx);
+
+                    // If include_raw was true, it should be in the raw tx map
+                    // too
+                    if *include_raw {
+                        let get_raw_tx = db.get_raw_tx(&txid).unwrap().unwrap();
+                        assert_eq!(get_raw_tx, raw_tx);
+                    }
+                }
+                DbOp::DelTx { include_raw, .. } => {
+                    db.del_tx(&txid, *include_raw).unwrap();
+
+                    // tx should NOT exist
+                    assert!(db.get_tx(&txid, *include_raw).unwrap().is_none());
+
+                    // If include_raw was true, the raw tx should be deleted too
+                    if *include_raw {
+                        assert!(db.get_raw_tx(&txid).unwrap().is_none());
+                    }
+                }
             }
         }
     }
@@ -450,8 +604,15 @@ mod test {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             use DbOp::*;
             match SetPathScript(0) {
-                SetPathScript(_) | DelByPath(_) | DelByScript(_)
-                | SetUtxo(_) | DelUtxo(_) | SetRawTx(_) | DelRawTx(_) => {
+                SetPathScript(_)
+                | DelByPath(_)
+                | DelByScript(_)
+                | SetUtxo(_)
+                | DelUtxo(_)
+                | SetRawTx(_)
+                | DelRawTx(_)
+                | SetTx { .. }
+                | DelTx { .. } => {
                     "This match statement was written to bring you here. Before
                     fixing the compilation error, add the new enum variant(s) \
                     to the prop_oneof below!"
@@ -465,6 +626,12 @@ mod test {
                 any::<u8>().prop_map(Self::DelUtxo),
                 any::<u8>().prop_map(Self::SetRawTx),
                 any::<u8>().prop_map(Self::DelRawTx),
+                (any::<u8>(), any::<bool>()).prop_map(|(i, include_raw)| {
+                    Self::SetTx { i, include_raw }
+                }),
+                (any::<u8>(), any::<bool>()).prop_map(|(i, include_raw)| {
+                    Self::DelTx { i, include_raw }
+                }),
             ]
             .boxed()
         }
@@ -538,6 +705,6 @@ mod test {
             }
         })
     }
-
-    // TODO(max): Write some proptests
 }
+
+// TODO(max): Copy over BDK tests
