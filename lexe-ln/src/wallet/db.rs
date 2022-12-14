@@ -462,7 +462,7 @@ mod test {
         }
 
         /// Executes the operation and asserts op-specific invariants.
-        fn do_op_and_check_op_invariants(&self, db: &mut WalletDb) {
+        fn do_op_and_check_op_invariants(self, db: &mut WalletDb) {
             // Generate some intermediates used throughout. Each i produces a
             // unique and corresponding set of these intermediates.
             let i = self.index();
@@ -561,7 +561,7 @@ mod test {
                 }
                 DbOp::SetTx { include_raw, .. } => {
                     // Include a raw tx if include_raw is true
-                    let maybe_raw_tx = if *include_raw {
+                    let maybe_raw_tx = if include_raw {
                         Some(raw_tx.clone())
                     } else {
                         None
@@ -572,24 +572,24 @@ mod test {
 
                     // Tx should exist
                     let get_tx =
-                        db.get_tx(&txid, *include_raw).unwrap().unwrap();
+                        db.get_tx(&txid, include_raw).unwrap().unwrap();
                     assert_eq!(get_tx, tx);
 
                     // If include_raw was true, it should be in the raw tx map
                     // too
-                    if *include_raw {
+                    if include_raw {
                         let get_raw_tx = db.get_raw_tx(&txid).unwrap().unwrap();
                         assert_eq!(get_raw_tx, raw_tx);
                     }
                 }
                 DbOp::DelTx { include_raw, .. } => {
-                    db.del_tx(&txid, *include_raw).unwrap();
+                    db.del_tx(&txid, include_raw).unwrap();
 
                     // tx should NOT exist
-                    assert!(db.get_tx(&txid, *include_raw).unwrap().is_none());
+                    assert!(db.get_tx(&txid, include_raw).unwrap().is_none());
 
                     // If include_raw was true, the raw tx should be deleted too
-                    if *include_raw {
+                    if include_raw {
                         assert!(db.get_raw_tx(&txid).unwrap().is_none());
                     }
                 }
