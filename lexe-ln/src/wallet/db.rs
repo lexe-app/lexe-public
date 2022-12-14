@@ -13,13 +13,14 @@ use bdk::database::{BatchDatabase, BatchOperations, Database, SyncTime};
 use bdk::{KeychainKind, LocalUtxo, TransactionDetails};
 use bitcoin::{OutPoint, Script, Transaction, Txid};
 
-/// Implements the DB traits required by BDK. similar to [`MemoryDatabase`], but
+/// Implements the DB traits required by BDK. Similar to [`MemoryDatabase`], but
 /// adds the ability to serialize the entire DB for persisting.
 ///
 /// [`MemoryDatabase`]: bdk::database::memory::MemoryDatabase
 struct WalletDb {
     path_to_script: BTreeMap<Path, Script>,
     script_to_path: BTreeMap<Script, Path>,
+    utxos: BTreeMap<OutPoint, LocalUtxo>,
 }
 
 /// Represents a [`KeychainKind`] and corresponding child path.
@@ -65,9 +66,12 @@ impl WalletDb {
     pub(super) fn new() -> Self {
         let path_to_script = BTreeMap::new();
         let script_to_path = BTreeMap::new();
+        let utxos = BTreeMap::new();
+
         Self {
             path_to_script,
             script_to_path,
+            utxos,
         }
     }
 
@@ -115,7 +119,7 @@ impl Database for WalletDb {
     }
 
     fn iter_utxos(&self) -> Result<Vec<LocalUtxo>, bdk::Error> {
-        todo!()
+        Ok(self.utxos.values().cloned().collect())
     }
 
     fn iter_raw_txs(&self) -> Result<Vec<Transaction>, bdk::Error> {
@@ -146,8 +150,11 @@ impl Database for WalletDb {
             .transpose()
     }
 
-    fn get_utxo(&self, _: &OutPoint) -> Result<Option<LocalUtxo>, bdk::Error> {
-        todo!()
+    fn get_utxo(
+        &self,
+        outpoint: &OutPoint,
+    ) -> Result<Option<LocalUtxo>, bdk::Error> {
+        Ok(self.utxos.get(outpoint).cloned())
     }
 
     fn get_raw_tx(&self, _: &Txid) -> Result<Option<Transaction>, bdk::Error> {
@@ -196,8 +203,9 @@ impl BatchOperations for WalletDb {
         Ok(())
     }
 
-    fn set_utxo(&mut self, _: &LocalUtxo) -> Result<(), bdk::Error> {
-        todo!()
+    fn set_utxo(&mut self, utxo: &LocalUtxo) -> Result<(), bdk::Error> {
+        self.utxos.insert(utxo.outpoint, utxo.clone());
+        Ok(())
     }
 
     fn set_raw_tx(&mut self, _: &Transaction) -> Result<(), bdk::Error> {
@@ -252,9 +260,9 @@ impl BatchOperations for WalletDb {
 
     fn del_utxo(
         &mut self,
-        _: &OutPoint,
+        outpoint: &OutPoint,
     ) -> Result<Option<LocalUtxo>, bdk::Error> {
-        todo!()
+        Ok(self.utxos.remove(outpoint))
     }
 
     fn del_raw_tx(
@@ -301,6 +309,12 @@ impl BatchDatabase for WalletDb {
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
+
+    use bitcoin::hash_types::Txid;
+    use bitcoin::hashes::sha256d::Hash;
+    use bitcoin::TxOut;
+    use common::hex;
     use proptest::arbitrary::{any, Arbitrary};
     use proptest::proptest;
     use proptest::strategy::{BoxedStrategy, Strategy};
@@ -312,6 +326,8 @@ mod test {
         SetPathScript(u8),
         DelByPath(u8),
         DelByScript(u8),
+        SetUtxo(u8),
+        DelUtxo(u8),
     }
 
     impl DbOp {
@@ -321,14 +337,17 @@ mod test {
                 Self::SetPathScript(i) => *i,
                 Self::DelByPath(i) => *i,
                 Self::DelByScript(i) => *i,
+                Self::SetUtxo(i) => *i,
+                Self::DelUtxo(i) => *i,
             }
         }
 
-        /// Executes the operation and asserts op-related invariants.
+        /// Executes the operation and asserts op-specific invariants.
         fn do_op_and_check_op_invariants(&self, db: &mut WalletDb) {
             // Generate some intermediates used throughout. Each i produces a
-            // unique and corresponding Script, KeychainKind, and u32 (child).
+            // unique and corresponding set of these intermediates.
             let i = self.index();
+            // Path components, script
             let script = Script::from(vec![i]);
             let keychain = if i % 2 == 0 {
                 KeychainKind::External
@@ -336,6 +355,25 @@ mod test {
                 KeychainKind::Internal
             };
             let child = u32::from(i);
+            // OutPoint
+            let txid = Hash::from_str(&hex::encode(&[i; 32]))
+                .map(Txid::from_hash)
+                .unwrap();
+            let vout = u32::from(i);
+            let outpoint = OutPoint { txid, vout };
+            // LocalUtxo
+            let value = u64::from(i);
+            let txout = TxOut {
+                value,
+                script_pubkey: script.clone(),
+            };
+            let is_spent = i % 2 == 0;
+            let utxo = LocalUtxo {
+                outpoint,
+                txout,
+                keychain,
+                is_spent,
+            };
 
             match self {
                 DbOp::SetPathScript(_) => {
@@ -377,6 +415,15 @@ mod test {
                         .unwrap()
                         .is_none());
                 }
+                DbOp::SetUtxo(_) => {
+                    db.set_utxo(&utxo).unwrap();
+                    let get_utxo = db.get_utxo(&outpoint).unwrap().unwrap();
+                    assert_eq!(get_utxo, utxo);
+                }
+                DbOp::DelUtxo(_) => {
+                    db.del_utxo(&outpoint).unwrap();
+                    assert!(db.get_utxo(&outpoint).unwrap().is_none());
+                }
             }
         }
     }
@@ -387,15 +434,20 @@ mod test {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             use DbOp::*;
-            // If you were brought here by a compilation error, make sure to add
-            // the new enum variant to the prop_oneof! below.
             match SetPathScript(0) {
-                SetPathScript(_) | DelByPath(_) | DelByScript(_) => {}
-            }
+                SetPathScript(_) | DelByPath(_) | DelByScript(_)
+                | SetUtxo(_) | DelUtxo(_) => {
+                    "This match statement was written to bring you here. Before
+                    fixing the compilation error, add the new enum variant(s) \
+                    to the prop_oneof below!"
+                }
+            };
             proptest::prop_oneof![
                 any::<u8>().prop_map(Self::SetPathScript),
                 any::<u8>().prop_map(Self::DelByPath),
                 any::<u8>().prop_map(Self::DelByScript),
+                any::<u8>().prop_map(Self::SetUtxo),
+                any::<u8>().prop_map(Self::DelUtxo),
             ]
             .boxed()
         }
