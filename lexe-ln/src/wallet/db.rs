@@ -3,8 +3,6 @@
 //!
 //! [`MemoryDatabase`]: bdk::database::memory::MemoryDatabase
 
-#![allow(dead_code)] // TODO(max): Remove
-
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::BTreeMap;
 use std::mem;
@@ -17,12 +15,15 @@ use bitcoin::{OutPoint, Script, Transaction, Txid};
 /// adds the ability to serialize the entire DB for persisting.
 ///
 /// [`MemoryDatabase`]: bdk::database::memory::MemoryDatabase
+#[allow(dead_code)] // TODO(max): Remove
 struct WalletDb {
     path_to_script: BTreeMap<Path, Script>,
     script_to_path: BTreeMap<Script, Path>,
     utxos: BTreeMap<OutPoint, LocalUtxo>,
     raw_txs: BTreeMap<Txid, Transaction>,
     tx_metas: BTreeMap<Txid, TransactionMetadata>,
+    last_external_index: Option<u32>,
+    last_internal_index: Option<u32>,
 }
 
 /// Represents a [`KeychainKind`] and corresponding child path.
@@ -120,12 +121,15 @@ impl TransactionMetadata {
 // --- impl WalletDb --- //
 
 impl WalletDb {
+    #[allow(dead_code)] // TODO(max): Remove
     pub(super) fn new() -> Self {
         let path_to_script = BTreeMap::new();
         let script_to_path = BTreeMap::new();
         let utxos = BTreeMap::new();
         let raw_txs = BTreeMap::new();
         let tx_metas = BTreeMap::new();
+        let last_external_index = None;
+        let last_internal_index = None;
 
         Self {
             path_to_script,
@@ -133,6 +137,8 @@ impl WalletDb {
             utxos,
             raw_txs,
             tx_metas,
+            last_external_index,
+            last_internal_index,
         }
     }
 
@@ -264,9 +270,12 @@ impl Database for WalletDb {
 
     fn get_last_index(
         &self,
-        _: KeychainKind,
+        keychain: KeychainKind,
     ) -> Result<Option<u32>, bdk::Error> {
-        todo!()
+        match keychain {
+            KeychainKind::External => Ok(self.last_external_index),
+            KeychainKind::Internal => Ok(self.last_internal_index),
+        }
     }
 
     fn get_sync_time(&self) -> Result<Option<SyncTime>, bdk::Error> {
@@ -275,9 +284,23 @@ impl Database for WalletDb {
 
     fn increment_last_index(
         &mut self,
-        _: KeychainKind,
+        keychain: KeychainKind,
     ) -> Result<u32, bdk::Error> {
-        todo!()
+        // Get a &mut Option<u32> corresponding to the appropriate field
+        let mut_last_index = match keychain {
+            KeychainKind::External => &mut self.last_external_index,
+            KeychainKind::Internal => &mut self.last_internal_index,
+        };
+
+        // Increment if the index existed
+        if let Some(index) = mut_last_index {
+            *index += 1;
+        }
+
+        // Get the index, inserting 0 if it was None
+        let last_index = *mut_last_index.get_or_insert(0);
+
+        Ok(last_index)
     }
 }
 
@@ -322,10 +345,14 @@ impl BatchOperations for WalletDb {
 
     fn set_last_index(
         &mut self,
-        _: KeychainKind,
-        _: u32,
+        keychain: KeychainKind,
+        index: u32,
     ) -> Result<(), bdk::Error> {
-        todo!()
+        match keychain {
+            KeychainKind::External => self.last_external_index.insert(index),
+            KeychainKind::Internal => self.last_internal_index.insert(index),
+        };
+        Ok(())
     }
 
     fn set_sync_time(&mut self, _: SyncTime) -> Result<(), bdk::Error> {
@@ -398,9 +425,14 @@ impl BatchOperations for WalletDb {
 
     fn del_last_index(
         &mut self,
-        _: KeychainKind,
+        keychain: KeychainKind,
     ) -> Result<Option<u32>, bdk::Error> {
-        todo!()
+        match keychain {
+            KeychainKind::External => self.last_external_index.take(),
+            KeychainKind::Internal => self.last_internal_index.take(),
+        }
+        .map(Ok)
+        .transpose()
     }
 
     fn del_sync_time(&mut self) -> Result<Option<SyncTime>, bdk::Error> {
@@ -443,6 +475,9 @@ mod test {
         DelRawTx(u8),
         SetTx { i: u8, include_raw: bool },
         DelTx { i: u8, include_raw: bool },
+        IncLastIndex(u8),
+        SetLastIndex(u8),
+        DelLastIndex(u8),
     }
 
     impl DbOp {
@@ -458,6 +493,9 @@ mod test {
                 Self::DelRawTx(i) => *i,
                 Self::SetTx { i, .. } => *i,
                 Self::DelTx { i, .. } => *i,
+                Self::IncLastIndex(i) => *i,
+                Self::SetLastIndex(i) => *i,
+                Self::DelLastIndex(i) => *i,
             }
         }
 
@@ -593,6 +631,33 @@ mod test {
                         assert!(db.get_raw_tx(&txid).unwrap().is_none());
                     }
                 }
+                DbOp::IncLastIndex(_) => {
+                    let maybe_before = db.get_last_index(keychain).unwrap();
+                    let incremented =
+                        db.increment_last_index(keychain).unwrap();
+                    let get_after =
+                        db.get_last_index(keychain).unwrap().unwrap();
+                    match maybe_before {
+                        Some(get_before) => {
+                            assert_eq!(get_before + 1, incremented);
+                            assert_eq!(get_before + 1, get_after);
+                        }
+                        None => {
+                            assert_eq!(incremented, 0);
+                            assert_eq!(get_after, 0);
+                        }
+                    }
+                }
+                DbOp::SetLastIndex(_) => {
+                    let index = u32::from(i);
+                    db.set_last_index(keychain, index).unwrap();
+                    let after = db.get_last_index(keychain).unwrap().unwrap();
+                    assert_eq!(after, index);
+                }
+                DbOp::DelLastIndex(_) => {
+                    db.del_last_index(keychain).unwrap();
+                    assert!(db.get_last_index(keychain).unwrap().is_none());
+                }
             }
         }
     }
@@ -612,10 +677,12 @@ mod test {
                 | SetRawTx(_)
                 | DelRawTx(_)
                 | SetTx { .. }
-                | DelTx { .. } => {
-                    "This match statement was written to bring you here. Before
-                    fixing the compilation error, add the new enum variant(s) \
-                    to the prop_oneof below!"
+                | DelTx { .. }
+                | IncLastIndex(_)
+                | SetLastIndex(_)
+                | DelLastIndex(_) => {
+                    "This match statement was written to remind you to add the \
+                    new enum variant you just created to the prop_oneof below!"
                 }
             };
             proptest::prop_oneof![
@@ -632,6 +699,9 @@ mod test {
                 (any::<u8>(), any::<bool>()).prop_map(|(i, include_raw)| {
                     Self::DelTx { i, include_raw }
                 }),
+                any::<u8>().prop_map(Self::IncLastIndex),
+                any::<u8>().prop_map(Self::SetLastIndex),
+                any::<u8>().prop_map(Self::DelLastIndex),
             ]
             .boxed()
         }
@@ -687,6 +757,25 @@ mod test {
         }
     }
 
+    /// Checks that increment_last_index() actually increments the index. Since
+    /// `Option<u32>` is Copy it's easy to accidentally mutate a copy (instead
+    /// of the original) in e.g. an Option chain.
+    #[test]
+    fn increment_actually_increments() {
+        let mut db = WalletDb::new();
+        let keychain = KeychainKind::Internal;
+
+        assert_eq!(db.get_last_index(keychain).unwrap(), None);
+        db.increment_last_index(keychain).unwrap();
+        assert_eq!(db.get_last_index(keychain).unwrap(), Some(0));
+        db.increment_last_index(keychain).unwrap();
+        assert_eq!(db.get_last_index(keychain).unwrap(), Some(1));
+        db.increment_last_index(keychain).unwrap();
+        assert_eq!(db.get_last_index(keychain).unwrap(), Some(2));
+        db.increment_last_index(keychain).unwrap();
+        assert_eq!(db.get_last_index(keychain).unwrap(), Some(3));
+    }
+
     /// Generates an arbitrary `Vec<DbOp>` and executes each op,
     /// checking op invariants as well as db invariants in between.
     #[test]
@@ -705,6 +794,9 @@ mod test {
             }
         })
     }
+
+    // TODO(max): Equivalence test with MemoryDatabase
 }
 
-// TODO(max): Copy over BDK tests
+// TODO(max): Copy over BDK tests. Should be using latest released version, and
+// have a permalink to the source on GitHub.
