@@ -25,6 +25,8 @@ struct WalletDb {
     last_external_index: Option<u32>,
     last_internal_index: Option<u32>,
     sync_time: Option<SyncTime>,
+    external_checksum: Option<Vec<u8>>,
+    internal_checksum: Option<Vec<u8>>,
 }
 
 /// Represents a [`KeychainKind`] and corresponding child path.
@@ -132,6 +134,8 @@ impl WalletDb {
         let last_external_index = None;
         let last_internal_index = None;
         let sync_time = None;
+        let external_checksum = None;
+        let internal_checksum = None;
 
         Self {
             path_to_script,
@@ -142,6 +146,8 @@ impl WalletDb {
             last_external_index,
             last_internal_index,
             sync_time,
+            external_checksum,
+            internal_checksum,
         }
     }
 
@@ -160,12 +166,29 @@ impl WalletDb {
 }
 
 impl Database for WalletDb {
+    // BDK wants us to store the first checksum we see, then check all future
+    // given checksums against it. Sure, we can do that...
     fn check_descriptor_checksum<B: AsRef<[u8]>>(
         &mut self,
-        _: KeychainKind,
-        _: B,
+        keychain: KeychainKind,
+        given_checksum: B,
     ) -> Result<(), bdk::Error> {
-        todo!()
+        // First, get a &mut Option<Vec<u8>> for the correct keychain
+        let mut_checksum = match keychain {
+            KeychainKind::External => &mut self.external_checksum,
+            KeychainKind::Internal => &mut self.internal_checksum,
+        };
+
+        // Get the saved checksum, lazily inserting the given one if it was None
+        let saved_checksum = mut_checksum
+            .get_or_insert_with(|| given_checksum.as_ref().to_vec());
+
+        // Check the saved checksum against the given one
+        if saved_checksum.as_slice() == given_checksum.as_ref() {
+            Ok(())
+        } else {
+            Err(bdk::Error::ChecksumMismatch)
+        }
     }
 
     fn iter_script_pubkeys(
@@ -823,7 +846,8 @@ mod test {
         })
     }
 
-    // TODO(max): Equivalence test with MemoryDatabase
+    // TODO(max): Equivalence test with MemoryDatabase. Make sure to include the
+    // iter_* methods as will as check_descriptor_checksum.
 
     // TODO(max): Write snapshot test for serialized WalletDb in case one of the
     // value fields changed. Perhaps use a snapshot crate?
