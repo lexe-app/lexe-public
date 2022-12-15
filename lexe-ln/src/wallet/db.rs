@@ -24,6 +24,7 @@ struct WalletDb {
     tx_metas: BTreeMap<Txid, TransactionMetadata>,
     last_external_index: Option<u32>,
     last_internal_index: Option<u32>,
+    sync_time: Option<SyncTime>,
 }
 
 /// Represents a [`KeychainKind`] and corresponding child path.
@@ -130,6 +131,7 @@ impl WalletDb {
         let tx_metas = BTreeMap::new();
         let last_external_index = None;
         let last_internal_index = None;
+        let sync_time = None;
 
         Self {
             path_to_script,
@@ -139,6 +141,7 @@ impl WalletDb {
             tx_metas,
             last_external_index,
             last_internal_index,
+            sync_time,
         }
     }
 
@@ -279,7 +282,7 @@ impl Database for WalletDb {
     }
 
     fn get_sync_time(&self) -> Result<Option<SyncTime>, bdk::Error> {
-        todo!()
+        Ok(self.sync_time.clone())
     }
 
     fn increment_last_index(
@@ -355,8 +358,9 @@ impl BatchOperations for WalletDb {
         Ok(())
     }
 
-    fn set_sync_time(&mut self, _: SyncTime) -> Result<(), bdk::Error> {
-        todo!()
+    fn set_sync_time(&mut self, time: SyncTime) -> Result<(), bdk::Error> {
+        self.sync_time = Some(time);
+        Ok(())
     }
 
     fn del_script_pubkey_from_path(
@@ -436,7 +440,7 @@ impl BatchOperations for WalletDb {
     }
 
     fn del_sync_time(&mut self) -> Result<Option<SyncTime>, bdk::Error> {
-        todo!()
+        Ok(self.sync_time.take())
     }
 }
 
@@ -478,6 +482,8 @@ mod test {
         IncLastIndex(u8),
         SetLastIndex(u8),
         DelLastIndex(u8),
+        SetSyncTime(u8),
+        DelSyncTime(u8),
     }
 
     impl DbOp {
@@ -496,6 +502,8 @@ mod test {
                 Self::IncLastIndex(i) => *i,
                 Self::SetLastIndex(i) => *i,
                 Self::DelLastIndex(i) => *i,
+                Self::SetSyncTime(i) => *i,
+                Self::DelSyncTime(i) => *i,
             }
         }
 
@@ -658,6 +666,22 @@ mod test {
                     db.del_last_index(keychain).unwrap();
                     assert!(db.get_last_index(keychain).unwrap().is_none());
                 }
+                DbOp::SetSyncTime(_) => {
+                    let time = SyncTime {
+                        block_time: BlockTime {
+                            height: u32::from(i),
+                            timestamp: u64::from(i),
+                        },
+                    };
+                    db.set_sync_time(time.clone()).unwrap();
+                    let get_time = db.get_sync_time().unwrap().unwrap();
+                    // SyncTime doesn't derive PartialEq for some reason
+                    assert_eq!(get_time.block_time, time.block_time);
+                }
+                DbOp::DelSyncTime(_) => {
+                    db.del_sync_time().unwrap();
+                    assert!(db.get_sync_time().unwrap().is_none());
+                }
             }
         }
     }
@@ -680,7 +704,9 @@ mod test {
                 | DelTx { .. }
                 | IncLastIndex(_)
                 | SetLastIndex(_)
-                | DelLastIndex(_) => {
+                | DelLastIndex(_)
+                | SetSyncTime(_)
+                | DelSyncTime(_) => {
                     "This match statement was written to remind you to add the \
                     new enum variant you just created to the prop_oneof below!"
                 }
@@ -702,6 +728,8 @@ mod test {
                 any::<u8>().prop_map(Self::IncLastIndex),
                 any::<u8>().prop_map(Self::SetLastIndex),
                 any::<u8>().prop_map(Self::DelLastIndex),
+                any::<u8>().prop_map(Self::SetSyncTime),
+                any::<u8>().prop_map(Self::DelSyncTime),
             ]
             .boxed()
         }
@@ -796,6 +824,9 @@ mod test {
     }
 
     // TODO(max): Equivalence test with MemoryDatabase
+
+    // TODO(max): Write snapshot test for serialized WalletDb in case one of the
+    // value fields changed. Perhaps use a snapshot crate?
 }
 
 // TODO(max): Copy over BDK tests. Should be using latest released version, and
