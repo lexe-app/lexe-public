@@ -1,12 +1,13 @@
 use std::sync::{Arc, Mutex};
 
 use anyhow::Context;
-use bdk::database::memory::MemoryDatabase;
 use bdk::template::Bip84;
 use bdk::wallet::Wallet;
 use bdk::KeychainKind;
 use common::cli::Network;
 use common::root_seed::RootSeed;
+
+use crate::wallet::db::WalletDb;
 
 /// Wallet DB.
 mod db;
@@ -18,7 +19,7 @@ mod db;
 // with a Mutex, despite the fact that we don't technically need the Mutex since
 // we don't use any bdk::Wallet methods that require &mut self.
 #[derive(Clone)]
-pub struct LexeWallet(Arc<Mutex<Wallet<MemoryDatabase>>>);
+pub struct LexeWallet(Arc<Mutex<Wallet<WalletDb>>>);
 
 impl LexeWallet {
     /// Constructs a new [`LexeWallet`] from a [`RootSeed`]. Wallet addresses
@@ -35,8 +36,7 @@ impl LexeWallet {
         // Descriptor for internal (change) addresses: `m/84h/{0,1}h/0h/1/*`
         let change_descriptor = Bip84(master_xprv, KeychainKind::Internal);
 
-        // In-memory wallet database
-        let wallet_db = MemoryDatabase::new();
+        let wallet_db = WalletDb::new();
 
         let inner = Wallet::new(
             external_descriptor,
