@@ -1,3 +1,5 @@
+/// `Arbitrary`-like proptest strategies for foreign types.
+pub mod arbitrary;
 /// Quickly initialize a bitcoind regtest instance.
 #[cfg(not(target_env = "sgx"))]
 pub mod regtest;
