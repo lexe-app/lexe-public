@@ -1,7 +1,8 @@
-use std::fmt::{Debug, Display};
+use std::fmt::{Debug, Display, LowerHex};
 use std::str::FromStr;
 
-use proptest::arbitrary::Arbitrary;
+use proptest::arbitrary::{any, Arbitrary};
+use proptest::strategy::Strategy;
 use proptest::{prop_assert_eq, proptest};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -48,13 +49,24 @@ pub fn json_value_canonical_proptest<T>()
 where
     T: Arbitrary + PartialEq + Serialize + DeserializeOwned,
 {
-    proptest!(|(value: T)| {
-        let json_value = serde_json::to_value(&value).unwrap();
-        let value2 = serde_json::from_value(json_value.clone()).unwrap();
+    json_value_with_strategy(any::<T>());
+}
+
+/// Like [`json_value_canonical_proptest`], but allows specifying a custom
+/// canonical strategy. Useful for testing foreign types for which we cannot
+/// implement [`Arbitrary`].
+pub fn json_value_with_strategy<S, T>(strategy: S)
+where
+    S: Strategy<Value = T>,
+    T: PartialEq + Serialize + DeserializeOwned + Debug,
+{
+    proptest!(|(value1 in strategy)| {
+        let json_value1 = serde_json::to_value(&value1).unwrap();
+        let value2 = serde_json::from_value(json_value1.clone()).unwrap();
         let json_value2 = serde_json::to_value(&value2).unwrap();
 
-        prop_assert_eq!(&value, &value2);
-        prop_assert_eq!(&json_value, &json_value2);
+        prop_assert_eq!(&value1, &value2);
+        prop_assert_eq!(&json_value1, &json_value2);
     });
 }
 
@@ -108,8 +120,57 @@ where
     T: Arbitrary + PartialEq + FromStr + Display,
     <T as FromStr>::Err: Debug,
 {
-    proptest!(|(value1: T)| {
+    fromstr_display_with_strategy(any::<T>());
+}
+
+/// Quickly create a roundtrip proptest for a [`FromStr`] / [`Display`] impl
+/// using a custom canonical strategy. Useful for testing foreign types for
+/// which we cannot implement [`Arbitrary`].
+///
+/// ```ignore
+/// fromstr_display_with_strategy(any::<NodePk>());
+/// ```
+pub fn fromstr_display_with_strategy<S, T>(strategy: S)
+where
+    S: Strategy<Value = T>,
+    T: PartialEq + FromStr + Display + Debug,
+    <T as FromStr>::Err: Debug,
+{
+    proptest!(|(value1 in strategy)| {
         let value2 = T::from_str(&value1.to_string()).unwrap();
+        prop_assert_eq!(value1, value2)
+    });
+}
+
+/// Quickly create a roundtrip proptest for a [`FromStr`] / [`LowerHex`] impl.
+///
+/// ```ignore
+/// fromstr_lowerhex_roundtrip_proptest::<NodePk>();
+/// ```
+pub fn fromstr_lowerhex_roundtrip_proptest<T>()
+where
+    T: Arbitrary + PartialEq + FromStr + LowerHex,
+    <T as FromStr>::Err: Debug,
+{
+    fromstr_lowerhex_with_strategy(any::<T>());
+}
+
+/// Quickly create a roundtrip proptest for a [`FromStr`] / [`LowerHex`] impl
+/// using a custom canonical strategy. Useful for testing foreign types for
+/// which we cannot implement [`Arbitrary`].
+///
+/// ```ignore
+/// hex_with_strategy(any::<NodePk>());
+/// ```
+pub fn fromstr_lowerhex_with_strategy<S, T>(strategy: S)
+where
+    S: Strategy<Value = T>,
+    T: PartialEq + FromStr + LowerHex + Debug,
+    <T as FromStr>::Err: Debug,
+{
+    proptest!(|(value1 in strategy)| {
+        let hex = format!("{value1:x}");
+        let value2 = T::from_str(hex.as_str()).unwrap();
         prop_assert_eq!(value1, value2)
     });
 }
