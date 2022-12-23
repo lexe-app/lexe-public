@@ -36,10 +36,6 @@ struct DbData {
     // TODO(max): We can save some space by serializing `path_to_script` and
     // `script_to_path` as just a single `Vec<(Path, Script)>`, but it requires
     // a custom serde impl which is just not worth investing time in atm.
-    //
-    // NOTE: Script's FromStr / Display impls don't roundtrip, as Display wraps
-    // the hex value with `Script(_)`. Hence, we serialize `Script`s using
-    // Hex<Lowercase> (see the serde_as annotations on DbData).
     #[serde_as(as = "BTreeMap<DisplayFromStr, Hex<Lowercase>>")]
     path_to_script: BTreeMap<Path, Script>,
     #[serde_as(as = "BTreeMap<Hex<Lowercase>, DisplayFromStr>")]
@@ -622,6 +618,7 @@ mod test {
     use proptest::arbitrary::{any, Arbitrary};
     use proptest::proptest;
     use proptest::strategy::{BoxedStrategy, Just, Strategy};
+    use proptest::test_runner::Config;
 
     use super::*;
 
@@ -718,7 +715,7 @@ mod test {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             // Apply an arbitrary vec of operations to generate the db
             let any_op = any::<DbOp>();
-            proptest::collection::vec(any_op, 0..10)
+            proptest::collection::vec(any_op, 0..20)
                 .prop_map(|vec_of_ops| {
                     let mut db = WalletDb::new();
                     for op in vec_of_ops {
@@ -1039,13 +1036,12 @@ mod test {
 
     /// Generates an arbitrary `Vec<DbOp>` and executes each op,
     /// checking op invariants as well as db invariants in between.
-    ///
-    /// NOTE: This test takes a long time!!
     #[test]
     fn fuzz_wallet_db() {
         let any_op = any::<DbOp>();
-        let any_vec_of_ops = proptest::collection::vec(any_op, 0..100);
-        proptest!(|(vec_of_ops in any_vec_of_ops)| {
+        let any_vec_of_ops = proptest::collection::vec(any_op, 0..20);
+        // We only test one case, otherwise this test takes several minutes.
+        proptest!(Config::with_cases(1), |(vec_of_ops in any_vec_of_ops)| {
             let mut db = WalletDb::new();
 
             db.assert_invariants();
@@ -1065,30 +1061,36 @@ mod test {
     /// for more information.
     #[test]
     fn wallet_db_fields_roundtrips() {
+        use roundtrip::*;
+
+        // This test takes a while, so we only try 16 cases for each field.
+        let config = Config::with_cases(16);
+
         // Path
-        roundtrip::fromstr_display_roundtrip_proptest::<Path>();
+        fromstr_display_custom(any::<Path>(), config.clone());
         // Script
-        roundtrip::fromstr_lowerhex_with_strategy(arbitrary::any_script());
+        fromstr_lowerhex_custom(arbitrary::any_script(), config.clone());
         // OutPoint
-        roundtrip::fromstr_display_with_strategy(arbitrary::any_outpoint());
+        fromstr_display_custom(arbitrary::any_outpoint(), config.clone());
         // LocalUtxo
-        roundtrip::json_value_with_strategy(any_utxo());
+        json_value_custom(any_utxo(), config.clone());
         // Txid
-        roundtrip::fromstr_display_with_strategy(arbitrary::any_txid());
+        fromstr_display_custom(arbitrary::any_txid(), config.clone());
         // Transaction
-        roundtrip::json_value_with_strategy(arbitrary::any_raw_tx());
+        json_value_custom(arbitrary::any_raw_tx(), config.clone());
         // TransactionMetadata
-        roundtrip::json_value_canonical_proptest::<TransactionMetadata>();
+        json_value_custom(any::<TransactionMetadata>(), config.clone());
         // SyncTime
-        roundtrip::json_value_with_strategy(any_sync_time());
+        json_value_custom(any_sync_time(), config);
     }
 
-    /// Tests that the [`WalletDb`] as a whole roundtrip.
-    ///
-    /// NOTE: This test takes a long time!!
+    /// Tests that the [`WalletDb`] as a whole roundtrips.
     #[test]
     fn wallet_db_serde_json_roundtrip() {
-        roundtrip::json_value_canonical_proptest::<WalletDb>();
+        // Configure this test to run only one iteration,
+        // otherwise this test alone takes several minutes.
+        let config = Config::with_cases(1);
+        roundtrip::json_value_custom(any::<WalletDb>(), config);
     }
 
     /// After uncommenting out the contents of `assert_invariants`, this test
