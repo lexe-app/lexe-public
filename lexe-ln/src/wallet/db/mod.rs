@@ -60,6 +60,62 @@ struct Path {
     child: u32,
 }
 
+/// [`TransactionDetails`], but without the `Option<Transaction>` field.
+/// This type-enforces that the raw txns (i.e. [`Transaction`]s) can only be
+/// stored in the `raw_txs` map. This is what BDK's provided databases do
+/// internally.
+///
+/// It is important to stick to this semantic because [`get_tx`] and [`del_tx`]
+/// include a `include_raw` parameter which affects whether the raw tx is
+/// returned or deleted respectively, and [`set_tx`] can set a raw tx if the
+/// [`transaction`] field is [`Some`]. (These are in addition to the more direct
+/// [`get_raw_tx`], [`set_raw_tx`], and [`del_raw_tx`] methods). BDK may rely on
+/// these functions returning a specific result after a sequence of mutations,
+/// so we should ensure our implementation exactly matches theirs.
+///
+/// [`get_tx`]: Database::get_tx
+/// [`set_tx`]: BatchOperations::set_tx
+/// [`del_tx`]: BatchOperations::del_tx
+/// [`get_raw_tx`]: Database::get_raw_tx
+/// [`set_raw_tx`]: BatchOperations::set_raw_tx
+/// [`del_raw_tx`]: BatchOperations::del_raw_tx
+/// [`transaction`]: TransactionDetails::transaction
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+struct TransactionMetadata {
+    pub txid: Txid,
+    pub received: u64,
+    pub sent: u64,
+    pub fee: Option<u64>,
+    pub confirmation_time: Option<BlockTime>,
+}
+
+#[allow(dead_code)] // TODO(max): Remove
+struct DbBatch {
+    ops: Vec<DbOp>,
+    db: WalletDb,
+}
+
+#[allow(dead_code)] // TODO(max): Remove
+#[derive(Clone, Debug)]
+enum DbOp {
+    SetPathScript { path: Path, script: Script },
+    DelByPath(Path),
+    DelByScript(Script),
+    SetUtxo(LocalUtxo),
+    DelUtxo(OutPoint),
+    SetRawTx(Transaction),
+    DelRawTx(Txid),
+    SetTx(TransactionDetails),
+    DelTx { txid: Txid, include_raw: bool },
+    IncLastIndex(KeychainKind),
+    SetLastIndex(Path),
+    DelLastIndex(KeychainKind),
+    SetSyncTime(SyncTime),
+    DelSyncTime,
+}
+
+// --- impl Path --- //
+
 // External = 0, Internal = 1; External < Internal
 impl PartialOrd for Path {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -123,34 +179,7 @@ impl FromStr for Path {
     }
 }
 
-/// [`TransactionDetails`], but without the `Option<Transaction>` field.
-/// This type-enforces that the raw txns (i.e. [`Transaction`]s) can only be
-/// stored in the `raw_txs` map. This is what BDK's provided databases do
-/// internally.
-///
-/// It is important to stick to this semantic because [`get_tx`] and [`del_tx`]
-/// include a `include_raw` parameter which affects whether the raw tx is
-/// returned or deleted respectively, and [`set_tx`] can set a raw tx if the
-/// [`transaction`] field is [`Some`]. (These are in addition to the more direct
-/// [`get_raw_tx`], [`set_raw_tx`], and [`del_raw_tx`] methods). BDK may rely on
-/// these functions returning a specific result after a sequence of mutations,
-/// so we should ensure our implementation exactly matches theirs.
-///
-/// [`get_tx`]: Database::get_tx
-/// [`set_tx`]: BatchOperations::set_tx
-/// [`del_tx`]: BatchOperations::del_tx
-/// [`get_raw_tx`]: Database::get_raw_tx
-/// [`set_raw_tx`]: BatchOperations::set_raw_tx
-/// [`del_raw_tx`]: BatchOperations::del_raw_tx
-/// [`transaction`]: TransactionDetails::transaction
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-struct TransactionMetadata {
-    pub txid: Txid,
-    pub received: u64,
-    pub sent: u64,
-    pub fee: Option<u64>,
-    pub confirmation_time: Option<BlockTime>,
-}
+// --- impl TransactionMetadata --- //
 
 impl From<TransactionDetails> for TransactionMetadata {
     fn from(tx: TransactionDetails) -> Self {
@@ -174,6 +203,159 @@ impl TransactionMetadata {
             fee: self.fee,
             confirmation_time: self.confirmation_time,
         }
+    }
+}
+
+// --- impl DbBatch --- //
+
+impl BatchOperations for DbBatch {
+    fn set_script_pubkey(
+        &mut self,
+        script: &Script,
+        keychain: KeychainKind,
+        child: u32,
+    ) -> Result<(), bdk::Error> {
+        let path = Path { keychain, child };
+        let script = script.clone();
+        self.ops.push(DbOp::SetPathScript { path, script });
+        Ok(())
+    }
+
+    fn set_utxo(&mut self, utxo: &LocalUtxo) -> Result<(), bdk::Error> {
+        self.ops.push(DbOp::SetUtxo(utxo.clone()));
+        Ok(())
+    }
+
+    fn set_raw_tx(&mut self, raw_tx: &Transaction) -> Result<(), bdk::Error> {
+        self.ops.push(DbOp::SetRawTx(raw_tx.clone()));
+        Ok(())
+    }
+
+    fn set_tx(&mut self, tx: &TransactionDetails) -> Result<(), bdk::Error> {
+        self.ops.push(DbOp::SetTx(tx.clone()));
+        Ok(())
+    }
+
+    fn set_last_index(
+        &mut self,
+        keychain: KeychainKind,
+        child: u32,
+    ) -> Result<(), bdk::Error> {
+        let path = Path { keychain, child };
+        self.ops.push(DbOp::SetLastIndex(path));
+        Ok(())
+    }
+
+    fn set_sync_time(&mut self, time: SyncTime) -> Result<(), bdk::Error> {
+        self.ops.push(DbOp::SetSyncTime(time));
+        Ok(())
+    }
+
+    /// This function returns what *would* have been returned from the real call
+    /// to `del_script_pubkey_from_path()` (since we don't actually mutate the
+    /// database until `commit_batch()` is called). However, beware of the
+    /// following unexpected result:
+    ///
+    /// ```ignore
+    /// let path = Path { ... };
+    /// let script = Script { ... };
+    /// db.set_script_pubkey(path, script);
+    /// let mut batch = db.begin_batch();
+    /// let result1 = batch.del_script_pubkey_from_path(path);
+    /// let result2 = batch.del_script_pubkey_from_path(path);
+    /// ```
+    ///
+    /// If executed on a 'real' DB, we would expect `result1` to be `Some(_)`
+    /// and `result2` to be `None`. However, this function's current
+    /// implementation returns `result2` as `Some(_)`.
+    ///
+    /// TODO(max): This can be remedied by keeping track of which keys have been
+    /// added or deleted, in `HashSet`s contained within the `DbBatch` struct.
+    ///
+    /// TODO(max): We can also property test this behavior by showing that two
+    /// fresh databases evolve identically to each other after executing a
+    /// random sequence of ops, but where:
+    ///
+    /// 1) DB1 executes each op directly on `WalletDb`, mutating the 'real' DB
+    ///    at each operation;
+    /// 2) DB2 executes each op only on `DbBatch`, committing to the DB only
+    ///    once at the end.
+    ///
+    /// We would then assert:
+    ///
+    /// 1) The values returned from each `BatchOperations` fn call are
+    ///    equivalent across the two DBs, regardless of if it was executed on
+    ///    the 'real' DB or the `DbBatch` object.
+    /// 2) After `commit_batch()` has been called on DB2 at the end, DB1 == DB2.
+    ///
+    /// To avoid getting overwhelmed with the complexity of handling all of
+    /// these cases at the same time, this can be implemented incrementally with
+    /// a basic test for each BatchOperation, and only converted to a proptest
+    /// at the end once we have decent assurance that we've eliminated most of
+    /// the bugs in the implementation.
+    fn del_script_pubkey_from_path(
+        &mut self,
+        keychain: KeychainKind,
+        child: u32,
+    ) -> Result<Option<Script>, bdk::Error> {
+        let path = Path { keychain, child };
+        self.ops.push(DbOp::DelByPath(path));
+        self.db.get_script_pubkey_from_path(keychain, child)
+    }
+
+    /// TODO(max): This has the same problem as `del_script_pubkey_from_path`.
+    fn del_path_from_script_pubkey(
+        &mut self,
+        script: &Script,
+    ) -> Result<Option<(KeychainKind, u32)>, bdk::Error> {
+        self.ops.push(DbOp::DelByScript(script.clone()));
+        self.db.get_path_from_script_pubkey(script)
+    }
+
+    /// TODO(max): This has the same problem as `del_script_pubkey_from_path`.
+    fn del_utxo(
+        &mut self,
+        outpoint: &OutPoint,
+    ) -> Result<Option<LocalUtxo>, bdk::Error> {
+        self.ops.push(DbOp::DelUtxo(*outpoint));
+        self.db.get_utxo(outpoint)
+    }
+
+    /// TODO(max): This has the same problem as `del_script_pubkey_from_path`.
+    fn del_raw_tx(
+        &mut self,
+        txid: &Txid,
+    ) -> Result<Option<Transaction>, bdk::Error> {
+        self.ops.push(DbOp::DelRawTx(*txid));
+        self.db.get_raw_tx(txid)
+    }
+
+    /// TODO(max): This has the same problem as `del_script_pubkey_from_path`.
+    fn del_tx(
+        &mut self,
+        txid: &Txid,
+        include_raw: bool,
+    ) -> Result<Option<TransactionDetails>, bdk::Error> {
+        self.ops.push(DbOp::DelTx {
+            txid: *txid,
+            include_raw,
+        });
+        self.db.get_tx(txid, include_raw)
+    }
+
+    /// TODO(max): This has the same problem as `del_script_pubkey_from_path`.
+    fn del_last_index(
+        &mut self,
+        keychain: KeychainKind,
+    ) -> Result<Option<u32>, bdk::Error> {
+        self.ops.push(DbOp::DelLastIndex(keychain));
+        self.db.get_last_index(keychain)
+    }
+
+    /// TODO(max): This has the same problem as `del_script_pubkey_from_path`.
+    fn del_sync_time(&mut self) -> Result<Option<SyncTime>, bdk::Error> {
+        self.ops.push(DbOp::DelSyncTime);
+        self.db.get_sync_time()
     }
 }
 
@@ -750,24 +932,6 @@ mod test {
         }
     }
 
-    #[derive(Clone, Debug)]
-    enum DbOp {
-        SetPathScript { path: Path, script: Script },
-        DelByPath(Path),
-        DelByScript(Script),
-        SetUtxo(LocalUtxo),
-        DelUtxo(LocalUtxo),
-        SetRawTx(Transaction),
-        DelRawTx(Transaction),
-        SetTx(TransactionDetails),
-        DelTx(TransactionDetails),
-        IncLastIndex(KeychainKind),
-        SetLastIndex(Path),
-        DelLastIndex(KeychainKind),
-        SetSyncTime(SyncTime),
-        DelSyncTime,
-    }
-
     impl DbOp {
         /// Executes the operation and asserts op-specific invariants.
         fn do_op(self, db: &mut WalletDb) {
@@ -827,9 +991,9 @@ mod test {
                         db.get_utxo(&utxo.outpoint).unwrap().unwrap();
                     assert_eq!(get_utxo, utxo);
                 }
-                DbOp::DelUtxo(utxo) => {
-                    db.del_utxo(&utxo.outpoint).unwrap();
-                    assert!(db.get_utxo(&utxo.outpoint).unwrap().is_none());
+                DbOp::DelUtxo(outpoint) => {
+                    db.del_utxo(&outpoint).unwrap();
+                    assert!(db.get_utxo(&outpoint).unwrap().is_none());
                 }
                 DbOp::SetRawTx(raw_tx) => {
                     let txid = raw_tx.txid();
@@ -837,8 +1001,7 @@ mod test {
                     let get_raw_tx = db.get_raw_tx(&txid).unwrap().unwrap();
                     assert_eq!(get_raw_tx, raw_tx);
                 }
-                DbOp::DelRawTx(raw_tx) => {
-                    let txid = raw_tx.txid();
+                DbOp::DelRawTx(txid) => {
                     db.del_raw_tx(&txid).unwrap();
                     assert!(db.get_raw_tx(&txid).unwrap().is_none());
                 }
@@ -860,18 +1023,15 @@ mod test {
                         assert_eq!(get_raw_tx, raw_tx);
                     }
                 }
-                DbOp::DelTx(tx) => {
-                    let include_raw = tx.transaction.is_some();
-                    let txid = &tx.txid;
-
-                    db.del_tx(txid, include_raw).unwrap();
+                DbOp::DelTx { txid, include_raw } => {
+                    db.del_tx(&txid, include_raw).unwrap();
 
                     // tx should NOT exist
-                    assert!(db.get_tx(txid, include_raw).unwrap().is_none());
+                    assert!(db.get_tx(&txid, include_raw).unwrap().is_none());
 
                     // If include_raw was true, the raw tx should be deleted too
                     if include_raw {
-                        assert!(db.get_raw_tx(txid).unwrap().is_none());
+                        assert!(db.get_raw_tx(&txid).unwrap().is_none());
                     }
                 }
                 DbOp::IncLastIndex(keychain) => {
@@ -932,7 +1092,7 @@ mod test {
                 | SetRawTx(_)
                 | DelRawTx(_)
                 | SetTx(_)
-                | DelTx(_)
+                | DelTx { .. }
                 | IncLastIndex(_)
                 | SetLastIndex(_)
                 | DelLastIndex(_)
@@ -951,12 +1111,14 @@ mod test {
                 arbitrary::any_script().prop_map(Self::DelByScript),
                 // SetUtxo, DelUtxo
                 any_utxo().prop_map(Self::SetUtxo),
-                any_utxo().prop_map(Self::DelUtxo),
+                arbitrary::any_outpoint().prop_map(Self::DelUtxo),
                 // SetRawTx, DelRawTx, SetTx, DelTx
                 arbitrary::any_raw_tx().prop_map(Self::SetRawTx),
-                arbitrary::any_raw_tx().prop_map(Self::DelRawTx),
+                arbitrary::any_txid().prop_map(Self::DelRawTx),
                 any_tx().prop_map(Self::SetTx),
-                any_tx().prop_map(Self::DelTx),
+                (arbitrary::any_txid(), any::<bool>()).prop_map(
+                    |(txid, include_raw)| Self::DelTx { txid, include_raw }
+                ),
                 // Individual fields
                 any_keychain().prop_map(Self::IncLastIndex),
                 any::<Path>().prop_map(Self::SetLastIndex),
@@ -1036,6 +1198,9 @@ mod test {
         db.increment_last_index(keychain).unwrap();
         assert_eq!(db.get_last_index(keychain).unwrap(), Some(3));
     }
+
+    // TODO(max): Write test that batch operations do NOT mutate the WalletDb
+    // before commit_batch has been called.
 
     /// Generates an arbitrary `Vec<DbOp>` and executes each op,
     /// checking op invariants as well as db invariants in between.
