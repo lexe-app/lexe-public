@@ -1,8 +1,3 @@
-//! Lexe's checked copy of BDK's [`MemoryDatabase`], modified to support
-//! serialization of the entire DB to be persisted.
-//!
-//! [`MemoryDatabase`]: bdk::database::memory::MemoryDatabase
-
 use std::cmp::{Ord, Ordering, PartialOrd};
 use std::collections::BTreeMap;
 use std::fmt::{self, Display};
@@ -19,6 +14,11 @@ use serde_with::formats::Lowercase;
 use serde_with::hex::Hex;
 use serde_with::{serde_as, DisplayFromStr};
 use tracing::warn;
+
+/// BDK's database test suite as of version 0.25.
+#[allow(dead_code)] // TODO(max): Remove
+#[cfg(test)]
+mod bdk_test_suite;
 
 /// Implements the DB traits required by BDK. Similar to [`MemoryDatabase`], but
 /// adds the ability to serialize the entire DB for persisting. Holds an [`Arc`]
@@ -420,15 +420,18 @@ impl BatchOperations for WalletDb {
     ) -> Result<(), bdk::Error> {
         let mut db = self.0.lock().unwrap();
         let new_path = Path { keychain, child };
-        let script = script.clone();
-        match db.script_to_path.insert(script.clone(), new_path.clone()) {
-            Some(old_path) if old_path != new_path => warn!(
-                "Old {old_path:?} and new {new_path:?} map to the same script;\
-                Querying the path by script will return the new path."
-            ),
-            _ => {}
-        }
-        db.path_to_script.insert(new_path, script);
+        db.path_to_script.insert(new_path.clone(), script.clone());
+        db.script_to_path
+            .insert(script.clone(), new_path.clone())
+            .inspect(|old_path| {
+                if *old_path != new_path {
+                    warn!(
+                        "Old {old_path:?} and new {new_path:?} map to the same \
+                        script; Querying the path by script will return the \
+                        new path."
+                    )
+                }
+            });
 
         Ok(())
     }
@@ -1173,9 +1176,30 @@ mod test {
             .expect("Failed to deserialize old serialized WalletDb");
     }
 
+    /// Run BDK's test suite.
+    #[test]
+    fn bdk_tests() {
+        bdk_test_suite::test_script_pubkey(WalletDb::new());
+        // TODO(max): To fix this we must implement batching
+        // bdk_test_suite::test_batch_script_pubkey(WalletDb::new());
+        bdk_test_suite::test_iter_script_pubkey(WalletDb::new());
+        bdk_test_suite::test_del_script_pubkey(WalletDb::new());
+        bdk_test_suite::test_utxo(WalletDb::new());
+        bdk_test_suite::test_raw_tx(WalletDb::new());
+        bdk_test_suite::test_tx(WalletDb::new());
+        bdk_test_suite::test_list_transaction(WalletDb::new());
+        bdk_test_suite::test_last_index(WalletDb::new());
+        bdk_test_suite::test_sync_time(WalletDb::new());
+        bdk_test_suite::test_iter_raw_txs(WalletDb::new());
+        bdk_test_suite::test_del_path_from_script_pubkey(WalletDb::new());
+        bdk_test_suite::test_iter_script_pubkeys(WalletDb::new());
+        bdk_test_suite::test_del_utxo(WalletDb::new());
+        bdk_test_suite::test_del_raw_tx(WalletDb::new());
+        bdk_test_suite::test_del_tx(WalletDb::new());
+        bdk_test_suite::test_del_last_index(WalletDb::new());
+        bdk_test_suite::test_check_descriptor_checksum(WalletDb::new());
+    }
+
     // TODO(max): Equivalence test with MemoryDatabase. Make sure to include the
     // iter_* methods as will as check_descriptor_checksum.
 }
-
-// TODO(max): Copy over BDK tests. Should be using latest released version, and
-// have a permalink to the source on GitHub.
