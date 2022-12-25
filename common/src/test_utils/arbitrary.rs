@@ -68,18 +68,21 @@ pub fn any_script() -> BoxedStrategy<Script> {
         }
     }
 
+    // Limit Vec<u8>s to 8 bytes
+    let any_vec_u8 = collection::vec(any::<u8>(), 0..=8);
+
     let any_push_op = prop_oneof![
         any::<i64>().prop_map(PushOp::Int),
         any::<i64>().prop_map(PushOp::ScriptInt),
-        any::<Vec<u8>>().prop_map(PushOp::Slice),
+        any_vec_u8.prop_map(PushOp::Slice),
         any_bitcoin_pubkey().prop_map(PushOp::Key),
         any_x_only_pubkey().prop_map(PushOp::XOnlyPublicKey),
         any_opcode().prop_map(PushOp::Opcode),
         Just(PushOp::OpVerify),
     ];
 
-    // Include anywhere from 0 to 32 instructions in the script
-    collection::vec(any_push_op, 0..=32)
+    // Include anywhere from 0 to 8 instructions in the script
+    collection::vec(any_push_op, 0..=8)
         .prop_map(|vec_of_push_ops| {
             let mut builder = script::Builder::new();
             for push_op in vec_of_push_ops {
@@ -92,7 +95,11 @@ pub fn any_script() -> BoxedStrategy<Script> {
 
 /// An `Arbitrary`-like [`Strategy`] for a [`Witness`].
 pub fn any_witness() -> BoxedStrategy<Witness> {
-    any::<Vec<Vec<u8>>>().prop_map(Witness::from_vec).boxed()
+    // The `Vec<Vec<u8>>`s from any::<Vec<u8>>() are too big,
+    // so we limit to 8x8 = 64 bytes.
+    let any_vec_u8 = collection::vec(any::<u8>(), 0..=8);
+    let any_vec_vec_u8 = collection::vec(any_vec_u8, 0..=8);
+    any_vec_vec_u8.prop_map(Witness::from_vec).boxed()
 }
 
 /// An `Arbitrary`-like [`Strategy`] for a [`Sequence`].
@@ -125,9 +132,9 @@ pub fn any_txout() -> BoxedStrategy<TxOut> {
 /// An `Arbitrary`-like [`Strategy`] for a raw [`Transaction`].
 pub fn any_raw_tx() -> BoxedStrategy<Transaction> {
     let any_lock_time = any::<u32>().prop_map(PackedLockTime);
-    // Txns include anywhere from 0 to 10 inputs / outputs
-    let any_vec_of_txins = collection::vec(any_txin(), 0..=10);
-    let any_vec_of_txouts = collection::vec(any_txout(), 0..=10);
+    // Txns include anywhere from 1 to 2 inputs / outputs
+    let any_vec_of_txins = collection::vec(any_txin(), 1..=2);
+    let any_vec_of_txouts = collection::vec(any_txout(), 1..=2);
     (any_lock_time, any_vec_of_txins, any_vec_of_txouts)
         .prop_map(|(lock_time, input, output)| Transaction {
             version: 1,

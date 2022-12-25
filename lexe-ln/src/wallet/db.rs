@@ -719,7 +719,7 @@ mod test {
                 .prop_map(|vec_of_ops| {
                     let mut db = WalletDb::new();
                     for op in vec_of_ops {
-                        op.do_op_and_check_op_invariants(&mut db)
+                        op.do_op(&mut db)
                     }
                     db
                 })
@@ -767,7 +767,7 @@ mod test {
 
     impl DbOp {
         /// Executes the operation and asserts op-specific invariants.
-        fn do_op_and_check_op_invariants(self, db: &mut WalletDb) {
+        fn do_op(self, db: &mut WalletDb) {
             match self {
                 DbOp::SetPathScript { path, script } => {
                     let keychain = path.keychain;
@@ -1047,7 +1047,7 @@ mod test {
             db.assert_invariants();
 
             for op in vec_of_ops {
-                op.do_op_and_check_op_invariants(&mut db);
+                op.do_op(&mut db);
 
                 db.assert_invariants();
             }
@@ -1114,20 +1114,67 @@ mod test {
 
         db.assert_invariants();
 
-        op1.do_op_and_check_op_invariants(&mut db);
+        op1.do_op(&mut db);
         println!("Post OP1: {}", serde_json::to_string_pretty(&db).unwrap());
         db.assert_invariants();
 
-        op2.do_op_and_check_op_invariants(&mut db);
+        op2.do_op(&mut db);
         println!("Post OP2: {}", serde_json::to_string_pretty(&db).unwrap());
         db.assert_invariants();
     }
 
+    /// Tests that possibly-updated deserialization logic can deserialize a
+    /// [`WalletDb`] that was serialized on 2022-12-24 (backwards-compatibility
+    /// test). This test can be removed if all nodes have migrated to the newer
+    /// serialization scheme.
+    ///
+    /// NOTE: The data in the serialized wallet db is not guaranteed to be
+    /// consensus-valid, or even valid enough to be propagated. If this test
+    /// broke, it is possible that it was due to increased validation in a
+    /// [`serde::Deserialize`] impl used for one of the contained data types.
+    /// TODO(max): Generate a snapshot with more "realistic" data.
+    #[test]
+    fn deserialize_2022_12_24_snapshot() {
+        // The following code generated the db_json_str below.
+        /*
+        let mut runner = proptest::test_runner::TestRunner::default();
+        let mut db = WalletDb::new();
+
+        // To ensure each field of the WalletDb contains at least one element,
+        // sample DbOps until we've executed at least one of each of the below:
+        // SetPathScript, SetUtxo, SetRawTx, SetTx, SetLastIndex, SetSyncTime.
+        // We mark a slot as Some after we have executed that op.
+        let mut seen: [Option<()>; 6] = [None; 6];
+        while seen.contains(&None) {
+            let op = any::<DbOp>().new_tree(&mut runner).unwrap().current();
+            let maybe_index = match op {
+                DbOp::SetPathScript { .. } => Some(0),
+                DbOp::SetUtxo(_) => Some(1),
+                DbOp::SetRawTx(_) => Some(2),
+                DbOp::SetTx(_) => Some(3),
+                DbOp::SetLastIndex(_) => Some(4),
+                DbOp::SetSyncTime(_) => Some(5),
+                _ => None,
+            };
+            if let Some(index) = maybe_index {
+                if seen[index].replace(()).is_none() {
+                    op.do_op(&mut db)
+                }
+            }
+        }
+        let json_str = serde_json::to_string(&db).unwrap();
+        println!("{json_str}");
+        panic!();
+        */
+
+        let db_json_str = "{\"path_to_script\":{\"internal@2431873833\":\"08f48768401aa152500006ca1ac0aa1d272103a1e61d1211e949668e3fd57b6f79d668b89ed6a37ff7ac5561f8fdb0e78361620854e9c93cf102c7e521037521401037d7cf567da4315b8c46a851d243c603a142e6c066d2c2b58a57b24d\"},\"script_to_path\":{\"08f48768401aa152500006ca1ac0aa1d272103a1e61d1211e949668e3fd57b6f79d668b89ed6a37ff7ac5561f8fdb0e78361620854e9c93cf102c7e521037521401037d7cf567da4315b8c46a851d243c603a142e6c066d2c2b58a57b24d\":\"internal@2431873833\"},\"utxos\":{\"630a8e1c3d2d2eb8b317e8269a87a0390a7d6dd4ada3b71da859207ccaae14b1:1110281271\":{\"outpoint\":\"630a8e1c3d2d2eb8b317e8269a87a0390a7d6dd4ada3b71da859207ccaae14b1:1110281271\",\"txout\":{\"value\":15591741407262660305,\"script_pubkey\":\"08ce6d76826e5f34e120442a604a0079c9df52ff67a2960707388bf0456bf9baff42b3f43f5744af9af4209e27673841d3ebc161079749d14efc8a165d84a2c1df0c6826305cbde5db7d4b\"},\"keychain\":\"Internal\",\"is_spent\":true}},\"raw_txs\":{\"f953c0395ab3dafaeaf276591a163a31189e901a2febac896aa22b469accbffd\":{\"version\":1,\"lock_time\":749390219,\"input\":[{\"previous_output\":\"098d2e099c903f57a3ec3470677684849086a15c91b9b3ff629aa78d9200be96:2102777305\",\"script_sig\":\"086b407c6efe2faa0906ddb4fbb17568210219f208d2f62f5a8a8bbbb9bc1f08766bec126196e95867e174c7ba6070c0891008f67934282fa8bbd801560756d7722c4b5b14032d19e7\",\"sequence\":3781032586,\"witness\":[\"973459ab835d62\",\"678e410862\"]}],\"output\":[{\"value\":15449077679960011960,\"script_pubkey\":\"204e3cbe79accb76a477f54fd0db3d6c7b50cba3fc4f5d37978144418a114ef4fa1120795bb47c01e56b8201a2218e61a4b0ac8ee70f090153e4ef5257a87ea76b4fbc08cda18f5d069e06965ebd\"}]}},\"tx_metas\":{\"363005278de3fca6d992810833ef412b23ca35841aa5db29003ed9629b4f4292\":{\"txid\":\"363005278de3fca6d992810833ef412b23ca35841aa5db29003ed9629b4f4292\",\"received\":4152075928798363952,\"sent\":3817630852809344414,\"fee\":null,\"confirmation_time\":{\"height\":1333097909,\"timestamp\":12654208677788822518}}},\"last_external_index\":206074427,\"last_internal_index\":null,\"sync_time\":{\"block_time\":{\"height\":1247739046,\"timestamp\":6738928675946799964}},\"external_checksum\":null,\"internal_checksum\":null}";
+
+        serde_json::from_str::<WalletDb>(db_json_str)
+            .expect("Failed to deserialize old serialized WalletDb");
+    }
+
     // TODO(max): Equivalence test with MemoryDatabase. Make sure to include the
     // iter_* methods as will as check_descriptor_checksum.
-
-    // TODO(max): Write snapshot test for serialized WalletDb in case one of the
-    // value fields changed. Perhaps use a snapshot crate?
 }
 
 // TODO(max): Copy over BDK tests. Should be using latest released version, and
