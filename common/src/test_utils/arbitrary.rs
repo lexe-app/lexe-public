@@ -1,7 +1,4 @@
-use std::str::FromStr;
-
 use bitcoin::blockdata::{opcodes, script};
-use bitcoin::hashes::sha256d;
 use bitcoin::{
     secp256k1, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn,
     TxOut, Txid, Witness,
@@ -11,7 +8,6 @@ use proptest::strategy::{BoxedStrategy, Just, Strategy};
 use proptest::{collection, prop_oneof};
 
 use crate::api::NodePk;
-use crate::hex;
 
 /// An `Arbitrary`-like [`Strategy`] for [`bitcoin::PublicKey`]s.
 pub fn any_bitcoin_pubkey() -> BoxedStrategy<bitcoin::PublicKey> {
@@ -150,11 +146,25 @@ pub fn any_raw_tx() -> BoxedStrategy<Transaction> {
 /// NOTE that it is often preferred to generate a [`Transaction`] first, and
 /// then get the [`Txid`] via [`Transaction::txid`].
 pub fn any_txid() -> BoxedStrategy<Txid> {
+    // In order to generate txids which are more likely to shrink() to a value
+    // that corresponds with an actual raw transaction, we can generate txids by
+    // simply generating raw transactions and computing their txid. However, the
+    // following appears to cause stack overflows:
+
+    // any_raw_tx().prop_map(|raw_tx| raw_tx.txid()).boxed()
+
+    // The below doesn't cause stack overflows, but due to SHA256's collision
+    // resistance, the generated txids do not correspond to any tx at all:
+    // /*
+    use std::str::FromStr;
     any::<[u8; 32]>()
-        .prop_map(|array| hex::encode(&array))
-        .prop_map(|hex_str| sha256d::Hash::from_str(hex_str.as_str()).unwrap())
+        .prop_map(|array| crate::hex::encode(&array))
+        .prop_map(|hex_str| {
+            bitcoin::hashes::sha256d::Hash::from_str(hex_str.as_str()).unwrap()
+        })
         .prop_map(Txid::from_hash)
         .boxed()
+    // */
 }
 
 /// An `Arbitrary`-like [`Strategy`] for a [`OutPoint`].

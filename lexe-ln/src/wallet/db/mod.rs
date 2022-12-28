@@ -86,9 +86,42 @@ struct TransactionMetadata {
     pub confirmation_time: Option<BlockTime>,
 }
 
+/// Represents a batch of `DbOp`s. Operations can be queued up for execution via
+/// the [`BatchOperations`] trait methods. The underlying [`WalletDb`] is
+/// guaranteed not to be affected until [`DbBatch::commit_all_ops`] is called.
+/// The queued operations can be aborted by simply dropping the [`DbBatch`]
+/// object.
+///
+/// NOTE: The `BatchOperations::del_*` methods will return what will have been
+/// returned from the underlying database if all currently queued operations
+/// are immediately committed to the DB. However, it does not account for
+/// outstanding operations that are queued on a different [`DbBatch`] object. If
+/// getting the correct return value from the `del_*` methods is important, you
+/// must either (1) ensure that there is only one outstanding [`DbBatch`] at any
+/// one time, executing all operations on the batch object (i.e. avoid executing
+/// any operations directly on the [`WalletDb`] while the [`DbBatch`] is
+/// uncommitted), or (2) skip batching entirely and execute all operations
+/// directly using the [`BatchOperations`] methods implemented on [`WalletDb`].
 pub(super) struct DbBatch {
     ops: Vec<DbOp>,
     db: WalletDb,
+
+    // These maps hold the subset of the data in the underlying maps that has
+    // been changed. Getters will first check these maps for updated values
+    // before falling back to reading the underlying DB. An Option value of
+    // None indicates that the key in the underlying map is queued for
+    // deletion.
+    updated_path_to_script: BTreeMap<Path, Option<Script>>,
+    updated_script_to_path: BTreeMap<Script, Option<Path>>,
+    updated_utxos: BTreeMap<OutPoint, Option<LocalUtxo>>,
+    updated_raw_txs: BTreeMap<Txid, Option<Transaction>>,
+    updated_tx_metas: BTreeMap<Txid, Option<TransactionMetadata>>,
+
+    // These fields track what the corresponding field in the underlying DB
+    // would be if all currently queued operations are immediately committed.
+    sync_time: Option<SyncTime>,
+    last_external_index: Option<u32>,
+    last_internal_index: Option<u32>,
 }
 
 #[derive(Clone, Debug)]
@@ -218,12 +251,41 @@ impl TransactionMetadata {
 
 impl DbBatch {
     fn new(db: WalletDb) -> Self {
+        use KeychainKind::{External, Internal};
         let ops = Vec::new();
-        Self { ops, db }
+
+        // Copy over fields from the underlying DB.
+        let sync_time = db.get_sync_time().expect("Never fails");
+        let last_external_index =
+            db.get_last_index(External).expect("Never fails");
+        let last_internal_index =
+            db.get_last_index(Internal).expect("Never fails");
+
+        // Initialize the "updated" maps as empty; nothing has been updated yet
+        let updated_path_to_script = BTreeMap::new();
+        let updated_script_to_path = BTreeMap::new();
+        let updated_utxos = BTreeMap::new();
+        let updated_raw_txs = BTreeMap::new();
+        let updated_tx_metas = BTreeMap::new();
+
+        Self {
+            ops,
+            db,
+
+            updated_path_to_script,
+            updated_script_to_path,
+            updated_utxos,
+            updated_raw_txs,
+            updated_tx_metas,
+
+            sync_time,
+            last_external_index,
+            last_internal_index,
+        }
     }
 
     /// Consumes self, executing all operations on the underlying [`WalletDb`].
-    fn do_all_ops(mut self) -> WalletDb {
+    fn commit_all_ops(mut self) -> WalletDb {
         for op in self.ops {
             op.do_op(&mut self.db);
         }
@@ -239,23 +301,38 @@ impl BatchOperations for DbBatch {
         child: u32,
     ) -> Result<(), bdk::Error> {
         let path = Path { keychain, child };
-        let script = script.clone();
-        self.ops.push(DbOp::SetPathScript { path, script });
+        self.ops.push(DbOp::SetPathScript {
+            path: path.clone(),
+            script: script.clone(),
+        });
+        self.updated_path_to_script
+            .insert(path.clone(), Some(script.clone()));
+        self.updated_script_to_path
+            .insert(script.clone(), Some(path));
         Ok(())
     }
 
     fn set_utxo(&mut self, utxo: &LocalUtxo) -> Result<(), bdk::Error> {
         self.ops.push(DbOp::SetUtxo(utxo.clone()));
+        self.updated_utxos.insert(utxo.outpoint, Some(utxo.clone()));
         Ok(())
     }
 
     fn set_raw_tx(&mut self, raw_tx: &Transaction) -> Result<(), bdk::Error> {
         self.ops.push(DbOp::SetRawTx(raw_tx.clone()));
+        self.updated_raw_txs
+            .insert(raw_tx.txid(), Some(raw_tx.clone()));
         Ok(())
     }
 
     fn set_tx(&mut self, tx: &TransactionDetails) -> Result<(), bdk::Error> {
         self.ops.push(DbOp::SetTx(tx.clone()));
+        let mut tx = tx.clone();
+        if let Some(raw_tx) = tx.transaction.take() {
+            self.updated_raw_txs.insert(tx.txid, Some(raw_tx));
+        }
+        let meta = TransactionMetadata::from(tx);
+        self.updated_tx_metas.insert(meta.txid, Some(meta));
         Ok(())
     }
 
@@ -266,94 +343,114 @@ impl BatchOperations for DbBatch {
     ) -> Result<(), bdk::Error> {
         let path = Path { keychain, child };
         self.ops.push(DbOp::SetLastIndex(path));
+        match keychain {
+            KeychainKind::External => self.last_external_index.insert(child),
+            KeychainKind::Internal => self.last_internal_index.insert(child),
+        };
         Ok(())
     }
 
     fn set_sync_time(&mut self, time: SyncTime) -> Result<(), bdk::Error> {
-        self.ops.push(DbOp::SetSyncTime(time));
+        self.ops.push(DbOp::SetSyncTime(time.clone()));
+        self.sync_time = Some(time);
         Ok(())
     }
 
-    /// This function returns what *would* have been returned from the real call
-    /// to `del_script_pubkey_from_path()` (since we don't actually mutate the
-    /// database until `commit_batch()` is called). However, beware of the
-    /// following unexpected result:
-    ///
-    /// ```ignore
-    /// let path = Path { ... };
-    /// let script = Script { ... };
-    /// db.set_script_pubkey(path, script);
-    /// let mut batch = db.begin_batch();
-    /// let result1 = batch.del_script_pubkey_from_path(path);
-    /// let result2 = batch.del_script_pubkey_from_path(path);
-    /// ```
-    ///
-    /// If executed on a 'real' DB, we would expect `result1` to be `Some(_)`
-    /// and `result2` to be `None`. However, this function's current
-    /// implementation returns `result2` as `Some(_)`.
-    ///
-    /// TODO(max): This can be remedied by keeping track of which keys have been
-    /// added or deleted, in `HashSet`s contained within the `DbBatch` struct.
-    ///
-    /// TODO(max): We can also property test this behavior by showing that two
-    /// fresh databases evolve identically to each other after executing a
-    /// random sequence of ops, but where:
-    ///
-    /// 1) DB1 executes each op directly on `WalletDb`, mutating the 'real' DB
-    ///    at each operation;
-    /// 2) DB2 executes each op only on `DbBatch`, committing to the DB only
-    ///    once at the end.
-    ///
-    /// We would then assert:
-    ///
-    /// 1) The values returned from each `BatchOperations` fn call are
-    ///    equivalent across the two DBs, regardless of if it was executed on
-    ///    the 'real' DB or the `DbBatch` object.
-    /// 2) After `commit_batch()` has been called on DB2 at the end, DB1 == DB2.
-    ///
-    /// To avoid getting overwhelmed with the complexity of handling all of
-    /// these cases at the same time, this can be implemented incrementally with
-    /// a basic test for each BatchOperation, and only converted to a proptest
-    /// at the end once we have decent assurance that we've eliminated most of
-    /// the bugs in the implementation.
     fn del_script_pubkey_from_path(
         &mut self,
         keychain: KeychainKind,
         child: u32,
     ) -> Result<Option<Script>, bdk::Error> {
         let path = Path { keychain, child };
-        self.ops.push(DbOp::DelByPath(path));
-        self.db.get_script_pubkey_from_path(keychain, child)
+        self.ops.push(DbOp::DelByPath(path.clone()));
+
+        // First get the script returned if we were to query by path.
+        // This represents the return value of `path_to_script.remove(&path)`.
+        let maybe_script = match self.updated_path_to_script.get(&path) {
+            Some(updated_maybe_script) => updated_maybe_script.clone(),
+            None => self
+                .db
+                .get_script_pubkey_from_path(keychain, child)
+                .unwrap(),
+        };
+
+        // Mark this path -> script mapping as deleted
+        self.updated_path_to_script.insert(path, None);
+
+        // Handle the script -> path map
+        match maybe_script {
+            // `path_to_script.remove(&path)` return Some; we need to delete
+            // from the script -> path map
+            Some(script) => {
+                // Mark the script -> path mapping as deleted
+                self.updated_script_to_path.insert(script.clone(), None);
+                Ok(Some(script))
+            }
+            // `path_to_script.remove(&path)` returned None; nothing to do.
+            None => Ok(None),
+        }
     }
 
-    /// TODO(max): This has the same problem as `del_script_pubkey_from_path`.
     fn del_path_from_script_pubkey(
         &mut self,
         script: &Script,
     ) -> Result<Option<(KeychainKind, u32)>, bdk::Error> {
         self.ops.push(DbOp::DelByScript(script.clone()));
-        self.db.get_path_from_script_pubkey(script)
+
+        // First get the path returned if we were to query by script.
+        // This represents the return value of `script_to_path.remove(&script)`.
+        let maybe_path = match self.updated_script_to_path.get(script) {
+            Some(updated_maybe_path) => updated_maybe_path
+                .clone()
+                .map(|Path { keychain, child }| (keychain, child)),
+            None => self.db.get_path_from_script_pubkey(script).unwrap(),
+        };
+
+        // Mark this script -> path mapping as deleted
+        self.updated_script_to_path.insert(script.clone(), None);
+
+        // Handle the path -> script map
+        match maybe_path {
+            Some((keychain, child)) => {
+                // Mark the path -> script mapping as deleted
+                self.updated_path_to_script
+                    .insert(Path { keychain, child }, None);
+                Ok(Some((keychain, child)))
+            }
+            // `script_to_path.remove(&script)` return None; nothing to do.
+            None => Ok(None),
+        }
     }
 
-    /// TODO(max): This has the same problem as `del_script_pubkey_from_path`.
     fn del_utxo(
         &mut self,
         outpoint: &OutPoint,
     ) -> Result<Option<LocalUtxo>, bdk::Error> {
         self.ops.push(DbOp::DelUtxo(*outpoint));
+        let maybe_updated_maybe_utxo =
+            self.updated_utxos.insert(*outpoint, None);
+        if let Some(updated_maybe_utxo) = maybe_updated_maybe_utxo {
+            return Ok(updated_maybe_utxo);
+        }
+
+        // This key was not updated before; fall back to the underlying DB
         self.db.get_utxo(outpoint)
     }
 
-    /// TODO(max): This has the same problem as `del_script_pubkey_from_path`.
     fn del_raw_tx(
         &mut self,
         txid: &Txid,
     ) -> Result<Option<Transaction>, bdk::Error> {
         self.ops.push(DbOp::DelRawTx(*txid));
+        let maybe_updated_maybe_raw_tx =
+            self.updated_raw_txs.insert(*txid, None);
+        if let Some(updated_maybe_raw_tx) = maybe_updated_maybe_raw_tx {
+            return Ok(updated_maybe_raw_tx);
+        }
+        // This key was not updated before; fall back to the underlying DB
         self.db.get_raw_tx(txid)
     }
 
-    /// TODO(max): This has the same problem as `del_script_pubkey_from_path`.
     fn del_tx(
         &mut self,
         txid: &Txid,
@@ -363,22 +460,218 @@ impl BatchOperations for DbBatch {
             txid: *txid,
             include_raw,
         });
-        self.db.get_tx(txid, include_raw)
+
+        // First, handle `include_raw`
+        let maybe_raw_tx = if include_raw {
+            let maybe_updated_maybe_raw_tx =
+                self.updated_raw_txs.insert(*txid, None);
+            if let Some(updated_maybe_raw_tx) = maybe_updated_maybe_raw_tx {
+                updated_maybe_raw_tx
+            } else {
+                // This key was not updated before, fall back to underlying DB
+                self.db.get_raw_tx(txid).unwrap()
+            }
+        } else {
+            None
+        };
+
+        // Now, delete the tx meta
+        let maybe_updated_maybe_meta =
+            self.updated_tx_metas.insert(*txid, None);
+        match maybe_updated_maybe_meta {
+            Some(updated_maybe_meta) => updated_maybe_meta
+                .map(|meta| meta.into_tx(maybe_raw_tx))
+                .map(Ok)
+                .transpose(),
+            None => {
+                // tx meta was not updated before; fall back to underlying db
+                let mut maybe_tx = self.db.get_tx(txid, include_raw).unwrap();
+                // Use the possibly-updated possibly-existent raw tx value
+                if let Some(ref mut tx) = maybe_tx {
+                    tx.transaction = maybe_raw_tx;
+                }
+                maybe_tx.map(Ok).transpose()
+            }
+        }
     }
 
-    /// TODO(max): This has the same problem as `del_script_pubkey_from_path`.
     fn del_last_index(
         &mut self,
         keychain: KeychainKind,
     ) -> Result<Option<u32>, bdk::Error> {
+        use KeychainKind::{External, Internal};
         self.ops.push(DbOp::DelLastIndex(keychain));
-        self.db.get_last_index(keychain)
+        let old_index = match keychain {
+            External => self.last_external_index.take(),
+            Internal => self.last_internal_index.take(),
+        };
+        Ok(old_index)
     }
 
-    /// TODO(max): This has the same problem as `del_script_pubkey_from_path`.
     fn del_sync_time(&mut self) -> Result<Option<SyncTime>, bdk::Error> {
         self.ops.push(DbOp::DelSyncTime);
-        self.db.get_sync_time()
+        Ok(self.sync_time.take())
+    }
+}
+
+#[cfg(test)] // This impl is only required for our proptests
+impl Database for DbBatch {
+    fn check_descriptor_checksum<B: AsRef<[u8]>>(
+        &mut self,
+        _keychain: KeychainKind,
+        _given_checksum: B,
+    ) -> Result<(), bdk::Error> {
+        unimplemented!("This method is not required for our tests")
+    }
+
+    fn iter_script_pubkeys(
+        &self,
+        _maybe_filter_keychain: Option<KeychainKind>,
+    ) -> Result<Vec<Script>, bdk::Error> {
+        unimplemented!("This method is not required for our tests")
+    }
+
+    fn iter_utxos(&self) -> Result<Vec<LocalUtxo>, bdk::Error> {
+        unimplemented!("This method is not required for our tests")
+    }
+
+    fn iter_raw_txs(&self) -> Result<Vec<Transaction>, bdk::Error> {
+        unimplemented!("This method is not required for our tests")
+    }
+
+    fn iter_txs(
+        &self,
+        _include_raw: bool,
+    ) -> Result<Vec<TransactionDetails>, bdk::Error> {
+        unimplemented!("This method is not required for our tests")
+    }
+
+    fn get_script_pubkey_from_path(
+        &self,
+        keychain: KeychainKind,
+        child: u32,
+    ) -> Result<Option<Script>, bdk::Error> {
+        let path = Path { keychain, child };
+        let maybe_updated_maybe_script = self.updated_path_to_script.get(&path);
+        let maybe_script = match maybe_updated_maybe_script {
+            Some(updated_maybe_script) => updated_maybe_script.clone(),
+            None => self
+                .db
+                .get_script_pubkey_from_path(keychain, child)
+                .unwrap(),
+        };
+
+        Ok(maybe_script)
+    }
+
+    fn get_path_from_script_pubkey(
+        &self,
+        script: &Script,
+    ) -> Result<Option<(KeychainKind, u32)>, bdk::Error> {
+        let maybe_updated_maybe_path = self.updated_script_to_path.get(script);
+        let maybe_path = match maybe_updated_maybe_path {
+            Some(updated_maybe_path) => updated_maybe_path
+                .clone()
+                .map(|Path { keychain, child }| (keychain, child)),
+            None => self.db.get_path_from_script_pubkey(script).unwrap(),
+        };
+
+        Ok(maybe_path)
+    }
+
+    fn get_utxo(
+        &self,
+        outpoint: &OutPoint,
+    ) -> Result<Option<LocalUtxo>, bdk::Error> {
+        let maybe_updated_utxo = self.updated_utxos.get(outpoint);
+        if let Some(updated_utxo) = maybe_updated_utxo {
+            return Ok(updated_utxo.clone());
+        }
+        // Fall back to the underlying DB
+        self.db.get_utxo(outpoint)
+    }
+
+    fn get_raw_tx(
+        &self,
+        txid: &Txid,
+    ) -> Result<Option<Transaction>, bdk::Error> {
+        let maybe_updated_raw_tx = self.updated_raw_txs.get(txid);
+        if let Some(updated_raw_tx) = maybe_updated_raw_tx {
+            return Ok(updated_raw_tx.clone());
+        }
+        // Fall back to the underlying DB
+        self.db.get_raw_tx(txid)
+    }
+
+    fn get_tx(
+        &self,
+        txid: &Txid,
+        include_raw: bool,
+    ) -> Result<Option<TransactionDetails>, bdk::Error> {
+        let maybe_updated_maybe_meta = self.updated_tx_metas.get(txid);
+
+        let maybe_meta = match maybe_updated_maybe_meta {
+            // It was updated before
+            Some(updated_maybe_meta) => updated_maybe_meta.clone(),
+            // It was not updated before; fall back to the underlying DB
+            None => self
+                .db
+                .get_tx(txid, false)
+                .unwrap()
+                .map(TransactionMetadata::from),
+        };
+
+        let maybe_tx = maybe_meta.map(|meta| {
+            // Metadata existed; handle the `include_raw` parameter and convert
+            // the metadata into TransactionDetails
+            let maybe_raw_tx = if include_raw {
+                // Check for updated raw tx firnst
+                match self.updated_raw_txs.get(txid).cloned() {
+                    // Raw tx was updated before
+                    Some(updated_maybe_raw_tx) => updated_maybe_raw_tx,
+                    // Raw tx was not updated before; fallback to underlying
+                    None => self.db.get_raw_tx(txid).unwrap(),
+                }
+            } else {
+                None
+            };
+            meta.into_tx(maybe_raw_tx)
+        });
+
+        Ok(maybe_tx)
+    }
+
+    fn get_last_index(
+        &self,
+        keychain: KeychainKind,
+    ) -> Result<Option<u32>, bdk::Error> {
+        use KeychainKind::{External, Internal};
+        let last_index = match keychain {
+            External => self.last_external_index,
+            Internal => self.last_internal_index,
+        };
+        Ok(last_index)
+    }
+
+    fn get_sync_time(&self) -> Result<Option<SyncTime>, bdk::Error> {
+        Ok(self.sync_time.clone())
+    }
+
+    fn increment_last_index(
+        &mut self,
+        keychain: KeychainKind,
+    ) -> Result<u32, bdk::Error> {
+        // This copies the implementation of [`WalletDb::increment_last_index`],
+        // but mutates only our batch instance.
+        let mut_last_index = match keychain {
+            KeychainKind::External => &mut self.last_external_index,
+            KeychainKind::Internal => &mut self.last_internal_index,
+        };
+        if let Some(index) = mut_last_index {
+            *index += 1;
+        }
+        let last_index = *mut_last_index.get_or_insert(0);
+        Ok(last_index)
     }
 }
 
@@ -388,7 +681,7 @@ impl DbOp {
     /// Executes the operation and debug asserts op-specific invariants.
     // TODO(max): Change assertions to debug assertions, update doc comment
     // TODO(max): Make this return the output of the op, as an enum
-    fn do_op(self, db: &mut WalletDb) {
+    fn do_op<DB: BatchOperations + Database>(self, db: &mut DB) {
         match self {
             DbOp::SetPathScript { path, script } => {
                 let keychain = path.keychain;
@@ -932,9 +1225,9 @@ impl BatchDatabase for WalletDb {
 
     fn commit_batch(&mut self, batch: Self::Batch) -> Result<(), bdk::Error> {
         info!("Committing WalletDb batch");
-        let _db = batch.do_all_ops();
+        let _db = batch.commit_all_ops();
         // TODO(max): Is there a way to check that self and the DB returned from
-        // do_all_ops() match? We should panic if they don't
+        // commit_all_ops() match? We should panic if they don't
         // TODO(max): Serialize then persist the WalletDb
         Ok(())
     }
@@ -966,9 +1259,9 @@ impl<'de> Deserialize<'de> for WalletDb {
 mod test {
     use common::test_utils::{arbitrary, roundtrip};
     use proptest::arbitrary::{any, Arbitrary};
-    use proptest::proptest;
     use proptest::strategy::{BoxedStrategy, Just, Strategy};
     use proptest::test_runner::Config;
+    use proptest::{prop_assert_eq, proptest};
 
     use super::*;
 
@@ -1219,9 +1512,6 @@ mod test {
         assert_eq!(db.get_last_index(keychain).unwrap(), Some(3));
     }
 
-    // TODO(max): Write test that batch operations do NOT mutate the WalletDb
-    // before commit_batch has been called.
-
     /// Generates an arbitrary `Vec<DbOp>` and executes each op,
     /// checking op invariants as well as db invariants in between.
     #[test]
@@ -1272,7 +1562,7 @@ mod test {
         json_value_custom(any_sync_time(), config);
     }
 
-    /// Tests that the [`WalletDb`] as a whole roundtrips.
+    /// Tests that the [`WalletDb`] as a whole roundtrips to/from a JSON object
     #[test]
     fn wallet_db_serde_json_roundtrip() {
         // Configure this test to run only one iteration,
@@ -1382,6 +1672,77 @@ mod test {
         bdk_test_suite::test_del_tx(WalletDb::new());
         bdk_test_suite::test_del_last_index(WalletDb::new());
         bdk_test_suite::test_check_descriptor_checksum(WalletDb::new());
+    }
+
+    /// This test tests the following properties:
+    ///
+    /// 1) An arbitrary sequence of operations executed on a [`DbBatch`] do not
+    ///    affect the underlying [`WalletDb`] until [`commit_batch`] is called.
+    /// 2) An arbitrary sequence of operations executed on a [`DbBatch`] (and
+    ///    committed at the end) vs the same sequence of operations executed
+    ///    directly on a [`WalletDb`] results in the same [`WalletDb`] state.
+    /// 3) The return values for each of the [`BatchOperations`] methods exactly
+    ///    match what the return value would be had the operation been executed
+    ///    directly on the underlying [`WalletDb`]. This accounts for previously
+    ///    queued batch operations.
+    ///
+    /// To clarify what we mean in (3), consider the following sequence of
+    /// operations:
+    ///
+    /// ```ignore
+    /// let mut db = WalletDb::new();
+    /// let path = Path { ... };
+    /// let script = Script { ... };
+    /// db.set_script_pubkey(path, script);
+    /// let result1 = db.del_script_pubkey_from_path(path);
+    /// let result2 = db.del_script_pubkey_from_path(path);
+    /// ```
+    ///
+    /// Operating the two deletion operations directly on the [`WalletDb`], we
+    /// expect `result1` to equal `Some(Script)` and `result2` to equal `None`.
+    ///
+    /// Now consider if we changed the code to the following:
+    ///
+    /// ```ignore
+    /// let db = WalletDb::new();
+    /// let mut batch = db.begin_batch();
+    /// let path = Path { ... };
+    /// let script = Script { ... };
+    /// batch.set_script_pubkey(path, script);
+    /// let result1 = batch.del_script_pubkey_from_path(path);
+    /// let result2 = batch.del_script_pubkey_from_path(path);
+    /// ```
+    ///
+    /// We still expect `result1` to equal `Some(Script)` and `result2` to equal
+    /// `None`. See the [`DbBatch`] doc comments for more details and caveats.
+    ///
+    /// [`commit_batch`]: BatchDatabase::commit_batch
+    #[test]
+    fn wallet_db_batching() {
+        let any_op = any::<DbOp>();
+        let any_vec_of_ops = proptest::collection::vec(any_op, 0..20);
+        proptest!(Config::with_cases(16), |(vec_of_ops in any_vec_of_ops)| {
+            let empty_db = WalletDb::new();
+            let batch_db = WalletDb::new();
+            let mut batch = batch_db.begin_batch();
+            let mut normal_db = WalletDb::new();
+
+            for op in vec_of_ops {
+                // Execute the op on both the batch DB and the "normal" DB which
+                // does not batch operations
+                op.clone().do_op(&mut batch);
+                op.do_op(&mut normal_db);
+
+                // TODO(max): Check that the return values between both match
+
+                // After executing the op on the batch, the database backing it
+                // should still be empty because the values have not been
+                // committed yet.
+                prop_assert_eq!(&batch_db, &empty_db);
+            }
+
+            // TODO(max): Commit the batch, then check that batch_db == normal_db
+        })
     }
 
     // TODO(max): Equivalence test with MemoryDatabase. Make sure to include the
