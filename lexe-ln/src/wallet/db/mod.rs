@@ -1723,11 +1723,19 @@ mod test {
         let any_vec_of_ops = proptest::collection::vec(any_op, 0..20);
         proptest!(Config::with_cases(16), |(vec_of_ops in any_vec_of_ops)| {
             let empty_db = WalletDb::new();
-            let batch_db = WalletDb::new();
+            let mut batch_db = WalletDb::new();
             let mut batch = batch_db.begin_batch();
             let mut normal_db = WalletDb::new();
 
             for op in vec_of_ops {
+                // This op doesn't count, because it is not a batch operation.
+                // This is a weird discrepancy with how BDK designed their
+                // traits - some `Database` methods do mutation (and there's
+                // nothing we can do about it).
+                if let DbOp::IncLastIndex(_) = op {
+                    continue;
+                }
+
                 // Execute the op on both the batch DB and the "normal" DB which
                 // does not batch operations
                 op.clone().do_op(&mut batch);
@@ -1741,7 +1749,10 @@ mod test {
                 prop_assert_eq!(&batch_db, &empty_db);
             }
 
-            // TODO(max): Commit the batch, then check that batch_db == normal_db
+            // We commit the batch and check that the batch db and normal db
+            // have resulted in an identical state.
+            batch_db.commit_batch(batch).unwrap();
+            prop_assert_eq!(&batch_db, &normal_db);
         })
     }
 
