@@ -19,6 +19,8 @@ use tracing::{info, warn};
 #[cfg(test)]
 mod bdk_test_suite;
 
+type BdkResult<T> = Result<T, bdk::Error>;
+
 /// Implements the DB traits required by BDK. Similar to [`MemoryDatabase`], but
 /// adds the ability to serialize the entire DB for persisting. Holds an [`Arc`]
 /// internally, so can be cloned and used directly.
@@ -299,7 +301,7 @@ impl BatchOperations for DbBatch {
         script: &Script,
         keychain: KeychainKind,
         child: u32,
-    ) -> Result<(), bdk::Error> {
+    ) -> BdkResult<()> {
         let path = Path { keychain, child };
         self.ops.push(DbOp::SetPathScript {
             path: path.clone(),
@@ -312,20 +314,20 @@ impl BatchOperations for DbBatch {
         Ok(())
     }
 
-    fn set_utxo(&mut self, utxo: &LocalUtxo) -> Result<(), bdk::Error> {
+    fn set_utxo(&mut self, utxo: &LocalUtxo) -> BdkResult<()> {
         self.ops.push(DbOp::SetUtxo(utxo.clone()));
         self.updated_utxos.insert(utxo.outpoint, Some(utxo.clone()));
         Ok(())
     }
 
-    fn set_raw_tx(&mut self, raw_tx: &Transaction) -> Result<(), bdk::Error> {
+    fn set_raw_tx(&mut self, raw_tx: &Transaction) -> BdkResult<()> {
         self.ops.push(DbOp::SetRawTx(raw_tx.clone()));
         self.updated_raw_txs
             .insert(raw_tx.txid(), Some(raw_tx.clone()));
         Ok(())
     }
 
-    fn set_tx(&mut self, tx: &TransactionDetails) -> Result<(), bdk::Error> {
+    fn set_tx(&mut self, tx: &TransactionDetails) -> BdkResult<()> {
         self.ops.push(DbOp::SetTx(tx.clone()));
         let mut tx = tx.clone();
         if let Some(raw_tx) = tx.transaction.take() {
@@ -340,7 +342,7 @@ impl BatchOperations for DbBatch {
         &mut self,
         keychain: KeychainKind,
         child: u32,
-    ) -> Result<(), bdk::Error> {
+    ) -> BdkResult<()> {
         let path = Path { keychain, child };
         self.ops.push(DbOp::SetLastIndex(path));
         match keychain {
@@ -350,7 +352,7 @@ impl BatchOperations for DbBatch {
         Ok(())
     }
 
-    fn set_sync_time(&mut self, time: SyncTime) -> Result<(), bdk::Error> {
+    fn set_sync_time(&mut self, time: SyncTime) -> BdkResult<()> {
         self.ops.push(DbOp::SetSyncTime(time.clone()));
         self.sync_time = Some(time);
         Ok(())
@@ -360,7 +362,7 @@ impl BatchOperations for DbBatch {
         &mut self,
         keychain: KeychainKind,
         child: u32,
-    ) -> Result<Option<Script>, bdk::Error> {
+    ) -> BdkResult<Option<Script>> {
         let path = Path { keychain, child };
         self.ops.push(DbOp::DelByPath(path.clone()));
 
@@ -394,7 +396,7 @@ impl BatchOperations for DbBatch {
     fn del_path_from_script_pubkey(
         &mut self,
         script: &Script,
-    ) -> Result<Option<(KeychainKind, u32)>, bdk::Error> {
+    ) -> BdkResult<Option<(KeychainKind, u32)>> {
         self.ops.push(DbOp::DelByScript(script.clone()));
 
         // First get the path returned if we were to query by script.
@@ -425,7 +427,7 @@ impl BatchOperations for DbBatch {
     fn del_utxo(
         &mut self,
         outpoint: &OutPoint,
-    ) -> Result<Option<LocalUtxo>, bdk::Error> {
+    ) -> BdkResult<Option<LocalUtxo>> {
         self.ops.push(DbOp::DelUtxo(*outpoint));
         let maybe_updated_maybe_utxo =
             self.updated_utxos.insert(*outpoint, None);
@@ -437,10 +439,7 @@ impl BatchOperations for DbBatch {
         self.db.get_utxo(outpoint)
     }
 
-    fn del_raw_tx(
-        &mut self,
-        txid: &Txid,
-    ) -> Result<Option<Transaction>, bdk::Error> {
+    fn del_raw_tx(&mut self, txid: &Txid) -> BdkResult<Option<Transaction>> {
         self.ops.push(DbOp::DelRawTx(*txid));
         let maybe_updated_maybe_raw_tx =
             self.updated_raw_txs.insert(*txid, None);
@@ -455,7 +454,7 @@ impl BatchOperations for DbBatch {
         &mut self,
         txid: &Txid,
         include_raw: bool,
-    ) -> Result<Option<TransactionDetails>, bdk::Error> {
+    ) -> BdkResult<Option<TransactionDetails>> {
         self.ops.push(DbOp::DelTx {
             txid: *txid,
             include_raw,
@@ -498,7 +497,7 @@ impl BatchOperations for DbBatch {
     fn del_last_index(
         &mut self,
         keychain: KeychainKind,
-    ) -> Result<Option<u32>, bdk::Error> {
+    ) -> BdkResult<Option<u32>> {
         use KeychainKind::{External, Internal};
         self.ops.push(DbOp::DelLastIndex(keychain));
         let old_index = match keychain {
@@ -508,7 +507,7 @@ impl BatchOperations for DbBatch {
         Ok(old_index)
     }
 
-    fn del_sync_time(&mut self) -> Result<Option<SyncTime>, bdk::Error> {
+    fn del_sync_time(&mut self) -> BdkResult<Option<SyncTime>> {
         self.ops.push(DbOp::DelSyncTime);
         Ok(self.sync_time.take())
     }
@@ -520,29 +519,29 @@ impl Database for DbBatch {
         &mut self,
         _keychain: KeychainKind,
         _given_checksum: B,
-    ) -> Result<(), bdk::Error> {
+    ) -> BdkResult<()> {
         unimplemented!("This method is not required for our tests")
     }
 
     fn iter_script_pubkeys(
         &self,
         _maybe_filter_keychain: Option<KeychainKind>,
-    ) -> Result<Vec<Script>, bdk::Error> {
+    ) -> BdkResult<Vec<Script>> {
         unimplemented!("This method is not required for our tests")
     }
 
-    fn iter_utxos(&self) -> Result<Vec<LocalUtxo>, bdk::Error> {
+    fn iter_utxos(&self) -> BdkResult<Vec<LocalUtxo>> {
         unimplemented!("This method is not required for our tests")
     }
 
-    fn iter_raw_txs(&self) -> Result<Vec<Transaction>, bdk::Error> {
+    fn iter_raw_txs(&self) -> BdkResult<Vec<Transaction>> {
         unimplemented!("This method is not required for our tests")
     }
 
     fn iter_txs(
         &self,
         _include_raw: bool,
-    ) -> Result<Vec<TransactionDetails>, bdk::Error> {
+    ) -> BdkResult<Vec<TransactionDetails>> {
         unimplemented!("This method is not required for our tests")
     }
 
@@ -550,7 +549,7 @@ impl Database for DbBatch {
         &self,
         keychain: KeychainKind,
         child: u32,
-    ) -> Result<Option<Script>, bdk::Error> {
+    ) -> BdkResult<Option<Script>> {
         let path = Path { keychain, child };
         let maybe_updated_maybe_script = self.updated_path_to_script.get(&path);
         let maybe_script = match maybe_updated_maybe_script {
@@ -567,7 +566,7 @@ impl Database for DbBatch {
     fn get_path_from_script_pubkey(
         &self,
         script: &Script,
-    ) -> Result<Option<(KeychainKind, u32)>, bdk::Error> {
+    ) -> BdkResult<Option<(KeychainKind, u32)>> {
         let maybe_updated_maybe_path = self.updated_script_to_path.get(script);
         let maybe_path = match maybe_updated_maybe_path {
             Some(updated_maybe_path) => updated_maybe_path
@@ -579,10 +578,7 @@ impl Database for DbBatch {
         Ok(maybe_path)
     }
 
-    fn get_utxo(
-        &self,
-        outpoint: &OutPoint,
-    ) -> Result<Option<LocalUtxo>, bdk::Error> {
+    fn get_utxo(&self, outpoint: &OutPoint) -> BdkResult<Option<LocalUtxo>> {
         let maybe_updated_utxo = self.updated_utxos.get(outpoint);
         if let Some(updated_utxo) = maybe_updated_utxo {
             return Ok(updated_utxo.clone());
@@ -591,10 +587,7 @@ impl Database for DbBatch {
         self.db.get_utxo(outpoint)
     }
 
-    fn get_raw_tx(
-        &self,
-        txid: &Txid,
-    ) -> Result<Option<Transaction>, bdk::Error> {
+    fn get_raw_tx(&self, txid: &Txid) -> BdkResult<Option<Transaction>> {
         let maybe_updated_raw_tx = self.updated_raw_txs.get(txid);
         if let Some(updated_raw_tx) = maybe_updated_raw_tx {
             return Ok(updated_raw_tx.clone());
@@ -607,7 +600,7 @@ impl Database for DbBatch {
         &self,
         txid: &Txid,
         include_raw: bool,
-    ) -> Result<Option<TransactionDetails>, bdk::Error> {
+    ) -> BdkResult<Option<TransactionDetails>> {
         let maybe_updated_maybe_meta = self.updated_tx_metas.get(txid);
 
         let maybe_meta = match maybe_updated_maybe_meta {
@@ -641,10 +634,7 @@ impl Database for DbBatch {
         Ok(maybe_tx)
     }
 
-    fn get_last_index(
-        &self,
-        keychain: KeychainKind,
-    ) -> Result<Option<u32>, bdk::Error> {
+    fn get_last_index(&self, keychain: KeychainKind) -> BdkResult<Option<u32>> {
         use KeychainKind::{External, Internal};
         let last_index = match keychain {
             External => self.last_external_index,
@@ -653,14 +643,14 @@ impl Database for DbBatch {
         Ok(last_index)
     }
 
-    fn get_sync_time(&self) -> Result<Option<SyncTime>, bdk::Error> {
+    fn get_sync_time(&self) -> BdkResult<Option<SyncTime>> {
         Ok(self.sync_time.clone())
     }
 
     fn increment_last_index(
         &mut self,
         keychain: KeychainKind,
-    ) -> Result<u32, bdk::Error> {
+    ) -> BdkResult<u32> {
         // This copies the implementation of [`WalletDb::increment_last_index`],
         // but mutates only our batch instance.
         let mut_last_index = match keychain {
@@ -885,7 +875,7 @@ impl Database for WalletDb {
         &mut self,
         keychain: KeychainKind,
         given_checksum: B,
-    ) -> Result<(), bdk::Error> {
+    ) -> BdkResult<()> {
         // First, get a &mut Option<Vec<u8>> for the correct keychain
         let mut db = self.0.lock().unwrap();
         let mut_checksum = match keychain {
@@ -908,7 +898,7 @@ impl Database for WalletDb {
     fn iter_script_pubkeys(
         &self,
         maybe_filter_keychain: Option<KeychainKind>,
-    ) -> Result<Vec<Script>, bdk::Error> {
+    ) -> BdkResult<Vec<Script>> {
         let db = self.0.lock().unwrap();
         let vec = match maybe_filter_keychain {
             Some(filter_keychain) => db
@@ -926,18 +916,18 @@ impl Database for WalletDb {
         Ok(vec)
     }
 
-    fn iter_utxos(&self) -> Result<Vec<LocalUtxo>, bdk::Error> {
+    fn iter_utxos(&self) -> BdkResult<Vec<LocalUtxo>> {
         Ok(self.0.lock().unwrap().utxos.values().cloned().collect())
     }
 
-    fn iter_raw_txs(&self) -> Result<Vec<Transaction>, bdk::Error> {
+    fn iter_raw_txs(&self) -> BdkResult<Vec<Transaction>> {
         Ok(self.0.lock().unwrap().raw_txs.values().cloned().collect())
     }
 
     fn iter_txs(
         &self,
         include_raw: bool,
-    ) -> Result<Vec<TransactionDetails>, bdk::Error> {
+    ) -> BdkResult<Vec<TransactionDetails>> {
         let db = self.0.lock().unwrap();
         let mut txs = db
             .tx_metas
@@ -961,7 +951,7 @@ impl Database for WalletDb {
         &self,
         keychain: KeychainKind,
         child: u32,
-    ) -> Result<Option<Script>, bdk::Error> {
+    ) -> BdkResult<Option<Script>> {
         let path = Path { keychain, child };
         Ok(self.0.lock().unwrap().path_to_script.get(&path).cloned())
     }
@@ -969,7 +959,7 @@ impl Database for WalletDb {
     fn get_path_from_script_pubkey(
         &self,
         script: &Script,
-    ) -> Result<Option<(KeychainKind, u32)>, bdk::Error> {
+    ) -> BdkResult<Option<(KeychainKind, u32)>> {
         self.0
             .lock()
             .unwrap()
@@ -980,17 +970,11 @@ impl Database for WalletDb {
             .transpose()
     }
 
-    fn get_utxo(
-        &self,
-        outpoint: &OutPoint,
-    ) -> Result<Option<LocalUtxo>, bdk::Error> {
+    fn get_utxo(&self, outpoint: &OutPoint) -> BdkResult<Option<LocalUtxo>> {
         Ok(self.0.lock().unwrap().utxos.get(outpoint).cloned())
     }
 
-    fn get_raw_tx(
-        &self,
-        txid: &Txid,
-    ) -> Result<Option<Transaction>, bdk::Error> {
+    fn get_raw_tx(&self, txid: &Txid) -> BdkResult<Option<Transaction>> {
         Ok(self.0.lock().unwrap().raw_txs.get(txid).cloned())
     }
 
@@ -998,7 +982,7 @@ impl Database for WalletDb {
         &self,
         txid: &Txid,
         include_raw: bool,
-    ) -> Result<Option<TransactionDetails>, bdk::Error> {
+    ) -> BdkResult<Option<TransactionDetails>> {
         let db = self.0.lock().unwrap();
         let maybe_raw_tx = if include_raw {
             db.raw_txs.get(txid).cloned()
@@ -1014,10 +998,7 @@ impl Database for WalletDb {
             .transpose()
     }
 
-    fn get_last_index(
-        &self,
-        keychain: KeychainKind,
-    ) -> Result<Option<u32>, bdk::Error> {
+    fn get_last_index(&self, keychain: KeychainKind) -> BdkResult<Option<u32>> {
         let db = self.0.lock().unwrap();
         match keychain {
             KeychainKind::External => Ok(db.last_external_index),
@@ -1025,14 +1006,14 @@ impl Database for WalletDb {
         }
     }
 
-    fn get_sync_time(&self) -> Result<Option<SyncTime>, bdk::Error> {
+    fn get_sync_time(&self) -> BdkResult<Option<SyncTime>> {
         Ok(self.0.lock().unwrap().sync_time.clone())
     }
 
     fn increment_last_index(
         &mut self,
         keychain: KeychainKind,
-    ) -> Result<u32, bdk::Error> {
+    ) -> BdkResult<u32> {
         // Get a &mut Option<u32> corresponding to the appropriate field
         let mut db = self.0.lock().unwrap();
         let mut_last_index = match keychain {
@@ -1059,7 +1040,7 @@ impl BatchOperations for WalletDb {
         script: &Script,
         keychain: KeychainKind,
         child: u32,
-    ) -> Result<(), bdk::Error> {
+    ) -> BdkResult<()> {
         let mut db = self.0.lock().unwrap();
         let new_path = Path { keychain, child };
         db.path_to_script.insert(new_path.clone(), script.clone());
@@ -1078,7 +1059,7 @@ impl BatchOperations for WalletDb {
         Ok(())
     }
 
-    fn set_utxo(&mut self, utxo: &LocalUtxo) -> Result<(), bdk::Error> {
+    fn set_utxo(&mut self, utxo: &LocalUtxo) -> BdkResult<()> {
         self.0
             .lock()
             .unwrap()
@@ -1087,7 +1068,7 @@ impl BatchOperations for WalletDb {
         Ok(())
     }
 
-    fn set_raw_tx(&mut self, raw_tx: &Transaction) -> Result<(), bdk::Error> {
+    fn set_raw_tx(&mut self, raw_tx: &Transaction) -> BdkResult<()> {
         self.0
             .lock()
             .unwrap()
@@ -1096,7 +1077,7 @@ impl BatchOperations for WalletDb {
         Ok(())
     }
 
-    fn set_tx(&mut self, tx: &TransactionDetails) -> Result<(), bdk::Error> {
+    fn set_tx(&mut self, tx: &TransactionDetails) -> BdkResult<()> {
         let mut db = self.0.lock().unwrap();
         let mut tx = tx.clone();
         // take() the raw tx, inserting it into the raw_txs map if it existed
@@ -1115,7 +1096,7 @@ impl BatchOperations for WalletDb {
         &mut self,
         keychain: KeychainKind,
         index: u32,
-    ) -> Result<(), bdk::Error> {
+    ) -> BdkResult<()> {
         let mut db = self.0.lock().unwrap();
         match keychain {
             KeychainKind::External => db.last_external_index.insert(index),
@@ -1124,7 +1105,7 @@ impl BatchOperations for WalletDb {
         Ok(())
     }
 
-    fn set_sync_time(&mut self, time: SyncTime) -> Result<(), bdk::Error> {
+    fn set_sync_time(&mut self, time: SyncTime) -> BdkResult<()> {
         self.0.lock().unwrap().sync_time = Some(time);
         Ok(())
     }
@@ -1133,7 +1114,7 @@ impl BatchOperations for WalletDb {
         &mut self,
         keychain: KeychainKind,
         child: u32,
-    ) -> Result<Option<Script>, bdk::Error> {
+    ) -> BdkResult<Option<Script>> {
         let path = Path { keychain, child };
 
         let mut db = self.0.lock().unwrap();
@@ -1149,7 +1130,7 @@ impl BatchOperations for WalletDb {
     fn del_path_from_script_pubkey(
         &mut self,
         script: &Script,
-    ) -> Result<Option<(KeychainKind, u32)>, bdk::Error> {
+    ) -> BdkResult<Option<(KeychainKind, u32)>> {
         let mut db = self.0.lock().unwrap();
         db.script_to_path
             .remove(script)
@@ -1164,14 +1145,11 @@ impl BatchOperations for WalletDb {
     fn del_utxo(
         &mut self,
         outpoint: &OutPoint,
-    ) -> Result<Option<LocalUtxo>, bdk::Error> {
+    ) -> BdkResult<Option<LocalUtxo>> {
         Ok(self.0.lock().unwrap().utxos.remove(outpoint))
     }
 
-    fn del_raw_tx(
-        &mut self,
-        txid: &Txid,
-    ) -> Result<Option<Transaction>, bdk::Error> {
+    fn del_raw_tx(&mut self, txid: &Txid) -> BdkResult<Option<Transaction>> {
         Ok(self.0.lock().unwrap().raw_txs.remove(txid))
     }
 
@@ -1179,7 +1157,7 @@ impl BatchOperations for WalletDb {
         &mut self,
         txid: &Txid,
         include_raw: bool,
-    ) -> Result<Option<TransactionDetails>, bdk::Error> {
+    ) -> BdkResult<Option<TransactionDetails>> {
         let mut db = self.0.lock().unwrap();
 
         // Delete the raw tx if include_raw == true, then return the raw tx with
@@ -1200,7 +1178,7 @@ impl BatchOperations for WalletDb {
     fn del_last_index(
         &mut self,
         keychain: KeychainKind,
-    ) -> Result<Option<u32>, bdk::Error> {
+    ) -> BdkResult<Option<u32>> {
         let mut db = self.0.lock().unwrap();
         match keychain {
             KeychainKind::External => db.last_external_index.take(),
@@ -1210,7 +1188,7 @@ impl BatchOperations for WalletDb {
         .transpose()
     }
 
-    fn del_sync_time(&mut self) -> Result<Option<SyncTime>, bdk::Error> {
+    fn del_sync_time(&mut self) -> BdkResult<Option<SyncTime>> {
         Ok(self.0.lock().unwrap().sync_time.take())
     }
 }
@@ -1223,7 +1201,7 @@ impl BatchDatabase for WalletDb {
         DbBatch::new(self.clone())
     }
 
-    fn commit_batch(&mut self, batch: Self::Batch) -> Result<(), bdk::Error> {
+    fn commit_batch(&mut self, batch: Self::Batch) -> BdkResult<()> {
         info!("Committing WalletDb batch");
         let _db = batch.commit_all_ops();
         // TODO(max): Is there a way to check that self and the DB returned from
