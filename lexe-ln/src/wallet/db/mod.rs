@@ -157,6 +157,21 @@ enum DbOp {
     // mutates the database
 }
 
+/// Represents all possible outputs that can be returned by a [`DbOp`].
+/// Used for equivalence checking in tests.
+#[derive(Debug)]
+enum OpOut {
+    Unit(BdkResult<()>),
+    MaybeScript(BdkResult<Option<Script>>),
+    MaybePath(BdkResult<Option<(KeychainKind, u32)>>),
+    MaybeUtxo(BdkResult<Option<LocalUtxo>>),
+    MaybeRawTx(BdkResult<Option<Transaction>>),
+    MaybeTx(BdkResult<Option<TransactionDetails>>),
+    LastIndex(BdkResult<u32>),
+    MaybeLastIndex(BdkResult<Option<u32>>),
+    MaybeSyncTime(BdkResult<Option<SyncTime>>),
+}
+
 // --- impl Path --- //
 
 // External = 0, Internal = 1; External < Internal
@@ -671,12 +686,13 @@ impl DbOp {
     /// Executes the operation and debug asserts op-specific invariants.
     // TODO(max): Change assertions to debug assertions, update doc comment
     // TODO(max): Make this return the output of the op, as an enum
-    fn do_op<DB: BatchOperations + Database>(self, db: &mut DB) {
+    fn do_op<DB: BatchOperations + Database>(self, db: &mut DB) -> OpOut {
         match self {
             DbOp::SetPathScript { path, script } => {
                 let keychain = path.keychain;
                 let child = path.child;
-                db.set_script_pubkey(&script, keychain, child).unwrap();
+                let out = db.set_script_pubkey(&script, keychain, child);
+                assert!(out.is_ok());
 
                 let get_script = db
                     .get_script_pubkey_from_path(keychain, child)
@@ -687,15 +703,17 @@ impl DbOp {
                 assert_eq!(get_script, script);
                 assert_eq!(get_keychain, keychain);
                 assert_eq!(get_child, child);
+
+                OpOut::Unit(out)
             }
             DbOp::DelByPath(path) => {
                 let keychain = path.keychain;
                 let child = path.child;
-                if let Some(script) =
-                    db.del_script_pubkey_from_path(keychain, child).unwrap()
-                {
+                let out = db.del_script_pubkey_from_path(keychain, child);
+
+                if let Some(script) = out.as_ref().unwrap() {
                     assert!(db
-                        .get_path_from_script_pubkey(&script)
+                        .get_path_from_script_pubkey(script)
                         .unwrap()
                         .is_none());
                 }
@@ -704,13 +722,14 @@ impl DbOp {
                     .get_script_pubkey_from_path(keychain, child)
                     .unwrap()
                     .is_none());
+
+                OpOut::MaybeScript(out)
             }
             DbOp::DelByScript(script) => {
-                if let Some((keychain, child)) =
-                    db.del_path_from_script_pubkey(&script).unwrap()
-                {
+                let out = db.del_path_from_script_pubkey(&script);
+                if let Some((keychain, child)) = out.as_ref().unwrap() {
                     assert!(db
-                        .get_script_pubkey_from_path(keychain, child)
+                        .get_script_pubkey_from_path(*keychain, *child)
                         .unwrap()
                         .is_none());
                 }
@@ -719,31 +738,51 @@ impl DbOp {
                     .get_path_from_script_pubkey(&script)
                     .unwrap()
                     .is_none());
+
+                OpOut::MaybePath(out)
             }
             DbOp::SetUtxo(utxo) => {
-                db.set_utxo(&utxo).unwrap();
+                let out = db.set_utxo(&utxo);
+
+                assert!(out.is_ok());
                 let get_utxo = db.get_utxo(&utxo.outpoint).unwrap().unwrap();
                 assert_eq!(get_utxo, utxo);
+
+                OpOut::Unit(out)
             }
             DbOp::DelUtxo(outpoint) => {
-                db.del_utxo(&outpoint).unwrap();
+                let out = db.del_utxo(&outpoint);
+
+                assert!(out.is_ok());
                 assert!(db.get_utxo(&outpoint).unwrap().is_none());
+
+                OpOut::MaybeUtxo(out)
             }
             DbOp::SetRawTx(raw_tx) => {
                 let txid = raw_tx.txid();
-                db.set_raw_tx(&raw_tx).unwrap();
+                let out = db.set_raw_tx(&raw_tx);
+
+                assert!(out.is_ok());
                 let get_raw_tx = db.get_raw_tx(&txid).unwrap().unwrap();
                 assert_eq!(get_raw_tx, raw_tx);
+
+                OpOut::Unit(out)
             }
             DbOp::DelRawTx(txid) => {
-                db.del_raw_tx(&txid).unwrap();
+                let out = db.del_raw_tx(&txid);
+
+                assert!(out.is_ok());
                 assert!(db.get_raw_tx(&txid).unwrap().is_none());
+
+                OpOut::MaybeRawTx(out)
             }
             DbOp::SetTx(tx) => {
                 let include_raw = tx.transaction.is_some();
                 let txid = &tx.txid;
 
-                db.set_tx(&tx).unwrap();
+                let out = db.set_tx(&tx);
+
+                assert!(out.is_ok());
 
                 // Tx should exist
                 let get_tx = db.get_tx(txid, include_raw).unwrap().unwrap();
@@ -756,9 +795,13 @@ impl DbOp {
                     let get_raw_tx = db.get_raw_tx(txid).unwrap().unwrap();
                     assert_eq!(get_raw_tx, raw_tx);
                 }
+
+                OpOut::Unit(out)
             }
             DbOp::DelTx { txid, include_raw } => {
-                db.del_tx(&txid, include_raw).unwrap();
+                let out = db.del_tx(&txid, include_raw);
+
+                assert!(out.is_ok());
 
                 // tx should NOT exist
                 assert!(db.get_tx(&txid, include_raw).unwrap().is_none());
@@ -767,10 +810,13 @@ impl DbOp {
                 if include_raw {
                     assert!(db.get_raw_tx(&txid).unwrap().is_none());
                 }
+
+                OpOut::MaybeTx(out)
             }
             DbOp::IncLastIndex(keychain) => {
                 let maybe_before = db.get_last_index(keychain).unwrap();
-                let incremented = db.increment_last_index(keychain).unwrap();
+                let out = db.increment_last_index(keychain);
+                let incremented = *out.as_ref().unwrap();
                 let get_after = db.get_last_index(keychain).unwrap().unwrap();
                 match maybe_before {
                     Some(get_before) => {
@@ -782,29 +828,88 @@ impl DbOp {
                         assert_eq!(get_after, 0);
                     }
                 }
+                OpOut::LastIndex(out)
             }
             DbOp::SetLastIndex(path) => {
                 let keychain = path.keychain;
                 let child = path.child;
-                db.set_last_index(keychain, child).unwrap();
+                let out = db.set_last_index(keychain, child);
+                assert!(out.is_ok());
                 let after = db.get_last_index(keychain).unwrap().unwrap();
                 assert_eq!(after, child);
+                OpOut::Unit(out)
             }
             DbOp::DelLastIndex(keychain) => {
-                db.del_last_index(keychain).unwrap();
+                let out = db.del_last_index(keychain);
+                assert!(out.is_ok());
                 assert!(db.get_last_index(keychain).unwrap().is_none());
+                OpOut::MaybeLastIndex(out)
             }
             DbOp::SetSyncTime(time) => {
-                db.set_sync_time(time.clone()).unwrap();
+                let out = db.set_sync_time(time.clone());
+                assert!(out.is_ok());
                 let get_time = db.get_sync_time().unwrap().unwrap();
                 // SyncTime doesn't derive PartialEq for some reason
                 // TODO(max): Submit PR upstream to derive PartialEq
                 assert_eq!(get_time.block_time, time.block_time);
+                OpOut::Unit(out)
             }
             DbOp::DelSyncTime => {
-                db.del_sync_time().unwrap();
+                let out = db.del_sync_time();
+                assert!(out.is_ok());
                 assert!(db.get_sync_time().unwrap().is_none());
+                OpOut::MaybeSyncTime(out)
             }
+        }
+    }
+}
+
+// --- impl OpOut --- //
+
+// Hack together a PartialEq implementation for OpOut(BdkResult<T>) using
+// bdk::Error's Debug implementation.
+#[cfg(test)]
+impl PartialEq for OpOut {
+    fn eq(&self, other: &OpOut) -> bool {
+        use OpOut::*;
+        match (self, other) {
+            (Unit(Ok(s)), Unit(Ok(o))) => s == o,
+            (Unit(Err(se)), Unit(Err(oe))) => {
+                format!("{se:?}") == format!("{oe:?}")
+            }
+            (MaybeScript(Ok(s)), MaybeScript(Ok(o))) => s == o,
+            (MaybeScript(Err(se)), MaybeScript(Err(oe))) => {
+                format!("{se:?}") == format!("{oe:?}")
+            }
+            (MaybePath(Ok(s)), MaybePath(Ok(o))) => s == o,
+            (MaybePath(Err(se)), MaybePath(Err(oe))) => {
+                format!("{se:?}") == format!("{oe:?}")
+            }
+            (MaybeUtxo(Ok(s)), MaybeUtxo(Ok(o))) => s == o,
+            (MaybeUtxo(Err(se)), MaybeUtxo(Err(oe))) => {
+                format!("{se:?}") == format!("{oe:?}")
+            }
+            (MaybeRawTx(Ok(s)), MaybeRawTx(Ok(o))) => s == o,
+            (MaybeRawTx(Err(se)), MaybeRawTx(Err(oe))) => {
+                format!("{se:?}") == format!("{oe:?}")
+            }
+            (MaybeTx(Ok(s)), MaybeTx(Ok(o))) => s == o,
+            (MaybeTx(Err(se)), MaybeTx(Err(oe))) => {
+                format!("{se:?}") == format!("{oe:?}")
+            }
+            (LastIndex(Ok(s)), LastIndex(Ok(o))) => s == o,
+            (LastIndex(Err(se)), LastIndex(Err(oe))) => {
+                format!("{se:?}") == format!("{oe:?}")
+            }
+            (MaybeLastIndex(Ok(s)), MaybeLastIndex(Ok(o))) => s == o,
+            (MaybeLastIndex(Err(se)), MaybeLastIndex(Err(oe))) => {
+                format!("{se:?}") == format!("{oe:?}")
+            }
+            (MaybeSyncTime(Ok(s)), MaybeSyncTime(Ok(o))) => s == o,
+            (MaybeSyncTime(Err(se)), MaybeSyncTime(Err(oe))) => {
+                format!("{se:?}") == format!("{oe:?}")
+            }
+            _ => false,
         }
     }
 }
@@ -1340,7 +1445,7 @@ mod test {
                 .prop_map(|vec_of_ops| {
                     let mut db = WalletDb::new();
                     for op in vec_of_ops {
-                        op.do_op(&mut db)
+                        op.do_op(&mut db);
                     }
                     db
                 })
@@ -1716,19 +1821,19 @@ mod test {
 
                 // Execute the op on both the batch DB and the "normal" DB which
                 // does not batch operations
-                op.clone().do_op(&mut batch);
-                op.do_op(&mut normal_db);
+                let batch_out = op.clone().do_op(&mut batch);
+                let normal_out = op.do_op(&mut normal_db);
 
-                // TODO(max): Check that the return values between both match
+                // Check that the outputs from both are equivalent.
+                prop_assert_eq!(batch_out, normal_out);
 
-                // After executing the op on the batch, the database backing it
-                // should still be empty because the values have not been
-                // committed yet.
+                // The database backing the batch should still be empty because
+                // the values have not been committed yet.
                 prop_assert_eq!(&batch_db, &empty_db);
             }
 
-            // We commit the batch and check that the batch db and normal db
-            // have resulted in an identical state.
+            // Commit the batch and check that the batch db and normal db have
+            // resulted in an identical state.
             batch_db.commit_batch(batch).unwrap();
             prop_assert_eq!(&batch_db, &normal_db);
         })
