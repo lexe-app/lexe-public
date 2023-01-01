@@ -15,7 +15,7 @@ use serde_with::hex::Hex;
 use serde_with::{serde_as, DisplayFromStr};
 use tracing::{info, warn};
 
-/// BDK's database test suite as of version 0.25.
+/// BDK's wallet database test suite.
 #[cfg(test)]
 mod bdk_test_suite;
 
@@ -32,9 +32,6 @@ pub(super) struct WalletDb(Arc<Mutex<DbData>>);
 #[serde_as]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct DbData {
-    // TODO(max): We can save some space by serializing `path_to_script` and
-    // `script_to_path` as just a single `Vec<(Path, Script)>`, but it requires
-    // a custom serde impl which is just not worth investing time in atm.
     #[serde_as(as = "BTreeMap<DisplayFromStr, Hex<Lowercase>>")]
     path_to_script: BTreeMap<Path, Script>,
     #[serde_as(as = "BTreeMap<Hex<Lowercase>, DisplayFromStr>")]
@@ -124,8 +121,13 @@ pub(super) struct DbBatch {
     sync_time: Option<SyncTime>,
     last_external_index: Option<u32>,
     last_internal_index: Option<u32>,
+    #[cfg(test)]
+    external_checksum: Option<Vec<u8>>,
+    #[cfg(test)]
+    internal_checksum: Option<Vec<u8>>,
 }
 
+/// Enumerates all database operations which can mutate the DB.
 #[derive(Clone, Debug)]
 enum DbOp {
     // -- BatchOperations methods -- //
@@ -150,11 +152,13 @@ enum DbOp {
     DelSyncTime,
 
     // -- bdk::database::Database methods -- //
-    // These are constructed only in tests
     #[cfg_attr(not(test), allow(dead_code))]
     IncLastIndex(KeychainKind),
-    // TODO(max): Create variant for check_descriptor_checksum(), which also
-    // mutates the database
+    #[cfg_attr(not(test), allow(dead_code))]
+    CheckChecksum {
+        keychain: KeychainKind,
+        checksum: Vec<u8>,
+    },
 }
 
 /// Represents all possible outputs that can be returned by a [`DbOp`].
@@ -271,6 +275,13 @@ impl DbBatch {
         use KeychainKind::{External, Internal};
         let ops = Vec::new();
 
+        // Initialize the "updated" maps as empty; nothing has been updated yet
+        let updated_path_to_script = BTreeMap::new();
+        let updated_script_to_path = BTreeMap::new();
+        let updated_utxos = BTreeMap::new();
+        let updated_raw_txs = BTreeMap::new();
+        let updated_tx_metas = BTreeMap::new();
+
         // Copy over fields from the underlying DB.
         let sync_time = db.get_sync_time().expect("Never fails");
         let last_external_index =
@@ -278,12 +289,14 @@ impl DbBatch {
         let last_internal_index =
             db.get_last_index(Internal).expect("Never fails");
 
-        // Initialize the "updated" maps as empty; nothing has been updated yet
-        let updated_path_to_script = BTreeMap::new();
-        let updated_script_to_path = BTreeMap::new();
-        let updated_utxos = BTreeMap::new();
-        let updated_raw_txs = BTreeMap::new();
-        let updated_tx_metas = BTreeMap::new();
+        #[cfg(test)]
+        let (external_checksum, internal_checksum) = {
+            let db_lock = db.0.lock().unwrap();
+            (
+                db_lock.external_checksum.clone(),
+                db_lock.internal_checksum.clone(),
+            )
+        };
 
         Self {
             ops,
@@ -298,6 +311,10 @@ impl DbBatch {
             sync_time,
             last_external_index,
             last_internal_index,
+            #[cfg(test)]
+            external_checksum,
+            #[cfg(test)]
+            internal_checksum,
         }
     }
 
@@ -532,10 +549,26 @@ impl BatchOperations for DbBatch {
 impl Database for DbBatch {
     fn check_descriptor_checksum<B: AsRef<[u8]>>(
         &mut self,
-        _keychain: KeychainKind,
-        _given_checksum: B,
+        keychain: KeychainKind,
+        given_checksum: B,
     ) -> BdkResult<()> {
-        unimplemented!("This method is not required for our tests")
+        self.ops.push(DbOp::CheckChecksum {
+            keychain,
+            checksum: given_checksum.as_ref().to_vec(),
+        });
+
+        let mut_checksum = match keychain {
+            KeychainKind::External => &mut self.external_checksum,
+            KeychainKind::Internal => &mut self.internal_checksum,
+        };
+        let saved_checksum = mut_checksum
+            .get_or_insert_with(|| given_checksum.as_ref().to_vec());
+
+        if saved_checksum.as_slice() == given_checksum.as_ref() {
+            Ok(())
+        } else {
+            Err(bdk::Error::ChecksumMismatch)
+        }
     }
 
     fn iter_script_pubkeys(
@@ -666,8 +699,8 @@ impl Database for DbBatch {
         &mut self,
         keychain: KeychainKind,
     ) -> BdkResult<u32> {
-        // This copies the implementation of [`WalletDb::increment_last_index`],
-        // but mutates only our batch instance.
+        self.ops.push(DbOp::IncLastIndex(keychain));
+
         let mut_last_index = match keychain {
             KeychainKind::External => &mut self.last_external_index,
             KeychainKind::Internal => &mut self.last_internal_index,
@@ -893,6 +926,10 @@ impl DbOp {
                 }
 
                 OpOut::MaybeSyncTime(out)
+            }
+            DbOp::CheckChecksum { keychain, checksum } => {
+                let out = db.check_descriptor_checksum(keychain, checksum);
+                OpOut::Unit(out)
             }
         }
     }
@@ -1528,7 +1565,8 @@ mod test {
                 | SetLastIndex(_)
                 | DelLastIndex(_)
                 | SetSyncTime(_)
-                | DelSyncTime => {
+                | DelSyncTime
+                | CheckChecksum { .. } => {
                     "This match statement was written to remind you to add the \
                     new enum variant you just created to the prop_oneof below!"
                 }
@@ -1555,7 +1593,13 @@ mod test {
                 any::<Path>().prop_map(Self::SetLastIndex),
                 any_keychain().prop_map(Self::DelLastIndex),
                 any_sync_time().prop_map(Self::SetSyncTime),
-                Just(Self::DelSyncTime)
+                Just(Self::DelSyncTime),
+                (any_keychain(), any::<Vec<u8>>()).prop_map(
+                    |(keychain, checksum)| Self::CheckChecksum {
+                        keychain,
+                        checksum
+                    }
+                ),
             ]
             .boxed()
         }
@@ -1846,14 +1890,6 @@ mod test {
             let mut normal_db = WalletDb::new();
 
             for op in vec_of_ops {
-                // This op doesn't count, because it is not a batch operation.
-                // This is a weird discrepancy with how BDK designed their
-                // traits - some `Database` methods do mutation (and there's
-                // nothing we can do about it).
-                if let DbOp::IncLastIndex(_) = op {
-                    continue;
-                }
-
                 // Execute the op on both the batch DB and the "normal" DB which
                 // does not batch operations
                 let batch_out = op.clone().do_op(&mut batch);
