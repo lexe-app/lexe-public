@@ -9,10 +9,14 @@ use anyhow::{bail, Context};
 use bdk::database::{BatchDatabase, BatchOperations, Database, SyncTime};
 use bdk::{BlockTime, KeychainKind, LocalUtxo, TransactionDetails};
 use bitcoin::{OutPoint, Script, Transaction, Txid};
+use common::api::vfs::BasicFile;
+#[cfg(test)]
+use common::constants::SMALLER_CHANNEL_SIZE;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_with::formats::Lowercase;
 use serde_with::hex::Hex;
 use serde_with::{serde_as, DisplayFromStr};
+use tokio::sync::mpsc;
 use tracing::{info, warn};
 
 /// BDK's wallet database test suite.
@@ -27,7 +31,11 @@ type BdkResult<T> = Result<T, bdk::Error>;
 ///
 /// [`MemoryDatabase`]: bdk::database::memory::MemoryDatabase
 #[derive(Clone, Debug)]
-pub(super) struct WalletDb(Arc<Mutex<DbData>>);
+pub(super) struct WalletDb {
+    inner: Arc<Mutex<DbData>>,
+    #[allow(dead_code)] // TODO(max): Remove
+    wallet_db_persister_tx: mpsc::Sender<BasicFile>,
+}
 
 #[serde_as]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
@@ -502,15 +510,38 @@ impl DbOp {
 // --- impl WalletDb --- //
 
 impl WalletDb {
-    pub(super) fn new() -> Self {
-        Self(Arc::new(Mutex::new(DbData::new())))
+    pub(super) fn new(wallet_db_persister_tx: mpsc::Sender<BasicFile>) -> Self {
+        let inner = Arc::new(Mutex::new(DbData::new()));
+        Self {
+            inner,
+            wallet_db_persister_tx,
+        }
     }
 
-    /// Constructs a [`WalletDb`] given its inner [`DbData`]
-    // TODO(max): Take the tx as well, and update doc comment
+    /// Helper to quickly Construct a [`WalletDb`] without needing to pass in
+    /// the channel tx, useful for tests.
+    #[cfg(test)]
+    fn new_test_db() -> Self {
+        let (wallet_db_persister_tx, _rx) = mpsc::channel(SMALLER_CHANNEL_SIZE);
+        let inner = Arc::new(Mutex::new(DbData::new()));
+        Self {
+            inner,
+            wallet_db_persister_tx,
+        }
+    }
+
+    /// Constructs a [`WalletDb`] given its inner [`DbData`] and persister
+    /// [`mpsc::Sender`].
     #[allow(dead_code)] // TODO(max): Remove
-    fn from_inner(inner: DbData) -> Self {
-        Self(Arc::new(Mutex::new(inner)))
+    fn from_inner(
+        inner: DbData,
+        wallet_db_persister_tx: mpsc::Sender<BasicFile>,
+    ) -> Self {
+        let inner = Arc::new(Mutex::new(inner));
+        Self {
+            inner,
+            wallet_db_persister_tx,
+        }
     }
 
     #[cfg(test)]
@@ -520,7 +551,7 @@ impl WalletDb {
         // behavior is when multiple paths map to the same key.
 
         // Everything in path_to_script must be in script_to_path and vice versa
-        let db = self.0.lock().unwrap();
+        let db = self.inner.lock().unwrap();
         // for (path1, script1) in db.path_to_script.iter() {
         //     let path2 = db.script_to_path.get(script1).unwrap();
         //     assert_eq!(path1, path2);
@@ -535,8 +566,8 @@ impl WalletDb {
 #[cfg(test)]
 impl PartialEq for WalletDb {
     fn eq(&self, other: &WalletDb) -> bool {
-        let self_lock = self.0.lock().unwrap();
-        let other_lock = other.0.lock().unwrap();
+        let self_lock = self.inner.lock().unwrap();
+        let other_lock = other.inner.lock().unwrap();
         self_lock.eq(&other_lock)
     }
 }
@@ -549,7 +580,7 @@ impl Database for WalletDb {
         keychain: KeychainKind,
         given_checksum: B,
     ) -> BdkResult<()> {
-        self.0
+        self.inner
             .lock()
             .unwrap()
             .check_descriptor_checksum(keychain, given_checksum)
@@ -559,25 +590,25 @@ impl Database for WalletDb {
         &self,
         maybe_filter_keychain: Option<KeychainKind>,
     ) -> BdkResult<Vec<Script>> {
-        self.0
+        self.inner
             .lock()
             .unwrap()
             .iter_script_pubkeys(maybe_filter_keychain)
     }
 
     fn iter_utxos(&self) -> BdkResult<Vec<LocalUtxo>> {
-        self.0.lock().unwrap().iter_utxos()
+        self.inner.lock().unwrap().iter_utxos()
     }
 
     fn iter_raw_txs(&self) -> BdkResult<Vec<Transaction>> {
-        self.0.lock().unwrap().iter_raw_txs()
+        self.inner.lock().unwrap().iter_raw_txs()
     }
 
     fn iter_txs(
         &self,
         include_raw: bool,
     ) -> BdkResult<Vec<TransactionDetails>> {
-        self.0.lock().unwrap().iter_txs(include_raw)
+        self.inner.lock().unwrap().iter_txs(include_raw)
     }
 
     fn get_script_pubkey_from_path(
@@ -585,7 +616,7 @@ impl Database for WalletDb {
         keychain: KeychainKind,
         child: u32,
     ) -> BdkResult<Option<Script>> {
-        self.0
+        self.inner
             .lock()
             .unwrap()
             .get_script_pubkey_from_path(keychain, child)
@@ -595,15 +626,18 @@ impl Database for WalletDb {
         &self,
         script: &Script,
     ) -> BdkResult<Option<(KeychainKind, u32)>> {
-        self.0.lock().unwrap().get_path_from_script_pubkey(script)
+        self.inner
+            .lock()
+            .unwrap()
+            .get_path_from_script_pubkey(script)
     }
 
     fn get_utxo(&self, outpoint: &OutPoint) -> BdkResult<Option<LocalUtxo>> {
-        self.0.lock().unwrap().get_utxo(outpoint)
+        self.inner.lock().unwrap().get_utxo(outpoint)
     }
 
     fn get_raw_tx(&self, txid: &Txid) -> BdkResult<Option<Transaction>> {
-        self.0.lock().unwrap().get_raw_tx(txid)
+        self.inner.lock().unwrap().get_raw_tx(txid)
     }
 
     fn get_tx(
@@ -611,22 +645,22 @@ impl Database for WalletDb {
         txid: &Txid,
         include_raw: bool,
     ) -> BdkResult<Option<TransactionDetails>> {
-        self.0.lock().unwrap().get_tx(txid, include_raw)
+        self.inner.lock().unwrap().get_tx(txid, include_raw)
     }
 
     fn get_last_index(&self, keychain: KeychainKind) -> BdkResult<Option<u32>> {
-        self.0.lock().unwrap().get_last_index(keychain)
+        self.inner.lock().unwrap().get_last_index(keychain)
     }
 
     fn get_sync_time(&self) -> BdkResult<Option<SyncTime>> {
-        self.0.lock().unwrap().get_sync_time()
+        self.inner.lock().unwrap().get_sync_time()
     }
 
     fn increment_last_index(
         &mut self,
         keychain: KeychainKind,
     ) -> BdkResult<u32> {
-        self.0.lock().unwrap().increment_last_index(keychain)
+        self.inner.lock().unwrap().increment_last_index(keychain)
     }
 }
 
@@ -638,22 +672,22 @@ impl BatchOperations for WalletDb {
         keychain: KeychainKind,
         child: u32,
     ) -> BdkResult<()> {
-        self.0
+        self.inner
             .lock()
             .unwrap()
             .set_script_pubkey(script, keychain, child)
     }
 
     fn set_utxo(&mut self, utxo: &LocalUtxo) -> BdkResult<()> {
-        self.0.lock().unwrap().set_utxo(utxo)
+        self.inner.lock().unwrap().set_utxo(utxo)
     }
 
     fn set_raw_tx(&mut self, raw_tx: &Transaction) -> BdkResult<()> {
-        self.0.lock().unwrap().set_raw_tx(raw_tx)
+        self.inner.lock().unwrap().set_raw_tx(raw_tx)
     }
 
     fn set_tx(&mut self, tx: &TransactionDetails) -> BdkResult<()> {
-        self.0.lock().unwrap().set_tx(tx)
+        self.inner.lock().unwrap().set_tx(tx)
     }
 
     fn set_last_index(
@@ -661,11 +695,11 @@ impl BatchOperations for WalletDb {
         keychain: KeychainKind,
         index: u32,
     ) -> BdkResult<()> {
-        self.0.lock().unwrap().set_last_index(keychain, index)
+        self.inner.lock().unwrap().set_last_index(keychain, index)
     }
 
     fn set_sync_time(&mut self, time: SyncTime) -> BdkResult<()> {
-        self.0.lock().unwrap().set_sync_time(time)
+        self.inner.lock().unwrap().set_sync_time(time)
     }
 
     fn del_script_pubkey_from_path(
@@ -673,7 +707,7 @@ impl BatchOperations for WalletDb {
         keychain: KeychainKind,
         child: u32,
     ) -> BdkResult<Option<Script>> {
-        self.0
+        self.inner
             .lock()
             .unwrap()
             .del_script_pubkey_from_path(keychain, child)
@@ -683,18 +717,21 @@ impl BatchOperations for WalletDb {
         &mut self,
         script: &Script,
     ) -> BdkResult<Option<(KeychainKind, u32)>> {
-        self.0.lock().unwrap().del_path_from_script_pubkey(script)
+        self.inner
+            .lock()
+            .unwrap()
+            .del_path_from_script_pubkey(script)
     }
 
     fn del_utxo(
         &mut self,
         outpoint: &OutPoint,
     ) -> BdkResult<Option<LocalUtxo>> {
-        self.0.lock().unwrap().del_utxo(outpoint)
+        self.inner.lock().unwrap().del_utxo(outpoint)
     }
 
     fn del_raw_tx(&mut self, txid: &Txid) -> BdkResult<Option<Transaction>> {
-        self.0.lock().unwrap().del_raw_tx(txid)
+        self.inner.lock().unwrap().del_raw_tx(txid)
     }
 
     fn del_tx(
@@ -702,18 +739,18 @@ impl BatchOperations for WalletDb {
         txid: &Txid,
         include_raw: bool,
     ) -> BdkResult<Option<TransactionDetails>> {
-        self.0.lock().unwrap().del_tx(txid, include_raw)
+        self.inner.lock().unwrap().del_tx(txid, include_raw)
     }
 
     fn del_last_index(
         &mut self,
         keychain: KeychainKind,
     ) -> BdkResult<Option<u32>> {
-        self.0.lock().unwrap().del_last_index(keychain)
+        self.inner.lock().unwrap().del_last_index(keychain)
     }
 
     fn del_sync_time(&mut self) -> BdkResult<Option<SyncTime>> {
-        self.0.lock().unwrap().del_sync_time()
+        self.inner.lock().unwrap().del_sync_time()
     }
 }
 
@@ -730,6 +767,7 @@ impl BatchDatabase for WalletDb {
         for op in batch.0 {
             op.do_op(self);
         }
+
         // TODO(max): Serialize then persist the WalletDb
         Ok(())
     }
@@ -741,8 +779,8 @@ impl Serialize for WalletDb {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let data = self.0.lock().unwrap();
-        DbData::serialize(&*data, serializer)
+        let inner = self.inner.lock().unwrap();
+        DbData::serialize(&*inner, serializer)
     }
 }
 
@@ -1195,7 +1233,12 @@ mod test {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            any::<DbData>().prop_map(Self::from_inner).boxed()
+            any::<DbData>()
+                .prop_map(|inner| {
+                    let (tx, _rx) = mpsc::channel(SMALLER_CHANNEL_SIZE);
+                    Self::from_inner(inner, tx)
+                })
+                .boxed()
         }
     }
 
@@ -1275,7 +1318,7 @@ mod test {
     #[test]
     fn iter_script_pubkeys_filters() {
         use KeychainKind::{External, Internal};
-        let mut wallet_db = WalletDb::new();
+        let mut wallet_db = WalletDb::new_test_db();
 
         // Populate the db
         let script1 = Script::from(vec![1]);
@@ -1325,7 +1368,7 @@ mod test {
     /// of the original) in e.g. an Option chain.
     #[test]
     fn increment_actually_increments() {
-        let mut db = WalletDb::new();
+        let mut db = WalletDb::new_test_db();
         let keychain = KeychainKind::Internal;
 
         assert_eq!(db.get_last_index(keychain).unwrap(), None);
@@ -1347,7 +1390,7 @@ mod test {
         let any_vec_of_ops = proptest::collection::vec(any_op, 0..20);
         // We only test one case, otherwise this test takes several minutes.
         proptest!(Config::with_cases(1), |(vec_of_ops in any_vec_of_ops)| {
-            let mut db = WalletDb::new();
+            let mut db = WalletDb::new_test_db();
 
             db.assert_invariants();
 
@@ -1403,7 +1446,7 @@ mod test {
     // TODO(max): Clarify with BDK on guarantees / expected behavior, then fix
     #[test]
     fn regression_nonbijective_path_script_mapping() {
-        let mut db = WalletDb::new();
+        let mut db = WalletDb::new_test_db();
         let keychain = KeychainKind::External;
         let path1 = Path { keychain, child: 0 };
         let path2 = Path { keychain, child: 1 };
@@ -1443,7 +1486,7 @@ mod test {
         // The following code generated the db_json_str below.
         /*
         let mut runner = proptest::test_runner::TestRunner::default();
-        let mut db = WalletDb::new();
+        let mut db = WalletDb::new_test_db();
 
         // To ensure each field of the WalletDb contains at least one element,
         // sample DbOps until we've executed at least one of each of the below:
@@ -1481,24 +1524,26 @@ mod test {
     /// Run BDK's test suite.
     #[test]
     fn bdk_tests() {
-        bdk_test_suite::test_script_pubkey(WalletDb::new());
-        bdk_test_suite::test_batch_script_pubkey(WalletDb::new());
-        bdk_test_suite::test_iter_script_pubkey(WalletDb::new());
-        bdk_test_suite::test_del_script_pubkey(WalletDb::new());
-        bdk_test_suite::test_utxo(WalletDb::new());
-        bdk_test_suite::test_raw_tx(WalletDb::new());
-        bdk_test_suite::test_tx(WalletDb::new());
-        bdk_test_suite::test_list_transaction(WalletDb::new());
-        bdk_test_suite::test_last_index(WalletDb::new());
-        bdk_test_suite::test_sync_time(WalletDb::new());
-        bdk_test_suite::test_iter_raw_txs(WalletDb::new());
-        bdk_test_suite::test_del_path_from_script_pubkey(WalletDb::new());
-        bdk_test_suite::test_iter_script_pubkeys(WalletDb::new());
-        bdk_test_suite::test_del_utxo(WalletDb::new());
-        bdk_test_suite::test_del_raw_tx(WalletDb::new());
-        bdk_test_suite::test_del_tx(WalletDb::new());
-        bdk_test_suite::test_del_last_index(WalletDb::new());
-        bdk_test_suite::test_check_descriptor_checksum(WalletDb::new());
+        bdk_test_suite::test_script_pubkey(WalletDb::new_test_db());
+        bdk_test_suite::test_batch_script_pubkey(WalletDb::new_test_db());
+        bdk_test_suite::test_iter_script_pubkey(WalletDb::new_test_db());
+        bdk_test_suite::test_del_script_pubkey(WalletDb::new_test_db());
+        bdk_test_suite::test_utxo(WalletDb::new_test_db());
+        bdk_test_suite::test_raw_tx(WalletDb::new_test_db());
+        bdk_test_suite::test_tx(WalletDb::new_test_db());
+        bdk_test_suite::test_list_transaction(WalletDb::new_test_db());
+        bdk_test_suite::test_last_index(WalletDb::new_test_db());
+        bdk_test_suite::test_sync_time(WalletDb::new_test_db());
+        bdk_test_suite::test_iter_raw_txs(WalletDb::new_test_db());
+        bdk_test_suite::test_del_path_from_script_pubkey(
+            WalletDb::new_test_db(),
+        );
+        bdk_test_suite::test_iter_script_pubkeys(WalletDb::new_test_db());
+        bdk_test_suite::test_del_utxo(WalletDb::new_test_db());
+        bdk_test_suite::test_del_raw_tx(WalletDb::new_test_db());
+        bdk_test_suite::test_del_tx(WalletDb::new_test_db());
+        bdk_test_suite::test_del_last_index(WalletDb::new_test_db());
+        bdk_test_suite::test_check_descriptor_checksum(WalletDb::new_test_db());
     }
 
     /// This test tests the following properties:
@@ -1515,10 +1560,10 @@ mod test {
         let any_op = any::<DbOp>();
         let any_vec_of_ops = proptest::collection::vec(any_op, 0..20);
         proptest!(|(vec_of_ops in any_vec_of_ops)| {
-            let empty_db = WalletDb::new();
-            let mut batch_db = WalletDb::new();
+            let empty_db = WalletDb::new_test_db();
+            let mut batch_db = WalletDb::new_test_db();
             let mut batch = batch_db.begin_batch();
-            let mut normal_db = WalletDb::new();
+            let mut normal_db = WalletDb::new_test_db();
 
             for op in vec_of_ops {
                 // Execute the op on both the batch DB and the "normal" DB which

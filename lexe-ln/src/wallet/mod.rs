@@ -34,7 +34,11 @@ impl LexeWallet {
     ///
     /// [BIP 84]: https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki
     /// [BIP 44]: https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
-    pub fn new(root_seed: &RootSeed, network: Network) -> anyhow::Result<Self> {
+    pub fn new(
+        root_seed: &RootSeed,
+        network: Network,
+        wallet_db_persister_tx: mpsc::Sender<BasicFile>,
+    ) -> anyhow::Result<Self> {
         let network = network.into_inner();
         let master_xprv = root_seed.derive_bip32_master_xprv(network);
 
@@ -43,7 +47,7 @@ impl LexeWallet {
         // Descriptor for internal (change) addresses: `m/84h/{0,1}h/0h/1/*`
         let change_descriptor = Bip84(master_xprv, KeychainKind::Internal);
 
-        let wallet_db = WalletDb::new();
+        let wallet_db = WalletDb::new(wallet_db_persister_tx);
 
         let inner = Wallet::new(
             external_descriptor,
@@ -95,7 +99,8 @@ mod test {
         let any_root_seed = any::<RootSeed>();
         let any_network = any::<Network>();
         proptest!(|(root_seed in any_root_seed, network in any_network)| {
-            LexeWallet::new(&root_seed, network).unwrap();
+            let (tx, _rx) = mpsc::channel(1);
+            LexeWallet::new(&root_seed, network, tx).unwrap();
         })
     }
 }
