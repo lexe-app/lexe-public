@@ -7,7 +7,6 @@ use std::time::SystemTime;
 use anyhow::{anyhow, ensure, Context};
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
-use bytes::BufMut;
 use common::api::auth::{UserAuthToken, UserAuthenticator};
 use common::api::error::BackendApiError;
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
@@ -37,6 +36,7 @@ use lightning::routing::scoring::{
     ProbabilisticScorer, ProbabilisticScoringParameters,
 };
 use lightning::util::ser::{ReadableArgs, Writeable};
+use serde::Serialize;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info};
 
@@ -56,7 +56,7 @@ pub(crate) const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 const IMPORTANT_RETRIES: usize = 3;
 
 /// An Arc is held internally, so it is fine to clone and use directly.
-#[derive(Clone)] // TODO Try removing this
+#[derive(Clone)]
 pub struct NodePersister {
     inner: InnerPersister,
 }
@@ -103,13 +103,45 @@ pub struct InnerPersister {
 }
 
 impl InnerPersister {
-    /// Serialize an ldk [`Writeable`], encrypt the serialized bytes, then
-    /// package it all up into a [`NodeFile`].
-    fn encrypt_file<W: Writeable>(
+    /// Serializes an LDK [`Writeable`], encrypts the serialized bytes, and
+    /// returns the final [`NodeFile`] which is ready to be persisted.
+    fn encrypt_ldk_writeable<W: Writeable>(
         &self,
         directory: String,
         filename: String,
         writeable: &W,
+    ) -> NodeFile {
+        self.encrypt_file(directory, filename, &|mut_vec_u8| {
+            // - Writeable can write to any LDK lightning::util::ser::Writer
+            // - Writer is impl'd for all types that impl std::io::Write
+            // - Write is impl'd for Vec<u8>
+            // Therefore a Writeable can be written to a Vec<u8>.
+            writeable.write(mut_vec_u8).expect(
+                "Serialization into an in-memory buffer should never fail",
+            );
+        })
+    }
+
+    /// Serializes an impl [`Serialize`] to JSON bytes, encrypts the bytes, and
+    /// returns the final [`NodeFile`] which is ready to be persisted.
+    #[allow(dead_code)] // TODO(max): Remove
+    fn encrypt_json<S: Serialize>(
+        &self,
+        directory: String,
+        filename: String,
+        value: &S,
+    ) -> NodeFile {
+        self.encrypt_file(directory, filename, &|mut_vec_u8| {
+            serde_json::to_writer(mut_vec_u8, value)
+                .expect("JSON serialization should not fail");
+        })
+    }
+
+    fn encrypt_file(
+        &self,
+        directory: String,
+        filename: String,
+        write_data_cb: &dyn Fn(&mut Vec<u8>),
     ) -> NodeFile {
         let mut rng = common::rng::SysRng::new();
         // bind the directory and filename so files can't be moved around. the
@@ -124,11 +156,7 @@ impl InnerPersister {
             &mut rng,
             aad,
             data_size_hint,
-            &|out| {
-                writeable.write(&mut out.writer()).expect(
-                    "Serialization into an in-memory buffer should never fail",
-                );
-            },
+            write_data_cb,
         );
 
         NodeFile::new(self.user_pk, directory, filename, data)
@@ -144,7 +172,7 @@ impl InnerPersister {
         let aad = &[directory.as_bytes(), filename.as_bytes()];
         self.vfs_master_key
             .decrypt(aad, data)
-            .context("Failed to unseal encrypted file")
+            .context("Failed to decrypt encrypted file")
     }
 
     async fn get_token(&self) -> Result<UserAuthToken, BackendApiError> {
@@ -364,7 +392,7 @@ impl LexeInnerPersister for InnerPersister {
         debug!("Persisting channel manager");
         let token = self.get_token().await?;
 
-        let file = self.encrypt_file(
+        let file = self.encrypt_ldk_writeable(
             SINGLETON_DIRECTORY.to_owned(),
             CHANNEL_MANAGER_FILENAME.to_owned(),
             channel_manager,
@@ -385,7 +413,7 @@ impl LexeInnerPersister for InnerPersister {
         debug!("Persisting network graph");
         let token = self.get_token().await?;
 
-        let file = self.encrypt_file(
+        let file = self.encrypt_ldk_writeable(
             SINGLETON_DIRECTORY.to_owned(),
             NETWORK_GRAPH_FILENAME.to_owned(),
             network_graph,
@@ -405,7 +433,7 @@ impl LexeInnerPersister for InnerPersister {
         debug!("Persisting probabilistic scorer");
         let token = self.get_token().await?;
 
-        let file = self.encrypt_file(
+        let file = self.encrypt_ldk_writeable(
             SINGLETON_DIRECTORY.to_owned(),
             SCORER_FILENAME.to_owned(),
             scorer_mutex.lock().unwrap().deref(),
@@ -438,7 +466,7 @@ impl Persist<SignerType> for InnerPersister {
         let funding_txo = LxOutPoint::from(funding_txo);
         info!("Persisting new channel {funding_txo}");
 
-        let file = self.encrypt_file(
+        let file = self.encrypt_ldk_writeable(
             CHANNEL_MONITORS_DIRECTORY.to_owned(),
             funding_txo.to_string(),
             monitor,
@@ -502,7 +530,7 @@ impl Persist<SignerType> for InnerPersister {
         let funding_txo = LxOutPoint::from(funding_txo);
         info!("Updating persisted channel {funding_txo}");
 
-        let file = self.encrypt_file(
+        let file = self.encrypt_ldk_writeable(
             CHANNEL_MONITORS_DIRECTORY.to_owned(),
             funding_txo.to_string(),
             monitor,

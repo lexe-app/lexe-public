@@ -182,6 +182,8 @@ impl VfsMasterKey {
         // A size hint so we can possibly avoid reallocing. If you don't know
         // how long the plaintext will be, just set this to None.
         data_size_hint: Option<usize>,
+        // This closure should write the object to the provided &mut Vec<u8>.
+        // See tests as well as node / lsp `encrypt_*` for examples.
         write_data_cb: &dyn Fn(&mut Vec<u8>),
     ) -> Vec<u8> {
         let version = 0;

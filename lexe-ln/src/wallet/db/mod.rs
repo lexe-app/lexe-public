@@ -1018,20 +1018,20 @@ impl WalletDb {
 
     #[cfg(test)]
     fn assert_invariants(&self) {
-        // FIXME(max): Right now this breaks the proptest. Currently awaiting
-        // clarification from BDK on what the expected behavior is when multiple
-        // paths map to the same key.
+        // FIXME(max): Right now the commented code breaks the proptest.
+        // Currently awaiting clarification from BDK on what the expected
+        // behavior is when multiple paths map to the same key.
 
         // Everything in path_to_script must be in script_to_path and vice versa
-        // let db = self.0.lock().unwrap();
+        let db = self.0.lock().unwrap();
         // for (path1, script1) in db.path_to_script.iter() {
         //     let path2 = db.script_to_path.get(script1).unwrap();
         //     assert_eq!(path1, path2);
         // }
-        // for (script2, path2) in db.script_to_path.iter() {
-        //     let script1 = db.path_to_script.get(path2).unwrap();
-        //     assert_eq!(script1, script2);
-        // }
+        for (script2, path2) in db.script_to_path.iter() {
+            let script1 = db.path_to_script.get(path2).unwrap();
+            assert_eq!(script1, script2);
+        }
     }
 }
 
