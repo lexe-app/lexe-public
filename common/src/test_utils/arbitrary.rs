@@ -1,4 +1,5 @@
 use bitcoin::blockdata::{opcodes, script};
+use bitcoin::hashes::Hash;
 use bitcoin::{
     secp256k1, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn,
     TxOut, Txid, Witness,
@@ -156,12 +157,9 @@ pub fn any_txid() -> BoxedStrategy<Txid> {
     // The below doesn't cause stack overflows, but due to SHA256's collision
     // resistance, the generated txids do not correspond to any tx at all:
     // /*
-    use std::str::FromStr;
     any::<[u8; 32]>()
-        .prop_map(|array| crate::hex::encode(&array))
-        .prop_map(|hex_str| {
-            bitcoin::hashes::sha256d::Hash::from_str(hex_str.as_str()).unwrap()
-        })
+        .no_shrink()
+        .prop_map(bitcoin::hashes::sha256d::Hash::from_inner)
         .prop_map(Txid::from_hash)
         .boxed()
     // */
