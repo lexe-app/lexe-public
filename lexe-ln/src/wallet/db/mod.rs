@@ -87,54 +87,22 @@ struct TransactionMetadata {
 
 /// Represents a batch of `DbOp`s. Operations can be queued up for execution via
 /// the [`BatchOperations`] trait methods. The underlying [`WalletDb`] is
-/// guaranteed not to be affected until [`DbBatch::commit_all_ops`] is called.
+/// guaranteed not to be affected until [`commit_batch`] is called.
 /// The queued operations can be aborted by simply dropping the [`DbBatch`]
 /// object.
 ///
-/// NOTE: The `BatchOperations::del_*` methods will return what will have been
-/// returned from the underlying database if all currently queued operations
-/// are immediately committed to the DB. However, it does not account for
-/// outstanding operations that are queued on a different [`DbBatch`] object. If
-/// getting the correct return value from the `del_*` methods is important, you
-/// must either (1) ensure that there is only one outstanding [`DbBatch`] at any
-/// one time, executing all operations on the batch object (i.e. avoid executing
-/// any operations directly on the [`WalletDb`] while the [`DbBatch`] is
-/// uncommitted), or (2) skip batching entirely and execute all operations
-/// directly using the [`BatchOperations`] methods implemented on [`WalletDb`].
-pub(super) struct DbBatch {
-    ops: Vec<DbOp>,
-    db: WalletDb,
-
-    // These maps hold the subset of the data in the underlying maps that has
-    // been changed. Getters will first check these maps for updated values
-    // before falling back to reading the underlying DB. An Option value of
-    // None indicates that the key in the underlying map is queued for
-    // deletion.
-    updated_path_to_script: BTreeMap<Path, Option<Script>>,
-    updated_script_to_path: BTreeMap<Script, Option<Path>>,
-    updated_utxos: BTreeMap<OutPoint, Option<LocalUtxo>>,
-    updated_raw_txs: BTreeMap<Txid, Option<Transaction>>,
-    updated_tx_metas: BTreeMap<Txid, Option<TransactionMetadata>>,
-
-    // These fields track what the corresponding field in the underlying DB
-    // would be if all currently queued operations are immediately committed.
-    sync_time: Option<SyncTime>,
-    last_external_index: Option<u32>,
-    last_internal_index: Option<u32>,
-    #[cfg(test)]
-    external_checksum: Option<Vec<u8>>,
-    #[cfg(test)]
-    internal_checksum: Option<Vec<u8>>,
-}
+/// NOTE: The `BatchOperations::del_*` methods will always return `None`
+/// regardless of what has been inserted because this is what BDK's keyvalue
+/// (`sled`) DB does.
+///
+/// [`commit_batch`]: BatchDatabase::commit_batch
+pub(super) struct DbBatch(Vec<DbOp>);
 
 /// Enumerates all database operations which can mutate the DB.
 #[derive(Clone, Debug)]
 enum DbOp {
     // -- BatchOperations methods -- //
-    SetPathScript {
-        path: Path,
-        script: Script,
-    },
+    SetPathScript { path: Path, script: Script },
     DelByPath(Path),
     DelByScript(Script),
     SetUtxo(LocalUtxo),
@@ -142,38 +110,11 @@ enum DbOp {
     SetRawTx(Transaction),
     DelRawTx(Txid),
     SetTx(TransactionDetails),
-    DelTx {
-        txid: Txid,
-        include_raw: bool,
-    },
+    DelTx { txid: Txid, include_raw: bool },
     SetLastIndex(Path),
     DelLastIndex(KeychainKind),
     SetSyncTime(SyncTime),
     DelSyncTime,
-
-    // -- bdk::database::Database methods -- //
-    #[cfg_attr(not(test), allow(dead_code))]
-    IncLastIndex(KeychainKind),
-    #[cfg_attr(not(test), allow(dead_code))]
-    CheckChecksum {
-        keychain: KeychainKind,
-        checksum: Vec<u8>,
-    },
-}
-
-/// Represents all possible outputs that can be returned by a [`DbOp`].
-/// Used for equivalence checking in tests.
-#[derive(Debug)]
-enum OpOut {
-    Unit(BdkResult<()>),
-    MaybeScript(BdkResult<Option<Script>>),
-    MaybePath(BdkResult<Option<(KeychainKind, u32)>>),
-    MaybeUtxo(BdkResult<Option<LocalUtxo>>),
-    MaybeRawTx(BdkResult<Option<Transaction>>),
-    MaybeTx(BdkResult<Option<TransactionDetails>>),
-    LastIndex(BdkResult<u32>),
-    MaybeLastIndex(BdkResult<Option<u32>>),
-    MaybeSyncTime(BdkResult<Option<SyncTime>>),
 }
 
 // --- impl Path --- //
@@ -271,59 +212,8 @@ impl TransactionMetadata {
 // --- impl DbBatch --- //
 
 impl DbBatch {
-    fn new(db: WalletDb) -> Self {
-        use KeychainKind::{External, Internal};
-        let ops = Vec::new();
-
-        // Initialize the "updated" maps as empty; nothing has been updated yet
-        let updated_path_to_script = BTreeMap::new();
-        let updated_script_to_path = BTreeMap::new();
-        let updated_utxos = BTreeMap::new();
-        let updated_raw_txs = BTreeMap::new();
-        let updated_tx_metas = BTreeMap::new();
-
-        // Copy over fields from the underlying DB.
-        let sync_time = db.get_sync_time().expect("Never fails");
-        let last_external_index =
-            db.get_last_index(External).expect("Never fails");
-        let last_internal_index =
-            db.get_last_index(Internal).expect("Never fails");
-
-        #[cfg(test)]
-        let (external_checksum, internal_checksum) = {
-            let db_lock = db.0.lock().unwrap();
-            (
-                db_lock.external_checksum.clone(),
-                db_lock.internal_checksum.clone(),
-            )
-        };
-
-        Self {
-            ops,
-            db,
-
-            updated_path_to_script,
-            updated_script_to_path,
-            updated_utxos,
-            updated_raw_txs,
-            updated_tx_metas,
-
-            sync_time,
-            last_external_index,
-            last_internal_index,
-            #[cfg(test)]
-            external_checksum,
-            #[cfg(test)]
-            internal_checksum,
-        }
-    }
-
-    /// Consumes self, executing all operations on the underlying [`WalletDb`].
-    fn commit_all_ops(mut self) -> WalletDb {
-        for op in self.ops {
-            op.do_op(&mut self.db);
-        }
-        self.db
+    fn new() -> Self {
+        Self(Vec::new())
     }
 }
 
@@ -335,38 +225,23 @@ impl BatchOperations for DbBatch {
         child: u32,
     ) -> BdkResult<()> {
         let path = Path { keychain, child };
-        self.ops.push(DbOp::SetPathScript {
-            path: path.clone(),
-            script: script.clone(),
-        });
-        self.updated_path_to_script
-            .insert(path.clone(), Some(script.clone()));
-        self.updated_script_to_path
-            .insert(script.clone(), Some(path));
+        let script = script.clone();
+        self.0.push(DbOp::SetPathScript { path, script });
         Ok(())
     }
 
     fn set_utxo(&mut self, utxo: &LocalUtxo) -> BdkResult<()> {
-        self.ops.push(DbOp::SetUtxo(utxo.clone()));
-        self.updated_utxos.insert(utxo.outpoint, Some(utxo.clone()));
+        self.0.push(DbOp::SetUtxo(utxo.clone()));
         Ok(())
     }
 
     fn set_raw_tx(&mut self, raw_tx: &Transaction) -> BdkResult<()> {
-        self.ops.push(DbOp::SetRawTx(raw_tx.clone()));
-        self.updated_raw_txs
-            .insert(raw_tx.txid(), Some(raw_tx.clone()));
+        self.0.push(DbOp::SetRawTx(raw_tx.clone()));
         Ok(())
     }
 
     fn set_tx(&mut self, tx: &TransactionDetails) -> BdkResult<()> {
-        self.ops.push(DbOp::SetTx(tx.clone()));
-        let mut tx = tx.clone();
-        if let Some(raw_tx) = tx.transaction.take() {
-            self.updated_raw_txs.insert(tx.txid, Some(raw_tx));
-        }
-        let meta = TransactionMetadata::from(tx);
-        self.updated_tx_metas.insert(meta.txid, Some(meta));
+        self.0.push(DbOp::SetTx(tx.clone()));
         Ok(())
     }
 
@@ -375,18 +250,12 @@ impl BatchOperations for DbBatch {
         keychain: KeychainKind,
         child: u32,
     ) -> BdkResult<()> {
-        let path = Path { keychain, child };
-        self.ops.push(DbOp::SetLastIndex(path));
-        match keychain {
-            KeychainKind::External => self.last_external_index.insert(child),
-            KeychainKind::Internal => self.last_internal_index.insert(child),
-        };
+        self.0.push(DbOp::SetLastIndex(Path { keychain, child }));
         Ok(())
     }
 
     fn set_sync_time(&mut self, time: SyncTime) -> BdkResult<()> {
-        self.ops.push(DbOp::SetSyncTime(time.clone()));
-        self.sync_time = Some(time);
+        self.0.push(DbOp::SetSyncTime(time));
         Ok(())
     }
 
@@ -395,329 +264,110 @@ impl BatchOperations for DbBatch {
         keychain: KeychainKind,
         child: u32,
     ) -> BdkResult<Option<Script>> {
-        let path = Path { keychain, child };
-        self.ops.push(DbOp::DelByPath(path.clone()));
-
-        // First get the script returned if we were to query by path.
-        // This represents the return value of `path_to_script.remove(&path)`.
-        let maybe_script = match self.updated_path_to_script.get(&path) {
-            Some(updated_maybe_script) => updated_maybe_script.clone(),
-            None => self
-                .db
-                .get_script_pubkey_from_path(keychain, child)
-                .unwrap(),
-        };
-
-        // Mark this path -> script mapping as deleted
-        self.updated_path_to_script.insert(path, None);
-
-        // Handle the script -> path map
-        match maybe_script {
-            // `path_to_script.remove(&path)` return Some; we need to delete
-            // from the script -> path map
-            Some(script) => {
-                // Mark the script -> path mapping as deleted
-                self.updated_script_to_path.insert(script.clone(), None);
-                Ok(Some(script))
-            }
-            // `path_to_script.remove(&path)` returned None; nothing to do.
-            None => Ok(None),
-        }
+        self.0.push(DbOp::DelByPath(Path { keychain, child }));
+        Ok(None)
     }
 
     fn del_path_from_script_pubkey(
         &mut self,
         script: &Script,
     ) -> BdkResult<Option<(KeychainKind, u32)>> {
-        self.ops.push(DbOp::DelByScript(script.clone()));
-
-        // First get the path returned if we were to query by script.
-        // This represents the return value of `script_to_path.remove(&script)`.
-        let maybe_path = match self.updated_script_to_path.get(script) {
-            Some(updated_maybe_path) => updated_maybe_path
-                .clone()
-                .map(|Path { keychain, child }| (keychain, child)),
-            None => self.db.get_path_from_script_pubkey(script).unwrap(),
-        };
-
-        // Mark this script -> path mapping as deleted
-        self.updated_script_to_path.insert(script.clone(), None);
-
-        // Handle the path -> script map
-        match maybe_path {
-            Some((keychain, child)) => {
-                // Mark the path -> script mapping as deleted
-                self.updated_path_to_script
-                    .insert(Path { keychain, child }, None);
-                Ok(Some((keychain, child)))
-            }
-            // `script_to_path.remove(&script)` return None; nothing to do.
-            None => Ok(None),
-        }
+        self.0.push(DbOp::DelByScript(script.clone()));
+        Ok(None)
     }
 
     fn del_utxo(
         &mut self,
         outpoint: &OutPoint,
     ) -> BdkResult<Option<LocalUtxo>> {
-        self.ops.push(DbOp::DelUtxo(*outpoint));
-        let maybe_updated_maybe_utxo =
-            self.updated_utxos.insert(*outpoint, None);
-        if let Some(updated_maybe_utxo) = maybe_updated_maybe_utxo {
-            return Ok(updated_maybe_utxo);
-        }
-
-        // This key was not updated before; fall back to the underlying DB
-        self.db.get_utxo(outpoint)
+        self.0.push(DbOp::DelUtxo(*outpoint));
+        Ok(None)
     }
 
     fn del_raw_tx(&mut self, txid: &Txid) -> BdkResult<Option<Transaction>> {
-        self.ops.push(DbOp::DelRawTx(*txid));
-        let maybe_updated_maybe_raw_tx =
-            self.updated_raw_txs.insert(*txid, None);
-        if let Some(updated_maybe_raw_tx) = maybe_updated_maybe_raw_tx {
-            return Ok(updated_maybe_raw_tx);
-        }
-        // This key was not updated before; fall back to the underlying DB
-        self.db.get_raw_tx(txid)
+        self.0.push(DbOp::DelRawTx(*txid));
+        Ok(None)
     }
 
     fn del_tx(
         &mut self,
-        txid: &Txid,
+        &txid: &Txid,
         include_raw: bool,
     ) -> BdkResult<Option<TransactionDetails>> {
-        self.ops.push(DbOp::DelTx {
-            txid: *txid,
-            include_raw,
-        });
-
-        // First, handle `include_raw`
-        let maybe_raw_tx = if include_raw {
-            let maybe_updated_maybe_raw_tx =
-                self.updated_raw_txs.insert(*txid, None);
-            if let Some(updated_maybe_raw_tx) = maybe_updated_maybe_raw_tx {
-                updated_maybe_raw_tx
-            } else {
-                // This key was not updated before, fall back to underlying DB
-                self.db.get_raw_tx(txid).unwrap()
-            }
-        } else {
-            None
-        };
-
-        // Now, delete the tx meta
-        let maybe_updated_maybe_meta =
-            self.updated_tx_metas.insert(*txid, None);
-        match maybe_updated_maybe_meta {
-            Some(updated_maybe_meta) => updated_maybe_meta
-                .map(|meta| meta.into_tx(maybe_raw_tx))
-                .map(Ok)
-                .transpose(),
-            None => {
-                // tx meta was not updated before; fall back to underlying db
-                let mut maybe_tx = self.db.get_tx(txid, include_raw).unwrap();
-                // Use the possibly-updated possibly-existent raw tx value
-                if let Some(ref mut tx) = maybe_tx {
-                    tx.transaction = maybe_raw_tx;
-                }
-                maybe_tx.map(Ok).transpose()
-            }
-        }
+        self.0.push(DbOp::DelTx { txid, include_raw });
+        Ok(None)
     }
 
     fn del_last_index(
         &mut self,
         keychain: KeychainKind,
     ) -> BdkResult<Option<u32>> {
-        use KeychainKind::{External, Internal};
-        self.ops.push(DbOp::DelLastIndex(keychain));
-        let old_index = match keychain {
-            External => self.last_external_index.take(),
-            Internal => self.last_internal_index.take(),
-        };
-        Ok(old_index)
+        self.0.push(DbOp::DelLastIndex(keychain));
+        Ok(None)
     }
 
     fn del_sync_time(&mut self) -> BdkResult<Option<SyncTime>> {
-        self.ops.push(DbOp::DelSyncTime);
-        Ok(self.sync_time.take())
-    }
-}
-
-#[cfg(test)] // This impl is only required for our proptests
-impl Database for DbBatch {
-    fn check_descriptor_checksum<B: AsRef<[u8]>>(
-        &mut self,
-        keychain: KeychainKind,
-        given_checksum: B,
-    ) -> BdkResult<()> {
-        self.ops.push(DbOp::CheckChecksum {
-            keychain,
-            checksum: given_checksum.as_ref().to_vec(),
-        });
-
-        let mut_checksum = match keychain {
-            KeychainKind::External => &mut self.external_checksum,
-            KeychainKind::Internal => &mut self.internal_checksum,
-        };
-        let saved_checksum = mut_checksum
-            .get_or_insert_with(|| given_checksum.as_ref().to_vec());
-
-        if saved_checksum.as_slice() == given_checksum.as_ref() {
-            Ok(())
-        } else {
-            Err(bdk::Error::ChecksumMismatch)
-        }
-    }
-
-    fn iter_script_pubkeys(
-        &self,
-        _maybe_filter_keychain: Option<KeychainKind>,
-    ) -> BdkResult<Vec<Script>> {
-        unimplemented!("This method is not required for our tests")
-    }
-
-    fn iter_utxos(&self) -> BdkResult<Vec<LocalUtxo>> {
-        unimplemented!("This method is not required for our tests")
-    }
-
-    fn iter_raw_txs(&self) -> BdkResult<Vec<Transaction>> {
-        unimplemented!("This method is not required for our tests")
-    }
-
-    fn iter_txs(
-        &self,
-        _include_raw: bool,
-    ) -> BdkResult<Vec<TransactionDetails>> {
-        unimplemented!("This method is not required for our tests")
-    }
-
-    fn get_script_pubkey_from_path(
-        &self,
-        keychain: KeychainKind,
-        child: u32,
-    ) -> BdkResult<Option<Script>> {
-        let path = Path { keychain, child };
-        let maybe_updated_maybe_script = self.updated_path_to_script.get(&path);
-        let maybe_script = match maybe_updated_maybe_script {
-            Some(updated_maybe_script) => updated_maybe_script.clone(),
-            None => self
-                .db
-                .get_script_pubkey_from_path(keychain, child)
-                .unwrap(),
-        };
-
-        Ok(maybe_script)
-    }
-
-    fn get_path_from_script_pubkey(
-        &self,
-        script: &Script,
-    ) -> BdkResult<Option<(KeychainKind, u32)>> {
-        let maybe_updated_maybe_path = self.updated_script_to_path.get(script);
-        let maybe_path = match maybe_updated_maybe_path {
-            Some(updated_maybe_path) => updated_maybe_path
-                .clone()
-                .map(|Path { keychain, child }| (keychain, child)),
-            None => self.db.get_path_from_script_pubkey(script).unwrap(),
-        };
-
-        Ok(maybe_path)
-    }
-
-    fn get_utxo(&self, outpoint: &OutPoint) -> BdkResult<Option<LocalUtxo>> {
-        let maybe_updated_utxo = self.updated_utxos.get(outpoint);
-        if let Some(updated_utxo) = maybe_updated_utxo {
-            return Ok(updated_utxo.clone());
-        }
-        // Fall back to the underlying DB
-        self.db.get_utxo(outpoint)
-    }
-
-    fn get_raw_tx(&self, txid: &Txid) -> BdkResult<Option<Transaction>> {
-        let maybe_updated_raw_tx = self.updated_raw_txs.get(txid);
-        if let Some(updated_raw_tx) = maybe_updated_raw_tx {
-            return Ok(updated_raw_tx.clone());
-        }
-        // Fall back to the underlying DB
-        self.db.get_raw_tx(txid)
-    }
-
-    fn get_tx(
-        &self,
-        txid: &Txid,
-        include_raw: bool,
-    ) -> BdkResult<Option<TransactionDetails>> {
-        let maybe_updated_maybe_meta = self.updated_tx_metas.get(txid);
-
-        let maybe_meta = match maybe_updated_maybe_meta {
-            // It was updated before
-            Some(updated_maybe_meta) => updated_maybe_meta.clone(),
-            // It was not updated before; fall back to the underlying DB
-            None => self
-                .db
-                .get_tx(txid, false)
-                .unwrap()
-                .map(TransactionMetadata::from),
-        };
-
-        let maybe_tx = maybe_meta.map(|meta| {
-            // Metadata existed; handle the `include_raw` parameter and convert
-            // the metadata into TransactionDetails
-            let maybe_raw_tx = if include_raw {
-                // Check for updated raw tx firnst
-                match self.updated_raw_txs.get(txid).cloned() {
-                    // Raw tx was updated before
-                    Some(updated_maybe_raw_tx) => updated_maybe_raw_tx,
-                    // Raw tx was not updated before; fallback to underlying
-                    None => self.db.get_raw_tx(txid).unwrap(),
-                }
-            } else {
-                None
-            };
-            meta.into_tx(maybe_raw_tx)
-        });
-
-        Ok(maybe_tx)
-    }
-
-    fn get_last_index(&self, keychain: KeychainKind) -> BdkResult<Option<u32>> {
-        use KeychainKind::{External, Internal};
-        let last_index = match keychain {
-            External => self.last_external_index,
-            Internal => self.last_internal_index,
-        };
-        Ok(last_index)
-    }
-
-    fn get_sync_time(&self) -> BdkResult<Option<SyncTime>> {
-        Ok(self.sync_time.clone())
-    }
-
-    fn increment_last_index(
-        &mut self,
-        keychain: KeychainKind,
-    ) -> BdkResult<u32> {
-        self.ops.push(DbOp::IncLastIndex(keychain));
-
-        let mut_last_index = match keychain {
-            KeychainKind::External => &mut self.last_external_index,
-            KeychainKind::Internal => &mut self.last_internal_index,
-        };
-        if let Some(index) = mut_last_index {
-            *index += 1;
-        }
-        let last_index = *mut_last_index.get_or_insert(0);
-        Ok(last_index)
+        self.0.push(DbOp::DelSyncTime);
+        Ok(None)
     }
 }
 
 // --- impl DbOp --- //
 
 impl DbOp {
-    /// Executes the operation and debug asserts op-specific invariants.
-    fn do_op<DB: BatchOperations + Database>(self, db: &mut DB) -> OpOut {
+    /// Executes the operation.
+    #[allow(unused_must_use)]
+    fn do_op<DB: BatchOperations>(self, db: &mut DB) {
+        match self {
+            DbOp::SetPathScript {
+                path: Path { keychain, child },
+                script,
+            } => {
+                db.set_script_pubkey(&script, keychain, child);
+            }
+            DbOp::DelByPath(Path { keychain, child }) => {
+                db.del_script_pubkey_from_path(keychain, child);
+            }
+            DbOp::DelByScript(script) => {
+                db.del_path_from_script_pubkey(&script);
+            }
+            DbOp::SetUtxo(utxo) => {
+                db.set_utxo(&utxo);
+            }
+            DbOp::DelUtxo(outpoint) => {
+                db.del_utxo(&outpoint);
+            }
+            DbOp::SetRawTx(raw_tx) => {
+                db.set_raw_tx(&raw_tx);
+            }
+            DbOp::DelRawTx(txid) => {
+                db.del_raw_tx(&txid);
+            }
+            DbOp::SetTx(tx) => {
+                db.set_tx(&tx);
+            }
+            DbOp::DelTx { txid, include_raw } => {
+                db.del_tx(&txid, include_raw);
+            }
+            DbOp::SetLastIndex(Path { keychain, child }) => {
+                db.set_last_index(keychain, child);
+            }
+            DbOp::DelLastIndex(keychain) => {
+                db.del_last_index(keychain);
+            }
+            DbOp::SetSyncTime(time) => {
+                db.set_sync_time(time);
+            }
+            DbOp::DelSyncTime => {
+                db.del_sync_time();
+            }
+        };
+    }
+
+    /// Executes the operation and asserts op-specific invariants. Requires a
+    /// [`Database`] impl in order to check the op-specific invariants
+    #[cfg(test)]
+    fn do_op_and_assert<DB: BatchOperations + Database>(self, db: &mut DB) {
         match self {
             DbOp::SetPathScript {
                 path: Path { keychain, child },
@@ -725,104 +375,73 @@ impl DbOp {
             } => {
                 let out = db.set_script_pubkey(&script, keychain, child);
 
-                if cfg!(debug_assertions) {
-                    assert!(out.is_ok());
-                    let get_script = db
-                        .get_script_pubkey_from_path(keychain, child)
-                        .unwrap()
-                        .unwrap();
-                    let (get_keychain, get_child) = db
-                        .get_path_from_script_pubkey(&script)
-                        .unwrap()
-                        .unwrap();
-                    assert_eq!(get_script, script);
-                    assert_eq!(get_keychain, keychain);
-                    assert_eq!(get_child, child);
-                }
-
-                OpOut::Unit(out)
+                assert!(out.is_ok());
+                let get_script = db
+                    .get_script_pubkey_from_path(keychain, child)
+                    .unwrap()
+                    .unwrap();
+                let (get_keychain, get_child) =
+                    db.get_path_from_script_pubkey(&script).unwrap().unwrap();
+                assert_eq!(get_script, script);
+                assert_eq!(get_keychain, keychain);
+                assert_eq!(get_child, child);
             }
             DbOp::DelByPath(Path { keychain, child }) => {
                 let out = db.del_script_pubkey_from_path(keychain, child);
 
-                if cfg!(debug_assertions) {
-                    if let Some(script) = out.as_ref().unwrap() {
-                        assert!(db
-                            .get_path_from_script_pubkey(script)
-                            .unwrap()
-                            .is_none());
-                    }
+                if let Some(script) = out.as_ref().unwrap() {
                     assert!(db
-                        .get_script_pubkey_from_path(keychain, child)
+                        .get_path_from_script_pubkey(script)
                         .unwrap()
                         .is_none());
                 }
-
-                OpOut::MaybeScript(out)
+                assert!(db
+                    .get_script_pubkey_from_path(keychain, child)
+                    .unwrap()
+                    .is_none());
             }
             DbOp::DelByScript(script) => {
                 let out = db.del_path_from_script_pubkey(&script);
 
-                if cfg!(debug_assertions) {
-                    if let Some((_keychain, _child)) = out.as_ref().unwrap() {
-                        // TODO(max): Bug report filed (BDK#829), confirm what
-                        // the intended behavior is then fix
-                        // assert!(db
-                        //     .get_script_pubkey_from_path(*keychain, *child)
-                        //     .unwrap()
-                        //     .is_none());
-                    }
-                    assert!(db
-                        .get_path_from_script_pubkey(&script)
-                        .unwrap()
-                        .is_none());
+                if let Some((_keychain, _child)) = out.as_ref().unwrap() {
+                    // TODO(max): Bug report filed (BDK#829), confirm what
+                    // the intended behavior is then fix
+                    // assert!(db
+                    //     .get_script_pubkey_from_path(*keychain, *child)
+                    //     .unwrap()
+                    //     .is_none());
                 }
-
-                OpOut::MaybePath(out)
+                assert!(db
+                    .get_path_from_script_pubkey(&script)
+                    .unwrap()
+                    .is_none());
             }
             DbOp::SetUtxo(utxo) => {
                 let out = db.set_utxo(&utxo);
 
-                if cfg!(debug_assertions) {
-                    assert!(out.is_ok());
-                    let get_utxo =
-                        db.get_utxo(&utxo.outpoint).unwrap().unwrap();
-                    assert_eq!(get_utxo, utxo);
-                }
-
-                OpOut::Unit(out)
+                assert!(out.is_ok());
+                let get_utxo = db.get_utxo(&utxo.outpoint).unwrap().unwrap();
+                assert_eq!(get_utxo, utxo);
             }
             DbOp::DelUtxo(outpoint) => {
                 let out = db.del_utxo(&outpoint);
 
-                if cfg!(debug_assertions) {
-                    assert!(out.is_ok());
-                    assert!(db.get_utxo(&outpoint).unwrap().is_none());
-                }
-
-                OpOut::MaybeUtxo(out)
+                assert!(out.is_ok());
+                assert!(db.get_utxo(&outpoint).unwrap().is_none());
             }
             DbOp::SetRawTx(raw_tx) => {
                 let txid = raw_tx.txid();
                 let out = db.set_raw_tx(&raw_tx);
 
-                if cfg!(debug_assertions) {
-                    assert!(out.is_ok());
-                    let get_raw_tx = db.get_raw_tx(&txid).unwrap().unwrap();
-                    assert_eq!(get_raw_tx, raw_tx);
-                }
-
-                OpOut::Unit(out)
+                assert!(out.is_ok());
+                let get_raw_tx = db.get_raw_tx(&txid).unwrap().unwrap();
+                assert_eq!(get_raw_tx, raw_tx);
             }
             DbOp::DelRawTx(txid) => {
                 let out = db.del_raw_tx(&txid);
 
-                if cfg!(debug_assertions) {
-                    assert!(out.is_ok());
-                    assert!(db.get_raw_tx(&txid).unwrap().is_none());
-                }
-
-                OpOut::MaybeRawTx(out)
+                assert!(out.is_ok());
+                assert!(db.get_raw_tx(&txid).unwrap().is_none());
             }
             DbOp::SetTx(tx) => {
                 let include_raw = tx.transaction.is_some();
@@ -830,157 +449,52 @@ impl DbOp {
 
                 let out = db.set_tx(&tx);
 
-                if cfg!(debug_assertions) {
-                    assert!(out.is_ok());
-                    let get_tx = db.get_tx(txid, include_raw).unwrap().unwrap();
-                    assert_eq!(get_tx, tx);
-                    if include_raw {
-                        let raw_tx = tx.transaction.unwrap();
-                        let get_raw_tx = db.get_raw_tx(txid).unwrap().unwrap();
-                        assert_eq!(get_raw_tx, raw_tx);
-                    }
+                assert!(out.is_ok());
+                let get_tx = db.get_tx(txid, include_raw).unwrap().unwrap();
+                assert_eq!(get_tx, tx);
+                if include_raw {
+                    let raw_tx = tx.transaction.unwrap();
+                    let get_raw_tx = db.get_raw_tx(txid).unwrap().unwrap();
+                    assert_eq!(get_raw_tx, raw_tx);
                 }
-
-                OpOut::Unit(out)
             }
             DbOp::DelTx { txid, include_raw } => {
                 let out = db.del_tx(&txid, include_raw);
 
-                if cfg!(debug_assertions) {
-                    assert!(out.is_ok());
-                    assert!(db.get_tx(&txid, include_raw).unwrap().is_none());
-                    if include_raw {
-                        assert!(db.get_raw_tx(&txid).unwrap().is_none());
-                    }
+                assert!(out.is_ok());
+                assert!(db.get_tx(&txid, include_raw).unwrap().is_none());
+                if include_raw {
+                    assert!(db.get_raw_tx(&txid).unwrap().is_none());
                 }
-
-                OpOut::MaybeTx(out)
-            }
-            DbOp::IncLastIndex(keychain) => {
-                let maybe_before = if cfg!(debug_assertions) {
-                    db.get_last_index(keychain).unwrap()
-                } else {
-                    None
-                };
-
-                let out = db.increment_last_index(keychain);
-
-                if cfg!(debug_assertions) {
-                    let incremented = *out.as_ref().unwrap();
-                    let get_after =
-                        db.get_last_index(keychain).unwrap().unwrap();
-                    match maybe_before {
-                        Some(get_before) => {
-                            assert_eq!(get_before + 1, incremented);
-                            assert_eq!(get_before + 1, get_after);
-                        }
-                        None => {
-                            assert_eq!(incremented, 0);
-                            assert_eq!(get_after, 0);
-                        }
-                    }
-                }
-
-                OpOut::LastIndex(out)
             }
             DbOp::SetLastIndex(Path { keychain, child }) => {
                 let out = db.set_last_index(keychain, child);
 
-                if cfg!(debug_assertions) {
-                    assert!(out.is_ok());
-                    let after = db.get_last_index(keychain).unwrap().unwrap();
-                    assert_eq!(after, child);
-                }
-
-                OpOut::Unit(out)
+                assert!(out.is_ok());
+                let after = db.get_last_index(keychain).unwrap().unwrap();
+                assert_eq!(after, child);
             }
             DbOp::DelLastIndex(keychain) => {
                 let out = db.del_last_index(keychain);
 
-                if cfg!(debug_assertions) {
-                    assert!(out.is_ok());
-                    assert!(db.get_last_index(keychain).unwrap().is_none());
-                }
-
-                OpOut::MaybeLastIndex(out)
+                assert!(out.is_ok());
+                assert!(db.get_last_index(keychain).unwrap().is_none());
             }
             DbOp::SetSyncTime(time) => {
                 let out = db.set_sync_time(time.clone());
 
-                if cfg!(debug_assertions) {
-                    assert!(out.is_ok());
-                    let get_time = db.get_sync_time().unwrap().unwrap();
-                    // SyncTime doesn't derive PartialEq for some reason
-                    // TODO(max): Submit PR upstream to derive PartialEq
-                    assert_eq!(get_time.block_time, time.block_time);
-                }
-
-                OpOut::Unit(out)
+                assert!(out.is_ok());
+                let get_time = db.get_sync_time().unwrap().unwrap();
+                // SyncTime doesn't derive PartialEq for some reason
+                // TODO(max): Submit PR upstream to derive PartialEq
+                assert_eq!(get_time.block_time, time.block_time);
             }
             DbOp::DelSyncTime => {
                 let out = db.del_sync_time();
 
-                if cfg!(debug_assertions) {
-                    assert!(out.is_ok());
-                    assert!(db.get_sync_time().unwrap().is_none());
-                }
-
-                OpOut::MaybeSyncTime(out)
+                assert!(out.is_ok());
+                assert!(db.get_sync_time().unwrap().is_none());
             }
-            DbOp::CheckChecksum { keychain, checksum } => {
-                let out = db.check_descriptor_checksum(keychain, checksum);
-                OpOut::Unit(out)
-            }
-        }
-    }
-}
-
-// --- impl OpOut --- //
-
-// Hack together a PartialEq implementation for OpOut(BdkResult<T>) using
-// bdk::Error's Debug implementation.
-#[cfg(test)]
-impl PartialEq for OpOut {
-    fn eq(&self, other: &OpOut) -> bool {
-        use OpOut::*;
-        match (self, other) {
-            (Unit(Ok(s)), Unit(Ok(o))) => s == o,
-            (Unit(Err(se)), Unit(Err(oe))) => {
-                format!("{se:?}") == format!("{oe:?}")
-            }
-            (MaybeScript(Ok(s)), MaybeScript(Ok(o))) => s == o,
-            (MaybeScript(Err(se)), MaybeScript(Err(oe))) => {
-                format!("{se:?}") == format!("{oe:?}")
-            }
-            (MaybePath(Ok(s)), MaybePath(Ok(o))) => s == o,
-            (MaybePath(Err(se)), MaybePath(Err(oe))) => {
-                format!("{se:?}") == format!("{oe:?}")
-            }
-            (MaybeUtxo(Ok(s)), MaybeUtxo(Ok(o))) => s == o,
-            (MaybeUtxo(Err(se)), MaybeUtxo(Err(oe))) => {
-                format!("{se:?}") == format!("{oe:?}")
-            }
-            (MaybeRawTx(Ok(s)), MaybeRawTx(Ok(o))) => s == o,
-            (MaybeRawTx(Err(se)), MaybeRawTx(Err(oe))) => {
-                format!("{se:?}") == format!("{oe:?}")
-            }
-            (MaybeTx(Ok(s)), MaybeTx(Ok(o))) => s == o,
-            (MaybeTx(Err(se)), MaybeTx(Err(oe))) => {
-                format!("{se:?}") == format!("{oe:?}")
-            }
-            (LastIndex(Ok(s)), LastIndex(Ok(o))) => s == o,
-            (LastIndex(Err(se)), LastIndex(Err(oe))) => {
-                format!("{se:?}") == format!("{oe:?}")
-            }
-            (MaybeLastIndex(Ok(s)), MaybeLastIndex(Ok(o))) => s == o,
-            (MaybeLastIndex(Err(se)), MaybeLastIndex(Err(oe))) => {
-                format!("{se:?}") == format!("{oe:?}")
-            }
-            (MaybeSyncTime(Ok(s)), MaybeSyncTime(Ok(o))) => s == o,
-            (MaybeSyncTime(Err(se)), MaybeSyncTime(Err(oe))) => {
-                format!("{se:?}") == format!("{oe:?}")
-            }
-            _ => false,
         }
     }
 }
@@ -1374,14 +888,14 @@ impl BatchDatabase for WalletDb {
 
     fn begin_batch(&self) -> Self::Batch {
         info!("Beginning WalletDb batch");
-        DbBatch::new(self.clone())
+        DbBatch::new()
     }
 
     fn commit_batch(&mut self, batch: Self::Batch) -> BdkResult<()> {
         info!("Committing WalletDb batch");
-        let _db = batch.commit_all_ops();
-        // TODO(max): Is there a way to check that self and the DB returned from
-        // commit_all_ops() match? We should panic if they don't
+        for op in batch.0 {
+            op.do_op(self);
+        }
         // TODO(max): Serialize then persist the WalletDb
         Ok(())
     }
@@ -1411,7 +925,6 @@ impl<'de> Deserialize<'de> for WalletDb {
 
 #[cfg(test)]
 mod test {
-    use bdk::database::memory::MemoryDatabase;
     use common::test_utils::{arbitrary, roundtrip};
     use proptest::arbitrary::{any, Arbitrary};
     use proptest::strategy::{BoxedStrategy, Just, Strategy};
@@ -1517,7 +1030,7 @@ mod test {
                 .prop_map(|vec_of_ops| {
                     let mut db = WalletDb::new();
                     for op in vec_of_ops {
-                        op.do_op(&mut db);
+                        op.do_op_and_assert(&mut db);
                     }
                     db
                 })
@@ -1561,12 +1074,10 @@ mod test {
                 | DelRawTx(_)
                 | SetTx(_)
                 | DelTx { .. }
-                | IncLastIndex(_)
                 | SetLastIndex(_)
                 | DelLastIndex(_)
                 | SetSyncTime(_)
-                | DelSyncTime
-                | CheckChecksum { .. } => {
+                | DelSyncTime => {
                     "This match statement was written to remind you to add the \
                     new enum variant you just created to the prop_oneof below!"
                 }
@@ -1589,17 +1100,10 @@ mod test {
                     |(txid, include_raw)| Self::DelTx { txid, include_raw }
                 ),
                 // Individual fields
-                any_keychain().prop_map(Self::IncLastIndex),
                 any::<Path>().prop_map(Self::SetLastIndex),
                 any_keychain().prop_map(Self::DelLastIndex),
                 any_sync_time().prop_map(Self::SetSyncTime),
                 Just(Self::DelSyncTime),
-                (any_keychain(), any::<Vec<u8>>()).prop_map(
-                    |(keychain, checksum)| Self::CheckChecksum {
-                        keychain,
-                        checksum
-                    }
-                ),
             ]
             .boxed()
         }
@@ -1687,7 +1191,7 @@ mod test {
             db.assert_invariants();
 
             for op in vec_of_ops {
-                op.do_op(&mut db);
+                op.do_op_and_assert(&mut db);
 
                 db.assert_invariants();
             }
@@ -1754,11 +1258,11 @@ mod test {
 
         db.assert_invariants();
 
-        op1.do_op(&mut db);
+        op1.do_op_and_assert(&mut db);
         println!("Post OP1: {}", serde_json::to_string_pretty(&db).unwrap());
         db.assert_invariants();
 
-        op2.do_op(&mut db);
+        op2.do_op_and_assert(&mut db);
         println!("Post OP2: {}", serde_json::to_string_pretty(&db).unwrap());
         db.assert_invariants();
     }
@@ -1798,7 +1302,7 @@ mod test {
             };
             if let Some(index) = maybe_index {
                 if seen[index].replace(()).is_none() {
-                    op.do_op(&mut db)
+                    op.do_op_and_assert(&mut db)
                 }
             }
         }
@@ -1843,40 +1347,6 @@ mod test {
     /// 2) An arbitrary sequence of operations executed on a [`DbBatch`] (and
     ///    committed at the end) vs the same sequence of operations executed
     ///    directly on a [`WalletDb`] results in the same [`WalletDb`] state.
-    /// 3) The return values for each of the [`BatchOperations`] methods exactly
-    ///    match what the return value would be had the operation been executed
-    ///    directly on the underlying [`WalletDb`]. This accounts for previously
-    ///    queued batch operations.
-    ///
-    /// To clarify what we mean in (3), consider the following sequence of
-    /// operations:
-    ///
-    /// ```ignore
-    /// let mut db = WalletDb::new();
-    /// let path = Path { ... };
-    /// let script = Script { ... };
-    /// db.set_script_pubkey(path, script);
-    /// let result1 = db.del_script_pubkey_from_path(path);
-    /// let result2 = db.del_script_pubkey_from_path(path);
-    /// ```
-    ///
-    /// Operating the two deletion operations directly on the [`WalletDb`], we
-    /// expect `result1` to equal `Some(Script)` and `result2` to equal `None`.
-    ///
-    /// Now consider if we changed the code to the following:
-    ///
-    /// ```ignore
-    /// let db = WalletDb::new();
-    /// let mut batch = db.begin_batch();
-    /// let path = Path { ... };
-    /// let script = Script { ... };
-    /// batch.set_script_pubkey(path, script);
-    /// let result1 = batch.del_script_pubkey_from_path(path);
-    /// let result2 = batch.del_script_pubkey_from_path(path);
-    /// ```
-    ///
-    /// We still expect `result1` to equal `Some(Script)` and `result2` to equal
-    /// `None`. See the [`DbBatch`] doc comments for more details and caveats.
     ///
     /// [`commit_batch`]: BatchDatabase::commit_batch
     #[test]
@@ -1892,11 +1362,8 @@ mod test {
             for op in vec_of_ops {
                 // Execute the op on both the batch DB and the "normal" DB which
                 // does not batch operations
-                let batch_out = op.clone().do_op(&mut batch);
-                let normal_out = op.do_op(&mut normal_db);
-
-                // Check that the outputs from both are equivalent.
-                prop_assert_eq!(batch_out, normal_out);
+                op.clone().do_op(&mut batch);
+                op.do_op_and_assert(&mut normal_db);
 
                 // The database backing the batch should still be empty because
                 // the values have not been committed yet.
@@ -1910,33 +1377,12 @@ mod test {
         })
     }
 
-    /// Tests that an arbitrary sequence of operations returns the same output
-    /// when executed on a [`WalletDb`] vs a [`MemoryDatabase`].
-    #[test]
-    fn bdk_memory_database_equiv() {
-        let any_op = any::<DbOp>();
-        let any_vec_of_ops = proptest::collection::vec(any_op, 0..20);
-        proptest!(|(vec_of_ops in any_vec_of_ops)| {
-            let mut lexe_db = WalletDb::new();
-            let mut memory_db = MemoryDatabase::new();
-
-            for op in vec_of_ops {
-                println!("Executing {op:?} on Lexe DB");
-                let lexe_out = op.clone().do_op(&mut lexe_db);
-                println!("Executing {op:?} on MemoryDatabase");
-                let memory_out = op.do_op(&mut memory_db);
-
-                // Check that the outputs from both are equivalent.
-                prop_assert_eq!(memory_out, lexe_out);
-            }
-        })
-    }
-
     /// Reproduces some bugs in BDK's [`MemoryDatabase`].
     ///
     /// These bugs have been reported in [BDK#829]; awaiting clarification.
     ///
     /// [`BDK#829`]: https://github.com/bitcoindevkit/bdk/issues/829
+    /// [`MemoryDatabase`]: bdk::database::memory::MemoryDatabase
     #[test]
     fn bdk_bugs() {
         // use bitcoin::hashes::hex::FromHex;
