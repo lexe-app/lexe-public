@@ -2,6 +2,7 @@ use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
+use common::api::vfs::BasicFile;
 use common::ln::peer::ChannelPeer;
 use lightning::chain::chainmonitor::Persist;
 use lightning::util::events::EventHandler;
@@ -25,6 +26,12 @@ pub trait ArcInner<T>: Deref<Target = T> {
 /// Defines all the persister methods needed in shared Lexe LN logic.
 #[async_trait]
 pub trait LexeInnerPersister: Persist<SignerType> {
+    async fn persist_basic_file(
+        &self,
+        basic_file: BasicFile,
+        retries: usize,
+    ) -> anyhow::Result<()>;
+
     async fn persist_manager<W: Writeable + Send + Sync>(
         &self,
         channel_manager: &W,
@@ -42,7 +49,7 @@ pub trait LexeInnerPersister: Persist<SignerType> {
 
     async fn persist_channel_peer(
         &self,
-        _channel_peer: ChannelPeer,
+        channel_peer: ChannelPeer,
     ) -> anyhow::Result<()>;
 }
 

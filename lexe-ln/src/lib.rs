@@ -13,6 +13,7 @@
 
 /// Type aliases.
 pub mod alias;
+/// Background processor.
 pub mod background_processor;
 /// BitcoinD client.
 pub mod bitcoind;

@@ -9,9 +9,10 @@ use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
 use common::api::auth::{UserAuthToken, UserAuthenticator};
 use common::api::error::BackendApiError;
-use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
+use common::api::vfs::{BasicFile, NodeDirectory, NodeFile, NodeFileId};
 use common::api::UserPk;
 use common::cli::Network;
+use common::constants::IMPORTANT_PERSIST_RETRIES;
 use common::ln::channel::LxOutPoint;
 use common::ln::peer::ChannelPeer;
 use common::shutdown::ShutdownChannel;
@@ -51,9 +52,6 @@ const SCORER_FILENAME: &str = "scorer";
 
 // Non-singleton objects use a fixed directory with dynamic filenames
 pub(crate) const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
-
-/// The default number of persist retries for important objects
-const IMPORTANT_RETRIES: usize = 3;
 
 /// An Arc is held internally, so it is fine to clone and use directly.
 #[derive(Clone)]
@@ -392,6 +390,23 @@ impl InnerPersister {
 
 #[async_trait]
 impl LexeInnerPersister for InnerPersister {
+    async fn persist_basic_file(
+        &self,
+        basic_file: BasicFile,
+        retries: usize,
+    ) -> anyhow::Result<()> {
+        debug!("Persisting basic file");
+        let token = self.get_token().await?;
+
+        let file = NodeFile::from_basic(basic_file, self.user_pk);
+
+        self.api
+            .upsert_file_with_retries(&file, token, retries)
+            .await
+            .map(|_| ())
+            .context("Could not persist basic file")
+    }
+
     async fn persist_manager<W: Writeable + Send + Sync>(
         &self,
         channel_manager: &W,
@@ -405,9 +420,9 @@ impl LexeInnerPersister for InnerPersister {
             channel_manager,
         );
 
-        // Channel manager is more important so let's retry up to three times
+        // Channel manager is more important so let's retry a few times
         self.api
-            .upsert_file_with_retries(&file, token, IMPORTANT_RETRIES)
+            .upsert_file_with_retries(&file, token, IMPORTANT_PERSIST_RETRIES)
             .await
             .map(|_| ())
             .context("Could not persist channel manager")
@@ -489,10 +504,14 @@ impl Persist<SignerType> for InnerPersister {
                 .get_token(api.as_ref(), SystemTime::now())
                 .await
                 .context("Could not get token")?;
-            api.create_file_with_retries(&file, token, IMPORTANT_RETRIES)
-                .await
-                .map(|_| ())
-                .context("Couldn't persist updated channel monitor")
+            api.create_file_with_retries(
+                &file,
+                token,
+                IMPORTANT_PERSIST_RETRIES,
+            )
+            .await
+            .map(|_| ())
+            .context("Couldn't persist updated channel monitor")
         });
 
         let sequence_num = None;
@@ -553,10 +572,14 @@ impl Persist<SignerType> for InnerPersister {
                 .get_token(api.as_ref(), SystemTime::now())
                 .await
                 .context("Could not get token")?;
-            api.upsert_file_with_retries(&file, token, IMPORTANT_RETRIES)
-                .await
-                .map(|_| ())
-                .context("Couldn't persist updated channel monitor")
+            api.upsert_file_with_retries(
+                &file,
+                token,
+                IMPORTANT_PERSIST_RETRIES,
+            )
+            .await
+            .map(|_| ())
+            .context("Couldn't persist updated channel monitor")
         });
 
         let sequence_num = update.as_ref().map(|u| u.update_id);

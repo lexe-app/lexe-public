@@ -13,6 +13,9 @@ use crate::root_seed::RootSeed;
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 pub const SMALLER_CHANNEL_SIZE: usize = 16;
 
+/// The default number of persist retries for important objects
+pub const IMPORTANT_PERSIST_RETRIES: usize = 5;
+
 pub const DEFAULT_BACKEND_URL: &str = "http://127.0.0.1:3030";
 pub const DEFAULT_GATEWAY_URL: &str = "http://127.0.0.1:4040";
 pub const DEFAULT_RUNNER_URL: &str = "http://127.0.0.1:5050";
