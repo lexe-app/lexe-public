@@ -566,75 +566,35 @@ impl Database for WalletDb {
         keychain: KeychainKind,
         given_checksum: B,
     ) -> BdkResult<()> {
-        // First, get a &mut Option<Vec<u8>> for the correct keychain
-        let mut db = self.0.lock().unwrap();
-        let mut_checksum = match keychain {
-            KeychainKind::External => &mut db.external_checksum,
-            KeychainKind::Internal => &mut db.internal_checksum,
-        };
-
-        // Get the saved checksum, lazily inserting the given one if it was None
-        let saved_checksum = mut_checksum
-            .get_or_insert_with(|| given_checksum.as_ref().to_vec());
-
-        // Check the saved checksum against the given one
-        if saved_checksum.as_slice() == given_checksum.as_ref() {
-            Ok(())
-        } else {
-            Err(bdk::Error::ChecksumMismatch)
-        }
+        self.0
+            .lock()
+            .unwrap()
+            .check_descriptor_checksum(keychain, given_checksum)
     }
 
     fn iter_script_pubkeys(
         &self,
         maybe_filter_keychain: Option<KeychainKind>,
     ) -> BdkResult<Vec<Script>> {
-        let db = self.0.lock().unwrap();
-        let vec = match maybe_filter_keychain {
-            Some(filter_keychain) => db
-                .path_to_script
-                .iter()
-                .filter(|(p, _s)| {
-                    mem::discriminant(&p.keychain)
-                        == mem::discriminant(&filter_keychain)
-                })
-                .map(|(_p, s)| s)
-                .cloned()
-                .collect(),
-            None => db.path_to_script.values().cloned().collect(),
-        };
-        Ok(vec)
+        self.0
+            .lock()
+            .unwrap()
+            .iter_script_pubkeys(maybe_filter_keychain)
     }
 
     fn iter_utxos(&self) -> BdkResult<Vec<LocalUtxo>> {
-        Ok(self.0.lock().unwrap().utxos.values().cloned().collect())
+        self.0.lock().unwrap().iter_utxos()
     }
 
     fn iter_raw_txs(&self) -> BdkResult<Vec<Transaction>> {
-        Ok(self.0.lock().unwrap().raw_txs.values().cloned().collect())
+        self.0.lock().unwrap().iter_raw_txs()
     }
 
     fn iter_txs(
         &self,
         include_raw: bool,
     ) -> BdkResult<Vec<TransactionDetails>> {
-        let db = self.0.lock().unwrap();
-        let mut txs = db
-            .tx_metas
-            .values()
-            .cloned()
-            .map(|meta| meta.into_tx(None))
-            .collect::<Vec<_>>();
-
-        if include_raw {
-            // Include any known raw_txs
-            for tx in txs.iter_mut() {
-                let maybe_raw_tx = db.raw_txs.get(&tx.txid).cloned();
-                tx.transaction = maybe_raw_tx;
-            }
-        }
-
-        Ok(txs)
+        self.0.lock().unwrap().iter_txs(include_raw)
     }
 
     fn get_script_pubkey_from_path(
@@ -642,30 +602,25 @@ impl Database for WalletDb {
         keychain: KeychainKind,
         child: u32,
     ) -> BdkResult<Option<Script>> {
-        let path = Path { keychain, child };
-        Ok(self.0.lock().unwrap().path_to_script.get(&path).cloned())
+        self.0
+            .lock()
+            .unwrap()
+            .get_script_pubkey_from_path(keychain, child)
     }
 
     fn get_path_from_script_pubkey(
         &self,
         script: &Script,
     ) -> BdkResult<Option<(KeychainKind, u32)>> {
-        self.0
-            .lock()
-            .unwrap()
-            .script_to_path
-            .get(script)
-            .map(|path| (path.keychain, path.child))
-            .map(Ok)
-            .transpose()
+        self.0.lock().unwrap().get_path_from_script_pubkey(script)
     }
 
     fn get_utxo(&self, outpoint: &OutPoint) -> BdkResult<Option<LocalUtxo>> {
-        Ok(self.0.lock().unwrap().utxos.get(outpoint).cloned())
+        self.0.lock().unwrap().get_utxo(outpoint)
     }
 
     fn get_raw_tx(&self, txid: &Txid) -> BdkResult<Option<Transaction>> {
-        Ok(self.0.lock().unwrap().raw_txs.get(txid).cloned())
+        self.0.lock().unwrap().get_raw_tx(txid)
     }
 
     fn get_tx(
@@ -673,53 +628,22 @@ impl Database for WalletDb {
         txid: &Txid,
         include_raw: bool,
     ) -> BdkResult<Option<TransactionDetails>> {
-        let db = self.0.lock().unwrap();
-        let maybe_raw_tx = if include_raw {
-            db.raw_txs.get(txid).cloned()
-        } else {
-            None
-        };
-
-        db.tx_metas
-            .get(txid)
-            .cloned()
-            .map(|meta| meta.into_tx(maybe_raw_tx))
-            .map(Ok)
-            .transpose()
+        self.0.lock().unwrap().get_tx(txid, include_raw)
     }
 
     fn get_last_index(&self, keychain: KeychainKind) -> BdkResult<Option<u32>> {
-        let db = self.0.lock().unwrap();
-        match keychain {
-            KeychainKind::External => Ok(db.last_external_index),
-            KeychainKind::Internal => Ok(db.last_internal_index),
-        }
+        self.0.lock().unwrap().get_last_index(keychain)
     }
 
     fn get_sync_time(&self) -> BdkResult<Option<SyncTime>> {
-        Ok(self.0.lock().unwrap().sync_time.clone())
+        self.0.lock().unwrap().get_sync_time()
     }
 
     fn increment_last_index(
         &mut self,
         keychain: KeychainKind,
     ) -> BdkResult<u32> {
-        // Get a &mut Option<u32> corresponding to the appropriate field
-        let mut db = self.0.lock().unwrap();
-        let mut_last_index = match keychain {
-            KeychainKind::External => &mut db.last_external_index,
-            KeychainKind::Internal => &mut db.last_internal_index,
-        };
-
-        // Increment if the index existed
-        if let Some(index) = mut_last_index {
-            *index += 1;
-        }
-
-        // Get the index, inserting 0 if it was None
-        let last_index = *mut_last_index.get_or_insert(0);
-
-        Ok(last_index)
+        self.0.lock().unwrap().increment_last_index(keychain)
     }
 }
 
@@ -731,55 +655,22 @@ impl BatchOperations for WalletDb {
         keychain: KeychainKind,
         child: u32,
     ) -> BdkResult<()> {
-        let mut db = self.0.lock().unwrap();
-        let new_path = Path { keychain, child };
-        db.path_to_script.insert(new_path.clone(), script.clone());
-        db.script_to_path
-            .insert(script.clone(), new_path.clone())
-            .inspect(|old_path| {
-                if *old_path != new_path {
-                    warn!(
-                        "Old {old_path:?} and new {new_path:?} map to the same \
-                        script; Querying the path by script will return the \
-                        new path."
-                    )
-                }
-            });
-
-        Ok(())
+        self.0
+            .lock()
+            .unwrap()
+            .set_script_pubkey(script, keychain, child)
     }
 
     fn set_utxo(&mut self, utxo: &LocalUtxo) -> BdkResult<()> {
-        self.0
-            .lock()
-            .unwrap()
-            .utxos
-            .insert(utxo.outpoint, utxo.clone());
-        Ok(())
+        self.0.lock().unwrap().set_utxo(utxo)
     }
 
     fn set_raw_tx(&mut self, raw_tx: &Transaction) -> BdkResult<()> {
-        self.0
-            .lock()
-            .unwrap()
-            .raw_txs
-            .insert(raw_tx.txid(), raw_tx.clone());
-        Ok(())
+        self.0.lock().unwrap().set_raw_tx(raw_tx)
     }
 
     fn set_tx(&mut self, tx: &TransactionDetails) -> BdkResult<()> {
-        let mut db = self.0.lock().unwrap();
-        let mut tx = tx.clone();
-        // take() the raw tx, inserting it into the raw_txs map if it existed
-        if let Some(raw_tx) = tx.transaction.take() {
-            db.raw_txs.insert(tx.txid, raw_tx);
-        }
-
-        // Convert to metadata and store the metadata
-        let meta = TransactionMetadata::from(tx);
-        db.tx_metas.insert(meta.txid, meta);
-
-        Ok(())
+        self.0.lock().unwrap().set_tx(tx)
     }
 
     fn set_last_index(
@@ -787,17 +678,11 @@ impl BatchOperations for WalletDb {
         keychain: KeychainKind,
         index: u32,
     ) -> BdkResult<()> {
-        let mut db = self.0.lock().unwrap();
-        match keychain {
-            KeychainKind::External => db.last_external_index.insert(index),
-            KeychainKind::Internal => db.last_internal_index.insert(index),
-        };
-        Ok(())
+        self.0.lock().unwrap().set_last_index(keychain, index)
     }
 
     fn set_sync_time(&mut self, time: SyncTime) -> BdkResult<()> {
-        self.0.lock().unwrap().sync_time = Some(time);
-        Ok(())
+        self.0.lock().unwrap().set_sync_time(time)
     }
 
     fn del_script_pubkey_from_path(
@@ -805,42 +690,28 @@ impl BatchOperations for WalletDb {
         keychain: KeychainKind,
         child: u32,
     ) -> BdkResult<Option<Script>> {
-        let path = Path { keychain, child };
-
-        let mut db = self.0.lock().unwrap();
-        db.path_to_script
-            .remove(&path)
-            .inspect(|script| {
-                db.script_to_path.remove(script);
-            })
-            .map(Ok)
-            .transpose()
+        self.0
+            .lock()
+            .unwrap()
+            .del_script_pubkey_from_path(keychain, child)
     }
 
     fn del_path_from_script_pubkey(
         &mut self,
         script: &Script,
     ) -> BdkResult<Option<(KeychainKind, u32)>> {
-        let mut db = self.0.lock().unwrap();
-        db.script_to_path
-            .remove(script)
-            .inspect(|path| {
-                db.path_to_script.remove(path);
-            })
-            .map(|path| (path.keychain, path.child))
-            .map(Ok)
-            .transpose()
+        self.0.lock().unwrap().del_path_from_script_pubkey(script)
     }
 
     fn del_utxo(
         &mut self,
         outpoint: &OutPoint,
     ) -> BdkResult<Option<LocalUtxo>> {
-        Ok(self.0.lock().unwrap().utxos.remove(outpoint))
+        self.0.lock().unwrap().del_utxo(outpoint)
     }
 
     fn del_raw_tx(&mut self, txid: &Txid) -> BdkResult<Option<Transaction>> {
-        Ok(self.0.lock().unwrap().raw_txs.remove(txid))
+        self.0.lock().unwrap().del_raw_tx(txid)
     }
 
     fn del_tx(
@@ -848,38 +719,18 @@ impl BatchOperations for WalletDb {
         txid: &Txid,
         include_raw: bool,
     ) -> BdkResult<Option<TransactionDetails>> {
-        let mut db = self.0.lock().unwrap();
-
-        // Delete the raw tx if include_raw == true, then return the raw tx with
-        // the tx if one existed.
-        let maybe_raw_tx = if include_raw {
-            db.raw_txs.remove(txid)
-        } else {
-            None
-        };
-
-        db.tx_metas
-            .remove(txid)
-            .map(|meta| meta.into_tx(maybe_raw_tx))
-            .map(Ok)
-            .transpose()
+        self.0.lock().unwrap().del_tx(txid, include_raw)
     }
 
     fn del_last_index(
         &mut self,
         keychain: KeychainKind,
     ) -> BdkResult<Option<u32>> {
-        let mut db = self.0.lock().unwrap();
-        match keychain {
-            KeychainKind::External => db.last_external_index.take(),
-            KeychainKind::Internal => db.last_internal_index.take(),
-        }
-        .map(Ok)
-        .transpose()
+        self.0.lock().unwrap().del_last_index(keychain)
     }
 
     fn del_sync_time(&mut self) -> BdkResult<Option<SyncTime>> {
-        Ok(self.0.lock().unwrap().sync_time.take())
+        self.0.lock().unwrap().del_sync_time()
     }
 }
 
@@ -906,8 +757,8 @@ impl Serialize for WalletDb {
         &self,
         serializer: S,
     ) -> Result<S::Ok, S::Error> {
-        let db = self.0.lock().unwrap();
-        DbData::serialize(&*db, serializer)
+        let data = self.0.lock().unwrap();
+        DbData::serialize(&*data, serializer)
     }
 }
 
@@ -920,6 +771,308 @@ impl<'de> Deserialize<'de> for WalletDb {
             .map(Mutex::new)
             .map(Arc::new)
             .map(WalletDb)
+    }
+}
+
+// --- impl DbData --- //
+
+impl Database for DbData {
+    // BDK wants us to store the first checksum we see, then check all future
+    // given checksums against it. Sure, we can do that...
+    fn check_descriptor_checksum<B: AsRef<[u8]>>(
+        &mut self,
+        keychain: KeychainKind,
+        given_checksum: B,
+    ) -> BdkResult<()> {
+        // First, get a &mut Option<Vec<u8>> for the correct keychain
+        let mut_checksum = match keychain {
+            KeychainKind::External => &mut self.external_checksum,
+            KeychainKind::Internal => &mut self.internal_checksum,
+        };
+
+        // Get the saved checksum, lazily inserting the given one if it was None
+        let saved_checksum = mut_checksum
+            .get_or_insert_with(|| given_checksum.as_ref().to_vec());
+
+        // Check the saved checksum against the given one
+        if saved_checksum.as_slice() == given_checksum.as_ref() {
+            Ok(())
+        } else {
+            Err(bdk::Error::ChecksumMismatch)
+        }
+    }
+
+    fn iter_script_pubkeys(
+        &self,
+        maybe_filter_keychain: Option<KeychainKind>,
+    ) -> BdkResult<Vec<Script>> {
+        let vec = match maybe_filter_keychain {
+            Some(filter_keychain) => self
+                .path_to_script
+                .iter()
+                .filter(|(p, _s)| {
+                    mem::discriminant(&p.keychain)
+                        == mem::discriminant(&filter_keychain)
+                })
+                .map(|(_p, s)| s)
+                .cloned()
+                .collect(),
+            None => self.path_to_script.values().cloned().collect(),
+        };
+        Ok(vec)
+    }
+
+    fn iter_utxos(&self) -> BdkResult<Vec<LocalUtxo>> {
+        Ok(self.utxos.values().cloned().collect())
+    }
+
+    fn iter_raw_txs(&self) -> BdkResult<Vec<Transaction>> {
+        Ok(self.raw_txs.values().cloned().collect())
+    }
+
+    fn iter_txs(
+        &self,
+        include_raw: bool,
+    ) -> BdkResult<Vec<TransactionDetails>> {
+        let mut txs = self
+            .tx_metas
+            .values()
+            .cloned()
+            .map(|meta| meta.into_tx(None))
+            .collect::<Vec<_>>();
+
+        if include_raw {
+            // Include any known raw_txs
+            for tx in txs.iter_mut() {
+                let maybe_raw_tx = self.raw_txs.get(&tx.txid).cloned();
+                tx.transaction = maybe_raw_tx;
+            }
+        }
+
+        Ok(txs)
+    }
+
+    fn get_script_pubkey_from_path(
+        &self,
+        keychain: KeychainKind,
+        child: u32,
+    ) -> BdkResult<Option<Script>> {
+        let path = Path { keychain, child };
+        Ok(self.path_to_script.get(&path).cloned())
+    }
+
+    fn get_path_from_script_pubkey(
+        &self,
+        script: &Script,
+    ) -> BdkResult<Option<(KeychainKind, u32)>> {
+        self.script_to_path
+            .get(script)
+            .map(|path| (path.keychain, path.child))
+            .map(Ok)
+            .transpose()
+    }
+
+    fn get_utxo(&self, outpoint: &OutPoint) -> BdkResult<Option<LocalUtxo>> {
+        Ok(self.utxos.get(outpoint).cloned())
+    }
+
+    fn get_raw_tx(&self, txid: &Txid) -> BdkResult<Option<Transaction>> {
+        Ok(self.raw_txs.get(txid).cloned())
+    }
+
+    fn get_tx(
+        &self,
+        txid: &Txid,
+        include_raw: bool,
+    ) -> BdkResult<Option<TransactionDetails>> {
+        let maybe_raw_tx = if include_raw {
+            self.raw_txs.get(txid).cloned()
+        } else {
+            None
+        };
+
+        self.tx_metas
+            .get(txid)
+            .cloned()
+            .map(|meta| meta.into_tx(maybe_raw_tx))
+            .map(Ok)
+            .transpose()
+    }
+
+    fn get_last_index(&self, keychain: KeychainKind) -> BdkResult<Option<u32>> {
+        match keychain {
+            KeychainKind::External => Ok(self.last_external_index),
+            KeychainKind::Internal => Ok(self.last_internal_index),
+        }
+    }
+
+    fn get_sync_time(&self) -> BdkResult<Option<SyncTime>> {
+        Ok(self.sync_time.clone())
+    }
+
+    fn increment_last_index(
+        &mut self,
+        keychain: KeychainKind,
+    ) -> BdkResult<u32> {
+        // Get a &mut Option<u32> corresponding to the appropriate field
+        let mut_last_index = match keychain {
+            KeychainKind::External => &mut self.last_external_index,
+            KeychainKind::Internal => &mut self.last_internal_index,
+        };
+
+        // Increment if the index existed
+        if let Some(index) = mut_last_index {
+            *index += 1;
+        }
+
+        // Get the index, inserting 0 if it was None
+        let last_index = *mut_last_index.get_or_insert(0);
+
+        Ok(last_index)
+    }
+}
+
+impl BatchOperations for DbData {
+    // Weird that the set_* methods give ref, but ok
+    fn set_script_pubkey(
+        &mut self,
+        script: &Script,
+        keychain: KeychainKind,
+        child: u32,
+    ) -> BdkResult<()> {
+        let new_path = Path { keychain, child };
+        self.path_to_script.insert(new_path.clone(), script.clone());
+        self.script_to_path
+            .insert(script.clone(), new_path.clone())
+            .inspect(|old_path| {
+                if *old_path != new_path {
+                    warn!(
+                        "Old {old_path:?} and new {new_path:?} map to the same \
+                        script; Querying the path by script will return the \
+                        new path."
+                    )
+                }
+            });
+
+        Ok(())
+    }
+
+    fn set_utxo(&mut self, utxo: &LocalUtxo) -> BdkResult<()> {
+        self.utxos.insert(utxo.outpoint, utxo.clone());
+        Ok(())
+    }
+
+    fn set_raw_tx(&mut self, raw_tx: &Transaction) -> BdkResult<()> {
+        self.raw_txs.insert(raw_tx.txid(), raw_tx.clone());
+        Ok(())
+    }
+
+    fn set_tx(&mut self, tx: &TransactionDetails) -> BdkResult<()> {
+        let mut tx = tx.clone();
+        // take() the raw tx, inserting it into the raw_txs map if it existed
+        if let Some(raw_tx) = tx.transaction.take() {
+            self.raw_txs.insert(tx.txid, raw_tx);
+        }
+
+        // Convert to metadata and store the metadata
+        let meta = TransactionMetadata::from(tx);
+        self.tx_metas.insert(meta.txid, meta);
+
+        Ok(())
+    }
+
+    fn set_last_index(
+        &mut self,
+        keychain: KeychainKind,
+        index: u32,
+    ) -> BdkResult<()> {
+        match keychain {
+            KeychainKind::External => self.last_external_index.insert(index),
+            KeychainKind::Internal => self.last_internal_index.insert(index),
+        };
+        Ok(())
+    }
+
+    fn set_sync_time(&mut self, time: SyncTime) -> BdkResult<()> {
+        self.sync_time = Some(time);
+        Ok(())
+    }
+
+    fn del_script_pubkey_from_path(
+        &mut self,
+        keychain: KeychainKind,
+        child: u32,
+    ) -> BdkResult<Option<Script>> {
+        let path = Path { keychain, child };
+
+        self.path_to_script
+            .remove(&path)
+            .inspect(|script| {
+                self.script_to_path.remove(script);
+            })
+            .map(Ok)
+            .transpose()
+    }
+
+    fn del_path_from_script_pubkey(
+        &mut self,
+        script: &Script,
+    ) -> BdkResult<Option<(KeychainKind, u32)>> {
+        self.script_to_path
+            .remove(script)
+            .inspect(|path| {
+                self.path_to_script.remove(path);
+            })
+            .map(|path| (path.keychain, path.child))
+            .map(Ok)
+            .transpose()
+    }
+
+    fn del_utxo(
+        &mut self,
+        outpoint: &OutPoint,
+    ) -> BdkResult<Option<LocalUtxo>> {
+        Ok(self.utxos.remove(outpoint))
+    }
+
+    fn del_raw_tx(&mut self, txid: &Txid) -> BdkResult<Option<Transaction>> {
+        Ok(self.raw_txs.remove(txid))
+    }
+
+    fn del_tx(
+        &mut self,
+        txid: &Txid,
+        include_raw: bool,
+    ) -> BdkResult<Option<TransactionDetails>> {
+        // Delete the raw tx if include_raw == true, then return the raw tx with
+        // the tx if one existed.
+        let maybe_raw_tx = if include_raw {
+            self.raw_txs.remove(txid)
+        } else {
+            None
+        };
+
+        self.tx_metas
+            .remove(txid)
+            .map(|meta| meta.into_tx(maybe_raw_tx))
+            .map(Ok)
+            .transpose()
+    }
+
+    fn del_last_index(
+        &mut self,
+        keychain: KeychainKind,
+    ) -> BdkResult<Option<u32>> {
+        match keychain {
+            KeychainKind::External => self.last_external_index.take(),
+            KeychainKind::Internal => self.last_internal_index.take(),
+        }
+        .map(Ok)
+        .transpose()
+    }
+
+    fn del_sync_time(&mut self) -> BdkResult<Option<SyncTime>> {
+        Ok(self.sync_time.take())
     }
 }
 
