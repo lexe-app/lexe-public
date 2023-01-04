@@ -32,7 +32,7 @@ use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::p2p::ChannelPeerUpdate;
 use lexe_ln::sync::SyncedChainListeners;
 use lexe_ln::test_event::TestEventSender;
-use lexe_ln::wallet::LexeWallet;
+use lexe_ln::wallet::{self, LexeWallet};
 use lexe_ln::{channel_monitor, p2p};
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
@@ -128,7 +128,7 @@ impl UserNode {
         let min_cpusvn = MIN_SGX_CPUSVN;
         let api = init_api(&args);
 
-        // Init channels
+        // Init Tokio channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (channel_monitor_persister_tx, channel_monitor_persister_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
@@ -167,10 +167,6 @@ impl UserNode {
             LexeKeysManager::init(rng, &user.node_pk, &root_seed)
                 .context("Failed to construct keys manager")?;
 
-        // Init BDK wallet
-        let wallet = LexeWallet::new(&root_seed, args.network)
-            .context("Could not init BDK wallet")?;
-
         // LexeBitcoind impls BlockSource, FeeEstimator and
         // BroadcasterInterface, and thus serves these functions.
         // A type alias is used for each as bitcoind is slowly refactored out
@@ -192,6 +188,16 @@ impl UserNode {
             shutdown.clone(),
             channel_monitor_persister_tx,
         );
+
+        // Init BDK wallet, spawn wallet db persister task
+        let (_tx, wallet_db_persister_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
+        let wallet = LexeWallet::new(&root_seed, args.network)
+            .context("Could not init BDK wallet")?;
+        tasks.push(wallet::spawn_wallet_db_persister_task(
+            persister.clone(),
+            wallet_db_persister_rx,
+            shutdown.clone(),
+        ));
 
         // Initialize the ChainMonitor
         let chain_monitor = Arc::new(ChainMonitor::new(

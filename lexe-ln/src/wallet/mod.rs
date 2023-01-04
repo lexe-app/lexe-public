@@ -4,9 +4,16 @@ use anyhow::Context;
 use bdk::template::Bip84;
 use bdk::wallet::Wallet;
 use bdk::KeychainKind;
+use common::api::vfs::BasicFile;
 use common::cli::Network;
+use common::constants::IMPORTANT_PERSIST_RETRIES;
 use common::root_seed::RootSeed;
+use common::shutdown::ShutdownChannel;
+use common::task::LxTask;
+use tokio::sync::mpsc;
+use tracing::{info, warn};
 
+use crate::traits::LexePersister;
 use crate::wallet::db::WalletDb;
 
 /// Wallet DB.
@@ -48,6 +55,32 @@ impl LexeWallet {
 
         Ok(Self(Arc::new(Mutex::new(inner))))
     }
+}
+
+#[allow(unused)] // TODO(max): Remove
+pub fn spawn_wallet_db_persister_task<PS: LexePersister>(
+    persister: PS,
+    mut wallet_db_persister_rx: mpsc::Receiver<BasicFile>,
+    mut shutdown: ShutdownChannel,
+) -> LxTask<()> {
+    LxTask::spawn_named("wallet db persister", async move {
+        loop {
+            tokio::select! {
+                Some(basic_file) = wallet_db_persister_rx.recv() => {
+                    // TODO(max): Optimize; only persist the last one
+                    let res = persister
+                        .persist_basic_file(basic_file, IMPORTANT_PERSIST_RETRIES)
+                        .await
+                        .context("Could not persist wallet db");
+                    if let Err(e) = res {
+                        warn!("Wallet DB persist error: {e:#}");
+                    }
+                }
+                () = shutdown.recv() =>
+                    break info!("wallet db persister task shutting down"),
+            }
+        }
+    })
 }
 
 #[cfg(test)]
