@@ -38,7 +38,7 @@ use lightning::routing::scoring::{
 use lightning::util::ser::{ReadableArgs, Writeable};
 use serde::Serialize;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::alias::{ApiClientType, ChainMonitorType, ChannelManagerType};
 use crate::channel_manager::USER_CONFIG;
@@ -158,6 +158,13 @@ impl InnerPersister {
             data_size_hint,
             write_data_cb,
         );
+
+        // Print a warning if the ciphertext is greater than 1 MB.
+        // We are interested in large LDK types as well as the WalletDb.
+        let data_len = data.len();
+        if data_len > 1_000_000 {
+            warn!("{directory}/{filename} is >1MB: {data_len} bytes");
+        }
 
         NodeFile::new(self.user_pk, directory, filename, data)
     }
