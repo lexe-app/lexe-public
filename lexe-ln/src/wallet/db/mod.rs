@@ -15,7 +15,7 @@ use common::constants::SMALLER_CHANNEL_SIZE;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_with::formats::Lowercase;
 use serde_with::hex::Hex;
-use serde_with::{serde_as, DisplayFromStr};
+use serde_with::{serde_as, DeserializeFromStr, SerializeDisplay};
 use tokio::sync::mpsc;
 use tracing::{info, warn};
 
@@ -40,25 +40,23 @@ pub(super) struct WalletDb {
 #[serde_as]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct DbData {
-    #[serde_as(as = "BTreeMap<DisplayFromStr, Hex<Lowercase>>")]
     path_to_script: BTreeMap<Path, Script>,
-    #[serde_as(as = "BTreeMap<Hex<Lowercase>, DisplayFromStr>")]
     script_to_path: BTreeMap<Script, Path>,
-    #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
     utxos: BTreeMap<OutPoint, LocalUtxo>,
-    #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
     raw_txs: BTreeMap<Txid, Transaction>,
-    #[serde_as(as = "BTreeMap<DisplayFromStr, _>")]
     tx_metas: BTreeMap<Txid, TransactionMetadata>,
     last_external_index: Option<u32>,
     last_internal_index: Option<u32>,
     sync_time: Option<SyncTime>,
+    #[serde_as(as = "Option<Hex<Lowercase>>")]
     external_checksum: Option<Vec<u8>>,
+    #[serde_as(as = "Option<Hex<Lowercase>>")]
     internal_checksum: Option<Vec<u8>>,
 }
 
 /// Represents a [`KeychainKind`] and corresponding child path.
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(SerializeDisplay, DeserializeFromStr)]
 struct Path {
     keychain: KeychainKind,
     child: u32,
@@ -160,8 +158,8 @@ impl Ord for Path {
 impl Display for Path {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let keychain_str = match self.keychain {
-            KeychainKind::External => "external",
-            KeychainKind::Internal => "internal",
+            KeychainKind::External => "ext",
+            KeychainKind::Internal => "int",
         };
         let child = &self.child;
         write!(f, "{keychain_str}@{child}")
@@ -180,9 +178,9 @@ impl FromStr for Path {
             };
 
         let keychain = match keychain_str {
-            "external" => KeychainKind::External,
-            "internal" => KeychainKind::Internal,
-            _ => bail!("Keychain should be 'external' or 'internal'"),
+            "ext" => KeychainKind::External,
+            "int" => KeychainKind::Internal,
+            _ => bail!("Keychain should be 'ext' or 'int'"),
         };
         let child = u32::from_str(child_str).context("Invalid u32 child")?;
 
@@ -1402,11 +1400,10 @@ mod test {
         })
     }
 
-    /// Tests that the [`FromStr`] / [`Display`], [`FromStr`] / [`LowerHex`],
-    /// and [`Serialize`] / [`Deserialize`] impls of [`WalletDb`] fields
-    /// roundtrip, because these impls are used when serializing the
-    /// [`WalletDb`] as a whole. See the [`serde_as`] annotations on [`DbData`]
-    /// for more information.
+    /// Tests that the [`FromStr`] / [`Display`] and [`Serialize`] /
+    /// [`Deserialize`] impls of [`WalletDb`] fields roundtrip, because these
+    /// impls are used when serializing the [`WalletDb`] as a whole. See the
+    /// [`serde_as`] annotations on [`DbData`] for more information.
     #[test]
     fn wallet_db_fields_roundtrips() {
         use roundtrip::*;
@@ -1414,16 +1411,16 @@ mod test {
         // This test takes a while, so we only try 16 cases for each field.
         let config = Config::with_cases(16);
 
-        // Path
-        fromstr_display_custom(any::<Path>(), config.clone());
-        // Script
-        fromstr_lowerhex_custom(arbitrary::any_script(), config.clone());
-        // OutPoint
-        fromstr_display_custom(arbitrary::any_outpoint(), config.clone());
+        // Path serializes to a string
+        json_string_custom(any::<Path>(), config.clone());
+        // Script serializes to a string
+        json_string_custom(arbitrary::any_script(), config.clone());
+        // OutPoint serializes to a string
+        json_string_custom(arbitrary::any_script(), config.clone());
         // LocalUtxo
         json_value_custom(any_utxo(), config.clone());
-        // Txid
-        fromstr_display_custom(arbitrary::any_txid(), config.clone());
+        // Txid serializes to a string
+        json_string_custom(arbitrary::any_txid(), config.clone());
         // Transaction
         json_value_custom(arbitrary::any_raw_tx(), config.clone());
         // TransactionMetadata
@@ -1515,7 +1512,7 @@ mod test {
         panic!();
         */
 
-        let db_json_str = "{\"path_to_script\":{\"internal@2431873833\":\"08f48768401aa152500006ca1ac0aa1d272103a1e61d1211e949668e3fd57b6f79d668b89ed6a37ff7ac5561f8fdb0e78361620854e9c93cf102c7e521037521401037d7cf567da4315b8c46a851d243c603a142e6c066d2c2b58a57b24d\"},\"script_to_path\":{\"08f48768401aa152500006ca1ac0aa1d272103a1e61d1211e949668e3fd57b6f79d668b89ed6a37ff7ac5561f8fdb0e78361620854e9c93cf102c7e521037521401037d7cf567da4315b8c46a851d243c603a142e6c066d2c2b58a57b24d\":\"internal@2431873833\"},\"utxos\":{\"630a8e1c3d2d2eb8b317e8269a87a0390a7d6dd4ada3b71da859207ccaae14b1:1110281271\":{\"outpoint\":\"630a8e1c3d2d2eb8b317e8269a87a0390a7d6dd4ada3b71da859207ccaae14b1:1110281271\",\"txout\":{\"value\":15591741407262660305,\"script_pubkey\":\"08ce6d76826e5f34e120442a604a0079c9df52ff67a2960707388bf0456bf9baff42b3f43f5744af9af4209e27673841d3ebc161079749d14efc8a165d84a2c1df0c6826305cbde5db7d4b\"},\"keychain\":\"Internal\",\"is_spent\":true}},\"raw_txs\":{\"f953c0395ab3dafaeaf276591a163a31189e901a2febac896aa22b469accbffd\":{\"version\":1,\"lock_time\":749390219,\"input\":[{\"previous_output\":\"098d2e099c903f57a3ec3470677684849086a15c91b9b3ff629aa78d9200be96:2102777305\",\"script_sig\":\"086b407c6efe2faa0906ddb4fbb17568210219f208d2f62f5a8a8bbbb9bc1f08766bec126196e95867e174c7ba6070c0891008f67934282fa8bbd801560756d7722c4b5b14032d19e7\",\"sequence\":3781032586,\"witness\":[\"973459ab835d62\",\"678e410862\"]}],\"output\":[{\"value\":15449077679960011960,\"script_pubkey\":\"204e3cbe79accb76a477f54fd0db3d6c7b50cba3fc4f5d37978144418a114ef4fa1120795bb47c01e56b8201a2218e61a4b0ac8ee70f090153e4ef5257a87ea76b4fbc08cda18f5d069e06965ebd\"}]}},\"tx_metas\":{\"363005278de3fca6d992810833ef412b23ca35841aa5db29003ed9629b4f4292\":{\"txid\":\"363005278de3fca6d992810833ef412b23ca35841aa5db29003ed9629b4f4292\",\"received\":4152075928798363952,\"sent\":3817630852809344414,\"fee\":null,\"confirmation_time\":{\"height\":1333097909,\"timestamp\":12654208677788822518}}},\"last_external_index\":206074427,\"last_internal_index\":null,\"sync_time\":{\"block_time\":{\"height\":1247739046,\"timestamp\":6738928675946799964}},\"external_checksum\":null,\"internal_checksum\":null}";
+        let db_json_str = "{\"path_to_script\":{\"int@2431873833\":\"08f48768401aa152500006ca1ac0aa1d272103a1e61d1211e949668e3fd57b6f79d668b89ed6a37ff7ac5561f8fdb0e78361620854e9c93cf102c7e521037521401037d7cf567da4315b8c46a851d243c603a142e6c066d2c2b58a57b24d\"},\"script_to_path\":{\"08f48768401aa152500006ca1ac0aa1d272103a1e61d1211e949668e3fd57b6f79d668b89ed6a37ff7ac5561f8fdb0e78361620854e9c93cf102c7e521037521401037d7cf567da4315b8c46a851d243c603a142e6c066d2c2b58a57b24d\":\"int@2431873833\"},\"utxos\":{\"630a8e1c3d2d2eb8b317e8269a87a0390a7d6dd4ada3b71da859207ccaae14b1:1110281271\":{\"outpoint\":\"630a8e1c3d2d2eb8b317e8269a87a0390a7d6dd4ada3b71da859207ccaae14b1:1110281271\",\"txout\":{\"value\":15591741407262660305,\"script_pubkey\":\"08ce6d76826e5f34e120442a604a0079c9df52ff67a2960707388bf0456bf9baff42b3f43f5744af9af4209e27673841d3ebc161079749d14efc8a165d84a2c1df0c6826305cbde5db7d4b\"},\"keychain\":\"Internal\",\"is_spent\":true}},\"raw_txs\":{\"f953c0395ab3dafaeaf276591a163a31189e901a2febac896aa22b469accbffd\":{\"version\":1,\"lock_time\":749390219,\"input\":[{\"previous_output\":\"098d2e099c903f57a3ec3470677684849086a15c91b9b3ff629aa78d9200be96:2102777305\",\"script_sig\":\"086b407c6efe2faa0906ddb4fbb17568210219f208d2f62f5a8a8bbbb9bc1f08766bec126196e95867e174c7ba6070c0891008f67934282fa8bbd801560756d7722c4b5b14032d19e7\",\"sequence\":3781032586,\"witness\":[\"973459ab835d62\",\"678e410862\"]}],\"output\":[{\"value\":15449077679960011960,\"script_pubkey\":\"204e3cbe79accb76a477f54fd0db3d6c7b50cba3fc4f5d37978144418a114ef4fa1120795bb47c01e56b8201a2218e61a4b0ac8ee70f090153e4ef5257a87ea76b4fbc08cda18f5d069e06965ebd\"}]}},\"tx_metas\":{\"363005278de3fca6d992810833ef412b23ca35841aa5db29003ed9629b4f4292\":{\"txid\":\"363005278de3fca6d992810833ef412b23ca35841aa5db29003ed9629b4f4292\",\"received\":4152075928798363952,\"sent\":3817630852809344414,\"fee\":null,\"confirmation_time\":{\"height\":1333097909,\"timestamp\":12654208677788822518}}},\"last_external_index\":206074427,\"last_internal_index\":null,\"sync_time\":{\"block_time\":{\"height\":1247739046,\"timestamp\":6738928675946799964}},\"external_checksum\":null,\"internal_checksum\":null}";
 
         serde_json::from_str::<DbData>(db_json_str)
             .expect("Failed to deserialize old serialized WalletDb");
