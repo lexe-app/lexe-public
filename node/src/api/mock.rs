@@ -14,6 +14,7 @@ use common::api::provision::{SealedSeed, SealedSeedId};
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::api::{NodePk, User, UserPk};
 use common::byte_str::ByteStr;
+use common::constants::SINGLETON_DIRECTORY;
 use common::ed25519;
 use common::enclave::{self, Measurement};
 use common::rng::SysRng;
@@ -254,7 +255,7 @@ impl VirtualFileSystem {
         for user_pk in [*USER_PK1, *USER_PK2] {
             let singleton_dir = NodeDirectory {
                 user_pk,
-                dirname: persister::SINGLETON_DIRECTORY.into(),
+                dirname: SINGLETON_DIRECTORY.into(),
             };
             let channel_monitors_dir = NodeDirectory {
                 user_pk,

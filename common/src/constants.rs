@@ -13,8 +13,12 @@ use crate::root_seed::RootSeed;
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 pub const SMALLER_CHANNEL_SIZE: usize = 16;
 
-/// The default number of persist retries for important objects
+/// The default number of persist retries for important objects.
 pub const IMPORTANT_PERSIST_RETRIES: usize = 5;
+/// The vfs directory name used by singleton objects.
+pub const SINGLETON_DIRECTORY: &str = ".";
+/// The vfs filename used for the `WalletDb`.
+pub const WALLET_DB_FILENAME: &str = "bdk_wallet_db";
 
 pub const DEFAULT_BACKEND_URL: &str = "http://127.0.0.1:3030";
 pub const DEFAULT_GATEWAY_URL: &str = "http://127.0.0.1:4040";
