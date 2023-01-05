@@ -40,6 +40,16 @@ pub(super) struct WalletDb {
 #[serde_as]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 struct DbData {
+    // NOTE: One would think that `script_to_path` is a reverse index for
+    // `path_to_script`, but BDK doesn't maintain the invariant that every
+    // mapping in the former exists in the latter. On insertion with
+    // `set_script_pubkey`, a path <-> script pair is inserted into both maps.
+    // But upon deletion with `del_script_pubkey_from_path` /
+    // `del_path_from_script_pubkey`, the same pair is not removed from the
+    // other map. Because these two maps evolve independently, we cannot save
+    // space by serializing the two maps as just `Vec<(Path, Script)>`. We are
+    // awaiting clarification from BDK on this, and/or for this inconsistent
+    // scheme to be scrapped entirely.
     path_to_script: BTreeMap<Path, Script>,
     script_to_path: BTreeMap<Script, Path>,
     utxos: BTreeMap<OutPoint, LocalUtxo>,
@@ -549,15 +559,15 @@ impl WalletDb {
         // behavior is when multiple paths map to the same key.
 
         // Everything in path_to_script must be in script_to_path and vice versa
-        let db = self.inner.lock().unwrap();
+        // let db = self.inner.lock().unwrap();
         // for (path1, script1) in db.path_to_script.iter() {
         //     let path2 = db.script_to_path.get(script1).unwrap();
         //     assert_eq!(path1, path2);
         // }
-        for (script2, path2) in db.script_to_path.iter() {
-            let script1 = db.path_to_script.get(path2).unwrap();
-            assert_eq!(script1, script2);
-        }
+        // for (script2, path2) in db.script_to_path.iter() {
+        //     let script1 = db.path_to_script.get(path2).unwrap();
+        //     assert_eq!(script1, script2);
+        // }
     }
 }
 
@@ -663,7 +673,7 @@ impl Database for WalletDb {
 }
 
 impl BatchOperations for WalletDb {
-    // Weird that the set_* methods take ref, but ok
+    // Weird that the set_* methods give ref, but ok
     fn set_script_pubkey(
         &mut self,
         script: &Script,
@@ -1043,9 +1053,11 @@ impl BatchOperations for DbData {
 
         self.path_to_script
             .remove(&path)
-            .inspect(|script| {
-                self.script_to_path.remove(script);
-            })
+            // You'd expect we'd delete from the other map too, but BDK doesn't.
+            // We default to BDK's behavior while we await clarification.
+            // .inspect(|script| {
+            //     self.script_to_path.remove(script);
+            // })
             .map(Ok)
             .transpose()
     }
@@ -1056,9 +1068,11 @@ impl BatchOperations for DbData {
     ) -> BdkResult<Option<(KeychainKind, u32)>> {
         self.script_to_path
             .remove(script)
-            .inspect(|path| {
-                self.path_to_script.remove(path);
-            })
+            // You'd expect we'd delete from the other map too, but BDK doesn't.
+            // We default to BDK's behavior while we await clarification.
+            // .inspect(|path| {
+            //     self.path_to_script.remove(path);
+            // })
             .map(|path| (path.keychain, path.child))
             .map(Ok)
             .transpose()
