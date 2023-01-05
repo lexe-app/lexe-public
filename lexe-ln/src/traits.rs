@@ -7,6 +7,7 @@ use common::ln::peer::ChannelPeer;
 use lightning::chain::chainmonitor::Persist;
 use lightning::util::events::EventHandler;
 use lightning::util::ser::Writeable;
+use serde::Serialize;
 
 use crate::alias::{
     LexeChannelManagerType, LexePeerManagerType, NetworkGraphType,
@@ -26,6 +27,15 @@ pub trait ArcInner<T>: Deref<Target = T> {
 /// Defines all the persister methods needed in shared Lexe LN logic.
 #[async_trait]
 pub trait LexeInnerPersister: Persist<SignerType> {
+    /// Serialize an impl [`Serialize`] to JSON bytes, encrypt the bytes, and
+    /// return the [`BasicFile`] which is (almost) ready to be persisted.
+    fn encrypt_json<S: Serialize>(
+        &self,
+        directory: String,
+        filename: String,
+        value: &S,
+    ) -> BasicFile;
+
     async fn persist_basic_file(
         &self,
         basic_file: BasicFile,

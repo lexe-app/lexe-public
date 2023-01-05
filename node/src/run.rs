@@ -191,12 +191,13 @@ impl UserNode {
 
         // Init BDK wallet, spawn wallet db persister task
         let (wallet_db_persister_tx, wallet_db_persister_rx) =
-            mpsc::channel(DEFAULT_CHANNEL_SIZE);
-        let wallet =
-            LexeWallet::new(&root_seed, args.network, wallet_db_persister_tx)
+            mpsc::channel(SMALLER_CHANNEL_SIZE);
+        let (wallet, wallet_db) =
+            LexeWallet::init(&root_seed, args.network, wallet_db_persister_tx)
                 .context("Could not init BDK wallet")?;
         tasks.push(wallet::spawn_wallet_db_persister_task(
             persister.clone(),
+            wallet_db,
             wallet_db_persister_rx,
             shutdown.clone(),
         ));

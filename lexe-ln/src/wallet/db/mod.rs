@@ -9,7 +9,6 @@ use anyhow::{bail, Context};
 use bdk::database::{BatchDatabase, BatchOperations, Database, SyncTime};
 use bdk::{BlockTime, KeychainKind, LocalUtxo, TransactionDetails};
 use bitcoin::{OutPoint, Script, Transaction, Txid};
-use common::api::vfs::BasicFile;
 #[cfg(test)]
 use common::constants::SMALLER_CHANNEL_SIZE;
 use serde::{Deserialize, Serialize, Serializer};
@@ -17,7 +16,7 @@ use serde_with::formats::Lowercase;
 use serde_with::hex::Hex;
 use serde_with::{serde_as, DeserializeFromStr, SerializeDisplay};
 use tokio::sync::mpsc;
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 /// BDK's wallet database test suite.
 #[cfg(test)]
@@ -31,10 +30,9 @@ type BdkResult<T> = Result<T, bdk::Error>;
 ///
 /// [`MemoryDatabase`]: bdk::database::memory::MemoryDatabase
 #[derive(Clone, Debug)]
-pub(super) struct WalletDb {
+pub struct WalletDb {
     inner: Arc<Mutex<DbData>>,
-    #[allow(dead_code)] // TODO(max): Remove
-    wallet_db_persister_tx: mpsc::Sender<BasicFile>,
+    wallet_db_persister_tx: mpsc::Sender<()>,
 }
 
 #[serde_as]
@@ -112,7 +110,7 @@ struct TransactionMetadata {
 /// (`sled`) DB does.
 ///
 /// [`commit_batch`]: BatchDatabase::commit_batch
-pub(super) struct DbBatch(Vec<DbOp>);
+pub struct DbBatch(Vec<DbOp>);
 
 /// Enumerates all database operations which can mutate the DB.
 #[derive(Clone, Debug)]
@@ -518,7 +516,7 @@ impl DbOp {
 // --- impl WalletDb --- //
 
 impl WalletDb {
-    pub(super) fn new(wallet_db_persister_tx: mpsc::Sender<BasicFile>) -> Self {
+    pub(super) fn new(wallet_db_persister_tx: mpsc::Sender<()>) -> Self {
         let inner = Arc::new(Mutex::new(DbData::new()));
         Self {
             inner,
@@ -526,8 +524,12 @@ impl WalletDb {
         }
     }
 
-    /// Helper to quickly Construct a [`WalletDb`] without needing to pass in
-    /// the channel tx, useful for tests.
+    /// Helper to quickly construct a [`WalletDb`] without needing to pass in
+    /// the channel tx, useful for tests. Note that for some tests it is still
+    /// necessary to pass in the channel tx to prevent the test from failing due
+    /// to the channel rx being dropped.
+    ///
+    /// [`commit_batch`]: BatchDatabase::commit_batch
     #[cfg(test)]
     fn new_test_db() -> Self {
         let (wallet_db_persister_tx, _rx) = mpsc::channel(SMALLER_CHANNEL_SIZE);
@@ -540,10 +542,10 @@ impl WalletDb {
 
     /// Constructs a [`WalletDb`] given its inner [`DbData`] and persister
     /// [`mpsc::Sender`].
-    #[allow(dead_code)] // TODO(max): Remove
+    #[allow(dead_code)] // TODO(max): Remove once we read from DB
     fn from_inner(
         inner: DbData,
-        wallet_db_persister_tx: mpsc::Sender<BasicFile>,
+        wallet_db_persister_tx: mpsc::Sender<()>,
     ) -> Self {
         let inner = Arc::new(Mutex::new(inner));
         Self {
@@ -770,18 +772,38 @@ impl BatchDatabase for WalletDb {
         DbBatch::new()
     }
 
+    /// Executes all ops in the batch and notifies the wallet db persister task
+    /// that the [`WalletDb`] should be re-persisted.
+    ///
+    /// NOTE: We are deliberately failing to meet the API requirement of this
+    /// function, specifically that the database should be persisted before
+    /// returning. This is because:
+    ///
+    /// - BDK does not provide an async database persist API.
+    /// - The chance of data loss is fairly small - the node would need to be
+    ///   shut down in the <=1 second or so it takes to persist the `WalletDb`.
+    /// - Most data lost can be recovered by redoing chain sync. In the worst
+    ///   case, we reissue the same address twice.
+    ///
+    /// Taking all the above into consideration, it's not worth blocking the
+    /// entire program to protect against this small amount of risk.
     fn commit_batch(&mut self, batch: Self::Batch) -> BdkResult<()> {
         info!("Committing WalletDb batch");
         for op in batch.0 {
             op.do_op(self);
         }
 
-        // TODO(max): Serialize then persist the WalletDb
+        self.wallet_db_persister_tx
+            .try_send(())
+            .inspect_err(|_| {
+                error!("Could not notify wallet db persister task")
+            })
+            .map_err(|e| bdk::Error::Generic(format!("{e:#}")))?;
+
         Ok(())
     }
 }
 
-// TODO(max): Can we remove this?
 impl Serialize for WalletDb {
     fn serialize<S: Serializer>(
         &self,
@@ -1530,8 +1552,9 @@ mod test {
     /// Run BDK's test suite.
     #[test]
     fn bdk_tests() {
+        let (tx, _rx) = mpsc::channel(SMALLER_CHANNEL_SIZE);
         bdk_test_suite::test_script_pubkey(WalletDb::new_test_db());
-        bdk_test_suite::test_batch_script_pubkey(WalletDb::new_test_db());
+        bdk_test_suite::test_batch_script_pubkey(WalletDb::new(tx));
         bdk_test_suite::test_iter_script_pubkey(WalletDb::new_test_db());
         bdk_test_suite::test_del_script_pubkey(WalletDb::new_test_db());
         bdk_test_suite::test_utxo(WalletDb::new_test_db());
@@ -1566,8 +1589,9 @@ mod test {
         let any_op = any::<DbOp>();
         let any_vec_of_ops = proptest::collection::vec(any_op, 0..20);
         proptest!(|(vec_of_ops in any_vec_of_ops)| {
+            let (tx, _rx) = mpsc::channel(SMALLER_CHANNEL_SIZE);
             let empty_db = WalletDb::new_test_db();
-            let mut batch_db = WalletDb::new_test_db();
+            let mut batch_db = WalletDb::new(tx);
             let mut batch = batch_db.begin_batch();
             let mut normal_db = WalletDb::new_test_db();
 

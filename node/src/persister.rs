@@ -12,7 +12,7 @@ use common::api::error::BackendApiError;
 use common::api::vfs::{BasicFile, NodeDirectory, NodeFile, NodeFileId};
 use common::api::UserPk;
 use common::cli::Network;
-use common::constants::IMPORTANT_PERSIST_RETRIES;
+use common::constants::{IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY};
 use common::ln::channel::LxOutPoint;
 use common::ln::peer::ChannelPeer;
 use common::shutdown::ShutdownChannel;
@@ -45,7 +45,6 @@ use crate::alias::{ApiClientType, ChainMonitorType, ChannelManagerType};
 use crate::channel_manager::USER_CONFIG;
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
-pub(crate) const SINGLETON_DIRECTORY: &str = ".";
 const NETWORK_GRAPH_FILENAME: &str = "network_graph";
 const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 const SCORER_FILENAME: &str = "scorer";
@@ -117,21 +116,6 @@ impl InnerPersister {
             writeable.write(mut_vec_u8).expect(
                 "Serialization into an in-memory buffer should never fail",
             );
-        })
-    }
-
-    /// Serializes an impl [`Serialize`] to JSON bytes, encrypts the bytes, and
-    /// returns the final [`NodeFile`] which is ready to be persisted.
-    #[allow(dead_code)] // TODO(max): Remove
-    fn encrypt_json<S: Serialize>(
-        &self,
-        directory: String,
-        filename: String,
-        value: &S,
-    ) -> NodeFile {
-        self.encrypt_file(directory, filename, &|mut_vec_u8| {
-            serde_json::to_writer(mut_vec_u8, value)
-                .expect("JSON serialization should not fail");
         })
     }
 
@@ -390,6 +374,19 @@ impl InnerPersister {
 
 #[async_trait]
 impl LexeInnerPersister for InnerPersister {
+    fn encrypt_json<S: Serialize>(
+        &self,
+        directory: String,
+        filename: String,
+        value: &S,
+    ) -> BasicFile {
+        let node_file = self.encrypt_file(directory, filename, &|mut_vec_u8| {
+            serde_json::to_writer(mut_vec_u8, value)
+                .expect("JSON serialization was not implemented correctly");
+        });
+        BasicFile::from(node_file)
+    }
+
     async fn persist_basic_file(
         &self,
         basic_file: BasicFile,
