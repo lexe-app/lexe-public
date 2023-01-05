@@ -89,7 +89,29 @@ pub fn json_string_roundtrip_proptest<T>()
 where
     T: Arbitrary + PartialEq + Serialize + DeserializeOwned,
 {
-    proptest!(|(value1: T)| {
+    json_string_custom(any::<T>(), Config::default());
+}
+
+/// Create a JSON string roundtrip proptest using a custom canonical strategy
+/// and custom proptest [`Config`]. Useful for testing foreign types for which
+/// we cannot implement [`Arbitrary`], or reducing the number of iterations on
+/// proptests that would otherwise take too long.
+///
+/// ```
+/// # use common::api::UserPk;
+/// # use common::test_utils::roundtrip;
+/// # use proptest::arbitrary::{any, Arbitrary};
+/// # use proptest::test_runner::Config;
+///
+/// let config = Config::with_cases(1);
+/// roundtrip::json_string_custom(any::<UserPk>(), config);
+/// ```
+pub fn json_string_custom<S, T>(strategy: S, config: Config)
+where
+    S: Strategy<Value = T>,
+    T: PartialEq + Serialize + DeserializeOwned + Debug,
+{
+    proptest!(config, |(value1 in strategy)| {
         let json_value1 = serde_json::to_string(&value1).unwrap();
         let value2 = serde_json::from_str::<T>(&json_value1).unwrap();
         prop_assert_eq!(&value1, &value2);
