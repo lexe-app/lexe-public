@@ -1137,51 +1137,47 @@ mod test {
     use super::*;
 
     /// An `Arbitrary`-like [`Strategy`] for [`KeychainKind`].
-    fn any_keychain() -> BoxedStrategy<KeychainKind> {
-        any::<bool>()
-            .prop_map(|external| {
-                if external {
-                    KeychainKind::External
-                } else {
-                    KeychainKind::Internal
-                }
-            })
-            .boxed()
+    fn any_keychain() -> impl Strategy<Value = KeychainKind> {
+        any::<bool>().prop_map(|external| {
+            if external {
+                KeychainKind::External
+            } else {
+                KeychainKind::Internal
+            }
+        })
     }
 
     /// An `Arbitrary`-like [`Strategy`] for [`LocalUtxo`].
-    fn any_utxo() -> BoxedStrategy<LocalUtxo> {
+    fn any_utxo() -> impl Strategy<Value = LocalUtxo> {
         (
             arbitrary::any_outpoint(),
             arbitrary::any_txout(),
             any_keychain(),
             any::<bool>(),
         )
-            .prop_map(|(outpoint, txout, keychain, is_spent)| LocalUtxo {
-                outpoint,
-                txout,
-                keychain,
-                is_spent,
+            .prop_map(|(outpoint, txout, keychain, is_spent)| {
+                LocalUtxo {
+                    outpoint,
+                    txout,
+                    keychain,
+                    is_spent,
+                }
             })
-            .boxed()
     }
 
     /// An `Arbitrary`-like [`Strategy`] for [`BlockTime`].
-    fn any_block_time() -> BoxedStrategy<BlockTime> {
+    fn any_block_time() -> impl Strategy<Value = BlockTime> {
         (any::<u32>(), any::<u64>())
             .prop_map(|(height, timestamp)| BlockTime { height, timestamp })
-            .boxed()
     }
 
     /// An `Arbitrary`-like [`Strategy`] for [`SyncTime`].
-    fn any_sync_time() -> BoxedStrategy<SyncTime> {
-        any_block_time()
-            .prop_map(|block_time| SyncTime { block_time })
-            .boxed()
+    fn any_sync_time() -> impl Strategy<Value = SyncTime> {
+        any_block_time().prop_map(|block_time| SyncTime { block_time })
     }
 
     /// An `Arbitrary`-like [`Strategy`] for [`TransactionDetails`].
-    fn any_tx() -> BoxedStrategy<TransactionDetails> {
+    fn any_tx() -> impl Strategy<Value = TransactionDetails> {
         (
             arbitrary::any_raw_tx(),
             any::<bool>(),
@@ -1220,7 +1216,6 @@ mod test {
                     }
                 },
             )
-            .boxed()
     }
 
     impl Arbitrary for DbData {
