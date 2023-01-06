@@ -189,19 +189,6 @@ impl UserNode {
             channel_monitor_persister_tx,
         );
 
-        // Init BDK wallet, spawn wallet db persister task
-        let (wallet_db_persister_tx, wallet_db_persister_rx) =
-            mpsc::channel(SMALLER_CHANNEL_SIZE);
-        let (wallet, wallet_db) =
-            LexeWallet::init(&root_seed, args.network, wallet_db_persister_tx)
-                .context("Could not init BDK wallet")?;
-        tasks.push(wallet::spawn_wallet_db_persister_task(
-            persister.clone(),
-            wallet_db,
-            wallet_db_persister_rx,
-            shutdown.clone(),
-        ));
-
         // Initialize the ChainMonitor
         let chain_monitor = Arc::new(ChainMonitor::new(
             None,
@@ -211,16 +198,33 @@ impl UserNode {
             persister.clone(),
         ));
 
-        // Read channel monitors while reading network graph
-        let (channel_monitors_res, network_graph_res) = tokio::join!(
-            persister.read_channel_monitors(keys_manager.clone()),
-            persister.read_network_graph(args.network, logger.clone())
-        );
+        // Concurrently read channel monitors, network graph, and wallet db
+        let (wallet_db_persister_tx, wallet_db_persister_rx) =
+            mpsc::channel(SMALLER_CHANNEL_SIZE);
+        #[rustfmt::skip] // Does not respect 80 char line width
+        let (try_channel_monitors, try_network_graph, try_wallet_db) =
+            tokio::join!(
+                persister.read_channel_monitors(keys_manager.clone()),
+                persister.read_network_graph(args.network, logger.clone()),
+                persister.read_wallet_db(wallet_db_persister_tx),
+            );
         let mut channel_monitors =
-            channel_monitors_res.context("Could not read channel monitors")?;
-        let network_graph = network_graph_res
+            try_channel_monitors.context("Could not read channel monitors")?;
+        let network_graph = try_network_graph
             .map(Arc::new)
             .context("Could not read network graph")?;
+        let wallet_db = try_wallet_db.context("Could not read wallet db")?;
+
+        // Init BDK wallet, spawn wallet db persister task
+        let wallet =
+            LexeWallet::new(&root_seed, args.network, wallet_db.clone())
+                .context("Could not init BDK wallet")?;
+        tasks.push(wallet::spawn_wallet_db_persister_task(
+            persister.clone(),
+            wallet_db,
+            wallet_db_persister_rx,
+            shutdown.clone(),
+        ));
 
         // Init gossip sync
         let gossip_sync = Arc::new(P2PGossipSync::new(

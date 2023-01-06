@@ -37,7 +37,7 @@ pub struct WalletDb {
 
 #[serde_as]
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
-struct DbData {
+pub struct DbData {
     // NOTE: One would think that `script_to_path` is a reverse index for
     // `path_to_script`, but BDK doesn't maintain the invariant that every
     // mapping in the former exists in the latter. On insertion with
@@ -523,7 +523,7 @@ impl DbOp {
 // --- impl WalletDb --- //
 
 impl WalletDb {
-    pub(super) fn new(wallet_db_persister_tx: mpsc::Sender<()>) -> Self {
+    pub fn new(wallet_db_persister_tx: mpsc::Sender<()>) -> Self {
         let inner = Arc::new(Mutex::new(DbData::new()));
         Self {
             inner,
@@ -549,8 +549,7 @@ impl WalletDb {
 
     /// Constructs a [`WalletDb`] given its inner [`DbData`] and persister
     /// [`mpsc::Sender`].
-    #[allow(dead_code)] // TODO(max): Remove once we read from DB
-    fn from_inner(
+    pub fn from_inner(
         inner: DbData,
         wallet_db_persister_tx: mpsc::Sender<()>,
     ) -> Self {
