@@ -12,7 +12,9 @@ use common::api::error::BackendApiError;
 use common::api::vfs::{BasicFile, NodeDirectory, NodeFile, NodeFileId};
 use common::api::UserPk;
 use common::cli::Network;
-use common::constants::{IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY};
+use common::constants::{
+    IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
+};
 use common::ln::channel::LxOutPoint;
 use common::ln::peer::ChannelPeer;
 use common::shutdown::ShutdownChannel;
@@ -27,6 +29,7 @@ use lexe_ln::channel_monitor::{
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::traits::LexeInnerPersister;
+use lexe_ln::wallet::db::{DbData, WalletDb};
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
 use lightning::chain::channelmonitor::ChannelMonitorUpdate;
 use lightning::chain::transaction::OutPoint;
@@ -168,6 +171,49 @@ impl InnerPersister {
         self.authenticator
             .get_token(&*self.api, SystemTime::now())
             .await
+    }
+
+    pub(crate) async fn read_wallet_db(
+        &self,
+        wallet_db_persister_tx: mpsc::Sender<()>,
+    ) -> anyhow::Result<WalletDb> {
+        debug!("Reading wallet db");
+        let file_id = NodeFileId::new(
+            self.user_pk,
+            SINGLETON_DIRECTORY.to_owned(),
+            WALLET_DB_FILENAME.to_owned(),
+        );
+        let token = self.get_token().await?;
+
+        let maybe_file = self
+            .api
+            .get_file(&file_id, token)
+            .await
+            .context("Could not fetch wallet db from db")?;
+
+        let wallet_db = match maybe_file {
+            Some(file) => {
+                debug!("Decrypting and deserializing existing wallet db");
+                let db_bytes = self.decrypt_file(
+                    SINGLETON_DIRECTORY,
+                    WALLET_DB_FILENAME,
+                    file.data,
+                )?;
+
+                let inner =
+                    serde_json::from_slice::<DbData>(db_bytes.as_slice())
+                        .context("Could not deserialize DbData")?;
+
+                WalletDb::from_inner(inner, wallet_db_persister_tx)
+            }
+            None => {
+                debug!("No wallet db found, creating a new one");
+
+                WalletDb::new(wallet_db_persister_tx)
+            }
+        };
+
+        Ok(wallet_db)
     }
 
     #[allow(clippy::too_many_arguments)]

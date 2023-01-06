@@ -18,7 +18,7 @@ use crate::traits::LexePersister;
 use crate::wallet::db::WalletDb;
 
 /// Wallet DB.
-mod db;
+pub mod db;
 
 /// A newtype wrapper around [`bdk::Wallet`]. Can be cloned and used directly.
 // The Mutex is needed because bdk::Wallet isn't thread-safe. bdk::Wallet::new
@@ -30,17 +30,17 @@ mod db;
 pub struct LexeWallet(Arc<Mutex<Wallet<WalletDb>>>);
 
 impl LexeWallet {
-    /// Constructs a new [`LexeWallet`] from a [`RootSeed`]. Wallet addresses
-    /// are generated according to the [BIP 84] standard. See also [BIP 44].
-    /// Additionally returns a handle to the underlying `WalletDb`.
+    /// Constructs a new [`LexeWallet`] from a [`RootSeed`] and [`WalletDb`].
+    /// Wallet addresses are generated according to the [BIP 84] standard. See
+    /// also [BIP 44].
     ///
     /// [BIP 84]: https://github.com/bitcoin/bips/blob/master/bip-0084.mediawiki
     /// [BIP 44]: https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki
-    pub fn init(
+    pub fn new(
         root_seed: &RootSeed,
         network: Network,
-        wallet_db_persister_tx: mpsc::Sender<()>,
-    ) -> anyhow::Result<(Self, WalletDb)> {
+        wallet_db: WalletDb,
+    ) -> anyhow::Result<Self> {
         let network = network.into_inner();
         let master_xprv = root_seed.derive_bip32_master_xprv(network);
 
@@ -49,26 +49,21 @@ impl LexeWallet {
         // Descriptor for internal (change) addresses: `m/84h/{0,1}h/0h/1/*`
         let change_descriptor = Bip84(master_xprv, KeychainKind::Internal);
 
-        // TODO(max): Deserialize from persisted wallet db
-        let wallet_db = WalletDb::new(wallet_db_persister_tx);
-
         let inner = Wallet::new(
             external_descriptor,
             Some(change_descriptor),
             network,
-            wallet_db.clone(),
+            wallet_db,
         )
         .context("bdk::Wallet::new failed")?;
 
-        let wallet = Self(Arc::new(Mutex::new(inner)));
-
-        Ok((wallet, wallet_db))
+        Ok(Self(Arc::new(Mutex::new(inner))))
     }
 }
 
-/// Spawns a task that persists the current `WalletDb` state whenever it
+/// Spawns a task that persists the current [`WalletDb`] state whenever it
 /// receives a notification (via the `wallet_db_persister_rx` channel) that the
-/// `WalletDb` needs to be re-persisted.
+/// [`WalletDb`] needs to be re-persisted.
 pub fn spawn_wallet_db_persister_task<PS: LexePersister>(
     persister: PS,
     wallet_db: WalletDb,
@@ -115,22 +110,4 @@ pub fn spawn_wallet_db_persister_task<PS: LexePersister>(
 
         info!("wallet db persister task shutting down");
     })
-}
-
-#[cfg(test)]
-mod test {
-    use proptest::arbitrary::any;
-    use proptest::proptest;
-
-    use super::*;
-
-    #[test]
-    fn all_root_seeds_form_valid_wallet() {
-        let any_root_seed = any::<RootSeed>();
-        let any_network = any::<Network>();
-        proptest!(|(root_seed in any_root_seed, network in any_network)| {
-            let (tx, _rx) = mpsc::channel(1);
-            LexeWallet::init(&root_seed, network, tx).unwrap();
-        })
-    }
 }
