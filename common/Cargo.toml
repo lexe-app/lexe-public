@@ -149,8 +149,9 @@ proptest = { optional = true, version = "1", default-features = false, features 
 proptest-derive = { optional = true, version = "0.3" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
-# Bitcoind regtest
-bitcoind = { optional = true, version = "0.28", features = [ "22_0" ] }
+# Bitcoind + electrum + esplora regtest
+# Note that electrsd reexports the bitcoind crate in its crate root.
+electrsd = { optional = true, version = "0.22", features = [ "bitcoind_22_0", "esplora_a33e97e1", "legacy" ] }
 # Include additional useful proptest features when testing outside of SGX
 proptest = { optional = true, version = "1" }
 # Arbitrary derive macro
@@ -160,7 +161,7 @@ proptest-derive = { optional = true, version = "0.3" }
 # Explicitly specify that no features should be enabled by default.
 default = []
 # Enable this feature to allow test utils to be shared across crate boundaries.
-test-utils = ["dep:bitcoind", "dep:proptest", "dep:proptest-derive"]
+test-utils = ["dep:electrsd", "dep:proptest", "dep:proptest-derive"]
 
 # --- DEV DEPENDENCIES, ALL PLATFORMS --- #
 

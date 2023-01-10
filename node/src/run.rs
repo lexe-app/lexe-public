@@ -26,16 +26,13 @@ use lexe_ln::alias::{
     PaymentInfoStorageType, ProbabilisticScorerType,
 };
 use lexe_ln::background_processor::LexeBackgroundProcessor;
-use lexe_ln::bdk::blockchain::esplora::EsploraBlockchain;
 use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::p2p::ChannelPeerUpdate;
 use lexe_ln::sync::SyncedChainListeners;
 use lexe_ln::test_event::TestEventSender;
-use lexe_ln::wallet::{
-    self, LexeWallet, BDK_WALLET_SYNC_CONCURRENCY, BDK_WALLET_SYNC_STOP_GAP,
-};
+use lexe_ln::wallet::{self, LexeWallet};
 use lexe_ln::{channel_monitor, p2p};
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
@@ -101,12 +98,12 @@ pub struct UserNode {
     sync: Option<SyncContext>,
 }
 
+/// Fields which are "moved" out of [`UserNode`] during `sync`.
 struct SyncContext {
     restarting_node: bool,
     channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
     channel_manager_blockhash: BlockHash,
     polled_chain_tip: ValidatedBlockHeader,
-    /// Notifies the SpvClient to poll for a new chain tip.
     poll_tip_rx: mpsc::Receiver<()>,
 }
 
@@ -200,14 +197,6 @@ impl UserNode {
             fee_estimator.clone(),
             persister.clone(),
         ));
-
-        // Init BDK's Esplora-backed wallet sync client.
-        // TODO(max): Use as part of wallet sync
-        let _blockchain = EsploraBlockchain::new(
-            args.esplora_url.as_str(),
-            BDK_WALLET_SYNC_STOP_GAP,
-        )
-        .with_concurrency(BDK_WALLET_SYNC_CONCURRENCY);
 
         // Concurrently read channel monitors, network graph, and wallet db
         let (wallet_db_persister_tx, wallet_db_persister_rx) =
@@ -522,8 +511,11 @@ impl UserNode {
     pub async fn sync(&mut self) -> anyhow::Result<()> {
         let ctxt = self.sync.take().expect("sync() must be called only once");
 
-        // Sync channel manager and channel monitors to chain tip
-        let synced_chain_listeners = SyncedChainListeners::init_and_sync(
+        // BDK: Sync wallet
+        let bdk_sync_fut = self.wallet.sync(self.args.esplora_url.as_str());
+
+        // LDK: Sync channel manager and channel monitors to chain tip
+        let ldk_sync_fut = SyncedChainListeners::init_and_sync(
             self.args.network,
             self.channel_manager.clone(),
             ctxt.channel_manager_blockhash,
@@ -535,12 +527,16 @@ impl UserNode {
             self.fee_estimator.clone(),
             self.logger.clone(),
             ctxt.restarting_node,
-        )
-        .await
-        .context("Could not sync channel listeners")?;
+        );
+
+        // Sync BDK and LDK concurrently
+        let (try_bdk_sync, try_synced_chain_listeners) =
+            tokio::join!(bdk_sync_fut, ldk_sync_fut);
+        try_bdk_sync.context("Couldn't sync BDK wallet")?;
 
         // Populate the chain monitor and spawn the SPV client
-        let spv_client_task = synced_chain_listeners
+        let spv_client_task = try_synced_chain_listeners
+            .context("Couldn't sync channel manager and channel monitors")?
             .feed_chain_monitor_and_spawn_spv(
                 self.chain_monitor.clone(),
                 self.shutdown.clone(),

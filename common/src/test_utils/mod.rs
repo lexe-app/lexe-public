@@ -1,3 +1,7 @@
+use std::net::{TcpListener, TcpStream};
+
+use crate::api::ports::Port;
+
 /// `Arbitrary`-like proptest strategies for foreign types.
 pub mod arbitrary;
 /// Quickly initialize a bitcoind regtest instance.
@@ -5,10 +9,6 @@ pub mod arbitrary;
 pub mod regtest;
 /// Quickly create roundtrip proptest for various serialization schemes.
 pub mod roundtrip;
-
-use std::net::{TcpListener, TcpStream};
-
-use crate::api::ports::Port;
 
 /// Returns an ephemeral port assigned by the OS which should be available for
 /// the next ~60s after this function is called
