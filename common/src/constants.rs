@@ -23,10 +23,10 @@ pub const WALLET_DB_FILENAME: &str = "bdk_wallet_db";
 pub const DEFAULT_BACKEND_URL: &str = "http://127.0.0.1:3030";
 pub const DEFAULT_GATEWAY_URL: &str = "http://127.0.0.1:4040";
 pub const DEFAULT_RUNNER_URL: &str = "http://127.0.0.1:5050";
-
 /// NOTE: This is the url that *user nodes* use to establish LN P2P connections
 /// with the LSP. External LN nodes use the [`STANDARD_LIGHTNING_P2P_PORT`].
 pub const DEFAULT_LSP_URL: &str = "http://127.0.0.1:6060";
+pub const DEFAULT_ESPLORA_URL: &str = "http://127.0.0.1:7070";
 
 /// The node pubkey the user node expects when connecting to the LSP.
 // TODO: Replace this with the LSP's real NodePk.

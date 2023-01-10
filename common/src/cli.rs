@@ -24,7 +24,8 @@ use serde::{Deserialize, Serialize};
 use crate::api::ports::Port;
 use crate::api::UserPk;
 use crate::constants::{
-    DEFAULT_BACKEND_URL, DEFAULT_RUNNER_URL, NODE_PROVISION_DNS, NODE_RUN_DNS,
+    DEFAULT_BACKEND_URL, DEFAULT_ESPLORA_URL, DEFAULT_RUNNER_URL,
+    NODE_PROVISION_DNS, NODE_RUN_DNS,
 };
 use crate::ln::peer::ChannelPeer;
 
@@ -36,6 +37,7 @@ pub const SIGNET_NETWORK: Network = Network(bitcoin::Network::Signet);
 /// Commands accepted by the user node.
 #[derive(Clone, Debug, Eq, PartialEq, FromArgs)]
 #[argh(subcommand)]
+#[allow(clippy::large_enum_variant)] // It will be Run most of the time
 pub enum NodeCommand {
     Run(RunArgs),
     Provision(ProvisionArgs),
@@ -47,42 +49,6 @@ impl NodeCommand {
         match self {
             Self::Run(args) => args.user_pk,
             Self::Provision(args) => args.user_pk,
-        }
-    }
-
-    /// Overrides the contained user pk. Used during tests.
-    pub fn set_user_pk(&mut self, user_pk: UserPk) {
-        match self {
-            Self::Run(args) => {
-                args.user_pk = user_pk;
-            }
-            Self::Provision(args) => {
-                args.user_pk = user_pk;
-            }
-        }
-    }
-
-    /// Overrides the contained backend url. Used during tests.
-    pub fn set_backend_url(&mut self, backend_url: String) {
-        match self {
-            Self::Run(args) => {
-                args.backend_url = backend_url;
-            }
-            Self::Provision(args) => {
-                args.backend_url = backend_url;
-            }
-        }
-    }
-
-    /// Overrides the contained runner url. Used during tests.
-    pub fn set_runner_url(&mut self, runner_url: String) {
-        match self {
-            Self::Run(args) => {
-                args.runner_url = runner_url;
-            }
-            Self::Provision(args) => {
-                args.runner_url = runner_url;
-            }
         }
     }
 
@@ -177,6 +143,10 @@ pub struct RunArgs {
     #[argh(option, default = "DEFAULT_RUNNER_URL.to_owned()")]
     pub runner_url: String,
 
+    /// protocol://host:port of Lexe's Esplora server.
+    #[argh(option, default = "DEFAULT_ESPLORA_URL.to_owned()")]
+    pub esplora_url: String,
+
     /// the <node_pk>@<sock_addr> of the LSP.
     #[argh(option)]
     // XXX(max): We need to verify this somehow; otherwise the node may accept
@@ -212,6 +182,7 @@ impl Default for RunArgs {
             node_dns_name: NODE_RUN_DNS.to_owned(),
             backend_url: DEFAULT_BACKEND_URL.to_owned(),
             runner_url: DEFAULT_RUNNER_URL.to_owned(),
+            esplora_url: DEFAULT_ESPLORA_URL.to_owned(),
             lsp: DUMMY_LSP.clone(),
             mock: false,
         }
@@ -242,6 +213,8 @@ impl RunArgs {
             .arg(&self.backend_url)
             .arg("--runner-url")
             .arg(&self.runner_url)
+            .arg("--esplora-url")
+            .arg(&self.esplora_url)
             .arg("--lsp")
             .arg(&self.lsp.to_string())
             .arg("--node-dns-name")
