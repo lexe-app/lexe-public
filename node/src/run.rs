@@ -202,12 +202,12 @@ impl UserNode {
         ));
 
         // Init BDK's Esplora-backed wallet sync client.
-        // TODO(max): Pass this in via CLI arg
-        let esplora_url = "https://blockstream.info:143";
         // TODO(max): Use as part of wallet sync
-        let _blockchain =
-            EsploraBlockchain::new(esplora_url, BDK_WALLET_SYNC_STOP_GAP)
-                .with_concurrency(BDK_WALLET_SYNC_CONCURRENCY);
+        let _blockchain = EsploraBlockchain::new(
+            args.esplora_url.as_str(),
+            BDK_WALLET_SYNC_STOP_GAP,
+        )
+        .with_concurrency(BDK_WALLET_SYNC_CONCURRENCY);
 
         // Concurrently read channel monitors, network graph, and wallet db
         let (wallet_db_persister_tx, wallet_db_persister_rx) =
