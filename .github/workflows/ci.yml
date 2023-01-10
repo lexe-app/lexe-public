@@ -70,7 +70,7 @@ jobs:
           # targets: x86_64-fortanix-unknown-sgx
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v1
-      - run: cargo test --locked
+      - run: cargo test --locked -- -Zunstable-options --report-time
 
   fmt:
     runs-on: ubuntu-20.04
