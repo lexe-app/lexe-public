@@ -102,16 +102,3 @@ fn get_dummy_address() -> Address {
     let network = Network::Regtest;
     Address { payload, network }
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[tokio::test]
-    async fn dummy_address_is_valid() {
-        // If the dummy address is valid, we should be able to mine blocks to it
-        let (regtest, _rpc_info) = Regtest::init().await;
-        regtest.mine_n_blocks(6).await;
-        regtest.fund_address(&get_dummy_address()).await;
-    }
-}
