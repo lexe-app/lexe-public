@@ -41,5 +41,3 @@ pub mod test_event;
 pub mod traits;
 /// BDK wallet.
 pub mod wallet;
-
-pub use bdk;

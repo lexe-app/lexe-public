@@ -357,7 +357,7 @@ dependencies = [
  "tempfile",
  "ureq",
  "which",
- "zip",
+ "zip 0.5.13",
 ]
 
 [[package]]
@@ -512,6 +512,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "cmac",
  "dcap-ql",
+ "electrsd",
  "futures",
  "http",
  "hyper",
@@ -749,6 +750,33 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90e5c1c8368803113bf0c9584fc495a58b86dc8a29edbf8fe877d21d9507e797"
 
 [[package]]
+name = "electrsd"
+version = "0.22.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0204c0695deabd4db9fe278ba26499a83cd35394297fd6b112bfea087e739e97"
+dependencies = [
+ "bitcoin_hashes 0.11.0",
+ "bitcoind",
+ "electrum-client",
+ "log",
+ "nix 0.25.0",
+ "ureq",
+ "zip 0.6.3",
+]
+
+[[package]]
+name = "electrum-client"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82a232d46710f8064b7bb2029d82819fc1f5fba053687e0e3bb47cc762af24f6"
+dependencies = [
+ "bitcoin",
+ "log",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "enclave-runner"
 version = "0.5.1"
 source = "git+https://github.com/lexe-tech/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
@@ -836,14 +864,12 @@ dependencies = [
 
 [[package]]
 name = "flate2"
-version = "1.0.22"
+version = "1.0.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e6988e897c1c9c485f43b47a529cef42fde0547f9d8d41a7062518f1d8fc53f"
+checksum = "a8a2db397cb1c8772f31494cb8917e48cd1e64f0fa7efac59fbd741a0a8ce841"
 dependencies = [
- "cfg-if 1.0.0",
  "crc32fast",
- "libc",
- "miniz_oxide 0.4.4",
+ "miniz_oxide 0.6.2",
 ]
 
 [[package]]
@@ -1391,19 +1417,18 @@ dependencies = [
 
 [[package]]
 name = "miniz_oxide"
-version = "0.4.4"
+version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a92518e98c078586bc6c934028adcca4c92a53d6a958196de835170a01d84e4b"
+checksum = "96590ba8f175222643a85693f33d26e9c8a015f599c216509b1a6894af675d34"
 dependencies = [
  "adler",
- "autocfg",
 ]
 
 [[package]]
 name = "miniz_oxide"
-version = "0.5.4"
+version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96590ba8f175222643a85693f33d26e9c8a015f599c216509b1a6894af675d34"
+checksum = "b275950c28b37e794e8c55d88aeb5e139d0ce23fdbbeda68f8d7174abdf9e8fa"
 dependencies = [
  "adler",
 ]
@@ -1445,6 +1470,20 @@ dependencies = [
  "cfg-if 0.1.10",
  "libc",
  "void",
+]
+
+[[package]]
+name = "nix"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e322c04a9e3440c327fca7b6c8a63e6890a32fa2ad689db972425f07e0d22abb"
+dependencies = [
+ "autocfg",
+ "bitflags",
+ "cfg-if 1.0.0",
+ "libc",
+ "memoffset",
+ "pin-utils",
 ]
 
 [[package]]
@@ -2980,4 +3019,17 @@ dependencies = [
  "flate2",
  "thiserror",
  "time 0.1.44",
+]
+
+[[package]]
+name = "zip"
+version = "0.6.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "537ce7411d25e54e8ae21a7ce0b15840e7bfcff15b51d697ec3266cc76bdf080"
+dependencies = [
+ "byteorder",
+ "bzip2",
+ "crc32fast",
+ "crossbeam-utils",
+ "flate2",
 ]

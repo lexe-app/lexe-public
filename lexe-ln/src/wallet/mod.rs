@@ -1,9 +1,10 @@
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use anyhow::Context;
+use bdk::blockchain::EsploraBlockchain;
 use bdk::template::Bip84;
 use bdk::wallet::Wallet;
-use bdk::KeychainKind;
+use bdk::{KeychainKind, SyncOptions};
 use common::cli::Network;
 use common::constants::{
     IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
@@ -23,20 +24,22 @@ pub mod db;
 /// The 'stop_gap' parameter used by BDK's wallet sync. This seems to configure
 /// the threshold number of blocks after which BDK stops looking for scripts
 /// belonging to the wallet. BDK's default value for this is 20.
-pub const BDK_WALLET_SYNC_STOP_GAP: usize = 20;
+const BDK_WALLET_SYNC_STOP_GAP: usize = 20;
 
 /// The maximum number of concurrent requests that can be made against the
 /// Esplora API provider.
-pub const BDK_WALLET_SYNC_CONCURRENCY: u8 = 8;
+const BDK_WALLET_SYNC_CONCURRENCY: u8 = 8;
 
 /// A newtype wrapper around [`bdk::Wallet`]. Can be cloned and used directly.
 // The Mutex is needed because bdk::Wallet isn't thread-safe. bdk::Wallet::new
 // internally wraps the db we provide with a RefCell, which isn't Send. Thus, to
 // convince the compiler that LexeWallet is indeed Send, we wrap the bdk::Wallet
 // with a Mutex, despite the fact that we don't technically need the Mutex since
-// we don't use any bdk::Wallet methods that require &mut self.
+// we don't use any bdk::Wallet methods that require &mut self. Furthermore,
+// since a lock to the bdk::Wallet needs to be held while awaiting on BDK wallet
+// sync, the Mutex we use must be a Tokio mutex.
 #[derive(Clone)]
-pub struct LexeWallet(Arc<Mutex<Wallet<WalletDb>>>);
+pub struct LexeWallet(Arc<tokio::sync::Mutex<Wallet<WalletDb>>>);
 
 impl LexeWallet {
     /// Constructs a new [`LexeWallet`] from a [`RootSeed`] and [`WalletDb`].
@@ -66,7 +69,27 @@ impl LexeWallet {
         )
         .context("bdk::Wallet::new failed")?;
 
-        Ok(Self(Arc::new(Mutex::new(inner))))
+        Ok(Self(Arc::new(tokio::sync::Mutex::new(inner))))
+    }
+
+    /// Syncs the inner [`bdk::Wallet`] using the given Esplora server.
+    ///
+    /// NOTE: Beware deadlocks; this function holds a lock to the inner
+    /// [`bdk::Wallet`] during wallet sync. It is held across `.await`.
+    pub async fn sync(&self, esplora_url: &str) -> anyhow::Result<()> {
+        let esplora_client =
+            EsploraBlockchain::new(esplora_url, BDK_WALLET_SYNC_STOP_GAP)
+                .with_concurrency(BDK_WALLET_SYNC_CONCURRENCY);
+
+        // No need to hear about sync progress for now
+        let sync_options = SyncOptions { progress: None };
+
+        self.0
+            .lock()
+            .await
+            .sync(&esplora_client, sync_options)
+            .await
+            .context("bdk::Wallet::sync failed")
     }
 }
 
