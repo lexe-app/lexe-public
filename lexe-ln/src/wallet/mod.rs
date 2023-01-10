@@ -20,6 +20,15 @@ use crate::wallet::db::WalletDb;
 /// Wallet DB.
 pub mod db;
 
+/// The 'stop_gap' parameter used by BDK's wallet sync. This seems to configure
+/// the threshold number of blocks after which BDK stops looking for scripts
+/// belonging to the wallet. BDK's default value for this is 20.
+pub const BDK_WALLET_SYNC_STOP_GAP: usize = 20;
+
+/// The maximum number of concurrent requests that can be made against the
+/// Esplora API provider.
+pub const BDK_WALLET_SYNC_CONCURRENCY: u8 = 8;
+
 /// A newtype wrapper around [`bdk::Wallet`]. Can be cloned and used directly.
 // The Mutex is needed because bdk::Wallet isn't thread-safe. bdk::Wallet::new
 // internally wraps the db we provide with a RefCell, which isn't Send. Thus, to

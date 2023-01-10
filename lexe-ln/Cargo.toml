@@ -24,8 +24,8 @@ bitcoin-bech32 = "0.12"
 # bech32 = "0.8"
 base64 = "0.13.0"
 # TODO(max): Switch back to crates.io after SyncTime PR is merged and released
-# bdk = { version = "0.25", default-features = false, features = ["async-interface"] }
-bdk = { git = "https://github.com/lexe-tech/bdk", default-features = false, features = ["async-interface"], branch = "lexe" }
+# bdk = { version = "0.25", default-features = false, features = ["async-interface", "use-esplora-async"] }
+bdk = { git = "https://github.com/lexe-tech/bdk", default-features = false, features = ["async-interface", "use-esplora-async"], branch = "lexe" }
 
 # --- LIGHTNING --- #
 
