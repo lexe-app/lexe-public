@@ -219,6 +219,8 @@ dependencies = [
  "async-trait",
  "bdk-macros",
  "bitcoin",
+ "esplora-client",
+ "futures",
  "getrandom",
  "js-sys",
  "log",
@@ -775,6 +777,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9852635589dc9f9ea1b6fe9f05b50ef208c85c834a562f0c6abb1c475736ec2b"
 dependencies = [
  "cfg-if 1.0.0",
+]
+
+[[package]]
+name = "esplora-client"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b94400573de17e346ab91ec08ad13d37e871e400b9930d4cb2b6b02253e760e"
+dependencies = [
+ "bitcoin",
+ "log",
+ "reqwest",
+ "serde",
 ]
 
 [[package]]
@@ -1907,6 +1921,7 @@ dependencies = [
  "serde_urlencoded",
  "tokio",
  "tokio-rustls",
+ "tokio-socks",
  "tower-service",
  "url",
  "wasm-bindgen",
@@ -2424,6 +2439,18 @@ dependencies = [
  "rustls",
  "tokio",
  "webpki",
+]
+
+[[package]]
+name = "tokio-socks"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "51165dfa029d2a65969413a6cc96f354b86b464498702f174a4efa13608fd8c0"
+dependencies = [
+ "either",
+ "futures-util",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

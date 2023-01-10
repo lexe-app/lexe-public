@@ -26,13 +26,16 @@ use lexe_ln::alias::{
     PaymentInfoStorageType, ProbabilisticScorerType,
 };
 use lexe_ln::background_processor::LexeBackgroundProcessor;
+use lexe_ln::bdk::blockchain::esplora::EsploraBlockchain;
 use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::p2p::ChannelPeerUpdate;
 use lexe_ln::sync::SyncedChainListeners;
 use lexe_ln::test_event::TestEventSender;
-use lexe_ln::wallet::{self, LexeWallet};
+use lexe_ln::wallet::{
+    self, LexeWallet, BDK_WALLET_SYNC_CONCURRENCY, BDK_WALLET_SYNC_STOP_GAP,
+};
 use lexe_ln::{channel_monitor, p2p};
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::KeysInterface;
@@ -189,7 +192,7 @@ impl UserNode {
             channel_monitor_persister_tx,
         );
 
-        // Initialize the ChainMonitor
+        // Initialize the chain monitor
         let chain_monitor = Arc::new(ChainMonitor::new(
             None,
             broadcaster.clone(),
@@ -197,6 +200,14 @@ impl UserNode {
             fee_estimator.clone(),
             persister.clone(),
         ));
+
+        // Init BDK's Esplora-backed wallet sync client.
+        // TODO(max): Pass this in via CLI arg
+        let esplora_url = "https://blockstream.info:143";
+        // TODO(max): Use as part of wallet sync
+        let _blockchain =
+            EsploraBlockchain::new(esplora_url, BDK_WALLET_SYNC_STOP_GAP)
+                .with_concurrency(BDK_WALLET_SYNC_CONCURRENCY);
 
         // Concurrently read channel monitors, network graph, and wallet db
         let (wallet_db_persister_tx, wallet_db_persister_rx) =
