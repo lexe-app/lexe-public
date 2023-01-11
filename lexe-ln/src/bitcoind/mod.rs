@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::str::FromStr;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -8,7 +7,6 @@ use anyhow::{ensure, Context};
 use bitcoin::blockdata::transaction::Transaction;
 use bitcoin::consensus::encode;
 use bitcoin::hash_types::{BlockHash, Txid};
-use bitcoin::util::address::Address;
 use common::cli::{BitcoindRpcInfo, Network};
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
@@ -250,17 +248,6 @@ impl LexeBitcoind {
             .call_method("signrawtransactionwithwallet", &[tx_hex_json])
             .await
             .context("signrawtransactionwithwallet RPC call failed")
-    }
-
-    pub async fn get_new_address(&self) -> anyhow::Result<Address> {
-        let addr_args = vec![serde_json::json!("LDK output address")];
-        let addr = self
-            .rpc_client
-            .call_method::<NewAddress>("getnewaddress", &addr_args)
-            .await
-            .context("getnewaddress RPC call failed")?;
-        Address::from_str(addr.0.as_str())
-            .context("Could not parse address from string")
     }
 
     pub async fn get_blockchain_info(&self) -> anyhow::Result<BlockchainInfo> {

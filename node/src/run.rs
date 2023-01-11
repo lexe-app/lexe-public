@@ -18,7 +18,7 @@ use common::enclave::{
 use common::rng::Crng;
 use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
-use common::task::{joined_task_state_label, LxTask};
+use common::task::{joined_task_state_label, BlockingTaskRt, LxTask};
 use futures::future::TryFutureExt;
 use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
@@ -78,7 +78,6 @@ pub struct UserNode {
     pub logger: LexeTracingLogger,
     pub persister: NodePersister,
     pub wallet: LexeWallet,
-    pub bitcoind_wallet: Arc<LexeBitcoind>, // TODO(max): Refactor this out
     block_source: Arc<BlockSourceType>,
     fee_estimator: Arc<FeeEstimatorType>,
     broadcaster: Arc<BroadcasterType>,
@@ -171,7 +170,6 @@ impl UserNode {
         // LexeBitcoind impls BlockSource, FeeEstimator and
         // BroadcasterInterface, and thus serves these functions.
         // A type alias is used for each as bitcoind is slowly refactored out
-        let bitcoind_wallet = bitcoind.clone();
         let block_source = bitcoind.clone();
         let fee_estimator = bitcoind.clone();
         let broadcaster = bitcoind.clone();
@@ -352,18 +350,20 @@ impl UserNode {
             Arc::new(Mutex::new(HashMap::new()));
         let outbound_payments: PaymentInfoStorageType =
             Arc::new(Mutex::new(HashMap::new()));
-        let event_handler = NodeEventHandler::new(
-            args.network,
-            args.lsp.clone(),
-            channel_manager.clone(),
-            keys_manager.clone(),
-            bitcoind.clone(),
-            network_graph.clone(),
-            inbound_payments.clone(),
-            outbound_payments.clone(),
-            test_event_tx.clone(),
-            shutdown.clone(),
-        );
+        let event_handler = NodeEventHandler {
+            network: args.network,
+            lsp: args.lsp.clone(),
+            wallet: wallet.clone(),
+            channel_manager: channel_manager.clone(),
+            keys_manager: keys_manager.clone(),
+            bitcoind: bitcoind.clone(),
+            network_graph: network_graph.clone(),
+            inbound_payments: inbound_payments.clone(),
+            outbound_payments: outbound_payments.clone(),
+            test_event_tx: test_event_tx.clone(),
+            blocking_task_rt: BlockingTaskRt::new(),
+            shutdown: shutdown.clone(),
+        };
 
         // Initialize InvoicePayer
         let router = DefaultRouter::new(
@@ -478,7 +478,6 @@ impl UserNode {
             logger,
             persister,
             wallet,
-            bitcoind_wallet,
             block_source,
             fee_estimator,
             broadcaster,
