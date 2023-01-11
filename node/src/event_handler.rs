@@ -19,6 +19,7 @@ use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::invoice::{HTLCStatus, MillisatAmount, PaymentInfo};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::test_event::{TestEvent, TestEventSender};
+use lexe_ln::wallet::LexeWallet;
 use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
 };
@@ -28,49 +29,22 @@ use tracing::{debug, error, info};
 
 use crate::channel_manager::NodeChannelManager;
 
+// We pub(crate) all the fields to prevent having to specify each field two more
+// times in Self::new paramaters and in struct init syntax.
 pub struct NodeEventHandler {
-    network: Network,
-    lsp: ChannelPeer,
-    channel_manager: NodeChannelManager,
-    keys_manager: LexeKeysManager,
-    bitcoind: Arc<LexeBitcoind>,
-    network_graph: Arc<NetworkGraphType>,
-    inbound_payments: PaymentInfoStorageType,
-    outbound_payments: PaymentInfoStorageType,
-    test_event_tx: TestEventSender,
+    pub(crate) network: Network,
+    pub(crate) lsp: ChannelPeer,
+    pub(crate) wallet: LexeWallet,
+    pub(crate) channel_manager: NodeChannelManager,
+    pub(crate) keys_manager: LexeKeysManager,
+    pub(crate) bitcoind: Arc<LexeBitcoind>,
+    pub(crate) network_graph: Arc<NetworkGraphType>,
+    pub(crate) inbound_payments: PaymentInfoStorageType,
+    pub(crate) outbound_payments: PaymentInfoStorageType,
+    pub(crate) test_event_tx: TestEventSender,
     // XXX: remove when `EventHandler` is async
-    blocking_task_rt: BlockingTaskRt,
-    shutdown: ShutdownChannel,
-}
-
-impl NodeEventHandler {
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn new(
-        network: Network,
-        lsp: ChannelPeer,
-        channel_manager: NodeChannelManager,
-        keys_manager: LexeKeysManager,
-        bitcoind: Arc<LexeBitcoind>,
-        network_graph: Arc<NetworkGraphType>,
-        inbound_payments: PaymentInfoStorageType,
-        outbound_payments: PaymentInfoStorageType,
-        test_event_tx: TestEventSender,
-        shutdown: ShutdownChannel,
-    ) -> Self {
-        Self {
-            network,
-            lsp,
-            channel_manager,
-            keys_manager,
-            bitcoind,
-            network_graph,
-            inbound_payments,
-            outbound_payments,
-            test_event_tx,
-            blocking_task_rt: BlockingTaskRt::new(),
-            shutdown,
-        }
-    }
+    pub(crate) blocking_task_rt: BlockingTaskRt,
+    pub(crate) shutdown: ShutdownChannel,
 }
 
 impl EventHandler for NodeEventHandler {
@@ -110,6 +84,7 @@ impl EventHandler for NodeEventHandler {
         // handlilng is supported
         let network = self.network;
         let lsp = self.lsp.clone();
+        let wallet = self.wallet.clone();
         let channel_manager = self.channel_manager.clone();
         let bitcoind = self.bitcoind.clone();
         let network_graph = self.network_graph.clone();
@@ -126,6 +101,7 @@ impl EventHandler for NodeEventHandler {
             handle_event(
                 network,
                 &lsp,
+                &wallet,
                 &channel_manager,
                 &bitcoind,
                 &network_graph,
@@ -146,6 +122,7 @@ impl EventHandler for NodeEventHandler {
 pub(crate) async fn handle_event(
     network: Network,
     lsp: &ChannelPeer,
+    wallet: &LexeWallet,
     channel_manager: &NodeChannelManager,
     bitcoind: &LexeBitcoind,
     network_graph: &NetworkGraphType,
@@ -159,6 +136,7 @@ pub(crate) async fn handle_event(
     let handle_event_res = handle_event_fallible(
         network,
         lsp,
+        wallet,
         channel_manager,
         bitcoind,
         network_graph,
@@ -180,6 +158,7 @@ pub(crate) async fn handle_event(
 async fn handle_event_fallible(
     network: Network,
     lsp: &ChannelPeer,
+    wallet: &LexeWallet,
     channel_manager: &NodeChannelManager,
     bitcoind: &LexeBitcoind,
     network_graph: &NetworkGraphType,
@@ -490,10 +469,7 @@ async fn handle_event_fallible(
             });
         }
         Event::SpendableOutputs { outputs } => {
-            let destination_address = bitcoind
-                .get_new_address()
-                .await
-                .context("Could not get new address")?;
+            let destination_address = wallet.get_new_address()?;
             let output_descriptors = &outputs.iter().collect::<Vec<_>>();
             let tx_feerate = bitcoind
                 .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);

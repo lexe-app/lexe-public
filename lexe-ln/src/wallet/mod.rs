@@ -3,8 +3,9 @@ use std::sync::Arc;
 use anyhow::Context;
 use bdk::blockchain::EsploraBlockchain;
 use bdk::template::Bip84;
-use bdk::wallet::Wallet;
+use bdk::wallet::{AddressIndex, Wallet};
 use bdk::{KeychainKind, SyncOptions};
+use bitcoin::util::address::Address;
 use common::cli::Network;
 use common::constants::{
     IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
@@ -90,6 +91,16 @@ impl LexeWallet {
             .sync(&esplora_client, sync_options)
             .await
             .context("bdk::Wallet::sync failed")
+    }
+
+    /// Returns a new address derived using the external descriptor.
+    pub fn get_new_address(&self) -> anyhow::Result<Address> {
+        self.0
+            .try_lock()
+            .context("Wallet is busy; perhaps it is still syncing?")?
+            .get_address(AddressIndex::New)
+            .map(|info| info.address)
+            .context("Could not get new address")
     }
 }
 
