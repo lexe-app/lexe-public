@@ -19,6 +19,7 @@ use common::rng::Crng;
 use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
 use common::task::{joined_task_state_label, LxTask};
+use futures::future::TryFutureExt;
 use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
     BlockSourceType, BroadcasterType, ChannelMonitorType, FeeEstimatorType,
@@ -512,7 +513,10 @@ impl UserNode {
         let ctxt = self.sync.take().expect("sync() must be called only once");
 
         // BDK: Sync wallet
-        let bdk_sync_fut = self.wallet.sync(self.args.esplora_url.as_str());
+        let bdk_sync_fut = self
+            .wallet
+            .sync(self.args.esplora_url.as_str())
+            .map_err(|e| e.context("Couldn't sync BDK wallet"));
 
         // LDK: Sync channel manager and channel monitors to chain tip
         let ldk_sync_fut = SyncedChainListeners::init_and_sync(
@@ -527,16 +531,15 @@ impl UserNode {
             self.fee_estimator.clone(),
             self.logger.clone(),
             ctxt.restarting_node,
-        );
+        )
+        .map_err(|e| e.context("Couldn't sync channel manager and monitors"));
 
         // Sync BDK and LDK concurrently
-        let (try_bdk_sync, try_synced_chain_listeners) =
-            tokio::join!(bdk_sync_fut, ldk_sync_fut);
-        try_bdk_sync.context("Couldn't sync BDK wallet")?;
+        let ((), synced_chain_listeners) =
+            tokio::try_join!(bdk_sync_fut, ldk_sync_fut)?;
 
         // Populate the chain monitor and spawn the SPV client
-        let spv_client_task = try_synced_chain_listeners
-            .context("Couldn't sync channel manager and channel monitors")?
+        let spv_client_task = synced_chain_listeners
             .feed_chain_monitor_and_spawn_spv(
                 self.chain_monitor.clone(),
                 self.shutdown.clone(),
