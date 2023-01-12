@@ -219,7 +219,7 @@ dependencies = [
  "async-trait",
  "bdk-macros",
  "bitcoin",
- "esplora-client",
+ "esplora-client 0.2.0",
  "futures",
  "getrandom",
  "js-sys",
@@ -820,6 +820,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "esplora-client"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38bbba572d03ca4d628b653f01e60ba6947c67df65ee8910c79daaf252897924"
+dependencies = [
+ "bitcoin",
+ "log",
+ "reqwest",
+ "serde",
+]
+
+[[package]]
 name = "failure"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1273,6 +1285,7 @@ dependencies = [
  "lightning-block-sync",
  "lightning-invoice",
  "lightning-net-tokio",
+ "lightning-transaction-sync",
  "once_cell",
  "proptest",
  "proptest-derive",
@@ -1307,7 +1320,7 @@ dependencies = [
 [[package]]
 name = "lightning"
 version = "0.0.113"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix#e1208bfd66908818604da97e924899d6843078da"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix-with-tx-sync#6824c611ff0e4097a6edcb928575b798eca11a8f"
 dependencies = [
  "bitcoin",
 ]
@@ -1315,7 +1328,7 @@ dependencies = [
 [[package]]
 name = "lightning-block-sync"
 version = "0.0.113"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix#e1208bfd66908818604da97e924899d6843078da"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix-with-tx-sync#6824c611ff0e4097a6edcb928575b798eca11a8f"
 dependencies = [
  "bitcoin",
  "chunked_transfer",
@@ -1328,7 +1341,7 @@ dependencies = [
 [[package]]
 name = "lightning-invoice"
 version = "0.21.0"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix#e1208bfd66908818604da97e924899d6843078da"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix-with-tx-sync#6824c611ff0e4097a6edcb928575b798eca11a8f"
 dependencies = [
  "bech32 0.9.1",
  "bitcoin_hashes 0.11.0",
@@ -1340,11 +1353,23 @@ dependencies = [
 [[package]]
 name = "lightning-net-tokio"
 version = "0.0.113"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix#e1208bfd66908818604da97e924899d6843078da"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix-with-tx-sync#6824c611ff0e4097a6edcb928575b798eca11a8f"
 dependencies = [
  "bitcoin",
  "lightning",
  "tokio",
+]
+
+[[package]]
+name = "lightning-transaction-sync"
+version = "0.0.113"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix-with-tx-sync#6824c611ff0e4097a6edcb928575b798eca11a8f"
+dependencies = [
+ "bdk-macros",
+ "bitcoin",
+ "esplora-client 0.3.0",
+ "futures",
+ "lightning",
 ]
 
 [[package]]
@@ -1505,6 +1530,7 @@ dependencies = [
  "lightning-block-sync",
  "lightning-invoice",
  "lightning-net-tokio",
+ "lightning-transaction-sync",
  "once_cell",
  "proptest",
  "proptest-derive",
