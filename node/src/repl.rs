@@ -21,7 +21,7 @@ use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::p2p::{self, ChannelPeerUpdate};
 use lexe_ln::{channel, command};
-use lightning::chain::keysinterface::{KeysInterface, Recipient};
+use lightning::chain::keysinterface::{KeysInterface, NodeSigner, Recipient};
 use lightning::ln::{PaymentHash, PaymentPreimage};
 use lightning::routing::gossip::NodeId;
 use lightning_invoice::payment::PaymentError;

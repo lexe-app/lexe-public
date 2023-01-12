@@ -89,6 +89,8 @@ pub const USER_CONFIG: UserConfig = UserConfig {
     // TODO(max): Add more notes corresponding to the results of current
     // research on zeroconf channels in Nuclino
     manually_accept_inbound_channels: true,
+    // The node has no need to intercept HTLCs
+    accept_intercept_htlcs: false,
 };
 
 const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =

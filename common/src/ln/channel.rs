@@ -71,7 +71,7 @@ pub struct LxChannelDetails {
     pub inbound_scid_alias: Option<u64>,
     pub channel_value_satoshis: u64,
     pub unspendable_punishment_reserve: Option<u64>,
-    pub user_channel_id: u64,
+    pub user_channel_id: u128,
     pub balance_msat: u64,
     pub outbound_capacity_msat: u64,
     pub next_outbound_htlc_limit_msat: u64,
