@@ -36,10 +36,10 @@ pub enum TestEvent {
     ChannelReady,
     /// A channel monitor update was successfully persisted.
     ChannelMonitorPersisted,
-    /// A [`PaymentReceived`] event was handled.
+    /// A [`PaymentClaimable`] event was handled.
     ///
-    /// [`PaymentReceived`]: lightning::util::events::Event::PaymentReceived
-    PaymentReceived,
+    /// [`PaymentClaimable`]: lightning::util::events::Event::PaymentClaimable
+    PaymentClaimable,
     /// A [`PaymentClaimed`] event was handled.
     ///
     /// [`PaymentClaimed`]: lightning::util::events::Event::PaymentClaimed

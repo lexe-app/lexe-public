@@ -283,10 +283,13 @@ async fn handle_event_fallible(
         } => {
             test_event_tx.send(TestEvent::ChannelReady);
         }
-        Event::PaymentReceived {
+        Event::PaymentClaimable {
             payment_hash,
             purpose,
             amount_msat,
+            receiver_node_id: _,
+            via_channel_id: _,
+            via_user_channel_id: _,
         } => {
             info!(
                 "EVENT: received payment from payment hash {} of {} millisatoshis",
@@ -301,12 +304,13 @@ async fn handle_event_fallible(
             };
             channel_manager.claim_funds(payment_preimage.unwrap());
 
-            test_event_tx.send(TestEvent::PaymentReceived);
+            test_event_tx.send(TestEvent::PaymentClaimable);
         }
         Event::PaymentClaimed {
             payment_hash,
             purpose,
             amount_msat,
+            receiver_node_id: _,
         } => {
             info!(
                 "EVENT: claimed payment from payment hash {} of {} millisatoshis",
@@ -457,6 +461,9 @@ async fn handle_event_fallible(
                     from_prev_str, to_next_str, from_onchain_str
                 );
             }
+        }
+        Event::HTLCIntercepted { .. } => {
+            unreachable!("accept_intercept_htlcs in UserConfig is false")
         }
         Event::HTLCHandlingFailed { .. } => {}
         Event::PendingHTLCsForwardable { time_forwardable } => {

@@ -10,9 +10,9 @@ use lightning::ln::peer_handler::{IgnoringMessageHandler, PeerManager};
 use lightning::ln::PaymentHash;
 use lightning::onion_message::OnionMessenger;
 use lightning::routing::gossip::{NetworkGraph, P2PGossipSync};
+use lightning::routing::router::DefaultRouter;
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning_invoice::payment::InvoicePayer;
-use lightning_invoice::utils::DefaultRouter;
 use lightning_net_tokio::SocketDescriptor;
 
 use crate::bitcoind::LexeBitcoind;

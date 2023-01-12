@@ -9,7 +9,7 @@ use common::api::NodePk;
 use common::rng::{self, Crng};
 use common::root_seed::RootSeed;
 use lightning::chain::keysinterface::{
-    KeysInterface, KeysManager, Recipient, SpendableOutputDescriptor,
+    KeysManager, NodeSigner, Recipient, SpendableOutputDescriptor,
 };
 use secrecy::ExposeSecret;
 
