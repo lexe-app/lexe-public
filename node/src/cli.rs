@@ -29,7 +29,7 @@ impl NodeArgs {
         let mut rng = SysRng::new();
         // TODO(max): Actually use the tx once we have a pub/sub system allowing
         // nodes to subscribe to chain updates from a sync enclave
-        let (_poll_tip_tx, poll_tip_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
+        let (_resync_tx, resync_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (test_event_tx, _test_event_rx) = test_event::test_event_channel();
         let shutdown = ShutdownChannel::new();
 
@@ -39,7 +39,7 @@ impl NodeArgs {
                     let mut node = UserNode::init(
                         &mut rng,
                         args,
-                        poll_tip_rx,
+                        resync_rx,
                         test_event_tx,
                         shutdown,
                     )

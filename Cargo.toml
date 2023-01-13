@@ -42,7 +42,7 @@ lightning-transaction-sync = { git = "https://github.com/lexe-tech/rust-lightnin
 # lightning-block-sync = { path = "../../ldk/lightning-block-sync", features = [ "rpc-client" ] }
 # lightning-invoice = { path = "../../ldk/lightning-invoice" }
 # lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }
-# lightning-transaction-sync = { path = "../ldk/lightning-transaction-sync" }
+# lightning-transaction-sync = { path = "../../ldk/lightning-transaction-sync" }
 
 [profile.dev]
 # This fixes 'warning: can't find symbol' when debugging, but breaks the

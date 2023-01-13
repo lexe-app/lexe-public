@@ -141,8 +141,12 @@ proptest-derive = { optional = true, version = "0.3" }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 # Bitcoind + electrum + esplora regtest
-# Note that electrsd reexports the bitcoind crate in its crate root.
-electrsd = { optional = true, version = "0.22", features = [ "bitcoind_22_0", "esplora_a33e97e1", "legacy" ] }
+# Note that electrsd reexports bitcoind and electrum-client in its crate root.
+# TODO(max): Upgrade to bitcoind_23_0 if possible
+# electrsd = { optional = true, version = "0.22", features = [ "bitcoind_22_0", "esplora_a33e97e1", "legacy" ] }
+# TODO(max): Switch back to crates.io once electrsd#53 is merged (reexport electrum-client)
+electrsd = { optional = true, git = "https://github.com/lexe-tech/electrsd", branch = "lexe-0.22.1-reexport-electrum-client", features = [ "bitcoind_22_0", "esplora_a33e97e1", "legacy" ] }
+# Blocking electrum client used by electrsd
 # Include additional useful proptest features when testing outside of SGX
 proptest = { optional = true, version = "1" }
 # Arbitrary derive macro
@@ -188,9 +192,6 @@ sgx-panic-backtrace = "0.1"
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Include additional useful proptest features when testing outside of SGX
 proptest = "1"
-# Bitcoind regtest
-bitcoind = { version = "0.28", features = [ "22_0" ] }
-
 
 # --- FORTANIX EDP CONFIGURATION --- #
 
