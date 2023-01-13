@@ -19,22 +19,22 @@ use common::rng::Crng;
 use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
 use common::task::{joined_task_state_label, BlockingTaskRt, LxTask};
-use futures::future::TryFutureExt;
+use futures::future::{FutureExt, TryFutureExt};
 use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
-    BlockSourceType, BroadcasterType, ChannelMonitorType, FeeEstimatorType,
-    NetworkGraphType, OnionMessengerType, P2PGossipSyncType,
-    PaymentInfoStorageType, ProbabilisticScorerType,
+    BlockSourceType, BroadcasterType, ChannelMonitorType,
+    EsploraSyncClientType, FeeEstimatorType, NetworkGraphType,
+    OnionMessengerType, P2PGossipSyncType, PaymentInfoStorageType,
+    ProbabilisticScorerType,
 };
 use lexe_ln::background_processor::LexeBackgroundProcessor;
 use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::p2p::ChannelPeerUpdate;
-use lexe_ln::sync::SyncedChainListeners;
 use lexe_ln::test_event::TestEventSender;
 use lexe_ln::wallet::{self, LexeWallet};
-use lexe_ln::{channel_monitor, p2p};
+use lexe_ln::{channel_monitor, p2p, sync};
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::EntropySource;
 use lightning::chain::BestBlock;
@@ -45,8 +45,9 @@ use lightning::routing::router::DefaultRouter;
 use lightning_block_sync::poll::{Validate, ValidatedBlockHeader};
 use lightning_block_sync::BlockSource;
 use lightning_invoice::payment::Retry;
+use lightning_transaction_sync::EsploraSyncClient;
 use tokio::net::TcpListener;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, instrument};
 
 use crate::alias::{ApiClientType, ChainMonitorType, InvoicePayerType};
@@ -95,16 +96,20 @@ pub struct UserNode {
     pub outbound_payments: PaymentInfoStorageType,
 
     // --- Contexts --- //
+    // TODO(max): Get rid of these fields if possible
     sync: Option<SyncContext>,
 }
 
 /// Fields which are "moved" out of [`UserNode`] during `sync`.
+#[allow(dead_code)] // TODO(max): Remove
 struct SyncContext {
     restarting_node: bool,
     channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
     channel_manager_blockhash: BlockHash,
     polled_chain_tip: ValidatedBlockHeader,
-    poll_tip_rx: mpsc::Receiver<()>,
+    ldk_sync_client: Arc<EsploraSyncClientType>,
+    resync_rx: mpsc::Receiver<()>,
+    test_event_tx: TestEventSender,
 }
 
 impl UserNode {
@@ -112,7 +117,7 @@ impl UserNode {
     pub async fn init<R: Crng>(
         rng: &mut R,
         args: RunArgs,
-        poll_tip_rx: mpsc::Receiver<()>,
+        resync_rx: mpsc::Receiver<()>,
         test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<Self> {
@@ -188,9 +193,17 @@ impl UserNode {
             channel_monitor_persister_tx,
         );
 
+        // Init LDK transaction sync
+        // XXX(max): The esplora url passed to LDK is security-critical and thus
+        // should use Blockstream.info when `Network` is `Mainnet`.
+        let ldk_sync_client = Arc::new(EsploraSyncClient::new(
+            args.esplora_url.clone(),
+            logger.clone(),
+        ));
+
         // Initialize the chain monitor
         let chain_monitor = Arc::new(ChainMonitor::new(
-            None,
+            Some(ldk_sync_client.clone()),
             broadcaster.clone(),
             logger.clone(),
             fee_estimator.clone(),
@@ -384,7 +397,7 @@ impl UserNode {
         tasks.push(channel_monitor::spawn_channel_monitor_persister_task(
             chain_monitor.clone(),
             channel_monitor_persister_rx,
-            test_event_tx,
+            test_event_tx.clone(),
             shutdown.clone(),
         ));
 
@@ -502,7 +515,9 @@ impl UserNode {
                 channel_monitors,
                 channel_manager_blockhash,
                 polled_chain_tip,
-                poll_tip_rx,
+                ldk_sync_client,
+                resync_rx,
+                test_event_tx,
             }),
         })
     }
@@ -517,34 +532,24 @@ impl UserNode {
             .sync(self.args.esplora_url.as_str())
             .map_err(|e| e.context("Couldn't sync BDK wallet"));
 
-        // LDK: Sync channel manager and channel monitors to chain tip
-        let ldk_sync_fut = SyncedChainListeners::init_and_sync(
-            self.args.network,
+        // LDK tx sync: Do initial sync
+        let (initial_sync_tx, initial_sync_rx) = oneshot::channel();
+        self.tasks.push(sync::spawn_ldk_tx_sync_task(
             self.channel_manager.clone(),
-            ctxt.channel_manager_blockhash,
-            ctxt.channel_monitors,
-            ctxt.polled_chain_tip,
-            ctxt.poll_tip_rx,
-            self.block_source.clone(),
-            self.broadcaster.clone(),
-            self.fee_estimator.clone(),
-            self.logger.clone(),
-            ctxt.restarting_node,
-        )
-        .map_err(|e| e.context("Couldn't sync channel manager and monitors"));
+            self.chain_monitor.clone(),
+            ctxt.ldk_sync_client,
+            initial_sync_tx,
+            ctxt.resync_rx,
+            ctxt.test_event_tx,
+            self.shutdown.clone(),
+        ));
+        let ldk_tx_sync_fut = initial_sync_rx
+            .map(|res| res.context("Failed to recv result of initial sync"));
 
         // Sync BDK and LDK concurrently
-        let ((), synced_chain_listeners) =
-            tokio::try_join!(bdk_sync_fut, ldk_sync_fut)?;
-
-        // Populate the chain monitor and spawn the SPV client
-        let spv_client_task = synced_chain_listeners
-            .feed_chain_monitor_and_spawn_spv(
-                self.chain_monitor.clone(),
-                self.shutdown.clone(),
-            )
-            .context("Error wrapping up sync")?;
-        self.tasks.push(spv_client_task);
+        let ((), try_initial_sync) =
+            tokio::try_join!(bdk_sync_fut, ldk_tx_sync_fut)?;
+        try_initial_sync.context("Initial tx sync failed")?;
 
         // Sync complete; let the runner know that we're ready
         info!("Node is ready to accept commands; notifying runner");

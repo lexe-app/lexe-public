@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
+use std::time::Instant;
 
 use anyhow::{anyhow, bail, Context};
 use bitcoin::blockdata::block::BlockHeader;
@@ -9,22 +10,101 @@ use common::cli::Network;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use lightning::chain::transaction::{OutPoint, TransactionData};
-use lightning::chain::{ChannelMonitorUpdateStatus, Listen, Watch};
+use lightning::chain::{ChannelMonitorUpdateStatus, Confirm, Listen, Watch};
 use lightning_block_sync::poll::{ChainPoller, ValidatedBlockHeader};
 use lightning_block_sync::{init as block_sync_init, SpvClient};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tokio::time::{self, Duration};
-use tracing::{debug, info, warn};
+use tracing::{debug, error, info, warn};
 
 use crate::alias::{
     BlockSourceType, BroadcasterType, ChannelMonitorListenerType,
-    ChannelMonitorType, FeeEstimatorType, LexeChainMonitorType,
+    ChannelMonitorType, EsploraSyncClientType, FeeEstimatorType,
+    LexeChainMonitorType,
 };
 use crate::logger::LexeTracingLogger;
-use crate::traits::{LexeChannelManager, LexePersister};
+use crate::test_event::{TestEvent, TestEventSender};
+use crate::traits::{LexeChainMonitor, LexeChannelManager, LexePersister};
 
 /// How often the [`SpvClient`] client polls for an updated chain tip.
 const CHAIN_TIP_POLL_INTERVAL: Duration = Duration::from_secs(60);
+
+/// How often the ldk tx sync task re-syncs to the latest chain tip.
+const LDK_TX_SYNC_INTERVAL: Duration = Duration::from_secs(60 * 10);
+
+/// Spawns a task that periodically restarts LDK tx sync via the Esplora client.
+pub fn spawn_ldk_tx_sync_task<CMAN, CMON, PS>(
+    channel_manager: CMAN,
+    chain_monitor: CMON,
+    ldk_sync_client: Arc<EsploraSyncClientType>,
+    initial_sync_tx: oneshot::Sender<anyhow::Result<()>>,
+    mut resync_rx: mpsc::Receiver<()>,
+    test_event_tx: TestEventSender,
+    mut shutdown: ShutdownChannel,
+) -> LxTask<()>
+where
+    CMAN: LexeChannelManager<PS>,
+    CMON: LexeChainMonitor<PS>,
+    PS: LexePersister,
+{
+    LxTask::spawn_named("ldk tx sync", async move {
+        let mut sync_timer = time::interval(LDK_TX_SYNC_INTERVAL);
+        let mut maybe_initial_sync_tx = Some(initial_sync_tx);
+
+        loop {
+            // A future which completes when *either* the timer ticks or we
+            // receive a signal via resync_rx.
+            let sync_trigger_fut = async {
+                tokio::select! {
+                    _ = sync_timer.tick() => (),
+                    Some(()) = resync_rx.recv() => (),
+                }
+            };
+
+            tokio::select! {
+                () = sync_trigger_fut => {
+                    let start = Instant::now();
+
+                    let confirmables = vec![
+                        channel_manager.deref() as &(dyn Confirm + Send + Sync),
+                        chain_monitor.deref() as &(dyn Confirm + Send + Sync),
+                    ];
+
+                    // Give up if we receive shutdown signal during sync
+                    let try_tx_sync = tokio::select! {
+                        res = ldk_sync_client.sync(confirmables) => res,
+                        () = shutdown.recv() => break,
+                    };
+                    let elapsed = start.elapsed().as_millis();
+
+                    // Return and log the results of the first sync
+                    if let Some(sync_tx) = maybe_initial_sync_tx.take() {
+                        let initial_sync_result = try_tx_sync
+                            .as_ref()
+                            .map(|&()| ())
+                            // Because TxSyncError doesn't impl Clone
+                            .map_err(|e| anyhow!("{e:#}"));
+
+                        if sync_tx.send(initial_sync_result).is_err() {
+                            error!("Could not return result of initial sync");
+                        }
+                    }
+
+                    match try_tx_sync {
+                        Ok(()) => {
+                            debug!("Tx sync completed <{elapsed}ms>");
+                            test_event_tx.send(TestEvent::TxSyncComplete);
+                        }
+                        Err(e) => error!("Tx sync failed <{elapsed}ms>: {e:#}"),
+                    }
+                }
+                () = shutdown.recv() => break,
+            }
+        }
+
+        info!("LDK tx sync shutting down");
+    })
+}
 
 /// Represents a fully synced channel manager and channel monitors. The process
 /// of initialization completes the synchronization of the passed in chain
@@ -52,6 +132,7 @@ const CHAIN_TIP_POLL_INTERVAL: Duration = Duration::from_secs(60);
 ///
 /// [`ChannelManager`]: lightning::ln::channelmanager::ChannelManager
 /// [`ChannelMonitor`]: lightning::chain::channelmonitor::ChannelMonitor
+// TODO(max): Can we delete this whole thing?
 #[must_use]
 pub struct SyncedChainListeners<CM, PS> {
     network: Network,
@@ -61,7 +142,7 @@ pub struct SyncedChainListeners<CM, PS> {
     chain_listeners: Vec<LxChainListener<CM, PS>>,
     blockheader_cache: HashMap<BlockHash, ValidatedBlockHeader>,
     chain_tip: ValidatedBlockHeader,
-    poll_tip_rx: mpsc::Receiver<()>,
+    resync_rx: mpsc::Receiver<()>,
 }
 
 impl<CM, PS> SyncedChainListeners<CM, PS>
@@ -77,7 +158,7 @@ where
         channel_manager_blockhash: BlockHash,
         channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
         polled_chain_tip: ValidatedBlockHeader,
-        poll_tip_rx: mpsc::Receiver<()>,
+        resync_rx: mpsc::Receiver<()>,
 
         block_source: Arc<BlockSourceType>,
         broadcaster: Arc<BroadcasterType>,
@@ -91,7 +172,7 @@ where
                 channel_manager,
                 channel_manager_blockhash,
                 channel_monitors,
-                poll_tip_rx,
+                resync_rx,
                 block_source,
                 broadcaster,
                 fee_estimator,
@@ -105,7 +186,7 @@ where
                 channel_manager,
                 block_source,
                 polled_chain_tip,
-                poll_tip_rx,
+                resync_rx,
             )
             .await
             .context("Could not sync new node")
@@ -124,7 +205,7 @@ where
         channel_manager: CM,
         channel_manager_blockhash: BlockHash,
         channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
-        poll_tip_rx: mpsc::Receiver<()>,
+        resync_rx: mpsc::Receiver<()>,
 
         block_source: Arc<BlockSourceType>,
         broadcaster: Arc<BroadcasterType>,
@@ -193,7 +274,7 @@ where
             chain_listeners,
             blockheader_cache,
             chain_tip,
-            poll_tip_rx,
+            resync_rx,
         })
     }
 
@@ -207,7 +288,7 @@ where
         channel_manager: CM,
         block_source: Arc<BlockSourceType>,
         polled_chain_tip: ValidatedBlockHeader,
-        poll_tip_rx: mpsc::Receiver<()>,
+        resync_rx: mpsc::Receiver<()>,
     ) -> anyhow::Result<Self> {
         debug!("Init fresh chain listeners");
 
@@ -226,7 +307,7 @@ where
             chain_listeners,
             blockheader_cache,
             chain_tip,
-            poll_tip_rx,
+            resync_rx,
         })
     }
 
@@ -271,7 +352,7 @@ where
                 &chain_listener,
             );
 
-            let mut poll_tip_rx = self.poll_tip_rx;
+            let mut resync_rx = self.resync_rx;
             let mut poll_timer = time::interval(CHAIN_TIP_POLL_INTERVAL);
 
             loop {
@@ -282,7 +363,7 @@ where
                             warn!("Error polling chain tip: {:#}", e.into_inner());
                         }
                     }
-                    Some(()) = poll_tip_rx.recv() => {
+                    Some(()) = resync_rx.recv() => {
                         debug!("Received notif to poll for new chain tip");
                         if let Err(e) = spv_client.poll_best_tip().await {
                             warn!("Error polling chain tip: {:#}", e.into_inner());

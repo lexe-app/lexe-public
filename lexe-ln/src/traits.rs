@@ -10,8 +10,8 @@ use lightning::util::ser::Writeable;
 use serde::Serialize;
 
 use crate::alias::{
-    LexeChannelManagerType, LexePeerManagerType, NetworkGraphType,
-    ProbabilisticScorerType, SignerType,
+    LexeChainMonitorType, LexeChannelManagerType, LexePeerManagerType,
+    NetworkGraphType, ProbabilisticScorerType, SignerType,
 };
 
 /// A trait for converting from a generic `Deref<Target = T>` to `Arc<T>`.
@@ -74,11 +74,9 @@ impl<PS> LexePersister for PS where
 {
 }
 
-/// A 'trait alias' defining all the requirements a Lexe channel manager.
-pub trait LexeChannelManager<PS>:
+/// A 'trait alias' defining all the requirements of a Lexe channel manager.
+pub trait LexeChannelManager<PS: LexePersister>:
     Clone + Send + Sync + 'static + Deref<Target = LexeChannelManagerType<PS>>
-where
-    PS: LexePersister,
 {
 }
 
@@ -89,6 +87,19 @@ where
         + Sync
         + 'static
         + Deref<Target = LexeChannelManagerType<PS>>,
+    PS: LexePersister,
+{
+}
+
+/// A 'trait alias' defining all the requirements of a Lexe chain monitor.
+pub trait LexeChainMonitor<PS: LexePersister>:
+    Send + Sync + 'static + Deref<Target = LexeChainMonitorType<PS>>
+{
+}
+
+impl<CM, PS> LexeChainMonitor<PS> for CM
+where
+    CM: Send + Sync + 'static + Deref<Target = LexeChainMonitorType<PS>>,
     PS: LexePersister,
 {
 }

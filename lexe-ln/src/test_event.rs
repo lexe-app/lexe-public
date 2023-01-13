@@ -36,6 +36,8 @@ pub enum TestEvent {
     ChannelReady,
     /// A channel monitor update was successfully persisted.
     ChannelMonitorPersisted,
+    /// The node completed a transaction resync.
+    TxSyncComplete,
     /// A [`PaymentClaimable`] event was handled.
     ///
     /// [`PaymentClaimable`]: lightning::util::events::Event::PaymentClaimable

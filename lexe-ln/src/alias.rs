@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::keysinterface::InMemorySigner;
-use lightning::chain::{Access, Filter};
+use lightning::chain::Access;
 use lightning::ln::channelmanager::ChannelManager;
 use lightning::ln::peer_handler::{IgnoringMessageHandler, PeerManager};
 use lightning::ln::PaymentHash;
@@ -14,6 +14,7 @@ use lightning::routing::router::DefaultRouter;
 use lightning::routing::scoring::ProbabilisticScorer;
 use lightning_invoice::payment::InvoicePayer;
 use lightning_net_tokio::SocketDescriptor;
+use lightning_transaction_sync::EsploraSyncClient;
 
 use crate::bitcoind::LexeBitcoind;
 use crate::invoice::PaymentInfo;
@@ -28,9 +29,11 @@ pub type BlockSourceType = LexeBitcoind;
 pub type BroadcasterType = LexeBitcoind;
 pub type FeeEstimatorType = LexeBitcoind;
 
+pub type EsploraSyncClientType = EsploraSyncClient<LexeTracingLogger>;
+
 pub type LexeChainMonitorType<PERSISTER> = ChainMonitor<
     SignerType,
-    Arc<dyn Filter + Send + Sync>,
+    Arc<EsploraSyncClientType>,
     Arc<BroadcasterType>,
     Arc<FeeEstimatorType>,
     LexeTracingLogger,

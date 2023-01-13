@@ -1,3 +1,6 @@
+use std::env;
+use std::time::Duration;
+
 use bitcoin::hash_types::PubkeyHash;
 use bitcoin::hashes::Hash;
 use bitcoin::network::constants::Network;
@@ -5,8 +8,9 @@ use bitcoin::util::address::{Address, Payload};
 use bitcoin::BlockHash;
 use electrsd::bitcoind::bitcoincore_rpc::RpcApi;
 use electrsd::bitcoind::{self, BitcoinD};
+use electrsd::electrum_client::ElectrumApi;
 use electrsd::ElectrsD;
-use tracing::debug;
+use tracing::{debug, trace};
 
 use crate::cli::BitcoindRpcInfo;
 
@@ -55,9 +59,17 @@ impl Regtest {
         let mut electrsd_conf = electrsd::Conf::default();
         // Expose esplora endpoint
         electrsd_conf.http_enabled = true;
-        // NOTE: Uncomment the following if electrsd is failing to start up;
-        // gives helpful information for debugging
-        // electrsd_conf.view_stderr = true;
+        // Include electrsd stderr if RUST_LOG begins with "debug" or "trace"
+        // This is v helpful to enable if you're having problems with electrsd
+        if let Some(log_os_str) = env::var_os("RUST_LOG") {
+            let log_str = log_os_str
+                .into_string()
+                .expect("Could not convert into utf-8")
+                .to_lowercase();
+            if log_str.starts_with("debug") || log_str.starts_with("trace") {
+                electrsd_conf.view_stderr = true;
+            }
+        }
 
         // Init electrsd
         let electrsd =
@@ -88,27 +100,13 @@ impl Regtest {
     }
 
     /// Mines n blocks. Block rewards are sent to a dummy address.
-    ///
-    /// NOTE: If you mine more than 3 blocks at once without givinng nodes that
-    /// have completed sync a chance to finish persisting their updated channel
-    /// monitors, the ChainMonitor will error with "A ChannelMonitor sync took
-    /// longer than 3 blocks to complete." The correct ways to mine more than 3
-    /// blocks in an integration test is:
-    ///
-    /// 1) To mine them before the node has completed its `sync()` stage
-    /// 2) To mine them three blocks at a time, waiting for channel monitors to
-    ///   persist in between.
-    pub async fn mine_n_blocks(&self, n: u64) -> Vec<BlockHash> {
+    pub async fn mine_n_blocks(&self, n: usize) -> Vec<BlockHash> {
         debug!("Mining {n} blocks");
         self.mine_n_blocks_to_address(n, &get_dummy_address()).await
     }
 
     /// Mines 101 blocks to the given address. 101 blocks is needed because
     /// coinbase outputs aren't spendable until after 100 blocks.
-    ///
-    /// NOTE: Due to the limitations documented in [`mine_n_blocks`] above, this
-    /// function should only be called *before* the node has reached the sync()
-    /// stage.
     ///
     /// [`mine_n_blocks`]: Self::mine_n_blocks
     pub async fn fund_address(&self, address: &Address) -> Vec<BlockHash> {
@@ -119,17 +117,52 @@ impl Regtest {
     /// Mines the given number of blocks to the given [`Address`].
     async fn mine_n_blocks_to_address(
         &self,
-        num_blocks: u64,
+        num_blocks: usize,
         address: &Address,
     ) -> Vec<BlockHash> {
+        let pre_height = self
+            .electrsd
+            .client
+            .block_headers_subscribe()
+            .expect("Could not fetch latest block header")
+            .height;
+        debug!("Starting height: {pre_height}");
+
         let blockhashes = self
             .bitcoind
             .client
-            .generate_to_address(num_blocks, address)
+            // Weird that this is u64 but ok
+            .generate_to_address(num_blocks as u64, address)
             .expect("Failed to generate blocks");
 
         // Trigger electrsd sync.
-        self.electrsd.trigger().expect("Could sync electrsd");
+        self.electrsd
+            .trigger()
+            .expect("Couldn't trigger electrsd sync");
+
+        // Poll once a second, for up to a minute, to confirm that esplora has
+        // reached the correct new block height. This way, we can ensure the
+        // esplora server is up-to-date before telling nodes to resync.
+        // There does not appear to be any clean blocking or async API for this.
+        let mut poll_timer = tokio::time::interval(Duration::from_secs(1));
+        for _ in 0..60 {
+            poll_timer.tick().await;
+            trace!("Polling for block header notification");
+            let expected = pre_height + num_blocks;
+            // We use .block_headers_subscribe() instead of .block_headers_pop()
+            // because the latter often fails to actually notify us, causing
+            // tests to hang for the full 60 seconds.
+            let post_height = self
+                .electrsd
+                .client
+                .block_headers_subscribe()
+                .expect("Could not fetch latest block header")
+                .height;
+            if post_height >= expected {
+                debug!("Got to height {post_height}, expected {expected}");
+                break;
+            }
+        }
 
         blockhashes
     }
