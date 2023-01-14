@@ -3,7 +3,6 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::{anyhow, bail, ensure, Context};
-use bitcoin::BlockHash;
 use common::api::auth::UserAuthenticator;
 use common::api::ports::UserPorts;
 use common::api::provision::SealedSeedId;
@@ -22,10 +21,9 @@ use common::task::{joined_task_state_label, BlockingTaskRt, LxTask};
 use futures::future::{FutureExt, TryFutureExt};
 use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
-    BlockSourceType, BroadcasterType, ChannelMonitorType,
-    EsploraSyncClientType, FeeEstimatorType, NetworkGraphType,
-    OnionMessengerType, P2PGossipSyncType, PaymentInfoStorageType,
-    ProbabilisticScorerType,
+    BlockSourceType, BroadcasterType, EsploraSyncClientType, FeeEstimatorType,
+    NetworkGraphType, OnionMessengerType, P2PGossipSyncType,
+    PaymentInfoStorageType, ProbabilisticScorerType,
 };
 use lexe_ln::background_processor::LexeBackgroundProcessor;
 use lexe_ln::bitcoind::LexeBitcoind;
@@ -42,7 +40,6 @@ use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::onion_message::OnionMessenger;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
-use lightning_block_sync::poll::{Validate, ValidatedBlockHeader};
 use lightning_block_sync::BlockSource;
 use lightning_invoice::payment::Retry;
 use lightning_transaction_sync::EsploraSyncClient;
@@ -96,17 +93,11 @@ pub struct UserNode {
     pub outbound_payments: PaymentInfoStorageType,
 
     // --- Contexts --- //
-    // TODO(max): Get rid of these fields if possible
     sync: Option<SyncContext>,
 }
 
 /// Fields which are "moved" out of [`UserNode`] during `sync`.
-#[allow(dead_code)] // TODO(max): Remove
 struct SyncContext {
-    restarting_node: bool,
-    channel_monitors: Vec<(BlockHash, ChannelMonitorType)>,
-    channel_manager_blockhash: BlockHash,
-    polled_chain_tip: ValidatedBlockHeader,
     ldk_sync_client: Arc<EsploraSyncClientType>,
     resync_rx: mpsc::Receiver<()>,
     test_event_tx: TestEventSender,
@@ -276,36 +267,23 @@ impl UserNode {
             .await
             .map_err(|e| anyhow!(e.into_inner()))
             .context("Could not get best block")?;
-        let best_block_header_data = block_source
-            .as_ref()
-            .get_header(&polled_best_block_hash, maybe_best_block_height)
-            .await
-            .map_err(|e| anyhow!(e.into_inner()))
-            .context("Could not get best block header data")?;
         let best_block_height =
             maybe_best_block_height.context("Missing best block height")?;
         let polled_best_block =
             BestBlock::new(polled_best_block_hash, best_block_height);
-        let polled_chain_tip = best_block_header_data
-            .validate(polled_best_block_hash)
-            .map_err(|e| anyhow!(e.into_inner()))
-            .context("Best block header was invalid")?;
 
         // Init the NodeChannelManager
-        let mut restarting_node = true;
-        let (channel_manager_blockhash, channel_manager) =
-            NodeChannelManager::init(
-                args.network,
-                maybe_manager,
-                polled_best_block,
-                &mut restarting_node,
-                keys_manager.clone(),
-                fee_estimator.clone(),
-                chain_monitor.clone(),
-                broadcaster.clone(),
-                logger.clone(),
-            )
-            .context("Could not init NodeChannelManager")?;
+        let channel_manager = NodeChannelManager::init(
+            args.network,
+            maybe_manager,
+            polled_best_block,
+            keys_manager.clone(),
+            fee_estimator.clone(),
+            chain_monitor.clone(),
+            broadcaster.clone(),
+            logger.clone(),
+        )
+        .context("Could not init NodeChannelManager")?;
 
         // Init onion messenger
         let onion_messenger = Arc::new(OnionMessenger::new(
@@ -511,10 +489,6 @@ impl UserNode {
 
             // Contexts
             sync: Some(SyncContext {
-                restarting_node,
-                channel_monitors,
-                channel_manager_blockhash,
-                polled_chain_tip,
                 ldk_sync_client,
                 resync_rx,
                 test_event_tx,

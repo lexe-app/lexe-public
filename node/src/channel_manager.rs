@@ -172,26 +172,23 @@ impl NodeChannelManager {
         self.0.clone()
     }
 
-    // TODO: Review this function and clean up accordingly
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn init(
         network: Network,
         maybe_manager: Option<(BlockHash, ChannelManagerType)>,
         polled_best_block: BestBlock,
-        restarting_node: &mut bool,
         keys_manager: LexeKeysManager,
         fee_estimator: Arc<FeeEstimatorType>,
         chain_monitor: Arc<ChainMonitorType>,
         broadcaster: Arc<BroadcasterType>,
         logger: LexeTracingLogger,
-    ) -> anyhow::Result<(BlockHash, Self)> {
+    ) -> anyhow::Result<Self> {
         debug!("Initializing channel manager");
 
         let (blockhash, inner, label) = match maybe_manager {
             Some((blockhash, mgr)) => (blockhash, mgr, "persisted"),
             None => {
                 // We're starting a fresh node.
-                *restarting_node = false;
                 let polled_best_block_hash = polled_best_block.block_hash();
                 let chain_params = ChainParameters {
                     network: network.into_inner(),
@@ -209,11 +206,9 @@ impl NodeChannelManager {
                 (polled_best_block_hash, inner, "fresh")
             }
         };
-
-        let channel_manager = Self(Arc::new(inner));
-
         info!(%blockhash, "Loaded {label} channel manager");
-        Ok((blockhash, channel_manager))
+
+        Ok(Self(Arc::new(inner)))
     }
 
     // TODO: Closing a channel should delete a channel peer.
