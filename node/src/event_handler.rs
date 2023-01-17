@@ -255,7 +255,7 @@ async fn handle_event_fallible(
             // Have your wallet put the inputs into the transaction such that
             // the output is satisfied.
             let funded_tx = bitcoind
-                .fund_raw_transaction(raw_tx)
+                .fund_raw_transaction(raw_tx, esplora)
                 .await
                 .context("Could not fund raw transaction")?;
 
@@ -485,8 +485,8 @@ async fn handle_event_fallible(
         Event::SpendableOutputs { outputs } => {
             let destination_address = wallet.get_new_address()?;
             let output_descriptors = &outputs.iter().collect::<Vec<_>>();
-            let tx_feerate = bitcoind
-                .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
+            let tx_feerate =
+                esplora.get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
             let spending_tx = keys_manager
                 .spend_spendable_outputs(
                     output_descriptors,

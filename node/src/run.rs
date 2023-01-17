@@ -143,11 +143,7 @@ impl UserNode {
 
         // Initialize bitcoind and esplora while fetching provisioned secrets
         let (try_bitcoind, try_esplora, try_fetch) = tokio::join!(
-            LexeBitcoind::init(
-                args.bitcoind_rpc.clone(),
-                args.network,
-                shutdown.clone(),
-            ),
+            LexeBitcoind::init(args.bitcoind_rpc.clone(), args.network,),
             LexeEsplora::init(
                 ldk_sync_client.client().clone(),
                 shutdown.clone()
@@ -170,11 +166,8 @@ impl UserNode {
             try_fetch.context("Failed to fetch provisioned secrets")?;
 
         // Clone FeeEstimator and BroadcasterInterface impls
-        let fee_estimator = bitcoind.clone();
+        let fee_estimator = esplora.clone();
         let broadcaster = esplora.clone();
-
-        // Finish bitcoind init: spawn refresh fees task TODO(max): Remove
-        tasks.push(bitcoind.spawn_refresh_fees_task());
 
         // Build LexeKeysManager from node init data
         let keys_manager =
