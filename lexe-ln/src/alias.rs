@@ -17,6 +17,7 @@ use lightning_net_tokio::SocketDescriptor;
 use lightning_transaction_sync::EsploraSyncClient;
 
 use crate::bitcoind::LexeBitcoind;
+use crate::esplora::LexeEsplora;
 use crate::invoice::PaymentInfo;
 use crate::keys_manager::LexeKeysManager;
 use crate::logger::LexeTracingLogger;
@@ -26,7 +27,7 @@ pub type SignerType = InMemorySigner;
 pub type ChannelMonitorType = ChannelMonitor<SignerType>;
 
 pub type BlockSourceType = LexeBitcoind;
-pub type BroadcasterType = LexeBitcoind;
+pub type BroadcasterType = LexeEsplora;
 pub type FeeEstimatorType = LexeBitcoind;
 
 pub type EsploraSyncClientType = EsploraSyncClient<LexeTracingLogger>;
