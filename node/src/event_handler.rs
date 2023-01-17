@@ -5,13 +5,11 @@ use std::time::Duration;
 use anyhow::{anyhow, Context};
 use bitcoin::secp256k1::Secp256k1;
 use common::api::NodePk;
-use common::cli::Network;
 use common::hex;
 use common::ln::peer::ChannelPeer;
 use common::shutdown::ShutdownChannel;
 use common::task::{BlockingTaskRt, LxTask};
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
-use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::esplora::LexeEsplora;
 use lexe_ln::event;
 use lexe_ln::invoice::{HTLCStatus, MillisatAmount, PaymentInfo};
@@ -30,12 +28,10 @@ use crate::channel_manager::NodeChannelManager;
 // We pub(crate) all the fields to prevent having to specify each field two more
 // times in Self::new paramaters and in struct init syntax.
 pub struct NodeEventHandler {
-    pub(crate) network: Network,
     pub(crate) lsp: ChannelPeer,
     pub(crate) wallet: LexeWallet,
     pub(crate) channel_manager: NodeChannelManager,
     pub(crate) keys_manager: LexeKeysManager,
-    pub(crate) bitcoind: Arc<LexeBitcoind>,
     pub(crate) esplora: Arc<LexeEsplora>,
     pub(crate) network_graph: Arc<NetworkGraphType>,
     pub(crate) inbound_payments: PaymentInfoStorageType,
@@ -81,11 +77,9 @@ impl EventHandler for NodeEventHandler {
 
         // TODO(max): Should be possible to remove all clone()s once async event
         // handlilng is supported
-        let network = self.network;
         let lsp = self.lsp.clone();
         let wallet = self.wallet.clone();
         let channel_manager = self.channel_manager.clone();
-        let bitcoind = self.bitcoind.clone();
         let esplora = self.esplora.clone();
         let network_graph = self.network_graph.clone();
         let keys_manager = self.keys_manager.clone();
@@ -99,11 +93,9 @@ impl EventHandler for NodeEventHandler {
         // program WILL deadlock : )
         self.blocking_task_rt.block_on(async move {
             handle_event(
-                network,
                 &lsp,
                 &wallet,
                 &channel_manager,
-                &bitcoind,
                 &esplora,
                 &network_graph,
                 &keys_manager,
@@ -121,11 +113,9 @@ impl EventHandler for NodeEventHandler {
 // TODO(max): Make this non-async by spawning tasks instead
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn handle_event(
-    network: Network,
     lsp: &ChannelPeer,
     wallet: &LexeWallet,
     channel_manager: &NodeChannelManager,
-    bitcoind: &LexeBitcoind,
     esplora: &LexeEsplora,
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
@@ -136,11 +126,9 @@ pub(crate) async fn handle_event(
     event: Event,
 ) {
     let handle_event_res = handle_event_fallible(
-        network,
         lsp,
         wallet,
         channel_manager,
-        bitcoind,
         esplora,
         network_graph,
         keys_manager,
@@ -159,11 +147,9 @@ pub(crate) async fn handle_event(
 
 #[allow(clippy::too_many_arguments)]
 async fn handle_event_fallible(
-    network: Network,
     lsp: &ChannelPeer,
     wallet: &LexeWallet,
     channel_manager: &NodeChannelManager,
-    bitcoind: &LexeBitcoind,
     esplora: &LexeEsplora,
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
@@ -234,10 +220,8 @@ async fn handle_event_fallible(
             user_channel_id: _,
         } => {
             event::handle_funding_generation_ready(
+                wallet,
                 channel_manager.clone(),
-                bitcoind,
-                esplora,
-                network,
                 test_event_tx,
                 temporary_channel_id,
                 counterparty_node_id,
@@ -245,7 +229,7 @@ async fn handle_event_fallible(
                 output_script,
             )
             .await
-            .context("Failed to handle funding generation ready event")?;
+            .context("Failed to handle funding generation ready")?;
         }
         Event::ChannelReady {
             channel_id: _,

@@ -105,13 +105,33 @@ impl Regtest {
         self.mine_n_blocks_to_address(n, &get_dummy_address()).await
     }
 
-    /// Mines 101 blocks to the given address. 101 blocks is needed because
-    /// coinbase outputs aren't spendable until after 100 blocks.
+    /// Mines 1 block (50 BTC) to the given address, then ensures that the mined
+    /// coinbase output is mature by mining another 100 blocks on top.
     ///
-    /// [`mine_n_blocks`]: Self::mine_n_blocks
-    pub async fn fund_address(&self, address: &Address) -> Vec<BlockHash> {
-        debug!("Funding address {address} by mining 101 blocks");
-        self.mine_n_blocks_to_address(101, address).await
+    /// Note: BDK won't detect the mined funds until the wallet is `sync()`ed.
+    pub async fn fund_address(&self, addr: &Address) -> Vec<BlockHash> {
+        self.fund_addresses(&[addr]).await
+    }
+
+    /// Mines 1 block (50 BTC) to the given addresses, then ensures that the
+    /// mined coinbase outputs are mature by mining another 100 blocks on top.
+    ///
+    /// Note: BDK won't detect the mined funds until the wallet is `sync()`ed.
+    pub async fn fund_addresses(
+        &self,
+        addresses: &[&Address],
+    ) -> Vec<BlockHash> {
+        debug!("Funding addresses {addresses:?}");
+        let mut hashes = Vec::with_capacity(addresses.len() + 100);
+
+        for addr in addresses {
+            hashes.append(&mut self.mine_n_blocks_to_address(1, addr).await);
+        }
+
+        // Mine another 100 blocks to ensure the coinbase outputs have matured
+        hashes.append(&mut self.mine_n_blocks(100).await);
+
+        hashes
     }
 
     /// Mines the given number of blocks to the given [`Address`].

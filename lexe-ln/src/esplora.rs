@@ -207,6 +207,12 @@ impl LexeEsplora {
 
         Ok(feerate_sats_per_1000_weight)
     }
+
+    pub fn get_bdk_feerate(&self, conf_target: ConfirmationTarget) -> FeeRate {
+        let feerate_sats_per_1000_weight =
+            self.get_est_sat_per_1000_weight(conf_target);
+        FeeRate::from_wu(feerate_sats_per_1000_weight as u64, 1000)
+    }
 }
 
 impl BroadcasterInterface for LexeEsplora {
