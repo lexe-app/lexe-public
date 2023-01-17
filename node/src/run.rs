@@ -130,12 +130,27 @@ impl UserNode {
         let (channel_peer_tx, channel_peer_rx) =
             mpsc::channel(SMALLER_CHANNEL_SIZE);
 
-        // Initialize LexeBitcoind while fetching provisioned secrets
-        let (bitcoind_res, fetch_res) = tokio::join!(
+        // Collect all handles to spawned tasks
+        let mut tasks = Vec::with_capacity(10);
+
+        // Init LDK transaction sync
+        // XXX(max): The esplora url passed to LDK is security-critical and thus
+        // should use Blockstream.info when `Network` is `Mainnet`.
+        let ldk_sync_client = Arc::new(EsploraSyncClient::new(
+            args.esplora_url.clone(),
+            logger.clone(),
+        ));
+
+        // Initialize bitcoind and esplora while fetching provisioned secrets
+        let (try_bitcoind, try_esplora, try_fetch) = tokio::join!(
             LexeBitcoind::init(
                 args.bitcoind_rpc.clone(),
                 args.network,
                 shutdown.clone(),
+            ),
+            LexeEsplora::init(
+                ldk_sync_client.client().clone(),
+                shutdown.clone()
             ),
             fetch_provisioned_secrets(
                 api.as_ref(),
@@ -145,26 +160,26 @@ impl UserNode {
                 min_cpusvn
             ),
         );
-        let bitcoind = bitcoind_res
+        let bitcoind = try_bitcoind
             .map(Arc::new)
             .context("Failed to init bitcoind client")?;
+        let (esplora, refresh_fees_task) =
+            try_esplora.context("Failed to init esplora")?;
+        tasks.push(refresh_fees_task);
         let (user, root_seed, user_key_pair) =
-            fetch_res.context("Failed to fetch provisioned secrets")?;
+            try_fetch.context("Failed to fetch provisioned secrets")?;
 
-        // Collect all handles to spawned tasks
-        let mut tasks = Vec::with_capacity(10);
+        // Clone FeeEstimator and BroadcasterInterface impls
+        let fee_estimator = bitcoind.clone();
+        let broadcaster = esplora.clone();
 
-        // Spawn task to refresh feerates
+        // Finish bitcoind init: spawn refresh fees task TODO(max): Remove
         tasks.push(bitcoind.spawn_refresh_fees_task());
 
         // Build LexeKeysManager from node init data
         let keys_manager =
             LexeKeysManager::init(rng, &user.node_pk, &root_seed)
                 .context("Failed to construct keys manager")?;
-
-        // LexeBitcoind impls FeeEstimator.
-        // A type alias is used for it as bitcoind is slowly refactored out
-        let fee_estimator = bitcoind.clone();
 
         let authenticator =
             Arc::new(UserAuthenticator::new(user_key_pair, None));
@@ -179,19 +194,6 @@ impl UserNode {
             shutdown.clone(),
             channel_monitor_persister_tx,
         );
-
-        // Init LDK transaction sync
-        // XXX(max): The esplora url passed to LDK is security-critical and thus
-        // should use Blockstream.info when `Network` is `Mainnet`.
-        let ldk_sync_client = Arc::new(EsploraSyncClient::new(
-            args.esplora_url.clone(),
-            logger.clone(),
-        ));
-
-        // Init esplora client.
-        let esplora =
-            Arc::new(LexeEsplora::new(ldk_sync_client.client().clone()));
-        let broadcaster = esplora.clone();
 
         // Initialize the chain monitor
         let chain_monitor = Arc::new(ChainMonitor::new(
