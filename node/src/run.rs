@@ -133,21 +133,10 @@ impl UserNode {
         // Collect all handles to spawned tasks
         let mut tasks = Vec::with_capacity(10);
 
-        // Init LDK transaction sync
-        // XXX(max): The esplora url passed to LDK is security-critical and thus
-        // should use Blockstream.info when `Network` is `Mainnet`.
-        let ldk_sync_client = Arc::new(EsploraSyncClient::new(
-            args.esplora_url.clone(),
-            logger.clone(),
-        ));
-
         // Initialize bitcoind and esplora while fetching provisioned secrets
         let (try_bitcoind, try_esplora, try_fetch) = tokio::join!(
             LexeBitcoind::init(args.bitcoind_rpc.clone(), args.network,),
-            LexeEsplora::init(
-                ldk_sync_client.client().clone(),
-                shutdown.clone()
-            ),
+            LexeEsplora::init(args.esplora_url.clone(), shutdown.clone()),
             fetch_provisioned_secrets(
                 api.as_ref(),
                 user_pk,
@@ -164,6 +153,14 @@ impl UserNode {
         tasks.push(refresh_fees_task);
         let (user, root_seed, user_key_pair) =
             try_fetch.context("Failed to fetch provisioned secrets")?;
+
+        // Init LDK transaction sync; share LexeEsplora's connection pool
+        // XXX(max): The esplora url passed to LDK is security-critical and thus
+        // should use Blockstream.info when `Network` is `Mainnet`.
+        let ldk_sync_client = Arc::new(EsploraSyncClient::from_client(
+            esplora.client().clone(),
+            logger.clone(),
+        ));
 
         // Clone FeeEstimator and BroadcasterInterface impls
         let fee_estimator = esplora.clone();
@@ -214,10 +211,14 @@ impl UserNode {
             .context("Could not read network graph")?;
         let wallet_db = try_wallet_db.context("Could not read wallet db")?;
 
-        // Init BDK wallet, spawn wallet db persister task
-        let wallet =
-            LexeWallet::new(&root_seed, args.network, wallet_db.clone())
-                .context("Could not init BDK wallet")?;
+        // Init BDK wallet; share esplora connection pool, spawn persister task
+        let wallet = LexeWallet::new(
+            &root_seed,
+            args.network,
+            esplora.client().clone(),
+            wallet_db.clone(),
+        )
+        .context("Could not init BDK wallet")?;
         tasks.push(wallet::spawn_wallet_db_persister_task(
             persister.clone(),
             wallet_db,
@@ -482,7 +483,7 @@ impl UserNode {
         // BDK: Sync wallet
         let bdk_sync_fut = self
             .wallet
-            .sync(ctxt.ldk_sync_client.client().clone())
+            .sync()
             .map_err(|e| e.context("Couldn't sync BDK wallet"));
 
         // LDK tx sync: Do initial sync
