@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use anyhow::{anyhow, bail, ensure, Context};
+use anyhow::{bail, ensure, Context};
 use common::api::auth::UserAuthenticator;
 use common::api::ports::UserPorts;
 use common::api::provision::SealedSeedId;
@@ -35,12 +35,10 @@ use lexe_ln::wallet::{self, LexeWallet};
 use lexe_ln::{channel_monitor, p2p, sync};
 use lightning::chain::chainmonitor::ChainMonitor;
 use lightning::chain::keysinterface::EntropySource;
-use lightning::chain::BestBlock;
 use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::onion_message::OnionMessenger;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
-use lightning_block_sync::BlockSource;
 use lightning_invoice::payment::Retry;
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::net::TcpListener;
@@ -255,28 +253,10 @@ impl UserNode {
         let maybe_manager =
             maybe_manager_res.context("Could not read channel manager")?;
 
-        // Munge to ensure that if we are initializing a fresh channel manager
-        // and chain sync that their BestBlock and chain tip (respectively)
-        // point to the same block, which we poll using our block source.
-        // Otherwise, the channel manager will panic if the two are out of sync.
-        // TODO(max): Replace with validate_best_block_header_and_best_block()
-        // and execute concurrently once LDK#1777 is merged and released
-        let (polled_best_block_hash, maybe_best_block_height) = block_source
-            .as_ref()
-            .get_best_block()
-            .await
-            .map_err(|e| anyhow!(e.into_inner()))
-            .context("Could not get best block")?;
-        let best_block_height =
-            maybe_best_block_height.context("Missing best block height")?;
-        let polled_best_block =
-            BestBlock::new(polled_best_block_hash, best_block_height);
-
         // Init the NodeChannelManager
         let channel_manager = NodeChannelManager::init(
             args.network,
             maybe_manager,
-            polled_best_block,
             keys_manager.clone(),
             fee_estimator.clone(),
             chain_monitor.clone(),

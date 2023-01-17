@@ -434,6 +434,8 @@ impl Arbitrary for BitcoindRpcInfo {
 pub struct Network(bitcoin::Network);
 
 impl Network {
+    // TODO(max): Should be renamed to .to_inner()
+    // https://rust-lang.github.io/api-guidelines/naming.html#ad-hoc-conversions-follow-as_-to_-into_-conventions-c-conv
     pub fn into_inner(self) -> bitcoin::Network {
         self.0
     }

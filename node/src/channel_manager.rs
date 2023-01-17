@@ -1,6 +1,7 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
+use bitcoin::blockdata::constants;
 use bitcoin::BlockHash;
 use common::cli::Network;
 use lexe_ln::alias::{BroadcasterType, FeeEstimatorType};
@@ -176,7 +177,6 @@ impl NodeChannelManager {
     pub(crate) fn init(
         network: Network,
         maybe_manager: Option<(BlockHash, ChannelManagerType)>,
-        polled_best_block: BestBlock,
         keys_manager: LexeKeysManager,
         fee_estimator: Arc<FeeEstimatorType>,
         chain_monitor: Arc<ChainMonitorType>,
@@ -189,10 +189,15 @@ impl NodeChannelManager {
             Some((blockhash, mgr)) => (blockhash, mgr, "persisted"),
             None => {
                 // We're starting a fresh node.
-                let polled_best_block_hash = polled_best_block.block_hash();
+                // Use the genesis block as the current best block.
+                let network = network.into_inner();
+                let genesis_hash =
+                    constants::genesis_block(network).header.block_hash();
+                let genesis_height = 0;
+                let best_block = BestBlock::new(genesis_hash, genesis_height);
                 let chain_params = ChainParameters {
-                    network: network.into_inner(),
-                    best_block: polled_best_block,
+                    network,
+                    best_block,
                 };
                 let inner = ChannelManager::new(
                     fee_estimator,
@@ -203,7 +208,7 @@ impl NodeChannelManager {
                     USER_CONFIG,
                     chain_params,
                 );
-                (polled_best_block_hash, inner, "fresh")
+                (genesis_hash, inner, "fresh")
             }
         };
         info!(%blockhash, "Loaded {label} channel manager");
