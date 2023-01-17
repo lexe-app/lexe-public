@@ -18,7 +18,7 @@ mod types;
 
 pub use types::*;
 
-const POLL_FEE_ESTIMATE_INTERVAL: Duration = Duration::from_secs(60);
+const POLL_FEE_ESTIMATE_INTERVAL: Duration = Duration::from_secs(60 * 60);
 /// The minimum feerate we are allowed to send, as specified by LDK.
 const MIN_FEERATE: u32 = 253;
 
