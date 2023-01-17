@@ -1,5 +1,5 @@
-//! The `lexe-ln` crate contains shared Lexe newtypes for bitcoin / lightning
-//! types (usually) defined in LDK.
+//! The `lexe-ln` crate contains shared Bitcoin + Lightning logic, utilities,
+//! and newtypes.
 
 // Enforce disallowed methods clippy lint
 #![deny(clippy::disallowed_methods)]
@@ -23,6 +23,8 @@ pub mod channel;
 pub mod channel_monitor;
 /// Top level commands that can be initiated by the user.
 pub mod command;
+/// Esplora client.
+pub mod esplora;
 /// Event helpers.
 pub mod event;
 /// Types related to invoices.
