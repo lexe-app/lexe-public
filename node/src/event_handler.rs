@@ -16,6 +16,7 @@ use common::shutdown::ShutdownChannel;
 use common::task::{BlockingTaskRt, LxTask};
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::bitcoind::LexeBitcoind;
+use lexe_ln::esplora::LexeEsplora;
 use lexe_ln::invoice::{HTLCStatus, MillisatAmount, PaymentInfo};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::test_event::{TestEvent, TestEventSender};
@@ -38,6 +39,7 @@ pub struct NodeEventHandler {
     pub(crate) channel_manager: NodeChannelManager,
     pub(crate) keys_manager: LexeKeysManager,
     pub(crate) bitcoind: Arc<LexeBitcoind>,
+    pub(crate) esplora: Arc<LexeEsplora>,
     pub(crate) network_graph: Arc<NetworkGraphType>,
     pub(crate) inbound_payments: PaymentInfoStorageType,
     pub(crate) outbound_payments: PaymentInfoStorageType,
@@ -87,6 +89,7 @@ impl EventHandler for NodeEventHandler {
         let wallet = self.wallet.clone();
         let channel_manager = self.channel_manager.clone();
         let bitcoind = self.bitcoind.clone();
+        let esplora = self.esplora.clone();
         let network_graph = self.network_graph.clone();
         let keys_manager = self.keys_manager.clone();
         let inbound_payments = self.inbound_payments.clone();
@@ -104,6 +107,7 @@ impl EventHandler for NodeEventHandler {
                 &wallet,
                 &channel_manager,
                 &bitcoind,
+                &esplora,
                 &network_graph,
                 &keys_manager,
                 &inbound_payments,
@@ -125,6 +129,7 @@ pub(crate) async fn handle_event(
     wallet: &LexeWallet,
     channel_manager: &NodeChannelManager,
     bitcoind: &LexeBitcoind,
+    esplora: &LexeEsplora,
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
     inbound_payments: &PaymentInfoStorageType,
@@ -139,6 +144,7 @@ pub(crate) async fn handle_event(
         wallet,
         channel_manager,
         bitcoind,
+        esplora,
         network_graph,
         keys_manager,
         inbound_payments,
@@ -161,6 +167,7 @@ async fn handle_event_fallible(
     wallet: &LexeWallet,
     channel_manager: &NodeChannelManager,
     bitcoind: &LexeBitcoind,
+    esplora: &LexeEsplora,
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
     inbound_payments: &PaymentInfoStorageType,
@@ -489,7 +496,7 @@ async fn handle_event_fallible(
                     &Secp256k1::new(),
                 )
                 .unwrap();
-            bitcoind.broadcast_transaction(&spending_tx);
+            esplora.broadcast_transaction(&spending_tx);
         }
         Event::ChannelClosed {
             channel_id,

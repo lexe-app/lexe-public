@@ -78,7 +78,7 @@ pub struct UserNode {
     block_source: Arc<BlockSourceType>,
     fee_estimator: Arc<FeeEstimatorType>,
     broadcaster: Arc<BroadcasterType>,
-    esplora: LexeEsplora,
+    esplora: Arc<LexeEsplora>,
     pub keys_manager: LexeKeysManager,
     chain_monitor: Arc<ChainMonitorType>,
     pub(crate) network_graph: Arc<NetworkGraphType>,
@@ -163,12 +163,10 @@ impl UserNode {
             LexeKeysManager::init(rng, &user.node_pk, &root_seed)
                 .context("Failed to construct keys manager")?;
 
-        // LexeBitcoind impls BlockSource, FeeEstimator and
-        // BroadcasterInterface, and thus serves these functions.
+        // LexeBitcoind impls BlockSource and FeeEstimator.
         // A type alias is used for each as bitcoind is slowly refactored out
         let block_source = bitcoind.clone();
         let fee_estimator = bitcoind.clone();
-        let broadcaster = bitcoind.clone();
 
         let authenticator =
             Arc::new(UserAuthenticator::new(user_key_pair, None));
@@ -192,8 +190,10 @@ impl UserNode {
             logger.clone(),
         ));
 
-        // Init esplora client
-        let esplora = LexeEsplora::new(ldk_sync_client.client().clone());
+        // Init esplora client.
+        let esplora =
+            Arc::new(LexeEsplora::new(ldk_sync_client.client().clone()));
+        let broadcaster = esplora.clone();
 
         // Initialize the chain monitor
         let chain_monitor = Arc::new(ChainMonitor::new(
@@ -333,6 +333,7 @@ impl UserNode {
             channel_manager: channel_manager.clone(),
             keys_manager: keys_manager.clone(),
             bitcoind: bitcoind.clone(),
+            esplora: esplora.clone(),
             network_graph: network_graph.clone(),
             inbound_payments: inbound_payments.clone(),
             outbound_payments: outbound_payments.clone(),

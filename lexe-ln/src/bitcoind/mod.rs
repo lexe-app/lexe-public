@@ -4,15 +4,11 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{ensure, Context};
-use bitcoin::blockdata::transaction::Transaction;
-use bitcoin::consensus::encode;
 use bitcoin::hash_types::{BlockHash, Txid};
 use common::cli::{BitcoindRpcInfo, Network};
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
-use lightning::chain::chaininterface::{
-    BroadcasterInterface, ConfirmationTarget, FeeEstimator,
-};
+use lightning::chain::chaininterface::{ConfirmationTarget, FeeEstimator};
 use lightning_block_sync::http::HttpEndpoint;
 use lightning_block_sync::rpc::RpcClient;
 use lightning_block_sync::{
@@ -302,25 +298,5 @@ impl FeeEstimator for LexeBitcoind {
                 self.high_prio_fees.load(Ordering::Acquire)
             }
         }
-    }
-}
-
-impl BroadcasterInterface for LexeBitcoind {
-    fn broadcast_transaction(&self, tx: &Transaction) {
-        debug!("Broadcasting transaction");
-        let rpc_client = self.rpc_client.clone();
-        let tx_serialized = serde_json::json!(encode::serialize_hex(tx));
-        let _ = LxTask::spawn(async move {
-            // This may error due to RL calling `broadcast_transaction` with the
-            // same transaction multiple times, but the error is
-            // safe to ignore.
-            match rpc_client
-                .call_method::<Txid>("sendrawtransaction", &[tx_serialized])
-                .await
-            {
-                Ok(_) => {}
-                Err(e) => error!("Error broadcasting transaction: {:?}", e),
-            }
-        });
     }
 }
