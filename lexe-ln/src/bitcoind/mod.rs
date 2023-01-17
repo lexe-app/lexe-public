@@ -4,16 +4,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{ensure, Context};
-use bitcoin::hash_types::{BlockHash, Txid};
+use bitcoin::hash_types::Txid;
 use common::cli::{BitcoindRpcInfo, Network};
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use lightning::chain::chaininterface::{ConfirmationTarget, FeeEstimator};
 use lightning_block_sync::http::HttpEndpoint;
 use lightning_block_sync::rpc::RpcClient;
-use lightning_block_sync::{
-    AsyncBlockSourceResult, BlockData, BlockHeaderData, BlockSource,
-};
 use tokio::time;
 use tracing::{debug, error};
 
@@ -251,34 +248,6 @@ impl LexeBitcoind {
             .call_method::<BlockchainInfo>("getblockchaininfo", &[])
             .await
             .context("getblockchaininfo RPC call failed")
-    }
-}
-
-impl BlockSource for LexeBitcoind {
-    fn get_header<'a>(
-        &'a self,
-        header_hash: &'a BlockHash,
-        height_hint: Option<u32>,
-    ) -> AsyncBlockSourceResult<'a, BlockHeaderData> {
-        debug!("get_header() called for {header_hash} ({height_hint:?})");
-        Box::pin(async move {
-            self.rpc_client.get_header(header_hash, height_hint).await
-        })
-    }
-
-    fn get_block<'a>(
-        &'a self,
-        header_hash: &'a BlockHash,
-    ) -> AsyncBlockSourceResult<'a, BlockData> {
-        debug!("get_block() called for {header_hash}");
-        Box::pin(async move { self.rpc_client.get_block(header_hash).await })
-    }
-
-    fn get_best_block(
-        &self,
-    ) -> AsyncBlockSourceResult<(BlockHash, Option<u32>)> {
-        debug!("get_best_block() called");
-        Box::pin(async move { self.rpc_client.get_best_block().await })
     }
 }
 

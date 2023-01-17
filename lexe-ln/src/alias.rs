@@ -26,7 +26,6 @@ pub type SignerType = InMemorySigner;
 
 pub type ChannelMonitorType = ChannelMonitor<SignerType>;
 
-pub type BlockSourceType = LexeBitcoind;
 pub type BroadcasterType = LexeEsplora;
 pub type FeeEstimatorType = LexeBitcoind;
 
