@@ -29,15 +29,18 @@ pub mod db;
 const BDK_WALLET_SYNC_STOP_GAP: usize = 20;
 
 /// A newtype wrapper around [`bdk::Wallet`]. Can be cloned and used directly.
-// The Mutex is needed because bdk::Wallet isn't thread-safe. bdk::Wallet::new
-// internally wraps the db we provide with a RefCell, which isn't Send. Thus, to
-// convince the compiler that LexeWallet is indeed Send, we wrap the bdk::Wallet
-// with a Mutex, despite the fact that we don't technically need the Mutex since
-// we don't use any bdk::Wallet methods that require &mut self. Furthermore,
-// since a lock to the bdk::Wallet needs to be held while awaiting on BDK wallet
-// sync, the Mutex we use must be a Tokio mutex.
 #[derive(Clone)]
-pub struct LexeWallet(Arc<tokio::sync::Mutex<Wallet<WalletDb>>>);
+pub struct LexeWallet {
+    client: AsyncClient,
+    // The Mutex is needed because bdk::Wallet isn't thread-safe.
+    // bdk::Wallet::new wraps the db we provide with RefCell, which isn't Send.
+    // Thus, to convince the compiler that LexeWallet is indeed Send, we wrap
+    // the bdk::Wallet with a Mutex, despite that we don't technically need the
+    // Mutex since we don't use any bdk::Wallet methods that require &mut self.
+    // Furthermore, since a lock to the bdk::Wallet needs to be held while
+    // awaiting on BDK wallet sync, the Mutex we use must be a Tokio mutex.
+    wallet: Arc<tokio::sync::Mutex<Wallet<WalletDb>>>,
+}
 
 impl LexeWallet {
     /// Constructs a new [`LexeWallet`] from a [`RootSeed`] and [`WalletDb`].
@@ -49,6 +52,7 @@ impl LexeWallet {
     pub fn new(
         root_seed: &RootSeed,
         network: Network,
+        client: AsyncClient,
         wallet_db: WalletDb,
     ) -> anyhow::Result<Self> {
         let network = network.into_inner();
@@ -59,29 +63,33 @@ impl LexeWallet {
         // Descriptor for internal (change) addresses: `m/84h/{0,1}h/0h/1/*`
         let change_descriptor = Bip84(master_xprv, KeychainKind::Internal);
 
-        let inner = Wallet::new(
+        let wallet = Wallet::new(
             external_descriptor,
             Some(change_descriptor),
             network,
             wallet_db,
         )
+        .map(tokio::sync::Mutex::new)
+        .map(Arc::new)
         .context("bdk::Wallet::new failed")?;
 
-        Ok(Self(Arc::new(tokio::sync::Mutex::new(inner))))
+        Ok(Self { client, wallet })
     }
 
     /// Syncs the inner [`bdk::Wallet`] using the given Esplora server.
     ///
     /// NOTE: Beware deadlocks; this function holds a lock to the inner
     /// [`bdk::Wallet`] during wallet sync. It is held across `.await`.
-    pub async fn sync(&self, esplora: AsyncClient) -> anyhow::Result<()> {
-        let esplora_blockchain =
-            EsploraBlockchain::from_client(esplora, BDK_WALLET_SYNC_STOP_GAP);
+    pub async fn sync(&self) -> anyhow::Result<()> {
+        let esplora_blockchain = EsploraBlockchain::from_client(
+            self.client.clone(),
+            BDK_WALLET_SYNC_STOP_GAP,
+        );
 
         // No need to hear about sync progress for now
         let sync_options = SyncOptions { progress: None };
 
-        self.0
+        self.wallet
             .lock()
             .await
             .sync(&esplora_blockchain, sync_options)
@@ -91,7 +99,7 @@ impl LexeWallet {
 
     /// Returns a new address derived using the external descriptor.
     pub fn get_new_address(&self) -> anyhow::Result<Address> {
-        self.0
+        self.wallet
             .try_lock()
             .context("Wallet is busy; perhaps it is still syncing?")?
             .get_address(AddressIndex::New)

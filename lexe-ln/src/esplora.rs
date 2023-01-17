@@ -23,6 +23,9 @@ use tracing::{debug, error, info, warn};
 // an hour. There is a guaranteed refresh at init.
 const REFRESH_FEE_ESTIMATES_INTERVAL: Duration = Duration::from_secs(60 * 60);
 
+/// The number of seconds after which requests to the Esplora API will time out.
+const ESPLORA_CLIENT_TIMEOUT_SECS: u64 = 10;
+
 /// Enumerates all [`ConfirmationTarget`]s.
 const ALL_CONF_TARGETS: [ConfirmationTarget; 3] = [
     ConfirmationTarget::HighPriority,
@@ -104,9 +107,18 @@ pub struct LexeEsplora {
 
 impl LexeEsplora {
     pub async fn init(
-        client: AsyncClient,
+        esplora_url: String,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<(Arc<Self>, LxTask<()>)> {
+        // Initialize inner esplora client
+        let client = AsyncClient::from_builder(esplora_client::Builder {
+            base_url: esplora_url,
+            proxy: None,
+            // Measured in secs; see implementation of AsyncClient::from_builder
+            timeout: Some(ESPLORA_CLIENT_TIMEOUT_SECS),
+        })
+        .context("Could not build AsyncClient")?;
+
         // Initialize the fee rate estimates to some sane default values
         let high_prio_fees = AtomicU32::new(5000);
         let normal_fees = AtomicU32::new(2000);
@@ -130,6 +142,11 @@ impl LexeEsplora {
         let task = spawn_refresh_fees_task(esplora.clone(), shutdown);
 
         Ok((esplora, task))
+    }
+
+    /// Returns a reference to the underlying [`AsyncClient`].
+    pub fn client(&self) -> &AsyncClient {
+        &self.client
     }
 
     /// Refreshes all current fee estimates.

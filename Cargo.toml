@@ -31,11 +31,11 @@ tokio = { git = "https://github.com/lexe-tech/tokio",  branch = "tokio-sgx-1.21.
 # 2) LDK#1870 containing the lightning-transaction-sync crate is merged.
 
 # For if we need to run a patched version of LDK instead of crates.io.
-lightning = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync" }
-lightning-block-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync" }
-lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync" }
-lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync" }
-lightning-transaction-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync" }
+lightning = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync-v2" }
+lightning-block-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync-v2" }
+lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync-v2" }
+lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync-v2" }
+lightning-transaction-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync-v2" }
 
 # For debugging LDK or testing patches during local development
 # lightning = { path = "../../ldk/lightning", features = ["max_level_trace"]}
