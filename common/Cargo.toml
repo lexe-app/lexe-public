@@ -42,9 +42,6 @@ bcs = "0.1"
 bytes = "1"
 # Conveniently write #[cfg(..)] if-else statements without repeating clauses
 cfg-if = "1"
-# SGX Quote types
-# NOTE: version must exactly match patched version
-dcap-ql = { version = "=0.3.4", default-features = false, features = [] }
 # Utils for working with futures
 futures = "0.3"
 # Used to specify the HTTP methods used to interact with the API
@@ -74,9 +71,6 @@ serde = { version = "1", features = ["derive"] }
 serde_with = { version = "2", default-features = false, features = ["macros"] }
 serde_qs = "0"
 serde_json = "1"
-# Core SGX types
-# NOTE: version must exactly match patched version
-sgx-isa = "=0.4.0"
 # Const SHA256 hash
 sha2-const = "0"
 # Easy error definition
@@ -104,10 +98,14 @@ yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
 #   declared in `common`'s Cargo.toml and propagated to other crates by
 #   workspace-level dependency resolution.
 
+# SGX Quote types
+dcap-ql = { version = "=0.3.4", default-features = false, features = [] }
 hyper = { version = "=0.14.18", default-features = false }
 mio = "=0.8.4"
 # Safe and small crypto primitives based on BoringSSL
 ring = "=0.16.20"
+# Core SGX types
+sgx-isa = "=0.4.0"
 
 tokio = { version = "=1.21.2", default-features = false, features = [
     "io-util",

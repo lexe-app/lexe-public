@@ -13,6 +13,7 @@ use common::constants::{
 use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
+use esplora_client::AsyncClient;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
@@ -26,10 +27,6 @@ pub mod db;
 /// the threshold number of blocks after which BDK stops looking for scripts
 /// belonging to the wallet. BDK's default value for this is 20.
 const BDK_WALLET_SYNC_STOP_GAP: usize = 20;
-
-/// The maximum number of concurrent requests that can be made against the
-/// Esplora API provider.
-const BDK_WALLET_SYNC_CONCURRENCY: u8 = 8;
 
 /// A newtype wrapper around [`bdk::Wallet`]. Can be cloned and used directly.
 // The Mutex is needed because bdk::Wallet isn't thread-safe. bdk::Wallet::new
@@ -77,10 +74,9 @@ impl LexeWallet {
     ///
     /// NOTE: Beware deadlocks; this function holds a lock to the inner
     /// [`bdk::Wallet`] during wallet sync. It is held across `.await`.
-    pub async fn sync(&self, esplora_url: &str) -> anyhow::Result<()> {
-        let esplora_client =
-            EsploraBlockchain::new(esplora_url, BDK_WALLET_SYNC_STOP_GAP)
-                .with_concurrency(BDK_WALLET_SYNC_CONCURRENCY);
+    pub async fn sync(&self, esplora: AsyncClient) -> anyhow::Result<()> {
+        let esplora_blockchain =
+            EsploraBlockchain::from_client(esplora, BDK_WALLET_SYNC_STOP_GAP);
 
         // No need to hear about sync progress for now
         let sync_options = SyncOptions { progress: None };
@@ -88,7 +84,7 @@ impl LexeWallet {
         self.0
             .lock()
             .await
-            .sync(&esplora_client, sync_options)
+            .sync(&esplora_blockchain, sync_options)
             .await
             .context("bdk::Wallet::sync failed")
     }
