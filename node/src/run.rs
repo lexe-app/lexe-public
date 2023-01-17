@@ -145,7 +145,8 @@ impl UserNode {
                 min_cpusvn
             ),
         );
-        let bitcoind = try_bitcoind
+        // TODO(max): Remove
+        let _bitcoind = try_bitcoind
             .map(Arc::new)
             .context("Failed to init bitcoind client")?;
         let (esplora, refresh_fees_task) =
@@ -215,7 +216,7 @@ impl UserNode {
         let wallet = LexeWallet::new(
             &root_seed,
             args.network,
-            esplora.client().clone(),
+            esplora.clone(),
             wallet_db.clone(),
         )
         .context("Could not init BDK wallet")?;
@@ -321,12 +322,10 @@ impl UserNode {
         let outbound_payments: PaymentInfoStorageType =
             Arc::new(Mutex::new(HashMap::new()));
         let event_handler = NodeEventHandler {
-            network: args.network,
             lsp: args.lsp.clone(),
             wallet: wallet.clone(),
             channel_manager: channel_manager.clone(),
             keys_manager: keys_manager.clone(),
-            bitcoind: bitcoind.clone(),
             esplora: esplora.clone(),
             network_graph: network_graph.clone(),
             inbound_payments: inbound_payments.clone(),

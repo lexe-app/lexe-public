@@ -1,11 +1,13 @@
 use std::sync::Arc;
 
-use anyhow::Context;
+use anyhow::{ensure, Context};
 use bdk::blockchain::EsploraBlockchain;
 use bdk::template::Bip84;
+use bdk::wallet::signer::SignOptions;
 use bdk::wallet::{AddressIndex, Wallet};
-use bdk::{KeychainKind, SyncOptions};
+use bdk::{Balance, KeychainKind, SyncOptions};
 use bitcoin::util::address::Address;
+use bitcoin::{Script, Transaction};
 use common::cli::Network;
 use common::constants::{
     IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
@@ -13,10 +15,11 @@ use common::constants::{
 use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
-use esplora_client::AsyncClient;
+use lightning::chain::chaininterface::ConfirmationTarget;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
+use crate::esplora::LexeEsplora;
 use crate::traits::LexePersister;
 use crate::wallet::db::WalletDb;
 
@@ -31,7 +34,7 @@ const BDK_WALLET_SYNC_STOP_GAP: usize = 20;
 /// A newtype wrapper around [`bdk::Wallet`]. Can be cloned and used directly.
 #[derive(Clone)]
 pub struct LexeWallet {
-    client: AsyncClient,
+    esplora: Arc<LexeEsplora>,
     // The Mutex is needed because bdk::Wallet isn't thread-safe.
     // bdk::Wallet::new wraps the db we provide with RefCell, which isn't Send.
     // Thus, to convince the compiler that LexeWallet is indeed Send, we wrap
@@ -52,7 +55,7 @@ impl LexeWallet {
     pub fn new(
         root_seed: &RootSeed,
         network: Network,
-        client: AsyncClient,
+        esplora: Arc<LexeEsplora>,
         wallet_db: WalletDb,
     ) -> anyhow::Result<Self> {
         let network = network.into_inner();
@@ -73,7 +76,7 @@ impl LexeWallet {
         .map(Arc::new)
         .context("bdk::Wallet::new failed")?;
 
-        Ok(Self { client, wallet })
+        Ok(Self { esplora, wallet })
     }
 
     /// Syncs the inner [`bdk::Wallet`] using the given Esplora server.
@@ -82,7 +85,7 @@ impl LexeWallet {
     /// [`bdk::Wallet`] during wallet sync. It is held across `.await`.
     pub async fn sync(&self) -> anyhow::Result<()> {
         let esplora_blockchain = EsploraBlockchain::from_client(
-            self.client.clone(),
+            self.esplora.client().clone(),
             BDK_WALLET_SYNC_STOP_GAP,
         );
 
@@ -97,6 +100,16 @@ impl LexeWallet {
             .context("bdk::Wallet::sync failed")
     }
 
+    /// Returns the current wallet balance. Note that newly received funds will
+    /// not be detected unless the wallet has been `sync()`ed first.
+    pub fn get_balance(&self) -> anyhow::Result<Balance> {
+        self.wallet
+            .try_lock()
+            .context("Wallet is busy")?
+            .get_balance()
+            .context("Could not get balance")
+    }
+
     /// Returns a new address derived using the external descriptor.
     pub fn get_new_address(&self) -> anyhow::Result<Address> {
         self.wallet
@@ -105,6 +118,40 @@ impl LexeWallet {
             .get_address(AddressIndex::New)
             .map(|info| info.address)
             .context("Could not get new address")
+    }
+
+    /// Create and sign a funding tx given an output script, channel value, and
+    /// confirmation target. Intended to be called downstream of an
+    /// [`FundingGenerationReady`] event
+    ///
+    /// [`FundingGenerationReady`]: lightning::util::events::Event::FundingGenerationReady
+    pub(crate) fn create_and_sign_funding_tx(
+        &self,
+        output_script: Script,
+        channel_value_satoshis: u64,
+        conf_target: ConfirmationTarget,
+    ) -> anyhow::Result<Transaction> {
+        let bdk_feerate = self.esplora.get_bdk_feerate(conf_target);
+        let locked_wallet = self.wallet.try_lock().context("Wallet is busy")?;
+
+        let mut tx_builder = locked_wallet.build_tx();
+        tx_builder
+            .add_recipient(output_script, channel_value_satoshis)
+            .fee_rate(bdk_feerate)
+            .enable_rbf();
+        let (mut psbt, _tx_deets) = tx_builder
+            .finish()
+            .context("Could not build funding PSBT")?;
+
+        // Sign and extract the raw tx.
+        let sign_options = SignOptions::default();
+        let finalized = locked_wallet
+            .sign(&mut psbt, sign_options)
+            .context("Could not sign funding PSBT")?;
+        ensure!(finalized, "Failed to sign all PSBT inputs");
+        let raw_tx = psbt.extract_tx();
+
+        Ok(raw_tx)
     }
 }
 
