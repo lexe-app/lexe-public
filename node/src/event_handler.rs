@@ -1,13 +1,9 @@
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context};
-use bitcoin::blockdata::transaction::Transaction;
-use bitcoin::consensus::encode;
 use bitcoin::secp256k1::Secp256k1;
-use bitcoin_bech32::WitnessProgram;
 use common::api::NodePk;
 use common::cli::Network;
 use common::hex;
@@ -17,6 +13,7 @@ use common::task::{BlockingTaskRt, LxTask};
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::esplora::LexeEsplora;
+use lexe_ln::event;
 use lexe_ln::invoice::{HTLCStatus, MillisatAmount, PaymentInfo};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::test_event::{TestEvent, TestEventSender};
@@ -234,53 +231,21 @@ async fn handle_event_fallible(
             counterparty_node_id,
             channel_value_satoshis,
             output_script,
-            ..
+            user_channel_id: _,
         } => {
-            // Construct the raw transaction with one output, that is paid the
-            // amount of the channel.
-            let addr = WitnessProgram::from_scriptpubkey(
-                &output_script[..],
-                bitcoin_bech32::constants::Network::from(network),
+            event::handle_funding_generation_ready(
+                channel_manager.clone(),
+                bitcoind,
+                esplora,
+                network,
+                test_event_tx,
+                temporary_channel_id,
+                counterparty_node_id,
+                channel_value_satoshis,
+                output_script,
             )
-            .expect("Lightning funding tx should always be to a SegWit output")
-            .to_address();
-            let mut outputs = vec![HashMap::with_capacity(1)];
-            outputs[0]
-                .insert(addr, channel_value_satoshis as f64 / 100_000_000.0);
-            let raw_tx = bitcoind
-                .create_raw_transaction(outputs)
-                .await
-                .context("Could not create raw transaction")?;
-
-            // Have your wallet put the inputs into the transaction such that
-            // the output is satisfied.
-            let funded_tx = bitcoind
-                .fund_raw_transaction(raw_tx, esplora)
-                .await
-                .context("Could not fund raw transaction")?;
-
-            // Sign the final funding transaction and broadcast it.
-            let signed_tx = bitcoind
-                .sign_raw_transaction_with_wallet(funded_tx.hex)
-                .await
-                .context("Could not sign raw tx with wallet")?;
-            assert!(signed_tx.complete);
-            let final_tx: Transaction =
-                encode::deserialize(&hex::decode(&signed_tx.hex).unwrap())
-                    .unwrap();
-
-            // Give the funding transaction back to LDK for opening the channel.
-            match channel_manager.funding_transaction_generated(
-                &temporary_channel_id,
-                &counterparty_node_id,
-                final_tx,
-            ) {
-                Ok(()) => test_event_tx.send(TestEvent::FundingTxHandled),
-                Err(e) => error!(
-                    "Channel went away before we could fund it. \
-                    The peer disconnected or refused the channel: {e:?}"
-                ),
-            }
+            .await
+            .context("Failed to handle funding generation ready event")?;
         }
         Event::ChannelReady {
             channel_id: _,
