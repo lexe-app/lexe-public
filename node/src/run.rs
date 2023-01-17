@@ -21,9 +21,9 @@ use common::task::{joined_task_state_label, BlockingTaskRt, LxTask};
 use futures::future::{FutureExt, TryFutureExt};
 use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
-    BlockSourceType, BroadcasterType, EsploraSyncClientType, FeeEstimatorType,
-    NetworkGraphType, OnionMessengerType, P2PGossipSyncType,
-    PaymentInfoStorageType, ProbabilisticScorerType,
+    BroadcasterType, EsploraSyncClientType, FeeEstimatorType, NetworkGraphType,
+    OnionMessengerType, P2PGossipSyncType, PaymentInfoStorageType,
+    ProbabilisticScorerType,
 };
 use lexe_ln::background_processor::LexeBackgroundProcessor;
 use lexe_ln::bitcoind::LexeBitcoind;
@@ -75,7 +75,6 @@ pub struct UserNode {
     pub logger: LexeTracingLogger,
     pub persister: NodePersister,
     pub wallet: LexeWallet,
-    block_source: Arc<BlockSourceType>,
     fee_estimator: Arc<FeeEstimatorType>,
     broadcaster: Arc<BroadcasterType>,
     esplora: Arc<LexeEsplora>,
@@ -163,9 +162,8 @@ impl UserNode {
             LexeKeysManager::init(rng, &user.node_pk, &root_seed)
                 .context("Failed to construct keys manager")?;
 
-        // LexeBitcoind impls BlockSource and FeeEstimator.
-        // A type alias is used for each as bitcoind is slowly refactored out
-        let block_source = bitcoind.clone();
+        // LexeBitcoind impls FeeEstimator.
+        // A type alias is used for it as bitcoind is slowly refactored out
         let fee_estimator = bitcoind.clone();
 
         let authenticator =
@@ -455,7 +453,6 @@ impl UserNode {
             logger,
             persister,
             wallet,
-            block_source,
             fee_estimator,
             broadcaster,
             esplora,
