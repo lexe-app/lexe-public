@@ -12,8 +12,6 @@ use electrsd::electrum_client::ElectrumApi;
 use electrsd::ElectrsD;
 use tracing::{debug, trace};
 
-use crate::cli::BitcoindRpcInfo;
-
 /// A wrapper around [`BitcoinD`] and [`ElectrsD`] which exposes simple methods
 /// for launching a bitcoind regtest instance and esplora server, funding
 /// addresses, and generating blocks.
@@ -28,29 +26,13 @@ pub struct Regtest {
 }
 
 impl Regtest {
-    pub async fn init() -> (Self, BitcoindRpcInfo) {
-        // Construct bitcoin.conf
-        let mut bitcoind_conf = bitcoind::Conf::default();
-        // This rpcauth string corresponds to user `kek` and password `sadge`
-        bitcoind_conf.args.push("-rpcauth=kek:b6c15926aee7ebfbd3669ec8a6515c79$2dba596a7d651187021b1f56d339f0fe465c2ab1b81c37b05e07a320b07822d7");
-        let username = "kek".to_owned();
-        let password = "sadge".to_owned();
-
+    pub async fn init() -> Self {
         // Init bitcoind
         let bitcoind_exe_path = bitcoind::downloaded_exe_path()
             .expect("Didn't specify bitcoind version in feature flags");
         // dbg!(&bitcoind_exe_path);
-        let bitcoind = BitcoinD::with_conf(bitcoind_exe_path, &bitcoind_conf)
-            .expect("Failed to init bitcoind");
-        let host = bitcoind.params.rpc_socket.ip().to_string();
-        let port = bitcoind.params.rpc_socket.port();
-        let bitcoind_rpc_info = BitcoindRpcInfo {
-            username,
-            password,
-            host,
-            port,
-        };
-        // dbg!(&bitcoind_rpc_info);
+        let bitcoind =
+            BitcoinD::new(bitcoind_exe_path).expect("Failed to init bitcoind");
 
         // Construct electrsd conf
         let electrsd_exe_path = electrsd::downloaded_exe_path()
@@ -91,7 +73,7 @@ impl Regtest {
         // completely empty history
         regtest.mine_n_blocks(6).await;
 
-        (regtest, bitcoind_rpc_info)
+        regtest
     }
 
     /// Get the esplora URL, e.g. `http://0.0.0.0:59416`
