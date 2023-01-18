@@ -1307,7 +1307,7 @@ dependencies = [
 [[package]]
 name = "lightning"
 version = "0.0.113"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix-with-tx-sync-v2#19aff59526c9147e8e9617cd84088f2daa488539"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix-with-tx-sync-v2#db5dbc86045194f7d9e941284590a11939b20f23"
 dependencies = [
  "bitcoin",
 ]
@@ -1315,7 +1315,7 @@ dependencies = [
 [[package]]
 name = "lightning-invoice"
 version = "0.21.0"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix-with-tx-sync-v2#19aff59526c9147e8e9617cd84088f2daa488539"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix-with-tx-sync-v2#db5dbc86045194f7d9e941284590a11939b20f23"
 dependencies = [
  "bech32 0.9.1",
  "bitcoin_hashes 0.11.0",
@@ -1327,7 +1327,7 @@ dependencies = [
 [[package]]
 name = "lightning-net-tokio"
 version = "0.0.113"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix-with-tx-sync-v2#19aff59526c9147e8e9617cd84088f2daa488539"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix-with-tx-sync-v2#db5dbc86045194f7d9e941284590a11939b20f23"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -1337,7 +1337,7 @@ dependencies = [
 [[package]]
 name = "lightning-transaction-sync"
 version = "0.0.113"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix-with-tx-sync-v2#19aff59526c9147e8e9617cd84088f2daa488539"
+source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix-with-tx-sync-v2#db5dbc86045194f7d9e941284590a11939b20f23"
 dependencies = [
  "bdk-macros",
  "bitcoin",
