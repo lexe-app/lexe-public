@@ -22,7 +22,6 @@ bip39 = { version = "1", features = [] }
 # --- LIGHTNING --- #
 
 lightning = { version = "0.0.113", features = ["max_level_trace"] }
-# lightning-block-sync = { version = "0.0.113", features = [ "rpc-client" ] }
 lightning-invoice = { version = "0.21" }
 # lightning-net-tokio = { version = "0.0.113" }
 # lightning-transaction-sync = { version = "0.0.113" }

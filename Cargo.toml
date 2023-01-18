@@ -32,14 +32,12 @@ tokio = { git = "https://github.com/lexe-tech/tokio",  branch = "tokio-sgx-1.21.
 
 # For if we need to run a patched version of LDK instead of crates.io.
 lightning = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync-v2" }
-lightning-block-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync-v2" }
 lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync-v2" }
 lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync-v2" }
 lightning-transaction-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync-v2" }
 
 # For debugging LDK or testing patches during local development
 # lightning = { path = "../../ldk/lightning", features = ["max_level_trace"]}
-# lightning-block-sync = { path = "../../ldk/lightning-block-sync", features = [ "rpc-client" ] }
 # lightning-invoice = { path = "../../ldk/lightning-invoice" }
 # lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }
 # lightning-transaction-sync = { path = "../../ldk/lightning-transaction-sync" }
