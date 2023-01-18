@@ -1,12 +1,9 @@
 use std::fmt::{self, Display};
-use std::net::IpAddr;
-#[cfg(all(test, not(target_env = "sgx")))]
-use std::net::SocketAddr;
 use std::path::Path;
 use std::process::Command;
 use std::str::FromStr;
 
-use anyhow::{anyhow, ensure};
+use anyhow::ensure;
 use argh::FromArgs;
 use bitcoin::blockdata::constants;
 use bitcoin::hash_types::BlockHash;
@@ -92,10 +89,6 @@ pub struct RunArgs {
     #[argh(option)]
     pub user_pk: UserPk,
 
-    /// bitcoind rpc info, in the format `<username>:<password>@<host>:<port>`
-    #[argh(option)]
-    pub bitcoind_rpc: BitcoindRpcInfo,
-
     /// the port warp uses to accept requests from the owner.
     /// Defaults to a port assigned by the OS
     #[argh(option)]
@@ -170,7 +163,6 @@ impl Default for RunArgs {
     fn default() -> Self {
         use crate::ln::peer::DUMMY_LSP;
         Self {
-            bitcoind_rpc: BitcoindRpcInfo::default(),
             user_pk: UserPk::from_u64(1), // Test user
             owner_port: None,
             host_port: None,
@@ -203,8 +195,6 @@ impl RunArgs {
         cmd.arg("run")
             .arg("--user-pk")
             .arg(&self.user_pk.to_string())
-            .arg("--bitcoind-rpc")
-            .arg(&self.bitcoind_rpc.to_string())
             .arg("-i")
             .arg(&self.inactivity_timer_sec.to_string())
             .arg("--network")
@@ -310,121 +300,9 @@ impl ProvisionArgs {
     }
 }
 
-/// The information required to connect to a bitcoind instance via RPC
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct BitcoindRpcInfo {
-    pub username: String,
-    pub password: String,
-    /// NOTE: Only ip(v4/v6) addresses will be parsed - no DNS names for now
-    pub host: String,
-    pub port: Port,
-}
-
-#[cfg(any(test, feature = "test-utils"))]
-impl Default for BitcoindRpcInfo {
-    fn default() -> Self {
-        Self {
-            username: "kek".to_owned(),
-            password: "sadge".to_owned(),
-            host: "127.0.0.1".to_owned(),
-            port: 8332,
-        }
-    }
-}
-
-impl BitcoindRpcInfo {
-    fn parse_str(s: &str) -> Option<Self> {
-        // expected format: "<username>:<password>@<host>:<port>"
-
-        // ["<username>:<password>", "<host>:<port>"]
-        let mut parts = s.split('@');
-        let (user_pass, host_port) =
-            match (parts.next(), parts.next(), parts.next()) {
-                (Some(user_pass), Some(host_port), None) => {
-                    (user_pass, host_port)
-                }
-                _ => return None,
-            };
-
-        // ["<username>", "<password>"]
-        let mut user_pass = user_pass.split(':');
-        let (username, password) =
-            match (user_pass.next(), user_pass.next(), user_pass.next()) {
-                (Some(username), Some(password), None) => (username, password),
-                _ => return None,
-            };
-
-        // rsplit_once is necessary because IPv6 addresses can contain ::
-        let (host, port) = match host_port.rsplit_once(':') {
-            Some((host, port)) => (host, port),
-            None => return None,
-        };
-
-        // Parse host and port
-        let host = IpAddr::from_str(host).ok()?;
-        let port = Port::from_str(port).ok()?;
-
-        Some(Self {
-            username: username.to_owned(),
-            password: password.to_owned(),
-            host: host.to_string(),
-            port,
-        })
-    }
-
-    /// Returns a base64 encoding of `<user>:<pass>` required by the BitcoinD
-    /// RPC client.
-    pub fn base64_credentials(&self) -> String {
-        let username = &self.username;
-        let password = &self.password;
-        base64::encode(format!("{username}:{password}"))
-    }
-}
-
-impl FromStr for BitcoindRpcInfo {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::parse_str(s).ok_or_else(|| anyhow!("Invalid bitcoind rpc URL"))
-    }
-}
-
-impl Display for BitcoindRpcInfo {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}:{}@{}:{}",
-            self.username, self.password, self.host, self.port
-        )
-    }
-}
-
-#[cfg(all(test, not(target_env = "sgx")))]
-impl Arbitrary for BitcoindRpcInfo {
-    type Parameters = ();
-    type Strategy = BoxedStrategy<Self>;
-
-    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        (
-            // + denotes "at least 1"
-            "[A-Za-z0-9]+",
-            "[A-Za-z0-9]+",
-            // Only support IP addresses for now; no DNS
-            any::<SocketAddr>(),
-        )
-            .prop_map(|(username, password, socket_addr)| Self {
-                username,
-                password,
-                host: socket_addr.ip().to_string(),
-                port: socket_addr.port(),
-            })
-            .boxed()
-    }
-}
-
 /// There are slight variations is how the network is represented as strings
-/// across bitcoind rpc calls, lightning, etc. For consistency, we use the
-/// mapping defined in bitcoin::Network's FromStr impl, which is:
+/// across bitcoin, lightning, Lexe, etc. For consistency, we use the mapping
+/// defined in [`bitcoin::Network`]'s `FromStr` impl, which is:
 ///
 /// - Bitcoin <-> "bitcoin"
 /// - Testnet <-> "testnet",
@@ -556,32 +434,9 @@ mod test {
 
 #[cfg(all(test, not(target_env = "sgx")))]
 mod test_notsgx {
-    use std::net::Ipv4Addr;
-
-    use proptest::{prop_assert_eq, proptest};
+    use proptest::proptest;
 
     use super::*;
-
-    #[test]
-    fn test_parse_bitcoind_rpc_info() {
-        let expected = BitcoindRpcInfo {
-            username: "hello".to_string(),
-            password: "world".to_string(),
-            host: Ipv4Addr::new(127, 0, 0, 1).to_string(),
-            port: 1234,
-        };
-        let actual =
-            BitcoindRpcInfo::from_str("hello:world@127.0.0.1:1234").unwrap();
-        assert_eq!(expected, actual);
-    }
-
-    proptest! {
-        #[test]
-        fn bitcoind_rpc_roundtrip(info1 in any::<BitcoindRpcInfo>()) {
-            let info2 = BitcoindRpcInfo::from_str(&info1.to_string()).unwrap();
-            prop_assert_eq!(info1, info2);
-        }
-    }
 
     proptest! {
         #[test]
