@@ -166,11 +166,10 @@ impl UserNode {
             LexeKeysManager::init(rng, &user.node_pk, &root_seed)
                 .context("Failed to construct keys manager")?;
 
+        // Initialize Persister
         let authenticator =
             Arc::new(UserAuthenticator::new(user_key_pair, None));
         let vfs_master_key = Arc::new(root_seed.derive_vfs_master_key());
-
-        // Initialize Persister
         let persister = NodePersister::new(
             api.clone(),
             authenticator,

@@ -312,14 +312,12 @@ impl ProvisionArgs {
 pub struct Network(bitcoin::Network);
 
 impl Network {
-    // TODO(max): Should be renamed to .to_inner()
-    // https://rust-lang.github.io/api-guidelines/naming.html#ad-hoc-conversions-follow-as_-to_-into_-conventions-c-conv
-    pub fn into_inner(self) -> bitcoin::Network {
+    pub fn to_inner(self) -> bitcoin::Network {
         self.0
     }
 
     pub fn to_str(self) -> &'static str {
-        match self.into_inner() {
+        match self.to_inner() {
             bitcoin::Network::Bitcoin => "bitcoin",
             bitcoin::Network::Testnet => "testnet",
             bitcoin::Network::Regtest => "regtest",
@@ -329,7 +327,7 @@ impl Network {
 
     /// Gets the blockhash of the genesis block of this [`Network`]
     pub fn genesis_hash(self) -> BlockHash {
-        constants::genesis_block(self.into_inner())
+        constants::genesis_block(self.to_inner())
             .header
             .block_hash()
     }
@@ -363,7 +361,7 @@ impl Display for Network {
 
 impl From<Network> for bitcoin_bech32::constants::Network {
     fn from(network: Network) -> Self {
-        match network.into_inner() {
+        match network.to_inner() {
             bitcoin::Network::Bitcoin => {
                 bitcoin_bech32::constants::Network::Bitcoin
             }
@@ -382,7 +380,7 @@ impl From<Network> for bitcoin_bech32::constants::Network {
 
 impl From<Network> for Currency {
     fn from(network: Network) -> Self {
-        match network.into_inner() {
+        match network.to_inner() {
             bitcoin::Network::Bitcoin => Currency::Bitcoin,
             bitcoin::Network::Testnet => Currency::BitcoinTestnet,
             bitcoin::Network::Regtest => Currency::Regtest,

@@ -504,8 +504,8 @@ mod test {
             network1 in any::<crate::cli::Network>(),
             network2 in any::<crate::cli::Network>(),
         )| {
-            let network1 = network1.into_inner();
-            let network2 = network2.into_inner();
+            let network1 = network1.to_inner();
+            let network2 = network2.to_inner();
             let secp_ctx = rng::get_randomized_secp256k1_ctx(&mut rng);
 
             // Network DOES matter for master xprvs (and all xprvs in general).
