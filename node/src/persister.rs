@@ -585,9 +585,6 @@ impl Persist<SignerType> for InnerPersister {
         ChannelMonitorUpdateStatus::InProgress
     }
 
-    // FIXME: lightning_block_sync triggers a separate persist call for *every*
-    // block processed during sync, including the hundreds of blocks
-    // generated during integration tests. Find a way to avoid this.
     fn update_persisted_channel(
         &self,
         funding_txo: OutPoint,

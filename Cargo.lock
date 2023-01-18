@@ -1270,7 +1270,6 @@ dependencies = [
  "esplora-client",
  "futures",
  "lightning",
- "lightning-block-sync",
  "lightning-invoice",
  "lightning-net-tokio",
  "lightning-transaction-sync",
@@ -1311,19 +1310,6 @@ version = "0.0.113"
 source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix-with-tx-sync-v2#19aff59526c9147e8e9617cd84088f2daa488539"
 dependencies = [
  "bitcoin",
-]
-
-[[package]]
-name = "lightning-block-sync"
-version = "0.0.113"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.113-with-fix-with-tx-sync-v2#19aff59526c9147e8e9617cd84088f2daa488539"
-dependencies = [
- "bitcoin",
- "chunked_transfer",
- "futures-util",
- "lightning",
- "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -1515,7 +1501,6 @@ dependencies = [
  "http",
  "lexe-ln",
  "lightning",
- "lightning-block-sync",
  "lightning-invoice",
  "lightning-net-tokio",
  "lightning-transaction-sync",
