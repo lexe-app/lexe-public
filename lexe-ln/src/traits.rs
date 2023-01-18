@@ -1,5 +1,5 @@
 use std::ops::Deref;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use async_trait::async_trait;
 use common::api::vfs::BasicFile;
@@ -13,16 +13,6 @@ use crate::alias::{
     LexeChainMonitorType, LexeChannelManagerType, LexePeerManagerType,
     NetworkGraphType, ProbabilisticScorerType, SignerType,
 };
-
-/// A trait for converting from a generic `Deref<Target = T>` to `Arc<T>`.
-///
-/// Requiring `ArcInner<T>` (instead of `Deref<Target = T>`) is required if
-/// something downstream of the function requires a conversion to [`Arc`].
-// TODO: It should be possible to remove this trait by patching LDK's
-// `setup_outbound`, `connect_outbound` to not require Arc<T>
-pub trait ArcInner<T>: Deref<Target = T> {
-    fn arc_inner(&self) -> Arc<T>;
-}
 
 /// Defines all the persister methods needed in shared Lexe LN logic.
 #[async_trait]
@@ -106,7 +96,7 @@ where
 
 /// A 'trait alias' defining all the requirements of a Lexe peer manager.
 pub trait LexePeerManager<CM, PS>:
-    Clone + Send + Sync + 'static + ArcInner<LexePeerManagerType<CM>>
+    Clone + Send + Sync + 'static + Deref<Target = LexePeerManagerType<CM>>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
@@ -115,7 +105,7 @@ where
 
 impl<PM, CM, PS> LexePeerManager<CM, PS> for PM
 where
-    PM: Clone + Send + Sync + 'static + ArcInner<LexePeerManagerType<CM>>,
+    PM: Clone + Send + Sync + 'static + Deref<Target = LexePeerManagerType<CM>>,
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {

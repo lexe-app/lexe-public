@@ -93,7 +93,7 @@ where
     //
     // TODO: Rewrite / replace lightning-net-tokio entirely
     let connection_closed_fut = lightning_net_tokio::setup_outbound(
-        peer_manager.arc_inner(),
+        peer_manager.clone(),
         channel_peer.node_pk.0,
         stream,
     );
@@ -234,7 +234,7 @@ where
                     };
 
                     // Spawn a task to await on the connection
-                    let peer_manager_arc_inner = peer_manager.arc_inner();
+                    let peer_manager_clone = peer_manager.clone();
                     let child_task = LxTask::spawn(async move {
                         // `setup_inbound()` returns a future that completes
                         // when the connection is closed. The main thread calls
@@ -242,7 +242,7 @@ where
                         // a shutdown signal so there is no need to pass in a
                         // `shutdown`s here.
                         let connection_closed = lightning_net_tokio::setup_inbound(
-                            peer_manager_arc_inner,
+                            peer_manager_clone,
                             tcp_stream,
                         );
                         connection_closed.await;
