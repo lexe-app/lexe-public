@@ -15,8 +15,6 @@
 pub mod alias;
 /// Background processor.
 pub mod background_processor;
-/// BitcoinD client.
-pub mod bitcoind;
 /// Shared functionality relating to opening, closing, managing channels.
 pub mod channel;
 /// Channel monitor
