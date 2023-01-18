@@ -26,7 +26,6 @@ use lexe_ln::alias::{
     ProbabilisticScorerType,
 };
 use lexe_ln::background_processor::LexeBackgroundProcessor;
-use lexe_ln::bitcoind::LexeBitcoind;
 use lexe_ln::esplora::LexeEsplora;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
@@ -133,9 +132,8 @@ impl UserNode {
         // Collect all handles to spawned tasks
         let mut tasks = Vec::with_capacity(10);
 
-        // Initialize bitcoind and esplora while fetching provisioned secrets
-        let (try_bitcoind, try_esplora, try_fetch) = tokio::join!(
-            LexeBitcoind::init(args.bitcoind_rpc.clone(), args.network,),
+        // Initialize esplora while fetching provisioned secrets
+        let (try_esplora, try_fetch) = tokio::join!(
             LexeEsplora::init(args.esplora_url.clone(), shutdown.clone()),
             fetch_provisioned_secrets(
                 api.as_ref(),
@@ -145,10 +143,6 @@ impl UserNode {
                 min_cpusvn
             ),
         );
-        // TODO(max): Remove
-        let _bitcoind = try_bitcoind
-            .map(Arc::new)
-            .context("Failed to init bitcoind client")?;
         let (esplora, refresh_fees_task) =
             try_esplora.context("Failed to init esplora")?;
         tasks.push(refresh_fees_task);
