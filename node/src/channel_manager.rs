@@ -190,7 +190,7 @@ impl NodeChannelManager {
             None => {
                 // We're starting a fresh node.
                 // Use the genesis block as the current best block.
-                let network = network.into_inner();
+                let network = network.to_inner();
                 let genesis_hash =
                     constants::genesis_block(network).header.block_hash();
                 let genesis_height = 0;

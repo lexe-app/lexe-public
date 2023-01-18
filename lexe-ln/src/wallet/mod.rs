@@ -58,7 +58,7 @@ impl LexeWallet {
         esplora: Arc<LexeEsplora>,
         wallet_db: WalletDb,
     ) -> anyhow::Result<Self> {
-        let network = network.into_inner();
+        let network = network.to_inner();
         let master_xprv = root_seed.derive_bip32_master_xprv(network);
 
         // Descriptor for external (receive) addresses: `m/84h/{0,1}h/0h/0/*`
