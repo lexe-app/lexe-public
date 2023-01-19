@@ -54,6 +54,7 @@ where
             channel_value_satoshis,
             conf_target,
         )
+        .await
         .context("Could not create and sign funding tx")
         // Force close the pending channel if funding tx generation failed.
         .inspect_err(|_| {
