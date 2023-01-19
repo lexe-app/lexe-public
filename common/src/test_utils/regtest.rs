@@ -137,10 +137,8 @@ impl Regtest {
             .generate_to_address(num_blocks as u64, address)
             .expect("Failed to generate blocks");
 
-        // Trigger electrsd sync.
-        self.electrsd
-            .trigger()
-            .expect("Couldn't trigger electrsd sync");
+        // Trigger electrs-esplora to update
+        self.electrsd.trigger().expect("Couldn't trigger electrs");
 
         // Poll once a second, for up to a minute, to confirm that esplora has
         // reached the correct new block height. This way, we can ensure the
@@ -163,6 +161,20 @@ impl Regtest {
             if post_height >= expected {
                 debug!("Got to height {post_height}, expected {expected}");
                 break;
+            } else {
+                // - When we call .block_headers_subscribe(), electrs-esplora
+                //   only returns the latest *cached* header.
+                // - Every 5 seconds, electrs-esplora: (1) queries the latest
+                //   block, (2) updates its mempool, and (3) updates its
+                //   subscribers. Prior to this tick, a subsequent call to
+                //   .block_headers_subscribe() will only return the same cached
+                //   header.
+                // - However, we can call .trigger() to make electrs-esplora
+                //   update on-demand, so that the block generation process can
+                //   proceed faster. Hence, we keep on retriggering until we've
+                //   electrs has indexed the desired # of blocks. More info:
+                //   https://github.com/lexe-tech/lexe/pull/85/files#r1080589441
+                self.electrsd.trigger().expect("Couldn't trigger electrs");
             }
         }
 
