@@ -432,7 +432,7 @@ async fn handle_event_fallible(
             });
         }
         Event::SpendableOutputs { outputs } => {
-            let destination_address = wallet.get_new_address()?;
+            let destination_address = wallet.get_new_address().await?;
             let output_descriptors = &outputs.iter().collect::<Vec<_>>();
             let tx_feerate =
                 esplora.get_est_sat_per_1000_weight(ConfirmationTarget::Normal);

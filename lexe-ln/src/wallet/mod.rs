@@ -102,19 +102,23 @@ impl LexeWallet {
 
     /// Returns the current wallet balance. Note that newly received funds will
     /// not be detected unless the wallet has been `sync()`ed first.
-    pub fn get_balance(&self) -> anyhow::Result<Balance> {
+    // NOTE: We use lock().await as a hack to avoid the problematic try_lock().
+    // TODO(max): Change this back to sync once bdk::Wallet is thread-safe.
+    pub async fn get_balance(&self) -> anyhow::Result<Balance> {
         self.wallet
-            .try_lock()
-            .context("Wallet is busy")?
+            .lock()
+            .await
             .get_balance()
             .context("Could not get balance")
     }
 
     /// Returns a new address derived using the external descriptor.
-    pub fn get_new_address(&self) -> anyhow::Result<Address> {
+    // NOTE: We use lock().await as a hack to avoid the problematic try_lock().
+    // TODO(max): Change this back to sync once bdk::Wallet is thread-safe
+    pub async fn get_new_address(&self) -> anyhow::Result<Address> {
         self.wallet
-            .try_lock()
-            .context("Wallet is busy; perhaps it is still syncing?")?
+            .lock()
+            .await
             .get_address(AddressIndex::New)
             .map(|info| info.address)
             .context("Could not get new address")
@@ -125,14 +129,16 @@ impl LexeWallet {
     /// [`FundingGenerationReady`] event
     ///
     /// [`FundingGenerationReady`]: lightning::util::events::Event::FundingGenerationReady
-    pub(crate) fn create_and_sign_funding_tx(
+    // NOTE: We use lock().await as a hack to avoid the problematic try_lock().
+    // TODO(max): Change this back to sync once bdk::Wallet is thread-safe.
+    pub(crate) async fn create_and_sign_funding_tx(
         &self,
         output_script: Script,
         channel_value_satoshis: u64,
         conf_target: ConfirmationTarget,
     ) -> anyhow::Result<Transaction> {
+        let locked_wallet = self.wallet.lock().await;
         let bdk_feerate = self.esplora.get_bdk_feerate(conf_target);
-        let locked_wallet = self.wallet.try_lock().context("Wallet is busy")?;
 
         let mut tx_builder = locked_wallet.build_tx();
         tx_builder
