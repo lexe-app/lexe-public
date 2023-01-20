@@ -329,7 +329,7 @@ mod test {
     use proptest::{prop_assert_eq, proptest};
 
     use super::*;
-    use crate::rng::SmallRng;
+    use crate::rng::WeakRng;
     use crate::{hex, sha256};
 
     // simple implementations of some crypto functions for equivalence testing
@@ -499,7 +499,7 @@ mod test {
     #[test]
     fn when_does_network_matter() {
         proptest!(|(
-            mut rng in any::<SmallRng>(),
+            mut rng in any::<WeakRng>(),
             root_seed in any::<RootSeed>(),
             network1 in any::<crate::cli::Network>(),
             network2 in any::<crate::cli::Network>(),
@@ -600,7 +600,7 @@ mod test {
     #[test]
     fn mnemonic_compatibility_test() {
         // This code generated the "known good" values
-        // let mut rng = SmallRng::from_u64(98592174);
+        // let mut rng = WeakRng::from_u64(98592174);
         // let seed1 = RootSeed::from_rng(&mut rng);
         // let seed2 = RootSeed::from_rng(&mut rng);
         // let seed3 = RootSeed::from_rng(&mut rng);

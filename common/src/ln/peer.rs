@@ -12,10 +12,10 @@ use crate::api::NodePk;
 /// into the node during tests.
 #[cfg(any(test, feature = "test-utils"))]
 pub static DUMMY_LSP: Lazy<ChannelPeer> = Lazy::new(|| {
-    use crate::rng::SmallRng;
+    use crate::rng::WeakRng;
     use crate::root_seed::RootSeed;
 
-    let mut rng = SmallRng::from_u64(17550281);
+    let mut rng = WeakRng::from_u64(17550281);
     let node_pk = RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng);
     let addr = SocketAddr::from(([127, 0, 0, 1], 42069));
 
@@ -65,7 +65,7 @@ mod test {
     use proptest::{prop_assert_eq, proptest};
 
     use super::*;
-    use crate::rng::SmallRng;
+    use crate::rng::WeakRng;
     use crate::root_seed::RootSeed;
     use crate::test_utils::roundtrip;
 
@@ -74,7 +74,7 @@ mod test {
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<SmallRng>(), any::<SocketAddr>())
+            (any::<WeakRng>(), any::<SocketAddr>())
                 .prop_map(|(mut rng, mut addr)| {
                     let root_seed = RootSeed::from_rng(&mut rng);
                     let node_pk = root_seed.derive_node_pk(&mut rng);
