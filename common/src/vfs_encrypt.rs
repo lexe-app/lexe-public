@@ -372,7 +372,7 @@ mod test {
 
     use super::*;
     use crate::hex;
-    use crate::rng::SmallRng;
+    use crate::rng::WeakRng;
     use crate::root_seed::RootSeed;
 
     #[test]
@@ -415,7 +415,7 @@ mod test {
 
     #[test]
     fn test_decrypt_compat() {
-        let mut rng = SmallRng::from_u64(123);
+        let mut rng = WeakRng::from_u64(123);
         let root_seed = RootSeed::from_rng(&mut rng);
         let vfs_key = root_seed.derive_vfs_master_key();
 
@@ -464,7 +464,7 @@ mod test {
     #[test]
     fn test_encrypt_decrypt_roundtrip() {
         proptest!(|(
-            mut rng in any::<SmallRng>(),
+            mut rng in any::<WeakRng>(),
             aad in vec(vec(any::<u8>(), 0..=16), 0..=4),
             plaintext in vec(any::<u8>(), 0..=256),
         )| {

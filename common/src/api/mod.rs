@@ -17,7 +17,7 @@ use crate::ed25519::Signable;
 use crate::hex::{self, FromHex};
 use crate::rng::Crng;
 #[cfg(any(test, feature = "test-utils"))]
-use crate::rng::SmallRng;
+use crate::rng::WeakRng;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::root_seed::RootSeed;
 use crate::{const_ref_cast, ed25519, hexstr_or_bytes, sha256};
@@ -196,7 +196,7 @@ impl Arbitrary for NodePk {
     type Strategy = BoxedStrategy<Self>;
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        any::<SmallRng>()
+        any::<WeakRng>()
             .prop_map(|mut rng| {
                 RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng)
             })
@@ -258,7 +258,7 @@ impl Arbitrary for NodePkProof {
     type Strategy = BoxedStrategy<Self>;
 
     fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        any::<SmallRng>()
+        any::<WeakRng>()
             .prop_map(|mut rng| {
                 let key_pair =
                     RootSeed::from_rng(&mut rng).derive_node_key_pair(&mut rng);
@@ -319,7 +319,7 @@ mod test {
             });
 
         proptest!(|(
-            mut rng: SmallRng,
+            mut rng: WeakRng,
             mut_offset in any::<usize>(),
             mut mutation in arb_mutation,
         )| {

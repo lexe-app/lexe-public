@@ -253,7 +253,7 @@ mod test {
     use common::attest;
     use common::attest::verify::EnclavePolicy;
     use common::cli::ProvisionArgs;
-    use common::rng::SysRng;
+    use common::rng::WeakRng;
     use common::root_seed::RootSeed;
     use tokio_rustls::rustls;
 
@@ -266,7 +266,7 @@ mod test {
     fn dump_attest_cert() {
         use common::ed25519;
 
-        let mut rng = SysRng::new();
+        let mut rng = WeakRng::new();
         let cert_key_pair = ed25519::KeyPair::from_seed(&[0x42; 32]);
         let cert_pk = cert_key_pair.public_key();
         let attestation = attest::quote_enclave(&mut rng, cert_pk).unwrap();
@@ -294,8 +294,7 @@ mod test {
     async fn test_provision() {
         let root_seed = RootSeed::from_u64(0x42);
         let user_pk = root_seed.derive_user_pk();
-        // TODO(phlip9): replace SysRng w/ SmallRng when test-util feature lands
-        let node_pk = root_seed.derive_node_pk(&mut SysRng::new());
+        let node_pk = root_seed.derive_node_pk(&mut WeakRng::new());
 
         let args = ProvisionArgs {
             user_pk,
@@ -309,7 +308,7 @@ mod test {
         let mut notifs_rx = api.notifs_rx();
 
         let provision_task = async {
-            let mut rng = SysRng::new();
+            let mut rng = WeakRng::new();
             provision_node(&mut rng, args, api).await.unwrap();
         };
 

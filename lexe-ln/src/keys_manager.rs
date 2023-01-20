@@ -116,7 +116,7 @@ impl LexeKeysManager {
 
 #[cfg(test)]
 mod test {
-    use common::rng::SmallRng;
+    use common::rng::WeakRng;
     use proptest::arbitrary::any;
     use proptest::{prop_assert_eq, proptest};
 
@@ -127,7 +127,7 @@ mod test {
     #[test]
     fn test_rootseed_keysmanager_derivation_equivalence() {
         let any_root_seed = any::<RootSeed>();
-        let any_rng = any::<SmallRng>();
+        let any_rng = any::<WeakRng>();
 
         proptest!(|(root_seed in any_root_seed, mut rng in any_rng)| {
             let root_seed_node_pk = root_seed.derive_node_pk(&mut rng);

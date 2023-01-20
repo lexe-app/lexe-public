@@ -36,7 +36,7 @@ mod test {
 
     use super::*;
     use crate::cli::Network;
-    use crate::rng::SmallRng;
+    use crate::rng::WeakRng;
     use crate::root_seed::RootSeed;
     use crate::test_utils::roundtrip;
 
@@ -68,7 +68,7 @@ mod test {
 
             let min_final_cltv_expiry = any::<u64>();
 
-            let secret_key = any::<SmallRng>()
+            let secret_key = any::<WeakRng>()
                 .prop_map(|mut rng| {
                     RootSeed::from_rng(&mut rng).derive_node_key_pair(&mut rng)
                 })

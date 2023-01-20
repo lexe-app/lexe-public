@@ -322,7 +322,7 @@ mod test {
 
     use super::*;
     use crate::attest::EnclavePolicy;
-    use crate::rng::SmallRng;
+    use crate::rng::WeakRng;
 
     // test node-client TLS handshake directly w/o any other warp/reqwest infra
     #[tokio::test]
@@ -337,7 +337,7 @@ mod test {
         let client = async move {
             // should be able to independently derive CA key pair
             let seed = RootSeed::new(Secret::new(seed));
-            let mut rng = SmallRng::from_u64(111);
+            let mut rng = WeakRng::from_u64(111);
 
             // should be unused since no proxy
             let lexe_root_key_pair =
@@ -380,7 +380,7 @@ mod test {
         let node = async move {
             // should be able to independently derive CA key pair
             let seed = RootSeed::new(Secret::new(seed));
-            let mut rng = SmallRng::from_u64(222);
+            let mut rng = WeakRng::from_u64(222);
 
             let dns_names = vec![dns_name.to_owned()];
             let config =

@@ -147,14 +147,14 @@ pub mod prop {
     use proptest::strategy::{BoxedStrategy, Strategy};
 
     use super::*;
-    use crate::rng::SmallRng;
+    use crate::rng::WeakRng;
 
     impl Arbitrary for NodeProvisionRequest {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            any::<SmallRng>()
+            any::<WeakRng>()
                 .prop_map(|mut rng| {
                     let root_seed = RootSeed::from_rng(&mut rng);
                     Self {
@@ -185,12 +185,12 @@ mod test {
     use secrecy::ExposeSecret;
 
     use super::*;
-    use crate::rng::SmallRng;
+    use crate::rng::WeakRng;
     use crate::test_utils::roundtrip;
 
     #[test]
     fn test_node_provision_request_sample() {
-        let mut rng = SmallRng::from_u64(12345);
+        let mut rng = WeakRng::from_u64(12345);
         let root_seed = RootSeed::from_rng(&mut rng);
         let user_pk = root_seed.derive_user_pk();
         let node_pk = root_seed.derive_node_pk(&mut rng);
@@ -220,7 +220,7 @@ mod test {
         let machine_id = enclave::machine_id();
         let min_cpusvn = enclave::MIN_SGX_CPUSVN;
 
-        proptest!(|(mut rng: SmallRng)| {
+        proptest!(|(mut rng: WeakRng)| {
             let root_seed1 = RootSeed::from_rng(&mut rng);
 
             let sealed_seed = SealedSeed::seal_from_root_seed(

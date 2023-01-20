@@ -83,12 +83,12 @@ impl RngCore for SysRng {
 ///
 /// [`Xoroshiro64Star`]: https://github.com/rust-random/rngs/blob/master/rand_xoshiro/src/xoroshiro64star.rs
 #[derive(Debug)]
-pub struct SmallRng {
+pub struct WeakRng {
     s0: u32,
     s1: u32,
 }
 
-impl SmallRng {
+impl WeakRng {
     pub fn new() -> Self {
         Self {
             s0: 0xdeadbeef,
@@ -101,7 +101,7 @@ impl SmallRng {
     }
 }
 
-impl Default for SmallRng {
+impl Default for WeakRng {
     fn default() -> Self {
         Self::new()
     }
@@ -109,9 +109,9 @@ impl Default for SmallRng {
 
 /// Only enable [`CryptoRng`] for this rng when testing.
 #[cfg(any(test, feature = "test-utils"))]
-impl CryptoRng for SmallRng {}
+impl CryptoRng for WeakRng {}
 
-impl RngCore for SmallRng {
+impl RngCore for WeakRng {
     #[inline]
     fn next_u32(&mut self) -> u32 {
         let r = self.s0.wrapping_mul(0x9e3779bb);
@@ -141,7 +141,7 @@ impl RngCore for SmallRng {
     }
 }
 
-impl SeedableRng for SmallRng {
+impl SeedableRng for WeakRng {
     type Seed = [u8; 8];
 
     fn from_seed(seed: Self::Seed) -> Self {
@@ -161,7 +161,7 @@ impl SeedableRng for SmallRng {
 }
 
 #[cfg(all(any(test, feature = "test-utils")))]
-impl Arbitrary for SmallRng {
+impl Arbitrary for WeakRng {
     type Parameters = ();
     type Strategy = BoxedStrategy<Self>;
 
@@ -171,7 +171,7 @@ impl Arbitrary for SmallRng {
         // waste time trying to shrink the rng seed.
         any::<[u8; 8]>()
             .no_shrink()
-            .prop_map(SmallRng::from_seed)
+            .prop_map(WeakRng::from_seed)
             .boxed()
     }
 }
