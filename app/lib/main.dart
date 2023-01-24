@@ -24,7 +24,8 @@ class LandingPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
         backgroundColor: const Color(0xff353535),
-        body: Center(
+        body: InkuShader(
+            child: Center(
           child: Container(
               padding: const EdgeInsets.only(top: 128.0, bottom: 64.0),
               constraints: const BoxConstraints.expand(width: 300.0),
@@ -45,7 +46,7 @@ class LandingPage extends StatelessWidget {
                   )
                 ],
               )),
-        ));
+        )));
   }
 }
 
@@ -180,4 +181,108 @@ class LandingButtons extends StatelessWidget {
       ],
     );
   }
+}
+
+class InkuShader extends StatelessWidget {
+  const InkuShader({super.key, this.child});
+
+  final Widget? child;
+
+  static Future<ui.FragmentShader> load() async {
+    final program = await ui.FragmentProgram.fromAsset("shaders/inku.frag");
+    return program.fragmentShader();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder(
+        future: InkuShader.load(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            debugPrintStack(
+                stackTrace: snapshot.stackTrace,
+                label: "Error loading shader: ${snapshot.error}");
+            return const SizedBox();
+          }
+          if (!snapshot.hasData) {
+            return const SizedBox();
+          }
+
+          return AnimatedShader(shader: snapshot.data!, child: child);
+        });
+  }
+}
+
+class AnimatedShader extends StatefulWidget {
+  const AnimatedShader({super.key, required this.shader, this.child});
+
+  final ui.FragmentShader shader;
+  final Widget? child;
+
+  @override
+  AnimatedShaderState createState() => AnimatedShaderState();
+}
+
+class AnimatedShaderState extends State<AnimatedShader>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController animationController;
+
+  @override
+  void initState() {
+    super.initState();
+    animationController = AnimationController(
+      vsync: this,
+      upperBound: 10000.0,
+      duration: const Duration(seconds: 10000), // why no infinite animation??
+    );
+    animationController.forward(from: 0.0);
+  }
+
+  @override
+  void dispose() {
+    animationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animationController,
+      builder: (BuildContext _, Widget? child) => CustomPaint(
+        painter: ShaderPainter(widget.shader, animationController.value),
+        // raster cache probably shouldn't cache this since it changes every frame
+        isComplex: false,
+        willChange: true,
+        child: child,
+      ),
+      child: widget.child,
+    );
+  }
+}
+
+class ShaderPainter extends CustomPainter {
+  const ShaderPainter(this.shader, this.time);
+
+  final ui.FragmentShader shader;
+  final double time;
+
+  @override
+  void paint(ui.Canvas canvas, ui.Size size) {
+    // set shader uniforms
+    // 0 : u_resolution.x
+    shader.setFloat(0, size.width);
+    // 1 : u_resolution.y
+    shader.setFloat(1, size.height);
+    // 2 : u_time
+    shader.setFloat(2, time);
+
+    final screenRect = Rect.fromLTWH(0.0, 0.0, size.width, size.height);
+    final paint = Paint()..shader = shader;
+
+    canvas.drawRect(screenRect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant ShaderPainter oldDelegate) =>
+      time != oldDelegate.time || shader != oldDelegate.shader;
 }
