@@ -213,8 +213,8 @@ dependencies = [
 
 [[package]]
 name = "bdk"
-version = "0.25.0"
-source = "git+https://github.com/lexe-tech/bdk?branch=lexe#9e8fb925f89ea53392079a0008854edc39830069"
+version = "0.26.0"
+source = "git+https://github.com/lexe-tech/bdk?branch=lexe-v0.26-synctime-threadsafe#41637fd724f2cbe40f0d4b61cbc835d8c861cef9"
 dependencies = [
  "async-trait",
  "bdk-macros",
@@ -234,8 +234,7 @@ dependencies = [
 [[package]]
 name = "bdk-macros"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81c1980e50ae23bb6efa9283ae8679d6ea2c6fa6a99fe62533f65f4a25a1a56c"
+source = "git+https://github.com/lexe-tech/bdk?branch=lexe-v0.26-synctime-threadsafe#41637fd724f2cbe40f0d4b61cbc835d8c861cef9"
 dependencies = [
  "proc-macro2 1.0.47",
  "quote 1.0.21",

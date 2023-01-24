@@ -18,7 +18,7 @@ use common::rng::Crng;
 use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
 use common::task::{joined_task_state_label, BlockingTaskRt, LxTask};
-use futures::future::{FutureExt, TryFutureExt};
+use futures::future::FutureExt;
 use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
     BroadcasterType, EsploraSyncClientType, FeeEstimatorType, NetworkGraphType,
@@ -42,7 +42,7 @@ use lightning::routing::router::DefaultRouter;
 use lightning_invoice::payment::Retry;
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::net::TcpListener;
-use tokio::sync::{mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot, watch};
 use tracing::{debug, error, info, instrument};
 
 use crate::alias::{ApiClientType, ChainMonitorType, InvoicePayerType};
@@ -97,7 +97,7 @@ pub struct UserNode {
 /// Fields which are "moved" out of [`UserNode`] during `sync`.
 struct SyncContext {
     ldk_sync_client: Arc<EsploraSyncClientType>,
-    resync_rx: mpsc::Receiver<()>,
+    resync_rx: watch::Receiver<()>,
     test_event_tx: TestEventSender,
 }
 
@@ -106,7 +106,7 @@ impl UserNode {
     pub async fn init<R: Crng>(
         rng: &mut R,
         args: RunArgs,
-        resync_rx: mpsc::Receiver<()>,
+        resync_rx: watch::Receiver<()>,
         test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<Self> {
@@ -470,32 +470,40 @@ impl UserNode {
 
     #[instrument(skip_all, name = "[node]")]
     pub async fn sync(&mut self) -> anyhow::Result<()> {
+        info!("Starting sync");
         let ctxt = self.sync.take().expect("sync() must be called only once");
 
-        // BDK: Sync wallet
-        let bdk_sync_fut = self
-            .wallet
-            .sync()
-            .map_err(|e| e.context("Couldn't sync BDK wallet"));
+        // BDK: Do initial wallet sync
+        let (first_bdk_sync_tx, first_bdk_sync_rx) = oneshot::channel();
+        self.tasks.push(sync::spawn_bdk_sync_task(
+            self.wallet.clone(),
+            first_bdk_sync_tx,
+            ctxt.resync_rx.clone(),
+            ctxt.test_event_tx.clone(),
+            self.shutdown.clone(),
+        ));
+        let bdk_sync_fut = first_bdk_sync_rx
+            .map(|res| res.context("Failed to recv result of first BDK sync"));
 
-        // LDK tx sync: Do initial sync
-        let (initial_sync_tx, initial_sync_rx) = oneshot::channel();
-        self.tasks.push(sync::spawn_ldk_tx_sync_task(
+        // LDK: Do initial tx sync
+        let (first_ldk_sync_tx, first_ldk_sync_rx) = oneshot::channel();
+        self.tasks.push(sync::spawn_ldk_sync_task(
             self.channel_manager.clone(),
             self.chain_monitor.clone(),
             ctxt.ldk_sync_client,
-            initial_sync_tx,
+            first_ldk_sync_tx,
             ctxt.resync_rx,
             ctxt.test_event_tx,
             self.shutdown.clone(),
         ));
-        let ldk_tx_sync_fut = initial_sync_rx
-            .map(|res| res.context("Failed to recv result of initial sync"));
+        let ldk_sync_fut = first_ldk_sync_rx
+            .map(|res| res.context("Failed to recv result of first LDK sync"));
 
         // Sync BDK and LDK concurrently
-        let ((), try_initial_sync) =
-            tokio::try_join!(bdk_sync_fut, ldk_tx_sync_fut)?;
-        try_initial_sync.context("Initial tx sync failed")?;
+        let (try_first_bdk_sync, try_first_ldk_sync) =
+            tokio::try_join!(bdk_sync_fut, ldk_sync_fut)?;
+        try_first_bdk_sync.context("Initial BDK sync failed")?;
+        try_first_ldk_sync.context("Initial LDK sync failed")?;
 
         // Sync complete; let the runner know that we're ready
         info!("Node is ready to accept commands; notifying runner");
@@ -516,6 +524,7 @@ impl UserNode {
 
     #[instrument(skip_all, name = "[node]")]
     pub async fn run(mut self) -> anyhow::Result<()> {
+        info!("Running...");
         assert!(self.sync.is_none(), "Must sync before run");
 
         // Sync is complete; start the inactivity timer.

@@ -3,11 +3,10 @@ use std::sync::Arc;
 use anyhow::Context;
 use argh::FromArgs;
 use common::cli::NodeCommand;
-use common::constants::DEFAULT_CHANNEL_SIZE;
 use common::rng::SysRng;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::test_event;
-use tokio::sync::mpsc;
+use tokio::sync::watch;
 
 use crate::api::NodeApiClient;
 use crate::provision;
@@ -27,9 +26,7 @@ impl NodeArgs {
             .build()
             .context("Failed to build Tokio runtime")?;
         let mut rng = SysRng::new();
-        // TODO(max): Actually use the tx once we have a pub/sub system allowing
-        // nodes to subscribe to chain updates from a sync enclave
-        let (_resync_tx, resync_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
+        let (_tx, resync_rx) = watch::channel(());
         let (test_event_tx, _test_event_rx) = test_event::test_event_channel();
         let shutdown = ShutdownChannel::new();
 
