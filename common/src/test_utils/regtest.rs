@@ -10,7 +10,7 @@ use electrsd::bitcoind::bitcoincore_rpc::RpcApi;
 use electrsd::bitcoind::{self, BitcoinD};
 use electrsd::electrum_client::ElectrumApi;
 use electrsd::ElectrsD;
-use tracing::{debug, trace};
+use tracing::debug;
 
 /// A wrapper around [`BitcoinD`] and [`ElectrsD`] which exposes simple methods
 /// for launching a bitcoind regtest instance and esplora server, funding
@@ -140,14 +140,14 @@ impl Regtest {
         // Trigger electrs-esplora to update
         self.electrsd.trigger().expect("Couldn't trigger electrs");
 
-        // Poll once a second, for up to a minute, to confirm that esplora has
+        // Poll once a second, for up to 60 seconds, to confirm that esplora has
         // reached the correct new block height. This way, we can ensure the
         // esplora server is up-to-date before telling nodes to resync.
         // There does not appear to be any clean blocking or async API for this.
         let mut poll_timer = tokio::time::interval(Duration::from_secs(1));
-        for _ in 0..60 {
+        for i in 0..60 {
             poll_timer.tick().await;
-            trace!("Polling for block header notification");
+            debug!("Polling for block header notification");
             let expected = pre_height + num_blocks;
             // We use .block_headers_subscribe() instead of .block_headers_pop()
             // because the latter often fails to actually notify us, causing
@@ -159,8 +159,10 @@ impl Regtest {
                 .expect("Could not fetch latest block header")
                 .height;
             if post_height >= expected {
-                debug!("Got to height {post_height}, expected {expected}");
-                break;
+                debug!(
+                    "Got to height {post_height} in {i}s, expected {expected}"
+                );
+                return blockhashes;
             } else {
                 // - When we call .block_headers_subscribe(), electrs-esplora
                 //   only returns the latest *cached* header.
@@ -178,7 +180,7 @@ impl Regtest {
             }
         }
 
-        blockhashes
+        panic!("Failed to mine {num_blocks} blocks to {address}")
     }
 }
 
