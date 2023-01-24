@@ -92,3 +92,17 @@ flutter:
         - asset: fonts/InterV.ttf
         - asset: fonts/InterV-Italic.ttf
           style: italic
+
+  # GLSL GPU fragment shaders
+  #
+  # These are programs run on the GPU, usually to produce cool visual effects.
+  # The actual fragment shader is invoked independently on each pixel in a
+  # clipping area, like:
+  #
+  # ```
+  # for each (x, y) in area {
+  #   set_color(x, y, shader(x, y, ...other uniforms);
+  # }
+  # ```
+  shaders:
+    - shaders/inku.frag
