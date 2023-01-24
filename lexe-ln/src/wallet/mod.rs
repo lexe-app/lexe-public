@@ -35,13 +35,15 @@ const BDK_WALLET_SYNC_STOP_GAP: usize = 20;
 #[derive(Clone)]
 pub struct LexeWallet {
     esplora: Arc<LexeEsplora>,
-    // The Mutex is needed because bdk::Wallet isn't thread-safe.
-    // bdk::Wallet::new wraps the db we provide with RefCell, which isn't Send.
-    // Thus, to convince the compiler that LexeWallet is indeed Send, we wrap
-    // the bdk::Wallet with a Mutex, despite that we don't technically need the
-    // Mutex since we don't use any bdk::Wallet methods that require &mut self.
-    // Furthermore, since a lock to the bdk::Wallet needs to be held while
-    // awaiting on BDK wallet sync, the Mutex we use must be a Tokio mutex.
+    // The Mutex is needed because bdk::Wallet (without our patch) is not Send,
+    // and therefore does not guarantee that concurrent accesses will not panic
+    // on internal locking calls. Furthermore, since a lock to the bdk::Wallet
+    // needs to be held while awaiting on BDK wallet sync, the Mutex we use
+    // must be a Tokio mutex. See the patched commits for more details:
+    //
+    // - https://github.com/lexe-tech/bdk/tree/max/thread-safe
+    // - https://github.com/bitcoindevkit/bdk/commit/c5b2f5ac9ac152a7e0658ca99ccaf854b9063727
+    // - https://github.com/bitcoindevkit/bdk/commit/ddc84ca1916620d021bae8c467c53555b7c62467
     wallet: Arc<tokio::sync::Mutex<Wallet<WalletDb>>>,
 }
 
@@ -103,7 +105,7 @@ impl LexeWallet {
     /// Returns the current wallet balance. Note that newly received funds will
     /// not be detected unless the wallet has been `sync()`ed first.
     // NOTE: We use lock().await as a hack to avoid the problematic try_lock().
-    // TODO(max): Change this back to sync once bdk::Wallet is thread-safe.
+    // TODO(max): Change back to sync once BDK is robust to concurrent access.
     pub async fn get_balance(&self) -> anyhow::Result<Balance> {
         self.wallet
             .lock()
@@ -114,7 +116,7 @@ impl LexeWallet {
 
     /// Returns a new address derived using the external descriptor.
     // NOTE: We use lock().await as a hack to avoid the problematic try_lock().
-    // TODO(max): Change this back to sync once bdk::Wallet is thread-safe
+    // TODO(max): Change back to sync once BDK is robust to concurrent access.
     pub async fn get_new_address(&self) -> anyhow::Result<Address> {
         self.wallet
             .lock()
@@ -130,7 +132,7 @@ impl LexeWallet {
     ///
     /// [`FundingGenerationReady`]: lightning::util::events::Event::FundingGenerationReady
     // NOTE: We use lock().await as a hack to avoid the problematic try_lock().
-    // TODO(max): Change this back to sync once bdk::Wallet is thread-safe.
+    // TODO(max): Change back to sync once BDK is robust to concurrent access.
     pub(crate) async fn create_and_sign_funding_tx(
         &self,
         output_script: Script,
