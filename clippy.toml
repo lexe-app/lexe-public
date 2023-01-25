@@ -1,6 +1,12 @@
 disallowed-methods = [
-    { path = "tokio::spawn",                   reason = "Use LxTask::spawn" },
-    { path = "tokio::task::spawn",             reason = "Use LxTask::spawn" },
-    { path = "tokio::runtime::Handle::spawn",  reason = "Use LxTask::spawn" },
-    { path = "tokio::runtime::Runtime::spawn", reason = "Use LxTask::spawn" },
+    { path = "tokio::spawn",                             reason = "Use LxTask::spawn" },
+    { path = "tokio::task::spawn",                       reason = "Use LxTask::spawn" },
+    { path = "tokio::runtime::Handle::spawn",            reason = "Use LxTask::spawn" },
+    { path = "tokio::runtime::Runtime::spawn",           reason = "Use LxTask::spawn" },
+    { path = "tokio::task::Builder::spawn",              reason = "Use LxTask::spawn" },
+    { path = "tokio::task::join_set::JoinSet::spawn",    reason = "Use LxTask::spawn" },
+    { path = "tokio::task::join_set::Builder::spawn",    reason = "Use LxTask::spawn" },
+    { path = "tokio::task::Builder::spawn_on",           reason = "Use LxTask::spawn" },
+    { path = "tokio::task::join_set::JoinSet::spawn_on", reason = "Use LxTask::spawn" },
+    { path = "tokio::task::join_set::Builder::spawn_on", reason = "Use LxTask::spawn" },
 ]
