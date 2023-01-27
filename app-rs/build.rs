@@ -46,7 +46,7 @@ fn main() {
         c_output: Some(vec![
             "../app/ios/Runner/bindings_generated.h".to_owned()
         ]),
-        // extra_c_output_path: Some(vec!["../app/macos/Runner/".to_owned()]),
+        extra_c_output_path: Some(vec!["../app/macos/Runner/".to_owned()]),
 
         // Other options
         wasm: false,
