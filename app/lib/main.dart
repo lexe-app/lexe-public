@@ -166,7 +166,7 @@ class LandingButtons extends StatelessWidget {
         ),
         const SizedBox(height: 16.0),
         OutlinedButton(
-          onPressed: () => debugPrint("Rust FFI test: {api.hello()}"),
+          onPressed: () => debugPrint("Rust FFI test: ${api.hello()}"),
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: Colors.white70, width: 2.0),
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
