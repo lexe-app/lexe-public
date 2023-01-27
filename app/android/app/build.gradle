@@ -69,3 +69,28 @@ flutter {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 }
+
+// This section adds gradle build hooks so that we always build the Rust
+// `app-rs` crate for android.
+[
+    Debug: null,
+    Profile: '--release',
+    Release: '--release',
+].each {
+    def taskPostfix = it.key
+    def profileMode = it.value
+
+    tasks.whenTaskAdded { task ->
+        if (task.name == "javaPreCompile$taskPostfix") {
+            task.dependsOn "cargoBuild$taskPostfix"
+        }
+    }
+
+    tasks.register("cargoBuild$taskPostfix", Exec) {
+        workingDir "../.."
+        commandLine "android/build_rust.sh"
+        if (profileMode != null) {
+            args profileMode
+        }
+    }
+}
