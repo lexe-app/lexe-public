@@ -7,11 +7,23 @@
 
 use lib_flutter_rust_bridge_codegen as frb;
 
+#[allow(unused)]
+fn dump_envs() {
+    for (key, val) in std::env::vars() {
+        eprintln!("{key} => {val}");
+    }
+}
+
 fn main() {
     // // Uncomment this to see flutter_rust_bridge debug logs
     // env_logger::init();
 
+    // dump_envs();
+    // panic!("debug");
+
     println!("cargo:rerun-if-changed=src/bindings.rs");
+
+    // TODO(phlip9): only generate ios and mac outputs for those targets?
 
     // flutter_rust_bridge options
     let configs = frb::config_parse(frb::RawOpts {
@@ -27,6 +39,14 @@ fn main() {
         dart_decl_output: Some(
             "../app/lib/bindings_generated_api.dart".to_owned(),
         ),
+
+        // These steps dump headers with all the emitted ffi symbols. We also
+        // reference these symbols from a dummy method so they don't get
+        // stripped by the over-agressive iOS/macOS symbol stripper.
+        c_output: Some(vec![
+            "../app/ios/Runner/bindings_generated.h".to_owned()
+        ]),
+        // extra_c_output_path: Some(vec!["../app/macos/Runner/".to_owned()]),
 
         // Other options
         wasm: false,

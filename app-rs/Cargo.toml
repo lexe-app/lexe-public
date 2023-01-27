@@ -10,8 +10,16 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+# TODO(phlip9): it seems like this option enables _all_ library output types for
+#               all targets, even though e.g. iOS doesn't need a dynlib and
+#               Android doesn't need a static lib.
+#               should figure out the right cargo incantation to avoid this...
 [lib]
 crate-type = [
+    # Rust tests
+    "lib",
+    # Static linking for most targets
+    "staticlib",
     # Android requires dynamically linked native libs
     "cdylib",
 ]
