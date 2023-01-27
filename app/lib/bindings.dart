@@ -15,7 +15,7 @@ ffi.DynamicLibrary loadLibrary() {
   // (and others) use dynamic linking.
   final dylib = (io.Platform.isIOS || io.Platform.isMacOS)
       ? ffi.DynamicLibrary.process()
-      : ffi.DynamicLibrary.open("libapp-rs.so");
+      : ffi.DynamicLibrary.open("libapp_rs.so");
   return dylib;
 }
 
