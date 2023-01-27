@@ -8,59 +8,82 @@ Dart+Flutter.
 After following these setup steps, you'll be able to test and run the Lexe app,
 on device or simulator, for both Android and iOS.
 
+We'll also default to installing our tooling in `~/.local`, so that everything
+is accessible in one place.
 
 ### Android setup
 
-We'll install Java and the android SDKs via CLI, as it's more repeatable.
+We'll install Java and the Android SDKs via CLI, as it's more repeatable.
 
 #### Install Java (via `sdkman`)
 
-`sdkman` is like `rustup` but for Java. Unfortunately, the Java ecosystem is a
-bit more... convoluted than the Rust ecosystem, so we have to choose a JDK
-"distribution" to install. I just picked whatever <https://whichjdk.com/>
-recommended (`11.0.7-tem`) and it seems to work.
+`sdkman` is like `rustup` but for Java.
 
-Ensure your `.bashrc` contains these lines:
+Download the `sdkman` install script:
 
 ```bash
-export SDKMAN_DIR="$HOME/.local/sdkman"
-
-[[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]] \
-	&& source "$SDKMAN_DIR/bin/sdkman-init.sh"
-```
-
-Actually install `sdkman` and Java:
-
-```bash
-# download the sdkman install script
-$ cd ~/.local/
+$ cd ~/.local
 $ curl --proto '=https' --tlsv1.3 -sSf "https://get.sdkman.io?rcupdate=false" > sdkman-install.sh
 $ sha256sum sdkman-install.sh
 419762944a301418a6c68021c5c864f54a3ce3e013571bd38da448439695f582
-
-# install sdkman
-$ chmod a+x ./sdkman-install.sh
-$ ./sdkman-install.sh
-$ rm sdkman-install.sh
-
-# reload $PATH
-$ source ~/.bashrc
-
-# install JDK
-$ sdk list java
-$ sdk install java 11.0.17-tem
-
-# sanity check
-$ which javac
-~/.local/sdkman/candidates/java/current/bin/javac
-$ javac --version
-javac 11.0.17
+# If missing the sha256sum command on macOS:
+$ brew install coreutils
 ```
 
-#### Install android `cmdline-tools`
+Install `sdkman`:
+```bash
+$ export SDKMAN_DIR="$HOME/.local/sdkman"
+$ chmod a+x ./sdkman-install.sh
+$ ./sdkman-install.sh
+```
 
-This step will give us the android `sdkmanager` from the `cmdline-tools`
-"package", which we'll use to actually install the android SDKs.
+Run the init script:
+```bash
+$ source ~/.local/sdkman/bin/sdkman-init.sh
+```
+
+Ensure the init script is always run at startup by adding the following lines to
+your `.bashrc` or equivalent:
+
+```bash
+export SDKMAN_DIR="$HOME/.local/sdkman" # Default is ~/.local
+if [[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]]; then
+    source "$SDKMAN_DIR/bin/sdkman-init.sh"
+fi
+```
+
+Clean up
+
+```bash
+$ rm sdkman-install.sh
+```
+
+Install the JDK. Unfortunately, the Java ecosystem is a bit more... convoluted
+than the Rust ecosystem, so we have to choose a JDK "distribution" to install.
+
+I (philip) just went with what <https://whichjdk.com/> recommended, which is the
+Adoptium Eclipse Temurin java distribution and it seems to work.
+
+As of 2023-01-26, Android Studio only
+[supports](https://en.wikipedia.org/wiki/Android_Studio#Features) up to Java JDK
+version 12, so we'll go with `11.0.18-tem` (update to the latest `11.0.x` patch
+if applicable).
+
+```bash
+$ sdk list java
+$ sdk install java 11.0.18-tem
+
+# Sanity check
+$ which javac
+~/.sdkman/candidates/java/current/bin/javac
+$ javac --version
+javac 11.0.18
+```
+
+#### Install Android `cmdline-tools`
+
+This step will give us the Android `sdkmanager` from the `cmdline-tools`
+"package", which we'll use to actually install the Android SDKs.
 
 You can find the latest `cmdline-tools` download links here:
 <https://developer.android.com/studio#command-line-tools-only>
@@ -68,12 +91,13 @@ You can find the latest `cmdline-tools` download links here:
 ```bash
 $ cd ~/.local/
 
-# (linux) download
+# (Linux only) download
 $ wget https://dl.google.com/android/repository/commandlinetools-linux-9123335_latest.zip -O commandlinetools.zip
 $ sha256sum commandlinetools.zip
 0bebf59339eaa534f4217f8aa0972d14dc49e7207be225511073c661ae01da0a
 
-# (macOS) download
+# (macOS only) download
+$ brew install wget (if needed)
 $ wget https://dl.google.com/android/repository/commandlinetools-mac-9123335_latest.zip -O commandlinetools.zip
 $ sha256sum commandlinetools.zip
 d0192807f7e1cd4a001d13bb1e5904fc287b691211648877258aa44d1fa88275
@@ -95,14 +119,15 @@ $ rm commandlinetools.zip
 Ensure `.bashrc` contains these lines:
 
 ```bash
-# Android
+# Android `cmdline-tools`
 export ANDROID_HOME=$HOME/.local/android
 ANDROID_SDK_VERSION=33.0.1
 ANDROID_PATH=$ANDROID_HOME/cmdline-tools/latest/bin
 ANDROID_PATH=$ANDROID_PATH:$ANDROID_HOME/build-tools/$ANDROID_SDK_VERSION
 ANDROID_PATH=$ANDROID_PATH:$ANDROID_HOME/platform-tools
-
-export PATH=$PATH:$ANDROID_PATH
+if [[ ! "$PATH" == *$ANDROID_PATH* ]]; then
+    export PATH="$PATH:$ANDROID_PATH"
+fi
 ```
 
 Finally check our install:
@@ -120,11 +145,15 @@ $ sdkmanager --version
 
 #### Install android SDKs via `sdkmanager`
 
-```bash
-# let's blindly accept every license : )
-$ yes | sdkmanager --licenses
+Let's blindly accept every license : )
 
-# check out the available SDK packages
+```bash
+$ yes | sdkmanager --licenses
+```
+
+Check out the available SDK packages
+
+```bash
 $ sdkmanager --list
 add-ons;addon-google_apis-google-24
 build-tools;33.0.1
@@ -134,41 +163,24 @@ emulator
 extras;android;m2repository
 extras;google;auto
 extras;google;google_play_services
-extras;google;instantapps
-extras;google;m2repository
-extras;google;market_apk_expansion
-extras;google;market_licensing
-extras;google;simulators
-extras;google;webdriver
-extras;m2repository;com;android;support;constraint;constraint-layout-solver;1.0.0
-extras;m2repository;com;android;support;constraint;constraint-layout-extras;m2repository;com;android;support;constraint;constraint-layout-solver;1.0.2
-extras;m2repository;com;android;support;constraint;constraint-layout;1.0.2
-ndk-bundle
-ndk;25.1.8937393
-patcher;v4
-platform-tools
-platforms;android-33
-platforms;android-TiramisuPrivacySandbox
-skiaparser;3
-sources;android-33
-system-images;android-33;google_apis;arm64-v8a
-system-images;android-33;google_apis;x86_64
-system-images;android-33;google_apis_playstore;arm64-v8a
-system-images;android-33;google_apis_playstore;x86_64
-system-images;android-TiramisuPrivacySandbox;google_apis_playstore;arm64-v8a
-system-images;android-TiramisuPrivacySandbox;google_apis_playstore;x86_64
 
 # .. this goes on for a while
+```
 
-# install these. you may need to update the version #'s.
+Install these. You may need to update the version #'s.
+
+```bash
 $ sdkmanager --install \
 	"build-tools;33.0.1" \
 	"platform-tools" \
 	"platforms;android-33" \
 	"sources;android-33" \
 	"ndk;25.1.8937393"
+```
 
-# sanity check
+Sanity check
+
+```bash
 $ adb version
 Android Debug Bridge version 1.0.41
 Version 33.0.3-8952118
@@ -226,32 +238,49 @@ Ensure your `.bashrc` contains something like:
 ```bash
 export GEM_HOME=$HOME/.local/gem
 GEM_BIN=$GEM_HOME/bin
+if [[ ! "$PATH" == *$GEM_BIN* ]]; then
+    export PATH="$PATH:$GEM_BIN"
+fi
+```
 
-export PATH=$PATH:$GEM_BIN
+Re-source `.bashrc`, check that `gem` is installed
+
+```bash
+$ source ~/.bashrc
+$ echo $GEM_HOME
+~/.local/gem
+$ gem --version
+3.0.3.1
 ```
 
 Install the `cocoapods` gem:
 
 ```bash
-# sanity check
-$ gem --version
-3.0.3.1
-
 $ gem install cocoapods
+```
 
-# sanity check
+Sanity check
+
+```bash
 $ pod --version
 1.11.3
 ```
 
 #### Ensure the iOS Simulator app works
 
-Search for "Simulator" in Spotlight and then open it. An emulated iPhone should pop up after a minute or so.
+Search for "Simulator" in Spotlight and then open it. An emulated iPhone should
+pop up after a minute or so.
 
 For me (Philip) the Simulator app wasn't available initially--my guess is that
 Xcode installs it lazily, on an as-needed basis. To fix this, I had to open
 and run a random sample iOS app in Xcode.
 
+A quick way to do this is to create a new project based on the "App" template,
+set the "Product Name" to whatever, set the "Orgganization Identifier" to
+whatever, then run the app by pressing the "Play" button near the top of the
+screen. The app should build and the simulated iPhone should pop up on the
+screen. The temporary project can then be deleted from wherever it was created
+(defaults to Desktop).
 
 ### (Pop\_OS! only?) install `libstdc++-12-dev`
 
@@ -261,16 +290,24 @@ If you want to run flutter linux desktop apps:
 $ sudo apt install libstdc++-12-dev
 ```
 
-
 ### Flutter setup
 
 From the setup instructions online: <https://docs.flutter.dev/get-started/install>
 
-Ensure your `.bashrc` contains something like:
+Ensure your `.bashrc` contains something like
 
 ```bash
-FLUTTER_HOME=$HOME/.local/flutter
-export PATH=$PATH:$FLUTTER_HOME/bin
+export FLUTTER_HOME=$HOME/.local/flutter/bin
+if [[ ! "$PATH" == *$FLUTTER_HOME* ]]; then
+    export PATH="$PATH:$FLUTTER_HOME"
+fi
+```
+
+Re-source `.bashrc`
+```bash
+$ source ~/.bashrc
+$ echo $FLUTTER_HOME
+~/.local/flutter/bin
 ```
 
 Installing `flutter` means just cloning their repo. Make sure you _don't_ do a
@@ -295,6 +332,11 @@ Run `flutter doctor` to check your install:
 ```bash
 $ flutter doctor
 
+Downloading Material fonts...                                    1,031ms
+Downloading Gradle Wrapper...                                      201ms
+
+...
+
 [✓] Flutter (Channel beta, 3.7.0-1.5.pre, on Pop!_OS 22.04 LTS 6.0.6-76060006-generic, locale en_US.UTF-8)
 [✓] Android toolchain - develop for Android devices (Android SDK version 33.0.1)
 [✗] Chrome - develop for the web (Cannot find Chrome executable at google-chrome)
@@ -315,6 +357,11 @@ Now let's check that flutter picks up any connected devices or simulators. If
 you have an actual Android or iOS device, make sure they have Debugging/Dev mode
 turned on and are connected to your machine.
 
+(On Android phone) To turn on debugging / dev mode, go to
+Settings > About phone > Software information, then tap the Build number pane 7
+times. Then, ensure that the "USB debugging" option is turned on under
+Settings > Developer options.
+
 On my Pop!\_OS linux desktop:
 
 ```bash
@@ -334,22 +381,29 @@ $ flutter devices
 Pixel 5a (mobile) • android-arm64 • Android 13 (API 33)
 iPhone 14 Pro (mobile) • ios • iOS-16-2 (simulator)
 macOS (desktop) • macos • darwin-arm64 • macOS 13.1 darwin-arm
+SM N975U1 (mobile) • RF8M80RGR3J • android-arm64 • Android 12 (API 31)
 ```
 
 #### Test your flutter install on a sample app
 
 ```bash
+$ mkdir -p ~/flutter-test
+$ cd ~/flutter-test
 $ flutter create --platforms ios,android,windows,linux,macos my_app
 $ cd my_app
 
 # this should build, install, and launch the sample app on your
-# phone/simulator/desktop
+# phone/simulator/desktop. Trying each takes a few minutes.
 $ flutter run -d pixel
+$ flutter run -d "SM N975U1" # Samsung; copy the name from `flutter devices`
 $ flutter run -d iphone
 $ flutter run -d mac
 $ flutter run -d linux
-```
 
+# Clean up
+$ cd ~
+$ rm -rf ~/flutter-test
+```
 
 ### (nvim) Editor setup
 
@@ -361,18 +415,17 @@ For all the `nvim` chads out there using `coc.nvim`, just do:
 
 Set `"dart.showTodos": false` in your `coc-settings.json`.
 
-
 ## Dev workflow
 
-To run the app in debug mode, run the following in the `app/` directory.
+To run the Lexe app in debug mode, run the following in the `app/` directory.
 
 ```bash
 $ flutter run
 ```
 
-While running in debug mode, you can hit `r` to hot reload the UI. If you make
-changes any `StatefulWidget`s or other logic before `runApp(..)`, you'll need to
-hot restart with `R`.
+While running in debug mode, you can hit `r` in the terminal window to hot
+reload the UI. If you make changes any `StatefulWidget`s or other logic before
+`runApp(..)`, you'll need to hot restart with `R`.
 
 When evaluating UI performance, run the app in profiling mode. This enables just
 enough debug info to be useful without slowing everything down like debug mode.
