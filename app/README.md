@@ -31,6 +31,7 @@ $ brew install coreutils
 ```
 
 Install `sdkman`:
+
 ```bash
 $ export SDKMAN_DIR="$HOME/.local/sdkman"
 $ chmod a+x ./sdkman-install.sh
@@ -38,6 +39,7 @@ $ ./sdkman-install.sh
 ```
 
 Run the init script:
+
 ```bash
 $ source ~/.local/sdkman/bin/sdkman-init.sh
 ```
@@ -46,7 +48,7 @@ Ensure the init script is always run at startup by adding the following lines to
 your `.bashrc` or equivalent:
 
 ```bash
-export SDKMAN_DIR="$HOME/.local/sdkman" # Default is ~/.local
+export SDKMAN_DIR="$HOME/.local/sdkman" # Default is ~/.sdkman
 if [[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]]; then
     source "$SDKMAN_DIR/bin/sdkman-init.sh"
 fi
@@ -75,7 +77,7 @@ $ sdk install java 11.0.18-tem
 
 # Sanity check
 $ which javac
-~/.sdkman/candidates/java/current/bin/javac
+~/.local/sdkman/candidates/java/current/bin/javac
 $ javac --version
 javac 11.0.18
 ```
@@ -119,7 +121,7 @@ $ rm commandlinetools.zip
 Ensure `.bashrc` contains these lines:
 
 ```bash
-# Android `cmdline-tools`
+# Android SDK
 export ANDROID_HOME=$HOME/.local/android
 ANDROID_SDK_VERSION=33.0.1
 ANDROID_PATH=$ANDROID_HOME/cmdline-tools/latest/bin
@@ -171,11 +173,11 @@ Install these. You may need to update the version #'s.
 
 ```bash
 $ sdkmanager --install \
-	"build-tools;33.0.1" \
-	"platform-tools" \
-	"platforms;android-33" \
-	"sources;android-33" \
-	"ndk;25.1.8937393"
+    "build-tools;33.0.1" \
+    "platform-tools" \
+    "platforms;android-33" \
+    "sources;android-33" \
+    "ndk;25.1.8937393"
 ```
 
 Sanity check
@@ -224,7 +226,7 @@ Once installed, run
 
 ```bash
 $ sudo xcode-select \
-	--switch /Applications/Xcode.app/Contents/Developer
+    --switch /Applications/Xcode.app/Contents/Developer
 $ sudo xcodebuild -runFirstLaunch
 ```
 
@@ -276,7 +278,7 @@ Xcode installs it lazily, on an as-needed basis. To fix this, I had to open
 and run a random sample iOS app in Xcode.
 
 A quick way to do this is to create a new project based on the "App" template,
-set the "Product Name" to whatever, set the "Orgganization Identifier" to
+set the "Product Name" to whatever, set the "Organization Identifier" to
 whatever, then run the app by pressing the "Play" button near the top of the
 screen. The app should build and the simulated iPhone should pop up on the
 screen. The temporary project can then be deleted from wherever it was created
@@ -316,8 +318,8 @@ shallow clone (`--depth=1`); that breaks the flutter upgrades.
 ```bash
 $ git clone \
     --branch="stable" \
-	https://github.com/flutter/flutter.git \
-	~/.local/flutter
+    https://github.com/flutter/flutter.git \
+    ~/.local/flutter
 ```
 
 Disable their pesky telemetry : )
