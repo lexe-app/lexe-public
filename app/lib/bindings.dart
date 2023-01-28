@@ -11,12 +11,12 @@ import 'dart:io' as io;
 import 'bindings_generated.dart' as bindings_generated;
 
 ffi.DynamicLibrary loadLibrary() {
-  // To load the native library, iOS uses static linking while Android
-  // (and others) use dynamic linking.
-  final dylib = (io.Platform.isIOS || io.Platform.isMacOS)
-      ? ffi.DynamicLibrary.process()
-      : ffi.DynamicLibrary.open("libapp_rs.so");
-  return dylib;
+  // Android only supports ffi via dynamically linked libraries.
+  // We'll statically link our ffi for all other platforms.
+  final lib = (io.Platform.isAndroid)
+      ? ffi.DynamicLibrary.open("libapp_rs.so")
+      : ffi.DynamicLibrary.process();
+  return lib;
 }
 
 // The instantiated Rust API. Use it like `api.hello()`.
