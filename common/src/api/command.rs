@@ -17,8 +17,9 @@ pub struct ListChannels {
     pub channel_details: Vec<LxChannelDetails>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Default, Serialize, Deserialize)]
 pub struct GetInvoiceRequest {
-    pub amt_msat: Option<u64>,
     pub expiry_secs: u32,
+    pub amt_msat: Option<u64>,
+    pub description: String,
 }

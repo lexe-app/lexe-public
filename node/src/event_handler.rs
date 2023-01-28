@@ -12,7 +12,7 @@ use common::task::{BlockingTaskRt, LxTask};
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::esplora::LexeEsplora;
 use lexe_ln::event;
-use lexe_ln::invoice::{HTLCStatus, MillisatAmount, PaymentInfo};
+use lexe_ln::invoice::{HTLCStatus, PaymentInfo};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::test_event::{TestEvent, TestEventSender};
 use lexe_ln::wallet::LexeWallet;
@@ -291,7 +291,7 @@ async fn handle_event_fallible(
                         preimage: payment_preimage,
                         secret: payment_secret,
                         status: HTLCStatus::Succeeded,
-                        amt_msat: MillisatAmount(Some(amount_msat)),
+                        amt_msat: Some(amount_msat),
                     });
                 }
             }
@@ -311,7 +311,7 @@ async fn handle_event_fallible(
                     payment.preimage = Some(payment_preimage);
                     payment.status = HTLCStatus::Succeeded;
                     info!(
-                        "EVENT: successfully sent payment of {} millisatoshis{} from \
+                        "EVENT: successfully sent payment of {:?} millisatoshis{:?} from \
                                  payment hash {:?} with preimage {:?}",
                         payment.amt_msat,
                         if let Some(fee) = fee_paid_msat {

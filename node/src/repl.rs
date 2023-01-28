@@ -16,7 +16,7 @@ use common::hex;
 use common::ln::invoice::LxInvoice;
 use common::ln::peer::ChannelPeer;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
-use lexe_ln::invoice::{HTLCStatus, MillisatAmount, PaymentInfo};
+use lexe_ln::invoice::{HTLCStatus, PaymentInfo};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::p2p::{self, ChannelPeerUpdate};
@@ -360,7 +360,7 @@ fn list_payments(
     print!("[");
     for (payment_hash, payment_info) in inbound {
         info!("\t{{");
-        info!("\t\tamount_millisatoshis: {},", payment_info.amt_msat);
+        info!("\t\tamount_millisatoshis: {:?},", payment_info.amt_msat);
         info!("\t\tpayment_hash: {},", hex::encode(&payment_hash.0));
         info!("\t\thtlc_direction: inbound,");
         info!("\t\thtlc_status: {},", payment_info.status);
@@ -372,7 +372,7 @@ fn list_payments(
     let outbound = outbound.deref();
     for (payment_hash, payment_info) in outbound {
         info!("\t{{");
-        info!("\t\tamount_millisatoshis: {},", payment_info.amt_msat);
+        info!("\t\tamount_millisatoshis: {:?},", payment_info.amt_msat);
         info!("\t\tpayment_hash: {},", hex::encode(&payment_hash.0));
         info!("\t\thtlc_direction: outbound,");
         info!("\t\thtlc_status: {},", payment_info.status);
@@ -467,7 +467,7 @@ fn keysend<K: KeysInterface>(
             preimage: None,
             secret: None,
             status,
-            amt_msat: MillisatAmount(Some(amt_msat)),
+            amt_msat: Some(amt_msat),
         },
     );
 }
@@ -495,6 +495,7 @@ fn get_invoice<'a, I: Iterator<Item = &'a str>>(
     let req = GetInvoiceRequest {
         amt_msat: Some(amt_msat),
         expiry_secs,
+        description: String::new(),
     };
 
     let invoice = command::get_invoice(
