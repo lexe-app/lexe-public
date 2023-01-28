@@ -2,7 +2,6 @@
 
 use std::io;
 use std::io::Write;
-use std::ops::Deref;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -18,7 +17,6 @@ use common::ln::peer::ChannelPeer;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::invoice::{HTLCStatus, PaymentInfo};
 use lexe_ln::keys_manager::LexeKeysManager;
-use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::p2p::{self, ChannelPeerUpdate};
 use lexe_ln::{channel, command};
 use lightning::chain::keysinterface::{KeysInterface, NodeSigner, Recipient};
@@ -36,13 +34,11 @@ use crate::persister::NodePersister;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn poll_for_user_input(
-    logger: LexeTracingLogger,
     invoice_payer: Arc<InvoicePayerType>,
     peer_manager: NodePeerManager,
     channel_manager: NodeChannelManager,
     keys_manager: LexeKeysManager,
     network_graph: Arc<NetworkGraphType>,
-    inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
     persister: NodePersister,
     network: Network,
@@ -128,10 +124,8 @@ pub(crate) async fn poll_for_user_input(
                 "getinvoice" => {
                     if let Err(e) = get_invoice(
                         words,
-                        inbound_payments.clone(),
                         channel_manager.clone(),
                         keys_manager.clone(),
-                        logger.clone(),
                         network,
                     ) {
                         error!("{e:#}");
@@ -145,10 +139,6 @@ pub(crate) async fn poll_for_user_input(
                 "listchannels" => {
                     list_channels(&channel_manager, &network_graph)
                 }
-                "listpayments" => list_payments(
-                    inbound_payments.clone(),
-                    outbound_payments.clone(),
-                ),
                 "closechannel" => {
                     let channel_id_str = words.next();
                     if channel_id_str.is_none() {
@@ -351,37 +341,6 @@ fn list_channels(
     info!("]");
 }
 
-fn list_payments(
-    inbound_payments: PaymentInfoStorageType,
-    outbound_payments: PaymentInfoStorageType,
-) {
-    let inbound = inbound_payments.lock().unwrap();
-    let inbound = inbound.deref();
-    print!("[");
-    for (payment_hash, payment_info) in inbound {
-        info!("\t{{");
-        info!("\t\tamount_millisatoshis: {:?},", payment_info.amt_msat);
-        info!("\t\tpayment_hash: {},", hex::encode(&payment_hash.0));
-        info!("\t\thtlc_direction: inbound,");
-        info!("\t\thtlc_status: {},", payment_info.status);
-
-        info!("\t}},");
-    }
-
-    let outbound = outbound_payments.lock().unwrap();
-    let outbound = outbound.deref();
-    for (payment_hash, payment_info) in outbound {
-        info!("\t{{");
-        info!("\t\tamount_millisatoshis: {:?},", payment_info.amt_msat);
-        info!("\t\tpayment_hash: {},", hex::encode(&payment_hash.0));
-        info!("\t\thtlc_direction: outbound,");
-        info!("\t\thtlc_status: {},", payment_info.status);
-
-        info!("\t}},");
-    }
-    info!("]");
-}
-
 async fn connect_peer<'a, I: Iterator<Item = &'a str>>(
     mut words: I,
     peer_manager: &NodePeerManager,
@@ -474,10 +433,8 @@ fn keysend<K: KeysInterface>(
 
 fn get_invoice<'a, I: Iterator<Item = &'a str>>(
     mut words: I,
-    inbound_payments: PaymentInfoStorageType,
     channel_manager: NodeChannelManager,
     keys_manager: LexeKeysManager,
-    logger: LexeTracingLogger,
     network: Network,
 ) -> anyhow::Result<()> {
     let amt_msat_str = words
@@ -498,15 +455,9 @@ fn get_invoice<'a, I: Iterator<Item = &'a str>>(
         description: String::new(),
     };
 
-    let invoice = command::get_invoice(
-        channel_manager,
-        keys_manager,
-        logger,
-        inbound_payments,
-        network,
-        req,
-    )
-    .context("Could not generate invoice")?;
+    let invoice =
+        command::get_invoice(channel_manager, keys_manager, network, req)
+            .context("Could not generate invoice")?;
 
     info!("Success: Generated invoice {invoice}");
 

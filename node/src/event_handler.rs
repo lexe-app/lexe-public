@@ -1,4 +1,3 @@
-use std::collections::hash_map::Entry;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -12,7 +11,7 @@ use common::task::{BlockingTaskRt, LxTask};
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::esplora::LexeEsplora;
 use lexe_ln::event;
-use lexe_ln::invoice::{HTLCStatus, PaymentInfo};
+use lexe_ln::invoice::HTLCStatus;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::test_event::{TestEvent, TestEventSender};
 use lexe_ln::wallet::LexeWallet;
@@ -20,7 +19,7 @@ use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
 };
 use lightning::routing::gossip::NodeId;
-use lightning::util::events::{Event, EventHandler, PaymentPurpose};
+use lightning::util::events::{Event, EventHandler};
 use tracing::{debug, error, info};
 
 use crate::channel_manager::NodeChannelManager;
@@ -34,7 +33,6 @@ pub struct NodeEventHandler {
     pub(crate) keys_manager: LexeKeysManager,
     pub(crate) esplora: Arc<LexeEsplora>,
     pub(crate) network_graph: Arc<NetworkGraphType>,
-    pub(crate) inbound_payments: PaymentInfoStorageType,
     pub(crate) outbound_payments: PaymentInfoStorageType,
     pub(crate) test_event_tx: TestEventSender,
     // XXX: remove when `EventHandler` is async
@@ -83,7 +81,6 @@ impl EventHandler for NodeEventHandler {
         let esplora = self.esplora.clone();
         let network_graph = self.network_graph.clone();
         let keys_manager = self.keys_manager.clone();
-        let inbound_payments = self.inbound_payments.clone();
         let outbound_payments = self.outbound_payments.clone();
         let test_event_tx = self.test_event_tx.clone();
         let shutdown = self.shutdown.clone();
@@ -99,7 +96,6 @@ impl EventHandler for NodeEventHandler {
                 &esplora,
                 &network_graph,
                 &keys_manager,
-                &inbound_payments,
                 &outbound_payments,
                 &test_event_tx,
                 &shutdown,
@@ -119,7 +115,6 @@ pub(crate) async fn handle_event(
     esplora: &LexeEsplora,
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
-    inbound_payments: &PaymentInfoStorageType,
     outbound_payments: &PaymentInfoStorageType,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
@@ -132,7 +127,6 @@ pub(crate) async fn handle_event(
         esplora,
         network_graph,
         keys_manager,
-        inbound_payments,
         outbound_payments,
         test_event_tx,
         shutdown,
@@ -153,7 +147,6 @@ async fn handle_event_fallible(
     esplora: &LexeEsplora,
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
-    inbound_payments: &PaymentInfoStorageType,
     outbound_payments: &PaymentInfoStorageType,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
@@ -258,8 +251,8 @@ async fn handle_event_fallible(
         }
         Event::PaymentClaimed {
             payment_hash,
-            purpose,
             amount_msat,
+            purpose: _,
             receiver_node_id: _,
         } => {
             info!(
@@ -267,34 +260,6 @@ async fn handle_event_fallible(
                 hex::encode(&payment_hash.0),
                 amount_msat,
             );
-            let (payment_preimage, payment_secret) = match purpose {
-                PaymentPurpose::InvoicePayment {
-                    payment_preimage,
-                    payment_secret,
-                    ..
-                } => (payment_preimage, Some(payment_secret)),
-                PaymentPurpose::SpontaneousPayment(preimage) => {
-                    (Some(preimage), None)
-                }
-            };
-            let mut payments = inbound_payments.lock().unwrap();
-            let payment_entry = payments.entry(payment_hash);
-            match payment_entry {
-                Entry::Occupied(mut e) => {
-                    let payment = e.get_mut();
-                    payment.status = HTLCStatus::Succeeded;
-                    payment.preimage = payment_preimage;
-                    payment.secret = payment_secret;
-                }
-                Entry::Vacant(e) => {
-                    e.insert(PaymentInfo {
-                        preimage: payment_preimage,
-                        secret: payment_secret,
-                        status: HTLCStatus::Succeeded,
-                        amt_msat: Some(amount_msat),
-                    });
-                }
-            }
 
             test_event_tx.send(TestEvent::PaymentClaimed);
         }

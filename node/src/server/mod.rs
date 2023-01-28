@@ -22,7 +22,6 @@ use common::ln::invoice::LxInvoice;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::keys_manager::LexeKeysManager;
-use lexe_ln::logger::LexeTracingLogger;
 use tokio::sync::mpsc;
 use tracing::trace;
 use warp::{Filter, Rejection, Reply};
@@ -60,9 +59,7 @@ pub(crate) fn owner_routes(
     network_graph: Arc<NetworkGraphType>,
     keys_manager: LexeKeysManager,
     invoice_payer: Arc<InvoicePayerType>,
-    inbound_payments: PaymentInfoStorageType,
     outbound_payments: PaymentInfoStorageType,
-    logger: LexeTracingLogger,
     network: Network,
     activity_tx: mpsc::Sender<()>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
@@ -93,8 +90,6 @@ pub(crate) fn owner_routes(
         .and(warp::post())
         .and(inject::channel_manager(channel_manager))
         .and(inject::keys_manager(keys_manager))
-        .and(inject::logger(logger))
-        .and(inject::inbound_payments(inbound_payments))
         .and(inject::network(network))
         .and(warp::body::json::<GetInvoiceRequest>())
         .map(lexe_ln::command::get_invoice)
