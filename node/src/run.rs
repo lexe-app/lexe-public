@@ -87,7 +87,6 @@ pub struct UserNode {
     pub peer_manager: NodePeerManager,
     pub invoice_payer: Arc<InvoicePayerType>,
     inactivity_timer: InactivityTimer,
-    pub inbound_payments: PaymentInfoStorageType,
     pub outbound_payments: PaymentInfoStorageType,
 
     // --- Contexts --- //
@@ -310,8 +309,6 @@ impl UserNode {
 
         // Initialize the event handler
         // TODO: persist payment info
-        let inbound_payments: PaymentInfoStorageType =
-            Arc::new(Mutex::new(HashMap::new()));
         let outbound_payments: PaymentInfoStorageType =
             Arc::new(Mutex::new(HashMap::new()));
         let event_handler = NodeEventHandler {
@@ -321,7 +318,6 @@ impl UserNode {
             keys_manager: keys_manager.clone(),
             esplora: esplora.clone(),
             network_graph: network_graph.clone(),
-            inbound_payments: inbound_payments.clone(),
             outbound_payments: outbound_payments.clone(),
             test_event_tx: test_event_tx.clone(),
             blocking_task_rt: BlockingTaskRt::new(),
@@ -363,9 +359,7 @@ impl UserNode {
             network_graph.clone(),
             keys_manager.clone(),
             invoice_payer.clone(),
-            inbound_payments.clone(),
             outbound_payments.clone(),
-            logger.clone(),
             args.network,
             activity_tx,
         );
@@ -456,7 +450,6 @@ impl UserNode {
             inactivity_timer,
 
             // Storage
-            inbound_payments,
             outbound_payments,
 
             // Contexts
@@ -541,13 +534,11 @@ impl UserNode {
         if self.args.repl {
             debug!("Starting REPL");
             crate::repl::poll_for_user_input(
-                self.logger.clone(),
                 self.invoice_payer,
                 self.peer_manager.clone(),
                 self.channel_manager,
                 self.keys_manager,
                 self.network_graph,
-                self.inbound_payments,
                 self.outbound_payments,
                 self.persister,
                 self.args.network,

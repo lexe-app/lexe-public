@@ -21,7 +21,6 @@ use tracing::info;
 use crate::alias::{LexeInvoicePayerType, PaymentInfoStorageType};
 use crate::invoice::{HTLCStatus, LxPaymentError, PaymentInfo};
 use crate::keys_manager::LexeKeysManager;
-use crate::logger::LexeTracingLogger;
 use crate::traits::{
     LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
 };
@@ -59,8 +58,6 @@ where
 pub fn get_invoice<CM, PS>(
     channel_manager: CM,
     keys_manager: LexeKeysManager,
-    _logger: LexeTracingLogger,
-    _inbound_payments: PaymentInfoStorageType,
     network: Network,
     req: GetInvoiceRequest,
 ) -> anyhow::Result<LxInvoice>
