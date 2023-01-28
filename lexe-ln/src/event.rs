@@ -1,8 +1,11 @@
 use anyhow::{anyhow, Context};
 use bitcoin::blockdata::script::Script;
 use bitcoin::secp256k1;
+use common::hex;
 use lightning::chain::chaininterface::ConfirmationTarget;
-use lightning::util::events::Event;
+use lightning::ln::PaymentHash;
+use lightning::util::events::{Event, PaymentPurpose};
+use tracing::info;
 
 use crate::test_event::{TestEvent, TestEventSender};
 use crate::traits::{LexeChannelManager, LexePersister};
@@ -77,6 +80,46 @@ where
         .inspect(|()| test_event_tx.send(TestEvent::FundingTxHandled))
         .map_err(|e| anyhow!("{e:?}"))
         .context("LDK rejected the signed funding tx")?;
+
+    Ok(())
+}
+
+/// Handles a [`Event::PaymentClaimable`].
+pub fn handle_payment_claimable<CM, PS>(
+    channel_manager: CM,
+    test_event_tx: &TestEventSender,
+
+    payment_hash: PaymentHash,
+    amount_msat: u64,
+    purpose: PaymentPurpose,
+) -> anyhow::Result<()>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    let hash_str = hex::encode(&payment_hash.0);
+    info!("Received payment of {amount_msat} msats with hash {hash_str}");
+
+    let payment_preimage = match purpose {
+        PaymentPurpose::InvoicePayment {
+            payment_preimage, ..
+        } => payment_preimage.expect(
+            "We previously generated this invoice using a method other than \
+            `ChannelManager::create_inbound_payment`, resulting in the channel \
+            manager not being aware of the payment preimage, OR LDK failed to \
+            provide the preimage back to us.",
+        ),
+        PaymentPurpose::SpontaneousPayment(preimage) => preimage,
+    };
+
+    // TODO(max): `claim_funds` docs state that we must check that the
+    // amount_msat we received matches our expectation, relevant if we're
+    // receiving payment for e.g. an order of some sort. Otherwise, we will have
+    // given the sender a proof-of-payment when they did not fulfill the full
+    // expected payment. Implement this once it becomes relevant.
+    channel_manager.claim_funds(payment_preimage);
+
+    test_event_tx.send(TestEvent::PaymentClaimable);
 
     Ok(())
 }
