@@ -42,7 +42,7 @@ fn main() {
 
         // These steps dump headers with all the emitted ffi symbols. We also
         // reference these symbols from a dummy method so they don't get
-        // stripped by the over-agressive iOS/macOS symbol stripper.
+        // stripped by the over-aggressive iOS/macOS symbol stripper.
         c_output: Some(vec![
             "../app/ios/Runner/bindings_generated.h".to_owned()
         ]),
