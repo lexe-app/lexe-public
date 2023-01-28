@@ -26,7 +26,7 @@ use tracing::{debug, error, info};
 use crate::channel_manager::NodeChannelManager;
 
 // We pub(crate) all the fields to prevent having to specify each field two more
-// times in Self::new paramaters and in struct init syntax.
+// times in Self::new parameters and in struct init syntax.
 pub struct NodeEventHandler {
     pub(crate) lsp: ChannelPeer,
     pub(crate) wallet: LexeWallet,
@@ -241,26 +241,20 @@ async fn handle_event_fallible(
         }
         Event::PaymentClaimable {
             payment_hash,
-            purpose,
             amount_msat,
+            purpose,
             receiver_node_id: _,
             via_channel_id: _,
             via_user_channel_id: _,
         } => {
-            info!(
-                "EVENT: received payment from payment hash {} of {} millisatoshis",
-                hex::encode(&payment_hash.0),
+            event::handle_payment_claimable(
+                channel_manager.clone(),
+                test_event_tx,
+                payment_hash,
                 amount_msat,
-            );
-            let payment_preimage = match purpose {
-                PaymentPurpose::InvoicePayment {
-                    payment_preimage, ..
-                } => payment_preimage,
-                PaymentPurpose::SpontaneousPayment(preimage) => Some(preimage),
-            };
-            channel_manager.claim_funds(payment_preimage.unwrap());
-
-            test_event_tx.send(TestEvent::PaymentClaimable);
+                purpose,
+            )
+            .context("Failed to handle payment claimable")?;
         }
         Event::PaymentClaimed {
             payment_hash,
