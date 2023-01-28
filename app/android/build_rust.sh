@@ -12,6 +12,7 @@
 # See: `app/android/app/build.gradle` for how this script is used when hooked
 #      into gradle build.
 
+# TODO(phlip9): get gradle to tell us the target android platform API level.
 # TODO(phlip9): get gradle to tell us which architecture we're building for.
 # TODO(phlip9): add `--target=armeabi-v7a` and `--target=x86_64` when
 #               publishing. otherwise we get 3x the compile time...
@@ -22,20 +23,25 @@ set -o nounset
 
 CARGO_NDK_VERSION="2.12.4"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+TARGET="aarch64-linux-android"
 
 if [[ ! -x "$(command -v cargo)" ]]; then
-    echo "Couldn't find 'cargo' binary. Please set up local Rust toolchain."
+    echo "error: Couldn't find 'cargo' or 'rustup' binary. \
+Please set up local Rust toolchain."
     exit 1
 fi
 
 if [[ ! -x "$(command -v cargo-ndk)" ]]; then
-    echo "No cargo-ndk: installing..."
+    echo "info: Installing cargo-ndk"
     cargo install --version="$CARGO_NDK_VERSION" cargo-ndk
+elif [[ ! $(cargo ndk --version) == "cargo-ndk $CARGO_NDK_VERSION" ]]; then
+    echo "info: Updating cargo-ndk to version $CARGO_NDK_VERSION"
+    cargo install --force --version="$CARGO_NDK_VERSION" cargo-ndk
 fi
 
-if [[ ! $(cargo ndk --version) == "cargo-ndk $CARGO_NDK_VERSION" ]]; then
-    echo "Different cargo-ndk version: replacing..."
-    cargo install --force --version="$CARGO_NDK_VERSION" cargo-ndk
+if ! rustup target list --installed | grep -q "$TARGET"; then
+    echo "info: Installing missing Rust toolchain for target: $TARGET"
+    rustup target add "$TARGET"
 fi
 
 cargo ndk \

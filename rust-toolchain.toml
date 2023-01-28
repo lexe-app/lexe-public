@@ -8,8 +8,8 @@ targets = [
     # Enclave target
     "x86_64-fortanix-unknown-sgx",
 
-    # Android targets
-    "aarch64-linux-android",
+    # # Android targets
+    # "aarch64-linux-android",
     # "armv7-linux-androideabi",
     # "x86_64-linux-android",
     # "i686-linux-android",
@@ -17,13 +17,13 @@ targets = [
     # TODO(phlip9): I'm guess there's no point at all installing the apple
     # toolchains on other platforms...
 
-    # iOS targets
-    "aarch64-apple-ios-sim",
+    # # iOS targets
+    # "aarch64-apple-ios-sim",
     # "aarch64-apple-ios",
     # "x86_64-apple-ios",
 
-    # macOS targets
-    "aarch64-apple-darwin",
+    # # macOS targets
+    # "aarch64-apple-darwin",
     # "x86_64-apple-darwin",
 ]
 profile = "minimal"
