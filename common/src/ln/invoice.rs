@@ -25,12 +25,13 @@ impl Display for LxInvoice {
 // `any::<String>()` requires proptest feature std which doesn't work in SGX
 #[cfg(all(test, not(target_env = "sgx")))]
 mod test {
-    use std::time::{Duration, SystemTime, UNIX_EPOCH};
+    use std::cmp;
+    use std::time::{Duration, UNIX_EPOCH};
 
     use bitcoin::hashes::{sha256, Hash};
     use bitcoin::secp256k1::{self, Secp256k1};
     use lightning::ln::PaymentSecret;
-    use lightning_invoice::{Currency, InvoiceBuilder};
+    use lightning_invoice::{Currency, InvoiceBuilder, MAX_TIMESTAMP};
     use proptest::arbitrary::{any, Arbitrary};
     use proptest::strategy::{BoxedStrategy, Strategy};
 
@@ -46,33 +47,19 @@ mod test {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let currency = any::<Network>().prop_map(Currency::from);
             let description = any::<String>();
-
             let payment_hash = any::<[u8; 32]>()
                 .prop_map(|buf| sha256::Hash::from_slice(&buf).unwrap());
-
             let payment_secret = any::<[u8; 32]>().prop_map(PaymentSecret);
-
-            let timestamp = any::<SystemTime>().prop_map(|system_time| {
-                // TODO: We convert to and from unix seconds because LDK's
-                // fromstr/display impl fails the roundtrip test if the
-                // SystemTime passed to InvoiceBuilder::timestamp isn't rounded
-                // to the nearest second. We can drop the prop_map once
-                // <https://github.com/lightningdevkit/rust-lightning/pull/1760>
-                // is merged and released.
-                let unix_secs = system_time
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap_or(Duration::from_secs(0))
-                    .as_secs();
-                UNIX_EPOCH + Duration::from_secs(unix_secs)
-            });
-
+            let timestamp = any::<Duration>()
+                .prop_map(|d| cmp::min(d, Duration::from_secs(MAX_TIMESTAMP)))
+                .prop_map(|duration| UNIX_EPOCH + duration);
             let min_final_cltv_expiry = any::<u64>();
-
             let secret_key = any::<WeakRng>()
                 .prop_map(|mut rng| {
                     RootSeed::from_rng(&mut rng).derive_node_key_pair(&mut rng)
                 })
                 .prop_map(secp256k1::SecretKey::from);
+
             (
                 currency,
                 description,

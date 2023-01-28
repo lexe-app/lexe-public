@@ -9,7 +9,7 @@ pub struct PaymentInfo {
     pub preimage: Option<PaymentPreimage>,
     pub secret: Option<PaymentSecret>,
     pub status: HTLCStatus,
-    pub amt_msat: MillisatAmount,
+    pub amt_msat: Option<u64>,
 }
 
 #[allow(dead_code)]
@@ -25,19 +25,6 @@ impl Display for HTLCStatus {
             Self::Pending => write!(f, "pending"),
             Self::Succeeded => write!(f, "succeeded"),
             Self::Failed => write!(f, "failed"),
-        }
-    }
-}
-
-// TODO(max): This struct doesn't seem important - perhaps it can be removed?
-#[derive(Copy, Clone)]
-pub struct MillisatAmount(pub Option<u64>);
-
-impl Display for MillisatAmount {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.0 {
-            Some(amt) => write!(f, "{amt}"),
-            None => write!(f, "unknown"),
         }
     }
 }
