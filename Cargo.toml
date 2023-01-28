@@ -14,6 +14,7 @@ members = [
 # otherwise the `server`'s dependency versions won't match.
 aesm-client = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 async-usercalls = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
+atty = { git = "https://github.com/softprops/atty", rev = "6633c0e1446aa19e6cd00e00e39770da43081bda" }
 dcap-ql = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 enclave-runner = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 hyper = { git = "https://github.com/lexe-tech/hyper", branch = "hyper-sgx-0.14.18" }

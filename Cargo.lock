@@ -204,8 +204,7 @@ dependencies = [
 [[package]]
 name = "atty"
 version = "0.2.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9b39be18770d11421cdb1b9947a45dd3f37e93092cbf377614828a319d5fee8"
+source = "git+https://github.com/softprops/atty?rev=6633c0e1446aa19e6cd00e00e39770da43081bda#6633c0e1446aa19e6cd00e00e39770da43081bda"
 dependencies = [
  "hermit-abi",
  "libc",
