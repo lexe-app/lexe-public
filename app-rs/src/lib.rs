@@ -5,6 +5,8 @@
 // Allow e.g. `CHANNEL_MANAGER` in generics to clearly distinguish between
 // concrete and generic types
 #![allow(non_camel_case_types)]
+// Allow this in generated code
+#![allow(clippy::not_unsafe_ptr_arg_deref)]
 
 /// The high-level flutter/rust interface.
 pub mod bindings;

@@ -445,7 +445,7 @@ $ flutter test
 Run integration tests on device or emulator:
 
 ```bash
-$ flutter drive
+$ flutter test integration_test
 ```
 
 
