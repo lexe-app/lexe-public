@@ -1,8 +1,8 @@
-use std::collections::HashSet;
-use std::ops::Deref;
+use std::collections::HashMap;
 use std::time::Duration;
 
 use anyhow::{bail, Context};
+use common::api::NodePk;
 use common::backoff;
 use common::ln::peer::ChannelPeer;
 use common::shutdown::ShutdownChannel;
@@ -128,7 +128,16 @@ where
     Ok(())
 }
 
-/// Spawns a task that regularly reconnects to the channel peers stored in DB.
+/// Spawns a task that regularly reconnects to the channel peers in this task's
+/// `channel_peers` map, which is initialized with `initial_channel_peers`.
+///
+/// To reconnect to a node, include it in `initial_channel_peers` during startup
+/// or send a [`ChannelPeerUpdate::Add`] anytime to have the task immediately
+/// begin reconnect attempts to the given node.
+///
+/// If you do NOT wish to immediately reconnect to a given channel peer (e.g.
+/// LSP should not reconnect to user nodes which are still offline), simply do
+/// not send the [`ChannelPeerUpdate::Add`] until the peer (user node) is ready.
 pub fn spawn_p2p_reconnector<CM, PM, PS>(
     channel_manager: CM,
     peer_manager: PM,
@@ -144,58 +153,60 @@ where
     LxTask::spawn_named("p2p reconnectooor", async move {
         let mut interval = time::interval(P2P_RECONNECT_INTERVAL);
 
+        // The current set of `ChannelPeer`s, indexed by their `NodePk`.
         let mut channel_peers = initial_channel_peers
             .into_iter()
-            .collect::<HashSet<ChannelPeer>>();
+            .map(|cp| (cp.node_pk, cp))
+            .collect::<HashMap<NodePk, ChannelPeer>>();
 
         loop {
+            // Retry reconnect when timer ticks or we get a channel peer update
             tokio::select! {
-                // Prevents race condition where we initiate a reconnect *after*
-                // a shutdown signal was received, causing this task to hang
-                biased;
-                _ = shutdown.recv() => break,
+                _ = interval.tick() => (),
                 Some(cp_update) = channel_peer_rx.recv() => {
-                    // We received a ChannelPeerUpdate; update our HashSet of
+                    // We received a ChannelPeerUpdate; update our HashMap of
                     // current channel peers accordingly.
                     match cp_update {
-                        ChannelPeerUpdate::Add(cp) => channel_peers.insert(cp),
-                        ChannelPeerUpdate::Remove(cp) => channel_peers.remove(&cp),
+                        ChannelPeerUpdate::Add(cp) =>
+                            channel_peers.insert(cp.node_pk, cp),
+                        ChannelPeerUpdate::Remove(cp) =>
+                            channel_peers.remove(&cp.node_pk),
                     };
                 }
-                _ = interval.tick() => {}
+                () = shutdown.recv() => break,
             }
 
-            // Find all the peers we've been disconnected from
-            let p2p_peers = peer_manager.get_peer_node_ids();
-            let disconnected_peers: Vec<_> = channel_manager
+            // Generate futures to reconnect to all disconnected channel peers
+            let connected_p2p_peers = peer_manager.get_peer_node_ids();
+            let reconnect_futs = channel_manager
+                // List our current channels
                 .list_channels()
-                .iter()
-                .map(|chan| chan.counterparty.node_id)
-                .filter(|node_id| !p2p_peers.contains(node_id))
-                .collect();
+                .into_iter()
+                // Get pubkeys of all channel counterparties
+                .map(|channel| channel.counterparty.node_id)
+                // Filter out channel counterparties we're already connected to
+                .filter(|node_id| !connected_p2p_peers.contains(node_id))
+                // secp256k1::PublicKey -> NodePk
+                .map(NodePk)
+                // NodePk -> ChannelPeer (i.e. associate NodePk with SocketAddr)
+                .filter_map(|node_pk| channel_peers.get(&node_pk))
+                // Produce a future that reconnects to this peer
+                .map(|cp| do_connect_peer(peer_manager.clone(), cp.clone()))
+                .collect::<Vec<_>>();
 
-            // Match ids
-            let mut connect_futs: Vec<_> =
-                Vec::with_capacity(disconnected_peers.len());
-            for node_id in disconnected_peers {
-                for channel_peer in channel_peers.iter() {
-                    if channel_peer.node_pk.0 == node_id {
-                        let connect_fut = self::do_connect_peer(
-                            peer_manager.clone(),
-                            channel_peer.deref().clone(),
-                        );
-                        connect_futs.push(connect_fut)
-                    }
-                }
-            }
-
-            // Reconnect
-            for res in future::join_all(connect_futs).await {
+            // Do the reconnect(s), quit early if shutting down, log any errors
+            let reconnect_results = tokio::select! {
+                results = future::join_all(reconnect_futs) => results,
+                () = shutdown.recv() => break,
+            };
+            for res in reconnect_results {
                 if let Err(e) = res {
-                    warn!("Couldn't neconnect to channel peer: {:#}", e)
+                    warn!("Couldn't reconnect to channel peer: {e:#}");
                 }
             }
         }
+
+        info!("LN P2P reconnectooor task complete");
     })
 }
 
@@ -258,8 +269,7 @@ where
                         error!("P2P connection task panicked: {e:#}");
                     }
                 }
-                _ = shutdown.recv() =>
-                    break info!("LN P2P listen task shutting down"),
+                _ = shutdown.recv() => break
             }
         }
 
