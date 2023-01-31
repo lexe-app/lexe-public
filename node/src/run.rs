@@ -7,7 +7,7 @@ use common::api::auth::UserAuthenticator;
 use common::api::ports::UserPorts;
 use common::api::provision::SealedSeedId;
 use common::api::{User, UserPk};
-use common::cli::RunArgs;
+use common::cli::node::RunArgs;
 use common::client::tls::node_run_tls_config;
 use common::constants::{DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE};
 use common::ed25519;
