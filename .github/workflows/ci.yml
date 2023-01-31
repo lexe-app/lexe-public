@@ -6,6 +6,11 @@ on:
     branches:
       - master
 
+# pushing new commits to a PR should cancel currently running CI jobs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 # TODO(phlip9): read-all?
 # https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
 permissions:
