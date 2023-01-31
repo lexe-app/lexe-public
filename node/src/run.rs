@@ -360,6 +360,7 @@ impl UserNode {
             keys_manager.clone(),
             invoice_payer.clone(),
             outbound_payments.clone(),
+            args.lsp.node_pk,
             args.network,
             activity_tx,
         );
@@ -541,6 +542,7 @@ impl UserNode {
                 self.network_graph,
                 self.outbound_payments,
                 self.persister,
+                self.args.lsp.node_pk,
                 self.args.network,
                 self.channel_peer_tx,
             )
