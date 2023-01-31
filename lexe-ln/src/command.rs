@@ -1,17 +1,15 @@
-use std::collections::{hash_map, HashMap};
 use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context};
 use bitcoin::bech32::ToBase32;
 use bitcoin::hashes::{sha256, Hash};
-use bitcoin::secp256k1::PublicKey;
 use common::api::command::{GetInvoiceRequest, NodeInfo};
 use common::api::NodePk;
 use common::cli::Network;
 use common::ln::invoice::LxInvoice;
 use lightning::chain::keysinterface::{NodeSigner, Recipient};
-use lightning::ln::channelmanager::{ChannelDetails, MIN_FINAL_CLTV_EXPIRY};
+use lightning::ln::channelmanager::MIN_FINAL_CLTV_EXPIRY;
 use lightning::ln::PaymentHash;
 use lightning::routing::gossip::RoutingFees;
 use lightning::routing::router::{RouteHint, RouteHintHop};
@@ -101,8 +99,7 @@ where
     }
 
     // Add the route hints.
-    let channels = channel_manager.list_channels();
-    let route_hints = self::filter_channels(channels, req.amt_msat);
+    let route_hints = get_route_hints(channel_manager, req.amt_msat);
     for hint in route_hints {
         builder = builder.private_route(hint);
     }
@@ -177,108 +174,65 @@ where
     Ok(())
 }
 
-/// Filters the output returned by [`ChannelManager::list_channels`] to generate
-/// [`RouteHint`]s. Based on `lightning_invoice::utils::filter_channels`.
+/// Given a channel manager and `min_inbound_capacity_msat`, generates a list of
+/// [`RouteHint`]s which can be included in an [`Invoice`] to help the sender
+/// find a path to us.
 ///
-/// [`ChannelManager::list_channels`]: lightning::ln::channelmanager::ChannelManager::list_channels
-// Currently, this is just a copy of lightning_invoice::utils::filter_channels
-// with lints fixed and logging ripped out. TODO(max): Adapt this to our needs
-pub(super) fn filter_channels(
-    channels: Vec<ChannelDetails>,
+/// The main logic is based on `lightning_invoice::utils::filter_channels`, but
+/// is expected to diverge from LDK's implementation over time.
+// NOTE: If two versions of this function are needed (e.g. one for user node and
+// one for LSP), the function can be moved to the LexeChannelManager trait.
+fn get_route_hints<CM, PS>(
+    channel_manager: CM,
     min_inbound_capacity_msat: Option<u64>,
-) -> Vec<RouteHint> {
-    let mut filtered_channels = HashMap::<PublicKey, ChannelDetails>::new();
-    let min_inbound_capacity = min_inbound_capacity_msat.unwrap_or(0);
-    let mut min_capacity_channel_exists = false;
-    let mut online_channel_exists = false;
-    let mut online_min_capacity_channel_exists = false;
+) -> Vec<RouteHint>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    let all_channels = channel_manager.list_channels();
+    let min_inbound_capacity_msat = min_inbound_capacity_msat.unwrap_or(0);
 
-    for channel in channels.into_iter().filter(|chan| chan.is_channel_ready) {
-        if channel.get_inbound_payment_scid().is_none()
-            || channel.counterparty.forwarding_info.is_none()
-        {
-            continue;
-        }
-
-        if channel.is_public {
-            // If any public channel exists, return no hints and let the
-            // sender look at the public channels instead.
-            return vec![];
-        }
-
-        if channel.inbound_capacity_msat >= min_inbound_capacity {
-            if !min_capacity_channel_exists {
-                min_capacity_channel_exists = true;
-            }
-
-            if channel.is_usable {
-                online_min_capacity_channel_exists = true;
-            }
-        }
-
-        if channel.is_usable && !online_channel_exists {
-            online_channel_exists = true;
-        }
-
-        match filtered_channels.entry(channel.counterparty.node_id) {
-            hash_map::Entry::Occupied(mut entry) => {
-                let current_max_capacity = entry.get().inbound_capacity_msat;
-                if channel.inbound_capacity_msat < current_max_capacity {
-                    continue;
-                }
-                entry.insert(channel);
-            }
-            hash_map::Entry::Vacant(entry) => {
-                entry.insert(channel);
-            }
-        }
+    // If *any* channel is public, include no hints and let the sender route to
+    // us by looking at the lightning network graph. This helps prevent a public
+    // node from accidentally exposing its private relationships.
+    if all_channels.iter().any(|channel| channel.is_public) {
+        return Vec::new();
     }
+    // At this point, we know that all channels are private.
 
-    let route_hint_from_channel = |channel: ChannelDetails| {
-        let forwarding_info =
-            channel.counterparty.forwarding_info.as_ref().unwrap();
-        RouteHint(vec![RouteHintHop {
-            src_node_id: channel.counterparty.node_id,
-            short_channel_id: channel.get_inbound_payment_scid().unwrap(),
-            fees: RoutingFees {
-                base_msat: forwarding_info.fee_base_msat,
-                proportional_millionths: forwarding_info
-                    .fee_proportional_millionths,
-            },
-            cltv_expiry_delta: forwarding_info.cltv_expiry_delta,
-            htlc_minimum_msat: channel.inbound_htlc_minimum_msat,
-            htlc_maximum_msat: channel.inbound_htlc_maximum_msat,
-        }])
-    };
-    // If all channels are private, prefer to return route hints which have
-    // a higher capacity than the payment value and where we're
-    // currently connected to the channel counterparty. Even if we
-    // cannot satisfy both goals, always ensure we include *some* hints,
-    // preferring those which meet at least one criteria.
-    filtered_channels
-        .into_values()
-        .filter(|channel| {
-            let has_enough_capacity =
-                channel.inbound_capacity_msat >= min_inbound_capacity;
-            #[allow(clippy::if_same_then_else)]
-            let include_channel = if online_min_capacity_channel_exists {
-                has_enough_capacity && channel.is_usable
-            } else if min_capacity_channel_exists && online_channel_exists {
-                // If there are some online channels and some min_capacity
-                // channels, but no
-                // online-and-min_capacity channels, just include the min
-                // capacity ones and ignore online-ness.
-                has_enough_capacity
-            } else if min_capacity_channel_exists {
-                has_enough_capacity
-            } else if online_channel_exists {
-                channel.is_usable
-            } else {
-                true
+    // Generate a list of `RouteHint`s which correspond to channels which are
+    // ready, sufficiently large, and which have all of the scid / forwarding
+    // information required to construct the `RouteHintHop` for the sender.
+    all_channels
+        .into_iter()
+        // Ready channels only. NOTE: We do NOT use `ChannelDetails::is_usable`
+        // to prevent a race condition where our freshly-started node needs to
+        // generate an invoice but has not yet reconnected to its peer (the LSP)
+        .filter(|c| c.is_channel_ready)
+        // Channels with sufficient liquidity only
+        .filter(|c| c.inbound_capacity_msat >= min_inbound_capacity_msat)
+        // Generate a RouteHintHop for the counterparty -> us channel
+        .filter_map(|c| {
+            // scids and forwarding info are required to construct a hop hint
+            let short_channel_id = c.get_inbound_payment_scid()?;
+            let fwd_info = c.counterparty.forwarding_info?;
+
+            let fees = RoutingFees {
+                base_msat: fwd_info.fee_base_msat,
+                proportional_millionths: fwd_info.fee_proportional_millionths,
             };
 
-            include_channel
+            Some(RouteHintHop {
+                src_node_id: c.counterparty.node_id,
+                short_channel_id,
+                fees,
+                cltv_expiry_delta: fwd_info.cltv_expiry_delta,
+                htlc_minimum_msat: c.inbound_htlc_minimum_msat,
+                htlc_maximum_msat: c.inbound_htlc_maximum_msat,
+            })
         })
-        .map(route_hint_from_channel)
+        // RouteHintHop -> RouteHint
+        .map(|hop_hint| RouteHint(vec![hop_hint]))
         .collect::<Vec<RouteHint>>()
 }
