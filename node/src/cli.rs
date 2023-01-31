@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use argh::FromArgs;
-use common::cli::NodeCommand;
+use common::cli::node::NodeCommand;
 use common::rng::SysRng;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::test_event;

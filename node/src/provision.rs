@@ -29,7 +29,7 @@ use common::api::ports::UserPorts;
 use common::api::provision::{NodeProvisionRequest, SealedSeed};
 use common::api::rest::into_response;
 use common::api::{NodePk, UserPk};
-use common::cli::ProvisionArgs;
+use common::cli::node::ProvisionArgs;
 use common::client::tls;
 use common::enclave::Measurement;
 use common::rng::{Crng, SysRng};
@@ -252,7 +252,7 @@ mod test {
 
     use common::attest;
     use common::attest::verify::EnclavePolicy;
-    use common::cli::ProvisionArgs;
+    use common::cli::node::ProvisionArgs;
     use common::rng::WeakRng;
     use common::root_seed::RootSeed;
     use tokio_rustls::rustls;
