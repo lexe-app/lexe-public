@@ -4,22 +4,26 @@
 //! The codegen generates Rust<->C ffi bindings in `src/bindings_generated.rs`,
 //! which are then consumed by Dart's `ffigen` tool to produce the final Dart
 //! code in `../app/lib/bindings.dart` and `../app/lib/bindings_api.dart`.
+//!
+//! We use the `SKIP_FRB_CODEGEN=1` env in some CI jobs, since the codegen
+//! requires a flutter install.
+
+use std::env;
+use std::ffi::OsStr;
 
 use lib_flutter_rust_bridge_codegen as frb;
-
-#[allow(unused)]
-fn dump_envs() {
-    for (key, val) in std::env::vars() {
-        eprintln!("{key} => {val}");
-    }
-}
 
 fn main() {
     // // Uncomment this to see flutter_rust_bridge debug logs
     // env_logger::init();
 
-    // dump_envs();
-    // panic!("debug");
+    println!("cargo:rerun-if-env-changed=CI_SKIP_FRB_CODEGEN");
+
+    // flutter_rust_bridge_codegen requires a full flutter install, which is a
+    // lot to setup when we just want to lint.
+    if env::var_os("CI_SKIP_FRB_CODEGEN").as_deref() == Some(OsStr::new("1")) {
+        return;
+    }
 
     println!("cargo:rerun-if-changed=src/bindings.rs");
 

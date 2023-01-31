@@ -407,6 +407,17 @@ $ cd ~
 $ rm -rf ~/flutter-test
 ```
 
+#### Pull initial flutter dependencies
+
+```bash
+$ cd app/
+$ flutter pub get
+```
+
+`flutter run` will also automatically run `flutter pub get` whenever the
+dependencies change in `pubspec.yaml`.
+
+
 ### (nvim) Editor setup
 
 For all the `nvim` chads out there using `coc.nvim`, just do:
