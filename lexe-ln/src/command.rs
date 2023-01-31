@@ -14,7 +14,7 @@ use lightning::ln::PaymentHash;
 use lightning::routing::gossip::RoutingFees;
 use lightning::routing::router::{RouteHint, RouteHintHop};
 use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::alias::{LexeInvoicePayerType, PaymentInfoStorageType};
 use crate::invoice::{HTLCStatus, LxPaymentError, PaymentInfo};
@@ -56,6 +56,7 @@ where
 pub fn get_invoice<CM, PS>(
     channel_manager: CM,
     keys_manager: LexeKeysManager,
+    maybe_lsp_node_pk: Option<NodePk>,
     network: Network,
     req: GetInvoiceRequest,
 ) -> anyhow::Result<LxInvoice>
@@ -99,7 +100,8 @@ where
     }
 
     // Add the route hints.
-    let route_hints = get_route_hints(channel_manager, req.amt_msat);
+    let route_hints =
+        get_route_hints(channel_manager, maybe_lsp_node_pk, req.amt_msat);
     for hint in route_hints {
         builder = builder.private_route(hint);
     }
@@ -184,6 +186,7 @@ where
 // one for LSP), the function can be moved to the LexeChannelManager trait.
 fn get_route_hints<CM, PS>(
     channel_manager: CM,
+    maybe_lsp_node_pk: Option<NodePk>,
     min_inbound_capacity_msat: Option<u64>,
 ) -> Vec<RouteHint>
 where
@@ -204,7 +207,7 @@ where
     // Generate a list of `RouteHint`s which correspond to channels which are
     // ready, sufficiently large, and which have all of the scid / forwarding
     // information required to construct the `RouteHintHop` for the sender.
-    all_channels
+    let route_hints = all_channels
         .into_iter()
         // Ready channels only. NOTE: We do NOT use `ChannelDetails::is_usable`
         // to prevent a race condition where our freshly-started node needs to
@@ -234,5 +237,44 @@ where
         })
         // RouteHintHop -> RouteHint
         .map(|hop_hint| RouteHint(vec![hop_hint]))
-        .collect::<Vec<RouteHint>>()
+        .collect::<Vec<RouteHint>>();
+
+    // If we generated any hints, return them.
+    if !route_hints.is_empty() {
+        return route_hints;
+    }
+
+    // There were no valid routes. If we have our LSP's NodePk, generate a hint
+    // with an intercept scid so that our LSP can open a JIT channel to us.
+    match maybe_lsp_node_pk {
+        Some(lsp_node_pk) => {
+            let short_channel_id = channel_manager.get_intercept_scid();
+            let hop_hint = RouteHintHop {
+                src_node_id: lsp_node_pk.0,
+                short_channel_id,
+
+                // NOTE: Hack; these values are copied from the LSP's
+                // UserConfig. These should be passed in via CLI args, but this
+                // requires a chain of changes going all the way up to the
+                // runner's CLI args, which need to be cleaned up first.
+                // TODO(max): Populate these values via CLI arg
+                fees: RoutingFees {
+                    base_msat: 0,
+                    proportional_millionths: 3000,
+                },
+                cltv_expiry_delta: 72,
+                htlc_minimum_msat: Some(1),
+                htlc_maximum_msat: Some(u64::MAX),
+            };
+
+            vec![RouteHint(vec![hop_hint])]
+        }
+        None => {
+            warn!(
+                "Did not generate any route hints: `maybe_lsp_node_pk`  was \
+                None and payment amt msat was {min_inbound_capacity_msat:?}"
+            );
+            Vec::new()
+        }
+    }
 }

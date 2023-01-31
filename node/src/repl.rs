@@ -10,6 +10,7 @@ use bitcoin::hashes::sha256::Hash as Sha256;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey;
 use common::api::command::GetInvoiceRequest;
+use common::api::NodePk;
 use common::cli::Network;
 use common::hex;
 use common::ln::invoice::LxInvoice;
@@ -41,6 +42,7 @@ pub(crate) async fn poll_for_user_input(
     network_graph: Arc<NetworkGraphType>,
     outbound_payments: PaymentInfoStorageType,
     persister: NodePersister,
+    lsp_node_pk: NodePk,
     network: Network,
     channel_peer_tx: mpsc::Sender<ChannelPeerUpdate>,
 ) {
@@ -126,6 +128,7 @@ pub(crate) async fn poll_for_user_input(
                         words,
                         channel_manager.clone(),
                         keys_manager.clone(),
+                        lsp_node_pk,
                         network,
                     ) {
                         error!("{e:#}");
@@ -435,6 +438,7 @@ fn get_invoice<'a, I: Iterator<Item = &'a str>>(
     mut words: I,
     channel_manager: NodeChannelManager,
     keys_manager: LexeKeysManager,
+    lsp_node_pk: NodePk,
     network: Network,
 ) -> anyhow::Result<()> {
     let amt_msat_str = words
@@ -455,9 +459,14 @@ fn get_invoice<'a, I: Iterator<Item = &'a str>>(
         description: String::new(),
     };
 
-    let invoice =
-        command::get_invoice(channel_manager, keys_manager, network, req)
-            .context("Could not generate invoice")?;
+    let invoice = command::get_invoice(
+        channel_manager,
+        keys_manager,
+        Some(lsp_node_pk),
+        network,
+        req,
+    )
+    .context("Could not generate invoice")?;
 
     info!("Success: Generated invoice {invoice}");
 
