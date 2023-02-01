@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'route/landing.dart' show LandingPage;
 
 void main() {
+  // TODO: load initial state
+  // TODO: navigate to wallet if already signed up or landing o/w
+
   runApp(const LexeApp());
 }
 

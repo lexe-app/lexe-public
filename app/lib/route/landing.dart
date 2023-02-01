@@ -118,43 +118,19 @@ class LandingButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const buttonSize = Size(300.0, 56.0);
-
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         const LandingCarouselIndicators(),
         const SizedBox(height: 24.0),
-        FilledButton(
-          onPressed: () => debugPrint("pressed create wallet button"),
-          style: FilledButton.styleFrom(
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black,
-            fixedSize: buttonSize,
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              const Text("Create new wallet",
-                  style: TextStyle(
-                    fontSize: 16.0,
-                    fontVariations: [ui.FontVariation("wght", 400)],
-                  )),
-              Container(
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.all(8.0),
-                child: const Icon(Icons.chevron_right),
-              )
-            ],
-          ),
-        ),
+        const CreateWalletButton(),
         const SizedBox(height: 16.0),
         OutlinedButton(
           onPressed: () => debugPrint("Rust FFI test: ${api.hello()}"),
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: Colors.white70, width: 2.0),
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
-            fixedSize: buttonSize,
+            fixedSize: const Size(300.0, 56.0),
             shape: const StadiumBorder(),
           ),
           child: const Text("I have a Lexe wallet",
@@ -164,6 +140,68 @@ class LandingButtons extends StatelessWidget {
                 fontVariations: [ui.FontVariation("wght", 400)],
               )),
         ),
+      ],
+    );
+  }
+}
+
+// dummy
+Future<void> signup() async {
+  await Future<void>.delayed(const Duration(seconds: 1));
+}
+
+class CreateWalletButton extends StatefulWidget {
+  const CreateWalletButton({super.key});
+
+  @override
+  State<CreateWalletButton> createState() => _CreateWalletButtonState();
+}
+
+class _CreateWalletButtonState extends State<CreateWalletButton> {
+  bool _active = true;
+
+  Future<void> _onPressed() async {
+    debugPrint("pressed create wallet");
+    setState(() => _active = false);
+    await signup();
+    debugPrint("done signing up");
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton(
+      onPressed: _active ? _onPressed : null,
+      // onPressed: null,
+      style: FilledButton.styleFrom(
+        backgroundColor: Colors.white,
+        disabledBackgroundColor: Colors.white30,
+        foregroundColor: Colors.black,
+        disabledForegroundColor: Colors.black26,
+        fixedSize: const Size(300.0, 56.0),
+      ),
+      child: (_active) ? const CreateWalletText() : const CreateWalletText(),
+    );
+  }
+}
+
+class CreateWalletText extends StatelessWidget {
+  const CreateWalletText({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        const Text("Create new wallet",
+            style: TextStyle(
+              fontSize: 16.0,
+              fontVariations: [ui.FontVariation("wght", 400)],
+            )),
+        Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.all(8.0),
+          child: const Icon(Icons.chevron_right),
+        )
       ],
     );
   }
