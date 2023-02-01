@@ -7,9 +7,11 @@ on:
       - master
 
 # pushing new commits to a PR should cancel currently running CI jobs
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+# NOTE: This option makes it more difficult to devs to run CI on every commit in
+# a PR, but can be re-enabled if CI cost becomes an issue
+# concurrency:
+#   group: ${{ github.workflow }}-${{ github.ref }}
+#   cancel-in-progress: true
 
 # TODO(phlip9): read-all?
 # https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
