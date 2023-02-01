@@ -14,7 +14,7 @@ use lightning::ln::PaymentHash;
 use lightning::routing::gossip::RoutingFees;
 use lightning::routing::router::{RouteHint, RouteHintHop};
 use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::alias::{LexeInvoicePayerType, PaymentInfoStorageType};
 use crate::invoice::{HTLCStatus, LxPaymentError, PaymentInfo};
@@ -64,6 +64,9 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
+    let amt_msat = &req.amt_msat;
+    info!("Handling get_invoice command for {amt_msat:?} msats");
+
     // We use ChannelManager::create_inbound_payment because this method allows
     // the channel manager to store the hash and preimage for us, instead of
     // having to manage a separate inbound payments storage outside of LDK.
@@ -178,9 +181,11 @@ where
 
 /// Given a channel manager and `min_inbound_capacity_msat`, generates a list of
 /// [`RouteHint`]s which can be included in an [`Invoice`] to help the sender
-/// find a path to us.
+/// find a path to us. If LSP information is also provided, a route hint with an
+/// intercept scid will be included in the invoice in the case that there are no
+/// ready channels with sufficient liquidity to service the payment.
 ///
-/// The main logic is based on `lightning_invoice::utils::filter_channels`, but
+/// The main logic was based on `lightning_invoice::utils::filter_channels`, but
 /// is expected to diverge from LDK's implementation over time.
 // NOTE: If two versions of this function are needed (e.g. one for user node and
 // one for LSP), the function can be moved to the LexeChannelManager trait.
@@ -194,15 +199,34 @@ where
     PS: LexePersister,
 {
     let all_channels = channel_manager.list_channels();
+    let num_channels = all_channels.len();
+    debug!("Generating route hints, starting with {num_channels} channels");
     let min_inbound_capacity_msat = min_inbound_capacity_msat.unwrap_or(0);
 
     // If *any* channel is public, include no hints and let the sender route to
     // us by looking at the lightning network graph. This helps prevent a public
     // node from accidentally exposing its private relationships.
     if all_channels.iter().any(|channel| channel.is_public) {
+        debug!("Found public channel; returning 0 route hints");
         return Vec::new();
     }
     // At this point, we know that all channels are private.
+
+    // NOTE on multi-path payments: Eventually, we may want to include route
+    // hints for channels that individually do not have sufficient liquidity to
+    // route the entire payment but which could forward one portion of the whole
+    // payment (under the condition that our total inbound liquidity available
+    // across all of our channels is sufficient to service the whole payment).
+    // However, the BOLT11 spec does not contain a way to notify the sender of
+    // how much liquidity we have in each of our channels; plus, we should be
+    // careful about how we expose this info as it could lead to the real-time
+    // deanonymization of our current channel balances. Absent a protocol for
+    // this, the sender has to blindly split (or not split) their payment across
+    // our available channels, leading to frequent payment failures. Thus, for
+    // now we elect not to generate route hints for channels that do not have
+    // sufficient liquidity to service the entire payment; we can enable this
+    // style of multi-path payments once BOLT12 or similar fixes this.
+    // https://discord.com/channels/915026692102316113/978829624635195422/1070087544164851763
 
     // Generate a list of `RouteHint`s which correspond to channels which are
     // ready, sufficiently large, and which have all of the scid / forwarding
@@ -240,7 +264,9 @@ where
         .collect::<Vec<RouteHint>>();
 
     // If we generated any hints, return them.
-    if !route_hints.is_empty() {
+    let num_route_hints = route_hints.len();
+    if num_route_hints > 0 {
+        debug!("Included {num_route_hints} route hints in invoice");
         return route_hints;
     }
 
@@ -248,6 +274,7 @@ where
     // with an intercept scid so that our LSP can open a JIT channel to us.
     match maybe_lsp_node_pk {
         Some(lsp_node_pk) => {
+            debug!("Included intercept hint in invoice");
             let short_channel_id = channel_manager.get_intercept_scid();
             let hop_hint = RouteHintHop {
                 src_node_id: lsp_node_pk.0,
