@@ -308,7 +308,9 @@ impl UserNode {
         ));
 
         // Initialize the event handler
-        // TODO: persist payment info
+        // XXX(max): It is security-critical to persist our outbound payment
+        // storage to ensure that we never pay the same `PaymentHash` twice. See
+        // InvoicePayerUsingTime::pay_invoice or ChannelManager::send_payment.
         let outbound_payments: PaymentInfoStorageType =
             Arc::new(Mutex::new(HashMap::new()));
         let event_handler = NodeEventHandler {
