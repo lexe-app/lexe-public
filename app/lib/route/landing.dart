@@ -1,7 +1,9 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'dart:async' show unawaited;
 
 import '../bindings.dart' show api;
+import 'backup_wallet.dart' show BackupWalletPage;
 
 class LandingPage extends StatelessWidget {
   const LandingPage({super.key});
@@ -147,7 +149,7 @@ class LandingButtons extends StatelessWidget {
 
 // dummy
 Future<void> signup() async {
-  await Future<void>.delayed(const Duration(seconds: 1));
+  await Future<void>.delayed(const Duration(seconds: 2));
 }
 
 class CreateWalletButton extends StatefulWidget {
@@ -158,20 +160,32 @@ class CreateWalletButton extends StatefulWidget {
 }
 
 class _CreateWalletButtonState extends State<CreateWalletButton> {
-  bool _active = true;
+  bool _disableButton = false;
 
   Future<void> _onPressed() async {
     debugPrint("pressed create wallet");
-    setState(() => _active = false);
+
+    // disable button
+    setState(() => _disableButton = true);
     await signup();
+
+    // TODO(phlip9): disable restore button while request is processing? o/w
+    // user could navigate away while account is getting created...
+
     debugPrint("done signing up");
+
+    if (context.mounted) {
+      Navigator.of(context).pushReplacement(MaterialPageRoute(
+        maintainState: false,
+        builder: (BuildContext _) => const BackupWalletPage(),
+      ));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return FilledButton(
-      onPressed: _active ? _onPressed : null,
-      // onPressed: null,
+      onPressed: _disableButton ? null : _onPressed,
       style: FilledButton.styleFrom(
         backgroundColor: Colors.white,
         disabledBackgroundColor: Colors.white30,
@@ -179,7 +193,14 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
         disabledForegroundColor: Colors.black26,
         fixedSize: const Size(300.0, 56.0),
       ),
-      child: (_active) ? const CreateWalletText() : const CreateWalletText(),
+      child: (!_disableButton)
+          ? const CreateWalletText()
+          : const SizedBox.square(
+              dimension: 24.0,
+              child: CircularProgressIndicator(
+                strokeWidth: 3.0,
+                color: Color(0x33ffffff),
+              )),
     );
   }
 }
@@ -259,7 +280,7 @@ class AnimatedShaderState extends State<AnimatedShader>
       upperBound: 10000.0,
       duration: const Duration(seconds: 10000), // why no infinite animation??
     );
-    animationController.forward(from: 0.0);
+    unawaited(animationController.forward(from: 0.0));
   }
 
   @override
