@@ -1,6 +1,8 @@
 import 'dart:ui' as ui;
-import 'package:flutter/material.dart';
+import 'dart:math' show max;
 import 'dart:async' show unawaited;
+
+import 'package:flutter/material.dart';
 
 import '../bindings.dart' show api;
 import 'backup_wallet.dart' show BackupWalletPage;
@@ -12,29 +14,45 @@ class LandingPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
         backgroundColor: const Color(0xff353535),
-        body: InkuShader(
-            child: Center(
-          child: Container(
-              padding: const EdgeInsets.only(top: 128.0, bottom: 64.0),
-              constraints: const BoxConstraints.expand(width: 300.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: const [
-                  Flexible(
-                      flex: 2,
-                      child: Align(
-                          alignment: Alignment.center,
-                          child: LandingCalloutText())),
-                  Flexible(
-                    flex: 1,
-                    child: Align(
-                        alignment: Alignment.center, child: LandingButtons()),
-                  )
-                ],
-              )),
-        )));
+        body: Stack(children: [
+          const InkuShader(child: Center()),
+          LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints viewport) {
+              final viewportHeight = viewport.maxHeight;
+
+              const width = 300.0;
+              const minHeight = 525.0;
+              const verticalBreakpoint = 700.0;
+
+              final maxHeight = max(minHeight, viewportHeight);
+              final top = (viewportHeight > verticalBreakpoint) ? 196.0 : 64.0;
+              final bottom =
+                  (viewportHeight > verticalBreakpoint) ? 64.0 : 32.0;
+
+              return Center(
+                child: Container(
+                  constraints: BoxConstraints(
+                    minWidth: width,
+                    maxWidth: width,
+                    minHeight: minHeight,
+                    maxHeight: maxHeight,
+                  ),
+                  child: Stack(fit: StackFit.passthrough, children: [
+                    Container(
+                      padding: EdgeInsets.only(top: top),
+                      child: const LandingCalloutText(),
+                    ),
+                    Container(
+                      padding: EdgeInsets.only(bottom: bottom),
+                      alignment: Alignment.bottomCenter,
+                      child: const LandingButtons(),
+                    ),
+                  ]),
+                ),
+              );
+            },
+          ),
+        ]));
   }
 }
 
