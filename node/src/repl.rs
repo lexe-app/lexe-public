@@ -16,6 +16,7 @@ use common::hex;
 use common::ln::invoice::LxInvoice;
 use common::ln::peer::ChannelPeer;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
+use lexe_ln::command::GetInvoiceCaller;
 use lexe_ln::invoice::{HTLCStatus, PaymentInfo};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::p2p::{self, ChannelPeerUpdate};
@@ -462,7 +463,7 @@ fn get_invoice<'a, I: Iterator<Item = &'a str>>(
     let invoice = command::get_invoice(
         channel_manager,
         keys_manager,
-        Some(lsp_node_pk),
+        GetInvoiceCaller::UserNode { lsp_node_pk },
         network,
         req,
     )

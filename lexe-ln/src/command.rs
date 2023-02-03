@@ -23,11 +23,19 @@ use crate::traits::{
     LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
 };
 
-// TODO(max): Should these fns take e.g. &CM i.e. &Arc<impl LexeChannelManager>
-// when possible? It can avoid the atomic operation in some cases, but in
-// addition to requiring more indirection from node::command::server, it's a
-// weird way to use Arc<T>s. Taking &T doesn't seem possible though without an
-// invasive (translated: painful) overhaul of the Lexe trait aliases.
+/// Specifies whether it is the user node or the LSP calling the [`get_invoice`]
+/// fn. There are some differences between how the user node and LSP
+/// generate invoices which this tiny enum makes clearer.
+#[derive(Copy, Clone)]
+pub enum GetInvoiceCaller {
+    /// When a user node calls [`get_invoice`], it must provide the LSP's
+    /// `NodePk`, since it may need to generate a [`RouteHintHop`] for
+    /// receiving a payment over a JIT channel with the LSP.
+    UserNode {
+        lsp_node_pk: NodePk,
+    },
+    Lsp,
+}
 
 pub fn node_info<CM, PM, PS>(channel_manager: CM, peer_manager: PM) -> NodeInfo
 where
@@ -56,7 +64,7 @@ where
 pub fn get_invoice<CM, PS>(
     channel_manager: CM,
     keys_manager: LexeKeysManager,
-    maybe_lsp_node_pk: Option<NodePk>,
+    caller: GetInvoiceCaller,
     network: Network,
     req: GetInvoiceRequest,
 ) -> anyhow::Result<LxInvoice>
@@ -103,8 +111,7 @@ where
     }
 
     // Add the route hints.
-    let route_hints =
-        get_route_hints(channel_manager, maybe_lsp_node_pk, req.amt_msat);
+    let route_hints = get_route_hints(channel_manager, caller, req.amt_msat);
     for hint in route_hints {
         builder = builder.private_route(hint);
     }
@@ -189,7 +196,7 @@ where
 // one for LSP), the function can be moved to the LexeChannelManager trait.
 fn get_route_hints<CM, PS>(
     channel_manager: CM,
-    _maybe_lsp_node_pk: Option<NodePk>,
+    _caller: GetInvoiceCaller,
     min_inbound_capacity_msat: Option<u64>,
 ) -> Vec<RouteHint>
 where
@@ -275,8 +282,8 @@ where
 
     // There were no valid routes. If we have our LSP's NodePk, generate a hint
     // with an intercept scid so that our LSP can open a JIT channel to us.
-    match maybe_lsp_node_pk {
-        Some(lsp_node_pk) => {
+    match caller {
+        GetInvoiceCaller::UserNode { lsp_node_pk } => {
             debug!("Included intercept hint in invoice");
             let short_channel_id = channel_manager.get_intercept_scid();
             let hop_hint = RouteHintHop {
@@ -299,10 +306,10 @@ where
 
             vec![RouteHint(vec![hop_hint])]
         }
-        None => {
+        Lsp => {
             warn!(
-                "Did not generate any route hints: `maybe_lsp_node_pk`  was \
-                None and payment amt msat was {min_inbound_capacity_msat:?}"
+                "LSP did not generate any route hints: payment amt msat was \
+                {min_inbound_capacity_msat:?}"
             );
             Vec::new()
         }
