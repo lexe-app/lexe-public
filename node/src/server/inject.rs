@@ -4,10 +4,11 @@
 use std::convert::Infallible;
 use std::sync::Arc;
 
-use common::api::{NodePk, UserPk};
+use common::api::UserPk;
 use common::cli::Network;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
+use lexe_ln::command::GetInvoiceCaller;
 use lexe_ln::keys_manager::LexeKeysManager;
 use warp::Filter;
 
@@ -74,11 +75,11 @@ pub(crate) fn outbound_payments(
     warp::any().map(move || outbound_payments.clone())
 }
 
-/// Injects an [`Option`] value for the LSP's [`NodePk`].
-pub(crate) fn maybe_lsp_node_pk(
-    maybe_lsp_node_pk: Option<NodePk>,
-) -> impl Filter<Extract = (Option<NodePk>,), Error = Infallible> + Clone {
-    warp::any().map(move || maybe_lsp_node_pk)
+/// Injects a [`GetInvoiceCaller`].
+pub(crate) fn get_invoice_caller(
+    get_invoice_caller: GetInvoiceCaller,
+) -> impl Filter<Extract = (GetInvoiceCaller,), Error = Infallible> + Clone {
+    warp::any().map(move || get_invoice_caller)
 }
 
 /// Injects the [`Network`] the node is running on.

@@ -21,6 +21,7 @@ use common::cli::Network;
 use common::ln::invoice::LxInvoice;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
+use lexe_ln::command::GetInvoiceCaller;
 use lexe_ln::keys_manager::LexeKeysManager;
 use tokio::sync::mpsc;
 use tracing::trace;
@@ -59,7 +60,7 @@ pub(crate) fn owner_routes(
     keys_manager: LexeKeysManager,
     invoice_payer: Arc<InvoicePayerType>,
     outbound_payments: PaymentInfoStorageType,
-    maybe_lsp_node_pk: NodePk,
+    lsp_node_pk: NodePk,
     network: Network,
     activity_tx: mpsc::Sender<()>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
@@ -90,7 +91,9 @@ pub(crate) fn owner_routes(
         .and(warp::post())
         .and(inject::channel_manager(channel_manager))
         .and(inject::keys_manager(keys_manager))
-        .and(inject::maybe_lsp_node_pk(Some(maybe_lsp_node_pk)))
+        .and(inject::get_invoice_caller(GetInvoiceCaller::UserNode {
+            lsp_node_pk,
+        }))
         .and(inject::network(network))
         .and(warp::body::json::<GetInvoiceRequest>())
         .map(lexe_ln::command::get_invoice)
