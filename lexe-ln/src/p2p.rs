@@ -182,16 +182,22 @@ where
                 // List our current channels
                 .list_channels()
                 .into_iter()
-                // Get pubkeys of all channel counterparties
-                .map(|channel| channel.counterparty.node_id)
-                // Filter out channel counterparties we're already connected to
-                .filter(|node_id| !connected_p2p_peers.contains(node_id))
-                // secp256k1::PublicKey -> NodePk
-                .map(NodePk)
-                // NodePk -> ChannelPeer (i.e. associate NodePk with SocketAddr)
-                .filter_map(|node_pk| channel_peers.get(&node_pk))
-                // Produce a future that reconnects to this peer
-                .map(|cp| do_connect_peer(peer_manager.clone(), cp.clone()))
+                .filter_map(|channel| {
+                    // Skip if we're already connected to this counterparty
+                    let cparty = channel.counterparty.node_id;
+                    if connected_p2p_peers.contains(&cparty) {
+                        return None;
+                    }
+
+                    // Get the counterparty's `ChannelPeer` information
+                    let cparty_cpeer = channel_peers.get(&NodePk(cparty))?;
+
+                    // Return a future that reconnects to this peer
+                    Some(do_connect_peer(
+                        peer_manager.clone(),
+                        cparty_cpeer.clone(),
+                    ))
+                })
                 .collect::<Vec<_>>();
 
             // Do the reconnect(s), quit early if shutting down, log any errors
@@ -269,7 +275,7 @@ where
                         error!("P2P connection task panicked: {e:#}");
                     }
                 }
-                _ = shutdown.recv() => break
+                _ = shutdown.recv() => break,
             }
         }
 
