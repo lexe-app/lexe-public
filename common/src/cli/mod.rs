@@ -19,6 +19,9 @@ pub const TESTNET_NETWORK: Network = Network(bitcoin::Network::Testnet);
 pub const REGTEST_NETWORK: Network = Network(bitcoin::Network::Regtest);
 pub const SIGNET_NETWORK: Network = Network(bitcoin::Network::Signet);
 
+/// A wrapper around [`bitcoin::Network`] that implements [`FromStr`] /
+/// [`Display`] in a consistent way.
+///
 /// There are slight variations is how the network is represented as strings
 /// across bitcoin, lightning, Lexe, etc. For consistency, we use the mapping
 /// defined in [`bitcoin::Network`]'s `FromStr` impl, which is:
@@ -27,8 +30,8 @@ pub const SIGNET_NETWORK: Network = Network(bitcoin::Network::Signet);
 /// - Testnet <-> "testnet",
 /// - Signet <-> "signet",
 /// - Regtest <-> "regtest"
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
-pub struct Network(bitcoin::Network);
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+pub struct Network(pub bitcoin::Network);
 
 impl Network {
     pub fn to_inner(self) -> bitcoin::Network {
