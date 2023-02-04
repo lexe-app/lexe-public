@@ -76,6 +76,12 @@ impl Regtest {
         regtest
     }
 
+    /// Kills the underlying [`ElectrsD`] and [`BitcoinD`] processes.
+    pub fn kill(&mut self) {
+        self.bitcoind.stop().expect("Failed to kill off bitcoind");
+        self.electrsd.kill().expect("Failed to kill off electrsd");
+    }
+
     /// Get the esplora URL, e.g. `http://0.0.0.0:59416`
     pub fn esplora_url(&self) -> String {
         self.esplora_url.clone()
