@@ -25,9 +25,9 @@ pub const STANDARD_LIGHTNING_P2P_PORT: Port = 9735;
 
 // Blockstream Esplora API
 pub const BLOCKSTREAM_ESPLORA_MAINNET_URL: &str =
-    "https://blockstream.info/api/";
+    "https://blockstream.info/api";
 pub const BLOCKSTREAM_ESPLORA_TESTNET_URL: &str =
-    "https://blockstream.info/testnet/api/";
+    "https://blockstream.info/testnet/api";
 
 /// Fake DNS name used by the node reverse proxy to route owner requests to a
 /// node awaiting provisioning. This DNS name doesn't actually resolve.
