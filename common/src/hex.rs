@@ -18,96 +18,7 @@ pub enum DecodeError {
     OddInputLength,
 }
 
-#[inline]
-const fn decode_nibble(x: u8) -> Result<u8, DecodeError> {
-    match x {
-        b'0'..=b'9' => Ok(x - b'0'),
-        b'a'..=b'f' => Ok(x - b'a' + 10),
-        b'A'..=b'F' => Ok(x - b'A' + 10),
-        _ => Err(DecodeError::InvalidCharacter),
-    }
-}
-
-fn decode_to_slice_inner(
-    hex_chunks: &[[u8; 2]],
-    out: &mut [u8],
-) -> Result<(), DecodeError> {
-    if hex_chunks.len() != out.len() {
-        return Err(DecodeError::BadOutputLength);
-    }
-
-    for (&[c_hi, c_lo], out_i) in hex_chunks.iter().zip(out) {
-        let b_hi = decode_nibble(c_hi)?;
-        let b_lo = decode_nibble(c_lo)?;
-        *out_i = (b_hi << 4) | b_lo;
-    }
-
-    Ok(())
-}
-
-fn hex_str_to_chunks(hex: &str) -> Result<&[[u8; 2]], DecodeError> {
-    let (hex_chunks, extra) = hex.as_bytes().as_chunks::<2>();
-    if extra.is_empty() {
-        Ok(hex_chunks)
-    } else {
-        Err(DecodeError::OddInputLength)
-    }
-}
-
-pub fn decode(hex: &str) -> Result<Vec<u8>, DecodeError> {
-    let hex_chunks = hex_str_to_chunks(hex)?;
-    let mut out = vec![0u8; hex_chunks.len()];
-    decode_to_slice_inner(hex_chunks, &mut out).map(|()| out)
-}
-
-pub fn decode_to_slice(hex: &str, out: &mut [u8]) -> Result<(), DecodeError> {
-    let hex_chunks = hex_str_to_chunks(hex)?;
-    decode_to_slice_inner(hex_chunks, out)
-}
-
-/// Decode a hex string into an output buffer in constant time.
-/// This prevents leakage of e.g. # of digits vs # abcdef.
-pub fn decode_to_slice_ct(
-    hex: &str,
-    out: &mut [u8],
-) -> Result<(), DecodeError> {
-    // TODO(phlip9): make this actually constant time
-    // https://github.com/RustCrypto/formats/blob/master/base16ct/src/lib.rs#L97
-    decode_to_slice(hex, out)
-}
-
-const fn unwrap_const(res: Result<u8, DecodeError>) -> u8 {
-    match res {
-        Ok(x) => x,
-        Err(_) => panic!("invalid hex character"),
-    }
-}
-
-/// A `const fn` for decoding a hex string at compile time.
-pub const fn decode_const<const N: usize>(hex: &[u8]) -> [u8; N] {
-    if hex.len() != N * 2 {
-        panic!("hex input is the wrong length");
-    }
-
-    let mut bytes = [0u8; N];
-    let mut idx = 0;
-
-    while idx < N {
-        let hi = unwrap_const(decode_nibble(hex[2 * idx]));
-        let lo = unwrap_const(decode_nibble(hex[(2 * idx) + 1]));
-        let c = (hi << 4) | lo;
-        bytes[idx] = c;
-        idx += 1;
-    }
-
-    bytes
-}
-
-pub fn encode(bytes: &[u8]) -> String {
-    let mut res = String::with_capacity(bytes.len() * 2);
-    write!(&mut res, "{}", display(bytes)).unwrap();
-    res
-}
+// --- HexDisplay utility --- //
 
 pub struct HexDisplay<'a>(&'a [u8]);
 
@@ -132,6 +43,8 @@ pub fn display(bytes: &[u8]) -> HexDisplay<'_> {
     HexDisplay(bytes)
 }
 
+// --- FromHex trait --- //
+
 /// A trait to deserialize something from a hex-encoded string slice.
 pub trait FromHex: Sized {
     fn from_hex(s: &str) -> Result<Self, DecodeError>;
@@ -154,6 +67,101 @@ impl<const N: usize> FromHex for [u8; N] {
         let mut out = [0u8; N];
         decode_to_slice(s, out.as_mut_slice())?;
         Ok(out)
+    }
+}
+
+// --- Public functions --- //
+
+pub fn encode(bytes: &[u8]) -> String {
+    let mut res = String::with_capacity(bytes.len() * 2);
+    write!(&mut res, "{}", display(bytes)).unwrap();
+    res
+}
+
+pub fn decode(hex: &str) -> Result<Vec<u8>, DecodeError> {
+    let hex_chunks = hex_str_to_chunks(hex)?;
+    let mut out = vec![0u8; hex_chunks.len()];
+    decode_to_slice_inner(hex_chunks, &mut out).map(|()| out)
+}
+
+/// A `const fn` for decoding a hex string at compile time.
+pub const fn decode_const<const N: usize>(hex: &[u8]) -> [u8; N] {
+    if hex.len() != N * 2 {
+        panic!("hex input is the wrong length");
+    }
+
+    let mut bytes = [0u8; N];
+    let mut idx = 0;
+
+    while idx < N {
+        let hi = unwrap_const(decode_nibble(hex[2 * idx]));
+        let lo = unwrap_const(decode_nibble(hex[(2 * idx) + 1]));
+        let c = (hi << 4) | lo;
+        bytes[idx] = c;
+        idx += 1;
+    }
+
+    const fn unwrap_const(res: Result<u8, DecodeError>) -> u8 {
+        match res {
+            Ok(x) => x,
+            Err(_) => panic!("invalid hex character"),
+        }
+    }
+
+    bytes
+}
+
+pub fn decode_to_slice(hex: &str, out: &mut [u8]) -> Result<(), DecodeError> {
+    let hex_chunks = hex_str_to_chunks(hex)?;
+    decode_to_slice_inner(hex_chunks, out)
+}
+
+/// Decode a hex string into an output buffer in constant time.
+/// This prevents leakage of e.g. # of digits vs # abcdef.
+pub fn decode_to_slice_ct(
+    hex: &str,
+    out: &mut [u8],
+) -> Result<(), DecodeError> {
+    // TODO(phlip9): make this actually constant time
+    // https://github.com/RustCrypto/formats/blob/master/base16ct/src/lib.rs#L97
+    decode_to_slice(hex, out)
+}
+
+// --- Internal helpers --- //
+
+fn hex_str_to_chunks(hex: &str) -> Result<&[[u8; 2]], DecodeError> {
+    let (hex_chunks, extra) = hex.as_bytes().as_chunks::<2>();
+    if extra.is_empty() {
+        Ok(hex_chunks)
+    } else {
+        Err(DecodeError::OddInputLength)
+    }
+}
+
+fn decode_to_slice_inner(
+    hex_chunks: &[[u8; 2]],
+    out: &mut [u8],
+) -> Result<(), DecodeError> {
+    if hex_chunks.len() != out.len() {
+        return Err(DecodeError::BadOutputLength);
+    }
+
+    for (&[c_hi, c_lo], out_i) in hex_chunks.iter().zip(out) {
+        let b_hi = decode_nibble(c_hi)?;
+        let b_lo = decode_nibble(c_lo)?;
+        *out_i = (b_hi << 4) | b_lo;
+    }
+
+    Ok(())
+}
+
+#[inline]
+const fn decode_nibble(x: u8) -> Result<u8, DecodeError> {
+    match x {
+        b'0'..=b'9' => Ok(x - b'0'),
+        b'a'..=b'f' => Ok(x - b'a' + 10),
+        b'A'..=b'F' => Ok(x - b'A' + 10),
+        _ => Err(DecodeError::InvalidCharacter),
     }
 }
 
