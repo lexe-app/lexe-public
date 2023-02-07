@@ -10,8 +10,8 @@
 // Enforce disallowed methods clippy lint
 #![deny(clippy::disallowed_methods)]
 
-use ref_cast::RefCast;
-// re-export some common types from our dependencies
+// Some re-exports to prevent having to re-declare dependencies
+pub use reqwest;
 pub use secrecy::Secret;
 
 /// API definitions, errors, clients, and structs sent across the wire.
@@ -100,7 +100,7 @@ macro_rules! const_assert_usize_eq {
 /// // Safe, const cast from `&123` to `&Id(123)`
 /// const MY_ID: &'static Id = const_ref_cast(&123);
 /// ```
-pub const fn const_ref_cast<T: RefCast>(from: &T::From) -> &T {
+pub const fn const_ref_cast<T: ref_cast::RefCast>(from: &T::From) -> &T {
     // SAFETY: we require that `T: RefCast`, which guarantees that this cast is
     // safe. Unfortunately we need this extra method as `T::ref_cast` is not
     // currently const (Rust doesn't support const traits yet).

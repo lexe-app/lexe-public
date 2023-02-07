@@ -7,6 +7,8 @@ use std::time::Duration;
 use anyhow::Context;
 use bdk::FeeRate;
 use bitcoin::blockdata::transaction::Transaction;
+use common::constants::GOOGLE_CA_CERT_DER;
+use common::reqwest;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use esplora_client::AsyncClient;
@@ -23,8 +25,8 @@ use tracing::{debug, error, info, warn};
 // an hour. There is a guaranteed refresh at init.
 const REFRESH_FEE_ESTIMATES_INTERVAL: Duration = Duration::from_secs(60 * 60);
 
-/// The number of seconds after which requests to the Esplora API will time out.
-const ESPLORA_CLIENT_TIMEOUT_SECS: u64 = 10;
+/// The duration after which requests to the Esplora API will time out.
+const ESPLORA_CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Enumerates all [`ConfirmationTarget`]s.
 const ALL_CONF_TARGETS: [ConfirmationTarget; 3] = [
@@ -110,14 +112,19 @@ impl LexeEsplora {
         esplora_url: String,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<(Arc<Self>, LxTask<()>)> {
+        // We need to manually trust Blockstream's CA (i.e. Google Trust
+        // Services) since we don't trust any roots by default.
+        let google_ca_cert =
+            reqwest::tls::Certificate::from_der(GOOGLE_CA_CERT_DER)
+                .context("Invalid Google CA der cert")?;
+        let reqwest_client = reqwest::ClientBuilder::new()
+            .add_root_certificate(google_ca_cert)
+            .timeout(ESPLORA_CLIENT_TIMEOUT)
+            .build()
+            .context("Failed to build reqwest client")?;
+
         // Initialize inner esplora client
-        let client = AsyncClient::from_builder(esplora_client::Builder {
-            base_url: esplora_url,
-            proxy: None,
-            // Measured in secs; see implementation of AsyncClient::from_builder
-            timeout: Some(ESPLORA_CLIENT_TIMEOUT_SECS),
-        })
-        .context("Could not build AsyncClient")?;
+        let client = AsyncClient::from_client(esplora_url, reqwest_client);
 
         // Initialize the fee rate estimates to some sane default values
         let high_prio_fees = AtomicU32::new(5000);
