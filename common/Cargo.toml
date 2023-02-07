@@ -139,6 +139,7 @@ proptest-derive = { optional = true, version = "0.3" }
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 # Bitcoind + electrum + esplora regtest
 # Note that electrsd reexports bitcoind and electrum-client in its crate root.
+# Note that this crate is additionally declared in the non-SGX dev dependencies.
 # TODO(max): Upgrade to bitcoind 23_0 once flakiness is fixed:
 # https://github.com/RCasatta/bitcoind/issues/101
 # https://github.com/RCasatta/bitcoind/issues/85
@@ -186,6 +187,8 @@ sgx-panic-backtrace = "0.1"
 # --- DEV DEPENDENCIES, NON-SGX ONLY --- #
 
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
+# Bitcoind + electrum + esplora regtest
+electrsd = { version = "0.22", features = [ "bitcoind_22_0", "esplora_a33e97e1", "legacy" ] }
 # Include additional useful proptest features when testing outside of SGX
 proptest = "1"
 
