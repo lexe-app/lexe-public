@@ -1,3 +1,5 @@
+use std::include_bytes;
+
 use rcgen::{DistinguishedName, DnType};
 
 use crate::api::ports::Port;
@@ -46,3 +48,14 @@ pub fn lexe_distinguished_name_prefix() -> DistinguishedName {
     name.push(DnType::OrganizationName, "lexe-tech");
     name
 }
+
+/// The certificate for Google Trust Services, i.e. blockstream.info's CA. Since
+/// we trust 0 roots by default, it is necessary to include this cert in our TLS
+/// config whenever we make a request to blockstream.info. For added security,
+/// don't use the GTS-trusting [`reqwest::Client`] for requests to other sites.
+// Not Valid Before=Thursday, June 18, 2020 at 5:00:42 PM Pacific Daylight Time
+// Not Valid After=Thursday, January 27, 2028 at 4:00:42 PM Pacific Standard
+// Time Tip: You can see the full human-readable cert info with macOS Quick
+// Look.
+pub const GOOGLE_CA_CERT_DER: &[u8] =
+    include_bytes!("../data/google-trust-services-ca-cert.der");
