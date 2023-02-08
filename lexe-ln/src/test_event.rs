@@ -77,7 +77,7 @@ impl TestEventSender {
     pub fn send(&self, event: TestEvent) {
         cfg_if! {
             if #[cfg(any(test, not(target_env = "sgx")))] {
-                self.tx.try_send(event).expect("Channel was full")
+                let _ = self.tx.try_send(event);
             } else {
                 let _ = event;
             }
