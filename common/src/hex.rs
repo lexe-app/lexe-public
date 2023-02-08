@@ -6,7 +6,8 @@ use std::fmt::{self, Write};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Clone, Copy, Debug, Error, Serialize, Deserialize)]
+/// Errors which can be produced while decoding a hex string.
+#[derive(Copy, Clone, Debug, Error, Serialize, Deserialize)]
 pub enum DecodeError {
     #[error("hex decode error: output buffer length != half input length")]
     BadOutputLength,
@@ -18,73 +19,28 @@ pub enum DecodeError {
     OddInputLength,
 }
 
-// --- HexDisplay utility --- //
-
-pub struct HexDisplay<'a>(&'a [u8]);
-
-impl<'a> fmt::Display for HexDisplay<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for byte in self.0 {
-            write!(f, "{byte:02x}")?
-        }
-        Ok(())
-    }
-}
-
-impl<'a> fmt::Debug for HexDisplay<'a> {
-    #[inline]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "\"{self}\"")
-    }
-}
-
-#[inline]
-pub fn display(bytes: &[u8]) -> HexDisplay<'_> {
-    HexDisplay(bytes)
-}
-
-// --- FromHex trait --- //
-
-/// A trait to deserialize something from a hex-encoded string slice.
-pub trait FromHex: Sized {
-    fn from_hex(s: &str) -> Result<Self, DecodeError>;
-}
-
-impl FromHex for Vec<u8> {
-    fn from_hex(s: &str) -> Result<Self, DecodeError> {
-        decode(s)
-    }
-}
-
-impl FromHex for Cow<'_, [u8]> {
-    fn from_hex(s: &str) -> Result<Self, DecodeError> {
-        decode(s).map(Cow::Owned)
-    }
-}
-
-impl<const N: usize> FromHex for [u8; N] {
-    fn from_hex(s: &str) -> Result<Self, DecodeError> {
-        let mut out = [0u8; N];
-        decode_to_slice(s, out.as_mut_slice())?;
-        Ok(out)
-    }
-}
-
 // --- Public functions --- //
 
+/// Convert a byte slice to an owned hex string. If you simply need to display a
+/// byte slice as hex, use [`display`] instead, which avoids the allocation.
 pub fn encode(bytes: &[u8]) -> String {
     let mut res = String::with_capacity(bytes.len() * 2);
     write!(&mut res, "{}", display(bytes)).unwrap();
     res
 }
 
+/// Try to decode a hex string to owned bytes (`Vec<u8>`).
 pub fn decode(hex: &str) -> Result<Vec<u8>, DecodeError> {
     let hex_chunks = hex_str_to_chunks(hex)?;
     let mut out = vec![0u8; hex_chunks.len()];
     decode_to_slice_inner(hex_chunks, &mut out).map(|()| out)
 }
 
-/// A `const fn` for decoding a hex string at compile time.
+/// A `const fn` to decode a hex string to a fixed-length array at compile time.
+/// Panics if the input was not a valid hex string.
+///
+/// To decode to a fixed-length array without panicking on invalid inputs, use
+/// the [`FromHex`] trait instead, e.g. `<[u8; 32]>::from_hex(&s)`.
 pub const fn decode_const<const N: usize>(hex: &[u8]) -> [u8; N] {
     if hex.len() != N * 2 {
         panic!("hex input is the wrong length");
@@ -111,6 +67,7 @@ pub const fn decode_const<const N: usize>(hex: &[u8]) -> [u8; N] {
     bytes
 }
 
+/// Decodes a hex string into an output buffer.
 pub fn decode_to_slice(hex: &str, out: &mut [u8]) -> Result<(), DecodeError> {
     let hex_chunks = hex_str_to_chunks(hex)?;
     decode_to_slice_inner(hex_chunks, out)
@@ -125,6 +82,82 @@ pub fn decode_to_slice_ct(
     // TODO(phlip9): make this actually constant time
     // https://github.com/RustCrypto/formats/blob/master/base16ct/src/lib.rs#L97
     decode_to_slice(hex, out)
+}
+
+/// Get a [`HexDisplay`] which provides a `Debug` and `Display` impl for the
+/// given byte slice. Useful for displaying a hex value without allocating.
+///
+/// Example:
+///
+/// ```
+/// use common::hex;
+/// let bytes = [69u8; 32];
+/// println!("Bytes as hex: {}", hex::display(&bytes));
+/// ```
+#[inline]
+pub fn display(bytes: &[u8]) -> HexDisplay<'_> {
+    HexDisplay(bytes)
+}
+
+// --- FromHex trait --- //
+
+/// A trait to deserialize something from a hex-encoded string slice.
+///
+/// Examples:
+///
+/// ```
+/// # use std::borrow::Cow;
+/// use common::hex::FromHex;
+/// let s = String::from("e7f51d925349a26f742e6eef3670f489aaf14fbbb5b5c3f209892f2f1baae1c9");
+///
+/// <Vec<u8>>::from_hex(&s).unwrap();
+/// <Cow<'_, [u8]>>::from_hex(&s).unwrap();
+/// <[u8; 32]>::from_hex(&s).unwrap();
+/// ```
+pub trait FromHex: Sized {
+    fn from_hex(s: &str) -> Result<Self, DecodeError>;
+}
+
+impl FromHex for Vec<u8> {
+    fn from_hex(s: &str) -> Result<Self, DecodeError> {
+        decode(s)
+    }
+}
+
+impl FromHex for Cow<'_, [u8]> {
+    fn from_hex(s: &str) -> Result<Self, DecodeError> {
+        decode(s).map(Cow::Owned)
+    }
+}
+
+impl<const N: usize> FromHex for [u8; N] {
+    fn from_hex(s: &str) -> Result<Self, DecodeError> {
+        let mut out = [0u8; N];
+        decode_to_slice(s, out.as_mut_slice())?;
+        Ok(out)
+    }
+}
+
+// --- HexDisplay implementation --- //
+
+/// Provides `Debug` and `Display` impls for a byte slice.
+/// Useful for displaying hex value without allocating via [`encode`].
+pub struct HexDisplay<'a>(&'a [u8]);
+
+impl<'a> fmt::Display for HexDisplay<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for byte in self.0 {
+            write!(f, "{byte:02x}")?
+        }
+        Ok(())
+    }
+}
+
+impl<'a> fmt::Debug for HexDisplay<'a> {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "\"{self}\"")
+    }
 }
 
 // --- Internal helpers --- //
