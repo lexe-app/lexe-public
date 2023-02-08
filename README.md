@@ -57,15 +57,11 @@ CC_x86_64-fortanix-unknown-sgx = "x86_64-unknown-linux-gnu-gcc"
 AR_x86_64-fortanix-unknown-sgx = "x86_64-unknown-linux-gnu-ar"
 ```
 
-Clone the monorepo
-
-```bash
-$ git clone https://github.com/lexe-tech/client
-$ cd client
-```
-
 If running the node or running tests in SGX, install our runners:
 ```bash
+# Clone the repo if not already cloned
+$ git clone https://github.com/lexe-tech/public
+$ cd public
 $ cargo install --path run-sgx
 ```
 
@@ -88,15 +84,28 @@ Build the node for SGX
 $ cargo build --bin node --target=x86_64-fortanix-unknown-sgx
 ```
 
+See node help
+
+```bash
+cargo run --bin node -- run --help
+```
+
 Run the node (add `--target=x86_64-fortanix-unknown-sgx` if running in SGX)
 ```bash
-cargo run --bin node -- run \
+cargo run --bin [--target=x86_64-fortanix-unknown-sgx] node -- run \
     --user-pk <user-pk> \
-    --bitcoind-rpc <user>:<pass>@<bitcoindrpchost>:<bitcoindrpcport> \
     [--owner-port <owner-port>] \
     [--host-port <host-port>] \
     [--peer-port <peer-port>] \
-    [--network mainnet|testnet|regtest|signet] \
+    --network <network> \
+    [--shutdown-after-sync-if-no-activity] \
+    [--inactivity-time-sec <inactivity-timer-sec>] \
+    [--repl] \
+    [--backend-url <backend-url>] \
+    [--runner-url <runner-url>] \
+    [--esplora-url <esplora-url>] \
+    --lsp <lsp> \
+    [--node-dns-name <node-dns-name>] \
     [--mock]
 ```
 - If running in SGX, make sure that you are running on real Intel hardware with
