@@ -9,6 +9,105 @@ members = [
     "run-sgx",
 ]
 
+[workspace.dependencies]
+# Use this section to declare dependencies used across many lexe crates.
+# Lexe crates can then inherit the dependency using `workspace = true`.
+# This makes it easier to keep dependency versions in sync. More info:
+# https://doc.rust-lang.org/cargo/reference/workspaces.html#the-dependencies-table
+
+# --- BITCOIN --- #
+
+bitcoin = "0.29"
+bitcoin-bech32 = "0.12"
+
+# --- LIGHTNING --- #
+
+lightning = { version = "0.0.113", features = ["max_level_trace"] }
+lightning-invoice = { version = "0.21" }
+lightning-net-tokio = { version = "0.0.113" }
+# TODO(max): Switch to crates.io once LDK #1870 is merged
+# lightning-transaction-sync = { version = "0.0.113", features = ["esplora-async"] }
+lightning-transaction-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-with-fix-with-tx-sync-v2", features = ["esplora-async"] }
+
+# --- GENERAL --- #
+
+# Ad hoc error definition, easy error propagation, error chains
+anyhow = "1"
+# Derive-based command line argument parsing
+argh = "0.1"
+# async fn's in trait methods
+async-trait = "0.1"
+# Converting to/from base 64.
+base64 = "0.13"
+# Abstractions for working with bytes
+bytes = "1"
+# Write #[cfg(..)] if-else statements without repeating clauses
+cfg-if = "1"
+# Allows setting environment variables using a .env file.
+# dotenvy is a better maintained fork of dotenv
+dotenvy = "0.15"
+# common HTTP types
+http = "0.2"
+# Utils for working with futures
+futures = "0.3"
+# Lazy initialization
+once_cell = "1"
+# Property-based testing
+proptest = { version = "1", default-features = false }
+# Arbitrary derive macro
+proptest-derive = "0.3"
+# Easily generate x509 certs with ring
+rcgen = { version = "0.10", default-features = false }
+# High-level HTTP client
+reqwest = { version = "0.11", default-features = false }
+# TLS library
+rustls = { version = "0.20", default-features = false }
+# A wrapper type for carefully handling secrets
+secrecy = "0.8"
+# Serialization / deserialization framework
+serde = { version = "1", features = ["derive"] }
+serde_with = { version = "2", default-features = false }
+serde_json = "1"
+serde_qs = "0.10"
+# Easy error definition
+thiserror = "1"
+# Lower-level async TLS interface
+tokio-rustls = { version = "0.23", default-features = false }
+# Scoped, structured logging for asynchronous systems
+tracing = "0.1"
+tracing-core = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false }
+
+# --- SGX-PATCHED DEPENDENCIES --- #
+# Use this section to declare dependencies which we have patched, and for which
+# we thus expect to maintain our patch indefinitely.
+# - See the following [patch.crates-io] section for patch declarations.
+# - The version specified should be the exact version compatible with our patch.
+# - Transitive dependencies (such as hyper, mio, ring, etc) which are not
+#   depended on directly by Lexe crates should also be declared here; the
+#   pinned version will be propagated to Lexe crates via workspace-level
+#   dependency resolution.
+
+# A client for the Intel AESM service. Used during attestation to get quoted.
+aesm-client = { version = "=0.5.4", default-features = false, features = ["sgxs"] }
+# SGX Quote types
+dcap-ql = { version = "=0.3.4", default-features = false }
+# Fortanix EDP crate for running SGX applications, includes usercall extensions
+enclave-runner = { version = "=0.5.1", default-features = false }
+# Low-level HTTP server
+hyper = { version = "=0.14.18", default-features = false }
+# Required by tokio
+mio = "=0.8.4"
+# Safe and small crypto primitives based on BoringSSL
+ring = "=0.16.20"
+# Core SGX types and platform intrinsics (for sealing, reports, etc...)
+sgx-isa = "=0.4.0"
+sgxs-loaders = "=0.3.3"
+# Asynchronous runtime
+tokio = { version = "=1.21.2", default-features = false }
+# Filter-based webserver
+warp = { version = "=0.3.2", default-features = false }
+
 [patch.crates-io]
 # NOTE: Make sure to duplicate any changes to the `server`'s root Cargo.toml,
 # otherwise the `server`'s dependency versions won't match.
@@ -23,7 +122,11 @@ reqwest = { git = "https://github.com/lexe-tech/reqwest", branch = "lexe" }
 ring = { git = "https://github.com/lexe-tech/ring", branch = "support-sgx-0.16.20" }
 sgx-isa = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 sgxs-loaders = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
-tokio = { git = "https://github.com/lexe-tech/tokio",  branch = "tokio-sgx-1.21.2" }
+tokio = { git = "https://github.com/lexe-tech/tokio", branch = "tokio-sgx-1.21.2" }
+# This warp fork:
+# (1) Implements Reply for Result<impl Reply, impl Reply>
+# (2) Allows setting a prebuilt rustls TLS server config
+warp = { git = "https://github.com/lexe-tech/warp", branch = "lexe" }
 
 # This BDK fork:
 # 1) Derives PartialEq, Eq for SyncTime, used in tests
