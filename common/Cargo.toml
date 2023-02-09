@@ -13,73 +13,65 @@ edition = "2021"
 [dependencies]
 # --- BITCOIN --- #
 
-bitcoin = { version = "0.29", features = ["std", "serde"] }
-bitcoin-bech32 = "0.12"
-base64 = "0.13.0"
+bitcoin = { workspace = true, features = ["serde"] }
+bitcoin-bech32.workspace = true
+base64.workspace = true
 # TODO(max): Use feature "zeroize" once the authors release a version > 1.0.1
 bip39 = { version = "1", features = [] }
 
 # --- LIGHTNING --- #
 
-lightning = { version = "0.0.113", features = ["max_level_trace"] }
-lightning-invoice = { version = "0.21" }
-# lightning-net-tokio = { version = "0.0.113" }
-# lightning-transaction-sync = { version = "0.0.113" }
-# lightning-transaction-sync = { version = "0.0.113", features = ["esplora-async"] }
+lightning.workspace = true
+lightning-invoice.workspace = true
+# lightning-net-tokio.workspace = true
+# lightning-transaction-sync.workspace = true
+
+# --- WORKSPACE --- #
+
+anyhow.workspace = true
+argh.workspace = true
+async-trait.workspace = true
+bytes.workspace = true
+cfg-if.workspace = true
+dcap-ql.workspace = true
+futures.workspace = true
+http.workspace = true
+once_cell.workspace = true
+rcgen.workspace = true
+reqwest = { workspace = true, features = ["json", "rustls-tls-manual-roots"] }
+rustls = { workspace = true, features = ["dangerous_configuration"] }
+ring.workspace = true
+secrecy.workspace = true
+serde.workspace = true
+serde_with = { workspace = true, features = ["macros"] }
+serde_qs.workspace = true
+serde_json.workspace = true
+sgx-isa.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = [
+    "io-util",
+    "macros",
+    "rt",
+    "sync",
+    "time"
+] }
+tracing = "0.1"
+warp = { workspace = true, features = ["tls"] }
 
 # --- GENERAL --- #
 
-# Ad hoc error definition, easy error propagation, error chains
-anyhow = "1"
-# Derive-based command line argument parsing
-argh = "0.1"
-# async fn's in trait methods
-async-trait = "0.1"
 # Binary canonical serialization format
 bcs = "0.1"
-# Working with bytes
-bytes = "1"
-# Conveniently write #[cfg(..)] if-else statements without repeating clauses
-cfg-if = "1"
-# Utils for working with futures
-futures = "0.3"
-# Used to specify the HTTP methods used to interact with the API
-http = "0.2"
 # Small conversion from fixed ECDSA signature to ASN.1 format
 num-bigint = { version = "0.4", default-features = false, features = [] }
-# Lazily parse the Intel SGX Root CA cert
-once_cell = "1"
 # Core rand traits for generating randomness
 rand_core = { version = "0.6.3", default-features = false, features = ["alloc"] }
-# Easily generate x509 certs with ring
-rcgen = { version = "0.10", default-features = false, features = [] }
 # Safely cast &T to &U when T is a single field new-type
 ref-cast = "1"
-# Used to make HTTP requests to the API
-reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls-manual-roots"] }
-# TLS library
-rustls = { version = "0.20", default-features = false, features = [
-    "dangerous_configuration",
-] }
 # Deserialize PEM certs
 rustls-pemfile = "1"
-# A wrapper type for carefully handling secrets
-secrecy = "0.8"
-# Serialization / deserialization framework
-serde = { version = "1", features = ["derive"] }
-serde_with = { version = "2", default-features = false, features = ["macros"] }
-serde_qs = "0"
-serde_json = "1"
 # Const SHA256 hash
 sha2-const = "0"
-# Easy error definition
-thiserror = "1"
-# Logging
-tracing = "0.1"
-# Filter-based webserver
-# NOTE: This branch implements (1) Reply for Result<impl Reply, impl Reply> and
-#       (2) allows setting a prebuilt rustls TLS server config
-warp = { git = "https://github.com/lexe-tech/warp", branch = "lexe", default-features = false, features = ["tls"] }
 # Verify x509 certificates
 webpki = "0.22"
 # Parsing x509 cert extensions
@@ -89,30 +81,6 @@ x509-parser = { version = "0.14", default-features = false }
 asn1-rs = { version = "0.5", default-features = false }
 # For constructing/parsing ASN.1 data in x509 certs
 yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
-
-# --- PATCHED DEPENDENCIES --- #
-# - Be sure to use the specific patched versions.
-# - See the workspace Cargo.toml for patch declarations.
-# - The versions for transitive dependencies (such as hyper, mio, ring, etc) are
-#   declared in `common`'s Cargo.toml and propagated to other crates by
-#   workspace-level dependency resolution.
-
-# SGX Quote types
-dcap-ql = { version = "=0.3.4", default-features = false, features = [] }
-hyper = { version = "=0.14.18", default-features = false }
-mio = "=0.8.4"
-# Safe and small crypto primitives based on BoringSSL
-ring = "=0.16.20"
-# Core SGX types
-sgx-isa = "=0.4.0"
-
-tokio = { version = "=1.21.2", default-features = false, features = [
-    "io-util",
-    "macros",
-    "rt",
-    "sync",
-    "time"
-] }
 
 # --- DEPENDENCIES USED ONLY WITHIN SGX --- #
 
@@ -132,7 +100,7 @@ cmac = { version = "0.7", features = ["std", "zeroize"] }
 # in both sections so that this ALL CAPS block can remain contiguous.
 
 # property based testing
-proptest = { optional = true, version = "1", default-features = false, features = ["alloc"] }
+proptest = { optional = true, workspace = true, features = ["alloc"] }
 # Arbitrary derive macro
 proptest-derive = { optional = true, version = "0.3" }
 
@@ -144,10 +112,10 @@ proptest-derive = { optional = true, version = "0.3" }
 # https://github.com/RCasatta/bitcoind/issues/101
 # https://github.com/RCasatta/bitcoind/issues/85
 electrsd = { optional = true, version = "0.22", features = [ "bitcoind_22_0", "esplora_a33e97e1", "legacy" ] }
-# Include additional useful proptest features when testing outside of SGX
-proptest = { optional = true, version = "1" }
+# Include std impls when testing outside of SGX
+proptest = { optional = true, workspace = true, features = ["std"] }
 # Arbitrary derive macro
-proptest-derive = { optional = true, version = "0.3" }
+proptest-derive = { optional = true, workspace = true }
 
 [features]
 # Explicitly specify that no features should be enabled by default.
@@ -158,14 +126,10 @@ test-utils = ["dep:electrsd", "dep:proptest", "dep:proptest-derive"]
 # --- DEV DEPENDENCIES, ALL PLATFORMS --- #
 
 [dev-dependencies]
-# property based testing
-proptest = { version = "1", default-features = false, features = ["alloc"] }
-# Arbitrary derive macro
-proptest-derive = "0.3"
-# Testing serde
-serde_json = "1"
-# Enable test-util feature in tests
-tokio = { version = "=1.21.2", default-features = false, features = [
+proptest = { workspace = true, features = ["alloc"] }
+proptest-derive.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = [
     "io-util",
     "macros",
     "rt",
@@ -173,8 +137,7 @@ tokio = { version = "=1.21.2", default-features = false, features = [
     "test-util",
     "time"
 ] }
-# lower-level async TLS interface
-tokio-rustls = { version = "0.23", default-features = false }
+tokio-rustls.workspace = true
 # Utilities for testing futures
 tokio-test = "0.4"
 
@@ -189,8 +152,6 @@ sgx-panic-backtrace = "0.1"
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Bitcoind + electrum + esplora regtest
 electrsd = { version = "0.22", features = [ "bitcoind_22_0", "esplora_a33e97e1", "legacy" ] }
-# Include additional useful proptest features when testing outside of SGX
-proptest = "1"
 
 # --- FORTANIX EDP CONFIGURATION --- #
 
