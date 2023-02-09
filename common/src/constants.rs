@@ -59,3 +59,14 @@ pub fn lexe_distinguished_name_prefix() -> DistinguishedName {
 // Look.
 pub const GOOGLE_CA_CERT_DER: &[u8] =
     include_bytes!("../data/google-trust-services-ca-cert.der");
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn google_ca_cert_der_parses() {
+        use reqwest::tls::Certificate;
+        Certificate::from_der(GOOGLE_CA_CERT_DER).unwrap();
+    }
+}
