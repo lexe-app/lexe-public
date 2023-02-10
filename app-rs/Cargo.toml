@@ -25,10 +25,12 @@ crate-type = [
 ]
 
 [dependencies]
-flutter_rust_bridge = { version = "1", default-features = false, features = [] }
+# Specifies minor version (1.61) because 1.62 generates broken code
+flutter_rust_bridge = { version = "1.61", default-features = false, features = [] }
 
 [dev-dependencies]
 
 [build-dependencies]
 # env_logger = { version = "0", default-features = false }
-flutter_rust_bridge_codegen = { version = "1", default-features = false, features = [] }
+# Specifies minor version (1.61) because 1.62 generates broken code
+flutter_rust_bridge_codegen = { version = "1.61", default-features = false, features = [] }
