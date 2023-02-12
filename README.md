@@ -100,7 +100,6 @@ cargo run --bin [--target=x86_64-fortanix-unknown-sgx] node -- run \
     --network <network> \
     [--shutdown-after-sync-if-no-activity] \
     [--inactivity-time-sec <inactivity-timer-sec>] \
-    [--repl] \
     [--backend-url <backend-url>] \
     [--runner-url <runner-url>] \
     [--esplora-url <esplora-url>] \

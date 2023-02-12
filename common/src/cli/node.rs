@@ -92,11 +92,6 @@ pub struct RunArgs {
     #[argh(option, short = 'i', default = "3600")]
     pub inactivity_timer_sec: u64,
 
-    /// whether to start the REPL, for debugging purposes. Only takes effect if
-    /// the node is run outside of SGX.
-    #[argh(switch)]
-    pub repl: bool,
-
     /// protocol://host:port of the backend.
     #[argh(option, default = "DEFAULT_BACKEND_URL.to_owned()")]
     pub backend_url: String,
@@ -139,7 +134,6 @@ impl Default for RunArgs {
             network: Network::default(),
             shutdown_after_sync_if_no_activity: false,
             inactivity_timer_sec: 3600,
-            repl: false,
             node_dns_name: NODE_RUN_DNS.to_owned(),
             backend_url: DEFAULT_BACKEND_URL.to_owned(),
             runner_url: DEFAULT_RUNNER_URL.to_owned(),
@@ -184,9 +178,6 @@ impl RunArgs {
         }
         if self.mock {
             cmd.arg("--mock");
-        }
-        if self.repl {
-            cmd.arg("--repl");
         }
         if let Some(owner_port) = self.owner_port {
             cmd.arg("--owner-port").arg(&owner_port.to_string());

@@ -16,5 +16,4 @@ mod api;
 mod event_handler;
 mod inactivity_timer;
 mod provision;
-mod repl;
 mod server;
