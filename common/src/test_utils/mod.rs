@@ -10,6 +10,12 @@ pub mod regtest;
 /// Quickly create roundtrip proptest for various serialization schemes.
 pub mod roundtrip;
 
+// Dummy values for some commonly appearing fields
+pub const DUMMY_BACKEND_URL: &str = "http://127.0.0.1:3030";
+pub const DUMMY_GATEWAY_URL: &str = "http://127.0.0.1:4040";
+pub const DUMMY_RUNNER_URL: &str = "http://127.0.0.1:5050";
+pub const DUMMY_ESPLORA_URL: &str = "http://127.0.0.1:7070";
+
 /// Returns an ephemeral port assigned by the OS which should be available for
 /// the next ~60s after this function is called
 pub fn get_ephemeral_port() -> Port {
