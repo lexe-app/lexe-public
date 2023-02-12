@@ -8,10 +8,7 @@ use proptest_derive::Arbitrary;
 use crate::api::ports::Port;
 use crate::api::UserPk;
 use crate::cli::Network;
-use crate::constants::{
-    DEFAULT_BACKEND_URL, DEFAULT_ESPLORA_URL, DEFAULT_RUNNER_URL,
-    NODE_PROVISION_DNS, NODE_RUN_DNS,
-};
+use crate::constants::{NODE_PROVISION_DNS, NODE_RUN_DNS};
 use crate::ln::peer::ChannelPeer;
 
 /// Commands accepted by the user node.
@@ -93,15 +90,15 @@ pub struct RunArgs {
     pub inactivity_timer_sec: u64,
 
     /// protocol://host:port of the backend.
-    #[argh(option, default = "DEFAULT_BACKEND_URL.to_owned()")]
+    #[argh(option)]
     pub backend_url: String,
 
     /// protocol://host:port of the runner.
-    #[argh(option, default = "DEFAULT_RUNNER_URL.to_owned()")]
+    #[argh(option)]
     pub runner_url: String,
 
     /// protocol://host:port of Lexe's Esplora server.
-    #[argh(option, default = "DEFAULT_ESPLORA_URL.to_owned()")]
+    #[argh(option)]
     pub esplora_url: String,
 
     /// the <node_pk>@<sock_addr> of the LSP.
@@ -126,6 +123,9 @@ impl Default for RunArgs {
     /// `Option<T>` fields are not required by the node, and use node defaults.
     fn default() -> Self {
         use crate::ln::peer::DUMMY_LSP;
+        use crate::test_utils::{
+            DUMMY_BACKEND_URL, DUMMY_ESPLORA_URL, DUMMY_RUNNER_URL,
+        };
         Self {
             user_pk: UserPk::from_u64(1), // Test user
             owner_port: None,
@@ -135,9 +135,9 @@ impl Default for RunArgs {
             shutdown_after_sync_if_no_activity: false,
             inactivity_timer_sec: 3600,
             node_dns_name: NODE_RUN_DNS.to_owned(),
-            backend_url: DEFAULT_BACKEND_URL.to_owned(),
-            runner_url: DEFAULT_RUNNER_URL.to_owned(),
-            esplora_url: DEFAULT_ESPLORA_URL.to_owned(),
+            backend_url: DUMMY_BACKEND_URL.to_owned(),
+            runner_url: DUMMY_RUNNER_URL.to_owned(),
+            esplora_url: DUMMY_ESPLORA_URL.to_owned(),
             lsp: DUMMY_LSP.clone(),
             mock: false,
         }
@@ -208,11 +208,11 @@ pub struct ProvisionArgs {
     pub node_dns_name: String,
 
     /// protocol://host:port of the backend.
-    #[argh(option, default = "DEFAULT_BACKEND_URL.to_owned()")]
+    #[argh(option)]
     pub backend_url: String,
 
     /// protocol://host:port of the runner.
-    #[argh(option, default = "DEFAULT_RUNNER_URL.to_owned()")]
+    #[argh(option)]
     pub runner_url: String,
 
     /// the port on which to accept a provision request from the client.
@@ -223,12 +223,13 @@ pub struct ProvisionArgs {
 #[cfg(any(test, feature = "test-utils"))]
 impl Default for ProvisionArgs {
     fn default() -> Self {
+        use crate::test_utils::{DUMMY_BACKEND_URL, DUMMY_RUNNER_URL};
         Self {
             user_pk: UserPk::from_u64(1), // Test user
             node_dns_name: "provision.lexe.tech".to_owned(),
             port: None,
-            backend_url: DEFAULT_BACKEND_URL.to_owned(),
-            runner_url: DEFAULT_RUNNER_URL.to_owned(),
+            backend_url: DUMMY_BACKEND_URL.to_owned(),
+            runner_url: DUMMY_RUNNER_URL.to_owned(),
         }
     }
 }
