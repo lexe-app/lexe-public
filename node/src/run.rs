@@ -532,26 +532,6 @@ impl UserNode {
 
         // --- Run --- //
 
-        // Start the REPL if it was specified to start in the CLI args.
-        #[cfg(not(target_env = "sgx"))]
-        if self.args.repl {
-            debug!("Starting REPL");
-            crate::repl::poll_for_user_input(
-                self.invoice_payer,
-                self.peer_manager.clone(),
-                self.channel_manager,
-                self.keys_manager,
-                self.network_graph,
-                self.outbound_payments,
-                self.persister,
-                self.args.lsp.node_pk,
-                self.args.network,
-                self.channel_peer_tx,
-            )
-            .await;
-            debug!("REPL complete.");
-        }
-
         let mut tasks = self
             .tasks
             .into_iter()
