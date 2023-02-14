@@ -1,6 +1,7 @@
 use std::time::Duration;
 use std::{cmp, env};
 
+use anyhow::Context;
 use bitcoin::hash_types::PubkeyHash;
 use bitcoin::hashes::Hash;
 use bitcoin::network::constants::Network;
@@ -77,9 +78,12 @@ impl Regtest {
     }
 
     /// Kills the underlying [`ElectrsD`] and [`BitcoinD`] processes.
-    pub fn kill(&mut self) {
-        self.bitcoind.stop().expect("Failed to kill off bitcoind");
-        self.electrsd.kill().expect("Failed to kill off electrsd");
+    pub fn kill(&mut self) -> anyhow::Result<()> {
+        let electrsd_res = self.electrsd.kill();
+        let bitcoind_res = self.bitcoind.stop();
+        bitcoind_res.context("Could not kill bitcoind")?;
+        electrsd_res.context("Could not kill electrsd")?;
+        Ok(())
     }
 
     /// Get the esplora URL, e.g. `http://0.0.0.0:59416`
