@@ -40,25 +40,6 @@ class AppRsImpl implements AppRs {
         argNames: [],
       );
 
-  Future<void> testMethodMethodAppHandle(
-      {required AppHandle that, dynamic hint}) {
-    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
-    return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) =>
-          _platform.inner.wire_test_method__method__AppHandle(port_, arg0),
-      parseSuccessData: _wire2api_unit,
-      constMeta: kTestMethodMethodAppHandleConstMeta,
-      argValues: [that],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kTestMethodMethodAppHandleConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "test_method__method__AppHandle",
-        argNames: ["that"],
-      );
-
   Future<AppHandle?> loadStaticMethodAppHandle(
       {required Config config, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_config(config);
@@ -117,10 +98,37 @@ class AppRsImpl implements AppRs {
         argNames: ["config"],
       );
 
+  Future<void> testMethodMethodAppHandle(
+      {required AppHandle that, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) =>
+          _platform.inner.wire_test_method__method__AppHandle(port_, arg0),
+      parseSuccessData: _wire2api_unit,
+      constMeta: kTestMethodMethodAppHandleConstMeta,
+      argValues: [that],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kTestMethodMethodAppHandleConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "test_method__method__AppHandle",
+        argNames: ["that"],
+      );
+
+  DropFnType get dropOpaqueApp => _platform.inner.drop_opaque_App;
+  ShareFnType get shareOpaqueApp => _platform.inner.share_opaque_App;
+  OpaqueTypeFinalizer get AppFinalizer => _platform.AppFinalizer;
+
   void dispose() {
     _platform.dispose();
   }
 // Section: wire2api
+
+  App _wire2api_App(dynamic raw) {
+    return App.fromRaw(raw[0], raw[1], this);
+  }
 
   AppHandle _wire2api_app_handle(dynamic raw) {
     final arr = raw as List<dynamic>;
@@ -128,7 +136,7 @@ class AppRsImpl implements AppRs {
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
     return AppHandle(
       bridge: this,
-      instanceId: _wire2api_i32(arr[0]),
+      inner: _wire2api_App(arr[0]),
     );
   }
 
@@ -198,6 +206,13 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
 // Section: api2wire
 
   @protected
+  wire_App api2wire_App(App raw) {
+    final ptr = inner.new_App();
+    _api_fill_to_wire_App(raw, ptr);
+    return ptr;
+  }
+
+  @protected
   ffi.Pointer<wire_uint_8_list> api2wire_String(String raw) {
     return api2wire_uint_8_list(utf8.encoder.convert(raw));
   }
@@ -224,10 +239,17 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   }
 // Section: finalizer
 
+  late final OpaqueTypeFinalizer _AppFinalizer =
+      OpaqueTypeFinalizer(inner._drop_opaque_AppPtr);
+  OpaqueTypeFinalizer get AppFinalizer => _AppFinalizer;
 // Section: api_fill_to_wire
 
+  void _api_fill_to_wire_App(App apiObj, wire_App wireObj) {
+    wireObj.ptr = apiObj.shareOrMove();
+  }
+
   void _api_fill_to_wire_app_handle(AppHandle apiObj, wire_AppHandle wireObj) {
-    wireObj.instance_id = api2wire_i32(apiObj.instanceId);
+    wireObj.inner = api2wire_App(apiObj.inner);
   }
 
   void _api_fill_to_wire_box_autoadd_app_handle(
@@ -352,24 +374,6 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _wire_regtest__static_method__ConfigPtr
           .asFunction<WireSyncReturn Function()>();
 
-  void wire_test_method__method__AppHandle(
-    int port_,
-    ffi.Pointer<wire_AppHandle> that,
-  ) {
-    return _wire_test_method__method__AppHandle(
-      port_,
-      that,
-    );
-  }
-
-  late final _wire_test_method__method__AppHandlePtr = _lookup<
-          ffi.NativeFunction<
-              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>)>>(
-      'wire_test_method__method__AppHandle');
-  late final _wire_test_method__method__AppHandle =
-      _wire_test_method__method__AppHandlePtr
-          .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
-
   void wire_load__static_method__AppHandle(
     int port_,
     ffi.Pointer<wire_Config> config,
@@ -428,6 +432,32 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _wire_signup__static_method__AppHandlePtr
           .asFunction<void Function(int, ffi.Pointer<wire_Config>)>();
 
+  void wire_test_method__method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_AppHandle> that,
+  ) {
+    return _wire_test_method__method__AppHandle(
+      port_,
+      that,
+    );
+  }
+
+  late final _wire_test_method__method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>)>>(
+      'wire_test_method__method__AppHandle');
+  late final _wire_test_method__method__AppHandle =
+      _wire_test_method__method__AppHandlePtr
+          .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
+
+  wire_App new_App() {
+    return _new_App();
+  }
+
+  late final _new_AppPtr =
+      _lookup<ffi.NativeFunction<wire_App Function()>>('new_App');
+  late final _new_App = _new_AppPtr.asFunction<wire_App Function()>();
+
   ffi.Pointer<wire_AppHandle> new_box_autoadd_app_handle_0() {
     return _new_box_autoadd_app_handle_0();
   }
@@ -463,6 +493,35 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _new_uint_8_list_0 = _new_uint_8_list_0Ptr
       .asFunction<ffi.Pointer<wire_uint_8_list> Function(int)>();
 
+  void drop_opaque_App(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _drop_opaque_App(
+      ptr,
+    );
+  }
+
+  late final _drop_opaque_AppPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
+          'drop_opaque_App');
+  late final _drop_opaque_App =
+      _drop_opaque_AppPtr.asFunction<void Function(ffi.Pointer<ffi.Void>)>();
+
+  ffi.Pointer<ffi.Void> share_opaque_App(
+    ffi.Pointer<ffi.Void> ptr,
+  ) {
+    return _share_opaque_App(
+      ptr,
+    );
+  }
+
+  late final _share_opaque_AppPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<ffi.Void> Function(
+              ffi.Pointer<ffi.Void>)>>('share_opaque_App');
+  late final _share_opaque_App = _share_opaque_AppPtr
+      .asFunction<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>();
+
   void free_WireSyncReturn(
     WireSyncReturn ptr,
   ) {
@@ -480,11 +539,6 @@ class AppRsWire implements FlutterRustBridgeWireBase {
 
 class _Dart_Handle extends ffi.Opaque {}
 
-class wire_AppHandle extends ffi.Struct {
-  @ffi.Int32()
-  external int instance_id;
-}
-
 class wire_Config extends ffi.Struct {
   @ffi.Int32()
   external int build_variant;
@@ -498,6 +552,14 @@ class wire_uint_8_list extends ffi.Struct {
 
   @ffi.Int32()
   external int len;
+}
+
+class wire_App extends ffi.Struct {
+  external ffi.Pointer<ffi.Void> ptr;
+}
+
+class wire_AppHandle extends ffi.Struct {
+  external wire_App inner;
 }
 
 typedef DartPostCObjectFnType = ffi.Pointer<

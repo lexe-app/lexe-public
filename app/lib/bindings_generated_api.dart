@@ -12,11 +12,6 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kRegtestStaticMethodConfigConstMeta;
 
-  Future<void> testMethodMethodAppHandle(
-      {required AppHandle that, dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kTestMethodMethodAppHandleConstMeta;
-
   Future<AppHandle?> loadStaticMethodAppHandle(
       {required Config config, dynamic hint});
 
@@ -31,21 +26,40 @@ abstract class AppRs {
       {required Config config, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kSignupStaticMethodAppHandleConstMeta;
+
+  Future<void> testMethodMethodAppHandle(
+      {required AppHandle that, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kTestMethodMethodAppHandleConstMeta;
+
+  DropFnType get dropOpaqueApp;
+  ShareFnType get shareOpaqueApp;
+  OpaqueTypeFinalizer get AppFinalizer;
+}
+
+@sealed
+class App extends FrbOpaque {
+  final AppRs bridge;
+  App.fromRaw(int ptr, int size, this.bridge) : super.unsafe(ptr, size);
+  @override
+  DropFnType get dropFn => bridge.dropOpaqueApp;
+
+  @override
+  ShareFnType get shareFn => bridge.shareOpaqueApp;
+
+  @override
+  OpaqueTypeFinalizer get staticFinalizer => bridge.AppFinalizer;
 }
 
 /// The `AppHandle` is a Dart representation of a current [`App`] instance.
 class AppHandle {
   final AppRs bridge;
-  final int instanceId;
+  final App inner;
 
   AppHandle({
     required this.bridge,
-    required this.instanceId,
+    required this.inner,
   });
-
-  Future<void> testMethod({dynamic hint}) => bridge.testMethodMethodAppHandle(
-        that: this,
-      );
 
   static Future<AppHandle?> load(
           {required AppRs bridge, required Config config, dynamic hint}) =>
@@ -62,6 +76,10 @@ class AppHandle {
   static Future<AppHandle> signup(
           {required AppRs bridge, required Config config, dynamic hint}) =>
       bridge.signupStaticMethodAppHandle(config: config, hint: hint);
+
+  Future<void> testMethod({dynamic hint}) => bridge.testMethodMethodAppHandle(
+        that: this,
+      );
 }
 
 enum BuildVariant {
