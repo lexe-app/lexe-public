@@ -362,7 +362,7 @@ impl UserNode {
             keys_manager.clone(),
             invoice_payer.clone(),
             outbound_payments.clone(),
-            args.lsp.node_pk,
+            args.lsp.clone(),
             args.network,
             activity_tx,
         );

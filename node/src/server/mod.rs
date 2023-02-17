@@ -16,8 +16,8 @@ use common::api::command::GetInvoiceRequest;
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::qs::GetByUserPk;
 use common::api::rest::{into_response, into_succ_response};
-use common::api::{NodePk, UserPk};
-use common::cli::Network;
+use common::api::UserPk;
+use common::cli::{LspInfo, Network};
 use common::ln::invoice::LxInvoice;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
@@ -60,7 +60,7 @@ pub(crate) fn owner_routes(
     keys_manager: LexeKeysManager,
     invoice_payer: Arc<InvoicePayerType>,
     outbound_payments: PaymentInfoStorageType,
-    lsp_node_pk: NodePk,
+    lsp_info: LspInfo,
     network: Network,
     activity_tx: mpsc::Sender<()>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
@@ -92,7 +92,7 @@ pub(crate) fn owner_routes(
         .and(inject::channel_manager(channel_manager))
         .and(inject::keys_manager(keys_manager))
         .and(inject::get_invoice_caller(GetInvoiceCaller::UserNode {
-            lsp_node_pk,
+            lsp_info,
         }))
         .and(inject::network(network))
         .and(warp::body::json::<GetInvoiceRequest>())

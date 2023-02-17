@@ -6,7 +6,7 @@ use bitcoin::bech32::ToBase32;
 use bitcoin::hashes::{sha256, Hash};
 use common::api::command::{GetInvoiceRequest, NodeInfo};
 use common::api::NodePk;
-use common::cli::Network;
+use common::cli::{LspInfo, Network};
 use common::ln::invoice::LxInvoice;
 use lightning::chain::keysinterface::{NodeSigner, Recipient};
 use lightning::ln::channelmanager::MIN_FINAL_CLTV_EXPIRY;
@@ -26,13 +26,13 @@ use crate::traits::{
 /// Specifies whether it is the user node or the LSP calling the [`get_invoice`]
 /// fn. There are some differences between how the user node and LSP
 /// generate invoices which this tiny enum makes clearer.
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub enum GetInvoiceCaller {
-    /// When a user node calls [`get_invoice`], it must provide the LSP's
-    /// `NodePk`, since it may need to generate a [`RouteHintHop`] for
-    /// receiving a payment over a JIT channel with the LSP.
+    /// When a user node calls [`get_invoice`], it must provide an [`LspInfo`],
+    /// which is required for generating a [`RouteHintHop`] for receiving a
+    /// payment over a JIT channel with the LSP.
     UserNode {
-        lsp_node_pk: NodePk,
+        lsp_info: LspInfo,
     },
     Lsp,
 }
@@ -283,27 +283,10 @@ where
     // There were no valid routes. If we have our LSP's NodePk, generate a hint
     // with an intercept scid so that our LSP can open a JIT channel to us.
     match caller {
-        GetInvoiceCaller::UserNode { lsp_node_pk } => {
+        GetInvoiceCaller::UserNode { lsp_info } => {
             debug!("Included intercept hint in invoice");
             let short_channel_id = channel_manager.get_intercept_scid();
-            let hop_hint = RouteHintHop {
-                src_node_id: lsp_node_pk.0,
-                short_channel_id,
-
-                // NOTE: Hack; these values are copied from the LSP's
-                // UserConfig. These should be passed in via CLI args, but this
-                // requires a chain of changes going all the way up to the
-                // runner's CLI args, which need to be cleaned up first.
-                // TODO(max): Populate these values via CLI arg
-                fees: RoutingFees {
-                    base_msat: 0,
-                    proportional_millionths: 3000,
-                },
-                cltv_expiry_delta: 72,
-                htlc_minimum_msat: Some(1),
-                htlc_maximum_msat: Some(u64::MAX),
-            };
-
+            let hop_hint = lsp_info.route_hint_hop(short_channel_id);
             vec![RouteHint(vec![hop_hint])]
         }
         Lsp => {
