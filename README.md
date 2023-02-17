@@ -60,8 +60,8 @@ AR_x86_64-fortanix-unknown-sgx = "x86_64-unknown-linux-gnu-ar"
 If running the node or running tests in SGX, install our runners:
 ```bash
 # Clone the repo if not already cloned
-$ git clone https://github.com/lexe-tech/public
-$ cd public
+$ git clone https://github.com/lexe-tech/lexe-public
+$ cd lexe-public
 $ cargo install --path run-sgx
 ```
 
@@ -98,17 +98,22 @@ cargo run --bin [--target=x86_64-fortanix-unknown-sgx] node -- run \
     [--host-port <host-port>] \
     [--peer-port <peer-port>] \
     --network <network> \
-    [--shutdown-after-sync-if-no-activity] \
-    [--inactivity-time-sec <inactivity-timer-sec>] \
-    [--backend-url <backend-url>] \
-    [--runner-url <runner-url>] \
-    [--esplora-url <esplora-url>] \
-    --lsp <lsp> \
+    [-s | --shutdown-after-sync-if-no-activity] \
+    [-i | --inactivity-time-sec <inactivity-timer-sec>] \
+    --backend-url <backend-url> \
+    --runner-url <runner-url> \
+    --esplora-url <esplora-url> \
+    --lsp <lsp-info> \
     [--node-dns-name <node-dns-name>] \
-    [--mock]
+    [-m | --mock]
 ```
 - If running in SGX, make sure that you are running on real Intel hardware with
   SGX enabled.
+- The node may fail to run if one or more Lexe services are missing. You may try
+  running the node with `--mock`, which uses a mock API client instead of a real
+  one to simulate the required API calls, passing dummy values to other CLI args
+  where appropriate. Note, however, that this functionality is provided on a
+  best-effort basis and is not tested (or used) regularly by Lexe devs.
 
 See full CLI options with:
 - `cargo run --bin node -- help`
