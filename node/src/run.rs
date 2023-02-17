@@ -510,7 +510,7 @@ impl UserNode {
 
         // We connect to the LSP only *after* we have completed init and sync;
         // it is our signal to the LSP that we are ready to receive messages.
-        let add_lsp = ChannelPeerUpdate::Add(self.args.lsp.clone());
+        let add_lsp = ChannelPeerUpdate::Add(self.args.lsp.channel_peer());
         if let Err(e) = self.channel_peer_tx.try_send(add_lsp) {
             error!("Could not notify p2p reconnector to connect to LSP: {e:#}");
         }

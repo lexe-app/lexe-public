@@ -7,9 +7,8 @@ use proptest_derive::Arbitrary;
 
 use crate::api::ports::Port;
 use crate::api::UserPk;
-use crate::cli::Network;
+use crate::cli::{LspInfo, Network};
 use crate::constants::{NODE_PROVISION_DNS, NODE_RUN_DNS};
-use crate::ln::peer::ChannelPeer;
 
 /// Commands accepted by the user node.
 #[derive(Clone, Debug, Eq, PartialEq, FromArgs)]
@@ -105,7 +104,7 @@ pub struct RunArgs {
     #[argh(option)]
     // XXX(max): We need to verify this somehow; otherwise the node may accept
     // channels from someone pretending to be Lexe.
-    pub lsp: ChannelPeer,
+    pub lsp: LspInfo,
 
     /// the DNS name the node enclave should include in its remote attestation
     /// certificate and the client will expect in its connection
@@ -122,9 +121,9 @@ impl Default for RunArgs {
     /// Non-`Option<T>` fields are required by the node, with no node defaults.
     /// `Option<T>` fields are not required by the node, and use node defaults.
     fn default() -> Self {
-        use crate::ln::peer::DUMMY_LSP;
         use crate::test_utils::{
-            DUMMY_BACKEND_URL, DUMMY_ESPLORA_URL, DUMMY_RUNNER_URL,
+            DUMMY_BACKEND_URL, DUMMY_ESPLORA_URL, DUMMY_LSP_INFO,
+            DUMMY_RUNNER_URL,
         };
         Self {
             user_pk: UserPk::from_u64(1), // Test user
@@ -138,7 +137,7 @@ impl Default for RunArgs {
             backend_url: DUMMY_BACKEND_URL.to_owned(),
             runner_url: DUMMY_RUNNER_URL.to_owned(),
             esplora_url: DUMMY_ESPLORA_URL.to_owned(),
-            lsp: DUMMY_LSP.clone(),
+            lsp: DUMMY_LSP_INFO.clone(),
             mock: false,
         }
     }

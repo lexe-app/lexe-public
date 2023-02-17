@@ -4,8 +4,8 @@ use std::time::Duration;
 use anyhow::{anyhow, Context};
 use bitcoin::secp256k1::Secp256k1;
 use common::api::NodePk;
+use common::cli::LspInfo;
 use common::hex;
-use common::ln::peer::ChannelPeer;
 use common::shutdown::ShutdownChannel;
 use common::task::{BlockingTaskRt, LxTask};
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
@@ -27,7 +27,7 @@ use crate::channel_manager::NodeChannelManager;
 // We pub(crate) all the fields to prevent having to specify each field two more
 // times in Self::new parameters and in struct init syntax.
 pub struct NodeEventHandler {
-    pub(crate) lsp: ChannelPeer,
+    pub(crate) lsp: LspInfo,
     pub(crate) wallet: LexeWallet,
     pub(crate) channel_manager: NodeChannelManager,
     pub(crate) keys_manager: LexeKeysManager,
@@ -109,7 +109,7 @@ impl EventHandler for NodeEventHandler {
 // TODO(max): Make this non-async by spawning tasks instead
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn handle_event(
-    lsp: &ChannelPeer,
+    lsp: &LspInfo,
     wallet: &LexeWallet,
     channel_manager: &NodeChannelManager,
     esplora: &LexeEsplora,
@@ -141,7 +141,7 @@ pub(crate) async fn handle_event(
 
 #[allow(clippy::too_many_arguments)]
 async fn handle_event_fallible(
-    lsp: &ChannelPeer,
+    lsp: &LspInfo,
     wallet: &LexeWallet,
     channel_manager: &NodeChannelManager,
     esplora: &LexeEsplora,
