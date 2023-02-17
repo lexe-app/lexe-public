@@ -1,15 +1,17 @@
 use std::fmt::{self, Display};
+use std::net::SocketAddr;
 use std::str::FromStr;
 
-use anyhow::ensure;
+use anyhow::{ensure, Context};
 use bitcoin::blockdata::constants;
 use bitcoin::hash_types::BlockHash;
+use lightning::routing::gossip::RoutingFees;
+use lightning::routing::router::RouteHintHop;
 use lightning_invoice::Currency;
-#[cfg(any(test, feature = "test-utils"))]
-use proptest::arbitrary::Arbitrary;
-#[cfg(any(test, feature = "test-utils"))]
-use proptest::strategy::{BoxedStrategy, Just, Strategy};
 use serde::{Deserialize, Serialize};
+
+use crate::api::NodePk;
+use crate::ln::peer::ChannelPeer;
 
 /// User node CLI args.
 pub mod node;
@@ -32,6 +34,24 @@ pub const SIGNET_NETWORK: Network = Network(bitcoin::Network::Signet);
 /// - Regtest <-> "regtest"
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Network(pub bitcoin::Network);
+
+/// Information about the LSP which the user node needs to connect and to
+/// generate route hints when no channel exists.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LspInfo {
+    // - ChannelPeer fields - //
+    pub node_pk: NodePk,
+    pub addr: SocketAddr,
+    // - RoutingFees fields - //
+    pub base_msat: u32,
+    pub proportional_millionths: u32,
+    // - RouteHintHop fields - //
+    pub cltv_expiry_delta: u16,
+    pub htlc_minimum_msat: u64,
+    pub htlc_maximum_msat: u64,
+}
+
+// --- impl Network --- //
 
 impl Network {
     pub fn to_inner(self) -> bitcoin::Network {
@@ -111,43 +131,137 @@ impl From<Network> for Currency {
     }
 }
 
-#[cfg(any(test, feature = "test-utils"))]
-impl Arbitrary for Network {
-    type Parameters = ();
-    type Strategy = BoxedStrategy<Self>;
+// --- impl LspInfo --- //
 
-    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        proptest::prop_oneof! {
-            // TODO: Mainnet is disabled for now
-            // Just(Network(bitcoin::Network::Bitcoin)),
-            Just(Network(bitcoin::Network::Testnet)),
-            Just(Network(bitcoin::Network::Regtest)),
-            Just(Network(bitcoin::Network::Signet)),
+impl LspInfo {
+    pub fn channel_peer(&self) -> ChannelPeer {
+        ChannelPeer {
+            node_pk: self.node_pk,
+            addr: self.addr,
         }
-        .boxed()
+    }
+
+    pub fn route_hint_hop(&self, short_channel_id: u64) -> RouteHintHop {
+        RouteHintHop {
+            src_node_id: self.node_pk.0,
+            short_channel_id,
+            fees: RoutingFees {
+                base_msat: self.base_msat,
+                proportional_millionths: self.proportional_millionths,
+            },
+            cltv_expiry_delta: self.cltv_expiry_delta,
+            htlc_minimum_msat: Some(self.htlc_minimum_msat),
+            htlc_maximum_msat: Some(self.htlc_maximum_msat),
+        }
+    }
+}
+
+impl FromStr for LspInfo {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s).context("Invalid JSON")
+    }
+}
+
+impl Display for LspInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let json_str = serde_json::to_string(&self)
+            .expect("Does not contain map with non-string keys");
+        write!(f, "{json_str}")
+    }
+}
+
+// --- Arbitrary impls --- //
+
+#[cfg(any(test, feature = "test-utils"))]
+mod arbitrary {
+    use proptest::arbitrary::Arbitrary;
+    use proptest::strategy::{BoxedStrategy, Just, Strategy};
+
+    use super::*;
+
+    impl Arbitrary for Network {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            proptest::prop_oneof! {
+                // TODO: Mainnet is disabled for now
+                // Just(Network(bitcoin::Network::Bitcoin)),
+                Just(Network(bitcoin::Network::Testnet)),
+                Just(Network(bitcoin::Network::Regtest)),
+                Just(Network(bitcoin::Network::Signet)),
+            }
+            .boxed()
+        }
+    }
+}
+
+#[cfg(all(any(test, feature = "test-utils"), not(target_env = "sgx")))]
+mod arbitrary_not_sgx {
+    use proptest::arbitrary::{any, Arbitrary};
+    use proptest::strategy::{BoxedStrategy, Strategy};
+
+    use super::*;
+    use crate::test_utils::arbitrary;
+
+    impl Arbitrary for LspInfo {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (
+                any::<NodePk>(),
+                arbitrary::any_socket_addr(),
+                any::<u16>(),
+                any::<u64>(),
+                any::<u64>(),
+                any::<u32>(),
+                any::<u32>(),
+            )
+                .prop_map(
+                    |(
+                        node_pk,
+                        addr,
+                        cltv_expiry_delta,
+                        htlc_minimum_msat,
+                        htlc_maximum_msat,
+                        base_msat,
+                        proportional_millionths,
+                    )| {
+                        Self {
+                            node_pk,
+                            addr,
+                            cltv_expiry_delta,
+                            htlc_minimum_msat,
+                            htlc_maximum_msat,
+                            base_msat,
+                            proportional_millionths,
+                        }
+                    },
+                )
+                .boxed()
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test_utils::roundtrip;
 
     #[test]
-    fn test_network_roundtrip() {
-        // TODO: Mainnet is disabled for now
-        // let mainnet1 = Network(bitcoin::Network::Bitcoin);
-        let testnet1 = Network(bitcoin::Network::Testnet);
-        let regtest1 = Network(bitcoin::Network::Regtest);
-        let signet1 = Network(bitcoin::Network::Signet);
+    fn network_roundtrip() {
+        roundtrip::fromstr_display_roundtrip_proptest::<Network>();
+    }
+}
 
-        // let mainnet2 = Network::from_str(&mainnet1.to_string()).unwrap();
-        let testnet2 = Network::from_str(&testnet1.to_string()).unwrap();
-        let regtest2 = Network::from_str(&regtest1.to_string()).unwrap();
-        let signet2 = Network::from_str(&signet1.to_string()).unwrap();
+#[cfg(all(test, not(target_env = "sgx")))]
+mod test_notsgx {
+    use super::*;
+    use crate::test_utils::roundtrip;
 
-        // assert_eq!(mainnet1, mainnet2);
-        assert_eq!(testnet1, testnet2);
-        assert_eq!(regtest1, regtest2);
-        assert_eq!(signet1, signet2);
+    #[test]
+    fn lsp_info_roundtrip() {
+        roundtrip::fromstr_display_roundtrip_proptest::<LspInfo>();
     }
 }
