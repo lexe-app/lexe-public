@@ -7,6 +7,7 @@ import 'package:lexeapp/cfg.dart';
 
 import '../bindings.dart' show api;
 import 'backup_wallet.dart' show BackupWalletPage;
+import '../bindings_generated_api.dart' show AppHandle;
 
 class LandingPage extends StatelessWidget {
   const LandingPage({super.key});
@@ -181,8 +182,9 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
 
     // disable button
     setState(() => _disableButton = true);
+    final AppHandle app;
     try {
-      await api.appSignup(config: config);
+      app = await AppHandle.signup(bridge: api, config: config);
     } catch (err) {
       setState(() => _disableButton = false);
       // ScaffoldMessenger.of(context)
@@ -198,7 +200,7 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
     if (context.mounted) {
       Navigator.of(context).pushReplacement(MaterialPageRoute(
         maintainState: false,
-        builder: (BuildContext _) => const BackupWalletPage(),
+        builder: (BuildContext _) => BackupWalletPage(app: app),
       ));
     }
   }

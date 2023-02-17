@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'route/landing.dart' show LandingPage;
 
 import 'bindings.dart' show api;
-import 'bindings_generated_api.dart' show Config;
+import 'bindings_generated_api.dart' show Config, AppHandle;
 
 Future<void> main() async {
   // TODO: load initial state
@@ -15,13 +15,15 @@ Future<void> main() async {
   // );
 
   final config = Config.regtest(bridge: api);
-  final haveWallet = await api.appLoad(config: config);
+  final maybeApp = await AppHandle.load(bridge: api, config: config);
 
   final Widget child;
-  if (haveWallet) {
-    // TODO
+  if (maybeApp != null) {
+    // final app = maybeApp!;
+    // TODO: already have wallet persisted
     child = const SizedBox();
   } else {
+    // no wallet persisted => first run -> show landing
     child = const LandingPage();
   }
 
