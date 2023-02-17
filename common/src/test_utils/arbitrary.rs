@@ -1,3 +1,6 @@
+#[cfg(not(target_env = "sgx"))]
+use std::net::SocketAddr;
+
 use bitcoin::blockdata::{opcodes, script};
 use bitcoin::hashes::Hash;
 use bitcoin::{
@@ -161,4 +164,22 @@ pub fn any_txid() -> impl Strategy<Value = Txid> {
 /// An `Arbitrary`-like [`Strategy`] for a [`OutPoint`].
 pub fn any_outpoint() -> impl Strategy<Value = OutPoint> {
     (any_txid(), any::<u32>()).prop_map(|(txid, vout)| OutPoint { txid, vout })
+}
+
+/// An `Arbitrary`-like [`Strategy`] for [`SocketAddr`]s which are guaranteed to
+/// roundtrip via the `FromStr` / `Display` impls. Useful when implementing
+/// `Arbitrary` for structs that contain a [`SocketAddr`] field and whose
+/// `FromStr` / `Display` impls must roundtrip.
+// [`SocketAddr`]'s `FromStr` / `Display` impls fail to roundtrip due to the
+// IPv6 flowinfo field (which we don't care about) not being represented in
+// serialized form. To fix this, we simply set the flowinfo field to 0 if we
+// detect that the socket address is an IPv6n address.
+#[cfg(not(target_env = "sgx"))]
+pub fn any_socket_addr() -> impl Strategy<Value = SocketAddr> {
+    any::<SocketAddr>().prop_map(|mut addr| {
+        if let SocketAddr::V6(inner) = &mut addr {
+            inner.set_flowinfo(0);
+        }
+        addr
+    })
 }

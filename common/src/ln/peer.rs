@@ -67,24 +67,17 @@ mod test {
     use super::*;
     use crate::rng::WeakRng;
     use crate::root_seed::RootSeed;
-    use crate::test_utils::roundtrip;
+    use crate::test_utils::{arbitrary, roundtrip};
 
     impl Arbitrary for ChannelPeer {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<WeakRng>(), any::<SocketAddr>())
-                .prop_map(|(mut rng, mut addr)| {
+            (any::<WeakRng>(), arbitrary::any_socket_addr())
+                .prop_map(|(mut rng, addr)| {
                     let root_seed = RootSeed::from_rng(&mut rng);
                     let node_pk = root_seed.derive_node_pk(&mut rng);
-
-                    // Hack to prevent the IPv6 flowinfo field (which we don't
-                    // care about) from causing the equality check to fail
-                    if let SocketAddr::V6(inner) = &mut addr {
-                        inner.set_flowinfo(0);
-                    }
-
                     Self { node_pk, addr }
                 })
                 .boxed()
