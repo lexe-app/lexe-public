@@ -198,6 +198,15 @@ fn lexe_verifier(
     Ok(lexe_verifier)
 }
 
+// TODO(phlip9): need to replace this when we get the Lexe CA certs wired
+// through
+pub fn dummy_lexe_ca_cert() -> rustls::Certificate {
+    let dns_names = vec!["localhost".to_owned()];
+    let cert_params = rcgen::CertificateParams::new(dns_names);
+    let fake_lexe_cert = rcgen::Certificate::from_params(cert_params).unwrap();
+    rustls::Certificate(fake_lexe_cert.serialize_der().unwrap())
+}
+
 // -- impl ServerCertVerifier -- //
 
 impl rustls::client::ServerCertVerifier for ServerCertVerifier {

@@ -43,6 +43,132 @@ fn wire_hello_async_impl(port_: MessagePort) {
         move || move |task_callback| Ok(hello_async()),
     )
 }
+fn wire_app_load_impl(
+    port_: MessagePort,
+    config: impl Wire2Api<Config> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
+        WrapInfo {
+            debug_name: "app_load",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_config = config.wire2api();
+            move |task_callback| app_load(api_config)
+        },
+    )
+}
+fn wire_app_recover_impl(
+    port_: MessagePort,
+    config: impl Wire2Api<Config> + UnwindSafe,
+    seed_phrase: impl Wire2Api<String> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
+        WrapInfo {
+            debug_name: "app_recover",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_config = config.wire2api();
+            let api_seed_phrase = seed_phrase.wire2api();
+            move |task_callback| app_recover(api_config, api_seed_phrase)
+        },
+    )
+}
+fn wire_app_signup_impl(
+    port_: MessagePort,
+    config: impl Wire2Api<Config> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
+        WrapInfo {
+            debug_name: "app_signup",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_config = config.wire2api();
+            move |task_callback| app_signup(api_config)
+        },
+    )
+}
+fn wire_regtest__static_method__Config_impl() -> support::WireSyncReturn {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
+        WrapInfo {
+            debug_name: "regtest__static_method__Config",
+            port: None,
+            mode: FfiCallMode::Sync,
+        },
+        move || Ok(Config::regtest()),
+    )
+}
+fn wire_test_method__method__AppHandle_impl(
+    port_: MessagePort,
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
+        WrapInfo {
+            debug_name: "test_method__method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_that = that.wire2api();
+            move |task_callback| AppHandle::test_method(&api_that)
+        },
+    )
+}
+fn wire_load__static_method__AppHandle_impl(
+    port_: MessagePort,
+    config: impl Wire2Api<Config> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
+        WrapInfo {
+            debug_name: "load__static_method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_config = config.wire2api();
+            move |task_callback| AppHandle::load(api_config)
+        },
+    )
+}
+fn wire_recover__static_method__AppHandle_impl(
+    port_: MessagePort,
+    config: impl Wire2Api<Config> + UnwindSafe,
+    seed_phrase: impl Wire2Api<String> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
+        WrapInfo {
+            debug_name: "recover__static_method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_config = config.wire2api();
+            let api_seed_phrase = seed_phrase.wire2api();
+            move |task_callback| AppHandle::recover(api_config, api_seed_phrase)
+        },
+    )
+}
+fn wire_signup__static_method__AppHandle_impl(
+    port_: MessagePort,
+    config: impl Wire2Api<Config> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
+        WrapInfo {
+            debug_name: "signup__static_method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_config = config.wire2api();
+            move |task_callback| AppHandle::signup(api_config)
+        },
+    )
+}
 // Section: wrapper structs
 
 // Section: static checks
@@ -65,7 +191,76 @@ where
         (!self.is_null()).then(|| self.wire2api())
     }
 }
+
+impl Wire2Api<BuildVariant> for i32 {
+    fn wire2api(self) -> BuildVariant {
+        match self {
+            0 => BuildVariant::Production,
+            1 => BuildVariant::Staging,
+            2 => BuildVariant::Development,
+            _ => unreachable!("Invalid variant for BuildVariant: {}", self),
+        }
+    }
+}
+
+impl Wire2Api<i32> for i32 {
+    fn wire2api(self) -> i32 {
+        self
+    }
+}
+impl Wire2Api<Network> for i32 {
+    fn wire2api(self) -> Network {
+        match self {
+            0 => Network::Bitcoin,
+            1 => Network::Testnet,
+            2 => Network::Regtest,
+            _ => unreachable!("Invalid variant for Network: {}", self),
+        }
+    }
+}
+impl Wire2Api<u8> for u8 {
+    fn wire2api(self) -> u8 {
+        self
+    }
+}
+
 // Section: impl IntoDart
+
+impl support::IntoDart for AppHandle {
+    fn into_dart(self) -> support::DartAbi {
+        vec![self.instance_id.into_dart()].into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for AppHandle {}
+
+impl support::IntoDart for BuildVariant {
+    fn into_dart(self) -> support::DartAbi {
+        match self {
+            Self::Production => 0,
+            Self::Staging => 1,
+            Self::Development => 2,
+        }
+        .into_dart()
+    }
+}
+impl support::IntoDart for Config {
+    fn into_dart(self) -> support::DartAbi {
+        vec![self.build_variant.into_dart(), self.network.into_dart()]
+            .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for Config {}
+
+impl support::IntoDart for Network {
+    fn into_dart(self) -> support::DartAbi {
+        match self {
+            Self::Bitcoin => 0,
+            Self::Testnet => 1,
+            Self::Regtest => 2,
+        }
+        .into_dart()
+    }
+}
 
 // Section: executor
 
@@ -88,13 +283,153 @@ mod io {
         wire_hello_async_impl(port_)
     }
 
+    #[no_mangle]
+    pub extern "C" fn wire_app_load(port_: i64, config: *mut wire_Config) {
+        wire_app_load_impl(port_, config)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_app_recover(
+        port_: i64,
+        config: *mut wire_Config,
+        seed_phrase: *mut wire_uint_8_list,
+    ) {
+        wire_app_recover_impl(port_, config, seed_phrase)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_app_signup(port_: i64, config: *mut wire_Config) {
+        wire_app_signup_impl(port_, config)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_regtest__static_method__Config(
+    ) -> support::WireSyncReturn {
+        wire_regtest__static_method__Config_impl()
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_test_method__method__AppHandle(
+        port_: i64,
+        that: *mut wire_AppHandle,
+    ) {
+        wire_test_method__method__AppHandle_impl(port_, that)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_load__static_method__AppHandle(
+        port_: i64,
+        config: *mut wire_Config,
+    ) {
+        wire_load__static_method__AppHandle_impl(port_, config)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_recover__static_method__AppHandle(
+        port_: i64,
+        config: *mut wire_Config,
+        seed_phrase: *mut wire_uint_8_list,
+    ) {
+        wire_recover__static_method__AppHandle_impl(port_, config, seed_phrase)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_signup__static_method__AppHandle(
+        port_: i64,
+        config: *mut wire_Config,
+    ) {
+        wire_signup__static_method__AppHandle_impl(port_, config)
+    }
+
     // Section: allocate functions
+
+    #[no_mangle]
+    pub extern "C" fn new_box_autoadd_app_handle_0() -> *mut wire_AppHandle {
+        support::new_leak_box_ptr(wire_AppHandle::new_with_null_ptr())
+    }
+
+    #[no_mangle]
+    pub extern "C" fn new_box_autoadd_config_0() -> *mut wire_Config {
+        support::new_leak_box_ptr(wire_Config::new_with_null_ptr())
+    }
+
+    #[no_mangle]
+    pub extern "C" fn new_uint_8_list_0(len: i32) -> *mut wire_uint_8_list {
+        let ans = wire_uint_8_list {
+            ptr: support::new_leak_vec_ptr(Default::default(), len),
+            len,
+        };
+        support::new_leak_box_ptr(ans)
+    }
 
     // Section: related functions
 
     // Section: impl Wire2Api
 
+    impl Wire2Api<String> for *mut wire_uint_8_list {
+        fn wire2api(self) -> String {
+            let vec: Vec<u8> = self.wire2api();
+            String::from_utf8_lossy(&vec).into_owned()
+        }
+    }
+    impl Wire2Api<AppHandle> for wire_AppHandle {
+        fn wire2api(self) -> AppHandle {
+            AppHandle {
+                instance_id: self.instance_id.wire2api(),
+            }
+        }
+    }
+    impl Wire2Api<AppHandle> for *mut wire_AppHandle {
+        fn wire2api(self) -> AppHandle {
+            let wrap = unsafe { support::box_from_leak_ptr(self) };
+            Wire2Api::<AppHandle>::wire2api(*wrap).into()
+        }
+    }
+    impl Wire2Api<Config> for *mut wire_Config {
+        fn wire2api(self) -> Config {
+            let wrap = unsafe { support::box_from_leak_ptr(self) };
+            Wire2Api::<Config>::wire2api(*wrap).into()
+        }
+    }
+
+    impl Wire2Api<Config> for wire_Config {
+        fn wire2api(self) -> Config {
+            Config {
+                build_variant: self.build_variant.wire2api(),
+                network: self.network.wire2api(),
+            }
+        }
+    }
+
+    impl Wire2Api<Vec<u8>> for *mut wire_uint_8_list {
+        fn wire2api(self) -> Vec<u8> {
+            unsafe {
+                let wrap = support::box_from_leak_ptr(self);
+                support::vec_from_leak_ptr(wrap.ptr, wrap.len)
+            }
+        }
+    }
     // Section: wire structs
+
+    #[repr(C)]
+    #[derive(Clone)]
+    pub struct wire_AppHandle {
+        instance_id: i32,
+    }
+
+    #[repr(C)]
+    #[derive(Clone)]
+    pub struct wire_Config {
+        build_variant: i32,
+        network: i32,
+    }
+
+    #[repr(C)]
+    #[derive(Clone)]
+    pub struct wire_uint_8_list {
+        ptr: *mut u8,
+        len: i32,
+    }
 
     // Section: impl NewWithNullPtr
 
@@ -105,6 +440,23 @@ mod io {
     impl<T> NewWithNullPtr for *mut T {
         fn new_with_null_ptr() -> Self {
             std::ptr::null_mut()
+        }
+    }
+
+    impl NewWithNullPtr for wire_AppHandle {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                instance_id: Default::default(),
+            }
+        }
+    }
+
+    impl NewWithNullPtr for wire_Config {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                build_variant: Default::default(),
+                network: Default::default(),
+            }
         }
     }
 

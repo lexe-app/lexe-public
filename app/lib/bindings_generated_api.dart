@@ -15,4 +15,99 @@ abstract class AppRs {
   Future<String> helloAsync({dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kHelloAsyncConstMeta;
+
+  Future<bool> appLoad({required Config config, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kAppLoadConstMeta;
+
+  Future<void> appRecover(
+      {required Config config, required String seedPhrase, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kAppRecoverConstMeta;
+
+  Future<void> appSignup({required Config config, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kAppSignupConstMeta;
+
+  Config regtestStaticMethodConfig({dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kRegtestStaticMethodConfigConstMeta;
+
+  Future<void> testMethodMethodAppHandle(
+      {required AppHandle that, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kTestMethodMethodAppHandleConstMeta;
+
+  Future<AppHandle?> loadStaticMethodAppHandle(
+      {required Config config, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kLoadStaticMethodAppHandleConstMeta;
+
+  Future<AppHandle> recoverStaticMethodAppHandle(
+      {required Config config, required String seedPhrase, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kRecoverStaticMethodAppHandleConstMeta;
+
+  Future<AppHandle> signupStaticMethodAppHandle(
+      {required Config config, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kSignupStaticMethodAppHandleConstMeta;
+}
+
+/// The `AppHandle` is a Dart representation of a current [`App`] instance.
+class AppHandle {
+  final AppRs bridge;
+  final int instanceId;
+
+  AppHandle({
+    required this.bridge,
+    required this.instanceId,
+  });
+
+  Future<void> testMethod({dynamic hint}) => bridge.testMethodMethodAppHandle(
+        that: this,
+      );
+
+  static Future<AppHandle?> load(
+          {required AppRs bridge, required Config config, dynamic hint}) =>
+      bridge.loadStaticMethodAppHandle(config: config, hint: hint);
+
+  static Future<AppHandle> recover(
+          {required AppRs bridge,
+          required Config config,
+          required String seedPhrase,
+          dynamic hint}) =>
+      bridge.recoverStaticMethodAppHandle(
+          config: config, seedPhrase: seedPhrase, hint: hint);
+
+  static Future<AppHandle> signup(
+          {required AppRs bridge, required Config config, dynamic hint}) =>
+      bridge.signupStaticMethodAppHandle(config: config, hint: hint);
+}
+
+enum BuildVariant {
+  Production,
+  Staging,
+  Development,
+}
+
+class Config {
+  final AppRs bridge;
+  final BuildVariant buildVariant;
+  final Network network;
+
+  Config({
+    required this.bridge,
+    required this.buildVariant,
+    required this.network,
+  });
+
+  static Config regtest({required AppRs bridge, dynamic hint}) =>
+      bridge.regtestStaticMethodConfig(hint: hint);
+}
+
+enum Network {
+  Bitcoin,
+  Testnet,
+  Regtest,
 }
