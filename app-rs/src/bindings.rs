@@ -48,17 +48,11 @@ use flutter_rust_bridge::SyncReturn;
 
 use crate::app::App;
 
-// TODO(phlip9): remove hello*
-
-pub fn hello() -> SyncReturn<String> {
-    SyncReturn("hello!".to_string())
-}
-
-pub fn hello_async() -> String {
-    "hello!".to_string()
-}
-
-// TODO: explain this
+// As a temporary unblock to support async fn's, we'll just block_on on a
+// thread-local current_thread runtime in each worker thread.
+//
+// This means we can only have max 4 top-level async fns running at once before
+// we block the main UI thread.
 thread_local! {
     static RUNTIME: tokio::runtime::Runtime
         = tokio::runtime::Builder::new_current_thread()
@@ -102,54 +96,6 @@ where
 {
     RUNTIME.with(|rt| rt.block_on(future))
 }
-
-// APPROACH 1: plain static functions
-
-fn assert_app_not_loaded() {
-    if APP.get().is_some() {
-        panic!("APP instance is already set!");
-    }
-}
-
-fn set_app_instance(app: App) {
-    if APP.set(app).is_err() {
-        panic!("APP instance was set while we were loading/signing up!");
-    }
-}
-
-pub fn app_load(config: Config) -> anyhow::Result<bool> {
-    block_on(async move {
-        assert_app_not_loaded();
-        App::load(config)
-            .await
-            .context("Failed to load saved App state")
-            .map(|maybe_app: Option<App>| {
-                maybe_app.map(set_app_instance).is_some()
-            })
-    })
-}
-
-pub fn app_recover(config: Config, seed_phrase: String) -> anyhow::Result<()> {
-    block_on(async move {
-        assert_app_not_loaded();
-        App::recover(config, seed_phrase)
-            .await
-            .context("Failed to recover from seed phrase")
-            .map(set_app_instance)
-    })
-}
-
-pub fn app_signup(config: Config) -> anyhow::Result<()> {
-    block_on(async move {
-        assert_app_not_loaded();
-        App::signup(config)
-            .await
-            .context("Failed to generate and signup new wallet")
-            .map(set_app_instance)
-    })
-}
-
-// APPROACH 2: dart code holds handle which has methods
 
 /// The `AppHandle` is a Dart representation of a current [`App`] instance.
 pub struct AppHandle {

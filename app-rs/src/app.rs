@@ -16,7 +16,6 @@ use secrecy::ExposeSecret;
 use crate::bindings::Config;
 use crate::secret_store::SecretStore;
 
-#[allow(dead_code)] // TODO(phlip9): remove
 pub struct App {
     instance_id: i32,
     secret_store: SecretStore,
