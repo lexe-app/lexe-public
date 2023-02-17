@@ -3,7 +3,7 @@ import 'package:integration_test/integration_test.dart'
     show IntegrationTestWidgetsFlutterBinding;
 
 import 'package:lexeapp/bindings.dart' show api;
-import 'package:lexeapp/bindings_generated_api.dart' show Config;
+import 'package:lexeapp/bindings_generated_api.dart' show Config, AppHandle;
 import 'package:lexeapp/cfg.dart' as cfg;
 
 void main() {
@@ -16,6 +16,6 @@ void main() {
   });
 
   test("fresh app has no persisted state", () async {
-    expect(await api.appLoad(config: config), false);
+    expect(await AppHandle.load(bridge: api, config: config), null);
   });
 }
