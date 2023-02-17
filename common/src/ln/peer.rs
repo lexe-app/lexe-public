@@ -3,25 +3,8 @@ use std::net::SocketAddr;
 use std::str::FromStr;
 
 use anyhow::{bail, Context};
-#[cfg(any(test, feature = "test-utils"))]
-use once_cell::sync::Lazy;
 
 use crate::api::NodePk;
-
-/// A dummy [`ChannelPeer`] pointing to a non-existent LSP which can be passed
-/// into the node during tests.
-#[cfg(any(test, feature = "test-utils"))]
-// TODO(max): Remove
-pub static DUMMY_LSP: Lazy<ChannelPeer> = Lazy::new(|| {
-    use crate::rng::WeakRng;
-    use crate::root_seed::RootSeed;
-
-    let mut rng = WeakRng::from_u64(17550281);
-    let node_pk = RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng);
-    let addr = SocketAddr::from(([127, 0, 0, 1], 42069));
-
-    ChannelPeer { node_pk, addr }
-});
 
 #[derive(Clone, Debug, Hash, Eq, PartialEq)]
 pub struct ChannelPeer {
