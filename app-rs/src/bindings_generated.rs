@@ -33,22 +33,6 @@ fn wire_regtest__static_method__Config_impl() -> support::WireSyncReturn {
         move || Ok(Config::regtest()),
     )
 }
-fn wire_test_method__method__AppHandle_impl(
-    port_: MessagePort,
-    that: impl Wire2Api<AppHandle> + UnwindSafe,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
-        WrapInfo {
-            debug_name: "test_method__method__AppHandle",
-            port: Some(port_),
-            mode: FfiCallMode::Normal,
-        },
-        move || {
-            let api_that = that.wire2api();
-            move |task_callback| AppHandle::test_method(&api_that)
-        },
-    )
-}
 fn wire_load__static_method__AppHandle_impl(
     port_: MessagePort,
     config: impl Wire2Api<Config> + UnwindSafe,
@@ -96,6 +80,22 @@ fn wire_signup__static_method__AppHandle_impl(
         move || {
             let api_config = config.wire2api();
             move |task_callback| AppHandle::signup(api_config)
+        },
+    )
+}
+fn wire_test_method__method__AppHandle_impl(
+    port_: MessagePort,
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
+        WrapInfo {
+            debug_name: "test_method__method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_that = that.wire2api();
+            move |task_callback| AppHandle::test_method(&api_that)
         },
     )
 }
@@ -158,7 +158,7 @@ impl Wire2Api<u8> for u8 {
 
 impl support::IntoDart for AppHandle {
     fn into_dart(self) -> support::DartAbi {
-        vec![self.instance_id.into_dart()].into_dart()
+        vec![self.inner.into_dart()].into_dart()
     }
 }
 impl support::IntoDartExceptPrimitive for AppHandle {}
@@ -210,14 +210,6 @@ mod io {
     }
 
     #[no_mangle]
-    pub extern "C" fn wire_test_method__method__AppHandle(
-        port_: i64,
-        that: *mut wire_AppHandle,
-    ) {
-        wire_test_method__method__AppHandle_impl(port_, that)
-    }
-
-    #[no_mangle]
     pub extern "C" fn wire_load__static_method__AppHandle(
         port_: i64,
         config: *mut wire_Config,
@@ -242,7 +234,20 @@ mod io {
         wire_signup__static_method__AppHandle_impl(port_, config)
     }
 
+    #[no_mangle]
+    pub extern "C" fn wire_test_method__method__AppHandle(
+        port_: i64,
+        that: *mut wire_AppHandle,
+    ) {
+        wire_test_method__method__AppHandle_impl(port_, that)
+    }
+
     // Section: allocate functions
+
+    #[no_mangle]
+    pub extern "C" fn new_App() -> wire_App {
+        wire_App::new_with_null_ptr()
+    }
 
     #[no_mangle]
     pub extern "C" fn new_box_autoadd_app_handle_0() -> *mut wire_AppHandle {
@@ -265,8 +270,28 @@ mod io {
 
     // Section: related functions
 
+    #[no_mangle]
+    pub extern "C" fn drop_opaque_App(ptr: *const c_void) {
+        unsafe {
+            Arc::<App>::decrement_strong_count(ptr as _);
+        }
+    }
+
+    #[no_mangle]
+    pub extern "C" fn share_opaque_App(ptr: *const c_void) -> *const c_void {
+        unsafe {
+            Arc::<App>::increment_strong_count(ptr as _);
+            ptr
+        }
+    }
+
     // Section: impl Wire2Api
 
+    impl Wire2Api<RustOpaque<App>> for wire_App {
+        fn wire2api(self) -> RustOpaque<App> {
+            unsafe { support::opaque_from_dart(self.ptr as _) }
+        }
+    }
     impl Wire2Api<String> for *mut wire_uint_8_list {
         fn wire2api(self) -> String {
             let vec: Vec<u8> = self.wire2api();
@@ -276,7 +301,7 @@ mod io {
     impl Wire2Api<AppHandle> for wire_AppHandle {
         fn wire2api(self) -> AppHandle {
             AppHandle {
-                instance_id: self.instance_id.wire2api(),
+                inner: self.inner.wire2api(),
             }
         }
     }
@@ -314,8 +339,14 @@ mod io {
 
     #[repr(C)]
     #[derive(Clone)]
+    pub struct wire_App {
+        ptr: *const core::ffi::c_void,
+    }
+
+    #[repr(C)]
+    #[derive(Clone)]
     pub struct wire_AppHandle {
-        instance_id: i32,
+        inner: wire_App,
     }
 
     #[repr(C)]
@@ -344,10 +375,18 @@ mod io {
         }
     }
 
+    impl NewWithNullPtr for wire_App {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                ptr: core::ptr::null(),
+            }
+        }
+    }
+
     impl NewWithNullPtr for wire_AppHandle {
         fn new_with_null_ptr() -> Self {
             Self {
-                instance_id: Default::default(),
+                inner: wire_App::new_with_null_ptr(),
             }
         }
     }

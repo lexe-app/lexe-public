@@ -23,30 +23,13 @@
 //!   `ZeroCopyBuffer<Vec<u8>>` from Rust, which becomes a `Uint8List` on the
 //!   Dart side without a copy, since Rust can prove there are no borrows to the
 //!   owned buffer when it's transferred.
-//!
-//! ## Important implementation details
-//!
-//! In an ideal world, we'd have an `Arc<App>` handle or something that can
-//! be passed around in the Dart code as an opaque pointer.
-//!
-//! Unfortunately, the current state of Rust<->Dart FFI doesn't make it
-//! particularly safe or ergonomic to pass _opaque_ handles across the boundary.
-//! Rather the bindings feel best when all data is _copied_ across.
-//!
-//! Our current approach then is to use... globals for long-lived state in the
-//! Rust code.
-//!
-//! Since Dart tests appear to run serially (?), this might not be too much of
-//! an issue, since we can just drop and reset the global state between each
-//! test.
 
 use std::future::Future;
-use std::sync::OnceLock;
 
 use anyhow::Context;
-use flutter_rust_bridge::SyncReturn;
+use flutter_rust_bridge::{RustOpaque, SyncReturn};
 
-use crate::app::App;
+pub use crate::app::App;
 
 // As a temporary unblock to support async fn's, we'll just block_on on a
 // thread-local current_thread runtime in each worker thread.
@@ -60,9 +43,6 @@ thread_local! {
         .build()
         .expect("Failed to build thread's tokio Runtime");
 }
-
-// see top module comment
-static APP: OnceLock<App> = OnceLock::new();
 
 pub enum BuildVariant {
     Production,
@@ -99,43 +79,22 @@ where
 
 /// The `AppHandle` is a Dart representation of a current [`App`] instance.
 pub struct AppHandle {
-    pub instance_id: i32,
+    pub inner: RustOpaque<App>,
 }
 
 impl AppHandle {
-    fn assert_no_instance() {
-        if APP.get().is_some() {
-            panic!("APP instance is already set!");
+    fn new(app: App) -> Self {
+        Self {
+            inner: RustOpaque::new(app),
         }
-    }
-
-    fn set_instance(app: App) -> Self {
-        let instance_id = app.instance_id();
-        if APP.set(app).is_err() {
-            panic!("APP instance was set while we were loading/signing up!");
-        }
-        Self { instance_id }
-    }
-
-    fn instance(&self) -> &'static App {
-        let app = APP.get().expect("There is no loaded APP instance yet!");
-        assert_eq!(app.instance_id(), self.instance_id);
-        app
-    }
-
-    // TODO(phlip9): dummy method to test method codegen. remove.
-    pub fn test_method(&self) -> anyhow::Result<()> {
-        self.instance().test_method()
     }
 
     pub fn load(config: Config) -> anyhow::Result<Option<AppHandle>> {
-        Self::assert_no_instance();
-
         block_on(async move {
-            App::load(config)
+            Ok(App::load(config)
                 .await
-                .context("Failed to load saved App state")
-                .map(|maybe_app: Option<App>| maybe_app.map(Self::set_instance))
+                .context("Failed to load saved App state")?
+                .map(AppHandle::new))
         })
     }
 
@@ -143,24 +102,25 @@ impl AppHandle {
         config: Config,
         seed_phrase: String,
     ) -> anyhow::Result<AppHandle> {
-        Self::assert_no_instance();
-
         block_on(async move {
             App::recover(config, seed_phrase)
                 .await
                 .context("Failed to recover from seed phrase")
-                .map(Self::set_instance)
+                .map(Self::new)
         })
     }
 
     pub fn signup(config: Config) -> anyhow::Result<AppHandle> {
-        Self::assert_no_instance();
-
         block_on(async move {
             App::signup(config)
                 .await
                 .context("Failed to generate and signup new wallet")
-                .map(Self::set_instance)
+                .map(Self::new)
         })
+    }
+
+    // TODO(phlip9): dummy method to test method codegen. remove.
+    pub fn test_method(&self) -> anyhow::Result<()> {
+        self.inner.test_method()
     }
 }

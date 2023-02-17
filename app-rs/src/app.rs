@@ -1,4 +1,3 @@
-use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::Arc;
 
 use anyhow::Context;
@@ -18,22 +17,11 @@ use crate::secret_store::SecretStore;
 
 #[allow(dead_code)] // TODO: remove
 pub struct App {
-    instance_id: i32,
     secret_store: SecretStore,
     node_client: NodeClient,
 }
 
 impl App {
-    fn next_instance_id() -> i32 {
-        static INSTANCE_ID_COUNTER: AtomicI32 = AtomicI32::new(0);
-        INSTANCE_ID_COUNTER.fetch_add(1, Ordering::Relaxed)
-    }
-
-    #[inline]
-    pub fn instance_id(&self) -> i32 {
-        self.instance_id
-    }
-
     pub fn test_method(&self) -> anyhow::Result<()> {
         Ok(())
     }
@@ -148,7 +136,6 @@ impl App {
         // info!("node_client.provision() success");
 
         Ok(Self {
-            instance_id: Self::next_instance_id(),
             secret_store,
             node_client,
         })

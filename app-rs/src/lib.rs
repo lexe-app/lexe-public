@@ -7,8 +7,6 @@
 #![allow(non_camel_case_types)]
 // Allow this in generated code
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
-// std OnceCell
-#![feature(once_cell)]
 
 /// The high-level flutter/rust interface.
 pub mod bindings;
