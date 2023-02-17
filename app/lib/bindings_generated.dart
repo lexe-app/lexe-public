@@ -24,91 +24,6 @@ class AppRsImpl implements AppRs {
   factory AppRsImpl.wasm(FutureOr<WasmModule> module) =>
       AppRsImpl(module as ExternalLibrary);
   AppRsImpl.raw(this._platform);
-  String hello({dynamic hint}) {
-    return _platform.executeSync(FlutterRustBridgeSyncTask(
-      callFfi: () => _platform.inner.wire_hello(),
-      parseSuccessData: _wire2api_String,
-      constMeta: kHelloConstMeta,
-      argValues: [],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kHelloConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "hello",
-        argNames: [],
-      );
-
-  Future<String> helloAsync({dynamic hint}) {
-    return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_hello_async(port_),
-      parseSuccessData: _wire2api_String,
-      constMeta: kHelloAsyncConstMeta,
-      argValues: [],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kHelloAsyncConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "hello_async",
-        argNames: [],
-      );
-
-  Future<bool> appLoad({required Config config, dynamic hint}) {
-    var arg0 = _platform.api2wire_box_autoadd_config(config);
-    return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_app_load(port_, arg0),
-      parseSuccessData: _wire2api_bool,
-      constMeta: kAppLoadConstMeta,
-      argValues: [config],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kAppLoadConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "app_load",
-        argNames: ["config"],
-      );
-
-  Future<void> appRecover(
-      {required Config config, required String seedPhrase, dynamic hint}) {
-    var arg0 = _platform.api2wire_box_autoadd_config(config);
-    var arg1 = _platform.api2wire_String(seedPhrase);
-    return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_app_recover(port_, arg0, arg1),
-      parseSuccessData: _wire2api_unit,
-      constMeta: kAppRecoverConstMeta,
-      argValues: [config, seedPhrase],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kAppRecoverConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "app_recover",
-        argNames: ["config", "seedPhrase"],
-      );
-
-  Future<void> appSignup({required Config config, dynamic hint}) {
-    var arg0 = _platform.api2wire_box_autoadd_config(config);
-    return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_app_signup(port_, arg0),
-      parseSuccessData: _wire2api_unit,
-      constMeta: kAppSignupConstMeta,
-      argValues: [config],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kAppSignupConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "app_signup",
-        argNames: ["config"],
-      );
-
   Config regtestStaticMethodConfig({dynamic hint}) {
     return _platform.executeSync(FlutterRustBridgeSyncTask(
       callFfi: () => _platform.inner.wire_regtest__static_method__Config(),
@@ -207,10 +122,6 @@ class AppRsImpl implements AppRs {
   }
 // Section: wire2api
 
-  String _wire2api_String(dynamic raw) {
-    return raw as String;
-  }
-
   AppHandle _wire2api_app_handle(dynamic raw) {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
@@ -219,10 +130,6 @@ class AppRsImpl implements AppRs {
       bridge: this,
       instanceId: _wire2api_i32(arr[0]),
     );
-  }
-
-  bool _wire2api_bool(dynamic raw) {
-    return raw as bool;
   }
 
   AppHandle _wire2api_box_autoadd_app_handle(dynamic raw) {
@@ -254,14 +161,6 @@ class AppRsImpl implements AppRs {
 
   AppHandle? _wire2api_opt_box_autoadd_app_handle(dynamic raw) {
     return raw == null ? null : _wire2api_box_autoadd_app_handle(raw);
-  }
-
-  int _wire2api_u8(dynamic raw) {
-    return raw as int;
-  }
-
-  Uint8List _wire2api_uint_8_list(dynamic raw) {
-    return raw as Uint8List;
   }
 
   void _wire2api_unit(dynamic raw) {
@@ -442,83 +341,6 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _init_frb_dart_api_dl = _init_frb_dart_api_dlPtr
       .asFunction<int Function(ffi.Pointer<ffi.Void>)>();
 
-  WireSyncReturn wire_hello() {
-    return _wire_hello();
-  }
-
-  late final _wire_helloPtr =
-      _lookup<ffi.NativeFunction<WireSyncReturn Function()>>('wire_hello');
-  late final _wire_hello =
-      _wire_helloPtr.asFunction<WireSyncReturn Function()>();
-
-  void wire_hello_async(
-    int port_,
-  ) {
-    return _wire_hello_async(
-      port_,
-    );
-  }
-
-  late final _wire_hello_asyncPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-          'wire_hello_async');
-  late final _wire_hello_async =
-      _wire_hello_asyncPtr.asFunction<void Function(int)>();
-
-  void wire_app_load(
-    int port_,
-    ffi.Pointer<wire_Config> config,
-  ) {
-    return _wire_app_load(
-      port_,
-      config,
-    );
-  }
-
-  late final _wire_app_loadPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-              ffi.Int64, ffi.Pointer<wire_Config>)>>('wire_app_load');
-  late final _wire_app_load = _wire_app_loadPtr
-      .asFunction<void Function(int, ffi.Pointer<wire_Config>)>();
-
-  void wire_app_recover(
-    int port_,
-    ffi.Pointer<wire_Config> config,
-    ffi.Pointer<wire_uint_8_list> seed_phrase,
-  ) {
-    return _wire_app_recover(
-      port_,
-      config,
-      seed_phrase,
-    );
-  }
-
-  late final _wire_app_recoverPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(ffi.Int64, ffi.Pointer<wire_Config>,
-              ffi.Pointer<wire_uint_8_list>)>>('wire_app_recover');
-  late final _wire_app_recover = _wire_app_recoverPtr.asFunction<
-      void Function(
-          int, ffi.Pointer<wire_Config>, ffi.Pointer<wire_uint_8_list>)>();
-
-  void wire_app_signup(
-    int port_,
-    ffi.Pointer<wire_Config> config,
-  ) {
-    return _wire_app_signup(
-      port_,
-      config,
-    );
-  }
-
-  late final _wire_app_signupPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Void Function(
-              ffi.Int64, ffi.Pointer<wire_Config>)>>('wire_app_signup');
-  late final _wire_app_signup = _wire_app_signupPtr
-      .asFunction<void Function(int, ffi.Pointer<wire_Config>)>();
-
   WireSyncReturn wire_regtest__static_method__Config() {
     return _wire_regtest__static_method__Config();
   }
@@ -658,6 +480,11 @@ class AppRsWire implements FlutterRustBridgeWireBase {
 
 class _Dart_Handle extends ffi.Opaque {}
 
+class wire_AppHandle extends ffi.Struct {
+  @ffi.Int32()
+  external int instance_id;
+}
+
 class wire_Config extends ffi.Struct {
   @ffi.Int32()
   external int build_variant;
@@ -671,11 +498,6 @@ class wire_uint_8_list extends ffi.Struct {
 
   @ffi.Int32()
   external int len;
-}
-
-class wire_AppHandle extends ffi.Struct {
-  @ffi.Int32()
-  external int instance_id;
 }
 
 typedef DartPostCObjectFnType = ffi.Pointer<

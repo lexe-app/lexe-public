@@ -23,76 +23,6 @@ use crate::bindings::*;
 
 // Section: wire functions
 
-fn wire_hello_impl() -> support::WireSyncReturn {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
-        WrapInfo {
-            debug_name: "hello",
-            port: None,
-            mode: FfiCallMode::Sync,
-        },
-        move || Ok(hello()),
-    )
-}
-fn wire_hello_async_impl(port_: MessagePort) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
-        WrapInfo {
-            debug_name: "hello_async",
-            port: Some(port_),
-            mode: FfiCallMode::Normal,
-        },
-        move || move |task_callback| Ok(hello_async()),
-    )
-}
-fn wire_app_load_impl(
-    port_: MessagePort,
-    config: impl Wire2Api<Config> + UnwindSafe,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
-        WrapInfo {
-            debug_name: "app_load",
-            port: Some(port_),
-            mode: FfiCallMode::Normal,
-        },
-        move || {
-            let api_config = config.wire2api();
-            move |task_callback| app_load(api_config)
-        },
-    )
-}
-fn wire_app_recover_impl(
-    port_: MessagePort,
-    config: impl Wire2Api<Config> + UnwindSafe,
-    seed_phrase: impl Wire2Api<String> + UnwindSafe,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
-        WrapInfo {
-            debug_name: "app_recover",
-            port: Some(port_),
-            mode: FfiCallMode::Normal,
-        },
-        move || {
-            let api_config = config.wire2api();
-            let api_seed_phrase = seed_phrase.wire2api();
-            move |task_callback| app_recover(api_config, api_seed_phrase)
-        },
-    )
-}
-fn wire_app_signup_impl(
-    port_: MessagePort,
-    config: impl Wire2Api<Config> + UnwindSafe,
-) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
-        WrapInfo {
-            debug_name: "app_signup",
-            port: Some(port_),
-            mode: FfiCallMode::Normal,
-        },
-        move || {
-            let api_config = config.wire2api();
-            move |task_callback| app_signup(api_config)
-        },
-    )
-}
 fn wire_regtest__static_method__Config_impl() -> support::WireSyncReturn {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
         WrapInfo {
@@ -272,35 +202,6 @@ support::lazy_static! {
 mod io {
     use super::*;
     // Section: wire functions
-
-    #[no_mangle]
-    pub extern "C" fn wire_hello() -> support::WireSyncReturn {
-        wire_hello_impl()
-    }
-
-    #[no_mangle]
-    pub extern "C" fn wire_hello_async(port_: i64) {
-        wire_hello_async_impl(port_)
-    }
-
-    #[no_mangle]
-    pub extern "C" fn wire_app_load(port_: i64, config: *mut wire_Config) {
-        wire_app_load_impl(port_, config)
-    }
-
-    #[no_mangle]
-    pub extern "C" fn wire_app_recover(
-        port_: i64,
-        config: *mut wire_Config,
-        seed_phrase: *mut wire_uint_8_list,
-    ) {
-        wire_app_recover_impl(port_, config, seed_phrase)
-    }
-
-    #[no_mangle]
-    pub extern "C" fn wire_app_signup(port_: i64, config: *mut wire_Config) {
-        wire_app_signup_impl(port_, config)
-    }
 
     #[no_mangle]
     pub extern "C" fn wire_regtest__static_method__Config(

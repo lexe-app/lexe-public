@@ -8,27 +8,6 @@ import 'package:meta/meta.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 
 abstract class AppRs {
-  String hello({dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kHelloConstMeta;
-
-  Future<String> helloAsync({dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kHelloAsyncConstMeta;
-
-  Future<bool> appLoad({required Config config, dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kAppLoadConstMeta;
-
-  Future<void> appRecover(
-      {required Config config, required String seedPhrase, dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kAppRecoverConstMeta;
-
-  Future<void> appSignup({required Config config, dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kAppSignupConstMeta;
-
   Config regtestStaticMethodConfig({dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kRegtestStaticMethodConfigConstMeta;
