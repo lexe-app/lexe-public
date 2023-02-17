@@ -3,6 +3,7 @@ import 'dart:math' show max;
 import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
+import 'package:lexeapp/cfg.dart';
 
 import '../bindings.dart' show api;
 import 'backup_wallet.dart' show BackupWalletPage;
@@ -146,7 +147,7 @@ class LandingButtons extends StatelessWidget {
         const CreateWalletButton(),
         const SizedBox(height: 16.0),
         OutlinedButton(
-          onPressed: () => debugPrint("Rust FFI test: ${api.hello()}"),
+          onPressed: () => debugPrint("pressed recover wallet button"),
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: Colors.white70, width: 2.0),
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
@@ -165,11 +166,6 @@ class LandingButtons extends StatelessWidget {
   }
 }
 
-// dummy
-Future<void> signup() async {
-  await Future<void>.delayed(const Duration(seconds: 2));
-}
-
 class CreateWalletButton extends StatefulWidget {
   const CreateWalletButton({super.key});
 
@@ -181,11 +177,18 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
   bool _disableButton = false;
 
   Future<void> _onPressed() async {
-    debugPrint("pressed create wallet");
+    debugPrint("pressed create wallet button");
 
     // disable button
     setState(() => _disableButton = true);
-    await signup();
+    try {
+      await api.appSignup(config: config);
+    } catch (err) {
+      setState(() => _disableButton = false);
+      // ScaffoldMessenger.of(context)
+      //     .showSnackBar(SnackBar(content: Text("$err")));
+      rethrow;
+    }
 
     // TODO(phlip9): disable restore button while request is processing? o/w
     // user could navigate away while account is getting created...
