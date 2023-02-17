@@ -11,6 +11,7 @@ use crate::api::NodePk;
 /// A dummy [`ChannelPeer`] pointing to a non-existent LSP which can be passed
 /// into the node during tests.
 #[cfg(any(test, feature = "test-utils"))]
+// TODO(max): Remove
 pub static DUMMY_LSP: Lazy<ChannelPeer> = Lazy::new(|| {
     use crate::rng::WeakRng;
     use crate::root_seed::RootSeed;
