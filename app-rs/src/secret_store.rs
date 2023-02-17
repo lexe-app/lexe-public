@@ -20,20 +20,3 @@ impl SecretStore {
         Ok(())
     }
 }
-
-// pub struct MockSecretsStore;
-//
-// impl MockSecretsStore {
-//     pub fn new() -> Self {
-//         Self
-//     }
-// }
-//
-// impl SecretsStore for MockSecretsStore {
-//     fn read_root_seed(&self) -> anyhow::Result<Option<RootSeed>> {
-//         Ok(None)
-//     }
-//     fn write_root_seed(&self, _root_seed: &RootSeed) -> anyhow::Result<()> {
-//         Ok(())
-//     }
-// }
