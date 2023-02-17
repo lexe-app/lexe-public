@@ -56,6 +56,152 @@ class AppRsImpl implements AppRs {
         argNames: [],
       );
 
+  Future<bool> appLoad({required Config config, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_config(config);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner.wire_app_load(port_, arg0),
+      parseSuccessData: _wire2api_bool,
+      constMeta: kAppLoadConstMeta,
+      argValues: [config],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kAppLoadConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "app_load",
+        argNames: ["config"],
+      );
+
+  Future<void> appRecover(
+      {required Config config, required String seedPhrase, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_config(config);
+    var arg1 = _platform.api2wire_String(seedPhrase);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner.wire_app_recover(port_, arg0, arg1),
+      parseSuccessData: _wire2api_unit,
+      constMeta: kAppRecoverConstMeta,
+      argValues: [config, seedPhrase],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kAppRecoverConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "app_recover",
+        argNames: ["config", "seedPhrase"],
+      );
+
+  Future<void> appSignup({required Config config, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_config(config);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner.wire_app_signup(port_, arg0),
+      parseSuccessData: _wire2api_unit,
+      constMeta: kAppSignupConstMeta,
+      argValues: [config],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kAppSignupConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "app_signup",
+        argNames: ["config"],
+      );
+
+  Config regtestStaticMethodConfig({dynamic hint}) {
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner.wire_regtest__static_method__Config(),
+      parseSuccessData: _wire2api_config,
+      constMeta: kRegtestStaticMethodConfigConstMeta,
+      argValues: [],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kRegtestStaticMethodConfigConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "regtest__static_method__Config",
+        argNames: [],
+      );
+
+  Future<void> testMethodMethodAppHandle(
+      {required AppHandle that, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) =>
+          _platform.inner.wire_test_method__method__AppHandle(port_, arg0),
+      parseSuccessData: _wire2api_unit,
+      constMeta: kTestMethodMethodAppHandleConstMeta,
+      argValues: [that],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kTestMethodMethodAppHandleConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "test_method__method__AppHandle",
+        argNames: ["that"],
+      );
+
+  Future<AppHandle?> loadStaticMethodAppHandle(
+      {required Config config, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_config(config);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) =>
+          _platform.inner.wire_load__static_method__AppHandle(port_, arg0),
+      parseSuccessData: _wire2api_opt_box_autoadd_app_handle,
+      constMeta: kLoadStaticMethodAppHandleConstMeta,
+      argValues: [config],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kLoadStaticMethodAppHandleConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "load__static_method__AppHandle",
+        argNames: ["config"],
+      );
+
+  Future<AppHandle> recoverStaticMethodAppHandle(
+      {required Config config, required String seedPhrase, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_config(config);
+    var arg1 = _platform.api2wire_String(seedPhrase);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner
+          .wire_recover__static_method__AppHandle(port_, arg0, arg1),
+      parseSuccessData: (d) => _wire2api_app_handle(d),
+      constMeta: kRecoverStaticMethodAppHandleConstMeta,
+      argValues: [config, seedPhrase],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kRecoverStaticMethodAppHandleConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "recover__static_method__AppHandle",
+        argNames: ["config", "seedPhrase"],
+      );
+
+  Future<AppHandle> signupStaticMethodAppHandle(
+      {required Config config, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_config(config);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) =>
+          _platform.inner.wire_signup__static_method__AppHandle(port_, arg0),
+      parseSuccessData: (d) => _wire2api_app_handle(d),
+      constMeta: kSignupStaticMethodAppHandleConstMeta,
+      argValues: [config],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kSignupStaticMethodAppHandleConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "signup__static_method__AppHandle",
+        argNames: ["config"],
+      );
+
   void dispose() {
     _platform.dispose();
   }
@@ -65,6 +211,51 @@ class AppRsImpl implements AppRs {
     return raw as String;
   }
 
+  AppHandle _wire2api_app_handle(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return AppHandle(
+      bridge: this,
+      instanceId: _wire2api_i32(arr[0]),
+    );
+  }
+
+  bool _wire2api_bool(dynamic raw) {
+    return raw as bool;
+  }
+
+  AppHandle _wire2api_box_autoadd_app_handle(dynamic raw) {
+    return _wire2api_app_handle(raw);
+  }
+
+  BuildVariant _wire2api_build_variant(dynamic raw) {
+    return BuildVariant.values[raw];
+  }
+
+  Config _wire2api_config(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return Config(
+      bridge: this,
+      buildVariant: _wire2api_build_variant(arr[0]),
+      network: _wire2api_network(arr[1]),
+    );
+  }
+
+  int _wire2api_i32(dynamic raw) {
+    return raw as int;
+  }
+
+  Network _wire2api_network(dynamic raw) {
+    return Network.values[raw];
+  }
+
+  AppHandle? _wire2api_opt_box_autoadd_app_handle(dynamic raw) {
+    return raw == null ? null : _wire2api_box_autoadd_app_handle(raw);
+  }
+
   int _wire2api_u8(dynamic raw) {
     return raw as int;
   }
@@ -72,9 +263,33 @@ class AppRsImpl implements AppRs {
   Uint8List _wire2api_uint_8_list(dynamic raw) {
     return raw as Uint8List;
   }
+
+  void _wire2api_unit(dynamic raw) {
+    return;
+  }
 }
 
 // Section: api2wire
+
+@protected
+int api2wire_build_variant(BuildVariant raw) {
+  return api2wire_i32(raw.index);
+}
+
+@protected
+int api2wire_i32(int raw) {
+  return raw;
+}
+
+@protected
+int api2wire_network(Network raw) {
+  return api2wire_i32(raw.index);
+}
+
+@protected
+int api2wire_u8(int raw) {
+  return raw;
+}
 
 // Section: finalizer
 
@@ -83,9 +298,53 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
 
 // Section: api2wire
 
+  @protected
+  ffi.Pointer<wire_uint_8_list> api2wire_String(String raw) {
+    return api2wire_uint_8_list(utf8.encoder.convert(raw));
+  }
+
+  @protected
+  ffi.Pointer<wire_AppHandle> api2wire_box_autoadd_app_handle(AppHandle raw) {
+    final ptr = inner.new_box_autoadd_app_handle_0();
+    _api_fill_to_wire_app_handle(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_Config> api2wire_box_autoadd_config(Config raw) {
+    final ptr = inner.new_box_autoadd_config_0();
+    _api_fill_to_wire_config(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_uint_8_list> api2wire_uint_8_list(Uint8List raw) {
+    final ans = inner.new_uint_8_list_0(raw.length);
+    ans.ref.ptr.asTypedList(raw.length).setAll(0, raw);
+    return ans;
+  }
 // Section: finalizer
 
 // Section: api_fill_to_wire
+
+  void _api_fill_to_wire_app_handle(AppHandle apiObj, wire_AppHandle wireObj) {
+    wireObj.instance_id = api2wire_i32(apiObj.instanceId);
+  }
+
+  void _api_fill_to_wire_box_autoadd_app_handle(
+      AppHandle apiObj, ffi.Pointer<wire_AppHandle> wireObj) {
+    _api_fill_to_wire_app_handle(apiObj, wireObj.ref);
+  }
+
+  void _api_fill_to_wire_box_autoadd_config(
+      Config apiObj, ffi.Pointer<wire_Config> wireObj) {
+    _api_fill_to_wire_config(apiObj, wireObj.ref);
+  }
+
+  void _api_fill_to_wire_config(Config apiObj, wire_Config wireObj) {
+    wireObj.build_variant = api2wire_build_variant(apiObj.buildVariant);
+    wireObj.network = api2wire_network(apiObj.network);
+  }
 }
 
 // ignore_for_file: camel_case_types, non_constant_identifier_names, avoid_positional_boolean_parameters, annotate_overrides, constant_identifier_names
@@ -206,6 +465,182 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _wire_hello_async =
       _wire_hello_asyncPtr.asFunction<void Function(int)>();
 
+  void wire_app_load(
+    int port_,
+    ffi.Pointer<wire_Config> config,
+  ) {
+    return _wire_app_load(
+      port_,
+      config,
+    );
+  }
+
+  late final _wire_app_loadPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(
+              ffi.Int64, ffi.Pointer<wire_Config>)>>('wire_app_load');
+  late final _wire_app_load = _wire_app_loadPtr
+      .asFunction<void Function(int, ffi.Pointer<wire_Config>)>();
+
+  void wire_app_recover(
+    int port_,
+    ffi.Pointer<wire_Config> config,
+    ffi.Pointer<wire_uint_8_list> seed_phrase,
+  ) {
+    return _wire_app_recover(
+      port_,
+      config,
+      seed_phrase,
+    );
+  }
+
+  late final _wire_app_recoverPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(ffi.Int64, ffi.Pointer<wire_Config>,
+              ffi.Pointer<wire_uint_8_list>)>>('wire_app_recover');
+  late final _wire_app_recover = _wire_app_recoverPtr.asFunction<
+      void Function(
+          int, ffi.Pointer<wire_Config>, ffi.Pointer<wire_uint_8_list>)>();
+
+  void wire_app_signup(
+    int port_,
+    ffi.Pointer<wire_Config> config,
+  ) {
+    return _wire_app_signup(
+      port_,
+      config,
+    );
+  }
+
+  late final _wire_app_signupPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(
+              ffi.Int64, ffi.Pointer<wire_Config>)>>('wire_app_signup');
+  late final _wire_app_signup = _wire_app_signupPtr
+      .asFunction<void Function(int, ffi.Pointer<wire_Config>)>();
+
+  WireSyncReturn wire_regtest__static_method__Config() {
+    return _wire_regtest__static_method__Config();
+  }
+
+  late final _wire_regtest__static_method__ConfigPtr =
+      _lookup<ffi.NativeFunction<WireSyncReturn Function()>>(
+          'wire_regtest__static_method__Config');
+  late final _wire_regtest__static_method__Config =
+      _wire_regtest__static_method__ConfigPtr
+          .asFunction<WireSyncReturn Function()>();
+
+  void wire_test_method__method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_AppHandle> that,
+  ) {
+    return _wire_test_method__method__AppHandle(
+      port_,
+      that,
+    );
+  }
+
+  late final _wire_test_method__method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>)>>(
+      'wire_test_method__method__AppHandle');
+  late final _wire_test_method__method__AppHandle =
+      _wire_test_method__method__AppHandlePtr
+          .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
+
+  void wire_load__static_method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_Config> config,
+  ) {
+    return _wire_load__static_method__AppHandle(
+      port_,
+      config,
+    );
+  }
+
+  late final _wire_load__static_method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_Config>)>>(
+      'wire_load__static_method__AppHandle');
+  late final _wire_load__static_method__AppHandle =
+      _wire_load__static_method__AppHandlePtr
+          .asFunction<void Function(int, ffi.Pointer<wire_Config>)>();
+
+  void wire_recover__static_method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_Config> config,
+    ffi.Pointer<wire_uint_8_list> seed_phrase,
+  ) {
+    return _wire_recover__static_method__AppHandle(
+      port_,
+      config,
+      seed_phrase,
+    );
+  }
+
+  late final _wire_recover__static_method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_Config>,
+                  ffi.Pointer<wire_uint_8_list>)>>(
+      'wire_recover__static_method__AppHandle');
+  late final _wire_recover__static_method__AppHandle =
+      _wire_recover__static_method__AppHandlePtr.asFunction<
+          void Function(
+              int, ffi.Pointer<wire_Config>, ffi.Pointer<wire_uint_8_list>)>();
+
+  void wire_signup__static_method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_Config> config,
+  ) {
+    return _wire_signup__static_method__AppHandle(
+      port_,
+      config,
+    );
+  }
+
+  late final _wire_signup__static_method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_Config>)>>(
+      'wire_signup__static_method__AppHandle');
+  late final _wire_signup__static_method__AppHandle =
+      _wire_signup__static_method__AppHandlePtr
+          .asFunction<void Function(int, ffi.Pointer<wire_Config>)>();
+
+  ffi.Pointer<wire_AppHandle> new_box_autoadd_app_handle_0() {
+    return _new_box_autoadd_app_handle_0();
+  }
+
+  late final _new_box_autoadd_app_handle_0Ptr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<wire_AppHandle> Function()>>(
+          'new_box_autoadd_app_handle_0');
+  late final _new_box_autoadd_app_handle_0 = _new_box_autoadd_app_handle_0Ptr
+      .asFunction<ffi.Pointer<wire_AppHandle> Function()>();
+
+  ffi.Pointer<wire_Config> new_box_autoadd_config_0() {
+    return _new_box_autoadd_config_0();
+  }
+
+  late final _new_box_autoadd_config_0Ptr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<wire_Config> Function()>>(
+          'new_box_autoadd_config_0');
+  late final _new_box_autoadd_config_0 = _new_box_autoadd_config_0Ptr
+      .asFunction<ffi.Pointer<wire_Config> Function()>();
+
+  ffi.Pointer<wire_uint_8_list> new_uint_8_list_0(
+    int len,
+  ) {
+    return _new_uint_8_list_0(
+      len,
+    );
+  }
+
+  late final _new_uint_8_list_0Ptr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<wire_uint_8_list> Function(
+              ffi.Int32)>>('new_uint_8_list_0');
+  late final _new_uint_8_list_0 = _new_uint_8_list_0Ptr
+      .asFunction<ffi.Pointer<wire_uint_8_list> Function(int)>();
+
   void free_WireSyncReturn(
     WireSyncReturn ptr,
   ) {
@@ -222,6 +657,26 @@ class AppRsWire implements FlutterRustBridgeWireBase {
 }
 
 class _Dart_Handle extends ffi.Opaque {}
+
+class wire_Config extends ffi.Struct {
+  @ffi.Int32()
+  external int build_variant;
+
+  @ffi.Int32()
+  external int network;
+}
+
+class wire_uint_8_list extends ffi.Struct {
+  external ffi.Pointer<ffi.Uint8> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
+class wire_AppHandle extends ffi.Struct {
+  @ffi.Int32()
+  external int instance_id;
+}
 
 typedef DartPostCObjectFnType = ffi.Pointer<
     ffi.NativeFunction<ffi.Bool Function(DartPort, ffi.Pointer<ffi.Void>)>>;

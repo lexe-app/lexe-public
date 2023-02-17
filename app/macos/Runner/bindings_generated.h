@@ -11,6 +11,20 @@ typedef bool (*DartPostCObjectFnType)(DartPort port_id, void *message);
 
 typedef struct DartCObject *WireSyncReturn;
 
+typedef struct wire_Config {
+  int32_t build_variant;
+  int32_t network;
+} wire_Config;
+
+typedef struct wire_uint_8_list {
+  uint8_t *ptr;
+  int32_t len;
+} wire_uint_8_list;
+
+typedef struct wire_AppHandle {
+  int32_t instance_id;
+} wire_AppHandle;
+
 void store_dart_post_cobject(DartPostCObjectFnType ptr);
 
 Dart_Handle get_dart_object(uintptr_t ptr);
@@ -25,12 +39,49 @@ WireSyncReturn wire_hello(void);
 
 void wire_hello_async(int64_t port_);
 
+void wire_app_load(int64_t port_, struct wire_Config *config);
+
+void wire_app_recover(int64_t port_,
+                      struct wire_Config *config,
+                      struct wire_uint_8_list *seed_phrase);
+
+void wire_app_signup(int64_t port_, struct wire_Config *config);
+
+WireSyncReturn wire_regtest__static_method__Config(void);
+
+void wire_test_method__method__AppHandle(int64_t port_, struct wire_AppHandle *that);
+
+void wire_load__static_method__AppHandle(int64_t port_, struct wire_Config *config);
+
+void wire_recover__static_method__AppHandle(int64_t port_,
+                                            struct wire_Config *config,
+                                            struct wire_uint_8_list *seed_phrase);
+
+void wire_signup__static_method__AppHandle(int64_t port_, struct wire_Config *config);
+
+struct wire_AppHandle *new_box_autoadd_app_handle_0(void);
+
+struct wire_Config *new_box_autoadd_config_0(void);
+
+struct wire_uint_8_list *new_uint_8_list_0(int32_t len);
+
 void free_WireSyncReturn(WireSyncReturn ptr);
 
 static int64_t dummy_method_to_enforce_bundling(void) {
     int64_t dummy_var = 0;
     dummy_var ^= ((int64_t) (void*) wire_hello);
     dummy_var ^= ((int64_t) (void*) wire_hello_async);
+    dummy_var ^= ((int64_t) (void*) wire_app_load);
+    dummy_var ^= ((int64_t) (void*) wire_app_recover);
+    dummy_var ^= ((int64_t) (void*) wire_app_signup);
+    dummy_var ^= ((int64_t) (void*) wire_regtest__static_method__Config);
+    dummy_var ^= ((int64_t) (void*) wire_test_method__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_load__static_method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_recover__static_method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_signup__static_method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) new_box_autoadd_app_handle_0);
+    dummy_var ^= ((int64_t) (void*) new_box_autoadd_config_0);
+    dummy_var ^= ((int64_t) (void*) new_uint_8_list_0);
     dummy_var ^= ((int64_t) (void*) free_WireSyncReturn);
     dummy_var ^= ((int64_t) (void*) store_dart_post_cobject);
     dummy_var ^= ((int64_t) (void*) get_dart_object);

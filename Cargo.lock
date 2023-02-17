@@ -76,8 +76,12 @@ checksum = "216261ddc8289130e551ddcd5ce8a064710c0d064a4d2895c67151c92b5443f6"
 name = "app-rs"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "common",
  "flutter_rust_bridge",
  "flutter_rust_bridge_codegen",
+ "secrecy",
+ "tokio",
 ]
 
 [[package]]
