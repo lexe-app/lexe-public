@@ -79,7 +79,7 @@ pub(crate) fn outbound_payments(
 pub(crate) fn get_invoice_caller(
     get_invoice_caller: GetInvoiceCaller,
 ) -> impl Filter<Extract = (GetInvoiceCaller,), Error = Infallible> + Clone {
-    warp::any().map(move || get_invoice_caller)
+    warp::any().map(move || get_invoice_caller.clone())
 }
 
 /// Injects the [`Network`] the node is running on.
