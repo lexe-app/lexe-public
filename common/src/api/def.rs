@@ -24,7 +24,9 @@ use crate::api::auth::{
     UserAuthRequest, UserAuthResponse, UserAuthToken, UserSignupRequest,
 };
 use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
-use crate::api::error::{BackendApiError, NodeApiError, RunnerApiError};
+use crate::api::error::{
+    BackendApiError, LspApiError, NodeApiError, RunnerApiError,
+};
 use crate::api::ports::UserPorts;
 use crate::api::provision::{NodeProvisionRequest, SealedSeed, SealedSeedId};
 use crate::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
@@ -117,6 +119,15 @@ pub trait UserBackendApi {
         &self,
         signed_req: ed25519::Signed<UserAuthRequest>,
     ) -> Result<UserAuthResponse, BackendApiError>;
+}
+
+/// Defines the api that the LSP exposes to user nodes.
+#[async_trait]
+pub trait NodeLspApi {
+    /// GET /node/v1/scid [`GetByNodePk`] -> [`Option<Scid>`]
+    ///
+    /// [`GetByNodePk`]: super::qs::GetByNodePk
+    async fn get_new_scid(&self, node_pk: NodePk) -> Result<Scid, LspApiError>;
 }
 
 /// Defines the api that the runner exposes to the node.

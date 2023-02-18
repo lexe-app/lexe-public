@@ -4,8 +4,10 @@ use async_trait::async_trait;
 use common::api::auth::{
     UserAuthRequest, UserAuthResponse, UserAuthToken, UserSignupRequest,
 };
-use common::api::def::{NodeBackendApi, NodeRunnerApi, UserBackendApi};
-use common::api::error::{BackendApiError, RunnerApiError};
+use common::api::def::{
+    NodeBackendApi, NodeLspApi, NodeRunnerApi, UserBackendApi,
+};
+use common::api::error::{BackendApiError, LspApiError, RunnerApiError};
 use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
 use common::api::qs::{GetByNodePk, GetByUserPk};
@@ -20,14 +22,21 @@ pub struct NodeApiClient {
     rest: RestClient,
     backend_url: String,
     runner_url: String,
+    /// The url of the LSP's warp server. Only applicable in Run mode.
+    lsp_url: Option<String>,
 }
 
 impl NodeApiClient {
-    pub fn new(backend_url: String, runner_url: String) -> Self {
+    pub fn new(
+        backend_url: String,
+        runner_url: String,
+        lsp_url: Option<String>,
+    ) -> Self {
         Self {
             rest: RestClient::new(),
             backend_url,
             runner_url,
+            lsp_url,
         }
     }
 }
@@ -210,6 +219,19 @@ impl NodeRunnerApi for NodeApiClient {
         let req = self.rest.post(format!("{runner}/ready"), &data);
         // TODO(phlip9): authenticate runner callbacks?
         // .bearer_auth(&self.auth_token().await?);
+        self.rest.send(req).await
+    }
+}
+
+#[async_trait]
+impl NodeLspApi for NodeApiClient {
+    async fn get_new_scid(&self, node_pk: NodePk) -> Result<Scid, LspApiError> {
+        let lsp = self
+            .lsp_url
+            .as_ref()
+            .expect("This method requires supplying the `lsp_url`");
+        let data = GetByNodePk { node_pk };
+        let req = self.rest.get(format!("{lsp}/node/v1/scid"), &data);
         self.rest.send(req).await
     }
 }

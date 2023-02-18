@@ -1,6 +1,8 @@
 use async_trait::async_trait;
 use common::api::auth::UserAuthToken;
-use common::api::def::{NodeBackendApi, NodeRunnerApi, UserBackendApi};
+use common::api::def::{
+    NodeBackendApi, NodeLspApi, NodeRunnerApi, UserBackendApi,
+};
 use common::api::error::BackendApiError;
 use common::api::vfs::NodeFile;
 
@@ -14,7 +16,9 @@ pub use client::*;
 /// A trait for a client that can handle requests to both the backend + runner,
 /// plus some methods to call into these services with retries.
 #[async_trait]
-pub trait ApiClient: NodeBackendApi + NodeRunnerApi + UserBackendApi {
+pub trait ApiClient:
+    NodeBackendApi + NodeLspApi + NodeRunnerApi + UserBackendApi
+{
     async fn create_file_with_retries(
         &self,
         file: &NodeFile,
