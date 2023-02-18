@@ -516,6 +516,8 @@ error_kind! {
 
         /// Error occurred during provisioning
         Provision = 100,
+        /// Error occurred while fetching new scid
+        Scid = 101,
     }
 }
 
@@ -767,6 +769,7 @@ impl ToHttpStatus for LspApiError {
             Decode => SERVER_502_BAD_GATEWAY,
 
             Provision => SERVER_500_INTERNAL_SERVER_ERROR,
+            Scid => SERVER_500_INTERNAL_SERVER_ERROR,
         }
     }
 }
