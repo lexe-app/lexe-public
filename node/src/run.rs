@@ -187,15 +187,16 @@ impl UserNode {
             persister.clone(),
         ));
 
-        // Concurrently read channel monitors, network graph, and wallet db
+        // Read channel monitors, network graph, wallet db, and scid
         let (wallet_db_persister_tx, wallet_db_persister_rx) =
             mpsc::channel(SMALLER_CHANNEL_SIZE);
         #[rustfmt::skip] // Does not respect 80 char line width
-        let (try_channel_monitors, try_network_graph, try_wallet_db) =
+        let (try_channel_monitors, try_network_graph, try_wallet_db, try_scid) =
             tokio::join!(
                 persister.read_channel_monitors(keys_manager.clone()),
                 persister.read_network_graph(args.network, logger.clone()),
                 persister.read_wallet_db(wallet_db_persister_tx),
+                api.get_scid(user.node_pk),
             );
         let mut channel_monitors =
             try_channel_monitors.context("Could not read channel monitors")?;
@@ -203,6 +204,18 @@ impl UserNode {
             .map(Arc::new)
             .context("Could not read network graph")?;
         let wallet_db = try_wallet_db.context("Could not read wallet db")?;
+        let _maybe_scid = try_scid.context("Could not read scid")?;
+        // TODO(max): This breaks the runner integration tests; fix this by
+        // splitting the --mock CLI arg to operate per-service
+        // TODO(max): Pass the scid into the get_invoice handler
+        // let _scid = match maybe_scid {
+        //     Some(s) => s,
+        //     // We has not been assigned an scid yet; ask the LSP for one
+        //     None => api
+        //         .get_new_scid(user.node_pk)
+        //         .await
+        //         .context("Could not get new scid from LSP")?,
+        // };
 
         // Init BDK wallet; share esplora connection pool, spawn persister task
         let wallet = LexeWallet::new(
