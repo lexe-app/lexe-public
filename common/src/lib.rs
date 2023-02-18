@@ -7,6 +7,8 @@
 #![feature(const_option)]
 // Used in `enclave/sgx` module for sealing.
 #![feature(split_array)]
+// Allow e.g. warp::Filter<Extract: warp::Reply> syntax
+#![feature(associated_type_bounds)]
 // Enforce disallowed methods clippy lint
 #![deny(clippy::disallowed_methods)]
 

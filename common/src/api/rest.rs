@@ -1,5 +1,9 @@
+use std::convert::Infallible;
+use std::future::Future;
+use std::net::{SocketAddr, TcpListener};
 use std::time::Duration;
 
+use anyhow::Context;
 use bytes::Bytes;
 use http::header::{HeaderValue, CONTENT_TYPE};
 use http::response::Response;
@@ -8,14 +12,15 @@ use http::Method;
 use reqwest::IntoUrl;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tracing::{debug, debug_span, error, field, warn, Instrument};
+use tracing::{debug, debug_span, error, field, warn, Instrument, Span};
 use warp::hyper::Body;
-use warp::Rejection;
+use warp::{Rejection, Reply};
 
 use crate::api::error::{
     ErrorCode, ErrorResponse, RestClientError, RestClientErrorKind,
     ServiceApiError, ToHttpStatus,
 };
+use crate::task::LxTask;
 use crate::{backoff, ed25519};
 
 /// The CONTENT-TYPE header for signed BCS-serialized structs.
@@ -30,6 +35,37 @@ pub const GET: Method = Method::GET;
 pub const PUT: Method = Method::PUT;
 pub const POST: Method = Method::POST;
 pub const DELETE: Method = Method::DELETE;
+
+/// Helper to serve a set of [`warp`] routes given a graceful shutdown
+/// [`Future`], an existing std [`TcpListener`], the name of the task, and a
+/// [`tracing::Span`]. Be sure to include `parent: None` when building the span
+/// if you wish to prevent the API task from inheriting the parent [span label].
+pub fn serve_routes_with_listener_and_shutdown<F, G>(
+    routes: F,
+    graceful_shutdown_fut: G,
+    listener: TcpListener,
+    task_name: &'static str,
+    span: Span,
+) -> anyhow::Result<(LxTask<()>, SocketAddr)>
+where
+    F: warp::Filter<Extract: Reply, Error = Rejection> + Send + Clone + 'static,
+    G: Future<Output = ()> + Send + 'static,
+{
+    let api_service = warp::service(routes);
+    let make_service = hyper::service::make_service_fn(move |_| {
+        let api_service_clone = api_service.clone();
+        async move { Ok::<_, Infallible>(api_service_clone) }
+    });
+    let server = hyper::Server::from_tcp(listener)
+        .context("Could not create hyper Server")?
+        .serve(make_service);
+    let socket_addr = server.local_addr();
+    let graceful_server = server.with_graceful_shutdown(graceful_shutdown_fut);
+    let task = LxTask::spawn_named_with_span(task_name, span, async move {
+        graceful_server.await.expect("hyper::Server errored")
+    });
+    Ok((task, socket_addr))
+}
 
 /// A warp helper that converts `Result<T, E>` into [`Response<Body>`].
 /// This function should be used after all *fallible* warp handlers because:

@@ -19,6 +19,7 @@ pub mod roundtrip;
 pub const DUMMY_BACKEND_URL: &str = "http://127.0.0.1:3030";
 pub const DUMMY_GATEWAY_URL: &str = "http://127.0.0.1:4040";
 pub const DUMMY_RUNNER_URL: &str = "http://127.0.0.1:5050";
+pub const DUMMY_LSP_URL: &str = "http://127.0.0.1:6060";
 pub const DUMMY_ESPLORA_URL: &str = "http://127.0.0.1:7070";
 pub static DUMMY_LSP_INFO: Lazy<LspInfo> = Lazy::new(|| {
     let mut rng = WeakRng::from_u64(20230216);
@@ -26,6 +27,7 @@ pub static DUMMY_LSP_INFO: Lazy<LspInfo> = Lazy::new(|| {
     let addr = SocketAddr::from(([127, 0, 0, 1], 42069));
 
     LspInfo {
+        warp_url: DUMMY_LSP_URL.to_owned(),
         node_pk,
         addr,
         base_msat: 0,

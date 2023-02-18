@@ -39,8 +39,11 @@ pub struct Network(pub bitcoin::Network);
 /// generate route hints when no channel exists.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LspInfo {
+    /// The protocol://host:port of the LSP's HTTP server
+    pub warp_url: String,
     // - ChannelPeer fields - //
     pub node_pk: NodePk,
+    /// The socket on which the LSP accepts P2P LN connections from user nodes
     pub addr: SocketAddr,
     // - RoutingFees fields - //
     pub base_msat: u32,
@@ -210,32 +213,35 @@ mod arbitrary_not_sgx {
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (
+                any::<String>(),
                 any::<NodePk>(),
                 arbitrary::any_socket_addr(),
+                any::<u32>(),
+                any::<u32>(),
                 any::<u16>(),
                 any::<u64>(),
                 any::<u64>(),
-                any::<u32>(),
-                any::<u32>(),
             )
                 .prop_map(
                     |(
+                        warp_url,
                         node_pk,
                         addr,
+                        base_msat,
+                        proportional_millionths,
                         cltv_expiry_delta,
                         htlc_minimum_msat,
                         htlc_maximum_msat,
-                        base_msat,
-                        proportional_millionths,
                     )| {
                         Self {
+                            warp_url,
                             node_pk,
                             addr,
+                            base_msat,
+                            proportional_millionths,
                             cltv_expiry_delta,
                             htlc_minimum_msat,
                             htlc_maximum_msat,
-                            base_msat,
-                            proportional_millionths,
                         }
                     },
                 )

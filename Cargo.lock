@@ -639,6 +639,7 @@ dependencies = [
  "electrsd",
  "futures",
  "http",
+ "hyper",
  "lightning",
  "lightning-invoice",
  "num-bigint",
