@@ -8,10 +8,10 @@ use common::api::def::{NodeBackendApi, NodeRunnerApi, UserBackendApi};
 use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
-use common::api::qs::GetByUserPk;
+use common::api::qs::{GetByNodePk, GetByUserPk};
 use common::api::rest::{RequestBuilderExt, RestClient, POST};
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
-use common::api::{User, UserPk};
+use common::api::{NodePk, Scid, User, UserPk};
 use common::ed25519;
 
 use crate::api::ApiClient;
@@ -118,6 +118,16 @@ impl NodeBackendApi for NodeApiClient {
             .rest
             .post(format!("{backend}/v1/sealed_seed"), &data)
             .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn get_scid(
+        &self,
+        node_pk: NodePk,
+    ) -> Result<Option<Scid>, BackendApiError> {
+        let backend = &self.backend_url;
+        let data = GetByNodePk { node_pk };
+        let req = self.rest.get(format!("{backend}/v1/scid"), &data);
         self.rest.send(req).await
     }
 
