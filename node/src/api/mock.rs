@@ -12,7 +12,7 @@ use common::api::error::{BackendApiError, RunnerApiError};
 use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
-use common::api::{NodePk, User, UserPk};
+use common::api::{NodePk, Scid, User, UserPk};
 use common::byte_str::ByteStr;
 use common::constants::SINGLETON_DIRECTORY;
 use common::ed25519;
@@ -181,6 +181,13 @@ impl NodeBackendApi for MockApiClient {
         _auth: UserAuthToken,
     ) -> Result<(), BackendApiError> {
         Ok(())
+    }
+
+    async fn get_scid(
+        &self,
+        _node_pk: NodePk,
+    ) -> Result<Option<Scid>, BackendApiError> {
+        Ok(Some(Scid(0)))
     }
 
     async fn get_file(
