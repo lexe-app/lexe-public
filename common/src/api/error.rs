@@ -849,7 +849,13 @@ impl From<hex::DecodeError> for BackendApiError {
         Self { kind, msg }
     }
 }
-
+impl From<std::num::ParseIntError> for BackendApiError {
+    fn from(err: std::num::ParseIntError) -> Self {
+        let kind = BackendErrorKind::EntityConversion;
+        let msg = format!("Integer parsing error: {err:#}");
+        Self { kind, msg }
+    }
+}
 impl From<auth::Error> for BackendApiError {
     fn from(err: auth::Error) -> Self {
         let kind = match err {
@@ -861,7 +867,6 @@ impl From<auth::Error> for BackendApiError {
         Self { kind, msg }
     }
 }
-
 impl From<super::InvalidNodePkProofSignature> for BackendApiError {
     fn from(err: super::InvalidNodePkProofSignature) -> Self {
         let kind = BackendErrorKind::Unauthenticated;
