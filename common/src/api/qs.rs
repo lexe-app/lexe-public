@@ -1,6 +1,10 @@
 use serde::{Deserialize, Serialize};
 
-use crate::api::UserPk;
+use crate::api::{NodePk, Scid, UserPk};
+
+// When serializing data as query parameters, we have to wrap newtypes in these
+// structs (instead of e.g. using UserPk directly), otherwise `serde_qs` errors
+// with "top-level serializer supports only maps and structs."
 
 /// Query parameter struct for fetching with no data attached.
 ///
@@ -12,4 +16,16 @@ pub struct EmptyData {}
 #[derive(Serialize, Deserialize)]
 pub struct GetByUserPk {
     pub user_pk: UserPk,
+}
+
+/// Query parameter struct for fetching by node pk
+#[derive(Serialize, Deserialize)]
+pub struct GetByNodePk {
+    pub node_pk: NodePk,
+}
+
+/// Query parameter struct for fetching by scid
+#[derive(Serialize, Deserialize)]
+pub struct GetByScid {
+    pub scid: Scid,
 }

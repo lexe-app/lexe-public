@@ -93,6 +93,21 @@ pub struct User {
     pub node_pk: NodePk,
 }
 
+/// A newtype for the `short_channel_id` (`scid`) used throughout LDK.
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Serialize, Deserialize)]
+pub struct Scid(pub u64);
+
+/// Represents an entry in the `node_scid` table.
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize)]
+pub struct NodeScid {
+    pub node_pk: NodePk,
+    pub scid: Scid,
+}
+
 // --- impl UserPk --- //
 
 impl UserPk {
@@ -268,6 +283,21 @@ impl Arbitrary for NodePkProof {
     }
 }
 
+// --- impl Scid --- //
+
+impl FromStr for Scid {
+    type Err = std::num::ParseIntError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        u64::from_str(s).map(Self)
+    }
+}
+
+impl Display for Scid {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use proptest::{prop_assume, proptest};
@@ -365,5 +395,16 @@ mod test {
                 })
                 .unwrap_err();
         });
+    }
+
+    #[test]
+    fn scid_roundtrips() {
+        roundtrip::json_string_roundtrip_proptest::<Scid>();
+        roundtrip::fromstr_display_roundtrip_proptest::<Scid>();
+    }
+
+    #[test]
+    fn node_scid_roundtrips() {
+        roundtrip::json_value_canonical_proptest::<NodeScid>();
     }
 }
