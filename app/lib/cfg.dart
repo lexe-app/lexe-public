@@ -2,7 +2,7 @@ import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart' show kDebugMode;
 
 import 'bindings.dart' show api;
-import 'bindings_generated_api.dart' show Config, Network, BuildVariant;
+import 'bindings_generated_api.dart' show Config, Network, DeployEnv;
 
 /// `true` when the flutter app is built in debug mode with debugging info and
 /// debug symbols built-in (i.e., not profile or release mode).
@@ -19,6 +19,6 @@ final bool test = Platform.environment.containsKey("FLUTTER_TEST");
 /// [flutter build flavors](https://docs.flutter.dev/deployment/flavors)
 final Config config = Config(
   bridge: api,
-  buildVariant: BuildVariant.Development,
+  deployEnv: DeployEnv.Dev,
   network: Network.Regtest,
 );

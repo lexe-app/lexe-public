@@ -144,19 +144,19 @@ class AppRsImpl implements AppRs {
     return _wire2api_app_handle(raw);
   }
 
-  BuildVariant _wire2api_build_variant(dynamic raw) {
-    return BuildVariant.values[raw];
-  }
-
   Config _wire2api_config(dynamic raw) {
     final arr = raw as List<dynamic>;
     if (arr.length != 2)
       throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
     return Config(
       bridge: this,
-      buildVariant: _wire2api_build_variant(arr[0]),
+      deployEnv: _wire2api_deploy_env(arr[0]),
       network: _wire2api_network(arr[1]),
     );
+  }
+
+  DeployEnv _wire2api_deploy_env(dynamic raw) {
+    return DeployEnv.values[raw];
   }
 
   int _wire2api_i32(dynamic raw) {
@@ -179,7 +179,7 @@ class AppRsImpl implements AppRs {
 // Section: api2wire
 
 @protected
-int api2wire_build_variant(BuildVariant raw) {
+int api2wire_deploy_env(DeployEnv raw) {
   return api2wire_i32(raw.index);
 }
 
@@ -263,7 +263,7 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   }
 
   void _api_fill_to_wire_config(Config apiObj, wire_Config wireObj) {
-    wireObj.build_variant = api2wire_build_variant(apiObj.buildVariant);
+    wireObj.deploy_env = api2wire_deploy_env(apiObj.deployEnv);
     wireObj.network = api2wire_network(apiObj.network);
   }
 }
@@ -541,7 +541,7 @@ class _Dart_Handle extends ffi.Opaque {}
 
 class wire_Config extends ffi.Struct {
   @ffi.Int32()
-  external int build_variant;
+  external int deploy_env;
 
   @ffi.Int32()
   external int network;

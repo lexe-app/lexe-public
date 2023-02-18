@@ -8,6 +8,9 @@
 //! `../../app/lib/bindings_generated_api.dart` (definitions) and
 //! `../../app/lib/bindings_generated.dart` (impls).
 //!
+//! The low-level generated Rust C-ABI interface is in
+//! [`crate::bindings_generated`].
+//!
 //! This crate's `build.rs` runs when this file changes. It then delegates to
 //! `flutter_rust_bridge_codegen` to actually generate the binding code.
 //!
@@ -23,10 +26,16 @@
 //!   `ZeroCopyBuffer<Vec<u8>>` from Rust, which becomes a `Uint8List` on the
 //!   Dart side without a copy, since Rust can prove there are no borrows to the
 //!   owned buffer when it's transferred.
+//! * Normal looking pub functions, like `pub fn foo() -> u32 { 123 }` look like
+//!   async fn's on the Dart side and are run on a separate small threadpool on
+//!   the Rust side to avoid blocking the main Flutter UI isolate.
+//! * Functions that return `SyncReturn<_>` do block the calling Dart isolate
+//!   and are run in-place on that isolate.
 
 use std::future::Future;
 
 use anyhow::Context;
+use common::rng::SysRng;
 use flutter_rust_bridge::{RustOpaque, SyncReturn};
 
 pub use crate::app::App;
@@ -44,12 +53,14 @@ thread_local! {
         .expect("Failed to build thread's tokio Runtime");
 }
 
-pub enum BuildVariant {
-    Production,
+#[derive(Debug, PartialEq, Eq)]
+pub enum DeployEnv {
+    Prod,
     Staging,
-    Development,
+    Dev,
 }
 
+#[derive(Debug)]
 pub enum Network {
     Bitcoin,
     Testnet,
@@ -57,14 +68,14 @@ pub enum Network {
 }
 
 pub struct Config {
-    pub build_variant: BuildVariant,
+    pub deploy_env: DeployEnv,
     pub network: Network,
 }
 
 impl Config {
     pub fn regtest() -> SyncReturn<Config> {
         SyncReturn(Config {
-            build_variant: BuildVariant::Development,
+            deploy_env: DeployEnv::Dev,
             network: Network::Regtest,
         })
     }
@@ -77,7 +88,7 @@ where
     RUNTIME.with(|rt| rt.block_on(future))
 }
 
-/// The `AppHandle` is a Dart representation of a current [`App`] instance.
+/// The `AppHandle` is a Dart representation of an [`App`] instance.
 pub struct AppHandle {
     pub inner: RustOpaque<App>,
 }
@@ -91,7 +102,7 @@ impl AppHandle {
 
     pub fn load(config: Config) -> anyhow::Result<Option<AppHandle>> {
         block_on(async move {
-            Ok(App::load(config)
+            Ok(App::load(config.into())
                 .await
                 .context("Failed to load saved App state")?
                 .map(AppHandle::new))
@@ -103,7 +114,7 @@ impl AppHandle {
         seed_phrase: String,
     ) -> anyhow::Result<AppHandle> {
         block_on(async move {
-            App::recover(config, seed_phrase)
+            App::recover(config.into(), seed_phrase)
                 .await
                 .context("Failed to recover from seed phrase")
                 .map(Self::new)
@@ -112,7 +123,7 @@ impl AppHandle {
 
     pub fn signup(config: Config) -> anyhow::Result<AppHandle> {
         block_on(async move {
-            App::signup(config)
+            App::signup(&mut SysRng::new(), config.into())
                 .await
                 .context("Failed to generate and signup new wallet")
                 .map(Self::new)

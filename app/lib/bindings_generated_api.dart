@@ -51,7 +51,7 @@ class App extends FrbOpaque {
   OpaqueTypeFinalizer get staticFinalizer => bridge.AppFinalizer;
 }
 
-/// The `AppHandle` is a Dart representation of a current [`App`] instance.
+/// The `AppHandle` is a Dart representation of an [`App`] instance.
 class AppHandle {
   final AppRs bridge;
   final App inner;
@@ -82,25 +82,25 @@ class AppHandle {
       );
 }
 
-enum BuildVariant {
-  Production,
-  Staging,
-  Development,
-}
-
 class Config {
   final AppRs bridge;
-  final BuildVariant buildVariant;
+  final DeployEnv deployEnv;
   final Network network;
 
   Config({
     required this.bridge,
-    required this.buildVariant,
+    required this.deployEnv,
     required this.network,
   });
 
   static Config regtest({required AppRs bridge, dynamic hint}) =>
       bridge.regtestStaticMethodConfig(hint: hint);
+}
+
+enum DeployEnv {
+  Prod,
+  Staging,
+  Dev,
 }
 
 enum Network {

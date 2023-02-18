@@ -12,7 +12,7 @@ typedef bool (*DartPostCObjectFnType)(DartPort port_id, void *message);
 typedef struct DartCObject *WireSyncReturn;
 
 typedef struct wire_Config {
-  int32_t build_variant;
+  int32_t deploy_env;
   int32_t network;
 } wire_Config;
 
