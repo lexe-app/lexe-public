@@ -122,17 +122,16 @@ where
     }
 }
 
-impl Wire2Api<BuildVariant> for i32 {
-    fn wire2api(self) -> BuildVariant {
+impl Wire2Api<DeployEnv> for i32 {
+    fn wire2api(self) -> DeployEnv {
         match self {
-            0 => BuildVariant::Production,
-            1 => BuildVariant::Staging,
-            2 => BuildVariant::Development,
-            _ => unreachable!("Invalid variant for BuildVariant: {}", self),
+            0 => DeployEnv::Prod,
+            1 => DeployEnv::Staging,
+            2 => DeployEnv::Dev,
+            _ => unreachable!("Invalid variant for DeployEnv: {}", self),
         }
     }
 }
-
 impl Wire2Api<i32> for i32 {
     fn wire2api(self) -> i32 {
         self
@@ -163,23 +162,23 @@ impl support::IntoDart for AppHandle {
 }
 impl support::IntoDartExceptPrimitive for AppHandle {}
 
-impl support::IntoDart for BuildVariant {
+impl support::IntoDart for Config {
+    fn into_dart(self) -> support::DartAbi {
+        vec![self.deploy_env.into_dart(), self.network.into_dart()].into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for Config {}
+
+impl support::IntoDart for DeployEnv {
     fn into_dart(self) -> support::DartAbi {
         match self {
-            Self::Production => 0,
+            Self::Prod => 0,
             Self::Staging => 1,
-            Self::Development => 2,
+            Self::Dev => 2,
         }
         .into_dart()
     }
 }
-impl support::IntoDart for Config {
-    fn into_dart(self) -> support::DartAbi {
-        vec![self.build_variant.into_dart(), self.network.into_dart()]
-            .into_dart()
-    }
-}
-impl support::IntoDartExceptPrimitive for Config {}
 
 impl support::IntoDart for Network {
     fn into_dart(self) -> support::DartAbi {
@@ -317,11 +316,10 @@ mod io {
             Wire2Api::<Config>::wire2api(*wrap).into()
         }
     }
-
     impl Wire2Api<Config> for wire_Config {
         fn wire2api(self) -> Config {
             Config {
-                build_variant: self.build_variant.wire2api(),
+                deploy_env: self.deploy_env.wire2api(),
                 network: self.network.wire2api(),
             }
         }
@@ -352,7 +350,7 @@ mod io {
     #[repr(C)]
     #[derive(Clone)]
     pub struct wire_Config {
-        build_variant: i32,
+        deploy_env: i32,
         network: i32,
     }
 
@@ -394,7 +392,7 @@ mod io {
     impl NewWithNullPtr for wire_Config {
         fn new_with_null_ptr() -> Self {
             Self {
-                build_variant: Default::default(),
+                deploy_env: Default::default(),
                 network: Default::default(),
             }
         }
