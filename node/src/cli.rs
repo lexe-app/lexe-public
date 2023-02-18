@@ -50,6 +50,7 @@ impl NodeArgs {
                 let api = Arc::new(NodeApiClient::new(
                     args.backend_url.clone(),
                     args.runner_url.clone(),
+                    None,
                 ));
                 rt.block_on(provision::provision_node(&mut rng, args, api))
                     .context("Error while provisioning")

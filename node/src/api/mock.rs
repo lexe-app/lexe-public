@@ -7,8 +7,10 @@ use async_trait::async_trait;
 use common::api::auth::{
     UserAuthRequest, UserAuthResponse, UserAuthToken, UserSignupRequest,
 };
-use common::api::def::{NodeBackendApi, NodeRunnerApi, UserBackendApi};
-use common::api::error::{BackendApiError, RunnerApiError};
+use common::api::def::{
+    NodeBackendApi, NodeLspApi, NodeRunnerApi, UserBackendApi,
+};
+use common::api::error::{BackendApiError, LspApiError, RunnerApiError};
 use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
@@ -58,6 +60,8 @@ static NODE_PK2: Lazy<NodePk> = Lazy::new(|| make_node_pk(&SEED2));
 
 static SEALED_SEED1: Lazy<SealedSeed> = Lazy::new(|| make_sealed_seed(&SEED1));
 static SEALED_SEED2: Lazy<SealedSeed> = Lazy::new(|| make_sealed_seed(&SEED2));
+
+const DUMMY_SCID: Scid = Scid(0);
 
 pub fn sealed_seed(user_pk: &UserPk) -> SealedSeed {
     if user_pk == &*USER_PK1 {
@@ -187,7 +191,7 @@ impl NodeBackendApi for MockApiClient {
         &self,
         _node_pk: NodePk,
     ) -> Result<Option<Scid>, BackendApiError> {
-        Ok(Some(Scid(0)))
+        Ok(Some(DUMMY_SCID))
     }
 
     async fn get_file(
@@ -250,6 +254,15 @@ impl NodeRunnerApi for MockApiClient {
     }
 }
 
+#[async_trait]
+impl NodeLspApi for MockApiClient {
+    async fn get_new_scid(
+        &self,
+        _node_pk: NodePk,
+    ) -> Result<Scid, LspApiError> {
+        Ok(DUMMY_SCID)
+    }
+}
 struct VirtualFileSystem {
     inner: HashMap<NodeDirectory, HashMap<FileName, Data>>,
 }

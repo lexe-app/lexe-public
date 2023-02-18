@@ -119,7 +119,7 @@ impl UserNode {
         let measurement = enclave::measurement();
         let machine_id = enclave::machine_id();
         let min_cpusvn = MIN_SGX_CPUSVN;
-        let api = init_api(&args);
+        let api = self::init_api(&args);
 
         // Init Tokio channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
@@ -594,6 +594,7 @@ fn init_api(args: &RunArgs) -> ApiClientType {
         Arc::new(api::NodeApiClient::new(
             args.backend_url.clone(),
             args.runner_url.clone(),
+            Some(args.lsp.warp_url.clone()),
         ))
     }
     // Development can use the real OR the mock client, depending on args.mock
@@ -605,6 +606,7 @@ fn init_api(args: &RunArgs) -> ApiClientType {
             Arc::new(api::NodeApiClient::new(
                 args.backend_url.clone(),
                 args.runner_url.clone(),
+                Some(args.lsp.warp_url.clone()),
             ))
         }
     }
