@@ -17,10 +17,10 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kLoadStaticMethodAppHandleConstMeta;
 
-  Future<AppHandle> recoverStaticMethodAppHandle(
+  Future<AppHandle> restoreStaticMethodAppHandle(
       {required Config config, required String seedPhrase, dynamic hint});
 
-  FlutterRustBridgeTaskConstMeta get kRecoverStaticMethodAppHandleConstMeta;
+  FlutterRustBridgeTaskConstMeta get kRestoreStaticMethodAppHandleConstMeta;
 
   Future<AppHandle> signupStaticMethodAppHandle(
       {required Config config, dynamic hint});
@@ -65,12 +65,12 @@ class AppHandle {
           {required AppRs bridge, required Config config, dynamic hint}) =>
       bridge.loadStaticMethodAppHandle(config: config, hint: hint);
 
-  static Future<AppHandle> recover(
+  static Future<AppHandle> restore(
           {required AppRs bridge,
           required Config config,
           required String seedPhrase,
           dynamic hint}) =>
-      bridge.recoverStaticMethodAppHandle(
+      bridge.restoreStaticMethodAppHandle(
           config: config, seedPhrase: seedPhrase, hint: hint);
 
   static Future<AppHandle> signup(
@@ -82,6 +82,7 @@ class AppHandle {
       );
 }
 
+/// Dart-serializable configuration we get from the flutter side.
 class Config {
   final AppRs bridge;
   final DeployEnv deployEnv;

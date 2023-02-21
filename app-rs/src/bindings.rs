@@ -31,6 +31,13 @@
 //!   the Rust side to avoid blocking the main Flutter UI isolate.
 //! * Functions that return `SyncReturn<_>` do block the calling Dart isolate
 //!   and are run in-place on that isolate.
+//! * `SyncReturn` has ~10x less overhead. Think a few 50-100 ns vs a few µs
+//!   overhead per call.
+//! * We have to be careful about blocking the main UI isolate, since we only
+//!   have 16 ms frame budget to compute and render the UI to maintain a smooth
+//!   60 fps. Any ffi that runs for longer than maybe 1 ms should definitely run
+//!   as a separate task on the threadpool. Just reading a value out of some
+//!   in-memory state is probably cheaper overall to use `SyncReturn`.
 
 use std::future::Future;
 
@@ -40,11 +47,13 @@ use flutter_rust_bridge::{RustOpaque, SyncReturn};
 
 pub use crate::app::App;
 
+// TODO(phlip9): land tokio support in flutter_rust_bridge
 // As a temporary unblock to support async fn's, we'll just block_on on a
 // thread-local current_thread runtime in each worker thread.
 //
 // This means we can only have max 4 top-level async fns running at once before
-// we block the main UI thread.
+// we block the main UI thread (flutter_rust_bridge defaults to 4 worker
+// threads in its threadpool).
 thread_local! {
     static RUNTIME: tokio::runtime::Runtime
         = tokio::runtime::Builder::new_current_thread()
@@ -67,6 +76,7 @@ pub enum Network {
     Regtest,
 }
 
+/// Dart-serializable configuration we get from the flutter side.
 pub struct Config {
     pub deploy_env: DeployEnv,
     pub network: Network,
