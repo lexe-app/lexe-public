@@ -49,21 +49,21 @@ fn wire_load__static_method__AppHandle_impl(
         },
     )
 }
-fn wire_recover__static_method__AppHandle_impl(
+fn wire_restore__static_method__AppHandle_impl(
     port_: MessagePort,
     config: impl Wire2Api<Config> + UnwindSafe,
     seed_phrase: impl Wire2Api<String> + UnwindSafe,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap(
         WrapInfo {
-            debug_name: "recover__static_method__AppHandle",
+            debug_name: "restore__static_method__AppHandle",
             port: Some(port_),
             mode: FfiCallMode::Normal,
         },
         move || {
             let api_config = config.wire2api();
             let api_seed_phrase = seed_phrase.wire2api();
-            move |task_callback| AppHandle::recover(api_config, api_seed_phrase)
+            move |task_callback| AppHandle::restore(api_config, api_seed_phrase)
         },
     )
 }
@@ -217,12 +217,12 @@ mod io {
     }
 
     #[no_mangle]
-    pub extern "C" fn wire_recover__static_method__AppHandle(
+    pub extern "C" fn wire_restore__static_method__AppHandle(
         port_: i64,
         config: *mut wire_Config,
         seed_phrase: *mut wire_uint_8_list,
     ) {
-        wire_recover__static_method__AppHandle_impl(port_, config, seed_phrase)
+        wire_restore__static_method__AppHandle_impl(port_, config, seed_phrase)
     }
 
     #[no_mangle]

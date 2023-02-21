@@ -43,7 +43,7 @@ WireSyncReturn wire_regtest__static_method__Config(void);
 
 void wire_load__static_method__AppHandle(int64_t port_, struct wire_Config *config);
 
-void wire_recover__static_method__AppHandle(int64_t port_,
+void wire_restore__static_method__AppHandle(int64_t port_,
                                             struct wire_Config *config,
                                             struct wire_uint_8_list *seed_phrase);
 
@@ -69,7 +69,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     int64_t dummy_var = 0;
     dummy_var ^= ((int64_t) (void*) wire_regtest__static_method__Config);
     dummy_var ^= ((int64_t) (void*) wire_load__static_method__AppHandle);
-    dummy_var ^= ((int64_t) (void*) wire_recover__static_method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_restore__static_method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_signup__static_method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_test_method__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) new_App);

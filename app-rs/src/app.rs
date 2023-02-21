@@ -152,6 +152,7 @@ impl App {
     }
 }
 
+/// Pure-Rust configuration for a particular user app.
 pub struct AppConfig {
     pub network: common::cli::Network,
     pub gateway_url: String,

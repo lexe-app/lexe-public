@@ -59,23 +59,23 @@ class AppRsImpl implements AppRs {
         argNames: ["config"],
       );
 
-  Future<AppHandle> recoverStaticMethodAppHandle(
+  Future<AppHandle> restoreStaticMethodAppHandle(
       {required Config config, required String seedPhrase, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_config(config);
     var arg1 = _platform.api2wire_String(seedPhrase);
     return _platform.executeNormal(FlutterRustBridgeTask(
       callFfi: (port_) => _platform.inner
-          .wire_recover__static_method__AppHandle(port_, arg0, arg1),
+          .wire_restore__static_method__AppHandle(port_, arg0, arg1),
       parseSuccessData: (d) => _wire2api_app_handle(d),
-      constMeta: kRecoverStaticMethodAppHandleConstMeta,
+      constMeta: kRestoreStaticMethodAppHandleConstMeta,
       argValues: [config, seedPhrase],
       hint: hint,
     ));
   }
 
-  FlutterRustBridgeTaskConstMeta get kRecoverStaticMethodAppHandleConstMeta =>
+  FlutterRustBridgeTaskConstMeta get kRestoreStaticMethodAppHandleConstMeta =>
       const FlutterRustBridgeTaskConstMeta(
-        debugName: "recover__static_method__AppHandle",
+        debugName: "restore__static_method__AppHandle",
         argNames: ["config", "seedPhrase"],
       );
 
@@ -392,25 +392,25 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _wire_load__static_method__AppHandlePtr
           .asFunction<void Function(int, ffi.Pointer<wire_Config>)>();
 
-  void wire_recover__static_method__AppHandle(
+  void wire_restore__static_method__AppHandle(
     int port_,
     ffi.Pointer<wire_Config> config,
     ffi.Pointer<wire_uint_8_list> seed_phrase,
   ) {
-    return _wire_recover__static_method__AppHandle(
+    return _wire_restore__static_method__AppHandle(
       port_,
       config,
       seed_phrase,
     );
   }
 
-  late final _wire_recover__static_method__AppHandlePtr = _lookup<
+  late final _wire_restore__static_method__AppHandlePtr = _lookup<
           ffi.NativeFunction<
               ffi.Void Function(ffi.Int64, ffi.Pointer<wire_Config>,
                   ffi.Pointer<wire_uint_8_list>)>>(
-      'wire_recover__static_method__AppHandle');
-  late final _wire_recover__static_method__AppHandle =
-      _wire_recover__static_method__AppHandlePtr.asFunction<
+      'wire_restore__static_method__AppHandle');
+  late final _wire_restore__static_method__AppHandle =
+      _wire_restore__static_method__AppHandlePtr.asFunction<
           void Function(
               int, ffi.Pointer<wire_Config>, ffi.Pointer<wire_uint_8_list>)>();
 
