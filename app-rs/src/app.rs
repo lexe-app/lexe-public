@@ -31,7 +31,7 @@ impl App {
         Ok(None)
     }
 
-    pub async fn recover(
+    pub async fn restore(
         _config: AppConfig,
         _seed_phrase: String,
     ) -> anyhow::Result<Self> {

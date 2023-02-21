@@ -109,14 +109,14 @@ impl AppHandle {
         })
     }
 
-    pub fn recover(
+    pub fn restore(
         config: Config,
         seed_phrase: String,
     ) -> anyhow::Result<AppHandle> {
         block_on(async move {
-            App::recover(config.into(), seed_phrase)
+            App::restore(config.into(), seed_phrase)
                 .await
-                .context("Failed to recover from seed phrase")
+                .context("Failed to restore from seed phrase")
                 .map(Self::new)
         })
     }
