@@ -86,7 +86,7 @@ impl ApiClient for NodeApiClient {
         data: &NodeFile,
         auth: UserAuthToken,
         retries: usize,
-    ) -> Result<NodeFile, BackendApiError> {
+    ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
         let url = format!("{backend}/v1/file");
         let req = self.rest.put(url, data).bearer_auth(&auth);
@@ -170,7 +170,7 @@ impl NodeBackendApi for NodeApiClient {
         &self,
         data: &NodeFile,
         auth: UserAuthToken,
-    ) -> Result<NodeFile, BackendApiError> {
+    ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest

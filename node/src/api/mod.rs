@@ -31,5 +31,5 @@ pub trait ApiClient:
         file: &NodeFile,
         auth: UserAuthToken,
         retries: usize,
-    ) -> Result<NodeFile, BackendApiError>;
+    ) -> Result<(), BackendApiError>;
 }
