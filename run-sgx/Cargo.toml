@@ -27,10 +27,11 @@ memchr = "2"
 object = { version = "0.29", default-features = false, features = ["read_core", "compression", "elf"] }
 # For demangling backtrace symbols into human-readable format
 rustc-demangle = "0.1"
-toml = "0.5"
 
 [target.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.dependencies]
 aesm-client.workspace = true
 enclave-runner = { workspace = true, features = ["crypto-openssl"] }
 sgx-isa.workspace = true
 sgxs-loaders.workspace = true
+
+toml = "0.5"
