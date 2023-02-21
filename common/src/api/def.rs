@@ -80,12 +80,12 @@ pub trait NodeBackendApi {
         auth: UserAuthToken,
     ) -> Result<NodeFile, BackendApiError>;
 
-    /// PUT /v1/file [`NodeFile`] -> [`NodeFile`]
+    /// PUT /v1/file [`NodeFile`] -> [`()`]
     async fn upsert_file(
         &self,
         file: &NodeFile,
         auth: UserAuthToken,
-    ) -> Result<NodeFile, BackendApiError>;
+    ) -> Result<(), BackendApiError>;
 
     /// DELETE /v1/file [`NodeFileId`] -> "OK"
     ///

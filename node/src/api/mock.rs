@@ -153,7 +153,7 @@ impl ApiClient for MockApiClient {
         file: &NodeFile,
         auth: UserAuthToken,
         _retries: usize,
-    ) -> Result<NodeFile, BackendApiError> {
+    ) -> Result<(), BackendApiError> {
         self.upsert_file(file, auth).await
     }
 }
@@ -217,9 +217,9 @@ impl NodeBackendApi for MockApiClient {
         &self,
         file: &NodeFile,
         _auth: UserAuthToken,
-    ) -> Result<NodeFile, BackendApiError> {
+    ) -> Result<(), BackendApiError> {
         self.vfs.lock().unwrap().insert(file.clone());
-        Ok(file.clone())
+        Ok(())
     }
 
     /// Returns "OK" if exactly one row was deleted.
