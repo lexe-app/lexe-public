@@ -25,33 +25,28 @@ crate-type = [
 ]
 
 [dependencies]
+# --- LEXE --- #
+
 common = { path = "../common" }
 
-# Ad hoc error definition, easy error propagation, error chains
+# --- WORKSPACE --- #
+
 anyhow.workspace = true
-
-# High-level memory-safe Rust<->Dart FFI bindings
-# Specifies minor version (1.61) because 1.62 generates broken code
-flutter_rust_bridge = { version = "1.61", default-features = false, features = [] }
-# A wrapper type for carefully handling secrets
 secrecy.workspace = true
-
-# --- PATCHED DEPENDENCIES --- #
-# - Be sure to use the specific patched versions.
-# - See the workspace Cargo.toml for patch declarations.
-# - The versions for transitive dependencies (such as hyper, mio, ring, etc) are
-#   declared in `common`'s Cargo.toml and propagated to other crates by
-#   workspace-level dependency resolution.
 tokio = { workspace = true, default-features = false, features = [
     "net",
     "rt",
     "time"
 ] }
 
+# --- GENERAL --- #
+
+# High-level memory-safe Rust<->Dart FFI bindings
+# Specifies minor version (1.61) because 1.62 generates broken code
+flutter_rust_bridge = { version = "1.61", default-features = false, features = [] }
+
 [dev-dependencies]
 
 [build-dependencies]
-# # Enable this to get logs from flutter_rust_bridge_codegen in build.rs
-# env_logger = { version = "0", default-features = false }
 # Specifies minor version (1.61) because 1.62 generates broken code
 flutter_rust_bridge_codegen = { version = "1.61", default-features = false, features = [] }
