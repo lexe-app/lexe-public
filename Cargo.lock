@@ -79,9 +79,17 @@ dependencies = [
  "anyhow",
  "common",
  "flutter_rust_bridge",
- "flutter_rust_bridge_codegen",
  "secrecy",
  "tokio",
+]
+
+[[package]]
+name = "app-rs-codegen"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "argh",
+ "flutter_rust_bridge_codegen",
 ]
 
 [[package]]

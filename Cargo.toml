@@ -3,6 +3,7 @@ resolver = "2"
 
 members = [
     "app-rs",
+    "app-rs-codegen",
     "common",
     "lexe-ln",
     "node",
@@ -48,6 +49,12 @@ cfg-if = "1"
 dotenvy = "0.15"
 # common HTTP types
 http = "0.2"
+# High-level memory-safe Rust<->Dart FFI bindings.
+# Use minor version 1.61 b/c 1.62 generates broken code.
+flutter_rust_bridge = { version = "1.61", default-features = false, features = [] }
+# The Rust+Dart codegen for flutter_rust_bridge
+# Use minor version 1.61 b/c 1.62 generates broken code.
+flutter_rust_bridge_codegen = { version = "1.61", default-features = false, features = [] }
 # Utils for working with futures
 futures = "0.3"
 # Lazy initialization

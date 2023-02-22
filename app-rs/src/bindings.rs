@@ -1,4 +1,4 @@
-//! # Rust/Dart ffi bindings
+//! # Rust/Dart FFI bindings
 //!
 //! This file contains all types and functions exposed to Dart. All `pub`
 //! functions, structs, and enums in this file also have corresponding
@@ -11,8 +11,8 @@
 //! The low-level generated Rust C-ABI interface is in
 //! [`crate::bindings_generated`].
 //!
-//! This crate's `build.rs` runs when this file changes. It then delegates to
-//! `flutter_rust_bridge_codegen` to actually generate the binding code.
+//! These FFI bindings are generated using the `app-rs-codegen` crate. Be sure
+//! to re-run the `app-rs-codegen` whenever this file changes.
 //!
 //! ## Understanding the codegen
 //!
