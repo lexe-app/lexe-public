@@ -19,11 +19,13 @@
 
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use anyhow::Context;
 use bitcoin::secp256k1;
 use common::api::auth::UserAuthenticator;
+use common::api::def::NodeRunnerApi;
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::ports::UserPorts;
 use common::api::provision::{NodeProvisionRequest, SealedSeed};
@@ -39,7 +41,7 @@ use common::{ed25519, enclave};
 use tracing::{debug, info, instrument, warn};
 use warp::{Filter, Rejection, Reply};
 
-use crate::alias::ApiClientType;
+use crate::api::BackendApiClient;
 
 const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -48,7 +50,8 @@ struct RequestContext {
     current_user_pk: UserPk,
     measurement: Measurement,
     shutdown: ShutdownChannel,
-    api: ApiClientType,
+    runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
+    backend_api: Arc<dyn BackendApiClient + Send + Sync>,
     // TODO(phlip9): make generic, use test rng in test
     rng: SysRng,
 }
@@ -68,7 +71,8 @@ fn with_request_context(
 pub async fn provision_node<R: Crng>(
     rng: &mut R,
     args: ProvisionArgs,
-    api: ApiClientType,
+    runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
+    backend_api: Arc<dyn BackendApiClient + Send + Sync>,
 ) -> anyhow::Result<()> {
     debug!(%args.user_pk, args.port, %args.node_dns_name, "provisioning");
 
@@ -79,7 +83,8 @@ pub async fn provision_node<R: Crng>(
         current_user_pk: args.user_pk,
         measurement,
         shutdown: shutdown.clone(),
-        api: api.clone(),
+        runner_api: runner_api.clone(),
+        backend_api,
         // TODO(phlip9): use passed in rng
         rng: SysRng::new(),
     };
@@ -119,7 +124,8 @@ pub async fn provision_node<R: Crng>(
 
     // Notify the runner that we're ready for a client connection
     let user_ports = UserPorts::new_provision(args.user_pk, owner_port);
-    api.ready(user_ports)
+    runner_api
+        .ready(user_ports)
         .await
         .context("Failed to notify runner of our readiness")?;
     debug!("Notified runner; awaiting client request");
@@ -186,7 +192,7 @@ async fn provision_handler(
     let authenticator =
         UserAuthenticator::new(user_key_pair, None /* maybe_token */);
     let token = authenticator
-        .authenticate(&*ctx.api, SystemTime::now())
+        .authenticate(ctx.backend_api.as_ref(), SystemTime::now())
         .await
         .map_err(|err| NodeApiError {
             kind: NodeErrorKind::BadAuth,
@@ -195,7 +201,7 @@ async fn provision_handler(
         .token;
 
     // store the sealed seed and new node metadata in the backend
-    ctx.api
+    ctx.backend_api
         .create_sealed_seed(sealed_seed, token)
         .await
         .map_err(|e| NodeApiError {
@@ -258,7 +264,7 @@ mod test {
     use tokio_rustls::rustls;
 
     use super::*;
-    use crate::api::mock::MockApiClient;
+    use crate::api::mock::{MockBackendClient, MockRunnerClient};
 
     #[cfg(target_env = "sgx")]
     #[test]
@@ -304,12 +310,15 @@ mod test {
             ..ProvisionArgs::default()
         };
 
-        let api = Arc::new(MockApiClient::new());
-        let mut notifs_rx = api.notifs_rx();
+        let runner_api = Arc::new(MockRunnerClient::new());
+        let backend_api = Arc::new(MockBackendClient::new());
+        let mut notifs_rx = runner_api.notifs_rx();
 
         let provision_task = async {
             let mut rng = WeakRng::new();
-            provision_node(&mut rng, args, api).await.unwrap();
+            provision_node(&mut rng, args, runner_api, backend_api)
+                .await
+                .unwrap();
         };
 
         let test_task = async {
