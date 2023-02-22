@@ -42,14 +42,14 @@ impl Regtest {
         let mut electrsd_conf = electrsd::Conf::default();
         // Expose esplora endpoint
         electrsd_conf.http_enabled = true;
-        // Include electrsd stderr if RUST_LOG begins with "debug" or "trace"
+        // Include electrsd stderr if RUST_LOG begins with "trace".
         // This is v helpful to enable if you're having problems with electrsd
         if let Some(log_os_str) = env::var_os("RUST_LOG") {
             let log_str = log_os_str
                 .into_string()
                 .expect("Could not convert into utf-8")
                 .to_lowercase();
-            if log_str.starts_with("debug") || log_str.starts_with("trace") {
+            if log_str.starts_with("trace") {
                 electrsd_conf.view_stderr = true;
             }
         }
