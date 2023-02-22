@@ -8,7 +8,7 @@ use common::shutdown::ShutdownChannel;
 use lexe_ln::test_event;
 use tokio::sync::watch;
 
-use crate::api::NodeApiClient;
+use crate::api::client::{BackendClient, RunnerClient};
 use crate::provision;
 use crate::run::UserNode;
 
@@ -47,13 +47,17 @@ impl NodeArgs {
                 })
                 .context("Error running node"),
             NodeCommand::Provision(args) => {
-                let api = Arc::new(NodeApiClient::new(
-                    args.backend_url.clone(),
-                    args.runner_url.clone(),
-                    None,
-                ));
-                rt.block_on(provision::provision_node(&mut rng, args, api))
-                    .context("Error while provisioning")
+                let runner_api =
+                    Arc::new(RunnerClient::new(args.runner_url.clone()));
+                let backend_api =
+                    Arc::new(BackendClient::new(args.backend_url.clone()));
+                rt.block_on(provision::provision_node(
+                    &mut rng,
+                    args,
+                    runner_api,
+                    backend_api,
+                ))
+                .context("Error while provisioning")
             }
         }
     }
