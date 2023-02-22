@@ -67,7 +67,7 @@ impl NodeLspApi for LspClient {
     async fn get_new_scid(&self, node_pk: NodePk) -> Result<Scid, LspApiError> {
         let lsp = &self.lsp_url;
         let data = GetByNodePk { node_pk };
-        let req = self.rest.get(format!("{lsp}/node/v1/scid"), &data);
+        let req = self.rest.get(format!("{lsp}/v1/scid"), &data);
         self.rest.send(req).await
     }
 }

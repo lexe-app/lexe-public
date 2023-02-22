@@ -124,7 +124,7 @@ pub trait UserBackendApi {
 /// Defines the api that the LSP exposes to user nodes.
 #[async_trait]
 pub trait NodeLspApi {
-    /// GET /node/v1/scid [`GetByNodePk`] -> [`Option<Scid>`]
+    /// GET /v1/scid [`GetByNodePk`] -> [`Option<Scid>`]
     ///
     /// [`GetByNodePk`]: super::qs::GetByNodePk
     async fn get_new_scid(&self, node_pk: NodePk) -> Result<Scid, LspApiError>;
