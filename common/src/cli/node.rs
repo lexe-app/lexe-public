@@ -88,13 +88,22 @@ pub struct RunArgs {
     #[argh(option, short = 'i', default = "3600")]
     pub inactivity_timer_sec: u64,
 
-    /// protocol://host:port of the backend.
-    #[argh(option)]
-    pub backend_url: String,
+    /// whether the node is allowed to use mock clients instead of real ones.
+    /// This option exists as a safeguard to prevent accidentally using a mock
+    /// client by forgetting to pass `Some(url)` for the various Lexe services.
+    /// Mock clients are only available during dev, and are cfg'd out in prod.
+    #[argh(switch, short = 'm')]
+    pub allow_mock: bool,
 
-    /// protocol://host:port of the runner.
+    /// protocol://host:port of the backend. Defaults to a mock client if not
+    /// supplied, provided that `--allow-mock` is set and we are not in prod.
     #[argh(option)]
-    pub runner_url: String,
+    pub backend_url: Option<String>,
+
+    /// protocol://host:port of the runner. Defaults to a mock client if not
+    /// supplied, provided that `--allow-mock` is set and we are not in prod.
+    #[argh(option)]
+    pub runner_url: Option<String>,
 
     /// protocol://host:port of Lexe's Esplora server.
     #[argh(option)]
@@ -110,10 +119,6 @@ pub struct RunArgs {
     /// certificate and the client will expect in its connection
     #[argh(option, default = "NODE_RUN_DNS.to_owned()")]
     pub node_dns_name: String,
-
-    /// whether to use a mock API client. Only available during development.
-    #[argh(switch, short = 'm')]
-    pub mock: bool,
 }
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -134,11 +139,11 @@ impl Default for RunArgs {
             shutdown_after_sync_if_no_activity: false,
             inactivity_timer_sec: 3600,
             node_dns_name: NODE_RUN_DNS.to_owned(),
-            backend_url: DUMMY_BACKEND_URL.to_owned(),
-            runner_url: DUMMY_RUNNER_URL.to_owned(),
+            backend_url: Some(DUMMY_BACKEND_URL.to_owned()),
+            runner_url: Some(DUMMY_RUNNER_URL.to_owned()),
             esplora_url: DUMMY_ESPLORA_URL.to_owned(),
             lsp: DUMMY_LSP_INFO.clone(),
-            mock: false,
+            allow_mock: false,
         }
     }
 }
@@ -161,10 +166,6 @@ impl RunArgs {
             .arg(&self.inactivity_timer_sec.to_string())
             .arg("--network")
             .arg(&self.network.to_string())
-            .arg("--backend-url")
-            .arg(&self.backend_url)
-            .arg("--runner-url")
-            .arg(&self.runner_url)
             .arg("--esplora-url")
             .arg(&self.esplora_url)
             .arg("--lsp")
@@ -175,8 +176,14 @@ impl RunArgs {
         if self.shutdown_after_sync_if_no_activity {
             cmd.arg("-s");
         }
-        if self.mock {
-            cmd.arg("--mock");
+        if self.allow_mock {
+            cmd.arg("--allow-mock");
+        }
+        if let Some(ref backend_url) = self.backend_url {
+            cmd.arg("--backend-url").arg(backend_url);
+        }
+        if let Some(ref runner_url) = self.runner_url {
+            cmd.arg("--runner-url").arg(runner_url);
         }
         if let Some(owner_port) = self.owner_port {
             cmd.arg("--owner-port").arg(&owner_port.to_string());

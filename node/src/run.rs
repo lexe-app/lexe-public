@@ -121,10 +121,10 @@ impl UserNode {
         let machine_id = enclave::machine_id();
         let min_cpusvn = MIN_SGX_CPUSVN;
         let backend_api =
-            api::new_backend_api(args.mock, args.backend_url.clone());
+            api::new_backend_api(args.allow_mock, args.backend_url.clone())?;
         let runner_api =
-            api::new_runner_api(args.mock, args.runner_url.clone());
-        let _lsp_api = api::new_lsp_api(args.mock, args.lsp.warp_url.clone());
+            api::new_runner_api(args.allow_mock, args.runner_url.clone())?;
+        let _lsp_api = api::new_lsp_api(args.allow_mock, args.lsp.url.clone())?;
 
         // Init Tokio channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
