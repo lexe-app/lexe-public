@@ -472,7 +472,16 @@ The native code is made available to the Flutter app via
 [`app-rs`](../app-rs/README.md) is the Rust crate which contains the shared
 interface and code.
 
-### FFI Build Overview
+### Regenerate the FFI bindings code
+
+After making changes to [`app-rs/src/bindings.rs`](../app-rs/src/bindings.rs),
+be sure to regenerate the Dart+Rust FFI bindings:
+
+```bash
+$ cargo run -p app-rs-codegen
+```
+
+### FFI build process
 
 The current build process looks like this:
 
@@ -500,13 +509,8 @@ The current build process looks like this:
 
 	* (Linux/Windows) TODO
 
-4. Running `cargo build` on `app-rs` will also regenerate the Rust and Dart FFI
-   glue code from [`app-rs/src/bindings.rs`](../app-rs/src/bindings.rs), as seen
-   in [`app-rs/build.rs`](../app-rs/build.rs). This step is where
-   `flutter_rust_bridge_codegen` comes in.
-
-5. `cargo build` then continues with the build process and dumps out `libapp_rs`
-   as a dynamic library (used for Android only) and as a static library (used for
+4. `cargo build` continues with the build process and dumps out `libapp_rs` as a
+   dynamic library (used for Android only) and as a static library (used for
    all other platforms).
 
 ### Caveats

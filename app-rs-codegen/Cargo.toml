@@ -1,0 +1,14 @@
+[package]
+name = "app-rs-codegen"
+version = "0.1.0"
+authors = [
+    "Max Fang <protonmail.com@maxfa.ng>",
+    "Philip Hayes <philiphayes9@gmail.com>"
+]
+license = "PolyForm Noncommercial License 1.0.0"
+edition = "2021"
+
+[dependencies]
+anyhow.workspace = true
+argh.workspace = true
+flutter_rust_bridge_codegen.workspace = true
