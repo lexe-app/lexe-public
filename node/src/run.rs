@@ -124,7 +124,7 @@ impl UserNode {
             api::new_backend_api(args.allow_mock, args.backend_url.clone())?;
         let runner_api =
             api::new_runner_api(args.allow_mock, args.runner_url.clone())?;
-        let _lsp_api = api::new_lsp_api(args.allow_mock, args.lsp.url.clone())?;
+        let lsp_api = api::new_lsp_api(args.allow_mock, args.lsp.url.clone())?;
 
         // Init Tokio channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
@@ -209,18 +209,16 @@ impl UserNode {
             .map(Arc::new)
             .context("Could not read network graph")?;
         let wallet_db = try_wallet_db.context("Could not read wallet db")?;
-        let _maybe_scid = try_scid.context("Could not read scid")?;
-        // TODO(max): This breaks the runner integration tests; fix this by
-        // splitting the --mock CLI arg to operate per-service
+        let maybe_scid = try_scid.context("Could not read scid")?;
         // TODO(max): Pass the scid into the get_invoice handler
-        // let _scid = match maybe_scid {
-        //     Some(s) => s,
-        //     // We has not been assigned an scid yet; ask the LSP for one
-        //     None => lsp_api
-        //         .get_new_scid(user.node_pk)
-        //         .await
-        //         .context("Could not get new scid from LSP")?,
-        // };
+        let _scid = match maybe_scid {
+            Some(s) => s,
+            // We has not been assigned an scid yet; ask the LSP for one
+            None => lsp_api
+                .get_new_scid(user.node_pk)
+                .await
+                .context("Could not get new scid from LSP")?,
+        };
 
         // Init BDK wallet; share esplora connection pool, spawn persister task
         let wallet = LexeWallet::new(
