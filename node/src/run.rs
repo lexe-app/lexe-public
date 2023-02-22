@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use anyhow::{bail, ensure, Context};
 use common::api::auth::UserAuthenticator;
+use common::api::def::NodeRunnerApi;
 use common::api::ports::UserPorts;
 use common::api::provision::SealedSeedId;
 use common::api::{User, UserPk};
@@ -45,8 +46,8 @@ use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot, watch};
 use tracing::{debug, error, info, instrument};
 
-use crate::alias::{ApiClientType, ChainMonitorType, InvoicePayerType};
-use crate::api::ApiClient;
+use crate::alias::{ChainMonitorType, InvoicePayerType};
+use crate::api::BackendApiClient;
 use crate::channel_manager::NodeChannelManager;
 use crate::event_handler::NodeEventHandler;
 use crate::inactivity_timer::InactivityTimer;
@@ -64,7 +65,6 @@ const SHUTDOWN_TIME_LIMIT: Duration = Duration::from_secs(15);
 pub struct UserNode {
     // --- General --- //
     args: RunArgs,
-    api: ApiClientType,
     pub(crate) user_ports: UserPorts,
     tasks: Vec<LxTask<()>>,
     channel_peer_tx: mpsc::Sender<ChannelPeerUpdate>,
@@ -95,6 +95,7 @@ pub struct UserNode {
 
 /// Fields which are "moved" out of [`UserNode`] during `sync`.
 struct SyncContext {
+    runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
     ldk_sync_client: Arc<EsploraSyncClientType>,
     resync_rx: watch::Receiver<()>,
     test_event_tx: TestEventSender,
@@ -119,7 +120,11 @@ impl UserNode {
         let measurement = enclave::measurement();
         let machine_id = enclave::machine_id();
         let min_cpusvn = MIN_SGX_CPUSVN;
-        let api = self::init_api(&args);
+        let backend_api =
+            api::new_backend_api(args.mock, args.backend_url.clone());
+        let runner_api =
+            api::new_runner_api(args.mock, args.runner_url.clone());
+        let _lsp_api = api::new_lsp_api(args.mock, args.lsp.warp_url.clone());
 
         // Init Tokio channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
@@ -135,7 +140,7 @@ impl UserNode {
         let (try_esplora, try_fetch) = tokio::join!(
             LexeEsplora::init(args.esplora_url.clone(), shutdown.clone()),
             fetch_provisioned_secrets(
-                api.as_ref(),
+                backend_api.as_ref(),
                 user_pk,
                 measurement,
                 machine_id,
@@ -170,7 +175,7 @@ impl UserNode {
             Arc::new(UserAuthenticator::new(user_key_pair, None));
         let vfs_master_key = Arc::new(root_seed.derive_vfs_master_key());
         let persister = NodePersister::new(
-            api.clone(),
+            backend_api.clone(),
             authenticator,
             vfs_master_key,
             user_pk,
@@ -196,7 +201,7 @@ impl UserNode {
                 persister.read_channel_monitors(keys_manager.clone()),
                 persister.read_network_graph(args.network, logger.clone()),
                 persister.read_wallet_db(wallet_db_persister_tx),
-                api.get_scid(user.node_pk),
+                backend_api.get_scid(user.node_pk),
             );
         let mut channel_monitors =
             try_channel_monitors.context("Could not read channel monitors")?;
@@ -211,7 +216,7 @@ impl UserNode {
         // let _scid = match maybe_scid {
         //     Some(s) => s,
         //     // We has not been assigned an scid yet; ask the LSP for one
-        //     None => api
+        //     None => lsp_api
         //         .get_new_scid(user.node_pk)
         //         .await
         //         .context("Could not get new scid from LSP")?,
@@ -441,7 +446,6 @@ impl UserNode {
         Ok(Self {
             // General
             args,
-            api,
             user_ports,
             tasks,
             channel_peer_tx,
@@ -470,6 +474,7 @@ impl UserNode {
 
             // Contexts
             sync: Some(SyncContext {
+                runner_api,
                 ldk_sync_client,
                 resync_rx,
                 test_event_tx,
@@ -516,7 +521,7 @@ impl UserNode {
 
         // Sync complete; let the runner know that we're ready
         info!("Node is ready to accept commands; notifying runner");
-        self.api
+        ctxt.runner_api
             .ready(self.user_ports)
             .await
             .context("Could not notify runner of ready status")?;
@@ -598,36 +603,12 @@ impl UserNode {
     }
 }
 
-/// Constructs an `Arc<dyn ApiClient>` based on whether we are running in SGX,
-/// and whether `args.mock` is set to true
-fn init_api(args: &RunArgs) -> ApiClientType {
-    // Production can only use the real api client
-    #[cfg(all(target_env = "sgx", not(test)))]
-    {
-        Arc::new(api::NodeApiClient::new(
-            args.backend_url.clone(),
-            args.runner_url.clone(),
-            Some(args.lsp.warp_url.clone()),
-        ))
-    }
-    // Development can use the real OR the mock client, depending on args.mock
-    #[cfg(not(all(target_env = "sgx", not(test))))]
-    {
-        if args.mock {
-            Arc::new(api::mock::MockApiClient::new())
-        } else {
-            Arc::new(api::NodeApiClient::new(
-                args.backend_url.clone(),
-                args.runner_url.clone(),
-                Some(args.lsp.warp_url.clone()),
-            ))
-        }
-    }
-}
-
 /// Fetches previously provisioned secrets from the API.
+// Really this could just take `&dyn NodeBackendApi` but dyn upcasting is
+// marked as incomplete and not yet safe to use as of 2023-02-01.
+// https://github.com/rust-lang/rust/issues/65991
 async fn fetch_provisioned_secrets(
-    api: &dyn ApiClient,
+    backend_api: &dyn BackendApiClient,
     user_pk: UserPk,
     measurement: Measurement,
     machine_id: MachineId,
@@ -643,8 +624,8 @@ async fn fetch_provisioned_secrets(
     };
 
     let (user_res, sealed_seed_res) = tokio::join!(
-        api.get_user(user_pk),
-        api.get_sealed_seed(sealed_seed_id)
+        backend_api.get_user(user_pk),
+        backend_api.get_sealed_seed(sealed_seed_id)
     );
 
     let user_opt = user_res.context("Error while fetching user")?;

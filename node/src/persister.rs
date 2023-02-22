@@ -44,7 +44,8 @@ use serde::Serialize;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
-use crate::alias::{ApiClientType, ChainMonitorType, ChannelManagerType};
+use crate::alias::{ChainMonitorType, ChannelManagerType};
+use crate::api::BackendApiClient;
 use crate::channel_manager::USER_CONFIG;
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
@@ -63,7 +64,7 @@ pub struct NodePersister {
 
 impl NodePersister {
     pub(crate) fn new(
-        api: ApiClientType,
+        api: Arc<dyn BackendApiClient + Send + Sync>,
         authenticator: Arc<UserAuthenticator>,
         vfs_master_key: Arc<VfsMasterKey>,
         user_pk: UserPk,
@@ -94,7 +95,7 @@ impl Deref for NodePersister {
 /// NodePersister Derefs to it.
 #[derive(Clone)]
 pub struct InnerPersister {
-    api: ApiClientType,
+    api: Arc<dyn BackendApiClient + Send + Sync>,
     authenticator: Arc<UserAuthenticator>,
     vfs_master_key: Arc<VfsMasterKey>,
     user_pk: UserPk,
