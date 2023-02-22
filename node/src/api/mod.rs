@@ -14,8 +14,6 @@ pub(crate) mod client;
 #[cfg(any(test, not(target_env = "sgx")))]
 pub mod mock;
 
-pub use client::*;
-
 /// A trait for a client that can handle requests to both the backend + runner,
 /// plus some methods to call into these services with retries.
 #[async_trait]
