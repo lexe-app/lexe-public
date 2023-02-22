@@ -100,19 +100,19 @@ cargo run --bin [--target=x86_64-fortanix-unknown-sgx] node -- run \
     --network <network> \
     [-s | --shutdown-after-sync-if-no-activity] \
     [-i | --inactivity-time-sec <inactivity-timer-sec>] \
-    --backend-url <backend-url> \
-    --runner-url <runner-url> \
+    [-m | --allow-mock]
+    [--backend-url <backend-url>] \
+    [--runner-url <runner-url>] \
     --esplora-url <esplora-url> \
     --lsp <lsp-info> \
     [--node-dns-name <node-dns-name>] \
-    [-m | --mock]
 ```
 - If running in SGX, make sure that you are running on real Intel hardware with
   SGX enabled.
-- The node may fail to run if one or more Lexe services are missing. You may try
-  running the node with `--mock`, which uses a mock API client instead of a real
-  one to simulate the required API calls, passing dummy values to other CLI args
-  where appropriate. Note, however, that this functionality is provided on a
+- If running the node independently of Lexe services, you will need to use mock
+  API clients instead of the real ones, which simulate the APIs exposed by these
+  services. To do this, pass `-m` and simply don't specify a `--backend-url`,
+  `--runner-url`, or LSP url. Note that mocking functionality is provided on a
   best-effort basis and is not tested (or used) regularly by Lexe devs.
 
 See full CLI options with:

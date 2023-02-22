@@ -27,7 +27,7 @@ pub static DUMMY_LSP_INFO: Lazy<LspInfo> = Lazy::new(|| {
     let addr = SocketAddr::from(([127, 0, 0, 1], 42069));
 
     LspInfo {
-        warp_url: DUMMY_LSP_URL.to_owned(),
+        url: Some(DUMMY_LSP_URL.to_owned()),
         node_pk,
         addr,
         base_msat: 0,

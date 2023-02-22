@@ -39,8 +39,10 @@ pub struct Network(pub bitcoin::Network);
 /// generate route hints when no channel exists.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LspInfo {
-    /// The protocol://host:port of the LSP's HTTP server
-    pub warp_url: String,
+    /// The protocol://host:port of the LSP's HTTP server. The node will
+    /// default to a mock client if not supplied, provided that
+    /// `--allow-mock` is set and we are not in prod.
+    pub url: Option<String>,
     // - ChannelPeer fields - //
     pub node_pk: NodePk,
     /// The socket on which the LSP accepts P2P LN connections from user nodes
@@ -213,7 +215,7 @@ mod arbitrary_not_sgx {
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             (
-                any::<String>(),
+                any::<Option<String>>(),
                 any::<NodePk>(),
                 arbitrary::any_socket_addr(),
                 any::<u32>(),
@@ -224,7 +226,7 @@ mod arbitrary_not_sgx {
             )
                 .prop_map(
                     |(
-                        warp_url,
+                        url,
                         node_pk,
                         addr,
                         base_msat,
@@ -234,7 +236,7 @@ mod arbitrary_not_sgx {
                         htlc_maximum_msat,
                     )| {
                         Self {
-                            warp_url,
+                            url,
                             node_pk,
                             addr,
                             base_msat,
