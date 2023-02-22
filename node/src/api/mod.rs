@@ -14,27 +14,6 @@ pub(crate) mod client;
 #[cfg(any(test, not(target_env = "sgx")))]
 pub mod mock;
 
-/// A trait for a client that can handle requests to both the backend + runner,
-/// plus some methods to call into these services with retries.
-#[async_trait]
-pub trait ApiClient:
-    NodeBackendApi + NodeLspApi + NodeRunnerApi + UserBackendApi
-{
-    async fn create_file_with_retries(
-        &self,
-        file: &NodeFile,
-        auth: UserAuthToken,
-        retries: usize,
-    ) -> Result<NodeFile, BackendApiError>;
-
-    async fn upsert_file_with_retries(
-        &self,
-        file: &NodeFile,
-        auth: UserAuthToken,
-        retries: usize,
-    ) -> Result<(), BackendApiError>;
-}
-
 /// A trait for a client that can implements both backend API traits, plus some
 /// methods which allow the caller to specify the number of retries.
 #[async_trait]
@@ -55,7 +34,6 @@ pub trait BackendApiClient: NodeBackendApi + UserBackendApi {
 }
 
 /// Helper to initiate a client to the backend.
-#[allow(dead_code)] // TODO(max): Remove
 #[allow(unused_variables)] // `mock` isn't read in sgx
 pub(crate) fn new_backend_api(
     mock: bool,
@@ -77,7 +55,6 @@ pub(crate) fn new_backend_api(
 }
 
 /// Helper to initiate a client to the LSP.
-#[allow(dead_code)] // TODO(max): Remove
 #[allow(unused_variables)] // `mock` isn't read in sgx
 pub(crate) fn new_lsp_api(
     mock: bool,
@@ -99,7 +76,6 @@ pub(crate) fn new_lsp_api(
 }
 
 /// Helper to initiate a client to the runner.
-#[allow(dead_code)] // TODO(max): Remove
 #[allow(unused_variables)] // `mock` isn't read in sgx
 pub(crate) fn new_runner_api(
     mock: bool,
