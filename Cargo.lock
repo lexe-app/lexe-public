@@ -1774,6 +1774,7 @@ dependencies = [
  "bitcoin",
  "bitcoin-bech32",
  "bytes",
+ "cfg-if 1.0.0",
  "common",
  "futures",
  "http",
