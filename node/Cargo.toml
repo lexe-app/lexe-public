@@ -36,6 +36,7 @@ anyhow.workspace = true
 argh.workspace = true
 async-trait.workspace = true
 bytes.workspace = true
+cfg-if.workspace = true
 futures.workspace = true
 http.workspace = true
 once_cell.workspace = true
