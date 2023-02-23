@@ -53,7 +53,7 @@ mod test {
             let timestamp = any::<Duration>()
                 .prop_map(|d| cmp::min(d, Duration::from_secs(MAX_TIMESTAMP)))
                 .prop_map(|duration| UNIX_EPOCH + duration);
-            let min_final_cltv_expiry = any::<u64>();
+            let min_final_cltv_expiry_delta = any::<u64>();
             let secret_key = any::<WeakRng>()
                 .prop_map(|mut rng| {
                     RootSeed::from_rng(&mut rng).derive_node_key_pair(&mut rng)
@@ -66,7 +66,7 @@ mod test {
                 payment_hash,
                 payment_secret,
                 timestamp,
-                min_final_cltv_expiry,
+                min_final_cltv_expiry_delta,
                 secret_key,
             )
                 .prop_map(
@@ -76,7 +76,7 @@ mod test {
                         payment_hash,
                         payment_secret,
                         timestamp,
-                        min_final_cltv_expiry,
+                        min_final_cltv_expiry_delta,
                         secret_key,
                     )| {
                         let invoice = InvoiceBuilder::new(currency)
@@ -84,7 +84,9 @@ mod test {
                             .payment_hash(payment_hash)
                             .payment_secret(payment_secret)
                             .timestamp(timestamp)
-                            .min_final_cltv_expiry(min_final_cltv_expiry)
+                            .min_final_cltv_expiry_delta(
+                                min_final_cltv_expiry_delta,
+                            )
                             .build_signed(|hash| {
                                 Secp256k1::new()
                                     .sign_ecdsa_recoverable(hash, &secret_key)

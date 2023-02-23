@@ -1,7 +1,6 @@
 use std::fmt::{self, Display};
 
 use lightning::ln::channelmanager::PaymentSendFailure;
-use lightning::ln::msgs::LightningError;
 use lightning::ln::{PaymentPreimage, PaymentSecret};
 use lightning_invoice::payment::PaymentError;
 
@@ -36,18 +35,15 @@ impl Display for HTLCStatus {
 pub enum LxPaymentError {
     #[error("Invalid invoice: {0}")]
     Invoice(&'static str),
-    #[error("Failed to find route: {}", .0.err)]
-    Routing(LightningError),
     #[error("Payment send failure: {0:?}")]
-    Sending(PaymentSendFailure),
+    Sending(Box<PaymentSendFailure>),
 }
 
 impl From<PaymentError> for LxPaymentError {
     fn from(ldk_err: PaymentError) -> Self {
         match ldk_err {
             PaymentError::Invoice(inner) => Self::Invoice(inner),
-            PaymentError::Routing(inner) => Self::Routing(inner),
-            PaymentError::Sending(inner) => Self::Sending(inner),
+            PaymentError::Sending(inner) => Self::Sending(Box::new(inner)),
         }
     }
 }

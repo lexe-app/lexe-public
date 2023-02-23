@@ -6,7 +6,6 @@ use common::rng::Crng;
 use lexe_ln::alias::{OnionMessengerType, P2PGossipSyncType};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
-use lightning::chain::keysinterface::{NodeSigner, Recipient};
 use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
 use secrecy::zeroize::Zeroizing;
 
@@ -27,7 +26,7 @@ impl Deref for NodePeerManager {
 impl NodePeerManager {
     pub(crate) fn init(
         rng: &mut dyn Crng,
-        keys_manager: &LexeKeysManager,
+        keys_manager: LexeKeysManager,
         channel_manager: NodeChannelManager,
         gossip_sync: Arc<P2PGossipSyncType>,
         onion_messenger: Arc<OnionMessengerType>,
@@ -41,9 +40,6 @@ impl NodePeerManager {
             route_handler: gossip_sync,
             onion_message_handler: onion_messenger,
         };
-        let node_secret = keys_manager
-            .get_node_secret(Recipient::Node)
-            .expect("Always succeeds when called with Recipient::Node");
 
         // `current_time` is supposed to be monotonically increasing across node
         // restarts, but since secure timekeeping within an enclave is a hard
@@ -60,11 +56,11 @@ impl NodePeerManager {
 
         let peer_manager: PeerManagerType = PeerManagerType::new(
             lightning_msg_handler,
-            node_secret,
             current_time,
             &ephemeral_bytes,
             logger,
             Arc::new(IgnoringMessageHandler {}),
+            keys_manager,
         );
 
         Self(Arc::new(peer_manager))

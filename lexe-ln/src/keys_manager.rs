@@ -4,9 +4,9 @@ use std::sync::Arc;
 use anyhow::ensure;
 use bitcoin::blockdata::script::Script;
 use bitcoin::blockdata::transaction::{Transaction, TxOut};
-use bitcoin::secp256k1::{self, Secp256k1, Signing};
+use bitcoin::secp256k1::{Secp256k1, Signing};
 use common::api::NodePk;
-use common::rng::{self, Crng};
+use common::rng::Crng;
 use common::root_seed::RootSeed;
 use lightning::chain::keysinterface::{
     KeysManager, NodeSigner, Recipient, SpendableOutputDescriptor,
@@ -70,7 +70,7 @@ impl LexeKeysManager {
         let keys_manager = Self { inner };
 
         // Derive the node_pk from the inner KeysManager
-        let derived_pk = keys_manager.derive_node_pk(rng);
+        let derived_pk = keys_manager.derive_node_pk();
 
         // Check the given pk against the derived one
         ensure!(
@@ -82,16 +82,11 @@ impl LexeKeysManager {
         Ok(keys_manager)
     }
 
-    pub fn derive_node_pk<R: Crng>(&self, rng: &mut R) -> NodePk {
-        let secp_ctx = rng::get_randomized_secp256k1_ctx(rng);
-
-        // Derive the public key from the private key.
-        let privkey = self
-            .inner
-            .get_node_secret(Recipient::Node)
-            .expect("Always succeeds when called with Recipient::Node");
-
-        NodePk(secp256k1::PublicKey::from_secret_key(&secp_ctx, &privkey))
+    pub fn derive_node_pk(&self) -> NodePk {
+        self.inner
+            .get_node_id(Recipient::Node)
+            .map(NodePk)
+            .expect("Always succeeds when called with Recipient::Node")
     }
 
     // Bad fn signature is inherited from LDK
@@ -134,7 +129,7 @@ mod test {
 
             let keys_manager =
                 LexeKeysManager::unchecked_init(&mut rng, &root_seed);
-            let keys_manager_node_pk = keys_manager.derive_node_pk(&mut rng);
+            let keys_manager_node_pk = keys_manager.derive_node_pk();
             prop_assert_eq!(root_seed_node_pk, keys_manager_node_pk);
         });
     }
