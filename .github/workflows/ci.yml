@@ -33,11 +33,6 @@ jobs:
   # --- Linting the whole workspace --- #
   clippy:
     runs-on: ubuntu-20.04
-    env:
-      # skip flutter_rust_bridge codegen since it requires flutter installed
-      # and doesn't affect the output, since the generated Rust outputs should
-      # be checked in.
-      CI_SKIP_FRB_CODEGEN: 1
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
@@ -73,8 +68,6 @@ jobs:
 
   test:
     runs-on: ubuntu-20.04
-    env:
-      CI_SKIP_FRB_CODEGEN: 1
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
@@ -95,8 +88,6 @@ jobs:
 
   doc:
     runs-on: ubuntu-20.04
-    env:
-      CI_SKIP_FRB_CODEGEN: 1
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
