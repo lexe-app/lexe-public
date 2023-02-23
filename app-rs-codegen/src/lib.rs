@@ -112,7 +112,7 @@ impl Args {
             ..Default::default()
         });
 
-        // read Rust symbols to generate bindings for from `src/bindings.rs`.
+        // read Rust symbols from `src/bindings.rs`.
         let all_symbols = frb::get_symbols_if_no_duplicates(&configs)
             .with_context(|| {
                 format!(
