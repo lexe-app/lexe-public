@@ -70,7 +70,7 @@ impl LexeKeysManager {
         let keys_manager = Self { inner };
 
         // Derive the node_pk from the inner KeysManager
-        let derived_pk = keys_manager.derive_node_pk();
+        let derived_pk = keys_manager.get_node_pk();
 
         // Check the given pk against the derived one
         ensure!(
@@ -82,7 +82,7 @@ impl LexeKeysManager {
         Ok(keys_manager)
     }
 
-    pub fn derive_node_pk(&self) -> NodePk {
+    pub fn get_node_pk(&self) -> NodePk {
         self.inner
             .get_node_id(Recipient::Node)
             .map(NodePk)
@@ -118,7 +118,7 @@ mod test {
     use super::*;
 
     /// Tests that [`RootSeed::derive_node_pk`] generates the same [`NodePk`]
-    /// that [`LexeKeysManager::derive_node_pk`] does.
+    /// that [`LexeKeysManager::get_node_pk`] does.
     #[test]
     fn test_rootseed_keysmanager_derivation_equivalence() {
         let any_root_seed = any::<RootSeed>();
@@ -129,7 +129,7 @@ mod test {
 
             let keys_manager =
                 LexeKeysManager::unchecked_init(&mut rng, &root_seed);
-            let keys_manager_node_pk = keys_manager.derive_node_pk();
+            let keys_manager_node_pk = keys_manager.get_node_pk();
             prop_assert_eq!(root_seed_node_pk, keys_manager_node_pk);
         });
     }
