@@ -40,13 +40,12 @@ use lightning::ln::peer_handler::IgnoringMessageHandler;
 use lightning::onion_message::OnionMessenger;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
-use lightning_invoice::payment::Retry;
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot, watch};
 use tracing::{debug, error, info, instrument};
 
-use crate::alias::{ChainMonitorType, InvoicePayerType};
+use crate::alias::ChainMonitorType;
 use crate::api::BackendApiClient;
 use crate::channel_manager::NodeChannelManager;
 use crate::event_handler::NodeEventHandler;
@@ -85,7 +84,6 @@ pub struct UserNode {
     pub channel_manager: NodeChannelManager,
     onion_messenger: Arc<OnionMessengerType>,
     pub peer_manager: NodePeerManager,
-    pub invoice_payer: Arc<InvoicePayerType>,
     inactivity_timer: InactivityTimer,
     pub outbound_payments: PaymentInfoStorageType,
 
@@ -102,6 +100,10 @@ struct SyncContext {
 }
 
 impl UserNode {
+    // TODO(max): We can speed up initializing all the LDK actors by separating
+    // into two stages: (1) fetch and (2) deserialize. Optimistically fetch all
+    // the data in ~one roundtrip to the API, and then deserialize the data in
+    // the required order.
     #[instrument(skip_all, name = "[node]")]
     pub async fn init<R: Crng>(
         rng: &mut R,
@@ -242,24 +244,35 @@ impl UserNode {
             logger.clone(),
         ));
 
-        // Concurrently read scorer, channel manager, and channel peers
-        let (scorer_res, maybe_manager_res) = tokio::join!(
-            persister.read_scorer(network_graph.clone(), logger.clone()),
-            persister.read_channel_manager(
+        // Init scorer
+        let scorer = persister
+            .read_scorer(network_graph.clone(), logger.clone())
+            .await
+            .map(Mutex::new)
+            .map(Arc::new)
+            .context("Could not read probabilistic scorer")?;
+
+        // Initialize Router
+        let router = Arc::new(DefaultRouter::new(
+            network_graph.clone(),
+            logger.clone(),
+            keys_manager.get_secure_random_bytes(),
+            scorer.clone(),
+        ));
+
+        // Read channel manager
+        let maybe_manager = persister
+            .read_channel_manager(
                 &mut channel_monitors,
                 keys_manager.clone(),
                 fee_estimator.clone(),
                 chain_monitor.clone(),
                 broadcaster.clone(),
+                router.clone(),
                 logger.clone(),
-            ),
-        );
-        let scorer = scorer_res
-            .map(Mutex::new)
-            .map(Arc::new)
-            .context("Could not read probabilistic scorer")?;
-        let maybe_manager =
-            maybe_manager_res.context("Could not read channel manager")?;
+            )
+            .await
+            .context("Could not read channel manager")?;
 
         // Init the NodeChannelManager
         let channel_manager = NodeChannelManager::init(
@@ -269,12 +282,14 @@ impl UserNode {
             fee_estimator.clone(),
             chain_monitor.clone(),
             broadcaster.clone(),
+            router.clone(),
             logger.clone(),
         )
         .context("Could not init NodeChannelManager")?;
 
         // Init onion messenger
         let onion_messenger = Arc::new(OnionMessenger::new(
+            keys_manager.clone(),
             keys_manager.clone(),
             logger.clone(),
             IgnoringMessageHandler {},
@@ -283,7 +298,7 @@ impl UserNode {
         // Initialize PeerManager
         let peer_manager = NodePeerManager::init(
             rng,
-            &keys_manager,
+            keys_manager.clone(),
             channel_manager.clone(),
             gossip_sync.clone(),
             onion_messenger.clone(),
@@ -325,8 +340,9 @@ impl UserNode {
 
         // Initialize the event handler
         // XXX(max): It is security-critical to persist our outbound payment
-        // storage to ensure that we never pay the same `PaymentHash` twice. See
-        // InvoicePayerUsingTime::pay_invoice or ChannelManager::send_payment.
+        // storage to ensure that we never pay the same `PaymentHash` twice.
+        // See lightning_invoice::payments::pay_invoice or
+        // ChannelManager::send_payment.
         let outbound_payments: PaymentInfoStorageType =
             Arc::new(Mutex::new(HashMap::new()));
         let event_handler = NodeEventHandler {
@@ -341,21 +357,6 @@ impl UserNode {
             blocking_task_rt: BlockingTaskRt::new(),
             shutdown: shutdown.clone(),
         };
-
-        // Initialize InvoicePayer
-        let router = DefaultRouter::new(
-            network_graph.clone(),
-            logger.clone(),
-            keys_manager.get_secure_random_bytes(),
-            scorer.clone(),
-        );
-        let invoice_payer = Arc::new(InvoicePayerType::new(
-            channel_manager.clone(),
-            router,
-            logger.clone(),
-            event_handler,
-            Retry::Timeout(Duration::from_secs(10)),
-        ));
 
         // Set up the channel monitor persistence task
         tasks.push(channel_monitor::spawn_channel_monitor_persister_task(
@@ -376,7 +377,6 @@ impl UserNode {
             peer_manager.clone(),
             network_graph.clone(),
             keys_manager.clone(),
-            invoice_payer.clone(),
             outbound_payments.clone(),
             args.lsp.clone(),
             args.network,
@@ -425,7 +425,7 @@ impl UserNode {
             peer_manager.clone(),
             persister.clone(),
             chain_monitor.clone(),
-            invoice_payer.clone(),
+            event_handler,
             gossip_sync.clone(),
             scorer.clone(),
             shutdown.clone(),
@@ -464,7 +464,6 @@ impl UserNode {
             channel_manager,
             onion_messenger,
             peer_manager,
-            invoice_payer,
             inactivity_timer,
 
             // Storage

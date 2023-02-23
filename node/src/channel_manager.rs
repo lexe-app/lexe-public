@@ -4,7 +4,7 @@ use std::sync::Arc;
 use bitcoin::blockdata::constants;
 use bitcoin::BlockHash;
 use common::cli::Network;
-use lexe_ln::alias::{BroadcasterType, FeeEstimatorType};
+use lexe_ln::alias::{BroadcasterType, FeeEstimatorType, RouterType};
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lightning::chain::BestBlock;
@@ -181,6 +181,7 @@ impl NodeChannelManager {
         fee_estimator: Arc<FeeEstimatorType>,
         chain_monitor: Arc<ChainMonitorType>,
         broadcaster: Arc<BroadcasterType>,
+        router: Arc<RouterType>,
         logger: LexeTracingLogger,
     ) -> anyhow::Result<Self> {
         debug!("Initializing channel manager");
@@ -203,7 +204,10 @@ impl NodeChannelManager {
                     fee_estimator,
                     chain_monitor,
                     broadcaster,
+                    router,
                     logger,
+                    keys_manager.clone(),
+                    keys_manager.clone(),
                     keys_manager,
                     USER_CONFIG,
                     chain_params,

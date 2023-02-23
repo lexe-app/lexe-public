@@ -8,8 +8,7 @@ use tokio::time::{interval, interval_at, Instant};
 use tracing::{debug, error, info, trace, warn};
 
 use crate::alias::{
-    LexeChainMonitorType, LexeInvoicePayerType, P2PGossipSyncType,
-    ProbabilisticScorerType,
+    LexeChainMonitorType, P2PGossipSyncType, ProbabilisticScorerType,
 };
 use crate::traits::{
     LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
@@ -34,7 +33,7 @@ impl LexeBackgroundProcessor {
         peer_manager: PM,
         persister: PS,
         chain_monitor: Arc<LexeChainMonitorType<PS>>,
-        invoice_payer: Arc<LexeInvoicePayerType<CM, EH>>,
+        event_handler: EH,
         gossip_sync: Arc<P2PGossipSyncType>,
         scorer: Arc<Mutex<ProbabilisticScorerType>>,
         mut shutdown: ShutdownChannel,
@@ -59,9 +58,9 @@ impl LexeBackgroundProcessor {
                     _ = process_timer.tick() => {
                         trace!("Processing pending events");
                         channel_manager
-                            .process_pending_events(&invoice_payer);
+                            .process_pending_events(&event_handler);
                         chain_monitor
-                            .process_pending_events(&invoice_payer);
+                            .process_pending_events(&event_handler);
                         peer_manager.process_events();
                     }
                     _ = pm_timer.tick() => {

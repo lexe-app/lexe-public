@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context};
@@ -9,19 +8,20 @@ use common::api::NodePk;
 use common::cli::{LspInfo, Network};
 use common::ln::invoice::LxInvoice;
 use lightning::chain::keysinterface::{NodeSigner, Recipient};
-use lightning::ln::channelmanager::MIN_FINAL_CLTV_EXPIRY;
+use lightning::ln::channelmanager::{Retry, MIN_FINAL_CLTV_EXPIRY_DELTA};
 use lightning::ln::PaymentHash;
 use lightning::routing::gossip::RoutingFees;
 use lightning::routing::router::{RouteHint, RouteHintHop};
 use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
 use tracing::{debug, info};
 
-use crate::alias::{LexeInvoicePayerType, PaymentInfoStorageType};
+use crate::alias::PaymentInfoStorageType;
 use crate::invoice::{HTLCStatus, LxPaymentError, PaymentInfo};
 use crate::keys_manager::LexeKeysManager;
-use crate::traits::{
-    LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
-};
+use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
+
+/// The number of times to retry a failed payment in `send_payment`.
+const PAYMENT_RETRY_ATTEMPTS: usize = 3;
 
 /// Specifies whether it is the user node or the LSP calling the [`get_invoice`]
 /// fn. There are some differences between how the user node and LSP
@@ -73,6 +73,7 @@ where
     PS: LexePersister,
 {
     let amt_msat = &req.amt_msat;
+    let cltv_expiry = MIN_FINAL_CLTV_EXPIRY_DELTA;
     info!("Handling get_invoice command for {amt_msat:?} msats");
 
     // We use ChannelManager::create_inbound_payment because this method allows
@@ -81,7 +82,11 @@ where
     // NOTE that `handle_payment_claimable` will panic if the payment preimage
     // is not known by (and therefore cannot be provided by) LDK.
     let (payment_hash, payment_secret) = channel_manager
-        .create_inbound_payment(req.amt_msat, req.expiry_secs)
+        .create_inbound_payment(
+            req.amt_msat,
+            req.expiry_secs,
+            Some(cltv_expiry),
+        )
         .map_err(|()| {
             anyhow!("Supplied msat amount > total bitcoin supply!")
         })?;
@@ -89,7 +94,6 @@ where
     let currency = Currency::from(network);
     let payment_hash = sha256::Hash::from_slice(&payment_hash.0)
         .expect("Should never fail with [u8;32]");
-    let cltv_expiry = u64::from(MIN_FINAL_CLTV_EXPIRY);
     let expiry_time = Duration::from_secs(u64::from(req.expiry_secs));
     let our_node_pk = channel_manager.get_our_node_id();
 
@@ -97,13 +101,13 @@ where
     // This is modeled after lightning_invoice's internal utility function
     // _create_invoice_from_channelmanager_and_duration_since_epoch_with_payment_hash
     #[rustfmt::skip] // Nicer for the generic annotations to be aligned
-    let mut builder = InvoiceBuilder::new(currency) // <D, H, T, C, S>
-        .description(req.description)               // D: False -> True
-        .payment_hash(payment_hash)                 // H: False -> True
-        .current_timestamp()                        // T: False -> True
-        .min_final_cltv_expiry(cltv_expiry)         // C: False -> True
-        .payment_secret(payment_secret)             // S: False -> True
-        .basic_mpp()                                // S: _ -> True
+    let mut builder = InvoiceBuilder::new(currency)          // <D, H, T, C, S>
+        .description(req.description)                        // D: False -> True
+        .payment_hash(payment_hash)                          // H: False -> True
+        .current_timestamp()                                 // T: False -> True
+        .min_final_cltv_expiry_delta(u64::from(cltv_expiry)) // C: False -> True
+        .payment_secret(payment_secret)                      // S: False -> True
+        .basic_mpp()                                         // S: _ -> True
         .expiry_time(expiry_time)
         .payee_pub_key(our_node_pk);
     if let Some(amt_msat) = req.amt_msat {
@@ -142,19 +146,22 @@ where
     Ok(invoice)
 }
 
-pub fn send_payment<CM, PS, EH>(
-    invoice_payer: Arc<LexeInvoicePayerType<CM, EH>>,
+pub fn send_payment<CM, PS>(
+    channel_manager: CM,
     outbound_payments: PaymentInfoStorageType,
     invoice: LxInvoice,
 ) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
-    EH: LexeEventHandler,
 {
-    let payment_result = invoice_payer
-        .pay_invoice(&invoice.0)
-        .map_err(LxPaymentError::from);
+    let retry = Retry::Attempts(PAYMENT_RETRY_ATTEMPTS);
+    let payment_result = lightning_invoice::payment::pay_invoice(
+        &invoice.0,
+        retry,
+        channel_manager.deref(),
+    )
+    .map_err(LxPaymentError::from);
 
     // Store the payment in our outbound payments storage as pending or failed
     // depending on the payment result

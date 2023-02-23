@@ -21,7 +21,7 @@ use common::shutdown::ShutdownChannel;
 use common::vfs_encrypt::VfsMasterKey;
 use lexe_ln::alias::{
     BroadcasterType, ChannelMonitorType, FeeEstimatorType, NetworkGraphType,
-    ProbabilisticScorerType, SignerType,
+    ProbabilisticScorerType, RouterType, SignerType,
 };
 use lexe_ln::channel_monitor::{
     ChannelMonitorUpdateKind, LxChannelMonitorUpdate,
@@ -225,6 +225,7 @@ impl InnerPersister {
         fee_estimator: Arc<FeeEstimatorType>,
         chain_monitor: Arc<ChainMonitorType>,
         broadcaster: Arc<BroadcasterType>,
+        router: Arc<RouterType>,
         logger: LexeTracingLogger,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         debug!("Reading channel manager");
@@ -255,10 +256,13 @@ impl InnerPersister {
                     channel_monitor_mut_refs.push(channel_monitor);
                 }
                 let read_args = ChannelManagerReadArgs::new(
+                    keys_manager.clone(),
+                    keys_manager.clone(),
                     keys_manager,
                     fee_estimator,
                     chain_monitor,
                     broadcaster,
+                    router,
                     logger,
                     USER_CONFIG,
                     channel_monitor_mut_refs,
@@ -316,9 +320,10 @@ impl InnerPersister {
             let mut state_buf = Cursor::new(&data);
 
             let (blockhash, channel_monitor) =
+                // This is ReadableArgs::read's foreign impl on the cmon tuple
                 <(BlockHash, ChannelMonitorType)>::read(
                     &mut state_buf,
-                    &*keys_manager,
+                    (&*keys_manager, &*keys_manager),
                 )
                 // LDK DecodeError is Debug but doesn't impl std::error::Error
                 .map_err(|e| anyhow!("{:?}", e))
@@ -590,7 +595,7 @@ impl Persist<SignerType> for InnerPersister {
         &self,
         funding_txo: OutPoint,
         // TODO: We may want to use the id inside for rollback protection
-        update: &Option<ChannelMonitorUpdate>,
+        update: Option<&ChannelMonitorUpdate>,
         monitor: &ChannelMonitorType,
         update_id: MonitorUpdateId,
     ) -> ChannelMonitorUpdateStatus {

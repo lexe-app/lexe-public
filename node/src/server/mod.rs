@@ -27,7 +27,6 @@ use tokio::sync::mpsc;
 use tracing::trace;
 use warp::{Filter, Rejection, Reply};
 
-use crate::alias::InvoicePayerType;
 use crate::channel_manager::NodeChannelManager;
 use crate::peer_manager::NodePeerManager;
 
@@ -58,7 +57,6 @@ pub(crate) fn owner_routes(
     peer_manager: NodePeerManager,
     network_graph: Arc<NetworkGraphType>,
     keys_manager: LexeKeysManager,
-    invoice_payer: Arc<InvoicePayerType>,
     outbound_payments: PaymentInfoStorageType,
     lsp_info: LspInfo,
     network: Network,
@@ -89,7 +87,7 @@ pub(crate) fn owner_routes(
         .map(into_response);
     let get_invoice = warp::path("get_invoice")
         .and(warp::post())
-        .and(inject::channel_manager(channel_manager))
+        .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::keys_manager(keys_manager))
         .and(inject::get_invoice_caller(GetInvoiceCaller::UserNode {
             lsp_info,
@@ -101,7 +99,7 @@ pub(crate) fn owner_routes(
         .map(into_response);
     let send_payment = warp::path("send_payment")
         .and(warp::post())
-        .and(inject::invoice_payer(invoice_payer))
+        .and(inject::channel_manager(channel_manager))
         .and(inject::outbound_payments(outbound_payments))
         .and(warp::body::json::<LxInvoice>())
         .map(lexe_ln::command::send_payment)

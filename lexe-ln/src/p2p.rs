@@ -47,7 +47,8 @@ where
     // Return immediately if we're already connected to the peer
     if peer_manager
         .get_peer_node_ids()
-        .contains(&channel_peer.node_pk.0)
+        .into_iter()
+        .any(|(pk, _maybe_addr)| channel_peer.node_pk.0 == pk)
     {
         debug!("OK: Already connected to channel peer {channel_peer}");
         return Ok(());
@@ -113,8 +114,8 @@ where
         // Check if the connection has been established
         if peer_manager
             .get_peer_node_ids()
-            .iter()
-            .any(|pk| *pk == channel_peer.node_pk.0)
+            .into_iter()
+            .any(|(pk, _maybe_addr)| channel_peer.node_pk.0 == pk)
         {
             // Connection confirmed, break and return Ok
             break;
@@ -185,7 +186,10 @@ where
                 .filter_map(|channel| {
                     // Skip if we're already connected to this counterparty
                     let cparty = channel.counterparty.node_id;
-                    if connected_p2p_peers.contains(&cparty) {
+                    if connected_p2p_peers
+                        .iter()
+                        .any(|(pk, _addr)| pk == &cparty)
+                    {
                         return None;
                     }
 
