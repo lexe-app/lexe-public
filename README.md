@@ -100,12 +100,12 @@ cargo run --bin [--target=x86_64-fortanix-unknown-sgx] node -- run \
     --network <network> \
     [-s | --shutdown-after-sync-if-no-activity] \
     [-i | --inactivity-time-sec <inactivity-timer-sec>] \
-    [-m | --allow-mock]
+    [-m | --allow-mock] \
     [--backend-url <backend-url>] \
     [--runner-url <runner-url>] \
     --esplora-url <esplora-url> \
     --lsp <lsp-info> \
-    [--node-dns-name <node-dns-name>] \
+    [--node-dns-name <node-dns-name>]
 ```
 - If running in SGX, make sure that you are running on real Intel hardware with
   SGX enabled.
