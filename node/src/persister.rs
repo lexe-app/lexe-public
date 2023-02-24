@@ -444,7 +444,10 @@ impl LexeInnerPersister for InnerPersister {
         basic_file: BasicFile,
         retries: usize,
     ) -> anyhow::Result<()> {
-        debug!("Persisting basic file");
+        let dirname = &basic_file.dirname;
+        let filename = &basic_file.filename;
+        let bytes = basic_file.data.len();
+        debug!("Persisting basic file {dirname}/{filename} <{bytes} bytes>");
         let token = self.get_token().await?;
 
         let file = NodeFile::from_basic(basic_file, self.user_pk);

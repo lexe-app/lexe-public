@@ -287,7 +287,7 @@ impl RestClient {
 
     fn request_span(req: &reqwest::Request) -> tracing::Span {
         debug_span!(
-            "http request",
+            "[http request]",
             method = %req.method(),
             url = %req.url(),
             // the http response status is set in the span later on
