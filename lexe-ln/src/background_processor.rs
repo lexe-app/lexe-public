@@ -5,7 +5,7 @@ use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use lightning::util::events::EventsProvider;
 use tokio::time::{interval, interval_at, Instant};
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::alias::{
     LexeChainMonitorType, P2PGossipSyncType, ProbabilisticScorerType,
@@ -27,6 +27,7 @@ const PROB_SCORER_PERSIST_INTERVAL: Duration = Duration::from_secs(5 * 60);
 pub struct LexeBackgroundProcessor {}
 
 impl LexeBackgroundProcessor {
+    #[instrument(skip_all, name = "[background processor]")]
     #[allow(clippy::too_many_arguments)]
     pub fn start<CM, PM, PS, EH>(
         channel_manager: CM,
