@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::fmt::Write;
 use std::mem::{self, Discriminant};
 use std::time::Duration;
 
+use anyhow::bail;
 use cfg_if::cfg_if;
 use tokio::sync::mpsc;
 use tracing::debug;
@@ -123,7 +125,7 @@ impl TestEventReceiver {
     ///     .expect("Timed out waiting on channel monitor persist");
     /// # }
     /// ```
-    pub async fn wait(&mut self, event: TestEvent) -> Result<(), &'static str> {
+    pub async fn wait(&mut self, event: TestEvent) -> anyhow::Result<()> {
         self.wait_timeout(event, DEFAULT_TIMEOUT).await
     }
 
@@ -153,7 +155,7 @@ impl TestEventReceiver {
         &mut self,
         event: TestEvent,
         n: usize,
-    ) -> Result<(), &'static str> {
+    ) -> anyhow::Result<()> {
         self.wait_n_timeout(event, n, DEFAULT_TIMEOUT).await
     }
 
@@ -183,7 +185,7 @@ impl TestEventReceiver {
     pub async fn wait_all(
         &mut self,
         all_events: Vec<TestEvent>,
-    ) -> Result<(), &'static str> {
+    ) -> anyhow::Result<()> {
         self.wait_all_timeout(all_events, DEFAULT_TIMEOUT).await
     }
 
@@ -217,7 +219,7 @@ impl TestEventReceiver {
     pub async fn wait_all_n(
         &mut self,
         all_n_events: Vec<(TestEvent, usize)>,
-    ) -> Result<(), &'static str> {
+    ) -> anyhow::Result<()> {
         self.wait_all_n_timeout(all_n_events, DEFAULT_TIMEOUT).await
     }
 
@@ -251,11 +253,8 @@ impl TestEventReceiver {
         &mut self,
         event: TestEvent,
         timeout: Duration,
-    ) -> Result<(), &'static str> {
-        tokio::select! {
-            () = self.wait_inner(event) => Ok(()),
-            () = tokio::time::sleep(timeout) => Err("Timed out"),
-        }
+    ) -> anyhow::Result<()> {
+        self.wait_all_n_timeout(vec![(event, 1)], timeout).await
     }
 
     /// Waits on the channel until the given [`TestEvent`] has been seen `n`
@@ -286,11 +285,8 @@ impl TestEventReceiver {
         event: TestEvent,
         n: usize,
         timeout: Duration,
-    ) -> Result<(), &'static str> {
-        tokio::select! {
-            () = self.wait_n_inner(event, n) => Ok(()),
-            () = tokio::time::sleep(timeout) => Err("Timed out"),
-        }
+    ) -> anyhow::Result<()> {
+        self.wait_all_n_timeout(vec![(event, n)], timeout).await
     }
 
     /// Waits on the channel until all given [`TestEvent`]s have been observed,
@@ -325,11 +321,13 @@ impl TestEventReceiver {
         &mut self,
         all_events: Vec<TestEvent>,
         timeout: Duration,
-    ) -> Result<(), &'static str> {
-        tokio::select! {
-            () = self.wait_all_inner(all_events) => Ok(()),
-            () = tokio::time::sleep(timeout) => Err("Timed out"),
-        }
+    ) -> anyhow::Result<()> {
+        let all_n_events = all_events
+            .into_iter()
+            // Default to requiring each event be seen once
+            .map(|e| (e, 1))
+            .collect::<Vec<(TestEvent, usize)>>();
+        self.wait_all_n_timeout(all_n_events, timeout).await
     }
 
     /// Waits on the channel until all given [`TestEvent`]s have been observed
@@ -367,37 +365,9 @@ impl TestEventReceiver {
         &mut self,
         all_n_events: Vec<(TestEvent, usize)>,
         timeout: Duration,
-    ) -> Result<(), &'static str> {
-        tokio::select! {
-            () = self.wait_all_n_inner(all_n_events) => Ok(()),
-            () = tokio::time::sleep(timeout) => Err("Timed out"),
-        }
-    }
-
-    // --- Inner 'wait' methods --- //
-
-    async fn wait_inner(&mut self, event: TestEvent) {
-        self.wait_all_n_inner(vec![(event, 1)]).await
-    }
-
-    async fn wait_n_inner(&mut self, event: TestEvent, n: usize) {
-        self.wait_all_n_inner(vec![(event, n)]).await
-    }
-
-    async fn wait_all_inner(&mut self, all_events: Vec<TestEvent>) {
-        let all_n_events = all_events
-            .into_iter()
-            // Default to requiring each event be seen once
-            .map(|e| (e, 1))
-            .collect::<Vec<(TestEvent, usize)>>();
-        self.wait_all_n_inner(all_n_events).await
-    }
-
-    async fn wait_all_n_inner(
-        &mut self,
-        all_n_events: Vec<(TestEvent, usize)>,
-    ) {
+    ) -> anyhow::Result<()> {
         struct Quota {
+            name: String,
             seen: usize,
             needed: usize,
         }
@@ -407,6 +377,7 @@ impl TestEventReceiver {
         for (event, needed) in all_n_events {
             let k = mem::discriminant(&event);
             let v = Quota {
+                name: format!("{event:?}"),
                 seen: 0, // We haven't seen anything yet
                 needed,
             };
@@ -416,27 +387,52 @@ impl TestEventReceiver {
         // Return early if all quotas have already been met,
         // i.e. no events were supplied
         if quotas.values().all(|q| q.seen >= q.needed) {
-            return;
+            return Ok(());
         }
 
-        // Wait on the channel
-        while let Some(recvd) = self.rx.recv().await {
-            debug!("Received test event: {recvd:?}");
+        // Create a sleep future which can be polled without being consumed
+        let timeout_fut = tokio::time::sleep(timeout);
+        tokio::pin!(timeout_fut);
 
-            // Increment the quota for the recvd event if it exists
-            let discriminant = mem::discriminant(&recvd);
-            if let Some(quota) = quotas.get_mut(&discriminant) {
-                quota.seen += 1;
-            }
+        loop {
+            tokio::select! {
+                maybe_recvd = self.rx.recv() => match maybe_recvd {
+                    Some(recvd) => {
+                        debug!("Received test event: {recvd:?}");
 
-            // Check to see if all quotas have been met
-            if quotas.values().all(|q| q.seen >= q.needed) {
-                return;
+                        // Increment the quota for the recvd event if it exists
+                        let discriminant = mem::discriminant(&recvd);
+                        if let Some(quota) = quotas.get_mut(&discriminant) {
+                            quota.seen += 1;
+                        }
+
+                        // Check to see if all quotas have been met
+                        if quotas.values().all(|q| q.seen >= q.needed) {
+                            return Ok(());
+                        }
+                    }
+                    None => bail!("Sender dropped"),
+                },
+                () = &mut timeout_fut => {
+                    // Construct an error msg showing events with unmet quotas
+                    let mut err_msg =
+                        String::from("Timed out waiting for test events: ");
+                    for Quota { name, seen, needed } in quotas.into_values() {
+                        if seen < needed {
+                            write!(&mut err_msg, "{seen}/{needed} {name}, ")
+                                .expect("Could not write to string");
+                        }
+                    }
+
+                    // Remove the trailing ", ". Can't use str::strip_suffix
+                    // because `anyhow::Error` needs a `'static` (owned) string
+                    err_msg.pop();
+                    err_msg.pop();
+
+                    bail!(err_msg);
+                }
             }
         }
-
-        // Received None on the channel, panic.
-        panic!("Sender dropped");
     }
 }
 
@@ -451,53 +447,53 @@ mod test {
         let event1 = TestEvent::ChannelMonitorPersisted;
         let event2 = TestEvent::FundingTxHandled;
 
-        // wait_inner()
+        // wait()
         let (tx, mut rx) = test_event_channel();
-        let mut task = tokio_test::task::spawn(rx.wait_inner(event1));
+        let mut task = tokio_test::task::spawn(rx.wait(event1));
         assert_pending!(task.poll());
         tx.send(event1);
-        assert_ready!(task.poll());
+        assert_ready!(task.poll()).unwrap();
 
-        // wait_n_inner()
+        // wait_n()
         let (tx, mut rx) = test_event_channel();
-        let mut task = tokio_test::task::spawn(rx.wait_n_inner(event1, 3));
+        let mut task = tokio_test::task::spawn(rx.wait_n(event1, 3));
         assert_pending!(task.poll());
         tx.send(event1);
         tx.send(event1);
         tx.send(event1);
-        assert_ready!(task.poll());
+        assert_ready!(task.poll()).unwrap();
 
-        // wait_all_inner()
+        // wait_all()
         let (tx, mut rx) = test_event_channel();
         let mut task =
-            tokio_test::task::spawn(rx.wait_all_inner(vec![event1, event2]));
+            tokio_test::task::spawn(rx.wait_all(vec![event1, event2]));
         assert_pending!(task.poll());
         tx.send(event1);
         tx.send(event2);
-        assert_ready!(task.poll());
+        assert_ready!(task.poll()).unwrap();
 
-        // wait_all_n_inner()
+        // wait_all_n()
         let (tx, mut rx) = test_event_channel();
         let mut task = tokio_test::task::spawn(
-            rx.wait_all_n_inner(vec![(event1, 3), (event2, 1)]),
+            rx.wait_all_n(vec![(event1, 3), (event2, 1)]),
         );
         assert_pending!(task.poll());
         tx.send(event1);
         tx.send(event1);
         tx.send(event1);
         tx.send(event2);
-        assert_ready!(task.poll());
+        assert_ready!(task.poll()).unwrap();
 
-        // wait_all_inner(), 0 events
+        // wait_all(), 0 events
         let (_tx, mut rx) = test_event_channel();
-        let mut task = tokio_test::task::spawn(rx.wait_all_inner(vec![]));
-        assert_ready!(task.poll());
+        let mut task = tokio_test::task::spawn(rx.wait_all(vec![]));
+        assert_ready!(task.poll()).unwrap();
 
-        // wait_all_n_inner(), events with 0 quota
+        // wait_all_n(), events with 0 quota
         let (_tx, mut rx) = test_event_channel();
         let mut task = tokio_test::task::spawn(
-            rx.wait_all_n_inner(vec![(event1, 0), (event2, 0)]),
+            rx.wait_all_n(vec![(event1, 0), (event2, 0)]),
         );
-        assert_ready!(task.poll());
+        assert_ready!(task.poll()).unwrap();
     }
 }
