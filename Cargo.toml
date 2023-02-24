@@ -29,6 +29,7 @@ lightning-net-tokio = { version = "0.0.113" }
 # TODO(max): Switch to crates.io once LDK #1870 is merged
 # lightning-transaction-sync = { version = "0.0.113", features = ["esplora-async"] }
 lightning-transaction-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-thru-2023-02-22", features = ["esplora-async"] }
+# lightning-transaction-sync = { path = "../../ldk/lightning-transaction-sync", features = ["esplora-async"] }
 
 # --- GENERAL --- #
 
@@ -158,7 +159,7 @@ lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", bra
 lightning-transaction-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-thru-2023-02-22" }
 
 # For debugging LDK or testing patches during local development
-# lightning = { path = "../../ldk/lightning", features = ["max_level_trace"]}
+# lightning = { path = "../../ldk/lightning" }
 # lightning-invoice = { path = "../../ldk/lightning-invoice" }
 # lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }
 # lightning-transaction-sync = { path = "../../ldk/lightning-transaction-sync" }
