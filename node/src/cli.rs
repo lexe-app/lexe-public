@@ -3,10 +3,11 @@ use std::sync::Arc;
 use anyhow::Context;
 use argh::FromArgs;
 use common::cli::node::NodeCommand;
+use common::constants::SMALLER_CHANNEL_SIZE;
 use common::rng::SysRng;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::test_event;
-use tokio::sync::watch;
+use tokio::sync::{mpsc, watch};
 
 use crate::api::client::{BackendClient, RunnerClient};
 use crate::provision;
@@ -33,10 +34,14 @@ impl NodeArgs {
         match self.cmd {
             NodeCommand::Run(args) => rt
                 .block_on(async {
+                    let (process_events_tx, process_events_rx) =
+                        mpsc::channel(SMALLER_CHANNEL_SIZE);
                     let mut node = UserNode::init(
                         &mut rng,
                         args,
                         resync_rx,
+                        process_events_tx,
+                        process_events_rx,
                         test_event_tx,
                         shutdown,
                     )

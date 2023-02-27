@@ -61,6 +61,7 @@ pub(crate) fn owner_routes(
     lsp_info: LspInfo,
     network: Network,
     activity_tx: mpsc::Sender<()>,
+    process_events_tx: mpsc::Sender<()>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     let root =
         warp::path::end().map(|| "This set of endpoints is for the owner.");
@@ -99,9 +100,10 @@ pub(crate) fn owner_routes(
         .map(into_response);
     let send_payment = warp::path("send_payment")
         .and(warp::post())
+        .and(warp::body::json::<LxInvoice>())
         .and(inject::channel_manager(channel_manager))
         .and(inject::outbound_payments(outbound_payments))
-        .and(warp::body::json::<LxInvoice>())
+        .and(inject::process_events_tx(process_events_tx))
         .map(lexe_ln::command::send_payment)
         .map(into_command_api_result)
         .map(into_response);
