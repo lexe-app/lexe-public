@@ -4,8 +4,9 @@ use std::time::Duration;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use lightning::util::events::EventsProvider;
+use tokio::sync::mpsc;
 use tokio::time::{interval, interval_at, Instant};
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 use crate::alias::{
     LexeChainMonitorType, P2PGossipSyncType, ProbabilisticScorerType,
@@ -14,7 +15,14 @@ use crate::traits::{
     LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
 };
 
-const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_millis(1000);
+// It would be nice to get rid of the `PROCESS_EVENTS_INTERVAL` entirely and
+// replace it with an LDK-provided future which resolves immediately after an
+// event is made available for processing, but it isn't supported yet:
+// https://github.com/lightningdevkit/rust-lightning/issues/2052
+// So long as LDK's background processor still has a 100ms timer, indicating
+// that the future proposed in #2052 isn't guaranteed to resolve when events are
+// available, we should keep `PROCESS_EVENTS_INTERVAL` around as a backup.
+const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_secs(60);
 const PEER_MANAGER_PING_INTERVAL: Duration = Duration::from_secs(15);
 const CHANNEL_MANAGER_TICK_INTERVAL: Duration = Duration::from_secs(60);
 const NETWORK_GRAPH_INITIAL_DELAY: Duration = Duration::from_secs(60);
@@ -37,6 +45,19 @@ impl LexeBackgroundProcessor {
         event_handler: EH,
         gossip_sync: Arc<P2PGossipSyncType>,
         scorer: Arc<Mutex<ProbabilisticScorerType>>,
+        // A `process_events` notification should be sent every time an event
+        // is generated which does not also cause
+        // get_persistable_update_future() to resolve. Current known
+        // cases include:
+        //
+        // 1) The successful completion of a channel monitor persist (which may
+        //    resume monitor updating / broadcast a funding transaction)
+        // 2) Opening a channel (which generates a channel open event)
+        // 3) Sending a payment (which generates a payment sent event)
+        //
+        // We may be able to get rid of this once LDK#2052 is implemented. See
+        // the comment above `PROCESS_EVENTS_INTERVAL` for more info.
+        mut process_events_rx: mpsc::Receiver<()>,
         mut shutdown: ShutdownChannel,
     ) -> LxTask<()>
     where
@@ -54,16 +75,56 @@ impl LexeBackgroundProcessor {
             let mut ps_timer = interval(PROB_SCORER_PERSIST_INTERVAL);
 
             loop {
+                // A future that completes whenever we need to reprocess events.
+                // Returns a bool indicating whether we also need to repersist
+                // the channel manager. NOTE: The "channel manager update"
+                // branch is intentionally included here because LDK's
+                // background processor always processes events just prior to
+                // any channel manager persist.
+                let process_events_fut = async {
+                    tokio::select! {
+                        biased;
+                        () = channel_manager.get_persistable_update_future() => {
+                            debug!("Channel manager got persistable update");
+                            true
+                        }
+                        _ = process_timer.tick() => {
+                            debug!("process_timer ticked");
+                            false
+                        }
+                        Some(()) = process_events_rx.recv() => {
+                            debug!("Triggered by process_events channel");
+                            false
+                        }
+                    }
+                };
+
                 tokio::select! {
-                    // --- Event branches --- //
-                    _ = process_timer.tick() => {
-                        trace!("Processing pending events");
+                    // --- Process events + channel manager repersist --- //
+                    repersist_channel_manager = process_events_fut => {
+                        debug!("Processing pending events");
                         channel_manager
                             .process_pending_events(&event_handler);
                         chain_monitor
                             .process_pending_events(&event_handler);
                         peer_manager.process_events();
+
+                        if repersist_channel_manager {
+                            let try_persist = persister
+                                .persist_manager(channel_manager.deref())
+                                .await;
+                            if let Err(e) = try_persist {
+                                // Failing to persist the channel manager won't
+                                // lose funds so long as the chain monitors have
+                                // been persisted correctly, but it's still
+                                // serious - initiate a shutdown
+                                error!("Channel manager persist error: {e:#}");
+                                break shutdown.send();
+                            }
+                        }
                     }
+
+                    // --- Timer tick branches --- //
                     _ = pm_timer.tick() => {
                         debug!("Calling PeerManager::timer_tick_occurred()");
                         peer_manager.timer_tick_occurred();
@@ -74,21 +135,6 @@ impl LexeBackgroundProcessor {
                     }
 
                     // --- Persistence branches --- //
-                    _ = channel_manager.get_persistable_update_future() => {
-                        debug!("Persisting channel manager");
-                        let persist_res = persister
-                            .persist_manager(channel_manager.deref())
-                            .await;
-                        if let Err(e) = persist_res {
-                            // Failing to persist the channel manager won't
-                            // lose funds so long as the chain monitors have
-                            // been persisted correctly, but it's still
-                            // serious - initiate a shutdown
-                            error!("Couldn't persist channel manager: {:#}", e);
-                            shutdown.send();
-                            break;
-                        }
-                    }
                     _ = ng_timer.tick() => {
                         debug!("Pruning and persisting network graph");
                         let network_graph = gossip_sync.network_graph();

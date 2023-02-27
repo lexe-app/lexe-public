@@ -13,6 +13,7 @@ use lightning::ln::PaymentHash;
 use lightning::routing::gossip::RoutingFees;
 use lightning::routing::router::{RouteHint, RouteHintHop};
 use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
+use tokio::sync::mpsc;
 use tracing::{debug, info};
 
 use crate::alias::PaymentInfoStorageType;
@@ -147,9 +148,10 @@ where
 }
 
 pub fn send_payment<CM, PS>(
+    invoice: LxInvoice,
     channel_manager: CM,
     outbound_payments: PaymentInfoStorageType,
-    invoice: LxInvoice,
+    process_events_tx: mpsc::Sender<()>,
 ) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,
@@ -187,6 +189,7 @@ where
     let _payment_id = payment_result.context("Couldn't initiate payment")?;
     let payee_pk = invoice.0.recover_payee_pub_key();
     info!("Success: Initiated payment of {amt_msat:?} msats to {payee_pk}");
+    let _ = process_events_tx.try_send(());
 
     Ok(())
 }

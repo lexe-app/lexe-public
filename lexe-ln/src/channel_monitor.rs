@@ -63,6 +63,7 @@ impl Display for ChannelMonitorUpdateKind {
 pub fn spawn_channel_monitor_persister_task<PS>(
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     mut channel_monitor_persister_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
+    process_events_tx: mpsc::Sender<()>,
     test_event_tx: TestEventSender,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
@@ -81,6 +82,7 @@ where
                         chain_monitor.as_ref(),
                         update,
                         idx,
+                        &process_events_tx,
                         &test_event_tx,
                         &mut shutdown,
                     ).await;
@@ -110,6 +112,7 @@ async fn handle_update<PS: LexePersister>(
     chain_monitor: &LexeChainMonitorType<PS>,
     update: LxChannelMonitorUpdate,
     idx: usize,
+    process_events_tx: &mpsc::Sender<()>,
     test_event_tx: &TestEventSender,
     shutdown: &mut ShutdownChannel,
 ) -> anyhow::Result<()> {
@@ -140,6 +143,11 @@ async fn handle_update<PS: LexePersister>(
         // transactions can be made. Just return err and shut down.
         bail!("Chain monitor returned err: {e:?}");
     }
+
+    // Trigger the background processor to reprocess events, as the completed
+    // channel monitor update may have generated an event that can be handled,
+    // such as to restore monitor updating and broadcast a funding tx.
+    let _ = process_events_tx.try_send(());
 
     info!("Success: persisted {kind} channel #{idx}");
     test_event_tx.send(TestEvent::ChannelMonitorPersisted);

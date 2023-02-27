@@ -10,6 +10,7 @@ use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::command::GetInvoiceCaller;
 use lexe_ln::keys_manager::LexeKeysManager;
+use tokio::sync::mpsc;
 use warp::Filter;
 
 use crate::channel_manager::NodeChannelManager;
@@ -64,6 +65,13 @@ pub(crate) fn outbound_payments(
 ) -> impl Filter<Extract = (PaymentInfoStorageType,), Error = Infallible> + Clone
 {
     warp::any().map(move || outbound_payments.clone())
+}
+
+/// Injects a `process_events` sender
+pub(crate) fn process_events_tx(
+    process_events_tx: mpsc::Sender<()>,
+) -> impl Filter<Extract = (mpsc::Sender<()>,), Error = Infallible> + Clone {
+    warp::any().map(move || process_events_tx.clone())
 }
 
 /// Injects a [`GetInvoiceCaller`].

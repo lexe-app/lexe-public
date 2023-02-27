@@ -9,6 +9,7 @@ use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
 /// Handles the full logic of opening a channel, including connecting to the
 /// peer, creating the channel, and persisting the newly created channel.
+#[allow(clippy::too_many_arguments)]
 pub async fn open_channel<CM, PM, PS>(
     channel_manager: CM,
     peer_manager: PM,
@@ -16,6 +17,7 @@ pub async fn open_channel<CM, PM, PS>(
     channel_peer: ChannelPeer,
     channel_value_sat: u64,
     channel_peer_tx: &mpsc::Sender<ChannelPeerUpdate>,
+    process_events_tx: &mpsc::Sender<()>,
     user_config: UserConfig,
 ) -> anyhow::Result<()>
 where
@@ -44,11 +46,14 @@ where
         // LDK's APIError impls Debug but not Error
         .map_err(|e| anyhow!("Failed to create channel: {e:?}"))?;
 
-    // Persist the channel
+    // Persist the channel peer
     persister
         .persist_channel_peer(channel_peer.clone())
         .await
         .context("Failed to persist channel peer")?;
+
+    // Notify the BGP to process the open channel event.
+    let _ = process_events_tx.try_send(());
 
     info!("Successfully opened channel with {}", channel_peer);
 
