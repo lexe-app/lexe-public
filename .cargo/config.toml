@@ -1,6 +1,23 @@
+# Compiling rustls sometimes produces a linker error on macOS.
+# This hacks around it. FIXME(max): Find the root cause
+[target.x86_64-apple-darwin]
+rustflags = [
+  "-C", "link-arg=-undefined",
+  "-C", "link-arg=dynamic_lookup",
+]
+# [target.aarch64-apple-darwin]
+# rustflags = [
+#   "-C", "link-arg=-undefined",
+#   "-C", "link-arg=dynamic_lookup",
+# ]
+
 [target.x86_64-fortanix-unknown-sgx]
 # Use our custom SGX runner
 runner = "run-sgx-cargo"
 # Build with AES-NI intrinsics required at compile time. Needed by `aes` crate
 # to avoid runtime feature detection (which doesn't work in an SGX enclave).
 rustflags = ["-Ctarget-feature=+aes,+ssse3"]
+
+[build]
+# Configure rustdoc to include links to definitions when viewing source
+rustdocflags = ["-Z", "unstable-options", "--generate-link-to-definition"]
