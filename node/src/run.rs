@@ -436,6 +436,7 @@ impl UserNode {
             gossip_sync.clone(),
             scorer.clone(),
             process_events_rx,
+            test_event_tx.clone(),
             shutdown.clone(),
         );
         tasks.push(bg_processor_task);
