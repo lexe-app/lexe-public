@@ -251,6 +251,7 @@ impl<T> LxTask<T> {
             name,
         }
     }
+
     #[inline]
     pub fn name(&self) -> &'static str {
         self.name
@@ -261,6 +262,11 @@ impl<T> LxTask<T> {
     #[inline]
     pub fn result_with_name(self) -> LxTaskWithName<T> {
         LxTaskWithName(self)
+    }
+
+    #[inline]
+    pub fn abort(&self) {
+        self.task.abort();
     }
 }
 

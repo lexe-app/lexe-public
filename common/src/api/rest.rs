@@ -12,7 +12,8 @@ use http::Method;
 use reqwest::IntoUrl;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tracing::{debug, debug_span, error, field, warn, Instrument, Span};
+use tokio::time;
+use tracing::{debug, debug_span, error, field, info, warn, Instrument, Span};
 use warp::hyper::Body;
 use warp::{Rejection, Reply};
 
@@ -20,6 +21,7 @@ use crate::api::error::{
     ErrorCode, ErrorResponse, RestClientError, RestClientErrorKind,
     ServiceApiError, ToHttpStatus,
 };
+use crate::shutdown::ShutdownChannel;
 use crate::task::LxTask;
 use crate::{backoff, ed25519};
 
@@ -29,6 +31,8 @@ pub static CONTENT_TYPE_ED25519_BCS: HeaderValue =
 
 // Default parameters
 const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
+/// The maximum time [`hyper::Server`] can take to gracefully shut down.
+pub const HYPER_TIMEOUT: Duration = Duration::from_secs(3);
 
 // Avoid `Method::` prefix. Associated constants can't be imported
 pub const GET: Method = Method::GET;
@@ -60,9 +64,25 @@ where
         .context("Could not create hyper Server")?
         .serve(make_service);
     let socket_addr = server.local_addr();
-    let graceful_server = server.with_graceful_shutdown(graceful_shutdown_fut);
+    // Instead of giving the graceful shutduwn future to hyper directly, we
+    // let the spawned task wait on it so that we can enforce a hyper timeout.
+    let shutdown = ShutdownChannel::new();
+    let mut shutdown_clone = shutdown.clone();
+    let server_shutdown_fut = async move { shutdown_clone.recv().await };
+    let graceful_server = server.with_graceful_shutdown(server_shutdown_fut);
     let task = LxTask::spawn_named_with_span(task_name, span, async move {
-        graceful_server.await.expect("hyper::Server errored")
+        tokio::pin!(graceful_server);
+        tokio::select! {
+            () = graceful_shutdown_fut => (),
+            _ = &mut graceful_server => return error!("Server exited early"),
+        }
+        info!("Initiating hyper server graceful shutdown");
+        shutdown.send();
+        match time::timeout(HYPER_TIMEOUT, graceful_server).await {
+            Ok(Ok(())) => debug!("Hyper server shutdown success"),
+            Ok(Err(e)) => warn!("Hyper server returned error: {e:#}"),
+            Err(_) => warn!("Hyper server timed out during shutdown"),
+        }
     });
     Ok((task, socket_addr))
 }
