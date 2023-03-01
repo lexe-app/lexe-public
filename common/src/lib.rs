@@ -40,6 +40,8 @@ pub mod hex;
 pub mod hexstr_or_bytes;
 /// Bitcoin / Lightning Lexe newtypes which can't go in lexe-ln
 pub mod ln;
+/// A channel for sending deduplicated notifications with no data attached.
+pub mod notify;
 /// Random number generation.
 pub mod rng;
 /// `RootSeed`.
