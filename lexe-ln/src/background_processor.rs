@@ -1,10 +1,10 @@
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
+use common::notify;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use lightning::util::events::EventsProvider;
-use tokio::sync::mpsc;
 use tokio::time::{interval, interval_at, Instant};
 use tracing::{debug, error, info, instrument, warn};
 
@@ -58,7 +58,7 @@ impl LexeBackgroundProcessor {
         //
         // We may be able to get rid of this once LDK#2052 is implemented. See
         // the comment above `PROCESS_EVENTS_INTERVAL` for more info.
-        mut process_events_rx: mpsc::Receiver<()>,
+        mut process_events_rx: notify::Receiver,
         test_event_tx: TestEventSender,
         mut shutdown: ShutdownChannel,
     ) -> LxTask<()>
@@ -94,7 +94,7 @@ impl LexeBackgroundProcessor {
                             debug!("process_timer ticked");
                             false
                         }
-                        Some(()) = process_events_rx.recv() => {
+                        () = process_events_rx.recv() => {
                             debug!("Triggered by process_events channel");
                             false
                         }

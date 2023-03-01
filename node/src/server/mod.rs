@@ -19,6 +19,7 @@ use common::api::rest::{into_response, into_succ_response};
 use common::api::UserPk;
 use common::cli::{LspInfo, Network};
 use common::ln::invoice::LxInvoice;
+use common::notify;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::command::GetInvoiceCaller;
@@ -61,7 +62,7 @@ pub(crate) fn owner_routes(
     lsp_info: LspInfo,
     network: Network,
     activity_tx: mpsc::Sender<()>,
-    process_events_tx: mpsc::Sender<()>,
+    process_events_tx: notify::Sender,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     let root =
         warp::path::end().map(|| "This set of endpoints is for the owner.");

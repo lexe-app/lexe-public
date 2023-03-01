@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Context};
 use common::ln::peer::ChannelPeer;
+use common::notify;
 use lightning::util::config::UserConfig;
 use tokio::sync::mpsc;
 use tracing::{error, info};
@@ -17,7 +18,7 @@ pub async fn open_channel<CM, PM, PS>(
     channel_peer: ChannelPeer,
     channel_value_sat: u64,
     channel_peer_tx: &mpsc::Sender<ChannelPeerUpdate>,
-    process_events_tx: &mpsc::Sender<()>,
+    process_events_tx: &notify::Sender,
     user_config: UserConfig,
 ) -> anyhow::Result<()>
 where
@@ -53,7 +54,7 @@ where
         .context("Failed to persist channel peer")?;
 
     // Notify the BGP to process the open channel event.
-    let _ = process_events_tx.try_send(());
+    process_events_tx.send();
 
     info!("Successfully opened channel with {}", channel_peer);
 

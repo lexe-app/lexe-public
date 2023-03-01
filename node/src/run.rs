@@ -11,7 +11,6 @@ use common::api::{User, UserPk};
 use common::cli::node::RunArgs;
 use common::client::tls::node_run_tls_config;
 use common::constants::{DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE};
-use common::ed25519;
 use common::enclave::{
     self, MachineId, Measurement, MinCpusvn, MIN_SGX_CPUSVN,
 };
@@ -19,6 +18,7 @@ use common::rng::Crng;
 use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
 use common::task::{joined_task_state_label, BlockingTaskRt, LxTask};
+use common::{ed25519, notify};
 use futures::future::FutureExt;
 use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
@@ -112,8 +112,8 @@ impl UserNode {
         // TODO(max): The `process_events` channel should be created during
         // init instead of passed in, but currently cannot be due to smoketest
         // constraints. Fix the integration tests to allow this, then remove.
-        process_events_tx: mpsc::Sender<()>,
-        process_events_rx: mpsc::Receiver<()>,
+        process_events_tx: notify::Sender,
+        process_events_rx: notify::Receiver,
         test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<Self> {
