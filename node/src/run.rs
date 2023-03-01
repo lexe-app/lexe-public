@@ -104,7 +104,7 @@ impl UserNode {
     // into two stages: (1) fetch and (2) deserialize. Optimistically fetch all
     // the data in ~one roundtrip to the API, and then deserialize the data in
     // the required order.
-    #[instrument(skip_all, name = "[node]")]
+    #[instrument(skip_all, parent = None, name = "(node)")]
     pub async fn init<R: Crng>(
         rng: &mut R,
         args: RunArgs,
@@ -486,7 +486,7 @@ impl UserNode {
         })
     }
 
-    #[instrument(skip_all, name = "[node]")]
+    #[instrument(skip_all, parent = None, name = "(node)")]
     pub async fn sync(&mut self) -> anyhow::Result<()> {
         info!("Starting sync");
         let ctxt = self.sync.take().expect("sync() must be called only once");
@@ -540,7 +540,7 @@ impl UserNode {
         Ok(())
     }
 
-    #[instrument(skip_all, name = "[node]")]
+    #[instrument(skip_all, parent = None, name = "(node)")]
     pub async fn run(mut self) -> anyhow::Result<()> {
         info!("Running...");
         assert!(self.sync.is_none(), "Must sync before run");

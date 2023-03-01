@@ -35,7 +35,7 @@ const PROB_SCORER_PERSIST_INTERVAL: Duration = Duration::from_secs(5 * 60);
 pub struct LexeBackgroundProcessor {}
 
 impl LexeBackgroundProcessor {
-    #[instrument(skip_all, name = "[background processor]")]
+    #[instrument(skip_all, name = "(bgp)")]
     #[allow(clippy::too_many_arguments)]
     pub fn start<CM, PM, PS, EH>(
         channel_manager: CM,
