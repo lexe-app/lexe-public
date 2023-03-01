@@ -67,7 +67,7 @@ fn with_request_context(
 ///
 /// The `UserPk` is given by the runner so we know which user we should
 /// provision to and have a simple method to authenticate their connection.
-#[instrument(skip_all)]
+#[instrument(skip_all, parent = None, name = "(node-provision)")]
 pub async fn provision_node<R: Crng>(
     rng: &mut R,
     args: ProvisionArgs,

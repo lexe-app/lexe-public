@@ -41,14 +41,14 @@ impl<T> LxTask<T> {
     /// use tracing::{info, instrument};
     ///
     /// // Typical library code.
-    /// #[instrument(name = "[my span]")]
+    /// #[instrument(name = "(my-span)")]
     /// async fn my_library_function() {
-    ///     info!("This log msg is prefixed with [my span]");
+    ///     info!("This log msg is prefixed with (my-span)");
     ///
     ///     let task = LxTask::spawn_named(
     ///         "my task name",
     ///         async move {
-    ///             info!("This log msg is also prefixed with [my span]");
+    ///             info!("This log msg is also prefixed with (my-span)");
     ///         }
     ///     );
     ///     task.await;
@@ -74,7 +74,7 @@ impl<T> LxTask<T> {
 
     /// Spawns an unnnamed task which does NOT inherit the current span.
     ///
-    /// Useful for quickly preventing multiple span labels `[span1] [span2]`
+    /// Useful for quickly preventing multiple span labels `(span1) (span2)`
     /// from showing in logs.
     ///
     /// ```
@@ -84,20 +84,20 @@ impl<T> LxTask<T> {
     /// use tracing::{info, instrument};
     ///
     /// // Typical library code.
-    /// #[instrument(name = "[my span]")]
+    /// #[instrument(name = "(my-span)")]
     /// fn my_library_function() {
-    ///     info!("This is prefixed by [my span] but may have others too");
+    ///     info!("This is prefixed by (my-span) but may have others too");
     /// }
     ///
     /// // Typical orchestration code.
-    /// #[instrument(name = "[orchestrator]")]
+    /// #[instrument(name = "(orchestrator)")]
     /// async fn orchestrate() {
-    ///     info!("This is prefixed by [orchestrator]");
+    ///     info!("This is prefixed by (orchestrator)");
     ///
     ///     let task = LxTask::spawn_no_inherit(
     ///         async move {
     ///             info!("This log msg does NOT have a span prefix");
-    ///             // This prints a log msg with [my span] only
+    ///             // This prints a log msg with (my-span) only
     ///             my_library_function();
     ///         }
     ///     );
@@ -119,7 +119,7 @@ impl<T> LxTask<T> {
 
     /// Spawns a named task which does NOT inherit the current span.
     ///
-    /// Prevents multiple span labels `[span1] [span2]` from showing in logs.
+    /// Prevents multiple span labels `(span1) (span2)` from showing in logs.
     ///
     /// ```
     /// # #[tokio::test]
@@ -128,21 +128,21 @@ impl<T> LxTask<T> {
     /// use tracing::{info, instrument};
     ///
     /// // Typical library code.
-    /// #[instrument(name = "[my span]")]
+    /// #[instrument(name = "(my-span)")]
     /// fn my_library_function() {
-    ///     info!("This is prefixed by [my span] but may have others too");
+    ///     info!("This is prefixed by (my-span) but may have others too");
     /// }
     ///
     /// // Typical orchestration code.
-    /// #[instrument(name = "[orchestrator]")]
+    /// #[instrument(name = "(orchestrator)")]
     /// async fn orchestrate() {
-    ///     info!("This is prefixed by [orchestrator]");
+    ///     info!("This is prefixed by (orchestrator)");
     ///
     ///     let task = LxTask::spawn_named_no_inherit(
     ///         "my task name",
     ///         async move {
     ///             info!("This log msg does NOT have a span prefix");
-    ///             // This prints a log msg with [my span] only
+    ///             // This prints a log msg with (my-span) only
     ///             my_library_function();
     ///         }
     ///     );
@@ -176,7 +176,7 @@ impl<T> LxTask<T> {
     ///
     /// ```
     /// # use tracing::info_span;
-    /// let span = info_span!(parent: None, "[my span]");
+    /// let span = info_span!(parent: None, "(my-span)");
     /// ```
     ///
     /// It is generally preferred to add spans to crates with
@@ -213,17 +213,17 @@ impl<T> LxTask<T> {
     /// }
     ///
     /// // Typical orchestration code.
-    /// #[instrument(name = "[orchestrator]")]
+    /// #[instrument(name = "(orchestrator)")]
     /// async fn orchestrate() {
-    ///     info!("This is prefixed by [orchestrator]");
+    ///     info!("This is prefixed by (orchestrator)");
     ///
     ///     let service_fut = warp::serve(my_routes())
     ///         .run(([127, 0, 0, 1], 0));
     ///
-    ///     // Requests to the server include [my api] but not [orchestrator]
+    ///     // Requests to the server include (my-api) but not (orchestrator)
     ///     let task = LxTask::spawn_named_with_span(
     ///         "my task name",
-    ///         info_span!(parent: None, "[my api]"),
+    ///         info_span!(parent: None, "(my-api)"),
     ///         async move {
     ///             service_fut.await;
     ///         }
