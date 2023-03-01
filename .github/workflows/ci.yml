@@ -6,10 +6,13 @@ on:
     branches:
       - master
 
-# pushing new commits to a PR should cancel currently running CI jobs
+# Workflows run on a PR should cancel previous workflows run on the same PR, but
+# this rule should NOT apply to workflows running anywhere else (e.g. master)
+# `head_ref` is only defined for PRs, and `run_id` is unique per run, QED.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency
+# https://docs.github.com/en/actions/learn-github-actions/contexts#github-context
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 # TODO(phlip9): read-all?
