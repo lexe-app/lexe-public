@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use anyhow::bail;
 use common::ln::channel::LxOutPoint;
+use common::notify;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use lightning::chain::chainmonitor::MonitorUpdateId;
@@ -63,7 +64,7 @@ impl Display for ChannelMonitorUpdateKind {
 pub fn spawn_channel_monitor_persister_task<PS>(
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     mut channel_monitor_persister_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
-    process_events_tx: mpsc::Sender<()>,
+    process_events_tx: notify::Sender,
     test_event_tx: TestEventSender,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
@@ -112,7 +113,7 @@ async fn handle_update<PS: LexePersister>(
     chain_monitor: &LexeChainMonitorType<PS>,
     update: LxChannelMonitorUpdate,
     idx: usize,
-    process_events_tx: &mpsc::Sender<()>,
+    process_events_tx: &notify::Sender,
     test_event_tx: &TestEventSender,
     shutdown: &mut ShutdownChannel,
 ) -> anyhow::Result<()> {
@@ -147,7 +148,7 @@ async fn handle_update<PS: LexePersister>(
     // Trigger the background processor to reprocess events, as the completed
     // channel monitor update may have generated an event that can be handled,
     // such as to restore monitor updating and broadcast a funding tx.
-    let _ = process_events_tx.try_send(());
+    process_events_tx.send();
 
     info!("Success: persisted {kind} channel #{idx}");
     test_event_tx.send(TestEvent::ChannelMonitorPersisted);
