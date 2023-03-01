@@ -67,7 +67,7 @@ impl LexeBackgroundProcessor {
         EH: LexeEventHandler,
     {
         LxTask::spawn_named("background processor", async move {
-            let mut process_timer = interval(PROCESS_EVENTS_INTERVAL);
+            let mut process_events_timer = interval(PROCESS_EVENTS_INTERVAL);
             let mut pm_timer = interval(PEER_MANAGER_PING_INTERVAL);
             let mut cm_tick_timer = interval(CHANNEL_MANAGER_TICK_INTERVAL);
             let start = Instant::now() + NETWORK_GRAPH_INITIAL_DELAY;
@@ -82,21 +82,29 @@ impl LexeBackgroundProcessor {
                 // background processor always processes events just prior to
                 // any channel manager persist.
                 let process_events_fut = async {
-                    tokio::select! {
+                    let repersist_channel_manager = tokio::select! {
                         biased;
                         () = channel_manager.get_persistable_update_future() => {
                             debug!("Channel manager got persistable update");
                             true
                         }
-                        _ = process_timer.tick() => {
-                            debug!("process_timer ticked");
+                        _ = process_events_timer.tick() => {
+                            debug!("process_events_timer ticked");
                             false
                         }
                         () = process_events_rx.recv() => {
                             debug!("Triggered by process_events channel");
                             false
                         }
-                    }
+                    };
+
+                    // We're about to process events. Prevent duplicate work by
+                    // resetting the process_events_timer & clearing out the
+                    // process_events channel.
+                    process_events_timer.reset();
+                    process_events_rx.clear();
+
+                    repersist_channel_manager
                 };
 
                 tokio::select! {
