@@ -3,7 +3,6 @@ use std::sync::Arc;
 use anyhow::Context;
 use argh::FromArgs;
 use common::cli::node::NodeCommand;
-use common::notify;
 use common::rng::SysRng;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::test_event;
@@ -34,14 +33,10 @@ impl NodeArgs {
         match self.cmd {
             NodeCommand::Run(args) => rt
                 .block_on(async {
-                    let (process_events_tx, process_events_rx) =
-                        notify::channel();
                     let mut node = UserNode::init(
                         &mut rng,
                         args,
                         resync_rx,
-                        process_events_tx,
-                        process_events_rx,
                         test_event_tx,
                         shutdown,
                     )

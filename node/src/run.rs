@@ -109,11 +109,6 @@ impl UserNode {
         rng: &mut R,
         args: RunArgs,
         resync_rx: watch::Receiver<()>,
-        // TODO(max): The `process_events` channel should be created during
-        // init instead of passed in, but currently cannot be due to smoketest
-        // constraints. Fix the integration tests to allow this, then remove.
-        process_events_tx: notify::Sender,
-        process_events_rx: notify::Receiver,
         test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<Self> {
@@ -368,10 +363,11 @@ impl UserNode {
         };
 
         // Set up the channel monitor persistence task
+        let (process_events_tx, process_events_rx) = notify::channel();
         tasks.push(channel_monitor::spawn_channel_monitor_persister_task(
             chain_monitor.clone(),
             channel_monitor_persister_rx,
-            process_events_tx.clone(),
+            process_events_tx,
             test_event_tx.clone(),
             shutdown.clone(),
         ));
@@ -391,7 +387,6 @@ impl UserNode {
             args.lsp.clone(),
             args.network,
             activity_tx,
-            process_events_tx,
         );
         let mut owner_shutdown = shutdown.clone();
         let (owner_addr, owner_service_fut) = warp::serve(owner_routes)

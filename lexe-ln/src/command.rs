@@ -7,7 +7,6 @@ use common::api::command::{GetInvoiceRequest, NodeInfo};
 use common::api::NodePk;
 use common::cli::{LspInfo, Network};
 use common::ln::invoice::LxInvoice;
-use common::notify;
 use lightning::chain::keysinterface::{NodeSigner, Recipient};
 use lightning::ln::channelmanager::{Retry, MIN_FINAL_CLTV_EXPIRY_DELTA};
 use lightning::ln::PaymentHash;
@@ -151,7 +150,6 @@ pub fn send_payment<CM, PS>(
     invoice: LxInvoice,
     channel_manager: CM,
     outbound_payments: PaymentInfoStorageType,
-    process_events_tx: notify::Sender,
 ) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,
@@ -189,7 +187,6 @@ where
     let _payment_id = payment_result.context("Couldn't initiate payment")?;
     let payee_pk = invoice.0.recover_payee_pub_key();
     info!("Success: Initiated payment of {amt_msat:?} msats to {payee_pk}");
-    process_events_tx.send();
 
     Ok(())
 }

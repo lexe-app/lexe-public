@@ -47,16 +47,11 @@ impl LexeBackgroundProcessor {
         scorer: Arc<Mutex<ProbabilisticScorerType>>,
         // A `process_events` notification should be sent every time an event
         // is generated which does not also cause
-        // get_persistable_update_future() to resolve. Current known
-        // cases include:
-        //
-        // 1) The successful completion of a channel monitor persist (which may
-        //    resume monitor updating / broadcast a funding transaction)
-        // 2) Opening a channel (which generates a channel open event)
-        // 3) Sending a payment (which generates a payment sent event)
-        //
-        // We may be able to get rid of this once LDK#2052 is implemented. See
-        // the comment above `PROCESS_EVENTS_INTERVAL` for more info.
+        // get_persistable_update_future() to resolve. Currently, we only need
+        // to do this after a channel monitor persist is successfully completed
+        // (which may resume monitor updating / broadcast a funding tx). We may
+        // be able to get rid of this once LDK#2052 is implemented. See the
+        // comment above `PROCESS_EVENTS_INTERVAL` for more info.
         mut process_events_rx: notify::Receiver,
         mut shutdown: ShutdownChannel,
     ) -> LxTask<()>
