@@ -6,7 +6,6 @@ use std::sync::Arc;
 
 use common::api::UserPk;
 use common::cli::Network;
-use common::notify;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::command::GetInvoiceCaller;
@@ -65,13 +64,6 @@ pub(crate) fn outbound_payments(
 ) -> impl Filter<Extract = (PaymentInfoStorageType,), Error = Infallible> + Clone
 {
     warp::any().map(move || outbound_payments.clone())
-}
-
-/// Injects a `process_events` sender
-pub(crate) fn process_events_tx(
-    process_events_tx: notify::Sender,
-) -> impl Filter<Extract = (notify::Sender,), Error = Infallible> + Clone {
-    warp::any().map(move || process_events_tx.clone())
 }
 
 /// Injects a [`GetInvoiceCaller`].
