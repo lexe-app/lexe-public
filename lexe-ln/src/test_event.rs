@@ -8,7 +8,7 @@ use cfg_if::cfg_if;
 use tokio::sync::mpsc;
 use tracing::debug;
 
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(15); // Increase if needed
+const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10); // Increase if needed
 const TEST_EVENT_CHANNEL_SIZE: usize = 16; // Increase if needed
 
 /// Creates a [`TestEvent`] channel, returning a `(tx, rx)` tuple.
