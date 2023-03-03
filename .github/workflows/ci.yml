@@ -53,8 +53,8 @@ jobs:
       # SGX + tests
       - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo clippy --locked -p node -p common -p lexe-ln --target=x86_64-fortanix-unknown-sgx --tests
 
-  # --- Checking that end binaries compile without feature unification --- #
-  check:
+  # --- Check the production binaries, which don't use feature unification --- #
+  check-release:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v3
@@ -65,9 +65,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v1
       # Utils
-      - run: cargo check --locked -p run-sgx
+      - run: cargo check --release --locked -p run-sgx
       # Node
-      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo check --locked -p node --target=x86_64-fortanix-unknown-sgx
+      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo check --release --locked -p node --target=x86_64-fortanix-unknown-sgx
 
   test:
     runs-on: ubuntu-20.04
