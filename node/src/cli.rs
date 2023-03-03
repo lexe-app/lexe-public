@@ -27,7 +27,8 @@ impl NodeArgs {
             .context("Failed to build Tokio runtime")?;
         let mut rng = SysRng::new();
         let (_tx, resync_rx) = watch::channel(());
-        let (test_event_tx, _test_event_rx) = test_event::test_event_channel();
+        let (test_event_tx, _test_event_rx) =
+            test_event::test_event_channel("(node)");
         let shutdown = ShutdownChannel::new();
 
         match self.cmd {
