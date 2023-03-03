@@ -19,6 +19,8 @@ use lightning::chain::chaininterface::{
 use tokio::time;
 use tracing::{debug, error, info, warn};
 
+use crate::test_event::{TestEvent, TestEventSender};
+
 /// The interval at which we refresh estimated fee rates.
 // Since we want to reduce the number of API calls made to our (external)
 // Esplora backend, we set this to a fairly high value of refreshing just once
@@ -100,6 +102,7 @@ fn spawn_refresh_fees_task(
 
 pub struct LexeEsplora {
     client: AsyncClient,
+    test_event_tx: TestEventSender,
 
     // --- Cached fee estimations --- //
     high_prio_fees: AtomicU32,
@@ -110,6 +113,7 @@ pub struct LexeEsplora {
 impl LexeEsplora {
     pub async fn init(
         esplora_url: String,
+        test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<(Arc<Self>, LxTask<()>)> {
         // We need to manually trust Blockstream's CA (i.e. Google Trust
@@ -134,6 +138,7 @@ impl LexeEsplora {
         // Instantiate
         let esplora = Arc::new(Self {
             client,
+            test_event_tx,
             background_fees,
             normal_fees,
             high_prio_fees,
@@ -225,11 +230,15 @@ impl LexeEsplora {
 impl BroadcasterInterface for LexeEsplora {
     fn broadcast_transaction(&self, tx: &Transaction) {
         let client = self.client.clone();
+        let test_event_tx = self.test_event_tx.clone();
         let tx = tx.clone();
         let txid = tx.txid();
         let _ = LxTask::spawn(async move {
             match client.broadcast(&tx).await {
-                Ok(_) => debug!("Successfully broadcasted tx {txid}"),
+                Ok(_) => {
+                    debug!("Successfully broadcasted tx {txid}");
+                    test_event_tx.send(TestEvent::TxBroadcasted);
+                }
                 Err(e) => error!("Could not broadcast tx {txid}: {e:#}"),
             };
         });

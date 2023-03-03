@@ -31,6 +31,10 @@ pub enum TestEvent {
     ///
     /// [`FundingGenerationReady`]: lightning::util::events::Event::FundingGenerationReady
     FundingGenerationHandled,
+    /// An on-chain transaction was successfully broadcasted by [`LexeEsplora`]
+    ///
+    /// [`LexeEsplora`]: crate::esplora::LexeEsplora
+    TxBroadcasted,
     /// A [`ChannelReady`] event was handled.
     ///
     /// [`ChannelReady`]: lightning::util::events::Event::ChannelReady

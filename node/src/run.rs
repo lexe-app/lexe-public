@@ -145,7 +145,11 @@ impl UserNode {
 
         // Initialize esplora while fetching provisioned secrets
         let (try_esplora, try_fetch) = tokio::join!(
-            LexeEsplora::init(args.esplora_url.clone(), shutdown.clone()),
+            LexeEsplora::init(
+                args.esplora_url.clone(),
+                test_event_tx.clone(),
+                shutdown.clone()
+            ),
             fetch_provisioned_secrets(
                 backend_api.as_ref(),
                 user_pk,
