@@ -11,7 +11,6 @@ use tracing::{debug, error, info, instrument, warn};
 use crate::alias::{
     LexeChainMonitorType, P2PGossipSyncType, ProbabilisticScorerType,
 };
-use crate::test_event::{TestEvent, TestEventSender};
 use crate::traits::{
     LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
 };
@@ -59,7 +58,6 @@ impl LexeBackgroundProcessor {
         // We may be able to get rid of this once LDK#2052 is implemented. See
         // the comment above `PROCESS_EVENTS_INTERVAL` for more info.
         mut process_events_rx: notify::Receiver,
-        test_event_tx: TestEventSender,
         mut shutdown: ShutdownChannel,
     ) -> LxTask<()>
     where
@@ -110,7 +108,6 @@ impl LexeBackgroundProcessor {
                         chain_monitor
                             .process_pending_events(&event_handler);
                         peer_manager.process_events();
-                        test_event_tx.send(TestEvent::EventsProcessed);
 
                         if repersist_channel_manager {
                             let try_persist = persister

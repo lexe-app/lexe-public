@@ -53,9 +53,6 @@ pub enum TestEvent {
     ///
     /// [`PaymentSent`]: lightning::util::events::Event::PaymentSent
     PaymentSent,
-    /// The background processor processed all pending events across the
-    /// channel manager, chain monitor, and peer manager.
-    EventsProcessed,
 }
 
 /// Wraps an [`mpsc::Sender<TestEvent>`] to allow actually sending the event to
