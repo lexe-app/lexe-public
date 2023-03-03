@@ -27,11 +27,10 @@ pub fn test_event_channel() -> (TestEventSender, TestEventReceiver) {
 // stream so that black box tests can get notifications as well, even in SGX...
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TestEvent {
-    /// A [`FundingGenerationReady`] event was handled; i.e. a funding
-    /// tx was successfully generated, broadcasted, and fed back into LDK.
+    /// A [`FundingGenerationReady`] event was handled.
     ///
     /// [`FundingGenerationReady`]: lightning::util::events::Event::FundingGenerationReady
-    FundingTxHandled,
+    FundingGenerationHandled,
     /// A [`ChannelReady`] event was handled.
     ///
     /// [`ChannelReady`]: lightning::util::events::Event::ChannelReady
@@ -176,10 +175,11 @@ impl TestEventReceiver {
     /// # async fn wait_all() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
-    /// # test_event_tx.send(TestEvent::FundingTxHandled);
+    /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all(vec![
-    ///         TestEvent::ChannelMonitorPersisted, TestEvent::FundingTxHandled,
+    ///         TestEvent::ChannelMonitorPersisted,
+    ///         TestEvent::FundingGenerationHandled,
     ///     ])
     ///     .await
     ///     .expect("Timed out waiting on persist and funding tx");
@@ -209,11 +209,11 @@ impl TestEventReceiver {
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
-    /// # test_event_tx.send(TestEvent::FundingTxHandled);
+    /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all_n(vec![
     ///         (TestEvent::ChannelMonitorPersisted, 3),
-    ///         (TestEvent::FundingTxHandled, 1),
+    ///         (TestEvent::FundingGenerationHandled, 1),
     ///     ])
     ///     .await
     ///     .expect("Timed out waiting on persist and funding tx");
@@ -307,12 +307,12 @@ impl TestEventReceiver {
     /// # async fn wait_all_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
-    /// # test_event_tx.send(TestEvent::FundingTxHandled);
+    /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all_timeout(
     ///         vec![
     ///             TestEvent::ChannelMonitorPersisted,
-    ///             TestEvent::FundingTxHandled,
+    ///             TestEvent::FundingGenerationHandled,
     ///         ],
     ///         Duration::from_secs(15),
     ///     )
@@ -351,12 +351,12 @@ impl TestEventReceiver {
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
     /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
-    /// # test_event_tx.send(TestEvent::FundingTxHandled);
+    /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all_n_timeout(
     ///         vec![
     ///             (TestEvent::ChannelMonitorPersisted, 3),
-    ///             (TestEvent::FundingTxHandled, 1),
+    ///             (TestEvent::FundingGenerationHandled, 1),
     ///         ],
     ///         Duration::from_secs(15),
     ///     )
@@ -448,7 +448,7 @@ mod test {
     #[tokio::test]
     async fn pending_before_ready_after() {
         let event1 = TestEvent::ChannelMonitorPersisted;
-        let event2 = TestEvent::FundingTxHandled;
+        let event2 = TestEvent::FundingGenerationHandled;
 
         // wait()
         let (tx, mut rx) = test_event_channel();
