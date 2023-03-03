@@ -15,14 +15,28 @@ use crate::traits::{
     LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
 };
 
-// It would be nice to get rid of the `PROCESS_EVENTS_INTERVAL` entirely and
-// replace it with an LDK-provided future which resolves immediately after an
-// event is made available for processing, but it isn't supported yet:
-// https://github.com/lightningdevkit/rust-lightning/issues/2052
-// So long as LDK's background processor still has a 100ms timer, indicating
-// that the future proposed in #2052 isn't guaranteed to resolve when events are
-// available, we should keep `PROCESS_EVENTS_INTERVAL` around as a backup.
+// Since the BGP relies on LDK's waker system which has historically been the
+// source for a lot of subtle and hard-to-debug bugs, we want to use a
+// relatively frequent `PROCESS_EVENTS_INTERVAL` of 3 seconds when running in
+// production, to mitigate any bugs which may have slipped through our
+// integration tests. What we really want, however, is to remove this timer
+// entirely, in order to maximize the amount of time that nodes spend sleeping.
+// However, this is blocked on several things:
+//
+// 1) LDK doesn't support this yet; i.e. we are waiting on an LDK-provided
+//    future which resolves immediately after any event is made available for
+//    processing: https://github.com/lightningdevkit/rust-lightning/issues/2052
+// 2) Until we have extensively tested the new future exposed in (1), we cannot
+//    rely on it, and thus need the 3 second interval as a fallback. In our
+//    debug builds and tests, however, we will use a much more infrequent 60
+//    second timer in order to surface more bugs caused by unprocessed events.
+// 3) So long as LDK's BGP still has a 100ms timer, LDK itself has not signalled
+//    confidence in the future that they will provide in (1). So long as this is
+//    the case, we should keep `PROCESS_EVENTS_INTERVAL` around as a backup.
+#[cfg(debug_assertions)]
 const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_secs(60);
+#[cfg(not(debug_assertions))]
+const PROCESS_EVENTS_INTERVAL: Duration = Duration::from_secs(3);
 const PEER_MANAGER_PING_INTERVAL: Duration = Duration::from_secs(15);
 const CHANNEL_MANAGER_TICK_INTERVAL: Duration = Duration::from_secs(60);
 const NETWORK_GRAPH_INITIAL_DELAY: Duration = Duration::from_secs(60);
