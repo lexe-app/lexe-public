@@ -7,7 +7,7 @@ use common::api::auth::UserAuthenticator;
 use common::api::def::NodeRunnerApi;
 use common::api::ports::UserPorts;
 use common::api::provision::SealedSeedId;
-use common::api::{User, UserPk};
+use common::api::{Scid, User, UserPk};
 use common::cli::node::RunArgs;
 use common::client::tls::node_run_tls_config;
 use common::constants::{DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE};
@@ -65,6 +65,9 @@ pub struct UserNode {
     // --- General --- //
     args: RunArgs,
     pub(crate) user_ports: UserPorts,
+    // TODO(max): Can get rid of this field and others once integration tests
+    // trigger commands using API calls instead of using lexe_ln directly
+    pub scid: Scid,
     tasks: Vec<LxTask<()>>,
     channel_peer_tx: mpsc::Sender<ChannelPeerUpdate>,
     shutdown: ShutdownChannel,
@@ -216,8 +219,7 @@ impl UserNode {
             .context("Could not read network graph")?;
         let wallet_db = try_wallet_db.context("Could not read wallet db")?;
         let maybe_scid = try_scid.context("Could not read scid")?;
-        // TODO(max): Pass the scid into the get_invoice handler
-        let _scid = match maybe_scid {
+        let scid = match maybe_scid {
             Some(s) => s,
             // We has not been assigned an scid yet; ask the LSP for one
             None => lsp_api
@@ -385,6 +387,7 @@ impl UserNode {
             keys_manager.clone(),
             outbound_payments.clone(),
             args.lsp.clone(),
+            scid,
             args.network,
             activity_tx,
         );
@@ -452,6 +455,7 @@ impl UserNode {
             // General
             args,
             user_ports,
+            scid,
             tasks,
             channel_peer_tx,
             shutdown,

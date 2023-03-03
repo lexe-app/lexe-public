@@ -10,7 +10,7 @@ use lightning::routing::router::RouteHintHop;
 use lightning_invoice::Currency;
 use serde::{Deserialize, Serialize};
 
-use crate::api::NodePk;
+use crate::api::{NodePk, Scid};
 use crate::ln::peer::ChannelPeer;
 
 /// User node CLI args.
@@ -146,10 +146,10 @@ impl LspInfo {
         }
     }
 
-    pub fn route_hint_hop(&self, short_channel_id: u64) -> RouteHintHop {
+    pub fn route_hint_hop(&self, scid: Scid) -> RouteHintHop {
         RouteHintHop {
             src_node_id: self.node_pk.0,
-            short_channel_id,
+            short_channel_id: scid.0,
             fees: RoutingFees {
                 base_msat: self.base_msat,
                 proportional_millionths: self.proportional_millionths,
