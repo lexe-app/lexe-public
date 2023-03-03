@@ -77,7 +77,7 @@ where
             &counterparty_node_id,
             signed_raw_funding_tx,
         )
-        .inspect(|()| test_event_tx.send(TestEvent::FundingTxHandled))
+        .inspect(|()| test_event_tx.send(TestEvent::FundingGenerationHandled))
         .map_err(|e| anyhow!("{e:?}"))
         .context("LDK rejected the signed funding tx")?;
 
