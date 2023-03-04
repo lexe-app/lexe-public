@@ -252,6 +252,17 @@ impl<T> LxTask<T> {
         }
     }
 
+    /// Drop the task handle, detating it so it continues running the
+    /// background. Without a handle, you can no longer `.await` the task itself
+    /// to get the output.
+    ///
+    /// We consider it an anti-pattern to spawn tasks without some handle to get
+    /// the results (or potential panics) from the completed task.
+    #[inline]
+    pub fn detach(self) {
+        std::mem::drop(self)
+    }
+
     #[inline]
     pub fn name(&self) -> &'static str {
         self.name
