@@ -34,4 +34,4 @@ enclave-runner = { workspace = true, features = ["crypto-openssl"] }
 sgx-isa.workspace = true
 sgxs-loaders.workspace = true
 
-toml = "0"
+toml = "0.5"
