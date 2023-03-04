@@ -24,7 +24,7 @@ tokio = { workspace = true, features = ["net"] }
 # Efficiently find newline byte in byte array
 memchr = "2"
 # For symbolizing backtrace frames from the enclave
-object = { version = "0.29", default-features = false, features = ["read_core", "compression", "elf"] }
+object = { version = "0", default-features = false, features = ["read_core", "compression", "elf"] }
 # For demangling backtrace symbols into human-readable format
 rustc-demangle = "0"
 
