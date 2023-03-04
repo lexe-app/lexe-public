@@ -233,7 +233,7 @@ impl BroadcasterInterface for LexeEsplora {
         let test_event_tx = self.test_event_tx.clone();
         let tx = tx.clone();
         let txid = tx.txid();
-        let _ = LxTask::spawn(async move {
+        LxTask::spawn(async move {
             match client.broadcast(&tx).await {
                 Ok(_) => {
                     debug!("Successfully broadcasted tx {txid}");
@@ -241,7 +241,8 @@ impl BroadcasterInterface for LexeEsplora {
                 }
                 Err(e) => error!("Could not broadcast tx {txid}: {e:#}"),
             };
-        });
+        })
+        .detach();
     }
 }
 

@@ -384,11 +384,12 @@ async fn handle_event_fallible(
         Event::PendingHTLCsForwardable { time_forwardable } => {
             let forwarding_channel_manager = channel_manager.clone();
             let millis_to_sleep = time_forwardable.as_millis() as u64;
-            let _ = LxTask::spawn(async move {
+            LxTask::spawn(async move {
                 tokio::time::sleep(Duration::from_millis(millis_to_sleep))
                     .await;
                 forwarding_channel_manager.process_pending_htlc_forwards();
-            });
+            })
+            .detach();
         }
         Event::SpendableOutputs { outputs } => {
             let destination_address = wallet.get_new_address().await?;
