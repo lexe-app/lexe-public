@@ -18,6 +18,7 @@ runner = "run-sgx-cargo"
 # to avoid runtime feature detection (which doesn't work in an SGX enclave).
 rustflags = ["-Ctarget-feature=+aes,+ssse3"]
 
-[build]
+# [build]
+# FIXME(max): Documenting socket2 breaks when this option is enabled.
 # Configure rustdoc to include links to definitions when viewing source
-rustdocflags = ["-Z", "unstable-options", "--generate-link-to-definition"]
+# rustdocflags = ["-Z", "unstable-options", "--generate-link-to-definition"]
