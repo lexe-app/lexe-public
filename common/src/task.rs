@@ -8,11 +8,24 @@ use tracing::{error, Instrument, Span};
 
 /// A thin wrapper around [`tokio::task::JoinHandle`] that adds the
 /// `#[must_use]` lint to ensure that all spawned tasks are joined or explictly
-/// annotated that no joining is required.
+/// annotated that no joining is required. Use [`LxTask::detach`] to make it
+/// clear that the spawned task should be detached from the handle. Once
+/// detached, a task can't be joined.
+///
+/// The main goal with `LxTask` is to encourage [Structured Concurrency] by
+/// joining all spawned tasks. This design pattern often leads to:
+///
+/// 1. saner control flow
+/// 2. reduces resource leakage from orphaned or zombie spawned tasks
+/// 3. helps propagate errors from panics in spawned tasks
+///
+/// Consequently, [`LxTask::detach`] should be used sparingly.
 ///
 /// `LxTask` also includes an optional task name for improved debuggability.
 /// [`LxTask::result_with_name`] will return a Future of the task result
 /// alongside the task name.
+///
+/// [Structured Concurrency]: https://www.wikiwand.com/en/Structured_concurrency
 #[must_use]
 pub struct LxTask<T> {
     task: JoinHandle<T>,
@@ -252,7 +265,7 @@ impl<T> LxTask<T> {
         }
     }
 
-    /// Drop the task handle, detating it so it continues running the
+    /// Drop the task handle, detaching it so it continues running the
     /// background. Without a handle, you can no longer `.await` the task itself
     /// to get the output.
     ///
