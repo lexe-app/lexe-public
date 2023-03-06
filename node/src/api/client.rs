@@ -1,5 +1,3 @@
-//! This file contains NodeApiClient, the concrete impl of the ApiClient trait.
-
 use async_trait::async_trait;
 use common::api::auth::{
     UserAuthRequest, UserAuthResponse, UserAuthToken, UserSignupRequest,
@@ -40,7 +38,7 @@ impl NodeRunnerApi for RunnerClient {
         data: UserPorts,
     ) -> Result<UserPorts, RunnerApiError> {
         let runner = &self.runner_url;
-        let req = self.rest.post(format!("{runner}/ready"), &data);
+        let req = self.rest.post(format!("{runner}/node/ready"), &data);
         // TODO(phlip9): authenticate runner callbacks?
         // .bearer_auth(&self.auth_token().await?);
         self.rest.send(req).await

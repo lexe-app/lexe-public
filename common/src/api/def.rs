@@ -133,7 +133,7 @@ pub trait NodeLspApi {
 /// Defines the api that the runner exposes to the node.
 #[async_trait]
 pub trait NodeRunnerApi {
-    /// POST /ready [`UserPorts`] -> [`UserPorts`]
+    /// POST /node/ready [`UserPorts`] -> [`UserPorts`]
     async fn ready(
         &self,
         user_ports: UserPorts,
