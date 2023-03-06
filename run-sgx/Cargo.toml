@@ -24,9 +24,9 @@ tokio = { workspace = true, features = ["net"] }
 # Efficiently find newline byte in byte array
 memchr = "2"
 # For symbolizing backtrace frames from the enclave
-object = { version = "0", default-features = false, features = ["read_core", "compression", "elf"] }
+object = { version = "0.30", default-features = false, features = ["read_core", "compression", "elf"] }
 # For demangling backtrace symbols into human-readable format
-rustc-demangle = "0"
+rustc-demangle = "0.1"
 
 [target.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.dependencies]
 aesm-client.workspace = true
