@@ -1,4 +1,4 @@
-use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream};
 
 use once_cell::sync::Lazy;
 
@@ -37,6 +37,11 @@ pub static DUMMY_LSP_INFO: Lazy<LspInfo> = Lazy::new(|| {
         htlc_maximum_msat: u64::MAX,
     }
 });
+
+/// The [`SocketAddr`] to bind [`TcpListener`]s to if you want to bind to
+/// localhost with an OS-assigned port.
+pub const LOCALHOST_WITH_EPHEMERAL_PORT: SocketAddr =
+    SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0));
 
 /// Returns an ephemeral port assigned by the OS which should be available for
 /// the next ~60s after this function is called
