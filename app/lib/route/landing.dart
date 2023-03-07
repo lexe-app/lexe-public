@@ -179,12 +179,12 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
     debugPrint("pressed create wallet button");
 
     // disable button
-    setState(() => _disableButton = true);
+    setState(() => this._disableButton = true);
     final AppHandle app;
     try {
       app = await AppHandle.signup(bridge: api, config: config);
     } catch (err) {
-      setState(() => _disableButton = false);
+      setState(() => this._disableButton = false);
       // ScaffoldMessenger.of(context)
       //     .showSnackBar(SnackBar(content: Text("$err")));
       rethrow;
@@ -206,7 +206,7 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
   @override
   Widget build(BuildContext context) {
     return FilledButton(
-      onPressed: _disableButton ? null : _onPressed,
+      onPressed: this._disableButton ? null : this._onPressed,
       style: FilledButton.styleFrom(
         backgroundColor: Colors.white,
         disabledBackgroundColor: Colors.white30,
@@ -214,7 +214,7 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
         disabledForegroundColor: Colors.black26,
         fixedSize: const Size(300.0, 56.0),
       ),
-      child: (!_disableButton)
+      child: (!this._disableButton)
           ? const CreateWalletText()
           : const SizedBox.square(
               dimension: 24.0,
@@ -276,7 +276,7 @@ class InkuShader extends StatelessWidget {
             return const SizedBox();
           }
 
-          return AnimatedShader(shader: snapshot.data!, child: child);
+          return AnimatedShader(shader: snapshot.data!, child: this.child);
         });
   }
 }
@@ -298,7 +298,7 @@ class AnimatedShaderState extends State<AnimatedShader>
   @override
   void initState() {
     super.initState();
-    animationController = AnimationController(
+    this.animationController = AnimationController(
       vsync: this,
       upperBound: 10000.0,
       duration: const Duration(seconds: 10000), // why no infinite animation??
@@ -315,9 +315,9 @@ class AnimatedShaderState extends State<AnimatedShader>
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: animationController,
+      animation: this.animationController,
       builder: (BuildContext _, Widget? child) => CustomPaint(
-        painter: ShaderPainter(widget.shader, animationController.value),
+        painter: ShaderPainter(widget.shader, this.animationController.value),
         // raster cache probably shouldn't cache this since it changes every frame
         isComplex: false,
         willChange: true,
@@ -342,15 +342,15 @@ class ShaderPainter extends CustomPainter {
     // 1 : u_resolution.y
     shader.setFloat(1, size.height);
     // 2 : u_time
-    shader.setFloat(2, time);
+    shader.setFloat(2, this.time);
 
     final screenRect = Rect.fromLTWH(0.0, 0.0, size.width, size.height);
-    final paint = Paint()..shader = shader;
+    final paint = Paint()..shader = this.shader;
 
     canvas.drawRect(screenRect, paint);
   }
 
   @override
   bool shouldRepaint(covariant ShaderPainter oldDelegate) =>
-      time != oldDelegate.time || shader != oldDelegate.shader;
+      this.time != oldDelegate.time || shader != oldDelegate.shader;
 }

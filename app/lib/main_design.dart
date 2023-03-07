@@ -41,9 +41,9 @@ class ComponentList extends StatelessWidget {
       padding: const EdgeInsets.only(top: Space.s700),
       child: ListView.builder(
           padding: const EdgeInsets.all(Space.s400),
-          itemCount: components.length,
+          itemCount: this.components.length,
           itemBuilder: (BuildContext context, int index) {
-            final component = components[index];
+            final component = this.components[index];
 
             return GestureDetector(
               onTap: () {
