@@ -1,0 +1,198 @@
+import 'package:flutter/material.dart' show Color, TextStyle;
+import 'dart:ui' show FontVariation, TextDecoration;
+
+class LxColors {
+  LxColors._();
+
+  // Reminder: Color hex is in ARGB 0xAARRGGBB
+
+  static const Color background = grey950;
+
+  // Greys
+
+  static const Color grey0 = Color(0xff000000);
+  static const Color grey25 = Color(0xff020303);
+  static const Color grey50 = Color(0xff050607);
+  static const Color grey75 = Color(0xff090b0c);
+  static const Color grey100 = Color(0xff0d1011);
+  static const Color grey125 = Color(0xff111415);
+  static const Color grey150 = Color(0xff141819);
+  static const Color grey175 = Color(0xff181c1e);
+  static const Color grey200 = Color(0xff1c2123);
+  static const Color grey225 = Color(0xff212628);
+  static const Color grey250 = Color(0xff262b2e);
+  static const Color grey275 = Color(0xff2b3134);
+  static const Color grey300 = Color(0xff31383b);
+  static const Color grey325 = Color(0xff373f42);
+  static const Color grey350 = Color(0xff3e464a);
+  static const Color grey375 = Color(0xff454e52);
+  static const Color grey400 = Color(0xff4c565a);
+  static const Color grey425 = Color(0xff545e63);
+  static const Color grey450 = Color(0xff5c676c);
+  static const Color grey475 = Color(0xff647075);
+  static const Color grey500 = Color(0xff6c797f);
+  static const Color grey525 = Color(0xff748288);
+  static const Color grey550 = Color(0xff7d8c92);
+  static const Color grey575 = Color(0xff85959c);
+  static const Color grey600 = Color(0xff8e9ea5);
+  static const Color grey625 = Color(0xff96a7af);
+  static const Color grey650 = Color(0xff9eb0b8);
+  static const Color grey675 = Color(0xffa6b9c1);
+  static const Color grey700 = Color(0xffaec2ca);
+  static const Color grey725 = Color(0xffb6cad2);
+  static const Color grey750 = Color(0xffc0d1d8);
+  static const Color grey775 = Color(0xffcad8de);
+  static const Color grey800 = Color(0xffd3dee3);
+  static const Color grey825 = Color(0xffdbe4e8);
+  static const Color grey850 = Color(0xffe3eaed);
+  static const Color grey875 = Color(0xffe9eff1);
+  static const Color grey900 = Color(0xffeff3f5);
+  static const Color grey925 = Color(0xfff4f7f8);
+  static const Color grey950 = Color(0xfff9fafb);
+  static const Color grey975 = Color(0xfffcfdfd);
+  static const Color grey1000 = Color(0xffffffff);
+
+  // White with transparency
+
+  static const Color clearW0 = Color(0x00ffffff);
+  static const Color clearW100 = Color(0x19ffffff);
+  static const Color clearW200 = Color(0x33ffffff);
+  static const Color clearW300 = Color(0x4cffffff);
+  static const Color clearW400 = Color(0x66ffffff);
+  static const Color clearW500 = Color(0x7fffffff);
+  static const Color clearW600 = Color(0x99ffffff);
+  static const Color clearW700 = Color(0xb2ffffff);
+  static const Color clearW800 = Color(0xccffffff);
+  static const Color clearW900 = Color(0xe5ffffff);
+  static const Color clearW1000 = Color(0xffffffff);
+}
+
+class Space {
+  Space._();
+
+  /// 0 px
+  static const double s0 = 0.0;
+
+  /// 2 px
+  static const double s100 = 2.0;
+
+  /// 4 px
+  static const double s200 = 4.0;
+
+  /// 8 px
+  static const double s300 = 8.0;
+
+  /// 12 px
+  static const double s400 = 12.0;
+
+  /// 16 px
+  static const double s500 = 16.0;
+
+  /// 32 px
+  static const double s600 = 32.0;
+
+  /// 48 px
+  static const double s700 = 48.0;
+
+  /// 64 px
+  static const double s800 = 64.0;
+
+  /// 96 px
+  static const double s900 = 96.0;
+
+  /// 128 px
+  static const double s1000 = 128.0;
+}
+
+class Radius {
+  Radius._();
+
+  /// 0 px
+  static const double r0 = 0.0;
+
+  /// 2 px
+  static const double r100 = 2.0;
+
+  /// 6 px
+  static const double r200 = 6.0;
+
+  /// 14 px
+  static const double r300 = 14.0;
+
+  /// 30 px
+  static const double r400 = 30.0;
+
+  /// 62 px
+  static const double r500 = 62.0;
+}
+
+class Fonts {
+  Fonts._();
+
+  /// 12 px
+  static const double size100 = 12.0;
+
+  /// 14 px
+  static const double size200 = 14.0;
+
+  /// 16 px
+  static const double size300 = 16.0;
+
+  /// 18 px
+  static const double size400 = 18.0;
+
+  /// 20 px
+  static const double size500 = 20.0;
+
+  /// 24 px
+  static const double size600 = 24.0;
+
+  /// 30 px
+  static const double size700 = 30.0;
+
+  /// 40 px
+  static const double size800 = 40.0;
+
+  static const FontVariation weightThin = FontVariation("wght", 100);
+  static const FontVariation weightExtraLight = FontVariation("wght", 200);
+  static const FontVariation weightLight = FontVariation("wght", 300);
+  static const FontVariation weightNormal = FontVariation("wght", 400);
+  static const FontVariation weightMedium = FontVariation("wght", 500);
+  static const FontVariation weightSemiBold = FontVariation("wght", 600);
+  static const FontVariation weightBold = FontVariation("wght", 700);
+  static const FontVariation weightExtraBold = FontVariation("wght", 800);
+  static const FontVariation weightBlack = FontVariation("wght", 900);
+
+  static const TextStyle fontBody = TextStyle(
+    debugLabel: "Fonts.fontBody",
+    fontFamily: "Inter V",
+    fontSize: size300,
+    color: LxColors.grey225,
+    height: 1.7,
+    fontVariations: [weightNormal],
+    decoration: TextDecoration.none,
+  );
+
+  static const TextStyle fontUI = TextStyle(
+    debugLabel: "Fonts.fontUI",
+    fontFamily: "Inter V",
+    fontSize: size300,
+    color: LxColors.grey150,
+    height: 1.0,
+    fontVariations: [weightNormal],
+    decoration: TextDecoration.none,
+  );
+
+  static const TextStyle fontHero = TextStyle(
+    debugLabel: "Fonts.fontHero",
+    fontFamily: "Hubot Sans",
+    fontSize: size800,
+    color: LxColors.grey1000,
+    height: 1.5,
+    fontVariations: [
+      weightBold,
+      FontVariation("wdth", 90),
+    ],
+    decoration: TextDecoration.none,
+  );
+}
