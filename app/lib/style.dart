@@ -6,7 +6,7 @@ class LxColors {
 
   // Reminder: Color hex is in ARGB 0xAARRGGBB
 
-  static const Color background = grey950;
+  static const Color background = grey925;
 
   // Greys
 
