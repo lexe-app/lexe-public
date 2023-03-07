@@ -40,7 +40,7 @@ class LexeApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Lexe',
-      home: child,
+      home: this.child,
     );
   }
 }
