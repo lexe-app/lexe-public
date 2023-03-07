@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'bindings.dart' show api;
+import 'bindings_generated_api.dart' show AppHandle, Config;
 import 'route/landing.dart' show LandingPage;
 
-import 'bindings.dart' show api;
-import 'bindings_generated_api.dart' show Config, AppHandle;
-
 Future<void> main() async {
-  // TODO: load initial state
-  // TODO: navigate to wallet if already signed up or landing o/w
+  // TODO(phlip9): load initial state
+  // TODO(phlip9): navigate to wallet if already signed up or landing o/w
 
   // runZonedGuarded(
   //   () async => await mainInner(),
@@ -20,7 +19,7 @@ Future<void> main() async {
   final Widget child;
   if (maybeApp != null) {
     // final app = maybeApp!;
-    // TODO: already have wallet persisted
+    // TODO(phlip9): already have wallet persisted
     child = const SizedBox();
   } else {
     // no wallet persisted => first run -> show landing

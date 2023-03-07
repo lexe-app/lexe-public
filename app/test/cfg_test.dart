@@ -1,4 +1,4 @@
-import 'package:flutter_test/flutter_test.dart' show test, expect;
+import 'package:flutter_test/flutter_test.dart' show expect, test;
 
 import 'package:lexeapp/cfg.dart' as cfg;
 
