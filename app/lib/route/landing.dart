@@ -8,6 +8,7 @@ import 'package:lexeapp/cfg.dart';
 import '../bindings.dart' show api;
 import 'backup_wallet.dart' show BackupWalletPage;
 import '../bindings_generated_api.dart' show AppHandle;
+import '../style.dart' show Fonts, LxColors;
 
 class LandingPage extends StatelessWidget {
   const LandingPage({super.key});
@@ -66,17 +67,7 @@ class LandingCalloutText extends StatelessWidget {
     const heroText = Text(
       "LIGHTNING.\nBITCOIN.\nONE WALLET.",
       overflow: TextOverflow.clip,
-      style: TextStyle(
-        color: Colors.white,
-        height: 1.5,
-        fontSize: 40.0,
-        fontFamily: "Hubot Sans",
-        fontVariations: [
-          ui.FontVariation("wght", 700),
-          ui.FontVariation("wdth", 90),
-        ],
-        decoration: TextDecoration.none,
-      ),
+      style: Fonts.fontHero,
     );
 
     final lexeText = Row(
@@ -84,25 +75,30 @@ class LandingCalloutText extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.end,
       children: const [
         // SizedBox(width: 128.0),
-        Text("brought to you by",
-            style: TextStyle(
-              fontFamily: "Mona Sans",
-              color: Colors.white54,
-              fontSize: 12.0,
-              decoration: TextDecoration.none,
-            )),
+        Text(
+          "brought to you by",
+          style: TextStyle(
+            fontFamily: "Mona Sans",
+            color: LxColors.clearW500,
+            fontSize: Fonts.size100,
+            height: 1.0,
+            fontVariations: [Fonts.weightExtraLight],
+            decoration: TextDecoration.none,
+          ),
+        ),
         SizedBox(width: 4.0),
-        Text("LEXE™",
-            style: TextStyle(
-              fontFamily: "Hubot Sans",
-              color: Colors.white60,
-              fontSize: 12.0,
-              fontVariations: [
-                ui.FontVariation("wght", 500),
-                ui.FontVariation("wdth", 100),
-              ],
-              decoration: TextDecoration.none,
-            )),
+        Text(
+          "LEXE™",
+          style: TextStyle(
+            fontFamily: "Hubot Sans",
+            color: LxColors.clearW600,
+            fontSize: 12.0,
+            fontVariations: [
+              Fonts.weightMedium,
+            ],
+            decoration: TextDecoration.none,
+          ),
+        ),
       ],
     );
 
@@ -150,16 +146,18 @@ class LandingButtons extends StatelessWidget {
         OutlinedButton(
           onPressed: () => debugPrint("pressed recover wallet button"),
           style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: Colors.white70, width: 2.0),
+            side: const BorderSide(color: LxColors.clearW700, width: 2.0),
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
             fixedSize: const Size(300.0, 56.0),
             shape: const StadiumBorder(),
           ),
           child: const Text("I have a Lexe wallet",
               style: TextStyle(
-                color: Colors.white70,
-                fontSize: 16.0,
-                fontVariations: [ui.FontVariation("wght", 400)],
+                fontFamily: "Inter V",
+                fontSize: Fonts.size300,
+                color: LxColors.clearW700,
+                height: 1.0,
+                decoration: TextDecoration.none,
               )),
         ),
       ],
@@ -222,7 +220,7 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
               dimension: 24.0,
               child: CircularProgressIndicator(
                 strokeWidth: 3.0,
-                color: Color(0x33ffffff),
+                color: LxColors.clearW200,
               )),
     );
   }
@@ -238,8 +236,10 @@ class CreateWalletText extends StatelessWidget {
       children: [
         const Text("Create new wallet",
             style: TextStyle(
-              fontSize: 16.0,
-              fontVariations: [ui.FontVariation("wght", 400)],
+              fontFamily: "Inter V",
+              fontSize: Fonts.size300,
+              height: 1.0,
+              fontVariations: [Fonts.weightMedium],
             )),
         Container(
           alignment: Alignment.centerRight,
