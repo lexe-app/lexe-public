@@ -4,7 +4,7 @@
 import 'package:flutter/material.dart';
 
 import 'route/landing.dart' show LandingPage;
-import 'route/backup_wallet.dart' show BackupWalletPage;
+// import 'route/backup_wallet.dart' show BackupWalletPage;
 import 'route/wallet.dart' show WalletPage;
 
 import 'style.dart' show Fonts, LxColors, Space;
@@ -15,7 +15,8 @@ Future<void> main() async {
     themeMode: ThemeMode.light,
     home: ComponentList(components: [
       Component("LandingPage", (_) => const LandingPage()),
-      Component("BackupWalletPage", (_) => const SizedBox()), // TODO
+      // TODO(phlip9): figure out mocking
+      Component("BackupWalletPage", (_) => const SizedBox()),
       Component("WalletPage", (_) => const WalletPage()),
     ]),
   ));

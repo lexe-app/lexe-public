@@ -1,14 +1,14 @@
-import 'dart:ui' as ui;
-import 'dart:math' show max;
 import 'dart:async' show unawaited;
+import 'dart:math' show max;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:lexeapp/cfg.dart';
 
 import '../bindings.dart' show api;
-import 'backup_wallet.dart' show BackupWalletPage;
 import '../bindings_generated_api.dart' show AppHandle;
 import '../style.dart' show Fonts, LxColors;
+import 'backup_wallet.dart' show BackupWalletPage;
 
 class LandingPage extends StatelessWidget {
   const LandingPage({super.key});
@@ -196,10 +196,10 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
     debugPrint("done signing up");
 
     if (context.mounted) {
-      Navigator.of(context).pushReplacement(MaterialPageRoute(
+      unawaited(Navigator.of(context).pushReplacement(MaterialPageRoute(
         maintainState: false,
         builder: (BuildContext _) => BackupWalletPage(app: app),
-      ));
+      )));
     }
   }
 

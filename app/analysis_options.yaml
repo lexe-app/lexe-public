@@ -4,6 +4,9 @@
 # The issues identified by the analyzer are surfaced in the UI of Dart-enabled
 # IDEs (https://dart.dev/tools#ides-and-editors). The analyzer can also be
 # invoked from the command line by running `flutter analyze`.
+#
+# Additional information about this file can be found at
+# https://dart.dev/guides/language/analysis-options
 
 # The following line activates a set of recommended lints for Flutter apps,
 # packages, and plugins designed to encourage good coding practices.
@@ -25,5 +28,58 @@ linter:
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
     # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
 
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+    # The default dart style discourages using `this.myField` unless strictly
+    # necessary, instead preferring just `myField` without `this`.
+    #
+    # IMO, this makes code unnecessarily hard to follow, as it's no longer clear
+    # at a glance whether a variable is a class field or a local variable.
+    unnecessary_this: false
+    # Avoid an extra lambda if you can just pass the function itself.
+    unnecessary_lambdas: true
+
+    # Functions should always declare return types to help dart analyzer LSP.
+    always_declare_return_types: true
+    # Public methods should have types declared.
+    type_annotate_public_apis: true
+    # how is this even allowed??
+    only_throw_errors: true
+
+    # Avoid async functions that return `void` instead of `Future<void>`.
+    avoid_void_async: true
+    # Like `#[must_use]` on futures. If you actually want to spawn a future,
+    # use `unawaited(..)` from `dart:async`.
+    unawaited_futures: true
+    # Avoid an unnecessary await if returning a future.
+    unnecessary_await_in_return: true
+
+    # Sort imports like we do in rust.
+    combinators_ordering: true
+    directives_ordering: true
+
+    # Put constructors first.
+    # TODO(phlip9): how to disable this lint for the generated files?
+    # sort_constructors_first: true
+    sort_unnamed_constructors_first: true
+
+    # use `// TODO(username): message` todo format
+    flutter_style_todos: true
+
+    # Make it a lint error to have lines > 80 chars wide.
+    lines_longer_than_80_chars: false
+
+    # # Double-quotes are more consistent with rust style.
+    # prefer_double_quotes: true
+
+    # Prefer `final` variables and fields.
+    prefer_final_fields: true
+    prefer_final_in_for_each: true
+    # TODO(phlip9): how to disable this lint for the generated files?
+    # prefer_final_locals: true
+
+    prefer_null_aware_method_calls: true
+    join_return_with_assignment: true
+
+    # Sort pubspec dependencies.
+    sort_pub_dependencies: true
+    # Use https urls for git dependencies.
+    secure_pubspec_urls: true

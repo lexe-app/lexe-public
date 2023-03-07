@@ -28,25 +28,24 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
-  flutter:
-    sdk: flutter
-
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
 
   # The low-level runtime interface for generated dart ffi bindings.
   ffi: ^2.0.1
+
+  flutter:
+    sdk: flutter
+
   # The high-level memory safe interface for generated Rust<->dart ffi bindings.
   flutter_rust_bridge: ^1.61.1
   # Used by the generated Rust<->dart ffi bindings.
   meta: ^1.8.0
 
 dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  integration_test:
-    sdk: flutter
+  # Used by flutter_rust_bridge to generate the dart ffi bingings at build-time.
+  ffigen: ^7.2.4
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -55,8 +54,11 @@ dev_dependencies:
   # rules and activating additional ones.
   flutter_lints: ^2.0.0
 
-  # Used by flutter_rust_bridge to generate the dart ffi bingings at build-time.
-  ffigen: ^7.2.4
+  flutter_test:
+    sdk: flutter
+
+  integration_test:
+    sdk: flutter
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

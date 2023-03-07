@@ -1,5 +1,6 @@
-import 'package:flutter/material.dart' show Color, TextStyle;
 import 'dart:ui' show FontVariation, TextDecoration;
+
+import 'package:flutter/material.dart' show Color, TextStyle;
 
 class LxColors {
   LxColors._();
