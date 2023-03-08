@@ -14,7 +14,7 @@ use lightning::ln::msgs::NetAddress;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 use tokio::time;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, info_span, warn, Instrument};
 
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
@@ -176,73 +176,89 @@ where
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    LxTask::spawn_named("p2p reconnectooor", async move {
-        let mut interval = time::interval(P2P_RECONNECT_INTERVAL);
+    LxTask::spawn_named(
+        "p2p reconnectooor",
+        async move {
+            let mut interval = time::interval(P2P_RECONNECT_INTERVAL);
 
-        // The current set of `ChannelPeer`s, indexed by their `NodePk`.
-        let mut channel_peers = initial_channel_peers
-            .into_iter()
-            .map(|cp| (cp.node_pk, cp))
-            .collect::<HashMap<NodePk, ChannelPeer>>();
-
-        loop {
-            // Retry reconnect when timer ticks or we get a channel peer update
-            tokio::select! {
-                _ = interval.tick() => (),
-                Some(cp_update) = channel_peer_rx.recv() => {
-                    // We received a ChannelPeerUpdate; update our HashMap of
-                    // current channel peers accordingly.
-                    match cp_update {
-                        ChannelPeerUpdate::Add(cp) =>
-                            channel_peers.insert(cp.node_pk, cp),
-                        ChannelPeerUpdate::Remove(cp) =>
-                            channel_peers.remove(&cp.node_pk),
-                    };
-                }
-                () = shutdown.recv() => break,
-            }
-
-            // Generate futures to reconnect to all disconnected channel peers
-            let connected_p2p_peers = peer_manager.get_peer_node_ids();
-            let reconnect_futs = channel_manager
-                // List our current channels
-                .list_channels()
+            // The current set of `ChannelPeer`s, indexed by their `NodePk`.
+            let mut channel_peers = initial_channel_peers
                 .into_iter()
-                .filter_map(|channel| {
-                    // Skip if we're already connected to this counterparty
-                    let cparty = channel.counterparty.node_id;
-                    if connected_p2p_peers
-                        .iter()
-                        .any(|(pk, _addr)| pk == &cparty)
-                    {
-                        return None;
+                .map(|cp| (cp.node_pk, cp))
+                .collect::<HashMap<NodePk, ChannelPeer>>();
+
+            loop {
+                // Retry reconnect when timer ticks or we get a channel peer
+                // update
+                tokio::select! {
+                    _ = interval.tick() => (),
+                    Some(cp_update) = channel_peer_rx.recv() => {
+                        // We received a ChannelPeerUpdate; update our HashMap of
+                        // current channel peers accordingly.
+                        match cp_update {
+                            ChannelPeerUpdate::Add(cp) =>
+                                channel_peers.insert(cp.node_pk, cp),
+                            ChannelPeerUpdate::Remove(cp) =>
+                                channel_peers.remove(&cp.node_pk),
+                        };
                     }
+                    () = shutdown.recv() => break,
+                }
 
-                    // Get the counterparty's `ChannelPeer` information
-                    let cparty_cpeer = channel_peers.get(&NodePk(cparty))?;
+                // Generate futures to reconnect to all disconnected channel
+                // peers
+                let connected_p2p_peers = peer_manager.get_peer_node_ids();
+                let reconnect_futs = channel_manager
+                    // List our current channels
+                    .list_channels()
+                    .into_iter()
+                    .filter_map(|channel| {
+                        // Skip if we're already connected to this counterparty
+                        let peer_pk = channel.counterparty.node_id;
+                        if connected_p2p_peers
+                            .iter()
+                            .any(|(pk, _addr)| pk == &peer_pk)
+                        {
+                            return None;
+                        }
 
-                    // Return a future that reconnects to this peer
-                    Some(do_connect_peer(
-                        peer_manager.clone(),
-                        cparty_cpeer.clone(),
-                    ))
-                })
-                .collect::<Vec<_>>();
+                        // Get the counterparty's `ChannelPeer` information
+                        let channel_peer =
+                            channel_peers.get(&NodePk(peer_pk))?.clone();
 
-            // Do the reconnect(s), quit early if shutting down, log any errors
-            let reconnect_results = tokio::select! {
-                results = future::join_all(reconnect_futs) => results,
-                () = shutdown.recv() => break,
-            };
-            for res in reconnect_results {
-                if let Err(e) = res {
-                    warn!("Couldn't reconnect to channel peer: {e:#}");
+                        // Return a future that reconnects to this peer
+                        let peer_manager_clone = peer_manager.clone();
+                        let reconnect_fut = async move {
+                            debug!("Reconnecting to peer {channel_peer}");
+                            match do_connect_peer(
+                                peer_manager_clone,
+                                channel_peer.clone(),
+                            )
+                            .await
+                            {
+                                Ok(()) =>
+                                    info!("Reconnected to {channel_peer}"),
+                                Err(e) => warn!(
+                                    "Couldn't reconnect to {channel_peer}: {e:#}"
+                                ),
+                            }
+                        };
+
+                        Some(reconnect_fut)
+                    })
+                    .collect::<Vec<_>>();
+
+                // Do the reconnect(s), quit early if shutting down
+                tokio::select! {
+                    _ = future::join_all(reconnect_futs) => (),
+                    () = shutdown.recv() => break,
                 }
             }
-        }
 
-        info!("LN P2P reconnectooor task complete");
-    })
+            info!("LN P2P reconnectooor task complete");
+        }
+        .instrument(info_span!("(p2p-reconnector)")),
+    )
 }
 
 /// Given a [`TcpListener`], spawns a task to await on inbound connections,
@@ -264,13 +280,14 @@ where
             tokio::select! {
                 accept_res = listener.accept() => {
                     // TcpStream boilerplate
-                    let (tcp_stream, _peer_addr) = match accept_res {
+                    let (tcp_stream, peer_addr) = match accept_res {
                         Ok(ts) => ts,
                         Err(e) => {
                             warn!("Failed to accept connection: {e:#}");
                             continue;
                         }
                     };
+                    debug!("Accepted connection from {peer_addr}");
                     let tcp_stream = match tcp_stream.into_std() {
                         Ok(s) => s,
                         Err(e) => {
@@ -311,10 +328,10 @@ where
         // Wait on all child tasks to finish (i.e. all connections close).
         while let Some(join_res) = child_tasks.next().await {
             if let Err(e) = join_res {
-                error!("P2P connection task panicked: {:#}", e);
+                error!("P2P connection task panicked: {e:#}");
             }
         }
 
         info!("LN P2P listen task complete");
-    })
+    }.instrument(info_span!("(p2p-listener)")))
 }
