@@ -36,6 +36,7 @@ pub struct NodeEventHandler {
     pub(crate) outbound_payments: PaymentInfoStorageType,
     pub(crate) test_event_tx: TestEventSender,
     // XXX: remove when `EventHandler` is async
+    #[allow(dead_code)]
     pub(crate) blocking_task_rt: BlockingTaskRt,
     pub(crate) shutdown: ShutdownChannel,
 }
@@ -85,10 +86,14 @@ impl EventHandler for NodeEventHandler {
         let test_event_tx = self.test_event_tx.clone();
         let shutdown = self.shutdown.clone();
 
-        // NOTE: this blocks the main node event loop; if `handle_event`
-        // depends on anything happening in the normal event loop, the whole
-        // program WILL deadlock : )
-        self.blocking_task_rt.block_on(async move {
+        // XXX(max): The EventHandler contract requires us to have *finished*
+        // handling the event before returning from this function. But using the
+        // BlockingTaskRt is causing other Lexe services (which are run on the
+        // same thread in the integration tests) to be unresponsive when the
+        // node handles events. So we hack around it by breaking the contract
+        // and just handling the event in a detached task. The long term fix is
+        // to move to async event handling, which should be straightforward.
+        LxTask::spawn(async move {
             handle_event(
                 &lsp,
                 &wallet,
@@ -102,7 +107,8 @@ impl EventHandler for NodeEventHandler {
                 event,
             )
             .await
-        });
+        })
+        .detach();
     }
 }
 
