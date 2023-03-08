@@ -9,6 +9,7 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, instrument};
 
 use crate::p2p::{self, ChannelPeerUpdate};
+use crate::test_event::TestEventSender;
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
 /// A newtype for [`ChannelDetails::channel_id`] for semantic clarity.
@@ -53,6 +54,7 @@ pub async fn open_channel<CM, PM, PS>(
     channel_value_sat: u64,
     counterparty: CounterpartyKind<PS>,
     user_config: UserConfig,
+    test_event_tx: &TestEventSender,
 ) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,
@@ -62,9 +64,13 @@ where
     info!("Opening channel with {counterparty} {channel_peer}");
 
     // Make sure that we're connected to the channel peer
-    p2p::connect_channel_peer_if_necessary(peer_manager, channel_peer.clone())
-        .await
-        .context("Failed to connect to peer")?;
+    p2p::connect_channel_peer_if_necessary(
+        peer_manager,
+        channel_peer.clone(),
+        test_event_tx,
+    )
+    .await
+    .context("Failed to connect to peer")?;
 
     // Create the channel.
     let push_msat = 0; // No need for this yet

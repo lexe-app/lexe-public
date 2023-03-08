@@ -340,6 +340,7 @@ impl UserNode {
             peer_manager.clone(),
             initial_channel_peers,
             channel_peer_rx,
+            test_event_tx.clone(),
             shutdown.clone(),
         ));
 
