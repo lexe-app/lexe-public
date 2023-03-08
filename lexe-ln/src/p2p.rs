@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::time::Duration;
 
 use anyhow::{bail, Context};
@@ -9,6 +10,7 @@ use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use futures::future;
 use futures::stream::{FuturesUnordered, StreamExt};
+use lightning::ln::msgs::NetAddress;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc;
 use tokio::time;
@@ -31,6 +33,29 @@ pub enum ChannelPeerUpdate {
     Add(ChannelPeer),
     /// We closed a channel and need to remove one of our channel peers.
     Remove(ChannelPeer),
+}
+
+/// Converts an LDK [`NetAddress`] to a std [`SocketAddr`] if the [`NetAddress`]
+/// is IPv4 or IPv6.
+// TODO(max): This can probably be upstreamed as NetAddress::to_sock_addr
+pub fn netaddr_to_sockaddr(net_addr: NetAddress) -> Option<SocketAddr> {
+    match net_addr {
+        NetAddress::IPv4 { addr, port } => {
+            let ipv4 = Ipv4Addr::from(addr);
+            let sockv4 = SocketAddrV4::new(ipv4, port);
+            let sock_addr = SocketAddr::V4(sockv4);
+            Some(sock_addr)
+        }
+        NetAddress::IPv6 { addr, port } => {
+            let ipv6 = Ipv6Addr::from(addr);
+            let flowinfo = 0;
+            let scope_id = 0;
+            let sockv6 = SocketAddrV6::new(ipv6, port, flowinfo, scope_id);
+            let sock_addr = SocketAddr::V6(sockv6);
+            Some(sock_addr)
+        }
+        _ => None,
+    }
 }
 
 pub async fn connect_channel_peer_if_necessary<CM, PM, PS>(
