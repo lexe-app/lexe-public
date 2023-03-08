@@ -337,7 +337,6 @@ impl UserNode {
 
         // Spawn the task to regularly reconnect to channel peers
         tasks.push(p2p::spawn_p2p_reconnector(
-            channel_manager.clone(),
             peer_manager.clone(),
             initial_channel_peers,
             channel_peer_rx,
