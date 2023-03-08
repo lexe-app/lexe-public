@@ -29,6 +29,12 @@ pub fn test_event_channel(
 // stream so that black box tests can get notifications as well, even in SGX...
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TestEvent {
+    /// The node completed a LDK transaction resync.
+    LdkSyncComplete,
+    /// The node completed a BDK wallet resync.
+    BdkSyncComplete,
+    /// Initiated an outbound P2P connection and completed the noise handshake.
+    ConnectionInitiated,
     /// A [`FundingGenerationReady`] event was handled.
     ///
     /// [`FundingGenerationReady`]: lightning::util::events::Event::FundingGenerationReady
@@ -43,10 +49,6 @@ pub enum TestEvent {
     ChannelReady,
     /// A channel monitor update was successfully persisted.
     ChannelMonitorPersisted,
-    /// The node completed a LDK transaction resync.
-    LdkSyncComplete,
-    /// The node completed a BDK wallet resync.
-    BdkSyncComplete,
     /// A [`PaymentClaimable`] event was handled.
     ///
     /// [`PaymentClaimable`]: lightning::util::events::Event::PaymentClaimable

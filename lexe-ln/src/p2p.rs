@@ -16,6 +16,7 @@ use tokio::sync::mpsc;
 use tokio::time;
 use tracing::{debug, error, info, info_span, warn, Instrument};
 
+use crate::test_event::{TestEvent, TestEventSender};
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -65,6 +66,7 @@ pub fn netaddr_to_sockaddr(net_addr: NetAddress) -> Option<SocketAddr> {
 pub async fn connect_channel_peer_if_necessary<CM, PM, PS>(
     peer_manager: PM,
     channel_peer: ChannelPeer,
+    test_event_tx: &TestEventSender,
 ) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,
@@ -81,7 +83,7 @@ where
     }
 
     // Otherwise, initiate the connection
-    do_connect_peer(peer_manager, channel_peer)
+    do_connect_peer(peer_manager, channel_peer, test_event_tx)
         .await
         .context("Failed to connect to peer")
 }
@@ -89,6 +91,7 @@ where
 pub async fn do_connect_peer<CM, PM, PS>(
     peer_manager: PM,
     channel_peer: ChannelPeer,
+    test_event_tx: &TestEventSender,
 ) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,
@@ -147,6 +150,7 @@ where
         {
             // Connection confirmed, log and return Ok
             debug!("Successfully connected to channel peer {channel_peer}");
+            test_event_tx.send(TestEvent::ConnectionInitiated);
             return Ok(());
         }
 
@@ -174,6 +178,7 @@ pub fn spawn_p2p_reconnector<CM, PM, PS>(
     peer_manager: PM,
     initial_channel_peers: Vec<ChannelPeer>,
     mut channel_peer_rx: mpsc::Receiver<ChannelPeerUpdate>,
+    test_event_tx: TestEventSender,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
 where
@@ -223,10 +228,12 @@ where
                     .into_values()
                     .map(|peer| {
                         let peer_manager_clone = peer_manager.clone();
+                        let test_event_tx_clone = test_event_tx.clone();
                         let reconnect_fut = async move {
                             let res = do_connect_peer(
                                 peer_manager_clone,
                                 peer.clone(),
+                                &test_event_tx_clone,
                             )
                             .await;
                             if let Err(e) = res {
