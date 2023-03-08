@@ -3,6 +3,7 @@ use std::fmt::{self, Display};
 use anyhow::{anyhow, Context};
 use common::hex;
 use common::ln::peer::ChannelPeer;
+use common::rng::Crng;
 use lightning::util::config::UserConfig;
 use tokio::sync::mpsc;
 use tracing::{debug, info, instrument};
@@ -31,6 +32,15 @@ pub enum CounterpartyKind<PS: LexePersister> {
     Lsp,
 }
 
+/// Generates a random [`u128`] which can be used as a [`user_channel_id`].
+///
+/// [`user_channel_id`]: lightning::ln::channelmanager::ChannelDetails::user_channel_id
+pub fn get_random_u128<R: Crng>(rng: &mut R) -> u128 {
+    let mut buf = [0u8; 16];
+    rng.fill_bytes(&mut buf);
+    u128::from_le_bytes(buf)
+}
+
 /// Handles the full logic of opening a channel, including connecting to the
 /// peer, creating the channel, and persisting the newly created channel.
 #[allow(clippy::too_many_arguments)]
@@ -38,11 +48,12 @@ pub enum CounterpartyKind<PS: LexePersister> {
 pub async fn open_channel<CM, PM, PS>(
     channel_manager: CM,
     peer_manager: PM,
+    user_channel_id: u128,
     channel_peer: ChannelPeer,
     channel_value_sat: u64,
     counterparty: CounterpartyKind<PS>,
     user_config: UserConfig,
-) -> anyhow::Result<ChannelId>
+) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS>,
@@ -55,10 +66,9 @@ where
         .await
         .context("Failed to connect to peer")?;
 
-    // Create the channel
-    let user_channel_id = 1; // Not important, just use a default value
+    // Create the channel.
     let push_msat = 0; // No need for this yet
-    let channel_id = channel_manager
+    channel_manager
         .create_channel(
             channel_peer.node_pk.0,
             channel_value_sat,
@@ -66,9 +76,8 @@ where
             user_channel_id,
             Some(user_config),
         )
-        .map(ChannelId)
         .map_err(|e| anyhow!("Failed to create channel: {e:?}"))?;
-    debug!("Created channel {channel_id}");
+    debug!("Created channel");
 
     // If we opened a channel with an external LN node, we need to save their
     // ChannelPeer info so that we can reconnect to them after restart, and tell
@@ -92,9 +101,8 @@ where
             )?;
     }
 
-    info!("Successfully opened channel {channel_id}");
-
-    Ok(channel_id)
+    info!("Successfully opened channel");
+    Ok(())
 }
 
 // --- Display impls --- //
