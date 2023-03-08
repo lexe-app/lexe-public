@@ -19,6 +19,8 @@ use tracing::{debug, error, info, info_span, warn, Instrument};
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
+/// The maximum amount of time we'll allow LDK to complete the P2P handshake.
+const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 
 /// Every time a channel peer is added or removed, a [`ChannelPeerUpdate`] is
@@ -127,8 +129,9 @@ where
     // Use exponential backoff when polling so that a stalled connection
     // doesn't keep the node always in memory
     let mut backoff_durations = backoff::get_backoff_iter();
+    let p2p_handshake_timeout = tokio::time::sleep(HANDSHAKE_TIMEOUT);
     loop {
-        // Check if the connection has been closed
+        // Check if the connection has been closed.
         match futures::poll!(&mut connection_closed_fut) {
             std::task::Poll::Ready(_) => {
                 bail!("Failed initial connection to peer - error unknown");
@@ -136,22 +139,25 @@ where
             std::task::Poll::Pending => {}
         }
 
-        // Check if the connection has been established
+        // Check if the connection has been established.
         if peer_manager
             .get_peer_node_ids()
             .into_iter()
             .any(|(pk, _maybe_addr)| channel_peer.node_pk.0 == pk)
         {
-            // Connection confirmed, break and return Ok
-            break;
-        } else {
-            // Connection not confirmed yet, wait before checking again
-            tokio::time::sleep(backoff_durations.next().unwrap()).await;
+            // Connection confirmed, log and return Ok
+            debug!("Successfully connected to channel peer {channel_peer}");
+            return Ok(());
         }
-    }
 
-    debug!("Success: Connected to channel peer {channel_peer}");
-    Ok(())
+        // Check if we've timed out waiting to complete the handshake.
+        if p2p_handshake_timeout.is_elapsed() {
+            bail!("Timed out waiting to complete the noise / P2P handshake");
+        }
+
+        // Connection not confirmed yet, wait before checking again
+        tokio::time::sleep(backoff_durations.next().unwrap()).await;
+    }
 }
 
 /// Spawns a task that regularly reconnects to the channel peers in this task's
