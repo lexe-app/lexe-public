@@ -28,6 +28,7 @@ const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 /// list of channel peers from the DB.
 ///
 /// [p2p reconnector task]: spawn_p2p_reconnector
+#[derive(Debug)]
 pub enum ChannelPeerUpdate {
     /// We opened a channel and have a new channel peer.
     Add(ChannelPeer),
@@ -58,6 +59,7 @@ pub fn netaddr_to_sockaddr(net_addr: NetAddress) -> Option<SocketAddr> {
     }
 }
 
+/// Ensures that we are connected to a given [`ChannelPeer`].
 pub async fn connect_channel_peer_if_necessary<CM, PM, PS>(
     peer_manager: PM,
     channel_peer: ChannelPeer,
@@ -67,15 +69,12 @@ where
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    debug!("Connecting to channel peer {channel_peer}");
-
     // Return immediately if we're already connected to the peer
     if peer_manager
         .get_peer_node_ids()
         .into_iter()
         .any(|(pk, _maybe_addr)| channel_peer.node_pk.0 == pk)
     {
-        debug!("OK: Already connected to channel peer {channel_peer}");
         return Ok(());
     }
 
@@ -94,6 +93,7 @@ where
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
+    debug!("Connecting to channel peer {channel_peer}");
     let stream =
         time::timeout(CONNECT_TIMEOUT, TcpStream::connect(channel_peer.addr))
             .await
@@ -165,7 +165,6 @@ where
 /// LSP should not reconnect to user nodes which are still offline), simply do
 /// not send the [`ChannelPeerUpdate::Add`] until the peer (user node) is ready.
 pub fn spawn_p2p_reconnector<CM, PM, PS>(
-    channel_manager: CM,
     peer_manager: PM,
     initial_channel_peers: Vec<ChannelPeer>,
     mut channel_peer_rx: mpsc::Receiver<ChannelPeerUpdate>,
@@ -188,11 +187,11 @@ where
                 .collect::<HashMap<NodePk, ChannelPeer>>();
 
             loop {
-                // Retry reconnect when timer ticks or we get a channel peer
-                // update
+                // Retry reconnect when timer ticks or we get an update
                 tokio::select! {
                     _ = interval.tick() => (),
                     Some(cp_update) = channel_peer_rx.recv() => {
+                        debug!("Received channel peer update: {cp_update:?}");
                         // We received a ChannelPeerUpdate; update our HashMap of
                         // current channel peers accordingly.
                         match cp_update {
@@ -201,50 +200,35 @@ where
                             ChannelPeerUpdate::Remove(cp) =>
                                 channel_peers.remove(&cp.node_pk),
                         };
+                        // TODO(max): We should also update the channel peers
+                        // that are persisted, but only after differentiating
+                        // between channel peer kinds (e.g. we persist external
+                        // peers, but not lexe users or the LSP).
                     }
                     () = shutdown.recv() => break,
                 }
 
-                // Generate futures to reconnect to all disconnected channel
-                // peers
-                let connected_p2p_peers = peer_manager.get_peer_node_ids();
-                let reconnect_futs = channel_manager
-                    // List our current channels
-                    .list_channels()
-                    .into_iter()
-                    .filter_map(|channel| {
-                        // Skip if we're already connected to this counterparty
-                        let peer_pk = channel.counterparty.node_id;
-                        if connected_p2p_peers
-                            .iter()
-                            .any(|(pk, _addr)| pk == &peer_pk)
-                        {
-                            return None;
-                        }
-
-                        // Get the counterparty's `ChannelPeer` information
-                        let channel_peer =
-                            channel_peers.get(&NodePk(peer_pk))?.clone();
-
-                        // Return a future that reconnects to this peer
+                // Generate futures to reconnect to all disconnected peers.
+                let mut disconnected_peers = channel_peers.clone();
+                for (pk, _addr) in peer_manager.get_peer_node_ids() {
+                    disconnected_peers.remove(&NodePk(pk));
+                }
+                let reconnect_futs = disconnected_peers
+                    .into_values()
+                    .map(|peer| {
                         let peer_manager_clone = peer_manager.clone();
                         let reconnect_fut = async move {
-                            debug!("Reconnecting to peer {channel_peer}");
-                            match do_connect_peer(
+                            let res = do_connect_peer(
                                 peer_manager_clone,
-                                channel_peer.clone(),
+                                peer.clone(),
                             )
-                            .await
-                            {
-                                Ok(()) =>
-                                    info!("Reconnected to {channel_peer}"),
-                                Err(e) => warn!(
-                                    "Couldn't reconnect to {channel_peer}: {e:#}"
-                                ),
+                            .await;
+                            if let Err(e) = res {
+                                warn!("Couldn't reconnect to {peer}: {e:#}");
                             }
                         };
 
-                        Some(reconnect_fut)
+                        reconnect_fut.in_current_span()
                     })
                     .collect::<Vec<_>>();
 
