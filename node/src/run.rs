@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use anyhow::{bail, ensure, Context};
+use anyhow::{anyhow, bail, ensure, Context};
 use common::api::auth::UserAuthenticator;
 use common::api::def::NodeRunnerApi;
 use common::api::ports::UserPorts;
@@ -536,10 +536,11 @@ impl UserNode {
 
         // We connect to the LSP only *after* we have completed init and sync;
         // it is our signal to the LSP that we are ready to receive messages.
+        info!("Reconnecting to LSP");
         let add_lsp = ChannelPeerUpdate::Add(self.args.lsp.channel_peer());
-        if let Err(e) = self.channel_peer_tx.try_send(add_lsp) {
-            error!("Could not notify p2p reconnector to connect to LSP: {e:#}");
-        }
+        self.channel_peer_tx
+            .try_send(add_lsp)
+            .map_err(|e| anyhow!("Could not notify p2p reconnector: {e:#}"))?;
 
         Ok(())
     }
