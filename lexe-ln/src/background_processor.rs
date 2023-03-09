@@ -173,14 +173,13 @@ impl LexeBackgroundProcessor {
                         if let Err(e) = persist_res {
                             // The scorer isn't super important,
                             // but we still should log a warning.
-                            warn!("Couldn't persist network graph: {:#}", e);
+                            warn!("Couldn't persist scorer: {e:#}");
                         }
                     }
 
                     // --- Shutdown branch --- //
                     () = shutdown.recv() => {
-                        info!("Background processor shutting down");
-                        break;
+                        break info!("Background processor shutting down");
                     }
                 }
             }
@@ -205,7 +204,7 @@ impl LexeBackgroundProcessor {
             );
             for res in [cm_res, ng_res, ps_res] {
                 if let Err(e) = res {
-                    error!("Final persistence failure: {:#}", e);
+                    error!("Final persistence failure: {e:#}");
                 }
             }
         })
