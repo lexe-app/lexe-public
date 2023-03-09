@@ -7,12 +7,15 @@ import 'route/landing.dart' show LandingPage;
 // import 'route/backup_wallet.dart' show BackupWalletPage;
 import 'route/wallet.dart' show WalletPage;
 
-import 'style.dart' show Fonts, LxColors, Space;
+import 'style.dart' show Fonts, LxColors, LxTheme, Space;
 
 Future<void> main() async {
   runApp(MaterialApp(
-    title: 'Lexe',
+    title: "Lexe App - Design Mode",
+    color: LxColors.background,
     themeMode: ThemeMode.light,
+    theme: LxTheme.light(),
+    debugShowCheckedModeBanner: false,
     home: ComponentList(components: [
       Component("LandingPage", (_) => const LandingPage()),
       // TODO(phlip9): figure out mocking
