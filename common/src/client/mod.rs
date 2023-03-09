@@ -89,7 +89,6 @@ impl UnwindSafe for NodeClient {}
 impl RefUnwindSafe for NodeClient {}
 
 impl NodeClient {
-    #[allow(clippy::too_many_arguments)]
     pub fn new<R: Crng>(
         rng: &mut R,
         seed: &RootSeed,

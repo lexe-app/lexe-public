@@ -113,7 +113,6 @@ impl EventHandler for NodeEventHandler {
 }
 
 // TODO(max): Make this non-async by spawning tasks instead
-#[allow(clippy::too_many_arguments)]
 pub(crate) async fn handle_event(
     lsp: &LspInfo,
     wallet: &LexeWallet,
@@ -145,7 +144,6 @@ pub(crate) async fn handle_event(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn handle_event_fallible(
     lsp: &LspInfo,
     wallet: &LexeWallet,

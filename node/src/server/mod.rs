@@ -51,7 +51,6 @@ fn into_command_api_result<T>(
 /// Implements [`OwnerNodeRunApi`] - endpoints only callable by the node owner.
 ///
 /// [`OwnerNodeRunApi`]: common::api::def::OwnerNodeRunApi
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn owner_routes(
     channel_manager: NodeChannelManager,
     peer_manager: NodePeerManager,
