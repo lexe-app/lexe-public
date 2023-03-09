@@ -1,7 +1,6 @@
 // The primary wallet page.
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../../style.dart' show Fonts, LxColors, Space;
 
@@ -10,39 +9,55 @@ class WalletPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final systemBarHeight = MediaQuery.of(context).padding.top;
+
     return Scaffold(
-      backgroundColor: LxColors.background,
       appBar: AppBar(
-        backgroundColor: LxColors.background,
-        foregroundColor: LxColors.grey50,
-        elevation: 0.0,
-        systemOverlayStyle: SystemUiOverlayStyle.dark.copyWith(
-          statusBarColor: LxColors.background,
+        automaticallyImplyLeading: false,
+        leading: Builder(
+          builder: (context) => IconButton(
+            iconSize: Fonts.size700,
+            icon: const Icon(Icons.menu_rounded),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
         ),
       ),
       drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            const DrawerHeader(
-              child: Text("DrawerHeader", style: Fonts.fontUI),
-            ),
-            ListTile(
-              title: const Text("ListTile", style: Fonts.fontUI),
-              onTap: () => debugPrint("tapped drawer item"),
-            ),
-          ],
+        child: Padding(
+          padding: EdgeInsets.only(top: systemBarHeight),
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              // X drawer close
+              Builder(
+                builder: (context) => Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    iconSize: Fonts.size700,
+                    icon: const Icon(Icons.close_rounded),
+                    onPressed: () => Scaffold.of(context).closeDrawer(),
+                  ),
+                ),
+              ),
+              // ListTile(
+              //   title: const Text("ListTile", style: Fonts.fontUI),
+              //   onTap: () => debugPrint("tapped drawer item"),
+              // ),
+              // ListTile(
+              //   title: const Text("ListTile", style: Fonts.fontUI),
+              //   onTap: () => debugPrint("tapped drawer item"),
+              // ),
+            ],
+          ),
         ),
       ),
-      body: Center(
-        child: ListView(
-          children: const [
-            SizedBox(height: Space.s1000),
-            BalanceWidget(),
-            SizedBox(height: Space.s700),
-            WalletActions(),
-          ],
-        ),
+      body: ListView(
+        children: const [
+          SizedBox(height: Space.s1000),
+          BalanceWidget(),
+          SizedBox(height: Space.s700),
+          WalletActions(),
+        ],
       ),
     );
   }
@@ -156,7 +171,7 @@ class WalletActionButton extends StatelessWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.all(Space.s500),
-            child: Icon(this.icon, size: Space.s600),
+            child: Icon(this.icon, size: Fonts.size700),
           ),
         ),
         const SizedBox(height: Space.s500),
@@ -164,7 +179,7 @@ class WalletActionButton extends StatelessWidget {
           label,
           style: Fonts.fontUI.copyWith(
             fontSize: Fonts.size300,
-            color: (!isDisabled) ? LxColors.grey150 : LxColors.grey700,
+            color: (!isDisabled) ? LxColors.grey150 : LxColors.grey725,
             fontVariations: [Fonts.weightSemiBold],
           ),
         ),

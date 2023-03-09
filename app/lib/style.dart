@@ -1,6 +1,49 @@
 import 'dart:ui' show FontVariation, TextDecoration;
 
-import 'package:flutter/material.dart' show Color, TextStyle;
+import 'package:flutter/material.dart'
+    show
+        Brightness,
+        Color,
+        ColorScheme,
+        MaterialColor,
+        TextStyle,
+        ThemeData,
+        VisualDensity;
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
+
+class LxTheme {
+  LxTheme._();
+
+  /// The Lexe light theme for `MaterialApp` compatibility
+  static ThemeData light() {
+    final colorScheme = ColorScheme.fromSwatch(
+      primarySwatch: LxColors.greySwatch,
+      brightness: Brightness.light,
+    );
+
+    final baseTheme = ThemeData.from(
+      colorScheme: colorScheme,
+      useMaterial3: true,
+    );
+
+    return baseTheme.copyWith(
+      visualDensity: VisualDensity.comfortable,
+      scaffoldBackgroundColor: LxColors.background,
+      appBarTheme: baseTheme.appBarTheme.copyWith(
+        backgroundColor: LxColors.background,
+        foregroundColor: LxColors.grey150,
+        // surfaceTintColor: LxColors.grey150,
+        elevation: 0.0,
+        systemOverlayStyle: SystemUiOverlayStyle.dark.copyWith(
+          statusBarColor: LxColors.background,
+        ),
+      ),
+      drawerTheme: baseTheme.drawerTheme.copyWith(
+        scrimColor: LxColors.clearB200,
+      ),
+    );
+  }
+}
 
 class LxColors {
   LxColors._();
@@ -8,6 +51,7 @@ class LxColors {
   // Reminder: Color hex is in ARGB 0xAARRGGBB
 
   static const Color background = grey925;
+  static const Color foreground = grey150;
 
   // Greys
 
@@ -53,6 +97,25 @@ class LxColors {
   static const Color grey975 = Color(0xfffcfdfd);
   static const Color grey1000 = Color(0xffffffff);
 
+  /// This object is only used for compatibility with the MaterialApp theme.
+  static const MaterialColor greySwatch = MaterialColor(
+    0xff6c797f, // LxColors.grey500.value,
+    <int, Color>{
+      50: LxColors.grey50,
+      100: LxColors.grey100,
+      200: LxColors.grey200,
+      300: LxColors.grey300,
+      350: LxColors.grey350,
+      400: LxColors.grey400,
+      500: LxColors.grey500,
+      600: LxColors.grey600,
+      700: LxColors.grey700,
+      800: LxColors.grey800,
+      850: LxColors.grey850,
+      900: LxColors.grey900,
+    },
+  );
+
   // White with transparency
 
   static const Color clearW0 = Color(0x00ffffff);
@@ -66,6 +129,20 @@ class LxColors {
   static const Color clearW800 = Color(0xccffffff);
   static const Color clearW900 = Color(0xe5ffffff);
   static const Color clearW1000 = Color(0xffffffff);
+
+  // Black with transparency
+
+  static const Color clearB0 = Color(0x00000000);
+  static const Color clearB100 = Color(0x19000000);
+  static const Color clearB200 = Color(0x33000000);
+  static const Color clearB300 = Color(0x4c000000);
+  static const Color clearB400 = Color(0x66000000);
+  static const Color clearB500 = Color(0x7f000000);
+  static const Color clearB600 = Color(0x99000000);
+  static const Color clearB700 = Color(0xb2000000);
+  static const Color clearB800 = Color(0xcc000000);
+  static const Color clearB900 = Color(0xe5000000);
+  static const Color clearB1000 = Color(0xff000000);
 }
 
 class Space {
