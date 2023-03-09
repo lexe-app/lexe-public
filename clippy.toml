@@ -10,3 +10,6 @@ disallowed-methods = [
     { path = "tokio::task::join_set::JoinSet::spawn_on", reason = "Use LxTask::spawn" },
     { path = "tokio::task::join_set::Builder::spawn_on", reason = "Use LxTask::spawn" },
 ]
+
+# Suppress useless too_many_arguments lint
+too-many-arguments-threshold = 20

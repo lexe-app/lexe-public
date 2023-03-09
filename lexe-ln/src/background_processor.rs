@@ -50,7 +50,6 @@ pub struct LexeBackgroundProcessor {}
 
 impl LexeBackgroundProcessor {
     #[instrument(skip_all, name = "(bgp)")]
-    #[allow(clippy::too_many_arguments)]
     pub fn start<CM, PM, PS, EH>(
         channel_manager: CM,
         peer_manager: PM,

@@ -173,7 +173,6 @@ impl NodeChannelManager {
         self.0.clone()
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn init(
         network: Network,
         maybe_manager: Option<(BlockHash, ChannelManagerType)>,

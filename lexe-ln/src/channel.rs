@@ -44,7 +44,6 @@ pub fn get_random_u128<R: Crng>(rng: &mut R) -> u128 {
 
 /// Handles the full logic of opening a channel, including connecting to the
 /// peer, creating the channel, and persisting the newly created channel.
-#[allow(clippy::too_many_arguments)]
 #[instrument(skip_all, name = "(open-channel)")]
 pub async fn open_channel<CM, PM, PS>(
     channel_manager: CM,

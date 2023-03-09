@@ -217,7 +217,6 @@ impl InnerPersister {
         Ok(wallet_db)
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn read_channel_manager(
         &self,
         channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
