@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 
 import 'route/landing.dart' show LandingPage;
 // import 'route/backup_wallet.dart' show BackupWalletPage;
-import 'route/wallet.dart' show WalletPage;
+import 'route/wallet.dart' show DrawerListItem, WalletPage;
 
-import 'style.dart' show Fonts, LxColors, LxTheme, Space;
+import 'style.dart' show LxColors, LxTheme, Space;
 
 Future<void> main() async {
   runApp(MaterialApp(
@@ -16,12 +16,16 @@ Future<void> main() async {
     themeMode: ThemeMode.light,
     theme: LxTheme.light(),
     debugShowCheckedModeBanner: false,
-    home: ComponentList(components: [
-      Component("LandingPage", (_) => const LandingPage()),
-      // TODO(phlip9): figure out mocking
-      Component("BackupWalletPage", (_) => const SizedBox()),
-      Component("WalletPage", (_) => const WalletPage()),
-    ]),
+    home: Scaffold(
+      body: ComponentList(
+        components: [
+          Component("LandingPage", (_) => const LandingPage()),
+          // TODO(phlip9): figure out mocking
+          Component("BackupWalletPage", (_) => const SizedBox()),
+          Component("WalletPage", (_) => const WalletPage()),
+        ],
+      ),
+    ),
   ));
 }
 
@@ -39,34 +43,28 @@ class ComponentList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final systemBarHeight = MediaQuery.of(context).padding.top;
+
     return Container(
       color: LxColors.background,
-      padding: const EdgeInsets.only(top: Space.s700),
+      padding: EdgeInsets.only(top: systemBarHeight + Space.s400),
       child: ListView.builder(
-          padding: const EdgeInsets.all(Space.s400),
-          itemCount: this.components.length,
-          itemBuilder: (BuildContext context, int index) {
-            final component = this.components[index];
+        padding: const EdgeInsets.symmetric(horizontal: Space.s500),
+        itemCount: this.components.length,
+        itemBuilder: (BuildContext context, int index) {
+          final component = this.components[index];
 
-            return GestureDetector(
-              onTap: () {
-                Navigator.of(context).push(MaterialPageRoute(
-                  maintainState: false,
-                  builder: component.builder,
-                ));
-              },
-              child: SizedBox(
-                height: Space.s700,
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    component.name,
-                    style: Fonts.fontBody,
-                  ),
-                ),
-              ),
-            );
-          }),
+          return DrawerListItem(
+            title: component.name,
+            onTap: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                maintainState: false,
+                builder: component.builder,
+              ));
+            },
+          );
+        },
+      ),
     );
   }
 }
