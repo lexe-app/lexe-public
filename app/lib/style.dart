@@ -151,20 +151,20 @@ class Space {
   /// 0 px
   static const double s0 = 0.0;
 
-  /// 2 px
-  static const double s100 = 2.0;
-
   /// 4 px
-  static const double s200 = 4.0;
+  static const double s100 = 4.0;
 
   /// 8 px
-  static const double s300 = 8.0;
+  static const double s200 = 8.0;
 
   /// 12 px
-  static const double s400 = 12.0;
+  static const double s300 = 12.0;
 
   /// 16 px
-  static const double s500 = 16.0;
+  static const double s400 = 16.0;
+
+  /// 24 px
+  static const double s500 = 24.0;
 
   /// 32 px
   static const double s600 = 32.0;
@@ -255,7 +255,7 @@ class Fonts {
     debugLabel: "Fonts.fontUI",
     fontFamily: "Inter V",
     fontSize: size300,
-    color: LxColors.grey150,
+    color: LxColors.foreground,
     height: 1.0,
     fontVariations: [weightNormal],
     decoration: TextDecoration.none,
