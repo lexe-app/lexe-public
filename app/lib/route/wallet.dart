@@ -9,8 +9,6 @@ class WalletPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final systemBarHeight = MediaQuery.of(context).padding.top;
-
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -22,35 +20,7 @@ class WalletPage extends StatelessWidget {
           ),
         ),
       ),
-      drawer: Drawer(
-        child: Padding(
-          padding: EdgeInsets.only(top: systemBarHeight),
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              // X drawer close
-              Builder(
-                builder: (context) => Align(
-                  alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    iconSize: Fonts.size700,
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Scaffold.of(context).closeDrawer(),
-                  ),
-                ),
-              ),
-              // ListTile(
-              //   title: const Text("ListTile", style: Fonts.fontUI),
-              //   onTap: () => debugPrint("tapped drawer item"),
-              // ),
-              // ListTile(
-              //   title: const Text("ListTile", style: Fonts.fontUI),
-              //   onTap: () => debugPrint("tapped drawer item"),
-              // ),
-            ],
-          ),
-        ),
-      ),
+      drawer: const WalletDrawer(),
       body: ListView(
         children: const [
           SizedBox(height: Space.s1000),
@@ -63,6 +33,108 @@ class WalletPage extends StatelessWidget {
   }
 }
 
+class WalletDrawer extends StatelessWidget {
+  const WalletDrawer({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final systemBarHeight = MediaQuery.of(context).padding.top;
+
+    return Drawer(
+      child: Padding(
+        padding: EdgeInsets.only(top: systemBarHeight),
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: Space.s500),
+          children: [
+            DrawerListItem(
+              icon: Icons.close_rounded,
+              onTap: () => Scaffold.of(context).closeDrawer(),
+            ),
+            const SizedBox(height: Space.s600),
+            DrawerListItem(
+              title: "Settings",
+              icon: Icons.settings_outlined,
+              onTap: () => debugPrint("settings pressed"),
+            ),
+            DrawerListItem(
+              title: "Backup",
+              icon: Icons.drive_file_move_outline,
+              onTap: () => debugPrint("backup pressed"),
+            ),
+            DrawerListItem(
+              title: "Security",
+              icon: Icons.lock_outline_rounded,
+              onTap: () => debugPrint("security pressed"),
+            ),
+            DrawerListItem(
+              title: "Support",
+              icon: Icons.help_outline_rounded,
+              onTap: () => debugPrint("support pressed"),
+            ),
+            const SizedBox(height: Space.s600),
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: LxColors.foreground,
+                backgroundColor: LxColors.background,
+                side: const BorderSide(width: 2.0),
+                padding: const EdgeInsets.symmetric(vertical: Space.s500),
+              ),
+              onPressed: () => debugPrint("invite pressed"),
+              child: Text("Invite Friends",
+                  style: Fonts.fontUI.copyWith(
+                    fontSize: Fonts.size400,
+                    fontVariations: [Fonts.weightMedium],
+                  )),
+            ),
+            const SizedBox(height: Space.s600),
+            Text("Lexe App · v1.2.345",
+                textAlign: TextAlign.center,
+                style: Fonts.fontUI.copyWith(
+                  color: LxColors.grey600,
+                  fontSize: Fonts.size200,
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class DrawerListItem extends StatelessWidget {
+  const DrawerListItem({super.key, this.title, this.icon, this.onTap});
+
+  final String? title;
+  // final String? subtitle;
+  final IconData? icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      horizontalTitleGap: Space.s200,
+      visualDensity: VisualDensity.standard,
+      dense: false,
+      leading: (this.icon != null)
+          ? Icon(this.icon!, color: LxColors.foreground, size: Fonts.size700)
+          : null,
+      title: (this.title != null)
+          ? Text(this.title!,
+              style: Fonts.fontUI.copyWith(
+                fontSize: Fonts.size400,
+                fontVariations: [Fonts.weightMedium],
+              ))
+          : null,
+      // subtitle: (this.subtitle != null)
+      //     ? Text(this.subtitle!,
+      //         style: Fonts.fontUI
+      //             .copyWith(fontSize: Fonts.size300, color: LxColors.grey600))
+      //     : null,
+      onTap: this.onTap,
+    );
+  }
+}
+
 class BalanceWidget extends StatelessWidget {
   const BalanceWidget({super.key});
 
@@ -71,9 +143,9 @@ class BalanceWidget extends StatelessWidget {
     return Column(
       children: [
         const PrimaryBalanceText(),
-        const SizedBox(height: Space.s500),
+        const SizedBox(height: Space.s400),
         Text(
-          "32,000 SATS",
+          "73,187 SATS",
           style: Fonts.fontUI.copyWith(
             fontSize: Fonts.size300,
             color: LxColors.grey700,
@@ -94,14 +166,14 @@ class PrimaryBalanceText extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          "\$123",
+          "\$15",
           style: Fonts.fontUI.copyWith(
             fontSize: Fonts.size800,
             fontVariations: [Fonts.weightMedium],
           ),
         ),
         Text(
-          ".45",
+          ".21",
           style: Fonts.fontUI.copyWith(
             fontSize: Fonts.size800,
             color: LxColors.grey650,
@@ -126,13 +198,13 @@ class WalletActions extends StatelessWidget {
           icon: Icons.add_rounded,
           label: "Fund",
         ),
-        const SizedBox(width: Space.s500),
+        const SizedBox(width: Space.s400),
         WalletActionButton(
           onPressed: () => debugPrint("recv pressed"),
           icon: Icons.arrow_downward_rounded,
           label: "Receive",
         ),
-        const SizedBox(width: Space.s500),
+        const SizedBox(width: Space.s400),
         WalletActionButton(
           onPressed: () => debugPrint("send pressed"),
           icon: Icons.arrow_upward_rounded,
@@ -170,11 +242,11 @@ class WalletActionButton extends StatelessWidget {
             disabledForegroundColor: LxColors.grey725,
           ),
           child: Padding(
-            padding: const EdgeInsets.all(Space.s500),
+            padding: const EdgeInsets.all(Space.s400),
             child: Icon(this.icon, size: Fonts.size700),
           ),
         ),
-        const SizedBox(height: Space.s500),
+        const SizedBox(height: Space.s400),
         Text(
           label,
           style: Fonts.fontUI.copyWith(
