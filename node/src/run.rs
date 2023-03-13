@@ -528,15 +528,7 @@ impl UserNode {
         try_first_bdk_sync.context("Initial BDK sync failed")?;
         try_first_ldk_sync.context("Initial LDK sync failed")?;
 
-        // Sync complete; let the runner know that we're ready
-        info!("Node is ready to accept commands; notifying runner");
-        ctxt.runner_api
-            .ready(self.user_ports)
-            .await
-            .context("Could not notify runner of ready status")?;
-
-        // We connect to the LSP only *after* we have completed init and sync;
-        // it is our signal to the LSP that we are ready to receive messages.
+        // Reconnect to Lexe's LSP.
         maybe_reconnect_to_lsp(
             &self.peer_manager,
             self.args.allow_mock,
@@ -546,6 +538,19 @@ impl UserNode {
         )
         .await
         .context("Could not reconnect to LSP")?;
+
+        // NOTE: It is important that we tell the runner that we're ready only
+        // *after* we have successfully reconnected to Lexe's LSP (just above).
+        // This is because the LSP might be waiting on the runner in its handler
+        // for the HTLCIntercepted event, with the intention of opening a JIT
+        // channel with us as soon as soon as we are ready. Thus, to ensure that
+        // the LSP is connected to us when it makes its open_channel request, we
+        // reconnect to the LSP *before* sending the /ready callback.
+        info!("Node is synced and ready to accept commands; notifying runner");
+        ctxt.runner_api
+            .ready(self.user_ports)
+            .await
+            .context("Could not notify runner of ready status")?;
 
         Ok(())
     }
