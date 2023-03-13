@@ -16,7 +16,6 @@ use tokio::sync::mpsc;
 use tokio::time;
 use tracing::{debug, error, info, info_span, warn, Instrument};
 
-use crate::test_event::{TestEvent, TestEventSender};
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -84,7 +83,6 @@ where
 pub async fn connect_channel_peer_if_necessary<CM, PM, PS>(
     peer_manager: PM,
     channel_peer: ChannelPeer,
-    test_event_tx: &TestEventSender,
 ) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,
@@ -101,12 +99,7 @@ where
     let retries = 3;
     for _ in 0..retries {
         // Do the attempt.
-        match do_connect_peer(
-            peer_manager.clone(),
-            channel_peer.clone(),
-            test_event_tx,
-        )
-        .await
+        match do_connect_peer(peer_manager.clone(), channel_peer.clone()).await
         {
             Ok(()) => return Ok(()),
             Err(e) => warn!("Failed to connect to peer: {e:#}"),
@@ -126,7 +119,7 @@ where
     }
 
     // Do the last attempt.
-    do_connect_peer(peer_manager, channel_peer, test_event_tx)
+    do_connect_peer(peer_manager, channel_peer)
         .await
         .context("Failed to connect to peer")
 }
@@ -134,7 +127,6 @@ where
 async fn do_connect_peer<CM, PM, PS>(
     peer_manager: PM,
     channel_peer: ChannelPeer,
-    test_event_tx: &TestEventSender,
 ) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,
@@ -189,7 +181,6 @@ where
         if is_connected(peer_manager.clone(), &channel_peer.node_pk) {
             // Connection confirmed, log and return Ok
             debug!("Successfully connected to channel peer {channel_peer}");
-            test_event_tx.send(TestEvent::ConnectionInitiated);
             return Ok(());
         }
 
@@ -217,7 +208,6 @@ pub fn spawn_p2p_reconnector<CM, PM, PS>(
     peer_manager: PM,
     initial_channel_peers: Vec<ChannelPeer>,
     mut channel_peer_rx: mpsc::Receiver<ChannelPeerUpdate>,
-    test_event_tx: TestEventSender,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
 where
@@ -267,12 +257,10 @@ where
                     .into_values()
                     .map(|peer| {
                         let peer_manager_clone = peer_manager.clone();
-                        let test_event_tx_clone = test_event_tx.clone();
                         let reconnect_fut = async move {
                             let res = do_connect_peer(
                                 peer_manager_clone,
                                 peer.clone(),
-                                &test_event_tx_clone,
                             )
                             .await;
                             if let Err(e) = res {
