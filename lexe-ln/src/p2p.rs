@@ -62,7 +62,25 @@ pub fn netaddr_to_sockaddr(net_addr: NetAddress) -> Option<SocketAddr> {
     }
 }
 
-/// Ensures that we are connected to a given [`ChannelPeer`].
+/// Shorthand to check whether our `PeerManager` registers that we're currently
+/// connected to the given [`NodePk`], meaning that we have an active connection
+/// and have finished exchanging noise / LN handshake messages. Note that this
+/// function is not very efficient; it allocates a `Vec` of all our peers and
+/// iterates over it in `O(n)` time.
+// We have to take an owned LexePeerManager otherwise there are type issues...
+pub fn is_connected<CM, PM, PS>(peer_manager: PM, node_pk: &NodePk) -> bool
+where
+    CM: LexeChannelManager<PS>,
+    PM: LexePeerManager<CM, PS>,
+    PS: LexePersister,
+{
+    peer_manager
+        .get_peer_node_ids()
+        .into_iter()
+        .any(|(pk, _maybe_addr)| node_pk.0 == pk)
+}
+
+/// Connects to a [`ChannelPeer`], returning early if we were already connected.
 pub async fn connect_channel_peer_if_necessary<CM, PM, PS>(
     peer_manager: PM,
     channel_peer: ChannelPeer,
@@ -73,22 +91,47 @@ where
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    // Return immediately if we're already connected to the peer
-    if peer_manager
-        .get_peer_node_ids()
-        .into_iter()
-        .any(|(pk, _maybe_addr)| channel_peer.node_pk.0 == pk)
-    {
+    // Initial check to see if we are already connected.
+    if is_connected(peer_manager.clone(), &channel_peer.node_pk) {
         return Ok(());
     }
 
-    // Otherwise, initiate the connection
+    // We retry a few times to work around an outbound connect race between
+    // the reconnector and open_channel which has occasionally been observed.
+    let retries = 3;
+    for _ in 0..retries {
+        // Do the attempt.
+        match do_connect_peer(
+            peer_manager.clone(),
+            channel_peer.clone(),
+            test_event_tx,
+        )
+        .await
+        {
+            Ok(()) => return Ok(()),
+            Err(e) => warn!("Failed to connect to peer: {e:#}"),
+        }
+
+        // Connect failed; sleep 500ms before the next attempt to give LDK some
+        // time to complete the noise / LN handshake. We do NOT need to add a
+        // random jitter because LDK's PeerManager already tiebreaks outbound
+        // connect races by failing the later attempt.
+        tokio::time::sleep(Duration::from_millis(500)).await;
+
+        // Right before the next attempt, do another is_connected check in case
+        // another task managed to connect while we were sleeping.
+        if is_connected(peer_manager.clone(), &channel_peer.node_pk) {
+            return Ok(());
+        }
+    }
+
+    // Do the last attempt.
     do_connect_peer(peer_manager, channel_peer, test_event_tx)
         .await
         .context("Failed to connect to peer")
 }
 
-pub async fn do_connect_peer<CM, PM, PS>(
+async fn do_connect_peer<CM, PM, PS>(
     peer_manager: PM,
     channel_peer: ChannelPeer,
     test_event_tx: &TestEventSender,
@@ -143,11 +186,7 @@ where
         }
 
         // Check if the connection has been established.
-        if peer_manager
-            .get_peer_node_ids()
-            .into_iter()
-            .any(|(pk, _maybe_addr)| channel_peer.node_pk.0 == pk)
-        {
+        if is_connected(peer_manager.clone(), &channel_peer.node_pk) {
             // Connection confirmed, log and return Ok
             debug!("Successfully connected to channel peer {channel_peer}");
             test_event_tx.send(TestEvent::ConnectionInitiated);
