@@ -31,14 +31,24 @@ class LxTheme {
       scaffoldBackgroundColor: LxColors.background,
       appBarTheme: baseTheme.appBarTheme.copyWith(
         backgroundColor: LxColors.background,
-        foregroundColor: LxColors.grey150,
+        foregroundColor: LxColors.foreground,
         // surfaceTintColor: LxColors.grey150,
+        // elevation = 0 removes the shadow under the app bar so it blends in
+        // with the page background.
         elevation: 0.0,
+        // make the system bar use the same background color as the page
         systemOverlayStyle: SystemUiOverlayStyle.dark.copyWith(
           statusBarColor: LxColors.background,
+          systemNavigationBarColor: LxColors.background,
+          systemNavigationBarDividerColor: LxColors.background,
         ),
       ),
       drawerTheme: baseTheme.drawerTheme.copyWith(
+        // make the drawer blend with the system bar
+        backgroundColor: LxColors.background,
+        elevation: 0.0,
+        // scrim is the transparent overlay that covers the underlying page to
+        // the right of the drawer.
         scrimColor: LxColors.clearB200,
       ),
     );
@@ -48,10 +58,14 @@ class LxTheme {
 class LxColors {
   LxColors._();
 
+  // A half-transparent red for debugging.
+
+  static const Color debug = Color(0xaaff0000);
+
   // Reminder: Color hex is in ARGB 0xAARRGGBB
 
-  static const Color background = grey925;
-  static const Color foreground = grey150;
+  static const Color background = LxColors.grey900;
+  static const Color foreground = LxColors.grey200;
 
   // Greys
 
@@ -245,7 +259,7 @@ class Fonts {
     debugLabel: "Fonts.fontBody",
     fontFamily: "Inter V",
     fontSize: size300,
-    color: LxColors.grey225,
+    color: LxColors.foreground,
     height: 1.7,
     fontVariations: [weightNormal],
     decoration: TextDecoration.none,

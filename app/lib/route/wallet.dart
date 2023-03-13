@@ -74,9 +74,9 @@ class WalletDrawer extends StatelessWidget {
             const SizedBox(height: Space.s600),
             OutlinedButton(
               style: OutlinedButton.styleFrom(
-                foregroundColor: LxColors.foreground,
                 backgroundColor: LxColors.background,
-                side: const BorderSide(width: 2.0),
+                foregroundColor: LxColors.foreground,
+                side: const BorderSide(color: LxColors.foreground, width: 2.0),
                 padding: const EdgeInsets.symmetric(vertical: Space.s500),
               ),
               onPressed: () => debugPrint("invite pressed"),
@@ -236,9 +236,9 @@ class WalletActionButton extends StatelessWidget {
         FilledButton(
           onPressed: this.onPressed,
           style: FilledButton.styleFrom(
-            backgroundColor: LxColors.grey1000,
-            disabledBackgroundColor: LxColors.grey875,
-            foregroundColor: LxColors.grey150,
+            backgroundColor: LxColors.grey975,
+            disabledBackgroundColor: LxColors.grey850,
+            foregroundColor: LxColors.foreground,
             disabledForegroundColor: LxColors.grey725,
           ),
           child: Padding(
@@ -251,7 +251,7 @@ class WalletActionButton extends StatelessWidget {
           label,
           style: Fonts.fontUI.copyWith(
             fontSize: Fonts.size300,
-            color: (!isDisabled) ? LxColors.grey150 : LxColors.grey725,
+            color: (!isDisabled) ? LxColors.foreground : LxColors.grey725,
             fontVariations: [Fonts.weightSemiBold],
           ),
         ),
