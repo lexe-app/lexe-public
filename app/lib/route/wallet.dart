@@ -44,13 +44,19 @@ class WalletDrawer extends StatelessWidget {
       child: Padding(
         padding: EdgeInsets.only(top: systemBarHeight),
         child: ListView(
-          padding: const EdgeInsets.symmetric(horizontal: Space.s500),
+          padding: EdgeInsets.zero,
           children: [
+            // X - close
             DrawerListItem(
               icon: Icons.close_rounded,
               onTap: () => Scaffold.of(context).closeDrawer(),
             ),
             const SizedBox(height: Space.s600),
+
+            // * Settings
+            // * Backup
+            // * Security
+            // * Support
             DrawerListItem(
               title: "Settings",
               icon: Icons.settings_outlined,
@@ -72,21 +78,29 @@ class WalletDrawer extends StatelessWidget {
               onTap: () => debugPrint("support pressed"),
             ),
             const SizedBox(height: Space.s600),
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                backgroundColor: LxColors.background,
-                foregroundColor: LxColors.foreground,
-                side: const BorderSide(color: LxColors.foreground, width: 2.0),
-                padding: const EdgeInsets.symmetric(vertical: Space.s500),
+
+            // < Invite Friends >
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Space.s500),
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  backgroundColor: LxColors.background,
+                  foregroundColor: LxColors.foreground,
+                  side:
+                      const BorderSide(color: LxColors.foreground, width: 2.0),
+                  padding: const EdgeInsets.symmetric(vertical: Space.s500),
+                ),
+                onPressed: () => debugPrint("invite pressed"),
+                child: Text("Invite Friends",
+                    style: Fonts.fontUI.copyWith(
+                      fontSize: Fonts.size400,
+                      fontVariations: [Fonts.weightMedium],
+                    )),
               ),
-              onPressed: () => debugPrint("invite pressed"),
-              child: Text("Invite Friends",
-                  style: Fonts.fontUI.copyWith(
-                    fontSize: Fonts.size400,
-                    fontVariations: [Fonts.weightMedium],
-                  )),
             ),
             const SizedBox(height: Space.s600),
+
+            // app version
             Text("Lexe App · v1.2.345",
                 textAlign: TextAlign.center,
                 style: Fonts.fontUI.copyWith(
@@ -111,7 +125,7 @@ class DrawerListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding: EdgeInsets.zero,
+      contentPadding: const EdgeInsets.symmetric(horizontal: Space.s500),
       horizontalTitleGap: Space.s200,
       visualDensity: VisualDensity.standard,
       dense: false,
