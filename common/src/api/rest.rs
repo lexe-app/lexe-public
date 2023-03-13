@@ -312,8 +312,8 @@ impl RestClient {
             url = %req.url(),
             // the http response status is set in the span later on
             status = field::Empty,
-            // the "retries left" is set in the span later on
-            retries_left = field::Empty,
+            // the "attempts left" is set in the span later on
+            attempts_left = field::Empty,
         )
     }
 
@@ -369,20 +369,21 @@ impl RestClient {
         stop_codes: &[ErrorCode],
     ) -> Result<Result<Bytes, ErrorResponse>, RestClientError> {
         let mut backoff_durations = backoff::get_backoff_iter();
+        let mut attempts_left = retries + 1;
 
         let mut request = Some(request);
 
-        for idx in 1..retries {
-            let retries_left = retries - idx + 1;
-            tracing::Span::current().record("retries_left", retries_left);
+        // Do the 'retries' first.
+        for _ in 0..retries {
+            tracing::Span::current().record("attempts_left", attempts_left);
 
             // clone the request. the request body is cheaply cloneable. the
             // headers and url are not :'(
             let maybe_request_clone = request
                 .as_ref()
                 .expect(
-                    "this should never happen; we only take the original \
-                     request on the last retry",
+                    "This should never happen; we only take() the original \
+                     request on the last attempt",
                 )
                 .try_clone();
 
@@ -411,11 +412,13 @@ impl RestClient {
 
             // sleep for a bit before next retry
             tokio::time::sleep(backoff_durations.next().unwrap()).await;
+            attempts_left -= 1;
         }
 
-        tracing::Span::current().record("retries_left", 1);
+        // We ran out of retries; return the result of the 'main' attempt.
+        assert_eq!(attempts_left, 1);
+        tracing::Span::current().record("attempts_left", attempts_left);
 
-        // avoid some extra copies : )
         self.send_inner(request.take().unwrap()).await
     }
 
