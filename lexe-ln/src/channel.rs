@@ -17,19 +17,18 @@ use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct ChannelId(pub [u8; 32]);
 
-/// A smol enum which specifies whether our channel counterparty is an external
-/// LN node, a Lexe user node, or Lexe's LSP. The required parameters and
-/// behavior of [`open_channel`] may be different in each case.
-pub enum CounterpartyKind<PS: LexePersister> {
-    /// External LN node. We need to save their [`ChannelPeer`] in this case.
-    External {
+/// Specifies the channel initiator-responder relationship. The required
+/// parameters and behavior of [`open_channel`] may be different in each case.
+pub enum ChannelRelationship<PS: LexePersister> {
+    /// A Lexe user node is opening a channel to the LSP.
+    UserToLsp,
+    /// Lexe's LSP is opening a channel to a user node.
+    LspToUser,
+    /// The LSP is opening a chanenl to an external LN node.
+    LspToExternal {
         persister: PS,
         channel_peer_tx: mpsc::Sender<ChannelPeerUpdate>,
     },
-    /// Lexe user node.
-    UserNode,
-    /// Lexe's LSP.
-    Lsp,
 }
 
 /// Generates a random [`u128`] which can be used as a [`user_channel_id`].
@@ -50,7 +49,7 @@ pub async fn open_channel<CM, PM, PS>(
     user_channel_id: u128,
     channel_peer: ChannelPeer,
     channel_value_sat: u64,
-    counterparty: CounterpartyKind<PS>,
+    relationship: ChannelRelationship<PS>,
     user_config: UserConfig,
 ) -> anyhow::Result<()>
 where
@@ -58,7 +57,7 @@ where
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    info!("Opening channel with {counterparty} {channel_peer}");
+    info!("Opening a {relationship} channel {channel_peer}");
 
     // Make sure that we're connected to the channel peer
     p2p::connect_channel_peer_if_necessary(peer_manager, channel_peer.clone())
@@ -78,13 +77,13 @@ where
         .map_err(|e| anyhow!("Failed to create channel: {e:?}"))?;
     debug!("Created channel");
 
-    // If we opened a channel with an external LN node, we need to save their
-    // ChannelPeer info so that we can reconnect to them after restart, and tell
-    // our p2p reconnector to continuously try reconnecting if we disconnected.
-    if let CounterpartyKind::External {
+    // If the LSP is opening a channel with an external LN node, we need to save
+    // their ChannelPeer info so that we can reconnect after restart, and tell
+    // our p2p reconnector to continuously try to reconnect if we disconnected.
+    if let ChannelRelationship::LspToExternal {
         channel_peer_tx,
         persister,
-    } = counterparty
+    } = relationship
     {
         // TODO(max): This should be renamed to persist_external_peer
         persister
@@ -106,12 +105,12 @@ where
 
 // --- Display impls --- //
 
-impl<PS: LexePersister> Display for CounterpartyKind<PS> {
+impl<PS: LexePersister> Display for ChannelRelationship<PS> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::External { .. } => write!(f, "external"),
-            Self::UserNode => write!(f, "user node"),
-            Self::Lsp => write!(f, "LSP"),
+            Self::UserToLsp => write!(f, "user to LSP"),
+            Self::LspToUser => write!(f, "LSP to user"),
+            Self::LspToExternal { .. } => write!(f, "LSP to external"),
         }
     }
 }
