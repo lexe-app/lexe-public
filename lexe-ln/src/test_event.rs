@@ -33,8 +33,6 @@ pub enum TestEvent {
     LdkSyncComplete,
     /// The node completed a BDK wallet resync.
     BdkSyncComplete,
-    /// Initiated an outbound P2P connection and completed the noise handshake.
-    ConnectionInitiated,
     /// A [`FundingGenerationReady`] event was handled.
     ///
     /// [`FundingGenerationReady`]: lightning::util::events::Event::FundingGenerationReady

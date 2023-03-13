@@ -341,7 +341,6 @@ impl UserNode {
             peer_manager.clone(),
             initial_channel_peers,
             channel_peer_rx,
-            test_event_tx.clone(),
             shutdown.clone(),
         ));
 
@@ -533,7 +532,6 @@ impl UserNode {
             &self.peer_manager,
             self.args.allow_mock,
             &self.args.lsp,
-            &ctxt.test_event_tx,
             &self.channel_peer_tx,
         )
         .await
@@ -697,7 +695,6 @@ async fn maybe_reconnect_to_lsp(
     peer_manager: &NodePeerManager,
     allow_mock: bool,
     lsp: &LspInfo,
-    test_event_tx: &TestEventSender,
     channel_peer_tx: &mpsc::Sender<ChannelPeerUpdate>,
 ) -> anyhow::Result<()> {
     // An async closure which reconnects to the LSP and notifies our reconnector
@@ -706,7 +703,6 @@ async fn maybe_reconnect_to_lsp(
         p2p::connect_channel_peer_if_necessary(
             peer_manager.clone(),
             lsp.channel_peer(),
-            test_event_tx,
         )
         .await
         .context("Could not connect to LSP")?;
