@@ -27,7 +27,6 @@ pub enum Ports {
 pub struct RunPorts {
     pub owner_port: Port,
     pub host_port: Port,
-    pub peer_port: Port,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -39,19 +38,13 @@ pub struct ProvisionPorts {
 
 impl UserPorts {
     /// Shorthand to construct a UserPorts containing a Run variant.
-    /// Be careful to specify the owner/host/peer ports in the correct order.
-    pub fn new_run(
-        user_pk: UserPk,
-        owner_port: Port,
-        host_port: Port,
-        peer_port: Port,
-    ) -> Self {
+    /// Be careful to specify the owner/host ports in the correct order.
+    pub fn new_run(user_pk: UserPk, owner_port: Port, host_port: Port) -> Self {
         Self {
             user_pk,
             ports: Ports::Run(RunPorts {
                 owner_port,
                 host_port,
-                peer_port,
             }),
         }
     }

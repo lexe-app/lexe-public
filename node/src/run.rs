@@ -42,7 +42,6 @@ use lightning::onion_message::OnionMessenger;
 use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
 use lightning_transaction_sync::EsploraSyncClient;
-use tokio::net::TcpListener;
 use tokio::sync::{mpsc, oneshot, watch};
 use tracing::{debug, error, info, instrument};
 
@@ -312,25 +311,6 @@ impl UserNode {
             logger.clone(),
         );
 
-        // Set up listening for inbound P2P connections
-        let (listener, peer_port) = {
-            // A value of 0 indicates that the OS will assign a port for us
-            // TODO(phlip9): user nodes should only listen on internal
-            // interface. LSP should should accept external connections
-            let address = format!("0.0.0.0:{}", args.peer_port.unwrap_or(0));
-            let listener = TcpListener::bind(address)
-                .await
-                .context("Failed to bind to peer port")?;
-            let peer_port = listener.local_addr().unwrap().port();
-            (listener, peer_port)
-        };
-        info!("Listening for LN P2P connections on port {peer_port}");
-        tasks.push(p2p::spawn_p2p_listener(
-            listener,
-            peer_manager.clone(),
-            shutdown.clone(),
-        ));
-
         // The LSP is the only peer the p2p reconnector needs to reconnect to,
         // but we do so only *after* we have completed init and sync; it is our
         // signal to the LSP that we are ready to receive messages.
@@ -420,8 +400,7 @@ impl UserNode {
         tasks.push(LxTask::spawn_named("host service", host_service_fut));
 
         // Prepare the ports that we'll notify the runner of once we're ready
-        let user_ports =
-            UserPorts::new_run(user_pk, owner_port, host_port, peer_port);
+        let user_ports = UserPorts::new_run(user_pk, owner_port, host_port);
 
         // Init background processor
         let bg_processor_task = LexeBackgroundProcessor::start::<

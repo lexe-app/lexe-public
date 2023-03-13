@@ -64,13 +64,6 @@ pub struct RunArgs {
     #[argh(option)]
     pub host_port: Option<Port>,
 
-    /// the port on which to accept Lightning P2P connections.
-    /// Defaults to a port assigned by the OS
-    // TODO: We should remove this since all P2P connections are initiated by
-    // the user node
-    #[argh(option)]
-    pub peer_port: Option<Port>,
-
     /// bitcoin, testnet, regtest, or signet.
     #[argh(option)]
     pub network: Network,
@@ -134,7 +127,6 @@ impl Default for RunArgs {
             user_pk: UserPk::from_u64(1), // Test user
             owner_port: None,
             host_port: None,
-            peer_port: None,
             network: Network::default(),
             shutdown_after_sync_if_no_activity: false,
             inactivity_timer_sec: 3600,
@@ -190,9 +182,6 @@ impl RunArgs {
         }
         if let Some(host_port) = self.host_port {
             cmd.arg("--host-port").arg(&host_port.to_string());
-        }
-        if let Some(peer_port) = self.peer_port {
-            cmd.arg("--peer-port").arg(&peer_port.to_string());
         }
 
         cmd
