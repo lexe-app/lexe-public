@@ -131,7 +131,7 @@ where
     let mut connection_closed_fut = Box::pin(connection_closed_fut);
     // Use exponential backoff when polling so that a stalled connection
     // doesn't keep the node always in memory
-    let mut backoff_durations = backoff::get_backoff_iter();
+    let mut backoff_durations = backoff::iter_with_initial_wait_ms(10);
     let p2p_handshake_timeout = tokio::time::sleep(HANDSHAKE_TIMEOUT);
     loop {
         // Check if the connection has been closed.
