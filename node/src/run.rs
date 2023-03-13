@@ -9,6 +9,7 @@ use common::api::ports::UserPorts;
 use common::api::provision::SealedSeedId;
 use common::api::{Scid, User, UserPk};
 use common::cli::node::RunArgs;
+use common::cli::LspInfo;
 use common::client::tls::node_run_tls_config;
 use common::constants::{DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE};
 use common::enclave::{
@@ -515,7 +516,7 @@ impl UserNode {
             ctxt.ldk_sync_client,
             first_ldk_sync_tx,
             ctxt.resync_rx,
-            ctxt.test_event_tx,
+            ctxt.test_event_tx.clone(),
             self.shutdown.clone(),
         ));
         let ldk_sync_fut = first_ldk_sync_rx
@@ -536,11 +537,15 @@ impl UserNode {
 
         // We connect to the LSP only *after* we have completed init and sync;
         // it is our signal to the LSP that we are ready to receive messages.
-        info!("Reconnecting to LSP");
-        let add_lsp = ChannelPeerUpdate::Add(self.args.lsp.channel_peer());
-        self.channel_peer_tx
-            .try_send(add_lsp)
-            .map_err(|e| anyhow!("Could not notify p2p reconnector: {e:#}"))?;
+        maybe_reconnect_to_lsp(
+            &self.peer_manager,
+            self.args.allow_mock,
+            &self.args.lsp,
+            &ctxt.test_event_tx,
+            &self.channel_peer_tx,
+        )
+        .await
+        .context("Could not reconnect to LSP")?;
 
         Ok(())
     }
@@ -669,5 +674,58 @@ async fn fetch_provisioned_secrets(
             "CORRUPT: somehow the User does not exist but this user node is \
              provisioned!!!"
         ),
+    }
+}
+
+/// Handles the nasty [`cfg_if`] logic of whether to reconnect to Lexe's LSP,
+/// taking in account whether we are mocking out the LSP as well.
+///
+/// If we are in production, ignore all mock arguments and attempt to reconnect
+/// to Lexe's LSP, notifying our p2p reconnector to continuously reconnect if we
+/// disconnect for some reason.
+///
+/// If NOT in production, we MAY decide not to skip reconnecting to the LSP.
+/// This will be done ONLY IF we check to mock out the LSP's HTTP server (i.e.
+/// [`LspInfo::url`] is `None`) AND we have set the `allow_mock` safeguard.
+#[allow(unused_variables)] // `allow_mock` isn't read in prod
+async fn maybe_reconnect_to_lsp(
+    peer_manager: &NodePeerManager,
+    allow_mock: bool,
+    lsp: &LspInfo,
+    test_event_tx: &TestEventSender,
+    channel_peer_tx: &mpsc::Sender<ChannelPeerUpdate>,
+) -> anyhow::Result<()> {
+    // An async closure which reconnects to the LSP and notifies our reconnector
+    let do_reconnect = async {
+        info!("Reconnecting to LSP");
+        p2p::connect_channel_peer_if_necessary(
+            peer_manager.clone(),
+            lsp.channel_peer(),
+            test_event_tx,
+        )
+        .await
+        .context("Could not connect to LSP")?;
+
+        debug!("Notifying reconnector task of LSP channel peer");
+        let add_lsp = ChannelPeerUpdate::Add(lsp.channel_peer());
+        channel_peer_tx
+            .try_send(add_lsp)
+            .map_err(|e| anyhow!("Could not notify p2p reconnector: {e:#}"))?;
+
+        Ok::<(), anyhow::Error>(())
+    };
+
+    cfg_if::cfg_if! {
+        if #[cfg(all(target_env = "sgx", not(debug_assertions)))] {
+            do_reconnect.await
+        } else {
+            if lsp.url.is_some() {
+                do_reconnect.await
+            } else {
+                ensure!(allow_mock, "To mock the LSP, allow_mock must be set");
+                info!("Skipping P2P reconnection to LSP");
+                Ok(())
+            }
+        }
     }
 }
