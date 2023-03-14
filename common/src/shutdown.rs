@@ -70,6 +70,10 @@ impl ShutdownChannel {
         }
     }
 
+    pub async fn recv_owned(mut self) {
+        self.recv().await
+    }
+
     /// Immediately returns whether a shutdown signal has been sent.
     pub fn try_recv(&self) -> bool {
         self.inner.is_closed()
