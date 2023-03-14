@@ -75,7 +75,7 @@ impl EventHandler for NodeEventHandler {
         debug!("Event details: {event:?}");
 
         // TODO(max): Should be possible to remove all clone()s once async event
-        // handlilng is supported
+        // handling is supported
         let lsp = self.lsp.clone();
         let wallet = self.wallet.clone();
         let channel_manager = self.channel_manager.clone();
@@ -93,6 +93,7 @@ impl EventHandler for NodeEventHandler {
         // node handles events. So we hack around it by breaking the contract
         // and just handling the event in a detached task. The long term fix is
         // to move to async event handling, which should be straightforward.
+        #[allow(clippy::redundant_async_block)]
         LxTask::spawn(async move {
             handle_event(
                 &lsp,

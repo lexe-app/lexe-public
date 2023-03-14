@@ -67,9 +67,8 @@ where
     // Instead of giving the graceful shutduwn future to hyper directly, we
     // let the spawned task wait on it so that we can enforce a hyper timeout.
     let shutdown = ShutdownChannel::new();
-    let mut shutdown_clone = shutdown.clone();
-    let server_shutdown_fut = async move { shutdown_clone.recv().await };
-    let graceful_server = server.with_graceful_shutdown(server_shutdown_fut);
+    let graceful_server =
+        server.with_graceful_shutdown(shutdown.clone().recv_owned());
     let task = LxTask::spawn_named_with_span(task_name, span, async move {
         tokio::pin!(graceful_server);
         tokio::select! {

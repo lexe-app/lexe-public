@@ -371,14 +371,13 @@ impl UserNode {
             args.network,
             activity_tx,
         );
-        let mut owner_shutdown = shutdown.clone();
         let (owner_addr, owner_service_fut) = warp::serve(owner_routes)
             .tls()
             .preconfigured_tls(owner_tls)
             // A value of 0 indicates that the OS will assign a port for us
             .bind_with_graceful_shutdown(
                 ([127, 0, 0, 1], args.owner_port.unwrap_or(0)),
-                async move { owner_shutdown.recv().await },
+                shutdown.clone().recv_owned(),
             );
         let owner_port = owner_addr.port();
         info!("Owner service listening on port {}", owner_port);
@@ -387,12 +386,11 @@ impl UserNode {
         // TODO(phlip9): authenticate host<->node
         // Start warp service for host
         let host_routes = server::host_routes(args.user_pk, shutdown.clone());
-        let mut host_shutdown = shutdown.clone();
         let (host_addr, host_service_fut) = warp::serve(host_routes)
             // A value of 0 indicates that the OS will assign a port for us
             .try_bind_with_graceful_shutdown(
                 ([127, 0, 0, 1], args.host_port.unwrap_or(0)),
-                async move { host_shutdown.recv().await },
+                shutdown.clone().recv_owned(),
             )
             .context("Failed to bind warp")?;
         let host_port = host_addr.port();
