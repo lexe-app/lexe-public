@@ -255,6 +255,18 @@ class Fonts {
   static const FontVariation weightExtraBold = FontVariation("wght", 800);
   static const FontVariation weightBlack = FontVariation("wght", 900);
 
+  static const TextStyle fontInter = TextStyle(
+    debugLabel: "Fonts.fontInter",
+    fontFamily: "Inter V",
+    decoration: TextDecoration.none,
+  );
+
+  static const TextStyle fontHubot = TextStyle(
+    debugLabel: "Fonts.fontHubot",
+    fontFamily: "Hubot Sans",
+    decoration: TextDecoration.none,
+  );
+
   static const TextStyle fontBody = TextStyle(
     debugLabel: "Fonts.fontBody",
     fontFamily: "Inter V",
@@ -279,12 +291,9 @@ class Fonts {
     debugLabel: "Fonts.fontHero",
     fontFamily: "Hubot Sans",
     fontSize: size800,
-    color: LxColors.grey1000,
+    color: LxColors.foreground,
     height: 1.5,
-    fontVariations: [
-      weightBold,
-      FontVariation("wdth", 90),
-    ],
+    fontVariations: [weightBold, FontVariation("wdth", 90)],
     decoration: TextDecoration.none,
   );
 }
