@@ -16,9 +16,9 @@ use lightning_net_tokio::SocketDescriptor;
 use lightning_transaction_sync::EsploraSyncClient;
 
 use crate::esplora::LexeEsplora;
-use crate::invoice::PaymentInfo;
 use crate::keys_manager::LexeKeysManager;
 use crate::logger::LexeTracingLogger;
+use crate::payment::PaymentInfo;
 
 pub type SignerType = InMemorySigner;
 

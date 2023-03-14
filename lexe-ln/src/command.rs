@@ -16,8 +16,8 @@ use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
 use tracing::{debug, info, warn};
 
 use crate::alias::PaymentInfoStorageType;
-use crate::invoice::{HTLCStatus, LxPaymentError, PaymentInfo};
 use crate::keys_manager::LexeKeysManager;
+use crate::payment::{HTLCStatus, LxPaymentError, PaymentInfo};
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
 /// The number of times to retry a failed payment in `send_payment`.

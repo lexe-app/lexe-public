@@ -25,14 +25,14 @@ pub mod command;
 pub mod esplora;
 /// Event helpers.
 pub mod event;
-/// Types related to invoices.
-pub mod invoice;
 /// Keys manager
 pub mod keys_manager;
 /// LDK + SGX compatible logger
 pub mod logger;
 /// Shared functionality relating to LN P2P.
 pub mod p2p;
+/// Payments types.
+pub mod payment;
 /// Chain sync.
 pub mod sync;
 /// `TestEvent` channels and utils.
