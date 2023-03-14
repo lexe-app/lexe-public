@@ -11,8 +11,8 @@ use common::task::{BlockingTaskRt, LxTask};
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
 use lexe_ln::esplora::LexeEsplora;
 use lexe_ln::event;
-use lexe_ln::invoice::HTLCStatus;
 use lexe_ln::keys_manager::LexeKeysManager;
+use lexe_ln::payment::HTLCStatus;
 use lexe_ln::test_event::{TestEvent, TestEventSender};
 use lexe_ln::wallet::LexeWallet;
 use lightning::chain::chaininterface::{
