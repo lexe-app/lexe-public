@@ -9,47 +9,91 @@ layout(location = 1) uniform float u_time;
 
 layout(location = 0) out vec4 o_frag_color;
 
-// This "rose" colormap comes from:
-// [transform - rose colormap](https://github.com/kbinani/colormap-shaders/blob/master/include/colormap/private/transform/rose.h#L50)
+// // This "rose" colormap comes from:
+// // [transform - rose colormap](https://github.com/kbinani/colormap-shaders/blob/master/include/colormap/private/transform/rose.h#L50)
+//
+// float colormap_rose_red(float x) {
+//     if (x < 0.0) {
+//         return 54.0 / 255.0;
+//     } else if (x < 20049.0 / 82979.0) {
+//         return (829.79 * x + 54.51) / 255.0;
+//     } else {
+//         return 1.0;
+//     }
+// }
+//
+// float colormap_rose_green(float x) {
+//     if (x < 20049.0 / 82979.0) {
+//         return 0.0;
+//     } else if (x < 327013.0 / 810990.0) {
+//         return (8546482679670.0 / 10875673217.0 * x - 2064961390770.0 / 10875673217.0) / 255.0;
+//     } else if (x <= 1.0) {
+//         return (103806720.0 / 483977.0 * x + 19607415.0 / 483977.0) / 255.0;
+//     } else {
+//         return 1.0;
+//     }
+// }
+//
+// float colormap_rose_blue(float x) {
+//     if (x < 0.0) {
+//         return 54.0 / 255.0;
+//     } else if (x < 7249.0 / 82979.0) {
+//         return (829.79 * x + 54.51) / 255.0;
+//     } else if (x < 20049.0 / 82979.0) {
+//         return 127.0 / 255.0;
+//     } else if (x < 327013.0 / 810990.0) {
+//         return (792.02249341361393720147485376583 * x - 64.364790735602331034989206222672) / 255.0;
+//     } else {
+//         return 1.0;
+//     }
+// }
+//
+// vec4 colormap_rose(float x) {
+//     return vec4(colormap_rose_red(x), colormap_rose_green(x), colormap_rose_blue(x), 1.0);
+// }
 
-float colormap_rose_red(float x) {
-    if (x < 0.0) {
-        return 54.0 / 255.0;
-    } else if (x < 20049.0 / 82979.0) {
-        return (829.79 * x + 54.51) / 255.0;
+// a small colormap that approximates our grey colorscheme using three
+// piecewise-linear fns per color channel.
+//
+// (see: `LxColors.greyXXX` in `lib/style.dart`).
+
+float colormap_lexe_red(float x) {
+    if (x <= 0.3) {
+        return 0.6 * x;
+    } else if (x <= 0.86) {
+        return 1.2857 * x + -0.2057;
     } else {
-        return 1.0;
+        return 0.7143 * x + 0.2857;
     }
 }
 
-float colormap_rose_green(float x) {
-    if (x < 20049.0 / 82979.0) {
-        return 0.0;
-    } else if (x < 327013.0 / 810990.0) {
-        return (8546482679670.0 / 10875673217.0 * x - 2064961390770.0 / 10875673217.0) / 255.0;
-    } else if (x <= 1.0) {
-        return (103806720.0 / 483977.0 * x + 19607415.0 / 483977.0) / 255.0;
+float colormap_lexe_green(float x) {
+    if (x <= 0.28) {
+        return 0.6429 * x;
+    } else if (x <= 0.82) {
+        return 1.3333 * x + -0.1933;
     } else {
-        return 1.0;
+        return 0.5556 * x + 0.4444;
     }
 }
 
-float colormap_rose_blue(float x) {
-    if (x < 0.0) {
-        return 54.0 / 255.0;
-    } else if (x < 7249.0 / 82979.0) {
-        return (829.79 * x + 54.51) / 255.0;
-    } else if (x < 20049.0 / 82979.0) {
-        return 127.0 / 255.0;
-    } else if (x < 327013.0 / 810990.0) {
-        return (792.02249341361393720147485376583 * x - 64.364790735602331034989206222672) / 255.0;
+float colormap_lexe_blue(float x) {
+    if (x <= 0.28) {
+        return 0.7143 * x;
+    } else if (x <= 0.76) {
+        return 1.4063 * x + -0.1938;
     } else {
-        return 1.0;
+        return 0.5208 * x + 0.4792;
     }
 }
 
-vec4 colormap_rose(float x) {
-    return vec4(colormap_rose_red(x), colormap_rose_green(x), colormap_rose_blue(x), 1.0);
+vec4 colormap_lexe(float x) {
+    return vec4(
+        colormap_lexe_red(x),
+        colormap_lexe_blue(x),
+        colormap_lexe_green(x),
+        1.0
+    );
 }
 
 float hash12(vec2 n) { 
@@ -144,12 +188,22 @@ void main() {
 
     // Colorize the shade. This is the output color for this pixel.
 
-    // // rose
-    // o_frag_color = colormap_rose(shade);
-
-    // grayscale
-    o_frag_color = vec4(shade, shade, shade, 1.0);
+    // // greyscale
+    // o_frag_color = vec4(shade, shade, shade, 1.0);
 
     // // red-shifted
     // o_frag_color = vec4(shade, 0.85 * shade, 0.90 * shade, 1.0);
+
+    // // rose
+    // o_frag_color = colormap_rose(shade);
+
+    // lexe grey
+    o_frag_color = colormap_lexe(shade);
+
+    // // compare colormaps
+    // if (gp.x < 0.0) {
+    //     o_frag_color = colormap_lexe(shade);
+    // } else {
+    //     o_frag_color = vec4(shade, shade, shade, 1.0);
+    // }
 }
