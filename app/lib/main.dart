@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'bindings.dart' show api;
 import 'bindings_generated_api.dart' show AppHandle, Config;
 import 'route/landing.dart' show LandingPage;
+import 'style.dart' show LxColors, LxTheme;
 
 Future<void> main() async {
   // TODO(phlip9): load initial state
@@ -39,7 +40,11 @@ class LexeApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Lexe',
+      title: "Lexe App",
+      color: LxColors.background,
+      themeMode: ThemeMode.light,
+      theme: LxTheme.light(),
+      debugShowCheckedModeBanner: false,
       home: this.child,
     );
   }

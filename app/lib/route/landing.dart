@@ -16,7 +16,7 @@ class LandingPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: const Color(0xff353535),
+        backgroundColor: LxColors.foreground,
         body: Stack(children: [
           const InkuShader(child: Center()),
           LayoutBuilder(
@@ -64,39 +64,35 @@ class LandingCalloutText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const heroText = Text(
+    final heroText = Text(
       "LIGHTNING.\nBITCOIN.\nONE WALLET.",
       overflow: TextOverflow.clip,
-      style: Fonts.fontHero,
+      style: Fonts.fontHero.copyWith(
+        color: LxColors.background,
+      ),
     );
 
     final lexeText = Row(
       // mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.end,
-      children: const [
+      children: [
         // SizedBox(width: 128.0),
         Text(
           "brought to you by",
-          style: TextStyle(
-            fontFamily: "Mona Sans",
+          style: Fonts.fontUI.copyWith(
             color: LxColors.clearW500,
             fontSize: Fonts.size100,
-            height: 1.0,
             fontVariations: [Fonts.weightExtraLight],
-            decoration: TextDecoration.none,
           ),
         ),
-        SizedBox(width: 4.0),
+        const SizedBox(width: 4.0),
         Text(
           "LEXE™",
-          style: TextStyle(
-            fontFamily: "Hubot Sans",
+          style: Fonts.fontHubot.copyWith(
             color: LxColors.clearW600,
-            fontSize: 12.0,
-            fontVariations: [
-              Fonts.weightMedium,
-            ],
-            decoration: TextDecoration.none,
+            fontSize: Fonts.size100,
+            fontVariations: [Fonts.weightMedium],
+            height: 1.0,
           ),
         ),
       ],
@@ -121,11 +117,11 @@ class LandingCarouselIndicators extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: const [
-        Icon(Icons.circle, size: 12.0, color: Colors.white60),
+        Icon(Icons.circle, size: 12.0, color: LxColors.clearW600),
         SizedBox(width: 12.0),
-        Icon(Icons.circle, size: 12.0, color: Colors.white24),
+        Icon(Icons.circle, size: 12.0, color: LxColors.clearW200),
         SizedBox(width: 12.0),
-        Icon(Icons.circle, size: 12.0, color: Colors.white24),
+        Icon(Icons.circle, size: 12.0, color: LxColors.clearW200),
       ],
     );
   }
@@ -146,7 +142,7 @@ class LandingButtons extends StatelessWidget {
         OutlinedButton(
           onPressed: () => debugPrint("pressed recover wallet button"),
           style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: LxColors.clearW700, width: 2.0),
+            side: const BorderSide(color: LxColors.clearW600, width: 2.0),
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
             fixedSize: const Size(300.0, 56.0),
             shape: const StadiumBorder(),
@@ -155,7 +151,7 @@ class LandingButtons extends StatelessWidget {
               style: TextStyle(
                 fontFamily: "Inter V",
                 fontSize: Fonts.size300,
-                color: LxColors.clearW700,
+                color: LxColors.clearW600,
                 height: 1.0,
                 decoration: TextDecoration.none,
               )),
@@ -208,10 +204,10 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
     return FilledButton(
       onPressed: this._disableButton ? null : this._onPressed,
       style: FilledButton.styleFrom(
-        backgroundColor: Colors.white,
-        disabledBackgroundColor: Colors.white30,
-        foregroundColor: Colors.black,
-        disabledForegroundColor: Colors.black26,
+        backgroundColor: LxColors.background,
+        disabledBackgroundColor: LxColors.clearW200,
+        foregroundColor: LxColors.foreground,
+        disabledForegroundColor: LxColors.clearB300,
         fixedSize: const Size(300.0, 56.0),
       ),
       child: (!this._disableButton)
@@ -234,13 +230,13 @@ class CreateWalletText extends StatelessWidget {
     return Stack(
       alignment: Alignment.center,
       children: [
-        const Text("Create new wallet",
-            style: TextStyle(
-              fontFamily: "Inter V",
-              fontSize: Fonts.size300,
-              height: 1.0,
-              fontVariations: [Fonts.weightMedium],
-            )),
+        Text(
+          "Create new wallet",
+          style: Fonts.fontUI.copyWith(
+            fontSize: Fonts.size300,
+            fontVariations: [Fonts.weightMedium],
+          ),
+        ),
         Container(
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.all(8.0),
