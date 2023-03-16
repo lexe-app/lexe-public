@@ -18,7 +18,7 @@ use lightning_transaction_sync::EsploraSyncClient;
 use crate::esplora::LexeEsplora;
 use crate::keys_manager::LexeKeysManager;
 use crate::logger::LexeTracingLogger;
-use crate::payment::PaymentInfo;
+use crate::payments::PaymentInfo;
 
 pub type SignerType = InMemorySigner;
 

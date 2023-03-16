@@ -32,7 +32,7 @@ pub mod logger;
 /// Shared functionality relating to LN P2P.
 pub mod p2p;
 /// Payments types.
-pub mod payment;
+pub mod payments;
 /// Chain sync.
 pub mod sync;
 /// `TestEvent` channels and utils.
