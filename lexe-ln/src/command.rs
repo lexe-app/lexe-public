@@ -77,6 +77,11 @@ where
     let cltv_expiry = MIN_FINAL_CLTV_EXPIRY_DELTA;
     info!("Handling get_invoice command for {amt_msat:?} msats");
 
+    // TODO(max): We should set some sane maximum for the invoice expiry time,
+    // e.g. 180 days. This will not cause LDK state to blow up since
+    // create_inbound_payment derives its payment preimages and hashes, but it
+    // could bloat Lexe's DB with fairly large `LxInvoice`s.
+
     // We use ChannelManager::create_inbound_payment because this method allows
     // the channel manager to store the hash and preimage for us, instead of
     // having to manage a separate inbound payments storage outside of LDK.
@@ -157,6 +162,12 @@ where
     PS: LexePersister,
 {
     let retry = Retry::Attempts(PAYMENT_RETRY_ATTEMPTS);
+    // XXX(max): `pay_invoice` uses the payment hash encoded in the `Invoice` as
+    // the `PaymentId`. We need to add a check here to ensure that we bail! if
+    // we have already completed or failed a payment with this hash.
+    // TODO(max): This will currently fail if the given invoice doesn't have an
+    // amount. For amount-less invoices we need to ask the user to specify how
+    // much to send
     let payment_result = lightning_invoice::payment::pay_invoice(
         &invoice.0,
         retry,

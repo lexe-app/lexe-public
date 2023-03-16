@@ -112,6 +112,22 @@ where
         PaymentPurpose::SpontaneousPayment(preimage) => preimage,
     };
 
+    // The PaymentClaimable docs have a note that LDK will not stop an inbound
+    // payment from being paid multiple times. We should fail the payment in
+    // this case because:
+    // - This messes up (or significantly complicates) our accounting
+    // - This likely reflects an error on the receiver's part (reusing the same
+    //   invoice for multiple payments, which would allow any nodes along the
+    //   first payment path to steal subsequent payments)
+    // - We should not allow payments to go through, in order to teach users
+    //   that this is not an acceptable way to use lightning, because it is not
+    //   safe. It is not hard to imagine users developing the misconception that
+    //   it is safe to reuse invoices if duplicate payments actually do succeed.
+    // TODO(max): If LDK implements the regeneration of PaymentClaimable events
+    // upon restart, we'll need a way to differentiate between these regenerated
+    // events and duplicate payments to the same invoice.
+    // https://discord.com/channels/915026692102316113/978829624635195422/1085427966986690570
+
     // TODO(max): `claim_funds` docs state that we must check that the
     // amount_msat we received matches our expectation, relevant if we're
     // receiving payment for e.g. an order of some sort. Otherwise, we will have
