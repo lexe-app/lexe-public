@@ -301,7 +301,10 @@ async fn handle_event_fallible(
         Event::PaymentPathFailed { .. } => {}
         Event::ProbeSuccessful { .. } => {}
         Event::ProbeFailed { .. } => {}
-        Event::PaymentFailed { payment_hash, .. } => {
+        Event::PaymentFailed {
+            payment_hash,
+            payment_id: _,
+        } => {
             error!(
                 "Failed to send payment to payment hash {:?}: exhausted payment retry attempts",
                 hex::encode(&payment_hash.0)
