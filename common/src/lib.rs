@@ -52,6 +52,8 @@ pub mod sha256;
 pub mod shutdown;
 /// `LxTask`.
 pub mod task;
+/// `TimestampMillis`
+pub mod time;
 /// Encrypt/decrypt VFS blobs for remote storage.
 pub mod vfs_encrypt;
 
