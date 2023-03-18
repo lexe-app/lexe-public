@@ -22,6 +22,7 @@ use lightning::routing::gossip::NodeId;
 use lightning::util::events::{Event, EventHandler};
 use tracing::{debug, error, info};
 
+use crate::alias::NodePaymentsManagerType;
 use crate::channel_manager::NodeChannelManager;
 
 // We pub(crate) all the fields to prevent having to specify each field two more
@@ -33,6 +34,7 @@ pub struct NodeEventHandler {
     pub(crate) keys_manager: LexeKeysManager,
     pub(crate) esplora: Arc<LexeEsplora>,
     pub(crate) network_graph: Arc<NetworkGraphType>,
+    pub(crate) payments_manager: NodePaymentsManagerType,
     pub(crate) outbound_payments: PaymentInfoStorageType,
     pub(crate) test_event_tx: TestEventSender,
     // XXX: remove when `EventHandler` is async
@@ -82,6 +84,7 @@ impl EventHandler for NodeEventHandler {
         let esplora = self.esplora.clone();
         let network_graph = self.network_graph.clone();
         let keys_manager = self.keys_manager.clone();
+        let payments_manager = self.payments_manager.clone();
         let outbound_payments = self.outbound_payments.clone();
         let test_event_tx = self.test_event_tx.clone();
         let shutdown = self.shutdown.clone();
@@ -102,6 +105,7 @@ impl EventHandler for NodeEventHandler {
                 &esplora,
                 &network_graph,
                 &keys_manager,
+                &payments_manager,
                 &outbound_payments,
                 &test_event_tx,
                 &shutdown,
@@ -121,6 +125,7 @@ pub(crate) async fn handle_event(
     esplora: &LexeEsplora,
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
+    payments_manager: &NodePaymentsManagerType,
     outbound_payments: &PaymentInfoStorageType,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
@@ -133,6 +138,7 @@ pub(crate) async fn handle_event(
         esplora,
         network_graph,
         keys_manager,
+        payments_manager,
         outbound_payments,
         test_event_tx,
         shutdown,
@@ -152,6 +158,7 @@ async fn handle_event_fallible(
     esplora: &LexeEsplora,
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
+    _payments_manager: &NodePaymentsManagerType,
     outbound_payments: &PaymentInfoStorageType,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
