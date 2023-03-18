@@ -7,9 +7,9 @@ use lightning::util::events::PaymentPurpose;
 use crate::payments::offchain::inbound::{
     InboundLightningPayment, InboundSpontaneousPayment,
 };
+use crate::payments::payment_trait::PaymentTrait;
 use crate::payments::{
     LxPaymentHash, LxPaymentId, LxPaymentPreimage, Payment, PaymentStatus,
-    PaymentTrait,
 };
 use crate::traits::LexePersister;
 
