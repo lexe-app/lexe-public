@@ -17,8 +17,8 @@ use tracing::{debug, info, warn};
 
 use crate::alias::PaymentInfoStorageType;
 use crate::keys_manager::LexeKeysManager;
+use crate::payments::inbound::InboundInvoicePayment;
 use crate::payments::manager::PaymentsManager;
-use crate::payments::offchain::inbound::InboundInvoicePayment;
 use crate::payments::{HTLCStatus, LxPaymentError, PaymentInfo};
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 

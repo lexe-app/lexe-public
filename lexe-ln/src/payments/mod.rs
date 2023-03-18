@@ -26,10 +26,10 @@
 //! [`Payment`]: payments::Payment
 //! [`OnchainDeposit`]: payments::onchain::OnchainDeposit
 //! [`OnchainWithdrawal`]: payments::onchain::OnchainWithdrawal
-//! [`InboundInvoicePayment`]: payments::offchain::inbound::InboundInvoicePayment
-//! [`InboundSpontaneousPayment`]: payments::offchain::inbound::InboundSpontaneousPayment
-//! [`OutboundInvoicePayment`]: payments::offchain::outbound::OutboundInvoicePayment
-//! [`OutboundSpontaneousPayment`]: payments::offchain::outbound::OutboundSpontaneousPayment
+//! [`InboundInvoicePayment`]: payments::inbound::InboundInvoicePayment
+//! [`InboundSpontaneousPayment`]: payments::inbound::InboundSpontaneousPayment
+//! [`OutboundInvoicePayment`]: payments::outbound::OutboundInvoicePayment
+//! [`OutboundSpontaneousPayment`]: payments::outbound::OutboundSpontaneousPayment
 //! [`Serialize`]: serde::Serialize
 //! [`Deserialize`]: serde::Deserialize
 
@@ -47,27 +47,30 @@ use lightning_invoice::payment::PaymentError;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-use crate::payments::offchain::inbound::{
+use crate::payments::inbound::{
     InboundInvoicePayment, InboundSpontaneousPayment,
 };
-use crate::payments::offchain::outbound::{
+use crate::payments::onchain::{OnchainDeposit, OnchainWithdrawal};
+use crate::payments::outbound::{
     OutboundInvoicePayment, OutboundSpontaneousPayment,
 };
-use crate::payments::onchain::{OnchainDeposit, OnchainWithdrawal};
 
 /// Contains the boring / repetitive / tedious code for `Payment`'s getters.
 pub mod getters;
+/// Inbound Lightning payments.
+pub mod inbound;
 /// `PaymentsManager`.
 pub mod manager;
-/// Lightning payment types and state machines.
-pub mod offchain;
 /// On-chain payment types and state machines.
 pub mod onchain;
+/// Outbound Lightning payments.
+pub mod outbound;
 
 // --- Top-level payment types --- //
 
 /// The top level [`Payment`] type which abstracts over all types of payments,
 /// including both onchain and off-chain (Lightning) payments.
+// See `getters` for the main `Payment` impl.
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Payment {
     OnchainDeposit(OnchainDeposit),
