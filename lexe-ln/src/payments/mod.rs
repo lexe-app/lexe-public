@@ -39,24 +39,20 @@
 //! [`Serialize`]: serde::Serialize
 //! [`Deserialize`]: serde::Deserialize
 
+use std::convert::TryFrom;
 use std::fmt::{self, Display};
+use std::str::FromStr;
 
+use anyhow::{bail, ensure, Context};
+use bitcoin::Txid;
+use common::hex::{self, FromHex};
 use common::hexstr_or_bytes;
-#[cfg(doc)]
-use lightning::ln::channelmanager::ChannelManager;
 use lightning::ln::channelmanager::{PaymentId, PaymentSendFailure};
 use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
-#[cfg(doc)] // Adding these imports significantly reduces doc comment noise
-use lightning::util::events::Event::{
-    PaymentClaimable, PaymentClaimed, PaymentSent,
-};
-#[cfg(doc)]
-use lightning::util::events::PaymentPurpose;
 use lightning_invoice::payment::PaymentError;
 use serde::{Deserialize, Serialize};
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-#[cfg(doc)]
-use crate::command::get_invoice;
 use crate::payments::offchain::LightningPayment;
 use crate::payments::onchain::OnchainPayment;
 
@@ -98,6 +94,21 @@ pub enum PaymentStatus {
 
 // --- Lexe newtypes --- //
 
+/// A globally-unique identifier for any type of payment, including both
+/// on-chain and Lightning payments.
+///
+/// - On-chain payments use their [`Txid`] as their id.
+/// - Lightning payments use their [`LxPaymentHash`] as their id.
+///
+/// NOTE that this is NOT a drop-in replacement for LDK's [`PaymentId`], since
+/// [`PaymentId`] is Lightning-specific, whereas [`LxPaymentId`] is not.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(SerializeDisplay, DeserializeFromStr)]
+pub enum LxPaymentId {
+    Onchain(Txid),
+    Lightning(LxPaymentHash),
+}
+
 /// Newtype for [`PaymentHash`] which impls [`Serialize`] / [`Deserialize`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct LxPaymentHash(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
@@ -113,6 +124,13 @@ pub struct LxPaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 // --- impl Payment --- //
 
 impl Payment {
+    pub fn id(&self) -> LxPaymentId {
+        match self {
+            Self::Onchain(onchain) => LxPaymentId::Onchain(*onchain.txid()),
+            Self::Lightning(ln) => LxPaymentId::Lightning(*ln.hash()),
+        }
+    }
+
     /// Whether this payment is inbound or outbound. Useful for filtering.
     pub fn direction(&self) -> PaymentDirection {
         match self {
@@ -136,7 +154,39 @@ impl fmt::Debug for LxPaymentSecret {
     }
 }
 
-// --- Newtype from impls --- //
+// --- Newtype From impls --- //
+
+// LxPaymentId -> Txid / LxPaymentHash
+impl From<Txid> for LxPaymentId {
+    fn from(txid: Txid) -> Self {
+        Self::Onchain(txid)
+    }
+}
+impl From<LxPaymentHash> for LxPaymentId {
+    fn from(hash: LxPaymentHash) -> Self {
+        Self::Lightning(hash)
+    }
+}
+
+// LxPaymentId -> Txid / LxPaymentHash
+impl TryFrom<LxPaymentId> for Txid {
+    type Error = anyhow::Error;
+    fn try_from(id: LxPaymentId) -> anyhow::Result<Self> {
+        match id {
+            LxPaymentId::Onchain(txid) => Ok(txid),
+            LxPaymentId::Lightning(..) => bail!("Not an onchain payment"),
+        }
+    }
+}
+impl TryFrom<LxPaymentId> for LxPaymentHash {
+    type Error = anyhow::Error;
+    fn try_from(id: LxPaymentId) -> anyhow::Result<Self> {
+        match id {
+            LxPaymentId::Onchain(..) => bail!("Not a lightning payment"),
+            LxPaymentId::Lightning(hash) => Ok(hash),
+        }
+    }
+}
 
 // LDK -> Lexe
 impl From<PaymentHash> for LxPaymentHash {
@@ -184,6 +234,81 @@ impl From<LxPaymentHash> for PaymentId {
     }
 }
 
+// --- LxPaymentId FromStr / Display impls --- //
+
+/// `<kind>_<id>`
+impl FromStr for LxPaymentId {
+    type Err = anyhow::Error;
+    fn from_str(kind_id: &str) -> anyhow::Result<Self> {
+        let mut parts = kind_id.split('_');
+        let kind_str = parts.next().context("Missing kind in <kind>_<id>")?;
+        let id_str = parts.next().context("Missing kind in <kind>_<id>")?;
+        ensure!(
+            parts.next().is_none(),
+            "Wrong format; should be <kind>_<id>"
+        );
+        match kind_str {
+            "onchain" => Txid::from_str(id_str)
+                .map(Self::Onchain)
+                .context("Invalid Txid"),
+            "lightning" => LxPaymentHash::from_str(id_str)
+                .map(Self::Lightning)
+                .context("Invalid payment hash"),
+            _ => bail!("<kind> should be 'onchain' or 'lightning'"),
+        }
+    }
+}
+
+/// `<kind>_<id>`
+impl Display for LxPaymentId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Onchain(txid) => write!(f, "onchain_{txid}"),
+            Self::Lightning(hash) => write!(f, "lightning_{hash}"),
+        }
+    }
+}
+
+// --- Newtype FromStr / Display impls -- //
+
+impl FromStr for LxPaymentHash {
+    type Err = hex::DecodeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        <[u8; 32]>::from_hex(s).map(Self)
+    }
+}
+impl FromStr for LxPaymentPreimage {
+    type Err = hex::DecodeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        <[u8; 32]>::from_hex(s).map(Self)
+    }
+}
+impl FromStr for LxPaymentSecret {
+    type Err = hex::DecodeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        <[u8; 32]>::from_hex(s).map(Self)
+    }
+}
+
+impl Display for LxPaymentHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let hex_display = hex::display(&self.0);
+        write!(f, "{hex_display}")
+    }
+}
+impl Display for LxPaymentPreimage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let hex_display = hex::display(&self.0);
+        write!(f, "{hex_display}")
+    }
+}
+impl Display for LxPaymentSecret {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let hex_display = hex::display(&self.0);
+        write!(f, "{hex_display}")
+    }
+}
+
 // --- Types inherited from ldk-sample --- //
 // TODO(max): Gradually remove / replace these with our own
 
@@ -228,5 +353,70 @@ impl From<PaymentError> for LxPaymentError {
             PaymentError::Invoice(inner) => Self::Invoice(inner),
             PaymentError::Sending(inner) => Self::Sending(Box::new(inner)),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use common::test_utils::{arbitrary, roundtrip};
+    use proptest::arbitrary::{any, Arbitrary};
+    use proptest::prop_oneof;
+    use proptest::strategy::{BoxedStrategy, Strategy};
+    use proptest::test_runner::Config;
+
+    use super::*;
+
+    impl Arbitrary for LxPaymentId {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                arbitrary::any_txid().prop_map(Self::Onchain),
+                any::<LxPaymentHash>().prop_map(Self::Lightning),
+            ]
+            .boxed()
+        }
+    }
+    impl Arbitrary for LxPaymentHash {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            any::<[u8; 32]>().prop_map(Self).boxed()
+        }
+    }
+    impl Arbitrary for LxPaymentPreimage {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            any::<[u8; 32]>().prop_map(Self).boxed()
+        }
+    }
+    impl Arbitrary for LxPaymentSecret {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            any::<[u8; 32]>().prop_map(Self).boxed()
+        }
+    }
+
+    #[test]
+    fn newtype_serde_roundtrip() {
+        roundtrip::json_string_roundtrip_proptest::<LxPaymentId>();
+        roundtrip::json_string_roundtrip_proptest::<LxPaymentHash>();
+        roundtrip::json_string_roundtrip_proptest::<LxPaymentPreimage>();
+        roundtrip::json_string_roundtrip_proptest::<LxPaymentSecret>();
+    }
+
+    #[test]
+    fn newtype_fromstr_display_roundtrip() {
+        roundtrip::json_string_roundtrip_proptest::<LxPaymentId>();
+        roundtrip::json_string_roundtrip_proptest::<LxPaymentHash>();
+        roundtrip::json_string_roundtrip_proptest::<LxPaymentPreimage>();
+        roundtrip::json_string_roundtrip_proptest::<LxPaymentSecret>();
+        // LxPaymentId's impls rely on Txid's FromStr/Display impls
+        roundtrip::fromstr_display_custom(
+            arbitrary::any_txid(),
+            Config::default(),
+        );
     }
 }
