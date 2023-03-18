@@ -1,7 +1,9 @@
-//! This module contains `PaymentTrait`, a boring trait used to define the
-//! getters that all payment types must implement. Since implementing this trait
-//! doesn't require any actual logic, and mostly consists of tedious matching,
-//! all impls for all types are tucked away here.
+//! This module contains all of boring, tedious matching code required to
+//! extract common values from within the top-level [`Payment`] type.
+//!
+//! Since all this code does is match on the contained value, and no actual
+//! logic is contained here, we tuck away the impl here to avoid polluting the
+//! rest of the payments module which actually contains important logic.
 
 use common::time::TimestampMillis;
 
@@ -15,36 +17,9 @@ use crate::payments::offchain::outbound::{
 };
 use crate::payments::{Payment, PaymentDirection, PaymentStatus};
 
-/// A trait for the boring getters defined on all payment types.
-// TODO(max): This trait can be removed entirely
-pub trait PaymentTrait {
+impl Payment {
     /// Whether this payment is inbound or outbound. Useful for filtering.
-    fn direction(&self) -> PaymentDirection;
-
-    /// The amount of this payment in millisatoshis.
-    // TODO(max): Use LDK-provided Amount newtype when available
-    fn amt_msat(&self) -> Option<u64>;
-
-    /// The fees paid or expected to be paid for this payment.
-    // TODO(max): Use LDK-provided Amount newtype when available
-    fn fees_msat(&self) -> u64;
-
-    /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
-    fn status(&self) -> PaymentStatus;
-
-    /// Get the payment status as a human-readable `&'static str`
-    fn status_str(&self) -> &str;
-
-    /// When this payment was created.
-    fn created_at(&self) -> TimestampMillis;
-
-    /// When this payment was completed or failed.
-    fn finalized_at(&self) -> Option<TimestampMillis>;
-}
-
-impl PaymentTrait for Payment {
-    /// Whether this payment is inbound or outbound. Useful for filtering.
-    fn direction(&self) -> PaymentDirection {
+    pub fn direction(&self) -> PaymentDirection {
         match self {
             Self::OnchainDeposit(_) => PaymentDirection::Inbound,
             Self::OnchainWithdrawal(_) => PaymentDirection::Outbound,
@@ -63,7 +38,7 @@ impl PaymentTrait for Payment {
     ///   return the amount encoded in our invoice (if there was one).
     /// - For all other payment types, an amount is always returned.
     // TODO(max): Use LDK-provided Amount newtype when available
-    fn amt_msat(&self) -> Option<u64> {
+    pub fn amt_msat(&self) -> Option<u64> {
         match self {
             Self::OnchainDeposit(_) => todo!(),
             Self::OnchainWithdrawal(_) => todo!(),
@@ -88,7 +63,7 @@ impl PaymentTrait for Payment {
 
     /// The fees paid or expected to be paid for this payment.
     // TODO(max): Use LDK-provided Amount newtype when available
-    fn fees_msat(&self) -> u64 {
+    pub fn fees_msat(&self) -> u64 {
         match self {
             Self::OnchainDeposit(_) => todo!(),
             Self::OnchainWithdrawal(_) => todo!(),
@@ -111,7 +86,7 @@ impl PaymentTrait for Payment {
     }
 
     /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
-    fn status(&self) -> PaymentStatus {
+    pub fn status(&self) -> PaymentStatus {
         match self {
             Self::OnchainDeposit(_) => todo!(),
             Self::OnchainWithdrawal(_) => todo!(),
@@ -133,7 +108,7 @@ impl PaymentTrait for Payment {
     }
 
     /// Get the payment status as a human-readable `&'static str`
-    fn status_str(&self) -> &str {
+    pub fn status_str(&self) -> &str {
         match self {
             Self::OnchainDeposit(_) => todo!(),
             Self::OnchainWithdrawal(_) => todo!(),
@@ -155,7 +130,7 @@ impl PaymentTrait for Payment {
     }
 
     /// When this payment was created.
-    fn created_at(&self) -> TimestampMillis {
+    pub fn created_at(&self) -> TimestampMillis {
         match self {
             Self::OnchainDeposit(_) => todo!(),
             Self::OnchainWithdrawal(_) => todo!(),
@@ -178,7 +153,7 @@ impl PaymentTrait for Payment {
     }
 
     /// When this payment was completed or failed.
-    fn finalized_at(&self) -> Option<TimestampMillis> {
+    pub fn finalized_at(&self) -> Option<TimestampMillis> {
         match self {
             Self::OnchainDeposit(_) => todo!(),
             Self::OnchainWithdrawal(_) => todo!(),
