@@ -7,11 +7,11 @@
 
 use common::time::TimestampMillis;
 
-use crate::payments::offchain::inbound::{
+use crate::payments::inbound::{
     InboundInvoicePayment, InboundInvoicePaymentStatus,
     InboundSpontaneousPayment, InboundSpontaneousPaymentStatus,
 };
-use crate::payments::offchain::outbound::{
+use crate::payments::outbound::{
     OutboundInvoicePayment, OutboundInvoicePaymentStatus,
     OutboundSpontaneousPayment, OutboundSpontaneousPaymentStatus,
 };

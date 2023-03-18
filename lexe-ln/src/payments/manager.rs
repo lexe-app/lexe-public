@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 use anyhow::{bail, ensure};
 use lightning::util::events::PaymentPurpose;
 
-use crate::payments::offchain::inbound::{
+use crate::payments::inbound::{
     InboundLightningPayment, InboundSpontaneousPayment,
 };
 use crate::payments::{
