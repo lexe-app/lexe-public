@@ -47,7 +47,6 @@ use anyhow::{bail, ensure, Context};
 use bitcoin::Txid;
 use common::hex::{self, FromHex};
 use common::hexstr_or_bytes;
-use common::time::TimestampMillis;
 use lightning::ln::channelmanager::{PaymentId, PaymentSendFailure};
 use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
 use lightning::util::events::PaymentPurpose;
@@ -72,6 +71,8 @@ pub mod manager;
 pub mod offchain;
 /// On-chain payment types and state machines.
 pub mod onchain;
+/// Contains `PaymentTrait` and all the boilerplate required to implement it.
+pub mod payment_trait;
 
 // --- Top-level payment types --- //
 
@@ -131,34 +132,6 @@ pub struct LxPaymentPreimage(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct LxPaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
-// --- PaymentTrait --- //
-
-/// A trait for common payment methods.
-pub(crate) trait PaymentTrait {
-    /// Whether this payment is inbound or outbound. Useful for filtering.
-    fn direction(&self) -> PaymentDirection;
-
-    /// The amount of this payment in millisatoshis.
-    // TODO(max): Use LDK-provided Amount newtype when available
-    fn amt_msat(&self) -> Option<u64>;
-
-    /// The fees paid or expected to be paid for this payment.
-    // TODO(max): Use LDK-provided Amount newtype when available
-    fn fees_msat(&self) -> u64;
-
-    /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
-    fn status(&self) -> PaymentStatus;
-
-    /// Get the payment status as a human-readable `&'static str`
-    fn status_str(&self) -> &str;
-
-    /// When this payment was created.
-    fn created_at(&self) -> TimestampMillis;
-
-    /// When this payment was completed or failed.
-    fn finalized_at(&self) -> Option<TimestampMillis>;
-}
-
 // --- impl Payment --- //
 
 impl Payment {
@@ -166,66 +139,6 @@ impl Payment {
         match self {
             Self::Onchain(onchain) => LxPaymentId::Onchain(*onchain.txid()),
             Self::Lightning(ln) => LxPaymentId::Lightning(*ln.hash()),
-        }
-    }
-}
-
-impl PaymentTrait for Payment {
-    /// Whether this payment is inbound or outbound. Useful for filtering.
-    fn direction(&self) -> PaymentDirection {
-        match self {
-            Self::Onchain(onchain) => onchain.direction(),
-            Self::Lightning(lightning) => lightning.direction(),
-        }
-    }
-
-    /// The amount of this payment in millisatoshis.
-    // TODO(max): Use LDK-provided Amount newtype when available
-    fn amt_msat(&self) -> Option<u64> {
-        match self {
-            Self::Onchain(onchain) => onchain.amt_msat(),
-            Self::Lightning(lightning) => lightning.amt_msat(),
-        }
-    }
-
-    /// The fees paid or expected to be paid for this payment.
-    // TODO(max): Use LDK-provided Amount newtype when available
-    fn fees_msat(&self) -> u64 {
-        match self {
-            Self::Onchain(onchain) => onchain.fees_msat(),
-            Self::Lightning(lightning) => lightning.fees_msat(),
-        }
-    }
-
-    /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
-    fn status(&self) -> PaymentStatus {
-        match self {
-            Self::Onchain(onchain) => onchain.status(),
-            Self::Lightning(lightning) => lightning.status(),
-        }
-    }
-
-    /// Get the payment status as a human-readable `&'static str`
-    fn status_str(&self) -> &str {
-        match self {
-            Self::Onchain(onchain) => onchain.status_str(),
-            Self::Lightning(lightning) => lightning.status_str(),
-        }
-    }
-
-    /// When this payment was created.
-    fn created_at(&self) -> TimestampMillis {
-        match self {
-            Self::Onchain(onchain) => onchain.created_at(),
-            Self::Lightning(lightning) => lightning.created_at(),
-        }
-    }
-
-    /// When this payment was completed or failed.
-    fn finalized_at(&self) -> Option<TimestampMillis> {
-        match self {
-            Self::Onchain(onchain) => onchain.finalized_at(),
-            Self::Lightning(lightning) => lightning.finalized_at(),
         }
     }
 }
