@@ -9,7 +9,9 @@ use crate::payments::offchain::outbound::{
     OutboundInvoicePayment, OutboundInvoicePaymentStatus,
     OutboundSpontaneousPayment, OutboundSpontaneousPaymentStatus,
 };
-use crate::payments::{LxPaymentHash, PaymentDirection, PaymentStatus};
+use crate::payments::{
+    LxPaymentHash, PaymentDirection, PaymentStatus, PaymentTrait,
+};
 
 /// Detailed types and state machines for inbound Lightning payments.
 pub mod inbound;
@@ -42,9 +44,11 @@ impl LightningPayment {
             }) => hash,
         }
     }
+}
 
+impl PaymentTrait for LightningPayment {
     /// Whether this payment is inbound or outbound. Useful for filtering.
-    pub fn direction(&self) -> PaymentDirection {
+    fn direction(&self) -> PaymentDirection {
         match self {
             Self::InboundInvoice(..) => PaymentDirection::Inbound,
             Self::InboundSpontaneous(..) => PaymentDirection::Inbound,
@@ -61,7 +65,7 @@ impl LightningPayment {
     ///   return the amount encoded in our invoice (if there was one).
     /// - For all other payment types, an amount is always returned.
     // TODO(max): Use LDK-provided Amount newtype when available
-    pub fn amt_msat(&self) -> Option<u64> {
+    fn amt_msat(&self) -> Option<u64> {
         match self {
             Self::InboundInvoice(InboundInvoicePayment {
                 invoice_amt_msat,
@@ -82,9 +86,9 @@ impl LightningPayment {
         }
     }
 
-    /// The fees paid or expected to be paid for this transaction.
+    /// The fees paid or expected to be paid for this payment.
     // TODO(max): Use LDK-provided Amount newtype when available
-    pub fn fees_msat(&self) -> u64 {
+    fn fees_msat(&self) -> u64 {
         match self {
             Self::InboundInvoice(InboundInvoicePayment {
                 onchain_fees_msat,
@@ -106,7 +110,7 @@ impl LightningPayment {
 
     /// Get a general [`PaymentStatus`] for this payment.
     /// Useful for filtering [`LightningPayment`] by general status.
-    pub fn status(&self) -> PaymentStatus {
+    fn status(&self) -> PaymentStatus {
         match self {
             Self::InboundInvoice(InboundInvoicePayment { status, .. }) => {
                 PaymentStatus::from(*status)
@@ -126,7 +130,7 @@ impl LightningPayment {
     }
 
     /// Get the payment status as a human-readable `&'static str`
-    pub fn status_str(&self) -> &str {
+    fn status_str(&self) -> &str {
         match self {
             Self::InboundInvoice(InboundInvoicePayment { status, .. }) => {
                 status.as_str()
@@ -151,7 +155,7 @@ impl LightningPayment {
     /// - For inbound spontaneous payments, this is when we first learned of the
     ///   inbound payment.
     /// - For outbound payments, this is when we first initiated the payment.
-    pub fn created_at(&self) -> TimestampMillis {
+    fn created_at(&self) -> TimestampMillis {
         match self {
             Self::InboundInvoice(InboundInvoicePayment {
                 created_at, ..
@@ -178,7 +182,7 @@ impl LightningPayment {
     /// - Outbound invoice payments can fail, or the recipient's invoice may
     ///   expire before we manage to complete the payment.
     /// - Outbound spontaneous payments can fail.
-    pub fn finalized_at(&self) -> Option<TimestampMillis> {
+    fn finalized_at(&self) -> Option<TimestampMillis> {
         match self {
             Self::InboundInvoice(InboundInvoicePayment {
                 finalized_at,

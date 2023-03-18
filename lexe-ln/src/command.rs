@@ -18,6 +18,7 @@ use tracing::{debug, info, warn};
 use crate::alias::PaymentInfoStorageType;
 use crate::keys_manager::LexeKeysManager;
 use crate::payments::manager::PaymentsManager;
+use crate::payments::offchain::inbound::InboundInvoicePayment;
 use crate::payments::{HTLCStatus, LxPaymentError, PaymentInfo};
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
@@ -67,7 +68,7 @@ pub fn get_invoice<CM, PS>(
     req: GetInvoiceRequest,
     channel_manager: CM,
     keys_manager: LexeKeysManager,
-    _payments_manager: PaymentsManager<PS>,
+    payments_manager: PaymentsManager<PS>,
     caller: GetInvoiceCaller,
     network: Network,
 ) -> anyhow::Result<LxInvoice>
@@ -89,7 +90,7 @@ where
     // having to manage a separate inbound payments storage outside of LDK.
     // NOTE that `handle_payment_claimable` will panic if the payment preimage
     // is not known by (and therefore cannot be provided by) LDK.
-    let (payment_hash, payment_secret) = channel_manager
+    let (hash, secret) = channel_manager
         .create_inbound_payment(
             req.amt_msat,
             req.expiry_secs,
@@ -98,9 +99,12 @@ where
         .map_err(|()| {
             anyhow!("Supplied msat amount > total bitcoin supply!")
         })?;
+    let preimage = channel_manager
+        .get_payment_preimage(hash, secret)
+        .map_err(|e| anyhow!("Could not get preimage: {e:?}"))?;
 
     let currency = Currency::from(network);
-    let payment_hash = sha256::Hash::from_slice(&payment_hash.0)
+    let sha256_hash = sha256::Hash::from_slice(&hash.0)
         .expect("Should never fail with [u8;32]");
     let expiry_time = Duration::from_secs(u64::from(req.expiry_secs));
     let our_node_pk = channel_manager.get_our_node_id();
@@ -111,10 +115,10 @@ where
     #[rustfmt::skip] // Nicer for the generic annotations to be aligned
     let mut builder = InvoiceBuilder::new(currency)          // <D, H, T, C, S>
         .description(req.description)                        // D: False -> True
-        .payment_hash(payment_hash)                          // H: False -> True
+        .payment_hash(sha256_hash)                           // H: False -> True
         .current_timestamp()                                 // T: False -> True
         .min_final_cltv_expiry_delta(u64::from(cltv_expiry)) // C: False -> True
-        .payment_secret(payment_secret)                      // S: False -> True
+        .payment_secret(secret)                              // S: False -> True
         .basic_mpp()                                         // S: _ -> True
         .expiry_time(expiry_time)
         .payee_pub_key(our_node_pk);
@@ -148,6 +152,12 @@ where
     let invoice = Invoice::from_signed(signed_raw_invoice)
         .map(LxInvoice)
         .context("Invoice was semantically incorrect")?;
+
+    let payment =
+        InboundInvoicePayment::new(invoice.clone(), hash, secret, preimage);
+    payments_manager
+        .new_payment(payment)
+        .context("Could not register new payment")?;
 
     info!("Success: Generated invoice {invoice}");
 
