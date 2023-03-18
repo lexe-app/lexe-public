@@ -1,3 +1,4 @@
+use bitcoin::Txid;
 use serde::{Deserialize, Serialize};
 
 use crate::payments::PaymentDirection;
@@ -19,6 +20,11 @@ pub struct OnchainDeposit {}
 pub struct OnchainWithdrawal {}
 
 impl OnchainPayment {
+    /// Returns the [`Txid`] of this payment.
+    pub fn txid(&self) -> &Txid {
+        todo!()
+    }
+
     /// Whether this payment is inbound or outbound. Useful for filtering.
     pub fn direction(&self) -> PaymentDirection {
         match self {
