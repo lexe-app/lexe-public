@@ -55,7 +55,7 @@ use crate::payments::offchain::outbound::{
 };
 use crate::payments::onchain::{OnchainDeposit, OnchainWithdrawal};
 
-/// Contains `PaymentTrait` and all the boilerplate required to implement it.
+/// Contains the boring / repetitive / tedious code for `Payment`'s getters.
 pub mod getters;
 /// `PaymentsManager`.
 pub mod manager;
@@ -129,7 +129,7 @@ pub struct LxPaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 // --- impl Payment --- //
 
 impl Payment {
-    // TODO(max): Move this to PaymentTrait
+    // TODO(max): Move this to getters
     pub fn id(&self) -> LxPaymentId {
         match self {
             Self::OnchainDeposit(_) => todo!(),

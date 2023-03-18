@@ -18,7 +18,7 @@ use crate::payments::{
 
 // --- InboundLightningPayment trait --- //
 
-/// A trait for methods shared between inbound Lightning payments.
+/// A trait for methods shared between inbound Lightning payments types.
 pub(crate) trait InboundLightningPayment {
     fn payment_claimable(
         &mut self,
