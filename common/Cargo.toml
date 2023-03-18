@@ -151,6 +151,8 @@ sgx-panic-backtrace = "0.1"
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Bitcoind + electrum + esplora regtest
 electrsd = { version = "0.22", features = [ "bitcoind_22_0", "esplora_a33e97e1", "legacy" ] }
+# Include std impls when testing outside of SGX
+proptest = { workspace = true, features = ["std"] }
 
 # --- FORTANIX EDP CONFIGURATION --- #
 
