@@ -1,4 +1,4 @@
-//! This module contains [`PaymentTrait`], a boring trait used to define the
+//! This module contains `PaymentTrait`, a boring trait used to define the
 //! getters that all payment types must implement. Since implementing this trait
 //! doesn't require any actual logic, and mostly consists of tedious matching,
 //! all impls for all types are tucked away here.
@@ -13,11 +13,10 @@ use crate::payments::offchain::outbound::{
     OutboundInvoicePayment, OutboundInvoicePaymentStatus,
     OutboundSpontaneousPayment, OutboundSpontaneousPaymentStatus,
 };
-use crate::payments::offchain::LightningPayment;
-use crate::payments::onchain::OnchainPayment;
 use crate::payments::{Payment, PaymentDirection, PaymentStatus};
 
 /// A trait for the boring getters defined on all payment types.
+// TODO(max): This trait can be removed entirely
 pub trait PaymentTrait {
     /// Whether this payment is inbound or outbound. Useful for filtering.
     fn direction(&self) -> PaymentDirection;
@@ -47,103 +46,12 @@ impl PaymentTrait for Payment {
     /// Whether this payment is inbound or outbound. Useful for filtering.
     fn direction(&self) -> PaymentDirection {
         match self {
-            Self::Onchain(onchain) => onchain.direction(),
-            Self::Lightning(lightning) => lightning.direction(),
-        }
-    }
-
-    /// The amount of this payment in millisatoshis.
-    // TODO(max): Use LDK-provided Amount newtype when available
-    fn amt_msat(&self) -> Option<u64> {
-        match self {
-            Self::Onchain(onchain) => onchain.amt_msat(),
-            Self::Lightning(lightning) => lightning.amt_msat(),
-        }
-    }
-
-    /// The fees paid or expected to be paid for this payment.
-    // TODO(max): Use LDK-provided Amount newtype when available
-    fn fees_msat(&self) -> u64 {
-        match self {
-            Self::Onchain(onchain) => onchain.fees_msat(),
-            Self::Lightning(lightning) => lightning.fees_msat(),
-        }
-    }
-
-    /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
-    fn status(&self) -> PaymentStatus {
-        match self {
-            Self::Onchain(onchain) => onchain.status(),
-            Self::Lightning(lightning) => lightning.status(),
-        }
-    }
-
-    /// Get the payment status as a human-readable `&'static str`
-    fn status_str(&self) -> &str {
-        match self {
-            Self::Onchain(onchain) => onchain.status_str(),
-            Self::Lightning(lightning) => lightning.status_str(),
-        }
-    }
-
-    /// When this payment was created.
-    fn created_at(&self) -> TimestampMillis {
-        match self {
-            Self::Onchain(onchain) => onchain.created_at(),
-            Self::Lightning(lightning) => lightning.created_at(),
-        }
-    }
-
-    /// When this payment was completed or failed.
-    fn finalized_at(&self) -> Option<TimestampMillis> {
-        match self {
-            Self::Onchain(onchain) => onchain.finalized_at(),
-            Self::Lightning(lightning) => lightning.finalized_at(),
-        }
-    }
-}
-
-impl PaymentTrait for OnchainPayment {
-    fn direction(&self) -> PaymentDirection {
-        match self {
-            Self::Inbound(..) => PaymentDirection::Inbound,
-            Self::Outbound(..) => PaymentDirection::Outbound,
-        }
-    }
-
-    fn amt_msat(&self) -> Option<u64> {
-        todo!()
-    }
-
-    fn fees_msat(&self) -> u64 {
-        todo!()
-    }
-
-    fn status(&self) -> PaymentStatus {
-        todo!()
-    }
-
-    fn status_str(&self) -> &str {
-        todo!()
-    }
-
-    fn created_at(&self) -> TimestampMillis {
-        todo!()
-    }
-
-    fn finalized_at(&self) -> Option<TimestampMillis> {
-        todo!()
-    }
-}
-
-impl PaymentTrait for LightningPayment {
-    /// Whether this payment is inbound or outbound. Useful for filtering.
-    fn direction(&self) -> PaymentDirection {
-        match self {
-            Self::InboundInvoice(..) => PaymentDirection::Inbound,
-            Self::InboundSpontaneous(..) => PaymentDirection::Inbound,
-            Self::OutboundInvoice(..) => PaymentDirection::Outbound,
-            Self::OutboundSpontaneous(..) => PaymentDirection::Outbound,
+            Self::OnchainDeposit(_) => PaymentDirection::Inbound,
+            Self::OnchainWithdrawal(_) => PaymentDirection::Outbound,
+            Self::InboundInvoice(_) => PaymentDirection::Inbound,
+            Self::InboundSpontaneous(_) => PaymentDirection::Inbound,
+            Self::OutboundInvoice(_) => PaymentDirection::Outbound,
+            Self::OutboundSpontaneous(_) => PaymentDirection::Outbound,
         }
     }
 
@@ -157,6 +65,8 @@ impl PaymentTrait for LightningPayment {
     // TODO(max): Use LDK-provided Amount newtype when available
     fn amt_msat(&self) -> Option<u64> {
         match self {
+            Self::OnchainDeposit(_) => todo!(),
+            Self::OnchainWithdrawal(_) => todo!(),
             Self::InboundInvoice(InboundInvoicePayment {
                 invoice_amt_msat,
                 recvd_amount_msat,
@@ -180,6 +90,8 @@ impl PaymentTrait for LightningPayment {
     // TODO(max): Use LDK-provided Amount newtype when available
     fn fees_msat(&self) -> u64 {
         match self {
+            Self::OnchainDeposit(_) => todo!(),
+            Self::OnchainWithdrawal(_) => todo!(),
             Self::InboundInvoice(InboundInvoicePayment {
                 onchain_fees_msat,
                 ..
@@ -198,10 +110,11 @@ impl PaymentTrait for LightningPayment {
         }
     }
 
-    /// Get a general [`PaymentStatus`] for this payment.
-    /// Useful for filtering [`LightningPayment`] by general status.
+    /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
     fn status(&self) -> PaymentStatus {
         match self {
+            Self::OnchainDeposit(_) => todo!(),
+            Self::OnchainWithdrawal(_) => todo!(),
             Self::InboundInvoice(InboundInvoicePayment { status, .. }) => {
                 PaymentStatus::from(*status)
             }
@@ -222,6 +135,8 @@ impl PaymentTrait for LightningPayment {
     /// Get the payment status as a human-readable `&'static str`
     fn status_str(&self) -> &str {
         match self {
+            Self::OnchainDeposit(_) => todo!(),
+            Self::OnchainWithdrawal(_) => todo!(),
             Self::InboundInvoice(InboundInvoicePayment { status, .. }) => {
                 status.as_str()
             }
@@ -240,13 +155,10 @@ impl PaymentTrait for LightningPayment {
     }
 
     /// When this payment was created.
-    ///
-    /// - For inbound invoice payments, this is when we created the invoice.
-    /// - For inbound spontaneous payments, this is when we first learned of the
-    ///   inbound payment.
-    /// - For outbound payments, this is when we first initiated the payment.
     fn created_at(&self) -> TimestampMillis {
         match self {
+            Self::OnchainDeposit(_) => todo!(),
+            Self::OnchainWithdrawal(_) => todo!(),
             Self::InboundInvoice(InboundInvoicePayment {
                 created_at, ..
             }) => *created_at,
@@ -265,15 +177,11 @@ impl PaymentTrait for LightningPayment {
         }
     }
 
-    /// When this payment was completed, failed, or timed out.
-    ///
-    /// - Inbound invoice payments can time out.
-    /// - Inbound spontaneous payments should always complete.
-    /// - Outbound invoice payments can fail, or the recipient's invoice may
-    ///   expire before we manage to complete the payment.
-    /// - Outbound spontaneous payments can fail.
+    /// When this payment was completed or failed.
     fn finalized_at(&self) -> Option<TimestampMillis> {
         match self {
+            Self::OnchainDeposit(_) => todo!(),
+            Self::OnchainWithdrawal(_) => todo!(),
             Self::InboundInvoice(InboundInvoicePayment {
                 finalized_at,
                 ..

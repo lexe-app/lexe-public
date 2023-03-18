@@ -4,32 +4,26 @@
 //!
 //! [`Payment`]
 //! |
-//! |___[`OnchainPayment`]
-//! |   |
-//! |   |___[`OnchainDeposit`]
-//! |   |
-//! |   |___[`OnchainWithdrawal`]
-//! |   |
-//! |   |___`SpliceIn` TODO(max): Implement
-//! |   |
-//! |   |___`SpliceOut` TODO(max): Implement
+//! |___[`OnchainDeposit`]
 //! |
-//! |___[`LightningPayment`]
-//!     |
-//!     |___[`InboundInvoicePayment`]
-//!     |
-//!     |___[`InboundSpontaneousPayment`]
-//!     |
-//!     |___[`OutboundInvoicePayment`]
-//!     |
-//!     |___[`OutboundSpontaneousPayment`]
+//! |___[`OnchainWithdrawal`]
+//! |
+//! |___`SpliceIn` TODO(max): Implement
+//! |
+//! |___`SpliceOut` TODO(max): Implement
+//! |
+//! |___[`InboundInvoicePayment`]
+//! |
+//! |___[`InboundSpontaneousPayment`]
+//! |
+//! |___[`OutboundInvoicePayment`]
+//! |
+//! |___[`OutboundSpontaneousPayment`]
 //!
 //! NOTE: Everything in this hierarchy impls [`Serialize`] and [`Deserialize`],
 //! so be mindful of backwards compatibility.
 //!
 //! [`Payment`]: payments::Payment
-//! [`OnchainPayment`]: payments::onchain::OnchainPayment
-//! [`LightningPayment`]: payments::offchain::LightningPayment
 //! [`OnchainDeposit`]: payments::onchain::OnchainDeposit
 //! [`OnchainWithdrawal`]: payments::onchain::OnchainWithdrawal
 //! [`InboundInvoicePayment`]: payments::offchain::inbound::InboundInvoicePayment
@@ -49,21 +43,17 @@ use common::hex::{self, FromHex};
 use common::hexstr_or_bytes;
 use lightning::ln::channelmanager::{PaymentId, PaymentSendFailure};
 use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
-use lightning::util::events::PaymentPurpose;
 use lightning_invoice::payment::PaymentError;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::payments::offchain::inbound::{
-    InboundInvoicePayment, InboundLightningPayment, InboundSpontaneousPayment,
+    InboundInvoicePayment, InboundSpontaneousPayment,
 };
 use crate::payments::offchain::outbound::{
     OutboundInvoicePayment, OutboundSpontaneousPayment,
 };
-use crate::payments::offchain::LightningPayment;
-use crate::payments::onchain::{
-    OnchainDeposit, OnchainPayment, OnchainWithdrawal,
-};
+use crate::payments::onchain::{OnchainDeposit, OnchainWithdrawal};
 
 /// `PaymentsManager`.
 pub mod manager;
@@ -80,8 +70,12 @@ pub mod payment_trait;
 /// including both onchain and off-chain (Lightning) payments.
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Payment {
-    Onchain(OnchainPayment),
-    Lightning(LightningPayment),
+    OnchainDeposit(OnchainDeposit),
+    OnchainWithdrawal(OnchainWithdrawal),
+    InboundInvoice(InboundInvoicePayment),
+    InboundSpontaneous(InboundSpontaneousPayment),
+    OutboundInvoice(OutboundInvoicePayment),
+    OutboundSpontaneous(OutboundSpontaneousPayment),
 }
 
 /// Specifies whether a payment is inbound or outbound.
@@ -135,29 +129,15 @@ pub struct LxPaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 // --- impl Payment --- //
 
 impl Payment {
+    // TODO(max): Move this to PaymentTrait
     pub fn id(&self) -> LxPaymentId {
         match self {
-            Self::Onchain(onchain) => LxPaymentId::Onchain(*onchain.txid()),
-            Self::Lightning(ln) => LxPaymentId::Lightning(*ln.hash()),
-        }
-    }
-}
-
-impl InboundLightningPayment for Payment {
-    fn payment_claimable(
-        &mut self,
-        hash: LxPaymentHash,
-        amt_msat: u64,
-        purpose: PaymentPurpose,
-    ) -> anyhow::Result<()> {
-        match self {
-            Self::Lightning(LightningPayment::InboundInvoice(iip)) => iip
-                .payment_claimable(hash, amt_msat, purpose)
-                .context("Error claiming inbound invoice payment"),
-            Self::Lightning(LightningPayment::InboundSpontaneous(isp)) => isp
-                .payment_claimable(hash, amt_msat, purpose)
-                .context("Error claiming inbound spontaneous payment"),
-            _ => bail!("Not an inbound Lightning payment"),
+            Self::OnchainDeposit(_) => todo!(),
+            Self::OnchainWithdrawal(_) => todo!(),
+            Self::InboundInvoice(iip) => LxPaymentId::Lightning(iip.hash),
+            Self::InboundSpontaneous(isp) => LxPaymentId::Lightning(isp.hash),
+            Self::OutboundInvoice(oip) => LxPaymentId::Lightning(oip.hash),
+            Self::OutboundSpontaneous(osp) => LxPaymentId::Lightning(osp.hash),
         }
     }
 }
@@ -335,32 +315,32 @@ impl Display for LxPaymentSecret {
 
 impl From<OnchainDeposit> for Payment {
     fn from(p: OnchainDeposit) -> Self {
-        Self::Onchain(OnchainPayment::Inbound(p))
+        Self::OnchainDeposit(p)
     }
 }
 impl From<OnchainWithdrawal> for Payment {
     fn from(p: OnchainWithdrawal) -> Self {
-        Self::Onchain(OnchainPayment::Outbound(p))
+        Self::OnchainWithdrawal(p)
     }
 }
 impl From<InboundInvoicePayment> for Payment {
     fn from(p: InboundInvoicePayment) -> Self {
-        Self::Lightning(LightningPayment::InboundInvoice(p))
+        Self::InboundInvoice(p)
     }
 }
 impl From<InboundSpontaneousPayment> for Payment {
     fn from(p: InboundSpontaneousPayment) -> Self {
-        Self::Lightning(LightningPayment::InboundSpontaneous(p))
+        Self::InboundSpontaneous(p)
     }
 }
 impl From<OutboundInvoicePayment> for Payment {
     fn from(p: OutboundInvoicePayment) -> Self {
-        Self::Lightning(LightningPayment::OutboundInvoice(p))
+        Self::OutboundInvoice(p)
     }
 }
 impl From<OutboundSpontaneousPayment> for Payment {
     fn from(p: OutboundSpontaneousPayment) -> Self {
-        Self::Lightning(LightningPayment::OutboundSpontaneous(p))
+        Self::OutboundSpontaneous(p)
     }
 }
 
