@@ -14,6 +14,16 @@ use tracing::warn;
 use crate::command::get_invoice;
 use crate::payments::{LxPaymentHash, LxPaymentPreimage, LxPaymentSecret};
 
+/// A trait for methods shared between inbound Lightning payments.
+pub(crate) trait InboundLightningPayment {
+    fn payment_claimable(
+        &mut self,
+        payment_hash: LxPaymentHash,
+        amount_msat: u64,
+        purpose: PaymentPurpose,
+    ) -> anyhow::Result<()>;
+}
+
 // --- Inbound invoice payments --- //
 
 /// A 'conventional' inbound payment which is facilitated by an invoice.
@@ -93,8 +103,10 @@ impl InboundInvoicePayment {
             finalized_at: None,
         }
     }
+}
 
-    pub fn payment_claimable(
+impl InboundLightningPayment for InboundInvoicePayment {
+    fn payment_claimable(
         &mut self,
         hash: LxPaymentHash,
         amt_msat: u64,
@@ -195,7 +207,26 @@ pub enum InboundSpontaneousPaymentStatus {
 }
 
 impl InboundSpontaneousPayment {
-    pub fn payment_claimable(
+    pub(crate) fn new(
+        hash: LxPaymentHash,
+        preimage: LxPaymentPreimage,
+        amt_msat: u64,
+    ) -> Self {
+        Self {
+            hash,
+            preimage,
+            amt_msat,
+            // TODO(max): Implement
+            onchain_fees_msat: None,
+            status: InboundSpontaneousPaymentStatus::Claiming,
+            created_at: TimestampMillis::now(),
+            finalized_at: None,
+        }
+    }
+}
+
+impl InboundLightningPayment for InboundSpontaneousPayment {
+    fn payment_claimable(
         &mut self,
         _payment_hash: LxPaymentHash,
         _amount_msat: u64,

@@ -50,12 +50,13 @@ use common::hexstr_or_bytes;
 use common::time::TimestampMillis;
 use lightning::ln::channelmanager::{PaymentId, PaymentSendFailure};
 use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
+use lightning::util::events::PaymentPurpose;
 use lightning_invoice::payment::PaymentError;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::payments::offchain::inbound::{
-    InboundInvoicePayment, InboundSpontaneousPayment,
+    InboundInvoicePayment, InboundLightningPayment, InboundSpontaneousPayment,
 };
 use crate::payments::offchain::outbound::{
     OutboundInvoicePayment, OutboundSpontaneousPayment,
@@ -225,6 +226,25 @@ impl PaymentTrait for Payment {
         match self {
             Self::Onchain(onchain) => onchain.finalized_at(),
             Self::Lightning(lightning) => lightning.finalized_at(),
+        }
+    }
+}
+
+impl InboundLightningPayment for Payment {
+    fn payment_claimable(
+        &mut self,
+        hash: LxPaymentHash,
+        amt_msat: u64,
+        purpose: PaymentPurpose,
+    ) -> anyhow::Result<()> {
+        match self {
+            Self::Lightning(LightningPayment::InboundInvoice(iip)) => iip
+                .payment_claimable(hash, amt_msat, purpose)
+                .context("Error claiming inbound invoice payment"),
+            Self::Lightning(LightningPayment::InboundSpontaneous(isp)) => isp
+                .payment_claimable(hash, amt_msat, purpose)
+                .context("Error claiming inbound spontaneous payment"),
+            _ => bail!("Not an inbound Lightning payment"),
         }
     }
 }

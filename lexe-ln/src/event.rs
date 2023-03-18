@@ -8,6 +8,7 @@ use lightning::util::events::{Event, PaymentPurpose};
 use tracing::info;
 
 use crate::payments::manager::PaymentsManager;
+use crate::payments::LxPaymentHash;
 use crate::test_event::{TestEvent, TestEventSender};
 use crate::traits::{LexeChannelManager, LexePersister};
 use crate::wallet::LexeWallet;
@@ -86,6 +87,7 @@ where
 }
 
 /// Handles a [`Event::PaymentClaimable`].
+// TODO(max): Fold this entire function into PaymentsManager
 pub fn handle_payment_claimable<CM, PS>(
     channel_manager: CM,
     payments_manager: PaymentsManager<PS>,
@@ -102,8 +104,9 @@ where
     let hash_str = hex::encode(&payment_hash.0);
     info!("Received payment of {amt_msat} msats with hash {hash_str}");
 
+    let hash = LxPaymentHash::from(payment_hash);
     payments_manager
-        .payment_claimable(payment_hash, amt_msat, purpose.clone())
+        .payment_claimable(hash, amt_msat, purpose.clone())
         .context("Error claiming payment")?;
 
     let payment_preimage = match purpose {
