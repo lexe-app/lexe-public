@@ -7,6 +7,7 @@ use lightning::ln::PaymentHash;
 use lightning::util::events::{Event, PaymentPurpose};
 use tracing::info;
 
+use crate::payments::manager::PaymentsManager;
 use crate::test_event::{TestEvent, TestEventSender};
 use crate::traits::{LexeChannelManager, LexePersister};
 use crate::wallet::LexeWallet;
@@ -87,10 +88,11 @@ where
 /// Handles a [`Event::PaymentClaimable`].
 pub fn handle_payment_claimable<CM, PS>(
     channel_manager: CM,
+    payments_manager: PaymentsManager<PS>,
     test_event_tx: &TestEventSender,
 
     payment_hash: PaymentHash,
-    amount_msat: u64,
+    amt_msat: u64,
     purpose: PaymentPurpose,
 ) -> anyhow::Result<()>
 where
@@ -98,7 +100,11 @@ where
     PS: LexePersister,
 {
     let hash_str = hex::encode(&payment_hash.0);
-    info!("Received payment of {amount_msat} msats with hash {hash_str}");
+    info!("Received payment of {amt_msat} msats with hash {hash_str}");
+
+    payments_manager
+        .payment_claimable(payment_hash, amt_msat, purpose.clone())
+        .context("Error claiming payment")?;
 
     let payment_preimage = match purpose {
         PaymentPurpose::InvoicePayment {
@@ -128,11 +134,11 @@ where
     // events and duplicate payments to the same invoice.
     // https://discord.com/channels/915026692102316113/978829624635195422/1085427966986690570
 
-    // TODO(max): `claim_funds` docs state that we must check that the
-    // amount_msat we received matches our expectation, relevant if we're
-    // receiving payment for e.g. an order of some sort. Otherwise, we will have
-    // given the sender a proof-of-payment when they did not fulfill the full
-    // expected payment. Implement this once it becomes relevant.
+    // TODO(max): `claim_funds` docs state that we must check that the amt_msat
+    // we received matches our expectation, relevant if we're receiving payment
+    // for e.g. an order of some sort. Otherwise, we will have given the sender
+    // a proof-of-payment when they did not fulfill the full expected payment.
+    // Implement this once it becomes relevant.
     channel_manager.claim_funds(payment_preimage);
 
     test_event_tx.send(TestEvent::PaymentClaimable);
