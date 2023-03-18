@@ -3,7 +3,6 @@ use common::ln::invoice::LxInvoice;
 use common::time::TimestampMillis;
 #[cfg(doc)]
 use lightning::ln::channelmanager::ChannelManager;
-use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::util::events::Event::{PaymentClaimable, PaymentClaimed};
 use lightning::util::events::PaymentPurpose;
@@ -37,13 +36,13 @@ impl Payment {
                 },
             ) => {
                 let preimage =
-                    payment_preimage.map(LxPaymentPreimage::from).expect(
+                    payment_preimage.map(LxPaymentPreimage::from).context(
                         "We previously generated this invoice using a method \
                         other than `ChannelManager::create_inbound_payment`, \
                         resulting in the channel manager not being aware of \
                         the payment preimage, OR LDK failed to provide the \
                         preimage back to us.",
-                    );
+                    )?;
                 let secret = LxPaymentSecret::from(payment_secret);
 
                 iip.payment_claimable(hash, amt_msat, preimage, secret)
@@ -128,16 +127,16 @@ pub enum InboundInvoicePaymentStatus {
 impl InboundInvoicePayment {
     pub fn new(
         invoice: LxInvoice,
-        hash: PaymentHash,
-        secret: PaymentSecret,
-        preimage: PaymentPreimage,
+        hash: LxPaymentHash,
+        secret: LxPaymentSecret,
+        preimage: LxPaymentPreimage,
     ) -> Self {
         let invoice_amt_msat = invoice.0.amount_milli_satoshis();
         Self {
             invoice: Box::new(invoice),
-            hash: LxPaymentHash::from(hash),
-            secret: LxPaymentSecret::from(secret),
-            preimage: LxPaymentPreimage::from(preimage),
+            hash,
+            secret,
+            preimage,
             invoice_amt_msat,
             recvd_amount_msat: None,
             onchain_fees_msat: None,

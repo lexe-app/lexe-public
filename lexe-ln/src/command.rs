@@ -153,8 +153,12 @@ where
         .map(LxInvoice)
         .context("Invoice was semantically incorrect")?;
 
-    let payment =
-        InboundInvoicePayment::new(invoice.clone(), hash, secret, preimage);
+    let payment = InboundInvoicePayment::new(
+        invoice.clone(),
+        hash.into(),
+        secret.into(),
+        preimage.into(),
+    );
     payments_manager
         .new_payment(payment)
         .context("Could not register new payment")?;
