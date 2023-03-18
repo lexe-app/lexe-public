@@ -65,7 +65,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         Ok(())
     }
 
-    /// Handles a [`Event::PaymentClaimable`].
+    /// Handles a [`PaymentClaimable`] event.
+    ///
+    /// [`PaymentClaimable`]: lightning::util::events::Event::PaymentClaimable
     pub fn payment_claimable(
         &self,
         hash: impl Into<LxPaymentHash>,
@@ -73,7 +75,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         purpose: PaymentPurpose,
     ) -> anyhow::Result<()> {
         let hash = hash.into();
-        info!("Claiming payment of {amt_msat} msats with hash {hash}");
+        info!(%amt_msat, %hash, "Handling PaymentClaimable");
 
         // Update our storage
         let preimage = self
@@ -96,6 +98,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         self.test_event_tx.send(TestEvent::PaymentClaimable);
 
+        info!("Handled PaymentClaimable");
         Ok(())
     }
 }
