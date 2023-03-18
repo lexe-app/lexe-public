@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
-use anyhow::{bail, ensure};
+use anyhow::{bail, ensure, Context};
 use lightning::util::events::PaymentPurpose;
 
 use crate::payments::inbound::{
@@ -15,49 +15,39 @@ use crate::traits::LexePersister;
 #[allow(dead_code)] // TODO(max): Remove
 #[derive(Clone)]
 pub struct PaymentsManager<PS: LexePersister> {
-    pending: Arc<Mutex<HashMap<LxPaymentId, Payment>>>,
-    finalized: Arc<Mutex<HashSet<LxPaymentId>>>,
+    data: Arc<Mutex<PaymentsData>>,
     persister: PS,
+}
+
+/// Methods on [`PaymentsData`] take `&mut self`, which allows reentrancy
+/// without deadlocking. [`PaymentsData`] also reduces code bloat from
+/// monomorphization by taking only concrete types as parameters.
+struct PaymentsData {
+    pending: HashMap<LxPaymentId, Payment>,
+    finalized: HashSet<LxPaymentId>,
 }
 
 impl<PS: LexePersister> PaymentsManager<PS> {
     pub fn new(persister: PS) -> Self {
-        // TODO(max): Take these as params
-        let pending = Arc::new(Mutex::new(HashMap::new()));
-        let finalized = Arc::new(Mutex::new(HashSet::new()));
+        // TODO(max): Take initial data in parameters
+        let data = Arc::new(Mutex::new(PaymentsData {
+            pending: HashMap::new(),
+            finalized: HashSet::new(),
+        }));
 
-        Self {
-            pending,
-            finalized,
-            persister,
-        }
+        Self { data, persister }
     }
 
     /// Register a new, globally-unique payment.
-    pub fn new_payment<P: Into<Payment>>(
+    pub fn new_payment(
         &self,
-        payment: P,
+        payment: impl Into<Payment>,
     ) -> anyhow::Result<()> {
-        let payment = payment.into();
-        let mut locked_pending = self.pending.lock().unwrap();
-        let locked_finalized = self.finalized.lock().unwrap();
-
-        // Check that this payment is indeed unique.
-        let id = payment.id();
-        ensure!(
-            !locked_pending.contains_key(&id),
-            "Payment already exists: pending"
-        );
-        ensure!(
-            !locked_finalized.contains(&id),
-            "Payment already exists: finalized"
-        );
-
-        // Newly created payments should *always* be pending.
-        debug_assert!(matches!(payment.status(), PaymentStatus::Pending));
-
-        // Insert into the map
-        locked_pending.insert(id, payment);
+        self.data
+            .lock()
+            .unwrap()
+            .new_payment(payment.into())
+            .context("Error handling new payment")?;
 
         // TODO(max): Persist the payment
 
@@ -67,20 +57,58 @@ impl<PS: LexePersister> PaymentsManager<PS> {
     /// Register that we are about to claim an inbound Lightning payment.
     pub fn payment_claimable(
         &self,
+        hash: impl Into<LxPaymentHash>,
+        amt_msat: u64,
+        purpose: PaymentPurpose,
+    ) -> anyhow::Result<()> {
+        self.data
+            .lock()
+            .unwrap()
+            .payment_claimable(hash.into(), amt_msat, purpose)
+            .context("Error handling PaymentClaimable")?;
+
+        // TODO(max): Persist
+
+        Ok(())
+    }
+}
+
+impl PaymentsData {
+    pub fn new_payment(&mut self, payment: Payment) -> anyhow::Result<()> {
+        // Check that this payment is indeed unique.
+        let id = payment.id();
+        ensure!(
+            !self.pending.contains_key(&id),
+            "Payment already exists: pending"
+        );
+        ensure!(
+            !self.finalized.contains(&id),
+            "Payment already exists: finalized"
+        );
+
+        // Newly created payments should *always* be pending.
+        debug_assert!(matches!(payment.status(), PaymentStatus::Pending));
+
+        // Insert into the map
+        self.pending.insert(id, payment);
+
+        Ok(())
+    }
+
+    pub fn payment_claimable(
+        &mut self,
         hash: LxPaymentHash,
         amt_msat: u64,
         purpose: PaymentPurpose,
     ) -> anyhow::Result<()> {
-        let mut locked_pending = self.pending.lock().unwrap();
-        let locked_finalized = self.finalized.lock().unwrap();
         let id = LxPaymentId::from(hash);
 
         ensure!(
-            !locked_finalized.contains(&id),
+            !self.finalized.contains(&id),
             "Payment was a duplicate, or was already finalized"
         );
 
-        let maybe_pending_payment = locked_pending.get_mut(&id);
+        let maybe_pending_payment = self.pending.get_mut(&id);
 
         match (maybe_pending_payment, purpose) {
             (Some(pending_payment), purpose) => {
@@ -89,22 +117,18 @@ impl<PS: LexePersister> PaymentsManager<PS> {
             }
             (None, PaymentPurpose::SpontaneousPayment(preimage)) => {
                 // We just got a new spontaneous payment!
-                // Create the new payment and insert it into our hashmap.
+                // Create the new payment.
                 let preimage = LxPaymentPreimage::from(preimage);
                 let isp =
                     InboundSpontaneousPayment::new(hash, preimage, amt_msat);
                 let payment = Payment::from(isp);
-                // TODO(max): Should we be calling into Self::new_payment here?
-                // How best to design the API to prevent deadlocks?
-                // Maybe an inner struct with methods that take &mut self?
-                locked_pending.insert(id, payment);
+                self.new_payment(payment)
+                    .context("Error creating new spontaneous payment")?;
             }
             (None, PaymentPurpose::InvoicePayment { .. }) => {
                 bail!("Tried to claim non-existent invoice payment")
             }
         }
-
-        // TODO(max): Persist
 
         Ok(())
     }
