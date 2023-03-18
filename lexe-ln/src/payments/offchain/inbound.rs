@@ -1,3 +1,4 @@
+use anyhow::{bail, ensure, Context};
 use common::ln::invoice::LxInvoice;
 use common::time::TimestampMillis;
 #[cfg(doc)]
@@ -5,9 +6,9 @@ use lightning::ln::channelmanager::ChannelManager;
 use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::util::events::Event::{PaymentClaimable, PaymentClaimed};
-#[cfg(doc)]
 use lightning::util::events::PaymentPurpose;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 #[cfg(doc)]
 use crate::command::get_invoice;
@@ -92,6 +93,64 @@ impl InboundInvoicePayment {
             finalized_at: None,
         }
     }
+
+    pub fn payment_claimable(
+        &mut self,
+        hash: LxPaymentHash,
+        amt_msat: u64,
+        purpose: PaymentPurpose,
+    ) -> anyhow::Result<()> {
+        use InboundInvoicePaymentStatus as Status;
+        match self.status {
+            Status::InvoiceGenerated => (),
+            Status::Claiming => warn!("Re-claiming inbound invoice payment"),
+            Status::Completed | Status::TimedOut => {
+                bail!("Payment already final")
+            }
+        }
+
+        ensure!(hash == self.hash, "Hashes don't match");
+
+        match purpose {
+            PaymentPurpose::InvoicePayment {
+                payment_preimage,
+                payment_secret,
+            } => {
+                let given_preimage =
+                    payment_preimage.map(LxPaymentPreimage::from).context(
+                        "We previously generated this invoice using a method \
+                        other than `ChannelManager::create_inbound_payment`, \
+                        resulting in the channel manager not being aware of \
+                        the payment preimage, OR LDK failed to provide the \
+                        preimage back to us.",
+                    )?;
+                let given_secret = LxPaymentSecret::from(payment_secret);
+                ensure!(
+                    given_preimage == self.preimage,
+                    "Preimages don't match",
+                );
+                ensure!(given_secret == self.secret, "Secrets don't match");
+            }
+            PaymentPurpose::SpontaneousPayment { .. } => {
+                bail!("This is not a spontaneous payment")
+            }
+        };
+
+        if let Some(invoice_amt_msat) = self.invoice_amt_msat {
+            if amt_msat < invoice_amt_msat {
+                warn!("Requested {invoice_amt_msat} but claiming {amt_msat}");
+                // TODO(max): In the future, we might want to bail! instead
+            }
+        }
+
+        // TODO(max): In the future, check for on-chain fees here
+
+        // Everything ok, update our state
+        self.recvd_amount_msat = Some(amt_msat);
+        self.status = InboundInvoicePaymentStatus::Claiming;
+
+        Ok(())
+    }
 }
 
 // --- Inbound spontaneous payments --- //
@@ -133,4 +192,15 @@ pub enum InboundSpontaneousPaymentStatus {
     // be true (i.e. we observe a number of inbound spontaneous payments
     // stuck in the "claiming" state), then we can add a "Failed" state
     // here. https://discord.com/channels/915026692102316113/978829624635195422/1085427776070365214
+}
+
+impl InboundSpontaneousPayment {
+    pub fn payment_claimable(
+        &mut self,
+        _payment_hash: LxPaymentHash,
+        _amount_msat: u64,
+        _purpose: PaymentPurpose,
+    ) -> anyhow::Result<()> {
+        todo!()
+    }
 }

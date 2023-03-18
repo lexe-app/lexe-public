@@ -158,7 +158,7 @@ async fn handle_event_fallible(
     esplora: &LexeEsplora,
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
-    _payments_manager: &NodePaymentsManagerType,
+    payments_manager: &NodePaymentsManagerType,
     outbound_payments: &PaymentInfoStorageType,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
@@ -254,6 +254,7 @@ async fn handle_event_fallible(
         } => {
             event::handle_payment_claimable(
                 channel_manager.clone(),
+                payments_manager.clone(),
                 test_event_tx,
                 payment_hash,
                 amount_msat,
