@@ -327,7 +327,11 @@ impl UserNode {
         ));
 
         // Init payments manager
-        let payments_manager = PaymentsManager::new(persister.clone());
+        let payments_manager = PaymentsManager::new(
+            persister.clone(),
+            channel_manager.clone(),
+            test_event_tx.clone(),
+        );
 
         // Initialize the event handler
         // XXX(max): It is security-critical to persist our outbound payment
