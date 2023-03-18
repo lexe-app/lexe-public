@@ -32,6 +32,7 @@ use lexe_ln::esplora::LexeEsplora;
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::p2p::ChannelPeerUpdate;
+use lexe_ln::payments::manager::PaymentsManager;
 use lexe_ln::test_event::TestEventSender;
 use lexe_ln::wallet::{self, LexeWallet};
 use lexe_ln::{channel_monitor, p2p, sync};
@@ -45,7 +46,7 @@ use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot, watch};
 use tracing::{debug, error, info, instrument};
 
-use crate::alias::ChainMonitorType;
+use crate::alias::{ChainMonitorType, NodePaymentsManagerType};
 use crate::api::BackendApiClient;
 use crate::channel_manager::NodeChannelManager;
 use crate::event_handler::NodeEventHandler;
@@ -88,6 +89,7 @@ pub struct UserNode {
     onion_messenger: Arc<OnionMessengerType>,
     pub peer_manager: NodePeerManager,
     inactivity_timer: InactivityTimer,
+    pub payments_manager: NodePaymentsManagerType,
     pub outbound_payments: PaymentInfoStorageType,
 
     // --- Contexts --- //
@@ -324,6 +326,9 @@ impl UserNode {
             shutdown.clone(),
         ));
 
+        // Init payments manager
+        let payments_manager = PaymentsManager::new(persister.clone());
+
         // Initialize the event handler
         // XXX(max): It is security-critical to persist our outbound payment
         // storage to ensure that we never pay the same `PaymentHash` twice.
@@ -338,6 +343,7 @@ impl UserNode {
             keys_manager: keys_manager.clone(),
             esplora: esplora.clone(),
             network_graph: network_graph.clone(),
+            payments_manager: payments_manager.clone(),
             outbound_payments: outbound_payments.clone(),
             test_event_tx: test_event_tx.clone(),
             blocking_task_rt: BlockingTaskRt::new(),
@@ -365,6 +371,7 @@ impl UserNode {
             peer_manager.clone(),
             network_graph.clone(),
             keys_manager.clone(),
+            payments_manager.clone(),
             outbound_payments.clone(),
             args.lsp.clone(),
             scid,
@@ -453,8 +460,7 @@ impl UserNode {
             onion_messenger,
             peer_manager,
             inactivity_timer,
-
-            // Storage
+            payments_manager,
             outbound_payments,
 
             // Contexts

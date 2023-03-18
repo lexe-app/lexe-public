@@ -12,6 +12,7 @@ use lexe_ln::command::GetInvoiceCaller;
 use lexe_ln::keys_manager::LexeKeysManager;
 use warp::Filter;
 
+use crate::alias::NodePaymentsManagerType;
 use crate::channel_manager::NodeChannelManager;
 use crate::peer_manager::NodePeerManager;
 
@@ -56,6 +57,14 @@ pub(crate) fn keys_manager(
     keys_manager: LexeKeysManager,
 ) -> impl Filter<Extract = (LexeKeysManager,), Error = Infallible> + Clone {
     warp::any().map(move || keys_manager.clone())
+}
+
+/// Injects a payments manager.
+pub(crate) fn payments_manager(
+    payments_manager: NodePaymentsManagerType,
+) -> impl Filter<Extract = (NodePaymentsManagerType,), Error = Infallible> + Clone
+{
+    warp::any().map(move || payments_manager.clone())
 }
 
 /// Injects the outbound payments storage.

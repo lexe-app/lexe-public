@@ -17,6 +17,7 @@ use tracing::{debug, info, warn};
 
 use crate::alias::PaymentInfoStorageType;
 use crate::keys_manager::LexeKeysManager;
+use crate::payments::manager::PaymentsManager;
 use crate::payments::{HTLCStatus, LxPaymentError, PaymentInfo};
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
@@ -63,11 +64,12 @@ where
 }
 
 pub fn get_invoice<CM, PS>(
+    req: GetInvoiceRequest,
     channel_manager: CM,
     keys_manager: LexeKeysManager,
+    _payments_manager: PaymentsManager<PS>,
     caller: GetInvoiceCaller,
     network: Network,
-    req: GetInvoiceRequest,
 ) -> anyhow::Result<LxInvoice>
 where
     CM: LexeChannelManager<PS>,
