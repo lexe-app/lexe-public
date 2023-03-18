@@ -16,32 +16,52 @@ use crate::payments::{
     LxPaymentHash, LxPaymentPreimage, LxPaymentSecret, Payment,
 };
 
-// --- InboundLightningPayment trait --- //
+// --- Helpers to delegate to the inner type --- //
 
-/// A trait for methods shared between inbound Lightning payments types.
-pub(crate) trait InboundLightningPayment {
-    fn payment_claimable(
-        &mut self,
-        payment_hash: LxPaymentHash,
-        amount_msat: u64,
-        purpose: PaymentPurpose,
-    ) -> anyhow::Result<()>;
-}
-
-impl InboundLightningPayment for Payment {
-    fn payment_claimable(
+impl Payment {
+    /// Helper to handle the ugly [`Payment`] and [`PaymentPurpose`] matching.
+    ///
+    /// Returns an unwrapped [`LxPaymentPreimage`] which the caller can use.
+    pub(crate) fn payment_claimable(
         &mut self,
         hash: LxPaymentHash,
         amt_msat: u64,
         purpose: PaymentPurpose,
-    ) -> anyhow::Result<()> {
-        match self {
-            Self::InboundInvoice(iip) => iip
-                .payment_claimable(hash, amt_msat, purpose)
-                .context("Error claiming inbound invoice payment"),
-            Self::InboundSpontaneous(isp) => isp
-                .payment_claimable(hash, amt_msat, purpose)
-                .context("Error claiming inbound spontaneous payment"),
+    ) -> anyhow::Result<LxPaymentPreimage> {
+        match (self, purpose) {
+            (
+                Self::InboundInvoice(iip),
+                PaymentPurpose::InvoicePayment {
+                    payment_preimage,
+                    payment_secret,
+                },
+            ) => {
+                let preimage =
+                    payment_preimage.map(LxPaymentPreimage::from).expect(
+                        "We previously generated this invoice using a method \
+                        other than `ChannelManager::create_inbound_payment`, \
+                        resulting in the channel manager not being aware of \
+                        the payment preimage, OR LDK failed to provide the \
+                        preimage back to us.",
+                    );
+                let secret = LxPaymentSecret::from(payment_secret);
+
+                iip.payment_claimable(hash, amt_msat, preimage, secret)
+                    .context("Error claiming inbound invoice payment")?;
+
+                Ok(preimage)
+            }
+            (
+                Self::InboundSpontaneous(isp),
+                PaymentPurpose::SpontaneousPayment(payment_preimage),
+            ) => {
+                let preimage = LxPaymentPreimage::from(payment_preimage);
+
+                isp.payment_claimable(hash, amt_msat, preimage)
+                    .context("Error claiming inbound spontaneous payment")?;
+
+                Ok(preimage)
+            }
             _ => bail!("Not an inbound Lightning payment"),
         }
     }
@@ -126,14 +146,13 @@ impl InboundInvoicePayment {
             finalized_at: None,
         }
     }
-}
 
-impl InboundLightningPayment for InboundInvoicePayment {
     fn payment_claimable(
         &mut self,
         hash: LxPaymentHash,
         amt_msat: u64,
-        purpose: PaymentPurpose,
+        preimage: LxPaymentPreimage,
+        secret: LxPaymentSecret,
     ) -> anyhow::Result<()> {
         use InboundInvoicePaymentStatus as Status;
         match self.status {
@@ -145,31 +164,8 @@ impl InboundLightningPayment for InboundInvoicePayment {
         }
 
         ensure!(hash == self.hash, "Hashes don't match");
-
-        match purpose {
-            PaymentPurpose::InvoicePayment {
-                payment_preimage,
-                payment_secret,
-            } => {
-                let given_preimage =
-                    payment_preimage.map(LxPaymentPreimage::from).context(
-                        "We previously generated this invoice using a method \
-                        other than `ChannelManager::create_inbound_payment`, \
-                        resulting in the channel manager not being aware of \
-                        the payment preimage, OR LDK failed to provide the \
-                        preimage back to us.",
-                    )?;
-                let given_secret = LxPaymentSecret::from(payment_secret);
-                ensure!(
-                    given_preimage == self.preimage,
-                    "Preimages don't match",
-                );
-                ensure!(given_secret == self.secret, "Secrets don't match");
-            }
-            PaymentPurpose::SpontaneousPayment { .. } => {
-                bail!("This is not a spontaneous payment")
-            }
-        };
+        ensure!(preimage == self.preimage, "Preimages don't match",);
+        ensure!(secret == self.secret, "Secrets don't match");
 
         if let Some(invoice_amt_msat) = self.invoice_amt_msat {
             if amt_msat < invoice_amt_msat {
@@ -246,14 +242,12 @@ impl InboundSpontaneousPayment {
             finalized_at: None,
         }
     }
-}
 
-impl InboundLightningPayment for InboundSpontaneousPayment {
     fn payment_claimable(
         &mut self,
         _payment_hash: LxPaymentHash,
         _amount_msat: u64,
-        _purpose: PaymentPurpose,
+        _preimage: LxPaymentPreimage,
     ) -> anyhow::Result<()> {
         todo!()
     }
