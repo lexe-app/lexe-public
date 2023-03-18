@@ -4,10 +4,10 @@ use std::sync::{Arc, Mutex};
 use anyhow::{bail, ensure};
 use lightning::util::events::PaymentPurpose;
 
+use crate::payments::getters::PaymentTrait;
 use crate::payments::offchain::inbound::{
     InboundLightningPayment, InboundSpontaneousPayment,
 };
-use crate::payments::payment_trait::PaymentTrait;
 use crate::payments::{
     LxPaymentHash, LxPaymentId, LxPaymentPreimage, Payment, PaymentStatus,
 };

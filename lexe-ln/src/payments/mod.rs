@@ -55,14 +55,14 @@ use crate::payments::offchain::outbound::{
 };
 use crate::payments::onchain::{OnchainDeposit, OnchainWithdrawal};
 
+/// Contains `PaymentTrait` and all the boilerplate required to implement it.
+pub mod getters;
 /// `PaymentsManager`.
 pub mod manager;
 /// Lightning payment types and state machines.
 pub mod offchain;
 /// On-chain payment types and state machines.
 pub mod onchain;
-/// Contains `PaymentTrait` and all the boilerplate required to implement it.
-pub mod payment_trait;
 
 // --- Top-level payment types --- //
 
