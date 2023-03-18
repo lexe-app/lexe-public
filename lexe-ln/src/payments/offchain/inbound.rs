@@ -2,6 +2,7 @@ use common::ln::invoice::LxInvoice;
 use common::time::TimestampMillis;
 #[cfg(doc)]
 use lightning::ln::channelmanager::ChannelManager;
+use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::util::events::Event::{PaymentClaimable, PaymentClaimed};
 #[cfg(doc)]
@@ -68,6 +69,29 @@ pub enum InboundInvoicePaymentStatus {
     // TODO(max): Implement automatic timeout of generated invoices.
     // TODO(max): Reject any PaymentClaimable events for timed out payments.
     TimedOut,
+}
+
+impl InboundInvoicePayment {
+    pub fn new(
+        invoice: LxInvoice,
+        hash: PaymentHash,
+        secret: PaymentSecret,
+        preimage: PaymentPreimage,
+    ) -> Self {
+        let invoice_amt_msat = invoice.0.amount_milli_satoshis();
+        Self {
+            invoice: Box::new(invoice),
+            hash: LxPaymentHash::from(hash),
+            secret: LxPaymentSecret::from(secret),
+            preimage: LxPaymentPreimage::from(preimage),
+            invoice_amt_msat,
+            recvd_amount_msat: None,
+            onchain_fees_msat: None,
+            status: InboundInvoicePaymentStatus::InvoiceGenerated,
+            created_at: TimestampMillis::now(),
+            finalized_at: None,
+        }
+    }
 }
 
 // --- Inbound spontaneous payments --- //
