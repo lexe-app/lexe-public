@@ -126,22 +126,6 @@ pub struct LxPaymentPreimage(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct LxPaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
-// --- impl Payment --- //
-
-impl Payment {
-    // TODO(max): Move this to getters
-    pub fn id(&self) -> LxPaymentId {
-        match self {
-            Self::OnchainDeposit(_) => todo!(),
-            Self::OnchainWithdrawal(_) => todo!(),
-            Self::InboundInvoice(iip) => LxPaymentId::Lightning(iip.hash),
-            Self::InboundSpontaneous(isp) => LxPaymentId::Lightning(isp.hash),
-            Self::OutboundInvoice(oip) => LxPaymentId::Lightning(oip.hash),
-            Self::OutboundSpontaneous(osp) => LxPaymentId::Lightning(osp.hash),
-        }
-    }
-}
-
 // --- Redact secret information --- //
 
 impl fmt::Debug for LxPaymentPreimage {

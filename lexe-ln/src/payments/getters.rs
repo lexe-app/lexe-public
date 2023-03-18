@@ -15,9 +15,20 @@ use crate::payments::offchain::outbound::{
     OutboundInvoicePayment, OutboundInvoicePaymentStatus,
     OutboundSpontaneousPayment, OutboundSpontaneousPaymentStatus,
 };
-use crate::payments::{Payment, PaymentDirection, PaymentStatus};
+use crate::payments::{LxPaymentId, Payment, PaymentDirection, PaymentStatus};
 
 impl Payment {
+    pub fn id(&self) -> LxPaymentId {
+        match self {
+            Self::OnchainDeposit(od) => LxPaymentId::Onchain(od.txid),
+            Self::OnchainWithdrawal(ow) => LxPaymentId::Onchain(ow.txid),
+            Self::InboundInvoice(iip) => LxPaymentId::Lightning(iip.hash),
+            Self::InboundSpontaneous(isp) => LxPaymentId::Lightning(isp.hash),
+            Self::OutboundInvoice(oip) => LxPaymentId::Lightning(oip.hash),
+            Self::OutboundSpontaneous(osp) => LxPaymentId::Lightning(osp.hash),
+        }
+    }
+
     /// Whether this payment is inbound or outbound. Useful for filtering.
     pub fn direction(&self) -> PaymentDirection {
         match self {
