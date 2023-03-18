@@ -5,9 +5,7 @@ use anyhow::{bail, ensure, Context};
 use lightning::util::events::PaymentPurpose;
 use tracing::info;
 
-use crate::payments::inbound::{
-    InboundLightningPayment, InboundSpontaneousPayment,
-};
+use crate::payments::inbound::InboundSpontaneousPayment;
 use crate::payments::{
     LxPaymentHash, LxPaymentId, LxPaymentPreimage, Payment, PaymentStatus,
 };
@@ -78,26 +76,14 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         info!("Claiming payment of {amt_msat} msats with hash {hash}");
 
         // Update our storage
-        self.data
+        let preimage = self
+            .data
             .lock()
             .unwrap()
-            .payment_claimable(hash, amt_msat, purpose.clone())
+            .payment_claimable(hash, amt_msat, purpose)
             .context("Error handling PaymentClaimable")?;
 
         // TODO(max): Persist
-
-        // TODO(max): Remove PaymentPurpose from handler params
-        let payment_preimage = match purpose {
-            PaymentPurpose::InvoicePayment {
-                payment_preimage, ..
-            } => payment_preimage.expect(
-                "We previously generated this invoice using a method other than \
-                `ChannelManager::create_inbound_payment`, resulting in the channel \
-                manager not being aware of the payment preimage, OR LDK failed to \
-                provide the preimage back to us.",
-            ),
-            PaymentPurpose::SpontaneousPayment(preimage) => preimage,
-        };
 
         // Everything ok; claim the payment
         // TODO(max): `claim_funds` docs state that we must check that the
@@ -106,7 +92,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Otherwise, we will have given the sender a proof-of-payment
         // when they did not fulfill the full expected payment.
         // Implement this once it becomes relevant.
-        self.channel_manager.claim_funds(payment_preimage);
+        self.channel_manager.claim_funds(preimage.into());
 
         self.test_event_tx.send(TestEvent::PaymentClaimable);
 
@@ -141,7 +127,7 @@ impl PaymentsData {
         hash: LxPaymentHash,
         amt_msat: u64,
         purpose: PaymentPurpose,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<LxPaymentPreimage> {
         let id = LxPaymentId::from(hash);
 
         // The PaymentClaimable docs have a note that LDK will not stop an
@@ -168,7 +154,7 @@ impl PaymentsData {
 
         let maybe_pending_payment = self.pending.get_mut(&id);
 
-        match (maybe_pending_payment, purpose) {
+        let preimage = match (maybe_pending_payment, purpose) {
             (Some(pending_payment), purpose) => {
                 // Pending payment exists; update it
                 pending_payment.payment_claimable(hash, amt_msat, purpose)?
@@ -180,14 +166,18 @@ impl PaymentsData {
                 let isp =
                     InboundSpontaneousPayment::new(hash, preimage, amt_msat);
                 let payment = Payment::from(isp);
+
+                // Save the new payment.
                 self.new_payment(payment)
                     .context("Error creating new spontaneous payment")?;
+
+                preimage
             }
             (None, PaymentPurpose::InvoicePayment { .. }) => {
                 bail!("Tried to claim non-existent invoice payment")
             }
-        }
+        };
 
-        Ok(())
+        Ok(preimage)
     }
 }
