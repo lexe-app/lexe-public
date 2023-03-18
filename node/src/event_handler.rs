@@ -252,15 +252,9 @@ async fn handle_event_fallible(
             via_channel_id: _,
             via_user_channel_id: _,
         } => {
-            event::handle_payment_claimable(
-                channel_manager.clone(),
-                payments_manager.clone(),
-                test_event_tx,
-                payment_hash,
-                amount_msat,
-                purpose,
-            )
-            .context("Failed to handle payment claimable")?;
+            payments_manager
+                .payment_claimable(payment_hash, amount_msat, purpose)
+                .context("Error handling PaymentClaimable")?;
         }
         Event::PaymentClaimed {
             payment_hash,

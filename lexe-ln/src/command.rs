@@ -68,7 +68,7 @@ pub fn get_invoice<CM, PS>(
     req: GetInvoiceRequest,
     channel_manager: CM,
     keys_manager: LexeKeysManager,
-    payments_manager: PaymentsManager<PS>,
+    payments_manager: PaymentsManager<CM, PS>,
     caller: GetInvoiceCaller,
     network: Network,
 ) -> anyhow::Result<LxInvoice>
