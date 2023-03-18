@@ -153,17 +153,17 @@ impl InboundInvoicePayment {
         preimage: LxPaymentPreimage,
         secret: LxPaymentSecret,
     ) -> anyhow::Result<()> {
-        use InboundInvoicePaymentStatus as Status;
+        use InboundInvoicePaymentStatus::*;
         match self.status {
-            Status::InvoiceGenerated => (),
-            Status::Claiming => warn!("Re-claiming inbound invoice payment"),
-            Status::Completed | Status::TimedOut => {
+            InvoiceGenerated => (),
+            Claiming => warn!("Re-claiming inbound invoice payment"),
+            Completed | TimedOut => {
                 bail!("Payment already final")
             }
         }
 
         ensure!(hash == self.hash, "Hashes don't match");
-        ensure!(preimage == self.preimage, "Preimages don't match",);
+        ensure!(preimage == self.preimage, "Preimages don't match");
         ensure!(secret == self.secret, "Secrets don't match");
 
         if let Some(invoice_amt_msat) = self.invoice_amt_msat {
@@ -180,6 +180,19 @@ impl InboundInvoicePayment {
         self.status = InboundInvoicePaymentStatus::Claiming;
 
         Ok(())
+    }
+
+    #[allow(dead_code)] // TODO(max): Remove
+    fn payment_claimed(
+        &mut self,
+        hash: LxPaymentHash,
+        _amt_msat: u64,
+    ) -> anyhow::Result<()> {
+        ensure!(hash == self.hash, "Hashes don't match");
+        // TODO(max): Check amount
+        // TODO(max): Check status
+        // TODO(max): If ok, update status, update amount, finalize
+        todo!()
     }
 }
 
@@ -244,10 +257,21 @@ impl InboundSpontaneousPayment {
 
     fn payment_claimable(
         &mut self,
-        _payment_hash: LxPaymentHash,
-        _amount_msat: u64,
-        _preimage: LxPaymentPreimage,
+        hash: LxPaymentHash,
+        amt_msat: u64,
+        preimage: LxPaymentPreimage,
     ) -> anyhow::Result<()> {
-        todo!()
+        use InboundSpontaneousPaymentStatus::*;
+
+        ensure!(hash == self.hash, "Hashes don't match");
+        ensure!(amt_msat == self.amt_msat, "Amounts don't match");
+        ensure!(preimage == self.preimage, "Preimages don't match");
+        ensure!(matches!(self.status, Claiming), "Payment already finalized");
+
+        // We handled the PaymentClaimable event twice, which should only happen
+        // rarely (requires persistence race). Log a warning to make some noise.
+        warn!("Reclaiming existing spontaneous payment");
+
+        Ok(())
     }
 }

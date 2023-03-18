@@ -259,6 +259,7 @@ async fn handle_event_fallible(
         Event::PaymentClaimed {
             payment_hash,
             amount_msat,
+            // TODO(max): Handle this...
             purpose: _,
             receiver_node_id: _,
         } => {
