@@ -13,7 +13,7 @@ use crate::alias::{
     LexeChainMonitorType, LexeChannelManagerType, LexePeerManagerType,
     NetworkGraphType, ProbabilisticScorerType, SignerType,
 };
-use crate::payments::Payment;
+use crate::payments::manager::CheckedPayment;
 
 /// Defines all the persister methods needed in shared Lexe LN logic.
 #[async_trait]
@@ -55,7 +55,7 @@ pub trait LexeInnerPersister: Persist<SignerType> {
 
     async fn persist_payments(
         &self,
-        _payments: Vec<Payment>,
+        _payments: Vec<CheckedPayment>,
     ) -> anyhow::Result<()> {
         use std::time::Duration;
         // TODO(max): Remove this default impl and replace with actual persists

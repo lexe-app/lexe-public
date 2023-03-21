@@ -11,6 +11,7 @@ use tracing::warn;
 
 #[cfg(doc)]
 use crate::command::get_invoice;
+use crate::payments::manager::CheckedPayment;
 use crate::payments::{
     LxPaymentHash, LxPaymentPreimage, LxPaymentSecret, Payment,
 };
@@ -19,14 +20,12 @@ use crate::payments::{
 
 impl Payment {
     /// Helper to handle the ugly [`Payment`] and [`PaymentPurpose`] matching.
-    ///
-    /// Returns an unwrapped [`LxPaymentPreimage`] which the caller can use.
-    pub(crate) fn payment_claimable(
-        &mut self,
+    pub(crate) fn check_payment_claimable(
+        &self,
         hash: LxPaymentHash,
         amt_msat: u64,
         purpose: PaymentPurpose,
-    ) -> anyhow::Result<LxPaymentPreimage> {
+    ) -> anyhow::Result<CheckedPayment> {
         match (self, purpose) {
             (
                 Self::InboundInvoice(iip),
@@ -39,16 +38,14 @@ impl Payment {
                     payment_preimage.map(LxPaymentPreimage::from).context(
                         "We previously generated this invoice using a method \
                         other than `ChannelManager::create_inbound_payment`, \
-                        resulting in the channel manager not being aware of \
-                        the payment preimage, OR LDK failed to provide the \
-                        preimage back to us.",
+                        OR LDK failed to provide the preimage back to us.",
                     )?;
                 let secret = LxPaymentSecret::from(payment_secret);
 
-                iip.payment_claimable(hash, amt_msat, preimage, secret)
-                    .context("Error claiming inbound invoice payment")?;
-
-                Ok(preimage)
+                iip.check_payment_claimable(hash, amt_msat, preimage, secret)
+                    .map(Payment::from)
+                    .map(CheckedPayment)
+                    .context("Error claiming inbound invoice payment")
             }
             (
                 Self::InboundSpontaneous(isp),
@@ -56,10 +53,10 @@ impl Payment {
             ) => {
                 let preimage = LxPaymentPreimage::from(payment_preimage);
 
-                isp.payment_claimable(hash, amt_msat, preimage)
-                    .context("Error claiming inbound spontaneous payment")?;
-
-                Ok(preimage)
+                isp.check_payment_claimable(hash, amt_msat, preimage)
+                    .map(Payment::from)
+                    .map(CheckedPayment)
+                    .context("Error claiming inbound spontaneous payment")
             }
             _ => bail!("Not an inbound Lightning payment"),
         }
@@ -146,13 +143,13 @@ impl InboundInvoicePayment {
         }
     }
 
-    fn payment_claimable(
-        &mut self,
+    fn check_payment_claimable(
+        &self,
         hash: LxPaymentHash,
         amt_msat: u64,
         preimage: LxPaymentPreimage,
         secret: LxPaymentSecret,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Self> {
         use InboundInvoicePaymentStatus::*;
         match self.status {
             InvoiceGenerated => (),
@@ -175,19 +172,20 @@ impl InboundInvoicePayment {
 
         // TODO(max): In the future, check for on-chain fees here
 
-        // Everything ok, update our state
-        self.recvd_amount_msat = Some(amt_msat);
-        self.status = InboundInvoicePaymentStatus::Claiming;
+        // Everything ok; return a clone with the updated state
+        let mut clone = self.clone();
+        clone.recvd_amount_msat = Some(amt_msat);
+        clone.status = InboundInvoicePaymentStatus::Claiming;
 
-        Ok(())
+        Ok(clone)
     }
 
     #[allow(dead_code)] // TODO(max): Remove
-    fn payment_claimed(
-        &mut self,
+    fn check_payment_claimed(
+        &self,
         hash: LxPaymentHash,
         _amt_msat: u64,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Self> {
         ensure!(hash == self.hash, "Hashes don't match");
         // TODO(max): Check amount
         // TODO(max): Check status
@@ -255,12 +253,12 @@ impl InboundSpontaneousPayment {
         }
     }
 
-    fn payment_claimable(
-        &mut self,
+    fn check_payment_claimable(
+        &self,
         hash: LxPaymentHash,
         amt_msat: u64,
         preimage: LxPaymentPreimage,
-    ) -> anyhow::Result<()> {
+    ) -> anyhow::Result<Self> {
         use InboundSpontaneousPaymentStatus::*;
 
         ensure!(hash == self.hash, "Hashes don't match");
@@ -272,6 +270,7 @@ impl InboundSpontaneousPayment {
         // rarely (requires persistence race). Log a warning to make some noise.
         warn!("Reclaiming existing spontaneous payment");
 
-        Ok(())
+        // There is no state to update, just return a clone of self.
+        Ok(self.clone())
     }
 }
