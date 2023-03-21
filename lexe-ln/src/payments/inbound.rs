@@ -86,7 +86,7 @@ impl Payment {
                 Self::InboundInvoice(iip),
                 LxPaymentPurpose::Invoice { preimage, secret },
             ) => iip
-                .check_payment_claimable(hash, amt_msat, preimage, secret)
+                .check_payment_claimable(hash, secret, preimage, amt_msat)
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error claiming inbound invoice payment"),
@@ -94,7 +94,7 @@ impl Payment {
                 Self::InboundSpontaneous(isp),
                 LxPaymentPurpose::Spontaneous { preimage },
             ) => isp
-                .check_payment_claimable(hash, amt_msat, preimage)
+                .check_payment_claimable(hash, preimage, amt_msat)
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error claiming inbound spontaneous payment"),
@@ -113,7 +113,7 @@ impl Payment {
                 Self::InboundInvoice(iip),
                 LxPaymentPurpose::Invoice { preimage, secret },
             ) => iip
-                .check_payment_claimed(hash, amt_msat, preimage, secret)
+                .check_payment_claimed(hash, secret, preimage, amt_msat)
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error finalizing inbound invoice payment"),
@@ -121,7 +121,7 @@ impl Payment {
                 Self::InboundSpontaneous(isp),
                 LxPaymentPurpose::Spontaneous { preimage },
             ) => isp
-                .check_payment_claimed(hash, amt_msat, preimage)
+                .check_payment_claimed(hash, preimage, amt_msat)
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error finalizing inbound spontaneous payment"),
@@ -213,9 +213,9 @@ impl InboundInvoicePayment {
     fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
-        amt_msat: u64,
-        preimage: LxPaymentPreimage,
         secret: LxPaymentSecret,
+        preimage: LxPaymentPreimage,
+        amt_msat: u64,
     ) -> anyhow::Result<Self> {
         use InboundInvoicePaymentStatus::*;
 
@@ -251,9 +251,9 @@ impl InboundInvoicePayment {
     fn check_payment_claimed(
         &self,
         hash: LxPaymentHash,
-        amt_msat: u64,
-        preimage: LxPaymentPreimage,
         secret: LxPaymentSecret,
+        preimage: LxPaymentPreimage,
+        amt_msat: u64,
     ) -> anyhow::Result<Self> {
         use InboundInvoicePaymentStatus::*;
 
@@ -360,8 +360,8 @@ impl InboundSpontaneousPayment {
     fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
-        amt_msat: u64,
         preimage: LxPaymentPreimage,
+        amt_msat: u64,
     ) -> anyhow::Result<Self> {
         use InboundSpontaneousPaymentStatus::*;
 
@@ -381,8 +381,8 @@ impl InboundSpontaneousPayment {
     fn check_payment_claimed(
         &self,
         hash: LxPaymentHash,
-        amt_msat: u64,
         preimage: LxPaymentPreimage,
+        amt_msat: u64,
     ) -> anyhow::Result<Self> {
         use InboundSpontaneousPaymentStatus::*;
 
