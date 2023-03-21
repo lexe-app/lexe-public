@@ -46,7 +46,7 @@ impl Payment {
     /// - If this is a completed inbound invoice payment, we return the amount
     ///   we received.
     /// - If this is a pending or failed inbound inbound invoice payment, we
-    ///   return the amount encoded in our invoice (if there was one).
+    ///   return the amount encoded in our invoice, but only if there was one.
     /// - For all other payment types, an amount is always returned.
     // TODO(max): Use LDK-provided Amount newtype when available
     pub fn amt_msat(&self) -> Option<u64> {
@@ -184,6 +184,16 @@ impl Payment {
                 finalized_at,
                 ..
             }) => *finalized_at,
+        }
+    }
+
+    pub(crate) fn assert_invariants(&self) {
+        // All finalized payments must have a finalized_at() timestamp.
+        if matches!(
+            self.status(),
+            PaymentStatus::Completed | PaymentStatus::Failed
+        ) {
+            assert!(self.finalized_at().is_some());
         }
     }
 }
