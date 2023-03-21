@@ -298,7 +298,7 @@ impl Display for LxPaymentSecret {
     }
 }
 
-// --- Specific payment type -> top-level Payment type --- //
+// --- Specific payment type -> top-level Payment types --- //
 
 impl From<OnchainDeposit> for Payment {
     fn from(p: OnchainDeposit) -> Self {

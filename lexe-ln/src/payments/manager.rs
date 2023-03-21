@@ -12,6 +12,11 @@ use crate::payments::{
 use crate::test_event::{TestEvent, TestEventSender};
 use crate::traits::{LexeChannelManager, LexePersister};
 
+/// A simple type which annotates that a given [`Payment`] was returned by a
+/// `check_` method which successfully validated a proposed state transition.
+#[must_use]
+pub struct CheckedPayment(pub Payment);
+
 #[allow(dead_code)] // TODO(max): Remove
 #[derive(Clone)]
 pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
@@ -54,13 +59,14 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         &self,
         payment: impl Into<Payment>,
     ) -> anyhow::Result<()> {
-        self.data
-            .lock()
-            .unwrap()
-            .new_payment(payment.into())
+        let mut locked_data = self.data.lock().unwrap();
+        let checked = locked_data
+            .check_new_payment(payment.into())
             .context("Error handling new payment")?;
 
         // TODO(max): Persist the payment
+
+        locked_data.apply_checked(checked);
 
         Ok(())
     }
@@ -77,15 +83,28 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         let hash = hash.into();
         info!(%amt_msat, %hash, "Handling PaymentClaimable");
 
-        // Update our storage
-        let preimage = self
-            .data
-            .lock()
-            .unwrap()
-            .payment_claimable(hash, amt_msat, purpose)
+        // Extract the preimage required to claim the payment later
+        let preimage = match purpose {
+            PaymentPurpose::InvoicePayment {
+                payment_preimage, ..
+            } => payment_preimage.context(
+                "We previously generated this invoice using a method \
+                other than `ChannelManager::create_inbound_payment`, \
+                OR LDK failed to provide the preimage back to us.",
+            )?,
+            PaymentPurpose::SpontaneousPayment(preimage) => preimage,
+        };
+
+        // Validate the state transition
+        let mut locked_data = self.data.lock().unwrap();
+        let checked = locked_data
+            .check_payment_claimable(hash, amt_msat, purpose)
             .context("Error handling PaymentClaimable")?;
 
         // TODO(max): Persist
+
+        // TODO(max): Persist successful; apply the state transition
+        locked_data.apply_checked(checked);
 
         // Everything ok; claim the payment
         // TODO(max): `claim_funds` docs state that we must check that the
@@ -94,7 +113,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Otherwise, we will have given the sender a proof-of-payment
         // when they did not fulfill the full expected payment.
         // Implement this once it becomes relevant.
-        self.channel_manager.claim_funds(preimage.into());
+        self.channel_manager.claim_funds(preimage);
 
         self.test_event_tx.send(TestEvent::PaymentClaimable);
 
@@ -104,7 +123,27 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 }
 
 impl PaymentsData {
-    pub fn new_payment(&mut self, payment: Payment) -> anyhow::Result<()> {
+    /// Applies the data contained a [`CheckedPayment`] to the local state.
+    // TODO(max): Change this to persisted Payment?
+    fn apply_checked(&mut self, checked: CheckedPayment) {
+        let payment = checked.0;
+        let id = payment.id();
+        match payment.status() {
+            PaymentStatus::Pending => {
+                self.pending.insert(id, payment);
+            }
+            PaymentStatus::Completed | PaymentStatus::Failed => {
+                self.finalized.insert(id);
+            }
+        }
+    }
+
+    // We intentially take and return an owned `Payment` so that this method
+    // resembles the other `check_` methods.
+    fn check_new_payment(
+        &self,
+        payment: Payment,
+    ) -> anyhow::Result<CheckedPayment> {
         // Check that this payment is indeed unique.
         let id = payment.id();
         ensure!(
@@ -119,18 +158,18 @@ impl PaymentsData {
         // Newly created payments should *always* be pending.
         debug_assert!(matches!(payment.status(), PaymentStatus::Pending));
 
-        // Insert into the map
-        self.pending.insert(id, payment);
-
-        Ok(())
+        // Everything ok.
+        Ok(CheckedPayment(payment))
     }
 
-    pub fn payment_claimable(
-        &mut self,
+    /// Checks the proposed state transition, returning the [`Payment`] to
+    /// update our local state to if everything is ok.
+    fn check_payment_claimable(
+        &self,
         hash: LxPaymentHash,
         amt_msat: u64,
         purpose: PaymentPurpose,
-    ) -> anyhow::Result<LxPaymentPreimage> {
+    ) -> anyhow::Result<CheckedPayment> {
         let id = LxPaymentId::from(hash);
 
         // The PaymentClaimable docs have a note that LDK will not stop an
@@ -155,12 +194,13 @@ impl PaymentsData {
             "Payment was a duplicate, or was already finalized"
         );
 
-        let maybe_pending_payment = self.pending.get_mut(&id);
+        let maybe_pending_payment = self.pending.get(&id);
 
-        let preimage = match (maybe_pending_payment, purpose) {
+        let updated_payment = match (maybe_pending_payment, purpose) {
             (Some(pending_payment), purpose) => {
                 // Pending payment exists; update it
-                pending_payment.payment_claimable(hash, amt_msat, purpose)?
+                pending_payment
+                    .check_payment_claimable(hash, amt_msat, purpose)?
             }
             (None, PaymentPurpose::SpontaneousPayment(preimage)) => {
                 // We just got a new spontaneous payment!
@@ -170,17 +210,15 @@ impl PaymentsData {
                     InboundSpontaneousPayment::new(hash, preimage, amt_msat);
                 let payment = Payment::from(isp);
 
-                // Save the new payment.
-                self.new_payment(payment)
-                    .context("Error creating new spontaneous payment")?;
-
-                preimage
+                // Validate the new payment.
+                self.check_new_payment(payment)
+                    .context("Error creating new spontaneous payment")?
             }
             (None, PaymentPurpose::InvoicePayment { .. }) => {
                 bail!("Tried to claim non-existent invoice payment")
             }
         };
 
-        Ok(preimage)
+        Ok(updated_payment)
     }
 }
