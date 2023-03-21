@@ -194,6 +194,11 @@ impl PaymentsData {
     fn commit(&mut self, persisted: PersistedPayment) {
         let payment = persisted.0;
         let id = payment.id();
+
+        if cfg!(debug_assertions) {
+            payment.assert_invariants();
+        }
+
         match payment.status() {
             PaymentStatus::Pending => {
                 self.pending.insert(id, payment);
