@@ -1,3 +1,5 @@
+use std::convert::TryFrom;
+
 use anyhow::{bail, ensure, Context};
 use common::ln::invoice::LxInvoice;
 use common::time::TimestampMillis;
@@ -16,24 +18,42 @@ use crate::payments::{
     LxPaymentHash, LxPaymentPreimage, LxPaymentSecret, Payment,
 };
 
-// --- Helpers to delegate to the inner type --- //
+// --- LxPaymentPurpose --- //
 
-/// Helpers to handle the ugly [`Payment`] and [`PaymentPurpose`] matching.
-impl Payment {
-    pub(crate) fn check_payment_claimable(
-        &self,
-        hash: LxPaymentHash,
-        amt_msat: u64,
-        purpose: PaymentPurpose,
-    ) -> anyhow::Result<CheckedPayment> {
-        match (self, purpose) {
-            (
-                Self::InboundInvoice(iip),
-                PaymentPurpose::InvoicePayment {
-                    payment_preimage,
-                    payment_secret,
-                },
-            ) => {
+/// A newtype for [`PaymentPurpose`] which (1) gets rid of the repetitive
+/// `.context()?`s on the `InvoicePayment::payment_preimage` field via a
+/// [`TryFrom`] impl, (2) converts LDK payment types to Lexe payment types, and
+/// (3) exposes a [`preimage`] method to avoid yet another unnecessary match.
+///
+/// [`preimage`]: Self::preimage
+#[derive(Copy, Clone)]
+pub enum LxPaymentPurpose {
+    Invoice {
+        preimage: LxPaymentPreimage,
+        secret: LxPaymentSecret,
+    },
+    Spontaneous {
+        preimage: LxPaymentPreimage,
+    },
+}
+
+impl LxPaymentPurpose {
+    pub fn preimage(&self) -> LxPaymentPreimage {
+        match self {
+            Self::Invoice { preimage, .. } => *preimage,
+            Self::Spontaneous { preimage } => *preimage,
+        }
+    }
+}
+
+impl TryFrom<PaymentPurpose> for LxPaymentPurpose {
+    type Error = anyhow::Error;
+    fn try_from(purpose: PaymentPurpose) -> anyhow::Result<Self> {
+        match purpose {
+            PaymentPurpose::InvoicePayment {
+                payment_preimage,
+                payment_secret,
+            } => {
                 let preimage =
                     payment_preimage.map(LxPaymentPreimage::from).context(
                         "We previously generated this invoice using a method \
@@ -41,23 +61,43 @@ impl Payment {
                         OR LDK failed to provide the preimage back to us.",
                     )?;
                 let secret = LxPaymentSecret::from(payment_secret);
-
-                iip.check_payment_claimable(hash, amt_msat, preimage, secret)
-                    .map(Payment::from)
-                    .map(CheckedPayment)
-                    .context("Error claiming inbound invoice payment")
+                Ok(Self::Invoice { preimage, secret })
             }
+            PaymentPurpose::SpontaneousPayment(payment_preimage) => {
+                let preimage = LxPaymentPreimage::from(payment_preimage);
+                Ok(Self::Spontaneous { preimage })
+            }
+        }
+    }
+}
+
+// --- Helpers to delegate to the inner type --- //
+
+/// Helpers to handle the [`Payment`] and [`LxPaymentPurpose`] matching.
+impl Payment {
+    pub(crate) fn check_payment_claimable(
+        &self,
+        hash: LxPaymentHash,
+        amt_msat: u64,
+        purpose: LxPaymentPurpose,
+    ) -> anyhow::Result<CheckedPayment> {
+        match (self, purpose) {
+            (
+                Self::InboundInvoice(iip),
+                LxPaymentPurpose::Invoice { preimage, secret },
+            ) => iip
+                .check_payment_claimable(hash, amt_msat, preimage, secret)
+                .map(Payment::from)
+                .map(CheckedPayment)
+                .context("Error claiming inbound invoice payment"),
             (
                 Self::InboundSpontaneous(isp),
-                PaymentPurpose::SpontaneousPayment(payment_preimage),
-            ) => {
-                let preimage = LxPaymentPreimage::from(payment_preimage);
-
-                isp.check_payment_claimable(hash, amt_msat, preimage)
-                    .map(Payment::from)
-                    .map(CheckedPayment)
-                    .context("Error claiming inbound spontaneous payment")
-            }
+                LxPaymentPurpose::Spontaneous { preimage },
+            ) => isp
+                .check_payment_claimable(hash, amt_msat, preimage)
+                .map(Payment::from)
+                .map(CheckedPayment)
+                .context("Error claiming inbound spontaneous payment"),
             _ => bail!("Not an inbound Lightning payment"),
         }
     }
@@ -66,41 +106,25 @@ impl Payment {
         &self,
         hash: LxPaymentHash,
         amt_msat: u64,
-        purpose: PaymentPurpose,
+        purpose: LxPaymentPurpose,
     ) -> anyhow::Result<CheckedPayment> {
         match (self, purpose) {
             (
                 Self::InboundInvoice(iip),
-                PaymentPurpose::InvoicePayment {
-                    payment_preimage,
-                    payment_secret,
-                },
-            ) => {
-                // TODO(max): Add a newtype for this ugly matching
-                let preimage =
-                    payment_preimage.map(LxPaymentPreimage::from).context(
-                        "We previously generated this invoice using a method \
-                        other than `ChannelManager::create_inbound_payment`, \
-                        OR LDK failed to provide the preimage back to us.",
-                    )?;
-                let secret = LxPaymentSecret::from(payment_secret);
-
-                iip.check_payment_claimed(hash, amt_msat, preimage, secret)
-                    .map(Payment::from)
-                    .map(CheckedPayment)
-                    .context("Error finalizing inbound invoice payment")
-            }
+                LxPaymentPurpose::Invoice { preimage, secret },
+            ) => iip
+                .check_payment_claimed(hash, amt_msat, preimage, secret)
+                .map(Payment::from)
+                .map(CheckedPayment)
+                .context("Error finalizing inbound invoice payment"),
             (
                 Self::InboundSpontaneous(isp),
-                PaymentPurpose::SpontaneousPayment(payment_preimage),
-            ) => {
-                let preimage = LxPaymentPreimage::from(payment_preimage);
-
-                isp.check_payment_claimed(hash, amt_msat, preimage)
-                    .map(Payment::from)
-                    .map(CheckedPayment)
-                    .context("Error finalizing inbound spontaneous payment")
-            }
+                LxPaymentPurpose::Spontaneous { preimage },
+            ) => isp
+                .check_payment_claimed(hash, amt_msat, preimage)
+                .map(Payment::from)
+                .map(CheckedPayment)
+                .context("Error finalizing inbound spontaneous payment"),
             _ => bail!("Not an inbound Lightning payment"),
         }
     }

@@ -6,10 +6,8 @@ use lightning::util::events::PaymentPurpose;
 use tokio::sync::Mutex;
 use tracing::{info, instrument};
 
-use crate::payments::inbound::InboundSpontaneousPayment;
-use crate::payments::{
-    LxPaymentHash, LxPaymentId, LxPaymentPreimage, Payment, PaymentStatus,
-};
+use crate::payments::inbound::{InboundSpontaneousPayment, LxPaymentPurpose};
+use crate::payments::{LxPaymentHash, LxPaymentId, Payment, PaymentStatus};
 use crate::test_event::{TestEvent, TestEventSender};
 use crate::traits::{LexeChannelManager, LexePersister};
 
@@ -123,18 +121,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     ) -> anyhow::Result<()> {
         let hash = hash.into();
         info!(%amt_msat, %hash, "Handling PaymentClaimable");
-
-        // Extract the preimage required to claim the payment later
-        let preimage = match purpose {
-            PaymentPurpose::InvoicePayment {
-                payment_preimage, ..
-            } => payment_preimage.context(
-                "We previously generated this invoice using a method \
-                other than `ChannelManager::create_inbound_payment`, \
-                OR LDK failed to provide the preimage back to us.",
-            )?,
-            PaymentPurpose::SpontaneousPayment(preimage) => preimage,
-        };
+        let purpose = LxPaymentPurpose::try_from(purpose)?;
 
         // Check
         let mut locked_data = self.data.lock().await;
@@ -159,7 +146,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Otherwise, we will have given the sender a proof-of-payment
         // when they did not fulfill the full expected payment.
         // Implement this once it becomes relevant.
-        self.channel_manager.claim_funds(preimage);
+        self.channel_manager.claim_funds(purpose.preimage().into());
 
         info!("Handled PaymentClaimable");
         self.test_event_tx.send(TestEvent::PaymentClaimable);
@@ -178,6 +165,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     ) -> anyhow::Result<()> {
         let hash = hash.into();
         info!(%amt_msat, %hash, "Handling PaymentClaimed");
+        let purpose = LxPaymentPurpose::try_from(purpose)?;
 
         // Check
         let mut locked_data = self.data.lock().await;
@@ -242,7 +230,7 @@ impl PaymentsData {
         &self,
         hash: LxPaymentHash,
         amt_msat: u64,
-        purpose: PaymentPurpose,
+        purpose: LxPaymentPurpose,
     ) -> anyhow::Result<CheckedPayment> {
         let id = LxPaymentId::from(hash);
 
@@ -276,10 +264,9 @@ impl PaymentsData {
                 pending_payment
                     .check_payment_claimable(hash, amt_msat, purpose)?
             }
-            (None, PaymentPurpose::SpontaneousPayment(preimage)) => {
+            (None, LxPaymentPurpose::Spontaneous { preimage }) => {
                 // We just got a new spontaneous payment!
                 // Create the new payment.
-                let preimage = LxPaymentPreimage::from(preimage);
                 let isp =
                     InboundSpontaneousPayment::new(hash, preimage, amt_msat);
                 let payment = Payment::from(isp);
@@ -288,7 +275,7 @@ impl PaymentsData {
                 self.check_new_payment(payment)
                     .context("Error creating new spontaneous payment")?
             }
-            (None, PaymentPurpose::InvoicePayment { .. }) => {
+            (None, LxPaymentPurpose::Invoice { .. }) => {
                 bail!("Tried to claim non-existent invoice payment")
             }
         };
@@ -300,7 +287,7 @@ impl PaymentsData {
         &self,
         hash: LxPaymentHash,
         amt_msat: u64,
-        purpose: PaymentPurpose,
+        purpose: LxPaymentPurpose,
     ) -> anyhow::Result<CheckedPayment> {
         let id = LxPaymentId::from(hash);
 
