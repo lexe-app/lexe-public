@@ -64,7 +64,7 @@ where
     }
 }
 
-pub fn get_invoice<CM, PS>(
+pub async fn get_invoice<CM, PS>(
     req: GetInvoiceRequest,
     channel_manager: CM,
     keys_manager: LexeKeysManager,
@@ -161,6 +161,7 @@ where
     );
     payments_manager
         .new_payment(payment)
+        .await
         .context("Could not register new payment")?;
 
     info!("Success: Generated invoice {invoice}");

@@ -254,6 +254,7 @@ async fn handle_event_fallible(
         } => {
             payments_manager
                 .payment_claimable(payment_hash, amount_msat, purpose)
+                .await
                 .context("Error handling PaymentClaimable")?;
         }
         Event::PaymentClaimed {
