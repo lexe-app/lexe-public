@@ -18,8 +18,8 @@ use crate::payments::{
 
 // --- Helpers to delegate to the inner type --- //
 
+/// Helpers to handle the ugly [`Payment`] and [`PaymentPurpose`] matching.
 impl Payment {
-    /// Helper to handle the ugly [`Payment`] and [`PaymentPurpose`] matching.
     pub(crate) fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
@@ -57,6 +57,49 @@ impl Payment {
                     .map(Payment::from)
                     .map(CheckedPayment)
                     .context("Error claiming inbound spontaneous payment")
+            }
+            _ => bail!("Not an inbound Lightning payment"),
+        }
+    }
+
+    pub(crate) fn check_payment_claimed(
+        &self,
+        hash: LxPaymentHash,
+        amt_msat: u64,
+        purpose: PaymentPurpose,
+    ) -> anyhow::Result<CheckedPayment> {
+        match (self, purpose) {
+            (
+                Self::InboundInvoice(iip),
+                PaymentPurpose::InvoicePayment {
+                    payment_preimage,
+                    payment_secret,
+                },
+            ) => {
+                // TODO(max): Add a newtype for this ugly matching
+                let preimage =
+                    payment_preimage.map(LxPaymentPreimage::from).context(
+                        "We previously generated this invoice using a method \
+                        other than `ChannelManager::create_inbound_payment`, \
+                        OR LDK failed to provide the preimage back to us.",
+                    )?;
+                let secret = LxPaymentSecret::from(payment_secret);
+
+                iip.check_payment_claimed(hash, amt_msat, preimage, secret)
+                    .map(Payment::from)
+                    .map(CheckedPayment)
+                    .context("Error finalizing inbound invoice payment")
+            }
+            (
+                Self::InboundSpontaneous(isp),
+                PaymentPurpose::SpontaneousPayment(payment_preimage),
+            ) => {
+                let preimage = LxPaymentPreimage::from(payment_preimage);
+
+                isp.check_payment_claimed(hash, amt_msat, preimage)
+                    .map(Payment::from)
+                    .map(CheckedPayment)
+                    .context("Error finalizing inbound spontaneous payment")
             }
             _ => bail!("Not an inbound Lightning payment"),
         }
@@ -151,6 +194,11 @@ impl InboundInvoicePayment {
         secret: LxPaymentSecret,
     ) -> anyhow::Result<Self> {
         use InboundInvoicePaymentStatus::*;
+
+        ensure!(hash == self.hash, "Hashes don't match");
+        ensure!(preimage == self.preimage, "Preimages don't match");
+        ensure!(secret == self.secret, "Secrets don't match");
+
         match self.status {
             InvoiceGenerated => (),
             Claiming => warn!("Re-claiming inbound invoice payment"),
@@ -158,10 +206,6 @@ impl InboundInvoicePayment {
                 bail!("Payment already final")
             }
         }
-
-        ensure!(hash == self.hash, "Hashes don't match");
-        ensure!(preimage == self.preimage, "Preimages don't match");
-        ensure!(secret == self.secret, "Secrets don't match");
 
         if let Some(invoice_amt_msat) = self.invoice_amt_msat {
             if amt_msat < invoice_amt_msat {
@@ -180,17 +224,53 @@ impl InboundInvoicePayment {
         Ok(clone)
     }
 
-    #[allow(dead_code)] // TODO(max): Remove
     fn check_payment_claimed(
         &self,
         hash: LxPaymentHash,
-        _amt_msat: u64,
+        amt_msat: u64,
+        preimage: LxPaymentPreimage,
+        secret: LxPaymentSecret,
     ) -> anyhow::Result<Self> {
+        use InboundInvoicePaymentStatus::*;
+
         ensure!(hash == self.hash, "Hashes don't match");
-        // TODO(max): Check amount
-        // TODO(max): Check status
-        // TODO(max): If ok, update status, update amount, finalize
-        todo!()
+        ensure!(preimage == self.preimage, "Preimages don't match");
+        ensure!(secret == self.secret, "Secrets don't match");
+
+        match self.status {
+            InvoiceGenerated => {
+                // We got PaymentClaimed without PaymentClaimable, which should
+                // be rare because it requires a channel manager persist race.
+                warn!(
+                    "Inbound invoice payment was claimed without a \
+                      corresponding PaymentClaimable event"
+                );
+            }
+            Claiming => (),
+            Completed => {
+                // We will never claim the same payment twice, so LDK's docs on
+                // PaymentClaimed don't apply here.
+                bail!("Payment already claimed")
+            }
+            TimedOut => bail!("Payment already timed out"),
+        }
+
+        if let Some(invoice_amt_msat) = self.invoice_amt_msat {
+            if amt_msat < invoice_amt_msat {
+                warn!("Requested {invoice_amt_msat} but claimed {amt_msat}");
+                // TODO(max): In the future, we might want to bail! instead
+            }
+        }
+
+        // TODO(max): In the future, check for on-chain fees here
+
+        // Everything ok; return a clone with the updated state
+        let mut clone = self.clone();
+        clone.recvd_amount_msat = Some(amt_msat);
+        clone.status = Completed;
+        clone.finalized_at = Some(TimestampMillis::now());
+
+        Ok(clone)
     }
 }
 
@@ -272,5 +352,32 @@ impl InboundSpontaneousPayment {
 
         // There is no state to update, just return a clone of self.
         Ok(self.clone())
+    }
+
+    fn check_payment_claimed(
+        &self,
+        hash: LxPaymentHash,
+        amt_msat: u64,
+        preimage: LxPaymentPreimage,
+    ) -> anyhow::Result<Self> {
+        use InboundSpontaneousPaymentStatus::*;
+
+        ensure!(hash == self.hash, "Hashes don't match");
+        ensure!(preimage == self.preimage, "Preimages don't match");
+        ensure!(amt_msat == self.amt_msat, "Amounts don't match");
+
+        match self.status {
+            Claiming => (),
+            Completed => bail!("Payment already claimed"),
+        }
+
+        // TODO(max): In the future, check for on-chain fees here
+
+        // Everything ok; return a clone with the updated state
+        let mut clone = self.clone();
+        clone.status = Completed;
+        clone.finalized_at = Some(TimestampMillis::now());
+
+        Ok(clone)
     }
 }
