@@ -98,7 +98,7 @@ pub(crate) fn owner_routes(
             scid,
         }))
         .and(inject::network(network))
-        .map(lexe_ln::command::get_invoice)
+        .then(lexe_ln::command::get_invoice)
         .map(into_command_api_result)
         .map(into_response);
     let send_payment = warp::path("send_payment")

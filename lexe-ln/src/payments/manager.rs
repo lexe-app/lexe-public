@@ -1,8 +1,9 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 use anyhow::{bail, ensure, Context};
 use lightning::util::events::PaymentPurpose;
+use tokio::sync::Mutex;
 use tracing::info;
 
 use crate::payments::inbound::InboundSpontaneousPayment;
@@ -12,12 +13,28 @@ use crate::payments::{
 use crate::test_event::{TestEvent, TestEventSender};
 use crate::traits::{LexeChannelManager, LexePersister};
 
-/// A simple type which annotates that a given [`Payment`] was returned by a
-/// `check_` method which successfully validated a proposed state transition.
+/// Annotates that a given [`Payment`] was returned by a `check_*` method which
+/// successfully validated a proposed state transition. [`CheckedPayment`]s
+/// should be persisted in order to transform into [`PersistedPayment`]s.
 #[must_use]
 pub struct CheckedPayment(pub Payment);
 
-#[allow(dead_code)] // TODO(max): Remove
+/// Annotates that a given [`Payment`] was successfully persisted, i.e. it was
+/// returned by the [`persist_payment`] method. [`PersistedPayment`]s should be
+/// committed to the local payments state.
+///
+/// [`persist_payment`]: crate::traits::LexeInnerPersister::persist_payment
+#[must_use]
+pub struct PersistedPayment(pub Payment);
+
+/// The top-level, cloneable actor which exposes the main entrypoints for
+/// various payment actions, including creating, updating, and finalizing
+/// payments.
+///
+/// The primary responsibility of the [`PaymentsManager`] is to manage shared
+/// access to the underlying payments state machine, and to coordinate callers,
+/// the persister, and LDK to ensure that state updates are in sync, and that
+/// there are no update / persist races.
 #[derive(Clone)]
 pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
     data: Arc<Mutex<PaymentsData>>,
@@ -26,9 +43,28 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
     test_event_tx: TestEventSender,
 }
 
-/// Methods on [`PaymentsData`] take `&mut self`, which allows reentrancy
-/// without deadlocking. [`PaymentsData`] also reduces code bloat from
-/// monomorphization by taking only concrete types as parameters.
+/// The main payments state machine, exposing private methods available only to
+/// the [`PaymentsManager`].
+///
+/// Each state update consists of three stages:
+///
+/// 1) Check: We validate the proposed state transition, returning a
+///    [`CheckedPayment`] if everything is OK. This is handled by the `check_*`
+///    methods, which in turn delegate the heavy lifting to the corresponding
+///    `check_*` methods available on each specific payment type.
+/// 2) Persist: We persist the validated state transition, returning a
+///    [`PersistedPayment`] if persistence succeeded. This is handled by the
+///    [`persist_payment`] method.
+/// 3) Commit: We commit the validated + persisted state transition to the local
+///    state. This is done by [`PaymentsData::commit`].
+///
+/// To prevent update and persist races, a (Tokio) lock to the [`PaymentsData`]
+/// struct (or at least the [`LxPaymentId`] of the payment) should be held
+/// throughout the entirety of the state update, including the all of the check,
+/// persist, and commit stages. TODO(max): If this turns out to be a performance
+/// bottleneck, we should switch to per-payment or per-payment-type locks.
+///
+/// [`persist_payment`]: crate::traits::LexeInnerPersister::persist_payment
 struct PaymentsData {
     pending: HashMap<LxPaymentId, Payment>,
     finalized: HashSet<LxPaymentId>,
@@ -55,18 +91,22 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     }
 
     /// Register a new, globally-unique payment.
-    pub fn new_payment(
+    pub async fn new_payment(
         &self,
         payment: impl Into<Payment>,
     ) -> anyhow::Result<()> {
-        let mut locked_data = self.data.lock().unwrap();
+        let mut locked_data = self.data.lock().await;
         let checked = locked_data
             .check_new_payment(payment.into())
             .context("Error handling new payment")?;
 
-        // TODO(max): Persist the payment
+        let persisted = self
+            .persister
+            .persist_payment(checked)
+            .await
+            .context("Could not persist payment")?;
 
-        locked_data.apply_checked(checked);
+        locked_data.commit(persisted);
 
         Ok(())
     }
@@ -74,7 +114,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// Handles a [`PaymentClaimable`] event.
     ///
     /// [`PaymentClaimable`]: lightning::util::events::Event::PaymentClaimable
-    pub fn payment_claimable(
+    pub async fn payment_claimable(
         &self,
         hash: impl Into<LxPaymentHash>,
         amt_msat: u64,
@@ -96,15 +136,20 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         };
 
         // Validate the state transition
-        let mut locked_data = self.data.lock().unwrap();
+        let mut locked_data = self.data.lock().await;
         let checked = locked_data
             .check_payment_claimable(hash, amt_msat, purpose)
             .context("Error handling PaymentClaimable")?;
 
-        // TODO(max): Persist
+        // Persist the state transition
+        let persisted = self
+            .persister
+            .persist_payment(checked)
+            .await
+            .context("Could not persist payment")?;
 
-        // TODO(max): Persist successful; apply the state transition
-        locked_data.apply_checked(checked);
+        // Persist successful; commit the state transition
+        locked_data.commit(persisted);
 
         // Everything ok; claim the payment
         // TODO(max): `claim_funds` docs state that we must check that the
@@ -123,10 +168,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 }
 
 impl PaymentsData {
-    /// Applies the data contained a [`CheckedPayment`] to the local state.
-    // TODO(max): Change this to persisted Payment?
-    fn apply_checked(&mut self, checked: CheckedPayment) {
-        let payment = checked.0;
+    /// Commits a [`PersistedPayment`] to the local state.
+    fn commit(&mut self, persisted: PersistedPayment) {
+        let payment = persisted.0;
         let id = payment.id();
         match payment.status() {
             PaymentStatus::Pending => {
@@ -138,8 +182,6 @@ impl PaymentsData {
         }
     }
 
-    // We intentially take and return an owned `Payment` so that this method
-    // resembles the other `check_` methods.
     fn check_new_payment(
         &self,
         payment: Payment,
@@ -162,8 +204,6 @@ impl PaymentsData {
         Ok(CheckedPayment(payment))
     }
 
-    /// Checks the proposed state transition, returning the [`Payment`] to
-    /// update our local state to if everything is ok.
     fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
