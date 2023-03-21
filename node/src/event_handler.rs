@@ -260,17 +260,13 @@ async fn handle_event_fallible(
         Event::PaymentClaimed {
             payment_hash,
             amount_msat,
-            // TODO(max): Handle this...
-            purpose: _,
+            purpose,
             receiver_node_id: _,
         } => {
-            info!(
-                "EVENT: claimed payment from payment hash {} of {} millisatoshis",
-                hex::encode(&payment_hash.0),
-                amount_msat,
-            );
-
-            test_event_tx.send(TestEvent::PaymentClaimed);
+            payments_manager
+                .payment_claimed(payment_hash, amount_msat, purpose)
+                .await
+                .context("Error handling PaymentClaimed")?;
         }
         Event::PaymentSent {
             payment_preimage,

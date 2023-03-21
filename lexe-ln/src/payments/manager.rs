@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::{bail, ensure, Context};
 use lightning::util::events::PaymentPurpose;
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{info, instrument};
 
 use crate::payments::inbound::InboundSpontaneousPayment;
 use crate::payments::{
@@ -114,6 +114,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// Handles a [`PaymentClaimable`] event.
     ///
     /// [`PaymentClaimable`]: lightning::util::events::Event::PaymentClaimable
+    #[instrument(skip_all, name = "(payment-claimable)")]
     pub async fn payment_claimable(
         &self,
         hash: impl Into<LxPaymentHash>,
@@ -135,20 +136,20 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             PaymentPurpose::SpontaneousPayment(preimage) => preimage,
         };
 
-        // Validate the state transition
+        // Check
         let mut locked_data = self.data.lock().await;
         let checked = locked_data
             .check_payment_claimable(hash, amt_msat, purpose)
-            .context("Error handling PaymentClaimable")?;
+            .context("Error validating PaymentClaimable")?;
 
-        // Persist the state transition
+        // Persist
         let persisted = self
             .persister
             .persist_payment(checked)
             .await
             .context("Could not persist payment")?;
 
-        // Persist successful; commit the state transition
+        // Commit
         locked_data.commit(persisted);
 
         // Everything ok; claim the payment
@@ -160,9 +161,42 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Implement this once it becomes relevant.
         self.channel_manager.claim_funds(preimage);
 
-        self.test_event_tx.send(TestEvent::PaymentClaimable);
-
         info!("Handled PaymentClaimable");
+        self.test_event_tx.send(TestEvent::PaymentClaimable);
+        Ok(())
+    }
+
+    /// Handles a [`PaymentClaimed`] event.
+    ///
+    /// [`PaymentClaimed`]: lightning::util::events::Event::PaymentClaimed
+    #[instrument(skip_all, name = "(payment-claimed)")]
+    pub async fn payment_claimed(
+        &self,
+        hash: impl Into<LxPaymentHash>,
+        amt_msat: u64,
+        purpose: PaymentPurpose,
+    ) -> anyhow::Result<()> {
+        let hash = hash.into();
+        info!(%amt_msat, %hash, "Handling PaymentClaimed");
+
+        // Check
+        let mut locked_data = self.data.lock().await;
+        let checked = locked_data
+            .check_payment_claimed(hash, amt_msat, purpose)
+            .context("Error validating PaymentClaimed")?;
+
+        // Persist
+        let persisted = self
+            .persister
+            .persist_payment(checked)
+            .await
+            .context("Could not persist payment")?;
+
+        // Commit
+        locked_data.commit(persisted);
+
+        info!("Handled PaymentClaimed");
+        self.test_event_tx.send(TestEvent::PaymentClaimed);
         Ok(())
     }
 }
@@ -236,7 +270,7 @@ impl PaymentsData {
 
         let maybe_pending_payment = self.pending.get(&id);
 
-        let updated_payment = match (maybe_pending_payment, purpose) {
+        let checked = match (maybe_pending_payment, purpose) {
             (Some(pending_payment), purpose) => {
                 // Pending payment exists; update it
                 pending_payment
@@ -259,6 +293,28 @@ impl PaymentsData {
             }
         };
 
-        Ok(updated_payment)
+        Ok(checked)
+    }
+
+    fn check_payment_claimed(
+        &self,
+        hash: LxPaymentHash,
+        amt_msat: u64,
+        purpose: PaymentPurpose,
+    ) -> anyhow::Result<CheckedPayment> {
+        let id = LxPaymentId::from(hash);
+
+        ensure!(
+            !self.finalized.contains(&id),
+            "Payment was was already finalized"
+        );
+
+        let checked = self
+            .pending
+            .get(&id)
+            .context("Claimed payment does not exist")?
+            .check_payment_claimed(hash, amt_msat, purpose)?;
+
+        Ok(checked)
     }
 }
