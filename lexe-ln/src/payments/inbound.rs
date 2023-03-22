@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 use anyhow::{bail, ensure, Context};
 use common::ln::invoice::LxInvoice;
-use common::time::TimestampMillis;
+use common::time::TimestampMs;
 #[cfg(doc)]
 use lightning::ln::channelmanager::ChannelManager;
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
@@ -166,9 +166,9 @@ pub struct InboundInvoicePayment {
     /// The current status of the payment.
     pub status: InboundInvoicePaymentStatus,
     /// When we created the invoice for this payment.
-    pub created_at: TimestampMillis,
+    pub created_at: TimestampMs,
     /// When this payment either `Completed` or `TimedOut`.
-    pub finalized_at: Option<TimestampMillis>,
+    pub finalized_at: Option<TimestampMs>,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -205,7 +205,7 @@ impl InboundInvoicePayment {
             recvd_amount_msat: None,
             onchain_fees_msat: None,
             status: InboundInvoicePaymentStatus::InvoiceGenerated,
-            created_at: TimestampMillis::now(),
+            created_at: TimestampMs::now(),
             finalized_at: None,
         }
     }
@@ -292,7 +292,7 @@ impl InboundInvoicePayment {
         let mut clone = self.clone();
         clone.recvd_amount_msat = Some(amt_msat);
         clone.status = Completed;
-        clone.finalized_at = Some(TimestampMillis::now());
+        clone.finalized_at = Some(TimestampMs::now());
 
         Ok(clone)
     }
@@ -320,9 +320,9 @@ pub struct InboundSpontaneousPayment {
     /// The current status of the payment.
     pub status: InboundSpontaneousPaymentStatus,
     /// When we first learned of this payment via [`PaymentClaimable`].
-    pub created_at: TimestampMillis,
+    pub created_at: TimestampMs,
     /// When this payment reached the `Completed` state.
-    pub finalized_at: Option<TimestampMillis>,
+    pub finalized_at: Option<TimestampMs>,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -352,7 +352,7 @@ impl InboundSpontaneousPayment {
             // TODO(max): Implement
             onchain_fees_msat: None,
             status: InboundSpontaneousPaymentStatus::Claiming,
-            created_at: TimestampMillis::now(),
+            created_at: TimestampMs::now(),
             finalized_at: None,
         }
     }
@@ -400,7 +400,7 @@ impl InboundSpontaneousPayment {
         // Everything ok; return a clone with the updated state
         let mut clone = self.clone();
         clone.status = Completed;
-        clone.finalized_at = Some(TimestampMillis::now());
+        clone.finalized_at = Some(TimestampMs::now());
 
         Ok(clone)
     }

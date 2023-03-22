@@ -11,10 +11,10 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 /// - Can represent any time from January 1st, 1970 00:00:00.000 UTC to roughly
 ///   292 million years in the future.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize)]
-pub struct TimestampMillis(i64);
+pub struct TimestampMs(i64);
 
-impl TimestampMillis {
-    /// Creates a new [`TimestampMillis`] from the current [`SystemTime`].
+impl TimestampMs {
+    /// Creates a new [`TimestampMs`] from the current [`SystemTime`].
     ///
     /// Panics if the current time is not within bounds.
     pub fn now() -> Self {
@@ -28,8 +28,8 @@ impl TimestampMillis {
 }
 
 /// Get a [`SystemTime`] corresponding to this timestamp.
-impl From<TimestampMillis> for SystemTime {
-    fn from(timestamp: TimestampMillis) -> Self {
+impl From<TimestampMs> for SystemTime {
+    fn from(timestamp: TimestampMs) -> Self {
         let timestamp_u64 = u64::try_from(timestamp.0)
             .expect("Non-negative invariant was violated");
         let duration_since_epoch = Duration::from_millis(timestamp_u64);
@@ -37,10 +37,10 @@ impl From<TimestampMillis> for SystemTime {
     }
 }
 
-/// Attempts to convert a [`SystemTime`] into a [`TimestampMillis`].
+/// Attempts to convert a [`SystemTime`] into a [`TimestampMs`].
 ///
 /// Returns an error if the [`SystemTime`] is not within bounds.
-impl TryFrom<SystemTime> for TimestampMillis {
+impl TryFrom<SystemTime> for TimestampMs {
     type Error = anyhow::Error;
     fn try_from(system_time: SystemTime) -> anyhow::Result<Self> {
         system_time
@@ -54,14 +54,14 @@ impl TryFrom<SystemTime> for TimestampMillis {
 }
 
 /// Enforces that the inner [`i64`] is non-negative.
-impl<'de> Deserialize<'de> for TimestampMillis {
+impl<'de> Deserialize<'de> for TimestampMs {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
         let value = i64::deserialize(deserializer)?;
         if value >= 0 {
-            Ok(TimestampMillis(value))
+            Ok(TimestampMs(value))
         } else {
             Err(de::Error::invalid_value(
                 de::Unexpected::Signed(value),
@@ -79,7 +79,7 @@ mod test {
     use super::*;
     use crate::test_utils::roundtrip;
 
-    impl Arbitrary for TimestampMillis {
+    impl Arbitrary for TimestampMs {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
@@ -89,13 +89,13 @@ mod test {
 
     #[test]
     fn timestamp_roundtrip() {
-        roundtrip::json_string_roundtrip_proptest::<TimestampMillis>();
+        roundtrip::json_string_roundtrip_proptest::<TimestampMs>();
     }
 
     #[test]
     fn deserialize_enforces_nonnegative() {
-        assert_eq!(serde_json::from_str::<TimestampMillis>("42").unwrap().0, 42);
-        assert_eq!(serde_json::from_str::<TimestampMillis>("0").unwrap().0, 0);
-        assert!(serde_json::from_str::<TimestampMillis>("-42").is_err());
+        assert_eq!(serde_json::from_str::<TimestampMs>("42").unwrap().0, 42);
+        assert_eq!(serde_json::from_str::<TimestampMs>("0").unwrap().0, 0);
+        assert!(serde_json::from_str::<TimestampMs>("-42").is_err());
     }
 }

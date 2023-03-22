@@ -1,5 +1,5 @@
 use common::ln::invoice::LxInvoice;
-use common::time::TimestampMillis;
+use common::time::TimestampMs;
 #[cfg(doc)]
 use lightning::ln::channelmanager::ChannelManager;
 #[cfg(doc)]
@@ -38,9 +38,9 @@ pub struct OutboundInvoicePayment {
     /// The current status of the payment.
     pub status: OutboundInvoicePaymentStatus,
     /// When we initiated this payment.
-    pub created_at: TimestampMillis,
+    pub created_at: TimestampMs,
     /// When this payment either `Completed` or `Failed`.
-    pub finalized_at: Option<TimestampMillis>,
+    pub finalized_at: Option<TimestampMs>,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -77,9 +77,9 @@ pub struct OutboundSpontaneousPayment {
     /// The current status of the payment.
     pub status: OutboundSpontaneousPaymentStatus,
     /// When we initiated this payment.
-    pub created_at: TimestampMillis,
+    pub created_at: TimestampMs,
     /// When this payment either `Completed` or `Failed`.
-    pub finalized_at: Option<TimestampMillis>,
+    pub finalized_at: Option<TimestampMs>,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
