@@ -5,7 +5,7 @@
 //! logic is contained here, we tuck away the impl here to avoid polluting the
 //! rest of the payments module which actually contains important logic.
 
-use common::time::TimestampMillis;
+use common::time::TimestampMs;
 
 use crate::payments::inbound::{
     InboundInvoicePayment, InboundInvoicePaymentStatus,
@@ -141,7 +141,7 @@ impl Payment {
     }
 
     /// When this payment was created.
-    pub fn created_at(&self) -> TimestampMillis {
+    pub fn created_at(&self) -> TimestampMs {
         match self {
             Self::OnchainDeposit(_) => todo!(),
             Self::OnchainWithdrawal(_) => todo!(),
@@ -164,7 +164,7 @@ impl Payment {
     }
 
     /// When this payment was completed or failed.
-    pub fn finalized_at(&self) -> Option<TimestampMillis> {
+    pub fn finalized_at(&self) -> Option<TimestampMs> {
         match self {
             Self::OnchainDeposit(_) => todo!(),
             Self::OnchainWithdrawal(_) => todo!(),
