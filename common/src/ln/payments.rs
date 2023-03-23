@@ -11,8 +11,48 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::hex::{self, FromHex};
 use crate::hexstr_or_bytes;
+use crate::ln::invoice::LxInvoice;
+use crate::time::TimestampMs;
 
 // --- Top-level payment types --- //
+
+/// A basic payment type which contains all of the user-facing payment details
+/// for any kind of payment. These details are exposed in the Lexe app.
+///
+/// It is essentially the `Payment` type flattened out such that each field is
+/// the result of the corresponding `Payment` getter.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct BasicPayment {
+    pub id: LxPaymentId,
+    pub kind: PaymentKind,
+    pub direction: PaymentDirection,
+    pub invoice: Option<LxInvoice>,
+    /// The amount of this payment in millisatoshis.
+    ///
+    /// - If this is a completed inbound invoice payment, this is the amount we
+    ///   received.
+    /// - If this is a pending or failed inbound inbound invoice payment, this
+    ///   is the amount encoded in our invoice, which may be null.
+    /// - For all other payment types, an amount is always included.
+    pub amt_msat: Option<u64>,
+    pub fees_msat: u64,
+    pub status: PaymentStatus,
+    /// The payment status as a human-readable string. These strings are
+    /// customized per payment type, e.g. "invoice generated" "timed out"
+    pub status_str: String,
+    pub created_at: TimestampMs,
+    pub finalized_at: Option<TimestampMs>,
+}
+
+/// An encrypted payment, as represented in the DB.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct DbPayment {
+    pub user_pk: String,
+    pub created_at: i64,
+    pub id: String,
+    pub status: String,
+    pub data: Vec<u8>,
+}
 
 /// Specifies whether this is an onchain payment, LN invoice payment, etc.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
