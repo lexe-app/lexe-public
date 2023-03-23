@@ -29,10 +29,12 @@ use crate::api::error::{
 };
 use crate::api::ports::UserPorts;
 use crate::api::provision::{NodeProvisionRequest, SealedSeed, SealedSeedId};
+use crate::api::qs::GetRange;
 use crate::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use crate::api::{NodePk, Scid, User, UserPk};
 use crate::ed25519;
 use crate::ln::invoice::LxInvoice;
+use crate::ln::payments::{BasicPayment, DbPayment, LxPaymentId};
 
 /// Defines the api that the backend exposes to the node.
 #[async_trait]
@@ -102,9 +104,61 @@ pub trait NodeBackendApi {
         dir: &NodeDirectory,
         auth: UserAuthToken,
     ) -> Result<Vec<NodeFile>, BackendApiError>;
+
+    /// GET /v1/payments [`GetRange`] -> [`Vec<DbPayment>`]
+    ///
+    /// Fetches all payments within a `[start, end)` range.
+    async fn get_payments(
+        &self,
+        _range: GetRange,
+        _auth: UserAuthToken,
+    ) -> Result<Vec<DbPayment>, BackendApiError> {
+        todo!()
+    }
+
+    /// POST /v1/payments [`DbPayment`] -> [`()`]
+    async fn create_payment(
+        &self,
+        _payment: DbPayment,
+        _auth: UserAuthToken,
+    ) -> Result<(), BackendApiError> {
+        todo!()
+    }
+
+    /// PUT /v1/payments [`DbPayment`] -> [`()`]
+    async fn upsert_payment(
+        &self,
+        _payment: DbPayment,
+        _auth: UserAuthToken,
+    ) -> Result<(), BackendApiError> {
+        todo!()
+    }
+
+    /// GET /v1/payments/pending -> [`Vec<DbPayment>`]
+    ///
+    /// Fetches all pending payments.
+    async fn get_pending_payments(
+        &self,
+        _auth: UserAuthToken,
+    ) -> Result<Vec<DbPayment>, BackendApiError> {
+        todo!()
+    }
+
+    /// GET /v1/payments/final -> [`Vec<LxPaymentId>`]
+    ///
+    /// Fetches the IDs of all finalized payments.
+    async fn get_finalized_payment_ids(
+        &self,
+        _auth: UserAuthToken,
+    ) -> Result<Vec<LxPaymentId>, BackendApiError> {
+        todo!()
+    }
 }
 
 /// The user-facing backend APIs.
+// TODO(max): Separate out the signup method into AppBackendApi, then rename to
+// UserAuthBackendApi, with a comment explaining why this is so (because it's
+// used in the UserAuthenticator)
 #[async_trait]
 pub trait UserBackendApi {
     /// POST /signup [`ed25519::Signed<UserSignupRequest>`] -> [`()`]
@@ -185,4 +239,12 @@ pub trait OwnerNodeRunApi {
 
     /// POST /owner/send_payment [`LxInvoice`] -> [`()`]
     async fn send_payment(&self, req: LxInvoice) -> Result<(), NodeApiError>;
+
+    /// GET /owner/payments [`GetRange`] -> [`Vec<BasicPayment>`]
+    async fn get_payments(
+        &self,
+        _range: GetRange,
+    ) -> Result<Vec<BasicPayment>, NodeApiError> {
+        todo!()
+    }
 }
