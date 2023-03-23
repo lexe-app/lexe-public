@@ -27,10 +27,10 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kSignupStaticMethodAppHandleConstMeta;
 
-  Future<void> testMethodMethodAppHandle(
+  Future<NodeInfo> nodeInfoMethodAppHandle(
       {required AppHandle that, dynamic hint});
 
-  FlutterRustBridgeTaskConstMeta get kTestMethodMethodAppHandleConstMeta;
+  FlutterRustBridgeTaskConstMeta get kNodeInfoMethodAppHandleConstMeta;
 
   DropFnType get dropOpaqueApp;
   ShareFnType get shareOpaqueApp;
@@ -77,7 +77,7 @@ class AppHandle {
           {required AppRs bridge, required Config config, dynamic hint}) =>
       bridge.signupStaticMethodAppHandle(config: config, hint: hint);
 
-  Future<void> testMethod({dynamic hint}) => bridge.testMethodMethodAppHandle(
+  Future<NodeInfo> nodeInfo({dynamic hint}) => bridge.nodeInfoMethodAppHandle(
         that: this,
       );
 }
@@ -108,4 +108,14 @@ enum Network {
   Bitcoin,
   Testnet,
   Regtest,
+}
+
+class NodeInfo {
+  final String nodePk;
+  final int localBalanceMsat;
+
+  NodeInfo({
+    required this.nodePk,
+    required this.localBalanceMsat,
+  });
 }
