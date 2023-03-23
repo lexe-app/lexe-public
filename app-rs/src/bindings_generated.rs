@@ -83,19 +83,19 @@ fn wire_signup__static_method__AppHandle_impl(
         },
     )
 }
-fn wire_test_method__method__AppHandle_impl(
+fn wire_node_info__method__AppHandle_impl(
     port_: MessagePort,
     that: impl Wire2Api<AppHandle> + UnwindSafe,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap(
         WrapInfo {
-            debug_name: "test_method__method__AppHandle",
+            debug_name: "node_info__method__AppHandle",
             port: Some(port_),
             mode: FfiCallMode::Normal,
         },
         move || {
             let api_that = that.wire2api();
-            move |task_callback| AppHandle::test_method(&api_that)
+            move |task_callback| AppHandle::node_info(&api_that)
         },
     )
 }
@@ -190,6 +190,16 @@ impl support::IntoDart for Network {
         .into_dart()
     }
 }
+impl support::IntoDart for NodeInfo {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.node_pk.into_dart(),
+            self.local_balance_msat.into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for NodeInfo {}
 
 // Section: executor
 
@@ -234,11 +244,11 @@ mod io {
     }
 
     #[no_mangle]
-    pub extern "C" fn wire_test_method__method__AppHandle(
+    pub extern "C" fn wire_node_info__method__AppHandle(
         port_: i64,
         that: *mut wire_AppHandle,
     ) {
-        wire_test_method__method__AppHandle_impl(port_, that)
+        wire_node_info__method__AppHandle_impl(port_, that)
     }
 
     // Section: allocate functions

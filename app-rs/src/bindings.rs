@@ -42,6 +42,8 @@
 use std::future::Future;
 
 use anyhow::Context;
+use common::api::command::NodeInfo as NodeInfoRs;
+use common::api::def::OwnerNodeRunApi;
 use common::rng::SysRng;
 use flutter_rust_bridge::{RustOpaque, SyncReturn};
 
@@ -60,6 +62,20 @@ thread_local! {
         .enable_all()
         .build()
         .expect("Failed to build thread's tokio Runtime");
+}
+
+pub struct NodeInfo {
+    pub node_pk: String,
+    pub local_balance_msat: u64,
+}
+
+impl From<NodeInfoRs> for NodeInfo {
+    fn from(info: NodeInfoRs) -> Self {
+        Self {
+            node_pk: info.node_pk.to_string(),
+            local_balance_msat: info.local_balance_msat,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -140,8 +156,9 @@ impl AppHandle {
         })
     }
 
-    // TODO(phlip9): dummy method to test method codegen. remove.
-    pub fn test_method(&self) -> anyhow::Result<()> {
-        self.inner.test_method()
+    pub fn node_info(&self) -> anyhow::Result<NodeInfo> {
+        block_on(self.inner.client().node_info())
+            .map(NodeInfo::from)
+            .map_err(anyhow::Error::new)
     }
 }

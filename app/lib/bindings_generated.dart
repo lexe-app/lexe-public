@@ -98,22 +98,22 @@ class AppRsImpl implements AppRs {
         argNames: ["config"],
       );
 
-  Future<void> testMethodMethodAppHandle(
+  Future<NodeInfo> nodeInfoMethodAppHandle(
       {required AppHandle that, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     return _platform.executeNormal(FlutterRustBridgeTask(
       callFfi: (port_) =>
-          _platform.inner.wire_test_method__method__AppHandle(port_, arg0),
-      parseSuccessData: _wire2api_unit,
-      constMeta: kTestMethodMethodAppHandleConstMeta,
+          _platform.inner.wire_node_info__method__AppHandle(port_, arg0),
+      parseSuccessData: _wire2api_node_info,
+      constMeta: kNodeInfoMethodAppHandleConstMeta,
       argValues: [that],
       hint: hint,
     ));
   }
 
-  FlutterRustBridgeTaskConstMeta get kTestMethodMethodAppHandleConstMeta =>
+  FlutterRustBridgeTaskConstMeta get kNodeInfoMethodAppHandleConstMeta =>
       const FlutterRustBridgeTaskConstMeta(
-        debugName: "test_method__method__AppHandle",
+        debugName: "node_info__method__AppHandle",
         argNames: ["that"],
       );
 
@@ -128,6 +128,10 @@ class AppRsImpl implements AppRs {
 
   App _wire2api_App(dynamic raw) {
     return App.fromRaw(raw[0], raw[1], this);
+  }
+
+  String _wire2api_String(dynamic raw) {
+    return raw as String;
   }
 
   AppHandle _wire2api_app_handle(dynamic raw) {
@@ -167,12 +171,30 @@ class AppRsImpl implements AppRs {
     return Network.values[raw];
   }
 
+  NodeInfo _wire2api_node_info(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return NodeInfo(
+      nodePk: _wire2api_String(arr[0]),
+      localBalanceMsat: _wire2api_u64(arr[1]),
+    );
+  }
+
   AppHandle? _wire2api_opt_box_autoadd_app_handle(dynamic raw) {
     return raw == null ? null : _wire2api_box_autoadd_app_handle(raw);
   }
 
-  void _wire2api_unit(dynamic raw) {
-    return;
+  int _wire2api_u64(dynamic raw) {
+    return castInt(raw);
+  }
+
+  int _wire2api_u8(dynamic raw) {
+    return raw as int;
+  }
+
+  Uint8List _wire2api_uint_8_list(dynamic raw) {
+    return raw as Uint8List;
   }
 }
 
@@ -432,22 +454,22 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _wire_signup__static_method__AppHandlePtr
           .asFunction<void Function(int, ffi.Pointer<wire_Config>)>();
 
-  void wire_test_method__method__AppHandle(
+  void wire_node_info__method__AppHandle(
     int port_,
     ffi.Pointer<wire_AppHandle> that,
   ) {
-    return _wire_test_method__method__AppHandle(
+    return _wire_node_info__method__AppHandle(
       port_,
       that,
     );
   }
 
-  late final _wire_test_method__method__AppHandlePtr = _lookup<
+  late final _wire_node_info__method__AppHandlePtr = _lookup<
           ffi.NativeFunction<
               ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>)>>(
-      'wire_test_method__method__AppHandle');
-  late final _wire_test_method__method__AppHandle =
-      _wire_test_method__method__AppHandlePtr
+      'wire_node_info__method__AppHandle');
+  late final _wire_node_info__method__AppHandle =
+      _wire_node_info__method__AppHandlePtr
           .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
 
   wire_App new_App() {

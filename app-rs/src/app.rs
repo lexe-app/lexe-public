@@ -146,10 +146,6 @@ impl App {
     pub fn secret_store(&self) -> &SecretStore {
         &self.secret_store
     }
-
-    pub fn test_method(&self) -> anyhow::Result<()> {
-        Ok(())
-    }
 }
 
 /// Pure-Rust configuration for a particular user app.
@@ -173,7 +169,7 @@ impl From<Config> for AppConfig {
         // TODO: .env is not sourced at build time...
         // let build_gateway_url = std::env!("DEV_GATEWAY_URL");
         // let build_use_sgx = std::env!("SGX") == "true";
-        let build_gateway_url = "http://phliptop-mbp.attlocal.net:4040";
+        let build_gateway_url = "http://phlipdesk.local:4040";
         let build_use_sgx = false;
         let allow_debug_enclaves = deploy_env == Dev;
 
