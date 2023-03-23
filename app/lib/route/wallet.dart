@@ -2,10 +2,13 @@
 
 import 'package:flutter/material.dart';
 
+import '../../bindings_generated_api.dart' show AppHandle;
 import '../../style.dart' show Fonts, LxColors, Space;
 
 class WalletPage extends StatelessWidget {
-  const WalletPage({super.key});
+  const WalletPage({super.key, required this.app});
+
+  final AppHandle app;
 
   @override
   Widget build(BuildContext context) {
