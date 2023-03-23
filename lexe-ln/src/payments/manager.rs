@@ -127,6 +127,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         let mut locked_data = self.data.lock().await;
         let checked = locked_data
             .check_payment_claimable(hash, amt_msat, purpose)
+            // If validation failed, fail the HTLC.
+            .inspect_err(|_| {
+                self.channel_manager.fail_htlc_backwards(&hash.into())
+            })
             .context("Error validating PaymentClaimable")?;
 
         // Persist
@@ -134,6 +138,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             .persister
             .persist_payment(checked)
             .await
+            // If persistence failed, fail the HTLC.
+            .inspect_err(|_| {
+                self.channel_manager.fail_htlc_backwards(&hash.into())
+            })
             .context("Could not persist payment")?;
 
         // Commit
