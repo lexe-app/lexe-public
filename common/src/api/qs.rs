@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::api::{NodePk, Scid, UserPk};
+use crate::time::TimestampMs;
 
 // When serializing data as query parameters, we have to wrap newtypes in these
 // structs (instead of e.g. using UserPk directly), otherwise `serde_qs` errors
@@ -28,4 +29,13 @@ pub struct GetByNodePk {
 #[derive(Serialize, Deserialize)]
 pub struct GetByScid {
     pub scid: Scid,
+}
+
+/// Fetch a range of timestamped items.
+#[derive(Serialize, Deserialize)]
+pub struct GetRange {
+    /// The start of the range, inclusive.
+    pub start: Option<TimestampMs>,
+    /// The end of the range, exclusive.
+    pub end: Option<TimestampMs>,
 }
