@@ -2,13 +2,14 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::{bail, ensure, Context};
+use common::ln::payments::{LxPaymentHash, LxPaymentId, PaymentStatus};
 use lightning::ln::channelmanager::FailureCode;
 use lightning::util::events::PaymentPurpose;
 use tokio::sync::Mutex;
 use tracing::{info, instrument};
 
 use crate::payments::inbound::{InboundSpontaneousPayment, LxPaymentPurpose};
-use crate::payments::{LxPaymentHash, LxPaymentId, Payment, PaymentStatus};
+use crate::payments::Payment;
 use crate::test_event::{TestEvent, TestEventSender};
 use crate::traits::{LexeChannelManager, LexePersister};
 

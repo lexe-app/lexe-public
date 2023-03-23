@@ -2,6 +2,7 @@ use std::convert::TryFrom;
 
 use anyhow::{bail, ensure, Context};
 use common::ln::invoice::LxInvoice;
+use common::ln::payments::{LxPaymentHash, LxPaymentPreimage, LxPaymentSecret};
 use common::time::TimestampMs;
 #[cfg(doc)]
 use lightning::ln::channelmanager::ChannelManager;
@@ -14,9 +15,7 @@ use tracing::warn;
 #[cfg(doc)]
 use crate::command::get_invoice;
 use crate::payments::manager::CheckedPayment;
-use crate::payments::{
-    LxPaymentHash, LxPaymentPreimage, LxPaymentSecret, Payment,
-};
+use crate::payments::Payment;
 
 // --- LxPaymentPurpose --- //
 

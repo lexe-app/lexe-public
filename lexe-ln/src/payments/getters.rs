@@ -5,6 +5,7 @@
 //! logic is contained here, we tuck away the impl here to avoid polluting the
 //! rest of the payments module which actually contains important logic.
 
+use common::ln::payments::{LxPaymentId, PaymentDirection, PaymentStatus};
 use common::time::TimestampMs;
 
 use crate::payments::inbound::{
@@ -15,7 +16,7 @@ use crate::payments::outbound::{
     OutboundInvoicePayment, OutboundInvoicePaymentStatus,
     OutboundSpontaneousPayment, OutboundSpontaneousPaymentStatus,
 };
-use crate::payments::{LxPaymentId, Payment, PaymentDirection, PaymentStatus};
+use crate::payments::Payment;
 
 impl Payment {
     pub fn id(&self) -> LxPaymentId {

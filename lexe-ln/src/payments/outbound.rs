@@ -1,4 +1,5 @@
 use common::ln::invoice::LxInvoice;
+use common::ln::payments::{LxPaymentHash, LxPaymentPreimage};
 use common::time::TimestampMs;
 #[cfg(doc)]
 use lightning::ln::channelmanager::ChannelManager;
@@ -12,7 +13,6 @@ use serde::{Deserialize, Serialize};
 
 #[cfg(doc)]
 use crate::command::send_payment;
-use crate::payments::{LxPaymentHash, LxPaymentPreimage};
 
 // --- Outbound invoice payments --- //
 
