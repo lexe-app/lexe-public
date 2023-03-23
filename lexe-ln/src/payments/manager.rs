@@ -230,6 +230,7 @@ impl PaymentsData {
                 self.pending.insert(id, payment);
             }
             PaymentStatus::Completed | PaymentStatus::Failed => {
+                self.pending.remove(&id);
                 self.finalized.insert(id);
             }
         }
