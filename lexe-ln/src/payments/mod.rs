@@ -35,7 +35,10 @@
 
 use std::fmt::{self, Display};
 
-use common::ln::payments::{LxPaymentId, PaymentDirection, PaymentStatus};
+use common::ln::invoice::LxInvoice;
+use common::ln::payments::{
+    BasicPayment, LxPaymentId, PaymentDirection, PaymentKind, PaymentStatus,
+};
 use common::time::TimestampMs;
 use lightning::ln::channelmanager::PaymentSendFailure;
 use lightning::ln::{PaymentPreimage, PaymentSecret};
@@ -108,6 +111,25 @@ impl From<OutboundSpontaneousPayment> for Payment {
     }
 }
 
+// --- Payment -> BasicPayment --- //
+
+impl From<Payment> for BasicPayment {
+    fn from(p: Payment) -> Self {
+        Self {
+            id: p.id(),
+            kind: p.kind(),
+            direction: p.direction(),
+            invoice: p.invoice(),
+            amt_msat: p.amt_msat(),
+            fees_msat: p.fees_msat(),
+            status: p.status(),
+            status_str: p.status_str().to_owned(),
+            created_at: p.created_at(),
+            finalized_at: p.finalized_at(),
+        }
+    }
+}
+
 // --- impl Payment --- //
 
 impl Payment {
@@ -119,6 +141,18 @@ impl Payment {
             Self::InboundSpontaneous(isp) => LxPaymentId::Lightning(isp.hash),
             Self::OutboundInvoice(oip) => LxPaymentId::Lightning(oip.hash),
             Self::OutboundSpontaneous(osp) => LxPaymentId::Lightning(osp.hash),
+        }
+    }
+
+    /// Whether this is an onchain payment, LN invoice payment, etc.
+    pub fn kind(&self) -> PaymentKind {
+        match self {
+            Self::OnchainDeposit(_) => PaymentKind::Onchain,
+            Self::OnchainWithdrawal(_) => PaymentKind::Onchain,
+            Self::InboundInvoice(_) => PaymentKind::Invoice,
+            Self::InboundSpontaneous(_) => PaymentKind::Spontaneous,
+            Self::OutboundInvoice(_) => PaymentKind::Invoice,
+            Self::OutboundSpontaneous(_) => PaymentKind::Spontaneous,
         }
     }
 
@@ -134,12 +168,28 @@ impl Payment {
         }
     }
 
+    /// Returns the invoice corresponding to this payment, if there is one.
+    pub fn invoice(&self) -> Option<LxInvoice> {
+        match self {
+            Self::OnchainDeposit(_) => None,
+            Self::OnchainWithdrawal(_) => None,
+            Self::InboundInvoice(InboundInvoicePayment { invoice, .. }) => {
+                Some(*invoice.clone())
+            }
+            Self::InboundSpontaneous(_) => None,
+            Self::OutboundInvoice(OutboundInvoicePayment {
+                invoice, ..
+            }) => Some(*invoice.clone()),
+            Self::OutboundSpontaneous(_) => None,
+        }
+    }
+
     /// The amount of this payment in millisatoshis.
     ///
     /// - If this is a completed inbound invoice payment, we return the amount
     ///   we received.
     /// - If this is a pending or failed inbound inbound invoice payment, we
-    ///   return the amount encoded in our invoice, but only if there was one.
+    ///   return the amount encoded in our invoice, which may be null.
     /// - For all other payment types, an amount is always returned.
     // TODO(max): Use LDK-provided Amount newtype when available
     pub fn amt_msat(&self) -> Option<u64> {
