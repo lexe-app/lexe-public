@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 use std::fmt::{self, Display};
 use std::str::FromStr;
 
-use anyhow::{bail, ensure, Context};
+use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin::Txid;
 use lightning::ln::channelmanager::PaymentId;
 use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
@@ -16,6 +16,7 @@ use crate::hexstr_or_bytes;
 
 /// Specifies whether a payment is inbound or outbound.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(SerializeDisplay, DeserializeFromStr)]
 pub enum PaymentDirection {
     Inbound,
     Outbound,
@@ -27,6 +28,7 @@ pub enum PaymentDirection {
 /// - Not suitable for getting detailed information about a specific payment; in
 ///   this case, use the payment-specific status enum or `status_str()` instead.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(SerializeDisplay, DeserializeFromStr)]
 pub enum PaymentStatus {
     Pending,
     Completed,
@@ -156,6 +158,50 @@ impl From<LxPaymentHash> for PaymentId {
     }
 }
 
+// --- PaymentDirection and PaymentStatus FromStr / Display --- //
+
+impl FromStr for PaymentDirection {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "inbound" => Ok(Self::Inbound),
+            "outbound" => Ok(Self::Outbound),
+            _ => Err(anyhow!("Must be inbound|outbound")),
+        }
+    }
+}
+
+impl Display for PaymentDirection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Inbound => write!(f, "inbound"),
+            Self::Outbound => write!(f, "outbound"),
+        }
+    }
+}
+
+impl FromStr for PaymentStatus {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "pending" => Ok(Self::Pending),
+            "completed" => Ok(Self::Completed),
+            "failed" => Ok(Self::Failed),
+            _ => Err(anyhow!("Must be pending|completed|failed")),
+        }
+    }
+}
+
+impl Display for PaymentStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Pending => write!(f, "pending"),
+            Self::Completed => write!(f, "completed"),
+            Self::Failed => write!(f, "failed"),
+        }
+    }
+}
+
 // --- LxPaymentId FromStr / Display impls --- //
 
 /// `<kind>_<id>`
@@ -235,11 +281,35 @@ impl Display for LxPaymentSecret {
 mod test {
     use proptest::arbitrary::{any, Arbitrary};
     use proptest::prop_oneof;
-    use proptest::strategy::{BoxedStrategy, Strategy};
+    use proptest::strategy::{BoxedStrategy, Just, Strategy};
     use proptest::test_runner::Config;
 
     use super::*;
     use crate::test_utils::{arbitrary, roundtrip};
+
+    impl Arbitrary for PaymentDirection {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                Just(PaymentDirection::Inbound),
+                Just(PaymentDirection::Outbound),
+            ]
+            .boxed()
+        }
+    }
+    impl Arbitrary for PaymentStatus {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                Just(PaymentStatus::Pending),
+                Just(PaymentStatus::Completed),
+                Just(PaymentStatus::Failed),
+            ]
+            .boxed()
+        }
+    }
 
     impl Arbitrary for LxPaymentId {
         type Parameters = ();
@@ -272,6 +342,14 @@ mod test {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             any::<[u8; 32]>().prop_map(Self).boxed()
         }
+    }
+
+    #[test]
+    fn enums_roundtrips() {
+        roundtrip::json_string_roundtrip_proptest::<PaymentDirection>();
+        roundtrip::json_string_roundtrip_proptest::<PaymentStatus>();
+        roundtrip::fromstr_display_roundtrip_proptest::<PaymentDirection>();
+        roundtrip::fromstr_display_roundtrip_proptest::<PaymentStatus>();
     }
 
     #[test]
