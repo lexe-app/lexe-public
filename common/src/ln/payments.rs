@@ -14,6 +14,15 @@ use crate::hexstr_or_bytes;
 
 // --- Top-level payment types --- //
 
+/// Specifies whether this is an onchain payment, LN invoice payment, etc.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(SerializeDisplay, DeserializeFromStr)]
+pub enum PaymentKind {
+    Onchain,
+    Invoice,
+    Spontaneous,
+}
+
 /// Specifies whether a payment is inbound or outbound.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
@@ -158,7 +167,28 @@ impl From<LxPaymentHash> for PaymentId {
     }
 }
 
-// --- PaymentDirection and PaymentStatus FromStr / Display --- //
+// --- FromStr / Display for the simple enums --- //
+
+impl FromStr for PaymentKind {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "onchain" => Ok(Self::Onchain),
+            "invoice" => Ok(Self::Invoice),
+            "spontaneous" => Ok(Self::Spontaneous),
+            _ => Err(anyhow!("Must be onchain|invoice|spontaneous")),
+        }
+    }
+}
+impl Display for PaymentKind {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Onchain => write!(f, "onchain"),
+            Self::Invoice => write!(f, "invoice"),
+            Self::Spontaneous => write!(f, "spontaneous"),
+        }
+    }
+}
 
 impl FromStr for PaymentDirection {
     type Err = anyhow::Error;
@@ -170,7 +200,6 @@ impl FromStr for PaymentDirection {
         }
     }
 }
-
 impl Display for PaymentDirection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -191,7 +220,6 @@ impl FromStr for PaymentStatus {
         }
     }
 }
-
 impl Display for PaymentStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -202,7 +230,7 @@ impl Display for PaymentStatus {
     }
 }
 
-// --- LxPaymentId FromStr / Display impls --- //
+// --- LxPaymentId FromStr / Display impl --- //
 
 /// `<kind>_<id>`
 impl FromStr for LxPaymentId {
@@ -287,6 +315,18 @@ mod test {
     use super::*;
     use crate::test_utils::{arbitrary, roundtrip};
 
+    impl Arbitrary for PaymentKind {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            prop_oneof![
+                Just(PaymentKind::Onchain),
+                Just(PaymentKind::Invoice),
+                Just(PaymentKind::Spontaneous),
+            ]
+            .boxed()
+        }
+    }
     impl Arbitrary for PaymentDirection {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
@@ -348,8 +388,10 @@ mod test {
     fn enums_roundtrips() {
         roundtrip::json_string_roundtrip_proptest::<PaymentDirection>();
         roundtrip::json_string_roundtrip_proptest::<PaymentStatus>();
+        roundtrip::json_string_roundtrip_proptest::<PaymentKind>();
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentDirection>();
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentStatus>();
+        roundtrip::fromstr_display_roundtrip_proptest::<PaymentKind>();
     }
 
     #[test]
