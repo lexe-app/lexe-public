@@ -3,13 +3,32 @@
 
 import 'package:flutter/material.dart';
 
+import 'bindings.dart' show api;
+import 'bindings_generated_api.dart' show App, AppHandle, AppRs, NodeInfo;
+import 'route/backup_wallet.dart' show BackupWalletPage;
 import 'route/landing.dart' show LandingPage;
-// import 'route/backup_wallet.dart' show BackupWalletPage;
 import 'route/wallet.dart' show DrawerListItem, WalletPage;
-
 import 'style.dart' show LxColors, LxTheme, Space;
 
+// TODO(phlip9): add a `App::mock` constructor?
+class MockApp extends App {
+  // This makes a fake `RustOpaque<App>` w/ a null pointer. Super hacky, but frb
+  // will at least panic if we accidentally call a native method.
+  MockApp(AppRs bridge) : super.fromRaw(0x0, 0, bridge);
+}
+
+class MockAppHandle extends AppHandle {
+  MockAppHandle({required AppRs bridge})
+      : super(bridge: bridge, inner: MockApp(bridge));
+
+  @override
+  Future<NodeInfo> nodeInfo({dynamic hint}) =>
+      Future.value(NodeInfo(nodePk: "asdf", localBalanceMsat: 123));
+}
+
 Future<void> main() async {
+  final mockApp = MockAppHandle(bridge: api);
+
   runApp(MaterialApp(
     title: "Lexe App - Design Mode",
     color: LxColors.background,
@@ -20,9 +39,8 @@ Future<void> main() async {
       body: ComponentList(
         components: [
           Component("LandingPage", (_) => const LandingPage()),
-          // TODO(phlip9): figure out mocking
-          Component("BackupWalletPage", (_) => const SizedBox()),
-          Component("WalletPage", (_) => const WalletPage()),
+          Component("BackupWalletPage", (_) => BackupWalletPage(app: mockApp)),
+          Component("WalletPage", (_) => WalletPage(app: mockApp)),
         ],
       ),
     ),
