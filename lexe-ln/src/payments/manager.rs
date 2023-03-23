@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::{bail, ensure, Context};
+use lightning::ln::channelmanager::FailureCode;
 use lightning::util::events::PaymentPurpose;
 use tokio::sync::Mutex;
 use tracing::{info, instrument};
@@ -121,15 +122,25 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     ) -> anyhow::Result<()> {
         let hash = hash.into();
         info!(%amt_msat, %hash, "Handling PaymentClaimable");
-        let purpose = LxPaymentPurpose::try_from(purpose)?;
+        let purpose = LxPaymentPurpose::try_from(purpose)
+            // The conversion can only fail if the preimage is unknown.
+            .inspect_err(|_| {
+                self.channel_manager.fail_htlc_backwards_with_reason(
+                    &hash.into(),
+                    &FailureCode::IncorrectOrUnknownPaymentDetails,
+                )
+            })?;
 
         // Check
         let mut locked_data = self.data.lock().await;
         let checked = locked_data
             .check_payment_claimable(hash, amt_msat, purpose)
-            // If validation failed, fail the HTLC.
+            // If validation failed, permanently fail the HTLC.
             .inspect_err(|_| {
-                self.channel_manager.fail_htlc_backwards(&hash.into())
+                self.channel_manager.fail_htlc_backwards_with_reason(
+                    &hash.into(),
+                    &FailureCode::IncorrectOrUnknownPaymentDetails,
+                )
             })
             .context("Error validating PaymentClaimable")?;
 
@@ -138,9 +149,13 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             .persister
             .persist_payment(checked)
             .await
-            // If persistence failed, fail the HTLC.
+            // If persistence failed, fail the HTLC with a temporary error so
+            // that the sender can retry at a loter point in time.
             .inspect_err(|_| {
-                self.channel_manager.fail_htlc_backwards(&hash.into())
+                self.channel_manager.fail_htlc_backwards_with_reason(
+                    &hash.into(),
+                    &FailureCode::TemporaryNodeFailure,
+                )
             })
             .context("Could not persist payment")?;
 
