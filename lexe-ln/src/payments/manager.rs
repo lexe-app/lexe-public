@@ -148,6 +148,24 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Implement this once it becomes relevant.
         self.channel_manager.claim_funds(purpose.preimage().into());
 
+        // Q: What about if we handle a `PaymentClaimable` event, call
+        // claim_funds, handle a `PaymentClaimed` event, then crash before the
+        // channel manager is persisted? Wouldn't that mean that when we replay
+        // the `PaymentClaimable` event upon restart, that the state transition
+        // would be rejected because the `Payment` is persisted as already
+        // `Completed`, when we actually need to call `claim_funds` again?
+        //
+        // A: `PaymentClaimable` will never appear in the same
+        // `ChannelManager::pending_events` batch as the `PaymentClaimed` event,
+        // since `claim_funds` generates `MessageSendEvent`s which the
+        // `PeerManager` needs to handle before the payment is actually claimed
+        // (source: claim_funds docs). After the event handler (which is what
+        // calls this function) returns, the channel manager gets repersisted
+        // (in the BGP). Thus, if a persisted `Payment` is already `Completed`,
+        // then it must be true that the persisted channel manager is aware that
+        // we have already called `claim_funds`, and thus it does not need to be
+        // called again.
+
         info!("Handled PaymentClaimable");
         self.test_event_tx.send(TestEvent::PaymentClaimable);
         Ok(())
