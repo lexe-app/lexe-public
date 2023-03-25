@@ -45,7 +45,7 @@ pub struct BasicPayment {
 }
 
 /// An encrypted payment, as represented in the DB.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct DbPayment {
     pub user_pk: String,
     pub created_at: i64,
