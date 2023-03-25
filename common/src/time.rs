@@ -53,6 +53,13 @@ impl TryFrom<SystemTime> for TimestampMs {
     }
 }
 
+/// Construct a [`TimestampMs`] from a [`u32`]. Useful in tests.
+impl From<u32> for TimestampMs {
+    fn from(inner: u32) -> Self {
+        Self(i64::from(inner))
+    }
+}
+
 /// Enforces that the inner [`i64`] is non-negative.
 impl<'de> Deserialize<'de> for TimestampMs {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
