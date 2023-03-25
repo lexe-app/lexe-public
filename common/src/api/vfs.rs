@@ -11,14 +11,14 @@ pub struct BasicFile {
 }
 
 /// Uniquely identifies a directory in the node's virtual file system.
-#[derive(Clone, Hash, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub struct NodeDirectory {
     pub user_pk: UserPk,
     pub dirname: String,
 }
 
 /// Uniquely identifies a file in the node's virtual file system.
-#[derive(Clone, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct NodeFileId {
     // Flattened because serde_qs doesn't play well with nested structs
     #[serde(flatten)]
@@ -26,7 +26,7 @@ pub struct NodeFileId {
     pub filename: String,
 }
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct NodeFile {
     // Flattened because serde_qs doesn't play well with nested structs
     #[serde(flatten)]
