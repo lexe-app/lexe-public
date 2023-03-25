@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::{self, Display};
 use std::str::FromStr;
@@ -102,7 +103,8 @@ pub enum LxPaymentId {
 }
 
 /// Newtype for [`PaymentHash`] which impls [`Serialize`] / [`Deserialize`].
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize)]
 pub struct LxPaymentHash(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 /// Newtype for [`PaymentPreimage`] which impls [`Serialize`] / [`Deserialize`].
@@ -342,6 +344,30 @@ impl Display for LxPaymentSecret {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let hex_display = hex::display(&self.0);
         write!(f, "{hex_display}")
+    }
+}
+
+// --- impl Ord for LxPaymentId --- //
+
+// Onchain is "less than" than lightning
+impl Ord for LxPaymentId {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (Self::Onchain(self_txid), Self::Onchain(other_txid)) => {
+                self_txid.cmp(other_txid)
+            }
+            (Self::Lightning(self_hash), Self::Lightning(other_hash)) => {
+                self_hash.cmp(other_hash)
+            }
+            (Self::Onchain(_), Self::Lightning(_)) => Ordering::Less,
+            (Self::Lightning(_), Self::Onchain(_)) => Ordering::Greater,
+        }
+    }
+}
+
+impl PartialOrd for LxPaymentId {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
