@@ -189,7 +189,7 @@ impl UserNode {
             backend_api.clone(),
             authenticator,
             vfs_master_key,
-            user_pk,
+            user,
             shutdown.clone(),
             channel_monitor_persister_tx,
         );
@@ -212,7 +212,7 @@ impl UserNode {
                 persister.read_channel_monitors(keys_manager.clone()),
                 persister.read_network_graph(args.network, logger.clone()),
                 persister.read_wallet_db(wallet_db_persister_tx),
-                backend_api.get_scid(user.node_pk),
+                persister.read_scid(),
             );
         let mut channel_monitors =
             try_channel_monitors.context("Could not read channel monitors")?;

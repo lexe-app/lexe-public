@@ -10,7 +10,7 @@ use bitcoin::hash_types::BlockHash;
 use common::api::auth::{UserAuthToken, UserAuthenticator};
 use common::api::error::BackendApiError;
 use common::api::vfs::{BasicFile, NodeDirectory, NodeFile, NodeFileId};
-use common::api::UserPk;
+use common::api::{Scid, User};
 use common::cli::Network;
 use common::constants::{
     IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
@@ -67,7 +67,7 @@ impl NodePersister {
         api: Arc<dyn BackendApiClient + Send + Sync>,
         authenticator: Arc<UserAuthenticator>,
         vfs_master_key: Arc<VfsMasterKey>,
-        user_pk: UserPk,
+        user: User,
         shutdown: ShutdownChannel,
         channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
     ) -> Self {
@@ -75,7 +75,7 @@ impl NodePersister {
             api,
             authenticator,
             vfs_master_key,
-            user_pk,
+            user,
             shutdown,
             channel_monitor_persister_tx,
         };
@@ -98,7 +98,7 @@ pub struct InnerPersister {
     api: Arc<dyn BackendApiClient + Send + Sync>,
     authenticator: Arc<UserAuthenticator>,
     vfs_master_key: Arc<VfsMasterKey>,
-    user_pk: UserPk,
+    user: User,
     shutdown: ShutdownChannel,
     channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
 }
@@ -152,7 +152,7 @@ impl InnerPersister {
             warn!("{directory}/{filename} is >1MB: {data_len} bytes");
         }
 
-        NodeFile::new(self.user_pk, directory, filename, data)
+        NodeFile::new(self.user.user_pk, directory, filename, data)
     }
 
     /// Decrypt a file from a previous call to `encrypt_file`.
@@ -174,13 +174,21 @@ impl InnerPersister {
             .await
     }
 
+    pub(crate) async fn read_scid(
+        &self,
+    ) -> Result<Option<Scid>, BackendApiError> {
+        debug!("Fetching scid");
+        let token = self.get_token().await?;
+        self.api.get_scid(self.user.node_pk, token).await
+    }
+
     pub(crate) async fn read_wallet_db(
         &self,
         wallet_db_persister_tx: mpsc::Sender<()>,
     ) -> anyhow::Result<WalletDb> {
         debug!("Reading wallet db");
         let file_id = NodeFileId::new(
-            self.user_pk,
+            self.user.user_pk,
             SINGLETON_DIRECTORY.to_owned(),
             WALLET_DB_FILENAME.to_owned(),
         );
@@ -229,7 +237,7 @@ impl InnerPersister {
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         debug!("Reading channel manager");
         let file_id = NodeFileId::new(
-            self.user_pk,
+            self.user.user_pk,
             SINGLETON_DIRECTORY.to_owned(),
             CHANNEL_MANAGER_FILENAME.to_owned(),
         );
@@ -294,7 +302,7 @@ impl InnerPersister {
         // TODO Also attempt to read from the cloud
 
         let cm_dir = NodeDirectory {
-            user_pk: self.user_pk,
+            user_pk: self.user.user_pk,
             dirname: CHANNEL_MONITORS_DIRECTORY.to_owned(),
         };
         let token = self.get_token().await?;
@@ -347,7 +355,7 @@ impl InnerPersister {
         let params = ProbabilisticScoringParameters::default();
 
         let file_id = NodeFileId::new(
-            self.user_pk,
+            self.user.user_pk,
             SINGLETON_DIRECTORY.to_owned(),
             SCORER_FILENAME.to_owned(),
         );
@@ -389,7 +397,7 @@ impl InnerPersister {
     ) -> anyhow::Result<NetworkGraphType> {
         debug!("Reading network graph");
         let ng_file_id = NodeFileId::new(
-            self.user_pk,
+            self.user.user_pk,
             SINGLETON_DIRECTORY.to_owned(),
             NETWORK_GRAPH_FILENAME.to_owned(),
         );
@@ -449,7 +457,7 @@ impl LexeInnerPersister for InnerPersister {
         debug!("Persisting basic file {dirname}/{filename} <{bytes} bytes>");
         let token = self.get_token().await?;
 
-        let file = NodeFile::from_basic(basic_file, self.user_pk);
+        let file = NodeFile::from_basic(basic_file, self.user.user_pk);
 
         self.api
             .upsert_file_with_retries(&file, token, retries)

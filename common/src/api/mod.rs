@@ -87,7 +87,7 @@ pub struct NodePkProof {
 #[error("invalid node pk proof signature")]
 pub struct InvalidNodePkProofSignature;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct User {
     pub user_pk: UserPk,
     pub node_pk: NodePk,
