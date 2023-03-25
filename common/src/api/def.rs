@@ -66,6 +66,7 @@ pub trait NodeBackendApi {
     async fn get_scid(
         &self,
         node_pk: NodePk,
+        auth: UserAuthToken,
     ) -> Result<Option<Scid>, BackendApiError>;
 
     /// GET /v1/file [`NodeFileId`] -> [`Option<NodeFile>`]

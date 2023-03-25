@@ -175,10 +175,14 @@ impl NodeBackendApi for BackendClient {
     async fn get_scid(
         &self,
         node_pk: NodePk,
+        auth: UserAuthToken,
     ) -> Result<Option<Scid>, BackendApiError> {
         let backend = &self.backend_url;
         let data = GetByNodePk { node_pk };
-        let req = self.rest.get(format!("{backend}/v1/scid"), &data);
+        let req = self
+            .rest
+            .get(format!("{backend}/v1/scid"), &data)
+            .bearer_auth(&auth);
         self.rest.send(req).await
     }
 
