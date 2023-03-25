@@ -27,7 +27,7 @@ pub trait BackendApiClient: NodeBackendApi + UserBackendApi {
         file: &NodeFile,
         auth: UserAuthToken,
         retries: usize,
-    ) -> Result<NodeFile, BackendApiError>;
+    ) -> Result<(), BackendApiError>;
 
     async fn upsert_file_with_retries(
         &self,

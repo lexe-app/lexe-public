@@ -10,7 +10,9 @@ use common::api::auth::{
 use common::api::def::{
     NodeBackendApi, NodeLspApi, NodeRunnerApi, UserBackendApi,
 };
-use common::api::error::{BackendApiError, LspApiError, RunnerApiError};
+use common::api::error::{
+    BackendApiError, BackendErrorKind, LspApiError, RunnerApiError,
+};
 use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
@@ -152,7 +154,7 @@ impl BackendApiClient for MockBackendClient {
         data: &NodeFile,
         auth: UserAuthToken,
         _retries: usize,
-    ) -> Result<NodeFile, BackendApiError> {
+    ) -> Result<(), BackendApiError> {
         self.create_file(data, auth).await
     }
 
@@ -235,10 +237,19 @@ impl NodeBackendApi for MockBackendClient {
         &self,
         file: &NodeFile,
         _auth: UserAuthToken,
-    ) -> Result<NodeFile, BackendApiError> {
-        let file_opt = self.0.lock().unwrap().insert(file.clone());
+    ) -> Result<(), BackendApiError> {
+        let mut locked_vfs = self.0.lock().unwrap();
+        if locked_vfs.get(file.id.clone()).is_some() {
+            return Err(BackendApiError {
+                // TODO(max): Return BackendApiError::Duplicate
+                kind: BackendErrorKind::Database,
+                msg: String::new(),
+            });
+        }
+
+        let file_opt = locked_vfs.insert(file.clone());
         assert!(file_opt.is_none());
-        Ok(file.clone())
+        Ok(())
     }
 
     async fn upsert_file(
@@ -250,15 +261,21 @@ impl NodeBackendApi for MockBackendClient {
         Ok(())
     }
 
-    /// Returns "OK" if exactly one row was deleted.
+    /// Returns [`Ok`] if exactly one row was deleted.
     async fn delete_file(
         &self,
         file_id: &NodeFileId,
         _auth: UserAuthToken,
-    ) -> Result<String, BackendApiError> {
+    ) -> Result<(), BackendApiError> {
         let file_opt = self.0.lock().unwrap().remove(file_id.clone());
-        assert!(file_opt.is_none());
-        Ok(String::from("OK"))
+        if file_opt.is_some() {
+            Ok(())
+        } else {
+            Err(BackendApiError {
+                kind: BackendErrorKind::NotFound,
+                msg: String::new(),
+            })
+        }
     }
 
     async fn get_directory(
