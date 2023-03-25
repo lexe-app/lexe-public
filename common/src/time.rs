@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use serde::{de, Deserialize, Deserializer, Serialize};
 
 /// The number of milliseconds since the [`UNIX_EPOCH`].
@@ -10,7 +10,7 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 ///   with some platforms we use which don't support unsigned ints.
 /// - Can represent any time from January 1st, 1970 00:00:00.000 UTC to roughly
 ///   292 million years in the future.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
 pub struct TimestampMs(i64);
 
 impl TimestampMs {
@@ -50,6 +50,18 @@ impl TryFrom<SystemTime> for TimestampMs {
             .map(|res| res.map(Self))
             .context("Current time is before January 1st, 1970")?
             .context("Current time is more than 292 million years past epoch")
+    }
+}
+
+/// Attempt to convert an [`i64`] into a [`TimestampMs`].
+impl TryFrom<i64> for TimestampMs {
+    type Error = anyhow::Error;
+    fn try_from(inner: i64) -> anyhow::Result<Self> {
+        if inner >= 0 {
+            Ok(Self(inner))
+        } else {
+            Err(anyhow!("Timestamp must be non-negative"))
+        }
     }
 }
 
