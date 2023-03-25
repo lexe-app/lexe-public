@@ -75,12 +75,12 @@ pub trait NodeBackendApi {
         auth: UserAuthToken,
     ) -> Result<Option<NodeFile>, BackendApiError>;
 
-    /// POST /v1/file [`NodeFile`] -> [`NodeFile`]
+    /// POST /v1/file [`NodeFile`] -> [`()`]
     async fn create_file(
         &self,
         file: &NodeFile,
         auth: UserAuthToken,
-    ) -> Result<NodeFile, BackendApiError>;
+    ) -> Result<(), BackendApiError>;
 
     /// PUT /v1/file [`NodeFile`] -> [`()`]
     async fn upsert_file(
@@ -89,14 +89,14 @@ pub trait NodeBackendApi {
         auth: UserAuthToken,
     ) -> Result<(), BackendApiError>;
 
-    /// DELETE /v1/file [`NodeFileId`] -> "OK"
+    /// DELETE /v1/file [`NodeFileId`] -> [`()`]
     ///
-    /// Returns "OK" only if exactly one row was deleted.
+    /// Returns [`Ok`] only if exactly one row was deleted.
     async fn delete_file(
         &self,
         file_id: &NodeFileId,
         auth: UserAuthToken,
-    ) -> Result<String, BackendApiError>;
+    ) -> Result<(), BackendApiError>;
 
     /// GET /v1/directory [`NodeDirectory`] -> [`Vec<NodeFile>`]
     async fn get_directory(
