@@ -21,6 +21,7 @@ use crate::hex;
 const CLIENT_400_BAD_REQUEST: Status = Status::BAD_REQUEST;
 const CLIENT_401_UNAUTHORIZED: Status = Status::UNAUTHORIZED;
 const CLIENT_404_NOT_FOUND: Status = Status::NOT_FOUND;
+const CLIENT_409_CONFLICT: Status = Status::CONFLICT;
 const SERVER_500_INTERNAL_SERVER_ERROR: Status = Status::INTERNAL_SERVER_ERROR;
 const SERVER_502_BAD_GATEWAY: Status = Status::BAD_GATEWAY;
 const SERVER_503_SERVICE_UNAVAILABLE: Status = Status::SERVICE_UNAVAILABLE;
@@ -380,16 +381,18 @@ error_kind! {
         Database = 100,
         /// Resource not found
         NotFound = 101,
+        /// Resource was duplicate
+        Duplicate = 102,
         /// Could not convert entity to type
-        EntityConversion = 102,
+        EntityConversion = 103,
         /// User failed authentication
-        Unauthenticated = 103,
+        Unauthenticated = 104,
         /// User not authorized
-        Unauthorized = 104,
+        Unauthorized = 105,
         /// Auth token or auth request is expired
-        AuthExpired = 105,
+        AuthExpired = 106,
         /// Parsed request is invalid
-        InvalidParsedRequest = 106,
+        InvalidParsedRequest = 107,
     }
 }
 
@@ -687,6 +690,7 @@ impl ToHttpStatus for BackendApiError {
 
             Database => SERVER_500_INTERNAL_SERVER_ERROR,
             NotFound => CLIENT_404_NOT_FOUND,
+            Duplicate => CLIENT_409_CONFLICT,
             EntityConversion => SERVER_500_INTERNAL_SERVER_ERROR,
             Unauthenticated => CLIENT_401_UNAUTHORIZED,
             Unauthorized => CLIENT_401_UNAUTHORIZED,

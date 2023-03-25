@@ -241,8 +241,7 @@ impl NodeBackendApi for MockBackendClient {
         let mut locked_vfs = self.0.lock().unwrap();
         if locked_vfs.get(file.id.clone()).is_some() {
             return Err(BackendApiError {
-                // TODO(max): Return BackendApiError::Duplicate
-                kind: BackendErrorKind::Database,
+                kind: BackendErrorKind::Duplicate,
                 msg: String::new(),
             });
         }
