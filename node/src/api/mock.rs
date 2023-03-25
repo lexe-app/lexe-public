@@ -1,6 +1,7 @@
-#![allow(dead_code)]
+// #![allow(dead_code)] // TODO(max): Remove and replace with SGX cfgs
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
+use std::str::FromStr;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
@@ -15,14 +16,16 @@ use common::api::error::{
 };
 use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
+use common::api::qs::GetRange;
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::api::{NodePk, Scid, User, UserPk};
 use common::byte_str::ByteStr;
 use common::constants::SINGLETON_DIRECTORY;
-use common::ed25519;
-use common::enclave::{self, Measurement};
+use common::ln::payments::{DbPayment, LxPaymentId, PaymentStatus};
 use common::rng::SysRng;
 use common::root_seed::RootSeed;
+use common::time::TimestampMs;
+use common::{ed25519, enclave};
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
 
@@ -85,15 +88,11 @@ fn node_pk(user_pk: UserPk) -> NodePk {
     }
 }
 
-fn measurement(_user_pk: UserPk) -> Measurement {
-    // It's the same for now but we may want to use different ones later
-    enclave::measurement()
-}
-
 // --- The mock clients --- //
 
 pub(crate) struct MockRunnerClient {
     notifs_tx: mpsc::Sender<UserPorts>,
+    #[allow(dead_code)] // Used in tests
     notifs_rx: Mutex<Option<mpsc::Receiver<UserPorts>>>,
 }
 
@@ -107,6 +106,7 @@ impl MockRunnerClient {
         }
     }
 
+    #[allow(dead_code)] // Used in tests
     pub(crate) fn notifs_rx(&self) -> mpsc::Receiver<UserPorts> {
         self.notifs_rx
             .lock()
@@ -139,11 +139,16 @@ impl NodeLspApi for MockLspClient {
     }
 }
 
-pub(crate) struct MockBackendClient(Mutex<VirtualFileSystem>);
+pub(crate) struct MockBackendClient {
+    vfs: Mutex<VirtualFileSystem>,
+    payments: Mutex<BTreeMap<(TimestampMs, LxPaymentId), DbPayment>>,
+}
 
 impl MockBackendClient {
     pub(crate) fn new() -> Self {
-        Self(Mutex::new(VirtualFileSystem::new()))
+        let vfs = Mutex::new(VirtualFileSystem::new());
+        let payments = Mutex::new(BTreeMap::new());
+        Self { vfs, payments }
     }
 }
 
@@ -230,7 +235,7 @@ impl NodeBackendApi for MockBackendClient {
         file_id: &NodeFileId,
         _auth: UserAuthToken,
     ) -> Result<Option<NodeFile>, BackendApiError> {
-        let file_opt = self.0.lock().unwrap().get(file_id.clone());
+        let file_opt = self.vfs.lock().unwrap().get(file_id.clone());
         Ok(file_opt)
     }
 
@@ -239,7 +244,7 @@ impl NodeBackendApi for MockBackendClient {
         file: &NodeFile,
         _auth: UserAuthToken,
     ) -> Result<(), BackendApiError> {
-        let mut locked_vfs = self.0.lock().unwrap();
+        let mut locked_vfs = self.vfs.lock().unwrap();
         if locked_vfs.get(file.id.clone()).is_some() {
             return Err(BackendApiError {
                 kind: BackendErrorKind::Duplicate,
@@ -257,7 +262,7 @@ impl NodeBackendApi for MockBackendClient {
         file: &NodeFile,
         _auth: UserAuthToken,
     ) -> Result<(), BackendApiError> {
-        self.0.lock().unwrap().insert(file.clone());
+        self.vfs.lock().unwrap().insert(file.clone());
         Ok(())
     }
 
@@ -267,7 +272,7 @@ impl NodeBackendApi for MockBackendClient {
         file_id: &NodeFileId,
         _auth: UserAuthToken,
     ) -> Result<(), BackendApiError> {
-        let file_opt = self.0.lock().unwrap().remove(file_id.clone());
+        let file_opt = self.vfs.lock().unwrap().remove(file_id.clone());
         if file_opt.is_some() {
             Ok(())
         } else {
@@ -283,8 +288,117 @@ impl NodeBackendApi for MockBackendClient {
         dir: &NodeDirectory,
         _auth: UserAuthToken,
     ) -> Result<Vec<NodeFile>, BackendApiError> {
-        let files_vec = self.0.lock().unwrap().get_dir(dir.clone());
+        let files_vec = self.vfs.lock().unwrap().get_dir(dir.clone());
         Ok(files_vec)
+    }
+
+    async fn get_payments(
+        &self,
+        range: GetRange,
+        _auth: UserAuthToken,
+    ) -> Result<Vec<DbPayment>, BackendApiError> {
+        let payments = self
+            .payments
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|p| {
+                if let Some(start) = range.start {
+                    // start is inclusive
+                    if p.created_at < start.as_i64() {
+                        return false;
+                    }
+                }
+                if let Some(end) = range.end {
+                    // end is exclusive
+                    if end.as_i64() <= p.created_at {
+                        return false;
+                    }
+                }
+
+                true
+            })
+            .cloned()
+            .collect::<Vec<DbPayment>>();
+
+        Ok(payments)
+    }
+
+    async fn create_payment(
+        &self,
+        payment: DbPayment,
+        _auth: UserAuthToken,
+    ) -> Result<(), BackendApiError> {
+        let mut locked_payments = self.payments.lock().unwrap();
+        let created_at = TimestampMs::try_from(payment.created_at).unwrap();
+        let id = LxPaymentId::from_str(&payment.id).unwrap();
+        let key = (created_at, id);
+
+        if locked_payments.get(&key).is_some() {
+            return Err(BackendApiError {
+                kind: BackendErrorKind::Duplicate,
+                msg: String::new(),
+            });
+        }
+        let maybe_payment = locked_payments.insert(key, payment);
+        assert!(maybe_payment.is_none());
+        Ok(())
+    }
+
+    async fn upsert_payment(
+        &self,
+        payment: DbPayment,
+        _auth: UserAuthToken,
+    ) -> Result<(), BackendApiError> {
+        let created_at = TimestampMs::try_from(payment.created_at).unwrap();
+        let id = LxPaymentId::from_str(&payment.id).unwrap();
+        let key = (created_at, id);
+        self.payments.lock().unwrap().insert(key, payment);
+        Ok(())
+    }
+
+    async fn get_pending_payments(
+        &self,
+        _auth: UserAuthToken,
+    ) -> Result<Vec<DbPayment>, BackendApiError> {
+        let pending_status_str = PaymentStatus::Pending.to_string();
+        let payments = self
+            .payments
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|p| p.status == pending_status_str)
+            .cloned()
+            .collect::<Vec<DbPayment>>();
+
+        Ok(payments)
+    }
+
+    async fn get_finalized_payment_ids(
+        &self,
+        _auth: UserAuthToken,
+    ) -> Result<Vec<LxPaymentId>, BackendApiError> {
+        let completed_status_str = PaymentStatus::Completed.to_string();
+        let failed_status_str = PaymentStatus::Failed.to_string();
+        let payments = self
+            .payments
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_key, p)| {
+                if p.status == completed_status_str {
+                    return true;
+                }
+                if p.status == failed_status_str {
+                    return true;
+                }
+                false
+            })
+            .map(|((_timestamp, id), _payment)| id)
+            .cloned()
+            .collect::<Vec<_>>();
+
+        Ok(payments)
     }
 }
 
