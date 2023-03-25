@@ -8,11 +8,12 @@ use common::api::def::{
 use common::api::error::{BackendApiError, LspApiError, RunnerApiError};
 use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
-use common::api::qs::{GetByNodePk, GetByUserPk};
+use common::api::qs::{EmptyData, GetByNodePk, GetByUserPk, GetRange};
 use common::api::rest::{RequestBuilderExt, RestClient, POST};
 use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
 use common::api::{NodePk, Scid, User, UserPk};
 use common::ed25519;
+use common::ln::payments::{DbPayment, LxPaymentId};
 
 use crate::api::BackendApiClient;
 
@@ -250,6 +251,71 @@ impl NodeBackendApi for BackendClient {
         let req = self
             .rest
             .get(format!("{backend}/v1/directory"), data)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn get_payments(
+        &self,
+        range: GetRange,
+        auth: UserAuthToken,
+    ) -> Result<Vec<DbPayment>, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .get(format!("{backend}/v1/payments"), &range)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn create_payment(
+        &self,
+        payment: DbPayment,
+        auth: UserAuthToken,
+    ) -> Result<(), BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .post(format!("{backend}/v1/payments"), &payment)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn upsert_payment(
+        &self,
+        payment: DbPayment,
+        auth: UserAuthToken,
+    ) -> Result<(), BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .put(format!("{backend}/v1/payments"), &payment)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn get_pending_payments(
+        &self,
+        auth: UserAuthToken,
+    ) -> Result<Vec<DbPayment>, BackendApiError> {
+        let backend = &self.backend_url;
+        let data = EmptyData {};
+        let req = self
+            .rest
+            .get(format!("{backend}/v1/payments/pending"), &data)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn get_finalized_payment_ids(
+        &self,
+        auth: UserAuthToken,
+    ) -> Result<Vec<LxPaymentId>, BackendApiError> {
+        let backend = &self.backend_url;
+        let data = EmptyData {};
+        let req = self
+            .rest
+            .get(format!("{backend}/v1/payments/final"), &data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }

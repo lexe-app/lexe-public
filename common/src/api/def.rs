@@ -111,49 +111,39 @@ pub trait NodeBackendApi {
     /// Fetches all payments within a `[start, end)` range.
     async fn get_payments(
         &self,
-        _range: GetRange,
-        _auth: UserAuthToken,
-    ) -> Result<Vec<DbPayment>, BackendApiError> {
-        todo!()
-    }
+        range: GetRange,
+        auth: UserAuthToken,
+    ) -> Result<Vec<DbPayment>, BackendApiError>;
 
     /// POST /v1/payments [`DbPayment`] -> [`()`]
     async fn create_payment(
         &self,
-        _payment: DbPayment,
-        _auth: UserAuthToken,
-    ) -> Result<(), BackendApiError> {
-        todo!()
-    }
+        payment: DbPayment,
+        auth: UserAuthToken,
+    ) -> Result<(), BackendApiError>;
 
     /// PUT /v1/payments [`DbPayment`] -> [`()`]
     async fn upsert_payment(
         &self,
-        _payment: DbPayment,
-        _auth: UserAuthToken,
-    ) -> Result<(), BackendApiError> {
-        todo!()
-    }
+        payment: DbPayment,
+        auth: UserAuthToken,
+    ) -> Result<(), BackendApiError>;
 
     /// GET /v1/payments/pending -> [`Vec<DbPayment>`]
     ///
     /// Fetches all pending payments.
     async fn get_pending_payments(
         &self,
-        _auth: UserAuthToken,
-    ) -> Result<Vec<DbPayment>, BackendApiError> {
-        todo!()
-    }
+        auth: UserAuthToken,
+    ) -> Result<Vec<DbPayment>, BackendApiError>;
 
     /// GET /v1/payments/final -> [`Vec<LxPaymentId>`]
     ///
     /// Fetches the IDs of all finalized payments.
     async fn get_finalized_payment_ids(
         &self,
-        _auth: UserAuthToken,
-    ) -> Result<Vec<LxPaymentId>, BackendApiError> {
-        todo!()
-    }
+        auth: UserAuthToken,
+    ) -> Result<Vec<LxPaymentId>, BackendApiError>;
 }
 
 /// The user-facing backend APIs.
