@@ -386,6 +386,7 @@ impl UserNode {
 
         // Start warp service for owner
         let owner_routes = server::owner_routes(
+            persister.clone(),
             channel_manager.clone(),
             peer_manager.clone(),
             network_graph.clone(),
