@@ -75,6 +75,8 @@ linter:
     prefer_final_in_for_each: true
     # TODO(phlip9): how to disable this lint for the generated files?
     # prefer_final_locals: true
+    # There are valid uses for Null
+    prefer_void_to_null: false
 
     prefer_null_aware_method_calls: true
     join_return_with_assignment: true

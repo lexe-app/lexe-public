@@ -176,7 +176,7 @@ impl AppHandle {
         Ok(FiatRate {
             timestamp_ms: TimestampMs::now().as_i64(),
             // ~27,763 USD / BTC
-            rate: 3598.63230381,
+            rate: 0.0000360359,
         })
     }
 }
