@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use common::api::command::GetInvoiceRequest;
 use common::api::error::{NodeApiError, NodeErrorKind};
-use common::api::qs::GetByUserPk;
+use common::api::qs::{GetByUserPk, GetRange};
 use common::api::rest::{into_response, into_succ_response};
 use common::api::{Scid, UserPk};
 use common::cli::{LspInfo, Network};
@@ -30,6 +30,7 @@ use warp::{Filter, Rejection, Reply};
 use crate::alias::NodePaymentsManagerType;
 use crate::channel_manager::NodeChannelManager;
 use crate::peer_manager::NodePeerManager;
+use crate::persister::NodePersister;
 
 /// Handlers for commands that can only be initiated by the host (Lexe).
 mod host;
@@ -53,6 +54,7 @@ fn into_command_api_result<T>(
 ///
 /// [`OwnerNodeRunApi`]: common::api::def::OwnerNodeRunApi
 pub(crate) fn owner_routes(
+    persister: NodePersister,
     channel_manager: NodeChannelManager,
     peer_manager: NodePeerManager,
     network_graph: Arc<NetworkGraphType>,
@@ -101,6 +103,12 @@ pub(crate) fn owner_routes(
         .then(lexe_ln::command::get_invoice)
         .map(into_command_api_result)
         .map(into_response);
+    let get_payments = warp::path("payments")
+        .and(warp::get())
+        .and(warp::query::<GetRange>())
+        .and(inject::persister(persister))
+        .then(owner::get_payments)
+        .map(into_response);
     let send_payment = warp::path("send_payment")
         .and(warp::post())
         .and(warp::body::json::<LxInvoice>())
@@ -110,8 +118,13 @@ pub(crate) fn owner_routes(
         .map(into_command_api_result)
         .map(into_response);
 
-    let owner = owner_base
-        .and(node_info.or(list_channels).or(get_invoice).or(send_payment));
+    let owner = owner_base.and(
+        node_info
+            .or(list_channels)
+            .or(get_invoice)
+            .or(get_payments)
+            .or(send_payment),
+    );
 
     root.or(owner)
 }

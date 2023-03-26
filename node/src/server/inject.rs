@@ -15,6 +15,7 @@ use warp::Filter;
 use crate::alias::NodePaymentsManagerType;
 use crate::channel_manager::NodeChannelManager;
 use crate::peer_manager::NodePeerManager;
+use crate::persister::NodePersister;
 
 /// Injects a [`UserPk`].
 pub(crate) fn user_pk(
@@ -28,6 +29,13 @@ pub(crate) fn shutdown(
     shutdown: ShutdownChannel,
 ) -> impl Filter<Extract = (ShutdownChannel,), Error = Infallible> + Clone {
     warp::any().map(move || shutdown.clone())
+}
+
+/// Injects a [`NodePersister`].
+pub(crate) fn persister(
+    persister: NodePersister,
+) -> impl Filter<Extract = (NodePersister,), Error = Infallible> + Clone {
+    warp::any().map(move || persister.clone())
 }
 
 /// Injects a channel manager.
