@@ -34,14 +34,19 @@ dependencies:
 
   # The low-level runtime interface for generated dart ffi bindings.
   ffi: ^2.0.1
-
+  # flutter SDK
   flutter:
     sdk: flutter
-
   # The high-level memory safe interface for generated Rust<->dart ffi bindings.
   flutter_rust_bridge: ^1.61.1
+  # International number, currency, and date formatting
+  intl: ^0.18.0
   # Used by the generated Rust<->dart ffi bindings.
   meta: ^1.8.0
+  # Reactive primitives for asynchronous programming
+  rxdart: ^0.27.7
+  # Even more rxdart!
+  rxdart_ext: ^0.2.8
 
 dev_dependencies:
   # Used by flutter_rust_bridge to generate the dart ffi bingings at build-time.

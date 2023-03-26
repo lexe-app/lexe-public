@@ -1,9 +1,14 @@
 // The primary wallet page.
 
+import 'dart:async' show StreamController;
+// import 'dart:core' show Sink;
+
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart' show NumberFormat;
+import 'package:rxdart_ext/rxdart_ext.dart';
 
 import '../../bindings_generated_api.dart' show AppHandle;
-import '../../style.dart' show Fonts, LxColors, Space;
+import '../../style.dart' show Fonts, LxColors, Radius, Space;
 
 class WalletPage extends StatelessWidget {
   const WalletPage({super.key, required this.app});
@@ -12,6 +17,30 @@ class WalletPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A handle to refresh the wallet page contents
+    final refresh = StreamController<Null>();
+    final Sink<Null> refreshTx = refresh.sink;
+    final Stream<Null> refreshRx = refresh.stream;
+
+    // A raw stream of `NodeInfo`s that gets updated after a refresh is
+    // triggered.
+    final nodeInfoStream = refreshRx
+        .asyncMap((_) => this.app.nodeInfo())
+        // TODO(phlip9): add connectivity notifier chip to app bar and update it
+        //               here on error
+        .doOnError((err, stackTrace) =>
+            debugPrint("Error loading node info: $err\n$stackTrace"));
+
+    // A stream of our current wallet balance, starting with `null` (to display
+    // a placeholder before it's loaded). This stream ignores errors and ignores
+    // duplicate balance values to avoid unnecessary re-layouts.
+    final balanceStream = nodeInfoStream
+        .map<int?>((nodeInfo) => nodeInfo.localBalanceMsat)
+        .toStateStream(null);
+
+    // Trigger an initial refresh event
+    refreshTx.add(null);
+
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -25,15 +54,59 @@ class WalletPage extends StatelessWidget {
       ),
       drawer: const WalletDrawer(),
       body: ListView(
-        children: const [
-          SizedBox(height: Space.s1000),
-          BalanceWidget(),
-          SizedBox(height: Space.s700),
-          WalletActions(),
+        children: [
+          const SizedBox(height: Space.s1000),
+          StateStreamBuilder(
+            stream: balanceStream,
+            builder: (context, maybeBalance) =>
+                BalanceWidget(maybeBalance: maybeBalance),
+          ),
+          const SizedBox(height: Space.s700),
+          const WalletActions(),
         ],
       ),
+      // TODO(phlip9): this default pull-to-refresh is really not great...
+      // body: RefreshIndicator(
+      //   backgroundColor: LxColors.background,
+      //   color: LxColors.foreground,
+      //   onRefresh: () async {
+      //     refreshTx.add(null);
+      //     await Future.delayed(const Duration(seconds: 1));
+      //   },
+      //   child: ListView(
+      //     children: const [
+      //       SizedBox(height: Space.s1000),
+      //       BalanceWidget(),
+      //       SizedBox(height: Space.s700),
+      //       WalletActions(),
+      //     ],
+      //   ),
+      // ),
     );
   }
+}
+
+typedef StateStreamWidgetBuilder<T> = Widget Function(
+  BuildContext context,
+  T data,
+);
+
+/// A small helper `Widget` that builds a new widget everytime a `StateStream`
+/// gets an update.
+///
+/// This is slightly nicer than the standard `StreamBuilder` because
+/// `StateStream`s always have an initial value and never error.
+class StateStreamBuilder<T> extends StreamBuilder<T> {
+  StateStreamBuilder({
+    super.key,
+    required StateStream<T> stream,
+    required StateStreamWidgetBuilder builder,
+  }) : super(
+          stream: stream,
+          initialData: stream.value,
+          builder: (BuildContext context, AsyncSnapshot<T> snapshot) =>
+              builder(context, snapshot.data),
+        );
 }
 
 class WalletDrawer extends StatelessWidget {
@@ -152,51 +225,152 @@ class DrawerListItem extends StatelessWidget {
   }
 }
 
+final NumberFormat decimalFormatter = NumberFormat.decimalPattern();
+
+String formatSats(int balance) => "${decimalFormatter.format(balance)} SATS";
+
 class BalanceWidget extends StatelessWidget {
-  const BalanceWidget({super.key});
+  const BalanceWidget({super.key, required this.maybeBalance});
+
+  final int? maybeBalance;
 
   @override
   Widget build(BuildContext context) {
+    debugPrint("BalanceWidget(maybeBalance: $maybeBalance)");
+
+    const satsBalanceSize = Fonts.size300;
+    final satsBalanceOrPlaceholder = (this.maybeBalance != null)
+        ? Text(
+            formatSats(this.maybeBalance!),
+            style: Fonts.fontUI.copyWith(
+              fontSize: satsBalanceSize,
+              color: LxColors.grey700,
+              fontVariations: [Fonts.weightMedium],
+            ),
+          )
+        : const FilledPlaceholder(
+            color: LxColors.grey825,
+            width: Space.s900,
+            height: satsBalanceSize,
+          );
+
+    final fiatBalanceOrPlaceholder = (this.maybeBalance != null)
+        ? PrimaryBalanceText(
+            fiatBalance: this.maybeBalance! * 0.0000360359,
+            fiatName: "USD",
+          )
+        : const FilledPlaceholder(
+            color: LxColors.grey825,
+            width: Space.s1000,
+            height: Fonts.size800,
+          );
+
     return Column(
       children: [
-        const PrimaryBalanceText(),
+        fiatBalanceOrPlaceholder,
         const SizedBox(height: Space.s400),
-        Text(
-          "73,187 SATS",
-          style: Fonts.fontUI.copyWith(
-            fontSize: Fonts.size300,
-            color: LxColors.grey700,
-            fontVariations: [Fonts.weightMedium],
-          ),
-        ),
+        satsBalanceOrPlaceholder,
+        const SizedBox(height: Space.s400),
       ],
     );
   }
 }
 
-class PrimaryBalanceText extends StatelessWidget {
-  const PrimaryBalanceText({super.key});
+/// A simple colored box that we can show while some real content is loading.
+///
+/// The `width` and `height` are optional. If left `null`, that dimension will
+/// be determined by the parent `Widget`'s constraints.
+class FilledPlaceholder extends StatelessWidget {
+  const FilledPlaceholder({
+    super.key,
+    this.color = LxColors.grey825,
+    this.width = double.infinity,
+    this.height = double.infinity,
+    this.borderRadius = Radius.r200,
+    this.child,
+  });
+
+  final Color color;
+  final double width;
+  final double height;
+  final double borderRadius;
+  final Widget? child;
 
   @override
   Widget build(BuildContext context) {
+    return SizedBox(
+      width: this.width,
+      height: this.height,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: this.color,
+          borderRadius: BorderRadius.circular(this.borderRadius),
+        ),
+        child: this.child,
+      ),
+    );
+  }
+}
+
+class PrimaryBalanceText extends StatelessWidget {
+  const PrimaryBalanceText({
+    super.key,
+    required this.fiatBalance,
+    required this.fiatName,
+  });
+
+  final double fiatBalance;
+  final String fiatName;
+
+  @override
+  Widget build(BuildContext context) {
+    final NumberFormat currencyFormatter = NumberFormat.simpleCurrency(
+      name: this.fiatName,
+    );
+    final fiatBalanceStr = currencyFormatter.format(this.fiatBalance);
+
+    final decimalSeparator = currencyFormatter.symbols.DECIMAL_SEP;
+    final maybeDecimalIdx = fiatBalanceStr.lastIndexOf(decimalSeparator);
+
+    // ex: fiatBalance = 123.45679
+    //     fiatBalanceSignificant = "$123"
+    //     fiatBalanceFractional = ".46"
+    final String fiatBalanceSignificant;
+    final String? fiatBalanceFractional;
+
+    if (maybeDecimalIdx >= 0) {
+      fiatBalanceSignificant = fiatBalanceStr.substring(0, maybeDecimalIdx);
+      fiatBalanceFractional = fiatBalanceStr.substring(maybeDecimalIdx);
+    } else {
+      fiatBalanceSignificant = fiatBalanceStr;
+      fiatBalanceFractional = null;
+    }
+
+    // debugPrint(
+    //   "PrimaryBalanceText(fiatBalance: $fiatBalance, "
+    //   "fiatBalanceStr: $fiatBalanceStr, decimalSep: $decimalSeparator, "
+    //   "signifiant: $fiatBalanceSignificant, fract: $fiatBalanceFractional)",
+    // );
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          "\$15",
+          fiatBalanceSignificant,
           style: Fonts.fontUI.copyWith(
             fontSize: Fonts.size800,
             fontVariations: [Fonts.weightMedium],
           ),
         ),
-        Text(
-          ".21",
-          style: Fonts.fontUI.copyWith(
-            fontSize: Fonts.size800,
-            color: LxColors.grey650,
-            fontVariations: [Fonts.weightMedium],
+        if (fiatBalanceFractional != null)
+          Text(
+            fiatBalanceFractional,
+            style: Fonts.fontUI.copyWith(
+              fontSize: Fonts.size800,
+              color: LxColors.grey650,
+              fontVariations: [Fonts.weightMedium],
+            ),
           ),
-        ),
       ],
     );
   }
