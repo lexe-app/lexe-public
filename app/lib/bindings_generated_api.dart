@@ -32,6 +32,11 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kNodeInfoMethodAppHandleConstMeta;
 
+  Future<FiatRate> fiatRateMethodAppHandle(
+      {required AppHandle that, required String fiat, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kFiatRateMethodAppHandleConstMeta;
+
   DropFnType get dropOpaqueApp;
   ShareFnType get shareOpaqueApp;
   OpaqueTypeFinalizer get AppFinalizer;
@@ -80,6 +85,12 @@ class AppHandle {
   Future<NodeInfo> nodeInfo({dynamic hint}) => bridge.nodeInfoMethodAppHandle(
         that: this,
       );
+
+  Future<FiatRate> fiatRate({required String fiat, dynamic hint}) =>
+      bridge.fiatRateMethodAppHandle(
+        that: this,
+        fiat: fiat,
+      );
 }
 
 /// Dart-serializable configuration we get from the flutter side.
@@ -102,6 +113,19 @@ enum DeployEnv {
   Prod,
   Staging,
   Dev,
+}
+
+class FiatRate {
+  /// The unix timestamp of the Fiat/SATS exchange rate quote.
+  final int timestampMs;
+
+  /// The exchange rate in Fiat/SATS.
+  final double rate;
+
+  FiatRate({
+    required this.timestampMs,
+    required this.rate,
+  });
 }
 
 enum Network {

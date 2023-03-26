@@ -99,6 +99,24 @@ fn wire_node_info__method__AppHandle_impl(
         },
     )
 }
+fn wire_fiat_rate__method__AppHandle_impl(
+    port_: MessagePort,
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+    fiat: impl Wire2Api<String> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
+        WrapInfo {
+            debug_name: "fiat_rate__method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_that = that.wire2api();
+            let api_fiat = fiat.wire2api();
+            move |task_callback| AppHandle::fiat_rate(&api_that, api_fiat)
+        },
+    )
+}
 // Section: wrapper structs
 
 // Section: static checks
@@ -180,6 +198,13 @@ impl support::IntoDart for DeployEnv {
     }
 }
 
+impl support::IntoDart for FiatRate {
+    fn into_dart(self) -> support::DartAbi {
+        vec![self.timestamp_ms.into_dart(), self.rate.into_dart()].into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for FiatRate {}
+
 impl support::IntoDart for Network {
     fn into_dart(self) -> support::DartAbi {
         match self {
@@ -249,6 +274,15 @@ mod io {
         that: *mut wire_AppHandle,
     ) {
         wire_node_info__method__AppHandle_impl(port_, that)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_fiat_rate__method__AppHandle(
+        port_: i64,
+        that: *mut wire_AppHandle,
+        fiat: *mut wire_uint_8_list,
+    ) {
+        wire_fiat_rate__method__AppHandle_impl(port_, that, fiat)
     }
 
     // Section: allocate functions

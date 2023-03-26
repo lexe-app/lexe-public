@@ -51,6 +51,10 @@ void wire_signup__static_method__AppHandle(int64_t port_, struct wire_Config *co
 
 void wire_node_info__method__AppHandle(int64_t port_, struct wire_AppHandle *that);
 
+void wire_fiat_rate__method__AppHandle(int64_t port_,
+                                       struct wire_AppHandle *that,
+                                       struct wire_uint_8_list *fiat);
+
 struct wire_App new_App(void);
 
 struct wire_AppHandle *new_box_autoadd_app_handle_0(void);
@@ -72,6 +76,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_restore__static_method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_signup__static_method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_node_info__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_fiat_rate__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) new_App);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_app_handle_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_config_0);

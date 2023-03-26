@@ -117,6 +117,26 @@ class AppRsImpl implements AppRs {
         argNames: ["that"],
       );
 
+  Future<FiatRate> fiatRateMethodAppHandle(
+      {required AppHandle that, required String fiat, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    var arg1 = _platform.api2wire_String(fiat);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) =>
+          _platform.inner.wire_fiat_rate__method__AppHandle(port_, arg0, arg1),
+      parseSuccessData: _wire2api_fiat_rate,
+      constMeta: kFiatRateMethodAppHandleConstMeta,
+      argValues: [that, fiat],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kFiatRateMethodAppHandleConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "fiat_rate__method__AppHandle",
+        argNames: ["that", "fiat"],
+      );
+
   DropFnType get dropOpaqueApp => _platform.inner.drop_opaque_App;
   ShareFnType get shareOpaqueApp => _platform.inner.share_opaque_App;
   OpaqueTypeFinalizer get AppFinalizer => _platform.AppFinalizer;
@@ -163,8 +183,26 @@ class AppRsImpl implements AppRs {
     return DeployEnv.values[raw];
   }
 
+  double _wire2api_f64(dynamic raw) {
+    return raw as double;
+  }
+
+  FiatRate _wire2api_fiat_rate(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return FiatRate(
+      timestampMs: _wire2api_i64(arr[0]),
+      rate: _wire2api_f64(arr[1]),
+    );
+  }
+
   int _wire2api_i32(dynamic raw) {
     return raw as int;
+  }
+
+  int _wire2api_i64(dynamic raw) {
+    return castInt(raw);
   }
 
   Network _wire2api_network(dynamic raw) {
@@ -471,6 +509,28 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _wire_node_info__method__AppHandle =
       _wire_node_info__method__AppHandlePtr
           .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
+
+  void wire_fiat_rate__method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_AppHandle> that,
+    ffi.Pointer<wire_uint_8_list> fiat,
+  ) {
+    return _wire_fiat_rate__method__AppHandle(
+      port_,
+      that,
+      fiat,
+    );
+  }
+
+  late final _wire_fiat_rate__method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>,
+                  ffi.Pointer<wire_uint_8_list>)>>(
+      'wire_fiat_rate__method__AppHandle');
+  late final _wire_fiat_rate__method__AppHandle =
+      _wire_fiat_rate__method__AppHandlePtr.asFunction<
+          void Function(int, ffi.Pointer<wire_AppHandle>,
+              ffi.Pointer<wire_uint_8_list>)>();
 
   wire_App new_App() {
     return _new_App();

@@ -41,10 +41,11 @@
 
 use std::future::Future;
 
-use anyhow::Context;
+use anyhow::{ensure, Context};
 use common::api::command::NodeInfo as NodeInfoRs;
 use common::api::def::OwnerNodeRunApi;
 use common::rng::SysRng;
+use common::time::TimestampMs;
 use flutter_rust_bridge::{RustOpaque, SyncReturn};
 
 pub use crate::app::App;
@@ -76,6 +77,13 @@ impl From<NodeInfoRs> for NodeInfo {
             local_balance_msat: info.local_balance_msat,
         }
     }
+}
+
+pub struct FiatRate {
+    /// The unix timestamp of the Fiat/SATS exchange rate quote.
+    pub timestamp_ms: i64,
+    /// The exchange rate in Fiat/SATS.
+    pub rate: f64,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -160,5 +168,15 @@ impl AppHandle {
         block_on(self.inner.client().node_info())
             .map(NodeInfo::from)
             .map_err(anyhow::Error::new)
+    }
+
+    pub fn fiat_rate(&self, fiat: String) -> anyhow::Result<FiatRate> {
+        ensure!(fiat == "USD", "Unknown Fiat currency");
+
+        Ok(FiatRate {
+            timestamp_ms: TimestampMs::now().as_i64(),
+            // ~27,763 USD / BTC
+            rate: 3598.63230381,
+        })
     }
 }
