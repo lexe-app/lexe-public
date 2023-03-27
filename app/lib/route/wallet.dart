@@ -236,8 +236,6 @@ class BalanceWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    debugPrint("BalanceWidget(maybeBalance: $maybeBalance)");
-
     const satsBalanceSize = Fonts.size300;
     final satsBalanceOrPlaceholder = (this.maybeBalance != null)
         ? Text(
@@ -249,9 +247,9 @@ class BalanceWidget extends StatelessWidget {
             ),
           )
         : const FilledPlaceholder(
-            color: LxColors.grey825,
             width: Space.s900,
             height: satsBalanceSize,
+            forText: true,
           );
 
     final fiatBalanceOrPlaceholder = (this.maybeBalance != null)
@@ -260,9 +258,9 @@ class BalanceWidget extends StatelessWidget {
             fiatName: "USD",
           )
         : const FilledPlaceholder(
-            color: LxColors.grey825,
             width: Space.s1000,
             height: Fonts.size800,
+            forText: true,
           );
 
     return Column(
@@ -270,7 +268,6 @@ class BalanceWidget extends StatelessWidget {
         fiatBalanceOrPlaceholder,
         const SizedBox(height: Space.s400),
         satsBalanceOrPlaceholder,
-        const SizedBox(height: Space.s400),
       ],
     );
   }
@@ -280,13 +277,18 @@ class BalanceWidget extends StatelessWidget {
 ///
 /// The `width` and `height` are optional. If left `null`, that dimension will
 /// be determined by the parent `Widget`'s constraints.
+///
+/// If the placeholder is replacing some text, `forText` should be set to `true`.
+/// This is because a `Text` widget's actual rendered height also depends on the
+/// current `MediaQuery.textScaleFactor`.
 class FilledPlaceholder extends StatelessWidget {
   const FilledPlaceholder({
     super.key,
-    this.color = LxColors.grey825,
+    this.color = LxColors.grey850,
     this.width = double.infinity,
     this.height = double.infinity,
     this.borderRadius = Radius.r200,
+    this.forText = false,
     this.child,
   });
 
@@ -294,13 +296,21 @@ class FilledPlaceholder extends StatelessWidget {
   final double width;
   final double height;
   final double borderRadius;
+  final bool forText;
   final Widget? child;
 
   @override
   Widget build(BuildContext context) {
+    final double heightFactor;
+    if (!this.forText) {
+      heightFactor = 1.0;
+    } else {
+      heightFactor = MediaQuery.of(context).textScaleFactor;
+    }
+
     return SizedBox(
       width: this.width,
-      height: this.height,
+      height: this.height * heightFactor,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: this.color,
