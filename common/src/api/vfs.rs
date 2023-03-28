@@ -1,6 +1,5 @@
-use serde::{Deserialize, Serialize};
 
-use crate::api::UserPk;
+use serde::{Deserialize, Serialize};
 
 /// Contains the basic components common to [`NodeFile`] and `LspFile`,
 /// useful whenever it is necessary to abstract over both types.
@@ -10,66 +9,69 @@ pub struct BasicFile {
     pub data: Vec<u8>,
 }
 
-/// Uniquely identifies a directory in the node's virtual file system.
+/// Uniquely identifies a directory in the virtual file system.
+///
+/// This struct exists mainly so that `serde_qs` can use it as a query parameter
+/// struct to fetch files by directory.
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Deserialize, Serialize)]
 pub struct NodeDirectory {
-    pub user_pk: UserPk,
     pub dirname: String,
 }
 
-/// Uniquely identifies a file in the node's virtual file system.
+/// Uniquely identifies a file in the virtual file system.
+///
+/// This struct exists mainly so that `serde_qs` can use it as a query parameter
+/// struct to fetch files by id.
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct NodeFileId {
-    // Flattened because serde_qs doesn't play well with nested structs
+    // Flattened because serde_qs requires non-nested structs
     #[serde(flatten)]
     pub dir: NodeDirectory,
     pub filename: String,
 }
 
+/// Represents a file in the virtual file system. The `data` field is almost
+/// always encrypted.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct NodeFile {
-    // Flattened because serde_qs doesn't play well with nested structs
+    // Flattened because serde_qs requires non-nested structs
     #[serde(flatten)]
     pub id: NodeFileId,
     pub data: Vec<u8>,
 }
 
 impl NodeFileId {
-    pub fn new(user_pk: UserPk, dirname: String, filename: String) -> Self {
+    pub fn new(dirname: String, filename: String) -> Self {
         Self {
-            dir: NodeDirectory { user_pk, dirname },
+            dir: NodeDirectory { dirname },
             filename,
         }
     }
 }
 
 impl NodeFile {
-    pub fn new(
-        user_pk: UserPk,
-        dirname: String,
-        filename: String,
-        data: Vec<u8>,
-    ) -> Self {
+    pub fn new(dirname: String, filename: String, data: Vec<u8>) -> Self {
         Self {
             id: NodeFileId {
-                dir: NodeDirectory { user_pk, dirname },
+                dir: NodeDirectory { dirname },
                 filename,
             },
             data,
         }
     }
+}
 
-    pub fn from_basic(
+impl From<BasicFile> for NodeFile {
+    fn from(
         BasicFile {
             dirname,
             filename,
             data,
         }: BasicFile,
-        user_pk: UserPk,
     ) -> Self {
         Self {
             id: NodeFileId {
-                dir: NodeDirectory { user_pk, dirname },
+                dir: NodeDirectory { dirname },
                 filename,
             },
             data,

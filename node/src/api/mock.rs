@@ -411,13 +411,11 @@ impl VirtualFileSystem {
         let mut inner = HashMap::new();
 
         // For each user, insert all directories used by the persister
-        for user_pk in [*USER_PK1, *USER_PK2] {
+        for _ in [*USER_PK1, *USER_PK2] {
             let singleton_dir = NodeDirectory {
-                user_pk,
                 dirname: SINGLETON_DIRECTORY.into(),
             };
             let channel_monitors_dir = NodeDirectory {
-                user_pk,
                 dirname: persister::CHANNEL_MONITORS_DIRECTORY.into(),
             };
             inner.insert(singleton_dir, HashMap::new());
@@ -429,7 +427,6 @@ impl VirtualFileSystem {
 
     fn get(&self, file_id: NodeFileId) -> Option<NodeFile> {
         let dir = NodeDirectory {
-            user_pk: file_id.dir.user_pk,
             dirname: file_id.dir.dirname,
         };
         self.inner
@@ -437,41 +434,30 @@ impl VirtualFileSystem {
             .expect("Missing directory")
             .get(&file_id.filename)
             .map(|data| {
-                NodeFile::new(
-                    dir.user_pk,
-                    dir.dirname,
-                    file_id.filename,
-                    data.clone(),
-                )
+                NodeFile::new(dir.dirname, file_id.filename, data.clone())
             })
     }
 
     fn insert(&mut self, file: NodeFile) -> Option<NodeFile> {
         let dir = NodeDirectory {
-            user_pk: file.id.dir.user_pk,
             dirname: file.id.dir.dirname,
         };
         self.inner
             .get_mut(&dir)
             .expect("Missing directory")
             .insert(file.id.filename.clone(), file.data)
-            .map(|data| {
-                NodeFile::new(dir.user_pk, dir.dirname, file.id.filename, data)
-            })
+            .map(|data| NodeFile::new(dir.dirname, file.id.filename, data))
     }
 
     fn remove(&mut self, file_id: NodeFileId) -> Option<NodeFile> {
         let dir = NodeDirectory {
-            user_pk: file_id.dir.user_pk,
             dirname: file_id.dir.dirname,
         };
         self.inner
             .get_mut(&dir)
             .expect("Missing directory")
             .remove(&file_id.filename)
-            .map(|data| {
-                NodeFile::new(dir.user_pk, dir.dirname, file_id.filename, data)
-            })
+            .map(|data| NodeFile::new(dir.dirname, file_id.filename, data))
     }
 
     fn get_dir(&self, dir: NodeDirectory) -> Vec<NodeFile> {
@@ -480,12 +466,7 @@ impl VirtualFileSystem {
             .expect("Missing directory")
             .iter()
             .map(|(name, data)| {
-                NodeFile::new(
-                    dir.user_pk,
-                    dir.dirname.clone(),
-                    name.clone(),
-                    data.clone(),
-                )
+                NodeFile::new(dir.dirname.clone(), name.clone(), data.clone())
             })
             .collect()
     }
