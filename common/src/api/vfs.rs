@@ -1,3 +1,18 @@
+//! Virtual File System ('vfs')
+//!
+//! Our "virtual file system" is a simple way to represent a key-value store
+//! with optional namespacing by "directory". You can think of the `vfs` as a
+//! local directory that can contain files or directories, but where the
+//! directories cannot contain other directories (no nesting).
+//!
+//! Any file can be uniquely identified by its `<dirname>/<filename>`, and all
+//! files exclusively contain only binary data [`Vec<u8>`].
+//!
+//! Singleton objects like the channel manager are stored in the global
+//! namespace, e.g. at `./channel_manager` or `./bdk_wallet_db`
+//!
+//! Growable or shrinkable collections of objects (e.g. channel monitors), are
+//! stored in their own "directory", e.g. `channel_monitors/<funding_txo>`.
 
 use serde::{Deserialize, Serialize};
 
