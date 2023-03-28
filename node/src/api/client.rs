@@ -10,7 +10,7 @@ use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
 use common::api::qs::{EmptyData, GetByNodePk, GetByUserPk, GetRange};
 use common::api::rest::{RequestBuilderExt, RestClient, POST};
-use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
+use common::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use common::api::{NodePk, Scid, User, UserPk};
 use common::ed25519;
 use common::ln::payments::{DbPayment, LxPaymentId};
@@ -90,7 +90,7 @@ impl BackendClient {
 impl BackendApiClient for BackendClient {
     async fn create_file_with_retries(
         &self,
-        data: &NodeFile,
+        data: &VfsFile,
         auth: UserAuthToken,
         retries: usize,
     ) -> Result<(), BackendApiError> {
@@ -102,7 +102,7 @@ impl BackendApiClient for BackendClient {
 
     async fn upsert_file_with_retries(
         &self,
-        data: &NodeFile,
+        data: &VfsFile,
         auth: UserAuthToken,
         retries: usize,
     ) -> Result<(), BackendApiError> {
@@ -189,9 +189,9 @@ impl NodeBackendApi for BackendClient {
 
     async fn get_file(
         &self,
-        data: &NodeFileId,
+        data: &VfsFileId,
         auth: UserAuthToken,
-    ) -> Result<Option<NodeFile>, BackendApiError> {
+    ) -> Result<Option<VfsFile>, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -202,7 +202,7 @@ impl NodeBackendApi for BackendClient {
 
     async fn create_file(
         &self,
-        data: &NodeFile,
+        data: &VfsFile,
         auth: UserAuthToken,
     ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
@@ -215,7 +215,7 @@ impl NodeBackendApi for BackendClient {
 
     async fn upsert_file(
         &self,
-        data: &NodeFile,
+        data: &VfsFile,
         auth: UserAuthToken,
     ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
@@ -231,7 +231,7 @@ impl NodeBackendApi for BackendClient {
     #[allow(dead_code)]
     async fn delete_file(
         &self,
-        data: &NodeFileId,
+        data: &VfsFileId,
         auth: UserAuthToken,
     ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
@@ -244,9 +244,9 @@ impl NodeBackendApi for BackendClient {
 
     async fn get_directory(
         &self,
-        data: &NodeDirectory,
+        data: &VfsDirectory,
         auth: UserAuthToken,
-    ) -> Result<Vec<NodeFile>, BackendApiError> {
+    ) -> Result<Vec<VfsFile>, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest

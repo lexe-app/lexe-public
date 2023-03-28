@@ -17,7 +17,7 @@ use common::api::error::{
 use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
 use common::api::qs::GetRange;
-use common::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
+use common::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use common::api::{NodePk, Scid, User, UserPk};
 use common::byte_str::ByteStr;
 use common::constants::SINGLETON_DIRECTORY;
@@ -156,7 +156,7 @@ impl MockBackendClient {
 impl BackendApiClient for MockBackendClient {
     async fn create_file_with_retries(
         &self,
-        data: &NodeFile,
+        data: &VfsFile,
         auth: UserAuthToken,
         _retries: usize,
     ) -> Result<(), BackendApiError> {
@@ -165,7 +165,7 @@ impl BackendApiClient for MockBackendClient {
 
     async fn upsert_file_with_retries(
         &self,
-        data: &NodeFile,
+        data: &VfsFile,
         auth: UserAuthToken,
         _retries: usize,
     ) -> Result<(), BackendApiError> {
@@ -232,16 +232,16 @@ impl NodeBackendApi for MockBackendClient {
 
     async fn get_file(
         &self,
-        file_id: &NodeFileId,
+        file_id: &VfsFileId,
         _auth: UserAuthToken,
-    ) -> Result<Option<NodeFile>, BackendApiError> {
+    ) -> Result<Option<VfsFile>, BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().get(file_id.clone());
         Ok(file_opt)
     }
 
     async fn create_file(
         &self,
-        file: &NodeFile,
+        file: &VfsFile,
         _auth: UserAuthToken,
     ) -> Result<(), BackendApiError> {
         let mut locked_vfs = self.vfs.lock().unwrap();
@@ -259,7 +259,7 @@ impl NodeBackendApi for MockBackendClient {
 
     async fn upsert_file(
         &self,
-        file: &NodeFile,
+        file: &VfsFile,
         _auth: UserAuthToken,
     ) -> Result<(), BackendApiError> {
         self.vfs.lock().unwrap().insert(file.clone());
@@ -269,7 +269,7 @@ impl NodeBackendApi for MockBackendClient {
     /// Returns [`Ok`] if exactly one row was deleted.
     async fn delete_file(
         &self,
-        file_id: &NodeFileId,
+        file_id: &VfsFileId,
         _auth: UserAuthToken,
     ) -> Result<(), BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().remove(file_id.clone());
@@ -285,9 +285,9 @@ impl NodeBackendApi for MockBackendClient {
 
     async fn get_directory(
         &self,
-        dir: &NodeDirectory,
+        dir: &VfsDirectory,
         _auth: UserAuthToken,
-    ) -> Result<Vec<NodeFile>, BackendApiError> {
+    ) -> Result<Vec<VfsFile>, BackendApiError> {
         let files_vec = self.vfs.lock().unwrap().get_dir(dir.clone());
         Ok(files_vec)
     }
@@ -403,7 +403,7 @@ impl NodeBackendApi for MockBackendClient {
 }
 
 struct VirtualFileSystem {
-    inner: HashMap<NodeDirectory, HashMap<FileName, Data>>,
+    inner: HashMap<VfsDirectory, HashMap<FileName, Data>>,
 }
 
 impl VirtualFileSystem {
@@ -412,10 +412,10 @@ impl VirtualFileSystem {
 
         // For each user, insert all directories used by the persister
         for _ in [*USER_PK1, *USER_PK2] {
-            let singleton_dir = NodeDirectory {
+            let singleton_dir = VfsDirectory {
                 dirname: SINGLETON_DIRECTORY.into(),
             };
-            let channel_monitors_dir = NodeDirectory {
+            let channel_monitors_dir = VfsDirectory {
                 dirname: persister::CHANNEL_MONITORS_DIRECTORY.into(),
             };
             inner.insert(singleton_dir, HashMap::new());
@@ -425,8 +425,8 @@ impl VirtualFileSystem {
         Self { inner }
     }
 
-    fn get(&self, file_id: NodeFileId) -> Option<NodeFile> {
-        let dir = NodeDirectory {
+    fn get(&self, file_id: VfsFileId) -> Option<VfsFile> {
+        let dir = VfsDirectory {
             dirname: file_id.dir.dirname,
         };
         self.inner
@@ -434,39 +434,39 @@ impl VirtualFileSystem {
             .expect("Missing directory")
             .get(&file_id.filename)
             .map(|data| {
-                NodeFile::new(dir.dirname, file_id.filename, data.clone())
+                VfsFile::new(dir.dirname, file_id.filename, data.clone())
             })
     }
 
-    fn insert(&mut self, file: NodeFile) -> Option<NodeFile> {
-        let dir = NodeDirectory {
+    fn insert(&mut self, file: VfsFile) -> Option<VfsFile> {
+        let dir = VfsDirectory {
             dirname: file.id.dir.dirname,
         };
         self.inner
             .get_mut(&dir)
             .expect("Missing directory")
             .insert(file.id.filename.clone(), file.data)
-            .map(|data| NodeFile::new(dir.dirname, file.id.filename, data))
+            .map(|data| VfsFile::new(dir.dirname, file.id.filename, data))
     }
 
-    fn remove(&mut self, file_id: NodeFileId) -> Option<NodeFile> {
-        let dir = NodeDirectory {
+    fn remove(&mut self, file_id: VfsFileId) -> Option<VfsFile> {
+        let dir = VfsDirectory {
             dirname: file_id.dir.dirname,
         };
         self.inner
             .get_mut(&dir)
             .expect("Missing directory")
             .remove(&file_id.filename)
-            .map(|data| NodeFile::new(dir.dirname, file_id.filename, data))
+            .map(|data| VfsFile::new(dir.dirname, file_id.filename, data))
     }
 
-    fn get_dir(&self, dir: NodeDirectory) -> Vec<NodeFile> {
+    fn get_dir(&self, dir: VfsDirectory) -> Vec<VfsFile> {
         self.inner
             .get(&dir)
             .expect("Missing directory")
             .iter()
             .map(|(name, data)| {
-                NodeFile::new(dir.dirname.clone(), name.clone(), data.clone())
+                VfsFile::new(dir.dirname.clone(), name.clone(), data.clone())
             })
             .collect()
     }

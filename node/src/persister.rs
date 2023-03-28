@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
 use common::api::auth::{UserAuthToken, UserAuthenticator};
 use common::api::qs::GetRange;
-use common::api::vfs::{BasicFile, NodeDirectory, NodeFile, NodeFileId};
+use common::api::vfs::{BasicFile, VfsDirectory, VfsFile, VfsFileId};
 use common::api::{Scid, User};
 use common::cli::Network;
 use common::constants::{
@@ -108,13 +108,13 @@ pub struct InnerPersister {
 
 impl InnerPersister {
     /// Serializes an LDK [`Writeable`], encrypts the serialized bytes, and
-    /// returns the final [`NodeFile`] which is ready to be persisted.
+    /// returns the final [`VfsFile`] which is ready to be persisted.
     fn encrypt_ldk_writeable<W: Writeable>(
         &self,
         directory: String,
         filename: String,
         writeable: &W,
-    ) -> NodeFile {
+    ) -> VfsFile {
         self.encrypt_file(directory, filename, &|mut_vec_u8| {
             // - Writeable can write to any LDK lightning::util::ser::Writer
             // - Writer is impl'd for all types that impl std::io::Write
@@ -131,7 +131,7 @@ impl InnerPersister {
         directory: String,
         filename: String,
         write_data_cb: &dyn Fn(&mut Vec<u8>),
-    ) -> NodeFile {
+    ) -> VfsFile {
         let mut rng = common::rng::SysRng::new();
         // bind the directory and filename so files can't be moved around. the
         // owner identity is already bound by the key derivation path.
@@ -155,7 +155,7 @@ impl InnerPersister {
             warn!("{directory}/{filename} is >1MB: {data_len} bytes");
         }
 
-        NodeFile::new(directory, filename, data)
+        VfsFile::new(directory, filename, data)
     }
 
     /// Decrypt a file from a previous call to `encrypt_file`.
@@ -192,7 +192,7 @@ impl InnerPersister {
         wallet_db_persister_tx: mpsc::Sender<()>,
     ) -> anyhow::Result<WalletDb> {
         debug!("Reading wallet db");
-        let file_id = NodeFileId::new(
+        let file_id = VfsFileId::new(
             SINGLETON_DIRECTORY.to_owned(),
             WALLET_DB_FILENAME.to_owned(),
         );
@@ -259,7 +259,7 @@ impl InnerPersister {
         logger: LexeTracingLogger,
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         debug!("Reading channel manager");
-        let file_id = NodeFileId::new(
+        let file_id = VfsFileId::new(
             SINGLETON_DIRECTORY.to_owned(),
             CHANNEL_MANAGER_FILENAME.to_owned(),
         );
@@ -323,7 +323,7 @@ impl InnerPersister {
         debug!("Reading channel monitors");
         // TODO Also attempt to read from the cloud
 
-        let cm_dir = NodeDirectory {
+        let cm_dir = VfsDirectory {
             dirname: CHANNEL_MONITORS_DIRECTORY.to_owned(),
         };
         let token = self.get_token().await?;
@@ -375,7 +375,7 @@ impl InnerPersister {
         debug!("Reading probabilistic scorer");
         let params = ProbabilisticScoringParameters::default();
 
-        let file_id = NodeFileId::new(
+        let file_id = VfsFileId::new(
             SINGLETON_DIRECTORY.to_owned(),
             SCORER_FILENAME.to_owned(),
         );
@@ -416,7 +416,7 @@ impl InnerPersister {
         logger: LexeTracingLogger,
     ) -> anyhow::Result<NetworkGraphType> {
         debug!("Reading network graph");
-        let ng_file_id = NodeFileId::new(
+        let ng_file_id = VfsFileId::new(
             SINGLETON_DIRECTORY.to_owned(),
             NETWORK_GRAPH_FILENAME.to_owned(),
         );
@@ -476,7 +476,7 @@ impl LexeInnerPersister for InnerPersister {
         debug!("Persisting basic file {dirname}/{filename} <{bytes} bytes>");
         let token = self.get_token().await?;
 
-        let file = NodeFile::from(basic_file);
+        let file = VfsFile::from(basic_file);
 
         self.api
             .upsert_file_with_retries(&file, token, retries)
