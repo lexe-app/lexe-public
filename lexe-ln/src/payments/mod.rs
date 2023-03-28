@@ -1,37 +1,7 @@
-//! Payment types.
+//! Lexe payments types and logic.
 //!
-//! The full hierarchy of payments types is as follows:
-//!
-//! [`Payment`]
-//! |
-//! |___[`OnchainDeposit`]
-//! |
-//! |___[`OnchainWithdrawal`]
-//! |
-//! |___`SpliceIn` TODO(max): Implement
-//! |
-//! |___`SpliceOut` TODO(max): Implement
-//! |
-//! |___[`InboundInvoicePayment`]
-//! |
-//! |___[`InboundSpontaneousPayment`]
-//! |
-//! |___[`OutboundInvoicePayment`]
-//! |
-//! |___[`OutboundSpontaneousPayment`]
-//!
-//! NOTE: Everything in this hierarchy impls [`Serialize`] and [`Deserialize`],
-//! so be mindful of backwards compatibility.
-//!
-//! [`Payment`]: payments::Payment
-//! [`OnchainDeposit`]: payments::onchain::OnchainDeposit
-//! [`OnchainWithdrawal`]: payments::onchain::OnchainWithdrawal
-//! [`InboundInvoicePayment`]: payments::inbound::InboundInvoicePayment
-//! [`InboundSpontaneousPayment`]: payments::inbound::InboundSpontaneousPayment
-//! [`OutboundInvoicePayment`]: payments::outbound::OutboundInvoicePayment
-//! [`OutboundSpontaneousPayment`]: payments::outbound::OutboundSpontaneousPayment
-//! [`Serialize`]: serde::Serialize
-//! [`Deserialize`]: serde::Deserialize
+//! This module is the 'complex' counterpart to the simpler types exposed in
+//! [`common::ln::payments`].
 
 use std::fmt::{self, Display};
 
@@ -68,10 +38,15 @@ pub mod outbound;
 
 /// The top level [`Payment`] type which abstracts over all types of payments,
 /// including both onchain and off-chain (Lightning) payments.
+///
+/// NOTE: Everything in this in this enum impls [`Serialize`] and
+/// [`Deserialize`], so be mindful of backwards compatibility.
 #[derive(Clone, Serialize, Deserialize)]
 pub enum Payment {
     OnchainDeposit(OnchainDeposit),
     OnchainWithdrawal(OnchainWithdrawal),
+    // TODO(max): Implement SpliceIn
+    // TODO(max): Implement SpliceOut
     InboundInvoice(InboundInvoicePayment),
     InboundSpontaneous(InboundSpontaneousPayment),
     OutboundInvoice(OutboundInvoicePayment),
