@@ -234,8 +234,6 @@ pub trait OwnerNodeRunApi {
     /// GET /owner/payments [`GetRange`] -> [`Vec<BasicPayment>`]
     async fn get_payments(
         &self,
-        _range: GetRange,
-    ) -> Result<Vec<BasicPayment>, NodeApiError> {
-        todo!()
-    }
+        range: GetRange,
+    ) -> Result<Vec<BasicPayment>, NodeApiError>;
 }
