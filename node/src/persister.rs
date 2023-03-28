@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
 use common::api::auth::{UserAuthToken, UserAuthenticator};
 use common::api::qs::GetRange;
-use common::api::vfs::{BasicFile, VfsDirectory, VfsFile, VfsFileId};
+use common::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use common::api::{Scid, User};
 use common::cli::Network;
 use common::constants::{
@@ -457,26 +457,23 @@ impl LexeInnerPersister for InnerPersister {
         directory: String,
         filename: String,
         value: &S,
-    ) -> BasicFile {
-        let node_file = self.encrypt_file(directory, filename, &|mut_vec_u8| {
+    ) -> VfsFile {
+        self.encrypt_file(directory, filename, &|mut_vec_u8| {
             serde_json::to_writer(mut_vec_u8, value)
                 .expect("JSON serialization was not implemented correctly");
-        });
-        BasicFile::from(node_file)
+        })
     }
 
-    async fn persist_basic_file(
+    async fn persist_file(
         &self,
-        basic_file: BasicFile,
+        file: VfsFile,
         retries: usize,
     ) -> anyhow::Result<()> {
-        let dirname = &basic_file.dirname;
-        let filename = &basic_file.filename;
-        let bytes = basic_file.data.len();
-        debug!("Persisting basic file {dirname}/{filename} <{bytes} bytes>");
+        let dirname = &file.id.dir.dirname;
+        let filename = &file.id.filename;
+        let bytes = file.data.len();
+        debug!("Persisting file {dirname}/{filename} <{bytes} bytes>");
         let token = self.get_token().await?;
-
-        let file = VfsFile::from(basic_file);
 
         self.api
             .upsert_file_with_retries(&file, token, retries)
