@@ -8,7 +8,7 @@ use anyhow::{anyhow, ensure, Context};
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
 use common::api::auth::{UserAuthToken, UserAuthenticator};
-use common::api::error::BackendApiError;
+use common::api::qs::GetRange;
 use common::api::vfs::{BasicFile, NodeDirectory, NodeFile, NodeFileId};
 use common::api::{Scid, User};
 use common::cli::Network;
@@ -16,6 +16,7 @@ use common::constants::{
     IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
 };
 use common::ln::channel::LxOutPoint;
+use common::ln::payments::{BasicPayment, LxPaymentId};
 use common::ln::peer::ChannelPeer;
 use common::shutdown::ShutdownChannel;
 use common::vfs_encrypt::VfsMasterKey;
@@ -28,6 +29,8 @@ use lexe_ln::channel_monitor::{
 };
 use lexe_ln::keys_manager::LexeKeysManager;
 use lexe_ln::logger::LexeTracingLogger;
+use lexe_ln::payments::manager::{CheckedPayment, PersistedPayment};
+use lexe_ln::payments::{self, Payment};
 use lexe_ln::traits::LexeInnerPersister;
 use lexe_ln::wallet::db::{DbData, WalletDb};
 use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
@@ -168,18 +171,20 @@ impl InnerPersister {
             .context("Failed to decrypt encrypted file")
     }
 
-    async fn get_token(&self) -> Result<UserAuthToken, BackendApiError> {
+    async fn get_token(&self) -> anyhow::Result<UserAuthToken> {
         self.authenticator
             .get_token(&*self.api, SystemTime::now())
             .await
+            .context("Could not get auth token")
     }
 
-    pub(crate) async fn read_scid(
-        &self,
-    ) -> Result<Option<Scid>, BackendApiError> {
+    pub(crate) async fn read_scid(&self) -> anyhow::Result<Option<Scid>> {
         debug!("Fetching scid");
         let token = self.get_token().await?;
-        self.api.get_scid(self.user.node_pk, token).await
+        self.api
+            .get_scid(self.user.node_pk, token)
+            .await
+            .context("Could not fetch scid")
     }
 
     pub(crate) async fn read_wallet_db(
@@ -223,6 +228,25 @@ impl InnerPersister {
         };
 
         Ok(wallet_db)
+    }
+
+    pub(crate) async fn read_basic_payments(
+        &self,
+        range: GetRange,
+    ) -> anyhow::Result<Vec<BasicPayment>> {
+        let token = self.get_token().await?;
+        self.api
+            // Fetch `DbPayment`s
+            .get_payments(range, token)
+            .await
+            .context("Could not fetch `DbPayment`s")?
+            .into_iter()
+            // Decrypt into `Payment`s
+            .map(|p| payments::decrypt(self.vfs_master_key.as_ref(), p))
+            // Convert to `BasicPayment`s
+            .map(|res| res.map(BasicPayment::from))
+            // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
+            .collect::<anyhow::Result<Vec<BasicPayment>>>()
     }
 
     pub(crate) async fn read_channel_manager(
@@ -534,6 +558,74 @@ impl LexeInnerPersister for InnerPersister {
         // User nodes only ever have one channel peer (the LSP), whose address
         // often changes in between restarts, so there is nothing to do here.
         Ok(())
+    }
+
+    async fn read_pending_payments(&self) -> anyhow::Result<Vec<Payment>> {
+        let token = self.get_token().await?;
+        self.api
+            // Fetch pending `DbPayment`s
+            .get_pending_payments(token)
+            .await
+            .context("Could not fetch pending `DbPayment`s")?
+            .into_iter()
+            // Decrypt into `Payment`s
+            .map(|p| payments::decrypt(self.vfs_master_key.as_ref(), p))
+            // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
+            .collect::<anyhow::Result<Vec<Payment>>>()
+    }
+
+    async fn read_finalized_payment_ids(
+        &self,
+    ) -> anyhow::Result<Vec<LxPaymentId>> {
+        let token = self.get_token().await?;
+        self.api
+            .get_finalized_payment_ids(token)
+            .await
+            .context("Could not get ids of finalized payments")
+    }
+
+    async fn create_payment(
+        &self,
+        checked: CheckedPayment,
+    ) -> anyhow::Result<PersistedPayment> {
+        let mut rng = common::rng::SysRng::new();
+
+        let db_payment = payments::encrypt(
+            &mut rng,
+            self.vfs_master_key.as_ref(),
+            self.user.user_pk,
+            &checked.0,
+        );
+        let token = self.get_token().await?;
+
+        self.api
+            .create_payment(db_payment, token)
+            .await
+            .context("create_payment API call failed")?;
+
+        Ok(PersistedPayment(checked.0))
+    }
+
+    async fn persist_payment(
+        &self,
+        checked: CheckedPayment,
+    ) -> anyhow::Result<PersistedPayment> {
+        let mut rng = common::rng::SysRng::new();
+
+        let db_payment = payments::encrypt(
+            &mut rng,
+            self.vfs_master_key.as_ref(),
+            self.user.user_pk,
+            &checked.0,
+        );
+        let token = self.get_token().await?;
+
+        self.api
+            .upsert_payment(db_payment, token)
+            .await
+            .context("upsert_payment API call failed")?;
+
+        Ok(PersistedPayment(checked.0))
     }
 }
 
