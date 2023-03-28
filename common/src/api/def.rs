@@ -11,8 +11,8 @@
 //! Each endpoint should be documented with:
 //! - 1) HTTP method e.g. `GET`
 //! - 2) Endpoint e.g. `/v1/file`
-//! - 3) Data used to make the request e.g. `NodeFileId`
-//! - 4) The return type e.g. `Option<NodeFile>`
+//! - 3) Data used to make the request e.g. `VfsFileId`
+//! - 4) The return type e.g. `Option<VfsFile>`
 //!
 //! The methods below should resemble the data actually sent across the wire.
 
@@ -30,7 +30,7 @@ use crate::api::error::{
 use crate::api::ports::UserPorts;
 use crate::api::provision::{NodeProvisionRequest, SealedSeed, SealedSeedId};
 use crate::api::qs::GetRange;
-use crate::api::vfs::{NodeDirectory, NodeFile, NodeFileId};
+use crate::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use crate::api::{NodePk, Scid, User, UserPk};
 use crate::ed25519;
 use crate::ln::invoice::LxInvoice;
@@ -69,42 +69,42 @@ pub trait NodeBackendApi {
         auth: UserAuthToken,
     ) -> Result<Option<Scid>, BackendApiError>;
 
-    /// GET /v1/file [`NodeFileId`] -> [`Option<NodeFile>`]
+    /// GET /v1/file [`VfsFileId`] -> [`Option<VfsFile>`]
     async fn get_file(
         &self,
-        file_id: &NodeFileId,
+        file_id: &VfsFileId,
         auth: UserAuthToken,
-    ) -> Result<Option<NodeFile>, BackendApiError>;
+    ) -> Result<Option<VfsFile>, BackendApiError>;
 
-    /// POST /v1/file [`NodeFile`] -> [`()`]
+    /// POST /v1/file [`VfsFile`] -> [`()`]
     async fn create_file(
         &self,
-        file: &NodeFile,
+        file: &VfsFile,
         auth: UserAuthToken,
     ) -> Result<(), BackendApiError>;
 
-    /// PUT /v1/file [`NodeFile`] -> [`()`]
+    /// PUT /v1/file [`VfsFile`] -> [`()`]
     async fn upsert_file(
         &self,
-        file: &NodeFile,
+        file: &VfsFile,
         auth: UserAuthToken,
     ) -> Result<(), BackendApiError>;
 
-    /// DELETE /v1/file [`NodeFileId`] -> [`()`]
+    /// DELETE /v1/file [`VfsFileId`] -> [`()`]
     ///
     /// Returns [`Ok`] only if exactly one row was deleted.
     async fn delete_file(
         &self,
-        file_id: &NodeFileId,
+        file_id: &VfsFileId,
         auth: UserAuthToken,
     ) -> Result<(), BackendApiError>;
 
-    /// GET /v1/directory [`NodeDirectory`] -> [`Vec<NodeFile>`]
+    /// GET /v1/directory [`VfsDirectory`] -> [`Vec<VfsFile>`]
     async fn get_directory(
         &self,
-        dir: &NodeDirectory,
+        dir: &VfsDirectory,
         auth: UserAuthToken,
-    ) -> Result<Vec<NodeFile>, BackendApiError>;
+    ) -> Result<Vec<VfsFile>, BackendApiError>;
 
     /// GET /v1/payments [`GetRange`] -> [`Vec<DbPayment>`]
     ///

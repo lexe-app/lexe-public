@@ -10,7 +10,7 @@ use common::api::def::{
     NodeBackendApi, NodeLspApi, NodeRunnerApi, UserBackendApi,
 };
 use common::api::error::BackendApiError;
-use common::api::vfs::NodeFile;
+use common::api::vfs::VfsFile;
 
 /// Real clients.
 pub(crate) mod client;
@@ -24,14 +24,14 @@ pub mod mock;
 pub trait BackendApiClient: NodeBackendApi + UserBackendApi {
     async fn create_file_with_retries(
         &self,
-        file: &NodeFile,
+        file: &VfsFile,
         auth: UserAuthToken,
         retries: usize,
     ) -> Result<(), BackendApiError>;
 
     async fn upsert_file_with_retries(
         &self,
-        file: &NodeFile,
+        file: &VfsFile,
         auth: UserAuthToken,
         retries: usize,
     ) -> Result<(), BackendApiError>;

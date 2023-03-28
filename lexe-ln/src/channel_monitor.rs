@@ -28,7 +28,7 @@ pub struct LxChannelMonitorUpdate {
     /// backend to persist the channel monitor state, returning an
     /// `anyhow::Result<()>` once either (1) persistence succeeds or (2) there
     /// were too many failures to keep trying. We take this future as input
-    /// (instead of e.g. a `NodeFile`) because it is the cleanest and easiest
+    /// (instead of e.g. a `VfsFile`) because it is the cleanest and easiest
     /// way to abstract over the user node and LSP's differing api clients, vfs
     /// structures, and expected error types.
     pub api_call_fut: BoxedAnyhowFuture,

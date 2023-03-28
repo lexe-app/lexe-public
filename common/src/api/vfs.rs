@@ -16,7 +16,7 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Contains the basic components common to [`NodeFile`] and `LspFile`,
+/// Contains the basic components common to [`VfsFile`] and `LspFile`,
 /// useful whenever it is necessary to abstract over both types.
 pub struct BasicFile {
     pub dirname: String,
@@ -29,7 +29,7 @@ pub struct BasicFile {
 /// This struct exists mainly so that `serde_qs` can use it as a query parameter
 /// struct to fetch files by directory.
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Deserialize, Serialize)]
-pub struct NodeDirectory {
+pub struct VfsDirectory {
     pub dirname: String,
 }
 
@@ -38,37 +38,37 @@ pub struct NodeDirectory {
 /// This struct exists mainly so that `serde_qs` can use it as a query parameter
 /// struct to fetch files by id.
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-pub struct NodeFileId {
+pub struct VfsFileId {
     // Flattened because serde_qs requires non-nested structs
     #[serde(flatten)]
-    pub dir: NodeDirectory,
+    pub dir: VfsDirectory,
     pub filename: String,
 }
 
 /// Represents a file in the virtual file system. The `data` field is almost
 /// always encrypted.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-pub struct NodeFile {
+pub struct VfsFile {
     // Flattened because serde_qs requires non-nested structs
     #[serde(flatten)]
-    pub id: NodeFileId,
+    pub id: VfsFileId,
     pub data: Vec<u8>,
 }
 
-impl NodeFileId {
+impl VfsFileId {
     pub fn new(dirname: String, filename: String) -> Self {
         Self {
-            dir: NodeDirectory { dirname },
+            dir: VfsDirectory { dirname },
             filename,
         }
     }
 }
 
-impl NodeFile {
+impl VfsFile {
     pub fn new(dirname: String, filename: String, data: Vec<u8>) -> Self {
         Self {
-            id: NodeFileId {
-                dir: NodeDirectory { dirname },
+            id: VfsFileId {
+                dir: VfsDirectory { dirname },
                 filename,
             },
             data,
@@ -76,7 +76,7 @@ impl NodeFile {
     }
 }
 
-impl From<BasicFile> for NodeFile {
+impl From<BasicFile> for VfsFile {
     fn from(
         BasicFile {
             dirname,
@@ -85,8 +85,8 @@ impl From<BasicFile> for NodeFile {
         }: BasicFile,
     ) -> Self {
         Self {
-            id: NodeFileId {
-                dir: NodeDirectory { dirname },
+            id: VfsFileId {
+                dir: VfsDirectory { dirname },
                 filename,
             },
             data,
@@ -94,8 +94,8 @@ impl From<BasicFile> for NodeFile {
     }
 }
 
-impl From<NodeFile> for BasicFile {
-    fn from(node_file: NodeFile) -> Self {
+impl From<VfsFile> for BasicFile {
+    fn from(node_file: VfsFile) -> Self {
         Self {
             dirname: node_file.id.dir.dirname,
             filename: node_file.id.filename,
