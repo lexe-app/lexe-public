@@ -5,11 +5,16 @@
 
 use std::fmt::{self, Display};
 
+use anyhow::Context;
+use common::api::UserPk;
 use common::ln::invoice::LxInvoice;
 use common::ln::payments::{
-    BasicPayment, LxPaymentId, PaymentDirection, PaymentKind, PaymentStatus,
+    BasicPayment, DbPayment, LxPaymentId, PaymentDirection, PaymentKind,
+    PaymentStatus,
 };
+use common::rng::Crng;
 use common::time::TimestampMs;
+use common::vfs_encrypt::VfsMasterKey;
 use lightning::ln::channelmanager::PaymentSendFailure;
 use lightning::ln::{PaymentPreimage, PaymentSecret};
 use lightning_invoice::payment::PaymentError;
@@ -51,6 +56,56 @@ pub enum Payment {
     InboundSpontaneous(InboundSpontaneousPayment),
     OutboundInvoice(OutboundInvoicePayment),
     OutboundSpontaneous(OutboundSpontaneousPayment),
+}
+
+/// Serializes a given payment to JSON and encrypts the payment under the given
+/// [`VfsMasterKey`], returning the [`DbPayment`] which can be persisted.
+// TODO(max): Implement an encrypt/decrypt roundtrip proptest with reduced
+// iterations once Payment has an Arbitrary impl
+pub fn encrypt(
+    rng: &mut impl Crng,
+    vfs_master_key: &VfsMasterKey,
+    // TODO(max): DbPayment probably shouldn't contain UserPk, or at least the
+    // identifier should be generic, since we have the LSP...
+    user_pk: UserPk,
+    payment: &Payment,
+) -> DbPayment {
+    let user_pk = user_pk.to_string();
+    let id = payment.id().to_string();
+    let aad = &[];
+
+    // Serialize the payment as JSON bytes.
+    let data_size_hint = None;
+    let write_data_cb: &dyn Fn(&mut Vec<u8>) = &|mut_vec_u8| {
+        serde_json::to_writer(mut_vec_u8, payment)
+            .expect("Payment serialization always succeeds")
+    };
+
+    // Encrypt.
+    let data = vfs_master_key.encrypt(rng, aad, data_size_hint, write_data_cb);
+
+    DbPayment {
+        user_pk,
+        created_at: payment.created_at().as_i64(),
+        id,
+        status: payment.status().to_string(),
+        data,
+    }
+}
+
+/// Given a [`DbPayment`], attempts to decrypt the associated ciphertext using
+/// the given [`VfsMasterKey`], returning the deserialized [`Payment`].
+pub fn decrypt(
+    vfs_master_key: &VfsMasterKey,
+    db_payment: DbPayment,
+) -> anyhow::Result<Payment> {
+    let aad = &[];
+    let plaintext_bytes = vfs_master_key
+        .decrypt(aad, db_payment.data)
+        .context("Could not decrypt Payment")?;
+
+    serde_json::from_slice::<Payment>(plaintext_bytes.as_slice())
+        .context("Could not deserialize Payment")
 }
 
 // --- Specific payment type -> top-level Payment types --- //
