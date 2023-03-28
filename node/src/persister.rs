@@ -593,7 +593,6 @@ impl LexeInnerPersister for InnerPersister {
         let db_payment = payments::encrypt(
             &mut rng,
             self.vfs_master_key.as_ref(),
-            self.user.user_pk,
             &checked.0,
         );
         let token = self.get_token().await?;
@@ -615,7 +614,6 @@ impl LexeInnerPersister for InnerPersister {
         let db_payment = payments::encrypt(
             &mut rng,
             self.vfs_master_key.as_ref(),
-            self.user.user_pk,
             &checked.0,
         );
         let token = self.get_token().await?;

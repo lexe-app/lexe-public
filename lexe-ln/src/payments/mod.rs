@@ -6,7 +6,6 @@
 use std::fmt::{self, Display};
 
 use anyhow::Context;
-use common::api::UserPk;
 use common::ln::invoice::LxInvoice;
 use common::ln::payments::{
     BasicPayment, DbPayment, LxPaymentId, PaymentDirection, PaymentKind,
@@ -65,12 +64,8 @@ pub enum Payment {
 pub fn encrypt(
     rng: &mut impl Crng,
     vfs_master_key: &VfsMasterKey,
-    // TODO(max): DbPayment probably shouldn't contain UserPk, or at least the
-    // identifier should be generic, since we have the LSP...
-    user_pk: UserPk,
     payment: &Payment,
 ) -> DbPayment {
-    let user_pk = user_pk.to_string();
     let id = payment.id().to_string();
     let aad = &[];
 
@@ -85,7 +80,6 @@ pub fn encrypt(
     let data = vfs_master_key.encrypt(rng, aad, data_size_hint, write_data_cb);
 
     DbPayment {
-        user_pk,
         created_at: payment.created_at().as_i64(),
         id,
         status: payment.status().to_string(),
