@@ -2,7 +2,7 @@ use std::ops::Deref;
 use std::sync::Mutex;
 
 use async_trait::async_trait;
-use common::api::vfs::BasicFile;
+use common::api::vfs::VfsFile;
 use common::ln::payments::LxPaymentId;
 use common::ln::peer::ChannelPeer;
 use lightning::chain::chainmonitor::Persist;
@@ -21,17 +21,17 @@ use crate::payments::Payment;
 #[async_trait]
 pub trait LexeInnerPersister: Persist<SignerType> {
     /// Serialize an impl [`Serialize`] to JSON bytes, encrypt the bytes, and
-    /// return the [`BasicFile`] which is (almost) ready to be persisted.
+    /// return the [`VfsFile`] which is (almost) ready to be persisted.
     fn encrypt_json<S: Serialize>(
         &self,
         directory: String,
         filename: String,
         value: &S,
-    ) -> BasicFile;
+    ) -> VfsFile;
 
-    async fn persist_basic_file(
+    async fn persist_file(
         &self,
-        basic_file: BasicFile,
+        file: VfsFile,
         retries: usize,
     ) -> anyhow::Result<()>;
 

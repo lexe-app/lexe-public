@@ -188,7 +188,7 @@ pub fn spawn_wallet_db_persister_task<PS: LexePersister>(
                             &wallet_db,
                         );
                         let persist_res = persister
-                            .persist_basic_file(
+                            .persist_file(
                                 basic_file, IMPORTANT_PERSIST_RETRIES
                             )
                             .await

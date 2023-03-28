@@ -16,14 +16,6 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Contains the basic components common to [`VfsFile`] and `LspFile`,
-/// useful whenever it is necessary to abstract over both types.
-pub struct BasicFile {
-    pub dirname: String,
-    pub filename: String,
-    pub data: Vec<u8>,
-}
-
 /// Uniquely identifies a directory in the virtual file system.
 ///
 /// This struct exists mainly so that `serde_qs` can use it as a query parameter
@@ -72,34 +64,6 @@ impl VfsFile {
                 filename,
             },
             data,
-        }
-    }
-}
-
-impl From<BasicFile> for VfsFile {
-    fn from(
-        BasicFile {
-            dirname,
-            filename,
-            data,
-        }: BasicFile,
-    ) -> Self {
-        Self {
-            id: VfsFileId {
-                dir: VfsDirectory { dirname },
-                filename,
-            },
-            data,
-        }
-    }
-}
-
-impl From<VfsFile> for BasicFile {
-    fn from(node_file: VfsFile) -> Self {
-        Self {
-            dirname: node_file.id.dir.dirname,
-            filename: node_file.id.filename,
-            data: node_file.data,
         }
     }
 }
