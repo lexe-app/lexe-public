@@ -34,6 +34,7 @@ use lexe_ln::logger::LexeTracingLogger;
 use lexe_ln::p2p::ChannelPeerUpdate;
 use lexe_ln::payments::manager::PaymentsManager;
 use lexe_ln::test_event::TestEventSender;
+use lexe_ln::traits::LexeInnerPersister;
 use lexe_ln::wallet::{self, LexeWallet};
 use lexe_ln::{channel_monitor, p2p, sync};
 use lightning::chain::chainmonitor::ChainMonitor;
@@ -207,13 +208,21 @@ impl UserNode {
         let (wallet_db_persister_tx, wallet_db_persister_rx) =
             mpsc::channel(SMALLER_CHANNEL_SIZE);
         #[rustfmt::skip] // Does not respect 80 char line width
-        let (try_channel_monitors, try_network_graph, try_wallet_db, try_scid) =
-            tokio::join!(
-                persister.read_channel_monitors(keys_manager.clone()),
-                persister.read_network_graph(args.network, logger.clone()),
-                persister.read_wallet_db(wallet_db_persister_tx),
-                persister.read_scid(),
-            );
+        let (
+            try_channel_monitors,
+            try_network_graph,
+            try_wallet_db,
+            try_scid,
+            try_pending_payments,
+            try_finalized_payment_ids,
+        ) = tokio::join!(
+            persister.read_channel_monitors(keys_manager.clone()),
+            persister.read_network_graph(args.network, logger.clone()),
+            persister.read_wallet_db(wallet_db_persister_tx),
+            persister.read_scid(),
+            persister.read_pending_payments(),
+            persister.read_finalized_payment_ids(),
+        );
         let mut channel_monitors =
             try_channel_monitors.context("Could not read channel monitors")?;
         let network_graph = try_network_graph
@@ -229,6 +238,10 @@ impl UserNode {
                 .await
                 .context("Could not get new scid from LSP")?,
         };
+        let pending_payments =
+            try_pending_payments.context("Could not read pending payments")?;
+        let finalized_payment_ids = try_finalized_payment_ids
+            .context("Could not read finalized payment ids")?;
 
         // Init BDK wallet; share esplora connection pool, spawn persister task
         let wallet = LexeWallet::new(
@@ -330,6 +343,8 @@ impl UserNode {
         let payments_manager = PaymentsManager::new(
             persister.clone(),
             channel_manager.clone(),
+            pending_payments,
+            finalized_payment_ids,
             test_event_tx.clone(),
         );
 
