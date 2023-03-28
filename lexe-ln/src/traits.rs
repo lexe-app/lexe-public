@@ -3,6 +3,7 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use common::api::vfs::BasicFile;
+use common::ln::payments::LxPaymentId;
 use common::ln::peer::ChannelPeer;
 use lightning::chain::chainmonitor::Persist;
 use lightning::util::events::EventHandler;
@@ -14,6 +15,7 @@ use crate::alias::{
     NetworkGraphType, ProbabilisticScorerType, SignerType,
 };
 use crate::payments::manager::{CheckedPayment, PersistedPayment};
+use crate::payments::Payment;
 
 /// Defines all the persister methods needed in shared Lexe LN logic.
 #[async_trait]
@@ -52,6 +54,29 @@ pub trait LexeInnerPersister: Persist<SignerType> {
         &self,
         channel_peer: ChannelPeer,
     ) -> anyhow::Result<()>;
+
+    async fn read_pending_payments(&self) -> anyhow::Result<Vec<Payment>> {
+        // TODO(max): Remove default impl
+        Ok(Vec::new())
+    }
+
+    async fn read_finalized_payment_ids(
+        &self,
+    ) -> anyhow::Result<Vec<LxPaymentId>> {
+        // TODO(max): Remove default impl
+        Ok(Vec::new())
+    }
+
+    async fn create_payment(
+        &self,
+        checked: CheckedPayment,
+    ) -> anyhow::Result<PersistedPayment> {
+        // TODO(max): Use create instead of persist when appropriate.
+        // TODO(max): Remove this default impl and replace with actual persists
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        let persisted = PersistedPayment(checked.0);
+        Ok(persisted)
+    }
 
     async fn persist_payment(
         &self,
