@@ -155,7 +155,7 @@ impl InnerPersister {
             warn!("{directory}/{filename} is >1MB: {data_len} bytes");
         }
 
-        NodeFile::new(self.user.user_pk, directory, filename, data)
+        NodeFile::new(directory, filename, data)
     }
 
     /// Decrypt a file from a previous call to `encrypt_file`.
@@ -193,7 +193,6 @@ impl InnerPersister {
     ) -> anyhow::Result<WalletDb> {
         debug!("Reading wallet db");
         let file_id = NodeFileId::new(
-            self.user.user_pk,
             SINGLETON_DIRECTORY.to_owned(),
             WALLET_DB_FILENAME.to_owned(),
         );
@@ -261,7 +260,6 @@ impl InnerPersister {
     ) -> anyhow::Result<Option<(BlockHash, ChannelManagerType)>> {
         debug!("Reading channel manager");
         let file_id = NodeFileId::new(
-            self.user.user_pk,
             SINGLETON_DIRECTORY.to_owned(),
             CHANNEL_MANAGER_FILENAME.to_owned(),
         );
@@ -326,7 +324,6 @@ impl InnerPersister {
         // TODO Also attempt to read from the cloud
 
         let cm_dir = NodeDirectory {
-            user_pk: self.user.user_pk,
             dirname: CHANNEL_MONITORS_DIRECTORY.to_owned(),
         };
         let token = self.get_token().await?;
@@ -379,7 +376,6 @@ impl InnerPersister {
         let params = ProbabilisticScoringParameters::default();
 
         let file_id = NodeFileId::new(
-            self.user.user_pk,
             SINGLETON_DIRECTORY.to_owned(),
             SCORER_FILENAME.to_owned(),
         );
@@ -421,7 +417,6 @@ impl InnerPersister {
     ) -> anyhow::Result<NetworkGraphType> {
         debug!("Reading network graph");
         let ng_file_id = NodeFileId::new(
-            self.user.user_pk,
             SINGLETON_DIRECTORY.to_owned(),
             NETWORK_GRAPH_FILENAME.to_owned(),
         );
@@ -481,7 +476,7 @@ impl LexeInnerPersister for InnerPersister {
         debug!("Persisting basic file {dirname}/{filename} <{bytes} bytes>");
         let token = self.get_token().await?;
 
-        let file = NodeFile::from_basic(basic_file, self.user.user_pk);
+        let file = NodeFile::from(basic_file);
 
         self.api
             .upsert_file_with_retries(&file, token, retries)
