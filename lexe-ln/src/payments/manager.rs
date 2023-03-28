@@ -6,7 +6,7 @@ use common::ln::payments::{LxPaymentHash, LxPaymentId, PaymentStatus};
 use lightning::ln::channelmanager::FailureCode;
 use lightning::util::events::PaymentPurpose;
 use tokio::sync::Mutex;
-use tracing::{info, instrument};
+use tracing::{error, info, instrument};
 
 use crate::payments::inbound::{InboundSpontaneousPayment, LxPaymentPurpose};
 use crate::payments::Payment;
@@ -74,13 +74,30 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     pub fn new(
         persister: PS,
         channel_manager: CM,
+        pending_payments: Vec<Payment>,
+        finalized_payment_ids: Vec<LxPaymentId>,
         test_event_tx: TestEventSender,
     ) -> Self {
-        // TODO(max): Take initial data in parameters
-        let data = Arc::new(Mutex::new(PaymentsData {
-            pending: HashMap::new(),
-            finalized: HashSet::new(),
-        }));
+        let pending = pending_payments
+            .into_iter()
+            // Check that payments are indeed pending before adding to hashmap
+            .filter_map(|payment| {
+                let id = payment.id();
+                let status = payment.status();
+
+                if matches!(status, PaymentStatus::Pending) {
+                    Some((id, payment))
+                } else if cfg!(debug_assertions) {
+                    panic!("Payment {id} should've been pending, was {status}");
+                } else {
+                    error!("Payment {id} should've been pending, was {status}");
+                    None
+                }
+            })
+            .collect::<HashMap<LxPaymentId, Payment>>();
+        let finalized = finalized_payment_ids.into_iter().collect();
+
+        let data = Arc::new(Mutex::new(PaymentsData { pending, finalized }));
 
         Self {
             data,
