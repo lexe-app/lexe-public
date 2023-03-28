@@ -19,12 +19,15 @@ use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::def::{OwnerNodeProvisionApi, OwnerNodeRunApi, UserBackendApi};
 use crate::api::error::{BackendApiError, NodeApiError, NodeErrorKind};
 use crate::api::provision::NodeProvisionRequest;
+use crate::api::qs::GetRange;
 use crate::api::rest::{RequestBuilderExt, RestClient, GET, POST};
 use crate::ln::invoice::LxInvoice;
+use crate::ln::payments::BasicPayment;
 use crate::rng::Crng;
 use crate::root_seed::RootSeed;
 use crate::{attest, ed25519};
 
+/// The Lexe app's client to the user node.
 pub struct NodeClient {
     rest: RestClient,
     gateway_url: String,
@@ -258,14 +261,16 @@ impl OwnerNodeRunApi for NodeClient {
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let req = self.rest.builder(GET, format!("{run_url}/owner/node_info"));
+        let url = format!("{run_url}/owner/node_info");
+        let req = self.rest.builder(GET, url);
         self.rest.send(req).await
     }
 
     async fn list_channels(&self) -> Result<ListChannels, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let req = self.rest.builder(GET, format!("{run_url}/owner/channels"));
+        let url = format!("{run_url}/owner/channels");
+        let req = self.rest.builder(GET, url);
         self.rest.send(req).await
     }
 
@@ -288,6 +293,17 @@ impl OwnerNodeRunApi for NodeClient {
         let run_url = &self.run_url;
         let url = format!("{run_url}/owner/send_payment");
         let req = self.rest.post(url, &invoice);
+        self.rest.send(req).await
+    }
+
+    async fn get_payments(
+        &self,
+        range: GetRange,
+    ) -> Result<Vec<BasicPayment>, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/owner/payments");
+        let req = self.rest.get(url, &range);
         self.rest.send(req).await
     }
 }
