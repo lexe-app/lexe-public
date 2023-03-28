@@ -19,11 +19,8 @@ use crate::traits::{LexeChannelManager, LexePersister};
 #[must_use]
 pub struct CheckedPayment(pub Payment);
 
-/// Annotates that a given [`Payment`] was successfully persisted, i.e. it was
-/// returned by the [`persist_payment`] method. [`PersistedPayment`]s should be
-/// committed to the local payments state.
-///
-/// [`persist_payment`]: crate::traits::LexeInnerPersister::persist_payment
+/// Annotates that a given [`Payment`] was successfully persisted.
+/// [`PersistedPayment`]s should be committed to the local payments state.
 #[must_use]
 pub struct PersistedPayment(pub Payment);
 
@@ -54,7 +51,7 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
 ///    `check_*` methods available on each specific payment type.
 /// 2) Persist: We persist the validated state transition, returning a
 ///    [`PersistedPayment`] if persistence succeeded. This is handled by the
-///    [`persist_payment`] method.
+///    [`create_payment`] and [`persist_payment`] methods.
 /// 3) Commit: We commit the validated + persisted state transition to the local
 ///    state. This is done by [`PaymentsData::commit`].
 ///
@@ -64,6 +61,7 @@ pub struct PaymentsManager<CM: LexeChannelManager<PS>, PS: LexePersister> {
 /// persist, and commit stages. TODO(max): If this turns out to be a performance
 /// bottleneck, we should switch to per-payment or per-payment-type locks.
 ///
+/// [`create_payment`]: crate::traits::LexeInnerPersister::create_payment
 /// [`persist_payment`]: crate::traits::LexeInnerPersister::persist_payment
 struct PaymentsData {
     pending: HashMap<LxPaymentId, Payment>,
@@ -119,9 +117,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         let persisted = self
             .persister
-            .persist_payment(checked)
+            .create_payment(checked)
             .await
-            .context("Could not persist payment")?;
+            .context("Could not persist new payment")?;
 
         locked_data.commit(persisted);
 
