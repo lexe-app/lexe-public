@@ -1,4 +1,6 @@
 use std::convert::TryFrom;
+use std::fmt::{self, Display};
+use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{anyhow, Context};
@@ -90,13 +92,30 @@ impl<'de> Deserialize<'de> for TimestampMs {
     }
 }
 
-#[cfg(test)]
-mod test {
+impl FromStr for TimestampMs {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let inner = i64::from_str(s).context("Not a valid i64")?;
+        if inner >= 0 {
+            Ok(Self(inner))
+        } else {
+            Err(anyhow!("Timestamp must be non-negative"))
+        }
+    }
+}
+
+impl Display for TimestampMs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        i64::fmt(&self.0, f)
+    }
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+mod arbitrary_impl {
     use proptest::arbitrary::Arbitrary;
     use proptest::strategy::{BoxedStrategy, Strategy};
 
     use super::*;
-    use crate::test_utils::roundtrip;
 
     impl Arbitrary for TimestampMs {
         type Parameters = ();
@@ -105,14 +124,22 @@ mod test {
             (0..i64::MAX).prop_map(Self).boxed()
         }
     }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::test_utils::roundtrip;
 
     #[test]
     fn timestamp_roundtrip() {
+        roundtrip::fromstr_display_roundtrip_proptest::<TimestampMs>();
         roundtrip::json_string_roundtrip_proptest::<TimestampMs>();
     }
 
     #[test]
     fn deserialize_enforces_nonnegative() {
+        // We deserialize from JSON numbers; note that it is NOT e.g. "\"42\""
         assert_eq!(serde_json::from_str::<TimestampMs>("42").unwrap().0, 42);
         assert_eq!(serde_json::from_str::<TimestampMs>("0").unwrap().0, 0);
         assert!(serde_json::from_str::<TimestampMs>("-42").is_err());
