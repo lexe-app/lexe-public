@@ -15,31 +15,54 @@ class WalletPage extends StatelessWidget {
 
   final AppHandle app;
 
+  Stream<int?> satsBalances(Stream<Null> refreshRx) async* {
+    yield null;
+
+    await for (final _ in refreshRx) {
+      final nodeInfo = await this.app.nodeInfo();
+      yield nodeInfo.localBalanceMsat;
+    }
+  }
+
+  Stream<double?> fiatRates(Stream<Null> refreshRx, String fiatName) async* {
+    yield null;
+
+    await for (final _ in refreshRx) {
+      final fiatRate = await this.app.fiatRate(fiat: fiatName);
+      yield fiatRate.rate;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // A handle to refresh the wallet page contents
-    final refresh = StreamController<Null>();
-    final Sink<Null> refreshTx = refresh.sink;
-    final Stream<Null> refreshRx = refresh.stream;
-
-    // A raw stream of `NodeInfo`s that gets updated after a refresh is
-    // triggered.
-    final nodeInfoStream = refreshRx
-        .asyncMap((_) => this.app.nodeInfo())
-        // TODO(phlip9): add connectivity notifier chip to app bar and update it
-        //               here on error
-        .doOnError((err, stackTrace) =>
-            debugPrint("Error loading node info: $err\n$stackTrace"));
+    final refresh = StreamController<Null>.broadcast();
+    // final Sink<Null> refreshTx = refresh.sink;
+    final Stream<Null> refreshRx = refresh.stream.startWith(null);
 
     // A stream of our current wallet balance, starting with `null` (to display
     // a placeholder before it's loaded). This stream ignores errors and ignores
     // duplicate balance values to avoid unnecessary re-layouts.
-    final balanceStream = nodeInfoStream
-        .map<int?>((nodeInfo) => nodeInfo.localBalanceMsat)
-        .toStateStream(null);
+    // final satsBalanceStream = Rx.concatEager([
+    //   Stream.value(null),
+    //   refreshRx.asyncMap((_) async {
+    //     final nodeInfo = await this.app.nodeInfo();
+    //     return nodeInfo.localBalanceMsat;
+    //   })
+    // ]);
 
-    // Trigger an initial refresh event
-    refreshTx.add(null);
+    // TODO(phlip9): get from user preferences
+    const String fiatName = "USD";
+    // final fiatRateStream = refreshRx
+    //     .asyncMap((_) => this.app.fiatRate(fiat: fiatName))
+    //     .map((fiatRate) => fiatRate.rate);
+
+    final balanceStateStream = Rx.combineLatest2(
+      this.satsBalances(refreshRx).debug(identifier: "satsBalances"),
+      this.fiatRates(refreshRx, fiatName).debug(identifier: "fiatRates"),
+      (satsBalance, fiatRate) => BalanceState(
+          satsBalance: satsBalance, fiatName: fiatName, fiatRate: fiatRate),
+    ).toStateStream(BalanceState.placeholder);
 
     return Scaffold(
       appBar: AppBar(
@@ -57,9 +80,8 @@ class WalletPage extends StatelessWidget {
         children: [
           const SizedBox(height: Space.s1000),
           StateStreamBuilder(
-            stream: balanceStream,
-            builder: (context, maybeBalance) =>
-                BalanceWidget(maybeBalance: maybeBalance),
+            stream: balanceStateStream,
+            builder: (context, balanceState) => BalanceWidget(balanceState),
           ),
           const SizedBox(height: Space.s700),
           const WalletActions(),
@@ -229,17 +251,41 @@ final NumberFormat decimalFormatter = NumberFormat.decimalPattern();
 
 String formatSats(int balance) => "${decimalFormatter.format(balance)} SATS";
 
-class BalanceWidget extends StatelessWidget {
-  const BalanceWidget({super.key, required this.maybeBalance});
+class BalanceState {
+  const BalanceState({
+    required this.satsBalance,
+    required this.fiatName,
+    required this.fiatRate,
+  });
 
-  final int? maybeBalance;
+  static BalanceState placeholder =
+      const BalanceState(satsBalance: null, fiatName: "USD", fiatRate: null);
+
+  final int? satsBalance;
+  final String fiatName;
+  final double? fiatRate;
+
+  double? fiatBalance() => (this.satsBalance != null && this.fiatRate != null)
+      ? this.satsBalance! * this.fiatRate!
+      : null;
+
+  @override
+  String toString() => "BalanceState($satsBalance, $fiatName, $fiatRate)";
+}
+
+class BalanceWidget extends StatelessWidget {
+  const BalanceWidget(this.state, {super.key});
+
+  final BalanceState state;
 
   @override
   Widget build(BuildContext context) {
+    debugPrint("BalanceWidget($state)");
+
     const satsBalanceSize = Fonts.size300;
-    final satsBalanceOrPlaceholder = (this.maybeBalance != null)
+    final satsBalanceOrPlaceholder = (this.state.satsBalance != null)
         ? Text(
-            formatSats(this.maybeBalance!),
+            formatSats(this.state.satsBalance!),
             style: Fonts.fontUI.copyWith(
               fontSize: satsBalanceSize,
               color: LxColors.grey700,
@@ -252,10 +298,11 @@ class BalanceWidget extends StatelessWidget {
             forText: true,
           );
 
-    final fiatBalanceOrPlaceholder = (this.maybeBalance != null)
+    final fiatBalance = this.state.fiatBalance();
+    final fiatBalanceOrPlaceholder = (fiatBalance != null)
         ? PrimaryBalanceText(
-            fiatBalance: this.maybeBalance! * 0.0000360359,
-            fiatName: "USD",
+            fiatBalance: fiatBalance,
+            fiatName: this.state.fiatName,
           )
         : const FilledPlaceholder(
             width: Space.s1000,
