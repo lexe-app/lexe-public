@@ -197,6 +197,12 @@ class Space {
 
   /// 128 px
   static const double s1000 = 128.0;
+
+  /// 192 px
+  static const double s1100 = 192.0;
+
+  /// 192 px
+  static const double s1200 = 256.0;
 }
 
 class Radius {
