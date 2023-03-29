@@ -1,0 +1,14 @@
+# build.yaml configures [`build_runner`](https://pub.dev/packages/build_runner),
+# which runs [`freezed`](https://pub.dev/packages/freezed) codegen for
+# data-classes.
+
+targets:
+  $default:
+    builders:
+      # This configures project-wide options for the @freezed annotation.
+      freezed:
+        # To see a list of possible options, check out:
+        # <https://pub.dev/documentation/freezed_annotation/latest/freezed_annotation/Freezed-class.html>
+        options:
+          # Disable generation of `copyWith` methods
+          copy_with: false
