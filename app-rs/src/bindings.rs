@@ -46,7 +46,7 @@ use common::api::command::NodeInfo as NodeInfoRs;
 use common::api::def::OwnerNodeRunApi;
 use common::rng::SysRng;
 use common::time::TimestampMs;
-use flutter_rust_bridge::{RustOpaque, SyncReturn};
+use flutter_rust_bridge::{frb, RustOpaque, SyncReturn};
 
 pub use crate::app::App;
 
@@ -65,6 +65,7 @@ thread_local! {
         .expect("Failed to build thread's tokio Runtime");
 }
 
+#[frb(dart_metadata=("freezed"))]
 pub struct NodeInfo {
     pub node_pk: String,
     pub local_balance_msat: u64,
@@ -79,6 +80,7 @@ impl From<NodeInfoRs> for NodeInfo {
     }
 }
 
+#[frb(dart_metadata=("freezed"))]
 pub struct FiatRate {
     /// The unix timestamp of the Fiat/SATS exchange rate quote.
     pub timestamp_ms: i64,
