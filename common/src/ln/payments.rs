@@ -7,6 +7,8 @@ use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin::Txid;
 use lightning::ln::channelmanager::PaymentId;
 use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
+#[cfg(any(test, feature = "test-utils"))]
+use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
@@ -57,6 +59,7 @@ pub struct DbPayment {
 /// Specifies whether this is an onchain payment, LN invoice payment, etc.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum PaymentKind {
     Onchain,
     Invoice,
@@ -66,6 +69,7 @@ pub enum PaymentKind {
 /// Specifies whether a payment is inbound or outbound.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum PaymentDirection {
     Inbound,
     Outbound,
@@ -78,6 +82,7 @@ pub enum PaymentDirection {
 ///   this case, use the payment-specific status enum or `status_str()` instead.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum PaymentStatus {
     Pending,
     Completed,
@@ -104,14 +109,17 @@ pub enum LxPaymentId {
 /// Newtype for [`PaymentHash`] which impls [`Serialize`] / [`Deserialize`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct LxPaymentHash(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 /// Newtype for [`PaymentPreimage`] which impls [`Serialize`] / [`Deserialize`].
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct LxPaymentPreimage(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 /// Newtype for [`PaymentSecret`] which impls [`Serialize`] / [`Deserialize`].
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct LxPaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 // --- Redact secret information --- //
@@ -374,47 +382,11 @@ impl PartialOrd for LxPaymentId {
 mod test {
     use proptest::arbitrary::{any, Arbitrary};
     use proptest::prop_oneof;
-    use proptest::strategy::{BoxedStrategy, Just, Strategy};
+    use proptest::strategy::{BoxedStrategy, Strategy};
     use proptest::test_runner::Config;
 
     use super::*;
     use crate::test_utils::{arbitrary, roundtrip};
-
-    impl Arbitrary for PaymentKind {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![
-                Just(PaymentKind::Onchain),
-                Just(PaymentKind::Invoice),
-                Just(PaymentKind::Spontaneous),
-            ]
-            .boxed()
-        }
-    }
-    impl Arbitrary for PaymentDirection {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![
-                Just(PaymentDirection::Inbound),
-                Just(PaymentDirection::Outbound),
-            ]
-            .boxed()
-        }
-    }
-    impl Arbitrary for PaymentStatus {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![
-                Just(PaymentStatus::Pending),
-                Just(PaymentStatus::Completed),
-                Just(PaymentStatus::Failed),
-            ]
-            .boxed()
-        }
-    }
 
     impl Arbitrary for LxPaymentId {
         type Parameters = ();
@@ -425,27 +397,6 @@ mod test {
                 any::<LxPaymentHash>().prop_map(Self::Lightning),
             ]
             .boxed()
-        }
-    }
-    impl Arbitrary for LxPaymentHash {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            any::<[u8; 32]>().prop_map(Self).boxed()
-        }
-    }
-    impl Arbitrary for LxPaymentPreimage {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            any::<[u8; 32]>().prop_map(Self).boxed()
-        }
-    }
-    impl Arbitrary for LxPaymentSecret {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            any::<[u8; 32]>().prop_map(Self).boxed()
         }
     }
 
