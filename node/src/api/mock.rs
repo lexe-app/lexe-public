@@ -21,7 +21,9 @@ use common::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use common::api::{NodePk, Scid, User, UserPk};
 use common::byte_str::ByteStr;
 use common::constants::SINGLETON_DIRECTORY;
-use common::ln::payments::{DbPayment, LxPaymentId, PaymentStatus};
+use common::ln::payments::{
+    DbPayment, LxPaymentId, PaymentIndex, PaymentStatus,
+};
 use common::rng::SysRng;
 use common::root_seed::RootSeed;
 use common::time::TimestampMs;
@@ -141,7 +143,7 @@ impl NodeLspApi for MockLspClient {
 
 pub(crate) struct MockBackendClient {
     vfs: Mutex<VirtualFileSystem>,
-    payments: Mutex<BTreeMap<(TimestampMs, LxPaymentId), DbPayment>>,
+    payments: Mutex<BTreeMap<PaymentIndex, DbPayment>>,
 }
 
 impl MockBackendClient {
@@ -332,7 +334,7 @@ impl NodeBackendApi for MockBackendClient {
         let mut locked_payments = self.payments.lock().unwrap();
         let created_at = TimestampMs::try_from(payment.created_at).unwrap();
         let id = LxPaymentId::from_str(&payment.id).unwrap();
-        let key = (created_at, id);
+        let key = PaymentIndex { created_at, id };
 
         if locked_payments.get(&key).is_some() {
             return Err(BackendApiError {
@@ -352,7 +354,7 @@ impl NodeBackendApi for MockBackendClient {
     ) -> Result<(), BackendApiError> {
         let created_at = TimestampMs::try_from(payment.created_at).unwrap();
         let id = LxPaymentId::from_str(&payment.id).unwrap();
-        let key = (created_at, id);
+        let key = PaymentIndex { created_at, id };
         self.payments.lock().unwrap().insert(key, payment);
         Ok(())
     }
@@ -394,7 +396,7 @@ impl NodeBackendApi for MockBackendClient {
                 }
                 false
             })
-            .map(|((_timestamp, id), _payment)| id)
+            .map(|(PaymentIndex { id, .. }, _payment)| id)
             .cloned()
             .collect::<Vec<_>>();
 
