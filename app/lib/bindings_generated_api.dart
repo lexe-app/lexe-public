@@ -6,6 +6,9 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+
+part 'bindings_generated_api.freezed.dart';
 
 abstract class AppRs {
   Config regtestStaticMethodConfig({dynamic hint});
@@ -115,17 +118,12 @@ enum DeployEnv {
   Dev,
 }
 
-class FiatRate {
-  /// The unix timestamp of the Fiat/SATS exchange rate quote.
-  final int timestampMs;
-
-  /// The exchange rate in Fiat/SATS.
-  final double rate;
-
-  FiatRate({
-    required this.timestampMs,
-    required this.rate,
-  });
+@freezed
+class FiatRate with _$FiatRate {
+  const factory FiatRate({
+    required int timestampMs,
+    required double rate,
+  }) = _FiatRate;
 }
 
 enum Network {
@@ -134,12 +132,10 @@ enum Network {
   Regtest,
 }
 
-class NodeInfo {
-  final String nodePk;
-  final int localBalanceMsat;
-
-  NodeInfo({
-    required this.nodePk,
-    required this.localBalanceMsat,
-  });
+@freezed
+class NodeInfo with _$NodeInfo {
+  const factory NodeInfo({
+    required String nodePk,
+    required int localBalanceMsat,
+  }) = _NodeInfo;
 }
