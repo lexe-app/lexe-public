@@ -91,6 +91,21 @@ pub enum PaymentStatus {
 
 // --- Lexe newtypes --- //
 
+/// A payment index which (1) is unique per payment and (2) is ordered first by
+/// timestamp and then by [`LxPaymentId`]'s lexicographic ordering.
+///
+/// It is essentially a [`(TimestampMs, LxPaymentId)`], suitable for use as a
+/// key in a `BTreeMap<PaymentIndex, BasicPayment>` or similar, but additionally
+/// de/serializes to a string so that it can be passed as a query parameter in a
+/// `GET` request.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(SerializeDisplay, DeserializeFromStr)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct PaymentIndex {
+    pub created_at: TimestampMs,
+    pub id: LxPaymentId,
+}
+
 /// A globally-unique identifier for any type of payment, including both
 /// on-chain and Lightning payments.
 ///
@@ -121,6 +136,29 @@ pub struct LxPaymentPreimage(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct LxPaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+
+// --- impl BasicPayment --- //
+
+impl BasicPayment {
+    pub fn index(&self) -> PaymentIndex {
+        PaymentIndex {
+            created_at: self.created_at,
+            id: self.id,
+        }
+    }
+}
+
+// --- impl PaymentIndex --- //
+
+impl PaymentIndex {
+    /// Quickly create a dummy [`PaymentIndex`] which can be used in tests.
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn from_u8(i: u8) -> Self {
+        let created_at = TimestampMs::from(u32::from(i));
+        let id = LxPaymentId::Lightning(LxPaymentHash([i; 32]));
+        Self { created_at, id }
+    }
+}
 
 // --- Redact secret information --- //
 
@@ -279,6 +317,43 @@ impl Display for PaymentStatus {
     }
 }
 
+// --- PaymentIndex FromStr / Display impl --- //
+
+/// `<created_at>-<id>`
+// We use the - separator because LxPaymentId already uses _
+impl FromStr for PaymentIndex {
+    type Err = anyhow::Error;
+    fn from_str(createdat_id: &str) -> anyhow::Result<Self> {
+        let mut parts = createdat_id.split('-');
+
+        let createdat_str = parts
+            .next()
+            .context("Missing created_at in <created_at>-<id>")?;
+        let id_str = parts.next().context("Missing id in <created_at>-<id>")?;
+        ensure!(
+            parts.next().is_none(),
+            "Wrong format; should be <created_at>-<id>"
+        );
+
+        let created_at = TimestampMs::from_str(createdat_str)
+            .context("Invalid timestamp in <created_at>-<id>")?;
+        let id = LxPaymentId::from_str(id_str)
+            .context("Invalid payment id in <created_at>-<id>")?;
+
+        Ok(Self { created_at, id })
+    }
+}
+
+/// `<created_at>-<id>`
+// We use the - separator because LxPaymentId already uses _
+impl Display for PaymentIndex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let created_at = &self.created_at;
+        let id = &self.id;
+        write!(f, "{created_at}-{id}")
+    }
+}
+
 // --- LxPaymentId FromStr / Display impl --- //
 
 /// `<kind>_<id>`
@@ -287,7 +362,7 @@ impl FromStr for LxPaymentId {
     fn from_str(kind_id: &str) -> anyhow::Result<Self> {
         let mut parts = kind_id.split('_');
         let kind_str = parts.next().context("Missing kind in <kind>_<id>")?;
-        let id_str = parts.next().context("Missing kind in <kind>_<id>")?;
+        let id_str = parts.next().context("Missing id in <kind>_<id>")?;
         ensure!(
             parts.next().is_none(),
             "Wrong format; should be <kind>_<id>"
@@ -354,6 +429,25 @@ impl Display for LxPaymentSecret {
     }
 }
 
+// --- impl Ord for PaymentIndex --- //
+
+// Order first by `created_at` and then by `id`
+impl Ord for PaymentIndex {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.created_at != other.created_at {
+            self.created_at.cmp(&other.created_at)
+        } else {
+            self.id.cmp(&other.id)
+        }
+    }
+}
+
+impl PartialOrd for PaymentIndex {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 // --- impl Ord for LxPaymentId --- //
 
 // Onchain is "less than" than lightning
@@ -378,15 +472,14 @@ impl PartialOrd for LxPaymentId {
     }
 }
 
-#[cfg(test)]
-mod test {
+#[cfg(any(test, feature = "test-utils"))]
+mod arbitrary_impl {
     use proptest::arbitrary::{any, Arbitrary};
     use proptest::prop_oneof;
     use proptest::strategy::{BoxedStrategy, Strategy};
-    use proptest::test_runner::Config;
 
     use super::*;
-    use crate::test_utils::{arbitrary, roundtrip};
+    use crate::test_utils::arbitrary;
 
     impl Arbitrary for LxPaymentId {
         type Parameters = ();
@@ -399,6 +492,14 @@ mod test {
             .boxed()
         }
     }
+}
+
+#[cfg(test)]
+mod test {
+    use proptest::test_runner::Config;
+
+    use super::*;
+    use crate::test_utils::{arbitrary, roundtrip};
 
     #[test]
     fn enums_roundtrips() {
@@ -412,6 +513,7 @@ mod test {
 
     #[test]
     fn newtype_serde_roundtrip() {
+        roundtrip::json_string_roundtrip_proptest::<PaymentIndex>();
         roundtrip::json_string_roundtrip_proptest::<LxPaymentId>();
         roundtrip::json_string_roundtrip_proptest::<LxPaymentHash>();
         roundtrip::json_string_roundtrip_proptest::<LxPaymentPreimage>();
@@ -420,10 +522,11 @@ mod test {
 
     #[test]
     fn newtype_fromstr_display_roundtrip() {
-        roundtrip::json_string_roundtrip_proptest::<LxPaymentId>();
-        roundtrip::json_string_roundtrip_proptest::<LxPaymentHash>();
-        roundtrip::json_string_roundtrip_proptest::<LxPaymentPreimage>();
-        roundtrip::json_string_roundtrip_proptest::<LxPaymentSecret>();
+        roundtrip::fromstr_display_roundtrip_proptest::<PaymentIndex>();
+        roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentId>();
+        roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentHash>();
+        roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentPreimage>();
+        roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentSecret>();
         // LxPaymentId's impls rely on Txid's FromStr/Display impls
         roundtrip::fromstr_display_custom(
             arbitrary::any_txid(),
