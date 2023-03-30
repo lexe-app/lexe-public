@@ -29,7 +29,7 @@ use crate::api::error::{
 };
 use crate::api::ports::UserPorts;
 use crate::api::provision::{NodeProvisionRequest, SealedSeed, SealedSeedId};
-use crate::api::qs::GetNewPayments;
+use crate::api::qs::{GetNewPayments, GetPaymentsByIds};
 use crate::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use crate::api::{NodePk, Scid, User, UserPk};
 use crate::ed25519;
@@ -119,6 +119,20 @@ pub trait NodeBackendApi {
         payment: DbPayment,
         auth: UserAuthToken,
     ) -> Result<(), BackendApiError>;
+
+    /// POST /v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
+    ///
+    /// Fetch a batch of payments by their [`LxPaymentId`]s. This is typically
+    /// used by a mobile client to poll for updates on payments which it
+    /// currently has stored locally as "pending"; the intention is to check
+    /// if any of these payments have been updated.
+    // We use POST because there may be a lot of ids, which might be too large
+    // to fit inside query parameters.
+    async fn get_payments_by_ids(
+        &self,
+        req: GetPaymentsByIds,
+        auth: UserAuthToken,
+    ) -> Result<Vec<DbPayment>, BackendApiError>;
 
     /// GET /v1/payments/new [`GetNewPayments`] -> [`Vec<DbPayment>`]
     ///
