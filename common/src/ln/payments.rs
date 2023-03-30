@@ -91,13 +91,15 @@ pub enum PaymentStatus {
 
 // --- Lexe newtypes --- //
 
-/// A payment index which (1) is unique per payment and (2) is ordered first by
-/// timestamp and then by [`LxPaymentId`]'s lexicographic ordering.
+/// A payment identifier which (1) retains uniqueness per payment and (2) is
+/// ordered first by timestamp and then by [`LxPaymentId`].
 ///
 /// It is essentially a [`(TimestampMs, LxPaymentId)`], suitable for use as a
 /// key in a `BTreeMap<PaymentIndex, BasicPayment>` or similar, but additionally
 /// de/serializes to a string so that it can be passed as a query parameter in a
-/// `GET` request.
+/// `GET` request or used as a degenerated general purpose ordered identifier.
+/// When serialized to string, the timestamp is padded with leading 0s so that
+/// the unserialized and string-serialized orderings are equivalent.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -451,18 +453,19 @@ impl PartialOrd for PaymentIndex {
 
 // --- impl Ord for LxPaymentId --- //
 
-// Onchain is "less than" than lightning
 impl Ord for LxPaymentId {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
+            // We consider lightning to be "less than" onchain payments so that
+            // the string-serialized and unserialized orderings are equivalent.
+            (Self::Lightning(_), Self::Onchain(_)) => Ordering::Less,
+            (Self::Onchain(_), Self::Lightning(_)) => Ordering::Greater,
             (Self::Onchain(self_txid), Self::Onchain(other_txid)) => {
                 self_txid.cmp(other_txid)
             }
             (Self::Lightning(self_hash), Self::Lightning(other_hash)) => {
                 self_hash.cmp(other_hash)
             }
-            (Self::Onchain(_), Self::Lightning(_)) => Ordering::Less,
-            (Self::Lightning(_), Self::Onchain(_)) => Ordering::Greater,
         }
     }
 }
@@ -475,6 +478,9 @@ impl PartialOrd for LxPaymentId {
 
 #[cfg(test)]
 mod test {
+    use proptest::arbitrary::any;
+    use proptest::{prop_assert_eq, proptest};
+
     use super::*;
     use crate::test_utils::roundtrip;
 
@@ -504,5 +510,32 @@ mod test {
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentHash>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentPreimage>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentSecret>();
+    }
+
+    #[test]
+    fn payment_index_ordering_equivalence() {
+        proptest!(|(
+            idx1 in any::<PaymentIndex>(),
+            idx2 in any::<PaymentIndex>()
+        )| {
+            let idx1_str = idx1.to_string();
+            let idx2_str = idx2.to_string();
+
+            let unserialized_order = idx1.cmp(&idx2);
+            let string_serialized_order = idx1_str.cmp(&idx2_str);
+            prop_assert_eq!(unserialized_order, string_serialized_order);
+        });
+    }
+
+    #[test]
+    fn payment_id_ordering_equivalence() {
+        proptest!(|(id1 in any::<LxPaymentId>(), id2 in any::<LxPaymentId>())| {
+            let id1_str = id1.to_string();
+            let id2_str = id2.to_string();
+
+            let unserialized_order = id1.cmp(&id2);
+            let string_serialized_order = id1_str.cmp(&id2_str);
+            prop_assert_eq!(unserialized_order, string_serialized_order);
+        });
     }
 }
