@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use common::api::command::GetInvoiceRequest;
 use common::api::error::{NodeApiError, NodeErrorKind};
-use common::api::qs::{GetByUserPk, GetRange};
+use common::api::qs::{GetByUserPk, GetNewPayments};
 use common::api::rest::{into_response, into_succ_response};
 use common::api::{Scid, UserPk};
 use common::cli::{LspInfo, Network};
@@ -103,11 +103,12 @@ pub(crate) fn owner_routes(
         .then(lexe_ln::command::get_invoice)
         .map(into_command_api_result)
         .map(into_response);
-    let get_payments = warp::path("payments")
+    let get_new_payments = warp::path("payments")
+        .and(warp::path("new"))
         .and(warp::get())
-        .and(warp::query::<GetRange>())
+        .and(warp::query::<GetNewPayments>())
         .and(inject::persister(persister))
-        .then(owner::get_payments)
+        .then(owner::get_new_payments)
         .map(into_response);
     let send_payment = warp::path("send_payment")
         .and(warp::post())
@@ -122,7 +123,7 @@ pub(crate) fn owner_routes(
         node_info
             .or(list_channels)
             .or(get_invoice)
-            .or(get_payments)
+            .or(get_new_payments)
             .or(send_payment),
     );
 

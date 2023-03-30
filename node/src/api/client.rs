@@ -8,7 +8,7 @@ use common::api::def::{
 use common::api::error::{BackendApiError, LspApiError, RunnerApiError};
 use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
-use common::api::qs::{EmptyData, GetByNodePk, GetByUserPk, GetRange};
+use common::api::qs::{EmptyData, GetByNodePk, GetByUserPk, GetNewPayments};
 use common::api::rest::{RequestBuilderExt, RestClient, POST};
 use common::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use common::api::{NodePk, Scid, User, UserPk};
@@ -255,19 +255,6 @@ impl NodeBackendApi for BackendClient {
         self.rest.send(req).await
     }
 
-    async fn get_payments(
-        &self,
-        range: GetRange,
-        auth: UserAuthToken,
-    ) -> Result<Vec<DbPayment>, BackendApiError> {
-        let backend = &self.backend_url;
-        let req = self
-            .rest
-            .get(format!("{backend}/v1/payments"), &range)
-            .bearer_auth(&auth);
-        self.rest.send(req).await
-    }
-
     async fn create_payment(
         &self,
         payment: DbPayment,
@@ -290,6 +277,19 @@ impl NodeBackendApi for BackendClient {
         let req = self
             .rest
             .put(format!("{backend}/v1/payments"), &payment)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn get_new_payments(
+        &self,
+        req: GetNewPayments,
+        auth: UserAuthToken,
+    ) -> Result<Vec<DbPayment>, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .get(format!("{backend}/v1/payments/new"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }

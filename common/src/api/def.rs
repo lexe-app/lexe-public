@@ -29,7 +29,7 @@ use crate::api::error::{
 };
 use crate::api::ports::UserPorts;
 use crate::api::provision::{NodeProvisionRequest, SealedSeed, SealedSeedId};
-use crate::api::qs::GetRange;
+use crate::api::qs::GetNewPayments;
 use crate::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use crate::api::{NodePk, Scid, User, UserPk};
 use crate::ed25519;
@@ -106,15 +106,6 @@ pub trait NodeBackendApi {
         auth: UserAuthToken,
     ) -> Result<Vec<VfsFile>, BackendApiError>;
 
-    /// GET /v1/payments [`GetRange`] -> [`Vec<DbPayment>`]
-    ///
-    /// Fetches all payments within a `[start, end)` range.
-    async fn get_payments(
-        &self,
-        range: GetRange,
-        auth: UserAuthToken,
-    ) -> Result<Vec<DbPayment>, BackendApiError>;
-
     /// POST /v1/payments [`DbPayment`] -> [`()`]
     async fn create_payment(
         &self,
@@ -128,6 +119,19 @@ pub trait NodeBackendApi {
         payment: DbPayment,
         auth: UserAuthToken,
     ) -> Result<(), BackendApiError>;
+
+    /// GET /v1/payments/new [`GetNewPayments`] -> [`Vec<DbPayment>`]
+    ///
+    /// Sync a batch of new payments to local storage, optionally starting from
+    /// a known [`PaymentIndex`] (exclusive). Results are in ascending order, by
+    /// `(created_at, payment_id)`. See [`GetNewPayments`] for more info.
+    ///
+    /// [`PaymentIndex`]: crate::ln::payments::PaymentIndex
+    async fn get_new_payments(
+        &self,
+        req: GetNewPayments,
+        auth: UserAuthToken,
+    ) -> Result<Vec<DbPayment>, BackendApiError>;
 
     /// GET /v1/payments/pending -> [`Vec<DbPayment>`]
     ///
@@ -231,9 +235,9 @@ pub trait OwnerNodeRunApi {
     /// POST /owner/send_payment [`LxInvoice`] -> [`()`]
     async fn send_payment(&self, req: LxInvoice) -> Result<(), NodeApiError>;
 
-    /// GET /owner/payments [`GetRange`] -> [`Vec<BasicPayment>`]
-    async fn get_payments(
+    /// GET /owner/payments/new [`GetNewPayments`] -> [`Vec<BasicPayment>`]
+    async fn get_new_payments(
         &self,
-        range: GetRange,
+        req: GetNewPayments,
     ) -> Result<Vec<BasicPayment>, NodeApiError>;
 }

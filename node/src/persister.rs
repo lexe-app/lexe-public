@@ -8,7 +8,7 @@ use anyhow::{anyhow, ensure, Context};
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
 use common::api::auth::{UserAuthToken, UserAuthenticator};
-use common::api::qs::GetRange;
+use common::api::qs::GetNewPayments;
 use common::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use common::api::{Scid, User};
 use common::cli::Network;
@@ -229,14 +229,14 @@ impl InnerPersister {
         Ok(wallet_db)
     }
 
-    pub(crate) async fn read_basic_payments(
+    pub(crate) async fn read_new_payments(
         &self,
-        range: GetRange,
+        req: GetNewPayments,
     ) -> anyhow::Result<Vec<BasicPayment>> {
         let token = self.get_token().await?;
         self.api
             // Fetch `DbPayment`s
-            .get_payments(range, token)
+            .get_new_payments(req, token)
             .await
             .context("Could not fetch `DbPayment`s")?
             .into_iter()

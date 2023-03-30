@@ -19,7 +19,7 @@ use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::def::{OwnerNodeProvisionApi, OwnerNodeRunApi, UserBackendApi};
 use crate::api::error::{BackendApiError, NodeApiError, NodeErrorKind};
 use crate::api::provision::NodeProvisionRequest;
-use crate::api::qs::GetRange;
+use crate::api::qs::GetNewPayments;
 use crate::api::rest::{RequestBuilderExt, RestClient, GET, POST};
 use crate::ln::invoice::LxInvoice;
 use crate::ln::payments::BasicPayment;
@@ -296,14 +296,14 @@ impl OwnerNodeRunApi for NodeClient {
         self.rest.send(req).await
     }
 
-    async fn get_payments(
+    async fn get_new_payments(
         &self,
-        range: GetRange,
+        req: GetNewPayments,
     ) -> Result<Vec<BasicPayment>, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/owner/payments");
-        let req = self.rest.get(url, &range);
+        let url = format!("{run_url}/owner/payments/new");
+        let req = self.rest.get(url, &req);
         self.rest.send(req).await
     }
 }

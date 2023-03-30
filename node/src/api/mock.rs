@@ -16,7 +16,7 @@ use common::api::error::{
 };
 use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
-use common::api::qs::GetRange;
+use common::api::qs::GetNewPayments;
 use common::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use common::api::{NodePk, Scid, User, UserPk};
 use common::byte_str::ByteStr;
@@ -294,38 +294,6 @@ impl NodeBackendApi for MockBackendClient {
         Ok(files_vec)
     }
 
-    async fn get_payments(
-        &self,
-        range: GetRange,
-        _auth: UserAuthToken,
-    ) -> Result<Vec<DbPayment>, BackendApiError> {
-        let payments = self
-            .payments
-            .lock()
-            .unwrap()
-            .values()
-            .filter(|p| {
-                if let Some(start) = range.start {
-                    // start is inclusive
-                    if p.created_at < start.as_i64() {
-                        return false;
-                    }
-                }
-                if let Some(end) = range.end {
-                    // end is exclusive
-                    if end.as_i64() <= p.created_at {
-                        return false;
-                    }
-                }
-
-                true
-            })
-            .cloned()
-            .collect::<Vec<DbPayment>>();
-
-        Ok(payments)
-    }
-
     async fn create_payment(
         &self,
         payment: DbPayment,
@@ -357,6 +325,29 @@ impl NodeBackendApi for MockBackendClient {
         let key = PaymentIndex { created_at, id };
         self.payments.lock().unwrap().insert(key, payment);
         Ok(())
+    }
+
+    async fn get_new_payments(
+        &self,
+        req: GetNewPayments,
+        _auth: UserAuthToken,
+    ) -> Result<Vec<DbPayment>, BackendApiError> {
+        let limit = req.limit.map(usize::from).unwrap_or(usize::MAX);
+        let payments = self
+            .payments
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(index, _p)| match req.start_index {
+                Some(ref start_index) => *index > start_index,
+                None => true,
+            })
+            .take(limit)
+            .map(|(_idx, p)| p)
+            .cloned()
+            .collect::<Vec<DbPayment>>();
+
+        Ok(payments)
     }
 
     async fn get_pending_payments(

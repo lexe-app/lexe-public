@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::api::{NodePk, Scid, UserPk};
-use crate::time::TimestampMs;
+use crate::ln::payments::PaymentIndex;
 
 // When serializing data as query parameters, we have to wrap newtypes in these
 // structs (instead of e.g. using UserPk directly), otherwise `serde_qs` errors
@@ -31,11 +31,13 @@ pub struct GetByScid {
     pub scid: Scid,
 }
 
-/// Fetch a range of timestamped items.
+/// Query parameter struct for syncing batches of new payments to local storage.
+/// Results are returned in ascending `(created_at, payment_id)` order.
 #[derive(Serialize, Deserialize)]
-pub struct GetRange {
-    /// The start of the range, inclusive.
-    pub start: Option<TimestampMs>,
-    /// The end of the range, exclusive.
-    pub end: Option<TimestampMs>,
+pub struct GetNewPayments {
+    /// Optional [`PaymentIndex`] at which the results should start, exclusive.
+    /// Payments with an index less than or equal to this will not be returned.
+    pub start_index: Option<PaymentIndex>,
+    /// (Optional) the maximum number of results that can be returned.
+    pub limit: Option<u16>,
 }

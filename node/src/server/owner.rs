@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use common::api::command::ListChannels;
 use common::api::error::{NodeApiError, NodeErrorKind};
-use common::api::qs::GetRange;
+use common::api::qs::GetNewPayments;
 use common::ln::channel::LxChannelDetails;
 use common::ln::payments::BasicPayment;
 use lexe_ln::alias::NetworkGraphType;
@@ -25,12 +25,12 @@ pub(crate) fn list_channels(
     Ok(list_channels)
 }
 
-pub(super) async fn get_payments(
-    range: GetRange,
+pub(super) async fn get_new_payments(
+    req: GetNewPayments,
     persister: NodePersister,
 ) -> Result<Vec<BasicPayment>, NodeApiError> {
     persister
-        .read_basic_payments(range)
+        .read_new_payments(req)
         .await
         .map_err(|e| NodeApiError {
             kind: NodeErrorKind::Command,
