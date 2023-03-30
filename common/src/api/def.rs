@@ -249,6 +249,19 @@ pub trait OwnerNodeRunApi {
     /// POST /owner/send_payment [`LxInvoice`] -> [`()`]
     async fn send_payment(&self, req: LxInvoice) -> Result<(), NodeApiError>;
 
+    /// POST /v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
+    ///
+    /// Fetch a batch of payments by their [`LxPaymentId`]s. This is typically
+    /// used by a mobile client to poll for updates on payments which it
+    /// currently has stored locally as "pending"; the intention is to check
+    /// if any of these payments have been updated.
+    // We use POST because there may be a lot of ids, which might be too large
+    // to fit inside query parameters.
+    async fn get_payments_by_ids(
+        &self,
+        req: GetPaymentsByIds,
+    ) -> Result<Vec<BasicPayment>, NodeApiError>;
+
     /// GET /owner/payments/new [`GetNewPayments`] -> [`Vec<BasicPayment>`]
     async fn get_new_payments(
         &self,

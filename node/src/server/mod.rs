@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use common::api::command::GetInvoiceRequest;
 use common::api::error::{NodeApiError, NodeErrorKind};
-use common::api::qs::{GetByUserPk, GetNewPayments};
+use common::api::qs::{GetByUserPk, GetNewPayments, GetPaymentsByIds};
 use common::api::rest::{into_response, into_succ_response};
 use common::api::{Scid, UserPk};
 use common::cli::{LspInfo, Network};
@@ -103,13 +103,6 @@ pub(crate) fn owner_routes(
         .then(lexe_ln::command::get_invoice)
         .map(into_command_api_result)
         .map(into_response);
-    let get_new_payments = warp::path("payments")
-        .and(warp::path("new"))
-        .and(warp::get())
-        .and(warp::query::<GetNewPayments>())
-        .and(inject::persister(persister))
-        .then(owner::get_new_payments)
-        .map(into_response);
     let send_payment = warp::path("send_payment")
         .and(warp::post())
         .and(warp::body::json::<LxInvoice>())
@@ -119,12 +112,27 @@ pub(crate) fn owner_routes(
         .map(into_command_api_result)
         .map(into_response);
 
+    let get_payments_by_ids = warp::path("ids")
+        .and(warp::post())
+        .and(warp::body::json::<GetPaymentsByIds>())
+        .and(inject::persister(persister.clone()))
+        .then(owner::get_payments_by_ids)
+        .map(into_response);
+    let get_new_payments = warp::path("new")
+        .and(warp::get())
+        .and(warp::query::<GetNewPayments>())
+        .and(inject::persister(persister))
+        .then(owner::get_new_payments)
+        .map(into_response);
+    let payments =
+        warp::path("payments").and(get_payments_by_ids.or(get_new_payments));
+
     let owner = owner_base.and(
         node_info
             .or(list_channels)
             .or(get_invoice)
-            .or(get_new_payments)
-            .or(send_payment),
+            .or(send_payment)
+            .or(payments),
     );
 
     root.or(owner)
