@@ -1,6 +1,6 @@
 // #![allow(dead_code)] // TODO(max): Remove and replace with SGX cfgs
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::Mutex;
 
@@ -16,7 +16,7 @@ use common::api::error::{
 };
 use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
-use common::api::qs::GetNewPayments;
+use common::api::qs::{GetNewPayments, GetPaymentsByIds};
 use common::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use common::api::{NodePk, Scid, User, UserPk};
 use common::byte_str::ByteStr;
@@ -325,6 +325,24 @@ impl NodeBackendApi for MockBackendClient {
         let key = PaymentIndex { created_at, id };
         self.payments.lock().unwrap().insert(key, payment);
         Ok(())
+    }
+
+    async fn get_payments_by_ids(
+        &self,
+        req: GetPaymentsByIds,
+        _auth: UserAuthToken,
+    ) -> Result<Vec<DbPayment>, BackendApiError> {
+        let ids = req.ids.into_iter().collect::<HashSet<_>>();
+        let payments = self
+            .payments
+            .lock()
+            .unwrap()
+            .values()
+            .filter(|p| ids.contains(&p.id))
+            .cloned()
+            .collect::<Vec<_>>();
+
+        Ok(payments)
     }
 
     async fn get_new_payments(
