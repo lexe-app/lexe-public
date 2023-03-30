@@ -24,6 +24,7 @@ Future<void> main() async {
     theme: LxTheme.light(),
     debugShowCheckedModeBanner: false,
     home: Scaffold(
+      appBar: AppBar(automaticallyImplyLeading: false),
       body: ComponentList(
         components: [
           Component("LandingPage", (_) => const LandingPage()),
