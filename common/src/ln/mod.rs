@@ -3,6 +3,8 @@
 
 /// Channel outpoint, details, counterparty
 pub mod channel;
+/// Bitcoin hash types, such as `LxTxid`.
+pub mod hashes;
 /// `LxInvoice`
 pub mod invoice;
 /// Payments types and newtypes.
