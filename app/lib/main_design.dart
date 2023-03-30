@@ -48,14 +48,14 @@ class MockAppHandle extends AppHandle {
 
   @override
   Future<NodeInfo> nodeInfo({dynamic hint}) => Future.delayed(
-        const Duration(seconds: 2),
+        const Duration(milliseconds: 1000),
         () => const NodeInfo(nodePk: "asdf", localBalanceMsat: 739405),
       );
 
   @override
   Future<FiatRate> fiatRate({required String fiat, dynamic hint}) =>
       Future.delayed(
-        const Duration(seconds: 3),
+        const Duration(milliseconds: 1300),
         () => const FiatRate(
           timestampMs: 1679863795,
           rate: 0.0000360359 /* USD/SAT */,
