@@ -3,10 +3,11 @@ import 'dart:math' show max;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:lexeapp/cfg.dart';
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import '../bindings.dart' show api;
 import '../bindings_generated_api.dart' show AppHandle;
+import '../cfg.dart' show config;
 import '../style.dart' show Fonts, LxColors;
 import 'backup_wallet.dart' show BackupWalletPage;
 
@@ -15,8 +16,16 @@ class LandingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-        backgroundColor: LxColors.foreground,
+    // set the SystemUiOverlay bars to transparent so the background shader
+    // shows through.
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: LxColors.clearW0,
+        systemNavigationBarColor: LxColors.clearW0,
+        systemNavigationBarDividerColor: LxColors.clearW0,
+      ),
+      child: Scaffold(
+        backgroundColor: LxColors.grey75,
         body: Stack(children: [
           const InkuShader(child: Center()),
           LayoutBuilder(
@@ -55,7 +64,9 @@ class LandingPage extends StatelessWidget {
               );
             },
           ),
-        ]));
+        ]),
+      ),
+    );
   }
 }
 
