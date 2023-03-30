@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::api::{NodePk, Scid, UserPk};
+#[cfg(doc)]
+use crate::ln::payments::LxPaymentId;
 use crate::ln::payments::PaymentIndex;
 
 // When serializing data as query parameters, we have to wrap newtypes in these
@@ -40,4 +42,16 @@ pub struct GetNewPayments {
     pub start_index: Option<PaymentIndex>,
     /// (Optional) the maximum number of results that can be returned.
     pub limit: Option<u16>,
+}
+
+/// Struct for fetching payments by [`LxPaymentId`].
+// NOTE: This struct isn't actually serialized into query parameters - this
+// struct is sent via `POST` instead (and so uses JSON).
+#[derive(Serialize, Deserialize)]
+pub struct GetPaymentsByIds {
+    /// The string-serialized [`LxPaymentId`]s of the payments to be fetched.
+    /// Typically, the ids passed here correspond to payments that the mobile
+    /// client currently has stored locally as "pending"; the intention is to
+    /// check whether any of these payments have been updated.
+    pub ids: Vec<String>,
 }
