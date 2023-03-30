@@ -4,7 +4,6 @@ use std::fmt::{self, Display};
 use std::str::FromStr;
 
 use anyhow::{anyhow, bail, ensure, Context};
-use bitcoin::Txid;
 use lightning::ln::channelmanager::PaymentId;
 use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
 #[cfg(any(test, feature = "test-utils"))]
@@ -14,6 +13,7 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::hex::{self, FromHex};
 use crate::hexstr_or_bytes;
+use crate::ln::hashes::LxTxid;
 use crate::ln::invoice::LxInvoice;
 use crate::time::TimestampMs;
 
@@ -109,15 +109,16 @@ pub struct PaymentIndex {
 /// A globally-unique identifier for any type of payment, including both
 /// on-chain and Lightning payments.
 ///
-/// - On-chain payments use their [`Txid`] as their id.
+/// - On-chain payments use their [`LxTxid`] as their id.
 /// - Lightning payments use their [`LxPaymentHash`] as their id.
 ///
 /// NOTE that this is NOT a drop-in replacement for LDK's [`PaymentId`], since
 /// [`PaymentId`] is Lightning-specific, whereas [`LxPaymentId`] is not.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum LxPaymentId {
-    Onchain(Txid),
+    Onchain(LxTxid),
     Lightning(LxPaymentHash),
 }
 
@@ -176,9 +177,9 @@ impl fmt::Debug for LxPaymentSecret {
 
 // --- Newtype From impls --- //
 
-// LxPaymentId -> Txid / LxPaymentHash
-impl From<Txid> for LxPaymentId {
-    fn from(txid: Txid) -> Self {
+// LxPaymentId -> LxTxid / LxPaymentHash
+impl From<LxTxid> for LxPaymentId {
+    fn from(txid: LxTxid) -> Self {
         Self::Onchain(txid)
     }
 }
@@ -188,8 +189,8 @@ impl From<LxPaymentHash> for LxPaymentId {
     }
 }
 
-// LxPaymentId -> Txid / LxPaymentHash
-impl TryFrom<LxPaymentId> for Txid {
+// LxPaymentId -> LxTxid / LxPaymentHash
+impl TryFrom<LxPaymentId> for LxTxid {
     type Error = anyhow::Error;
     fn try_from(id: LxPaymentId) -> anyhow::Result<Self> {
         match id {
@@ -368,7 +369,7 @@ impl FromStr for LxPaymentId {
             "Wrong format; should be <kind>_<id>"
         );
         match kind_str {
-            "onchain" => Txid::from_str(id_str)
+            "onchain" => LxTxid::from_str(id_str)
                 .map(Self::Onchain)
                 .context("Invalid Txid"),
             "lightning" => LxPaymentHash::from_str(id_str)
@@ -472,34 +473,10 @@ impl PartialOrd for LxPaymentId {
     }
 }
 
-#[cfg(any(test, feature = "test-utils"))]
-mod arbitrary_impl {
-    use proptest::arbitrary::{any, Arbitrary};
-    use proptest::prop_oneof;
-    use proptest::strategy::{BoxedStrategy, Strategy};
-
-    use super::*;
-    use crate::test_utils::arbitrary;
-
-    impl Arbitrary for LxPaymentId {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof![
-                arbitrary::any_txid().prop_map(Self::Onchain),
-                any::<LxPaymentHash>().prop_map(Self::Lightning),
-            ]
-            .boxed()
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
-    use proptest::test_runner::Config;
-
     use super::*;
-    use crate::test_utils::{arbitrary, roundtrip};
+    use crate::test_utils::roundtrip;
 
     #[test]
     fn enums_roundtrips() {
@@ -527,10 +504,5 @@ mod test {
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentHash>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentPreimage>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentSecret>();
-        // LxPaymentId's impls rely on Txid's FromStr/Display impls
-        roundtrip::fromstr_display_custom(
-            arbitrary::any_txid(),
-            Config::default(),
-        );
     }
 }
