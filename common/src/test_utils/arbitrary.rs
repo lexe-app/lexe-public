@@ -155,7 +155,6 @@ pub fn any_txid() -> impl Strategy<Value = Txid> {
     // resistance, the generated txids do not correspond to any tx at all:
     // /*
     any::<[u8; 32]>()
-        .no_shrink()
         .prop_map(bitcoin::hashes::sha256d::Hash::from_inner)
         .prop_map(Txid::from_hash)
     // */
