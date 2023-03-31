@@ -100,7 +100,7 @@ pub enum PaymentStatus {
 /// `GET` request or used as a degenerated general purpose ordered identifier.
 /// When serialized to string, the timestamp is padded with leading 0s so that
 /// the unserialized and string-serialized orderings are equivalent.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct PaymentIndex {
@@ -432,25 +432,6 @@ impl Display for LxPaymentSecret {
     }
 }
 
-// --- impl Ord for PaymentIndex --- //
-
-// Order first by `created_at` and then by `id`
-impl Ord for PaymentIndex {
-    fn cmp(&self, other: &Self) -> Ordering {
-        if self.created_at != other.created_at {
-            self.created_at.cmp(&other.created_at)
-        } else {
-            self.id.cmp(&other.id)
-        }
-    }
-}
-
-impl PartialOrd for PaymentIndex {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
 // --- impl Ord for LxPaymentId --- //
 
 impl Ord for LxPaymentId {
@@ -511,6 +492,25 @@ mod test {
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentHash>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentPreimage>();
         roundtrip::fromstr_display_roundtrip_proptest::<LxPaymentSecret>();
+    }
+
+    #[test]
+    fn payment_index_createdat_precedence() {
+        let time1 = TimestampMs::from(1);
+        let time2 = TimestampMs::from(2);
+        let id1 = LxPaymentId::Lightning(LxPaymentHash([1; 32]));
+        let id2 = LxPaymentId::Lightning(LxPaymentHash([2; 32]));
+
+        let index12 = PaymentIndex {
+            created_at: time1,
+            id: id2,
+        };
+        let index21 = PaymentIndex {
+            created_at: time2,
+            id: id1,
+        };
+
+        assert!(index12 < index21, "created_at should take precedence");
     }
 
     #[test]
