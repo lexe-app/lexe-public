@@ -347,12 +347,17 @@ impl FromStr for PaymentIndex {
 }
 
 /// `<created_at>-<id>`
+///
+/// When serializing to string, pad the timestamp with leading zeroes (up to the
+/// maximum number of digits in an [`i64`]) so that the lexicographic ordering
+/// is equivalent to the non-serialized ordering.
 // We use the - separator because LxPaymentId already uses _
 impl Display for PaymentIndex {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let created_at = &self.created_at;
+        let created_at = self.created_at.as_i64();
         let id = &self.id;
-        write!(f, "{created_at}-{id}")
+        // i64 contains a maximum of 19 digits in base 10.
+        write!(f, "{created_at:019}-{id}")
     }
 }
 
