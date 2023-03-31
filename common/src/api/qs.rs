@@ -39,6 +39,7 @@ pub struct GetByScid {
 pub struct GetNewPayments {
     /// Optional [`PaymentIndex`] at which the results should start, exclusive.
     /// Payments with an index less than or equal to this will not be returned.
+    #[serde(flatten)]
     pub start_index: Option<PaymentIndex>,
     /// (Optional) the maximum number of results that can be returned.
     pub limit: Option<u16>,

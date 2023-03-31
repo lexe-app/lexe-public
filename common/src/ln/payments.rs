@@ -95,13 +95,12 @@ pub enum PaymentStatus {
 /// ordered first by timestamp and then by [`LxPaymentId`].
 ///
 /// It is essentially a [`(TimestampMs, LxPaymentId)`], suitable for use as a
-/// key in a `BTreeMap<PaymentIndex, BasicPayment>` or similar, but additionally
-/// de/serializes to a string so that it can be passed as a query parameter in a
-/// `GET` request or used as a degenerated general purpose ordered identifier.
-/// When serialized to string, the timestamp is padded with leading 0s so that
-/// the unserialized and string-serialized orderings are equivalent.
+/// key in a `BTreeMap<PaymentIndex, BasicPayment>` or similar.
+///
+/// It can also be degenerated (serialized) into a string and the
+/// string-serialized ordering will be equivalent to the unserialized ordering.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-#[derive(SerializeDisplay, DeserializeFromStr)]
+#[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct PaymentIndex {
     pub created_at: TimestampMs,
