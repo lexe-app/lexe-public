@@ -104,15 +104,9 @@ impl FromStr for TimestampMs {
     }
 }
 
-/// If serialized to string, pad leading zeroes (up to the maximum number of
-/// digits in an [`i64`]) so that the lexicographic ordering is equivalent to
-/// the non-serialized ordering.
-///
-/// In other words, prevent `10 > 2 && "10" < "2"` by serializing `2` as `"02"`.
 impl Display for TimestampMs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // i64 contains a maximum of 19 digits in base 10.
-        write!(f, "{:019}", &self.0)
+        i64::fmt(&self.0, f)
     }
 }
 
@@ -134,9 +128,6 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use proptest::arbitrary::any;
-    use proptest::{prop_assert_eq, proptest};
-
     use super::*;
     use crate::test_utils::roundtrip;
 
@@ -152,20 +143,5 @@ mod test {
         assert_eq!(serde_json::from_str::<TimestampMs>("42").unwrap().0, 42);
         assert_eq!(serde_json::from_str::<TimestampMs>("0").unwrap().0, 0);
         assert!(serde_json::from_str::<TimestampMs>("-42").is_err());
-    }
-
-    #[test]
-    fn timestamp_ordering_equivalence() {
-        proptest!(|(
-            time1 in any::<TimestampMs>(),
-            time2 in any::<TimestampMs>()
-        )| {
-            let time1_str = time1.to_string();
-            let time2_str = time2.to_string();
-
-            let unserialized_order = time1.cmp(&time2);
-            let string_serialized_order = time1_str.cmp(&time2_str);
-            prop_assert_eq!(unserialized_order, string_serialized_order);
-        });
     }
 }
