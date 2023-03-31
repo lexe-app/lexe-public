@@ -371,13 +371,13 @@ impl FromStr for LxPaymentId {
             "Wrong format; should be <kind>_<id>"
         );
         match kind_str {
-            "onchain" => LxTxid::from_str(id_str)
+            "bc" => LxTxid::from_str(id_str)
                 .map(Self::Onchain)
                 .context("Invalid Txid"),
-            "lightning" => LxPaymentHash::from_str(id_str)
+            "ln" => LxPaymentHash::from_str(id_str)
                 .map(Self::Lightning)
                 .context("Invalid payment hash"),
-            _ => bail!("<kind> should be 'onchain' or 'lightning'"),
+            _ => bail!("<kind> should be 'bc' or 'ln'"),
         }
     }
 }
@@ -386,8 +386,8 @@ impl FromStr for LxPaymentId {
 impl Display for LxPaymentId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Onchain(txid) => write!(f, "onchain_{txid}"),
-            Self::Lightning(hash) => write!(f, "lightning_{hash}"),
+            Self::Onchain(txid) => write!(f, "bc_{txid}"),
+            Self::Lightning(hash) => write!(f, "ln_{hash}"),
         }
     }
 }
@@ -456,10 +456,11 @@ impl PartialOrd for PaymentIndex {
 impl Ord for LxPaymentId {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
-            // We consider lightning to be "less than" onchain payments so that
+            // Onchain serializes to "bc_" while Lightning serializes to "ln_".
+            // We consider Onchain to be "less than" Lightning payments so that
             // the string-serialized and unserialized orderings are equivalent.
-            (Self::Lightning(_), Self::Onchain(_)) => Ordering::Less,
-            (Self::Onchain(_), Self::Lightning(_)) => Ordering::Greater,
+            (Self::Onchain(_), Self::Lightning(_)) => Ordering::Less,
+            (Self::Lightning(_), Self::Onchain(_)) => Ordering::Greater,
             (Self::Onchain(self_txid), Self::Onchain(other_txid)) => {
                 self_txid.cmp(other_txid)
             }
