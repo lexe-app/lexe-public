@@ -59,10 +59,10 @@ pub struct RunArgs {
     #[argh(option)]
     pub app_port: Option<Port>,
 
-    /// the port warp uses to accept requests from the host (Lexe).
+    /// the port warp uses to accept requests from the runner (Lexe).
     /// Defaults to a port assigned by the OS
     #[argh(option)]
-    pub host_port: Option<Port>,
+    pub runner_port: Option<Port>,
 
     /// bitcoin, testnet, regtest, or signet.
     #[argh(option)]
@@ -126,7 +126,7 @@ impl Default for RunArgs {
         Self {
             user_pk: UserPk::from_u64(1), // Test user
             app_port: None,
-            host_port: None,
+            runner_port: None,
             network: Network::default(),
             shutdown_after_sync_if_no_activity: false,
             inactivity_timer_sec: 3600,
@@ -180,8 +180,8 @@ impl RunArgs {
         if let Some(app_port) = self.app_port {
             cmd.arg("--app-port").arg(&app_port.to_string());
         }
-        if let Some(host_port) = self.host_port {
-            cmd.arg("--host-port").arg(&host_port.to_string());
+        if let Some(runner_port) = self.runner_port {
+            cmd.arg("--runner-port").arg(&runner_port.to_string());
         }
 
         cmd

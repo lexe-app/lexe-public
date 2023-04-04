@@ -211,15 +211,15 @@ pub trait NodeRunnerApi {
     ) -> Result<UserPorts, RunnerApiError>;
 }
 
-/// Defines the api that the node exposes to the host (Lexe)
+/// Defines the api that the node exposes to the runner (Lexe)
 #[async_trait]
-pub trait HostNodeApi {
-    /// GET /host/status [`GetByUserPk`] -> "OK"
+pub trait RunnerNodeApi {
+    /// GET /runner/status [`GetByUserPk`] -> "OK"
     ///
     /// [`GetByUserPk`]: super::qs::GetByUserPk
     async fn status(&self, user_pk: UserPk) -> Result<String, NodeApiError>;
 
-    /// GET /host/shutdown [`GetByUserPk`] -> [`()`]
+    /// GET /runner/shutdown [`GetByUserPk`] -> [`()`]
     ///
     /// [`GetByUserPk`]: super::qs::GetByUserPk
     async fn shutdown(&self, user_pk: UserPk) -> Result<(), NodeApiError>;

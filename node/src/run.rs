@@ -410,22 +410,23 @@ impl UserNode {
         info!("App service listening on port {}", app_port);
         tasks.push(LxTask::spawn_named("app service", app_service_fut));
 
-        // TODO(phlip9): authenticate host<->node
-        // Start warp service for host
-        let host_routes = server::host_routes(args.user_pk, shutdown.clone());
-        let (host_addr, host_service_fut) = warp::serve(host_routes)
+        // TODO(phlip9): authenticate runner<->node
+        // Start warp service for runner
+        let runner_routes =
+            server::runner_routes(args.user_pk, shutdown.clone());
+        let (runner_addr, runner_service_fut) = warp::serve(runner_routes)
             // A value of 0 indicates that the OS will assign a port for us
             .try_bind_with_graceful_shutdown(
-                ([127, 0, 0, 1], args.host_port.unwrap_or(0)),
+                ([127, 0, 0, 1], args.runner_port.unwrap_or(0)),
                 shutdown.clone().recv_owned(),
             )
             .context("Failed to bind warp")?;
-        let host_port = host_addr.port();
-        info!("Host service listening on port {}", host_port);
-        tasks.push(LxTask::spawn_named("host service", host_service_fut));
+        let runner_port = runner_addr.port();
+        info!("Runner service listening on port {}", runner_port);
+        tasks.push(LxTask::spawn_named("runner service", runner_service_fut));
 
         // Prepare the ports that we'll notify the runner of once we're ready
-        let user_ports = UserPorts::new_run(user_pk, app_port, host_port);
+        let user_ports = UserPorts::new_run(user_pk, app_port, runner_port);
 
         // Init background processor
         let bg_processor_task = LexeBackgroundProcessor::start::<

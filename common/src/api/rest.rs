@@ -107,7 +107,7 @@ where
 ///     .and(warp::get())
 ///     .and(warp::query())
 ///     .and(inject::user_pk(user_pk))
-///     .then(host::status)
+///     .then(runner::status)
 ///     .map(into_response);
 /// ```
 pub fn into_response<T: Serialize, E: ToHttpStatus + Into<ErrorResponse>>(
