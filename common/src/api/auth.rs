@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::NodePkProof;
-use crate::api::def::UserBackendApi;
+use crate::api::def::BearerAuthBackendApi;
 use crate::api::error::{BackendApiError, BackendErrorKind};
 use crate::byte_str::ByteStr;
 use crate::ed25519::{self, Signed};
@@ -286,7 +286,7 @@ impl BearerAuthenticator {
 
     /// Try to either (1) return an existing, fresh token or (2) authenticate
     /// with the backend to get a new fresh token (and cache it).
-    pub async fn get_token<T: UserBackendApi + ?Sized>(
+    pub async fn get_token<T: BearerAuthBackendApi + ?Sized>(
         &self,
         api: &T,
         now: SystemTime,
@@ -316,7 +316,7 @@ impl BearerAuthenticator {
     /// Returns the [`TokenWithExpiration`] if the auth request succeeds.
     ///
     /// NOTE: doesn't update the token cache
-    pub async fn authenticate<T: UserBackendApi + ?Sized>(
+    pub async fn authenticate<T: BearerAuthBackendApi + ?Sized>(
         &self,
         api: &T,
         now: SystemTime,

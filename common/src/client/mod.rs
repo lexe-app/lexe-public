@@ -18,7 +18,7 @@ use crate::api::auth::{
 };
 use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::def::{
-    AppBackendApi, OwnerNodeProvisionApi, OwnerNodeRunApi, UserBackendApi,
+    AppBackendApi, BearerAuthBackendApi, OwnerNodeProvisionApi, OwnerNodeRunApi,
 };
 use crate::api::error::{BackendApiError, NodeApiError, NodeErrorKind};
 use crate::api::provision::NodeProvisionRequest;
@@ -234,7 +234,7 @@ impl AppBackendApi for NodeClient {
 }
 
 #[async_trait]
-impl UserBackendApi for NodeClient {
+impl BearerAuthBackendApi for NodeClient {
     async fn bearer_auth(
         &self,
         signed_req: ed25519::Signed<BearerAuthRequest>,

@@ -7,7 +7,7 @@ use anyhow::Context;
 use async_trait::async_trait;
 use common::api::auth::BearerAuthToken;
 use common::api::def::{
-    NodeBackendApi, NodeLspApi, NodeRunnerApi, UserBackendApi,
+    BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi,
 };
 use common::api::error::BackendApiError;
 use common::api::vfs::VfsFile;
@@ -18,10 +18,10 @@ pub(crate) mod client;
 #[cfg(any(not(target_env = "sgx"), debug_assertions))]
 pub mod mock;
 
-/// A trait for a client that can implements both backend API traits, plus some
+/// A trait for a client that implements both backend API traits, plus some
 /// methods which allow the caller to specify the number of retries.
 #[async_trait]
-pub trait BackendApiClient: NodeBackendApi + UserBackendApi {
+pub trait BackendApiClient: NodeBackendApi + BearerAuthBackendApi {
     async fn create_file_with_retries(
         &self,
         file: &VfsFile,
