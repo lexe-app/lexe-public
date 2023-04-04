@@ -57,13 +57,7 @@ pub enum Error {
 /// [`RootSeed`]: crate::root_seed::RootSeed
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
-pub enum UserSignupRequest {
-    V1(UserSignupRequestV1),
-}
-
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
-pub struct UserSignupRequestV1 {
+pub struct UserSignupRequest {
     /// The lightning node pubkey in a Proof-of-Key-Possession
     pub node_pk_proof: NodePkProof,
     // do we need this?
@@ -156,10 +150,6 @@ pub struct BearerAuthenticator {
 // -- impl UserSignupRequest -- //
 
 impl UserSignupRequest {
-    pub fn new(node_pk_proof: NodePkProof) -> Self {
-        Self::V1(UserSignupRequestV1 { node_pk_proof })
-    }
-
     pub fn deserialize_verify(
         serialized: &[u8],
     ) -> Result<Signed<Self>, Error> {
@@ -167,13 +157,6 @@ impl UserSignupRequest {
         // ownership of a user_pk.
         ed25519::verify_signed_struct(ed25519::accept_any_signer, serialized)
             .map_err(Error::UserVerifyError)
-    }
-
-    #[inline]
-    pub fn node_pk_proof(&self) -> &NodePkProof {
-        match self {
-            Self::V1(UserSignupRequestV1 { node_pk_proof }) => node_pk_proof,
-        }
     }
 }
 
