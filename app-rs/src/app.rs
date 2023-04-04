@@ -62,7 +62,7 @@ impl App {
         // gen + sign the UserSignupRequest
 
         let node_pk_proof = NodePkProof::sign(rng, &node_key_pair);
-        let signup_req = UserSignupRequest::new(node_pk_proof);
+        let signup_req = UserSignupRequest { node_pk_proof };
         let (_, signed_signup_req) = user_key_pair
             .sign_struct(&signup_req)
             .expect("Should never fail to serialize UserSignupRequest");
