@@ -1,4 +1,4 @@
-// user auth v1
+// bearer auth v1
 
 use std::fmt;
 use std::time::{Duration, SystemTime};
@@ -18,10 +18,10 @@ pub const DEFAULT_USER_TOKEN_LIFETIME_SECS: u32 = 10 * 60; // 10 min
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("error verifying signed user auth request: {0}")]
+    #[error("error verifying signed bearer auth request: {0}")]
     UserVerifyError(#[source] ed25519::Error),
 
-    #[error("Decoded user auth token appears malformed")]
+    #[error("Decoded bearer auth token appears malformed")]
     MalformedToken,
 
     #[error("issued timestamp is too far from current auth server clock")]
@@ -39,7 +39,7 @@ pub enum Error {
     #[error("user not signed up yet")]
     NoUser,
 
-    #[error("user auth token is not valid base64")]
+    #[error("bearer auth token is not valid base64")]
     Base64Decode,
 }
 
@@ -78,14 +78,14 @@ pub struct UserSignupRequestV1 {
 
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
-pub enum UserAuthRequest {
-    V1(UserAuthRequestV1),
+pub enum BearerAuthRequest {
+    V1(BearerAuthRequestV1),
 }
 
 /// A user client's request for auth token with certain restrictions.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
-pub struct UserAuthRequestV1 {
+pub struct BearerAuthRequestV1 {
     /// The timestamp of this auth request, in seconds since UTC Unix time,
     /// interpreted relative to the server clock. Used to prevent replaying old
     /// auth requests after the ~1 min expiration.
@@ -103,38 +103,38 @@ pub struct UserAuthRequestV1 {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct UserAuthResponse {
-    pub user_auth_token: UserAuthToken,
+pub struct BearerAuthResponse {
+    pub bearer_auth_token: BearerAuthToken,
 }
 
-/// An opaque user auth token for authenticating user clients against lexe infra
-/// as a particular [`UserPk`](crate::api::UserPk).
+/// An opaque bearer auth token for authenticating user clients against lexe
+/// infra as a particular [`UserPk`](crate::api::UserPk).
 ///
 /// Most user clients should just treat this as an opaque Bearer token with a
 /// very short (~15 min) expiration.
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct UserAuthToken(pub ByteStr);
+pub struct BearerAuthToken(pub ByteStr);
 
-/// an [`UserAuthToken`] and its expected expiration time
+/// A [`BearerAuthToken`] and its expected expiration time
 ///
 /// * we actually use "true expiration" minus a few seconds so we can re-auth
 ///   before the token actually expires.
 #[derive(Clone)]
 pub struct TokenWithExpiration {
     pub expiration: SystemTime,
-    pub token: UserAuthToken,
+    pub token: BearerAuthToken,
 }
 
-/// A `UserAuthenticator` (1) stores existing fresh auth tokens and (2)
+/// A `BearerAuthenticator` (1) stores existing fresh auth tokens and (2)
 /// authenticates and fetches new auth tokens when they expire.
-pub struct UserAuthenticator {
+pub struct BearerAuthenticator {
     /// The [`ed25519::KeyPair`] for the [`UserPk`], used to authenticate with
     /// the lexe backend.
     ///
     /// [`UserPk`]: crate::api::UserPk
     user_key_pair: ed25519::KeyPair,
 
-    /// The latest [`UserAuthToken`] with its expected expiration time.
+    /// The latest [`BearerAuthToken`] with its expected expiration time.
     // Ideally the `Option<TokenWithExpiration>` would live in the `auth_lock`
     // (as it did previously); however, we need to read the latest cached
     // version from a blocking context in the `NodeClient` proxy auth
@@ -182,11 +182,11 @@ impl ed25519::Signable for UserSignupRequest {
         b"LEXE-REALM::UserSignupRequest";
 }
 
-// -- impl UserAuthRequest -- //
+// -- impl BearerAuthRequest -- //
 
-impl UserAuthRequest {
+impl BearerAuthRequest {
     pub fn new(now: SystemTime, token_lifetime_secs: u32) -> Self {
-        Self::V1(UserAuthRequestV1 {
+        Self::V1(BearerAuthRequestV1 {
             request_timestamp_secs: now
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .expect("Something is very wrong with our clock")
@@ -225,42 +225,43 @@ impl UserAuthRequest {
     }
 }
 
-impl ed25519::Signable for UserAuthRequest {
-    const DOMAIN_SEPARATOR_STR: &'static [u8] = b"LEXE-REALM::UserAuthRequest";
+impl ed25519::Signable for BearerAuthRequest {
+    const DOMAIN_SEPARATOR_STR: &'static [u8] =
+        b"LEXE-REALM::BearerAuthRequest";
 }
 
-// -- impl UserAuthToken -- //
+// -- impl BearerAuthToken -- //
 
-impl UserAuthToken {
-    /// base64 serialize a user auth token from the internal raw bytes.
+impl BearerAuthToken {
+    /// base64 serialize a bearer auth token from the internal raw bytes.
     pub fn encode_from_raw_bytes(signed_token_bytes: &[u8]) -> Self {
         let b64_token =
             base64::encode_config(signed_token_bytes, base64::URL_SAFE_NO_PAD);
         Self(ByteStr::from(b64_token))
     }
 
-    /// base64 decode the user auth token into the internal raw bytes.
+    /// base64 decode the bearer auth token into the internal raw bytes.
     pub fn decode_into_raw_bytes(&self) -> Result<Vec<u8>, Error> {
         Self::decode_inner_into_raw_bytes(self.0.as_bytes())
     }
 
-    /// base64 decode a string user auth token into the internal raw bytes.
+    /// base64 decode a string bearer auth token into the internal raw bytes.
     pub fn decode_inner_into_raw_bytes(bytes: &[u8]) -> Result<Vec<u8>, Error> {
         base64::decode_config(bytes, base64::URL_SAFE_NO_PAD)
             .map_err(|_| Error::Base64Decode)
     }
 }
 
-impl fmt::Display for UserAuthToken {
+impl fmt::Display for BearerAuthToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.0.as_str())
     }
 }
 
-// --- impl UserAuthenticator --- //
+// --- impl BearerAuthenticator --- //
 
-impl UserAuthenticator {
-    /// Create a new `UserAuthenticator` with the auth `api` handle, the
+impl BearerAuthenticator {
+    /// Create a new `BearerAuthenticator` with the auth `api` handle, the
     /// `user_key_pair` (for signing auth requests), and an optional existing
     /// token.
     pub fn new(
@@ -274,7 +275,7 @@ impl UserAuthenticator {
         }
     }
 
-    /// Read the currently cached and possibly expired (!) user auth token.
+    /// Read the currently cached and possibly expired (!) bearer auth token.
     ///
     /// This method is only exposed to support the `reqwest::Proxy` workaround
     /// used in [`NodeClient`](crate::client::NodeClient). Try to avoid it
@@ -289,7 +290,7 @@ impl UserAuthenticator {
         &self,
         api: &T,
         now: SystemTime,
-    ) -> Result<UserAuthToken, BackendApiError> {
+    ) -> Result<BearerAuthToken, BackendApiError> {
         let _auth_lock = self.auth_lock.lock().await;
 
         // there's already a fresh token here; just use that.
@@ -311,8 +312,8 @@ impl UserAuthenticator {
         Ok(token_clone)
     }
 
-    /// Create a new [`UserAuthRequest`], sign it, and send the request. Returns
-    /// the [`TokenWithExpiration`] if the auth request succeeds.
+    /// Create a new [`BearerAuthRequest`], sign it, and send the request.
+    /// Returns the [`TokenWithExpiration`] if the auth request succeeds.
     ///
     /// NOTE: doesn't update the token cache
     pub async fn authenticate<T: UserBackendApi + ?Sized>(
@@ -323,7 +324,7 @@ impl UserAuthenticator {
         let lifetime = DEFAULT_USER_TOKEN_LIFETIME_SECS;
         let expiration = now + Duration::from_secs(lifetime as u64)
             - Duration::from_secs(15);
-        let auth_req = UserAuthRequest::new(now, lifetime);
+        let auth_req = BearerAuthRequest::new(now, lifetime);
         let (_, signed_req) = self
             .user_key_pair
             .sign_struct(&auth_req)
@@ -332,11 +333,11 @@ impl UserAuthenticator {
                 msg: format!("Error signing auth request: {err:#}"),
             })?;
 
-        let resp = api.user_auth(signed_req.cloned()).await?;
+        let resp = api.bearer_auth(signed_req.cloned()).await?;
 
         Ok(TokenWithExpiration {
             expiration,
-            token: resp.user_auth_token,
+            token: resp.bearer_auth_token,
         })
     }
 }
@@ -359,12 +360,12 @@ mod test {
     }
 
     #[test]
-    fn test_user_auth_request_canonical() {
-        bcs_roundtrip_proptest::<UserAuthRequest>();
+    fn test_bearer_auth_request_canonical() {
+        bcs_roundtrip_proptest::<BearerAuthRequest>();
     }
 
     #[test]
-    fn test_user_auth_request_sign_verify() {
-        signed_roundtrip_proptest::<UserAuthRequest>();
+    fn test_bearer_auth_request_sign_verify() {
+        signed_roundtrip_proptest::<BearerAuthRequest>();
     }
 }

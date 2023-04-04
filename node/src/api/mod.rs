@@ -5,7 +5,7 @@ use anyhow::ensure;
 #[cfg(all(target_env = "sgx", not(debug_assertions)))]
 use anyhow::Context;
 use async_trait::async_trait;
-use common::api::auth::UserAuthToken;
+use common::api::auth::BearerAuthToken;
 use common::api::def::{
     NodeBackendApi, NodeLspApi, NodeRunnerApi, UserBackendApi,
 };
@@ -25,14 +25,14 @@ pub trait BackendApiClient: NodeBackendApi + UserBackendApi {
     async fn create_file_with_retries(
         &self,
         file: &VfsFile,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
         retries: usize,
     ) -> Result<(), BackendApiError>;
 
     async fn upsert_file_with_retries(
         &self,
         file: &VfsFile,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
         retries: usize,
     ) -> Result<(), BackendApiError>;
 }

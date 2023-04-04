@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use common::api::auth::{
-    UserAuthRequest, UserAuthResponse, UserAuthToken, UserSignupRequest,
+    BearerAuthRequest, BearerAuthResponse, BearerAuthToken, UserSignupRequest,
 };
 use common::api::def::{
     NodeBackendApi, NodeLspApi, NodeRunnerApi, UserBackendApi,
@@ -93,7 +93,7 @@ impl BackendApiClient for BackendClient {
     async fn create_file_with_retries(
         &self,
         data: &VfsFile,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
         retries: usize,
     ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
@@ -105,7 +105,7 @@ impl BackendApiClient for BackendClient {
     async fn upsert_file_with_retries(
         &self,
         data: &VfsFile,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
         retries: usize,
     ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
@@ -124,12 +124,12 @@ impl UserBackendApi for BackendClient {
         unimplemented!()
     }
 
-    async fn user_auth(
+    async fn bearer_auth(
         &self,
-        signed_req: ed25519::Signed<UserAuthRequest>,
-    ) -> Result<UserAuthResponse, BackendApiError> {
+        signed_req: ed25519::Signed<BearerAuthRequest>,
+    ) -> Result<BearerAuthResponse, BackendApiError> {
         let backend = &self.backend_url;
-        let url = format!("{backend}/user_auth");
+        let url = format!("{backend}/bearer_auth");
         let req = self
             .rest
             .builder(POST, url)
@@ -167,7 +167,7 @@ impl NodeBackendApi for BackendClient {
     async fn create_sealed_seed(
         &self,
         data: SealedSeed,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -180,7 +180,7 @@ impl NodeBackendApi for BackendClient {
     async fn get_scid(
         &self,
         node_pk: NodePk,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<Option<Scid>, BackendApiError> {
         let backend = &self.backend_url;
         let data = GetByNodePk { node_pk };
@@ -194,7 +194,7 @@ impl NodeBackendApi for BackendClient {
     async fn get_file(
         &self,
         data: &VfsFileId,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<Option<VfsFile>, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -207,7 +207,7 @@ impl NodeBackendApi for BackendClient {
     async fn create_file(
         &self,
         data: &VfsFile,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -220,7 +220,7 @@ impl NodeBackendApi for BackendClient {
     async fn upsert_file(
         &self,
         data: &VfsFile,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -236,7 +236,7 @@ impl NodeBackendApi for BackendClient {
     async fn delete_file(
         &self,
         data: &VfsFileId,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -249,7 +249,7 @@ impl NodeBackendApi for BackendClient {
     async fn get_directory(
         &self,
         data: &VfsDirectory,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<Vec<VfsFile>, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -262,7 +262,7 @@ impl NodeBackendApi for BackendClient {
     async fn create_payment(
         &self,
         payment: DbPayment,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -275,7 +275,7 @@ impl NodeBackendApi for BackendClient {
     async fn upsert_payment(
         &self,
         payment: DbPayment,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -288,7 +288,7 @@ impl NodeBackendApi for BackendClient {
     async fn get_payments_by_ids(
         &self,
         req: GetPaymentsByIds,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -301,7 +301,7 @@ impl NodeBackendApi for BackendClient {
     async fn get_new_payments(
         &self,
         req: GetNewPayments,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
@@ -313,7 +313,7 @@ impl NodeBackendApi for BackendClient {
 
     async fn get_pending_payments(
         &self,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError> {
         let backend = &self.backend_url;
         let data = EmptyData {};
@@ -326,7 +326,7 @@ impl NodeBackendApi for BackendClient {
 
     async fn get_finalized_payment_ids(
         &self,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<Vec<LxPaymentId>, BackendApiError> {
         let backend = &self.backend_url;
         let data = EmptyData {};

@@ -6,7 +6,7 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use common::api::auth::{
-    UserAuthRequest, UserAuthResponse, UserAuthToken, UserSignupRequest,
+    BearerAuthRequest, BearerAuthResponse, BearerAuthToken, UserSignupRequest,
 };
 use common::api::def::{
     NodeBackendApi, NodeLspApi, NodeRunnerApi, UserBackendApi,
@@ -159,7 +159,7 @@ impl BackendApiClient for MockBackendClient {
     async fn create_file_with_retries(
         &self,
         data: &VfsFile,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
         _retries: usize,
     ) -> Result<(), BackendApiError> {
         self.create_file(data, auth).await
@@ -168,7 +168,7 @@ impl BackendApiClient for MockBackendClient {
     async fn upsert_file_with_retries(
         &self,
         data: &VfsFile,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
         _retries: usize,
     ) -> Result<(), BackendApiError> {
         self.upsert_file(data, auth).await
@@ -184,13 +184,13 @@ impl UserBackendApi for MockBackendClient {
         Ok(())
     }
 
-    async fn user_auth(
+    async fn bearer_auth(
         &self,
-        _signed_req: ed25519::Signed<UserAuthRequest>,
-    ) -> Result<UserAuthResponse, BackendApiError> {
+        _signed_req: ed25519::Signed<BearerAuthRequest>,
+    ) -> Result<BearerAuthResponse, BackendApiError> {
         // TODO(phlip9): return something we can verify
-        Ok(UserAuthResponse {
-            user_auth_token: UserAuthToken(ByteStr::new()),
+        Ok(BearerAuthResponse {
+            bearer_auth_token: BearerAuthToken(ByteStr::new()),
         })
     }
 }
@@ -219,7 +219,7 @@ impl NodeBackendApi for MockBackendClient {
     async fn create_sealed_seed(
         &self,
         _data: SealedSeed,
-        _auth: UserAuthToken,
+        _auth: BearerAuthToken,
     ) -> Result<(), BackendApiError> {
         Ok(())
     }
@@ -227,7 +227,7 @@ impl NodeBackendApi for MockBackendClient {
     async fn get_scid(
         &self,
         _node_pk: NodePk,
-        _auth: UserAuthToken,
+        _auth: BearerAuthToken,
     ) -> Result<Option<Scid>, BackendApiError> {
         Ok(Some(DUMMY_SCID))
     }
@@ -235,7 +235,7 @@ impl NodeBackendApi for MockBackendClient {
     async fn get_file(
         &self,
         file_id: &VfsFileId,
-        _auth: UserAuthToken,
+        _auth: BearerAuthToken,
     ) -> Result<Option<VfsFile>, BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().get(file_id.clone());
         Ok(file_opt)
@@ -244,7 +244,7 @@ impl NodeBackendApi for MockBackendClient {
     async fn create_file(
         &self,
         file: &VfsFile,
-        _auth: UserAuthToken,
+        _auth: BearerAuthToken,
     ) -> Result<(), BackendApiError> {
         let mut locked_vfs = self.vfs.lock().unwrap();
         if locked_vfs.get(file.id.clone()).is_some() {
@@ -262,7 +262,7 @@ impl NodeBackendApi for MockBackendClient {
     async fn upsert_file(
         &self,
         file: &VfsFile,
-        _auth: UserAuthToken,
+        _auth: BearerAuthToken,
     ) -> Result<(), BackendApiError> {
         self.vfs.lock().unwrap().insert(file.clone());
         Ok(())
@@ -272,7 +272,7 @@ impl NodeBackendApi for MockBackendClient {
     async fn delete_file(
         &self,
         file_id: &VfsFileId,
-        _auth: UserAuthToken,
+        _auth: BearerAuthToken,
     ) -> Result<(), BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().remove(file_id.clone());
         if file_opt.is_some() {
@@ -288,7 +288,7 @@ impl NodeBackendApi for MockBackendClient {
     async fn get_directory(
         &self,
         dir: &VfsDirectory,
-        _auth: UserAuthToken,
+        _auth: BearerAuthToken,
     ) -> Result<Vec<VfsFile>, BackendApiError> {
         let files_vec = self.vfs.lock().unwrap().get_dir(dir.clone());
         Ok(files_vec)
@@ -297,7 +297,7 @@ impl NodeBackendApi for MockBackendClient {
     async fn create_payment(
         &self,
         payment: DbPayment,
-        _auth: UserAuthToken,
+        _auth: BearerAuthToken,
     ) -> Result<(), BackendApiError> {
         let mut locked_payments = self.payments.lock().unwrap();
         let created_at = TimestampMs::try_from(payment.created_at).unwrap();
@@ -318,7 +318,7 @@ impl NodeBackendApi for MockBackendClient {
     async fn upsert_payment(
         &self,
         payment: DbPayment,
-        _auth: UserAuthToken,
+        _auth: BearerAuthToken,
     ) -> Result<(), BackendApiError> {
         let created_at = TimestampMs::try_from(payment.created_at).unwrap();
         let id = LxPaymentId::from_str(&payment.id).unwrap();
@@ -330,7 +330,7 @@ impl NodeBackendApi for MockBackendClient {
     async fn get_payments_by_ids(
         &self,
         req: GetPaymentsByIds,
-        _auth: UserAuthToken,
+        _auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError> {
         let ids = req.ids.into_iter().collect::<HashSet<_>>();
         let payments = self
@@ -348,7 +348,7 @@ impl NodeBackendApi for MockBackendClient {
     async fn get_new_payments(
         &self,
         req: GetNewPayments,
-        _auth: UserAuthToken,
+        _auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError> {
         let limit = req.limit.map(usize::from).unwrap_or(usize::MAX);
         let payments = self
@@ -370,7 +370,7 @@ impl NodeBackendApi for MockBackendClient {
 
     async fn get_pending_payments(
         &self,
-        _auth: UserAuthToken,
+        _auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError> {
         let pending_status_str = PaymentStatus::Pending.to_string();
         let payments = self
@@ -387,7 +387,7 @@ impl NodeBackendApi for MockBackendClient {
 
     async fn get_finalized_payment_ids(
         &self,
-        _auth: UserAuthToken,
+        _auth: BearerAuthToken,
     ) -> Result<Vec<LxPaymentId>, BackendApiError> {
         let completed_status_str = PaymentStatus::Completed.to_string();
         let failed_status_str = PaymentStatus::Failed.to_string();

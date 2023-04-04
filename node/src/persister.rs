@@ -7,7 +7,7 @@ use std::time::SystemTime;
 use anyhow::{anyhow, ensure, Context};
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
-use common::api::auth::{UserAuthToken, UserAuthenticator};
+use common::api::auth::{BearerAuthToken, BearerAuthenticator};
 use common::api::qs::{GetNewPayments, GetPaymentsByIds};
 use common::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use common::api::{Scid, User};
@@ -68,7 +68,7 @@ pub struct NodePersister {
 impl NodePersister {
     pub(crate) fn new(
         api: Arc<dyn BackendApiClient + Send + Sync>,
-        authenticator: Arc<UserAuthenticator>,
+        authenticator: Arc<BearerAuthenticator>,
         vfs_master_key: Arc<VfsMasterKey>,
         user: User,
         shutdown: ShutdownChannel,
@@ -99,7 +99,7 @@ impl Deref for NodePersister {
 #[derive(Clone)]
 pub struct InnerPersister {
     api: Arc<dyn BackendApiClient + Send + Sync>,
-    authenticator: Arc<UserAuthenticator>,
+    authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<VfsMasterKey>,
     user: User,
     shutdown: ShutdownChannel,
@@ -171,7 +171,7 @@ impl InnerPersister {
             .context("Failed to decrypt encrypted file")
     }
 
-    async fn get_token(&self) -> anyhow::Result<UserAuthToken> {
+    async fn get_token(&self) -> anyhow::Result<BearerAuthToken> {
         self.authenticator
             .get_token(&*self.api, SystemTime::now())
             .await

@@ -4,7 +4,7 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use common::api::auth::{UserAuthenticator, UserSignupRequest};
+use common::api::auth::{BearerAuthenticator, UserSignupRequest};
 use common::api::def::{OwnerNodeProvisionApi, UserBackendApi};
 use common::api::provision::NodeProvisionRequest;
 use common::api::{NodePk, NodePkProof, UserPk};
@@ -79,13 +79,13 @@ impl App {
             enclave_policy,
         };
 
-        let user_authenticator =
-            Arc::new(UserAuthenticator::new(user_key_pair, None));
+        let bearer_authenticator =
+            Arc::new(BearerAuthenticator::new(user_key_pair, None));
 
         let node_client = NodeClient::new(
             rng,
             &root_seed,
-            user_authenticator,
+            bearer_authenticator,
             gateway_url,
             &dummy_lexe_ca_cert(),
             attest_verifier,

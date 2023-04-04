@@ -3,7 +3,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use anyhow::{anyhow, bail, ensure, Context};
-use common::api::auth::UserAuthenticator;
+use common::api::auth::BearerAuthenticator;
 use common::api::def::NodeRunnerApi;
 use common::api::ports::UserPorts;
 use common::api::provision::SealedSeedId;
@@ -184,7 +184,7 @@ impl UserNode {
 
         // Initialize Persister
         let authenticator =
-            Arc::new(UserAuthenticator::new(user_key_pair, None));
+            Arc::new(BearerAuthenticator::new(user_key_pair, None));
         let vfs_master_key = Arc::new(root_seed.derive_vfs_master_key());
         let persister = NodePersister::new(
             backend_api.clone(),

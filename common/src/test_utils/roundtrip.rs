@@ -13,7 +13,7 @@ use crate::ed25519;
 /// Quickly create a BCS roundtrip proptest.
 ///
 /// ```ignore
-/// bcs_roundtrip_proptest::<UserAuthRequest>();
+/// bcs_roundtrip_proptest::<BearerAuthRequest>();
 /// ```
 pub fn bcs_roundtrip_proptest<T>()
 where
@@ -44,7 +44,7 @@ where
 /// canonical, even if our comparison is field order-invariant.
 ///
 /// ```ignore
-/// json_value_canonical_proptest::<UserAuthRequest>();
+/// json_value_canonical_proptest::<BearerAuthRequest>();
 /// ```
 pub fn json_value_canonical_proptest<T>()
 where
@@ -122,7 +122,7 @@ where
 ///
 /// # Example
 /// ```ignore
-/// signed_roundtrip_proptest::<UserAuthRequest>();
+/// signed_roundtrip_proptest::<BearerAuthRequest>();
 /// ```
 pub fn signed_roundtrip_proptest<T>()
 where
