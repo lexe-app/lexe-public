@@ -13,7 +13,8 @@ use async_trait::async_trait;
 use reqwest::{IntoProxyScheme, Url};
 
 use crate::api::auth::{
-    UserAuthRequest, UserAuthResponse, UserAuthenticator, UserSignupRequest,
+    BearerAuthRequest, BearerAuthResponse, BearerAuthenticator,
+    UserSignupRequest,
 };
 use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::def::{OwnerNodeProvisionApi, OwnerNodeRunApi, UserBackendApi};
@@ -33,7 +34,7 @@ pub struct NodeClient {
     gateway_url: String,
     provision_url: &'static str,
     run_url: &'static str,
-    authenticator: Arc<UserAuthenticator>,
+    authenticator: Arc<BearerAuthenticator>,
 }
 
 // Why are we manually impl'ing `UnwindSafe` and `RefUnwindSafe` for
@@ -41,7 +42,7 @@ pub struct NodeClient {
 //
 // ## Unwind Safety
 //
-// Technically, NodeClient is not 100% unwind safe, since `UserAuthenticator`
+// Technically, NodeClient is not 100% unwind safe, since `BearerAuthenticator`
 // contains a `tokio::sync::Mutex`, which doesn't impl lock poisoning [1].
 //
 // However, unwind safety feels pretty niche and doesn't seem worth the
@@ -95,7 +96,7 @@ impl NodeClient {
     pub fn new<R: Crng>(
         rng: &mut R,
         seed: &RootSeed,
-        authenticator: Arc<UserAuthenticator>,
+        authenticator: Arc<BearerAuthenticator>,
         gateway_url: String,
         gateway_ca: &rustls::Certificate,
         attest_verifier: attest::ServerCertVerifier,
@@ -145,7 +146,7 @@ impl NodeClient {
         gateway_url: &str,
         provision_url: &str,
         run_url: &str,
-        authenticator: Arc<UserAuthenticator>,
+        authenticator: Arc<BearerAuthenticator>,
     ) -> anyhow::Result<reqwest::Proxy> {
         let provision_url =
             Url::parse(provision_url).context("Invalid provision url")?;
@@ -174,7 +175,7 @@ impl NodeClient {
                 let auth_token = authenticator
                     .get_maybe_cached_token()
                     .map(|token_with_exp| token_with_exp.token)
-                    .expect("user authenticator MUST fetch token!");
+                    .expect("bearer authenticator MUST fetch token!");
 
                 // TODO(phlip9): include "Bearer " prefix in auth token
                 let auth_header = http::HeaderValue::from_str(&format!(
@@ -229,14 +230,14 @@ impl UserBackendApi for NodeClient {
         self.rest.send(req).await
     }
 
-    async fn user_auth(
+    async fn bearer_auth(
         &self,
-        signed_req: ed25519::Signed<UserAuthRequest>,
-    ) -> Result<UserAuthResponse, BackendApiError> {
+        signed_req: ed25519::Signed<BearerAuthRequest>,
+    ) -> Result<BearerAuthResponse, BackendApiError> {
         let gateway_url = &self.gateway_url;
         let req = self
             .rest
-            .builder(POST, format!("{gateway_url}/user_auth"))
+            .builder(POST, format!("{gateway_url}/bearer_auth"))
             .signed_bcs(signed_req)
             .map_err(BackendApiError::bcs_serialize)?;
         self.rest.send(req).await

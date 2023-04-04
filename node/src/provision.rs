@@ -24,7 +24,7 @@ use std::time::{Duration, SystemTime};
 
 use anyhow::Context;
 use bitcoin::secp256k1;
-use common::api::auth::UserAuthenticator;
+use common::api::auth::BearerAuthenticator;
 use common::api::def::NodeRunnerApi;
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::ports::UserPorts;
@@ -190,7 +190,7 @@ async fn provision_handler(
 
     // authenticate as the user to the backend
     let authenticator =
-        UserAuthenticator::new(user_key_pair, None /* maybe_token */);
+        BearerAuthenticator::new(user_key_pair, None /* maybe_token */);
     let token = authenticator
         .authenticate(ctx.backend_api.as_ref(), SystemTime::now())
         .await

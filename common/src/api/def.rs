@@ -21,7 +21,7 @@
 use async_trait::async_trait;
 
 use crate::api::auth::{
-    UserAuthRequest, UserAuthResponse, UserAuthToken, UserSignupRequest,
+    BearerAuthRequest, BearerAuthResponse, BearerAuthToken, UserSignupRequest,
 };
 use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::error::{
@@ -57,7 +57,7 @@ pub trait NodeBackendApi {
     async fn create_sealed_seed(
         &self,
         data: SealedSeed,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<(), BackendApiError>;
 
     /// GET /node/v1/scid [`GetByNodePk`] -> [`Option<Scid>`]
@@ -66,28 +66,28 @@ pub trait NodeBackendApi {
     async fn get_scid(
         &self,
         node_pk: NodePk,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<Option<Scid>, BackendApiError>;
 
     /// GET /node/v1/file [`VfsFileId`] -> [`Option<VfsFile>`]
     async fn get_file(
         &self,
         file_id: &VfsFileId,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<Option<VfsFile>, BackendApiError>;
 
     /// POST /node/v1/file [`VfsFile`] -> [`()`]
     async fn create_file(
         &self,
         file: &VfsFile,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<(), BackendApiError>;
 
     /// PUT /node/v1/file [`VfsFile`] -> [`()`]
     async fn upsert_file(
         &self,
         file: &VfsFile,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<(), BackendApiError>;
 
     /// DELETE /node/v1/file [`VfsFileId`] -> [`()`]
@@ -96,28 +96,28 @@ pub trait NodeBackendApi {
     async fn delete_file(
         &self,
         file_id: &VfsFileId,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<(), BackendApiError>;
 
     /// GET /node/v1/directory [`VfsDirectory`] -> [`Vec<VfsFile>`]
     async fn get_directory(
         &self,
         dir: &VfsDirectory,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<Vec<VfsFile>, BackendApiError>;
 
     /// POST /node/v1/payments [`DbPayment`] -> [`()`]
     async fn create_payment(
         &self,
         payment: DbPayment,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<(), BackendApiError>;
 
     /// PUT /node/v1/payments [`DbPayment`] -> [`()`]
     async fn upsert_payment(
         &self,
         payment: DbPayment,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<(), BackendApiError>;
 
     /// POST /node/v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
@@ -131,7 +131,7 @@ pub trait NodeBackendApi {
     async fn get_payments_by_ids(
         &self,
         req: GetPaymentsByIds,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError>;
 
     /// GET /node/v1/payments/new [`GetNewPayments`] -> [`Vec<DbPayment>`]
@@ -144,7 +144,7 @@ pub trait NodeBackendApi {
     async fn get_new_payments(
         &self,
         req: GetNewPayments,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError>;
 
     /// GET /node/v1/payments/pending -> [`Vec<DbPayment>`]
@@ -152,7 +152,7 @@ pub trait NodeBackendApi {
     /// Fetches all pending payments.
     async fn get_pending_payments(
         &self,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError>;
 
     /// GET /node/v1/payments/final -> [`Vec<LxPaymentId>`]
@@ -160,14 +160,14 @@ pub trait NodeBackendApi {
     /// Fetches the IDs of all finalized payments.
     async fn get_finalized_payment_ids(
         &self,
-        auth: UserAuthToken,
+        auth: BearerAuthToken,
     ) -> Result<Vec<LxPaymentId>, BackendApiError>;
 }
 
 /// The user-facing backend APIs.
 // TODO(max): Separate out the signup method into AppBackendApi, then rename to
 // UserAuthBackendApi, with a comment explaining why this is so (because it's
-// used in the UserAuthenticator)
+// used in the BearerAuthenticator)
 #[async_trait]
 pub trait UserBackendApi {
     /// POST /signup [`ed25519::Signed<UserSignupRequest>`] -> [`()`]
@@ -176,12 +176,12 @@ pub trait UserBackendApi {
         signed_req: ed25519::Signed<UserSignupRequest>,
     ) -> Result<(), BackendApiError>;
 
-    /// POST /user_auth [`ed25519::Signed<UserAuthRequest>`]
-    ///              -> [`UserAuthResponse`]
-    async fn user_auth(
+    /// POST /bearer_auth [`ed25519::Signed<BearerAuthRequest>`]
+    ///              -> [`BearerAuthResponse`]
+    async fn bearer_auth(
         &self,
-        signed_req: ed25519::Signed<UserAuthRequest>,
-    ) -> Result<UserAuthResponse, BackendApiError>;
+        signed_req: ed25519::Signed<BearerAuthRequest>,
+    ) -> Result<BearerAuthResponse, BackendApiError>;
 }
 
 /// Defines the api that the LSP exposes to user nodes.
