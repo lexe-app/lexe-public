@@ -3,7 +3,7 @@ use common::api::auth::{
     BearerAuthRequest, BearerAuthResponse, BearerAuthToken,
 };
 use common::api::def::{
-    NodeBackendApi, NodeLspApi, NodeRunnerApi, UserBackendApi,
+    BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi,
 };
 use common::api::error::{BackendApiError, LspApiError, RunnerApiError};
 use common::api::ports::UserPorts;
@@ -116,7 +116,7 @@ impl BackendApiClient for BackendClient {
 }
 
 #[async_trait]
-impl UserBackendApi for BackendClient {
+impl BearerAuthBackendApi for BackendClient {
     async fn bearer_auth(
         &self,
         signed_req: ed25519::Signed<BearerAuthRequest>,

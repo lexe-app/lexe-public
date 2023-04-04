@@ -174,14 +174,12 @@ pub trait AppBackendApi {
     ) -> Result<(), BackendApiError>;
 }
 
-/// The user-facing backend APIs.
-// TODO(max): Separate out the signup method into AppBackendApi, then rename to
-// UserAuthBackendApi, with a comment explaining why this is so (because it's
-// used in the BearerAuthenticator)
+/// The bearer auth API exposed by the backend (sometimes via the gateway) to
+/// various consumers.
 #[async_trait]
-pub trait UserBackendApi {
+pub trait BearerAuthBackendApi {
     /// POST /bearer_auth [`ed25519::Signed<BearerAuthRequest>`]
-    ///              -> [`BearerAuthResponse`]
+    ///                   -> [`BearerAuthResponse`]
     async fn bearer_auth(
         &self,
         signed_req: ed25519::Signed<BearerAuthRequest>,
