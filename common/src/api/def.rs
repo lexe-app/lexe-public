@@ -175,11 +175,17 @@ pub trait AppBackendApi {
 }
 
 /// The bearer auth API exposed by the backend (sometimes via the gateway) to
-/// various consumers.
+/// various consumers. This trait is defined separately from the
+/// usual `ConsumerServiceApi` traits because [`BearerAuthenticator`] needs to
+/// abstract over a generic implementor of [`BearerAuthBackendApi`].
+///
+/// [`BearerAuthenticator`]: crate::api::auth::BearerAuthenticator
 #[async_trait]
 pub trait BearerAuthBackendApi {
-    /// POST /bearer_auth [`ed25519::Signed<BearerAuthRequest>`]
-    ///                   -> [`BearerAuthResponse`]
+    /// POST /CONSUMER/bearer_auth [`ed25519::Signed<BearerAuthRequest>`]
+    ///                            -> [`BearerAuthResponse`]
+    ///
+    /// Valid values for `CONSUMER` are: "app", "node" and "lsp".
     async fn bearer_auth(
         &self,
         signed_req: ed25519::Signed<BearerAuthRequest>,
