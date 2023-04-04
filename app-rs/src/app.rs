@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use common::api::auth::{BearerAuthenticator, UserSignupRequest};
-use common::api::def::{AppBackendApi, OwnerNodeProvisionApi};
+use common::api::def::{AppBackendApi, AppNodeProvisionApi};
 use common::api::provision::NodeProvisionRequest;
 use common::api::{NodePk, NodePkProof, UserPk};
 use common::client::tls::dummy_lexe_ca_cert;

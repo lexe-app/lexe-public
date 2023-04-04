@@ -225,9 +225,9 @@ pub trait HostNodeApi {
     async fn shutdown(&self, user_pk: UserPk) -> Result<(), NodeApiError>;
 }
 
-/// Defines the api that the node exposes to the owner during provisioning.
+/// Defines the api that the node exposes to the app during provisioning.
 #[async_trait]
-pub trait OwnerNodeProvisionApi {
+pub trait AppNodeProvisionApi {
     /// POST /provision [`NodeProvisionRequest`] -> [`()`]
     async fn provision(
         &self,
@@ -235,26 +235,26 @@ pub trait OwnerNodeProvisionApi {
     ) -> Result<(), NodeApiError>;
 }
 
-/// Defines the api that the node exposes to the owner during normal operation.
+/// Defines the api that the node exposes to the app during normal operation.
 #[async_trait]
-pub trait OwnerNodeRunApi {
-    /// GET /owner/node_info [`EmptyData`] -> [`NodeInfo`]
+pub trait AppNodeRunApi {
+    /// GET /app/node_info [`EmptyData`] -> [`NodeInfo`]
     ///
     /// [`EmptyData`]: super::qs::EmptyData
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError>;
 
-    /// GET /owner/channels [`EmptyData`] -> [`ListChannels`]
+    /// GET /app/channels [`EmptyData`] -> [`ListChannels`]
     ///
     /// [`EmptyData`]: super::qs::EmptyData
     async fn list_channels(&self) -> Result<ListChannels, NodeApiError>;
 
-    /// POST /owner/get_invoice [`GetInvoiceRequest`] -> [`ListChannels`]
+    /// POST /app/get_invoice [`GetInvoiceRequest`] -> [`ListChannels`]
     async fn get_invoice(
         &self,
         req: GetInvoiceRequest,
     ) -> Result<LxInvoice, NodeApiError>;
 
-    /// POST /owner/send_payment [`LxInvoice`] -> [`()`]
+    /// POST /app/send_payment [`LxInvoice`] -> [`()`]
     async fn send_payment(&self, req: LxInvoice) -> Result<(), NodeApiError>;
 
     /// POST /v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
@@ -270,7 +270,7 @@ pub trait OwnerNodeRunApi {
         req: GetPaymentsByIds,
     ) -> Result<Vec<BasicPayment>, NodeApiError>;
 
-    /// GET /owner/payments/new [`GetNewPayments`] -> [`Vec<BasicPayment>`]
+    /// GET /app/payments/new [`GetNewPayments`] -> [`Vec<BasicPayment>`]
     async fn get_new_payments(
         &self,
         req: GetNewPayments,

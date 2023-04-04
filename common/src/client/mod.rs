@@ -18,7 +18,7 @@ use crate::api::auth::{
 };
 use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::def::{
-    AppBackendApi, BearerAuthBackendApi, OwnerNodeProvisionApi, OwnerNodeRunApi,
+    AppBackendApi, AppNodeProvisionApi, AppNodeRunApi, BearerAuthBackendApi,
 };
 use crate::api::error::{BackendApiError, NodeApiError, NodeErrorKind};
 use crate::api::provision::NodeProvisionRequest;
@@ -250,7 +250,7 @@ impl BearerAuthBackendApi for NodeClient {
 }
 
 #[async_trait]
-impl OwnerNodeProvisionApi for NodeClient {
+impl AppNodeProvisionApi for NodeClient {
     async fn provision(
         &self,
         data: NodeProvisionRequest,
@@ -263,11 +263,11 @@ impl OwnerNodeProvisionApi for NodeClient {
 }
 
 #[async_trait]
-impl OwnerNodeRunApi for NodeClient {
+impl AppNodeRunApi for NodeClient {
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/owner/node_info");
+        let url = format!("{run_url}/app/node_info");
         let req = self.rest.builder(GET, url);
         self.rest.send(req).await
     }
@@ -275,7 +275,7 @@ impl OwnerNodeRunApi for NodeClient {
     async fn list_channels(&self) -> Result<ListChannels, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/owner/channels");
+        let url = format!("{run_url}/app/channels");
         let req = self.rest.builder(GET, url);
         self.rest.send(req).await
     }
@@ -286,7 +286,7 @@ impl OwnerNodeRunApi for NodeClient {
     ) -> Result<LxInvoice, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/owner/get_invoice");
+        let url = format!("{run_url}/app/get_invoice");
         let req = self.rest.post(url, &data);
         self.rest.send(req).await
     }
@@ -297,7 +297,7 @@ impl OwnerNodeRunApi for NodeClient {
     ) -> Result<(), NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/owner/send_payment");
+        let url = format!("{run_url}/app/send_payment");
         let req = self.rest.post(url, &invoice);
         self.rest.send(req).await
     }
@@ -308,7 +308,7 @@ impl OwnerNodeRunApi for NodeClient {
     ) -> Result<Vec<BasicPayment>, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/owner/payments/ids");
+        let url = format!("{run_url}/app/payments/ids");
         let req = self.rest.post(url, &req);
         self.rest.send(req).await
     }
@@ -319,7 +319,7 @@ impl OwnerNodeRunApi for NodeClient {
     ) -> Result<Vec<BasicPayment>, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/owner/payments/new");
+        let url = format!("{run_url}/app/payments/new");
         let req = self.rest.get(url, &req);
         self.rest.send(req).await
     }

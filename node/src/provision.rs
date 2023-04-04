@@ -88,7 +88,7 @@ pub async fn provision_node<R: Crng>(
         // TODO(phlip9): use passed in rng
         rng: SysRng::new(),
     };
-    let routes = owner_routes(ctx);
+    let routes = app_routes(ctx);
 
     // Set up the TLS config.
     let tls_config = tls::node_provision_tls_config(rng, args.node_dns_name)
@@ -119,11 +119,11 @@ pub async fn provision_node<R: Crng>(
         .tls()
         .preconfigured_tls(tls_config)
         .bind_with_graceful_shutdown(addr, warp_shutdown_fut);
-    let owner_port = listen_addr.port();
+    let app_port = listen_addr.port();
     info!(%listen_addr, "listening for connections");
 
     // Notify the runner that we're ready for a client connection
-    let user_ports = UserPorts::new_provision(args.user_pk, owner_port);
+    let user_ports = UserPorts::new_provision(args.user_pk, app_port);
     runner_api
         .ready(user_ports)
         .await
@@ -136,10 +136,10 @@ pub async fn provision_node<R: Crng>(
     Ok(())
 }
 
-/// Implements [`OwnerNodeProvisionApi`] - only callable by the node owner.
+/// Implements [`AppNodeProvisionApi`] - only callable by the node owner.
 ///
-/// [`OwnerNodeProvisionApi`]: common::api::def::OwnerNodeProvisionApi
-fn owner_routes(
+/// [`AppNodeProvisionApi`]: common::api::def::AppNodeProvisionApi
+fn app_routes(
     ctx: RequestContext,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     warp::path::path("provision")
@@ -326,7 +326,7 @@ mod test {
             let req = notifs_rx.recv().await.unwrap();
             assert_eq!(req.user_pk, user_pk);
             let provision_ports = req.unwrap_provision();
-            let port = provision_ports.owner_port;
+            let port = provision_ports.app_port;
 
             let expect_dummy_quote = cfg!(not(target_env = "sgx"));
 

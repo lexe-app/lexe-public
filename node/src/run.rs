@@ -379,13 +379,13 @@ impl UserNode {
             shutdown.clone(),
         ));
 
-        // Build owner service TLS config for authenticating owner
+        // Build app service TLS config for authenticating owner
         let node_dns = args.node_dns_name.clone();
-        let owner_tls = node_run_tls_config(rng, &root_seed, vec![node_dns])
+        let app_tls = node_run_tls_config(rng, &root_seed, vec![node_dns])
             .context("Failed to build owner service TLS config")?;
 
-        // Start warp service for owner
-        let owner_routes = server::owner_routes(
+        // Start warp service for app
+        let app_routes = server::app_routes(
             persister.clone(),
             channel_manager.clone(),
             peer_manager.clone(),
@@ -398,17 +398,17 @@ impl UserNode {
             args.network,
             activity_tx,
         );
-        let (owner_addr, owner_service_fut) = warp::serve(owner_routes)
+        let (app_addr, app_service_fut) = warp::serve(app_routes)
             .tls()
-            .preconfigured_tls(owner_tls)
+            .preconfigured_tls(app_tls)
             // A value of 0 indicates that the OS will assign a port for us
             .bind_with_graceful_shutdown(
-                ([127, 0, 0, 1], args.owner_port.unwrap_or(0)),
+                ([127, 0, 0, 1], args.app_port.unwrap_or(0)),
                 shutdown.clone().recv_owned(),
             );
-        let owner_port = owner_addr.port();
-        info!("Owner service listening on port {}", owner_port);
-        tasks.push(LxTask::spawn_named("owner service", owner_service_fut));
+        let app_port = app_addr.port();
+        info!("App service listening on port {}", app_port);
+        tasks.push(LxTask::spawn_named("app service", app_service_fut));
 
         // TODO(phlip9): authenticate host<->node
         // Start warp service for host
@@ -425,7 +425,7 @@ impl UserNode {
         tasks.push(LxTask::spawn_named("host service", host_service_fut));
 
         // Prepare the ports that we'll notify the runner of once we're ready
-        let user_ports = UserPorts::new_run(user_pk, owner_port, host_port);
+        let user_ports = UserPorts::new_run(user_pk, app_port, host_port);
 
         // Init background processor
         let bg_processor_task = LexeBackgroundProcessor::start::<
