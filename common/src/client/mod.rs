@@ -242,7 +242,7 @@ impl BearerAuthBackendApi for NodeClient {
         let gateway_url = &self.gateway_url;
         let req = self
             .rest
-            .builder(POST, format!("{gateway_url}/bearer_auth"))
+            .builder(POST, format!("{gateway_url}/app/bearer_auth"))
             .signed_bcs(signed_req)
             .map_err(BackendApiError::bcs_serialize)?;
         self.rest.send(req).await
