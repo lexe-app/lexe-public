@@ -39,7 +39,7 @@ use crate::ln::payments::{BasicPayment, DbPayment, LxPaymentId};
 /// Defines the api that the backend exposes to the node.
 #[async_trait]
 pub trait NodeBackendApi {
-    /// GET /v1/user [`GetByUserPk`] -> [`Option<User>`]
+    /// GET /node/v1/user [`GetByUserPk`] -> [`Option<User>`]
     ///
     /// [`GetByUserPk`]: super::qs::GetByUserPk
     async fn get_user(
@@ -47,20 +47,20 @@ pub trait NodeBackendApi {
         user_pk: UserPk,
     ) -> Result<Option<User>, BackendApiError>;
 
-    /// GET /v1/sealed_seed [`SealedSeedId`] -> [`Option<SealedSeed>`]
+    /// GET /node/v1/sealed_seed [`SealedSeedId`] -> [`Option<SealedSeed>`]
     async fn get_sealed_seed(
         &self,
         data: SealedSeedId,
     ) -> Result<Option<SealedSeed>, BackendApiError>;
 
-    /// POST /v1/sealed_seed [`SealedSeed`] -> [`()`]
+    /// POST /node/v1/sealed_seed [`SealedSeed`] -> [`()`]
     async fn create_sealed_seed(
         &self,
         data: SealedSeed,
         auth: UserAuthToken,
     ) -> Result<(), BackendApiError>;
 
-    /// GET /v1/scid [`GetByNodePk`] -> [`Option<Scid>`]
+    /// GET /node/v1/scid [`GetByNodePk`] -> [`Option<Scid>`]
     ///
     /// [`GetByNodePk`]: super::qs::GetByNodePk
     async fn get_scid(
@@ -69,28 +69,28 @@ pub trait NodeBackendApi {
         auth: UserAuthToken,
     ) -> Result<Option<Scid>, BackendApiError>;
 
-    /// GET /v1/file [`VfsFileId`] -> [`Option<VfsFile>`]
+    /// GET /node/v1/file [`VfsFileId`] -> [`Option<VfsFile>`]
     async fn get_file(
         &self,
         file_id: &VfsFileId,
         auth: UserAuthToken,
     ) -> Result<Option<VfsFile>, BackendApiError>;
 
-    /// POST /v1/file [`VfsFile`] -> [`()`]
+    /// POST /node/v1/file [`VfsFile`] -> [`()`]
     async fn create_file(
         &self,
         file: &VfsFile,
         auth: UserAuthToken,
     ) -> Result<(), BackendApiError>;
 
-    /// PUT /v1/file [`VfsFile`] -> [`()`]
+    /// PUT /node/v1/file [`VfsFile`] -> [`()`]
     async fn upsert_file(
         &self,
         file: &VfsFile,
         auth: UserAuthToken,
     ) -> Result<(), BackendApiError>;
 
-    /// DELETE /v1/file [`VfsFileId`] -> [`()`]
+    /// DELETE /node/v1/file [`VfsFileId`] -> [`()`]
     ///
     /// Returns [`Ok`] only if exactly one row was deleted.
     async fn delete_file(
@@ -99,28 +99,28 @@ pub trait NodeBackendApi {
         auth: UserAuthToken,
     ) -> Result<(), BackendApiError>;
 
-    /// GET /v1/directory [`VfsDirectory`] -> [`Vec<VfsFile>`]
+    /// GET /node/v1/directory [`VfsDirectory`] -> [`Vec<VfsFile>`]
     async fn get_directory(
         &self,
         dir: &VfsDirectory,
         auth: UserAuthToken,
     ) -> Result<Vec<VfsFile>, BackendApiError>;
 
-    /// POST /v1/payments [`DbPayment`] -> [`()`]
+    /// POST /node/v1/payments [`DbPayment`] -> [`()`]
     async fn create_payment(
         &self,
         payment: DbPayment,
         auth: UserAuthToken,
     ) -> Result<(), BackendApiError>;
 
-    /// PUT /v1/payments [`DbPayment`] -> [`()`]
+    /// PUT /node/v1/payments [`DbPayment`] -> [`()`]
     async fn upsert_payment(
         &self,
         payment: DbPayment,
         auth: UserAuthToken,
     ) -> Result<(), BackendApiError>;
 
-    /// POST /v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
+    /// POST /node/v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
     ///
     /// Fetch a batch of payments by their [`LxPaymentId`]s. This is typically
     /// used by a mobile client to poll for updates on payments which it
@@ -134,7 +134,7 @@ pub trait NodeBackendApi {
         auth: UserAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError>;
 
-    /// GET /v1/payments/new [`GetNewPayments`] -> [`Vec<DbPayment>`]
+    /// GET /node/v1/payments/new [`GetNewPayments`] -> [`Vec<DbPayment>`]
     ///
     /// Sync a batch of new payments to local storage, optionally starting from
     /// a known [`PaymentIndex`] (exclusive). Results are in ascending order, by
@@ -147,7 +147,7 @@ pub trait NodeBackendApi {
         auth: UserAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError>;
 
-    /// GET /v1/payments/pending -> [`Vec<DbPayment>`]
+    /// GET /node/v1/payments/pending -> [`Vec<DbPayment>`]
     ///
     /// Fetches all pending payments.
     async fn get_pending_payments(
@@ -155,7 +155,7 @@ pub trait NodeBackendApi {
         auth: UserAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError>;
 
-    /// GET /v1/payments/final -> [`Vec<LxPaymentId>`]
+    /// GET /node/v1/payments/final -> [`Vec<LxPaymentId>`]
     ///
     /// Fetches the IDs of all finalized payments.
     async fn get_finalized_payment_ids(

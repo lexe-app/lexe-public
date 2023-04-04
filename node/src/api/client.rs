@@ -97,7 +97,7 @@ impl BackendApiClient for BackendClient {
         retries: usize,
     ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
-        let url = format!("{backend}/v1/file");
+        let url = format!("{backend}/node/v1/file");
         let req = self.rest.post(url, data).bearer_auth(&auth);
         self.rest.send_with_retries(req, retries, &[]).await
     }
@@ -109,7 +109,7 @@ impl BackendApiClient for BackendClient {
         retries: usize,
     ) -> Result<(), BackendApiError> {
         let backend = &self.backend_url;
-        let url = format!("{backend}/v1/file");
+        let url = format!("{backend}/node/v1/file");
         let req = self.rest.put(url, data).bearer_auth(&auth);
         self.rest.send_with_retries(req, retries, &[]).await
     }
@@ -148,7 +148,7 @@ impl NodeBackendApi for BackendClient {
     ) -> Result<Option<User>, BackendApiError> {
         let backend = &self.backend_url;
         let data = GetByUserPk { user_pk };
-        let req = self.rest.get(format!("{backend}/v1/user"), &data);
+        let req = self.rest.get(format!("{backend}/node/v1/user"), &data);
         self.rest.send(req).await
     }
 
@@ -158,7 +158,9 @@ impl NodeBackendApi for BackendClient {
         data: SealedSeedId,
     ) -> Result<Option<SealedSeed>, BackendApiError> {
         let backend = &self.backend_url;
-        let req = self.rest.get(format!("{backend}/v1/sealed_seed"), &data);
+        let req = self
+            .rest
+            .get(format!("{backend}/node/v1/sealed_seed"), &data);
         self.rest.send(req).await
     }
 
@@ -170,7 +172,7 @@ impl NodeBackendApi for BackendClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .post(format!("{backend}/v1/sealed_seed"), &data)
+            .post(format!("{backend}/node/v1/sealed_seed"), &data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -184,7 +186,7 @@ impl NodeBackendApi for BackendClient {
         let data = GetByNodePk { node_pk };
         let req = self
             .rest
-            .get(format!("{backend}/v1/scid"), &data)
+            .get(format!("{backend}/node/v1/scid"), &data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -197,7 +199,7 @@ impl NodeBackendApi for BackendClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .get(format!("{backend}/v1/file"), data)
+            .get(format!("{backend}/node/v1/file"), data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -210,7 +212,7 @@ impl NodeBackendApi for BackendClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .post(format!("{backend}/v1/file"), data)
+            .post(format!("{backend}/node/v1/file"), data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -223,7 +225,7 @@ impl NodeBackendApi for BackendClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .put(format!("{backend}/v1/file"), data)
+            .put(format!("{backend}/node/v1/file"), data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -239,7 +241,7 @@ impl NodeBackendApi for BackendClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .delete(format!("{backend}/v1/file"), data)
+            .delete(format!("{backend}/node/v1/file"), data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -252,7 +254,7 @@ impl NodeBackendApi for BackendClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .get(format!("{backend}/v1/directory"), data)
+            .get(format!("{backend}/node/v1/directory"), data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -265,7 +267,7 @@ impl NodeBackendApi for BackendClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .post(format!("{backend}/v1/payments"), &payment)
+            .post(format!("{backend}/node/v1/payments"), &payment)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -278,7 +280,7 @@ impl NodeBackendApi for BackendClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .put(format!("{backend}/v1/payments"), &payment)
+            .put(format!("{backend}/node/v1/payments"), &payment)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -291,7 +293,7 @@ impl NodeBackendApi for BackendClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .post(format!("{backend}/v1/payments/ids"), &req)
+            .post(format!("{backend}/node/v1/payments/ids"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -304,7 +306,7 @@ impl NodeBackendApi for BackendClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .get(format!("{backend}/v1/payments/new"), &req)
+            .get(format!("{backend}/node/v1/payments/new"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -317,7 +319,7 @@ impl NodeBackendApi for BackendClient {
         let data = EmptyData {};
         let req = self
             .rest
-            .get(format!("{backend}/v1/payments/pending"), &data)
+            .get(format!("{backend}/node/v1/payments/pending"), &data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
@@ -330,7 +332,7 @@ impl NodeBackendApi for BackendClient {
         let data = EmptyData {};
         let req = self
             .rest
-            .get(format!("{backend}/v1/payments/final"), &data)
+            .get(format!("{backend}/node/v1/payments/final"), &data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
