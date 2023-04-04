@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use common::api::auth::{
-    BearerAuthRequest, BearerAuthResponse, BearerAuthToken, UserSignupRequest,
+    BearerAuthRequest, BearerAuthResponse, BearerAuthToken,
 };
 use common::api::def::{
     NodeBackendApi, NodeLspApi, NodeRunnerApi, UserBackendApi,
@@ -117,13 +117,6 @@ impl BackendApiClient for BackendClient {
 
 #[async_trait]
 impl UserBackendApi for BackendClient {
-    async fn signup(
-        &self,
-        _signed_req: ed25519::Signed<UserSignupRequest>,
-    ) -> Result<(), BackendApiError> {
-        unimplemented!()
-    }
-
     async fn bearer_auth(
         &self,
         signed_req: ed25519::Signed<BearerAuthRequest>,
