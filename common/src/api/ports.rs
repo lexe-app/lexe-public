@@ -27,7 +27,7 @@ pub enum Ports {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct RunPorts {
     pub app_port: Port,
-    pub host_port: Port,
+    pub runner_port: Port,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -39,13 +39,13 @@ pub struct ProvisionPorts {
 
 impl UserPorts {
     /// Shorthand to construct a UserPorts containing a Run variant.
-    /// Be careful to specify the app/host ports in the correct order.
-    pub fn new_run(user_pk: UserPk, app_port: Port, host_port: Port) -> Self {
+    /// Be careful to specify the app/runner ports in the correct order.
+    pub fn new_run(user_pk: UserPk, app_port: Port, runner_port: Port) -> Self {
         Self {
             user_pk,
             ports: Ports::Run(RunPorts {
                 app_port,
-                host_port,
+                runner_port,
             }),
         }
     }

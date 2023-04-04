@@ -34,10 +34,10 @@ use crate::persister::NodePersister;
 
 /// Handlers for commands that can only be initiated by the app.
 mod app;
-/// Handlers for commands that can only be initiated by the host (Lexe).
-mod host;
 /// Warp filters for injecting data needed by subsequent filters
 mod inject;
+/// Handlers for commands that can only be initiated by the runner (Lexe).
+mod runner;
 
 /// Converts the `anyhow::Result<T>`s returned by [`lexe_ln::command`] into
 /// `Result<T, NodeApiError>`s with error kind [`NodeErrorKind::Command`].
@@ -138,31 +138,31 @@ pub(crate) fn app_routes(
     root.or(app)
 }
 
-// XXX: Add host authentication
-/// Implements [`HostNodeApi`] - endpoints only callable by the host (Lexe).
+// XXX: Add runner authentication
+/// Implements [`RunnerNodeApi`] - endpoints only callable by the runner (Lexe).
 ///
-/// [`HostNodeApi`]: common::api::def::HostNodeApi
-pub(crate) fn host_routes(
+/// [`RunnerNodeApi`]: common::api::def::RunnerNodeApi
+pub(crate) fn runner_routes(
     current_pk: UserPk,
     shutdown: ShutdownChannel,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     let root =
-        warp::path::end().map(|| "This set of endpoints is for the host.");
+        warp::path::end().map(|| "This set of endpoints is for the runner.");
 
     let status = warp::path("status")
         .and(warp::get())
         .and(warp::query::<GetByUserPk>())
         .and(inject::user_pk(current_pk))
-        .then(host::status)
+        .then(runner::status)
         .map(into_response);
     let shutdown = warp::path("shutdown")
         .and(warp::get())
         .and(warp::query::<GetByUserPk>())
         .and(inject::user_pk(current_pk))
         .and(inject::shutdown(shutdown))
-        .map(host::shutdown)
+        .map(runner::shutdown)
         .map(into_response);
-    let host = warp::path("host").and(status.or(shutdown));
+    let runner = warp::path("runner").and(status.or(shutdown));
 
-    root.or(host)
+    root.or(runner)
 }
