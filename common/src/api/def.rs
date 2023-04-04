@@ -164,18 +164,22 @@ pub trait NodeBackendApi {
     ) -> Result<Vec<LxPaymentId>, BackendApiError>;
 }
 
+/// Defines the api that the backend exposes to the app (via the gateway).
+#[async_trait]
+pub trait AppBackendApi {
+    /// POST /app/v1/signup [`ed25519::Signed<UserSignupRequest>`] -> [`()`]
+    async fn signup(
+        &self,
+        signed_req: ed25519::Signed<UserSignupRequest>,
+    ) -> Result<(), BackendApiError>;
+}
+
 /// The user-facing backend APIs.
 // TODO(max): Separate out the signup method into AppBackendApi, then rename to
 // UserAuthBackendApi, with a comment explaining why this is so (because it's
 // used in the BearerAuthenticator)
 #[async_trait]
 pub trait UserBackendApi {
-    /// POST /signup [`ed25519::Signed<UserSignupRequest>`] -> [`()`]
-    async fn signup(
-        &self,
-        signed_req: ed25519::Signed<UserSignupRequest>,
-    ) -> Result<(), BackendApiError>;
-
     /// POST /bearer_auth [`ed25519::Signed<BearerAuthRequest>`]
     ///              -> [`BearerAuthResponse`]
     async fn bearer_auth(

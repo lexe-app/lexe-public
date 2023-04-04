@@ -17,7 +17,9 @@ use crate::api::auth::{
     UserSignupRequest,
 };
 use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
-use crate::api::def::{OwnerNodeProvisionApi, OwnerNodeRunApi, UserBackendApi};
+use crate::api::def::{
+    AppBackendApi, OwnerNodeProvisionApi, OwnerNodeRunApi, UserBackendApi,
+};
 use crate::api::error::{BackendApiError, NodeApiError, NodeErrorKind};
 use crate::api::provision::NodeProvisionRequest;
 use crate::api::qs::{GetNewPayments, GetPaymentsByIds};
@@ -216,7 +218,7 @@ impl NodeClient {
 }
 
 #[async_trait]
-impl UserBackendApi for NodeClient {
+impl AppBackendApi for NodeClient {
     async fn signup(
         &self,
         signed_req: ed25519::Signed<UserSignupRequest>,
@@ -224,12 +226,15 @@ impl UserBackendApi for NodeClient {
         let gateway_url = &self.gateway_url;
         let req = self
             .rest
-            .builder(POST, format!("{gateway_url}/signup"))
+            .builder(POST, format!("{gateway_url}/app/v1/signup"))
             .signed_bcs(signed_req)
             .map_err(BackendApiError::bcs_serialize)?;
         self.rest.send(req).await
     }
+}
 
+#[async_trait]
+impl UserBackendApi for NodeClient {
     async fn bearer_auth(
         &self,
         signed_req: ed25519::Signed<BearerAuthRequest>,

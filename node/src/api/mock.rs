@@ -9,7 +9,7 @@ use common::api::auth::{
     BearerAuthRequest, BearerAuthResponse, BearerAuthToken, UserSignupRequest,
 };
 use common::api::def::{
-    NodeBackendApi, NodeLspApi, NodeRunnerApi, UserBackendApi,
+    AppBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi, UserBackendApi,
 };
 use common::api::error::{
     BackendApiError, BackendErrorKind, LspApiError, RunnerApiError,
@@ -176,14 +176,17 @@ impl BackendApiClient for MockBackendClient {
 }
 
 #[async_trait]
-impl UserBackendApi for MockBackendClient {
+impl AppBackendApi for MockBackendClient {
     async fn signup(
         &self,
         _signed_req: ed25519::Signed<UserSignupRequest>,
     ) -> Result<(), BackendApiError> {
         Ok(())
     }
+}
 
+#[async_trait]
+impl UserBackendApi for MockBackendClient {
     async fn bearer_auth(
         &self,
         _signed_req: ed25519::Signed<BearerAuthRequest>,
