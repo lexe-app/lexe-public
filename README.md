@@ -94,7 +94,7 @@ Run the node (add `--target=x86_64-fortanix-unknown-sgx` if running in SGX)
 ```bash
 cargo run --bin [--target=x86_64-fortanix-unknown-sgx] node -- run \
     --user-pk <user-pk> \
-    [--owner-port <owner-port>] \
+    [--app-port <app-port>] \
     [--host-port <host-port>] \
     [--peer-port <peer-port>] \
     --network <network> \

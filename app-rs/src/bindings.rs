@@ -43,7 +43,7 @@ use std::future::Future;
 
 use anyhow::{ensure, Context};
 use common::api::command::NodeInfo as NodeInfoRs;
-use common::api::def::OwnerNodeRunApi;
+use common::api::def::AppNodeRunApi;
 use common::rng::SysRng;
 use common::time::TimestampMs;
 use flutter_rust_bridge::{frb, RustOpaque, SyncReturn};

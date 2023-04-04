@@ -1,13 +1,13 @@
 //! The warp server that the node uses to:
 //!
-//! 1) Accept commands from its owner (get balance, send payment etc)
+//! 1) Accept commands from the app (get balance, send payment etc)
 //! 2) Accept housekeeping commands from Lexe (shutdown, health check, etc)
 //!
 //! Obviously, Lexe cannot spend funds on behalf of the user; Lexe's portion of
 //! this endpoint is used purely for maintenance tasks such as monitoring and
 //! scheduling.
 //!
-//! TODO Implement owner authentication
+//! TODO Implement app authentication
 //! TODO Implement authentication of Lexe
 
 use std::sync::Arc;
@@ -32,12 +32,12 @@ use crate::channel_manager::NodeChannelManager;
 use crate::peer_manager::NodePeerManager;
 use crate::persister::NodePersister;
 
+/// Handlers for commands that can only be initiated by the app.
+mod app;
 /// Handlers for commands that can only be initiated by the host (Lexe).
 mod host;
 /// Warp filters for injecting data needed by subsequent filters
 mod inject;
-/// Handlers for commands that can only be initiated by the node owner.
-mod owner;
 
 /// Converts the `anyhow::Result<T>`s returned by [`lexe_ln::command`] into
 /// `Result<T, NodeApiError>`s with error kind [`NodeErrorKind::Command`].
@@ -50,10 +50,10 @@ fn into_command_api_result<T>(
     })
 }
 
-/// Implements [`OwnerNodeRunApi`] - endpoints only callable by the node owner.
+/// Implements [`AppNodeRunApi`] - endpoints only callable by the app.
 ///
-/// [`OwnerNodeRunApi`]: common::api::def::OwnerNodeRunApi
-pub(crate) fn owner_routes(
+/// [`AppNodeRunApi`]: common::api::def::AppNodeRunApi
+pub(crate) fn app_routes(
     persister: NodePersister,
     channel_manager: NodeChannelManager,
     peer_manager: NodePeerManager,
@@ -67,11 +67,11 @@ pub(crate) fn owner_routes(
     activity_tx: mpsc::Sender<()>,
 ) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
     let root =
-        warp::path::end().map(|| "This set of endpoints is for the owner.");
+        warp::path::end().map(|| "This set of endpoints is for the app.");
 
-    let owner_base = warp::path("owner")
+    let app_base = warp::path("app")
         .map(move || {
-            // Hitting any endpoint under /owner counts as activity
+            // Hitting any endpoint under /app counts as activity
             trace!("Sending activity event");
             let _ = activity_tx.try_send(());
         })
@@ -87,7 +87,7 @@ pub(crate) fn owner_routes(
         .and(warp::get())
         .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::network_graph(network_graph))
-        .map(owner::list_channels)
+        .map(app::list_channels)
         .map(into_response);
     let get_invoice = warp::path("get_invoice")
         .and(warp::post())
@@ -116,18 +116,18 @@ pub(crate) fn owner_routes(
         .and(warp::post())
         .and(warp::body::json::<GetPaymentsByIds>())
         .and(inject::persister(persister.clone()))
-        .then(owner::get_payments_by_ids)
+        .then(app::get_payments_by_ids)
         .map(into_response);
     let get_new_payments = warp::path("new")
         .and(warp::get())
         .and(warp::query::<GetNewPayments>())
         .and(inject::persister(persister))
-        .then(owner::get_new_payments)
+        .then(app::get_new_payments)
         .map(into_response);
     let payments =
         warp::path("payments").and(get_payments_by_ids.or(get_new_payments));
 
-    let owner = owner_base.and(
+    let app = app_base.and(
         node_info
             .or(list_channels)
             .or(get_invoice)
@@ -135,7 +135,7 @@ pub(crate) fn owner_routes(
             .or(payments),
     );
 
-    root.or(owner)
+    root.or(app)
 }
 
 // XXX: Add host authentication

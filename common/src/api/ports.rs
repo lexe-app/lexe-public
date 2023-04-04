@@ -17,6 +17,7 @@ pub struct UserPorts {
     pub ports: Ports,
 }
 
+// TODO(max): Expose only one port, then remove this entire enum + child structs
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum Ports {
     Run(RunPorts),
@@ -25,35 +26,35 @@ pub enum Ports {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct RunPorts {
-    pub owner_port: Port,
+    pub app_port: Port,
     pub host_port: Port,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct ProvisionPorts {
-    pub owner_port: Port,
+    pub app_port: Port,
 }
 
 // --- impl UserPorts --- //
 
 impl UserPorts {
     /// Shorthand to construct a UserPorts containing a Run variant.
-    /// Be careful to specify the owner/host ports in the correct order.
-    pub fn new_run(user_pk: UserPk, owner_port: Port, host_port: Port) -> Self {
+    /// Be careful to specify the app/host ports in the correct order.
+    pub fn new_run(user_pk: UserPk, app_port: Port, host_port: Port) -> Self {
         Self {
             user_pk,
             ports: Ports::Run(RunPorts {
-                owner_port,
+                app_port,
                 host_port,
             }),
         }
     }
 
     /// Shorthand to construct a UserPorts containing a Provision variant.
-    pub fn new_provision(user_pk: UserPk, owner_port: Port) -> Self {
+    pub fn new_provision(user_pk: UserPk, app_port: Port) -> Self {
         Self {
             user_pk,
-            ports: Ports::Provision(ProvisionPorts { owner_port }),
+            ports: Ports::Provision(ProvisionPorts { app_port }),
         }
     }
 
@@ -71,11 +72,11 @@ impl UserPorts {
 // --- impl Ports --- //
 
 impl Ports {
-    /// Shorthand to return the owner port.
-    pub fn owner(&self) -> Port {
+    /// Shorthand to return the app port.
+    pub fn app(&self) -> Port {
         match self {
-            Self::Run(run_ports) => run_ports.owner_port,
-            Self::Provision(provision_ports) => provision_ports.owner_port,
+            Self::Run(run_ports) => run_ports.app_port,
+            Self::Provision(provision_ports) => provision_ports.app_port,
         }
     }
 
