@@ -1,5 +1,6 @@
 //! Data types returned from the fiat exchange rate API.
 
+use std::borrow::Borrow;
 use std::collections::BTreeMap;
 use std::fmt;
 
@@ -59,11 +60,21 @@ pub struct FiatRates {
     pub rates: BTreeMap<FiatCode, FiatBtcPrice>,
 }
 
+// --- impl FiatCode --- //
+
+impl Borrow<str> for FiatCode {
+    fn borrow(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
 impl fmt::Debug for FiatCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }
+
+// --- impl FiatBtcPrice --- //
 
 impl fmt::Debug for FiatBtcPrice {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
