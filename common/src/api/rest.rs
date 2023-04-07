@@ -105,7 +105,7 @@ where
 /// ```ignore
 /// let status = warp::path("status")
 ///     .and(warp::get())
-///     .and(warp::query())
+///     .and(warp::query::<GetByUserPk>())
 ///     .and(inject::user_pk(user_pk))
 ///     .then(runner::status)
 ///     .map(into_response);

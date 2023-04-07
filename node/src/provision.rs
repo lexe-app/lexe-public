@@ -145,7 +145,7 @@ fn app_routes(
     warp::path::path("provision")
         .and(warp::post())
         .and(with_request_context(ctx))
-        .and(warp::body::json())
+        .and(warp::body::json::<NodeProvisionRequest>())
         .then(provision_handler)
         .map(into_response)
 }
