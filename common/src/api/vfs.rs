@@ -16,6 +16,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use crate::hexstr_or_bytes;
+
 /// Uniquely identifies a directory in the virtual file system.
 ///
 /// This struct exists mainly so that `serde_qs` can use it as a query parameter
@@ -44,6 +46,7 @@ pub struct VfsFile {
     // Flattened because serde_qs requires non-nested structs
     #[serde(flatten)]
     pub id: VfsFileId,
+    #[serde(with = "hexstr_or_bytes")]
     pub data: Vec<u8>,
 }
 
