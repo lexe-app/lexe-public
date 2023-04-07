@@ -3,7 +3,7 @@ use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 
 use crate::api::{NodePk, UserPk};
-use crate::enclave::{self, MachineId, Measurement, MinCpusvn, Sealed};
+use crate::enclave::{self, MachineId, Measurement, Sealed};
 use crate::hexstr_or_bytes;
 use crate::rng::Crng;
 use crate::root_seed::RootSeed;
@@ -27,7 +27,6 @@ pub struct SealedSeedId {
     pub user_pk: UserPk,
     pub measurement: Measurement,
     pub machine_id: MachineId,
-    pub min_cpusvn: MinCpusvn,
 }
 
 /// The user node's provisioned seed that is sealed and persisted using its
@@ -58,7 +57,6 @@ impl SealedSeed {
         user_pk: UserPk,
         measurement: Measurement,
         machine_id: MachineId,
-        min_cpusvn: MinCpusvn,
         ciphertext: Vec<u8>,
     ) -> Self {
         Self {
@@ -66,7 +64,6 @@ impl SealedSeed {
                 user_pk,
                 measurement,
                 machine_id,
-                min_cpusvn,
             },
             ciphertext,
         }
@@ -77,7 +74,6 @@ impl SealedSeed {
         root_seed: &RootSeed,
         measurement: Measurement,
         machine_id: MachineId,
-        min_cpusvn: MinCpusvn,
     ) -> anyhow::Result<Self> {
         // Construct the root seed ciphertext
         let root_seed_ref = root_seed.expose_secret().as_slice();
@@ -88,20 +84,13 @@ impl SealedSeed {
         // Derive / compute the other fields
         let user_pk = root_seed.derive_user_pk();
 
-        Ok(Self::new(
-            user_pk,
-            measurement,
-            machine_id,
-            min_cpusvn,
-            ciphertext,
-        ))
+        Ok(Self::new(user_pk, measurement, machine_id, ciphertext))
     }
 
     pub fn unseal_and_validate(
         self,
         expected_measurement: &Measurement,
         expected_machine_id: &MachineId,
-        expected_min_cpusvn: &MinCpusvn,
     ) -> anyhow::Result<RootSeed> {
         // Validate SGX fields
         ensure!(
@@ -111,10 +100,6 @@ impl SealedSeed {
         ensure!(
             &self.id.machine_id == expected_machine_id,
             "Saved machine id doesn't match current machine id",
-        );
-        ensure!(
-            &self.id.min_cpusvn == expected_min_cpusvn,
-            "Saved min CPUSVN doesn't match current min CPUSVN",
         );
 
         // Unseal
@@ -218,7 +203,6 @@ mod test {
     fn test_seal_unseal_roundtrip() {
         let measurement = enclave::measurement();
         let machine_id = enclave::machine_id();
-        let min_cpusvn = enclave::MIN_SGX_CPUSVN;
 
         proptest!(|(mut rng: WeakRng)| {
             let root_seed1 = RootSeed::from_rng(&mut rng);
@@ -228,12 +212,11 @@ mod test {
                 &root_seed1,
                 measurement,
                 machine_id,
-                min_cpusvn,
             )
             .unwrap();
 
             let root_seed2 = sealed_seed
-                .unseal_and_validate(&measurement, &machine_id, &min_cpusvn)
+                .unseal_and_validate(&measurement, &machine_id)
                 .unwrap();
 
             assert_eq!(

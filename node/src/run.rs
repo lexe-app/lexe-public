@@ -12,9 +12,7 @@ use common::cli::node::RunArgs;
 use common::cli::LspInfo;
 use common::client::tls::node_run_tls_config;
 use common::constants::{DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE};
-use common::enclave::{
-    self, MachineId, Measurement, MinCpusvn, MIN_SGX_CPUSVN,
-};
+use common::enclave::{self, MachineId, Measurement, MIN_SGX_CPUSVN};
 use common::rng::Crng;
 use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
@@ -127,7 +125,8 @@ impl UserNode {
         let user_pk = args.user_pk;
         let measurement = enclave::measurement();
         let machine_id = enclave::machine_id();
-        let min_cpusvn = MIN_SGX_CPUSVN;
+        // TODO(phlip9): Compare this with current cpusvn
+        let _min_cpusvn = MIN_SGX_CPUSVN;
         let backend_api =
             api::new_backend_api(args.allow_mock, args.backend_url.clone())?;
         let runner_api =
@@ -156,7 +155,6 @@ impl UserNode {
                 user_pk,
                 measurement,
                 machine_id,
-                min_cpusvn
             ),
         );
         let (esplora, refresh_fees_task) =
@@ -633,15 +631,13 @@ async fn fetch_provisioned_secrets(
     user_pk: UserPk,
     measurement: Measurement,
     machine_id: MachineId,
-    min_cpusvn: MinCpusvn,
 ) -> anyhow::Result<(User, RootSeed, ed25519::KeyPair)> {
-    debug!(%user_pk, %measurement, %machine_id, %min_cpusvn, "fetching provisioned secrets");
+    debug!(%user_pk, %measurement, %machine_id, "fetching provisioned secrets");
 
     let sealed_seed_id = SealedSeedId {
         user_pk,
         measurement,
         machine_id,
-        min_cpusvn,
     };
 
     let (user_res, sealed_seed_res) = tokio::join!(
@@ -656,7 +652,7 @@ async fn fetch_provisioned_secrets(
     match (user_opt, sealed_seed_opt) {
         (Some(user), Some(sealed_seed)) => {
             let root_seed = sealed_seed
-                .unseal_and_validate(&measurement, &machine_id, &min_cpusvn)
+                .unseal_and_validate(&measurement, &machine_id)
                 .context("Could not validate or unseal sealed seed")?;
 
             let user_key_pair = root_seed.derive_user_key_pair();
