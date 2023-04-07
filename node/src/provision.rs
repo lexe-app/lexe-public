@@ -177,7 +177,6 @@ async fn provision_handler(
         &root_seed,
         ctx.measurement,
         enclave::machine_id(),
-        enclave::MIN_SGX_CPUSVN,
     );
 
     let sealed_seed = sealed_seed_res.map_err(|err| NodeApiError {

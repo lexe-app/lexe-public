@@ -52,7 +52,6 @@ fn make_sealed_seed(root_seed: &RootSeed) -> SealedSeed {
         root_seed,
         enclave::measurement(),
         enclave::machine_id(),
-        enclave::MIN_SGX_CPUSVN,
     )
     .expect("Failed to seal test root seed")
 }
