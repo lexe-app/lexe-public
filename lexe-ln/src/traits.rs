@@ -55,38 +55,21 @@ pub trait LexeInnerPersister: Persist<SignerType> {
         channel_peer: ChannelPeer,
     ) -> anyhow::Result<()>;
 
-    async fn read_pending_payments(&self) -> anyhow::Result<Vec<Payment>> {
-        // TODO(max): Remove default impl
-        Ok(Vec::new())
-    }
+    async fn read_pending_payments(&self) -> anyhow::Result<Vec<Payment>>;
 
     async fn read_finalized_payment_ids(
         &self,
-    ) -> anyhow::Result<Vec<LxPaymentId>> {
-        // TODO(max): Remove default impl
-        Ok(Vec::new())
-    }
+    ) -> anyhow::Result<Vec<LxPaymentId>>;
 
     async fn create_payment(
         &self,
         checked: CheckedPayment,
-    ) -> anyhow::Result<PersistedPayment> {
-        // TODO(max): Use create instead of persist when appropriate.
-        // TODO(max): Remove this default impl and replace with actual persists
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        let persisted = PersistedPayment(checked.0);
-        Ok(persisted)
-    }
+    ) -> anyhow::Result<PersistedPayment>;
 
     async fn persist_payment(
         &self,
         checked: CheckedPayment,
-    ) -> anyhow::Result<PersistedPayment> {
-        // TODO(max): Remove this default impl and replace with actual persists
-        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        let persisted = PersistedPayment(checked.0);
-        Ok(persisted)
-    }
+    ) -> anyhow::Result<PersistedPayment>;
 }
 
 /// A 'trait alias' defining all the requirements of a Lexe persister.
