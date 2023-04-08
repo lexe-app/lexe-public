@@ -25,7 +25,9 @@ use crate::payments::inbound::{
     InboundInvoicePayment, InboundInvoicePaymentStatus,
     InboundSpontaneousPayment, InboundSpontaneousPaymentStatus,
 };
-use crate::payments::onchain::{OnchainDeposit, OnchainWithdrawal};
+use crate::payments::onchain::{
+    OnchainDeposit, OnchainPaymentStatus, OnchainWithdrawal,
+};
 use crate::payments::outbound::{
     OutboundInvoicePayment, OutboundInvoicePaymentStatus,
     OutboundSpontaneousPayment, OutboundSpontaneousPaymentStatus,
@@ -221,8 +223,12 @@ impl Payment {
     // TODO(max): Use LDK-provided Amount newtype when available
     pub fn amt_msat(&self) -> Option<u64> {
         match self {
-            Self::OnchainDeposit(_) => todo!(),
-            Self::OnchainWithdrawal(_) => todo!(),
+            Self::OnchainDeposit(OnchainDeposit { amt_msat, .. }) => {
+                Some(*amt_msat)
+            }
+            Self::OnchainWithdrawal(OnchainWithdrawal { amt_msat, .. }) => {
+                Some(*amt_msat)
+            }
             Self::InboundInvoice(InboundInvoicePayment {
                 invoice_amt_msat,
                 recvd_amount_msat,
@@ -246,8 +252,12 @@ impl Payment {
     // TODO(max): Use LDK-provided Amount newtype when available
     pub fn fees_msat(&self) -> u64 {
         match self {
-            Self::OnchainDeposit(_) => todo!(),
-            Self::OnchainWithdrawal(_) => todo!(),
+            Self::OnchainDeposit(OnchainDeposit { fees_msat, .. }) => {
+                *fees_msat
+            }
+            Self::OnchainWithdrawal(OnchainWithdrawal {
+                fees_msat, ..
+            }) => *fees_msat,
             Self::InboundInvoice(InboundInvoicePayment {
                 onchain_fees_msat,
                 ..
@@ -269,8 +279,12 @@ impl Payment {
     /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
     pub fn status(&self) -> PaymentStatus {
         match self {
-            Self::OnchainDeposit(_) => todo!(),
-            Self::OnchainWithdrawal(_) => todo!(),
+            Self::OnchainDeposit(OnchainDeposit { status, .. }) => {
+                PaymentStatus::from(*status)
+            }
+            Self::OnchainWithdrawal(OnchainWithdrawal { status, .. }) => {
+                PaymentStatus::from(*status)
+            }
             Self::InboundInvoice(InboundInvoicePayment { status, .. }) => {
                 PaymentStatus::from(*status)
             }
@@ -291,8 +305,12 @@ impl Payment {
     /// Get the payment status as a human-readable `&'static str`
     pub fn status_str(&self) -> &str {
         match self {
-            Self::OnchainDeposit(_) => todo!(),
-            Self::OnchainWithdrawal(_) => todo!(),
+            Self::OnchainDeposit(OnchainDeposit { status, .. }) => {
+                status.as_str()
+            }
+            Self::OnchainWithdrawal(OnchainWithdrawal { status, .. }) => {
+                status.as_str()
+            }
             Self::InboundInvoice(InboundInvoicePayment { status, .. }) => {
                 status.as_str()
             }
@@ -313,8 +331,12 @@ impl Payment {
     /// When this payment was created.
     pub fn created_at(&self) -> TimestampMs {
         match self {
-            Self::OnchainDeposit(_) => todo!(),
-            Self::OnchainWithdrawal(_) => todo!(),
+            Self::OnchainDeposit(OnchainDeposit { created_at, .. }) => {
+                *created_at
+            }
+            Self::OnchainWithdrawal(OnchainWithdrawal {
+                created_at, ..
+            }) => *created_at,
             Self::InboundInvoice(InboundInvoicePayment {
                 created_at, ..
             }) => *created_at,
@@ -336,8 +358,12 @@ impl Payment {
     /// When this payment was completed or failed.
     pub fn finalized_at(&self) -> Option<TimestampMs> {
         match self {
-            Self::OnchainDeposit(_) => todo!(),
-            Self::OnchainWithdrawal(_) => todo!(),
+            Self::OnchainDeposit(OnchainDeposit { finalized_at, .. }) => {
+                *finalized_at
+            }
+            Self::OnchainWithdrawal(OnchainWithdrawal {
+                finalized_at, ..
+            }) => *finalized_at,
             Self::InboundInvoice(InboundInvoicePayment {
                 finalized_at,
                 ..
@@ -369,6 +395,17 @@ impl Payment {
 }
 
 // --- Payment-specific status -> General PaymentStatus  --- //
+
+impl From<OnchainPaymentStatus> for PaymentStatus {
+    fn from(specific_status: OnchainPaymentStatus) -> Self {
+        match specific_status {
+            OnchainPaymentStatus::Confirming => Self::Pending,
+            OnchainPaymentStatus::Completed => Self::Completed,
+            OnchainPaymentStatus::Replaced => Self::Failed,
+            OnchainPaymentStatus::Reorged => Self::Failed,
+        }
+    }
+}
 
 impl From<InboundInvoicePaymentStatus> for PaymentStatus {
     fn from(specific_status: InboundInvoicePaymentStatus) -> Self {
@@ -412,6 +449,17 @@ impl From<OutboundSpontaneousPaymentStatus> for PaymentStatus {
 }
 
 // --- Use as_str() to get a human-readable payment status &str --- //
+
+impl OnchainPaymentStatus {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Confirming => "confirming",
+            Self::Completed => "completed",
+            Self::Replaced => "replaced",
+            Self::Reorged => "reorged",
+        }
+    }
+}
 
 impl InboundInvoicePaymentStatus {
     pub fn as_str(&self) -> &str {

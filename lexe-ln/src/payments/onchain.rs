@@ -1,7 +1,18 @@
 use common::ln::hashes::LxTxid;
+use common::time::TimestampMs;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
+// TODO(max): Revisit these states once we actually implement onchain payments
+pub enum OnchainPaymentStatus {
+    Confirming,
+    Completed,
+    Replaced,
+    Reorged,
+}
 
 // --- Onchain deposits --- //
 
@@ -9,6 +20,11 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainDeposit {
     pub txid: LxTxid,
+    pub amt_msat: u64,
+    pub fees_msat: u64,
+    pub status: OnchainPaymentStatus,
+    pub created_at: TimestampMs,
+    pub finalized_at: Option<TimestampMs>,
 }
 
 // --- Onchain withdrawals --- //
@@ -17,4 +33,9 @@ pub struct OnchainDeposit {
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainWithdrawal {
     pub txid: LxTxid,
+    pub amt_msat: u64,
+    pub fees_msat: u64,
+    pub status: OnchainPaymentStatus,
+    pub created_at: TimestampMs,
+    pub finalized_at: Option<TimestampMs>,
 }
