@@ -21,6 +21,7 @@ use crate::api::error::{
     ErrorCode, ErrorResponse, RestClientError, RestClientErrorKind,
     ServiceApiError, ToHttpStatus,
 };
+use crate::byte_str::ByteStr;
 use crate::shutdown::ShutdownChannel;
 use crate::task::LxTask;
 use crate::{backoff, ed25519};
@@ -137,6 +138,15 @@ pub fn into_succ_response<T: Serialize>(data: T) -> Response<Body> {
     build_json_response(StatusCode::OK, &data)
 }
 
+pub fn prerendered_json_into_response<E: ToHttpStatus + Into<ErrorResponse>>(
+    reply_res: Result<ByteStr, E>,
+) -> Response<Body> {
+    match reply_res {
+        Ok(data) => build_json_response_inner(StatusCode::OK, Ok(data.into())),
+        Err(err) => build_json_response(err.to_http_status(), &err.into()),
+    }
+}
+
 /// A warp helper for recovering one of our [`api::error`](crate::api::error)
 /// types if it was emitted from an intermediate filter's rejection and then
 /// converting into the standard json error response.
@@ -179,16 +189,21 @@ pub async fn recover_error_response<
 /// If serialization fails for some reason (unlikely), log the error,
 /// default to an empty body, and override the status code to 500.
 fn build_json_response<T: Serialize>(
-    mut status: StatusCode,
+    status: StatusCode,
     data: &T,
 ) -> Response<Body> {
-    let body = serde_json::to_vec(data)
-        .map(Body::from)
-        .unwrap_or_else(|e| {
-            error!("Couldn't serialize response: {e:#}");
-            status = StatusCode::INTERNAL_SERVER_ERROR;
-            Body::empty()
-        });
+    build_json_response_inner(status, serde_json::to_vec(data).map(Bytes::from))
+}
+
+fn build_json_response_inner(
+    mut status: StatusCode,
+    maybe_json: Result<Bytes, serde_json::Error>,
+) -> Response<Body> {
+    let body = maybe_json.map(Body::from).unwrap_or_else(|e| {
+        error!("Couldn't serialize response: {e:#}");
+        status = StatusCode::INTERNAL_SERVER_ERROR;
+        Body::empty()
+    });
 
     Response::builder()
         .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))

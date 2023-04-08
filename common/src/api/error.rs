@@ -449,12 +449,8 @@ error_kind! {
 
         // --- Gateway --- //
 
-        /// User failed authentication
-        Unauthenticated = 100,
-        /// User not authorized
-        Unauthorized = 101,
-        /// Auth token or auth request is expired
-        AuthExpired = 102,
+        /// Missing fiat exchange rates; issue with upstream data source.
+        FiatRatesMissing = 100,
     }
 }
 
@@ -597,6 +593,14 @@ impl NodeApiError {
     }
 }
 
+impl GatewayApiError {
+    pub fn fiat_rates_missing() -> Self {
+        let kind = GatewayErrorKind::FiatRatesMissing;
+        let msg = kind.to_string();
+        Self { kind, msg }
+    }
+}
+
 // --- warp::reject::Reject impls --- ///
 
 // Allow our error types to be returned as Rejections from warp Filters using
@@ -731,9 +735,7 @@ impl ToHttpStatus for GatewayApiError {
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
 
-            Unauthenticated => CLIENT_401_UNAUTHORIZED,
-            Unauthorized => CLIENT_401_UNAUTHORIZED,
-            AuthExpired => CLIENT_401_UNAUTHORIZED,
+            FiatRatesMissing => SERVER_500_INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -901,17 +903,7 @@ impl From<oneshot::error::RecvError> for RunnerApiError {
 
 // --- Misc -> GatewayErrorKind impls --- //
 
-impl From<auth::Error> for GatewayApiError {
-    fn from(err: auth::Error) -> Self {
-        let kind = match err {
-            auth::Error::ClockDrift => GatewayErrorKind::AuthExpired,
-            auth::Error::Expired => GatewayErrorKind::AuthExpired,
-            _ => GatewayErrorKind::Unauthenticated,
-        };
-        let msg = format!("{err:#}");
-        Self { kind, msg }
-    }
-}
+// (Placeholder only, for consistency)
 
 // --- Misc -> NodeApiError impls --- //
 
