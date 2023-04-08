@@ -79,6 +79,8 @@
 //!
 //! This article describes symmetric security bounds nicely.
 
+use std::fmt;
+
 use bytes::BufMut;
 use ref_cast::RefCast;
 use ring::aead::{self, BoundKey};
@@ -143,6 +145,12 @@ struct ZeroNonce(Option<aead::Nonce>);
 #[derive(Debug, Error)]
 #[error("decrypt error: ciphertext or metadata may be corrupted")]
 pub struct DecryptError;
+
+impl fmt::Debug for VfsMasterKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("VfsMasterKey(..)")
+    }
+}
 
 impl VfsMasterKey {
     const HKDF_SALT: [u8; 32] =
@@ -361,6 +369,25 @@ impl aead::NonceSequence for ZeroNonce {
         Ok(self.0.take().expect(
             "We somehow encrypted / decrypted more than once with the same key",
         ))
+    }
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+mod arbitrary_impl {
+    use proptest::arbitrary::{any, Arbitrary};
+    use proptest::strategy::{BoxedStrategy, Strategy};
+
+    use super::*;
+    use crate::root_seed::RootSeed;
+
+    impl Arbitrary for VfsMasterKey {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            any::<RootSeed>()
+                .prop_map(|seed| seed.derive_vfs_master_key())
+                .boxed()
+        }
     }
 }
 
