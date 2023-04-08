@@ -22,10 +22,8 @@ impl Display for LxInvoice {
     }
 }
 
-// `any::<String>()` requires proptest feature std which doesn't work in SGX
-#[cfg(all(test, not(target_env = "sgx")))]
-mod test {
-    use std::cmp;
+#[cfg(any(test, feature = "test-utils"))]
+mod arbitrary_impl {
     use std::time::{Duration, UNIX_EPOCH};
 
     use bitcoin::hashes::{sha256, Hash};
@@ -39,19 +37,19 @@ mod test {
     use crate::cli::Network;
     use crate::rng::WeakRng;
     use crate::root_seed::RootSeed;
-    use crate::test_utils::roundtrip;
+    use crate::test_utils::arbitrary;
 
     impl Arbitrary for LxInvoice {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let currency = any::<Network>().prop_map(Currency::from);
-            let description = any::<String>();
+            let description = arbitrary::any_string();
             let payment_hash = any::<[u8; 32]>()
                 .prop_map(|buf| sha256::Hash::from_slice(&buf).unwrap());
             let payment_secret = any::<[u8; 32]>().prop_map(PaymentSecret);
-            let timestamp = any::<Duration>()
-                .prop_map(|d| cmp::min(d, Duration::from_secs(MAX_TIMESTAMP)))
+            let timestamp = (0..MAX_TIMESTAMP)
+                .prop_map(Duration::from_secs)
                 .prop_map(|duration| UNIX_EPOCH + duration);
             let min_final_cltv_expiry_delta = any::<u64>();
             let secret_key = any::<WeakRng>()
@@ -98,6 +96,12 @@ mod test {
                 .boxed()
         }
     }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::test_utils::roundtrip;
 
     #[test]
     fn invoice_serde_roundtrip() {

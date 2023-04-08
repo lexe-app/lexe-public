@@ -17,6 +17,8 @@ use common::vfs_encrypt::VfsMasterKey;
 use lightning::ln::channelmanager::PaymentSendFailure;
 use lightning::ln::{PaymentPreimage, PaymentSecret};
 use lightning_invoice::payment::PaymentError;
+#[cfg(test)]
+use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 use crate::payments::inbound::{
@@ -45,7 +47,8 @@ pub mod outbound;
 ///
 /// NOTE: Everything in this in this enum impls [`Serialize`] and
 /// [`Deserialize`], so be mindful of backwards compatibility.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub enum Payment {
     OnchainDeposit(OnchainDeposit),
     OnchainWithdrawal(OnchainWithdrawal),

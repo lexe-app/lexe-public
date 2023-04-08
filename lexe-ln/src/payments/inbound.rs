@@ -9,6 +9,8 @@ use lightning::ln::channelmanager::ChannelManager;
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::util::events::Event::{PaymentClaimable, PaymentClaimed};
 use lightning::util::events::PaymentPurpose;
+#[cfg(test)]
+use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
@@ -133,7 +135,8 @@ impl Payment {
 
 /// A 'conventional' inbound payment which is facilitated by an invoice.
 /// This struct is created when we call [`get_invoice`].
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct InboundInvoicePayment {
     /// Created in [`get_invoice`].
     // LxInvoice is ~300 bytes, Box to avoid the enum variant lint
@@ -170,7 +173,8 @@ pub struct InboundInvoicePayment {
     pub finalized_at: Option<TimestampMs>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub enum InboundInvoicePaymentStatus {
     /// We generated an invoice, but it hasn't been paid yet.
     InvoiceGenerated,
@@ -302,7 +306,8 @@ impl InboundInvoicePayment {
 /// An inbound spontaneous (`keysend`) payment. This struct is created when we
 /// get a [`PaymentClaimable`] event, where the [`PaymentPurpose`] is of the
 /// `SpontaneousPayment` variant.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct InboundSpontaneousPayment {
     /// Given by [`PaymentClaimable`] and [`PaymentClaimed`].
     pub hash: LxPaymentHash,
@@ -324,7 +329,8 @@ pub struct InboundSpontaneousPayment {
     pub finalized_at: Option<TimestampMs>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub enum InboundSpontaneousPaymentStatus {
     /// We received a [`PaymentClaimable`] event.
     Claiming,

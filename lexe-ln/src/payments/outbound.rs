@@ -9,6 +9,8 @@ use lightning::routing::router::Route;
 use lightning::util::events::Event::{PaymentFailed, PaymentSent};
 #[cfg(doc)]
 use lightning::util::events::PaymentPurpose;
+#[cfg(test)]
+use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 #[cfg(doc)]
@@ -18,7 +20,8 @@ use crate::command::send_payment;
 
 /// A 'conventional' outbound payment where we pay an invoice provided to us by
 /// our recipient.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct OutboundInvoicePayment {
     /// The invoice given by our recipient which we want to pay.
     // LxInvoice is ~300 bytes, Box to avoid the enum variant lint
@@ -43,7 +46,8 @@ pub struct OutboundInvoicePayment {
     pub finalized_at: Option<TimestampMs>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub enum OutboundInvoicePaymentStatus {
     /// We initiated the payment with [`send_payment`].
     Pending,
@@ -60,7 +64,8 @@ pub enum OutboundInvoicePaymentStatus {
 // --- Outbound spontaneous payments --- //
 
 /// An outbound spontaneous (`keysend`) payment.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct OutboundSpontaneousPayment {
     /// The hash of this payment.
     pub hash: LxPaymentHash,
@@ -82,7 +87,8 @@ pub struct OutboundSpontaneousPayment {
     pub finalized_at: Option<TimestampMs>,
 }
 
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub enum OutboundSpontaneousPaymentStatus {
     /// We initiated the payment with `send_spontaneous_payment`.
     // TODO(max): Actually implement sending spontaneous payments

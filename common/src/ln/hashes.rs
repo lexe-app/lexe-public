@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 
 /// Almost exactly [`bitcoin::Txid`], but fixes the inconsistency between the
 /// string-serialized and unserialized orderings caused by bitcoin sha256d hash
-/// types being displayed in reverse hex order (thanks Satoshi!). When a
-/// consistent ordering isn't required, it is perfectly fine (and equivalent) to
-/// use [`bitcoin::Txid`] directly.
+/// types being displayed in reverse hex order (thanks Satoshi!). Also provides
+/// an `Arbitrary` impl. When neither of these are required, it is perfectly
+/// fine (and equivalent) to use [`bitcoin::Txid`] directly.
 ///
 /// To ensure that we don't accidentally display a non-reversed hash to a Lexe
 /// user, we still display using [`Txid`]'s provided reverse hex impl, but we
