@@ -47,8 +47,8 @@ pub mod outbound;
 /// The top level [`Payment`] type which abstracts over all types of payments,
 /// including both onchain and off-chain (Lightning) payments.
 ///
-/// NOTE: Everything in this in this enum impls [`Serialize`] and
-/// [`Deserialize`], so be mindful of backwards compatibility.
+/// NOTE: Everything in this enum impls [`Serialize`] and [`Deserialize`], so be
+/// mindful of backwards compatibility.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum Payment {
@@ -64,17 +64,13 @@ pub enum Payment {
 
 /// Serializes a given payment to JSON and encrypts the payment under the given
 /// [`VfsMasterKey`], returning the [`DbPayment`] which can be persisted.
-// TODO(max): Implement an encrypt/decrypt roundtrip proptest with reduced
-// iterations once Payment has an Arbitrary impl
 pub fn encrypt(
     rng: &mut impl Crng,
     vfs_master_key: &VfsMasterKey,
     payment: &Payment,
 ) -> DbPayment {
-    let id = payment.id().to_string();
-    let aad = &[];
-
     // Serialize the payment as JSON bytes.
+    let aad = &[];
     let data_size_hint = None;
     let write_data_cb: &dyn Fn(&mut Vec<u8>) = &|mut_vec_u8| {
         serde_json::to_writer(mut_vec_u8, payment)
@@ -86,7 +82,7 @@ pub fn encrypt(
 
     DbPayment {
         created_at: payment.created_at().as_i64(),
-        id,
+        id: payment.id().to_string(),
         status: payment.status().to_string(),
         data,
     }
@@ -545,5 +541,49 @@ impl From<PaymentError> for LxPaymentError {
             PaymentError::Invoice(inner) => Self::Invoice(inner),
             PaymentError::Sending(inner) => Self::Sending(Box::new(inner)),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use common::rng::WeakRng;
+    use common::test_utils::roundtrip;
+    use common::vfs_encrypt::VfsMasterKey;
+    use proptest::arbitrary::any;
+    use proptest::test_runner::Config;
+    use proptest::{prop_assert_eq, proptest};
+
+    use super::*;
+
+    #[test]
+    fn top_level_payment_serde_roundtrip() {
+        roundtrip::json_value_canonical_proptest::<Payment>();
+    }
+
+    #[test]
+    fn low_level_payments_serde_roundtrips() {
+        use roundtrip::json_value_custom;
+        let config = Config::with_cases(16);
+        json_value_custom(any::<OnchainDeposit>(), config.clone());
+        json_value_custom(any::<OnchainWithdrawal>(), config.clone());
+        // TODO(max): Add SpliceIn
+        // TODO(max): Add SpliceOut
+        json_value_custom(any::<InboundInvoicePayment>(), config.clone());
+        json_value_custom(any::<InboundSpontaneousPayment>(), config.clone());
+        json_value_custom(any::<OutboundInvoicePayment>(), config.clone());
+        json_value_custom(any::<OutboundSpontaneousPayment>(), config);
+    }
+
+    #[test]
+    fn payment_encryption_roundtrip() {
+        proptest!(|(
+            mut rng in any::<WeakRng>(),
+            vfs_master_key in any::<VfsMasterKey>(),
+            p1 in any::<Payment>(),
+        )| {
+            let encrypted = super::encrypt(&mut rng, &vfs_master_key, &p1);
+            let p2 = super::decrypt(&vfs_master_key, encrypted).unwrap();
+            prop_assert_eq!(p1, p2);
+        })
     }
 }
