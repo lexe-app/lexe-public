@@ -83,6 +83,11 @@ class WalletPageState extends State<WalletPage> {
     super.dispose();
   }
 
+  void triggerRefresh() {
+    debugPrint("refresh triggered");
+    this.refresh.addNull();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -95,6 +100,14 @@ class WalletPageState extends State<WalletPage> {
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
+        actions: [
+          IconButton(
+            iconSize: Fonts.size700,
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => this.triggerRefresh(),
+          ),
+          const SizedBox(width: Space.s100),
+        ],
       ),
       drawer: const WalletDrawer(),
       body: ListView(
