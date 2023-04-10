@@ -18,7 +18,7 @@ final _privateConstructorUsedError = UnsupportedError(
 mixin _$BalanceState {
   int? get satsBalance => throw _privateConstructorUsedError;
   String get fiatName => throw _privateConstructorUsedError;
-  double? get fiatRate => throw _privateConstructorUsedError;
+  FiatRate? get fiatRate => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -35,7 +35,7 @@ class _$_BalanceState extends _BalanceState {
   @override
   final String fiatName;
   @override
-  final double? fiatRate;
+  final FiatRate? fiatRate;
 
   @override
   String toString() {
@@ -63,7 +63,7 @@ abstract class _BalanceState extends BalanceState {
   const factory _BalanceState(
       {required final int? satsBalance,
       required final String fiatName,
-      required final double? fiatRate}) = _$_BalanceState;
+      required final FiatRate? fiatRate}) = _$_BalanceState;
   const _BalanceState._() : super._();
 
   @override
@@ -71,5 +71,5 @@ abstract class _BalanceState extends BalanceState {
   @override
   String get fiatName;
   @override
-  double? get fiatRate;
+  FiatRate? get fiatRate;
 }

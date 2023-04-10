@@ -16,23 +16,23 @@ final _privateConstructorUsedError = UnsupportedError(
 
 /// @nodoc
 mixin _$FiatRate {
-  int get timestampMs => throw _privateConstructorUsedError;
+  String get fiat => throw _privateConstructorUsedError;
   double get rate => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
 
 class _$_FiatRate implements _FiatRate {
-  const _$_FiatRate({required this.timestampMs, required this.rate});
+  const _$_FiatRate({required this.fiat, required this.rate});
 
   @override
-  final int timestampMs;
+  final String fiat;
   @override
   final double rate;
 
   @override
   String toString() {
-    return 'FiatRate(timestampMs: $timestampMs, rate: $rate)';
+    return 'FiatRate(fiat: $fiat, rate: $rate)';
   }
 
   @override
@@ -40,24 +40,76 @@ class _$_FiatRate implements _FiatRate {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$_FiatRate &&
-            (identical(other.timestampMs, timestampMs) ||
-                other.timestampMs == timestampMs) &&
+            (identical(other.fiat, fiat) || other.fiat == fiat) &&
             (identical(other.rate, rate) || other.rate == rate));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, timestampMs, rate);
+  int get hashCode => Object.hash(runtimeType, fiat, rate);
 }
 
 abstract class _FiatRate implements FiatRate {
   const factory _FiatRate(
+      {required final String fiat, required final double rate}) = _$_FiatRate;
+
+  @override
+  String get fiat;
+  @override
+  double get rate;
+}
+
+/// @nodoc
+mixin _$FiatRates {
+  int get timestampMs => throw _privateConstructorUsedError;
+  List<FiatRate> get rates => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$_FiatRates implements _FiatRates {
+  const _$_FiatRates(
+      {required this.timestampMs, required final List<FiatRate> rates})
+      : _rates = rates;
+
+  @override
+  final int timestampMs;
+  final List<FiatRate> _rates;
+  @override
+  List<FiatRate> get rates {
+    if (_rates is EqualUnmodifiableListView) return _rates;
+    // ignore: implicit_dynamic_type
+    return EqualUnmodifiableListView(_rates);
+  }
+
+  @override
+  String toString() {
+    return 'FiatRates(timestampMs: $timestampMs, rates: $rates)';
+  }
+
+  @override
+  bool operator ==(dynamic other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$_FiatRates &&
+            (identical(other.timestampMs, timestampMs) ||
+                other.timestampMs == timestampMs) &&
+            const DeepCollectionEquality().equals(other._rates, _rates));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType, timestampMs, const DeepCollectionEquality().hash(_rates));
+}
+
+abstract class _FiatRates implements FiatRates {
+  const factory _FiatRates(
       {required final int timestampMs,
-      required final double rate}) = _$_FiatRate;
+      required final List<FiatRate> rates}) = _$_FiatRates;
 
   @override
   int get timestampMs;
   @override
-  double get rate;
+  List<FiatRate> get rates;
 }
 
 /// @nodoc

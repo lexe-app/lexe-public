@@ -6,7 +6,7 @@ import 'package:intl/intl.dart' show Intl;
 
 import 'bindings.dart' show api;
 import 'bindings_generated_api.dart'
-    show App, AppHandle, AppRs, FiatRate, NodeInfo;
+    show App, AppHandle, AppRs, FiatRate, FiatRates, NodeInfo;
 import 'route/backup_wallet.dart' show BackupWalletPage;
 import 'route/landing.dart' show LandingPage;
 import 'route/wallet.dart' show DrawerListItem, WalletPage;
@@ -54,12 +54,13 @@ class MockAppHandle extends AppHandle {
       );
 
   @override
-  Future<FiatRate> fiatRate({required String fiat, dynamic hint}) =>
-      Future.delayed(
+  Future<FiatRates> fiatRates({dynamic hint}) => Future.delayed(
         const Duration(milliseconds: 1300),
-        () => const FiatRate(
+        () => const FiatRates(
           timestampMs: 1679863795,
-          rate: 0.0000360359 /* USD/SAT */,
+          rates: [
+            FiatRate(fiat: "USD", rate: 0.0000360359 /* USD/SAT */),
+          ],
         ),
       );
 }
