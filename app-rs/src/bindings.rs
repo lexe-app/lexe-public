@@ -189,13 +189,13 @@ impl AppHandle {
     }
 
     pub fn node_info(&self) -> anyhow::Result<NodeInfo> {
-        block_on(self.inner.client().node_info())
+        block_on(self.inner.node_client().node_info())
             .map(NodeInfo::from)
             .map_err(anyhow::Error::new)
     }
 
     pub fn fiat_rates(&self) -> anyhow::Result<FiatRates> {
-        block_on(self.inner.client().get_fiat_rates())
+        block_on(self.inner.gateway_client().get_fiat_rates())
             .map(FiatRates::from)
             .map_err(anyhow::Error::new)
     }
