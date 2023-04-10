@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use tracing::warn;
 
 #[cfg(doc)]
-use crate::command::get_invoice;
+use crate::command::create_invoice;
 use crate::payments::manager::CheckedPayment;
 use crate::payments::Payment;
 
@@ -134,22 +134,22 @@ impl Payment {
 // --- Inbound invoice payments --- //
 
 /// A 'conventional' inbound payment which is facilitated by an invoice.
-/// This struct is created when we call [`get_invoice`].
+/// This struct is created when we call [`create_invoice`].
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct InboundInvoicePayment {
-    /// Created in [`get_invoice`].
+    /// Created in [`create_invoice`].
     // LxInvoice is ~300 bytes, Box to avoid the enum variant lint
     pub invoice: Box<LxInvoice>,
     /// Returned by [`ChannelManager::create_inbound_payment`] inside
-    /// [`get_invoice`].
+    /// [`create_invoice`].
     pub hash: LxPaymentHash,
     /// Returned by [`ChannelManager::create_inbound_payment`] inside
-    /// [`get_invoice`].
+    /// [`create_invoice`].
     pub secret: LxPaymentSecret,
     /// Returned by:
     /// - the call to [`ChannelManager::get_payment_preimage`] inside
-    ///   [`get_invoice`].
+    ///   [`create_invoice`].
     /// - the [`PaymentPurpose`] field of the [`PaymentClaimable`] event.
     /// - the [`PaymentPurpose`] field of the [`PaymentClaimed`] event.
     pub preimage: LxPaymentPreimage,

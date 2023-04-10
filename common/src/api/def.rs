@@ -23,7 +23,7 @@ use async_trait::async_trait;
 use crate::api::auth::{
     BearerAuthRequest, BearerAuthResponse, BearerAuthToken, UserSignupRequest,
 };
-use crate::api::command::{GetInvoiceRequest, ListChannels, NodeInfo};
+use crate::api::command::{CreateInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::error::{
     BackendApiError, LspApiError, NodeApiError, RunnerApiError,
 };
@@ -248,10 +248,10 @@ pub trait AppNodeRunApi {
     /// [`EmptyData`]: super::qs::EmptyData
     async fn list_channels(&self) -> Result<ListChannels, NodeApiError>;
 
-    /// POST /app/get_invoice [`GetInvoiceRequest`] -> [`ListChannels`]
-    async fn get_invoice(
+    /// POST /app/create_invoice [`CreateInvoiceRequest`] -> [`ListChannels`]
+    async fn create_invoice(
         &self,
-        req: GetInvoiceRequest,
+        req: CreateInvoiceRequest,
     ) -> Result<LxInvoice, NodeApiError>;
 
     /// POST /app/send_payment [`LxInvoice`] -> [`()`]

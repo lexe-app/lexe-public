@@ -18,7 +18,7 @@ pub struct ListChannels {
 }
 
 #[derive(Default, Serialize, Deserialize)]
-pub struct GetInvoiceRequest {
+pub struct CreateInvoiceRequest {
     pub expiry_secs: u32,
     pub amt_msat: Option<u64>,
     pub description: String,

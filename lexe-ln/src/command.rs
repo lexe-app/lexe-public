@@ -3,7 +3,7 @@ use std::time::Duration;
 use anyhow::{anyhow, Context};
 use bitcoin::bech32::ToBase32;
 use bitcoin::hashes::{sha256, Hash};
-use common::api::command::{GetInvoiceRequest, NodeInfo};
+use common::api::command::{CreateInvoiceRequest, NodeInfo};
 use common::api::{NodePk, Scid};
 use common::cli::{LspInfo, Network};
 use common::ln::invoice::LxInvoice;
@@ -25,14 +25,14 @@ use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 /// The number of times to retry a failed payment in `send_payment`.
 const PAYMENT_RETRY_ATTEMPTS: usize = 3;
 
-/// Specifies whether it is the user node or the LSP calling the [`get_invoice`]
-/// fn. There are some differences between how the user node and LSP
-/// generate invoices which this tiny enum makes clearer.
+/// Specifies whether it is the user node or the LSP calling the
+/// [`create_invoice`] fn. There are some differences between how the user node
+/// and LSP generate invoices which this tiny enum makes clearer.
 #[derive(Clone)]
-pub enum GetInvoiceCaller {
-    /// When a user node calls [`get_invoice`], it must provide an [`LspInfo`],
-    /// which is required for generating a [`RouteHintHop`] for receiving a
-    /// payment over a JIT channel with the LSP.
+pub enum CreateInvoiceCaller {
+    /// When a user node calls [`create_invoice`], it must provide an
+    /// [`LspInfo`], which is required for generating a [`RouteHintHop`] for
+    /// receiving a payment over a JIT channel with the LSP.
     UserNode {
         lsp_info: LspInfo,
         scid: Scid,
@@ -64,12 +64,12 @@ where
     }
 }
 
-pub async fn get_invoice<CM, PS>(
-    req: GetInvoiceRequest,
+pub async fn create_invoice<CM, PS>(
+    req: CreateInvoiceRequest,
     channel_manager: CM,
     keys_manager: LexeKeysManager,
     payments_manager: PaymentsManager<CM, PS>,
-    caller: GetInvoiceCaller,
+    caller: CreateInvoiceCaller,
     network: Network,
 ) -> anyhow::Result<LxInvoice>
 where
@@ -78,7 +78,7 @@ where
 {
     let amt_msat = &req.amt_msat;
     let cltv_expiry = MIN_FINAL_CLTV_EXPIRY_DELTA;
-    info!("Handling get_invoice command for {amt_msat:?} msats");
+    info!("Handling create_invoice command for {amt_msat:?} msats");
 
     // TODO(max): We should set some sane maximum for the invoice expiry time,
     // e.g. 180 days. This will not cause LDK state to blow up since
@@ -232,7 +232,7 @@ where
 // one for LSP), the function can be moved to the LexeChannelManager trait.
 fn get_route_hints<CM, PS>(
     channel_manager: CM,
-    caller: GetInvoiceCaller,
+    caller: CreateInvoiceCaller,
     min_inbound_capacity_msat: Option<u64>,
 ) -> Vec<RouteHint>
 where
@@ -245,18 +245,18 @@ where
     let min_inbound_capacity_msat = min_inbound_capacity_msat.unwrap_or(0);
 
     let (lsp_info, scid) = match caller {
-        GetInvoiceCaller::Lsp => {
-            // If the LSP is calling get_invoice, include no hints and let the
-            // sender route to us by looking at the lightning network graph.
-            debug!("get_invoice caller was LSP; returning 0 route hints");
+        CreateInvoiceCaller::Lsp => {
+            // If the LSP is calling create_invoice, include no hints and let
+            // the sender route to us by looking at the lightning network graph.
+            debug!("create_invoice caller was LSP; returning 0 route hints");
             if !all_channels.iter().any(|channel| channel.is_public) {
                 warn!("LSP requested invoice but has no public channels");
             }
             return Vec::new();
         }
-        GetInvoiceCaller::UserNode { lsp_info, scid } => (lsp_info, scid),
+        CreateInvoiceCaller::UserNode { lsp_info, scid } => (lsp_info, scid),
     };
-    // From this point on, we know that the user node called get_invoice.
+    // From this point on, we know that the user node called create_invoice.
 
     // NOTE on multi-path payments: Eventually, we may want to include route
     // hints for channels that individually do not have sufficient liquidity to
