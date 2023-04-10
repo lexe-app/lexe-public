@@ -14,7 +14,7 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
 #[cfg(doc)]
-use crate::command::send_payment;
+use crate::command::pay_invoice;
 
 // --- Outbound invoice payments --- //
 
@@ -49,7 +49,7 @@ pub struct OutboundInvoicePayment {
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum OutboundInvoicePaymentStatus {
-    /// We initiated the payment with [`send_payment`].
+    /// We initiated the payment with [`pay_invoice`].
     Pending,
     /// We received a [`PaymentSent`] event.
     Completed,

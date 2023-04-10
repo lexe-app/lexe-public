@@ -102,12 +102,12 @@ pub(crate) fn app_routes(
         .then(lexe_ln::command::create_invoice)
         .map(into_command_api_result)
         .map(into_response);
-    let send_payment = warp::path("send_payment")
+    let pay_invoice = warp::path("pay_invoice")
         .and(warp::post())
         .and(warp::body::json::<LxInvoice>())
         .and(inject::channel_manager(channel_manager))
         .and(inject::outbound_payments(outbound_payments))
-        .map(lexe_ln::command::send_payment)
+        .map(lexe_ln::command::pay_invoice)
         .map(into_command_api_result)
         .map(into_response);
 
@@ -130,7 +130,7 @@ pub(crate) fn app_routes(
         node_info
             .or(list_channels)
             .or(create_invoice)
-            .or(send_payment)
+            .or(pay_invoice)
             .or(payments),
     );
 
