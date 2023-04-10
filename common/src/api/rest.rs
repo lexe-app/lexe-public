@@ -65,7 +65,7 @@ where
         .context("Could not create hyper Server")?
         .serve(make_service);
     let socket_addr = server.local_addr();
-    // Instead of giving the graceful shutduwn future to hyper directly, we
+    // Instead of giving the graceful shutdown future to hyper directly, we
     // let the spawned task wait on it so that we can enforce a hyper timeout.
     let shutdown = ShutdownChannel::new();
     let graceful_server =
