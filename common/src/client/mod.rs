@@ -291,13 +291,13 @@ impl AppNodeRunApi for NodeClient {
         self.rest.send(req).await
     }
 
-    async fn send_payment(
+    async fn pay_invoice(
         &self,
         invoice: LxInvoice,
     ) -> Result<(), NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/app/send_payment");
+        let url = format!("{run_url}/app/pay_invoice");
         let req = self.rest.post(url, &invoice);
         self.rest.send(req).await
     }

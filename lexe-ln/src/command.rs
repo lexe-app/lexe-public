@@ -22,7 +22,7 @@ use crate::payments::manager::PaymentsManager;
 use crate::payments::{HTLCStatus, LxPaymentError, PaymentInfo};
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
-/// The number of times to retry a failed payment in `send_payment`.
+/// The number of times to retry a failed payment in `pay_invoice`.
 const PAYMENT_RETRY_ATTEMPTS: usize = 3;
 
 /// Specifies whether it is the user node or the LSP calling the
@@ -169,7 +169,7 @@ where
     Ok(invoice)
 }
 
-pub fn send_payment<CM, PS>(
+pub fn pay_invoice<CM, PS>(
     invoice: LxInvoice,
     channel_manager: CM,
     outbound_payments: PaymentInfoStorageType,

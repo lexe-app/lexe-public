@@ -254,8 +254,8 @@ pub trait AppNodeRunApi {
         req: CreateInvoiceRequest,
     ) -> Result<LxInvoice, NodeApiError>;
 
-    /// POST /app/send_payment [`LxInvoice`] -> [`()`]
-    async fn send_payment(&self, req: LxInvoice) -> Result<(), NodeApiError>;
+    /// POST /app/pay_invoice [`LxInvoice`] -> [`()`]
+    async fn pay_invoice(&self, req: LxInvoice) -> Result<(), NodeApiError>;
 
     /// POST /v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
     ///
