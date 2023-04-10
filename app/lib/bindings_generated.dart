@@ -117,24 +117,23 @@ class AppRsImpl implements AppRs {
         argNames: ["that"],
       );
 
-  Future<FiatRate> fiatRateMethodAppHandle(
-      {required AppHandle that, required String fiat, dynamic hint}) {
+  Future<FiatRates> fiatRatesMethodAppHandle(
+      {required AppHandle that, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
-    var arg1 = _platform.api2wire_String(fiat);
     return _platform.executeNormal(FlutterRustBridgeTask(
       callFfi: (port_) =>
-          _platform.inner.wire_fiat_rate__method__AppHandle(port_, arg0, arg1),
-      parseSuccessData: _wire2api_fiat_rate,
-      constMeta: kFiatRateMethodAppHandleConstMeta,
-      argValues: [that, fiat],
+          _platform.inner.wire_fiat_rates__method__AppHandle(port_, arg0),
+      parseSuccessData: _wire2api_fiat_rates,
+      constMeta: kFiatRatesMethodAppHandleConstMeta,
+      argValues: [that],
       hint: hint,
     ));
   }
 
-  FlutterRustBridgeTaskConstMeta get kFiatRateMethodAppHandleConstMeta =>
+  FlutterRustBridgeTaskConstMeta get kFiatRatesMethodAppHandleConstMeta =>
       const FlutterRustBridgeTaskConstMeta(
-        debugName: "fiat_rate__method__AppHandle",
-        argNames: ["that", "fiat"],
+        debugName: "fiat_rates__method__AppHandle",
+        argNames: ["that"],
       );
 
   DropFnType get dropOpaqueApp => _platform.inner.drop_opaque_App;
@@ -192,8 +191,18 @@ class AppRsImpl implements AppRs {
     if (arr.length != 2)
       throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
     return FiatRate(
-      timestampMs: _wire2api_i64(arr[0]),
+      fiat: _wire2api_String(arr[0]),
       rate: _wire2api_f64(arr[1]),
+    );
+  }
+
+  FiatRates _wire2api_fiat_rates(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return FiatRates(
+      timestampMs: _wire2api_i64(arr[0]),
+      rates: _wire2api_list_fiat_rate(arr[1]),
     );
   }
 
@@ -203,6 +212,10 @@ class AppRsImpl implements AppRs {
 
   int _wire2api_i64(dynamic raw) {
     return castInt(raw);
+  }
+
+  List<FiatRate> _wire2api_list_fiat_rate(dynamic raw) {
+    return (raw as List<dynamic>).map(_wire2api_fiat_rate).toList();
   }
 
   Network _wire2api_network(dynamic raw) {
@@ -510,27 +523,23 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _wire_node_info__method__AppHandlePtr
           .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
 
-  void wire_fiat_rate__method__AppHandle(
+  void wire_fiat_rates__method__AppHandle(
     int port_,
     ffi.Pointer<wire_AppHandle> that,
-    ffi.Pointer<wire_uint_8_list> fiat,
   ) {
-    return _wire_fiat_rate__method__AppHandle(
+    return _wire_fiat_rates__method__AppHandle(
       port_,
       that,
-      fiat,
     );
   }
 
-  late final _wire_fiat_rate__method__AppHandlePtr = _lookup<
+  late final _wire_fiat_rates__method__AppHandlePtr = _lookup<
           ffi.NativeFunction<
-              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>,
-                  ffi.Pointer<wire_uint_8_list>)>>(
-      'wire_fiat_rate__method__AppHandle');
-  late final _wire_fiat_rate__method__AppHandle =
-      _wire_fiat_rate__method__AppHandlePtr.asFunction<
-          void Function(int, ffi.Pointer<wire_AppHandle>,
-              ffi.Pointer<wire_uint_8_list>)>();
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>)>>(
+      'wire_fiat_rates__method__AppHandle');
+  late final _wire_fiat_rates__method__AppHandle =
+      _wire_fiat_rates__method__AppHandlePtr
+          .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
 
   wire_App new_App() {
     return _new_App();

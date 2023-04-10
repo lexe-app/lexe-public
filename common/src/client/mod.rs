@@ -18,11 +18,15 @@ use crate::api::auth::{
 };
 use crate::api::command::{CreateInvoiceRequest, ListChannels, NodeInfo};
 use crate::api::def::{
-    AppBackendApi, AppNodeProvisionApi, AppNodeRunApi, BearerAuthBackendApi,
+    AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
+    BearerAuthBackendApi,
 };
-use crate::api::error::{BackendApiError, NodeApiError, NodeErrorKind};
+use crate::api::error::{
+    BackendApiError, GatewayApiError, NodeApiError, NodeErrorKind,
+};
+use crate::api::fiat_rates::FiatRates;
 use crate::api::provision::NodeProvisionRequest;
-use crate::api::qs::{GetNewPayments, GetPaymentsByIds};
+use crate::api::qs::{EmptyData, GetNewPayments, GetPaymentsByIds};
 use crate::api::rest::{RequestBuilderExt, RestClient, GET, POST};
 use crate::ln::invoice::LxInvoice;
 use crate::ln::payments::BasicPayment;
@@ -245,6 +249,17 @@ impl BearerAuthBackendApi for NodeClient {
             .builder(POST, format!("{gateway_url}/app/bearer_auth"))
             .signed_bcs(signed_req)
             .map_err(BackendApiError::bcs_serialize)?;
+        self.rest.send(req).await
+    }
+}
+
+#[async_trait]
+impl AppGatewayApi for NodeClient {
+    async fn get_fiat_rates(&self) -> Result<FiatRates, GatewayApiError> {
+        let gateway_url = &self.gateway_url;
+        let req = self
+            .rest
+            .get(format!("{gateway_url}/app/v1/fiat_rates"), &EmptyData {});
         self.rest.send(req).await
     }
 }

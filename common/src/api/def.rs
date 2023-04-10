@@ -20,6 +20,8 @@
 
 use async_trait::async_trait;
 
+use super::error::GatewayApiError;
+use super::fiat_rates::FiatRates;
 use crate::api::auth::{
     BearerAuthRequest, BearerAuthResponse, BearerAuthToken, UserSignupRequest,
 };
@@ -275,4 +277,11 @@ pub trait AppNodeRunApi {
         &self,
         req: GetNewPayments,
     ) -> Result<Vec<BasicPayment>, NodeApiError>;
+}
+
+/// Defines the api that the gateway directly exposes to the app.
+#[async_trait]
+pub trait AppGatewayApi {
+    /// GET /app/v1/fiat_rates [`()`] -> [`FiatRates`]
+    async fn get_fiat_rates(&self) -> Result<FiatRates, GatewayApiError>;
 }

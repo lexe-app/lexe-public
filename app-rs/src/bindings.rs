@@ -41,11 +41,11 @@
 
 use std::future::Future;
 
-use anyhow::{ensure, Context};
+use anyhow::Context;
 use common::api::command::NodeInfo as NodeInfoRs;
-use common::api::def::AppNodeRunApi;
+use common::api::def::{AppGatewayApi, AppNodeRunApi};
+use common::api::fiat_rates::FiatRates as FiatRatesRs;
 use common::rng::SysRng;
-use common::time::TimestampMs;
 use flutter_rust_bridge::{frb, RustOpaque, SyncReturn};
 
 pub use crate::app::App;
@@ -81,11 +81,33 @@ impl From<NodeInfoRs> for NodeInfo {
 }
 
 #[frb(dart_metadata=("freezed"))]
-pub struct FiatRate {
-    /// The unix timestamp of the Fiat/SATS exchange rate quote.
+pub struct FiatRates {
     pub timestamp_ms: i64,
-    /// The exchange rate in Fiat/SATS.
+    // Sadly, the bridge doesn't currently support maps or tuples so... we'll
+    // settle for a list...
+    pub rates: Vec<FiatRate>,
+}
+
+#[frb(dart_metadata=("freezed"))]
+pub struct FiatRate {
+    pub fiat: String,
     pub rate: f64,
+}
+
+impl From<FiatRatesRs> for FiatRates {
+    fn from(value: FiatRatesRs) -> Self {
+        Self {
+            timestamp_ms: value.timestamp_ms.as_i64(),
+            rates: value
+                .rates
+                .into_iter()
+                .map(|(fiat, rate)| FiatRate {
+                    fiat: fiat.0,
+                    rate: rate.0,
+                })
+                .collect(),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -172,13 +194,9 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
-    pub fn fiat_rate(&self, fiat: String) -> anyhow::Result<FiatRate> {
-        ensure!(fiat == "USD", "Unknown Fiat currency");
-
-        Ok(FiatRate {
-            timestamp_ms: TimestampMs::now().as_i64(),
-            // ~27,763 USD / BTC
-            rate: 0.0000360359,
-        })
+    pub fn fiat_rates(&self) -> anyhow::Result<FiatRates> {
+        block_on(self.inner.client().get_fiat_rates())
+            .map(FiatRates::from)
+            .map_err(anyhow::Error::new)
     }
 }

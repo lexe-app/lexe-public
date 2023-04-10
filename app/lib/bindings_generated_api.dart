@@ -35,10 +35,10 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kNodeInfoMethodAppHandleConstMeta;
 
-  Future<FiatRate> fiatRateMethodAppHandle(
-      {required AppHandle that, required String fiat, dynamic hint});
+  Future<FiatRates> fiatRatesMethodAppHandle(
+      {required AppHandle that, dynamic hint});
 
-  FlutterRustBridgeTaskConstMeta get kFiatRateMethodAppHandleConstMeta;
+  FlutterRustBridgeTaskConstMeta get kFiatRatesMethodAppHandleConstMeta;
 
   DropFnType get dropOpaqueApp;
   ShareFnType get shareOpaqueApp;
@@ -89,10 +89,9 @@ class AppHandle {
         that: this,
       );
 
-  Future<FiatRate> fiatRate({required String fiat, dynamic hint}) =>
-      bridge.fiatRateMethodAppHandle(
+  Future<FiatRates> fiatRates({dynamic hint}) =>
+      bridge.fiatRatesMethodAppHandle(
         that: this,
-        fiat: fiat,
       );
 }
 
@@ -121,9 +120,17 @@ enum DeployEnv {
 @freezed
 class FiatRate with _$FiatRate {
   const factory FiatRate({
-    required int timestampMs,
+    required String fiat,
     required double rate,
   }) = _FiatRate;
+}
+
+@freezed
+class FiatRates with _$FiatRates {
+  const factory FiatRates({
+    required int timestampMs,
+    required List<FiatRate> rates,
+  }) = _FiatRates;
 }
 
 enum Network {
