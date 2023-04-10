@@ -34,14 +34,85 @@ use crate::rng::Crng;
 use crate::root_seed::RootSeed;
 use crate::{attest, ed25519};
 
-/// The Lexe app's client to the user node.
-pub struct NodeClient {
+/// The Lexe app's client to the gateway itself.
+#[derive(Clone)]
+pub struct GatewayClient {
     rest: RestClient,
     gateway_url: String,
+}
+
+/// The Lexe app's client to the user node.
+///
+/// Requests are proxied via the gateway CONNECT proxies. These proxies avoid
+/// exposing user nodes to the public internet and enforce user authentication
+/// and other request rate limits.
+pub struct NodeClient {
+    rest: RestClient,
+    gateway_client: GatewayClient,
     provision_url: &'static str,
     run_url: &'static str,
     authenticator: Arc<BearerAuthenticator>,
 }
+
+// --- impl GatewayClient --- //
+
+impl UnwindSafe for GatewayClient {}
+impl RefUnwindSafe for GatewayClient {}
+
+impl GatewayClient {
+    pub fn new(gateway_url: String) -> Self {
+        // TODO(phlip9): gateway TLS config
+        Self {
+            rest: RestClient::new(),
+            gateway_url,
+        }
+    }
+}
+
+#[async_trait]
+impl AppBackendApi for GatewayClient {
+    async fn signup(
+        &self,
+        signed_req: ed25519::Signed<UserSignupRequest>,
+    ) -> Result<(), BackendApiError> {
+        let gateway_url = &self.gateway_url;
+        let req = self
+            .rest
+            .builder(POST, format!("{gateway_url}/app/v1/signup"))
+            .signed_bcs(signed_req)
+            .map_err(BackendApiError::bcs_serialize)?;
+        self.rest.send(req).await
+    }
+}
+
+#[async_trait]
+impl BearerAuthBackendApi for GatewayClient {
+    async fn bearer_auth(
+        &self,
+        signed_req: ed25519::Signed<BearerAuthRequest>,
+    ) -> Result<BearerAuthResponse, BackendApiError> {
+        let gateway_url = &self.gateway_url;
+        let req = self
+            .rest
+            .builder(POST, format!("{gateway_url}/app/bearer_auth"))
+            .signed_bcs(signed_req)
+            .map_err(BackendApiError::bcs_serialize)?;
+        self.rest.send(req).await
+    }
+}
+
+#[async_trait]
+impl AppGatewayApi for GatewayClient {
+    async fn get_fiat_rates(&self) -> Result<FiatRates, GatewayApiError> {
+        let gateway_url = &self.gateway_url;
+        let req = self
+            .rest
+            .get(format!("{gateway_url}/app/v1/fiat_rates"), &EmptyData {});
+        self.rest.send(req).await
+    }
+}
+
+// --- impl NodeClient --- //
 
 // Why are we manually impl'ing `UnwindSafe` and `RefUnwindSafe` for
 // `NodeClient`?
@@ -103,14 +174,14 @@ impl NodeClient {
         rng: &mut R,
         seed: &RootSeed,
         authenticator: Arc<BearerAuthenticator>,
-        gateway_url: String,
+        gateway_client: GatewayClient,
         gateway_ca: &rustls::Certificate,
         attest_verifier: attest::ServerCertVerifier,
         provision_url: &'static str,
         run_url: &'static str,
     ) -> anyhow::Result<Self> {
         let proxy = Self::proxy_config(
-            &gateway_url,
+            &gateway_client.gateway_url,
             provision_url,
             run_url,
             authenticator.clone(),
@@ -120,18 +191,18 @@ impl NodeClient {
         let tls =
             tls::client_tls_config(rng, gateway_ca, seed, attest_verifier)?;
 
-        let client = reqwest::Client::builder()
+        let reqwest_client = reqwest::Client::builder()
             .proxy(proxy)
-            .user_agent("lexe-client")
+            .user_agent("lexe-node-client")
             .use_preconfigured_tls(tls)
             .build()
             .context("Failed to build client")?;
 
-        let rest = RestClient::from_preconfigured_client(client);
+        let rest = RestClient::from_preconfigured_client(reqwest_client);
 
         Ok(Self {
             rest,
-            gateway_url,
+            gateway_client,
             provision_url,
             run_url,
             authenticator,
@@ -207,7 +278,7 @@ impl NodeClient {
     /// to always call `ensure_authed()` in each request caller...
     async fn ensure_authed(&self) -> Result<(), NodeApiError> {
         self.authenticator
-            .get_token(self, SystemTime::now())
+            .get_token(&self.gateway_client, SystemTime::now())
             .await
             .map(|_token| ())
             .map_err(|err| {
@@ -218,49 +289,6 @@ impl NodeClient {
                     msg: format!("{err:#}"),
                 }
             })
-    }
-}
-
-#[async_trait]
-impl AppBackendApi for NodeClient {
-    async fn signup(
-        &self,
-        signed_req: ed25519::Signed<UserSignupRequest>,
-    ) -> Result<(), BackendApiError> {
-        let gateway_url = &self.gateway_url;
-        let req = self
-            .rest
-            .builder(POST, format!("{gateway_url}/app/v1/signup"))
-            .signed_bcs(signed_req)
-            .map_err(BackendApiError::bcs_serialize)?;
-        self.rest.send(req).await
-    }
-}
-
-#[async_trait]
-impl BearerAuthBackendApi for NodeClient {
-    async fn bearer_auth(
-        &self,
-        signed_req: ed25519::Signed<BearerAuthRequest>,
-    ) -> Result<BearerAuthResponse, BackendApiError> {
-        let gateway_url = &self.gateway_url;
-        let req = self
-            .rest
-            .builder(POST, format!("{gateway_url}/app/bearer_auth"))
-            .signed_bcs(signed_req)
-            .map_err(BackendApiError::bcs_serialize)?;
-        self.rest.send(req).await
-    }
-}
-
-#[async_trait]
-impl AppGatewayApi for NodeClient {
-    async fn get_fiat_rates(&self) -> Result<FiatRates, GatewayApiError> {
-        let gateway_url = &self.gateway_url;
-        let req = self
-            .rest
-            .get(format!("{gateway_url}/app/v1/fiat_rates"), &EmptyData {});
-        self.rest.send(req).await
     }
 }
 

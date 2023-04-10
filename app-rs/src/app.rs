@@ -9,7 +9,7 @@ use common::api::def::{AppBackendApi, AppNodeProvisionApi};
 use common::api::provision::NodeProvisionRequest;
 use common::api::{NodePk, NodePkProof, UserPk};
 use common::client::tls::dummy_lexe_ca_cert;
-use common::client::NodeClient;
+use common::client::{GatewayClient, NodeClient};
 use common::rng::Crng;
 use common::root_seed::RootSeed;
 use common::{attest, constants, enclave, Secret};
@@ -20,6 +20,7 @@ use crate::secret_store::SecretStore;
 
 pub struct App {
     secret_store: SecretStore,
+    gateway_client: GatewayClient,
     node_client: NodeClient,
 }
 
@@ -82,11 +83,13 @@ impl App {
         let bearer_authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
 
+        let gateway_client = GatewayClient::new(gateway_url);
+
         let node_client = NodeClient::new(
             rng,
             &root_seed,
             bearer_authenticator,
-            gateway_url,
+            gateway_client.clone(),
             &dummy_lexe_ca_cert(),
             attest_verifier,
             constants::NODE_PROVISION_HTTPS,
@@ -98,7 +101,7 @@ impl App {
 
         // signup the user
 
-        node_client
+        gateway_client
             .signup(signed_signup_req.cloned())
             .await
             .context("Failed to signup user")?;
@@ -136,11 +139,16 @@ impl App {
         Ok(Self {
             secret_store,
             node_client,
+            gateway_client,
         })
     }
 
-    pub fn client(&self) -> &NodeClient {
+    pub fn node_client(&self) -> &NodeClient {
         &self.node_client
+    }
+
+    pub fn gateway_client(&self) -> &GatewayClient {
+        &self.gateway_client
     }
 
     pub fn secret_store(&self) -> &SecretStore {
