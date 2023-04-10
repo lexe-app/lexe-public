@@ -8,7 +8,7 @@ use common::api::UserPk;
 use common::cli::Network;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
-use lexe_ln::command::GetInvoiceCaller;
+use lexe_ln::command::CreateInvoiceCaller;
 use lexe_ln::keys_manager::LexeKeysManager;
 use warp::Filter;
 
@@ -83,11 +83,11 @@ pub(crate) fn outbound_payments(
     warp::any().map(move || outbound_payments.clone())
 }
 
-/// Injects a [`GetInvoiceCaller`].
-pub(crate) fn get_invoice_caller(
-    get_invoice_caller: GetInvoiceCaller,
-) -> impl Filter<Extract = (GetInvoiceCaller,), Error = Infallible> + Clone {
-    warp::any().map(move || get_invoice_caller.clone())
+/// Injects a [`CreateInvoiceCaller`].
+pub(crate) fn create_invoice_caller(
+    create_invoice_caller: CreateInvoiceCaller,
+) -> impl Filter<Extract = (CreateInvoiceCaller,), Error = Infallible> + Clone {
+    warp::any().map(move || create_invoice_caller.clone())
 }
 
 /// Injects the [`Network`] the node is running on.

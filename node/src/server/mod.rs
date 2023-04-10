@@ -12,7 +12,7 @@
 
 use std::sync::Arc;
 
-use common::api::command::GetInvoiceRequest;
+use common::api::command::CreateInvoiceRequest;
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::qs::{GetByUserPk, GetNewPayments, GetPaymentsByIds};
 use common::api::rest::{into_response, into_succ_response};
@@ -21,7 +21,7 @@ use common::cli::{LspInfo, Network};
 use common::ln::invoice::LxInvoice;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
-use lexe_ln::command::GetInvoiceCaller;
+use lexe_ln::command::CreateInvoiceCaller;
 use lexe_ln::keys_manager::LexeKeysManager;
 use tokio::sync::mpsc;
 use tracing::trace;
@@ -89,18 +89,17 @@ pub(crate) fn app_routes(
         .and(inject::network_graph(network_graph))
         .map(app::list_channels)
         .map(into_response);
-    let get_invoice = warp::path("get_invoice")
+    let create_invoice = warp::path("create_invoice")
         .and(warp::post())
-        .and(warp::body::json::<GetInvoiceRequest>())
+        .and(warp::body::json::<CreateInvoiceRequest>())
         .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::keys_manager(keys_manager))
         .and(inject::payments_manager(payments_manager))
-        .and(inject::get_invoice_caller(GetInvoiceCaller::UserNode {
-            lsp_info,
-            scid,
-        }))
+        .and(inject::create_invoice_caller(
+            CreateInvoiceCaller::UserNode { lsp_info, scid },
+        ))
         .and(inject::network(network))
-        .then(lexe_ln::command::get_invoice)
+        .then(lexe_ln::command::create_invoice)
         .map(into_command_api_result)
         .map(into_response);
     let send_payment = warp::path("send_payment")
@@ -130,7 +129,7 @@ pub(crate) fn app_routes(
     let app = app_base.and(
         node_info
             .or(list_channels)
-            .or(get_invoice)
+            .or(create_invoice)
             .or(send_payment)
             .or(payments),
     );
