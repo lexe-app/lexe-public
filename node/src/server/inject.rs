@@ -7,7 +7,7 @@ use std::sync::Arc;
 use common::api::UserPk;
 use common::cli::Network;
 use common::shutdown::ShutdownChannel;
-use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
+use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType, RouterType};
 use lexe_ln::command::CreateInvoiceCaller;
 use lexe_ln::keys_manager::LexeKeysManager;
 use warp::Filter;
@@ -36,6 +36,13 @@ pub(crate) fn persister(
     persister: NodePersister,
 ) -> impl Filter<Extract = (NodePersister,), Error = Infallible> + Clone {
     warp::any().map(move || persister.clone())
+}
+
+/// Injects a router.
+pub(crate) fn router(
+    router: Arc<RouterType>,
+) -> impl Filter<Extract = (Arc<RouterType>,), Error = Infallible> + Clone {
+    warp::any().map(move || router.clone())
 }
 
 /// Injects a channel manager.
