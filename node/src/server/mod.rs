@@ -20,7 +20,7 @@ use common::api::{Scid, UserPk};
 use common::cli::{LspInfo, Network};
 use common::ln::invoice::LxInvoice;
 use common::shutdown::ShutdownChannel;
-use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
+use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType, RouterType};
 use lexe_ln::command::CreateInvoiceCaller;
 use lexe_ln::keys_manager::LexeKeysManager;
 use tokio::sync::mpsc;
@@ -55,6 +55,7 @@ fn into_command_api_result<T>(
 /// [`AppNodeRunApi`]: common::api::def::AppNodeRunApi
 pub(crate) fn app_routes(
     persister: NodePersister,
+    router: Arc<RouterType>,
     channel_manager: NodeChannelManager,
     peer_manager: NodePeerManager,
     network_graph: Arc<NetworkGraphType>,
@@ -105,6 +106,7 @@ pub(crate) fn app_routes(
     let pay_invoice = warp::path("pay_invoice")
         .and(warp::post())
         .and(warp::body::json::<LxInvoice>())
+        .and(inject::router(router))
         .and(inject::channel_manager(channel_manager))
         .and(inject::outbound_payments(outbound_payments))
         .map(lexe_ln::command::pay_invoice)

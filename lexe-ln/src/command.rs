@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Context};
@@ -15,7 +16,7 @@ use lightning::routing::router::{RouteHint, RouteHintHop};
 use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
 use tracing::{debug, info, warn};
 
-use crate::alias::PaymentInfoStorageType;
+use crate::alias::{PaymentInfoStorageType, RouterType};
 use crate::keys_manager::LexeKeysManager;
 use crate::payments::inbound::InboundInvoicePayment;
 use crate::payments::manager::PaymentsManager;
@@ -171,6 +172,8 @@ where
 
 pub fn pay_invoice<CM, PS>(
     invoice: LxInvoice,
+    // TODO(max): Use this
+    _router: Arc<RouterType>,
     channel_manager: CM,
     outbound_payments: PaymentInfoStorageType,
 ) -> anyhow::Result<()>

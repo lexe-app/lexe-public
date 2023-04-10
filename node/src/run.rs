@@ -23,7 +23,7 @@ use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
     BroadcasterType, EsploraSyncClientType, FeeEstimatorType, NetworkGraphType,
     OnionMessengerType, P2PGossipSyncType, PaymentInfoStorageType,
-    ProbabilisticScorerType,
+    ProbabilisticScorerType, RouterType,
 };
 use lexe_ln::background_processor::LexeBackgroundProcessor;
 use lexe_ln::esplora::LexeEsplora;
@@ -84,6 +84,7 @@ pub struct UserNode {
     pub(crate) network_graph: Arc<NetworkGraphType>,
     gossip_sync: Arc<P2PGossipSyncType>,
     scorer: Arc<Mutex<ProbabilisticScorerType>>,
+    pub router: Arc<RouterType>,
     pub channel_manager: NodeChannelManager,
     onion_messenger: Arc<OnionMessengerType>,
     pub peer_manager: NodePeerManager,
@@ -385,6 +386,7 @@ impl UserNode {
         // Start warp service for app
         let app_routes = server::app_routes(
             persister.clone(),
+            router.clone(),
             channel_manager.clone(),
             peer_manager.clone(),
             network_graph.clone(),
@@ -475,6 +477,7 @@ impl UserNode {
             network_graph,
             gossip_sync,
             scorer,
+            router,
             channel_manager,
             onion_messenger,
             peer_manager,
