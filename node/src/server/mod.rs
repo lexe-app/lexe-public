@@ -12,13 +12,12 @@
 
 use std::sync::Arc;
 
-use common::api::command::CreateInvoiceRequest;
+use common::api::command::{CreateInvoiceRequest, PayInvoiceRequest};
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::qs::{GetByUserPk, GetNewPayments, GetPaymentsByIds};
 use common::api::rest::{into_response, into_succ_response};
 use common::api::{Scid, UserPk};
 use common::cli::{LspInfo, Network};
-use common::ln::invoice::LxInvoice;
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType, RouterType};
 use lexe_ln::command::CreateInvoiceCaller;
@@ -105,7 +104,7 @@ pub(crate) fn app_routes(
         .map(into_response);
     let pay_invoice = warp::path("pay_invoice")
         .and(warp::post())
-        .and(warp::body::json::<LxInvoice>())
+        .and(warp::body::json::<PayInvoiceRequest>())
         .and(inject::router(router))
         .and(inject::channel_manager(channel_manager))
         .and(inject::outbound_payments(outbound_payments))

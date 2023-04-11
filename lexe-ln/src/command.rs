@@ -4,7 +4,7 @@ use std::time::{Duration, SystemTime};
 use anyhow::{anyhow, Context};
 use bitcoin::bech32::ToBase32;
 use bitcoin::hashes::{sha256, Hash};
-use common::api::command::{CreateInvoiceRequest, NodeInfo};
+use common::api::command::{CreateInvoiceRequest, NodeInfo, PayInvoiceRequest};
 use common::api::{NodePk, Scid};
 use common::cli::{LspInfo, Network};
 use common::ln::invoice::LxInvoice;
@@ -173,7 +173,7 @@ where
 }
 
 pub fn pay_invoice<CM, PS>(
-    invoice: LxInvoice,
+    req: PayInvoiceRequest,
     router: Arc<RouterType>,
     channel_manager: CM,
     outbound_payments: PaymentInfoStorageType,
@@ -184,18 +184,26 @@ where
 {
     // Construct a Route for the payment, modeled after how
     // `lightning_invoice::payment::pay_invoice` does it.
+    let invoice = req.invoice.0;
     let payer_pubkey = channel_manager.get_our_node_id();
     let payee_pubkey = invoice
-        .0
         .payee_pub_key()
         .cloned()
-        .unwrap_or_else(|| invoice.0.recover_payee_pub_key());
-    // TODO(max): Let the caller specify the amount for amountless invoices
-    let final_value_msat = invoice.0.amount_milli_satoshis().unwrap_or(1);
+        .unwrap_or_else(|| invoice.recover_payee_pub_key());
+    let final_value_msat = invoice
+        .amount_milli_satoshis()
+        .inspect(|_| {
+            debug_assert!(
+                req.fallback_amt_msat.is_none(),
+                "Nit: Fallback should only be provided for amountless invoices",
+            )
+        })
+        .or(req.fallback_amt_msat)
+        .context("Missing fallback amount for amountless invoice")?;
     let final_cltv_expiry_delta =
-        u32::try_from(invoice.0.min_final_cltv_expiry_delta())
+        u32::try_from(invoice.min_final_cltv_expiry_delta())
             .context("Min final CLTV expiry delta too large to fit in u32")?;
-    let expires_at = invoice.0.timestamp() + invoice.0.expiry_time();
+    let expires_at = invoice.timestamp() + invoice.expiry_time();
     let expires_at_timestamp = expires_at
         .duration_since(SystemTime::UNIX_EPOCH)
         .context("Invalid invoice expiration")?
@@ -203,7 +211,7 @@ where
     let payment_params =
         PaymentParameters::from_node_id(payee_pubkey, final_cltv_expiry_delta)
             .with_expiry_time(expires_at_timestamp)
-            .with_route_hints(invoice.0.route_hints());
+            .with_route_hints(invoice.route_hints());
     let route_params = RouteParameters {
         payment_params,
         final_value_msat,
@@ -225,7 +233,7 @@ where
     // amount. For amount-less invoices we need to ask the user to specify how
     // much to send
     let payment_result = lightning_invoice::payment::pay_invoice(
-        &invoice.0,
+        &invoice,
         retry,
         channel_manager.deref(),
     )
@@ -233,10 +241,10 @@ where
 
     // Store the payment in our outbound payments storage as pending or failed
     // depending on the payment result
-    let payment_hash = PaymentHash(invoice.0.payment_hash().into_inner());
+    let payment_hash = PaymentHash(invoice.payment_hash().into_inner());
     let preimage = None;
-    let secret = Some(*invoice.0.payment_secret());
-    let amt_msat = invoice.0.amount_milli_satoshis();
+    let secret = Some(*invoice.payment_secret());
+    let amt_msat = invoice.amount_milli_satoshis();
     let status = if payment_result.is_ok() {
         HTLCStatus::Pending
     } else {
@@ -253,7 +261,7 @@ where
     );
 
     let _payment_id = payment_result.context("Couldn't initiate payment")?;
-    let payee_pk = invoice.0.recover_payee_pub_key();
+    let payee_pk = invoice.recover_payee_pub_key();
     info!("Success: Initiated payment of {amt_msat:?} msats to {payee_pk}");
 
     Ok(())
