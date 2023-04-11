@@ -172,10 +172,11 @@ where
     Ok(invoice)
 }
 
-pub fn pay_invoice<CM, PS>(
+pub async fn pay_invoice<CM, PS>(
     req: PayInvoiceRequest,
     router: Arc<RouterType>,
     channel_manager: CM,
+    _payments_manager: PaymentsManager<CM, PS>,
     outbound_payments: PaymentInfoStorageType,
 ) -> anyhow::Result<()>
 where
