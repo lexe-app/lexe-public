@@ -54,7 +54,7 @@ class WalletPageState extends State<WalletPage> {
       this.fiatRates.map((fiatRates) =>
           fiatRates?.rates.firstWhere((rate) => rate.fiat == fiatName)),
       (msatBalance, fiatRate) => BalanceState(
-          satsBalance: msatBalance, fiatName: fiatName, fiatRate: fiatRate),
+          msatsBalance: msatBalance, fiatName: fiatName, fiatRate: fiatRate),
     ).listen(this.balanceStates.addIfNotClosed);
 
     // A stream of refreshes, starting with an initial refresh.
@@ -291,14 +291,18 @@ class DrawerListItem extends StatelessWidget {
   }
 }
 
-final NumberFormat decimalFormatter = NumberFormat.decimalPattern();
+final NumberFormat integerFormatter =
+    NumberFormat.decimalPatternDigits(decimalDigits: 0);
 
-String formatSats(int balance) => "${decimalFormatter.format(balance)} SATS";
+String formatSats(double sats) => "${integerFormatter.format(sats)} SATS";
+
+double msatsToSats(int msats) => msats * 1e-3;
+double msatsToBtc(int msats) => msats * 1e-11;
 
 @freezed
 class BalanceState with _$BalanceState {
   const factory BalanceState({
-    required int? satsBalance,
+    required int? msatsBalance,
     required String fiatName,
     required FiatRate? fiatRate,
   }) = _BalanceState;
@@ -306,10 +310,10 @@ class BalanceState with _$BalanceState {
   const BalanceState._();
 
   static BalanceState placeholder =
-      const BalanceState(satsBalance: null, fiatName: "USD", fiatRate: null);
+      const BalanceState(msatsBalance: null, fiatName: "USD", fiatRate: null);
 
-  double? fiatBalance() => (this.satsBalance != null && this.fiatRate != null)
-      ? this.satsBalance! * this.fiatRate!.rate
+  double? fiatBalance() => (this.msatsBalance != null && this.fiatRate != null)
+      ? msatsToBtc(this.msatsBalance!) * this.fiatRate!.rate
       : null;
 }
 
@@ -321,9 +325,9 @@ class BalanceWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const satsBalanceSize = Fonts.size300;
-    final satsBalanceOrPlaceholder = (this.state.satsBalance != null)
+    final satsBalanceOrPlaceholder = (this.state.msatsBalance != null)
         ? Text(
-            formatSats(this.state.satsBalance!),
+            formatSats(msatsToSats(this.state.msatsBalance!)),
             style: Fonts.fontUI.copyWith(
               fontSize: satsBalanceSize,
               color: LxColors.grey700,
