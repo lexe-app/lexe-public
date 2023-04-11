@@ -94,7 +94,7 @@ pub(crate) fn app_routes(
         .and(warp::body::json::<CreateInvoiceRequest>())
         .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::keys_manager(keys_manager))
-        .and(inject::payments_manager(payments_manager))
+        .and(inject::payments_manager(payments_manager.clone()))
         .and(inject::create_invoice_caller(
             CreateInvoiceCaller::UserNode { lsp_info, scid },
         ))
@@ -107,8 +107,9 @@ pub(crate) fn app_routes(
         .and(warp::body::json::<PayInvoiceRequest>())
         .and(inject::router(router))
         .and(inject::channel_manager(channel_manager))
+        .and(inject::payments_manager(payments_manager))
         .and(inject::outbound_payments(outbound_payments))
-        .map(lexe_ln::command::pay_invoice)
+        .then(lexe_ln::command::pay_invoice)
         .map(into_command_api_result)
         .map(into_response);
 
