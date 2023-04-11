@@ -138,6 +138,21 @@ pub fn into_succ_response<T: Serialize>(data: T) -> Response<Body> {
     build_json_response(StatusCode::OK, &data)
 }
 
+/// Like [`into_response`], but you pass a successful, pre-rendered json
+/// response instead of serializing on-the-spot. Can be useful if a response is
+/// already cached and serialized.
+///
+/// ## Usage
+///
+/// ```ignore
+/// fn handler() -> Result<ByteStr, Error> {
+///     Ok(ByteStr::from_static(r#"{ "foo": 123, "bar": "asdf" }"#))
+/// }
+///
+/// let route = warp::get()
+///     .map(handler)
+///     .map(prerendered_json_into_response);
+/// ```
 pub fn prerendered_json_into_response<E: ToHttpStatus + Into<ErrorResponse>>(
     reply_res: Result<ByteStr, E>,
 ) -> Response<Body> {
