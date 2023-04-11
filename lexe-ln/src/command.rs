@@ -204,7 +204,10 @@ where
     let final_cltv_expiry_delta =
         u32::try_from(invoice.min_final_cltv_expiry_delta())
             .context("Min final CLTV expiry delta too large to fit in u32")?;
-    let expires_at = invoice.timestamp() + invoice.expiry_time();
+    let expires_at = invoice
+        .timestamp()
+        .checked_add(invoice.expiry_time())
+        .context("Computing expiry time overflowed")?;
     let expires_at_timestamp = expires_at
         .duration_since(SystemTime::UNIX_EPOCH)
         .context("Invalid invoice expiration")?
