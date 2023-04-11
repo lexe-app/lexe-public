@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 
 use anyhow::{anyhow, Context};
 use bitcoin::bech32::ToBase32;
@@ -12,7 +12,9 @@ use lightning::chain::keysinterface::{NodeSigner, Recipient};
 use lightning::ln::channelmanager::{Retry, MIN_FINAL_CLTV_EXPIRY_DELTA};
 use lightning::ln::PaymentHash;
 use lightning::routing::gossip::RoutingFees;
-use lightning::routing::router::{RouteHint, RouteHintHop};
+use lightning::routing::router::{
+    PaymentParameters, RouteHint, RouteHintHop, RouteParameters, Router,
+};
 use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
 use tracing::{debug, info, warn};
 
@@ -172,8 +174,7 @@ where
 
 pub fn pay_invoice<CM, PS>(
     invoice: LxInvoice,
-    // TODO(max): Use this
-    _router: Arc<RouterType>,
+    router: Arc<RouterType>,
     channel_manager: CM,
     outbound_payments: PaymentInfoStorageType,
 ) -> anyhow::Result<()>
@@ -181,6 +182,41 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
+    // Construct a Route for the payment, modeled after how
+    // `lightning_invoice::payment::pay_invoice` does it.
+    let payer_pubkey = channel_manager.get_our_node_id();
+    let payee_pubkey = invoice
+        .0
+        .payee_pub_key()
+        .cloned()
+        .unwrap_or_else(|| invoice.0.recover_payee_pub_key());
+    // TODO(max): Let the caller specify the amount for amountless invoices
+    let final_value_msat = invoice.0.amount_milli_satoshis().unwrap_or(1);
+    let final_cltv_expiry_delta =
+        u32::try_from(invoice.0.min_final_cltv_expiry_delta())
+            .context("Min final CLTV expiry delta too large to fit in u32")?;
+    let expires_at = invoice.0.timestamp() + invoice.0.expiry_time();
+    let expires_at_timestamp = expires_at
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .context("Invalid invoice expiration")?
+        .as_secs();
+    let payment_params =
+        PaymentParameters::from_node_id(payee_pubkey, final_cltv_expiry_delta)
+            .with_expiry_time(expires_at_timestamp)
+            .with_route_hints(invoice.0.route_hints());
+    let route_params = RouteParameters {
+        payment_params,
+        final_value_msat,
+        final_cltv_expiry_delta,
+    };
+    let usable_channels = channel_manager.list_usable_channels();
+    let refs_usable_channels = usable_channels.iter().collect::<Vec<_>>();
+    let first_hops = Some(refs_usable_channels.as_slice());
+    let in_flight_htlcs = channel_manager.compute_inflight_htlcs();
+    let _route = router
+        .find_route(&payer_pubkey, &route_params, first_hops, &in_flight_htlcs)
+        .map_err(|e| anyhow!("Could not find route to recipient: {}", e.err))?;
+
     let retry = Retry::Attempts(PAYMENT_RETRY_ATTEMPTS);
     // XXX(max): `pay_invoice` uses the payment hash encoded in the `Invoice` as
     // the `PaymentId`. We need to add a check here to ensure that we bail! if
