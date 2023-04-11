@@ -1,20 +1,24 @@
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use bitcoin::bech32::ToBase32;
-use bitcoin::hashes::{sha256, Hash};
+use bitcoin_hashes::{sha256, Hash};
 use common::api::command::{CreateInvoiceRequest, NodeInfo, PayInvoiceRequest};
 use common::api::{NodePk, Scid};
 use common::cli::{LspInfo, Network};
 use common::ln::invoice::LxInvoice;
+use common::ln::payments::LxPaymentHash;
 use lightning::chain::keysinterface::{NodeSigner, Recipient};
-use lightning::ln::channelmanager::{Retry, MIN_FINAL_CLTV_EXPIRY_DELTA};
+use lightning::ln::channelmanager::{
+    PaymentId, PaymentSendFailure, MIN_FINAL_CLTV_EXPIRY_DELTA,
+};
 use lightning::ln::PaymentHash;
 use lightning::routing::gossip::RoutingFees;
 use lightning::routing::router::{
     PaymentParameters, RouteHint, RouteHintHop, RouteParameters, Router,
 };
+use lightning::util::errors::APIError;
 use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
 use tracing::{debug, info, warn};
 
@@ -22,11 +26,8 @@ use crate::alias::{PaymentInfoStorageType, RouterType};
 use crate::keys_manager::LexeKeysManager;
 use crate::payments::inbound::InboundInvoicePayment;
 use crate::payments::manager::PaymentsManager;
-use crate::payments::{HTLCStatus, LxPaymentError, PaymentInfo};
+use crate::payments::outbound::OutboundInvoicePayment;
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
-
-/// The number of times to retry a failed payment in `pay_invoice`.
-const PAYMENT_RETRY_ATTEMPTS: usize = 3;
 
 /// Specifies whether it is the user node or the LSP calling the
 /// [`create_invoice`] fn. There are some differences between how the user node
@@ -176,8 +177,9 @@ pub async fn pay_invoice<CM, PS>(
     req: PayInvoiceRequest,
     router: Arc<RouterType>,
     channel_manager: CM,
-    _payments_manager: PaymentsManager<CM, PS>,
-    outbound_payments: PaymentInfoStorageType,
+    payments_manager: PaymentsManager<CM, PS>,
+    // TODO(max): Remove
+    _outbound_payments: PaymentInfoStorageType,
 ) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,
@@ -222,49 +224,57 @@ where
     let refs_usable_channels = usable_channels.iter().collect::<Vec<_>>();
     let first_hops = Some(refs_usable_channels.as_slice());
     let in_flight_htlcs = channel_manager.compute_inflight_htlcs();
-    let _route = router
+    let route = router
         .find_route(&payer_pubkey, &route_params, first_hops, &in_flight_htlcs)
         .map_err(|e| anyhow!("Could not find route to recipient: {}", e.err))?;
 
-    let retry = Retry::Attempts(PAYMENT_RETRY_ATTEMPTS);
-    // XXX(max): `pay_invoice` uses the payment hash encoded in the `Invoice` as
-    // the `PaymentId`. We need to add a check here to ensure that we bail! if
-    // we have already completed or failed a payment with this hash.
-    // TODO(max): This will currently fail if the given invoice doesn't have an
-    // amount. For amount-less invoices we need to ask the user to specify how
-    // much to send
-    let payment_result = lightning_invoice::payment::pay_invoice(
-        &invoice,
-        retry,
-        channel_manager.deref(),
-    )
-    .map_err(LxPaymentError::from);
-
-    // Store the payment in our outbound payments storage as pending or failed
-    // depending on the payment result
+    // Extract a few more values needed later before we consume the Invoice.
     let payment_hash = PaymentHash(invoice.payment_hash().into_inner());
-    let preimage = None;
-    let secret = Some(*invoice.payment_secret());
-    let amt_msat = invoice.amount_milli_satoshis();
-    let status = if payment_result.is_ok() {
-        HTLCStatus::Pending
-    } else {
-        HTLCStatus::Failed
-    };
-    outbound_payments.lock().expect("Poisoned").insert(
+    let payment_secret = *invoice.payment_secret();
+    let payment_id = PaymentId(payment_hash.0);
+    let hash = LxPaymentHash::from(payment_hash);
+
+    // Create and register the new payment, checking that it is unique.
+    let payment = OutboundInvoicePayment::new(invoice, &route);
+    payments_manager
+        .new_payment(payment)
+        .await
+        // TODO(max): Allow retries if it is in a retryable state
+        .context("Already tried to pay this invoice")?;
+
+    // Send the payment.
+    // TODO(max): Do more fine-grained error handling
+    // TODO(max): Implement retries upon payment send failures
+    // TODO(max): Register failures with the payments manager.
+    match channel_manager.send_payment(
+        &route,
         payment_hash,
-        PaymentInfo {
-            preimage,
-            secret,
-            amt_msat,
-            status,
-        },
-    );
+        &Some(payment_secret),
+        payment_id,
+    ) {
+        Ok(()) => debug!(%hash, "Outbound payment initiated immediately"),
+        Err(PaymentSendFailure::PartialFailure { results, .. }) => {
+            // Sending payments triggers async channel monitor persist,
+            // which results in a "partial failure". This is perfectly
+            // normal for us; just check that all errors are of this kind.
+            let all_ok_or_pending_monitor_update =
+                results.iter().all(|per_path_result| {
+                    matches!(
+                        per_path_result,
+                        Ok(()) | Err(APIError::MonitorUpdateInProgress)
+                    )
+                });
 
-    let _payment_id = payment_result.context("Couldn't initiate payment")?;
-    let payee_pk = invoice.recover_payee_pub_key();
-    info!("Success: Initiated payment of {amt_msat:?} msats to {payee_pk}");
+            if all_ok_or_pending_monitor_update {
+                debug!(%hash, "Outbound payment OK; pending monitor updates");
+            } else {
+                bail!("Partial failure sending payment: {results:?}");
+            }
+        }
+        Err(e) => bail!("Other failure sending payment: {e:?}"),
+    }
 
+    info!(%hash, "Success: initiated {final_value_msat} msat payment");
     Ok(())
 }
 

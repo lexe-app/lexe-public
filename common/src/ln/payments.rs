@@ -4,6 +4,7 @@ use std::fmt::{self, Display};
 use std::str::FromStr;
 
 use anyhow::{anyhow, bail, ensure, Context};
+use bitcoin_hashes::{sha256, Hash};
 use lightning::ln::channelmanager::PaymentId;
 use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
 #[cfg(any(test, feature = "test-utils"))]
@@ -207,6 +208,13 @@ impl TryFrom<LxPaymentId> for LxPaymentHash {
             LxPaymentId::Onchain(..) => bail!("Not a lightning payment"),
             LxPaymentId::Lightning(hash) => Ok(hash),
         }
+    }
+}
+
+// Bitcoin -> Lexe
+impl From<sha256::Hash> for LxPaymentHash {
+    fn from(hash: sha256::Hash) -> Self {
+        Self(hash.into_inner())
     }
 }
 

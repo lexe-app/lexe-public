@@ -1,14 +1,14 @@
 use common::ln::invoice::LxInvoice;
-use common::ln::payments::{LxPaymentHash, LxPaymentPreimage};
+use common::ln::payments::{LxPaymentHash, LxPaymentPreimage, LxPaymentSecret};
 use common::time::TimestampMs;
 #[cfg(doc)]
 use lightning::ln::channelmanager::ChannelManager;
-#[cfg(doc)]
 use lightning::routing::router::Route;
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::util::events::Event::{PaymentFailed, PaymentSent};
 #[cfg(doc)]
 use lightning::util::events::PaymentPurpose;
+use lightning_invoice::Invoice;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -28,6 +28,9 @@ pub struct OutboundInvoicePayment {
     pub invoice: Box<LxInvoice>,
     /// The payment hash encoded in the invoice.
     pub hash: LxPaymentHash,
+    /// The payment secret encoded in the invoice.
+    // BOLT11: "A writer: [...] MUST include exactly one `s` field."
+    pub secret: LxPaymentSecret,
     /// The preimage, which serves as a proof-of-payment.
     /// This field is populated if and only if the status is `Completed`.
     pub preimage: Option<LxPaymentPreimage>,
@@ -59,6 +62,24 @@ pub enum OutboundInvoicePaymentStatus {
     /// The invoice we want to pay has expired, and we called
     /// [`ChannelManager::abandon_payment`]
     TimedOut,
+}
+
+impl OutboundInvoicePayment {
+    pub fn new(invoice: Invoice, route: &Route) -> Self {
+        let hash = LxPaymentHash::from(*invoice.payment_hash());
+        let secret = LxPaymentSecret::from(*invoice.payment_secret());
+        Self {
+            invoice: Box::new(LxInvoice(invoice)),
+            hash,
+            secret,
+            preimage: None,
+            amt_msat: route.get_total_amount(),
+            fees_msat: route.get_total_fees(),
+            status: OutboundInvoicePaymentStatus::Pending,
+            created_at: TimestampMs::now(),
+            finalized_at: None,
+        }
+    }
 }
 
 // --- Outbound spontaneous payments --- //

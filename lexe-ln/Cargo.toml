@@ -20,6 +20,7 @@ common = { path = "../common" }
 
 bitcoin.workspace = true
 bitcoin-bech32.workspace = true
+bitcoin_hashes.workspace = true
 base64.workspace = true
 # Descriptor-based Bitcoin wallet library
 bdk = { version = "0.26", default-features = false, features = ["async-interface", "use-esplora-async"] }
