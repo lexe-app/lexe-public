@@ -7,7 +7,7 @@ use std::sync::Arc;
 use common::api::UserPk;
 use common::cli::Network;
 use common::shutdown::ShutdownChannel;
-use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType, RouterType};
+use lexe_ln::alias::{NetworkGraphType, RouterType};
 use lexe_ln::command::CreateInvoiceCaller;
 use lexe_ln::keys_manager::LexeKeysManager;
 use warp::Filter;
@@ -80,14 +80,6 @@ pub(crate) fn payments_manager(
 ) -> impl Filter<Extract = (NodePaymentsManagerType,), Error = Infallible> + Clone
 {
     warp::any().map(move || payments_manager.clone())
-}
-
-/// Injects the outbound payments storage.
-pub(crate) fn outbound_payments(
-    outbound_payments: PaymentInfoStorageType,
-) -> impl Filter<Extract = (PaymentInfoStorageType,), Error = Infallible> + Clone
-{
-    warp::any().map(move || outbound_payments.clone())
 }
 
 /// Injects a [`CreateInvoiceCaller`].

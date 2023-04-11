@@ -8,11 +8,10 @@ use common::cli::LspInfo;
 use common::hex;
 use common::shutdown::ShutdownChannel;
 use common::task::{BlockingTaskRt, LxTask};
-use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType};
+use lexe_ln::alias::NetworkGraphType;
 use lexe_ln::esplora::LexeEsplora;
 use lexe_ln::event;
 use lexe_ln::keys_manager::LexeKeysManager;
-use lexe_ln::payments::HTLCStatus;
 use lexe_ln::test_event::{TestEvent, TestEventSender};
 use lexe_ln::wallet::LexeWallet;
 use lightning::chain::chaininterface::{
@@ -35,7 +34,6 @@ pub struct NodeEventHandler {
     pub(crate) esplora: Arc<LexeEsplora>,
     pub(crate) network_graph: Arc<NetworkGraphType>,
     pub(crate) payments_manager: NodePaymentsManagerType,
-    pub(crate) outbound_payments: PaymentInfoStorageType,
     pub(crate) test_event_tx: TestEventSender,
     // XXX: remove when `EventHandler` is async
     #[allow(dead_code)]
@@ -85,7 +83,6 @@ impl EventHandler for NodeEventHandler {
         let network_graph = self.network_graph.clone();
         let keys_manager = self.keys_manager.clone();
         let payments_manager = self.payments_manager.clone();
-        let outbound_payments = self.outbound_payments.clone();
         let test_event_tx = self.test_event_tx.clone();
         let shutdown = self.shutdown.clone();
 
@@ -106,7 +103,6 @@ impl EventHandler for NodeEventHandler {
                 &network_graph,
                 &keys_manager,
                 &payments_manager,
-                &outbound_payments,
                 &test_event_tx,
                 &shutdown,
                 event,
@@ -126,7 +122,6 @@ pub(crate) async fn handle_event(
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
     payments_manager: &NodePaymentsManagerType,
-    outbound_payments: &PaymentInfoStorageType,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
     event: Event,
@@ -139,7 +134,6 @@ pub(crate) async fn handle_event(
         network_graph,
         keys_manager,
         payments_manager,
-        outbound_payments,
         test_event_tx,
         shutdown,
         event,
@@ -159,7 +153,6 @@ async fn handle_event_fallible(
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
     payments_manager: &NodePaymentsManagerType,
-    outbound_payments: &PaymentInfoStorageType,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
     event: Event,
@@ -269,32 +262,11 @@ async fn handle_event_fallible(
                 .context("Error handling PaymentClaimed")?;
         }
         Event::PaymentSent {
-            payment_preimage,
-            payment_hash,
-            fee_paid_msat,
+            payment_preimage: _,
+            payment_hash: _,
+            fee_paid_msat: _,
             ..
         } => {
-            let mut payments = outbound_payments.lock().unwrap();
-            let payments_iter = payments.iter_mut();
-            for (hash, payment) in payments_iter {
-                if *hash == payment_hash {
-                    payment.preimage = Some(payment_preimage);
-                    payment.status = HTLCStatus::Succeeded;
-                    info!(
-                        "EVENT: successfully sent payment of {:?} millisatoshis{:?} from \
-                                 payment hash {:?} with preimage {:?}",
-                        payment.amt_msat,
-                        if let Some(fee) = fee_paid_msat {
-                            format!(" (fee {fee} msat)")
-                        } else {
-                            "".to_string()
-                        },
-                        hex::encode(&payment_hash.0),
-                        hex::encode(&payment_preimage.0)
-                    );
-                }
-            }
-
             test_event_tx.send(TestEvent::PaymentSent);
         }
         Event::PaymentPathSuccessful { .. } => {}
@@ -302,20 +274,9 @@ async fn handle_event_fallible(
         Event::ProbeSuccessful { .. } => {}
         Event::ProbeFailed { .. } => {}
         Event::PaymentFailed {
-            payment_hash,
+            payment_hash: _,
             payment_id: _,
-        } => {
-            error!(
-                "Failed to send payment to payment hash {:?}: exhausted payment retry attempts",
-                hex::encode(&payment_hash.0)
-            );
-
-            let mut payments = outbound_payments.lock().unwrap();
-            if payments.contains_key(&payment_hash) {
-                let payment = payments.get_mut(&payment_hash).unwrap();
-                payment.status = HTLCStatus::Failed;
-            }
-        }
+        } => {}
         Event::PaymentForwarded {
             prev_channel_id,
             next_channel_id,
