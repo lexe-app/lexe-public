@@ -1,3 +1,4 @@
+use anyhow::{bail, ensure};
 use common::ln::invoice::LxInvoice;
 use common::ln::payments::{LxPaymentHash, LxPaymentPreimage, LxPaymentSecret};
 use common::time::TimestampMs;
@@ -12,6 +13,7 @@ use lightning_invoice::Invoice;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 #[cfg(doc)]
 use crate::command::pay_invoice;
@@ -79,6 +81,48 @@ impl OutboundInvoicePayment {
             created_at: TimestampMs::now(),
             finalized_at: None,
         }
+    }
+
+    pub(crate) fn check_payment_sent(
+        &self,
+        hash: LxPaymentHash,
+        preimage: LxPaymentPreimage,
+        maybe_fees_paid_msat: Option<u64>,
+    ) -> anyhow::Result<Self> {
+        use OutboundInvoicePaymentStatus::*;
+
+        ensure!(hash == self.hash, "Hashes don't match");
+
+        let computed_hash = preimage.compute_hash();
+        ensure!(hash == computed_hash, "Preimage doesn't correspond to hash");
+
+        if let Some(fees_paid_msat) = maybe_fees_paid_msat {
+            if fees_paid_msat != self.fees_msat {
+                let fees_msat = &self.fees_msat;
+                warn!(
+                    "Paid fees doesn't match saved value: \
+                     paid {fees_paid_msat}, {fees_msat} computed from route"
+                );
+            }
+        }
+
+        match self.status {
+            Pending => (),
+            // TODO(max): When we implement timeouts, we need to ensure that we
+            // have told our ChannelManager to cancel trying to send the payment
+            // before we actually update the payment to TimedOut. This ensures
+            // that once our payment has been "finalized" via TimedOut, it stays
+            // finalized.
+            Completed | Failed | TimedOut => bail!("OIP was already finel"),
+        }
+
+        let mut clone = self.clone();
+        clone.preimage = Some(preimage);
+        clone.fees_msat = maybe_fees_paid_msat.unwrap_or(self.fees_msat);
+        clone.status = Completed;
+        clone.finalized_at = Some(TimestampMs::now());
+
+        Ok(clone)
     }
 }
 

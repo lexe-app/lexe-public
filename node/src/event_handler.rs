@@ -262,12 +262,15 @@ async fn handle_event_fallible(
                 .context("Error handling PaymentClaimed")?;
         }
         Event::PaymentSent {
-            payment_preimage: _,
-            payment_hash: _,
-            fee_paid_msat: _,
-            ..
+            payment_id: _,
+            payment_hash,
+            payment_preimage,
+            fee_paid_msat,
         } => {
-            test_event_tx.send(TestEvent::PaymentSent);
+            payments_manager
+                .payment_sent(payment_hash, payment_preimage, fee_paid_msat)
+                .await
+                .context("Error handling PaymentSent")?;
         }
         Event::PaymentPathSuccessful { .. } => {}
         Event::PaymentPathFailed { .. } => {}

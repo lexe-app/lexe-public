@@ -2,7 +2,9 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use anyhow::{bail, ensure, Context};
-use common::ln::payments::{LxPaymentHash, LxPaymentId, PaymentStatus};
+use common::ln::payments::{
+    LxPaymentHash, LxPaymentId, LxPaymentPreimage, PaymentStatus,
+};
 use lightning::ln::channelmanager::FailureCode;
 use lightning::util::events::PaymentPurpose;
 use tokio::sync::Mutex;
@@ -245,6 +247,40 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         self.test_event_tx.send(TestEvent::PaymentClaimed);
         Ok(())
     }
+
+    /// Handles a [`PaymentSent`] event.
+    ///
+    /// [`PaymentSent`]: lightning::util::events::Event::PaymentSent
+    #[instrument(skip_all, name = "(payment-sent)")]
+    pub async fn payment_sent(
+        &self,
+        hash: impl Into<LxPaymentHash>,
+        preimage: impl Into<LxPaymentPreimage>,
+        maybe_fees_paid_msat: Option<u64>,
+    ) -> anyhow::Result<()> {
+        let hash = hash.into();
+        info!(%hash, ?maybe_fees_paid_msat, "Handling PaymentSent");
+
+        // Check
+        let mut locked_data = self.data.lock().await;
+        let checked = locked_data
+            .check_payment_sent(hash, preimage.into(), maybe_fees_paid_msat)
+            .context("Error validating PaymentSent")?;
+
+        // Persist
+        let persisted = self
+            .persister
+            .persist_payment(checked)
+            .await
+            .context("Could not persist payment")?;
+
+        // Commit
+        locked_data.commit(persisted);
+
+        info!("Handled PaymentSent");
+        self.test_event_tx.send(TestEvent::PaymentSent);
+        Ok(())
+    }
 }
 
 impl PaymentsData {
@@ -357,7 +393,7 @@ impl PaymentsData {
 
         ensure!(
             !self.finalized.contains(&id),
-            "Payment was was already finalized"
+            "Payment was already finalized"
         );
 
         let checked = self
@@ -365,6 +401,37 @@ impl PaymentsData {
             .get(&id)
             .context("Claimed payment does not exist")?
             .check_payment_claimed(hash, amt_msat, purpose)?;
+
+        Ok(checked)
+    }
+
+    fn check_payment_sent(
+        &self,
+        hash: LxPaymentHash,
+        preimage: LxPaymentPreimage,
+        maybe_fees_paid_msat: Option<u64>,
+    ) -> anyhow::Result<CheckedPayment> {
+        let id = LxPaymentId::from(hash);
+
+        ensure!(
+            !self.finalized.contains(&id),
+            "Payment was already finalized"
+        );
+
+        let pending_payment = self
+            .pending
+            .get(&id)
+            .context("Pending payment does not exist")?;
+
+        let checked = match pending_payment {
+            Payment::OutboundInvoice(oip) => oip
+                .check_payment_sent(hash, preimage, maybe_fees_paid_msat)
+                .map(Payment::from)
+                .map(CheckedPayment)
+                .context("Error checking outbound invoice payment")?,
+            Payment::OutboundSpontaneous(_) => todo!(),
+            _ => bail!("Not an outbound Lightning payment"),
+        };
 
         Ok(checked)
     }
