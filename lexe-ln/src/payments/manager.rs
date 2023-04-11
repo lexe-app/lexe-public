@@ -106,6 +106,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     }
 
     /// Register a new, globally-unique payment.
+    /// Errors if the payment already exists.
     pub async fn new_payment(
         &self,
         payment: impl Into<Payment>,
