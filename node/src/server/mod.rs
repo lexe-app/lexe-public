@@ -19,7 +19,7 @@ use common::api::rest::{into_response, into_succ_response};
 use common::api::{Scid, UserPk};
 use common::cli::{LspInfo, Network};
 use common::shutdown::ShutdownChannel;
-use lexe_ln::alias::{NetworkGraphType, PaymentInfoStorageType, RouterType};
+use lexe_ln::alias::{NetworkGraphType, RouterType};
 use lexe_ln::command::CreateInvoiceCaller;
 use lexe_ln::keys_manager::LexeKeysManager;
 use tokio::sync::mpsc;
@@ -60,7 +60,6 @@ pub(crate) fn app_routes(
     network_graph: Arc<NetworkGraphType>,
     keys_manager: LexeKeysManager,
     payments_manager: NodePaymentsManagerType,
-    outbound_payments: PaymentInfoStorageType,
     lsp_info: LspInfo,
     scid: Scid,
     network: Network,
@@ -108,7 +107,6 @@ pub(crate) fn app_routes(
         .and(inject::router(router))
         .and(inject::channel_manager(channel_manager))
         .and(inject::payments_manager(payments_manager))
-        .and(inject::outbound_payments(outbound_payments))
         .then(lexe_ln::command::pay_invoice)
         .map(into_command_api_result)
         .map(into_response);

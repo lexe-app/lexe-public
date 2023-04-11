@@ -22,7 +22,7 @@ use lightning::util::errors::APIError;
 use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
 use tracing::{debug, info, warn};
 
-use crate::alias::{PaymentInfoStorageType, RouterType};
+use crate::alias::RouterType;
 use crate::keys_manager::LexeKeysManager;
 use crate::payments::inbound::InboundInvoicePayment;
 use crate::payments::manager::PaymentsManager;
@@ -178,8 +178,6 @@ pub async fn pay_invoice<CM, PS>(
     router: Arc<RouterType>,
     channel_manager: CM,
     payments_manager: PaymentsManager<CM, PS>,
-    // TODO(max): Remove
-    _outbound_payments: PaymentInfoStorageType,
 ) -> anyhow::Result<()>
 where
     CM: LexeChannelManager<PS>,

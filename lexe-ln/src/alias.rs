@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use lightning::chain::chainmonitor::ChainMonitor;
@@ -6,7 +5,6 @@ use lightning::chain::channelmonitor::ChannelMonitor;
 use lightning::chain::keysinterface::InMemorySigner;
 use lightning::ln::channelmanager::ChannelManager;
 use lightning::ln::peer_handler::{IgnoringMessageHandler, PeerManager};
-use lightning::ln::PaymentHash;
 use lightning::onion_message::OnionMessenger;
 use lightning::routing::gossip::{NetworkGraph, P2PGossipSync};
 use lightning::routing::router::DefaultRouter;
@@ -18,7 +16,6 @@ use lightning_transaction_sync::EsploraSyncClient;
 use crate::esplora::LexeEsplora;
 use crate::keys_manager::LexeKeysManager;
 use crate::logger::LexeTracingLogger;
-use crate::payments::PaymentInfo;
 
 pub type SignerType = InMemorySigner;
 
@@ -78,8 +75,6 @@ pub type LexePeerManagerType<CHANNEL_MANAGER> = PeerManager<
     Arc<IgnoringMessageHandler>,
     LexeKeysManager,
 >;
-
-pub type PaymentInfoStorageType = Arc<Mutex<HashMap<PaymentHash, PaymentInfo>>>;
 
 pub type RouterType = DefaultRouter<
     Arc<NetworkGraphType>,

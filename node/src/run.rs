@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -22,8 +21,7 @@ use futures::future::FutureExt;
 use futures::stream::{FuturesUnordered, StreamExt};
 use lexe_ln::alias::{
     BroadcasterType, EsploraSyncClientType, FeeEstimatorType, NetworkGraphType,
-    OnionMessengerType, P2PGossipSyncType, PaymentInfoStorageType,
-    ProbabilisticScorerType, RouterType,
+    OnionMessengerType, P2PGossipSyncType, ProbabilisticScorerType, RouterType,
 };
 use lexe_ln::background_processor::LexeBackgroundProcessor;
 use lexe_ln::esplora::LexeEsplora;
@@ -90,7 +88,6 @@ pub struct UserNode {
     pub peer_manager: NodePeerManager,
     inactivity_timer: InactivityTimer,
     pub payments_manager: NodePaymentsManagerType,
-    pub outbound_payments: PaymentInfoStorageType,
 
     // --- Contexts --- //
     sync: Option<SyncContext>,
@@ -348,12 +345,6 @@ impl UserNode {
         );
 
         // Initialize the event handler
-        // XXX(max): It is security-critical to persist our outbound payment
-        // storage to ensure that we never pay the same `PaymentHash` twice.
-        // See lightning_invoice::payments::pay_invoice or
-        // ChannelManager::send_payment.
-        let outbound_payments: PaymentInfoStorageType =
-            Arc::new(Mutex::new(HashMap::new()));
         let event_handler = NodeEventHandler {
             lsp: args.lsp.clone(),
             wallet: wallet.clone(),
@@ -362,7 +353,6 @@ impl UserNode {
             esplora: esplora.clone(),
             network_graph: network_graph.clone(),
             payments_manager: payments_manager.clone(),
-            outbound_payments: outbound_payments.clone(),
             test_event_tx: test_event_tx.clone(),
             blocking_task_rt: BlockingTaskRt::new(),
             shutdown: shutdown.clone(),
@@ -392,7 +382,6 @@ impl UserNode {
             network_graph.clone(),
             keys_manager.clone(),
             payments_manager.clone(),
-            outbound_payments.clone(),
             args.lsp.clone(),
             scid,
             args.network,
@@ -483,7 +472,6 @@ impl UserNode {
             peer_manager,
             inactivity_timer,
             payments_manager,
-            outbound_payments,
 
             // Contexts
             sync: Some(SyncContext {
