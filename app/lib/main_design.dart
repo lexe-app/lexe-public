@@ -50,7 +50,7 @@ class MockAppHandle extends AppHandle {
   @override
   Future<NodeInfo> nodeInfo({dynamic hint}) => Future.delayed(
         const Duration(milliseconds: 1000),
-        () => const NodeInfo(nodePk: "asdf", localBalanceMsat: 739405),
+        () => const NodeInfo(nodePk: "asdf", localBalanceMsat: 727505000),
       );
 
   @override
@@ -59,7 +59,7 @@ class MockAppHandle extends AppHandle {
         () => const FiatRates(
           timestampMs: 1679863795,
           rates: [
-            FiatRate(fiat: "USD", rate: 0.0000360359 /* USD/SAT */),
+            FiatRate(fiat: "USD", rate: 30296.1951578664 /* USD/BTC */),
           ],
         ),
       );
