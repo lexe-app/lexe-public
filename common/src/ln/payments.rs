@@ -163,6 +163,16 @@ impl PaymentIndex {
     }
 }
 
+// --- impl LxPaymentPreimage --- //
+
+impl LxPaymentPreimage {
+    /// Computes the [`LxPaymentHash`] corresponding to this preimage.
+    pub fn compute_hash(&self) -> LxPaymentHash {
+        let sha256_hash = sha256::Hash::hash(&self.0);
+        LxPaymentHash::from(sha256_hash)
+    }
+}
+
 // --- Redact secret information --- //
 
 impl fmt::Debug for LxPaymentPreimage {
