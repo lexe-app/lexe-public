@@ -272,14 +272,19 @@ async fn handle_event_fallible(
                 .await
                 .context("Error handling PaymentSent")?;
         }
+        Event::PaymentFailed {
+            payment_id: _,
+            payment_hash,
+        } => {
+            payments_manager
+                .payment_failed(payment_hash)
+                .await
+                .context("Error handling PaymentFailed")?;
+        }
         Event::PaymentPathSuccessful { .. } => {}
         Event::PaymentPathFailed { .. } => {}
         Event::ProbeSuccessful { .. } => {}
         Event::ProbeFailed { .. } => {}
-        Event::PaymentFailed {
-            payment_hash: _,
-            payment_id: _,
-        } => {}
         Event::PaymentForwarded {
             prev_channel_id,
             next_channel_id,

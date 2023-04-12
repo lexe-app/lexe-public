@@ -281,6 +281,37 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         self.test_event_tx.send(TestEvent::PaymentSent);
         Ok(())
     }
+
+    /// Handles a [`PaymentFailed`] event.
+    ///
+    /// [`PaymentFailed`]: lightning::util::events::Event::PaymentFailed
+    #[instrument(skip_all, name = "(payment-failed)")]
+    pub async fn payment_failed(
+        &self,
+        hash: impl Into<LxPaymentHash>,
+    ) -> anyhow::Result<()> {
+        let hash = hash.into();
+        info!(%hash, "Handling PaymentFailed");
+
+        // Check
+        let mut locked_data = self.data.lock().await;
+        let checked = locked_data
+            .check_payment_failed(hash)
+            .context("Error validating PaymentFailed")?;
+
+        // Persist
+        let persisted = self
+            .persister
+            .persist_payment(checked)
+            .await
+            .context("Could not persist payment")?;
+
+        // Commit
+        locked_data.commit(persisted);
+
+        info!("Handled PaymentFailed");
+        Ok(())
+    }
 }
 
 impl PaymentsData {
@@ -445,6 +476,35 @@ impl PaymentsData {
         let checked = match pending_payment {
             Payment::OutboundInvoice(oip) => oip
                 .check_payment_sent(hash, preimage, maybe_fees_paid_msat)
+                .map(Payment::from)
+                .map(CheckedPayment)
+                .context("Error checking outbound invoice payment")?,
+            Payment::OutboundSpontaneous(_) => todo!(),
+            _ => bail!("Not an outbound Lightning payment"),
+        };
+
+        Ok(checked)
+    }
+
+    fn check_payment_failed(
+        &self,
+        hash: LxPaymentHash,
+    ) -> anyhow::Result<CheckedPayment> {
+        let id = LxPaymentId::from(hash);
+
+        ensure!(
+            !self.finalized.contains(&id),
+            "Payment was already finalized"
+        );
+
+        let pending_payment = self
+            .pending
+            .get(&id)
+            .context("Pending payment does not exist")?;
+
+        let checked = match pending_payment {
+            Payment::OutboundInvoice(oip) => oip
+                .check_payment_failed(hash)
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error checking outbound invoice payment")?,
