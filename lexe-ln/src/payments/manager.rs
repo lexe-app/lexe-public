@@ -396,11 +396,30 @@ impl PaymentsData {
             "Payment was already finalized"
         );
 
-        let checked = self
+        let pending_payment = self
             .pending
             .get(&id)
-            .context("Claimed payment does not exist")?
-            .check_payment_claimed(hash, amt_msat, purpose)?;
+            .context("Pending payment does not exist")?;
+
+        let checked = match (pending_payment, purpose) {
+            (
+                Payment::InboundInvoice(iip),
+                LxPaymentPurpose::Invoice { preimage, secret },
+            ) => iip
+                .check_payment_claimed(hash, secret, preimage, amt_msat)
+                .map(Payment::from)
+                .map(CheckedPayment)
+                .context("Error finalizing inbound invoice payment")?,
+            (
+                Payment::InboundSpontaneous(isp),
+                LxPaymentPurpose::Spontaneous { preimage },
+            ) => isp
+                .check_payment_claimed(hash, preimage, amt_msat)
+                .map(Payment::from)
+                .map(CheckedPayment)
+                .context("Error finalizing inbound spontaneous payment")?,
+            _ => bail!("Not an inbound LN payment, or purpose didn't match"),
+        };
 
         Ok(checked)
     }
