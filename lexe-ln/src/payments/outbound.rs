@@ -124,6 +124,26 @@ impl OutboundInvoicePayment {
 
         Ok(clone)
     }
+
+    pub(crate) fn check_payment_failed(
+        &self,
+        hash: LxPaymentHash,
+    ) -> anyhow::Result<Self> {
+        use OutboundInvoicePaymentStatus::*;
+
+        ensure!(hash == self.hash, "Hashes don't match");
+
+        match self.status {
+            Pending => (),
+            Completed | Failed | TimedOut => bail!("OIP was already final"),
+        }
+
+        let mut clone = self.clone();
+        clone.status = Failed;
+        clone.finalized_at = Some(TimestampMs::now());
+
+        Ok(clone)
+    }
 }
 
 // --- Outbound spontaneous payments --- //
