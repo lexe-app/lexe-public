@@ -184,7 +184,9 @@ where
     PS: LexePersister,
 {
     // Construct a Route for the payment, modeled after how
-    // `lightning_invoice::payment::pay_invoice` does it.
+    // `lightning_invoice::payment::pay_invoice` does it. See especially
+    // `lightning_invoice::payment::pay_invoice_using_amount` and
+    // `lightning::ln::outbound_payment::OutboundPayments::pay_internal`.
     let invoice = req.invoice.0;
     let payer_pubkey = channel_manager.get_our_node_id();
     let payee_pubkey = invoice
@@ -212,10 +214,13 @@ where
         .duration_since(SystemTime::UNIX_EPOCH)
         .context("Invalid invoice expiration")?
         .as_secs();
-    let payment_params =
+    let mut payment_params =
         PaymentParameters::from_node_id(payee_pubkey, final_cltv_expiry_delta)
             .with_expiry_time(expires_at_timestamp)
             .with_route_hints(invoice.route_hints());
+    if let Some(features) = invoice.features().cloned() {
+        payment_params = payment_params.with_features(features);
+    }
     let route_params = RouteParameters {
         payment_params,
         final_value_msat,
