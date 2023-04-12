@@ -74,7 +74,10 @@ impl TryFrom<PaymentPurpose> for LxPaymentPurpose {
 
 // --- Helpers to delegate to the inner type --- //
 
-/// Helpers to handle the [`Payment`] and [`LxPaymentPurpose`] matching.
+/// Helper to handle the [`Payment`] and [`LxPaymentPurpose`] matching.
+// Normally we don't want this much indirection, but the calling code is already
+// doing lots of ugly matching (at a higher abstraction level), so in this case
+// the separation makes both functions cleaner and easier to read.
 impl Payment {
     pub(crate) fn check_payment_claimable(
         &self,
@@ -99,34 +102,7 @@ impl Payment {
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error claiming inbound spontaneous payment"),
-            _ => bail!("Not an inbound Lightning payment"),
-        }
-    }
-
-    pub(crate) fn check_payment_claimed(
-        &self,
-        hash: LxPaymentHash,
-        amt_msat: u64,
-        purpose: LxPaymentPurpose,
-    ) -> anyhow::Result<CheckedPayment> {
-        match (self, purpose) {
-            (
-                Self::InboundInvoice(iip),
-                LxPaymentPurpose::Invoice { preimage, secret },
-            ) => iip
-                .check_payment_claimed(hash, secret, preimage, amt_msat)
-                .map(Payment::from)
-                .map(CheckedPayment)
-                .context("Error finalizing inbound invoice payment"),
-            (
-                Self::InboundSpontaneous(isp),
-                LxPaymentPurpose::Spontaneous { preimage },
-            ) => isp
-                .check_payment_claimed(hash, preimage, amt_msat)
-                .map(Payment::from)
-                .map(CheckedPayment)
-                .context("Error finalizing inbound spontaneous payment"),
-            _ => bail!("Not an inbound Lightning payment"),
+            _ => bail!("Not an inbound LN payment, or purpose didn't match"),
         }
     }
 }
@@ -251,7 +227,7 @@ impl InboundInvoicePayment {
         Ok(clone)
     }
 
-    fn check_payment_claimed(
+    pub(crate) fn check_payment_claimed(
         &self,
         hash: LxPaymentHash,
         secret: LxPaymentSecret,
@@ -383,7 +359,7 @@ impl InboundSpontaneousPayment {
         Ok(self.clone())
     }
 
-    fn check_payment_claimed(
+    pub(crate) fn check_payment_claimed(
         &self,
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
