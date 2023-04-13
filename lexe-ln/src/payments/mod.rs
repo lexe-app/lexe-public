@@ -375,12 +375,11 @@ impl Payment {
     }
 
     pub(crate) fn assert_invariants(&self) {
-        // All finalized payments must have a finalized_at() timestamp.
-        if matches!(
-            self.status(),
-            PaymentStatus::Completed | PaymentStatus::Failed
-        ) {
-            assert!(self.finalized_at().is_some());
+        // Payments should have a finalized_at() iff it has finalized.
+        use PaymentStatus::*;
+        match self.status() {
+            Pending => assert!(self.finalized_at().is_none()),
+            Completed | Failed => assert!(self.finalized_at().is_some()),
         }
     }
 }
@@ -422,9 +421,9 @@ impl From<OutboundInvoicePaymentStatus> for PaymentStatus {
     fn from(specific_status: OutboundInvoicePaymentStatus) -> Self {
         match specific_status {
             OutboundInvoicePaymentStatus::Pending => Self::Pending,
+            OutboundInvoicePaymentStatus::Abandoning => Self::Pending,
             OutboundInvoicePaymentStatus::Completed => Self::Completed,
             OutboundInvoicePaymentStatus::Failed => Self::Failed,
-            OutboundInvoicePaymentStatus::TimedOut => Self::Failed,
         }
     }
 }
@@ -476,9 +475,9 @@ impl OutboundInvoicePaymentStatus {
     pub fn as_str(&self) -> &str {
         match self {
             Self::Pending => "pending",
+            Self::Abandoning => "abandoning",
             Self::Completed => "completed",
             Self::Failed => "failed",
-            Self::TimedOut => "timed out",
         }
     }
 }
