@@ -163,7 +163,6 @@ pub enum InboundInvoicePaymentStatus {
     Completed,
     /// The inbound payment has reached its invoice expiry time. Any
     /// [`PaymentClaimable`] events which appear after this should be rejected.
-    // TODO(max): Reject any PaymentClaimable events for timed out payments.
     TimedOut,
 }
 
@@ -201,6 +200,9 @@ impl InboundInvoicePayment {
         ensure!(hash == self.hash, "Hashes don't match");
         ensure!(preimage == self.preimage, "Preimages don't match");
         ensure!(secret == self.secret, "Secrets don't match");
+        // BOLT11: "A payee: after the timestamp plus expiry has passed: SHOULD
+        // NOT accept a payment."
+        ensure!(!self.invoice.0.is_expired(), "Invoice has already expired");
 
         match self.status {
             InvoiceGenerated => (),

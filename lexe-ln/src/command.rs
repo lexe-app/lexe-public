@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use anyhow::{anyhow, Context};
+use anyhow::{anyhow, bail, Context};
 use bitcoin::bech32::ToBase32;
 use bitcoin_hashes::{sha256, Hash};
 use common::api::command::{CreateInvoiceRequest, NodeInfo, PayInvoiceRequest};
@@ -185,9 +185,16 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
+    // Abort and don't even save the payment if the invoice has already expired.
+    // BOLT11: "A payer: after the timestamp plus expiry has passed: SHOULD NOT
+    // attempt a payment."
+    let invoice = req.invoice.0;
+    if invoice.is_expired() {
+        bail!("Invoice has already expired");
+    }
+
     // Construct a RouteParameters for the payment, modeled after how
     // `lightning_invoice::payment::pay_invoice_using_amount` does it.
-    let invoice = req.invoice.0;
     let payer_pubkey = channel_manager.get_our_node_id();
     let payee_pubkey = invoice
         .payee_pub_key()
