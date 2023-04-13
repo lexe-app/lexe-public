@@ -163,7 +163,6 @@ pub enum InboundInvoicePaymentStatus {
     Completed,
     /// The inbound payment has reached its invoice expiry time. Any
     /// [`PaymentClaimable`] events which appear after this should be rejected.
-    // TODO(max): Implement automatic timeout of generated invoices.
     // TODO(max): Reject any PaymentClaimable events for timed out payments.
     TimedOut,
 }

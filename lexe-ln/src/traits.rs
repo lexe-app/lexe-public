@@ -74,12 +74,16 @@ pub trait LexeInnerPersister: Persist<SignerType> {
 
 /// A 'trait alias' defining all the requirements of a Lexe persister.
 pub trait LexePersister:
-    Send + Sync + 'static + Deref<Target: LexeInnerPersister + Send + Sync>
+    Clone + Send + Sync + 'static + Deref<Target: LexeInnerPersister + Send + Sync>
 {
 }
 
 impl<PS> LexePersister for PS where
-    PS: Send + Sync + 'static + Deref<Target: LexeInnerPersister + Send + Sync>
+    PS: Clone
+        + Send
+        + Sync
+        + 'static
+        + Deref<Target: LexeInnerPersister + Send + Sync>
 {
 }
 
