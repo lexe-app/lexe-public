@@ -1,4 +1,5 @@
 use std::convert::TryFrom;
+use std::time::Duration;
 
 use anyhow::{bail, ensure, Context};
 use common::ln::invoice::LxInvoice;
@@ -274,6 +275,39 @@ impl InboundInvoicePayment {
         clone.finalized_at = Some(TimestampMs::now());
 
         Ok(clone)
+    }
+
+    /// Checks whether this payment's invoice has expired. If so, and if the
+    /// state transition to `TimedOut` is valid, returns a clone with the state
+    /// transition applied.
+    ///
+    /// `unix_duration` is the current time expressed as a [`Duration`] since
+    /// the unix epoch.
+    pub(crate) fn check_invoice_expiry(
+        &self,
+        unix_duration: Duration,
+    ) -> Option<Self> {
+        use InboundInvoicePaymentStatus::*;
+
+        if !self.invoice.0.would_expire(unix_duration) {
+            return None;
+        }
+
+        match self.status {
+            InvoiceGenerated => (),
+            // We are already claiming the payment; too late to time it out now.
+            Claiming => return None,
+            // Don't time out finalized payments.
+            Completed | TimedOut => return None,
+        }
+
+        // Validation complete; invoice expired and TimedOut transition is valid
+
+        let mut clone = self.clone();
+        clone.status = TimedOut;
+        clone.finalized_at = Some(TimestampMs::now());
+
+        Some(clone)
     }
 }
 
