@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 
 use anyhow::{bail, ensure, Context};
 use common::ln::payments::{
@@ -8,7 +9,7 @@ use common::ln::payments::{
 use lightning::ln::channelmanager::FailureCode;
 use lightning::util::events::PaymentPurpose;
 use tokio::sync::Mutex;
-use tracing::{error, info, instrument};
+use tracing::{debug, error, info, instrument};
 
 use crate::payments::inbound::{InboundSpontaneousPayment, LxPaymentPurpose};
 use crate::payments::Payment;
@@ -318,6 +319,45 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         info!("Handled PaymentFailed");
         Ok(())
     }
+
+    /// Times out any pending inbound or outbound invoice payments whose
+    /// invoices have expired. This function should be called regularly.
+    #[instrument(skip_all, name = "(check-invoice-expiries)")]
+    pub async fn check_invoice_expiries(&self) -> anyhow::Result<()> {
+        debug!("Checking invoice expiries");
+
+        // Call SystemTime::now() just once then pass it in everywhere else.
+        let unix_duration = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .expect("System time is before UNIX timestamp");
+
+        // Check
+        let mut locked_data = self.data.lock().await;
+        let all_checked = locked_data
+            .check_invoice_expiries(unix_duration)
+            .context("Error checking invoice expiries")?;
+
+        // Persist
+        // TODO(max): We could implement a batch persist endpoint for this, but
+        // is it really worth it just for invoice expiries?
+        let persist_futs = all_checked
+            .into_iter()
+            .map(|checked| self.persister.persist_payment(checked))
+            .collect::<Vec<_>>();
+        let all_persisted = futures::future::join_all(persist_futs)
+            .await
+            .into_iter()
+            .collect::<anyhow::Result<Vec<PersistedPayment>>>()
+            .context("Failed to persist timed out payments")?;
+
+        // Commit
+        for persisted in all_persisted {
+            locked_data.commit(persisted);
+        }
+
+        debug!("Successfully checked invoice expiries");
+        Ok(())
+    }
 }
 
 impl PaymentsData {
@@ -519,5 +559,38 @@ impl PaymentsData {
         };
 
         Ok(checked)
+    }
+
+    fn check_invoice_expiries(
+        &self,
+        // The current time expressed as a Duration since the unix epoch.
+        unix_duration: Duration,
+    ) -> anyhow::Result<Vec<CheckedPayment>> {
+        let mut all_inbound = Vec::new();
+        let mut all_outbound = Vec::new();
+
+        for payment in self.pending.values() {
+            match payment {
+                Payment::InboundInvoice(iip) => all_inbound.push(iip),
+                Payment::OutboundInvoice(oip) => all_outbound.push(oip),
+                _ => (),
+            }
+        }
+
+        let expired_inbound = all_inbound
+            .into_iter()
+            .filter_map(|iip| iip.check_invoice_expiry(unix_duration))
+            .map(Payment::from)
+            .map(CheckedPayment);
+        let expired_outbound = all_outbound
+            .into_iter()
+            .filter_map(|oip| oip.check_invoice_expiry(unix_duration))
+            .map(Payment::from)
+            .map(CheckedPayment);
+
+        let all_expired =
+            expired_inbound.chain(expired_outbound).collect::<Vec<_>>();
+
+        Ok(all_expired)
     }
 }
