@@ -621,32 +621,23 @@ impl PaymentsData {
         // The current time expressed as a Duration since the unix epoch.
         unix_duration: Duration,
     ) -> anyhow::Result<(Vec<CheckedPayment>, Vec<LxPaymentHash>)> {
-        let mut all_inbound = Vec::new();
-        let mut all_outbound = Vec::new();
-
-        for payment in self.pending.values() {
-            match payment {
-                Payment::InboundInvoice(iip) => all_inbound.push(iip),
-                Payment::OutboundInvoice(oip) => all_outbound.push(oip),
-                _ => (),
-            }
-        }
-
         let mut oip_hashes = Vec::new();
-        let expired_inbound = all_inbound
-            .into_iter()
-            .filter_map(|iip| iip.check_invoice_expiry(unix_duration))
-            .map(Payment::from)
-            .map(CheckedPayment);
-        let expired_outbound = all_outbound
-            .into_iter()
-            .filter_map(|oip| oip.check_invoice_expiry(unix_duration))
-            .inspect(|oip| oip_hashes.push(oip.hash))
-            .map(Payment::from)
-            .map(CheckedPayment);
-
-        let all_expired =
-            expired_inbound.chain(expired_outbound).collect::<Vec<_>>();
+        let all_expired = self
+            .pending
+            .values()
+            .filter_map(|payment| match payment {
+                Payment::InboundInvoice(iip) => iip
+                    .check_invoice_expiry(unix_duration)
+                    .map(Payment::from)
+                    .map(CheckedPayment),
+                Payment::OutboundInvoice(oip) => oip
+                    .check_invoice_expiry(unix_duration)
+                    .inspect(|oip| oip_hashes.push(oip.hash))
+                    .map(Payment::from)
+                    .map(CheckedPayment),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
 
         Ok((all_expired, oip_hashes))
     }
