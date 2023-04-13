@@ -376,9 +376,14 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // Check
         let mut locked_data = self.data.lock().await;
-        let all_checked = locked_data
+        let (all_checked, oip_hashes) = locked_data
             .check_invoice_expiries(unix_duration)
             .context("Error checking invoice expiries")?;
+
+        // Abandon all newly expired outbound invoice payments.
+        for oip_hash in oip_hashes {
+            self.channel_manager.abandon_payment(oip_hash.into());
+        }
 
         // Persist
         // TODO(max): We could implement a batch persist endpoint for this, but
@@ -604,11 +609,18 @@ impl PaymentsData {
         Ok(checked)
     }
 
+    /// Returns all expired invoice payments`*`, as well as the hashes of all
+    /// outbound invoice payments which should be passed to [`abandon_payment`].
+    ///
+    /// `*` We don't return already-abandoning outbound invoice payments, since
+    /// the work (persistence + [`abandon_payment`]) has already been done.
+    ///
+    /// [`abandon_payment`]: lightning::ln::channelmanager::ChannelManager::abandon_payment
     fn check_invoice_expiries(
         &self,
         // The current time expressed as a Duration since the unix epoch.
         unix_duration: Duration,
-    ) -> anyhow::Result<Vec<CheckedPayment>> {
+    ) -> anyhow::Result<(Vec<CheckedPayment>, Vec<LxPaymentHash>)> {
         let mut all_inbound = Vec::new();
         let mut all_outbound = Vec::new();
 
@@ -620,6 +632,7 @@ impl PaymentsData {
             }
         }
 
+        let mut oip_hashes = Vec::new();
         let expired_inbound = all_inbound
             .into_iter()
             .filter_map(|iip| iip.check_invoice_expiry(unix_duration))
@@ -628,12 +641,13 @@ impl PaymentsData {
         let expired_outbound = all_outbound
             .into_iter()
             .filter_map(|oip| oip.check_invoice_expiry(unix_duration))
+            .inspect(|oip| oip_hashes.push(oip.hash))
             .map(Payment::from)
             .map(CheckedPayment);
 
         let all_expired =
             expired_inbound.chain(expired_outbound).collect::<Vec<_>>();
 
-        Ok(all_expired)
+        Ok((all_expired, oip_hashes))
     }
 }

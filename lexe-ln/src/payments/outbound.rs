@@ -66,14 +66,20 @@ pub struct OutboundInvoicePayment {
 pub enum OutboundInvoicePaymentStatus {
     /// We initiated the payment with [`pay_invoice`].
     Pending,
+    /// The invoice expired and we called [`ChannelManager::abandon_payment`],
+    /// but we haven't yet received a [`PaymentFailed`] (or [`PaymentSent`])
+    /// event to finalize the payment.
+    ///
+    /// This state is "pending" (and not "finalized") because calling
+    /// `abandon_payment` does not actually prevent the payment from
+    /// succeeding. See the `abandon_payment` docs for more details.
+    Abandoning,
     /// We received a [`PaymentSent`] event.
     Completed,
-    /// We received a [`PaymentFailed`] event.
+    /// We received a [`PaymentFailed`] event, or the initial send in
+    /// [`pay_invoice`] "failed outright".
     // TODO(max): Reject the payment of invoices which have timed out
     Failed,
-    /// The invoice we want to pay has expired, and we called
-    /// [`ChannelManager::abandon_payment`]
-    TimedOut,
 }
 
 impl OutboundInvoicePayment {
@@ -127,12 +133,11 @@ impl OutboundInvoicePayment {
 
         match self.status {
             Pending => (),
-            // TODO(max): When we implement timeouts, we need to ensure that we
-            // have told our ChannelManager to cancel trying to send the payment
-            // before we actually update the payment to TimedOut. This ensures
-            // that once our payment has been "finalized" via TimedOut, it stays
-            // finalized.
-            Completed | Failed | TimedOut => bail!("OIP was already finel"),
+            Abandoning => warn!(
+                %hash,
+                "Attempted to abandon this OIP but it succeeded anyway",
+            ),
+            Completed | Failed => bail!("OIP was already finel"),
         }
 
         let mut clone = self.clone();
@@ -153,8 +158,8 @@ impl OutboundInvoicePayment {
         ensure!(hash == self.hash, "Hashes don't match");
 
         match self.status {
-            Pending => (),
-            Completed | Failed | TimedOut => bail!("OIP was already final"),
+            Pending | Abandoning => (),
+            Completed | Failed => bail!("OIP was already final"),
         }
 
         let mut clone = self.clone();
@@ -165,8 +170,8 @@ impl OutboundInvoicePayment {
     }
 
     /// Checks whether this payment's invoice has expired. If so, and if the
-    /// state transition to `TimedOut` is valid, returns a clone with the state
-    /// transition applied.
+    /// state transition to `Abandoning` is valid, returns a clone with the
+    /// state transition applied.
     ///
     /// `unix_duration` is the current time expressed as a [`Duration`] since
     /// the unix epoch.
@@ -182,14 +187,19 @@ impl OutboundInvoicePayment {
 
         match self.status {
             Pending => (),
-            Completed | Failed | TimedOut => return None,
+            // Since Abandoning is a pending state, the invoice expiry checker
+            // will frequently check already-abandoning payments to see if they
+            // have expired. To prevent the PaymentsManager from constantly
+            // re-persisting already-abandoning payments during these checks,
+            // return None here.
+            Abandoning => return None,
+            Completed | Failed => return None,
         }
 
-        // Validation complete; invoice expired and TimedOut transition is valid
+        // Validation complete; invoice expired and state transition is valid
 
         let mut clone = self.clone();
-        clone.status = TimedOut;
-        clone.finalized_at = Some(TimestampMs::now());
+        clone.status = Abandoning;
 
         Some(clone)
     }
