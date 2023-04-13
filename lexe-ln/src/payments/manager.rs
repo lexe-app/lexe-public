@@ -6,15 +6,20 @@ use anyhow::{bail, ensure, Context};
 use common::ln::payments::{
     LxPaymentHash, LxPaymentId, LxPaymentPreimage, PaymentStatus,
 };
+use common::shutdown::ShutdownChannel;
+use common::task::LxTask;
 use lightning::ln::channelmanager::FailureCode;
 use lightning::util::events::PaymentPurpose;
 use tokio::sync::Mutex;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, debug_span, error, info, instrument};
 
 use crate::payments::inbound::{InboundSpontaneousPayment, LxPaymentPurpose};
 use crate::payments::Payment;
 use crate::test_event::{TestEvent, TestEventSender};
 use crate::traits::{LexeChannelManager, LexePersister};
+
+/// The interval at which we check our pending payments for expired invoices.
+const INVOICE_EXPIRY_CHECK_INTERVAL: Duration = Duration::from_secs(120);
 
 /// Annotates that a given [`Payment`] was returned by a `check_*` method which
 /// successfully validated a proposed state transition. [`CheckedPayment`]s
@@ -72,13 +77,16 @@ struct PaymentsData {
 }
 
 impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
+    /// Instantiates a new [`PaymentsManager`] and spawns a task that
+    /// periodically checks for expired invoices.
     pub fn new(
         persister: PS,
         channel_manager: CM,
         pending_payments: Vec<Payment>,
         finalized_payment_ids: Vec<LxPaymentId>,
         test_event_tx: TestEventSender,
-    ) -> Self {
+        shutdown: ShutdownChannel,
+    ) -> (Self, LxTask<()>) {
         let pending = pending_payments
             .into_iter()
             // Check that payments are indeed pending before adding to hashmap
@@ -100,12 +108,47 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         let data = Arc::new(Mutex::new(PaymentsData { pending, finalized }));
 
-        Self {
+        let myself = Self {
             data,
             persister,
             channel_manager,
             test_event_tx,
-        }
+        };
+
+        let invoice_expiry_checker_task =
+            myself.spawn_invoice_expiry_checker(shutdown);
+
+        (myself, invoice_expiry_checker_task)
+    }
+
+    fn spawn_invoice_expiry_checker(
+        &self,
+        mut shutdown: ShutdownChannel,
+    ) -> LxTask<()> {
+        let payments_manager = self.clone();
+        LxTask::spawn_named_with_span(
+            "invoice expiry checker",
+            debug_span!("(invoice-expiry-checker)"),
+            async move {
+                let mut check_timer =
+                    tokio::time::interval(INVOICE_EXPIRY_CHECK_INTERVAL);
+
+                loop {
+                    tokio::select! {
+                        _ = check_timer.tick() => {
+                            if let Err(e) = payments_manager
+                                .check_invoice_expiries()
+                                .await {
+                                error!("Error checking invoice expiries: {e:#}");
+                            }
+                        }
+                        () = shutdown.recv() => break,
+                    }
+                }
+
+                info!("Invoice expiry checker task shutting down");
+            },
+        )
     }
 
     /// Register a new, globally-unique payment.
