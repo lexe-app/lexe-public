@@ -146,7 +146,7 @@ pub struct InboundInvoicePayment {
     pub status: InboundInvoicePaymentStatus,
     /// When we created the invoice for this payment.
     pub created_at: TimestampMs,
-    /// When this payment either `Completed` or `TimedOut`.
+    /// When this payment either `Completed` or `Expired`.
     pub finalized_at: Option<TimestampMs>,
 }
 
@@ -163,7 +163,7 @@ pub enum InboundInvoicePaymentStatus {
     Completed,
     /// The inbound payment has reached its invoice expiry time. Any
     /// [`PaymentClaimable`] events which appear after this should be rejected.
-    TimedOut,
+    Expired,
 }
 
 impl InboundInvoicePayment {
@@ -207,7 +207,7 @@ impl InboundInvoicePayment {
         match self.status {
             InvoiceGenerated => (),
             Claiming => warn!("Re-claiming inbound invoice payment"),
-            Completed | TimedOut => {
+            Completed | Expired => {
                 bail!("Payment already final")
             }
         }
@@ -257,7 +257,7 @@ impl InboundInvoicePayment {
                 // PaymentClaimed don't apply here.
                 bail!("Payment already claimed")
             }
-            TimedOut => bail!("Payment already timed out"),
+            Expired => bail!("Payment already expired"),
         }
 
         if let Some(invoice_amt_msat) = self.invoice_amt_msat {
@@ -279,7 +279,7 @@ impl InboundInvoicePayment {
     }
 
     /// Checks whether this payment's invoice has expired. If so, and if the
-    /// state transition to `TimedOut` is valid, returns a clone with the state
+    /// state transition to `Expired` is valid, returns a clone with the state
     /// transition applied.
     ///
     /// `unix_duration` is the current time expressed as a [`Duration`] since
@@ -299,13 +299,13 @@ impl InboundInvoicePayment {
             // We are already claiming the payment; too late to time it out now.
             Claiming => return None,
             // Don't time out finalized payments.
-            Completed | TimedOut => return None,
+            Completed | Expired => return None,
         }
 
-        // Validation complete; invoice expired and TimedOut transition is valid
+        // Validation complete; invoice expired and Expired transition is valid
 
         let mut clone = self.clone();
-        clone.status = TimedOut;
+        clone.status = Expired;
         clone.finalized_at = Some(TimestampMs::now());
 
         Some(clone)

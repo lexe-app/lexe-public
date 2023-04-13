@@ -403,7 +403,7 @@ impl From<InboundInvoicePaymentStatus> for PaymentStatus {
             InboundInvoicePaymentStatus::InvoiceGenerated => Self::Pending,
             InboundInvoicePaymentStatus::Claiming => Self::Pending,
             InboundInvoicePaymentStatus::Completed => Self::Completed,
-            InboundInvoicePaymentStatus::TimedOut => Self::Failed,
+            InboundInvoicePaymentStatus::Expired => Self::Failed,
         }
     }
 }
@@ -457,7 +457,7 @@ impl InboundInvoicePaymentStatus {
             Self::InvoiceGenerated => "invoice generated",
             Self::Claiming => "claiming",
             Self::Completed => "completed",
-            Self::TimedOut => "timed out",
+            Self::Expired => "invoice expired",
         }
     }
 }
