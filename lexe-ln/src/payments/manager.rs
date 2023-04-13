@@ -282,8 +282,14 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         Ok(())
     }
 
-    /// Handles a [`PaymentFailed`] event.
+    /// Registers that an outbound Lightning payment has failed. Should be
+    /// called in response to a [`PaymentFailed`] event, or if the initial send
+    /// in [`pay_invoice`] failed outright, resulting in no pending payments
+    /// being registered with LDK (which means that no [`PaymentFailed`] or
+    /// [`PaymentSent`] events will not be emitted by LDK later).
     ///
+    /// [`pay_invoice`]: crate::command::pay_invoice
+    /// [`PaymentSent`]: lightning::util::events::Event::PaymentSent
     /// [`PaymentFailed`]: lightning::util::events::Event::PaymentFailed
     #[instrument(skip_all, name = "(payment-failed)")]
     pub async fn payment_failed(

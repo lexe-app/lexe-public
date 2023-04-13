@@ -4,6 +4,7 @@ use common::ln::payments::{LxPaymentHash, LxPaymentPreimage, LxPaymentSecret};
 use common::time::TimestampMs;
 #[cfg(doc)]
 use lightning::ln::channelmanager::ChannelManager;
+use lightning::ln::channelmanager::Retry;
 use lightning::routing::router::Route;
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::util::events::Event::{PaymentFailed, PaymentSent};
@@ -13,10 +14,13 @@ use lightning_invoice::Invoice;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
-use tracing::warn;
+use tracing::{info, warn};
 
 #[cfg(doc)]
 use crate::command::pay_invoice;
+
+/// The retry strategy we pass to LDK for outbound Lightning payments.
+pub const OUTBOUND_PAYMENT_RETRY_STRATEGY: Retry = Retry::Attempts(3);
 
 // --- Outbound invoice payments --- //
 
@@ -40,7 +44,11 @@ pub struct OutboundInvoicePayment {
     /// given by [`Route::get_total_amount`].
     // TODO(max): Use LDK-provided Amount newtype when available
     pub amt_msat: u64,
-    /// The fees we paid for this payment, given by [`Route::get_total_fees`].
+    /// The routing fees for this payment. If the payment hasn't completed yet,
+    /// this value is only an estimation based on a [`Route`] computed prior to
+    /// the first send attempt, as the actual fees paid may vary somewhat due
+    /// to retries occurring on different paths. If the payment is
+    /// completed, then this field should reflect the actual fees paid.
     // TODO(max): Use LDK-provided Amount newtype when available
     pub fees_msat: u64,
     /// The current status of the payment.
@@ -96,15 +104,24 @@ impl OutboundInvoicePayment {
         let computed_hash = preimage.compute_hash();
         ensure!(hash == computed_hash, "Preimage doesn't correspond to hash");
 
-        if let Some(fees_paid_msat) = maybe_fees_paid_msat {
-            if fees_paid_msat != self.fees_msat {
-                let fees_msat = &self.fees_msat;
+        let estimated_fees = &self.fees_msat;
+        let final_fees_msat = maybe_fees_paid_msat
+            .inspect(|fees_paid_msat| {
+                if fees_paid_msat != estimated_fees {
+                    info!(
+                        %hash,
+                        "Estimated fees from Route was {estimated_fees} msat; \
+                        actually paid {fees_paid_msat} msat."
+                    );
+                }
+            })
+            .unwrap_or_else(|| {
                 warn!(
-                    "Paid fees doesn't match saved value: \
-                     paid {fees_paid_msat}, {fees_msat} computed from route"
+                    "Did not hear back on final fees paid for OIP; the \
+                    estimated fee will be included with the finalized payment."
                 );
-            }
-        }
+                *estimated_fees
+            });
 
         match self.status {
             Pending => (),
@@ -118,7 +135,7 @@ impl OutboundInvoicePayment {
 
         let mut clone = self.clone();
         clone.preimage = Some(preimage);
-        clone.fees_msat = maybe_fees_paid_msat.unwrap_or(self.fees_msat);
+        clone.fees_msat = final_fees_msat;
         clone.status = Completed;
         clone.finalized_at = Some(TimestampMs::now());
 
