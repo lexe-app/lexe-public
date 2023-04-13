@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
-use anyhow::{anyhow, bail, Context};
+use anyhow::{anyhow, Context};
 use bitcoin::bech32::ToBase32;
 use bitcoin_hashes::{sha256, Hash};
 use common::api::command::{CreateInvoiceRequest, NodeInfo, PayInvoiceRequest};
@@ -26,7 +26,9 @@ use crate::alias::RouterType;
 use crate::keys_manager::LexeKeysManager;
 use crate::payments::inbound::InboundInvoicePayment;
 use crate::payments::manager::PaymentsManager;
-use crate::payments::outbound::OutboundInvoicePayment;
+use crate::payments::outbound::{
+    OutboundInvoicePayment, OUTBOUND_PAYMENT_RETRY_STRATEGY,
+};
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
 
 /// Specifies whether it is the user node or the LSP calling the
@@ -183,10 +185,8 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
-    // Construct a Route for the payment, modeled after how
-    // `lightning_invoice::payment::pay_invoice` does it. See especially
-    // `lightning_invoice::payment::pay_invoice_using_amount` and
-    // `lightning::ln::outbound_payment::OutboundPayments::pay_internal`.
+    // Construct a RouteParameters for the payment, modeled after how
+    // `lightning_invoice::payment::pay_invoice_using_amount` does it.
     let invoice = req.invoice.0;
     let payer_pubkey = channel_manager.get_our_node_id();
     let payee_pubkey = invoice
@@ -226,6 +226,9 @@ where
         final_value_msat,
         final_cltv_expiry_delta,
     };
+
+    // Find a Route so we can estimate the fees to be paid. Modeled after
+    // `lightning::ln::outbound_payment::OutboundPayments::pay_internal`.
     let usable_channels = channel_manager.list_usable_channels();
     let refs_usable_channels = usable_channels.iter().collect::<Vec<_>>();
     let first_hops = Some(refs_usable_channels.as_slice());
@@ -236,7 +239,7 @@ where
 
     // Extract a few more values needed later before we consume the Invoice.
     let payment_hash = PaymentHash(invoice.payment_hash().into_inner());
-    let payment_secret = *invoice.payment_secret();
+    let payment_secret = Some(*invoice.payment_secret());
     let payment_id = PaymentId(payment_hash.0);
     let hash = LxPaymentHash::from(payment_hash);
 
@@ -245,43 +248,81 @@ where
     payments_manager
         .new_payment(payment)
         .await
-        // TODO(max): Allow retries if it is in a retryable state
         .context("Already tried to pay this invoice")?;
 
-    // Send the payment.
-    // TODO(max): Do more fine-grained error handling
-    // TODO(max): Implement retries upon payment send failures
-    // TODO(max): Register failures with the payments manager.
-    match channel_manager.send_payment(
-        &route,
+    // Send the payment, letting LDK handle payment retries, and match on the
+    // result, registering a failure with the payments manager if appropriate.
+    match channel_manager.send_payment_with_retry(
         payment_hash,
-        &Some(payment_secret),
+        &payment_secret,
         payment_id,
+        route_params,
+        OUTBOUND_PAYMENT_RETRY_STRATEGY,
     ) {
-        Ok(()) => debug!(%hash, "Outbound payment initiated immediately"),
+        Ok(()) => Ok(info!(%hash, "Success: OIP initiated immediately")),
         Err(PaymentSendFailure::PartialFailure { results, .. }) => {
-            // Sending payments triggers async channel monitor persist,
-            // which results in a "partial failure". This is perfectly
-            // normal for us; just check that all errors are of this kind.
+            // Sending payments triggers async channel monitor persist, which
+            // results in a "partial failure". This is perfectly normal for us;
+            // just check that all errors are of this kind.
+            #[rustfmt::skip] // How to remove useless {\n<expr>\n} in closures?
             let all_ok_or_pending_monitor_update =
-                results.iter().all(|per_path_result| {
-                    matches!(
-                        per_path_result,
-                        Ok(()) | Err(APIError::MonitorUpdateInProgress)
-                    )
-                });
+                results.iter().all(|per_path_result| matches!(
+                    per_path_result,
+                    Ok(()) | Err(APIError::MonitorUpdateInProgress)
+                ));
 
             if all_ok_or_pending_monitor_update {
-                debug!(%hash, "Outbound payment OK; pending monitor updates");
+                Ok(info!(%hash, "Success: OIP pending monitor updates"))
             } else {
-                bail!("Partial failure sending payment: {results:?}");
+                // Docs: "the payment [...] is now at least partially pending."
+                // => we'll get a PaymentSent or PaymentFailed event later;
+                // no need to notify the PaymentsManager now.
+                Err(anyhow!("Partial failure sending OIP {hash}: {results:?}"))
             }
         }
-        Err(e) => bail!("Other failure sending payment: {e:?}"),
-    }
+        Err(PaymentSendFailure::DuplicatePayment) => {
+            // This should never happen because we should have already checked
+            // for uniqueness when registering the new payment above. If it
+            // somehow does, we should let the first payment follow its course,
+            // and wait for a PaymentSent or PaymentFailed event.
+            Err(anyhow!("Somehow got DuplicatePayment error (OIP {hash})"))
+        }
 
-    info!(%hash, "Success: initiated {final_value_msat} msat payment");
-    Ok(())
+        // Below, we match repetitively (instead of using Err(e)) to ensure that
+        // we think through new variants, which may have different requirements.
+        Err(PaymentSendFailure::ParameterError(err)) => {
+            // Docs: "Because the payment failed outright, no payment tracking
+            // is done and [...] no PaymentFailed events will be generated."
+            // => We need to register the payment as failed in PaymentsManager.
+            payments_manager
+                .payment_failed(hash)
+                .await
+                .context("(ParameterError) Could not register failure")?;
+            Err(anyhow!("ParameterError error (OIP {hash}): {err:?}"))
+        }
+        Err(PaymentSendFailure::PathParameterError(results)) => {
+            // Docs: "Because the payment failed outright, no payment tracking
+            // is done and [...] no PaymentFailed events will be generated."
+            // => We need to register the payment as failed in PaymentsManager.
+            payments_manager
+                .payment_failed(hash)
+                .await
+                .context("(PathParameterError) Could not register failure")?;
+            Err(anyhow!(
+                "PathParameterError error (OIP {hash}): {results:?}"
+            ))
+        }
+        Err(PaymentSendFailure::AllFailedResendSafe(errs)) => {
+            // Docs: "Because the payment failed outright, no payment tracking
+            // is done and [...] no PaymentFailed events will be generated."
+            // => We need to register the payment as failed in PaymentsManager.
+            payments_manager
+                .payment_failed(hash)
+                .await
+                .context("(AllFailedResendSafe) Could not register failure")?;
+            Err(anyhow!("AllFailedResendSafe error (OIP {hash}): {errs:?}"))
+        }
+    }
 }
 
 /// Given a channel manager and `min_inbound_capacity_msat`, generates a list of
