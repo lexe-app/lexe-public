@@ -68,6 +68,9 @@ num-bigint = { version = "0.4", default-features = false, features = [] }
 rand_core = { version = "0.6", default-features = false, features = ["alloc"] }
 # Safely cast &T to &U when T is a single field new-type
 ref-cast = "1"
+# Decimal number representation suitable for financial calculations
+rust_decimal = { version = "1", default-features = false, features = ["serde"] }
+rust_decimal_macros = { version = "1", default-features = false }
 # Deserialize PEM certs
 rustls-pemfile = "1"
 # Const SHA256 hash
