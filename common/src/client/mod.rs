@@ -16,7 +16,9 @@ use crate::api::auth::{
     BearerAuthRequest, BearerAuthResponse, BearerAuthenticator,
     UserSignupRequest,
 };
-use crate::api::command::{CreateInvoiceRequest, ListChannels, NodeInfo};
+use crate::api::command::{
+    CreateInvoiceRequest, ListChannels, NodeInfo, PayInvoiceRequest,
+};
 use crate::api::def::{
     AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
     BearerAuthBackendApi,
@@ -336,12 +338,12 @@ impl AppNodeRunApi for NodeClient {
 
     async fn pay_invoice(
         &self,
-        invoice: LxInvoice,
+        req: PayInvoiceRequest,
     ) -> Result<(), NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/pay_invoice");
-        let req = self.rest.post(url, &invoice);
+        let req = self.rest.post(url, &req);
         self.rest.send(req).await
     }
 
