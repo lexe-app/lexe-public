@@ -121,6 +121,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "64cb94155d965e3d37ffbbe7cc5b82c3dd79dd33bd48e536f73d2cfb8d85506f"
 
 [[package]]
+name = "arrayvec"
+version = "0.7.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8da52d66c7071e2e3fa2a1e5c6d088fec47b593032b254f5e980de8ea54454d6"
+
+[[package]]
 name = "asn1-rs"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -664,6 +670,8 @@ dependencies = [
  "ref-cast",
  "reqwest",
  "ring",
+ "rust_decimal",
+ "rust_decimal_macros",
  "rustls",
  "rustls-pemfile 1.0.2",
  "secrecy",
@@ -2357,6 +2365,27 @@ dependencies = [
  "sgxs-loaders",
  "tokio",
  "toml",
+]
+
+[[package]]
+name = "rust_decimal"
+version = "1.29.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "26bd36b60561ee1fb5ec2817f198b6fd09fa571c897a5e86d1487cfc2b096dfc"
+dependencies = [
+ "arrayvec",
+ "num-traits",
+ "serde",
+]
+
+[[package]]
+name = "rust_decimal_macros"
+version = "1.29.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e773fd3da1ed42472fdf3cfdb4972948a555bc3d73f5e0bdb99d17e7b54c687"
+dependencies = [
+ "quote 1.0.23",
+ "rust_decimal",
 ]
 
 [[package]]
