@@ -25,7 +25,9 @@ use super::fiat_rates::FiatRates;
 use crate::api::auth::{
     BearerAuthRequest, BearerAuthResponse, BearerAuthToken, UserSignupRequest,
 };
-use crate::api::command::{CreateInvoiceRequest, ListChannels, NodeInfo};
+use crate::api::command::{
+    CreateInvoiceRequest, ListChannels, NodeInfo, PayInvoiceRequest,
+};
 use crate::api::error::{
     BackendApiError, LspApiError, NodeApiError, RunnerApiError,
 };
@@ -256,8 +258,11 @@ pub trait AppNodeRunApi {
         req: CreateInvoiceRequest,
     ) -> Result<LxInvoice, NodeApiError>;
 
-    /// POST /app/pay_invoice [`LxInvoice`] -> [`()`]
-    async fn pay_invoice(&self, req: LxInvoice) -> Result<(), NodeApiError>;
+    /// POST /app/pay_invoice [`PayInvoiceRequest`] -> [`()`]
+    async fn pay_invoice(
+        &self,
+        req: PayInvoiceRequest,
+    ) -> Result<(), NodeApiError>;
 
     /// POST /v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
     ///
