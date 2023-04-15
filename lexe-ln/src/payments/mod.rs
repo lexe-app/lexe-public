@@ -4,6 +4,7 @@
 //! [`common::ln::payments`].
 
 use anyhow::Context;
+use common::ln::amount::Amount;
 use common::ln::invoice::LxInvoice;
 use common::ln::payments::{
     BasicPayment, DbPayment, LxPaymentId, PaymentDirection, PaymentKind,
@@ -140,8 +141,8 @@ impl From<Payment> for BasicPayment {
             kind: p.kind(),
             direction: p.direction(),
             invoice: p.invoice(),
-            amt_msat: p.amt_msat(),
-            fees_msat: p.fees_msat(),
+            amount: p.amount(),
+            fees: p.fees(),
             status: p.status(),
             status_str: p.status_str().to_owned(),
             created_at: p.created_at(),
@@ -204,66 +205,58 @@ impl Payment {
         }
     }
 
-    /// The amount of this payment in millisatoshis.
+    /// The amount of this payment.
     ///
     /// - If this is a completed inbound invoice payment, we return the amount
     ///   we received.
     /// - If this is a pending or failed inbound inbound invoice payment, we
     ///   return the amount encoded in our invoice, which may be null.
     /// - For all other payment types, an amount is always returned.
-    // TODO(max): Use LDK-provided Amount newtype when available
-    pub fn amt_msat(&self) -> Option<u64> {
+    pub fn amount(&self) -> Option<Amount> {
         match self {
-            Self::OnchainDeposit(OnchainDeposit { amt_msat, .. }) => {
-                Some(*amt_msat)
+            Self::OnchainDeposit(OnchainDeposit { amount, .. }) => {
+                Some(*amount)
             }
-            Self::OnchainWithdrawal(OnchainWithdrawal { amt_msat, .. }) => {
-                Some(*amt_msat)
+            Self::OnchainWithdrawal(OnchainWithdrawal { amount, .. }) => {
+                Some(*amount)
             }
             Self::InboundInvoice(InboundInvoicePayment {
-                invoice_amt_msat,
-                recvd_amount_msat,
+                invoice_amount,
+                recvd_amount,
                 ..
-            }) => recvd_amount_msat.or(*invoice_amt_msat),
+            }) => recvd_amount.or(*invoice_amount),
             Self::InboundSpontaneous(InboundSpontaneousPayment {
-                amt_msat,
+                amount,
                 ..
-            }) => Some(*amt_msat),
+            }) => Some(*amount),
             Self::OutboundInvoice(OutboundInvoicePayment {
-                amt_msat, ..
-            }) => Some(*amt_msat),
+                amount, ..
+            }) => Some(*amount),
             Self::OutboundSpontaneous(OutboundSpontaneousPayment {
-                amt_msat,
+                amount,
                 ..
-            }) => Some(*amt_msat),
+            }) => Some(*amount),
         }
     }
 
     /// The fees paid or expected to be paid for this payment.
-    // TODO(max): Use LDK-provided Amount newtype when available
-    pub fn fees_msat(&self) -> u64 {
+    pub fn fees(&self) -> Amount {
         match self {
-            Self::OnchainDeposit(OnchainDeposit { fees_msat, .. }) => {
-                *fees_msat
-            }
-            Self::OnchainWithdrawal(OnchainWithdrawal {
-                fees_msat, ..
-            }) => *fees_msat,
+            Self::OnchainDeposit(OnchainDeposit { fees, .. }) => *fees,
+            Self::OnchainWithdrawal(OnchainWithdrawal { fees, .. }) => *fees,
             Self::InboundInvoice(InboundInvoicePayment {
-                onchain_fees_msat,
+                onchain_fees,
                 ..
-            }) => onchain_fees_msat.unwrap_or(0),
+            }) => onchain_fees.unwrap_or(Amount::from_msat(0)),
             Self::InboundSpontaneous(InboundSpontaneousPayment {
-                onchain_fees_msat,
+                onchain_fees,
                 ..
-            }) => onchain_fees_msat.unwrap_or(0),
-            Self::OutboundInvoice(OutboundInvoicePayment {
-                fees_msat, ..
-            }) => *fees_msat,
+            }) => onchain_fees.unwrap_or(Amount::from_msat(0)),
+            Self::OutboundInvoice(OutboundInvoicePayment { fees, .. }) => *fees,
             Self::OutboundSpontaneous(OutboundSpontaneousPayment {
-                fees_msat,
+                fees,
                 ..
-            }) => *fees_msat,
+            }) => *fees,
         }
     }
 

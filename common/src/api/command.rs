@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::api::NodePk;
+use crate::ln::amount::Amount;
 use crate::ln::channel::LxChannelDetails;
 use crate::ln::invoice::LxInvoice;
 
@@ -9,7 +10,7 @@ pub struct NodeInfo {
     pub node_pk: NodePk,
     pub num_channels: usize,
     pub num_usable_channels: usize,
-    pub local_balance_msat: u64,
+    pub local_balance: Amount,
     pub num_peers: usize,
 }
 
@@ -21,7 +22,7 @@ pub struct ListChannels {
 #[derive(Default, Serialize, Deserialize)]
 pub struct CreateInvoiceRequest {
     pub expiry_secs: u32,
-    pub amt_msat: Option<u64>,
+    pub amount: Option<Amount>,
     pub description: String,
 }
 
@@ -29,7 +30,7 @@ pub struct CreateInvoiceRequest {
 pub struct PayInvoiceRequest {
     /// The invoice we want to pay.
     pub invoice: LxInvoice,
-    /// Specifies the msat amount we will pay if the invoice to be paid is
+    /// Specifies the amount we will pay if the invoice to be paid is
     /// amountless. This field must be [`Some`] for amountless invoices.
-    pub fallback_amt_msat: Option<u64>,
+    pub fallback_amount: Option<Amount>,
 }

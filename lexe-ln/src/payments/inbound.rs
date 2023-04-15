@@ -2,6 +2,7 @@ use std::convert::TryFrom;
 use std::time::Duration;
 
 use anyhow::{bail, ensure, Context};
+use common::ln::amount::Amount;
 use common::ln::invoice::LxInvoice;
 use common::ln::payments::{LxPaymentHash, LxPaymentPreimage, LxPaymentSecret};
 use common::time::TimestampMs;
@@ -83,7 +84,7 @@ impl Payment {
     pub(crate) fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
-        amt_msat: u64,
+        amount: Amount,
         purpose: LxPaymentPurpose,
     ) -> anyhow::Result<CheckedPayment> {
         match (self, purpose) {
@@ -91,7 +92,7 @@ impl Payment {
                 Self::InboundInvoice(iip),
                 LxPaymentPurpose::Invoice { preimage, secret },
             ) => iip
-                .check_payment_claimable(hash, secret, preimage, amt_msat)
+                .check_payment_claimable(hash, secret, preimage, amount)
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error claiming inbound invoice payment"),
@@ -99,7 +100,7 @@ impl Payment {
                 Self::InboundSpontaneous(isp),
                 LxPaymentPurpose::Spontaneous { preimage },
             ) => isp
-                .check_payment_claimable(hash, preimage, amt_msat)
+                .check_payment_claimable(hash, preimage, amount)
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error claiming inbound spontaneous payment"),
@@ -130,18 +131,15 @@ pub struct InboundInvoicePayment {
     /// - the [`PaymentPurpose`] field of the [`PaymentClaimable`] event.
     /// - the [`PaymentPurpose`] field of the [`PaymentClaimed`] event.
     pub preimage: LxPaymentPreimage,
-    /// The millisat amount encoded in our invoice, if there was one.
-    // TODO(max): Use LDK-provided Amount newtype when available
-    pub invoice_amt_msat: Option<u64>,
-    /// The millisat amount that we actually received.
+    /// The amount encoded in our invoice, if there was one.
+    pub invoice_amount: Option<Amount>,
+    /// The amount that we actually received.
     /// Populated iff we received a [`PaymentClaimable`] event.
-    // TODO(max): Use LDK-provided Amount newtype when available
-    pub recvd_amount_msat: Option<u64>,
-    /// The millisat amount we paid in on-chain fees (possibly arising from
-    /// receiving our payment over a JIT channel) to receive this transaction.
+    pub recvd_amount: Option<Amount>,
+    /// The amount we paid in on-chain fees (possibly arising from receiving
+    /// our payment over a JIT channel) to receive this transaction.
     // TODO(max): Implement
-    // TODO(max): Use LDK-provided Amount newtype when available
-    pub onchain_fees_msat: Option<u64>,
+    pub onchain_fees: Option<Amount>,
     /// The current status of the payment.
     pub status: InboundInvoicePaymentStatus,
     /// When we created the invoice for this payment.
@@ -173,15 +171,16 @@ impl InboundInvoicePayment {
         secret: LxPaymentSecret,
         preimage: LxPaymentPreimage,
     ) -> Self {
-        let invoice_amt_msat = invoice.0.amount_milli_satoshis();
+        let invoice_amount =
+            invoice.0.amount_milli_satoshis().map(Amount::from_msat);
         Self {
             invoice: Box::new(invoice),
             hash,
             secret,
             preimage,
-            invoice_amt_msat,
-            recvd_amount_msat: None,
-            onchain_fees_msat: None,
+            invoice_amount,
+            recvd_amount: None,
+            onchain_fees: None,
             status: InboundInvoicePaymentStatus::InvoiceGenerated,
             created_at: TimestampMs::now(),
             finalized_at: None,
@@ -193,7 +192,7 @@ impl InboundInvoicePayment {
         hash: LxPaymentHash,
         secret: LxPaymentSecret,
         preimage: LxPaymentPreimage,
-        amt_msat: u64,
+        amount: Amount,
     ) -> anyhow::Result<Self> {
         use InboundInvoicePaymentStatus::*;
 
@@ -212,9 +211,9 @@ impl InboundInvoicePayment {
             }
         }
 
-        if let Some(invoice_amt_msat) = self.invoice_amt_msat {
-            if amt_msat < invoice_amt_msat {
-                warn!("Requested {invoice_amt_msat} but claiming {amt_msat}");
+        if let Some(invoice_amount) = self.invoice_amount {
+            if amount < invoice_amount {
+                warn!("Requested {invoice_amount} but claiming {amount}");
                 // TODO(max): In the future, we might want to bail! instead
             }
         }
@@ -223,7 +222,7 @@ impl InboundInvoicePayment {
 
         // Everything ok; return a clone with the updated state
         let mut clone = self.clone();
-        clone.recvd_amount_msat = Some(amt_msat);
+        clone.recvd_amount = Some(amount);
         clone.status = InboundInvoicePaymentStatus::Claiming;
 
         Ok(clone)
@@ -234,7 +233,7 @@ impl InboundInvoicePayment {
         hash: LxPaymentHash,
         secret: LxPaymentSecret,
         preimage: LxPaymentPreimage,
-        amt_msat: u64,
+        amount: Amount,
     ) -> anyhow::Result<Self> {
         use InboundInvoicePaymentStatus::*;
 
@@ -260,9 +259,9 @@ impl InboundInvoicePayment {
             Expired => bail!("Payment already expired"),
         }
 
-        if let Some(invoice_amt_msat) = self.invoice_amt_msat {
-            if amt_msat < invoice_amt_msat {
-                warn!("Requested {invoice_amt_msat} but claimed {amt_msat}");
+        if let Some(invoice_amount) = self.invoice_amount {
+            if amount < invoice_amount {
+                warn!("Requested {invoice_amount} but claimed {amount}");
                 // TODO(max): In the future, we might want to bail! instead
             }
         }
@@ -271,7 +270,7 @@ impl InboundInvoicePayment {
 
         // Everything ok; return a clone with the updated state
         let mut clone = self.clone();
-        clone.recvd_amount_msat = Some(amt_msat);
+        clone.recvd_amount = Some(amount);
         clone.status = Completed;
         clone.finalized_at = Some(TimestampMs::now());
 
@@ -324,14 +323,12 @@ pub struct InboundSpontaneousPayment {
     pub hash: LxPaymentHash,
     /// Given by [`PaymentPurpose`].
     pub preimage: LxPaymentPreimage,
-    /// The millisat amount received in this payment.
-    // TODO(max): Use LDK-provided Amount newtype when available
-    pub amt_msat: u64,
-    /// The millisat amount we paid in on-chain fees (possibly arising from
-    /// receiving our payment over a JIT channel) to receive this transaction.
+    /// The amount received in this payment.
+    pub amount: Amount,
+    /// The amount we paid in on-chain fees (possibly arising from receiving
+    /// our payment over a JIT channel) to receive this transaction.
     // TODO(max): Implement
-    // TODO(max): Use LDK-provided Amount newtype when available
-    pub onchain_fees_msat: Option<u64>,
+    pub onchain_fees: Option<Amount>,
     /// The current status of the payment.
     pub status: InboundSpontaneousPaymentStatus,
     /// When we first learned of this payment via [`PaymentClaimable`].
@@ -359,14 +356,14 @@ impl InboundSpontaneousPayment {
     pub(crate) fn new(
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
-        amt_msat: u64,
+        amount: Amount,
     ) -> Self {
         Self {
             hash,
             preimage,
-            amt_msat,
+            amount,
             // TODO(max): Implement
-            onchain_fees_msat: None,
+            onchain_fees: None,
             status: InboundSpontaneousPaymentStatus::Claiming,
             created_at: TimestampMs::now(),
             finalized_at: None,
@@ -377,12 +374,12 @@ impl InboundSpontaneousPayment {
         &self,
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
-        amt_msat: u64,
+        amount: Amount,
     ) -> anyhow::Result<Self> {
         use InboundSpontaneousPaymentStatus::*;
 
         ensure!(hash == self.hash, "Hashes don't match");
-        ensure!(amt_msat == self.amt_msat, "Amounts don't match");
+        ensure!(amount == self.amount, "Amounts don't match");
         ensure!(preimage == self.preimage, "Preimages don't match");
         ensure!(matches!(self.status, Claiming), "Payment already finalized");
 
@@ -398,13 +395,13 @@ impl InboundSpontaneousPayment {
         &self,
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
-        amt_msat: u64,
+        amount: Amount,
     ) -> anyhow::Result<Self> {
         use InboundSpontaneousPaymentStatus::*;
 
         ensure!(hash == self.hash, "Hashes don't match");
         ensure!(preimage == self.preimage, "Preimages don't match");
-        ensure!(amt_msat == self.amt_msat, "Amounts don't match");
+        ensure!(amount == self.amount, "Amounts don't match");
 
         match self.status {
             Claiming => (),

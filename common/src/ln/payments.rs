@@ -14,6 +14,7 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::hex::{self, FromHex};
 use crate::hexstr_or_bytes;
+use crate::ln::amount::Amount;
 use crate::ln::hashes::LxTxid;
 use crate::ln::invoice::LxInvoice;
 use crate::time::TimestampMs;
@@ -31,15 +32,15 @@ pub struct BasicPayment {
     pub kind: PaymentKind,
     pub direction: PaymentDirection,
     pub invoice: Option<LxInvoice>,
-    /// The amount of this payment in millisatoshis.
+    /// The amount of this payment.
     ///
     /// - If this is a completed inbound invoice payment, this is the amount we
     ///   received.
     /// - If this is a pending or failed inbound inbound invoice payment, this
     ///   is the amount encoded in our invoice, which may be null.
     /// - For all other payment types, an amount is always included.
-    pub amt_msat: Option<u64>,
-    pub fees_msat: u64,
+    pub amount: Option<Amount>,
+    pub fees: Amount,
     pub status: PaymentStatus,
     /// The payment status as a human-readable string. These strings are
     /// customized per payment type, e.g. "invoice generated" "timed out"

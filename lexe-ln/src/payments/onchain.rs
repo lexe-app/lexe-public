@@ -1,3 +1,4 @@
+use common::ln::amount::Amount;
 use common::ln::hashes::LxTxid;
 use common::time::TimestampMs;
 #[cfg(test)]
@@ -20,8 +21,8 @@ pub enum OnchainPaymentStatus {
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainDeposit {
     pub txid: LxTxid,
-    pub amt_msat: u64,
-    pub fees_msat: u64,
+    pub amount: Amount,
+    pub fees: Amount,
     pub status: OnchainPaymentStatus,
     pub created_at: TimestampMs,
     pub finalized_at: Option<TimestampMs>,
@@ -33,8 +34,8 @@ pub struct OnchainDeposit {
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainWithdrawal {
     pub txid: LxTxid,
-    pub amt_msat: u64,
-    pub fees_msat: u64,
+    pub amount: Amount,
+    pub fees: Amount,
     pub status: OnchainPaymentStatus,
     pub created_at: TimestampMs,
     pub finalized_at: Option<TimestampMs>,

@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use anyhow::{bail, ensure};
+use common::ln::amount::Amount;
 use common::ln::invoice::LxInvoice;
 use common::ln::payments::{LxPaymentHash, LxPaymentPreimage, LxPaymentSecret};
 use common::time::TimestampMs;
@@ -42,17 +43,14 @@ pub struct OutboundInvoicePayment {
     /// The preimage, which serves as a proof-of-payment.
     /// This field is populated if and only if the status is `Completed`.
     pub preimage: Option<LxPaymentPreimage>,
-    /// The millisat amount sent in this payment,
-    /// given by [`Route::get_total_amount`].
-    // TODO(max): Use LDK-provided Amount newtype when available
-    pub amt_msat: u64,
+    /// The amount sent in this payment, given by [`Route::get_total_amount`].
+    pub amount: Amount,
     /// The routing fees for this payment. If the payment hasn't completed yet,
     /// this value is only an estimation based on a [`Route`] computed prior to
     /// the first send attempt, as the actual fees paid may vary somewhat due
     /// to retries occurring on different paths. If the payment is
     /// completed, then this field should reflect the actual fees paid.
-    // TODO(max): Use LDK-provided Amount newtype when available
-    pub fees_msat: u64,
+    pub fees: Amount,
     /// The current status of the payment.
     pub status: OutboundInvoicePaymentStatus,
     /// When we initiated this payment.
@@ -91,8 +89,8 @@ impl OutboundInvoicePayment {
             hash,
             secret,
             preimage: None,
-            amt_msat: route.get_total_amount(),
-            fees_msat: route.get_total_fees(),
+            amount: Amount::from_msat(route.get_total_amount()),
+            fees: Amount::from_msat(route.get_total_fees()),
             status: OutboundInvoicePaymentStatus::Pending,
             created_at: TimestampMs::now(),
             finalized_at: None,
@@ -103,7 +101,7 @@ impl OutboundInvoicePayment {
         &self,
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
-        maybe_fees_paid_msat: Option<u64>,
+        maybe_fees_paid: Option<Amount>,
     ) -> anyhow::Result<Self> {
         use OutboundInvoicePaymentStatus::*;
 
@@ -112,14 +110,14 @@ impl OutboundInvoicePayment {
         let computed_hash = preimage.compute_hash();
         ensure!(hash == computed_hash, "Preimage doesn't correspond to hash");
 
-        let estimated_fees = &self.fees_msat;
-        let final_fees_msat = maybe_fees_paid_msat
-            .inspect(|fees_paid_msat| {
-                if fees_paid_msat != estimated_fees {
+        let estimated_fees = &self.fees;
+        let final_fees = maybe_fees_paid
+            .inspect(|fees_paid| {
+                if fees_paid != estimated_fees {
                     info!(
                         %hash,
                         "Estimated fees from Route was {estimated_fees} msat; \
-                        actually paid {fees_paid_msat} msat."
+                        actually paid {fees_paid} msat."
                     );
                 }
             })
@@ -142,7 +140,7 @@ impl OutboundInvoicePayment {
 
         let mut clone = self.clone();
         clone.preimage = Some(preimage);
-        clone.fees_msat = final_fees_msat;
+        clone.fees = final_fees;
         clone.status = Completed;
         clone.finalized_at = Some(TimestampMs::now());
 
@@ -217,12 +215,10 @@ pub struct OutboundSpontaneousPayment {
     /// the hash of this payment, and which must be globally unique to ensure
     /// that intermediate nodes cannot steal funds.
     pub preimage: LxPaymentPreimage,
-    /// The millisat amount received in this payment.
-    // TODO(max): Use LDK-provided Amount newtype when available
-    pub amt_msat: u64,
+    /// The amount received in this payment.
+    pub amount: Amount,
     /// The fees we paid for this payment, given by [`Route::get_total_fees`].
-    // TODO(max): Use LDK-provided Amount newtype when available
-    pub fees_msat: u64,
+    pub fees: Amount,
     /// The current status of the payment.
     pub status: OutboundSpontaneousPaymentStatus,
     /// When we initiated this payment.
