@@ -7,6 +7,7 @@ use bitcoin_hashes::{sha256, Hash};
 use common::api::command::{CreateInvoiceRequest, NodeInfo, PayInvoiceRequest};
 use common::api::{NodePk, Scid};
 use common::cli::{LspInfo, Network};
+use common::ln::amount::Amount;
 use common::ln::invoice::LxInvoice;
 use common::ln::payments::LxPaymentHash;
 use lightning::chain::keysinterface::{NodeSigner, Recipient};
@@ -59,13 +60,14 @@ where
     let num_usable_channels = channels.iter().filter(|c| c.is_usable).count();
 
     let local_balance_msat = channels.iter().map(|c| c.balance_msat).sum();
+    let local_balance = Amount::from_msat(local_balance_msat);
     let num_peers = peer_manager.get_peer_node_ids().len();
 
     NodeInfo {
         node_pk,
         num_channels,
         num_usable_channels,
-        local_balance_msat,
+        local_balance,
         num_peers,
     }
 }
@@ -82,9 +84,9 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
-    let amt_msat = &req.amt_msat;
+    let amount = &req.amount;
     let cltv_expiry = MIN_FINAL_CLTV_EXPIRY_DELTA;
-    info!("Handling create_invoice command for {amt_msat:?} msats");
+    info!("Handling create_invoice command for {amount:?} msats");
 
     // TODO(max): We should set some sane maximum for the invoice expiry time,
     // e.g. 180 days. This will not cause LDK state to blow up since
@@ -98,7 +100,7 @@ where
     // is not known by (and therefore cannot be provided by) LDK.
     let (hash, secret) = channel_manager
         .create_inbound_payment(
-            req.amt_msat,
+            req.amount.map(|amt| amt.msat()),
             req.expiry_secs,
             Some(cltv_expiry),
         )
@@ -128,12 +130,12 @@ where
         .basic_mpp()                                         // S: _ -> True
         .expiry_time(expiry_time)
         .payee_pub_key(our_node_pk);
-    if let Some(amt_msat) = req.amt_msat {
-        builder = builder.amount_milli_satoshis(amt_msat);
+    if let Some(amount) = req.amount {
+        builder = builder.amount_milli_satoshis(amount.msat());
     }
 
     // Add the route hints.
-    let route_hints = get_route_hints(channel_manager, caller, req.amt_msat);
+    let route_hints = get_route_hints(channel_manager, caller, req.amount);
     for hint in route_hints {
         builder = builder.private_route(hint);
     }
@@ -204,11 +206,11 @@ where
         .amount_milli_satoshis()
         .inspect(|_| {
             debug_assert!(
-                req.fallback_amt_msat.is_none(),
+                req.fallback_amount.is_none(),
                 "Nit: Fallback should only be provided for amountless invoices",
             )
         })
-        .or(req.fallback_amt_msat)
+        .or(req.fallback_amount.map(|amt| amt.msat()))
         .context("Missing fallback amount for amountless invoice")?;
     let final_cltv_expiry_delta =
         u32::try_from(invoice.min_final_cltv_expiry_delta())
@@ -332,7 +334,7 @@ where
     }
 }
 
-/// Given a channel manager and `min_inbound_capacity_msat`, generates a list of
+/// Given a channel manager and `min_inbound_capacity`, generates a list of
 /// [`RouteHint`]s which can be included in an [`Invoice`] to help the sender
 /// find a path to us. If LSP information is also provided, a route hint with an
 /// intercept scid will be included in the invoice in the case that there are no
@@ -345,7 +347,7 @@ where
 fn get_route_hints<CM, PS>(
     channel_manager: CM,
     caller: CreateInvoiceCaller,
-    min_inbound_capacity_msat: Option<u64>,
+    min_inbound_capacity: Option<Amount>,
 ) -> Vec<RouteHint>
 where
     CM: LexeChannelManager<PS>,
@@ -354,7 +356,8 @@ where
     let all_channels = channel_manager.list_channels();
     let num_channels = all_channels.len();
     debug!("Generating route hints, starting with {num_channels} channels");
-    let min_inbound_capacity_msat = min_inbound_capacity_msat.unwrap_or(0);
+    let min_inbound_capacity =
+        min_inbound_capacity.unwrap_or(Amount::from_msat(0));
 
     let (lsp_info, scid) = match caller {
         CreateInvoiceCaller::Lsp => {
@@ -396,7 +399,7 @@ where
         // generate an invoice but has not yet reconnected to its peer (the LSP)
         .filter(|c| c.is_channel_ready)
         // Channels with sufficient liquidity only
-        .filter(|c| c.inbound_capacity_msat >= min_inbound_capacity_msat)
+        .filter(|c| c.inbound_capacity_msat >= min_inbound_capacity.msat())
         // Generate a RouteHintHop for the LSP -> us channel
         .filter_map(|c| {
             // scids and forwarding info are required to construct a hop hint

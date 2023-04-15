@@ -3,6 +3,7 @@ use std::fmt::{self, Display};
 use anyhow::{anyhow, ensure, Context};
 use common::api::NodePk;
 use common::hex;
+use common::ln::amount::Amount;
 use common::ln::peer::ChannelPeer;
 use common::rng::Crng;
 use lightning::util::config::UserConfig;
@@ -53,7 +54,7 @@ pub async fn open_channel<CM, PM, PS>(
     channel_manager: CM,
     peer_manager: PM,
     user_channel_id: u128,
-    channel_value_sat: u64,
+    channel_value: Amount,
     relationship: ChannelRelationship<PS>,
     user_config: UserConfig,
 ) -> anyhow::Result<()>
@@ -124,7 +125,7 @@ where
     channel_manager
         .create_channel(
             responder_node_pk.0,
-            channel_value_sat,
+            channel_value.sats_u64(),
             push_msat,
             user_channel_id,
             Some(user_config),

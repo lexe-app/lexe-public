@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use anyhow::{bail, ensure, Context};
+use common::ln::amount::Amount;
 use common::ln::payments::{
     LxPaymentHash, LxPaymentId, LxPaymentPreimage, PaymentStatus,
 };
@@ -184,7 +185,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         purpose: PaymentPurpose,
     ) -> anyhow::Result<()> {
         let hash = hash.into();
-        info!(%amt_msat, %hash, "Handling PaymentClaimable");
+        let amount = Amount::from_msat(amt_msat);
+        info!(%amount, %hash, "Handling PaymentClaimable");
         let purpose = LxPaymentPurpose::try_from(purpose)
             // The conversion can only fail if the preimage is unknown.
             .inspect_err(|_| {
@@ -197,7 +199,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // Check
         let mut locked_data = self.data.lock().await;
         let checked = locked_data
-            .check_payment_claimable(hash, amt_msat, purpose)
+            .check_payment_claimable(hash, amount, purpose)
             // If validation failed, permanently fail the HTLC.
             .inspect_err(|_| {
                 self.channel_manager.fail_htlc_backwards_with_reason(
@@ -227,7 +229,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // Everything ok; claim the payment
         // TODO(max): `claim_funds` docs state that we must check that the
-        // amt_msat we received matches our expectation, relevant if
+        // amount we received matches our expectation, relevant if
         // we're receiving payment for e.g. an order of some sort.
         // Otherwise, we will have given the sender a proof-of-payment
         // when they did not fulfill the full expected payment.
@@ -268,13 +270,14 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         purpose: PaymentPurpose,
     ) -> anyhow::Result<()> {
         let hash = hash.into();
-        info!(%amt_msat, %hash, "Handling PaymentClaimed");
+        let amount = Amount::from_msat(amt_msat);
+        info!(%amount, %hash, "Handling PaymentClaimed");
         let purpose = LxPaymentPurpose::try_from(purpose)?;
 
         // Check
         let mut locked_data = self.data.lock().await;
         let checked = locked_data
-            .check_payment_claimed(hash, amt_msat, purpose)
+            .check_payment_claimed(hash, amount, purpose)
             .context("Error validating PaymentClaimed")?;
 
         // Persist
@@ -303,12 +306,13 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         maybe_fees_paid_msat: Option<u64>,
     ) -> anyhow::Result<()> {
         let hash = hash.into();
-        info!(%hash, ?maybe_fees_paid_msat, "Handling PaymentSent");
+        let maybe_fees_paid = maybe_fees_paid_msat.map(Amount::from_msat);
+        info!(%hash, ?maybe_fees_paid, "Handling PaymentSent");
 
         // Check
         let mut locked_data = self.data.lock().await;
         let checked = locked_data
-            .check_payment_sent(hash, preimage.into(), maybe_fees_paid_msat)
+            .check_payment_sent(hash, preimage.into(), maybe_fees_paid)
             .context("Error validating PaymentSent")?;
 
         // Persist
@@ -454,7 +458,7 @@ impl PaymentsData {
     fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
-        amt_msat: u64,
+        amount: Amount,
         purpose: LxPaymentPurpose,
     ) -> anyhow::Result<CheckedPayment> {
         let id = LxPaymentId::from(hash);
@@ -487,13 +491,13 @@ impl PaymentsData {
             (Some(pending_payment), purpose) => {
                 // Pending payment exists; update it
                 pending_payment
-                    .check_payment_claimable(hash, amt_msat, purpose)?
+                    .check_payment_claimable(hash, amount, purpose)?
             }
             (None, LxPaymentPurpose::Spontaneous { preimage }) => {
                 // We just got a new spontaneous payment!
                 // Create the new payment.
                 let isp =
-                    InboundSpontaneousPayment::new(hash, preimage, amt_msat);
+                    InboundSpontaneousPayment::new(hash, preimage, amount);
                 let payment = Payment::from(isp);
 
                 // Validate the new payment.
@@ -511,7 +515,7 @@ impl PaymentsData {
     fn check_payment_claimed(
         &self,
         hash: LxPaymentHash,
-        amt_msat: u64,
+        amount: Amount,
         purpose: LxPaymentPurpose,
     ) -> anyhow::Result<CheckedPayment> {
         let id = LxPaymentId::from(hash);
@@ -531,7 +535,7 @@ impl PaymentsData {
                 Payment::InboundInvoice(iip),
                 LxPaymentPurpose::Invoice { preimage, secret },
             ) => iip
-                .check_payment_claimed(hash, secret, preimage, amt_msat)
+                .check_payment_claimed(hash, secret, preimage, amount)
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error finalizing inbound invoice payment")?,
@@ -539,7 +543,7 @@ impl PaymentsData {
                 Payment::InboundSpontaneous(isp),
                 LxPaymentPurpose::Spontaneous { preimage },
             ) => isp
-                .check_payment_claimed(hash, preimage, amt_msat)
+                .check_payment_claimed(hash, preimage, amount)
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error finalizing inbound spontaneous payment")?,
@@ -553,7 +557,7 @@ impl PaymentsData {
         &self,
         hash: LxPaymentHash,
         preimage: LxPaymentPreimage,
-        maybe_fees_paid_msat: Option<u64>,
+        maybe_fees_paid: Option<Amount>,
     ) -> anyhow::Result<CheckedPayment> {
         let id = LxPaymentId::from(hash);
 
@@ -569,7 +573,7 @@ impl PaymentsData {
 
         let checked = match pending_payment {
             Payment::OutboundInvoice(oip) => oip
-                .check_payment_sent(hash, preimage, maybe_fees_paid_msat)
+                .check_payment_sent(hash, preimage, maybe_fees_paid)
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error checking outbound invoice payment")?,

@@ -75,7 +75,7 @@ impl From<NodeInfoRs> for NodeInfo {
     fn from(info: NodeInfoRs) -> Self {
         Self {
             node_pk: info.node_pk.to_string(),
-            local_balance_msat: info.local_balance_msat,
+            local_balance_msat: info.local_balance.msat(),
         }
     }
 }
