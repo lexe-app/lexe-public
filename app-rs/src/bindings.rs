@@ -40,15 +40,18 @@
 //!   in-memory state is probably cheaper overall to use `SyncReturn`.
 
 use std::future::Future;
+use std::sync::LazyLock;
 
 use anyhow::Context;
 use common::api::command::NodeInfo as NodeInfoRs;
 use common::api::def::{AppGatewayApi, AppNodeRunApi};
 use common::api::fiat_rates::FiatRates as FiatRatesRs;
 use common::rng::SysRng;
+use flutter_rust_bridge::handler::ReportDartErrorHandler;
 use flutter_rust_bridge::{frb, RustOpaque, SyncReturn};
 
 pub use crate::app::App;
+use crate::dart_task_handler::{LxExecutor, LxHandler};
 
 // TODO(phlip9): land tokio support in flutter_rust_bridge
 // As a temporary unblock to support async fn's, we'll just block_on on a
@@ -64,6 +67,19 @@ thread_local! {
         .build()
         .expect("Failed to build thread's tokio Runtime");
 }
+
+pub(crate) static FLUTTER_RUST_BRIDGE_HANDLER: LazyLock<LxHandler> =
+    LazyLock::new(|| {
+        std::env::set_var("RUST_BACKTRACE", "1");
+
+        // TODO(phlip9): If we want backtraces from panics, we'll need to set a
+        // custom panic handler here that formats the backtrace into the panic
+        // message string instead of printing it out to stderr (since mobile
+        // doesn't show stdout/stderr...)
+
+        let error_handler = ReportDartErrorHandler;
+        LxHandler::new(LxExecutor::new(error_handler), error_handler)
+    });
 
 #[frb(dart_metadata=("freezed"))]
 pub struct NodeInfo {
@@ -199,4 +215,22 @@ impl AppHandle {
             .map(FiatRates::from)
             .map_err(anyhow::Error::new)
     }
+}
+
+// for testing that backtraces are generated...
+
+pub fn do_panic_sync() -> SyncReturn<()> {
+    panic!("this should panic");
+}
+
+pub fn do_panic_async() {
+    panic!("this should panic");
+}
+
+pub fn do_return_err_sync() -> anyhow::Result<SyncReturn<String>> {
+    Err(anyhow::format_err!("oh no!"))
+}
+
+pub fn do_return_err_async() -> anyhow::Result<String> {
+    Err(anyhow::format_err!("oh no!"))
 }

@@ -81,8 +81,7 @@ class ComponentList extends StatelessWidget {
   Widget build(BuildContext context) {
     final systemBarHeight = MediaQuery.of(context).padding.top;
 
-    return Container(
-      color: LxColors.background,
+    return Padding(
       padding: EdgeInsets.only(top: systemBarHeight + Space.s400),
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: Space.s500),

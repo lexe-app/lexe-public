@@ -14,6 +14,11 @@ import 'cfg.dart' as cfg;
 /// Android only supports ffi via dynamically linked libraries.
 /// We'll statically link our ffi library for all other platforms.
 ffi.DynamicLibrary _loadLibraryNormal() {
+  // TODO(phlip9): Linux build
+  if (io.Platform.isLinux) {
+    return ffi.DynamicLibrary.open("../target/debug/libapp_rs.so");
+  }
+
   final lib = (io.Platform.isAndroid)
       ? ffi.DynamicLibrary.open("libapp_rs.so")
       : ffi.DynamicLibrary.process();
