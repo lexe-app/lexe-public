@@ -22,7 +22,7 @@ use crate::payments::inbound::{
     InboundSpontaneousPayment, InboundSpontaneousPaymentStatus,
 };
 use crate::payments::onchain::{
-    OnchainDeposit, OnchainPaymentStatus, OnchainWithdrawal,
+    OnchainPaymentStatus, OnchainReceive, OnchainSend,
 };
 use crate::payments::outbound::{
     OutboundInvoicePayment, OutboundInvoicePaymentStatus,
@@ -48,8 +48,8 @@ pub mod outbound;
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum Payment {
-    OnchainDeposit(OnchainDeposit),
-    OnchainWithdrawal(OnchainWithdrawal),
+    OnchainSend(OnchainSend),
+    OnchainReceive(OnchainReceive),
     // TODO(max): Implement SpliceIn
     // TODO(max): Implement SpliceOut
     InboundInvoice(InboundInvoicePayment),
@@ -101,14 +101,14 @@ pub fn decrypt(
 
 // --- Specific payment type -> top-level Payment types --- //
 
-impl From<OnchainDeposit> for Payment {
-    fn from(p: OnchainDeposit) -> Self {
-        Self::OnchainDeposit(p)
+impl From<OnchainSend> for Payment {
+    fn from(p: OnchainSend) -> Self {
+        Self::OnchainSend(p)
     }
 }
-impl From<OnchainWithdrawal> for Payment {
-    fn from(p: OnchainWithdrawal) -> Self {
-        Self::OnchainWithdrawal(p)
+impl From<OnchainReceive> for Payment {
+    fn from(p: OnchainReceive) -> Self {
+        Self::OnchainReceive(p)
     }
 }
 impl From<InboundInvoicePayment> for Payment {
@@ -156,8 +156,8 @@ impl From<Payment> for BasicPayment {
 impl Payment {
     pub fn id(&self) -> LxPaymentId {
         match self {
-            Self::OnchainDeposit(od) => LxPaymentId::Onchain(od.txid),
-            Self::OnchainWithdrawal(ow) => LxPaymentId::Onchain(ow.txid),
+            Self::OnchainSend(od) => LxPaymentId::Onchain(od.txid),
+            Self::OnchainReceive(ow) => LxPaymentId::Onchain(ow.txid),
             Self::InboundInvoice(iip) => LxPaymentId::Lightning(iip.hash),
             Self::InboundSpontaneous(isp) => LxPaymentId::Lightning(isp.hash),
             Self::OutboundInvoice(oip) => LxPaymentId::Lightning(oip.hash),
@@ -168,8 +168,8 @@ impl Payment {
     /// Whether this is an onchain payment, LN invoice payment, etc.
     pub fn kind(&self) -> PaymentKind {
         match self {
-            Self::OnchainDeposit(_) => PaymentKind::Onchain,
-            Self::OnchainWithdrawal(_) => PaymentKind::Onchain,
+            Self::OnchainSend(_) => PaymentKind::Onchain,
+            Self::OnchainReceive(_) => PaymentKind::Onchain,
             Self::InboundInvoice(_) => PaymentKind::Invoice,
             Self::InboundSpontaneous(_) => PaymentKind::Spontaneous,
             Self::OutboundInvoice(_) => PaymentKind::Invoice,
@@ -180,8 +180,8 @@ impl Payment {
     /// Whether this payment is inbound or outbound. Useful for filtering.
     pub fn direction(&self) -> PaymentDirection {
         match self {
-            Self::OnchainDeposit(_) => PaymentDirection::Inbound,
-            Self::OnchainWithdrawal(_) => PaymentDirection::Outbound,
+            Self::OnchainSend(_) => PaymentDirection::Inbound,
+            Self::OnchainReceive(_) => PaymentDirection::Outbound,
             Self::InboundInvoice(_) => PaymentDirection::Inbound,
             Self::InboundSpontaneous(_) => PaymentDirection::Inbound,
             Self::OutboundInvoice(_) => PaymentDirection::Outbound,
@@ -192,8 +192,8 @@ impl Payment {
     /// Returns the invoice corresponding to this payment, if there is one.
     pub fn invoice(&self) -> Option<LxInvoice> {
         match self {
-            Self::OnchainDeposit(_) => None,
-            Self::OnchainWithdrawal(_) => None,
+            Self::OnchainSend(_) => None,
+            Self::OnchainReceive(_) => None,
             Self::InboundInvoice(InboundInvoicePayment { invoice, .. }) => {
                 Some(*invoice.clone())
             }
@@ -214,10 +214,8 @@ impl Payment {
     /// - For all other payment types, an amount is always returned.
     pub fn amount(&self) -> Option<Amount> {
         match self {
-            Self::OnchainDeposit(OnchainDeposit { amount, .. }) => {
-                Some(*amount)
-            }
-            Self::OnchainWithdrawal(OnchainWithdrawal { amount, .. }) => {
+            Self::OnchainSend(OnchainSend { amount, .. }) => Some(*amount),
+            Self::OnchainReceive(OnchainReceive { amount, .. }) => {
                 Some(*amount)
             }
             Self::InboundInvoice(InboundInvoicePayment {
@@ -242,8 +240,8 @@ impl Payment {
     /// The fees paid or expected to be paid for this payment.
     pub fn fees(&self) -> Amount {
         match self {
-            Self::OnchainDeposit(OnchainDeposit { fees, .. }) => *fees,
-            Self::OnchainWithdrawal(OnchainWithdrawal { fees, .. }) => *fees,
+            Self::OnchainSend(OnchainSend { fees, .. }) => *fees,
+            Self::OnchainReceive(OnchainReceive { fees, .. }) => *fees,
             Self::InboundInvoice(InboundInvoicePayment {
                 onchain_fees,
                 ..
@@ -263,10 +261,10 @@ impl Payment {
     /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
     pub fn status(&self) -> PaymentStatus {
         match self {
-            Self::OnchainDeposit(OnchainDeposit { status, .. }) => {
+            Self::OnchainSend(OnchainSend { status, .. }) => {
                 PaymentStatus::from(*status)
             }
-            Self::OnchainWithdrawal(OnchainWithdrawal { status, .. }) => {
+            Self::OnchainReceive(OnchainReceive { status, .. }) => {
                 PaymentStatus::from(*status)
             }
             Self::InboundInvoice(InboundInvoicePayment { status, .. }) => {
@@ -289,10 +287,8 @@ impl Payment {
     /// Get the payment status as a human-readable `&'static str`
     pub fn status_str(&self) -> &str {
         match self {
-            Self::OnchainDeposit(OnchainDeposit { status, .. }) => {
-                status.as_str()
-            }
-            Self::OnchainWithdrawal(OnchainWithdrawal { status, .. }) => {
+            Self::OnchainSend(OnchainSend { status, .. }) => status.as_str(),
+            Self::OnchainReceive(OnchainReceive { status, .. }) => {
                 status.as_str()
             }
             Self::InboundInvoice(InboundInvoicePayment { status, .. }) => {
@@ -315,12 +311,10 @@ impl Payment {
     /// When this payment was created.
     pub fn created_at(&self) -> TimestampMs {
         match self {
-            Self::OnchainDeposit(OnchainDeposit { created_at, .. }) => {
+            Self::OnchainSend(OnchainSend { created_at, .. }) => *created_at,
+            Self::OnchainReceive(OnchainReceive { created_at, .. }) => {
                 *created_at
             }
-            Self::OnchainWithdrawal(OnchainWithdrawal {
-                created_at, ..
-            }) => *created_at,
             Self::InboundInvoice(InboundInvoicePayment {
                 created_at, ..
             }) => *created_at,
@@ -342,12 +336,12 @@ impl Payment {
     /// When this payment was completed or failed.
     pub fn finalized_at(&self) -> Option<TimestampMs> {
         match self {
-            Self::OnchainDeposit(OnchainDeposit { finalized_at, .. }) => {
+            Self::OnchainSend(OnchainSend { finalized_at, .. }) => {
                 *finalized_at
             }
-            Self::OnchainWithdrawal(OnchainWithdrawal {
-                finalized_at, ..
-            }) => *finalized_at,
+            Self::OnchainReceive(OnchainReceive { finalized_at, .. }) => {
+                *finalized_at
+            }
             Self::InboundInvoice(InboundInvoicePayment {
                 finalized_at,
                 ..
@@ -505,8 +499,8 @@ mod test {
     fn low_level_payments_serde_roundtrips() {
         use roundtrip::json_value_custom;
         let config = Config::with_cases(16);
-        json_value_custom(any::<OnchainDeposit>(), config.clone());
-        json_value_custom(any::<OnchainWithdrawal>(), config.clone());
+        json_value_custom(any::<OnchainSend>(), config.clone());
+        json_value_custom(any::<OnchainReceive>(), config.clone());
         // TODO(max): Add SpliceIn
         // TODO(max): Add SpliceOut
         json_value_custom(any::<InboundInvoicePayment>(), config.clone());

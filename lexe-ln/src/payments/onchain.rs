@@ -15,11 +15,11 @@ pub enum OnchainPaymentStatus {
     Reorged,
 }
 
-// --- Onchain deposits --- //
+// --- Onchain send --- //
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct OnchainDeposit {
+pub struct OnchainSend {
     pub txid: LxTxid,
     pub amount: Amount,
     pub fees: Amount,
@@ -28,11 +28,11 @@ pub struct OnchainDeposit {
     pub finalized_at: Option<TimestampMs>,
 }
 
-// --- Onchain withdrawals --- //
+// --- Onchain receive --- //
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct OnchainWithdrawal {
+pub struct OnchainReceive {
     pub txid: LxTxid,
     pub amount: Amount,
     pub fees: Amount,
