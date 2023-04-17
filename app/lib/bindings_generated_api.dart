@@ -11,6 +11,22 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'bindings_generated_api.freezed.dart';
 
 abstract class AppRs {
+  void doPanicSync({dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kDoPanicSyncConstMeta;
+
+  Future<void> doPanicAsync({dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kDoPanicAsyncConstMeta;
+
+  String doReturnErrSync({dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kDoReturnErrSyncConstMeta;
+
+  Future<String> doReturnErrAsync({dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kDoReturnErrAsyncConstMeta;
+
   Config regtestStaticMethodConfig({dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kRegtestStaticMethodConfigConstMeta;

@@ -39,6 +39,14 @@ uintptr_t new_dart_opaque(Dart_Handle handle);
 
 intptr_t init_frb_dart_api_dl(void *obj);
 
+WireSyncReturn wire_do_panic_sync(void);
+
+void wire_do_panic_async(int64_t port_);
+
+WireSyncReturn wire_do_return_err_sync(void);
+
+void wire_do_return_err_async(int64_t port_);
+
 WireSyncReturn wire_regtest__static_method__Config(void);
 
 void wire_load__static_method__AppHandle(int64_t port_, struct wire_Config *config);
@@ -69,6 +77,10 @@ void free_WireSyncReturn(WireSyncReturn ptr);
 
 static int64_t dummy_method_to_enforce_bundling(void) {
     int64_t dummy_var = 0;
+    dummy_var ^= ((int64_t) (void*) wire_do_panic_sync);
+    dummy_var ^= ((int64_t) (void*) wire_do_panic_async);
+    dummy_var ^= ((int64_t) (void*) wire_do_return_err_sync);
+    dummy_var ^= ((int64_t) (void*) wire_do_return_err_async);
     dummy_var ^= ((int64_t) (void*) wire_regtest__static_method__Config);
     dummy_var ^= ((int64_t) (void*) wire_load__static_method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_restore__static_method__AppHandle);
