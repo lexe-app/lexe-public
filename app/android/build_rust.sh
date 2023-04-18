@@ -44,7 +44,11 @@ if ! rustup target list --installed | grep -q "$TARGET"; then
     rustup target add "$TARGET"
 fi
 
+# TODO(phlip9): get backtraces working...
+# --no-strip
+
 cargo ndk \
-    --target=arm64-v8a \
+    --target="$TARGET" \
     --output-dir="$SCRIPT_DIR/app/src/main/jniLibs" \
+    --platform=33 \
     -- build -p app-rs "$@"

@@ -60,7 +60,7 @@ void main() {
   );
 
   test(
-    "result err from rust ffi should give backtrace",
+    "result err sync from rust ffi should give backtrace",
     () {
       try {
         api.doReturnErrSync();
@@ -72,7 +72,7 @@ void main() {
   );
 
   test(
-    "result err from rust ffi should give backtrace",
+    "result err async from rust ffi should give backtrace",
     () async {
       try {
         await api.doReturnErrAsync();
