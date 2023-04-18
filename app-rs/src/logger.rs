@@ -4,6 +4,7 @@
 
 use std::fmt::{self, Write};
 use std::str::FromStr;
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use flutter_rust_bridge::StreamSink;
 use tracing::{field, Event, Level, Subscriber};
@@ -71,30 +72,33 @@ fn fmt_event<S>(
     let meta = event.metadata();
     let level = meta.level().as_str();
 
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or(Duration::ZERO)
+        .as_secs_f64();
+
     // TODO(phlip9): display span stack
     // TODO(phlip9): display module, file, line?
 
     // pad INFO and WARN so log messages align
-    if level.len() == 4 {
-        msg.write_char(' ')?;
-    }
+    let level_pad = if level.len() == 4 { " " } else { "" };
 
-    write!(msg, "{level}")?;
+    write!(msg, "{timestamp:.06} {level_pad}{level}")?;
     event.record(&mut FieldVisitor::new(msg));
     Ok(())
 }
 
-struct FieldVisitor<W> {
-    writer: W,
+struct FieldVisitor<'a> {
+    buf: &'a mut String,
 }
 
-impl<W: fmt::Write> FieldVisitor<W> {
-    fn new(writer: W) -> Self {
-        Self { writer }
+impl<'a> FieldVisitor<'a> {
+    fn new(buf: &'a mut String) -> Self {
+        Self { buf }
     }
 }
 
-impl<W: fmt::Write> field::Visit for FieldVisitor<W> {
+impl<'a> field::Visit for FieldVisitor<'a> {
     fn record_str(&mut self, field: &field::Field, value: &str) {
         if field.name() == "message" {
             self.record_debug(field, &format_args!("{}", value))
@@ -105,10 +109,10 @@ impl<W: fmt::Write> field::Visit for FieldVisitor<W> {
 
     fn record_debug(&mut self, field: &field::Field, value: &dyn fmt::Debug) {
         match field.name() {
-            "message" => write!(self.writer, " {value:?}"),
+            "message" => write!(self.buf, " {value:?}"),
             // skip `log` crate metadata
             name if name.starts_with("log.") => Ok(()),
-            name => write!(self.writer, " {name}={value:?}"),
+            name => write!(self.buf, " {name}={value:?}"),
         }
         .expect("Failed to write??");
     }

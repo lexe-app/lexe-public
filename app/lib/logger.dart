@@ -17,14 +17,17 @@ _Logger? _logger;
 
 /// The global logger state and configuration.
 class _Logger {
-  const _Logger(this.minLogLevel);
+  _Logger(this.minLogLevel);
 
   final int minLogLevel;
 
   void log(int logLevel, String message) {
     if (logLevel >= this.minLogLevel) {
+      // final timestamp = DateTime.now().toUtc();
+      final timestamp = DateTime.now().toUtc().microsecondsSinceEpoch * 1e-6;
       final levelString = _levelToString(logLevel);
-      this.logRaw("$levelString $message");
+
+      this.logRaw("${timestamp.toStringAsFixed(6)} $levelString $message");
     }
   }
 
@@ -51,7 +54,7 @@ bool tryInit() {
   if (_logger != null) {
     return false;
   } else {
-    _logger = const _Logger(minLogLevel);
+    _logger = _Logger(minLogLevel);
   }
 
   // Register a stream of log entries from Rust -> Dart.
