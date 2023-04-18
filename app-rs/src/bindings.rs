@@ -253,11 +253,11 @@ pub fn init_rust_log_stream(rust_log_tx: StreamSink<LogEntry>) {
 pub fn do_logs() -> SyncReturn<()> {
     let x: i32 = 123;
 
-    tracing::trace!(%x, "trace");
-    tracing::debug!(%x, "debug");
-    tracing::info!(%x, "info");
-    tracing::warn!(%x, "warn");
-    tracing::error!(%x, "error");
+    tracing::trace!(%x, "rust trace");
+    tracing::debug!(%x, "rust debug");
+    tracing::info!(%x, "rust info");
+    tracing::warn!(%x, "rust warn");
+    tracing::error!(%x, "rust error");
 
     SyncReturn(())
 }

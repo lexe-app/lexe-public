@@ -18,7 +18,7 @@ import 'style.dart' show LxColors, LxTheme, Space;
 Future<void> main() async {
   Intl.defaultLocale = "en_US";
 
-  unawaited(logger.init());
+  logger.init();
 
   final mockApp = MockAppHandle(bridge: api);
 

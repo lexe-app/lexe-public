@@ -1,5 +1,3 @@
-import 'dart:async' show unawaited;
-
 import 'package:flutter/material.dart';
 
 import 'bindings.dart' show api;
@@ -17,7 +15,7 @@ Future<void> main() async {
   //   (error, stackTrace) => /* do something w/ error */,
   // );
 
-  unawaited(logger.init());
+  logger.init();
 
   final config = Config.regtest(bridge: api);
   final maybeApp = await AppHandle.load(bridge: api, config: config);
