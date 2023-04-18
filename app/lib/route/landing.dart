@@ -151,7 +151,10 @@ class LandingButtons extends StatelessWidget {
         const CreateWalletButton(),
         const SizedBox(height: 16.0),
         OutlinedButton(
-          onPressed: () => debugPrint("pressed recover wallet button"),
+          onPressed: () {
+            debugPrint("pressed recover wallet button");
+            api.doLogs();
+          },
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: LxColors.clearW600, width: 2.0),
             padding: const EdgeInsets.symmetric(horizontal: 32.0),

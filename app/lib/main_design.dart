@@ -1,12 +1,15 @@
 // An alternate application entrypoint specifically for designing pages
 // and components in isolation, without actually touching any real backends.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show Intl;
 
 import 'bindings.dart' show api;
 import 'bindings_generated_api.dart'
     show App, AppHandle, AppRs, FiatRate, FiatRates, NodeInfo;
+import 'logger.dart' as logger;
 import 'route/backup_wallet.dart' show BackupWalletPage;
 import 'route/landing.dart' show LandingPage;
 import 'route/wallet.dart' show DrawerListItem, WalletPage;
@@ -14,6 +17,8 @@ import 'style.dart' show LxColors, LxTheme, Space;
 
 Future<void> main() async {
   Intl.defaultLocale = "en_US";
+
+  unawaited(logger.init());
 
   final mockApp = MockAppHandle(bridge: api);
 

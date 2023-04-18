@@ -68,7 +68,7 @@ void main() {
         assertFfiExceptionMsgHasBacktrace(err);
       }
     },
-    skip: "TODO: backtraces aren't symbolized",
+    skip: "TODO: backtraces aren't symbolized on android",
   );
 
   test(
@@ -80,6 +80,6 @@ void main() {
         assertFfiExceptionMsgHasBacktrace(err);
       }
     },
-    skip: "TODO: backtraces aren't symbolized",
+    skip: "TODO: backtraces aren't symbolized on android",
   );
 }

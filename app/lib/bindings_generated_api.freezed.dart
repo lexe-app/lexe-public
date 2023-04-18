@@ -113,6 +113,43 @@ abstract class _FiatRates implements FiatRates {
 }
 
 /// @nodoc
+mixin _$LogEntry {
+  String get message => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$_LogEntry implements _LogEntry {
+  const _$_LogEntry({required this.message});
+
+  @override
+  final String message;
+
+  @override
+  String toString() {
+    return 'LogEntry(message: $message)';
+  }
+
+  @override
+  bool operator ==(dynamic other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$_LogEntry &&
+            (identical(other.message, message) || other.message == message));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, message);
+}
+
+abstract class _LogEntry implements LogEntry {
+  const factory _LogEntry({required final String message}) = _$_LogEntry;
+
+  @override
+  String get message;
+}
+
+/// @nodoc
 mixin _$NodeInfo {
   String get nodePk => throw _privateConstructorUsedError;
   int get localBalanceMsat => throw _privateConstructorUsedError;

@@ -26,7 +26,7 @@
 //!   `ZeroCopyBuffer<Vec<u8>>` from Rust, which becomes a `Uint8List` on the
 //!   Dart side without a copy, since Rust can prove there are no borrows to the
 //!   owned buffer when it's transferred.
-//! * Normal looking pub functions, like `pub fn foo() -> u32 { 123 }` look like
+//! * Normal looking pub functions, like `pub fn x() -> u32 { 123 }` look like
 //!   async fn's on the Dart side and are run on a separate small threadpool on
 //!   the Rust side to avoid blocking the main Flutter UI isolate.
 //! * Functions that return `SyncReturn<_>` do block the calling Dart isolate
@@ -48,10 +48,11 @@ use common::api::def::{AppGatewayApi, AppNodeRunApi};
 use common::api::fiat_rates::FiatRates as FiatRatesRs;
 use common::rng::SysRng;
 use flutter_rust_bridge::handler::ReportDartErrorHandler;
-use flutter_rust_bridge::{frb, RustOpaque, SyncReturn};
+use flutter_rust_bridge::{frb, RustOpaque, StreamSink, SyncReturn};
 
 pub use crate::app::App;
 use crate::dart_task_handler::{LxExecutor, LxHandler};
+use crate::logger;
 
 // TODO(phlip9): land tokio support in flutter_rust_bridge
 // As a temporary unblock to support async fn's, we'll just block_on on a
@@ -233,4 +234,30 @@ pub fn do_return_err_sync() -> anyhow::Result<SyncReturn<String>> {
 
 pub fn do_return_err_async() -> anyhow::Result<String> {
     Err(anyhow::format_err!("oh no!"))
+}
+
+// --
+
+#[frb(dart_metadata=("freezed"))]
+pub struct LogEntry {
+    // pub level: String,
+    // pub timestamp_ms: i64,
+    // pub module: String,
+    pub message: String,
+}
+
+pub fn init_rust_log_stream(rust_log_tx: StreamSink<LogEntry>) {
+    logger::init(rust_log_tx);
+}
+
+pub fn do_logs() -> SyncReturn<()> {
+    let x: i32 = 123;
+
+    tracing::trace!(%x, "trace");
+    tracing::debug!(%x, "debug");
+    tracing::info!(%x, "info");
+    tracing::warn!(%x, "warn");
+    tracing::error!(%x, "error");
+
+    SyncReturn(())
 }

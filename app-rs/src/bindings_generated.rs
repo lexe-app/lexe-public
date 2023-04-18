@@ -63,6 +63,30 @@ fn wire_do_return_err_async_impl(port_: MessagePort) {
         move || move |task_callback| do_return_err_async(),
     )
 }
+fn wire_init_rust_log_stream_impl(port_: MessagePort) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
+        WrapInfo {
+            debug_name: "init_rust_log_stream",
+            port: Some(port_),
+            mode: FfiCallMode::Stream,
+        },
+        move || {
+            move |task_callback| {
+                Ok(init_rust_log_stream(task_callback.stream_sink()))
+            }
+        },
+    )
+}
+fn wire_do_logs_impl() -> support::WireSyncReturn {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
+        WrapInfo {
+            debug_name: "do_logs",
+            port: None,
+            mode: FfiCallMode::Sync,
+        },
+        move || Ok(do_logs()),
+    )
+}
 fn wire_regtest__static_method__Config_impl() -> support::WireSyncReturn {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
         WrapInfo {
@@ -251,6 +275,13 @@ impl support::IntoDart for FiatRates {
 }
 impl support::IntoDartExceptPrimitive for FiatRates {}
 
+impl support::IntoDart for LogEntry {
+    fn into_dart(self) -> support::DartAbi {
+        vec![self.message.into_dart()].into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for LogEntry {}
+
 impl support::IntoDart for Network {
     fn into_dart(self) -> support::DartAbi {
         match self {
@@ -300,6 +331,16 @@ mod io {
     #[no_mangle]
     pub extern "C" fn wire_do_return_err_async(port_: i64) {
         wire_do_return_err_async_impl(port_)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_init_rust_log_stream(port_: i64) {
+        wire_init_rust_log_stream_impl(port_)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_do_logs() -> support::WireSyncReturn {
+        wire_do_logs_impl()
     }
 
     #[no_mangle]
