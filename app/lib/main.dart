@@ -1,7 +1,10 @@
+import 'dart:async' show unawaited;
+
 import 'package:flutter/material.dart';
 
 import 'bindings.dart' show api;
 import 'bindings_generated_api.dart' show AppHandle, Config;
+import 'logger.dart' as logger;
 import 'route/landing.dart' show LandingPage;
 import 'style.dart' show LxColors, LxTheme;
 
@@ -13,6 +16,8 @@ Future<void> main() async {
   //   () async => await mainInner(),
   //   (error, stackTrace) => /* do something w/ error */,
   // );
+
+  unawaited(logger.init());
 
   final config = Config.regtest(bridge: api);
   final maybeApp = await AppHandle.load(bridge: api, config: config);

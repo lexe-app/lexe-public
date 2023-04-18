@@ -88,6 +88,38 @@ class AppRsImpl implements AppRs {
         argNames: [],
       );
 
+  Stream<LogEntry> initRustLogStream({dynamic hint}) {
+    return _platform.executeStream(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner.wire_init_rust_log_stream(port_),
+      parseSuccessData: _wire2api_log_entry,
+      constMeta: kInitRustLogStreamConstMeta,
+      argValues: [],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kInitRustLogStreamConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "init_rust_log_stream",
+        argNames: [],
+      );
+
+  void doLogs({dynamic hint}) {
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner.wire_do_logs(),
+      parseSuccessData: _wire2api_unit,
+      constMeta: kDoLogsConstMeta,
+      argValues: [],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kDoLogsConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "do_logs",
+        argNames: [],
+      );
+
   Config regtestStaticMethodConfig({dynamic hint}) {
     return _platform.executeSync(FlutterRustBridgeSyncTask(
       callFfi: () => _platform.inner.wire_regtest__static_method__Config(),
@@ -280,6 +312,15 @@ class AppRsImpl implements AppRs {
 
   List<FiatRate> _wire2api_list_fiat_rate(dynamic raw) {
     return (raw as List<dynamic>).map(_wire2api_fiat_rate).toList();
+  }
+
+  LogEntry _wire2api_log_entry(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return LogEntry(
+      message: _wire2api_String(arr[0]),
+    );
   }
 
   Network _wire2api_network(dynamic raw) {
@@ -552,6 +593,29 @@ class AppRsWire implements FlutterRustBridgeWireBase {
           'wire_do_return_err_async');
   late final _wire_do_return_err_async =
       _wire_do_return_err_asyncPtr.asFunction<void Function(int)>();
+
+  void wire_init_rust_log_stream(
+    int port_,
+  ) {
+    return _wire_init_rust_log_stream(
+      port_,
+    );
+  }
+
+  late final _wire_init_rust_log_streamPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+          'wire_init_rust_log_stream');
+  late final _wire_init_rust_log_stream =
+      _wire_init_rust_log_streamPtr.asFunction<void Function(int)>();
+
+  WireSyncReturn wire_do_logs() {
+    return _wire_do_logs();
+  }
+
+  late final _wire_do_logsPtr =
+      _lookup<ffi.NativeFunction<WireSyncReturn Function()>>('wire_do_logs');
+  late final _wire_do_logs =
+      _wire_do_logsPtr.asFunction<WireSyncReturn Function()>();
 
   WireSyncReturn wire_regtest__static_method__Config() {
     return _wire_regtest__static_method__Config();
