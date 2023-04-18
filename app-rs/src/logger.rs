@@ -74,6 +74,11 @@ fn fmt_event<S>(
     // TODO(phlip9): display span stack
     // TODO(phlip9): display module, file, line?
 
+    // pad INFO and WARN so log messages align
+    if level.len() == 4 {
+        msg.write_char(' ')?;
+    }
+
     write!(msg, "{level}")?;
     event.record(&mut FieldVisitor::new(msg));
     Ok(())
