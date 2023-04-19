@@ -2,11 +2,12 @@ use std::sync::Arc;
 
 use common::api::command::ListChannels;
 use common::api::error::{NodeApiError, NodeErrorKind};
-use common::api::qs::{GetNewPayments, GetPaymentsByIds};
+use common::api::qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote};
 use common::ln::channel::LxChannelDetails;
 use common::ln::payments::BasicPayment;
 use lexe_ln::alias::NetworkGraphType;
 
+use crate::alias::NodePaymentsManagerType;
 use crate::channel_manager::NodeChannelManager;
 use crate::persister::NodePersister;
 
@@ -48,5 +49,18 @@ pub(super) async fn get_new_payments(
         .map_err(|e| NodeApiError {
             kind: NodeErrorKind::Command,
             msg: format!("Could not read new `BasicPayment`s: {e:#}"),
+        })
+}
+
+pub(super) async fn update_payment_note(
+    update: UpdatePaymentNote,
+    payments_manager: NodePaymentsManagerType,
+) -> Result<(), NodeApiError> {
+    payments_manager
+        .update_payment_note(update)
+        .await
+        .map_err(|e| NodeApiError {
+            kind: NodeErrorKind::Command,
+            msg: format!("Could not update payment note: {e:#}"),
         })
 }
