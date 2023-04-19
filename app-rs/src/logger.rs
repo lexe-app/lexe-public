@@ -7,9 +7,10 @@ use std::str::FromStr;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use flutter_rust_bridge::StreamSink;
-use tracing::{field, Event, Level, Subscriber};
+use tracing::{field, span, Event, Level, Subscriber};
 use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::{Context, Layer, SubscriberExt};
+use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::util::{SubscriberInitExt, TryInitError};
 
 use crate::bindings::LogEntry;
@@ -54,7 +55,7 @@ impl DartLogLayer {
     }
 }
 
-impl<S: Subscriber> Layer<S> for DartLogLayer {
+impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for DartLogLayer {
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
         let mut message = String::new();
         fmt_event(&mut message, event, ctx).expect("Failed to format");
@@ -64,10 +65,12 @@ impl<S: Subscriber> Layer<S> for DartLogLayer {
     }
 }
 
-fn fmt_event<S>(
-    msg: &mut String,
+// Adapted from:
+// [`Format::<Compact, T>`::format_event`](https://github.com/tokio-rs/tracing/blob/tracing-subscriber-0.3.16/tracing-subscriber/src/fmt/format/mod.rs#L1012)
+fn fmt_event<S: Subscriber + for<'a> LookupSpan<'a>>(
+    buf: &mut String,
     event: &Event<'_>,
-    _ctx: Context<'_, S>,
+    ctx: Context<'_, S>,
 ) -> fmt::Result {
     let meta = event.metadata();
     let level = meta.level().as_str();
@@ -77,17 +80,21 @@ fn fmt_event<S>(
         .unwrap_or(Duration::ZERO)
         .as_secs_f64();
 
-    // TODO(phlip9): display span stack
-    // TODO(phlip9): display module, file, line?
-
     // pad INFO and WARN so log messages align
     let level_pad = if level.len() == 4 { " " } else { "" };
+    let target = meta.target();
 
-    write!(msg, "{timestamp:.06} {level_pad}{level}")?;
-    event.record(&mut FieldVisitor::new(msg));
+    write!(buf, "{timestamp:.06} {level_pad}{level}")?;
+    fmt_spans(buf, event.parent(), ctx)?;
+    write!(buf, " {target}:")?;
+
+    // event fields
+    event.record(&mut FieldVisitor::new(buf));
     Ok(())
 }
 
+// Adapted from:
+// [`DefaultVisitor`](https://github.com/tokio-rs/tracing/blob/tracing-subscriber-0.3.16/tracing-subscriber/src/fmt/format/mod.rs#L1222)
 struct FieldVisitor<'a> {
     buf: &'a mut String,
 }
@@ -118,21 +125,27 @@ impl<'a> field::Visit for FieldVisitor<'a> {
     }
 }
 
-// fn fmt_spans<W: Write>(w: &mut W) -> fmt::Result {
-//     let mut seen = false;
-//     let span = self
-//         .span
-//         .and_then(|id| self.ctx.ctx.span(id))
-//         .or_else(|| self.ctx.ctx.lookup_current());
-//
-//     let scope = span.into_iter().flat_map(|span|
-//     span.scope().from_root());
-//
-//     for span in scope {
-//         seen = true;
-//         write!(f, "{}:", bold.paint(span.metadata().name()))?;
-//     }
-//     if seen {
-//         f.write_char(' ')?;
-//     }
-// }
+// Adapted from:
+// [`FmtCtx::fmt`](https://github.com/tokio-rs/tracing/blob/tracing-subscriber-0.3.16/tracing-subscriber/src/fmt/format/mod.rs#L1353)
+fn fmt_spans<S: Subscriber + for<'a> LookupSpan<'a>>(
+    buf: &mut String,
+    span: Option<&span::Id>,
+    ctx: Context<'_, S>,
+) -> fmt::Result {
+    let span = span
+        .and_then(|id| ctx.span(id))
+        .or_else(|| ctx.lookup_current());
+
+    let scope = span.into_iter().flat_map(|span| span.scope().from_root());
+
+    let mut first = true;
+    for span in scope {
+        if first {
+            buf.write_char(' ')?;
+            first = false;
+        }
+        write!(buf, "{}:", span.metadata().name())?;
+    }
+
+    Ok(())
+}
