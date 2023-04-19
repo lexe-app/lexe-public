@@ -71,7 +71,10 @@ thread_local! {
 
 pub(crate) static FLUTTER_RUST_BRIDGE_HANDLER: LazyLock<LxHandler> =
     LazyLock::new(|| {
-        std::env::set_var("RUST_BACKTRACE", "1");
+        // TODO(phlip9): Get backtraces symbolizing correctly on mobile. I'm at
+        // a bit of a loss as to why I can't get this working...
+
+        // std::env::set_var("RUST_BACKTRACE", "1");
 
         // TODO(phlip9): If we want backtraces from panics, we'll need to set a
         // custom panic handler here that formats the backtrace into the panic
@@ -156,6 +159,22 @@ impl Config {
     }
 }
 
+/// Init the Rust [`tracing`] logger. Panics if the logger is already init.
+///
+/// Since `println!`/stdout gets swallowed on mobile, we ship log messages over
+/// to dart for printing. Otherwise we can't see logs while developing.
+///
+/// When dart calls this function, it generates a `log_tx` and `log_rx`, then
+/// sends the `log_tx` to Rust while holding on to the `log_rx`. When Rust gets
+/// a new [`tracing`] log event, it enqueues the formatted log onto the
+/// `log_tx`.
+///
+/// `rust_log`: since env vars don't work well on mobile, we need to ship the
+/// equivalent of `$RUST_LOG` configured at build-time through here.
+pub fn init_rust_log_stream(rust_log_tx: StreamSink<String>, rust_log: String) {
+    logger::init(rust_log_tx, &rust_log);
+}
+
 fn block_on<T, Fut>(future: Fut) -> T
 where
     Fut: Future<Output = T>,
@@ -216,54 +235,4 @@ impl AppHandle {
             .map(FiatRates::from)
             .map_err(anyhow::Error::new)
     }
-}
-
-// for testing that backtraces are generated...
-
-pub fn do_panic_sync() -> SyncReturn<()> {
-    panic!("this should panic");
-}
-
-pub fn do_panic_async() {
-    panic!("this should panic");
-}
-
-pub fn do_return_err_sync() -> anyhow::Result<SyncReturn<String>> {
-    Err(anyhow::format_err!("oh no!"))
-}
-
-pub fn do_return_err_async() -> anyhow::Result<String> {
-    Err(anyhow::format_err!("oh no!"))
-}
-
-pub fn init_rust_log_stream(rust_log_tx: StreamSink<String>, rust_log: String) {
-    logger::init(rust_log_tx, &rust_log);
-}
-
-pub fn do_logs() -> SyncReturn<()> {
-    let x: i32 = 123;
-
-    tracing::trace!(%x, "rust trace");
-    tracing::debug!(%x, "rust debug");
-    tracing::info!(%x, "rust info");
-    tracing::warn!(%x, "rust warn");
-    tracing::error!(%x, "rust error");
-
-    tracing::info_span!("(my-span)").in_scope(|| {
-        tracing::trace!(%x, "rust trace");
-        tracing::debug!(%x, "rust debug");
-        tracing::info!(%x, "rust info");
-        tracing::warn!(%x, "rust warn");
-        tracing::error!(%x, "rust error");
-
-        tracing::info_span!("(span-deux)").in_scope(|| {
-            tracing::trace!(%x, "rust trace");
-            tracing::debug!(%x, "rust debug");
-            tracing::info!(%x, "rust info");
-            tracing::warn!(%x, "rust warn");
-            tracing::error!(%x, "rust error");
-        });
-    });
-
-    SyncReturn(())
 }

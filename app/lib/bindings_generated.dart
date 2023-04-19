@@ -24,70 +24,6 @@ class AppRsImpl implements AppRs {
   factory AppRsImpl.wasm(FutureOr<WasmModule> module) =>
       AppRsImpl(module as ExternalLibrary);
   AppRsImpl.raw(this._platform);
-  void doPanicSync({dynamic hint}) {
-    return _platform.executeSync(FlutterRustBridgeSyncTask(
-      callFfi: () => _platform.inner.wire_do_panic_sync(),
-      parseSuccessData: _wire2api_unit,
-      constMeta: kDoPanicSyncConstMeta,
-      argValues: [],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kDoPanicSyncConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "do_panic_sync",
-        argNames: [],
-      );
-
-  Future<void> doPanicAsync({dynamic hint}) {
-    return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_do_panic_async(port_),
-      parseSuccessData: _wire2api_unit,
-      constMeta: kDoPanicAsyncConstMeta,
-      argValues: [],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kDoPanicAsyncConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "do_panic_async",
-        argNames: [],
-      );
-
-  String doReturnErrSync({dynamic hint}) {
-    return _platform.executeSync(FlutterRustBridgeSyncTask(
-      callFfi: () => _platform.inner.wire_do_return_err_sync(),
-      parseSuccessData: _wire2api_String,
-      constMeta: kDoReturnErrSyncConstMeta,
-      argValues: [],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kDoReturnErrSyncConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "do_return_err_sync",
-        argNames: [],
-      );
-
-  Future<String> doReturnErrAsync({dynamic hint}) {
-    return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_do_return_err_async(port_),
-      parseSuccessData: _wire2api_String,
-      constMeta: kDoReturnErrAsyncConstMeta,
-      argValues: [],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kDoReturnErrAsyncConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "do_return_err_async",
-        argNames: [],
-      );
-
   Stream<String> initRustLogStream({required String rustLog, dynamic hint}) {
     var arg0 = _platform.api2wire_String(rustLog);
     return _platform.executeStream(FlutterRustBridgeTask(
@@ -104,22 +40,6 @@ class AppRsImpl implements AppRs {
       const FlutterRustBridgeTaskConstMeta(
         debugName: "init_rust_log_stream",
         argNames: ["rustLog"],
-      );
-
-  void doLogs({dynamic hint}) {
-    return _platform.executeSync(FlutterRustBridgeSyncTask(
-      callFfi: () => _platform.inner.wire_do_logs(),
-      parseSuccessData: _wire2api_unit,
-      constMeta: kDoLogsConstMeta,
-      argValues: [],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kDoLogsConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "do_logs",
-        argNames: [],
       );
 
   Config regtestStaticMethodConfig({dynamic hint}) {
@@ -345,10 +265,6 @@ class AppRsImpl implements AppRs {
   Uint8List _wire2api_uint_8_list(dynamic raw) {
     return raw as Uint8List;
   }
-
-  void _wire2api_unit(dynamic raw) {
-    return;
-  }
 }
 
 // Section: api2wire
@@ -539,54 +455,6 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _init_frb_dart_api_dl = _init_frb_dart_api_dlPtr
       .asFunction<int Function(ffi.Pointer<ffi.Void>)>();
 
-  WireSyncReturn wire_do_panic_sync() {
-    return _wire_do_panic_sync();
-  }
-
-  late final _wire_do_panic_syncPtr =
-      _lookup<ffi.NativeFunction<WireSyncReturn Function()>>(
-          'wire_do_panic_sync');
-  late final _wire_do_panic_sync =
-      _wire_do_panic_syncPtr.asFunction<WireSyncReturn Function()>();
-
-  void wire_do_panic_async(
-    int port_,
-  ) {
-    return _wire_do_panic_async(
-      port_,
-    );
-  }
-
-  late final _wire_do_panic_asyncPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-          'wire_do_panic_async');
-  late final _wire_do_panic_async =
-      _wire_do_panic_asyncPtr.asFunction<void Function(int)>();
-
-  WireSyncReturn wire_do_return_err_sync() {
-    return _wire_do_return_err_sync();
-  }
-
-  late final _wire_do_return_err_syncPtr =
-      _lookup<ffi.NativeFunction<WireSyncReturn Function()>>(
-          'wire_do_return_err_sync');
-  late final _wire_do_return_err_sync =
-      _wire_do_return_err_syncPtr.asFunction<WireSyncReturn Function()>();
-
-  void wire_do_return_err_async(
-    int port_,
-  ) {
-    return _wire_do_return_err_async(
-      port_,
-    );
-  }
-
-  late final _wire_do_return_err_asyncPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-          'wire_do_return_err_async');
-  late final _wire_do_return_err_async =
-      _wire_do_return_err_asyncPtr.asFunction<void Function(int)>();
-
   void wire_init_rust_log_stream(
     int port_,
     ffi.Pointer<wire_uint_8_list> rust_log,
@@ -603,15 +471,6 @@ class AppRsWire implements FlutterRustBridgeWireBase {
               ffi.Pointer<wire_uint_8_list>)>>('wire_init_rust_log_stream');
   late final _wire_init_rust_log_stream = _wire_init_rust_log_streamPtr
       .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
-
-  WireSyncReturn wire_do_logs() {
-    return _wire_do_logs();
-  }
-
-  late final _wire_do_logsPtr =
-      _lookup<ffi.NativeFunction<WireSyncReturn Function()>>('wire_do_logs');
-  late final _wire_do_logs =
-      _wire_do_logsPtr.asFunction<WireSyncReturn Function()>();
 
   WireSyncReturn wire_regtest__static_method__Config() {
     return _wire_regtest__static_method__Config();
