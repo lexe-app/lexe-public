@@ -40,11 +40,43 @@ pub struct BasicPayment {
     ///   is the amount encoded in our invoice, which may be null.
     /// - For all other payment types, an amount is always included.
     pub amount: Option<Amount>,
+    /// The fees for this payment.
+    ///
+    /// - For outbound Lightning payments, these are the routing fees. If the
+    ///   payment is not completed, this value is an estimation only. Iff the
+    ///   payment completes, this value reflects actual fees paid.
+    /// - For inbound Lightning payments, the routing fees are not paid by us
+    ///   (the recipient), but if a JIT channel open was required to facilitate
+    ///   this payment, then the on-chain fee is reflected here.
     pub fees: Amount,
     pub status: PaymentStatus,
     /// The payment status as a human-readable string. These strings are
-    /// customized per payment type, e.g. "invoice generated" "timed out"
+    /// customized per payment type, e.g. "invoice generated", "timed out"
     pub status_str: String,
+    /// An optional personal note which a user can attach to any payment. A
+    /// note can always be added or modified when a payment already exists,
+    /// but this may not always be possible at creation time. These
+    /// differences are documented below:
+    ///
+    /// - Onchain send: The user has the option to set this at creation time.
+    /// - Onchain receive: The user can only add a note after the onchain
+    ///   receive has been detected.
+    ///
+    /// - Inbound invoice payments: Since a user-provided description is
+    ///   already required when creating an invoice, at invoice creation time
+    ///   this field is not exposed to the user and is simply initialized to
+    ///   [`None`]. Useful primarily if a user wants to update their note
+    ///   later.
+    /// - Inbound spontaneous payment: There is no way for users to add the
+    ///   note at the time of receiving an inbound spontaneous payment, so this
+    ///   field can only be added or updated later.
+    ///
+    /// - Outbound invoice payments: Since the receiver sets the invoice
+    ///   description, which might just be a useless 🍆 emoji, the user has the
+    ///   option to add this note at the time of invoice payment.
+    /// - Outbound spontaneous payment: Since there is no invoice description
+    ///   field, the user has the option to set this at payment creation time.
+    pub note: Option<String>,
     pub created_at: TimestampMs,
     pub finalized_at: Option<TimestampMs>,
 }
