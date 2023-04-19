@@ -3,7 +3,7 @@ use std::sync::Mutex;
 
 use async_trait::async_trait;
 use common::api::vfs::VfsFile;
-use common::ln::payments::LxPaymentId;
+use common::ln::payments::{LxPaymentId, PaymentIndex};
 use common::ln::peer::ChannelPeer;
 use lightning::chain::chainmonitor::Persist;
 use lightning::util::events::EventHandler;
@@ -70,6 +70,11 @@ pub trait LexeInnerPersister: Persist<SignerType> {
         &self,
         checked: CheckedPayment,
     ) -> anyhow::Result<PersistedPayment>;
+
+    async fn get_payment(
+        &self,
+        index: PaymentIndex,
+    ) -> anyhow::Result<Option<Payment>>;
 }
 
 /// A 'trait alias' defining all the requirements of a Lexe persister.
