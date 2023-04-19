@@ -84,7 +84,7 @@ fn fmt_event<S: Subscriber + for<'a> LookupSpan<'a>>(
     let level_pad = if level.len() == 4 { " " } else { "" };
     let target = meta.target();
 
-    write!(buf, "{timestamp:.06} {level_pad}{level}")?;
+    write!(buf, "{timestamp:.06} R {level_pad}{level}")?;
     fmt_spans(buf, event.parent(), ctx)?;
     write!(buf, " {target}:")?;
 

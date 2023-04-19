@@ -26,7 +26,7 @@ class _Logger {
       final timestamp = DateTime.now().toUtc().microsecondsSinceEpoch * 1e-6;
       final levelString = _levelToString(logLevel);
 
-      this.logRaw("${timestamp.toStringAsFixed(6)} $levelString $message");
+      this.logRaw("${timestamp.toStringAsFixed(6)} D $levelString $message");
     }
   }
 

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import '../bindings.dart' show api;
 import '../bindings_generated_api.dart' show AppHandle;
 import '../cfg.dart' show config;
+import '../logger.dart' show error, info;
 import '../style.dart' show Fonts, LxColors;
 import 'backup_wallet.dart' show BackupWalletPage;
 
@@ -151,7 +152,7 @@ class LandingButtons extends StatelessWidget {
         const CreateWalletButton(),
         const SizedBox(height: 16.0),
         OutlinedButton(
-          onPressed: () => debugPrint("pressed recover wallet button"),
+          onPressed: () => info("pressed recover wallet button"),
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: LxColors.clearW600, width: 2.0),
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
@@ -183,7 +184,7 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
   bool _disableButton = false;
 
   Future<void> _onPressed() async {
-    debugPrint("pressed create wallet button");
+    info("pressed create wallet button");
 
     // disable button
     setState(() => this._disableButton = true);
@@ -200,7 +201,7 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
     // TODO(phlip9): disable restore button while request is processing? o/w
     // user could navigate away while account is getting created...
 
-    debugPrint("done signing up");
+    info("done signing up");
 
     if (context.mounted) {
       unawaited(Navigator.of(context).pushReplacement(MaterialPageRoute(
@@ -274,9 +275,8 @@ class InkuShader extends StatelessWidget {
         future: InkuShader.load(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            debugPrintStack(
-                stackTrace: snapshot.stackTrace,
-                label: "Error loading shader: ${snapshot.error}");
+            error(
+                "Error loading shader: ${snapshot.error}:\n${snapshot.stackTrace}");
             return const SizedBox();
           }
           if (!snapshot.hasData) {
