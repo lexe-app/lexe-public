@@ -4,6 +4,8 @@ use anyhow::{bail, ensure};
 use common::ln::amount::Amount;
 use common::ln::invoice::LxInvoice;
 use common::ln::payments::{LxPaymentHash, LxPaymentPreimage, LxPaymentSecret};
+#[cfg(test)]
+use common::test_utils::arbitrary;
 use common::time::TimestampMs;
 #[cfg(doc)]
 use lightning::ln::channelmanager::ChannelManager;
@@ -53,6 +55,12 @@ pub struct OutboundInvoicePayment {
     pub fees: Amount,
     /// The current status of the payment.
     pub status: OutboundInvoicePaymentStatus,
+    /// An optional personal note for this payment. Since the receiver sets the
+    /// invoice description, which might just be an unhelpful 🍆 emoji, the
+    /// user has the option to add this note at the time of invoice
+    /// payment.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
+    pub note: Option<String>,
     /// When we initiated this payment.
     pub created_at: TimestampMs,
     /// When this payment either `Completed` or `Failed`.
@@ -81,7 +89,7 @@ pub enum OutboundInvoicePaymentStatus {
 }
 
 impl OutboundInvoicePayment {
-    pub fn new(invoice: Invoice, route: &Route) -> Self {
+    pub fn new(invoice: Invoice, route: &Route, note: Option<String>) -> Self {
         let hash = LxPaymentHash::from(*invoice.payment_hash());
         let secret = LxPaymentSecret::from(*invoice.payment_secret());
         Self {
@@ -92,6 +100,7 @@ impl OutboundInvoicePayment {
             amount: Amount::from_msat(route.get_total_amount()),
             fees: Amount::from_msat(route.get_total_fees()),
             status: OutboundInvoicePaymentStatus::Pending,
+            note,
             created_at: TimestampMs::now(),
             finalized_at: None,
         }
@@ -221,6 +230,11 @@ pub struct OutboundSpontaneousPayment {
     pub fees: Amount,
     /// The current status of the payment.
     pub status: OutboundSpontaneousPaymentStatus,
+    /// An optional personal note for this payment. Since there is no invoice
+    /// description field, the user has the option to set this at payment
+    /// creation time.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
+    pub note: Option<String>,
     /// When we initiated this payment.
     pub created_at: TimestampMs,
     /// When this payment either `Completed` or `Failed`.

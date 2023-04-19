@@ -5,6 +5,8 @@ use anyhow::{bail, ensure, Context};
 use common::ln::amount::Amount;
 use common::ln::invoice::LxInvoice;
 use common::ln::payments::{LxPaymentHash, LxPaymentPreimage, LxPaymentSecret};
+#[cfg(test)]
+use common::test_utils::arbitrary;
 use common::time::TimestampMs;
 #[cfg(doc)]
 use lightning::ln::channelmanager::ChannelManager;
@@ -142,6 +144,13 @@ pub struct InboundInvoicePayment {
     pub onchain_fees: Option<Amount>,
     /// The current status of the payment.
     pub status: InboundInvoicePaymentStatus,
+    /// An optional personal note for this payment. Since a user-provided
+    /// description is already required when creating an invoice, at invoice
+    /// creation time this field is not exposed to the user and is simply
+    /// initialized to [`None`]. Useful primarily if a user wants to update
+    /// their note later.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
+    pub note: Option<String>,
     /// When we created the invoice for this payment.
     pub created_at: TimestampMs,
     /// When this payment either `Completed` or `Expired`.
@@ -182,6 +191,7 @@ impl InboundInvoicePayment {
             recvd_amount: None,
             onchain_fees: None,
             status: InboundInvoicePaymentStatus::InvoiceGenerated,
+            note: None,
             created_at: TimestampMs::now(),
             finalized_at: None,
         }
@@ -331,6 +341,11 @@ pub struct InboundSpontaneousPayment {
     pub onchain_fees: Option<Amount>,
     /// The current status of the payment.
     pub status: InboundSpontaneousPaymentStatus,
+    /// An optional personal note for this payment. Since there is no way for
+    /// users to add the note at the time of receiving an inbound spontaneous
+    /// payment, this field can only be added or updated later.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
+    pub note: Option<String>,
     /// When we first learned of this payment via [`PaymentClaimable`].
     pub created_at: TimestampMs,
     /// When this payment reached the `Completed` state.
@@ -365,6 +380,7 @@ impl InboundSpontaneousPayment {
             // TODO(max): Implement
             onchain_fees: None,
             status: InboundSpontaneousPaymentStatus::Claiming,
+            note: None,
             created_at: TimestampMs::now(),
             finalized_at: None,
         }

@@ -16,10 +16,41 @@ use crate::api::NodePk;
 // --- Rust types --- ///
 
 /// Like [`any::<String>()`], but is available inside SGX.
+///
+/// Generated strings have anywhere from 0 to 256 characters.
+///
+/// ```
+/// use common::test_utils::arbitrary;
+/// use proptest_derive::Arbitrary;
+///
+/// #[derive(Debug, Arbitrary)]
+/// struct Foo {
+///     #[proptest(strategy = "arbitrary::any_string()")]
+///     name: String,
+/// }
+/// ```
 pub fn any_string() -> impl Strategy<Value = String> {
     // Maximum length = 256
     proptest::collection::vec(any::<char>(), 0..256)
         .prop_map(|chars| String::from_iter(chars.into_iter()))
+}
+
+/// An [`Option`] version of [`any_string`].
+///
+/// The option has a 50% probability of being [`Some`].
+///
+/// ```
+/// use common::test_utils::arbitrary;
+/// use proptest_derive::Arbitrary;
+///
+/// #[derive(Debug, Arbitrary)]
+/// struct MaybeFoo {
+///     #[proptest(strategy = "arbitrary::any_option_string()")]
+///     maybe_name: Option<String>,
+/// }
+/// ```
+pub fn any_option_string() -> impl Strategy<Value = Option<String>> {
+    proptest::option::weighted(0.5, any_string())
 }
 
 /// An `Arbitrary`-like [`Strategy`] for [`SocketAddr`]s which are guaranteed to

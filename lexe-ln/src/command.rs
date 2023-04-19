@@ -253,7 +253,7 @@ where
     let hash = LxPaymentHash::from(payment_hash);
 
     // Create and register the new payment, checking that it is unique.
-    let payment = OutboundInvoicePayment::new(invoice, &route);
+    let payment = OutboundInvoicePayment::new(invoice, &route, req.note);
     payments_manager
         .new_payment(payment)
         .await

@@ -145,6 +145,7 @@ impl From<Payment> for BasicPayment {
             fees: p.fees(),
             status: p.status(),
             status_str: p.status_str().to_owned(),
+            note: p.note().map(|s| s.to_owned()),
             created_at: p.created_at(),
             finalized_at: p.finalized_at(),
         }
@@ -306,6 +307,26 @@ impl Payment {
                 ..
             }) => status.as_str(),
         }
+    }
+
+    /// Get the payment note.
+    pub fn note(&self) -> Option<&str> {
+        match self {
+            Self::OnchainSend(OnchainSend { note, .. }) => note,
+            Self::OnchainReceive(OnchainReceive { note, .. }) => note,
+            Self::InboundInvoice(InboundInvoicePayment { note, .. }) => note,
+            Self::InboundSpontaneous(InboundSpontaneousPayment {
+                note,
+                ..
+            }) => note,
+            Self::OutboundInvoice(OutboundInvoicePayment { note, .. }) => note,
+            Self::OutboundSpontaneous(OutboundSpontaneousPayment {
+                note,
+                ..
+            }) => note,
+        }
+        .as_ref()
+        .map(|s| s.as_str())
     }
 
     /// When this payment was created.

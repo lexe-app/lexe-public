@@ -23,6 +23,7 @@ pub struct ListChannels {
 pub struct CreateInvoiceRequest {
     pub expiry_secs: u32,
     pub amount: Option<Amount>,
+    /// The description to be encoded into the invoice.
     pub description: String,
 }
 
@@ -33,4 +34,7 @@ pub struct PayInvoiceRequest {
     /// Specifies the amount we will pay if the invoice to be paid is
     /// amountless. This field must be [`Some`] for amountless invoices.
     pub fallback_amount: Option<Amount>,
+    /// An optional personal note for this payment, useful if the
+    /// receiver-provided description is insufficient.
+    pub note: Option<String>,
 }

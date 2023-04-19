@@ -1,5 +1,7 @@
 use common::ln::amount::Amount;
 use common::ln::hashes::LxTxid;
+#[cfg(test)]
+use common::test_utils::arbitrary;
 use common::time::TimestampMs;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -25,6 +27,10 @@ pub struct OnchainSend {
     pub fees: Amount,
     pub status: OnchainPaymentStatus,
     pub created_at: TimestampMs,
+    /// An optional personal note for this payment. The user can only add a
+    /// note after this onchain receive has been detected.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
+    pub note: Option<String>,
     pub finalized_at: Option<TimestampMs>,
 }
 
@@ -38,5 +44,9 @@ pub struct OnchainReceive {
     pub fees: Amount,
     pub status: OnchainPaymentStatus,
     pub created_at: TimestampMs,
+    /// An optional personal note for this payment.
+    /// The user has the option to set this at payment creation time.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
+    pub note: Option<String>,
     pub finalized_at: Option<TimestampMs>,
 }
