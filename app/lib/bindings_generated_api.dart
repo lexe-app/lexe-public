@@ -11,29 +11,21 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'bindings_generated_api.freezed.dart';
 
 abstract class AppRs {
-  void doPanicSync({dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kDoPanicSyncConstMeta;
-
-  Future<void> doPanicAsync({dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kDoPanicAsyncConstMeta;
-
-  String doReturnErrSync({dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kDoReturnErrSyncConstMeta;
-
-  Future<String> doReturnErrAsync({dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kDoReturnErrAsyncConstMeta;
-
+  /// Init the Rust [`tracing`] logger. Panics if the logger is already init.
+  ///
+  /// Since `println!`/stdout gets swallowed on mobile, we ship log messages over
+  /// to dart for printing. Otherwise we can't see logs while developing.
+  ///
+  /// When dart calls this function, it generates a `log_tx` and `log_rx`, then
+  /// sends the `log_tx` to Rust while holding on to the `log_rx`. When Rust gets
+  /// a new [`tracing`] log event, it enqueues the formatted log onto the
+  /// `log_tx`.
+  ///
+  /// `rust_log`: since env vars don't work well on mobile, we need to ship the
+  /// equivalent of `$RUST_LOG` configured at build-time through here.
   Stream<String> initRustLogStream({required String rustLog, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kInitRustLogStreamConstMeta;
-
-  void doLogs({dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kDoLogsConstMeta;
 
   Config regtestStaticMethodConfig({dynamic hint});
 

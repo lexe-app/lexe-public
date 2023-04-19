@@ -23,46 +23,6 @@ use crate::bindings::*;
 
 // Section: wire functions
 
-fn wire_do_panic_sync_impl() -> support::WireSyncReturn {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
-        WrapInfo {
-            debug_name: "do_panic_sync",
-            port: None,
-            mode: FfiCallMode::Sync,
-        },
-        move || Ok(do_panic_sync()),
-    )
-}
-fn wire_do_panic_async_impl(port_: MessagePort) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
-        WrapInfo {
-            debug_name: "do_panic_async",
-            port: Some(port_),
-            mode: FfiCallMode::Normal,
-        },
-        move || move |task_callback| Ok(do_panic_async()),
-    )
-}
-fn wire_do_return_err_sync_impl() -> support::WireSyncReturn {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
-        WrapInfo {
-            debug_name: "do_return_err_sync",
-            port: None,
-            mode: FfiCallMode::Sync,
-        },
-        move || do_return_err_sync(),
-    )
-}
-fn wire_do_return_err_async_impl(port_: MessagePort) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
-        WrapInfo {
-            debug_name: "do_return_err_async",
-            port: Some(port_),
-            mode: FfiCallMode::Normal,
-        },
-        move || move |task_callback| do_return_err_async(),
-    )
-}
 fn wire_init_rust_log_stream_impl(
     port_: MessagePort,
     rust_log: impl Wire2Api<String> + UnwindSafe,
@@ -82,16 +42,6 @@ fn wire_init_rust_log_stream_impl(
                 ))
             }
         },
-    )
-}
-fn wire_do_logs_impl() -> support::WireSyncReturn {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
-        WrapInfo {
-            debug_name: "do_logs",
-            port: None,
-            mode: FfiCallMode::Sync,
-        },
-        move || Ok(do_logs()),
     )
 }
 fn wire_regtest__static_method__Config_impl() -> support::WireSyncReturn {
@@ -314,36 +264,11 @@ mod io {
     // Section: wire functions
 
     #[no_mangle]
-    pub extern "C" fn wire_do_panic_sync() -> support::WireSyncReturn {
-        wire_do_panic_sync_impl()
-    }
-
-    #[no_mangle]
-    pub extern "C" fn wire_do_panic_async(port_: i64) {
-        wire_do_panic_async_impl(port_)
-    }
-
-    #[no_mangle]
-    pub extern "C" fn wire_do_return_err_sync() -> support::WireSyncReturn {
-        wire_do_return_err_sync_impl()
-    }
-
-    #[no_mangle]
-    pub extern "C" fn wire_do_return_err_async(port_: i64) {
-        wire_do_return_err_async_impl(port_)
-    }
-
-    #[no_mangle]
     pub extern "C" fn wire_init_rust_log_stream(
         port_: i64,
         rust_log: *mut wire_uint_8_list,
     ) {
         wire_init_rust_log_stream_impl(port_, rust_log)
-    }
-
-    #[no_mangle]
-    pub extern "C" fn wire_do_logs() -> support::WireSyncReturn {
-        wire_do_logs_impl()
     }
 
     #[no_mangle]
