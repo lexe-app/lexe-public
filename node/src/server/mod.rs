@@ -14,7 +14,9 @@ use std::sync::Arc;
 
 use common::api::command::{CreateInvoiceRequest, PayInvoiceRequest};
 use common::api::error::{NodeApiError, NodeErrorKind};
-use common::api::qs::{GetByUserPk, GetNewPayments, GetPaymentsByIds};
+use common::api::qs::{
+    GetByUserPk, GetNewPayments, GetPaymentsByIds, UpdatePaymentNote,
+};
 use common::api::{rest, Scid, UserPk};
 use common::cli::{LspInfo, Network};
 use common::shutdown::ShutdownChannel;
@@ -105,7 +107,7 @@ pub(crate) fn app_routes(
         .and(warp::body::json::<PayInvoiceRequest>())
         .and(inject::router(router))
         .and(inject::channel_manager(channel_manager))
-        .and(inject::payments_manager(payments_manager))
+        .and(inject::payments_manager(payments_manager.clone()))
         .then(lexe_ln::command::pay_invoice)
         .map(into_command_api_result)
         .map(rest::into_response);
@@ -122,8 +124,17 @@ pub(crate) fn app_routes(
         .and(inject::persister(persister))
         .then(app::get_new_payments)
         .map(rest::into_response);
-    let payments =
-        warp::path("payments").and(get_payments_by_ids.or(get_new_payments));
+    let update_payment_note = warp::path("note")
+        .and(warp::put())
+        .and(warp::body::json::<UpdatePaymentNote>())
+        .and(inject::payments_manager(payments_manager))
+        .then(app::update_payment_note)
+        .map(rest::into_response);
+    let payments = warp::path("payments").and(
+        get_payments_by_ids
+            .or(get_new_payments)
+            .or(update_payment_note),
+    );
 
     let app = app_base.and(
         node_info
