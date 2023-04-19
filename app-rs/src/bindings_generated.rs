@@ -63,7 +63,10 @@ fn wire_do_return_err_async_impl(port_: MessagePort) {
         move || move |task_callback| do_return_err_async(),
     )
 }
-fn wire_init_rust_log_stream_impl(port_: MessagePort) {
+fn wire_init_rust_log_stream_impl(
+    port_: MessagePort,
+    rust_log: impl Wire2Api<String> + UnwindSafe,
+) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap(
         WrapInfo {
             debug_name: "init_rust_log_stream",
@@ -71,8 +74,12 @@ fn wire_init_rust_log_stream_impl(port_: MessagePort) {
             mode: FfiCallMode::Stream,
         },
         move || {
+            let api_rust_log = rust_log.wire2api();
             move |task_callback| {
-                Ok(init_rust_log_stream(task_callback.stream_sink()))
+                Ok(init_rust_log_stream(
+                    task_callback.stream_sink(),
+                    api_rust_log,
+                ))
             }
         },
     )
@@ -275,13 +282,6 @@ impl support::IntoDart for FiatRates {
 }
 impl support::IntoDartExceptPrimitive for FiatRates {}
 
-impl support::IntoDart for LogEntry {
-    fn into_dart(self) -> support::DartAbi {
-        vec![self.message.into_dart()].into_dart()
-    }
-}
-impl support::IntoDartExceptPrimitive for LogEntry {}
-
 impl support::IntoDart for Network {
     fn into_dart(self) -> support::DartAbi {
         match self {
@@ -334,8 +334,11 @@ mod io {
     }
 
     #[no_mangle]
-    pub extern "C" fn wire_init_rust_log_stream(port_: i64) {
-        wire_init_rust_log_stream_impl(port_)
+    pub extern "C" fn wire_init_rust_log_stream(
+        port_: i64,
+        rust_log: *mut wire_uint_8_list,
+    ) {
+        wire_init_rust_log_stream_impl(port_, rust_log)
     }
 
     #[no_mangle]

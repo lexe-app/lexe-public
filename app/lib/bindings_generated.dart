@@ -88,12 +88,14 @@ class AppRsImpl implements AppRs {
         argNames: [],
       );
 
-  Stream<LogEntry> initRustLogStream({dynamic hint}) {
+  Stream<String> initRustLogStream({required String rustLog, dynamic hint}) {
+    var arg0 = _platform.api2wire_String(rustLog);
     return _platform.executeStream(FlutterRustBridgeTask(
-      callFfi: (port_) => _platform.inner.wire_init_rust_log_stream(port_),
-      parseSuccessData: _wire2api_log_entry,
+      callFfi: (port_) =>
+          _platform.inner.wire_init_rust_log_stream(port_, arg0),
+      parseSuccessData: _wire2api_String,
       constMeta: kInitRustLogStreamConstMeta,
-      argValues: [],
+      argValues: [rustLog],
       hint: hint,
     ));
   }
@@ -101,7 +103,7 @@ class AppRsImpl implements AppRs {
   FlutterRustBridgeTaskConstMeta get kInitRustLogStreamConstMeta =>
       const FlutterRustBridgeTaskConstMeta(
         debugName: "init_rust_log_stream",
-        argNames: [],
+        argNames: ["rustLog"],
       );
 
   void doLogs({dynamic hint}) {
@@ -312,15 +314,6 @@ class AppRsImpl implements AppRs {
 
   List<FiatRate> _wire2api_list_fiat_rate(dynamic raw) {
     return (raw as List<dynamic>).map(_wire2api_fiat_rate).toList();
-  }
-
-  LogEntry _wire2api_log_entry(dynamic raw) {
-    final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
-    return LogEntry(
-      message: _wire2api_String(arr[0]),
-    );
   }
 
   Network _wire2api_network(dynamic raw) {
@@ -596,17 +589,20 @@ class AppRsWire implements FlutterRustBridgeWireBase {
 
   void wire_init_rust_log_stream(
     int port_,
+    ffi.Pointer<wire_uint_8_list> rust_log,
   ) {
     return _wire_init_rust_log_stream(
       port_,
+      rust_log,
     );
   }
 
-  late final _wire_init_rust_log_streamPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
-          'wire_init_rust_log_stream');
-  late final _wire_init_rust_log_stream =
-      _wire_init_rust_log_streamPtr.asFunction<void Function(int)>();
+  late final _wire_init_rust_log_streamPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(ffi.Int64,
+              ffi.Pointer<wire_uint_8_list>)>>('wire_init_rust_log_stream');
+  late final _wire_init_rust_log_stream = _wire_init_rust_log_streamPtr
+      .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
 
   WireSyncReturn wire_do_logs() {
     return _wire_do_logs();
@@ -811,19 +807,19 @@ class AppRsWire implements FlutterRustBridgeWireBase {
 
 class _Dart_Handle extends ffi.Opaque {}
 
+class wire_uint_8_list extends ffi.Struct {
+  external ffi.Pointer<ffi.Uint8> ptr;
+
+  @ffi.Int32()
+  external int len;
+}
+
 class wire_Config extends ffi.Struct {
   @ffi.Int32()
   external int deploy_env;
 
   @ffi.Int32()
   external int network;
-}
-
-class wire_uint_8_list extends ffi.Struct {
-  external ffi.Pointer<ffi.Uint8> ptr;
-
-  @ffi.Int32()
-  external int len;
 }
 
 class wire_App extends ffi.Struct {
