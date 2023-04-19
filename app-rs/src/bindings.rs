@@ -259,5 +259,21 @@ pub fn do_logs() -> SyncReturn<()> {
     tracing::warn!(%x, "rust warn");
     tracing::error!(%x, "rust error");
 
+    tracing::info_span!("(my-span)").in_scope(|| {
+        tracing::trace!(%x, "rust trace");
+        tracing::debug!(%x, "rust debug");
+        tracing::info!(%x, "rust info");
+        tracing::warn!(%x, "rust warn");
+        tracing::error!(%x, "rust error");
+
+        tracing::info_span!("(span-deux)").in_scope(|| {
+            tracing::trace!(%x, "rust trace");
+            tracing::debug!(%x, "rust debug");
+            tracing::info!(%x, "rust info");
+            tracing::warn!(%x, "rust warn");
+            tracing::error!(%x, "rust error");
+        });
+    });
+
     SyncReturn(())
 }
