@@ -28,7 +28,9 @@ use crate::api::error::{
 };
 use crate::api::fiat_rates::FiatRates;
 use crate::api::provision::NodeProvisionRequest;
-use crate::api::qs::{EmptyData, GetNewPayments, GetPaymentsByIds};
+use crate::api::qs::{
+    EmptyData, GetNewPayments, GetPaymentsByIds, UpdatePaymentNote,
+};
 use crate::api::rest::{RequestBuilderExt, RestClient, GET, POST};
 use crate::ln::invoice::LxInvoice;
 use crate::ln::payments::BasicPayment;
@@ -366,6 +368,17 @@ impl AppNodeRunApi for NodeClient {
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/payments/new");
         let req = self.rest.get(url, &req);
+        self.rest.send(req).await
+    }
+
+    async fn update_payment_note(
+        &self,
+        req: UpdatePaymentNote,
+    ) -> Result<(), NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/payments/note");
+        let req = self.rest.put(url, &req);
         self.rest.send(req).await
     }
 }

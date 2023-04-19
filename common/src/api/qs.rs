@@ -56,3 +56,14 @@ pub struct GetPaymentsByIds {
     /// check whether any of these payments have been updated.
     pub ids: Vec<String>,
 }
+
+/// Struct for updating payment notes.
+// TODO(max): Not a query param struct; maybe these structs should be moved...
+#[derive(Serialize, Deserialize)]
+pub struct UpdatePaymentNote {
+    /// The index of the payment whose note should be updated.
+    #[serde(flatten)]
+    pub index: PaymentIndex,
+    /// The updated note.
+    pub note: Option<String>,
+}
