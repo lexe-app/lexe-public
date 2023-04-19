@@ -15,8 +15,7 @@ use std::sync::Arc;
 use common::api::command::{CreateInvoiceRequest, PayInvoiceRequest};
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::qs::{GetByUserPk, GetNewPayments, GetPaymentsByIds};
-use common::api::rest::{into_response, into_succ_response};
-use common::api::{Scid, UserPk};
+use common::api::{rest, Scid, UserPk};
 use common::cli::{LspInfo, Network};
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::{NetworkGraphType, RouterType};
@@ -81,13 +80,13 @@ pub(crate) fn app_routes(
         .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::peer_manager(peer_manager))
         .map(lexe_ln::command::node_info)
-        .map(into_succ_response);
+        .map(rest::into_succ_response);
     let list_channels = warp::path("channels")
         .and(warp::get())
         .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::network_graph(network_graph))
         .map(app::list_channels)
-        .map(into_response);
+        .map(rest::into_response);
     let create_invoice = warp::path("create_invoice")
         .and(warp::post())
         .and(warp::body::json::<CreateInvoiceRequest>())
@@ -100,7 +99,7 @@ pub(crate) fn app_routes(
         .and(inject::network(network))
         .then(lexe_ln::command::create_invoice)
         .map(into_command_api_result)
-        .map(into_response);
+        .map(rest::into_response);
     let pay_invoice = warp::path("pay_invoice")
         .and(warp::post())
         .and(warp::body::json::<PayInvoiceRequest>())
@@ -109,20 +108,20 @@ pub(crate) fn app_routes(
         .and(inject::payments_manager(payments_manager))
         .then(lexe_ln::command::pay_invoice)
         .map(into_command_api_result)
-        .map(into_response);
+        .map(rest::into_response);
 
     let get_payments_by_ids = warp::path("ids")
         .and(warp::post())
         .and(warp::body::json::<GetPaymentsByIds>())
         .and(inject::persister(persister.clone()))
         .then(app::get_payments_by_ids)
-        .map(into_response);
+        .map(rest::into_response);
     let get_new_payments = warp::path("new")
         .and(warp::get())
         .and(warp::query::<GetNewPayments>())
         .and(inject::persister(persister))
         .then(app::get_new_payments)
-        .map(into_response);
+        .map(rest::into_response);
     let payments =
         warp::path("payments").and(get_payments_by_ids.or(get_new_payments));
 
@@ -153,14 +152,14 @@ pub(crate) fn runner_routes(
         .and(warp::query::<GetByUserPk>())
         .and(inject::user_pk(current_pk))
         .then(runner::status)
-        .map(into_response);
+        .map(rest::into_response);
     let shutdown = warp::path("shutdown")
         .and(warp::get())
         .and(warp::query::<GetByUserPk>())
         .and(inject::user_pk(current_pk))
         .and(inject::shutdown(shutdown))
         .map(runner::shutdown)
-        .map(into_response);
+        .map(rest::into_response);
     let runner = warp::path("runner").and(status.or(shutdown));
 
     root.or(runner)
