@@ -3,6 +3,7 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
 use anyhow::{bail, ensure, Context};
+use common::api::qs::UpdatePaymentNote;
 use common::ln::amount::Amount;
 use common::ln::payments::{
     LxPaymentHash, LxPaymentId, LxPaymentPreimage, PaymentStatus,
@@ -154,13 +155,17 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
     /// Register a new, globally-unique payment.
     /// Errors if the payment already exists.
+    #[instrument(skip_all, name = "(new-payment)")]
     pub async fn new_payment(
         &self,
         payment: impl Into<Payment>,
     ) -> anyhow::Result<()> {
+        let payment = payment.into();
+        let id = payment.id();
+        info!(%id, "Registering new payment");
         let mut locked_data = self.data.lock().await;
         let checked = locked_data
-            .check_new_payment(payment.into())
+            .check_new_payment(payment)
             .context("Error handling new payment")?;
 
         let persisted = self
@@ -171,6 +176,52 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         locked_data.commit(persisted);
 
+        Ok(())
+    }
+
+    /// Attempt to update the personal note on a payment.
+    #[instrument(skip_all, name = "(update-payment-note)")]
+    pub async fn update_payment_note(
+        &self,
+        update: UpdatePaymentNote,
+    ) -> anyhow::Result<()> {
+        let id = update.index.id;
+        info!(%id, "Updating payment note");
+        let mut locked_data = self.data.lock().await;
+
+        // If the payment was pending, get a clone of our local copy.
+        // If the payment was finalized, we have to fetch a copy from the DB.
+        let mut payment_clone = match locked_data.pending.get(&id) {
+            Some(pending) => pending.clone(),
+            None => {
+                // Before fetching, quickly check that the payment exists.
+                ensure!(
+                    locked_data.finalized.contains(&id),
+                    "Payment to be updated does not exist",
+                );
+
+                self.persister
+                    .get_payment(update.index)
+                    .await
+                    .context("Could not fetch finalized payment")?
+                    .context("Finalized payment was not found in DB")?
+            }
+        };
+
+        // Update
+        payment_clone.set_note(update.note);
+
+        // Persist
+        let persisted = self
+            .persister
+            .persist_payment(CheckedPayment(payment_clone))
+            .await
+            .context("Could not persist updated payment")?;
+
+        // Commit
+        locked_data.commit(persisted);
+
+        debug!(%id, "Successfully updated payment note");
         Ok(())
     }
 
