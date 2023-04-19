@@ -8,7 +8,7 @@ use anyhow::{anyhow, ensure, Context};
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
 use common::api::auth::{BearerAuthToken, BearerAuthenticator};
-use common::api::qs::{GetNewPayments, GetPaymentsByIds};
+use common::api::qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIds};
 use common::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use common::api::{Scid, User};
 use common::cli::Network;
@@ -16,7 +16,7 @@ use common::constants::{
     IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
 };
 use common::ln::channel::LxOutPoint;
-use common::ln::payments::{BasicPayment, LxPaymentId};
+use common::ln::payments::{BasicPayment, LxPaymentId, PaymentIndex};
 use common::ln::peer::ChannelPeer;
 use common::shutdown::ShutdownChannel;
 use common::vfs_encrypt::VfsMasterKey;
@@ -635,6 +635,32 @@ impl LexeInnerPersister for InnerPersister {
             .context("upsert_payment API call failed")?;
 
         Ok(PersistedPayment(checked.0))
+    }
+
+    async fn get_payment(
+        &self,
+        index: PaymentIndex,
+    ) -> anyhow::Result<Option<Payment>> {
+        let req = GetPaymentByIndex { index };
+        let token = self.get_token().await?;
+        let maybe_payment = self
+            .backend_api
+            .get_payment(req, token)
+            .await
+            .context("Could not fetch `DbPayment`s")?
+            // Decrypt into `Payment`
+            .map(|p| payments::decrypt(self.vfs_master_key.as_ref(), p))
+            .transpose()
+            .context("Could not decrypt payment")?;
+
+        if let Some(ref payment) = maybe_payment {
+            ensure!(
+                payment.id() == index.id,
+                "ID of returned payment doesn't match"
+            );
+        }
+
+        Ok(maybe_payment)
     }
 }
 
