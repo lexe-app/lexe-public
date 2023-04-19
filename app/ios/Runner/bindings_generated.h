@@ -11,15 +11,15 @@ typedef bool (*DartPostCObjectFnType)(DartPort port_id, void *message);
 
 typedef struct DartCObject *WireSyncReturn;
 
-typedef struct wire_Config {
-  int32_t deploy_env;
-  int32_t network;
-} wire_Config;
-
 typedef struct wire_uint_8_list {
   uint8_t *ptr;
   int32_t len;
 } wire_uint_8_list;
+
+typedef struct wire_Config {
+  int32_t deploy_env;
+  int32_t network;
+} wire_Config;
 
 typedef struct wire_App {
   const void *ptr;
@@ -47,7 +47,7 @@ WireSyncReturn wire_do_return_err_sync(void);
 
 void wire_do_return_err_async(int64_t port_);
 
-void wire_init_rust_log_stream(int64_t port_);
+void wire_init_rust_log_stream(int64_t port_, struct wire_uint_8_list *rust_log);
 
 WireSyncReturn wire_do_logs(void);
 

@@ -236,18 +236,8 @@ pub fn do_return_err_async() -> anyhow::Result<String> {
     Err(anyhow::format_err!("oh no!"))
 }
 
-// --
-
-#[frb(dart_metadata=("freezed"))]
-pub struct LogEntry {
-    // pub level: String,
-    // pub timestamp_ms: i64,
-    // pub module: String,
-    pub message: String,
-}
-
-pub fn init_rust_log_stream(rust_log_tx: StreamSink<LogEntry>) {
-    logger::init(rust_log_tx);
+pub fn init_rust_log_stream(rust_log_tx: StreamSink<String>, rust_log: String) {
+    logger::init(rust_log_tx, &rust_log);
 }
 
 pub fn do_logs() -> SyncReturn<()> {

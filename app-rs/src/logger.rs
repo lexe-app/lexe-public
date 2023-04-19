@@ -13,17 +13,18 @@ use tracing_subscriber::layer::{Context, Layer, SubscriberExt};
 use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::util::{SubscriberInitExt, TryInitError};
 
-use crate::bindings::LogEntry;
-
 struct DartLogLayer {
-    rust_log_tx: StreamSink<LogEntry>,
+    rust_log_tx: StreamSink<String>,
 }
 
-pub(crate) fn init(rust_log_tx: StreamSink<LogEntry>) {
-    try_init(rust_log_tx).expect("logger is already set!");
+pub(crate) fn init(rust_log_tx: StreamSink<String>, rust_log: &str) {
+    try_init(rust_log_tx, rust_log).expect("logger is already set!");
 }
 
-pub(crate) fn init_for_testing(rust_log_tx: StreamSink<LogEntry>) {
+pub(crate) fn init_for_testing(
+    rust_log_tx: StreamSink<String>,
+    rust_log: &str,
+) {
     // Quickly skip logger setup if no env var set.
     if std::env::var_os("RUST_LOG").is_none() {
         return;
@@ -31,15 +32,15 @@ pub(crate) fn init_for_testing(rust_log_tx: StreamSink<LogEntry>) {
 
     // Don't panic if there's already a logger setup. Multiple tests might try
     // setting the global logger.
-    let _ = try_init(rust_log_tx);
+    let _ = try_init(rust_log_tx, rust_log);
 }
 
 pub(crate) fn try_init(
-    rust_log_tx: StreamSink<LogEntry>,
+    rust_log_tx: StreamSink<String>,
+    rust_log: &str,
 ) -> Result<(), TryInitError> {
-    let rust_log_filter = std::env::var("RUST_LOG")
+    let rust_log_filter = Targets::from_str(rust_log)
         .ok()
-        .and_then(|rust_log| Targets::from_str(&rust_log).ok())
         .unwrap_or_else(|| Targets::new().with_default(Level::INFO));
 
     let dart_log_layer = DartLogLayer::new(rust_log_tx);
@@ -50,7 +51,7 @@ pub(crate) fn try_init(
 }
 
 impl DartLogLayer {
-    fn new(rust_log_tx: StreamSink<LogEntry>) -> Self {
+    fn new(rust_log_tx: StreamSink<String>) -> Self {
         Self { rust_log_tx }
     }
 }
@@ -59,9 +60,8 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for DartLogLayer {
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
         let mut message = String::new();
         fmt_event(&mut message, event, ctx).expect("Failed to format");
-        let log_entry = LogEntry { message };
 
-        self.rust_log_tx.add(log_entry);
+        self.rust_log_tx.add(message);
     }
 }
 

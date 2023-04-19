@@ -27,7 +27,7 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kDoReturnErrAsyncConstMeta;
 
-  Stream<LogEntry> initRustLogStream({dynamic hint});
+  Stream<String> initRustLogStream({required String rustLog, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kInitRustLogStreamConstMeta;
 
@@ -155,13 +155,6 @@ class FiatRates with _$FiatRates {
     required int timestampMs,
     required List<FiatRate> rates,
   }) = _FiatRates;
-}
-
-@freezed
-class LogEntry with _$LogEntry {
-  const factory LogEntry({
-    required String message,
-  }) = _LogEntry;
 }
 
 enum Network {
