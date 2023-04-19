@@ -33,7 +33,7 @@ use crate::api::error::{
 };
 use crate::api::ports::UserPorts;
 use crate::api::provision::{NodeProvisionRequest, SealedSeed, SealedSeedId};
-use crate::api::qs::{GetNewPayments, GetPaymentsByIds};
+use crate::api::qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote};
 use crate::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use crate::api::{NodePk, Scid, User, UserPk};
 use crate::ed25519;
@@ -282,6 +282,12 @@ pub trait AppNodeRunApi {
         &self,
         req: GetNewPayments,
     ) -> Result<Vec<BasicPayment>, NodeApiError>;
+
+    /// PUT /app/payments/note [`UpdatePaymentNote`] -> [`()`]
+    async fn update_payment_note(
+        &self,
+        req: UpdatePaymentNote,
+    ) -> Result<(), NodeApiError>;
 }
 
 /// Defines the api that the gateway directly exposes to the app.
