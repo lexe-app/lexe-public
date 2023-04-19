@@ -329,6 +329,26 @@ impl Payment {
         .map(|s| s.as_str())
     }
 
+    /// Set the payment note to a new value.
+    pub fn set_note(&mut self, note: Option<String>) {
+        let mut_ref_note = match self {
+            Self::OnchainSend(OnchainSend { note, .. }) => note,
+            Self::OnchainReceive(OnchainReceive { note, .. }) => note,
+            Self::InboundInvoice(InboundInvoicePayment { note, .. }) => note,
+            Self::InboundSpontaneous(InboundSpontaneousPayment {
+                note,
+                ..
+            }) => note,
+            Self::OutboundInvoice(OutboundInvoicePayment { note, .. }) => note,
+            Self::OutboundSpontaneous(OutboundSpontaneousPayment {
+                note,
+                ..
+            }) => note,
+        };
+
+        *mut_ref_note = note;
+    }
+
     /// When this payment was created.
     pub fn created_at(&self) -> TimestampMs {
         match self {
