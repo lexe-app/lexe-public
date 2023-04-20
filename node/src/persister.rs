@@ -67,7 +67,7 @@ pub struct NodePersister {
 
 impl NodePersister {
     pub(crate) fn new(
-        api: Arc<dyn BackendApiClient + Send + Sync>,
+        backend_api: Arc<dyn BackendApiClient + Send + Sync>,
         authenticator: Arc<BearerAuthenticator>,
         vfs_master_key: Arc<VfsMasterKey>,
         user: User,
@@ -75,7 +75,7 @@ impl NodePersister {
         channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
     ) -> Self {
         let inner = InnerPersister {
-            api,
+            backend_api,
             authenticator,
             vfs_master_key,
             user,
@@ -98,7 +98,7 @@ impl Deref for NodePersister {
 /// NodePersister Derefs to it.
 #[derive(Clone)]
 pub struct InnerPersister {
-    api: Arc<dyn BackendApiClient + Send + Sync>,
+    backend_api: Arc<dyn BackendApiClient + Send + Sync>,
     authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<VfsMasterKey>,
     user: User,
@@ -173,7 +173,7 @@ impl InnerPersister {
 
     async fn get_token(&self) -> anyhow::Result<BearerAuthToken> {
         self.authenticator
-            .get_token(&*self.api, SystemTime::now())
+            .get_token(&*self.backend_api, SystemTime::now())
             .await
             .context("Could not get auth token")
     }
@@ -181,7 +181,7 @@ impl InnerPersister {
     pub(crate) async fn read_scid(&self) -> anyhow::Result<Option<Scid>> {
         debug!("Fetching scid");
         let token = self.get_token().await?;
-        self.api
+        self.backend_api
             .get_scid(self.user.node_pk, token)
             .await
             .context("Could not fetch scid")
@@ -199,7 +199,7 @@ impl InnerPersister {
         let token = self.get_token().await?;
 
         let maybe_file = self
-            .api
+            .backend_api
             .get_file(&file_id, token)
             .await
             .context("Could not fetch wallet db from db")?;
@@ -234,7 +234,7 @@ impl InnerPersister {
         req: GetPaymentsByIds,
     ) -> anyhow::Result<Vec<BasicPayment>> {
         let token = self.get_token().await?;
-        self.api
+        self.backend_api
             // Fetch `DbPayment`s
             .get_payments_by_ids(req, token)
             .await
@@ -253,7 +253,7 @@ impl InnerPersister {
         req: GetNewPayments,
     ) -> anyhow::Result<Vec<BasicPayment>> {
         let token = self.get_token().await?;
-        self.api
+        self.backend_api
             // Fetch `DbPayment`s
             .get_new_payments(req, token)
             .await
@@ -285,7 +285,7 @@ impl InnerPersister {
         let token = self.get_token().await?;
 
         let maybe_file = self
-            .api
+            .backend_api
             .get_file(&file_id, token)
             .await
             .context("Could not fetch channel manager from DB")?;
@@ -348,7 +348,7 @@ impl InnerPersister {
         let token = self.get_token().await?;
 
         let cm_file_vec = self
-            .api
+            .backend_api
             .get_directory(&cm_dir, token)
             .await
             .context("Could not fetch channel monitors from DB")?;
@@ -401,7 +401,7 @@ impl InnerPersister {
         let token = self.get_token().await?;
 
         let maybe_file = self
-            .api
+            .backend_api
             .get_file(&file_id, token)
             .await
             .context("Could not fetch probabilistic scorer from DB")?;
@@ -442,7 +442,7 @@ impl InnerPersister {
         let token = self.get_token().await?;
 
         let ng_file_opt = self
-            .api
+            .backend_api
             .get_file(&ng_file_id, token)
             .await
             .context("Could not fetch network graph from DB")?;
@@ -494,7 +494,7 @@ impl LexeInnerPersister for InnerPersister {
         debug!("Persisting file {dirname}/{filename} <{bytes} bytes>");
         let token = self.get_token().await?;
 
-        self.api
+        self.backend_api
             .upsert_file_with_retries(&file, token, retries)
             .await
             .map(|_| ())
@@ -515,7 +515,7 @@ impl LexeInnerPersister for InnerPersister {
         );
 
         // Channel manager is more important so let's retry a few times
-        self.api
+        self.backend_api
             .upsert_file_with_retries(&file, token, IMPORTANT_PERSIST_RETRIES)
             .await
             .map(|_| ())
@@ -535,7 +535,7 @@ impl LexeInnerPersister for InnerPersister {
             network_graph,
         );
 
-        self.api
+        self.backend_api
             .upsert_file(&file, token)
             .await
             .map(|_| ())
@@ -555,7 +555,7 @@ impl LexeInnerPersister for InnerPersister {
             scorer_mutex.lock().unwrap().deref(),
         );
 
-        self.api
+        self.backend_api
             .upsert_file(&file, token)
             .await
             .map(|_| ())
@@ -573,7 +573,7 @@ impl LexeInnerPersister for InnerPersister {
 
     async fn read_pending_payments(&self) -> anyhow::Result<Vec<Payment>> {
         let token = self.get_token().await?;
-        self.api
+        self.backend_api
             // Fetch pending `DbPayment`s
             .get_pending_payments(token)
             .await
@@ -589,7 +589,7 @@ impl LexeInnerPersister for InnerPersister {
         &self,
     ) -> anyhow::Result<Vec<LxPaymentId>> {
         let token = self.get_token().await?;
-        self.api
+        self.backend_api
             .get_finalized_payment_ids(token)
             .await
             .context("Could not get ids of finalized payments")
@@ -608,7 +608,7 @@ impl LexeInnerPersister for InnerPersister {
         );
         let token = self.get_token().await?;
 
-        self.api
+        self.backend_api
             .create_payment(db_payment, token)
             .await
             .context("create_payment API call failed")?;
@@ -629,7 +629,7 @@ impl LexeInnerPersister for InnerPersister {
         );
         let token = self.get_token().await?;
 
-        self.api
+        self.backend_api
             .upsert_payment(db_payment, token)
             .await
             .context("upsert_payment API call failed")?;
@@ -656,22 +656,23 @@ impl Persist<SignerType> for InnerPersister {
 
         // Generate a future for making a few attempts to persist the channel
         // monitor. It will be executed by the channel monitor persistence task.
-        let api = self.api.clone();
+        let backend_api = self.backend_api.clone();
         let authenticator = self.authenticator.clone();
         let api_call_fut = Box::pin(async move {
             // TODO(max): Also attempt to persist to cloud backup
             let token = authenticator
-                .get_token(api.as_ref(), SystemTime::now())
+                .get_token(backend_api.as_ref(), SystemTime::now())
                 .await
                 .context("Could not get token")?;
-            api.create_file_with_retries(
-                &file,
-                token,
-                IMPORTANT_PERSIST_RETRIES,
-            )
-            .await
-            .map(|_| ())
-            .context("Couldn't persist updated channel monitor")
+            backend_api
+                .create_file_with_retries(
+                    &file,
+                    token,
+                    IMPORTANT_PERSIST_RETRIES,
+                )
+                .await
+                .map(|_| ())
+                .context("Couldn't persist updated channel monitor")
         });
 
         let sequence_num = None;
@@ -721,22 +722,23 @@ impl Persist<SignerType> for InnerPersister {
 
         // Generate a future for making a few attempts to persist the channel
         // monitor. It will be executed by the channel monitor persistence task.
-        let api = self.api.clone();
+        let backend_api = self.backend_api.clone();
         let authenticator = self.authenticator.clone();
         let api_call_fut = Box::pin(async move {
             // TODO(max): Also attempt to persist to cloud backup
             let token = authenticator
-                .get_token(api.as_ref(), SystemTime::now())
+                .get_token(backend_api.as_ref(), SystemTime::now())
                 .await
                 .context("Could not get token")?;
-            api.upsert_file_with_retries(
-                &file,
-                token,
-                IMPORTANT_PERSIST_RETRIES,
-            )
-            .await
-            .map(|_| ())
-            .context("Couldn't persist updated channel monitor")
+            backend_api
+                .upsert_file_with_retries(
+                    &file,
+                    token,
+                    IMPORTANT_PERSIST_RETRIES,
+                )
+                .await
+                .map(|_| ())
+                .context("Couldn't persist updated channel monitor")
         });
 
         let sequence_num = update.as_ref().map(|u| u.update_id);
