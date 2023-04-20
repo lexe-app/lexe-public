@@ -4,10 +4,13 @@ use std::time::{Duration, SystemTime};
 use anyhow::{anyhow, bail, Context};
 use bitcoin::bech32::ToBase32;
 use bitcoin_hashes::{sha256, Hash};
-use common::api::command::{CreateInvoiceRequest, NodeInfo, PayInvoiceRequest};
+use common::api::command::{
+    CreateInvoiceRequest, NodeInfo, PayInvoiceRequest, SendOnchainRequest,
+};
 use common::api::{NodePk, Scid};
 use common::cli::{LspInfo, Network};
 use common::ln::amount::Amount;
+use common::ln::hashes::LxTxid;
 use common::ln::invoice::LxInvoice;
 use common::ln::payments::LxPaymentHash;
 use lightning::chain::keysinterface::{NodeSigner, Recipient};
@@ -24,6 +27,7 @@ use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
 use tracing::{debug, info, instrument, warn};
 
 use crate::alias::RouterType;
+use crate::esplora::LexeEsplora;
 use crate::keys_manager::LexeKeysManager;
 use crate::payments::inbound::InboundInvoicePayment;
 use crate::payments::manager::PaymentsManager;
@@ -31,6 +35,7 @@ use crate::payments::outbound::{
     OutboundInvoicePayment, OUTBOUND_PAYMENT_RETRY_STRATEGY,
 };
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
+use crate::wallet::LexeWallet;
 
 /// Specifies whether it is the user node or the LSP calling the
 /// [`create_invoice`] fn. There are some differences between how the user node
@@ -334,6 +339,54 @@ where
             Err(anyhow!("AllFailedResendSafe error (OIP {hash}): {errs:?}"))
         }
     }
+}
+
+#[instrument(skip_all, name = "(send-onchain)")]
+pub async fn send_onchain<CM, PS>(
+    req: SendOnchainRequest,
+    wallet: LexeWallet,
+    esplora: Arc<LexeEsplora>,
+    payments_manager: PaymentsManager<CM, PS>,
+) -> anyhow::Result<LxTxid>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    // Create and sign the onchain send tx.
+    let onchain_send = wallet
+        .create_onchain_send(req)
+        .await
+        .context("Error while creating outbound tx")?;
+    let tx = onchain_send.tx.clone();
+    let txid = onchain_send.txid;
+
+    // Register the transaction.
+    payments_manager
+        .new_payment(onchain_send)
+        .await
+        .context("Could not register new onchain send")?;
+
+    // Broadcast.
+    esplora
+        .broadcast_tx(&tx)
+        .await
+        .context("Failed to broadcast tx")?;
+
+    // Register the successful broadcast.
+    payments_manager
+        .onchain_send_broadcasted(txid)
+        .await
+        .context("Could not register broadcast of tx")?;
+
+    // NOTE: The reason why we call into the payments manager twice (and thus
+    // persist the payment twice) instead of simply registering the new payment
+    // after it has been successfully broadcast is so that we don't end up in a
+    // situation where a payment is successfully sent but we have no record of
+    // it; i.e. the broadcast succeeds but our registration doesn't. This also
+    // ensures that the txid is unique before we broadcast in case there is a
+    // txid collision for some reason (e.g. duplicate requests)
+
+    Ok(txid)
 }
 
 /// Given a channel manager and `min_inbound_capacity`, generates a list of

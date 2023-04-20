@@ -3,23 +3,30 @@ use std::sync::Arc;
 use anyhow::{ensure, Context};
 use bdk::blockchain::EsploraBlockchain;
 use bdk::template::Bip84;
+use bdk::wallet::coin_selection::DefaultCoinSelectionAlgorithm;
 use bdk::wallet::signer::SignOptions;
+use bdk::wallet::tx_builder::CreateTx;
 use bdk::wallet::{AddressIndex, Wallet};
-use bdk::{Balance, KeychainKind, SyncOptions};
+use bdk::{Balance, FeeRate, KeychainKind, SyncOptions, TxBuilder};
 use bitcoin::util::address::Address;
+use bitcoin::util::psbt::PartiallySignedTransaction;
 use bitcoin::{Script, Transaction};
+use common::api::command::SendOnchainRequest;
 use common::cli::Network;
 use common::constants::{
     IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
 };
+use common::ln::amount::Amount;
 use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
 use common::task::LxTask;
 use lightning::chain::chaininterface::ConfirmationTarget;
+use rust_decimal::Decimal;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
 use crate::esplora::LexeEsplora;
+use crate::payments::onchain::OnchainSend;
 use crate::traits::LexePersister;
 use crate::wallet::db::WalletDb;
 
@@ -31,7 +38,15 @@ pub mod db;
 /// belonging to the wallet. BDK's default value for this is 20.
 const BDK_WALLET_SYNC_STOP_GAP: usize = 20;
 
+type TxBuilderType<'wallet, MODE> =
+    TxBuilder<'wallet, WalletDb, DefaultCoinSelectionAlgorithm, MODE>;
+
 /// A newtype wrapper around [`bdk::Wallet`]. Can be cloned and used directly.
+// TODO(max): All LexeWallet methods currently use `lock().await` so that we can
+// avoid `try_lock()` which could cause random failures. What we really want,
+// however, is to make all of these methods non-async and switch back to the
+// std::sync::Mutex (or no Mutex at all), but BDK needs to become robust to
+// concurrent access first.
 #[derive(Clone)]
 pub struct LexeWallet {
     esplora: Arc<LexeEsplora>,
@@ -104,8 +119,6 @@ impl LexeWallet {
 
     /// Returns the current wallet balance. Note that newly received funds will
     /// not be detected unless the wallet has been `sync()`ed first.
-    // NOTE: We use lock().await as a hack to avoid the problematic try_lock().
-    // TODO(max): Change back to sync once BDK is robust to concurrent access.
     pub async fn get_balance(&self) -> anyhow::Result<Balance> {
         self.wallet
             .lock()
@@ -115,8 +128,6 @@ impl LexeWallet {
     }
 
     /// Returns a new address derived using the external descriptor.
-    // NOTE: We use lock().await as a hack to avoid the problematic try_lock().
-    // TODO(max): Change back to sync once BDK is robust to concurrent access.
     pub async fn get_new_address(&self) -> anyhow::Result<Address> {
         self.wallet
             .lock()
@@ -131,8 +142,6 @@ impl LexeWallet {
     /// [`FundingGenerationReady`] event
     ///
     /// [`FundingGenerationReady`]: lightning::util::events::Event::FundingGenerationReady
-    // NOTE: We use lock().await as a hack to avoid the problematic try_lock().
-    // TODO(max): Change back to sync once BDK is robust to concurrent access.
     pub(crate) async fn create_and_sign_funding_tx(
         &self,
         output_script: Script,
@@ -140,26 +149,101 @@ impl LexeWallet {
         conf_target: ConfirmationTarget,
     ) -> anyhow::Result<Transaction> {
         let locked_wallet = self.wallet.lock().await;
-        let bdk_feerate = self.esplora.get_bdk_feerate(conf_target);
 
-        let mut tx_builder = locked_wallet.build_tx();
-        tx_builder
-            .add_recipient(output_script, channel_value_satoshis)
-            .fee_rate(bdk_feerate)
-            .enable_rbf();
-        let (mut psbt, _tx_deets) = tx_builder
+        // Build
+        let bdk_feerate = self.esplora.get_bdk_feerate(conf_target);
+        let mut tx_builder =
+            Self::default_tx_builder(&locked_wallet, bdk_feerate);
+        tx_builder.add_recipient(output_script, channel_value_satoshis);
+        let (mut psbt, _tx_details) = tx_builder
             .finish()
             .context("Could not build funding PSBT")?;
 
-        // Sign and extract the raw tx.
-        let sign_options = SignOptions::default();
-        let finalized = locked_wallet
-            .sign(&mut psbt, sign_options)
+        // Sign
+        Self::default_sign_psbt(&locked_wallet, &mut psbt)
             .context("Could not sign funding PSBT")?;
-        ensure!(finalized, "Failed to sign all PSBT inputs");
-        let raw_tx = psbt.extract_tx();
 
-        Ok(raw_tx)
+        Ok(psbt.extract_tx())
+    }
+
+    /// Create and sign a transaction which sends an [`Amount`] to the given
+    /// [`Address`], packaging up all of this info in a new [`OnchainSend`].
+    pub(crate) async fn create_onchain_send(
+        &self,
+        req: SendOnchainRequest,
+    ) -> anyhow::Result<OnchainSend> {
+        let locked_wallet = self.wallet.lock().await;
+        let script_pubkey = req.address.script_pubkey();
+
+        // Build
+        let conf_target = ConfirmationTarget::from(req.priority);
+        let bdk_feerate = self.esplora.get_bdk_feerate(conf_target);
+        let mut tx_builder =
+            Self::default_tx_builder(&locked_wallet, bdk_feerate);
+        tx_builder.add_recipient(script_pubkey, req.amount.sats_u64());
+        let (mut psbt, _tx_details) =
+            tx_builder.finish().context("Could not build outbound tx")?;
+
+        // Sign
+        Self::default_sign_psbt(&locked_wallet, &mut psbt)
+            .context("Could not sign outbound tx")?;
+        let tx = psbt.extract_tx();
+
+        // Fees = (sum of inputs) - (sum of outputs)
+        let sum_of_inputs_sat = tx
+            .input
+            .iter()
+            // Inputs don't contain amounts, only references to the outputs that
+            // they spend, so we have to fetch these outputs from our wallet.
+            .map(|input| {
+                let txo = locked_wallet
+                    .get_utxo(input.previous_output)
+                    .context("Error while fetching utxo for input")?
+                    .context("Missing utxo for input")?;
+                Ok(txo.txout.value)
+            })
+            // Convert `Iter<anyhow::Result<u64>>` to `anyhow::Result<u64>` by
+            // summing the contained u64s, returning Ok iff all inner were Ok
+            .try_fold(0, |acc, res: anyhow::Result<u64>| {
+                res.map(|v| acc + v)
+            })?;
+        let sum_of_outputs_sat =
+            tx.output.iter().map(|output| output.value).sum::<u64>();
+        let fees = sum_of_inputs_sat
+            .checked_sub(sum_of_outputs_sat)
+            .map(Decimal::from)
+            .map(Amount::from_satoshis)
+            .context("Sum of outputs exceeds sum of inputs")?
+            .context("Fee amount overflowed")?;
+
+        let onchain_send = OnchainSend::new(tx, req, fees);
+
+        Ok(onchain_send)
+    }
+
+    /// Get a [`TxBuilder`] which has some defaults prepopulated.
+    ///
+    /// Note that this builder is specifically for *creating* transactions, not
+    /// for e.g. bumping the fee of an existing transaction.
+    fn default_tx_builder(
+        wallet: &Wallet<WalletDb>,
+        bdk_feerate: FeeRate,
+    ) -> TxBuilderType<'_, CreateTx> {
+        // Set the feerate and enable RBF by default
+        let mut tx_builder = wallet.build_tx();
+        tx_builder.fee_rate(bdk_feerate).enable_rbf();
+        tx_builder
+    }
+
+    /// Sign a [`PartiallySignedTransaction`] in the default way.
+    fn default_sign_psbt(
+        wallet: &Wallet<WalletDb>,
+        psbt: &mut PartiallySignedTransaction,
+    ) -> anyhow::Result<()> {
+        let options = SignOptions::default();
+        let finalized = wallet.sign(psbt, options)?;
+        ensure!(finalized, "Failed to sign all PSBT inputs");
+        Ok(())
     }
 }
 

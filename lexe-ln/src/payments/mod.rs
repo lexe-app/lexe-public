@@ -22,7 +22,7 @@ use crate::payments::inbound::{
     InboundSpontaneousPayment, InboundSpontaneousPaymentStatus,
 };
 use crate::payments::onchain::{
-    OnchainPaymentStatus, OnchainReceive, OnchainSend,
+    OnchainReceive, OnchainReceiveStatus, OnchainSend, OnchainSendStatus,
 };
 use crate::payments::outbound::{
     OutboundInvoicePayment, OutboundInvoicePaymentStatus,
@@ -414,13 +414,27 @@ impl Payment {
 
 // --- Payment-specific status -> General PaymentStatus  --- //
 
-impl From<OnchainPaymentStatus> for PaymentStatus {
-    fn from(specific_status: OnchainPaymentStatus) -> Self {
+impl From<OnchainSendStatus> for PaymentStatus {
+    fn from(specific_status: OnchainSendStatus) -> Self {
         match specific_status {
-            OnchainPaymentStatus::Confirming => Self::Pending,
-            OnchainPaymentStatus::Completed => Self::Completed,
-            OnchainPaymentStatus::Replaced => Self::Failed,
-            OnchainPaymentStatus::Reorged => Self::Failed,
+            OnchainSendStatus::AwaitingBroadcast => Self::Pending,
+            OnchainSendStatus::Confirming => Self::Pending,
+            OnchainSendStatus::Completed => Self::Completed,
+            // Setting this as 'Failed' is a weird since the 'failure' is
+            // intended, but adding another PaymentStatus doesn't seem worth it?
+            OnchainSendStatus::Replaced => Self::Failed,
+            OnchainSendStatus::Reorged => Self::Failed,
+        }
+    }
+}
+
+impl From<OnchainReceiveStatus> for PaymentStatus {
+    fn from(specific_status: OnchainReceiveStatus) -> Self {
+        match specific_status {
+            OnchainReceiveStatus::Confirming => Self::Pending,
+            OnchainReceiveStatus::Completed => Self::Completed,
+            OnchainReceiveStatus::Replaced => Self::Failed,
+            OnchainReceiveStatus::Reorged => Self::Failed,
         }
     }
 }
@@ -468,7 +482,19 @@ impl From<OutboundSpontaneousPaymentStatus> for PaymentStatus {
 
 // --- Use as_str() to get a human-readable payment status &str --- //
 
-impl OnchainPaymentStatus {
+impl OnchainSendStatus {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::AwaitingBroadcast => "awaiting broadcast",
+            Self::Confirming => "confirming",
+            Self::Completed => "completed",
+            Self::Replaced => "replaced",
+            Self::Reorged => "reorged",
+        }
+    }
+}
+
+impl OnchainReceiveStatus {
     pub fn as_str(&self) -> &str {
         match self {
             Self::Confirming => "confirming",

@@ -65,6 +65,9 @@ proptest-derive = "0.3"
 rcgen = { version = "0.10", default-features = false }
 # High-level HTTP client
 reqwest = { version = "0.11", default-features = false }
+# Decimal number representation suitable for financial calculations
+rust_decimal = { version = "1", default-features = false, features = ["serde"] }
+rust_decimal_macros = { version = "1", default-features = false }
 # TLS library
 rustls = { version = "0.20", default-features = false }
 # A wrapper type for carefully handling secrets
