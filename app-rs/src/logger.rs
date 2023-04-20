@@ -43,10 +43,11 @@ pub(crate) fn try_init(
         .ok()
         .unwrap_or_else(|| Targets::new().with_default(Level::INFO));
 
-    let dart_log_layer = DartLogLayer::new(rust_log_tx);
+    let dart_log_layer =
+        DartLogLayer::new(rust_log_tx).with_filter(rust_log_filter);
 
     tracing_subscriber::registry()
-        .with(dart_log_layer.with_filter(rust_log_filter))
+        .with(dart_log_layer)
         .try_init()
 }
 
