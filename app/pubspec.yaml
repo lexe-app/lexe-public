@@ -38,7 +38,7 @@ dependencies:
   flutter:
     sdk: flutter
   # The high-level memory safe interface for generated Rust<->dart ffi bindings.
-  flutter_rust_bridge: ^1.61.1
+  flutter_rust_bridge: ^1.75.1
   # Immutable record types and Rust-style enums in Dart.
   freezed_annotation: ^2.2.0
   # International number, currency, and date formatting

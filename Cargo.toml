@@ -52,10 +52,9 @@ dotenvy = "0.15"
 # common HTTP types
 http = "0.2"
 # High-level memory-safe Rust<->Dart FFI bindings.
-flutter_rust_bridge = { version = "1.74", default-features = false, features = [] }
+flutter_rust_bridge = { version = "1.75.1", default-features = false, features = [] }
 # The Rust+Dart codegen for flutter_rust_bridge
-# NOTE: as of 1.74, doesn't seem to build w/o "serde" feature enabled
-flutter_rust_bridge_codegen = { version = "1.74", default-features = false, features = ["serde"] }
+flutter_rust_bridge_codegen = { version = "1.75.1", default-features = false, features = [] }
 # Utils for working with futures
 futures = "0.3"
 # Lazy initialization
