@@ -382,7 +382,6 @@ impl UserNode {
             router.clone(),
             channel_manager.clone(),
             peer_manager.clone(),
-            network_graph.clone(),
             keys_manager.clone(),
             payments_manager.clone(),
             args.lsp.clone(),

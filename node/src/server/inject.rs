@@ -7,7 +7,7 @@ use std::sync::Arc;
 use common::api::UserPk;
 use common::cli::Network;
 use common::shutdown::ShutdownChannel;
-use lexe_ln::alias::{NetworkGraphType, RouterType};
+use lexe_ln::alias::RouterType;
 use lexe_ln::command::CreateInvoiceCaller;
 use lexe_ln::keys_manager::LexeKeysManager;
 use warp::Filter;
@@ -57,14 +57,6 @@ pub(crate) fn peer_manager(
     peer_manager: NodePeerManager,
 ) -> impl Filter<Extract = (NodePeerManager,), Error = Infallible> + Clone {
     warp::any().map(move || peer_manager.clone())
-}
-
-/// Injects a network graph.
-pub(crate) fn network_graph(
-    network_graph: Arc<NetworkGraphType>,
-) -> impl Filter<Extract = (Arc<NetworkGraphType>,), Error = Infallible> + Clone
-{
-    warp::any().map(move || network_graph.clone())
 }
 
 /// Injects a keys manager.
