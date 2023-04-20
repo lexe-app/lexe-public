@@ -33,6 +33,15 @@ pub struct GetByScid {
     pub scid: Scid,
 }
 
+/// Query parameter struct for fetching a payment by its index.
+#[derive(Serialize, Deserialize)]
+pub struct GetPaymentByIndex {
+    /// The index of the payment to be fetched.
+    // We use index instead of id so the backend can query by primary key.
+    #[serde(flatten)]
+    pub index: PaymentIndex,
+}
+
 /// Query parameter struct for syncing batches of new payments to local storage.
 /// Results are returned in ascending `(created_at, payment_id)` order.
 #[derive(Serialize, Deserialize)]

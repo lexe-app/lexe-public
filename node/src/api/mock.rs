@@ -17,7 +17,7 @@ use common::api::error::{
 };
 use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
-use common::api::qs::{GetNewPayments, GetPaymentsByIds};
+use common::api::qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIds};
 use common::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use common::api::{NodePk, Scid, User, UserPk};
 use common::byte_str::ByteStr;
@@ -295,6 +295,22 @@ impl NodeBackendApi for MockBackendClient {
     ) -> Result<Vec<VfsFile>, BackendApiError> {
         let files_vec = self.vfs.lock().unwrap().get_dir(dir.clone());
         Ok(files_vec)
+    }
+
+    async fn get_payment(
+        &self,
+        req: GetPaymentByIndex,
+        _auth: BearerAuthToken,
+    ) -> Result<Option<DbPayment>, BackendApiError> {
+        self.payments
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|(k, _v)| k.id == req.index.id)
+            .map(|(_k, v)| v)
+            .cloned()
+            .map(Ok)
+            .transpose()
     }
 
     async fn create_payment(
