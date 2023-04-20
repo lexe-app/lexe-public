@@ -20,7 +20,7 @@ use common::api::qs::{
 use common::api::{rest, Scid, UserPk};
 use common::cli::{LspInfo, Network};
 use common::shutdown::ShutdownChannel;
-use lexe_ln::alias::{NetworkGraphType, RouterType};
+use lexe_ln::alias::RouterType;
 use lexe_ln::command::CreateInvoiceCaller;
 use lexe_ln::keys_manager::LexeKeysManager;
 use tokio::sync::mpsc;
@@ -58,7 +58,6 @@ pub(crate) fn app_routes(
     router: Arc<RouterType>,
     channel_manager: NodeChannelManager,
     peer_manager: NodePeerManager,
-    network_graph: Arc<NetworkGraphType>,
     keys_manager: LexeKeysManager,
     payments_manager: NodePaymentsManagerType,
     lsp_info: LspInfo,
@@ -83,12 +82,6 @@ pub(crate) fn app_routes(
         .and(inject::peer_manager(peer_manager))
         .map(lexe_ln::command::node_info)
         .map(rest::into_succ_response);
-    let list_channels = warp::path("channels")
-        .and(warp::get())
-        .and(inject::channel_manager(channel_manager.clone()))
-        .and(inject::network_graph(network_graph))
-        .map(app::list_channels)
-        .map(rest::into_response);
     let create_invoice = warp::path("create_invoice")
         .and(warp::post())
         .and(warp::body::json::<CreateInvoiceRequest>())
@@ -136,13 +129,8 @@ pub(crate) fn app_routes(
             .or(update_payment_note),
     );
 
-    let app = app_base.and(
-        node_info
-            .or(list_channels)
-            .or(create_invoice)
-            .or(pay_invoice)
-            .or(payments),
-    );
+    let app =
+        app_base.and(node_info.or(create_invoice).or(pay_invoice).or(payments));
 
     root.or(app)
 }

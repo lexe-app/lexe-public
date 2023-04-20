@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::api::NodePk;
 use crate::ln::amount::Amount;
-use crate::ln::channel::LxChannelDetails;
 use crate::ln::invoice::LxInvoice;
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -12,11 +11,6 @@ pub struct NodeInfo {
     pub num_usable_channels: usize,
     pub local_balance: Amount,
     pub num_peers: usize,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct ListChannels {
-    pub channel_details: Vec<LxChannelDetails>,
 }
 
 #[derive(Default, Serialize, Deserialize)]

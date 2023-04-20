@@ -25,9 +25,7 @@ use super::fiat_rates::FiatRates;
 use crate::api::auth::{
     BearerAuthRequest, BearerAuthResponse, BearerAuthToken, UserSignupRequest,
 };
-use crate::api::command::{
-    CreateInvoiceRequest, ListChannels, NodeInfo, PayInvoiceRequest,
-};
+use crate::api::command::{CreateInvoiceRequest, NodeInfo, PayInvoiceRequest};
 use crate::api::error::{
     BackendApiError, LspApiError, NodeApiError, RunnerApiError,
 };
@@ -256,12 +254,7 @@ pub trait AppNodeRunApi {
     /// [`EmptyData`]: super::qs::EmptyData
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError>;
 
-    /// GET /app/channels [`EmptyData`] -> [`ListChannels`]
-    ///
-    /// [`EmptyData`]: super::qs::EmptyData
-    async fn list_channels(&self) -> Result<ListChannels, NodeApiError>;
-
-    /// POST /app/create_invoice [`CreateInvoiceRequest`] -> [`ListChannels`]
+    /// POST /app/create_invoice [`CreateInvoiceRequest`] -> [`LxInvoice`]
     async fn create_invoice(
         &self,
         req: CreateInvoiceRequest,
