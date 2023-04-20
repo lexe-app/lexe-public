@@ -5,6 +5,7 @@ use std::time::{Duration, SystemTime};
 use anyhow::{bail, ensure, Context};
 use common::api::qs::UpdatePaymentNote;
 use common::ln::amount::Amount;
+use common::ln::hashes::LxTxid;
 use common::ln::payments::{
     LxPaymentHash, LxPaymentId, LxPaymentPreimage, PaymentStatus,
 };
@@ -459,6 +460,50 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         }
 
         debug!("Successfully checked invoice expiries");
+        Ok(())
+    }
+
+    /// Register the successful broadcast of an onchain send tx.
+    #[instrument(skip_all, name = "(onchain-send-broadcasted)")]
+    pub async fn onchain_send_broadcasted(
+        &self,
+        txid: LxTxid,
+    ) -> anyhow::Result<()> {
+        let id = LxPaymentId::from(txid);
+        debug!(%id, "Registering that an onchain send has been broadcasted");
+        let mut locked_data = self.data.lock().await;
+
+        ensure!(
+            !locked_data.finalized.contains(&id),
+            "Onchain send was already finalized",
+        );
+
+        let pending = locked_data
+            .pending
+            .get(&id)
+            .context("Payment doesn't exist")?;
+
+        // Check
+        let checked = match pending {
+            Payment::OnchainSend(os) => os
+                .broadcasted(&txid)
+                .map(Payment::from)
+                .map(CheckedPayment)
+                .context("Invalid state transition")?,
+            _ => bail!("Payment was not an onchain send"),
+        };
+
+        // Persist
+        let persisted = self
+            .persister
+            .persist_payment(checked)
+            .await
+            .context("Persist failed")?;
+
+        // Commit
+        locked_data.commit(persisted);
+
+        debug!("Successfully registered successful broadcast");
         Ok(())
     }
 }

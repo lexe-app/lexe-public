@@ -41,6 +41,7 @@ async-trait.workspace = true
 cfg-if.workspace = true
 futures.workspace = true
 once_cell.workspace = true
+rust_decimal.workspace = true
 secrecy.workspace = true
 serde.workspace = true
 serde_with = { workspace = true, features = ["alloc", "hex"] }

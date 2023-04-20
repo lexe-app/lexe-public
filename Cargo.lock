@@ -1767,6 +1767,7 @@ dependencies = [
  "once_cell",
  "proptest",
  "proptest-derive",
+ "rust_decimal",
  "secrecy",
  "serde",
  "serde_json",
