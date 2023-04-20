@@ -2,20 +2,28 @@ use std::fmt::{self, Display};
 use std::str::FromStr;
 
 use anyhow::Context;
-use bitcoin::hash_types::Txid;
 use lightning::chain::transaction::OutPoint;
-use serde::{Deserialize, Serialize};
+#[cfg(any(test, feature = "test-utils"))]
+use proptest_derive::Arbitrary;
 
-#[derive(Serialize, Deserialize)]
+use crate::ln::hashes::LxTxid;
+
+/// A newtype for [`OutPoint`] that provides [`FromStr`] / [`Display`] impls.
+///
+/// Since the persister relies on the string representation to identify
+/// channels, having a newtype (instead of upstreaming these impls to LDK)
+/// ensures that the serialization scheme does not change from beneath us.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct LxOutPoint {
-    pub txid: Txid,
+    pub txid: LxTxid,
     pub index: u16,
 }
 
 impl From<OutPoint> for LxOutPoint {
     fn from(op: OutPoint) -> Self {
         Self {
-            txid: op.txid,
+            txid: LxTxid(op.txid),
             index: op.index,
         }
     }
@@ -24,7 +32,7 @@ impl From<OutPoint> for LxOutPoint {
 impl From<LxOutPoint> for OutPoint {
     fn from(op: LxOutPoint) -> Self {
         Self {
-            txid: op.txid,
+            txid: op.txid.0,
             index: op.index,
         }
     }
@@ -42,7 +50,7 @@ impl FromStr for LxOutPoint {
             .next()
             .context("Missing <index> in <txid>_<index>")?;
 
-        let txid = Txid::from_str(txid_str)
+        let txid = LxTxid::from_str(txid_str)
             .context("Invalid txid returned from DB")?;
         let index = u16::from_str(index_str)
             .context("Could not parse index into u16")?;
@@ -55,5 +63,15 @@ impl FromStr for LxOutPoint {
 impl Display for LxOutPoint {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}_{}", self.txid, self.index)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::test_utils::roundtrip;
+    #[test]
+    fn outpoint_fromstr_display_roundtrip() {
+        roundtrip::fromstr_display_roundtrip_proptest::<LxOutPoint>();
     }
 }

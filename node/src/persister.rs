@@ -377,7 +377,7 @@ impl InnerPersister {
                 .context("Failed to deserialize Channel Monitor")?;
 
             let (derived, _script) = channel_monitor.get_funding_txo();
-            ensure!(derived.txid == given.txid, "outpoint txid don' match");
+            ensure!(derived.txid == given.txid.0, "outpoint txid don' match");
             ensure!(derived.index == given.index, "outpoint index don' match");
 
             result.push((blockhash, channel_monitor));
