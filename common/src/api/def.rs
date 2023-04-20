@@ -33,7 +33,9 @@ use crate::api::error::{
 };
 use crate::api::ports::UserPorts;
 use crate::api::provision::{NodeProvisionRequest, SealedSeed, SealedSeedId};
-use crate::api::qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote};
+use crate::api::qs::{
+    GetNewPayments, GetPaymentByIndex, GetPaymentsByIds, UpdatePaymentNote,
+};
 use crate::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use crate::api::{NodePk, Scid, User, UserPk};
 use crate::ed25519;
@@ -109,6 +111,13 @@ pub trait NodeBackendApi {
         dir: &VfsDirectory,
         auth: BearerAuthToken,
     ) -> Result<Vec<VfsFile>, BackendApiError>;
+
+    /// GET /node/v1/payments [`GetPaymentByIndex`] -> [`Option<DbPayment>`]
+    async fn get_payment(
+        &self,
+        req: GetPaymentByIndex,
+        auth: BearerAuthToken,
+    ) -> Result<Option<DbPayment>, BackendApiError>;
 
     /// POST /node/v1/payments [`DbPayment`] -> [`()`]
     async fn create_payment(

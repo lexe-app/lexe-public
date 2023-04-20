@@ -9,7 +9,8 @@ use common::api::error::{BackendApiError, LspApiError, RunnerApiError};
 use common::api::ports::UserPorts;
 use common::api::provision::{SealedSeed, SealedSeedId};
 use common::api::qs::{
-    EmptyData, GetByNodePk, GetByUserPk, GetNewPayments, GetPaymentsByIds,
+    EmptyData, GetByNodePk, GetByUserPk, GetNewPayments, GetPaymentByIndex,
+    GetPaymentsByIds,
 };
 use common::api::rest::{RequestBuilderExt, RestClient, POST};
 use common::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
@@ -248,6 +249,19 @@ impl NodeBackendApi for BackendClient {
         let req = self
             .rest
             .get(format!("{backend}/node/v1/directory"), data)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn get_payment(
+        &self,
+        req: GetPaymentByIndex,
+        auth: BearerAuthToken,
+    ) -> Result<Option<DbPayment>, BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .get(format!("{backend}/node/v1/payments"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
