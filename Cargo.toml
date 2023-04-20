@@ -112,7 +112,7 @@ sgxs-loaders = "=0.3.3"
 # Asynchronous runtime
 tokio = { version = "=1.21.2", default-features = false }
 # Filter-based webserver
-warp = { version = "=0.3.2", default-features = false }
+warp = { version = "=0.3.4", default-features = false }
 
 [patch.crates-io]
 # NOTE: Make sure to duplicate any changes to the `server`'s root Cargo.toml,
@@ -130,8 +130,9 @@ sgx-isa = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 sgxs-loaders = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 tokio = { git = "https://github.com/lexe-tech/tokio", branch = "tokio-sgx-1.21.2" }
 # This warp fork:
-# (1) Implements Reply for Result<impl Reply, impl Reply>
-# (2) Allows setting a prebuilt rustls TLS server config
+# * 2cbad40 - trace: tweak warp request `tracing` to include request time directly
+# * f8c13d9 - add HTTP on-upgrade filter
+# * dc560ed - Allow users to provide a preconfigured TLS configuration
 warp = { git = "https://github.com/lexe-tech/warp", branch = "lexe" }
 
 # This BDK fork:
