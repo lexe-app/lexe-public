@@ -59,13 +59,17 @@ where
     let span_id = span.id();
     let routes_with_logging =
         routes.with(warp::trace::trace(move |req_info| {
-            // TODO(phlip9): I'd like to also get the query params, but warp
-            // doesn't currently expose this in this `Info` struct thing.
+            let url = req_info
+                .uri()
+                .path_and_query()
+                .map(|url| url.as_str())
+                .unwrap_or("/");
             info_span!(
+                target: "http",
                 parent: span_id.clone(),
                 "(recv)",
                 method = %req_info.method(),
-                path = %req_info.path(),
+                url = %url,
                 version = ?req_info.version(),
             )
         }));
@@ -229,7 +233,7 @@ fn build_json_response_inner(
     maybe_json: Result<Bytes, serde_json::Error>,
 ) -> Response<Body> {
     let body = maybe_json.map(Body::from).unwrap_or_else(|e| {
-        error!("Couldn't serialize response: {e:#}");
+        error!(target: "http", "Couldn't serialize response: {e:#}");
         status = StatusCode::INTERNAL_SERVER_ERROR;
         Body::empty()
     });
@@ -350,11 +354,10 @@ impl RestClient {
 
     fn request_span(req: &reqwest::Request) -> tracing::Span {
         info_span!(
+            target: "http",
             "(send)",
             method = %req.method(),
             url = %req.url(),
-            // the http response status is set in the span later on
-            status = field::Empty,
             // the "attempts left" is set in the span later on
             attempts_left = field::Empty,
         )
@@ -475,34 +478,48 @@ impl RestClient {
             *timeout = Some(API_REQUEST_TIMEOUT);
         }
 
-        debug!("sending request");
+        debug!(target: "http", "sending");
 
         // send the request, await the response headers
         let resp = self.client.execute(request).await.map_err(|err| {
-            warn!("error sending request: {err:#}");
+            warn!(target: "http", "error sending: {err:#}");
             err
         })?;
 
         // add the response http status to the current request span
-        tracing::Span::current().record("status", resp.status().as_u16());
+        let status = resp.status().as_u16();
 
         if resp.status().is_success() {
             // success => await response body
             let bytes = resp.bytes().await.map_err(|err| {
-                warn!("error receiving successful response body: {err:#}");
+                warn!(
+                    target: "http",
+                    %status,
+                    "error receiving successful response body: {err:#}",
+                );
                 err
             })?;
 
-            info!(body.len = %bytes.len(), "request success");
+            info!(target: "http", %status, "done (success)");
             Ok(Ok(bytes))
         } else {
             // http error => await response json and convert to ErrorResponse
             let err = resp.json::<ErrorResponse>().await.map_err(|err| {
-                warn!("error receiving ErrorResponse json: {err:#}");
+                warn!(
+                    target: "http",
+                    %status,
+                    "error receiving ErrorResponse json: {err:#}",
+                );
                 err
             })?;
 
-            warn!(%err.code, %err.msg, "received error response");
+            warn!(
+                target: "http",
+                %status,
+                err_code = %err.code,
+                err_msg = %err.msg,
+                "error response",
+            );
             Ok(Err(err))
         }
     }
