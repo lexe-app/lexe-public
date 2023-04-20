@@ -56,12 +56,6 @@ tokio = { workspace = true, features = [
 ] }
 tokio-rustls.workspace = true
 tracing.workspace = true
-tracing-core.workspace = true
-tracing-subscriber = { workspace = true, features = [
-    "std",
-    "fmt",
-    "tracing-log",
-] }
 warp = { workspace = true, features = ["tls"] }
 
 [target.'cfg(target_env = "sgx")'.dependencies]

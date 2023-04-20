@@ -2032,8 +2032,6 @@ dependencies = [
  "tokio",
  "tokio-rustls",
  "tracing",
- "tracing-core",
- "tracing-subscriber",
  "warp",
 ]
 

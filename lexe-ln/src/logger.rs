@@ -33,7 +33,6 @@
 //! * `foo=trace` (TARGET=LEVEL)
 //! * `foo[{bar,baz}]=info` (TARGET[{FIELD,+}]=LEVEL)
 
-use std::error::Error;
 use std::ops::Deref;
 use std::str::FromStr;
 
@@ -48,8 +47,6 @@ use tracing_subscriber::filter::Targets;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::{SubscriberInitExt, TryInitError};
 use tracing_subscriber::Layer;
-
-pub type TracingError = Box<dyn Error + Send + Sync + 'static>;
 
 /// Initialize the global `tracing` logger.
 ///
@@ -94,11 +91,10 @@ pub fn try_init() -> Result<(), TryInitError> {
         // Enable colored outputs for stdout.
         // TODO(max): This should be disabled when outputting to files - a
         //            second subscriber is probably needed.
-        .with_ansi(true);
+        .with_ansi(true)
+        .with_filter(rust_log_filter);
 
-    tracing_subscriber::registry()
-        .with(stdout_log.with_filter(rust_log_filter))
-        .try_init()
+    tracing_subscriber::registry().with(stdout_log).try_init()
 }
 
 // -- LexeTracingLogger -- //
