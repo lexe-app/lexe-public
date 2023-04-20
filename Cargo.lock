@@ -738,7 +738,7 @@ dependencies = [
  "rust_decimal",
  "rust_decimal_macros",
  "rustls",
- "rustls-pemfile 1.0.2",
+ "rustls-pemfile",
  "secrecy",
  "serde",
  "serde_json",
@@ -2515,7 +2515,7 @@ dependencies = [
  "percent-encoding",
  "pin-project-lite",
  "rustls",
- "rustls-pemfile 1.0.2",
+ "rustls-pemfile",
  "serde",
  "serde_json",
  "serde_urlencoded",
@@ -2637,15 +2637,6 @@ dependencies = [
  "ring",
  "sct",
  "webpki",
-]
-
-[[package]]
-name = "rustls-pemfile"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5eebeaeb360c87bfb72e84abdb3447159c0eaececf1bef2aecd65a8be949d1c9"
-dependencies = [
- "base64 0.13.1",
 ]
 
 [[package]]
@@ -3434,8 +3425,8 @@ dependencies = [
 
 [[package]]
 name = "warp"
-version = "0.3.2"
-source = "git+https://github.com/lexe-tech/warp?branch=lexe#80df91dbc3a9004695368b5ac1fd95aaab66966a"
+version = "0.3.4"
+source = "git+https://github.com/lexe-tech/warp?branch=lexe#38bf87423fe999c502bfadf1e0d36dd86920996c"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -3448,7 +3439,7 @@ dependencies = [
  "mime_guess",
  "percent-encoding",
  "pin-project",
- "rustls-pemfile 0.2.1",
+ "rustls-pemfile",
  "scoped-tls",
  "serde",
  "serde_json",
