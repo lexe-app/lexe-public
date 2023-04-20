@@ -13,7 +13,7 @@ use reqwest::IntoUrl;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::time;
-use tracing::{debug, debug_span, error, field, info, warn, Instrument, Span};
+use tracing::{debug, error, field, info, info_span, warn, Instrument, Span};
 use warp::hyper::Body;
 use warp::{Rejection, Reply};
 
@@ -56,7 +56,21 @@ where
     F: warp::Filter<Extract: Reply, Error = Rejection> + Send + Clone + 'static,
     G: Future<Output = ()> + Send + 'static,
 {
-    let api_service = warp::service(routes);
+    let span_id = span.id();
+    let routes_with_logging =
+        routes.with(warp::trace::trace(move |req_info| {
+            // TODO(phlip9): I'd like to also get the query params, but warp
+            // doesn't currently expose this in this `Info` struct thing.
+            info_span!(
+                parent: span_id.clone(),
+                "(recv)",
+                method = %req_info.method(),
+                path = %req_info.path(),
+                version = ?req_info.version(),
+            )
+        }));
+
+    let api_service = warp::service(routes_with_logging);
     let make_service = hyper::service::make_service_fn(move |_| {
         let api_service_clone = api_service.clone();
         async move { Ok::<_, Infallible>(api_service_clone) }
@@ -335,8 +349,8 @@ impl RestClient {
     // --- Request send/recv --- //
 
     fn request_span(req: &reqwest::Request) -> tracing::Span {
-        debug_span!(
-            "(http-request)",
+        info_span!(
+            "(send)",
             method = %req.method(),
             url = %req.url(),
             // the http response status is set in the span later on
@@ -479,7 +493,7 @@ impl RestClient {
                 err
             })?;
 
-            debug!(body.len = %bytes.len(), "request success");
+            info!(body.len = %bytes.len(), "request success");
             Ok(Ok(bytes))
         } else {
             // http error => await response json and convert to ErrorResponse
