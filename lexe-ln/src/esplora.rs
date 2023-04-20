@@ -17,7 +17,7 @@ use lightning::chain::chaininterface::{
     FEERATE_FLOOR_SATS_PER_KW,
 };
 use tokio::time;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, instrument, warn};
 
 use crate::test_event::{TestEvent, TestEventSender};
 
@@ -225,24 +225,49 @@ impl LexeEsplora {
             self.get_est_sat_per_1000_weight(conf_target);
         FeeRate::from_wu(feerate_sats_per_1000_weight as u64, 1000)
     }
+
+    /// Broadcast a [`Transaction`].
+    ///
+    /// - Logs a debug message if successful.
+    /// - Logs an error message if the broadcast failed.
+    /// - Sends a [`TestEvent::TxBroadcasted`] if successful.
+    pub async fn broadcast_tx(&self, tx: &Transaction) -> anyhow::Result<()> {
+        Self::broadcast_tx_inner(&self.client, &self.test_event_tx, tx).await
+    }
+
+    #[instrument(skip_all, name = "(broadcast-tx)")]
+    async fn broadcast_tx_inner(
+        client: &AsyncClient,
+        test_event_tx: &TestEventSender,
+        tx: &Transaction,
+    ) -> anyhow::Result<()> {
+        let txid = tx.txid();
+        client
+            .broadcast(tx)
+            .await
+            .context("esplora_client failed to broadcast tx")
+            .inspect(|&()| debug!("Successfully broadcasted tx {txid}"))
+            .inspect(|&()| test_event_tx.send(TestEvent::TxBroadcasted))
+            .inspect_err(|e| error!("Could not broadcast tx {txid}: {e:#}"))
+    }
 }
 
 impl BroadcasterInterface for LexeEsplora {
     fn broadcast_transaction(&self, tx: &Transaction) {
+        // We can't make LexeEsplora clonable because LDK's API requires a
+        // `Deref<Target: FeeEstimator>` and making LexeEsplora Deref to a inner
+        // version of itself is a dumb way to accomplish that. Instead, we have
+        // the `broadcast_tx_inner` static method which is good enough.
         let client = self.client.clone();
         let test_event_tx = self.test_event_tx.clone();
         let tx = tx.clone();
-        let txid = tx.txid();
+
+        // Clippy bug; we need the `async move` to make the future static
+        #[allow(clippy::redundant_async_block)]
         LxTask::spawn(async move {
-            match client.broadcast(&tx).await {
-                Ok(_) => {
-                    debug!("Successfully broadcasted tx {txid}");
-                    test_event_tx.send(TestEvent::TxBroadcasted);
-                }
-                Err(e) => error!("Could not broadcast tx {txid}: {e:#}"),
-            };
+            LexeEsplora::broadcast_tx_inner(&client, &test_event_tx, &tx).await
         })
-        .detach();
+        .detach()
     }
 }
 
