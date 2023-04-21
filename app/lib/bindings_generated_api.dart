@@ -27,10 +27,6 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kInitRustLogStreamConstMeta;
 
-  Config regtestStaticMethodConfig({dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kRegtestStaticMethodConfigConstMeta;
-
   Future<AppHandle?> loadStaticMethodAppHandle(
       {required Config config, dynamic hint});
 
@@ -112,19 +108,14 @@ class AppHandle {
 }
 
 /// Dart-serializable configuration we get from the flutter side.
-class Config {
-  final AppRs bridge;
-  final DeployEnv deployEnv;
-  final Network network;
-
-  const Config({
-    required this.bridge,
-    required this.deployEnv,
-    required this.network,
-  });
-
-  static Config regtest({required AppRs bridge, dynamic hint}) =>
-      bridge.regtestStaticMethodConfig(hint: hint);
+@freezed
+class Config with _$Config {
+  const factory Config({
+    required DeployEnv deployEnv,
+    required Network network,
+    required String gatewayUrl,
+    required bool useSgx,
+  }) = _Config;
 }
 
 enum DeployEnv {

@@ -43,16 +43,6 @@ fn wire_init_rust_log_stream_impl(
         },
     )
 }
-fn wire_regtest__static_method__Config_impl() -> support::WireSyncReturn {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
-        WrapInfo {
-            debug_name: "regtest__static_method__Config",
-            port: None,
-            mode: FfiCallMode::Sync,
-        },
-        move || Ok(Config::regtest()),
-    )
-}
 fn wire_load__static_method__AppHandle_impl(
     port_: MessagePort,
     config: impl Wire2Api<Config> + UnwindSafe,
@@ -158,6 +148,12 @@ where
     }
 }
 
+impl Wire2Api<bool> for bool {
+    fn wire2api(self) -> bool {
+        self
+    }
+}
+
 impl Wire2Api<DeployEnv> for i32 {
     fn wire2api(self) -> DeployEnv {
         match self {
@@ -198,25 +194,6 @@ impl support::IntoDart for AppHandle {
 }
 impl support::IntoDartExceptPrimitive for AppHandle {}
 
-impl support::IntoDart for Config {
-    fn into_dart(self) -> support::DartAbi {
-        vec![self.deploy_env.into_dart(), self.network.into_dart()].into_dart()
-    }
-}
-impl support::IntoDartExceptPrimitive for Config {}
-
-impl support::IntoDart for DeployEnv {
-    fn into_dart(self) -> support::DartAbi {
-        match self {
-            Self::Prod => 0,
-            Self::Staging => 1,
-            Self::Dev => 2,
-        }
-        .into_dart()
-    }
-}
-impl support::IntoDartExceptPrimitive for DeployEnv {}
-
 impl support::IntoDart for FiatRate {
     fn into_dart(self) -> support::DartAbi {
         vec![self.fiat.into_dart(), self.rate.into_dart()].into_dart()
@@ -231,17 +208,6 @@ impl support::IntoDart for FiatRates {
 }
 impl support::IntoDartExceptPrimitive for FiatRates {}
 
-impl support::IntoDart for Network {
-    fn into_dart(self) -> support::DartAbi {
-        match self {
-            Self::Bitcoin => 0,
-            Self::Testnet => 1,
-            Self::Regtest => 2,
-        }
-        .into_dart()
-    }
-}
-impl support::IntoDartExceptPrimitive for Network {}
 impl support::IntoDart for NodeInfo {
     fn into_dart(self) -> support::DartAbi {
         vec![
@@ -268,12 +234,6 @@ mod io {
         rust_log: *mut wire_uint_8_list,
     ) {
         wire_init_rust_log_stream_impl(port_, rust_log)
-    }
-
-    #[no_mangle]
-    pub extern "C" fn wire_regtest__static_method__Config(
-    ) -> support::WireSyncReturn {
-        wire_regtest__static_method__Config_impl()
     }
 
     #[no_mangle]
@@ -380,6 +340,7 @@ mod io {
             }
         }
     }
+
     impl Wire2Api<AppHandle> for *mut wire_AppHandle {
         fn wire2api(self) -> AppHandle {
             let wrap = unsafe { support::box_from_leak_ptr(self) };
@@ -397,6 +358,8 @@ mod io {
             Config {
                 deploy_env: self.deploy_env.wire2api(),
                 network: self.network.wire2api(),
+                gateway_url: self.gateway_url.wire2api(),
+                use_sgx: self.use_sgx.wire2api(),
             }
         }
     }
@@ -428,6 +391,8 @@ mod io {
     pub struct wire_Config {
         deploy_env: i32,
         network: i32,
+        gateway_url: *mut wire_uint_8_list,
+        use_sgx: bool,
     }
 
     #[repr(C)]
@@ -476,6 +441,8 @@ mod io {
             Self {
                 deploy_env: Default::default(),
                 network: Default::default(),
+                gateway_url: core::ptr::null_mut(),
+                use_sgx: Default::default(),
             }
         }
     }

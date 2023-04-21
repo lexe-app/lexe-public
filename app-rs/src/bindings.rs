@@ -51,7 +51,7 @@ use common::{
     rng::SysRng,
 };
 use flutter_rust_bridge::{
-    frb, handler::ReportDartErrorHandler, RustOpaque, StreamSink, SyncReturn,
+    frb, handler::ReportDartErrorHandler, RustOpaque, StreamSink,
 };
 
 pub use crate::app::App;
@@ -151,18 +151,12 @@ pub enum Network {
 }
 
 /// Dart-serializable configuration we get from the flutter side.
+#[frb(dart_metadata=("freezed"))]
 pub struct Config {
     pub deploy_env: DeployEnv,
     pub network: Network,
-}
-
-impl Config {
-    pub fn regtest() -> SyncReturn<Config> {
-        SyncReturn(Config {
-            deploy_env: DeployEnv::Dev,
-            network: Network::Regtest,
-        })
-    }
+    pub gateway_url: String,
+    pub use_sgx: bool,
 }
 
 /// Init the Rust [`tracing`] logger. Panics if the logger is already init.

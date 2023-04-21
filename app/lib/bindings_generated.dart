@@ -42,22 +42,6 @@ class AppRsImpl implements AppRs {
         argNames: ["rustLog"],
       );
 
-  Config regtestStaticMethodConfig({dynamic hint}) {
-    return _platform.executeSync(FlutterRustBridgeSyncTask(
-      callFfi: () => _platform.inner.wire_regtest__static_method__Config(),
-      parseSuccessData: _wire2api_config,
-      constMeta: kRegtestStaticMethodConfigConstMeta,
-      argValues: [],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kRegtestStaticMethodConfigConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "regtest__static_method__Config",
-        argNames: [],
-      );
-
   Future<AppHandle?> loadStaticMethodAppHandle(
       {required Config config, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_config(config);
@@ -185,21 +169,6 @@ class AppRsImpl implements AppRs {
     return _wire2api_app_handle(raw);
   }
 
-  Config _wire2api_config(dynamic raw) {
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
-    return Config(
-      bridge: this,
-      deployEnv: _wire2api_deploy_env(arr[0]),
-      network: _wire2api_network(arr[1]),
-    );
-  }
-
-  DeployEnv _wire2api_deploy_env(dynamic raw) {
-    return DeployEnv.values[raw];
-  }
-
   double _wire2api_f64(dynamic raw) {
     return raw as double;
   }
@@ -224,20 +193,12 @@ class AppRsImpl implements AppRs {
     );
   }
 
-  int _wire2api_i32(dynamic raw) {
-    return raw as int;
-  }
-
   int _wire2api_i64(dynamic raw) {
     return castInt(raw);
   }
 
   List<FiatRate> _wire2api_list_fiat_rate(dynamic raw) {
     return (raw as List<dynamic>).map(_wire2api_fiat_rate).toList();
-  }
-
-  Network _wire2api_network(dynamic raw) {
-    return Network.values[raw];
   }
 
   NodeInfo _wire2api_node_info(dynamic raw) {
@@ -268,6 +229,11 @@ class AppRsImpl implements AppRs {
 }
 
 // Section: api2wire
+
+@protected
+bool api2wire_bool(bool raw) {
+  return raw;
+}
 
 @protected
 int api2wire_deploy_env(DeployEnv raw) {
@@ -356,6 +322,8 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   void _api_fill_to_wire_config(Config apiObj, wire_Config wireObj) {
     wireObj.deploy_env = api2wire_deploy_env(apiObj.deployEnv);
     wireObj.network = api2wire_network(apiObj.network);
+    wireObj.gateway_url = api2wire_String(apiObj.gatewayUrl);
+    wireObj.use_sgx = api2wire_bool(apiObj.useSgx);
   }
 }
 
@@ -471,17 +439,6 @@ class AppRsWire implements FlutterRustBridgeWireBase {
               ffi.Pointer<wire_uint_8_list>)>>('wire_init_rust_log_stream');
   late final _wire_init_rust_log_stream = _wire_init_rust_log_streamPtr
       .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
-
-  WireSyncReturn wire_regtest__static_method__Config() {
-    return _wire_regtest__static_method__Config();
-  }
-
-  late final _wire_regtest__static_method__ConfigPtr =
-      _lookup<ffi.NativeFunction<WireSyncReturn Function()>>(
-          'wire_regtest__static_method__Config');
-  late final _wire_regtest__static_method__Config =
-      _wire_regtest__static_method__ConfigPtr
-          .asFunction<WireSyncReturn Function()>();
 
   void wire_load__static_method__AppHandle(
     int port_,
@@ -679,6 +636,11 @@ class wire_Config extends ffi.Struct {
 
   @ffi.Int32()
   external int network;
+
+  external ffi.Pointer<wire_uint_8_list> gateway_url;
+
+  @ffi.Bool()
+  external bool use_sgx;
 }
 
 class wire_App extends ffi.Struct {

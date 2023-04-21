@@ -178,14 +178,9 @@ impl From<Config> for AppConfig {
 
         let deploy_env = config.deploy_env;
         let network = config.network;
+        let gateway_url = config.gateway_url;
 
-        // Since we might be running on a real mobile device, we need to
-        // set this value at build time, on the host.
-        // TODO: .env is not sourced at build time...
-        // let build_gateway_url = std::env!("DEV_GATEWAY_URL");
-        // let build_use_sgx = std::env!("SGX") == "true";
-        let build_gateway_url = "http://phlipdesk.local:4040";
-        let build_use_sgx = false;
+        let use_sgx = false;
         let allow_debug_enclaves = deploy_env == Dev;
 
         match (&deploy_env, &network) {
@@ -194,8 +189,8 @@ impl From<Config> for AppConfig {
             (Dev, Testnet) => todo!(),
             (Dev, Regtest) => Self {
                 network: network.into(),
-                gateway_url: build_gateway_url.to_owned(),
-                use_sgx: build_use_sgx,
+                gateway_url,
+                use_sgx,
                 allow_debug_enclaves,
             },
             _ => panic!(

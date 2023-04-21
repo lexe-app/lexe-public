@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'bindings.dart' show api;
 import 'bindings_generated_api.dart' show AppHandle, Config;
+import 'cfg.dart' as cfg;
 import 'logger.dart' as logger;
+import 'logger.dart' show info;
 import 'route/landing.dart' show LandingPage;
 import 'style.dart' show LxColors, LxTheme;
 
@@ -17,7 +19,9 @@ Future<void> main() async {
 
   logger.init();
 
-  final config = Config.regtest(bridge: api);
+  const Config config = cfg.config;
+  info("Build config: $config");
+
   final maybeApp = await AppHandle.load(bridge: api, config: config);
 
   final Widget child;
@@ -27,7 +31,7 @@ Future<void> main() async {
     child = const SizedBox();
   } else {
     // no wallet persisted => first run -> show landing
-    child = const LandingPage();
+    child = const LandingPage(config: config);
   }
 
   runApp(LexeApp(
