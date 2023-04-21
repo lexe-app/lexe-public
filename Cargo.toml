@@ -130,6 +130,7 @@ sgx-isa = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 sgxs-loaders = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 tokio = { git = "https://github.com/lexe-tech/tokio", branch = "tokio-sgx-1.21.2" }
 # This warp fork:
+# * b807792 - trace: extract `Response<Body>` directly to reduce friction
 # * 2cbad40 - trace: tweak warp request `tracing` to include request time directly
 # * f8c13d9 - add HTTP on-upgrade filter
 # * dc560ed - Allow users to provide a preconfigured TLS configuration

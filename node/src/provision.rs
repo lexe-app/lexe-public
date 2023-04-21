@@ -39,7 +39,9 @@ use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
 use common::{ed25519, enclave};
 use tracing::{debug, info, instrument, warn};
-use warp::{Filter, Rejection, Reply};
+use warp::http::Response;
+use warp::hyper::Body;
+use warp::{Filter, Rejection};
 
 use crate::api::BackendApiClient;
 
@@ -141,7 +143,7 @@ pub async fn provision_node<R: Crng>(
 /// [`AppNodeProvisionApi`]: common::api::def::AppNodeProvisionApi
 fn app_routes(
     ctx: RequestContext,
-) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
+) -> impl Filter<Extract = (Response<Body>,), Error = Rejection> + Clone {
     warp::path::path("provision")
         .and(warp::post())
         .and(with_request_context(ctx))

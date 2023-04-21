@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use anyhow::Context;
 use bytes::Bytes;
+use futures::future::BoxFuture;
 use http::header::{HeaderValue, CONTENT_TYPE};
 use http::response::Response;
 use http::status::StatusCode;
@@ -13,9 +14,12 @@ use reqwest::IntoUrl;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::time;
-use tracing::{debug, error, field, info, info_span, warn, Instrument, Span};
+use tracing::{
+    debug, error, field, info, info_span, span, warn, Instrument, Span,
+};
+use warp::filters::BoxedFilter;
 use warp::hyper::Body;
-use warp::{Rejection, Reply};
+use warp::Rejection;
 
 use crate::api::error::{
     ErrorCode, ErrorResponse, RestClientError, RestClientErrorKind,
@@ -45,36 +49,34 @@ pub const DELETE: Method = Method::DELETE;
 /// [`Future`], an existing std [`TcpListener`], the name of the task, and a
 /// [`tracing::Span`]. Be sure to include `parent: None` when building the span
 /// if you wish to prevent the API task from inheriting the parent [span label].
-pub fn serve_routes_with_listener_and_shutdown<F, G>(
-    routes: F,
-    graceful_shutdown_fut: G,
+pub fn serve_routes_with_listener_and_shutdown<F>(
+    routes: BoxedFilter<(Response<Body>,)>,
+    graceful_shutdown_fut: F,
     listener: TcpListener,
     task_name: &'static str,
     span: Span,
 ) -> anyhow::Result<(LxTask<()>, SocketAddr)>
 where
-    F: warp::Filter<Extract: Reply, Error = Rejection> + Send + Clone + 'static,
-    G: Future<Output = ()> + Send + 'static,
+    F: Future<Output = ()> + Send + 'static,
 {
-    let span_id = span.id();
-    let routes_with_logging =
-        routes.with(warp::trace::trace(move |req_info| {
-            let url = req_info
-                .uri()
-                .path_and_query()
-                .map(|url| url.as_str())
-                .unwrap_or("/");
-            info_span!(
-                target: "http",
-                parent: span_id.clone(),
-                "(recv)",
-                method = %req_info.method(),
-                url = %url,
-                version = ?req_info.version(),
-            )
-        }));
+    serve_routes_with_listener_and_shutdown_boxed(
+        routes,
+        Box::pin(graceful_shutdown_fut),
+        listener,
+        task_name,
+        span,
+    )
+}
 
-    let api_service = warp::service(routes_with_logging);
+// Reduce some code bloat by boxing the warp routes and shutdown future.
+fn serve_routes_with_listener_and_shutdown_boxed(
+    routes: BoxedFilter<(Response<Body>,)>,
+    graceful_shutdown_fut: BoxFuture<'static, ()>,
+    listener: TcpListener,
+    task_name: &'static str,
+    span: Span,
+) -> anyhow::Result<(LxTask<()>, SocketAddr)> {
+    let api_service = warp::service(routes);
     let make_service = hyper::service::make_service_fn(move |_| {
         let api_service_clone = api_service.clone();
         async move { Ok::<_, Infallible>(api_service_clone) }
@@ -103,6 +105,48 @@ where
         }
     });
     Ok((task, socket_addr))
+}
+
+/// Adds [`tracing`] to all requests.
+///
+/// * Wraps all requests in a [`tracing::Span`] for the duration of the request.
+/// * `debug!` logs when the request initally enters the warp router.
+/// * `info!` logs when the request completes and the response is generated.
+///   Includes info like response status, handling time, and error messages.
+///
+/// It manually takes an (optional) [`span::Id`] for the parent span. This is
+/// definitely a bit awkward, but it seems to work for now. The hyper service
+/// does request handling on freshly spawned tasks, so it's a bit difficult to
+/// get our warp routes to pick up the correct parent span without just manually
+/// passing the right id over.
+///
+/// ## Usage
+///
+/// ```ignore
+/// let api_span = info!(parent: None, "(api)");
+///
+/// let routes = node_proxy.or(backend_apis).or(app_gateway_api);
+///
+/// routes.with(rest::trace_requests(api_span.id())).boxed()
+/// ```
+pub fn trace_requests(
+    parent_span_id: Option<span::Id>,
+) -> warp::trace::Trace<impl Fn(warp::trace::Info<'_>) -> Span + Clone> {
+    warp::trace::trace(move |req_info| {
+        let url = req_info
+            .uri()
+            .path_and_query()
+            .map(|url| url.as_str())
+            .unwrap_or("/");
+        info_span!(
+            target: "http",
+            parent: parent_span_id.clone(),
+            "(recv)",
+            method = %req_info.method(),
+            url = %url,
+            version = ?req_info.version(),
+        )
+    })
 }
 
 /// A warp helper that converts `Result<T, E>` into [`Response<Body>`].

@@ -3424,7 +3424,7 @@ dependencies = [
 [[package]]
 name = "warp"
 version = "0.3.4"
-source = "git+https://github.com/lexe-tech/warp?branch=lexe#38bf87423fe999c502bfadf1e0d36dd86920996c"
+source = "git+https://github.com/lexe-tech/warp?branch=lexe#b80779277c79bfdeedef5e34db6e37dea13a1446"
 dependencies = [
  "bytes",
  "futures-channel",
