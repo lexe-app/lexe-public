@@ -191,9 +191,9 @@ impl LexeEsplora {
     ) -> anyhow::Result<u32> {
         // Convert the conf target to a target number of blocks.
         let num_blocks_target = match conf_target {
-            ConfirmationTarget::HighPriority => 3,
-            ConfirmationTarget::Normal => 12,
-            ConfirmationTarget::Background => 144,
+            ConfirmationTarget::HighPriority => 1,
+            ConfirmationTarget::Normal => 3,
+            ConfirmationTarget::Background => 72,
         };
 
         // Munge with units to get to sats per 1000 weight unit required by LDK
