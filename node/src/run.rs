@@ -41,7 +41,7 @@ use lightning::routing::gossip::P2PGossipSync;
 use lightning::routing::router::DefaultRouter;
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot, watch};
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, info, info_span, instrument};
 
 use crate::alias::{ChainMonitorType, NodePaymentsManagerType};
 use crate::api::BackendApiClient;
@@ -377,7 +377,9 @@ impl UserNode {
             .context("Failed to build owner service TLS config")?;
 
         // Start warp service for app
+        let app_span = info_span!(parent: None, "(node-app-api)");
         let app_routes = server::app_routes(
+            app_span.id(),
             persister.clone(),
             router.clone(),
             channel_manager.clone(),
@@ -399,12 +401,20 @@ impl UserNode {
             );
         let app_port = app_addr.port();
         info!("App service listening on port {}", app_port);
-        tasks.push(LxTask::spawn_named("app service", app_service_fut));
+        tasks.push(LxTask::spawn_named_with_span(
+            "node app api",
+            app_span,
+            app_service_fut,
+        ));
 
         // TODO(phlip9): authenticate runner<->node
         // Start warp service for runner
-        let runner_routes =
-            server::runner_routes(args.user_pk, shutdown.clone());
+        let runner_span = info_span!(parent: None, "(node-runner-api)");
+        let runner_routes = server::runner_routes(
+            runner_span.id(),
+            args.user_pk,
+            shutdown.clone(),
+        );
         let (runner_addr, runner_service_fut) = warp::serve(runner_routes)
             // A value of 0 indicates that the OS will assign a port for us
             .try_bind_with_graceful_shutdown(
@@ -414,7 +424,11 @@ impl UserNode {
             .context("Failed to bind warp")?;
         let runner_port = runner_addr.port();
         info!("Runner service listening on port {}", runner_port);
-        tasks.push(LxTask::spawn_named("runner service", runner_service_fut));
+        tasks.push(LxTask::spawn_named_with_span(
+            "node runner api",
+            runner_span,
+            runner_service_fut,
+        ));
 
         // Prepare the ports that we'll notify the runner of once we're ready
         let user_ports = UserPorts::new_run(user_pk, app_port, runner_port);

@@ -24,8 +24,11 @@ use lexe_ln::alias::RouterType;
 use lexe_ln::command::CreateInvoiceCaller;
 use lexe_ln::keys_manager::LexeKeysManager;
 use tokio::sync::mpsc;
-use tracing::trace;
-use warp::{Filter, Rejection, Reply};
+use tracing::{span, trace};
+use warp::filters::BoxedFilter;
+use warp::http::Response;
+use warp::hyper::Body;
+use warp::{Filter, Reply};
 
 use crate::alias::NodePaymentsManagerType;
 use crate::channel_manager::NodeChannelManager;
@@ -54,6 +57,7 @@ fn into_command_api_result<T>(
 ///
 /// [`AppNodeRunApi`]: common::api::def::AppNodeRunApi
 pub(crate) fn app_routes(
+    parent_span: Option<span::Id>,
     persister: NodePersister,
     router: Arc<RouterType>,
     channel_manager: NodeChannelManager,
@@ -64,10 +68,7 @@ pub(crate) fn app_routes(
     scid: Scid,
     network: Network,
     activity_tx: mpsc::Sender<()>,
-) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-    let root =
-        warp::path::end().map(|| "This set of endpoints is for the app.");
-
+) -> BoxedFilter<(Response<Body>,)> {
     let app_base = warp::path("app")
         .map(move || {
             // Hitting any endpoint under /app counts as activity
@@ -129,10 +130,15 @@ pub(crate) fn app_routes(
             .or(update_payment_note),
     );
 
-    let app =
-        app_base.and(node_info.or(create_invoice).or(pay_invoice).or(payments));
+    let routes = app_base.and(
+        node_info
+            .or(create_invoice)
+            .or(pay_invoice)
+            .or(payments)
+            .map(Reply::into_response),
+    );
 
-    root.or(app)
+    routes.with(rest::trace_requests(parent_span)).boxed()
 }
 
 // XXX: Add runner authentication
@@ -140,12 +146,10 @@ pub(crate) fn app_routes(
 ///
 /// [`RunnerNodeApi`]: common::api::def::RunnerNodeApi
 pub(crate) fn runner_routes(
+    parent_span: Option<span::Id>,
     current_pk: UserPk,
     shutdown: ShutdownChannel,
-) -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-    let root =
-        warp::path::end().map(|| "This set of endpoints is for the runner.");
-
+) -> BoxedFilter<(Response<Body>,)> {
     let status = warp::path("status")
         .and(warp::get())
         .and(warp::query::<GetByUserPk>())
@@ -159,7 +163,10 @@ pub(crate) fn runner_routes(
         .and(inject::shutdown(shutdown))
         .map(runner::shutdown)
         .map(rest::into_response);
-    let runner = warp::path("runner").and(status.or(shutdown));
 
-    root.or(runner)
+    let routes = warp::path("runner")
+        .and(status.or(shutdown))
+        .map(Reply::into_response);
+
+    routes.with(rest::trace_requests(parent_span)).boxed()
 }
