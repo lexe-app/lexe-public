@@ -6,14 +6,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import '../bindings.dart' show api;
-import '../bindings_generated_api.dart' show AppHandle;
-import '../cfg.dart' show config;
+import '../bindings_generated_api.dart' show AppHandle, Config;
 import '../logger.dart' show error, info;
 import '../style.dart' show Fonts, LxColors;
 import 'backup_wallet.dart' show BackupWalletPage;
 
 class LandingPage extends StatelessWidget {
-  const LandingPage({super.key});
+  const LandingPage({super.key, required this.config});
+
+  final Config config;
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +59,7 @@ class LandingPage extends StatelessWidget {
                     Container(
                       padding: EdgeInsets.only(bottom: bottom),
                       alignment: Alignment.bottomCenter,
-                      child: const LandingButtons(),
+                      child: LandingButtons(config: this.config),
                     ),
                   ]),
                 ),
@@ -140,7 +141,9 @@ class LandingCarouselIndicators extends StatelessWidget {
 }
 
 class LandingButtons extends StatelessWidget {
-  const LandingButtons({super.key});
+  const LandingButtons({super.key, required this.config});
+
+  final Config config;
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +152,7 @@ class LandingButtons extends StatelessWidget {
       children: [
         const LandingCarouselIndicators(),
         const SizedBox(height: 24.0),
-        const CreateWalletButton(),
+        CreateWalletButton(config: this.config),
         const SizedBox(height: 16.0),
         OutlinedButton(
           onPressed: () => info("pressed recover wallet button"),
@@ -174,7 +177,9 @@ class LandingButtons extends StatelessWidget {
 }
 
 class CreateWalletButton extends StatefulWidget {
-  const CreateWalletButton({super.key});
+  const CreateWalletButton({super.key, required this.config});
+
+  final Config config;
 
   @override
   State<CreateWalletButton> createState() => _CreateWalletButtonState();
@@ -186,16 +191,24 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
   Future<void> _onPressed() async {
     info("pressed create wallet button");
 
-    // disable button
+    final Config config;
+    if (context.mounted) {
+      config = this.widget.config;
+    } else {
+      return;
+    }
+
+    // disable button while signing up
     setState(() => this._disableButton = true);
     final AppHandle app;
     try {
       app = await AppHandle.signup(bridge: api, config: config);
     } catch (err) {
       setState(() => this._disableButton = false);
+      error("Failed to sign up and create wallet: $err");
       // ScaffoldMessenger.of(context)
       //     .showSnackBar(SnackBar(content: Text("$err")));
-      rethrow;
+      return;
     }
 
     // TODO(phlip9): disable restore button while request is processing? o/w

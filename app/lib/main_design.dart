@@ -8,8 +8,10 @@ import 'package:intl/intl.dart' show Intl;
 
 import 'bindings.dart' show api;
 import 'bindings_generated_api.dart'
-    show App, AppHandle, AppRs, FiatRate, FiatRates, NodeInfo;
+    show App, AppHandle, AppRs, Config, FiatRate, FiatRates, NodeInfo;
+import 'cfg.dart' as cfg;
 import 'logger.dart' as logger;
+import 'logger.dart' show info;
 import 'route/backup_wallet.dart' show BackupWalletPage;
 import 'route/landing.dart' show LandingPage;
 import 'route/wallet.dart' show DrawerListItem, WalletPage;
@@ -19,6 +21,9 @@ Future<void> main() async {
   Intl.defaultLocale = "en_US";
 
   logger.init();
+
+  const Config config = cfg.testConfig;
+  info("Test build config: $config");
 
   final mockApp = MockAppHandle(bridge: api);
 
@@ -32,7 +37,7 @@ Future<void> main() async {
       appBar: AppBar(automaticallyImplyLeading: false),
       body: ComponentList(
         components: [
-          Component("LandingPage", (_) => const LandingPage()),
+          Component("LandingPage", (_) => const LandingPage(config: config)),
           Component("BackupWalletPage", (_) => BackupWalletPage(app: mockApp)),
           Component("WalletPage", (_) => WalletPage(app: mockApp)),
         ],

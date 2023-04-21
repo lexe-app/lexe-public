@@ -15,6 +15,72 @@ final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
 
 /// @nodoc
+mixin _$Config {
+  DeployEnv get deployEnv => throw _privateConstructorUsedError;
+  Network get network => throw _privateConstructorUsedError;
+  String get gatewayUrl => throw _privateConstructorUsedError;
+  bool get useSgx => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$_Config implements _Config {
+  const _$_Config(
+      {required this.deployEnv,
+      required this.network,
+      required this.gatewayUrl,
+      required this.useSgx});
+
+  @override
+  final DeployEnv deployEnv;
+  @override
+  final Network network;
+  @override
+  final String gatewayUrl;
+  @override
+  final bool useSgx;
+
+  @override
+  String toString() {
+    return 'Config(deployEnv: $deployEnv, network: $network, gatewayUrl: $gatewayUrl, useSgx: $useSgx)';
+  }
+
+  @override
+  bool operator ==(dynamic other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$_Config &&
+            (identical(other.deployEnv, deployEnv) ||
+                other.deployEnv == deployEnv) &&
+            (identical(other.network, network) || other.network == network) &&
+            (identical(other.gatewayUrl, gatewayUrl) ||
+                other.gatewayUrl == gatewayUrl) &&
+            (identical(other.useSgx, useSgx) || other.useSgx == useSgx));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, deployEnv, network, gatewayUrl, useSgx);
+}
+
+abstract class _Config implements Config {
+  const factory _Config(
+      {required final DeployEnv deployEnv,
+      required final Network network,
+      required final String gatewayUrl,
+      required final bool useSgx}) = _$_Config;
+
+  @override
+  DeployEnv get deployEnv;
+  @override
+  Network get network;
+  @override
+  String get gatewayUrl;
+  @override
+  bool get useSgx;
+}
+
+/// @nodoc
 mixin _$FiatRate {
   String get fiat => throw _privateConstructorUsedError;
   double get rate => throw _privateConstructorUsedError;

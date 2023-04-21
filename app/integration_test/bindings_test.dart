@@ -4,7 +4,7 @@ import 'package:integration_test/integration_test.dart'
     show IntegrationTestWidgetsFlutterBinding;
 
 import 'package:lexeapp/bindings.dart' show api;
-import 'package:lexeapp/bindings_generated_api.dart' show AppHandle, Config;
+import 'package:lexeapp/bindings_generated_api.dart' show AppHandle;
 import 'package:lexeapp/cfg.dart' as cfg;
 
 void assertFfiExceptionMsgHasBacktrace(FfiException err) {
@@ -22,13 +22,11 @@ void assertFfiExceptionMsgHasBacktrace(FfiException err) {
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  final config = Config.regtest(bridge: api);
-
   test("cfg.test is FALSE in integration tests", () {
     expect(cfg.test, false);
   });
 
   test("fresh app has no persisted state", () async {
-    expect(await AppHandle.load(bridge: api, config: config), null);
+    expect(await AppHandle.load(bridge: api, config: cfg.testConfig), null);
   });
 }
