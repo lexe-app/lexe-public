@@ -109,18 +109,14 @@ impl Display for Network {
 impl From<Network> for bitcoin_bech32::constants::Network {
     fn from(network: Network) -> Self {
         match network.to_inner() {
-            bitcoin::Network::Bitcoin => {
-                bitcoin_bech32::constants::Network::Bitcoin
-            }
-            bitcoin::Network::Testnet => {
-                bitcoin_bech32::constants::Network::Testnet
-            }
-            bitcoin::Network::Regtest => {
-                bitcoin_bech32::constants::Network::Regtest
-            }
-            bitcoin::Network::Signet => {
-                bitcoin_bech32::constants::Network::Signet
-            }
+            bitcoin::Network::Bitcoin =>
+                bitcoin_bech32::constants::Network::Bitcoin,
+            bitcoin::Network::Testnet =>
+                bitcoin_bech32::constants::Network::Testnet,
+            bitcoin::Network::Regtest =>
+                bitcoin_bech32::constants::Network::Regtest,
+            bitcoin::Network::Signet =>
+                bitcoin_bech32::constants::Network::Signet,
         }
     }
 }

@@ -118,9 +118,8 @@ pub fn any_script() -> impl Strategy<Value = Script> {
                 Self::ScriptInt(i) => builder.push_scriptint(*i),
                 Self::Slice(data) => builder.push_slice(data.as_slice()),
                 Self::Key(pubkey) => builder.push_key(pubkey),
-                Self::XOnlyPublicKey(x_only_pubkey) => {
-                    builder.push_x_only_key(x_only_pubkey)
-                }
+                Self::XOnlyPublicKey(x_only_pubkey) =>
+                    builder.push_x_only_key(x_only_pubkey),
                 Self::Opcode(opcode) => builder.push_opcode(*opcode),
                 Self::OpVerify => builder.push_verify(),
             }

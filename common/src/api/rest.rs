@@ -305,13 +305,12 @@ where
     E: ServiceApiError,
 {
     match response {
-        Ok(Ok(bytes)) => {
+        Ok(Ok(bytes)) =>
             Ok(serde_json::from_slice::<T>(&bytes).map_err(|err| {
                 let kind = RestClientErrorKind::Decode;
                 let msg = format!("Failed to deser response as json: {err:#}");
                 RestClientError::new(kind, msg)
-            })?)
-        }
+            })?),
         Ok(Err(err_api)) => Err(E::from(err_api)),
         Err(err_client) => Err(E::from(err_client)),
     }
@@ -488,11 +487,10 @@ impl RestClient {
             // that we should bail on and stop retrying.
             match self.send_inner(request_clone).await {
                 Ok(Ok(bytes)) => return Ok(Ok(bytes)),
-                Ok(Err(err_api)) => {
+                Ok(Err(err_api)) =>
                     if stop_codes.contains(&err_api.code) {
                         return Ok(Err(err_api));
-                    }
-                }
+                    },
                 Err(err_client) => {
                     if stop_codes.contains(&err_client.to_code()) {
                         return Err(err_client);

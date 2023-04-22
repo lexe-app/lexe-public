@@ -235,7 +235,7 @@ impl rustls::client::ServerCertVerifier for ServerCertVerifier {
                 now,
             ),
             // Verify remote attestation cert when provisioning node
-            Some("provision.lexe.tech") => {
+            Some("provision.lexe.tech") =>
                 self.attest_verifier.verify_server_cert(
                     end_entity,
                     intermediates,
@@ -243,8 +243,7 @@ impl rustls::client::ServerCertVerifier for ServerCertVerifier {
                     scts,
                     ocsp_response,
                     now,
-                )
-            }
+                ),
             // Other domains (i.e., node reverse proxy) verify using pinned
             // lexe CA
             // TODO(phlip9): this should be a strict DNS name, like

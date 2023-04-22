@@ -76,14 +76,13 @@ where
     //   so that we can connect with them after restart.
     use ChannelRelationship::*;
     match relationship {
-        UserToLsp { lsp_channel_peer } => {
+        UserToLsp { lsp_channel_peer } =>
             p2p::connect_channel_peer_if_necessary(
                 peer_manager,
                 lsp_channel_peer,
             )
             .await
-            .context("Could not connect to LSP")?
-        }
+            .context("Could not connect to LSP")?,
         LspToUser { user_node_pk } => ensure!(
             p2p::is_connected(peer_manager, &user_node_pk),
             "LSP must be connected to user before opening channel",

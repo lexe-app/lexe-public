@@ -195,9 +195,8 @@ impl Payment {
         match self {
             Self::OnchainSend(_) => None,
             Self::OnchainReceive(_) => None,
-            Self::InboundInvoice(InboundInvoicePayment { invoice, .. }) => {
-                Some(*invoice.clone())
-            }
+            Self::InboundInvoice(InboundInvoicePayment { invoice, .. }) =>
+                Some(*invoice.clone()),
             Self::InboundSpontaneous(_) => None,
             Self::OutboundInvoice(OutboundInvoicePayment {
                 invoice, ..
@@ -216,9 +215,8 @@ impl Payment {
     pub fn amount(&self) -> Option<Amount> {
         match self {
             Self::OnchainSend(OnchainSend { amount, .. }) => Some(*amount),
-            Self::OnchainReceive(OnchainReceive { amount, .. }) => {
-                Some(*amount)
-            }
+            Self::OnchainReceive(OnchainReceive { amount, .. }) =>
+                Some(*amount),
             Self::InboundInvoice(InboundInvoicePayment {
                 invoice_amount,
                 recvd_amount,
@@ -262,15 +260,12 @@ impl Payment {
     /// Get a general [`PaymentStatus`] for this payment. Useful for filtering.
     pub fn status(&self) -> PaymentStatus {
         match self {
-            Self::OnchainSend(OnchainSend { status, .. }) => {
-                PaymentStatus::from(*status)
-            }
-            Self::OnchainReceive(OnchainReceive { status, .. }) => {
-                PaymentStatus::from(*status)
-            }
-            Self::InboundInvoice(InboundInvoicePayment { status, .. }) => {
-                PaymentStatus::from(*status)
-            }
+            Self::OnchainSend(OnchainSend { status, .. }) =>
+                PaymentStatus::from(*status),
+            Self::OnchainReceive(OnchainReceive { status, .. }) =>
+                PaymentStatus::from(*status),
+            Self::InboundInvoice(InboundInvoicePayment { status, .. }) =>
+                PaymentStatus::from(*status),
             Self::InboundSpontaneous(InboundSpontaneousPayment {
                 status,
                 ..
@@ -289,12 +284,10 @@ impl Payment {
     pub fn status_str(&self) -> &str {
         match self {
             Self::OnchainSend(OnchainSend { status, .. }) => status.as_str(),
-            Self::OnchainReceive(OnchainReceive { status, .. }) => {
-                status.as_str()
-            }
-            Self::InboundInvoice(InboundInvoicePayment { status, .. }) => {
-                status.as_str()
-            }
+            Self::OnchainReceive(OnchainReceive { status, .. }) =>
+                status.as_str(),
+            Self::InboundInvoice(InboundInvoicePayment { status, .. }) =>
+                status.as_str(),
             Self::InboundSpontaneous(InboundSpontaneousPayment {
                 status,
                 ..
@@ -353,9 +346,8 @@ impl Payment {
     pub fn created_at(&self) -> TimestampMs {
         match self {
             Self::OnchainSend(OnchainSend { created_at, .. }) => *created_at,
-            Self::OnchainReceive(OnchainReceive { created_at, .. }) => {
-                *created_at
-            }
+            Self::OnchainReceive(OnchainReceive { created_at, .. }) =>
+                *created_at,
             Self::InboundInvoice(InboundInvoicePayment {
                 created_at, ..
             }) => *created_at,
@@ -377,12 +369,10 @@ impl Payment {
     /// When this payment was completed or failed.
     pub fn finalized_at(&self) -> Option<TimestampMs> {
         match self {
-            Self::OnchainSend(OnchainSend { finalized_at, .. }) => {
-                *finalized_at
-            }
-            Self::OnchainReceive(OnchainReceive { finalized_at, .. }) => {
-                *finalized_at
-            }
+            Self::OnchainSend(OnchainSend { finalized_at, .. }) =>
+                *finalized_at,
+            Self::OnchainReceive(OnchainReceive { finalized_at, .. }) =>
+                *finalized_at,
             Self::InboundInvoice(InboundInvoicePayment {
                 finalized_at,
                 ..
