@@ -6,3 +6,4 @@ merge_derives = false
 wrap_comments = true
 group_imports = "StdExternalCrate"
 imports_granularity = "Module"
+match_arm_blocks = false

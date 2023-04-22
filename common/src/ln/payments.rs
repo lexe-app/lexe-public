@@ -497,12 +497,10 @@ impl Ord for LxPaymentId {
             // the string-serialized and unserialized orderings are equivalent.
             (Self::Onchain(_), Self::Lightning(_)) => Ordering::Less,
             (Self::Lightning(_), Self::Onchain(_)) => Ordering::Greater,
-            (Self::Onchain(self_txid), Self::Onchain(other_txid)) => {
-                self_txid.cmp(other_txid)
-            }
-            (Self::Lightning(self_hash), Self::Lightning(other_hash)) => {
-                self_hash.cmp(other_hash)
-            }
+            (Self::Onchain(self_txid), Self::Onchain(other_txid)) =>
+                self_txid.cmp(other_txid),
+            (Self::Lightning(self_hash), Self::Lightning(other_hash)) =>
+                self_hash.cmp(other_hash),
         }
     }
 }

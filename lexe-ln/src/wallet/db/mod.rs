@@ -141,9 +141,8 @@ impl PartialOrd for Path {
             (External, Internal) => Some(Ordering::Less),
             (Internal, External) => Some(Ordering::Greater),
             // When keychain is equal, compare the child index
-            (External, External) | (Internal, Internal) => {
-                self.child.partial_cmp(&other.child)
-            }
+            (External, External) | (Internal, Internal) =>
+                self.child.partial_cmp(&other.child),
         }
     }
 }
@@ -156,9 +155,8 @@ impl Ord for Path {
             (External, Internal) => Ordering::Less,
             (Internal, External) => Ordering::Greater,
             // When keychain is equal, compare the child index
-            (External, External) | (Internal, Internal) => {
-                self.child.cmp(&other.child)
-            }
+            (External, External) | (Internal, Internal) =>
+                self.child.cmp(&other.child),
         }
     }
 }
@@ -1321,10 +1319,9 @@ mod test {
                 | SetLastIndex(_)
                 | DelLastIndex(_)
                 | SetSyncTime(_)
-                | DelSyncTime => {
+                | DelSyncTime =>
                     "This match statement was written to remind you to add the \
-                    new enum variant you just created to the prop_oneof below!"
-                }
+                    new enum variant you just created to the prop_oneof below!",
             };
 
             proptest::prop_oneof![
