@@ -11,12 +11,12 @@ use common::{
     },
     time::TimestampMs,
 };
-#[cfg(doc)]
-use lightning::ln::channelmanager::ChannelManager;
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
-use lightning::util::events::Event::{PaymentFailed, PaymentSent};
-#[cfg(doc)]
-use lightning::util::events::PaymentPurpose;
+use lightning::{
+    ln::channelmanager::ChannelManager,
+    util::events::Event::{PaymentFailed, PaymentSent},
+    util::events::PaymentPurpose,
+};
 use lightning::{ln::channelmanager::Retry, routing::router::Route};
 use lightning_invoice::Invoice;
 #[cfg(test)]

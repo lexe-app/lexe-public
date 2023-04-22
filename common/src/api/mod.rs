@@ -5,9 +5,10 @@ use std::{
 
 use bitcoin::{secp256k1, secp256k1::Secp256k1};
 #[cfg(any(test, feature = "test-utils"))]
-use proptest::arbitrary::{any, Arbitrary};
-#[cfg(any(test, feature = "test-utils"))]
-use proptest::strategy::{BoxedStrategy, Strategy};
+use proptest::{
+    arbitrary::{any, Arbitrary},
+    strategy::{BoxedStrategy, Strategy},
+};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use ref_cast::RefCast;

@@ -4,9 +4,10 @@ use std::num::NonZeroU32;
 
 use bitcoin::secp256k1::{All, Secp256k1};
 #[cfg(all(any(test, feature = "test-utils")))]
-use proptest::arbitrary::{any, Arbitrary};
-#[cfg(all(any(test, feature = "test-utils")))]
-use proptest::strategy::{BoxedStrategy, Strategy};
+use proptest::{
+    arbitrary::{any, Arbitrary},
+    strategy::{BoxedStrategy, Strategy},
+};
 use rand_core::le::read_u32_into;
 pub use rand_core::{CryptoRng, RngCore, SeedableRng};
 use ring::rand::SecureRandom;
