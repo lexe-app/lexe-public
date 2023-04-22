@@ -171,7 +171,7 @@ pub fn trace_requests(
 ///     .and(warp::query::<GetByUserPk>())
 ///     .and(inject::user_pk(user_pk))
 ///     .then(runner::status)
-///     .map(into_response);
+///     .map(rest::into_response);
 /// ```
 pub fn into_response<T: Serialize, E: ToHttpStatus + Into<ErrorResponse>>(
     reply_res: Result<T, E>,
@@ -194,7 +194,7 @@ pub fn into_response<T: Serialize, E: ToHttpStatus + Into<ErrorResponse>>(
 ///     .and(inject::channel_manager(channel_manager.clone()))
 ///     .and(inject::peer_manager(peer_manager))
 ///     .map(command::node_info)
-///     .map(into_succ_response);
+///     .map(rest::into_succ_response);
 /// ```
 pub fn into_succ_response<T: Serialize>(data: T) -> Response<Body> {
     build_json_response(StatusCode::OK, &data)
@@ -213,7 +213,7 @@ pub fn into_succ_response<T: Serialize>(data: T) -> Response<Body> {
 ///
 /// let route = warp::get()
 ///     .map(handler)
-///     .map(prerendered_json_into_response);
+///     .map(rest::prerendered_json_into_response);
 /// ```
 pub fn prerendered_json_into_response<E: ToHttpStatus + Into<ErrorResponse>>(
     reply_res: Result<ByteStr, E>,
@@ -240,7 +240,7 @@ pub fn prerendered_json_into_response<E: ToHttpStatus + Into<ErrorResponse>>(
 ///     // error types.
 ///     .and(|| warp::reject::custom(GatewayApiError { .. }))
 ///     .then(handlers::foo)
-///     .map(into_response);
+///     .map(rest::into_response);
 ///
 /// root.or(foo)
 ///     // recover the `GatewayApiError` from above and return standard json
