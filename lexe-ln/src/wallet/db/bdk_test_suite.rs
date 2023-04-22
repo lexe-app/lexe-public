@@ -17,10 +17,11 @@
 
 use std::str::FromStr;
 
-use bitcoin::consensus::encode::deserialize;
-use bitcoin::consensus::serialize;
-use bitcoin::hashes::hex::*;
-use bitcoin::*;
+use bitcoin::{
+    consensus::{encode::deserialize, serialize},
+    hashes::hex::*,
+    *,
+};
 
 use super::*;
 

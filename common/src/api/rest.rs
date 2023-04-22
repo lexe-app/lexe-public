@@ -1,34 +1,42 @@
-use std::convert::Infallible;
-use std::future::Future;
-use std::net::{SocketAddr, TcpListener};
-use std::time::Duration;
+use std::{
+    convert::Infallible,
+    future::Future,
+    net::{SocketAddr, TcpListener},
+    time::Duration,
+};
 
 use anyhow::Context;
 use bytes::Bytes;
 use futures::future::BoxFuture;
 use reqwest::IntoUrl;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 use tokio::time;
 use tracing::{
     debug, error, field, info, info_span, span, warn, Instrument, Span,
 };
-use warp::filters::BoxedFilter;
-use warp::http::header::{HeaderValue, CONTENT_TYPE};
-use warp::http::response::Response;
-use warp::http::status::StatusCode;
-use warp::http::Method;
-use warp::hyper::Body;
-use warp::{Filter, Rejection};
-
-use crate::api::error::{
-    ErrorCode, ErrorResponse, RestClientError, RestClientErrorKind,
-    ServiceApiError, ToHttpStatus,
+use warp::{
+    filters::BoxedFilter,
+    http::{
+        header::{HeaderValue, CONTENT_TYPE},
+        response::Response,
+        status::StatusCode,
+        Method,
+    },
+    hyper::Body,
+    Filter, Rejection,
 };
-use crate::byte_str::ByteStr;
-use crate::shutdown::ShutdownChannel;
-use crate::task::LxTask;
-use crate::{backoff, ed25519};
+
+use crate::{
+    api::error::{
+        ErrorCode, ErrorResponse, RestClientError, RestClientErrorKind,
+        ServiceApiError, ToHttpStatus,
+    },
+    backoff,
+    byte_str::ByteStr,
+    ed25519,
+    shutdown::ShutdownChannel,
+    task::LxTask,
+};
 
 /// The CONTENT-TYPE header for signed BCS-serialized structs.
 pub static CONTENT_TYPE_ED25519_BCS: HeaderValue =

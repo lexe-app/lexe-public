@@ -1,6 +1,8 @@
-use std::cmp::Ordering;
-use std::fmt::{self, Display};
-use std::str::FromStr;
+use std::{
+    cmp::Ordering,
+    fmt::{self, Display},
+    str::FromStr,
+};
 
 use bitcoin::Txid;
 use serde::{Deserialize, Serialize};
@@ -53,8 +55,10 @@ impl PartialOrd for LxTxid {
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
     use bitcoin::hashes::Hash;
-    use proptest::arbitrary::{any, Arbitrary};
-    use proptest::strategy::{BoxedStrategy, Strategy};
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
 
     use super::*;
 
@@ -74,8 +78,7 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use proptest::arbitrary::any;
-    use proptest::{prop_assert_eq, proptest};
+    use proptest::{arbitrary::any, prop_assert_eq, proptest};
 
     use super::*;
     use crate::test_utils::roundtrip;

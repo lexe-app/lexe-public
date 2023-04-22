@@ -1,5 +1,7 @@
-use std::fmt::{self, Display};
-use std::str::FromStr;
+use std::{
+    fmt::{self, Display},
+    str::FromStr,
+};
 
 use lightning_invoice::Invoice;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
@@ -26,18 +28,21 @@ impl Display for LxInvoice {
 mod arbitrary_impl {
     use std::time::{Duration, UNIX_EPOCH};
 
-    use bitcoin::hashes::{sha256, Hash};
-    use bitcoin::secp256k1::{self, Secp256k1};
+    use bitcoin::{
+        hashes::{sha256, Hash},
+        secp256k1::{self, Secp256k1},
+    };
     use lightning::ln::PaymentSecret;
     use lightning_invoice::{Currency, InvoiceBuilder, MAX_TIMESTAMP};
-    use proptest::arbitrary::{any, Arbitrary};
-    use proptest::strategy::{BoxedStrategy, Strategy};
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
 
     use super::*;
-    use crate::cli::Network;
-    use crate::rng::WeakRng;
-    use crate::root_seed::RootSeed;
-    use crate::test_utils::arbitrary;
+    use crate::{
+        cli::Network, rng::WeakRng, root_seed::RootSeed, test_utils::arbitrary,
+    };
 
     impl Arbitrary for LxInvoice {
         type Parameters = ();

@@ -1,9 +1,13 @@
-use std::future::Future;
-use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::{
+    future::Future,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
-use tokio::sync::{mpsc, oneshot};
-use tokio::task::{JoinError, JoinHandle};
+use tokio::{
+    sync::{mpsc, oneshot},
+    task::{JoinError, JoinHandle},
+};
 use tracing::{error, Instrument, Span};
 
 /// A thin wrapper around [`tokio::task::JoinHandle`] that adds the

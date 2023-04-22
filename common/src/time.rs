@@ -1,7 +1,9 @@
-use std::convert::TryFrom;
-use std::fmt::{self, Display};
-use std::str::FromStr;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+    convert::TryFrom,
+    fmt::{self, Display},
+    str::FromStr,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use anyhow::{anyhow, Context};
 use serde::{de, Deserialize, Deserializer, Serialize};
@@ -112,8 +114,10 @@ impl Display for TimestampMs {
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
-    use proptest::arbitrary::Arbitrary;
-    use proptest::strategy::{BoxedStrategy, Strategy};
+    use proptest::{
+        arbitrary::Arbitrary,
+        strategy::{BoxedStrategy, Strategy},
+    };
 
     use super::*;
 

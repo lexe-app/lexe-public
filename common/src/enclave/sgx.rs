@@ -2,17 +2,22 @@
 
 use std::borrow::Cow;
 
-use ring::aead::{
-    Aad, BoundKey, Nonce, NonceSequence, OpeningKey, SealingKey, UnboundKey,
-    AES_256_GCM,
+use ring::{
+    aead::{
+        Aad, BoundKey, Nonce, NonceSequence, OpeningKey, SealingKey,
+        UnboundKey, AES_256_GCM,
+    },
+    hkdf::{self, HKDF_SHA256},
 };
-use ring::hkdf::{self, HKDF_SHA256};
 use secrecy::zeroize::Zeroizing;
 use sgx_isa::{AttributesFlags, Keyname, Keypolicy};
 
-use crate::enclave::{Error, MachineId, Measurement, Sealed, MIN_SGX_CPUSVN};
-use crate::rng::Crng;
-use crate::{const_assert_usize_eq, sha256};
+use crate::{
+    const_assert_usize_eq,
+    enclave::{Error, MachineId, Measurement, Sealed, MIN_SGX_CPUSVN},
+    rng::Crng,
+    sha256,
+};
 
 /// We salt the HKDF for domain separation purposes.
 const HKDF_SALT: [u8; 32] =

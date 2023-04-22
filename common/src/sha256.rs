@@ -5,8 +5,7 @@ use std::{fmt, io};
 use bitcoin::secp256k1;
 use ref_cast::RefCast;
 
-use crate::hex::FromHex;
-use crate::{const_ref_cast, hex};
+use crate::{const_ref_cast, hex, hex::FromHex};
 
 pub const HASH_LEN: usize = 32;
 
@@ -153,8 +152,7 @@ impl io::Write for Context {
 mod test {
     use std::io::Write;
 
-    use proptest::arbitrary::any;
-    use proptest::proptest;
+    use proptest::{arbitrary::any, proptest};
 
     use crate::{hex, sha256};
 

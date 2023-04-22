@@ -2,10 +2,9 @@ use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream};
 
 use once_cell::sync::Lazy;
 
-use crate::api::ports::Port;
-use crate::cli::LspInfo;
-use crate::rng::WeakRng;
-use crate::root_seed::RootSeed;
+use crate::{
+    api::ports::Port, cli::LspInfo, rng::WeakRng, root_seed::RootSeed,
+};
 
 /// `Arbitrary`-like proptest strategies for foreign types.
 pub mod arbitrary;

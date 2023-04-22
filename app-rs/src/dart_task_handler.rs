@@ -1,10 +1,12 @@
 use std::panic::UnwindSafe;
 
-use flutter_rust_bridge::handler::{
-    Executor, ReportDartErrorHandler, SimpleHandler, ThreadPoolExecutor,
+use flutter_rust_bridge::{
+    handler::{
+        Executor, ReportDartErrorHandler, SimpleHandler, ThreadPoolExecutor,
+    },
+    rust2dart::TaskCallback,
+    IntoDart, SyncReturn, WrapInfo,
 };
-use flutter_rust_bridge::rust2dart::TaskCallback;
-use flutter_rust_bridge::{IntoDart, SyncReturn, WrapInfo};
 
 pub(crate) type LxHandler = SimpleHandler<LxExecutor, ReportDartErrorHandler>;
 

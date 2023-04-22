@@ -1,7 +1,9 @@
 // bearer auth v1
 
-use std::fmt;
-use std::time::{Duration, SystemTime};
+use std::{
+    fmt,
+    time::{Duration, SystemTime},
+};
 
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
@@ -9,10 +11,14 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::NodePkProof;
-use crate::api::def::BearerAuthBackendApi;
-use crate::api::error::{BackendApiError, BackendErrorKind};
-use crate::byte_str::ByteStr;
-use crate::ed25519::{self, Signed};
+use crate::{
+    api::{
+        def::BearerAuthBackendApi,
+        error::{BackendApiError, BackendErrorKind},
+    },
+    byte_str::ByteStr,
+    ed25519::{self, Signed},
+};
 
 pub const DEFAULT_USER_TOKEN_LIFETIME_SECS: u32 = 10 * 60; // 10 min
 

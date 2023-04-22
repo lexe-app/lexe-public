@@ -1,16 +1,20 @@
-use std::cmp;
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::Arc;
-use std::time::Duration;
+use std::{
+    cmp,
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use anyhow::Context;
 use bdk::FeeRate;
 use bitcoin::blockdata::transaction::Transaction;
-use common::constants::GOOGLE_CA_CERT_DER;
-use common::reqwest;
-use common::shutdown::ShutdownChannel;
-use common::task::LxTask;
+use common::{
+    constants::GOOGLE_CA_CERT_DER, reqwest, shutdown::ShutdownChannel,
+    task::LxTask,
+};
 use esplora_client::AsyncClient;
 use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
@@ -289,8 +293,7 @@ impl FeeEstimator for LexeEsplora {
 mod test {
     use std::collections::HashMap;
 
-    use proptest::arbitrary::any;
-    use proptest::{prop_assert_eq, proptest};
+    use proptest::{arbitrary::any, prop_assert_eq, proptest};
 
     /// Check that our [`convert_fee_rate`] function is equivalent to
     /// [`esplora_client`]'s.

@@ -4,8 +4,7 @@
 // Deny suspicious match names that are probably non-existent variants.
 #![deny(non_snake_case)]
 
-use std::error::Error;
-use std::fmt;
+use std::{error::Error, fmt};
 
 #[cfg(all(test, not(target_env = "sgx")))]
 use proptest_derive::Arbitrary;
@@ -15,8 +14,10 @@ use tokio::sync::{mpsc, oneshot};
 // So the consts fit in 80 chars
 use warp::http::status::StatusCode as Status;
 
-use crate::api::{auth, NodePk, UserPk};
-use crate::hex;
+use crate::{
+    api::{auth, NodePk, UserPk},
+    hex,
+};
 
 // Associated constants can't be imported.
 const CLIENT_400_BAD_REQUEST: Status = Status::BAD_REQUEST;
@@ -918,8 +919,10 @@ impl From<oneshot::error::RecvError> for RunnerApiError {
 
 #[cfg(test)]
 mod test {
-    use proptest::arbitrary::{any, Arbitrary};
-    use proptest::{prop_assert_eq, proptest};
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        prop_assert_eq, proptest,
+    };
 
     use super::*;
 

@@ -39,20 +39,26 @@
 //!   as a separate task on the threadpool. Just reading a value out of some
 //!   in-memory state is probably cheaper overall to use `SyncReturn`.
 
-use std::future::Future;
-use std::sync::LazyLock;
+use std::{future::Future, sync::LazyLock};
 
 use anyhow::Context;
-use common::api::command::NodeInfo as NodeInfoRs;
-use common::api::def::{AppGatewayApi, AppNodeRunApi};
-use common::api::fiat_rates::FiatRates as FiatRatesRs;
-use common::rng::SysRng;
-use flutter_rust_bridge::handler::ReportDartErrorHandler;
-use flutter_rust_bridge::{frb, RustOpaque, StreamSink, SyncReturn};
+use common::{
+    api::{
+        command::NodeInfo as NodeInfoRs,
+        def::{AppGatewayApi, AppNodeRunApi},
+        fiat_rates::FiatRates as FiatRatesRs,
+    },
+    rng::SysRng,
+};
+use flutter_rust_bridge::{
+    frb, handler::ReportDartErrorHandler, RustOpaque, StreamSink, SyncReturn,
+};
 
 pub use crate::app::App;
-use crate::dart_task_handler::{LxExecutor, LxHandler};
-use crate::logger;
+use crate::{
+    dart_task_handler::{LxExecutor, LxHandler},
+    logger,
+};
 
 // TODO(phlip9): land tokio support in flutter_rust_bridge
 // As a temporary unblock to support async fn's, we'll just block_on on a

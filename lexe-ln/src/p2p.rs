@@ -1,16 +1,12 @@
-use std::collections::HashMap;
-use std::time::Duration;
+use std::{collections::HashMap, time::Duration};
 
 use anyhow::{bail, Context};
-use common::api::NodePk;
-use common::backoff;
-use common::ln::peer::ChannelPeer;
-use common::shutdown::ShutdownChannel;
-use common::task::LxTask;
+use common::{
+    api::NodePk, backoff, ln::peer::ChannelPeer, shutdown::ShutdownChannel,
+    task::LxTask,
+};
 use futures::future;
-use tokio::net::TcpStream;
-use tokio::sync::mpsc;
-use tokio::time;
+use tokio::{net::TcpStream, sync::mpsc, time};
 use tracing::{debug, info, info_span, warn, Instrument};
 
 use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};

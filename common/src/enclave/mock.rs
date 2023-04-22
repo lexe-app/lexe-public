@@ -5,12 +5,16 @@
 
 use std::borrow::Cow;
 
-use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
-use ring::hkdf::{self, HKDF_SHA256};
+use ring::{
+    aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM},
+    hkdf::{self, HKDF_SHA256},
+};
 
 use super::MOCK_MEASUREMENT;
-use crate::enclave::{Error, MachineId, Measurement, Sealed, MOCK_MACHINE_ID};
-use crate::rng::Crng;
+use crate::{
+    enclave::{Error, MachineId, Measurement, Sealed, MOCK_MACHINE_ID},
+    rng::Crng,
+};
 
 struct MockKeyRequest {
     keyid: [u8; 32],

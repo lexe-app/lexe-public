@@ -83,13 +83,14 @@ use std::fmt;
 
 use bytes::BufMut;
 use ref_cast::RefCast;
-use ring::aead::{self, BoundKey};
-use ring::hkdf;
+use ring::{
+    aead::{self, BoundKey},
+    hkdf,
+};
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::rng::Crng;
-use crate::{const_ref_cast, sha256};
+use crate::{const_ref_cast, rng::Crng, sha256};
 
 /// serialized version length
 const VERSION_LEN: usize = 1;
@@ -374,8 +375,10 @@ impl aead::NonceSequence for ZeroNonce {
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
-    use proptest::arbitrary::{any, Arbitrary};
-    use proptest::strategy::{BoxedStrategy, Strategy};
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
 
     use super::*;
     use crate::root_seed::RootSeed;
@@ -393,14 +396,12 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use proptest::arbitrary::any;
-    use proptest::collection::vec;
-    use proptest::{prop_assert, prop_assert_eq, proptest};
+    use proptest::{
+        arbitrary::any, collection::vec, prop_assert, prop_assert_eq, proptest,
+    };
 
     use super::*;
-    use crate::hex;
-    use crate::rng::WeakRng;
-    use crate::root_seed::RootSeed;
+    use crate::{hex, rng::WeakRng, root_seed::RootSeed};
 
     #[test]
     fn test_aad_compat() {

@@ -1,16 +1,18 @@
-use std::time::Duration;
-use std::{cmp, env};
+use std::{cmp, env, time::Duration};
 
 use anyhow::Context;
-use bitcoin::hash_types::PubkeyHash;
-use bitcoin::hashes::Hash;
-use bitcoin::network::constants::Network;
-use bitcoin::util::address::{Address, Payload};
-use bitcoin::BlockHash;
-use electrsd::bitcoind::bitcoincore_rpc::RpcApi;
-use electrsd::bitcoind::{self, BitcoinD};
-use electrsd::electrum_client::ElectrumApi;
-use electrsd::ElectrsD;
+use bitcoin::{
+    hash_types::PubkeyHash,
+    hashes::Hash,
+    network::constants::Network,
+    util::address::{Address, Payload},
+    BlockHash,
+};
+use electrsd::{
+    bitcoind::{self, bitcoincore_rpc::RpcApi, BitcoinD},
+    electrum_client::ElectrumApi,
+    ElectrsD,
+};
 use tracing::debug;
 
 /// A wrapper around [`BitcoinD`] and [`ElectrsD`] which exposes simple methods

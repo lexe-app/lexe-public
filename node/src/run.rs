@@ -1,57 +1,70 @@
-use std::net::{Ipv4Addr, TcpListener};
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::{
+    net::{Ipv4Addr, TcpListener},
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use anyhow::{anyhow, bail, ensure, Context};
-use common::api::auth::BearerAuthenticator;
-use common::api::def::NodeRunnerApi;
-use common::api::ports::UserPorts;
-use common::api::provision::SealedSeedId;
-use common::api::{rest, Scid, User, UserPk};
-use common::cli::node::RunArgs;
-use common::cli::LspInfo;
-use common::client::tls::node_run_tls_config;
-use common::constants::{DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE};
-use common::enclave::{self, MachineId, Measurement, MIN_SGX_CPUSVN};
-use common::rng::Crng;
-use common::root_seed::RootSeed;
-use common::shutdown::ShutdownChannel;
-use common::task::{joined_task_state_label, BlockingTaskRt, LxTask};
-use common::{ed25519, notify};
-use futures::future::FutureExt;
-use futures::stream::{FuturesUnordered, StreamExt};
-use lexe_ln::alias::{
-    BroadcasterType, EsploraSyncClientType, FeeEstimatorType, NetworkGraphType,
-    OnionMessengerType, P2PGossipSyncType, ProbabilisticScorerType, RouterType,
+use common::{
+    api::{
+        auth::BearerAuthenticator, def::NodeRunnerApi, ports::UserPorts,
+        provision::SealedSeedId, rest, Scid, User, UserPk,
+    },
+    cli::{node::RunArgs, LspInfo},
+    client::tls::node_run_tls_config,
+    constants::{DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
+    ed25519,
+    enclave::{self, MachineId, Measurement, MIN_SGX_CPUSVN},
+    notify,
+    rng::Crng,
+    root_seed::RootSeed,
+    shutdown::ShutdownChannel,
+    task::{joined_task_state_label, BlockingTaskRt, LxTask},
 };
-use lexe_ln::background_processor::LexeBackgroundProcessor;
-use lexe_ln::esplora::LexeEsplora;
-use lexe_ln::keys_manager::LexeKeysManager;
-use lexe_ln::logger::LexeTracingLogger;
-use lexe_ln::p2p::ChannelPeerUpdate;
-use lexe_ln::payments::manager::PaymentsManager;
-use lexe_ln::test_event::TestEventSender;
-use lexe_ln::traits::LexeInnerPersister;
-use lexe_ln::wallet::{self, LexeWallet};
-use lexe_ln::{channel_monitor, p2p, sync};
-use lightning::chain::chainmonitor::ChainMonitor;
-use lightning::chain::keysinterface::EntropySource;
-use lightning::ln::peer_handler::IgnoringMessageHandler;
-use lightning::onion_message::OnionMessenger;
-use lightning::routing::gossip::P2PGossipSync;
-use lightning::routing::router::DefaultRouter;
+use futures::{
+    future::FutureExt,
+    stream::{FuturesUnordered, StreamExt},
+};
+use lexe_ln::{
+    alias::{
+        BroadcasterType, EsploraSyncClientType, FeeEstimatorType,
+        NetworkGraphType, OnionMessengerType, P2PGossipSyncType,
+        ProbabilisticScorerType, RouterType,
+    },
+    background_processor::LexeBackgroundProcessor,
+    channel_monitor,
+    esplora::LexeEsplora,
+    keys_manager::LexeKeysManager,
+    logger::LexeTracingLogger,
+    p2p,
+    p2p::ChannelPeerUpdate,
+    payments::manager::PaymentsManager,
+    sync,
+    test_event::TestEventSender,
+    traits::LexeInnerPersister,
+    wallet::{self, LexeWallet},
+};
+use lightning::{
+    chain::{chainmonitor::ChainMonitor, keysinterface::EntropySource},
+    ln::peer_handler::IgnoringMessageHandler,
+    onion_message::OnionMessenger,
+    routing::{gossip::P2PGossipSync, router::DefaultRouter},
+};
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot, watch};
 use tracing::{debug, error, info, info_span, instrument};
 
-use crate::alias::{ChainMonitorType, NodePaymentsManagerType};
-use crate::api::BackendApiClient;
-use crate::channel_manager::NodeChannelManager;
-use crate::event_handler::NodeEventHandler;
-use crate::inactivity_timer::InactivityTimer;
-use crate::peer_manager::NodePeerManager;
-use crate::persister::NodePersister;
-use crate::{api, server};
+use crate::{
+    alias::{ChainMonitorType, NodePaymentsManagerType},
+    api,
+    api::BackendApiClient,
+    channel_manager::NodeChannelManager,
+    event_handler::NodeEventHandler,
+    inactivity_timer::InactivityTimer,
+    peer_manager::NodePeerManager,
+    persister::NodePersister,
+    server,
+};
 
 // TODO(max): Move this to common::constants
 /// The amount of time tasks have to finish after a graceful shutdown was

@@ -1,17 +1,19 @@
-use std::fmt::{self, Display};
-use std::net::SocketAddr;
-use std::str::FromStr;
+use std::{
+    fmt::{self, Display},
+    net::SocketAddr,
+    str::FromStr,
+};
 
 use anyhow::{ensure, Context};
-use bitcoin::blockdata::constants;
-use bitcoin::hash_types::BlockHash;
-use lightning::routing::gossip::RoutingFees;
-use lightning::routing::router::RouteHintHop;
+use bitcoin::{blockdata::constants, hash_types::BlockHash};
+use lightning::routing::{gossip::RoutingFees, router::RouteHintHop};
 use lightning_invoice::Currency;
 use serde::{Deserialize, Serialize};
 
-use crate::api::{NodePk, Scid};
-use crate::ln::peer::ChannelPeer;
+use crate::{
+    api::{NodePk, Scid},
+    ln::peer::ChannelPeer,
+};
 
 /// User node CLI args.
 pub mod node;
@@ -176,8 +178,10 @@ impl Display for LspInfo {
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary {
-    use proptest::arbitrary::Arbitrary;
-    use proptest::strategy::{BoxedStrategy, Just, Strategy};
+    use proptest::{
+        arbitrary::Arbitrary,
+        strategy::{BoxedStrategy, Just, Strategy},
+    };
 
     use super::*;
 
@@ -200,8 +204,10 @@ mod arbitrary {
 
 #[cfg(all(any(test, feature = "test-utils"), not(target_env = "sgx")))]
 mod arbitrary_not_sgx {
-    use proptest::arbitrary::{any, Arbitrary};
-    use proptest::strategy::{BoxedStrategy, Strategy};
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
 
     use super::*;
     use crate::test_utils::arbitrary;

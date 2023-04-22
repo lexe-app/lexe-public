@@ -1,14 +1,14 @@
-use std::path::Path;
-use std::process::Command;
+use std::{path::Path, process::Command};
 
 use argh::FromArgs;
 #[cfg(all(test, not(target_env = "sgx")))]
 use proptest_derive::Arbitrary;
 
-use crate::api::ports::Port;
-use crate::api::UserPk;
-use crate::cli::{LspInfo, Network};
-use crate::constants::{NODE_PROVISION_DNS, NODE_RUN_DNS};
+use crate::{
+    api::{ports::Port, UserPk},
+    cli::{LspInfo, Network},
+    constants::{NODE_PROVISION_DNS, NODE_RUN_DNS},
+};
 
 /// Commands accepted by the user node.
 #[derive(Clone, Debug, Eq, PartialEq, FromArgs)]
@@ -258,9 +258,11 @@ impl ProvisionArgs {
 
 #[cfg(all(test, not(target_env = "sgx")))]
 mod test_notsgx {
-    use proptest::arbitrary::{any, Arbitrary};
-    use proptest::strategy::{BoxedStrategy, Strategy};
-    use proptest::{prop_oneof, proptest};
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        prop_oneof, proptest,
+        strategy::{BoxedStrategy, Strategy},
+    };
 
     use super::*;
 

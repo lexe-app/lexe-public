@@ -1,8 +1,9 @@
-use common::api::qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote};
-use common::ln::payments::BasicPayment;
+use common::{
+    api::qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
+    ln::payments::BasicPayment,
+};
 
-use crate::alias::NodePaymentsManagerType;
-use crate::persister::NodePersister;
+use crate::{alias::NodePaymentsManagerType, persister::NodePersister};
 
 pub(super) async fn get_payments_by_ids(
     req: GetPaymentsByIds,

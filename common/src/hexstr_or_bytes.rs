@@ -14,8 +14,7 @@
 // TODO(phlip9): use `serde_bytes` for more efficient ser/de with binary codecs.
 // TODO(phlip9): add `[u8; N]` impls to `serde_bytes`...
 
-use std::fmt;
-use std::marker::PhantomData;
+use std::{fmt, marker::PhantomData};
 
 use serde::{de, ser, Deserializer, Serializer};
 

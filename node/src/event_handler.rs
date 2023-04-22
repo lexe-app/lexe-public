@@ -1,28 +1,34 @@
-use std::sync::Arc;
-use std::time::Duration;
+use std::{sync::Arc, time::Duration};
 
 use anyhow::{anyhow, Context};
 use bitcoin::secp256k1::Secp256k1;
-use common::api::NodePk;
-use common::cli::LspInfo;
-use common::hex;
-use common::shutdown::ShutdownChannel;
-use common::task::{BlockingTaskRt, LxTask};
-use lexe_ln::alias::NetworkGraphType;
-use lexe_ln::esplora::LexeEsplora;
-use lexe_ln::event;
-use lexe_ln::keys_manager::LexeKeysManager;
-use lexe_ln::test_event::{TestEvent, TestEventSender};
-use lexe_ln::wallet::LexeWallet;
-use lightning::chain::chaininterface::{
-    BroadcasterInterface, ConfirmationTarget, FeeEstimator,
+use common::{
+    api::NodePk,
+    cli::LspInfo,
+    hex,
+    shutdown::ShutdownChannel,
+    task::{BlockingTaskRt, LxTask},
 };
-use lightning::routing::gossip::NodeId;
-use lightning::util::events::{Event, EventHandler};
+use lexe_ln::{
+    alias::NetworkGraphType,
+    esplora::LexeEsplora,
+    event,
+    keys_manager::LexeKeysManager,
+    test_event::{TestEvent, TestEventSender},
+    wallet::LexeWallet,
+};
+use lightning::{
+    chain::chaininterface::{
+        BroadcasterInterface, ConfirmationTarget, FeeEstimator,
+    },
+    routing::gossip::NodeId,
+    util::events::{Event, EventHandler},
+};
 use tracing::{debug, error, info};
 
-use crate::alias::NodePaymentsManagerType;
-use crate::channel_manager::NodeChannelManager;
+use crate::{
+    alias::NodePaymentsManagerType, channel_manager::NodeChannelManager,
+};
 
 // We pub(crate) all the fields to prevent having to specify each field two more
 // times in Self::new parameters and in struct init syntax.

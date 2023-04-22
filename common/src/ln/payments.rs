@@ -1,23 +1,26 @@
-use std::cmp::Ordering;
-use std::convert::TryFrom;
-use std::fmt::{self, Display};
-use std::str::FromStr;
+use std::{
+    cmp::Ordering,
+    convert::TryFrom,
+    fmt::{self, Display},
+    str::FromStr,
+};
 
 use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin_hashes::{sha256, Hash};
-use lightning::ln::channelmanager::PaymentId;
-use lightning::ln::{PaymentHash, PaymentPreimage, PaymentSecret};
+use lightning::ln::{
+    channelmanager::PaymentId, PaymentHash, PaymentPreimage, PaymentSecret,
+};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-use crate::hex::{self, FromHex};
-use crate::hexstr_or_bytes;
-use crate::ln::amount::Amount;
-use crate::ln::hashes::LxTxid;
-use crate::ln::invoice::LxInvoice;
-use crate::time::TimestampMs;
+use crate::{
+    hex::{self, FromHex},
+    hexstr_or_bytes,
+    ln::{amount::Amount, hashes::LxTxid, invoice::LxInvoice},
+    time::TimestampMs,
+};
 
 // --- Top-level payment types --- //
 
@@ -513,8 +516,7 @@ impl PartialOrd for LxPaymentId {
 
 #[cfg(test)]
 mod test {
-    use proptest::arbitrary::any;
-    use proptest::{prop_assert_eq, proptest};
+    use proptest::{arbitrary::any, prop_assert_eq, proptest};
 
     use super::*;
     use crate::test_utils::roundtrip;

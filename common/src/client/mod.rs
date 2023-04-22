@@ -4,41 +4,44 @@ pub mod certs;
 /// TLS configurations for the client to the node.
 pub mod tls;
 
-use std::panic::{RefUnwindSafe, UnwindSafe};
-use std::sync::Arc;
-use std::time::SystemTime;
+use std::{
+    panic::{RefUnwindSafe, UnwindSafe},
+    sync::Arc,
+    time::SystemTime,
+};
 
 use anyhow::Context;
 use async_trait::async_trait;
 use reqwest::{IntoProxyScheme, Url};
 use warp::http;
 
-use crate::api::auth::{
-    BearerAuthRequest, BearerAuthResponse, BearerAuthenticator,
-    UserSignupRequest,
+use crate::{
+    api::{
+        auth::{
+            BearerAuthRequest, BearerAuthResponse, BearerAuthenticator,
+            UserSignupRequest,
+        },
+        command::{
+            CreateInvoiceRequest, NodeInfo, PayInvoiceRequest,
+            SendOnchainRequest,
+        },
+        def::{
+            AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
+            BearerAuthBackendApi,
+        },
+        error::{
+            BackendApiError, GatewayApiError, NodeApiError, NodeErrorKind,
+        },
+        fiat_rates::FiatRates,
+        provision::NodeProvisionRequest,
+        qs::{EmptyData, GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
+        rest::{RequestBuilderExt, RestClient, GET, POST},
+    },
+    attest, ed25519,
+    ln::{hashes::LxTxid, invoice::LxInvoice, payments::BasicPayment},
+    rng::Crng,
+    root_seed::RootSeed,
 };
-use crate::api::command::{
-    CreateInvoiceRequest, NodeInfo, PayInvoiceRequest, SendOnchainRequest,
-};
-use crate::api::def::{
-    AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
-    BearerAuthBackendApi,
-};
-use crate::api::error::{
-    BackendApiError, GatewayApiError, NodeApiError, NodeErrorKind,
-};
-use crate::api::fiat_rates::FiatRates;
-use crate::api::provision::NodeProvisionRequest;
-use crate::api::qs::{
-    EmptyData, GetNewPayments, GetPaymentsByIds, UpdatePaymentNote,
-};
-use crate::api::rest::{RequestBuilderExt, RestClient, GET, POST};
-use crate::ln::hashes::LxTxid;
-use crate::ln::invoice::LxInvoice;
-use crate::ln::payments::BasicPayment;
-use crate::rng::Crng;
-use crate::root_seed::RootSeed;
-use crate::{attest, ed25519};
 
 /// The Lexe app's client to the gateway itself.
 #[derive(Clone)]

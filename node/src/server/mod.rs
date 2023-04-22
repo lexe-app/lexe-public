@@ -12,31 +12,31 @@
 
 use std::sync::Arc;
 
-use common::api::command::{
-    CreateInvoiceRequest, PayInvoiceRequest, SendOnchainRequest,
+use common::{
+    api::{
+        command::{
+            CreateInvoiceRequest, PayInvoiceRequest, SendOnchainRequest,
+        },
+        qs::{
+            GetByUserPk, GetNewPayments, GetPaymentsByIds, UpdatePaymentNote,
+        },
+        rest, Scid, UserPk,
+    },
+    cli::{LspInfo, Network},
+    shutdown::ShutdownChannel,
 };
-use common::api::qs::{
-    GetByUserPk, GetNewPayments, GetPaymentsByIds, UpdatePaymentNote,
+use lexe_ln::{
+    alias::RouterType, command::CreateInvoiceCaller, esplora::LexeEsplora,
+    keys_manager::LexeKeysManager, wallet::LexeWallet,
 };
-use common::api::{rest, Scid, UserPk};
-use common::cli::{LspInfo, Network};
-use common::shutdown::ShutdownChannel;
-use lexe_ln::alias::RouterType;
-use lexe_ln::command::CreateInvoiceCaller;
-use lexe_ln::esplora::LexeEsplora;
-use lexe_ln::keys_manager::LexeKeysManager;
-use lexe_ln::wallet::LexeWallet;
 use tokio::sync::mpsc;
 use tracing::{span, trace};
-use warp::filters::BoxedFilter;
-use warp::http::Response;
-use warp::hyper::Body;
-use warp::{Filter, Reply};
+use warp::{filters::BoxedFilter, http::Response, hyper::Body, Filter, Reply};
 
-use crate::alias::NodePaymentsManagerType;
-use crate::channel_manager::NodeChannelManager;
-use crate::peer_manager::NodePeerManager;
-use crate::persister::NodePersister;
+use crate::{
+    alias::NodePaymentsManagerType, channel_manager::NodeChannelManager,
+    peer_manager::NodePeerManager, persister::NodePersister,
+};
 
 /// Handlers for commands that can only be initiated by the app.
 mod app;

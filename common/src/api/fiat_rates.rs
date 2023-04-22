@@ -1,8 +1,6 @@
 //! Data types returned from the fiat exchange rate API.
 
-use std::borrow::Borrow;
-use std::collections::BTreeMap;
-use std::fmt;
+use std::{borrow::Borrow, collections::BTreeMap, fmt};
 
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
@@ -86,9 +84,11 @@ impl fmt::Debug for FiatBtcPrice {
 mod arbitrary_impl {
     use std::str;
 
-    use proptest::array::uniform3;
-    use proptest::prelude::Arbitrary;
-    use proptest::strategy::{BoxedStrategy, Strategy};
+    use proptest::{
+        array::uniform3,
+        prelude::Arbitrary,
+        strategy::{BoxedStrategy, Strategy},
+    };
 
     use super::FiatCode;
 

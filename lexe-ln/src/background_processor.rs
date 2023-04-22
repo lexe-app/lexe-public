@@ -1,18 +1,18 @@
-use std::sync::{Arc, Mutex};
-use std::time::Duration;
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
-use common::notify;
-use common::shutdown::ShutdownChannel;
-use common::task::LxTask;
+use common::{notify, shutdown::ShutdownChannel, task::LxTask};
 use lightning::util::events::EventsProvider;
 use tokio::time::{interval, interval_at, Instant};
 use tracing::{debug, error, info, instrument, warn};
 
-use crate::alias::{
-    LexeChainMonitorType, P2PGossipSyncType, ProbabilisticScorerType,
-};
-use crate::traits::{
-    LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
+use crate::{
+    alias::{LexeChainMonitorType, P2PGossipSyncType, ProbabilisticScorerType},
+    traits::{
+        LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
+    },
 };
 
 // Since the BGP relies on LDK's waker system which has historically been the

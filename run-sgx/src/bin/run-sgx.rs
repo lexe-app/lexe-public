@@ -1,14 +1,19 @@
-use std::io::{self, Write};
-use std::path::PathBuf;
-use std::pin::Pin;
-use std::str::{self, FromStr};
-use std::task::{ready, Context, Poll};
-use std::{fmt, mem};
+use std::{
+    fmt,
+    io::{self, Write},
+    mem,
+    path::PathBuf,
+    pin::Pin,
+    str::{self, FromStr},
+    task::{ready, Context, Poll},
+};
 
 use anyhow::{format_err, Result};
 use argh::{EarlyExit, FromArgs, TopLevelCommand};
-use object::read::{SymbolMap, SymbolMapName};
-use object::Object;
+use object::{
+    read::{SymbolMap, SymbolMapName},
+    Object,
+};
 use once_cell::sync::OnceCell;
 use rustc_demangle::{demangle, Demangle};
 use tokio::io::AsyncWrite;

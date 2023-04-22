@@ -1,8 +1,6 @@
 //! Verify remote attestation endorsements directly or embedded in x509 certs.
 
-use std::io::Cursor;
-use std::time::SystemTime;
-use std::{fmt, include_bytes};
+use std::{fmt, include_bytes, io::Cursor, time::SystemTime};
 
 use anyhow::{bail, ensure, format_err, Context, Result};
 use asn1_rs::FromDer;
@@ -13,9 +11,10 @@ use once_cell::sync::Lazy;
 use webpki::{TlsServerTrustAnchors, TrustAnchor};
 use x509_parser::certificate::X509Certificate;
 
-use crate::attest::cert::SgxAttestationExtension;
-use crate::enclave::Measurement;
-use crate::{ed25519, hex, sha256};
+use crate::{
+    attest::cert::SgxAttestationExtension, ed25519, enclave::Measurement, hex,
+    sha256,
+};
 
 /// The Enclave Signer Measurement (MRSIGNER) of the current Intel Quoting
 /// Enclave (QE).
@@ -570,15 +569,16 @@ fn rustls_err(s: impl fmt::Display) -> rustls::Error {
 
 #[cfg(test)]
 mod test {
-    use std::time::Duration;
-    use std::{include_str, iter};
+    use std::{include_str, iter, time::Duration};
 
     use rustls::client::ServerCertVerifier as _;
 
     use super::*;
-    use crate::attest::cert::{AttestationCert, SgxAttestationExtension};
-    use crate::rng::SysRng;
-    use crate::{ed25519, hex};
+    use crate::{
+        attest::cert::{AttestationCert, SgxAttestationExtension},
+        ed25519, hex,
+        rng::SysRng,
+    };
 
     const MRENCLAVE_HEX: &str = include_str!("../../test_data/mrenclave.hex");
     const SGX_SERVER_CERT_PEM: &str =

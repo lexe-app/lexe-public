@@ -1,10 +1,10 @@
 use bitcoin::Address;
 use serde::{Deserialize, Serialize};
 
-use crate::api::NodePk;
-use crate::ln::amount::Amount;
-use crate::ln::invoice::LxInvoice;
-use crate::ln::ConfirmationPriority;
+use crate::{
+    api::NodePk,
+    ln::{amount::Amount, invoice::LxInvoice, ConfirmationPriority},
+};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct NodeInfo {

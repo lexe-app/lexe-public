@@ -1,19 +1,23 @@
-use std::fmt;
-use std::str::FromStr;
+use std::{fmt, str::FromStr};
 
 use anyhow::{bail, ensure};
 use bip39::{Language, Mnemonic};
-use bitcoin::util::bip32::{ChildNumber, ExtendedPrivKey};
-use bitcoin::{secp256k1, Network};
+use bitcoin::{
+    secp256k1,
+    util::bip32::{ChildNumber, ExtendedPrivKey},
+    Network,
+};
 use rand_core::{CryptoRng, RngCore};
-use secrecy::zeroize::Zeroizing;
-use secrecy::{ExposeSecret, Secret, SecretVec};
+use secrecy::{zeroize::Zeroizing, ExposeSecret, Secret, SecretVec};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::api::{NodePk, UserPk};
-use crate::rng::{self, Crng};
-use crate::vfs_encrypt::VfsMasterKey;
-use crate::{ed25519, hex, sha256};
+use crate::{
+    api::{NodePk, UserPk},
+    ed25519, hex,
+    rng::{self, Crng},
+    sha256,
+    vfs_encrypt::VfsMasterKey,
+};
 
 // TODO(phlip9): [perf] consider storing extracted `Prk` alongside seed to
 //               reduce key derivation time by ~60-70% : )
@@ -324,13 +328,10 @@ impl proptest::arbitrary::Arbitrary for RootSeed {
 
 #[cfg(test)]
 mod test {
-    use proptest::arbitrary::any;
-    use proptest::collection::vec;
-    use proptest::{prop_assert_eq, proptest};
+    use proptest::{arbitrary::any, collection::vec, prop_assert_eq, proptest};
 
     use super::*;
-    use crate::rng::WeakRng;
-    use crate::{hex, sha256};
+    use crate::{hex, rng::WeakRng, sha256};
 
     // simple implementations of some crypto functions for equivalence testing
 

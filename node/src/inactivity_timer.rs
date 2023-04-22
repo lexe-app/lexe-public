@@ -1,9 +1,10 @@
 use std::time::Duration;
 
 use common::shutdown::ShutdownChannel;
-use tokio::sync::mpsc;
-use tokio::sync::mpsc::error::TryRecvError;
-use tokio::time::{self, Instant};
+use tokio::{
+    sync::{mpsc, mpsc::error::TryRecvError},
+    time::{self, Instant},
+};
 use tracing::{debug, info, trace};
 
 // TODO(max): Also count Lightning Network events as activity events
@@ -105,8 +106,10 @@ mod tests {
     use std::future::Future;
 
     use common::constants::DEFAULT_CHANNEL_SIZE;
-    use tokio::sync::mpsc;
-    use tokio::time::{self, Duration};
+    use tokio::{
+        sync::mpsc,
+        time::{self, Duration},
+    };
 
     use super::*;
 

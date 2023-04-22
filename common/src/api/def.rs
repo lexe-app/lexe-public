@@ -20,28 +20,34 @@
 
 use async_trait::async_trait;
 
-use super::error::GatewayApiError;
-use super::fiat_rates::FiatRates;
-use crate::api::auth::{
-    BearerAuthRequest, BearerAuthResponse, BearerAuthToken, UserSignupRequest,
+use super::{error::GatewayApiError, fiat_rates::FiatRates};
+use crate::{
+    api::{
+        auth::{
+            BearerAuthRequest, BearerAuthResponse, BearerAuthToken,
+            UserSignupRequest,
+        },
+        command::{
+            CreateInvoiceRequest, NodeInfo, PayInvoiceRequest,
+            SendOnchainRequest,
+        },
+        error::{BackendApiError, LspApiError, NodeApiError, RunnerApiError},
+        ports::UserPorts,
+        provision::{NodeProvisionRequest, SealedSeed, SealedSeedId},
+        qs::{
+            GetNewPayments, GetPaymentByIndex, GetPaymentsByIds,
+            UpdatePaymentNote,
+        },
+        vfs::{VfsDirectory, VfsFile, VfsFileId},
+        NodePk, Scid, User, UserPk,
+    },
+    ed25519,
+    ln::{
+        hashes::LxTxid,
+        invoice::LxInvoice,
+        payments::{BasicPayment, DbPayment, LxPaymentId},
+    },
 };
-use crate::api::command::{
-    CreateInvoiceRequest, NodeInfo, PayInvoiceRequest, SendOnchainRequest,
-};
-use crate::api::error::{
-    BackendApiError, LspApiError, NodeApiError, RunnerApiError,
-};
-use crate::api::ports::UserPorts;
-use crate::api::provision::{NodeProvisionRequest, SealedSeed, SealedSeedId};
-use crate::api::qs::{
-    GetNewPayments, GetPaymentByIndex, GetPaymentsByIds, UpdatePaymentNote,
-};
-use crate::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
-use crate::api::{NodePk, Scid, User, UserPk};
-use crate::ed25519;
-use crate::ln::hashes::LxTxid;
-use crate::ln::invoice::LxInvoice;
-use crate::ln::payments::{BasicPayment, DbPayment, LxPaymentId};
 
 /// Defines the api that the backend exposes to the node.
 #[async_trait]

@@ -1,25 +1,36 @@
-use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use anyhow::{bail, ensure, Context};
-use common::api::qs::UpdatePaymentNote;
-use common::ln::amount::Amount;
-use common::ln::hashes::LxTxid;
-use common::ln::payments::{
-    LxPaymentHash, LxPaymentId, LxPaymentPreimage, PaymentStatus,
+use common::{
+    api::qs::UpdatePaymentNote,
+    ln::{
+        amount::Amount,
+        hashes::LxTxid,
+        payments::{
+            LxPaymentHash, LxPaymentId, LxPaymentPreimage, PaymentStatus,
+        },
+    },
+    shutdown::ShutdownChannel,
+    task::LxTask,
 };
-use common::shutdown::ShutdownChannel;
-use common::task::LxTask;
-use lightning::ln::channelmanager::FailureCode;
-use lightning::util::events::PaymentPurpose;
+use lightning::{
+    ln::channelmanager::FailureCode, util::events::PaymentPurpose,
+};
 use tokio::sync::Mutex;
 use tracing::{debug, debug_span, error, info, instrument};
 
-use crate::payments::inbound::{InboundSpontaneousPayment, LxPaymentPurpose};
-use crate::payments::Payment;
-use crate::test_event::{TestEvent, TestEventSender};
-use crate::traits::{LexeChannelManager, LexePersister};
+use crate::{
+    payments::{
+        inbound::{InboundSpontaneousPayment, LxPaymentPurpose},
+        Payment,
+    },
+    test_event::{TestEvent, TestEventSender},
+    traits::{LexeChannelManager, LexePersister},
+};
 
 /// The interval at which we check our pending payments for expired invoices.
 const INVOICE_EXPIRY_CHECK_INTERVAL: Duration = Duration::from_secs(120);

@@ -1,13 +1,16 @@
-use std::convert::TryFrom;
-use std::time::Duration;
+use std::{convert::TryFrom, time::Duration};
 
 use anyhow::{bail, ensure, Context};
-use common::ln::amount::Amount;
-use common::ln::invoice::LxInvoice;
-use common::ln::payments::{LxPaymentHash, LxPaymentPreimage, LxPaymentSecret};
 #[cfg(test)]
 use common::test_utils::arbitrary;
-use common::time::TimestampMs;
+use common::{
+    ln::{
+        amount::Amount,
+        invoice::LxInvoice,
+        payments::{LxPaymentHash, LxPaymentPreimage, LxPaymentSecret},
+    },
+    time::TimestampMs,
+};
 #[cfg(doc)]
 use lightning::ln::channelmanager::ChannelManager;
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
@@ -20,8 +23,7 @@ use tracing::warn;
 
 #[cfg(doc)]
 use crate::command::create_invoice;
-use crate::payments::manager::CheckedPayment;
-use crate::payments::Payment;
+use crate::payments::{manager::CheckedPayment, Payment};
 
 // --- LxPaymentPurpose --- //
 

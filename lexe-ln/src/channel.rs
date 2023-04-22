@@ -1,17 +1,20 @@
 use std::fmt::{self, Display};
 
 use anyhow::{anyhow, ensure, Context};
-use common::api::NodePk;
-use common::hex;
-use common::ln::amount::Amount;
-use common::ln::peer::ChannelPeer;
-use common::rng::Crng;
+use common::{
+    api::NodePk,
+    hex,
+    ln::{amount::Amount, peer::ChannelPeer},
+    rng::Crng,
+};
 use lightning::util::config::UserConfig;
 use tokio::sync::mpsc;
 use tracing::{info, instrument};
 
-use crate::p2p::{self, ChannelPeerUpdate};
-use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
+use crate::{
+    p2p::{self, ChannelPeerUpdate},
+    traits::{LexeChannelManager, LexePeerManager, LexePersister},
+};
 
 /// A newtype for [`ChannelDetails::channel_id`] for semantic clarity.
 ///

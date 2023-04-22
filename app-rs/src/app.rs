@@ -4,19 +4,26 @@
 use std::sync::Arc;
 
 use anyhow::Context;
-use common::api::auth::{BearerAuthenticator, UserSignupRequest};
-use common::api::def::{AppBackendApi, AppNodeProvisionApi};
-use common::api::provision::NodeProvisionRequest;
-use common::api::{NodePk, NodePkProof, UserPk};
-use common::client::tls::dummy_lexe_ca_cert;
-use common::client::{GatewayClient, NodeClient};
-use common::rng::Crng;
-use common::root_seed::RootSeed;
-use common::{attest, constants, enclave, Secret};
+use common::{
+    api::{
+        auth::{BearerAuthenticator, UserSignupRequest},
+        def::{AppBackendApi, AppNodeProvisionApi},
+        provision::NodeProvisionRequest,
+        NodePk, NodePkProof, UserPk,
+    },
+    attest,
+    client::{tls::dummy_lexe_ca_cert, GatewayClient, NodeClient},
+    constants, enclave,
+    rng::Crng,
+    root_seed::RootSeed,
+    Secret,
+};
 use secrecy::ExposeSecret;
 
-use crate::bindings::{Config, DeployEnv, Network};
-use crate::secret_store::SecretStore;
+use crate::{
+    bindings::{Config, DeployEnv, Network},
+    secret_store::SecretStore,
+};
 
 pub struct App {
     secret_store: SecretStore,

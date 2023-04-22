@@ -1,21 +1,23 @@
-use std::fmt::{self, Display};
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
+use std::{
+    fmt::{self, Display},
+    future::Future,
+    pin::Pin,
+    sync::Arc,
+};
 
 use anyhow::bail;
-use common::ln::channel::LxOutPoint;
-use common::notify;
-use common::shutdown::ShutdownChannel;
-use common::task::LxTask;
-use lightning::chain::chainmonitor::MonitorUpdateId;
-use lightning::chain::transaction::OutPoint;
+use common::{
+    ln::channel::LxOutPoint, notify, shutdown::ShutdownChannel, task::LxTask,
+};
+use lightning::chain::{chainmonitor::MonitorUpdateId, transaction::OutPoint};
 use tokio::sync::mpsc;
 use tracing::{debug, error, info};
 
-use crate::alias::LexeChainMonitorType;
-use crate::test_event::{TestEvent, TestEventSender};
-use crate::traits::LexePersister;
+use crate::{
+    alias::LexeChainMonitorType,
+    test_event::{TestEvent, TestEventSender},
+    traits::LexePersister,
+};
 
 type BoxedAnyhowFuture =
     Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'static>>;

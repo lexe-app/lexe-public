@@ -1,55 +1,72 @@
-use std::io::Cursor;
-use std::ops::Deref;
-use std::str::FromStr;
-use std::sync::{Arc, Mutex};
-use std::time::SystemTime;
+use std::{
+    io::Cursor,
+    ops::Deref,
+    str::FromStr,
+    sync::{Arc, Mutex},
+    time::SystemTime,
+};
 
 use anyhow::{anyhow, ensure, Context};
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
-use common::api::auth::{BearerAuthToken, BearerAuthenticator};
-use common::api::qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIds};
-use common::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
-use common::api::{Scid, User};
-use common::cli::Network;
-use common::constants::{
-    IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
+use common::{
+    api::{
+        auth::{BearerAuthToken, BearerAuthenticator},
+        qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIds},
+        vfs::{VfsDirectory, VfsFile, VfsFileId},
+        Scid, User,
+    },
+    cli::Network,
+    constants::{
+        IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
+    },
+    ln::{
+        channel::LxOutPoint,
+        payments::{BasicPayment, LxPaymentId, PaymentIndex},
+        peer::ChannelPeer,
+    },
+    shutdown::ShutdownChannel,
+    vfs_encrypt::VfsMasterKey,
 };
-use common::ln::channel::LxOutPoint;
-use common::ln::payments::{BasicPayment, LxPaymentId, PaymentIndex};
-use common::ln::peer::ChannelPeer;
-use common::shutdown::ShutdownChannel;
-use common::vfs_encrypt::VfsMasterKey;
-use lexe_ln::alias::{
-    BroadcasterType, ChannelMonitorType, FeeEstimatorType, NetworkGraphType,
-    ProbabilisticScorerType, RouterType, SignerType,
+use lexe_ln::{
+    alias::{
+        BroadcasterType, ChannelMonitorType, FeeEstimatorType,
+        NetworkGraphType, ProbabilisticScorerType, RouterType, SignerType,
+    },
+    channel_monitor::{ChannelMonitorUpdateKind, LxChannelMonitorUpdate},
+    keys_manager::LexeKeysManager,
+    logger::LexeTracingLogger,
+    payments::{
+        self,
+        manager::{CheckedPayment, PersistedPayment},
+        Payment,
+    },
+    traits::LexeInnerPersister,
+    wallet::db::{DbData, WalletDb},
 };
-use lexe_ln::channel_monitor::{
-    ChannelMonitorUpdateKind, LxChannelMonitorUpdate,
+use lightning::{
+    chain::{
+        chainmonitor::{MonitorUpdateId, Persist},
+        channelmonitor::ChannelMonitorUpdate,
+        transaction::OutPoint,
+        ChannelMonitorUpdateStatus,
+    },
+    ln::channelmanager::ChannelManagerReadArgs,
+    routing::{
+        gossip::NetworkGraph,
+        scoring::{ProbabilisticScorer, ProbabilisticScoringParameters},
+    },
+    util::ser::{ReadableArgs, Writeable},
 };
-use lexe_ln::keys_manager::LexeKeysManager;
-use lexe_ln::logger::LexeTracingLogger;
-use lexe_ln::payments::manager::{CheckedPayment, PersistedPayment};
-use lexe_ln::payments::{self, Payment};
-use lexe_ln::traits::LexeInnerPersister;
-use lexe_ln::wallet::db::{DbData, WalletDb};
-use lightning::chain::chainmonitor::{MonitorUpdateId, Persist};
-use lightning::chain::channelmonitor::ChannelMonitorUpdate;
-use lightning::chain::transaction::OutPoint;
-use lightning::chain::ChannelMonitorUpdateStatus;
-use lightning::ln::channelmanager::ChannelManagerReadArgs;
-use lightning::routing::gossip::NetworkGraph;
-use lightning::routing::scoring::{
-    ProbabilisticScorer, ProbabilisticScoringParameters,
-};
-use lightning::util::ser::{ReadableArgs, Writeable};
 use serde::Serialize;
 use tokio::sync::mpsc;
 use tracing::{debug, error, info, warn};
 
-use crate::alias::{ChainMonitorType, ChannelManagerType};
-use crate::api::BackendApiClient;
-use crate::channel_manager::USER_CONFIG;
+use crate::{
+    alias::{ChainMonitorType, ChannelManagerType},
+    api::BackendApiClient,
+    channel_manager::USER_CONFIG,
+};
 
 // Singleton objects use SINGLETON_DIRECTORY with a fixed filename
 const NETWORK_GRAPH_FILENAME: &str = "network_graph";

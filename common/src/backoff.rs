@@ -1,5 +1,4 @@
-use std::cmp::min;
-use std::time::Duration;
+use std::{cmp::min, time::Duration};
 
 use crate::const_assert;
 

@@ -1,10 +1,11 @@
-use lexe_ln::alias::{
-    LexeChainMonitorType, LexeChannelManagerType, LexePeerManagerType,
+use lexe_ln::{
+    alias::{
+        LexeChainMonitorType, LexeChannelManagerType, LexePeerManagerType,
+    },
+    payments::manager::PaymentsManager,
 };
-use lexe_ln::payments::manager::PaymentsManager;
 
-use crate::channel_manager::NodeChannelManager;
-use crate::persister::NodePersister;
+use crate::{channel_manager::NodeChannelManager, persister::NodePersister};
 
 pub(crate) type ChannelManagerType = LexeChannelManagerType<NodePersister>;
 
