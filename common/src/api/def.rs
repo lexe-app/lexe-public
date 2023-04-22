@@ -25,7 +25,9 @@ use super::fiat_rates::FiatRates;
 use crate::api::auth::{
     BearerAuthRequest, BearerAuthResponse, BearerAuthToken, UserSignupRequest,
 };
-use crate::api::command::{CreateInvoiceRequest, NodeInfo, PayInvoiceRequest};
+use crate::api::command::{
+    CreateInvoiceRequest, NodeInfo, PayInvoiceRequest, SendOnchainRequest,
+};
 use crate::api::error::{
     BackendApiError, LspApiError, NodeApiError, RunnerApiError,
 };
@@ -37,6 +39,7 @@ use crate::api::qs::{
 use crate::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
 use crate::api::{NodePk, Scid, User, UserPk};
 use crate::ed25519;
+use crate::ln::hashes::LxTxid;
 use crate::ln::invoice::LxInvoice;
 use crate::ln::payments::{BasicPayment, DbPayment, LxPaymentId};
 
@@ -265,6 +268,14 @@ pub trait AppNodeRunApi {
         &self,
         req: PayInvoiceRequest,
     ) -> Result<(), NodeApiError>;
+
+    /// POST /app/send_onchain [`SendOnchainRequest`] -> [`LxTxid`]
+    ///
+    /// Returns the [`LxTxid`] of the newly broadcasted transaction.
+    async fn send_onchain(
+        &self,
+        req: SendOnchainRequest,
+    ) -> Result<LxTxid, NodeApiError>;
 
     /// POST /v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
     ///
