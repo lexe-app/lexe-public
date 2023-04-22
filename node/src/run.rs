@@ -410,21 +410,15 @@ impl UserNode {
 
         // TODO(phlip9): authenticate runner<->node
         // Start warp service for runner
-        let runner_span = info_span!(parent: None, "(node-runner-api)");
-        let runner_routes = server::runner_routes(
-            runner_span.id(),
-            args.user_pk,
-            shutdown.clone(),
-        );
         let runner_bind_addr =
             (Ipv4Addr::new(127, 0, 0, 1), args.runner_port.unwrap_or(0));
         let (runner_task, runner_addr) =
             rest::serve_routes_with_listener_and_shutdown(
-                runner_routes,
+                server::runner_routes(args.user_pk, shutdown.clone()),
                 shutdown.clone().recv_owned(),
                 TcpListener::bind(runner_bind_addr)?,
                 "node runner api",
-                runner_span,
+                info_span!(parent: None, "(node-runner-api)"),
             )
             .context("Failed to serve node runner api")?;
 

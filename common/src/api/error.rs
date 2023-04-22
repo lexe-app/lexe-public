@@ -7,12 +7,13 @@
 use std::error::Error;
 use std::fmt;
 
-use http::status::StatusCode as Status; // So the consts  fit in 80 chars
 #[cfg(all(test, not(target_env = "sgx")))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
+// So the consts fit in 80 chars
+use warp::http::status::StatusCode as Status;
 
 use crate::api::{auth, NodePk, UserPk};
 use crate::hex;

@@ -37,10 +37,11 @@ use common::rng::{Crng, SysRng};
 use common::root_seed::RootSeed;
 use common::shutdown::ShutdownChannel;
 use common::{ed25519, enclave};
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, info, instrument, warn, Span};
+use warp::filters::BoxedFilter;
 use warp::http::Response;
 use warp::hyper::Body;
-use warp::{Filter, Rejection};
+use warp::Filter;
 
 use crate::api::BackendApiClient;
 
@@ -90,6 +91,8 @@ pub async fn provision_node<R: Crng>(
         rng: SysRng::new(),
     };
     let routes = app_routes(ctx);
+    // TODO(phlip9): remove when rest::serve_* supports TLS
+    let routes = routes.with(rest::trace_requests(Span::current().id()));
 
     // Set up the TLS config.
     let tls_config = tls::node_provision_tls_config(rng, args.node_dns_name)
@@ -140,15 +143,15 @@ pub async fn provision_node<R: Crng>(
 /// Implements [`AppNodeProvisionApi`] - only callable by the node owner.
 ///
 /// [`AppNodeProvisionApi`]: common::api::def::AppNodeProvisionApi
-fn app_routes(
-    ctx: RequestContext,
-) -> impl Filter<Extract = (Response<Body>,), Error = Rejection> + Clone {
-    warp::path::path("provision")
+fn app_routes(ctx: RequestContext) -> BoxedFilter<(Response<Body>,)> {
+    let routes = warp::path::path("provision")
         .and(warp::post())
         .and(with_request_context(ctx))
         .and(warp::body::json::<NodeProvisionRequest>())
         .then(provision_handler)
-        .map(rest::into_response)
+        .map(rest::into_response);
+
+    routes.boxed()
 }
 
 /// Handles a provision request.

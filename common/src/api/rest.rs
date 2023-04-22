@@ -6,10 +6,6 @@ use std::time::Duration;
 use anyhow::Context;
 use bytes::Bytes;
 use futures::future::BoxFuture;
-use http::header::{HeaderValue, CONTENT_TYPE};
-use http::response::Response;
-use http::status::StatusCode;
-use http::Method;
 use reqwest::IntoUrl;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -18,8 +14,12 @@ use tracing::{
     debug, error, field, info, info_span, span, warn, Instrument, Span,
 };
 use warp::filters::BoxedFilter;
+use warp::http::header::{HeaderValue, CONTENT_TYPE};
+use warp::http::response::Response;
+use warp::http::status::StatusCode;
+use warp::http::Method;
 use warp::hyper::Body;
-use warp::Rejection;
+use warp::{Filter, Rejection};
 
 use crate::api::error::{
     ErrorCode, ErrorResponse, RestClientError, RestClientErrorKind,
@@ -76,7 +76,7 @@ fn serve_routes_with_listener_and_shutdown_boxed(
     task_name: &'static str,
     span: Span,
 ) -> anyhow::Result<(LxTask<()>, SocketAddr)> {
-    let api_service = warp::service(routes);
+    let api_service = warp::service(routes.with(trace_requests(span.id())));
     let make_service = hyper::service::make_service_fn(move |_| {
         let api_service_clone = api_service.clone();
         async move { Ok::<_, Infallible>(api_service_clone) }

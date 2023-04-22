@@ -11,6 +11,7 @@ use std::time::SystemTime;
 use anyhow::Context;
 use async_trait::async_trait;
 use reqwest::{IntoProxyScheme, Url};
+use warp::http;
 
 use crate::api::auth::{
     BearerAuthRequest, BearerAuthResponse, BearerAuthenticator,

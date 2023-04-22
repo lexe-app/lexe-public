@@ -146,7 +146,6 @@ pub(crate) fn app_routes(
 ///
 /// [`RunnerNodeApi`]: common::api::def::RunnerNodeApi
 pub(crate) fn runner_routes(
-    parent_span: Option<span::Id>,
     current_pk: UserPk,
     shutdown: ShutdownChannel,
 ) -> BoxedFilter<(Response<Body>,)> {
@@ -168,5 +167,5 @@ pub(crate) fn runner_routes(
         .and(status.or(shutdown))
         .map(Reply::into_response);
 
-    routes.with(rest::trace_requests(parent_span)).boxed()
+    routes.boxed()
 }
