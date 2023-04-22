@@ -382,6 +382,8 @@ impl UserNode {
         let app_routes = server::app_routes(
             app_span.id(),
             persister.clone(),
+            wallet.clone(),
+            esplora.clone(),
             router.clone(),
             channel_manager.clone(),
             peer_manager.clone(),

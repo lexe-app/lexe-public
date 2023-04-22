@@ -12,7 +12,9 @@
 
 use std::sync::Arc;
 
-use common::api::command::{CreateInvoiceRequest, PayInvoiceRequest};
+use common::api::command::{
+    CreateInvoiceRequest, PayInvoiceRequest, SendOnchainRequest,
+};
 use common::api::qs::{
     GetByUserPk, GetNewPayments, GetPaymentsByIds, UpdatePaymentNote,
 };
@@ -21,7 +23,9 @@ use common::cli::{LspInfo, Network};
 use common::shutdown::ShutdownChannel;
 use lexe_ln::alias::RouterType;
 use lexe_ln::command::CreateInvoiceCaller;
+use lexe_ln::esplora::LexeEsplora;
 use lexe_ln::keys_manager::LexeKeysManager;
+use lexe_ln::wallet::LexeWallet;
 use tokio::sync::mpsc;
 use tracing::{span, trace};
 use warp::filters::BoxedFilter;
@@ -45,6 +49,8 @@ mod runner;
 pub(crate) fn app_routes(
     parent_span: Option<span::Id>,
     persister: NodePersister,
+    wallet: LexeWallet,
+    esplora: Arc<LexeEsplora>,
     router: Arc<RouterType>,
     channel_manager: NodeChannelManager,
     peer_manager: NodePeerManager,
@@ -91,6 +97,15 @@ pub(crate) fn app_routes(
         .then(lexe_ln::command::pay_invoice)
         .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
+    let send_onchain = warp::path("send_onchain")
+        .and(warp::post())
+        .and(warp::body::json::<SendOnchainRequest>())
+        .and(inject::wallet(wallet))
+        .and(inject::esplora(esplora))
+        .and(inject::payments_manager(payments_manager.clone()))
+        .then(lexe_ln::command::send_onchain)
+        .map(convert::anyhow_to_command_api_result)
+        .map(rest::into_response);
 
     let get_payments_by_ids = warp::path("ids")
         .and(warp::post())
@@ -123,6 +138,7 @@ pub(crate) fn app_routes(
         node_info
             .or(create_invoice)
             .or(pay_invoice)
+            .or(send_onchain)
             .or(payments)
             .map(Reply::into_response),
     );
@@ -198,6 +214,19 @@ mod inject {
     ) -> impl Filter<Extract = (NodePersister,), Error = Infallible> + Clone
     {
         warp::any().map(move || persister.clone())
+    }
+
+    pub(super) fn wallet(
+        wallet: LexeWallet,
+    ) -> impl Filter<Extract = (LexeWallet,), Error = Infallible> + Clone {
+        warp::any().map(move || wallet.clone())
+    }
+
+    pub(super) fn esplora(
+        esplora: Arc<LexeEsplora>,
+    ) -> impl Filter<Extract = (Arc<LexeEsplora>,), Error = Infallible> + Clone
+    {
+        warp::any().map(move || esplora.clone())
     }
 
     pub(super) fn router(
