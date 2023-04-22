@@ -516,6 +516,8 @@ impl RestClient {
         &self,
         mut request: reqwest::Request,
     ) -> Result<Result<Bytes, ErrorResponse>, RestClientError> {
+        let start = tokio::time::Instant::now().into_std();
+
         // set default timeout if unset
         let timeout = request.timeout_mut();
         if timeout.is_none() {
@@ -526,7 +528,8 @@ impl RestClient {
 
         // send the request, await the response headers
         let resp = self.client.execute(request).await.map_err(|err| {
-            warn!(target: "http", "error sending: {err:#}");
+            let time = start.elapsed();
+            warn!(target: "http", ?time, "error sending: {err:#}");
             err
         })?;
 
@@ -536,30 +539,37 @@ impl RestClient {
         if resp.status().is_success() {
             // success => await response body
             let bytes = resp.bytes().await.map_err(|err| {
+                let time = start.elapsed();
                 warn!(
                     target: "http",
                     %status,
+                    ?time,
                     "error receiving successful response body: {err:#}",
                 );
                 err
             })?;
 
-            info!(target: "http", %status, "done (success)");
+            let time = start.elapsed();
+            info!(target: "http", %status, ?time, "done (success)");
             Ok(Ok(bytes))
         } else {
             // http error => await response json and convert to ErrorResponse
             let err = resp.json::<ErrorResponse>().await.map_err(|err| {
+                let time = start.elapsed();
                 warn!(
                     target: "http",
                     %status,
+                    ?time,
                     "error receiving ErrorResponse json: {err:#}",
                 );
                 err
             })?;
 
+            let time = start.elapsed();
             warn!(
                 target: "http",
                 %status,
+                ?time,
                 err_code = %err.code,
                 err_msg = %err.msg,
                 "error response",
