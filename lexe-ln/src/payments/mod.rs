@@ -413,13 +413,14 @@ impl Payment {
 impl From<OnchainSendStatus> for PaymentStatus {
     fn from(specific_status: OnchainSendStatus) -> Self {
         match specific_status {
-            OnchainSendStatus::AwaitingBroadcast => Self::Pending,
-            OnchainSendStatus::Confirming => Self::Pending,
-            OnchainSendStatus::Completed => Self::Completed,
-            // Setting this as 'Failed' is a weird since the 'failure' is
-            // intended, but adding another PaymentStatus doesn't seem worth it?
-            OnchainSendStatus::Replaced => Self::Failed,
-            OnchainSendStatus::Reorged => Self::Failed,
+            OnchainSendStatus::Created => Self::Pending,
+            OnchainSendStatus::Broadcasted => Self::Pending,
+            OnchainSendStatus::PartiallyConfirmed => Self::Pending,
+            OnchainSendStatus::ReplacementBroadcasted => Self::Pending,
+            OnchainSendStatus::PartiallyReplaced => Self::Pending,
+            OnchainSendStatus::FullyConfirmed => Self::Completed,
+            OnchainSendStatus::FullyReplaced => Self::Failed,
+            OnchainSendStatus::Dropped => Self::Failed,
         }
     }
 }
@@ -427,10 +428,12 @@ impl From<OnchainSendStatus> for PaymentStatus {
 impl From<OnchainReceiveStatus> for PaymentStatus {
     fn from(specific_status: OnchainReceiveStatus) -> Self {
         match specific_status {
-            OnchainReceiveStatus::Confirming => Self::Pending,
-            OnchainReceiveStatus::Completed => Self::Completed,
-            OnchainReceiveStatus::Replaced => Self::Failed,
-            OnchainReceiveStatus::Reorged => Self::Failed,
+            OnchainReceiveStatus::Zeroconf => Self::Pending,
+            OnchainReceiveStatus::PartiallyConfirmed => Self::Pending,
+            OnchainReceiveStatus::PartiallyReplaced => Self::Pending,
+            OnchainReceiveStatus::FullyConfirmed => Self::Completed,
+            OnchainReceiveStatus::FullyReplaced => Self::Failed,
+            OnchainReceiveStatus::Dropped => Self::Failed,
         }
     }
 }
@@ -481,11 +484,17 @@ impl From<OutboundSpontaneousPaymentStatus> for PaymentStatus {
 impl OnchainSendStatus {
     pub fn as_str(&self) -> &str {
         match self {
-            Self::AwaitingBroadcast => "awaiting broadcast",
-            Self::Confirming => "confirming",
-            Self::Completed => "completed",
-            Self::Replaced => "replaced",
-            Self::Reorged => "reorged",
+            Self::Created => "created",
+            Self::Broadcasted => "broadcasted",
+            Self::PartiallyConfirmed =>
+                "partially confirmed (1-5 confirmations)",
+            Self::ReplacementBroadcasted => "being replaced",
+            Self::PartiallyReplaced =>
+                "being replaced (replacement has 1-5 confirmations)",
+            Self::FullyConfirmed => "fully confirmed (6+ confirmations)",
+            Self::FullyReplaced =>
+                "fully replaced (replacement has 6+ confirmations)",
+            Self::Dropped => "dropped from mempool",
         }
     }
 }
@@ -493,10 +502,15 @@ impl OnchainSendStatus {
 impl OnchainReceiveStatus {
     pub fn as_str(&self) -> &str {
         match self {
-            Self::Confirming => "confirming",
-            Self::Completed => "completed",
-            Self::Replaced => "replaced",
-            Self::Reorged => "reorged",
+            Self::Zeroconf => "zeroconf",
+            Self::PartiallyConfirmed =>
+                "partially confirmed (1-5 confirmations)",
+            Self::PartiallyReplaced =>
+                "being replaced (replacement has 1-5 confirmations)",
+            Self::FullyConfirmed => "fully confirmed (6+ confirmations)",
+            Self::FullyReplaced =>
+                "fully replaced (replacement has 6+ confirmations)",
+            Self::Dropped => "dropped from mempool",
         }
     }
 }
