@@ -13,7 +13,6 @@
 use std::sync::Arc;
 
 use common::api::command::{CreateInvoiceRequest, PayInvoiceRequest};
-use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::qs::{
     GetByUserPk, GetNewPayments, GetPaymentsByIds, UpdatePaymentNote,
 };
@@ -39,17 +38,6 @@ use crate::persister::NodePersister;
 mod app;
 /// Handlers for commands that can only be initiated by the runner (Lexe).
 mod runner;
-
-/// Converts the `anyhow::Result<T>`s returned by [`lexe_ln::command`] into
-/// `Result<T, NodeApiError>`s with error kind [`NodeErrorKind::Command`].
-fn into_command_api_result<T>(
-    anyhow_res: anyhow::Result<T>,
-) -> Result<T, NodeApiError> {
-    anyhow_res.map_err(|e| NodeApiError {
-        kind: NodeErrorKind::Command,
-        msg: format!("{e:#}"),
-    })
-}
 
 /// Implements [`AppNodeRunApi`] - endpoints only callable by the app.
 ///
@@ -92,7 +80,7 @@ pub(crate) fn app_routes(
         ))
         .and(inject::network(network))
         .then(lexe_ln::command::create_invoice)
-        .map(into_command_api_result)
+        .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
     let pay_invoice = warp::path("pay_invoice")
         .and(warp::post())
@@ -101,7 +89,7 @@ pub(crate) fn app_routes(
         .and(inject::channel_manager(channel_manager))
         .and(inject::payments_manager(payments_manager.clone()))
         .then(lexe_ln::command::pay_invoice)
-        .map(into_command_api_result)
+        .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
 
     let get_payments_by_ids = warp::path("ids")
@@ -109,18 +97,21 @@ pub(crate) fn app_routes(
         .and(warp::body::json::<GetPaymentsByIds>())
         .and(inject::persister(persister.clone()))
         .then(app::get_payments_by_ids)
+        .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
     let get_new_payments = warp::path("new")
         .and(warp::get())
         .and(warp::query::<GetNewPayments>())
         .and(inject::persister(persister))
         .then(app::get_new_payments)
+        .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
     let update_payment_note = warp::path("note")
         .and(warp::put())
         .and(warp::body::json::<UpdatePaymentNote>())
         .and(inject::payments_manager(payments_manager))
         .then(app::update_payment_note)
+        .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
     let payments = warp::path("payments").and(
         get_payments_by_ids
@@ -166,6 +157,21 @@ pub(crate) fn runner_routes(
         .map(Reply::into_response);
 
     routes.boxed()
+}
+
+mod convert {
+    use common::api::error::{NodeApiError, NodeErrorKind};
+
+    /// Converts `anyhow::Result<T>`s to `Result<T, NodeApiError>`s
+    /// with error kind [`NodeErrorKind::Command`].
+    pub(super) fn anyhow_to_command_api_result<T>(
+        anyhow_res: anyhow::Result<T>,
+    ) -> Result<T, NodeApiError> {
+        anyhow_res.map_err(|e| NodeApiError {
+            kind: NodeErrorKind::Command,
+            msg: format!("{e:#}"),
+        })
+    }
 }
 
 /// Warp filters for injecting data needed by subsequent filters
