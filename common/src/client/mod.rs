@@ -17,7 +17,9 @@ use crate::api::auth::{
     BearerAuthRequest, BearerAuthResponse, BearerAuthenticator,
     UserSignupRequest,
 };
-use crate::api::command::{CreateInvoiceRequest, NodeInfo, PayInvoiceRequest};
+use crate::api::command::{
+    CreateInvoiceRequest, NodeInfo, PayInvoiceRequest, SendOnchainRequest,
+};
 use crate::api::def::{
     AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
     BearerAuthBackendApi,
@@ -31,6 +33,7 @@ use crate::api::qs::{
     EmptyData, GetNewPayments, GetPaymentsByIds, UpdatePaymentNote,
 };
 use crate::api::rest::{RequestBuilderExt, RestClient, GET, POST};
+use crate::ln::hashes::LxTxid;
 use crate::ln::invoice::LxInvoice;
 use crate::ln::payments::BasicPayment;
 use crate::rng::Crng;
@@ -336,6 +339,17 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/pay_invoice");
+        let req = self.rest.post(url, &req);
+        self.rest.send(req).await
+    }
+
+    async fn send_onchain(
+        &self,
+        req: SendOnchainRequest,
+    ) -> Result<LxTxid, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/send_onchain");
         let req = self.rest.post(url, &req);
         self.rest.send(req).await
     }
