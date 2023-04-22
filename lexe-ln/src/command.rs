@@ -21,7 +21,7 @@ use lightning::routing::router::{
 };
 use lightning::util::errors::APIError;
 use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
-use tracing::{debug, info, warn};
+use tracing::{debug, info, instrument, warn};
 
 use crate::alias::RouterType;
 use crate::keys_manager::LexeKeysManager;
@@ -72,6 +72,7 @@ where
     }
 }
 
+#[instrument(skip_all, name = "(create-invoice)")]
 pub async fn create_invoice<CM, PS>(
     req: CreateInvoiceRequest,
     channel_manager: CM,
@@ -177,6 +178,7 @@ where
     Ok(invoice)
 }
 
+#[instrument(skip_all, name = "(pay-invoice)")]
 pub async fn pay_invoice<CM, PS>(
     req: PayInvoiceRequest,
     router: Arc<RouterType>,
