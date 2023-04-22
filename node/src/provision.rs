@@ -29,8 +29,7 @@ use common::api::def::NodeRunnerApi;
 use common::api::error::{NodeApiError, NodeErrorKind};
 use common::api::ports::UserPorts;
 use common::api::provision::{NodeProvisionRequest, SealedSeed};
-use common::api::rest::into_response;
-use common::api::{NodePk, UserPk};
+use common::api::{rest, NodePk, UserPk};
 use common::cli::node::ProvisionArgs;
 use common::client::tls;
 use common::enclave::Measurement;
@@ -149,7 +148,7 @@ fn app_routes(
         .and(with_request_context(ctx))
         .and(warp::body::json::<NodeProvisionRequest>())
         .then(provision_handler)
-        .map(into_response)
+        .map(rest::into_response)
 }
 
 /// Handles a provision request.

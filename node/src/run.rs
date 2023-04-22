@@ -1,3 +1,4 @@
+use std::net::{Ipv4Addr, TcpListener};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -6,7 +7,7 @@ use common::api::auth::BearerAuthenticator;
 use common::api::def::NodeRunnerApi;
 use common::api::ports::UserPorts;
 use common::api::provision::SealedSeedId;
-use common::api::{Scid, User, UserPk};
+use common::api::{rest, Scid, User, UserPk};
 use common::cli::node::RunArgs;
 use common::cli::LspInfo;
 use common::client::tls::node_run_tls_config;
@@ -415,20 +416,21 @@ impl UserNode {
             args.user_pk,
             shutdown.clone(),
         );
-        let (runner_addr, runner_service_fut) = warp::serve(runner_routes)
-            // A value of 0 indicates that the OS will assign a port for us
-            .try_bind_with_graceful_shutdown(
-                ([127, 0, 0, 1], args.runner_port.unwrap_or(0)),
+        let runner_bind_addr =
+            (Ipv4Addr::new(127, 0, 0, 1), args.runner_port.unwrap_or(0));
+        let (runner_task, runner_addr) =
+            rest::serve_routes_with_listener_and_shutdown(
+                runner_routes,
                 shutdown.clone().recv_owned(),
+                TcpListener::bind(runner_bind_addr)?,
+                "node runner api",
+                runner_span,
             )
-            .context("Failed to bind warp")?;
+            .context("Failed to serve node runner api")?;
+
         let runner_port = runner_addr.port();
-        info!("Runner service listening on port {}", runner_port);
-        tasks.push(LxTask::spawn_named_with_span(
-            "node runner api",
-            runner_span,
-            runner_service_fut,
-        ));
+        info!("Runner service listening on port {runner_port}");
+        tasks.push(runner_task);
 
         // Prepare the ports that we'll notify the runner of once we're ready
         let user_ports = UserPorts::new_run(user_pk, app_port, runner_port);
