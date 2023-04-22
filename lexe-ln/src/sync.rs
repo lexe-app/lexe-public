@@ -1,18 +1,20 @@
-use std::sync::Arc;
-use std::time::Instant;
+use std::{sync::Arc, time::Instant};
 
 use anyhow::{anyhow, Context};
-use common::shutdown::ShutdownChannel;
-use common::task::LxTask;
+use common::{shutdown::ShutdownChannel, task::LxTask};
 use lightning::chain::Confirm;
-use tokio::sync::{oneshot, watch};
-use tokio::time::{self, Duration};
+use tokio::{
+    sync::{oneshot, watch},
+    time::{self, Duration},
+};
 use tracing::{debug, error, info};
 
-use crate::alias::EsploraSyncClientType;
-use crate::test_event::{TestEvent, TestEventSender};
-use crate::traits::{LexeChainMonitor, LexeChannelManager, LexePersister};
-use crate::wallet::LexeWallet;
+use crate::{
+    alias::EsploraSyncClientType,
+    test_event::{TestEvent, TestEventSender},
+    traits::{LexeChainMonitor, LexeChannelManager, LexePersister},
+    wallet::LexeWallet,
+};
 
 /// How often the BDK / LDK sync tasks re-sync to the latest chain tip.
 // This should be fairly infrequent because both sync using a transaction-based

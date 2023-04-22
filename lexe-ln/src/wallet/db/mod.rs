@@ -1,20 +1,25 @@
-use std::cmp::{Ord, Ordering, PartialOrd};
-use std::collections::BTreeMap;
-use std::fmt::{self, Display};
-use std::mem;
-use std::str::FromStr;
-use std::sync::{Arc, Mutex};
+use std::{
+    cmp::{Ord, Ordering, PartialOrd},
+    collections::BTreeMap,
+    fmt::{self, Display},
+    mem,
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 
 use anyhow::{bail, Context};
-use bdk::database::{BatchDatabase, BatchOperations, Database, SyncTime};
-use bdk::{BlockTime, KeychainKind, LocalUtxo, TransactionDetails};
+use bdk::{
+    database::{BatchDatabase, BatchOperations, Database, SyncTime},
+    BlockTime, KeychainKind, LocalUtxo, TransactionDetails,
+};
 use bitcoin::{OutPoint, Script, Transaction, Txid};
 #[cfg(test)]
 use common::constants::SMALLER_CHANNEL_SIZE;
 use serde::{Deserialize, Serialize, Serializer};
-use serde_with::formats::Lowercase;
-use serde_with::hex::Hex;
-use serde_with::{serde_as, DeserializeFromStr, SerializeDisplay};
+use serde_with::{
+    formats::Lowercase, hex::Hex, serde_as, DeserializeFromStr,
+    SerializeDisplay,
+};
 use tokio::sync::mpsc;
 use tracing::{error, info, warn};
 
@@ -1160,10 +1165,12 @@ impl BatchOperations for DbData {
 #[cfg(test)]
 mod test {
     use common::test_utils::{arbitrary, roundtrip};
-    use proptest::arbitrary::{any, Arbitrary};
-    use proptest::strategy::{BoxedStrategy, Just, Strategy};
-    use proptest::test_runner::Config;
-    use proptest::{prop_assert_eq, proptest};
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        prop_assert_eq, proptest,
+        strategy::{BoxedStrategy, Just, Strategy},
+        test_runner::Config,
+    };
 
     use super::*;
 

@@ -5,12 +5,12 @@ use anyhow::ensure;
 #[cfg(all(target_env = "sgx", not(debug_assertions)))]
 use anyhow::Context;
 use async_trait::async_trait;
-use common::api::auth::BearerAuthToken;
-use common::api::def::{
-    BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi,
+use common::api::{
+    auth::BearerAuthToken,
+    def::{BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi},
+    error::BackendApiError,
+    vfs::VfsFile,
 };
-use common::api::error::BackendApiError;
-use common::api::vfs::VfsFile;
 
 /// Real clients.
 pub(crate) mod client;

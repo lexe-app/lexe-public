@@ -4,29 +4,35 @@
 //! [`common::ln::payments`].
 
 use anyhow::Context;
-use common::ln::amount::Amount;
-use common::ln::invoice::LxInvoice;
-use common::ln::payments::{
-    BasicPayment, DbPayment, LxPaymentId, PaymentDirection, PaymentKind,
-    PaymentStatus,
+use common::{
+    ln::{
+        amount::Amount,
+        invoice::LxInvoice,
+        payments::{
+            BasicPayment, DbPayment, LxPaymentId, PaymentDirection,
+            PaymentKind, PaymentStatus,
+        },
+    },
+    rng::Crng,
+    time::TimestampMs,
+    vfs_encrypt::VfsMasterKey,
 };
-use common::rng::Crng;
-use common::time::TimestampMs;
-use common::vfs_encrypt::VfsMasterKey;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-use crate::payments::inbound::{
-    InboundInvoicePayment, InboundInvoicePaymentStatus,
-    InboundSpontaneousPayment, InboundSpontaneousPaymentStatus,
-};
-use crate::payments::onchain::{
-    OnchainReceive, OnchainReceiveStatus, OnchainSend, OnchainSendStatus,
-};
-use crate::payments::outbound::{
-    OutboundInvoicePayment, OutboundInvoicePaymentStatus,
-    OutboundSpontaneousPayment, OutboundSpontaneousPaymentStatus,
+use crate::payments::{
+    inbound::{
+        InboundInvoicePayment, InboundInvoicePaymentStatus,
+        InboundSpontaneousPayment, InboundSpontaneousPaymentStatus,
+    },
+    onchain::{
+        OnchainReceive, OnchainReceiveStatus, OnchainSend, OnchainSendStatus,
+    },
+    outbound::{
+        OutboundInvoicePayment, OutboundInvoicePaymentStatus,
+        OutboundSpontaneousPayment, OutboundSpontaneousPaymentStatus,
+    },
 };
 
 /// Inbound Lightning payments.
@@ -538,12 +544,12 @@ impl OutboundSpontaneousPaymentStatus {
 
 #[cfg(test)]
 mod test {
-    use common::rng::WeakRng;
-    use common::test_utils::roundtrip;
-    use common::vfs_encrypt::VfsMasterKey;
-    use proptest::arbitrary::any;
-    use proptest::test_runner::Config;
-    use proptest::{prop_assert_eq, proptest};
+    use common::{
+        rng::WeakRng, test_utils::roundtrip, vfs_encrypt::VfsMasterKey,
+    };
+    use proptest::{
+        arbitrary::any, prop_assert_eq, proptest, test_runner::Config,
+    };
 
     use super::*;
 

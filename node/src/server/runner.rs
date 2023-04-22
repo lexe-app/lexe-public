@@ -1,7 +1,7 @@
-use common::api::error::NodeApiError;
-use common::api::qs::GetByUserPk;
-use common::api::UserPk;
-use common::shutdown::ShutdownChannel;
+use common::{
+    api::{error::NodeApiError, qs::GetByUserPk, UserPk},
+    shutdown::ShutdownChannel,
+};
 
 pub async fn status(
     given: GetByUserPk,

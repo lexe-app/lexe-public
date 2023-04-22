@@ -1,18 +1,21 @@
-use std::ops::Deref;
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 
-use bitcoin::blockdata::constants;
-use bitcoin::BlockHash;
+use bitcoin::{blockdata::constants, BlockHash};
 use common::cli::Network;
-use lexe_ln::alias::{BroadcasterType, FeeEstimatorType, RouterType};
-use lexe_ln::keys_manager::LexeKeysManager;
-use lexe_ln::logger::LexeTracingLogger;
-use lightning::chain::BestBlock;
-use lightning::ln::channelmanager::{
-    ChainParameters, ChannelManager, MIN_CLTV_EXPIRY_DELTA,
+use lexe_ln::{
+    alias::{BroadcasterType, FeeEstimatorType, RouterType},
+    keys_manager::LexeKeysManager,
+    logger::LexeTracingLogger,
 };
-use lightning::util::config::{
-    ChannelConfig, ChannelHandshakeConfig, ChannelHandshakeLimits, UserConfig,
+use lightning::{
+    chain::BestBlock,
+    ln::channelmanager::{
+        ChainParameters, ChannelManager, MIN_CLTV_EXPIRY_DELTA,
+    },
+    util::config::{
+        ChannelConfig, ChannelHandshakeConfig, ChannelHandshakeLimits,
+        UserConfig,
+    },
 };
 use tracing::{debug, info};
 

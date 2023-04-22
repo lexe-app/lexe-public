@@ -1,21 +1,29 @@
-use std::ops::Deref;
-use std::sync::Mutex;
+use std::{ops::Deref, sync::Mutex};
 
 use async_trait::async_trait;
-use common::api::vfs::VfsFile;
-use common::ln::payments::{LxPaymentId, PaymentIndex};
-use common::ln::peer::ChannelPeer;
-use lightning::chain::chainmonitor::Persist;
-use lightning::util::events::EventHandler;
-use lightning::util::ser::Writeable;
+use common::{
+    api::vfs::VfsFile,
+    ln::{
+        payments::{LxPaymentId, PaymentIndex},
+        peer::ChannelPeer,
+    },
+};
+use lightning::{
+    chain::chainmonitor::Persist,
+    util::{events::EventHandler, ser::Writeable},
+};
 use serde::Serialize;
 
-use crate::alias::{
-    LexeChainMonitorType, LexeChannelManagerType, LexePeerManagerType,
-    NetworkGraphType, ProbabilisticScorerType, SignerType,
+use crate::{
+    alias::{
+        LexeChainMonitorType, LexeChannelManagerType, LexePeerManagerType,
+        NetworkGraphType, ProbabilisticScorerType, SignerType,
+    },
+    payments::{
+        manager::{CheckedPayment, PersistedPayment},
+        Payment,
+    },
 };
-use crate::payments::manager::{CheckedPayment, PersistedPayment};
-use crate::payments::Payment;
 
 /// Defines all the persister methods needed in shared Lexe LN logic.
 #[async_trait]

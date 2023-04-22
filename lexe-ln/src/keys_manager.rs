@@ -1,13 +1,14 @@
-use std::ops::Deref;
-use std::sync::Arc;
+use std::{ops::Deref, sync::Arc};
 
 use anyhow::ensure;
-use bitcoin::blockdata::script::Script;
-use bitcoin::blockdata::transaction::{Transaction, TxOut};
-use bitcoin::secp256k1::{Secp256k1, Signing};
-use common::api::NodePk;
-use common::rng::Crng;
-use common::root_seed::RootSeed;
+use bitcoin::{
+    blockdata::{
+        script::Script,
+        transaction::{Transaction, TxOut},
+    },
+    secp256k1::{Secp256k1, Signing},
+};
+use common::{api::NodePk, rng::Crng, root_seed::RootSeed};
 use lightning::chain::keysinterface::{
     KeysManager, NodeSigner, Recipient, SpendableOutputDescriptor,
 };
@@ -112,8 +113,7 @@ impl LexeKeysManager {
 #[cfg(test)]
 mod test {
     use common::rng::WeakRng;
-    use proptest::arbitrary::any;
-    use proptest::{prop_assert_eq, proptest};
+    use proptest::{arbitrary::any, prop_assert_eq, proptest};
 
     use super::*;
 

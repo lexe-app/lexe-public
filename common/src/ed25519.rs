@@ -46,9 +46,12 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use x509_parser::x509::SubjectPublicKeyInfo;
 
-use crate::hex::{self, FromHex};
-use crate::rng::Crng;
-use crate::{const_assert_usize_eq, const_ref_cast, sha256};
+use crate::{
+    const_assert_usize_eq, const_ref_cast,
+    hex::{self, FromHex},
+    rng::Crng,
+    sha256,
+};
 
 /// The standard PKCS OID for Ed25519
 #[rustfmt::skip]
@@ -760,9 +763,7 @@ fn deserialize_pkcs8(bytes: &[u8]) -> Option<(&[u8; 32], &[u8; 32])> {
 
 #[cfg(test)]
 mod test {
-    use proptest::arbitrary::any;
-    use proptest::strategy::Strategy;
-    use proptest::{prop_assume, proptest};
+    use proptest::{arbitrary::any, prop_assume, proptest, strategy::Strategy};
     use proptest_derive::Arbitrary;
 
     use super::*;

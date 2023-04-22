@@ -9,18 +9,19 @@ mod sgx;
 #[cfg(not(target_env = "sgx"))]
 mod mock;
 
-use std::borrow::Cow;
-use std::str::FromStr;
-use std::{fmt, io, mem};
+use std::{borrow::Cow, fmt, io, mem, str::FromStr};
 
 use bytes::{Buf, BufMut};
 use cfg_if::cfg_if;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::hex::{self, FromHex};
-use crate::rng::Crng;
-use crate::{hexstr_or_bytes, sha256};
+use crate::{
+    hex::{self, FromHex},
+    hexstr_or_bytes,
+    rng::Crng,
+    sha256,
+};
 
 pub const MOCK_MEASUREMENT: Measurement =
     Measurement::new(*b"~~~~~~~ LEXE MOCK ENCLAVE ~~~~~~");
@@ -382,9 +383,7 @@ pub fn machine_id() -> MachineId {
 
 #[cfg(test)]
 mod test {
-    use proptest::arbitrary::any;
-    use proptest::strategy::Strategy;
-    use proptest::{prop_assume, proptest};
+    use proptest::{arbitrary::any, prop_assume, proptest, strategy::Strategy};
 
     use super::*;
     use crate::rng::WeakRng;

@@ -2,11 +2,13 @@ use anyhow::{ensure, Context};
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 
-use crate::api::{NodePk, UserPk};
-use crate::enclave::{self, MachineId, Measurement, Sealed};
-use crate::hexstr_or_bytes;
-use crate::rng::Crng;
-use crate::root_seed::RootSeed;
+use crate::{
+    api::{NodePk, UserPk},
+    enclave::{self, MachineId, Measurement, Sealed},
+    hexstr_or_bytes,
+    rng::Crng,
+    root_seed::RootSeed,
+};
 
 /// The client sends this provisioning request to the node.
 #[derive(Debug, Serialize, Deserialize)]
@@ -128,8 +130,10 @@ impl SealedSeed {
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod prop {
-    use proptest::arbitrary::{any, Arbitrary};
-    use proptest::strategy::{BoxedStrategy, Strategy};
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
 
     use super::*;
     use crate::rng::WeakRng;
@@ -170,8 +174,7 @@ mod test {
     use secrecy::ExposeSecret;
 
     use super::*;
-    use crate::rng::WeakRng;
-    use crate::test_utils::roundtrip;
+    use crate::{rng::WeakRng, test_utils::roundtrip};
 
     #[test]
     fn test_node_provision_request_sample() {

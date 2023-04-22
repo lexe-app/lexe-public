@@ -1,20 +1,23 @@
 use std::time::Duration;
 
 use anyhow::{bail, ensure};
-use common::ln::amount::Amount;
-use common::ln::invoice::LxInvoice;
-use common::ln::payments::{LxPaymentHash, LxPaymentPreimage, LxPaymentSecret};
 #[cfg(test)]
 use common::test_utils::arbitrary;
-use common::time::TimestampMs;
+use common::{
+    ln::{
+        amount::Amount,
+        invoice::LxInvoice,
+        payments::{LxPaymentHash, LxPaymentPreimage, LxPaymentSecret},
+    },
+    time::TimestampMs,
+};
 #[cfg(doc)]
 use lightning::ln::channelmanager::ChannelManager;
-use lightning::ln::channelmanager::Retry;
-use lightning::routing::router::Route;
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::util::events::Event::{PaymentFailed, PaymentSent};
 #[cfg(doc)]
 use lightning::util::events::PaymentPurpose;
+use lightning::{ln::channelmanager::Retry, routing::router::Route};
 use lightning_invoice::Invoice;
 #[cfg(test)]
 use proptest_derive::Arbitrary;

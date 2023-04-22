@@ -1,12 +1,14 @@
 use anyhow::{anyhow, Context};
-use bitcoin::blockdata::script::Script;
-use bitcoin::secp256k1;
-use lightning::chain::chaininterface::ConfirmationTarget;
-use lightning::util::events::Event;
+use bitcoin::{blockdata::script::Script, secp256k1};
+use lightning::{
+    chain::chaininterface::ConfirmationTarget, util::events::Event,
+};
 
-use crate::test_event::{TestEvent, TestEventSender};
-use crate::traits::{LexeChannelManager, LexePersister};
-use crate::wallet::LexeWallet;
+use crate::{
+    test_event::{TestEvent, TestEventSender},
+    traits::{LexeChannelManager, LexePersister},
+    wallet::LexeWallet,
+};
 
 // TODO(max): Perhaps we should upstream this as a Display impl?
 pub fn get_event_name(event: &Event) -> &'static str {

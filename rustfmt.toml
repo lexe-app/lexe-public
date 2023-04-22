@@ -5,5 +5,5 @@ merge_derives = false
 # Requires nightly
 wrap_comments = true
 group_imports = "StdExternalCrate"
-imports_granularity = "Module"
+imports_granularity = "Crate"
 match_arm_blocks = false

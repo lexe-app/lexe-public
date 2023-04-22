@@ -2,16 +2,20 @@
 
 #![allow(dead_code)]
 
-use std::fmt::{self, Write};
-use std::str::FromStr;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::{
+    fmt::{self, Write},
+    str::FromStr,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use flutter_rust_bridge::StreamSink;
 use tracing::{field, span, Event, Level, Subscriber};
-use tracing_subscriber::filter::Targets;
-use tracing_subscriber::layer::{Context, Layer, SubscriberExt};
-use tracing_subscriber::registry::LookupSpan;
-use tracing_subscriber::util::{SubscriberInitExt, TryInitError};
+use tracing_subscriber::{
+    filter::Targets,
+    layer::{Context, Layer, SubscriberExt},
+    registry::LookupSpan,
+    util::{SubscriberInitExt, TryInitError},
+};
 
 struct DartLogLayer {
     rust_log_tx: StreamSink<String>,

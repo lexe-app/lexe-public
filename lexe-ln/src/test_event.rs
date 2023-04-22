@@ -1,7 +1,9 @@
-use std::collections::HashMap;
-use std::fmt::Write;
-use std::mem::{self, Discriminant};
-use std::time::Duration;
+use std::{
+    collections::HashMap,
+    fmt::Write,
+    mem::{self, Discriminant},
+    time::Duration,
+};
 
 use anyhow::bail;
 use cfg_if::cfg_if;

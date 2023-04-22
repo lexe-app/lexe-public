@@ -1,41 +1,56 @@
-use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::{
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use anyhow::{anyhow, bail, Context};
 use bitcoin::bech32::ToBase32;
 use bitcoin_hashes::{sha256, Hash};
-use common::api::command::{
-    CreateInvoiceRequest, NodeInfo, PayInvoiceRequest, SendOnchainRequest,
+use common::{
+    api::{
+        command::{
+            CreateInvoiceRequest, NodeInfo, PayInvoiceRequest,
+            SendOnchainRequest,
+        },
+        NodePk, Scid,
+    },
+    cli::{LspInfo, Network},
+    ln::{
+        amount::Amount, hashes::LxTxid, invoice::LxInvoice,
+        payments::LxPaymentHash,
+    },
 };
-use common::api::{NodePk, Scid};
-use common::cli::{LspInfo, Network};
-use common::ln::amount::Amount;
-use common::ln::hashes::LxTxid;
-use common::ln::invoice::LxInvoice;
-use common::ln::payments::LxPaymentHash;
-use lightning::chain::keysinterface::{NodeSigner, Recipient};
-use lightning::ln::channelmanager::{
-    PaymentId, PaymentSendFailure, MIN_FINAL_CLTV_EXPIRY_DELTA,
+use lightning::{
+    chain::keysinterface::{NodeSigner, Recipient},
+    ln::{
+        channelmanager::{
+            PaymentId, PaymentSendFailure, MIN_FINAL_CLTV_EXPIRY_DELTA,
+        },
+        PaymentHash,
+    },
+    routing::{
+        gossip::RoutingFees,
+        router::{
+            PaymentParameters, RouteHint, RouteHintHop, RouteParameters, Router,
+        },
+    },
+    util::errors::APIError,
 };
-use lightning::ln::PaymentHash;
-use lightning::routing::gossip::RoutingFees;
-use lightning::routing::router::{
-    PaymentParameters, RouteHint, RouteHintHop, RouteParameters, Router,
-};
-use lightning::util::errors::APIError;
 use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
 use tracing::{debug, info, instrument, warn};
 
-use crate::alias::RouterType;
-use crate::esplora::LexeEsplora;
-use crate::keys_manager::LexeKeysManager;
-use crate::payments::inbound::InboundInvoicePayment;
-use crate::payments::manager::PaymentsManager;
-use crate::payments::outbound::{
-    OutboundInvoicePayment, OUTBOUND_PAYMENT_RETRY_STRATEGY,
+use crate::{
+    alias::RouterType,
+    esplora::LexeEsplora,
+    keys_manager::LexeKeysManager,
+    payments::{
+        inbound::InboundInvoicePayment,
+        manager::PaymentsManager,
+        outbound::{OutboundInvoicePayment, OUTBOUND_PAYMENT_RETRY_STRATEGY},
+    },
+    traits::{LexeChannelManager, LexePeerManager, LexePersister},
+    wallet::LexeWallet,
 };
-use crate::traits::{LexeChannelManager, LexePeerManager, LexePersister};
-use crate::wallet::LexeWallet;
 
 /// Specifies whether it is the user node or the LSP calling the
 /// [`create_invoice`] fn. There are some differences between how the user node

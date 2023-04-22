@@ -2,16 +2,20 @@
 //! the enclave targetting "aesm.local" and forwards them to the local AESM
 //! service's unix socket.
 
-use std::error::Error as StdError;
-use std::future::Future;
-use std::io::{Error as IoError, ErrorKind as IoErrorKind, Result as IoResult};
-use std::os::unix::net::UnixStream as StdUnixStream;
-use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::{
+    error::Error as StdError,
+    future::Future,
+    io::{Error as IoError, ErrorKind as IoErrorKind, Result as IoResult},
+    os::unix::net::UnixStream as StdUnixStream,
+    pin::Pin,
+    task::{Context, Poll},
+};
 
 use enclave_runner::usercalls::{AsyncStream, UsercallExtension};
-use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use tokio::net::UnixStream;
+use tokio::{
+    io::{AsyncRead, AsyncWrite, ReadBuf},
+    net::UnixStream,
+};
 
 const DEFAULT_AESM_SOCKET_PATH: &str = "/var/run/aesmd/aesm.socket";
 const AESM_FAKE_DNS_NAME: &str = "aesm.local";

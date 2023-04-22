@@ -12,8 +12,7 @@
 //! currently in-flux. See [dart-lang/sdk - vm/ffi: native assets feature #50565](https://github.com/dart-lang/sdk/issues/50565)
 //! for the current status/roadmap for this feature.
 
-use std::path::Path;
-use std::process::Command;
+use std::{path::Path, process::Command};
 
 use anyhow::{format_err, Context};
 use argh::FromArgs;

@@ -1,5 +1,4 @@
-use std::borrow::Borrow;
-use std::{fmt, ops};
+use std::{borrow::Borrow, fmt, ops};
 
 use bytes::Bytes;
 use serde::{de, ser};
@@ -173,9 +172,10 @@ impl<'de> de::Deserialize<'de> for ByteStr {
 // can't gen arbitrary `String`s :(
 #[cfg(all(test, not(target_env = "sgx")))]
 mod test {
-    use proptest::arbitrary::any;
-    use proptest::strategy::Strategy;
-    use proptest::{prop_assert, prop_assert_eq, prop_oneof, proptest};
+    use proptest::{
+        arbitrary::any, prop_assert, prop_assert_eq, prop_oneof, proptest,
+        strategy::Strategy,
+    };
 
     use super::*;
 

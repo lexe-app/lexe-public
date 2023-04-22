@@ -1,15 +1,17 @@
 #[cfg(not(target_env = "sgx"))]
 use std::net::SocketAddr;
 
-use bitcoin::blockdata::{opcodes, script};
-use bitcoin::hashes::Hash;
 use bitcoin::{
+    blockdata::{opcodes, script},
+    hashes::Hash,
     secp256k1, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn,
     TxOut, Txid, Witness,
 };
-use proptest::arbitrary::any;
-use proptest::strategy::{Just, Strategy};
-use proptest::{collection, prop_oneof};
+use proptest::{
+    arbitrary::any,
+    collection, prop_oneof,
+    strategy::{Just, Strategy},
+};
 
 use crate::api::NodePk;
 

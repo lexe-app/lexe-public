@@ -1,34 +1,39 @@
 use std::sync::Arc;
 
 use anyhow::{ensure, Context};
-use bdk::blockchain::EsploraBlockchain;
-use bdk::template::Bip84;
-use bdk::wallet::coin_selection::DefaultCoinSelectionAlgorithm;
-use bdk::wallet::signer::SignOptions;
-use bdk::wallet::tx_builder::CreateTx;
-use bdk::wallet::{AddressIndex, Wallet};
-use bdk::{Balance, FeeRate, KeychainKind, SyncOptions, TxBuilder};
-use bitcoin::util::address::Address;
-use bitcoin::util::psbt::PartiallySignedTransaction;
-use bitcoin::{Script, Transaction};
-use common::api::command::SendOnchainRequest;
-use common::cli::Network;
-use common::constants::{
-    IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
+use bdk::{
+    blockchain::EsploraBlockchain,
+    template::Bip84,
+    wallet::{
+        coin_selection::DefaultCoinSelectionAlgorithm, signer::SignOptions,
+        tx_builder::CreateTx, AddressIndex, Wallet,
+    },
+    Balance, FeeRate, KeychainKind, SyncOptions, TxBuilder,
 };
-use common::ln::amount::Amount;
-use common::root_seed::RootSeed;
-use common::shutdown::ShutdownChannel;
-use common::task::LxTask;
+use bitcoin::{
+    util::{address::Address, psbt::PartiallySignedTransaction},
+    Script, Transaction,
+};
+use common::{
+    api::command::SendOnchainRequest,
+    cli::Network,
+    constants::{
+        IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
+    },
+    ln::amount::Amount,
+    root_seed::RootSeed,
+    shutdown::ShutdownChannel,
+    task::LxTask,
+};
 use lightning::chain::chaininterface::ConfirmationTarget;
 use rust_decimal::Decimal;
 use tokio::sync::mpsc;
 use tracing::{debug, info, warn};
 
-use crate::esplora::LexeEsplora;
-use crate::payments::onchain::OnchainSend;
-use crate::traits::LexePersister;
-use crate::wallet::db::WalletDb;
+use crate::{
+    esplora::LexeEsplora, payments::onchain::OnchainSend,
+    traits::LexePersister, wallet::db::WalletDb,
+};
 
 /// Wallet DB.
 pub mod db;

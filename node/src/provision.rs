@@ -17,31 +17,34 @@
 
 #![allow(dead_code)]
 
-use std::convert::Infallible;
-use std::net::SocketAddr;
-use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::{
+    convert::Infallible,
+    net::SocketAddr,
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use anyhow::Context;
 use bitcoin::secp256k1;
-use common::api::auth::BearerAuthenticator;
-use common::api::def::NodeRunnerApi;
-use common::api::error::{NodeApiError, NodeErrorKind};
-use common::api::ports::UserPorts;
-use common::api::provision::{NodeProvisionRequest, SealedSeed};
-use common::api::{rest, NodePk, UserPk};
-use common::cli::node::ProvisionArgs;
-use common::client::tls;
-use common::enclave::Measurement;
-use common::rng::{Crng, SysRng};
-use common::root_seed::RootSeed;
-use common::shutdown::ShutdownChannel;
-use common::{ed25519, enclave};
+use common::{
+    api::{
+        auth::BearerAuthenticator,
+        def::NodeRunnerApi,
+        error::{NodeApiError, NodeErrorKind},
+        ports::UserPorts,
+        provision::{NodeProvisionRequest, SealedSeed},
+        rest, NodePk, UserPk,
+    },
+    cli::node::ProvisionArgs,
+    client::tls,
+    ed25519, enclave,
+    enclave::Measurement,
+    rng::{Crng, SysRng},
+    root_seed::RootSeed,
+    shutdown::ShutdownChannel,
+};
 use tracing::{debug, info, instrument, warn, Span};
-use warp::filters::BoxedFilter;
-use warp::http::Response;
-use warp::hyper::Body;
-use warp::Filter;
+use warp::{filters::BoxedFilter, http::Response, hyper::Body, Filter};
 
 use crate::api::BackendApiClient;
 
@@ -259,11 +262,10 @@ fn verify_provision_request<R: Crng>(
 mod test {
     use std::sync::Arc;
 
-    use common::attest;
-    use common::attest::verify::EnclavePolicy;
-    use common::cli::node::ProvisionArgs;
-    use common::rng::WeakRng;
-    use common::root_seed::RootSeed;
+    use common::{
+        attest, attest::verify::EnclavePolicy, cli::node::ProvisionArgs,
+        rng::WeakRng, root_seed::RootSeed,
+    };
     use tokio_rustls::rustls;
 
     use super::*;

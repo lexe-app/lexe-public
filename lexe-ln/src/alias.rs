@@ -1,21 +1,29 @@
 use std::sync::{Arc, Mutex};
 
-use lightning::chain::chainmonitor::ChainMonitor;
-use lightning::chain::channelmonitor::ChannelMonitor;
-use lightning::chain::keysinterface::InMemorySigner;
-use lightning::ln::channelmanager::ChannelManager;
-use lightning::ln::peer_handler::{IgnoringMessageHandler, PeerManager};
-use lightning::onion_message::OnionMessenger;
-use lightning::routing::gossip::{NetworkGraph, P2PGossipSync};
-use lightning::routing::router::DefaultRouter;
-use lightning::routing::scoring::ProbabilisticScorer;
-use lightning::routing::utxo::UtxoLookup;
+use lightning::{
+    chain::{
+        chainmonitor::ChainMonitor, channelmonitor::ChannelMonitor,
+        keysinterface::InMemorySigner,
+    },
+    ln::{
+        channelmanager::ChannelManager,
+        peer_handler::{IgnoringMessageHandler, PeerManager},
+    },
+    onion_message::OnionMessenger,
+    routing::{
+        gossip::{NetworkGraph, P2PGossipSync},
+        router::DefaultRouter,
+        scoring::ProbabilisticScorer,
+        utxo::UtxoLookup,
+    },
+};
 use lightning_net_tokio::SocketDescriptor;
 use lightning_transaction_sync::EsploraSyncClient;
 
-use crate::esplora::LexeEsplora;
-use crate::keys_manager::LexeKeysManager;
-use crate::logger::LexeTracingLogger;
+use crate::{
+    esplora::LexeEsplora, keys_manager::LexeKeysManager,
+    logger::LexeTracingLogger,
+};
 
 pub type SignerType = InMemorySigner;
 

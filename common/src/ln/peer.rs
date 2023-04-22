@@ -1,6 +1,8 @@
-use std::fmt::{self, Display};
-use std::net::SocketAddr;
-use std::str::FromStr;
+use std::{
+    fmt::{self, Display},
+    net::SocketAddr,
+    str::FromStr,
+};
 
 use anyhow::{bail, Context};
 
@@ -44,14 +46,18 @@ impl Display for ChannelPeer {
 
 #[cfg(all(test, not(target_env = "sgx")))]
 mod test {
-    use proptest::arbitrary::{any, Arbitrary};
-    use proptest::strategy::{BoxedStrategy, Strategy};
-    use proptest::{prop_assert_eq, proptest};
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        prop_assert_eq, proptest,
+        strategy::{BoxedStrategy, Strategy},
+    };
 
     use super::*;
-    use crate::rng::WeakRng;
-    use crate::root_seed::RootSeed;
-    use crate::test_utils::{arbitrary, roundtrip};
+    use crate::{
+        rng::WeakRng,
+        root_seed::RootSeed,
+        test_utils::{arbitrary, roundtrip},
+    };
 
     impl Arbitrary for ChannelPeer {
         type Parameters = ();

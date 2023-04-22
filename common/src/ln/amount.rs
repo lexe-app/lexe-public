@@ -48,11 +48,12 @@
 //! [`Amount`]: crate::ln::amount::Amount
 //! [`Decimal`]: rust_decimal::Decimal
 
-use std::fmt::{self, Display};
-use std::ops::{Add, Div, Mul, Sub};
+use std::{
+    fmt::{self, Display},
+    ops::{Add, Div, Mul, Sub},
+};
 
-use rust_decimal::prelude::ToPrimitive;
-use rust_decimal::Decimal;
+use rust_decimal::{prelude::ToPrimitive, Decimal};
 use rust_decimal_macros::dec;
 use serde::{Deserialize, Deserializer, Serialize};
 
@@ -256,8 +257,10 @@ impl Div<Decimal> for Amount {
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
-    use proptest::arbitrary::{any, Arbitrary};
-    use proptest::strategy::{BoxedStrategy, Strategy};
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
 
     use super::*;
 
@@ -272,8 +275,7 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use proptest::arbitrary::any;
-    use proptest::{prop_assert, prop_assert_eq, proptest};
+    use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest};
 
     use super::*;
 

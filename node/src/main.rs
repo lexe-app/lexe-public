@@ -1,6 +1,4 @@
-use std::io::Write;
-use std::process::ExitCode;
-use std::time::Instant;
+use std::{io::Write, process::ExitCode, time::Instant};
 
 use lexe_ln::logger;
 use node::cli::NodeArgs;

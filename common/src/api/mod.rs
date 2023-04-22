@@ -1,8 +1,9 @@
-use std::fmt::{self, Display};
-use std::str::FromStr;
+use std::{
+    fmt::{self, Display},
+    str::FromStr,
+};
 
-use bitcoin::secp256k1;
-use bitcoin::secp256k1::Secp256k1;
+use bitcoin::{secp256k1, secp256k1::Secp256k1};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::arbitrary::{any, Arbitrary};
 #[cfg(any(test, feature = "test-utils"))]
@@ -13,14 +14,18 @@ use ref_cast::RefCast;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::ed25519::Signable;
-use crate::hex::{self, FromHex};
-use crate::rng::Crng;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::rng::WeakRng;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::root_seed::RootSeed;
-use crate::{const_ref_cast, ed25519, hexstr_or_bytes, sha256};
+use crate::{
+    const_ref_cast, ed25519,
+    ed25519::Signable,
+    hex::{self, FromHex},
+    hexstr_or_bytes,
+    rng::Crng,
+    sha256,
+};
 
 /// Authentication and User Signup.
 pub mod auth;

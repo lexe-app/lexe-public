@@ -33,20 +33,23 @@
 //! * `foo=trace` (TARGET=LEVEL)
 //! * `foo[{bar,baz}]=info` (TARGET[{FIELD,+}]=LEVEL)
 
-use std::ops::Deref;
-use std::str::FromStr;
+use std::{ops::Deref, str::FromStr};
 
 use lightning::util::logger::{Level as LdkLevel, Logger, Record};
 use once_cell::sync::Lazy;
-use tracing_core::field::{Field, FieldSet, Value};
-use tracing_core::subscriber::Interest;
 use tracing_core::{
-    dispatcher, identify_callsite, Callsite, Event, Kind, Level, Metadata,
+    dispatcher,
+    field::{Field, FieldSet, Value},
+    identify_callsite,
+    subscriber::Interest,
+    Callsite, Event, Kind, Level, Metadata,
 };
-use tracing_subscriber::filter::Targets;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::{SubscriberInitExt, TryInitError};
-use tracing_subscriber::Layer;
+use tracing_subscriber::{
+    filter::Targets,
+    layer::SubscriberExt,
+    util::{SubscriberInitExt, TryInitError},
+    Layer,
+};
 
 /// Initialize the global `tracing` logger.
 ///
@@ -250,8 +253,10 @@ mod test {
     use std::collections::HashMap;
 
     use lightning::{log_given_level, log_internal};
-    use tracing_core::span::{Attributes, Id, Record};
-    use tracing_core::{Dispatch, Subscriber};
+    use tracing_core::{
+        span::{Attributes, Id, Record},
+        Dispatch, Subscriber,
+    };
 
     use super::*;
 

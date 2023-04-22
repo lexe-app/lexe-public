@@ -1,8 +1,7 @@
 //! Manage self-signed x509 certificate containing enclave remote attestation
 //! endorsements.
 
-use std::borrow::Cow;
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 use rcgen::{date_time_ymd, DnType, RcgenError, SanType};
 use yasna::models::ObjectIdentifier;

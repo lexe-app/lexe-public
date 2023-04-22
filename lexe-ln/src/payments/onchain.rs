@@ -1,12 +1,12 @@
 use anyhow::{bail, ensure};
 use bitcoin::Transaction;
-use common::api::command::SendOnchainRequest;
-use common::ln::amount::Amount;
-use common::ln::hashes::LxTxid;
-use common::ln::ConfirmationPriority;
 #[cfg(test)]
 use common::test_utils::arbitrary;
-use common::time::TimestampMs;
+use common::{
+    api::command::SendOnchainRequest,
+    ln::{amount::Amount, hashes::LxTxid, ConfirmationPriority},
+    time::TimestampMs,
+};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};

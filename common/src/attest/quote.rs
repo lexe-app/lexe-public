@@ -11,23 +11,22 @@ pub use not_sgx::quote_enclave;
 
 #[cfg(target_env = "sgx")]
 mod sgx {
-    use std::fmt;
-    use std::net::TcpStream;
+    use std::{fmt, net::TcpStream};
 
     use aes::Aes128;
-    use aesm_client::sgx::AesmClientExt;
-    use aesm_client::AesmClient;
+    use aesm_client::{sgx::AesmClientExt, AesmClient};
     use anyhow::{ensure, format_err, Context, Result};
     use bytemuck::{Pod, Zeroable};
-    use cmac::digest::generic_array::GenericArray;
-    use cmac::{Cmac, Mac};
+    use cmac::{digest::generic_array::GenericArray, Cmac, Mac};
     use rcgen::CustomExtension;
     use sgx_isa::{Report, Targetinfo};
 
-    use crate::attest::cert::SgxAttestationExtension;
-    use crate::attest::verify::EnclavePolicy;
-    use crate::rng::Crng;
-    use crate::{ed25519, hex, sha256};
+    use crate::{
+        attest::{cert::SgxAttestationExtension, verify::EnclavePolicy},
+        ed25519, hex,
+        rng::Crng,
+        sha256,
+    };
 
     #[cfg(not(target_feature = "aes"))]
     std::compile_error!(
@@ -300,9 +299,7 @@ mod not_sgx {
     use anyhow::Result;
     use rcgen::CustomExtension;
 
-    use crate::attest::cert::SgxAttestationExtension;
-    use crate::ed25519;
-    use crate::rng::Crng;
+    use crate::{attest::cert::SgxAttestationExtension, ed25519, rng::Crng};
 
     pub fn quote_enclave(
         _rng: &mut dyn Crng,

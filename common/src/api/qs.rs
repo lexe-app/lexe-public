@@ -1,9 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use crate::api::{NodePk, Scid, UserPk};
 #[cfg(doc)]
 use crate::ln::payments::LxPaymentId;
-use crate::ln::payments::PaymentIndex;
+use crate::{
+    api::{NodePk, Scid, UserPk},
+    ln::payments::PaymentIndex,
+};
 
 // When serializing data as query parameters, we have to wrap newtypes in these
 // structs (instead of e.g. using UserPk directly), otherwise `serde_qs` errors

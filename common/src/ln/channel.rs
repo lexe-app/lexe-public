@@ -1,5 +1,7 @@
-use std::fmt::{self, Display};
-use std::str::FromStr;
+use std::{
+    fmt::{self, Display},
+    str::FromStr,
+};
 
 use anyhow::Context;
 use lightning::chain::transaction::OutPoint;

@@ -1,39 +1,43 @@
 // #![allow(dead_code)] // TODO(max): Remove and replace with SGX cfgs
 
-use std::collections::{BTreeMap, HashMap, HashSet};
-use std::str::FromStr;
-use std::sync::Mutex;
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    str::FromStr,
+    sync::Mutex,
+};
 
 use async_trait::async_trait;
-use common::api::auth::{
-    BearerAuthRequest, BearerAuthResponse, BearerAuthToken, UserSignupRequest,
+use common::{
+    api::{
+        auth::{
+            BearerAuthRequest, BearerAuthResponse, BearerAuthToken,
+            UserSignupRequest,
+        },
+        def::{
+            AppBackendApi, BearerAuthBackendApi, NodeBackendApi, NodeLspApi,
+            NodeRunnerApi,
+        },
+        error::{
+            BackendApiError, BackendErrorKind, LspApiError, RunnerApiError,
+        },
+        ports::UserPorts,
+        provision::{SealedSeed, SealedSeedId},
+        qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIds},
+        vfs::{VfsDirectory, VfsFile, VfsFileId},
+        NodePk, Scid, User, UserPk,
+    },
+    byte_str::ByteStr,
+    constants::SINGLETON_DIRECTORY,
+    ed25519, enclave,
+    ln::payments::{DbPayment, LxPaymentId, PaymentIndex, PaymentStatus},
+    rng::SysRng,
+    root_seed::RootSeed,
+    time::TimestampMs,
 };
-use common::api::def::{
-    AppBackendApi, BearerAuthBackendApi, NodeBackendApi, NodeLspApi,
-    NodeRunnerApi,
-};
-use common::api::error::{
-    BackendApiError, BackendErrorKind, LspApiError, RunnerApiError,
-};
-use common::api::ports::UserPorts;
-use common::api::provision::{SealedSeed, SealedSeedId};
-use common::api::qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIds};
-use common::api::vfs::{VfsDirectory, VfsFile, VfsFileId};
-use common::api::{NodePk, Scid, User, UserPk};
-use common::byte_str::ByteStr;
-use common::constants::SINGLETON_DIRECTORY;
-use common::ln::payments::{
-    DbPayment, LxPaymentId, PaymentIndex, PaymentStatus,
-};
-use common::rng::SysRng;
-use common::root_seed::RootSeed;
-use common::time::TimestampMs;
-use common::{ed25519, enclave};
 use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
 
-use crate::api::BackendApiClient;
-use crate::persister;
+use crate::{api::BackendApiClient, persister};
 
 type FileName = String;
 type Data = Vec<u8>;

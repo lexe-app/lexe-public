@@ -1,7 +1,9 @@
 //! Utilities for encoding, decoding, and displaying hex-formatted data.
 
-use std::borrow::Cow;
-use std::fmt::{self, Write};
+use std::{
+    borrow::Cow,
+    fmt::{self, Write},
+};
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -200,10 +202,9 @@ const fn decode_nibble(x: u8) -> Result<u8, DecodeError> {
 
 #[cfg(test)]
 mod test {
-    use proptest::arbitrary::any;
-    use proptest::collection::vec;
-    use proptest::strategy::Strategy;
-    use proptest::{char, proptest};
+    use proptest::{
+        arbitrary::any, char, collection::vec, proptest, strategy::Strategy,
+    };
 
     use super::*;
 

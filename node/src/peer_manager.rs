@@ -1,16 +1,19 @@
-use std::ops::Deref;
-use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    ops::Deref,
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use common::rng::Crng;
-use lexe_ln::alias::{OnionMessengerType, P2PGossipSyncType};
-use lexe_ln::keys_manager::LexeKeysManager;
-use lexe_ln::logger::LexeTracingLogger;
+use lexe_ln::{
+    alias::{OnionMessengerType, P2PGossipSyncType},
+    keys_manager::LexeKeysManager,
+    logger::LexeTracingLogger,
+};
 use lightning::ln::peer_handler::{IgnoringMessageHandler, MessageHandler};
 use secrecy::zeroize::Zeroizing;
 
-use crate::alias::PeerManagerType;
-use crate::channel_manager::NodeChannelManager;
+use crate::{alias::PeerManagerType, channel_manager::NodeChannelManager};
 
 /// An Arc is held internally, so it is fine to clone directly.
 #[derive(Clone)]

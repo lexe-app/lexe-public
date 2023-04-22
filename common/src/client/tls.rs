@@ -1,18 +1,18 @@
 //! Build complete TLS configurations for clients to verify remote endpoints.
 
-use std::sync::Arc;
-use std::time::SystemTime;
+use std::{sync::Arc, time::SystemTime};
 
 use anyhow::Context;
-use rustls::client::WebPkiVerifier;
-use rustls::sign::CertifiedKey;
-use rustls::RootCertStore;
+use rustls::{client::WebPkiVerifier, sign::CertifiedKey, RootCertStore};
 
-use crate::attest::cert::AttestationCert;
-use crate::client::certs::{CaCert, ClientCert, NodeCert};
-use crate::rng::Crng;
-use crate::root_seed::RootSeed;
-use crate::{attest, ed25519};
+use crate::{
+    attest,
+    attest::cert::AttestationCert,
+    client::certs::{CaCert, ClientCert, NodeCert},
+    ed25519,
+    rng::Crng,
+    root_seed::RootSeed,
+};
 
 /// The client's [`rustls::client::ServerCertVerifier`] for verifiying a
 /// remote server's TLS certs.
@@ -329,8 +329,7 @@ mod test {
     use tokio_rustls::rustls;
 
     use super::*;
-    use crate::attest::EnclavePolicy;
-    use crate::rng::WeakRng;
+    use crate::{attest::EnclavePolicy, rng::WeakRng};
 
     // test node-client TLS handshake directly w/o any other warp/reqwest infra
     #[tokio::test]

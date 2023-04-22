@@ -1,12 +1,15 @@
-use std::fmt::{Debug, Display, LowerHex};
-use std::str::FromStr;
+use std::{
+    fmt::{Debug, Display, LowerHex},
+    str::FromStr,
+};
 
-use proptest::arbitrary::{any, Arbitrary};
-use proptest::strategy::Strategy;
-use proptest::test_runner::Config;
-use proptest::{prop_assert_eq, proptest};
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+use proptest::{
+    arbitrary::{any, Arbitrary},
+    prop_assert_eq, proptest,
+    strategy::Strategy,
+    test_runner::Config,
+};
+use serde::{de::DeserializeOwned, Serialize};
 
 use crate::ed25519;
 

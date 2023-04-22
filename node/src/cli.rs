@@ -2,15 +2,15 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use argh::FromArgs;
-use common::cli::node::NodeCommand;
-use common::rng::SysRng;
-use common::shutdown::ShutdownChannel;
+use common::{cli::node::NodeCommand, rng::SysRng, shutdown::ShutdownChannel};
 use lexe_ln::test_event;
 use tokio::sync::watch;
 
-use crate::api::client::{BackendClient, RunnerClient};
-use crate::provision;
-use crate::run::UserNode;
+use crate::{
+    api::client::{BackendClient, RunnerClient},
+    provision,
+    run::UserNode,
+};
 
 /// A wrapper around [`NodeCommand`] that serves as [`argh::TopLevelCommand`].
 #[derive(Debug, PartialEq, Eq, FromArgs)]
