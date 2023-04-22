@@ -11,11 +11,12 @@ use common::{
     },
     time::TimestampMs,
 };
-#[cfg(doc)]
-use lightning::ln::channelmanager::ChannelManager;
-#[cfg(doc)] // Adding these imports significantly reduces doc comment noise
-use lightning::util::events::Event::{PaymentClaimable, PaymentClaimed};
 use lightning::util::events::PaymentPurpose;
+#[cfg(doc)] // Adding these imports significantly reduces doc comment noise
+use lightning::{
+    ln::channelmanager::ChannelManager,
+    util::events::Event::{PaymentClaimable, PaymentClaimed},
+};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};

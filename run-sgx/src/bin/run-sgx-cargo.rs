@@ -2,11 +2,12 @@
 
 #![allow(dead_code)]
 
-#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-use std::path::{Path, PathBuf};
 use std::process::Command;
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-use std::{env, fs};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::{format_err, Context, Result};
 use argh::{EarlyExit, FromArgs, TopLevelCommand};
