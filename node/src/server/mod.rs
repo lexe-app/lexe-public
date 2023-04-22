@@ -37,8 +37,6 @@ use crate::persister::NodePersister;
 
 /// Handlers for commands that can only be initiated by the app.
 mod app;
-/// Warp filters for injecting data needed by subsequent filters
-mod inject;
 /// Handlers for commands that can only be initiated by the runner (Lexe).
 mod runner;
 
@@ -168,4 +166,79 @@ pub(crate) fn runner_routes(
         .map(Reply::into_response);
 
     routes.boxed()
+}
+
+/// Warp filters for injecting data needed by subsequent filters
+mod inject {
+    use std::convert::Infallible;
+
+    use super::*;
+
+    pub(super) fn user_pk(
+        user_pk: UserPk,
+    ) -> impl Filter<Extract = (UserPk,), Error = Infallible> + Clone {
+        warp::any().map(move || user_pk)
+    }
+
+    pub(super) fn shutdown(
+        shutdown: ShutdownChannel,
+    ) -> impl Filter<Extract = (ShutdownChannel,), Error = Infallible> + Clone
+    {
+        warp::any().map(move || shutdown.clone())
+    }
+
+    pub(super) fn persister(
+        persister: NodePersister,
+    ) -> impl Filter<Extract = (NodePersister,), Error = Infallible> + Clone
+    {
+        warp::any().map(move || persister.clone())
+    }
+
+    pub(super) fn router(
+        router: Arc<RouterType>,
+    ) -> impl Filter<Extract = (Arc<RouterType>,), Error = Infallible> + Clone
+    {
+        warp::any().map(move || router.clone())
+    }
+
+    pub(super) fn channel_manager(
+        channel_manager: NodeChannelManager,
+    ) -> impl Filter<Extract = (NodeChannelManager,), Error = Infallible> + Clone
+    {
+        warp::any().map(move || channel_manager.clone())
+    }
+
+    pub(super) fn peer_manager(
+        peer_manager: NodePeerManager,
+    ) -> impl Filter<Extract = (NodePeerManager,), Error = Infallible> + Clone
+    {
+        warp::any().map(move || peer_manager.clone())
+    }
+
+    pub(super) fn keys_manager(
+        keys_manager: LexeKeysManager,
+    ) -> impl Filter<Extract = (LexeKeysManager,), Error = Infallible> + Clone
+    {
+        warp::any().map(move || keys_manager.clone())
+    }
+
+    pub(super) fn payments_manager(
+        payments_manager: NodePaymentsManagerType,
+    ) -> impl Filter<Extract = (NodePaymentsManagerType,), Error = Infallible> + Clone
+    {
+        warp::any().map(move || payments_manager.clone())
+    }
+
+    pub(super) fn create_invoice_caller(
+        create_invoice_caller: CreateInvoiceCaller,
+    ) -> impl Filter<Extract = (CreateInvoiceCaller,), Error = Infallible> + Clone
+    {
+        warp::any().map(move || create_invoice_caller.clone())
+    }
+
+    pub(super) fn network(
+        network: Network,
+    ) -> impl Filter<Extract = (Network,), Error = Infallible> + Clone {
+        warp::any().map(move || network)
+    }
 }
