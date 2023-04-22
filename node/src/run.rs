@@ -350,16 +350,21 @@ impl UserNode {
         ));
 
         // Init payments manager
-        let (payments_manager, invoice_expiry_checker_task) =
-            PaymentsManager::new(
-                persister.clone(),
-                channel_manager.clone(),
-                pending_payments,
-                finalized_payment_ids,
-                test_event_tx.clone(),
-                shutdown.clone(),
-            );
+        let (
+            payments_manager,
+            invoice_expiry_checker_task,
+            onchain_confs_checker_task,
+        ) = PaymentsManager::new(
+            persister.clone(),
+            channel_manager.clone(),
+            esplora.clone(),
+            pending_payments,
+            finalized_payment_ids,
+            test_event_tx.clone(),
+            shutdown.clone(),
+        );
         tasks.push(invoice_expiry_checker_task);
+        tasks.push(onchain_confs_checker_task);
 
         // Initialize the event handler
         let event_handler = NodeEventHandler {

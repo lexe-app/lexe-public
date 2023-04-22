@@ -1,5 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
+    convert::TryFrom,
     sync::Arc,
     time::{Duration, SystemTime},
 };
@@ -24,6 +25,7 @@ use tokio::sync::Mutex;
 use tracing::{debug, debug_span, error, info, instrument};
 
 use crate::{
+    esplora::{LexeEsplora, TxConfStatus},
     payments::{
         inbound::{InboundSpontaneousPayment, LxPaymentPurpose},
         Payment,
@@ -34,6 +36,8 @@ use crate::{
 
 /// The interval at which we check our pending payments for expired invoices.
 const INVOICE_EXPIRY_CHECK_INTERVAL: Duration = Duration::from_secs(120);
+/// The interval at which we check our onchain payments for confirmations.
+const ONCHAIN_PAYMENT_CHECK_INTERVAL: Duration = Duration::from_secs(120);
 
 /// Annotates that a given [`Payment`] was returned by a `check_*` method which
 /// successfully validated a proposed state transition. [`CheckedPayment`]s
@@ -91,16 +95,16 @@ struct PaymentsData {
 }
 
 impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
-    /// Instantiates a new [`PaymentsManager`] and spawns a task that
-    /// periodically checks for expired invoices.
+    /// Instantiates a new [`PaymentsManager`] and spawns associated tasks.
     pub fn new(
         persister: PS,
         channel_manager: CM,
+        esplora: Arc<LexeEsplora>,
         pending_payments: Vec<Payment>,
         finalized_payment_ids: Vec<LxPaymentId>,
         test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
-    ) -> (Self, LxTask<()>) {
+    ) -> (Self, LxTask<()>, LxTask<()>) {
         let pending = pending_payments
             .into_iter()
             // Check that payments are indeed pending before adding to hashmap
@@ -130,9 +134,16 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         };
 
         let invoice_expiry_checker_task =
-            myself.spawn_invoice_expiry_checker(shutdown);
+            myself.spawn_invoice_expiry_checker(shutdown.clone());
 
-        (myself, invoice_expiry_checker_task)
+        let onchain_confs_checker_task =
+            myself.spawn_onchain_confs_checker(esplora, shutdown);
+
+        (
+            myself,
+            invoice_expiry_checker_task,
+            onchain_confs_checker_task,
+        )
     }
 
     fn spawn_invoice_expiry_checker(
@@ -161,6 +172,37 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                 }
 
                 info!("Invoice expiry checker task shutting down");
+            },
+        )
+    }
+
+    fn spawn_onchain_confs_checker(
+        &self,
+        esplora: Arc<LexeEsplora>,
+        mut shutdown: ShutdownChannel,
+    ) -> LxTask<()> {
+        let payments_manager = self.clone();
+
+        LxTask::spawn_named_with_span(
+            "onchain confs checker",
+            debug_span!("(onchain-confs-checker)"),
+            async move {
+                let mut check_timer =
+                    tokio::time::interval(ONCHAIN_PAYMENT_CHECK_INTERVAL);
+                loop {
+                    tokio::select! {
+                        _ = check_timer.tick() => {
+                            if let Err(e) = payments_manager
+                                .check_onchain_confs(esplora.as_ref())
+                                .await {
+                                error!("Error checking onchain confs: {e:#}");
+                            }
+                        }
+                        () = shutdown.recv() => break,
+                    }
+                }
+
+                info!("Onchain confs checker task shutting down");
             },
         )
     }
@@ -511,6 +553,65 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         debug!("Successfully registered successful broadcast");
         Ok(())
     }
+
+    /// Checks the confirmation status of our onchain payments.
+    /// This function should be called regularly.
+    #[instrument(skip_all, name = "(check-onchain-confs)")]
+    pub async fn check_onchain_confs(
+        &self,
+        // TODO(max): Since these checks aren't security critical, and since
+        // there may be lots of API calls, this esplora client should point to
+        // Lexe's 'internal' instance.
+        esplora: &LexeEsplora,
+    ) -> anyhow::Result<()> {
+        debug!("Checking onchain confs");
+
+        // We drop the lock here so that off-chain payments can make progress
+        // while we make multiple Esplora API calls. It's okay if a new onchain
+        // tx is added before the lock is reacquired because the onchain confs
+        // checker will update the new tx the next time its timer ticks.
+        let pending_query_infos = {
+            let locked_data = self.data.lock().await;
+
+            // Construct a TxConfQueryInfo for every pending onchain payment.
+            locked_data
+                .pending
+                .values()
+                .filter_map(|p| match p {
+                    Payment::OnchainSend(os) => Some(os.to_query_info()),
+                    Payment::OnchainReceive(or) => Some(or.to_query_info()),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+
+        // Determine the conf statuses of all our pending payments.
+        let tx_conf_statuses = esplora
+            .get_tx_conf_statuses(pending_query_infos)
+            .await
+            .context("Error while computing conf statuses")?;
+
+        // Check
+        let mut locked_data = self.data.lock().await;
+        let all_checked = locked_data
+            .check_onchain_confs(tx_conf_statuses)
+            .context("Invalid tx conf state transition")?;
+
+        // Persist
+        let all_persisted = self
+            .persister
+            .persist_payment_batch(all_checked)
+            .await
+            .context("Couldn't persist payment batch")?;
+
+        // Commit
+        for persisted in all_persisted {
+            locked_data.commit(persisted);
+        }
+
+        debug!("Successfully checked onchain confs");
+        Ok(())
+    }
 }
 
 impl PaymentsData {
@@ -745,5 +846,42 @@ impl PaymentsData {
             .collect::<Vec<_>>();
 
         Ok((all_expired, oip_hashes))
+    }
+
+    fn check_onchain_confs(
+        &self,
+        conf_statuses: Vec<(LxTxid, TxConfStatus)>,
+    ) -> anyhow::Result<Vec<CheckedPayment>> {
+        conf_statuses
+            .into_iter()
+            // Fetch the pending onchain payment by its (tx)id and call
+            // `check_onchain_conf()` on it to validate the state transition.
+            .map(|(txid, conf_status)| {
+                let id = LxPaymentId::from(txid);
+                let payment = self
+                    .pending
+                    .get(&id)
+                    .context("Received conf status but payment was missing")?;
+                let maybe_checked = match payment {
+                    Payment::OnchainSend(os) => os
+                        .check_onchain_conf(conf_status)
+                        .map(|opt| opt.map(Payment::from).map(CheckedPayment))
+                        .context("Error checking onchain send conf")?,
+                    Payment::OnchainReceive(or) => or
+                        .check_onchain_conf(conf_status)
+                        .map(|opt| opt.map(Payment::from).map(CheckedPayment))
+                        .context("Error checking onchain receive conf")?,
+                    _ => bail!("Wasn't an onchain payment"),
+                };
+                Ok(maybe_checked)
+            })
+            // Filter `anyhow::Result<Option<T>>` to `anyhow::Result<T>`
+            .filter_map(|maybe_checked| match maybe_checked {
+                Ok(Some(checked)) => Some(Ok(checked)),
+                Ok(None) => None,
+                Err(e) => Some(Err(e)),
+            })
+            .collect::<anyhow::Result<Vec<CheckedPayment>>>()
+            .context("Error while checking onchain confs in PaymentsData")
     }
 }

@@ -12,7 +12,7 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use crate::esplora::TxConfQueryInfo;
+use crate::esplora::{TxConfQueryInfo, TxConfStatus};
 
 // --- Onchain send --- //
 
@@ -114,6 +114,72 @@ impl OnchainSend {
         Ok(clone)
     }
 
+    pub(crate) fn check_onchain_conf(
+        &self,
+        conf_status: TxConfStatus,
+    ) -> anyhow::Result<Option<Self>> {
+        use OnchainSendStatus::*;
+
+        // We'll update our state if and only if (1) the payment is still in a
+        // pending state and (2) the tx has been broadcasted.
+        match self.status {
+            Created => {
+                warn!("Skipping conf status update; waiting for broadcast");
+                return Ok(None);
+            }
+            Broadcasted
+            | PartiallyConfirmed
+            | ReplacementBroadcasted
+            | PartiallyReplaced => (),
+            FullyConfirmed | FullyReplaced | Dropped => bail!(
+                "Tx already finalized; shouldn't have checked for conf status"
+            ),
+        }
+
+        let updated_status = match conf_status {
+            // If zeroconf, retain the current (Pending, zeroconf) state;
+            // otherwise, revert to the broadcasted state. It is possible that
+            // the `ReplacementBroadcasted` state gets lost due to getting a
+            // confirmation from a block that is later reorged, but this should
+            // be rare and it doesn't matter; all it affects is UI code.
+            TxConfStatus::ZeroConf => match self.status {
+                Broadcasted => Broadcasted,
+                ReplacementBroadcasted => ReplacementBroadcasted,
+                _ => Broadcasted,
+            },
+            TxConfStatus::InBestChain { confs } =>
+                if confs < 6 {
+                    PartiallyConfirmed
+                } else {
+                    FullyConfirmed
+                },
+            TxConfStatus::HasReplacement { confs } =>
+                if confs < 6 {
+                    PartiallyReplaced
+                } else {
+                    FullyReplaced
+                },
+            TxConfStatus::Dropped => Dropped,
+        };
+
+        // To prevent redundantly repersisting the same data, return Some(..)
+        // only if the state has actually changed.
+        if self.status == updated_status {
+            Ok(None)
+        } else {
+            let mut clone = self.clone();
+            clone.status = updated_status;
+            if matches!(
+                updated_status,
+                FullyConfirmed | FullyReplaced | Dropped
+            ) {
+                clone.finalized_at = Some(TimestampMs::now());
+            }
+
+            Ok(Some(clone))
+        }
+    }
+
     pub fn to_query_info(&self) -> TxConfQueryInfo {
         TxConfQueryInfo {
             txid: self.txid,
@@ -183,6 +249,55 @@ pub enum OnchainReceiveStatus {
 }
 
 impl OnchainReceive {
+    pub(crate) fn check_onchain_conf(
+        &self,
+        conf_status: TxConfStatus,
+    ) -> anyhow::Result<Option<Self>> {
+        use OnchainReceiveStatus::*;
+
+        // We'll update our state if and only if the payment is still pending.
+        match self.status {
+            Zeroconf | PartiallyConfirmed | PartiallyReplaced => (),
+            FullyConfirmed | FullyReplaced | Dropped => bail!(
+                "Tx already finalized; shouldn't have checked for conf status"
+            ),
+        }
+
+        let updated_status = match conf_status {
+            TxConfStatus::ZeroConf => Zeroconf,
+            TxConfStatus::InBestChain { confs } =>
+                if confs < 6 {
+                    PartiallyConfirmed
+                } else {
+                    FullyConfirmed
+                },
+            TxConfStatus::HasReplacement { confs } =>
+                if confs < 6 {
+                    PartiallyReplaced
+                } else {
+                    FullyReplaced
+                },
+            TxConfStatus::Dropped => Dropped,
+        };
+
+        // To prevent redundantly repersisting the same data, return Some(..)
+        // only if the state has actually changed.
+        if self.status == updated_status {
+            Ok(None)
+        } else {
+            let mut clone = self.clone();
+            clone.status = updated_status;
+            if matches!(
+                updated_status,
+                FullyConfirmed | FullyReplaced | Dropped
+            ) {
+                clone.finalized_at = Some(TimestampMs::now());
+            }
+
+            Ok(Some(clone))
+        }
+    }
+
     pub fn to_query_info(&self) -> TxConfQueryInfo {
         TxConfQueryInfo {
             txid: self.txid,
