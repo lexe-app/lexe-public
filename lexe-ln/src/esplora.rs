@@ -41,69 +41,6 @@ const ALL_CONF_TARGETS: [ConfirmationTarget; 3] = [
     ConfirmationTarget::Background,
 ];
 
-/// A version of [`esplora_client::convert_fee_rate`] which avoids cloning the
-/// entire HashMap when computing the feerate in sats/vbytes.
-fn convert_fee_rate(
-    target: usize,
-    esplora_estimates: &HashMap<String, f64>,
-) -> anyhow::Result<f32> {
-    let fee_val = {
-        let mut pairs = esplora_estimates
-            .iter()
-            .filter_map(|(k, v)| Some((k.parse::<usize>().ok()?, v)))
-            .collect::<Vec<_>>();
-        pairs.sort_unstable_by_key(|(k, _)| std::cmp::Reverse(*k));
-        pairs
-            .into_iter()
-            .find(|(k, _)| k <= &target)
-            .map(|(_, v)| v)
-            .unwrap_or(&1.0)
-    };
-
-    Ok(*fee_val as f32)
-}
-
-/// Convert a [`ConfirmationTarget`] to a human-readable &str.
-// TODO(max): Remove once LDK#1963 is merged and released
-fn conf_to_str(conf_target: ConfirmationTarget) -> &'static str {
-    match conf_target {
-        ConfirmationTarget::HighPriority => "high priority",
-        ConfirmationTarget::Normal => "normal",
-        ConfirmationTarget::Background => "background",
-    }
-}
-
-/// Spawns a task that periodically calls the `refresh_all_fee_estimates` fn.
-fn spawn_refresh_fees_task(
-    esplora: Arc<LexeEsplora>,
-    mut shutdown: ShutdownChannel,
-) -> LxTask<()> {
-    LxTask::spawn_named("refresh fees", async move {
-        let mut interval = time::interval(REFRESH_FEE_ESTIMATES_INTERVAL);
-        // Consume the first tick since fees were refreshed during init
-        interval.tick().await;
-
-        loop {
-            tokio::select! {
-                _ = interval.tick() => {}
-                () = shutdown.recv() => break,
-            }
-
-            let try_refresh = tokio::select! {
-                res = esplora.refresh_all_fee_estimates() => res,
-                () = shutdown.recv() => break,
-            };
-
-            match try_refresh {
-                Ok(()) => debug!("Successfull refreshed feerates."),
-                Err(e) => warn!("Could not refresh feerates: {e:#}"),
-            }
-        }
-
-        info!("refresh fees task shutting down");
-    })
-}
-
 pub struct LexeEsplora {
     client: AsyncClient,
     test_event_tx: TestEventSender,
@@ -155,9 +92,40 @@ impl LexeEsplora {
             .context("Could not initial fee estimates")?;
 
         // Spawn refresh fees task
-        let task = spawn_refresh_fees_task(esplora.clone(), shutdown);
+        let task = Self::spawn_refresh_fees_task(esplora.clone(), shutdown);
 
         Ok((esplora, task))
+    }
+
+    /// Spawns a task that periodically calls `refresh_all_fee_estimates`.
+    fn spawn_refresh_fees_task(
+        esplora: Arc<LexeEsplora>,
+        mut shutdown: ShutdownChannel,
+    ) -> LxTask<()> {
+        LxTask::spawn_named("refresh fees", async move {
+            let mut interval = time::interval(REFRESH_FEE_ESTIMATES_INTERVAL);
+            // Consume the first tick since fees were refreshed during init
+            interval.tick().await;
+
+            loop {
+                tokio::select! {
+                    _ = interval.tick() => {}
+                    () = shutdown.recv() => break,
+                }
+
+                let try_refresh = tokio::select! {
+                    res = esplora.refresh_all_fee_estimates() => res,
+                    () = shutdown.recv() => break,
+                };
+
+                match try_refresh {
+                    Ok(()) => debug!("Successfull refreshed feerates."),
+                    Err(e) => warn!("Could not refresh feerates: {e:#}"),
+                }
+            }
+
+            info!("refresh fees task shutting down");
+        })
     }
 
     /// Returns a reference to the underlying [`AsyncClient`].
@@ -286,6 +254,46 @@ impl FeeEstimator for LexeEsplora {
             Normal => self.normal_fees.load(Ordering::Acquire),
             Background => self.background_fees.load(Ordering::Acquire),
         }
+    }
+}
+
+/// A version of [`esplora_client::convert_fee_rate`] which avoids cloning the
+/// entire HashMap when computing the feerate in sats/vbytes.
+///
+/// Functionality: Given a desired target number of blocks by which a tx is
+/// confirmed, and the return value of [`AsyncClient::get_fee_estimates`] which
+/// maps string-encoded (why?) [`usize`] conf targets (in number of blocks) to
+/// the [`f64`] estimated fee rates (in sats per vbyte), extracts the estimated
+/// feerate whose corresponding target is the largest of all targets less than
+/// or equal to our desired target, or defaults to 1 sat per vbyte if our
+/// desired target was lower than the smallest target with a fee estimate.
+fn convert_fee_rate(
+    target: usize,
+    esplora_estimates: &HashMap<String, f64>,
+) -> anyhow::Result<f32> {
+    let fee_val = {
+        let mut pairs = esplora_estimates
+            .iter()
+            .filter_map(|(k, v)| Some((k.parse::<usize>().ok()?, v)))
+            .collect::<Vec<_>>();
+        pairs.sort_unstable_by_key(|(k, _)| std::cmp::Reverse(*k));
+        pairs
+            .into_iter()
+            .find(|(k, _)| k <= &target)
+            .map(|(_, v)| v)
+            .unwrap_or(&1.0)
+    };
+
+    Ok(*fee_val as f32)
+}
+
+/// Convert a [`ConfirmationTarget`] to a human-readable &str.
+// TODO(max): Remove once LDK#1963 is merged and released
+fn conf_to_str(conf_target: ConfirmationTarget) -> &'static str {
+    match conf_target {
+        ConfirmationTarget::HighPriority => "high priority",
+        ConfirmationTarget::Normal => "normal",
+        ConfirmationTarget::Background => "background",
     }
 }
 
