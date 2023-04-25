@@ -12,6 +12,8 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
+use crate::esplora::TxConfQueryInfo;
+
 // --- Onchain send --- //
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -111,6 +113,19 @@ impl OnchainSend {
 
         Ok(clone)
     }
+
+    pub fn to_query_info(&self) -> TxConfQueryInfo {
+        TxConfQueryInfo {
+            txid: self.txid,
+            inputs: self
+                .tx
+                .input
+                .iter()
+                .map(|txin| txin.previous_output)
+                .collect(),
+            created_at: self.created_at.into(),
+        }
+    }
 }
 
 // --- Onchain receive --- //
@@ -119,6 +134,8 @@ impl OnchainSend {
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainReceive {
     pub txid: LxTxid,
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_raw_tx()"))]
+    pub tx: Transaction,
     pub amount: Amount,
     pub fees: Amount,
     pub status: OnchainReceiveStatus,
@@ -163,4 +180,19 @@ pub enum OnchainReceiveStatus {
     /// and move on, since this isn't security-critical; the user will still
     /// see the successful receive reflected in their wallet balance.
     Dropped,
+}
+
+impl OnchainReceive {
+    pub fn to_query_info(&self) -> TxConfQueryInfo {
+        TxConfQueryInfo {
+            txid: self.txid,
+            inputs: self
+                .tx
+                .input
+                .iter()
+                .map(|txin| txin.previous_output)
+                .collect(),
+            created_at: self.created_at.into(),
+        }
+    }
 }

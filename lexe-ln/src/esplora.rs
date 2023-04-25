@@ -5,17 +5,17 @@ use std::{
         atomic::{AtomicU32, Ordering},
         Arc,
     },
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 use anyhow::Context;
 use bdk::FeeRate;
-use bitcoin::blockdata::transaction::Transaction;
+use bitcoin::{blockdata::transaction::Transaction, OutPoint};
 use common::{
-    constants::GOOGLE_CA_CERT_DER, reqwest, shutdown::ShutdownChannel,
-    task::LxTask,
+    constants::GOOGLE_CA_CERT_DER, ln::hashes::LxTxid, reqwest,
+    shutdown::ShutdownChannel, task::LxTask,
 };
-use esplora_client::AsyncClient;
+use esplora_client::{api::OutputStatus, AsyncClient};
 use lightning::chain::chaininterface::{
     BroadcasterInterface, ConfirmationTarget, FeeEstimator,
     FEERATE_FLOOR_SATS_PER_KW,
@@ -34,12 +34,54 @@ const REFRESH_FEE_ESTIMATES_INTERVAL: Duration = Duration::from_secs(60 * 60);
 /// The duration after which requests to the Esplora API will time out.
 const ESPLORA_CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// The default `-mempoolexpiry` value in Bitcoin Core (14 days). If a
+/// [`Transaction`] is older than this and still hasn't been confirmed, it is
+/// likely that most nodes will have evicted this tx from their mempool. Txs
+/// which have reached this age should be considered to be dropped.
+const BITCOIN_CORE_MEMPOOL_EXPIRY: Duration =
+    Duration::from_secs(60 * 60 * 24 * 14);
+
 /// Enumerates all [`ConfirmationTarget`]s.
 const ALL_CONF_TARGETS: [ConfirmationTarget; 3] = [
     ConfirmationTarget::HighPriority,
     ConfirmationTarget::Normal,
     ConfirmationTarget::Background,
 ];
+
+/// The minimum information about a [`bitcoin::Transaction`] required to query
+/// Esplora for if the transaction has been confirmed or replaced.
+pub struct TxConfQueryInfo {
+    pub txid: LxTxid,
+    pub inputs: Vec<OutPoint>,
+    pub created_at: SystemTime,
+}
+
+/// Enumerates the possible confirmation statuses of a given [`Transaction`].
+pub enum TxConfStatus {
+    /// The tx has not been included in a block, or the containing block has
+    /// been orphaned.
+    ZeroConf,
+    /// The tx has been included in a block, and the containing block is in the
+    /// best chain.
+    InBestChain {
+        /// The number of confirmations this tx has, e.g.:
+        /// - Included in chain tip => 1 confirmation
+        /// - Included in block with 5 more built on top => 6 confirmations
+        confs: u32,
+    },
+    /// The tx is being replaced; i.e. at least one of its inputs is being
+    /// spent by another tx which has at least 1 confirmation.
+    HasReplacement {
+        /// The number of confirmations that the replacement tx has.
+        confs: u32,
+    },
+    /// All of the following are true:
+    /// (1) The tx was not included in a block in the best chain.
+    /// (2) We have not found a replacement tx with >0 confirmations.
+    /// (3) The tx has reached the default `-mempoolexpiry` age, and is thus
+    ///     likely to have been dropped from most nodes' mempools.
+    Dropped,
+}
 
 pub struct LexeEsplora {
     client: AsyncClient,
@@ -221,6 +263,136 @@ impl LexeEsplora {
             .inspect(|&()| debug!("Successfully broadcasted tx {txid}"))
             .inspect(|&()| test_event_tx.send(TestEvent::TxBroadcasted))
             .inspect_err(|e| error!("Could not broadcast tx {txid}: {e:#}"))
+    }
+
+    /// Returns the [`TxConfStatus`]es for a list of [`TxConfQueryInfo`]s.
+    #[instrument(skip_all, name = "(get-tx-conf-statuses)")]
+    pub async fn get_tx_conf_statuses<'a>(
+        &self,
+        query_infos: Vec<TxConfQueryInfo>,
+    ) -> anyhow::Result<Vec<(LxTxid, TxConfStatus)>> {
+        let now = SystemTime::now();
+
+        // Get the block height of our best-known chain tip.
+        let best_height = self
+            .client
+            .get_height()
+            .await
+            .context("Could not fetch block height")?;
+
+        // Concurrently get the tx conf status for all input `TxConfQueryInfo`s,
+        // quitting early if any return an error.
+        let conf_status_futs = query_infos
+            .iter()
+            .map(|info| self.get_tx_conf_status(best_height, &now, info));
+        let conf_statuses = futures::future::try_join_all(conf_status_futs)
+            .await
+            .context("Error computing conf statuses")?;
+
+        Ok(conf_statuses)
+    }
+
+    /// Given our best block height, determine the confirmation status for a
+    /// single [`TxConfQueryInfo`].
+    async fn get_tx_conf_status(
+        &self,
+        best_height: u32,
+        now: &SystemTime,
+        info: &TxConfQueryInfo,
+    ) -> anyhow::Result<(LxTxid, TxConfStatus)> {
+        // Fetch the tx status.
+        let tx_status = self
+            .client
+            .get_tx_status(&info.txid.0)
+            .await
+            .context("Could not fetch tx status")?
+            // The extra Option<_> is an esplora_client bug; Esplora always
+            // returns Some for this endpoint.
+            // https://github.com/bitcoindevkit/rust-esplora-client/pull/46
+            .context("Txid somehow not found")?;
+
+        // This is poorly documented, but the `GET /tx/:txid/status` handler in
+        // Blockstream/electrs returns `Some(_)` if and only if (1) the tx has
+        // been included in a block, and (2) the block is in the best chain.
+        // https://github.com/Blockstream/electrs/blob/adedee15f1fe460398a7045b292604df2161adc0/src/rest.rs#L941
+        if let Some(height) = tx_status.block_height {
+            // Compute the # of confirmations by subtracting the containing
+            // block height from the tip height. An occasional race is ok
+            // because the confs checker task will try again later.
+            let height_diff = best_height.checked_sub(height).context(
+                "Best height wasn't actually the best height, OR \
+                we hit a rare (but acceptable) TOCTTOU race",
+            )?;
+
+            // Don't forget to count the including block!
+            let confs = height_diff + 1;
+
+            return Ok((info.txid, TxConfStatus::InBestChain { confs }));
+        }
+        // By now, we know that this tx is not in the best chain.
+        // Let's see if any of its inputs have been spent by another tx.
+
+        // Fetch the output status for every input.
+        let output_status_futs = info.inputs.iter().map(|outpoint| async {
+            let output_status = self
+                .client
+                .get_output_status(&outpoint.txid, outpoint.vout.into())
+                .await
+                .context("Could not fetch output status")?
+                .context("Input tx was not found")?;
+            Ok(output_status)
+        });
+        let output_statuses = futures::future::join_all(output_status_futs)
+            .await
+            .into_iter()
+            .collect::<anyhow::Result<Vec<OutputStatus>>>()?;
+
+        // Map each replacement (`rp_`) tx to the # of confs it has.
+        let rp_tx_confs = output_statuses
+            .into_iter()
+            .map(|output_status| {
+                let rp_tx_status = match output_status.status {
+                    Some(ts) => ts,
+                    // No TxStatus => no spending tx => zeroconf.
+                    None => return Ok(0),
+                };
+
+                let rp_height = match rp_tx_status.block_height {
+                    Some(h) => h,
+                    // No containing block => zeroconf.
+                    None => return Ok(0),
+                };
+
+                let rp_height_diff = best_height
+                    .checked_sub(rp_height)
+                    .context("Best height was lower than rp tx height")?;
+                let rp_confs = rp_height_diff + 1;
+
+                Ok(rp_confs)
+            })
+            .collect::<anyhow::Result<Vec<u32>>>()
+            .context("Error computing rp tx confs")?;
+
+        // Find the maximum of these. If confs > 0, our tx has a replacement.
+        let highest_rp_conf = rp_tx_confs.into_iter().max().unwrap_or(0);
+        if highest_rp_conf > 0 {
+            let conf_status = TxConfStatus::HasReplacement {
+                confs: highest_rp_conf,
+            };
+            return Ok((info.txid, conf_status));
+        }
+
+        // By now, we know (1) the tx is not in the best chain and (2) there is
+        // no confirmed replacement for it. Check if it has likely been dropped.
+        let tx_age = now
+            .duration_since(info.created_at)
+            .unwrap_or(Duration::ZERO);
+        if tx_age > BITCOIN_CORE_MEMPOOL_EXPIRY {
+            return Ok((info.txid, TxConfStatus::Dropped));
+        }
+
+        // The tx is fresh, with no confs or replacements. It is simply 0-conf.
+        Ok((info.txid, TxConfStatus::ZeroConf))
     }
 }
 
