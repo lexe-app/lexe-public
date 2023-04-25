@@ -60,20 +60,34 @@ use crate::{
     logger,
 };
 
-// TODO(phlip9): land tokio support in flutter_rust_bridge
-// As a temporary unblock to support async fn's, we'll just block_on on a
-// thread-local current_thread runtime in each worker thread.
+// TODO(phlip9): land real async support in flutter_rust_bridge
+// As a temporary unblock to support async fn's, we'll just `RUNTIME.block_on`
+// with a global tokio runtime in each worker thread.
 //
-// This means we can only have max 4 top-level async fns running at once before
-// we block the main UI thread (flutter_rust_bridge defaults to 4 worker
-// threads in its threadpool).
-thread_local! {
-    static RUNTIME: tokio::runtime::Runtime
-        = tokio::runtime::Builder::new_current_thread()
+// flutter_rust_bridge defaults to 4 worker threads in its threadpool.
+// Consequently, at most 4 top-level tasks will run concurrently before the
+// 5'th task needs to wait for an frb worker thread to open up.
+//
+// Ex:
+//
+// ```dart
+// unawaited(app.node_info());
+// unawaited(app.node_info());
+// unawaited(app.node_info());
+// unawaited(app.node_info());
+// unawaited(app.node_info()); // << this request will only start once one of
+//                             //    the previous four requests finishes.
+// ```
+static RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| {
+    tokio::runtime::Builder::new_multi_thread()
         .enable_all()
+        // We only need one background worker. `RUNTIME.block_on` will run the
+        // task on the calling worker thread, while `tokio::spawn` will spawn
+        // the task on this one background worker thread.
+        .worker_threads(1)
         .build()
-        .expect("Failed to build thread's tokio Runtime");
-}
+        .expect("Failed to build tokio Runtime")
+});
 
 pub(crate) static FLUTTER_RUST_BRIDGE_HANDLER: LazyLock<LxHandler> =
     LazyLock::new(|| {
@@ -179,7 +193,7 @@ fn block_on<T, Fut>(future: Fut) -> T
 where
     Fut: Future<Output = T>,
 {
-    RUNTIME.with(|rt| rt.block_on(future))
+    RUNTIME.block_on(future)
 }
 
 /// The `AppHandle` is a Dart representation of an [`App`] instance.

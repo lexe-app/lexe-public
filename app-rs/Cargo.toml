@@ -36,7 +36,7 @@ flutter_rust_bridge.workspace = true
 secrecy.workspace = true
 tokio = { workspace = true, default-features = false, features = [
     "net",
-    "rt",
+    "rt-multi-thread",
     "time"
 ] }
 tracing.workspace = true
