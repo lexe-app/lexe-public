@@ -1,7 +1,4 @@
-use std::{
-    fmt::{self, Display},
-    str::FromStr,
-};
+use std::{fmt, str::FromStr};
 
 use bitcoin::{secp256k1, secp256k1::Secp256k1};
 #[cfg(any(test, feature = "test-utils"))]
@@ -50,7 +47,7 @@ pub mod rest;
 pub mod vfs;
 
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize, RefCast)]
 #[repr(transparent)]
 pub struct UserPk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
@@ -66,11 +63,11 @@ pub struct UserPk(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 /// - We use [`PublicKey`]'s [`Serialize`] / [`Deserialize`] impls because it
 ///   calls into `secp256k1` which does complicated validation to ensure that
 ///   [`PublicKey`] is always valid.
-/// - We use [`PublicKey`]'s [`FromStr`] / [`Display`] impls for similar
+/// - We use [`PublicKey`]'s [`FromStr`] / [`fmt::Display`] impls for similar
 ///   reasons. Nevertheless, we still run proptests to check for correctness.
 ///
 /// [`PublicKey`]: secp256k1::PublicKey
-#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize, RefCast)]
 #[repr(transparent)]
 pub struct NodePk(pub secp256k1::PublicKey);
@@ -168,9 +165,15 @@ impl From<ed25519::PublicKey> for UserPk {
     }
 }
 
-impl Display for UserPk {
+impl fmt::Display for UserPk {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", hex::display(self.0.as_slice()))
+    }
+}
+
+impl fmt::Debug for UserPk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "UserPk({self})")
     }
 }
 
@@ -194,10 +197,16 @@ impl FromStr for NodePk {
     }
 }
 
-impl Display for NodePk {
+impl fmt::Display for NodePk {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Call into secp256k1::PublicKey's Display impl
         write!(f, "{}", self.0)
+    }
+}
+
+impl fmt::Debug for NodePk {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "NodePk({self})")
     }
 }
 
@@ -300,7 +309,7 @@ impl FromStr for Scid {
     }
 }
 
-impl Display for Scid {
+impl fmt::Display for Scid {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
