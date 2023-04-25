@@ -13,12 +13,16 @@ use tracing::{field, span, Event, Level, Subscriber};
 use tracing_subscriber::{
     filter::Targets,
     layer::{Context, Layer, SubscriberExt},
-    registry::LookupSpan,
+    registry::{LookupSpan, SpanRef},
     util::{SubscriberInitExt, TryInitError},
 };
 
 struct DartLogLayer {
     rust_log_tx: StreamSink<String>,
+}
+
+struct FormattedSpanFields {
+    buf: String,
 }
 
 pub(crate) fn init(rust_log_tx: StreamSink<String>, rust_log: &str) {
@@ -62,6 +66,24 @@ impl DartLogLayer {
 }
 
 impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for DartLogLayer {
+    // When we enter into a new span, format the span fields and insert them
+    // into this new span's extensions map.
+    fn on_new_span(
+        &self,
+        attrs: &span::Attributes<'_>,
+        id: &span::Id,
+        ctx: Context<'_, S>,
+    ) {
+        let span = ctx.span(id).expect("Span not found; this is a bug");
+        let mut exts = span.extensions_mut();
+
+        if exts.get_mut::<FormattedSpanFields>().is_none() {
+            let mut fields = FormattedSpanFields { buf: String::new() };
+            attrs.record(&mut FieldVisitor::new(&mut fields.buf));
+            exts.insert(fields);
+        }
+    }
+
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
         let mut message = String::new();
         fmt_event(&mut message, event, ctx).expect("Failed to format");
@@ -89,12 +111,27 @@ fn fmt_event<S: Subscriber + for<'a> LookupSpan<'a>>(
     let level_pad = if level.len() == 4 { " " } else { "" };
     let target = meta.target();
 
+    // metadata
+    // ex: "1682371943.448209 R  INFO"
     write!(buf, "{timestamp:.06} R {level_pad}{level}")?;
-    fmt_spans(buf, event.parent(), ctx)?;
+
+    // span names
+    // ex: " (app):(payments):(send): http:"
+    let parent_span = event
+        .parent()
+        .and_then(|id| ctx.span(id))
+        .or_else(|| ctx.lookup_current());
+    fmt_span_names(buf, parent_span.as_ref())?;
     write!(buf, " {target}:")?;
 
     // event fields
+    // ex: " done (success) status=200 time=1.3ms"
     event.record(&mut FieldVisitor::new(buf));
+
+    // span fields
+    // ex: " method=GET url=/node/get_payments"
+    fmt_span_fields(buf, parent_span.as_ref())?;
+
     Ok(())
 }
 
@@ -132,15 +169,10 @@ impl<'a> field::Visit for FieldVisitor<'a> {
 
 // Adapted from:
 // [`FmtCtx::fmt`](https://github.com/tokio-rs/tracing/blob/tracing-subscriber-0.3.16/tracing-subscriber/src/fmt/format/mod.rs#L1353)
-fn fmt_spans<S: Subscriber + for<'a> LookupSpan<'a>>(
+fn fmt_span_names<S: Subscriber + for<'a> LookupSpan<'a>>(
     buf: &mut String,
-    span: Option<&span::Id>,
-    ctx: Context<'_, S>,
+    span: Option<&SpanRef<S>>,
 ) -> fmt::Result {
-    let span = span
-        .and_then(|id| ctx.span(id))
-        .or_else(|| ctx.lookup_current());
-
     let scope = span.into_iter().flat_map(|span| span.scope().from_root());
 
     let mut first = true;
@@ -150,6 +182,24 @@ fn fmt_spans<S: Subscriber + for<'a> LookupSpan<'a>>(
             first = false;
         }
         write!(buf, "{}:", span.metadata().name())?;
+    }
+
+    Ok(())
+}
+
+fn fmt_span_fields<S: Subscriber + for<'a> LookupSpan<'a>>(
+    buf: &mut String,
+    span: Option<&SpanRef<S>>,
+) -> fmt::Result {
+    let scope = span.into_iter().flat_map(|span| span.scope().from_root());
+
+    for span in scope {
+        let exts = span.extensions();
+        if let Some(fields) = exts.get::<FormattedSpanFields>() {
+            if !fields.buf.is_empty() {
+                write!(buf, "{}", fields.buf)?;
+            }
+        }
     }
 
     Ok(())
