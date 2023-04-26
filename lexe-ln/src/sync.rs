@@ -1,7 +1,7 @@
 use std::{sync::Arc, time::Instant};
 
 use anyhow::{anyhow, Context};
-use common::{shutdown::ShutdownChannel, task::LxTask};
+use common::{notify, shutdown::ShutdownChannel, task::LxTask};
 use lightning::chain::Confirm;
 use tokio::{
     sync::{oneshot, watch},
@@ -26,6 +26,7 @@ const SYNC_TIMEOUT: Duration = Duration::from_secs(30);
 /// Spawns a task that periodically restarts BDK sync.
 pub fn spawn_bdk_sync_task(
     wallet: LexeWallet,
+    onchain_recv_tx: notify::Sender,
     first_bdk_sync_tx: oneshot::Sender<anyhow::Result<()>>,
     mut resync_rx: watch::Receiver<()>,
     test_event_tx: TestEventSender,
@@ -75,6 +76,7 @@ pub fn spawn_bdk_sync_task(
                     match sync_res {
                         Ok(()) => {
                             debug!("BDK sync completed <{elapsed}ms>");
+                            onchain_recv_tx.send();
                             test_event_tx.send(TestEvent::BdkSyncComplete);
                         }
                         Err(e) => error!("BDK sync error <{elapsed}ms>: {e:#}"),
