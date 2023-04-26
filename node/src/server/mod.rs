@@ -100,10 +100,16 @@ pub(crate) fn app_routes(
     let send_onchain = warp::path("send_onchain")
         .and(warp::post())
         .and(warp::body::json::<SendOnchainRequest>())
-        .and(inject::wallet(wallet))
+        .and(inject::wallet(wallet.clone()))
         .and(inject::esplora(esplora))
         .and(inject::payments_manager(payments_manager.clone()))
         .then(lexe_ln::command::send_onchain)
+        .map(convert::anyhow_to_command_api_result)
+        .map(rest::into_response);
+    let get_new_address = warp::path("get_new_address")
+        .and(warp::post())
+        .and(inject::wallet(wallet))
+        .then(app::get_new_address)
         .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
 
@@ -139,6 +145,7 @@ pub(crate) fn app_routes(
             .or(create_invoice)
             .or(pay_invoice)
             .or(send_onchain)
+            .or(get_new_address)
             .or(payments)
             .map(Reply::into_response),
     );
