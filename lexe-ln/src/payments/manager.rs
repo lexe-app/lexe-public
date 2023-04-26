@@ -453,17 +453,11 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         }
 
         // Persist
-        // TODO(max): We could implement a batch persist endpoint for this, but
-        // is it really worth it just for invoice expiries?
-        let persist_futs = all_checked
-            .into_iter()
-            .map(|checked| self.persister.persist_payment(checked))
-            .collect::<Vec<_>>();
-        let all_persisted = futures::future::join_all(persist_futs)
+        let all_persisted = self
+            .persister
+            .persist_payment_batch(all_checked)
             .await
-            .into_iter()
-            .collect::<anyhow::Result<Vec<PersistedPayment>>>()
-            .context("Failed to persist timed out payments")?;
+            .context("Couldn't persist payment batch")?;
 
         // Commit
         for persisted in all_persisted {
