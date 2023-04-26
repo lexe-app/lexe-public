@@ -12,6 +12,7 @@ use std::{
 
 use anyhow::Context;
 use async_trait::async_trait;
+use bitcoin::Address;
 use reqwest::{IntoProxyScheme, Url};
 use warp::http;
 
@@ -354,6 +355,14 @@ impl AppNodeRunApi for NodeClient {
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/send_onchain");
         let req = self.rest.post(url, &req);
+        self.rest.send(req).await
+    }
+
+    async fn get_new_address(&self) -> Result<Address, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/get_new_address");
+        let req = self.rest.post(url, &EmptyData {});
         self.rest.send(req).await
     }
 
