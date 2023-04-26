@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::{ensure, Context};
 use bdk::{
-    blockchain::EsploraBlockchain,
+    blockchain::{EsploraBlockchain, Progress},
     template::Bip84,
     wallet::{
         coin_selection::DefaultCoinSelectionAlgorithm, signer::SignOptions,
@@ -28,7 +28,7 @@ use common::{
 use lightning::chain::chaininterface::ConfirmationTarget;
 use rust_decimal::Decimal;
 use tokio::sync::mpsc;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, instrument, warn};
 
 use crate::{
     esplora::LexeEsplora, payments::onchain::OnchainSend,
@@ -105,14 +105,16 @@ impl LexeWallet {
     ///
     /// NOTE: Beware deadlocks; this function holds a lock to the inner
     /// [`bdk::Wallet`] during wallet sync. It is held across `.await`.
+    #[instrument(skip_all, name = "(bdk-sync)")]
     pub async fn sync(&self) -> anyhow::Result<()> {
         let esplora_blockchain = EsploraBlockchain::from_client(
             self.esplora.client().clone(),
             BDK_WALLET_SYNC_STOP_GAP,
         );
 
-        // No need to hear about sync progress for now
-        let sync_options = SyncOptions { progress: None };
+        let progress =
+            Some(Box::new(ProgressLogger) as Box<(dyn Progress + 'static)>);
+        let sync_options = SyncOptions { progress };
 
         self.wallet
             .lock()
@@ -301,4 +303,22 @@ pub fn spawn_wallet_db_persister_task<PS: LexePersister>(
 
         info!("wallet db persister task shutting down");
     })
+}
+
+/// A struct that logs every [`Progress`] update at info.
+#[derive(Debug)]
+struct ProgressLogger;
+
+impl Progress for ProgressLogger {
+    fn update(
+        &self,
+        progress: f32,
+        message: Option<String>,
+    ) -> Result<(), bdk::Error> {
+        match message {
+            Some(msg) => info!("BDK sync progress: {progress}%, msg: {msg}"),
+            None => info!("BDK sync progress: {progress}%"),
+        }
+        Ok(())
+    }
 }
