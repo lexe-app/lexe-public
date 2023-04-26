@@ -22,7 +22,7 @@ use common::{
     },
     ln::{
         channel::LxOutPoint,
-        payments::{BasicPayment, LxPaymentId, PaymentIndex},
+        payments::{BasicPayment, DbPayment, LxPaymentId, PaymentIndex},
         peer::ChannelPeer,
     },
     shutdown::ShutdownChannel,
@@ -652,6 +652,39 @@ impl LexeInnerPersister for InnerPersister {
             .context("upsert_payment API call failed")?;
 
         Ok(PersistedPayment(checked.0))
+    }
+
+    async fn persist_payment_batch(
+        &self,
+        checked_batch: Vec<CheckedPayment>,
+    ) -> anyhow::Result<Vec<PersistedPayment>> {
+        if checked_batch.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let mut rng = common::rng::SysRng::new();
+        let batch = checked_batch
+            .iter()
+            .map(|CheckedPayment(payment)| {
+                payments::encrypt(
+                    &mut rng,
+                    self.vfs_master_key.as_ref(),
+                    payment,
+                )
+            })
+            .collect::<Vec<DbPayment>>();
+
+        let token = self.get_token().await?;
+        self.backend_api
+            .upsert_payment_batch(batch, token)
+            .await
+            .context("upsert_payment API call failed")?;
+
+        let persisted_batch = checked_batch
+            .into_iter()
+            .map(|CheckedPayment(p)| PersistedPayment(p))
+            .collect::<Vec<PersistedPayment>>();
+        Ok(persisted_batch)
     }
 
     async fn get_payment(
