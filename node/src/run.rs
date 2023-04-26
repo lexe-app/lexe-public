@@ -111,6 +111,7 @@ pub struct UserNode {
 struct SyncContext {
     runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
     ldk_sync_client: Arc<EsploraSyncClientType>,
+    onchain_recv_tx: notify::Sender,
     resync_rx: watch::Receiver<()>,
     test_event_tx: TestEventSender,
 }
@@ -350,21 +351,19 @@ impl UserNode {
         ));
 
         // Init payments manager
-        let (
-            payments_manager,
-            invoice_expiry_checker_task,
-            onchain_confs_checker_task,
-        ) = PaymentsManager::new(
+        let (onchain_recv_tx, onchain_recv_rx) = notify::channel();
+        let (payments_manager, payments_tasks) = PaymentsManager::new(
             persister.clone(),
             channel_manager.clone(),
             esplora.clone(),
             pending_payments,
             finalized_payment_ids,
+            wallet.clone(),
+            onchain_recv_rx,
             test_event_tx.clone(),
             shutdown.clone(),
         );
-        tasks.push(invoice_expiry_checker_task);
-        tasks.push(onchain_confs_checker_task);
+        tasks.extend(payments_tasks);
 
         // Initialize the event handler
         let event_handler = NodeEventHandler {
@@ -509,6 +508,7 @@ impl UserNode {
             sync: Some(SyncContext {
                 runner_api,
                 ldk_sync_client,
+                onchain_recv_tx,
                 resync_rx,
                 test_event_tx,
             }),
@@ -524,6 +524,7 @@ impl UserNode {
         let (first_bdk_sync_tx, first_bdk_sync_rx) = oneshot::channel();
         self.tasks.push(sync::spawn_bdk_sync_task(
             self.wallet.clone(),
+            ctxt.onchain_recv_tx,
             first_bdk_sync_tx,
             ctxt.resync_rx.clone(),
             ctxt.test_event_tx.clone(),

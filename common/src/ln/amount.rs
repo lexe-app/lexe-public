@@ -84,6 +84,9 @@ impl Amount {
     /// millisats in non-Lexe code.
     pub const MAX: Self = Self(dec!(18_446_744_073_709_551_615));
 
+    /// An [`Amount`] of zero bitcoins.
+    pub const ZERO: Self = Self(dec!(0));
+
     /// The maximum supply of Bitcoin that can ever exist. Analogous to
     /// [`bitcoin::Amount::MAX_MONEY`]; primarily useful as a sanity check.
     // 21 million BTC * 100 million sats per BTC * 1000 millisats per sat.

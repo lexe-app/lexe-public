@@ -203,11 +203,10 @@ pub struct OnchainReceive {
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_raw_tx()"))]
     pub tx: Transaction,
     pub amount: Amount,
-    pub fees: Amount,
     pub status: OnchainReceiveStatus,
     pub created_at: TimestampMs,
-    /// An optional personal note for this payment.
-    /// The user has the option to set this at payment creation time.
+    /// An optional personal note for this payment. Is set to [`None`] when the
+    /// payment is first detected, but the user can add or modify it later.
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
     pub note: Option<String>,
     pub finalized_at: Option<TimestampMs>,
@@ -249,6 +248,19 @@ pub enum OnchainReceiveStatus {
 }
 
 impl OnchainReceive {
+    pub(crate) fn new(tx: Transaction, amount: Amount) -> Self {
+        Self {
+            txid: LxTxid(tx.txid()),
+            tx,
+            amount,
+            // Start at zeroconf and let the checker update it later.
+            status: OnchainReceiveStatus::Zeroconf,
+            created_at: TimestampMs::now(),
+            note: None,
+            finalized_at: None,
+        }
+    }
+
     pub(crate) fn check_onchain_conf(
         &self,
         conf_status: TxConfStatus,

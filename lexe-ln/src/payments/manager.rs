@@ -6,6 +6,7 @@ use std::{
 };
 
 use anyhow::{bail, ensure, Context};
+use bdk::TransactionDetails;
 use common::{
     api::qs::UpdatePaymentNote,
     ln::{
@@ -15,12 +16,14 @@ use common::{
             LxPaymentHash, LxPaymentId, LxPaymentPreimage, PaymentStatus,
         },
     },
+    notify,
     shutdown::ShutdownChannel,
     task::LxTask,
 };
 use lightning::{
     ln::channelmanager::FailureCode, util::events::PaymentPurpose,
 };
+use rust_decimal::Decimal;
 use tokio::sync::Mutex;
 use tracing::{debug, debug_span, error, info, instrument};
 
@@ -28,10 +31,12 @@ use crate::{
     esplora::{LexeEsplora, TxConfStatus},
     payments::{
         inbound::{InboundSpontaneousPayment, LxPaymentPurpose},
+        onchain::OnchainReceive,
         Payment,
     },
     test_event::{TestEvent, TestEventSender},
     traits::{LexeChannelManager, LexePersister},
+    wallet::LexeWallet,
 };
 
 /// The interval at which we check our pending payments for expired invoices.
@@ -102,9 +107,11 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         esplora: Arc<LexeEsplora>,
         pending_payments: Vec<Payment>,
         finalized_payment_ids: Vec<LxPaymentId>,
+        wallet: LexeWallet,
+        onchain_recv_rx: notify::Receiver,
         test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
-    ) -> (Self, LxTask<()>, LxTask<()>) {
+    ) -> (Self, [LxTask<()>; 3]) {
         let pending = pending_payments
             .into_iter()
             // Check that payments are indeed pending before adding to hashmap
@@ -133,17 +140,17 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             test_event_tx,
         };
 
-        let invoice_expiry_checker_task =
-            myself.spawn_invoice_expiry_checker(shutdown.clone());
+        let payments_tasks = [
+            myself.spawn_invoice_expiry_checker(shutdown.clone()),
+            myself.spawn_onchain_confs_checker(esplora, shutdown.clone()),
+            myself.spawn_onchain_recv_checker(
+                wallet,
+                onchain_recv_rx,
+                shutdown,
+            ),
+        ];
 
-        let onchain_confs_checker_task =
-            myself.spawn_onchain_confs_checker(esplora, shutdown);
-
-        (
-            myself,
-            invoice_expiry_checker_task,
-            onchain_confs_checker_task,
-        )
+        (myself, payments_tasks)
     }
 
     fn spawn_invoice_expiry_checker(
@@ -203,6 +210,39 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                 }
 
                 info!("Onchain confs checker task shutting down");
+            },
+        )
+    }
+
+    /// Spawns a task that calls `check_onchain_receives` when notified.
+    ///
+    /// The BDK sync task holds the `onchain_recv_tx` and sends a notification
+    /// every time BDK sync completes.
+    fn spawn_onchain_recv_checker(
+        &self,
+        wallet: LexeWallet,
+        mut onchain_recv_rx: notify::Receiver,
+        mut shutdown: ShutdownChannel,
+    ) -> LxTask<()> {
+        let payments_manager = self.clone();
+        LxTask::spawn_named_with_span(
+            "onchain receive checker",
+            debug_span!("(onchain-recv-checker)"),
+            async move {
+                loop {
+                    tokio::select! {
+                        () = onchain_recv_rx.recv() => {
+                            if let Err(e) = payments_manager
+                                .check_onchain_receives(&wallet)
+                                .await {
+                                error!("Error checking onchain recvs: {e:#}");
+                            }
+                        }
+                        () = shutdown.recv() => break,
+                    }
+                }
+
+                info!("Onchain receive checker task shutting down");
             },
         )
     }
@@ -610,6 +650,73 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         }
 
         debug!("Successfully checked onchain confs");
+        Ok(())
+    }
+
+    /// Queries the [`bdk::Wallet`] to see if there are any onchain receives
+    /// that the [`PaymentsManager`] doesn't yet know about. If so, the
+    /// [`OnchainReceive`] is constructed and registered with the
+    /// [`PaymentsManager`].
+    ///
+    /// This function should be called regularly.
+    #[instrument(skip_all, name = "(check-onchain-receives)")]
+    pub async fn check_onchain_receives(
+        &self,
+        wallet: &LexeWallet,
+    ) -> anyhow::Result<()> {
+        debug!("Checking for onchain receives");
+
+        let include_raw = false;
+        let txs = wallet.list_transactions(include_raw).await?;
+
+        // Drop the lock here to prevent deadlocking when we call `new_payment`.
+        let unseen_txs = {
+            let locked_data = self.data.lock().await;
+            txs.into_iter()
+                // The tx is inbound if we own none of the inputs.
+                .filter(|tx_details| tx_details.sent == 0)
+                // Filter out txs we already know about
+                .filter(|tx_details| {
+                    let id = LxPaymentId::from(tx_details.txid);
+                    !locked_data.pending.contains_key(&id)
+                        && !locked_data.finalized.contains(&id)
+                })
+                .collect::<Vec<TransactionDetails>>()
+        };
+
+        let onchain_recv_futs = unseen_txs
+            .iter()
+            // Map each to a future which constructs the `OnchainReceive`
+            .map(|tx_details| async {
+                let include_raw = true;
+                let raw_tx = wallet
+                    .get_tx(&tx_details.txid, include_raw)
+                    .await?
+                    .context("Missing tx details")?
+                    .transaction
+                    .context("Raw tx was not included")?;
+
+                let amount_sats = Decimal::from(tx_details.received);
+                let amount =
+                    Amount::from_satoshis(amount_sats).context("Overflowed")?;
+
+                let or = OnchainReceive::new(raw_tx, amount);
+
+                Ok::<_, anyhow::Error>(or)
+            });
+
+        let onchain_recvs = futures::future::try_join_all(onchain_recv_futs)
+            .await
+            .context("Error constructing new `OnchainReceive`s")?;
+
+        let register_futs =
+            onchain_recvs.into_iter().map(|or| self.new_payment(or));
+
+        for res in futures::future::join_all(register_futs).await {
+            res.context("Failed to register new onchain receive")?;
+        }
+
+        debug!("Successfully checked for and registered new onchain receives");
         Ok(())
     }
 }

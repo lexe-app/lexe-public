@@ -231,6 +231,11 @@ impl From<LxTxid> for LxPaymentId {
         Self::Onchain(txid)
     }
 }
+impl From<bitcoin::Txid> for LxPaymentId {
+    fn from(txid: bitcoin::Txid) -> Self {
+        Self::Onchain(LxTxid(txid))
+    }
+}
 impl From<LxPaymentHash> for LxPaymentId {
     fn from(hash: LxPaymentHash) -> Self {
         Self::Lightning(hash)

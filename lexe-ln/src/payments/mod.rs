@@ -246,7 +246,8 @@ impl Payment {
     pub fn fees(&self) -> Amount {
         match self {
             Self::OnchainSend(OnchainSend { fees, .. }) => *fees,
-            Self::OnchainReceive(OnchainReceive { fees, .. }) => *fees,
+            // We don't pay anything to receive money onchain
+            Self::OnchainReceive(OnchainReceive { .. }) => Amount::ZERO,
             Self::InboundInvoice(InboundInvoicePayment {
                 onchain_fees,
                 ..
