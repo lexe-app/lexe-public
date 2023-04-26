@@ -140,6 +140,15 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<(), BackendApiError>;
 
+    /// PUT /node/v1/payments/batch [`Vec<DbPayment>`] -> [`()`]
+    ///
+    /// ACID endpoint for upserting a batch of payments.
+    async fn upsert_payment_batch(
+        &self,
+        payments: Vec<DbPayment>,
+        auth: BearerAuthToken,
+    ) -> Result<(), BackendApiError>;
+
     /// POST /node/v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
     ///
     /// Fetch a batch of payments by their [`LxPaymentId`]s. This is typically

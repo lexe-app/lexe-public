@@ -350,6 +350,21 @@ impl NodeBackendApi for MockBackendClient {
         Ok(())
     }
 
+    async fn upsert_payment_batch(
+        &self,
+        payments: Vec<DbPayment>,
+        _auth: BearerAuthToken,
+    ) -> Result<(), BackendApiError> {
+        let mut locked_payments = self.payments.lock().unwrap();
+        for payment in payments {
+            let created_at = TimestampMs::try_from(payment.created_at).unwrap();
+            let id = LxPaymentId::from_str(&payment.id).unwrap();
+            let key = PaymentIndex { created_at, id };
+            locked_payments.insert(key, payment);
+        }
+        Ok(())
+    }
+
     async fn get_payments_by_ids(
         &self,
         req: GetPaymentsByIds,

@@ -294,6 +294,19 @@ impl NodeBackendApi for BackendClient {
         self.rest.send(req).await
     }
 
+    async fn upsert_payment_batch(
+        &self,
+        payments: Vec<DbPayment>,
+        auth: BearerAuthToken,
+    ) -> Result<(), BackendApiError> {
+        let backend = &self.backend_url;
+        let req = self
+            .rest
+            .put(format!("{backend}/node/v1/payments/batch"), &payments)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
     async fn get_payments_by_ids(
         &self,
         req: GetPaymentsByIds,
