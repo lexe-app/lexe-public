@@ -8,11 +8,11 @@ use bdk::{
         coin_selection::DefaultCoinSelectionAlgorithm, signer::SignOptions,
         tx_builder::CreateTx, AddressIndex, Wallet,
     },
-    Balance, FeeRate, KeychainKind, SyncOptions, TxBuilder,
+    Balance, FeeRate, KeychainKind, SyncOptions, TransactionDetails, TxBuilder,
 };
 use bitcoin::{
     util::{address::Address, psbt::PartiallySignedTransaction},
-    Script, Transaction,
+    Script, Transaction, Txid,
 };
 use common::{
     api::command::SendOnchainRequest,
@@ -54,6 +54,7 @@ type TxBuilderType<'wallet, MODE> =
 // concurrent access first.
 #[derive(Clone)]
 pub struct LexeWallet {
+    // TODO(max): Not security critical; should use Lexe's 'internal' Esplora.
     esplora: Arc<LexeEsplora>,
     // The Mutex is needed because bdk::Wallet (without our patch) is not Send,
     // and therefore does not guarantee that concurrent accesses will not panic
@@ -142,6 +143,31 @@ impl LexeWallet {
             .get_address(AddressIndex::New)
             .map(|info| info.address)
             .context("Could not get new address")
+    }
+
+    /// Calls [`bdk::Wallet::list_transactions`].
+    pub async fn list_transactions(
+        &self,
+        include_raw: bool,
+    ) -> anyhow::Result<Vec<TransactionDetails>> {
+        self.wallet
+            .lock()
+            .await
+            .list_transactions(include_raw)
+            .context("Could not list transactions")
+    }
+
+    /// Calls [`bdk::Wallet::get_tx`].
+    pub async fn get_tx(
+        &self,
+        txid: &Txid,
+        include_raw: bool,
+    ) -> anyhow::Result<Option<TransactionDetails>> {
+        self.wallet
+            .lock()
+            .await
+            .get_tx(txid, include_raw)
+            .context("Could not get tx")
     }
 
     /// Create and sign a funding tx given an output script, channel value, and
