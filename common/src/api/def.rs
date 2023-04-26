@@ -19,6 +19,7 @@
 #![deny(missing_docs)]
 
 use async_trait::async_trait;
+use bitcoin::Address;
 
 use super::{error::GatewayApiError, fiat_rates::FiatRates};
 use crate::{
@@ -291,6 +292,11 @@ pub trait AppNodeRunApi {
         &self,
         req: SendOnchainRequest,
     ) -> Result<LxTxid, NodeApiError>;
+
+    /// POST /app/get_new_address [`()`] -> [`Address`]
+    ///
+    /// Returns a new external address which can be used to receive funds.
+    async fn get_new_address(&self) -> Result<Address, NodeApiError>;
 
     /// POST /v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
     ///
