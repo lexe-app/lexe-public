@@ -20,6 +20,8 @@ pub mod bindings_generated;
 mod dart_task_handler;
 /// Pipe `tracing` log messages from native Rust to Dart.
 mod logger;
+/// App-local payment db and payment sync from node.
+pub mod payments;
 /// Securely store and retrieve user credentials to and from each platform's
 /// standard secret storage.
 pub mod secret_store;

@@ -29,7 +29,7 @@ use crate::{
 ///
 /// It is essentially the `Payment` type flattened out such that each field is
 /// the result of the corresponding `Payment` getter.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct BasicPayment {
     pub id: LxPaymentId,
     pub kind: PaymentKind,
@@ -139,6 +139,19 @@ pub enum PaymentStatus {
 ///
 /// It can also be degenerated (serialized) into a string and the
 /// string-serialized ordering will be equivalent to the unserialized ordering.
+///
+/// ### Examples
+///
+/// ```ignore
+/// 0002683862736062841-bc_95cc800f4f3b5669c71c85f7096be45a172ca86aef460e0e584affff3ea80bee
+/// 0009557253037960566-ln_3ddcfd0e0b1eba77292c23a7de140c1e71327ac97486cc414b6826c434c560cc
+/// 4237937319278351047-bc_3f6d2153bde1a0878717f46a1cbc63c48f7b4231224d78a50eb9e94b5d29f674
+/// 6206503357534413026-bc_063a5be0218332a84f9a4f7f4160a7dcf8e9362b9f5043ad47360c7440037fa8
+/// 6450440432938623603-ln_0db1f1ebed6f99574c7a048e6bbf68c7db69c6da328f0b6d699d4dc1cd477017
+/// 7774176661032219027-bc_215ef16c8192c8d674b519a34b7b65454e1e18d48bf060bdc333df433ada0137
+/// 8468903867373394879-ln_b8cbf827292c2b498e74763290012ed92a0f946d67e733e94a5fedf7f82710d5
+/// 8776421933930532767-bc_ead3c01be0315dfd4e4c405aaca0f39076cff722a0f680c89c348e3bda9575f3
+/// ```
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -187,6 +200,10 @@ impl BasicPayment {
             created_at: self.created_at,
             id: self.id,
         }
+    }
+
+    pub fn is_pending(&self) -> bool {
+        matches!(self.status, PaymentStatus::Pending)
     }
 }
 
