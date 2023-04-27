@@ -173,7 +173,8 @@ pub struct Config {
     pub use_sgx: bool,
 }
 
-/// Init the Rust [`tracing`] logger. Panics if the logger is already init.
+/// Init the Rust [`tracing`] logger. Also sets the current `RUST_LOG_TX`
+/// instance, which ships Rust logs over to the dart side for printing.
 ///
 /// Since `println!`/stdout gets swallowed on mobile, we ship log messages over
 /// to dart for printing. Otherwise we can't see logs while developing.
@@ -182,6 +183,12 @@ pub struct Config {
 /// sends the `log_tx` to Rust while holding on to the `log_rx`. When Rust gets
 /// a new [`tracing`] log event, it enqueues the formatted log onto the
 /// `log_tx`.
+///
+/// Unlike our other Rust loggers, this init will _not_ panic if a
+/// logger instance is already set. Instead it will just update the
+/// `RUST_LOG_TX`. This funky setup allows us to seamlessly support flutter's
+/// hot restart, which would otherwise try to re-init the logger (and cause a
+/// panic) but we still need to register a new log tx.
 ///
 /// `rust_log`: since env vars don't work well on mobile, we need to ship the
 /// equivalent of `$RUST_LOG` configured at build-time through here.

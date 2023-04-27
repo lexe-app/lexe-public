@@ -5,63 +5,52 @@
 use std::{
     fmt::{self, Write},
     str::FromStr,
+    sync::Arc,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+use arc_swap::ArcSwapOption;
 use flutter_rust_bridge::StreamSink;
 use tracing::{field, span, Event, Level, Subscriber};
 use tracing_subscriber::{
     filter::Targets,
     layer::{Context, Layer, SubscriberExt},
     registry::{LookupSpan, SpanRef},
-    util::{SubscriberInitExt, TryInitError},
+    util::SubscriberInitExt,
 };
 
-struct DartLogLayer {
-    rust_log_tx: StreamSink<String>,
-}
+/// A channel to dart. Formatted rust log messages are sent across this channel
+/// for printing on the dart side.
+static RUST_LOG_TX: ArcSwapOption<StreamSink<String>> =
+    ArcSwapOption::const_empty();
 
+struct DartLogLayer;
+
+/// Span fields are formatted when an enabled span is first entered.
 struct FormattedSpanFields {
     buf: String,
 }
 
+/// See [`crate::bindings::init_rust_log_stream`].
 pub(crate) fn init(rust_log_tx: StreamSink<String>, rust_log: &str) {
-    try_init(rust_log_tx, rust_log).expect("logger is already set!");
-}
+    RUST_LOG_TX.store(Some(Arc::new(rust_log_tx)));
 
-pub(crate) fn init_for_testing(
-    rust_log_tx: StreamSink<String>,
-    rust_log: &str,
-) {
-    // Quickly skip logger setup if no env var set.
-    if std::env::var_os("RUST_LOG").is_none() {
-        return;
-    }
-
-    // Don't panic if there's already a logger setup. Multiple tests might try
-    // setting the global logger.
-    let _ = try_init(rust_log_tx, rust_log);
-}
-
-pub(crate) fn try_init(
-    rust_log_tx: StreamSink<String>,
-    rust_log: &str,
-) -> Result<(), TryInitError> {
     let rust_log_filter = Targets::from_str(rust_log)
         .ok()
         .unwrap_or_else(|| Targets::new().with_default(Level::INFO));
 
-    let dart_log_layer =
-        DartLogLayer::new(rust_log_tx).with_filter(rust_log_filter);
+    let dart_log_layer = DartLogLayer::new().with_filter(rust_log_filter);
 
-    tracing_subscriber::registry()
+    // _DONT_ panic here if there is already a logger set. Instead we just
+    // update the `RUST_LOG_TX`. We do this to support flutter hot reload.
+    let _ = tracing_subscriber::registry()
         .with(dart_log_layer)
-        .try_init()
+        .try_init();
 }
 
 impl DartLogLayer {
-    fn new(rust_log_tx: StreamSink<String>) -> Self {
-        Self { rust_log_tx }
+    fn new() -> Self {
+        Self
     }
 }
 
@@ -84,11 +73,12 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for DartLogLayer {
         }
     }
 
+    // A new log event. Format the log event and send it over to dart.
     fn on_event(&self, event: &Event<'_>, ctx: Context<'_, S>) {
         let mut message = String::new();
         fmt_event(&mut message, event, ctx).expect("Failed to format");
 
-        self.rust_log_tx.add(message);
+        RUST_LOG_TX.load().as_ref().map(|tx| tx.add(message));
     }
 }
 
