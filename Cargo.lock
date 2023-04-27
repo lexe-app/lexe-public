@@ -295,7 +295,7 @@ dependencies = [
 [[package]]
 name = "bdk"
 version = "0.26.0"
-source = "git+https://github.com/lexe-tech/bdk?branch=lexe-v0.26-synctime-threadsafe#41637fd724f2cbe40f0d4b61cbc835d8c861cef9"
+source = "git+https://github.com/lexe-tech/bdk?branch=lexe-v0.26-synctime-threadsafe#8d08499799950df77811a1afb66834c7f6a59a50"
 dependencies = [
  "async-trait",
  "bdk-macros",
@@ -315,7 +315,7 @@ dependencies = [
 [[package]]
 name = "bdk-macros"
 version = "0.6.0"
-source = "git+https://github.com/lexe-tech/bdk?branch=lexe-v0.26-synctime-threadsafe#41637fd724f2cbe40f0d4b61cbc835d8c861cef9"
+source = "git+https://github.com/lexe-tech/bdk?branch=lexe-v0.26-synctime-threadsafe#8d08499799950df77811a1afb66834c7f6a59a50"
 dependencies = [
  "proc-macro2 1.0.56",
  "quote 1.0.26",
