@@ -36,6 +36,8 @@ lightning-transaction-sync = { git = "https://github.com/lexe-tech/rust-lightnin
 
 # Ad hoc error definition, easy error propagation, error chains
 anyhow = "1"
+# Like `RwLock<Arc<T>>` for read-mostly, write-seldom scenarios.
+arc-swap = "1.6"
 # Derive-based command line argument parsing
 argh = "0.1"
 # async fn's in trait methods
