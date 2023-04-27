@@ -143,9 +143,11 @@ warp = { git = "https://github.com/lexe-tech/warp", branch = "lexe" }
 #    the condition that bdk::Wallet is wrapped in a Mutex of some sort.
 #    *See the commit messages in the patch for details.
 # 3) Reintroduces the Send bound in bdk-macros' `async_trait`s, required for (2)
+# 4) Reduces `CACHE_ADDR_BATCH_SIZE` from 100 to 1.
 bdk = { git = "https://github.com/lexe-tech/bdk", branch = "lexe-v0.26-synctime-threadsafe" }
 bdk-macros = { git = "https://github.com/lexe-tech/bdk", branch = "lexe-v0.26-synctime-threadsafe" }
 # bdk = { path = "../../bdk", default-features = false, features = ["async-interface", "use-esplora-async"] }
+# bdk-macros = { path = "../../bdk/macros" }
 
 # Like 0.0.112, 0.0.113 is broken; LDK panics with 50% probability if we use
 # random nanos: https://github.com/lightningdevkit/rust-lightning/pull/1935
