@@ -7,7 +7,7 @@ use tokio::{
     sync::{oneshot, watch},
     time::{self, Duration},
 };
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use crate::{
     alias::EsploraSyncClientType,
@@ -75,7 +75,7 @@ pub fn spawn_bdk_sync_task(
 
                     match sync_res {
                         Ok(()) => {
-                            debug!("BDK sync completed <{elapsed}ms>");
+                            info!("BDK sync completed <{elapsed}ms>");
                             onchain_recv_tx.send();
                             test_event_tx.send(TestEvent::BdkSyncComplete);
                         }
@@ -154,7 +154,7 @@ where
 
                     match sync_res {
                         Ok(()) => {
-                            debug!("LDK sync completed <{elapsed}ms>");
+                            info!("LDK sync completed <{elapsed}ms>");
                             test_event_tx.send(TestEvent::LdkSyncComplete);
                         }
                         Err(e) => error!("LDK sync error <{elapsed}ms>: {e:#}"),
