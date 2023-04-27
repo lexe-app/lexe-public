@@ -1,7 +1,7 @@
 use std::{
     net::{Ipv4Addr, TcpListener},
     sync::{Arc, Mutex},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use anyhow::{anyhow, bail, ensure, Context};
@@ -111,6 +111,7 @@ pub struct UserNode {
 struct SyncContext {
     runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
     ldk_sync_client: Arc<EsploraSyncClientType>,
+    init_start: Instant,
     onchain_recv_tx: notify::Sender,
     resync_rx: watch::Receiver<()>,
     test_event_tx: TestEventSender,
@@ -130,6 +131,7 @@ impl UserNode {
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<Self> {
         info!(%args.user_pk, "Initializing node");
+        let init_start = Instant::now();
 
         // Initialize the Logger
         let logger = LexeTracingLogger::new();
@@ -475,6 +477,9 @@ impl UserNode {
             shutdown.clone(),
         );
 
+        let elapsed = init_start.elapsed().as_millis();
+        info!("Node initialization complete. <{elapsed}ms>");
+
         // Build and return the UserNode
         Ok(Self {
             // General
@@ -508,6 +513,7 @@ impl UserNode {
             sync: Some(SyncContext {
                 runner_api,
                 ldk_sync_client,
+                init_start,
                 onchain_recv_tx,
                 resync_rx,
                 test_event_tx,
@@ -570,11 +576,13 @@ impl UserNode {
         // channel with us as soon as soon as we are ready. Thus, to ensure that
         // the LSP is connected to us when it makes its open_channel request, we
         // reconnect to the LSP *before* sending the /ready callback.
-        info!("Node is synced and ready to accept commands; notifying runner");
         ctxt.runner_api
             .ready(self.user_ports)
             .await
             .context("Could not notify runner of ready status")?;
+
+        let total_elapsed = ctxt.init_start.elapsed().as_millis();
+        info!("Sync complete. Total init + sync time: <{total_elapsed}ms>");
 
         Ok(())
     }
