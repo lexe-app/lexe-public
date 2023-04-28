@@ -14,6 +14,9 @@ use tracing::warn;
 
 use crate::esplora::{TxConfQueryInfo, TxConfStatus};
 
+/// The number of confirmations a tx needs to before we consider it final.
+const ONCHAIN_CONFIRMATION_THRESHOLD: u32 = 6;
+
 // --- Onchain send --- //
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -22,6 +25,8 @@ pub struct OnchainSend {
     pub txid: LxTxid,
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_raw_tx()"))]
     pub tx: Transaction,
+    /// The txid of the replacement tx, if one exists.
+    pub replacement: Option<LxTxid>,
     pub priority: ConfirmationPriority,
     pub amount: Amount,
     pub fees: Amount,
@@ -80,6 +85,7 @@ impl OnchainSend {
         Self {
             txid: LxTxid(tx.txid()),
             tx,
+            replacement: None,
             priority: req.priority,
             amount: req.amount,
             fees,
@@ -136,7 +142,7 @@ impl OnchainSend {
             ),
         }
 
-        let updated_status = match conf_status {
+        let new_status = match &conf_status {
             // If zeroconf, retain the current (Pending, zeroconf) state;
             // otherwise, revert to the broadcasted state. It is possible that
             // the `ReplacementBroadcasted` state gets lost due to getting a
@@ -148,31 +154,35 @@ impl OnchainSend {
                 _ => Broadcasted,
             },
             TxConfStatus::InBestChain { confs } =>
-                if confs < 6 {
+                if confs < &ONCHAIN_CONFIRMATION_THRESHOLD {
                     PartiallyConfirmed
                 } else {
                     FullyConfirmed
                 },
-            TxConfStatus::HasReplacement { confs } =>
-                if confs < 6 {
+            TxConfStatus::HasReplacement { confs, .. } =>
+                if confs < &ONCHAIN_CONFIRMATION_THRESHOLD {
                     PartiallyReplaced
                 } else {
                     FullyReplaced
                 },
             TxConfStatus::Dropped => Dropped,
         };
+        let new_replacement = match conf_status {
+            TxConfStatus::HasReplacement { rp_txid, .. } => Some(rp_txid),
+            _ => None,
+        };
 
         // To prevent redundantly repersisting the same data, return Some(..)
         // only if the state has actually changed.
-        if self.status == updated_status {
+        if (self.status == new_status) && (self.replacement == new_replacement)
+        {
             Ok(None)
         } else {
             let mut clone = self.clone();
-            clone.status = updated_status;
-            if matches!(
-                updated_status,
-                FullyConfirmed | FullyReplaced | Dropped
-            ) {
+            clone.status = new_status;
+            clone.replacement = new_replacement;
+
+            if matches!(new_status, FullyConfirmed | FullyReplaced | Dropped) {
                 clone.finalized_at = Some(TimestampMs::now());
             }
 
@@ -202,6 +212,8 @@ pub struct OnchainReceive {
     pub txid: LxTxid,
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_raw_tx()"))]
     pub tx: Transaction,
+    /// The txid of the replacement tx, if one exists.
+    pub replacement: Option<LxTxid>,
     pub amount: Amount,
     pub status: OnchainReceiveStatus,
     pub created_at: TimestampMs,
@@ -252,6 +264,7 @@ impl OnchainReceive {
         Self {
             txid: LxTxid(tx.txid()),
             tx,
+            replacement: None,
             amount,
             // Start at zeroconf and let the checker update it later.
             status: OnchainReceiveStatus::Zeroconf,
@@ -275,34 +288,38 @@ impl OnchainReceive {
             ),
         }
 
-        let updated_status = match conf_status {
+        let new_status = match &conf_status {
             TxConfStatus::ZeroConf => Zeroconf,
             TxConfStatus::InBestChain { confs } =>
-                if confs < 6 {
+                if confs < &ONCHAIN_CONFIRMATION_THRESHOLD {
                     PartiallyConfirmed
                 } else {
                     FullyConfirmed
                 },
-            TxConfStatus::HasReplacement { confs } =>
-                if confs < 6 {
+            TxConfStatus::HasReplacement { confs, .. } =>
+                if confs < &ONCHAIN_CONFIRMATION_THRESHOLD {
                     PartiallyReplaced
                 } else {
                     FullyReplaced
                 },
             TxConfStatus::Dropped => Dropped,
         };
+        let new_replacement = match conf_status {
+            TxConfStatus::HasReplacement { rp_txid, .. } => Some(rp_txid),
+            _ => None,
+        };
 
         // To prevent redundantly repersisting the same data, return Some(..)
         // only if the state has actually changed.
-        if self.status == updated_status {
+        if (self.status == new_status) && (self.replacement == new_replacement)
+        {
             Ok(None)
         } else {
             let mut clone = self.clone();
-            clone.status = updated_status;
-            if matches!(
-                updated_status,
-                FullyConfirmed | FullyReplaced | Dropped
-            ) {
+            clone.status = new_status;
+            clone.replacement = new_replacement;
+
+            if matches!(new_status, FullyConfirmed | FullyReplaced | Dropped) {
                 clone.finalized_at = Some(TimestampMs::now());
             }
 
