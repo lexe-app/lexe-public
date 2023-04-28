@@ -34,7 +34,10 @@ pub struct BasicPayment {
     pub id: LxPaymentId,
     pub kind: PaymentKind,
     pub direction: PaymentDirection,
+    /// (Invoice payments only) The BOLT11 invoice used in this payment.
     pub invoice: Option<LxInvoice>,
+    /// (Onchain payments only) The txid of the replacement tx, if one exists.
+    pub replacement: Option<LxTxid>,
     /// The amount of this payment.
     ///
     /// - If this is a completed inbound invoice payment, this is the amount we

@@ -74,6 +74,8 @@ pub enum TxConfStatus {
     HasReplacement {
         /// The number of confirmations that the replacement tx has.
         confs: u32,
+        /// The txid of the replacement transaction.
+        rp_txid: LxTxid,
     },
     /// All of the following are true:
     /// (1) The tx was not included in a block in the best chain.
@@ -347,38 +349,26 @@ impl LexeEsplora {
             .into_iter()
             .collect::<anyhow::Result<Vec<OutputStatus>>>()?;
 
-        // Map each replacement (`rp_`) tx to the # of confs it has.
-        let rp_tx_confs = output_statuses
+        // Map each output to its replacement (`rp_`) txid and # of confs,
+        // then find and return the most confirmed of these if one exists.
+        let maybe_replacement = output_statuses
             .into_iter()
-            .map(|output_status| {
-                let rp_tx_status = match output_status.status {
-                    Some(ts) => ts,
-                    // No TxStatus => no spending tx => zeroconf.
-                    None => return Ok(0),
-                };
-
-                let rp_height = match rp_tx_status.block_height {
-                    Some(h) => h,
-                    // No containing block => zeroconf.
-                    None => return Ok(0),
-                };
-
-                let rp_height_diff = best_height
-                    .checked_sub(rp_height)
-                    .context("Best height was lower than rp tx height")?;
+            .filter_map(|output_status| {
+                // Aborts if there was no spending txid.
+                let rp_txid = LxTxid(output_status.txid?);
+                // Aborts if there was no tx status for the spending tx.
+                let rp_tx_status = output_status.status?;
+                // Aborts if the spending tx status had no block height.
+                let rp_height = rp_tx_status.block_height?;
+                // This underflow is a rare but acceptable race; try again later
+                let rp_height_diff = best_height.checked_sub(rp_height)?;
                 let rp_confs = rp_height_diff + 1;
 
-                Ok(rp_confs)
+                Some((rp_txid, rp_confs))
             })
-            .collect::<anyhow::Result<Vec<u32>>>()
-            .context("Error computing rp tx confs")?;
-
-        // Find the maximum of these. If confs > 0, our tx has a replacement.
-        let highest_rp_conf = rp_tx_confs.into_iter().max().unwrap_or(0);
-        if highest_rp_conf > 0 {
-            let conf_status = TxConfStatus::HasReplacement {
-                confs: highest_rp_conf,
-            };
+            .max_by_key(|(_txid, confs)| *confs);
+        if let Some((rp_txid, confs)) = maybe_replacement {
+            let conf_status = TxConfStatus::HasReplacement { rp_txid, confs };
             return Ok((info.txid, conf_status));
         }
 

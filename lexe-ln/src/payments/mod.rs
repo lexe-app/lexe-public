@@ -7,6 +7,7 @@ use anyhow::Context;
 use common::{
     ln::{
         amount::Amount,
+        hashes::LxTxid,
         invoice::LxInvoice,
         payments::{
             BasicPayment, DbPayment, LxPaymentId, PaymentDirection,
@@ -147,6 +148,7 @@ impl From<Payment> for BasicPayment {
             kind: p.kind(),
             direction: p.direction(),
             invoice: p.invoice(),
+            replacement: p.replacement(),
             amount: p.amount(),
             fees: p.fees(),
             status: p.status(),
@@ -207,6 +209,19 @@ impl Payment {
             Self::OutboundInvoice(OutboundInvoicePayment {
                 invoice, ..
             }) => Some(*invoice.clone()),
+            Self::OutboundSpontaneous(_) => None,
+        }
+    }
+
+    /// Returns the txid of the replacement tx, if there is one.
+    pub fn replacement(&self) -> Option<LxTxid> {
+        match self {
+            Self::OnchainSend(OnchainSend { replacement, .. }) => *replacement,
+            Self::OnchainReceive(OnchainReceive { replacement, .. }) =>
+                *replacement,
+            Self::InboundInvoice(_) => None,
+            Self::InboundSpontaneous(_) => None,
+            Self::OutboundInvoice(_) => None,
             Self::OutboundSpontaneous(_) => None,
         }
     }
