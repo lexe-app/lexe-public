@@ -38,6 +38,8 @@ pub mod enclave;
 pub mod hex;
 /// serde_with helper for bytes types.
 pub mod hexstr_or_bytes;
+/// Iterator extensions.
+pub mod iter;
 /// Bitcoin / Lightning Lexe newtypes which can't go in lexe-ln
 pub mod ln;
 /// A channel for sending deduplicated notifications with no data attached.
