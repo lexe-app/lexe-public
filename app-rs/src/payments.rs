@@ -86,6 +86,11 @@ impl Vfs for FlatFileFs {
 
 pub struct PaymentDb<V> {
     vfs: V,
+    state: PaymentDbState,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct PaymentDbState {
     payments: BTreeMap<PaymentIndex, BasicPayment>,
     pending: BTreeSet<PaymentIndex>,
 }
@@ -109,13 +114,160 @@ impl<V: Vfs> PaymentDb<V> {
     pub fn empty(vfs: V) -> Self {
         Self {
             vfs,
-            payments: BTreeMap::new(),
-            pending: BTreeSet::new(),
+            state: PaymentDbState::empty(),
         }
     }
 
     /// Read all the payments on-disk into a new `PaymentDb`.
     pub fn read(vfs: V) -> anyhow::Result<Self> {
+        let state = PaymentDbState::read(&vfs)
+            .context("Failed to read on-disk PaymentDb state")?;
+
+        state.debug_assert_invariants();
+
+        Ok(Self { vfs, state })
+    }
+
+    /// Check the integrity of the whole PaymentDb.
+    ///
+    /// (1.) The in-memory state should not be corrupted.
+    /// (2.) The current on-disk state should match the in-memory state.
+    fn debug_assert_invariants(&self) {
+        if cfg!(not(debug_assertions)) {
+            return;
+        }
+
+        todo!();
+    }
+
+    /// The most latest/newest payment that the `PaymentDb` has synced from the
+    /// user node.
+    fn latest_payment_index(&self) -> Option<PaymentIndex> {
+        self.state
+            .payments
+            .last_key_value()
+            .map(|(idx, _payment)| *idx)
+    }
+
+    /// Write a payment to on-disk storage. Does not update `PaymentDb` indexes
+    /// or in-memory state though.
+    // Making this an associated fn avoids some borrow checker issues.
+    fn write_payment(vfs: &V, payment: &BasicPayment) -> io::Result<()> {
+        let idx = payment.index();
+        let filename = idx.to_string();
+        let data =
+            serde_json::to_vec(&payment).expect("Failed to serialize payment");
+        vfs.write(&filename, &data)
+    }
+
+    /// Insert a batch of new payments synced from the user node.
+    fn insert_new_payments(
+        &mut self,
+        new_payments: Vec<BasicPayment>,
+    ) -> io::Result<()> {
+        for new_payment in new_payments {
+            self.insert_new_payment(new_payment)?;
+        }
+
+        self.debug_assert_invariants();
+
+        Ok(())
+    }
+
+    fn insert_new_payment(
+        &mut self,
+        new_payment: BasicPayment,
+    ) -> io::Result<()> {
+        let vacant_payment_entry =
+            match self.state.payments.entry(new_payment.index()) {
+                Entry::Vacant(e) => e,
+                Entry::Occupied(_) => panic!(
+                    "PaymentDb is corrupted! A new payment from the node \
+                     already in our in-memory state somehow!"
+                ),
+            };
+
+        // Try to write the payment first.
+        Self::write_payment(&self.vfs, &new_payment)?;
+
+        // Update the in-memory state.
+        if new_payment.is_pending() {
+            let already_in_pending =
+                self.state.pending.insert(new_payment.index());
+            assert!(
+                !already_in_pending,
+                "PaymentDb is corrupted! A new payment from the noew was \
+                 already in our pending payments index!"
+            );
+        }
+        vacant_payment_entry.insert(new_payment);
+
+        Ok(())
+    }
+
+    /// Update a batch of currently pending payments w/ updated values from the
+    /// node.
+    fn update_pending_payments(
+        &mut self,
+        pending_payments_updates: Vec<BasicPayment>,
+    ) -> io::Result<()> {
+        for updated_payment in pending_payments_updates {
+            self.update_pending_payment(updated_payment)?;
+        }
+
+        self.debug_assert_invariants();
+
+        Ok(())
+    }
+
+    fn update_pending_payment(
+        &mut self,
+        updated_payment: BasicPayment,
+    ) -> io::Result<()> {
+        // Get the current, pending payment.
+        let mut existing_payment_entry =
+            match self.state.payments.entry(updated_payment.index()) {
+                Entry::Vacant(_) => panic!(
+                    "PaymentDb is corrupted! We are missing a pending payment \
+                     that should exist!"
+                ),
+                Entry::Occupied(e) => e,
+            };
+
+        // No change to payment; skip.
+        if &updated_payment == existing_payment_entry.get() {
+            return Ok(());
+        }
+
+        // Payment is changed; persist the updated payment to storage.
+        Self::write_payment(&self.vfs, &updated_payment)?;
+
+        // If the payment is also finalized, remove from pending payments index.
+        if !updated_payment.is_pending() {
+            let was_pending =
+                self.state.pending.remove(&updated_payment.index());
+            assert!(
+                was_pending,
+                "PaymentDb is corrupted! Pending payment not in index!"
+            );
+        }
+
+        // Update in-memory state.
+        existing_payment_entry.insert(updated_payment);
+
+        Ok(())
+    }
+}
+
+impl PaymentDbState {
+    fn empty() -> Self {
+        Self {
+            payments: BTreeMap::new(),
+            pending: BTreeSet::new(),
+        }
+    }
+
+    fn read<V: Vfs>(vfs: &V) -> anyhow::Result<Self> {
         let mut buf = Vec::new();
         let mut payments: BTreeMap<PaymentIndex, BasicPayment> =
             BTreeMap::new();
@@ -172,120 +324,21 @@ impl<V: Vfs> PaymentDb<V> {
             })
             .collect();
 
-        Ok(Self {
-            vfs,
-            payments,
-            pending,
-        })
+        Ok(Self { payments, pending })
     }
 
-    /// The most latest/newest payment that the `PaymentDb` has synced from the
-    /// user node.
-    fn latest_payment_index(&self) -> Option<PaymentIndex> {
-        self.payments.last_key_value().map(|(idx, _payment)| *idx)
-    }
-
-    /// Write a payment to on-disk storage. Does not update `PaymentDb` indexes
-    /// or in-memory state though.
-    // Making this an associated fn avoids some borrow checker issues.
-    fn write_payment(vfs: &V, payment: &BasicPayment) -> io::Result<()> {
-        let idx = payment.index();
-        let filename = idx.to_string();
-        let data =
-            serde_json::to_vec(&payment).expect("Failed to serialize payment");
-        vfs.write(&filename, &data)
-    }
-
-    /// Insert a batch of new payments synced from the user node.
-    fn insert_new_payments(
-        &mut self,
-        new_payments: Vec<BasicPayment>,
-    ) -> io::Result<()> {
-        for new_payment in new_payments {
-            self.insert_new_payment(new_payment)?;
+    /// Check the integrity of the in-memory state.
+    ///
+    /// (1.) The computed index of each payment value should match its BTreeMap
+    ///      key.
+    /// (2.) Re-computing the pending payments index should exactly match the
+    ///      its current value.
+    fn debug_assert_invariants(&self) {
+        if cfg!(not(debug_assertions)) {
+            return;
         }
 
-        Ok(())
-    }
-
-    fn insert_new_payment(
-        &mut self,
-        new_payment: BasicPayment,
-    ) -> io::Result<()> {
-        let vacant_payment_entry =
-            match self.payments.entry(new_payment.index()) {
-                Entry::Vacant(e) => e,
-                Entry::Occupied(_) => panic!(
-                    "PaymentDb is corrupted! A new payment from the node \
-                     already in our in-memory state somehow!"
-                ),
-            };
-
-        // Try to write the payment first.
-        Self::write_payment(&self.vfs, &new_payment)?;
-
-        // Update the in-memory state.
-        if new_payment.is_pending() {
-            let already_in_pending = self.pending.insert(new_payment.index());
-            assert!(
-                !already_in_pending,
-                "PaymentDb is corrupted! A new payment from the noew was \
-                 already in our pending payments index!"
-            );
-        }
-        vacant_payment_entry.insert(new_payment);
-
-        Ok(())
-    }
-
-    /// Update a batch of currently pending payments w/ updated values from the
-    /// node.
-    fn update_pending_payments(
-        &mut self,
-        pending_payments_updates: Vec<BasicPayment>,
-    ) -> io::Result<()> {
-        for updated_payment in pending_payments_updates {
-            self.update_pending_payment(updated_payment)?;
-        }
-
-        Ok(())
-    }
-
-    fn update_pending_payment(
-        &mut self,
-        updated_payment: BasicPayment,
-    ) -> io::Result<()> {
-        // Get the current, pending payment.
-        let mut existing_payment_entry =
-            match self.payments.entry(updated_payment.index()) {
-                Entry::Vacant(_) => panic!(
-                    "PaymentDb is corrupted! We are missing a pending payment \
-                     that should exist!"
-                ),
-                Entry::Occupied(e) => e,
-            };
-
-        // No change to payment; skip.
-        if &updated_payment == existing_payment_entry.get() {
-            return Ok(());
-        }
-
-        // Payment is changed; persist the updated payment to storage.
-        Self::write_payment(&self.vfs, &updated_payment)?;
-
-        // If the payment is also finalized, remove from pending payments index.
-        if !updated_payment.is_pending() {
-            let was_pending = self.pending.remove(&updated_payment.index());
-            assert!(
-                was_pending,
-                "PaymentDb is corrupted! Pending payment not in index!"
-            );
-        }
-
-        // Update in-memory state.
-        existing_payment_entry.insert(updated_payment);
-
-        Ok(())
+        todo!();
     }
 }
 
@@ -318,11 +371,11 @@ async fn sync_pending_payments<V: Vfs>(
         let lock = db.lock().unwrap();
 
         // No pending payments; nothing to do : )
-        if lock.pending.is_empty() {
+        if lock.state.pending.is_empty() {
             return Ok(());
         }
 
-        lock.pending.iter().cloned().collect::<Vec<_>>()
+        lock.state.pending.iter().cloned().collect::<Vec<_>>()
     };
 
     for pending_idx_batch in pending.chunks(usize::from(PAYMENT_BATCH_LIMIT)) {
