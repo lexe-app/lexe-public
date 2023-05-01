@@ -137,7 +137,13 @@ impl<V: Vfs> PaymentDb<V> {
             return;
         }
 
-        todo!();
+        // (1.)
+        self.state.debug_assert_invariants();
+
+        // (2.)
+        let on_disk_state = PaymentDbState::read(&self.vfs)
+            .expect("Failed to re-read on-disk state");
+        assert_eq!(on_disk_state, self.state);
     }
 
     /// The most latest/newest payment that the `PaymentDb` has synced from the
@@ -313,7 +319,15 @@ impl PaymentDbState {
         })
         .context("Failed to read payments db, possibly corrupted?")?;
 
-        let pending = payments
+        let pending = Self::build_pending_index(&payments);
+
+        Ok(Self { payments, pending })
+    }
+
+    fn build_pending_index(
+        payments: &BTreeMap<PaymentIndex, BasicPayment>,
+    ) -> BTreeSet<PaymentIndex> {
+        payments
             .iter()
             .filter_map(|(idx, payment)| {
                 if payment.is_pending() {
@@ -322,9 +336,7 @@ impl PaymentDbState {
                     None
                 }
             })
-            .collect();
-
-        Ok(Self { payments, pending })
+            .collect()
     }
 
     /// Check the integrity of the in-memory state.
@@ -338,7 +350,14 @@ impl PaymentDbState {
             return;
         }
 
-        todo!();
+        // (1.)
+        for (payment_index, payment) in &self.payments {
+            assert_eq!(payment_index, &payment.index());
+        }
+
+        // (2.)
+        let rebuilt_pending_index = Self::build_pending_index(&self.payments);
+        assert_eq!(rebuilt_pending_index, self.pending);
     }
 }
 
