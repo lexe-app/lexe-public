@@ -49,6 +49,12 @@ pub struct FlatFileFs {
     base_dir: PathBuf,
 }
 
+impl FlatFileFs {
+    pub fn new(base_dir: PathBuf) -> Self {
+        Self { base_dir }
+    }
+}
+
 impl Vfs for FlatFileFs {
     fn read_into(&self, filename: &str, buf: &mut Vec<u8>) -> io::Result<()> {
         let path = self.base_dir.join(filename);
@@ -198,10 +204,10 @@ impl<V: Vfs> PaymentDb<V> {
 
         // Update the in-memory state.
         if new_payment.is_pending() {
-            let already_in_pending =
+            let not_already_in_pending =
                 self.state.pending.insert(new_payment.index());
             assert!(
-                !already_in_pending,
+                not_already_in_pending,
                 "PaymentDb is corrupted! A new payment from the noew was \
                  already in our pending payments index!"
             );
@@ -322,6 +328,11 @@ impl PaymentDbState {
         let pending = Self::build_pending_index(&payments);
 
         Ok(Self { payments, pending })
+    }
+
+    #[cfg(test)]
+    fn is_empty(&self) -> bool {
+        self.payments.is_empty()
     }
 
     fn build_pending_index(
@@ -502,4 +513,204 @@ async fn sync_new_payments<V: Vfs>(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use std::{cell::RefCell, collections::BTreeMap};
+
+    use common::{
+        ln::payments::BasicPayment,
+        rng::{shuffle, WeakRng},
+    };
+    use proptest::{
+        arbitrary::any, collection::vec, proptest, sample::SizeRange,
+        strategy::Strategy,
+    };
+    use tempfile::tempdir;
+
+    use super::*;
+
+    fn io_err_not_found(filename: &str) -> io::Error {
+        io::Error::new(io::ErrorKind::NotFound, filename)
+    }
+
+    #[derive(Debug)]
+    struct MockVfs {
+        inner: RefCell<MockVfsInner>,
+    }
+
+    #[derive(Debug)]
+    struct MockVfsInner {
+        rng: WeakRng,
+        files: BTreeMap<String, Vec<u8>>,
+    }
+
+    impl MockVfs {
+        fn new() -> Self {
+            Self {
+                inner: RefCell::new(MockVfsInner {
+                    rng: WeakRng::new(),
+                    files: BTreeMap::new(),
+                }),
+            }
+        }
+
+        fn from_rng(rng: WeakRng) -> Self {
+            Self {
+                inner: RefCell::new(MockVfsInner {
+                    rng,
+                    files: BTreeMap::new(),
+                }),
+            }
+        }
+    }
+
+    impl Vfs for MockVfs {
+        fn read_into(
+            &self,
+            filename: &str,
+            buf: &mut Vec<u8>,
+        ) -> io::Result<()> {
+            match self.inner.borrow().files.get(filename) {
+                Some(data) => buf.extend_from_slice(data),
+                None => return Err(io_err_not_found(filename)),
+            }
+            Ok(())
+        }
+
+        fn read_dir_visitor(
+            &self,
+            mut dir_visitor: impl FnMut(&str) -> io::Result<()>,
+        ) -> io::Result<()> {
+            // shuffle the file order to ensure we don't rely on it.
+            let mut filenames = self
+                .inner
+                .borrow()
+                .files
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>();
+            {
+                let rng = &mut self.inner.borrow_mut().rng;
+                shuffle(rng, &mut filenames);
+            }
+
+            for filename in &filenames {
+                dir_visitor(filename)?;
+            }
+            Ok(())
+        }
+
+        fn write(&self, filename: &str, data: &[u8]) -> io::Result<()> {
+            self.inner
+                .borrow_mut()
+                .files
+                .insert(filename.to_owned(), data.to_owned());
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn read_from_empty() {
+        let mock_vfs = MockVfs::new();
+        let mock_vfs_db = PaymentDb::read(mock_vfs).unwrap();
+        assert!(mock_vfs_db.state.is_empty());
+
+        let tempdir = tempdir().unwrap();
+        let temp_fs = FlatFileFs::new(tempdir.path().to_path_buf());
+        let temp_fs_db = PaymentDb::read(temp_fs).unwrap();
+        assert!(temp_fs_db.state.is_empty());
+
+        assert_eq!(mock_vfs_db.state, temp_fs_db.state);
+    }
+
+    fn arb_payments(
+        approx_size: impl Into<SizeRange>,
+    ) -> impl Strategy<Value = BTreeMap<PaymentIndex, BasicPayment>> {
+        vec(any::<BasicPayment>(), approx_size).prop_map(|payments| {
+            payments
+                .into_iter()
+                .map(|payment| (payment.index(), payment))
+                .collect::<BTreeMap<_, _>>()
+        })
+    }
+
+    fn take_n<T>(iter: &mut impl Iterator<Item = T>, n: usize) -> Vec<T> {
+        let mut out = Vec::with_capacity(n);
+
+        while out.len() < n {
+            match iter.next() {
+                Some(value) => out.push(value),
+                None => break,
+            }
+        }
+
+        out
+    }
+
+    fn visit_batches<T>(
+        iter: &mut impl Iterator<Item = T>,
+        batch_sizes: Vec<usize>,
+        mut f: impl FnMut(Vec<T>),
+    ) {
+        let batch_sizes = batch_sizes.into_iter();
+
+        for batch_size in batch_sizes {
+            let batch = take_n(iter, batch_size);
+            let batch_len = batch.len();
+
+            if batch_len == 0 {
+                return;
+            }
+
+            f(batch);
+
+            if batch_len < batch_size {
+                return;
+            }
+        }
+
+        let batch = iter.collect::<Vec<_>>();
+
+        if !batch.is_empty() {
+            f(batch);
+        }
+    }
+
+    #[test]
+    fn f3_insert_new() {
+        let config = proptest::test_runner::Config::with_cases(10);
+
+        proptest!(config, |(
+                rng: WeakRng,
+                payments in arb_payments(0..20),
+                batch_sizes in vec(1_usize..20, 0..5),
+        )| {
+            let tempdir = tempdir().unwrap();
+            let temp_fs = FlatFileFs::new(tempdir.path().to_path_buf());
+            let mut temp_fs_db = PaymentDb::empty(temp_fs);
+
+            let mock_vfs = MockVfs::from_rng(rng);
+            let mut mock_vfs_db = PaymentDb::empty(mock_vfs);
+
+            let mut payments_iter = payments.clone().into_values();
+
+            visit_batches(&mut payments_iter, batch_sizes, |new_payment_batch| {
+                mock_vfs_db.insert_new_payments(new_payment_batch.clone()).unwrap();
+                temp_fs_db.insert_new_payments(new_payment_batch).unwrap();
+            });
+
+            assert_eq!(
+                mock_vfs_db.latest_payment_index(),
+                payments.last_key_value().map(|(k, _v)| *k),
+            );
+            assert_eq!(
+                temp_fs_db.latest_payment_index(),
+                payments.last_key_value().map(|(k, _v)| *k),
+            );
+
+            assert_eq!(mock_vfs_db.state, temp_fs_db.state);
+        });
+    }
 }
