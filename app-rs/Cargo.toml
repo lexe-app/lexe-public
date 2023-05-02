@@ -48,3 +48,8 @@ tracing-subscriber = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
+common = { path = "../common", features = ["test-utils"] }
+
+proptest = { workspace = true, features = ["alloc"] }
+proptest-derive.workspace = true
+tempfile.workspace = true

@@ -161,7 +161,7 @@ impl SeedableRng for WeakRng {
     }
 }
 
-#[cfg(all(any(test, feature = "test-utils")))]
+#[cfg(any(test, feature = "test-utils"))]
 impl Arbitrary for WeakRng {
     type Parameters = ();
     type Strategy = BoxedStrategy<Self>;
@@ -174,5 +174,33 @@ impl Arbitrary for WeakRng {
             .no_shrink()
             .prop_map(WeakRng::from_seed)
             .boxed()
+    }
+}
+
+/// Map `x` uniformly into the range `[0, n)`. Has slight modulo bias for large
+/// ranges.
+///
+/// See: <https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/>
+#[cfg(any(test, feature = "test-utils"))]
+#[inline(always)]
+const fn fastmap32(x: u32, n: u32) -> u32 {
+    let mul = (x as u64).wrapping_mul(n as u64);
+    (mul >> 32) as u32
+}
+
+/// Shuffle a slice. Very fast, but has slight modulo bias so don't use for
+/// crypto.
+#[cfg(any(test, feature = "test-utils"))]
+pub fn shuffle<T, R>(rng: &mut R, xs: &mut [T])
+where
+    R: RngCore,
+{
+    assert!(xs.len() < (u32::MAX as usize));
+
+    for i in (1..xs.len()).rev() {
+        // invariant: elements with index > i have been locked in place.
+        let n = (i as u32) + 1;
+        let j = fastmap32(rng.next_u32(), n) as usize;
+        xs.swap(i, j);
     }
 }

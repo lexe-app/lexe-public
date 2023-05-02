@@ -30,6 +30,10 @@ use crate::{
 /// It is essentially the `Payment` type flattened out such that each field is
 /// the result of the corresponding `Payment` getter.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(
+    all(any(test, feature = "test-utils"), not(target_env = "sgx")),
+    derive(Arbitrary)
+)]
 pub struct BasicPayment {
     pub id: LxPaymentId,
     pub kind: PaymentKind,
