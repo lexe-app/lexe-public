@@ -1,5 +1,7 @@
 //! The native Rust code for the Lexe mobile app.
 
+// For payments db node mocks
+#![feature(btree_cursors)]
 #![feature(once_cell)]
 // Enforce disallowed methods clippy lint
 #![deny(clippy::disallowed_methods)]
