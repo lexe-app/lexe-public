@@ -15,11 +15,14 @@ use common::{
         def::AppNodeRunApi,
         qs::{GetNewPayments, GetPaymentsByIds},
     },
-    client::NodeClient,
     iter::IteratorExt,
     ln::payments::{BasicPayment, PaymentIndex},
 };
 use tracing::warn;
+
+#[allow(dead_code)]
+/// Only fetch at most this many payments per requests.
+pub(crate) const DEFAULT_BATCH_SIZE: u16 = 50;
 
 pub trait Vfs {
     fn read(&self, filename: &str) -> io::Result<Vec<u8>> {
@@ -372,20 +375,20 @@ impl PaymentDbState {
     }
 }
 
-/// Only fetch at most this many payments per requests.
-const PAYMENT_BATCH_LIMIT: u16 = 50;
-
-pub async fn sync_payments<V: Vfs>(
+pub async fn sync_payments<V: Vfs, N: AppNodeRunApi>(
     db: &Mutex<PaymentDb<V>>,
-    node: &NodeClient,
+    node: &N,
+    batch_size: u16,
 ) -> anyhow::Result<()> {
+    assert!(batch_size > 0);
+
     // Fetch any updates to our pending payments to see if any are finalized.
-    sync_pending_payments(db, node)
+    sync_pending_payments(db, node, batch_size)
         .await
         .context("Failed to sync pending payments")?;
 
     // Fetch any new payments made since we last synced.
-    sync_new_payments(db, node)
+    sync_new_payments(db, node, batch_size)
         .await
         .context("Failed to sync new payments")?;
 
@@ -393,9 +396,10 @@ pub async fn sync_payments<V: Vfs>(
 }
 
 /// Fetch any updates to our pending payments to see if any are finalized.
-async fn sync_pending_payments<V: Vfs>(
+async fn sync_pending_payments<V: Vfs, N: AppNodeRunApi>(
     db: &Mutex<PaymentDb<V>>,
-    node: &NodeClient,
+    node: &N,
+    batch_size: u16,
 ) -> anyhow::Result<()> {
     let pending = {
         let lock = db.lock().unwrap();
@@ -408,7 +412,7 @@ async fn sync_pending_payments<V: Vfs>(
         lock.state.pending.iter().cloned().collect::<Vec<_>>()
     };
 
-    for pending_idx_batch in pending.chunks(usize::from(PAYMENT_BATCH_LIMIT)) {
+    for pending_idx_batch in pending.chunks(usize::from(batch_size)) {
         // Request the current state of all payments we believe are pending.
         let req = GetPaymentsByIds {
             ids: pending_idx_batch
@@ -421,21 +425,23 @@ async fn sync_pending_payments<V: Vfs>(
             .await
             .context("Failed to request updated pending payments from node")?;
 
-        // Sanity check response.
-        assert_eq!(
-            pending_idx_batch.len(),
-            resp_payments.len(),
-            "Node returned less payments than we expected!"
-        );
-        for (pending_idx, resp_payment) in
-            pending_idx_batch.iter().zip(resp_payments.iter())
-        {
-            assert_eq!(
-                pending_idx,
-                &resp_payment.index(),
-                "Node returned payment with different index!"
-            );
-        }
+        // TODO(phlip9): node doesn't currently guarantee complete response
+        //
+        // // Sanity check response.
+        // assert_eq!(
+        //     pending_idx_batch.len(),
+        //     resp_payments.len(),
+        //     "Node returned less payments than we expected!"
+        // );
+        // for (pending_idx, resp_payment) in
+        //     pending_idx_batch.iter().zip(resp_payments.iter())
+        // {
+        //     assert_eq!(
+        //         pending_idx,
+        //         &resp_payment.index(),
+        //         "Node returned payment with different index!"
+        //     );
+        // }
 
         // Update the db. Changed payments are updated on-disk. Finalized
         // payments are removed from the `pending` index.
@@ -451,9 +457,10 @@ async fn sync_pending_payments<V: Vfs>(
 }
 
 /// Fetch any new payments made since we last synced.
-async fn sync_new_payments<V: Vfs>(
+async fn sync_new_payments<V: Vfs, N: AppNodeRunApi>(
     db: &Mutex<PaymentDb<V>>,
-    node: &NodeClient,
+    node: &N,
+    batch_size: u16,
 ) -> anyhow::Result<()> {
     let mut latest_payment_index = db.lock().unwrap().latest_payment_index();
 
@@ -463,7 +470,7 @@ async fn sync_new_payments<V: Vfs>(
             // Remember, this start index is _exclusive_. The payment w/ this
             // index will _NOT_ be included in the response.
             start_index: latest_payment_index,
-            limit: Some(PAYMENT_BATCH_LIMIT),
+            limit: Some(batch_size),
         };
         let resp_payments = node
             .get_new_payments(req)
@@ -472,7 +479,7 @@ async fn sync_new_payments<V: Vfs>(
 
         // Sanity check response.
         assert!(
-            resp_payments.len() <= usize::from(PAYMENT_BATCH_LIMIT),
+            resp_payments.len() <= usize::from(batch_size),
             "Node returned too many payments"
         );
         assert!(
@@ -507,7 +514,7 @@ async fn sync_new_payments<V: Vfs>(
 
         // If the node returns less payments than our requested batch size, then
         // we are done (there are no more new payments after this batch).
-        if resp_payments_len < usize::from(PAYMENT_BATCH_LIMIT) {
+        if resp_payments_len < usize::from(batch_size) {
             break;
         }
     }
@@ -517,14 +524,31 @@ async fn sync_new_payments<V: Vfs>(
 
 #[cfg(test)]
 mod test {
-    use std::{cell::RefCell, collections::BTreeMap};
+    use std::{cell::RefCell, collections::BTreeMap, ops::Bound};
 
+    use async_trait::async_trait;
+    use bitcoin::Address;
     use common::{
-        ln::payments::BasicPayment,
-        rng::{shuffle, WeakRng},
+        api::{
+            command::{
+                CreateInvoiceRequest, NodeInfo, PayInvoiceRequest,
+                SendOnchainRequest,
+            },
+            error::NodeApiError,
+            qs::UpdatePaymentNote,
+        },
+        ln::{
+            hashes::LxTxid,
+            invoice::LxInvoice,
+            payments::{BasicPayment, PaymentStatus},
+        },
+        rng::{shuffle, RngCore, WeakRng},
     };
     use proptest::{
-        arbitrary::any, collection::vec, proptest, sample::SizeRange,
+        arbitrary::any,
+        collection::vec,
+        proptest,
+        sample::{Index, SizeRange},
         strategy::Strategy,
     };
     use tempfile::tempdir;
@@ -611,6 +635,106 @@ mod test {
         }
     }
 
+    struct MockNode {
+        payments: BTreeMap<PaymentIndex, BasicPayment>,
+    }
+
+    impl MockNode {
+        fn new(payments: BTreeMap<PaymentIndex, BasicPayment>) -> Self {
+            Self { payments }
+        }
+    }
+
+    #[async_trait]
+    impl AppNodeRunApi for MockNode {
+        // these methods are not relevant
+
+        async fn node_info(&self) -> Result<NodeInfo, NodeApiError> {
+            unimplemented!()
+        }
+        async fn create_invoice(
+            &self,
+            _req: CreateInvoiceRequest,
+        ) -> Result<LxInvoice, NodeApiError> {
+            unimplemented!()
+        }
+        async fn pay_invoice(
+            &self,
+            _req: PayInvoiceRequest,
+        ) -> Result<(), NodeApiError> {
+            unimplemented!()
+        }
+        async fn send_onchain(
+            &self,
+            _req: SendOnchainRequest,
+        ) -> Result<LxTxid, NodeApiError> {
+            unimplemented!()
+        }
+        async fn get_new_address(&self) -> Result<Address, NodeApiError> {
+            unimplemented!()
+        }
+
+        // payment sync methods
+
+        /// POST /v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
+        ///
+        /// Fetch a batch of payments by their [`LxPaymentId`]s. This is
+        /// typically used by a mobile client to poll for updates on
+        /// payments which it currently has stored locally as "pending";
+        /// the intention is to check if any of these payments have been
+        /// updated.
+        async fn get_payments_by_ids(
+            &self,
+            req: GetPaymentsByIds,
+        ) -> Result<Vec<BasicPayment>, NodeApiError> {
+            Ok(req
+                .ids
+                .iter()
+                .filter_map(|idx_str| {
+                    let idx = PaymentIndex::from_str(idx_str).unwrap();
+                    self.payments.get(&idx).cloned()
+                })
+                .collect())
+        }
+
+        /// GET /app/payments/new [`GetNewPayments`] -> [`Vec<BasicPayment>`]
+        async fn get_new_payments(
+            &self,
+            req: GetNewPayments,
+        ) -> Result<Vec<BasicPayment>, NodeApiError> {
+            let lower_bound = match &req.start_index {
+                Some(idx) => Bound::Excluded(idx),
+                None => Bound::Unbounded,
+            };
+            let mut limit = req.limit.unwrap_or(u16::MAX);
+            let mut cursor = self.payments.lower_bound(lower_bound);
+
+            let mut out = Vec::new();
+            loop {
+                if limit == 0 {
+                    break;
+                }
+
+                match cursor.value() {
+                    Some(payment) => out.push(payment.clone()),
+                    None => break,
+                }
+
+                cursor.move_next();
+                limit -= 1;
+            }
+            Ok(out)
+        }
+
+        /// PUT /app/payments/note [`UpdatePaymentNote`] -> [`()`]
+        async fn update_payment_note(
+            &self,
+            _req: UpdatePaymentNote,
+        ) -> Result<(), NodeApiError> {
+            unimplemented!()
+        }
+    }
+
     #[test]
     fn read_from_empty() {
         let mock_vfs = MockVfs::new();
@@ -679,13 +803,13 @@ mod test {
     }
 
     #[test]
-    fn f3_insert_new() {
+    fn test_insert_new() {
         let config = proptest::test_runner::Config::with_cases(10);
 
         proptest!(config, |(
-                rng: WeakRng,
-                payments in arb_payments(0..20),
-                batch_sizes in vec(1_usize..20, 0..5),
+            rng: WeakRng,
+            payments in arb_payments(0..20),
+            batch_sizes in vec(1_usize..20, 0..5),
         )| {
             let tempdir = tempdir().unwrap();
             let temp_fs = FlatFileFs::new(tempdir.path().to_path_buf());
@@ -711,6 +835,93 @@ mod test {
             );
 
             assert_eq!(mock_vfs_db.state, temp_fs_db.state);
+        });
+    }
+
+    #[tokio::test]
+    async fn test_sync_empty() {
+        let mock_node = MockNode::new(BTreeMap::new());
+        let mock_vfs = MockVfs::new();
+        let db = Mutex::new(PaymentDb::empty(mock_vfs));
+
+        sync_payments(&db, &mock_node, 5).await.unwrap();
+
+        assert!(db.lock().unwrap().state.is_empty());
+    }
+
+    #[test]
+    fn test_sync() {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .build()
+            .unwrap();
+        let config = proptest::test_runner::Config::with_cases(1);
+
+        proptest!(config, |(
+            mut rng: WeakRng,
+            payments in arb_payments(1..20),
+            req_batch_size in 1_u16..5,
+            finalize_idxs in vec(any::<Index>(), 1..5),
+        )| {
+            let mut mock_node = MockNode::new(payments);
+
+            let mut rng2 = WeakRng::from_u64(rng.next_u64());
+            let mock_vfs = MockVfs::from_rng(rng);
+            let db = Mutex::new(PaymentDb::empty(mock_vfs));
+
+            rt.block_on(sync_payments(&db, &mock_node, req_batch_size))
+                .unwrap();
+
+            assert_eq!(db.lock().unwrap().state.payments, mock_node.payments);
+
+            // reread and resync db from vfs -- should not change
+
+            let mock_vfs = db.into_inner().unwrap().vfs;
+            let db = Mutex::new(PaymentDb::read(mock_vfs).unwrap());
+
+            rt.block_on(sync_payments(&db, &mock_node, req_batch_size))
+                .unwrap();
+
+            assert_eq!(db.lock().unwrap().state.payments, mock_node.payments);
+
+            // finalize some payments
+
+            let pending_payments = mock_node
+                .payments
+                .values()
+                .filter(|p| p.is_pending())
+                .cloned()
+                .collect::<Vec<_>>();
+            let mut finalized_payments = Vec::new();
+
+            if !pending_payments.is_empty() {
+                for finalize_idx in finalize_idxs {
+                    let finalize_idx = finalize_idx.index(pending_payments.len());
+                    let payment = &pending_payments[finalize_idx];
+                    finalized_payments.push(payment.index());
+                    let new_status = if rng2.next_u32() % 2 == 0 {
+                        PaymentStatus::Completed
+                    } else {
+                        PaymentStatus::Failed
+                    };
+                    mock_node
+                        .payments
+                        .get_mut(&payment.index())
+                        .unwrap()
+                        .status = new_status;
+                }
+            }
+
+            // resync -- should pick up the finalized payments
+
+            rt.block_on(sync_payments(&db, &mock_node, req_batch_size))
+                .unwrap();
+
+            let db_lock = db.lock().unwrap();
+            assert_eq!(db_lock.state.payments, mock_node.payments);
+
+            for finalized_payment in finalized_payments {
+                assert!(!db_lock.state.pending.contains(&finalized_payment));
+            }
         });
     }
 }
