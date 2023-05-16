@@ -46,6 +46,7 @@ dependencies:
   # Used by the generated Rust<->dart ffi bindings.
   meta: ^1.8.0
   # Reactive primitives for asynchronous programming
+  path_provider: ^2.0.15
   rxdart: ^0.27.7
   # Even more rxdart!
   rxdart_ext: ^0.2.8

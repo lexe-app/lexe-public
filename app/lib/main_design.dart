@@ -22,7 +22,7 @@ Future<void> main() async {
 
   logger.init();
 
-  const Config config = cfg.testConfig;
+  final Config config = await cfg.buildTest();
   info("Test build config: $config");
 
   final mockApp = MockAppHandle(bridge: api);
@@ -37,7 +37,7 @@ Future<void> main() async {
       appBar: AppBar(automaticallyImplyLeading: false),
       body: ComponentList(
         components: [
-          Component("LandingPage", (_) => const LandingPage(config: config)),
+          Component("LandingPage", (_) => LandingPage(config: config)),
           Component("BackupWalletPage", (_) => BackupWalletPage(app: mockApp)),
           Component("WalletPage", (_) => WalletPage(app: mockApp)),
         ],

@@ -360,6 +360,7 @@ mod io {
                 network: self.network.wire2api(),
                 gateway_url: self.gateway_url.wire2api(),
                 use_sgx: self.use_sgx.wire2api(),
+                app_data_dir: self.app_data_dir.wire2api(),
             }
         }
     }
@@ -393,6 +394,7 @@ mod io {
         network: i32,
         gateway_url: *mut wire_uint_8_list,
         use_sgx: bool,
+        app_data_dir: *mut wire_uint_8_list,
     }
 
     #[repr(C)]
@@ -443,6 +445,7 @@ mod io {
                 network: Default::default(),
                 gateway_url: core::ptr::null_mut(),
                 use_sgx: Default::default(),
+                app_data_dir: core::ptr::null_mut(),
             }
         }
     }

@@ -1,5 +1,6 @@
-import 'dart:io' show Platform;
+import 'dart:io' show Directory, Platform;
 import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:path_provider/path_provider.dart' as path_provider;
 
 import 'bindings_generated_api.dart' show Config, DeployEnv, Network;
 
@@ -14,17 +15,35 @@ const bool debug = kDebugMode;
 /// `false` in integration tests and run mode.
 final bool test = Platform.environment.containsKey("FLUTTER_TEST");
 
-const Config config = Config(
-  deployEnv: DeployEnv.Dev,
-  network: Network.Regtest,
-  // TODO(phlip9): need different flavors for prod, staging, and dev
-  gatewayUrl: String.fromEnvironment("DEV_GATEWAY_URL"),
-  useSgx: false,
-);
+Future<Config> build() async {
+  // Application Support is for app-specific data that is not meant to be
+  // user-facing, unlike `path_provider.getApplicationDocumentsDirectory()`.
+  // On Android, iOS, and macOS, this data is also sandboxed and inaccessible
+  // to other apps.
+  final appDataDir = await path_provider.getApplicationSupportDirectory();
 
-const Config testConfig = Config(
-  deployEnv: DeployEnv.Dev,
-  network: Network.Regtest,
-  gatewayUrl: "",
-  useSgx: false,
-);
+  return Config(
+    deployEnv: DeployEnv.Dev,
+    network: Network.Regtest,
+    // TODO(phlip9): need different flavors for prod, staging, and dev
+    gatewayUrl: const String.fromEnvironment("DEV_GATEWAY_URL"),
+    useSgx: false,
+    appDataDir: appDataDir.path,
+  );
+}
+
+Future<Config> buildTest() async {
+  // Use a temporary directory for unit tests.
+  //
+  // Use dart:io's Directory.systemTemp since `path_provider` doesn't work in
+  // unit tests...
+  final appDataDir = await Directory.systemTemp.createTemp("lexeapp");
+
+  return Config(
+    deployEnv: DeployEnv.Dev,
+    network: Network.Regtest,
+    gatewayUrl: "",
+    useSgx: false,
+    appDataDir: appDataDir.path,
+  );
+}

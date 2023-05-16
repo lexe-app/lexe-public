@@ -171,6 +171,7 @@ pub struct Config {
     pub network: Network,
     pub gateway_url: String,
     pub use_sgx: bool,
+    pub app_data_dir: String,
 }
 
 /// Init the Rust [`tracing`] logger. Also sets the current `RUST_LOG_TX`

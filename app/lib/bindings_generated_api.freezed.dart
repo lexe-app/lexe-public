@@ -20,6 +20,7 @@ mixin _$Config {
   Network get network => throw _privateConstructorUsedError;
   String get gatewayUrl => throw _privateConstructorUsedError;
   bool get useSgx => throw _privateConstructorUsedError;
+  String get appDataDir => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -29,7 +30,8 @@ class _$_Config implements _Config {
       {required this.deployEnv,
       required this.network,
       required this.gatewayUrl,
-      required this.useSgx});
+      required this.useSgx,
+      required this.appDataDir});
 
   @override
   final DeployEnv deployEnv;
@@ -39,10 +41,12 @@ class _$_Config implements _Config {
   final String gatewayUrl;
   @override
   final bool useSgx;
+  @override
+  final String appDataDir;
 
   @override
   String toString() {
-    return 'Config(deployEnv: $deployEnv, network: $network, gatewayUrl: $gatewayUrl, useSgx: $useSgx)';
+    return 'Config(deployEnv: $deployEnv, network: $network, gatewayUrl: $gatewayUrl, useSgx: $useSgx, appDataDir: $appDataDir)';
   }
 
   @override
@@ -55,12 +59,14 @@ class _$_Config implements _Config {
             (identical(other.network, network) || other.network == network) &&
             (identical(other.gatewayUrl, gatewayUrl) ||
                 other.gatewayUrl == gatewayUrl) &&
-            (identical(other.useSgx, useSgx) || other.useSgx == useSgx));
+            (identical(other.useSgx, useSgx) || other.useSgx == useSgx) &&
+            (identical(other.appDataDir, appDataDir) ||
+                other.appDataDir == appDataDir));
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, deployEnv, network, gatewayUrl, useSgx);
+  int get hashCode => Object.hash(
+      runtimeType, deployEnv, network, gatewayUrl, useSgx, appDataDir);
 }
 
 abstract class _Config implements Config {
@@ -68,7 +74,8 @@ abstract class _Config implements Config {
       {required final DeployEnv deployEnv,
       required final Network network,
       required final String gatewayUrl,
-      required final bool useSgx}) = _$_Config;
+      required final bool useSgx,
+      required final String appDataDir}) = _$_Config;
 
   @override
   DeployEnv get deployEnv;
@@ -78,6 +85,8 @@ abstract class _Config implements Config {
   String get gatewayUrl;
   @override
   bool get useSgx;
+  @override
+  String get appDataDir;
 }
 
 /// @nodoc
