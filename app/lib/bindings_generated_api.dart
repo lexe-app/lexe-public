@@ -122,6 +122,7 @@ class Config with _$Config {
     required Network network,
     required String gatewayUrl,
     required bool useSgx,
+    required String appDataDir,
   }) = _Config;
 }
 

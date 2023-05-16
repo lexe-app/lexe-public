@@ -1,7 +1,7 @@
 //! The Rust native app state. The interfaces here should look like standard
 //! Rust, without any FFI weirdness.
 
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
 use anyhow::Context;
 use common::{
@@ -169,6 +169,7 @@ pub struct AppConfig {
     pub gateway_url: String,
     pub use_sgx: bool,
     pub allow_debug_enclaves: bool,
+    pub app_data_dir: PathBuf,
 }
 
 impl From<Config> for AppConfig {
@@ -183,6 +184,8 @@ impl From<Config> for AppConfig {
         let use_sgx = false;
         let allow_debug_enclaves = deploy_env == Dev;
 
+        let app_data_dir = PathBuf::from(config.app_data_dir);
+
         match (&deploy_env, &network) {
             (Prod, Bitcoin) => todo!(),
             (Staging, Testnet) => todo!(),
@@ -192,6 +195,7 @@ impl From<Config> for AppConfig {
                 gateway_url,
                 use_sgx,
                 allow_debug_enclaves,
+                app_data_dir,
             },
             _ => panic!(
                 "Bad app config combination: {deploy_env:?} build is not \

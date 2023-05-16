@@ -17,9 +17,11 @@ Future<void> main() async {
   //   (error, stackTrace) => /* do something w/ error */,
   // );
 
+  WidgetsFlutterBinding.ensureInitialized();
+
   logger.init();
 
-  const Config config = cfg.config;
+  final Config config = await cfg.build();
   info("Build config: $config");
 
   final maybeApp = await AppHandle.load(bridge: api, config: config);
@@ -31,7 +33,7 @@ Future<void> main() async {
     child = const SizedBox();
   } else {
     // no wallet persisted => first run -> show landing
-    child = const LandingPage(config: config);
+    child = LandingPage(config: config);
   }
 
   runApp(LexeApp(

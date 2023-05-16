@@ -19,6 +19,7 @@ typedef struct wire_Config {
   int32_t network;
   struct wire_uint_8_list *gateway_url;
   bool use_sgx;
+  struct wire_uint_8_list *app_data_dir;
 } wire_Config;
 
 typedef struct wire_App {

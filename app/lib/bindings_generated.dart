@@ -324,6 +324,7 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     wireObj.network = api2wire_network(apiObj.network);
     wireObj.gateway_url = api2wire_String(apiObj.gatewayUrl);
     wireObj.use_sgx = api2wire_bool(apiObj.useSgx);
+    wireObj.app_data_dir = api2wire_String(apiObj.appDataDir);
   }
 }
 
@@ -641,6 +642,8 @@ class wire_Config extends ffi.Struct {
 
   @ffi.Bool()
   external bool use_sgx;
+
+  external ffi.Pointer<wire_uint_8_list> app_data_dir;
 }
 
 class wire_App extends ffi.Struct {
