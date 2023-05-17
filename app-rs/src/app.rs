@@ -135,7 +135,7 @@ impl App {
         // we've successfully signed up and provisioned our node; we can finally
         // "commit" and persist our root seed
 
-        let secret_store = SecretStore::new();
+        let secret_store = SecretStore::new(&config);
         secret_store
             .write_root_seed(&root_seed)
             .context("Failed to persist root seed")?;
@@ -165,11 +165,13 @@ impl App {
 
 /// Pure-Rust configuration for a particular user app.
 pub struct AppConfig {
+    pub deploy_env: DeployEnv,
     pub network: common::cli::Network,
     pub gateway_url: String,
     pub use_sgx: bool,
     pub allow_debug_enclaves: bool,
     pub app_data_dir: PathBuf,
+    pub use_mock_secret_store: bool,
 }
 
 impl From<Config> for AppConfig {
@@ -186,16 +188,20 @@ impl From<Config> for AppConfig {
 
         let app_data_dir = PathBuf::from(config.app_data_dir);
 
+        let use_mock_secret_store = config.use_mock_secret_store;
+
         match (&deploy_env, &network) {
             (Prod, Bitcoin) => todo!(),
             (Staging, Testnet) => todo!(),
             (Dev, Testnet) => todo!(),
             (Dev, Regtest) => Self {
+                deploy_env,
                 network: network.into(),
                 gateway_url,
                 use_sgx,
                 allow_debug_enclaves,
                 app_data_dir,
+                use_mock_secret_store,
             },
             _ => panic!(
                 "Bad app config combination: {deploy_env:?} build is not \

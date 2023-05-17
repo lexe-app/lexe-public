@@ -29,6 +29,7 @@ Future<Config> build() async {
     gatewayUrl: const String.fromEnvironment("DEV_GATEWAY_URL"),
     useSgx: false,
     appDataDir: appDataDir.path,
+    useMockSecretStore: false,
   );
 }
 
@@ -45,5 +46,6 @@ Future<Config> buildTest() async {
     gatewayUrl: "",
     useSgx: false,
     appDataDir: appDataDir.path,
+    useMockSecretStore: true,
   );
 }

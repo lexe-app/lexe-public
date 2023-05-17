@@ -150,11 +150,21 @@ impl From<FiatRatesRs> for FiatRates {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum DeployEnv {
     Prod,
     Staging,
     Dev,
+}
+
+impl DeployEnv {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            Self::Prod => "prod",
+            Self::Staging => "staging",
+            Self::Dev => "dev",
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -172,6 +182,7 @@ pub struct Config {
     pub gateway_url: String,
     pub use_sgx: bool,
     pub app_data_dir: String,
+    pub use_mock_secret_store: bool,
 }
 
 /// Init the Rust [`tracing`] logger. Also sets the current `RUST_LOG_TX`
