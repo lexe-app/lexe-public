@@ -15,6 +15,8 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
+#[cfg(any(test, feature = "test-utils"))]
+use crate::test_utils::arbitrary;
 use crate::{
     hex::{self, FromHex},
     hexstr_or_bytes,
@@ -30,18 +32,18 @@ use crate::{
 /// It is essentially the `Payment` type flattened out such that each field is
 /// the result of the corresponding `Payment` getter.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(
-    all(any(test, feature = "test-utils"), not(target_env = "sgx")),
-    derive(Arbitrary)
-)]
+#[cfg_attr(all(any(test, feature = "test-utils")), derive(Arbitrary))]
 pub struct BasicPayment {
     pub id: LxPaymentId,
     pub kind: PaymentKind,
     pub direction: PaymentDirection,
+
     /// (Invoice payments only) The BOLT11 invoice used in this payment.
     pub invoice: Option<LxInvoice>,
+
     /// (Onchain payments only) The txid of the replacement tx, if one exists.
     pub replacement: Option<LxTxid>,
+
     /// The amount of this payment.
     ///
     /// - If this is a completed inbound invoice payment, this is the amount we
@@ -59,10 +61,20 @@ pub struct BasicPayment {
     ///   (the recipient), but if a JIT channel open was required to facilitate
     ///   this payment, then the on-chain fee is reflected here.
     pub fees: Amount,
+
     pub status: PaymentStatus,
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_string()")
+    )]
     /// The payment status as a human-readable string. These strings are
     /// customized per payment type, e.g. "invoice generated", "timed out"
     pub status_str: String,
+
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_option_string()")
+    )]
     /// An optional personal note which a user can attach to any payment. A
     /// note can always be added or modified when a payment already exists,
     /// but this may not always be possible at creation time. These
@@ -87,6 +99,7 @@ pub struct BasicPayment {
     /// - Outbound spontaneous payment: Since there is no invoice description
     ///   field, the user has the option to set this at payment creation time.
     pub note: Option<String>,
+
     pub created_at: TimestampMs,
     pub finalized_at: Option<TimestampMs>,
 }
@@ -207,7 +220,11 @@ impl BasicPayment {
     }
 
     pub fn is_pending(&self) -> bool {
-        matches!(self.status, PaymentStatus::Pending)
+        use PaymentStatus::*;
+        match self.status {
+            Pending => true,
+            Completed | Failed => false,
+        }
     }
 }
 
