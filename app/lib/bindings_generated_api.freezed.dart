@@ -21,6 +21,7 @@ mixin _$Config {
   String get gatewayUrl => throw _privateConstructorUsedError;
   bool get useSgx => throw _privateConstructorUsedError;
   String get appDataDir => throw _privateConstructorUsedError;
+  bool get useMockSecretStore => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -31,7 +32,8 @@ class _$_Config implements _Config {
       required this.network,
       required this.gatewayUrl,
       required this.useSgx,
-      required this.appDataDir});
+      required this.appDataDir,
+      required this.useMockSecretStore});
 
   @override
   final DeployEnv deployEnv;
@@ -43,10 +45,12 @@ class _$_Config implements _Config {
   final bool useSgx;
   @override
   final String appDataDir;
+  @override
+  final bool useMockSecretStore;
 
   @override
   String toString() {
-    return 'Config(deployEnv: $deployEnv, network: $network, gatewayUrl: $gatewayUrl, useSgx: $useSgx, appDataDir: $appDataDir)';
+    return 'Config(deployEnv: $deployEnv, network: $network, gatewayUrl: $gatewayUrl, useSgx: $useSgx, appDataDir: $appDataDir, useMockSecretStore: $useMockSecretStore)';
   }
 
   @override
@@ -61,12 +65,14 @@ class _$_Config implements _Config {
                 other.gatewayUrl == gatewayUrl) &&
             (identical(other.useSgx, useSgx) || other.useSgx == useSgx) &&
             (identical(other.appDataDir, appDataDir) ||
-                other.appDataDir == appDataDir));
+                other.appDataDir == appDataDir) &&
+            (identical(other.useMockSecretStore, useMockSecretStore) ||
+                other.useMockSecretStore == useMockSecretStore));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType, deployEnv, network, gatewayUrl, useSgx, appDataDir);
+  int get hashCode => Object.hash(runtimeType, deployEnv, network, gatewayUrl,
+      useSgx, appDataDir, useMockSecretStore);
 }
 
 abstract class _Config implements Config {
@@ -75,7 +81,8 @@ abstract class _Config implements Config {
       required final Network network,
       required final String gatewayUrl,
       required final bool useSgx,
-      required final String appDataDir}) = _$_Config;
+      required final String appDataDir,
+      required final bool useMockSecretStore}) = _$_Config;
 
   @override
   DeployEnv get deployEnv;
@@ -87,6 +94,8 @@ abstract class _Config implements Config {
   bool get useSgx;
   @override
   String get appDataDir;
+  @override
+  bool get useMockSecretStore;
 }
 
 /// @nodoc

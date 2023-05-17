@@ -123,6 +123,7 @@ class Config with _$Config {
     required String gatewayUrl,
     required bool useSgx,
     required String appDataDir,
+    required bool useMockSecretStore,
   }) = _Config;
 }
 

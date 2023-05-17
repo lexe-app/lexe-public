@@ -361,6 +361,7 @@ mod io {
                 gateway_url: self.gateway_url.wire2api(),
                 use_sgx: self.use_sgx.wire2api(),
                 app_data_dir: self.app_data_dir.wire2api(),
+                use_mock_secret_store: self.use_mock_secret_store.wire2api(),
             }
         }
     }
@@ -395,6 +396,7 @@ mod io {
         gateway_url: *mut wire_uint_8_list,
         use_sgx: bool,
         app_data_dir: *mut wire_uint_8_list,
+        use_mock_secret_store: bool,
     }
 
     #[repr(C)]
@@ -446,6 +448,7 @@ mod io {
                 gateway_url: core::ptr::null_mut(),
                 use_sgx: Default::default(),
                 app_data_dir: core::ptr::null_mut(),
+                use_mock_secret_store: Default::default(),
             }
         }
     }
