@@ -6,6 +6,7 @@ import 'cfg.dart' as cfg;
 import 'logger.dart' as logger;
 import 'logger.dart' show info;
 import 'route/landing.dart' show LandingPage;
+import 'route/wallet.dart' show WalletPage;
 import 'style.dart' show LxColors, LxTheme;
 
 Future<void> main() async {
@@ -28,9 +29,8 @@ Future<void> main() async {
 
   final Widget child;
   if (maybeApp != null) {
-    // final app = maybeApp!;
-    // TODO(phlip9): already have wallet persisted
-    child = const SizedBox();
+    // wallet already exists => show wallet page
+    child = WalletPage(app: maybeApp);
   } else {
     // no wallet persisted => first run -> show landing
     child = LandingPage(config: config);
