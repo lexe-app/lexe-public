@@ -1,4 +1,29 @@
-//! App local payments db
+//! App-local payments db and payment sync
+//!
+//! ### [`PaymentDb`]
+//!
+//! The app's [`PaymentDb`] maintains a local copy of all [`BasicPayment`]s,
+//! synced from the user node. The user nodes are the source-of-truth for
+//! payment state; consequently, this payment db is effectively a projection of
+//! the user node's payment state.
+//!
+//! Currently the [`BasicPayment`]s in the [`PaymentDb`] are just dumped into
+//! a subdirectory of the app's data directroy as unencrypted json blobs. On
+//! startup, we just load all on-disk [`BasicPayment`]s into memory.
+//!
+//! In the future, this could be a SQLite DB or something.
+//!
+//! ### Payment Syncing
+//!
+//! Syncing payments from the user node is done in two steps:
+//!
+//! 1. For every pending payment in our db, we request an update from the user
+//!    node to see if that pending payment has finalized (either successfully or
+//!    unsuccessfully).
+//! 2. We then request, in order, any new payments made since our last sync.
+//!
+//! [`BasicPayment`]: common::ln::payments::BasicPayment
+//! [`PaymentDb`]: crate::payments::PaymentDb
 
 use std::{
     collections::{btree_map::Entry, BTreeMap, BTreeSet},
@@ -24,6 +49,20 @@ use tracing::warn;
 /// Only fetch at most this many payments per requests.
 pub(crate) const DEFAULT_BATCH_SIZE: u16 = 50;
 
+/// The app's local [`BasicPayment`] database, synced from the user node.
+pub struct PaymentDb<V> {
+    vfs: V,
+    state: PaymentDbState,
+}
+
+/// Pure in-memory state of the [`PaymentDb`].
+#[derive(Debug, PartialEq, Eq)]
+struct PaymentDbState {
+    payments: BTreeMap<PaymentIndex, BasicPayment>,
+    pending: BTreeSet<PaymentIndex>,
+}
+
+/// Abstraction over a flat file system, suitable for mocking.
 pub trait Vfs {
     fn read(&self, filename: &str) -> io::Result<Vec<u8>> {
         let mut buf = Vec::new();
@@ -48,9 +87,12 @@ pub trait Vfs {
     fn write(&self, filename: &str, data: &[u8]) -> io::Result<()>;
 }
 
+/// File system impl for [`Vfs`] that does real IO.
 pub struct FlatFileFs {
     base_dir: PathBuf,
 }
+
+// -- impl FlatFileFs -- //
 
 impl FlatFileFs {
     pub fn new(base_dir: PathBuf) -> Self {
@@ -93,23 +135,7 @@ impl Vfs for FlatFileFs {
     }
 }
 
-pub struct PaymentDb<V> {
-    vfs: V,
-    state: PaymentDbState,
-}
-
-#[derive(Debug, PartialEq, Eq)]
-struct PaymentDbState {
-    payments: BTreeMap<PaymentIndex, BasicPayment>,
-    pending: BTreeSet<PaymentIndex>,
-}
-
-// fn io_err_other<E>(err: E) -> io::Error
-// where
-//     E: Into<Box<dyn std::error::Error + Send + Sync>>,
-// {
-//     io::Error::new(io::ErrorKind::Other, err)
-// }
+// -- impl PaymentDb -- //
 
 fn io_err_invalid_data<E>(err: E) -> io::Error
 where
@@ -274,6 +300,8 @@ impl<V: Vfs> PaymentDb<V> {
     }
 }
 
+// -- impl PaymentDbState -- //
+
 impl PaymentDbState {
     fn empty() -> Self {
         Self {
@@ -375,6 +403,13 @@ impl PaymentDbState {
     }
 }
 
+// -- PaymentDb sync -- //
+
+/// Sync the app's local payment state from the user node. Sync happens in two
+/// steps:
+///
+/// (1.) Fetch any updates to our currently pending payments.
+/// (2.) Fetch any new payments made since our last sync.
 pub async fn sync_payments<V: Vfs, N: AppNodeRunApi>(
     db: &Mutex<PaymentDb<V>>,
     node: &N,
@@ -431,7 +466,7 @@ async fn sync_pending_payments<V: Vfs, N: AppNodeRunApi>(
         // assert_eq!(
         //     pending_idx_batch.len(),
         //     resp_payments.len(),
-        //     "Node returned less payments than we expected!"
+        //     "Node returned fewer payments than we expected!"
         // );
         // for (pending_idx, resp_payment) in
         //     pending_idx_batch.iter().zip(resp_payments.iter())
@@ -512,8 +547,8 @@ async fn sync_new_payments<V: Vfs, N: AppNodeRunApi>(
             .insert_new_payments(resp_payments)
             .context("Failed to insert new payments")?;
 
-        // If the node returns less payments than our requested batch size, then
-        // we are done (there are no more new payments after this batch).
+        // If the node returns fewer payments than our requested batch size,
+        // then we are done (there are no more new payments after this batch).
         if resp_payments_len < usize::from(batch_size) {
             break;
         }
@@ -521,6 +556,8 @@ async fn sync_new_payments<V: Vfs, N: AppNodeRunApi>(
 
     Ok(())
 }
+
+// -- Tests -- //
 
 #[cfg(test)]
 mod test {
@@ -677,12 +714,6 @@ mod test {
         // payment sync methods
 
         /// POST /v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
-        ///
-        /// Fetch a batch of payments by their [`LxPaymentId`]s. This is
-        /// typically used by a mobile client to poll for updates on
-        /// payments which it currently has stored locally as "pending";
-        /// the intention is to check if any of these payments have been
-        /// updated.
         async fn get_payments_by_ids(
             &self,
             req: GetPaymentsByIds,
