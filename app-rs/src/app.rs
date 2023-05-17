@@ -26,17 +26,65 @@ use crate::{
 };
 
 pub struct App {
-    secret_store: SecretStore,
     gateway_client: GatewayClient,
     node_client: NodeClient,
 }
 
 impl App {
-    /// Load the app state from local storage. Returns `None` if this is the
-    /// first run.
-    pub async fn load(_config: AppConfig) -> anyhow::Result<Option<Self>> {
-        // TODO(phlip9): load from disk
-        Ok(None)
+    /// Try to load the root seed from the platform secret store and app state
+    /// from the local storage. Returns `None` if this is the first run.
+    pub async fn load<R: Crng>(
+        rng: &mut R,
+        config: AppConfig,
+    ) -> anyhow::Result<Option<Self>> {
+        let secret_store = SecretStore::new(&config);
+        let maybe_root_seed = secret_store
+            .read_root_seed()
+            .context("Failed to read root seed from SecretStore")?;
+
+        // If there's nothing in the secret store, this must be a fresh install;
+        // we can just return here.
+        let root_seed = match maybe_root_seed {
+            None => return Ok(None),
+            Some(s) => s,
+        };
+
+        // TODO(phlip9): load expected measurement from user settings
+        let measurement = enclave::MOCK_MEASUREMENT;
+
+        let enclave_policy = attest::EnclavePolicy {
+            allow_debug: config.allow_debug_enclaves,
+            trusted_mrenclaves: Some(vec![measurement]),
+            // TODO(phlip9): load expected lexe signer from build config
+            trusted_mrsigner: None,
+        };
+        let attest_verifier = attest::ServerCertVerifier {
+            expect_dummy_quote: !config.use_sgx,
+            enclave_policy,
+        };
+
+        let user_key_pair = root_seed.derive_user_key_pair();
+        let bearer_authenticator =
+            Arc::new(BearerAuthenticator::new(user_key_pair, None));
+
+        let gateway_client = GatewayClient::new(config.gateway_url);
+
+        let node_client = NodeClient::new(
+            rng,
+            &root_seed,
+            bearer_authenticator,
+            gateway_client.clone(),
+            &dummy_lexe_ca_cert(),
+            attest_verifier,
+            constants::NODE_PROVISION_HTTPS,
+            constants::NODE_RUN_HTTPS,
+        )
+        .context("Failed to build NodeClient")?;
+
+        Ok(Some(Self {
+            gateway_client,
+            node_client,
+        }))
     }
 
     pub async fn restore(
@@ -80,6 +128,7 @@ impl App {
         let enclave_policy = attest::EnclavePolicy {
             allow_debug: config.allow_debug_enclaves,
             trusted_mrenclaves: Some(vec![measurement]),
+            // TODO(phlip9): load expected lexe signer from build config
             trusted_mrsigner: None,
         };
         let attest_verifier = attest::ServerCertVerifier {
@@ -144,7 +193,6 @@ impl App {
         // info!("node_client.provision() success");
 
         Ok(Self {
-            secret_store,
             node_client,
             gateway_client,
         })
@@ -156,10 +204,6 @@ impl App {
 
     pub fn gateway_client(&self) -> &GatewayClient {
         &self.gateway_client
-    }
-
-    pub fn secret_store(&self) -> &SecretStore {
-        &self.secret_store
     }
 }
 

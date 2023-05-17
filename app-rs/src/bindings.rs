@@ -229,7 +229,7 @@ impl AppHandle {
 
     pub fn load(config: Config) -> anyhow::Result<Option<AppHandle>> {
         block_on(async move {
-            Ok(App::load(config.into())
+            Ok(App::load(&mut SysRng::new(), config.into())
                 .await
                 .context("Failed to load saved App state")?
                 .map(AppHandle::new))
