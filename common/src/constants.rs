@@ -14,6 +14,10 @@ pub const SINGLETON_DIRECTORY: &str = ".";
 /// The vfs filename used for the `WalletDb`.
 pub const WALLET_DB_FILENAME: &str = "bdk_wallet_db";
 
+/// Reject backend requests for payments that are too large.
+pub const MAX_PAYMENTS_BATCH_SIZE: u16 = 100;
+pub const DEFAULT_PAYMENTS_BATCH_SIZE: u16 = 50;
+
 /// The standard port used for Lightning Network P2P connections
 pub const STANDARD_LIGHTNING_P2P_PORT: Port = 9735;
 

@@ -395,6 +395,8 @@ error_kind! {
         AuthExpired = 106,
         /// Parsed request is invalid
         InvalidParsedRequest = 107,
+        /// Request batch size is over the limit
+        BatchSizeOverLimit = 108,
     }
 }
 
@@ -573,6 +575,12 @@ impl BackendApiError {
         let msg = format!("Failed to serialize bcs request: {err:#}");
         Self { kind, msg }
     }
+
+    pub fn batch_size_too_large() -> Self {
+        let kind = BackendErrorKind::BatchSizeOverLimit;
+        let msg = kind.to_msg().to_owned();
+        Self { kind, msg }
+    }
 }
 
 impl NodeApiError {
@@ -702,6 +710,7 @@ impl ToHttpStatus for BackendApiError {
             Unauthorized => CLIENT_401_UNAUTHORIZED,
             AuthExpired => CLIENT_401_UNAUTHORIZED,
             InvalidParsedRequest => CLIENT_400_BAD_REQUEST,
+            BatchSizeOverLimit => CLIENT_400_BAD_REQUEST,
         }
     }
 }

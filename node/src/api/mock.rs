@@ -27,7 +27,7 @@ use common::{
         NodePk, Scid, User, UserPk,
     },
     byte_str::ByteStr,
-    constants::SINGLETON_DIRECTORY,
+    constants::{self, SINGLETON_DIRECTORY},
     ed25519, enclave,
     ln::payments::{DbPayment, LxPaymentId, PaymentIndex, PaymentStatus},
     rng::SysRng,
@@ -388,7 +388,11 @@ impl NodeBackendApi for MockBackendClient {
         req: GetNewPayments,
         _auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError> {
-        let limit = req.limit.map(usize::from).unwrap_or(usize::MAX);
+        let limit = req.limit.unwrap_or(constants::DEFAULT_PAYMENTS_BATCH_SIZE);
+        if limit > constants::MAX_PAYMENTS_BATCH_SIZE {
+            return Err(BackendApiError::batch_size_too_large());
+        }
+
         let payments = self
             .payments
             .lock()
@@ -398,7 +402,7 @@ impl NodeBackendApi for MockBackendClient {
                 Some(ref start_index) => *index > start_index,
                 None => true,
             })
-            .take(limit)
+            .take(usize::from(limit))
             .map(|(_idx, p)| p)
             .cloned()
             .collect::<Vec<DbPayment>>();
