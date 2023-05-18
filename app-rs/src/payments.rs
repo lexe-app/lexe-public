@@ -45,10 +45,6 @@ use common::{
 };
 use tracing::warn;
 
-#[allow(dead_code)]
-/// Only fetch at most this many payments per requests.
-pub(crate) const DEFAULT_BATCH_SIZE: u16 = 50;
-
 /// The app's local [`BasicPayment`] database, synced from the user node.
 pub struct PaymentDb<V> {
     vfs: V,
