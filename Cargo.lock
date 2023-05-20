@@ -2543,7 +2543,7 @@ dependencies = [
 [[package]]
 name = "ring"
 version = "0.16.20"
-source = "git+https://github.com/lexe-tech/ring?branch=support-sgx-0.16.20#45cbff0883b65c5b95b59555fc279422f834846b"
+source = "git+https://github.com/lexe-tech/ring?branch=lexe-0.16.20-sgx-nix#15f9fc85b13c76ab6af0009c61a7c743e2695445"
 dependencies = [
  "cc",
  "libc",
