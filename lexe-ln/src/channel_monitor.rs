@@ -5,13 +5,13 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::bail;
 use common::{
     ln::channel::LxOutPoint, notify, shutdown::ShutdownChannel, task::LxTask,
 };
 use lightning::chain::{chainmonitor::MonitorUpdateId, transaction::OutPoint};
+use thiserror::Error;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     alias::LexeChainMonitorType,
@@ -45,6 +45,7 @@ pub struct LxChannelMonitorUpdate {
 }
 
 /// Whether the [`LxChannelMonitorUpdate`] represents a new or updated channel.
+#[derive(Copy, Clone, Debug)]
 pub enum ChannelMonitorUpdateKind {
     New,
     Updated,
@@ -90,8 +91,16 @@ where
                         &mut shutdown,
                     ).await;
 
-                    if let Err(e) = handle_res {
-                        error!("Channel monitor persist error: {e:#}");
+                    if let Err(error) = handle_res {
+                        // Log `Interrupted` at `warn` since it is a race that
+                        // is expected to occur, especially in integration
+                        // tests. Everything else is logged at `error`.
+                        match error {
+                            Error::Interrupted =>
+                                warn!("Monitor persist interrupted"),
+                            e => error!("Monitor persist error: {e:#}"),
+                        }
+
                         // All errors are considered fatal.
                         shutdown.send();
                         break;
@@ -106,11 +115,29 @@ where
     })
 }
 
+/// Errors that can occur when handling a channel monitor update.
+///
+/// This enum is intentionally kept private; it exists solely to prevent the
+/// caller from having to use some variant of `err_str.contains(..)`
+#[derive(Debug, Error)]
+enum Error {
+    #[error("Couldn't persist {kind} channel #{idx}: {inner:#}")]
+    PersistFailure {
+        kind: ChannelMonitorUpdateKind,
+        idx: usize,
+        inner: anyhow::Error,
+    },
+    #[error("Chain monitor returned err: {0:?}")]
+    ChainMonitor(lightning::util::errors::APIError),
+    #[error("Received shutdown signal")]
+    Interrupted,
+}
+
 /// A helper to prevent [`spawn_channel_monitor_persister_task`]'s control flow
 /// from getting too complex.
 ///
-/// Returning [`Err`] means that a fatal error was reached; the caller should
-/// send a shutdown signal and exit.
+/// Since channel monitor persistence is very important, all [`Err`]s are
+/// considered fatal; the caller should send a shutdown signal and exit.
 async fn handle_update<PS: LexePersister>(
     chain_monitor: &LexeChainMonitorType<PS>,
     update: LxChannelMonitorUpdate,
@@ -118,7 +145,7 @@ async fn handle_update<PS: LexePersister>(
     process_events_tx: &notify::Sender,
     test_event_tx: &TestEventSender,
     shutdown: &mut ShutdownChannel,
-) -> anyhow::Result<()> {
+) -> Result<(), Error> {
     debug!("Handling channel monitor update #{idx}");
 
     // Run the persist future
@@ -126,13 +153,13 @@ async fn handle_update<PS: LexePersister>(
     debug!("Running {kind} channel persist future #{idx}");
     let persist_result = tokio::select! {
         res = update.api_call_fut => res,
-        () = shutdown.recv() => bail!("Received shutdown signal"),
+        () = shutdown.recv() => return Err(Error::Interrupted),
     };
 
-    if let Err(e) = persist_result {
+    if let Err(inner) = persist_result {
         // Channel monitor persistence errors are serious;
         // return err and shut down to prevent any loss of funds.
-        bail!("Couldn't persist {kind} channel #{idx}: {e:#}");
+        return Err(Error::PersistFailure { kind, idx, inner });
     }
 
     // Update the chain monitor with the update id and funding txo the channel
@@ -144,7 +171,7 @@ async fn handle_update<PS: LexePersister>(
     if let Err(e) = chain_monitor_update_res {
         // If the update wasn't accepted, the channel is disabled, so no
         // transactions can be made. Just return err and shut down.
-        bail!("Chain monitor returned err: {e:?}");
+        return Err(Error::ChainMonitor(e));
     }
 
     // Trigger the background processor to reprocess events, as the completed
