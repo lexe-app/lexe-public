@@ -8,7 +8,7 @@
 //! the user node's payment state.
 //!
 //! Currently the [`BasicPayment`]s in the [`PaymentDb`] are just dumped into
-//! a subdirectory of the app's data directroy as unencrypted json blobs. On
+//! a subdirectory of the app's data directory as unencrypted json blobs. On
 //! startup, we just load all on-disk [`BasicPayment`]s into memory.
 //!
 //! In the future, this could be a SQLite DB or something.
@@ -91,8 +91,40 @@ pub struct FlatFileFs {
 // -- impl FlatFileFs -- //
 
 impl FlatFileFs {
-    pub fn new(base_dir: PathBuf) -> Self {
+    fn new(base_dir: PathBuf) -> Self {
         Self { base_dir }
+    }
+
+    /// Create a new `FlatFileFs` ready for use.
+    ///
+    /// Normally, it's expected that this directory already exists. In case that
+    /// directory doesn't exist, this fn will create `base_dir` and any parent
+    /// directories.
+    pub fn create_dir_all(base_dir: PathBuf) -> anyhow::Result<Self> {
+        fs::create_dir_all(&base_dir).with_context(|| {
+            format!("Failed to create directory ({})", base_dir.display())
+        })?;
+        Ok(Self::new(base_dir))
+    }
+
+    /// Create a new `FlatFileFs` at `base_dir`, but clean any existing files
+    /// first.
+    pub fn create_clean_dir_all(base_dir: PathBuf) -> anyhow::Result<Self> {
+        // Clean up any existing directory, if it exists.
+        if let Err(err) = fs::remove_dir_all(&base_dir) {
+            match err.kind() {
+                io::ErrorKind::NotFound => (),
+                _ => return Err(anyhow::Error::new(err))
+                    .with_context(|| {
+                        format!(
+                            "Something went wrong while trying to clean the directory ({})",
+                            base_dir.display(),
+                        )
+                    }),
+            }
+        }
+
+        Self::create_dir_all(base_dir)
     }
 }
 
@@ -177,9 +209,17 @@ impl<V: Vfs> PaymentDb<V> {
         assert_eq!(on_disk_state, self.state);
     }
 
+    pub fn num_payments(&self) -> usize {
+        self.state.payments.len()
+    }
+
+    pub fn num_pending(&self) -> usize {
+        self.state.pending.len()
+    }
+
     /// The most latest/newest payment that the `PaymentDb` has synced from the
     /// user node.
-    fn latest_payment_index(&self) -> Option<PaymentIndex> {
+    pub fn latest_payment_index(&self) -> Option<PaymentIndex> {
         self.state
             .payments
             .last_key_value()

@@ -1,7 +1,10 @@
 //! The Rust native app state. The interfaces here should look like standard
 //! Rust, without any FFI weirdness.
 
-use std::{path::PathBuf, sync::Arc};
+use std::{
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use anyhow::Context;
 use common::{
@@ -19,15 +22,19 @@ use common::{
     Secret,
 };
 use secrecy::ExposeSecret;
+use tracing::info;
 
 use crate::{
     bindings::{Config, DeployEnv, Network},
+    payments::{FlatFileFs, PaymentDb},
     secret_store::SecretStore,
 };
 
 pub struct App {
     gateway_client: GatewayClient,
     node_client: NodeClient,
+    #[allow(dead_code)]
+    payment_db: Mutex<PaymentDb<FlatFileFs>>,
 }
 
 impl App {
@@ -64,10 +71,11 @@ impl App {
         };
 
         let user_key_pair = root_seed.derive_user_key_pair();
+        let user_pk = *user_key_pair.public_key();
         let bearer_authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
 
-        let gateway_client = GatewayClient::new(config.gateway_url);
+        let gateway_client = GatewayClient::new(config.gateway_url.clone());
 
         let node_client = NodeClient::new(
             rng,
@@ -81,9 +89,28 @@ impl App {
         )
         .context("Failed to build NodeClient")?;
 
+        let flat_fs = FlatFileFs::create_dir_all(config.payment_db_dir())?;
+        let payment_db = Mutex::new(
+            PaymentDb::read(flat_fs).context("Failed to load payment db")?,
+        );
+
+        {
+            let node_pk = root_seed.derive_node_pk(rng);
+            let lock = payment_db.lock().unwrap();
+            info!(
+                %user_pk,
+                %node_pk,
+                num_payments = lock.num_payments(),
+                num_pending = lock.num_pending(),
+                latest_payment_index = ?lock.latest_payment_index(),
+                "loaded existing app state"
+            );
+        }
+
         Ok(Some(Self {
             gateway_client,
             node_client,
+            payment_db,
         }))
     }
 
@@ -189,12 +216,20 @@ impl App {
             .write_root_seed(&root_seed)
             .context("Failed to persist root seed")?;
 
-        // TODO(phlip9): how to logs
-        // info!("node_client.provision() success");
+        let flat_fs =
+            FlatFileFs::create_clean_dir_all(config.payment_db_dir())?;
+        let payment_db = Mutex::new(PaymentDb::empty(flat_fs));
+
+        info!(
+            %user_pk,
+            %node_pk,
+            "new user signed up and node provisioned"
+        );
 
         Ok(Self {
             node_client,
             gateway_client,
+            payment_db,
         })
     }
 
@@ -216,6 +251,12 @@ pub struct AppConfig {
     pub allow_debug_enclaves: bool,
     pub app_data_dir: PathBuf,
     pub use_mock_secret_store: bool,
+}
+
+impl AppConfig {
+    pub fn payment_db_dir(&self) -> PathBuf {
+        self.app_data_dir.join("payment_db")
+    }
 }
 
 impl From<Config> for AppConfig {
