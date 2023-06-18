@@ -58,6 +58,12 @@ struct PaymentDbState {
     pending: BTreeSet<PaymentIndex>,
 }
 
+#[derive(Debug)]
+pub struct PaymentSyncSummary {
+    num_updated: usize,
+    num_new: usize,
+}
+
 /// Abstraction over a flat file system, suitable for mocking.
 pub trait Vfs {
     fn read(&self, filename: &str) -> io::Result<Vec<u8>> {
@@ -287,20 +293,22 @@ impl<V: Vfs> PaymentDb<V> {
     fn update_pending_payments(
         &mut self,
         pending_payments_updates: Vec<BasicPayment>,
-    ) -> io::Result<()> {
+    ) -> io::Result<usize> {
+        let mut num_updated = 0;
+
         for updated_payment in pending_payments_updates {
-            self.update_pending_payment(updated_payment)?;
+            num_updated += self.update_pending_payment(updated_payment)?;
         }
 
         self.debug_assert_invariants();
 
-        Ok(())
+        Ok(num_updated)
     }
 
     fn update_pending_payment(
         &mut self,
         updated_payment: BasicPayment,
-    ) -> io::Result<()> {
+    ) -> io::Result<usize> {
         // Get the current, pending payment.
         let mut existing_payment_entry =
             match self.state.payments.entry(updated_payment.index()) {
@@ -313,7 +321,7 @@ impl<V: Vfs> PaymentDb<V> {
 
         // No change to payment; skip.
         if &updated_payment == existing_payment_entry.get() {
-            return Ok(());
+            return Ok(0);
         }
 
         // Payment is changed; persist the updated payment to storage.
@@ -332,7 +340,7 @@ impl<V: Vfs> PaymentDb<V> {
         // Update in-memory state.
         existing_payment_entry.insert(updated_payment);
 
-        Ok(())
+        Ok(1)
     }
 }
 
@@ -441,6 +449,14 @@ impl PaymentDbState {
 
 // -- PaymentDb sync -- //
 
+impl PaymentSyncSummary {
+    /// Did any payments in the DB change in this sync? (i.e., do we need to
+    /// update part of the UI?)
+    pub fn any_changes(&self) -> bool {
+        self.num_new > 0 || self.num_updated > 0
+    }
+}
+
 /// Sync the app's local payment state from the user node. Sync happens in two
 /// steps:
 ///
@@ -450,38 +466,49 @@ pub async fn sync_payments<V: Vfs, N: AppNodeRunApi>(
     db: &Mutex<PaymentDb<V>>,
     node: &N,
     batch_size: u16,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<PaymentSyncSummary> {
     assert!(batch_size > 0);
 
     // Fetch any updates to our pending payments to see if any are finalized.
-    sync_pending_payments(db, node, batch_size)
+    let num_updated = sync_pending_payments(db, node, batch_size)
         .await
         .context("Failed to sync pending payments")?;
 
     // Fetch any new payments made since we last synced.
-    sync_new_payments(db, node, batch_size)
+    let num_new = sync_new_payments(db, node, batch_size)
         .await
         .context("Failed to sync new payments")?;
 
-    Ok(())
+    let summary = PaymentSyncSummary {
+        num_updated,
+        num_new,
+    };
+
+    Ok(summary)
 }
 
 /// Fetch any updates to our pending payments to see if any are finalized.
+///
+/// Returns the number of payments that had were finalized or otherwise had
+/// updates. Returns 0 if nothing changed with the pending payments since our
+/// last sync.
 async fn sync_pending_payments<V: Vfs, N: AppNodeRunApi>(
     db: &Mutex<PaymentDb<V>>,
     node: &N,
     batch_size: u16,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<usize> {
     let pending = {
         let lock = db.lock().unwrap();
 
         // No pending payments; nothing to do : )
         if lock.state.pending.is_empty() {
-            return Ok(());
+            return Ok(0);
         }
 
         lock.state.pending.iter().cloned().collect::<Vec<_>>()
     };
+
+    let mut num_updated = 0;
 
     for pending_idx_batch in pending.chunks(usize::from(batch_size)) {
         // Request the current state of all payments we believe are pending.
@@ -516,7 +543,8 @@ async fn sync_pending_payments<V: Vfs, N: AppNodeRunApi>(
 
         // Update the db. Changed payments are updated on-disk. Finalized
         // payments are removed from the `pending` index.
-        db.lock()
+        num_updated += db
+            .lock()
             .unwrap()
             .update_pending_payments(resp_payments)
             .context(
@@ -524,15 +552,18 @@ async fn sync_pending_payments<V: Vfs, N: AppNodeRunApi>(
             )?;
     }
 
-    Ok(())
+    Ok(num_updated)
 }
 
 /// Fetch any new payments made since we last synced.
+///
+/// Returns the number of new payments.
 async fn sync_new_payments<V: Vfs, N: AppNodeRunApi>(
     db: &Mutex<PaymentDb<V>>,
     node: &N,
     batch_size: u16,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<usize> {
+    let mut num_new = 0;
     let mut latest_payment_index = db.lock().unwrap().latest_payment_index();
 
     loop {
@@ -575,6 +606,7 @@ async fn sync_new_payments<V: Vfs, N: AppNodeRunApi>(
         }
         // Appease the all mighty borrow checker.
         let resp_payments_len = resp_payments.len();
+        num_new += resp_payments_len;
 
         // Update the db. Persist new payments on-disk. Add pending payments to
         // index.
@@ -590,7 +622,7 @@ async fn sync_new_payments<V: Vfs, N: AppNodeRunApi>(
         }
     }
 
-    Ok(())
+    Ok(num_new)
 }
 
 // -- Tests -- //

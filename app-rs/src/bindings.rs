@@ -268,4 +268,13 @@ impl AppHandle {
             .map(FiatRates::from)
             .map_err(anyhow::Error::new)
     }
+
+    /// Sync the local payment DB to the remote node.
+    ///
+    /// Returns `true` if any payment changed, so we know whether to reload the
+    /// payment list UI.
+    pub fn sync_payments(&self) -> anyhow::Result<bool> {
+        block_on(self.inner.sync_payments())
+            .map(|summary| summary.any_changes())
+    }
 }

@@ -125,6 +125,22 @@ fn wire_fiat_rates__method__AppHandle_impl(
         },
     )
 }
+fn wire_sync_payments__method__AppHandle_impl(
+    port_: MessagePort,
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
+        WrapInfo {
+            debug_name: "sync_payments__method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_that = that.wire2api();
+            move |task_callback| AppHandle::sync_payments(&api_that)
+        },
+    )
+}
 // Section: wrapper structs
 
 // Section: static checks
@@ -275,6 +291,14 @@ mod io {
         that: *mut wire_AppHandle,
     ) {
         wire_fiat_rates__method__AppHandle_impl(port_, that)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_sync_payments__method__AppHandle(
+        port_: i64,
+        that: *mut wire_AppHandle,
+    ) {
+        wire_sync_payments__method__AppHandle_impl(port_, that)
     }
 
     // Section: allocate functions
