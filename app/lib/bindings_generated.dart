@@ -138,6 +138,25 @@ class AppRsImpl implements AppRs {
         argNames: ["that"],
       );
 
+  Future<bool> syncPaymentsMethodAppHandle(
+      {required AppHandle that, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) =>
+          _platform.inner.wire_sync_payments__method__AppHandle(port_, arg0),
+      parseSuccessData: _wire2api_bool,
+      constMeta: kSyncPaymentsMethodAppHandleConstMeta,
+      argValues: [that],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kSyncPaymentsMethodAppHandleConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "sync_payments__method__AppHandle",
+        argNames: ["that"],
+      );
+
   DropFnType get dropOpaqueApp => _platform.inner.drop_opaque_App;
   ShareFnType get shareOpaqueApp => _platform.inner.share_opaque_App;
   OpaqueTypeFinalizer get AppFinalizer => _platform.AppFinalizer;
@@ -163,6 +182,10 @@ class AppRsImpl implements AppRs {
       bridge: this,
       inner: _wire2api_App(arr[0]),
     );
+  }
+
+  bool _wire2api_bool(dynamic raw) {
+    return raw as bool;
   }
 
   AppHandle _wire2api_box_autoadd_app_handle(dynamic raw) {
@@ -534,6 +557,24 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       'wire_fiat_rates__method__AppHandle');
   late final _wire_fiat_rates__method__AppHandle =
       _wire_fiat_rates__method__AppHandlePtr
+          .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
+
+  void wire_sync_payments__method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_AppHandle> that,
+  ) {
+    return _wire_sync_payments__method__AppHandle(
+      port_,
+      that,
+    );
+  }
+
+  late final _wire_sync_payments__method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>)>>(
+      'wire_sync_payments__method__AppHandle');
+  late final _wire_sync_payments__method__AppHandle =
+      _wire_sync_payments__method__AppHandlePtr
           .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
 
   wire_App new_App() {

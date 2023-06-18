@@ -4,9 +4,10 @@
 use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
+    time::Instant,
 };
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use common::{
     api::{
         auth::{BearerAuthenticator, UserSignupRequest},
@@ -22,19 +23,24 @@ use common::{
     Secret,
 };
 use secrecy::ExposeSecret;
-use tracing::info;
+use tracing::{info, instrument, warn};
 
 use crate::{
     bindings::{Config, DeployEnv, Network},
-    payments::{FlatFileFs, PaymentDb},
+    payments::{self, FlatFileFs, PaymentDb, PaymentSyncSummary},
     secret_store::SecretStore,
 };
 
 pub struct App {
     gateway_client: GatewayClient,
     node_client: NodeClient,
-    #[allow(dead_code)]
     payment_db: Mutex<PaymentDb<FlatFileFs>>,
+
+    /// We only want one task syncing payments at a time. Ideally the dart side
+    /// shouldn't let this happen, but just to be safe let's add this in.
+    // ideally this could just be a tokio::sync::Mutex, but those aren't
+    // Unwind-safe, which flutter_rust_bridge requires, etc etc...
+    payment_sync_lock: Mutex<()>,
 }
 
 impl App {
@@ -111,6 +117,7 @@ impl App {
             gateway_client,
             node_client,
             payment_db,
+            payment_sync_lock: Mutex::new(()),
         }))
     }
 
@@ -230,6 +237,7 @@ impl App {
             node_client,
             gateway_client,
             payment_db,
+            payment_sync_lock: Mutex::new(()),
         })
     }
 
@@ -239,6 +247,38 @@ impl App {
 
     pub fn gateway_client(&self) -> &GatewayClient {
         &self.gateway_client
+    }
+
+    #[instrument(skip_all, name = "(sync_payments)")]
+    pub async fn sync_payments(&self) -> anyhow::Result<PaymentSyncSummary> {
+        let start = Instant::now();
+        info!("start");
+
+        let res = {
+            // Ensure only one task syncs payments at-a-time
+            let _lock = match self.payment_sync_lock.try_lock() {
+                Ok(lock) => lock,
+                Err(_) =>
+                    return Err(anyhow!(
+                        "Another tasking is currently syncing payments!"
+                    )),
+            };
+
+            payments::sync_payments(
+                &self.payment_db,
+                &self.node_client,
+                constants::DEFAULT_PAYMENTS_BATCH_SIZE,
+            )
+            .await
+        };
+
+        let elapsed = start.elapsed();
+        match &res {
+            Ok(summary) => info!("success: elapsed: {elapsed:?}, {summary:?}"),
+            Err(err) => warn!("error: elapsed: {elapsed:?}, {err:#?}"),
+        }
+
+        res
     }
 }
 

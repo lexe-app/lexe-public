@@ -59,6 +59,11 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kFiatRatesMethodAppHandleConstMeta;
 
+  Future<bool> syncPaymentsMethodAppHandle(
+      {required AppHandle that, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kSyncPaymentsMethodAppHandleConstMeta;
+
   DropFnType get dropOpaqueApp;
   ShareFnType get shareOpaqueApp;
   OpaqueTypeFinalizer get AppFinalizer;
@@ -110,6 +115,11 @@ class AppHandle {
 
   Future<FiatRates> fiatRates({dynamic hint}) =>
       bridge.fiatRatesMethodAppHandle(
+        that: this,
+      );
+
+  Future<bool> syncPayments({dynamic hint}) =>
+      bridge.syncPaymentsMethodAppHandle(
         that: this,
       );
 }
