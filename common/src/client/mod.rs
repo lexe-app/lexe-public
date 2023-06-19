@@ -310,7 +310,9 @@ impl AppNodeProvisionApi for NodeClient {
     ) -> Result<(), NodeApiError> {
         self.ensure_authed().await?;
         let provision_url = &self.provision_url;
-        let req = self.rest.post(format!("{provision_url}/provision"), &data);
+        let req = self
+            .rest
+            .post(format!("{provision_url}/app/provision"), &data);
         self.rest.send(req).await
     }
 }

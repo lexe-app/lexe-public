@@ -147,12 +147,14 @@ pub async fn provision_node<R: Crng>(
 ///
 /// [`AppNodeProvisionApi`]: common::api::def::AppNodeProvisionApi
 fn app_routes(ctx: RequestContext) -> BoxedFilter<(Response<Body>,)> {
-    let routes = warp::path::path("provision")
+    let provision = warp::path::path("provision")
         .and(warp::post())
         .and(with_request_context(ctx))
         .and(warp::body::json::<NodeProvisionRequest>())
         .then(provision_handler)
         .map(rest::into_response);
+
+    let routes = warp::path("app").and(provision);
 
     routes.boxed()
 }
@@ -357,7 +359,7 @@ mod test {
                 .build()
                 .unwrap();
             let resp = client
-                .post(format!("https://localhost:{port}/provision"))
+                .post(format!("https://localhost:{port}/app/provision"))
                 .json(&provision_req)
                 .send()
                 .await
