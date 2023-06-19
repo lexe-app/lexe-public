@@ -40,17 +40,21 @@
   description = "Lexe Rust toolchain overlay";
 
   inputs = {
-    # `follows` indicates that this input must be passed in by the parent.
+    # `follows` indicates that the input must be passed in by the parent.
     # Failure to do so results in a segfault.
+    nixpkgs.follows = "nixpkgs";
     rust-toolchain-toml.follows = "rust-toolchain-toml";
 
     # A nixpkgs overlay which provides pure and reproducible Rust toolchains.
     # Our overlay basically just configures oxalica/rust-overlay to use the
     # nightly version and targets specified in our rust-toolchain.toml.
-    oxalica-rust-overlay.url = "github:oxalica/rust-overlay";
+    oxalica-rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
-  outputs = { self, rust-toolchain-toml, oxalica-rust-overlay }:
+  outputs = { self, nixpkgs, rust-toolchain-toml, oxalica-rust-overlay }:
     let
       # Read Rust toolchain config from rust-toolchain.toml
       rustToolchainConfig =
