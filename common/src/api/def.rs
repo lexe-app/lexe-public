@@ -225,7 +225,7 @@ pub trait BearerAuthBackendApi {
 /// Defines the api that the LSP exposes to user nodes.
 #[async_trait]
 pub trait NodeLspApi {
-    /// GET /v1/scid [`GetByNodePk`] -> [`Option<Scid>`]
+    /// GET /node/v1/scid [`GetByNodePk`] -> [`Option<Scid>`]
     ///
     /// [`GetByNodePk`]: super::qs::GetByNodePk
     async fn get_new_scid(&self, node_pk: NodePk) -> Result<Scid, LspApiError>;
@@ -258,7 +258,7 @@ pub trait RunnerNodeApi {
 /// Defines the api that the node exposes to the app during provisioning.
 #[async_trait]
 pub trait AppNodeProvisionApi {
-    /// POST /provision [`NodeProvisionRequest`] -> [`()`]
+    /// POST /app/provision [`NodeProvisionRequest`] -> [`()`]
     async fn provision(
         &self,
         data: NodeProvisionRequest,
