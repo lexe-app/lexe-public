@@ -3,6 +3,8 @@
 // For payments db node mocks
 #![feature(btree_cursors)]
 #![feature(once_cell)]
+#![feature(is_sorted)]
+#![feature(iter_order_by)]
 // Enforce disallowed methods clippy lint
 #![deny(clippy::disallowed_methods)]
 // Allow e.g. `CHANNEL_MANAGER` in generics to clearly distinguish between

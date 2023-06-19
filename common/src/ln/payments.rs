@@ -212,6 +212,7 @@ pub struct LxPaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 // --- impl BasicPayment --- //
 
 impl BasicPayment {
+    #[inline]
     pub fn index(&self) -> PaymentIndex {
         PaymentIndex {
             created_at: self.created_at,
