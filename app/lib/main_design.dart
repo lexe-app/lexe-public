@@ -73,6 +73,12 @@ class MockAppHandle extends AppHandle {
           ],
         ),
       );
+
+  @override
+  Future<bool> syncPayments({dynamic hint}) => Future.delayed(
+        const Duration(milliseconds: 1500),
+        () => false,
+      );
 }
 
 class Component {

@@ -72,6 +72,15 @@ class WalletPageState extends State<WalletPage> {
           this.fiatRates.addIfNotClosed,
           onError: (err) => error("fiatRates: error: $err"),
         );
+
+    // on refresh, sync payments from node
+    refreshRx.asyncMap((_) => app.syncPayments()).listen(
+      (anyChangedPayments) {
+        info("syncPayments: anyChangedPayments: $anyChangedPayments");
+        // TODO(phlip9): notify payments list UI to update
+      },
+      onError: (err) => error("syncPayments: error: $err"),
+    );
   }
 
   @override
@@ -92,8 +101,22 @@ class WalletPageState extends State<WalletPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         automaticallyImplyLeading: false,
+
+        // transparent bg header
+        // TODO(phlip9): the action icons collide w/ the scrolled content. maybe
+        // scroll this AppBar along with the content?
+        backgroundColor: LxColors.clearB0,
+        scrolledUnderElevation: 0.0,
+        surfaceTintColor: LxColors.clearB0,
+
+        // // header shadow effect
+        // // not sure I like how this looks...
+        // scrolledUnderElevation: 5.0,
+        // shadowColor: LxColors.background,
+        // surfaceTintColor: LxColors.clearB0,
         leading: Builder(
           builder: (context) => IconButton(
             iconSize: Fonts.size700,
@@ -111,15 +134,33 @@ class WalletPageState extends State<WalletPage> {
         ],
       ),
       drawer: const WalletDrawer(),
-      body: ListView(
-        children: [
-          const SizedBox(height: Space.s1000),
-          StateStreamBuilder(
-            stream: balanceStates,
-            builder: (context, balanceState) => BalanceWidget(balanceState),
-          ),
-          const SizedBox(height: Space.s700),
-          const WalletActions(),
+      body: CustomScrollView(
+        slivers: [
+          // The primary wallet page content
+          //
+          // * Balance
+          // * Wallet Actions (Fund, Receive, Send, ...)
+          SliverList(
+              delegate: SliverChildListDelegate([
+            const SizedBox(height: Space.s1100),
+            // TODO(phlip9): for some reason, when we scroll down and then back
+            // up, this widget resets to loading placeholders...
+            StateStreamBuilder(
+              stream: this.balanceStates,
+              builder: (context, balanceState) => BalanceWidget(balanceState),
+            ),
+            const SizedBox(height: Space.s700),
+            const WalletActions(),
+            const SizedBox(height: Space.s900),
+            // TODO(phlip9): is there a  way to easily shove the filters into
+            // the `SliverPaymentsList`?
+            const PaymentsListFilters(),
+            const SizedBox(height: Space.s400),
+          ])),
+
+          // The payments list
+          //
+          const SliverPaymentsList(),
         ],
       ),
       // TODO(phlip9): this default pull-to-refresh is really not great...
@@ -541,6 +582,75 @@ class WalletActionButton extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class PaymentsListFilters extends StatelessWidget {
+  const PaymentsListFilters({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: const [
+        SizedBox(width: Space.s600),
+        FilledPlaceholder(
+          height: Space.s600,
+          width: Space.s800,
+        ),
+        SizedBox(width: Space.s400),
+        FilledPlaceholder(
+          height: Space.s600,
+          width: Space.s800,
+        ),
+        SizedBox(width: Space.s400),
+        FilledPlaceholder(
+          height: Space.s600,
+          width: Space.s800,
+        ),
+      ],
+    );
+  }
+}
+
+// TODO(phlip9): I think we'll need to subclass `SliverChildDelegate` to get the
+// full UI functionality, but `SliverList` is simpler for now.
+//
+// TODO(phlip9): also investigate more efficient `SliverFixedExtentList`, since
+// each payment list entry should be the same height.
+class SliverPaymentsList extends StatelessWidget {
+  const SliverPaymentsList({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return SliverList(delegate: SliverChildBuilderDelegate((context, index) {
+      if (index >= 10) {
+        return null;
+      }
+
+      return const Padding(
+        // padding: EdgeInsets.symmetric(vertical: Space.s400),
+        padding: EdgeInsets.symmetric(
+          horizontal: Space.s600,
+          vertical: Space.s200,
+        ),
+        child: PaymentsListEntry(),
+      );
+    }));
+  }
+}
+
+class PaymentsListEntry extends StatelessWidget {
+  const PaymentsListEntry({super.key});
+
+  // final BasicPayment payment;
+
+  @override
+  Widget build(BuildContext context) {
+    return const FilledPlaceholder(
+      height: Space.s700,
+      color: LxColors.grey975,
     );
   }
 }
