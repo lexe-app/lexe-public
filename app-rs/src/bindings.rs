@@ -39,9 +39,13 @@
 //!   as a separate task on the threadpool. Just reading a value out of some
 //!   in-memory state is probably cheaper overall to use `SyncReturn`.
 
-use std::{future::Future, sync::LazyLock};
+use std::{
+    future::Future,
+    sync::{Arc, LazyLock},
+};
 
 use anyhow::Context;
+pub use common::ln::payments::BasicPayment as BasicPaymentRs;
 use common::{
     api::{
         command::NodeInfo as NodeInfoRs,
@@ -51,7 +55,7 @@ use common::{
     rng::SysRng,
 };
 use flutter_rust_bridge::{
-    frb, handler::ReportDartErrorHandler, RustOpaque, StreamSink,
+    frb, handler::ReportDartErrorHandler, RustOpaque, StreamSink, SyncReturn,
 };
 
 pub use crate::app::App;
@@ -185,6 +189,22 @@ pub struct Config {
     pub use_mock_secret_store: bool,
 }
 
+pub struct BasicPayment {
+    pub inner: RustOpaque<BasicPaymentRs>,
+}
+
+impl BasicPayment {
+    fn new(value: Arc<BasicPaymentRs>) -> Self {
+        Self {
+            inner: RustOpaque::from(value),
+        }
+    }
+
+    pub fn payment_index(&self) -> SyncReturn<String> {
+        SyncReturn(self.inner.index().to_string())
+    }
+}
+
 /// Init the Rust [`tracing`] logger. Also sets the current `RUST_LOG_TX`
 /// instance, which ships Rust logs over to the dart side for printing.
 ///
@@ -276,5 +296,22 @@ impl AppHandle {
     pub fn sync_payments(&self) -> anyhow::Result<bool> {
         block_on(self.inner.sync_payments())
             .map(|summary| summary.any_changes())
+    }
+
+    pub fn get_payment_by_scroll_idx(
+        &self,
+        scroll_idx: usize,
+    ) -> SyncReturn<Option<BasicPayment>> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        SyncReturn(
+            db_lock
+                .get_payment_by_scroll_idx(scroll_idx)
+                .map(BasicPayment::new),
+        )
+    }
+
+    pub fn get_num_payments(&self) -> SyncReturn<usize> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        SyncReturn(db_lock.num_payments())
     }
 }

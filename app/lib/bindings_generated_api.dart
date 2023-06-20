@@ -34,6 +34,11 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kInitRustLogStreamConstMeta;
 
+  String paymentIndexMethodBasicPayment(
+      {required BasicPayment that, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kPaymentIndexMethodBasicPaymentConstMeta;
+
   Future<AppHandle?> loadStaticMethodAppHandle(
       {required Config config, dynamic hint});
 
@@ -59,14 +64,32 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kFiatRatesMethodAppHandleConstMeta;
 
+  /// Sync the local payment DB to the remote node.
+  ///
+  /// Returns `true` if any payment changed, so we know whether to reload the
+  /// payment list UI.
   Future<bool> syncPaymentsMethodAppHandle(
       {required AppHandle that, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kSyncPaymentsMethodAppHandleConstMeta;
 
+  BasicPayment? getPaymentByScrollIdxMethodAppHandle(
+      {required AppHandle that, required int scrollIdx, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetPaymentByScrollIdxMethodAppHandleConstMeta;
+
+  int getNumPaymentsMethodAppHandle({required AppHandle that, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kGetNumPaymentsMethodAppHandleConstMeta;
+
   DropFnType get dropOpaqueApp;
   ShareFnType get shareOpaqueApp;
   OpaqueTypeFinalizer get AppFinalizer;
+
+  DropFnType get dropOpaqueBasicPaymentRs;
+  ShareFnType get shareOpaqueBasicPaymentRs;
+  OpaqueTypeFinalizer get BasicPaymentRsFinalizer;
 }
 
 @sealed
@@ -81,6 +104,21 @@ class App extends FrbOpaque {
 
   @override
   OpaqueTypeFinalizer get staticFinalizer => bridge.AppFinalizer;
+}
+
+@sealed
+class BasicPaymentRs extends FrbOpaque {
+  final AppRs bridge;
+  BasicPaymentRs.fromRaw(int ptr, int size, this.bridge)
+      : super.unsafe(ptr, size);
+  @override
+  DropFnType get dropFn => bridge.dropOpaqueBasicPaymentRs;
+
+  @override
+  ShareFnType get shareFn => bridge.shareOpaqueBasicPaymentRs;
+
+  @override
+  OpaqueTypeFinalizer get staticFinalizer => bridge.BasicPaymentRsFinalizer;
 }
 
 /// The `AppHandle` is a Dart representation of an [`App`] instance.
@@ -118,8 +156,36 @@ class AppHandle {
         that: this,
       );
 
+  /// Sync the local payment DB to the remote node.
+  ///
+  /// Returns `true` if any payment changed, so we know whether to reload the
+  /// payment list UI.
   Future<bool> syncPayments({dynamic hint}) =>
       bridge.syncPaymentsMethodAppHandle(
+        that: this,
+      );
+
+  BasicPayment? getPaymentByScrollIdx({required int scrollIdx, dynamic hint}) =>
+      bridge.getPaymentByScrollIdxMethodAppHandle(
+        that: this,
+        scrollIdx: scrollIdx,
+      );
+
+  int getNumPayments({dynamic hint}) => bridge.getNumPaymentsMethodAppHandle(
+        that: this,
+      );
+}
+
+class BasicPayment {
+  final AppRs bridge;
+  final BasicPaymentRs inner;
+
+  const BasicPayment({
+    required this.bridge,
+    required this.inner,
+  });
+
+  String paymentIndex({dynamic hint}) => bridge.paymentIndexMethodBasicPayment(
         that: this,
       );
 }
