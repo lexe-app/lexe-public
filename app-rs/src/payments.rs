@@ -235,6 +235,28 @@ impl<V: Vfs> PaymentDb<V> {
         self.state.payments.last().map(|payment| payment.index())
     }
 
+    /// Get a payment by integer index in reverse order (newest to oldest). This
+    /// is the same order we display payments in the UI.
+    pub fn get_payment_by_scroll_idx(
+        &self,
+        scroll_idx: usize,
+    ) -> Option<Arc<BasicPayment>> {
+        // vec_idx | scroll_idx | payment timestamp
+        // 0       | 2          | 23
+        // 1       | 1          | 50
+        // 2       | 0          | 75
+        //
+        // vec_idx := num_payments - scroll_idx - 1
+
+        let num_payments = self.num_payments();
+        if scroll_idx >= num_payments {
+            return None;
+        }
+
+        let vec_idx = num_payments - scroll_idx - 1;
+        Some(self.state.payments[vec_idx].clone())
+    }
+
     /// Write a payment to on-disk storage. Does not update `PaymentDb` indexes
     /// or in-memory state though.
     // Making this an associated fn avoids some borrow checker issues.

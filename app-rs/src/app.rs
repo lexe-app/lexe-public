@@ -280,6 +280,10 @@ impl App {
 
         res
     }
+
+    pub fn payment_db(&self) -> &Mutex<PaymentDb<FlatFileFs>> {
+        &self.payment_db
+    }
 }
 
 /// Pure-Rust configuration for a particular user app.

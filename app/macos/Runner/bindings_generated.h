@@ -14,6 +14,16 @@ typedef struct wire_uint_8_list {
   int32_t len;
 } wire_uint_8_list;
 
+typedef struct DartCObject *WireSyncReturn;
+
+typedef struct wire_BasicPaymentRs {
+  const void *ptr;
+} wire_BasicPaymentRs;
+
+typedef struct wire_BasicPayment {
+  struct wire_BasicPaymentRs inner;
+} wire_BasicPayment;
+
 typedef struct wire_Config {
   int32_t deploy_env;
   int32_t network;
@@ -31,8 +41,6 @@ typedef struct wire_AppHandle {
   struct wire_App inner;
 } wire_AppHandle;
 
-typedef struct DartCObject *WireSyncReturn;
-
 void store_dart_post_cobject(DartPostCObjectFnType ptr);
 
 Dart_Handle get_dart_object(uintptr_t ptr);
@@ -44,6 +52,8 @@ uintptr_t new_dart_opaque(Dart_Handle handle);
 intptr_t init_frb_dart_api_dl(void *obj);
 
 void wire_init_rust_log_stream(int64_t port_, struct wire_uint_8_list *rust_log);
+
+WireSyncReturn wire_payment_index__method__BasicPayment(struct wire_BasicPayment *that);
 
 void wire_load__static_method__AppHandle(int64_t port_, struct wire_Config *config);
 
@@ -59,9 +69,18 @@ void wire_fiat_rates__method__AppHandle(int64_t port_, struct wire_AppHandle *th
 
 void wire_sync_payments__method__AppHandle(int64_t port_, struct wire_AppHandle *that);
 
+WireSyncReturn wire_get_payment_by_scroll_idx__method__AppHandle(struct wire_AppHandle *that,
+                                                                 uintptr_t scroll_idx);
+
+WireSyncReturn wire_get_num_payments__method__AppHandle(struct wire_AppHandle *that);
+
 struct wire_App new_App(void);
 
+struct wire_BasicPaymentRs new_BasicPaymentRs(void);
+
 struct wire_AppHandle *new_box_autoadd_app_handle_0(void);
+
+struct wire_BasicPayment *new_box_autoadd_basic_payment_0(void);
 
 struct wire_Config *new_box_autoadd_config_0(void);
 
@@ -71,23 +90,34 @@ void drop_opaque_App(const void *ptr);
 
 const void *share_opaque_App(const void *ptr);
 
+void drop_opaque_BasicPaymentRs(const void *ptr);
+
+const void *share_opaque_BasicPaymentRs(const void *ptr);
+
 void free_WireSyncReturn(WireSyncReturn ptr);
 
 static int64_t dummy_method_to_enforce_bundling(void) {
     int64_t dummy_var = 0;
     dummy_var ^= ((int64_t) (void*) wire_init_rust_log_stream);
+    dummy_var ^= ((int64_t) (void*) wire_payment_index__method__BasicPayment);
     dummy_var ^= ((int64_t) (void*) wire_load__static_method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_restore__static_method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_signup__static_method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_node_info__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_fiat_rates__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_sync_payments__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_get_payment_by_scroll_idx__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_get_num_payments__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) new_App);
+    dummy_var ^= ((int64_t) (void*) new_BasicPaymentRs);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_app_handle_0);
+    dummy_var ^= ((int64_t) (void*) new_box_autoadd_basic_payment_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_config_0);
     dummy_var ^= ((int64_t) (void*) new_uint_8_list_0);
     dummy_var ^= ((int64_t) (void*) drop_opaque_App);
     dummy_var ^= ((int64_t) (void*) share_opaque_App);
+    dummy_var ^= ((int64_t) (void*) drop_opaque_BasicPaymentRs);
+    dummy_var ^= ((int64_t) (void*) share_opaque_BasicPaymentRs);
     dummy_var ^= ((int64_t) (void*) free_WireSyncReturn);
     dummy_var ^= ((int64_t) (void*) store_dart_post_cobject);
     dummy_var ^= ((int64_t) (void*) get_dart_object);

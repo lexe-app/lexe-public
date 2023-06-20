@@ -43,6 +43,21 @@ fn wire_init_rust_log_stream_impl(
         },
     )
 }
+fn wire_payment_index__method__BasicPayment_impl(
+    that: impl Wire2Api<BasicPayment> + UnwindSafe,
+) -> support::WireSyncReturn {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
+        WrapInfo {
+            debug_name: "payment_index__method__BasicPayment",
+            port: None,
+            mode: FfiCallMode::Sync,
+        },
+        move || {
+            let api_that = that.wire2api();
+            Ok(BasicPayment::payment_index(&api_that))
+        },
+    )
+}
 fn wire_load__static_method__AppHandle_impl(
     port_: MessagePort,
     config: impl Wire2Api<Config> + UnwindSafe,
@@ -141,6 +156,41 @@ fn wire_sync_payments__method__AppHandle_impl(
         },
     )
 }
+fn wire_get_payment_by_scroll_idx__method__AppHandle_impl(
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+    scroll_idx: impl Wire2Api<usize> + UnwindSafe,
+) -> support::WireSyncReturn {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
+        WrapInfo {
+            debug_name: "get_payment_by_scroll_idx__method__AppHandle",
+            port: None,
+            mode: FfiCallMode::Sync,
+        },
+        move || {
+            let api_that = that.wire2api();
+            let api_scroll_idx = scroll_idx.wire2api();
+            Ok(AppHandle::get_payment_by_scroll_idx(
+                &api_that,
+                api_scroll_idx,
+            ))
+        },
+    )
+}
+fn wire_get_num_payments__method__AppHandle_impl(
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+) -> support::WireSyncReturn {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
+        WrapInfo {
+            debug_name: "get_num_payments__method__AppHandle",
+            port: None,
+            mode: FfiCallMode::Sync,
+        },
+        move || {
+            let api_that = that.wire2api();
+            Ok(AppHandle::get_num_payments(&api_that))
+        },
+    )
+}
 // Section: wrapper structs
 
 // Section: static checks
@@ -201,6 +251,11 @@ impl Wire2Api<u8> for u8 {
     }
 }
 
+impl Wire2Api<usize> for usize {
+    fn wire2api(self) -> usize {
+        self
+    }
+}
 // Section: impl IntoDart
 
 impl support::IntoDart for AppHandle {
@@ -209,6 +264,13 @@ impl support::IntoDart for AppHandle {
     }
 }
 impl support::IntoDartExceptPrimitive for AppHandle {}
+
+impl support::IntoDart for BasicPayment {
+    fn into_dart(self) -> support::DartAbi {
+        vec![self.inner.into_dart()].into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for BasicPayment {}
 
 impl support::IntoDart for FiatRate {
     fn into_dart(self) -> support::DartAbi {
@@ -250,6 +312,13 @@ mod io {
         rust_log: *mut wire_uint_8_list,
     ) {
         wire_init_rust_log_stream_impl(port_, rust_log)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_payment_index__method__BasicPayment(
+        that: *mut wire_BasicPayment,
+    ) -> support::WireSyncReturn {
+        wire_payment_index__method__BasicPayment_impl(that)
     }
 
     #[no_mangle]
@@ -301,6 +370,21 @@ mod io {
         wire_sync_payments__method__AppHandle_impl(port_, that)
     }
 
+    #[no_mangle]
+    pub extern "C" fn wire_get_payment_by_scroll_idx__method__AppHandle(
+        that: *mut wire_AppHandle,
+        scroll_idx: usize,
+    ) -> support::WireSyncReturn {
+        wire_get_payment_by_scroll_idx__method__AppHandle_impl(that, scroll_idx)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_get_num_payments__method__AppHandle(
+        that: *mut wire_AppHandle,
+    ) -> support::WireSyncReturn {
+        wire_get_num_payments__method__AppHandle_impl(that)
+    }
+
     // Section: allocate functions
 
     #[no_mangle]
@@ -309,8 +393,19 @@ mod io {
     }
 
     #[no_mangle]
+    pub extern "C" fn new_BasicPaymentRs() -> wire_BasicPaymentRs {
+        wire_BasicPaymentRs::new_with_null_ptr()
+    }
+
+    #[no_mangle]
     pub extern "C" fn new_box_autoadd_app_handle_0() -> *mut wire_AppHandle {
         support::new_leak_box_ptr(wire_AppHandle::new_with_null_ptr())
+    }
+
+    #[no_mangle]
+    pub extern "C" fn new_box_autoadd_basic_payment_0() -> *mut wire_BasicPayment
+    {
+        support::new_leak_box_ptr(wire_BasicPayment::new_with_null_ptr())
     }
 
     #[no_mangle]
@@ -344,10 +439,32 @@ mod io {
         }
     }
 
+    #[no_mangle]
+    pub extern "C" fn drop_opaque_BasicPaymentRs(ptr: *const c_void) {
+        unsafe {
+            Arc::<BasicPaymentRs>::decrement_strong_count(ptr as _);
+        }
+    }
+
+    #[no_mangle]
+    pub extern "C" fn share_opaque_BasicPaymentRs(
+        ptr: *const c_void,
+    ) -> *const c_void {
+        unsafe {
+            Arc::<BasicPaymentRs>::increment_strong_count(ptr as _);
+            ptr
+        }
+    }
+
     // Section: impl Wire2Api
 
     impl Wire2Api<RustOpaque<App>> for wire_App {
         fn wire2api(self) -> RustOpaque<App> {
+            unsafe { support::opaque_from_dart(self.ptr as _) }
+        }
+    }
+    impl Wire2Api<RustOpaque<BasicPaymentRs>> for wire_BasicPaymentRs {
+        fn wire2api(self) -> RustOpaque<BasicPaymentRs> {
             unsafe { support::opaque_from_dart(self.ptr as _) }
         }
     }
@@ -364,11 +481,24 @@ mod io {
             }
         }
     }
+    impl Wire2Api<BasicPayment> for wire_BasicPayment {
+        fn wire2api(self) -> BasicPayment {
+            BasicPayment {
+                inner: self.inner.wire2api(),
+            }
+        }
+    }
 
     impl Wire2Api<AppHandle> for *mut wire_AppHandle {
         fn wire2api(self) -> AppHandle {
             let wrap = unsafe { support::box_from_leak_ptr(self) };
             Wire2Api::<AppHandle>::wire2api(*wrap).into()
+        }
+    }
+    impl Wire2Api<BasicPayment> for *mut wire_BasicPayment {
+        fn wire2api(self) -> BasicPayment {
+            let wrap = unsafe { support::box_from_leak_ptr(self) };
+            Wire2Api::<BasicPayment>::wire2api(*wrap).into()
         }
     }
     impl Wire2Api<Config> for *mut wire_Config {
@@ -398,6 +528,7 @@ mod io {
             }
         }
     }
+
     // Section: wire structs
 
     #[repr(C)]
@@ -408,8 +539,20 @@ mod io {
 
     #[repr(C)]
     #[derive(Clone)]
+    pub struct wire_BasicPaymentRs {
+        ptr: *const core::ffi::c_void,
+    }
+
+    #[repr(C)]
+    #[derive(Clone)]
     pub struct wire_AppHandle {
         inner: wire_App,
+    }
+
+    #[repr(C)]
+    #[derive(Clone)]
+    pub struct wire_BasicPayment {
+        inner: wire_BasicPaymentRs,
     }
 
     #[repr(C)]
@@ -449,6 +592,13 @@ mod io {
             }
         }
     }
+    impl NewWithNullPtr for wire_BasicPaymentRs {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                ptr: core::ptr::null(),
+            }
+        }
+    }
 
     impl NewWithNullPtr for wire_AppHandle {
         fn new_with_null_ptr() -> Self {
@@ -459,6 +609,20 @@ mod io {
     }
 
     impl Default for wire_AppHandle {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+
+    impl NewWithNullPtr for wire_BasicPayment {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                inner: wire_BasicPaymentRs::new_with_null_ptr(),
+            }
+        }
+    }
+
+    impl Default for wire_BasicPayment {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
