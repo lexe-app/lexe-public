@@ -73,8 +73,9 @@ pub(crate) fn app_routes(
         .and(warp::get())
         .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::peer_manager(peer_manager))
-        .map(lexe_ln::command::node_info)
-        .map(rest::into_succ_response);
+        .then(lexe_ln::command::node_info)
+        .map(convert::anyhow_to_command_api_result)
+        .map(rest::into_response);
     let create_invoice = warp::path("create_invoice")
         .and(warp::post())
         .and(warp::body::json::<CreateInvoiceRequest>())

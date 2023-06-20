@@ -196,12 +196,14 @@ pub fn into_response<T: Serialize, E: ToHttpStatus + Into<ErrorResponse>>(
 ///
 /// ## Usage
 ///
+/// (Pretend that `node_info` is infallible in this example)
+///
 /// ```ignore
 /// let node_info = warp::path("node_info")
 ///     .and(warp::get())
 ///     .and(inject::channel_manager(channel_manager.clone()))
 ///     .and(inject::peer_manager(peer_manager))
-///     .map(command::node_info)
+///     .then(command::node_info)
 ///     .map(rest::into_succ_response);
 /// ```
 pub fn into_succ_response<T: Serialize>(data: T) -> Response<Body> {
