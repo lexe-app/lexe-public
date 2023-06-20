@@ -1,6 +1,12 @@
 //! Bitcoin / Lightning Lexe newtypes which have to be in `common` for some
 //! reason, likely because they are referenced in an API definition somewhere.
 
+use std::{
+    fmt::{self, Display},
+    str::FromStr,
+};
+
+use anyhow::anyhow;
 use lightning::chain::chaininterface::ConfirmationTarget;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
@@ -34,6 +40,28 @@ impl From<ConfirmationPriority> for ConfirmationTarget {
             ConfirmationPriority::High => Self::HighPriority,
             ConfirmationPriority::Normal => Self::Normal,
             ConfirmationPriority::Background => Self::Background,
+        }
+    }
+}
+
+impl FromStr for ConfirmationPriority {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "high" => Ok(Self::High),
+            "normal" => Ok(Self::Normal),
+            "background" => Ok(Self::Background),
+            _ => Err(anyhow!("Must be one of: 'high', 'normal', 'background'")),
+        }
+    }
+}
+
+impl Display for ConfirmationPriority {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::High => write!(f, "high"),
+            Self::Normal => write!(f, "normal"),
+            Self::Background => write!(f, "background"),
         }
     }
 }
