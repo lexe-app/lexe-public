@@ -109,7 +109,7 @@ pub(crate) fn app_routes(
     let get_new_address = warp::path("get_new_address")
         .and(warp::post())
         .and(inject::wallet(wallet))
-        .then(app::get_new_address)
+        .then(lexe_ln::command::get_new_address)
         .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
 

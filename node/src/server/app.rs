@@ -1,17 +1,9 @@
-use bitcoin::Address;
 use common::{
     api::qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
     ln::payments::BasicPayment,
 };
-use lexe_ln::wallet::LexeWallet;
 
 use crate::{alias::NodePaymentsManagerType, persister::NodePersister};
-
-pub(super) async fn get_new_address(
-    wallet: LexeWallet,
-) -> anyhow::Result<Address> {
-    wallet.get_new_address().await
-}
 
 pub(super) async fn get_payments_by_ids(
     req: GetPaymentsByIds,
