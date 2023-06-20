@@ -8,7 +8,7 @@ use bdk::{
         coin_selection::DefaultCoinSelectionAlgorithm, signer::SignOptions,
         tx_builder::CreateTx, AddressIndex, Wallet,
     },
-    Balance, FeeRate, KeychainKind, SyncOptions, TransactionDetails, TxBuilder,
+    FeeRate, KeychainKind, SyncOptions, TransactionDetails, TxBuilder,
 };
 use bitcoin::{
     util::{address::Address, psbt::PartiallySignedTransaction},
@@ -20,7 +20,7 @@ use common::{
     constants::{
         IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
     },
-    ln::amount::Amount,
+    ln::{amount::Amount, balance::Balance},
     root_seed::RootSeed,
     shutdown::ShutdownChannel,
     task::LxTask,
@@ -132,6 +132,21 @@ impl LexeWallet {
             .lock()
             .await
             .get_balance()
+            // Convert bdk::Balance to common::ln::balance::Balance.
+            // Not using a From impl bc we don't want `common` to depend on BDK.
+            .map(
+                |bdk::Balance {
+                     immature,
+                     trusted_pending,
+                     untrusted_pending,
+                     confirmed,
+                 }| Balance {
+                    immature,
+                    trusted_pending,
+                    untrusted_pending,
+                    confirmed,
+                },
+            )
             .context("Could not get balance")
     }
 
