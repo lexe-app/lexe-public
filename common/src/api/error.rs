@@ -521,6 +521,8 @@ error_kind! {
         Provision = 100,
         /// Error occurred while fetching new scid
         Scid = 101,
+        /// Error while executing command
+        Command = 102,
     }
 }
 
@@ -787,6 +789,7 @@ impl ToHttpStatus for LspApiError {
 
             Provision => SERVER_500_INTERNAL_SERVER_ERROR,
             Scid => SERVER_500_INTERNAL_SERVER_ERROR,
+            Command => SERVER_500_INTERNAL_SERVER_ERROR,
         }
     }
 }
