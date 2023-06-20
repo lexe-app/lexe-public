@@ -245,7 +245,7 @@ pub struct BasicPayment {
     pub status: PaymentStatus,
     pub status_str: String,
     pub created_at: i64,
-    pub amount_msat: Option<u64>,
+    pub amount_sat: Option<u64>,
 }
 
 impl From<&BasicPaymentRs> for BasicPayment {
@@ -258,7 +258,7 @@ impl From<&BasicPaymentRs> for BasicPayment {
             status: PaymentStatus::from(payment.status),
             status_str: payment.status_str.clone(),
             created_at: payment.created_at.as_i64(),
-            amount_msat: payment.amount.map(|amt| amt.msat()),
+            amount_sat: payment.amount.map(|amt| amt.sats_u64()),
         }
     }
 }

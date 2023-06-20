@@ -23,7 +23,7 @@ mixin _$BasicPayment {
   PaymentStatus get status => throw _privateConstructorUsedError;
   String get statusStr => throw _privateConstructorUsedError;
   int get createdAt => throw _privateConstructorUsedError;
-  int? get amountMsat => throw _privateConstructorUsedError;
+  int? get amountSat => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -37,7 +37,7 @@ class _$_BasicPayment implements _BasicPayment {
       required this.status,
       required this.statusStr,
       required this.createdAt,
-      this.amountMsat});
+      this.amountSat});
 
   @override
   final String index;
@@ -54,11 +54,11 @@ class _$_BasicPayment implements _BasicPayment {
   @override
   final int createdAt;
   @override
-  final int? amountMsat;
+  final int? amountSat;
 
   @override
   String toString() {
-    return 'BasicPayment(index: $index, id: $id, kind: $kind, direction: $direction, status: $status, statusStr: $statusStr, createdAt: $createdAt, amountMsat: $amountMsat)';
+    return 'BasicPayment(index: $index, id: $id, kind: $kind, direction: $direction, status: $status, statusStr: $statusStr, createdAt: $createdAt, amountSat: $amountSat)';
   }
 
   @override
@@ -76,13 +76,13 @@ class _$_BasicPayment implements _BasicPayment {
                 other.statusStr == statusStr) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
-            (identical(other.amountMsat, amountMsat) ||
-                other.amountMsat == amountMsat));
+            (identical(other.amountSat, amountSat) ||
+                other.amountSat == amountSat));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, index, id, kind, direction,
-      status, statusStr, createdAt, amountMsat);
+      status, statusStr, createdAt, amountSat);
 }
 
 abstract class _BasicPayment implements BasicPayment {
@@ -94,7 +94,7 @@ abstract class _BasicPayment implements BasicPayment {
       required final PaymentStatus status,
       required final String statusStr,
       required final int createdAt,
-      final int? amountMsat}) = _$_BasicPayment;
+      final int? amountSat}) = _$_BasicPayment;
 
   @override
   String get index;
@@ -111,7 +111,7 @@ abstract class _BasicPayment implements BasicPayment {
   @override
   int get createdAt;
   @override
-  int? get amountMsat;
+  int? get amountSat;
 }
 
 /// @nodoc
