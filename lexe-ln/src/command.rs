@@ -67,10 +67,12 @@ pub enum CreateInvoiceCaller {
     Lsp,
 }
 
+// This can become non-async if LexeWallet::get_balance becomes non-async.
 #[instrument(skip_all, name = "(node-info)")]
 pub async fn node_info<CM, PM, PS>(
     channel_manager: CM,
     peer_manager: PM,
+    wallet: LexeWallet,
 ) -> anyhow::Result<NodeInfo>
 where
     CM: LexeChannelManager<PS>,
@@ -87,12 +89,15 @@ where
     let local_balance = Amount::from_msat(local_balance_msat);
     let num_peers = peer_manager.get_peer_node_ids().len();
 
+    let wallet_balance = wallet.get_balance().await?;
+
     let info = NodeInfo {
         node_pk,
         num_channels,
         num_usable_channels,
         local_balance,
         num_peers,
+        wallet_balance,
     };
 
     Ok(info)
