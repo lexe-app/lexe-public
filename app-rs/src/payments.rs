@@ -240,7 +240,7 @@ impl<V: Vfs> PaymentDb<V> {
     pub fn get_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> Option<Arc<BasicPayment>> {
+    ) -> Option<&BasicPayment> {
         // vec_idx | scroll_idx | payment timestamp
         // 0       | 2          | 23
         // 1       | 1          | 50
@@ -254,7 +254,7 @@ impl<V: Vfs> PaymentDb<V> {
         }
 
         let vec_idx = num_payments - scroll_idx - 1;
-        Some(self.state.payments[vec_idx].clone())
+        Some(&self.state.payments[vec_idx])
     }
 
     /// Write a payment to on-disk storage. Does not update `PaymentDb` indexes

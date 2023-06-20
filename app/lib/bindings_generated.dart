@@ -42,25 +42,6 @@ class AppRsImpl implements AppRs {
         argNames: ["rustLog"],
       );
 
-  String paymentIndexMethodBasicPayment(
-      {required BasicPayment that, dynamic hint}) {
-    var arg0 = _platform.api2wire_box_autoadd_basic_payment(that);
-    return _platform.executeSync(FlutterRustBridgeSyncTask(
-      callFfi: () =>
-          _platform.inner.wire_payment_index__method__BasicPayment(arg0),
-      parseSuccessData: _wire2api_String,
-      constMeta: kPaymentIndexMethodBasicPaymentConstMeta,
-      argValues: [that],
-      hint: hint,
-    ));
-  }
-
-  FlutterRustBridgeTaskConstMeta get kPaymentIndexMethodBasicPaymentConstMeta =>
-      const FlutterRustBridgeTaskConstMeta(
-        debugName: "payment_index__method__BasicPayment",
-        argNames: ["that"],
-      );
-
   Future<AppHandle?> loadStaticMethodAppHandle(
       {required Config config, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_config(config);
@@ -219,13 +200,6 @@ class AppRsImpl implements AppRs {
   ShareFnType get shareOpaqueApp => _platform.inner.share_opaque_App;
   OpaqueTypeFinalizer get AppFinalizer => _platform.AppFinalizer;
 
-  DropFnType get dropOpaqueBasicPaymentRs =>
-      _platform.inner.drop_opaque_BasicPaymentRs;
-  ShareFnType get shareOpaqueBasicPaymentRs =>
-      _platform.inner.share_opaque_BasicPaymentRs;
-  OpaqueTypeFinalizer get BasicPaymentRsFinalizer =>
-      _platform.BasicPaymentRsFinalizer;
-
   void dispose() {
     _platform.dispose();
   }
@@ -233,10 +207,6 @@ class AppRsImpl implements AppRs {
 
   App _wire2api_App(dynamic raw) {
     return App.fromRaw(raw[0], raw[1], this);
-  }
-
-  BasicPaymentRs _wire2api_BasicPaymentRs(dynamic raw) {
-    return BasicPaymentRs.fromRaw(raw[0], raw[1], this);
   }
 
   String _wire2api_String(dynamic raw) {
@@ -255,11 +225,17 @@ class AppRsImpl implements AppRs {
 
   BasicPayment _wire2api_basic_payment(dynamic raw) {
     final arr = raw as List<dynamic>;
-    if (arr.length != 1)
-      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    if (arr.length != 8)
+      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
     return BasicPayment(
-      bridge: this,
-      inner: _wire2api_BasicPaymentRs(arr[0]),
+      index: _wire2api_String(arr[0]),
+      id: _wire2api_String(arr[1]),
+      kind: _wire2api_payment_kind(arr[2]),
+      direction: _wire2api_payment_direction(arr[3]),
+      status: _wire2api_payment_status(arr[4]),
+      statusStr: _wire2api_String(arr[5]),
+      createdAt: _wire2api_i64(arr[6]),
+      amountMsat: _wire2api_opt_box_autoadd_u64(arr[7]),
     );
   }
 
@@ -273,6 +249,10 @@ class AppRsImpl implements AppRs {
 
   BasicPayment _wire2api_box_autoadd_basic_payment(dynamic raw) {
     return _wire2api_basic_payment(raw);
+  }
+
+  int _wire2api_box_autoadd_u64(dynamic raw) {
+    return _wire2api_u64(raw);
   }
 
   double _wire2api_f64(dynamic raw) {
@@ -299,6 +279,10 @@ class AppRsImpl implements AppRs {
     );
   }
 
+  int _wire2api_i32(dynamic raw) {
+    return raw as int;
+  }
+
   int _wire2api_i64(dynamic raw) {
     return castInt(raw);
   }
@@ -323,6 +307,22 @@ class AppRsImpl implements AppRs {
 
   BasicPayment? _wire2api_opt_box_autoadd_basic_payment(dynamic raw) {
     return raw == null ? null : _wire2api_box_autoadd_basic_payment(raw);
+  }
+
+  int? _wire2api_opt_box_autoadd_u64(dynamic raw) {
+    return raw == null ? null : _wire2api_box_autoadd_u64(raw);
+  }
+
+  PaymentDirection _wire2api_payment_direction(dynamic raw) {
+    return PaymentDirection.values[raw];
+  }
+
+  PaymentKind _wire2api_payment_kind(dynamic raw) {
+    return PaymentKind.values[raw];
+  }
+
+  PaymentStatus _wire2api_payment_status(dynamic raw) {
+    return PaymentStatus.values[raw];
   }
 
   int _wire2api_u64(dynamic raw) {
@@ -388,13 +388,6 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   }
 
   @protected
-  wire_BasicPaymentRs api2wire_BasicPaymentRs(BasicPaymentRs raw) {
-    final ptr = inner.new_BasicPaymentRs();
-    _api_fill_to_wire_BasicPaymentRs(raw, ptr);
-    return ptr;
-  }
-
-  @protected
   ffi.Pointer<wire_uint_8_list> api2wire_String(String raw) {
     return api2wire_uint_8_list(utf8.encoder.convert(raw));
   }
@@ -403,14 +396,6 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   ffi.Pointer<wire_AppHandle> api2wire_box_autoadd_app_handle(AppHandle raw) {
     final ptr = inner.new_box_autoadd_app_handle_0();
     _api_fill_to_wire_app_handle(raw, ptr.ref);
-    return ptr;
-  }
-
-  @protected
-  ffi.Pointer<wire_BasicPayment> api2wire_box_autoadd_basic_payment(
-      BasicPayment raw) {
-    final ptr = inner.new_box_autoadd_basic_payment_0();
-    _api_fill_to_wire_basic_payment(raw, ptr.ref);
     return ptr;
   }
 
@@ -433,17 +418,9 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   late final OpaqueTypeFinalizer _AppFinalizer =
       OpaqueTypeFinalizer(inner._drop_opaque_AppPtr);
   OpaqueTypeFinalizer get AppFinalizer => _AppFinalizer;
-  late final OpaqueTypeFinalizer _BasicPaymentRsFinalizer =
-      OpaqueTypeFinalizer(inner._drop_opaque_BasicPaymentRsPtr);
-  OpaqueTypeFinalizer get BasicPaymentRsFinalizer => _BasicPaymentRsFinalizer;
 // Section: api_fill_to_wire
 
   void _api_fill_to_wire_App(App apiObj, wire_App wireObj) {
-    wireObj.ptr = apiObj.shareOrMove();
-  }
-
-  void _api_fill_to_wire_BasicPaymentRs(
-      BasicPaymentRs apiObj, wire_BasicPaymentRs wireObj) {
     wireObj.ptr = apiObj.shareOrMove();
   }
 
@@ -451,19 +428,9 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     wireObj.inner = api2wire_App(apiObj.inner);
   }
 
-  void _api_fill_to_wire_basic_payment(
-      BasicPayment apiObj, wire_BasicPayment wireObj) {
-    wireObj.inner = api2wire_BasicPaymentRs(apiObj.inner);
-  }
-
   void _api_fill_to_wire_box_autoadd_app_handle(
       AppHandle apiObj, ffi.Pointer<wire_AppHandle> wireObj) {
     _api_fill_to_wire_app_handle(apiObj, wireObj.ref);
-  }
-
-  void _api_fill_to_wire_box_autoadd_basic_payment(
-      BasicPayment apiObj, ffi.Pointer<wire_BasicPayment> wireObj) {
-    _api_fill_to_wire_basic_payment(apiObj, wireObj.ref);
   }
 
   void _api_fill_to_wire_box_autoadd_config(
@@ -593,22 +560,6 @@ class AppRsWire implements FlutterRustBridgeWireBase {
               ffi.Pointer<wire_uint_8_list>)>>('wire_init_rust_log_stream');
   late final _wire_init_rust_log_stream = _wire_init_rust_log_streamPtr
       .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
-
-  WireSyncReturn wire_payment_index__method__BasicPayment(
-    ffi.Pointer<wire_BasicPayment> that,
-  ) {
-    return _wire_payment_index__method__BasicPayment(
-      that,
-    );
-  }
-
-  late final _wire_payment_index__method__BasicPaymentPtr = _lookup<
-          ffi.NativeFunction<
-              WireSyncReturn Function(ffi.Pointer<wire_BasicPayment>)>>(
-      'wire_payment_index__method__BasicPayment');
-  late final _wire_payment_index__method__BasicPayment =
-      _wire_payment_index__method__BasicPaymentPtr.asFunction<
-          WireSyncReturn Function(ffi.Pointer<wire_BasicPayment>)>();
 
   void wire_load__static_method__AppHandle(
     int port_,
@@ -765,16 +716,6 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _lookup<ffi.NativeFunction<wire_App Function()>>('new_App');
   late final _new_App = _new_AppPtr.asFunction<wire_App Function()>();
 
-  wire_BasicPaymentRs new_BasicPaymentRs() {
-    return _new_BasicPaymentRs();
-  }
-
-  late final _new_BasicPaymentRsPtr =
-      _lookup<ffi.NativeFunction<wire_BasicPaymentRs Function()>>(
-          'new_BasicPaymentRs');
-  late final _new_BasicPaymentRs =
-      _new_BasicPaymentRsPtr.asFunction<wire_BasicPaymentRs Function()>();
-
   ffi.Pointer<wire_AppHandle> new_box_autoadd_app_handle_0() {
     return _new_box_autoadd_app_handle_0();
   }
@@ -784,17 +725,6 @@ class AppRsWire implements FlutterRustBridgeWireBase {
           'new_box_autoadd_app_handle_0');
   late final _new_box_autoadd_app_handle_0 = _new_box_autoadd_app_handle_0Ptr
       .asFunction<ffi.Pointer<wire_AppHandle> Function()>();
-
-  ffi.Pointer<wire_BasicPayment> new_box_autoadd_basic_payment_0() {
-    return _new_box_autoadd_basic_payment_0();
-  }
-
-  late final _new_box_autoadd_basic_payment_0Ptr =
-      _lookup<ffi.NativeFunction<ffi.Pointer<wire_BasicPayment> Function()>>(
-          'new_box_autoadd_basic_payment_0');
-  late final _new_box_autoadd_basic_payment_0 =
-      _new_box_autoadd_basic_payment_0Ptr
-          .asFunction<ffi.Pointer<wire_BasicPayment> Function()>();
 
   ffi.Pointer<wire_Config> new_box_autoadd_config_0() {
     return _new_box_autoadd_config_0();
@@ -850,35 +780,6 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _share_opaque_App = _share_opaque_AppPtr
       .asFunction<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>();
 
-  void drop_opaque_BasicPaymentRs(
-    ffi.Pointer<ffi.Void> ptr,
-  ) {
-    return _drop_opaque_BasicPaymentRs(
-      ptr,
-    );
-  }
-
-  late final _drop_opaque_BasicPaymentRsPtr =
-      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Pointer<ffi.Void>)>>(
-          'drop_opaque_BasicPaymentRs');
-  late final _drop_opaque_BasicPaymentRs = _drop_opaque_BasicPaymentRsPtr
-      .asFunction<void Function(ffi.Pointer<ffi.Void>)>();
-
-  ffi.Pointer<ffi.Void> share_opaque_BasicPaymentRs(
-    ffi.Pointer<ffi.Void> ptr,
-  ) {
-    return _share_opaque_BasicPaymentRs(
-      ptr,
-    );
-  }
-
-  late final _share_opaque_BasicPaymentRsPtr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<ffi.Void> Function(
-              ffi.Pointer<ffi.Void>)>>('share_opaque_BasicPaymentRs');
-  late final _share_opaque_BasicPaymentRs = _share_opaque_BasicPaymentRsPtr
-      .asFunction<ffi.Pointer<ffi.Void> Function(ffi.Pointer<ffi.Void>)>();
-
   void free_WireSyncReturn(
     WireSyncReturn ptr,
   ) {
@@ -901,14 +802,6 @@ class wire_uint_8_list extends ffi.Struct {
 
   @ffi.Int32()
   external int len;
-}
-
-class wire_BasicPaymentRs extends ffi.Struct {
-  external ffi.Pointer<ffi.Void> ptr;
-}
-
-class wire_BasicPayment extends ffi.Struct {
-  external wire_BasicPaymentRs inner;
 }
 
 class wire_Config extends ffi.Struct {

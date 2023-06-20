@@ -39,10 +39,7 @@
 //!   as a separate task on the threadpool. Just reading a value out of some
 //!   in-memory state is probably cheaper overall to use `SyncReturn`.
 
-use std::{
-    future::Future,
-    sync::{Arc, LazyLock},
-};
+use std::{future::Future, sync::LazyLock};
 
 use anyhow::Context;
 pub use common::ln::payments::BasicPayment as BasicPaymentRs;
@@ -51,6 +48,10 @@ use common::{
         command::NodeInfo as NodeInfoRs,
         def::{AppGatewayApi, AppNodeRunApi},
         fiat_rates::FiatRates as FiatRatesRs,
+    },
+    ln::payments::{
+        PaymentDirection as PaymentDirectionRs, PaymentKind as PaymentKindRs,
+        PaymentStatus as PaymentStatusRs,
     },
     rng::SysRng,
 };
@@ -189,19 +190,76 @@ pub struct Config {
     pub use_mock_secret_store: bool,
 }
 
-pub struct BasicPayment {
-    pub inner: RustOpaque<BasicPaymentRs>,
+pub enum PaymentDirection {
+    Inbound,
+    Outbound,
 }
 
-impl BasicPayment {
-    fn new(value: Arc<BasicPaymentRs>) -> Self {
-        Self {
-            inner: RustOpaque::from(value),
+impl From<PaymentDirectionRs> for PaymentDirection {
+    fn from(value: PaymentDirectionRs) -> Self {
+        match value {
+            PaymentDirectionRs::Inbound => Self::Inbound,
+            PaymentDirectionRs::Outbound => Self::Outbound,
         }
     }
+}
 
-    pub fn payment_index(&self) -> SyncReturn<String> {
-        SyncReturn(self.inner.index().to_string())
+pub enum PaymentStatus {
+    Pending,
+    Completed,
+    Failed,
+}
+
+impl From<PaymentStatusRs> for PaymentStatus {
+    fn from(value: PaymentStatusRs) -> Self {
+        match value {
+            PaymentStatusRs::Pending => Self::Pending,
+            PaymentStatusRs::Completed => Self::Completed,
+            PaymentStatusRs::Failed => Self::Failed,
+        }
+    }
+}
+
+pub enum PaymentKind {
+    Onchain,
+    Invoice,
+    Spontaneous,
+}
+
+impl From<PaymentKindRs> for PaymentKind {
+    fn from(value: PaymentKindRs) -> Self {
+        match value {
+            PaymentKindRs::Onchain => Self::Onchain,
+            PaymentKindRs::Invoice => Self::Invoice,
+            PaymentKindRs::Spontaneous => Self::Spontaneous,
+        }
+    }
+}
+
+#[frb(dart_metadata=("freezed"))]
+pub struct BasicPayment {
+    pub index: String,
+    pub id: String,
+    pub kind: PaymentKind,
+    pub direction: PaymentDirection,
+    pub status: PaymentStatus,
+    pub status_str: String,
+    pub created_at: i64,
+    pub amount_msat: Option<u64>,
+}
+
+impl From<&BasicPaymentRs> for BasicPayment {
+    fn from(payment: &BasicPaymentRs) -> Self {
+        Self {
+            index: payment.index().to_string(),
+            id: payment.id.to_string(),
+            kind: PaymentKind::from(payment.kind),
+            direction: PaymentDirection::from(payment.direction),
+            status: PaymentStatus::from(payment.status),
+            status_str: payment.status_str.clone(),
+            created_at: payment.created_at.as_i64(),
+            amount_msat: payment.amount.map(|amt| amt.msat()),
+        }
     }
 }
 
@@ -306,7 +364,7 @@ impl AppHandle {
         SyncReturn(
             db_lock
                 .get_payment_by_scroll_idx(scroll_idx)
-                .map(BasicPayment::new),
+                .map(BasicPayment::from),
         )
     }
 

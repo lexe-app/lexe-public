@@ -43,21 +43,6 @@ fn wire_init_rust_log_stream_impl(
         },
     )
 }
-fn wire_payment_index__method__BasicPayment_impl(
-    that: impl Wire2Api<BasicPayment> + UnwindSafe,
-) -> support::WireSyncReturn {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
-        WrapInfo {
-            debug_name: "payment_index__method__BasicPayment",
-            port: None,
-            mode: FfiCallMode::Sync,
-        },
-        move || {
-            let api_that = that.wire2api();
-            Ok(BasicPayment::payment_index(&api_that))
-        },
-    )
-}
 fn wire_load__static_method__AppHandle_impl(
     port_: MessagePort,
     config: impl Wire2Api<Config> + UnwindSafe,
@@ -267,7 +252,17 @@ impl support::IntoDartExceptPrimitive for AppHandle {}
 
 impl support::IntoDart for BasicPayment {
     fn into_dart(self) -> support::DartAbi {
-        vec![self.inner.into_dart()].into_dart()
+        vec![
+            self.index.into_dart(),
+            self.id.into_dart(),
+            self.kind.into_dart(),
+            self.direction.into_dart(),
+            self.status.into_dart(),
+            self.status_str.into_dart(),
+            self.created_at.into_dart(),
+            self.amount_msat.into_dart(),
+        ]
+        .into_dart()
     }
 }
 impl support::IntoDartExceptPrimitive for BasicPayment {}
@@ -297,6 +292,39 @@ impl support::IntoDart for NodeInfo {
 }
 impl support::IntoDartExceptPrimitive for NodeInfo {}
 
+impl support::IntoDart for PaymentDirection {
+    fn into_dart(self) -> support::DartAbi {
+        match self {
+            Self::Inbound => 0,
+            Self::Outbound => 1,
+        }
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for PaymentDirection {}
+impl support::IntoDart for PaymentKind {
+    fn into_dart(self) -> support::DartAbi {
+        match self {
+            Self::Onchain => 0,
+            Self::Invoice => 1,
+            Self::Spontaneous => 2,
+        }
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for PaymentKind {}
+impl support::IntoDart for PaymentStatus {
+    fn into_dart(self) -> support::DartAbi {
+        match self {
+            Self::Pending => 0,
+            Self::Completed => 1,
+            Self::Failed => 2,
+        }
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for PaymentStatus {}
+
 // Section: executor
 
 /* nothing since executor detected */
@@ -312,13 +340,6 @@ mod io {
         rust_log: *mut wire_uint_8_list,
     ) {
         wire_init_rust_log_stream_impl(port_, rust_log)
-    }
-
-    #[no_mangle]
-    pub extern "C" fn wire_payment_index__method__BasicPayment(
-        that: *mut wire_BasicPayment,
-    ) -> support::WireSyncReturn {
-        wire_payment_index__method__BasicPayment_impl(that)
     }
 
     #[no_mangle]
@@ -393,19 +414,8 @@ mod io {
     }
 
     #[no_mangle]
-    pub extern "C" fn new_BasicPaymentRs() -> wire_BasicPaymentRs {
-        wire_BasicPaymentRs::new_with_null_ptr()
-    }
-
-    #[no_mangle]
     pub extern "C" fn new_box_autoadd_app_handle_0() -> *mut wire_AppHandle {
         support::new_leak_box_ptr(wire_AppHandle::new_with_null_ptr())
-    }
-
-    #[no_mangle]
-    pub extern "C" fn new_box_autoadd_basic_payment_0() -> *mut wire_BasicPayment
-    {
-        support::new_leak_box_ptr(wire_BasicPayment::new_with_null_ptr())
     }
 
     #[no_mangle]
@@ -439,32 +449,10 @@ mod io {
         }
     }
 
-    #[no_mangle]
-    pub extern "C" fn drop_opaque_BasicPaymentRs(ptr: *const c_void) {
-        unsafe {
-            Arc::<BasicPaymentRs>::decrement_strong_count(ptr as _);
-        }
-    }
-
-    #[no_mangle]
-    pub extern "C" fn share_opaque_BasicPaymentRs(
-        ptr: *const c_void,
-    ) -> *const c_void {
-        unsafe {
-            Arc::<BasicPaymentRs>::increment_strong_count(ptr as _);
-            ptr
-        }
-    }
-
     // Section: impl Wire2Api
 
     impl Wire2Api<RustOpaque<App>> for wire_App {
         fn wire2api(self) -> RustOpaque<App> {
-            unsafe { support::opaque_from_dart(self.ptr as _) }
-        }
-    }
-    impl Wire2Api<RustOpaque<BasicPaymentRs>> for wire_BasicPaymentRs {
-        fn wire2api(self) -> RustOpaque<BasicPaymentRs> {
             unsafe { support::opaque_from_dart(self.ptr as _) }
         }
     }
@@ -481,24 +469,11 @@ mod io {
             }
         }
     }
-    impl Wire2Api<BasicPayment> for wire_BasicPayment {
-        fn wire2api(self) -> BasicPayment {
-            BasicPayment {
-                inner: self.inner.wire2api(),
-            }
-        }
-    }
 
     impl Wire2Api<AppHandle> for *mut wire_AppHandle {
         fn wire2api(self) -> AppHandle {
             let wrap = unsafe { support::box_from_leak_ptr(self) };
             Wire2Api::<AppHandle>::wire2api(*wrap).into()
-        }
-    }
-    impl Wire2Api<BasicPayment> for *mut wire_BasicPayment {
-        fn wire2api(self) -> BasicPayment {
-            let wrap = unsafe { support::box_from_leak_ptr(self) };
-            Wire2Api::<BasicPayment>::wire2api(*wrap).into()
         }
     }
     impl Wire2Api<Config> for *mut wire_Config {
@@ -539,20 +514,8 @@ mod io {
 
     #[repr(C)]
     #[derive(Clone)]
-    pub struct wire_BasicPaymentRs {
-        ptr: *const core::ffi::c_void,
-    }
-
-    #[repr(C)]
-    #[derive(Clone)]
     pub struct wire_AppHandle {
         inner: wire_App,
-    }
-
-    #[repr(C)]
-    #[derive(Clone)]
-    pub struct wire_BasicPayment {
-        inner: wire_BasicPaymentRs,
     }
 
     #[repr(C)]
@@ -592,13 +555,6 @@ mod io {
             }
         }
     }
-    impl NewWithNullPtr for wire_BasicPaymentRs {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                ptr: core::ptr::null(),
-            }
-        }
-    }
 
     impl NewWithNullPtr for wire_AppHandle {
         fn new_with_null_ptr() -> Self {
@@ -609,20 +565,6 @@ mod io {
     }
 
     impl Default for wire_AppHandle {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-
-    impl NewWithNullPtr for wire_BasicPayment {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                inner: wire_BasicPaymentRs::new_with_null_ptr(),
-            }
-        }
-    }
-
-    impl Default for wire_BasicPayment {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
