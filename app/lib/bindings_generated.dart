@@ -235,7 +235,7 @@ class AppRsImpl implements AppRs {
       status: _wire2api_payment_status(arr[4]),
       statusStr: _wire2api_String(arr[5]),
       createdAt: _wire2api_i64(arr[6]),
-      amountMsat: _wire2api_opt_box_autoadd_u64(arr[7]),
+      amountSat: _wire2api_opt_box_autoadd_u64(arr[7]),
     );
   }
 

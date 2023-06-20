@@ -162,7 +162,7 @@ class BasicPayment with _$BasicPayment {
     required PaymentStatus status,
     required String statusStr,
     required int createdAt,
-    int? amountMsat,
+    int? amountSat,
   }) = _BasicPayment;
 }
 

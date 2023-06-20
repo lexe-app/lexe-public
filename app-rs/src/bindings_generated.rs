@@ -260,7 +260,7 @@ impl support::IntoDart for BasicPayment {
             self.status.into_dart(),
             self.status_str.into_dart(),
             self.created_at.into_dart(),
-            self.amount_msat.into_dart(),
+            self.amount_sat.into_dart(),
         ]
         .into_dart()
     }
