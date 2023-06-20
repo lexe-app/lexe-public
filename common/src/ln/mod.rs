@@ -14,6 +14,8 @@ use serde::{Deserialize, Serialize};
 
 /// `Amount`.
 pub mod amount;
+/// `Balance`.
+pub mod balance;
 /// Channel outpoint, details, counterparty
 pub mod channel;
 /// Bitcoin hash types, such as `LxTxid`.
