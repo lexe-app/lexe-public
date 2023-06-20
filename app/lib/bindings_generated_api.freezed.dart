@@ -15,6 +15,106 @@ final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
 
 /// @nodoc
+mixin _$BasicPayment {
+  String get index => throw _privateConstructorUsedError;
+  String get id => throw _privateConstructorUsedError;
+  PaymentKind get kind => throw _privateConstructorUsedError;
+  PaymentDirection get direction => throw _privateConstructorUsedError;
+  PaymentStatus get status => throw _privateConstructorUsedError;
+  String get statusStr => throw _privateConstructorUsedError;
+  int get createdAt => throw _privateConstructorUsedError;
+  int? get amountMsat => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$_BasicPayment implements _BasicPayment {
+  const _$_BasicPayment(
+      {required this.index,
+      required this.id,
+      required this.kind,
+      required this.direction,
+      required this.status,
+      required this.statusStr,
+      required this.createdAt,
+      this.amountMsat});
+
+  @override
+  final String index;
+  @override
+  final String id;
+  @override
+  final PaymentKind kind;
+  @override
+  final PaymentDirection direction;
+  @override
+  final PaymentStatus status;
+  @override
+  final String statusStr;
+  @override
+  final int createdAt;
+  @override
+  final int? amountMsat;
+
+  @override
+  String toString() {
+    return 'BasicPayment(index: $index, id: $id, kind: $kind, direction: $direction, status: $status, statusStr: $statusStr, createdAt: $createdAt, amountMsat: $amountMsat)';
+  }
+
+  @override
+  bool operator ==(dynamic other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$_BasicPayment &&
+            (identical(other.index, index) || other.index == index) &&
+            (identical(other.id, id) || other.id == id) &&
+            (identical(other.kind, kind) || other.kind == kind) &&
+            (identical(other.direction, direction) ||
+                other.direction == direction) &&
+            (identical(other.status, status) || other.status == status) &&
+            (identical(other.statusStr, statusStr) ||
+                other.statusStr == statusStr) &&
+            (identical(other.createdAt, createdAt) ||
+                other.createdAt == createdAt) &&
+            (identical(other.amountMsat, amountMsat) ||
+                other.amountMsat == amountMsat));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, index, id, kind, direction,
+      status, statusStr, createdAt, amountMsat);
+}
+
+abstract class _BasicPayment implements BasicPayment {
+  const factory _BasicPayment(
+      {required final String index,
+      required final String id,
+      required final PaymentKind kind,
+      required final PaymentDirection direction,
+      required final PaymentStatus status,
+      required final String statusStr,
+      required final int createdAt,
+      final int? amountMsat}) = _$_BasicPayment;
+
+  @override
+  String get index;
+  @override
+  String get id;
+  @override
+  PaymentKind get kind;
+  @override
+  PaymentDirection get direction;
+  @override
+  PaymentStatus get status;
+  @override
+  String get statusStr;
+  @override
+  int get createdAt;
+  @override
+  int? get amountMsat;
+}
+
+/// @nodoc
 mixin _$Config {
   DeployEnv get deployEnv => throw _privateConstructorUsedError;
   Network get network => throw _privateConstructorUsedError;

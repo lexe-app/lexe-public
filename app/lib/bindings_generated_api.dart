@@ -34,11 +34,6 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kInitRustLogStreamConstMeta;
 
-  String paymentIndexMethodBasicPayment(
-      {required BasicPayment that, dynamic hint});
-
-  FlutterRustBridgeTaskConstMeta get kPaymentIndexMethodBasicPaymentConstMeta;
-
   Future<AppHandle?> loadStaticMethodAppHandle(
       {required Config config, dynamic hint});
 
@@ -86,10 +81,6 @@ abstract class AppRs {
   DropFnType get dropOpaqueApp;
   ShareFnType get shareOpaqueApp;
   OpaqueTypeFinalizer get AppFinalizer;
-
-  DropFnType get dropOpaqueBasicPaymentRs;
-  ShareFnType get shareOpaqueBasicPaymentRs;
-  OpaqueTypeFinalizer get BasicPaymentRsFinalizer;
 }
 
 @sealed
@@ -104,21 +95,6 @@ class App extends FrbOpaque {
 
   @override
   OpaqueTypeFinalizer get staticFinalizer => bridge.AppFinalizer;
-}
-
-@sealed
-class BasicPaymentRs extends FrbOpaque {
-  final AppRs bridge;
-  BasicPaymentRs.fromRaw(int ptr, int size, this.bridge)
-      : super.unsafe(ptr, size);
-  @override
-  DropFnType get dropFn => bridge.dropOpaqueBasicPaymentRs;
-
-  @override
-  ShareFnType get shareFn => bridge.shareOpaqueBasicPaymentRs;
-
-  @override
-  OpaqueTypeFinalizer get staticFinalizer => bridge.BasicPaymentRsFinalizer;
 }
 
 /// The `AppHandle` is a Dart representation of an [`App`] instance.
@@ -176,18 +152,18 @@ class AppHandle {
       );
 }
 
-class BasicPayment {
-  final AppRs bridge;
-  final BasicPaymentRs inner;
-
-  const BasicPayment({
-    required this.bridge,
-    required this.inner,
-  });
-
-  String paymentIndex({dynamic hint}) => bridge.paymentIndexMethodBasicPayment(
-        that: this,
-      );
+@freezed
+class BasicPayment with _$BasicPayment {
+  const factory BasicPayment({
+    required String index,
+    required String id,
+    required PaymentKind kind,
+    required PaymentDirection direction,
+    required PaymentStatus status,
+    required String statusStr,
+    required int createdAt,
+    int? amountMsat,
+  }) = _BasicPayment;
 }
 
 /// Dart-serializable configuration we get from the flutter side.
@@ -237,4 +213,21 @@ class NodeInfo with _$NodeInfo {
     required String nodePk,
     required int localBalanceMsat,
   }) = _NodeInfo;
+}
+
+enum PaymentDirection {
+  Inbound,
+  Outbound,
+}
+
+enum PaymentKind {
+  Onchain,
+  Invoice,
+  Spontaneous,
+}
+
+enum PaymentStatus {
+  Pending,
+  Completed,
+  Failed,
 }
