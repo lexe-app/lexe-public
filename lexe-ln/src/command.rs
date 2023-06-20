@@ -67,7 +67,11 @@ pub enum CreateInvoiceCaller {
     Lsp,
 }
 
-pub fn node_info<CM, PM, PS>(channel_manager: CM, peer_manager: PM) -> NodeInfo
+#[instrument(skip_all, name = "(node-info)")]
+pub async fn node_info<CM, PM, PS>(
+    channel_manager: CM,
+    peer_manager: PM,
+) -> anyhow::Result<NodeInfo>
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS>,
@@ -83,13 +87,15 @@ where
     let local_balance = Amount::from_msat(local_balance_msat);
     let num_peers = peer_manager.get_peer_node_ids().len();
 
-    NodeInfo {
+    let info = NodeInfo {
         node_pk,
         num_channels,
         num_usable_channels,
         local_balance,
         num_peers,
-    }
+    };
+
+    Ok(info)
 }
 
 #[instrument(skip_all, name = "(create-invoice)")]
