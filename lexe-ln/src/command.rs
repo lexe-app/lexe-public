@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context};
-use bitcoin::bech32::ToBase32;
+use bitcoin::{bech32::ToBase32, Address};
 use bitcoin_hashes::{sha256, Hash};
 use common::{
     api::{
@@ -402,6 +402,11 @@ where
     // txid collision for some reason (e.g. duplicate requests)
 
     Ok(txid)
+}
+
+#[instrument(skip_all, name = "(get-new-address)")]
+pub async fn get_new_address(wallet: LexeWallet) -> anyhow::Result<Address> {
+    wallet.get_new_address().await
 }
 
 /// Given a channel manager and `min_inbound_capacity`, generates a list of
