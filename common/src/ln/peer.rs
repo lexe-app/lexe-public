@@ -5,10 +5,11 @@ use std::{
 };
 
 use anyhow::{bail, Context};
+use serde::{Deserialize, Serialize};
 
 use crate::api::NodePk;
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq)]
+#[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ChannelPeer {
     pub node_pk: NodePk,
     pub addr: SocketAddr,
