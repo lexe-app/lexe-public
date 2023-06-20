@@ -3,7 +3,10 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     api::NodePk,
-    ln::{amount::Amount, invoice::LxInvoice, ConfirmationPriority},
+    ln::{
+        amount::Amount, balance::Balance, invoice::LxInvoice,
+        ConfirmationPriority,
+    },
 };
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -13,6 +16,8 @@ pub struct NodeInfo {
     pub num_usable_channels: usize,
     pub local_balance: Amount,
     pub num_peers: usize,
+    /// Our on-chain wallet [`Balance`].
+    pub wallet_balance: Balance,
 }
 
 #[derive(Default, Serialize, Deserialize)]

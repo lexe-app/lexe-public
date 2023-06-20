@@ -73,6 +73,7 @@ pub(crate) fn app_routes(
         .and(warp::get())
         .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::peer_manager(peer_manager))
+        .and(inject::wallet(wallet.clone()))
         .then(lexe_ln::command::node_info)
         .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
