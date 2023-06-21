@@ -141,10 +141,10 @@ impl LexeWallet {
                      untrusted_pending,
                      confirmed,
                  }| Balance {
-                    immature,
-                    trusted_pending,
-                    untrusted_pending,
-                    confirmed,
+                    immature_sat: immature,
+                    trusted_pending_sat: trusted_pending,
+                    untrusted_pending_sat: untrusted_pending,
+                    confirmed_sat: confirmed,
                 },
             )
             .context("Could not get balance")
