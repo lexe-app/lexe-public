@@ -1,4 +1,4 @@
-import 'dart:ui' show FontVariation, TextDecoration;
+import 'dart:ui' show FontFeature, FontVariation, TextDecoration;
 
 import 'package:flutter/material.dart'
     show
@@ -205,8 +205,8 @@ class Space {
   static const double s1200 = 256.0;
 }
 
-class Radius {
-  Radius._();
+class LxRadius {
+  LxRadius._();
 
   /// 0 px
   static const double r0 = 0.0;
@@ -264,6 +264,8 @@ class Fonts {
   static const FontVariation weightExtraBold = FontVariation("wght", 800);
   static const FontVariation weightBlack = FontVariation("wght", 900);
 
+  static const FontFeature slashedZero = FontFeature.slashedZero();
+
   static const TextStyle fontInter = TextStyle(
     debugLabel: "Fonts.fontInter",
     fontFamily: "Inter V",
@@ -292,6 +294,7 @@ class Fonts {
     fontSize: size300,
     color: LxColors.foreground,
     height: 1.0,
+    // fontFeatures: [slashedZero],
     fontVariations: [weightNormal],
     decoration: TextDecoration.none,
   );
