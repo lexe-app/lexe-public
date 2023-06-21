@@ -8,7 +8,18 @@ import 'package:intl/intl.dart' show Intl;
 
 import 'bindings.dart' show api;
 import 'bindings_generated_api.dart'
-    show App, AppHandle, AppRs, Config, FiatRate, FiatRates, NodeInfo;
+    show
+        App,
+        AppHandle,
+        AppRs,
+        BasicPayment,
+        Config,
+        FiatRate,
+        FiatRates,
+        NodeInfo,
+        PaymentDirection,
+        PaymentKind,
+        PaymentStatus;
 import 'cfg.dart' as cfg;
 import 'logger.dart' as logger;
 import 'logger.dart' show info;
@@ -57,6 +68,76 @@ class MockAppHandle extends AppHandle {
   MockAppHandle({required AppRs bridge})
       : super(bridge: bridge, inner: MockApp(bridge));
 
+  // Some sample data
+  List<BasicPayment> payments = [
+    const BasicPayment(
+      index:
+          "0000001687090000000-bc_551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66",
+      id: "bc_551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66",
+      kind: PaymentKind.Onchain,
+      direction: PaymentDirection.Inbound,
+      status: PaymentStatus.Completed,
+      statusStr: "completed",
+      createdAt: 1687090000000,
+      amountSat: 20000,
+    ),
+    const BasicPayment(
+      index:
+          "0000001687120000000-bc_46e52089b60b00de067c84ce58d34a75ffd71a106f720855bc099f20da11700c",
+      id: "bc_46e52089b60b00de067c84ce58d34a75ffd71a106f720855bc099f20da11700c",
+      kind: PaymentKind.Onchain,
+      direction: PaymentDirection.Outbound,
+      status: PaymentStatus.Failed,
+      statusStr: "dropped",
+      createdAt: 1687120000000,
+      amountSat: 95000000,
+    ),
+    const BasicPayment(
+      index:
+          "0000001687130000000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
+      id: "ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
+      kind: PaymentKind.Spontaneous,
+      direction: PaymentDirection.Outbound,
+      status: PaymentStatus.Pending,
+      statusStr: "invoice generated",
+      createdAt: 1687130000000,
+      amountSat: 123000,
+    ),
+    const BasicPayment(
+      index:
+          "0000001687150000000-ln_6f9dad93ceb2e78181ef5cb73601a28930e9774204d6fb335297b1f4add83d30",
+      id: "ln_6f9dad93ceb2e78181ef5cb73601a28930e9774204d6fb335297b1f4add83d30",
+      kind: PaymentKind.Invoice,
+      direction: PaymentDirection.Inbound,
+      status: PaymentStatus.Pending,
+      statusStr: "pending",
+      createdAt: 1687150000000,
+      amountSat: 44000,
+    ),
+    const BasicPayment(
+      index:
+          "0000001687200000000-ln_6fc9375017dd3d911fe4ee52f4becd2f376384f42053381a09c99cca61dbf87a",
+      id: "ln_6fc9375017dd3d911fe4ee52f4becd2f376384f42053381a09c99cca61dbf87a",
+      kind: PaymentKind.Invoice,
+      direction: PaymentDirection.Inbound,
+      status: PaymentStatus.Completed,
+      statusStr: "completed",
+      createdAt: 1687200000000,
+      amountSat: 222000,
+    ),
+    const BasicPayment(
+      index:
+          "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+      id: "bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+      kind: PaymentKind.Onchain,
+      direction: PaymentDirection.Outbound,
+      status: PaymentStatus.Completed,
+      statusStr: "completed",
+      createdAt: 1687309696000,
+      amountSat: 77777000,
+    ),
+  ];
+
   @override
   Future<NodeInfo> nodeInfo({dynamic hint}) => Future.delayed(
         const Duration(milliseconds: 1000),
@@ -79,6 +160,21 @@ class MockAppHandle extends AppHandle {
         const Duration(milliseconds: 1500),
         () => false,
       );
+
+  @override
+  BasicPayment? getPaymentByScrollIdx({
+    required int scrollIdx,
+    dynamic hint,
+  }) {
+    if (scrollIdx < this.payments.length) {
+      return this.payments[scrollIdx];
+    } else {
+      return null;
+    }
+  }
+
+  @override
+  int getNumPayments({dynamic hint}) => this.payments.length;
 }
 
 class Component {
