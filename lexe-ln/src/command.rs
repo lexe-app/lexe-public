@@ -37,6 +37,7 @@ use lightning::{
     util::errors::APIError,
 };
 use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
+use tokio::sync::broadcast;
 use tracing::{debug, info, instrument, warn};
 
 use crate::{
@@ -101,6 +102,16 @@ where
     };
 
     Ok(info)
+}
+
+/// Uses the given `resync_tx` to retrigger BDK and LDK sync.
+///
+/// This function is intended to be used as a warp handler.
+pub fn resync(resync_tx: broadcast::Sender<()>) -> anyhow::Result<()> {
+    resync_tx
+        .send(())
+        .map(|_| ())
+        .context("Failed to retrigger sync")
 }
 
 #[instrument(skip_all, name = "(create-invoice)")]

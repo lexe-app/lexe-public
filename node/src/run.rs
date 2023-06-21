@@ -51,7 +51,7 @@ use lightning::{
     routing::{gossip::P2PGossipSync, router::DefaultRouter},
 };
 use lightning_transaction_sync::EsploraSyncClient;
-use tokio::sync::{mpsc, oneshot, watch};
+use tokio::sync::{broadcast, mpsc, oneshot};
 use tracing::{debug, error, info, info_span, instrument};
 
 use crate::{
@@ -113,7 +113,8 @@ struct SyncContext {
     ldk_sync_client: Arc<EsploraSyncClientType>,
     init_start: Instant,
     onchain_recv_tx: notify::Sender,
-    resync_rx: watch::Receiver<()>,
+    bdk_resync_rx: broadcast::Receiver<()>,
+    ldk_resync_rx: broadcast::Receiver<()>,
     test_event_tx: TestEventSender,
 }
 
@@ -126,7 +127,8 @@ impl UserNode {
     pub async fn init<R: Crng>(
         rng: &mut R,
         args: RunArgs,
-        resync_rx: watch::Receiver<()>,
+        bdk_resync_rx: broadcast::Receiver<()>,
+        ldk_resync_rx: broadcast::Receiver<()>,
         test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<Self> {
@@ -515,7 +517,8 @@ impl UserNode {
                 ldk_sync_client,
                 init_start,
                 onchain_recv_tx,
-                resync_rx,
+                bdk_resync_rx,
+                ldk_resync_rx,
                 test_event_tx,
             }),
         })
@@ -532,7 +535,7 @@ impl UserNode {
             self.wallet.clone(),
             ctxt.onchain_recv_tx,
             first_bdk_sync_tx,
-            ctxt.resync_rx.clone(),
+            ctxt.bdk_resync_rx,
             ctxt.test_event_tx.clone(),
             self.shutdown.clone(),
         ));
@@ -546,7 +549,7 @@ impl UserNode {
             self.chain_monitor.clone(),
             ctxt.ldk_sync_client,
             first_ldk_sync_tx,
-            ctxt.resync_rx,
+            ctxt.ldk_resync_rx,
             ctxt.test_event_tx.clone(),
             self.shutdown.clone(),
         ));
