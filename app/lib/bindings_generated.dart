@@ -225,17 +225,18 @@ class AppRsImpl implements AppRs {
 
   BasicPayment _wire2api_basic_payment(dynamic raw) {
     final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
+    if (arr.length != 9)
+      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
     return BasicPayment(
       index: _wire2api_String(arr[0]),
       id: _wire2api_String(arr[1]),
       kind: _wire2api_payment_kind(arr[2]),
       direction: _wire2api_payment_direction(arr[3]),
-      status: _wire2api_payment_status(arr[4]),
-      statusStr: _wire2api_String(arr[5]),
-      createdAt: _wire2api_i64(arr[6]),
-      amountSat: _wire2api_opt_box_autoadd_u64(arr[7]),
+      amountSat: _wire2api_opt_box_autoadd_u64(arr[4]),
+      status: _wire2api_payment_status(arr[5]),
+      statusStr: _wire2api_String(arr[6]),
+      note: _wire2api_opt_String(arr[7]),
+      createdAt: _wire2api_i64(arr[8]),
     );
   }
 
@@ -299,6 +300,10 @@ class AppRsImpl implements AppRs {
       nodePk: _wire2api_String(arr[0]),
       localBalanceMsat: _wire2api_u64(arr[1]),
     );
+  }
+
+  String? _wire2api_opt_String(dynamic raw) {
+    return raw == null ? null : _wire2api_String(raw);
   }
 
   AppHandle? _wire2api_opt_box_autoadd_app_handle(dynamic raw) {

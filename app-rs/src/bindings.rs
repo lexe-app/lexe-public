@@ -242,10 +242,11 @@ pub struct BasicPayment {
     pub id: String,
     pub kind: PaymentKind,
     pub direction: PaymentDirection,
+    pub amount_sat: Option<u64>,
     pub status: PaymentStatus,
     pub status_str: String,
+    pub note: Option<String>,
     pub created_at: i64,
-    pub amount_sat: Option<u64>,
 }
 
 impl From<&BasicPaymentRs> for BasicPayment {
@@ -255,10 +256,11 @@ impl From<&BasicPaymentRs> for BasicPayment {
             id: payment.id.to_string(),
             kind: PaymentKind::from(payment.kind),
             direction: PaymentDirection::from(payment.direction),
+            amount_sat: payment.amount.map(|amt| amt.sats_u64()),
             status: PaymentStatus::from(payment.status),
             status_str: payment.status_str.clone(),
+            note: payment.note.clone(),
             created_at: payment.created_at.as_i64(),
-            amount_sat: payment.amount.map(|amt| amt.sats_u64()),
         }
     }
 }
