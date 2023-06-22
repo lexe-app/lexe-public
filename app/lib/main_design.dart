@@ -76,10 +76,10 @@ class MockAppHandle extends AppHandle {
       id: "bc_551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66",
       kind: PaymentKind.Onchain,
       direction: PaymentDirection.Inbound,
+      amountSat: 20000,
       status: PaymentStatus.Completed,
       statusStr: "completed",
       createdAt: 1670090392000,
-      amountSat: 20000,
     ),
     const BasicPayment(
       index:
@@ -87,10 +87,10 @@ class MockAppHandle extends AppHandle {
       id: "bc_46e52089b60b00de067c84ce58d34a75ffd71a106f720855bc099f20da11700c",
       kind: PaymentKind.Onchain,
       direction: PaymentDirection.Outbound,
+      amountSat: 95000000,
       status: PaymentStatus.Failed,
       statusStr: "dropped",
       createdAt: 1671818392000,
-      amountSat: 95000000,
     ),
     const BasicPayment(
       index:
@@ -98,10 +98,11 @@ class MockAppHandle extends AppHandle {
       id: "ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
       kind: PaymentKind.Spontaneous,
       direction: PaymentDirection.Outbound,
+      amountSat: 123000,
       status: PaymentStatus.Pending,
       statusStr: "invoice generated",
+      note: "🍆🍆🍆",
       createdAt: 1686938392000,
-      amountSat: 123000,
     ),
     const BasicPayment(
       index:
@@ -109,10 +110,11 @@ class MockAppHandle extends AppHandle {
       id: "ln_6f9dad93ceb2e78181ef5cb73601a28930e9774204d6fb335297b1f4add83d30",
       kind: PaymentKind.Invoice,
       direction: PaymentDirection.Inbound,
+      amountSat: 4470000,
       status: PaymentStatus.Pending,
       statusStr: "pending",
+      note: "Exchange funds",
       createdAt: 1687150000000,
-      amountSat: 44000,
     ),
     const BasicPayment(
       index:
@@ -120,10 +122,10 @@ class MockAppHandle extends AppHandle {
       id: "ln_6fc9375017dd3d911fe4ee52f4becd2f376384f42053381a09c99cca61dbf87a",
       kind: PaymentKind.Invoice,
       direction: PaymentDirection.Inbound,
+      amountSat: 222000,
       status: PaymentStatus.Completed,
       statusStr: "completed",
       createdAt: 1687200000000,
-      amountSat: 222000,
     ),
     const BasicPayment(
       index:
@@ -131,10 +133,11 @@ class MockAppHandle extends AppHandle {
       id: "bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
       kind: PaymentKind.Onchain,
       direction: PaymentDirection.Outbound,
+      amountSat: 77000,
       status: PaymentStatus.Completed,
       statusStr: "completed",
+      note: "Brunch w/ friends",
       createdAt: 1687385080000,
-      amountSat: 77777000,
     ),
   ];
 
@@ -158,7 +161,7 @@ class MockAppHandle extends AppHandle {
   @override
   Future<bool> syncPayments({dynamic hint}) => Future.delayed(
         const Duration(milliseconds: 1500),
-        () => false,
+        () => true,
       );
 
   @override

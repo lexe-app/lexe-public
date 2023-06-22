@@ -70,6 +70,14 @@ class LxColors {
   /// LxColors.grey200
   static const Color foreground = LxColors.grey200;
 
+  // TODO(phlip9): I don't know if I like the colors in the list UI...
+  // TODO(phlip9): need green and red swatches
+  // TODO(phlip9): moneyGoUp/Down will eventually need to be localized, since
+  //               different cultures have different color associations.
+
+  // static const Color moneyGoUp = Color(0xff12a16d);
+  // static const Color moneyGoDown = Color(0xffe9553e);
+
   // Greys
 
   static const Color grey0 = Color(0xff000000);

@@ -730,12 +730,17 @@ class PaymentsListEntry extends StatelessWidget {
       status: this.payment.status,
     );
 
-    // ex: "46e52089b60b00" (btc txid/ln payment hash. clipped.)
+    final String? note = this.payment.note;
+    final String primaryIdStr =
+        (note != null && note.isNotEmpty) ? note : this.payment.id.substring(3);
+
+    // ex: "Brunch w/ Bob" (payment.note)
+    // ex: "46e52089b60b00" (btc txid/ln payment hash, if no note. clipped.)
     final primaryIdText = Text(
       // TODO(phlip9): I don't think the txid / payment hash are particularly
       // useful from a UX standpoint. Ideally the primary display line is the
       // human-readable txn counterparty.
-      this.payment.id.substring(3),
+      primaryIdStr,
       maxLines: 1,
       // overflow: TextOverflow.ellipsis,
       style: Fonts.fontUI.copyWith(
@@ -752,15 +757,25 @@ class PaymentsListEntry extends StatelessWidget {
       ),
     );
 
-    final amountSats = this.payment.amountSat;
-    final String amountSatsStr = (amountSats != null)
-        ? formatSats(amountSats.toDouble(), direction: this.payment.direction)
-        : "";
-
     // TODO(phlip9): display as BTC rather than sats depending on user
     //               preferences.
     // the weird unicode thing that isn't rendering is the BTC B currency symbol
     // "+₿0.00001230",
+
+    const secondaryValueColor = LxColors.grey350;
+    // final Color secondaryValueColor;
+    // if (this.payment.status == PaymentStatus.Failed) {
+    //   secondaryValueColor = LxColors.grey350;
+    // } else if (this.payment.direction == PaymentDirection.Inbound) {
+    //   secondaryValueColor = LxColors.moneyGoUp;
+    // } else {
+    //   secondaryValueColor = LxColors.moneyGoDown;
+    // }
+
+    final amountSats = this.payment.amountSat;
+    final String amountSatsStr = (amountSats != null)
+        ? formatSats(amountSats.toDouble(), direction: this.payment.direction)
+        : "";
 
     // ex: "" (certain niche cases w/ failed or pending LN invoice payments)
     // ex: "+45,000 sats"
@@ -771,7 +786,7 @@ class PaymentsListEntry extends StatelessWidget {
       textAlign: TextAlign.end,
       style: Fonts.fontUI.copyWith(
         fontSize: Fonts.size200,
-        color: LxColors.grey350,
+        color: secondaryValueColor,
       ),
     );
 
@@ -882,6 +897,14 @@ class PaymentListIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const iconColor = LxColors.grey350;
+    // final Color iconColor;
+    // if (status == PaymentStatus.Failed) {
+    //   iconColor = LxColors.grey350;
+    // } else if (direction == PaymentDirection.Inbound) {
+    //   iconColor = LxColors.moneyGoUp;
+    // } else {
+    //   iconColor = LxColors.moneyGoDown;
+    // }
 
     final arrowIcon = (this.direction == PaymentDirection.Inbound)
         ? Icons.arrow_downward_rounded
