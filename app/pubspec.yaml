@@ -33,6 +33,7 @@ dependencies:
   cupertino_icons: ^1.0.2
 
   # The low-level runtime interface for generated dart ffi bindings.
+  duration: ^3.0.12
   ffi: ^2.0.1
   # flutter SDK
   flutter:
