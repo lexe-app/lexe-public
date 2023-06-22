@@ -78,21 +78,21 @@ void main() {
     // expect(date_format.formatDateCompact(now: now, then: dec23, locale: "fr"),
     //     "23 déc.");
 
-    // -200d = December 3 2022 = "Dec 3, 2022"
+    // -200d = December 3 2022 = "12/03/22"
     final dec3_22 = DateTime.fromMillisecondsSinceEpoch(1670090392000);
     expect(
         date_format.formatDateCompact(now: now, then: dec3_22, locale: "en_US"),
-        "Dec 3, 2022");
+        "12/03/22");
     // expect(date_format.formatDateCompact(now: now, then: dec3_22, locale: "nb"),
     //     "3. des. 2022");
     // expect(date_format.formatDateCompact(now: now, then: dec3_22, locale: "fr"),
     //     "3 déc. 2022");
 
-    // -654d = September 5, 2022 = "Sep 5, 2022"
+    // -654d = September 5, 2022 = "09/05/21"
     final sep5_22 = DateTime.fromMillisecondsSinceEpoch(1630864792000);
     expect(
         date_format.formatDateCompact(now: now, then: sep5_22, locale: "en_US"),
-        "Sep 5, 2021");
+        "09/05/21");
     // expect(date_format.formatDateCompact(now: now, then: sep5_22, locale: "nb"),
     //     "5. sep. 2021");
     // expect(date_format.formatDateCompact(now: now, then: sep5_22, locale: "fr"),
