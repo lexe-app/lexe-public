@@ -10,13 +10,13 @@ import 'route/wallet.dart' show WalletPage;
 import 'style.dart' show LxColors, LxTheme;
 
 Future<void> main() async {
-  // TODO(phlip9): load initial state
-  // TODO(phlip9): navigate to wallet if already signed up or landing o/w
-
   // runZonedGuarded(
   //   () async => await mainInner(),
   //   (error, stackTrace) => /* do something w/ error */,
   // );
+
+  // TODO(phlip9): initialize dart internationalization for preferred system
+  //               locale. <https://pub.dev/packages/intl#initialization>
 
   WidgetsFlutterBinding.ensureInitialized();
 

@@ -78,7 +78,7 @@ class MockAppHandle extends AppHandle {
       direction: PaymentDirection.Inbound,
       status: PaymentStatus.Completed,
       statusStr: "completed",
-      createdAt: 1687090000000,
+      createdAt: 1670090392000,
       amountSat: 20000,
     ),
     const BasicPayment(
@@ -89,7 +89,7 @@ class MockAppHandle extends AppHandle {
       direction: PaymentDirection.Outbound,
       status: PaymentStatus.Failed,
       statusStr: "dropped",
-      createdAt: 1687120000000,
+      createdAt: 1671818392000,
       amountSat: 95000000,
     ),
     const BasicPayment(
@@ -100,7 +100,7 @@ class MockAppHandle extends AppHandle {
       direction: PaymentDirection.Outbound,
       status: PaymentStatus.Pending,
       statusStr: "invoice generated",
-      createdAt: 1687130000000,
+      createdAt: 1686938392000,
       amountSat: 123000,
     ),
     const BasicPayment(
@@ -133,7 +133,7 @@ class MockAppHandle extends AppHandle {
       direction: PaymentDirection.Outbound,
       status: PaymentStatus.Completed,
       statusStr: "completed",
-      createdAt: 1687309696000,
+      createdAt: 1687385080000,
       amountSat: 77777000,
     ),
   ];
@@ -167,7 +167,7 @@ class MockAppHandle extends AppHandle {
     dynamic hint,
   }) {
     if (scrollIdx < this.payments.length) {
-      return this.payments[scrollIdx];
+      return this.payments[this.payments.length - scrollIdx - 1];
     } else {
       return null;
     }
