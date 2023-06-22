@@ -195,13 +195,13 @@ class Space {
   /// 96 px
   static const double s900 = 96.0;
 
-  /// 128 px
-  static const double s1000 = 128.0;
+  /// 144 px
+  static const double s1000 = 144.0;
 
   /// 192 px
   static const double s1100 = 192.0;
 
-  /// 192 px
+  /// 256 px
   static const double s1200 = 256.0;
 }
 

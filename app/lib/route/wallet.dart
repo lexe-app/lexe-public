@@ -658,12 +658,68 @@ class PaymentsListEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final leadingIcon = PaymentListIcon(direction: this.payment.direction);
+
     final createdAt = DateTime.fromMillisecondsSinceEpoch(payment.createdAt);
     // If `createdAt` is somehow in the future, just hide it.
     final createdAtStr = date_format.formatDateCompact(then: createdAt) ?? "";
 
+    final primaryIdText = Text(
+      // TODO(phlip9): I don't think the txid / payment hash are particularly
+      // useful from a UX standpoint. Ideally the primary display line is the
+      // human-readable txn counterparty.
+      this.payment.id.substring(3),
+      maxLines: 1,
+      // overflow: TextOverflow.ellipsis,
+      style: Fonts.fontUI.copyWith(
+        fontSize: Fonts.size300,
+        color: LxColors.grey350,
+        fontVariations: [Fonts.weightMedium],
+      ),
+    );
+
+    final amountSats = this.payment.amountSat;
+    final String amountSatsStr =
+        (amountSats != null) ? formatSats(amountSats.toDouble()) : "";
+
+    final primaryValueText = Text(
+      // the weird unicode thing that isn't rendering is the BTC B
+      // currency symbol
+      // "+₿0.00001230",
+      // "23,856 sats",
+      amountSatsStr,
+      maxLines: 1,
+      textAlign: TextAlign.end,
+      style: Fonts.fontUI.copyWith(
+        fontSize: Fonts.size200,
+        color: LxColors.grey350,
+      ),
+    );
+
+    final secondaryText = Text(
+      createdAtStr,
+      maxLines: 1,
+      style: Fonts.fontUI.copyWith(
+        fontSize: Fonts.size200,
+        color: LxColors.grey650,
+      ),
+    );
+
+    final secondaryValueText = Text(
+      "\$5.12",
+      maxLines: 1,
+      textAlign: TextAlign.end,
+      style: Fonts.fontUI.copyWith(
+        fontSize: Fonts.size200,
+        color: LxColors.grey650,
+      ),
+    );
+
+    const secondaryWidth = 144.0;
+
     return ListTile(
       // list tile styling
+
       contentPadding: const EdgeInsets.symmetric(
         horizontal: Space.s400,
         vertical: Space.s200,
@@ -673,65 +729,40 @@ class PaymentsListEntry extends StatelessWidget {
       dense: false,
 
       // actual content
-      leading: PaymentListIcon(direction: this.payment.direction),
-      title: Text(
-        // TODO(phlip9): I don't think the txid / payment hash are particularly
-        // useful from a UX standpoint. Ideally the primary display line is the
-        // human-readable txn counterparty.
-        this.payment.id.substring(3),
-        maxLines: 1,
-        // overflow: TextOverflow.ellipsis,
-        style: Fonts.fontUI.copyWith(
-          fontSize: Fonts.size300,
-          color: LxColors.grey350,
-          fontVariations: [Fonts.weightMedium],
-        ),
+
+      leading: leadingIcon,
+
+      // NOTE: we use a Row() in `title` and `subtitle` instead of `trailing` so
+      // that the text baselines to align properly.
+
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Expanded(
+            child: primaryIdText,
+          ),
+          SizedBox(
+            width: secondaryWidth,
+            child: primaryValueText,
+          ),
+        ],
       ),
 
-      subtitle: Text(
-        createdAtStr,
-        maxLines: 1,
-        style: Fonts.fontUI.copyWith(
-          fontSize: Fonts.size200,
-          color: LxColors.grey650,
-        ),
-      ),
-
-      // TODO(phlip9): I think we need to move the tx amounts to the
-      // title/subtitle widgets so they can align on the right text baseline...
-      trailing: SizedBox(
-        width: Space.s1000,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 10.0),
-              child: Text(
-                // the weird unicode thing that isn't rendering is the BTC B
-                // currency symbol
-                "+₿0.00001230",
-                // "23,856 sats",
-                maxLines: 1,
-                style: Fonts.fontUI.copyWith(
-                  fontSize: Fonts.size200,
-                  color: LxColors.grey350,
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: Space.s200),
-              child: Text(
-                "\$5.12",
-                maxLines: 1,
-                style: Fonts.fontUI.copyWith(
-                  fontSize: Fonts.size200,
-                  color: LxColors.grey650,
-                ),
-              ),
-            ),
-          ],
-        ),
+      subtitle: Row(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Expanded(
+            child: secondaryText,
+          ),
+          SizedBox(
+            width: secondaryWidth,
+            child: secondaryValueText,
+          ),
+        ],
       ),
     );
   }
