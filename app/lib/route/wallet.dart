@@ -15,6 +15,7 @@ import '../../bindings_generated_api.dart'
         FiatRates,
         NodeInfo,
         PaymentDirection;
+import '../../date_format.dart' as date_format;
 import '../../logger.dart' show error, info;
 import '../../style.dart' show Fonts, LxColors, LxRadius, Space;
 
@@ -342,7 +343,7 @@ class DrawerListItem extends StatelessWidget {
 final NumberFormat integerFormatter =
     NumberFormat.decimalPatternDigits(decimalDigits: 0);
 
-String formatSats(double sats) => "${integerFormatter.format(sats)} SATS";
+String formatSats(double sats) => "${integerFormatter.format(sats)} sats";
 
 double msatsToSats(int msats) => msats * 1e-3;
 double msatsToBtc(int msats) => msats * 1e-11;
@@ -657,6 +658,10 @@ class PaymentsListEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final createdAt = DateTime.fromMillisecondsSinceEpoch(payment.createdAt);
+    // If `createdAt` is somehow in the future, just hide it.
+    final createdAtStr = date_format.formatDateCompact(then: createdAt) ?? "";
+
     return ListTile(
       // list tile styling
       contentPadding: const EdgeInsets.symmetric(
@@ -670,6 +675,9 @@ class PaymentsListEntry extends StatelessWidget {
       // actual content
       leading: PaymentListIcon(direction: this.payment.direction),
       title: Text(
+        // TODO(phlip9): I don't think the txid / payment hash are particularly
+        // useful from a UX standpoint. Ideally the primary display line is the
+        // human-readable txn counterparty.
         this.payment.id.substring(3),
         maxLines: 1,
         // overflow: TextOverflow.ellipsis,
@@ -679,8 +687,9 @@ class PaymentsListEntry extends StatelessWidget {
           fontVariations: [Fonts.weightMedium],
         ),
       ),
+
       subtitle: Text(
-        "September 16",
+        createdAtStr,
         maxLines: 1,
         style: Fonts.fontUI.copyWith(
           fontSize: Fonts.size200,
