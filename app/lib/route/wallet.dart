@@ -8,7 +8,13 @@ import 'package:intl/intl.dart' show NumberFormat;
 import 'package:rxdart_ext/rxdart_ext.dart';
 
 import '../../bindings_generated_api.dart'
-    show AppHandle, BasicPayment, FiatRate, NodeInfo, PaymentDirection;
+    show
+        AppHandle,
+        BasicPayment,
+        FiatRate,
+        NodeInfo,
+        PaymentDirection,
+        PaymentStatus;
 import '../../date_format.dart' as date_format;
 import '../../logger.dart' show error, info;
 import '../../style.dart' show Fonts, LxColors, LxRadius, Space;
@@ -719,12 +725,12 @@ class PaymentsListEntry extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final leadingIcon = PaymentListIcon(direction: this.payment.direction);
+    final leadingIcon = PaymentListIcon(
+      direction: this.payment.direction,
+      status: this.payment.status,
+    );
 
-    final createdAt = DateTime.fromMillisecondsSinceEpoch(payment.createdAt);
-    // If `createdAt` is somehow in the future, just hide it.
-    final createdAtStr = date_format.formatDateCompact(then: createdAt) ?? "";
-
+    // ex: "46e52089b60b00" (btc txid/ln payment hash. clipped.)
     final primaryIdText = Text(
       // TODO(phlip9): I don't think the txid / payment hash are particularly
       // useful from a UX standpoint. Ideally the primary display line is the
@@ -736,6 +742,13 @@ class PaymentsListEntry extends StatelessWidget {
         fontSize: Fonts.size300,
         color: LxColors.grey350,
         fontVariations: [Fonts.weightMedium],
+        // color: (this.payment.status != PaymentStatus.Failed)
+        //     ? LxColors.grey350
+        //     : LxColors.grey650,
+        // decoration: (this.payment.status == PaymentStatus.Failed)
+        //     ? TextDecoration.lineThrough
+        //     : null,
+        // decorationColor: LxColors.grey350,
       ),
     );
 
@@ -749,8 +762,10 @@ class PaymentsListEntry extends StatelessWidget {
     // the weird unicode thing that isn't rendering is the BTC B currency symbol
     // "+₿0.00001230",
 
+    // ex: "" (certain niche cases w/ failed or pending LN invoice payments)
+    // ex: "+45,000 sats"
+    // ex: "-128 sats"
     final primaryValueText = Text(
-      // "23,856 sats",
       amountSatsStr,
       maxLines: 1,
       textAlign: TextAlign.end,
@@ -762,8 +777,19 @@ class PaymentsListEntry extends StatelessWidget {
 
     const secondaryWidth = Space.s1000;
 
+    final createdAt = DateTime.fromMillisecondsSinceEpoch(payment.createdAt);
+    final createdAtStr = date_format.formatDateCompact(then: createdAt);
+
+    // ex: "10min"
+    // ex: "Jun 16"
+    // ex: "14h · Pending"
+    final secondaryTextStr = <String>[
+      if (createdAtStr != null) createdAtStr,
+      if (this.payment.status == PaymentStatus.Pending) "Pending"
+    ].join(" · ");
+
     final secondaryText = Text(
-      createdAtStr,
+      secondaryTextStr,
       maxLines: 1,
       style: Fonts.fontUI.copyWith(
         fontSize: Fonts.size200,
@@ -771,6 +797,9 @@ class PaymentsListEntry extends StatelessWidget {
       ),
     );
 
+    // ex: "" (when fiat data not yet loaded)
+    // ex: "+$3.50"
+    // ex: "-$1,420.69"
     final secondaryValueText = StreamBuilder(
       initialData: null,
       stream: this.fiatRate,
@@ -841,9 +870,14 @@ class PaymentsListEntry extends StatelessWidget {
 }
 
 class PaymentListIcon extends StatelessWidget {
-  const PaymentListIcon({super.key, required this.direction});
+  const PaymentListIcon({
+    super.key,
+    required this.direction,
+    required this.status,
+  });
 
   final PaymentDirection direction;
+  final PaymentStatus status;
 
   @override
   Widget build(BuildContext context) {
@@ -852,6 +886,9 @@ class PaymentListIcon extends StatelessWidget {
     final arrowIcon = (this.direction == PaymentDirection.Inbound)
         ? Icons.arrow_downward_rounded
         : Icons.arrow_upward_rounded;
+
+    final icon =
+        (this.status == PaymentStatus.Failed) ? Icons.close_rounded : arrowIcon;
 
     // const borderSide = BorderSide(color: iconColor, width: 2.0);
 
@@ -869,7 +906,7 @@ class PaymentListIcon extends StatelessWidget {
       ),
       child: SizedBox.square(
         dimension: 36.0,
-        child: Icon(arrowIcon, size: Space.s500, color: iconColor),
+        child: Icon(icon, size: Space.s500, color: iconColor),
       ),
     );
   }
