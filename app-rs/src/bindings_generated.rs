@@ -257,10 +257,11 @@ impl support::IntoDart for BasicPayment {
             self.id.into_dart(),
             self.kind.into_dart(),
             self.direction.into_dart(),
+            self.amount_sat.into_dart(),
             self.status.into_dart(),
             self.status_str.into_dart(),
+            self.note.into_dart(),
             self.created_at.into_dart(),
-            self.amount_sat.into_dart(),
         ]
         .into_dart()
     }

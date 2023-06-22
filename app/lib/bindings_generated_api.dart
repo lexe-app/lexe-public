@@ -159,10 +159,11 @@ class BasicPayment with _$BasicPayment {
     required String id,
     required PaymentKind kind,
     required PaymentDirection direction,
+    int? amountSat,
     required PaymentStatus status,
     required String statusStr,
+    String? note,
     required int createdAt,
-    int? amountSat,
   }) = _BasicPayment;
 }
 

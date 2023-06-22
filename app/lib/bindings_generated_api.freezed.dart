@@ -20,10 +20,11 @@ mixin _$BasicPayment {
   String get id => throw _privateConstructorUsedError;
   PaymentKind get kind => throw _privateConstructorUsedError;
   PaymentDirection get direction => throw _privateConstructorUsedError;
+  int? get amountSat => throw _privateConstructorUsedError;
   PaymentStatus get status => throw _privateConstructorUsedError;
   String get statusStr => throw _privateConstructorUsedError;
+  String? get note => throw _privateConstructorUsedError;
   int get createdAt => throw _privateConstructorUsedError;
-  int? get amountSat => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -34,10 +35,11 @@ class _$_BasicPayment implements _BasicPayment {
       required this.id,
       required this.kind,
       required this.direction,
+      this.amountSat,
       required this.status,
       required this.statusStr,
-      required this.createdAt,
-      this.amountSat});
+      this.note,
+      required this.createdAt});
 
   @override
   final String index;
@@ -48,17 +50,19 @@ class _$_BasicPayment implements _BasicPayment {
   @override
   final PaymentDirection direction;
   @override
+  final int? amountSat;
+  @override
   final PaymentStatus status;
   @override
   final String statusStr;
   @override
-  final int createdAt;
+  final String? note;
   @override
-  final int? amountSat;
+  final int createdAt;
 
   @override
   String toString() {
-    return 'BasicPayment(index: $index, id: $id, kind: $kind, direction: $direction, status: $status, statusStr: $statusStr, createdAt: $createdAt, amountSat: $amountSat)';
+    return 'BasicPayment(index: $index, id: $id, kind: $kind, direction: $direction, amountSat: $amountSat, status: $status, statusStr: $statusStr, note: $note, createdAt: $createdAt)';
   }
 
   @override
@@ -71,18 +75,19 @@ class _$_BasicPayment implements _BasicPayment {
             (identical(other.kind, kind) || other.kind == kind) &&
             (identical(other.direction, direction) ||
                 other.direction == direction) &&
+            (identical(other.amountSat, amountSat) ||
+                other.amountSat == amountSat) &&
             (identical(other.status, status) || other.status == status) &&
             (identical(other.statusStr, statusStr) ||
                 other.statusStr == statusStr) &&
+            (identical(other.note, note) || other.note == note) &&
             (identical(other.createdAt, createdAt) ||
-                other.createdAt == createdAt) &&
-            (identical(other.amountSat, amountSat) ||
-                other.amountSat == amountSat));
+                other.createdAt == createdAt));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, index, id, kind, direction,
-      status, statusStr, createdAt, amountSat);
+      amountSat, status, statusStr, note, createdAt);
 }
 
 abstract class _BasicPayment implements BasicPayment {
@@ -91,10 +96,11 @@ abstract class _BasicPayment implements BasicPayment {
       required final String id,
       required final PaymentKind kind,
       required final PaymentDirection direction,
+      final int? amountSat,
       required final PaymentStatus status,
       required final String statusStr,
-      required final int createdAt,
-      final int? amountSat}) = _$_BasicPayment;
+      final String? note,
+      required final int createdAt}) = _$_BasicPayment;
 
   @override
   String get index;
@@ -105,13 +111,15 @@ abstract class _BasicPayment implements BasicPayment {
   @override
   PaymentDirection get direction;
   @override
+  int? get amountSat;
+  @override
   PaymentStatus get status;
   @override
   String get statusStr;
   @override
-  int get createdAt;
+  String? get note;
   @override
-  int? get amountSat;
+  int get createdAt;
 }
 
 /// @nodoc
