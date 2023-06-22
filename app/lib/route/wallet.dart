@@ -348,7 +348,22 @@ class DrawerListItem extends StatelessWidget {
 final NumberFormat integerFormatter =
     NumberFormat.decimalPatternDigits(decimalDigits: 0);
 
-String formatSats(double sats) => "${integerFormatter.format(sats)} sats";
+String directionToSign(PaymentDirection direction) =>
+    (direction == PaymentDirection.Inbound) ? "+" : "-";
+
+String formatSats(
+  double sats, {
+  PaymentDirection? direction,
+}) {
+  final String sign;
+  if (direction == null) {
+    sign = "";
+  } else {
+    sign = directionToSign(direction);
+  }
+
+  return "$sign${integerFormatter.format(sats)} sats";
+}
 
 double msatsToSats(int msats) => msats * 1e-3;
 double msatsToBtc(int msats) => msats * 1e-11;
@@ -667,16 +682,18 @@ class SliverPaymentsList extends StatelessWidget {
 String formatFiatValue({
   required FiatRate? rate,
   required int? amountSats,
+  required PaymentDirection direction,
 }) {
   if (rate == null || amountSats == null) {
     return "";
   }
 
   final fiatValue = satsToBtc(amountSats) * rate.rate;
+  final sign = directionToSign(direction);
 
   final NumberFormat currencyFormatter =
       NumberFormat.simpleCurrency(name: rate.fiat);
-  return currencyFormatter.format(fiatValue);
+  return "$sign${currencyFormatter.format(fiatValue)}";
 }
 
 class PaymentsListEntry extends StatelessWidget {
@@ -711,8 +728,9 @@ class PaymentsListEntry extends StatelessWidget {
     );
 
     final amountSats = this.payment.amountSat;
-    final String amountSatsStr =
-        (amountSats != null) ? formatSats(amountSats.toDouble()) : "";
+    final String amountSatsStr = (amountSats != null)
+        ? formatSats(amountSats.toDouble(), direction: this.payment.direction)
+        : "";
 
     // TODO(phlip9): display as BTC rather than sats depending on user
     //               preferences.
@@ -748,6 +766,7 @@ class PaymentsListEntry extends StatelessWidget {
         formatFiatValue(
           rate: snapshot.data,
           amountSats: this.payment.amountSat,
+          direction: this.payment.direction,
         ),
         maxLines: 1,
         textAlign: TextAlign.end,
