@@ -8,13 +8,7 @@ import 'package:intl/intl.dart' show NumberFormat;
 import 'package:rxdart_ext/rxdart_ext.dart';
 
 import '../../bindings_generated_api.dart'
-    show
-        AppHandle,
-        BasicPayment,
-        FiatRate,
-        FiatRates,
-        NodeInfo,
-        PaymentDirection;
+    show AppHandle, BasicPayment, FiatRate, NodeInfo, PaymentDirection;
 import '../../date_format.dart' as date_format;
 import '../../logger.dart' show error, info;
 import '../../style.dart' show Fonts, LxColors, LxRadius, Space;
@@ -37,7 +31,7 @@ class WalletPageState extends State<WalletPage> {
 
   // BehaviorSubject: a StreamController that captures the latest item added
   // to the controller, and emits that as the first item to any new listener.
-  final BehaviorSubject<FiatRates?> fiatRates = BehaviorSubject.seeded(null);
+  final BehaviorSubject<FiatRate?> fiatRate = BehaviorSubject.seeded(null);
   final BehaviorSubject<NodeInfo?> nodeInfos = BehaviorSubject.seeded(null);
 
   // StateSubject: like BehaviorSubject but only notifies subscribers if the
@@ -55,12 +49,11 @@ class WalletPageState extends State<WalletPage> {
     const String fiatName = "USD";
 
     // A stream of `BalanceState`s that gets updated when `nodeInfos` or
-    // `fiatRates` are updated. Since it's fed into a `StateSubject`, it also
+    // `fiatRate` are updated. Since it's fed into a `StateSubject`, it also
     // avoids widget rebuilds if new state == old state.
     Rx.combineLatest2(
       this.nodeInfos.map((nodeInfo) => nodeInfo?.localBalanceMsat),
-      this.fiatRates.map((fiatRates) =>
-          fiatRates?.rates.firstWhere((rate) => rate.fiat == fiatName)),
+      this.fiatRate,
       (msatBalance, fiatRate) => BalanceState(
           msatsBalance: msatBalance, fiatName: fiatName, fiatRate: fiatRate),
     ).listen(this.balanceStates.addIfNotClosed);
@@ -75,8 +68,12 @@ class WalletPageState extends State<WalletPage> {
         );
 
     // on refresh, update fiat rate
-    refreshRx.asyncMap((_) => app.fiatRates()).listen(
-          this.fiatRates.addIfNotClosed,
+    refreshRx
+        .asyncMap((_) => app.fiatRates())
+        .map((fiatRates) =>
+            fiatRates.rates.firstWhere((rate) => rate.fiat == fiatName))
+        .listen(
+          this.fiatRate.addIfNotClosed,
           onError: (err) => error("fiatRates: error: $err"),
         );
 
@@ -94,7 +91,7 @@ class WalletPageState extends State<WalletPage> {
   void dispose() {
     this.refresh.close();
     this.nodeInfos.close();
-    this.fiatRates.close();
+    this.fiatRate.close();
     this.balanceStates.close();
 
     super.dispose();
@@ -165,9 +162,15 @@ class WalletPageState extends State<WalletPage> {
             // const SizedBox(height: Space.s400),
           ])),
 
-          // The payments list
-          //
-          SliverPaymentsList(app: this.widget.app),
+          // TODO(phlip9): It seems more useful to always show a separate
+          // pending list, THEN show the completed/failed payments. When users
+          // are looking at the primary page, they're far more likely to be
+          // checking on some recent payment than looking at some old historical
+          // payment.
+
+          // The complete payments list
+          SliverPaymentsList(
+              app: this.widget.app, fiatRate: this.fiatRate.stream),
         ],
       ),
       // TODO(phlip9): this default pull-to-refresh is really not great...
@@ -340,6 +343,8 @@ class DrawerListItem extends StatelessWidget {
   }
 }
 
+// TODO(phlip9): move these currency formatting fns
+
 final NumberFormat integerFormatter =
     NumberFormat.decimalPatternDigits(decimalDigits: 0);
 
@@ -347,6 +352,7 @@ String formatSats(double sats) => "${integerFormatter.format(sats)} sats";
 
 double msatsToSats(int msats) => msats * 1e-3;
 double msatsToBtc(int msats) => msats * 1e-11;
+double satsToBtc(int sats) => sats * 1e-8;
 
 @freezed
 class BalanceState with _$BalanceState {
@@ -622,16 +628,21 @@ class PaymentsListFilters extends StatelessWidget {
 }
 
 class SliverPaymentsList extends StatelessWidget {
-  const SliverPaymentsList({super.key, required this.app});
+  const SliverPaymentsList({
+    super.key,
+    required this.app,
+    required this.fiatRate,
+  });
 
   final AppHandle app;
+  final Stream<FiatRate?> fiatRate;
 
   @override
   Widget build(BuildContext context) {
     final numPayments = this.app.getNumPayments();
 
     // TODO(phlip9): also investigate more efficient `SliverFixedExtentList`,
-    // since each payment list entry should be the same height.
+    // since each payment list entry should be the same height?
     return SliverList(
         delegate: SliverChildBuilderDelegate(
       (context, scrollIdx) {
@@ -639,22 +650,43 @@ class SliverPaymentsList extends StatelessWidget {
 
         if (payment != null) {
           // final amount = payment.
-          return PaymentsListEntry(payment);
+          return PaymentsListEntry(
+            payment: payment,
+            fiatRate: this.fiatRate,
+          );
         } else {
           return null;
         }
       },
       childCount: numPayments,
-      // TODO(phlip9): I think we'll need to implement this so that
       // findChildIndexCallback: (Key childKey) => this.app.getPaymentScrollIdxByPaymentId(childKey),
     ));
   }
 }
 
+String formatFiatValue({
+  required FiatRate? rate,
+  required int? amountSats,
+}) {
+  if (rate == null || amountSats == null) {
+    return "";
+  }
+
+  final fiatValue = satsToBtc(amountSats) * rate.rate;
+
+  final NumberFormat currencyFormatter =
+      NumberFormat.simpleCurrency(name: rate.fiat);
+  return currencyFormatter.format(fiatValue);
+}
+
 class PaymentsListEntry extends StatelessWidget {
-  PaymentsListEntry(this.payment) : super(key: Key(payment.index));
+  PaymentsListEntry({
+    required this.payment,
+    required this.fiatRate,
+  }) : super(key: Key(payment.index));
 
   final BasicPayment payment;
+  final Stream<FiatRate?> fiatRate;
 
   @override
   Widget build(BuildContext context) {
@@ -682,10 +714,12 @@ class PaymentsListEntry extends StatelessWidget {
     final String amountSatsStr =
         (amountSats != null) ? formatSats(amountSats.toDouble()) : "";
 
+    // TODO(phlip9): display as BTC rather than sats depending on user
+    //               preferences.
+    // the weird unicode thing that isn't rendering is the BTC B currency symbol
+    // "+₿0.00001230",
+
     final primaryValueText = Text(
-      // the weird unicode thing that isn't rendering is the BTC B
-      // currency symbol
-      // "+₿0.00001230",
       // "23,856 sats",
       amountSatsStr,
       maxLines: 1,
@@ -696,6 +730,8 @@ class PaymentsListEntry extends StatelessWidget {
       ),
     );
 
+    const secondaryWidth = Space.s1000;
+
     final secondaryText = Text(
       createdAtStr,
       maxLines: 1,
@@ -705,17 +741,22 @@ class PaymentsListEntry extends StatelessWidget {
       ),
     );
 
-    final secondaryValueText = Text(
-      "\$5.12",
-      maxLines: 1,
-      textAlign: TextAlign.end,
-      style: Fonts.fontUI.copyWith(
-        fontSize: Fonts.size200,
-        color: LxColors.grey650,
+    final secondaryValueText = StreamBuilder(
+      initialData: null,
+      stream: this.fiatRate,
+      builder: (context, snapshot) => Text(
+        formatFiatValue(
+          rate: snapshot.data,
+          amountSats: this.payment.amountSat,
+        ),
+        maxLines: 1,
+        textAlign: TextAlign.end,
+        style: Fonts.fontUI.copyWith(
+          fontSize: Fonts.size200,
+          color: LxColors.grey650,
+        ),
       ),
     );
-
-    const secondaryWidth = 144.0;
 
     return ListTile(
       // list tile styling
