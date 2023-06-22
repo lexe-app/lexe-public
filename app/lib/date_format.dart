@@ -19,8 +19,8 @@ const DurationLocale defaultLocale = EnglishDurationLocale();
 /// * Format spans shorter than 6 months as an abbreviated date without the
 ///   year, e.g., "Jun 15", "Feb 3".
 ///
-/// * Format longer spans as an abbreviated date with year, e.g.,
-///   "Apr 13, 2023", "Dec 5, 2023".
+/// * Format longer spans as a compact date, e.g.,
+///   "23/06/15" (formatting depends on the locale)
 String? formatDateCompact({
   /// The time in the past that we want to format.
   required DateTime then,
@@ -50,14 +50,19 @@ String? formatDateCompact({
       first: true,
     );
   } else if (span.inDays <= 31 * 6) {
-    // TODO(phlip9): MMMd takes locale
     return DateFormat.MMMd(locale).format(then);
   } else {
-    // TODO(phlip9): yMMMd takes locale
-    return DateFormat.yMMMd(locale).format(then);
+    // TODO(phlip9): locale-friendly way to get most compact MM/dd/yy
+    return DateFormat('MM/dd/yy', locale).format(then);
   }
 }
 
+/// The locale names used by the `duration` dart package are almost all "short"
+/// locale names w/o the country code. This lookup function:
+///
+/// 1. Looks up the exact locale passed in
+/// 2. Looks up the first two characters of the locale passed in
+/// 3. Otherwise defaults to the english locale
 DurationLocale lookupDurationLocale(String? locale) {
   if (locale == null) {
     return defaultLocale;
@@ -68,7 +73,7 @@ DurationLocale lookupDurationLocale(String? locale) {
     return maybeLocale;
   }
 
-  if (locale.length < 2) {
+  if (locale.length <= 2) {
     return defaultLocale;
   }
 
