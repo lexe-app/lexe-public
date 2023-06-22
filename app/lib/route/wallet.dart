@@ -29,6 +29,9 @@ class WalletPageState extends State<WalletPage> {
   /// A stream controller to trigger refreshes of the wallet page contents.
   final StreamController<Null> refresh = StreamController.broadcast();
 
+  /// A stream controller to notify when some payments are updated.
+  final StreamController<Null> paymentsUpdated = StreamController();
+
   // BehaviorSubject: a StreamController that captures the latest item added
   // to the controller, and emits that as the first item to any new listener.
   final BehaviorSubject<FiatRate?> fiatRate = BehaviorSubject.seeded(null);
@@ -81,7 +84,10 @@ class WalletPageState extends State<WalletPage> {
     refreshRx.asyncMap((_) => app.syncPayments()).listen(
       (anyChangedPayments) {
         info("syncPayments: anyChangedPayments: $anyChangedPayments");
-        // TODO(phlip9): notify payments list UI to update
+        // Only re-render payments if they've actually changed.
+        if (anyChangedPayments) {
+          this.paymentsUpdated.addIfNotClosed(null);
+        }
       },
       onError: (err) => error("syncPayments: error: $err"),
     );
@@ -90,6 +96,7 @@ class WalletPageState extends State<WalletPage> {
   @override
   void dispose() {
     this.refresh.close();
+    this.paymentsUpdated.close();
     this.nodeInfos.close();
     this.fiatRate.close();
     this.balanceStates.close();
@@ -169,8 +176,12 @@ class WalletPageState extends State<WalletPage> {
           // payment.
 
           // The complete payments list
-          SliverPaymentsList(
-              app: this.widget.app, fiatRate: this.fiatRate.stream),
+          StreamBuilder(
+            stream: this.paymentsUpdated.stream,
+            initialData: null,
+            builder: (context, snapshot) => SliverPaymentsList(
+                app: this.widget.app, fiatRate: this.fiatRate.stream),
+          )
         ],
       ),
       // TODO(phlip9): this default pull-to-refresh is really not great...
@@ -655,6 +666,7 @@ class SliverPaymentsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final numPayments = this.app.getNumPayments();
+    info("build SliverPaymentsList: numPayments: $numPayments");
 
     // TODO(phlip9): also investigate more efficient `SliverFixedExtentList`,
     // since each payment list entry should be the same height?
