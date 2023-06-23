@@ -59,3 +59,4 @@ bitcoin.workspace = true
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 tempfile.workspace = true
+serde.workspace = true

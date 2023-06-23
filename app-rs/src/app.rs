@@ -103,12 +103,13 @@ impl App {
         {
             let node_pk = root_seed.derive_node_pk(rng);
             let lock = payment_db.lock().unwrap();
+            let db_state = lock.state();
             info!(
                 %user_pk,
                 %node_pk,
-                num_payments = lock.num_payments(),
-                num_pending = lock.num_pending(),
-                latest_payment_index = ?lock.latest_payment_index(),
+                num_payments = db_state.num_payments(),
+                num_pending = db_state.num_pending(),
+                latest_payment_index = ?db_state.latest_payment_index(),
                 "loaded existing app state"
             );
         }

@@ -222,12 +222,18 @@ impl BasicPayment {
         }
     }
 
+    #[inline]
     pub fn is_pending(&self) -> bool {
         use PaymentStatus::*;
         match self.status {
             Pending => true,
             Completed | Failed => false,
         }
+    }
+
+    #[inline]
+    pub fn is_finalized(&self) -> bool {
+        !self.is_pending()
     }
 
     /// Returns the user's note or invoice description, prefering note over
