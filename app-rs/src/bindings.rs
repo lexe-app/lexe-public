@@ -364,6 +364,7 @@ impl AppHandle {
         let db_lock = self.inner.payment_db().lock().unwrap();
         SyncReturn(
             db_lock
+                .state()
                 .get_payment_by_scroll_idx(scroll_idx)
                 .map(ShortPayment::from),
         )
@@ -371,6 +372,6 @@ impl AppHandle {
 
     pub fn get_num_payments(&self) -> SyncReturn<usize> {
         let db_lock = self.inner.payment_db().lock().unwrap();
-        SyncReturn(db_lock.num_payments())
+        SyncReturn(db_lock.state().num_payments())
     }
 }
