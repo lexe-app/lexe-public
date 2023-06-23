@@ -1,4 +1,4 @@
-import 'dart:ui' show FontFeature, FontVariation, TextDecoration;
+import 'dart:ui' show FontVariation, TextDecoration;
 
 import 'package:flutter/material.dart'
     show

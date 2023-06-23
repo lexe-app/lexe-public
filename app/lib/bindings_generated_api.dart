@@ -68,7 +68,7 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kSyncPaymentsMethodAppHandleConstMeta;
 
-  BasicPayment? getPaymentByScrollIdxMethodAppHandle(
+  ShortPayment? getPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta
@@ -141,7 +141,7 @@ class AppHandle {
         that: this,
       );
 
-  BasicPayment? getPaymentByScrollIdx({required int scrollIdx, dynamic hint}) =>
+  ShortPayment? getPaymentByScrollIdx({required int scrollIdx, dynamic hint}) =>
       bridge.getPaymentByScrollIdxMethodAppHandle(
         that: this,
         scrollIdx: scrollIdx,
@@ -150,21 +150,6 @@ class AppHandle {
   int getNumPayments({dynamic hint}) => bridge.getNumPaymentsMethodAppHandle(
         that: this,
       );
-}
-
-@freezed
-class BasicPayment with _$BasicPayment {
-  const factory BasicPayment({
-    required String index,
-    required String id,
-    required PaymentKind kind,
-    required PaymentDirection direction,
-    int? amountSat,
-    required PaymentStatus status,
-    required String statusStr,
-    String? note,
-    required int createdAt,
-  }) = _BasicPayment;
 }
 
 /// Dart-serializable configuration we get from the flutter side.
@@ -231,4 +216,18 @@ enum PaymentStatus {
   Pending,
   Completed,
   Failed,
+}
+
+/// Just the info we need to display an entry in the payments list UI.
+@freezed
+class ShortPayment with _$ShortPayment {
+  const factory ShortPayment({
+    required String index,
+    required PaymentKind kind,
+    required PaymentDirection direction,
+    int? amountSat,
+    required PaymentStatus status,
+    String? note,
+    required int createdAt,
+  }) = _ShortPayment;
 }

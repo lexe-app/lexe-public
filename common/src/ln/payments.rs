@@ -2,6 +2,7 @@ use std::{
     cmp::Ordering,
     convert::TryFrom,
     fmt::{self, Display},
+    ops::Deref,
     str::FromStr,
 };
 
@@ -10,6 +11,7 @@ use bitcoin_hashes::{sha256, Hash};
 use lightning::ln::{
     channelmanager::PaymentId, PaymentHash, PaymentPreimage, PaymentSecret,
 };
+use lightning_invoice::InvoiceDescription;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -226,6 +228,24 @@ impl BasicPayment {
             Pending => true,
             Completed | Failed => false,
         }
+    }
+
+    /// Returns the user's note or invoice description, prefering note over
+    /// description.
+    pub fn note_or_description(&self) -> Option<&str> {
+        let maybe_note = self.note.as_deref().filter(|s| !s.is_empty());
+
+        maybe_note.or_else(|| {
+            self.invoice.as_ref().and_then(|invoice| {
+                match invoice.0.description() {
+                    InvoiceDescription::Direct(description)
+                        if !description.is_empty() =>
+                        Some(description.deref()),
+                    // Hash description is not useful yet
+                    _ => None,
+                }
+            })
+        })
     }
 }
 
