@@ -114,3 +114,62 @@ pub const fn const_ref_cast<T: ref_cast::RefCast>(from: &T::From) -> &T {
     // currently const (Rust doesn't support const traits yet).
     unsafe { &*(from as *const T::From as *const T) }
 }
+
+/// A trait which allows us to apply functions (including tuple enum variants)
+/// to non-[`Iterator`]/[`Result`]/[`Option`] values for cleaner iterator-like
+/// chains. It exposes an [`apply`] method and is implemented for all `T`.
+///
+/// For example, instead of this:
+///
+/// ```
+/// # use common::ln::amount::Amount;
+/// let value_sat_u64 = 100_000u64; // Pretend this is from LDK
+/// let value_sat_u32 = u32::try_from(value_sat_u64)
+///     .expect("Amount shouldn't have overflowed");
+/// let maybe_value = Some(Amount::from_sats_u32(value_sat_u32));
+/// ```
+///
+/// We can remove the useless `value_sat_u32` intermediate variable:
+///
+/// ```
+/// # use common::ln::amount::Amount;
+/// # use common::Apply;
+/// let value_sat_u64 = 100_000u64; // Pretend this is from LDK
+/// let maybe_value = u32::try_from(value_sat_u64)
+///     .expect("Amount shouldn't have overflowed")
+///     .apply(Amount::from_sats_u32)
+///     .apply(Some);
+/// ```
+///
+/// Without having to add use nested [`Option`]s / [`Result`]s which can be
+/// confusing:
+///
+/// ```
+/// # use common::ln::amount::Amount;
+/// let value_sat_u64 = 100_000u64; // Pretend this is from LDK
+/// let maybe_value = u32::try_from(value_sat_u64)
+///     .map(Amount::from_sats_u32)
+///     .map(Some)
+///     .expect("Amount shouldn't have overflowed");
+/// ```
+///
+/// Overall, this trait makes it easier to both (1) write iterator chains
+/// without unwanted intermediate variables and (2) write them in a way that
+/// maximizes clarity and readability, instead of having to reorder our
+/// `.transpose()` / `.map()`/ `.expect()` / `.context("...")?` operations
+/// to "stay inside" the function chain.
+///
+/// [`apply`]: Self::apply
+pub trait Apply<F, T> {
+    fn apply(self, f: F) -> T;
+}
+
+impl<F, T, U> Apply<F, U> for T
+where
+    F: FnOnce(T) -> U,
+{
+    #[inline]
+    fn apply(self, f: F) -> U {
+        f(self)
+    }
+}
