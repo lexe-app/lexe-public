@@ -250,24 +250,6 @@ impl support::IntoDart for AppHandle {
 }
 impl support::IntoDartExceptPrimitive for AppHandle {}
 
-impl support::IntoDart for BasicPayment {
-    fn into_dart(self) -> support::DartAbi {
-        vec![
-            self.index.into_dart(),
-            self.id.into_dart(),
-            self.kind.into_dart(),
-            self.direction.into_dart(),
-            self.amount_sat.into_dart(),
-            self.status.into_dart(),
-            self.status_str.into_dart(),
-            self.note.into_dart(),
-            self.created_at.into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl support::IntoDartExceptPrimitive for BasicPayment {}
-
 impl support::IntoDart for FiatRate {
     fn into_dart(self) -> support::DartAbi {
         vec![self.fiat.into_dart(), self.rate.into_dart()].into_dart()
@@ -325,6 +307,21 @@ impl support::IntoDart for PaymentStatus {
     }
 }
 impl support::IntoDartExceptPrimitive for PaymentStatus {}
+impl support::IntoDart for ShortPayment {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.index.into_dart(),
+            self.kind.into_dart(),
+            self.direction.into_dart(),
+            self.amount_sat.into_dart(),
+            self.status.into_dart(),
+            self.note.into_dart(),
+            self.created_at.into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for ShortPayment {}
 
 // Section: executor
 

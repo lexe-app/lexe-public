@@ -157,14 +157,14 @@ class AppRsImpl implements AppRs {
         argNames: ["that"],
       );
 
-  BasicPayment? getPaymentByScrollIdxMethodAppHandle(
+  ShortPayment? getPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     var arg1 = api2wire_usize(scrollIdx);
     return _platform.executeSync(FlutterRustBridgeSyncTask(
       callFfi: () => _platform.inner
           .wire_get_payment_by_scroll_idx__method__AppHandle(arg0, arg1),
-      parseSuccessData: _wire2api_opt_box_autoadd_basic_payment,
+      parseSuccessData: _wire2api_opt_box_autoadd_short_payment,
       constMeta: kGetPaymentByScrollIdxMethodAppHandleConstMeta,
       argValues: [that, scrollIdx],
       hint: hint,
@@ -223,23 +223,6 @@ class AppRsImpl implements AppRs {
     );
   }
 
-  BasicPayment _wire2api_basic_payment(dynamic raw) {
-    final arr = raw as List<dynamic>;
-    if (arr.length != 9)
-      throw Exception('unexpected arr length: expect 9 but see ${arr.length}');
-    return BasicPayment(
-      index: _wire2api_String(arr[0]),
-      id: _wire2api_String(arr[1]),
-      kind: _wire2api_payment_kind(arr[2]),
-      direction: _wire2api_payment_direction(arr[3]),
-      amountSat: _wire2api_opt_box_autoadd_u64(arr[4]),
-      status: _wire2api_payment_status(arr[5]),
-      statusStr: _wire2api_String(arr[6]),
-      note: _wire2api_opt_String(arr[7]),
-      createdAt: _wire2api_i64(arr[8]),
-    );
-  }
-
   bool _wire2api_bool(dynamic raw) {
     return raw as bool;
   }
@@ -248,8 +231,8 @@ class AppRsImpl implements AppRs {
     return _wire2api_app_handle(raw);
   }
 
-  BasicPayment _wire2api_box_autoadd_basic_payment(dynamic raw) {
-    return _wire2api_basic_payment(raw);
+  ShortPayment _wire2api_box_autoadd_short_payment(dynamic raw) {
+    return _wire2api_short_payment(raw);
   }
 
   int _wire2api_box_autoadd_u64(dynamic raw) {
@@ -310,8 +293,8 @@ class AppRsImpl implements AppRs {
     return raw == null ? null : _wire2api_box_autoadd_app_handle(raw);
   }
 
-  BasicPayment? _wire2api_opt_box_autoadd_basic_payment(dynamic raw) {
-    return raw == null ? null : _wire2api_box_autoadd_basic_payment(raw);
+  ShortPayment? _wire2api_opt_box_autoadd_short_payment(dynamic raw) {
+    return raw == null ? null : _wire2api_box_autoadd_short_payment(raw);
   }
 
   int? _wire2api_opt_box_autoadd_u64(dynamic raw) {
@@ -328,6 +311,21 @@ class AppRsImpl implements AppRs {
 
   PaymentStatus _wire2api_payment_status(dynamic raw) {
     return PaymentStatus.values[raw];
+  }
+
+  ShortPayment _wire2api_short_payment(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 7)
+      throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
+    return ShortPayment(
+      index: _wire2api_String(arr[0]),
+      kind: _wire2api_payment_kind(arr[1]),
+      direction: _wire2api_payment_direction(arr[2]),
+      amountSat: _wire2api_opt_box_autoadd_u64(arr[3]),
+      status: _wire2api_payment_status(arr[4]),
+      note: _wire2api_opt_String(arr[5]),
+      createdAt: _wire2api_i64(arr[6]),
+    );
   }
 
   int _wire2api_u64(dynamic raw) {

@@ -12,14 +12,14 @@ import 'bindings_generated_api.dart'
         App,
         AppHandle,
         AppRs,
-        BasicPayment,
         Config,
         FiatRate,
         FiatRates,
         NodeInfo,
         PaymentDirection,
         PaymentKind,
-        PaymentStatus;
+        PaymentStatus,
+        ShortPayment;
 import 'cfg.dart' as cfg;
 import 'logger.dart' as logger;
 import 'logger.dart' show info;
@@ -69,76 +69,64 @@ class MockAppHandle extends AppHandle {
       : super(bridge: bridge, inner: MockApp(bridge));
 
   // Some sample data
-  List<BasicPayment> payments = [
-    const BasicPayment(
+  List<ShortPayment> shortPayments = [
+    const ShortPayment(
       index:
           "0000001687090000000-bc_551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66",
-      id: "bc_551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66",
       kind: PaymentKind.Onchain,
       direction: PaymentDirection.Inbound,
       amountSat: 20000,
       status: PaymentStatus.Completed,
-      statusStr: "completed",
       // note: "tb1qhlqcmf383f9zddmvc36ngwxjlffgtk5ldrrsav",
       createdAt: 1670090392000,
     ),
-    const BasicPayment(
+    const ShortPayment(
       index:
           "0000001687120000000-bc_46e52089b60b00de067c84ce58d34a75ffd71a106f720855bc099f20da11700c",
-      id: "bc_46e52089b60b00de067c84ce58d34a75ffd71a106f720855bc099f20da11700c",
       kind: PaymentKind.Onchain,
       direction: PaymentDirection.Outbound,
       amountSat: 95000000,
       status: PaymentStatus.Failed,
-      statusStr: "dropped",
       note: "Sweep from Muun",
       createdAt: 1671818392000,
     ),
-    const BasicPayment(
+    const ShortPayment(
       index:
           "0000001687130000000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
-      id: "ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
       kind: PaymentKind.Spontaneous,
       direction: PaymentDirection.Outbound,
       amountSat: 123000,
       status: PaymentStatus.Pending,
-      statusStr: "invoice generated",
       note: "🍑🍑🍑🍆🍆🍆😂😂😂",
       createdAt: 1686938392000,
     ),
-    const BasicPayment(
+    const ShortPayment(
       index:
           "0000001687150000000-ln_6f9dad93ceb2e78181ef5cb73601a28930e9774204d6fb335297b1f4add83d30",
-      id: "ln_6f9dad93ceb2e78181ef5cb73601a28930e9774204d6fb335297b1f4add83d30",
       kind: PaymentKind.Invoice,
       direction: PaymentDirection.Inbound,
       amountSat: 4470000,
       status: PaymentStatus.Pending,
-      statusStr: "pending",
       note:
           "My super long note that really is too long it just keeps going and going",
       createdAt: 1687150000000,
     ),
-    const BasicPayment(
+    const ShortPayment(
       index:
           "0000001687200000000-ln_6fc9375017dd3d911fe4ee52f4becd2f376384f42053381a09c99cca61dbf87a",
-      id: "ln_6fc9375017dd3d911fe4ee52f4becd2f376384f42053381a09c99cca61dbf87a",
       kind: PaymentKind.Invoice,
       direction: PaymentDirection.Inbound,
       amountSat: 222000,
       status: PaymentStatus.Completed,
-      statusStr: "completed",
       createdAt: 1687200000000,
     ),
-    const BasicPayment(
+    const ShortPayment(
       index:
           "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
-      id: "bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
       kind: PaymentKind.Onchain,
       direction: PaymentDirection.Outbound,
       amountSat: 77000,
       status: PaymentStatus.Completed,
-      statusStr: "completed",
       note: "Brunch w/ friends",
       createdAt: 1687385080000,
     ),
@@ -168,19 +156,19 @@ class MockAppHandle extends AppHandle {
       );
 
   @override
-  BasicPayment? getPaymentByScrollIdx({
+  ShortPayment? getPaymentByScrollIdx({
     required int scrollIdx,
     dynamic hint,
   }) {
-    if (scrollIdx < this.payments.length) {
-      return this.payments[this.payments.length - scrollIdx - 1];
+    if (scrollIdx < this.shortPayments.length) {
+      return this.shortPayments[this.shortPayments.length - scrollIdx - 1];
     } else {
       return null;
     }
   }
 
   @override
-  int getNumPayments({dynamic hint}) => this.payments.length;
+  int getNumPayments({dynamic hint}) => this.shortPayments.length;
 }
 
 class Component {

@@ -10,12 +10,12 @@ import 'package:rxdart_ext/rxdart_ext.dart';
 import '../../bindings_generated_api.dart'
     show
         AppHandle,
-        BasicPayment,
         FiatRate,
         NodeInfo,
         PaymentDirection,
         PaymentKind,
-        PaymentStatus;
+        PaymentStatus,
+        ShortPayment;
 import '../../date_format.dart' as date_format;
 import '../../logger.dart' show error, info;
 import '../../style.dart' show Fonts, LxColors, LxRadius, Space;
@@ -679,7 +679,7 @@ String formatFiatValue({
 class PaymentsListEntry extends StatelessWidget {
   PaymentsListEntry({required this.payment}) : super(key: Key(payment.index));
 
-  final BasicPayment payment;
+  final ShortPayment payment;
 
   @override
   Widget build(BuildContext context) {

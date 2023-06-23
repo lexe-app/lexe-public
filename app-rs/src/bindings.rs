@@ -42,7 +42,7 @@
 use std::{future::Future, sync::LazyLock};
 
 use anyhow::Context;
-pub use common::ln::payments::BasicPayment as BasicPaymentRs;
+pub use common::ln::payments::BasicPayment;
 use common::{
     api::{
         command::NodeInfo as NodeInfoRs,
@@ -236,30 +236,29 @@ impl From<PaymentKindRs> for PaymentKind {
     }
 }
 
+/// Just the info we need to display an entry in the payments list UI.
 #[frb(dart_metadata=("freezed"))]
-pub struct BasicPayment {
+pub struct ShortPayment {
     pub index: String,
-    pub id: String,
     pub kind: PaymentKind,
     pub direction: PaymentDirection,
     pub amount_sat: Option<u64>,
     pub status: PaymentStatus,
-    pub status_str: String,
+    /// This field will prioritize the `note` the user explicitly sets, over
+    /// the LN invoice description which is not user controlled.
     pub note: Option<String>,
     pub created_at: i64,
 }
 
-impl From<&BasicPaymentRs> for BasicPayment {
-    fn from(payment: &BasicPaymentRs) -> Self {
+impl From<&BasicPayment> for ShortPayment {
+    fn from(payment: &BasicPayment) -> Self {
         Self {
             index: payment.index().to_string(),
-            id: payment.id.to_string(),
             kind: PaymentKind::from(payment.kind),
             direction: PaymentDirection::from(payment.direction),
             amount_sat: payment.amount.map(|amt| amt.sats_u64()),
             status: PaymentStatus::from(payment.status),
-            status_str: payment.status_str.clone(),
-            note: payment.note.clone(),
+            note: payment.note_or_description().map(|s| s.to_owned()),
             created_at: payment.created_at.as_i64(),
         }
     }
@@ -361,12 +360,12 @@ impl AppHandle {
     pub fn get_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> SyncReturn<Option<BasicPayment>> {
+    ) -> SyncReturn<Option<ShortPayment>> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         SyncReturn(
             db_lock
                 .get_payment_by_scroll_idx(scroll_idx)
-                .map(BasicPayment::from),
+                .map(ShortPayment::from),
         )
     }
 
