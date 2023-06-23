@@ -158,11 +158,9 @@ class WalletPageState extends State<WalletPage> {
           //
           // * Balance
           // * Wallet Actions (Fund, Receive, Send, ...)
-          SliverList(
-              delegate: SliverChildListDelegate([
+          SliverToBoxAdapter(
+              child: Column(children: [
             const SizedBox(height: Space.s1100),
-            // TODO(phlip9): for some reason, when we scroll down and then back
-            // up, this widget resets to loading placeholders...
             StateStreamBuilder(
               stream: this.balanceStates,
               builder: (context, balanceState) => BalanceWidget(balanceState),
@@ -170,10 +168,6 @@ class WalletPageState extends State<WalletPage> {
             const SizedBox(height: Space.s700),
             const WalletActions(),
             const SizedBox(height: Space.s900),
-            // TODO(phlip9): is there a  way to easily shove the filters into
-            // the `SliverPaymentsList`?
-            // const PaymentsListFilters(),
-            // const SizedBox(height: Space.s400),
           ])),
 
           // TODO(phlip9): It seems more useful to always show a separate
@@ -626,34 +620,6 @@ class WalletActionButton extends StatelessWidget {
             color: (!isDisabled) ? LxColors.foreground : LxColors.grey725,
             fontVariations: [Fonts.weightSemiBold],
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class PaymentsListFilters extends StatelessWidget {
-  const PaymentsListFilters({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.start,
-      children: const [
-        SizedBox(width: Space.s600),
-        FilledPlaceholder(
-          height: Space.s600,
-          width: Space.s800,
-        ),
-        SizedBox(width: Space.s400),
-        FilledPlaceholder(
-          height: Space.s600,
-          width: Space.s800,
-        ),
-        SizedBox(width: Space.s400),
-        FilledPlaceholder(
-          height: Space.s600,
-          width: Space.s800,
         ),
       ],
     );
