@@ -79,6 +79,7 @@ class MockAppHandle extends AppHandle {
       amountSat: 20000,
       status: PaymentStatus.Completed,
       statusStr: "completed",
+      // note: "tb1qhlqcmf383f9zddmvc36ngwxjlffgtk5ldrrsav",
       createdAt: 1670090392000,
     ),
     const BasicPayment(
@@ -90,6 +91,7 @@ class MockAppHandle extends AppHandle {
       amountSat: 95000000,
       status: PaymentStatus.Failed,
       statusStr: "dropped",
+      note: "Sweep from Muun",
       createdAt: 1671818392000,
     ),
     const BasicPayment(
@@ -101,7 +103,7 @@ class MockAppHandle extends AppHandle {
       amountSat: 123000,
       status: PaymentStatus.Pending,
       statusStr: "invoice generated",
-      note: "🍆🍆🍆",
+      note: "🍑🍑🍑🍆🍆🍆😂😂😂",
       createdAt: 1686938392000,
     ),
     const BasicPayment(
@@ -113,7 +115,8 @@ class MockAppHandle extends AppHandle {
       amountSat: 4470000,
       status: PaymentStatus.Pending,
       statusStr: "pending",
-      note: "Exchange funds",
+      note:
+          "My super long note that really is too long it just keeps going and going",
       createdAt: 1687150000000,
     ),
     const BasicPayment(
