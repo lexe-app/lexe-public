@@ -14,6 +14,7 @@ import '../../bindings_generated_api.dart'
         FiatRate,
         NodeInfo,
         PaymentDirection,
+        PaymentKind,
         PaymentStatus;
 import '../../date_format.dart' as date_format;
 import '../../logger.dart' show error, info;
@@ -186,7 +187,9 @@ class WalletPageState extends State<WalletPage> {
             stream: this.paymentsUpdated.stream,
             initialData: null,
             builder: (context, snapshot) => SliverPaymentsList(
-                app: this.widget.app, fiatRate: this.fiatRate.stream),
+              app: this.widget.app,
+              // fiatRate: this.fiatRate.stream,
+            ),
           )
         ],
       ),
@@ -371,15 +374,13 @@ String directionToSign(PaymentDirection direction) =>
 String formatSats(
   double sats, {
   PaymentDirection? direction,
+  bool satsSuffix = true,
 }) {
-  final String sign;
-  if (direction == null) {
-    sign = "";
-  } else {
-    sign = directionToSign(direction);
-  }
+  final sign = (direction != null) ? directionToSign(direction) : "";
 
-  return "$sign${integerFormatter.format(sats)} sats";
+  final suffix = (satsSuffix) ? " sats" : "";
+
+  return "$sign${integerFormatter.format(sats)}$suffix";
 }
 
 double msatsToSats(int msats) => msats * 1e-3;
@@ -547,7 +548,7 @@ class PrimaryBalanceText extends StatelessWidget {
             fiatBalanceFractional,
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size800,
-              color: LxColors.grey650,
+              color: LxColors.fgTertiary,
               fontVariations: [Fonts.weightMedium],
             ),
           ),
@@ -660,14 +661,9 @@ class PaymentsListFilters extends StatelessWidget {
 }
 
 class SliverPaymentsList extends StatelessWidget {
-  const SliverPaymentsList({
-    super.key,
-    required this.app,
-    required this.fiatRate,
-  });
+  const SliverPaymentsList({super.key, required this.app});
 
   final AppHandle app;
-  final Stream<FiatRate?> fiatRate;
 
   @override
   Widget build(BuildContext context) {
@@ -685,7 +681,7 @@ class SliverPaymentsList extends StatelessWidget {
           // final amount = payment.
           return PaymentsListEntry(
             payment: payment,
-            fiatRate: this.fiatRate,
+            // fiatRate: this.fiatRate,
           );
         } else {
           return null;
@@ -715,45 +711,47 @@ String formatFiatValue({
 }
 
 class PaymentsListEntry extends StatelessWidget {
-  PaymentsListEntry({
-    required this.payment,
-    required this.fiatRate,
-  }) : super(key: Key(payment.index));
+  PaymentsListEntry({required this.payment}) : super(key: Key(payment.index));
 
   final BasicPayment payment;
-  final Stream<FiatRate?> fiatRate;
 
   @override
   Widget build(BuildContext context) {
-    final leadingIcon = PaymentListIcon(
-      direction: this.payment.direction,
-      status: this.payment.status,
-    );
+    final status = this.payment.status;
+    final direction = this.payment.direction;
+    final kind = this.payment.kind;
+    final amountSats = this.payment.amountSat;
+    final note = this.payment.note;
 
-    final String? note = this.payment.note;
-    final String primaryIdStr =
-        (note != null && note.isNotEmpty) ? note : this.payment.id.substring(3);
+    final leadingIcon = PaymentListIcon(kind: kind);
 
-    // ex: "Brunch w/ Bob" (payment.note)
-    // ex: "46e52089b60b00" (btc txid/ln payment hash, if no note. clipped.)
-    final primaryIdText = Text(
-      // TODO(phlip9): I don't think the txid / payment hash are particularly
-      // useful from a UX standpoint. Ideally the primary display line is the
-      // human-readable txn counterparty.
-      primaryIdStr,
+    // TODO(phlip9): figure out a heuristic to get the counterparty name.
+    final String primaryStr;
+    if (status == PaymentStatus.Pending) {
+      if (direction == PaymentDirection.Inbound) {
+        primaryStr = "Receiving payment";
+      } else {
+        primaryStr = "Sending payment";
+      }
+    } else {
+      if (direction == PaymentDirection.Inbound) {
+        primaryStr = "You received";
+      } else {
+        primaryStr = "You sent";
+      }
+    }
+
+    // ex: "Receiving payment" (pending, inbound)
+    // ex: "Sending payment" (pending, outbound)
+    // ex: "You received" (finalized, inbound)
+    // ex: "You sent" (finalized, outbound)
+    final primaryText = Text(
+      primaryStr,
       maxLines: 1,
-      // overflow: TextOverflow.ellipsis,
       style: Fonts.fontUI.copyWith(
         fontSize: Fonts.size300,
-        color: LxColors.grey350,
+        color: LxColors.fgSecondary,
         fontVariations: [Fonts.weightMedium],
-        // color: (this.payment.status != PaymentStatus.Failed)
-        //     ? LxColors.grey350
-        //     : LxColors.grey650,
-        // decoration: (this.payment.status == PaymentStatus.Failed)
-        //     ? TextDecoration.lineThrough
-        //     : null,
-        // decorationColor: LxColors.grey350,
       ),
     );
 
@@ -762,19 +760,19 @@ class PaymentsListEntry extends StatelessWidget {
     // the weird unicode thing that isn't rendering is the BTC B currency symbol
     // "+₿0.00001230",
 
-    const secondaryValueColor = LxColors.grey350;
-    // final Color secondaryValueColor;
-    // if (this.payment.status == PaymentStatus.Failed) {
-    //   secondaryValueColor = LxColors.grey350;
-    // } else if (this.payment.direction == PaymentDirection.Inbound) {
-    //   secondaryValueColor = LxColors.moneyGoUp;
-    // } else {
-    //   secondaryValueColor = LxColors.moneyGoDown;
-    // }
+    const primaryValueWidth = Space.s1000;
 
-    final amountSats = this.payment.amountSat;
+    final Color primaryValueColor;
+    if (direction == PaymentDirection.Inbound &&
+        status != PaymentStatus.Failed) {
+      primaryValueColor = LxColors.moneyGoUp;
+    } else {
+      primaryValueColor = LxColors.fgSecondary;
+    }
+
     final String amountSatsStr = (amountSats != null)
-        ? formatSats(amountSats.toDouble(), direction: this.payment.direction)
+        ? formatSats(amountSats.toDouble(),
+            direction: direction, satsSuffix: true)
         : "";
 
     // ex: "" (certain niche cases w/ failed or pending LN invoice payments)
@@ -786,50 +784,54 @@ class PaymentsListEntry extends StatelessWidget {
       textAlign: TextAlign.end,
       style: Fonts.fontUI.copyWith(
         fontSize: Fonts.size200,
-        color: secondaryValueColor,
+        color: primaryValueColor,
       ),
     );
 
-    const secondaryWidth = Space.s1000;
+    // ex: "Failed" (payment failed, no note)
+    // ex: "Brunch with friends" (note only)
+    // ex: "Failed · Funds from Boincase" (failed + note)
+    final secondaryText = RichText(
+      text: TextSpan(
+        text: null,
+        children: <TextSpan>[
+          // prefix with "Failed" to indicate problem w/ payment.
+          if (status == PaymentStatus.Failed)
+            const TextSpan(
+              text: "Failed",
+              style: TextStyle(
+                color: LxColors.errorText,
+                // fontVariations: [Fonts.weightMedium],
+              ),
+            ),
+          // separator should only show if both sides are present
+          if (status == PaymentStatus.Failed && note != null)
+            const TextSpan(text: " · "),
+          if (note != null) TextSpan(text: note)
+        ],
+        style: Fonts.fontUI.copyWith(
+          fontSize: Fonts.size200,
+          color: LxColors.fgTertiary,
+        ),
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
 
+    const secondaryDateWidth = Space.s850;
     final createdAt = DateTime.fromMillisecondsSinceEpoch(payment.createdAt);
     final createdAtStr = date_format.formatDateCompact(then: createdAt);
 
     // ex: "10min"
     // ex: "Jun 16"
-    // ex: "14h · Pending"
-    final secondaryTextStr = <String>[
-      if (createdAtStr != null) createdAtStr,
-      if (this.payment.status == PaymentStatus.Pending) "Pending"
-    ].join(" · ");
-
-    final secondaryText = Text(
-      secondaryTextStr,
+    // ex: "14h"
+    final secondaryDateText = Text(
+      createdAtStr ?? "",
       maxLines: 1,
+      textAlign: TextAlign.end,
       style: Fonts.fontUI.copyWith(
         fontSize: Fonts.size200,
-        color: LxColors.grey650,
-      ),
-    );
-
-    // ex: "" (when fiat data not yet loaded)
-    // ex: "+$3.50"
-    // ex: "-$1,420.69"
-    final secondaryValueText = StreamBuilder(
-      initialData: null,
-      stream: this.fiatRate,
-      builder: (context, snapshot) => Text(
-        formatFiatValue(
-          rate: snapshot.data,
-          amountSats: this.payment.amountSat,
-          direction: this.payment.direction,
-        ),
-        maxLines: 1,
-        textAlign: TextAlign.end,
-        style: Fonts.fontUI.copyWith(
-          fontSize: Fonts.size200,
-          color: LxColors.grey650,
-        ),
+        color: LxColors.fgTertiary,
       ),
     );
 
@@ -838,7 +840,7 @@ class PaymentsListEntry extends StatelessWidget {
 
       contentPadding: const EdgeInsets.symmetric(
         horizontal: Space.s400,
-        vertical: Space.s200,
+        vertical: Space.s0,
       ),
       horizontalTitleGap: Space.s200,
       visualDensity: VisualDensity.standard,
@@ -857,10 +859,10 @@ class PaymentsListEntry extends StatelessWidget {
         textBaseline: TextBaseline.alphabetic,
         children: [
           Expanded(
-            child: primaryIdText,
+            child: primaryText,
           ),
           SizedBox(
-            width: secondaryWidth,
+            width: primaryValueWidth,
             child: primaryValueText,
           ),
         ],
@@ -875,8 +877,8 @@ class PaymentsListEntry extends StatelessWidget {
             child: secondaryText,
           ),
           SizedBox(
-            width: secondaryWidth,
-            child: secondaryValueText,
+            width: secondaryDateWidth,
+            child: secondaryDateText,
           ),
         ],
       ),
@@ -887,31 +889,16 @@ class PaymentsListEntry extends StatelessWidget {
 class PaymentListIcon extends StatelessWidget {
   const PaymentListIcon({
     super.key,
-    required this.direction,
-    required this.status,
+    required this.kind,
   });
 
-  final PaymentDirection direction;
-  final PaymentStatus status;
+  final PaymentKind kind;
 
   @override
   Widget build(BuildContext context) {
-    const iconColor = LxColors.grey350;
-    // final Color iconColor;
-    // if (status == PaymentStatus.Failed) {
-    //   iconColor = LxColors.grey350;
-    // } else if (direction == PaymentDirection.Inbound) {
-    //   iconColor = LxColors.moneyGoUp;
-    // } else {
-    //   iconColor = LxColors.moneyGoDown;
-    // }
-
-    final arrowIcon = (this.direction == PaymentDirection.Inbound)
-        ? Icons.arrow_downward_rounded
-        : Icons.arrow_upward_rounded;
-
-    final icon =
-        (this.status == PaymentStatus.Failed) ? Icons.close_rounded : arrowIcon;
+    final icon = (this.kind == PaymentKind.Onchain)
+        ? Icons.currency_bitcoin_rounded
+        : Icons.bolt_rounded;
 
     // const borderSide = BorderSide(color: iconColor, width: 2.0);
 
@@ -929,7 +916,11 @@ class PaymentListIcon extends StatelessWidget {
       ),
       child: SizedBox.square(
         dimension: 36.0,
-        child: Icon(icon, size: Space.s500, color: iconColor),
+        child: Icon(
+          icon,
+          size: Space.s500,
+          color: LxColors.fgSecondary,
+        ),
       ),
     );
   }

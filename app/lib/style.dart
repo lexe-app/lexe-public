@@ -70,13 +70,20 @@ class LxColors {
   /// LxColors.grey200
   static const Color foreground = LxColors.grey200;
 
+  /// LxColors.grey350
+  static const Color fgSecondary = LxColors.grey350;
+
+  /// LxColors.grey650
+  static const Color fgTertiary = LxColors.grey650;
+
   // TODO(phlip9): I don't know if I like the colors in the list UI...
   // TODO(phlip9): need green and red swatches
   // TODO(phlip9): moneyGoUp/Down will eventually need to be localized, since
   //               different cultures have different color associations.
 
-  // static const Color moneyGoUp = Color(0xff12a16d);
-  // static const Color moneyGoDown = Color(0xffe9553e);
+  static const Color moneyGoUp = Color(0xff14b87d);
+
+  static const Color errorText = Color(0xffe9553e);
 
   // Greys
 
@@ -200,6 +207,9 @@ class Space {
   /// 64 px
   static const double s800 = 64.0;
 
+  /// 80 px
+  static const double s850 = 80.0;
+
   /// 96 px
   static const double s900 = 96.0;
 
@@ -272,7 +282,10 @@ class Fonts {
   static const FontVariation weightExtraBold = FontVariation("wght", 800);
   static const FontVariation weightBlack = FontVariation("wght", 900);
 
-  static const FontFeature slashedZero = FontFeature.slashedZero();
+  static const FontVariation widthTight = FontVariation("wdth", 90);
+
+  // static const FontFeature featSlashedZero = FontFeature.slashedZero();
+  // static const FontFeature featTabularNumbers = FontFeature.tabularFigures();
 
   static const TextStyle fontInter = TextStyle(
     debugLabel: "Fonts.fontInter",
@@ -313,7 +326,7 @@ class Fonts {
     fontSize: size800,
     color: LxColors.foreground,
     height: 1.5,
-    fontVariations: [weightBold, FontVariation("wdth", 90)],
+    fontVariations: [weightBold, widthTight],
     decoration: TextDecoration.none,
   );
 }
