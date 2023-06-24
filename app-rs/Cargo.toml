@@ -35,9 +35,6 @@ anyhow.workspace = true
 arc-swap.workspace = true
 cfg-if.workspace = true
 flutter_rust_bridge.workspace = true
-keyring = { version = "2.0", default-features = false, features = [
-    "linux-secret-service-rt-tokio-crypto-rust",
-] }
 secrecy.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, default-features = false, features = [
@@ -51,6 +48,13 @@ tracing-subscriber = { workspace = true, features = [
     "std",
 ] }
 
+# --- OTHER --- #
+
+keyring = { version = "2.0", default-features = false, features = [
+    "linux-secret-service-rt-tokio-crypto-rust",
+] }
+roaring = "0.10"
+
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }
 
@@ -59,4 +63,3 @@ bitcoin.workspace = true
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 tempfile.workspace = true
-serde.workspace = true
