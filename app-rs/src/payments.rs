@@ -26,7 +26,6 @@
 //! [`PaymentDb`]: crate::payments::PaymentDb
 
 use std::{
-    collections::BTreeSet,
     fs,
     io::{self, Read},
     path::PathBuf,
@@ -43,6 +42,7 @@ use common::{
     iter::IteratorExt,
     ln::payments::{BasicPayment, PaymentIndex},
 };
+use roaring::RoaringBitmap;
 use tracing::warn;
 
 /// The app's local [`BasicPayment`] database, synced from the user node.
@@ -66,7 +66,7 @@ pub struct PaymentDb<V> {
 //   2. Pending index and finalized index are bitmaps.
 
 /// Pure in-memory state of the [`PaymentDb`].
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub struct PaymentDbState {
     // All locally synced payments.
     //
@@ -74,7 +74,7 @@ pub struct PaymentDbState {
     payments: Vec<BasicPayment>,
 
     // An index of currently pending payments.
-    pending: BTreeSet<PaymentIndex>,
+    pending: RoaringBitmap,
 }
 
 #[derive(Debug)]
@@ -283,10 +283,11 @@ impl<V: Vfs> PaymentDb<V> {
             ));
         }
 
+        let mut vec_idx = self.state.num_payments() as u32;
+
         for new_payment in &new_payments {
             if new_payment.is_pending() {
-                let not_already_in_pending =
-                    self.state.pending.insert(new_payment.index());
+                let not_already_in_pending = self.state.pending.insert(vec_idx);
                 let already_in_pending = !not_already_in_pending;
                 if already_in_pending {
                     return Err(io_err_invalid_data(
@@ -296,6 +297,8 @@ impl<V: Vfs> PaymentDb<V> {
             }
 
             Self::write_payment(&self.vfs, new_payment)?;
+
+            vec_idx += 1;
         }
 
         self.state.payments.append(&mut new_payments);
@@ -336,12 +339,12 @@ impl<V: Vfs> PaymentDb<V> {
             .state
             .payments
             .binary_search_by_key(&updated_payment_index, BasicPayment::index);
-        let existing_payment = match search_result {
+        let (vec_idx, existing_payment) = match search_result {
             Err(_) => panic!(
                 "PaymentDb is corrupted! We are missing a pending payment \
                  that should exist!"
             ),
-            Ok(idx) => self.state.payments.get_mut(idx).unwrap(),
+            Ok(idx) => (idx, self.state.payments.get_mut(idx).unwrap()),
         };
 
         // No change to payment; skip.
@@ -354,8 +357,7 @@ impl<V: Vfs> PaymentDb<V> {
 
         // If the payment is now finalized, remove from pending payments index.
         if !updated_payment.is_pending() {
-            let was_pending =
-                self.state.pending.remove(&updated_payment.index());
+            let was_pending = self.state.pending.remove(vec_idx as u32);
             assert!(
                 was_pending,
                 "PaymentDb is corrupted! Pending payment not in index!"
@@ -375,7 +377,7 @@ impl PaymentDbState {
     fn empty() -> Self {
         Self {
             payments: Vec::new(),
-            pending: BTreeSet::new(),
+            pending: RoaringBitmap::new(),
         }
     }
 
@@ -385,6 +387,7 @@ impl PaymentDbState {
     ///      newest.
     /// (2.) Re-computing the pending payments index should exactly match the
     ///      its current value.
+    /// (3.) The indexes are what we expect.
     fn debug_assert_invariants(&self) {
         if cfg!(not(debug_assertions)) {
             return;
@@ -399,21 +402,28 @@ impl PaymentDbState {
         // (2.)
         let rebuilt_pending_index = Self::build_pending_index(&self.payments);
         assert_eq!(rebuilt_pending_index, self.pending);
+
+        // (3.)
+        for (vec_idx, payment) in self.payments.iter().enumerate() {
+            assert_eq!(
+                payment.is_pending(),
+                self.pending.contains(vec_idx as u32)
+            );
+        }
     }
 
-    fn build_pending_index(
-        payments: &[BasicPayment],
-    ) -> BTreeSet<PaymentIndex> {
-        payments
-            .iter()
-            .filter_map(|payment| {
+    fn build_pending_index(payments: &[BasicPayment]) -> RoaringBitmap {
+        let iter_pending_idxs =
+            payments.iter().enumerate().filter_map(|(idx, payment)| {
                 if payment.is_pending() {
-                    Some(payment.index())
+                    Some(idx as u32)
                 } else {
                     None
                 }
-            })
-            .collect()
+            });
+        RoaringBitmap::from_sorted_iter(iter_pending_idxs).expect(
+            "The indexes must be sorted, since we're iterating from 0..n",
+        )
     }
 
     fn read<V: Vfs>(vfs: &V) -> anyhow::Result<Self> {
@@ -461,6 +471,7 @@ impl PaymentDbState {
 
     fn from_unsorted_vec(mut payments: Vec<BasicPayment>) -> Self {
         payments.sort_unstable_by_key(BasicPayment::index);
+        // dedup just to be safe : )
         payments.dedup_by_key(|payment| payment.index());
 
         let pending = Self::build_pending_index(&payments);
@@ -480,7 +491,7 @@ impl PaymentDbState {
     }
 
     pub fn num_pending(&self) -> usize {
-        self.pending.len()
+        self.pending.len() as usize
     }
 
     /// Finalized := Completed || Failed
@@ -492,6 +503,13 @@ impl PaymentDbState {
     /// node.
     pub fn latest_payment_index(&self) -> Option<PaymentIndex> {
         self.payments.last().map(|payment| payment.index())
+    }
+
+    fn pending_indexes(&self) -> Vec<PaymentIndex> {
+        self.pending
+            .iter()
+            .map(|vec_idx| self.payments[vec_idx as usize].index())
+            .collect()
     }
 
     /// Get a payment by scroll index in UI order (newest to oldest).
@@ -526,16 +544,13 @@ impl PaymentDbState {
         }
 
         let pending_idx = num_pending - scroll_idx - 1;
-        let payment_idx = self
+
+        let vec_idx = self
             .pending
-            .iter()
-            .nth(pending_idx)
+            .select(pending_idx as u32)
             .expect("We've already checked the payment index is in-bounds");
 
-        let vec_idx = self.payments.binary_search_by_key(payment_idx, BasicPayment::index)
-            .expect("PaymentDb is corrupted! We are missing a payment that is in the pending index!");
-
-        Some(&self.payments[vec_idx])
+        Some(&self.payments[vec_idx as usize])
     }
 
     /// Get a completed or failed payment by scroll index in UI order
@@ -621,7 +636,7 @@ async fn sync_pending_payments<V: Vfs, N: AppNodeRunApi>(
             return Ok(0);
         }
 
-        lock.state.pending.iter().cloned().collect::<Vec<_>>()
+        lock.state.pending_indexes()
     };
 
     let mut num_updated = 0;
@@ -1041,26 +1056,6 @@ mod test {
         proptest!(config, |(db_state in arb_payment_db_state(0..10))| {
             let n = db_state.num_payments();
 
-            #[derive(serde::Serialize)]
-            struct Dummy {
-                index: String,
-                status: PaymentStatus,
-            }
-
-            impl From<&BasicPayment> for Dummy {
-                fn from(value: &BasicPayment) -> Self {
-                    Dummy {
-                        index: value.index().to_string(),
-                        status: value.status,
-                    }
-                }
-            }
-
-            let dummies = db_state.payments.iter().map(Dummy::from)
-                .collect::<Vec<_>>();
-
-            println!("{}", serde_json::to_string_pretty(&dummies).unwrap());
-
             // include a few extra indices after `n` just to make sure we don't
             // choke on out-of-range
             for scroll_idx in 0..(n+5) {
@@ -1077,10 +1072,6 @@ mod test {
                 // get_finalized_payment_by_scroll_idx
                 let actual = db_state.get_finalized_payment_by_scroll_idx(scroll_idx);
                 let naive = db_state.payments.iter().rev().filter(|payment| payment.is_finalized()).nth(scroll_idx);
-
-                println!("scroll_idx: {scroll_idx}");
-                println!("actual: {:?}", actual.map(|x| (x.index(), x.status)));
-                println!("naive: {:?}", naive.map(|x| (x.index(), x.status)));
 
                 assert_eq!(actual, naive);
             }
@@ -1111,7 +1102,7 @@ mod test {
         let rt = tokio::runtime::Builder::new_current_thread()
             .build()
             .unwrap();
-        let config = proptest::test_runner::Config::with_cases(1);
+        let config = proptest::test_runner::Config::with_cases(4);
 
         proptest!(config, |(
             mut rng: WeakRng,
@@ -1175,10 +1166,6 @@ mod test {
 
             let db_lock = db.lock().unwrap();
             assert_db_payments_eq(&db_lock.state.payments, &mock_node.payments);
-
-            for finalized_payment in finalized_payments {
-                assert!(!db_lock.state.pending.contains(&finalized_payment));
-            }
         });
     }
 }
