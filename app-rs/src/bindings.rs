@@ -370,8 +370,44 @@ impl AppHandle {
         )
     }
 
+    pub fn get_pending_payment_by_scroll_idx(
+        &self,
+        scroll_idx: usize,
+    ) -> SyncReturn<Option<ShortPayment>> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        SyncReturn(
+            db_lock
+                .state()
+                .get_pending_payment_by_scroll_idx(scroll_idx)
+                .map(ShortPayment::from),
+        )
+    }
+
+    pub fn get_finalized_payment_by_scroll_idx(
+        &self,
+        scroll_idx: usize,
+    ) -> SyncReturn<Option<ShortPayment>> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        SyncReturn(
+            db_lock
+                .state()
+                .get_finalized_payment_by_scroll_idx(scroll_idx)
+                .map(ShortPayment::from),
+        )
+    }
+
     pub fn get_num_payments(&self) -> SyncReturn<usize> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         SyncReturn(db_lock.state().num_payments())
+    }
+
+    pub fn get_num_pending_payments(&self) -> SyncReturn<usize> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        SyncReturn(db_lock.state().num_pending())
+    }
+
+    pub fn get_num_finalized_payments(&self) -> SyncReturn<usize> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        SyncReturn(db_lock.state().num_finalized())
     }
 }

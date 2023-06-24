@@ -178,6 +178,50 @@ class AppRsImpl implements AppRs {
             argNames: ["that", "scrollIdx"],
           );
 
+  ShortPayment? getPendingPaymentByScrollIdxMethodAppHandle(
+      {required AppHandle that, required int scrollIdx, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    var arg1 = api2wire_usize(scrollIdx);
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner
+          .wire_get_pending_payment_by_scroll_idx__method__AppHandle(
+              arg0, arg1),
+      parseSuccessData: _wire2api_opt_box_autoadd_short_payment,
+      constMeta: kGetPendingPaymentByScrollIdxMethodAppHandleConstMeta,
+      argValues: [that, scrollIdx],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetPendingPaymentByScrollIdxMethodAppHandleConstMeta =>
+          const FlutterRustBridgeTaskConstMeta(
+            debugName: "get_pending_payment_by_scroll_idx__method__AppHandle",
+            argNames: ["that", "scrollIdx"],
+          );
+
+  ShortPayment? getFinalizedPaymentByScrollIdxMethodAppHandle(
+      {required AppHandle that, required int scrollIdx, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    var arg1 = api2wire_usize(scrollIdx);
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner
+          .wire_get_finalized_payment_by_scroll_idx__method__AppHandle(
+              arg0, arg1),
+      parseSuccessData: _wire2api_opt_box_autoadd_short_payment,
+      constMeta: kGetFinalizedPaymentByScrollIdxMethodAppHandleConstMeta,
+      argValues: [that, scrollIdx],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetFinalizedPaymentByScrollIdxMethodAppHandleConstMeta =>
+          const FlutterRustBridgeTaskConstMeta(
+            debugName: "get_finalized_payment_by_scroll_idx__method__AppHandle",
+            argNames: ["that", "scrollIdx"],
+          );
+
   int getNumPaymentsMethodAppHandle({required AppHandle that, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     return _platform.executeSync(FlutterRustBridgeSyncTask(
@@ -195,6 +239,46 @@ class AppRsImpl implements AppRs {
         debugName: "get_num_payments__method__AppHandle",
         argNames: ["that"],
       );
+
+  int getNumPendingPaymentsMethodAppHandle(
+      {required AppHandle that, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner
+          .wire_get_num_pending_payments__method__AppHandle(arg0),
+      parseSuccessData: _wire2api_usize,
+      constMeta: kGetNumPendingPaymentsMethodAppHandleConstMeta,
+      argValues: [that],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetNumPendingPaymentsMethodAppHandleConstMeta =>
+          const FlutterRustBridgeTaskConstMeta(
+            debugName: "get_num_pending_payments__method__AppHandle",
+            argNames: ["that"],
+          );
+
+  int getNumFinalizedPaymentsMethodAppHandle(
+      {required AppHandle that, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner
+          .wire_get_num_finalized_payments__method__AppHandle(arg0),
+      parseSuccessData: _wire2api_usize,
+      constMeta: kGetNumFinalizedPaymentsMethodAppHandleConstMeta,
+      argValues: [that],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetNumFinalizedPaymentsMethodAppHandleConstMeta =>
+          const FlutterRustBridgeTaskConstMeta(
+            debugName: "get_num_finalized_payments__method__AppHandle",
+            argNames: ["that"],
+          );
 
   DropFnType get dropOpaqueApp => _platform.inner.drop_opaque_App;
   ShareFnType get shareOpaqueApp => _platform.inner.share_opaque_App;
@@ -695,6 +779,47 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _wire_get_payment_by_scroll_idx__method__AppHandlePtr.asFunction<
           WireSyncReturn Function(ffi.Pointer<wire_AppHandle>, int)>();
 
+  WireSyncReturn wire_get_pending_payment_by_scroll_idx__method__AppHandle(
+    ffi.Pointer<wire_AppHandle> that,
+    int scroll_idx,
+  ) {
+    return _wire_get_pending_payment_by_scroll_idx__method__AppHandle(
+      that,
+      scroll_idx,
+    );
+  }
+
+  late final _wire_get_pending_payment_by_scroll_idx__method__AppHandlePtr =
+      _lookup<
+              ffi.NativeFunction<
+                  WireSyncReturn Function(
+                      ffi.Pointer<wire_AppHandle>, ffi.UintPtr)>>(
+          'wire_get_pending_payment_by_scroll_idx__method__AppHandle');
+  late final _wire_get_pending_payment_by_scroll_idx__method__AppHandle =
+      _wire_get_pending_payment_by_scroll_idx__method__AppHandlePtr.asFunction<
+          WireSyncReturn Function(ffi.Pointer<wire_AppHandle>, int)>();
+
+  WireSyncReturn wire_get_finalized_payment_by_scroll_idx__method__AppHandle(
+    ffi.Pointer<wire_AppHandle> that,
+    int scroll_idx,
+  ) {
+    return _wire_get_finalized_payment_by_scroll_idx__method__AppHandle(
+      that,
+      scroll_idx,
+    );
+  }
+
+  late final _wire_get_finalized_payment_by_scroll_idx__method__AppHandlePtr =
+      _lookup<
+              ffi.NativeFunction<
+                  WireSyncReturn Function(
+                      ffi.Pointer<wire_AppHandle>, ffi.UintPtr)>>(
+          'wire_get_finalized_payment_by_scroll_idx__method__AppHandle');
+  late final _wire_get_finalized_payment_by_scroll_idx__method__AppHandle =
+      _wire_get_finalized_payment_by_scroll_idx__method__AppHandlePtr
+          .asFunction<
+              WireSyncReturn Function(ffi.Pointer<wire_AppHandle>, int)>();
+
   WireSyncReturn wire_get_num_payments__method__AppHandle(
     ffi.Pointer<wire_AppHandle> that,
   ) {
@@ -709,6 +834,38 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       'wire_get_num_payments__method__AppHandle');
   late final _wire_get_num_payments__method__AppHandle =
       _wire_get_num_payments__method__AppHandlePtr
+          .asFunction<WireSyncReturn Function(ffi.Pointer<wire_AppHandle>)>();
+
+  WireSyncReturn wire_get_num_pending_payments__method__AppHandle(
+    ffi.Pointer<wire_AppHandle> that,
+  ) {
+    return _wire_get_num_pending_payments__method__AppHandle(
+      that,
+    );
+  }
+
+  late final _wire_get_num_pending_payments__method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              WireSyncReturn Function(ffi.Pointer<wire_AppHandle>)>>(
+      'wire_get_num_pending_payments__method__AppHandle');
+  late final _wire_get_num_pending_payments__method__AppHandle =
+      _wire_get_num_pending_payments__method__AppHandlePtr
+          .asFunction<WireSyncReturn Function(ffi.Pointer<wire_AppHandle>)>();
+
+  WireSyncReturn wire_get_num_finalized_payments__method__AppHandle(
+    ffi.Pointer<wire_AppHandle> that,
+  ) {
+    return _wire_get_num_finalized_payments__method__AppHandle(
+      that,
+    );
+  }
+
+  late final _wire_get_num_finalized_payments__method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              WireSyncReturn Function(ffi.Pointer<wire_AppHandle>)>>(
+      'wire_get_num_finalized_payments__method__AppHandle');
+  late final _wire_get_num_finalized_payments__method__AppHandle =
+      _wire_get_num_finalized_payments__method__AppHandlePtr
           .asFunction<WireSyncReturn Function(ffi.Pointer<wire_AppHandle>)>();
 
   wire_App new_App() {
