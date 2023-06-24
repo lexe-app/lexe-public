@@ -37,7 +37,7 @@ class WalletPageState extends State<WalletPage> {
   final StreamController<Null> refresh = StreamController.broadcast();
 
   /// A stream controller to notify when some payments are updated.
-  final StreamController<Null> paymentsUpdated = StreamController();
+  final StreamController<Null> paymentsUpdated = StreamController.broadcast();
 
   // BehaviorSubject: a StreamController that captures the latest item added
   // to the controller, and emits that as the first item to any new listener.
@@ -176,6 +176,20 @@ class WalletPageState extends State<WalletPage> {
           // checking on some recent payment than looking at some old historical
           // payment.
 
+          SliverToBoxAdapter(
+              child: Padding(
+                  padding: const EdgeInsets.only(
+                    left: Space.s400,
+                    top: Space.s600,
+                    bottom: Space.s200,
+                  ),
+                  child: Text("Pending",
+                      style: Fonts.fontUI.copyWith(
+                        fontSize: Fonts.size200,
+                        color: LxColors.fgTertiary,
+                        fontVariations: [Fonts.weightMedium],
+                      )))),
+
           // The pending payments list
           StreamBuilder(
             stream: this.paymentsUpdated.stream,
@@ -183,6 +197,31 @@ class WalletPageState extends State<WalletPage> {
             builder: (context, snapshot) => SliverPaymentsList(
               app: this.widget.app,
               filter: PaymentsListFilter.pending,
+              // fiatRate: this.fiatRate.stream,
+            ),
+          ),
+
+          SliverToBoxAdapter(
+              child: Padding(
+                  padding: const EdgeInsets.only(
+                    left: Space.s400,
+                    top: Space.s600,
+                    bottom: Space.s200,
+                  ),
+                  child: Text("Completed",
+                      style: Fonts.fontUI.copyWith(
+                        fontSize: Fonts.size200,
+                        color: LxColors.fgTertiary,
+                        fontVariations: [Fonts.weightMedium],
+                      )))),
+
+          // The pending payments list
+          StreamBuilder(
+            stream: this.paymentsUpdated.stream,
+            initialData: null,
+            builder: (context, snapshot) => SliverPaymentsList(
+              app: this.widget.app,
+              filter: PaymentsListFilter.finalized,
               // fiatRate: this.fiatRate.stream,
             ),
           )
