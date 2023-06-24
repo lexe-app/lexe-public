@@ -176,12 +176,13 @@ class WalletPageState extends State<WalletPage> {
           // checking on some recent payment than looking at some old historical
           // payment.
 
-          // The complete payments list
+          // The pending payments list
           StreamBuilder(
             stream: this.paymentsUpdated.stream,
             initialData: null,
             builder: (context, snapshot) => SliverPaymentsList(
               app: this.widget.app,
+              filter: PaymentsListFilter.pending,
               // fiatRate: this.fiatRate.stream,
             ),
           )
@@ -626,22 +627,50 @@ class WalletActionButton extends StatelessWidget {
   }
 }
 
+enum PaymentsListFilter {
+  all,
+  pending,
+  finalized,
+}
+
 class SliverPaymentsList extends StatelessWidget {
-  const SliverPaymentsList({super.key, required this.app});
+  const SliverPaymentsList({
+    super.key,
+    required this.app,
+    required this.filter,
+  });
 
   final AppHandle app;
+  final PaymentsListFilter filter;
 
   @override
   Widget build(BuildContext context) {
-    final numPayments = this.app.getNumPayments();
-    info("build SliverPaymentsList: numPayments: $numPayments");
+    final int childCount;
+    if (this.filter == PaymentsListFilter.all) {
+      childCount = this.app.getNumPayments();
+    } else if (this.filter == PaymentsListFilter.pending) {
+      childCount = this.app.getNumPendingPayments();
+    } else {
+      childCount = this.app.getNumFinalizedPayments();
+    }
+    info(
+        "build SliverPaymentsList: filter: ${this.filter}, childCount: $childCount");
 
     // TODO(phlip9): also investigate more efficient `SliverFixedExtentList`,
     // since each payment list entry should be the same height?
     return SliverList(
         delegate: SliverChildBuilderDelegate(
       (context, scrollIdx) {
-        final payment = this.app.getPaymentByScrollIdx(scrollIdx: scrollIdx);
+        final ShortPayment? payment;
+
+        if (this.filter == PaymentsListFilter.all) {
+          payment = this.app.getPaymentByScrollIdx(scrollIdx: scrollIdx);
+        } else if (this.filter == PaymentsListFilter.pending) {
+          payment = this.app.getPendingPaymentByScrollIdx(scrollIdx: scrollIdx);
+        } else {
+          payment =
+              this.app.getFinalizedPaymentByScrollIdx(scrollIdx: scrollIdx);
+        }
 
         if (payment != null) {
           // final amount = payment.
@@ -653,7 +682,7 @@ class SliverPaymentsList extends StatelessWidget {
           return null;
         }
       },
-      childCount: numPayments,
+      childCount: childCount,
       // findChildIndexCallback: (Key childKey) => this.app.getPaymentScrollIdxByPaymentId(childKey),
     ));
   }
