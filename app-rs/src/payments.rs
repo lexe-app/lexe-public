@@ -51,20 +51,22 @@ pub struct PaymentDb<V> {
     state: PaymentDbState,
 }
 
-// TODO(phlip9):  better design
+// We want efficient, ~O(1), random-access for pending payments and finalized
+// payments (seperately, to match the primary wallet UI). Cursors don't work
+// well with flutter's lazy lists, since they want random access from scroll
+// index -> content.
 //
-//   We want efficient, O(1), random-access for pending payments and completed
-//   payments (seperately, to match the primary wallet UI). Cursors don't work
-//   well with flutter's lazy lists, since they want random access from scroll
-//   index -> content.
+// Performance when syncing payments is secondary, since that's done
+// asynchronously and off the main UI thread, which is highly latency
+// sensitive.
 //
-//   Performance when syncing payments is secondary, since that's done
-//   asynchronously and off the main UI thread, which is highly latency
-//   sensitive.
+// 1. All `BasicPayment`s stored in append-only, ordered `Vec`.
+//    (Except we can modify non-index fields, like status or note).
+// 2. Pending index is a bitmap.
 //
-//   1. All `BasicPayment`s stored in append-only, ordered "slab".
-//   2. Pending index and finalized index are bitmaps.
-
+// In the future, we could be even more clever and serialize+store the `pending`
+// bitmap on-disk. Then we wouldn't even need to load all the payments on
+// startup and could instead lazy load them. Something to do later.
 /// Pure in-memory state of the [`PaymentDb`].
 #[derive(Debug, PartialEq)]
 pub struct PaymentDbState {
@@ -74,6 +76,8 @@ pub struct PaymentDbState {
     payments: Vec<BasicPayment>,
 
     // An index of currently pending payments.
+    //
+    // Invariant: `pending.contains(vec_idx) == payments[vec_idx].is_pending()`
     pending: RoaringBitmap,
 }
 
@@ -538,43 +542,76 @@ impl PaymentDbState {
         &self,
         scroll_idx: usize,
     ) -> Option<&BasicPayment> {
+        // early exit
         let num_pending = self.num_pending();
         if scroll_idx >= num_pending {
             return None;
         }
 
-        let pending_idx = num_pending - scroll_idx - 1;
+        // scroll_idx == reverse rank, i.e., rank in the reversed list of only
+        // pending payments.
+        let reverse_rank = scroll_idx;
 
+        // since `RoaringBitmap::select` operates on normal rank, we need to
+        // convert from reverse rank to normal rank.
+        let rank = num_pending - reverse_rank - 1;
+
+        // `select` returns the index of the pending payment at the given rank.
         let vec_idx = self
             .pending
-            .select(pending_idx as u32)
+            .select(rank as u32)
             .expect("We've already checked the payment index is in-bounds");
 
         Some(&self.payments[vec_idx as usize])
     }
 
     /// Get a completed or failed payment by scroll index in UI order
-    /// (newest to oldest).
+    /// (newest to oldest). scroll index here is also the "reverse" rank of all
+    /// finalized payments.
     pub fn get_finalized_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
     ) -> Option<&BasicPayment> {
+        // early exit
         let num_finalized = self.num_finalized();
         if scroll_idx >= num_finalized {
             return None;
         }
 
-        // Dumb, but let's just db scan for now:
-        let out = self
+        // BELOW: some cleverness to avoid having a second `finalized` index.
+
+        // scroll_idx == reverse_rank, i.e., rank in the reversed list of only
+        // finalized payments. This is also our initial estimate of the true
+        // reverse rank. If we know how many pending payments are below our
+        // estimate, then we know how many finalized payments we'll need to skip
+        // to get to the true reverse rank.
+
+        // our index in the full reversed list
+        let rev_idx = self.num_payments() - scroll_idx - 1;
+        // the number of pending payments at or above `rev_idx` in the full
+        // reversed list.
+        let num_pending_at_or_above =
+            self.pending.rank(rev_idx as u32) as usize;
+        // the number of pending payments below `rev_idx` in the full reversed
+        // list.
+        let num_pending_below = self.num_pending() - num_pending_at_or_above;
+
+        let payment = self
             .payments
             .iter()
             .rev()
+            // scroll_idx is our initial "reverse rank estimate". this would be
+            // the true reverse rank if there were no pending payments below us
+            // in the reverse ordering.
+            .skip(scroll_idx)
+            // if there are some pending payments below us, we need to correct
+            // our initial estimate and skip that many finalized payments to get
+            // the correct reverse rank
             .filter(|payment| payment.is_finalized())
-            .nth(scroll_idx);
+            .nth(num_pending_below)
+            .expect("We've already checked the payment is in-bounds");
 
-        Some(out.expect(
-            "PaymentDb is corrupted! The pending index is likely out-of-sync!",
-        ))
+        Some(payment)
     }
 }
 
@@ -1072,7 +1109,6 @@ mod test {
                 // get_finalized_payment_by_scroll_idx
                 let actual = db_state.get_finalized_payment_by_scroll_idx(scroll_idx);
                 let naive = db_state.payments.iter().rev().filter(|payment| payment.is_finalized()).nth(scroll_idx);
-
                 assert_eq!(actual, naive);
             }
         });
