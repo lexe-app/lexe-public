@@ -74,9 +74,33 @@ abstract class AppRs {
   FlutterRustBridgeTaskConstMeta
       get kGetPaymentByScrollIdxMethodAppHandleConstMeta;
 
+  ShortPayment? getPendingPaymentByScrollIdxMethodAppHandle(
+      {required AppHandle that, required int scrollIdx, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetPendingPaymentByScrollIdxMethodAppHandleConstMeta;
+
+  ShortPayment? getFinalizedPaymentByScrollIdxMethodAppHandle(
+      {required AppHandle that, required int scrollIdx, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetFinalizedPaymentByScrollIdxMethodAppHandleConstMeta;
+
   int getNumPaymentsMethodAppHandle({required AppHandle that, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kGetNumPaymentsMethodAppHandleConstMeta;
+
+  int getNumPendingPaymentsMethodAppHandle(
+      {required AppHandle that, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetNumPendingPaymentsMethodAppHandleConstMeta;
+
+  int getNumFinalizedPaymentsMethodAppHandle(
+      {required AppHandle that, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetNumFinalizedPaymentsMethodAppHandleConstMeta;
 
   DropFnType get dropOpaqueApp;
   ShareFnType get shareOpaqueApp;
@@ -147,7 +171,31 @@ class AppHandle {
         scrollIdx: scrollIdx,
       );
 
+  ShortPayment? getPendingPaymentByScrollIdx(
+          {required int scrollIdx, dynamic hint}) =>
+      bridge.getPendingPaymentByScrollIdxMethodAppHandle(
+        that: this,
+        scrollIdx: scrollIdx,
+      );
+
+  ShortPayment? getFinalizedPaymentByScrollIdx(
+          {required int scrollIdx, dynamic hint}) =>
+      bridge.getFinalizedPaymentByScrollIdxMethodAppHandle(
+        that: this,
+        scrollIdx: scrollIdx,
+      );
+
   int getNumPayments({dynamic hint}) => bridge.getNumPaymentsMethodAppHandle(
+        that: this,
+      );
+
+  int getNumPendingPayments({dynamic hint}) =>
+      bridge.getNumPendingPaymentsMethodAppHandle(
+        that: this,
+      );
+
+  int getNumFinalizedPayments({dynamic hint}) =>
+      bridge.getNumFinalizedPaymentsMethodAppHandle(
         that: this,
       );
 }
