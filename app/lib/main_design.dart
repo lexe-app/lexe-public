@@ -156,19 +156,53 @@ class MockAppHandle extends AppHandle {
       );
 
   @override
-  ShortPayment? getPaymentByScrollIdx({
-    required int scrollIdx,
-    dynamic hint,
-  }) {
-    if (scrollIdx < this.shortPayments.length) {
-      return this.shortPayments[this.shortPayments.length - scrollIdx - 1];
-    } else {
+  ShortPayment? getPaymentByScrollIdx({required int scrollIdx, dynamic hint}) {
+    if (scrollIdx >= this.shortPayments.length) {
       return null;
     }
+    return this.shortPayments[this.shortPayments.length - scrollIdx - 1];
+  }
+
+  @override
+  ShortPayment? getPendingPaymentByScrollIdx(
+      {required int scrollIdx, dynamic hint}) {
+    if (scrollIdx >= this.getNumPendingPayments()) {
+      return null;
+    }
+    return this
+        .shortPayments
+        .reversed
+        .where((payment) => payment.status == PaymentStatus.Pending)
+        .elementAt(scrollIdx);
+  }
+
+  @override
+  ShortPayment? getFinalizedPaymentByScrollIdx(
+      {required int scrollIdx, dynamic hint}) {
+    if (scrollIdx >= this.getNumFinalizedPayments()) {
+      return null;
+    }
+    return this
+        .shortPayments
+        .reversed
+        .where((payment) => payment.status != PaymentStatus.Pending)
+        .elementAt(scrollIdx);
   }
 
   @override
   int getNumPayments({dynamic hint}) => this.shortPayments.length;
+
+  @override
+  int getNumPendingPayments({dynamic hint}) => this
+      .shortPayments
+      .where((payment) => payment.status == PaymentStatus.Pending)
+      .length;
+
+  @override
+  int getNumFinalizedPayments({dynamic hint}) => this
+      .shortPayments
+      .where((payment) => payment.status != PaymentStatus.Pending)
+      .length;
 }
 
 class Component {
