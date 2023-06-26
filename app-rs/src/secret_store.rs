@@ -6,10 +6,11 @@
 //!
 //! * **Linux:** uses the desktop secret-service via dbus.
 //! * **macOS+iOS:** uses Keychain
-//! * Windows: uses wincreds
-//! * Android: stores it in a file in the app data directory (accessing the
+//! * **Windows:** uses wincreds
+//! * **Android:** stores it in a file in the app data directory (accessing the
 //!   JVM-only [`Android Keystore`](https://developer.android.com/training/articles/keystore)
-//!   is a huge pain)
+//!   is a huge pain). Fortunately, this isn't too awful, since app data is
+//!   sandboxed and inaccessible to other apps.
 //!
 //! [`RootSeed`]: common::root_seed::RootSeed
 
@@ -43,7 +44,7 @@ impl SecretStore {
     ///
     /// For all platforms except Android, this will use the user's OS-provided
     /// keyring. Android will just store secrets in the app's internal data
-    /// directory, since .
+    /// directory. See module comments for more details.
     pub fn new(config: &AppConfig) -> Self {
         if config.use_mock_secret_store {
             return Self::mock();
@@ -190,6 +191,7 @@ mod test {
         assert_eq!(root_seed.expose_secret(), root_seed2.expose_secret());
 
         secret_store.delete_root_seed().unwrap();
+        assert!(secret_store.read_root_seed().unwrap().is_none());
     }
 
     #[cfg(not(target_os = "android"))]
