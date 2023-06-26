@@ -76,13 +76,14 @@ class LxColors {
   /// LxColors.grey650
   static const Color fgTertiary = LxColors.grey650;
 
-  // TODO(phlip9): I don't know if I like the colors in the list UI...
   // TODO(phlip9): need green and red swatches
-  // TODO(phlip9): moneyGoUp/Down will eventually need to be localized, since
+  // TODO(phlip9): moneyGoUp will eventually need to be localized, since
   //               different cultures have different color associations.
 
+  /// 0x14b87d - hsl(158deg 80% 40%)
   static const Color moneyGoUp = Color(0xff14b87d);
 
+  /// 0xe9553e - hsl(8deg 80% 58%)
   static const Color errorText = Color(0xffe9553e);
 
   // Greys

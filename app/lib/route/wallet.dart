@@ -170,11 +170,7 @@ class WalletPageState extends State<WalletPage> {
             const SizedBox(height: Space.s900),
           ])),
 
-          // TODO(phlip9): It seems more useful to always show a separate
-          // pending list, THEN show the completed/failed payments. When users
-          // are looking at the primary page, they're far more likely to be
-          // checking on some recent payment than looking at some old historical
-          // payment.
+          // Pending payments + header
 
           SliverToBoxAdapter(
               child: Padding(
@@ -189,17 +185,16 @@ class WalletPageState extends State<WalletPage> {
                         color: LxColors.fgTertiary,
                         fontVariations: [Fonts.weightMedium],
                       )))),
-
-          // The pending payments list
           StreamBuilder(
             stream: this.paymentsUpdated.stream,
             initialData: null,
             builder: (context, snapshot) => SliverPaymentsList(
               app: this.widget.app,
               filter: PaymentsListFilter.pending,
-              // fiatRate: this.fiatRate.stream,
             ),
           ),
+
+          // Completed+Failed payments + header
 
           SliverToBoxAdapter(
               child: Padding(
@@ -214,36 +209,16 @@ class WalletPageState extends State<WalletPage> {
                         color: LxColors.fgTertiary,
                         fontVariations: [Fonts.weightMedium],
                       )))),
-
-          // The pending payments list
           StreamBuilder(
             stream: this.paymentsUpdated.stream,
             initialData: null,
             builder: (context, snapshot) => SliverPaymentsList(
               app: this.widget.app,
               filter: PaymentsListFilter.finalized,
-              // fiatRate: this.fiatRate.stream,
             ),
           )
         ],
       ),
-      // TODO(phlip9): this default pull-to-refresh is really not great...
-      // body: RefreshIndicator(
-      //   backgroundColor: LxColors.background,
-      //   color: LxColors.foreground,
-      //   onRefresh: () async {
-      //     refreshTx.add(null);
-      //     await Future.delayed(const Duration(seconds: 1));
-      //   },
-      //   child: ListView(
-      //     children: const [
-      //       SizedBox(height: Space.s1000),
-      //       BalanceWidget(),
-      //       SizedBox(height: Space.s700),
-      //       WalletActions(),
-      //     ],
-      //   ),
-      // ),
     );
   }
 }
@@ -366,7 +341,6 @@ class DrawerListItem extends StatelessWidget {
   const DrawerListItem({super.key, this.title, this.icon, this.onTap});
 
   final String? title;
-  // final String? subtitle;
   final IconData? icon;
   final VoidCallback? onTap;
 
@@ -387,11 +361,6 @@ class DrawerListItem extends StatelessWidget {
                 fontVariations: [Fonts.weightMedium],
               ))
           : null,
-      // subtitle: (this.subtitle != null)
-      //     ? Text(this.subtitle!,
-      //         style: Fonts.fontUI
-      //             .copyWith(fontSize: Fonts.size300, color: LxColors.grey600))
-      //     : null,
       onTap: this.onTap,
     );
   }
@@ -712,11 +681,7 @@ class SliverPaymentsList extends StatelessWidget {
           }
 
           if (payment != null) {
-            // final amount = payment.
-            return PaymentsListEntry(
-              payment: payment,
-              // fiatRate: this.fiatRate,
-            );
+            return PaymentsListEntry(payment: payment);
           } else {
             return null;
           }
@@ -886,7 +851,7 @@ class PaymentsListEntry extends StatelessWidget {
       leading: leadingIcon,
 
       // NOTE: we use a Row() in `title` and `subtitle` instead of `trailing` so
-      // that the text baselines to align properly.
+      // that the text baselines align properly.
 
       title: Row(
         mainAxisAlignment: MainAxisAlignment.start,
@@ -935,22 +900,14 @@ class PaymentListIcon extends StatelessWidget {
         ? Icons.currency_bitcoin_rounded
         : Icons.bolt_rounded;
 
-    // const borderSide = BorderSide(color: iconColor, width: 2.0);
-
     return DecoratedBox(
       decoration: const BoxDecoration(
         color: LxColors.grey850,
-        // TODO(phlip9): stroke border or filled circle?
-        // border: Border(
-        //   left: borderSide,
-        //   top: borderSide,
-        //   right: borderSide,
-        //   bottom: borderSide,
-        // ),
-        borderRadius: BorderRadius.all(Radius.circular(1000.0)),
+        borderRadius: BorderRadius.all(Radius.circular(20.0)),
       ),
       child: SizedBox.square(
-        dimension: 36.0,
+        // pixel perfect alignment
+        dimension: 39.0,
         child: Icon(
           icon,
           size: Space.s500,
