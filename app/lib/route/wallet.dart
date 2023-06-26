@@ -125,16 +125,16 @@ class WalletPageState extends State<WalletPage> {
 
         // transparent bg header
         // TODO(phlip9): the action icons collide w/ the scrolled content. maybe
-        // scroll this AppBar along with the content?
-        backgroundColor: LxColors.clearB0,
-        scrolledUnderElevation: 0.0,
-        surfaceTintColor: LxColors.clearB0,
-
-        // // header shadow effect
-        // // not sure I like how this looks...
-        // scrolledUnderElevation: 5.0,
-        // shadowColor: LxColors.background,
+        //               scroll this AppBar along with the content?
+        // backgroundColor: LxColors.clearB0,
+        // scrolledUnderElevation: 0.0,
         // surfaceTintColor: LxColors.clearB0,
+
+        // header shadow effect
+        // not sure I like how this looks...
+        scrolledUnderElevation: 1.0,
+        shadowColor: LxColors.background,
+        surfaceTintColor: LxColors.clearB0,
         leading: Builder(
           builder: (context) => IconButton(
             iconSize: Fonts.size700,
