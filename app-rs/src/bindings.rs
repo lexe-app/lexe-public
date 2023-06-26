@@ -259,7 +259,7 @@ impl From<&BasicPayment> for ShortPayment {
             amount_sat: payment.amount.map(|amt| amt.sats_u64()),
             status: PaymentStatus::from(payment.status),
             note: payment.note_or_description().map(|s| s.to_owned()),
-            created_at: payment.created_at.as_i64(),
+            created_at: payment.created_at().as_i64(),
         }
     }
 }
