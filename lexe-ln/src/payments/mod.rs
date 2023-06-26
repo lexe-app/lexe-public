@@ -11,7 +11,7 @@ use common::{
         invoice::LxInvoice,
         payments::{
             BasicPayment, DbPayment, LxPaymentId, PaymentDirection,
-            PaymentKind, PaymentStatus,
+            PaymentIndex, PaymentKind, PaymentStatus,
         },
     },
     rng::Crng,
@@ -144,7 +144,7 @@ impl From<OutboundSpontaneousPayment> for Payment {
 impl From<Payment> for BasicPayment {
     fn from(p: Payment) -> Self {
         Self {
-            id: p.id(),
+            index: p.index(),
             kind: p.kind(),
             direction: p.direction(),
             invoice: p.invoice(),
@@ -154,7 +154,6 @@ impl From<Payment> for BasicPayment {
             status: p.status(),
             status_str: p.status_str().to_owned(),
             note: p.note().map(|s| s.to_owned()),
-            created_at: p.created_at(),
             finalized_at: p.finalized_at(),
         }
     }
@@ -163,6 +162,13 @@ impl From<Payment> for BasicPayment {
 // --- impl Payment --- //
 
 impl Payment {
+    pub fn index(&self) -> PaymentIndex {
+        PaymentIndex {
+            created_at: self.created_at(),
+            id: self.id(),
+        }
+    }
+
     pub fn id(&self) -> LxPaymentId {
         match self {
             Self::OnchainSend(od) => LxPaymentId::Onchain(od.txid),

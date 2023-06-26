@@ -36,7 +36,9 @@ use crate::{
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(all(any(test, feature = "test-utils")), derive(Arbitrary))]
 pub struct BasicPayment {
-    pub id: LxPaymentId,
+    #[serde(flatten)]
+    pub index: PaymentIndex,
+
     pub kind: PaymentKind,
     pub direction: PaymentDirection,
 
@@ -102,7 +104,6 @@ pub struct BasicPayment {
     ///   field, the user has the option to set this at payment creation time.
     pub note: Option<String>,
 
-    pub created_at: TimestampMs,
     pub finalized_at: Option<TimestampMs>,
 }
 
@@ -215,11 +216,18 @@ pub struct LxPaymentSecret(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 impl BasicPayment {
     #[inline]
-    pub fn index(&self) -> PaymentIndex {
-        PaymentIndex {
-            created_at: self.created_at,
-            id: self.id,
-        }
+    pub fn index(&self) -> &PaymentIndex {
+        &self.index
+    }
+
+    #[inline]
+    pub fn created_at(&self) -> TimestampMs {
+        self.index.created_at
+    }
+
+    #[inline]
+    pub fn payment_id(&self) -> LxPaymentId {
+        self.index.id
     }
 
     #[inline]
@@ -252,6 +260,12 @@ impl BasicPayment {
                 }
             })
         })
+    }
+}
+
+impl PartialOrd for BasicPayment {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.index.partial_cmp(&other.index)
     }
 }
 

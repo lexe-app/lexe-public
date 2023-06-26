@@ -459,7 +459,7 @@ impl PaymentDbState {
                 .map_err(io_err_invalid_data)?;
 
             // Sanity check.
-            if payment_index != payment.index() {
+            if &payment_index != payment.index() {
                 return Err(io_err_invalid_data(
                     format!("Payment DB corruption: payment file ('{filename}') contents don't match filename??")
                 ));
@@ -474,9 +474,9 @@ impl PaymentDbState {
     }
 
     fn from_unsorted_vec(mut payments: Vec<BasicPayment>) -> Self {
-        payments.sort_unstable_by_key(BasicPayment::index);
+        payments.sort_unstable_by(|x, y| x.index.cmp(&y.index));
         // dedup just to be safe : )
-        payments.dedup_by_key(|payment| payment.index());
+        payments.dedup_by(|x, y| x.index == y.index);
 
         let pending = Self::build_pending_index(&payments);
         let state = Self { payments, pending };
@@ -505,14 +505,14 @@ impl PaymentDbState {
 
     /// The latest/newest payment that the `PaymentDb` has synced from the user
     /// node.
-    pub fn latest_payment_index(&self) -> Option<PaymentIndex> {
+    pub fn latest_payment_index(&self) -> Option<&PaymentIndex> {
         self.payments.last().map(|payment| payment.index())
     }
 
     fn pending_indexes(&self) -> Vec<PaymentIndex> {
         self.pending
             .iter()
-            .map(|vec_idx| self.payments[vec_idx as usize].index())
+            .map(|vec_idx| self.payments[vec_idx as usize].index)
             .collect()
     }
 
@@ -731,7 +731,7 @@ async fn sync_new_payments<V: Vfs, N: AppNodeRunApi>(
 ) -> anyhow::Result<usize> {
     let mut num_new = 0;
     let mut latest_payment_index =
-        db.lock().unwrap().state.latest_payment_index();
+        db.lock().unwrap().state.latest_payment_index().copied();
 
     loop {
         // Fetch the next batch of new payments.
@@ -755,7 +755,7 @@ async fn sync_new_payments<V: Vfs, N: AppNodeRunApi>(
             let mut lock = db.lock().unwrap();
             lock.insert_new_payments(resp_payments)
                 .context("Failed to insert new payments")?;
-            latest_payment_index = lock.state.latest_payment_index();
+            latest_payment_index = lock.state.latest_payment_index().copied();
         }
 
         // If the node returns fewer payments than our requested batch size,
@@ -997,7 +997,7 @@ mod test {
         vec(any::<BasicPayment>(), approx_size).prop_map(|payments| {
             payments
                 .into_iter()
-                .map(|payment| (payment.index(), payment))
+                .map(|payment| (*payment.index(), payment))
                 .collect::<BTreeMap<_, _>>()
         })
     }
@@ -1075,11 +1075,11 @@ mod test {
 
             assert_eq!(
                 mock_vfs_db.state().latest_payment_index(),
-                payments.last_key_value().map(|(k, _v)| *k),
+                payments.last_key_value().map(|(k, _v)| k),
             );
             assert_eq!(
                 temp_fs_db.state().latest_payment_index(),
-                payments.last_key_value().map(|(k, _v)| *k),
+                payments.last_key_value().map(|(k, _v)| k),
             );
 
             assert_eq!(mock_vfs_db.state, temp_fs_db.state);
@@ -1189,7 +1189,7 @@ mod test {
                     };
                     mock_node
                         .payments
-                        .get_mut(&payment.index())
+                        .get_mut(payment.index())
                         .unwrap()
                         .status = new_status;
                 }
