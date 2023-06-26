@@ -695,35 +695,36 @@ class SliverPaymentsList extends StatelessWidget {
     info(
         "build SliverPaymentsList: filter: ${this.filter}, childCount: $childCount");
 
-    // TODO(phlip9): also investigate more efficient `SliverFixedExtentList`,
-    // since each payment list entry should be the same height?
-    return SliverList(
-        delegate: SliverChildBuilderDelegate(
-      (context, scrollIdx) {
-        final ShortPayment? payment;
+    return SliverFixedExtentList(
+      itemExtent: Space.s825,
+      delegate: SliverChildBuilderDelegate(
+        (context, scrollIdx) {
+          final ShortPayment? payment;
 
-        if (this.filter == PaymentsListFilter.all) {
-          payment = this.app.getPaymentByScrollIdx(scrollIdx: scrollIdx);
-        } else if (this.filter == PaymentsListFilter.pending) {
-          payment = this.app.getPendingPaymentByScrollIdx(scrollIdx: scrollIdx);
-        } else {
-          payment =
-              this.app.getFinalizedPaymentByScrollIdx(scrollIdx: scrollIdx);
-        }
+          if (this.filter == PaymentsListFilter.all) {
+            payment = this.app.getPaymentByScrollIdx(scrollIdx: scrollIdx);
+          } else if (this.filter == PaymentsListFilter.pending) {
+            payment =
+                this.app.getPendingPaymentByScrollIdx(scrollIdx: scrollIdx);
+          } else {
+            payment =
+                this.app.getFinalizedPaymentByScrollIdx(scrollIdx: scrollIdx);
+          }
 
-        if (payment != null) {
-          // final amount = payment.
-          return PaymentsListEntry(
-            payment: payment,
-            // fiatRate: this.fiatRate,
-          );
-        } else {
-          return null;
-        }
-      },
-      childCount: childCount,
-      // findChildIndexCallback: (Key childKey) => this.app.getPaymentScrollIdxByPaymentId(childKey),
-    ));
+          if (payment != null) {
+            // final amount = payment.
+            return PaymentsListEntry(
+              payment: payment,
+              // fiatRate: this.fiatRate,
+            );
+          } else {
+            return null;
+          }
+        },
+        childCount: childCount,
+        // findChildIndexCallback: (Key childKey) => this.app.getPaymentScrollIdxByPaymentId(childKey),
+      ),
+    );
   }
 }
 
