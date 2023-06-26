@@ -16,8 +16,8 @@ use common::{
     },
     cli::{LspInfo, Network},
     ln::{
-        amount::Amount, hashes::LxTxid, invoice::LxInvoice,
-        payments::LxPaymentHash,
+        amount::Amount, channel::LxChannelDetails, hashes::LxTxid,
+        invoice::LxInvoice, payments::LxPaymentHash,
     },
 };
 use lightning::{
@@ -102,6 +102,18 @@ where
     };
 
     Ok(info)
+}
+
+pub fn list_channels<CM, PS>(channel_manager: CM) -> Vec<LxChannelDetails>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    channel_manager
+        .list_channels()
+        .into_iter()
+        .map(LxChannelDetails::from)
+        .collect::<Vec<_>>()
 }
 
 /// Uses the given `resync_tx` to retrigger BDK and LDK sync.
