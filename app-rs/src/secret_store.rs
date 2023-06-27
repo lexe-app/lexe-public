@@ -176,6 +176,8 @@ impl CredentialApi for FileCredential {
 
 #[cfg(test)]
 mod test {
+    use std::ffi::OsStr;
+
     use common::rng::{RngCore, SysRng};
 
     use super::*;
@@ -197,6 +199,12 @@ mod test {
     #[cfg(not(target_os = "android"))]
     #[test]
     fn test_keyring_store() {
+        // SKIP this test in CI, since the Github CI instance is headless and/or
+        // doesn't give us access to the gnome keyring.
+        if std::env::var_os("LEXE_CI").as_deref() == Some(OsStr::new("1")) {
+            return;
+        }
+
         let mut rng = SysRng::new();
         let mut buf = [0u8; 8];
         rng.fill_bytes(&mut buf);
