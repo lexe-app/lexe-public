@@ -21,6 +21,7 @@ import 'bindings_generated_api.dart'
         PaymentStatus,
         ShortPayment;
 import 'cfg.dart' as cfg;
+import 'date_format.dart' as date_format;
 import 'logger.dart' as logger;
 import 'logger.dart' show info;
 import 'route/backup_wallet.dart' show BackupWalletPage;
@@ -29,7 +30,16 @@ import 'route/wallet.dart' show DrawerListItem, WalletPage;
 import 'style.dart' show LxColors, LxTheme, Space;
 
 Future<void> main() async {
-  Intl.defaultLocale = "en_US";
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize date formatting locale data for ALL locales.
+  await date_format.initializeDateLocaleData();
+
+  // Uncomment one to try designs with a different locale:
+  Intl.defaultLocale = "en_US"; // English - USA
+  // Intl.defaultLocale = "ar_EG"; // Arabic - Egypt
+  // Intl.defaultLocale = "fr_FR"; // French - France
+  // Intl.defaultLocale = "nb"; // Norwegian Bokmål
 
   logger.init();
 

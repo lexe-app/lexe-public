@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'bindings.dart' show api;
 import 'bindings_generated_api.dart' show AppHandle, Config;
 import 'cfg.dart' as cfg;
+import 'date_format.dart' as date_format;
 import 'logger.dart' as logger;
 import 'logger.dart' show info;
 import 'route/landing.dart' show LandingPage;
@@ -15,10 +16,10 @@ Future<void> main() async {
   //   (error, stackTrace) => /* do something w/ error */,
   // );
 
-  // TODO(phlip9): initialize dart internationalization for preferred system
-  //               locale. <https://pub.dev/packages/intl#initialization>
-
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize date formatting locale data for ALL locales.
+  await date_format.initializeDateLocaleData();
 
   logger.init();
 
