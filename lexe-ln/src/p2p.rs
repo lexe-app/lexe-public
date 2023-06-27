@@ -1,4 +1,8 @@
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::HashMap,
+    net::{IpAddr, SocketAddr},
+    time::Duration,
+};
 
 use anyhow::{bail, Context};
 use common::{
@@ -6,6 +10,7 @@ use common::{
     task::LxTask,
 };
 use futures::future;
+use lightning::ln::msgs::NetAddress;
 use tokio::{net::TcpStream, sync::mpsc, time};
 use tracing::{debug, info, info_span, warn, Instrument};
 
@@ -15,6 +20,16 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 /// The maximum amount of time we'll allow LDK to complete the P2P handshake.
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
+
+/// Attempts to convert a [`NetAddress`] to a [`SocketAddr`].
+pub fn net_addr_to_sock_addr(net_addr: NetAddress) -> Option<SocketAddr> {
+    use NetAddress::*;
+    match net_addr {
+        IPv4 { addr, port } => Some(SocketAddr::new(IpAddr::from(addr), port)),
+        IPv6 { addr, port } => Some(SocketAddr::new(IpAddr::from(addr), port)),
+        OnionV2(_) | OnionV3 { .. } | Hostname { .. } => None,
+    }
+}
 
 /// Every time a channel peer is added or removed, a [`ChannelPeerUpdate`] is
 /// generated and sent to the [p2p reconnector task] via an [`mpsc`] channel.
@@ -201,7 +216,7 @@ where
                 tokio::select! {
                     _ = interval.tick() => (),
                     Some(cp_update) = channel_peer_rx.recv() => {
-                        debug!("Received channel peer update: {cp_update:?}");
+                        info!("Received channel peer update: {cp_update:?}");
                         // We received a ChannelPeerUpdate; update our HashMap of
                         // current channel peers accordingly.
                         match cp_update {
