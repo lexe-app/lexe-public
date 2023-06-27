@@ -87,7 +87,7 @@ void main() {
     expect(date_format.formatDateCompact(now: now, then: dec3_22, locale: "fr"),
         "03/12/2022");
 
-    // -654d = September 5, 2022 = "09/05/21"
+    // -654d = September 5, 2021 = "09/05/21"
     final sep5_22 = DateTime.fromMillisecondsSinceEpoch(1630864792000);
     expect(
         date_format.formatDateCompact(now: now, then: sep5_22, locale: "en_US"),
