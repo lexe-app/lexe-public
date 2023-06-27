@@ -7,7 +7,7 @@ import 'package:duration/locale.dart'
     show DurationLocale, EnglishDurationLocale;
 
 import 'package:intl/date_symbol_data_local.dart' as date_symbol_data_local;
-import 'package:intl/intl.dart' show DateFormat;
+import 'package:intl/intl.dart' show DateFormat, Intl;
 
 const DurationLocale defaultDurationLocale = EnglishDurationLocale();
 
@@ -76,22 +76,19 @@ String? formatDateCompact({
 /// The locale names used by the `duration` dart package are almost all "short"
 /// locale names w/o the country code. This lookup function:
 ///
-/// 1. Looks up the exact locale passed in
-/// 2. Looks up the first two characters of the locale passed in
-/// 3. Otherwise defaults to the english locale
+/// 1. If `locale` is null, then lookup based on `Intl.getCurrentLocale()`
+/// 2. Looks up full locale string
+/// 3. Looks up first two characters of the locale string
+/// 4. Otherwise defaults to the english locale
 DurationLocale lookupDurationLocale(String? locale) {
-  // TODO(phlip9): also look at Intl default/system locale
-
-  if (locale == null) {
-    return defaultDurationLocale;
-  }
+  locale ??= Intl.getCurrentLocale();
 
   final maybeLocale = DurationLocale.fromLanguageCode(locale);
   if (maybeLocale != null) {
     return maybeLocale;
   }
 
-  if (locale.length <= 2) {
+  if (locale.length < 2) {
     return defaultDurationLocale;
   }
 

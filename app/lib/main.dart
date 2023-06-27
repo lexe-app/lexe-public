@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl_standalone.dart' as intl_standalone;
 
 import 'bindings.dart' show api;
 import 'bindings_generated_api.dart' show AppHandle, Config;
@@ -17,6 +18,13 @@ Future<void> main() async {
   // );
 
   WidgetsFlutterBinding.ensureInitialized();
+
+  // TODO(phlip9): allow overriding default locale in preferences.
+  // Intl.defaultLocale = settings.getUserPreferredLocale();
+
+  // This fn determines the current system locale and sets `Intl.systemLocale`
+  // to it.
+  await intl_standalone.findSystemLocale();
 
   // Initialize date formatting locale data for ALL locales.
   await date_format.initializeDateLocaleData();
