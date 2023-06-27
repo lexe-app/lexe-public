@@ -127,9 +127,9 @@ class LandingCarouselIndicators extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return const Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: const [
+      children: [
         Icon(Icons.circle, size: 12.0, color: LxColors.clearW600),
         SizedBox(width: 12.0),
         Icon(Icons.circle, size: 12.0, color: LxColors.clearW200),
