@@ -25,8 +25,8 @@
 //!
 //! ### [`Display`]ing [`Amount`]s
 //!
-//! [`Amount`]'s [`Display`] impl displays the contained millisat [`Decimal`]
-//! value, respects [`std::fmt`] syntax, and does not include " msats" in the
+//! [`Amount`]'s [`Display`] impl displays the contained satoshi [`Decimal`]
+//! value, respects [`std::fmt`] syntax, and does not include " sats" in the
 //! output. If a different unit is desired, call the appropriate getter, then
 //! use the outputted [`Decimal`]'s [`Display`] impl for equivalent behavior.
 //!
@@ -66,7 +66,7 @@ pub enum Error {
     TooLarge,
 }
 
-/// A Bitcoin amount, internally represented as a millisat [`Decimal`], which
+/// A Bitcoin amount, internally represented as a satoshi [`Decimal`], which
 /// provides the following properties:
 ///
 /// - The contained value is non-negative.
@@ -78,26 +78,26 @@ pub struct Amount(Decimal);
 
 impl Amount {
     /// The maximum [`Amount`] that this type can represent. We set this exactly
-    /// equal to the [`Decimal`] representation of [`u64::MAX`] because it makes
-    /// conversions to and from [`u64`] infallible and hence ergonomic, which is
-    /// highly desirable because [`u64`] is the most common representation for
-    /// millisats in non-Lexe code.
-    pub const MAX: Self = Self(dec!(18_446_744_073_709_551_615));
+    /// equal to [`u64::MAX`] millisatoshis because it makes conversions to and
+    /// from [`u64`] infallible and hence ergonomic, desirable because [`u64`]
+    /// is the most common representation for millisats in non-Lexe code.
+    // Correctness of this Decimal::from_parts is checked in the tests
+    pub const MAX: Self =
+        Self(Decimal::from_parts(4294967295, 4294967295, 0, false, 3));
 
     /// An [`Amount`] of zero bitcoins.
     pub const ZERO: Self = Self(dec!(0));
 
     /// The maximum supply of Bitcoin that can ever exist. Analogous to
     /// [`bitcoin::Amount::MAX_MONEY`]; primarily useful as a sanity check.
-    // 21 million BTC * 100 million sats per BTC * 1000 millisats per sat.
-    // Correctness is checked in the tests; couldn't find a better way to do it.
-    pub const MAX_BITCOIN_SUPPLY: Self = Self(dec!(2_100_000_000_000_000_000));
+    // 21 million BTC * 100 million sats per BTC.
+    pub const MAX_BITCOIN_SUPPLY: Self = Self(dec!(2_100_000_000_000_000));
 
     // --- Constructors --- //
 
     /// Construct an [`Amount`] from a millisatoshi [`u64`] value.
     pub fn from_msat(msats: u64) -> Self {
-        Self(Decimal::from(msats))
+        Self(Decimal::from(msats) / dec!(1000))
     }
 
     /// Construct an [`Amount`] from a satoshi [`u32`] value.
@@ -108,12 +108,12 @@ impl Amount {
     /// Construct an [`Amount`] from a satoshi [`Decimal`] value.
     // "satoshis" instead of "sat" to have a greater string distance from "msat"
     pub fn from_satoshis(sats: Decimal) -> Result<Self, Error> {
-        Self::try_from_inner(sats * dec!(1000))
+        Self::try_from_inner(sats)
     }
 
     /// Construct an [`Amount`] from a BTC [`Decimal`] value.
     pub fn from_btc(btc: Decimal) -> Result<Self, Error> {
-        Self::try_from_inner(btc * dec!(100_000_000_000))
+        Self::try_from_inner(btc * dec!(100_000_000))
     }
 
     // --- Getters --- //
@@ -121,7 +121,9 @@ impl Amount {
 
     /// Returns the [`Amount`] as a [`u64`] millisatoshi value.
     pub fn msat(&self) -> u64 {
-        self.0.to_u64().expect("Amount::MAX == u64::MAX")
+        (self.0 * dec!(1000))
+            .to_u64()
+            .expect("Amount::MAX == u64::MAX millisats")
     }
 
     /// Returns the [`Amount`] as a [`u64`] satoshi value.
@@ -132,12 +134,12 @@ impl Amount {
     /// Returns the [`Amount`] as a [`Decimal`] satoshi value.
     // "satoshis" instead of "sat" to have a greater string distance from "msat"
     pub fn satoshis(&self) -> Decimal {
-        self.0 / dec!(1000)
+        self.0
     }
 
     /// Returns the [`Amount`] as a [`Decimal`] BTC value.
     pub fn btc(&self) -> Decimal {
-        self.0 / dec!(100_000_000_000)
+        self.0 / dec!(100_000_000)
     }
 
     // --- Checked arithmetic --- //
@@ -183,13 +185,11 @@ impl<'de> Deserialize<'de> for Amount {
         D: Deserializer<'de>,
     {
         let inner: Decimal = Deserialize::deserialize(deserializer)?;
-        if inner.is_sign_negative() {
-            Err(serde::de::Error::custom("Amount was negative"))
-        } else if inner > Self::MAX.0 {
-            Err(serde::de::Error::custom("Amount was too large"))
-        } else {
-            Ok(Self(inner))
-        }
+
+        Self::try_from_inner(inner).map_err(|e| match e {
+            Error::Negative => serde::de::Error::custom("Amount was negative"),
+            Error::TooLarge => serde::de::Error::custom("Amount was too large"),
+        })
     }
 }
 
@@ -281,13 +281,21 @@ mod test {
     use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest};
 
     use super::*;
+    use crate::Apply;
 
-    /// Check the correctness of the associated constants. There isn't a const
-    /// way to define a [`Decimal`] that keeps `21_000_000 * 100_000_000 * 1000`
-    /// or `u64::MAX` in the definition, so here we are.
+    /// Check the correctness of the associated constants.
     #[test]
     fn check_associated_constants() {
+        // Check the usage of Decimal::from_parts to define Amount::MAX
+        let max_u64_msat_in_sat = Decimal::from(u64::MAX) / dec!(1000);
+        println!("{:?}", max_u64_msat_in_sat.unpack());
+        assert_eq!(Amount::MAX, Amount(max_u64_msat_in_sat));
+
         assert_eq!(Amount::MAX.msat(), u64::MAX);
+        assert_eq!(
+            Amount::MAX_BITCOIN_SUPPLY.satoshis(),
+            dec!(21_000_000) * dec!(100_000_000),
+        );
         assert_eq!(
             Amount::MAX_BITCOIN_SUPPLY.msat(),
             21_000_000 * 100_000_000 * 1000,
@@ -302,6 +310,18 @@ mod test {
             let amount = Amount::from_msat(msat1);
             let msat2 = amount.msat();
             prop_assert_eq!(msat1, msat2);
+        })
+    }
+
+    /// Tests that [`u32`] satoshis roundtrips to and from [`Amount`].
+    #[test]
+    fn sat_u32_roundtrips() {
+        proptest!(|(sat1 in any::<u32>())| {
+            let amount = Amount::from_sats_u32(sat1);
+            let sat2a = amount.sats_u64().apply(u32::try_from).unwrap();
+            let sat2b = amount.satoshis().to_u32().unwrap();
+            prop_assert_eq!(sat1, sat2a);
+            prop_assert_eq!(sat1, sat2b);
         })
     }
 
