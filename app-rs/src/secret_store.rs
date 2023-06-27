@@ -34,7 +34,7 @@ pub struct SecretStore {
 }
 
 impl SecretStore {
-    #[allow(dead_code)]
+    #[cfg_attr(target_os = "android", allow(dead_code))]
     fn service_name(deploy_env: DeployEnv) -> String {
         let env = deploy_env.as_str();
         format!("tech.lexe.lexeapp.{env}")
@@ -60,13 +60,13 @@ impl SecretStore {
     }
 
     /// A secret store that uses the system keychain.
-    #[allow(dead_code)]
+    #[cfg_attr(target_os = "android", allow(dead_code))]
     fn keyring(deploy_env: DeployEnv) -> Self {
         let service = Self::service_name(deploy_env);
         Self::keyring_inner(&service)
     }
 
-    #[allow(dead_code)]
+    #[cfg_attr(target_os = "android", allow(dead_code))]
     fn keyring_inner(service: &str) -> Self {
         let entry = keyring::Entry::new(service, "rootseed").unwrap();
         Self {
@@ -76,12 +76,12 @@ impl SecretStore {
 
     /// A secret store that just dumps secrets into the app-specific data
     /// directory. Currently only used on Android.
-    #[allow(dead_code)]
+    #[cfg_attr(not(target_os = "android"), allow(dead_code))]
     fn file(deploy_env: DeployEnv, app_data_dir: &Path) -> Self {
         let env = deploy_env.as_str();
-        let credential = Box::new(FileCredential {
-            path: app_data_dir.join(format!("{env}.rootseed")),
-        });
+        let credential = Box::new(FileCredential::new(
+            app_data_dir.join(format!("{env}.rootseed")),
+        ));
         let entry = keyring::Entry::new_with_credential(credential);
         Self {
             root_seed_entry: Mutex::new(entry),
@@ -114,6 +114,7 @@ impl SecretStore {
                 .context("Failed to read root seed from keyring")),
         }
     }
+
     pub fn write_root_seed(&self, root_seed: &RootSeed) -> anyhow::Result<()> {
         let root_seed_hex = hex::encode(root_seed.expose_secret().as_slice());
         self.root_seed_entry
@@ -122,6 +123,7 @@ impl SecretStore {
             .set_password(&root_seed_hex)
             .context("Failed to write root seed into keyring")
     }
+
     pub fn delete_root_seed(&self) -> anyhow::Result<()> {
         self.root_seed_entry
             .lock()
@@ -137,7 +139,7 @@ struct FileCredential {
 }
 
 impl FileCredential {
-    #[allow(dead_code)]
+    #[cfg_attr(not(target_os = "android"), allow(dead_code))]
     fn new(path: PathBuf) -> Self {
         Self { path }
     }
@@ -161,14 +163,17 @@ impl CredentialApi for FileCredential {
         std::fs::write(&self.path, password.as_bytes())
             .map_err(io_err_to_keyring_err)
     }
+
     fn get_password(&self) -> keyring::Result<String> {
         let bytes = std::fs::read(&self.path).map_err(io_err_to_keyring_err)?;
         String::from_utf8(bytes)
             .map_err(|err| keyring::Error::BadEncoding(err.into_bytes()))
     }
+
     fn delete_password(&self) -> keyring::Result<()> {
         std::fs::remove_file(&self.path).map_err(io_err_to_keyring_err)
     }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
