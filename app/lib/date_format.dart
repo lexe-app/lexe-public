@@ -1,17 +1,34 @@
 // Date formatting helpers
 
-import 'dart:core' show DateTime, String;
+import 'dart:core' show DateTime, Future, String;
 
 import 'package:duration/duration.dart' show prettyDuration;
 import 'package:duration/locale.dart'
     show DurationLocale, EnglishDurationLocale;
 
+import 'package:intl/date_symbol_data_local.dart' as date_symbol_data_local;
 import 'package:intl/intl.dart' show DateFormat;
 
-const DurationLocale defaultLocale = EnglishDurationLocale();
+const DurationLocale defaultDurationLocale = EnglishDurationLocale();
+
+/// Initializes locale data (like translated months and days) for ALL locales.
+/// If using any locale other than `en_US`, this method MUST be called before
+/// calling any date formatting functions.
+///
+/// This approach is extremely simple but adds a bit of binary size (a few
+/// hundred KiB I think). In the future, if we really wanted to squeeze out
+/// every drop of wasted space, we could lazily download+cache only the data
+/// needed for the  client's specific locale.
+Future<void> initializeDateLocaleData() async {
+  await date_symbol_data_local.initializeDateFormatting();
+}
 
 /// Compactly format a `DateTime` that's in the past. Will return `null` if the
 /// `DateTime` is in the future.
+///
+/// The underlying `Intl` library will throw an error if
+/// `initializeDateLocaleData()` hasn't been called yet (and the locale isn't
+/// the default `en_US`).
 ///
 /// * Format spans shorter than 3 days in an abbreviated duration format, e.g.,
 ///   "10s", "3h", "2d".
@@ -20,7 +37,7 @@ const DurationLocale defaultLocale = EnglishDurationLocale();
 ///   year, e.g., "Jun 15", "Feb 3".
 ///
 /// * Format longer spans as a compact date, e.g.,
-///   "23/06/15" (formatting depends on the locale)
+///   "6/15/2023" (formatting depends on the locale)
 String? formatDateCompact({
   /// The time in the past that we want to format.
   required DateTime then,
@@ -52,8 +69,7 @@ String? formatDateCompact({
   } else if (span.inDays <= 31 * 6) {
     return DateFormat.MMMd(locale).format(then);
   } else {
-    // TODO(phlip9): locale-friendly way to get most compact MM/dd/yy
-    return DateFormat('MM/dd/yy', locale).format(then);
+    return DateFormat.yMd(locale).format(then);
   }
 }
 
@@ -64,8 +80,10 @@ String? formatDateCompact({
 /// 2. Looks up the first two characters of the locale passed in
 /// 3. Otherwise defaults to the english locale
 DurationLocale lookupDurationLocale(String? locale) {
+  // TODO(phlip9): also look at Intl default/system locale
+
   if (locale == null) {
-    return defaultLocale;
+    return defaultDurationLocale;
   }
 
   final maybeLocale = DurationLocale.fromLanguageCode(locale);
@@ -74,7 +92,7 @@ DurationLocale lookupDurationLocale(String? locale) {
   }
 
   if (locale.length <= 2) {
-    return defaultLocale;
+    return defaultDurationLocale;
   }
 
   final shortLocale = locale.substring(0, 2);
@@ -83,5 +101,5 @@ DurationLocale lookupDurationLocale(String? locale) {
     return maybeShortLocale;
   }
 
-  return defaultLocale;
+  return defaultDurationLocale;
 }

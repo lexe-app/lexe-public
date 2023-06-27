@@ -760,8 +760,6 @@ class PaymentsListEntry extends StatelessWidget {
     // the weird unicode thing that isn't rendering is the BTC B currency symbol
     // "+₿0.00001230",
 
-    const primaryValueWidth = Space.s1000;
-
     final Color primaryValueColor;
     if (direction == PaymentDirection.Inbound &&
         status != PaymentStatus.Failed) {
@@ -818,7 +816,6 @@ class PaymentsListEntry extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
     );
 
-    const secondaryDateWidth = Space.s850;
     final createdAt = DateTime.fromMillisecondsSinceEpoch(payment.createdAt);
     final createdAtStr = date_format.formatDateCompact(then: createdAt);
 
@@ -861,10 +858,10 @@ class PaymentsListEntry extends StatelessWidget {
           Expanded(
             child: primaryText,
           ),
-          SizedBox(
-            width: primaryValueWidth,
+          Padding(
+            padding: const EdgeInsets.only(left: Space.s200),
             child: primaryValueText,
-          ),
+          )
         ],
       ),
 
@@ -876,10 +873,10 @@ class PaymentsListEntry extends StatelessWidget {
           Expanded(
             child: secondaryText,
           ),
-          SizedBox(
-            width: secondaryDateWidth,
+          Padding(
+            padding: const EdgeInsets.only(left: Space.s200),
             child: secondaryDateText,
-          ),
+          )
         ],
       ),
     );
