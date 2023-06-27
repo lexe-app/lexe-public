@@ -52,9 +52,9 @@ cfg-if = "1"
 # dotenvy is a better maintained fork of dotenv
 dotenvy = "0.15"
 # High-level memory-safe Rust<->Dart FFI bindings.
-flutter_rust_bridge = { version = "1.75.1", default-features = false, features = [] }
+flutter_rust_bridge = { version = "1.78.0", default-features = false, features = [] }
 # The Rust+Dart codegen for flutter_rust_bridge
-flutter_rust_bridge_codegen = { version = "1.75.1", default-features = false, features = [] }
+flutter_rust_bridge_codegen = { version = "1.78.0", default-features = false, features = [] }
 # Utils for working with futures
 futures = "0.3"
 # Lazy initialization

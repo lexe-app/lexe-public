@@ -5,7 +5,7 @@ fn main() -> ExitCode {
     match args.run() {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
-            println!("\napp-rs-codegen: error: {err}");
+            println!("\napp-rs-codegen: error: {err:#}");
             ExitCode::FAILURE
         }
     }

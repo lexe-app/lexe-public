@@ -82,6 +82,8 @@ impl Args {
 
         // flutter_rust_bridge options
         let configs = frb::config_parse(frb::RawOpts {
+            verbose: true,
+
             // Path of input Rust code
             rust_input: vec![path_to_string(&bindings_rs)?],
             // Path to output generated Rust code.
