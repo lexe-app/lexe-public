@@ -16,10 +16,22 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
     api::NodePk,
-    hexstr_or_bytes,
+    hex, hexstr_or_bytes,
     ln::{amount::Amount, hashes::LxTxid},
     Apply,
 };
+
+/// A newtype for [`ChannelDetails::channel_id`].
+///
+/// [`ChannelDetails::channel_id`]: lightning::ln::channelmanager::ChannelDetails::channel_id
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
+
+impl Display for ChannelId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::display(&self.0))
+    }
+}
 
 /// A version of LDK's [`ChannelDetails`] containing only fields that are likely
 /// to be of interest to a human, e.g. when checking up on one's channels.
@@ -27,8 +39,7 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LxChannelDetails {
     // --- Basic info --- //
-    #[serde(with = "hexstr_or_bytes")]
-    pub channel_id: [u8; 32],
+    pub channel_id: ChannelId,
     pub funding_txo: Option<LxOutPoint>,
     pub counterparty_node_id: NodePk,
     pub channel_value: Amount,
@@ -130,6 +141,7 @@ impl From<ChannelDetails> for LxChannelDetails {
             ..
         }: ChannelDetails,
     ) -> Self {
+        let channel_id = ChannelId(channel_id);
         let funding_txo = funding_txo.map(LxOutPoint::from);
         let counterparty_node_id = NodePk(counterparty.node_id);
         let channel_value = u32::try_from(channel_value_satoshis)
