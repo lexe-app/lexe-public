@@ -3,7 +3,6 @@ use std::fmt::{self, Display};
 use anyhow::{anyhow, ensure, Context};
 use common::{
     api::NodePk,
-    hex,
     ln::{amount::Amount, peer::ChannelPeer},
     rng::Crng,
 };
@@ -15,12 +14,6 @@ use crate::{
     p2p::{self, ChannelPeerUpdate},
     traits::{LexeChannelManager, LexePeerManager, LexePersister},
 };
-
-/// A newtype for [`ChannelDetails::channel_id`] for semantic clarity.
-///
-/// [`ChannelDetails::channel_id`]: lightning::ln::channelmanager::ChannelDetails::channel_id
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct ChannelId(pub [u8; 32]);
 
 /// Specifies the channel initiator-responder relationship. The required
 /// parameters and behavior of [`open_channel`] may be different in each case.
@@ -158,13 +151,5 @@ impl<PS: LexePersister> Display for ChannelRelationship<PS> {
             Self::LspToUser { .. } => write!(f, "LSP to user"),
             Self::LspToExternal { .. } => write!(f, "LSP to external"),
         }
-    }
-}
-
-// --- impl ChannelId --- //
-
-impl Display for ChannelId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", hex::display(&self.0))
     }
 }
