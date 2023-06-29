@@ -265,7 +265,7 @@ Sanity check
 
 ```bash
 $ pod --version
-1.11.3
+1.12.1
 ```
 
 #### Ensure the iOS Simulator app works

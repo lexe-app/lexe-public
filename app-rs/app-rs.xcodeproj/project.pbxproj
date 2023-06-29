@@ -165,7 +165,8 @@
 				INSTALL_OWNER = "";
 				PRODUCT_NAME = "app-rs_static";
 				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "macosx iphonesimulator iphoneos appletvsimulator appletvos";
+				SUPPORTED_PLATFORMS = "macosx iphonesimulator iphoneos";
+				SUPPORTS_MACCATALYST = NO;
 			};
 			name = Release;
 		};
@@ -190,7 +191,8 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "app-rs";
 				SDKROOT = macosx;
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTED_PLATFORMS = "macosx iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 			};
 			name = Debug;
 		};
@@ -214,7 +216,8 @@
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_NAME = "app-rs";
 				SDKROOT = macosx;
-				SUPPORTS_MACCATALYST = YES;
+				SUPPORTED_PLATFORMS = "macosx iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
 			};
 			name = Release;
 		};
@@ -228,7 +231,8 @@
 				INSTALL_OWNER = "";
 				PRODUCT_NAME = "app-rs_static";
 				SKIP_INSTALL = YES;
-				SUPPORTED_PLATFORMS = "macosx iphonesimulator iphoneos appletvsimulator appletvos";
+				SUPPORTED_PLATFORMS = "macosx iphonesimulator iphoneos";
+				SUPPORTS_MACCATALYST = NO;
 			};
 			name = Debug;
 		};

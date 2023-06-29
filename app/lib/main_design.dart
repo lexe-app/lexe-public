@@ -26,6 +26,7 @@ import 'logger.dart' as logger;
 import 'logger.dart' show info;
 import 'route/backup_wallet.dart' show BackupWalletPage;
 import 'route/landing.dart' show LandingPage;
+import 'route/scan.dart' show ScanPage;
 import 'route/wallet.dart' show DrawerListItem, WalletPage;
 import 'style.dart' show LxColors, LxTheme, Space;
 
@@ -61,6 +62,7 @@ Future<void> main() async {
           Component("LandingPage", (_) => LandingPage(config: config)),
           Component("BackupWalletPage", (_) => BackupWalletPage(app: mockApp)),
           Component("WalletPage", (_) => WalletPage(app: mockApp)),
+          Component("ScanPage", (_) => const ScanPage()),
         ],
       ),
     ),
