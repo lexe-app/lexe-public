@@ -9,6 +9,8 @@
 #![feature(split_array)]
 // Allow e.g. warp::Filter<Extract: warp::Reply> syntax
 #![feature(associated_type_bounds)]
+// Allow adding side effects to Option and Result chains
+#![feature(result_option_inspect)]
 // Enforce disallowed methods clippy lint
 #![deny(clippy::disallowed_methods)]
 
