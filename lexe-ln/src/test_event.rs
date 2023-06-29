@@ -61,6 +61,14 @@ pub enum TestEvent {
     ///
     /// [`PaymentSent`]: lightning::util::events::Event::PaymentSent
     PaymentSent,
+    /// A [`ChannelClosed`] event was handled.
+    ///
+    /// [`ChannelClosed`]: lightning::util::events::Event::ChannelClosed
+    ChannelClosed,
+    /// A [`SpendableOutputs`] event was handled.
+    ///
+    /// [`SpendableOutputs`]: lightning::util::events::Event::SpendableOutputs
+    SpendableOutputs,
 }
 
 /// Wraps an [`mpsc::Sender<TestEvent>`] to allow actually sending the event to
@@ -378,6 +386,8 @@ impl TestEventReceiver {
         all_n_events: Vec<(TestEvent, usize)>,
         timeout: Duration,
     ) -> anyhow::Result<()> {
+        debug!("Waiting on {all_n_events:?}");
+
         struct Quota {
             name: String,
             seen: usize,

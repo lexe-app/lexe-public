@@ -1,8 +1,8 @@
 use std::fmt::{self, Display};
 
-use anyhow::{anyhow, ensure, Context};
+use anyhow::{anyhow, bail, ensure, Context};
 use common::{
-    api::NodePk,
+    api::{command::CloseChannelRequest, NodePk},
     ln::{amount::Amount, peer::ChannelPeer},
     rng::Crng,
 };
@@ -128,6 +128,46 @@ where
         .map_err(|e| anyhow!("Failed to create channel: {e:?}"))?;
 
     info!("Successfully opened channel");
+    Ok(())
+}
+
+/// Initiates a cooperative channel close.
+pub fn close_channel<CM, PM, PS>(
+    req: CloseChannelRequest,
+    channel_manager: CM,
+    peer_manager: PM,
+) -> anyhow::Result<()>
+where
+    CM: LexeChannelManager<PS>,
+    PM: LexePeerManager<CM, PS>,
+    PS: LexePersister,
+{
+    let channel_id = req.channel_id;
+    let maybe_counterparty = req.maybe_counterparty;
+    info!(
+        %channel_id, ?maybe_counterparty,
+        "Initiating cooperative channel close",
+    );
+
+    let counterparty = maybe_counterparty
+        .or_else(|| {
+            channel_manager
+                .list_channels()
+                .into_iter()
+                .find(|c| c.channel_id == channel_id.0)
+                .map(|c| NodePk(c.counterparty.node_id))
+        })
+        .with_context(|| format!("No channel exists with id {channel_id}"))?;
+
+    if !p2p::is_connected(peer_manager, &counterparty) {
+        bail!("Cannot initiate cooperative close with disconnected peer");
+    }
+
+    channel_manager
+        .close_channel(&channel_id.0, &counterparty.0)
+        .map_err(|e| anyhow!("ChannelManager::close_channel errored: {e:?}"))?;
+
+    info!(%channel_id, "Successfully initiated cooperative channel close");
     Ok(())
 }
 

@@ -1,11 +1,13 @@
 use std::{sync::Arc, time::Duration};
 
 use anyhow::{anyhow, Context};
-use bitcoin::secp256k1::Secp256k1;
 use common::{
     api::NodePk,
     cli::LspInfo,
     hex,
+    ln::channel::ChannelId,
+    rng,
+    rng::SysRng,
     shutdown::ShutdownChannel,
     task::{BlockingTaskRt, LxTask},
 };
@@ -18,9 +20,7 @@ use lexe_ln::{
     wallet::LexeWallet,
 };
 use lightning::{
-    chain::chaininterface::{
-        BroadcasterInterface, ConfirmationTarget, FeeEstimator,
-    },
+    chain::chaininterface::{ConfirmationTarget, FeeEstimator},
     routing::gossip::NodeId,
     util::events::{Event, EventHandler},
 };
@@ -328,7 +328,7 @@ async fn handle_event_fallible(
             let channel_str = |channel_id: Option<[u8; 32]>| {
                 channel_id
                     .map(|channel_id| {
-                        format!(" with channel {}", hex::encode(&channel_id))
+                        format!(" with channel {}", hex::display(&channel_id))
                     })
                     .unwrap_or_default()
             };
@@ -375,31 +375,41 @@ async fn handle_event_fallible(
             .detach();
         }
         Event::SpendableOutputs { outputs } => {
-            let destination_address = wallet.get_new_address().await?;
-            let output_descriptors = &outputs.iter().collect::<Vec<_>>();
-            let tx_feerate =
+            // XXX(max): Ensure the Event is not lost if something fails
+            // Spend all of the spendable outputs to our wallet.
+            // The tx only includes a 'change' output, which is actually just a
+            // new external address fetched from our wallet.
+            // TODO(max): Maybe we should add another output for privacy?
+            let spendable_output_descriptors =
+                &outputs.iter().collect::<Vec<_>>();
+            let destination_outputs = Vec::new();
+            let destination_change_script =
+                wallet.get_new_address().await?.script_pubkey();
+            let feerate_sat_per_1000_weight =
                 esplora.get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
-            let spending_tx = keys_manager
-                .spend_spendable_outputs(
-                    output_descriptors,
-                    Vec::new(),
-                    destination_address.script_pubkey(),
-                    tx_feerate,
-                    &Secp256k1::new(),
-                )
-                .unwrap();
-            esplora.broadcast_transaction(&spending_tx);
+            let secp_ctx =
+                rng::get_randomized_secp256k1_ctx(&mut SysRng::new());
+            let spending_tx = keys_manager.spend_spendable_outputs(
+                spendable_output_descriptors,
+                destination_outputs,
+                destination_change_script,
+                feerate_sat_per_1000_weight,
+                &secp_ctx,
+            )?;
+            esplora
+                .broadcast_tx(&spending_tx)
+                .await
+                .context("Couldn't spend spendable outputs")?;
+            test_event_tx.send(TestEvent::SpendableOutputs);
         }
         Event::ChannelClosed {
             channel_id,
             reason,
             user_channel_id: _,
         } => {
-            info!(
-                "EVENT: Channel {} closed due to: {:?}",
-                hex::encode(&channel_id),
-                reason
-            );
+            let channel_id = ChannelId(channel_id);
+            info!(%channel_id, ?reason, "Channel is being closed");
+            test_event_tx.send(TestEvent::ChannelClosed);
         }
         Event::DiscardFunding { .. } => {
             // A "real" node should probably "lock" the UTXOs spent in funding
