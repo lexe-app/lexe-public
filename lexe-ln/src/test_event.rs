@@ -119,7 +119,10 @@ impl TestEventReceiver {
 
     /// Clears the channel of all pending messages.
     pub fn clear(&mut self) {
-        while self.rx.try_recv().is_ok() {}
+        let label = &self.label;
+        while let Ok(event) = self.rx.try_recv() {
+            debug!("{label} Clearing event: {event:?}");
+        }
     }
 
     // --- default timeout --- //
