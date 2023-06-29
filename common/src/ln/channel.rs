@@ -16,7 +16,9 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
     api::NodePk,
-    hex, hexstr_or_bytes,
+    hex,
+    hex::FromHex,
+    hexstr_or_bytes,
     ln::{amount::Amount, hashes::LxTxid},
     Apply,
 };
@@ -26,6 +28,13 @@ use crate::{
 /// [`ChannelDetails::channel_id`]: lightning::ln::channelmanager::ChannelDetails::channel_id
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
+
+impl FromStr for ChannelId {
+    type Err = hex::DecodeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        <[u8; 32]>::from_hex(s).map(Self)
+    }
+}
 
 impl Display for ChannelId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

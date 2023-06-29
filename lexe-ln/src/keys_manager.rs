@@ -1,6 +1,6 @@
 use std::{ops::Deref, sync::Arc};
 
-use anyhow::ensure;
+use anyhow::{anyhow, ensure};
 use bitcoin::{
     blockdata::{
         script::Script,
@@ -90,8 +90,6 @@ impl LexeKeysManager {
             .expect("Always succeeds when called with Recipient::Node")
     }
 
-    // Bad fn signature is inherited from LDK
-    #[allow(clippy::result_unit_err)]
     pub fn spend_spendable_outputs<C: Signing>(
         &self,
         descriptors: &[&SpendableOutputDescriptor],
@@ -99,14 +97,16 @@ impl LexeKeysManager {
         change_destination_script: Script,
         feerate_sat_per_1000_weight: u32,
         secp_ctx: &Secp256k1<C>,
-    ) -> Result<Transaction, ()> {
-        self.inner.spend_spendable_outputs(
-            descriptors,
-            outputs,
-            change_destination_script,
-            feerate_sat_per_1000_weight,
-            secp_ctx,
-        )
+    ) -> anyhow::Result<Transaction> {
+        self.inner
+            .spend_spendable_outputs(
+                descriptors,
+                outputs,
+                change_destination_script,
+                feerate_sat_per_1000_weight,
+                secp_ctx,
+            )
+            .map_err(|()| anyhow!("spend_spendable_outputs failed"))
     }
 }
 

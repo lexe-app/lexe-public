@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     api::NodePk,
     ln::{
-        amount::Amount, balance::Balance, invoice::LxInvoice,
-        ConfirmationPriority,
+        amount::Amount, balance::Balance, channel::ChannelId,
+        invoice::LxInvoice, ConfirmationPriority,
     },
 };
 
@@ -52,4 +52,18 @@ pub struct SendOnchainRequest {
     pub priority: ConfirmationPriority,
     /// An optional personal note for this payment.
     pub note: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct CloseChannelRequest {
+    /// The id of the channel we want to close.
+    pub channel_id: ChannelId,
+    /// The [`NodePk`] of our counterparty.
+    ///
+    /// If set to [`None`], the counterparty's [`NodePk`] will be determined by
+    /// calling [`list_channels`]. Setting this to [`Some`] allows
+    /// `close_channel` to avoid this relatively expensive [`Vec`] allocation.
+    ///
+    /// [`list_channels`]: lightning::ln::channelmanager::ChannelManager::list_channels
+    pub maybe_counterparty: Option<NodePk>,
 }
