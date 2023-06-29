@@ -139,7 +139,8 @@ tokio = { git = "https://github.com/lexe-tech/tokio", branch = "tokio-sgx-1.21.2
 # * 2cbad40 - trace: tweak warp request `tracing` to include request time directly
 # * f8c13d9 - add HTTP on-upgrade filter
 # * dc560ed - Allow users to provide a preconfigured TLS configuration
-warp = { git = "https://github.com/lexe-tech/warp", branch = "lexe" }
+warp = { git = "https://github.com/lexe-tech/warp", branch = "lexe-2023_06_29" }
+# warp = { path = "../../../forks/warp" }
 
 # This BDK fork:
 # 1) Derives PartialEq, Eq for SyncTime, used in tests

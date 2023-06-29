@@ -149,7 +149,7 @@ pub fn trace_requests(
         info_span!(
             target: "http",
             parent: parent_span_id.clone(),
-            "(recv)",
+            "(http)(srv)",
             method = %req_info.method(),
             url = %url,
             version = ?req_info.version(),
@@ -405,7 +405,7 @@ impl RestClient {
     fn request_span(req: &reqwest::Request) -> tracing::Span {
         info_span!(
             target: "http",
-            "(send)",
+            "(http)(cli)",
             method = %req.method(),
             url = %req.url(),
             // the "attempts left" is set in the span later on
@@ -522,6 +522,7 @@ impl RestClient {
         mut request: reqwest::Request,
     ) -> Result<Result<Bytes, ErrorResponse>, RestClientError> {
         let start = tokio::time::Instant::now().into_std();
+        debug!(target: "http", "New (outbound) Sending request");
 
         // set default timeout if unset
         let timeout = request.timeout_mut();
@@ -529,13 +530,14 @@ impl RestClient {
             *timeout = Some(API_REQUEST_TIMEOUT);
         }
 
-        debug!(target: "http", "sending");
-
         // send the request, await the response headers
-        let resp = self.client.execute(request).await.map_err(|err| {
+        let resp = self.client.execute(request).await.inspect_err(|err| {
             let time = start.elapsed();
-            warn!(target: "http", ?time, "error sending: {err:#}");
-            err
+            warn!(
+                target: "http",
+                ?time,
+                "Done (err)(sending) Error sending request: {err:#}"
+            );
         })?;
 
         // add the response http status to the current request span
@@ -543,31 +545,29 @@ impl RestClient {
 
         if resp.status().is_success() {
             // success => await response body
-            let bytes = resp.bytes().await.map_err(|err| {
+            let bytes = resp.bytes().await.inspect_err(|err| {
                 let time = start.elapsed();
                 warn!(
                     target: "http",
                     %status,
                     ?time,
-                    "error receiving successful response body: {err:#}",
+                    "Done (err)(receiving) Couldn't receive success response body: {err:#}",
                 );
-                err
             })?;
 
             let time = start.elapsed();
-            info!(target: "http", %status, ?time, "done (success)");
+            info!(target: "http", %status, ?time, "Done (success)");
             Ok(Ok(bytes))
         } else {
             // http error => await response json and convert to ErrorResponse
-            let err = resp.json::<ErrorResponse>().await.map_err(|err| {
+            let err = resp.json::<ErrorResponse>().await.inspect_err(|err| {
                 let time = start.elapsed();
                 warn!(
                     target: "http",
                     %status,
                     ?time,
-                    "error receiving ErrorResponse json: {err:#}",
+                    "Done (err)(receiving) Couldn't receive ErrorResponse json: {err:#}",
                 );
-                err
             })?;
 
             let time = start.elapsed();
@@ -577,7 +577,7 @@ impl RestClient {
                 ?time,
                 err_code = %err.code,
                 err_msg = %err.msg,
-                "error response",
+                "Done (err)(response) Server returned error response",
             );
             Ok(Err(err))
         }
