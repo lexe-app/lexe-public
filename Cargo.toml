@@ -29,7 +29,7 @@ lightning-invoice = { version = "0.21" }
 lightning-net-tokio = { version = "0.0.113" }
 # TODO(max): Switch to crates.io once LDK #1870 is merged
 # lightning-transaction-sync = { version = "0.0.113", features = ["esplora-async"] }
-lightning-transaction-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-thru-2023-02-22-with-2064", features = ["esplora-async"] }
+lightning-transaction-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-2023_06_29", features = ["esplora-async"] }
 # lightning-transaction-sync = { path = "../../ldk/lightning-transaction-sync", features = ["esplora-async"] }
 
 # --- GENERAL --- #
@@ -162,10 +162,10 @@ bdk-macros = { git = "https://github.com/lexe-tech/bdk", branch = "lexe-v0.26-sy
 # 2) LDK#1870 containing the lightning-transaction-sync crate is merged.
 
 # For if we need to run a patched version of LDK instead of crates.io.
-lightning = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-thru-2023-02-22-with-2064" }
-lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-thru-2023-02-22-with-2064" }
-lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-thru-2023-02-22-with-2064" }
-lightning-transaction-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-thru-2023-02-22-with-2064" }
+lightning = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-2023_06_29" }
+lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-2023_06_29" }
+lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-2023_06_29" }
+lightning-transaction-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.113-2023_06_29" }
 
 # For debugging LDK or testing patches during local development
 # lightning = { path = "../../ldk/lightning" }
