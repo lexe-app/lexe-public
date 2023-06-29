@@ -24,7 +24,7 @@ use lightning::{
     routing::gossip::NodeId,
     util::events::{Event, EventHandler},
 };
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 use crate::{
     alias::NodePaymentsManagerType, channel_manager::NodeChannelManager,
@@ -78,7 +78,8 @@ impl EventHandler for NodeEventHandler {
 
         let event_name = lexe_ln::event::get_event_name(&event);
         info!("Handling event: {event_name}");
-        debug!("Event details: {event:?}");
+        #[cfg(debug_assertions)] // Events contain sensitive info
+        tracing::trace!("Event details: {event:?}");
 
         // TODO(max): Should be possible to remove all clone()s once async event
         // handling is supported
