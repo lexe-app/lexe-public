@@ -48,7 +48,12 @@ android {
         applicationId "tech.lexe.lexeapp"
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
-        minSdkVersion flutter.minSdkVersion
+
+        // `flutter_zxing` requires at least Android 21
+        // <https://pub.dev/packages/flutter_zxing#supported-platforms>
+        minSdkVersion 21
+        // minSdkVersion flutter.minSdkVersion
+
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName

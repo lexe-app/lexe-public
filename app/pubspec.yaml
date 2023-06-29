@@ -54,6 +54,9 @@ dependencies:
   # Used by the generated flutter_rust_bridge ffi bindings.
   meta: ^1.9.1
 
+  # # QR code scanning
+  # mobile_scanner: ^3.3.0
+
   # Platform-specific paths (used to find app data directory).
   path_provider: ^2.0.15
 
