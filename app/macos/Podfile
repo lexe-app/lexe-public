@@ -1,4 +1,6 @@
-platform :osx, '10.14'
+# `flutter_zxing` requires at least macOS 10.15
+# <https://pub.dev/packages/flutter_zxing#supported-platforms>
+platform :osx, '10.15'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -34,7 +36,25 @@ target 'Runner' do
 end
 
 post_install do |installer|
+  # `pods_project` refers to the `Pods` auto-generated project (I believe).
   installer.pods_project.targets.each do |target|
+    # `target` is each Podfile dependency, which includes those injected via
+    # flutter native plugins.
+
     flutter_additional_macos_build_settings(target)
+
+    if target.name == "flutter_zxing"
+      target.build_configurations.each do |config|
+        # See: the full reference for XCode build_settings:
+        # <https://developer.apple.com/documentation/xcode/build-settings-reference>
+        
+        # Silence some useless warnings.
+        config.build_settings["CLANG_WARN_DOCUMENTATION_COMMENTS"] = "NO"
+        config.build_settings["CLANG_WARN_COMMA"] = "NO"
+        # These warnings are a little more suspicious... silence them anyway.
+        config.build_settings["GCC_WARN_UNINITIALIZED_AUTOS"] = "NO"
+        config.build_settings["GCC_WARN_64_TO_32_BIT_CONVERSION"] = "NO"
+      end
+    end
   end
 end
