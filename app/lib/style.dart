@@ -14,6 +14,30 @@ import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 class LxTheme {
   LxTheme._();
 
+  static const SystemUiOverlayStyle systemOverlayStyleLight =
+      SystemUiOverlayStyle(
+    // From: SystemUiOverlayStyle.dark
+    systemNavigationBarIconBrightness: Brightness.light,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+    // Lexe overrides
+    statusBarColor: LxColors.background,
+    systemNavigationBarColor: LxColors.background,
+    systemNavigationBarDividerColor: LxColors.background,
+  );
+
+  static const SystemUiOverlayStyle systemOverlayStyleDark =
+      SystemUiOverlayStyle(
+    // From: SystemUiOverlayStyle.light
+    systemNavigationBarIconBrightness: Brightness.light,
+    statusBarIconBrightness: Brightness.light,
+    statusBarBrightness: Brightness.dark,
+    // Lexe overrides
+    statusBarColor: LxColors.foreground,
+    systemNavigationBarColor: LxColors.foreground,
+    systemNavigationBarDividerColor: LxColors.foreground,
+  );
+
   /// The Lexe light theme for `MaterialApp` compatibility
   static ThemeData light() {
     final colorScheme = ColorScheme.fromSwatch(
@@ -37,11 +61,7 @@ class LxTheme {
         // with the page background.
         elevation: 0.0,
         // make the system bar use the same background color as the page
-        systemOverlayStyle: SystemUiOverlayStyle.dark.copyWith(
-          statusBarColor: LxColors.background,
-          systemNavigationBarColor: LxColors.background,
-          systemNavigationBarDividerColor: LxColors.background,
-        ),
+        systemOverlayStyle: LxTheme.systemOverlayStyleLight,
       ),
       drawerTheme: baseTheme.drawerTheme.copyWith(
         // make the drawer blend with the system bar
