@@ -10,27 +10,26 @@ use crate::{
     wallet::LexeWallet,
 };
 
-// TODO(max): Perhaps we should upstream this as a Display impl?
 pub fn get_event_name(event: &Event) -> &'static str {
     match event {
-        Event::OpenChannelRequest { .. } => "open channel request",
-        Event::FundingGenerationReady { .. } => "funding generation ready",
-        Event::ChannelReady { .. } => "channel ready",
-        Event::PaymentClaimable { .. } => "payment claimable",
-        Event::HTLCIntercepted { .. } => "HTLC intercepted",
-        Event::PaymentClaimed { .. } => "payment claimed",
-        Event::PaymentSent { .. } => "payment sent",
-        Event::PaymentFailed { .. } => "payment failed",
-        Event::PaymentPathSuccessful { .. } => "payment path successful",
-        Event::PaymentPathFailed { .. } => "payment path failed",
-        Event::ProbeSuccessful { .. } => "probe successful",
-        Event::ProbeFailed { .. } => "probe failed",
-        Event::PendingHTLCsForwardable { .. } => "pending HTLCs forwardable",
-        Event::SpendableOutputs { .. } => "spendable outputs",
-        Event::PaymentForwarded { .. } => "payment forwarded",
-        Event::ChannelClosed { .. } => "channel closed",
-        Event::DiscardFunding { .. } => "discard funding",
-        Event::HTLCHandlingFailed { .. } => "HTLC handling failed",
+        Event::OpenChannelRequest { .. } => "OpenChannelRequest",
+        Event::FundingGenerationReady { .. } => "FundingGenerationReady",
+        Event::ChannelReady { .. } => "ChannelReady",
+        Event::PaymentClaimable { .. } => "PaymentClaimable",
+        Event::HTLCIntercepted { .. } => "HTLCIntercepted",
+        Event::PaymentClaimed { .. } => "PaymentClaimed",
+        Event::PaymentSent { .. } => "PaymentSent",
+        Event::PaymentFailed { .. } => "PaymentFailed",
+        Event::PaymentPathSuccessful { .. } => "PaymentPathSuccessful",
+        Event::PaymentPathFailed { .. } => "PaymentPathFailed",
+        Event::ProbeSuccessful { .. } => "ProbeSuccessful",
+        Event::ProbeFailed { .. } => "ProbeFailed",
+        Event::PendingHTLCsForwardable { .. } => "PendingHTLCsForwardable",
+        Event::SpendableOutputs { .. } => "SpendableOutputs",
+        Event::PaymentForwarded { .. } => "PaymentForwarded",
+        Event::ChannelClosed { .. } => "ChannelClosed",
+        Event::DiscardFunding { .. } => "DiscardFunding",
+        Event::HTLCHandlingFailed { .. } => "HTLCHandlingFailed",
     }
 }
 
