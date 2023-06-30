@@ -1,7 +1,8 @@
 // Page for scanning QR codes / barcodes
 
 import 'package:flutter/material.dart';
-// import 'package:lexeapp/logger.dart' show info;
+import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:lexeapp/logger.dart' show info;
 // import 'package:mobile_scanner/mobile_scanner.dart' show MobileScanner;
 
 import '../../style.dart' show LxColors;
@@ -24,7 +25,13 @@ class ScanPage extends StatelessWidget {
         // X - quit scanning
         leading: const CloseButton(),
       ),
-      body: const Placeholder(),
+      // body: const Placeholder(),
+      body: ReaderWidget(
+        onScan: (barcode) {
+          info("barcode:");
+          info("  text: ${barcode.text}");
+        },
+      ),
       // body: MobileScanner(
       //   onDetect: (capture) {
       //     info("new scanner capture: ${capture.barcodes.length} barcodes:");

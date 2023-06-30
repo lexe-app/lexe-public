@@ -45,6 +45,11 @@ dependencies:
   # The high-level memory safe interface for generated Rust<->dart ffi bindings.
   flutter_rust_bridge: ^1.78.0
 
+  # QR code scanning
+  # NOTE: I tried `mobile_scanner`, but that adds a ton of closed source, MLKit
+  # junk, which is kinda sketch and added a bunch of build headaches.
+  flutter_zxing: ^1.2.1
+
   # Immutable record types and Rust-style enums in Dart.
   freezed_annotation: ^2.2.0
 
