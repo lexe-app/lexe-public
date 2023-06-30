@@ -6,7 +6,9 @@ use std::{
 use common::{notify, shutdown::ShutdownChannel, task::LxTask};
 use lightning::util::events::EventsProvider;
 use tokio::time::{interval, interval_at, Instant};
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{
+    debug, error, info, info_span, instrument, trace, warn, Instrument,
+};
 
 use crate::{
     alias::{LexeChainMonitorType, P2PGossipSyncType, ProbabilisticScorerType},
@@ -83,6 +85,8 @@ impl LexeBackgroundProcessor {
             let mut ps_timer = interval(PROB_SCORER_PERSIST_INTERVAL);
 
             loop {
+                trace!("Beginning BGP loop iteration");
+
                 // A future that completes whenever we need to reprocess events.
                 // Returns a bool indicating whether we also need to repersist
                 // the channel manager. NOTE: The "channel manager update"
@@ -119,11 +123,17 @@ impl LexeBackgroundProcessor {
                     // --- Process events + channel manager repersist --- //
                     repersist_channel_manager = process_events_fut => {
                         debug!("Processing pending events");
-                        channel_manager
-                            .process_pending_events(&event_handler);
-                        chain_monitor
-                            .process_pending_events(&event_handler);
-                        peer_manager.process_events();
+                        async {
+                            channel_manager
+                                .process_pending_events(&event_handler);
+                        }.instrument(info_span!("(process)(chan-man)")).await;
+                        async {
+                            chain_monitor
+                                .process_pending_events(&event_handler);
+                        }.instrument(info_span!("(process)(chain-mon)")).await;
+                        async {
+                            peer_manager.process_events();
+                        }.instrument(info_span!("(process)(peer-man)")).await;
 
                         if repersist_channel_manager {
                             let try_persist = persister
