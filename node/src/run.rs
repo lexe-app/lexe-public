@@ -384,7 +384,8 @@ impl UserNode {
         };
 
         // Set up the channel monitor persistence task
-        let (process_events_tx, process_events_rx) = notify::channel();
+        let (process_events_tx, process_events_rx) =
+            mpsc::channel(DEFAULT_CHANNEL_SIZE);
         tasks.push(channel_monitor::spawn_channel_monitor_persister_task(
             chain_monitor.clone(),
             channel_monitor_persister_rx,

@@ -3,9 +3,12 @@ use std::{
     time::Duration,
 };
 
-use common::{notify, shutdown::ShutdownChannel, task::LxTask};
+use common::{shutdown::ShutdownChannel, task::LxTask};
 use lightning::util::events::EventsProvider;
-use tokio::time::{interval, interval_at, Instant};
+use tokio::{
+    sync::{mpsc, oneshot},
+    time::{interval, interval_at, Instant},
+};
 use tracing::{
     debug, error, info, info_span, instrument, trace, warn, Instrument,
 };
@@ -67,7 +70,7 @@ impl LexeBackgroundProcessor {
         // (which may resume monitor updating / broadcast a funding tx). We may
         // be able to get rid of this once LDK#2052 is implemented. See the
         // comment above `PROCESS_EVENTS_INTERVAL` for more info.
-        mut process_events_rx: notify::Receiver,
+        mut process_events_rx: mpsc::Receiver<oneshot::Sender<()>>,
         mut shutdown: ShutdownChannel,
     ) -> LxTask<()>
     where
@@ -93,6 +96,7 @@ impl LexeBackgroundProcessor {
                 // branch is intentionally included here because LDK's
                 // background processor always processes events just prior to
                 // any channel manager persist.
+                let mut processed_txs = Vec::new();
                 let process_events_fut = async {
                     let repersist_channel_manager = tokio::select! {
                         biased;
@@ -104,8 +108,9 @@ impl LexeBackgroundProcessor {
                             debug!("process_events_timer ticked");
                             false
                         }
-                        () = process_events_rx.recv() => {
+                        Some(tx) = process_events_rx.recv() => {
                             debug!("Triggered by process_events channel");
+                            processed_txs.push(tx);
                             false
                         }
                     };
@@ -114,7 +119,9 @@ impl LexeBackgroundProcessor {
                     // resetting the process_events_timer & clearing out the
                     // process_events channel.
                     process_events_timer.reset();
-                    process_events_rx.clear();
+                    while let Ok(tx) = process_events_rx.try_recv() {
+                        processed_txs.push(tx);
+                    }
 
                     repersist_channel_manager
                 };
@@ -134,6 +141,11 @@ impl LexeBackgroundProcessor {
                         async {
                             peer_manager.process_events();
                         }.instrument(info_span!("(process)(peer-man)")).await;
+
+                        // Notify waiters that events have been processed.
+                        for tx in processed_txs {
+                            let _ = tx.send(());
+                        }
 
                         if repersist_channel_manager {
                             let try_persist = persister

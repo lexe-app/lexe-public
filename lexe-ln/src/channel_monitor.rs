@@ -3,14 +3,15 @@ use std::{
     future::Future,
     pin::Pin,
     sync::Arc,
+    time::Duration,
 };
 
 use common::{
-    ln::channel::LxOutPoint, notify, shutdown::ShutdownChannel, task::LxTask,
+    ln::channel::LxOutPoint, shutdown::ShutdownChannel, task::LxTask, Apply,
 };
 use lightning::chain::{chainmonitor::MonitorUpdateId, transaction::OutPoint};
 use thiserror::Error;
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, warn};
 
 use crate::{
@@ -18,6 +19,10 @@ use crate::{
     test_event::{TestEvent, TestEventSender},
     traits::LexePersister,
 };
+
+/// How long we'll wait to receive a reply from the background processor that
+/// event processing is complete.
+const PROCESS_EVENTS_TIMEOUT: Duration = Duration::from_secs(15);
 
 type BoxedAnyhowFuture =
     Pin<Box<dyn Future<Output = anyhow::Result<()>> + Send + 'static>>;
@@ -67,7 +72,7 @@ impl Display for ChannelMonitorUpdateKind {
 pub fn spawn_channel_monitor_persister_task<PS>(
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     mut channel_monitor_persister_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
-    process_events_tx: notify::Sender,
+    process_events_tx: mpsc::Sender<oneshot::Sender<()>>,
     test_event_tx: TestEventSender,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
@@ -131,6 +136,10 @@ enum Error {
     ChainMonitor(lightning::util::errors::APIError),
     #[error("Received shutdown signal")]
     Interrupted,
+    #[error("Timed out waiting for events to be processed")]
+    EventsProcessTimeout,
+    #[error("Could not receive reply from the `processed_rx` channel")]
+    EventsProcessRecv,
 }
 
 /// A helper to prevent [`spawn_channel_monitor_persister_task`]'s control flow
@@ -142,7 +151,7 @@ async fn handle_update<PS: LexePersister>(
     chain_monitor: &LexeChainMonitorType<PS>,
     update: LxChannelMonitorUpdate,
     idx: usize,
-    process_events_tx: &notify::Sender,
+    process_events_tx: &mpsc::Sender<oneshot::Sender<()>>,
     test_event_tx: &TestEventSender,
     shutdown: &mut ShutdownChannel,
 ) -> Result<(), Error> {
@@ -177,7 +186,14 @@ async fn handle_update<PS: LexePersister>(
     // Trigger the background processor to reprocess events, as the completed
     // channel monitor update may have generated an event that can be handled,
     // such as to restore monitor updating and broadcast a funding tx.
-    process_events_tx.send();
+    // Furthermore, wait for the event to be handled.
+    let (processed_tx, processed_rx) = oneshot::channel();
+    let _ = process_events_tx.try_send(processed_tx);
+    processed_rx
+        .apply(|rx| tokio::time::timeout(PROCESS_EVENTS_TIMEOUT, rx))
+        .await
+        .map_err(|_| Error::EventsProcessTimeout)?
+        .map_err(|_| Error::EventsProcessRecv)?;
 
     info!("Success: persisted {kind} channel #{idx}");
     test_event_tx.send(TestEvent::ChannelMonitorPersisted);
