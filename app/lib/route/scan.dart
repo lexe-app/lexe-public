@@ -1,11 +1,11 @@
 // Page for scanning QR codes / barcodes
 
 import 'package:flutter/material.dart';
-import 'package:flutter_zxing/flutter_zxing.dart';
+import 'package:flutter_zxing/flutter_zxing.dart'
+    show FixedScannerOverlay, ReaderWidget;
 import 'package:lexeapp/logger.dart' show info;
-// import 'package:mobile_scanner/mobile_scanner.dart' show MobileScanner;
 
-import '../../style.dart' show LxColors;
+import '../../style.dart' show LxColors, LxRadius, LxTheme, Space;
 
 class ScanPage extends StatelessWidget {
   const ScanPage({super.key});
@@ -24,24 +24,42 @@ class ScanPage extends StatelessWidget {
 
         // X - quit scanning
         leading: const CloseButton(),
+
+        // * Make the top status bar transparent, so the whole screen includes
+        //   the camera view.
+        // * Make the bottom nav thing `foreground` instead of black.
+        systemOverlayStyle: LxTheme.systemOverlayStyleLight.copyWith(
+          statusBarColor: LxColors.clearW0,
+          systemNavigationBarColor: LxColors.foreground,
+          systemNavigationBarDividerColor: LxColors.foreground,
+        ),
       ),
-      // body: const Placeholder(),
+      // TODO(phlip9): just show a file picker or something for non-mobile
+      //               OS like macOS, linux, windows.
+      // We're waiting on the flutter `camera` pkg to support desktop OS's.
       body: ReaderWidget(
         onScan: (barcode) {
-          info("barcode:");
-          info("  text: ${barcode.text}");
+          info("barcode: '${barcode.text}'");
         },
+        showFlashlight: false,
+        showToggleCamera: false,
+        cropPercent: 0.50,
+        actionButtonsAlignment: Alignment.bottomCenter,
+        actionButtonsPadding: const EdgeInsets.all(Space.s600),
+        loading: const DecoratedBox(
+          decoration: BoxDecoration(color: LxColors.foreground),
+          child: Center(),
+        ),
+        scannerOverlay: const FixedScannerOverlay(
+          borderColor: LxColors.grey975,
+          // grey900 x clear700
+          overlayColor: Color(0xb2eff3f5),
+          borderRadius: LxRadius.r400,
+          borderLength: 120.0,
+          borderWidth: 8.0,
+          cutOutSize: 240.0,
+        ),
       ),
-      // body: MobileScanner(
-      //   onDetect: (capture) {
-      //     info("new scanner capture: ${capture.barcodes.length} barcodes:");
-      //     for (final barcode in capture.barcodes) {
-      //       info("  barcode:");
-      //       info("    type: ${barcode.type}");
-      //       info("    value: ${barcode.rawValue}");
-      //     }
-      //   },
-      // ),
     );
   }
 }
