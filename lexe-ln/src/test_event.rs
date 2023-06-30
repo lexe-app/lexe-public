@@ -18,7 +18,7 @@ pub fn test_event_channel(
     label: &'static str,
 ) -> (TestEventSender, TestEventReceiver) {
     let (tx, rx) = mpsc::channel(TEST_EVENT_CHANNEL_SIZE);
-    let sender = TestEventSender::new(tx);
+    let sender = TestEventSender::new(label, tx);
     let receiver = TestEventReceiver::new(label, rx);
     (sender, receiver)
 }
@@ -75,18 +75,24 @@ pub enum TestEvent {
 /// be cfg'd out in prod.
 #[derive(Clone)]
 pub struct TestEventSender {
+    /// A label (e.g. "(user)", "(lsp)") which allows "received test event" log
+    /// outputs emitted by this receiver to be differentiated from similar log
+    /// outputs emitted by other receivers.
+    #[cfg_attr(all(not(test), target_env = "sgx"), allow(dead_code))]
+    label: &'static str,
+    // TODO(max): Switch this to "not prod" instead of "not sgx"
     #[cfg(any(test, not(target_env = "sgx")))]
     tx: mpsc::Sender<TestEvent>,
 }
 
 impl TestEventSender {
-    fn new(tx: mpsc::Sender<TestEvent>) -> Self {
+    fn new(label: &'static str, tx: mpsc::Sender<TestEvent>) -> Self {
         cfg_if! {
             if #[cfg(any(test, not(target_env = "sgx")))] {
-                Self { tx }
+                Self { label, tx }
             } else {
                 let _ = tx;
-                Self {}
+                Self { label }
             }
         }
     }
@@ -94,6 +100,8 @@ impl TestEventSender {
     pub fn send(&self, event: TestEvent) {
         cfg_if! {
             if #[cfg(any(test, not(target_env = "sgx")))] {
+                let label = &self.label;
+                debug!("{label} sending test event: {event:?}");
                 let _ = self.tx.try_send(event);
             } else {
                 let _ = event;
