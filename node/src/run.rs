@@ -92,7 +92,7 @@ pub struct UserNode {
     broadcaster: Arc<BroadcasterType>,
     esplora: Arc<LexeEsplora>,
     pub keys_manager: LexeKeysManager,
-    chain_monitor: Arc<ChainMonitorType>,
+    pub chain_monitor: Arc<ChainMonitorType>,
     pub(crate) network_graph: Arc<NetworkGraphType>,
     gossip_sync: Arc<P2PGossipSyncType>,
     scorer: Arc<Mutex<ProbabilisticScorerType>>,
@@ -403,6 +403,7 @@ impl UserNode {
         let app_routes = server::app_routes(
             app_span.id(),
             persister.clone(),
+            chain_monitor.clone(),
             wallet.clone(),
             esplora.clone(),
             router.clone(),

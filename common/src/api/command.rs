@@ -18,6 +18,9 @@ pub struct NodeInfo {
     pub num_peers: usize,
     /// Our on-chain wallet [`Balance`].
     pub wallet_balance: Balance,
+    /// The number of pending channel monitor updates.
+    /// If this isn't 0, it's likely that at least one channel is paused.
+    pub pending_monitor_updates: usize,
 }
 
 #[derive(Default, Serialize, Deserialize)]

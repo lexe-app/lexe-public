@@ -34,8 +34,10 @@ use tracing::{span, trace};
 use warp::{filters::BoxedFilter, http::Response, hyper::Body, Filter, Reply};
 
 use crate::{
-    alias::NodePaymentsManagerType, channel_manager::NodeChannelManager,
-    peer_manager::NodePeerManager, persister::NodePersister,
+    alias::{ChainMonitorType, NodePaymentsManagerType},
+    channel_manager::NodeChannelManager,
+    peer_manager::NodePeerManager,
+    persister::NodePersister,
 };
 
 /// Handlers for commands that can only be initiated by the app.
@@ -49,6 +51,7 @@ mod runner;
 pub(crate) fn app_routes(
     parent_span: Option<span::Id>,
     persister: NodePersister,
+    chain_monitor: Arc<ChainMonitorType>,
     wallet: LexeWallet,
     esplora: Arc<LexeEsplora>,
     router: Arc<RouterType>,
@@ -74,6 +77,7 @@ pub(crate) fn app_routes(
         .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::peer_manager(peer_manager))
         .and(inject::wallet(wallet.clone()))
+        .and(inject::chain_monitor(chain_monitor))
         .then(lexe_ln::command::node_info)
         .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
@@ -223,6 +227,13 @@ mod inject {
     ) -> impl Filter<Extract = (NodePersister,), Error = Infallible> + Clone
     {
         warp::any().map(move || persister.clone())
+    }
+
+    pub(super) fn chain_monitor(
+        chain_monitor: Arc<ChainMonitorType>,
+    ) -> impl Filter<Extract = (Arc<ChainMonitorType>,), Error = Infallible> + Clone
+    {
+        warp::any().map(move || chain_monitor.clone())
     }
 
     pub(super) fn wallet(

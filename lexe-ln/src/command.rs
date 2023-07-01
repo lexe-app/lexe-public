@@ -41,7 +41,7 @@ use tokio::sync::broadcast;
 use tracing::{debug, info, instrument, warn};
 
 use crate::{
-    alias::RouterType,
+    alias::{LexeChainMonitorType, RouterType},
     esplora::LexeEsplora,
     keys_manager::LexeKeysManager,
     payments::{
@@ -68,12 +68,12 @@ pub enum CreateInvoiceCaller {
     Lsp,
 }
 
-// This can become non-async if LexeWallet::get_balance becomes non-async.
 #[instrument(skip_all, name = "(node-info)")]
 pub async fn node_info<CM, PM, PS>(
     channel_manager: CM,
     peer_manager: PM,
     wallet: LexeWallet,
+    chain_monitor: Arc<LexeChainMonitorType<PS>>,
 ) -> anyhow::Result<NodeInfo>
 where
     CM: LexeChannelManager<PS>,
@@ -92,6 +92,12 @@ where
 
     let wallet_balance = wallet.get_balance().await?;
 
+    let pending_monitor_updates = chain_monitor
+        .list_pending_monitor_updates()
+        .values()
+        .map(|v| v.len())
+        .sum();
+
     let info = NodeInfo {
         node_pk,
         num_channels,
@@ -99,6 +105,7 @@ where
         local_balance,
         num_peers,
         wallet_balance,
+        pending_monitor_updates,
     };
 
     Ok(info)
