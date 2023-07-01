@@ -27,6 +27,7 @@ import 'logger.dart' show info;
 import 'route/backup_wallet.dart' show BackupWalletPage;
 import 'route/landing.dart' show LandingPage;
 import 'route/scan.dart' show ScanPage;
+import 'route/show_qr.dart' show ShowQrPage;
 import 'route/wallet.dart' show DrawerListItem, WalletPage;
 import 'style.dart' show LxColors, LxTheme, Space;
 
@@ -63,6 +64,13 @@ Future<void> main() async {
           Component("BackupWalletPage", (_) => BackupWalletPage(app: mockApp)),
           Component("WalletPage", (_) => WalletPage(app: mockApp)),
           Component("ScanPage", (_) => const ScanPage()),
+          Component(
+            "ShowQrPage (standard bip21)",
+            (_) => const ShowQrPage(
+              value:
+                  "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday",
+            ),
+          ),
         ],
       ),
     ),
