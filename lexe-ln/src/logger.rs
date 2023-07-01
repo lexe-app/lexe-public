@@ -160,7 +160,6 @@ impl Logger for InnerTracingLogger {
                 &meta.fields().value_set(&[
                     (&keys.message, Some(&record.args as &dyn Value)),
                     (&keys.module, Some(&record.module_path)),
-                    (&keys.file, Some(&record.file)),
                     (&keys.line, Some(&record.line)),
                 ]),
             ));
@@ -176,23 +175,20 @@ impl Logger for InnerTracingLogger {
 struct Fields {
     message: Field,
     module: Field,
-    file: Field,
     line: Field,
 }
 
-static FIELD_NAMES: &[&str] = &["message", "module", "file", "line"];
+static FIELD_NAMES: &[&str] = &["message", "module", "line"];
 
 impl Fields {
     fn new(cs: &'static dyn Callsite) -> Self {
         let fieldset = cs.metadata().fields();
         let message = fieldset.field("message").unwrap();
         let module = fieldset.field("module").unwrap();
-        let file = fieldset.field("file").unwrap();
         let line = fieldset.field("line").unwrap();
         Fields {
             message,
             module,
-            file,
             line,
         }
     }
@@ -296,7 +292,7 @@ mod test {
                     Some("hello: 123".to_owned()).as_ref()
                 );
                 assert!(fields.contains_key("module"));
-                assert!(fields.contains_key("file"));
+                assert!(!fields.contains_key("file"));
                 assert!(fields.contains_key("line"));
             }
             fn enter(&self, _: &Id) {}
