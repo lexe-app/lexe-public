@@ -56,9 +56,9 @@ pub type P2PGossipSyncType = P2PGossipSync<
 pub type LexeChannelManagerType<PERSISTER> = ChannelManager<
     Arc<LexeChainMonitorType<PERSISTER>>,
     Arc<BroadcasterType>,
-    LexeKeysManager,
-    LexeKeysManager,
-    LexeKeysManager,
+    Arc<LexeKeysManager>,
+    Arc<LexeKeysManager>,
+    Arc<LexeKeysManager>,
     Arc<FeeEstimatorType>,
     Arc<RouterType>,
     LexeTracingLogger,
@@ -68,8 +68,8 @@ pub type ProbabilisticScorerType =
     ProbabilisticScorer<Arc<NetworkGraphType>, LexeTracingLogger>;
 
 pub type OnionMessengerType = OnionMessenger<
-    LexeKeysManager,
-    LexeKeysManager,
+    Arc<LexeKeysManager>,
+    Arc<LexeKeysManager>,
     LexeTracingLogger,
     IgnoringMessageHandler,
 >;
@@ -81,7 +81,7 @@ pub type LexePeerManagerType<CHANNEL_MANAGER> = PeerManager<
     Arc<OnionMessengerType>,
     LexeTracingLogger,
     Arc<IgnoringMessageHandler>,
-    LexeKeysManager,
+    Arc<LexeKeysManager>,
 >;
 
 pub type RouterType = DefaultRouter<

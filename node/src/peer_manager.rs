@@ -29,7 +29,7 @@ impl Deref for NodePeerManager {
 impl NodePeerManager {
     pub(crate) fn init(
         rng: &mut dyn Crng,
-        keys_manager: LexeKeysManager,
+        keys_manager: Arc<LexeKeysManager>,
         channel_manager: NodeChannelManager,
         gossip_sync: Arc<P2PGossipSyncType>,
         onion_messenger: Arc<OnionMessengerType>,

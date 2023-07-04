@@ -57,7 +57,7 @@ pub(crate) fn app_routes(
     router: Arc<RouterType>,
     channel_manager: NodeChannelManager,
     peer_manager: NodePeerManager,
-    keys_manager: LexeKeysManager,
+    keys_manager: Arc<LexeKeysManager>,
     payments_manager: NodePaymentsManagerType,
     lsp_info: LspInfo,
     scid: Scid,
@@ -271,8 +271,8 @@ mod inject {
     }
 
     pub(super) fn keys_manager(
-        keys_manager: LexeKeysManager,
-    ) -> impl Filter<Extract = (LexeKeysManager,), Error = Infallible> + Clone
+        keys_manager: Arc<LexeKeysManager>,
+    ) -> impl Filter<Extract = (Arc<LexeKeysManager>,), Error = Infallible> + Clone
     {
         warp::any().map(move || keys_manager.clone())
     }

@@ -137,7 +137,7 @@ pub fn resync(resync_tx: broadcast::Sender<()>) -> anyhow::Result<()> {
 pub async fn create_invoice<CM, PS>(
     req: CreateInvoiceRequest,
     channel_manager: CM,
-    keys_manager: LexeKeysManager,
+    keys_manager: Arc<LexeKeysManager>,
     payments_manager: PaymentsManager<CM, PS>,
     caller: CreateInvoiceCaller,
     network: Network,

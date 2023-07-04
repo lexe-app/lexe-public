@@ -287,7 +287,7 @@ impl InnerPersister {
     pub(crate) async fn read_channel_manager(
         &self,
         channel_monitors: &mut [(BlockHash, ChannelMonitorType)],
-        keys_manager: LexeKeysManager,
+        keys_manager: Arc<LexeKeysManager>,
         fee_estimator: Arc<FeeEstimatorType>,
         chain_monitor: Arc<ChainMonitorType>,
         broadcaster: Arc<BroadcasterType>,
@@ -354,7 +354,7 @@ impl InnerPersister {
     // Replaces equivalent method in lightning_persister::FilesystemPersister
     pub(crate) async fn read_channel_monitors(
         &self,
-        keys_manager: LexeKeysManager,
+        keys_manager: Arc<LexeKeysManager>,
     ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
         debug!("Reading channel monitors");
         // TODO Also attempt to read from the cloud

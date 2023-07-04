@@ -1,33 +1,34 @@
-use std::{ops::Deref, sync::Arc};
-
 use anyhow::{anyhow, ensure};
 use bitcoin::{
+    bech32::u5,
     blockdata::{
         script::Script,
         transaction::{Transaction, TxOut},
     },
-    secp256k1::{Secp256k1, Signing},
+    secp256k1::{
+        ecdh::SharedSecret,
+        ecdsa::{RecoverableSignature, Signature},
+        scalar::Scalar,
+        PublicKey, Secp256k1, Signing,
+    },
 };
 use common::{api::NodePk, rng::Crng, root_seed::RootSeed};
-use lightning::chain::keysinterface::{
-    KeysManager, NodeSigner, Recipient, SpendableOutputDescriptor,
+use lightning::{
+    chain::keysinterface::{
+        EntropySource, InMemorySigner, KeyMaterial, KeysManager, NodeSigner,
+        Recipient, SignerProvider, SpendableOutputDescriptor,
+    },
+    ln::{
+        msgs::{DecodeError, UnsignedGossipMessage},
+        script::ShutdownScript,
+    },
 };
 use secrecy::ExposeSecret;
 
 /// A thin wrapper around LDK's KeysManager which provides a cleaner init API
 /// and some custom functionalities.
-///
-/// An Arc is held internally, so it is fine to clone and use directly.
-#[derive(Clone)]
 pub struct LexeKeysManager {
-    inner: Arc<KeysManager>,
-}
-
-impl Deref for LexeKeysManager {
-    type Target = KeysManager;
-    fn deref(&self) -> &Self::Target {
-        self.inner.as_ref()
-    }
+    inner: KeysManager,
 }
 
 impl LexeKeysManager {
@@ -39,11 +40,11 @@ impl LexeKeysManager {
         // to seed an CRNG. We just provide random values from our system CRNG.
         let random_secs = rng.next_u64();
         let random_nanos = rng.next_u32();
-        let inner = Arc::new(KeysManager::new(
+        let inner = KeysManager::new(
             ldk_seed.expose_secret(),
             random_secs,
             random_nanos,
-        ));
+        );
         Self { inner }
     }
 
@@ -61,11 +62,11 @@ impl LexeKeysManager {
         // to seed an CRNG. We just provide random values from our system CRNG.
         let random_secs = rng.next_u64();
         let random_nanos = rng.next_u32();
-        let inner = Arc::new(KeysManager::new(
+        let inner = KeysManager::new(
             ldk_seed.expose_secret(),
             random_secs,
             random_nanos,
-        ));
+        );
 
         // Construct the LexeKeysManager, but validation isn't done yet
         let keys_manager = Self { inner };
@@ -107,6 +108,91 @@ impl LexeKeysManager {
                 secp_ctx,
             )
             .map_err(|()| anyhow!("spend_spendable_outputs failed"))
+    }
+}
+
+// --- LDK impls --- //
+
+impl EntropySource for LexeKeysManager {
+    fn get_secure_random_bytes(&self) -> [u8; 32] {
+        self.inner.get_secure_random_bytes()
+    }
+}
+
+impl NodeSigner for LexeKeysManager {
+    fn get_inbound_payment_key_material(&self) -> KeyMaterial {
+        self.inner.get_inbound_payment_key_material()
+    }
+
+    fn get_node_id(&self, recipient: Recipient) -> Result<PublicKey, ()> {
+        self.inner.get_node_id(recipient)
+    }
+
+    fn ecdh(
+        &self,
+        recipient: Recipient,
+        other_key: &PublicKey,
+        tweak: Option<&Scalar>,
+    ) -> Result<SharedSecret, ()> {
+        self.inner.ecdh(recipient, other_key, tweak)
+    }
+
+    fn sign_invoice(
+        &self,
+        hrp_bytes: &[u8],
+        invoice_data: &[u5],
+        recipient: Recipient,
+    ) -> Result<RecoverableSignature, ()> {
+        self.inner.sign_invoice(hrp_bytes, invoice_data, recipient)
+    }
+
+    fn sign_gossip_message(
+        &self,
+        msg: UnsignedGossipMessage<'_>,
+    ) -> Result<Signature, ()> {
+        self.inner.sign_gossip_message(msg)
+    }
+}
+
+impl SignerProvider for LexeKeysManager {
+    type Signer = InMemorySigner;
+
+    // Required methods
+    fn generate_channel_keys_id(
+        &self,
+        inbound: bool,
+        channel_value_satoshis: u64,
+        user_channel_id: u128,
+    ) -> [u8; 32] {
+        self.inner.generate_channel_keys_id(
+            inbound,
+            channel_value_satoshis,
+            user_channel_id,
+        )
+    }
+
+    fn derive_channel_signer(
+        &self,
+        channel_value_satoshis: u64,
+        channel_keys_id: [u8; 32],
+    ) -> Self::Signer {
+        self.inner
+            .derive_channel_signer(channel_value_satoshis, channel_keys_id)
+    }
+
+    fn read_chan_signer(
+        &self,
+        reader: &[u8],
+    ) -> Result<Self::Signer, DecodeError> {
+        self.inner.read_chan_signer(reader)
+    }
+
+    fn get_destination_script(&self) -> Script {
+        self.inner.get_destination_script()
+    }
+
+    fn get_shutdown_scriptpubkey(&self) -> ShutdownScript {
+        self.inner.get_shutdown_scriptpubkey()
     }
 }
 
