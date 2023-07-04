@@ -445,9 +445,9 @@ where
     Ok(txid)
 }
 
-#[instrument(skip_all, name = "(get-new-address)")]
-pub async fn get_new_address(wallet: LexeWallet) -> anyhow::Result<Address> {
-    wallet.get_new_address().await
+#[instrument(skip_all, name = "(get-address)")]
+pub async fn get_address(wallet: LexeWallet) -> anyhow::Result<Address> {
+    wallet.get_address().await
 }
 
 /// Given a channel manager and `min_inbound_capacity`, generates a list of

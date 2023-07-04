@@ -293,10 +293,11 @@ pub trait AppNodeRunApi {
         req: SendOnchainRequest,
     ) -> Result<LxTxid, NodeApiError>;
 
-    /// POST /app/get_new_address [`()`] -> [`Address`]
+    /// POST /app/get_address [`()`] -> [`Address`]
     ///
-    /// Returns a new external address which can be used to receive funds.
-    async fn get_new_address(&self) -> Result<Address, NodeApiError>;
+    /// Returns an address which can be used to receive funds. It is unused
+    /// unless there is an incoming tx and BDK hasn't detected it yet.
+    async fn get_address(&self) -> Result<Address, NodeApiError>;
 
     /// POST /v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
     ///

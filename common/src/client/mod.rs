@@ -360,10 +360,10 @@ impl AppNodeRunApi for NodeClient {
         self.rest.send(req).await
     }
 
-    async fn get_new_address(&self) -> Result<Address, NodeApiError> {
+    async fn get_address(&self) -> Result<Address, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/app/get_new_address");
+        let url = format!("{run_url}/app/get_address");
         let req = self.rest.post(url, &EmptyData {});
         self.rest.send(req).await
     }
