@@ -112,10 +112,10 @@ pub(crate) fn app_routes(
         .then(lexe_ln::command::send_onchain)
         .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
-    let get_new_address = warp::path("get_new_address")
+    let get_address = warp::path("get_address")
         .and(warp::post())
         .and(inject::wallet(wallet))
-        .then(lexe_ln::command::get_new_address)
+        .then(lexe_ln::command::get_address)
         .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
 
@@ -151,7 +151,7 @@ pub(crate) fn app_routes(
             .or(create_invoice)
             .or(pay_invoice)
             .or(send_onchain)
-            .or(get_new_address)
+            .or(get_address)
             .or(payments)
             .map(Reply::into_response),
     );

@@ -918,7 +918,7 @@ mod test {
         ) -> Result<LxTxid, NodeApiError> {
             unimplemented!()
         }
-        async fn get_new_address(&self) -> Result<Address, NodeApiError> {
+        async fn get_address(&self) -> Result<Address, NodeApiError> {
             unimplemented!()
         }
 

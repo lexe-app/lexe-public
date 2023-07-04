@@ -385,7 +385,7 @@ async fn handle_event_fallible(
                 &outputs.iter().collect::<Vec<_>>();
             let destination_outputs = Vec::new();
             let destination_change_script =
-                wallet.get_new_address().await?.script_pubkey();
+                wallet.get_address().await?.script_pubkey();
             let feerate_sat_per_1000_weight =
                 esplora.get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
             let secp_ctx =
