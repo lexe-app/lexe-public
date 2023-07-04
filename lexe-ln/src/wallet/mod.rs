@@ -150,12 +150,26 @@ impl LexeWallet {
             .context("Could not get balance")
     }
 
-    /// Returns a new address derived using the external descriptor.
+    /// Returns the last unused address derived using the external descriptor.
+    ///
+    /// We employ this address index selection strategy because it prevents a
+    /// DoS attack where `get_new_address` is called repeatedly, making
+    /// transaction sync (which generally requires one API call per watched
+    /// address) extremely expensive.
+    ///
+    /// NOTE: If a user tries to send two on-chain txs to their wallet in quick
+    /// succession, the second call to `get_new_address` will return the same
+    /// address as the first if the wallet has not yet detected the first
+    /// transaction. If the user wishes to avoid address reuse, they should wait
+    /// for their wallet to sync before sending the second transaction (or
+    /// simply avoid this scenario in the first place).
+    ///
+    /// See [`AddressIndex`] for more details.
     pub async fn get_new_address(&self) -> anyhow::Result<Address> {
         self.wallet
             .lock()
             .await
-            .get_address(AddressIndex::New)
+            .get_address(AddressIndex::LastUnused)
             .map(|info| info.address)
             .context("Could not get new address")
     }
