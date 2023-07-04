@@ -179,7 +179,7 @@ impl NodeChannelManager {
     pub(crate) fn init(
         network: Network,
         maybe_manager: Option<(BlockHash, ChannelManagerType)>,
-        keys_manager: LexeKeysManager,
+        keys_manager: Arc<LexeKeysManager>,
         fee_estimator: Arc<FeeEstimatorType>,
         chain_monitor: Arc<ChainMonitorType>,
         broadcaster: Arc<BroadcasterType>,

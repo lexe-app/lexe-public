@@ -20,6 +20,7 @@ use common::{
     root_seed::RootSeed,
     shutdown::ShutdownChannel,
     task::{joined_task_state_label, BlockingTaskRt, LxTask},
+    Apply,
 };
 use futures::{
     future::FutureExt,
@@ -91,7 +92,7 @@ pub struct UserNode {
     fee_estimator: Arc<FeeEstimatorType>,
     broadcaster: Arc<BroadcasterType>,
     esplora: Arc<LexeEsplora>,
-    pub keys_manager: LexeKeysManager,
+    pub keys_manager: Arc<LexeKeysManager>,
     pub chain_monitor: Arc<ChainMonitorType>,
     pub(crate) network_graph: Arc<NetworkGraphType>,
     gossip_sync: Arc<P2PGossipSyncType>,
@@ -195,7 +196,8 @@ impl UserNode {
         // Build LexeKeysManager from node init data
         let keys_manager =
             LexeKeysManager::init(rng, &user.node_pk, &root_seed)
-                .context("Failed to construct keys manager")?;
+                .context("Failed to construct keys manager")?
+                .apply(Arc::new);
 
         // Initialize Persister
         let authenticator =
