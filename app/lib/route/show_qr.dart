@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart' show Encode, EncodeParams, zx;
 import 'package:lexeapp/logger.dart' show error;
 
+import '../../components.dart' show LxCloseButton;
 import '../../style.dart' show LxColors;
 
 class QrImage extends StatefulWidget {
@@ -111,7 +112,7 @@ class ShowQrPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        leading: const CloseButton(),
+        leading: const LxCloseButton(),
       ),
       body: Center(
         child: QrImage(

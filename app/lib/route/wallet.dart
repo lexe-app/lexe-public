@@ -149,22 +149,8 @@ class WalletPageState extends State<WalletPage> {
       appBar: AppBar(
         automaticallyImplyLeading: false,
 
-        // transparent bg header
-        // TODO(phlip9): the action icons collide w/ the scrolled content. maybe
-        //               scroll this AppBar along with the content?
-        // backgroundColor: LxColors.clearB0,
-        // scrolledUnderElevation: 0.0,
-        // surfaceTintColor: LxColors.clearB0,
-
-        // header shadow effect
-        // not sure I like how this looks...
-        scrolledUnderElevation: 1.0,
-        shadowColor: LxColors.background,
-        surfaceTintColor: LxColors.clearB0,
-
         // ≡ - Open navigation drawer on the left
         leading: IconButton(
-          iconSize: Fonts.size700,
           icon: const Icon(Icons.menu_rounded),
           onPressed: this.openScaffoldDrawer,
         ),
@@ -172,7 +158,6 @@ class WalletPageState extends State<WalletPage> {
         // ⟳ - Trigger refresh of current balance, payments, etc...
         actions: [
           IconButton(
-            iconSize: Fonts.size700,
             icon: const Icon(Icons.refresh_rounded),
             onPressed: this.triggerRefresh,
           ),

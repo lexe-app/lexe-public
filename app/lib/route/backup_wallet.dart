@@ -3,8 +3,9 @@ import 'dart:async' show unawaited;
 import 'package:flutter/material.dart';
 
 import '../../bindings_generated_api.dart' show AppHandle;
-import '../style.dart' show Fonts, LxColors, Space;
-import 'wallet.dart' show WalletPage;
+import '../../components.dart' show LxCloseButton;
+import '../../route/wallet.dart' show WalletPage;
+import '../../style.dart' show Fonts, LxColors, Space;
 
 class BackupWalletPage extends StatelessWidget {
   const BackupWalletPage({super.key, required this.app});
@@ -25,13 +26,7 @@ class BackupWalletPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        leading: Builder(
-          builder: (context) => IconButton(
-            iconSize: Fonts.size700,
-            icon: const Icon(Icons.close_rounded),
-            onPressed: () => this.skipBackup(context),
-          ),
-        ),
+        leading: const LxCloseButton(),
       ),
       body: ListView(
         padding: const EdgeInsets.symmetric(horizontal: Space.s500),
