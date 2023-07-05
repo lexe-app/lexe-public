@@ -33,6 +33,8 @@ class WalletPage extends StatefulWidget {
 }
 
 class WalletPageState extends State<WalletPage> {
+  final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey();
+
   /// A stream controller to trigger refreshes of the wallet page contents.
   final StreamController<Null> refresh = StreamController.broadcast();
 
@@ -111,14 +113,32 @@ class WalletPageState extends State<WalletPage> {
     super.dispose();
   }
 
+  void openScaffoldDrawer() {
+    this.scaffoldKey.currentState?.openDrawer();
+  }
+
+  /// Triggers a refresh (fetch balance, fiat rates, payment sync).
   void triggerRefresh() {
     info("refresh triggered");
     this.refresh.addNull();
   }
 
+  /// Called when the "Receive" button is pressed. Pushes the receive payment
+  /// page onto the navigation stack.
+  void onReceivePressed() {
+    info("Receive button pressed");
+  }
+
+  /// Called when the "Send" button is pressed. Pushes the send payment page
+  /// onto the navigation stack.
+  void onSendPressed() {
+    info("Send button pressed");
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: this.scaffoldKey,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         automaticallyImplyLeading: false,
@@ -135,18 +155,20 @@ class WalletPageState extends State<WalletPage> {
         scrolledUnderElevation: 1.0,
         shadowColor: LxColors.background,
         surfaceTintColor: LxColors.clearB0,
-        leading: Builder(
-          builder: (context) => IconButton(
-            iconSize: Fonts.size700,
-            icon: const Icon(Icons.menu_rounded),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
+
+        // ≡ - Open navigation drawer on the left
+        leading: IconButton(
+          iconSize: Fonts.size700,
+          icon: const Icon(Icons.menu_rounded),
+          onPressed: this.openScaffoldDrawer,
         ),
+
+        // ⟳ - Trigger refresh of current balance, payments, etc...
         actions: [
           IconButton(
             iconSize: Fonts.size700,
             icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => this.triggerRefresh(),
+            onPressed: this.triggerRefresh,
           ),
           const SizedBox(width: Space.s100),
         ],
@@ -166,12 +188,18 @@ class WalletPageState extends State<WalletPage> {
               builder: (context, balanceState) => BalanceWidget(balanceState),
             ),
             const SizedBox(height: Space.s700),
-            const WalletActions(),
+            WalletActions(
+              // + - (doesn't exist yet) fund wallet from exchange integration
+              onFundPressed: null,
+              // ↓ - Open BTC/LN receive payment page
+              onReceivePressed: this.onReceivePressed,
+              // ↑ - Open BTC/LN send payment page
+              onSendPressed: this.onSendPressed,
+            ),
             const SizedBox(height: Space.s900),
           ])),
 
           // Pending payments + header
-
           SliverToBoxAdapter(
               child: Padding(
                   padding: const EdgeInsets.only(
@@ -195,7 +223,6 @@ class WalletPageState extends State<WalletPage> {
           ),
 
           // Completed+Failed payments + header
-
           SliverToBoxAdapter(
               child: Padding(
                   padding: const EdgeInsets.only(
@@ -257,7 +284,20 @@ extension StreamControllerExt<T> on StreamController<T> {
 }
 
 class WalletDrawer extends StatelessWidget {
-  const WalletDrawer({super.key});
+  const WalletDrawer({
+    super.key,
+    this.onSettingsPressed,
+    this.onBackupPressed,
+    this.onSecurityPressed,
+    this.onSupportPressed,
+    this.onInvitePressed,
+  });
+
+  final VoidCallback? onSettingsPressed;
+  final VoidCallback? onBackupPressed;
+  final VoidCallback? onSecurityPressed;
+  final VoidCallback? onSupportPressed;
+  final VoidCallback? onInvitePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -283,22 +323,22 @@ class WalletDrawer extends StatelessWidget {
             DrawerListItem(
               title: "Settings",
               icon: Icons.settings_outlined,
-              onTap: () => info("settings pressed"),
+              onTap: this.onSettingsPressed,
             ),
             DrawerListItem(
               title: "Backup",
               icon: Icons.drive_file_move_outline,
-              onTap: () => info("backup pressed"),
+              onTap: this.onBackupPressed,
             ),
             DrawerListItem(
               title: "Security",
               icon: Icons.lock_outline_rounded,
-              onTap: () => info("security pressed"),
+              onTap: this.onSecurityPressed,
             ),
             DrawerListItem(
               title: "Support",
               icon: Icons.help_outline_rounded,
-              onTap: () => info("support pressed"),
+              onTap: this.onSupportPressed,
             ),
             const SizedBox(height: Space.s600),
 
@@ -313,7 +353,7 @@ class WalletDrawer extends StatelessWidget {
                       const BorderSide(color: LxColors.foreground, width: 2.0),
                   padding: const EdgeInsets.symmetric(vertical: Space.s500),
                 ),
-                onPressed: () => info("invite pressed"),
+                onPressed: this.onInvitePressed,
                 child: Text("Invite Friends",
                     style: Fonts.fontUI.copyWith(
                       fontSize: Fonts.size400,
@@ -561,27 +601,36 @@ class PrimaryBalanceText extends StatelessWidget {
 }
 
 class WalletActions extends StatelessWidget {
-  const WalletActions({super.key});
+  const WalletActions({
+    super.key,
+    this.onFundPressed,
+    this.onSendPressed,
+    this.onReceivePressed,
+  });
+
+  final VoidCallback? onFundPressed;
+  final VoidCallback? onSendPressed;
+  final VoidCallback? onReceivePressed;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const WalletActionButton(
-          onPressed: null,
+        WalletActionButton(
+          onPressed: this.onFundPressed,
           icon: Icons.add_rounded,
           label: "Fund",
         ),
         const SizedBox(width: Space.s400),
         WalletActionButton(
-          onPressed: () => info("recv pressed"),
+          onPressed: this.onReceivePressed,
           icon: Icons.arrow_downward_rounded,
           label: "Receive",
         ),
         const SizedBox(width: Space.s400),
         WalletActionButton(
-          onPressed: () => info("send pressed"),
+          onPressed: this.onSendPressed,
           icon: Icons.arrow_upward_rounded,
           label: "Send",
         ),
