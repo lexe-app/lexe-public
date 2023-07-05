@@ -390,17 +390,19 @@ async fn handle_event_fallible(
                 esplora.get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
             let secp_ctx =
                 rng::get_randomized_secp256k1_ctx(&mut SysRng::new());
-            let spending_tx = keys_manager.spend_spendable_outputs(
+            let maybe_spending_tx = keys_manager.spend_spendable_outputs(
                 spendable_output_descriptors,
                 destination_outputs,
                 destination_change_script,
                 feerate_sat_per_1000_weight,
                 &secp_ctx,
             )?;
-            esplora
-                .broadcast_tx(&spending_tx)
-                .await
-                .context("Couldn't spend spendable outputs")?;
+            if let Some(spending_tx) = maybe_spending_tx {
+                esplora
+                    .broadcast_tx(&spending_tx)
+                    .await
+                    .context("Couldn't spend spendable outputs")?;
+            }
             test_event_tx.send(TestEvent::SpendableOutputs);
         }
         Event::ChannelClosed {
