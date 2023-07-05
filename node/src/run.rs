@@ -193,12 +193,6 @@ impl UserNode {
         let fee_estimator = esplora.clone();
         let broadcaster = esplora.clone();
 
-        // Build LexeKeysManager from node init data
-        let keys_manager =
-            LexeKeysManager::init(rng, &user.node_pk, &root_seed)
-                .context("Failed to construct keys manager")?
-                .apply(Arc::new);
-
         // Initialize Persister
         let authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
@@ -221,27 +215,23 @@ impl UserNode {
             persister.clone(),
         ));
 
-        // Read channel monitors, network graph, wallet db, and scid
+        // Read network graph, wallet db, scid, and payments
         let (wallet_db_persister_tx, wallet_db_persister_rx) =
             mpsc::channel(SMALLER_CHANNEL_SIZE);
         #[rustfmt::skip] // Does not respect 80 char line width
         let (
-            try_channel_monitors,
             try_network_graph,
             try_wallet_db,
             try_scid,
             try_pending_payments,
             try_finalized_payment_ids,
         ) = tokio::join!(
-            persister.read_channel_monitors(keys_manager.clone()),
             persister.read_network_graph(args.network, logger.clone()),
             persister.read_wallet_db(wallet_db_persister_tx),
             persister.read_scid(),
             persister.read_pending_payments(),
             persister.read_finalized_payment_ids(),
         );
-        let mut channel_monitors =
-            try_channel_monitors.context("Could not read channel monitors")?;
         let network_graph = try_network_graph
             .map(Arc::new)
             .context("Could not read network graph")?;
@@ -282,13 +272,30 @@ impl UserNode {
             logger.clone(),
         ));
 
-        // Init scorer
-        let scorer = persister
-            .read_scorer(network_graph.clone(), logger.clone())
+        // Init keys manager. NOTE: If a user sends to their on-chain wallet
+        // then closes a channel in the same node run, there will be address
+        // reuse. This is the quickest way to work around the non-async
+        // SignerProvider for now, but we should fix this eventually.
+        let recv_address = wallet
+            .get_address()
             .await
-            .map(Mutex::new)
-            .map(Arc::new)
-            .context("Could not read probabilistic scorer")?;
+            .context("Could not get receive address")?;
+        let keys_manager =
+            LexeKeysManager::init(rng, &user.node_pk, &root_seed, recv_address)
+                .context("Failed to construct keys manager")?
+                .apply(Arc::new);
+
+        // Read channel monitors and scorer
+        let (try_channel_monitors, try_scorer) = tokio::join!(
+            persister.read_channel_monitors(keys_manager.clone()),
+            persister.read_scorer(network_graph.clone(), logger.clone()),
+        );
+        let mut channel_monitors =
+            try_channel_monitors.context("Could not read channel monitors")?;
+        let scorer = try_scorer
+            .context("Could not read probabilistic scorer")?
+            .apply(Mutex::new)
+            .apply(Arc::new);
 
         // Initialize Router
         let router = Arc::new(DefaultRouter::new(
