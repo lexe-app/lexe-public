@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show Intl;
+import 'package:lexeapp/route/send.dart';
 
 import 'bindings.dart' show api;
 import 'bindings_generated_api.dart'
@@ -27,6 +28,7 @@ import 'logger.dart' show info;
 import 'route/backup_wallet.dart' show BackupWalletPage;
 import 'route/landing.dart' show LandingPage;
 import 'route/scan.dart' show ScanPage;
+import 'route/send.dart' show SendPaymentPage;
 import 'route/show_qr.dart' show ShowQrPage;
 import 'route/wallet.dart' show DrawerListItem, WalletPage;
 import 'style.dart' show LxColors, LxTheme, Space;
@@ -78,6 +80,7 @@ Future<void> main() async {
                   "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday&lightning=LNBC10U1P3PJ257PP5YZTKWJCZ5FTL5LAXKAV23ZMZEKAW37ZK6KMV80PK4XAEV5QHTZ7QDPDWD3XGER9WD5KWM36YPRX7U3QD36KUCMGYP282ETNV3SHJCQZPGXQYZ5VQSP5USYC4LK9CHSFP53KVCNVQ456GANH60D89REYKDNGSMTJ6YW3NHVQ9QYYSSQJCEWM5CJWZ4A6RFJX77C490YCED6PEMK0UPKXHY89CMM7SCT66K8GNEANWYKZGDRWRFJE69H9U5U0W57RRCSYSAS7GADWMZXC8C6T0SPJAZUP6",
             ),
           ),
+          Component("SendPaymentPage", (context) => const SendPaymentPage()),
         ],
       ),
     ),

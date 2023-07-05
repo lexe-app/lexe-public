@@ -5,6 +5,7 @@ import 'package:flutter/material.dart'
         Brightness,
         Color,
         ColorScheme,
+        IconThemeData,
         MaterialColor,
         TextStyle,
         ThemeData,
@@ -50,18 +51,33 @@ class LxTheme {
       useMaterial3: true,
     );
 
+    const appBarIconTheme = IconThemeData(
+      color: LxColors.foreground,
+      size: Fonts.size700,
+    );
+
     return baseTheme.copyWith(
       visualDensity: VisualDensity.comfortable,
       scaffoldBackgroundColor: LxColors.background,
       appBarTheme: baseTheme.appBarTheme.copyWith(
         backgroundColor: LxColors.background,
         foregroundColor: LxColors.foreground,
-        // surfaceTintColor: LxColors.grey150,
+
         // elevation = 0 removes the shadow under the app bar so it blends in
-        // with the page background.
+        // with the page background when nothing is scrolled under.
         elevation: 0.0,
+
+        // by default, show line under app bar when content scrolls under
+        // still not sure I like how this looks...
+        scrolledUnderElevation: 1.0,
+        shadowColor: LxColors.background,
+        surfaceTintColor: LxColors.clearB0,
+
         // make the system bar use the same background color as the page
         systemOverlayStyle: LxTheme.systemOverlayStyleLight,
+
+        iconTheme: appBarIconTheme,
+        actionsIconTheme: appBarIconTheme,
       ),
       drawerTheme: baseTheme.drawerTheme.copyWith(
         // make the drawer blend with the system bar
