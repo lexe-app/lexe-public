@@ -5,6 +5,7 @@ import 'package:flutter_zxing/flutter_zxing.dart'
     show FixedScannerOverlay, ReaderWidget;
 import 'package:lexeapp/logger.dart' show info;
 
+import '../../components.dart' show LxCloseButton;
 import '../../style.dart' show LxColors, LxRadius, LxTheme, Space;
 
 class ScanPage extends StatelessWidget {
@@ -23,7 +24,7 @@ class ScanPage extends StatelessWidget {
         surfaceTintColor: LxColors.clearB0,
 
         // X - quit scanning
-        leading: const CloseButton(),
+        leading: const LxCloseButton(),
 
         // * Make the top status bar transparent, so the whole screen includes
         //   the camera view.

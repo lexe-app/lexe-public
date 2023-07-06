@@ -1,9 +1,11 @@
 // Send payment page
 
 import 'package:flutter/material.dart';
-import 'package:lexeapp/components.dart' show LxCloseButton, LxCloseButtonKind;
+import 'package:lexeapp/components.dart'
+    show LxCloseButton, LxCloseButtonKind, ScrollableSinglePageBody;
 
-import '../../style.dart' show LxColors;
+import '../../logger.dart' show info;
+import '../../style.dart' show Fonts, LxColors, Space;
 
 class SendPaymentPage extends StatefulWidget {
   const SendPaymentPage({super.key});
@@ -19,67 +21,83 @@ class SendPaymentPageState extends State<SendPaymentPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // header shadow effect
-        // not sure I like how this looks...
-        scrolledUnderElevation: 1.0,
-        shadowColor: LxColors.background,
-        surfaceTintColor: LxColors.clearB0,
-
         leading: const LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
-
-        title: const Text("Send payment"),
-
-        centerTitle: false,
+        actions: [
+          IconButton(
+            onPressed: () => info("pressed QR button"),
+            icon: const Icon(Icons.qr_code_rounded),
+          ),
+          const SizedBox(width: Space.s100),
+        ],
       ),
-      body: const Center(),
-      //
-      // body: Padding(
-      //   padding: const EdgeInsets.symmetric(
-      //     horizontal: Space.s200,
-      //     vertical: Space.s100,
-      //   ),
-      //   child: Column(
-      //     children: [
-      //       Text()
-      //     ],
-      //   ),
-      // )
-      //
-      // body: Form(
-      //   key: this.formKey,
-      //   child: Padding(
-      //     padding: const EdgeInsets.symmetric(horizontal: Space.s200),
-      //     child: Column(
-      //       children: [
-      //         // Bitcoin address
-      //         TextFormField(
-      //           decoration: const InputDecoration(
-      //             labelText: "Bitcoin address",
-      //           ),
-      //           validator: (value) {
-      //             if (value == null || value.isEmpty) {
-      //               return "Bitcoin address field can't be empty";
-      //             }
-      //             return null;
-      //           },
-      //         ),
-      //
-      //         // Bitcoin address
-      //         TextFormField(
-      //           decoration: const InputDecoration(
-      //             labelText: "Bitcoin address",
-      //           ),
-      //           validator: (value) {
-      //             if (value == null || value.isEmpty) {
-      //               return "Bitcoin address field can't be empty";
-      //             }
-      //             return null;
-      //           },
-      //         ),
-      //       ],
-      //     ),
-      //   ),
-      // ),
+      body: Form(
+        key: this.formKey,
+        child: ScrollableSinglePageBody(
+          body: [
+            const SizedBox(height: Space.s500),
+            Text(
+              "Who are we paying?",
+              style: Fonts.fontUI.copyWith(
+                fontSize: Fonts.size600,
+                fontVariations: [Fonts.weightMedium],
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: Space.s600),
+            TextFormField(
+              autofocus: true,
+              decoration: const InputDecoration.collapsed(
+                hintText: "Bitcoin address",
+                hintStyle: TextStyle(
+                  color: LxColors.grey750,
+                ),
+              ),
+              style: Fonts.fontUI.copyWith(
+                fontSize: Fonts.size700,
+                fontVariations: [Fonts.weightMedium],
+                // Use unambiguous character alternatives (0OIl1) to avoid
+                // confusion in the unfortunate event that a user has to
+                // manually type in an address.
+                fontFeatures: [Fonts.featDisambugation],
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: Space.s800),
+          ],
+          bottom: FilledButton(
+            onPressed: () {},
+            style: FilledButton.styleFrom(
+              backgroundColor: LxColors.grey975,
+              disabledBackgroundColor: LxColors.grey850,
+              foregroundColor: LxColors.foreground,
+              disabledForegroundColor: LxColors.grey725,
+              fixedSize: const Size(300.0, Space.s700),
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Text(
+                  "Next",
+                  style: Fonts.fontInter.copyWith(
+                    fontSize: Fonts.size300,
+                    fontVariations: [Fonts.weightMedium],
+                  ),
+                ),
+                const Align(
+                  alignment: Alignment.centerRight,
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: Space.s200),
+                    child: Icon(
+                      Icons.arrow_forward_rounded,
+                      size: Fonts.size300,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

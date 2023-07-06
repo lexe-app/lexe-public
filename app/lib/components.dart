@@ -5,9 +5,68 @@ import 'dart:async' show StreamController;
 import 'package:flutter/material.dart';
 import 'package:rxdart_ext/rxdart_ext.dart';
 
-import '../../style.dart' show LxColors, LxRadius;
+import '../../style.dart' show LxColors, LxRadius, Space;
 
 typedef VoidContextCallback = void Function(BuildContext);
+
+/// A more robust body for a [Scaffold]. Use this widget when you expect the
+/// body area to almost always be in view, but can gracefully handle smaller
+/// viewports (like when the onscreen keyboard pops up).
+///
+/// * An optional `bottom` widget is available that will expand to fill as much
+///   of the remaining viewport as possible. Use this if you want to e.g. anchor
+///   some buttons to the bottom of the screen, but still have them scroll with
+///   the body when the viewport is small.
+///
+///   This behavior contrasts with e.g. a TabBar, which instead stays fixed to
+///   the bottom, is always visible on top, and forces body content to scroll
+///   underneath.
+///
+/// NOTE(phlip9): There seem to be multiple ways to accomplish this and I'm not
+/// really sure which is "best".
+class ScrollableSinglePageBody extends StatelessWidget {
+  const ScrollableSinglePageBody({
+    super.key,
+    required this.body,
+    this.padding = const EdgeInsets.symmetric(horizontal: Space.s400),
+    this.bottom,
+    this.bottomAlignment = Alignment.bottomCenter,
+    this.bottomPadding = const EdgeInsets.only(bottom: Space.s600),
+  });
+
+  final List<Widget> body;
+  final EdgeInsets padding;
+  final Widget? bottom;
+  final Alignment bottomAlignment;
+  final EdgeInsets bottomPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: this.padding,
+      child: CustomScrollView(
+        primary: true,
+        slivers: [
+          // The primary body widgets.
+          SliverList.list(children: this.body),
+
+          // The bottom widgets; these expand to fill the available space.
+          if (this.bottom != null)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Align(
+                alignment: this.bottomAlignment,
+                child: Padding(
+                  padding: this.bottomPadding,
+                  child: this.bottom,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
 
 /// A simple colored box that we can show while some real content is loading.
 ///

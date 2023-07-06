@@ -1,4 +1,4 @@
-import 'dart:ui' show FontVariation, TextDecoration;
+import 'dart:ui' show FontFeature, FontVariation, TextDecoration;
 
 import 'package:flutter/material.dart'
     show
@@ -62,6 +62,9 @@ class LxTheme {
       appBarTheme: baseTheme.appBarTheme.copyWith(
         backgroundColor: LxColors.background,
         foregroundColor: LxColors.foreground,
+
+        // Left align the title.
+        centerTitle: false,
 
         // elevation = 0 removes the shadow under the app bar so it blends in
         // with the page background when nothing is scrolled under.
@@ -324,7 +327,17 @@ class Fonts {
 
   static const FontVariation widthTight = FontVariation("wdth", 90);
 
-  // static const FontFeature featSlashedZero = FontFeature.slashedZero();
+  /// Slashed zero
+  static const FontFeature featSlashedZero = FontFeature.slashedZero();
+
+  /// Stylistic set 2: Disambiguation
+  ///
+  /// Alternate glyph set that increases visual difference between
+  /// similar-looking characters.
+  ///
+  /// <https://rsms.me/inter/#features/ss02>
+  static const FontFeature featDisambugation = FontFeature("ss02");
+
   // static const FontFeature featTabularNumbers = FontFeature.tabularFigures();
 
   static const TextStyle fontInter = TextStyle(
