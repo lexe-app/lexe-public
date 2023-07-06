@@ -75,6 +75,7 @@ impl ShutdownChannel {
     }
 
     /// Immediately returns whether a shutdown signal has been sent.
+    #[must_use]
     pub fn try_recv(&self) -> bool {
         self.inner.is_closed()
     }
