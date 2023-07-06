@@ -3,12 +3,25 @@ use bitcoin::{blockdata::script::Script, secp256k1};
 use lightning::{
     chain::chaininterface::ConfirmationTarget, util::events::Event,
 };
+use thiserror::Error;
 
 use crate::{
     test_event::{TestEvent, TestEventSender},
     traits::{LexeChannelManager, LexePersister},
     wallet::LexeWallet,
 };
+
+/// Errors that can occur while handling [`Event`]s.
+#[derive(Debug, Error)]
+pub enum EventHandleError {
+    /// We encountered an tolerable error; log it and move on.
+    #[error("Tolerable event handle error: {0:#}")]
+    Tolerable(anyhow::Error),
+    /// We encountered a fatal error and the node must shut down without losing
+    /// the unhandled [`Event`] (i.e. without repersisting the channel manager)
+    #[error("Fatal event handle error: {0:#}")]
+    Fatal(anyhow::Error),
+}
 
 pub fn get_event_name(event: &Event) -> &'static str {
     match event {
@@ -76,8 +89,7 @@ where
             signed_raw_funding_tx,
         )
         .inspect(|()| test_event_tx.send(TestEvent::FundingGenerationHandled))
-        .map_err(|e| anyhow!("{e:?}"))
-        .context("LDK rejected the signed funding tx")?;
+        .map_err(|e| anyhow!("LDK rejected the signed funding tx: {e:?}"))?;
 
     Ok(())
 }
