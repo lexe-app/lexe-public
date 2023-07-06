@@ -15,6 +15,7 @@ use lexe_ln::{
     alias::NetworkGraphType,
     esplora::LexeEsplora,
     event,
+    event::EventHandleError,
     keys_manager::LexeKeysManager,
     test_event::{TestEvent, TestEventSender},
     wallet::LexeWallet,
@@ -24,7 +25,7 @@ use lightning::{
     routing::gossip::NodeId,
     util::events::{Event, EventHandler},
 };
-use tracing::{error, info};
+use tracing::{error, info, warn};
 
 use crate::{
     alias::NodePaymentsManagerType, channel_manager::NodeChannelManager,
@@ -133,6 +134,7 @@ pub(crate) async fn handle_event(
     shutdown: &ShutdownChannel,
     event: Event,
 ) {
+    let event_name = lexe_ln::event::get_event_name(&event);
     let handle_event_res = handle_event_fallible(
         lsp,
         wallet,
@@ -147,8 +149,15 @@ pub(crate) async fn handle_event(
     )
     .await;
 
-    if let Err(e) = handle_event_res {
-        error!("Error handling event: {e:#}");
+    match handle_event_res {
+        Ok(()) => info!("Successfully handled {event_name}"),
+        Err(EventHandleError::Tolerable(e)) =>
+            warn!("Tolerable error handling {event_name}: {e:#}"),
+        Err(EventHandleError::Fatal(e)) => {
+            error!("Fatal error handling {event_name}: {e:#}");
+            shutdown.send();
+            // XXX(max): Notify BGP to skip channel manager repersist
+        }
     }
 }
 
@@ -163,7 +172,7 @@ async fn handle_event_fallible(
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
     event: Event,
-) -> anyhow::Result<()> {
+) -> Result<(), EventHandleError> {
     match event {
         // NOTE: This event is received because manually_accept_inbound_channels
         // is set to true. Manually accepting inbound channels is required
@@ -197,7 +206,8 @@ async fn handle_event_fallible(
                         &counterparty_node_id,
                     )
                     .map_err(|e| anyhow!("{e:?}"))
-                    .context("Couldn't reject channel from unknown LSP")?;
+                    .context("Couldn't reject channel from unknown LSP")
+                    .map_err(EventHandleError::Tolerable)?;
 
                 // Initiate a shutdown
                 shutdown.send();
@@ -213,8 +223,8 @@ async fn handle_event_fallible(
                         user_channel_id,
                     )
                     .inspect(|_| info!("Accepted zeroconf channel from LSP"))
-                    .map_err(|e| anyhow!("{e:?}"))
-                    .context("Zero conf required")?;
+                    .map_err(|e| anyhow!("Zero conf required: {e:?}"))
+                    .map_err(EventHandleError::Tolerable)?;
             }
         }
         Event::FundingGenerationReady {
@@ -234,7 +244,8 @@ async fn handle_event_fallible(
                 output_script,
             )
             .await
-            .context("Failed to handle funding generation ready")?;
+            .context("Failed to handle funding generation ready")
+            .map_err(EventHandleError::Fatal)?;
         }
         Event::ChannelReady {
             channel_id: _,
@@ -255,7 +266,9 @@ async fn handle_event_fallible(
             payments_manager
                 .payment_claimable(payment_hash, amount_msat, purpose)
                 .await
-                .context("Error handling PaymentClaimable")?;
+                .context("Error handling PaymentClaimable")
+                // Want to ensure we always claim funds
+                .map_err(EventHandleError::Fatal)?;
         }
         Event::PaymentClaimed {
             payment_hash,
@@ -266,7 +279,9 @@ async fn handle_event_fallible(
             payments_manager
                 .payment_claimed(payment_hash, amount_msat, purpose)
                 .await
-                .context("Error handling PaymentClaimed")?;
+                .context("Error handling PaymentClaimed")
+                // Don't want to end up with a 'hung' payment state
+                .map_err(EventHandleError::Fatal)?;
         }
         Event::PaymentSent {
             payment_id: _,
@@ -277,7 +292,9 @@ async fn handle_event_fallible(
             payments_manager
                 .payment_sent(payment_hash, payment_preimage, fee_paid_msat)
                 .await
-                .context("Error handling PaymentSent")?;
+                .context("Error handling PaymentSent")
+                // Don't want to end up with a 'hung' payment state
+                .map_err(EventHandleError::Fatal)?;
         }
         Event::PaymentFailed {
             payment_id: _,
@@ -286,7 +303,9 @@ async fn handle_event_fallible(
             payments_manager
                 .payment_failed(payment_hash)
                 .await
-                .context("Error handling PaymentFailed")?;
+                .context("Error handling PaymentFailed")
+                // Don't want to end up with a 'hung' payment state
+                .map_err(EventHandleError::Fatal)?;
         }
         Event::PaymentPathSuccessful { .. } => {}
         Event::PaymentPathFailed { .. } => {}
@@ -381,28 +400,34 @@ async fn handle_event_fallible(
             // The tx only includes a 'change' output, which is actually just a
             // new external address fetched from our wallet.
             // TODO(max): Maybe we should add another output for privacy?
-            let spendable_output_descriptors =
-                &outputs.iter().collect::<Vec<_>>();
-            let destination_outputs = Vec::new();
-            let destination_change_script =
-                wallet.get_address().await?.script_pubkey();
-            let feerate_sat_per_1000_weight =
-                esplora.get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
-            let secp_ctx =
-                rng::get_randomized_secp256k1_ctx(&mut SysRng::new());
-            let maybe_spending_tx = keys_manager.spend_spendable_outputs(
-                spendable_output_descriptors,
-                destination_outputs,
-                destination_change_script,
-                feerate_sat_per_1000_weight,
-                &secp_ctx,
-            )?;
-            if let Some(spending_tx) = maybe_spending_tx {
-                esplora
-                    .broadcast_tx(&spending_tx)
-                    .await
-                    .context("Couldn't spend spendable outputs")?;
-            }
+            let handle_fut = async {
+                let spendable_output_descriptors =
+                    &outputs.iter().collect::<Vec<_>>();
+                let destination_outputs = Vec::new();
+                let destination_change_script =
+                    wallet.get_address().await?.script_pubkey();
+                let feerate_sat_per_1000_weight = esplora
+                    .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
+                let secp_ctx =
+                    rng::get_randomized_secp256k1_ctx(&mut SysRng::new());
+                let maybe_spending_tx = keys_manager.spend_spendable_outputs(
+                    spendable_output_descriptors,
+                    destination_outputs,
+                    destination_change_script,
+                    feerate_sat_per_1000_weight,
+                    &secp_ctx,
+                )?;
+                if let Some(spending_tx) = maybe_spending_tx {
+                    esplora
+                        .broadcast_tx(&spending_tx)
+                        .await
+                        .context("Couldn't spend spendable outputs")?;
+                }
+                Ok::<_, anyhow::Error>(())
+            };
+
+            // If anything fails here, it is fatal.
+            handle_fut.await.map_err(EventHandleError::Fatal)?;
             test_event_tx.send(TestEvent::SpendableOutputs);
         }
         Event::ChannelClosed {
