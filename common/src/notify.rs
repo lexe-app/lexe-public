@@ -53,6 +53,12 @@ impl Receiver {
         }
     }
 
+    /// Immediately returns whether a notification has been sent.
+    #[must_use]
+    pub fn try_recv(&mut self) -> bool {
+        self.0.try_recv().is_ok()
+    }
+
     /// Clears out any pending notifications in the channel.
     pub fn clear(&mut self) {
         while self.0.try_recv().is_ok() {}
