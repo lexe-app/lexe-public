@@ -24,7 +24,7 @@ use lightning::{
     chain::keysinterface::{NodeSigner, Recipient},
     ln::{
         channelmanager::{
-            PaymentId, PaymentSendFailure, MIN_FINAL_CLTV_EXPIRY_DELTA,
+            PaymentId, RetryableSendFailure, MIN_FINAL_CLTV_EXPIRY_DELTA,
         },
         PaymentHash,
     },
@@ -34,7 +34,6 @@ use lightning::{
             PaymentParameters, RouteHint, RouteHintHop, RouteParameters, Router,
         },
     },
-    util::errors::APIError,
 };
 use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
 use tokio::sync::broadcast;
@@ -296,7 +295,6 @@ where
     let route_params = RouteParameters {
         payment_params,
         final_value_msat,
-        final_cltv_expiry_delta,
     };
 
     // Find a Route so we can estimate the fees to be paid. Modeled after
@@ -332,67 +330,34 @@ where
         OUTBOUND_PAYMENT_RETRY_STRATEGY,
     ) {
         Ok(()) => Ok(info!(%hash, "Success: OIP initiated immediately")),
-        Err(PaymentSendFailure::PartialFailure { results, .. }) => {
-            // Sending payments triggers async channel monitor persist, which
-            // results in a "partial failure". This is perfectly normal for us;
-            // just check that all errors are of this kind.
-            #[rustfmt::skip] // How to remove useless {\n<expr>\n} in closures?
-            let all_ok_or_pending_monitor_update =
-                results.iter().all(|per_path_result| matches!(
-                    per_path_result,
-                    Ok(()) | Err(APIError::MonitorUpdateInProgress)
-                ));
-
-            if all_ok_or_pending_monitor_update {
-                Ok(info!(%hash, "Success: OIP pending monitor updates"))
-            } else {
-                // Docs: "the payment [...] is now at least partially pending."
-                // => we'll get a PaymentSent or PaymentFailed event later;
-                // no need to notify the PaymentsManager now.
-                Err(anyhow!("Partial failure sending OIP {hash}: {results:?}"))
-            }
-        }
-        Err(PaymentSendFailure::DuplicatePayment) => {
+        Err(RetryableSendFailure::DuplicatePayment) => {
             // This should never happen because we should have already checked
             // for uniqueness when registering the new payment above. If it
             // somehow does, we should let the first payment follow its course,
             // and wait for a PaymentSent or PaymentFailed event.
             Err(anyhow!("Somehow got DuplicatePayment error (OIP {hash})"))
         }
-
-        // Below, we match repetitively (instead of using Err(e)) to ensure that
-        // we think through new variants, which may have different requirements.
-        Err(PaymentSendFailure::ParameterError(err)) => {
-            // Docs: "Because the payment failed outright, no payment tracking
-            // is done and [...] no PaymentFailed events will be generated."
-            // => We need to register the payment as failed in PaymentsManager.
+        Err(RetryableSendFailure::PaymentExpired) => {
+            // We've already checked the expiry of the invoice to be paid, but
+            // perhaps there was a TOCTTOU race? Regardless, if this variant is
+            // returned, LDK does not track the payment and thus will not emit a
+            // PaymentFailed later, so we should fail the payment now.
             payments_manager
                 .payment_failed(hash)
                 .await
-                .context("(ParameterError) Could not register failure")?;
-            Err(anyhow!("ParameterError error (OIP {hash}): {err:?}"))
+                .context("(PaymentExpired) Could not register failure")?;
+            Err(anyhow!("LDK returned PaymentExpired (OIP {hash})"))
         }
-        Err(PaymentSendFailure::PathParameterError(results)) => {
-            // Docs: "Because the payment failed outright, no payment tracking
-            // is done and [...] no PaymentFailed events will be generated."
-            // => We need to register the payment as failed in PaymentsManager.
+        Err(RetryableSendFailure::RouteNotFound) => {
+            // It appears that if this variant is returned, LDK does not track
+            // the payment, so we should fail the payment immediately.
+            // If the user wants to retry, they'll need to ask the recipient to
+            // generate a new invoice. TODO(max): Is this really what we want?
             payments_manager
                 .payment_failed(hash)
                 .await
-                .context("(PathParameterError) Could not register failure")?;
-            Err(anyhow!(
-                "PathParameterError error (OIP {hash}): {results:?}"
-            ))
-        }
-        Err(PaymentSendFailure::AllFailedResendSafe(errs)) => {
-            // Docs: "Because the payment failed outright, no payment tracking
-            // is done and [...] no PaymentFailed events will be generated."
-            // => We need to register the payment as failed in PaymentsManager.
-            payments_manager
-                .payment_failed(hash)
-                .await
-                .context("(AllFailedResendSafe) Could not register failure")?;
-            Err(anyhow!("AllFailedResendSafe error (OIP {hash}): {errs:?}"))
+                .context("(RouteNotFound) Could not register failure")?;
+            Err(anyhow!("LDK returned RouteNotFound (OIP {hash})"))
         }
     }
 }

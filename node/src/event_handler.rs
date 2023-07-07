@@ -52,8 +52,8 @@ pub struct NodeEventHandler {
 }
 
 /// Event handling requirements are outlined in the doc comments for
-/// [`EventsProvider`], [`ChannelManager::process_pending_events`], and
-/// [`ChainMonitor::process_pending_events`], which we summarize and expand on
+/// [`EventsProvider`], `ChannelManager::process_pending_events`, and
+/// `ChainMonitor::process_pending_events`, which we summarize and expand on
 /// here because they are very important to understand clearly.
 ///
 /// - The docs state that the handling of an event must *succeed* before
@@ -70,15 +70,13 @@ pub struct NodeEventHandler {
 ///   fatal error, or the program crashes before the channel manager can be
 ///   repersisted, the event will be replayed upon next boot.
 /// - The event handler must avoid reentrancy by avoiding direct calls to
-///   [`ChannelManager::process_pending_events`] or
-///   [`ChainMonitor::process_pending_events`] (or their async variants).
+///   `ChannelManager::process_pending_events` or
+///   `ChainMonitor::process_pending_events` (or their async variants).
 ///   Otherwise, there may be a deadlock.
 /// - The event handler must not call [`Writeable::write`] on the channel
 ///   manager, otherwise there will be a deadlock, because the channel manager's
 ///   `total_consistency_lock` is held for the duration of the event handling.
 ///
-/// [`ChannelManager::process_pending_events`]: lightning::ln::channelmanager::ChannelManager::process_pending_events
-/// [`ChainMonitor::process_pending_events`]: lightning::chain::chainmonitor::ChainMonitor::process_pending_events
 /// [`EventsProvider`]: lightning::util::events::EventsProvider
 /// [`Writeable::write`]: lightning::util::ser::Writeable::write
 impl EventHandler for NodeEventHandler {

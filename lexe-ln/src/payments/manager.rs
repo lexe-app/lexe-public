@@ -337,7 +337,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             .inspect_err(|_| {
                 self.channel_manager.fail_htlc_backwards_with_reason(
                     &hash.into(),
-                    &FailureCode::IncorrectOrUnknownPaymentDetails,
+                    FailureCode::IncorrectOrUnknownPaymentDetails,
                 )
             })?;
 
@@ -349,7 +349,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             .inspect_err(|_| {
                 self.channel_manager.fail_htlc_backwards_with_reason(
                     &hash.into(),
-                    &FailureCode::IncorrectOrUnknownPaymentDetails,
+                    FailureCode::IncorrectOrUnknownPaymentDetails,
                 )
             })
             .context("Error validating PaymentClaimable")?;
@@ -364,7 +364,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             .inspect_err(|_| {
                 self.channel_manager.fail_htlc_backwards_with_reason(
                     &hash.into(),
-                    &FailureCode::TemporaryNodeFailure,
+                    FailureCode::TemporaryNodeFailure,
                 )
             })
             .context("Could not persist payment")?;
@@ -479,7 +479,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// called in response to a [`PaymentFailed`] event, or if the initial send
     /// in [`pay_invoice`] failed outright, resulting in no pending payments
     /// being registered with LDK (which means that no [`PaymentFailed`] or
-    /// [`PaymentSent`] events will not be emitted by LDK later).
+    /// [`PaymentSent`] events will be emitted by LDK later).
     ///
     /// [`pay_invoice`]: crate::command::pay_invoice
     /// [`PaymentSent`]: lightning::util::events::Event::PaymentSent
