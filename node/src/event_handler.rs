@@ -6,8 +6,6 @@ use common::{
     cli::LspInfo,
     hex,
     ln::channel::ChannelId,
-    rng,
-    rng::SysRng,
     shutdown::ShutdownChannel,
     task::{BlockingTaskRt, LxTask},
 };
@@ -21,7 +19,6 @@ use lexe_ln::{
     wallet::LexeWallet,
 };
 use lightning::{
-    chain::chaininterface::{ConfirmationTarget, FeeEstimator},
     routing::gossip::NodeId,
     util::events::{Event, EventHandler},
 };
@@ -395,40 +392,17 @@ async fn handle_event_fallible(
             .detach();
         }
         Event::SpendableOutputs { outputs } => {
-            // XXX(max): Ensure the Event is not lost if something fails
-            // Spend all of the spendable outputs to our wallet.
-            // The tx only includes a 'change' output, which is actually just a
-            // new external address fetched from our wallet.
-            // TODO(max): Maybe we should add another output for privacy?
-            let handle_fut = async {
-                let spendable_output_descriptors =
-                    &outputs.iter().collect::<Vec<_>>();
-                let destination_outputs = Vec::new();
-                let destination_change_script =
-                    wallet.get_address().await?.script_pubkey();
-                let feerate_sat_per_1000_weight = esplora
-                    .get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
-                let secp_ctx =
-                    rng::get_randomized_secp256k1_ctx(&mut SysRng::new());
-                let maybe_spending_tx = keys_manager.spend_spendable_outputs(
-                    spendable_output_descriptors,
-                    destination_outputs,
-                    destination_change_script,
-                    feerate_sat_per_1000_weight,
-                    &secp_ctx,
-                )?;
-                if let Some(spending_tx) = maybe_spending_tx {
-                    esplora
-                        .broadcast_tx(&spending_tx)
-                        .await
-                        .context("Couldn't spend spendable outputs")?;
-                }
-                Ok::<_, anyhow::Error>(())
-            };
-
-            // If anything fails here, it is fatal.
-            handle_fut.await.map_err(EventHandleError::Fatal)?;
-            test_event_tx.send(TestEvent::SpendableOutputs);
+            event::handle_spendable_outputs(
+                keys_manager,
+                esplora,
+                wallet,
+                outputs,
+                test_event_tx,
+            )
+            .await
+            .context("Error handling SpendableOutputs")
+            // This is fatal because the outputs are lost if they aren't swept.
+            .map_err(EventHandleError::Fatal)?;
         }
         Event::ChannelClosed {
             channel_id,
