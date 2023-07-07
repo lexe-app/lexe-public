@@ -1,6 +1,6 @@
 use std::{
     net::{Ipv4Addr, TcpListener},
-    sync::{Arc, Mutex},
+    sync::{atomic::AtomicBool, Arc, Mutex},
     time::{Duration, Instant},
 };
 
@@ -379,6 +379,7 @@ impl UserNode {
         tasks.extend(payments_tasks);
 
         // Initialize the event handler
+        let fatal_event = Arc::new(AtomicBool::new(false));
         let event_handler = NodeEventHandler {
             lsp: args.lsp.clone(),
             wallet: wallet.clone(),
@@ -387,6 +388,7 @@ impl UserNode {
             esplora: esplora.clone(),
             network_graph: network_graph.clone(),
             payments_manager: payments_manager.clone(),
+            fatal_event: fatal_event.clone(),
             test_event_tx: test_event_tx.clone(),
             blocking_task_rt: BlockingTaskRt::new(),
             shutdown: shutdown.clone(),
@@ -478,6 +480,7 @@ impl UserNode {
             gossip_sync.clone(),
             scorer.clone(),
             process_events_rx,
+            fatal_event,
             shutdown.clone(),
         );
         tasks.push(bg_processor_task);

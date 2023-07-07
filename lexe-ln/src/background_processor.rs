@@ -1,5 +1,8 @@
 use std::{
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
     time::Duration,
 };
 
@@ -71,6 +74,11 @@ impl LexeBackgroundProcessor {
         // be able to get rid of this once LDK#2052 is implemented. See the
         // comment above `PROCESS_EVENTS_INTERVAL` for more info.
         mut process_events_rx: mpsc::Receiver<oneshot::Sender<()>>,
+        // If any events produced a fatal error (`EventHandleError::Fatal`),
+        // the event handler will notify us via this bool. It is the BGP's
+        // responsibility to ensure that events are not lost by preventing the
+        // channel manager and other event providers from being repersisted.
+        fatal_event: Arc<AtomicBool>,
         mut shutdown: ShutdownChannel,
     ) -> LxTask<()>
     where
@@ -130,6 +138,8 @@ impl LexeBackgroundProcessor {
                     // --- Process events + channel manager repersist --- //
                     repersist_channel_manager = process_events_fut => {
                         debug!("Processing pending events");
+                        // TODO(max): These async blocks can be removed once we
+                        // switch to async event handling.
                         async {
                             channel_manager
                                 .process_pending_events(&event_handler);
@@ -138,6 +148,16 @@ impl LexeBackgroundProcessor {
                             chain_monitor
                                 .process_pending_events(&event_handler);
                         }.instrument(info_span!("(process)(chain-mon)")).await;
+
+                        // If there was a fatal error, exit here before (1) any
+                        // messages are sent by the peer manager; (2) anything
+                        // is repersisted, especially the channel manager.
+                        // `return` instead of `break` also skips the final
+                        // repersist at the end of the run body.
+                        if fatal_event.load(Ordering::Acquire) {
+                            return;
+                        }
+
                         async {
                             peer_manager.process_events();
                         }.instrument(info_span!("(process)(peer-man)")).await;

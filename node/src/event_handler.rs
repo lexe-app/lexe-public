@@ -1,4 +1,10 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use anyhow::{anyhow, Context};
 use common::{
@@ -38,49 +44,51 @@ pub struct NodeEventHandler {
     pub(crate) esplora: Arc<LexeEsplora>,
     pub(crate) network_graph: Arc<NetworkGraphType>,
     pub(crate) payments_manager: NodePaymentsManagerType,
+    pub(crate) fatal_event: Arc<AtomicBool>,
     pub(crate) test_event_tx: TestEventSender,
-    // XXX: remove when `EventHandler` is async
-    #[allow(dead_code)]
+    #[allow(dead_code)] // TODO(max): Remove
     pub(crate) blocking_task_rt: BlockingTaskRt,
     pub(crate) shutdown: ShutdownChannel,
 }
 
+/// Event handling requirements are outlined in the doc comments for
+/// [`EventsProvider`], [`ChannelManager::process_pending_events`], and
+/// [`ChainMonitor::process_pending_events`], which we summarize and expand on
+/// here because they are very important to understand clearly.
+///
+/// - The docs state that the handling of an event must *succeed* before
+///   returning from this function. Otherwise, if the background processor
+///   repersists the channel manager and the program crashes before event
+///   handling succeeds, the event (which is queued up and persisted in the
+///   channel manager) will be lost forever.
+///   - In practice, we accomplish this by sending a notification to the BGP if
+///     a fatal [`EventHandleError`] occurs. The BGP checks for a notification
+///     just after the call to `process_pending_events[_async]` and skips the
+///     channel manager persist and any I/O if a notification was received.
+/// - Event handling must be *idempotent*. It must be okay to handle the same
+///   event twice, since if an event is handled but another event produced a
+///   fatal error, or the program crashes before the channel manager can be
+///   repersisted, the event will be replayed upon next boot.
+/// - The event handler must avoid reentrancy by avoiding direct calls to
+///   [`ChannelManager::process_pending_events`] or
+///   [`ChainMonitor::process_pending_events`] (or their async variants).
+///   Otherwise, there may be a deadlock.
+/// - The event handler must not call [`Writeable::write`] on the channel
+///   manager, otherwise there will be a deadlock, because the channel manager's
+///   `total_consistency_lock` is held for the duration of the event handling.
+///
+/// [`ChannelManager::process_pending_events`]: lightning::ln::channelmanager::ChannelManager::process_pending_events
+/// [`ChainMonitor::process_pending_events`]: lightning::chain::chainmonitor::ChainMonitor::process_pending_events
+/// [`EventsProvider`]: lightning::util::events::EventsProvider
+/// [`Writeable::write`]: lightning::util::ser::Writeable::write
 impl EventHandler for NodeEventHandler {
-    /// Event handling requirements are documented in the [`EventsProvider`]
-    /// doc comments:
-    ///
-    /// - The handling of an event must *complete* before returning from this
-    ///   function. Otherwise, if the channel manager gets persisted and the the
-    ///   program crashes ("someone trips on a cable") before event handling is
-    ///   complete, the event will be lost forever.
-    /// - Event handling must be *idempotent*. It must be okay to handle the
-    ///   same event twice, since if an event is handled but the program crashes
-    ///   before the channel manager is persisted, the same event will be
-    ///   emitted again.
-    /// - The event handler must avoid reentrancy by not making direct calls to
-    ///   `ChannelManager::process_pending_events` or
-    ///   `ChainMonitor::process_pending_events`, otherwise there may be a
-    ///   deadlock.
-    ///
-    /// [`EventsProvider`]: lightning::util::events::EventsProvider
     fn handle_event(&self, event: Event) {
-        // XXX: This trait requires that event handling *finishes* before
-        // returning from this function, but LDK #1674 (async event handling)
-        // isn't implemented yet.
-        //
-        // As a temporary hack and work-around, we create a new thread which
-        // only runs `handle_event` tasks. We use a single-threaded runtime for
-        // nodes (plus `sqlx::test` proc-macro also forces a single-threaded
-        // rt), so we can't use `rt-multi-threaded`, which would let us use
-        // `task::block_in_place`.
-
         let event_name = lexe_ln::event::get_event_name(&event);
         info!("Handling event: {event_name}");
         #[cfg(debug_assertions)] // Events contain sensitive info
         tracing::trace!("Event details: {event:?}");
 
-        // TODO(max): Should be possible to remove all clone()s once async event
-        // handling is supported
+        // TODO(max): Remove all clone()s when async handling is implemented
         let lsp = self.lsp.clone();
         let wallet = self.wallet.clone();
         let channel_manager = self.channel_manager.clone();
@@ -88,16 +96,24 @@ impl EventHandler for NodeEventHandler {
         let network_graph = self.network_graph.clone();
         let keys_manager = self.keys_manager.clone();
         let payments_manager = self.payments_manager.clone();
+        let fatal_event = self.fatal_event.clone();
         let test_event_tx = self.test_event_tx.clone();
         let shutdown = self.shutdown.clone();
 
-        // XXX(max): The EventHandler contract requires us to have *finished*
-        // handling the event before returning from this function. But using the
-        // BlockingTaskRt is causing other Lexe services (which are run on the
-        // same thread in the integration tests) to be unresponsive when the
-        // node handles events. So we hack around it by breaking the contract
-        // and just handling the event in a detached task. The long term fix is
-        // to move to async event handling, which should be straightforward.
+        // XXX(max): We are currently breaking the EventHandler contract because
+        // spawning off the event handling in a task means that it is possible
+        // for the BGP to repersist the channel manager (thus losing any events)
+        // prior to finding out that one of the events in the batch produced a
+        // fatal error and must be replayed upon the next boot.
+        //
+        // An attempt to hack around this using the BlockingTaskRt caused other
+        // Lexe services (which are run on the same thread in integration tests)
+        // to be unresponsive while events were being handled, which in turn
+        // prevented the event handler from completing, so we gave up for now.
+        //
+        // Once we move to async event handling, the BGP will repersist the
+        // channel manager only after it `.await`s for the async event handler
+        // to complete, so the contract will be upheld once more.
         #[allow(clippy::redundant_async_block)]
         LxTask::spawn(async move {
             handle_event(
@@ -108,6 +124,7 @@ impl EventHandler for NodeEventHandler {
                 &network_graph,
                 keys_manager.as_ref(),
                 &payments_manager,
+                fatal_event.as_ref(),
                 &test_event_tx,
                 &shutdown,
                 event,
@@ -127,6 +144,7 @@ pub(crate) async fn handle_event(
     network_graph: &NetworkGraphType,
     keys_manager: &LexeKeysManager,
     payments_manager: &NodePaymentsManagerType,
+    fatal_event: &AtomicBool,
     test_event_tx: &TestEventSender,
     shutdown: &ShutdownChannel,
     event: Event,
@@ -153,7 +171,9 @@ pub(crate) async fn handle_event(
         Err(EventHandleError::Fatal(e)) => {
             error!("Fatal error handling {event_name}: {e:#}");
             shutdown.send();
-            // XXX(max): Notify BGP to skip channel manager repersist
+            // Notify our BGP that a fatal event handling error has occurred and
+            // that the current batch of events MUST not be lost.
+            fatal_event.store(true, Ordering::Release);
         }
     }
 }
