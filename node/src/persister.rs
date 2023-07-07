@@ -479,7 +479,7 @@ impl InnerPersister {
                     .map_err(|e| anyhow!("{e:?}"))
                     .context("Failed to deserialize NetworkGraph")?
             }
-            None => NetworkGraph::new(network.genesis_hash(), logger),
+            None => NetworkGraph::new(network.0, logger),
         };
 
         Ok(ng)

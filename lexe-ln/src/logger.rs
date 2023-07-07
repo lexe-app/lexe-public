@@ -248,7 +248,6 @@ fn loglevel_to_cs(
 mod test {
     use std::collections::HashMap;
 
-    use lightning::{log_given_level, log_internal};
     use tracing_core::{
         span::{Attributes, Id, Record},
         Dispatch, Subscriber,
