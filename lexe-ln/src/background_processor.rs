@@ -7,7 +7,7 @@ use std::{
 };
 
 use common::{shutdown::ShutdownChannel, task::LxTask};
-use lightning::util::events::EventsProvider;
+use lightning::events::EventsProvider;
 use tokio::{
     sync::{mpsc, oneshot},
     time::{interval, interval_at, Instant},

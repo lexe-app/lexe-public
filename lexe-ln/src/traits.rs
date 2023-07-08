@@ -9,8 +9,7 @@ use common::{
     },
 };
 use lightning::{
-    chain::chainmonitor::Persist,
-    util::{events::EventHandler, ser::Writeable},
+    chain::chainmonitor::Persist, events::EventHandler, util::ser::Writeable,
 };
 use serde::Serialize;
 

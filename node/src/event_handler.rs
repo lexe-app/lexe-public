@@ -25,8 +25,8 @@ use lexe_ln::{
     wallet::LexeWallet,
 };
 use lightning::{
+    events::{Event, EventHandler},
     routing::gossip::NodeId,
-    util::events::{Event, EventHandler},
 };
 use tracing::{error, info, warn};
 
@@ -77,7 +77,7 @@ pub struct NodeEventHandler {
 ///   manager, otherwise there will be a deadlock, because the channel manager's
 ///   `total_consistency_lock` is held for the duration of the event handling.
 ///
-/// [`EventsProvider`]: lightning::util::events::EventsProvider
+/// [`EventsProvider`]: lightning::events::EventsProvider
 /// [`Writeable::write`]: lightning::util::ser::Writeable::write
 impl EventHandler for NodeEventHandler {
     fn handle_event(&self, event: Event) {
@@ -262,6 +262,13 @@ async fn handle_event_fallible(
             .context("Failed to handle funding generation ready")
             .map_err(EventHandleError::Fatal)?;
         }
+        Event::ChannelPending {
+            channel_id: _,
+            user_channel_id: _,
+            former_temporary_channel_id: _,
+            counterparty_node_id: _,
+            funding_txo: _,
+        } => {}
         Event::ChannelReady {
             channel_id: _,
             user_channel_id: _,
@@ -274,9 +281,11 @@ async fn handle_event_fallible(
             payment_hash,
             amount_msat,
             purpose,
+            onion_fields: _,
             receiver_node_id: _,
             via_channel_id: _,
             via_user_channel_id: _,
+            claim_deadline: _,
         } => {
             payments_manager
                 .payment_claimable(payment_hash, amount_msat, purpose)
@@ -313,8 +322,10 @@ async fn handle_event_fallible(
         }
         Event::PaymentFailed {
             payment_id: _,
+            reason,
             payment_hash,
         } => {
+            warn!("Payment failed. Reason: {reason:?}");
             payments_manager
                 .payment_failed(payment_hash)
                 .await
@@ -331,6 +342,8 @@ async fn handle_event_fallible(
             next_channel_id,
             fee_earned_msat,
             claim_from_onchain_tx,
+            // TODO(max): We should do something with this
+            outbound_amount_forwarded_msat: _,
         } => {
             let read_only_network_graph = network_graph.read_only();
             let nodes = read_only_network_graph.nodes();

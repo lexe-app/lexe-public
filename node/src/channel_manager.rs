@@ -107,6 +107,8 @@ const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =
         our_to_self_delay: TIME_TO_CONTEST_FRAUDULENT_CLOSES,
         // Allow extremely small HTLCs
         our_htlc_minimum_msat: 1,
+        // LDK's default limit on the number of inflight inbound HTLCs.
+        our_max_accepted_htlcs: 50,
         // Allow up to 100% of our funds to be encumbered in inbound HTLCS.
         max_inbound_htlc_value_in_flight_percent_of_channel: 100,
         // Attempt to use better privacy.

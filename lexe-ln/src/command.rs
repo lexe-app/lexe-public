@@ -24,7 +24,8 @@ use lightning::{
     chain::keysinterface::{NodeSigner, Recipient},
     ln::{
         channelmanager::{
-            PaymentId, RetryableSendFailure, MIN_FINAL_CLTV_EXPIRY_DELTA,
+            PaymentId, RecipientOnionFields, RetryableSendFailure,
+            MIN_FINAL_CLTV_EXPIRY_DELTA,
         },
         PaymentHash,
     },
@@ -309,9 +310,12 @@ where
 
     // Extract a few more values needed later before we consume the Invoice.
     let payment_hash = PaymentHash(invoice.payment_hash().into_inner());
-    let payment_secret = Some(*invoice.payment_secret());
     let payment_id = PaymentId(payment_hash.0);
     let hash = LxPaymentHash::from(payment_hash);
+    let recipient_fields = RecipientOnionFields {
+        payment_secret: Some(*invoice.payment_secret()),
+        payment_metadata: None,
+    };
 
     // Create and register the new payment, checking that it is unique.
     let payment = OutboundInvoicePayment::new(invoice, &route, req.note);
@@ -322,9 +326,9 @@ where
 
     // Send the payment, letting LDK handle payment retries, and match on the
     // result, registering a failure with the payments manager if appropriate.
-    match channel_manager.send_payment_with_retry(
+    match channel_manager.send_payment(
         payment_hash,
-        &payment_secret,
+        recipient_fields,
         payment_id,
         route_params,
         OUTBOUND_PAYMENT_RETRY_STRATEGY,

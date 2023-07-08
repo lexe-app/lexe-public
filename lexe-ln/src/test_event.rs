@@ -37,7 +37,7 @@ pub enum TestEvent {
     BdkSyncComplete,
     /// A [`FundingGenerationReady`] event was handled.
     ///
-    /// [`FundingGenerationReady`]: lightning::util::events::Event::FundingGenerationReady
+    /// [`FundingGenerationReady`]: lightning::events::Event::FundingGenerationReady
     FundingGenerationHandled,
     /// An on-chain transaction was successfully broadcasted by [`LexeEsplora`]
     ///
@@ -45,29 +45,29 @@ pub enum TestEvent {
     TxBroadcasted,
     /// A [`ChannelReady`] event was handled.
     ///
-    /// [`ChannelReady`]: lightning::util::events::Event::ChannelReady
+    /// [`ChannelReady`]: lightning::events::Event::ChannelReady
     ChannelReady,
     /// A channel monitor update was successfully persisted.
     ChannelMonitorPersisted,
     /// A [`PaymentClaimable`] event was handled.
     ///
-    /// [`PaymentClaimable`]: lightning::util::events::Event::PaymentClaimable
+    /// [`PaymentClaimable`]: lightning::events::Event::PaymentClaimable
     PaymentClaimable,
     /// A [`PaymentClaimed`] event was handled.
     ///
-    /// [`PaymentClaimed`]: lightning::util::events::Event::PaymentClaimed
+    /// [`PaymentClaimed`]: lightning::events::Event::PaymentClaimed
     PaymentClaimed,
     /// A [`PaymentSent`] event was handled.
     ///
-    /// [`PaymentSent`]: lightning::util::events::Event::PaymentSent
+    /// [`PaymentSent`]: lightning::events::Event::PaymentSent
     PaymentSent,
     /// A [`ChannelClosed`] event was handled.
     ///
-    /// [`ChannelClosed`]: lightning::util::events::Event::ChannelClosed
+    /// [`ChannelClosed`]: lightning::events::Event::ChannelClosed
     ChannelClosed,
     /// A [`SpendableOutputs`] event was handled.
     ///
-    /// [`SpendableOutputs`]: lightning::util::events::Event::SpendableOutputs
+    /// [`SpendableOutputs`]: lightning::events::Event::SpendableOutputs
     SpendableOutputs,
 }
 
