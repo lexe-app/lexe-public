@@ -20,9 +20,7 @@ use common::{
     shutdown::ShutdownChannel,
     task::LxTask,
 };
-use lightning::{
-    ln::channelmanager::FailureCode, util::events::PaymentPurpose,
-};
+use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};
 use rust_decimal::Decimal;
 use tokio::sync::Mutex;
 use tracing::{debug, debug_span, error, info, instrument};
@@ -321,7 +319,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
     /// Handles a [`PaymentClaimable`] event.
     ///
-    /// [`PaymentClaimable`]: lightning::util::events::Event::PaymentClaimable
+    /// [`PaymentClaimable`]: lightning::events::Event::PaymentClaimable
     #[instrument(skip_all, name = "(payment-claimable)")]
     pub async fn payment_claimable(
         &self,
@@ -406,7 +404,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
     /// Handles a [`PaymentClaimed`] event.
     ///
-    /// [`PaymentClaimed`]: lightning::util::events::Event::PaymentClaimed
+    /// [`PaymentClaimed`]: lightning::events::Event::PaymentClaimed
     #[instrument(skip_all, name = "(payment-claimed)")]
     pub async fn payment_claimed(
         &self,
@@ -442,7 +440,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
     /// Handles a [`PaymentSent`] event.
     ///
-    /// [`PaymentSent`]: lightning::util::events::Event::PaymentSent
+    /// [`PaymentSent`]: lightning::events::Event::PaymentSent
     #[instrument(skip_all, name = "(payment-sent)")]
     pub async fn payment_sent(
         &self,
@@ -482,8 +480,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// [`PaymentSent`] events will be emitted by LDK later).
     ///
     /// [`pay_invoice`]: crate::command::pay_invoice
-    /// [`PaymentSent`]: lightning::util::events::Event::PaymentSent
-    /// [`PaymentFailed`]: lightning::util::events::Event::PaymentFailed
+    /// [`PaymentSent`]: lightning::events::Event::PaymentSent
+    /// [`PaymentFailed`]: lightning::events::Event::PaymentFailed
     #[instrument(skip_all, name = "(payment-failed)")]
     pub async fn payment_failed(
         &self,

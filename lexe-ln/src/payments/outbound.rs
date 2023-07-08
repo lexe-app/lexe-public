@@ -13,9 +13,9 @@ use common::{
 };
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::{
+    events::Event::{PaymentFailed, PaymentSent},
+    events::PaymentPurpose,
     ln::channelmanager::ChannelManager,
-    util::events::Event::{PaymentFailed, PaymentSent},
-    util::events::PaymentPurpose,
 };
 use lightning::{ln::channelmanager::Retry, routing::router::Route};
 use lightning_invoice::Invoice;

@@ -24,10 +24,10 @@ bitcoin_hashes = "0.11"
 
 # --- LIGHTNING --- #
 
-lightning = { version = "0.0.114", features = ["max_level_trace"] }
-lightning-invoice = { version = "0.22" }
-lightning-net-tokio = { version = "0.0.114" }
-lightning-transaction-sync = { version = "0.0.114", features = ["esplora-async"] }
+lightning = { version = "0.0.115", features = ["max_level_trace"] }
+lightning-invoice = { version = "0.23" }
+lightning-net-tokio = { version = "0.0.115" }
+lightning-transaction-sync = { version = "0.0.115", features = ["esplora-async"] }
 
 # --- GENERAL --- #
 
@@ -146,16 +146,16 @@ warp = { git = "https://github.com/lexe-tech/warp", branch = "lexe-2023_06_29" }
 #    *See the commit messages in the patch for details.
 # 3) Reintroduces the Send bound in bdk-macros' `async_trait`s, required for (2)
 # 4) Reduces `CACHE_ADDR_BATCH_SIZE` from 100 to 1.
-bdk = { git = "https://github.com/lexe-tech/bdk", branch = "lexe-v0.26-synctime-threadsafe" }
-bdk-macros = { git = "https://github.com/lexe-tech/bdk", branch = "lexe-v0.26-synctime-threadsafe" }
+bdk = { git = "https://github.com/lexe-tech/bdk", branch = "lexe-v0.27.1-2023_07_07" }
+bdk-macros = { git = "https://github.com/lexe-tech/bdk", branch = "lexe-v0.27.1-2023_07_07" }
 # bdk = { path = "../../bdk", default-features = false, features = ["async-interface", "use-esplora-async"] }
 # bdk-macros = { path = "../../bdk/macros" }
 
 # We maintain a patch which propagates tracing spans across `tokio::spawn`s.
-lightning = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.114-2023_07_06" }
-lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.114-2023_07_06" }
-lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.114-2023_07_06" }
-lightning-transaction-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.114-2023_07_06" }
+lightning = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.115-2023_07_07" }
+lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.115-2023_07_07" }
+lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.115-2023_07_07" }
+lightning-transaction-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.115-2023_07_07" }
 
 # For debugging LDK or testing patches during local development
 # lightning = { path = "../../ldk/lightning" }

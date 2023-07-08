@@ -203,7 +203,7 @@ impl LexeWallet {
     /// confirmation target. Intended to be called downstream of an
     /// [`FundingGenerationReady`] event
     ///
-    /// [`FundingGenerationReady`]: lightning::util::events::Event::FundingGenerationReady
+    /// [`FundingGenerationReady`]: lightning::events::Event::FundingGenerationReady
     pub(crate) async fn create_and_sign_funding_tx(
         &self,
         output_script: Script,

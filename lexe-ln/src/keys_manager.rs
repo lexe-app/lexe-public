@@ -41,7 +41,7 @@ use tracing::debug;
 /// [`get_destination_script`]: SignerProvider::get_destination_script.
 /// [`get_shutdown_scriptpubkey`]: SignerProvider::get_shutdown_scriptpubkey.
 /// [`StaticOutput`]: lightning::chain::keysinterface::SpendableOutputDescriptor::StaticOutput
-/// [`SpendableOutputs`]: lightning::util::events::Event::SpendableOutputs
+/// [`SpendableOutputs`]: lightning::events::Event::SpendableOutputs
 pub struct LexeKeysManager {
     inner: KeysManager,
     /// A destination script owned by our BDK wallet, returned by

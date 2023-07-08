@@ -11,11 +11,11 @@ use common::{
     },
     time::TimestampMs,
 };
-use lightning::util::events::PaymentPurpose;
+use lightning::events::PaymentPurpose;
 #[cfg(doc)] // Adding these imports significantly reduces doc comment noise
 use lightning::{
+    events::Event::{PaymentClaimable, PaymentClaimed},
     ln::channelmanager::ChannelManager,
-    util::events::Event::{PaymentClaimable, PaymentClaimed},
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;

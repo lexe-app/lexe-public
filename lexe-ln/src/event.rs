@@ -6,7 +6,7 @@ use lightning::{
         chaininterface::{ConfirmationTarget, FeeEstimator},
         keysinterface::SpendableOutputDescriptor,
     },
-    util::events::Event,
+    events::Event,
 };
 use thiserror::Error;
 
@@ -34,6 +34,7 @@ pub fn get_event_name(event: &Event) -> &'static str {
     match event {
         Event::OpenChannelRequest { .. } => "OpenChannelRequest",
         Event::FundingGenerationReady { .. } => "FundingGenerationReady",
+        Event::ChannelPending { .. } => "ChannelPending",
         Event::ChannelReady { .. } => "ChannelReady",
         Event::PaymentClaimable { .. } => "PaymentClaimable",
         Event::HTLCIntercepted { .. } => "HTLCIntercepted",
