@@ -268,7 +268,9 @@ async fn handle_event_fallible(
             former_temporary_channel_id: _,
             counterparty_node_id: _,
             funding_txo: _,
-        } => {}
+        } => {
+            test_event_tx.send(TestEvent::ChannelPending);
+        }
         Event::ChannelReady {
             channel_id: _,
             user_channel_id: _,
