@@ -43,6 +43,10 @@ pub enum TestEvent {
     ///
     /// [`LexeEsplora`]: crate::esplora::LexeEsplora
     TxBroadcasted,
+    /// A [`ChannelPending`] event was handled.
+    ///
+    /// [`ChannelPending`]: lightning::events::Event::ChannelPending
+    ChannelPending,
     /// A [`ChannelReady`] event was handled.
     ///
     /// [`ChannelReady`]: lightning::events::Event::ChannelReady
