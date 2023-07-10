@@ -61,6 +61,9 @@ pub struct SendOnchainRequest {
 pub struct CloseChannelRequest {
     /// The id of the channel we want to close.
     pub channel_id: ChannelId,
+    /// Set to true if the channel should be force closed (unilateral).
+    /// Set to false if the channel should be cooperatively closed (bilateral).
+    pub force_close: bool,
     /// The [`NodePk`] of our counterparty.
     ///
     /// If set to [`None`], the counterparty's [`NodePk`] will be determined by
