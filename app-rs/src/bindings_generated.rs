@@ -22,6 +22,26 @@ use crate::bindings::*;
 
 // Section: wire functions
 
+fn wire_form_validate_bitcoin_address_impl(
+    address_str: impl Wire2Api<String> + UnwindSafe,
+    current_network: impl Wire2Api<Network> + UnwindSafe,
+) -> support::WireSyncReturn {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
+        WrapInfo {
+            debug_name: "form_validate_bitcoin_address",
+            port: None,
+            mode: FfiCallMode::Sync,
+        },
+        move || {
+            let api_address_str = address_str.wire2api();
+            let api_current_network = current_network.wire2api();
+            Ok(form_validate_bitcoin_address(
+                api_address_str,
+                api_current_network,
+            ))
+        },
+    )
+}
 fn wire_init_rust_log_stream_impl(
     port_: MessagePort,
     rust_log: impl Wire2Api<String> + UnwindSafe,
@@ -402,6 +422,14 @@ impl support::IntoDartExceptPrimitive for ShortPayment {}
 mod io {
     use super::*;
     // Section: wire functions
+
+    #[no_mangle]
+    pub extern "C" fn wire_form_validate_bitcoin_address(
+        address_str: *mut wire_uint_8_list,
+        current_network: i32,
+    ) -> support::WireSyncReturn {
+        wire_form_validate_bitcoin_address_impl(address_str, current_network)
+    }
 
     #[no_mangle]
     pub extern "C" fn wire_init_rust_log_stream(

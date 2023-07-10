@@ -62,7 +62,7 @@ use flutter_rust_bridge::{
 pub use crate::app::App;
 use crate::{
     dart_task_handler::{LxExecutor, LxHandler},
-    logger,
+    form, logger,
 };
 
 // TODO(phlip9): land real async support in flutter_rust_bridge
@@ -179,6 +179,16 @@ pub enum Network {
     Regtest,
 }
 
+impl From<Network> for common::cli::Network {
+    fn from(network: Network) -> Self {
+        match network {
+            Network::Bitcoin => common::cli::MAINNET_NETWORK,
+            Network::Testnet => common::cli::TESTNET_NETWORK,
+            Network::Regtest => common::cli::REGTEST_NETWORK,
+        }
+    }
+}
+
 /// Dart-serializable configuration we get from the flutter side.
 #[frb(dart_metadata=("freezed"))]
 pub struct Config {
@@ -262,6 +272,29 @@ impl From<&BasicPayment> for ShortPayment {
             created_at: payment.created_at().as_i64(),
         }
     }
+}
+
+// TODO(phlip9): error messages need to be internationalized
+
+/// Validate whether `address_str` is a properly formatted bitcoin address. Also
+/// checks that it's valid for the configured bitcoin network.
+///
+/// The return type is a bit funky: `Option<String>`. `None` means
+/// `address_str` is valid, while `Some(msg)` means it is not (with given
+/// error message). We return in this format to better match the flutter
+/// `FormField` validator API.
+pub fn form_validate_bitcoin_address(
+    address_str: String,
+    current_network: Network,
+) -> SyncReturn<Option<String>> {
+    let result = form::validate_bitcoin_address(
+        &address_str,
+        common::cli::Network::from(current_network),
+    );
+    SyncReturn(match result {
+        Ok(()) => None,
+        Err(msg) => Some(msg),
+    })
 }
 
 /// Init the Rust [`tracing`] logger. Also sets the current `RUST_LOG_TX`

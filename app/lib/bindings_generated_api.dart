@@ -11,6 +11,20 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'bindings_generated_api.freezed.dart';
 
 abstract class AppRs {
+  /// Validate whether `address_str` is a properly formatted bitcoin address. Also
+  /// checks that it's valid for the configured bitcoin network.
+  ///
+  /// The return type is a bit funky: `Option<String>`. `None` means
+  /// `address_str` is valid, while `Some(msg)` means it is not (with given
+  /// error message). We return in this format to better match the flutter
+  /// `FormField` validator API.
+  String? formValidateBitcoinAddress(
+      {required String addressStr,
+      required Network currentNetwork,
+      dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kFormValidateBitcoinAddressConstMeta;
+
   /// Init the Rust [`tracing`] logger. Also sets the current `RUST_LOG_TX`
   /// instance, which ships Rust logs over to the dart side for printing.
   ///

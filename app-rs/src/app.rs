@@ -340,13 +340,3 @@ impl From<Config> for AppConfig {
         }
     }
 }
-
-impl From<Network> for common::cli::Network {
-    fn from(network: Network) -> Self {
-        match network {
-            Network::Bitcoin => common::cli::MAINNET_NETWORK,
-            Network::Testnet => common::cli::TESTNET_NETWORK,
-            Network::Regtest => common::cli::REGTEST_NETWORK,
-        }
-    }
-}

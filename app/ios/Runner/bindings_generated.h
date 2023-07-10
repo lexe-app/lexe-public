@@ -9,6 +9,8 @@ typedef int64_t DartPort;
 
 typedef bool (*DartPostCObjectFnType)(DartPort port_id, void *message);
 
+typedef struct DartCObject *WireSyncReturn;
+
 typedef struct wire_uint_8_list {
   uint8_t *ptr;
   int32_t len;
@@ -31,8 +33,6 @@ typedef struct wire_AppHandle {
   struct wire_App inner;
 } wire_AppHandle;
 
-typedef struct DartCObject *WireSyncReturn;
-
 void store_dart_post_cobject(DartPostCObjectFnType ptr);
 
 Dart_Handle get_dart_object(uintptr_t ptr);
@@ -42,6 +42,9 @@ void drop_dart_object(uintptr_t ptr);
 uintptr_t new_dart_opaque(Dart_Handle handle);
 
 intptr_t init_frb_dart_api_dl(void *obj);
+
+WireSyncReturn wire_form_validate_bitcoin_address(struct wire_uint_8_list *address_str,
+                                                  int32_t current_network);
 
 void wire_init_rust_log_stream(int64_t port_, struct wire_uint_8_list *rust_log);
 
@@ -90,6 +93,7 @@ void free_WireSyncReturn(WireSyncReturn ptr);
 
 static int64_t dummy_method_to_enforce_bundling(void) {
     int64_t dummy_var = 0;
+    dummy_var ^= ((int64_t) (void*) wire_form_validate_bitcoin_address);
     dummy_var ^= ((int64_t) (void*) wire_init_rust_log_stream);
     dummy_var ^= ((int64_t) (void*) wire_load__static_method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_restore__static_method__AppHandle);
