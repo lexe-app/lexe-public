@@ -184,7 +184,8 @@ pub struct PaymentIndex {
 /// A globally-unique identifier for any type of payment, including both
 /// on-chain and Lightning payments.
 ///
-/// - On-chain payments use their [`LxTxid`] as their id.
+/// - On-chain sends use a [`ClientId`] as their id.
+/// - On-chain receives use their [`LxTxid`] as their id.
 /// - Lightning payments use their [`LxPaymentHash`] as their id.
 ///
 /// NOTE that this is NOT a drop-in replacement for LDK's [`PaymentId`], since
@@ -193,7 +194,8 @@ pub struct PaymentIndex {
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum LxPaymentId {
-    Onchain(LxTxid),
+    OnchainSend(ClientId),
+    OnchainRecv(LxTxid),
     Lightning(LxPaymentHash),
 }
 
@@ -296,6 +298,19 @@ impl PaymentIndex {
     }
 }
 
+// --- impl LxPaymentId --- //
+
+impl LxPaymentId {
+    /// Returns the prefix to use when serializing this payment id to a string.
+    pub fn prefix(&self) -> &'static str {
+        match self {
+            Self::OnchainSend(_) => "os",
+            Self::OnchainRecv(_) => "or",
+            Self::Lightning(_) => "ln",
+        }
+    }
+}
+
 // --- impl ClientId --- //
 
 impl ClientId {
@@ -334,15 +349,20 @@ impl fmt::Debug for LxPaymentSecret {
 
 // --- Newtype From impls --- //
 
-// LxPaymentId -> LxTxid / LxPaymentHash
+// LxPaymentId <- ClientId / Txid / LxPaymentHash
+impl From<ClientId> for LxPaymentId {
+    fn from(client_id: ClientId) -> Self {
+        Self::OnchainSend(client_id)
+    }
+}
 impl From<LxTxid> for LxPaymentId {
     fn from(txid: LxTxid) -> Self {
-        Self::Onchain(txid)
+        Self::OnchainRecv(txid)
     }
 }
 impl From<bitcoin::Txid> for LxPaymentId {
     fn from(txid: bitcoin::Txid) -> Self {
-        Self::Onchain(LxTxid(txid))
+        Self::OnchainRecv(LxTxid(txid))
     }
 }
 impl From<LxPaymentHash> for LxPaymentId {
@@ -351,22 +371,24 @@ impl From<LxPaymentHash> for LxPaymentId {
     }
 }
 
-// LxPaymentId -> LxTxid / LxPaymentHash
-impl TryFrom<LxPaymentId> for LxTxid {
+// LxPaymentId -> ClientId / Txid / LxPaymentHash
+impl TryFrom<LxPaymentId> for ClientId {
     type Error = anyhow::Error;
     fn try_from(id: LxPaymentId) -> anyhow::Result<Self> {
+        use LxPaymentId::*;
         match id {
-            LxPaymentId::Onchain(txid) => Ok(txid),
-            LxPaymentId::Lightning(..) => bail!("Not an onchain payment"),
+            OnchainSend(client_id) => Ok(client_id),
+            OnchainRecv(_) | Lightning(_) => bail!("Not an onchain send"),
         }
     }
 }
 impl TryFrom<LxPaymentId> for LxPaymentHash {
     type Error = anyhow::Error;
     fn try_from(id: LxPaymentId) -> anyhow::Result<Self> {
+        use LxPaymentId::*;
         match id {
-            LxPaymentId::Onchain(..) => bail!("Not a lightning payment"),
-            LxPaymentId::Lightning(hash) => Ok(hash),
+            Lightning(hash) => Ok(hash),
+            OnchainSend(_) | OnchainRecv(_) => bail!("Not a lightning payment"),
         }
     }
 }
@@ -543,13 +565,16 @@ impl FromStr for LxPaymentId {
             "Wrong format; should be <kind>_<id>"
         );
         match kind_str {
-            "bc" => LxTxid::from_str(id_str)
-                .map(Self::Onchain)
+            "os" => ClientId::from_str(id_str)
+                .map(Self::OnchainSend)
+                .context("Invalid ClientId"),
+            "or" => LxTxid::from_str(id_str)
+                .map(Self::OnchainRecv)
                 .context("Invalid Txid"),
             "ln" => LxPaymentHash::from_str(id_str)
                 .map(Self::Lightning)
                 .context("Invalid payment hash"),
-            _ => bail!("<kind> should be 'bc' or 'ln'"),
+            _ => bail!("<kind> should be 'os', 'or', or 'ln'"),
         }
     }
 }
@@ -557,15 +582,23 @@ impl FromStr for LxPaymentId {
 /// `<kind>_<id>`
 impl Display for LxPaymentId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let prefix = self.prefix();
         match self {
-            Self::Onchain(txid) => write!(f, "bc_{txid}"),
-            Self::Lightning(hash) => write!(f, "ln_{hash}"),
+            Self::OnchainSend(client_id) => write!(f, "{prefix}_{client_id}"),
+            Self::OnchainRecv(txid) => write!(f, "{prefix}_{txid}"),
+            Self::Lightning(hash) => write!(f, "{prefix}_{hash}"),
         }
     }
 }
 
 // --- Newtype FromStr / Display impls -- //
 
+impl FromStr for ClientId {
+    type Err = hex::DecodeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        <[u8; 32]>::from_hex(s).map(Self)
+    }
+}
 impl FromStr for LxPaymentHash {
     type Err = hex::DecodeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -585,6 +618,12 @@ impl FromStr for LxPaymentSecret {
     }
 }
 
+impl Display for ClientId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let hex_display = hex::display(&self.0);
+        write!(f, "{hex_display}")
+    }
+}
 impl Display for LxPaymentHash {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let hex_display = hex::display(&self.0);
@@ -606,18 +645,20 @@ impl Display for LxPaymentSecret {
 
 // --- impl Ord for LxPaymentId --- //
 
+/// Defines an ordering such that the string-serialized and unserialized
+/// orderings are equivalent.
 impl Ord for LxPaymentId {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
-            // Onchain serializes to "bc_" while Lightning serializes to "ln_".
-            // We consider Onchain to be "less than" Lightning payments so that
-            // the string-serialized and unserialized orderings are equivalent.
-            (Self::Onchain(_), Self::Lightning(_)) => Ordering::Less,
-            (Self::Lightning(_), Self::Onchain(_)) => Ordering::Greater,
-            (Self::Onchain(self_txid), Self::Onchain(other_txid)) =>
+            // If the kinds match, use their inner orderings
+            (Self::OnchainSend(self_cid), Self::OnchainSend(other_cid)) =>
+                self_cid.cmp(other_cid),
+            (Self::OnchainRecv(self_txid), Self::OnchainRecv(other_txid)) =>
                 self_txid.cmp(other_txid),
             (Self::Lightning(self_hash), Self::Lightning(other_hash)) =>
                 self_hash.cmp(other_hash),
+            // Otherwise, use the string prefix ordering 'ln' < 'or' < 'os'
+            (s, o) => s.prefix().cmp(o.prefix()),
         }
     }
 }
