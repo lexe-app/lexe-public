@@ -26,22 +26,17 @@ use crate::alias::{ChainMonitorType, ChannelManagerType};
 /// Since the mobile client verifies the latest security report every time the
 /// mobile client boots, and the security report checks the blockchain for
 /// channel close transactions, the user can guarantee the security of their
-/// funds by opening their app at least once every <this parameter>.
+/// funds by opening their app at least once every (this parameter).
 ///
 /// This value can be decreased if the mobile client has a recurring task to
 /// verify the security report e.g. once every day. This appears to be possible
 /// with Android's `JobScheduler`, but more difficult (or not possible) on iOS.
 ///
 /// The minimum and maximum values allowed by LDK are 144 blocks (1
-/// day, i.e.[ `BREAKDOWN_TIMEOUT`]) and 2016 blocks (two weeks) respectively.
+/// day, i.e.[`BREAKDOWN_TIMEOUT`]) and 2016 blocks (two weeks) respectively.
 ///
-/// TODO: Implement security report which checks for channel closes
-/// TODO: Implement recurring verification of the security report
-#[cfg(all(target_env = "sgx", not(test)))]
+/// [`BREAKDOWN_TIMEOUT`]: lightning::ln::channelmanager::BREAKDOWN_TIMEOUT
 const TIME_TO_CONTEST_FRAUDULENT_CLOSES: u16 = 6 * 24 * 7; // 7 days
-/// Use less secure parameters during development
-#[cfg(any(not(target_env = "sgx"), test))]
-const TIME_TO_CONTEST_FRAUDULENT_CLOSES: u16 = 144; // 1 day
 
 /// The inverse of [`TIME_TO_CONTEST_FRAUDULENT_CLOSES`], specified in blocks.
 /// Defines the maximum number of blocks we're willing to wait to reclaim our
