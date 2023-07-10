@@ -21,7 +21,7 @@ use serde_with::{
     SerializeDisplay,
 };
 use tokio::sync::mpsc;
-use tracing::{error, info, warn};
+use tracing::{debug, error, warn};
 
 /// BDK's wallet database test suite.
 #[cfg(test)]
@@ -777,7 +777,7 @@ impl BatchDatabase for WalletDb {
     type Batch = DbBatch;
 
     fn begin_batch(&self) -> Self::Batch {
-        info!("Beginning WalletDb batch");
+        debug!("Beginning WalletDb batch");
         DbBatch::new()
     }
 
@@ -797,7 +797,7 @@ impl BatchDatabase for WalletDb {
     /// Taking all the above into consideration, it's not worth blocking the
     /// entire program to protect against this small amount of risk.
     fn commit_batch(&mut self, batch: Self::Batch) -> BdkResult<()> {
-        info!("Committing WalletDb batch");
+        debug!("Committing WalletDb batch");
         // Acquire the lock and execute the ops directly on the DbData to avoid
         // acquiring and releasing the lock once for every op
         {
