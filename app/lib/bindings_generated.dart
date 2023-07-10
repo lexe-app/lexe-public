@@ -24,6 +24,28 @@ class AppRsImpl implements AppRs {
   factory AppRsImpl.wasm(FutureOr<WasmModule> module) =>
       AppRsImpl(module as ExternalLibrary);
   AppRsImpl.raw(this._platform);
+  String? formValidateBitcoinAddress(
+      {required String addressStr,
+      required Network currentNetwork,
+      dynamic hint}) {
+    var arg0 = _platform.api2wire_String(addressStr);
+    var arg1 = api2wire_network(currentNetwork);
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () =>
+          _platform.inner.wire_form_validate_bitcoin_address(arg0, arg1),
+      parseSuccessData: _wire2api_opt_String,
+      constMeta: kFormValidateBitcoinAddressConstMeta,
+      argValues: [addressStr, currentNetwork],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kFormValidateBitcoinAddressConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "form_validate_bitcoin_address",
+        argNames: ["addressStr", "currentNetwork"],
+      );
+
   Stream<String> initRustLogStream({required String rustLog, dynamic hint}) {
     var arg0 = _platform.api2wire_String(rustLog);
     return _platform.executeStream(FlutterRustBridgeTask(
@@ -630,6 +652,24 @@ class AppRsWire implements FlutterRustBridgeWireBase {
           'init_frb_dart_api_dl');
   late final _init_frb_dart_api_dl = _init_frb_dart_api_dlPtr
       .asFunction<int Function(ffi.Pointer<ffi.Void>)>();
+
+  WireSyncReturn wire_form_validate_bitcoin_address(
+    ffi.Pointer<wire_uint_8_list> address_str,
+    int current_network,
+  ) {
+    return _wire_form_validate_bitcoin_address(
+      address_str,
+      current_network,
+    );
+  }
+
+  late final _wire_form_validate_bitcoin_addressPtr = _lookup<
+      ffi.NativeFunction<
+          WireSyncReturn Function(ffi.Pointer<wire_uint_8_list>,
+              ffi.Int32)>>('wire_form_validate_bitcoin_address');
+  late final _wire_form_validate_bitcoin_address =
+      _wire_form_validate_bitcoin_addressPtr.asFunction<
+          WireSyncReturn Function(ffi.Pointer<wire_uint_8_list>, int)>();
 
   void wire_init_rust_log_stream(
     int port_,

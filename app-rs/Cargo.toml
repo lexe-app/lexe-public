@@ -33,6 +33,7 @@ common = { path = "../common" }
 
 anyhow.workspace = true
 arc-swap.workspace = true
+bitcoin.workspace = true
 cfg-if.workspace = true
 flutter_rust_bridge.workspace = true
 secrecy.workspace = true
@@ -59,7 +60,6 @@ roaring = "0.10"
 common = { path = "../common", features = ["test-utils"] }
 
 async-trait.workspace = true
-bitcoin.workspace = true
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 tempfile.workspace = true
