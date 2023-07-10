@@ -9,6 +9,7 @@ use lightning::{
     events::Event,
 };
 use thiserror::Error;
+use tracing::debug;
 
 use crate::{
     esplora::LexeEsplora,
@@ -128,6 +129,7 @@ pub async fn handle_spendable_outputs(
         &secp_ctx,
     )?;
     if let Some(spending_tx) = maybe_spending_tx {
+        debug!("Broadcasting tx to spend spendable outputs");
         esplora
             .broadcast_tx(&spending_tx)
             .await

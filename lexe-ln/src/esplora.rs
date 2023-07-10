@@ -258,6 +258,7 @@ impl LexeEsplora {
         tx: &Transaction,
     ) -> anyhow::Result<()> {
         let txid = tx.txid();
+        debug!("Broadcasting tx {txid}");
         client
             .broadcast(tx)
             .await
