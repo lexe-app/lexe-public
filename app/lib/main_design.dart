@@ -16,6 +16,7 @@ import 'bindings_generated_api.dart'
         Config,
         FiatRate,
         FiatRates,
+        Network,
         NodeInfo,
         PaymentDirection,
         PaymentKind,
@@ -63,8 +64,14 @@ Future<void> main() async {
       body: ComponentList(
         components: [
           Component("LandingPage", (_) => LandingPage(config: config)),
-          Component("BackupWalletPage", (_) => BackupWalletPage(app: mockApp)),
-          Component("WalletPage", (_) => WalletPage(app: mockApp)),
+          Component("BackupWalletPage",
+              (_) => BackupWalletPage(config: config, app: mockApp)),
+          Component(
+              "WalletPage",
+              (_) => WalletPage(
+                    app: mockApp,
+                    config: config,
+                  )),
           Component("ScanPage", (_) => const ScanPage()),
           Component(
             "ShowQrPage (standard bip21)",
@@ -80,7 +87,8 @@ Future<void> main() async {
                   "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday&lightning=LNBC10U1P3PJ257PP5YZTKWJCZ5FTL5LAXKAV23ZMZEKAW37ZK6KMV80PK4XAEV5QHTZ7QDPDWD3XGER9WD5KWM36YPRX7U3QD36KUCMGYP282ETNV3SHJCQZPGXQYZ5VQSP5USYC4LK9CHSFP53KVCNVQ456GANH60D89REYKDNGSMTJ6YW3NHVQ9QYYSSQJCEWM5CJWZ4A6RFJX77C490YCED6PEMK0UPKXHY89CMM7SCT66K8GNEANWYKZGDRWRFJE69H9U5U0W57RRCSYSAS7GADWMZXC8C6T0SPJAZUP6",
             ),
           ),
-          Component("SendPaymentPage", (context) => const SendPaymentPage()),
+          Component("SendPaymentPage",
+              (context) => SendPaymentPage(configNetwork: config.network)),
         ],
       ),
     ),

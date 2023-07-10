@@ -42,6 +42,7 @@ mod test {
             ("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k", MAINNET),
             ("bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs", MAINNET),
             ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7", TESTNET),
+            ("bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl", REGTEST),
         ];
 
         let invalid = [

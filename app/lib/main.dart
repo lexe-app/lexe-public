@@ -39,7 +39,7 @@ Future<void> main() async {
   final Widget child;
   if (maybeApp != null) {
     // wallet already exists => show wallet page
-    child = WalletPage(app: maybeApp);
+    child = WalletPage(config: config, app: maybeApp);
   } else {
     // no wallet persisted => first run -> show landing
     child = LandingPage(config: config);

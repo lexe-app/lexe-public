@@ -28,7 +28,7 @@ class ScrollableSinglePageBody extends StatelessWidget {
   const ScrollableSinglePageBody({
     super.key,
     required this.body,
-    this.padding = const EdgeInsets.symmetric(horizontal: Space.s400),
+    this.padding = const EdgeInsets.symmetric(horizontal: Space.s600),
     this.bottom,
     this.bottomAlignment = Alignment.bottomCenter,
     this.bottomPadding = const EdgeInsets.only(bottom: Space.s600),

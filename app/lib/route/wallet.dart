@@ -10,6 +10,7 @@ import 'package:rxdart_ext/rxdart_ext.dart';
 import '../../bindings_generated_api.dart'
     show
         AppHandle,
+        Config,
         FiatRate,
         NodeInfo,
         PaymentDirection,
@@ -27,8 +28,9 @@ import '../../style.dart' show Fonts, LxColors, Space;
 part 'wallet.freezed.dart';
 
 class WalletPage extends StatefulWidget {
-  const WalletPage({super.key, required this.app});
+  const WalletPage({super.key, required this.config, required this.app});
 
+  final Config config;
   final AppHandle app;
 
   @override
@@ -137,8 +139,9 @@ class WalletPageState extends State<WalletPage> {
   void onSendPressed() {
     // TODO(phlip9): use result of `Navigator.pop()` in page to know whether to
     // resync payments (if a payment was actually made).
-    Navigator.of(this.context)
-        .push(MaterialPageRoute(builder: (context) => const SendPaymentPage()));
+    Navigator.of(this.context).push(MaterialPageRoute(
+        builder: (context) =>
+            SendPaymentPage(configNetwork: this.widget.config.network)));
   }
 
   @override
