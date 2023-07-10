@@ -401,7 +401,6 @@ impl UserNode {
             chain_monitor.clone(),
             channel_monitor_persister_rx,
             process_events_tx,
-            test_event_tx.clone(),
             shutdown.clone(),
         ));
 

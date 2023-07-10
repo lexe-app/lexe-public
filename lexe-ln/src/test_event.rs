@@ -51,8 +51,6 @@ pub enum TestEvent {
     ///
     /// [`ChannelReady`]: lightning::events::Event::ChannelReady
     ChannelReady,
-    /// A channel monitor update was successfully persisted.
-    ChannelMonitorPersisted,
     /// A [`PaymentClaimable`] event was handled.
     ///
     /// [`PaymentClaimable`]: lightning::events::Event::PaymentClaimable
@@ -152,9 +150,9 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
     /// test_event_rx
-    ///     .wait(TestEvent::ChannelMonitorPersisted)
+    ///     .wait(TestEvent::BdkSyncComplete)
     ///     .await
     ///     .expect("Timed out waiting on channel monitor persist");
     /// # }
@@ -176,11 +174,11 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_n() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
     /// test_event_rx
-    ///     .wait_n(TestEvent::ChannelMonitorPersisted, 3)
+    ///     .wait_n(TestEvent::BdkSyncComplete, 3)
     ///     .await
     ///     .expect("Timed out waiting on channel monitor persist");
     /// # }
@@ -206,11 +204,11 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_all() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
     /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all(vec![
-    ///         TestEvent::ChannelMonitorPersisted,
+    ///         TestEvent::BdkSyncComplete,
     ///         TestEvent::FundingGenerationHandled,
     ///     ])
     ///     .await
@@ -238,13 +236,13 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_all_n() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
     /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all_n(vec![
-    ///         (TestEvent::ChannelMonitorPersisted, 3),
+    ///         (TestEvent::BdkSyncComplete, 3),
     ///         (TestEvent::FundingGenerationHandled, 1),
     ///     ])
     ///     .await
@@ -274,10 +272,10 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
     /// test_event_rx
     ///     .wait_timeout(
-    ///         TestEvent::ChannelMonitorPersisted,
+    ///         TestEvent::BdkSyncComplete,
     ///         Duration::from_secs(15),
     ///     )
     ///     .await
@@ -306,11 +304,11 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_n_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
     /// test_event_rx
-    ///     .wait_n_timeout(TestEvent::ChannelMonitorPersisted, 3)
+    ///     .wait_n_timeout(TestEvent::BdkSyncComplete, 3)
     ///     .await
     ///     .expect("Timed out waiting on channel monitor persist");
     /// # }
@@ -338,12 +336,12 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_all_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
     /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all_timeout(
     ///         vec![
-    ///             TestEvent::ChannelMonitorPersisted,
+    ///             TestEvent::BdkSyncComplete,
     ///             TestEvent::FundingGenerationHandled,
     ///         ],
     ///         Duration::from_secs(15),
@@ -380,14 +378,14 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_all_n_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
-    /// # test_event_tx.send(TestEvent::ChannelMonitorPersisted);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
     /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all_n_timeout(
     ///         vec![
-    ///             (TestEvent::ChannelMonitorPersisted, 3),
+    ///             (TestEvent::BdkSyncComplete, 3),
     ///             (TestEvent::FundingGenerationHandled, 1),
     ///         ],
     ///         Duration::from_secs(15),
@@ -482,7 +480,7 @@ mod test {
 
     #[tokio::test]
     async fn pending_before_ready_after() {
-        let event1 = TestEvent::ChannelMonitorPersisted;
+        let event1 = TestEvent::BdkSyncComplete;
         let event2 = TestEvent::FundingGenerationHandled;
         let label = "(node)";
 
