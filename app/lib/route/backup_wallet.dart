@@ -2,14 +2,15 @@ import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
 
-import '../../bindings_generated_api.dart' show AppHandle;
+import '../../bindings_generated_api.dart' show AppHandle, Config;
 import '../../components.dart' show LxCloseButton;
 import '../../route/wallet.dart' show WalletPage;
 import '../../style.dart' show Fonts, LxColors, Space;
 
 class BackupWalletPage extends StatelessWidget {
-  const BackupWalletPage({super.key, required this.app});
+  const BackupWalletPage({super.key, required this.config, required this.app});
 
+  final Config config;
   final AppHandle app;
 
   void skipBackup(BuildContext context) {
@@ -17,7 +18,8 @@ class BackupWalletPage extends StatelessWidget {
 
     unawaited(Navigator.of(context).pushReplacement(MaterialPageRoute(
       maintainState: false,
-      builder: (BuildContext _) => WalletPage(app: this.app),
+      builder: (BuildContext _) =>
+          WalletPage(config: this.config, app: this.app),
     )));
   }
 

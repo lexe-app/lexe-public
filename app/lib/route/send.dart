@@ -4,11 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
     show LxCloseButton, LxCloseButtonKind, ScrollableSinglePageBody;
 
+import '../../bindings.dart' show api;
+import '../../bindings_generated_api.dart' show Network;
 import '../../logger.dart' show info;
 import '../../style.dart' show Fonts, LxColors, Space;
 
 class SendPaymentPage extends StatefulWidget {
-  const SendPaymentPage({super.key});
+  const SendPaymentPage({super.key, required this.configNetwork});
+
+  final Network configNetwork;
 
   @override
   State<StatefulWidget> createState() => SendPaymentPageState();
@@ -17,6 +21,29 @@ class SendPaymentPage extends StatefulWidget {
 class SendPaymentPageState extends State<SendPaymentPage> {
   final formKey = GlobalKey<FormState>();
 
+  void onQrPressed() {
+    info("pressed QR button");
+  }
+
+  void onNextPressed() {
+    if (this.formKey.currentState!.validate()) {
+      info("success");
+    }
+  }
+
+  /// Ensure the bitcoin address is properly formatted and targets the right
+  /// bitcoin network (mainnet, testnet, regtest) for our build.
+  String? validateBitcoinAddress(String? addressStr) {
+    if (addressStr == null || addressStr.isEmpty) {
+      return "Please enter an address";
+    }
+
+    return api.formValidateBitcoinAddress(
+      addressStr: addressStr,
+      currentNetwork: this.widget.configNetwork,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -24,7 +51,7 @@ class SendPaymentPageState extends State<SendPaymentPage> {
         leading: const LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
         actions: [
           IconButton(
-            onPressed: () => info("pressed QR button"),
+            onPressed: this.onQrPressed,
             icon: const Icon(Icons.qr_code_rounded),
           ),
           const SizedBox(width: Space.s100),
@@ -39,6 +66,7 @@ class SendPaymentPageState extends State<SendPaymentPage> {
               "Who are we paying?",
               style: Fonts.fontUI.copyWith(
                 fontSize: Fonts.size600,
+                // color: LxColors.grey500,
                 fontVariations: [Fonts.weightMedium],
                 letterSpacing: -0.5,
               ),
@@ -52,6 +80,7 @@ class SendPaymentPageState extends State<SendPaymentPage> {
                   color: LxColors.grey750,
                 ),
               ),
+              validator: this.validateBitcoinAddress,
               style: Fonts.fontUI.copyWith(
                 fontSize: Fonts.size700,
                 fontVariations: [Fonts.weightMedium],
@@ -65,13 +94,13 @@ class SendPaymentPageState extends State<SendPaymentPage> {
             const SizedBox(height: Space.s800),
           ],
           bottom: FilledButton(
-            onPressed: () {},
+            onPressed: this.onNextPressed,
             style: FilledButton.styleFrom(
-              backgroundColor: LxColors.grey975,
+              backgroundColor: LxColors.grey1000,
               disabledBackgroundColor: LxColors.grey850,
               foregroundColor: LxColors.foreground,
               disabledForegroundColor: LxColors.grey725,
-              fixedSize: const Size(300.0, Space.s700),
+              maximumSize: const Size.fromHeight(Space.s700),
             ),
             child: Stack(
               alignment: Alignment.center,

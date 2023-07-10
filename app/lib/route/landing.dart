@@ -219,7 +219,7 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
     if (context.mounted) {
       unawaited(Navigator.of(context).pushReplacement(MaterialPageRoute(
         maintainState: false,
-        builder: (BuildContext _) => BackupWalletPage(app: app),
+        builder: (BuildContext _) => BackupWalletPage(config: config, app: app),
       )));
     }
   }
