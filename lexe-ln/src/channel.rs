@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use anyhow::{anyhow, bail, ensure, Context};
+use anyhow::{anyhow, ensure, Context};
 use common::{
     api::{command::CloseChannelRequest, NodePk},
     ln::{amount::Amount, peer::ChannelPeer},
@@ -131,7 +131,8 @@ where
     Ok(())
 }
 
-/// Initiates a cooperative channel close.
+/// Initiates a channel close. Supports both cooperative (bilateral) and force
+/// (unilateral) channel closes.
 pub fn close_channel<CM, PM, PS>(
     req: CloseChannelRequest,
     channel_manager: CM,
@@ -143,10 +144,11 @@ where
     PS: LexePersister,
 {
     let channel_id = req.channel_id;
+    let force_close = req.force_close;
     let maybe_counterparty = req.maybe_counterparty;
     info!(
-        %channel_id, ?maybe_counterparty,
-        "Initiating cooperative channel close",
+        %channel_id, %force_close, ?maybe_counterparty,
+        "Initiating channel close",
     );
 
     let counterparty = maybe_counterparty
@@ -159,15 +161,22 @@ where
         })
         .with_context(|| format!("No channel exists with id {channel_id}"))?;
 
-    if !p2p::is_connected(peer_manager, &counterparty) {
-        bail!("Cannot initiate cooperative close with disconnected peer");
+    if force_close {
+        channel_manager
+            .force_close_broadcasting_latest_txn(&channel_id.0, &counterparty.0)
+            .map_err(|e| anyhow!("(Force close) LDK returned error: {e:?}"))?;
+    } else {
+        ensure!(
+            p2p::is_connected(peer_manager, &counterparty),
+            "Cannot initiate cooperative close with disconnected peer"
+        );
+
+        channel_manager
+            .close_channel(&channel_id.0, &counterparty.0)
+            .map_err(|e| anyhow!("(Co-op close) LDK returned error: {e:?}"))?;
     }
 
-    channel_manager
-        .close_channel(&channel_id.0, &counterparty.0)
-        .map_err(|e| anyhow!("ChannelManager::close_channel errored: {e:?}"))?;
-
-    info!(%channel_id, "Successfully initiated cooperative channel close");
+    info!(%channel_id, %force_close, "Successfully initiated channel close");
     Ok(())
 }
 
