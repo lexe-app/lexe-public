@@ -14,11 +14,7 @@ use thiserror::Error;
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, warn};
 
-use crate::{
-    alias::LexeChainMonitorType,
-    test_event::{TestEvent, TestEventSender},
-    traits::LexePersister,
-};
+use crate::{alias::LexeChainMonitorType, traits::LexePersister};
 
 /// How long we'll wait to receive a reply from the background processor that
 /// event processing is complete.
@@ -73,7 +69,6 @@ pub fn spawn_channel_monitor_persister_task<PS>(
     chain_monitor: Arc<LexeChainMonitorType<PS>>,
     mut channel_monitor_persister_rx: mpsc::Receiver<LxChannelMonitorUpdate>,
     process_events_tx: mpsc::Sender<oneshot::Sender<()>>,
-    test_event_tx: TestEventSender,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
 where
@@ -92,7 +87,6 @@ where
                         update,
                         idx,
                         &process_events_tx,
-                        &test_event_tx,
                         &mut shutdown,
                     ).await;
 
@@ -152,7 +146,6 @@ async fn handle_update<PS: LexePersister>(
     update: LxChannelMonitorUpdate,
     idx: usize,
     process_events_tx: &mpsc::Sender<oneshot::Sender<()>>,
-    test_event_tx: &TestEventSender,
     shutdown: &mut ShutdownChannel,
 ) -> Result<(), Error> {
     debug!("Handling channel monitor update #{idx}");
@@ -196,7 +189,6 @@ async fn handle_update<PS: LexePersister>(
         .map_err(|_| Error::EventsProcessRecv)?;
 
     info!("Success: persisted {kind} channel #{idx}");
-    test_event_tx.send(TestEvent::ChannelMonitorPersisted);
 
     Ok(())
 }
