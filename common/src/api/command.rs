@@ -5,7 +5,7 @@ use crate::{
     api::NodePk,
     ln::{
         amount::Amount, balance::Balance, channel::ChannelId,
-        invoice::LxInvoice, ConfirmationPriority,
+        invoice::LxInvoice, payments::ClientId, ConfirmationPriority,
     },
 };
 
@@ -45,6 +45,8 @@ pub struct PayInvoiceRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct SendOnchainRequest {
+    /// The identifier to use for this payment.
+    pub cid: ClientId,
     /// The address we want to send funds to.
     pub address: Address,
     /// How much Bitcoin we want to send.

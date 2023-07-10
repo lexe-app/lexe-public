@@ -171,8 +171,8 @@ impl Payment {
 
     pub fn id(&self) -> LxPaymentId {
         match self {
-            Self::OnchainSend(od) => LxPaymentId::Onchain(od.txid),
-            Self::OnchainReceive(ow) => LxPaymentId::Onchain(ow.txid),
+            Self::OnchainSend(os) => LxPaymentId::OnchainSend(os.cid),
+            Self::OnchainReceive(or) => LxPaymentId::OnchainRecv(or.txid),
             Self::InboundInvoice(iip) => LxPaymentId::Lightning(iip.hash),
             Self::InboundSpontaneous(isp) => LxPaymentId::Lightning(isp.hash),
             Self::OutboundInvoice(oip) => LxPaymentId::Lightning(oip.hash),

@@ -4,7 +4,10 @@ use bitcoin::Transaction;
 use common::test_utils::arbitrary;
 use common::{
     api::command::SendOnchainRequest,
-    ln::{amount::Amount, hashes::LxTxid, ConfirmationPriority},
+    ln::{
+        amount::Amount, hashes::LxTxid, payments::ClientId,
+        ConfirmationPriority,
+    },
     time::TimestampMs,
 };
 #[cfg(test)]
@@ -22,6 +25,7 @@ const ONCHAIN_CONFIRMATION_THRESHOLD: u32 = 6;
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainSend {
+    pub cid: ClientId,
     pub txid: LxTxid,
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_raw_tx()"))]
     pub tx: Transaction,
@@ -83,6 +87,7 @@ pub enum OnchainSendStatus {
 impl OnchainSend {
     pub fn new(tx: Transaction, req: SendOnchainRequest, fees: Amount) -> Self {
         Self {
+            cid: req.cid,
             txid: LxTxid(tx.txid()),
             tx,
             replacement: None,
