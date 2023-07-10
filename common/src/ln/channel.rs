@@ -55,6 +55,10 @@ pub struct LxChannelDetails {
     /// The portion of our balance that our counterparty forces us to keep in
     /// the channel so they can punish us if we try to cheat. Unspendable.
     pub punishment_reserve: Amount,
+    /// The number of blocks we'll need to wait to claim our funds if we
+    /// initiate a channel close. Is [`None`] if the channel is outbound and
+    /// hasn't yet been accepted by our counterparty.
+    pub force_close_spend_delay: Option<u16>,
     pub is_public: bool,
     pub is_outbound: bool,
     /// (1) channel has been confirmed
@@ -142,6 +146,7 @@ impl From<ChannelDetails> for LxChannelDetails {
 
             inbound_capacity_msat,
 
+            force_close_spend_delay,
             is_public,
             is_outbound,
             is_channel_ready,
@@ -222,6 +227,7 @@ impl From<ChannelDetails> for LxChannelDetails {
             counterparty_node_id,
             channel_value,
             punishment_reserve,
+            force_close_spend_delay,
             is_public,
             is_outbound,
             is_ready,
