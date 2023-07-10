@@ -23,6 +23,7 @@ use crate::{
     hex::{self, FromHex},
     hexstr_or_bytes,
     ln::{amount::Amount, hashes::LxTxid, invoice::LxInvoice},
+    rng::RngCore,
     time::TimestampMs,
 };
 
@@ -196,6 +197,20 @@ pub enum LxPaymentId {
     Lightning(LxPaymentHash),
 }
 
+/// A unique identifier for a payment which is supplied by the mobile client.
+/// Its primary purpose is to support payment idempotency, preventing accidental
+/// double payments. Internal structures (if any) are opaque to the node.
+///
+/// ```
+/// # use common::rng::SysRng;
+/// # use common::ln::payments::ClientId;
+/// let cid = ClientId::from_rng(&mut SysRng::new());
+/// ```
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct ClientId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+
 /// Newtype for [`PaymentHash`] which impls [`Serialize`] / [`Deserialize`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(Serialize, Deserialize)]
@@ -278,6 +293,18 @@ impl PaymentIndex {
         let created_at = TimestampMs::from(u32::from(i));
         let id = LxPaymentId::Lightning(LxPaymentHash([i; 32]));
         Self { created_at, id }
+    }
+}
+
+// --- impl ClientId --- //
+
+impl ClientId {
+    /// Sample a random [`ClientId`].
+    /// The rng is not required to be cryptographically secure.
+    pub fn from_rng(rng: &mut impl RngCore) -> Self {
+        let mut random_buf = [0u8; 32];
+        rng.fill_bytes(&mut random_buf);
+        Self(random_buf)
     }
 }
 
