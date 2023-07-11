@@ -2,23 +2,44 @@
 
 import 'package:flutter/material.dart';
 import 'package:lexeapp/components.dart'
-    show LxCloseButton, LxCloseButtonKind, ScrollableSinglePageBody;
+    show
+        LxBackButton,
+        LxCloseButton,
+        LxCloseButtonKind,
+        ScrollableSinglePageBody;
 
 import '../../bindings.dart' show api;
 import '../../bindings_generated_api.dart' show Network;
 import '../../logger.dart' show info;
 import '../../style.dart' show Fonts, LxColors, Space;
 
-class SendPaymentPage extends StatefulWidget {
+class SendPaymentPage extends StatelessWidget {
   const SendPaymentPage({super.key, required this.configNetwork});
 
   final Network configNetwork;
 
   @override
-  State<StatefulWidget> createState() => SendPaymentPageState();
+  Widget build(BuildContext context) {
+    return Navigator(
+      onGenerateRoute: (RouteSettings settings) => MaterialPageRoute(
+        builder: (context) =>
+            SendPaymentAddressPage(configNetwork: this.configNetwork),
+        settings: settings,
+      ),
+    );
+  }
 }
 
-class SendPaymentPageState extends State<SendPaymentPage> {
+class SendPaymentAddressPage extends StatefulWidget {
+  const SendPaymentAddressPage({super.key, required this.configNetwork});
+
+  final Network configNetwork;
+
+  @override
+  State<StatefulWidget> createState() => SendPaymentAddressPageState();
+}
+
+class SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
   final GlobalKey<FormFieldState<String>> addressFieldKey = GlobalKey();
 
   void onQrPressed() {
@@ -27,10 +48,15 @@ class SendPaymentPageState extends State<SendPaymentPage> {
 
   void onNext() {
     final fieldState = this.addressFieldKey.currentState!;
-    if (fieldState.validate()) {
-      final address = fieldState.value;
-      info("success: address = $address");
+    if (!fieldState.validate()) {
+      return;
     }
+
+    final address = fieldState.value!;
+
+    Navigator.of(this.context).push(MaterialPageRoute(
+      builder: (_) => SendPaymentAmountPage(address: address),
+    ));
   }
 
   /// Ensure the bitcoin address is properly formatted and targets the right
@@ -84,6 +110,119 @@ class SendPaymentPageState extends State<SendPaymentPage> {
             onEditingComplete: this.onNext,
             decoration: const InputDecoration.collapsed(
               hintText: "Bitcoin address",
+              hintStyle: TextStyle(
+                color: LxColors.grey750,
+              ),
+            ),
+            style: Fonts.fontUI.copyWith(
+              fontSize: Fonts.size700,
+              fontVariations: [Fonts.weightMedium],
+              // Use unambiguous character alternatives (0OIl1) to avoid
+              // confusion in the unfortunate event that a user has to
+              // manually type in an address.
+              fontFeatures: [Fonts.featDisambugation],
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: Space.s800),
+        ],
+        bottom: FilledButton(
+          onPressed: this.onNext,
+          style: FilledButton.styleFrom(
+            backgroundColor: LxColors.grey1000,
+            disabledBackgroundColor: LxColors.grey850,
+            foregroundColor: LxColors.foreground,
+            disabledForegroundColor: LxColors.grey725,
+            maximumSize: const Size.fromHeight(Space.s700),
+          ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Text(
+                "Next",
+                style: Fonts.fontInter.copyWith(
+                  fontSize: Fonts.size300,
+                  fontVariations: [Fonts.weightMedium],
+                ),
+              ),
+              const Align(
+                alignment: Alignment.centerRight,
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: Space.s200),
+                  child: Icon(
+                    Icons.arrow_forward_rounded,
+                    size: Fonts.size300,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class SendPaymentAmountPage extends StatefulWidget {
+  const SendPaymentAmountPage({super.key, required this.address});
+
+  final String address;
+
+  @override
+  State<SendPaymentAmountPage> createState() => _SendPaymentAmountPageState();
+}
+
+class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
+  final GlobalKey<FormFieldState<String>> amountFieldKey = GlobalKey();
+
+  void onNext() {
+    final fieldState = amountFieldKey.currentState!;
+    if (!fieldState.validate()) {
+      return;
+    }
+
+    final amountStr = fieldState.value!;
+
+    info("amount = $amountStr");
+  }
+
+  String? validateAmount(String? amountStr) {
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: const LxBackButton(),
+        actions: const [
+          LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
+          SizedBox(width: Space.s100),
+        ],
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const SizedBox(height: Space.s500),
+          Text(
+            "How much?",
+            style: Fonts.fontUI.copyWith(
+              fontSize: Fonts.size600,
+              fontVariations: [Fonts.weightMedium],
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: Space.s600),
+          TextFormField(
+            key: this.amountFieldKey,
+            autofocus: true,
+            // `visiblePassword` gives ready access to letters + numbers
+            keyboardType: TextInputType.visiblePassword,
+            textDirection: TextDirection.ltr,
+            textInputAction: TextInputAction.next,
+            validator: this.validateAmount,
+            onEditingComplete: this.onNext,
+            decoration: const InputDecoration.collapsed(
+              hintText: "0 sats",
               hintStyle: TextStyle(
                 color: LxColors.grey750,
               ),
