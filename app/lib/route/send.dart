@@ -215,10 +215,17 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
               letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: Space.s900),
-
+          const SizedBox(height: Space.s200),
+          Text(
+            "balance 73,000 sats",
+            textAlign: TextAlign.left,
+            style: Fonts.fontUI.copyWith(
+              color: LxColors.grey600,
+              fontSize: Fonts.size300,
+            ),
+          ),
+          const SizedBox(height: Space.s850),
           Row(
-            mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
@@ -253,37 +260,15 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
                 child: Text(
                   " sats",
                   style: TextStyle(
-                    color: LxColors.grey750,
                     fontSize: Fonts.size800,
+                    color: LxColors.grey750,
+                    // fontVariations: [Fonts.weightMedium],
+                    letterSpacing: -0.5,
                   ),
                 ),
-              ),
+              )
             ],
           ),
-
-          const SizedBox(height: Space.s600),
-          // const SizedBox(height: Space.s700),
-
-          Text(
-            "balance 73,000 sats",
-            textAlign: TextAlign.center,
-            style: Fonts.fontUI.copyWith(
-              color: LxColors.grey600,
-              fontSize: Fonts.size300,
-            ),
-          ),
-          // const SizedBox(height: Space.s100),
-          // Text(
-          //   "Balance",
-          //   textAlign: TextAlign.center,
-          //   style: Fonts.fontUI.copyWith(
-          //     color: LxColors.grey600,
-          //     fontSize: Fonts.size100,
-          //     fontVariations: [Fonts.weightMedium],
-          //     letterSpacing: -0.5,
-          //   ),
-          // ),
-
           const SizedBox(height: Space.s800),
         ],
         bottom: FilledButton(
