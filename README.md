@@ -61,7 +61,7 @@ If running the node or running tests in SGX, install our runners:
 ```bash
 # Clone the repo if not already cloned
 $ git clone https://github.com/lexe-tech/lexe-public
-$ cd lexe-public
+$ cd lexe-public # or $ cd lexe/public
 $ cargo install --path run-sgx
 ```
 
@@ -74,20 +74,21 @@ $ cargo fmt -- --check
 $ cargo test
 ```
 
-Build the node for the local environment (non-SGX)
+Build the node
 ```bash
+# Build for the local environment (non-SGX)
 $ cargo build --bin node
-```
-
-Build the node for SGX
-```bash
+# Build for SGX
 $ cargo build --bin node --target=x86_64-fortanix-unknown-sgx
+$ cargo build --bin node --release --target=x86_64-fortanix-unknown-sgx
 ```
 
 See node help
 
 ```bash
-cargo run --bin node -- run --help
+$ cargo run --bin node -- run --help
+$ cargo run --bin node --target=x86_64-fortanix-unknown-sgx -- run --help
+$ cargo run --bin node --release --target=x86_64-fortanix-unknown-sgx -- run --help
 ```
 
 Run the node (add `--target=x86_64-fortanix-unknown-sgx` if running in SGX)
