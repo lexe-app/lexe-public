@@ -16,7 +16,7 @@ final _privateConstructorUsedError = UnsupportedError(
 
 /// @nodoc
 mixin _$BalanceState {
-  int? get msatsBalance => throw _privateConstructorUsedError;
+  int? get balanceSats => throw _privateConstructorUsedError;
   String get fiatName => throw _privateConstructorUsedError;
   FiatRate? get fiatRate => throw _privateConstructorUsedError;
 }
@@ -25,13 +25,13 @@ mixin _$BalanceState {
 
 class _$_BalanceState extends _BalanceState {
   const _$_BalanceState(
-      {required this.msatsBalance,
+      {required this.balanceSats,
       required this.fiatName,
       required this.fiatRate})
       : super._();
 
   @override
-  final int? msatsBalance;
+  final int? balanceSats;
   @override
   final String fiatName;
   @override
@@ -39,7 +39,7 @@ class _$_BalanceState extends _BalanceState {
 
   @override
   String toString() {
-    return 'BalanceState(msatsBalance: $msatsBalance, fiatName: $fiatName, fiatRate: $fiatRate)';
+    return 'BalanceState(balanceSats: $balanceSats, fiatName: $fiatName, fiatRate: $fiatRate)';
   }
 
   @override
@@ -47,8 +47,8 @@ class _$_BalanceState extends _BalanceState {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$_BalanceState &&
-            (identical(other.msatsBalance, msatsBalance) ||
-                other.msatsBalance == msatsBalance) &&
+            (identical(other.balanceSats, balanceSats) ||
+                other.balanceSats == balanceSats) &&
             (identical(other.fiatName, fiatName) ||
                 other.fiatName == fiatName) &&
             (identical(other.fiatRate, fiatRate) ||
@@ -56,19 +56,18 @@ class _$_BalanceState extends _BalanceState {
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, msatsBalance, fiatName, fiatRate);
+  int get hashCode => Object.hash(runtimeType, balanceSats, fiatName, fiatRate);
 }
 
 abstract class _BalanceState extends BalanceState {
   const factory _BalanceState(
-      {required final int? msatsBalance,
+      {required final int? balanceSats,
       required final String fiatName,
       required final FiatRate? fiatRate}) = _$_BalanceState;
   const _BalanceState._() : super._();
 
   @override
-  int? get msatsBalance;
+  int? get balanceSats;
   @override
   String get fiatName;
   @override

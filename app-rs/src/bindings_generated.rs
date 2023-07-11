@@ -359,7 +359,7 @@ impl support::IntoDart for NodeInfo {
     fn into_dart(self) -> support::DartAbi {
         vec![
             self.node_pk.into_dart(),
-            self.local_balance_msat.into_dart(),
+            self.local_balance_sats.into_dart(),
         ]
         .into_dart()
     }

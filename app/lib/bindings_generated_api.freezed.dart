@@ -199,22 +199,22 @@ abstract class _FiatRates implements FiatRates {
 /// @nodoc
 mixin _$NodeInfo {
   String get nodePk => throw _privateConstructorUsedError;
-  int get localBalanceMsat => throw _privateConstructorUsedError;
+  int get localBalanceSats => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
 
 class _$_NodeInfo implements _NodeInfo {
-  const _$_NodeInfo({required this.nodePk, required this.localBalanceMsat});
+  const _$_NodeInfo({required this.nodePk, required this.localBalanceSats});
 
   @override
   final String nodePk;
   @override
-  final int localBalanceMsat;
+  final int localBalanceSats;
 
   @override
   String toString() {
-    return 'NodeInfo(nodePk: $nodePk, localBalanceMsat: $localBalanceMsat)';
+    return 'NodeInfo(nodePk: $nodePk, localBalanceSats: $localBalanceSats)';
   }
 
   @override
@@ -223,23 +223,23 @@ class _$_NodeInfo implements _NodeInfo {
         (other.runtimeType == runtimeType &&
             other is _$_NodeInfo &&
             (identical(other.nodePk, nodePk) || other.nodePk == nodePk) &&
-            (identical(other.localBalanceMsat, localBalanceMsat) ||
-                other.localBalanceMsat == localBalanceMsat));
+            (identical(other.localBalanceSats, localBalanceSats) ||
+                other.localBalanceSats == localBalanceSats));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, nodePk, localBalanceMsat);
+  int get hashCode => Object.hash(runtimeType, nodePk, localBalanceSats);
 }
 
 abstract class _NodeInfo implements NodeInfo {
   const factory _NodeInfo(
       {required final String nodePk,
-      required final int localBalanceMsat}) = _$_NodeInfo;
+      required final int localBalanceSats}) = _$_NodeInfo;
 
   @override
   String get nodePk;
   @override
-  int get localBalanceMsat;
+  int get localBalanceSats;
 }
 
 /// @nodoc

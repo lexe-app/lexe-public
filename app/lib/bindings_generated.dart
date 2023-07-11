@@ -387,7 +387,7 @@ class AppRsImpl implements AppRs {
       throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
     return NodeInfo(
       nodePk: _wire2api_String(arr[0]),
-      localBalanceMsat: _wire2api_u64(arr[1]),
+      localBalanceSats: _wire2api_u64(arr[1]),
     );
   }
 

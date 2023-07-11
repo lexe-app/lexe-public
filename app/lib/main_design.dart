@@ -181,7 +181,7 @@ class MockAppHandle extends AppHandle {
   @override
   Future<NodeInfo> nodeInfo({dynamic hint}) => Future.delayed(
         const Duration(milliseconds: 1000),
-        () => const NodeInfo(nodePk: "asdf", localBalanceMsat: 727505000),
+        () => const NodeInfo(nodePk: "asdf", localBalanceSats: 727505),
       );
 
   @override
