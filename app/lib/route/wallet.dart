@@ -69,10 +69,10 @@ class WalletPageState extends State<WalletPage> {
     // `fiatRate` are updated. Since it's fed into a `StateSubject`, it also
     // avoids widget rebuilds if new state == old state.
     Rx.combineLatest2(
-      this.nodeInfos.map((nodeInfo) => nodeInfo?.localBalanceMsat),
+      this.nodeInfos.map((nodeInfo) => nodeInfo?.localBalanceSats),
       this.fiatRate,
-      (msatBalance, fiatRate) => BalanceState(
-          msatsBalance: msatBalance, fiatName: fiatName, fiatRate: fiatRate),
+      (balanceSats, fiatRate) => BalanceState(
+          balanceSats: balanceSats, fiatName: fiatName, fiatRate: fiatRate),
     ).listen(this.balanceStates.addIfNotClosed);
 
     // A stream of refreshes, starting with an initial refresh.
@@ -376,7 +376,7 @@ String directionToSign(PaymentDirection direction) =>
     (direction == PaymentDirection.Inbound) ? "+" : "-";
 
 String formatSats(
-  double sats, {
+  int sats, {
   PaymentDirection? direction,
   bool satsSuffix = true,
 }) {
@@ -387,14 +387,12 @@ String formatSats(
   return "$sign${integerFormatter.format(sats)}$suffix";
 }
 
-double msatsToSats(int msats) => msats * 1e-3;
-double msatsToBtc(int msats) => msats * 1e-11;
 double satsToBtc(int sats) => sats * 1e-8;
 
 @freezed
 class BalanceState with _$BalanceState {
   const factory BalanceState({
-    required int? msatsBalance,
+    required int? balanceSats,
     required String fiatName,
     required FiatRate? fiatRate,
   }) = _BalanceState;
@@ -402,10 +400,10 @@ class BalanceState with _$BalanceState {
   const BalanceState._();
 
   static BalanceState placeholder =
-      const BalanceState(msatsBalance: null, fiatName: "USD", fiatRate: null);
+      const BalanceState(balanceSats: null, fiatName: "USD", fiatRate: null);
 
-  double? fiatBalance() => (this.msatsBalance != null && this.fiatRate != null)
-      ? msatsToBtc(this.msatsBalance!) * this.fiatRate!.rate
+  double? fiatBalance() => (this.balanceSats != null && this.fiatRate != null)
+      ? satsToBtc(this.balanceSats!) * this.fiatRate!.rate
       : null;
 }
 
@@ -417,9 +415,9 @@ class BalanceWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const satsBalanceSize = Fonts.size300;
-    final satsBalanceOrPlaceholder = (this.state.msatsBalance != null)
+    final satsBalanceOrPlaceholder = (this.state.balanceSats != null)
         ? Text(
-            formatSats(msatsToSats(this.state.msatsBalance!)),
+            formatSats(this.state.balanceSats!),
             style: Fonts.fontUI.copyWith(
               fontSize: satsBalanceSize,
               color: LxColors.grey700,
@@ -730,8 +728,7 @@ class PaymentsListEntry extends StatelessWidget {
     }
 
     final String amountSatsStr = (amountSats != null)
-        ? formatSats(amountSats.toDouble(),
-            direction: direction, satsSuffix: true)
+        ? formatSats(amountSats, direction: direction, satsSuffix: true)
         : "";
 
     // ex: "" (certain niche cases w/ failed or pending LN invoice payments)

@@ -1,5 +1,15 @@
 //! # Rust/Dart FFI bindings
 //!
+//! ## TL;DR: REGENERATE THE BINDINGS
+//!
+//! If you update this file, re-run:
+//!
+//! ```bash
+//! $ just app-rs-codegen
+//! ```
+//!
+//! ## Overview
+//!
 //! This file contains all types and functions exposed to Dart. All `pub`
 //! functions, structs, and enums in this file also have corresponding
 //! representations in the generated Dart code.
@@ -113,14 +123,14 @@ pub(crate) static FLUTTER_RUST_BRIDGE_HANDLER: LazyLock<LxHandler> =
 #[frb(dart_metadata=("freezed"))]
 pub struct NodeInfo {
     pub node_pk: String,
-    pub local_balance_msat: u64,
+    pub local_balance_sats: u64,
 }
 
 impl From<NodeInfoRs> for NodeInfo {
     fn from(info: NodeInfoRs) -> Self {
         Self {
             node_pk: info.node_pk.to_string(),
-            local_balance_msat: info.local_balance.msat(),
+            local_balance_sats: info.local_balance.sats_u64(),
         }
     }
 }
