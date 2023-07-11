@@ -164,7 +164,10 @@ class SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
 }
 
 class SendPaymentAmountPage extends StatefulWidget {
-  const SendPaymentAmountPage({super.key, required this.address});
+  const SendPaymentAmountPage({
+    super.key,
+    required this.address,
+  });
 
   final String address;
 
@@ -205,38 +208,82 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           const SizedBox(height: Space.s500),
           Text(
             "How much?",
+            textAlign: TextAlign.left,
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size600,
               fontVariations: [Fonts.weightMedium],
               letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: Space.s600),
-          TextFormField(
-            key: this.amountFieldKey,
-            autofocus: true,
-            // `visiblePassword` gives ready access to letters + numbers
-            keyboardType: TextInputType.visiblePassword,
-            textDirection: TextDirection.ltr,
-            textInputAction: TextInputAction.next,
-            validator: this.validateAmount,
-            onEditingComplete: this.onNext,
-            decoration: const InputDecoration.collapsed(
-              hintText: "0 sats",
-              hintStyle: TextStyle(
-                color: LxColors.grey750,
+          const SizedBox(height: Space.s900),
+
+          Row(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: TextFormField(
+                  key: this.amountFieldKey,
+                  autofocus: true,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    signed: false,
+                    decimal: false,
+                  ),
+                  textDirection: TextDirection.ltr,
+                  textInputAction: TextInputAction.next,
+                  textAlign: TextAlign.right,
+                  // textAlignVertical: TextAlignVertical.bottom,
+                  validator: this.validateAmount,
+                  onEditingComplete: this.onNext,
+                  decoration: const InputDecoration.collapsed(
+                    hintText: "0",
+                    hintStyle: TextStyle(
+                      color: LxColors.grey750,
+                    ),
+                  ),
+                  style: Fonts.fontUI.copyWith(
+                    fontSize: Fonts.size800,
+                    fontVariations: [Fonts.weightMedium],
+                    letterSpacing: -0.5,
+                  ),
+                ),
               ),
-            ),
+              const Expanded(
+                child: Text(
+                  " sats",
+                  style: TextStyle(
+                    color: LxColors.grey750,
+                    fontSize: Fonts.size800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: Space.s600),
+          // const SizedBox(height: Space.s700),
+
+          Text(
+            "balance 73,000 sats",
+            textAlign: TextAlign.center,
             style: Fonts.fontUI.copyWith(
-              fontSize: Fonts.size700,
-              fontVariations: [Fonts.weightMedium],
-              // Use unambiguous character alternatives (0OIl1) to avoid
-              // confusion in the unfortunate event that a user has to
-              // manually type in an address.
-              fontFeatures: [Fonts.featDisambugation],
-              letterSpacing: -0.5,
+              color: LxColors.grey600,
+              fontSize: Fonts.size300,
             ),
           ),
+          // const SizedBox(height: Space.s100),
+          // Text(
+          //   "Balance",
+          //   textAlign: TextAlign.center,
+          //   style: Fonts.fontUI.copyWith(
+          //     color: LxColors.grey600,
+          //     fontSize: Fonts.size100,
+          //     fontVariations: [Fonts.weightMedium],
+          //     letterSpacing: -0.5,
+          //   ),
+          // ),
+
           const SizedBox(height: Space.s800),
         ],
         bottom: FilledButton(
