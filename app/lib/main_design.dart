@@ -16,7 +16,6 @@ import 'bindings_generated_api.dart'
         Config,
         FiatRate,
         FiatRates,
-        Network,
         NodeInfo,
         PaymentDirection,
         PaymentKind,
@@ -29,7 +28,7 @@ import 'logger.dart' show info;
 import 'route/backup_wallet.dart' show BackupWalletPage;
 import 'route/landing.dart' show LandingPage;
 import 'route/scan.dart' show ScanPage;
-import 'route/send.dart' show SendPaymentPage;
+import 'route/send.dart' show SendPaymentAmountPage, SendPaymentPage;
 import 'route/show_qr.dart' show ShowQrPage;
 import 'route/wallet.dart' show DrawerListItem, WalletPage;
 import 'style.dart' show LxColors, LxTheme, Space;
@@ -81,6 +80,11 @@ Future<void> main() async {
             ),
           ),
           Component(
+            "ShowQrPage (addr only)",
+            (_) => const ShowQrPage(
+                value: "bitcoin:BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4"),
+          ),
+          Component(
             "ShowQrPage (unified bolt 12)",
             (_) => const ShowQrPage(
               value:
@@ -89,6 +93,10 @@ Future<void> main() async {
           ),
           Component("SendPaymentPage",
               (context) => SendPaymentPage(configNetwork: config.network)),
+          Component(
+              "SendPaymentAmountPage",
+              (context) => const SendPaymentAmountPage(
+                  address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4")),
         ],
       ),
     ),
