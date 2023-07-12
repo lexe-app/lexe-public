@@ -56,7 +56,7 @@ tokio = { workspace = true, features = [
     "sync",
     "time"
 ] }
-tracing = "0.1"
+tracing.workspace = true
 warp = { workspace = true, features = ["tls"] }
 
 # --- GENERAL --- #
@@ -103,7 +103,7 @@ cmac = { version = "0.7", features = ["std", "zeroize"] }
 # property based testing
 proptest = { optional = true, workspace = true, features = ["alloc"] }
 # Arbitrary derive macro
-proptest-derive = { optional = true, version = "0.3" }
+proptest-derive = { optional = true, workspace = true }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 # Bitcoind + electrum + esplora regtest

@@ -59,7 +59,7 @@ once_cell = "1"
 # Property-based testing
 proptest = { version = "1", default-features = false }
 # Arbitrary derive macro
-proptest-derive = "0.3"
+proptest-derive = "0.4"
 # Easily generate x509 certs with ring
 rcgen = { version = "0.10", default-features = false }
 # High-level HTTP client
@@ -126,6 +126,8 @@ dcap-ql = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 enclave-runner = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
 hyper = { git = "https://github.com/lexe-tech/hyper", branch = "hyper-sgx-0.14.18" }
 mio = { git = "https://github.com/lexe-tech/mio", branch = "mio-sgx-0.8.4" }
+# Remove this `proptest-derive` patch when `v0.4` gets published to crates.io
+proptest-derive = { git = "https://github.com/proptest-rs/proptest", ref = "dcb181c5fe0bc2e1afced79670d35e05f8c7ca21" }
 reqwest = { git = "https://github.com/lexe-tech/reqwest", branch = "lexe" }
 ring = { git = "https://github.com/lexe-tech/ring", branch = "lexe-0.16.20-sgx-nix" }
 sgx-isa = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
