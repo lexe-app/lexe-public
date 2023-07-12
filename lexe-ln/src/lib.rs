@@ -1,15 +1,17 @@
 //! The `lexe-ln` crate contains shared Bitcoin + Lightning logic, utilities,
 //! and newtypes.
 
-// Enforce disallowed methods clippy lint
-#![deny(clippy::disallowed_methods)]
-// Allow e.g. `CHANNEL_MANAGER` in generics to clearly distinguish between
-// concrete and generic types
-#![allow(non_camel_case_types)]
 // Allow e.g. PS: Deref<Target: LexeInnerPersister> in generics
 #![feature(associated_type_bounds)]
 // Allow adding side effects to Option and Result chains
 #![feature(result_option_inspect)]
+// Enforce disallowed methods clippy lint
+#![deny(clippy::disallowed_methods)]
+// Ignore this issue with `proptest_derive::Arbitrary`.
+#![allow(clippy::arc_with_non_send_sync)]
+// Allow e.g. `CHANNEL_MANAGER` in generics to clearly distinguish between
+// concrete and generic types
+#![allow(non_camel_case_types)]
 
 /// Type aliases.
 pub mod alias;

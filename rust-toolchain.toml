@@ -1,5 +1,5 @@
 [toolchain]
-channel = "nightly-2023-03-13"
+channel = "nightly-2023-07-11"
 components = ["clippy", "rustfmt"]
 targets = [
     # # Remote azure host target

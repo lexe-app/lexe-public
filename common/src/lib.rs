@@ -13,6 +13,8 @@
 #![feature(result_option_inspect)]
 // Enforce disallowed methods clippy lint
 #![deny(clippy::disallowed_methods)]
+// Ignore this issue with `proptest_derive::Arbitrary`.
+#![allow(clippy::arc_with_non_send_sync)]
 
 // Some re-exports to prevent having to re-declare dependencies
 pub use reqwest;

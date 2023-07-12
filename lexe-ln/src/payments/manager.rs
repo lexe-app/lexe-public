@@ -33,7 +33,7 @@ use crate::{
         Payment,
     },
     test_event::{TestEvent, TestEventSender},
-    traits::{LexeChannelManager, LexePersister},
+    traits::{LexeChannelManager, LexeInnerPersister, LexePersister},
     wallet::LexeWallet,
 };
 

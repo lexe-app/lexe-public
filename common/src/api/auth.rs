@@ -147,9 +147,9 @@ pub struct BearerAuthenticator {
     //
     // 1. we want only at-most-one client to try auth'ing at once
     // 2. auth'ing involves IO (send/recv HTTPS request)
-    // 3. holding a standard blocking `Mutex` across IO await points is a
-    //    Bad Idea^tm, since it'll block all tasks on the runtime (we only use
-    //    a single thread for the user node).
+    // 3. holding a standard blocking `Mutex` across IO await points is a Bad
+    //    Idea^tm, since it'll block all tasks on the runtime (we only use a
+    //    single thread for the user node).
     auth_lock: tokio::sync::Mutex<()>,
 }
 

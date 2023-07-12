@@ -31,8 +31,10 @@ use tokio::sync::mpsc;
 use tracing::{debug, info, instrument, warn};
 
 use crate::{
-    esplora::LexeEsplora, payments::onchain::OnchainSend,
-    traits::LexePersister, wallet::db::WalletDb,
+    esplora::LexeEsplora,
+    payments::onchain::OnchainSend,
+    traits::{LexeInnerPersister, LexePersister},
+    wallet::db::WalletDb,
 };
 
 /// Wallet DB.

@@ -26,7 +26,7 @@ env:
   RUSTDOCFLAGS: -D warnings
   RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
-  LEXE_RUST_VERSION: nightly-2023-02-08
+  LEXE_RUST_VERSION: nightly-2023-07-11
   LEXE_CI: 1
 
 jobs:

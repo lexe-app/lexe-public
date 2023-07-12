@@ -19,7 +19,8 @@ use tracing::{
 use crate::{
     alias::{LexeChainMonitorType, P2PGossipSyncType, ProbabilisticScorerType},
     traits::{
-        LexeChannelManager, LexeEventHandler, LexePeerManager, LexePersister,
+        LexeChannelManager, LexeEventHandler, LexeInnerPersister,
+        LexePeerManager, LexePersister,
     },
 };
 
@@ -238,12 +239,12 @@ impl LexeBackgroundProcessor {
             //   we're already another API call for the channel manager, we
             //   might as well concurrently persist these as well.
             let network_graph = gossip_sync.network_graph();
-            let (cm_res, ng_res, ps_res) = tokio::join!(
+            let results = tokio::join!(
                 persister.persist_manager(channel_manager.deref()),
                 persister.persist_graph(network_graph),
                 persister.persist_scorer(scorer.as_ref()),
             );
-            for res in [cm_res, ng_res, ps_res] {
+            for res in <[_; 3]>::from(results) {
                 if let Err(e) = res {
                     error!("Final persistence failure: {e:#}");
                 }

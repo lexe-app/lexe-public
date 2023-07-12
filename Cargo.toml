@@ -151,6 +151,18 @@ bdk-macros = { git = "https://github.com/lexe-tech/bdk", branch = "lexe-v0.27.1-
 # bdk = { path = "../../bdk", default-features = false, features = ["async-interface", "use-esplora-async"] }
 # bdk-macros = { path = "../../bdk/macros" }
 
+# miniscript v0.9.1 nightly compiler backport fix
+#
+# * Without this fix, nightly fails to compile `miniscript` due to an infinite
+#   recursion.
+# * The fix is already landed in the latest `miniscript` v0.10.0+; this branch
+#   just backports the fix from
+#   <https://github.com/rust-bitcoin/rust-miniscript/pull/546>.
+#
+# REMOVE this when `bdk` goes 1.0 (which will presumably use the latest
+# `bitcoin` crate version).
+miniscript = { git = "https://github.com/lexe-tech/rust-miniscript", branch = "lexe-v0.9.1-infinite-recursion-fix" }
+
 # We maintain a patch which propagates tracing spans across `tokio::spawn`s.
 lightning = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.115-2023_07_07" }
 lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.115-2023_07_07" }

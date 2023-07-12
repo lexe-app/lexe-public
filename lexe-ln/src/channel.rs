@@ -12,7 +12,9 @@ use tracing::{info, instrument};
 
 use crate::{
     p2p::{self, ChannelPeerUpdate},
-    traits::{LexeChannelManager, LexePeerManager, LexePersister},
+    traits::{
+        LexeChannelManager, LexeInnerPersister, LexePeerManager, LexePersister,
+    },
 };
 
 /// Specifies the channel initiator-responder relationship. The required
