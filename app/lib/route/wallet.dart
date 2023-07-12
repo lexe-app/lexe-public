@@ -19,6 +19,7 @@ import '../../bindings_generated_api.dart'
         ShortPayment;
 import '../../components.dart'
     show FilledPlaceholder, StateStreamBuilder, StreamControllerExt;
+import '../../currency_format.dart' as currency_format;
 import '../../date_format.dart' as date_format;
 import '../../logger.dart' show error, info;
 import '../../route/send.dart' show SendPaymentPage;
@@ -64,6 +65,7 @@ class WalletPageState extends State<WalletPage> {
 
     // TODO(phlip9): get from user preferences
     const String fiatName = "USD";
+    // const String fiatName = "EUR";
 
     // A stream of `BalanceState`s that gets updated when `nodeInfos` or
     // `fiatRate` are updated. Since it's fed into a `StateSubject`, it also
@@ -367,28 +369,6 @@ class DrawerListItem extends StatelessWidget {
   }
 }
 
-// TODO(phlip9): move these currency formatting fns
-
-final NumberFormat integerFormatter =
-    NumberFormat.decimalPatternDigits(decimalDigits: 0);
-
-String directionToSign(PaymentDirection direction) =>
-    (direction == PaymentDirection.Inbound) ? "+" : "-";
-
-String formatSats(
-  int sats, {
-  PaymentDirection? direction,
-  bool satsSuffix = true,
-}) {
-  final sign = (direction != null) ? directionToSign(direction) : "";
-
-  final suffix = (satsSuffix) ? " sats" : "";
-
-  return "$sign${integerFormatter.format(sats)}$suffix";
-}
-
-double satsToBtc(int sats) => sats * 1e-8;
-
 @freezed
 class BalanceState with _$BalanceState {
   const factory BalanceState({
@@ -403,7 +383,7 @@ class BalanceState with _$BalanceState {
       const BalanceState(balanceSats: null, fiatName: "USD", fiatRate: null);
 
   double? fiatBalance() => (this.balanceSats != null && this.fiatRate != null)
-      ? satsToBtc(this.balanceSats!) * this.fiatRate!.rate
+      ? currency_format.satsToBtc(this.balanceSats!) * this.fiatRate!.rate
       : null;
 }
 
@@ -417,7 +397,7 @@ class BalanceWidget extends StatelessWidget {
     const satsBalanceSize = Fonts.size300;
     final satsBalanceOrPlaceholder = (this.state.balanceSats != null)
         ? Text(
-            formatSats(this.state.balanceSats!),
+            currency_format.formatSatsAmount(this.state.balanceSats!),
             style: Fonts.fontUI.copyWith(
               fontSize: satsBalanceSize,
               color: LxColors.grey700,
@@ -464,41 +444,22 @@ class PrimaryBalanceText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final NumberFormat currencyFormatter = NumberFormat.simpleCurrency(
-      name: this.fiatName,
-    );
-    final fiatBalanceStr = currencyFormatter.format(this.fiatBalance);
-
-    final decimalSeparator = currencyFormatter.symbols.DECIMAL_SEP;
-    final maybeDecimalIdx = fiatBalanceStr.lastIndexOf(decimalSeparator);
-
-    // ex: fiatBalance = 123.45679
-    //     fiatBalanceSignificant = "$123"
-    //     fiatBalanceFractional = ".46"
-    final String fiatBalanceSignificant;
-    final String? fiatBalanceFractional;
-
-    if (maybeDecimalIdx >= 0) {
-      fiatBalanceSignificant = fiatBalanceStr.substring(0, maybeDecimalIdx);
-      fiatBalanceFractional = fiatBalanceStr.substring(maybeDecimalIdx);
-    } else {
-      fiatBalanceSignificant = fiatBalanceStr;
-      fiatBalanceFractional = null;
-    }
+    final (fiatBalanceWhole, fiatBalanceFract) =
+        currency_format.formatFiatParts(this.fiatBalance, this.fiatName);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Text(
-          fiatBalanceSignificant,
+          fiatBalanceWhole,
           style: Fonts.fontUI.copyWith(
             fontSize: Fonts.size800,
             fontVariations: [Fonts.weightMedium],
           ),
         ),
-        if (fiatBalanceFractional != null)
+        if (fiatBalanceFract.isNotEmpty)
           Text(
-            fiatBalanceFractional,
+            fiatBalanceFract,
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size800,
               color: LxColors.fgTertiary,
@@ -661,8 +622,8 @@ String formatFiatValue({
     return "";
   }
 
-  final fiatValue = satsToBtc(amountSats) * rate.rate;
-  final sign = directionToSign(direction);
+  final fiatValue = currency_format.satsToBtc(amountSats) * rate.rate;
+  final sign = currency_format.directionToSign(direction);
 
   final NumberFormat currencyFormatter =
       NumberFormat.simpleCurrency(name: rate.fiat);
@@ -728,7 +689,8 @@ class PaymentsListEntry extends StatelessWidget {
     }
 
     final String amountSatsStr = (amountSats != null)
-        ? formatSats(amountSats, direction: direction, satsSuffix: true)
+        ? currency_format.formatSatsAmount(amountSats,
+            direction: direction, satsSuffix: true)
         : "";
 
     // ex: "" (certain niche cases w/ failed or pending LN invoice payments)
