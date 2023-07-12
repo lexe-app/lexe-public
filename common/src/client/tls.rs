@@ -20,13 +20,11 @@ use crate::{
 /// Currently we verify 3 different cases, depending on the remote cert's dns
 /// name.
 ///
-/// 1. "run.lexe.tech" =>
-///        verify one of the client's previously provisioned nodes.
-/// 2. "provision.lexe.tech" =>
-///        verify the remote attestation TLS cert for a machine the client might
-///        want to provision with their secrets.
-/// 3. other =>
-///        verify a lexe endpoint, using a pinned CA cert.
+/// 1. "run.lexe.tech" => verify one of the client's previously provisioned
+///    nodes.
+/// 2. "provision.lexe.tech" => verify the remote attestation TLS cert for a
+///    machine the client might want to provision with their secrets.
+/// 3. other => verify a lexe endpoint, using a pinned CA cert.
 struct ServerCertVerifier {
     /// "run.lexe.tech" node-cert verifier
     node_verifier: WebPkiVerifier,

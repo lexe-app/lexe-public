@@ -3,7 +3,7 @@
 use std::num::NonZeroU32;
 
 use bitcoin::secp256k1::{All, Secp256k1};
-#[cfg(all(any(test, feature = "test-utils")))]
+#[cfg(any(test, feature = "test-utils"))]
 use proptest::{
     arbitrary::{any, Arbitrary},
     strategy::{BoxedStrategy, Strategy},

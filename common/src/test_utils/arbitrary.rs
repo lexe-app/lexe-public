@@ -33,8 +33,7 @@ use crate::api::NodePk;
 /// ```
 pub fn any_string() -> impl Strategy<Value = String> {
     // Maximum length = 256
-    proptest::collection::vec(any::<char>(), 0..256)
-        .prop_map(|chars| String::from_iter(chars.into_iter()))
+    proptest::collection::vec(any::<char>(), 0..256).prop_map(String::from_iter)
 }
 
 /// An [`Option`] version of [`any_string`].

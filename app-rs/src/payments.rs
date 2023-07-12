@@ -60,8 +60,8 @@ pub struct PaymentDb<V> {
 // asynchronously and off the main UI thread, which is highly latency
 // sensitive.
 //
-// 1. All `BasicPayment`s stored in append-only, ordered `Vec`.
-//    (Except we can modify non-index fields, like status or note).
+// 1. All `BasicPayment`s stored in append-only, ordered `Vec`. (Except we can
+//    modify non-index fields, like status or note).
 // 2. Pending index is a bitmap.
 //
 // In the future, we could be even more clever and serialize+store the `pending`
@@ -893,6 +893,8 @@ mod test {
         }
     }
 
+    // This allows straight `unimplemented!()` w/o any match or if guards.
+    #[allow(clippy::diverging_sub_expression)]
     #[async_trait]
     impl AppNodeRunApi for MockNode {
         // these methods are not relevant
