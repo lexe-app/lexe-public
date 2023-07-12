@@ -33,10 +33,9 @@
 //! * `foo=trace` (TARGET=LEVEL)
 //! * `foo[{bar,baz}]=info` (TARGET[{FIELD,+}]=LEVEL)
 
-use std::{ops::Deref, str::FromStr};
+use std::{ops::Deref, str::FromStr, sync::LazyLock};
 
 use lightning::util::logger::{Level as LdkLevel, Logger, Record};
-use once_cell::sync::Lazy;
 use tracing_core::{
     dispatcher,
     field::{Field, FieldSet, Value},
@@ -224,11 +223,14 @@ log_cs!(Level::INFO, INFO_CS, INFO_META, InfoCallsite);
 log_cs!(Level::WARN, WARN_CS, WARN_META, WarnCallsite);
 log_cs!(Level::ERROR, ERROR_CS, ERROR_META, ErrorCallsite);
 
-static TRACE_FIELDS: Lazy<Fields> = Lazy::new(|| Fields::new(&TRACE_CS));
-static DEBUG_FIELDS: Lazy<Fields> = Lazy::new(|| Fields::new(&DEBUG_CS));
-static INFO_FIELDS: Lazy<Fields> = Lazy::new(|| Fields::new(&INFO_CS));
-static WARN_FIELDS: Lazy<Fields> = Lazy::new(|| Fields::new(&WARN_CS));
-static ERROR_FIELDS: Lazy<Fields> = Lazy::new(|| Fields::new(&ERROR_CS));
+static TRACE_FIELDS: LazyLock<Fields> =
+    LazyLock::new(|| Fields::new(&TRACE_CS));
+static DEBUG_FIELDS: LazyLock<Fields> =
+    LazyLock::new(|| Fields::new(&DEBUG_CS));
+static INFO_FIELDS: LazyLock<Fields> = LazyLock::new(|| Fields::new(&INFO_CS));
+static WARN_FIELDS: LazyLock<Fields> = LazyLock::new(|| Fields::new(&WARN_CS));
+static ERROR_FIELDS: LazyLock<Fields> =
+    LazyLock::new(|| Fields::new(&ERROR_CS));
 
 fn loglevel_to_cs(
     level: LdkLevel,

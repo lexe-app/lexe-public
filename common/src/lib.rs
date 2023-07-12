@@ -5,6 +5,8 @@
 #![feature(slice_as_chunks)]
 // Used in `rng` module. Avoids a runtime panic.
 #![feature(const_option)]
+// once_cell replacement in std (called LazyLock)
+#![feature(lazy_cell)]
 // Used in `enclave/sgx` module for sealing.
 #![feature(split_array)]
 // Allow e.g. warp::Filter<Extract: warp::Reply> syntax

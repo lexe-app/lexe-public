@@ -40,7 +40,6 @@ anyhow.workspace = true
 async-trait.workspace = true
 cfg-if.workspace = true
 futures.workspace = true
-once_cell.workspace = true
 rust_decimal.workspace = true
 secrecy.workspace = true
 serde.workspace = true

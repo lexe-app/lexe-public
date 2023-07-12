@@ -3,7 +3,7 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     str::FromStr,
-    sync::Mutex,
+    sync::{LazyLock, Mutex},
 };
 
 use async_trait::async_trait;
@@ -34,7 +34,6 @@ use common::{
     root_seed::RootSeed,
     time::TimestampMs,
 };
-use once_cell::sync::Lazy;
 use tokio::sync::mpsc;
 
 use crate::{api::BackendApiClient, persister};
@@ -60,17 +59,19 @@ fn make_sealed_seed(root_seed: &RootSeed) -> SealedSeed {
     .expect("Failed to seal test root seed")
 }
 
-static SEED1: Lazy<RootSeed> = Lazy::new(|| RootSeed::from_u64(1));
-static SEED2: Lazy<RootSeed> = Lazy::new(|| RootSeed::from_u64(2));
+static SEED1: LazyLock<RootSeed> = LazyLock::new(|| RootSeed::from_u64(1));
+static SEED2: LazyLock<RootSeed> = LazyLock::new(|| RootSeed::from_u64(2));
 
-pub static USER_PK1: Lazy<UserPk> = Lazy::new(|| make_user_pk(&SEED1));
-pub static USER_PK2: Lazy<UserPk> = Lazy::new(|| make_user_pk(&SEED2));
+pub static USER_PK1: LazyLock<UserPk> = LazyLock::new(|| make_user_pk(&SEED1));
+pub static USER_PK2: LazyLock<UserPk> = LazyLock::new(|| make_user_pk(&SEED2));
 
-static NODE_PK1: Lazy<NodePk> = Lazy::new(|| make_node_pk(&SEED1));
-static NODE_PK2: Lazy<NodePk> = Lazy::new(|| make_node_pk(&SEED2));
+static NODE_PK1: LazyLock<NodePk> = LazyLock::new(|| make_node_pk(&SEED1));
+static NODE_PK2: LazyLock<NodePk> = LazyLock::new(|| make_node_pk(&SEED2));
 
-static SEALED_SEED1: Lazy<SealedSeed> = Lazy::new(|| make_sealed_seed(&SEED1));
-static SEALED_SEED2: Lazy<SealedSeed> = Lazy::new(|| make_sealed_seed(&SEED2));
+static SEALED_SEED1: LazyLock<SealedSeed> =
+    LazyLock::new(|| make_sealed_seed(&SEED1));
+static SEALED_SEED2: LazyLock<SealedSeed> =
+    LazyLock::new(|| make_sealed_seed(&SEED2));
 
 const DUMMY_SCID: Scid = Scid(0);
 
