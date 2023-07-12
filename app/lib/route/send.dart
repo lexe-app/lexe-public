@@ -13,17 +13,30 @@ import '../../bindings_generated_api.dart' show Network;
 import '../../logger.dart' show info;
 import '../../style.dart' show Fonts, LxColors, Space;
 
-class SendPaymentPage extends StatelessWidget {
-  const SendPaymentPage({super.key, required this.configNetwork});
+@immutable
+final class SendContext {
+  const SendContext({
+    required this.configNetwork,
+    required this.balanceSats,
+  });
 
   final Network configNetwork;
+  final int balanceSats;
+}
+
+class SendPaymentPage extends StatelessWidget {
+  const SendPaymentPage({
+    super.key,
+    required this.sendCtx,
+  });
+
+  final SendContext sendCtx;
 
   @override
   Widget build(BuildContext context) {
     return Navigator(
       onGenerateRoute: (RouteSettings settings) => MaterialPageRoute(
-        builder: (context) =>
-            SendPaymentAddressPage(configNetwork: this.configNetwork),
+        builder: (context) => SendPaymentAddressPage(sendCtx: this.sendCtx),
         settings: settings,
       ),
     );
@@ -31,9 +44,12 @@ class SendPaymentPage extends StatelessWidget {
 }
 
 class SendPaymentAddressPage extends StatefulWidget {
-  const SendPaymentAddressPage({super.key, required this.configNetwork});
+  const SendPaymentAddressPage({
+    super.key,
+    required this.sendCtx,
+  });
 
-  final Network configNetwork;
+  final SendContext sendCtx;
 
   @override
   State<StatefulWidget> createState() => SendPaymentAddressPageState();
@@ -55,7 +71,10 @@ class SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
     final address = fieldState.value!;
 
     Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (_) => SendPaymentAmountPage(address: address),
+      builder: (_) => SendPaymentAmountPage(
+        sendCtx: this.widget.sendCtx,
+        address: address,
+      ),
     ));
   }
 
@@ -67,8 +86,8 @@ class SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
     }
 
     return api.formValidateBitcoinAddress(
+      currentNetwork: this.widget.sendCtx.configNetwork,
       addressStr: addressStr,
-      currentNetwork: this.widget.configNetwork,
     );
   }
 
@@ -166,9 +185,11 @@ class SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
 class SendPaymentAmountPage extends StatefulWidget {
   const SendPaymentAmountPage({
     super.key,
+    required this.sendCtx,
     required this.address,
   });
 
+  final SendContext sendCtx;
   final String address;
 
   @override
