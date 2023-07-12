@@ -38,7 +38,6 @@ async-trait.workspace = true
 bytes.workspace = true
 cfg-if.workspace = true
 futures.workspace = true
-once_cell.workspace = true
 rcgen.workspace = true
 reqwest = { workspace = true, features = ["json", "rustls-tls-manual-roots"] }
 secrecy.workspace = true

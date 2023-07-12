@@ -1,6 +1,7 @@
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream};
-
-use once_cell::sync::Lazy;
+use std::{
+    net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream},
+    sync::LazyLock,
+};
 
 use crate::{
     api::ports::Port, cli::LspInfo, rng::WeakRng, root_seed::RootSeed,
@@ -20,7 +21,7 @@ pub const DUMMY_GATEWAY_URL: &str = "http://127.0.0.1:4040";
 pub const DUMMY_RUNNER_URL: &str = "http://127.0.0.1:5050";
 pub const DUMMY_LSP_URL: &str = "http://127.0.0.1:6060";
 pub const DUMMY_ESPLORA_URL: &str = "http://127.0.0.1:7070";
-pub static DUMMY_LSP_INFO: Lazy<LspInfo> = Lazy::new(|| {
+pub static DUMMY_LSP_INFO: LazyLock<LspInfo> = LazyLock::new(|| {
     let mut rng = WeakRng::from_u64(20230216);
     let node_pk = RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng);
     let addr = SocketAddr::from(([127, 0, 0, 1], 42069));

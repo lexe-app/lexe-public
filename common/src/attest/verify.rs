@@ -1,13 +1,12 @@
 //! Verify remote attestation endorsements directly or embedded in x509 certs.
 
-use std::{fmt, include_bytes, io::Cursor, time::SystemTime};
+use std::{fmt, include_bytes, io::Cursor, sync::LazyLock, time::SystemTime};
 
 use anyhow::{bail, ensure, format_err, Context, Result};
 use asn1_rs::FromDer;
 use dcap_ql::quote::{
     Qe3CertDataPckCertChain, Quote, Quote3SignatureEcdsaP256,
 };
-use once_cell::sync::Lazy;
 use webpki::{TlsServerTrustAnchors, TrustAnchor};
 use x509_parser::certificate::X509Certificate;
 
@@ -31,8 +30,8 @@ const INTEL_SGX_ROOT_CA_CERT_DER: &[u8] =
 ///
 /// NOTE: It's easier to inline the cert DER bytes vs. PEM file, otherwise the
 /// `TrustAnchor` tries to borrow from a temporary `Vec<u8>`.
-static INTEL_SGX_TRUST_ANCHOR: Lazy<[TrustAnchor<'static>; 1]> =
-    Lazy::new(|| {
+static INTEL_SGX_TRUST_ANCHOR: LazyLock<[TrustAnchor<'static>; 1]> =
+    LazyLock::new(|| {
         let trust_anchor = TrustAnchor::try_from_cert_der(
             INTEL_SGX_ROOT_CA_CERT_DER,
         )

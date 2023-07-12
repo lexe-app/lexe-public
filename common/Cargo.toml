@@ -36,7 +36,6 @@ cfg-if.workspace = true
 dcap-ql.workspace = true
 futures.workspace = true
 hyper = { workspace = true, features = ["http1", "http2", "server", "tcp"] }
-once_cell.workspace = true
 rcgen.workspace = true
 reqwest = { workspace = true, features = ["json", "rustls-tls-manual-roots"] }
 rustls = { workspace = true, features = ["dangerous_configuration"] }

@@ -1,3 +1,6 @@
+// Enable `OnceLock::get_or_try_init`
+#![feature(once_cell_try)]
+
 use std::{
     fmt,
     io::{self, Write},
@@ -5,6 +8,7 @@ use std::{
     path::PathBuf,
     pin::Pin,
     str::{self, FromStr},
+    sync::OnceLock,
     task::{ready, Context, Poll},
 };
 
@@ -14,7 +18,6 @@ use object::{
     read::{SymbolMap, SymbolMapName},
     Object,
 };
-use once_cell::sync::OnceCell;
 use rustc_demangle::{demangle, Demangle};
 use tokio::io::AsyncWrite;
 
@@ -411,12 +414,12 @@ where
 // The symbol names that `object` parses from a binary are just references to
 // parts of the binary, so they can't live longer than the binary itself. This
 // is significantly easier if all the lifetimes are 'static, so we just stuff
-// these intermediate values into global `OnceCell`s.
+// these intermediate values into global `OnceLock`s.
 
-static ENCLAVE_ELF_BIN_PATH: OnceCell<PathBuf> = OnceCell::new();
+static ENCLAVE_ELF_BIN_PATH: OnceLock<PathBuf> = OnceLock::new();
 
 fn enclave_elf_bin_bytes() -> io::Result<&'static [u8]> {
-    static ENCLAVE_ELF_BIN_BYTES: OnceCell<Vec<u8>> = OnceCell::new();
+    static ENCLAVE_ELF_BIN_BYTES: OnceLock<Vec<u8>> = OnceLock::new();
 
     ENCLAVE_ELF_BIN_BYTES
         .get_or_try_init(|| -> io::Result<Vec<u8>> {
@@ -433,8 +436,8 @@ fn enclave_elf_bin_bytes() -> io::Result<&'static [u8]> {
 
 fn enclave_elf_object(
 ) -> io::Result<&'static object::File<'static, &'static [u8]>> {
-    static ENCLAVE_ELF_OBJECT: OnceCell<object::File<'static, &'static [u8]>> =
-        OnceCell::new();
+    static ENCLAVE_ELF_OBJECT: OnceLock<object::File<'static, &'static [u8]>> =
+        OnceLock::new();
 
     ENCLAVE_ELF_OBJECT.get_or_try_init(|| {
         let bytes = enclave_elf_bin_bytes()?;
@@ -447,8 +450,8 @@ fn enclave_elf_object(
 }
 
 fn enclave_elf_symbol_map() -> &'static SymbolMap<SymbolMapName<'static>> {
-    static ENCLAVE_ELF_SYMBOL_MAP: OnceCell<SymbolMap<SymbolMapName<'static>>> =
-        OnceCell::new();
+    static ENCLAVE_ELF_SYMBOL_MAP: OnceLock<SymbolMap<SymbolMapName<'static>>> =
+        OnceLock::new();
 
     ENCLAVE_ELF_SYMBOL_MAP.get_or_init(|| {
         enclave_elf_object()
