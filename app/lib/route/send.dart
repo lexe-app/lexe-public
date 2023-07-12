@@ -10,6 +10,7 @@ import 'package:lexeapp/components.dart'
 
 import '../../bindings.dart' show api;
 import '../../bindings_generated_api.dart' show Network;
+import '../../currency_format.dart' as currency_format;
 import '../../logger.dart' show info;
 import '../../style.dart' show Fonts, LxColors, Space;
 
@@ -216,6 +217,9 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
   @override
   Widget build(BuildContext context) {
+    final balanceStr = currency_format
+        .formatSatsAmount(this.widget.sendCtx.balanceSats, satsSuffix: true);
+
     return Scaffold(
       appBar: AppBar(
         leading: const LxBackButton(),
@@ -238,7 +242,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           ),
           const SizedBox(height: Space.s200),
           Text(
-            "balance 73,000 sats",
+            "balance $balanceStr",
             textAlign: TextAlign.left,
             style: Fonts.fontUI.copyWith(
               color: LxColors.grey600,
