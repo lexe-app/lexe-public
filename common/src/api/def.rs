@@ -21,6 +21,8 @@
 use async_trait::async_trait;
 use bitcoin::Address;
 
+#[cfg(doc)]
+use super::qs::EmptyData;
 use super::{error::GatewayApiError, fiat_rates::FiatRates};
 use crate::{
     api::{
@@ -249,6 +251,11 @@ pub trait LexeNodeApi {
     /// [`GetByUserPk`]: super::qs::GetByUserPk
     async fn status(&self, user_pk: UserPk) -> Result<String, NodeApiError>;
 
+    /// POST /lexe/resync [`EmptyData`] -> [`()`]
+    ///
+    /// Triggers an immediate resync of BDK and LDK.
+    async fn resync(&self) -> Result<(), NodeApiError>;
+
     /// GET /lexe/shutdown [`GetByUserPk`] -> [`()`]
     ///
     /// [`GetByUserPk`]: super::qs::GetByUserPk
@@ -269,8 +276,6 @@ pub trait AppNodeProvisionApi {
 #[async_trait]
 pub trait AppNodeRunApi {
     /// GET /app/node_info [`EmptyData`] -> [`NodeInfo`]
-    ///
-    /// [`EmptyData`]: super::qs::EmptyData
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError>;
 
     /// POST /app/create_invoice [`CreateInvoiceRequest`] -> [`LxInvoice`]

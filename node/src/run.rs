@@ -128,6 +128,7 @@ impl UserNode {
     pub async fn init<R: Crng>(
         rng: &mut R,
         args: RunArgs,
+        resync_tx: broadcast::Sender<()>,
         bdk_resync_rx: broadcast::Receiver<()>,
         ldk_resync_rx: broadcast::Receiver<()>,
         test_event_tx: TestEventSender,
@@ -449,7 +450,7 @@ impl UserNode {
             (Ipv4Addr::new(127, 0, 0, 1), args.lexe_port.unwrap_or(0));
         let (lexe_warp_task, lexe_addr) =
             rest::serve_routes_with_listener_and_shutdown(
-                server::lexe_routes(args.user_pk, shutdown.clone()),
+                server::lexe_routes(args.user_pk, resync_tx, shutdown.clone()),
                 shutdown.clone().recv_owned(),
                 TcpListener::bind(lexe_bind_addr)?,
                 "lexe node api",
