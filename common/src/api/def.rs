@@ -31,8 +31,8 @@ use crate::{
             UserSignupRequest,
         },
         command::{
-            CreateInvoiceRequest, NodeInfo, PayInvoiceRequest,
-            SendOnchainRequest,
+            CreateInvoiceRequest, NodeInfo, OpenChannelRequest,
+            PayInvoiceRequest, SendOnchainRequest,
         },
         error::{BackendApiError, LspApiError, NodeApiError, RunnerApiError},
         ports::UserPorts,
@@ -256,6 +256,14 @@ pub trait LexeNodeApi {
     /// Triggers an immediate resync of BDK and LDK.
     /// Returns only once sync has either completed or timed out.
     async fn resync(&self) -> Result<(), NodeApiError>;
+
+    /// POST /lexe/open_channel [`OpenChannelRequest`] -> [`()`]
+    ///
+    /// Opens a channel to the LSP.
+    async fn open_channel(
+        &self,
+        req: OpenChannelRequest,
+    ) -> Result<(), NodeApiError>;
 
     /// GET /lexe/shutdown [`GetByUserPk`] -> [`()`]
     ///
