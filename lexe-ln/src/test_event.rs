@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::bail;
 use cfg_if::cfg_if;
+use common::test_event::TestEvent;
 use tokio::sync::mpsc;
 use tracing::debug;
 
@@ -21,52 +22,6 @@ pub fn test_event_channel(
     let sender = TestEventSender::new(label, tx);
     let receiver = TestEventReceiver::new(label, rx);
     (sender, receiver)
-}
-
-/// Test events emitted throughout the node that allow a white box test to know
-/// when something has happened, obviating the need for sleeps (which introduce
-/// flakiness) while keeping tests reasonably fast.
-// This is named `TestEvent` (not `LxEvent`) in case we need a `LxEvent` later.
-// NOTE: Perhaps we could allow the host (Lexe) to subscribe to a TestEvent
-// stream so that black box tests can get notifications as well, even in SGX...
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum TestEvent {
-    /// A [`FundingGenerationReady`] event was handled.
-    ///
-    /// [`FundingGenerationReady`]: lightning::events::Event::FundingGenerationReady
-    FundingGenerationHandled,
-    /// An on-chain transaction was successfully broadcasted by [`LexeEsplora`]
-    ///
-    /// [`LexeEsplora`]: crate::esplora::LexeEsplora
-    TxBroadcasted,
-    /// A [`ChannelPending`] event was handled.
-    ///
-    /// [`ChannelPending`]: lightning::events::Event::ChannelPending
-    ChannelPending,
-    /// A [`ChannelReady`] event was handled.
-    ///
-    /// [`ChannelReady`]: lightning::events::Event::ChannelReady
-    ChannelReady,
-    /// A [`PaymentClaimable`] event was handled.
-    ///
-    /// [`PaymentClaimable`]: lightning::events::Event::PaymentClaimable
-    PaymentClaimable,
-    /// A [`PaymentClaimed`] event was handled.
-    ///
-    /// [`PaymentClaimed`]: lightning::events::Event::PaymentClaimed
-    PaymentClaimed,
-    /// A [`PaymentSent`] event was handled.
-    ///
-    /// [`PaymentSent`]: lightning::events::Event::PaymentSent
-    PaymentSent,
-    /// A [`ChannelClosed`] event was handled.
-    ///
-    /// [`ChannelClosed`]: lightning::events::Event::ChannelClosed
-    ChannelClosed,
-    /// A [`SpendableOutputs`] event was handled.
-    ///
-    /// [`SpendableOutputs`]: lightning::events::Event::SpendableOutputs
-    SpendableOutputs,
 }
 
 /// Wraps an [`mpsc::Sender<TestEvent>`] to allow actually sending the event to
@@ -142,7 +97,8 @@ impl TestEventReceiver {
     /// # Example
     ///
     /// ```
-    /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
+    /// # use common::test_event::TestEvent;
+    /// # use lexe_ln::test_event::test_event_channel;
     /// # #[tokio::test]
     /// # async fn wait() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
@@ -166,7 +122,8 @@ impl TestEventReceiver {
     /// # Example
     ///
     /// ```
-    /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
+    /// # use common::test_event::TestEvent;
+    /// # use lexe_ln::test_event::test_event_channel;
     /// # #[tokio::test]
     /// # async fn wait_n() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
@@ -196,7 +153,8 @@ impl TestEventReceiver {
     /// # Example
     ///
     /// ```
-    /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
+    /// # use common::test_event::TestEvent;
+    /// # use lexe_ln::test_event::test_event_channel;
     /// # #[tokio::test]
     /// # async fn wait_all() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
@@ -228,7 +186,8 @@ impl TestEventReceiver {
     /// # Example
     ///
     /// ```
-    /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
+    /// # use common::test_event::TestEvent;
+    /// # use lexe_ln::test_event::test_event_channel;
     /// # #[tokio::test]
     /// # async fn wait_all_n() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
@@ -264,7 +223,8 @@ impl TestEventReceiver {
     ///
     /// ```
     /// # use std::time::Duration;
-    /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
+    /// # use common::test_event::TestEvent;
+    /// # use lexe_ln::test_event::test_event_channel;
     /// # #[tokio::test]
     /// # async fn wait_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
@@ -296,7 +256,8 @@ impl TestEventReceiver {
     ///
     /// ```
     /// # use std::time::Duration;
-    /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
+    /// # use common::test_event::TestEvent;
+    /// # use lexe_ln::test_event::test_event_channel;
     /// # #[tokio::test]
     /// # async fn wait_n_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
@@ -328,7 +289,8 @@ impl TestEventReceiver {
     ///
     /// ```
     /// # use std::time::Duration;
-    /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
+    /// # use common::test_event::TestEvent;
+    /// # use lexe_ln::test_event::test_event_channel;
     /// # #[tokio::test]
     /// # async fn wait_all_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
@@ -370,7 +332,7 @@ impl TestEventReceiver {
     ///
     /// ```
     /// # use std::time::Duration;
-    /// # use lexe_ln::test_event::{test_event_channel, TestEvent};
+    /// # use lexe_ln::test_event::test_event_channel;
     /// # #[tokio::test]
     /// # async fn wait_all_n_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();

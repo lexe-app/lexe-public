@@ -19,6 +19,7 @@ use common::{
     notify,
     shutdown::ShutdownChannel,
     task::LxTask,
+    test_event::TestEvent,
 };
 use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};
 use rust_decimal::Decimal;
@@ -32,7 +33,7 @@ use crate::{
         onchain::OnchainReceive,
         Payment,
     },
-    test_event::{TestEvent, TestEventSender},
+    test_event::TestEventSender,
     traits::{LexeChannelManager, LexeInnerPersister, LexePersister},
     wallet::LexeWallet,
 };
