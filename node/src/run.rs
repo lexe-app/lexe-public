@@ -452,6 +452,9 @@ impl UserNode {
             rest::serve_routes_with_listener_and_shutdown(
                 server::lexe_routes(
                     args.user_pk,
+                    channel_manager.clone(),
+                    peer_manager.clone(),
+                    args.lsp.clone(),
                     bdk_resync_tx,
                     ldk_resync_tx,
                     shutdown.clone(),

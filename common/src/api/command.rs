@@ -23,6 +23,13 @@ pub struct NodeInfo {
     pub pending_monitor_updates: usize,
 }
 
+/// The information required for the user node to open a channel to the LSP.
+#[derive(Serialize, Deserialize)]
+pub struct OpenChannelRequest {
+    /// The value of the channel we want to open.
+    pub value: Amount,
+}
+
 #[derive(Default, Serialize, Deserialize)]
 pub struct CreateInvoiceRequest {
     pub expiry_secs: u32,

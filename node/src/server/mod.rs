@@ -15,7 +15,8 @@ use std::sync::Arc;
 use common::{
     api::{
         command::{
-            CreateInvoiceRequest, PayInvoiceRequest, SendOnchainRequest,
+            CreateInvoiceRequest, OpenChannelRequest, PayInvoiceRequest,
+            SendOnchainRequest,
         },
         qs::{
             GetByUserPk, GetNewPayments, GetPaymentsByIds, UpdatePaymentNote,
@@ -165,6 +166,9 @@ pub(crate) fn app_routes(
 /// [`LexeNodeApi`]: common::api::def::LexeNodeApi
 pub(crate) fn lexe_routes(
     current_pk: UserPk,
+    channel_manager: NodeChannelManager,
+    peer_manager: NodePeerManager,
+    lsp_info: LspInfo,
     bdk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
     ldk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
     shutdown: ShutdownChannel,
@@ -182,6 +186,15 @@ pub(crate) fn lexe_routes(
         .then(lexe_ln::command::resync)
         .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
+    let open_channel = warp::path("open_channel")
+        .and(warp::post())
+        .and(warp::body::json::<OpenChannelRequest>())
+        .and(inject::channel_manager(channel_manager.clone()))
+        .and(inject::peer_manager(peer_manager.clone()))
+        .and(inject::lsp_channel_peer(lsp_info))
+        .then(lexe::open_channel)
+        .map(convert::anyhow_to_command_api_result)
+        .map(rest::into_response);
     let shutdown = warp::path("shutdown")
         .and(warp::get())
         .and(warp::query::<GetByUserPk>())
@@ -191,7 +204,7 @@ pub(crate) fn lexe_routes(
         .map(rest::into_response);
 
     let routes = warp::path("lexe")
-        .and(status.or(resync).or(shutdown))
+        .and(status.or(resync).or(open_channel).or(shutdown))
         .map(Reply::into_response);
 
     routes.boxed()
@@ -215,6 +228,8 @@ mod convert {
 /// Warp filters for injecting data needed by subsequent filters
 mod inject {
     use std::convert::Infallible;
+
+    use common::ln::peer::ChannelPeer;
 
     use super::*;
 
@@ -300,6 +315,12 @@ mod inject {
         Error = Infallible,
     > + Clone {
         warp::any().map(move || resync_tx.clone())
+    }
+
+    pub(super) fn lsp_channel_peer(
+        lsp_info: LspInfo,
+    ) -> impl Filter<Extract = (ChannelPeer,), Error = Infallible> + Clone {
+        warp::any().map(move || lsp_info.channel_peer())
     }
 
     pub(super) fn create_invoice_caller(
