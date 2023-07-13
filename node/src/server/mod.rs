@@ -42,8 +42,8 @@ use crate::{
 
 /// Handlers for commands that can only be initiated by the app.
 mod app;
-/// Handlers for commands that can only be initiated by the runner (Lexe).
-mod runner;
+/// Handlers for commands that can only be initiated by the Lexe operators.
+mod lexe;
 
 /// Implements [`AppNodeRunApi`] - endpoints only callable by the app.
 ///
@@ -173,7 +173,7 @@ pub(crate) fn lexe_routes(
         .and(warp::get())
         .and(warp::query::<GetByUserPk>())
         .and(inject::user_pk(current_pk))
-        .then(runner::status)
+        .then(lexe::status)
         .map(rest::into_response);
     let resync = warp::path("resync")
         .and(warp::post())
@@ -187,7 +187,7 @@ pub(crate) fn lexe_routes(
         .and(warp::query::<GetByUserPk>())
         .and(inject::user_pk(current_pk))
         .and(inject::shutdown(shutdown))
-        .map(runner::shutdown)
+        .map(lexe::shutdown)
         .map(rest::into_response);
 
     let routes = warp::path("lexe")
