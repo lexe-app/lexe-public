@@ -17,7 +17,10 @@
 //! - Just do `rx.clear()` instead of `while self.rx.try_recv().is_ok() {}` to
 //!   clear out pending notifications on the channel.
 //!
+//! This can also be used as a [`oneshot::channel::<()>()`]
+//!
 //! [`Receiver::recv`]: crate::notify::Receiver::recv
+//! [`oneshot::channel::<()>()`]: tokio::sync::oneshot::channel
 
 use tokio::sync::mpsc;
 

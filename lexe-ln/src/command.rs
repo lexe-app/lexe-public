@@ -19,6 +19,7 @@ use common::{
         amount::Amount, channel::LxChannelDetails, hashes::LxTxid,
         invoice::LxInvoice, payments::LxPaymentHash,
     },
+    notify,
 };
 use lightning::{
     chain::keysinterface::{NodeSigner, Recipient},
@@ -37,7 +38,7 @@ use lightning::{
     },
 };
 use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
-use tokio::sync::broadcast;
+use tokio::sync::mpsc;
 use tracing::{debug, info, instrument, warn};
 
 use crate::{
@@ -126,11 +127,22 @@ where
 /// Uses the given `resync_tx` to retrigger BDK and LDK sync.
 ///
 /// This function is intended to be used as a warp handler.
-pub fn resync(resync_tx: broadcast::Sender<()>) -> anyhow::Result<()> {
-    resync_tx
-        .send(())
-        .map(|_| ())
-        .context("Failed to retrigger sync")
+pub fn resync(
+    bdk_resync_tx: mpsc::Sender<notify::Sender>,
+    ldk_resync_tx: mpsc::Sender<notify::Sender>,
+) -> anyhow::Result<()> {
+    let (tx, _) = notify::channel();
+    bdk_resync_tx
+        .try_send(tx)
+        .map_err(|_| anyhow!("Failed to retrigger BDK sync"))?;
+    let (tx, _) = notify::channel();
+    ldk_resync_tx
+        .try_send(tx)
+        .map_err(|_| anyhow!("Failed to retrigger LDK sync"))?;
+
+    // TODO(max): Await on rx with timeout
+
+    Ok(())
 }
 
 #[instrument(skip_all, name = "(create-invoice)")]

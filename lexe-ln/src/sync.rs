@@ -4,7 +4,7 @@ use anyhow::{anyhow, Context};
 use common::{notify, shutdown::ShutdownChannel, task::LxTask};
 use lightning::chain::Confirm;
 use tokio::{
-    sync::{broadcast, oneshot},
+    sync::{mpsc, oneshot},
     time::{self, Duration},
 };
 use tracing::{error, info};
@@ -28,7 +28,7 @@ pub fn spawn_bdk_sync_task(
     wallet: LexeWallet,
     onchain_recv_tx: notify::Sender,
     first_bdk_sync_tx: oneshot::Sender<anyhow::Result<()>>,
-    mut bdk_resync_rx: broadcast::Receiver<()>,
+    mut bdk_resync_rx: mpsc::Receiver<notify::Sender>,
     test_event_tx: TestEventSender,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()> {
@@ -42,7 +42,7 @@ pub fn spawn_bdk_sync_task(
             let sync_trigger_fut = async {
                 tokio::select! {
                     _ = sync_timer.tick() => (),
-                    Ok(()) = bdk_resync_rx.recv() => (),
+                    Some(_) = bdk_resync_rx.recv() => (),
                 }
             };
 
@@ -96,7 +96,7 @@ pub fn spawn_ldk_sync_task<CMAN, CMON, PS>(
     chain_monitor: CMON,
     ldk_sync_client: Arc<EsploraSyncClientType>,
     first_ldk_sync_tx: oneshot::Sender<anyhow::Result<()>>,
-    mut ldk_resync_rx: broadcast::Receiver<()>,
+    mut ldk_resync_rx: mpsc::Receiver<notify::Sender>,
     test_event_tx: TestEventSender,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
@@ -115,7 +115,7 @@ where
             let sync_trigger_fut = async {
                 tokio::select! {
                     _ = sync_timer.tick() => (),
-                    Ok(()) = ldk_resync_rx.recv() => (),
+                    Some(_) = ldk_resync_rx.recv() => (),
                 }
             };
 

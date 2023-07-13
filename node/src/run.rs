@@ -52,7 +52,7 @@ use lightning::{
     routing::{gossip::P2PGossipSync, router::DefaultRouter},
 };
 use lightning_transaction_sync::EsploraSyncClient;
-use tokio::sync::{broadcast, mpsc, oneshot};
+use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, error, info, info_span, instrument};
 
 use crate::{
@@ -114,8 +114,8 @@ struct SyncContext {
     ldk_sync_client: Arc<EsploraSyncClientType>,
     init_start: Instant,
     onchain_recv_tx: notify::Sender,
-    bdk_resync_rx: broadcast::Receiver<()>,
-    ldk_resync_rx: broadcast::Receiver<()>,
+    bdk_resync_rx: mpsc::Receiver<notify::Sender>,
+    ldk_resync_rx: mpsc::Receiver<notify::Sender>,
     test_event_tx: TestEventSender,
 }
 
@@ -155,9 +155,10 @@ impl UserNode {
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (channel_peer_tx, channel_peer_rx) =
             mpsc::channel(SMALLER_CHANNEL_SIZE);
-        let (resync_tx, _) = broadcast::channel(SMALLER_CHANNEL_SIZE);
-        let bdk_resync_rx = resync_tx.subscribe();
-        let ldk_resync_rx = resync_tx.subscribe();
+        let (bdk_resync_tx, bdk_resync_rx) =
+            mpsc::channel(SMALLER_CHANNEL_SIZE);
+        let (ldk_resync_tx, ldk_resync_rx) =
+            mpsc::channel(SMALLER_CHANNEL_SIZE);
 
         // Collect all handles to spawned tasks
         let mut tasks = Vec::with_capacity(10);
@@ -450,7 +451,12 @@ impl UserNode {
             (Ipv4Addr::new(127, 0, 0, 1), args.lexe_port.unwrap_or(0));
         let (lexe_warp_task, lexe_addr) =
             rest::serve_routes_with_listener_and_shutdown(
-                server::lexe_routes(args.user_pk, resync_tx, shutdown.clone()),
+                server::lexe_routes(
+                    args.user_pk,
+                    bdk_resync_tx,
+                    ldk_resync_tx,
+                    shutdown.clone(),
+                ),
                 shutdown.clone().recv_owned(),
                 TcpListener::bind(lexe_bind_addr)?,
                 "lexe node api",
