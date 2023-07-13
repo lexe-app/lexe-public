@@ -42,6 +42,7 @@ impl NodeArgs {
                     let mut node = UserNode::init(
                         &mut rng,
                         args,
+                        resync_tx,
                         bdk_resync_rx,
                         ldk_resync_rx,
                         test_event_tx,
