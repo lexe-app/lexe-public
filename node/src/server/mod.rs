@@ -180,7 +180,7 @@ pub(crate) fn lexe_routes(
         .and(warp::post())
         .and(inject::resync_tx(bdk_resync_tx))
         .and(inject::resync_tx(ldk_resync_tx))
-        .map(lexe_ln::command::resync)
+        .then(lexe_ln::command::resync)
         .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
     let shutdown = warp::path("shutdown")

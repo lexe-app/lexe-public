@@ -124,24 +124,34 @@ where
         .collect::<Vec<_>>()
 }
 
-/// Uses the given `resync_tx` to retrigger BDK and LDK sync.
+/// Uses the given `[bdk|ldk]_resync_tx` to retrigger BDK and LDK sync, and
+/// returns once sync has either completed or timed out.
 ///
 /// This function is intended to be used as a warp handler.
-pub fn resync(
+pub async fn resync(
     bdk_resync_tx: mpsc::Sender<notify::Sender>,
     ldk_resync_tx: mpsc::Sender<notify::Sender>,
 ) -> anyhow::Result<()> {
-    let (tx, _) = notify::channel();
+    /// How long we'll wait to hear a callback before giving up.
+    // NOTE: Our default reqwest::Client timeout is 15 seconds.
+    const SYNC_TIMEOUT: Duration = Duration::from_secs(12);
+
+    let (bdk_tx, mut bdk_rx) = notify::channel();
     bdk_resync_tx
-        .try_send(tx)
+        .try_send(bdk_tx)
         .map_err(|_| anyhow!("Failed to retrigger BDK sync"))?;
-    let (tx, _) = notify::channel();
+    let (ldk_tx, mut ldk_rx) = notify::channel();
     ldk_resync_tx
-        .try_send(tx)
+        .try_send(ldk_tx)
         .map_err(|_| anyhow!("Failed to retrigger LDK sync"))?;
 
-    // TODO(max): Await on rx with timeout
+    let bdk_fut = tokio::time::timeout(SYNC_TIMEOUT, bdk_rx.recv());
+    let ldk_fut = tokio::time::timeout(SYNC_TIMEOUT, ldk_rx.recv());
+    let (try_bdk, try_ldk) = tokio::join!(bdk_fut, ldk_fut);
+    try_bdk.context("BDK sync timed out")?;
+    try_ldk.context("LDK sync timed out")?;
 
+    debug!("/resync successful");
     Ok(())
 }
 
