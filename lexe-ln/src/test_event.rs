@@ -31,10 +31,6 @@ pub fn test_event_channel(
 // stream so that black box tests can get notifications as well, even in SGX...
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum TestEvent {
-    /// The node completed a LDK transaction resync.
-    LdkSyncComplete,
-    /// The node completed a BDK wallet resync.
-    BdkSyncComplete,
     /// A [`FundingGenerationReady`] event was handled.
     ///
     /// [`FundingGenerationReady`]: lightning::events::Event::FundingGenerationReady
@@ -150,11 +146,11 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// test_event_rx
-    ///     .wait(TestEvent::BdkSyncComplete)
+    ///     .wait(TestEvent::TxBroadcasted)
     ///     .await
-    ///     .expect("Timed out waiting on channel monitor persist");
+    ///     .expect("Timed out");
     /// # }
     /// ```
     pub async fn wait(&mut self, event: TestEvent) -> anyhow::Result<()> {
@@ -174,13 +170,13 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_n() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// test_event_rx
-    ///     .wait_n(TestEvent::BdkSyncComplete, 3)
+    ///     .wait_n(TestEvent::TxBroadcasted, 3)
     ///     .await
-    ///     .expect("Timed out waiting on channel monitor persist");
+    ///     .expect("Timed out");
     /// # }
     /// ```
     pub async fn wait_n(
@@ -204,15 +200,15 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_all() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all(vec![
-    ///         TestEvent::BdkSyncComplete,
+    ///         TestEvent::TxBroadcasted,
     ///         TestEvent::FundingGenerationHandled,
     ///     ])
     ///     .await
-    ///     .expect("Timed out waiting on persist and funding tx");
+    ///     .expect("Timed out");
     /// # }
     /// ```
     pub async fn wait_all(
@@ -236,17 +232,17 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_all_n() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all_n(vec![
-    ///         (TestEvent::BdkSyncComplete, 3),
+    ///         (TestEvent::TxBroadcasted, 3),
     ///         (TestEvent::FundingGenerationHandled, 1),
     ///     ])
     ///     .await
-    ///     .expect("Timed out waiting on persist and funding tx");
+    ///     .expect("Timed out");
     /// # }
     /// ```
     pub async fn wait_all_n(
@@ -272,14 +268,14 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// test_event_rx
     ///     .wait_timeout(
-    ///         TestEvent::BdkSyncComplete,
+    ///         TestEvent::TxBroadcasted,
     ///         Duration::from_secs(15),
     ///     )
     ///     .await
-    ///     .expect("Timed out waiting on channel monitor persist");
+    ///     .expect("Timed out");
     /// # }
     /// ```
     pub async fn wait_timeout(
@@ -304,13 +300,13 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_n_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// test_event_rx
-    ///     .wait_n_timeout(TestEvent::BdkSyncComplete, 3)
+    ///     .wait_n_timeout(TestEvent::TxBroadcasted, 3)
     ///     .await
-    ///     .expect("Timed out waiting on channel monitor persist");
+    ///     .expect("Timed out");
     /// # }
     /// ```
     pub async fn wait_n_timeout(
@@ -336,18 +332,18 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_all_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all_timeout(
     ///         vec![
-    ///             TestEvent::BdkSyncComplete,
+    ///             TestEvent::TxBroadcasted,
     ///             TestEvent::FundingGenerationHandled,
     ///         ],
     ///         Duration::from_secs(15),
     ///     )
     ///     .await
-    ///     .expect("Timed out waiting on persist and funding tx");
+    ///     .expect("Timed out");
     /// # }
     /// ```
     pub async fn wait_all_timeout(
@@ -378,20 +374,20 @@ impl TestEventReceiver {
     /// # #[tokio::test]
     /// # async fn wait_all_n_timeout() {
     /// # let (test_event_tx, test_event_rx) = test_event_channel();
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
-    /// # test_event_tx.send(TestEvent::BdkSyncComplete);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
+    /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
     ///     .wait_all_n_timeout(
     ///         vec![
-    ///             (TestEvent::BdkSyncComplete, 3),
+    ///             (TestEvent::TxBroadcasted, 3),
     ///             (TestEvent::FundingGenerationHandled, 1),
     ///         ],
     ///         Duration::from_secs(15),
     ///     )
     ///     .await
-    ///     .expect("Timed out waiting on persist and funding tx");
+    ///     .expect("Timed out");
     /// # }
     /// ```
     pub async fn wait_all_n_timeout(
@@ -456,7 +452,7 @@ impl TestEventReceiver {
                     for Quota { name, seen, needed } in quotas.into_values() {
                         if seen < needed {
                             write!(&mut err_msg, "{seen}/{needed} {name}, ")
-                                .expect("Could not write to string");
+                                .expect("Could not write to string??");
                         }
                     }
 
@@ -480,7 +476,7 @@ mod test {
 
     #[tokio::test]
     async fn pending_before_ready_after() {
-        let event1 = TestEvent::BdkSyncComplete;
+        let event1 = TestEvent::TxBroadcasted;
         let event2 = TestEvent::FundingGenerationHandled;
         let label = "(node)";
 

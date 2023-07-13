@@ -116,7 +116,6 @@ struct SyncContext {
     onchain_recv_tx: notify::Sender,
     bdk_resync_rx: mpsc::Receiver<notify::Sender>,
     ldk_resync_rx: mpsc::Receiver<notify::Sender>,
-    test_event_tx: TestEventSender,
 }
 
 impl UserNode {
@@ -539,7 +538,6 @@ impl UserNode {
                 onchain_recv_tx,
                 bdk_resync_rx,
                 ldk_resync_rx,
-                test_event_tx,
             }),
         })
     }
@@ -556,7 +554,6 @@ impl UserNode {
             ctxt.onchain_recv_tx,
             first_bdk_sync_tx,
             ctxt.bdk_resync_rx,
-            ctxt.test_event_tx.clone(),
             self.shutdown.clone(),
         ));
         let bdk_sync_fut = first_bdk_sync_rx
@@ -570,7 +567,6 @@ impl UserNode {
             ctxt.ldk_sync_client,
             first_ldk_sync_tx,
             ctxt.ldk_resync_rx,
-            ctxt.test_event_tx.clone(),
             self.shutdown.clone(),
         ));
         let ldk_sync_fut = first_ldk_sync_rx
