@@ -443,26 +443,26 @@ impl UserNode {
             app_service_fut,
         ));
 
-        // TODO(phlip9): authenticate runner<->node
-        // Start warp service for runner
-        let runner_bind_addr =
-            (Ipv4Addr::new(127, 0, 0, 1), args.runner_port.unwrap_or(0));
-        let (runner_task, runner_addr) =
+        // TODO(phlip9): authenticate lexe<->node
+        // Start warp service for Lexe operators
+        let lexe_bind_addr =
+            (Ipv4Addr::new(127, 0, 0, 1), args.lexe_port.unwrap_or(0));
+        let (lexe_warp_task, lexe_addr) =
             rest::serve_routes_with_listener_and_shutdown(
-                server::runner_routes(args.user_pk, shutdown.clone()),
+                server::lexe_routes(args.user_pk, shutdown.clone()),
                 shutdown.clone().recv_owned(),
-                TcpListener::bind(runner_bind_addr)?,
-                "node runner api",
-                info_span!(parent: None, "(node-runner-api)"),
+                TcpListener::bind(lexe_bind_addr)?,
+                "lexe node api",
+                info_span!(parent: None, "(lexe-node-api)"),
             )
-            .context("Failed to serve node runner api")?;
+            .context("Failed to serve lexe node api")?;
 
-        let runner_port = runner_addr.port();
-        info!("Runner service listening on port {runner_port}");
-        tasks.push(runner_task);
+        let lexe_port = lexe_addr.port();
+        info!("Lexe service listening on port {lexe_port}");
+        tasks.push(lexe_warp_task);
 
         // Prepare the ports that we'll notify the runner of once we're ready
-        let user_ports = UserPorts::new_run(user_pk, app_port, runner_port);
+        let user_ports = UserPorts::new_run(user_pk, app_port, lexe_port);
 
         // Init background processor
         let bg_processor_task = LexeBackgroundProcessor::start::<

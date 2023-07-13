@@ -159,11 +159,11 @@ pub(crate) fn app_routes(
     routes.with(rest::trace_requests(parent_span)).boxed()
 }
 
-// XXX: Add runner authentication
-/// Implements [`RunnerNodeApi`] - endpoints only callable by the runner (Lexe).
+// XXX: Add Lexe authentication
+/// Implements [`LexeNodeApi`] - endpoints only callable by the Lexe operators.
 ///
-/// [`RunnerNodeApi`]: common::api::def::RunnerNodeApi
-pub(crate) fn runner_routes(
+/// [`LexeNodeApi`]: common::api::def::LexeNodeApi
+pub(crate) fn lexe_routes(
     current_pk: UserPk,
     shutdown: ShutdownChannel,
 ) -> BoxedFilter<(Response<Body>,)> {
@@ -181,7 +181,7 @@ pub(crate) fn runner_routes(
         .map(runner::shutdown)
         .map(rest::into_response);
 
-    let routes = warp::path("runner")
+    let routes = warp::path("lexe")
         .and(status.or(shutdown))
         .map(Reply::into_response);
 
