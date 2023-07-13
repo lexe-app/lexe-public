@@ -128,9 +128,6 @@ impl UserNode {
     pub async fn init<R: Crng>(
         rng: &mut R,
         args: RunArgs,
-        resync_tx: broadcast::Sender<()>,
-        bdk_resync_rx: broadcast::Receiver<()>,
-        ldk_resync_rx: broadcast::Receiver<()>,
         test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<Self> {
@@ -158,6 +155,9 @@ impl UserNode {
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (channel_peer_tx, channel_peer_rx) =
             mpsc::channel(SMALLER_CHANNEL_SIZE);
+        let (resync_tx, _) = broadcast::channel(SMALLER_CHANNEL_SIZE);
+        let bdk_resync_rx = resync_tx.subscribe();
+        let ldk_resync_rx = resync_tx.subscribe();
 
         // Collect all handles to spawned tasks
         let mut tasks = Vec::with_capacity(10);
