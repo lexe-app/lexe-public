@@ -11,7 +11,6 @@ use tracing::{error, info};
 
 use crate::{
     alias::EsploraSyncClientType,
-    test_event::{TestEvent, TestEventSender},
     traits::{LexeChainMonitor, LexeChannelManager, LexePersister},
     wallet::LexeWallet,
 };
@@ -32,7 +31,6 @@ pub fn spawn_bdk_sync_task(
     onchain_recv_tx: notify::Sender,
     first_bdk_sync_tx: oneshot::Sender<anyhow::Result<()>>,
     mut bdk_resync_rx: mpsc::Receiver<notify::Sender>,
-    test_event_tx: TestEventSender,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()> {
     LxTask::spawn_named("bdk sync", async move {
@@ -90,7 +88,6 @@ pub fn spawn_bdk_sync_task(
                             for tx in synced_txs.drain(..) {
                                 tx.send();
                             }
-                            test_event_tx.send(TestEvent::BdkSyncComplete);
                         }
                         Err(e) => error!("BDK sync error <{elapsed}ms>: {e:#}"),
                     }
@@ -110,7 +107,6 @@ pub fn spawn_ldk_sync_task<CMAN, CMON, PS>(
     ldk_sync_client: Arc<EsploraSyncClientType>,
     first_ldk_sync_tx: oneshot::Sender<anyhow::Result<()>>,
     mut ldk_resync_rx: mpsc::Receiver<notify::Sender>,
-    test_event_tx: TestEventSender,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
 where
@@ -178,7 +174,6 @@ where
                             for tx in synced_txs.drain(..) {
                                 tx.send();
                             }
-                            test_event_tx.send(TestEvent::LdkSyncComplete);
                         }
                         Err(e) => error!("LDK sync error <{elapsed}ms>: {e:#}"),
                     }
