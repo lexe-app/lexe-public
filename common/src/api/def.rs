@@ -254,6 +254,7 @@ pub trait LexeNodeApi {
     /// POST /lexe/resync [`EmptyData`] -> [`()`]
     ///
     /// Triggers an immediate resync of BDK and LDK.
+    /// Returns only once sync has either completed or timed out.
     async fn resync(&self) -> Result<(), NodeApiError>;
 
     /// GET /lexe/shutdown [`GetByUserPk`] -> [`()`]

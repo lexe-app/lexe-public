@@ -23,6 +23,9 @@ const SYNC_INTERVAL: Duration = Duration::from_secs(60 * 10);
 /// How long BDK / LDK sync can proceed before we consider sync to have failed.
 const SYNC_TIMEOUT: Duration = Duration::from_secs(30);
 
+// TODO(max): The control flow / logic in these two functions are sufficiently
+// complex and similar that it's probably a good idea to extract a helper fn.
+
 /// Spawns a task that periodically restarts BDK sync.
 pub fn spawn_bdk_sync_task(
     wallet: LexeWallet,
@@ -35,6 +38,8 @@ pub fn spawn_bdk_sync_task(
     LxTask::spawn_named("bdk sync", async move {
         let mut sync_timer = time::interval(SYNC_INTERVAL);
         let mut maybe_first_bdk_sync_tx = Some(first_bdk_sync_tx);
+        // Holds the `notify::Sender`s which we'll notify when sync completes.
+        let mut synced_txs: Vec<notify::Sender> = Vec::new();
 
         loop {
             // A future which completes when *either* the timer ticks or we
@@ -42,7 +47,12 @@ pub fn spawn_bdk_sync_task(
             let sync_trigger_fut = async {
                 tokio::select! {
                     _ = sync_timer.tick() => (),
-                    Some(_) = bdk_resync_rx.recv() => (),
+                    Some(tx) = bdk_resync_rx.recv() => synced_txs.push(tx),
+                }
+
+                // We're about to sync; clear out any remaining txs
+                while let Ok(tx) = bdk_resync_rx.try_recv() {
+                    synced_txs.push(tx);
                 }
             };
 
@@ -77,6 +87,9 @@ pub fn spawn_bdk_sync_task(
                         Ok(()) => {
                             info!("BDK sync completed <{elapsed}ms>");
                             onchain_recv_tx.send();
+                            for tx in synced_txs.drain(..) {
+                                tx.send();
+                            }
                             test_event_tx.send(TestEvent::BdkSyncComplete);
                         }
                         Err(e) => error!("BDK sync error <{elapsed}ms>: {e:#}"),
@@ -108,6 +121,8 @@ where
     LxTask::spawn_named("ldk sync", async move {
         let mut sync_timer = time::interval(SYNC_INTERVAL);
         let mut maybe_first_ldk_sync_tx = Some(first_ldk_sync_tx);
+        // Holds the `notify::Sender`s which we'll notify when sync completes.
+        let mut synced_txs: Vec<notify::Sender> = Vec::new();
 
         loop {
             // A future which completes when *either* the timer ticks or we
@@ -115,7 +130,12 @@ where
             let sync_trigger_fut = async {
                 tokio::select! {
                     _ = sync_timer.tick() => (),
-                    Some(_) = ldk_resync_rx.recv() => (),
+                    Some(tx) = ldk_resync_rx.recv() => synced_txs.push(tx),
+                }
+
+                // We're about to sync; clear out any remaining txs
+                while let Ok(tx) = ldk_resync_rx.try_recv() {
+                    synced_txs.push(tx);
                 }
             };
 
@@ -155,6 +175,9 @@ where
                     match sync_res {
                         Ok(()) => {
                             info!("LDK sync completed <{elapsed}ms>");
+                            for tx in synced_txs.drain(..) {
+                                tx.send();
+                            }
                             test_event_tx.send(TestEvent::LdkSyncComplete);
                         }
                         Err(e) => error!("LDK sync error <{elapsed}ms>: {e:#}"),
