@@ -114,8 +114,8 @@ struct SyncContext {
     ldk_sync_client: Arc<EsploraSyncClientType>,
     init_start: Instant,
     onchain_recv_tx: notify::Sender,
-    bdk_resync_rx: mpsc::Receiver<notify::Sender>,
-    ldk_resync_rx: mpsc::Receiver<notify::Sender>,
+    bdk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
+    ldk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
 }
 
 impl UserNode {

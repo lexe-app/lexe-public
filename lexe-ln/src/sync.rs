@@ -30,14 +30,14 @@ pub fn spawn_bdk_sync_task(
     wallet: LexeWallet,
     onchain_recv_tx: notify::Sender,
     first_bdk_sync_tx: oneshot::Sender<anyhow::Result<()>>,
-    mut bdk_resync_rx: mpsc::Receiver<notify::Sender>,
+    mut bdk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()> {
     LxTask::spawn_named("bdk sync", async move {
         let mut sync_timer = time::interval(SYNC_INTERVAL);
         let mut maybe_first_bdk_sync_tx = Some(first_bdk_sync_tx);
-        // Holds the `notify::Sender`s which we'll notify when sync completes.
-        let mut synced_txs: Vec<notify::Sender> = Vec::new();
+        // Holds the `oneshot::Sender`s which we'll notify when sync completes.
+        let mut synced_txs: Vec<oneshot::Sender<()>> = Vec::new();
 
         loop {
             // A future which completes when *either* the timer ticks or we
@@ -86,7 +86,7 @@ pub fn spawn_bdk_sync_task(
                             info!("BDK sync completed <{elapsed}ms>");
                             onchain_recv_tx.send();
                             for tx in synced_txs.drain(..) {
-                                tx.send();
+                                let _ = tx.send(());
                             }
                         }
                         Err(e) => error!("BDK sync error <{elapsed}ms>: {e:#}"),
@@ -106,7 +106,7 @@ pub fn spawn_ldk_sync_task<CMAN, CMON, PS>(
     chain_monitor: CMON,
     ldk_sync_client: Arc<EsploraSyncClientType>,
     first_ldk_sync_tx: oneshot::Sender<anyhow::Result<()>>,
-    mut ldk_resync_rx: mpsc::Receiver<notify::Sender>,
+    mut ldk_resync_rx: mpsc::Receiver<oneshot::Sender<()>>,
     mut shutdown: ShutdownChannel,
 ) -> LxTask<()>
 where
@@ -117,8 +117,8 @@ where
     LxTask::spawn_named("ldk sync", async move {
         let mut sync_timer = time::interval(SYNC_INTERVAL);
         let mut maybe_first_ldk_sync_tx = Some(first_ldk_sync_tx);
-        // Holds the `notify::Sender`s which we'll notify when sync completes.
-        let mut synced_txs: Vec<notify::Sender> = Vec::new();
+        // Holds the `oneshot::Sender`s which we'll notify when sync completes.
+        let mut synced_txs: Vec<oneshot::Sender<()>> = Vec::new();
 
         loop {
             // A future which completes when *either* the timer ticks or we
@@ -172,7 +172,7 @@ where
                         Ok(()) => {
                             info!("LDK sync completed <{elapsed}ms>");
                             for tx in synced_txs.drain(..) {
-                                tx.send();
+                                let _ = tx.send(());
                             }
                         }
                         Err(e) => error!("LDK sync error <{elapsed}ms>: {e:#}"),
