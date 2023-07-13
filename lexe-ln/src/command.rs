@@ -19,7 +19,6 @@ use common::{
         amount::Amount, channel::LxChannelDetails, hashes::LxTxid,
         invoice::LxInvoice, payments::LxPaymentHash,
     },
-    notify,
 };
 use lightning::{
     chain::keysinterface::{NodeSigner, Recipient},
@@ -38,7 +37,7 @@ use lightning::{
     },
 };
 use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, info, instrument, warn};
 
 use crate::{
@@ -129,27 +128,31 @@ where
 ///
 /// This function is intended to be used as a warp handler.
 pub async fn resync(
-    bdk_resync_tx: mpsc::Sender<notify::Sender>,
-    ldk_resync_tx: mpsc::Sender<notify::Sender>,
+    bdk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
+    ldk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
 ) -> anyhow::Result<()> {
     /// How long we'll wait to hear a callback before giving up.
     // NOTE: Our default reqwest::Client timeout is 15 seconds.
     const SYNC_TIMEOUT: Duration = Duration::from_secs(12);
 
-    let (bdk_tx, mut bdk_rx) = notify::channel();
+    let (bdk_tx, bdk_rx) = oneshot::channel();
     bdk_resync_tx
         .try_send(bdk_tx)
         .map_err(|_| anyhow!("Failed to retrigger BDK sync"))?;
-    let (ldk_tx, mut ldk_rx) = notify::channel();
+    let (ldk_tx, ldk_rx) = oneshot::channel();
     ldk_resync_tx
         .try_send(ldk_tx)
         .map_err(|_| anyhow!("Failed to retrigger LDK sync"))?;
 
-    let bdk_fut = tokio::time::timeout(SYNC_TIMEOUT, bdk_rx.recv());
-    let ldk_fut = tokio::time::timeout(SYNC_TIMEOUT, ldk_rx.recv());
+    let bdk_fut = tokio::time::timeout(SYNC_TIMEOUT, bdk_rx);
+    let ldk_fut = tokio::time::timeout(SYNC_TIMEOUT, ldk_rx);
     let (try_bdk, try_ldk) = tokio::join!(bdk_fut, ldk_fut);
-    try_bdk.context("BDK sync timed out")?;
-    try_ldk.context("LDK sync timed out")?;
+    try_bdk
+        .context("BDK sync timed out")?
+        .context("BDK recv errored")?;
+    try_ldk
+        .context("LDK sync timed out")?
+        .context("LDK recv errored")?;
 
     debug!("/resync successful");
     Ok(())

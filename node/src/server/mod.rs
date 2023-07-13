@@ -23,14 +23,13 @@ use common::{
         rest, Scid, UserPk,
     },
     cli::{LspInfo, Network},
-    notify,
     shutdown::ShutdownChannel,
 };
 use lexe_ln::{
     alias::RouterType, command::CreateInvoiceCaller, esplora::LexeEsplora,
     keys_manager::LexeKeysManager, wallet::LexeWallet,
 };
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 use tracing::{span, trace};
 use warp::{filters::BoxedFilter, http::Response, hyper::Body, Filter, Reply};
 
@@ -166,8 +165,8 @@ pub(crate) fn app_routes(
 /// [`LexeNodeApi`]: common::api::def::LexeNodeApi
 pub(crate) fn lexe_routes(
     current_pk: UserPk,
-    bdk_resync_tx: mpsc::Sender<notify::Sender>,
-    ldk_resync_tx: mpsc::Sender<notify::Sender>,
+    bdk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
+    ldk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
     shutdown: ShutdownChannel,
 ) -> BoxedFilter<(Response<Body>,)> {
     let status = warp::path("status")
@@ -295,9 +294,11 @@ mod inject {
     }
 
     pub(super) fn resync_tx(
-        resync_tx: mpsc::Sender<notify::Sender>,
-    ) -> impl Filter<Extract = (mpsc::Sender<notify::Sender>,), Error = Infallible>
-           + Clone {
+        resync_tx: mpsc::Sender<oneshot::Sender<()>>,
+    ) -> impl Filter<
+        Extract = (mpsc::Sender<oneshot::Sender<()>>,),
+        Error = Infallible,
+    > + Clone {
         warp::any().map(move || resync_tx.clone())
     }
 
