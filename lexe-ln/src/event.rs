@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Context};
 use bitcoin::{blockdata::script::Script, secp256k1};
-use common::{rng, rng::SysRng};
+use common::{rng, rng::SysRng, test_event::TestEvent};
 use lightning::{
     chain::{
         chaininterface::{ConfirmationTarget, FeeEstimator},
@@ -14,7 +14,7 @@ use tracing::debug;
 use crate::{
     esplora::LexeEsplora,
     keys_manager::LexeKeysManager,
-    test_event::{TestEvent, TestEventSender},
+    test_event::TestEventSender,
     traits::{LexeChannelManager, LexePersister},
     wallet::LexeWallet,
 };

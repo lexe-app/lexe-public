@@ -14,15 +14,12 @@ use common::{
     ln::channel::ChannelId,
     shutdown::ShutdownChannel,
     task::{BlockingTaskRt, LxTask},
+    test_event::TestEvent,
 };
 use lexe_ln::{
-    alias::NetworkGraphType,
-    esplora::LexeEsplora,
-    event,
-    event::EventHandleError,
-    keys_manager::LexeKeysManager,
-    test_event::{TestEvent, TestEventSender},
-    wallet::LexeWallet,
+    alias::NetworkGraphType, esplora::LexeEsplora, event,
+    event::EventHandleError, keys_manager::LexeKeysManager,
+    test_event::TestEventSender, wallet::LexeWallet,
 };
 use lightning::{
     events::{Event, EventHandler},

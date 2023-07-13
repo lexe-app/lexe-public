@@ -13,7 +13,7 @@ use bdk::FeeRate;
 use bitcoin::{blockdata::transaction::Transaction, OutPoint};
 use common::{
     constants::GOOGLE_CA_CERT_DER, ln::hashes::LxTxid, reqwest,
-    shutdown::ShutdownChannel, task::LxTask,
+    shutdown::ShutdownChannel, task::LxTask, test_event::TestEvent,
 };
 use esplora_client::{api::OutputStatus, AsyncClient};
 use lightning::chain::chaininterface::{
@@ -23,7 +23,7 @@ use lightning::chain::chaininterface::{
 use tokio::time;
 use tracing::{debug, error, info, instrument, warn};
 
-use crate::test_event::{TestEvent, TestEventSender};
+use crate::test_event::TestEventSender;
 
 /// The interval at which we refresh estimated fee rates.
 // Since we want to reduce the number of API calls made to our (external)
