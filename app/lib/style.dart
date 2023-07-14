@@ -205,6 +205,7 @@ class LxColors {
   // Black with transparency
 
   static const Color clearB0 = Color(0x00000000);
+  static const Color clearB50 = Color(0x0a000000);
   static const Color clearB100 = Color(0x19000000);
   static const Color clearB200 = Color(0x33000000);
   static const Color clearB300 = Color(0x4c000000);

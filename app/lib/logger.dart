@@ -83,6 +83,11 @@ bool tryInit() {
   return true;
 }
 
+T dbg<T>(T value) {
+  info("$value");
+  return value;
+}
+
 void trace(String message) {
   _logger?.log(_levelTrace, message);
 }
