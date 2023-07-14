@@ -13,6 +13,7 @@ import '../../bindings.dart' show api;
 import '../../bindings_generated_api.dart' show Network;
 import '../../currency_format.dart' as currency_format;
 import '../../logger.dart' show info;
+import '../../result.dart';
 import '../../style.dart' show Fonts, LxColors, Space;
 
 @immutable
@@ -200,20 +201,57 @@ class SendPaymentAmountPage extends StatefulWidget {
 
 class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   final GlobalKey<FormFieldState<String>> amountFieldKey = GlobalKey();
+  final ValueNotifier<String?> errorText = ValueNotifier(null);
 
-  void onNext() {
-    final fieldState = amountFieldKey.currentState!;
-    if (!fieldState.validate()) {
-      return;
-    }
+  final currency_format.IntInputFormatter intInputFormatter =
+      currency_format.IntInputFormatter();
 
-    final amountStr = fieldState.value!;
+  @override
+  void dispose() {
+    this.errorText.dispose();
 
-    info("amount = $amountStr");
+    super.dispose();
   }
 
-  String? validateAmount(String? amountStr) {
-    return null;
+  void onNext() {
+    final num amountSats;
+    switch (this.validate()) {
+      case Ok(:final ok):
+        this.errorText.value = null;
+        amountSats = ok;
+
+      case Err(:final err):
+        // Display the error message
+        this.errorText.value = err;
+        return;
+    }
+
+    info("amountSats = $amountSats");
+  }
+
+  Result<int, String?> validate() {
+    final maybeAmountStr = this.amountFieldKey.currentState!.value;
+    if (maybeAmountStr == null || maybeAmountStr.isEmpty) {
+      return const Err(null);
+    }
+
+    final int amount;
+    switch (this.intInputFormatter.tryParse(maybeAmountStr)) {
+      case int x:
+        amount = x;
+      case null:
+        return const Err("Amount must be a number");
+    }
+
+    if (amount <= 0) {
+      return const Err(null);
+    }
+
+    if (amount > this.widget.sendCtx.balanceSats) {
+      return const Err("You can't send more than your balance!");
+    }
+
+    return Ok(amount);
   }
 
   @override
@@ -258,6 +296,9 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
               Expanded(
                 // TODO(phlip9): figure out how to shrink the font size when we
                 // overflow so the value is always on-screen.
+                // TODO(phlip9): I wish I could just use the builtin error text
+                // but I have no idea how to center align the text so it doesn't
+                // look totally weird...
                 child: TextFormField(
                   key: this.amountFieldKey,
                   autofocus: true,
@@ -268,18 +309,17 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
                   textDirection: TextDirection.ltr,
                   textInputAction: TextInputAction.next,
                   textAlign: TextAlign.right,
-                  // textAlignVertical: TextAlignVertical.bottom,
-                  validator: this.validateAmount,
                   onEditingComplete: this.onNext,
+                  // Hide the error message again when the user starts
+                  // typing again
+                  onChanged: (_) => this.errorText.value = null,
                   decoration: const InputDecoration.collapsed(
                     hintText: "0",
                     hintStyle: TextStyle(
                       color: LxColors.grey750,
                     ),
                   ),
-                  inputFormatters: [
-                    currency_format.IntInputFormatter(),
-                  ],
+                  inputFormatters: [this.intInputFormatter],
                   style: Fonts.fontUI.copyWith(
                     fontSize: Fonts.size800,
                     fontVariations: [Fonts.weightMedium],
@@ -300,6 +340,37 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
               )
             ],
           ),
+
+          const SizedBox(height: Space.s100),
+
+          // Form validation error, if there is one. Usually I'd just use the
+          // default .validator, but I can't get it to align properly.
+          //
+          // Wrap the text in a SizedBox so we don't reflow content below when
+          // an error is shown.
+          //
+          // TODO(phlip9): animate this
+          SizedBox(
+            height: Space.s600,
+            width: null,
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ValueListenableBuilder(
+                valueListenable: this.errorText,
+                builder: (context, errorTextValue, child) =>
+                    (errorTextValue != null)
+                        ? Text(
+                            errorTextValue,
+                            style: Fonts.fontUI.copyWith(
+                              color: LxColors.errorText,
+                              fontSize: Fonts.size100,
+                            ),
+                          )
+                        : const SizedBox(),
+              ),
+            ),
+          ),
+
           const SizedBox(height: Space.s800),
         ],
         bottom: FilledButton(
