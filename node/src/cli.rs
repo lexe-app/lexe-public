@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use argh::FromArgs;
-use common::{cli::node::NodeCommand, rng::SysRng, shutdown::ShutdownChannel};
+use common::{cli::node::NodeCommand, rng::SysRng};
 
 use crate::{
     api::client::{BackendClient, RunnerClient},
@@ -24,12 +24,11 @@ impl NodeArgs {
             .build()
             .context("Failed to build Tokio runtime")?;
         let mut rng = SysRng::new();
-        let shutdown = ShutdownChannel::new();
 
         match self.cmd {
             NodeCommand::Run(args) => rt
                 .block_on(async {
-                    let mut node = UserNode::init(&mut rng, args, shutdown)
+                    let mut node = UserNode::init(&mut rng, args)
                         .await
                         .context("Error during init")?;
                     node.sync().await.context("Error while syncing")?;
