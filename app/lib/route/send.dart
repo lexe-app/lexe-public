@@ -1,6 +1,7 @@
 // Send payment page
 
 import 'package:flutter/material.dart';
+
 import 'package:lexeapp/components.dart'
     show
         LxBackButton,
@@ -255,6 +256,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
+                // TODO(phlip9): figure out how to shrink the font size when we
+                // overflow so the value is always on-screen.
                 child: TextFormField(
                   key: this.amountFieldKey,
                   autofocus: true,
@@ -274,6 +277,9 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
                       color: LxColors.grey750,
                     ),
                   ),
+                  inputFormatters: [
+                    currency_format.IntInputFormatter(),
+                  ],
                   style: Fonts.fontUI.copyWith(
                     fontSize: Fonts.size800,
                     fontVariations: [Fonts.weightMedium],
