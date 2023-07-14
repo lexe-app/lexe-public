@@ -1,8 +1,10 @@
+use serde::{Deserialize, Serialize};
+
 /// Test events emitted throughout the node that allow test to know when
 /// something has happened, obviating the need for sleeps (which introduce
 /// flakiness) while keeping tests reasonably fast.
 // This is named `TestEvent` (not `LxEvent`) in case we need a `LxEvent` later.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum TestEvent {
     /// A [`FundingGenerationReady`] event was handled.
     ///
