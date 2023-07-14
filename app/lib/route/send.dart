@@ -207,6 +207,15 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   final currency_format.IntInputFormatter intInputFormatter =
       currency_format.IntInputFormatter();
 
+  final ValueNotifier<bool> sendFullBalanceEnabled = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    sendFullBalanceEnabled.dispose();
+
+    super.dispose();
+  }
+
   void onNext() {
     final fieldState = this.amountFieldKey.currentState!;
     if (!fieldState.validate()) {
@@ -281,6 +290,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
             ),
           ),
           const SizedBox(height: Space.s850),
+
+          // <amount> sats
           TextFormField(
             key: this.amountFieldKey,
             autofocus: true,
@@ -288,11 +299,10 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
               signed: false,
               decimal: false,
             ),
+            initialValue: "0",
             textDirection: TextDirection.ltr,
             textInputAction: TextInputAction.next,
             textAlign: TextAlign.right,
-            // textAlign: TextAlign.center,
-            // textAlignVertical: TextAlignVertical.top,
             onEditingComplete: this.onNext,
             validator: (str) => this.validateAmountStr(str).err,
             decoration: InputDecoration(
@@ -302,7 +312,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
               ),
               filled: true,
               fillColor: LxColors.clearB0,
-              hoverColor: LxColors.clearB50,
+              // hoverColor: LxColors.clearB50,
               // Remove left and right padding so we have more room for
               // amount text.
               contentPadding:
@@ -322,7 +332,6 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
               // There's probably a better way to do this, but this works. Just
               // expand the " sats" suffix so that it's
               suffix: LayoutBuilder(
-                // builder: (context, constraints) =>
                 builder: (context, constraints) => ConstrainedBox(
                   constraints: BoxConstraints(
                     minWidth: max(0.0, (constraints.maxWidth / 2) - Space.s200),
@@ -340,37 +349,69 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           ),
           const SizedBox(height: Space.s800),
         ],
-        bottom: FilledButton(
-          onPressed: this.onNext,
-          style: FilledButton.styleFrom(
-            backgroundColor: LxColors.grey1000,
-            disabledBackgroundColor: LxColors.grey850,
-            foregroundColor: LxColors.foreground,
-            disabledForegroundColor: LxColors.grey725,
-            maximumSize: const Size.fromHeight(Space.s700),
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Text(
-                "Next",
-                style: Fonts.fontInter.copyWith(
-                  fontSize: Fonts.size300,
-                  fontVariations: [Fonts.weightMedium],
+        bottom: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Send full balance
+            ValueListenableBuilder(
+              valueListenable: this.sendFullBalanceEnabled,
+              builder: (context, isEnabled, _) => SwitchListTile(
+                value: isEnabled,
+                // TODO(phlip9): When a user selects "Send full balance", also
+                // 1. deemphasize / grey out out the amount field
+                // 2. set the value to the expected amount we'll send incl. fees
+                // 3. if the user starts typing in the amount field again, unset
+                //    the "send full balance" widget
+                onChanged: (newValue) =>
+                    this.sendFullBalanceEnabled.value = newValue,
+                title: Text(
+                  "Send full balance",
+                  textAlign: TextAlign.end,
+                  style: Fonts.fontUI.copyWith(color: LxColors.fgTertiary),
                 ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: Space.s550),
+                activeTrackColor: LxColors.moneyGoUp,
+                inactiveThumbColor: LxColors.background,
+                controlAffinity: ListTileControlAffinity.trailing,
               ),
-              const Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: Space.s200),
-                  child: Icon(
-                    Icons.arrow_forward_rounded,
-                    size: Fonts.size300,
+            ),
+            const SizedBox(height: Space.s500),
+
+            // Next ->
+            FilledButton(
+              onPressed: this.onNext,
+              style: FilledButton.styleFrom(
+                backgroundColor: LxColors.grey1000,
+                disabledBackgroundColor: LxColors.grey850,
+                foregroundColor: LxColors.foreground,
+                disabledForegroundColor: LxColors.grey725,
+                maximumSize: const Size.fromHeight(Space.s700),
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Text(
+                    "Next",
+                    style: Fonts.fontInter.copyWith(
+                      fontSize: Fonts.size300,
+                      fontVariations: [Fonts.weightMedium],
+                    ),
                   ),
-                ),
+                  const Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: Space.s200),
+                      child: Icon(
+                        Icons.arrow_forward_rounded,
+                        size: Fonts.size300,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

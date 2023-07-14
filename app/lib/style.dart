@@ -239,8 +239,14 @@ class Space {
   /// 24 px
   static const double s500 = 24.0;
 
+  /// 28 px
+  static const double s550 = 28.0;
+
   /// 32 px
   static const double s600 = 32.0;
+
+  /// 40 px
+  static const double s650 = 40.0;
 
   /// 48 px
   static const double s700 = 48.0;
