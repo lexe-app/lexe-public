@@ -17,7 +17,6 @@ class BackupWalletPage extends StatelessWidget {
     // TODO(phlip9): show warning that skipping backup is bad >:(
 
     unawaited(Navigator.of(context).pushReplacement(MaterialPageRoute(
-      maintainState: false,
       builder: (BuildContext _) =>
           WalletPage(config: this.config, app: this.app),
     )));
