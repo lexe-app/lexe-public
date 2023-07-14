@@ -50,6 +50,7 @@ use crate::{
         invoice::LxInvoice,
         payments::{BasicPayment, DbPayment, LxPaymentId},
     },
+    test_event::TestEvent,
 };
 
 /// Defines the api that the backend exposes to the node.
@@ -263,6 +264,38 @@ pub trait LexeNodeApi {
     async fn open_channel(
         &self,
         req: OpenChannelRequest,
+    ) -> Result<(), NodeApiError>;
+
+    // NOTE: Only one of the test_event endpoints can be called at any one time,
+    // by any caller. This should be fine because, well, it's used for tests.
+
+    /// POST /lexe/test_event/clear [`EmptyData`] -> [`()`]
+    ///
+    /// Calls `TestEventReceiver::clear`.
+    async fn clear(&self) -> Result<(), NodeApiError>;
+
+    /// POST /lexe/test_event/wait [`TestEvent`] -> [`()`]
+    ///
+    /// Calls `TestEventReceiver::wait`.
+    async fn wait(&self, req: TestEvent) -> Result<(), NodeApiError>;
+
+    /// POST /lexe/test_event/wait_n [`(TestEvent, usize)`] -> [`()`]
+    ///
+    /// Calls `TestEventReceiver::wait_n`.
+    async fn wait_n(&self, req: (TestEvent, usize))
+        -> Result<(), NodeApiError>;
+
+    /// POST /lexe/test_event/wait_all [`Vec<TestEvent>`] -> [`()`]
+    ///
+    /// Calls `TestEventReceiver::wait_all`.
+    async fn wait_all(&self, req: Vec<TestEvent>) -> Result<(), NodeApiError>;
+
+    /// POST /lexe/test_event/wait_all_n [`Vec<(TestEvent, usize)>`] -> [`()`]
+    ///
+    /// Calls `TestEventReceiver::wait_all_n`.
+    async fn wait_all_n(
+        &self,
+        req: Vec<(TestEvent, usize)>,
     ) -> Result<(), NodeApiError>;
 
     /// GET /lexe/shutdown [`GetByUserPk`] -> [`()`]
