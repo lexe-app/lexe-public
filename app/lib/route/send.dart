@@ -1,5 +1,7 @@
 // Send payment page
 
+import 'dart:math' show max;
+
 import 'package:flutter/material.dart';
 
 import 'package:lexeapp/components.dart'
@@ -12,7 +14,7 @@ import 'package:lexeapp/components.dart'
 import '../../bindings.dart' show api;
 import '../../bindings_generated_api.dart' show Network;
 import '../../currency_format.dart' as currency_format;
-import '../../logger.dart' show info;
+import '../../logger.dart' show dbg, info;
 import '../../result.dart';
 import '../../style.dart' show Fonts, LxColors, Space;
 
@@ -201,36 +203,26 @@ class SendPaymentAmountPage extends StatefulWidget {
 
 class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   final GlobalKey<FormFieldState<String>> amountFieldKey = GlobalKey();
-  final ValueNotifier<String?> errorText = ValueNotifier(null);
 
   final currency_format.IntInputFormatter intInputFormatter =
       currency_format.IntInputFormatter();
 
-  @override
-  void dispose() {
-    this.errorText.dispose();
-
-    super.dispose();
-  }
-
   void onNext() {
-    final num amountSats;
-    switch (this.validate()) {
-      case Ok(:final ok):
-        this.errorText.value = null;
-        amountSats = ok;
-
-      case Err(:final err):
-        // Display the error message
-        this.errorText.value = err;
-        return;
+    final fieldState = this.amountFieldKey.currentState!;
+    if (!fieldState.validate()) {
+      return;
     }
+
+    final result = this.validateAmountStr(fieldState.value).ok;
+    if (result == null) {
+      return;
+    }
+    final int amountSats = result;
 
     info("amountSats = $amountSats");
   }
 
-  Result<int, String?> validate() {
-    final maybeAmountStr = this.amountFieldKey.currentState!.value;
+  Result<int, String?> validateAmountStr(String? maybeAmountStr) {
     if (maybeAmountStr == null || maybeAmountStr.isEmpty) {
       return const Err(null);
     }
@@ -289,88 +281,63 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
             ),
           ),
           const SizedBox(height: Space.s850),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                // TODO(phlip9): figure out how to shrink the font size when we
-                // overflow so the value is always on-screen.
-                // TODO(phlip9): I wish I could just use the builtin error text
-                // but I have no idea how to center align the text so it doesn't
-                // look totally weird...
-                child: TextFormField(
-                  key: this.amountFieldKey,
-                  autofocus: true,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    signed: false,
-                    decimal: false,
-                  ),
-                  textDirection: TextDirection.ltr,
-                  textInputAction: TextInputAction.next,
-                  textAlign: TextAlign.right,
-                  onEditingComplete: this.onNext,
-                  // Hide the error message again when the user starts
-                  // typing again
-                  onChanged: (_) => this.errorText.value = null,
-                  decoration: const InputDecoration.collapsed(
-                    hintText: "0",
-                    hintStyle: TextStyle(
-                      color: LxColors.grey750,
-                    ),
-                  ),
-                  inputFormatters: [this.intInputFormatter],
-                  style: Fonts.fontUI.copyWith(
-                    fontSize: Fonts.size800,
-                    fontVariations: [Fonts.weightMedium],
-                    letterSpacing: -0.5,
-                  ),
-                ),
+          TextFormField(
+            key: this.amountFieldKey,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(
+              signed: false,
+              decimal: false,
+            ),
+            textDirection: TextDirection.ltr,
+            textInputAction: TextInputAction.next,
+            textAlign: TextAlign.right,
+            // textAlign: TextAlign.center,
+            // textAlignVertical: TextAlignVertical.top,
+            onEditingComplete: this.onNext,
+            validator: (str) => this.validateAmountStr(str).err,
+            decoration: InputDecoration(
+              hintText: "0",
+              hintStyle: const TextStyle(
+                color: LxColors.grey750,
               ),
-              const Expanded(
-                child: Text(
-                  " sats",
-                  style: TextStyle(
-                    fontSize: Fonts.size800,
-                    color: LxColors.grey750,
-                    // fontVariations: [Fonts.weightMedium],
-                    letterSpacing: -0.5,
+              filled: true,
+              fillColor: LxColors.clearB0,
+              hoverColor: LxColors.clearB50,
+              // Remove left and right padding so we have more room for
+              // amount text.
+              contentPadding:
+                  const EdgeInsets.only(top: Space.s300, bottom: Space.s300),
+              // errorBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              // focusedErrorBorder: InputBorder.none,
+              disabledBorder: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              // Goal: I want the amount to be right-aligned, starting from the
+              //       center of the screen.
+              //
+              // |    vvvvvvv            |
+              // |    123,456| sats      |
+              // |                       |
+              //
+              // There's probably a better way to do this, but this works. Just
+              // expand the " sats" suffix so that it's
+              suffix: LayoutBuilder(
+                // builder: (context, constraints) =>
+                builder: (context, constraints) => ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: max(0.0, (constraints.maxWidth / 2) - Space.s200),
                   ),
+                  child: const Text(" sats"),
                 ),
-              )
-            ],
-          ),
-
-          const SizedBox(height: Space.s100),
-
-          // Form validation error, if there is one. Usually I'd just use the
-          // default .validator, but I can't get it to align properly.
-          //
-          // Wrap the text in a SizedBox so we don't reflow content below when
-          // an error is shown.
-          //
-          // TODO(phlip9): animate this
-          SizedBox(
-            height: Space.s600,
-            width: null,
-            child: Align(
-              alignment: Alignment.topCenter,
-              child: ValueListenableBuilder(
-                valueListenable: this.errorText,
-                builder: (context, errorTextValue, child) =>
-                    (errorTextValue != null)
-                        ? Text(
-                            errorTextValue,
-                            style: Fonts.fontUI.copyWith(
-                              color: LxColors.errorText,
-                              fontSize: Fonts.size100,
-                            ),
-                          )
-                        : const SizedBox(),
               ),
             ),
+            inputFormatters: [this.intInputFormatter],
+            style: Fonts.fontUI.copyWith(
+              fontSize: Fonts.size800,
+              fontVariations: [Fonts.weightMedium],
+              letterSpacing: -0.5,
+            ),
           ),
-
           const SizedBox(height: Space.s800),
         ],
         bottom: FilledButton(
