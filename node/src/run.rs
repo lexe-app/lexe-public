@@ -40,8 +40,7 @@ use lexe_ln::{
     p2p,
     p2p::ChannelPeerUpdate,
     payments::manager::PaymentsManager,
-    sync,
-    test_event::TestEventSender,
+    sync, test_event,
     traits::LexeInnerPersister,
     wallet::{self, LexeWallet},
 };
@@ -127,7 +126,6 @@ impl UserNode {
     pub async fn init<R: Crng>(
         rng: &mut R,
         args: RunArgs,
-        test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<Self> {
         info!(%args.user_pk, "Initializing node");
@@ -148,7 +146,7 @@ impl UserNode {
             api::new_runner_api(args.allow_mock, args.runner_url.clone())?;
         let lsp_api = api::new_lsp_api(args.allow_mock, args.lsp.url.clone())?;
 
-        // Init Tokio channels
+        // Init channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let (channel_monitor_persister_tx, channel_monitor_persister_rx) =
             mpsc::channel(DEFAULT_CHANNEL_SIZE);
@@ -158,6 +156,8 @@ impl UserNode {
             mpsc::channel(SMALLER_CHANNEL_SIZE);
         let (ldk_resync_tx, ldk_resync_rx) =
             mpsc::channel(SMALLER_CHANNEL_SIZE);
+        let (test_event_tx, test_event_rx) = test_event::channel("(node)");
+        let test_event_rx = Arc::new(tokio::sync::Mutex::new(test_event_rx));
 
         // Collect all handles to spawned tasks
         let mut tasks = Vec::with_capacity(10);
@@ -457,6 +457,7 @@ impl UserNode {
                     args.lsp.clone(),
                     bdk_resync_tx,
                     ldk_resync_tx,
+                    test_event_rx,
                     shutdown.clone(),
                 ),
                 shutdown.clone().recv_owned(),
