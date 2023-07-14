@@ -48,6 +48,31 @@ class SendPaymentPage extends StatelessWidget {
   }
 }
 
+/// The text that sits directly beneath the AppBar.
+class HeadingText extends StatelessWidget {
+  const HeadingText({
+    super.key,
+    required this.text,
+  });
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: Space.s500, bottom: Space.s200),
+      child: Text(
+        this.text,
+        style: Fonts.fontUI.copyWith(
+          fontSize: Fonts.size600,
+          fontVariations: [Fonts.weightMedium],
+          letterSpacing: -0.5,
+        ),
+      ),
+    );
+  }
+}
+
 class SendPaymentAddressPage extends StatefulWidget {
   const SendPaymentAddressPage({
     super.key,
@@ -57,10 +82,10 @@ class SendPaymentAddressPage extends StatefulWidget {
   final SendContext sendCtx;
 
   @override
-  State<StatefulWidget> createState() => SendPaymentAddressPageState();
+  State<StatefulWidget> createState() => _SendPaymentAddressPageState();
 }
 
-class SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
+class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
   final GlobalKey<FormFieldState<String>> addressFieldKey = GlobalKey();
 
   void onQrPressed() {
@@ -113,16 +138,8 @@ class SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
       ),
       body: ScrollableSinglePageBody(
         body: [
+          const HeadingText(text: "Who are we paying?"),
           const SizedBox(height: Space.s500),
-          Text(
-            "Who are we paying?",
-            style: Fonts.fontUI.copyWith(
-              fontSize: Fonts.size600,
-              fontVariations: [Fonts.weightMedium],
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: Space.s600),
           TextFormField(
             key: this.addressFieldKey,
             autofocus: true,
@@ -187,6 +204,24 @@ class SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
   }
 }
 
+// If only we had real enums... sad.
+
+sealed class SendAmount {
+  const SendAmount();
+}
+
+final class SendAmountAll extends SendAmount {
+  const SendAmountAll();
+}
+
+final class SendAmountExact extends SendAmount {
+  const SendAmountExact(this.amountSats);
+  final int amountSats;
+
+  @override
+  String toString() => "SendAmountExact(${this.amountSats})";
+}
+
 class SendPaymentAmountPage extends StatefulWidget {
   const SendPaymentAmountPage({
     super.key,
@@ -217,18 +252,32 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   }
 
   void onNext() {
-    final fieldState = this.amountFieldKey.currentState!;
-    if (!fieldState.validate()) {
-      return;
+    final SendAmount sendAmount;
+
+    if (sendFullBalanceEnabled.value) {
+      sendAmount = const SendAmountAll();
+    } else {
+      final fieldState = this.amountFieldKey.currentState!;
+      if (!fieldState.validate()) {
+        return;
+      }
+
+      final result = this.validateAmountStr(fieldState.value).ok;
+      if (result == null) {
+        return;
+      }
+      final int amountSats = result;
+
+      sendAmount = SendAmountExact(amountSats);
     }
 
-    final result = this.validateAmountStr(fieldState.value).ok;
-    if (result == null) {
-      return;
-    }
-    final int amountSats = result;
-
-    info("amountSats = $amountSats");
+    Navigator.of(this.context).push(MaterialPageRoute(
+      builder: (_) => SendPaymentConfirmPage(
+        sendCtx: this.widget.sendCtx,
+        address: this.widget.address,
+        sendAmount: sendAmount,
+      ),
+    ));
   }
 
   Result<int, String?> validateAmountStr(String? maybeAmountStr) {
@@ -270,17 +319,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          const SizedBox(height: Space.s500),
-          Text(
-            "How much?",
-            textAlign: TextAlign.left,
-            style: Fonts.fontUI.copyWith(
-              fontSize: Fonts.size600,
-              fontVariations: [Fonts.weightMedium],
-              letterSpacing: -0.5,
-            ),
-          ),
-          const SizedBox(height: Space.s200),
+          const HeadingText(text: "How much?"),
+
           Text(
             "balance $balanceStr",
             textAlign: TextAlign.left,
@@ -371,6 +411,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
                 ),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: Space.s550),
+                inactiveTrackColor: LxColors.grey1000,
                 activeTrackColor: LxColors.moneyGoUp,
                 inactiveThumbColor: LxColors.background,
                 controlAffinity: ListTileControlAffinity.trailing,
@@ -413,6 +454,42 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class SendPaymentConfirmPage extends StatefulWidget {
+  const SendPaymentConfirmPage({
+    super.key,
+    required this.sendCtx,
+    required this.address,
+    required this.sendAmount,
+  });
+
+  final SendContext sendCtx;
+  final String address;
+  final SendAmount sendAmount;
+
+  @override
+  State<SendPaymentConfirmPage> createState() => _SendPaymentConfirmPageState();
+}
+
+class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: const LxBackButton(),
+        actions: const [
+          LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
+          SizedBox(width: Space.s100),
+        ],
+      ),
+      body: const ScrollableSinglePageBody(
+        body: [
+          HeadingText(text: "Confirm payment"),
+        ],
       ),
     );
   }

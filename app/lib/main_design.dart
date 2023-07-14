@@ -29,7 +29,13 @@ import 'route/backup_wallet.dart' show BackupWalletPage;
 import 'route/landing.dart' show LandingPage;
 import 'route/scan.dart' show ScanPage;
 import 'route/send.dart'
-    show SendContext, SendPaymentAmountPage, SendPaymentPage;
+    show
+        SendAmountAll,
+        SendAmountExact,
+        SendContext,
+        SendPaymentAmountPage,
+        SendPaymentConfirmPage,
+        SendPaymentPage;
 import 'route/show_qr.dart' show ShowQrPage;
 import 'route/wallet.dart' show DrawerListItem, WalletPage;
 import 'style.dart' show LxColors, LxTheme, Space;
@@ -109,6 +115,28 @@ Future<void> main() async {
                 balanceSats: 73450,
               ),
               address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+            ),
+          ),
+          Component(
+            "SendPaymentConfirmPage (exact)",
+            (context) => SendPaymentConfirmPage(
+              sendCtx: SendContext(
+                configNetwork: config.network,
+                balanceSats: 73450,
+              ),
+              address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+              sendAmount: const SendAmountExact(2500),
+            ),
+          ),
+          Component(
+            "SendPaymentConfirmPage (all)",
+            (context) => SendPaymentConfirmPage(
+              sendCtx: SendContext(
+                configNetwork: config.network,
+                balanceSats: 73450,
+              ),
+              address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+              sendAmount: const SendAmountAll(),
             ),
           ),
         ],
@@ -297,7 +325,6 @@ class ComponentList extends StatelessWidget {
             title: component.name,
             onTap: () {
               Navigator.of(context).push(MaterialPageRoute(
-                maintainState: false,
                 builder: component.builder,
               ));
             },
