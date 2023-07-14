@@ -126,7 +126,6 @@ impl UserNode {
     pub async fn init<R: Crng>(
         rng: &mut R,
         args: RunArgs,
-        shutdown: ShutdownChannel,
     ) -> anyhow::Result<Self> {
         info!(%args.user_pk, "Initializing node");
         let init_start = Instant::now();
@@ -158,6 +157,7 @@ impl UserNode {
             mpsc::channel(SMALLER_CHANNEL_SIZE);
         let (test_event_tx, test_event_rx) = test_event::channel("(node)");
         let test_event_rx = Arc::new(tokio::sync::Mutex::new(test_event_rx));
+        let shutdown = ShutdownChannel::new();
 
         // Collect all handles to spawned tasks
         let mut tasks = Vec::with_capacity(10);
