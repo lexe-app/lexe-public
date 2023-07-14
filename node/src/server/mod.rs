@@ -248,8 +248,8 @@ pub(crate) fn lexe_routes(
         .and(
             status
                 .or(resync)
-                .or(open_channel)
                 .or(test_event)
+                .or(open_channel)
                 .or(shutdown),
         )
         .map(Reply::into_response);

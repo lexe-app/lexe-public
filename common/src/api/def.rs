@@ -261,6 +261,7 @@ pub trait LexeNodeApi {
     /// POST /lexe/open_channel [`OpenChannelRequest`] -> [`()`]
     ///
     /// Opens a channel to the LSP.
+    /// Does nothing and returns an error if called in prod.
     async fn open_channel(
         &self,
         req: OpenChannelRequest,
