@@ -103,6 +103,19 @@ class IntInputFormatter extends TextInputFormatter {
 
   final NumberFormat formatter;
 
+  int? tryParse(String text) {
+    try {
+      switch (this.formatter.parse(text)) {
+        case int i:
+          return i;
+        case double d:
+          return d.toInt();
+      }
+    } on FormatException {
+      return null;
+    }
+  }
+
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
@@ -112,19 +125,17 @@ class IntInputFormatter extends TextInputFormatter {
       return newValue;
     }
 
-    final num numValue;
-
-    try {
-      // As the user is typing, we'll get something like
-      // `newValue.text: "1,2345"`. Fortunately, `parse` just kinda ignores all
-      // decimal separators (?) so we can just `format(parse(text))` to
-      // "properly" format the input text.
-      numValue = this.formatter.parse(newValue.text);
-    } on FormatException {
+    // As the user is typing, we'll get something like
+    // `newValue.text: "1,2345"`. Fortunately, `parse` just kinda ignores all
+    // decimal separators (?) so we can just `format(parse(text))` to
+    // "properly" format the input text.
+    final maybeNumValue = this.tryParse(newValue.text);
+    if (maybeNumValue == null) {
       // The new value probably added some unrecognized character; just return
-      // the old value to ignore this character.
+      // the old value.
       return oldValue;
     }
+    final num numValue = maybeNumValue;
 
     final newText = this.formatter.format(numValue);
 
