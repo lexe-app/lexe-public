@@ -2,10 +2,11 @@ use std::{
     collections::HashMap,
     fmt::Write,
     mem::{self, Discriminant},
+    sync::Arc,
     time::Duration,
 };
 
-use anyhow::bail;
+use anyhow::{bail, Context};
 use cfg_if::cfg_if;
 use common::test_event::TestEvent;
 use tokio::sync::mpsc;
@@ -15,13 +16,65 @@ const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10); // Increase if needed
 const TEST_EVENT_CHANNEL_SIZE: usize = 16; // Increase if needed
 
 /// Creates a [`TestEvent`] channel, returning a `(tx, rx)` tuple.
-pub fn test_event_channel(
-    label: &'static str,
-) -> (TestEventSender, TestEventReceiver) {
+pub fn channel(label: &'static str) -> (TestEventSender, TestEventReceiver) {
     let (tx, rx) = mpsc::channel(TEST_EVENT_CHANNEL_SIZE);
     let sender = TestEventSender::new(label, tx);
     let receiver = TestEventReceiver::new(label, rx);
     (sender, receiver)
+}
+
+/// A warp handler for calling [`TestEventReceiver::clear`].
+pub fn clear(
+    rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
+) -> anyhow::Result<()> {
+    rx.try_lock()
+        .context("Can only call one /test_event endpoint at once!")?
+        .clear();
+    Ok(())
+}
+
+/// A warp handler for calling [`TestEventReceiver::wait`].
+pub async fn wait(
+    event: TestEvent,
+    rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
+) -> anyhow::Result<()> {
+    rx.try_lock()
+        .context("Can only call one /test_event endpoint at once!")?
+        .wait(event)
+        .await
+}
+
+/// A warp handler for calling [`TestEventReceiver::wait_n`].
+pub async fn wait_n(
+    (event, n): (TestEvent, usize),
+    rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
+) -> anyhow::Result<()> {
+    rx.try_lock()
+        .context("Can only call one /test_event endpoint at once!")?
+        .wait_n(event, n)
+        .await
+}
+
+/// A warp handler for calling [`TestEventReceiver::wait_all`].
+pub async fn wait_all(
+    all_events: Vec<TestEvent>,
+    rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
+) -> anyhow::Result<()> {
+    rx.try_lock()
+        .context("Can only call one /test_event endpoint at once!")?
+        .wait_all(all_events)
+        .await
+}
+
+/// A warp handler for calling [`TestEventReceiver::wait_all_n`].
+pub async fn wait_all_n(
+    all_n_events: Vec<(TestEvent, usize)>,
+    rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
+) -> anyhow::Result<()> {
+    rx.try_lock()
+        .context("Can only call one /test_event endpoint at once!")?
+        .wait_all_n(all_n_events)
+        .await
 }
 
 /// Wraps an [`mpsc::Sender<TestEvent>`] to allow actually sending the event to
@@ -98,10 +151,10 @@ impl TestEventReceiver {
     ///
     /// ```
     /// # use common::test_event::TestEvent;
-    /// # use lexe_ln::test_event::test_event_channel;
+    /// # use lexe_ln::test_event;
     /// # #[tokio::test]
     /// # async fn wait() {
-    /// # let (test_event_tx, test_event_rx) = test_event_channel();
+    /// # let (test_event_tx, test_event_rx) = test_event::channel();
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// test_event_rx
     ///     .wait(TestEvent::TxBroadcasted)
@@ -123,10 +176,10 @@ impl TestEventReceiver {
     ///
     /// ```
     /// # use common::test_event::TestEvent;
-    /// # use lexe_ln::test_event::test_event_channel;
+    /// # use lexe_ln::test_event;
     /// # #[tokio::test]
     /// # async fn wait_n() {
-    /// # let (test_event_tx, test_event_rx) = test_event_channel();
+    /// # let (test_event_tx, test_event_rx) = test_event::channel();
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
@@ -154,10 +207,10 @@ impl TestEventReceiver {
     ///
     /// ```
     /// # use common::test_event::TestEvent;
-    /// # use lexe_ln::test_event::test_event_channel;
+    /// # use lexe_ln::test_event;
     /// # #[tokio::test]
     /// # async fn wait_all() {
-    /// # let (test_event_tx, test_event_rx) = test_event_channel();
+    /// # let (test_event_tx, test_event_rx) = test_event::channel();
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
@@ -187,10 +240,10 @@ impl TestEventReceiver {
     ///
     /// ```
     /// # use common::test_event::TestEvent;
-    /// # use lexe_ln::test_event::test_event_channel;
+    /// # use lexe_ln::test_event;
     /// # #[tokio::test]
     /// # async fn wait_all_n() {
-    /// # let (test_event_tx, test_event_rx) = test_event_channel();
+    /// # let (test_event_tx, test_event_rx) = test_event::channel();
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
@@ -224,10 +277,10 @@ impl TestEventReceiver {
     /// ```
     /// # use std::time::Duration;
     /// # use common::test_event::TestEvent;
-    /// # use lexe_ln::test_event::test_event_channel;
+    /// # use lexe_ln::test_event;
     /// # #[tokio::test]
     /// # async fn wait_timeout() {
-    /// # let (test_event_tx, test_event_rx) = test_event_channel();
+    /// # let (test_event_tx, test_event_rx) = test_event::channel();
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// test_event_rx
     ///     .wait_timeout(
@@ -257,10 +310,10 @@ impl TestEventReceiver {
     /// ```
     /// # use std::time::Duration;
     /// # use common::test_event::TestEvent;
-    /// # use lexe_ln::test_event::test_event_channel;
+    /// # use lexe_ln::test_event;
     /// # #[tokio::test]
     /// # async fn wait_n_timeout() {
-    /// # let (test_event_tx, test_event_rx) = test_event_channel();
+    /// # let (test_event_tx, test_event_rx) = test_event::channel();
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
@@ -290,10 +343,10 @@ impl TestEventReceiver {
     /// ```
     /// # use std::time::Duration;
     /// # use common::test_event::TestEvent;
-    /// # use lexe_ln::test_event::test_event_channel;
+    /// # use lexe_ln::test_event;
     /// # #[tokio::test]
     /// # async fn wait_all_timeout() {
-    /// # let (test_event_tx, test_event_rx) = test_event_channel();
+    /// # let (test_event_tx, test_event_rx) = test_event::channel();
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// # test_event_tx.send(TestEvent::FundingGenerationHandled);
     /// test_event_rx
@@ -332,10 +385,10 @@ impl TestEventReceiver {
     ///
     /// ```
     /// # use std::time::Duration;
-    /// # use lexe_ln::test_event::test_event_channel;
+    /// # use lexe_ln::test_event;
     /// # #[tokio::test]
     /// # async fn wait_all_n_timeout() {
-    /// # let (test_event_tx, test_event_rx) = test_event_channel();
+    /// # let (test_event_tx, test_event_rx) = test_event::channel();
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
     /// # test_event_tx.send(TestEvent::TxBroadcasted);
@@ -443,14 +496,14 @@ mod test {
         let label = "(node)";
 
         // wait()
-        let (tx, mut rx) = test_event_channel(label);
+        let (tx, mut rx) = channel(label);
         let mut task = tokio_test::task::spawn(rx.wait(event1));
         assert_pending!(task.poll());
         tx.send(event1);
         assert_ready!(task.poll()).unwrap();
 
         // wait_n()
-        let (tx, mut rx) = test_event_channel(label);
+        let (tx, mut rx) = channel(label);
         let mut task = tokio_test::task::spawn(rx.wait_n(event1, 3));
         assert_pending!(task.poll());
         tx.send(event1);
@@ -459,7 +512,7 @@ mod test {
         assert_ready!(task.poll()).unwrap();
 
         // wait_all()
-        let (tx, mut rx) = test_event_channel(label);
+        let (tx, mut rx) = channel(label);
         let mut task =
             tokio_test::task::spawn(rx.wait_all(vec![event1, event2]));
         assert_pending!(task.poll());
@@ -468,7 +521,7 @@ mod test {
         assert_ready!(task.poll()).unwrap();
 
         // wait_all_n()
-        let (tx, mut rx) = test_event_channel(label);
+        let (tx, mut rx) = channel(label);
         let mut task = tokio_test::task::spawn(
             rx.wait_all_n(vec![(event1, 3), (event2, 1)]),
         );
@@ -480,12 +533,12 @@ mod test {
         assert_ready!(task.poll()).unwrap();
 
         // wait_all(), 0 events
-        let (_tx, mut rx) = test_event_channel(label);
+        let (_tx, mut rx) = channel(label);
         let mut task = tokio_test::task::spawn(rx.wait_all(vec![]));
         assert_ready!(task.poll()).unwrap();
 
         // wait_all_n(), events with 0 quota
-        let (_tx, mut rx) = test_event_channel(label);
+        let (_tx, mut rx) = channel(label);
         let mut task = tokio_test::task::spawn(
             rx.wait_all_n(vec![(event1, 0), (event2, 0)]),
         );

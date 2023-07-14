@@ -25,10 +25,12 @@ use common::{
     },
     cli::{LspInfo, Network},
     shutdown::ShutdownChannel,
+    test_event::TestEvent,
 };
 use lexe_ln::{
     alias::RouterType, command::CreateInvoiceCaller, esplora::LexeEsplora,
-    keys_manager::LexeKeysManager, wallet::LexeWallet,
+    keys_manager::LexeKeysManager, test_event, test_event::TestEventReceiver,
+    wallet::LexeWallet,
 };
 use tokio::sync::{mpsc, oneshot};
 use tracing::{span, trace};
@@ -171,6 +173,7 @@ pub(crate) fn lexe_routes(
     lsp_info: LspInfo,
     bdk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
     ldk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
+    test_event_rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
     shutdown: ShutdownChannel,
 ) -> BoxedFilter<(Response<Body>,)> {
     let status = warp::path("status")
@@ -195,6 +198,44 @@ pub(crate) fn lexe_routes(
         .then(lexe::open_channel)
         .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
+
+    let clear = warp::path("clear")
+        .and(warp::post())
+        .and(inject::test_event_rx(test_event_rx.clone()))
+        .map(test_event::clear)
+        .map(convert::anyhow_to_command_api_result)
+        .map(rest::into_response);
+    let wait = warp::path("wait")
+        .and(warp::post())
+        .and(warp::body::json::<TestEvent>())
+        .and(inject::test_event_rx(test_event_rx.clone()))
+        .then(test_event::wait)
+        .map(convert::anyhow_to_command_api_result)
+        .map(rest::into_response);
+    let wait_n = warp::path("wait_n")
+        .and(warp::post())
+        .and(warp::body::json::<(TestEvent, usize)>())
+        .and(inject::test_event_rx(test_event_rx.clone()))
+        .then(test_event::wait_n)
+        .map(convert::anyhow_to_command_api_result)
+        .map(rest::into_response);
+    let wait_all = warp::path("wait_all")
+        .and(warp::post())
+        .and(warp::body::json::<Vec<TestEvent>>())
+        .and(inject::test_event_rx(test_event_rx.clone()))
+        .then(test_event::wait_all)
+        .map(convert::anyhow_to_command_api_result)
+        .map(rest::into_response);
+    let wait_all_n = warp::path("wait_all_n")
+        .and(warp::post())
+        .and(warp::body::json::<Vec<(TestEvent, usize)>>())
+        .and(inject::test_event_rx(test_event_rx))
+        .then(test_event::wait_all_n)
+        .map(convert::anyhow_to_command_api_result)
+        .map(rest::into_response);
+    let test_event = warp::path("test_event")
+        .and(clear.or(wait).or(wait_n).or(wait_all).or(wait_all_n));
+
     let shutdown = warp::path("shutdown")
         .and(warp::get())
         .and(warp::query::<GetByUserPk>())
@@ -204,7 +245,13 @@ pub(crate) fn lexe_routes(
         .map(rest::into_response);
 
     let routes = warp::path("lexe")
-        .and(status.or(resync).or(open_channel).or(shutdown))
+        .and(
+            status
+                .or(resync)
+                .or(open_channel)
+                .or(test_event)
+                .or(shutdown),
+        )
         .map(Reply::into_response);
 
     routes.boxed()
@@ -321,6 +368,15 @@ mod inject {
         lsp_info: LspInfo,
     ) -> impl Filter<Extract = (ChannelPeer,), Error = Infallible> + Clone {
         warp::any().map(move || lsp_info.channel_peer())
+    }
+
+    pub(super) fn test_event_rx(
+        test_event_rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
+    ) -> impl Filter<
+        Extract = (Arc<tokio::sync::Mutex<TestEventReceiver>>,),
+        Error = Infallible,
+    > + Clone {
+        warp::any().map(move || test_event_rx.clone())
     }
 
     pub(super) fn create_invoice_caller(
