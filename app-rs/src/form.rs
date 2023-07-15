@@ -9,6 +9,9 @@ pub(crate) fn validate_bitcoin_address(
     // Ensure the address is well-formed, regardless of network (mainnet,
     // testnet, regtest)
     let address = bitcoin::Address::from_str(address_str)
+        // TODO(phlip9): Most of these error messages are not appropriate to
+        // show to users. They also need to be translated. We'll need our own
+        // enum here that we send back to flutter for display.
         .map_err(|err| err.to_string())?;
 
     // Ensure the address matches the current build's configured network

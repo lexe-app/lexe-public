@@ -3,6 +3,7 @@
 import 'dart:math' show max;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 
 import 'package:lexeapp/components.dart'
     show
@@ -73,6 +74,63 @@ class HeadingText extends StatelessWidget {
   }
 }
 
+const InputDecoration baseInputDecoration = InputDecoration(
+  hintStyle: TextStyle(color: LxColors.grey750),
+  filled: true,
+  fillColor: LxColors.clearB0,
+  // hoverColor: LxColors.clearB50,
+  // Remove left and right padding so we have more room for
+  // amount text.
+  contentPadding: EdgeInsets.symmetric(vertical: Space.s300),
+  // errorBorder: InputBorder.none,
+  focusedBorder: InputBorder.none,
+  // focusedErrorBorder: InputBorder.none,
+  disabledBorder: InputBorder.none,
+  enabledBorder: InputBorder.none,
+);
+
+class NextButton extends StatelessWidget {
+  const NextButton({super.key, required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton(
+      onPressed: this.onTap,
+      style: FilledButton.styleFrom(
+        backgroundColor: LxColors.grey1000,
+        disabledBackgroundColor: LxColors.grey850,
+        foregroundColor: LxColors.foreground,
+        disabledForegroundColor: LxColors.grey725,
+        maximumSize: const Size.fromHeight(Space.s700),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Text(
+            "Next",
+            style: Fonts.fontInter.copyWith(
+              fontSize: Fonts.size300,
+              fontVariations: [Fonts.weightMedium],
+            ),
+          ),
+          const Align(
+            alignment: Alignment.centerRight,
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: Space.s200),
+              child: Icon(
+                Icons.arrow_forward_rounded,
+                size: Fonts.size300,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class SendPaymentAddressPage extends StatefulWidget {
   const SendPaymentAddressPage({
     super.key,
@@ -98,7 +156,14 @@ class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
       return;
     }
 
-    final address = fieldState.value!;
+    final String address;
+
+    switch (this.validateBitcoinAddress(fieldState.value!)) {
+      case Ok(:final ok):
+        address = ok;
+      case Err():
+        return;
+    }
 
     Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SendPaymentAmountPage(
@@ -110,15 +175,25 @@ class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
 
   /// Ensure the bitcoin address is properly formatted and targets the right
   /// bitcoin network (mainnet, testnet, regtest) for our build.
-  String? validateBitcoinAddress(String? addressStr) {
+  Result<String, String?> validateBitcoinAddress(String? addressStr) {
+    // Don't show any error message if the input is empty.
     if (addressStr == null || addressStr.isEmpty) {
-      return "Please enter an address";
+      return const Err(null);
     }
 
-    return api.formValidateBitcoinAddress(
+    // Actually try to parse as a bitcoin address.
+    // TODO(phlip9): this API should return a bare enum and flutter should
+    // handle converting that to a human-readable error message.
+    final maybeErrMsg = api.formValidateBitcoinAddress(
       currentNetwork: this.widget.sendCtx.configNetwork,
       addressStr: addressStr,
     );
+
+    if (maybeErrMsg == null) {
+      return Ok(addressStr);
+    } else {
+      return Err(maybeErrMsg);
+    }
   }
 
   @override
@@ -139,7 +214,7 @@ class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
       body: ScrollableSinglePageBody(
         body: [
           const HeadingText(text: "Who are we paying?"),
-          const SizedBox(height: Space.s500),
+          const SizedBox(height: Space.s300),
           TextFormField(
             key: this.addressFieldKey,
             autofocus: true,
@@ -147,14 +222,14 @@ class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
             keyboardType: TextInputType.visiblePassword,
             textDirection: TextDirection.ltr,
             textInputAction: TextInputAction.next,
-            validator: this.validateBitcoinAddress,
+            validator: (str) => this.validateBitcoinAddress(str).err,
             onEditingComplete: this.onNext,
-            decoration: const InputDecoration.collapsed(
-              hintText: "Bitcoin address",
-              hintStyle: TextStyle(
-                color: LxColors.grey750,
-              ),
-            ),
+            inputFormatters: [
+              // Bitcoin addresses are alphanumeric
+              FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
+            ],
+            decoration:
+                baseInputDecoration.copyWith(hintText: "Bitcoin address"),
             style: Fonts.fontUI.copyWith(
               fontSize: Fonts.size700,
               fontVariations: [Fonts.weightMedium],
@@ -167,38 +242,7 @@ class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
           ),
           const SizedBox(height: Space.s800),
         ],
-        bottom: FilledButton(
-          onPressed: this.onNext,
-          style: FilledButton.styleFrom(
-            backgroundColor: LxColors.grey1000,
-            disabledBackgroundColor: LxColors.grey850,
-            foregroundColor: LxColors.foreground,
-            disabledForegroundColor: LxColors.grey725,
-            maximumSize: const Size.fromHeight(Space.s700),
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Text(
-                "Next",
-                style: Fonts.fontInter.copyWith(
-                  fontSize: Fonts.size300,
-                  fontVariations: [Fonts.weightMedium],
-                ),
-              ),
-              const Align(
-                alignment: Alignment.centerRight,
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: Space.s200),
-                  child: Icon(
-                    Icons.arrow_forward_rounded,
-                    size: Fonts.size300,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        bottom: NextButton(onTap: this.onNext),
       ),
     );
   }
@@ -336,32 +380,15 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
             key: this.amountFieldKey,
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(
-              signed: false,
-              decimal: false,
-            ),
+                signed: false, decimal: false),
             initialValue: "0",
             textDirection: TextDirection.ltr,
             textInputAction: TextInputAction.next,
             textAlign: TextAlign.right,
             onEditingComplete: this.onNext,
             validator: (str) => this.validateAmountStr(str).err,
-            decoration: InputDecoration(
+            decoration: baseInputDecoration.copyWith(
               hintText: "0",
-              hintStyle: const TextStyle(
-                color: LxColors.grey750,
-              ),
-              filled: true,
-              fillColor: LxColors.clearB0,
-              // hoverColor: LxColors.clearB50,
-              // Remove left and right padding so we have more room for
-              // amount text.
-              contentPadding:
-                  const EdgeInsets.only(top: Space.s300, bottom: Space.s300),
-              // errorBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              // focusedErrorBorder: InputBorder.none,
-              disabledBorder: InputBorder.none,
-              enabledBorder: InputBorder.none,
               // Goal: I want the amount to be right-aligned, starting from the
               //       center of the screen.
               //
@@ -420,38 +447,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
             const SizedBox(height: Space.s500),
 
             // Next ->
-            FilledButton(
-              onPressed: this.onNext,
-              style: FilledButton.styleFrom(
-                backgroundColor: LxColors.grey1000,
-                disabledBackgroundColor: LxColors.grey850,
-                foregroundColor: LxColors.foreground,
-                disabledForegroundColor: LxColors.grey725,
-                maximumSize: const Size.fromHeight(Space.s700),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Text(
-                    "Next",
-                    style: Fonts.fontInter.copyWith(
-                      fontSize: Fonts.size300,
-                      fontVariations: [Fonts.weightMedium],
-                    ),
-                  ),
-                  const Align(
-                    alignment: Alignment.centerRight,
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: Space.s200),
-                      child: Icon(
-                        Icons.arrow_forward_rounded,
-                        size: Fonts.size300,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            NextButton(onTap: this.onNext),
           ],
         ),
       ),
