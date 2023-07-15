@@ -6,9 +6,9 @@ use std::{
     time::Duration,
 };
 
-use anyhow::{bail, Context};
+use anyhow::bail;
 use cfg_if::cfg_if;
-use common::test_event::TestEvent;
+use common::test_event::{TestEvent, TestEventOp};
 use tokio::sync::mpsc;
 use tracing::debug;
 
@@ -24,58 +24,43 @@ pub fn channel(label: &'static str) -> (TestEventSender, TestEventReceiver) {
     (sender, receiver)
 }
 
-/// A warp handler for calling [`TestEventReceiver::clear`].
-pub fn clear(
+/// A warp handler for calling any of the [`TestEventReceiver`] methods.
+pub async fn do_op(
+    op: TestEventOp,
     rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
 ) -> anyhow::Result<()> {
-    rx.try_lock()
-        .context("Can only call one /test_event endpoint at once!")?
-        .clear();
-    Ok(())
-}
+    cfg_if! {
+        // TODO(max): This needs to switch to #[cfg(feature = "test-utils")],
+        // otherwise this will break the SGX integration tests.
+        if #[cfg(any(test, not(target_env = "sgx")))] {
+            use anyhow::Context;
+            use TestEventOp::*;
+            let mut rx = rx
+                .try_lock()
+                .context("Can only call one /test_event endpoint at once!")?;
 
-/// A warp handler for calling [`TestEventReceiver::wait`].
-pub async fn wait(
-    event: TestEvent,
-    rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
-) -> anyhow::Result<()> {
-    rx.try_lock()
-        .context("Can only call one /test_event endpoint at once!")?
-        .wait(event)
-        .await
-}
-
-/// A warp handler for calling [`TestEventReceiver::wait_n`].
-pub async fn wait_n(
-    (event, n): (TestEvent, usize),
-    rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
-) -> anyhow::Result<()> {
-    rx.try_lock()
-        .context("Can only call one /test_event endpoint at once!")?
-        .wait_n(event, n)
-        .await
-}
-
-/// A warp handler for calling [`TestEventReceiver::wait_all`].
-pub async fn wait_all(
-    all_events: Vec<TestEvent>,
-    rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
-) -> anyhow::Result<()> {
-    rx.try_lock()
-        .context("Can only call one /test_event endpoint at once!")?
-        .wait_all(all_events)
-        .await
-}
-
-/// A warp handler for calling [`TestEventReceiver::wait_all_n`].
-pub async fn wait_all_n(
-    all_n_events: Vec<(TestEvent, usize)>,
-    rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
-) -> anyhow::Result<()> {
-    rx.try_lock()
-        .context("Can only call one /test_event endpoint at once!")?
-        .wait_all_n(all_n_events)
-        .await
+            match op {
+                #[allow(clippy::unit_arg)] // Dumb lint
+                Clear => Ok(rx.clear()),
+                Wait(event) => rx.wait(event).await,
+                WaitN(event, n) => rx.wait_n(event, n).await,
+                WaitAll(all_events) => rx.wait_all(all_events).await,
+                WaitAllN(all_n_events) => rx.wait_all_n(all_n_events).await,
+                WaitTimeout(event, timeout) =>
+                    rx.wait_timeout(event, timeout).await,
+                WaitNTimeout(event, n, timeout) =>
+                    rx.wait_n_timeout(event, n, timeout).await,
+                WaitAllTimeout(all_events, timeout) =>
+                    rx.wait_all_timeout(all_events, timeout).await,
+                WaitAllNTimeout(all_n_events, timeout) =>
+                    rx.wait_all_n_timeout(all_n_events, timeout).await,
+            }
+        } else {
+            let _ = op;
+            let _ = rx;
+            bail!("This endpoint is disabled in staging/prod");
+        }
+    }
 }
 
 /// Wraps an [`mpsc::Sender<TestEvent>`] to allow actually sending the event to

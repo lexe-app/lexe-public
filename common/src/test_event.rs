@@ -1,4 +1,20 @@
+use std::time::Duration;
+
 use serde::{Deserialize, Serialize};
+
+/// An enum for calling various `TestEventReceiver` methods.
+#[derive(Serialize, Deserialize)]
+pub enum TestEventOp {
+    Clear,
+    Wait(TestEvent),
+    WaitN(TestEvent, usize),
+    WaitAll(Vec<TestEvent>),
+    WaitAllN(Vec<(TestEvent, usize)>),
+    WaitTimeout(TestEvent, Duration),
+    WaitNTimeout(TestEvent, usize, Duration),
+    WaitAllTimeout(Vec<TestEvent>, Duration),
+    WaitAllNTimeout(Vec<(TestEvent, usize)>, Duration),
+}
 
 /// Test events emitted throughout the node that allow test to know when
 /// something has happened, obviating the need for sleeps (which introduce
