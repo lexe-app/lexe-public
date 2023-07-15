@@ -10,12 +10,13 @@ import 'package:lexeapp/components.dart'
         LxBackButton,
         LxCloseButton,
         LxCloseButtonKind,
+        LxFilledButton,
         ScrollableSinglePageBody;
 
 import '../../bindings.dart' show api;
 import '../../bindings_generated_api.dart' show Network;
 import '../../currency_format.dart' as currency_format;
-import '../../logger.dart' show dbg, info;
+import '../../logger.dart' show info;
 import '../../result.dart';
 import '../../style.dart' show Fonts, LxColors, Space;
 
@@ -64,10 +65,11 @@ class HeadingText extends StatelessWidget {
       padding: const EdgeInsets.only(top: Space.s500, bottom: Space.s200),
       child: Text(
         this.text,
-        style: Fonts.fontUI.copyWith(
+        style: const TextStyle(
           fontSize: Fonts.size600,
           fontVariations: [Fonts.weightMedium],
           letterSpacing: -0.5,
+          height: 1.0,
         ),
       ),
     );
@@ -89,46 +91,12 @@ const InputDecoration baseInputDecoration = InputDecoration(
   enabledBorder: InputBorder.none,
 );
 
-class NextButton extends StatelessWidget {
-  const NextButton({super.key, required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return FilledButton(
-      onPressed: this.onTap,
-      style: FilledButton.styleFrom(
-        backgroundColor: LxColors.grey1000,
-        disabledBackgroundColor: LxColors.grey850,
-        foregroundColor: LxColors.foreground,
-        disabledForegroundColor: LxColors.grey725,
-        maximumSize: const Size.fromHeight(Space.s700),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Text(
-            "Next",
-            style: Fonts.fontInter.copyWith(
-              fontSize: Fonts.size300,
-              fontVariations: [Fonts.weightMedium],
-            ),
-          ),
-          const Align(
-            alignment: Alignment.centerRight,
-            child: Padding(
-              padding: EdgeInsets.symmetric(vertical: Space.s200),
-              child: Icon(
-                Icons.arrow_forward_rounded,
-                size: Fonts.size300,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+class NextButton extends LxFilledButton {
+  const NextButton({super.key, required super.onTap})
+      : super(
+          text: "Next",
+          icon: Icons.arrow_forward_rounded,
+        );
 }
 
 class SendPaymentAddressPage extends StatefulWidget {
@@ -472,6 +440,8 @@ class SendPaymentConfirmPage extends StatefulWidget {
 }
 
 class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
+  void onSend() {}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -482,10 +452,19 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
           SizedBox(width: Space.s100),
         ],
       ),
-      body: const ScrollableSinglePageBody(
-        body: [
+      body: ScrollableSinglePageBody(
+        body: const [
           HeadingText(text: "Confirm payment"),
         ],
+        bottom: LxFilledButton(
+          onTap: this.onSend,
+          text: "Send",
+          icon: Icons.arrow_forward_rounded,
+          style: FilledButton.styleFrom(
+            backgroundColor: LxColors.moneyGoUp,
+            foregroundColor: LxColors.grey1000,
+          ),
+        ),
       ),
     );
   }

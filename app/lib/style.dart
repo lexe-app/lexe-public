@@ -1,5 +1,6 @@
 import 'dart:ui' show FontFeature, FontVariation, TextDecoration;
 
+import 'package:flutter/foundation.dart' as foundation;
 import 'package:flutter/material.dart'
     show
         Brightness,
@@ -9,6 +10,7 @@ import 'package:flutter/material.dart'
         MaterialColor,
         TextStyle,
         ThemeData,
+        Typography,
         VisualDensity;
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
@@ -46,9 +48,20 @@ class LxTheme {
       brightness: Brightness.light,
     );
 
+    final typography = Typography.material2021(
+      platform: foundation.defaultTargetPlatform,
+      colorScheme: colorScheme,
+    );
+    final textTheme = typography.black.apply(
+      fontFamily: "Inter V",
+      displayColor: LxColors.foreground,
+      bodyColor: LxColors.foreground,
+    );
+
     final baseTheme = ThemeData.from(
       colorScheme: colorScheme,
       useMaterial3: true,
+      textTheme: textTheme,
     );
 
     const appBarIconTheme = IconThemeData(
@@ -250,6 +263,9 @@ class Space {
 
   /// 48 px
   static const double s700 = 48.0;
+
+  /// 56 px
+  static const double s750 = 56.0;
 
   /// 64 px
   static const double s800 = 64.0;
