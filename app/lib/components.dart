@@ -5,7 +5,7 @@ import 'dart:async' show StreamController;
 import 'package:flutter/material.dart';
 import 'package:rxdart_ext/rxdart_ext.dart';
 
-import '../../style.dart' show LxColors, LxRadius, Space;
+import '../../style.dart' show Fonts, LxColors, LxRadius, Space;
 
 typedef VoidContextCallback = void Function(BuildContext);
 
@@ -173,6 +173,67 @@ class LxBackButton extends StatelessWidget {
     return IconButton(
       icon: const Icon(Icons.arrow_back_rounded),
       onPressed: () => Navigator.of(context).pop(),
+    );
+  }
+}
+
+/// A filled button with an icon. Used as the primary action button.
+///
+/// It's like the standard `FilledButton.icon`, but the text is properly
+/// centered in the button.
+class LxFilledButton extends StatelessWidget {
+  const LxFilledButton({
+    super.key,
+    required this.onTap,
+    this.text,
+    this.icon,
+    this.style,
+    this.textStyle,
+  });
+
+  final String? text;
+  final VoidCallback onTap;
+  final IconData? icon;
+
+  final ButtonStyle? style;
+  final TextStyle? textStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    final ButtonStyle defaultStyle = FilledButton.styleFrom(
+      backgroundColor: LxColors.grey1000,
+      disabledBackgroundColor: LxColors.grey850,
+      foregroundColor: LxColors.foreground,
+      disabledForegroundColor: LxColors.grey725,
+      maximumSize: const Size.fromHeight(Space.s700),
+    );
+
+    final ButtonStyle buttonStyle =
+        (this.style != null) ? this.style!.merge(defaultStyle) : defaultStyle;
+
+    const TextStyle defaultTextStyle = TextStyle(
+      fontSize: Fonts.size300,
+      fontVariations: [Fonts.weightMedium],
+    );
+
+    final TextStyle textStyle = (this.textStyle != null)
+        ? this.textStyle!.merge(defaultTextStyle)
+        : defaultTextStyle;
+
+    return FilledButton(
+      onPressed: this.onTap,
+      style: buttonStyle,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (this.text != null) Text(this.text!, style: textStyle),
+          if (this.icon != null)
+            Align(
+              alignment: Alignment.centerRight,
+              child: Icon(this.icon, size: textStyle.fontSize),
+            )
+        ],
+      ),
     );
   }
 }

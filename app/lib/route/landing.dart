@@ -8,7 +8,7 @@ import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import '../bindings.dart' show api;
 import '../bindings_generated_api.dart' show AppHandle, Config;
 import '../logger.dart' show error, info;
-import '../style.dart' show Fonts, LxColors;
+import '../style.dart' show Fonts, LxColors, Space;
 import 'backup_wallet.dart' show BackupWalletPage;
 
 class LandingPage extends StatelessWidget {
@@ -159,7 +159,7 @@ class LandingButtons extends StatelessWidget {
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: LxColors.clearW600, width: 2.0),
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
-            fixedSize: const Size(300.0, 56.0),
+            fixedSize: const Size(300.0, Space.s750),
             shape: const StadiumBorder(),
           ),
           child: const Text("I have a Lexe wallet",
@@ -232,7 +232,7 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
         disabledBackgroundColor: LxColors.clearW200,
         foregroundColor: LxColors.foreground,
         disabledForegroundColor: LxColors.clearB300,
-        fixedSize: const Size(300.0, 56.0),
+        fixedSize: const Size(300.0, Space.s750),
       ),
       child: (!this._disableButton)
           ? const CreateWalletText()
