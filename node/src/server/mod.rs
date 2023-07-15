@@ -25,7 +25,7 @@ use common::{
     },
     cli::{LspInfo, Network},
     shutdown::ShutdownChannel,
-    test_event::TestEvent,
+    test_event::TestEventOp,
 };
 use lexe_ln::{
     alias::RouterType, command::CreateInvoiceCaller, esplora::LexeEsplora,
@@ -198,44 +198,13 @@ pub(crate) fn lexe_routes(
         .then(lexe::open_channel)
         .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
-
-    let clear = warp::path("clear")
-        .and(warp::post())
-        .and(inject::test_event_rx(test_event_rx.clone()))
-        .map(test_event::clear)
-        .map(convert::anyhow_to_command_api_result)
-        .map(rest::into_response);
-    let wait = warp::path("wait")
-        .and(warp::post())
-        .and(warp::body::json::<TestEvent>())
-        .and(inject::test_event_rx(test_event_rx.clone()))
-        .then(test_event::wait)
-        .map(convert::anyhow_to_command_api_result)
-        .map(rest::into_response);
-    let wait_n = warp::path("wait_n")
-        .and(warp::post())
-        .and(warp::body::json::<(TestEvent, usize)>())
-        .and(inject::test_event_rx(test_event_rx.clone()))
-        .then(test_event::wait_n)
-        .map(convert::anyhow_to_command_api_result)
-        .map(rest::into_response);
-    let wait_all = warp::path("wait_all")
-        .and(warp::post())
-        .and(warp::body::json::<Vec<TestEvent>>())
-        .and(inject::test_event_rx(test_event_rx.clone()))
-        .then(test_event::wait_all)
-        .map(convert::anyhow_to_command_api_result)
-        .map(rest::into_response);
-    let wait_all_n = warp::path("wait_all_n")
-        .and(warp::post())
-        .and(warp::body::json::<Vec<(TestEvent, usize)>>())
-        .and(inject::test_event_rx(test_event_rx))
-        .then(test_event::wait_all_n)
-        .map(convert::anyhow_to_command_api_result)
-        .map(rest::into_response);
     let test_event = warp::path("test_event")
-        .and(clear.or(wait).or(wait_n).or(wait_all).or(wait_all_n));
-
+        .and(warp::post())
+        .and(warp::body::json::<TestEventOp>())
+        .and(inject::test_event_rx(test_event_rx.clone()))
+        .then(test_event::do_op)
+        .map(convert::anyhow_to_command_api_result)
+        .map(rest::into_response);
     let shutdown = warp::path("shutdown")
         .and(warp::get())
         .and(warp::query::<GetByUserPk>())
