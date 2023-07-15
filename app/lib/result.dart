@@ -2,6 +2,9 @@
 
 import 'package:meta/meta.dart' show immutable;
 
+// Result<Null, E> errFromNullable<E>(final E? maybeErr) =>
+//     (maybeErr != null) ? Err<Null, E>(maybeErr) : Ok<Null, E>(null);
+
 @immutable
 sealed class Result<T, E> {
   const Result();
