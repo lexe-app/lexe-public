@@ -12,8 +12,9 @@ use common::test_event::TestEvent;
 use tokio::sync::mpsc;
 use tracing::debug;
 
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10); // Increase if needed
-const TEST_EVENT_CHANNEL_SIZE: usize = 16; // Increase if needed
+// Increase these if needed
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
+const TEST_EVENT_CHANNEL_SIZE: usize = 16;
 
 /// Creates a [`TestEvent`] channel, returning a `(tx, rx)` tuple.
 pub fn channel(label: &'static str) -> (TestEventSender, TestEventReceiver) {
