@@ -43,7 +43,7 @@ pub static CONTENT_TYPE_ED25519_BCS: HeaderValue =
     HeaderValue::from_static("application/ed25519-bcs");
 
 // Default parameters
-const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
+pub const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 /// The maximum time [`hyper::Server`] can take to gracefully shut down.
 pub const HYPER_TIMEOUT: Duration = Duration::from_secs(3);
 
@@ -347,6 +347,18 @@ impl RestClient {
         Self::default()
     }
 
+    /// Constructs a [`RestClient`] from a preconfigured [`reqwest::Client`].
+    ///
+    /// NOTE: This constructor cannot verify that a timeout was set, so don't
+    /// forget to configure one like so:
+    ///
+    /// ```
+    /// use common::api::rest::API_REQUEST_TIMEOUT;
+    /// let reqwest_client = reqwest::ClientBuilder::new()
+    ///     .timeout(API_REQUEST_TIMEOUT)
+    ///     .build()
+    ///     .expect("Failed to build client");
+    /// ```
     pub fn from_preconfigured_client(client: reqwest::Client) -> Self {
         Self { client }
     }
@@ -519,16 +531,10 @@ impl RestClient {
 
     async fn send_inner(
         &self,
-        mut request: reqwest::Request,
+        request: reqwest::Request,
     ) -> Result<Result<Bytes, ErrorResponse>, RestClientError> {
         let start = tokio::time::Instant::now().into_std();
         debug!(target: "http", "New (outbound) Sending request");
-
-        // set default timeout if unset
-        let timeout = request.timeout_mut();
-        if timeout.is_none() {
-            *timeout = Some(API_REQUEST_TIMEOUT);
-        }
 
         // send the request, await the response headers
         let resp = self.client.execute(request).await.inspect_err(|err| {

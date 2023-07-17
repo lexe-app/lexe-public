@@ -36,7 +36,7 @@ use crate::{
         fiat_rates::FiatRates,
         provision::NodeProvisionRequest,
         qs::{EmptyData, GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
-        rest::{RequestBuilderExt, RestClient, GET, POST},
+        rest::{RequestBuilderExt, RestClient, API_REQUEST_TIMEOUT, GET, POST},
     },
     attest, ed25519,
     ln::{hashes::LxTxid, invoice::LxInvoice, payments::BasicPayment},
@@ -205,6 +205,7 @@ impl NodeClient {
             .proxy(proxy)
             .user_agent("lexe-node-client")
             .use_preconfigured_tls(tls)
+            .timeout(API_REQUEST_TIMEOUT)
             .build()
             .context("Failed to build client")?;
 
