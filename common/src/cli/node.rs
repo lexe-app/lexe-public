@@ -11,6 +11,7 @@ use crate::{
 };
 
 /// Commands accepted by the user node.
+#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
 #[derive(Clone, Debug, Eq, PartialEq, FromArgs)]
 #[argh(subcommand)]
 #[allow(clippy::large_enum_variant)] // It will be Run most of the time
@@ -258,26 +259,9 @@ impl ProvisionArgs {
 
 #[cfg(all(test, not(target_env = "sgx")))]
 mod test_notsgx {
-    use proptest::{
-        arbitrary::{any, Arbitrary},
-        prop_oneof, proptest,
-        strategy::{BoxedStrategy, Strategy},
-    };
+    use proptest::{arbitrary::any, proptest};
 
     use super::*;
-
-    impl Arbitrary for NodeCommand {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            prop_oneof! {
-                any::<RunArgs>().prop_map(Self::Run),
-                any::<ProvisionArgs>().prop_map(Self::Provision),
-            }
-            .boxed()
-        }
-    }
 
     proptest! {
         #[test]
