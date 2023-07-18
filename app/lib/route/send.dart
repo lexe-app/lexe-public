@@ -17,7 +17,8 @@ import 'package:lexeapp/components.dart'
 import '../../bindings.dart' show api;
 import '../../bindings_generated_api.dart' show Network;
 import '../../currency_format.dart' as currency_format;
-import '../../input_formatter.dart' show IntInputFormatter;
+import '../../input_formatter.dart'
+    show AlphaNumericInputFormatter, IntInputFormatter;
 import '../../logger.dart' show info;
 import '../../result.dart';
 import '../../style.dart' show Fonts, LxColors, Space;
@@ -194,10 +195,8 @@ class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
             textInputAction: TextInputAction.next,
             validator: (str) => this.validateBitcoinAddress(str).err,
             onEditingComplete: this.onNext,
-            inputFormatters: [
-              // Bitcoin addresses are alphanumeric
-              FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')),
-            ],
+            // Bitcoin addresses are alphanumeric
+            inputFormatters: [AlphaNumericInputFormatter()],
             decoration:
                 baseInputDecoration.copyWith(hintText: "Bitcoin address"),
             style: Fonts.fontUI.copyWith(
