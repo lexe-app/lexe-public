@@ -3,7 +3,8 @@
 import 'dart:math' show max;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show FilteringTextInputFormatter;
+import 'package:flutter/services.dart'
+    show FilteringTextInputFormatter, MaxLengthEnforcement;
 
 import 'package:lexeapp/components.dart'
     show
@@ -16,6 +17,7 @@ import 'package:lexeapp/components.dart'
 import '../../bindings.dart' show api;
 import '../../bindings_generated_api.dart' show Network;
 import '../../currency_format.dart' as currency_format;
+import '../../input_formatter.dart' show IntInputFormatter;
 import '../../logger.dart' show info;
 import '../../result.dart';
 import '../../style.dart' show Fonts, LxColors, Space;
@@ -251,8 +253,7 @@ class SendPaymentAmountPage extends StatefulWidget {
 class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   final GlobalKey<FormFieldState<String>> amountFieldKey = GlobalKey();
 
-  final currency_format.IntInputFormatter intInputFormatter =
-      currency_format.IntInputFormatter();
+  final IntInputFormatter intInputFormatter = IntInputFormatter();
 
   final ValueNotifier<bool> sendFullBalanceEnabled = ValueNotifier(false);
 
