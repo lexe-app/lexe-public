@@ -1,8 +1,20 @@
+//! Collection of [TextInputFormatter]s
+
 import 'package:flutter/services.dart'
-    show TextEditingValue, TextInputFormatter, TextSelection;
+    show
+        FilteringTextInputFormatter,
+        TextEditingValue,
+        TextInputFormatter,
+        TextSelection;
 import 'package:intl/intl.dart' show NumberFormat;
 
-/// `IntInputFormatter` is a [TextInputFormatter] that:
+/// [AlphaNumericInputFormatter] is a [TextInputFormatter] that restricts input
+/// text to alpha-numeric characters (a-z, A-Z, 0-9).
+class AlphaNumericInputFormatter extends FilteringTextInputFormatter {
+  AlphaNumericInputFormatter() : super.allow(RegExp(r'[a-zA-Z0-9]'));
+}
+
+/// [IntInputFormatter] is a [TextInputFormatter] that:
 ///
 /// 1. Only allows inputting digits
 /// 2. Auto-formats the text field as-you-type so locale-aware decimal
