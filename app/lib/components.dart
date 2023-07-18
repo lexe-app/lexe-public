@@ -270,3 +270,112 @@ extension StreamControllerExt<T> on StreamController<T> {
     }
   }
 }
+
+/// A zigzag line that spans the width of its container.
+///
+/// zigzag -> \/\/\/\/\/\/\/
+///
+/// * [zigWidth] is the width of a single \/
+/// * [strokeWidth] is the thickness of the line
+class ZigZag extends StatelessWidget {
+  const ZigZag({
+    super.key,
+    required this.color,
+    required this.zigWidth,
+    required this.strokeWidth,
+  });
+
+  final Color color;
+  final double zigWidth;
+  final double strokeWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: ZigZagPainter(
+        color: this.color,
+        zigWidth: this.zigWidth,
+        strokeWidth: this.strokeWidth,
+      ),
+      child: const Center(),
+    );
+  }
+}
+
+class ZigZagPainter extends CustomPainter {
+  const ZigZagPainter({
+    required this.color,
+    required this.zigWidth,
+    required this.strokeWidth,
+  }) : assert(zigWidth > 0.0 && strokeWidth > 0.0);
+
+  final Color color;
+  final double zigWidth;
+  final double strokeWidth;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // |                                   |
+    // |   `\     /`\         /`\     /`   |  |
+    // |     \   /   \  ...  /   \   /     | (3) step
+    // |      \./                 \./      |  |
+    // |                                   |
+    // |(1)|--(2)--|    ...    |--(2)--|(1)|
+    // |   |(3)|(3)|           |(3)|(3)|   |
+    // |----------------(4)----------------|
+    //
+    // (1) margin = 0.5 * totalMargin = 0.5 * floor(size.width - zigWidth)
+    // (2) zigWidth
+    // (3) step = 0.5 * zigWidth
+    // (4) size.width
+
+    // The most number of whole zigs we can fit within the span.
+    final numZigs = (size.width / this.zigWidth).truncate();
+    final step = 0.5 * this.zigWidth;
+
+    // The extra margin we'll have on each side of the zigzag.
+    final totalMargin = size.width - (numZigs * this.zigWidth);
+    final margin = 0.5 * totalMargin;
+
+    // start coordinates
+    final startX = margin;
+    final startY = 0.5 * (size.height - step);
+
+    canvas.save();
+    canvas.translate(startX, startY);
+
+    // extra little prefix bit to fill the full width
+    final path = Path()..moveTo(-margin, margin);
+
+    path.lineTo(0.0, 0.0);
+
+    for (var idx = 0; idx < numZigs; idx += 1) {
+      final x1 = (2 * idx + 1) * step;
+      final y1 = step;
+
+      final x2 = (2 * idx + 2) * step;
+      const y2 = 0.0;
+
+      path.lineTo(x1, y1);
+      path.lineTo(x2, y2);
+    }
+
+    // extra little suffix bit to fill the full width
+    path.relativeLineTo(margin, margin);
+
+    final paint = Paint()
+      ..color = this.color
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round
+      ..strokeWidth = this.strokeWidth;
+    canvas.drawPath(path, paint);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant ZigZagPainter oldDelegate) {
+    return this.color != oldDelegate.color ||
+        this.zigWidth != oldDelegate.zigWidth ||
+        this.strokeWidth != oldDelegate.strokeWidth;
+  }
+}
