@@ -221,9 +221,9 @@ pub enum Network {
 impl From<Network> for common::cli::Network {
     fn from(network: Network) -> Self {
         match network {
-            Network::Mainnet => common::cli::MAINNET_NETWORK,
-            Network::Testnet => common::cli::TESTNET_NETWORK,
-            Network::Regtest => common::cli::REGTEST_NETWORK,
+            Network::Mainnet => common::cli::Network::MAINNET,
+            Network::Testnet => common::cli::Network::TESTNET,
+            Network::Regtest => common::cli::Network::REGTEST,
         }
     }
 }
@@ -233,9 +233,9 @@ impl TryFrom<common::cli::Network> for Network {
 
     fn try_from(network: common::cli::Network) -> anyhow::Result<Self> {
         match network {
-            common::cli::MAINNET_NETWORK => Ok(Self::Mainnet),
-            common::cli::TESTNET_NETWORK => Ok(Self::Testnet),
-            common::cli::REGTEST_NETWORK => Ok(Self::Regtest),
+            common::cli::Network::MAINNET => Ok(Self::Mainnet),
+            common::cli::Network::TESTNET => Ok(Self::Testnet),
+            common::cli::Network::REGTEST => Ok(Self::Regtest),
             _ => Err(anyhow!("unsupported NETWORK: '{network}'")),
         }
     }

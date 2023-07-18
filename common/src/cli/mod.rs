@@ -18,11 +18,6 @@ use crate::{
 /// User node CLI args.
 pub mod node;
 
-pub const MAINNET_NETWORK: Network = Network(bitcoin::Network::Bitcoin);
-pub const TESTNET_NETWORK: Network = Network(bitcoin::Network::Testnet);
-pub const REGTEST_NETWORK: Network = Network(bitcoin::Network::Regtest);
-pub const SIGNET_NETWORK: Network = Network(bitcoin::Network::Signet);
-
 /// A wrapper around [`bitcoin::Network`] that implements [`FromStr`] /
 /// [`Display`] in a consistent way.
 ///
@@ -61,6 +56,11 @@ pub struct LspInfo {
 // --- impl Network --- //
 
 impl Network {
+    pub const MAINNET: Self = Self(bitcoin::Network::Bitcoin);
+    pub const TESTNET: Self = Self(bitcoin::Network::Testnet);
+    pub const REGTEST: Self = Self(bitcoin::Network::Regtest);
+    pub const SIGNET: Self = Self(bitcoin::Network::Signet);
+
     pub fn to_inner(self) -> bitcoin::Network {
         self.0
     }
