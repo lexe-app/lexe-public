@@ -1,11 +1,6 @@
-use std::{
-    net::{Ipv4Addr, SocketAddr, SocketAddrV4, TcpListener, TcpStream},
-    sync::LazyLock,
-};
+use std::{net::SocketAddr, sync::LazyLock};
 
-use crate::{
-    api::ports::Port, cli::LspInfo, rng::WeakRng, root_seed::RootSeed,
-};
+use crate::{cli::LspInfo, rng::WeakRng, root_seed::RootSeed};
 
 /// `Arbitrary`-like proptest strategies for foreign types.
 pub mod arbitrary;
@@ -37,25 +32,3 @@ pub static DUMMY_LSP_INFO: LazyLock<LspInfo> = LazyLock::new(|| {
         htlc_maximum_msat: u64::MAX,
     }
 });
-
-/// The [`SocketAddr`] to bind [`TcpListener`]s to if you want to bind to
-/// localhost with an OS-assigned port.
-pub const LOCALHOST_WITH_EPHEMERAL_PORT: SocketAddr =
-    SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0));
-
-/// Returns an ephemeral port assigned by the OS which should be available for
-/// the next ~60s after this function is called
-pub fn get_ephemeral_port() -> Port {
-    // Request a random available port from the OS
-    let listener = TcpListener::bind(("localhost", 0))
-        .expect("Could not bind TcpListener");
-    let addr = listener.local_addr().unwrap();
-
-    // Create and accept a connection (which we'll promptly drop) in order to
-    // force the port into the TIME_WAIT state, ensuring that the port will be
-    // reserved from some limited amount of time (~60s on some Linux systems)
-    let _sender = TcpStream::connect(addr).unwrap();
-    let _incoming = listener.accept().unwrap();
-
-    addr.port()
-}
