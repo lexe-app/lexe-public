@@ -28,10 +28,7 @@ pub(crate) fn validate_bitcoin_address(
 
 #[cfg(test)]
 mod test {
-    use common::cli::{
-        MAINNET_NETWORK as MAINNET, REGTEST_NETWORK as REGTEST,
-        TESTNET_NETWORK as TESTNET,
-    };
+    use common::cli::Network;
 
     use super::*;
 
@@ -39,23 +36,23 @@ mod test {
     #[test]
     fn test_validate_bitcoin_address() {
         let valid = [
-            ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4", MAINNET),
-            ("BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4", MAINNET),
-            ("1QJVDzdqb1VpbDK7uDeyVXy9mR27CJiyhY", MAINNET),
-            ("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k", MAINNET),
-            ("bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs", MAINNET),
-            ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7", TESTNET),
-            ("bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl", REGTEST),
+            ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4", Network::MAINNET),
+            ("BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4", Network::MAINNET),
+            ("1QJVDzdqb1VpbDK7uDeyVXy9mR27CJiyhY", Network::MAINNET),
+            ("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k", Network::MAINNET),
+            ("bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs", Network::MAINNET),
+            ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7", Network::TESTNET),
+            ("bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl", Network::REGTEST),
         ];
 
         let invalid = [
-            ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4", TESTNET),
-            ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw", MAINNET),
-            ("BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4", REGTEST),
-            ("BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T46969", MAINNET),
-            ("1QJVDzdqb1VpbDK7uDeyVXy9mR27CJiyhY", REGTEST),
-            ("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k", TESTNET),
-            ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7", MAINNET),
+            ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4", Network::TESTNET),
+            ("bc1qw508d6qejxtdg4y5r3zarvary0c5xw", Network::MAINNET),
+            ("BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4", Network::REGTEST),
+            ("BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T46969", Network::MAINNET),
+            ("1QJVDzdqb1VpbDK7uDeyVXy9mR27CJiyhY", Network::REGTEST),
+            ("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k", Network::TESTNET),
+            ("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7", Network::MAINNET),
         ];
 
         for (addr_str, network) in valid {
