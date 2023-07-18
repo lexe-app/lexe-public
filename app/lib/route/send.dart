@@ -3,8 +3,7 @@
 import 'dart:math' show max;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'
-    show FilteringTextInputFormatter, MaxLengthEnforcement;
+import 'package:flutter/services.dart' show MaxLengthEnforcement;
 
 import 'package:lexeapp/components.dart'
     show
@@ -12,13 +11,18 @@ import 'package:lexeapp/components.dart'
         LxCloseButton,
         LxCloseButtonKind,
         LxFilledButton,
-        ScrollableSinglePageBody;
+        ScrollableSinglePageBody,
+        ZigZag;
 
+import '../../address_format.dart' as address_format;
 import '../../bindings.dart' show api;
 import '../../bindings_generated_api.dart' show Network;
 import '../../currency_format.dart' as currency_format;
 import '../../input_formatter.dart'
-    show AlphaNumericInputFormatter, IntInputFormatter;
+    show
+        AlphaNumericInputFormatter,
+        IntInputFormatter,
+        MaxUtf8BytesInputFormatter;
 import '../../logger.dart' show info;
 import '../../result.dart';
 import '../../style.dart' show Fonts, LxColors, Space;
@@ -440,10 +444,41 @@ class SendPaymentConfirmPage extends StatefulWidget {
 }
 
 class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
+  final GlobalKey<FormFieldState<String>> noteFieldKey = GlobalKey();
+
   void onSend() {}
 
   @override
   Widget build(BuildContext context) {
+    final shortAddr = address_format.ellipsizeBtcAddress(this.widget.address);
+    final amountSats = switch (this.widget.sendAmount) {
+      SendAmountExact(:final amountSats) => amountSats,
+      // TODO(phlip9): the exact amount will need to come from the
+      // pre-validation + fee estimation request.
+      SendAmountAll() => this.widget.sendCtx.balanceSats,
+    };
+
+    final amountSatsStr = currency_format.formatSatsAmount(amountSats);
+
+    // TODO(phlip9): get est. fee from pre-validation + fee estimation request
+    const feeSats = 1400;
+    final feeSatsStr = currency_format.formatSatsAmount(feeSats);
+
+    final totalSats = amountSats + feeSats;
+    final totalSatsStr = currency_format.formatSatsAmount(totalSats);
+
+    const textStylePrimary = TextStyle(
+      fontSize: Fonts.size300,
+      color: LxColors.foreground,
+      fontVariations: [Fonts.weightMedium],
+    );
+
+    const textStyleSecondary = TextStyle(
+      fontSize: Fonts.size300,
+      color: LxColors.grey550,
+      fontVariations: [],
+    );
+
     return Scaffold(
       appBar: AppBar(
         leading: const LxBackButton(),
@@ -453,8 +488,111 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
         ],
       ),
       body: ScrollableSinglePageBody(
-        body: const [
-          HeadingText(text: "Confirm payment"),
+        body: [
+          const HeadingText(text: "Confirm payment"),
+          Text(
+            "Sending bitcoin on-chain",
+            style: Fonts.fontUI.copyWith(
+              color: LxColors.grey600,
+              fontSize: Fonts.size300,
+            ),
+          ),
+          const SizedBox(height: Space.s700),
+          // To
+          Row(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("To", style: textStyleSecondary),
+              Text(
+                shortAddr,
+                style: textStylePrimary
+                    .copyWith(fontFeatures: [Fonts.featDisambugation]),
+              ),
+              // TODO(phlip9): button to expand address for full verification
+              // and copy-to-clipboard
+            ],
+          ),
+
+          const SizedBox(height: Space.s500),
+
+          Row(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Amount", style: textStyleSecondary),
+              Text(amountSatsStr, style: textStyleSecondary),
+              // TODO(phlip9): button to expand address for full verification
+              // and copy-to-clipboard
+            ],
+          ),
+
+          const SizedBox(height: Space.s100),
+
+          Row(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Network Fee", style: textStyleSecondary),
+              Text(feeSatsStr, style: textStyleSecondary),
+              // TODO(phlip9): button to expand address for full verification
+              // and copy-to-clipboard
+            ],
+          ),
+
+          const SizedBox(
+            height: Space.s650,
+            child: ZigZag(
+                color: LxColors.grey750, zigWidth: 14.0, strokeWidth: 1.0),
+          ),
+
+          Row(
+            mainAxisSize: MainAxisSize.max,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Total", style: textStyleSecondary),
+              Text(totalSatsStr, style: textStylePrimary),
+              // TODO(phlip9): button to expand address for full verification
+              // and copy-to-clipboard
+            ],
+          ),
+
+          const SizedBox(height: Space.s700),
+
+          TextFormField(
+            key: this.noteFieldKey,
+            autofocus: false,
+            keyboardType: TextInputType.text,
+            textInputAction: TextInputAction.send,
+            onEditingComplete: this.onSend,
+            maxLines: null,
+            maxLength: 200,
+            maxLengthEnforcement: MaxLengthEnforcement.enforced,
+
+            // Silently limit input to 512 bytes. This could be a little
+            // confusing if the user inputs a ton of emojis or CJK characters
+            // I guess.
+            inputFormatters: const [MaxUtf8BytesInputFormatter(maxBytes: 512)],
+
+            decoration: const InputDecoration(
+              hintStyle: TextStyle(color: LxColors.grey550),
+              hintText: "What's this payment for? (optional)",
+              counterStyle: TextStyle(color: LxColors.grey550),
+              border: OutlineInputBorder(),
+              enabledBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: LxColors.fgTertiary)),
+              focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(color: LxColors.foreground)),
+            ),
+            style: Fonts.fontBody.copyWith(
+              fontSize: Fonts.size200,
+              height: 1.5,
+              color: LxColors.fgSecondary,
+              letterSpacing: -0.15,
+            ),
+          ),
+
+          const SizedBox(height: Space.s500),
         ],
         bottom: LxFilledButton(
           onTap: this.onSend,
