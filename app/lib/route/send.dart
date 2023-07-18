@@ -1,5 +1,6 @@
 // Send payment page
 
+import 'dart:async' show unawaited;
 import 'dart:math' show max;
 
 import 'package:flutter/material.dart';
@@ -101,8 +102,8 @@ const InputDecoration baseInputDecoration = InputDecoration(
 class NextButton extends LxFilledButton {
   const NextButton({super.key, required super.onTap})
       : super(
-          text: "Next",
-          icon: Icons.arrow_forward_rounded,
+          label: const Text("Next"),
+          icon: const Icon(Icons.arrow_forward_rounded),
         );
 }
 
@@ -446,7 +447,19 @@ class SendPaymentConfirmPage extends StatefulWidget {
 class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
   final GlobalKey<FormFieldState<String>> noteFieldKey = GlobalKey();
 
-  void onSend() {}
+  bool isSending = false;
+
+  void onSend() {
+    this.setState(() {
+      isSending = true;
+    });
+
+    unawaited(Future.delayed(const Duration(seconds: 2), () {
+      this.setState(() {
+        isSending = false;
+      });
+    }));
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -522,8 +535,6 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             children: [
               const Text("Amount", style: textStyleSecondary),
               Text(amountSatsStr, style: textStyleSecondary),
-              // TODO(phlip9): button to expand address for full verification
-              // and copy-to-clipboard
             ],
           ),
 
@@ -535,8 +546,6 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             children: [
               const Text("Network Fee", style: textStyleSecondary),
               Text(feeSatsStr, style: textStyleSecondary),
-              // TODO(phlip9): button to expand address for full verification
-              // and copy-to-clipboard
             ],
           ),
 
@@ -552,8 +561,6 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             children: [
               const Text("Total", style: textStyleSecondary),
               Text(totalSatsStr, style: textStylePrimary),
-              // TODO(phlip9): button to expand address for full verification
-              // and copy-to-clipboard
             ],
           ),
 
@@ -561,6 +568,10 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
           TextFormField(
             key: this.noteFieldKey,
+
+            // Disable the input field while the send request is pending.
+            enabled: !this.isSending,
+
             autofocus: false,
             keyboardType: TextInputType.text,
             textInputAction: TextInputAction.send,
@@ -591,17 +602,86 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
               letterSpacing: -0.15,
             ),
           ),
-
-          const SizedBox(height: Space.s500),
         ],
-        bottom: LxFilledButton(
-          onTap: this.onSend,
-          text: "Send",
-          icon: Icons.arrow_forward_rounded,
-          style: FilledButton.styleFrom(
-            backgroundColor: LxColors.moneyGoUp,
-            foregroundColor: LxColors.grey1000,
-          ),
+        bottom: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.end,
+          verticalDirection: VerticalDirection.down,
+          children: [
+            const Expanded(child: SizedBox(height: Space.s500)),
+            // Disable the button and show a loading indicator while sending the
+            // request.
+            SendButton(onTap: this.onSend, loading: this.isSending),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The "Send" button at the bottom of the "Confirm Payment" page.
+///
+/// It animates into a shortened button with a loading indicator inside when
+/// we're sending the payment request and awaiting the response.
+class SendButton extends StatefulWidget {
+  const SendButton({super.key, required this.onTap, required this.loading});
+
+  final VoidCallback? onTap;
+  final bool loading;
+
+  bool get enabled => this.onTap != null;
+
+  @override
+  State<SendButton> createState() => _SendButtonState();
+}
+
+class _SendButtonState extends State<SendButton> {
+  // @override
+  // void didUpdateWidget(SendButton old) {
+  //   super.didUpdateWidget(old);
+  //   if (this.widget.enabled != old.enabled)
+  // }
+
+  @override
+  Widget build(BuildContext context) {
+    final loading = this.widget.loading;
+
+    // When we're loading, we:
+    // (1) shorten the button width
+    // (2) replace the button label with a loading indicator
+    // (3) hide the button icon
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.decelerate,
+      // We need to set a maximum width, since we can't interpolate between an
+      // unbounded width and a finite width.
+      width: (!loading) ? 450.0 : Space.s900,
+      child: LxFilledButton(
+        // Also disable the button while loading.
+        onTap: (!loading) ? this.widget.onTap : null,
+        label: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 150),
+          child: (!loading)
+              ? const Text("Send")
+              : const Center(
+                  child: SizedBox.square(
+                    dimension: Fonts.size300,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.0,
+                      color: LxColors.clearB200,
+                    ),
+                  ),
+                ),
+        ),
+        icon: AnimatedOpacity(
+          opacity: (!loading) ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 150),
+          child: const Icon(Icons.arrow_forward_rounded),
+        ),
+        style: FilledButton.styleFrom(
+          backgroundColor: LxColors.moneyGoUp,
+          foregroundColor: LxColors.grey1000,
         ),
       ),
     );

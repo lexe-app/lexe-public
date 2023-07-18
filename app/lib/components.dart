@@ -185,15 +185,15 @@ class LxFilledButton extends StatelessWidget {
   const LxFilledButton({
     super.key,
     required this.onTap,
-    this.text,
+    this.label,
     this.icon,
     this.style,
     this.textStyle,
   });
 
-  final String? text;
-  final VoidCallback onTap;
-  final IconData? icon;
+  final Widget? label;
+  final Widget? icon;
+  final VoidCallback? onTap;
 
   final ButtonStyle? style;
   final TextStyle? textStyle;
@@ -226,11 +226,15 @@ class LxFilledButton extends StatelessWidget {
       child: Stack(
         alignment: Alignment.center,
         children: [
-          if (this.text != null) Text(this.text!, style: textStyle),
+          if (this.label != null)
+            DefaultTextStyle.merge(style: textStyle, child: this.label!),
           if (this.icon != null)
             Align(
               alignment: Alignment.centerRight,
-              child: Icon(this.icon, size: textStyle.fontSize),
+              child: IconTheme.merge(
+                data: IconThemeData(size: textStyle.fontSize),
+                child: this.icon!,
+              ),
             )
         ],
       ),
