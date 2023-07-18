@@ -1,5 +1,7 @@
 //! Collection of [TextInputFormatter]s
 
+import 'dart:convert' show utf8;
+
 import 'package:flutter/services.dart'
     show
         FilteringTextInputFormatter,
@@ -12,6 +14,39 @@ import 'package:intl/intl.dart' show NumberFormat;
 /// text to alpha-numeric characters (a-z, A-Z, 0-9).
 class AlphaNumericInputFormatter extends FilteringTextInputFormatter {
   AlphaNumericInputFormatter() : super.allow(RegExp(r'[a-zA-Z0-9]'));
+}
+
+/// [MaxUtf8BytesInputFormatter] is a [TextInputFormatter] that restricts the
+/// size of the input to [maxBytes], _after_ the string has been encoded to
+/// UTF-8.
+///
+/// ### Why, God?
+///
+/// We need restrict the length of e.g. payment notes in _bytes_, but only
+/// after they're encoded to UTF-8. Flutter (sadly) chose to use UTF-16 encoded
+/// strings.
+class MaxUtf8BytesInputFormatter extends TextInputFormatter {
+  const MaxUtf8BytesInputFormatter({required this.maxBytes})
+      : assert(maxBytes >= 0);
+
+  final int maxBytes;
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) {
+      return newValue;
+    }
+
+    final numUtf8Bytes = utf8.encoder.convert(newValue.text).lengthInBytes;
+    if (numUtf8Bytes > this.maxBytes) {
+      return oldValue;
+    }
+
+    return newValue;
+  }
 }
 
 /// [IntInputFormatter] is a [TextInputFormatter] that:
