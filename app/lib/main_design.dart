@@ -6,7 +6,6 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show Intl;
-import 'package:lexeapp/route/send.dart';
 
 import 'bindings.dart' show api;
 import 'bindings_generated_api.dart'
@@ -25,6 +24,7 @@ import 'bindings_generated_api.dart'
         ShortPayment,
         U8Array32;
 import 'cfg.dart' as cfg;
+import 'components.dart' show ScrollableSinglePageBody;
 import 'date_format.dart' as date_format;
 import 'logger.dart' as logger;
 import 'logger.dart' show info;
@@ -33,6 +33,7 @@ import 'route/landing.dart' show LandingPage;
 import 'route/scan.dart' show ScanPage;
 import 'route/send.dart'
     show
+        HeadingText,
         SendAmountAll,
         SendAmountExact,
         SendContext,
@@ -40,8 +41,8 @@ import 'route/send.dart'
         SendPaymentConfirmPage,
         SendPaymentPage;
 import 'route/show_qr.dart' show ShowQrPage;
-import 'route/wallet.dart' show DrawerListItem, WalletPage;
-import 'style.dart' show LxColors, LxTheme, Space;
+import 'route/wallet.dart' show WalletPage;
+import 'style.dart' show Fonts, LxColors, LxTheme, Space;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -60,21 +61,40 @@ Future<void> main() async {
   final Config config = await cfg.buildTest();
   info("Test build config: $config");
 
-  final mockApp = MockAppHandle(bridge: api);
+  runApp(
+    MaterialApp(
+      title: "Lexe App - Design Mode",
+      color: LxColors.background,
+      themeMode: ThemeMode.light,
+      theme: LxTheme.light(),
+      debugShowCheckedModeBanner: false,
+      home: LexeDesignHome(config: config),
+    ),
+  );
+}
 
-  final cidBytes = List.generate(32, (idx) => idx);
-  final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
+class LexeDesignHome extends StatelessWidget {
+  const LexeDesignHome({super.key, required this.config});
 
-  runApp(MaterialApp(
-    title: "Lexe App - Design Mode",
-    color: LxColors.background,
-    themeMode: ThemeMode.light,
-    theme: LxTheme.light(),
-    debugShowCheckedModeBanner: false,
-    home: Scaffold(
-      appBar: AppBar(automaticallyImplyLeading: false),
-      body: ComponentList(
-        components: [
+  final Config config;
+
+  @override
+  Widget build(BuildContext context) {
+    final mockApp = MockAppHandle(bridge: api);
+
+    final cidBytes = List.generate(32, (idx) => idx);
+    final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
+
+    return Scaffold(
+      body: ScrollableSinglePageBody(
+        padding: EdgeInsets.zero,
+        body: [
+          const SizedBox(height: Space.s800),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: Space.s600),
+            child: HeadingText(text: "Lexe Design Home"),
+          ),
+          const SizedBox(height: Space.s500),
           Component("LandingPage", (_) => LandingPage(config: config)),
           Component("BackupWalletPage",
               (_) => BackupWalletPage(config: config, app: mockApp)),
@@ -86,19 +106,22 @@ Future<void> main() async {
                   )),
           Component("ScanPage", (_) => const ScanPage()),
           Component(
-            "ShowQrPage (standard bip21)",
+            "ShowQrPage",
+            subtitle: "standard bip21",
             (_) => const ShowQrPage(
               value:
                   "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday",
             ),
           ),
           Component(
-            "ShowQrPage (addr only)",
+            "ShowQrPage",
+            subtitle: "bitcoin address only",
             (_) => const ShowQrPage(
                 value: "bitcoin:BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4"),
           ),
           Component(
-            "ShowQrPage (unified bolt 12)",
+            "ShowQrPage",
+            subtitle: "unified bolt 12",
             (_) => const ShowQrPage(
               value:
                   "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday&lightning=LNBC10U1P3PJ257PP5YZTKWJCZ5FTL5LAXKAV23ZMZEKAW37ZK6KMV80PK4XAEV5QHTZ7QDPDWD3XGER9WD5KWM36YPRX7U3QD36KUCMGYP282ETNV3SHJCQZPGXQYZ5VQSP5USYC4LK9CHSFP53KVCNVQ456GANH60D89REYKDNGSMTJ6YW3NHVQ9QYYSSQJCEWM5CJWZ4A6RFJX77C490YCED6PEMK0UPKXHY89CMM7SCT66K8GNEANWYKZGDRWRFJE69H9U5U0W57RRCSYSAS7GADWMZXC8C6T0SPJAZUP6",
@@ -128,7 +151,8 @@ Future<void> main() async {
             ),
           ),
           Component(
-            "SendPaymentConfirmPage (exact)",
+            "SendPaymentConfirmPage",
+            subtitle: "sending exact amount",
             (context) => SendPaymentConfirmPage(
               sendCtx: SendContext(
                 app: mockApp,
@@ -141,7 +165,8 @@ Future<void> main() async {
             ),
           ),
           Component(
-            "SendPaymentConfirmPage (all)",
+            "SendPaymentConfirmPage",
+            subtitle: "sending full balance",
             (context) => SendPaymentConfirmPage(
               sendCtx: SendContext(
                 app: mockApp,
@@ -155,8 +180,8 @@ Future<void> main() async {
           ),
         ],
       ),
-    ),
-  ));
+    );
+  }
 }
 
 // TODO(phlip9): add a `App::mock` constructor?
@@ -311,40 +336,34 @@ class MockAppHandle extends AppHandle {
       .length;
 }
 
-class Component {
-  const Component(this.name, this.builder);
+class Component extends StatelessWidget {
+  const Component(this.title, this.builder, {super.key, this.subtitle});
 
-  final String name;
+  final String title;
   final WidgetBuilder builder;
-}
-
-class ComponentList extends StatelessWidget {
-  const ComponentList({super.key, required this.components});
-
-  final List<Component> components;
+  final String? subtitle;
 
   @override
   Widget build(BuildContext context) {
-    final systemBarHeight = MediaQuery.of(context).padding.top;
-
-    return Padding(
-      padding: EdgeInsets.only(top: systemBarHeight + Space.s400),
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: Space.s500),
-        itemCount: this.components.length,
-        itemBuilder: (BuildContext context, int index) {
-          final component = this.components[index];
-
-          return DrawerListItem(
-            title: component.name,
-            onTap: () {
-              Navigator.of(context).push(MaterialPageRoute(
-                builder: component.builder,
-              ));
-            },
-          );
-        },
-      ),
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: Space.s600),
+      visualDensity: VisualDensity.comfortable,
+      dense: true,
+      title: Text(this.title, style: Fonts.fontUI),
+      subtitle: (this.subtitle != null)
+          ? Text(
+              this.subtitle!,
+              style: Fonts.fontUI.copyWith(
+                fontSize: Fonts.size200,
+                color: LxColors.fgTertiary,
+              ),
+            )
+          : null,
+      onTap: () {
+        Navigator.of(context).push(MaterialPageRoute(
+          builder: this.builder,
+        ));
+      },
     );
   }
 }

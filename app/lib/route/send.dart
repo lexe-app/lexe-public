@@ -101,6 +101,23 @@ class HeadingText extends StatelessWidget {
   }
 }
 
+// class SubheadingText extends StatelessWidget {
+//   const SubheadingText({super.key});
+//
+//   final String text;
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     Text(
+//       this.text,
+//       style: Fonts.fontUI.copyWith(
+//         color: LxColors.grey600,
+//         fontSize: Fonts.size300,
+//       ),
+//     );
+//   }
+// }
+
 const InputDecoration baseInputDecoration = InputDecoration(
   hintStyle: TextStyle(color: LxColors.grey750),
   filled: true,
@@ -424,7 +441,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
                 title: Text(
                   "Send full balance",
                   textAlign: TextAlign.end,
-                  style: Fonts.fontUI.copyWith(color: LxColors.fgTertiary),
+                  style: Fonts.fontUI.copyWith(color: LxColors.grey600),
                 ),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: Space.s550),
