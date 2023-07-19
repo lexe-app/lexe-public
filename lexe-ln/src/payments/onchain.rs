@@ -5,7 +5,7 @@ use common::test_utils::arbitrary;
 use common::{
     api::command::SendOnchainRequest,
     ln::{
-        amount::Amount, hashes::LxTxid, payments::ClientId,
+        amount::Amount, hashes::LxTxid, payments::ClientPaymentId,
         ConfirmationPriority,
     },
     time::TimestampMs,
@@ -25,7 +25,7 @@ const ONCHAIN_CONFIRMATION_THRESHOLD: u32 = 6;
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct OnchainSend {
-    pub cid: ClientId,
+    pub cid: ClientPaymentId,
     pub txid: LxTxid,
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_raw_tx()"))]
     pub tx: Transaction,

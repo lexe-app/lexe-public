@@ -184,7 +184,7 @@ pub struct PaymentIndex {
 /// A globally-unique identifier for any type of payment, including both
 /// on-chain and Lightning payments.
 ///
-/// - On-chain sends use a [`ClientId`] as their id.
+/// - On-chain sends use a [`ClientPaymentId`] as their id.
 /// - On-chain receives use their [`LxTxid`] as their id.
 /// - Lightning payments use their [`LxPaymentHash`] as their id.
 ///
@@ -194,7 +194,7 @@ pub struct PaymentIndex {
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum LxPaymentId {
-    OnchainSend(ClientId),
+    OnchainSend(ClientPaymentId),
     OnchainRecv(LxTxid),
     Lightning(LxPaymentHash),
 }
@@ -205,13 +205,13 @@ pub enum LxPaymentId {
 ///
 /// ```
 /// # use common::rng::SysRng;
-/// # use common::ln::payments::ClientId;
-/// let cid = ClientId::from_rng(&mut SysRng::new());
+/// # use common::ln::payments::ClientPaymentId;
+/// let cid = ClientPaymentId::from_rng(&mut SysRng::new());
 /// ```
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct ClientId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+pub struct ClientPaymentId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 /// Newtype for [`PaymentHash`] which impls [`Serialize`] / [`Deserialize`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
@@ -311,10 +311,10 @@ impl LxPaymentId {
     }
 }
 
-// --- impl ClientId --- //
+// --- impl ClientPaymentId --- //
 
-impl ClientId {
-    /// Sample a random [`ClientId`].
+impl ClientPaymentId {
+    /// Sample a random [`ClientPaymentId`].
     /// The rng is not required to be cryptographically secure.
     pub fn from_rng(rng: &mut impl RngCore) -> Self {
         let mut random_buf = [0u8; 32];
@@ -349,9 +349,9 @@ impl fmt::Debug for LxPaymentSecret {
 
 // --- Newtype From impls --- //
 
-// LxPaymentId <- ClientId / Txid / LxPaymentHash
-impl From<ClientId> for LxPaymentId {
-    fn from(client_id: ClientId) -> Self {
+// LxPaymentId <- ClientPaymentId / Txid / LxPaymentHash
+impl From<ClientPaymentId> for LxPaymentId {
+    fn from(client_id: ClientPaymentId) -> Self {
         Self::OnchainSend(client_id)
     }
 }
@@ -371,8 +371,8 @@ impl From<LxPaymentHash> for LxPaymentId {
     }
 }
 
-// LxPaymentId -> ClientId / Txid / LxPaymentHash
-impl TryFrom<LxPaymentId> for ClientId {
+// LxPaymentId -> ClientPaymentId / Txid / LxPaymentHash
+impl TryFrom<LxPaymentId> for ClientPaymentId {
     type Error = anyhow::Error;
     fn try_from(id: LxPaymentId) -> anyhow::Result<Self> {
         use LxPaymentId::*;
@@ -565,9 +565,9 @@ impl FromStr for LxPaymentId {
             "Wrong format; should be <kind>_<id>"
         );
         match kind_str {
-            "os" => ClientId::from_str(id_str)
+            "os" => ClientPaymentId::from_str(id_str)
                 .map(Self::OnchainSend)
-                .context("Invalid ClientId"),
+                .context("Invalid ClientPaymentId"),
             "or" => LxTxid::from_str(id_str)
                 .map(Self::OnchainRecv)
                 .context("Invalid Txid"),
@@ -593,7 +593,7 @@ impl Display for LxPaymentId {
 
 // --- Newtype FromStr / Display impls -- //
 
-impl FromStr for ClientId {
+impl FromStr for ClientPaymentId {
     type Err = hex::DecodeError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         <[u8; 32]>::from_hex(s).map(Self)
@@ -618,7 +618,7 @@ impl FromStr for LxPaymentSecret {
     }
 }
 
-impl Display for ClientId {
+impl Display for ClientPaymentId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let hex_display = hex::display(&self.0);
         write!(f, "{hex_display}")
