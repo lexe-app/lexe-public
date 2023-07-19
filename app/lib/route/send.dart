@@ -17,7 +17,7 @@ import 'package:lexeapp/components.dart'
 
 import '../../address_format.dart' as address_format;
 import '../../bindings.dart' show api;
-import '../../bindings_generated_api.dart' show Network;
+import '../../bindings_generated_api.dart' show AppHandle, Network;
 import '../../currency_format.dart' as currency_format;
 import '../../input_formatter.dart'
     show
@@ -31,10 +31,12 @@ import '../../style.dart' show Fonts, LxColors, Space;
 @immutable
 final class SendContext {
   const SendContext({
+    required this.app,
     required this.configNetwork,
     required this.balanceSats,
   });
 
+  final AppHandle app;
   final Network configNetwork;
   final int balanceSats;
 }

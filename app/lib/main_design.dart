@@ -102,6 +102,7 @@ Future<void> main() async {
             "SendPaymentPage",
             (context) => SendPaymentPage(
               sendCtx: SendContext(
+                app: mockApp,
                 configNetwork: config.network,
                 balanceSats: 123456,
               ),
@@ -111,6 +112,7 @@ Future<void> main() async {
             "SendPaymentAmountPage",
             (context) => SendPaymentAmountPage(
               sendCtx: SendContext(
+                app: mockApp,
                 configNetwork: config.network,
                 balanceSats: 73450,
               ),
@@ -121,6 +123,7 @@ Future<void> main() async {
             "SendPaymentConfirmPage (exact)",
             (context) => SendPaymentConfirmPage(
               sendCtx: SendContext(
+                app: mockApp,
                 configNetwork: config.network,
                 balanceSats: 73450,
               ),
@@ -132,6 +135,7 @@ Future<void> main() async {
             "SendPaymentConfirmPage (all)",
             (context) => SendPaymentConfirmPage(
               sendCtx: SendContext(
+                app: mockApp,
                 configNetwork: config.network,
                 balanceSats: 73450,
               ),

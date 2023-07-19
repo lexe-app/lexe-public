@@ -151,6 +151,7 @@ class WalletPageState extends State<WalletPage> {
     Navigator.of(this.context).push(MaterialPageRoute(
       builder: (context) => SendPaymentPage(
         sendCtx: SendContext(
+          app: this.widget.app,
           configNetwork: this.widget.config.network,
           balanceSats: balanceSats,
         ),
