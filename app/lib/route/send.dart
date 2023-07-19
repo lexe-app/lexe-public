@@ -17,7 +17,8 @@ import 'package:lexeapp/components.dart'
 
 import '../../address_format.dart' as address_format;
 import '../../bindings.dart' show api;
-import '../../bindings_generated_api.dart' show AppHandle, Network;
+import '../../bindings_generated_api.dart'
+    show AppHandle, ClientPaymentId, Network;
 import '../../currency_format.dart' as currency_format;
 import '../../input_formatter.dart'
     show
@@ -34,11 +35,25 @@ final class SendContext {
     required this.app,
     required this.configNetwork,
     required this.balanceSats,
+    required this.cid,
   });
+
+  factory SendContext.cidFromRng({
+    required AppHandle app,
+    required Network configNetwork,
+    required int balanceSats,
+  }) =>
+      SendContext(
+        app: app,
+        configNetwork: configNetwork,
+        balanceSats: balanceSats,
+        cid: api.genClientPaymentId(),
+      );
 
   final AppHandle app;
   final Network configNetwork;
   final int balanceSats;
+  final ClientPaymentId cid;
 }
 
 class SendPaymentPage extends StatelessWidget {

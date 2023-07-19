@@ -150,7 +150,7 @@ class WalletPageState extends State<WalletPage> {
     // resync payments (if a payment was actually made).
     Navigator.of(this.context).push(MaterialPageRoute(
       builder: (context) => SendPaymentPage(
-        sendCtx: SendContext(
+        sendCtx: SendContext.cidFromRng(
           app: this.widget.app,
           configNetwork: this.widget.config.network,
           balanceSats: balanceSats,

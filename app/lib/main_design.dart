@@ -2,6 +2,7 @@
 // and components in isolation, without actually touching any real backends.
 
 import 'dart:async';
+import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show Intl;
@@ -13,6 +14,7 @@ import 'bindings_generated_api.dart'
         App,
         AppHandle,
         AppRs,
+        ClientPaymentId,
         Config,
         FiatRate,
         FiatRates,
@@ -20,7 +22,8 @@ import 'bindings_generated_api.dart'
         PaymentDirection,
         PaymentKind,
         PaymentStatus,
-        ShortPayment;
+        ShortPayment,
+        U8Array32;
 import 'cfg.dart' as cfg;
 import 'date_format.dart' as date_format;
 import 'logger.dart' as logger;
@@ -58,6 +61,9 @@ Future<void> main() async {
   info("Test build config: $config");
 
   final mockApp = MockAppHandle(bridge: api);
+
+  final cidBytes = List.generate(32, (idx) => idx);
+  final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
 
   runApp(MaterialApp(
     title: "Lexe App - Design Mode",
@@ -105,6 +111,7 @@ Future<void> main() async {
                 app: mockApp,
                 configNetwork: config.network,
                 balanceSats: 123456,
+                cid: cid,
               ),
             ),
           ),
@@ -115,6 +122,7 @@ Future<void> main() async {
                 app: mockApp,
                 configNetwork: config.network,
                 balanceSats: 73450,
+                cid: cid,
               ),
               address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
             ),
@@ -126,6 +134,7 @@ Future<void> main() async {
                 app: mockApp,
                 configNetwork: config.network,
                 balanceSats: 73450,
+                cid: cid,
               ),
               address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
               sendAmount: const SendAmountExact(2500),
@@ -138,6 +147,7 @@ Future<void> main() async {
                 app: mockApp,
                 configNetwork: config.network,
                 balanceSats: 73450,
+                cid: cid,
               ),
               address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
               sendAmount: const SendAmountAll(),
