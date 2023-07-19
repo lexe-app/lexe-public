@@ -1,6 +1,8 @@
 use std::{
     fmt::{self, Display},
     net::SocketAddr,
+    path::Path,
+    process::Command,
     str::FromStr,
 };
 
@@ -17,6 +19,20 @@ use crate::{
 
 /// User node CLI args.
 pub mod node;
+
+/// A trait for converting CLI args to [`Command`]s.
+pub trait ToCommand {
+    /// Construct a [`Command`] from the contained args.
+    /// Requires the path to the binary.
+    fn to_command(&self, bin_path: &Path) -> Command {
+        let mut command = Command::new(bin_path);
+        self.append_args(&mut command);
+        command
+    }
+
+    /// Serialize and append the contained args to an existing [`Command`].
+    fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command;
+}
 
 /// A wrapper around [`bitcoin::Network`] that implements [`FromStr`] /
 /// [`Display`] in a consistent way.

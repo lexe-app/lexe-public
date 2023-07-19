@@ -1,4 +1,4 @@
-use std::{path::Path, process::Command};
+use std::process::Command;
 
 use argh::FromArgs;
 #[cfg(all(test, not(target_env = "sgx")))]
@@ -6,7 +6,7 @@ use proptest_derive::Arbitrary;
 
 use crate::{
     api::{ports::Port, UserPk},
-    cli::{LspInfo, Network},
+    cli::{LspInfo, Network, ToCommand},
     constants::{NODE_PROVISION_DNS, NODE_RUN_DNS},
 };
 
@@ -28,17 +28,10 @@ impl NodeCommand {
             Self::Provision(args) => args.user_pk,
         }
     }
+}
 
-    /// Shorthand for calling to_cmd() on either RunArgs or ProvisionArgs
-    pub fn to_cmd(&self, bin_path: &Path) -> Command {
-        match self {
-            Self::Run(args) => args.to_cmd(bin_path),
-            Self::Provision(args) => args.to_cmd(bin_path),
-        }
-    }
-
-    /// Shorthand for calling `append_args(cmd)` on the inner variant.
-    pub fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
+impl ToCommand for NodeCommand {
+    fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
         match self {
             Self::Run(args) => args.append_args(cmd),
             Self::Provision(args) => args.append_args(cmd),
@@ -141,17 +134,8 @@ impl Default for RunArgs {
     }
 }
 
-impl RunArgs {
-    /// Constructs a Command from the contained args, adding no extra options.
-    /// Requires the path to the node binary.
-    pub fn to_cmd(&self, bin_path: &Path) -> Command {
-        let mut cmd = Command::new(bin_path);
-        self.append_args(&mut cmd);
-        cmd
-    }
-
-    /// Serialize and append the args to an existing [`Command`].
-    pub fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
+impl ToCommand for RunArgs {
+    fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
         cmd.arg("run")
             .arg("--user-pk")
             .arg(&self.user_pk.to_string())
@@ -230,17 +214,8 @@ impl Default for ProvisionArgs {
     }
 }
 
-impl ProvisionArgs {
-    /// Constructs a Command from the contained args, adding no extra options.
-    /// Requires the path to the node binary.
-    pub fn to_cmd(&self, bin_path: &Path) -> Command {
-        let mut cmd = Command::new(bin_path);
-        self.append_args(&mut cmd);
-        cmd
-    }
-
-    /// Serialize and append the args to an existing [`Command`].
-    pub fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
+impl ToCommand for ProvisionArgs {
+    fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
         cmd.arg("provision")
             .arg("--user-pk")
             .arg(&self.user_pk.to_string())
@@ -259,6 +234,8 @@ impl ProvisionArgs {
 
 #[cfg(all(test, not(target_env = "sgx")))]
 mod test_notsgx {
+    use std::path::Path;
+
     use proptest::{arbitrary::any, proptest};
 
     use super::*;
@@ -276,7 +253,7 @@ mod test_notsgx {
     fn do_cmd_roundtrip(path_str: String, cmd1: &NodeCommand) {
         let path = Path::new(&path_str);
         // Convert to std::process::Command
-        let std_cmd = cmd1.to_cmd(path);
+        let std_cmd = cmd1.to_command(path);
         // Convert to an iterator over &str args
         let mut args_iter = std_cmd.get_args().filter_map(|s| s.to_str());
         // Pop the first arg which contains the subcommand name e.g. 'run'
