@@ -176,6 +176,28 @@ class AppRsImpl implements AppRs {
         argNames: ["that"],
       );
 
+  Future<void> sendOnchainMethodAppHandle(
+      {required AppHandle that,
+      required SendOnchainRequest req,
+      dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    var arg1 = _platform.api2wire_box_autoadd_send_onchain_request(req);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner
+          .wire_send_onchain__method__AppHandle(port_, arg0, arg1),
+      parseSuccessData: _wire2api_unit,
+      constMeta: kSendOnchainMethodAppHandleConstMeta,
+      argValues: [that, req],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kSendOnchainMethodAppHandleConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "send_onchain__method__AppHandle",
+        argNames: ["that", "req"],
+      );
+
   Future<bool> syncPaymentsMethodAppHandle(
       {required AppHandle that, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
@@ -475,6 +497,10 @@ class AppRsImpl implements AppRs {
     return raw as Uint8List;
   }
 
+  void _wire2api_unit(dynamic raw) {
+    return;
+  }
+
   int _wire2api_usize(dynamic raw) {
     return castInt(raw);
   }
@@ -485,6 +511,11 @@ class AppRsImpl implements AppRs {
 @protected
 bool api2wire_bool(bool raw) {
   return raw;
+}
+
+@protected
+int api2wire_confirmation_priority(ConfirmationPriority raw) {
+  return api2wire_i32(raw.index);
 }
 
 @protected
@@ -545,6 +576,31 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   }
 
   @protected
+  ffi.Pointer<wire_SendOnchainRequest>
+      api2wire_box_autoadd_send_onchain_request(SendOnchainRequest raw) {
+    final ptr = inner.new_box_autoadd_send_onchain_request_0();
+    _api_fill_to_wire_send_onchain_request(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_uint_8_list> api2wire_opt_String(String? raw) {
+    return raw == null ? ffi.nullptr : api2wire_String(raw);
+  }
+
+  @protected
+  int api2wire_u64(int raw) {
+    return raw;
+  }
+
+  @protected
+  ffi.Pointer<wire_uint_8_list> api2wire_u8_array_32(U8Array32 raw) {
+    final ans = inner.new_uint_8_list_0(32);
+    ans.ref.ptr.asTypedList(32).setAll(0, raw);
+    return ans;
+  }
+
+  @protected
   ffi.Pointer<wire_uint_8_list> api2wire_uint_8_list(Uint8List raw) {
     final ans = inner.new_uint_8_list_0(raw.length);
     ans.ref.ptr.asTypedList(raw.length).setAll(0, raw);
@@ -576,6 +632,16 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     _api_fill_to_wire_config(apiObj, wireObj.ref);
   }
 
+  void _api_fill_to_wire_box_autoadd_send_onchain_request(
+      SendOnchainRequest apiObj, ffi.Pointer<wire_SendOnchainRequest> wireObj) {
+    _api_fill_to_wire_send_onchain_request(apiObj, wireObj.ref);
+  }
+
+  void _api_fill_to_wire_client_payment_id(
+      ClientPaymentId apiObj, wire_ClientPaymentId wireObj) {
+    wireObj.id = api2wire_u8_array_32(apiObj.id);
+  }
+
   void _api_fill_to_wire_config(Config apiObj, wire_Config wireObj) {
     wireObj.deploy_env = api2wire_deploy_env(apiObj.deployEnv);
     wireObj.network = api2wire_network(apiObj.network);
@@ -583,6 +649,15 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     wireObj.use_sgx = api2wire_bool(apiObj.useSgx);
     wireObj.app_data_dir = api2wire_String(apiObj.appDataDir);
     wireObj.use_mock_secret_store = api2wire_bool(apiObj.useMockSecretStore);
+  }
+
+  void _api_fill_to_wire_send_onchain_request(
+      SendOnchainRequest apiObj, wire_SendOnchainRequest wireObj) {
+    _api_fill_to_wire_client_payment_id(apiObj.cid, wireObj.cid);
+    wireObj.address = api2wire_String(apiObj.address);
+    wireObj.amount_sats = api2wire_u64(apiObj.amountSats);
+    wireObj.priority = api2wire_confirmation_priority(apiObj.priority);
+    wireObj.note = api2wire_opt_String(apiObj.note);
   }
 }
 
@@ -821,6 +896,28 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _wire_fiat_rates__method__AppHandlePtr
           .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
 
+  void wire_send_onchain__method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_AppHandle> that,
+    ffi.Pointer<wire_SendOnchainRequest> req,
+  ) {
+    return _wire_send_onchain__method__AppHandle(
+      port_,
+      that,
+      req,
+    );
+  }
+
+  late final _wire_send_onchain__method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>,
+                  ffi.Pointer<wire_SendOnchainRequest>)>>(
+      'wire_send_onchain__method__AppHandle');
+  late final _wire_send_onchain__method__AppHandle =
+      _wire_send_onchain__method__AppHandlePtr.asFunction<
+          void Function(int, ffi.Pointer<wire_AppHandle>,
+              ffi.Pointer<wire_SendOnchainRequest>)>();
+
   void wire_sync_payments__method__AppHandle(
     int port_,
     ffi.Pointer<wire_AppHandle> that,
@@ -975,6 +1072,18 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _new_box_autoadd_config_0 = _new_box_autoadd_config_0Ptr
       .asFunction<ffi.Pointer<wire_Config> Function()>();
 
+  ffi.Pointer<wire_SendOnchainRequest>
+      new_box_autoadd_send_onchain_request_0() {
+    return _new_box_autoadd_send_onchain_request_0();
+  }
+
+  late final _new_box_autoadd_send_onchain_request_0Ptr = _lookup<
+          ffi.NativeFunction<ffi.Pointer<wire_SendOnchainRequest> Function()>>(
+      'new_box_autoadd_send_onchain_request_0');
+  late final _new_box_autoadd_send_onchain_request_0 =
+      _new_box_autoadd_send_onchain_request_0Ptr
+          .asFunction<ffi.Pointer<wire_SendOnchainRequest> Function()>();
+
   ffi.Pointer<wire_uint_8_list> new_uint_8_list_0(
     int len,
   ) {
@@ -1069,7 +1178,27 @@ final class wire_AppHandle extends ffi.Struct {
   external wire_App inner;
 }
 
+final class wire_ClientPaymentId extends ffi.Struct {
+  external ffi.Pointer<wire_uint_8_list> id;
+}
+
+final class wire_SendOnchainRequest extends ffi.Struct {
+  external wire_ClientPaymentId cid;
+
+  external ffi.Pointer<wire_uint_8_list> address;
+
+  @ffi.Uint64()
+  external int amount_sats;
+
+  @ffi.Int32()
+  external int priority;
+
+  external ffi.Pointer<wire_uint_8_list> note;
+}
+
 typedef DartPostCObjectFnType = ffi.Pointer<
     ffi.NativeFunction<
         ffi.Bool Function(DartPort port_id, ffi.Pointer<ffi.Void> message)>>;
 typedef DartPort = ffi.Int64;
+
+const int MAX_PAYMENT_NOTE_BYTES = 512;

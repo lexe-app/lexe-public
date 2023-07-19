@@ -49,20 +49,26 @@
 //!   as a separate task on the threadpool. Just reading a value out of some
 //!   in-memory state is probably cheaper overall to use `SyncReturn`.
 
-use std::{future::Future, sync::LazyLock};
+use std::{convert::TryFrom, future::Future, str::FromStr, sync::LazyLock};
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 pub use common::ln::payments::BasicPayment;
 use common::{
     api::{
-        command::NodeInfo as NodeInfoRs,
+        command::{
+            NodeInfo as NodeInfoRs, SendOnchainRequest as SendOnchainRequestRs,
+        },
         def::{AppGatewayApi, AppNodeRunApi},
         fiat_rates::FiatRates as FiatRatesRs,
     },
-    ln::payments::{
-        ClientPaymentId as ClientPaymentIdRs,
-        PaymentDirection as PaymentDirectionRs, PaymentKind as PaymentKindRs,
-        PaymentStatus as PaymentStatusRs,
+    ln::{
+        amount::Amount,
+        payments::{
+            ClientPaymentId as ClientPaymentIdRs,
+            PaymentDirection as PaymentDirectionRs,
+            PaymentKind as PaymentKindRs, PaymentStatus as PaymentStatusRs,
+        },
+        ConfirmationPriority as ConfirmationPriorityRs,
     },
     rng::SysRng,
 };
@@ -327,6 +333,63 @@ pub fn form_validate_bitcoin_address(
     })
 }
 
+pub enum ConfirmationPriority {
+    High,
+    Normal,
+    Background,
+}
+
+impl From<ConfirmationPriority> for ConfirmationPriorityRs {
+    fn from(value: ConfirmationPriority) -> Self {
+        match value {
+            ConfirmationPriority::High => Self::High,
+            ConfirmationPriority::Normal => Self::Normal,
+            ConfirmationPriority::Background => Self::Background,
+        }
+    }
+}
+
+/// The maximum allowed payment note size in bytes.
+///
+/// See [`common::constants::MAX_PAYMENT_NOTE_BYTES`].
+pub const MAX_PAYMENT_NOTE_BYTES: usize = 512;
+// Assert that these two constants are exactly equal at compile time.
+const _: [(); MAX_PAYMENT_NOTE_BYTES] =
+    [(); common::constants::MAX_PAYMENT_NOTE_BYTES];
+
+fn validate_note(note: String) -> anyhow::Result<String> {
+    if note.len() <= MAX_PAYMENT_NOTE_BYTES {
+        Ok(note)
+    } else {
+        Err(anyhow!("The payment note is too long."))
+    }
+}
+
+pub struct SendOnchainRequest {
+    pub cid: ClientPaymentId,
+    pub address: String,
+    pub amount_sats: u64,
+    pub priority: ConfirmationPriority,
+    pub note: Option<String>,
+}
+
+impl TryFrom<SendOnchainRequest> for SendOnchainRequestRs {
+    type Error = anyhow::Error;
+
+    fn try_from(req: SendOnchainRequest) -> anyhow::Result<Self> {
+        let address = bitcoin::Address::from_str(&req.address)
+            .map_err(|_| anyhow!("The bitcoin address isn't valid."))?;
+
+        Ok(Self {
+            cid: req.cid.into(),
+            address,
+            amount: Amount::try_from_sats_u64(req.amount_sats)?,
+            priority: req.priority.into(),
+            note: req.note.map(validate_note).transpose()?,
+        })
+    }
+}
+
 /// Init the Rust [`tracing`] logger. Also sets the current `RUST_LOG_TX`
 /// instance, which ships Rust logs over to the dart side for printing.
 ///
@@ -408,6 +471,13 @@ impl AppHandle {
     pub fn fiat_rates(&self) -> anyhow::Result<FiatRates> {
         block_on(self.inner.gateway_client().get_fiat_rates())
             .map(FiatRates::from)
+            .map_err(anyhow::Error::new)
+    }
+
+    pub fn send_onchain(&self, req: SendOnchainRequest) -> anyhow::Result<()> {
+        let req = SendOnchainRequestRs::try_from(req)?;
+        block_on(self.inner.node_client().send_onchain(req))
+            .map(|_txid| ())
             .map_err(anyhow::Error::new)
     }
 

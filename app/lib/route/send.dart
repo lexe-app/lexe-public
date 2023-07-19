@@ -17,6 +17,7 @@ import 'package:lexeapp/components.dart'
 
 import '../../address_format.dart' as address_format;
 import '../../bindings.dart' show api;
+import '../../bindings_generated.dart' show MAX_PAYMENT_NOTE_BYTES;
 import '../../bindings_generated_api.dart'
     show AppHandle, ClientPaymentId, Network;
 import '../../currency_format.dart' as currency_format;
@@ -617,7 +618,9 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             // Silently limit input to 512 bytes. This could be a little
             // confusing if the user inputs a ton of emojis or CJK characters
             // I guess.
-            inputFormatters: const [MaxUtf8BytesInputFormatter(maxBytes: 512)],
+            inputFormatters: const [
+              MaxUtf8BytesInputFormatter(maxBytes: MAX_PAYMENT_NOTE_BYTES),
+            ],
 
             decoration: const InputDecoration(
               hintStyle: TextStyle(color: LxColors.grey550),

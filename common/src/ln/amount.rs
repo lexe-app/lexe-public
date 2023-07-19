@@ -105,8 +105,14 @@ impl Amount {
         Self::from_msat(u64::from(sats_u32) * 1000)
     }
 
+    /// Construct an [`Amount`] from a satoshi [`u64`] value.
+    pub fn try_from_sats_u64(sats_u64: u64) -> Result<Self, Error> {
+        Self::try_from_satoshis(Decimal::from(sats_u64))
+    }
+
     /// Construct an [`Amount`] from a satoshi [`Decimal`] value.
     // "satoshis" instead of "sat" to have a greater string distance from "msat"
+    #[inline]
     pub fn try_from_satoshis(sats: Decimal) -> Result<Self, Error> {
         Self::try_from_inner(sats)
     }
