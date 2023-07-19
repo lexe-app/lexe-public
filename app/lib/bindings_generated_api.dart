@@ -7,10 +7,15 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
+import 'package:collection/collection.dart';
 
 part 'bindings_generated_api.freezed.dart';
 
 abstract class AppRs {
+  ClientPaymentId genClientPaymentId({dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kGenClientPaymentIdConstMeta;
+
   /// Validate whether `address_str` is a properly formatted bitcoin address. Also
   /// checks that it's valid for the configured bitcoin network.
   ///
@@ -214,6 +219,15 @@ class AppHandle {
       );
 }
 
+/// A unique, client-generated id for payment types (onchain send,
+/// ln spontaneous send) that need an extra id for idempotency.
+@freezed
+class ClientPaymentId with _$ClientPaymentId {
+  const factory ClientPaymentId({
+    required U8Array32 id,
+  }) = _ClientPaymentId;
+}
+
 /// Dart-serializable configuration we get from the flutter side.
 @freezed
 class Config with _$Config {
@@ -292,4 +306,13 @@ class ShortPayment with _$ShortPayment {
     String? note,
     required int createdAt,
   }) = _ShortPayment;
+}
+
+class U8Array32 extends NonGrowableListView<int> {
+  static const arraySize = 32;
+  U8Array32(Uint8List inner)
+      : assert(inner.length == arraySize),
+        super(inner);
+  U8Array32.unchecked(Uint8List inner) : super(inner);
+  U8Array32.init() : super(Uint8List(arraySize));
 }

@@ -22,6 +22,16 @@ use crate::bindings::*;
 
 // Section: wire functions
 
+fn wire_gen_client_payment_id_impl() -> support::WireSyncReturn {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
+        WrapInfo {
+            debug_name: "gen_client_payment_id",
+            port: None,
+            mode: FfiCallMode::Sync,
+        },
+        move || Ok(gen_client_payment_id()),
+    )
+}
 fn wire_form_validate_bitcoin_address_impl(
     address_str: impl Wire2Api<String> + UnwindSafe,
     current_network: impl Wire2Api<Network> + UnwindSafe,
@@ -341,6 +351,13 @@ impl support::IntoDart for AppHandle {
 }
 impl support::IntoDartExceptPrimitive for AppHandle {}
 
+impl support::IntoDart for ClientPaymentId {
+    fn into_dart(self) -> support::DartAbi {
+        vec![self.id.into_dart()].into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for ClientPaymentId {}
+
 impl support::IntoDart for FiatRate {
     fn into_dart(self) -> support::DartAbi {
         vec![self.fiat.into_dart(), self.rate.into_dart()].into_dart()
@@ -422,6 +439,11 @@ impl support::IntoDartExceptPrimitive for ShortPayment {}
 mod io {
     use super::*;
     // Section: wire functions
+
+    #[no_mangle]
+    pub extern "C" fn wire_gen_client_payment_id() -> support::WireSyncReturn {
+        wire_gen_client_payment_id_impl()
+    }
 
     #[no_mangle]
     pub extern "C" fn wire_form_validate_bitcoin_address(

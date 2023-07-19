@@ -60,6 +60,7 @@ use common::{
         fiat_rates::FiatRates as FiatRatesRs,
     },
     ln::payments::{
+        ClientPaymentId as ClientPaymentIdRs,
         PaymentDirection as PaymentDirectionRs, PaymentKind as PaymentKindRs,
         PaymentStatus as PaymentStatusRs,
     },
@@ -281,6 +282,25 @@ impl From<&BasicPayment> for ShortPayment {
             note: payment.note_or_description().map(|s| s.to_owned()),
             created_at: payment.created_at().as_i64(),
         }
+    }
+}
+
+/// A unique, client-generated id for payment types (onchain send,
+/// ln spontaneous send) that need an extra id for idempotency.
+#[frb(dart_metadata=("freezed"))]
+pub struct ClientPaymentId {
+    pub id: [u8; 32],
+}
+
+pub fn gen_client_payment_id() -> SyncReturn<ClientPaymentId> {
+    SyncReturn(ClientPaymentId {
+        id: ClientPaymentIdRs::from_rng(&mut SysRng::new()).0,
+    })
+}
+
+impl From<ClientPaymentId> for ClientPaymentIdRs {
+    fn from(value: ClientPaymentId) -> ClientPaymentIdRs {
+        ClientPaymentIdRs(value.id)
     }
 }
 
