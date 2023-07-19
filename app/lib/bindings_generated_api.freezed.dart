@@ -15,6 +15,45 @@ final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
 
 /// @nodoc
+mixin _$ClientPaymentId {
+  U8Array32 get id => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$_ClientPaymentId implements _ClientPaymentId {
+  const _$_ClientPaymentId({required this.id});
+
+  @override
+  final U8Array32 id;
+
+  @override
+  String toString() {
+    return 'ClientPaymentId(id: $id)';
+  }
+
+  @override
+  bool operator ==(dynamic other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$_ClientPaymentId &&
+            const DeepCollectionEquality().equals(other.id, id));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, const DeepCollectionEquality().hash(id));
+}
+
+abstract class _ClientPaymentId implements ClientPaymentId {
+  const factory _ClientPaymentId({required final U8Array32 id}) =
+      _$_ClientPaymentId;
+
+  @override
+  U8Array32 get id;
+}
+
+/// @nodoc
 mixin _$Config {
   DeployEnv get deployEnv => throw _privateConstructorUsedError;
   Network get network => throw _privateConstructorUsedError;

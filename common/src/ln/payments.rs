@@ -199,19 +199,15 @@ pub enum LxPaymentId {
     Lightning(LxPaymentHash),
 }
 
-/// A unique identifier for a payment which is supplied by the mobile client.
-/// Its primary purpose is to support payment idempotency, preventing accidental
-/// double payments. Internal structures (if any) are opaque to the node.
+/// A unique, client-generated id for payment types (onchain send,
+/// ln spontaneous send) that need an extra id for idempotency.
 ///
-/// ```
-/// # use common::rng::SysRng;
-/// # use common::ln::payments::ClientPaymentId;
-/// let cid = ClientPaymentId::from_rng(&mut SysRng::new());
-/// ```
+/// Its primary purpose is to prevent accidental double payments. Internal
+/// structure (if any) is opaque to the node.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct ClientPaymentId(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
+pub struct ClientPaymentId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
 /// Newtype for [`PaymentHash`] which impls [`Serialize`] / [`Deserialize`].
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]

@@ -24,6 +24,22 @@ class AppRsImpl implements AppRs {
   factory AppRsImpl.wasm(FutureOr<WasmModule> module) =>
       AppRsImpl(module as ExternalLibrary);
   AppRsImpl.raw(this._platform);
+  ClientPaymentId genClientPaymentId({dynamic hint}) {
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner.wire_gen_client_payment_id(),
+      parseSuccessData: _wire2api_client_payment_id,
+      constMeta: kGenClientPaymentIdConstMeta,
+      argValues: [],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kGenClientPaymentIdConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "gen_client_payment_id",
+        argNames: [],
+      );
+
   String? formValidateBitcoinAddress(
       {required String addressStr,
       required Network currentNetwork,
@@ -345,6 +361,15 @@ class AppRsImpl implements AppRs {
     return _wire2api_u64(raw);
   }
 
+  ClientPaymentId _wire2api_client_payment_id(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return ClientPaymentId(
+      id: _wire2api_u8_array_32(arr[0]),
+    );
+  }
+
   double _wire2api_f64(dynamic raw) {
     return raw as double;
   }
@@ -440,6 +465,10 @@ class AppRsImpl implements AppRs {
 
   int _wire2api_u8(dynamic raw) {
     return raw as int;
+  }
+
+  U8Array32 _wire2api_u8_array_32(dynamic raw) {
+    return U8Array32(_wire2api_uint_8_list(raw));
   }
 
   Uint8List _wire2api_uint_8_list(dynamic raw) {
@@ -652,6 +681,16 @@ class AppRsWire implements FlutterRustBridgeWireBase {
           'init_frb_dart_api_dl');
   late final _init_frb_dart_api_dl = _init_frb_dart_api_dlPtr
       .asFunction<int Function(ffi.Pointer<ffi.Void>)>();
+
+  WireSyncReturn wire_gen_client_payment_id() {
+    return _wire_gen_client_payment_id();
+  }
+
+  late final _wire_gen_client_payment_idPtr =
+      _lookup<ffi.NativeFunction<WireSyncReturn Function()>>(
+          'wire_gen_client_payment_id');
+  late final _wire_gen_client_payment_id =
+      _wire_gen_client_payment_idPtr.asFunction<WireSyncReturn Function()>();
 
   WireSyncReturn wire_form_validate_bitcoin_address(
     ffi.Pointer<wire_uint_8_list> address_str,
