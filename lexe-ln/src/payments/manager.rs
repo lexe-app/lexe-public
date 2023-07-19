@@ -696,8 +696,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                     .context("Raw tx was not included")?;
 
                 let amount_sats = Decimal::from(tx_details.received);
-                let amount =
-                    Amount::from_satoshis(amount_sats).context("Overflowed")?;
+                let amount = Amount::try_from_satoshis(amount_sats)
+                    .context("Overflowed")?;
 
                 let or = OnchainReceive::new(raw_tx, amount);
 

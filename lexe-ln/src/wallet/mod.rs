@@ -276,7 +276,7 @@ impl LexeWallet {
         let fees = sum_of_inputs_sat
             .checked_sub(sum_of_outputs_sat)
             .map(Decimal::from)
-            .map(Amount::from_satoshis)
+            .map(Amount::try_from_satoshis)
             .context("Sum of outputs exceeds sum of inputs")?
             .context("Fee amount overflowed")?;
 
