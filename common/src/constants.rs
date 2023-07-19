@@ -18,6 +18,9 @@ pub const WALLET_DB_FILENAME: &str = "bdk_wallet_db";
 pub const MAX_PAYMENTS_BATCH_SIZE: u16 = 100;
 pub const DEFAULT_PAYMENTS_BATCH_SIZE: u16 = 50;
 
+/// Reject payment notes that are too large.
+pub const MAX_PAYMENT_NOTE_BYTES: usize = 512;
+
 /// The standard port used for Lightning Network P2P connections
 pub const STANDARD_LIGHTNING_P2P_PORT: Port = 9735;
 

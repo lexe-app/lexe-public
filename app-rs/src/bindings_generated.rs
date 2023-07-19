@@ -155,6 +155,24 @@ fn wire_fiat_rates__method__AppHandle_impl(
         },
     )
 }
+fn wire_send_onchain__method__AppHandle_impl(
+    port_: MessagePort,
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+    req: impl Wire2Api<SendOnchainRequest> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
+        WrapInfo {
+            debug_name: "send_onchain__method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_that = that.wire2api();
+            let api_req = req.wire2api();
+            move |task_callback| AppHandle::send_onchain(&api_that, api_req)
+        },
+    )
+}
 fn wire_sync_payments__method__AppHandle_impl(
     port_: MessagePort,
     that: impl Wire2Api<AppHandle> + UnwindSafe,
@@ -306,6 +324,19 @@ impl Wire2Api<bool> for bool {
     }
 }
 
+impl Wire2Api<ConfirmationPriority> for i32 {
+    fn wire2api(self) -> ConfirmationPriority {
+        match self {
+            0 => ConfirmationPriority::High,
+            1 => ConfirmationPriority::Normal,
+            2 => ConfirmationPriority::Background,
+            _ => unreachable!(
+                "Invalid variant for ConfirmationPriority: {}",
+                self
+            ),
+        }
+    }
+}
 impl Wire2Api<DeployEnv> for i32 {
     fn wire2api(self) -> DeployEnv {
         match self {
@@ -329,6 +360,12 @@ impl Wire2Api<Network> for i32 {
             2 => Network::Regtest,
             _ => unreachable!("Invalid variant for Network: {}", self),
         }
+    }
+}
+
+impl Wire2Api<u64> for u64 {
+    fn wire2api(self) -> u64 {
+        self
     }
 }
 impl Wire2Api<u8> for u8 {
@@ -503,6 +540,15 @@ mod io {
     }
 
     #[no_mangle]
+    pub extern "C" fn wire_send_onchain__method__AppHandle(
+        port_: i64,
+        that: *mut wire_AppHandle,
+        req: *mut wire_SendOnchainRequest,
+    ) {
+        wire_send_onchain__method__AppHandle_impl(port_, that, req)
+    }
+
+    #[no_mangle]
     pub extern "C" fn wire_sync_payments__method__AppHandle(
         port_: i64,
         that: *mut wire_AppHandle,
@@ -577,6 +623,12 @@ mod io {
     }
 
     #[no_mangle]
+    pub extern "C" fn new_box_autoadd_send_onchain_request_0(
+    ) -> *mut wire_SendOnchainRequest {
+        support::new_leak_box_ptr(wire_SendOnchainRequest::new_with_null_ptr())
+    }
+
+    #[no_mangle]
     pub extern "C" fn new_uint_8_list_0(len: i32) -> *mut wire_uint_8_list {
         let ans = wire_uint_8_list {
             ptr: support::new_leak_vec_ptr(Default::default(), len),
@@ -635,6 +687,19 @@ mod io {
             Wire2Api::<Config>::wire2api(*wrap).into()
         }
     }
+    impl Wire2Api<SendOnchainRequest> for *mut wire_SendOnchainRequest {
+        fn wire2api(self) -> SendOnchainRequest {
+            let wrap = unsafe { support::box_from_leak_ptr(self) };
+            Wire2Api::<SendOnchainRequest>::wire2api(*wrap).into()
+        }
+    }
+    impl Wire2Api<ClientPaymentId> for wire_ClientPaymentId {
+        fn wire2api(self) -> ClientPaymentId {
+            ClientPaymentId {
+                id: self.id.wire2api(),
+            }
+        }
+    }
     impl Wire2Api<Config> for wire_Config {
         fn wire2api(self) -> Config {
             Config {
@@ -648,6 +713,24 @@ mod io {
         }
     }
 
+    impl Wire2Api<SendOnchainRequest> for wire_SendOnchainRequest {
+        fn wire2api(self) -> SendOnchainRequest {
+            SendOnchainRequest {
+                cid: self.cid.wire2api(),
+                address: self.address.wire2api(),
+                amount_sats: self.amount_sats.wire2api(),
+                priority: self.priority.wire2api(),
+                note: self.note.wire2api(),
+            }
+        }
+    }
+
+    impl Wire2Api<[u8; 32]> for *mut wire_uint_8_list {
+        fn wire2api(self) -> [u8; 32] {
+            let vec: Vec<u8> = self.wire2api();
+            support::from_vec_to_array(vec)
+        }
+    }
     impl Wire2Api<Vec<u8>> for *mut wire_uint_8_list {
         fn wire2api(self) -> Vec<u8> {
             unsafe {
@@ -673,6 +756,12 @@ mod io {
 
     #[repr(C)]
     #[derive(Clone)]
+    pub struct wire_ClientPaymentId {
+        id: *mut wire_uint_8_list,
+    }
+
+    #[repr(C)]
+    #[derive(Clone)]
     pub struct wire_Config {
         deploy_env: i32,
         network: i32,
@@ -680,6 +769,16 @@ mod io {
         use_sgx: bool,
         app_data_dir: *mut wire_uint_8_list,
         use_mock_secret_store: bool,
+    }
+
+    #[repr(C)]
+    #[derive(Clone)]
+    pub struct wire_SendOnchainRequest {
+        cid: wire_ClientPaymentId,
+        address: *mut wire_uint_8_list,
+        amount_sats: u64,
+        priority: i32,
+        note: *mut wire_uint_8_list,
     }
 
     #[repr(C)]
@@ -723,6 +822,20 @@ mod io {
         }
     }
 
+    impl NewWithNullPtr for wire_ClientPaymentId {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                id: core::ptr::null_mut(),
+            }
+        }
+    }
+
+    impl Default for wire_ClientPaymentId {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+
     impl NewWithNullPtr for wire_Config {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -737,6 +850,24 @@ mod io {
     }
 
     impl Default for wire_Config {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+
+    impl NewWithNullPtr for wire_SendOnchainRequest {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                cid: Default::default(),
+                address: core::ptr::null_mut(),
+                amount_sats: Default::default(),
+                priority: Default::default(),
+                note: core::ptr::null_mut(),
+            }
+        }
+    }
+
+    impl Default for wire_SendOnchainRequest {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }

@@ -78,6 +78,11 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kFiatRatesMethodAppHandleConstMeta;
 
+  Future<void> sendOnchainMethodAppHandle(
+      {required AppHandle that, required SendOnchainRequest req, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kSendOnchainMethodAppHandleConstMeta;
+
   /// Sync the local payment DB to the remote node.
   ///
   /// Returns `true` if any payment changed, so we know whether to reload the
@@ -175,6 +180,12 @@ class AppHandle {
         that: this,
       );
 
+  Future<void> sendOnchain({required SendOnchainRequest req, dynamic hint}) =>
+      bridge.sendOnchainMethodAppHandle(
+        that: this,
+        req: req,
+      );
+
   /// Sync the local payment DB to the remote node.
   ///
   /// Returns `true` if any payment changed, so we know whether to reload the
@@ -241,6 +252,12 @@ class Config with _$Config {
   }) = _Config;
 }
 
+enum ConfirmationPriority {
+  High,
+  Normal,
+  Background,
+}
+
 enum DeployEnv {
   Prod,
   Staging,
@@ -292,6 +309,22 @@ enum PaymentStatus {
   Pending,
   Completed,
   Failed,
+}
+
+class SendOnchainRequest {
+  final ClientPaymentId cid;
+  final String address;
+  final int amountSats;
+  final ConfirmationPriority priority;
+  final String? note;
+
+  const SendOnchainRequest({
+    required this.cid,
+    required this.address,
+    required this.amountSats,
+    required this.priority,
+    this.note,
+  });
 }
 
 /// Just the info we need to display an entry in the payments list UI.

@@ -3,6 +3,13 @@
 #include <stdlib.h>
 typedef struct _Dart_Handle* Dart_Handle;
 
+/**
+ * The maximum allowed payment note size in bytes.
+ *
+ * See [`common::constants::MAX_PAYMENT_NOTE_BYTES`].
+ */
+#define MAX_PAYMENT_NOTE_BYTES 512
+
 typedef struct DartCObject DartCObject;
 
 typedef int64_t DartPort;
@@ -33,6 +40,18 @@ typedef struct wire_AppHandle {
   struct wire_App inner;
 } wire_AppHandle;
 
+typedef struct wire_ClientPaymentId {
+  struct wire_uint_8_list *id;
+} wire_ClientPaymentId;
+
+typedef struct wire_SendOnchainRequest {
+  struct wire_ClientPaymentId cid;
+  struct wire_uint_8_list *address;
+  uint64_t amount_sats;
+  int32_t priority;
+  struct wire_uint_8_list *note;
+} wire_SendOnchainRequest;
+
 void store_dart_post_cobject(DartPostCObjectFnType ptr);
 
 Dart_Handle get_dart_object(uintptr_t ptr);
@@ -62,6 +81,10 @@ void wire_node_info__method__AppHandle(int64_t port_, struct wire_AppHandle *tha
 
 void wire_fiat_rates__method__AppHandle(int64_t port_, struct wire_AppHandle *that);
 
+void wire_send_onchain__method__AppHandle(int64_t port_,
+                                          struct wire_AppHandle *that,
+                                          struct wire_SendOnchainRequest *req);
+
 void wire_sync_payments__method__AppHandle(int64_t port_, struct wire_AppHandle *that);
 
 WireSyncReturn wire_get_payment_by_scroll_idx__method__AppHandle(struct wire_AppHandle *that,
@@ -85,6 +108,8 @@ struct wire_AppHandle *new_box_autoadd_app_handle_0(void);
 
 struct wire_Config *new_box_autoadd_config_0(void);
 
+struct wire_SendOnchainRequest *new_box_autoadd_send_onchain_request_0(void);
+
 struct wire_uint_8_list *new_uint_8_list_0(int32_t len);
 
 void drop_opaque_App(const void *ptr);
@@ -103,6 +128,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_signup__static_method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_node_info__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_fiat_rates__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_send_onchain__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_sync_payments__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_payment_by_scroll_idx__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_pending_payment_by_scroll_idx__method__AppHandle);
@@ -113,6 +139,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) new_App);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_app_handle_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_config_0);
+    dummy_var ^= ((int64_t) (void*) new_box_autoadd_send_onchain_request_0);
     dummy_var ^= ((int64_t) (void*) new_uint_8_list_0);
     dummy_var ^= ((int64_t) (void*) drop_opaque_App);
     dummy_var ^= ((int64_t) (void*) share_opaque_App);
