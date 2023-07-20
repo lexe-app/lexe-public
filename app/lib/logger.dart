@@ -2,9 +2,9 @@ import 'dart:async' show Stream;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show debugPrint;
-import 'package:flutter_rust_bridge/flutter_rust_bridge.dart' show FfiException;
 
 import 'bindings.dart' show api;
+import 'result.dart';
 
 const int _levelTrace = 0;
 const int _levelDebug = 1;
@@ -62,11 +62,12 @@ bool tryInit() {
   // Register a stream of log entries from Rust -> Dart.
   final Stream<String> rustLogRx;
 
-  try {
-    rustLogRx = api.initRustLogStream(rustLog: rustLog);
-  } on FfiException {
-    // Rust logger is already initialized?
-    return false;
+  switch (Result.tryFfi(() => api.initRustLogStream(rustLog: rustLog))) {
+    case Ok(:final ok):
+      rustLogRx = ok;
+    case Err():
+      // Rust logger is already initialized?
+      return false;
   }
 
   // "Spawn" a task listening on the Rust log stream. It just forwards Rust log

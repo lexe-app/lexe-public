@@ -10,6 +10,8 @@ import 'package:flutter/services.dart'
         TextSelection;
 import 'package:intl/intl.dart' show NumberFormat;
 
+import 'result.dart';
+
 /// [AlphaNumericInputFormatter] is a [TextInputFormatter] that restricts input
 /// text to alpha-numeric characters (a-z, A-Z, 0-9).
 class AlphaNumericInputFormatter extends FilteringTextInputFormatter {
@@ -69,18 +71,12 @@ class IntInputFormatter extends TextInputFormatter {
 
   final NumberFormat formatter;
 
-  int? tryParse(String text) {
-    try {
-      switch (this.formatter.parse(text)) {
-        case int i:
-          return i;
-        case double d:
-          return d.toInt();
-      }
-    } on FormatException {
-      return null;
-    }
-  }
+  Result<int, FormatException> tryParse(String text) => Result.try_(
+        () => switch (this.formatter.parse(text)) {
+          int i => i,
+          double d => d.toInt(),
+        },
+      );
 
   @override
   TextEditingValue formatEditUpdate(
@@ -95,13 +91,16 @@ class IntInputFormatter extends TextInputFormatter {
     // `newValue.text: "1,2345"`. Fortunately, `parse` just kinda ignores all
     // decimal separators (?) so we can just `format(parse(text))` to
     // "properly" format the input text.
-    final maybeNumValue = this.tryParse(newValue.text);
-    if (maybeNumValue == null) {
-      // The new value probably added some unrecognized character; just return
-      // the old value.
-      return oldValue;
+
+    final num numValue;
+    switch (this.tryParse(newValue.text)) {
+      case Ok(:final ok):
+        numValue = ok;
+      case Err():
+        // The new value probably added some unrecognized character; just return
+        // the old value.
+        return oldValue;
     }
-    final num numValue = maybeNumValue;
 
     final newText = this.formatter.format(numValue);
 

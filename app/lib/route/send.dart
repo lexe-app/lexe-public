@@ -339,18 +339,19 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
     final int amount;
     switch (this.intInputFormatter.tryParse(maybeAmountStr)) {
-      case int x:
-        amount = x;
-      case null:
-        return const Err("Amount must be a number");
+      case Ok(:final ok):
+        amount = ok;
+      case Err():
+        return const Err("Amount must be a number.");
     }
 
+    // Don't show any error message if the field is effectively empty.
     if (amount <= 0) {
       return const Err(null);
     }
 
     if (amount > this.widget.sendCtx.balanceSats) {
-      return const Err("You can't send more than your balance!");
+      return const Err("You can't send more than your current balance.");
     }
 
     return Ok(amount);

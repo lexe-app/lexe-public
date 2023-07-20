@@ -1,9 +1,9 @@
 //! A port of Rust's `Result` type to dart.
 
-import 'package:meta/meta.dart' show immutable;
+// ignore_for_file: nullable_type_in_catch_clause, only_throw_errors
 
-// Result<Null, E> errFromNullable<E>(final E? maybeErr) =>
-//     (maybeErr != null) ? Err<Null, E>(maybeErr) : Ok<Null, E>(null);
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart' show FfiException;
+import 'package:meta/meta.dart' show immutable;
 
 @immutable
 sealed class Result<T, E> {
@@ -23,6 +23,36 @@ sealed class Result<T, E> {
   Result<T, F> mapErr<F>(final F Function(E) fn);
 
   Result<U, E> andThen<U>(final Result<U, E> Function(T) fn);
+
+  /// Wrap `fn()` in a try/catch.
+  factory Result.try_(final T Function() fn) {
+    try {
+      return Ok(fn());
+    } on E catch (err) {
+      return Err(err);
+    }
+  }
+
+  /// Wrap an async `fn()` in a try/catch.
+  static Future<Result<T, E>> tryAsync<T, E>(
+    final Future<T> Function() fn,
+  ) async {
+    try {
+      return Ok(await fn());
+    } on E catch (err) {
+      return Err(err);
+    }
+  }
+
+  /// Convenience for `Result.try_` but specialized for calling the Rust ffi.
+  static FfiResult<T> tryFfi<T>(final T Function() fn) =>
+      Result<T, FfiException>.try_(fn).mapErr(FfiError.fromFfi);
+
+  /// Convenience for `Result.tryAsync` but specialized for calling the Rust
+  /// ffi.
+  static Future<FfiResult<T>> tryFfiAsync<T>(
+          final Future<T> Function() fn) async =>
+      (await Result.tryAsync<T, FfiException>(fn)).mapErr(FfiError.fromFfi);
 }
 
 @immutable
@@ -125,4 +155,32 @@ final class Err<T, E> extends Result<T, E> {
 
   @override
   int get hashCode => this.err.hashCode;
+}
+
+/// [Result]s from the Rust FFI layer.
+typedef FfiResult<T> = Result<T, FfiError>;
+
+/// Used to extract only `anyhow::Result`s from Rust FFI layer exceptions.
+/// Rust panics are _not_ caught. Panics are not for control flow and are not
+/// meant to be recoverable.
+final class FfiError implements Exception {
+  const FfiError(this.message);
+
+  factory FfiError.fromFfi(final FfiException err) {
+    switch (err.code) {
+      // These are from Rust ffi fn's that return `anyhow::Result`.
+      case "RESULT_ERROR":
+        return FfiError(err.message);
+      // DON'T catch panics.
+      case "PANIC_ERROR":
+        throw err;
+      default:
+        throw err;
+    }
+  }
+
+  final String message;
+
+  @override
+  String toString() => "FFI Error: $message";
 }
