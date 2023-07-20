@@ -24,6 +24,40 @@ class AppRsImpl implements AppRs {
   factory AppRsImpl.wasm(FutureOr<WasmModule> module) =>
       AppRsImpl(module as ExternalLibrary);
   AppRsImpl.raw(this._platform);
+  DeployEnv deployEnvFromStr({required String s, dynamic hint}) {
+    var arg0 = _platform.api2wire_String(s);
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner.wire_deploy_env_from_str(arg0),
+      parseSuccessData: _wire2api_deploy_env,
+      constMeta: kDeployEnvFromStrConstMeta,
+      argValues: [s],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kDeployEnvFromStrConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "deploy_env_from_str",
+        argNames: ["s"],
+      );
+
+  Network networkFromStr({required String s, dynamic hint}) {
+    var arg0 = _platform.api2wire_String(s);
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner.wire_network_from_str(arg0),
+      parseSuccessData: _wire2api_network,
+      constMeta: kNetworkFromStrConstMeta,
+      argValues: [s],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kNetworkFromStrConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "network_from_str",
+        argNames: ["s"],
+      );
+
   ClientPaymentId genClientPaymentId({dynamic hint}) {
     return _platform.executeSync(FlutterRustBridgeSyncTask(
       callFfi: () => _platform.inner.wire_gen_client_payment_id(),
@@ -411,6 +445,10 @@ class AppRsImpl implements AppRs {
     );
   }
 
+  DeployEnv _wire2api_deploy_env(dynamic raw) {
+    return DeployEnv.values[raw as int];
+  }
+
   double _wire2api_f64(dynamic raw) {
     return raw as double;
   }
@@ -445,6 +483,10 @@ class AppRsImpl implements AppRs {
 
   List<FiatRate> _wire2api_list_fiat_rate(dynamic raw) {
     return (raw as List<dynamic>).map(_wire2api_fiat_rate).toList();
+  }
+
+  Network _wire2api_network(dynamic raw) {
+    return Network.values[raw as int];
   }
 
   NodeInfo _wire2api_node_info(dynamic raw) {
@@ -775,6 +817,36 @@ class AppRsWire implements FlutterRustBridgeWireBase {
           'init_frb_dart_api_dl');
   late final _init_frb_dart_api_dl = _init_frb_dart_api_dlPtr
       .asFunction<int Function(ffi.Pointer<ffi.Void>)>();
+
+  WireSyncReturn wire_deploy_env_from_str(
+    ffi.Pointer<wire_uint_8_list> s,
+  ) {
+    return _wire_deploy_env_from_str(
+      s,
+    );
+  }
+
+  late final _wire_deploy_env_from_strPtr = _lookup<
+      ffi.NativeFunction<
+          WireSyncReturn Function(
+              ffi.Pointer<wire_uint_8_list>)>>('wire_deploy_env_from_str');
+  late final _wire_deploy_env_from_str = _wire_deploy_env_from_strPtr
+      .asFunction<WireSyncReturn Function(ffi.Pointer<wire_uint_8_list>)>();
+
+  WireSyncReturn wire_network_from_str(
+    ffi.Pointer<wire_uint_8_list> s,
+  ) {
+    return _wire_network_from_str(
+      s,
+    );
+  }
+
+  late final _wire_network_from_strPtr = _lookup<
+      ffi.NativeFunction<
+          WireSyncReturn Function(
+              ffi.Pointer<wire_uint_8_list>)>>('wire_network_from_str');
+  late final _wire_network_from_str = _wire_network_from_strPtr
+      .asFunction<WireSyncReturn Function(ffi.Pointer<wire_uint_8_list>)>();
 
   WireSyncReturn wire_gen_client_payment_id() {
     return _wire_gen_client_payment_id();

@@ -62,6 +62,10 @@ uintptr_t new_dart_opaque(Dart_Handle handle);
 
 intptr_t init_frb_dart_api_dl(void *obj);
 
+WireSyncReturn wire_deploy_env_from_str(struct wire_uint_8_list *s);
+
+WireSyncReturn wire_network_from_str(struct wire_uint_8_list *s);
+
 WireSyncReturn wire_gen_client_payment_id(void);
 
 WireSyncReturn wire_form_validate_bitcoin_address(struct wire_uint_8_list *address_str,
@@ -122,6 +126,8 @@ void free_WireSyncReturn(WireSyncReturn ptr);
 
 static int64_t dummy_method_to_enforce_bundling(void) {
     int64_t dummy_var = 0;
+    dummy_var ^= ((int64_t) (void*) wire_deploy_env_from_str);
+    dummy_var ^= ((int64_t) (void*) wire_network_from_str);
     dummy_var ^= ((int64_t) (void*) wire_gen_client_payment_id);
     dummy_var ^= ((int64_t) (void*) wire_form_validate_bitcoin_address);
     dummy_var ^= ((int64_t) (void*) wire_init_rust_log_stream);

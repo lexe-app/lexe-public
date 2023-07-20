@@ -22,6 +22,36 @@ use crate::bindings::*;
 
 // Section: wire functions
 
+fn wire_deploy_env_from_str_impl(
+    s: impl Wire2Api<String> + UnwindSafe,
+) -> support::WireSyncReturn {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
+        WrapInfo {
+            debug_name: "deploy_env_from_str",
+            port: None,
+            mode: FfiCallMode::Sync,
+        },
+        move || {
+            let api_s = s.wire2api();
+            deploy_env_from_str(api_s)
+        },
+    )
+}
+fn wire_network_from_str_impl(
+    s: impl Wire2Api<String> + UnwindSafe,
+) -> support::WireSyncReturn {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
+        WrapInfo {
+            debug_name: "network_from_str",
+            port: None,
+            mode: FfiCallMode::Sync,
+        },
+        move || {
+            let api_s = s.wire2api();
+            network_from_str(api_s)
+        },
+    )
+}
 fn wire_gen_client_payment_id_impl() -> support::WireSyncReturn {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
         WrapInfo {
@@ -371,7 +401,7 @@ impl Wire2Api<i32> for i32 {
 impl Wire2Api<Network> for i32 {
     fn wire2api(self) -> Network {
         match self {
-            0 => Network::Bitcoin,
+            0 => Network::Mainnet,
             1 => Network::Testnet,
             2 => Network::Regtest,
             _ => unreachable!("Invalid variant for Network: {}", self),
@@ -411,6 +441,18 @@ impl support::IntoDart for ClientPaymentId {
 }
 impl support::IntoDartExceptPrimitive for ClientPaymentId {}
 
+impl support::IntoDart for DeployEnv {
+    fn into_dart(self) -> support::DartAbi {
+        match self {
+            Self::Prod => 0,
+            Self::Staging => 1,
+            Self::Dev => 2,
+        }
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for DeployEnv {}
+
 impl support::IntoDart for FiatRate {
     fn into_dart(self) -> support::DartAbi {
         vec![self.fiat.into_dart(), self.rate.into_dart()].into_dart()
@@ -425,6 +467,17 @@ impl support::IntoDart for FiatRates {
 }
 impl support::IntoDartExceptPrimitive for FiatRates {}
 
+impl support::IntoDart for Network {
+    fn into_dart(self) -> support::DartAbi {
+        match self {
+            Self::Mainnet => 0,
+            Self::Testnet => 1,
+            Self::Regtest => 2,
+        }
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for Network {}
 impl support::IntoDart for NodeInfo {
     fn into_dart(self) -> support::DartAbi {
         vec![
@@ -492,6 +545,20 @@ impl support::IntoDartExceptPrimitive for ShortPayment {}
 mod io {
     use super::*;
     // Section: wire functions
+
+    #[no_mangle]
+    pub extern "C" fn wire_deploy_env_from_str(
+        s: *mut wire_uint_8_list,
+    ) -> support::WireSyncReturn {
+        wire_deploy_env_from_str_impl(s)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_network_from_str(
+        s: *mut wire_uint_8_list,
+    ) -> support::WireSyncReturn {
+        wire_network_from_str_impl(s)
+    }
 
     #[no_mangle]
     pub extern "C" fn wire_gen_client_payment_id() -> support::WireSyncReturn {

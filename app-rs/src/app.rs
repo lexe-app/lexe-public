@@ -342,7 +342,7 @@ impl From<Config> for AppConfig {
         let use_mock_secret_store = config.use_mock_secret_store;
 
         match (&deploy_env, &network) {
-            (Prod, Bitcoin) => todo!(),
+            (Prod, Mainnet) => todo!(),
             (Staging, Testnet) => todo!(),
             (Dev, Testnet) => todo!(),
             (Dev, Regtest) => Self {
