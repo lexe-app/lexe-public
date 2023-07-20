@@ -254,7 +254,7 @@ pub struct Config {
     pub network: Network,
     pub gateway_url: String,
     pub use_sgx: bool,
-    pub app_data_dir: String,
+    pub base_app_data_dir: String,
     pub use_mock_secret_store: bool,
 }
 

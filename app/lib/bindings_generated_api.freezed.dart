@@ -59,7 +59,7 @@ mixin _$Config {
   Network get network => throw _privateConstructorUsedError;
   String get gatewayUrl => throw _privateConstructorUsedError;
   bool get useSgx => throw _privateConstructorUsedError;
-  String get appDataDir => throw _privateConstructorUsedError;
+  String get baseAppDataDir => throw _privateConstructorUsedError;
   bool get useMockSecretStore => throw _privateConstructorUsedError;
 }
 
@@ -71,7 +71,7 @@ class _$_Config implements _Config {
       required this.network,
       required this.gatewayUrl,
       required this.useSgx,
-      required this.appDataDir,
+      required this.baseAppDataDir,
       required this.useMockSecretStore});
 
   @override
@@ -83,13 +83,13 @@ class _$_Config implements _Config {
   @override
   final bool useSgx;
   @override
-  final String appDataDir;
+  final String baseAppDataDir;
   @override
   final bool useMockSecretStore;
 
   @override
   String toString() {
-    return 'Config(deployEnv: $deployEnv, network: $network, gatewayUrl: $gatewayUrl, useSgx: $useSgx, appDataDir: $appDataDir, useMockSecretStore: $useMockSecretStore)';
+    return 'Config(deployEnv: $deployEnv, network: $network, gatewayUrl: $gatewayUrl, useSgx: $useSgx, baseAppDataDir: $baseAppDataDir, useMockSecretStore: $useMockSecretStore)';
   }
 
   @override
@@ -103,15 +103,15 @@ class _$_Config implements _Config {
             (identical(other.gatewayUrl, gatewayUrl) ||
                 other.gatewayUrl == gatewayUrl) &&
             (identical(other.useSgx, useSgx) || other.useSgx == useSgx) &&
-            (identical(other.appDataDir, appDataDir) ||
-                other.appDataDir == appDataDir) &&
+            (identical(other.baseAppDataDir, baseAppDataDir) ||
+                other.baseAppDataDir == baseAppDataDir) &&
             (identical(other.useMockSecretStore, useMockSecretStore) ||
                 other.useMockSecretStore == useMockSecretStore));
   }
 
   @override
   int get hashCode => Object.hash(runtimeType, deployEnv, network, gatewayUrl,
-      useSgx, appDataDir, useMockSecretStore);
+      useSgx, baseAppDataDir, useMockSecretStore);
 }
 
 abstract class _Config implements Config {
@@ -120,7 +120,7 @@ abstract class _Config implements Config {
       required final Network network,
       required final String gatewayUrl,
       required final bool useSgx,
-      required final String appDataDir,
+      required final String baseAppDataDir,
       required final bool useMockSecretStore}) = _$_Config;
 
   @override
@@ -132,7 +132,7 @@ abstract class _Config implements Config {
   @override
   bool get useSgx;
   @override
-  String get appDataDir;
+  String get baseAppDataDir;
   @override
   bool get useMockSecretStore;
 }

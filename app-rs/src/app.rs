@@ -332,7 +332,7 @@ impl From<Config> for AppConfig {
 
         // The base app data directory.
         // See: dart fn [`path_provider.getApplicationSupportDirectory()`](https://pub.dev/documentation/path_provider/latest/path_provider/getApplicationSupportDirectory.html)
-        let base_app_data_dir = PathBuf::from(config.app_data_dir);
+        let base_app_data_dir = PathBuf::from(config.base_app_data_dir);
         // To make development easier and avoid mixing state across
         // environments, we'll shove everything into a disambiguated subdir for
         // each environment/network pair, e.g., "prod-mainnet-sgx",

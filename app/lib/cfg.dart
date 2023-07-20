@@ -20,32 +20,32 @@ Future<Config> build() async {
   // user-facing, unlike `path_provider.getApplicationDocumentsDirectory()`.
   // On Android, iOS, and macOS, this data is also sandboxed and inaccessible
   // to other apps.
-  final appDataDir = await path_provider.getApplicationSupportDirectory();
+  //
+  // This is also not the fully qualified data dir. We need to disambiguate b/w
+  // (dev/staging/prod) x (regtest/testnet/mainnet) x (sgx/dbg).
+  // See: `app-rs::app::AppConfig`
+  final baseAppDataDir = await path_provider.getApplicationSupportDirectory();
 
   return Config(
     deployEnv: DeployEnv.Dev,
     network: Network.Regtest,
-    // TODO(phlip9): need different flavors for prod, staging, and dev
     gatewayUrl: const String.fromEnvironment("DEV_GATEWAY_URL"),
-    useSgx: false,
-    appDataDir: appDataDir.path,
+    useSgx: _useSgx,
+    baseAppDataDir: baseAppDataDir.path,
     useMockSecretStore: false,
   );
 }
 
 Future<Config> buildTest() async {
-  // Use a temporary directory for unit tests.
-  //
-  // Use dart:io's Directory.systemTemp since `path_provider` doesn't work in
-  // unit tests...
-  final appDataDir = await Directory.systemTemp.createTemp("lexeapp");
+  // Use a temp dir for unit tests, since `path_provider` doesn't work in tests.
+  final baseAppDataDir = await Directory.systemTemp.createTemp("lexeapp");
 
   return Config(
     deployEnv: DeployEnv.Dev,
     network: Network.Regtest,
     gatewayUrl: "",
     useSgx: false,
-    appDataDir: appDataDir.path,
+    baseAppDataDir: baseAppDataDir.path,
     useMockSecretStore: true,
   );
 }
