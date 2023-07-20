@@ -189,7 +189,7 @@ impl DeployEnv {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Network {
     Bitcoin,
     Testnet,
