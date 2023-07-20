@@ -240,6 +240,9 @@ class LxColors {
 class Space {
   Space._();
 
+  /// 64 px
+  static const double appBarLeadingWidth = 64.0;
+
   /// 0 px
   static const double s0 = 0.0;
 
