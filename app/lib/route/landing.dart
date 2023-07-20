@@ -8,6 +8,7 @@ import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import '../bindings.dart' show api;
 import '../bindings_generated_api.dart' show AppHandle, Config;
 import '../logger.dart' show error, info;
+import '../result.dart';
 import '../style.dart' show Fonts, LxColors, Space;
 import 'backup_wallet.dart' show BackupWalletPage;
 
@@ -200,15 +201,20 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
 
     // disable button while signing up
     setState(() => this._disableButton = true);
+
+    final result = await Result.tryFfiAsync(
+        () async => AppHandle.signup(bridge: api, config: config));
+
     final AppHandle app;
-    try {
-      app = await AppHandle.signup(bridge: api, config: config);
-    } catch (err) {
-      setState(() => this._disableButton = false);
-      error("Failed to sign up and create wallet: $err");
-      // ScaffoldMessenger.of(context)
-      //     .showSnackBar(SnackBar(content: Text("$err")));
-      return;
+    switch (result) {
+      case Ok(:final ok):
+        app = ok;
+      case Err(:final err):
+        setState(() => this._disableButton = false);
+        error("Failed to sign up and create wallet: $err");
+        // ScaffoldMessenger.of(context)
+        //     .showSnackBar(SnackBar(content: Text("$err")));
+        return;
     }
 
     // TODO(phlip9): disable restore button while request is processing? o/w
