@@ -12,6 +12,14 @@ import 'package:collection/collection.dart';
 part 'bindings_generated_api.freezed.dart';
 
 abstract class AppRs {
+  DeployEnv deployEnvFromStr({required String s, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kDeployEnvFromStrConstMeta;
+
+  Network networkFromStr({required String s, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kNetworkFromStrConstMeta;
+
   ClientPaymentId genClientPaymentId({dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kGenClientPaymentIdConstMeta;
@@ -290,7 +298,7 @@ class FiatRates with _$FiatRates {
 }
 
 enum Network {
-  Bitcoin,
+  Mainnet,
   Testnet,
   Regtest,
 }

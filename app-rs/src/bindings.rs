@@ -172,6 +172,7 @@ impl From<FiatRatesRs> for FiatRates {
     }
 }
 
+#[frb(dart_metadata=("freezed"))]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum DeployEnv {
     Prod,
@@ -189,9 +190,30 @@ impl DeployEnv {
     }
 }
 
+impl FromStr for DeployEnv {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> anyhow::Result<Self> {
+        match s {
+            "prod" => Ok(Self::Prod),
+            "staging" => Ok(Self::Staging),
+            "dev" => Ok(Self::Dev),
+            _ => Err(anyhow!("unrecognized DEPLOY_ENVIRONMENT: '{s}'")),
+        }
+    }
+}
+
+// TODO(phlip9): ffs dart doesn't allow methods on plain enums... if FRB always
+// gen'd "enhanced" enums, then I could use an associated fn.
+//
+// "enhanced" enums: <https://dart.dev/language/enums#declaring-enhanced-enums>
+pub fn deploy_env_from_str(s: String) -> anyhow::Result<SyncReturn<DeployEnv>> {
+    DeployEnv::from_str(&s).map(SyncReturn)
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum Network {
-    Bitcoin,
+    Mainnet,
     Testnet,
     Regtest,
 }
@@ -199,11 +221,30 @@ pub enum Network {
 impl From<Network> for common::cli::Network {
     fn from(network: Network) -> Self {
         match network {
-            Network::Bitcoin => common::cli::MAINNET_NETWORK,
+            Network::Mainnet => common::cli::MAINNET_NETWORK,
             Network::Testnet => common::cli::TESTNET_NETWORK,
             Network::Regtest => common::cli::REGTEST_NETWORK,
         }
     }
+}
+
+impl TryFrom<common::cli::Network> for Network {
+    type Error = anyhow::Error;
+
+    fn try_from(network: common::cli::Network) -> anyhow::Result<Self> {
+        match network {
+            common::cli::MAINNET_NETWORK => Ok(Self::Mainnet),
+            common::cli::TESTNET_NETWORK => Ok(Self::Testnet),
+            common::cli::REGTEST_NETWORK => Ok(Self::Regtest),
+            _ => Err(anyhow!("unsupported NETWORK: '{network}'")),
+        }
+    }
+}
+
+pub fn network_from_str(s: String) -> anyhow::Result<SyncReturn<Network>> {
+    common::cli::Network::from_str(&s)
+        .and_then(Network::try_from)
+        .map(SyncReturn)
 }
 
 /// Dart-serializable configuration we get from the flutter side.
