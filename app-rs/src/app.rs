@@ -2,6 +2,7 @@
 //! Rust, without any FFI weirdness.
 
 use std::{
+    fmt,
     path::PathBuf,
     sync::{Arc, Mutex},
     time::Instant,
@@ -302,6 +303,14 @@ impl AppConfig {
     pub fn payment_db_dir(&self) -> PathBuf {
         self.app_data_dir.join("payment_db")
     }
+
+    pub fn build_flavor(&self) -> BuildFlavor {
+        BuildFlavor {
+            deploy_env: self.deploy_env,
+            network: self.network,
+            use_sgx: self.use_sgx,
+        }
+    }
 }
 
 impl From<Config> for AppConfig {
@@ -312,11 +321,23 @@ impl From<Config> for AppConfig {
         let deploy_env = config.deploy_env;
         let network = config.network;
         let gateway_url = config.gateway_url;
-
         let use_sgx = false;
+        let build = BuildFlavor {
+            deploy_env,
+            network: network.into(),
+            use_sgx,
+        };
+
         let allow_debug_enclaves = deploy_env == Dev;
 
-        let app_data_dir = PathBuf::from(config.app_data_dir);
+        // The base app data directory.
+        // See: dart fn [`path_provider.getApplicationSupportDirectory()`](https://pub.dev/documentation/path_provider/latest/path_provider/getApplicationSupportDirectory.html)
+        let base_app_data_dir = PathBuf::from(config.app_data_dir);
+        // To make development easier and avoid mixing state across
+        // environments, we'll shove everything into a disambiguated subdir for
+        // each environment/network pair, e.g., "prod-mainnet-sgx",
+        // "dev-regtest-dbg".
+        let app_data_dir = base_app_data_dir.join(build.to_string());
 
         let use_mock_secret_store = config.use_mock_secret_store;
 
@@ -338,5 +359,24 @@ impl From<Config> for AppConfig {
                  compatible with {network:?} network"
             ),
         }
+    }
+}
+
+/// An app build variant / flavor. We use this struct to disambiguate persisted
+/// state and secrets so we don't accidentally clobber state when testing across
+/// e.g. testnet vs regtest.
+#[derive(Clone, Copy)]
+pub struct BuildFlavor {
+    network: common::cli::Network,
+    deploy_env: DeployEnv,
+    use_sgx: bool,
+}
+
+impl fmt::Display for BuildFlavor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let network = self.network;
+        let env = self.deploy_env.as_str();
+        let sgx = if self.use_sgx { "sgx" } else { "dbg" };
+        write!(f, "{network}-{env}-{sgx}")
     }
 }

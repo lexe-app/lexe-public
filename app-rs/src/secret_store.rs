@@ -27,7 +27,7 @@ use common::{hex, root_seed::RootSeed};
 use keyring::credential::{CredentialApi, CredentialBuilderApi};
 use secrecy::ExposeSecret;
 
-use crate::{app::AppConfig, bindings::DeployEnv};
+use crate::app::{AppConfig, BuildFlavor};
 
 pub struct SecretStore {
     root_seed_entry: Mutex<keyring::Entry>,
@@ -35,9 +35,8 @@ pub struct SecretStore {
 
 impl SecretStore {
     #[cfg_attr(target_os = "android", allow(dead_code))]
-    fn service_name(deploy_env: DeployEnv) -> String {
-        let env = deploy_env.as_str();
-        format!("tech.lexe.lexeapp.{env}")
+    fn service_name(build: BuildFlavor) -> String {
+        format!("tech.lexe.lexeapp.{build}")
     }
 
     /// Create a new `SecretStore`.
@@ -52,23 +51,23 @@ impl SecretStore {
 
         cfg_if! {
             if #[cfg(not(target_os = "android"))] {
-                Self::keyring(config.deploy_env)
+                Self::keyring(config.build_flavor())
             } else {
-                Self::file(config.deploy_env, &config.app_data_dir)
+                Self::file(&config.app_data_dir)
             }
         }
     }
 
     /// A secret store that uses the system keychain.
     #[cfg_attr(target_os = "android", allow(dead_code))]
-    fn keyring(deploy_env: DeployEnv) -> Self {
-        let service = Self::service_name(deploy_env);
+    fn keyring(build: BuildFlavor) -> Self {
+        let service = Self::service_name(build);
         Self::keyring_inner(&service)
     }
 
     #[cfg_attr(target_os = "android", allow(dead_code))]
     fn keyring_inner(service: &str) -> Self {
-        let entry = keyring::Entry::new(service, "rootseed").unwrap();
+        let entry = keyring::Entry::new(service, "root_seed.hex").unwrap();
         Self {
             root_seed_entry: Mutex::new(entry),
         }
@@ -77,11 +76,9 @@ impl SecretStore {
     /// A secret store that just dumps secrets into the app-specific data
     /// directory. Currently only used on Android.
     #[cfg_attr(not(target_os = "android"), allow(dead_code))]
-    fn file(deploy_env: DeployEnv, app_data_dir: &Path) -> Self {
-        let env = deploy_env.as_str();
-        let credential = Box::new(FileCredential::new(
-            app_data_dir.join(format!("{env}.rootseed")),
-        ));
+    fn file(app_data_dir: &Path) -> Self {
+        let credential =
+            Box::new(FileCredential::new(app_data_dir.join("root_seed.hex")));
         let entry = keyring::Entry::new_with_credential(credential);
         Self {
             root_seed_entry: Mutex::new(entry),
@@ -92,7 +89,7 @@ impl SecretStore {
     /// persist them.
     fn mock() -> Self {
         let mock = keyring::mock::MockCredentialBuilder {}
-            .build(None, "mock", "rootseed")
+            .build(None, "mock", "root_seed.hex")
             .unwrap();
         let entry = keyring::Entry::new_with_credential(mock);
         Self {
@@ -186,7 +183,6 @@ mod test {
     use common::rng::{RngCore, SysRng};
 
     use super::*;
-    use crate::bindings::DeployEnv;
 
     fn test_secret_store(rng: &mut SysRng, secret_store: &SecretStore) {
         assert!(secret_store.read_root_seed().unwrap().is_none());
@@ -227,7 +223,7 @@ mod test {
         let tempdir = tempfile::tempdir().unwrap();
         let mut rng = SysRng::new();
 
-        let secret_store = SecretStore::file(DeployEnv::Dev, tempdir.path());
+        let secret_store = SecretStore::file(tempdir.path());
         test_secret_store(&mut rng, &secret_store);
     }
 }
