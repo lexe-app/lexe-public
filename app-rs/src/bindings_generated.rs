@@ -173,6 +173,22 @@ fn wire_send_onchain__method__AppHandle_impl(
         },
     )
 }
+fn wire_get_address__method__AppHandle_impl(
+    port_: MessagePort,
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
+        WrapInfo {
+            debug_name: "get_address__method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_that = that.wire2api();
+            move |task_callback| AppHandle::get_address(&api_that)
+        },
+    )
+}
 fn wire_sync_payments__method__AppHandle_impl(
     port_: MessagePort,
     that: impl Wire2Api<AppHandle> + UnwindSafe,
@@ -546,6 +562,14 @@ mod io {
         req: *mut wire_SendOnchainRequest,
     ) {
         wire_send_onchain__method__AppHandle_impl(port_, that, req)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_get_address__method__AppHandle(
+        port_: i64,
+        that: *mut wire_AppHandle,
+    ) {
+        wire_get_address__method__AppHandle_impl(port_, that)
     }
 
     #[no_mangle]
