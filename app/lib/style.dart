@@ -136,7 +136,10 @@ class LxColors {
   static const Color moneyGoUp = Color(0xff14b87d);
 
   /// 0xe9553e - hsl(8deg 80% 58%)
-  static const Color errorText = Color(0xffe9553e);
+  // static const Color errorText = Color(0xffe9553e); // < looks good w/ Failed
+  // static const Color errorText = Color(0xffd3302f); // < default material
+  // static const Color errorText = Color(0xff994133);
+  static const Color errorText = Color(0xffb82a14);
 
   // Greys
 
@@ -380,7 +383,7 @@ class Fonts {
     fontFamily: "Inter V",
     fontSize: size300,
     color: LxColors.foreground,
-    height: 1.7,
+    height: 1.5,
     fontVariations: [weightNormal],
     decoration: TextDecoration.none,
   );
