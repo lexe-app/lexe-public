@@ -83,6 +83,11 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kSendOnchainMethodAppHandleConstMeta;
 
+  Future<String> getAddressMethodAppHandle(
+      {required AppHandle that, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kGetAddressMethodAppHandleConstMeta;
+
   /// Sync the local payment DB to the remote node.
   ///
   /// Returns `true` if any payment changed, so we know whether to reload the
@@ -184,6 +189,10 @@ class AppHandle {
       bridge.sendOnchainMethodAppHandle(
         that: this,
         req: req,
+      );
+
+  Future<String> getAddress({dynamic hint}) => bridge.getAddressMethodAppHandle(
+        that: this,
       );
 
   /// Sync the local payment DB to the remote node.

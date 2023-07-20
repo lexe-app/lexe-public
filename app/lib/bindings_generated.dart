@@ -198,6 +198,25 @@ class AppRsImpl implements AppRs {
         argNames: ["that", "req"],
       );
 
+  Future<String> getAddressMethodAppHandle(
+      {required AppHandle that, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) =>
+          _platform.inner.wire_get_address__method__AppHandle(port_, arg0),
+      parseSuccessData: _wire2api_String,
+      constMeta: kGetAddressMethodAppHandleConstMeta,
+      argValues: [that],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kGetAddressMethodAppHandleConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "get_address__method__AppHandle",
+        argNames: ["that"],
+      );
+
   Future<bool> syncPaymentsMethodAppHandle(
       {required AppHandle that, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
@@ -917,6 +936,24 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _wire_send_onchain__method__AppHandlePtr.asFunction<
           void Function(int, ffi.Pointer<wire_AppHandle>,
               ffi.Pointer<wire_SendOnchainRequest>)>();
+
+  void wire_get_address__method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_AppHandle> that,
+  ) {
+    return _wire_get_address__method__AppHandle(
+      port_,
+      that,
+    );
+  }
+
+  late final _wire_get_address__method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>)>>(
+      'wire_get_address__method__AppHandle');
+  late final _wire_get_address__method__AppHandle =
+      _wire_get_address__method__AppHandlePtr
+          .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
 
   void wire_sync_payments__method__AppHandle(
     int port_,

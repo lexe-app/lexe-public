@@ -481,6 +481,12 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
+    pub fn get_address(&self) -> anyhow::Result<String> {
+        block_on(self.inner.node_client().get_address())
+            .map(|addr| addr.to_string())
+            .map_err(anyhow::Error::new)
+    }
+
     /// Sync the local payment DB to the remote node.
     ///
     /// Returns `true` if any payment changed, so we know whether to reload the
