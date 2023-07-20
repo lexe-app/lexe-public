@@ -483,12 +483,15 @@ class SendPaymentConfirmPage extends StatefulWidget {
 class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
   final GlobalKey<FormFieldState<String>> noteFieldKey = GlobalKey();
 
-  bool isSending = false;
+  final ValueNotifier<String?> sendError = ValueNotifier(null);
+  final ValueNotifier<bool> isSending = ValueNotifier(false);
 
-  void onSend() {
-    this.setState(() {
-      isSending = true;
-    });
+  @override
+  void dispose() {
+    this.isSending.dispose();
+    this.sendError.dispose();
+    super.dispose();
+  }
 
     unawaited(Future.delayed(const Duration(seconds: 2), () {
       this.setState(() {
@@ -547,7 +550,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             ),
           ),
           const SizedBox(height: Space.s700),
-          // To
+
           Row(
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -602,42 +605,55 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
           const SizedBox(height: Space.s700),
 
-          TextFormField(
-            key: this.noteFieldKey,
+          // Optional payment note input
+          ValueListenableBuilder(
+            valueListenable: this.isSending,
+            builder: (context, isSending, widget) => TextFormField(
+              key: this.noteFieldKey,
 
-            // Disable the input field while the send request is pending.
-            enabled: !this.isSending,
+              // Disable the input field while the send request is pending.
+              enabled: !isSending,
 
-            autofocus: false,
-            keyboardType: TextInputType.text,
-            textInputAction: TextInputAction.send,
-            onEditingComplete: this.onSend,
-            maxLines: null,
-            maxLength: 200,
-            maxLengthEnforcement: MaxLengthEnforcement.enforced,
+              autofocus: false,
+              keyboardType: TextInputType.text,
+              textInputAction: TextInputAction.send,
+              onEditingComplete: this.onSend,
+              maxLines: null,
+              maxLength: 200,
+              maxLengthEnforcement: MaxLengthEnforcement.enforced,
 
-            // Silently limit input to 512 bytes. This could be a little
-            // confusing if the user inputs a ton of emojis or CJK characters
-            // I guess.
-            inputFormatters: const [
-              MaxUtf8BytesInputFormatter(maxBytes: MAX_PAYMENT_NOTE_BYTES),
-            ],
+              // Silently limit input to 512 bytes. This could be a little
+              // confusing if the user inputs a ton of emojis or CJK characters
+              // I guess.
+              inputFormatters: const [
+                MaxUtf8BytesInputFormatter(maxBytes: MAX_PAYMENT_NOTE_BYTES),
+              ],
 
-            decoration: const InputDecoration(
-              hintStyle: TextStyle(color: LxColors.grey550),
-              hintText: "What's this payment for? (optional)",
-              counterStyle: TextStyle(color: LxColors.grey550),
-              border: OutlineInputBorder(),
-              enabledBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: LxColors.fgTertiary)),
-              focusedBorder: OutlineInputBorder(
-                  borderSide: BorderSide(color: LxColors.foreground)),
+              decoration: const InputDecoration(
+                hintStyle: TextStyle(color: LxColors.grey550),
+                hintText: "What's this payment for? (optional)",
+                counterStyle: TextStyle(color: LxColors.grey550),
+                border: OutlineInputBorder(),
+                enabledBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: LxColors.fgTertiary)),
+                focusedBorder: OutlineInputBorder(
+                    borderSide: BorderSide(color: LxColors.foreground)),
+              ),
+              style: Fonts.fontBody.copyWith(
+                fontSize: Fonts.size200,
+                height: 1.5,
+                color: LxColors.fgSecondary,
+                letterSpacing: -0.15,
+              ),
             ),
-            style: Fonts.fontBody.copyWith(
-              fontSize: Fonts.size200,
-              height: 1.5,
-              color: LxColors.fgSecondary,
-              letterSpacing: -0.15,
+          ),
+
+          // Send payment error
+          ValueListenableBuilder(
+            valueListenable: this.sendError,
+            builder: (context, sendError, widget) => Padding(
+              padding: const EdgeInsets.symmetric(vertical: Space.s300),
+              child: ErrorMessageSection(message: sendError),
             ),
           ),
         ],
@@ -647,9 +663,14 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
           verticalDirection: VerticalDirection.down,
           children: [
             const Expanded(child: SizedBox(height: Space.s500)),
+
             // Disable the button and show a loading indicator while sending the
             // request.
-            SendButton(onTap: this.onSend, loading: this.isSending),
+            ValueListenableBuilder(
+              valueListenable: this.isSending,
+              builder: (context, isSending, widget) =>
+                  SendButton(onTap: this.onSend, loading: isSending),
+            ),
           ],
         ),
       ),
@@ -722,6 +743,45 @@ class _SendButtonState extends State<SendButton> {
           foregroundColor: LxColors.grey1000,
         ),
       ),
+    );
+  }
+}
+
+class ErrorMessageSection extends StatelessWidget {
+  const ErrorMessageSection({super.key, required this.message});
+
+  final String? message;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = this.message;
+
+    // TODO(phlip9): maybe tap to expand full error message?
+    // TODO(phlip9): slide up animation?
+
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 200),
+      child: (message != null)
+          ? ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text(
+                "Error sending payment",
+                style: TextStyle(
+                  color: LxColors.errorText,
+                  fontVariations: [Fonts.weightMedium],
+                  height: 2.0,
+                ),
+              ),
+              subtitle: Text(
+                message,
+                maxLines: 3,
+                style: const TextStyle(
+                  color: LxColors.errorText,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            )
+          : null,
     );
   }
 }
