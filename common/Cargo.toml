@@ -99,9 +99,7 @@ cmac = { version = "0.7", features = ["std", "zeroize"] }
 # If a test-utils dependency must be available in both SGX and not-SGX, put it
 # in both sections so that this ALL CAPS block can remain contiguous.
 
-# property based testing
 proptest = { optional = true, workspace = true, features = ["alloc"] }
-# Arbitrary derive macro
 proptest-derive = { optional = true, workspace = true }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
@@ -114,7 +112,6 @@ proptest-derive = { optional = true, workspace = true }
 electrsd = { optional = true, version = "0.22", features = [ "bitcoind_22_0", "esplora_a33e97e1", "legacy" ] }
 # Include std impls when testing outside of SGX
 proptest = { optional = true, workspace = true, features = ["std"] }
-# Arbitrary derive macro
 proptest-derive = { optional = true, workspace = true }
 
 [features]

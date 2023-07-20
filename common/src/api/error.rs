@@ -6,7 +6,7 @@
 
 use std::{error::Error, fmt};
 
-#[cfg(all(test, not(target_env = "sgx")))]
+#[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -14,20 +14,23 @@ use tokio::sync::{mpsc, oneshot};
 // So the consts fit in 80 chars
 use warp::http::status::StatusCode as Status;
 
+#[cfg(any(test, feature = "test-utils"))]
+use crate::test_utils::arbitrary;
 use crate::{
     api::{auth, NodePk, UserPk},
     hex,
 };
 
 // Associated constants can't be imported.
-const CLIENT_400_BAD_REQUEST: Status = Status::BAD_REQUEST;
-const CLIENT_401_UNAUTHORIZED: Status = Status::UNAUTHORIZED;
-const CLIENT_404_NOT_FOUND: Status = Status::NOT_FOUND;
-const CLIENT_409_CONFLICT: Status = Status::CONFLICT;
-const SERVER_500_INTERNAL_SERVER_ERROR: Status = Status::INTERNAL_SERVER_ERROR;
-const SERVER_502_BAD_GATEWAY: Status = Status::BAD_GATEWAY;
-const SERVER_503_SERVICE_UNAVAILABLE: Status = Status::SERVICE_UNAVAILABLE;
-const SERVER_504_GATEWAY_TIMEOUT: Status = Status::GATEWAY_TIMEOUT;
+pub const CLIENT_400_BAD_REQUEST: Status = Status::BAD_REQUEST;
+pub const CLIENT_401_UNAUTHORIZED: Status = Status::UNAUTHORIZED;
+pub const CLIENT_404_NOT_FOUND: Status = Status::NOT_FOUND;
+pub const CLIENT_409_CONFLICT: Status = Status::CONFLICT;
+pub const SERVER_500_INTERNAL_SERVER_ERROR: Status =
+    Status::INTERNAL_SERVER_ERROR;
+pub const SERVER_502_BAD_GATEWAY: Status = Status::BAD_GATEWAY;
+pub const SERVER_503_SERVICE_UNAVAILABLE: Status = Status::SERVICE_UNAVAILABLE;
+pub const SERVER_504_GATEWAY_TIMEOUT: Status = Status::GATEWAY_TIMEOUT;
 
 /// `ErrorCode` is the common serialized representation for all `ErrorKind`s.
 pub type ErrorCode = u16;
@@ -52,12 +55,20 @@ pub trait ToHttpStatus {
 /// A 'trait alias' defining all the supertraits a service error type must impl
 /// to be accepted for use in the `RestClient` and across all Lexe services.
 pub trait ServiceApiError:
-    From<RestClientError> + From<ErrorResponse> + Error
+    From<RestClientError>
+    + From<ErrorResponse>
+    + Into<ErrorResponse>
+    + Error
+    + Clone
 {
 }
 
-impl<E: From<RestClientError> + From<ErrorResponse> + Error> ServiceApiError
-    for E
+impl<E> ServiceApiError for E where
+    E: From<RestClientError>
+        + From<ErrorResponse>
+        + Into<ErrorResponse>
+        + Error
+        + Clone
 {
 }
 
@@ -139,6 +150,7 @@ pub trait ErrorKindGenerated:
 ///
 /// * Doc strings on the error variants are used for
 ///   [`ErrorKindGenerated::to_msg`] and the [`fmt::Display`] impl.
+#[macro_export]
 macro_rules! error_kind {
     {
         $(#[$enum_meta:meta])*
@@ -186,6 +198,7 @@ macro_rules! error_kind {
                 }
             }
 
+            // FIXME(max): The returned kind msg has a " " at the beginning
             fn to_msg(self) -> &'static str {
                 match self {
                     $( Self::$item_name => concat!($( $item_msg, )*), )*
@@ -226,8 +239,9 @@ macro_rules! error_kind {
                 let name = (*self).to_name();
                 let msg = (*self).to_msg();
                 let code = (*self).to_code();
-                // ex: "[102=EntityConversion]: Could not convert entity to type"
-                write!(f, "[{code}={name}]:{msg}")
+                // ex: "[102=EntityConversion] Could not convert entity to type"
+                // No ':' because the ServiceApiError's Display impl adds it.
+                write!(f, "[{code}={name}]{msg}")
             }
         }
 
@@ -288,52 +302,72 @@ macro_rules! error_kind {
 /// representation; service api errors must define a `From<RestClientError>`
 /// impl to ensure they have covered these cases.
 pub struct RestClientError {
-    kind: RestClientErrorKind,
-    msg: String,
+    pub kind: RestClientErrorKind,
+    pub msg: String,
 }
 
 /// The primary error type that the backend returns.
 #[derive(Error, Clone, Debug, Eq, PartialEq, Hash)]
 #[error("{kind}: {msg}")]
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct BackendApiError {
     pub kind: BackendErrorKind,
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_string()")
+    )]
     pub msg: String,
 }
 
 /// The primary error type that the runner returns.
 #[derive(Error, Clone, Debug, Eq, PartialEq, Hash)]
 #[error("{kind}: {msg}")]
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct RunnerApiError {
     pub kind: RunnerErrorKind,
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_string()")
+    )]
     pub msg: String,
 }
 
 /// The primary error type that the gateway returns.
 #[derive(Error, Clone, Debug, Eq, PartialEq, Hash)]
 #[error("{kind}: {msg}")]
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct GatewayApiError {
     pub kind: GatewayErrorKind,
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_string()")
+    )]
     pub msg: String,
 }
 
 /// The primary error type that the node returns.
 #[derive(Error, Clone, Debug, Eq, PartialEq, Hash)]
 #[error("{kind}: {msg}")]
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct NodeApiError {
     pub kind: NodeErrorKind,
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_string()")
+    )]
     pub msg: String,
 }
 
 /// The primary error type that the LSP returns.
 #[derive(Error, Clone, Debug, Eq, PartialEq, Hash)]
 #[error("{kind}: {msg}")]
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct LspApiError {
     pub kind: LspErrorKind,
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_string()")
+    )]
     pub msg: String,
 }
 
@@ -344,7 +378,7 @@ pub struct LspApiError {
 /// [`RestClient`]: crate::api::rest::RestClient
 #[derive(Copy, Clone, Debug)]
 #[repr(u16)]
-pub(crate) enum RestClientErrorKind {
+pub enum RestClientErrorKind {
     /// Unknown Reqwest client error
     UnknownReqwest = 1,
     /// Error building the HTTP request
@@ -542,7 +576,7 @@ impl RestClientError {
 // --- RestClientErrorKind impl --- //
 
 impl RestClientErrorKind {
-    #[cfg(test)]
+    #[cfg(any(test, feature = "test-utils"))]
     const KINDS: &'static [Self] = &[
         Self::UnknownReqwest,
         Self::Building,
@@ -552,7 +586,7 @@ impl RestClientErrorKind {
     ];
 
     #[inline]
-    fn to_code(self) -> ErrorCode {
+    pub fn to_code(self) -> ErrorCode {
         self as ErrorCode
     }
 }
@@ -927,25 +961,19 @@ impl From<oneshot::error::RecvError> for RunnerApiError {
 
 // (Placeholder only, for consistency)
 
-// --- Testing --- //
+// --- Test utils for asserting error invariants --- //
 
-#[cfg(test)]
-mod test {
+#[cfg(any(test, feature = "test-utils"))]
+pub mod invariants {
     use proptest::{
         arbitrary::{any, Arbitrary},
         prop_assert_eq, proptest,
     };
 
     use super::*;
+    use crate::test_utils::arbitrary;
 
-    #[test]
-    fn client_error_kinds_non_zero() {
-        for kind in RestClientErrorKind::KINDS {
-            assert_ne!(kind.to_code(), 0);
-        }
-    }
-
-    fn assert_error_kind_invariants<T>()
+    pub fn assert_error_kind_invariants<T>()
     where
         T: ErrorKindGenerated + Arbitrary,
     {
@@ -1004,75 +1032,89 @@ mod test {
         });
     }
 
+    pub fn assert_service_error_invariants<S, K>()
+    where
+        S: ServiceApiError + Arbitrary + PartialEq,
+        K: ErrorKindGenerated + Arbitrary,
+    {
+        // Double roundtrip proptest
+        // - ServiceApiError -> ErrorResponse -> ServiceApiError
+        // - ErrorResponse -> ServiceApiError -> ErrorResponse
+        // i.e. The errors should be equal in serialized & unserialized form.
+        proptest!(|(e1 in any::<S>())| {
+            let err_resp1 = Into::<ErrorResponse>::into(e1.clone());
+            let e2 = S::from(err_resp1.clone());
+            let err_resp2 = Into::<ErrorResponse>::into(e2.clone());
+            prop_assert_eq!(e1, e2);
+            prop_assert_eq!(err_resp1, err_resp2);
+        });
+
+        // Check that the ServiceApiError Display impl is of form
+        // `[<code>=<kind_name>] <kind_msg>: <main_msg>`
+        proptest!(|(
+            kind in any::<K>(),
+            main_msg in arbitrary::any_string()
+        )| {
+            let code = kind.to_code();
+            let msg = main_msg.clone();
+            let err_resp = ErrorResponse { code, msg };
+            let service_error = S::from(err_resp);
+            let kind_name = kind.to_name();
+            let kind_msg = kind.to_msg();
+
+            let actual_display = format!("{service_error}");
+            // e.g. "[0=Unknown] Unknown error: Additional context"
+            let expected_display =
+                format!("[{code}={kind_name}]{kind_msg}: {main_msg}");
+            prop_assert_eq!(actual_display, expected_display);
+        });
+    }
+}
+
+// --- Tests --- //
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn client_error_kinds_non_zero() {
+        for kind in RestClientErrorKind::KINDS {
+            assert_ne!(kind.to_code(), 0);
+        }
+    }
+
     #[test]
     fn error_kind_invariants() {
-        assert_error_kind_invariants::<BackendErrorKind>();
-        assert_error_kind_invariants::<RunnerErrorKind>();
-        assert_error_kind_invariants::<GatewayErrorKind>();
-        assert_error_kind_invariants::<NodeErrorKind>();
-        assert_error_kind_invariants::<LspErrorKind>();
+        invariants::assert_error_kind_invariants::<BackendErrorKind>();
+        invariants::assert_error_kind_invariants::<RunnerErrorKind>();
+        invariants::assert_error_kind_invariants::<GatewayErrorKind>();
+        invariants::assert_error_kind_invariants::<NodeErrorKind>();
+        invariants::assert_error_kind_invariants::<LspErrorKind>();
     }
 
     #[test]
-    fn context_separation() {
-        let backend_error = BackendApiError {
-            kind: BackendErrorKind::Unknown(0),
-            msg: "Additional context".to_owned(),
-        };
-        let runner_error = RunnerApiError {
-            kind: RunnerErrorKind::Unknown(0),
-            msg: "Additional context".to_owned(),
-        };
-        let gateway_error = GatewayApiError {
-            kind: GatewayErrorKind::Unknown(0),
-            msg: "Additional context".to_owned(),
-        };
-        let node_error = NodeApiError {
-            kind: NodeErrorKind::Unknown(0),
-            msg: "Additional context".to_owned(),
-        };
-        let lsp_error = LspApiError {
-            kind: LspErrorKind::Unknown(0),
-            msg: "Additional context".to_owned(),
-        };
-
-        // The top-level service error types *are* human readable and should
-        // include the base help message defined alongside each variant.
-        let model_display =
-            String::from("[0=Unknown]: Unknown error: Additional context");
-        assert_eq!(model_display, format!("{backend_error}"));
-        assert_eq!(model_display, format!("{runner_error}"));
-        assert_eq!(model_display, format!("{gateway_error}"));
-        assert_eq!(model_display, format!("{node_error}"));
-        assert_eq!(model_display, format!("{lsp_error}"));
-
-        // ErrorResponse does not implement Display and is not intended to be
-        // human readable as its primary purpose is for serialization /
-        // transport. `msg` should only hold the _additional_ context.
-        let backend_err_resp = ErrorResponse::from(backend_error);
-        let runner_err_resp = ErrorResponse::from(runner_error);
-        let gateway_err_resp = ErrorResponse::from(gateway_error);
-        let node_err_resp = ErrorResponse::from(node_error);
-        let lsp_err_resp = ErrorResponse::from(lsp_error);
-
-        let model_err_resp = ErrorResponse {
-            code: 0,
-            msg: "Additional context".to_owned(),
-        };
-        assert_eq!(model_err_resp, backend_err_resp);
-        assert_eq!(model_err_resp, runner_err_resp);
-        assert_eq!(model_err_resp, gateway_err_resp);
-        assert_eq!(model_err_resp, node_err_resp);
-        assert_eq!(model_err_resp, lsp_err_resp);
+    fn service_api_error_invariants() {
+        use invariants::assert_service_error_invariants;
+        assert_service_error_invariants::<BackendApiError, BackendErrorKind>();
+        assert_service_error_invariants::<RunnerApiError, RunnerErrorKind>();
+        assert_service_error_invariants::<GatewayApiError, GatewayErrorKind>();
+        assert_service_error_invariants::<NodeApiError, NodeErrorKind>();
+        assert_service_error_invariants::<LspApiError, LspErrorKind>();
     }
+}
 
-    #[cfg(not(target_env = "sgx"))] // no regex in SGX
-    proptest! {
-        #[test]
-        fn error_response_serde_roundtrip(
-            code in any::<ErrorCode>(),
-            msg in "[A-Za-z0-9]*",
-        ) {
+// --- Tests, but only outside of SGX --- //
+
+#[cfg(all(test, not(target_env = "sgx")))] // no regex in SGX
+mod test_notsgx {
+    use proptest::{arbitrary::any, prop_assert_eq, proptest};
+
+    use super::*;
+
+    #[test]
+    fn error_response_serde_roundtrip() {
+        proptest!(|(code in any::<ErrorCode>(), msg in "[A-Za-z0-9]*")| {
             let e1 = ErrorResponse { code, msg };
             let e1_str = serde_json::to_string(&e1).unwrap();
 
@@ -1086,35 +1128,6 @@ mod test {
             // Test the round trip
             let e2: ErrorResponse = serde_json::from_str(&e1_str).unwrap();
             prop_assert_eq!(e1, e2);
-        }
-    }
-
-    #[cfg(not(target_env = "sgx"))] // no regex in SGX
-    proptest! {
-        #[test]
-        fn backend_error_code_roundtrip(e1 in any::<BackendApiError>()) {
-            let e2 = BackendApiError::from(ErrorResponse::from(e1.clone()));
-            prop_assert_eq!(e1, e2);
-        }
-        #[test]
-        fn runner_error_code_roundtrip(e1 in any::<RunnerApiError>()) {
-            let e2 = RunnerApiError::from(ErrorResponse::from(e1.clone()));
-            prop_assert_eq!(e1, e2);
-        }
-        #[test]
-        fn gateway_error_code_roundtrip(e1 in any::<GatewayApiError>()) {
-            let e2 = GatewayApiError::from(ErrorResponse::from(e1.clone()));
-            prop_assert_eq!(e1, e2);
-        }
-        #[test]
-        fn node_error_code_roundtrip(e1 in any::<NodeApiError>()) {
-            let e2 = NodeApiError::from(ErrorResponse::from(e1.clone()));
-            prop_assert_eq!(e1, e2);
-        }
-        #[test]
-        fn lsp_error_code_roundtrip(e1 in any::<LspApiError>()) {
-            let e2 = LspApiError::from(ErrorResponse::from(e1.clone()));
-            prop_assert_eq!(e1, e2);
-        }
+        })
     }
 }
