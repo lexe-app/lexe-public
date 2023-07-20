@@ -192,18 +192,15 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
   Future<void> _onPressed() async {
     info("pressed create wallet button");
 
-    final Config config;
-    if (context.mounted) {
-      config = this.widget.config;
-    } else {
-      return;
-    }
+    final Config config = this.widget.config;
 
     // disable button while signing up
     setState(() => this._disableButton = true);
 
     final result = await Result.tryFfiAsync(
         () async => AppHandle.signup(bridge: api, config: config));
+
+    if (!this.mounted) return;
 
     final AppHandle app;
     switch (result) {

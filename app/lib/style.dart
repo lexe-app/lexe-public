@@ -119,6 +119,10 @@ class LxColors {
   /// LxColors.grey900
   static const Color background = LxColors.grey900;
 
+  // TODO(phlip9): I think our fonts are too low contrast w/ e.g. fgTertiary.
+  // Accessibility-wise, we should probably limit to min. grey500 for headings
+  // and grey450 for smaller.
+
   /// LxColors.grey200
   static const Color foreground = LxColors.grey200;
 
@@ -135,7 +139,6 @@ class LxColors {
   /// 0x14b87d - hsl(158deg 80% 40%)
   static const Color moneyGoUp = Color(0xff14b87d);
 
-  /// 0xe9553e - hsl(8deg 80% 58%)
   // static const Color errorText = Color(0xffe9553e); // < looks good w/ Failed
   // static const Color errorText = Color(0xffd3302f); // < default material
   // static const Color errorText = Color(0xff994133);

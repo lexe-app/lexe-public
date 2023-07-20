@@ -1,6 +1,5 @@
 // Send payment page
 
-import 'dart:async' show unawaited;
 import 'dart:math' show max;
 
 import 'package:flutter/material.dart';
@@ -19,17 +18,23 @@ import '../../address_format.dart' as address_format;
 import '../../bindings.dart' show api;
 import '../../bindings_generated.dart' show MAX_PAYMENT_NOTE_BYTES;
 import '../../bindings_generated_api.dart'
-    show AppHandle, ClientPaymentId, Network;
+    show
+        AppHandle,
+        ClientPaymentId,
+        ConfirmationPriority,
+        Network,
+        SendOnchainRequest;
 import '../../currency_format.dart' as currency_format;
 import '../../input_formatter.dart'
     show
         AlphaNumericInputFormatter,
         IntInputFormatter,
         MaxUtf8BytesInputFormatter;
-import '../../logger.dart' show info;
+import '../../logger.dart' show error, info;
 import '../../result.dart';
 import '../../style.dart' show Fonts, LxColors, Space;
 
+/// Context used during the send payment flow.
 @immutable
 final class SendContext {
   const SendContext({
@@ -57,6 +62,7 @@ final class SendContext {
   final ClientPaymentId cid;
 }
 
+/// The entry point for the send payment flow.
 class SendPaymentPage extends StatelessWidget {
   const SendPaymentPage({
     super.key,
@@ -142,6 +148,8 @@ class NextButton extends LxFilledButton {
         );
 }
 
+/// In the send payment flow, this page collects the user's destination bitcoin
+/// address.
 class SendPaymentAddressPage extends StatefulWidget {
   const SendPaymentAddressPage({
     super.key,
@@ -257,8 +265,12 @@ class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
   }
 }
 
-// If only we had real enums... sad.
-
+/// When sending on-chain, the user has the option to send either
+/// (1) an exact amount
+/// (2) their full wallet balance
+///
+/// (2) is convenient for the user to explicitly select so they don't have to do
+/// any math or know the current & exact fee rate.
 sealed class SendAmount {
   const SendAmount();
 }
@@ -275,6 +287,7 @@ final class SendAmountExact extends SendAmount {
   String toString() => "SendAmountExact(${this.amountSats})";
 }
 
+/// Send payment flow: this page collects the [SendAmount] from the user.
 class SendPaymentAmountPage extends StatefulWidget {
   const SendPaymentAmountPage({
     super.key,
@@ -464,6 +477,15 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   }
 }
 
+/// Send payment flow: this page shows the full payment details and asks the
+/// user to confirm before finally sending.
+///
+/// The page also:
+///
+/// 1. Estimates the BTC network fee for the tx at the given tx priority.
+/// 2. Collects an optional payment note for the user's record keeping.
+/// 3. Allows the user to adjust the tx priority for high+fast or low+slow
+///    fee/confirmation time.
 class SendPaymentConfirmPage extends StatefulWidget {
   const SendPaymentConfirmPage({
     super.key,
@@ -493,11 +515,49 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     super.dispose();
   }
 
-    unawaited(Future.delayed(const Duration(seconds: 2), () {
-      this.setState(() {
-        isSending = false;
-      });
-    }));
+  Future<void> onSend() async {
+    if (this.isSending.value) return;
+
+    // We're sending; clear the errors and disable the form inputs.
+    this.isSending.value = true;
+    this.sendError.value = null;
+
+    final amountSats = switch (this.widget.sendAmount) {
+      SendAmountExact(:final amountSats) => amountSats,
+      // TODO(phlip9): implement "send full balance"
+      SendAmountAll() => throw UnimplementedError(),
+    };
+    final req = SendOnchainRequest(
+      cid: this.widget.sendCtx.cid,
+      address: this.widget.address,
+      amountSats: amountSats,
+      priority: ConfirmationPriority.Normal,
+    );
+
+    final app = this.widget.sendCtx.app;
+
+    final result =
+        await Result.tryFfiAsync(() async => app.sendOnchain(req: req));
+
+    if (!this.mounted) return;
+
+    switch (result) {
+      case Ok():
+        // The request succeeded and we're still mounted (the user hasn't
+        // navigated away somehow). Let's pop ourselves off the nav stack and
+        // notify our caller that we were successful.
+        info("send flow: on-chain send success");
+        // ignore: use_build_context_synchronously
+        Navigator.of(this.context).pop(true);
+        return;
+
+      case Err(:final err):
+        // The request failed. Set the error message and unset loading.
+        error("send flow: error sending on-chain payment: $err");
+        this.isSending.value = false;
+        this.sendError.value = err.message;
+        return;
+    }
   }
 
   @override
@@ -695,18 +755,12 @@ class SendButton extends StatefulWidget {
 }
 
 class _SendButtonState extends State<SendButton> {
-  // @override
-  // void didUpdateWidget(SendButton old) {
-  //   super.didUpdateWidget(old);
-  //   if (this.widget.enabled != old.enabled)
-  // }
-
   @override
   Widget build(BuildContext context) {
     final loading = this.widget.loading;
 
     // When we're loading, we:
-    // (1) shorten the button width
+    // (1) shorten and disable the button width
     // (2) replace the button label with a loading indicator
     // (3) hide the button icon
 
@@ -717,7 +771,7 @@ class _SendButtonState extends State<SendButton> {
       // unbounded width and a finite width.
       width: (!loading) ? 450.0 : Space.s900,
       child: LxFilledButton(
-        // Also disable the button while loading.
+        // Disable the button while loading.
         onTap: (!loading) ? this.widget.onTap : null,
         label: AnimatedSwitcher(
           duration: const Duration(milliseconds: 150),
