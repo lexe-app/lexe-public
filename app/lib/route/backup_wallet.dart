@@ -26,7 +26,7 @@ class BackupWalletPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
+        leadingWidth: Space.appBarLeadingWidth,
         leading: const LxCloseButton(),
       ),
       body: ListView(

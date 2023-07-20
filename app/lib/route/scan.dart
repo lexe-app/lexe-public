@@ -16,14 +16,13 @@ class ScanPage extends StatelessWidget {
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-
         // transparent bg header
         backgroundColor: LxColors.clearB0,
         scrolledUnderElevation: 0.0,
         surfaceTintColor: LxColors.clearB0,
 
         // X - quit scanning
+        leadingWidth: Space.appBarLeadingWidth,
         leading: const LxCloseButton(),
 
         // * Make the top status bar transparent, so the whole screen includes

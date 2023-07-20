@@ -165,8 +165,6 @@ class WalletPageState extends State<WalletPage> {
       key: this.scaffoldKey,
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-
         // ≡ - Open navigation drawer on the left
         leading: IconButton(
           icon: const Icon(Icons.menu_rounded),

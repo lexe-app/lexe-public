@@ -221,13 +221,14 @@ class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
 
     return Scaffold(
       appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
         leading: const LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
         actions: [
           IconButton(
             onPressed: this.onQrPressed,
             icon: const Icon(Icons.qr_code_rounded),
           ),
-          const SizedBox(width: Space.s100),
+          const SizedBox(width: Space.s400),
         ],
       ),
       body: ScrollableSinglePageBody(
@@ -377,10 +378,11 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
     return Scaffold(
       appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
         leading: const LxBackButton(),
         actions: const [
           LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
-          SizedBox(width: Space.s100),
+          SizedBox(width: Space.s400),
         ],
       ),
       body: ScrollableSinglePageBody(
@@ -593,14 +595,16 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
     return Scaffold(
       appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
         leading: const LxBackButton(),
         actions: const [
           LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
-          SizedBox(width: Space.s100),
+          SizedBox(width: Space.s400),
         ],
       ),
       body: ScrollableSinglePageBody(
         body: [
+          // Container(height: Space.s400, color: LxColors.debug, child: Center()),
           const HeadingText(text: "Confirm payment"),
           Text(
             "Sending bitcoin on-chain",
