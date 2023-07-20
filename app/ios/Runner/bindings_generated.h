@@ -28,7 +28,7 @@ typedef struct wire_Config {
   int32_t network;
   struct wire_uint_8_list *gateway_url;
   bool use_sgx;
-  struct wire_uint_8_list *app_data_dir;
+  struct wire_uint_8_list *base_app_data_dir;
   bool use_mock_secret_store;
 } wire_Config;
 
