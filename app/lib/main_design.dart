@@ -21,6 +21,7 @@ import 'bindings_generated_api.dart'
         PaymentDirection,
         PaymentKind,
         PaymentStatus,
+        SendOnchainRequest,
         ShortPayment,
         U8Array32;
 import 'cfg.dart' as cfg;
@@ -195,6 +196,9 @@ class MockAppHandle extends AppHandle {
   MockAppHandle({required AppRs bridge})
       : super(bridge: bridge, inner: MockApp(bridge));
 
+  // New user has no payments
+  // List<ShortPayment> shortPayments = [];
+
   // Some sample data
   List<ShortPayment> shortPayments = [
     const ShortPayment(
@@ -279,6 +283,17 @@ class MockAppHandle extends AppHandle {
           ],
         ),
       );
+
+  @override
+  Future<void> sendOnchain({
+    required SendOnchainRequest req,
+    dynamic hint,
+  }) =>
+      Future.delayed(const Duration(milliseconds: 1200), () {});
+
+  @override
+  Future<String> getAddress({dynamic hint}) =>
+      Future.value("bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl");
 
   @override
   Future<bool> syncPayments({dynamic hint}) => Future.delayed(

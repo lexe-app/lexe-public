@@ -22,6 +22,7 @@ import '../../components.dart'
 import '../../currency_format.dart' as currency_format;
 import '../../date_format.dart' as date_format;
 import '../../logger.dart' show error, info;
+import '../../result.dart';
 import '../../route/send.dart' show SendContext, SendPaymentPage;
 import '../../style.dart' show Fonts, LxColors, Space;
 
@@ -132,8 +133,10 @@ class WalletPageState extends State<WalletPage> {
 
   /// Called when the "Receive" button is pressed. Pushes the receive payment
   /// page onto the navigation stack.
-  void onReceivePressed() {
-    info("Receive button pressed");
+  Future<void> onReceivePressed() async {
+    // TODO(phlip9): remove this temporary hack once the recv UI gets build
+    final result = await Result.tryFfiAsync(() => this.widget.app.getAddress());
+    info("getAddress => $result");
   }
 
   /// Called when the "Send" button is pressed. Pushes the send payment page
@@ -203,23 +206,10 @@ class WalletPageState extends State<WalletPage> {
               // ↑ - Open BTC/LN send payment page
               onSendPressed: this.onSendPressed,
             ),
-            const SizedBox(height: Space.s900),
+            const SizedBox(height: Space.s800),
           ])),
 
           // Pending payments + header
-          SliverToBoxAdapter(
-              child: Padding(
-                  padding: const EdgeInsets.only(
-                    left: Space.s400,
-                    top: Space.s600,
-                    bottom: Space.s200,
-                  ),
-                  child: Text("Pending",
-                      style: Fonts.fontUI.copyWith(
-                        fontSize: Fonts.size200,
-                        color: LxColors.fgTertiary,
-                        fontVariations: [Fonts.weightMedium],
-                      )))),
           StreamBuilder(
             stream: this.paymentsUpdated.stream,
             initialData: null,
@@ -230,19 +220,6 @@ class WalletPageState extends State<WalletPage> {
           ),
 
           // Completed+Failed payments + header
-          SliverToBoxAdapter(
-              child: Padding(
-                  padding: const EdgeInsets.only(
-                    left: Space.s400,
-                    top: Space.s600,
-                    bottom: Space.s200,
-                  ),
-                  child: Text("Completed",
-                      style: Fonts.fontUI.copyWith(
-                        fontSize: Fonts.size200,
-                        color: LxColors.fgTertiary,
-                        fontVariations: [Fonts.weightMedium],
-                      )))),
           StreamBuilder(
             stream: this.paymentsUpdated.stream,
             initialData: null,
@@ -569,7 +546,13 @@ class WalletActionButton extends StatelessWidget {
 enum PaymentsListFilter {
   all,
   pending,
-  finalized,
+  finalized;
+
+  String asTitle() => switch (this) {
+        all => "Payments",
+        pending => "Pending",
+        finalized => "Completed",
+      };
 }
 
 class SliverPaymentsList extends StatelessWidget {
@@ -584,32 +567,53 @@ class SliverPaymentsList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final int childCount;
-    if (this.filter == PaymentsListFilter.all) {
-      childCount = this.app.getNumPayments();
-    } else if (this.filter == PaymentsListFilter.pending) {
-      childCount = this.app.getNumPendingPayments();
-    } else {
-      childCount = this.app.getNumFinalizedPayments();
-    }
-    info(
-        "build SliverPaymentsList: filter: ${this.filter}, childCount: $childCount");
+    final int paymentKindCount = switch (this.filter) {
+      PaymentsListFilter.all => this.app.getNumPayments(),
+      PaymentsListFilter.pending => this.app.getNumPendingPayments(),
+      PaymentsListFilter.finalized => this.app.getNumFinalizedPayments(),
+    };
+    info("build SliverPaymentsList: filter: ${this.filter}, "
+        "paymentKindCount: $paymentKindCount");
+
+    final numHeaders = switch (paymentKindCount) {
+      > 0 => 1,
+      _ => 0,
+    };
+    final childCount = paymentKindCount + numHeaders;
 
     return SliverFixedExtentList(
-      itemExtent: Space.s825,
+      itemExtent: Space.s800,
       delegate: SliverChildBuilderDelegate(
-        (context, scrollIdx) {
-          final ShortPayment? payment;
-
-          if (this.filter == PaymentsListFilter.all) {
-            payment = this.app.getPaymentByScrollIdx(scrollIdx: scrollIdx);
-          } else if (this.filter == PaymentsListFilter.pending) {
-            payment =
-                this.app.getPendingPaymentByScrollIdx(scrollIdx: scrollIdx);
-          } else {
-            payment =
-                this.app.getFinalizedPaymentByScrollIdx(scrollIdx: scrollIdx);
+        childCount: childCount,
+        (context, paymentPlusHeaderIdx) {
+          if (paymentPlusHeaderIdx < numHeaders) {
+            return Align(
+              alignment: Alignment.bottomLeft,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Space.s400, vertical: Space.s200),
+                child: Text(
+                  this.filter.asTitle(),
+                  style: Fonts.fontUI.copyWith(
+                    fontSize: Fonts.size200,
+                    color: LxColors.fgTertiary,
+                    fontVariations: [Fonts.weightMedium],
+                  ),
+                ),
+              ),
+            );
           }
+
+          final scrollIdx = paymentPlusHeaderIdx - numHeaders;
+
+          final ShortPayment? payment = switch (this.filter) {
+            PaymentsListFilter.all =>
+              this.app.getPaymentByScrollIdx(scrollIdx: scrollIdx),
+            PaymentsListFilter.pending =>
+              this.app.getPendingPaymentByScrollIdx(scrollIdx: scrollIdx),
+            PaymentsListFilter.finalized =>
+              this.app.getFinalizedPaymentByScrollIdx(scrollIdx: scrollIdx),
+          };
 
           if (payment != null) {
             return PaymentsListEntry(payment: payment);
@@ -617,7 +621,6 @@ class SliverPaymentsList extends StatelessWidget {
             return null;
           }
         },
-        childCount: childCount,
         // findChildIndexCallback: (Key childKey) => this.app.getPaymentScrollIdxByPaymentId(childKey),
       ),
     );
@@ -772,7 +775,7 @@ class PaymentsListEntry extends StatelessWidget {
       ),
       horizontalTitleGap: Space.s200,
       visualDensity: VisualDensity.standard,
-      dense: false,
+      dense: true,
 
       // actual content
 
