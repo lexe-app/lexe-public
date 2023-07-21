@@ -73,11 +73,28 @@ class SendPaymentPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final parentNavigator = Navigator.of(context);
+
     return Navigator(
-      onGenerateRoute: (RouteSettings settings) => MaterialPageRoute(
-        builder: (context) => SendPaymentAddressPage(sendCtx: this.sendCtx),
-        settings: settings,
-      ),
+      onGenerateRoute: (RouteSettings settings) {
+        info("SendPaymentPage: onGenerateRoute: $settings");
+
+        return MaterialPageRoute(
+          // This `WillPopScope` thing is so we can exit out of the sub-flow
+          // navigation once we're done. Without this, we just end up at a blank
+          // screen after completing the form. There's almost certainly a better
+          // way to do this.
+          builder: (context) => WillPopScope(
+            onWillPop: () async {
+              info("SendPaymentPage: onWillPop");
+              parentNavigator.pop(true);
+              return false;
+            },
+            child: SendPaymentAddressPage(sendCtx: this.sendCtx),
+          ),
+          settings: settings,
+        );
+      },
     );
   }
 }
@@ -169,7 +186,7 @@ class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
     info("pressed QR button");
   }
 
-  void onNext() {
+  Future<void> onNext() async {
     final fieldState = this.addressFieldKey.currentState!;
     if (!fieldState.validate()) {
       return;
@@ -184,12 +201,22 @@ class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
         return;
     }
 
-    Navigator.of(this.context).push(MaterialPageRoute(
+    final bool? flowResult =
+        await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SendPaymentAmountPage(
         sendCtx: this.widget.sendCtx,
         address: address,
       ),
     ));
+
+    info("SendPaymentAddressPage: flow result: $flowResult, mounted: $mounted");
+
+    if (!this.mounted) return;
+
+    if (flowResult == true) {
+      // ignore: use_build_context_synchronously
+      await Navigator.of(this.context).maybePop(flowResult);
+    }
   }
 
   /// Ensure the bitcoin address is properly formatted and targets the right
@@ -317,7 +344,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     super.dispose();
   }
 
-  void onNext() {
+  Future<void> onNext() async {
     final SendAmount sendAmount;
 
     if (sendFullBalanceEnabled.value) {
@@ -337,13 +364,23 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
       sendAmount = SendAmountExact(amountSats);
     }
 
-    Navigator.of(this.context).push(MaterialPageRoute(
+    final bool? flowResult =
+        await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SendPaymentConfirmPage(
         sendCtx: this.widget.sendCtx,
         address: this.widget.address,
         sendAmount: sendAmount,
       ),
     ));
+
+    info("SendPaymentAmountPage: flow result: $flowResult, mounted: $mounted");
+
+    if (!this.mounted) return;
+
+    if (flowResult == true) {
+      // ignore: use_build_context_synchronously
+      await Navigator.of(this.context).maybePop(flowResult);
+    }
   }
 
   Result<int, String?> validateAmountStr(String? maybeAmountStr) {
@@ -548,14 +585,15 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
         // The request succeeded and we're still mounted (the user hasn't
         // navigated away somehow). Let's pop ourselves off the nav stack and
         // notify our caller that we were successful.
-        info("send flow: on-chain send success");
+        info("SendPaymentConfirmPage: on-chain send success");
+        const flowResult = true;
         // ignore: use_build_context_synchronously
-        Navigator.of(this.context).pop(true);
+        await Navigator.of(this.context).maybePop(flowResult);
         return;
 
       case Err(:final err):
         // The request failed. Set the error message and unset loading.
-        error("send flow: error sending on-chain payment: $err");
+        error("SendPaymentConfirmPage: error sending on-chain payment: $err");
         this.isSending.value = false;
         this.sendError.value = err.message;
         return;
