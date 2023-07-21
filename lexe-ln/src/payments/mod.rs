@@ -195,8 +195,8 @@ impl Payment {
     /// Whether this payment is inbound or outbound. Useful for filtering.
     pub fn direction(&self) -> PaymentDirection {
         match self {
-            Self::OnchainSend(_) => PaymentDirection::Inbound,
-            Self::OnchainReceive(_) => PaymentDirection::Outbound,
+            Self::OnchainSend(_) => PaymentDirection::Outbound,
+            Self::OnchainReceive(_) => PaymentDirection::Inbound,
             Self::InboundInvoice(_) => PaymentDirection::Inbound,
             Self::InboundSpontaneous(_) => PaymentDirection::Inbound,
             Self::OutboundInvoice(_) => PaymentDirection::Outbound,
