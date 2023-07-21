@@ -1,9 +1,9 @@
 import 'dart:async' show Stream;
-import 'dart:io';
 
 import 'package:flutter/foundation.dart' show debugPrint;
 
 import 'bindings.dart' show api;
+import 'cfg.dart' as cfg;
 import 'result.dart';
 
 const int _levelTrace = 0;
@@ -54,7 +54,7 @@ bool tryInit() {
   if (_logger != null) {
     return false;
   } else {
-    rustLog = _rustLogFromEnv();
+    rustLog = cfg.rustLogFromEnv();
     minLogLevel = _logLevelFromRustLog(rustLog);
     _logger = _Logger(minLogLevel);
   }
@@ -107,30 +107,6 @@ void warn(String message) {
 
 void error(String message) {
   _logger?.log(_levelError, message);
-}
-
-// Load the log filter from the environment. Priority:
-// 1. env: $RUST_LOG (not available on mobile!!)
-// 2. build-time: `flutter run --dart-define=RUST_LOG=$RUST_LOG ..`
-//    (for `String.fromEnvironment`, for mobile)
-// 3. default: INFO
-String _rustLogFromEnv() {
-  final String? envRustLog = Platform.environment["RUST_LOG"];
-
-  if (envRustLog != null) {
-    return envRustLog;
-  }
-
-  // this must be a separate const variable
-  const String? buildTimeRustLog = bool.hasEnvironment("RUST_LOG")
-      ? String.fromEnvironment("RUST_LOG")
-      : null;
-
-  if (buildTimeRustLog != null) {
-    return buildTimeRustLog;
-  }
-
-  return "info";
 }
 
 String _levelToString(int logLevel) {
