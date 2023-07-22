@@ -620,4 +620,30 @@ mod test {
             prop_assert_eq!(p1, p2);
         })
     }
+
+    #[test]
+    fn payment_id_equivalence() {
+        let cfg = Config::with_cases(10);
+
+        proptest!(cfg.clone(), |(x: OnchainSend)| {
+            prop_assert_eq!(x.id(), Payment::from(x).id());
+        });
+        proptest!(cfg.clone(), |(x: OnchainReceive)| {
+            prop_assert_eq!(x.id(), Payment::from(x).id());
+        });
+        // TODO(max): Add SpliceIn
+        // TODO(max): Add SpliceOut
+        proptest!(cfg.clone(), |(x: InboundInvoicePayment)| {
+            prop_assert_eq!(x.id(), Payment::from(x).id());
+        });
+        proptest!(cfg.clone(), |(x: InboundSpontaneousPayment)| {
+            prop_assert_eq!(x.id(), Payment::from(x).id());
+        });
+        proptest!(cfg.clone(), |(x: OutboundInvoicePayment)| {
+            prop_assert_eq!(x.id(), Payment::from(x).id());
+        });
+        proptest!(cfg.clone(), |(x: OutboundSpontaneousPayment)| {
+            prop_assert_eq!(x.id(), Payment::from(x).id());
+        });
+    }
 }

@@ -7,7 +7,9 @@ use common::{
     ln::{
         amount::Amount,
         invoice::LxInvoice,
-        payments::{LxPaymentHash, LxPaymentPreimage, LxPaymentSecret},
+        payments::{
+            LxPaymentHash, LxPaymentId, LxPaymentPreimage, LxPaymentSecret,
+        },
     },
     time::TimestampMs,
 };
@@ -107,6 +109,11 @@ impl OutboundInvoicePayment {
             created_at: TimestampMs::now(),
             finalized_at: None,
         }
+    }
+
+    #[inline]
+    pub fn id(&self) -> LxPaymentId {
+        LxPaymentId::Lightning(self.hash)
     }
 
     pub(crate) fn check_payment_sent(
@@ -242,6 +249,13 @@ pub struct OutboundSpontaneousPayment {
     pub created_at: TimestampMs,
     /// When this payment either `Completed` or `Failed`.
     pub finalized_at: Option<TimestampMs>,
+}
+
+impl OutboundSpontaneousPayment {
+    #[inline]
+    pub fn id(&self) -> LxPaymentId {
+        LxPaymentId::Lightning(self.hash)
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
