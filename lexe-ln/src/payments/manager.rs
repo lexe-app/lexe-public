@@ -549,26 +549,26 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(onchain-send-broadcasted)")]
     pub async fn onchain_send_broadcasted(
         &self,
-        txid: LxTxid,
+        id: &LxPaymentId,
+        txid: &LxTxid,
     ) -> anyhow::Result<()> {
-        let id = LxPaymentId::from(txid);
         debug!(%id, "Registering that an onchain send has been broadcasted");
         let mut locked_data = self.data.lock().await;
 
         ensure!(
-            !locked_data.finalized.contains(&id),
+            !locked_data.finalized.contains(id),
             "Onchain send was already finalized",
         );
 
         let pending = locked_data
             .pending
-            .get(&id)
+            .get(id)
             .context("Payment doesn't exist")?;
 
         // Check
         let checked = match pending {
             Payment::OnchainSend(os) => os
-                .broadcasted(&txid)
+                .broadcasted(txid)
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Invalid state transition")?,

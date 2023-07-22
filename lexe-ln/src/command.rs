@@ -408,6 +408,7 @@ where
         .await
         .context("Error while creating outbound tx")?;
     let tx = onchain_send.tx.clone();
+    let id = onchain_send.id();
     let txid = onchain_send.txid;
 
     // Register the transaction.
@@ -424,7 +425,7 @@ where
 
     // Register the successful broadcast.
     payments_manager
-        .onchain_send_broadcasted(txid)
+        .onchain_send_broadcasted(&id, &txid)
         .await
         .context("Could not register broadcast of tx")?;
 
