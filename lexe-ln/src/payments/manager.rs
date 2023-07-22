@@ -605,31 +605,34 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // while we make multiple Esplora API calls. It's okay if a new onchain
         // tx is added before the lock is reacquired because the onchain confs
         // checker will update the new tx the next time its timer ticks.
-        let ids_pending_queries = {
+        let payment_ids_pending_queries = {
             let locked_data = self.data.lock().await;
 
-            // Construct a TxConfQuery for every pending onchain payment.
+            // Construct a `(LxPaymentId, TxConfQuery)` for every pending
+            // onchain payment.
             locked_data
                 .pending
                 .values()
                 .filter_map(|p| match p {
                     Payment::OnchainSend(os) =>
-                        Some((p.id(), os.to_tx_conf_query())),
+                        Some((os.id(), os.to_tx_conf_query())),
                     Payment::OnchainReceive(or) =>
-                        Some((p.id(), or.to_tx_conf_query())),
+                        Some((or.id(), or.to_tx_conf_query())),
                     _ => None,
                 })
                 .collect::<Vec<_>>()
         };
 
         // Determine the conf statuses of all our pending payments.
+        let pending_queries =
+            payment_ids_pending_queries.iter().map(|(_, q)| q);
         let tx_conf_statuses = esplora
-            .get_tx_conf_statuses(ids_pending_queries.iter().map(|(_, q)| q))
+            .get_tx_conf_statuses(pending_queries)
             .await
             .context("Error while computing conf statuses")?;
 
         // Check
-        let ids = ids_pending_queries.iter().map(|(id, _)| id);
+        let ids = payment_ids_pending_queries.iter().map(|(id, _)| id);
         let mut locked_data = self.data.lock().await;
         let all_checked = locked_data
             .check_onchain_confs(ids, tx_conf_statuses)
@@ -675,7 +678,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
                 .filter(|tx_details| tx_details.sent == 0)
                 // Filter out txs we already know about
                 .filter(|tx_details| {
-                    let id = LxPaymentId::from(tx_details.txid);
+                    let id = LxPaymentId::OnchainRecv(LxTxid(tx_details.txid));
                     !locked_data.pending.contains_key(&id)
                         && !locked_data.finalized.contains(&id)
                 })
