@@ -15,7 +15,7 @@ use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
 
-use crate::esplora::{TxConfQueryInfo, TxConfStatus};
+use crate::esplora::{TxConfQuery, TxConfStatus};
 
 /// The number of confirmations a tx needs to before we consider it final.
 const ONCHAIN_CONFIRMATION_THRESHOLD: u32 = 6;
@@ -195,8 +195,8 @@ impl OnchainSend {
         }
     }
 
-    pub fn to_query_info(&self) -> TxConfQueryInfo {
-        TxConfQueryInfo {
+    pub fn to_tx_conf_query(&self) -> TxConfQuery {
+        TxConfQuery {
             txid: self.txid,
             inputs: self
                 .tx
@@ -332,8 +332,8 @@ impl OnchainReceive {
         }
     }
 
-    pub fn to_query_info(&self) -> TxConfQueryInfo {
-        TxConfQueryInfo {
+    pub fn to_tx_conf_query(&self) -> TxConfQuery {
+        TxConfQuery {
             txid: self.txid,
             inputs: self
                 .tx
