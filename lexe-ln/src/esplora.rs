@@ -50,7 +50,7 @@ const ALL_CONF_TARGETS: [ConfirmationTarget; 3] = [
 
 /// The minimum information about a [`bitcoin::Transaction`] required to query
 /// Esplora for if the transaction has been confirmed or replaced.
-pub struct TxConfQueryInfo {
+pub struct TxConfQuery {
     pub txid: LxTxid,
     pub inputs: Vec<OutPoint>,
     pub created_at: SystemTime,
@@ -268,12 +268,12 @@ impl LexeEsplora {
             .inspect_err(|e| error!("Could not broadcast tx {txid}: {e:#}"))
     }
 
-    /// Returns the [`TxConfStatus`]es for a list of [`TxConfQueryInfo`]s.
+    /// Returns the [`TxConfStatus`]es for a list of [`TxConfQuery`]s.
     #[instrument(skip_all, name = "(get-tx-conf-statuses)")]
-    pub async fn get_tx_conf_statuses<'a>(
+    pub async fn get_tx_conf_statuses<'query>(
         &self,
-        query_infos: Vec<TxConfQueryInfo>,
-    ) -> anyhow::Result<Vec<(LxTxid, TxConfStatus)>> {
+        queries: impl Iterator<Item = &'query TxConfQuery>,
+    ) -> anyhow::Result<Vec<TxConfStatus>> {
         let now = SystemTime::now();
 
         // Get the block height of our best-known chain tip.
@@ -283,11 +283,10 @@ impl LexeEsplora {
             .await
             .context("Could not fetch block height")?;
 
-        // Concurrently get the tx conf status for all input `TxConfQueryInfo`s,
+        // Concurrently get the tx conf status for all input `TxConfQuery`s,
         // quitting early if any return an error.
-        let conf_status_futs = query_infos
-            .iter()
-            .map(|info| self.get_tx_conf_status(best_height, &now, info));
+        let conf_status_futs = queries
+            .map(|query| self.get_tx_conf_status(best_height, now, query));
         let conf_statuses = futures::future::try_join_all(conf_status_futs)
             .await
             .context("Error computing conf statuses")?;
@@ -296,17 +295,17 @@ impl LexeEsplora {
     }
 
     /// Given our best block height, determine the confirmation status for a
-    /// single [`TxConfQueryInfo`].
-    async fn get_tx_conf_status(
+    /// single [`TxConfQuery`].
+    async fn get_tx_conf_status<'query>(
         &self,
         best_height: u32,
-        now: &SystemTime,
-        info: &TxConfQueryInfo,
-    ) -> anyhow::Result<(LxTxid, TxConfStatus)> {
+        now: SystemTime,
+        query: &'query TxConfQuery,
+    ) -> anyhow::Result<TxConfStatus> {
         // Fetch the tx status.
         let tx_status = self
             .client
-            .get_tx_status(&info.txid.0)
+            .get_tx_status(&query.txid.0)
             .await
             .context("Could not fetch tx status")?
             // The extra Option<_> is an esplora_client bug; Esplora always
@@ -330,13 +329,13 @@ impl LexeEsplora {
             // Don't forget to count the including block!
             let confs = height_diff + 1;
 
-            return Ok((info.txid, TxConfStatus::InBestChain { confs }));
+            return Ok(TxConfStatus::InBestChain { confs });
         }
         // By now, we know that this tx is not in the best chain.
         // Let's see if any of its inputs have been spent by another tx.
 
         // Fetch the output status for every input.
-        let output_status_futs = info.inputs.iter().map(|outpoint| async {
+        let output_status_futs = query.inputs.iter().map(|outpoint| async {
             let output_status = self
                 .client
                 .get_output_status(&outpoint.txid, outpoint.vout.into())
@@ -370,20 +369,20 @@ impl LexeEsplora {
             .max_by_key(|(_txid, confs)| *confs);
         if let Some((rp_txid, confs)) = maybe_replacement {
             let conf_status = TxConfStatus::HasReplacement { rp_txid, confs };
-            return Ok((info.txid, conf_status));
+            return Ok(conf_status);
         }
 
         // By now, we know (1) the tx is not in the best chain and (2) there is
         // no confirmed replacement for it. Check if it has likely been dropped.
         let tx_age = now
-            .duration_since(info.created_at)
+            .duration_since(query.created_at)
             .unwrap_or(Duration::ZERO);
         if tx_age > BITCOIN_CORE_MEMPOOL_EXPIRY {
-            return Ok((info.txid, TxConfStatus::Dropped));
+            return Ok(TxConfStatus::Dropped);
         }
 
         // The tx is fresh, with no confs or replacements. It is simply 0-conf.
-        Ok((info.txid, TxConfStatus::ZeroConf))
+        Ok(TxConfStatus::ZeroConf)
     }
 }
 

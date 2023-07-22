@@ -609,16 +609,18 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         // while we make multiple Esplora API calls. It's okay if a new onchain
         // tx is added before the lock is reacquired because the onchain confs
         // checker will update the new tx the next time its timer ticks.
-        let pending_query_infos = {
+        let ids_pending_queries = {
             let locked_data = self.data.lock().await;
 
-            // Construct a TxConfQueryInfo for every pending onchain payment.
+            // Construct a TxConfQuery for every pending onchain payment.
             locked_data
                 .pending
                 .values()
                 .filter_map(|p| match p {
-                    Payment::OnchainSend(os) => Some(os.to_query_info()),
-                    Payment::OnchainReceive(or) => Some(or.to_query_info()),
+                    Payment::OnchainSend(os) =>
+                        Some((p.id(), os.to_tx_conf_query())),
+                    Payment::OnchainReceive(or) =>
+                        Some((p.id(), or.to_tx_conf_query())),
                     _ => None,
                 })
                 .collect::<Vec<_>>()
@@ -626,14 +628,15 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         // Determine the conf statuses of all our pending payments.
         let tx_conf_statuses = esplora
-            .get_tx_conf_statuses(pending_query_infos)
+            .get_tx_conf_statuses(ids_pending_queries.iter().map(|(_, q)| q))
             .await
             .context("Error while computing conf statuses")?;
 
         // Check
+        let ids = ids_pending_queries.iter().map(|(id, _)| id);
         let mut locked_data = self.data.lock().await;
         let all_checked = locked_data
-            .check_onchain_confs(tx_conf_statuses)
+            .check_onchain_confs(ids, tx_conf_statuses)
             .context("Invalid tx conf state transition")?;
 
         // Persist
@@ -954,19 +957,18 @@ impl PaymentsData {
         Ok((all_expired, oip_hashes))
     }
 
-    fn check_onchain_confs(
+    fn check_onchain_confs<'id>(
         &self,
-        conf_statuses: Vec<(LxTxid, TxConfStatus)>,
+        ids: impl Iterator<Item = &'id LxPaymentId>,
+        conf_statuses: Vec<TxConfStatus>,
     ) -> anyhow::Result<Vec<CheckedPayment>> {
-        conf_statuses
-            .into_iter()
-            // Fetch the pending onchain payment by its (tx)id and call
+        ids.zip(conf_statuses)
+            // Fetch the pending onchain payment by its id and call
             // `check_onchain_conf()` on it to validate the state transition.
-            .map(|(txid, conf_status)| {
-                let id = LxPaymentId::from(txid);
+            .map(|(id, conf_status)| {
                 let payment = self
                     .pending
-                    .get(&id)
+                    .get(id)
                     .context("Received conf status but payment was missing")?;
                 let maybe_checked = match payment {
                     Payment::OnchainSend(os) => os
