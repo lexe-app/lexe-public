@@ -5,7 +5,9 @@ use common::test_utils::arbitrary;
 use common::{
     api::command::SendOnchainRequest,
     ln::{
-        amount::Amount, hashes::LxTxid, payments::ClientPaymentId,
+        amount::Amount,
+        hashes::LxTxid,
+        payments::{ClientPaymentId, LxPaymentId},
         ConfirmationPriority,
     },
     time::TimestampMs,
@@ -99,6 +101,11 @@ impl OnchainSend {
             note: req.note,
             finalized_at: None,
         }
+    }
+
+    #[inline]
+    pub fn id(&self) -> LxPaymentId {
+        LxPaymentId::OnchainSend(self.cid)
     }
 
     pub fn broadcasted(
@@ -277,6 +284,11 @@ impl OnchainReceive {
             note: None,
             finalized_at: None,
         }
+    }
+
+    #[inline]
+    pub fn id(&self) -> LxPaymentId {
+        LxPaymentId::OnchainRecv(self.txid)
     }
 
     pub(crate) fn check_onchain_conf(

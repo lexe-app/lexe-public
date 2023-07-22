@@ -7,7 +7,9 @@ use common::{
     ln::{
         amount::Amount,
         invoice::LxInvoice,
-        payments::{LxPaymentHash, LxPaymentPreimage, LxPaymentSecret},
+        payments::{
+            LxPaymentHash, LxPaymentId, LxPaymentPreimage, LxPaymentSecret,
+        },
     },
     time::TimestampMs,
 };
@@ -200,6 +202,11 @@ impl InboundInvoicePayment {
         }
     }
 
+    #[inline]
+    pub fn id(&self) -> LxPaymentId {
+        LxPaymentId::Lightning(self.hash)
+    }
+
     fn check_payment_claimable(
         &self,
         hash: LxPaymentHash,
@@ -387,6 +394,11 @@ impl InboundSpontaneousPayment {
             created_at: TimestampMs::now(),
             finalized_at: None,
         }
+    }
+
+    #[inline]
+    pub fn id(&self) -> LxPaymentId {
+        LxPaymentId::Lightning(self.hash)
     }
 
     fn check_payment_claimable(
