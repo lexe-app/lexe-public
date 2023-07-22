@@ -255,7 +255,7 @@ where
         preimage.into(),
     );
     payments_manager
-        .new_payment(payment)
+        .new_payment(payment.into())
         .await
         .context("Could not register new payment")?;
 
@@ -345,7 +345,7 @@ where
     // Create and register the new payment, checking that it is unique.
     let payment = OutboundInvoicePayment::new(invoice, &route, req.note);
     payments_manager
-        .new_payment(payment)
+        .new_payment(payment.into())
         .await
         .context("Already tried to pay this invoice")?;
 
@@ -412,7 +412,7 @@ where
 
     // Register the transaction.
     payments_manager
-        .new_payment(onchain_send)
+        .new_payment(onchain_send.into())
         .await
         .context("Could not register new onchain send")?;
 

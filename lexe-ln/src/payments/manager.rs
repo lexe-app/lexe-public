@@ -249,11 +249,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     /// Register a new, globally-unique payment.
     /// Errors if the payment already exists.
     #[instrument(skip_all, name = "(new-payment)")]
-    pub async fn new_payment(
-        &self,
-        payment: impl Into<Payment>,
-    ) -> anyhow::Result<()> {
-        let payment = payment.into();
+    pub async fn new_payment(&self, payment: Payment) -> anyhow::Result<()> {
         let id = payment.id();
         info!(%id, "Registering new payment");
         let mut locked_data = self.data.lock().await;
@@ -711,8 +707,9 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
             .await
             .context("Error constructing new `OnchainReceive`s")?;
 
-        let register_futs =
-            onchain_recvs.into_iter().map(|or| self.new_payment(or));
+        let register_futs = onchain_recvs
+            .into_iter()
+            .map(|or| self.new_payment(or.into()));
 
         for res in futures::future::join_all(register_futs).await {
             res.context("Failed to register new onchain receive")?;
