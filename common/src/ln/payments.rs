@@ -345,22 +345,17 @@ impl fmt::Debug for LxPaymentSecret {
 
 // --- Newtype From impls --- //
 
-// LxPaymentId <- ClientPaymentId / Txid / LxPaymentHash
-impl From<ClientPaymentId> for LxPaymentId {
-    fn from(client_id: ClientPaymentId) -> Self {
-        Self::OnchainSend(client_id)
-    }
-}
-impl From<LxTxid> for LxPaymentId {
-    fn from(txid: LxTxid) -> Self {
-        Self::OnchainRecv(txid)
-    }
-}
-impl From<bitcoin::Txid> for LxPaymentId {
-    fn from(txid: bitcoin::Txid) -> Self {
-        Self::OnchainRecv(LxTxid(txid))
-    }
-}
+// NOTE(phlip9): previously we had conversions for:
+//      ClientPaymentId -> LxPaymentId::OnchainSend
+//               LxTxid -> LxPaymentId::OnchainRecv
+//
+// but this ended up causing some bugs after refactoring:
+//  OnchainSend(LxTxid) -> OnchainSend(ClientPaymentId)
+//
+// on that note... <eyes emoji>
+// ...we should probably reevalute this conversion, since OutboundSpontaneous
+// will probably need a separate idempotency id.
+
 impl From<LxPaymentHash> for LxPaymentId {
     fn from(hash: LxPaymentHash) -> Self {
         Self::Lightning(hash)
@@ -373,7 +368,7 @@ impl TryFrom<LxPaymentId> for ClientPaymentId {
     fn try_from(id: LxPaymentId) -> anyhow::Result<Self> {
         use LxPaymentId::*;
         match id {
-            OnchainSend(client_id) => Ok(client_id),
+            OnchainSend(cid) => Ok(cid),
             OnchainRecv(_) | Lightning(_) => bail!("Not an onchain send"),
         }
     }
