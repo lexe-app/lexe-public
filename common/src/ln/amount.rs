@@ -96,16 +96,19 @@ impl Amount {
     // --- Constructors --- //
 
     /// Construct an [`Amount`] from a millisatoshi [`u64`] value.
+    #[inline]
     pub fn from_msat(msats: u64) -> Self {
         Self(Decimal::from(msats) / dec!(1000))
     }
 
     /// Construct an [`Amount`] from a satoshi [`u32`] value.
+    #[inline]
     pub fn from_sats_u32(sats_u32: u32) -> Self {
         Self::from_msat(u64::from(sats_u32) * 1000)
     }
 
     /// Construct an [`Amount`] from a satoshi [`u64`] value.
+    #[inline]
     pub fn try_from_sats_u64(sats_u64: u64) -> Result<Self, Error> {
         Self::try_from_satoshis(Decimal::from(sats_u64))
     }
@@ -118,6 +121,7 @@ impl Amount {
     }
 
     /// Construct an [`Amount`] from a BTC [`Decimal`] value.
+    #[inline]
     pub fn try_from_btc(btc: Decimal) -> Result<Self, Error> {
         Self::try_from_inner(btc * dec!(100_000_000))
     }
@@ -126,6 +130,7 @@ impl Amount {
     // We *could* add bits() and millibits() here, but do we really need to?
 
     /// Returns the [`Amount`] as a [`u64`] millisatoshi value.
+    #[inline]
     pub fn msat(&self) -> u64 {
         (self.0 * dec!(1000))
             .to_u64()
@@ -133,17 +138,20 @@ impl Amount {
     }
 
     /// Returns the [`Amount`] as a [`u64`] satoshi value.
+    #[inline]
     pub fn sats_u64(&self) -> u64 {
         self.satoshis().to_u64().expect("Msats fits => sats fits")
     }
 
     /// Returns the [`Amount`] as a [`Decimal`] satoshi value.
     // "satoshis" instead of "sat" to have a greater string distance from "msat"
+    #[inline]
     pub fn satoshis(&self) -> Decimal {
         self.0
     }
 
     /// Returns the [`Amount`] as a [`Decimal`] BTC value.
+    #[inline]
     pub fn btc(&self) -> Decimal {
         self.0 / dec!(100_000_000)
     }
@@ -200,6 +208,7 @@ impl<'de> Deserialize<'de> for Amount {
 }
 
 impl Display for Amount {
+    #[inline]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Delegate to Decimal's Display impl which respects `std::fmt` syntax.
         Decimal::fmt(&self.0, f)
@@ -211,6 +220,7 @@ impl Display for Amount {
 // their type is infallible, while a conversion *from* their type is not.
 
 impl From<Amount> for bitcoin::Amount {
+    #[inline]
     fn from(amt: Amount) -> Self {
         Self::from_sat(amt.satoshis().to_u64().expect("safe by construction"))
     }
@@ -218,6 +228,7 @@ impl From<Amount> for bitcoin::Amount {
 
 impl TryFrom<bitcoin::Amount> for Amount {
     type Error = Error;
+    #[inline]
     fn try_from(amt: bitcoin::Amount) -> Result<Self, Self::Error> {
         Self::try_from_satoshis(Decimal::from(amt.to_sat()))
     }
