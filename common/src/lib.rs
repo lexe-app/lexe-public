@@ -40,6 +40,8 @@ pub mod constants;
 pub mod ed25519;
 /// SGX types.
 pub mod enclave;
+/// `DeployEnv`.
+pub mod env;
 /// Hex utils
 pub mod hex;
 /// serde_with helper for bytes types.
