@@ -203,6 +203,28 @@ impl FromStr for DeployEnv {
     }
 }
 
+impl From<common::env::DeployEnv> for DeployEnv {
+    fn from(env: common::env::DeployEnv) -> Self {
+        use common::env::DeployEnv::*;
+        match env {
+            Dev => Self::Dev,
+            Staging => Self::Staging,
+            Prod => Self::Prod,
+        }
+    }
+}
+
+impl From<DeployEnv> for common::env::DeployEnv {
+    fn from(env: DeployEnv) -> Self {
+        use DeployEnv::*;
+        match env {
+            Dev => Self::Dev,
+            Staging => Self::Staging,
+            Prod => Self::Prod,
+        }
+    }
+}
+
 // TODO(phlip9): ffs dart doesn't allow methods on plain enums... if FRB always
 // gen'd "enhanced" enums, then I could use an associated fn.
 //
