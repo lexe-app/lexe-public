@@ -6,9 +6,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart' show Encode, EncodeParams, zx;
-import 'package:lexeapp/logger.dart' show error;
 
 import '../../components.dart' show LxCloseButton;
+import '../../logger.dart' show error;
 import '../../style.dart' show LxColors, Space;
 
 class QrImage extends StatefulWidget {
