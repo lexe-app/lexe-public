@@ -23,7 +23,8 @@ use crate::{
             UserSignupRequest,
         },
         command::{
-            CreateInvoiceRequest, NodeInfo, PayInvoiceRequest,
+            CreateInvoiceRequest, EstimateFeeSendOnchainRequest,
+            EstimateFeeSendOnchainResponse, NodeInfo, PayInvoiceRequest,
             SendOnchainRequest,
         },
         def::{
@@ -358,6 +359,17 @@ impl AppNodeRunApi for NodeClient {
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/send_onchain");
         let req = self.rest.post(url, &req);
+        self.rest.send(req).await
+    }
+
+    async fn estimate_fee_send_onchain(
+        &self,
+        req: EstimateFeeSendOnchainRequest,
+    ) -> Result<EstimateFeeSendOnchainResponse, NodeApiError> {
+        self.ensure_authed().await?;
+        let run_url = &self.run_url;
+        let url = format!("{run_url}/app/estimate_fee_send_onchain");
+        let req = self.rest.get(url, &req);
         self.rest.send(req).await
     }
 
