@@ -56,7 +56,10 @@ pub use common::ln::payments::BasicPayment;
 use common::{
     api::{
         command::{
-            NodeInfo as NodeInfoRs, SendOnchainRequest as SendOnchainRequestRs,
+            EstimateFeeSendOnchainRequest as EstimateFeeSendOnchainRequestRs,
+            EstimateFeeSendOnchainResponse as EstimateFeeSendOnchainResponseRs,
+            FeeEstimate as FeeEstimateRs, NodeInfo as NodeInfoRs,
+            SendOnchainRequest as SendOnchainRequestRs,
         },
         def::{AppGatewayApi, AppNodeRunApi},
         fiat_rates::FiatRates as FiatRatesRs,
@@ -442,14 +445,62 @@ impl TryFrom<SendOnchainRequest> for SendOnchainRequestRs {
     fn try_from(req: SendOnchainRequest) -> anyhow::Result<Self> {
         let address = bitcoin::Address::from_str(&req.address)
             .map_err(|_| anyhow!("The bitcoin address isn't valid."))?;
+        let amount = Amount::try_from_sats_u64(req.amount_sats)?;
 
         Ok(Self {
             cid: req.cid.into(),
             address,
-            amount: Amount::try_from_sats_u64(req.amount_sats)?,
+            amount,
             priority: req.priority.into(),
             note: req.note.map(validate_note).transpose()?,
         })
+    }
+}
+
+pub struct EstimateFeeSendOnchainRequest {
+    pub address: String,
+    pub amount_sats: u64,
+}
+
+impl TryFrom<EstimateFeeSendOnchainRequest>
+    for EstimateFeeSendOnchainRequestRs
+{
+    type Error = anyhow::Error;
+
+    fn try_from(req: EstimateFeeSendOnchainRequest) -> anyhow::Result<Self> {
+        let address = bitcoin::Address::from_str(&req.address)
+            .map_err(|_| anyhow!("The bitcoin address isn't valid."))?;
+        let amount = Amount::try_from_sats_u64(req.amount_sats)?;
+
+        Ok(Self { address, amount })
+    }
+}
+
+pub struct EstimateFeeSendOnchainResponse {
+    pub high: FeeEstimate,
+    pub normal: FeeEstimate,
+    pub background: FeeEstimate,
+}
+
+impl From<EstimateFeeSendOnchainResponseRs> for EstimateFeeSendOnchainResponse {
+    fn from(resp: EstimateFeeSendOnchainResponseRs) -> Self {
+        Self {
+            high: FeeEstimate::from(resp.high),
+            normal: FeeEstimate::from(resp.normal),
+            background: FeeEstimate::from(resp.background),
+        }
+    }
+}
+
+pub struct FeeEstimate {
+    pub amount_sats: u64,
+}
+
+impl From<FeeEstimateRs> for FeeEstimate {
+    fn from(value: FeeEstimateRs) -> Self {
+        Self {
+            amount_sats: value.amount.sats_u64(),
+        }
     }
 }
 
@@ -541,6 +592,16 @@ impl AppHandle {
         let req = SendOnchainRequestRs::try_from(req)?;
         block_on(self.inner.node_client().send_onchain(req))
             .map(|_txid| ())
+            .map_err(anyhow::Error::new)
+    }
+
+    pub fn estimate_fee_send_onchain(
+        &self,
+        req: EstimateFeeSendOnchainRequest,
+    ) -> anyhow::Result<EstimateFeeSendOnchainResponse> {
+        let req = EstimateFeeSendOnchainRequestRs::try_from(req)?;
+        block_on(self.inner.node_client().estimate_fee_send_onchain(req))
+            .map(EstimateFeeSendOnchainResponse::from)
             .map_err(anyhow::Error::new)
     }
 

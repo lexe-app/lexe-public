@@ -203,6 +203,26 @@ fn wire_send_onchain__method__AppHandle_impl(
         },
     )
 }
+fn wire_estimate_fee_send_onchain__method__AppHandle_impl(
+    port_: MessagePort,
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+    req: impl Wire2Api<EstimateFeeSendOnchainRequest> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
+        WrapInfo {
+            debug_name: "estimate_fee_send_onchain__method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_that = that.wire2api();
+            let api_req = req.wire2api();
+            move |task_callback| {
+                AppHandle::estimate_fee_send_onchain(&api_that, api_req)
+            }
+        },
+    )
+}
 fn wire_get_address__method__AppHandle_impl(
     port_: MessagePort,
     that: impl Wire2Api<AppHandle> + UnwindSafe,
@@ -393,6 +413,7 @@ impl Wire2Api<DeployEnv> for i32 {
         }
     }
 }
+
 impl Wire2Api<i32> for i32 {
     fn wire2api(self) -> i32 {
         self
@@ -452,6 +473,24 @@ impl support::IntoDart for DeployEnv {
     }
 }
 impl support::IntoDartExceptPrimitive for DeployEnv {}
+impl support::IntoDart for EstimateFeeSendOnchainResponse {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.high.into_dart(),
+            self.normal.into_dart(),
+            self.background.into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for EstimateFeeSendOnchainResponse {}
+
+impl support::IntoDart for FeeEstimate {
+    fn into_dart(self) -> support::DartAbi {
+        vec![self.amount_sats.into_dart()].into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for FeeEstimate {}
 
 impl support::IntoDart for FiatRate {
     fn into_dart(self) -> support::DartAbi {
@@ -632,6 +671,15 @@ mod io {
     }
 
     #[no_mangle]
+    pub extern "C" fn wire_estimate_fee_send_onchain__method__AppHandle(
+        port_: i64,
+        that: *mut wire_AppHandle,
+        req: *mut wire_EstimateFeeSendOnchainRequest,
+    ) {
+        wire_estimate_fee_send_onchain__method__AppHandle_impl(port_, that, req)
+    }
+
+    #[no_mangle]
     pub extern "C" fn wire_get_address__method__AppHandle(
         port_: i64,
         that: *mut wire_AppHandle,
@@ -714,6 +762,14 @@ mod io {
     }
 
     #[no_mangle]
+    pub extern "C" fn new_box_autoadd_estimate_fee_send_onchain_request_0(
+    ) -> *mut wire_EstimateFeeSendOnchainRequest {
+        support::new_leak_box_ptr(
+            wire_EstimateFeeSendOnchainRequest::new_with_null_ptr(),
+        )
+    }
+
+    #[no_mangle]
     pub extern "C" fn new_box_autoadd_send_onchain_request_0(
     ) -> *mut wire_SendOnchainRequest {
         support::new_leak_box_ptr(wire_SendOnchainRequest::new_with_null_ptr())
@@ -778,6 +834,14 @@ mod io {
             Wire2Api::<Config>::wire2api(*wrap).into()
         }
     }
+    impl Wire2Api<EstimateFeeSendOnchainRequest>
+        for *mut wire_EstimateFeeSendOnchainRequest
+    {
+        fn wire2api(self) -> EstimateFeeSendOnchainRequest {
+            let wrap = unsafe { support::box_from_leak_ptr(self) };
+            Wire2Api::<EstimateFeeSendOnchainRequest>::wire2api(*wrap).into()
+        }
+    }
     impl Wire2Api<SendOnchainRequest> for *mut wire_SendOnchainRequest {
         fn wire2api(self) -> SendOnchainRequest {
             let wrap = unsafe { support::box_from_leak_ptr(self) };
@@ -800,6 +864,17 @@ mod io {
                 use_sgx: self.use_sgx.wire2api(),
                 base_app_data_dir: self.base_app_data_dir.wire2api(),
                 use_mock_secret_store: self.use_mock_secret_store.wire2api(),
+            }
+        }
+    }
+
+    impl Wire2Api<EstimateFeeSendOnchainRequest>
+        for wire_EstimateFeeSendOnchainRequest
+    {
+        fn wire2api(self) -> EstimateFeeSendOnchainRequest {
+            EstimateFeeSendOnchainRequest {
+                address: self.address.wire2api(),
+                amount_sats: self.amount_sats.wire2api(),
             }
         }
     }
@@ -860,6 +935,13 @@ mod io {
         use_sgx: bool,
         base_app_data_dir: *mut wire_uint_8_list,
         use_mock_secret_store: bool,
+    }
+
+    #[repr(C)]
+    #[derive(Clone)]
+    pub struct wire_EstimateFeeSendOnchainRequest {
+        address: *mut wire_uint_8_list,
+        amount_sats: u64,
     }
 
     #[repr(C)]
@@ -941,6 +1023,21 @@ mod io {
     }
 
     impl Default for wire_Config {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+
+    impl NewWithNullPtr for wire_EstimateFeeSendOnchainRequest {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                address: core::ptr::null_mut(),
+                amount_sats: Default::default(),
+            }
+        }
+    }
+
+    impl Default for wire_EstimateFeeSendOnchainRequest {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }

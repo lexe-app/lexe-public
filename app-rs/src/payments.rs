@@ -925,7 +925,7 @@ mod test {
             &self,
             _req: EstimateFeeSendOnchainRequest,
         ) -> Result<EstimateFeeSendOnchainResponse, NodeApiError> {
-            todo!()
+            unimplemented!();
         }
         async fn get_address(&self) -> Result<Address, NodeApiError> {
             unimplemented!()
