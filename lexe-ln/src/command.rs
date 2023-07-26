@@ -9,7 +9,8 @@ use bitcoin_hashes::{sha256, Hash};
 use common::{
     api::{
         command::{
-            CreateInvoiceRequest, NodeInfo, PayInvoiceRequest,
+            CreateInvoiceRequest, EstimateFeeSendOnchainRequest,
+            EstimateFeeSendOnchainResponse, NodeInfo, PayInvoiceRequest,
             SendOnchainRequest,
         },
         NodePk, Scid,
@@ -438,6 +439,14 @@ where
     // txid collision for some reason (e.g. duplicate requests)
 
     Ok(txid)
+}
+
+#[instrument(skip_all, name = "(estimate-fee-send-onchain)")]
+pub async fn estimate_fee_send_onchain(
+    req: EstimateFeeSendOnchainRequest,
+    wallet: LexeWallet,
+) -> anyhow::Result<EstimateFeeSendOnchainResponse> {
+    wallet.estimate_fee_send_onchain(req).await
 }
 
 #[instrument(skip_all, name = "(get-address)")]

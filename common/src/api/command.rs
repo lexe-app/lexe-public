@@ -67,6 +67,30 @@ pub struct SendOnchainRequest {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct EstimateFeeSendOnchainRequest {
+    /// The address we want to send funds to.
+    pub address: Address,
+    /// How much Bitcoin we want to send.
+    pub amount: Amount,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct EstimateFeeSendOnchainResponse {
+    /// Corresponds with [`ConfirmationPriority::High`]
+    pub high: FeeEstimate,
+    /// Corresponds with [`ConfirmationPriority::Normal`]
+    pub normal: FeeEstimate,
+    /// Corresponds with [`ConfirmationPriority::Background`]
+    pub background: FeeEstimate,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct FeeEstimate {
+    /// The fee amount estimate.
+    pub amount: Amount,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct CloseChannelRequest {
     /// The id of the channel we want to close.
     pub channel_id: ChannelId,
