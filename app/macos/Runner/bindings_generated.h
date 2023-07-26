@@ -52,6 +52,11 @@ typedef struct wire_SendOnchainRequest {
   struct wire_uint_8_list *note;
 } wire_SendOnchainRequest;
 
+typedef struct wire_EstimateFeeSendOnchainRequest {
+  struct wire_uint_8_list *address;
+  uint64_t amount_sats;
+} wire_EstimateFeeSendOnchainRequest;
+
 void store_dart_post_cobject(DartPostCObjectFnType ptr);
 
 Dart_Handle get_dart_object(uintptr_t ptr);
@@ -89,6 +94,10 @@ void wire_send_onchain__method__AppHandle(int64_t port_,
                                           struct wire_AppHandle *that,
                                           struct wire_SendOnchainRequest *req);
 
+void wire_estimate_fee_send_onchain__method__AppHandle(int64_t port_,
+                                                       struct wire_AppHandle *that,
+                                                       struct wire_EstimateFeeSendOnchainRequest *req);
+
 void wire_get_address__method__AppHandle(int64_t port_, struct wire_AppHandle *that);
 
 void wire_sync_payments__method__AppHandle(int64_t port_, struct wire_AppHandle *that);
@@ -114,6 +123,8 @@ struct wire_AppHandle *new_box_autoadd_app_handle_0(void);
 
 struct wire_Config *new_box_autoadd_config_0(void);
 
+struct wire_EstimateFeeSendOnchainRequest *new_box_autoadd_estimate_fee_send_onchain_request_0(void);
+
 struct wire_SendOnchainRequest *new_box_autoadd_send_onchain_request_0(void);
 
 struct wire_uint_8_list *new_uint_8_list_0(int32_t len);
@@ -137,6 +148,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_node_info__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_fiat_rates__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_send_onchain__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_estimate_fee_send_onchain__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_address__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_sync_payments__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_payment_by_scroll_idx__method__AppHandle);
@@ -148,6 +160,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) new_App);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_app_handle_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_config_0);
+    dummy_var ^= ((int64_t) (void*) new_box_autoadd_estimate_fee_send_onchain_request_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_send_onchain_request_0);
     dummy_var ^= ((int64_t) (void*) new_uint_8_list_0);
     dummy_var ^= ((int64_t) (void*) drop_opaque_App);

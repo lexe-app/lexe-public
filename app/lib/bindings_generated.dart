@@ -232,6 +232,30 @@ class AppRsImpl implements AppRs {
         argNames: ["that", "req"],
       );
 
+  Future<EstimateFeeSendOnchainResponse> estimateFeeSendOnchainMethodAppHandle(
+      {required AppHandle that,
+      required EstimateFeeSendOnchainRequest req,
+      dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    var arg1 =
+        _platform.api2wire_box_autoadd_estimate_fee_send_onchain_request(req);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner
+          .wire_estimate_fee_send_onchain__method__AppHandle(port_, arg0, arg1),
+      parseSuccessData: _wire2api_estimate_fee_send_onchain_response,
+      constMeta: kEstimateFeeSendOnchainMethodAppHandleConstMeta,
+      argValues: [that, req],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta
+      get kEstimateFeeSendOnchainMethodAppHandleConstMeta =>
+          const FlutterRustBridgeTaskConstMeta(
+            debugName: "estimate_fee_send_onchain__method__AppHandle",
+            argNames: ["that", "req"],
+          );
+
   Future<String> getAddressMethodAppHandle(
       {required AppHandle that, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
@@ -449,8 +473,29 @@ class AppRsImpl implements AppRs {
     return DeployEnv.values[raw as int];
   }
 
+  EstimateFeeSendOnchainResponse _wire2api_estimate_fee_send_onchain_response(
+      dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return EstimateFeeSendOnchainResponse(
+      high: _wire2api_fee_estimate(arr[0]),
+      normal: _wire2api_fee_estimate(arr[1]),
+      background: _wire2api_fee_estimate(arr[2]),
+    );
+  }
+
   double _wire2api_f64(dynamic raw) {
     return raw as double;
+  }
+
+  FeeEstimate _wire2api_fee_estimate(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return FeeEstimate(
+      amountSats: _wire2api_u64(arr[0]),
+    );
   }
 
   FiatRate _wire2api_fiat_rate(dynamic raw) {
@@ -637,6 +682,15 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   }
 
   @protected
+  ffi.Pointer<wire_EstimateFeeSendOnchainRequest>
+      api2wire_box_autoadd_estimate_fee_send_onchain_request(
+          EstimateFeeSendOnchainRequest raw) {
+    final ptr = inner.new_box_autoadd_estimate_fee_send_onchain_request_0();
+    _api_fill_to_wire_estimate_fee_send_onchain_request(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
   ffi.Pointer<wire_SendOnchainRequest>
       api2wire_box_autoadd_send_onchain_request(SendOnchainRequest raw) {
     final ptr = inner.new_box_autoadd_send_onchain_request_0();
@@ -693,6 +747,12 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     _api_fill_to_wire_config(apiObj, wireObj.ref);
   }
 
+  void _api_fill_to_wire_box_autoadd_estimate_fee_send_onchain_request(
+      EstimateFeeSendOnchainRequest apiObj,
+      ffi.Pointer<wire_EstimateFeeSendOnchainRequest> wireObj) {
+    _api_fill_to_wire_estimate_fee_send_onchain_request(apiObj, wireObj.ref);
+  }
+
   void _api_fill_to_wire_box_autoadd_send_onchain_request(
       SendOnchainRequest apiObj, ffi.Pointer<wire_SendOnchainRequest> wireObj) {
     _api_fill_to_wire_send_onchain_request(apiObj, wireObj.ref);
@@ -710,6 +770,13 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     wireObj.use_sgx = api2wire_bool(apiObj.useSgx);
     wireObj.base_app_data_dir = api2wire_String(apiObj.baseAppDataDir);
     wireObj.use_mock_secret_store = api2wire_bool(apiObj.useMockSecretStore);
+  }
+
+  void _api_fill_to_wire_estimate_fee_send_onchain_request(
+      EstimateFeeSendOnchainRequest apiObj,
+      wire_EstimateFeeSendOnchainRequest wireObj) {
+    wireObj.address = api2wire_String(apiObj.address);
+    wireObj.amount_sats = api2wire_u64(apiObj.amountSats);
   }
 
   void _api_fill_to_wire_send_onchain_request(
@@ -1009,6 +1076,28 @@ class AppRsWire implements FlutterRustBridgeWireBase {
           void Function(int, ffi.Pointer<wire_AppHandle>,
               ffi.Pointer<wire_SendOnchainRequest>)>();
 
+  void wire_estimate_fee_send_onchain__method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_AppHandle> that,
+    ffi.Pointer<wire_EstimateFeeSendOnchainRequest> req,
+  ) {
+    return _wire_estimate_fee_send_onchain__method__AppHandle(
+      port_,
+      that,
+      req,
+    );
+  }
+
+  late final _wire_estimate_fee_send_onchain__method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>,
+                  ffi.Pointer<wire_EstimateFeeSendOnchainRequest>)>>(
+      'wire_estimate_fee_send_onchain__method__AppHandle');
+  late final _wire_estimate_fee_send_onchain__method__AppHandle =
+      _wire_estimate_fee_send_onchain__method__AppHandlePtr.asFunction<
+          void Function(int, ffi.Pointer<wire_AppHandle>,
+              ffi.Pointer<wire_EstimateFeeSendOnchainRequest>)>();
+
   void wire_get_address__method__AppHandle(
     int port_,
     ffi.Pointer<wire_AppHandle> that,
@@ -1181,6 +1270,19 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _new_box_autoadd_config_0 = _new_box_autoadd_config_0Ptr
       .asFunction<ffi.Pointer<wire_Config> Function()>();
 
+  ffi.Pointer<wire_EstimateFeeSendOnchainRequest>
+      new_box_autoadd_estimate_fee_send_onchain_request_0() {
+    return _new_box_autoadd_estimate_fee_send_onchain_request_0();
+  }
+
+  late final _new_box_autoadd_estimate_fee_send_onchain_request_0Ptr = _lookup<
+          ffi.NativeFunction<
+              ffi.Pointer<wire_EstimateFeeSendOnchainRequest> Function()>>(
+      'new_box_autoadd_estimate_fee_send_onchain_request_0');
+  late final _new_box_autoadd_estimate_fee_send_onchain_request_0 =
+      _new_box_autoadd_estimate_fee_send_onchain_request_0Ptr.asFunction<
+          ffi.Pointer<wire_EstimateFeeSendOnchainRequest> Function()>();
+
   ffi.Pointer<wire_SendOnchainRequest>
       new_box_autoadd_send_onchain_request_0() {
     return _new_box_autoadd_send_onchain_request_0();
@@ -1303,6 +1405,13 @@ final class wire_SendOnchainRequest extends ffi.Struct {
   external int priority;
 
   external ffi.Pointer<wire_uint_8_list> note;
+}
+
+final class wire_EstimateFeeSendOnchainRequest extends ffi.Struct {
+  external ffi.Pointer<wire_uint_8_list> address;
+
+  @ffi.Uint64()
+  external int amount_sats;
 }
 
 typedef DartPostCObjectFnType = ffi.Pointer<

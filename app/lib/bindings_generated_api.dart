@@ -91,6 +91,14 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kSendOnchainMethodAppHandleConstMeta;
 
+  Future<EstimateFeeSendOnchainResponse> estimateFeeSendOnchainMethodAppHandle(
+      {required AppHandle that,
+      required EstimateFeeSendOnchainRequest req,
+      dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta
+      get kEstimateFeeSendOnchainMethodAppHandleConstMeta;
+
   Future<String> getAddressMethodAppHandle(
       {required AppHandle that, dynamic hint});
 
@@ -199,6 +207,13 @@ class AppHandle {
         req: req,
       );
 
+  Future<EstimateFeeSendOnchainResponse> estimateFeeSendOnchain(
+          {required EstimateFeeSendOnchainRequest req, dynamic hint}) =>
+      bridge.estimateFeeSendOnchainMethodAppHandle(
+        that: this,
+        req: req,
+      );
+
   Future<String> getAddress({dynamic hint}) => bridge.getAddressMethodAppHandle(
         that: this,
       );
@@ -279,6 +294,36 @@ enum DeployEnv {
   Prod,
   Staging,
   Dev,
+}
+
+class EstimateFeeSendOnchainRequest {
+  final String address;
+  final int amountSats;
+
+  const EstimateFeeSendOnchainRequest({
+    required this.address,
+    required this.amountSats,
+  });
+}
+
+class EstimateFeeSendOnchainResponse {
+  final FeeEstimate high;
+  final FeeEstimate normal;
+  final FeeEstimate background;
+
+  const EstimateFeeSendOnchainResponse({
+    required this.high,
+    required this.normal,
+    required this.background,
+  });
+}
+
+class FeeEstimate {
+  final int amountSats;
+
+  const FeeEstimate({
+    required this.amountSats,
+  });
 }
 
 @freezed
