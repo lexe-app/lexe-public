@@ -306,12 +306,13 @@ class MockAppHandle extends AppHandle {
   Future<EstimateFeeSendOnchainResponse> estimateFeeSendOnchain(
           {required EstimateFeeSendOnchainRequest req, dynamic hint}) =>
       Future.delayed(
-          const Duration(seconds: 1),
-          () => const EstimateFeeSendOnchainResponse(
-                high: FeeEstimate(amountSats: 849),
-                normal: FeeEstimate(amountSats: 722),
-                background: FeeEstimate(amountSats: 563),
-              ));
+        const Duration(seconds: 1),
+        () => const EstimateFeeSendOnchainResponse(
+          high: FeeEstimate(amountSats: 849),
+          normal: FeeEstimate(amountSats: 722),
+          background: FeeEstimate(amountSats: 563),
+        ),
+      );
 
   @override
   Future<String> getAddress({dynamic hint}) =>
