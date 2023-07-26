@@ -22,8 +22,8 @@ import '../../bindings_generated_api.dart'
         AppHandle,
         ClientPaymentId,
         ConfirmationPriority,
+        EstimateFeeSendOnchainRequest,
         EstimateFeeSendOnchainResponse,
-        FeeEstimate,
         Network,
         SendOnchainRequest;
 import '../../currency_format.dart' as currency_format;
@@ -338,17 +338,24 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   final IntInputFormatter intInputFormatter = IntInputFormatter();
 
   final ValueNotifier<bool> sendFullBalanceEnabled = ValueNotifier(false);
+  final ValueNotifier<String?> estimateFeeError = ValueNotifier(null);
+  final ValueNotifier<bool> estimatingFee = ValueNotifier(false);
 
   @override
   void dispose() {
+    estimatingFee.dispose();
+    estimateFeeError.dispose();
     sendFullBalanceEnabled.dispose();
 
     super.dispose();
   }
 
   Future<void> onNext() async {
-    final SendAmount sendAmount;
+    // Hide error message.
+    this.estimateFeeError.value = null;
 
+    // Validate the amount field.
+    final SendAmount sendAmount;
     if (sendFullBalanceEnabled.value) {
       sendAmount = const SendAmountAll();
     } else {
@@ -366,14 +373,42 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
       sendAmount = SendAmountExact(amountSats);
     }
 
-    // TODO(phlip9): fetch fees
-    const feeEstimates = EstimateFeeSendOnchainResponse(
-      high: FeeEstimate(amountSats: 849),
-      normal: FeeEstimate(amountSats: 722),
-      background: FeeEstimate(amountSats: 563),
-    );
+    final amountSats = switch (sendAmount) {
+      SendAmountAll() =>
+        throw UnimplementedError("Send full balance not supported yet"),
+      SendAmountExact(:final amountSats) => amountSats,
+    };
+
+    // Only start the loading animation once the initial amount validation is
+    // done.
+    this.estimatingFee.value = true;
+
+    // Fetch the fee estimates for this potential onchain send.
+    final req = EstimateFeeSendOnchainRequest(
+        address: this.widget.address, amountSats: amountSats);
+    final result = await Result.tryFfiAsync(
+        () async => this.widget.sendCtx.app.estimateFeeSendOnchain(req: req));
+
+    if (!this.mounted) return;
+
+    // Reset loading animation.
+    this.estimatingFee.value = false;
+
+    final EstimateFeeSendOnchainResponse feeEstimates;
+    switch (result) {
+      case Ok(:final ok):
+        feeEstimates = ok;
+        this.estimateFeeError.value = null;
+      case Err(:final err):
+        error("Error fetching fee estimates: ${err.message}");
+        this.estimateFeeError.value = err.message;
+        return;
+    }
+
+    // Everything looks good so far -- navigate to the confirmation page.
 
     final bool? flowResult =
+        // ignore: use_build_context_synchronously
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SendPaymentConfirmPage(
         sendCtx: this.widget.sendCtx,
@@ -485,12 +520,17 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
               letterSpacing: -0.5,
             ),
           ),
-          const SizedBox(height: Space.s800),
+
+          const SizedBox(height: Space.s700),
         ],
         bottom: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.end,
+          verticalDirection: VerticalDirection.down,
           children: [
-            // Send full balance
+            const Expanded(child: SizedBox(height: Space.s500)),
+
+            // Send full balance switch
             ValueListenableBuilder(
               valueListenable: this.sendFullBalanceEnabled,
               builder: (context, isEnabled, _) => SwitchListTile(
@@ -515,10 +555,29 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
                 controlAffinity: ListTileControlAffinity.trailing,
               ),
             ),
-            const SizedBox(height: Space.s500),
+
+            // Error fetching fee estimate
+            ValueListenableBuilder(
+              valueListenable: this.estimateFeeError,
+              builder: (context, errorMessage, widget) => ErrorMessageSection(
+                title: "Error fetching fee estimate",
+                message: errorMessage,
+              ),
+            ),
 
             // Next ->
-            NextButton(onTap: this.onNext),
+            ValueListenableBuilder(
+              valueListenable: this.estimatingFee,
+              builder: (context, estimatingFee, widget) => Padding(
+                padding: const EdgeInsets.only(top: Space.s500),
+                child: AnimatedFillButton(
+                  label: const Text("Next"),
+                  icon: const Icon(Icons.arrow_forward_rounded),
+                  onTap: this.onNext,
+                  loading: estimatingFee,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -768,7 +827,10 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             valueListenable: this.sendError,
             builder: (context, sendError, widget) => Padding(
               padding: const EdgeInsets.symmetric(vertical: Space.s300),
-              child: ErrorMessageSection(message: sendError),
+              child: ErrorMessageSection(
+                title: "Error sending payment",
+                message: sendError,
+              ),
             ),
           ),
         ],
@@ -783,8 +845,16 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             // request.
             ValueListenableBuilder(
               valueListenable: this.isSending,
-              builder: (context, isSending, widget) =>
-                  SendButton(onTap: this.onSend, loading: isSending),
+              builder: (context, isSending, widget) => AnimatedFillButton(
+                label: const Text("Send"),
+                icon: const Icon(Icons.arrow_forward_rounded),
+                onTap: this.onSend,
+                loading: isSending,
+                style: FilledButton.styleFrom(
+                  backgroundColor: LxColors.moneyGoUp,
+                  foregroundColor: LxColors.grey1000,
+                ),
+              ),
             ),
           ],
         ),
@@ -793,23 +863,31 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
   }
 }
 
-/// The "Send" button at the bottom of the "Confirm Payment" page.
-///
 /// It animates into a shortened button with a loading indicator inside when
-/// we're sending the payment request and awaiting the response.
-class SendButton extends StatefulWidget {
-  const SendButton({super.key, required this.onTap, required this.loading});
+/// we're e.g. sending a payment request and awaiting the response.
+class AnimatedFillButton extends StatefulWidget {
+  const AnimatedFillButton({
+    super.key,
+    required this.onTap,
+    required this.loading,
+    required this.label,
+    required this.icon,
+    this.style,
+  });
 
   final VoidCallback? onTap;
   final bool loading;
+  final Widget label;
+  final Widget icon;
+  final ButtonStyle? style;
 
   bool get enabled => this.onTap != null;
 
   @override
-  State<SendButton> createState() => _SendButtonState();
+  State<AnimatedFillButton> createState() => _AnimatedFillButtonState();
 }
 
-class _SendButtonState extends State<SendButton> {
+class _AnimatedFillButtonState extends State<AnimatedFillButton> {
   @override
   Widget build(BuildContext context) {
     final loading = this.widget.loading;
@@ -831,7 +909,7 @@ class _SendButtonState extends State<SendButton> {
         label: AnimatedSwitcher(
           duration: const Duration(milliseconds: 150),
           child: (!loading)
-              ? const Text("Send")
+              ? this.widget.label
               : const Center(
                   child: SizedBox.square(
                     dimension: Fonts.size300,
@@ -845,20 +923,22 @@ class _SendButtonState extends State<SendButton> {
         icon: AnimatedOpacity(
           opacity: (!loading) ? 1.0 : 0.0,
           duration: const Duration(milliseconds: 150),
-          child: const Icon(Icons.arrow_forward_rounded),
+          child: this.widget.icon,
         ),
-        style: FilledButton.styleFrom(
-          backgroundColor: LxColors.moneyGoUp,
-          foregroundColor: LxColors.grey1000,
-        ),
+        style: this.widget.style,
       ),
     );
   }
 }
 
 class ErrorMessageSection extends StatelessWidget {
-  const ErrorMessageSection({super.key, required this.message});
+  const ErrorMessageSection({
+    super.key,
+    required this.title,
+    required this.message,
+  });
 
+  final String title;
   final String? message;
 
   @override
@@ -873,9 +953,9 @@ class ErrorMessageSection extends StatelessWidget {
       child: (message != null)
           ? ListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text(
-                "Error sending payment",
-                style: TextStyle(
+              title: Text(
+                this.title,
+                style: const TextStyle(
                   color: LxColors.errorText,
                   fontVariations: [Fonts.weightMedium],
                   height: 2.0,
