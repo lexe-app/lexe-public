@@ -15,6 +15,9 @@ import 'bindings_generated_api.dart'
         AppRs,
         ClientPaymentId,
         Config,
+        EstimateFeeSendOnchainRequest,
+        EstimateFeeSendOnchainResponse,
+        FeeEstimate,
         FiatRate,
         FiatRates,
         NodeInfo,
@@ -85,6 +88,12 @@ class LexeDesignHome extends StatelessWidget {
 
     final cidBytes = List.generate(32, (idx) => idx);
     final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
+
+    const feeEstimates = EstimateFeeSendOnchainResponse(
+      high: FeeEstimate(amountSats: 849),
+      normal: FeeEstimate(amountSats: 722),
+      background: FeeEstimate(amountSats: 563),
+    );
 
     return Scaffold(
       body: ScrollableSinglePageBody(
@@ -163,6 +172,7 @@ class LexeDesignHome extends StatelessWidget {
               ),
               address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
               sendAmount: const SendAmountExact(2500),
+              feeEstimates: feeEstimates,
             ),
           ),
           Component(
@@ -177,6 +187,7 @@ class LexeDesignHome extends StatelessWidget {
               ),
               address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
               sendAmount: const SendAmountAll(),
+              feeEstimates: feeEstimates,
             ),
           ),
         ],
@@ -290,6 +301,17 @@ class MockAppHandle extends AppHandle {
     dynamic hint,
   }) =>
       Future.delayed(const Duration(milliseconds: 1200), () {});
+
+  @override
+  Future<EstimateFeeSendOnchainResponse> estimateFeeSendOnchain(
+          {required EstimateFeeSendOnchainRequest req, dynamic hint}) =>
+      Future.delayed(
+          const Duration(seconds: 1),
+          () => const EstimateFeeSendOnchainResponse(
+                high: FeeEstimate(amountSats: 849),
+                normal: FeeEstimate(amountSats: 722),
+                background: FeeEstimate(amountSats: 563),
+              ));
 
   @override
   Future<String> getAddress({dynamic hint}) =>
