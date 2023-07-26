@@ -22,6 +22,8 @@ import '../../bindings_generated_api.dart'
         AppHandle,
         ClientPaymentId,
         ConfirmationPriority,
+        EstimateFeeSendOnchainResponse,
+        FeeEstimate,
         Network,
         SendOnchainRequest;
 import '../../currency_format.dart' as currency_format;
@@ -364,12 +366,20 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
       sendAmount = SendAmountExact(amountSats);
     }
 
+    // TODO(phlip9): fetch fees
+    const feeEstimates = EstimateFeeSendOnchainResponse(
+      high: FeeEstimate(amountSats: 849),
+      normal: FeeEstimate(amountSats: 722),
+      background: FeeEstimate(amountSats: 563),
+    );
+
     final bool? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SendPaymentConfirmPage(
         sendCtx: this.widget.sendCtx,
         address: this.widget.address,
         sendAmount: sendAmount,
+        feeEstimates: feeEstimates,
       ),
     ));
 
@@ -531,11 +541,13 @@ class SendPaymentConfirmPage extends StatefulWidget {
     required this.sendCtx,
     required this.address,
     required this.sendAmount,
+    required this.feeEstimates,
   });
 
   final SendContext sendCtx;
   final String address;
   final SendAmount sendAmount;
+  final EstimateFeeSendOnchainResponse feeEstimates;
 
   @override
   State<SendPaymentConfirmPage> createState() => _SendPaymentConfirmPageState();
@@ -612,8 +624,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
     final amountSatsStr = currency_format.formatSatsAmount(amountSats);
 
-    // TODO(phlip9): get est. fee from pre-validation + fee estimation request
-    const feeSats = 1400;
+    final feeSats = this.widget.feeEstimates.normal.amountSats;
     final feeSatsStr = currency_format.formatSatsAmount(feeSats);
 
     final totalSats = amountSats + feeSats;
@@ -681,6 +692,8 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
           const SizedBox(height: Space.s100),
 
+          // TODO(phlip9): add "edit" button next to "Network Fee" that shows
+          // fee selection page.
           Row(
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
