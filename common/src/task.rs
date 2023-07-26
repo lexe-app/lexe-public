@@ -329,12 +329,10 @@ impl<T> Future for LxTask<T> {
 
 /// A small helper that gives a human-readable label for a joined task's
 /// resulting output.
-pub fn joined_task_state_label(
-    join_res: Result<(), JoinError>,
-) -> &'static str {
+pub fn join_result_label(join_res: &Result<(), JoinError>) -> &'static str {
     match join_res {
         Ok(()) => "finished",
-        Err(err) if err.is_cancelled() => "canceled",
+        Err(err) if err.is_cancelled() => "cancelled",
         Err(err) if err.is_panic() => "panicked",
         _ => "(unknown join error)",
     }

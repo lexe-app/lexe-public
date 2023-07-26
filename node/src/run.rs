@@ -19,7 +19,7 @@ use common::{
     rng::Crng,
     root_seed::RootSeed,
     shutdown::ShutdownChannel,
-    task::{joined_task_state_label, BlockingTaskRt, LxTask},
+    task::{self, BlockingTaskRt, LxTask},
     Apply,
 };
 use futures::{
@@ -636,15 +636,15 @@ impl UserNode {
                 // must poll tasks while waiting for shutdown, o/w a panic in a
                 // task won't surface until later, when we start shutdown.
                 Some((result, name)) = tasks.next() => {
-                    let task_state = joined_task_state_label(result);
+                    let join_label = task::join_result_label(&result);
                     // tasks should probably only stop when we're shutting down.
-                    info!("'{name}' task {task_state} before shutdown");
+                    info!("'{name}' task {join_label} before shutdown");
                 }
             }
         }
 
         // --- Shutdown --- //
-        info!("Recevied shutdown; disconnecting all peers");
+        info!("Received shutdown; disconnecting all peers");
         // This ensures we don't continue updating our channel data after
         // the background processor has stopped.
         self.peer_manager.disconnect_all_peers();
@@ -667,8 +667,8 @@ impl UserNode {
                     break;
                 }
                 Some((result, name)) = tasks.next() => {
-                    let task_state = joined_task_state_label(result);
-                    info!("'{name}' task {task_state}");
+                    let join_label = task::join_result_label(&result);
+                    info!("'{name}' task {join_label}");
                 }
             }
         }
