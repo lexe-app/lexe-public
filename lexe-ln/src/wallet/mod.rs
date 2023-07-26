@@ -15,12 +15,15 @@ use bitcoin::{
     Script, Transaction, Txid,
 };
 use common::{
-    api::command::SendOnchainRequest,
+    api::command::{
+        EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
+        FeeEstimate, SendOnchainRequest,
+    },
     cli::Network,
     constants::{
         IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
     },
-    ln::{amount::Amount, balance::Balance},
+    ln::{amount::Amount, balance::Balance, ConfirmationPriority},
     root_seed::RootSeed,
     shutdown::ShutdownChannel,
     task::LxTask,
@@ -271,6 +274,83 @@ impl LexeWallet {
         Ok(onchain_send)
     }
 
+    /// Estimate the network fee for a potential onchain send payment. We return
+    /// estimates for each [`ConfirmationPriority`] preset.
+    ///
+    /// This fn deliberately avoids modifying the [`WalletDb`] state. We don't
+    /// want to generate unnecessary addresses that we need to watch and sync.
+    pub(crate) async fn estimate_fee_send_onchain(
+        &self,
+        req: EstimateFeeSendOnchainRequest,
+    ) -> anyhow::Result<EstimateFeeSendOnchainResponse> {
+        let high_prio = ConfirmationTarget::from(ConfirmationPriority::High);
+        let normal_prio =
+            ConfirmationTarget::from(ConfirmationPriority::Normal);
+        let background_prio =
+            ConfirmationTarget::from(ConfirmationPriority::Background);
+
+        let high_feerate = self.esplora.get_bdk_feerate(high_prio);
+        let normal_feerate = self.esplora.get_bdk_feerate(normal_prio);
+        let background_feerate = self.esplora.get_bdk_feerate(background_prio);
+
+        let locked_wallet = self.wallet.lock().await;
+
+        let high_fee = Self::estimate_fee_send_onchain_inner(
+            &locked_wallet,
+            &req.address,
+            req.amount,
+            high_feerate,
+        )?;
+        let normal_fee = Self::estimate_fee_send_onchain_inner(
+            &locked_wallet,
+            &req.address,
+            req.amount,
+            normal_feerate,
+        )?;
+        let background_fee = Self::estimate_fee_send_onchain_inner(
+            &locked_wallet,
+            &req.address,
+            req.amount,
+            background_feerate,
+        )?;
+
+        Ok(EstimateFeeSendOnchainResponse {
+            high: high_fee,
+            normal: normal_fee,
+            background: background_fee,
+        })
+    }
+
+    fn estimate_fee_send_onchain_inner(
+        wallet: &Wallet<WalletDb>,
+        address: &bitcoin::Address,
+        amount: Amount,
+        bdk_feerate: FeeRate,
+    ) -> anyhow::Result<FeeEstimate> {
+        // We're just estimating the fee for tx; we don't want to create
+        // unnecessary change outputs, which will need to be persisted and take
+        // up sync time. `AddressIndex::Peek` will just derive the output at the
+        // index without persisting anything. It should always succeed.
+        let change_address = wallet
+            .get_internal_address(AddressIndex::Peek(0))
+            .context("Failed to derive change address")?;
+
+        let mut tx_builder = Self::default_tx_builder(wallet, bdk_feerate);
+        tx_builder.add_recipient(address.script_pubkey(), amount.sats_u64());
+        tx_builder.drain_to(change_address.script_pubkey());
+        let (_, tx_details) = tx_builder
+            .finish()
+            .context("Failed to build onchain send tx")?;
+
+        let fees = tx_details
+            .fee
+            .expect("When creating a new tx, bdk always sets the fee value");
+        Ok(FeeEstimate {
+            amount: Amount::try_from_sats_u64(fees)
+                .context("Bad fee amount")?,
+        })
+    }
+
     /// Get a [`TxBuilder`] which has some defaults prepopulated.
     ///
     /// Note that this builder is specifically for *creating* transactions, not
@@ -281,7 +361,8 @@ impl LexeWallet {
     ) -> TxBuilderType<'_, CreateTx> {
         // Set the feerate and enable RBF by default
         let mut tx_builder = wallet.build_tx();
-        tx_builder.fee_rate(bdk_feerate).enable_rbf();
+        tx_builder.enable_rbf();
+        tx_builder.fee_rate(bdk_feerate);
         tx_builder
     }
 
