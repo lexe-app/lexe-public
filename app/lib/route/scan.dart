@@ -3,9 +3,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart'
     show FixedScannerOverlay, ReaderWidget;
-import 'package:lexeapp/logger.dart' show info;
 
 import '../../components.dart' show LxCloseButton;
+import '../../logger.dart' show info;
 import '../../style.dart' show LxColors, LxRadius, LxTheme, Space;
 
 class ScanPage extends StatelessWidget {

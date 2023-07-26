@@ -5,15 +5,6 @@ import 'dart:math' show max;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MaxLengthEnforcement;
 
-import 'package:lexeapp/components.dart'
-    show
-        LxBackButton,
-        LxCloseButton,
-        LxCloseButtonKind,
-        LxFilledButton,
-        ScrollableSinglePageBody,
-        ZigZag;
-
 import '../../address_format.dart' as address_format;
 import '../../bindings.dart' show api;
 import '../../bindings_generated.dart' show MAX_PAYMENT_NOTE_BYTES;
@@ -26,6 +17,14 @@ import '../../bindings_generated_api.dart'
         EstimateFeeSendOnchainResponse,
         Network,
         SendOnchainRequest;
+import '../../components.dart'
+    show
+        LxBackButton,
+        LxCloseButton,
+        LxCloseButtonKind,
+        LxFilledButton,
+        ScrollableSinglePageBody,
+        ZigZag;
 import '../../currency_format.dart' as currency_format;
 import '../../input_formatter.dart'
     show
