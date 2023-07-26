@@ -26,7 +26,6 @@ use common::{
     task::LxTask,
 };
 use lightning::chain::chaininterface::ConfirmationTarget;
-use rust_decimal::Decimal;
 use tokio::sync::mpsc;
 use tracing::{debug, info, instrument, warn};
 
@@ -236,49 +235,36 @@ impl LexeWallet {
         &self,
         req: SendOnchainRequest,
     ) -> anyhow::Result<OnchainSend> {
-        let locked_wallet = self.wallet.lock().await;
-        let script_pubkey = req.address.script_pubkey();
-
-        // Build
+        // Get current fee rate for requested block confirmation target
         let conf_target = ConfirmationTarget::from(req.priority);
         let bdk_feerate = self.esplora.get_bdk_feerate(conf_target);
-        let mut tx_builder =
-            Self::default_tx_builder(&locked_wallet, bdk_feerate);
-        tx_builder.add_recipient(script_pubkey, req.amount.sats_u64());
-        let (mut psbt, _tx_details) =
-            tx_builder.finish().context("Could not build outbound tx")?;
 
-        // Sign
-        Self::default_sign_psbt(&locked_wallet, &mut psbt)
-            .context("Could not sign outbound tx")?;
-        let tx = psbt.extract_tx();
+        let (tx, fees) = {
+            let locked_wallet = self.wallet.lock().await;
 
-        // Fees = (sum of inputs) - (sum of outputs)
-        let sum_of_inputs_sat = tx
-            .input
-            .iter()
-            // Inputs don't contain amounts, only references to the outputs that
-            // they spend, so we have to fetch these outputs from our wallet.
-            .map(|input| {
-                let txo = locked_wallet
-                    .get_utxo(input.previous_output)
-                    .context("Error while fetching utxo for input")?
-                    .context("Missing utxo for input")?;
-                Ok(txo.txout.value)
-            })
-            // Convert `Iter<anyhow::Result<u64>>` to `anyhow::Result<u64>` by
-            // summing the contained u64s, returning Ok iff all inner were Ok
-            .try_fold(0, |acc, res: anyhow::Result<u64>| {
-                res.map(|v| acc + v)
-            })?;
-        let sum_of_outputs_sat =
-            tx.output.iter().map(|output| output.value).sum::<u64>();
-        let fees = sum_of_inputs_sat
-            .checked_sub(sum_of_outputs_sat)
-            .map(Decimal::from)
-            .map(Amount::try_from_satoshis)
-            .context("Sum of outputs exceeds sum of inputs")?
-            .context("Fee amount overflowed")?;
+            // Build unsigned tx
+            let mut tx_builder =
+                Self::default_tx_builder(&locked_wallet, bdk_feerate);
+            tx_builder.add_recipient(
+                req.address.script_pubkey(),
+                req.amount.sats_u64(),
+            );
+            let (mut psbt, tx_details) = tx_builder
+                .finish()
+                .context("Failed to build onchain send tx")?;
+
+            let fees = tx_details.fee.expect(
+                "When creating a new tx, bdk always sets the fee value",
+            );
+            let fees =
+                Amount::try_from_sats_u64(fees).context("Bad fee amount")?;
+
+            // Sign tx
+            Self::default_sign_psbt(&locked_wallet, &mut psbt)
+                .context("Could not sign outbound tx")?;
+
+            (psbt.extract_tx(), fees)
+        };
 
         let onchain_send = OnchainSend::new(tx, req, fees);
 
