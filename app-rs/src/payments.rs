@@ -779,7 +779,8 @@ mod test {
     use common::{
         api::{
             command::{
-                CreateInvoiceRequest, NodeInfo, PayInvoiceRequest,
+                CreateInvoiceRequest, EstimateFeeSendOnchainRequest,
+                EstimateFeeSendOnchainResponse, NodeInfo, PayInvoiceRequest,
                 SendOnchainRequest,
             },
             error::NodeApiError,
@@ -919,6 +920,12 @@ mod test {
             _req: SendOnchainRequest,
         ) -> Result<LxTxid, NodeApiError> {
             unimplemented!()
+        }
+        async fn estimate_fee_send_onchain(
+            &self,
+            _req: EstimateFeeSendOnchainRequest,
+        ) -> Result<EstimateFeeSendOnchainResponse, NodeApiError> {
+            todo!()
         }
         async fn get_address(&self) -> Result<Address, NodeApiError> {
             unimplemented!()

@@ -23,7 +23,11 @@ use bitcoin::Address;
 
 #[cfg(doc)]
 use super::qs::EmptyData;
-use super::{error::GatewayApiError, fiat_rates::FiatRates};
+use super::{
+    command::{EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse},
+    error::GatewayApiError,
+    fiat_rates::FiatRates,
+};
 use crate::{
     api::{
         auth::{
@@ -315,6 +319,15 @@ pub trait AppNodeRunApi {
         &self,
         req: SendOnchainRequest,
     ) -> Result<LxTxid, NodeApiError>;
+
+    /// GET /app/estimate_fee_send_onchain [`EstimateFeeSendOnchainRequest`]
+    ///                                 -> [`EstimateFeeSendOnchainResponse`]
+    ///
+    /// Returns estimated network fees for a potential onchain send.
+    async fn estimate_fee_send_onchain(
+        &self,
+        req: EstimateFeeSendOnchainRequest,
+    ) -> Result<EstimateFeeSendOnchainResponse, NodeApiError>;
 
     /// POST /app/get_address [`()`] -> [`Address`]
     ///
