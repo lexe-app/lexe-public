@@ -285,6 +285,14 @@ impl<T> LxTask<T> {
         self.name
     }
 
+    /// Calls [`is_finished`] on the underlying [`JoinHandle`].
+    ///
+    /// [`is_finished`]: tokio::task::JoinHandle::is_finished
+    #[inline]
+    pub fn is_finished(&self) -> bool {
+        self.task.is_finished()
+    }
+
     /// Make await'ing on an `LxTask` return the name along with the result:
     /// `(Result<T, JoinError>, name)`
     #[inline]
@@ -346,6 +354,14 @@ impl<T> LxTaskWithName<T> {
     #[inline]
     pub fn name(&self) -> &'static str {
         self.0.name()
+    }
+
+    /// Calls [`is_finished`] on the underlying [`LxTask`].
+    ///
+    /// [`is_finished`]: LxTask::is_finished
+    #[inline]
+    pub fn is_finished(&self) -> bool {
+        self.0.is_finished()
     }
 }
 
