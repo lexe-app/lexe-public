@@ -342,10 +342,9 @@ impl From<Config> for AppConfig {
         let use_mock_secret_store = config.use_mock_secret_store;
 
         match (&deploy_env, &network) {
-            (Prod, Mainnet) => todo!(),
-            (Staging, Testnet) => todo!(),
-            (Dev, Testnet) => todo!(),
-            (Dev, Regtest) => Self {
+            // (Prod, Mainnet) => todo!(),
+            // (Staging, Testnet) => todo!(),
+            (Dev, Testnet) | (Dev, Regtest) => Self {
                 deploy_env,
                 network: network.into(),
                 gateway_url,
@@ -354,10 +353,7 @@ impl From<Config> for AppConfig {
                 app_data_dir,
                 use_mock_secret_store,
             },
-            _ => panic!(
-                "Bad app config combination: {deploy_env:?} build is not \
-                 compatible with {network:?} network"
-            ),
+            _ => panic!("Unsupported app config combination: {build}"),
         }
     }
 }
