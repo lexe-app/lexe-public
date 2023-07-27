@@ -103,6 +103,21 @@ fn wire_init_rust_log_stream_impl(
         },
     )
 }
+fn wire_debug_delete_secret_store_impl(
+    config: impl Wire2Api<Config> + UnwindSafe,
+) -> support::WireSyncReturn {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
+        WrapInfo {
+            debug_name: "debug_delete_secret_store",
+            port: None,
+            mode: FfiCallMode::Sync,
+        },
+        move || {
+            let api_config = config.wire2api();
+            debug_delete_secret_store(api_config)
+        },
+    )
+}
 fn wire_load__static_method__AppHandle_impl(
     port_: MessagePort,
     config: impl Wire2Api<Config> + UnwindSafe,
@@ -236,6 +251,22 @@ fn wire_get_address__method__AppHandle_impl(
         move || {
             let api_that = that.wire2api();
             move |task_callback| AppHandle::get_address(&api_that)
+        },
+    )
+}
+fn wire_delete_payment_db__method__AppHandle_impl(
+    port_: MessagePort,
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap(
+        WrapInfo {
+            debug_name: "delete_payment_db__method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_that = that.wire2api();
+            move |task_callback| AppHandle::delete_payment_db(&api_that)
         },
     )
 }
@@ -621,6 +652,13 @@ mod io {
     }
 
     #[no_mangle]
+    pub extern "C" fn wire_debug_delete_secret_store(
+        config: *mut wire_Config,
+    ) -> support::WireSyncReturn {
+        wire_debug_delete_secret_store_impl(config)
+    }
+
+    #[no_mangle]
     pub extern "C" fn wire_load__static_method__AppHandle(
         port_: i64,
         config: *mut wire_Config,
@@ -685,6 +723,14 @@ mod io {
         that: *mut wire_AppHandle,
     ) {
         wire_get_address__method__AppHandle_impl(port_, that)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_delete_payment_db__method__AppHandle(
+        port_: i64,
+        that: *mut wire_AppHandle,
+    ) {
+        wire_delete_payment_db__method__AppHandle_impl(port_, that)
     }
 
     #[no_mangle]

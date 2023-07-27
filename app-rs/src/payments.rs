@@ -110,6 +110,9 @@ pub trait Vfs {
     ) -> io::Result<()>;
 
     fn write(&self, filename: &str, data: &[u8]) -> io::Result<()>;
+
+    /// Delete all files and directories in the `Vfs`.
+    fn delete_all(&self) -> io::Result<()>;
 }
 
 /// File system impl for [`Vfs`] that does real IO.
@@ -190,6 +193,12 @@ impl Vfs for FlatFileFs {
         fs::write(self.base_dir.join(filename), data)?;
         Ok(())
     }
+
+    fn delete_all(&self) -> io::Result<()> {
+        fs::remove_dir_all(&self.base_dir)?;
+        fs::create_dir(&self.base_dir)?;
+        Ok(())
+    }
 }
 
 // -- impl PaymentDb -- //
@@ -216,6 +225,12 @@ impl<V: Vfs> PaymentDb<V> {
             .context("Failed to read on-disk PaymentDb state")?;
 
         Ok(Self { vfs, state })
+    }
+
+    /// Clear the in-memory state and delete the on-disk payment db.
+    pub fn delete(&mut self) -> io::Result<()> {
+        self.state = PaymentDbState::empty();
+        self.vfs.delete_all()
     }
 
     #[inline]
@@ -880,6 +895,11 @@ mod test {
                 .borrow_mut()
                 .files
                 .insert(filename.to_owned(), data.to_owned());
+            Ok(())
+        }
+
+        fn delete_all(&self) -> io::Result<()> {
+            self.inner.borrow_mut().files = BTreeMap::new();
             Ok(())
         }
     }

@@ -78,6 +78,8 @@ WireSyncReturn wire_form_validate_bitcoin_address(struct wire_uint_8_list *addre
 
 void wire_init_rust_log_stream(int64_t port_, struct wire_uint_8_list *rust_log);
 
+WireSyncReturn wire_debug_delete_secret_store(struct wire_Config *config);
+
 void wire_load__static_method__AppHandle(int64_t port_, struct wire_Config *config);
 
 void wire_restore__static_method__AppHandle(int64_t port_,
@@ -99,6 +101,8 @@ void wire_estimate_fee_send_onchain__method__AppHandle(int64_t port_,
                                                        struct wire_EstimateFeeSendOnchainRequest *req);
 
 void wire_get_address__method__AppHandle(int64_t port_, struct wire_AppHandle *that);
+
+void wire_delete_payment_db__method__AppHandle(int64_t port_, struct wire_AppHandle *that);
 
 void wire_sync_payments__method__AppHandle(int64_t port_, struct wire_AppHandle *that);
 
@@ -142,6 +146,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_gen_client_payment_id);
     dummy_var ^= ((int64_t) (void*) wire_form_validate_bitcoin_address);
     dummy_var ^= ((int64_t) (void*) wire_init_rust_log_stream);
+    dummy_var ^= ((int64_t) (void*) wire_debug_delete_secret_store);
     dummy_var ^= ((int64_t) (void*) wire_load__static_method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_restore__static_method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_signup__static_method__AppHandle);
@@ -150,6 +155,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_send_onchain__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_estimate_fee_send_onchain__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_address__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_delete_payment_db__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_sync_payments__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_payment_by_scroll_idx__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_pending_payment_by_scroll_idx__method__AppHandle);
