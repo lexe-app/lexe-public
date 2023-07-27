@@ -630,13 +630,16 @@ impl UserNode {
             .map(|task| task.with_name())
             .collect::<FuturesUnordered<_>>();
 
-        while !tasks.is_empty() {
-            tokio::select! {
-                () = self.shutdown.recv() => break,
-                // must poll tasks while waiting for shutdown, o/w a panic in a
-                // task won't surface until later, when we start shutdown.
-                Some(output) = tasks.next() =>
-                    task::log_finished_task(&output, true),
+        // Wait for a shutdown signal and poll all tasks so we can (1) propagate
+        // panics and (2) detect if a task finished prematurely, in which case a
+        // [partial] failure occurred and we should shut down.
+        tokio::select! {
+            // Mitigate possible select! race after a shutdown signal is sent
+            biased;
+            () = self.shutdown.recv() => (),
+            Some(output) = tasks.next() => {
+                task::log_finished_task(&output, true);
+                self.shutdown.send();
             }
         }
 
