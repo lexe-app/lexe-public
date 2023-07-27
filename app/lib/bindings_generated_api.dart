@@ -307,12 +307,12 @@ class EstimateFeeSendOnchainRequest {
 }
 
 class EstimateFeeSendOnchainResponse {
-  final FeeEstimate high;
+  final FeeEstimate? high;
   final FeeEstimate normal;
   final FeeEstimate background;
 
   const EstimateFeeSendOnchainResponse({
-    required this.high,
+    this.high,
     required this.normal,
     required this.background,
   });

@@ -452,6 +452,10 @@ class AppRsImpl implements AppRs {
     return _wire2api_app_handle(raw);
   }
 
+  FeeEstimate _wire2api_box_autoadd_fee_estimate(dynamic raw) {
+    return _wire2api_fee_estimate(raw);
+  }
+
   ShortPayment _wire2api_box_autoadd_short_payment(dynamic raw) {
     return _wire2api_short_payment(raw);
   }
@@ -479,7 +483,7 @@ class AppRsImpl implements AppRs {
     if (arr.length != 3)
       throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
     return EstimateFeeSendOnchainResponse(
-      high: _wire2api_fee_estimate(arr[0]),
+      high: _wire2api_opt_box_autoadd_fee_estimate(arr[0]),
       normal: _wire2api_fee_estimate(arr[1]),
       background: _wire2api_fee_estimate(arr[2]),
     );
@@ -550,6 +554,10 @@ class AppRsImpl implements AppRs {
 
   AppHandle? _wire2api_opt_box_autoadd_app_handle(dynamic raw) {
     return raw == null ? null : _wire2api_box_autoadd_app_handle(raw);
+  }
+
+  FeeEstimate? _wire2api_opt_box_autoadd_fee_estimate(dynamic raw) {
+    return raw == null ? null : _wire2api_box_autoadd_fee_estimate(raw);
   }
 
   ShortPayment? _wire2api_opt_box_autoadd_short_payment(dynamic raw) {
