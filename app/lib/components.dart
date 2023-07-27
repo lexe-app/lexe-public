@@ -389,3 +389,46 @@ class ZigZagPainter extends CustomPainter {
         this.strokeWidth != oldDelegate.strokeWidth;
   }
 }
+
+/// A dashed line that spans the width of its container.
+class DashPainter extends CustomPainter {
+  const DashPainter({
+    required this.color,
+    this.dashWidth = 4.0,
+    this.dashSpace = 4.0,
+    this.dashThickness = 1.5,
+  });
+
+  final Color color;
+  final double dashWidth;
+  final double dashSpace;
+  final double dashThickness;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final dashAndSpace = this.dashWidth + this.dashSpace;
+
+    final numDashes = ((size.width / dashAndSpace)).ceil();
+
+    final path = Path()..moveTo(0.0, 0.0);
+
+    for (var idx = 0; idx < numDashes; idx += 1) {
+      path.relativeLineTo(this.dashWidth, 0.0);
+      path.relativeMoveTo(this.dashSpace, 0.0);
+    }
+
+    final paint = Paint()
+      ..color = this.color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = this.dashThickness;
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant DashPainter oldDelegate) {
+    return this.color != oldDelegate.color ||
+        this.dashWidth != oldDelegate.dashWidth ||
+        this.dashSpace != oldDelegate.dashSpace ||
+        this.dashThickness != oldDelegate.dashThickness;
+  }
+}
