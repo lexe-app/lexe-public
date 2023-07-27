@@ -8,7 +8,7 @@ use tokio::{
     sync::{mpsc, oneshot},
     task::{JoinError, JoinHandle},
 };
-use tracing::{error, Instrument, Span};
+use tracing::{error, info, warn, Instrument, Span};
 
 /// A thin wrapper around [`tokio::task::JoinHandle`] that adds the
 /// `#[must_use]` lint to ensure that all spawned tasks are joined or explictly
@@ -26,7 +26,7 @@ use tracing::{error, Instrument, Span};
 /// Consequently, [`LxTask::detach`] should be used sparingly.
 ///
 /// `LxTask` also includes an optional task name for improved debuggability.
-/// [`LxTask::result_with_name`] will return a Future of the task result
+/// [`LxTask::with_name`] will return a Future of the task result
 /// alongside the task name.
 ///
 /// [Structured Concurrency]: https://www.wikiwand.com/en/Structured_concurrency
@@ -299,7 +299,7 @@ impl<T> LxTask<T> {
     /// Make await'ing on an `LxTask` return the name along with the result:
     /// `(Result<T, JoinError>, name)`
     #[inline]
-    pub fn result_with_name(self) -> LxTaskWithName<T> {
+    pub fn with_name(self) -> LxTaskWithName<T> {
         LxTaskWithName(self)
     }
 
@@ -335,6 +335,30 @@ impl<T> Future for LxTask<T> {
         };
 
         Poll::Ready(result)
+    }
+}
+
+/// Helper to log the output of a finished [`LxTaskWithName<()>`]
+///
+/// Pass `ed = true` if the task finished prematurely.
+pub fn log_finished_task(output: &(Result<(), JoinError>, String), ed: bool) {
+    let (join_res, name) = output;
+    let join_label = join_result_label(join_res);
+
+    // "Task '<name>' <finished|cancelled|panicked> [prematurely]: [<error>]"
+    let mut msg = format!("Task '{name}' {join_label}");
+    if ed {
+        msg.push_str(" prematurely");
+    }
+    if let Err(e) = join_res {
+        msg.push_str(": ");
+        msg.push_str(&format!("{e:#}"));
+    }
+
+    if ed || join_res.is_err() {
+        warn!("{msg}");
+    } else {
+        info!("{msg}");
     }
 }
 

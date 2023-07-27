@@ -627,7 +627,7 @@ impl UserNode {
         let mut tasks = self
             .tasks
             .into_iter()
-            .map(|task| task.result_with_name())
+            .map(|task| task.with_name())
             .collect::<FuturesUnordered<_>>();
 
         while !tasks.is_empty() {
@@ -635,11 +635,8 @@ impl UserNode {
                 () = self.shutdown.recv() => break,
                 // must poll tasks while waiting for shutdown, o/w a panic in a
                 // task won't surface until later, when we start shutdown.
-                Some((result, name)) = tasks.next() => {
-                    let join_label = task::join_result_label(&result);
-                    // tasks should probably only stop when we're shutting down.
-                    info!("'{name}' task {join_label} before shutdown");
-                }
+                Some(output) = tasks.next() =>
+                    task::log_finished_task(&output, true),
             }
         }
 
@@ -666,10 +663,8 @@ impl UserNode {
                     error!("{} tasks failed to finish: {stuck_tasks:?}", stuck_tasks.len());
                     break;
                 }
-                Some((result, name)) = tasks.next() => {
-                    let join_label = task::join_result_label(&result);
-                    info!("'{name}' task {join_label}");
-                }
+                Some(output) = tasks.next() =>
+                    task::log_finished_task(&output, false),
             }
         }
 
