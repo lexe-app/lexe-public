@@ -620,8 +620,13 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
   final ValueNotifier<String?> sendError = ValueNotifier(null);
   final ValueNotifier<bool> isSending = ValueNotifier(false);
 
+  // TODO(phlip9): save/load this from/to user preferences?
+  final ValueNotifier<ConfirmationPriority> confPriority =
+      ValueNotifier(ConfirmationPriority.Normal);
+
   @override
   void dispose() {
+    this.confPriority.dispose();
     this.isSending.dispose();
     this.sendError.dispose();
     super.dispose();
@@ -679,32 +684,40 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       useRootNavigator: false,
       builder: (context) => ChooseFeeDialog(
         feeEstimates: this.widget.feeEstimates,
-        selected: ConfirmationPriority.Normal,
+        selected: this.confPriority.value,
       ),
     );
 
-    info("chooseFeeRate -> $result");
-
     if (!this.mounted) return;
+
+    if (result != null) {
+      this.confPriority.value = result;
+    }
   }
+
+  int amountSats() => switch (this.widget.sendAmount) {
+        SendAmountExact(:final amountSats) => amountSats,
+        // TODO(phlip9): the exact amount will need to come from the
+        // pre-validation + fee estimation request.
+        SendAmountAll() => this.widget.sendCtx.balanceSats,
+      };
+
+  int feeSats() {
+    final feeEstimates = this.widget.feeEstimates;
+    return switch (this.confPriority.value) {
+      ConfirmationPriority.High => feeEstimates.high.amountSats,
+      ConfirmationPriority.Normal => feeEstimates.normal.amountSats,
+      ConfirmationPriority.Background => feeEstimates.background.amountSats,
+    };
+  }
+
+  int totalSats() => this.amountSats() + this.feeSats();
 
   @override
   Widget build(BuildContext context) {
     final shortAddr = address_format.ellipsizeBtcAddress(this.widget.address);
-    final amountSats = switch (this.widget.sendAmount) {
-      SendAmountExact(:final amountSats) => amountSats,
-      // TODO(phlip9): the exact amount will need to come from the
-      // pre-validation + fee estimation request.
-      SendAmountAll() => this.widget.sendCtx.balanceSats,
-    };
 
-    final amountSatsStr = currency_format.formatSatsAmount(amountSats);
-
-    final feeSats = this.widget.feeEstimates.normal.amountSats;
-    final feeSatsStr = currency_format.formatSatsAmount(feeSats);
-
-    final totalSats = amountSats + feeSats;
-    final totalSatsStr = currency_format.formatSatsAmount(totalSats);
+    final amountSatsStr = currency_format.formatSatsAmount(this.amountSats());
 
     const textStylePrimary = TextStyle(
       fontSize: Fonts.size300,
@@ -814,7 +827,13 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
                 ),
               ),
               const Expanded(child: SizedBox()),
-              Text(feeSatsStr, style: textStyleSecondary),
+              ValueListenableBuilder(
+                valueListenable: this.confPriority,
+                builder: (context, confPriority, child) => Text(
+                  currency_format.formatSatsAmount(this.feeSats()),
+                  style: textStyleSecondary,
+                ),
+              )
             ],
           ),
 
@@ -829,7 +848,13 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text("Total", style: textStyleSecondary),
-              Text(totalSatsStr, style: textStylePrimary),
+              ValueListenableBuilder(
+                valueListenable: this.confPriority,
+                builder: (context, confPriority, child) => Text(
+                  currency_format.formatSatsAmount(this.totalSats()),
+                  style: textStylePrimary,
+                ),
+              ),
             ],
           ),
 
