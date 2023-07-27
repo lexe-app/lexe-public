@@ -15,6 +15,7 @@ import '../../bindings_generated_api.dart'
         ConfirmationPriority,
         EstimateFeeSendOnchainRequest,
         EstimateFeeSendOnchainResponse,
+        FeeEstimate,
         Network,
         SendOnchainRequest;
 import '../../components.dart'
@@ -27,6 +28,7 @@ import '../../components.dart'
         ScrollableSinglePageBody,
         ZigZag;
 import '../../currency_format.dart' as currency_format;
+import '../../date_format.dart' as date_format;
 import '../../input_formatter.dart'
     show
         AlphaNumericInputFormatter,
@@ -671,6 +673,21 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     }
   }
 
+  Future<void> chooseFeeRate() async {
+    final ConfirmationPriority? result = await showDialog(
+      context: this.context,
+      useRootNavigator: false,
+      builder: (context) => ChooseFeeDialog(
+        feeEstimates: this.widget.feeEstimates,
+        selected: ConfirmationPriority.Normal,
+      ),
+    );
+
+    info("chooseFeeRate -> $result");
+
+    if (!this.mounted) return;
+  }
+
   @override
   Widget build(BuildContext context) {
     final shortAddr = address_format.ellipsizeBtcAddress(this.widget.address);
@@ -758,7 +775,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               TextButton(
-                onPressed: () => info("press"),
+                onPressed: this.chooseFeeRate,
                 style: TextButton.styleFrom(
                   textStyle: textStyleSecondary,
                   foregroundColor: LxColors.grey550,
@@ -898,6 +915,124 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// The modal dialog for the user to choose the BTC send network fee preset.
+///
+/// The dialog `Navigator.pop`s  a `ConfirmationPriority?`.
+class ChooseFeeDialog extends StatelessWidget {
+  const ChooseFeeDialog({
+    super.key,
+    required this.feeEstimates,
+    required this.selected,
+  });
+
+  final EstimateFeeSendOnchainResponse feeEstimates;
+  final ConfirmationPriority selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SimpleDialog(
+      backgroundColor: LxColors.background,
+      title: const HeadingText(text: "Select network fee"),
+      contentPadding: const EdgeInsets.only(bottom: Space.s500),
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: Space.s500, vertical: Space.s200),
+          child: Text(
+            "Your payment will complete faster with a higher fee.",
+            style: Fonts.fontUI.copyWith(
+              fontSize: Fonts.size200,
+              color: LxColors.fgSecondary,
+              height: 1.5,
+            ),
+          ),
+        ),
+        const SizedBox(height: Space.s200),
+        ChooseFeeDialogOption(
+          feeEstimate: this.feeEstimates.high,
+          priority: ConfirmationPriority.High,
+          isSelected: this.selected == ConfirmationPriority.High,
+        ),
+        ChooseFeeDialogOption(
+          feeEstimate: this.feeEstimates.normal,
+          priority: ConfirmationPriority.Normal,
+          isSelected: this.selected == ConfirmationPriority.Normal,
+        ),
+        ChooseFeeDialogOption(
+          feeEstimate: this.feeEstimates.background,
+          priority: ConfirmationPriority.Background,
+          isSelected: this.selected == ConfirmationPriority.Background,
+        ),
+      ],
+    );
+  }
+}
+
+class ChooseFeeDialogOption extends StatelessWidget {
+  const ChooseFeeDialogOption({
+    super.key,
+    required this.feeEstimate,
+    required this.priority,
+    required this.isSelected,
+  });
+
+  final bool isSelected;
+  final FeeEstimate feeEstimate;
+  final ConfirmationPriority priority;
+
+  @override
+  Widget build(BuildContext context) {
+    final feeSatsStr = currency_format.formatSatsAmount(feeEstimate.amountSats);
+
+    // TODO(phlip9): extract common rust definition from `lexe_ln::esplora`
+    // The target block height (offset from the current chain tip) that we want
+    // our txn confirmed.
+    final confBlockTarget = switch (this.priority) {
+      ConfirmationPriority.High => 1,
+      ConfirmationPriority.Normal => 3,
+      ConfirmationPriority.Background => 72,
+    };
+    final confDuration = Duration(minutes: 10 * confBlockTarget);
+    final confDurationStr =
+        date_format.formatDurationCompact(confDuration, abbreviated: false);
+
+    return ListTile(
+      selected: this.isSelected,
+      selectedTileColor: LxColors.moneyGoUp.withAlpha(0x33),
+      contentPadding: const EdgeInsets.symmetric(horizontal: Space.s500),
+      visualDensity: VisualDensity.standard,
+      dense: false,
+      title: Row(
+        mainAxisSize: MainAxisSize.max,
+        mainAxisAlignment: MainAxisAlignment.start,
+        children: [
+          Text(this.priority.name, style: Fonts.fontUI),
+          const Expanded(child: SizedBox()),
+          Text(
+            "~$feeSatsStr",
+            style: Fonts.fontUI,
+          ),
+        ],
+      ),
+      subtitle: Row(
+          mainAxisSize: MainAxisSize.max,
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Text(
+              "~$confDurationStr",
+              style: Fonts.fontUI.copyWith(
+                fontSize: Fonts.size200,
+                color: LxColors.grey450,
+              ),
+            ),
+            const Expanded(child: SizedBox()),
+            // TODO(phlip9): fee estimate fiat value
+          ]),
+      onTap: () => Navigator.of(context).pop(priority),
     );
   }
 }

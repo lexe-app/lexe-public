@@ -1,7 +1,5 @@
 // Date formatting helpers
 
-import 'dart:core' show DateTime, Future, String;
-
 import 'package:duration/duration.dart' show prettyDuration;
 import 'package:duration/locale.dart'
     show DurationLocale, EnglishDurationLocale;
@@ -58,20 +56,25 @@ String? formatDateCompact({
   final span = now2.difference(then);
 
   if (span.inDays <= 3) {
-    return prettyDuration(
-      span,
-      locale: lookupDurationLocale(locale),
-      abbreviated: true,
-      // first => only return the first section
-      // e.g., "2d 5h 30m 12s" => "2d"
-      first: true,
-    );
+    return formatDurationCompact(span, abbreviated: true, locale: locale);
   } else if (span.inDays <= 31 * 6) {
     return DateFormat.MMMd(locale).format(then);
   } else {
     return DateFormat.yMd(locale).format(then);
   }
 }
+
+String formatDurationCompact(
+  Duration duration, {
+  bool abbreviated = false,
+  String? locale,
+}) =>
+    prettyDuration(
+      duration,
+      locale: lookupDurationLocale(locale),
+      abbreviated: abbreviated,
+      first: true,
+    );
 
 /// The locale names used by the `duration` dart package are almost all "short"
 /// locale names w/o the country code. This lookup function:
