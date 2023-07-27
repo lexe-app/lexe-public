@@ -11,6 +11,7 @@ import '../../bindings_generated_api.dart'
     show
         AppHandle,
         Config,
+        DeployEnv,
         FiatRate,
         NodeInfo,
         PaymentDirection,
@@ -23,6 +24,7 @@ import '../../currency_format.dart' as currency_format;
 import '../../date_format.dart' as date_format;
 import '../../logger.dart' show error, info;
 import '../../result.dart';
+import '../../route/debug.dart' show DebugPage;
 import '../../route/send.dart' show SendContext, SendPaymentPage;
 import '../../style.dart' show Fonts, LxColors, Space;
 
@@ -162,6 +164,15 @@ class WalletPageState extends State<WalletPage> {
     ));
   }
 
+  void onDebugPressed() {
+    Navigator.of(this.context).push(MaterialPageRoute(
+      builder: (context) => DebugPage(
+        config: this.widget.config,
+        app: this.widget.app,
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -183,7 +194,10 @@ class WalletPageState extends State<WalletPage> {
           const SizedBox(width: Space.s100),
         ],
       ),
-      drawer: const WalletDrawer(),
+      drawer: WalletDrawer(
+        config: this.widget.config,
+        onDebugPressed: this.onDebugPressed,
+      ),
       body: CustomScrollView(
         slivers: [
           // The primary wallet page content
@@ -237,17 +251,22 @@ class WalletPageState extends State<WalletPage> {
 class WalletDrawer extends StatelessWidget {
   const WalletDrawer({
     super.key,
+    required this.config,
     this.onSettingsPressed,
     this.onBackupPressed,
     this.onSecurityPressed,
     this.onSupportPressed,
+    this.onDebugPressed,
     this.onInvitePressed,
   });
+
+  final Config config;
 
   final VoidCallback? onSettingsPressed;
   final VoidCallback? onBackupPressed;
   final VoidCallback? onSecurityPressed;
   final VoidCallback? onSupportPressed;
+  final VoidCallback? onDebugPressed;
   final VoidCallback? onInvitePressed;
 
   @override
@@ -291,6 +310,13 @@ class WalletDrawer extends StatelessWidget {
               icon: Icons.help_outline_rounded,
               onTap: this.onSupportPressed,
             ),
+            if (config.deployEnv == DeployEnv.Dev)
+              DrawerListItem(
+                title: "Debug",
+                icon: Icons.bug_report_outlined,
+                onTap: this.onDebugPressed,
+              ),
+
             const SizedBox(height: Space.s600),
 
             // < Invite Friends >
