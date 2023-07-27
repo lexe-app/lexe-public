@@ -61,7 +61,7 @@ pub fn serve_routes_with_listener_and_shutdown<F>(
     routes: BoxedFilter<(Response<Body>,)>,
     graceful_shutdown_fut: F,
     listener: TcpListener,
-    task_name: &'static str,
+    task_name: impl Into<String>,
     span: Span,
 ) -> anyhow::Result<(LxTask<()>, SocketAddr)>
 where
@@ -71,7 +71,7 @@ where
         routes,
         Box::pin(graceful_shutdown_fut),
         listener,
-        task_name,
+        task_name.into(),
         span,
     )
 }
@@ -81,7 +81,7 @@ fn serve_routes_with_listener_and_shutdown_boxed(
     routes: BoxedFilter<(Response<Body>,)>,
     graceful_shutdown_fut: BoxFuture<'static, ()>,
     listener: TcpListener,
-    task_name: &'static str,
+    task_name: String,
     span: Span,
 ) -> anyhow::Result<(LxTask<()>, SocketAddr)> {
     let api_service = warp::service(routes.with(trace_requests(span.id())));

@@ -33,7 +33,7 @@ use tracing::{error, Instrument, Span};
 #[must_use]
 pub struct LxTask<T> {
     task: JoinHandle<T>,
-    name: &'static str,
+    name: String,
 }
 
 impl<T> LxTask<T> {
@@ -45,7 +45,7 @@ impl<T> LxTask<T> {
         F: Future<Output = T> + Send + 'static,
         F::Output: Send + 'static,
     {
-        Self::spawn_named("<no-name>", future)
+        Self::spawn_named(String::new(), future)
     }
 
     /// Spawns a named task which inherits the current span.
@@ -76,7 +76,10 @@ impl<T> LxTask<T> {
     /// ```
     #[inline]
     #[allow(clippy::disallowed_methods)]
-    pub fn spawn_named<F>(name: &'static str, future: F) -> LxTask<F::Output>
+    pub fn spawn_named<F>(
+        name: impl Into<String>,
+        future: F,
+    ) -> LxTask<F::Output>
     where
         F: Future<Output = T> + Send + 'static,
         F::Output: Send + 'static,
@@ -85,7 +88,7 @@ impl<T> LxTask<T> {
         // past spawn boundaries.
         Self {
             task: tokio::spawn(future.in_current_span()),
-            name,
+            name: name.into(),
         }
     }
 
@@ -131,7 +134,7 @@ impl<T> LxTask<T> {
         F: Future<Output = T> + Send + 'static,
         F::Output: Send + 'static,
     {
-        Self::spawn_named_no_inherit("<no-name>", future)
+        Self::spawn_named_no_inherit(String::new(), future)
     }
 
     /// Spawns a named task which does NOT inherit the current span.
@@ -172,7 +175,7 @@ impl<T> LxTask<T> {
     #[inline]
     #[allow(clippy::disallowed_methods)]
     pub fn spawn_named_no_inherit<F>(
-        name: &'static str,
+        name: impl Into<String>,
         future: F,
     ) -> LxTask<F::Output>
     where
@@ -181,7 +184,7 @@ impl<T> LxTask<T> {
     {
         Self {
             task: tokio::spawn(future),
-            name,
+            name: name.into(),
         }
     }
 
@@ -254,7 +257,7 @@ impl<T> LxTask<T> {
     #[inline]
     #[allow(clippy::disallowed_methods)]
     pub fn spawn_named_with_span<F>(
-        name: &'static str,
+        name: impl Into<String>,
         span: Span,
         future: F,
     ) -> LxTask<F::Output>
@@ -265,7 +268,7 @@ impl<T> LxTask<T> {
         // Instrument the future with the given tracing span.
         Self {
             task: tokio::spawn(future.instrument(span)),
-            name,
+            name: name.into(),
         }
     }
 
@@ -281,8 +284,8 @@ impl<T> LxTask<T> {
     }
 
     #[inline]
-    pub fn name(&self) -> &'static str {
-        self.name
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     /// Calls [`is_finished`] on the underlying [`JoinHandle`].
@@ -352,7 +355,7 @@ pub struct LxTaskWithName<T>(LxTask<T>);
 
 impl<T> LxTaskWithName<T> {
     #[inline]
-    pub fn name(&self) -> &'static str {
+    pub fn name(&self) -> &str {
         self.0.name()
     }
 
@@ -366,7 +369,7 @@ impl<T> LxTaskWithName<T> {
 }
 
 impl<T> Future for LxTaskWithName<T> {
-    type Output = (Result<T, JoinError>, &'static str);
+    type Output = (Result<T, JoinError>, String);
 
     fn poll(
         mut self: Pin<&mut Self>,
@@ -377,7 +380,7 @@ impl<T> Future for LxTaskWithName<T> {
             Poll::Pending => return Poll::Pending,
         };
 
-        let name = self.name();
+        let name = self.name().to_string();
 
         let result = match result {
             Ok(val) => (Ok(val), name),
