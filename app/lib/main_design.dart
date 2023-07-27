@@ -28,7 +28,7 @@ import 'bindings_generated_api.dart'
         ShortPayment,
         U8Array32;
 import 'cfg.dart' as cfg;
-import 'components.dart' show ScrollableSinglePageBody;
+import 'components.dart' show HeadingText, ScrollableSinglePageBody;
 import 'date_format.dart' as date_format;
 import 'logger.dart' as logger;
 import 'logger.dart' show info;
@@ -37,7 +37,6 @@ import 'route/landing.dart' show LandingPage;
 import 'route/scan.dart' show ScanPage;
 import 'route/send.dart'
     show
-        HeadingText,
         SendAmountAll,
         SendAmountExact,
         SendContext,

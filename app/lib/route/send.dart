@@ -21,11 +21,13 @@ import '../../bindings_generated_api.dart'
 import '../../components.dart'
     show
         DashPainter,
+        HeadingText,
         LxBackButton,
         LxCloseButton,
         LxCloseButtonKind,
         LxFilledButton,
         ScrollableSinglePageBody,
+        SubheadingText,
         ZigZag;
 import '../../currency_format.dart' as currency_format;
 import '../../date_format.dart' as date_format;
@@ -102,49 +104,6 @@ class SendPaymentPage extends StatelessWidget {
     );
   }
 }
-
-/// The text that sits directly beneath the AppBar.
-class HeadingText extends StatelessWidget {
-  const HeadingText({
-    super.key,
-    required this.text,
-  });
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: Space.s500, bottom: Space.s200),
-      child: Text(
-        this.text,
-        style: const TextStyle(
-          fontSize: Fonts.size600,
-          fontVariations: [Fonts.weightMedium],
-          letterSpacing: -0.5,
-          height: 1.0,
-        ),
-      ),
-    );
-  }
-}
-
-// class SubheadingText extends StatelessWidget {
-//   const SubheadingText({super.key});
-//
-//   final String text;
-//
-//   @override
-//   Widget build(BuildContext context) {
-//     Text(
-//       this.text,
-//       style: Fonts.fontUI.copyWith(
-//         color: LxColors.grey600,
-//         fontSize: Fonts.size300,
-//       ),
-//     );
-//   }
-// }
 
 const InputDecoration baseInputDecoration = InputDecoration(
   hintStyle: TextStyle(color: LxColors.grey750),
@@ -472,15 +431,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
       body: ScrollableSinglePageBody(
         body: [
           const HeadingText(text: "How much?"),
-
-          Text(
-            "balance $balanceStr",
-            textAlign: TextAlign.left,
-            style: Fonts.fontUI.copyWith(
-              color: LxColors.grey600,
-              fontSize: Fonts.size300,
-            ),
-          ),
+          SubheadingText(text: "balance $balanceStr"),
           const SizedBox(height: Space.s850),
 
           // <amount> sats
@@ -743,15 +694,8 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       ),
       body: ScrollableSinglePageBody(
         body: [
-          // Container(height: Space.s400, color: LxColors.debug, child: Center()),
           const HeadingText(text: "Confirm payment"),
-          Text(
-            "Sending bitcoin on-chain",
-            style: Fonts.fontUI.copyWith(
-              color: LxColors.grey600,
-              fontSize: Fonts.size300,
-            ),
-          ),
+          const SubheadingText(text: "Sending bitcoin on-chain"),
           const SizedBox(height: Space.s700),
 
           Row(
