@@ -248,6 +248,49 @@ class LxFilledButton extends StatelessWidget {
   }
 }
 
+/// Heading/title text that sits directly beneath the AppBar.
+class HeadingText extends StatelessWidget {
+  const HeadingText({
+    super.key,
+    required this.text,
+  });
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: Space.s500, bottom: Space.s200),
+      child: Text(
+        this.text,
+        style: const TextStyle(
+          fontSize: Fonts.size600,
+          fontVariations: [Fonts.weightMedium],
+          letterSpacing: -0.5,
+          height: 1.0,
+        ),
+      ),
+    );
+  }
+}
+
+class SubheadingText extends StatelessWidget {
+  const SubheadingText({super.key, required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      this.text,
+      style: Fonts.fontUI.copyWith(
+        color: LxColors.grey600,
+        fontSize: Fonts.size300,
+      ),
+    );
+  }
+}
+
 typedef StateStreamWidgetBuilder<T> = Widget Function(
   BuildContext context,
   T data,
