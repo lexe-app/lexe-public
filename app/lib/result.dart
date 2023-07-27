@@ -24,6 +24,9 @@ sealed class Result<T, E> {
 
   Result<U, E> andThen<U>(final Result<U, E> Function(T) fn);
 
+  Result<T, E> inspect(final void Function(T) fn);
+  Result<T, E> inspectErr(final void Function(E) fn);
+
   /// Wrap `fn()` in a try/catch.
   factory Result.try_(final T Function() fn) {
     try {
@@ -88,6 +91,15 @@ final class Ok<T, E> extends Result<T, E> {
   Result<U, E> andThen<U>(final Result<U, E> Function(T) fn) => fn(this.ok);
 
   @override
+  Result<T, E> inspect(final void Function(T) fn) {
+    fn(this.ok);
+    return this;
+  }
+
+  @override
+  Result<T, E> inspectErr(final void Function(E) fn) => this;
+
+  @override
   String toString() {
     return "Ok(${this.ok})";
   }
@@ -140,6 +152,15 @@ final class Err<T, E> extends Result<T, E> {
 
   @override
   Result<U, E> andThen<U>(final Result<U, E> Function(T) fn) => Err(this.err);
+
+  @override
+  Result<T, E> inspect(final void Function(T) fn) => this;
+
+  @override
+  Result<T, E> inspectErr(final void Function(E) fn) {
+    fn(this.err);
+    return this;
+  }
 
   @override
   String toString() {
