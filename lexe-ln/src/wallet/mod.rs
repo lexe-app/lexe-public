@@ -295,12 +295,7 @@ impl LexeWallet {
 
         let locked_wallet = self.wallet.lock().await;
 
-        let high_fee = Self::estimate_fee_send_onchain_inner(
-            &locked_wallet,
-            &req.address,
-            req.amount,
-            high_feerate,
-        )?;
+        // We _require_ a tx to at least be able to use normal fee rate.
         let normal_fee = Self::estimate_fee_send_onchain_inner(
             &locked_wallet,
             &req.address,
@@ -313,6 +308,15 @@ impl LexeWallet {
             req.amount,
             background_feerate,
         )?;
+
+        // The high fee rate tx is allowed to fail with insufficient balance.
+        let high_fee = Self::estimate_fee_send_onchain_inner(
+            &locked_wallet,
+            &req.address,
+            req.amount,
+            high_feerate,
+        )
+        .ok();
 
         Ok(EstimateFeeSendOnchainResponse {
             high: high_fee,

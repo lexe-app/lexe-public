@@ -477,7 +477,7 @@ impl TryFrom<EstimateFeeSendOnchainRequest>
 }
 
 pub struct EstimateFeeSendOnchainResponse {
-    pub high: FeeEstimate,
+    pub high: Option<FeeEstimate>,
     pub normal: FeeEstimate,
     pub background: FeeEstimate,
 }
@@ -485,7 +485,7 @@ pub struct EstimateFeeSendOnchainResponse {
 impl From<EstimateFeeSendOnchainResponseRs> for EstimateFeeSendOnchainResponse {
     fn from(resp: EstimateFeeSendOnchainResponseRs) -> Self {
         Self {
-            high: FeeEstimate::from(resp.high),
+            high: resp.high.map(FeeEstimate::from),
             normal: FeeEstimate::from(resp.normal),
             background: FeeEstimate::from(resp.background),
         }

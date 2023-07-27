@@ -705,7 +705,8 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
   int feeSats() {
     final feeEstimates = this.widget.feeEstimates;
     return switch (this.confPriority.value) {
-      ConfirmationPriority.High => feeEstimates.high.amountSats,
+      // invariant: High can not be selected if there are insufficient funds
+      ConfirmationPriority.High => feeEstimates.high!.amountSats,
       ConfirmationPriority.Normal => feeEstimates.normal.amountSats,
       ConfirmationPriority.Background => feeEstimates.background.amountSats,
     };
@@ -828,12 +829,15 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
               ),
               const Expanded(child: SizedBox()),
               ValueListenableBuilder(
-                valueListenable: this.confPriority,
-                builder: (context, confPriority, child) => Text(
-                  currency_format.formatSatsAmount(this.feeSats()),
-                  style: textStyleSecondary,
-                ),
-              )
+                  valueListenable: this.confPriority,
+                  builder: (context, confPriority, child) {
+                    final feeSatsStr =
+                        currency_format.formatSatsAmount(this.feeSats());
+                    return Text(
+                      "~$feeSatsStr",
+                      style: textStyleSecondary,
+                    );
+                  })
             ],
           ),
 
@@ -959,6 +963,8 @@ class ChooseFeeDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final feeEstimatesHigh = this.feeEstimates.high;
+
     return SimpleDialog(
       backgroundColor: LxColors.background,
       title: const HeadingText(text: "Select network fee"),
@@ -977,11 +983,14 @@ class ChooseFeeDialog extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Space.s200),
-        ChooseFeeDialogOption(
-          feeEstimate: this.feeEstimates.high,
-          priority: ConfirmationPriority.High,
-          isSelected: this.selected == ConfirmationPriority.High,
-        ),
+        // Just hide the "High" option if the user doesn't have enough funds
+        // for it.
+        if (feeEstimatesHigh != null)
+          ChooseFeeDialogOption(
+            feeEstimate: feeEstimatesHigh,
+            priority: ConfirmationPriority.High,
+            isSelected: this.selected == ConfirmationPriority.High,
+          ),
         ChooseFeeDialogOption(
           feeEstimate: this.feeEstimates.normal,
           priority: ConfirmationPriority.Normal,

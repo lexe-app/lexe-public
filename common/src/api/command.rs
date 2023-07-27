@@ -77,7 +77,10 @@ pub struct EstimateFeeSendOnchainRequest {
 #[derive(Serialize, Deserialize)]
 pub struct EstimateFeeSendOnchainResponse {
     /// Corresponds with [`ConfirmationPriority::High`]
-    pub high: FeeEstimate,
+    ///
+    /// The high estimate is optional--we don't want to block the user from
+    /// sending if they only have enough for a normal tx fee.
+    pub high: Option<FeeEstimate>,
     /// Corresponds with [`ConfirmationPriority::Normal`]
     pub normal: FeeEstimate,
     /// Corresponds with [`ConfirmationPriority::Background`]
