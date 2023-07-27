@@ -623,27 +623,18 @@ mod test {
 
     #[test]
     fn payment_id_equivalence() {
-        let cfg = Config::with_cases(10);
+        let cfg = Config::with_cases(100);
 
-        proptest!(cfg.clone(), |(x: OnchainSend)| {
-            prop_assert_eq!(x.id(), Payment::from(x).id());
-        });
-        proptest!(cfg.clone(), |(x: OnchainReceive)| {
-            prop_assert_eq!(x.id(), Payment::from(x).id());
-        });
-        // TODO(max): Add SpliceIn
-        // TODO(max): Add SpliceOut
-        proptest!(cfg.clone(), |(x: InboundInvoicePayment)| {
-            prop_assert_eq!(x.id(), Payment::from(x).id());
-        });
-        proptest!(cfg.clone(), |(x: InboundSpontaneousPayment)| {
-            prop_assert_eq!(x.id(), Payment::from(x).id());
-        });
-        proptest!(cfg.clone(), |(x: OutboundInvoicePayment)| {
-            prop_assert_eq!(x.id(), Payment::from(x).id());
-        });
-        proptest!(cfg.clone(), |(x: OutboundSpontaneousPayment)| {
-            prop_assert_eq!(x.id(), Payment::from(x).id());
+        proptest!(cfg, |(payment: Payment)| {
+            let id = match &payment {
+                Payment::OnchainSend(x) => x.id(),
+                Payment::OnchainReceive(x) => x.id(),
+                Payment::InboundInvoice(x) => x.id(),
+                Payment::InboundSpontaneous(x) => x.id(),
+                Payment::OutboundInvoice(x) => x.id(),
+                Payment::OutboundSpontaneous(x) => x.id(),
+            };
+            prop_assert_eq!(id, payment.id());
         });
     }
 }
