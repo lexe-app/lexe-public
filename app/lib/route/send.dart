@@ -19,6 +19,7 @@ import '../../bindings_generated_api.dart'
         SendOnchainRequest;
 import '../../components.dart'
     show
+        DashPainter,
         LxBackButton,
         LxCloseButton,
         LxCloseButtonKind,
@@ -754,9 +755,48 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
           // fee selection page.
           Row(
             mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              const Text("Network Fee", style: textStyleSecondary),
+              TextButton(
+                onPressed: () => info("press"),
+                style: TextButton.styleFrom(
+                  textStyle: textStyleSecondary,
+                  foregroundColor: LxColors.grey550,
+                  shape: const LinearBorder(),
+                  padding: const EdgeInsets.only(right: Space.s200),
+                ),
+                // Sadly flutter doesn't allow us to increase the space b/w the
+                // text and the underline. The default text decoration looks
+                // ugly af. So we have this hack to draw a dashed line...
+                child: const Stack(
+                  children: [
+                    // dashed underline beneath text
+                    Positioned(
+                      left: 0.0,
+                      right: 0.0,
+                      bottom: 0.0,
+                      child: CustomPaint(
+                          painter: DashPainter(
+                              color: LxColors.grey650, dashThickness: 1.5)),
+                    ),
+                    // Network Fee text + icon
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Text("Network Fee"),
+                        SizedBox(width: Space.s200),
+                        Icon(
+                          Icons.edit_rounded,
+                          size: Fonts.size300,
+                          color: LxColors.grey625,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Expanded(child: SizedBox()),
               Text(feeSatsStr, style: textStyleSecondary),
             ],
           ),
