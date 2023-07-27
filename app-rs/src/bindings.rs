@@ -83,6 +83,7 @@ pub use crate::app::App;
 use crate::{
     dart_task_handler::{LxExecutor, LxHandler},
     form, logger,
+    secret_store::SecretStore,
 };
 
 // TODO(phlip9): land real async support in flutter_rust_bridge
@@ -527,6 +528,15 @@ pub fn init_rust_log_stream(rust_log_tx: StreamSink<String>, rust_log: String) {
     logger::init(rust_log_tx, &rust_log);
 }
 
+/// Delete the local persisted `SecretStore` and `RootSeed`.
+///
+/// WARNING: you will need a backup recovery to use the account afterwards.
+pub fn debug_delete_secret_store(
+    config: Config,
+) -> anyhow::Result<SyncReturn<()>> {
+    SecretStore::new(&config.into()).delete().map(SyncReturn)
+}
+
 fn block_on<T, Fut>(future: Fut) -> T
 where
     Fut: Future<Output = T>,
@@ -609,6 +619,12 @@ impl AppHandle {
         block_on(self.inner.node_client().get_address())
             .map(|addr| addr.to_string())
             .map_err(anyhow::Error::new)
+    }
+
+    /// Delete both the local payment state and the on-disk payment db.
+    pub fn delete_payment_db(&self) -> anyhow::Result<()> {
+        let mut db_lock = self.inner.payment_db().lock().unwrap();
+        db_lock.delete().context("Failed to delete PaymentDb")
     }
 
     /// Sync the local payment DB to the remote node.

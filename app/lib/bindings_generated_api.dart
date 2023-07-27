@@ -61,6 +61,13 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kInitRustLogStreamConstMeta;
 
+  /// Delete the local persisted `SecretStore` and `RootSeed`.
+  ///
+  /// WARNING: you will need a backup recovery to use the account afterwards.
+  void debugDeleteSecretStore({required Config config, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kDebugDeleteSecretStoreConstMeta;
+
   Future<AppHandle?> loadStaticMethodAppHandle(
       {required Config config, dynamic hint});
 
@@ -103,6 +110,12 @@ abstract class AppRs {
       {required AppHandle that, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kGetAddressMethodAppHandleConstMeta;
+
+  /// Delete both the local payment state and the on-disk payment db.
+  Future<void> deletePaymentDbMethodAppHandle(
+      {required AppHandle that, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kDeletePaymentDbMethodAppHandleConstMeta;
 
   /// Sync the local payment DB to the remote node.
   ///
@@ -215,6 +228,12 @@ class AppHandle {
       );
 
   Future<String> getAddress({dynamic hint}) => bridge.getAddressMethodAppHandle(
+        that: this,
+      );
+
+  /// Delete both the local payment state and the on-disk payment db.
+  Future<void> deletePaymentDb({dynamic hint}) =>
+      bridge.deletePaymentDbMethodAppHandle(
         that: this,
       );
 

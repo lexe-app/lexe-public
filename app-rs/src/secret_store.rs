@@ -97,6 +97,12 @@ impl SecretStore {
         }
     }
 
+    /// Delete all stored secrets
+    pub fn delete(&self) -> anyhow::Result<()> {
+        self.delete_root_seed()
+            .context("Failed to delete SecretStore")
+    }
+
     pub fn read_root_seed(&self) -> anyhow::Result<Option<RootSeed>> {
         let res = self.root_seed_entry.lock().unwrap().get_password();
         match res {

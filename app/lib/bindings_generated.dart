@@ -114,6 +114,23 @@ class AppRsImpl implements AppRs {
         argNames: ["rustLog"],
       );
 
+  void debugDeleteSecretStore({required Config config, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_config(config);
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner.wire_debug_delete_secret_store(arg0),
+      parseSuccessData: _wire2api_unit,
+      constMeta: kDebugDeleteSecretStoreConstMeta,
+      argValues: [config],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kDebugDeleteSecretStoreConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "debug_delete_secret_store",
+        argNames: ["config"],
+      );
+
   Future<AppHandle?> loadStaticMethodAppHandle(
       {required Config config, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_config(config);
@@ -272,6 +289,25 @@ class AppRsImpl implements AppRs {
   FlutterRustBridgeTaskConstMeta get kGetAddressMethodAppHandleConstMeta =>
       const FlutterRustBridgeTaskConstMeta(
         debugName: "get_address__method__AppHandle",
+        argNames: ["that"],
+      );
+
+  Future<void> deletePaymentDbMethodAppHandle(
+      {required AppHandle that, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner
+          .wire_delete_payment_db__method__AppHandle(port_, arg0),
+      parseSuccessData: _wire2api_unit,
+      constMeta: kDeletePaymentDbMethodAppHandleConstMeta,
+      argValues: [that],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kDeletePaymentDbMethodAppHandleConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "delete_payment_db__method__AppHandle",
         argNames: ["that"],
       );
 
@@ -968,6 +1004,22 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _wire_init_rust_log_stream = _wire_init_rust_log_streamPtr
       .asFunction<void Function(int, ffi.Pointer<wire_uint_8_list>)>();
 
+  WireSyncReturn wire_debug_delete_secret_store(
+    ffi.Pointer<wire_Config> config,
+  ) {
+    return _wire_debug_delete_secret_store(
+      config,
+    );
+  }
+
+  late final _wire_debug_delete_secret_storePtr = _lookup<
+      ffi.NativeFunction<
+          WireSyncReturn Function(
+              ffi.Pointer<wire_Config>)>>('wire_debug_delete_secret_store');
+  late final _wire_debug_delete_secret_store =
+      _wire_debug_delete_secret_storePtr
+          .asFunction<WireSyncReturn Function(ffi.Pointer<wire_Config>)>();
+
   void wire_load__static_method__AppHandle(
     int port_,
     ffi.Pointer<wire_Config> config,
@@ -1122,6 +1174,24 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       'wire_get_address__method__AppHandle');
   late final _wire_get_address__method__AppHandle =
       _wire_get_address__method__AppHandlePtr
+          .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
+
+  void wire_delete_payment_db__method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_AppHandle> that,
+  ) {
+    return _wire_delete_payment_db__method__AppHandle(
+      port_,
+      that,
+    );
+  }
+
+  late final _wire_delete_payment_db__method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>)>>(
+      'wire_delete_payment_db__method__AppHandle');
+  late final _wire_delete_payment_db__method__AppHandle =
+      _wire_delete_payment_db__method__AppHandlePtr
           .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
 
   void wire_sync_payments__method__AppHandle(
