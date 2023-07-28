@@ -30,6 +30,7 @@ use std::{
     io::{self, Read},
     path::PathBuf,
     str::FromStr,
+    string::ToString,
     sync::Mutex,
 };
 
@@ -40,10 +41,10 @@ use common::{
         qs::{GetNewPayments, GetPaymentsByIds},
     },
     iter::IteratorExt,
-    ln::payments::{BasicPayment, PaymentIndex},
+    ln::payments::{BasicPayment, LxPaymentId, PaymentIndex},
 };
 use roaring::RoaringBitmap;
-use tracing::warn;
+use tracing::{instrument, warn};
 
 /// The app's local [`BasicPayment`] database, synced from the user node.
 pub struct PaymentDb<V> {
@@ -524,10 +525,10 @@ impl PaymentDbState {
         self.payments.last().map(|payment| payment.index())
     }
 
-    fn pending_indexes(&self) -> Vec<PaymentIndex> {
+    fn pending_ids(&self) -> Vec<LxPaymentId> {
         self.pending
             .iter()
-            .map(|vec_idx| self.payments[vec_idx as usize].index)
+            .map(|vec_idx| self.payments[vec_idx as usize].index.id)
             .collect()
     }
 
@@ -675,12 +676,13 @@ pub async fn sync_payments<V: Vfs, N: AppNodeRunApi>(
 /// Returns the number of payments that had were finalized or otherwise had
 /// updates. Returns 0 if nothing changed with the pending payments since our
 /// last sync.
+#[instrument(skip_all, name = "(pending)")]
 async fn sync_pending_payments<V: Vfs, N: AppNodeRunApi>(
     db: &Mutex<PaymentDb<V>>,
     node: &N,
     batch_size: u16,
 ) -> anyhow::Result<usize> {
-    let pending = {
+    let pending_ids = {
         let lock = db.lock().unwrap();
 
         // No pending payments; nothing to do : )
@@ -688,18 +690,15 @@ async fn sync_pending_payments<V: Vfs, N: AppNodeRunApi>(
             return Ok(0);
         }
 
-        lock.state.pending_indexes()
+        lock.state.pending_ids()
     };
 
     let mut num_updated = 0;
 
-    for pending_idx_batch in pending.chunks(usize::from(batch_size)) {
+    for pending_ids_batch in pending_ids.chunks(usize::from(batch_size)) {
         // Request the current state of all payments we believe are pending.
         let req = GetPaymentsByIds {
-            ids: pending_idx_batch
-                .iter()
-                .map(|idx| idx.to_string())
-                .collect(),
+            ids: pending_ids_batch.iter().map(ToString::to_string).collect(),
         };
         let resp_payments = node
             .get_payments_by_ids(req)
@@ -707,18 +706,18 @@ async fn sync_pending_payments<V: Vfs, N: AppNodeRunApi>(
             .context("Failed to request updated pending payments from node")?;
 
         // Sanity check response.
-        if resp_payments.len() > pending_idx_batch.len() {
+        if resp_payments.len() > pending_ids_batch.len() {
             return Err(format_err!(
                 "Node returned more payments than we expected!"
             ));
         }
-        // for (pending_idx, resp_payment) in
-        //     pending_idx_batch.iter().zip(resp_payments.iter())
+        // for (pending_id, resp_payment) in
+        //     pending_ids_batch.iter().zip(resp_payments.iter())
         // {
         //     assert_eq!(
-        //         pending_idx,
-        //         &resp_payment.index(),
-        //         "Node returned payment with different index!"
+        //         pending_id,
+        //         &resp_payment.payment_id(),
+        //         "Node returned payment with different id!"
         //     );
         // }
 
@@ -739,6 +738,7 @@ async fn sync_pending_payments<V: Vfs, N: AppNodeRunApi>(
 /// Fetch any new payments made since we last synced.
 ///
 /// Returns the number of new payments.
+#[instrument(skip_all, name = "(new)")]
 async fn sync_new_payments<V: Vfs, N: AppNodeRunApi>(
     db: &Mutex<PaymentDb<V>>,
     node: &N,
@@ -961,9 +961,20 @@ mod test {
             Ok(req
                 .ids
                 .iter()
-                .filter_map(|idx_str| {
-                    let idx = PaymentIndex::from_str(idx_str).unwrap();
-                    self.payments.get(&idx).cloned()
+                .filter_map(|id_str| {
+                    let id = LxPaymentId::from_str(id_str).unwrap();
+                    self.payments
+                        .iter()
+                        .find_map(
+                            |(idx, p)| {
+                                if idx.id == id {
+                                    Some(p)
+                                } else {
+                                    None
+                                }
+                            },
+                        )
+                        .cloned()
                 })
                 .collect())
         }
