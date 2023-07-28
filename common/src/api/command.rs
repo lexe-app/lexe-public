@@ -66,7 +66,7 @@ pub struct SendOnchainRequest {
     pub note: Option<String>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub struct EstimateFeeSendOnchainRequest {
     /// The address we want to send funds to.
     pub address: Address,
@@ -108,4 +108,37 @@ pub struct CloseChannelRequest {
     ///
     /// [`list_channels`]: lightning::ln::channelmanager::ChannelManager::list_channels
     pub maybe_counterparty: Option<NodePk>,
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+mod arbitrary {
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
+
+    use super::*;
+    use crate::test_utils::arbitrary::any_mainnet_address;
+
+    impl Arbitrary for EstimateFeeSendOnchainRequest {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any_mainnet_address(), any::<Amount>())
+                .prop_map(|(address, amount)| Self { address, amount })
+                .boxed()
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::test_utils::roundtrip::query_string_roundtrip_proptest;
+
+    #[test]
+    fn estimate_fee_send_onchain_roundtrip() {
+        query_string_roundtrip_proptest::<EstimateFeeSendOnchainRequest>();
+    }
 }
