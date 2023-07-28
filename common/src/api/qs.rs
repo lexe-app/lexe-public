@@ -40,7 +40,6 @@ pub struct GetByScid {
 pub struct GetPaymentByIndex {
     /// The index of the payment to be fetched.
     // We use index instead of id so the backend can query by primary key.
-    #[serde(flatten)]
     pub index: PaymentIndex,
 }
 
@@ -50,7 +49,6 @@ pub struct GetPaymentByIndex {
 pub struct GetNewPayments {
     /// Optional [`PaymentIndex`] at which the results should start, exclusive.
     /// Payments with an index less than or equal to this will not be returned.
-    #[serde(flatten)]
     pub start_index: Option<PaymentIndex>,
     /// (Optional) the maximum number of results that can be returned.
     pub limit: Option<u16>,
@@ -73,7 +71,6 @@ pub struct GetPaymentsByIds {
 #[derive(Serialize, Deserialize)]
 pub struct UpdatePaymentNote {
     /// The index of the payment whose note should be updated.
-    #[serde(flatten)]
     pub index: PaymentIndex,
     /// The updated note.
     pub note: Option<String>,
