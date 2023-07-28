@@ -899,6 +899,7 @@ dependencies = [
  "secrecy",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "serde_with",
  "sgx-isa",
  "sgx-panic-backtrace",
