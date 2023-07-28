@@ -37,7 +37,6 @@ use crate::{
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(all(any(test, feature = "test-utils")), derive(Arbitrary))]
 pub struct BasicPayment {
-    #[serde(flatten)]
     pub index: PaymentIndex,
 
     pub kind: PaymentKind,
@@ -174,7 +173,7 @@ pub enum PaymentStatus {
 /// 8776421933930532767-bc_ead3c01be0315dfd4e4c405aaca0f39076cff722a0f680c89c348e3bda9575f3
 /// ```
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-#[derive(Serialize, Deserialize)]
+#[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct PaymentIndex {
     pub created_at: TimestampMs,

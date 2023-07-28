@@ -6,7 +6,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Context};
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{de, Serialize};
 
 /// The number of milliseconds since the [`UNIX_EPOCH`].
 ///
@@ -14,7 +14,8 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 ///   with some platforms we use which don't support unsigned ints.
 /// - Can represent any time from January 1st, 1970 00:00:00.000 UTC to roughly
 ///   292 million years in the future.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd, Serialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Serialize)]
 pub struct TimestampMs(i64);
 
 impl TimestampMs {
@@ -76,24 +77,6 @@ impl From<u32> for TimestampMs {
     }
 }
 
-/// Enforces that the inner [`i64`] is non-negative.
-impl<'de> Deserialize<'de> for TimestampMs {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let value = i64::deserialize(deserializer)?;
-        if value >= 0 {
-            Ok(TimestampMs(value))
-        } else {
-            Err(de::Error::invalid_value(
-                de::Unexpected::Signed(value),
-                &"Unix timestamp must be non-negative",
-            ))
-        }
-    }
-}
-
 impl FromStr for TimestampMs {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -109,6 +92,16 @@ impl FromStr for TimestampMs {
 impl Display for TimestampMs {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         i64::fmt(&self.0, f)
+    }
+}
+
+impl<'de> de::Deserialize<'de> for TimestampMs {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        i64::deserialize(deserializer)
+            .and_then(|x| Self::try_from(x).map_err(de::Error::custom))
     }
 }
 
