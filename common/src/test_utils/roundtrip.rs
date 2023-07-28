@@ -121,6 +121,23 @@ where
     });
 }
 
+/// Quickly create a roundtrip proptest for some `T` which is url-encodable /
+/// querystring serializable.
+pub fn query_string_roundtrip_proptest<T>()
+where
+    T: Arbitrary + PartialEq + Serialize + DeserializeOwned,
+{
+    proptest!(|(value1: T)| {
+        let query_str1 = serde_urlencoded::to_string(&value1).unwrap();
+        let value2 = serde_urlencoded::from_str(&query_str1).unwrap();
+        let query_str2 = serde_urlencoded::to_string(&value2).unwrap();
+
+        prop_assert_eq!(&value1, &value2);
+        prop_assert_eq!(&query_str1, &query_str2);
+
+    });
+}
+
 /// Quickly create a roundtrip proptest for some `T` which can be signed.
 ///
 /// # Example

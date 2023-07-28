@@ -46,6 +46,8 @@ secrecy.workspace = true
 serde.workspace = true
 serde_with = { workspace = true, features = ["macros"] }
 serde_json.workspace = true
+# This version should track the one that `warp` uses internally.
+serde_urlencoded = { optional = true, version = "0.7" }
 sgx-isa.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = [
@@ -118,7 +120,12 @@ proptest-derive = { optional = true, workspace = true }
 # Explicitly specify that no features should be enabled by default.
 default = []
 # Enable this feature to allow test utils to be shared across crate boundaries.
-test-utils = ["dep:electrsd", "dep:proptest", "dep:proptest-derive"]
+test-utils = [
+  "dep:electrsd",
+  "dep:proptest",
+  "dep:proptest-derive",
+  "dep:serde_urlencoded",
+]
 
 # --- DEV DEPENDENCIES, ALL PLATFORMS --- #
 
@@ -126,6 +133,8 @@ test-utils = ["dep:electrsd", "dep:proptest", "dep:proptest-derive"]
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 serde_json.workspace = true
+# This version should track the one that `warp` uses internally.
+serde_urlencoded = "0.7"
 tokio = { workspace = true, features = [
     "io-util",
     "macros",
