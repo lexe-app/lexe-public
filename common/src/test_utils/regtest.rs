@@ -13,7 +13,7 @@ use electrsd::{
     electrum_client::ElectrumApi,
     ElectrsD,
 };
-use tracing::debug;
+use tracing::{debug, info};
 
 /// A wrapper around [`BitcoinD`] and [`ElectrsD`] which exposes simple methods
 /// for launching a bitcoind regtest instance and esplora server, funding
@@ -30,6 +30,8 @@ pub struct Regtest {
 
 impl Regtest {
     pub async fn init() -> Self {
+        info!("Initializing regtest");
+
         // Init bitcoind
         let bitcoind_exe_path = bitcoind::downloaded_exe_path()
             .expect("Didn't specify bitcoind version in feature flags");
@@ -76,15 +78,18 @@ impl Regtest {
         // completely empty history
         regtest.mine_n_blocks(6).await;
 
+        info!("Successfully initialized regtest");
         regtest
     }
 
     /// Kills the underlying [`ElectrsD`] and [`BitcoinD`] processes.
     pub fn kill(&mut self) -> anyhow::Result<()> {
+        info!("Killing regtest");
         let electrsd_res = self.electrsd.kill();
         let bitcoind_res = self.bitcoind.stop();
         bitcoind_res.context("Could not kill bitcoind")?;
         electrsd_res.context("Could not kill electrsd")?;
+        info!("Successfully killed regtest");
         Ok(())
     }
 
