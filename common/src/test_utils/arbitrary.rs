@@ -4,8 +4,10 @@ use std::net::SocketAddr;
 use bitcoin::{
     blockdata::{opcodes, script},
     hashes::Hash,
-    secp256k1, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn,
-    TxOut, Txid, Witness,
+    secp256k1,
+    util::address,
+    Address, Network, OutPoint, PackedLockTime, Script, ScriptHash, Sequence,
+    Transaction, TxIn, TxOut, Txid, Witness,
 };
 use proptest::{
     arbitrary::any,
@@ -224,4 +226,29 @@ pub fn any_txid() -> impl Strategy<Value = Txid> {
 /// An `Arbitrary`-like [`Strategy`] for a [`OutPoint`].
 pub fn any_outpoint() -> impl Strategy<Value = OutPoint> {
     (any_txid(), any::<u32>()).prop_map(|(txid, vout)| OutPoint { txid, vout })
+}
+
+pub fn any_script_hash() -> impl Strategy<Value = ScriptHash> {
+    any::<[u8; 20]>()
+        .prop_map(|hash| ScriptHash::from_slice(&hash).unwrap())
+        .no_shrink()
+}
+
+pub fn any_mainnet_address() -> impl Strategy<Value = Address> {
+    const NET: Network = Network::Bitcoin;
+
+    prop_oneof![
+        // P2PKH
+        any_bitcoin_pubkey().prop_map(|pk| Address::p2pkh(&pk, NET)),
+        // P2SH / P2WSH / P2SHWSH / P2SHWPKH
+        any_script_hash().prop_map(|sh| Address {
+            payload: address::Payload::ScriptHash(sh),
+            network: NET,
+        }),
+        // P2WPKH
+        any_bitcoin_pubkey().prop_map(|pk| Address::p2wpkh(&pk, NET).unwrap()),
+        // P2WSH
+        any_script().prop_map(|script| Address::p2wsh(&script, NET)),
+        // TODO(phlip9): taproot
+    ]
 }
