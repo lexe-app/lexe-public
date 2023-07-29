@@ -1,4 +1,6 @@
 use anyhow::{ensure, Context};
+#[cfg(any(test, feature = "test-utils"))]
+use proptest_derive::Arbitrary;
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 
@@ -24,7 +26,8 @@ pub struct NodeProvisionRequest {
 }
 
 /// Uniquely identifies a sealed seed using its primary key fields.
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct SealedSeedId {
     pub user_pk: UserPk,
     pub measurement: Measurement,
@@ -227,5 +230,10 @@ mod test {
                 root_seed2.expose_secret(),
             );
         });
+    }
+
+    #[test]
+    fn test_sealed_seed_id_roundtrip() {
+        roundtrip::query_string_roundtrip_proptest::<SealedSeedId>();
     }
 }
