@@ -13,6 +13,8 @@ use std::{borrow::Cow, fmt, io, mem, str::FromStr};
 
 use bytes::{Buf, BufMut};
 use cfg_if::cfg_if;
+#[cfg(any(test, feature = "test-utils"))]
+use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -68,6 +70,7 @@ impl From<sgx_isa::ErrorCode> for Error {
 ///
 /// Get the current enclave's measurement with
 /// [`enclave::measurement()`](measurement).
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Measurement(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
@@ -131,7 +134,7 @@ impl fmt::Debug for Measurement {
 ///
 /// [CPUSVN]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#security-version-number-svn
 /// [`OWNER_EPOCH`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#owner-epoch
-#[cfg_attr(test, derive(proptest_derive::Arbitrary))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct MachineId(#[serde(with = "hexstr_or_bytes")] [u8; 16]);
 

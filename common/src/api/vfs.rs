@@ -43,7 +43,6 @@ pub struct VfsFileId {
 /// always encrypted.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct VfsFile {
-    // Flattened because serde_qs requires non-nested structs
     #[serde(flatten)]
     pub id: VfsFileId,
     #[serde(with = "hexstr_or_bytes")]
@@ -68,5 +67,56 @@ impl VfsFile {
             },
             data,
         }
+    }
+}
+
+// --- impl Arbitrary --- //
+
+#[cfg(any(test, feature = "test-utils"))]
+mod prop {
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
+
+    use super::*;
+    use crate::test_utils::arbitrary;
+
+    impl Arbitrary for VfsDirectory {
+        type Strategy = BoxedStrategy<Self>;
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            arbitrary::any_string()
+                .prop_map(|dirname| VfsDirectory { dirname })
+                .boxed()
+        }
+    }
+
+    impl Arbitrary for VfsFileId {
+        type Strategy = BoxedStrategy<Self>;
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<VfsDirectory>(), arbitrary::any_string())
+                .prop_map(|(dir, filename)| VfsFileId { dir, filename })
+                .boxed()
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::test_utils::roundtrip;
+
+    #[test]
+    fn vfs_directory_roundtrip() {
+        roundtrip::query_string_roundtrip_proptest::<VfsDirectory>();
+    }
+
+    #[test]
+    fn vfs_file_id_roundtrip() {
+        roundtrip::query_string_roundtrip_proptest::<VfsFileId>();
     }
 }
