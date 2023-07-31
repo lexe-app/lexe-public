@@ -21,7 +21,7 @@ use common::{
         qs::{
             GetByUserPk, GetNewPayments, GetPaymentsByIds, UpdatePaymentNote,
         },
-        rest, Scid, UserPk,
+        rest, Empty, Scid, UserPk,
     },
     cli::{LspInfo, Network},
     shutdown::ShutdownChannel,
@@ -195,6 +195,8 @@ pub(crate) fn lexe_routes(
         .and(inject::resync_tx(bdk_resync_tx))
         .and(inject::resync_tx(ldk_resync_tx))
         .then(lexe_ln::command::resync)
+        // TODO(phlip9): remove
+        .map(|res: Result<(), _>| res.map(|()| Empty {}))
         .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
     let open_channel = warp::path("open_channel")
