@@ -33,7 +33,7 @@ use common::{
         error::{NodeApiError, NodeErrorKind},
         ports::UserPorts,
         provision::{NodeProvisionRequest, SealedSeed},
-        rest, NodePk, UserPk,
+        rest, Empty, NodePk, UserPk,
     },
     cli::node::ProvisionArgs,
     client::tls,
@@ -175,7 +175,7 @@ fn app_routes(ctx: RequestContext) -> BoxedFilter<(Response<Body>,)> {
 async fn provision_handler(
     mut ctx: RequestContext,
     req: NodeProvisionRequest,
-) -> Result<(), NodeApiError> {
+) -> Result<Empty, NodeApiError> {
     debug!("Received provision request");
 
     let (user_key_pair, root_seed) =
@@ -220,7 +220,7 @@ async fn provision_handler(
     // Provisioning done. Stop the node.
     ctx.shutdown.send();
 
-    Ok(())
+    Ok(Empty {})
 }
 
 fn verify_provision_request<R: Crng>(

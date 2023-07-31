@@ -293,11 +293,11 @@ pub trait LexeNodeApi {
 /// Defines the api that the node exposes to the app during provisioning.
 #[async_trait]
 pub trait AppNodeProvisionApi {
-    /// POST /app/provision [`NodeProvisionRequest`] -> [`()`]
+    /// POST /app/provision [`NodeProvisionRequest`] -> [`Empty`]
     async fn provision(
         &self,
         data: NodeProvisionRequest,
-    ) -> Result<(), NodeApiError>;
+    ) -> Result<Empty, NodeApiError>;
 }
 
 /// Defines the api that the node exposes to the app during normal operation.
