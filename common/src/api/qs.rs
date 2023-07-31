@@ -20,10 +20,19 @@ use crate::{
 // This issue is due to a limitation in serde. See:
 // <https://github.com/serde-rs/serde/issues/1183>
 
-/// Query parameter struct for fetching with no data attached.
+/// Query parameter struct for an empty request or response.
 ///
-/// Is defined with {} otherwise serde_qs vomits
-#[derive(Serialize)]
+/// This type should serialize/deserialize in such a way that we have room to
+/// add optional fields in the future without causing old clients to reject the
+/// message (backwards-compatible changes).
+///
+/// ```rust
+/// # use common::api::qs::EmptyData;
+/// assert_eq!("", serde_urlencoded::to_string(&EmptyData {}).unwrap());
+/// assert_eq!("{}", serde_json::to_string(&EmptyData {}).unwrap());
+/// ```
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct EmptyData {}
 
 /// Query parameter struct for fetching by user pk
@@ -94,6 +103,40 @@ pub struct UpdatePaymentNote {
 mod test {
     use super::*;
     use crate::test_utils::roundtrip::query_string_roundtrip_proptest;
+
+    #[test]
+    fn empty_data_roundtrip() {
+        // query string
+
+        assert_eq!("", serde_urlencoded::to_string(&EmptyData {}).unwrap());
+
+        assert_eq!(
+            EmptyData {},
+            serde_urlencoded::from_str::<EmptyData>("").unwrap(),
+        );
+        assert_eq!(
+            EmptyData {},
+            serde_urlencoded::from_str::<EmptyData>("foo=123").unwrap(),
+        );
+
+        // json
+
+        assert_eq!("{}", serde_json::to_string(&EmptyData {}).unwrap());
+
+        // empty string is not valid json
+        serde_json::from_str::<EmptyData>("").unwrap_err();
+        // reject other invalid json
+        serde_json::from_str::<EmptyData>("asdlfki").unwrap_err();
+
+        assert_eq!(
+            EmptyData {},
+            serde_json::from_str::<EmptyData>("{}").unwrap(),
+        );
+        assert_eq!(
+            EmptyData {},
+            serde_json::from_str::<EmptyData>(r#"{"foo":123}"#).unwrap(),
+        );
+    }
 
     #[test]
     fn get_by_user_pk_roundtrip() {
