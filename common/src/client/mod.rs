@@ -310,7 +310,7 @@ impl AppNodeProvisionApi for NodeClient {
     async fn provision(
         &self,
         data: NodeProvisionRequest,
-    ) -> Result<(), NodeApiError> {
+    ) -> Result<Empty, NodeApiError> {
         self.ensure_authed().await?;
         let provision_url = &self.provision_url;
         let req = self
