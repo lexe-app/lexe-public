@@ -185,8 +185,8 @@ impl AppBackendApi for MockBackendClient {
     async fn signup(
         &self,
         _signed_req: ed25519::Signed<UserSignupRequest>,
-    ) -> Result<(), BackendApiError> {
-        Ok(())
+    ) -> Result<Empty, BackendApiError> {
+        Ok(Empty {})
     }
 }
 

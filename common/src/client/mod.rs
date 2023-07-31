@@ -38,6 +38,7 @@ use crate::{
         provision::NodeProvisionRequest,
         qs::{EmptyData, GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
         rest::{RequestBuilderExt, RestClient, API_REQUEST_TIMEOUT, GET, POST},
+        Empty,
     },
     attest, ed25519,
     ln::{hashes::LxTxid, invoice::LxInvoice, payments::BasicPayment},
@@ -85,7 +86,7 @@ impl AppBackendApi for GatewayClient {
     async fn signup(
         &self,
         signed_req: ed25519::Signed<UserSignupRequest>,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         let gateway_url = &self.gateway_url;
         let req = self
             .rest

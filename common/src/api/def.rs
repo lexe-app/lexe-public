@@ -207,11 +207,11 @@ pub trait NodeBackendApi {
 /// Defines the api that the backend exposes to the app (via the gateway).
 #[async_trait]
 pub trait AppBackendApi {
-    /// POST /app/v1/signup [`ed25519::Signed<UserSignupRequest>`] -> [`()`]
+    /// POST /app/v1/signup [`ed25519::Signed<UserSignupRequest>`] -> [`Empty`]
     async fn signup(
         &self,
         signed_req: ed25519::Signed<UserSignupRequest>,
-    ) -> Result<(), BackendApiError>;
+    ) -> Result<Empty, BackendApiError>;
 }
 
 /// The bearer auth API exposed by the backend (sometimes via the gateway) to
