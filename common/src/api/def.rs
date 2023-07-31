@@ -254,37 +254,40 @@ pub trait NodeRunnerApi {
 /// Defines the api that the node exposes to the Lexe operators.
 #[async_trait]
 pub trait LexeNodeApi {
-    /// GET /lexe/status [`GetByUserPk`] -> "OK"
+    /// GET /lexe/status [`GetByUserPk`] -> [`Empty`]
     ///
     /// [`GetByUserPk`]: super::qs::GetByUserPk
-    async fn status(&self, user_pk: UserPk) -> Result<String, NodeApiError>;
+    async fn status(&self, user_pk: UserPk) -> Result<Empty, NodeApiError>;
 
-    /// POST /lexe/resync [`Empty`] -> [`()`]
+    /// POST /lexe/resync [`Empty`] -> [`Empty`]
     ///
     /// Triggers an immediate resync of BDK and LDK.
     /// Returns only once sync has either completed or timed out.
-    async fn resync(&self) -> Result<(), NodeApiError>;
+    async fn resync(&self) -> Result<Empty, NodeApiError>;
 
-    /// POST /lexe/open_channel [`OpenChannelRequest`] -> [`()`]
+    /// POST /lexe/open_channel [`OpenChannelRequest`] -> [`Empty`]
     ///
     /// Opens a channel to the LSP.
     /// Does nothing and returns an error if called in prod.
     async fn open_channel(
         &self,
         req: OpenChannelRequest,
-    ) -> Result<(), NodeApiError>;
+    ) -> Result<Empty, NodeApiError>;
 
-    /// POST /lexe/test_event [`TestEventOp`] -> [`()`]
+    /// POST /lexe/test_event [`TestEventOp`] -> [`Empty`]
     ///
     /// Calls the corresponding `TestEventReceiver` method.
     /// This endpoint can only be called by one caller at any one time.
     /// Does nothing and returns an error if called in prod.
+    // NOTE: we'll make an exception for always returning `Empty` here. This is
+    // a test-only API so we don't care about upgradability. Returning `()` is
+    // also significantly more ergonomic in tests w/ `tokio::join`.
     async fn test_event(&self, op: TestEventOp) -> Result<(), NodeApiError>;
 
-    /// GET /lexe/shutdown [`GetByUserPk`] -> [`()`]
+    /// GET /lexe/shutdown [`GetByUserPk`] -> [`Empty`]
     ///
     /// [`GetByUserPk`]: super::qs::GetByUserPk
-    async fn shutdown(&self, user_pk: UserPk) -> Result<(), NodeApiError>;
+    async fn shutdown(&self, user_pk: UserPk) -> Result<Empty, NodeApiError>;
 }
 
 /// Defines the api that the node exposes to the app during provisioning.

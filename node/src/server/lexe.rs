@@ -1,7 +1,7 @@
 use common::{
     api::{
         command::OpenChannelRequest, error::NodeApiError, qs::GetByUserPk,
-        UserPk,
+        Empty, UserPk,
     },
     ln::peer::ChannelPeer,
     shutdown::ShutdownChannel,
@@ -14,11 +14,10 @@ use crate::{
 pub async fn status(
     given: GetByUserPk,
     current_pk: UserPk,
-) -> Result<String, NodeApiError> {
+) -> Result<Empty, NodeApiError> {
     let given_pk = given.user_pk;
     if current_pk == given_pk {
-        // TODO Actually get status
-        Ok(String::from("OK"))
+        Ok(Empty {})
     } else {
         Err(NodeApiError::wrong_user_pk(current_pk, given_pk))
     }
@@ -29,7 +28,7 @@ pub async fn open_channel(
     channel_manager: NodeChannelManager,
     peer_manager: NodePeerManager,
     lsp_channel_peer: ChannelPeer,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Empty> {
     cfg_if::cfg_if! {
         // TODO(max): This needs to switch to #[cfg(feature = "test-utils")],
         // otherwise this will break the SGX integration tests.
@@ -52,6 +51,8 @@ pub async fn open_channel(
                 channel_manager::USER_CONFIG,
             )
             .await
+            // TODO(phlip9): remove
+            .map(|()| Empty {  })
             .context("Failed to open channel to LSP")
         } else {
             let _ = req;
@@ -67,11 +68,11 @@ pub fn shutdown(
     given: GetByUserPk,
     current_pk: UserPk,
     shutdown: ShutdownChannel,
-) -> Result<(), NodeApiError> {
+) -> Result<Empty, NodeApiError> {
     let given_pk = given.user_pk;
     if current_pk == given_pk {
         shutdown.send();
-        Ok(())
+        Ok(Empty {})
     } else {
         Err(NodeApiError::wrong_user_pk(current_pk, given_pk))
     }
