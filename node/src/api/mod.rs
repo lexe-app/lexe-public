@@ -10,6 +10,7 @@ use common::api::{
     def::{BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi},
     error::BackendApiError,
     vfs::VfsFile,
+    Empty,
 };
 
 /// Real clients.
@@ -27,14 +28,14 @@ pub trait BackendApiClient: NodeBackendApi + BearerAuthBackendApi {
         file: &VfsFile,
         auth: BearerAuthToken,
         retries: usize,
-    ) -> Result<(), BackendApiError>;
+    ) -> Result<Empty, BackendApiError>;
 
     async fn upsert_file_with_retries(
         &self,
         file: &VfsFile,
         auth: BearerAuthToken,
         retries: usize,
-    ) -> Result<(), BackendApiError>;
+    ) -> Result<Empty, BackendApiError>;
 }
 
 /// Helper to initiate a client to the backend.

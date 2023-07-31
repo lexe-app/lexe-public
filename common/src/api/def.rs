@@ -25,12 +25,11 @@
 use async_trait::async_trait;
 use bitcoin::Address;
 
-#[cfg(doc)]
-use super::qs::EmptyData;
 use super::{
     command::{EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse},
     error::GatewayApiError,
     fiat_rates::FiatRates,
+    Empty,
 };
 use crate::{
     api::{
@@ -78,12 +77,12 @@ pub trait NodeBackendApi {
         data: SealedSeedId,
     ) -> Result<Option<SealedSeed>, BackendApiError>;
 
-    /// POST /node/v1/sealed_seed [`SealedSeed`] -> [`()`]
+    /// POST /node/v1/sealed_seed [`SealedSeed`] -> [`Empty`]
     async fn create_sealed_seed(
         &self,
         data: SealedSeed,
         auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError>;
+    ) -> Result<Empty, BackendApiError>;
 
     /// GET /node/v1/scid [`GetByNodePk`] -> [`Option<Scid>`]
     ///
@@ -101,28 +100,28 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Option<VfsFile>, BackendApiError>;
 
-    /// POST /node/v1/file [`VfsFile`] -> [`()`]
+    /// POST /node/v1/file [`VfsFile`] -> [`Empty`]
     async fn create_file(
         &self,
         file: &VfsFile,
         auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError>;
+    ) -> Result<Empty, BackendApiError>;
 
-    /// PUT /node/v1/file [`VfsFile`] -> [`()`]
+    /// PUT /node/v1/file [`VfsFile`] -> [`Empty`]
     async fn upsert_file(
         &self,
         file: &VfsFile,
         auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError>;
+    ) -> Result<Empty, BackendApiError>;
 
-    /// DELETE /node/v1/file [`VfsFileId`] -> [`()`]
+    /// DELETE /node/v1/file [`VfsFileId`] -> [`Empty`]
     ///
     /// Returns [`Ok`] only if exactly one row was deleted.
     async fn delete_file(
         &self,
         file_id: &VfsFileId,
         auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError>;
+    ) -> Result<Empty, BackendApiError>;
 
     /// GET /node/v1/directory [`VfsDirectory`] -> [`Vec<VfsFile>`]
     async fn get_directory(
@@ -138,28 +137,28 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Option<DbPayment>, BackendApiError>;
 
-    /// POST /node/v1/payments [`DbPayment`] -> [`()`]
+    /// POST /node/v1/payments [`DbPayment`] -> [`Empty`]
     async fn create_payment(
         &self,
         payment: DbPayment,
         auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError>;
+    ) -> Result<Empty, BackendApiError>;
 
-    /// PUT /node/v1/payments [`DbPayment`] -> [`()`]
+    /// PUT /node/v1/payments [`DbPayment`] -> [`Empty`]
     async fn upsert_payment(
         &self,
         payment: DbPayment,
         auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError>;
+    ) -> Result<Empty, BackendApiError>;
 
-    /// PUT /node/v1/payments/batch [`Vec<DbPayment>`] -> [`()`]
+    /// PUT /node/v1/payments/batch [`Vec<DbPayment>`] -> [`Empty`]
     ///
     /// ACID endpoint for upserting a batch of payments.
     async fn upsert_payment_batch(
         &self,
         payments: Vec<DbPayment>,
         auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError>;
+    ) -> Result<Empty, BackendApiError>;
 
     /// POST /node/v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
     ///
@@ -260,7 +259,7 @@ pub trait LexeNodeApi {
     /// [`GetByUserPk`]: super::qs::GetByUserPk
     async fn status(&self, user_pk: UserPk) -> Result<String, NodeApiError>;
 
-    /// POST /lexe/resync [`EmptyData`] -> [`()`]
+    /// POST /lexe/resync [`Empty`] -> [`()`]
     ///
     /// Triggers an immediate resync of BDK and LDK.
     /// Returns only once sync has either completed or timed out.
@@ -301,7 +300,7 @@ pub trait AppNodeProvisionApi {
 /// Defines the api that the node exposes to the app during normal operation.
 #[async_trait]
 pub trait AppNodeRunApi {
-    /// GET /app/node_info [`EmptyData`] -> [`NodeInfo`]
+    /// GET /app/node_info [`Empty`] -> [`NodeInfo`]
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError>;
 
     /// POST /app/create_invoice [`CreateInvoiceRequest`] -> [`LxInvoice`]
