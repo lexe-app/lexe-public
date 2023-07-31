@@ -24,7 +24,7 @@ use common::{
         provision::{SealedSeed, SealedSeedId},
         qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIds},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
-        NodePk, Scid, User, UserPk,
+        Empty, NodePk, Scid, User, UserPk,
     },
     byte_str::ByteStr,
     constants::{self, SINGLETON_DIRECTORY},
@@ -166,7 +166,7 @@ impl BackendApiClient for MockBackendClient {
         data: &VfsFile,
         auth: BearerAuthToken,
         _retries: usize,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         self.create_file(data, auth).await
     }
 
@@ -175,7 +175,7 @@ impl BackendApiClient for MockBackendClient {
         data: &VfsFile,
         auth: BearerAuthToken,
         _retries: usize,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         self.upsert_file(data, auth).await
     }
 }
@@ -228,8 +228,8 @@ impl NodeBackendApi for MockBackendClient {
         &self,
         _data: SealedSeed,
         _auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError> {
-        Ok(())
+    ) -> Result<Empty, BackendApiError> {
+        Ok(Empty {})
     }
 
     async fn get_scid(
@@ -253,7 +253,7 @@ impl NodeBackendApi for MockBackendClient {
         &self,
         file: &VfsFile,
         _auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         let mut locked_vfs = self.vfs.lock().unwrap();
         if locked_vfs.get(file.id.clone()).is_some() {
             return Err(BackendApiError {
@@ -264,16 +264,16 @@ impl NodeBackendApi for MockBackendClient {
 
         let file_opt = locked_vfs.insert(file.clone());
         assert!(file_opt.is_none());
-        Ok(())
+        Ok(Empty {})
     }
 
     async fn upsert_file(
         &self,
         file: &VfsFile,
         _auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         self.vfs.lock().unwrap().insert(file.clone());
-        Ok(())
+        Ok(Empty {})
     }
 
     /// Returns [`Ok`] if exactly one row was deleted.
@@ -281,10 +281,10 @@ impl NodeBackendApi for MockBackendClient {
         &self,
         file_id: &VfsFileId,
         _auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         let file_opt = self.vfs.lock().unwrap().remove(file_id.clone());
         if file_opt.is_some() {
-            Ok(())
+            Ok(Empty {})
         } else {
             Err(BackendApiError {
                 kind: BackendErrorKind::NotFound,
@@ -322,7 +322,7 @@ impl NodeBackendApi for MockBackendClient {
         &self,
         payment: DbPayment,
         _auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         let mut locked_payments = self.payments.lock().unwrap();
         let created_at = TimestampMs::try_from(payment.created_at).unwrap();
         let id = LxPaymentId::from_str(&payment.id).unwrap();
@@ -336,26 +336,26 @@ impl NodeBackendApi for MockBackendClient {
         }
         let maybe_payment = locked_payments.insert(key, payment);
         assert!(maybe_payment.is_none());
-        Ok(())
+        Ok(Empty {})
     }
 
     async fn upsert_payment(
         &self,
         payment: DbPayment,
         _auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         let created_at = TimestampMs::try_from(payment.created_at).unwrap();
         let id = LxPaymentId::from_str(&payment.id).unwrap();
         let key = PaymentIndex { created_at, id };
         self.payments.lock().unwrap().insert(key, payment);
-        Ok(())
+        Ok(Empty {})
     }
 
     async fn upsert_payment_batch(
         &self,
         payments: Vec<DbPayment>,
         _auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         let mut locked_payments = self.payments.lock().unwrap();
         for payment in payments {
             let created_at = TimestampMs::try_from(payment.created_at).unwrap();
@@ -363,7 +363,7 @@ impl NodeBackendApi for MockBackendClient {
             let key = PaymentIndex { created_at, id };
             locked_payments.insert(key, payment);
         }
-        Ok(())
+        Ok(Empty {})
     }
 
     async fn get_payments_by_ids(

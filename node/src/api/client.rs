@@ -9,12 +9,12 @@ use common::{
         ports::UserPorts,
         provision::{SealedSeed, SealedSeedId},
         qs::{
-            EmptyData, GetByNodePk, GetByUserPk, GetNewPayments,
-            GetPaymentByIndex, GetPaymentsByIds,
+            GetByNodePk, GetByUserPk, GetNewPayments, GetPaymentByIndex,
+            GetPaymentsByIds,
         },
         rest::{RequestBuilderExt, RestClient, POST},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
-        NodePk, Scid, User, UserPk,
+        Empty, NodePk, Scid, User, UserPk,
     },
     ed25519,
     ln::payments::{DbPayment, LxPaymentId},
@@ -98,7 +98,7 @@ impl BackendApiClient for BackendClient {
         data: &VfsFile,
         auth: BearerAuthToken,
         retries: usize,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
         let url = format!("{backend}/node/v1/file");
         let req = self.rest.post(url, data).bearer_auth(&auth);
@@ -110,7 +110,7 @@ impl BackendApiClient for BackendClient {
         data: &VfsFile,
         auth: BearerAuthToken,
         retries: usize,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
         let url = format!("{backend}/node/v1/file");
         let req = self.rest.put(url, data).bearer_auth(&auth);
@@ -164,7 +164,7 @@ impl NodeBackendApi for BackendClient {
         &self,
         data: SealedSeed,
         auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -204,7 +204,7 @@ impl NodeBackendApi for BackendClient {
         &self,
         data: &VfsFile,
         auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -217,7 +217,7 @@ impl NodeBackendApi for BackendClient {
         &self,
         data: &VfsFile,
         auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -233,7 +233,7 @@ impl NodeBackendApi for BackendClient {
         &self,
         data: &VfsFileId,
         auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -272,7 +272,7 @@ impl NodeBackendApi for BackendClient {
         &self,
         payment: DbPayment,
         auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -285,7 +285,7 @@ impl NodeBackendApi for BackendClient {
         &self,
         payment: DbPayment,
         auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -298,7 +298,7 @@ impl NodeBackendApi for BackendClient {
         &self,
         payments: Vec<DbPayment>,
         auth: BearerAuthToken,
-    ) -> Result<(), BackendApiError> {
+    ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
@@ -338,7 +338,7 @@ impl NodeBackendApi for BackendClient {
         auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError> {
         let backend = &self.backend_url;
-        let data = EmptyData {};
+        let data = Empty {};
         let req = self
             .rest
             .get(format!("{backend}/node/v1/payments/pending"), &data)
@@ -351,7 +351,7 @@ impl NodeBackendApi for BackendClient {
         auth: BearerAuthToken,
     ) -> Result<Vec<LxPaymentId>, BackendApiError> {
         let backend = &self.backend_url;
-        let data = EmptyData {};
+        let data = Empty {};
         let req = self
             .rest
             .get(format!("{backend}/node/v1/payments/final"), &data)
