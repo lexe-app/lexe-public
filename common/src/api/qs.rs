@@ -105,40 +105,6 @@ mod test {
     use crate::test_utils::roundtrip::query_string_roundtrip_proptest;
 
     #[test]
-    fn empty_data_roundtrip() {
-        // query string
-
-        assert_eq!("", serde_urlencoded::to_string(&EmptyData {}).unwrap());
-
-        assert_eq!(
-            EmptyData {},
-            serde_urlencoded::from_str::<EmptyData>("").unwrap(),
-        );
-        assert_eq!(
-            EmptyData {},
-            serde_urlencoded::from_str::<EmptyData>("foo=123").unwrap(),
-        );
-
-        // json
-
-        assert_eq!("{}", serde_json::to_string(&EmptyData {}).unwrap());
-
-        // empty string is not valid json
-        serde_json::from_str::<EmptyData>("").unwrap_err();
-        // reject other invalid json
-        serde_json::from_str::<EmptyData>("asdlfki").unwrap_err();
-
-        assert_eq!(
-            EmptyData {},
-            serde_json::from_str::<EmptyData>("{}").unwrap(),
-        );
-        assert_eq!(
-            EmptyData {},
-            serde_json::from_str::<EmptyData>(r#"{"foo":123}"#).unwrap(),
-        );
-    }
-
-    #[test]
     fn get_by_user_pk_roundtrip() {
         query_string_roundtrip_proptest::<GetByUserPk>();
     }

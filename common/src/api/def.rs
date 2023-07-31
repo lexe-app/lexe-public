@@ -8,6 +8,10 @@
 //!
 //! ## Guidelines
 //!
+//! If an API method takes or returns nothing, make the type [`Empty`] and NOT
+//! `()` (unit type). Using `()` makes it impossible to add optional fields in a
+//! backwards-compatible way.
+//!
 //! Each endpoint should be documented with:
 //! - 1) HTTP method e.g. `GET`
 //! - 2) Endpoint e.g. `/v1/file`
