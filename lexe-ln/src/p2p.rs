@@ -6,7 +6,10 @@ use std::{
 
 use anyhow::{bail, Context};
 use common::{
-    api::NodePk, backoff, ln::peer::ChannelPeer, shutdown::ShutdownChannel,
+    api::{Empty, NodePk},
+    backoff,
+    ln::peer::ChannelPeer,
+    shutdown::ShutdownChannel,
     task::LxTask,
 };
 use futures::future;
@@ -68,7 +71,7 @@ where
 pub async fn connect_channel_peer_if_necessary<CM, PM, PS>(
     peer_manager: PM,
     channel_peer: ChannelPeer,
-) -> anyhow::Result<()>
+) -> anyhow::Result<Empty>
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS>,
@@ -76,7 +79,7 @@ where
 {
     // Initial check to see if we are already connected.
     if is_connected(peer_manager.clone(), &channel_peer.node_pk) {
-        return Ok(());
+        return Ok(Empty {});
     }
 
     // We retry a few times to work around an outbound connect race between
@@ -86,7 +89,7 @@ where
         // Do the attempt.
         match do_connect_peer(peer_manager.clone(), channel_peer.clone()).await
         {
-            Ok(()) => return Ok(()),
+            Ok(()) => return Ok(Empty {}),
             Err(e) => warn!("Failed to connect to peer: {e:#}"),
         }
 
@@ -99,14 +102,16 @@ where
         // Right before the next attempt, do another is_connected check in case
         // another task managed to connect while we were sleeping.
         if is_connected(peer_manager.clone(), &channel_peer.node_pk) {
-            return Ok(());
+            return Ok(Empty {});
         }
     }
 
     // Do the last attempt.
     do_connect_peer(peer_manager, channel_peer)
         .await
-        .context("Failed to connect to peer")
+        .context("Failed to connect to peer")?;
+
+    Ok(Empty {})
 }
 
 async fn do_connect_peer<CM, PM, PS>(

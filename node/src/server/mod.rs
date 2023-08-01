@@ -21,7 +21,7 @@ use common::{
         qs::{
             GetByUserPk, GetNewPayments, GetPaymentsByIds, UpdatePaymentNote,
         },
-        rest, Empty, Scid, UserPk,
+        rest, Scid, UserPk,
     },
     cli::{LspInfo, Network},
     shutdown::ShutdownChannel,
@@ -104,8 +104,6 @@ pub(crate) fn app_routes(
         .and(inject::channel_manager(channel_manager))
         .and(inject::payments_manager(payments_manager.clone()))
         .then(lexe_ln::command::pay_invoice)
-        // TODO(phlip9): remove
-        .map(|res: Result<(), _>| res.map(|()| Empty {}))
         .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
     let send_onchain = warp::path("send_onchain")
@@ -197,8 +195,6 @@ pub(crate) fn lexe_routes(
         .and(inject::resync_tx(bdk_resync_tx))
         .and(inject::resync_tx(ldk_resync_tx))
         .then(lexe_ln::command::resync)
-        // TODO(phlip9): remove
-        .map(|res: Result<(), _>| res.map(|()| Empty {}))
         .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
     let open_channel = warp::path("open_channel")

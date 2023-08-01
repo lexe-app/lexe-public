@@ -51,8 +51,6 @@ pub async fn open_channel(
                 channel_manager::USER_CONFIG,
             )
             .await
-            // TODO(phlip9): remove
-            .map(|()| Empty {  })
             .context("Failed to open channel to LSP")
         } else {
             let _ = req;

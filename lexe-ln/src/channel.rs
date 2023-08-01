@@ -2,7 +2,7 @@ use std::fmt::{self, Display};
 
 use anyhow::{anyhow, ensure, Context};
 use common::{
-    api::{command::CloseChannelRequest, NodePk},
+    api::{command::CloseChannelRequest, Empty, NodePk},
     ln::{amount::Amount, peer::ChannelPeer},
     rng::Crng,
 };
@@ -55,7 +55,7 @@ pub async fn open_channel<CM, PM, PS>(
     channel_value: Amount,
     relationship: ChannelRelationship<PS>,
     user_config: UserConfig,
-) -> anyhow::Result<()>
+) -> anyhow::Result<Empty>
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS>,
@@ -74,13 +74,14 @@ where
     //   so that we can connect with them after restart.
     use ChannelRelationship::*;
     match relationship {
-        UserToLsp { lsp_channel_peer } =>
+        UserToLsp { lsp_channel_peer } => {
             p2p::connect_channel_peer_if_necessary(
                 peer_manager,
                 lsp_channel_peer,
             )
             .await
-            .context("Could not connect to LSP")?,
+            .context("Could not connect to LSP")?;
+        }
         LspToUser { user_node_pk } => ensure!(
             p2p::is_connected(peer_manager, &user_node_pk),
             "LSP must be connected to user before opening channel",
@@ -130,7 +131,7 @@ where
         .map_err(|e| anyhow!("Failed to create channel: {e:?}"))?;
 
     info!("Successfully opened channel");
-    Ok(())
+    Ok(Empty {})
 }
 
 /// Initiates a channel close. Supports both cooperative (bilateral) and force
@@ -139,7 +140,7 @@ pub fn close_channel<CM, PM, PS>(
     req: CloseChannelRequest,
     channel_manager: CM,
     peer_manager: PM,
-) -> anyhow::Result<()>
+) -> anyhow::Result<Empty>
 where
     CM: LexeChannelManager<PS>,
     PM: LexePeerManager<CM, PS>,
@@ -179,7 +180,7 @@ where
     }
 
     info!(%channel_id, %force_close, "Successfully initiated channel close");
-    Ok(())
+    Ok(Empty {})
 }
 
 // --- impl ChannelRelationship --- //
