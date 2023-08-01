@@ -20,21 +20,6 @@ use crate::{
 // This issue is due to a limitation in serde. See:
 // <https://github.com/serde-rs/serde/issues/1183>
 
-/// Query parameter struct for an empty request or response.
-///
-/// This type should serialize/deserialize in such a way that we have room to
-/// add optional fields in the future without causing old clients to reject the
-/// message (backwards-compatible changes).
-///
-/// ```rust
-/// # use common::api::qs::EmptyData;
-/// assert_eq!("", serde_urlencoded::to_string(&EmptyData {}).unwrap());
-/// assert_eq!("{}", serde_json::to_string(&EmptyData {}).unwrap());
-/// ```
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct EmptyData {}
-
 /// Query parameter struct for fetching by user pk
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
