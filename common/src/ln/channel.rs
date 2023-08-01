@@ -26,7 +26,7 @@ use crate::{
 /// A newtype for [`ChannelDetails::channel_id`].
 ///
 /// [`ChannelDetails::channel_id`]: lightning::ln::channelmanager::ChannelDetails::channel_id
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 pub struct ChannelId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
 impl FromStr for ChannelId {
