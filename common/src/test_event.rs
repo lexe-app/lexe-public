@@ -57,3 +57,9 @@ pub enum TestEvent {
     /// [`SpendableOutputs`]: lightning::events::Event::SpendableOutputs
     SpendableOutputs,
 }
+
+impl From<TestEvent> for Vec<TestEvent> {
+    fn from(event: TestEvent) -> Self {
+        vec![event]
+    }
+}
