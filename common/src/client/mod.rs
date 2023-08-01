@@ -36,7 +36,7 @@ use crate::{
         },
         fiat_rates::FiatRates,
         provision::NodeProvisionRequest,
-        qs::{EmptyData, GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
+        qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
         rest::{RequestBuilderExt, RestClient, API_REQUEST_TIMEOUT, GET, POST},
         Empty,
     },
@@ -119,7 +119,7 @@ impl AppGatewayApi for GatewayClient {
         let gateway_url = &self.gateway_url;
         let req = self
             .rest
-            .get(format!("{gateway_url}/app/v1/fiat_rates"), &EmptyData {});
+            .get(format!("{gateway_url}/app/v1/fiat_rates"), &Empty {});
         self.rest.send(req).await
     }
 }
@@ -378,7 +378,7 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/get_address");
-        let req = self.rest.post(url, &EmptyData {});
+        let req = self.rest.post(url, &Empty {});
         self.rest.send(req).await
     }
 
