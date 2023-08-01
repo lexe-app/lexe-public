@@ -104,6 +104,8 @@ pub(crate) fn app_routes(
         .and(inject::channel_manager(channel_manager))
         .and(inject::payments_manager(payments_manager.clone()))
         .then(lexe_ln::command::pay_invoice)
+        // TODO(phlip9): remove
+        .map(|res: Result<(), _>| res.map(|()| Empty {}))
         .map(convert::anyhow_to_command_api_result)
         .map(rest::into_response);
     let send_onchain = warp::path("send_onchain")

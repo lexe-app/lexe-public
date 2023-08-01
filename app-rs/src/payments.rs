@@ -800,6 +800,7 @@ mod test {
             },
             error::NodeApiError,
             qs::UpdatePaymentNote,
+            Empty,
         },
         ln::{
             hashes::LxTxid,
@@ -932,7 +933,7 @@ mod test {
         async fn pay_invoice(
             &self,
             _req: PayInvoiceRequest,
-        ) -> Result<(), NodeApiError> {
+        ) -> Result<Empty, NodeApiError> {
             unimplemented!()
         }
         async fn send_onchain(
@@ -1012,7 +1013,7 @@ mod test {
         async fn update_payment_note(
             &self,
             _req: UpdatePaymentNote,
-        ) -> Result<(), NodeApiError> {
+        ) -> Result<Empty, NodeApiError> {
             unimplemented!()
         }
     }

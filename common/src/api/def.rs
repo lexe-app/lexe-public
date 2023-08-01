@@ -312,11 +312,11 @@ pub trait AppNodeRunApi {
         req: CreateInvoiceRequest,
     ) -> Result<LxInvoice, NodeApiError>;
 
-    /// POST /app/pay_invoice [`PayInvoiceRequest`] -> [`()`]
+    /// POST /app/pay_invoice [`PayInvoiceRequest`] -> [`Empty`]
     async fn pay_invoice(
         &self,
         req: PayInvoiceRequest,
-    ) -> Result<(), NodeApiError>;
+    ) -> Result<Empty, NodeApiError>;
 
     /// POST /app/send_onchain [`SendOnchainRequest`] -> [`LxTxid`]
     ///
@@ -335,7 +335,7 @@ pub trait AppNodeRunApi {
         req: EstimateFeeSendOnchainRequest,
     ) -> Result<EstimateFeeSendOnchainResponse, NodeApiError>;
 
-    /// POST /app/get_address [`()`] -> [`Address`]
+    /// POST /app/get_address [`Empty`] -> [`Address`]
     ///
     /// Returns an address which can be used to receive funds. It is unused
     /// unless there is an incoming tx and BDK hasn't detected it yet.
@@ -360,16 +360,16 @@ pub trait AppNodeRunApi {
         req: GetNewPayments,
     ) -> Result<Vec<BasicPayment>, NodeApiError>;
 
-    /// PUT /app/payments/note [`UpdatePaymentNote`] -> [`()`]
+    /// PUT /app/payments/note [`UpdatePaymentNote`] -> [`Empty`]
     async fn update_payment_note(
         &self,
         req: UpdatePaymentNote,
-    ) -> Result<(), NodeApiError>;
+    ) -> Result<Empty, NodeApiError>;
 }
 
 /// Defines the api that the gateway directly exposes to the app.
 #[async_trait]
 pub trait AppGatewayApi {
-    /// GET /app/v1/fiat_rates [`()`] -> [`FiatRates`]
+    /// GET /app/v1/fiat_rates [`Empty`] -> [`FiatRates`]
     async fn get_fiat_rates(&self) -> Result<FiatRates, GatewayApiError>;
 }

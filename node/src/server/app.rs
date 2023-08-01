@@ -1,5 +1,8 @@
 use common::{
-    api::qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
+    api::{
+        qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
+        Empty,
+    },
     ln::payments::BasicPayment,
 };
 
@@ -22,6 +25,7 @@ pub(super) async fn get_new_payments(
 pub(super) async fn update_payment_note(
     update: UpdatePaymentNote,
     payments_manager: NodePaymentsManagerType,
-) -> anyhow::Result<()> {
-    payments_manager.update_payment_note(update).await
+) -> anyhow::Result<Empty> {
+    payments_manager.update_payment_note(update).await?;
+    Ok(Empty {})
 }
