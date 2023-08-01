@@ -344,7 +344,7 @@ impl AppNodeRunApi for NodeClient {
     async fn pay_invoice(
         &self,
         req: PayInvoiceRequest,
-    ) -> Result<(), NodeApiError> {
+    ) -> Result<Empty, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/pay_invoice");
@@ -407,7 +407,7 @@ impl AppNodeRunApi for NodeClient {
     async fn update_payment_note(
         &self,
         req: UpdatePaymentNote,
-    ) -> Result<(), NodeApiError> {
+    ) -> Result<Empty, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/payments/note");
