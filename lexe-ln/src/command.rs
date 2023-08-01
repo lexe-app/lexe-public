@@ -13,7 +13,7 @@ use common::{
             EstimateFeeSendOnchainResponse, NodeInfo, PayInvoiceRequest,
             SendOnchainRequest,
         },
-        NodePk, Scid,
+        Empty, NodePk, Scid,
     },
     cli::{LspInfo, Network},
     ln::{
@@ -131,7 +131,7 @@ where
 pub async fn resync(
     bdk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
     ldk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<Empty> {
     /// How long we'll wait to hear a callback before giving up.
     // NOTE: Our default reqwest::Client timeout is 15 seconds.
     const SYNC_TIMEOUT: Duration = Duration::from_secs(12);
@@ -156,7 +156,7 @@ pub async fn resync(
         .context("LDK recv errored")?;
 
     debug!("/resync successful");
-    Ok(())
+    Ok(Empty {})
 }
 
 #[instrument(skip_all, name = "(create-invoice)")]
@@ -271,7 +271,7 @@ pub async fn pay_invoice<CM, PS>(
     router: Arc<RouterType>,
     channel_manager: CM,
     payments_manager: PaymentsManager<CM, PS>,
-) -> anyhow::Result<()>
+) -> anyhow::Result<Empty>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
@@ -359,7 +359,10 @@ where
         route_params,
         OUTBOUND_PAYMENT_RETRY_STRATEGY,
     ) {
-        Ok(()) => Ok(info!(%hash, "Success: OIP initiated immediately")),
+        Ok(()) => {
+            info!(%hash, "Success: OIP initiated immediately");
+            Ok(Empty {})
+        }
         Err(RetryableSendFailure::DuplicatePayment) => {
             // This should never happen because we should have already checked
             // for uniqueness when registering the new payment above. If it
