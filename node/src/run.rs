@@ -45,7 +45,7 @@ use lexe_ln::{
     wallet::{self, LexeWallet},
 };
 use lightning::{
-    chain::{chainmonitor::ChainMonitor, keysinterface::EntropySource},
+    chain::{chainmonitor::ChainMonitor, keysinterface::EntropySource, Watch},
     ln::peer_handler::IgnoringMessageHandler,
     onion_message::OnionMessenger,
     routing::{gossip::P2PGossipSync, router::DefaultRouter},
@@ -332,6 +332,13 @@ impl UserNode {
             logger.clone(),
         )
         .context("Could not init NodeChannelManager")?;
+
+        // Move the channel monitors into the chain monitor so that it can watch
+        // the chain for closing transactions, fraudulent transactions, etc.
+        for (_blockhash, monitor) in channel_monitors {
+            let (funding_txo, _script) = monitor.get_funding_txo();
+            chain_monitor.watch_channel(funding_txo, monitor);
+        }
 
         // Init onion messenger
         let onion_messenger = Arc::new(OnionMessenger::new(
