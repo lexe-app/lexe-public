@@ -2,6 +2,7 @@ use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin::{
     bech32::u5,
     blockdata::{
+        locktime::PackedLockTime,
         script::Script,
         transaction::{Transaction, TxOut},
     },
@@ -15,13 +16,13 @@ use bitcoin::{
 };
 use common::{api::NodePk, rng::Crng, root_seed::RootSeed};
 use lightning::{
-    chain::keysinterface::{
-        EntropySource, InMemorySigner, KeyMaterial, KeysManager, NodeSigner,
-        Recipient, SignerProvider, SpendableOutputDescriptor,
-    },
     ln::{
         msgs::{DecodeError, UnsignedGossipMessage},
         script::ShutdownScript,
+    },
+    sign::{
+        EntropySource, InMemorySigner, KeyMaterial, KeysManager, NodeSigner,
+        Recipient, SignerProvider, SpendableOutputDescriptor,
     },
 };
 use secrecy::ExposeSecret;
@@ -40,7 +41,7 @@ use tracing::debug;
 /// [ldk-node's implementation]: https://github.com/lightningdevkit/ldk-node/blob/3c7dac9d01ffdf66705b4a27ac699ab3d83c77f6/src/wallet.rs#L461-L484
 /// [`get_destination_script`]: SignerProvider::get_destination_script.
 /// [`get_shutdown_scriptpubkey`]: SignerProvider::get_shutdown_scriptpubkey.
-/// [`StaticOutput`]: lightning::chain::keysinterface::SpendableOutputDescriptor::StaticOutput
+/// [`StaticOutput`]: lightning::sign::SpendableOutputDescriptor::StaticOutput
 /// [`SpendableOutputs`]: lightning::events::Event::SpendableOutputs
 pub struct LexeKeysManager {
     inner: KeysManager,
@@ -161,7 +162,7 @@ impl LexeKeysManager {
     ///
     /// Based off of [ldk-node's implementation].
     ///
-    /// [`StaticOutput`]: lightning::chain::keysinterface::SpendableOutputDescriptor::StaticOutput
+    /// [`StaticOutput`]: lightning::sign::SpendableOutputDescriptor::StaticOutput
     /// [ldk-node's implementation]: https://github.com/lightningdevkit/ldk-node/blob/3c7dac9d01ffdf66705b4a27ac699ab3d83c77f6/src/wallet.rs#L361-L378
     pub fn spend_spendable_outputs<C: Signing>(
         &self,
@@ -169,6 +170,7 @@ impl LexeKeysManager {
         outputs: Vec<TxOut>,
         change_destination_script: Script,
         feerate_sat_per_1000_weight: u32,
+        maybe_locktime: Option<PackedLockTime>,
         secp_ctx: &Secp256k1<C>,
     ) -> anyhow::Result<Option<Transaction>> {
         let num_outputs = descriptors.len();
@@ -197,6 +199,7 @@ impl LexeKeysManager {
                 outputs,
                 change_destination_script,
                 feerate_sat_per_1000_weight,
+                maybe_locktime,
                 secp_ctx,
             )
             .map(Some)
@@ -280,12 +283,12 @@ impl SignerProvider for LexeKeysManager {
         self.inner.read_chan_signer(reader)
     }
 
-    fn get_destination_script(&self) -> Script {
-        self.destination_script.clone()
+    fn get_destination_script(&self) -> Result<Script, ()> {
+        Ok(self.destination_script.clone())
     }
 
-    fn get_shutdown_scriptpubkey(&self) -> ShutdownScript {
-        self.shutdown_scriptpubkey.clone()
+    fn get_shutdown_scriptpubkey(&self) -> Result<ShutdownScript, ()> {
+        Ok(self.shutdown_scriptpubkey.clone())
     }
 }
 

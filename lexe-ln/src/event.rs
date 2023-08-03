@@ -1,15 +1,19 @@
 use anyhow::{anyhow, Context};
-use bitcoin::{blockdata::script::Script, secp256k1};
+use bitcoin::{
+    blockdata::{
+        locktime::{LockTime, PackedLockTime},
+        script::Script,
+    },
+    secp256k1,
+};
 use common::{rng, rng::SysRng, test_event::TestEvent};
 use lightning::{
-    chain::{
-        chaininterface::{ConfirmationTarget, FeeEstimator},
-        keysinterface::SpendableOutputDescriptor,
-    },
+    chain::chaininterface::{ConfirmationTarget, FeeEstimator},
     events::Event,
+    sign::SpendableOutputDescriptor,
 };
 use thiserror::Error;
-use tracing::debug;
+use tracing::{debug, warn};
 
 use crate::{
     esplora::LexeEsplora,
@@ -52,6 +56,7 @@ pub fn get_event_name(event: &Event) -> &'static str {
         Event::ChannelClosed { .. } => "ChannelClosed",
         Event::DiscardFunding { .. } => "DiscardFunding",
         Event::HTLCHandlingFailed { .. } => "HTLCHandlingFailed",
+        Event::BumpTransaction { .. } => "BumpTransaction",
     }
 }
 
@@ -105,13 +110,18 @@ where
 
 /// Handles a [`Event::SpendableOutputs`] by spending any non-static outputs to
 /// our BDK wallet.
-pub async fn handle_spendable_outputs(
+pub async fn handle_spendable_outputs<CM, PS>(
+    channel_manager: CM,
     keys_manager: &LexeKeysManager,
     esplora: &LexeEsplora,
     wallet: &LexeWallet,
     outputs: Vec<SpendableOutputDescriptor>,
     test_event_tx: &TestEventSender,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<()>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
     // The tx only includes a 'change' output, which is actually just a
     // new external address fetched from our wallet.
     // TODO(max): Maybe we should add another output for privacy?
@@ -121,11 +131,20 @@ pub async fn handle_spendable_outputs(
     let feerate_sat_per_1000_weight =
         esplora.get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
     let secp_ctx = rng::get_randomized_secp256k1_ctx(&mut SysRng::new());
+
+    // We set nLockTime to the current height to discourage fee sniping.
+    let best_height = channel_manager.current_best_block().height();
+    let maybe_locktime = LockTime::from_height(best_height)
+        .map(PackedLockTime::from)
+        .inspect_err(|e| warn!(%best_height, "Invalid locktime height: {e:#}"))
+        .ok();
+
     let maybe_spending_tx = keys_manager.spend_spendable_outputs(
         spendable_output_descriptors,
         destination_outputs,
         destination_change_script,
         feerate_sat_per_1000_weight,
+        maybe_locktime,
         &secp_ctx,
     )?;
     if let Some(spending_tx) = maybe_spending_tx {

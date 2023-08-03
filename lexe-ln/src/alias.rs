@@ -1,21 +1,19 @@
 use std::sync::{Arc, Mutex};
 
 use lightning::{
-    chain::{
-        chainmonitor::ChainMonitor, channelmonitor::ChannelMonitor,
-        keysinterface::InMemorySigner,
-    },
+    chain::{chainmonitor::ChainMonitor, channelmonitor::ChannelMonitor},
     ln::{
         channelmanager::ChannelManager,
         peer_handler::{IgnoringMessageHandler, PeerManager},
     },
-    onion_message::OnionMessenger,
+    onion_message::{DefaultMessageRouter, OnionMessenger},
     routing::{
         gossip::{NetworkGraph, P2PGossipSync},
         router::DefaultRouter,
-        scoring::ProbabilisticScorer,
+        scoring::{ProbabilisticScorer, ProbabilisticScoringFeeParameters},
         utxo::UtxoLookup,
     },
+    sign::InMemorySigner,
 };
 use lightning_net_tokio::SocketDescriptor;
 use lightning_transaction_sync::EsploraSyncClient;
@@ -71,6 +69,8 @@ pub type OnionMessengerType = OnionMessenger<
     Arc<LexeKeysManager>,
     Arc<LexeKeysManager>,
     LexeTracingLogger,
+    Arc<DefaultMessageRouter>,
+    IgnoringMessageHandler,
     IgnoringMessageHandler,
 >;
 
@@ -88,4 +88,6 @@ pub type RouterType = DefaultRouter<
     Arc<NetworkGraphType>,
     LexeTracingLogger,
     Arc<Mutex<ProbabilisticScorerType>>,
+    ProbabilisticScoringFeeParameters,
+    ProbabilisticScorerType,
 >;

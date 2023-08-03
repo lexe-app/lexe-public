@@ -22,7 +22,6 @@ use common::{
     },
 };
 use lightning::{
-    chain::keysinterface::{NodeSigner, Recipient},
     ln::{
         channelmanager::{
             PaymentId, RecipientOnionFields, RetryableSendFailure,
@@ -36,8 +35,9 @@ use lightning::{
             PaymentParameters, RouteHint, RouteHintHop, RouteParameters, Router,
         },
     },
+    sign::{NodeSigner, Recipient},
 };
-use lightning_invoice::{Currency, Invoice, InvoiceBuilder};
+use lightning_invoice::{Bolt11Invoice, Currency, InvoiceBuilder};
 use tokio::sync::{mpsc, oneshot};
 use tracing::{debug, info, instrument, warn};
 
@@ -245,7 +245,7 @@ where
                 .map_err(|()| anyhow!("Failed to sign invoice"))
         })
         .context("Failed to sign invoice")?;
-    let invoice = Invoice::from_signed(signed_raw_invoice)
+    let invoice = Bolt11Invoice::from_signed(signed_raw_invoice)
         .map(LxInvoice)
         .context("Invoice was semantically incorrect")?;
 
@@ -312,12 +312,17 @@ where
         .duration_since(SystemTime::UNIX_EPOCH)
         .context("Invalid invoice expiration")?
         .as_secs();
+    // TODO(max): Support paying BOLT12 invoices
     let mut payment_params =
         PaymentParameters::from_node_id(payee_pubkey, final_cltv_expiry_delta)
             .with_expiry_time(expires_at_timestamp)
-            .with_route_hints(invoice.route_hints());
+            .with_route_hints(invoice.route_hints())
+            .map_err(|()| anyhow!("(route hints) Wrong payment param kind"))?;
     if let Some(features) = invoice.features().cloned() {
-        payment_params = payment_params.with_features(features);
+        // TODO(max): Support paying BOLT12 invoices
+        payment_params = payment_params
+            .with_bolt11_features(features)
+            .map_err(|()| anyhow!("(features) Wrong payment param kind"))?;
     }
     let route_params = RouteParameters {
         payment_params,
@@ -331,7 +336,7 @@ where
     let first_hops = Some(refs_usable_channels.as_slice());
     let in_flight_htlcs = channel_manager.compute_inflight_htlcs();
     let route = router
-        .find_route(&payer_pubkey, &route_params, first_hops, &in_flight_htlcs)
+        .find_route(&payer_pubkey, &route_params, first_hops, in_flight_htlcs)
         .map_err(|e| anyhow!("Could not find route to recipient: {}", e.err))?;
 
     // Extract a few more values needed later before we consume the Invoice.
@@ -458,8 +463,8 @@ pub async fn get_address(wallet: LexeWallet) -> anyhow::Result<Address> {
 }
 
 /// Given a channel manager and `min_inbound_capacity`, generates a list of
-/// [`RouteHint`]s which can be included in an [`Invoice`] to help the sender
-/// find a path to us. If LSP information is also provided, a route hint with an
+/// [`RouteHint`]s which can be included in an [`Bolt11Invoice`] to help the
+/// sender find a path to us. If LSP info is also provided, a route hint with an
 /// intercept scid will be included in the invoice in the case that there are no
 /// ready channels with sufficient liquidity to service the payment.
 ///

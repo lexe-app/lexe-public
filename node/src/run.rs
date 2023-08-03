@@ -45,10 +45,14 @@ use lexe_ln::{
     wallet::{self, LexeWallet},
 };
 use lightning::{
-    chain::{chainmonitor::ChainMonitor, keysinterface::EntropySource, Watch},
+    chain::{chainmonitor::ChainMonitor, Watch},
     ln::peer_handler::IgnoringMessageHandler,
-    onion_message::OnionMessenger,
-    routing::{gossip::P2PGossipSync, router::DefaultRouter},
+    onion_message::{DefaultMessageRouter, OnionMessenger},
+    routing::{
+        gossip::P2PGossipSync, router::DefaultRouter,
+        scoring::ProbabilisticScoringFeeParameters,
+    },
+    sign::EntropySource,
 };
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot};
@@ -299,11 +303,13 @@ impl UserNode {
             .apply(Arc::new);
 
         // Initialize Router
+        let scoring_fee_params = ProbabilisticScoringFeeParameters::default();
         let router = Arc::new(DefaultRouter::new(
             network_graph.clone(),
             logger.clone(),
             keys_manager.get_secure_random_bytes(),
             scorer.clone(),
+            scoring_fee_params,
         ));
 
         // Read channel manager
@@ -345,6 +351,8 @@ impl UserNode {
             keys_manager.clone(),
             keys_manager.clone(),
             logger.clone(),
+            Arc::new(DefaultMessageRouter {}),
+            IgnoringMessageHandler {},
             IgnoringMessageHandler {},
         ));
 

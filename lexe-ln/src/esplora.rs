@@ -8,12 +8,12 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use anyhow::Context;
+use anyhow::{anyhow, Context};
 use bdk::FeeRate;
 use bitcoin::{blockdata::transaction::Transaction, OutPoint};
 use common::{
     constants::GOOGLE_CA_CERT_DER, ln::hashes::LxTxid, reqwest,
-    shutdown::ShutdownChannel, task::LxTask, test_event::TestEvent,
+    shutdown::ShutdownChannel, task::LxTask, test_event::TestEvent, Apply,
 };
 use esplora_client::{api::OutputStatus, AsyncClient};
 use lightning::chain::chaininterface::{
@@ -42,11 +42,16 @@ const BITCOIN_CORE_MEMPOOL_EXPIRY: Duration =
     Duration::from_secs(60 * 60 * 24 * 14);
 
 /// Enumerates all [`ConfirmationTarget`]s.
-const ALL_CONF_TARGETS: [ConfirmationTarget; 3] = [
+const ALL_CONF_TARGETS: [ConfirmationTarget; 4] = [
     ConfirmationTarget::HighPriority,
     ConfirmationTarget::Normal,
     ConfirmationTarget::Background,
+    ConfirmationTarget::MempoolMinimum,
 ];
+
+/// The sats/KW feerate used for [`ConfirmationTarget::HighPriority`].
+/// This is a named const so the channel manager can use it in its config.
+pub const HIGH_PRIORITY_SATS_PER_KW: u32 = 5000;
 
 /// The minimum information about a [`bitcoin::Transaction`] required to query
 /// Esplora for if the transaction has been confirmed or replaced.
@@ -93,6 +98,7 @@ pub struct LexeEsplora {
     high_prio_fees: AtomicU32,
     normal_fees: AtomicU32,
     background_fees: AtomicU32,
+    mempool_minimum_fees: AtomicU32,
 }
 
 impl LexeEsplora {
@@ -116,17 +122,19 @@ impl LexeEsplora {
         let client = AsyncClient::from_client(esplora_url, reqwest_client);
 
         // Initialize the fee rate estimates to some sane default values
-        let high_prio_fees = AtomicU32::new(5000);
+        let high_prio_fees = AtomicU32::new(HIGH_PRIORITY_SATS_PER_KW);
         let normal_fees = AtomicU32::new(2000);
-        let background_fees = AtomicU32::new(FEERATE_FLOOR_SATS_PER_KW);
+        let background_fees = AtomicU32::new(500);
+        let mempool_minimum_fees = AtomicU32::new(FEERATE_FLOOR_SATS_PER_KW);
 
         // Instantiate
         let esplora = Arc::new(Self {
             client,
             test_event_tx,
-            background_fees,
-            normal_fees,
             high_prio_fees,
+            normal_fees,
+            background_fees,
+            mempool_minimum_fees,
         });
 
         // Do initial refresh of all fee estimates
@@ -189,8 +197,7 @@ impl LexeEsplora {
         for conf_target in ALL_CONF_TARGETS {
             self.refresh_single_fee_estimate(conf_target, &esplora_estimates)
                 .with_context(|| {
-                    let conf_str = conf_to_str(conf_target);
-                    format!("Could not refresh fees for {conf_str}")
+                    format!("Could not refresh fees for {conf_target:?}")
                 })?;
         }
 
@@ -210,6 +217,7 @@ impl LexeEsplora {
             ConfirmationTarget::HighPriority => 1,
             ConfirmationTarget::Normal => 3,
             ConfirmationTarget::Background => 72,
+            ConfirmationTarget::MempoolMinimum => 1008,
         };
 
         // Munge with units to get to sats per 1000 weight unit required by LDK
@@ -228,6 +236,7 @@ impl LexeEsplora {
             ConfirmationTarget::HighPriority => &self.high_prio_fees,
             ConfirmationTarget::Normal => &self.normal_fees,
             ConfirmationTarget::Background => &self.background_fees,
+            ConfirmationTarget::MempoolMinimum => &self.mempool_minimum_fees,
         };
 
         // Store the result and return
@@ -248,24 +257,53 @@ impl LexeEsplora {
     /// - Logs an error message if the broadcast failed.
     /// - Sends a [`TestEvent::TxBroadcasted`] if successful.
     pub async fn broadcast_tx(&self, tx: &Transaction) -> anyhow::Result<()> {
-        Self::broadcast_tx_inner(&self.client, &self.test_event_tx, tx).await
+        Self::broadcast_txs_inner(&self.client, &self.test_event_tx, &[tx])
+            .await
     }
 
     #[instrument(skip_all, name = "(broadcast-tx)")]
-    async fn broadcast_tx_inner(
+    async fn broadcast_txs_inner(
         client: &AsyncClient,
         test_event_tx: &TestEventSender,
-        tx: &Transaction,
+        txs: &[&Transaction],
     ) -> anyhow::Result<()> {
-        let txid = tx.txid();
-        debug!("Broadcasting tx {txid}");
-        client
-            .broadcast(tx)
-            .await
-            .context("esplora_client failed to broadcast tx")
-            .inspect(|&()| debug!("Successfully broadcasted tx {txid}"))
-            .inspect(|&()| test_event_tx.send(TestEvent::TxBroadcasted))
-            .inspect_err(|e| error!("Could not broadcast tx {txid}: {e:#}"))
+        if txs.is_empty() {
+            return Err(anyhow!("We were given no transactions to broadcast"));
+        }
+
+        let num_txs = txs.len();
+        info!("Broadcasting batch of {num_txs} txs");
+
+        let results = txs
+            .iter()
+            .map(|tx| async {
+                let txid = tx.txid();
+                debug!("Broadcasting tx {txid}");
+                let res = client.broadcast(tx).await.map_err(|e| {
+                    anyhow!("Error broadcasting tx {txid}: {e:#}")
+                });
+                (txid, res)
+            })
+            .apply(futures::future::join_all)
+            .await;
+
+        let mut err_msgs = Vec::new();
+        for (txid, res) in results {
+            match res {
+                Ok(()) => debug!("Successfully broadcasted {txid}"),
+                Err(e) => err_msgs.push(format!("{e:#}")),
+            }
+        }
+
+        if !err_msgs.is_empty() {
+            let joined_msgs = err_msgs.join("; ");
+            error!("Batch broadcast failed: {joined_msgs}");
+            return Err(anyhow!("Batch broadcast failed: {joined_msgs}"));
+        }
+
+        test_event_tx.send(TestEvent::TxBroadcasted);
+        info!("Batch broadcast of {num_txs} txs succeeded");
+        Ok(())
     }
 
     /// Returns the [`TxConfStatus`]es for a list of [`TxConfQuery`]s.
@@ -387,19 +425,25 @@ impl LexeEsplora {
 }
 
 impl BroadcasterInterface for LexeEsplora {
-    fn broadcast_transaction(&self, tx: &Transaction) {
+    fn broadcast_transactions(&self, txs: &[&Transaction]) {
         // We can't make LexeEsplora clonable because LDK's API requires a
         // `Deref<Target: FeeEstimator>` and making LexeEsplora Deref to a inner
         // version of itself is a dumb way to accomplish that. Instead, we have
-        // the `broadcast_tx_inner` static method which is good enough.
+        // the `broadcast_txs_inner` static method which is good enough.
         let client = self.client.clone();
         let test_event_tx = self.test_event_tx.clone();
-        let tx = tx.clone();
+        let txs = txs.iter().copied().cloned().collect::<Vec<Transaction>>();
 
         // Clippy bug; we need the `async move` to make the future static
         #[allow(clippy::redundant_async_block)]
         LxTask::spawn(async move {
-            LexeEsplora::broadcast_tx_inner(&client, &test_event_tx, &tx).await
+            let tx_refs = txs.iter().collect::<Vec<&Transaction>>();
+            LexeEsplora::broadcast_txs_inner(
+                &client,
+                &test_event_tx,
+                tx_refs.as_slice(),
+            )
+            .await
         })
         .detach()
     }
@@ -415,6 +459,7 @@ impl FeeEstimator for LexeEsplora {
             HighPriority => self.high_prio_fees.load(Ordering::Acquire),
             Normal => self.normal_fees.load(Ordering::Acquire),
             Background => self.background_fees.load(Ordering::Acquire),
+            MempoolMinimum => self.mempool_minimum_fees.load(Ordering::Acquire),
         }
     }
 }
@@ -447,16 +492,6 @@ fn convert_fee_rate(
     };
 
     Ok(*fee_val as f32)
-}
-
-/// Convert a [`ConfirmationTarget`] to a human-readable &str.
-// TODO(max): Remove once LDK#1963 is merged and released
-fn conf_to_str(conf_target: ConfirmationTarget) -> &'static str {
-    match conf_target {
-        ConfirmationTarget::HighPriority => "high priority",
-        ConfirmationTarget::Normal => "normal",
-        ConfirmationTarget::Background => "background",
-    }
 }
 
 #[cfg(all(test, not(target_env = "sgx")))]

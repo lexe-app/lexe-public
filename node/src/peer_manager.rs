@@ -42,6 +42,7 @@ impl NodePeerManager {
             chan_handler: channel_manager,
             route_handler: gossip_sync,
             onion_message_handler: onion_messenger,
+            custom_message_handler: Arc::new(IgnoringMessageHandler {}),
         };
 
         // `current_time` is supposed to be monotonically increasing across node
@@ -62,7 +63,6 @@ impl NodePeerManager {
             current_time,
             &ephemeral_bytes,
             logger,
-            Arc::new(IgnoringMessageHandler {}),
             keys_manager,
         );
 
