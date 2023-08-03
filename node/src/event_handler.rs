@@ -280,6 +280,8 @@ async fn handle_event_fallible(
             payment_hash,
             amount_msat,
             purpose,
+            // TODO(max): Use this
+            counterparty_skimmed_fee_msat: _,
             onion_fields: _,
             receiver_node_id: _,
             via_channel_id: _,
@@ -423,6 +425,7 @@ async fn handle_event_fallible(
         }
         Event::SpendableOutputs { outputs } => {
             event::handle_spendable_outputs(
+                channel_manager.clone(),
                 keys_manager,
                 esplora,
                 wallet,
@@ -447,6 +450,9 @@ async fn handle_event_fallible(
             // A "real" node should probably "lock" the UTXOs spent in funding
             // transactions until the funding transaction either confirms, or
             // this event is generated.
+        }
+        Event::BumpTransaction(_) => {
+            // TODO(max): Implement this once we support anchor outputs
         }
     }
 

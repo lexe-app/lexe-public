@@ -1,9 +1,11 @@
-use std::{ops::Deref, sync::Arc};
+use std::{ops::Deref, sync::Arc, time::SystemTime};
 
+use anyhow::Context;
 use bitcoin::{blockdata::constants, BlockHash};
 use common::cli::Network;
 use lexe_ln::{
     alias::{BroadcasterType, FeeEstimatorType, RouterType},
+    esplora::HIGH_PRIORITY_SATS_PER_KW,
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
 };
@@ -14,7 +16,7 @@ use lightning::{
     },
     util::config::{
         ChannelConfig, ChannelHandshakeConfig, ChannelHandshakeLimits,
-        UserConfig,
+        MaxDustHTLCExposure, UserConfig,
     },
 };
 use tracing::{debug, info};
@@ -90,6 +92,8 @@ pub const USER_CONFIG: UserConfig = UserConfig {
     manually_accept_inbound_channels: true,
     // The node has no need to intercept HTLCs
     accept_intercept_htlcs: false,
+    // Allow receiving keysend payments composed of multiple parts.
+    accept_mpp_keysend: true,
 };
 
 const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =
@@ -108,6 +112,11 @@ const CHANNEL_HANDSHAKE_CONFIG: ChannelHandshakeConfig =
         max_inbound_htlc_value_in_flight_percent_of_channel: 100,
         // Attempt to use better privacy.
         negotiate_scid_privacy: true,
+        // TODO(max): Support anchor outputs. NOTE that as part of this we'll
+        // need to ensure that `manually_accept_inbound_channels == true` so
+        // that we can check that we have a sufficient wallet balance to cover
+        // the fees for all existing and future channels.
+        negotiate_anchors_zero_fee_htlc_tx: false,
         // Publically announce our channels
         // TODO: Is there a way to *not* publicly announce our channel, but
         // still be able to complete a channel negatiation with the LSP?
@@ -142,6 +151,8 @@ const CHANNEL_HANDSHAKE_LIMITS: ChannelHandshakeLimits =
     };
 
 const CHANNEL_CONFIG: ChannelConfig = ChannelConfig {
+    // This allows the user node to pay the on-chain fees for JIT channel opens.
+    accept_underpaying_htlcs: true,
     // (proportional fee) We do not forward anything so this can be 0
     forwarding_fee_proportional_millionths: 0,
     // (base fee) We do not forward anything so this can be 0
@@ -149,7 +160,9 @@ const CHANNEL_CONFIG: ChannelConfig = ChannelConfig {
     // We do not forward anything so this can be the minimum
     cltv_expiry_delta: MIN_CLTV_EXPIRY_DELTA,
     // LDK default
-    max_dust_htlc_exposure_msat: 5_000_000,
+    max_dust_htlc_exposure: MaxDustHTLCExposure::FeeRateMultiplier(
+        HIGH_PRIORITY_SATS_PER_KW as u64,
+    ),
     // Pay up to 1000 sats (50 cents assuming $50K per BTC) to avoid waiting up
     // to `their_to_self_delay` time (currently set to ~1 day) in the case of a
     // unilateral close initiated by us. In practice our LSP should always be
@@ -199,6 +212,12 @@ impl NodeChannelManager {
                     network,
                     best_block,
                 };
+                let current_timestamp = SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .context("Clock is before January 1st, 1970")?;
+                let current_timestamp_secs =
+                    u32::try_from(current_timestamp.as_secs())
+                        .context("Timestamp overflowed")?;
                 let inner = ChannelManager::new(
                     fee_estimator,
                     chain_monitor,
@@ -210,6 +229,7 @@ impl NodeChannelManager {
                     keys_manager,
                     USER_CONFIG,
                     chain_params,
+                    current_timestamp_secs,
                 );
                 (genesis_hash, inner, "fresh")
             }

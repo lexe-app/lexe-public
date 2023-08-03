@@ -54,7 +54,7 @@ use lightning::{
     ln::channelmanager::ChannelManagerReadArgs,
     routing::{
         gossip::NetworkGraph,
-        scoring::{ProbabilisticScorer, ProbabilisticScoringParameters},
+        scoring::{ProbabilisticScorer, ProbabilisticScoringDecayParameters},
     },
     util::ser::{ReadableArgs, Writeable},
 };
@@ -409,7 +409,7 @@ impl InnerPersister {
         logger: LexeTracingLogger,
     ) -> anyhow::Result<ProbabilisticScorerType> {
         debug!("Reading probabilistic scorer");
-        let params = ProbabilisticScoringParameters::default();
+        let params = ProbabilisticScoringDecayParameters::default();
 
         let file_id = VfsFileId::new(
             SINGLETON_DIRECTORY.to_owned(),
