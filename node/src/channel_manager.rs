@@ -5,7 +5,6 @@ use bitcoin::{blockdata::constants, BlockHash};
 use common::cli::Network;
 use lexe_ln::{
     alias::{BroadcasterType, FeeEstimatorType, RouterType},
-    esplora::HIGH_PRIORITY_SATS_PER_KW,
     keys_manager::LexeKeysManager,
     logger::LexeTracingLogger,
 };
@@ -159,10 +158,10 @@ const CHANNEL_CONFIG: ChannelConfig = ChannelConfig {
     forwarding_fee_base_msat: 0,
     // We do not forward anything so this can be the minimum
     cltv_expiry_delta: MIN_CLTV_EXPIRY_DELTA,
-    // LDK default
-    max_dust_htlc_exposure: MaxDustHTLCExposure::FeeRateMultiplier(
-        HIGH_PRIORITY_SATS_PER_KW as u64,
-    ),
+    // NOTE: This may increase ChannelDetails::next_outbound_htlc_minimum_msat
+    // if this is set too low, causing small payments to fail to route.
+    // Current setting: 100k sats
+    max_dust_htlc_exposure: MaxDustHTLCExposure::FixedLimitMsat(100_000_000),
     // Pay up to 1000 sats (50 cents assuming $50K per BTC) to avoid waiting up
     // to `their_to_self_delay` time (currently set to ~1 day) in the case of a
     // unilateral close initiated by us. In practice our LSP should always be
