@@ -740,8 +740,11 @@ impl Persist<SignerType> for InnerPersister {
                 .get_token(backend_api.as_ref(), SystemTime::now())
                 .await
                 .context("Could not get token")?;
+            // We upsert (instead of create) due to an occasional race where a
+            // channel monitor persist succeeds and the channel is resumed but
+            // the node shuts down before the channel manager is repersisted.
             backend_api
-                .create_file_with_retries(
+                .upsert_file_with_retries(
                     &file,
                     token,
                     IMPORTANT_PERSIST_RETRIES,
