@@ -49,10 +49,6 @@ const ALL_CONF_TARGETS: [ConfirmationTarget; 4] = [
     ConfirmationTarget::MempoolMinimum,
 ];
 
-/// The sats/KW feerate used for [`ConfirmationTarget::HighPriority`].
-/// This is a named const so the channel manager can use it in its config.
-pub const HIGH_PRIORITY_SATS_PER_KW: u32 = 5000;
-
 /// The minimum information about a [`bitcoin::Transaction`] required to query
 /// Esplora for if the transaction has been confirmed or replaced.
 pub struct TxConfQuery {
@@ -122,7 +118,7 @@ impl LexeEsplora {
         let client = AsyncClient::from_client(esplora_url, reqwest_client);
 
         // Initialize the fee rate estimates to some sane default values
-        let high_prio_fees = AtomicU32::new(HIGH_PRIORITY_SATS_PER_KW);
+        let high_prio_fees = AtomicU32::new(5000);
         let normal_fees = AtomicU32::new(2000);
         let background_fees = AtomicU32::new(500);
         let mempool_minimum_fees = AtomicU32::new(FEERATE_FLOOR_SATS_PER_KW);
