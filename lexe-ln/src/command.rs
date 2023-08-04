@@ -29,17 +29,12 @@ use lightning::{
         },
         PaymentHash,
     },
-    routing::{
-        gossip::RoutingFees,
-        router::{
-            PaymentParameters, RouteHint, RouteHintHop, RouteParameters, Router,
-        },
-    },
+    routing::router::{PaymentParameters, RouteHint, RouteParameters, Router},
     sign::{NodeSigner, Recipient},
 };
 use lightning_invoice::{Bolt11Invoice, Currency, InvoiceBuilder};
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, info, instrument};
 
 use crate::{
     alias::{LexeChainMonitorType, RouterType},
@@ -61,7 +56,10 @@ use crate::{
 pub enum CreateInvoiceCaller {
     /// When a user node calls [`create_invoice`], it must provide an
     /// [`LspInfo`], which is required for generating a [`RouteHintHop`] for
-    /// receiving a payment over a JIT channel with the LSP.
+    /// receiving a payment (possibly while offline, or over a JIT channel)
+    /// routed to us by the LSP.
+    ///
+    /// [`RouteHintHop`]: lightning::routing::router::RouteHintHop
     UserNode {
         lsp_info: LspInfo,
         scid: Scid,
@@ -222,8 +220,20 @@ where
         builder = builder.amount_milli_satoshis(amount.msat());
     }
 
-    // Add the route hints.
-    let route_hints = get_route_hints(channel_manager, caller, req.amount);
+    // Construct the route hints.
+    let route_hints = match caller {
+        // If the LSP is calling create_invoice, include no hints and let
+        // the sender route to us by looking at the lightning network graph.
+        CreateInvoiceCaller::Lsp => Vec::new(),
+        // If a user node is calling create_invoice, always include just an
+        // intercept hint. We do this even when the user already has a channel
+        // with enough balance to service the payment because it allows the LSP
+        // to intercept the HTLC and wake the user if a payment comes in while
+        // the user is offline.
+        CreateInvoiceCaller::UserNode { lsp_info, scid } =>
+            vec![RouteHint(vec![lsp_info.route_hint_hop(scid)])],
+    };
+    debug!("Including route hints: {route_hints:?}");
     for hint in route_hints {
         builder = builder.private_route(hint);
     }
@@ -460,108 +470,4 @@ pub async fn estimate_fee_send_onchain(
 #[instrument(skip_all, name = "(get-address)")]
 pub async fn get_address(wallet: LexeWallet) -> anyhow::Result<Address> {
     wallet.get_address().await
-}
-
-/// Given a channel manager and `min_inbound_capacity`, generates a list of
-/// [`RouteHint`]s which can be included in an [`Bolt11Invoice`] to help the
-/// sender find a path to us. If LSP info is also provided, a route hint with an
-/// intercept scid will be included in the invoice in the case that there are no
-/// ready channels with sufficient liquidity to service the payment.
-///
-/// The main logic was based on `lightning_invoice::utils::filter_channels`, but
-/// is expected to diverge from LDK's implementation over time.
-// NOTE: If two versions of this function are needed (e.g. one for user node and
-// one for LSP), the function can be moved to the LexeChannelManager trait.
-fn get_route_hints<CM, PS>(
-    channel_manager: CM,
-    caller: CreateInvoiceCaller,
-    min_inbound_capacity: Option<Amount>,
-) -> Vec<RouteHint>
-where
-    CM: LexeChannelManager<PS>,
-    PS: LexePersister,
-{
-    let all_channels = channel_manager.list_channels();
-    let num_channels = all_channels.len();
-    debug!("Generating route hints, starting with {num_channels} channels");
-    let min_inbound_capacity =
-        min_inbound_capacity.unwrap_or(Amount::from_msat(0));
-
-    let (lsp_info, scid) = match caller {
-        CreateInvoiceCaller::Lsp => {
-            // If the LSP is calling create_invoice, include no hints and let
-            // the sender route to us by looking at the lightning network graph.
-            debug!("create_invoice caller was LSP; returning 0 route hints");
-            if !all_channels.iter().any(|channel| channel.is_public) {
-                warn!("LSP requested invoice but has no public channels");
-            }
-            return Vec::new();
-        }
-        CreateInvoiceCaller::UserNode { lsp_info, scid } => (lsp_info, scid),
-    };
-    // From this point on, we know that the user node called create_invoice.
-
-    // NOTE on multi-path payments: Eventually, we may want to include route
-    // hints for channels that individually do not have sufficient liquidity to
-    // route the entire payment but which could forward one portion of the whole
-    // payment (under the condition that our total inbound liquidity available
-    // across all of our channels is sufficient to service the whole payment).
-    // However, the BOLT11 spec does not contain a way to notify the sender of
-    // how much liquidity we have in each of our channels; plus, we should be
-    // careful about how we expose this info as it could lead to the real-time
-    // deanonymization of our current channel balances. Absent a protocol for
-    // this, the sender has to blindly split (or not split) their payment across
-    // our available channels, leading to frequent payment failures. Thus, for
-    // now we elect not to generate route hints for channels that do not have
-    // sufficient liquidity to service the entire payment; we can enable this
-    // style of multi-path payments once BOLT12 or similar fixes this.
-    // https://discord.com/channels/915026692102316113/978829624635195422/1070087544164851763
-
-    // Generate a list of `RouteHint`s which correspond to channels which are
-    // ready, sufficiently large, and which have all of the scid / forwarding
-    // information required to construct the `RouteHintHop` for the sender.
-    let route_hints = all_channels
-        .into_iter()
-        // Ready channels only. NOTE: We do NOT use `ChannelDetails::is_usable`
-        // to prevent a race condition where our freshly-started node needs to
-        // generate an invoice but has not yet reconnected to its peer (the LSP)
-        .filter(|c| c.is_channel_ready)
-        // Channels with sufficient liquidity only
-        .filter(|c| c.inbound_capacity_msat >= min_inbound_capacity.msat())
-        // Generate a RouteHintHop for the LSP -> us channel
-        .filter_map(|c| {
-            // scids and forwarding info are required to construct a hop hint
-            let short_channel_id = c.get_inbound_payment_scid()?;
-            let fwd_info = c.counterparty.forwarding_info?;
-
-            let fees = RoutingFees {
-                base_msat: fwd_info.fee_base_msat,
-                proportional_millionths: fwd_info.fee_proportional_millionths,
-            };
-
-            Some(RouteHintHop {
-                src_node_id: c.counterparty.node_id,
-                short_channel_id,
-                fees,
-                cltv_expiry_delta: fwd_info.cltv_expiry_delta,
-                htlc_minimum_msat: c.inbound_htlc_minimum_msat,
-                htlc_maximum_msat: c.inbound_htlc_maximum_msat,
-            })
-        })
-        // RouteHintHop -> RouteHint
-        .map(|hop_hint| RouteHint(vec![hop_hint]))
-        .collect::<Vec<RouteHint>>();
-
-    // If we generated any hints, return them.
-    let num_route_hints = route_hints.len();
-    if num_route_hints > 0 {
-        debug!("Included {num_route_hints} route hints in invoice");
-        return route_hints;
-    }
-
-    // There were no valid routes. Generate a hint with an intercept scid
-    // provided by our LSP so that our LSP can open a JIT channel to us.
-    debug!("No routes found; including intercept hint in invoice");
-    let hop_hint = lsp_info.route_hint_hop(scid);
-    vec![RouteHint(vec![hop_hint])]
 }
