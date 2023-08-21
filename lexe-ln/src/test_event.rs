@@ -30,9 +30,7 @@ pub async fn do_op(
     rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,
 ) -> anyhow::Result<()> {
     cfg_if! {
-        // TODO(max): This needs to switch to #[cfg(feature = "test-utils")],
-        // otherwise this will break the SGX integration tests.
-        if #[cfg(any(test, not(target_env = "sgx")))] {
+        if #[cfg(any(test, feature = "test-utils"))] {
             use anyhow::Context;
             use TestEventOp::*;
             let mut rx = rx
@@ -64,23 +62,22 @@ pub async fn do_op(
 }
 
 /// Wraps an [`mpsc::Sender<TestEvent>`] to allow actually sending the event to
-/// be cfg'd out in prod.
+/// be cfg'd out in staging/prod.
 #[derive(Clone)]
 pub struct TestEventSender {
     /// A label (e.g. "(user)", "(lsp)") which allows "received test event" log
     /// outputs emitted by this receiver to be differentiated from similar log
     /// outputs emitted by other receivers.
-    #[cfg_attr(all(not(test), target_env = "sgx"), allow(dead_code))]
+    #[cfg_attr(all(not(test), not(feature = "test-utils")), allow(dead_code))]
     label: &'static str,
-    // TODO(max): Switch this to "not prod" instead of "not sgx"
-    #[cfg(any(test, not(target_env = "sgx")))]
+    #[cfg(any(test, feature = "test-utils"))]
     tx: mpsc::Sender<TestEvent>,
 }
 
 impl TestEventSender {
     fn new(label: &'static str, tx: mpsc::Sender<TestEvent>) -> Self {
         cfg_if! {
-            if #[cfg(any(test, not(target_env = "sgx")))] {
+            if #[cfg(any(test, feature = "test-utils"))] {
                 Self { label, tx }
             } else {
                 let _ = tx;
@@ -91,7 +88,7 @@ impl TestEventSender {
 
     pub fn send(&self, event: TestEvent) {
         cfg_if! {
-            if #[cfg(any(test, not(target_env = "sgx")))] {
+            if #[cfg(any(test, feature = "test-utils"))] {
                 let label = &self.label;
                 debug!("{label} sending test event: {event:?}");
                 let _ = self.tx.try_send(event);

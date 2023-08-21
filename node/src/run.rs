@@ -751,14 +751,13 @@ async fn fetch_provisioned_secrets(
 /// Handles the nasty [`cfg_if`] logic of whether to reconnect to Lexe's LSP,
 /// taking in account whether we are mocking out the LSP as well.
 ///
-/// If we are in production, ignore all mock arguments and attempt to reconnect
-/// to Lexe's LSP, notifying our p2p reconnector to continuously reconnect if we
-/// disconnect for some reason.
-///
-/// If NOT in production, we MAY decide not to skip reconnecting to the LSP.
+/// If we are NOT in staging/prod, we MAY skip reconnecting to the LSP.
 /// This will be done ONLY IF we check to mock out the LSP's HTTP server (i.e.
 /// [`LspInfo::url`] is `None`) AND we have set the `allow_mock` safeguard.
-#[allow(unused_variables)] // `allow_mock` isn't read in prod
+///
+/// If we are in staging/prod, ignore all mock arguments and attempt to
+/// reconnect to Lexe's LSP, notifying our p2p reconnector to continuously
+/// reconnect if we disconnect for some reason.
 async fn maybe_reconnect_to_lsp(
     peer_manager: &NodePeerManager,
     allow_mock: bool,
@@ -785,9 +784,7 @@ async fn maybe_reconnect_to_lsp(
     };
 
     cfg_if::cfg_if! {
-        if #[cfg(all(target_env = "sgx", not(debug_assertions)))] {
-            do_reconnect.await
-        } else {
+        if #[cfg(any(test, feature = "test-utils"))] {
             if lsp.url.is_some() {
                 do_reconnect.await
             } else {
@@ -795,6 +792,9 @@ async fn maybe_reconnect_to_lsp(
                 info!("Skipping P2P reconnection to LSP");
                 Ok(())
             }
+        } else {
+            let _ = allow_mock;
+            do_reconnect.await
         }
     }
 }

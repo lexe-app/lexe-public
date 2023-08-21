@@ -8,6 +8,12 @@ authors = [
 license = "PolyForm Noncommercial License 1.0.0"
 edition = "2021"
 
+[features]
+# Explicitly specify that no features should be enabled by default.
+default = []
+# Enables various test hooks and utilities. Should be disabled in staging/prod.
+test-utils = ["common/test-utils"]
+
 [dependencies]
 
 # --- LEXE --- #

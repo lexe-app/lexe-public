@@ -30,9 +30,7 @@ pub async fn open_channel(
     lsp_channel_peer: ChannelPeer,
 ) -> anyhow::Result<Empty> {
     cfg_if::cfg_if! {
-        // TODO(max): This needs to switch to #[cfg(feature = "test-utils")],
-        // otherwise this will break the SGX integration tests.
-        if #[cfg(any(test, not(target_env = "sgx")))] {
+        if #[cfg(any(test, feature = "test-utils"))] {
             use anyhow::Context;
             use common::rng::SysRng;
             use lexe_ln::{channel, channel::ChannelRelationship};
