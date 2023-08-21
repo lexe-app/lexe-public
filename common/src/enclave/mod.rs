@@ -165,6 +165,7 @@ impl fmt::Debug for MachineId {
     }
 }
 
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, PartialEq, Eq, Deserialize, Serialize)]
 pub struct MinCpusvn(#[serde(with = "hexstr_or_bytes")] [u8; 16]);
 
@@ -389,7 +390,21 @@ mod test {
     use proptest::{arbitrary::any, prop_assume, proptest, strategy::Strategy};
 
     use super::*;
-    use crate::rng::WeakRng;
+    use crate::{rng::WeakRng, test_utils::roundtrip};
+
+    #[test]
+    fn serde_roundtrips() {
+        roundtrip::json_string_roundtrip_proptest::<Measurement>();
+        roundtrip::json_string_roundtrip_proptest::<MachineId>();
+        roundtrip::json_string_roundtrip_proptest::<MinCpusvn>();
+    }
+
+    #[test]
+    fn fromstr_display_roundtrips() {
+        roundtrip::fromstr_display_roundtrip_proptest::<Measurement>();
+        roundtrip::fromstr_display_roundtrip_proptest::<MachineId>();
+        roundtrip::fromstr_display_roundtrip_proptest::<MinCpusvn>();
+    }
 
     #[test]
     fn test_sealing_roundtrip_basic() {
