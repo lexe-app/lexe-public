@@ -354,7 +354,7 @@ pub fn measurement() -> Measurement {
 ///   same as the actual enclave measurement hash, since the memory layout is
 ///   identical (caveat: unless we use some more sophisticated extendable
 ///   enclave features).
-pub fn read_measurement<R: io::Read>(
+pub fn compute_measurement<R: io::Read>(
     mut sgxs_reader: R,
 ) -> io::Result<Measurement> {
     let mut buf = [0u8; 4096];
