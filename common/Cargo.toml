@@ -8,7 +8,27 @@ authors = [
 license = "PolyForm Noncommercial License 1.0.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+# Explicitly specify that no features should be enabled by default.
+default = []
+# Enables various test hooks and utilities. Should be disabled in staging/prod.
+test-utils = [
+  "dep:electrsd",
+  "dep:proptest",
+  "dep:proptest-derive",
+  "dep:serde_urlencoded",
+]
+
+[package.metadata.fortanix-sgx]
+# stack size (in bytes) for each thread, the default stack size is 0x20_000.
+stack-size=0x20_0000
+# The max number of threads we can spawn concurrently inside the SGX enclave.
+#
+# NOTE: ideally this value should be "threads=1", however, the current fortanix
+#       rust-sgx `async_usercalls` implementation requires an extra thread so
+#       until that changes, we're stuck with "threads=2".
+#       see: https://github.com/lexe-tech/rust-sgx/blob/70d11205fed08e49886bb25a1ea3df19928e8287/async-usercalls/src/queues.rs#L46
+threads=2
 
 [dependencies]
 # --- BITCOIN --- #
@@ -116,17 +136,6 @@ electrsd = { optional = true, version = "0.22", features = [ "bitcoind_22_0", "e
 proptest = { optional = true, workspace = true, features = ["std"] }
 proptest-derive = { optional = true, workspace = true }
 
-[features]
-# Explicitly specify that no features should be enabled by default.
-default = []
-# Enable this feature to allow test utils to be shared across crate boundaries.
-test-utils = [
-  "dep:electrsd",
-  "dep:proptest",
-  "dep:proptest-derive",
-  "dep:serde_urlencoded",
-]
-
 # --- DEV DEPENDENCIES, ALL PLATFORMS --- #
 
 [dev-dependencies]
@@ -160,16 +169,3 @@ sgx-panic-backtrace = "0.1"
 electrsd = { version = "0.22", features = [ "bitcoind_22_0", "esplora_a33e97e1", "legacy" ] }
 # Include std impls when testing outside of SGX
 proptest = { workspace = true, features = ["std"] }
-
-# --- FORTANIX EDP CONFIGURATION --- #
-
-[package.metadata.fortanix-sgx]
-# stack size (in bytes) for each thread, the default stack size is 0x20_000.
-stack-size=0x20_0000
-# The max number of threads we can spawn concurrently inside the SGX enclave.
-#
-# NOTE: ideally this value should be "threads=1", however, the current fortanix
-#       rust-sgx `async_usercalls` implementation requires an extra thread so
-#       until that changes, we're stuck with "threads=2".
-#       see: https://github.com/lexe-tech/rust-sgx/blob/70d11205fed08e49886bb25a1ea3df19928e8287/async-usercalls/src/queues.rs#L46
-threads=2
