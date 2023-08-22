@@ -54,6 +54,7 @@ async-trait.workspace = true
 bytes.workspace = true
 cfg-if.workspace = true
 dcap-ql.workspace = true
+dotenvy.workspace = true
 futures.workspace = true
 hyper = { workspace = true, features = ["http1", "http2", "server", "tcp"] }
 rcgen.workspace = true
