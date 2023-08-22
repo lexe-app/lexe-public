@@ -184,9 +184,7 @@ impl CredentialApi for FileCredential {
 
 #[cfg(test)]
 mod test {
-    use std::ffi::OsStr;
-
-    use common::rng::{RngCore, SysRng};
+    use common::rng::SysRng;
 
     use super::*;
 
@@ -203,9 +201,16 @@ mod test {
         assert!(secret_store.read_root_seed().unwrap().is_none());
     }
 
-    #[cfg(not(target_os = "android"))]
+    // ignore android: android only supports file_store
+    // ignore linux: keyring_store only works with GUI and not headless,
+    // e.g. our dev server
+    #[cfg(not(any(target_os = "android", target_os = "linux")))]
     #[test]
     fn test_keyring_store() {
+        use std::ffi::OsStr;
+
+        use common::rng::RngCore;
+
         // SKIP this test in CI, since the Github CI instance is headless and/or
         // doesn't give us access to the gnome keyring.
         if std::env::var_os("LEXE_CI").as_deref() == Some(OsStr::new("1")) {
