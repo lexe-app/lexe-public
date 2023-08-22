@@ -36,6 +36,8 @@ pub mod cli;
 pub mod client;
 /// Application-level constants.
 pub mod constants;
+/// [`dotenvy`] extensions.
+pub mod dotenv;
 /// Ed25519 types.
 pub mod ed25519;
 /// SGX types.
