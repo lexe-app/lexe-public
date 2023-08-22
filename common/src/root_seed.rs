@@ -202,8 +202,8 @@ impl RootSeed {
         VfsMasterKey::new(secret.expose_secret())
     }
 
-    #[cfg(test)]
-    fn as_bytes(&self) -> &[u8] {
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn as_bytes(&self) -> &[u8] {
         self.0.expose_secret().as_slice()
     }
 }
