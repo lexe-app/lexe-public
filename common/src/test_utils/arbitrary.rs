@@ -279,3 +279,18 @@ pub fn any_mainnet_address() -> impl Strategy<Value = Address> {
         // TODO(phlip9): taproot
     ]
 }
+
+#[cfg(test)]
+mod test {
+    use proptest::test_runner::Config;
+
+    use super::*;
+    use crate::test_utils::roundtrip;
+
+    /// Test that the flowinfo workaround used by [`any_socket_addr`] works
+    #[test]
+    fn socket_addr_roundtrip() {
+        let config = Config::with_cases(16);
+        roundtrip::fromstr_display_custom(any_socket_addr(), config);
+    }
+}

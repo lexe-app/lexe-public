@@ -1,9 +1,11 @@
 use std::process::Command;
 
 use argh::FromArgs;
-#[cfg(all(test, not(target_env = "sgx")))]
+#[cfg(test)]
 use proptest_derive::Arbitrary;
 
+#[cfg(test)]
+use crate::test_utils::arbitrary;
 use crate::{
     api::{ports::Port, UserPk},
     cli::{LspInfo, Network, ToCommand},
@@ -11,7 +13,7 @@ use crate::{
 };
 
 /// Commands accepted by the user node.
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(Clone, Debug, Eq, PartialEq, FromArgs)]
 #[argh(subcommand)]
 #[allow(clippy::large_enum_variant)] // It will be Run most of the time
@@ -40,7 +42,7 @@ impl ToCommand for NodeCommand {
 }
 
 /// Run a user node
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand, name = "run")]
 pub struct RunArgs {
@@ -84,15 +86,24 @@ pub struct RunArgs {
 
     /// protocol://host:port of the backend. Defaults to a mock client if not
     /// supplied, provided that `--allow-mock` is set and we are not in prod.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_option_simple_string()")
+    )]
     #[argh(option)]
     pub backend_url: Option<String>,
 
     /// protocol://host:port of the runner. Defaults to a mock client if not
     /// supplied, provided that `--allow-mock` is set and we are not in prod.
+    #[cfg_attr(
+        test,
+        proptest(strategy = "arbitrary::any_option_simple_string()")
+    )]
     #[argh(option)]
     pub runner_url: Option<String>,
 
     /// protocol://host:port of Lexe's Esplora server.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
     #[argh(option)]
     pub esplora_url: String,
 
@@ -104,6 +115,7 @@ pub struct RunArgs {
 
     /// the DNS name the node enclave should include in its remote attestation
     /// certificate and the client will expect in its connection
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
     #[argh(option, default = "NODE_RUN_DNS.to_owned()")]
     pub node_dns_name: String,
 }
@@ -174,7 +186,7 @@ impl ToCommand for RunArgs {
 }
 
 /// Provision a new user node
-#[cfg_attr(all(test, not(target_env = "sgx")), derive(Arbitrary))]
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand, name = "provision")]
 pub struct ProvisionArgs {
@@ -184,14 +196,17 @@ pub struct ProvisionArgs {
 
     /// the DNS name the node enclave should include in its remote attestation
     /// certificate and the which client will expect in its connection
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
     #[argh(option, default = "NODE_PROVISION_DNS.to_owned()")]
     pub node_dns_name: String,
 
     /// protocol://host:port of the backend.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
     #[argh(option)]
     pub backend_url: String,
 
     /// protocol://host:port of the runner.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
     #[argh(option)]
     pub runner_url: String,
 
@@ -232,38 +247,39 @@ impl ToCommand for ProvisionArgs {
     }
 }
 
-#[cfg(all(test, not(target_env = "sgx")))]
-mod test_notsgx {
+#[cfg(test)]
+mod test {
     use std::path::Path;
 
-    use proptest::{arbitrary::any, proptest};
+    use proptest::{arbitrary::any, proptest, test_runner::Config};
 
     use super::*;
 
-    proptest! {
-        #[test]
-        fn proptest_cmd_roundtrip(
-            path_str in ".*",
-            cmd in any::<NodeCommand>(),
-        ) {
-            do_cmd_roundtrip(path_str, &cmd);
-        }
-    }
+    #[test]
+    fn proptest_cmd_roundtrip() {
+        let config = Config {
+            max_shrink_iters: 32_000,
+            ..Default::default()
+        };
 
-    fn do_cmd_roundtrip(path_str: String, cmd1: &NodeCommand) {
-        let path = Path::new(&path_str);
-        // Convert to std::process::Command
-        let std_cmd = cmd1.to_command(path);
-        // Convert to an iterator over &str args
-        let mut args_iter = std_cmd.get_args().filter_map(|s| s.to_str());
-        // Pop the first arg which contains the subcommand name e.g. 'run'
-        let subcommand = args_iter.next().unwrap();
-        // Collect the remaining args into a vec
-        let cmd_args: Vec<&str> = args_iter.collect();
-        dbg!(&cmd_args);
-        // Deserialize back into struct
-        let cmd2 = NodeCommand::from_args(&[subcommand], &cmd_args).unwrap();
-        // Assert
-        assert_eq!(*cmd1, cmd2);
+        proptest!(config, |(
+            path_str in arbitrary::any_simple_string(),
+            cmd1 in any::<NodeCommand>(),
+        )| {
+            let path = Path::new(&path_str);
+            // Convert to std::process::Command
+            let std_cmd = cmd1.to_command(path);
+            // Convert to an iterator over &str args
+            let mut args_iter = std_cmd.get_args().filter_map(|s| s.to_str());
+            // Pop the first arg which contains the subcommand name e.g. 'run'
+            let subcommand = args_iter.next().unwrap();
+            // Collect the remaining args into a vec
+            let cmd_args: Vec<&str> = args_iter.collect();
+            dbg!(&cmd_args);
+            // Deserialize back into struct
+            let cmd2 = NodeCommand::from_args(&[subcommand], &cmd_args).unwrap();
+            // Assert
+            assert_eq!(cmd1, cmd2);
+        })
     }
 }
