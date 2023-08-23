@@ -55,6 +55,23 @@ pub fn any_option_string() -> impl Strategy<Value = Option<String>> {
     proptest::option::weighted(0.5, any_string())
 }
 
+/// A strategy for simple (i.e. alphanumeric) strings, useful when the contents
+/// of a [`String`] aren't the interesting thing to test.
+pub fn any_simple_string() -> impl Strategy<Value = String> {
+    let any_alphanumeric_char =
+        proptest::char::ranges(vec!['a'..='z', 'A'..='Z', '0'..='9'].into());
+
+    proptest::collection::vec(any_alphanumeric_char, 0..256)
+        .prop_map(String::from_iter)
+}
+
+/// An [`Option`] version of [`any_simple_string`].
+///
+/// The option has a 50% probability of being [`Some`].
+pub fn any_option_simple_string() -> impl Strategy<Value = Option<String>> {
+    proptest::option::weighted(0.5, any_simple_string())
+}
+
 /// An `Arbitrary`-like [`Strategy`] for [`SocketAddr`]s which are guaranteed to
 /// roundtrip via the `FromStr` / `Display` impls. Useful when implementing
 /// `Arbitrary` for structs that contain a [`SocketAddr`] field and whose
