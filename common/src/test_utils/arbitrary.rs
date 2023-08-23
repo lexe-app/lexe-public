@@ -1,5 +1,4 @@
-#[cfg(not(target_env = "sgx"))]
-use std::net::SocketAddr;
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 
 use bitcoin::{
     blockdata::{opcodes, script},
@@ -62,17 +61,28 @@ pub fn any_option_string() -> impl Strategy<Value = Option<String>> {
 /// `FromStr` / `Display` impls must roundtrip.
 // [`SocketAddr`]'s `FromStr` / `Display` impls fail to roundtrip due to the
 // IPv6 flowinfo field (which we don't care about) not being represented in
-// serialized form. To fix this, we simply set the flowinfo field to 0 if we
-// detect that the socket address is an IPv6n address.
-// TODO(max): Make this available inside SGX too
-#[cfg(not(target_env = "sgx"))]
+// serialized form. To fix this, we simply always set the flowinfo field to 0.
 pub fn any_socket_addr() -> impl Strategy<Value = SocketAddr> {
-    any::<SocketAddr>().prop_map(|mut addr| {
-        if let SocketAddr::V6(inner) = &mut addr {
-            inner.set_flowinfo(0);
-        }
-        addr
-    })
+    // We don't use `any::<SocketAddr>().prop_map(...)` because
+    // `any::<SocketAddr>()` is not available inside SGX.
+    let any_ipv4 = any::<[u8; 4]>().prop_map(Ipv4Addr::from);
+    let any_ipv6 = any::<[u8; 16]>().prop_map(Ipv6Addr::from);
+    let any_port = any::<u16>();
+    let flowinfo = 0;
+    let any_scope_id = any::<u32>();
+
+    let any_sockv4 =
+        (any_ipv4, any_port).prop_map(|(ip, port)| SocketAddrV4::new(ip, port));
+    let any_sockv6 = (any_ipv6, any_port, any_scope_id).prop_map(
+        move |(ip, port, scope_id)| {
+            SocketAddrV6::new(ip, port, flowinfo, scope_id)
+        },
+    );
+
+    prop_oneof! {
+        any_sockv4.prop_map(SocketAddr::V4),
+        any_sockv6.prop_map(SocketAddr::V6),
+    }
 }
 
 // --- Bitcoin types --- //
