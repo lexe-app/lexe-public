@@ -10,8 +10,12 @@ use anyhow::{ensure, Context};
 use bitcoin::{blockdata::constants, hash_types::BlockHash};
 use lightning::routing::{gossip::RoutingFees, router::RouteHintHop};
 use lightning_invoice::Currency;
+#[cfg(any(test, feature = "test-utils"))]
+use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
+#[cfg(any(test, feature = "test-utils"))]
+use crate::test_utils::arbitrary;
 use crate::{
     api::{NodePk, Scid},
     ln::peer::ChannelPeer,
@@ -50,15 +54,24 @@ pub struct Network(pub bitcoin::Network);
 
 /// Information about the LSP which the user node needs to connect and to
 /// generate route hints when no channel exists.
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LspInfo {
     /// The protocol://host:port of the LSP's HTTP server. The node will
     /// default to a mock client if not supplied, provided that
     /// `--allow-mock` is set and we are not in prod.
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_option_string()")
+    )]
     pub url: Option<String>,
     // - ChannelPeer fields - //
     pub node_pk: NodePk,
     /// The socket on which the LSP accepts P2P LN connections from user nodes
+    #[cfg_attr(
+        any(test, feature = "test-utils"),
+        proptest(strategy = "arbitrary::any_socket_addr()")
+    )]
     pub addr: SocketAddr,
     // - RoutingFees fields - //
     pub base_msat: u32,
@@ -193,7 +206,7 @@ impl Display for LspInfo {
 // --- Arbitrary impls --- //
 
 #[cfg(any(test, feature = "test-utils"))]
-mod arbitrary {
+mod arbitrary_impls {
     use proptest::{
         arbitrary::Arbitrary,
         strategy::{BoxedStrategy, Just, Strategy},
@@ -218,58 +231,6 @@ mod arbitrary {
     }
 }
 
-#[cfg(all(any(test, feature = "test-utils"), not(target_env = "sgx")))]
-mod arbitrary_not_sgx {
-    use proptest::{
-        arbitrary::{any, Arbitrary},
-        strategy::{BoxedStrategy, Strategy},
-    };
-
-    use super::*;
-    use crate::test_utils::arbitrary;
-
-    impl Arbitrary for LspInfo {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (
-                any::<Option<String>>(),
-                any::<NodePk>(),
-                arbitrary::any_socket_addr(),
-                any::<u32>(),
-                any::<u32>(),
-                any::<u16>(),
-                any::<u64>(),
-                any::<u64>(),
-            )
-                .prop_map(
-                    |(
-                        url,
-                        node_pk,
-                        addr,
-                        base_msat,
-                        proportional_millionths,
-                        cltv_expiry_delta,
-                        htlc_minimum_msat,
-                        htlc_maximum_msat,
-                    )| {
-                        Self {
-                            url,
-                            node_pk,
-                            addr,
-                            base_msat,
-                            proportional_millionths,
-                            cltv_expiry_delta,
-                            htlc_minimum_msat,
-                            htlc_maximum_msat,
-                        }
-                    },
-                )
-                .boxed()
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
@@ -279,12 +240,6 @@ mod test {
     fn network_roundtrip() {
         roundtrip::fromstr_display_roundtrip_proptest::<Network>();
     }
-}
-
-#[cfg(all(test, not(target_env = "sgx")))]
-mod test_notsgx {
-    use super::*;
-    use crate::test_utils::roundtrip;
 
     #[test]
     fn lsp_info_roundtrip() {

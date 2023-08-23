@@ -42,8 +42,10 @@ pub type ErrorCode = u16;
 /// For displaying the full human-readable message to the user, convert
 /// `ErrorResponse` to the corresponding service error type first.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct ErrorResponse {
     pub code: ErrorCode,
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
     pub msg: String,
 }
 
@@ -1076,6 +1078,12 @@ pub mod invariants {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test_utils::roundtrip;
+
+    #[test]
+    fn error_response_serde_roundtrip() {
+        roundtrip::json_value_canonical_proptest::<ErrorResponse>();
+    }
 
     #[test]
     fn client_error_kinds_non_zero() {
@@ -1101,33 +1109,5 @@ mod test {
         assert_service_error_invariants::<GatewayApiError, GatewayErrorKind>();
         assert_service_error_invariants::<NodeApiError, NodeErrorKind>();
         assert_service_error_invariants::<LspApiError, LspErrorKind>();
-    }
-}
-
-// --- Tests, but only outside of SGX --- //
-
-#[cfg(all(test, not(target_env = "sgx")))] // no regex in SGX
-mod test_notsgx {
-    use proptest::{arbitrary::any, prop_assert_eq, proptest};
-
-    use super::*;
-
-    #[test]
-    fn error_response_serde_roundtrip() {
-        proptest!(|(code in any::<ErrorCode>(), msg in "[A-Za-z0-9]*")| {
-            let e1 = ErrorResponse { code, msg };
-            let e1_str = serde_json::to_string(&e1).unwrap();
-
-            // Sanity test the serialized form is what we expect
-            let msg = &e1.msg;
-            prop_assert_eq!(
-                &e1_str,
-                &format!("{{\"code\":{code},\"msg\":\"{msg}\"}}")
-            );
-
-            // Test the round trip
-            let e2: ErrorResponse = serde_json::from_str(&e1_str).unwrap();
-            prop_assert_eq!(e1, e2);
-        })
     }
 }

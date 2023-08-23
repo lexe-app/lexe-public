@@ -168,9 +168,7 @@ impl<'de> de::Deserialize<'de> for ByteStr {
     }
 }
 
-// we don't support `std` feature for `proptest` in SGX yet, which means we
-// can't gen arbitrary `String`s :(
-#[cfg(all(test, not(target_env = "sgx")))]
+#[cfg(test)]
 mod test {
     use proptest::{
         arbitrary::any, prop_assert, prop_assert_eq, prop_oneof, proptest,
@@ -178,13 +176,14 @@ mod test {
     };
 
     use super::*;
+    use crate::test_utils::arbitrary;
 
     /// Generates arbitrary [`Bytes`], but half the time the result is
     /// guaranteed to be a valid utf8 string.
     fn arb_bytes() -> impl Strategy<Value = Bytes> {
         prop_oneof![
             any::<Vec<u8>>().prop_map(Bytes::from),
-            any::<String>().prop_map(Bytes::from),
+            arbitrary::any_string().prop_map(Bytes::from),
         ]
     }
 
