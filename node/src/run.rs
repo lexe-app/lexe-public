@@ -19,7 +19,7 @@ use common::{
     rng::Crng,
     root_seed::RootSeed,
     shutdown::ShutdownChannel,
-    task::{self, BlockingTaskRt, LxTask},
+    task::{self, LxTask},
     Apply,
 };
 use futures::{
@@ -406,7 +406,6 @@ impl UserNode {
             payments_manager: payments_manager.clone(),
             fatal_event: fatal_event.clone(),
             test_event_tx: test_event_tx.clone(),
-            blocking_task_rt: BlockingTaskRt::new(),
             shutdown: shutdown.clone(),
         };
 

@@ -4,10 +4,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use tokio::{
-    sync::{mpsc, oneshot},
-    task::{JoinError, JoinHandle},
-};
+use tokio::task::{JoinError, JoinHandle};
 use tracing::{error, info, warn, Instrument, Span};
 
 /// A thin wrapper around [`tokio::task::JoinHandle`] that adds the
@@ -412,70 +409,5 @@ impl<T> Future for LxTaskWithName<T> {
         };
 
         Poll::Ready(result)
-    }
-}
-
-type BoxFut = Pin<Box<dyn Future<Output = ()> + Send + 'static>>;
-type BoxFutWithTx = (BoxFut, oneshot::Sender<()>);
-
-/// A lazily spawned thread for running async tasks from inside a sync context
-/// (that is itself inside an async context... don't ask...). Please don't use
-/// this unless you have a very good reason. : )
-///
-/// XXX: remove when LDK `EventHandler` trait is made properly async.
-pub struct BlockingTaskRt(mpsc::Sender<BoxFutWithTx>);
-
-impl BlockingTaskRt {
-    pub fn new() -> Self {
-        // Only run one task at a time.
-        let (task_tx, mut task_rx) = mpsc::channel::<BoxFutWithTx>(1);
-
-        std::thread::spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap();
-
-            rt.block_on(async move {
-                // Only run one task at a time.
-                while let Some((task, res_tx)) = task_rx.recv().await {
-                    task.await;
-                    let _ = res_tx.send(());
-                }
-            });
-        });
-
-        Self(task_tx)
-    }
-
-    /// Block on `fut` until it runs to completion. The only difference b/w this
-    /// and `tokio::task::block_in_place` is that this "technically" works
-    /// inside a current-thread runtime (though it's certainly not recommended).
-    pub fn block_on(&self, fut: impl Future<Output = ()> + Send + 'static) {
-        self.block_on_boxed(Box::pin(fut.in_current_span()));
-    }
-
-    pub fn block_on_boxed(&self, task: BoxFut) {
-        let blocking_task_tx = &self.0;
-        let (res_tx, res_rx) = oneshot::channel();
-
-        // NOTE: _must_ be `futures::executor::block_on`, as
-        // `Handle::current().block_on()` will (sensibly) panic if used in an
-        // async current-thread runtime, since it will block all tasks in the
-        // rt.
-        futures::executor::block_on(async {
-            if blocking_task_tx.send((task, res_tx)).await.is_err() {
-                panic!("event handler runtime task channel closed");
-            }
-            res_rx
-                .await
-                .expect("event handler runtime panicked while running task?");
-        });
-    }
-}
-
-impl Default for BlockingTaskRt {
-    fn default() -> Self {
-        Self::new()
     }
 }

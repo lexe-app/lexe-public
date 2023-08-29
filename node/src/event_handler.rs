@@ -8,13 +8,8 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use common::{
-    api::NodePk,
-    cli::LspInfo,
-    hex,
-    ln::channel::ChannelId,
-    shutdown::ShutdownChannel,
-    task::{BlockingTaskRt, LxTask},
-    test_event::TestEvent,
+    api::NodePk, cli::LspInfo, hex, ln::channel::ChannelId,
+    shutdown::ShutdownChannel, task::LxTask, test_event::TestEvent,
 };
 use lexe_ln::{
     alias::NetworkGraphType, esplora::LexeEsplora, event,
@@ -43,8 +38,6 @@ pub struct NodeEventHandler {
     pub(crate) payments_manager: NodePaymentsManagerType,
     pub(crate) fatal_event: Arc<AtomicBool>,
     pub(crate) test_event_tx: TestEventSender,
-    #[allow(dead_code)] // TODO(max): Remove
-    pub(crate) blocking_task_rt: BlockingTaskRt,
     pub(crate) shutdown: ShutdownChannel,
 }
 
