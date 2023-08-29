@@ -19,6 +19,14 @@ pub struct NodeArgs {
 
 impl NodeArgs {
     pub fn run(self) -> anyhow::Result<()> {
+        // We have 2 total threads configured in our `Cargo.toml`.
+        //
+        // - One thread is reserved for the main program thread
+        // - One thread is reserved for async_usercalls (see Cargo.toml)
+        //
+        // NOTE: This leaves no room for additional threads spawned with
+        // [`tokio::task::spawn_blocking`] or [`std::thread::spawn`] - calling
+        // these functions will cause the program to crash.
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
