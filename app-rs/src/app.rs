@@ -19,6 +19,7 @@ use common::{
     attest,
     client::{tls::dummy_lexe_ca_cert, GatewayClient, NodeClient},
     constants, enclave,
+    enclave::Measurement,
     rng::Crng,
     root_seed::RootSeed,
     Secret,
@@ -132,13 +133,11 @@ impl App {
 
     pub async fn signup<R: Crng>(
         rng: &mut R,
+        measurement: Measurement,
         config: AppConfig,
     ) -> anyhow::Result<Self> {
         let gateway_url = config.gateway_url.clone();
         let use_sgx = config.use_sgx;
-
-        // TODO: query backend (via gateway) for latest measurement
-        let measurement = enclave::MOCK_MEASUREMENT;
 
         // sample the RootSeed
 
