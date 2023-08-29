@@ -64,6 +64,7 @@ use common::{
         def::{AppGatewayApi, AppNodeRunApi},
         fiat_rates::FiatRates as FiatRatesRs,
     },
+    enclave::MOCK_MEASUREMENT,
     ln::{
         amount::Amount,
         payments::{
@@ -579,7 +580,8 @@ impl AppHandle {
 
     pub fn signup(config: Config) -> anyhow::Result<AppHandle> {
         block_on(async move {
-            App::signup(&mut SysRng::new(), config.into())
+            // TODO(phlip9): Get real measurement from gateway/backend
+            App::signup(&mut SysRng::new(), MOCK_MEASUREMENT, config.into())
                 .await
                 .context("Failed to generate and signup new wallet")
                 .map(Self::new)
