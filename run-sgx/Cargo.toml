@@ -6,6 +6,10 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+# --- LEXE --- #
+
+sgx-toml = { path = "../sgx-toml" }
+
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
@@ -27,5 +31,3 @@ aesm-client.workspace = true
 enclave-runner = { workspace = true, features = ["crypto-openssl"] }
 sgx-isa.workspace = true
 sgxs-loaders.workspace = true
-
-toml = "0.5"
