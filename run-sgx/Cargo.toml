@@ -1,12 +1,9 @@
 [package]
 name = "run-sgx"
-version = "0.1.0"
-authors = [
-    "Max Fang <protonmail.com@maxfa.ng>",
-    "Philip Hayes <philiphayes9@gmail.com>"
-]
-license = "PolyForm Noncommercial License 1.0.0"
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
 
 [dependencies]
 # --- WORKSPACE --- #

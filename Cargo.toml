@@ -10,6 +10,18 @@ members = [
     "run-sgx",
 ]
 
+[workspace.package]
+authors = [
+    "Max Fang <max@lexe.app>",
+    "Philip Hayes <philip@lexe.app>"
+]
+edition = "2021"
+license = "PolyForm Noncommercial License 1.0.0"
+# This is just a default version which can be inherited by workspace members
+# that don't actually need semver versioning. Crates that require versioning
+# will specify their version in their Cargo.toml as usual.
+version = "0.1.0"
+
 [workspace.dependencies]
 # Use this section to declare dependencies used across many lexe crates.
 # Lexe crates can then inherit the dependency using `workspace = true`.
