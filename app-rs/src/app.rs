@@ -19,7 +19,7 @@ use common::{
     attest,
     client::{tls::dummy_lexe_ca_cert, GatewayClient, NodeClient},
     constants, enclave,
-    enclave::{Measurement, MOCK_MEASUREMENT},
+    enclave::Measurement,
     rng::Crng,
     root_seed::RootSeed,
     Secret,
@@ -139,7 +139,7 @@ impl App {
         let root_seed = RootSeed::from_rng(rng);
 
         // TODO(phlip9): Get real measurement from gateway/backend
-        let measurement = MOCK_MEASUREMENT;
+        let measurement = enclave::MOCK_MEASUREMENT;
 
         Self::signup_custom(rng, config, root_seed, measurement).await
     }
