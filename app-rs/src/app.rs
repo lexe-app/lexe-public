@@ -19,7 +19,7 @@ use common::{
     attest,
     client::{tls::dummy_lexe_ca_cert, GatewayClient, NodeClient},
     constants, enclave,
-    enclave::Measurement,
+    enclave::{Measurement, MOCK_MEASUREMENT},
     rng::Crng,
     root_seed::RootSeed,
     Secret,
@@ -134,16 +134,19 @@ impl App {
     pub async fn signup<R: Crng>(
         rng: &mut R,
         config: AppConfig,
-        measurement: Measurement,
     ) -> anyhow::Result<Self> {
         // sample a new RootSeed
         let root_seed = RootSeed::from_rng(rng);
 
-        Self::signup_with_root_seed(rng, config, root_seed, measurement).await
+        // TODO(phlip9): Get real measurement from gateway/backend
+        let measurement = MOCK_MEASUREMENT;
+
+        Self::signup_custom(rng, config, root_seed, measurement).await
     }
 
-    /// Allows signing up with a given [`RootSeed`], useful in tests.
-    pub async fn signup_with_root_seed<R: Crng>(
+    /// Allows signing up with a specific [`RootSeed`] and [`Measurement`],
+    /// useful in tests.
+    pub async fn signup_custom<R: Crng>(
         rng: &mut R,
         config: AppConfig,
         root_seed: RootSeed,
