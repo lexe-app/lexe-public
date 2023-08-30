@@ -5,23 +5,18 @@
 use std::process::Command;
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 use std::{
-    env, fs,
+    env,
     path::{Path, PathBuf},
 };
 
 use anyhow::{format_err, Context, Result};
 use argh::{EarlyExit, FromArgs, TopLevelCommand};
 use serde::Deserialize;
+#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
+use sgx_toml::FortanixSgxConfig;
 
 // const DEBUG_SIGNER_KEY_PEM_BYTES: &[u8] =
 //     std::include_bytes!("../../data/debug-signer-key.pem");
-
-// default SGX config
-const DEBUG: bool = true;
-const HEAP_SIZE: u64 = 0x0200_0000; // 32 MiB
-const SSAFRAMESIZE: u32 = 1;
-const STACK_SIZE: u32 = 0x0002_0000; // 128 KiB
-const THREADS: u32 = 4;
 
 #[derive(Debug)]
 pub struct Args {
@@ -87,22 +82,18 @@ impl Args {
         let target_dir = env::var_os("CARGO_MANIFEST_DIR")
             .ok_or_else(|| format_err!("missing `CARGO_MANIFEST_DIR` env var: this tool expects `cargo` to run it"))?;
 
-        let mut cargo_toml = PathBuf::from(target_dir);
-        cargo_toml.push("Cargo.toml");
+        let mut cargo_toml_path = PathBuf::from(target_dir);
+        cargo_toml_path.push("Cargo.toml");
 
-        let config_str = fs::read_to_string(&cargo_toml)
-            .context("Failed to read Cargo.toml")?;
-
-        let config: SgxConfig = toml::from_str(&config_str)
-            .context("Failed to deserialize Cargo.toml")?;
-
-        let sgx_config = config.package.metadata.fortanix_sgx;
-
-        let heap_size = sgx_config.heap_size.unwrap_or(HEAP_SIZE);
-        let ssaframesize = sgx_config.ssaframesize.unwrap_or(SSAFRAMESIZE);
-        let stack_size = sgx_config.stack_size.unwrap_or(STACK_SIZE);
-        let threads = sgx_config.threads.unwrap_or(THREADS);
-        let debug = sgx_config.debug.unwrap_or(DEBUG);
+        let sgx_config = sgx_toml::read_fortanix_sgx_config(&cargo_toml_path)
+            .expect("Couldn't read Fortanix SGX config");
+        let FortanixSgxConfig {
+            debug,
+            heap_size,
+            ssaframesize,
+            stack_size,
+            threads,
+        } = sgx_config;
 
         // 2. convert compiled ELF binary to SGXS format
 
