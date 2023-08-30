@@ -133,16 +133,22 @@ impl App {
 
     pub async fn signup<R: Crng>(
         rng: &mut R,
-        measurement: Measurement,
         config: AppConfig,
+        measurement: Measurement,
     ) -> anyhow::Result<Self> {
-        let gateway_url = config.gateway_url.clone();
-        let use_sgx = config.use_sgx;
-
-        // sample the RootSeed
-
+        // sample a new RootSeed
         let root_seed = RootSeed::from_rng(rng);
 
+        Self::signup_with_root_seed(rng, config, root_seed, measurement).await
+    }
+
+    /// Allows signing up with a given [`RootSeed`], useful in tests.
+    pub async fn signup_with_root_seed<R: Crng>(
+        rng: &mut R,
+        config: AppConfig,
+        root_seed: RootSeed,
+        measurement: Measurement,
+    ) -> anyhow::Result<Self> {
         // derive user key and node key
 
         let user_key_pair = root_seed.derive_user_key_pair();
@@ -160,6 +166,8 @@ impl App {
 
         // build NodeClient
 
+        let gateway_url = config.gateway_url.clone();
+        let use_sgx = config.use_sgx;
         let enclave_policy = attest::EnclavePolicy {
             allow_debug: config.allow_debug_enclaves,
             trusted_mrenclaves: Some(vec![measurement]),
