@@ -1,12 +1,9 @@
 [package]
 name = "app-rs"
-version = "0.1.0"
-authors = [
-    "Max Fang <protonmail.com@maxfa.ng>",
-    "Philip Hayes <philiphayes9@gmail.com>"
-]
-license = "PolyForm Noncommercial License 1.0.0"
-edition = "2021"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
 
 # TODO(phlip9): it seems like this option enables _all_ library output types for
 #               all targets, even though e.g. iOS doesn't need a dynlib and
