@@ -1,0 +1,29 @@
+[package]
+name = "gdrive"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+common = { path = "../common" }
+
+anyhow.workspace = true
+futures.workspace = true
+thiserror.workspace = true
+# TODO(phlip9): extract just the google PKI root CA certs from webpki-roots and
+# use only those when making requests against google drive
+reqwest = { workspace = true, features = ["json", "multipart", "rustls-tls-webpki-roots"] }
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+
+[dev-dependencies]
+logger = { path = "../logger" }
+
+tokio = { workspace = true, features = [
+    "macros",
+    "sync",
+    "test-util"
+] }

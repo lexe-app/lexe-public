@@ -5,6 +5,7 @@ members = [
     "app-rs",
     "app-rs-codegen",
     "common",
+    "gdrive",
     "lexe-ln",
     "logger",
     "node",
