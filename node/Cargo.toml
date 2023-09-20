@@ -28,7 +28,7 @@ stack-size = 0x20_0000
 # NOTE: ideally this value should be "threads=1", however, the current fortanix
 #       rust-sgx `async_usercalls` implementation requires an extra thread, so
 #       until that changes, we're stuck with "threads=2".
-#       see: https://github.com/lexe-tech/rust-sgx/blob/70d11205fed08e49886bb25a1ea3df19928e8287/async-usercalls/src/queues.rs#L46
+#       see: https://github.com/lexe-app/rust-sgx/blob/70d11205fed08e49886bb25a1ea3df19928e8287/async-usercalls/src/queues.rs#L46
 threads = 2
 
 [dependencies]

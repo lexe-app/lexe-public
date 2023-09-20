@@ -23,7 +23,7 @@ stack-size = 0x20_0000
 # We give some extra room because `#[tokio::test(start_paused = true)]` etc
 # spawns threads in the background. Additionally, the current fortanix rust-sgx
 # `async_usercalls` implementation requires an extra thread. see:
-# https://github.com/lexe-tech/rust-sgx/blob/70d11205fed08e49886bb25a1ea3df19928e8287/async-usercalls/src/queues.rs#L46
+# https://github.com/lexe-app/rust-sgx/blob/70d11205fed08e49886bb25a1ea3df19928e8287/async-usercalls/src/queues.rs#L46
 threads = 8
 
 [dependencies]

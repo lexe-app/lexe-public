@@ -44,7 +44,7 @@ dependencies = [
 [[package]]
 name = "aesm-client"
 version = "0.5.4"
-source = "git+https://github.com/lexe-tech/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
 dependencies = [
  "byteorder",
  "failure",
@@ -325,7 +325,7 @@ dependencies = [
 [[package]]
 name = "async-usercalls"
 version = "0.1.0"
-source = "git+https://github.com/lexe-tech/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
 dependencies = [
  "crossbeam-channel",
  "fnv",
@@ -414,7 +414,7 @@ dependencies = [
 [[package]]
 name = "bdk"
 version = "0.27.1"
-source = "git+https://github.com/lexe-tech/bdk?branch=lexe-v0.27.1-2023_07_07#24a6126571e65a7d360e740022b99856811a4f48"
+source = "git+https://github.com/lexe-app/bdk?branch=lexe-v0.27.1-2023_07_07#24a6126571e65a7d360e740022b99856811a4f48"
 dependencies = [
  "async-trait",
  "bdk-macros",
@@ -434,7 +434,7 @@ dependencies = [
 [[package]]
 name = "bdk-macros"
 version = "0.6.0"
-source = "git+https://github.com/lexe-tech/bdk?branch=lexe-v0.27.1-2023_07_07#24a6126571e65a7d360e740022b99856811a4f48"
+source = "git+https://github.com/lexe-app/bdk?branch=lexe-v0.27.1-2023_07_07#24a6126571e65a7d360e740022b99856811a4f48"
 dependencies = [
  "proc-macro2 1.0.64",
  "quote 1.0.26",
@@ -1148,7 +1148,7 @@ dependencies = [
 [[package]]
 name = "dcap-ql"
 version = "0.3.4"
-source = "git+https://github.com/lexe-tech/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
 dependencies = [
  "byteorder",
  "failure",
@@ -1258,7 +1258,7 @@ dependencies = [
 [[package]]
 name = "enclave-runner"
 version = "0.5.1"
-source = "git+https://github.com/lexe-tech/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
 dependencies = [
  "crossbeam",
  "failure",
@@ -1554,7 +1554,7 @@ dependencies = [
 [[package]]
 name = "fortanix-sgx-abi"
 version = "0.5.0"
-source = "git+https://github.com/lexe-tech/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
 
 [[package]]
 name = "futures"
@@ -1834,7 +1834,7 @@ checksum = "c4a1e36c821dbe04574f602848a19f742f4fb3c98d40449f11bcad18d6b17421"
 [[package]]
 name = "hyper"
 version = "0.14.18"
-source = "git+https://github.com/lexe-tech/hyper?branch=hyper-sgx-0.14.18#cf9b4da339ddafd2a71b9853891d1f18821b21b7"
+source = "git+https://github.com/lexe-app/hyper?branch=hyper-sgx-0.14.18#cf9b4da339ddafd2a71b9853891d1f18821b21b7"
 dependencies = [
  "bytes",
  "futures-channel",
@@ -1958,7 +1958,7 @@ dependencies = [
 [[package]]
 name = "ipc-queue"
 version = "0.2.0"
-source = "git+https://github.com/lexe-tech/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
 dependencies = [
  "fortanix-sgx-abi",
 ]
@@ -2096,7 +2096,7 @@ checksum = "f7012b1bbb0719e1097c47611d3898568c546d597c2e74d66f6087edd5233ff4"
 [[package]]
 name = "lightning"
 version = "0.0.116"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.116-2023_08_02#feeafceef7705a1be5e40497b066076dc25fd20d"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.116-2023_08_02#feeafceef7705a1be5e40497b066076dc25fd20d"
 dependencies = [
  "bitcoin",
  "musig2",
@@ -2105,7 +2105,7 @@ dependencies = [
 [[package]]
 name = "lightning-invoice"
 version = "0.24.0"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.116-2023_08_02#feeafceef7705a1be5e40497b066076dc25fd20d"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.116-2023_08_02#feeafceef7705a1be5e40497b066076dc25fd20d"
 dependencies = [
  "bech32 0.9.1",
  "bitcoin",
@@ -2118,7 +2118,7 @@ dependencies = [
 [[package]]
 name = "lightning-net-tokio"
 version = "0.0.116"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.116-2023_08_02#feeafceef7705a1be5e40497b066076dc25fd20d"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.116-2023_08_02#feeafceef7705a1be5e40497b066076dc25fd20d"
 dependencies = [
  "bitcoin",
  "lightning",
@@ -2129,7 +2129,7 @@ dependencies = [
 [[package]]
 name = "lightning-transaction-sync"
 version = "0.0.116"
-source = "git+https://github.com/lexe-tech/rust-lightning?branch=lexe-v0.0.116-2023_08_02#feeafceef7705a1be5e40497b066076dc25fd20d"
+source = "git+https://github.com/lexe-app/rust-lightning?branch=lexe-v0.0.116-2023_08_02#feeafceef7705a1be5e40497b066076dc25fd20d"
 dependencies = [
  "bdk-macros",
  "bitcoin",
@@ -2243,7 +2243,7 @@ checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
 [[package]]
 name = "miniscript"
 version = "9.0.1"
-source = "git+https://github.com/lexe-tech/rust-miniscript?branch=lexe-v0.9.1-infinite-recursion-fix#3ec3d239a70079f135ba24f30cb29f97806eb519"
+source = "git+https://github.com/lexe-app/rust-miniscript?branch=lexe-v0.9.1-infinite-recursion-fix#3ec3d239a70079f135ba24f30cb29f97806eb519"
 dependencies = [
  "bitcoin",
  "serde",
@@ -2261,7 +2261,7 @@ dependencies = [
 [[package]]
 name = "mio"
 version = "0.8.4"
-source = "git+https://github.com/lexe-tech/mio?branch=mio-sgx-0.8.4#9cfe682ba11465d6a2d4140afefacb4b6c644716"
+source = "git+https://github.com/lexe-app/mio?branch=mio-sgx-0.8.4#9cfe682ba11465d6a2d4140afefacb4b6c644716"
 dependencies = [
  "async-usercalls",
  "crossbeam-channel",
@@ -2910,7 +2910,7 @@ checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 [[package]]
 name = "reqwest"
 version = "0.11.12"
-source = "git+https://github.com/lexe-tech/reqwest?branch=lexe#70cdc0c05c248dc43e5cb899c0df3e3087f09a06"
+source = "git+https://github.com/lexe-app/reqwest?branch=lexe#70cdc0c05c248dc43e5cb899c0df3e3087f09a06"
 dependencies = [
  "base64 0.13.1",
  "bytes",
@@ -2954,7 +2954,7 @@ checksum = "8c31b5c4033f8fdde8700e4657be2c497e7288f01515be52168c631e2e4d4086"
 [[package]]
 name = "ring"
 version = "0.16.20"
-source = "git+https://github.com/lexe-tech/ring?branch=lexe-0.16.20-sgx-nix#15f9fc85b13c76ab6af0009c61a7c743e2695445"
+source = "git+https://github.com/lexe-app/ring?branch=lexe-0.16.20-sgx-nix#15f9fc85b13c76ab6af0009c61a7c743e2695445"
 dependencies = [
  "cc",
  "libc",
@@ -3305,7 +3305,7 @@ dependencies = [
 [[package]]
 name = "sgx-isa"
 version = "0.4.0"
-source = "git+https://github.com/lexe-tech/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
 dependencies = [
  "bitflags 1.3.2",
 ]
@@ -3331,7 +3331,7 @@ dependencies = [
 [[package]]
 name = "sgxs"
 version = "0.7.3"
-source = "git+https://github.com/lexe-tech/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
 dependencies = [
  "byteorder",
  "failure",
@@ -3346,7 +3346,7 @@ dependencies = [
 [[package]]
 name = "sgxs-loaders"
 version = "0.3.3"
-source = "git+https://github.com/lexe-tech/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe#4aa8f13487c772dd4d24b7cc54bd2d5432803f7a"
 dependencies = [
  "bitflags 1.3.2",
  "failure",
@@ -3655,7 +3655,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 [[package]]
 name = "tokio"
 version = "1.21.2"
-source = "git+https://github.com/lexe-tech/tokio?branch=tokio-sgx-1.21.2#1d290cf1087e2671b3b689b0968537861d142759"
+source = "git+https://github.com/lexe-app/tokio?branch=lexe-1.21.2-2023_09_20#6715b7cdd648e4521fdc0a2c8785f7e1be881e24"
 dependencies = [
  "autocfg",
  "bytes",
@@ -3674,7 +3674,7 @@ dependencies = [
 [[package]]
 name = "tokio-macros"
 version = "1.8.0"
-source = "git+https://github.com/lexe-tech/tokio?branch=tokio-sgx-1.21.2#1d290cf1087e2671b3b689b0968537861d142759"
+source = "git+https://github.com/lexe-app/tokio?branch=lexe-1.21.2-2023_09_20#6715b7cdd648e4521fdc0a2c8785f7e1be881e24"
 dependencies = [
  "proc-macro2 1.0.64",
  "quote 1.0.26",
@@ -4017,7 +4017,7 @@ dependencies = [
 [[package]]
 name = "warp"
 version = "0.3.4"
-source = "git+https://github.com/lexe-tech/warp?branch=lexe-2023_06_29#56f77f4363989f41191de1c33200f5a03c14a3e3"
+source = "git+https://github.com/lexe-app/warp?branch=lexe-2023_06_29#56f77f4363989f41191de1c33200f5a03c14a3e3"
 dependencies = [
  "bytes",
  "futures-channel",

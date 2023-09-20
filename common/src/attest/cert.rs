@@ -192,11 +192,11 @@ mod test {
         //         Version: 3 (0x2)
         //         Serial Number: 7046315113334772949 (0x61c98a4339c914d5)
         //     Signature Algorithm: Ed25519
-        //         Issuer: C=US, ST=CA, O=lexe-tech, CN=lexe-node
+        //         Issuer: C=US, ST=CA, O=lexe-app, CN=lexe-node
         //         Validity
         //             Not Before: May 22 00:00:00 2022 GMT
         //             Not After : May 22 00:00:00 2032 GMT
-        //         Subject: C=US, ST=CA, O=lexe-tech, CN=lexe-node
+        //         Subject: C=US, ST=CA, O=lexe-app, CN=lexe-node
         //         Subject Public Key Info:
         //             Public Key Algorithm: Ed25519
         //             Unable to load Public Key

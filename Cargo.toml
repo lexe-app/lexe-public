@@ -130,26 +130,26 @@ warp = { version = "=0.3.4", default-features = false }
 [patch.crates-io]
 # NOTE: Make sure to duplicate any changes to the `server`'s root Cargo.toml,
 # otherwise the `server`'s dependency versions won't match.
-aesm-client = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
-async-usercalls = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
+aesm-client = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe" }
+async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe" }
 atty = { git = "https://github.com/softprops/atty", rev = "6633c0e1446aa19e6cd00e00e39770da43081bda" }
-dcap-ql = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
-enclave-runner = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
-hyper = { git = "https://github.com/lexe-tech/hyper", branch = "hyper-sgx-0.14.18" }
-mio = { git = "https://github.com/lexe-tech/mio", branch = "mio-sgx-0.8.4" }
+dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe" }
+enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe" }
+hyper = { git = "https://github.com/lexe-app/hyper", branch = "hyper-sgx-0.14.18" }
+mio = { git = "https://github.com/lexe-app/mio", branch = "mio-sgx-0.8.4" }
 # Remove this `proptest-derive` patch when `v0.4` gets published to crates.io
 proptest-derive = { git = "https://github.com/proptest-rs/proptest", ref = "dcb181c5fe0bc2e1afced79670d35e05f8c7ca21" }
-reqwest = { git = "https://github.com/lexe-tech/reqwest", branch = "lexe" }
-ring = { git = "https://github.com/lexe-tech/ring", branch = "lexe-0.16.20-sgx-nix" }
-sgx-isa = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
-sgxs-loaders = { git = "https://github.com/lexe-tech/rust-sgx", branch = "lexe" }
-tokio = { git = "https://github.com/lexe-tech/tokio", branch = "tokio-sgx-1.21.2" }
+reqwest = { git = "https://github.com/lexe-app/reqwest", branch = "lexe" }
+ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-0.16.20-sgx-nix" }
+sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe" }
+sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe" }
+tokio = { git = "https://github.com/lexe-app/tokio", branch = "lexe-1.21.2-2023_09_20" }
 # This warp fork:
 # * b807792 - trace: extract `Response<Body>` directly to reduce friction
 # * 2cbad40 - trace: tweak warp request `tracing` to include request time directly
 # * f8c13d9 - add HTTP on-upgrade filter
 # * dc560ed - Allow users to provide a preconfigured TLS configuration
-warp = { git = "https://github.com/lexe-tech/warp", branch = "lexe-2023_06_29" }
+warp = { git = "https://github.com/lexe-app/warp", branch = "lexe-2023_06_29" }
 # warp = { path = "../../../forks/warp" }
 
 # This BDK fork:
@@ -159,8 +159,8 @@ warp = { git = "https://github.com/lexe-tech/warp", branch = "lexe-2023_06_29" }
 #    *See the commit messages in the patch for details.
 # 3) Reintroduces the Send bound in bdk-macros' `async_trait`s, required for (2)
 # 4) Reduces `CACHE_ADDR_BATCH_SIZE` from 100 to 1.
-bdk = { git = "https://github.com/lexe-tech/bdk", branch = "lexe-v0.27.1-2023_07_07" }
-bdk-macros = { git = "https://github.com/lexe-tech/bdk", branch = "lexe-v0.27.1-2023_07_07" }
+bdk = { git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.27.1-2023_07_07" }
+bdk-macros = { git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.27.1-2023_07_07" }
 # bdk = { path = "../../bdk", default-features = false, features = ["async-interface", "use-esplora-async"] }
 # bdk-macros = { path = "../../bdk/macros" }
 
@@ -174,13 +174,13 @@ bdk-macros = { git = "https://github.com/lexe-tech/bdk", branch = "lexe-v0.27.1-
 #
 # REMOVE this when `bdk` goes 1.0 (which will presumably use the latest
 # `bitcoin` crate version).
-miniscript = { git = "https://github.com/lexe-tech/rust-miniscript", branch = "lexe-v0.9.1-infinite-recursion-fix" }
+miniscript = { git = "https://github.com/lexe-app/rust-miniscript", branch = "lexe-v0.9.1-infinite-recursion-fix" }
 
 # We maintain a patch which propagates tracing spans across `tokio::spawn`s.
-lightning = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
-lightning-invoice = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
-lightning-net-tokio = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
-lightning-transaction-sync = { git = "https://github.com/lexe-tech/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
+lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
+lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
+lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
+lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
 
 # For debugging LDK or testing patches during local development
 # lightning = { path = "../../ldk/lightning" }

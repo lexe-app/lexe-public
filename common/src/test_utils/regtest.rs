@@ -195,7 +195,7 @@ impl Regtest {
                 //   update on-demand, so that the block generation process can
                 //   proceed faster. Hence, we keep on retriggering until we've
                 //   electrs has indexed the desired # of blocks. More info:
-                //   https://github.com/lexe-tech/lexe/pull/85/files#r1080589441
+                //   https://github.com/lexe-app/lexe/pull/85/files#r1080589441
                 // - *However, Blockstream/electrs currently has a bug where
                 //   sending a trigger signal more than once every 5 seconds
                 //   will cause Waiter::wait to recurse indefinitely, resulting
