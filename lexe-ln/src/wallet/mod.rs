@@ -66,7 +66,7 @@ pub struct LexeWallet {
     // needs to be held while awaiting on BDK wallet sync, the Mutex we use
     // must be a Tokio mutex. See the patched commits for more details:
     //
-    // - https://github.com/lexe-tech/bdk/tree/max/thread-safe
+    // - https://github.com/lexe-app/bdk/tree/max/thread-safe
     // - https://github.com/bitcoindevkit/bdk/commit/c5b2f5ac9ac152a7e0658ca99ccaf854b9063727
     // - https://github.com/bitcoindevkit/bdk/commit/ddc84ca1916620d021bae8c467c53555b7c62467
     wallet: Arc<tokio::sync::Mutex<Wallet<WalletDb>>>,

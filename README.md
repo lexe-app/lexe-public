@@ -39,7 +39,7 @@ Install the enclave toolchain (does not appear to work on M1 Macs)
 
 ```bash
 $ cd ~
-$ git clone --branch lexe https://github.com/lexe-tech/rust-sgx.git
+$ git clone --branch lexe https://github.com/lexe-app/rust-sgx.git
 $ cd rust-sgx
 $ cargo install --path intel-sgx/fortanix-sgx-tools
 $ cargo install --path intel-sgx/sgxs-tools
@@ -60,7 +60,7 @@ AR_x86_64-fortanix-unknown-sgx = "x86_64-unknown-linux-gnu-ar"
 If running the node or running tests in SGX, install our runners:
 ```bash
 # Clone the repo if not already cloned
-$ git clone https://github.com/lexe-tech/lexe-public
+$ git clone https://github.com/lexe-app/lexe-public
 $ cd lexe-public # or $ cd lexe/public
 $ cargo install --path run-sgx
 ```
