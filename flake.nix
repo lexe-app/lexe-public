@@ -86,10 +86,14 @@
           # adds `rust-bin.fromRustupToolchainFile` to this pkgs instance.
           rust-overlay.overlays.default
 
-          # adds `rust-lexe` with our configured toolchain settings from
-          # `./rust-toolchain.toml`
+          # adds
+          # - `rustLexeToolchain` with our configured toolchain settings from
+          #   `./rust-toolchain.toml`
+          # - `craneLib`
           (self: super: {
-            rust-lexe = super.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+            rustLexeToolchain = super.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+
+            craneLib = (crane.mkLib super).overrideToolchain self.rustLexeToolchain;
           })
         ];
       });
@@ -104,9 +108,9 @@
     # The *.nix file formatter.
     formatter = eachSystemPkgs (pkgs: pkgs.alejandra);
 
-    # packages = eachSystem (system:
-    #
-    # );
+    packages = eachSystemPkgs (pkgs: {
+      node-fake-nosgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {};
+    });
 
     # pkgs = systemPkgs;
 
