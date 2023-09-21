@@ -2,22 +2,41 @@
   description = "Lexe public flake";
 
   inputs = {
+    # nixpkgs unstable
+    #
+    # `oxalica/rust-overlay` seems to require unstable.
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
-    # pure, reproducible rust toolchain overlay
+    # We don't actually use this, but some dependencies do. Let's try to use the
+    # same version.
+    flake-utils.url = "github:numtide/flake-utils";
+
+    # pure, reproducible rust toolchain overlay. get toolchain from
+    # `rust-toolchain.toml`.
     #
     # we must use a nightly rust toolchain for SGX reasons, so we can't use the
     # rust toolchain from nixpkgs.
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
-      inputs.nixpkgs.follows = "nixpkgs"; # use our nixpkgs ver
+      inputs.nixpkgs.follows = "nixpkgs"; # use our nixpkgs version
+      inputs.flake-utils.follows = "flake-utils";
+    };
+
+    # library for building rust projects. supports incremental artifact caching.
+    crane = {
+      url = "github:ipetkov/crane";
+      inputs.nixpkgs.follows = "nixpkgs"; # use our nixpkgs version
+      inputs.rust-overlay.follows = "rust-overlay";
+      inputs.flake-utils.follows = "flake-utils";
     };
   };
 
   outputs = {
     self,
     nixpkgs,
+    flake-utils,
     rust-overlay,
+    crane,
   }: let
     # supported systems
     systems = [
@@ -85,7 +104,11 @@
     # The *.nix file formatter.
     formatter = eachSystemPkgs (pkgs: pkgs.alejandra);
 
-    pkgs = systemPkgs;
+    # packages = eachSystem (system:
+    #
+    # );
+
+    # pkgs = systemPkgs;
 
     # devShells = eachSystemPkgs (pkgs: {
     #   default = pkgs.mkShellNoCC {
