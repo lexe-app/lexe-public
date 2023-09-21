@@ -109,7 +109,8 @@
     formatter = eachSystemPkgs (pkgs: pkgs.alejandra);
 
     packages = eachSystemPkgs (pkgs: {
-      node-fake-nosgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {};
+      node-fake-sgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {sgx = true;};
+      node-fake-nosgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {sgx = false;};
     });
 
     # pkgs = systemPkgs;
