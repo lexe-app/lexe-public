@@ -3,11 +3,21 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+
+    # pure, reproducible rust toolchain overlay
+    #
+    # we must use a nightly rust toolchain for SGX reasons, so we can't use the
+    # rust toolchain from nixpkgs.
+    rust-overlay = {
+      url = "github:oxalica/rust-overlay";
+      inputs.nixpkgs.follows = "nixpkgs"; # use our nixpkgs ver
+    };
   };
 
   outputs = {
     self,
     nixpkgs,
+    rust-overlay,
   }: let
     # supported systems
     systems = [
@@ -42,14 +52,45 @@
     # ```
     eachSystem = builder: genAttrs systems builder;
 
+    # The "host" nixpkgs for each system.
+    #
+    # ```
+    # {
+    #   "aarch64-darwin" = <nixpkgs>;
+    #   "x86_64-linux" = <nixpkgs>;
+    # }
+    # ```
+    systemPkgs = eachSystem (system:
+      import nixpkgs {
+        system = system;
+        overlays = [
+          # adds `rust-bin.fromRustupToolchainFile` to this pkgs instance.
+          rust-overlay.overlays.default
+
+          # adds `rust-lexe` with our configured toolchain settings from
+          # `./rust-toolchain.toml`
+          (self: super: {
+            rust-lexe = super.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+          })
+        ];
+      });
+
     # eachSystemPkgs :: (Nixpkgs -> AttrSet) -> AttrSet
     eachSystemPkgs = builder:
       eachSystem (
         system:
-          builder nixpkgs.legacyPackages.${system}
+          builder systemPkgs.${system}
       );
   in {
     # The *.nix file formatter.
     formatter = eachSystemPkgs (pkgs: pkgs.alejandra);
+
+    pkgs = systemPkgs;
+
+    # devShells = eachSystemPkgs (pkgs: {
+    #   default = pkgs.mkShellNoCC {
+    #     packages = [pkgs.rust-lexe];
+    #   };
+    # });
   };
 }
