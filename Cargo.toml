@@ -9,6 +9,7 @@ members = [
     "lexe-ln",
     "logger",
     "node",
+    "node-fake",
     "run-sgx",
     "sgx-toml",
 ]
