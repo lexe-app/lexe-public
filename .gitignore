@@ -1,6 +1,9 @@
 # GENERAL
 .ldk/
 
+# ignore `nix build` output symlink
+/result
+
 # RUST
 
 # Cargo-generated compiled files and executables
