@@ -1,7 +1,30 @@
 # Lexe Public Monorepo
 
-This repository contains all public code including the node, verifier client,
-iOS / Android apps, and shared libraries.
+Lexe is a managed, non-custodial Lightning node and wallet based on Intel SGX.
+
+- [LDK](https://github.com/lightningdevkit/rust-lightning)-based Lightning node written in Rust
+- Flutter/Dart iOS and Android apps
+- [BDK](https://github.com/bitcoindevkit/bdk) wallet for on-chain payments
+- [Fortanix EDP](https://edp.fortanix.com/) for integration with SGX
+
+This repository contains all public code including the user Lightning node, iOS / Android apps, and shared libraries.
+
+More information is available on our website: [lexe.app](https://lexe.app)
+
+## Guide to this repository
+
+- [`node`](./node): Lightning node (usually referred to as the "user node").
+- [`app`](./app): Flutter/Dart apps.
+- [`app-rs`](./app-rs): Rust logic used in the Lexe mobile app along with an FFI interface for the Flutter apps.
+- [`lexe-ln`](./lexe-ln): Shared Bitcoin and Lightning logic.
+- [`common`](./common): A general shared library which contains:
+  - APIs: definitions, errors, clients (with TLS and quote verification), models
+  - SGX: remote attestation, sealing, SGX types
+  - Cryptography: ed25519, ring, secp256k1, AES-256-GCM, SHA-256, root seeds, key derivation, rng, E2EE "vfs" for untrusted storage
+  - Utils: hex, byte strings, test-utils, tasks, channels, exponential backoff, iterator extensions
+  - and other miscellaneous things.
+- [`nix`](./nix): Reproducible node build (WIP)
+- [`SECURITY.md`](./SECURITY.md) contains information about Lexe's security model and responsible disclosure.
 
 ## Dev Setup
 
