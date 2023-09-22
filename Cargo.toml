@@ -200,12 +200,23 @@ lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning
 
 # [profile.release]
 # panic = "abort"
-# NOTE(phlip9): enable for smaller binary size
+# # NOTE(phlip9): enable for smaller binary size
 # codegen-units = 1
 # lto = true
 # opt-level = "s"
 # debug = 0
 # strip = "debuginfo"
+
+# the Rust profile used when building the node SGX enclave
+[profile.release-sgx]
+inherits = "release"
+panic = "abort"
+# NOTE(phlip9): enable for smaller binary size
+codegen-units = 1
+lto = "thin"
+opt-level = "s"
+debug = "none"
+strip = "symbols"
 
 # [profile.dev]
 # panic = "abort"
