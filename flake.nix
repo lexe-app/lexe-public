@@ -91,12 +91,34 @@
           #   `./rust-toolchain.toml`
           # - `craneLib`
           (self: super: {
-            rustLexeToolchain = super.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+            rustLexeToolchain =
+              super.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
 
             craneLib = (crane.mkLib super).overrideToolchain self.rustLexeToolchain;
           })
         ];
       });
+
+    # TODO(phlip9): can I just use `pkgsCross` from `systemPkgs` rather than a
+    # fresh nixpkgs instance?
+    sgxCrossPkgs = eachSystem (
+      system:
+        import nixpkgs {
+          crossSystem = "x86_64-linux";
+          localSystem = system;
+
+          overlays = [
+            rust-overlay.overlays.default
+
+            (self: super: {
+              rustLexeToolchain =
+                super.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+
+              craneLib = (crane.mkLib super).overrideToolchain self.rustLexeToolchain;
+            })
+          ];
+        }
+    );
 
     # eachSystemPkgs :: (Nixpkgs -> AttrSet) -> AttrSet
     eachSystemPkgs = builder:
@@ -108,9 +130,21 @@
     # The *.nix file formatter.
     formatter = eachSystemPkgs (pkgs: pkgs.alejandra);
 
-    packages = eachSystemPkgs (pkgs: {
-      node-fake-sgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {sgx = true;};
-      node-fake-nosgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {sgx = false;};
+    packages = eachSystem (system: {
+      # (aarch64-darwin cross)
+      # $ sha256sum < /nix/store/0iapipss8qi72539l58a6dvjns8g7zw1-node-fake-x86_64-unknown-linux-gnu-0.1.0-sgx/bin/node-fake
+      # fa2cd55e0e98861179f98293702ef43f017a871b6a2264540adcb38b154fd3e7  -
+      # Size: 332600 B
+      #
+      # (x86_64-linux vm)
+      # $ sha256sum < /nix/store/h79gd5yz40gfm5mzz4chhjfy1kks7m33-node-fake-0.1.0-sgx/bin/node-fake
+      # 2a10f869367e63516b0dedd44151b84f8aeedabd8ef2e3d0da232a3381262c6f  -
+      # Size: 332584
+      #
+      # $ diffoscope /nix/store/h79gd5yz40gfm5mzz4chhjfy1kks7m33-node-fake-0.1.0-sgx/bin/node-fake /nix/store/0iapipss8qi72539l58a6dvjns8g7zw1-node-fake-x86_64-unknown-linux-gnu-0.1.0-sgx/bin/node-fake
+      # very big diff...
+      node-fake-sgx = sgxCrossPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {sgx = true;};
+      node-fake-nosgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {sgx = false;};
     });
 
     # pkgs = systemPkgs;
@@ -120,5 +154,22 @@
     #     packages = [pkgs.rust-lexe];
     #   };
     # });
+
+    devShells = eachSystemPkgs (pkgs: {
+      default = pkgs.mkShellNoCC {
+        packages = [pkgs.diffoscopeMinimal];
+      };
+    });
   };
 }
+# time nix build -L \
+#   --json \
+#   --eval-store auto \
+#   --store ssh-ng://linux-builder@orb \
+#   .#packages.x86_64-linux.node-fake-sgx \
+#   | jq .
+# nix copy \
+#   --no-check-sigs \
+#   --from ssh-ng://linux-builder@orb \
+#   /nix/store/h79gd5yz40gfm5mzz4chhjfy1kks7m33-node-fake-0.1.0-sgx
+
