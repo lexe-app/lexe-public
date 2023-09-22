@@ -29,11 +29,12 @@ in
       perl
     ];
 
-    buildInputs = []
-    ++ lib.optionals stdenv.isDarwin [
-      # `ring` uses Security.framework rng on apple platforms
-      darwin.apple_sdk.frameworks.Security
-    ];
+    buildInputs =
+      []
+      ++ lib.optionals stdenv.isDarwin [
+        # `ring` uses Security.framework rng on apple platforms
+        darwin.apple_sdk.frameworks.Security
+      ];
 
     doCheck = false;
   }
