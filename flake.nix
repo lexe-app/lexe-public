@@ -180,14 +180,3 @@
     });
   };
 }
-# time nix build -L \
-#   --json \
-#   --eval-store auto \
-#   --store ssh-ng://linux-builder@orb \
-#   .#packages.x86_64-linux.node-fake-sgx \
-#   | jq .
-# nix copy \
-#   --no-check-sigs \
-#   --from ssh-ng://linux-builder@orb \
-#   /nix/store/h79gd5yz40gfm5mzz4chhjfy1kks7m33-node-fake-0.1.0-sgx
-

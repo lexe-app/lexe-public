@@ -106,7 +106,6 @@ in
 
       cargoBuildLog=$(mktemp cargoBuildLogXXXX.json)
       cargo build \
-        --verbose \
         --locked \
         --offline \
         --profile=release-sgx \
