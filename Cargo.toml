@@ -210,11 +210,14 @@ lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning
 # the Rust profile used when building the node SGX enclave
 [profile.release-sgx]
 inherits = "release"
-panic = "abort"
+panic = "unwind" # sometimes repro diff?
+# panic = "abort"
 # NOTE(phlip9): enable for smaller binary size
 codegen-units = 1
+# lto = "fat" # big repro diff
 lto = "thin"
-opt-level = "s"
+# opt-level = 3 # big repro diff
+opt-level = 2
 debug = "none"
 strip = "symbols"
 
