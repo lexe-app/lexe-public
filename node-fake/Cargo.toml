@@ -26,8 +26,9 @@ stack-size = 0x20_0000
 threads = 2
 
 [dependencies]
-# basic rust crate w/ some proc-macros for spice
-serde.workspace = true
-serde_json.workspace = true
+# # basic rust crate w/ some proc-macros for spice
+# serde.workspace = true
+# serde_json.workspace = true
 # dark souls crate w/ build.rs, C & asm code, perl codegen, etc...
 ring.workspace = true
+# bitcoin = { workspace = true }
