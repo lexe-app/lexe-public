@@ -160,12 +160,18 @@
 
     packages = eachSystem (system: {
       # node-fake-sgx = sgxCrossPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {sgx = true;};
-      node-fake-sgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {sgx = true;};
-      node-fake-nosgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {sgx = false;};
+      node-fake-sgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {
+        sgx = true;
+        llvmPackages = systemPkgs.${system}.llvmPackages_latest;
+      };
+      # node-fake-nosgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {sgx = false;};
     });
 
+    # easy access from `nix repl`
+    # > :load-flake .
     systemPkgs = systemPkgs;
     # sgxCrossPkgs = sgxCrossPkgs;
+    lib = nixpkgs.lib;
 
     # devShells = eachSystemPkgs (pkgs: {
     #   default = pkgs.mkShellNoCC {
