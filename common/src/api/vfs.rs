@@ -22,7 +22,8 @@ use crate::hexstr_or_bytes;
 ///
 /// This struct exists mainly so that `serde_qs` can use it as a query parameter
 /// struct to fetch files by directory.
-#[derive(Clone, Debug, Eq, PartialEq, Hash, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize)]
 pub struct VfsDirectory {
     pub dirname: String,
 }
@@ -31,7 +32,8 @@ pub struct VfsDirectory {
 ///
 /// This struct exists mainly so that `serde_qs` can use it as a query parameter
 /// struct to fetch files by id.
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Serialize, Deserialize)]
 pub struct VfsFileId {
     // Flattened because serde_qs requires non-nested structs
     #[serde(flatten)]
@@ -41,7 +43,8 @@ pub struct VfsFileId {
 
 /// Represents a file in the virtual file system. The `data` field is almost
 /// always encrypted.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize)]
 pub struct VfsFile {
     #[serde(flatten)]
     pub id: VfsFileId,
