@@ -21,33 +21,45 @@
 #     pname = "${crateInfo.pname}";
 #     version = "${crateInfo.version}-${sgxLabel}";
 #
+#     # print cc full args list
+#     NIX_DEBUG = true;
+#
+#     CARGO_PROFILE = "release-sgx";
+#
 #     cargoExtraArgs = builtins.concatStringsSep " " (
-#       ["--package=node-fake"]
+#       ["-vv" "--offline" "--locked" "--package=node-fake"]
 #       ++ (lib.optionals sgx ["--target=x86_64-fortanix-unknown-sgx"])
 #     );
 #
-#     # nativeBuildInputs = [
-#     #   # `ring` uses `perl` in its build.rs
-#     #   perl
-#     # ];
-#     #
-#     # buildInputs =
-#     #   []
-#     #   ++ lib.optionals stdenv.isDarwin [
-#     #     # `ring` uses Security.framework rng on apple platforms
-#     #     darwin.apple_sdk.frameworks.Security
-#     #   ];
+#     nativeBuildInputs = [
+#       # `ring` uses `perl` in its build.rs
+#       perl
+#     ];
+#
+#     buildInputs =
+#       []
+#       ++ lib.optionals stdenv.isDarwin [
+#         # `ring` uses Security.framework rng on apple platforms
+#         darwin.apple_sdk.frameworks.Security
+#       ];
 #
 #     doCheck = false;
+#
+#     # We use `cargo`'s built-in stripping via the `release-sgx` profile.
+#     dontStrip = true;
+#     # The result binary is statically linked so patchelf is not necessary.
+#     dontPatchELF = true;
+#     dontAutoPatchelf = true;
+#     dontPatchShebangs = true;
 #   }
 
 # explicit version for debugging
 {
-  stdenvNoCC,
   lib,
+  llvmPackages,
   rustLexeToolchain,
   craneLib,
-  tree, # TODO: remove
+  perl,
   jq,
   sgx ? true,
 }: let
@@ -58,7 +70,7 @@
 
   src = craneLib.cleanCargoSource (craneLib.path ../..);
 in
-  stdenvNoCC.mkDerivation {
+  llvmPackages.stdenv.mkDerivation {
     src = src;
 
     pname = "node-fake";
@@ -89,20 +101,43 @@ in
       craneLib.installFromCargoBuildLogHook
       craneLib.removeReferencesToVendoredSourcesHook
 
-      jq # used by installFromCargoBuildLogHook
+      # used by installFromCargoBuildLogHook
+      jq
+
+      # ring build.rs
+      perl
+    ];
+
+    # Use llvm toolchain for sgx since it's significantly better for
+    # cross-compiling.
+    #
+    # NOTE: `CC_*` and `CFLAGS_*` are used `cc-rs` in the `ring` build script,
+    #       while `CARGO_TARGET_*` is used by `cargo` itself.
+    CC_x86_64-fortanix-unknown-sgx = "${llvmPackages.clang-unwrapped}/bin/clang";
+    CARGO_TARGET_X86_64_FORTANIX_UNKNOWN_SGX_LINKER = "${llvmPackages.lld}/bin/ld.lld";
+    CFLAGS_x86_64-fortanix-unknown-sgx = let
+      clang-unwrapped = llvmPackages.clang-unwrapped;
+      clangVersion = lib.versions.major clang-unwrapped.version;
+      clangResourceDir = "${clang-unwrapped.lib}/lib/clang/${clangVersion}/include";
+    in
+    [
+      # The base includes, like `stdint.h`, `stddef.h`, and CPU intrinsics.
+      "-isystem" "${clangResourceDir}"
+      # SGX doesn't support libc (except for a few shimmed fns in
+      # `rust-sgx/rs-libc`), and `ring` can apparently build w/o so let's just
+      # do that instead of complicating the build even more.
+      "-D" "GFp_NOSTDLIBINC" "-U" "__STDC_HOSTED__"
     ];
 
     buildPhase = ''
       runHook preBuild
 
-      # echo "=== .cargo/config.toml ==="
-      # cat .cargo/config.toml
-
-      # echo "=== .cargo-home/config.toml ==="
-      # cat .cargo-home/config.toml
-
       cargo --version
       rustc --version
+
+      echo "SGX target toolchain"
+      ${llvmPackages.clang-unwrapped}/bin/clang --version
+      ${llvmPackages.lld}/bin/ld.lld --version
 
       cargoBuildLog=$(mktemp cargoBuildLogXXXX.json)
       cargo build \
@@ -113,8 +148,6 @@ in
         --target=x86_64-fortanix-unknown-sgx \
         --message-format json-render-diagnostics \
         > "$cargoBuildLog"
-
-      # cat "$cargoBuildLog"
 
       runHook postBuild
     '';
@@ -143,7 +176,6 @@ in
 
     # print out the binary hash and size for debugging
     postFixup = ''
-      # ${tree}/bin/tree $out
       sha256sum $out/bin/node-fake
       stat --format='Size: %s' $out/bin/node-fake
     '';
