@@ -68,7 +68,21 @@
     then "sgx"
     else "nosgx";
 
-  src = craneLib.cleanCargoSource (craneLib.path ../..);
+  cHeaderFilter = path: type: (
+    let
+      pathStr = builtins.toString path;
+      fileName = builtins.baseNameOf pathStr;
+    in
+      lib.hasSuffix ".h" fileName
+  );
+
+  srcFilter = path: type:
+    (craneLib.filterCargoSources path type) || (cHeaderFilter path type);
+
+  src = lib.cleanSourceWith {
+    src = lib.cleanSource ../..;
+    filter = srcFilter;
+  };
 in
   llvmPackages.stdenv.mkDerivation {
     src = src;
@@ -123,14 +137,19 @@ in
     [
       # The base includes, like `stdint.h`, `stddef.h`, and CPU intrinsics.
       "-isystem" "${clangResourceDir}"
+      # libc shims -- the shimmed fn impls are provided by `rust-sgx/rs-libc`
+      "-isystem" "${src}/sgx-libc-shim/include"
       # SGX doesn't support libc (except for a few shimmed fns in
       # `rust-sgx/rs-libc`), and `ring` can apparently build w/o so let's just
       # do that instead of complicating the build even more.
-      "-D" "GFp_NOSTDLIBINC" "-U" "__STDC_HOSTED__"
+      # "-D" "GFp_NOSTDLIBINC" "-U" "__STDC_HOSTED__"
     ];
 
     buildPhase = ''
       runHook preBuild
+
+      echo "source: ${src}"
+      # ls -la "${src}"
 
       cargo --version
       rustc --version
