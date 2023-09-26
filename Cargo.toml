@@ -6,6 +6,7 @@ members = [
     "app-rs-codegen",
     "common",
     "lexe-ln",
+    "logger",
     "node",
     "run-sgx",
     "sgx-toml",
