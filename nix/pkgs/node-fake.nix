@@ -61,23 +61,27 @@
   craneLib,
   perl,
   jq,
+  protobuf,
   sgx ? true,
 }: let
+  package = "node-fake";
+
   sgxLabel =
     if sgx
     then "sgx"
     else "nosgx";
 
-  cHeaderFilter = path: type: (
+  # include C header files and DER-encoded certs
+  miscFilter = path: type: (
     let
       pathStr = builtins.toString path;
       fileName = builtins.baseNameOf pathStr;
     in
-      lib.hasSuffix ".h" fileName
+      (lib.hasSuffix ".h" fileName) || (lib.hasSuffix ".der" fileName)
   );
 
   srcFilter = path: type:
-    (craneLib.filterCargoSources path type) || (cHeaderFilter path type);
+    (craneLib.filterCargoSources path type) || (miscFilter path type);
 
   src = lib.cleanSourceWith {
     src = lib.cleanSource ../..;
@@ -87,7 +91,7 @@ in
   llvmPackages.stdenv.mkDerivation {
     src = src;
 
-    pname = "node-fake";
+    pname = "${package}";
     version = "0.1.0-${sgxLabel}";
 
     # A directory of vendored cargo sources which can be consumed without network
@@ -120,6 +124,9 @@ in
 
       # ring build.rs
       perl
+
+      # aesm-client build.rs
+      protobuf
     ];
 
     # Use llvm toolchain for sgx since it's significantly better for
@@ -139,10 +146,6 @@ in
       "-isystem" "${clangResourceDir}"
       # libc shims -- the shimmed fn impls are provided by `rust-sgx/rs-libc`
       "-isystem" "${src}/sgx-libc-shim/include"
-      # SGX doesn't support libc (except for a few shimmed fns in
-      # `rust-sgx/rs-libc`), and `ring` can apparently build w/o so let's just
-      # do that instead of complicating the build even more.
-      # "-D" "GFp_NOSTDLIBINC" "-U" "__STDC_HOSTED__"
     ];
 
     buildPhase = ''
@@ -160,10 +163,11 @@ in
 
       cargoBuildLog=$(mktemp cargoBuildLogXXXX.json)
       cargo build \
+        -vv \
         --locked \
         --offline \
         --profile=release-sgx \
-        --package=node-fake \
+        --package=${package} \
         --target=x86_64-fortanix-unknown-sgx \
         --message-format json-render-diagnostics \
         > "$cargoBuildLog"
@@ -195,7 +199,7 @@ in
 
     # print out the binary hash and size for debugging
     postFixup = ''
-      sha256sum $out/bin/node-fake
-      stat --format='Size: %s' $out/bin/node-fake
+      sha256sum $out/bin/${package}
+      stat --format='Size: %s' $out/bin/${package}
     '';
   }
