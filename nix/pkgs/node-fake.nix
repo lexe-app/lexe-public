@@ -1,77 +1,22 @@
-# # simpler version
-# # TODO: go back to this when I get everything working
-# {
-#   stdenv,
-#   lib,
-#   perl,
-#   craneLib,
-#   darwin,
-#   sgx ? true,
-# }: let
-#   cargoToml = ../../node-fake/Cargo.toml;
-#   crateInfo = craneLib.crateNameFromCargoToml {cargoToml = cargoToml;};
-#   sgxLabel =
-#     if sgx
-#     then "sgx"
-#     else "nosgx";
-# in
-#   craneLib.buildPackage {
-#     src = craneLib.cleanCargoSource (craneLib.path ../..);
-#
-#     pname = "${crateInfo.pname}";
-#     version = "${crateInfo.version}-${sgxLabel}";
-#
-#     # print cc full args list
-#     NIX_DEBUG = true;
-#
-#     CARGO_PROFILE = "release-sgx";
-#
-#     cargoExtraArgs = builtins.concatStringsSep " " (
-#       ["-vv" "--offline" "--locked" "--package=node-fake"]
-#       ++ (lib.optionals sgx ["--target=x86_64-fortanix-unknown-sgx"])
-#     );
-#
-#     nativeBuildInputs = [
-#       # `ring` uses `perl` in its build.rs
-#       perl
-#     ];
-#
-#     buildInputs =
-#       []
-#       ++ lib.optionals stdenv.isDarwin [
-#         # `ring` uses Security.framework rng on apple platforms
-#         darwin.apple_sdk.frameworks.Security
-#       ];
-#
-#     doCheck = false;
-#
-#     # We use `cargo`'s built-in stripping via the `release-sgx` profile.
-#     dontStrip = true;
-#     # The result binary is statically linked so patchelf is not necessary.
-#     dontPatchELF = true;
-#     dontAutoPatchelf = true;
-#     dontPatchShebangs = true;
-#   }
-
-# explicit version for debugging
 {
+  stdenv,
   lib,
   llvmPackages,
-  rustLexeToolchain,
   craneLib,
+  darwin,
   perl,
-  jq,
   protobuf,
-  sgx ? true,
+  # this should probably be encapsulated into a new "stdenv" targetting
+  # `x86_64-fortanix-unknown-sgx`, but I'm not quite sure how to do that yet.
+  isSgx ? true,
+  isRelease ? true,
+  # enable full, verbose build logs
+  isVerbose ? false,
 }: let
-  package = "node-fake";
+  cargoToml = ../../node-fake/Cargo.toml;
+  crateInfo = craneLib.crateNameFromCargoToml {cargoToml = cargoToml;};
 
-  sgxLabel =
-    if sgx
-    then "sgx"
-    else "nosgx";
-
-  # include C header files and DER-encoded certs
+  # include C header files and hard-coded CA certs
   miscFilter = path: type: (
     let
       pathStr = builtins.toString path;
@@ -80,6 +25,7 @@
       (lib.hasSuffix ".h" fileName) || (lib.hasSuffix ".der" fileName)
   );
 
+  # strip all files not needed for Rust build
   srcFilter = path: type:
     (craneLib.filterCargoSources path type) || (miscFilter path type);
 
@@ -87,47 +33,44 @@
     src = lib.cleanSource ../..;
     filter = srcFilter;
   };
-in
-  llvmPackages.stdenv.mkDerivation {
+
+  commonPackageArgs = {
     src = src;
 
-    pname = "${package}";
-    version = "0.1.0-${sgxLabel}";
+    pname = crateInfo.pname;
+    version = crateInfo.version;
 
-    # A directory of vendored cargo sources which can be consumed without network
-    # access. Directory structure should basically follow the output of `cargo vendor`.
-    #
-    # `nix` doesn't allow network access in the build sandbox (for good reason)
-    # so we need this `craneLib` fn which consumes the `Cargo.lock` in nix-lang
-    # and fetches the dependency sources in a reproducible way.
-    cargoVendorDir = craneLib.vendorCargoDeps {src = src;};
+    # print cc full args list
+    NIX_DEBUG = isVerbose;
+    strictDeps = true;
+    doCheck = false;
 
     nativeBuildInputs = [
-      rustLexeToolchain
-
-      # prints any `cargo` invocations for debugging
-      craneLib.cargoHelperFunctionsHook
-
-      # points `CARGO_HOME` to `.cargo-home/config.toml`.
-      # plus some other misc. things.
-      craneLib.configureCargoCommonVarsHook
-      # adds settings to `.cargo-home/config.toml` so `cargo` will pick up the
-      # vendored deps.
-      craneLib.configureCargoVendoredDepsHook
-      # pretty magical; this moves the desired `cargo build` outputs from
-      # `target/` -> `$out/`.
-      craneLib.installFromCargoBuildLogHook
-      craneLib.removeReferencesToVendoredSourcesHook
-
-      # used by installFromCargoBuildLogHook
-      jq
-
-      # ring build.rs
+      # ring crate build.rs
       perl
-
-      # aesm-client build.rs
-      protobuf
+      # # aesm-client crate build.rs
+      # protobuf
     ];
+
+    buildInputs =
+      []
+      ++ lib.optionals (!isSgx && stdenv.isDarwin) [
+        # ring crate uses Security.framework rng on apple platforms
+        darwin.apple_sdk.frameworks.Security
+      ];
+
+    cargoExtraArgs = builtins.concatStringsSep " " (
+      ["--offline" "--locked" "--package=${crateInfo.pname}"]
+      ++ (lib.optionals isSgx ["--target=x86_64-fortanix-unknown-sgx"])
+      ++ (lib.optionals isVerbose ["-vv"])
+    );
+
+    CARGO_PROFILE =
+      if (isRelease && isSgx)
+      then "release-sgx"
+      else if isRelease
+      then "release"
+      else "dev";
 
     # Use llvm toolchain for sgx since it's significantly better for
     # cross-compiling.
@@ -140,66 +83,35 @@ in
       clang-unwrapped = llvmPackages.clang-unwrapped;
       clangVersion = lib.versions.major clang-unwrapped.version;
       clangResourceDir = "${clang-unwrapped.lib}/lib/clang/${clangVersion}/include";
-    in
-    [
+    in [
       # The base includes, like `stdint.h`, `stddef.h`, and CPU intrinsics.
-      "-isystem" "${clangResourceDir}"
+      "-isystem"
+      "${clangResourceDir}"
       # libc shims -- the shimmed fn impls are provided by `rust-sgx/rs-libc`
-      "-isystem" "${src}/sgx-libc-shim/include"
+      "-isystem"
+      "${src}/sgx-libc-shim/include"
     ];
 
-    buildPhase = ''
-      runHook preBuild
-
-      echo "source: ${src}"
-      # ls -la "${src}"
-
-      cargo --version
-      rustc --version
-
-      echo "SGX target toolchain"
-      ${llvmPackages.clang-unwrapped}/bin/clang --version
-      ${llvmPackages.lld}/bin/ld.lld --version
-
-      cargoBuildLog=$(mktemp cargoBuildLogXXXX.json)
-      cargo build \
-        -vv \
-        --locked \
-        --offline \
-        --profile=release-sgx \
-        --package=${package} \
-        --target=x86_64-fortanix-unknown-sgx \
-        --message-format json-render-diagnostics \
-        > "$cargoBuildLog"
-
-      runHook postBuild
-    '';
-
-    installPhase = ''
-      runHook preInstall
-
-      mkdir -p $out
-
-      if [ -n "$cargoBuildLog" -a -f "$cargoBuildLog" ]; then
-        installFromCargoBuildLog "$out" "$cargoBuildLog"
-      else
-        echo Missing "\$cargoBuildLog file"
-        false
-      fi
-
-      runHook postInstall
-    '';
-
     # We use `cargo`'s built-in stripping via the `release-sgx` profile.
-    dontStrip = true;
-    # The result binary is statically linked so patchelf is not necessary.
-    dontPatchELF = true;
-    dontAutoPatchelf = true;
-    dontPatchShebangs = true;
+    dontStrip = isSgx;
+    # The release binary is statically linked so patchelf is not necessary.
+    dontPatchELF = isSgx;
+    dontAutoPatchelf = isSgx;
+    dontPatchShebangs = isSgx;
+  };
 
-    # print out the binary hash and size for debugging
-    postFixup = ''
-      sha256sum $out/bin/${package}
-      stat --format='Size: %s' $out/bin/${package}
-    '';
-  }
+  # TODO: figure out how
+  depsOnly = craneLib.buildDepsOnly commonPackageArgs;
+in
+  craneLib.buildPackage (
+    commonPackageArgs
+    // {
+      cargoArtifacts = depsOnly;
+
+      # print out the binary hash and size for debugging
+      postFixup = ''
+        sha256sum $out/bin/${crateInfo.pname}
+        stat --format='Size: %s' $out/bin/${crateInfo.pname}
+      '';
+    }
+  )

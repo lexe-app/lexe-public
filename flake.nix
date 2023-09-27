@@ -160,9 +160,25 @@
 
     packages = eachSystem (system: {
       # node-fake-sgx = sgxCrossPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {sgx = true;};
-      node-fake-sgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {
-        sgx = true;
+      node-fake-release-sgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {
         llvmPackages = systemPkgs.${system}.llvmPackages_latest;
+        isSgx = true;
+        isRelease = true;
+      };
+      node-fake-debug-sgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {
+        llvmPackages = systemPkgs.${system}.llvmPackages_latest;
+        isSgx = true;
+        isRelease = false;
+      };
+      node-fake-release-nosgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {
+        llvmPackages = systemPkgs.${system}.llvmPackages_latest;
+        isSgx = false;
+        isRelease = true;
+      };
+      node-fake-debug-nosgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {
+        llvmPackages = systemPkgs.${system}.llvmPackages_latest;
+        isSgx = false;
+        isRelease = false;
       };
       # node-fake-nosgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {sgx = false;};
     });
