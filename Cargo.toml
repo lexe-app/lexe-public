@@ -143,7 +143,7 @@ mio = { git = "https://github.com/lexe-app/mio", branch = "mio-sgx-0.8.4" }
 # Remove this `proptest-derive` patch when `v0.4` gets published to crates.io
 proptest-derive = { git = "https://github.com/proptest-rs/proptest", ref = "dcb181c5fe0bc2e1afced79670d35e05f8c7ca21" }
 reqwest = { git = "https://github.com/lexe-app/reqwest", branch = "lexe" }
-ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-0.16.20-sgx-nix" }
+ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.16.20-2023_09_26" }
 sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe" }
 sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe" }
 tokio = { git = "https://github.com/lexe-app/tokio", branch = "lexe-1.21.2-2023_09_20" }
@@ -207,19 +207,20 @@ lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning
 # debug = 0
 # strip = "debuginfo"
 
-# the Rust profile used when building the node SGX enclave
+# The Rust profile used when building the node SGX enclave in release mode.
+# These options are tuned through trial and error to minimize reproducibility
+# issues :)
 [profile.release-sgx]
 inherits = "release"
 panic = "unwind" # sometimes repro diff?
 # panic = "abort"
-# NOTE(phlip9): enable for smaller binary size
 codegen-units = 1
 # lto = "fat" # big repro diff
 lto = "thin"
 # opt-level = 3 # big repro diff
 opt-level = 2
 debug = "none"
-strip = "symbols"
+strip = "debuginfo"
 
 # [profile.dev]
 # panic = "abort"

@@ -2394,7 +2394,10 @@ dependencies = [
 name = "node-fake"
 version = "0.1.0"
 dependencies = [
+ "bitcoin",
  "ring",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -2987,7 +2990,7 @@ checksum = "8c31b5c4033f8fdde8700e4657be2c497e7288f01515be52168c631e2e4d4086"
 [[package]]
 name = "ring"
 version = "0.16.20"
-source = "git+https://github.com/lexe-app/ring?branch=lexe-0.16.20-sgx-nix#15f9fc85b13c76ab6af0009c61a7c743e2695445"
+source = "git+https://github.com/lexe-app/ring?branch=lexe-v0.16.20-2023_09_26#6aad00356d5eea8d4c8a00e7f53775e9fedf53be"
 dependencies = [
  "cc",
  "libc",
