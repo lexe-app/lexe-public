@@ -1,3 +1,5 @@
+#[cfg(test)]
+use std::env;
 use std::{
     fmt,
     time::{Duration, SystemTime},
@@ -95,7 +97,7 @@ impl ApiCredentials {
     /// ```
     #[cfg(test)] // Don't think we need this outside of tests
     pub fn from_env() -> anyhow::Result<Self> {
-        use std::{env, str::FromStr};
+        use std::str::FromStr;
 
         use anyhow::Context;
 
@@ -290,9 +292,10 @@ impl ApiCredentials {
         self.updated = true;
 
         // For convenience keeping our test tokens up-to-date,
-        // print commands to update the corresponding env vars
+        // print commands to update the corresponding env vars,
+        // EXCEPT if SKIP_GDRIVE_TOKEN_PRINT=1 (e.g. in CI)
         #[cfg(test)]
-        {
+        if !matches!(env::var("SKIP_GDRIVE_TOKEN_PRINT").as_deref(), Ok("1")) {
             let access_token = &self.access_token.0;
             println!("API access token updated; set this in env:");
             println!("```bash");

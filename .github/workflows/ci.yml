@@ -112,6 +112,33 @@ jobs:
       - uses: arduino/setup-protoc@v1
       - run: cargo test --locked -- -Zunstable-options --report-time
 
+  test-gdrive:
+    runs-on: ubuntu-20.04
+    env:
+      # These secrets originate from a random Google account owned by Max.
+      # Don't remove this account from the Lexe project test users in Google
+      # Cloud, otherwise this CI workflow will break,
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      GOOGLE_REFRESH_TOKEN: ${{ secrets.GOOGLE_REFRESH_TOKEN }}
+      GOOGLE_ACCESS_TOKEN: ${{ secrets.GOOGLE_ACCESS_TOKEN }}
+      GOOGLE_ACCESS_TOKEN_EXPIRY: 0
+      SKIP_GDRIVE_TOKEN_PRINT: 1
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.LEXE_RUST_VERSION }}
+      - uses: Swatinem/rust-cache@v2
+      - uses: arduino/setup-protoc@v1
+        with: # Authenticate to prevent rate limit error
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+        # Run only the `#[ignore]`d gdrive tests, and do it on one thread to
+        # prevent the tests (which create and delete the regtest VFS root) from
+        # interfering with each other
+      - run: cargo test --locked -p gdrive -- --ignored --test-threads=1 -Zunstable-options --report-time
+
   fmt:
     runs-on: ubuntu-20.04
     steps:
