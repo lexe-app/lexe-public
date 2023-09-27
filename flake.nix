@@ -197,7 +197,7 @@
 
     devShells = eachSystemPkgs (pkgs: {
       default = pkgs.mkShellNoCC {
-        packages = [pkgs.diffoscopeMinimal];
+        packages = [pkgs.diffoscopeMinimal pkgs.nix-diff];
       };
     });
   };

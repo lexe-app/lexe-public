@@ -1,5 +1,6 @@
 {
   stdenv,
+  stdenvNoCC,
   lib,
   llvmPackages,
   craneLib,
@@ -16,13 +17,26 @@
   cargoToml = ../../node-fake/Cargo.toml;
   crateInfo = craneLib.crateNameFromCargoToml {cargoToml = cargoToml;};
 
-  # include C header files and hard-coded CA certs
+  # copy the fake SGX libc shim into the nix store.
+  # placing the `sgx-libc-shim` in its own derivation seems to stop needless
+  # rebuilds.
+  sgx-libc-shim = stdenvNoCC.mkDerivation {
+    name = "sgx-libc-shim";
+    src = ../../sgx-libc-shim;
+    dontUnpack = true;
+    installPhase = ''
+      mkdir -p $out
+      cp -r $src/include $out/
+    '';
+  };
+
+  # include hard-coded CA certs
   miscFilter = path: type: (
     let
       pathStr = builtins.toString path;
       fileName = builtins.baseNameOf pathStr;
     in
-      (lib.hasSuffix ".h" fileName) || (lib.hasSuffix ".der" fileName)
+      (lib.hasSuffix ".der" fileName)
   );
 
   # strip all files not needed for Rust build
@@ -89,7 +103,7 @@
       "${clangResourceDir}"
       # libc shims -- the shimmed fn impls are provided by `rust-sgx/rs-libc`
       "-isystem"
-      "${src}/sgx-libc-shim/include"
+      "${sgx-libc-shim}/include"
     ];
 
     # We use `cargo`'s built-in stripping via the `release-sgx` profile.
@@ -100,7 +114,6 @@
     dontPatchShebangs = isSgx;
   };
 
-  # TODO: figure out how
   depsOnly = craneLib.buildDepsOnly commonPackageArgs;
 in
   craneLib.buildPackage (
