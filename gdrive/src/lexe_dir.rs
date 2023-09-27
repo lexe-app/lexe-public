@@ -1,21 +1,23 @@
-//! Handles everything related to the structure of the LexeData dir.
+//! This module contains utilities for finding or creating the LexeData dir,
+//! as well as finding or creating the "gvfs root" for each network.
 //!
 //! The canonical folder structure is as follows:
 //!
 //! My Drive
-//! |___... (The LexeData dir can be moved anywhere in My Drive)
+//! |___ ... (The LexeData dir can be moved anywhere in My Drive)
 //!     |___"X LexeData (DO NOT RENAME, MODIFY, OR DELETE)"
-//!         |___bitcoin (mainnet vfs root)
-//!         |   |___encrypted_root_seed (non-vfs file)
-//!         |   |___channel_manager (vfs file)
-//!         |   |___channel_monitors (vfs directory)
-//!         |       |___deadbeef (vfs file)
-//!         |       |___...
-//!         |___testnet (testnet vfs root)
-//!         |   |___encrypted_root_seed (non-vfs file)
-//!         |   |___channel_manager (vfs file)
-//!         |   |___channel_monitors (vfs dir)
-//!         |       |___...
+//!         |___"bitcoin" (mainnet gvfs root)
+//!         |   |___"./encrypted_root_seed" (singleton file, password-encrypted)
+//!         |   |___"./channel_manager" (singleton file, AES encrypted)
+//!         |   |___"channel_monitors/deadcafe" (vfs subdir file, AES encrypted)
+//!         |   |___"channel_monitors/baddecaf" (vfs subdir file, AES encrypted)
+//!         |   |___...
+//!         |___"testnet" (testnet gvfs root)
+//!         |   |___"./encrypted_root_seed" (singleton file, password-encrypted)
+//!         |   |___"./channel_manager" (singleton file, AES encrypted)
+//!         |   |___"channel_monitors/deadcafe" (vfs subdir file, AES encrypted)
+//!         |   |___"channel_monitors/baddecaf" (vfs subdir file, AES encrypted)
+//!         |   |___...
 //!         |___...
 //!
 //! See also the doc comments for `LEXE_DIR_NAME`.
@@ -157,18 +159,18 @@ async fn create_lexe_dir(client: &GDriveClient) -> anyhow::Result<GFile> {
 }
 
 /// Given the [`GFileId`] of the parent LexeData dir, returns the [`GFileId`]
-/// corresponding to the VFS root. The VFS root is created if it didn't exist.
-pub(crate) async fn get_or_create_vfs_root(
+/// corresponding to the GVFS root. The GVFS root is created if it didn't exist.
+pub(crate) async fn get_or_create_gvfs_root(
     client: &GDriveClient,
     lexe_dir: &GFileId,
     network: Network,
 ) -> anyhow::Result<GFileId> {
     let network_str = network.to_string();
-    let maybe_vfs_root = get_vfs_root(client, lexe_dir, &network_str)
+    let maybe_gvfs_root_gid = get_gvfs_root(client, lexe_dir, &network_str)
         .await
-        .context("get_vfs_root")?;
+        .context("get_gvfs_root")?;
 
-    let vfs_root = match maybe_vfs_root {
+    let gvfs_root_gid = match maybe_gvfs_root_gid {
         Some(gid) => gid,
         None => client
             .create_child_dir(lexe_dir.clone(), &network_str)
@@ -176,23 +178,23 @@ pub(crate) async fn get_or_create_vfs_root(
             .context("create_child_dir")?,
     };
 
-    Ok(vfs_root)
+    Ok(gvfs_root_gid)
 }
 
 /// Given the [`GFileId`] of the parent LexeData dir, returns the [`GFileId`]
 /// corresponding to the VFS root, if it exists.
-pub(crate) async fn get_vfs_root(
+pub(crate) async fn get_gvfs_root(
     client: &GDriveClient,
     lexe_dir: &GFileId,
     network_str: &str,
 ) -> anyhow::Result<Option<GFileId>> {
-    let maybe_vfs_root = client
+    let maybe_gvfs_root_gid = client
         .search_direct_children(lexe_dir, network_str)
         .await
         .context("search_direct_children")?
         .map(|gfile| gfile.id);
 
-    Ok(maybe_vfs_root)
+    Ok(maybe_gvfs_root_gid)
 }
 
 #[cfg(test)]
@@ -218,10 +220,10 @@ mod test {
         println!("Lexe dir: {lexe_dir_name}");
         let network = Network::REGTEST;
         let lexe_dir_id = lexe_dir.id;
-        let vfs_root_id =
-            get_or_create_vfs_root(&client, &lexe_dir_id, network)
+        let gvfs_root_gid =
+            get_or_create_gvfs_root(&client, &lexe_dir_id, network)
                 .await
                 .unwrap();
-        println!("Vfs root id: {vfs_root_id}");
+        println!("Vfs root id: {gvfs_root_gid}");
     }
 }

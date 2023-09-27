@@ -2,7 +2,8 @@
 
 // To avoid confusion between [`GFileId`] and [`VfsFile::id`], [`GFile`] and
 // [`VfsFile`], etc, we use `g` or `v` prefixes in method, struct field, and
-// variable names to denote "Google" or "VFS" respectively.
+// variable names to denote "Google" or "VFS" respectively. 'VFS' refers to the
+// VFS abstraction while 'GVFS' refers to the actual layout of files in GDrive.
 
 use anyhow::{anyhow, ensure, Context};
 use common::{
@@ -13,22 +14,32 @@ use common::{
 use tracing::instrument;
 
 use crate::{
-    api, api::GDriveClient, lexe_dir, models::GFileId, oauth2::ApiCredentials,
+    api, api::GDriveClient, gname::GName, lexe_dir, models::GFileId,
+    oauth2::ApiCredentials,
 };
 
 // Allows tests to assert that these `anyhow::Error`s happened.
-const CREATE_DUPE_MSG: &str = "Tried to create duplicate";
-const NOT_FOUND_MSG: &str = "not found";
+pub const CREATE_DUPE_MSG: &str = "Tried to create duplicate";
+pub const NOT_FOUND_MSG: &str = "not found";
 
-// TODO(max): Figure out caching after everything else works
-
+/// Abstracts over the GDrive API client to expose a simple VFS interface:
+/// - [`get_file`](Self::get_file)
+/// - [`create_file`](Self::create_file)
+/// - [`upsert_file`](Self::upsert_file)
+/// - [`delete_file`](Self::delete_file)
+/// - [`get_directory`](Self::get_directory)
 pub struct GoogleVfs {
     client: GDriveClient,
-    /// The [`GFileId`] of the VFS root.
-    vfs_root_gid: GFileId,
+    /// The [`GFileId`] corresponding to the root of the GVFS.
+    gvfs_root_gid: GFileId,
+    // TODO(max): Add cache here
+    // TODO(max): Add tokio::sync::RwLock<()> here
 }
 
 impl GoogleVfs {
+    /// Initializes the [`GoogleVfs`]. Callers should supply the `gvfs_root_gid`
+    /// if known in order to save a few extra round trips during init.
+    // TODO(max): Add some getter for the gvfs_root_gid so caller can persist
     #[instrument(skip_all, name = "(gvfs-init)")]
     pub async fn init(
         credentials: ApiCredentials,
@@ -40,14 +51,18 @@ impl GoogleVfs {
             .await
             .context("get_or_create_lexe_dir")?
             .id;
-        let vfs_root_gid =
-            lexe_dir::get_or_create_vfs_root(&client, &lexe_dir, network)
+        let gvfs_root_gid =
+            lexe_dir::get_or_create_gvfs_root(&client, &lexe_dir, network)
                 .await
                 .context("get_or_create_vfs_root")?;
 
+        // TODO(max): Do the initial population of the cache.
+        // TODO(max): Check MIME types of all files here
+        // TODO(max): Check that all files have valid gname here
+
         Ok(Self {
             client,
-            vfs_root_gid,
+            gvfs_root_gid,
         })
     }
 
@@ -56,44 +71,21 @@ impl GoogleVfs {
         &self,
         vfile_id: &VfsFileId,
     ) -> anyhow::Result<Option<VfsFile>> {
-        // TODO(max): Return early if gid is in cache
-
-        // Get the gid of the gdir that contains this file.
-        // If the file is in the VFS root, its parent gid is the VFS root's gid.
-        // If the file is in a VFS dir, its parent gid is the gid of the VFS dir
-        let parent_gid = if vfile_id.dir.dirname
-            == constants::SINGLETON_DIRECTORY
-        {
-            self.vfs_root_gid.clone()
-        } else {
-            let maybe_vdir_gid = self
-                .get_vdir_gid(&vfile_id.dir)
-                .await
-                .context("get_vdir_gid")?;
-            match maybe_vdir_gid {
-                Some(d) => d,
-                // Containing gdir didn't exist, therefore the file didn't exist
-                None => return Ok(None),
-            }
-        };
-
-        // Now we know the gid of the gdir that contains the file.
-        // Search its direct children and get the gfile if it exists.
-        let maybe_gfile = self
-            .client
-            .search_direct_children(&parent_gid, &vfile_id.filename)
+        let maybe_vfile_gid = self
+            .find_vfile_gid(vfile_id)
             .await
-            .context("search_direct_children")?;
-        let gfile = match maybe_gfile {
-            Some(gf) => gf,
-            // Containing gdir existed, but the file itself didn't.
+            .context("find_vfile_gid")?;
+
+        let vfile_gid = match maybe_vfile_gid {
+            Some(gid) => gid,
+            // No gid -> no file
             None => return Ok(None),
         };
 
         // Download the file data and return the VfsFile to the caller.
         let data = self
             .client
-            .download_blob_file(&gfile.id)
+            .download_blob_file(&vfile_gid)
             .await
             .context("download_blob_file")?;
 
@@ -105,13 +97,14 @@ impl GoogleVfs {
         Ok(Some(vfile))
     }
 
+    /// The error will contain [`CREATE_DUPE_MSG`] if the file was a duplicate.
     #[instrument(skip_all, name = "(gvfs-create-file)")]
     pub async fn create_file(&self, vfile: VfsFile) -> anyhow::Result<()> {
         // First, confirm that the file doesn't already exist.
         if self
-            .get_vfile_gid(&vfile.id)
+            .find_vfile_gid(&vfile.id)
             .await
-            .context("get_vfile_gid")?
+            .context("find_vfile_gid")?
             .is_some()
         {
             let dirname = &vfile.id.dir.dirname;
@@ -119,32 +112,16 @@ impl GoogleVfs {
             return Err(anyhow!("{CREATE_DUPE_MSG}: {dirname}/{filename}"));
         }
 
-        // Get the gid of the vdir that contains it (which may be the root).
-        let maybe_vdir_gid = self
-            .get_vdir_gid(&vfile.id.dir)
-            .await
-            .context("get_vdir_gid")?;
-
-        // If the vdir did not exist, we have to create it.
-        let vdir_gid = match maybe_vdir_gid {
-            Some(v) => v,
-            // We know this is a VFS subdir because get_vdir_gid returned None,
-            // and the parent of the VFS subdir is the VFS root.
-            None => self
-                .client
-                .create_child_dir(
-                    self.vfs_root_gid.clone(),
-                    &vfile.id.dir.dirname,
-                )
-                .await
-                .context("create_child_dir")?,
-        };
-
-        // Upload the blob file into the containing vdir (which may be the root)
+        // Upload the blob file into the GVFS root.
         // TODO(max): Cache the gid returned in the file metadata
+        let gname = GName::try_from(&vfile.id)?;
         let _gfile = self
             .client
-            .create_blob_file(vdir_gid, vfile.id.filename, vfile.data)
+            .create_blob_file(
+                self.gvfs_root_gid.clone(),
+                gname.into_inner(),
+                vfile.data,
+            )
             .await
             .context("create_blob_file")?;
 
@@ -155,9 +132,9 @@ impl GoogleVfs {
     pub async fn upsert_file(&self, vfile: VfsFile) -> anyhow::Result<()> {
         // If the file exists, update it
         if let Some(gid) = self
-            .get_vfile_gid(&vfile.id)
+            .find_vfile_gid(&vfile.id)
             .await
-            .context("get_vfile_gid")?
+            .context("find_vfile_gid")?
         {
             return self
                 .client
@@ -169,44 +146,29 @@ impl GoogleVfs {
         // From here, we know the file doesn't exist. Create it. NOTE: We don't
         // use `create_file` here in order to avoid a redundant "exists?" check.
 
-        // Get the gid of the containing vdir (which may be the root)
-        let maybe_vdir_gid = self
-            .get_vdir_gid(&vfile.id.dir)
-            .await
-            .context("get_vdir_gid")?;
-
-        // If the vdir did not exist, we have to create it.
-        let vdir_gid = match maybe_vdir_gid {
-            Some(v) => v,
-            // We know this is a VFS subdir because get_vdir_gid returned None,
-            // and the parent of the VFS subdir is the VFS root.
-            None => self
-                .client
-                .create_child_dir(
-                    self.vfs_root_gid.clone(),
-                    &vfile.id.dir.dirname,
-                )
-                .await
-                .context("create_child_dir")?,
-        };
-
-        // Upload the blob file into the containing vdir (which may be the root)
+        // Upload the blob file into the GVFS root.
         // TODO(max): Cache the gid returned in the file metadata
+        let gname = GName::try_from(&vfile.id)?;
         let _gfile = self
             .client
-            .create_blob_file(vdir_gid, vfile.id.filename, vfile.data)
+            .create_blob_file(
+                self.gvfs_root_gid.clone(),
+                gname.into_inner(),
+                vfile.data,
+            )
             .await
             .context("create_blob_file")?;
 
         Ok(())
     }
 
+    /// The error will contain [`NOT_FOUND_MSG`] if the file was not found.
     #[instrument(skip_all, name = "(gvfs-delete-file)")]
     pub async fn delete_file(
         &self,
         vfile_id: &VfsFileId,
     ) -> anyhow::Result<()> {
-        let vfile_gid = match self.get_vfile_gid(vfile_id).await? {
+        let vfile_gid = match self.find_vfile_gid(vfile_id).await? {
             Some(gid) => gid,
             None => {
                 let dirname = &vfile_id.dir.dirname;
@@ -232,27 +194,17 @@ impl GoogleVfs {
             "We do not support listing files in the VFS root"
         );
 
-        let vdir_gid =
-            match self.get_vdir_gid(vdir).await.context("get_vdir_gid")? {
-                Some(gid) => gid,
-                // Subdir doesn't exist, therefore there are no files in it
-                None => return Ok(Vec::new()),
-            };
-
-        // Get the gfile metadata for all files contained in this VFS subdir
-        let child_gfiles = self
+        // Get the gfile metadata for all files contained in the GVFS root
+        let all_gfiles = self
             .client
-            .list_direct_children(&vdir_gid)
+            // TODO(max): Do a more efficient search by substring
+            .list_direct_children(&self.gvfs_root_gid)
             .await
             .context("list_direct_children")?;
 
-        // Early return if the gdir contained no children
-        if child_gfiles.is_empty() {
-            return Ok(Vec::new());
-        }
-
         // Validate the MIME type of all returned child metadatas.
-        for gfile in child_gfiles.iter() {
+        // TODO(max): This should be moved to init
+        for gfile in all_gfiles.iter() {
             if gfile.mime_type != api::BINARY_MIME_TYPE {
                 let child_name = &gfile.name;
                 let wrong_mime = &gfile.mime_type;
@@ -262,10 +214,28 @@ impl GoogleVfs {
             }
         }
 
+        // Filter out all gfiles which are not contained in the requested subdir
+        // or which had an invalid gname, and associate each with their gname.
+        let subdir_gfiles = all_gfiles
+            .into_iter()
+            .filter_map(|gfile| {
+                let gname = GName::try_from(gfile.name.clone()).ok()?;
+                if gname.dirname() != vdir.dirname {
+                    return None;
+                }
+                Some((gfile, gname))
+            })
+            .collect::<Vec<_>>();
+
+        // Early return if the subdir contained no files
+        if subdir_gfiles.is_empty() {
+            return Ok(Vec::new());
+        }
+
         // Download all of the files.
-        let vfiles = child_gfiles
+        let vfiles = subdir_gfiles
             .iter()
-            .map(|gfile| async {
+            .map(|(gfile, gname)| async {
                 let data = self
                     .client
                     .download_blob_file(&gfile.id)
@@ -273,10 +243,8 @@ impl GoogleVfs {
                     .with_context(|| gfile.name.clone())
                     .context("download_blob_file")?;
 
-                let dirname = vdir.dirname.clone();
-                let filename = gfile.name.clone();
-
-                let vfile = VfsFile::new(dirname, filename, data);
+                let vfile_id = gname.to_vfile_id();
+                let vfile = VfsFile { id: vfile_id, data };
 
                 Ok::<VfsFile, anyhow::Error>(vfile)
             })
@@ -288,78 +256,23 @@ impl GoogleVfs {
         Ok(vfiles)
     }
 
-    /// Returns the [`GFileId`] corresponding to a [`VfsFileId`], or [`None`] if
-    /// it doesn't exist.
-    async fn get_vfile_gid(
+    /// Finds the [`GFileId`] for a [`VfsFileId`] by searching Google Drive.
+    /// Returns [`None`] if the VFS file doesn't exist.
+    async fn find_vfile_gid(
         &self,
         vfile_id: &VfsFileId,
     ) -> anyhow::Result<Option<GFileId>> {
-        // If this is a singleton file, search the vfs root's children.
-        if vfile_id.dir.dirname == constants::SINGLETON_DIRECTORY {
-            let maybe_gfile = self
-                .client
-                .search_direct_children(&self.vfs_root_gid, &vfile_id.filename)
-                .await
-                .context("search_direct_children 1")?;
-            let maybe_gid = maybe_gfile.map(|gfile| gfile.id);
-            return Ok(maybe_gid);
-        }
+        let gname = GName::try_from(vfile_id)?;
 
-        // This file is in a VFS subdir. Search the subdir's children.
-        let maybe_vdir_gid = self
-            .get_vdir_gid(&vfile_id.dir)
-            .await
-            .context("get_vdir_gid")?;
-        let vdir_gid = match maybe_vdir_gid {
-            Some(v) => v,
-            // A gid for the subdir didn't exist => the file doesn't exist
-            None => return Ok(None),
-        };
-        let maybe_gfile = self
+        // In Google Drive, all files are in the VFS root under a GName.
+        let maybe_gid = self
             .client
-            .search_direct_children(&vdir_gid, &vfile_id.filename)
+            .search_direct_children(&self.gvfs_root_gid, gname.as_inner())
             .await
-            .context("search_direct_children 2")?;
-        let maybe_gid = maybe_gfile.map(|gfile| gfile.id);
+            .context("search_direct_children")?
+            .map(|gfile| gfile.id);
+
         Ok(maybe_gid)
-    }
-
-    /// Returns the [`GFileId`] for a VFS dir, which includes the VFS root as
-    /// well as VFS subdirs. Returns [`None`] if the subdir doesn't exist.
-    async fn get_vdir_gid(
-        &self,
-        vdir: &VfsDirectory,
-    ) -> anyhow::Result<Option<GFileId>> {
-        // If the caller wants the gid of the VFS root, we already have it.
-        if vdir.dirname == constants::SINGLETON_DIRECTORY {
-            return Ok(Some(self.vfs_root_gid.clone()));
-        }
-        // From here onwards, we know this is a VFS subdir.
-
-        // TODO(max): Return early if gid is in cache
-
-        // All VFS subdirs are direct children of the VFS root
-        let maybe_gdir = self
-            .client
-            .search_direct_children(&self.vfs_root_gid, &vdir.dirname)
-            .await
-            .context("search_direct_children")?;
-        let gdir = match maybe_gdir {
-            Some(g) => g,
-            // The dir doesn't exist
-            None => return Ok(None),
-        };
-
-        // Validate the MIME type
-        if gdir.mime_type != api::FOLDER_MIME_TYPE {
-            let name = &gdir.name;
-            let wrong_mime = &gdir.mime_type;
-            return Err(anyhow!(
-                "Dir '{name}' had wrong mime type {wrong_mime}"
-            ));
-        }
-
-        Ok(Some(gdir.id))
     }
 }
 
@@ -383,7 +296,7 @@ mod test {
 
         let network_str = Network::REGTEST.to_string();
         let maybe_vfs_root =
-            lexe_dir::get_vfs_root(&client, &lexe_dir.id, &network_str)
+            lexe_dir::get_gvfs_root(&client, &lexe_dir.id, &network_str)
                 .await
                 .expect("get_vfs_root failed");
         let regtest_vfs_root = match maybe_vfs_root {

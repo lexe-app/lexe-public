@@ -60,7 +60,7 @@
 //!
 //! ## Notes on testing
 //!
-//! - All tests in this crate make real API calls and are thus `#[ignored]`.
+//! - Most tests in this crate make real API calls and are thus `#[ignored]`.
 //! - Run tests like `cargo test -p gdrive -- --ignored <test> --show-output`.
 //! - If an access token was refreshed during a test run, it will be printed to
 //!   stdout. Set `--show-output` if you want to update your local env vars.
@@ -90,6 +90,8 @@ pub mod oauth2;
 
 /// Lower-level API client.
 pub(crate) mod api;
+/// Defines a `GName` newtype representing an encoded `VfsFileId`.
+pub(crate) mod gname;
 /// Utilities relating to the Lexe data dir in My Drive.
 pub(crate) mod lexe_dir;
 /// API models.

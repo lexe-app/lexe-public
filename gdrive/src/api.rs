@@ -45,7 +45,7 @@ impl GDriveClient {
     // useful helpers, and return anyhow::Error to make debugging easier
 
     /// Given the [`GFileId`] of a directory, searches its direct children for a
-    /// file (or directory) that is named `child_name` and returns its metadata
+    /// file (or directory) that is named `child_name` and returns its metadata.
     pub async fn search_direct_children(
         &self,
         parent_id: &GFileId,
@@ -173,7 +173,7 @@ impl GDriveClient {
     pub async fn create_blob_file(
         &self,
         parent_id: GFileId,
-        filename: String,
+        name: String,
         data: Vec<u8>,
     ) -> Result<GFile, Error> {
         use reqwest::multipart::{Form, Part};
@@ -184,7 +184,7 @@ impl GDriveClient {
 
         let metadata = GFileCow {
             id: None,
-            name: Some(filename.clone().into()),
+            name: Some(name.clone().into()),
             parents: Some(vec![parent_id]),
             mime_type: Some(BINARY_MIME_TYPE.into()),
             ..Default::default()
@@ -196,7 +196,7 @@ impl GDriveClient {
 
         let data_part = Part::bytes(data)
             .mime_str(BINARY_MIME_TYPE)?
-            .file_name(filename);
+            .file_name(name);
 
         // Metadata part needs to go first
         let multipart = Form::new()
