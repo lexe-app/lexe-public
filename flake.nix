@@ -104,8 +104,7 @@
       rustLexeToolchain =
         pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
 
-      # Adds a convenient `craneLib` instantiated with our rust toolchain
-      # settings.
+      # `crane` cargo builder instantiated with our rust toolchain settings.
       craneLib = (crane.mkLib pkgs).overrideToolchain rustLexeToolchain;
 
       # Use the latest clang/llvm for cross-compiling SGX.
@@ -116,32 +115,34 @@
       ftxsgx-elf2sgxs = pkgs.callPackage ./nix/pkgs/ftxsgx-elf2sgxs.nix {
         craneLib = craneLib;
       };
+
+      # A hook that runs `ftxsgx-elf2sgxs` on the output binary in the
+      # `postFixup` phase.
+      elf2sgxsFixupHook = pkgs.callPackage ./nix/lib/elf2sgxsFixupHook.nix {
+        ftxsgx-elf2sgxs = ftxsgx-elf2sgxs;
+      };
     in {
       ftxsgx-elf2sgxs = ftxsgx-elf2sgxs;
 
       node-fake-release-sgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
         isSgx = true;
         isRelease = true;
-        craneLib = craneLib;
-        llvmPackages = llvmPackages;
+        inherit craneLib llvmPackages elf2sgxsFixupHook;
       };
       node-fake-debug-sgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
         isSgx = true;
         isRelease = false;
-        craneLib = craneLib;
-        llvmPackages = llvmPackages;
+        inherit craneLib llvmPackages elf2sgxsFixupHook;
       };
       node-fake-release-nosgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
         isSgx = false;
         isRelease = true;
-        craneLib = craneLib;
-        llvmPackages = llvmPackages;
+        inherit craneLib llvmPackages elf2sgxsFixupHook;
       };
       node-fake-debug-nosgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
         isSgx = false;
         isRelease = false;
-        craneLib = craneLib;
-        llvmPackages = llvmPackages;
+        inherit craneLib llvmPackages elf2sgxsFixupHook;
       };
     });
 
