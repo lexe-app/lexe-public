@@ -99,55 +99,6 @@
         ];
       });
 
-    # # has to bootstrap compile gcc+glibc which takes forever (like 30min)
-    # sgxCrossPkgs = eachSystem (
-    #   system:
-    #     import nixpkgs {
-    #       crossSystem = "x86_64-linux";
-    #       localSystem = system;
-    #
-    #       overlays = [
-    #         rust-overlay.overlays.default
-    #
-    #         (self: super: {
-    #           rustLexeToolchain =
-    #             super.pkgsBuildHost.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-    #
-    #           craneLib = (crane.mkLib super).overrideToolchain self.rustLexeToolchain;
-    #         })
-    #       ];
-    #     }
-    # );
-
-    # # This compiles EVEN MORE of the universe, if that's even possible. I just
-    # # killed it after an hour compiling.
-    # sgxCrossPkgs = eachSystem (system:
-    #   import nixpkgs {
-    #     localSystem = system;
-    #     crossSystem = {
-    #       system = "x86_64-linux";
-    #       useLLVM = true;
-    #       linker = "lld";
-    #     };
-    #     # complains about auto-patchelf
-    #     config.allowUnsupportedSystem = true;
-    #     overlays = [
-    #       # adds `rust-bin.fromRustupToolchainFile` to this pkgs instance.
-    #       rust-overlay.overlays.default
-    #
-    #       # adds
-    #       # - `rustLexeToolchain` with our configured toolchain settings from
-    #       #   `./rust-toolchain.toml`
-    #       # - `craneLib`
-    #       (self: super: {
-    #         rustLexeToolchain =
-    #           super.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-    #
-    #         craneLib = (crane.mkLib super).overrideToolchain self.rustLexeToolchain;
-    #       })
-    #     ];
-    #   });
-
     # eachSystemPkgs :: (Nixpkgs -> AttrSet) -> AttrSet
     eachSystemPkgs = builder:
       eachSystem (
@@ -158,29 +109,31 @@
     # The *.nix file formatter.
     formatter = eachSystemPkgs (pkgs: pkgs.alejandra);
 
-    packages = eachSystem (system: {
-      # node-fake-sgx = sgxCrossPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {sgx = true;};
-      node-fake-release-sgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {
-        llvmPackages = systemPkgs.${system}.llvmPackages_latest;
+    packages = eachSystemPkgs (pkgs: {
+      node-fake-release-sgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
+        llvmPackages = pkgs.llvmPackages_latest;
         isSgx = true;
         isRelease = true;
       };
-      node-fake-debug-sgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {
-        llvmPackages = systemPkgs.${system}.llvmPackages_latest;
+      node-fake-debug-sgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
+        llvmPackages = pkgs.llvmPackages_latest;
         isSgx = true;
         isRelease = false;
       };
-      node-fake-release-nosgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {
-        llvmPackages = systemPkgs.${system}.llvmPackages_latest;
+      node-fake-release-nosgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
+        llvmPackages = pkgs.llvmPackages_latest;
         isSgx = false;
         isRelease = true;
       };
-      node-fake-debug-nosgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {
-        llvmPackages = systemPkgs.${system}.llvmPackages_latest;
+      node-fake-debug-nosgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
+        llvmPackages = pkgs.llvmPackages_latest;
         isSgx = false;
         isRelease = false;
       };
-      # node-fake-nosgx = systemPkgs.${system}.callPackage ./nix/pkgs/node-fake.nix {sgx = false;};
+
+      # Converts a compiled `x86_64-fortanix-unknown-sgx` ELF binary into a
+      # `.sgxs` enclave file.
+      ftxsgx-elf2sgxs = pkgs.callPackage ./nix/pkgs/ftxsgx-elf2sgxs.nix {};
     });
 
     # easy access from `nix repl`

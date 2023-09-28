@@ -133,19 +133,19 @@ warp = { version = "=0.3.4", default-features = false }
 [patch.crates-io]
 # NOTE: Make sure to duplicate any changes to the `server`'s root Cargo.toml,
 # otherwise the `server`'s dependency versions won't match.
-aesm-client = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe" }
-async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe" }
+aesm-client = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
+async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 atty = { git = "https://github.com/softprops/atty", rev = "6633c0e1446aa19e6cd00e00e39770da43081bda" }
-dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe" }
-enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe" }
+dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
+enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 hyper = { git = "https://github.com/lexe-app/hyper", branch = "hyper-sgx-0.14.18" }
 mio = { git = "https://github.com/lexe-app/mio", branch = "mio-sgx-0.8.4" }
 # Remove this `proptest-derive` patch when `v0.4` gets published to crates.io
 proptest-derive = { git = "https://github.com/proptest-rs/proptest", ref = "dcb181c5fe0bc2e1afced79670d35e05f8c7ca21" }
 reqwest = { git = "https://github.com/lexe-app/reqwest", branch = "lexe" }
 ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.16.20-2023_09_26" }
-sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe" }
-sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe" }
+sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
+sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 tokio = { git = "https://github.com/lexe-app/tokio", branch = "lexe-1.21.2-2023_09_20" }
 # This warp fork:
 # * b807792 - trace: extract `Response<Body>` directly to reduce friction

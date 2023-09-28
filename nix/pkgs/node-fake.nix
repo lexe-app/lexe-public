@@ -35,8 +35,7 @@
     let
       pathStr = builtins.toString path;
       fileName = builtins.baseNameOf pathStr;
-    in
-      (lib.hasSuffix ".der" fileName)
+    in (lib.hasSuffix ".der" fileName)
   );
 
   # strip all files not needed for Rust build
@@ -59,12 +58,15 @@
     strictDeps = true;
     doCheck = false;
 
-    nativeBuildInputs = [
-      # ring crate build.rs
-      perl
-      # # aesm-client crate build.rs
-      # protobuf
-    ];
+    nativeBuildInputs =
+      [
+        # ring crate build.rs
+        perl
+      ]
+      ++ lib.optionals isSgx [
+        # aesm-client crate build.rs
+        protobuf
+      ];
 
     buildInputs =
       []
