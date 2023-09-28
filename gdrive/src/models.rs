@@ -38,7 +38,7 @@ pub struct GFileCow<'a> {
 
 /// A newtype for the `fileId` associated with every file or folder in Google
 /// Drive, to ensure that this isn't confused for `VfsFileId`.
-#[derive(Clone, Default, Serialize, Deserialize)]
+#[derive(Clone, Default, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct GFileId(pub String);
 

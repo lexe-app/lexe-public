@@ -23,11 +23,6 @@ impl GName {
         self.0
     }
 
-    /// Get a reference to the contained [`&str`].
-    pub fn as_inner(&self) -> &str {
-        &self.0
-    }
-
     /// Get a reference to the contained `dirname`.
     pub fn dirname(&self) -> &str {
         self.as_parts().0
