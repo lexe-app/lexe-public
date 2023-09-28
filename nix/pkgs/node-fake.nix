@@ -1,20 +1,31 @@
 {
-  stdenvNoCC,
+  #
+  # nixpkgs
+  #
+  darwin,
   lib,
   llvmPackages,
-  craneLib,
-  darwin,
   perl,
   protobuf,
+  stdenvNoCC,
+  #
+  # lexe packages
+  #
+  craneLib,
+  elf2sgxsFixupHook,
+  #
+  # options
+  #
+  isRelease ? true,
   # this should probably be encapsulated into a new "stdenv" targetting
   # `x86_64-fortanix-unknown-sgx`, but I'm not quite sure how to do that yet.
   isSgx ? true,
-  isRelease ? true,
   # enable full, verbose build logs
   isVerbose ? false,
 }: let
   cargoToml = ../../node-fake/Cargo.toml;
-  crateInfo = craneLib.crateNameFromCargoToml {cargoToml = cargoToml;};
+  cargoTomlContents = builtins.readFile cargoToml;
+  crateInfo = craneLib.crateNameFromCargoToml {cargoTomlContents = cargoTomlContents;};
 
   # copy the fake SGX libc shim into the nix store.
   # placing the `sgx-libc-shim` in its own derivation seems to stop needless
@@ -122,10 +133,18 @@ in
     // {
       cargoArtifacts = depsOnly;
 
-      # print out the binary hash and size for debugging
+      nativeBuildInputs =
+        commonPackageArgs.nativeBuildInputs
+        ++ (lib.optionals isSgx [
+          (elf2sgxsFixupHook {
+            cargoTomlContents = cargoTomlContents;
+            isRelease = isRelease;
+          })
+        ]);
+
       postFixup = ''
-        sha256sum $out/bin/${crateInfo.pname}
-        stat --format='Size: %s' $out/bin/${crateInfo.pname}
+        echo "ELF binary hash: $(sha256sum < $out/bin/${crateInfo.pname})"
+        echo "ELF binary size: $(stat --format='%s' $out/bin/${crateInfo.pname})"
       '';
     }
   )
