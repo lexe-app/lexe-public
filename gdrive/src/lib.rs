@@ -97,7 +97,7 @@ pub(crate) mod lexe_dir;
 /// API models.
 pub(crate) mod models;
 
-pub use gvfs::GoogleVfs;
+pub use gvfs::{GoogleVfs, GvfsRoot};
 pub use oauth2::ApiCredentials;
 
 #[derive(Debug, Error)]

@@ -29,6 +29,7 @@ use tracing::{debug, warn};
 use crate::{
     api,
     api::GDriveClient,
+    gvfs::GvfsRoot,
     models::{GFile, GFileCow, GFileId, ListFiles},
 };
 
@@ -158,17 +159,17 @@ async fn create_lexe_dir(client: &GDriveClient) -> anyhow::Result<GFile> {
         .context("create_empty_file")
 }
 
-/// Given the [`GFileId`] of the parent LexeData dir, returns the [`GFileId`]
-/// corresponding to the GVFS root. The GVFS root is created if it didn't exist.
+/// Given the [`GFileId`] of the parent LexeData dir, returns the [`GvfsRoot`].
+/// The [`GvfsRoot`] is created if it didn't exist.
 pub(crate) async fn get_or_create_gvfs_root(
     client: &GDriveClient,
     lexe_dir: &GFileId,
     network: Network,
-) -> anyhow::Result<GFileId> {
+) -> anyhow::Result<GvfsRoot> {
     let network_str = network.to_string();
-    let maybe_gvfs_root_gid = get_gvfs_root(client, lexe_dir, &network_str)
+    let maybe_gvfs_root_gid = get_gvfs_root_gid(client, lexe_dir, &network_str)
         .await
-        .context("get_gvfs_root")?;
+        .context("get_gvfs_root_gid")?;
 
     let gvfs_root_gid = match maybe_gvfs_root_gid {
         Some(gid) => gid,
@@ -178,12 +179,17 @@ pub(crate) async fn get_or_create_gvfs_root(
             .context("create_child_dir")?,
     };
 
-    Ok(gvfs_root_gid)
+    let gvfs_root = GvfsRoot {
+        network,
+        gid: gvfs_root_gid,
+    };
+
+    Ok(gvfs_root)
 }
 
 /// Given the [`GFileId`] of the parent LexeData dir, returns the [`GFileId`]
-/// corresponding to the VFS root, if it exists.
-pub(crate) async fn get_gvfs_root(
+/// corresponding of the GVFS root, if it exists.
+pub(crate) async fn get_gvfs_root_gid(
     client: &GDriveClient,
     lexe_dir: &GFileId,
     network_str: &str,
@@ -223,7 +229,8 @@ mod test {
         let gvfs_root_gid =
             get_or_create_gvfs_root(&client, &lexe_dir_id, network)
                 .await
-                .unwrap();
-        println!("Vfs root id: {gvfs_root_gid}");
+                .unwrap()
+                .gid;
+        println!("Gvfs root id: {gvfs_root_gid}");
     }
 }
