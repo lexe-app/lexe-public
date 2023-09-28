@@ -1,3 +1,4 @@
+# Reproducibly build the user `node` enclave.
 {
   #
   # nixpkgs
@@ -23,7 +24,7 @@
   # enable full, verbose build logs
   isVerbose ? false,
 }: let
-  cargoToml = ../../node-fake/Cargo.toml;
+  cargoToml = ../../node/Cargo.toml;
   cargoTomlContents = builtins.readFile cargoToml;
   crateInfo = craneLib.crateNameFromCargoToml {cargoTomlContents = cargoTomlContents;};
 

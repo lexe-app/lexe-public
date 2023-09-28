@@ -4,14 +4,14 @@
   inputs = {
     # nixpkgs unstable
     #
-    # `oxalica/rust-overlay` seems to require unstable.
+    # Use unstable as `oxalica/rust-overlay` seems to require it.
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
     # We don't actually use this, but some dependencies do. Let's try to use the
     # same version.
     flake-utils.url = "github:numtide/flake-utils";
 
-    # pure, reproducible rust toolchain overlay. get toolchain from
+    # pure, reproducible rust toolchain overlay. used to get toolchain from
     # `rust-toolchain.toml`.
     #
     # we must use a nightly rust toolchain for SGX reasons, so we can't use the
@@ -22,7 +22,8 @@
       inputs.flake-utils.follows = "flake-utils";
     };
 
-    # library for building rust projects. supports incremental artifact caching.
+    # library for building rust projects. supports basic incremental cargo
+    # artifact caching.
     crane = {
       url = "github:ipetkov/crane";
       inputs.nixpkgs.follows = "nixpkgs"; # use our nixpkgs version
@@ -124,22 +125,22 @@
     in {
       ftxsgx-elf2sgxs = ftxsgx-elf2sgxs;
 
-      node-fake-release-sgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
+      node-release-sgx = pkgs.callPackage ./nix/pkgs/node.nix {
         isSgx = true;
         isRelease = true;
         inherit craneLib llvmPackages elf2sgxsFixupHook;
       };
-      node-fake-debug-sgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
+      node-debug-sgx = pkgs.callPackage ./nix/pkgs/node.nix {
         isSgx = true;
         isRelease = false;
         inherit craneLib llvmPackages elf2sgxsFixupHook;
       };
-      node-fake-release-nosgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
+      node-release-nosgx = pkgs.callPackage ./nix/pkgs/node.nix {
         isSgx = false;
         isRelease = true;
         inherit craneLib llvmPackages elf2sgxsFixupHook;
       };
-      node-fake-debug-nosgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
+      node-debug-nosgx = pkgs.callPackage ./nix/pkgs/node.nix {
         isSgx = false;
         isRelease = false;
         inherit craneLib llvmPackages elf2sgxsFixupHook;
