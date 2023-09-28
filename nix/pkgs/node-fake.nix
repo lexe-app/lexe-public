@@ -1,5 +1,4 @@
 {
-  stdenv,
   stdenvNoCC,
   lib,
   llvmPackages,
@@ -70,7 +69,7 @@
 
     buildInputs =
       []
-      ++ lib.optionals (!isSgx && stdenv.isDarwin) [
+      ++ lib.optionals (!isSgx && stdenvNoCC.isDarwin) [
         # ring crate uses Security.framework rng on apple platforms
         darwin.apple_sdk.frameworks.Security
       ];

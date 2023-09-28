@@ -38,7 +38,7 @@
     rust-overlay,
     crane,
   }: let
-    # supported systems
+    # supported host systems
     systems = [
       "x86_64-linux"
       "aarch64-linux"
@@ -83,19 +83,9 @@
       import nixpkgs {
         system = system;
         overlays = [
-          # adds `rust-bin.fromRustupToolchainFile` to this pkgs instance.
+          # adds: `rust-bin.fromRustupToolchainFile` to this pkgs instance.
+          # From: `oxalica/rust-overlay`
           rust-overlay.overlays.default
-
-          # adds
-          # - `rustLexeToolchain` with our configured toolchain settings from
-          #   `./rust-toolchain.toml`
-          # - `craneLib`
-          (self: super: {
-            rustLexeToolchain =
-              super.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-
-            craneLib = (crane.mkLib super).overrideToolchain self.rustLexeToolchain;
-          })
         ];
       });
 
@@ -109,31 +99,50 @@
     # The *.nix file formatter.
     formatter = eachSystemPkgs (pkgs: pkgs.alejandra);
 
-    packages = eachSystemPkgs (pkgs: {
+    packages = eachSystemPkgs (pkgs: let
+      # A rust toolchain setup from our `./rust-toolchain.toml` settings.
+      rustLexeToolchain =
+        pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+
+      # Adds a convenient `craneLib` instantiated with our rust toolchain
+      # settings.
+      craneLib = (crane.mkLib pkgs).overrideToolchain rustLexeToolchain;
+
+      # Use the latest clang/llvm for cross-compiling SGX.
+      llvmPackages = pkgs.llvmPackages_latest;
+
+      # Converts a compiled `x86_64-fortanix-unknown-sgx` ELF binary into
+      # a `.sgxs` enclave file.
+      ftxsgx-elf2sgxs = pkgs.callPackage ./nix/pkgs/ftxsgx-elf2sgxs.nix {
+        craneLib = craneLib;
+      };
+    in {
+      ftxsgx-elf2sgxs = ftxsgx-elf2sgxs;
+
       node-fake-release-sgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
-        llvmPackages = pkgs.llvmPackages_latest;
         isSgx = true;
         isRelease = true;
+        craneLib = craneLib;
+        llvmPackages = llvmPackages;
       };
       node-fake-debug-sgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
-        llvmPackages = pkgs.llvmPackages_latest;
         isSgx = true;
         isRelease = false;
+        craneLib = craneLib;
+        llvmPackages = llvmPackages;
       };
       node-fake-release-nosgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
-        llvmPackages = pkgs.llvmPackages_latest;
         isSgx = false;
         isRelease = true;
+        craneLib = craneLib;
+        llvmPackages = llvmPackages;
       };
       node-fake-debug-nosgx = pkgs.callPackage ./nix/pkgs/node-fake.nix {
-        llvmPackages = pkgs.llvmPackages_latest;
         isSgx = false;
         isRelease = false;
+        craneLib = craneLib;
+        llvmPackages = llvmPackages;
       };
-
-      # Converts a compiled `x86_64-fortanix-unknown-sgx` ELF binary into a
-      # `.sgxs` enclave file.
-      ftxsgx-elf2sgxs = pkgs.callPackage ./nix/pkgs/ftxsgx-elf2sgxs.nix {};
     });
 
     # easy access from `nix repl`
