@@ -2391,16 +2391,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "node-fake"
-version = "0.1.0"
-dependencies = [
- "bitcoin",
- "ring",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "nom"
 version = "7.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
