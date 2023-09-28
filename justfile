@@ -2,7 +2,7 @@
 default:
     just --list
 
-diffoscope-node:
+diffoscope-cross target:
     #!/usr/bin/env bash
     set -eu -o pipefail
 
@@ -11,7 +11,7 @@ diffoscope-node:
       time nix build \
           --print-build-logs \
           --json \
-          .#node-fake-sgx \
+          .#{{ target }} \
           | jq -r '[.[].outputs.out] | join(" ")' \
     )
 
@@ -22,7 +22,7 @@ diffoscope-node:
         --json \
         --eval-store auto \
         --store ssh-ng://linux-builder@orb \
-        .#packages.x86_64-linux.node-fake-sgx \
+        .#packages.x86_64-linux.{{ target }} \
         | jq -r '[.[].outputs.out] | join(" ")' \
     )
     time nix copy \
