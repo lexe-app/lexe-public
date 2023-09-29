@@ -100,52 +100,24 @@
     # The *.nix file formatter.
     formatter = eachSystemPkgs (pkgs: pkgs.alejandra);
 
-    packages = eachSystemPkgs (pkgs: let
-      # A rust toolchain setup from our `./rust-toolchain.toml` settings.
-      rustLexeToolchain =
-        pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
-
-      # `crane` cargo builder instantiated with our rust toolchain settings.
-      craneLib = (crane.mkLib pkgs).overrideToolchain rustLexeToolchain;
-
-      # Use the latest clang/llvm for cross-compiling SGX.
-      llvmPackages = pkgs.llvmPackages_latest;
-
-      # Converts a compiled `x86_64-fortanix-unknown-sgx` ELF binary into
-      # a `.sgxs` enclave file.
-      ftxsgx-elf2sgxs = pkgs.callPackage ./nix/pkgs/ftxsgx-elf2sgxs.nix {
-        craneLib = craneLib;
-      };
-
-      # A hook that runs `ftxsgx-elf2sgxs` on the output binary in the
-      # `postFixup` phase.
-      elf2sgxsFixupHook = pkgs.callPackage ./nix/lib/elf2sgxsFixupHook.nix {
-        ftxsgx-elf2sgxs = ftxsgx-elf2sgxs;
-      };
-    in {
-      ftxsgx-elf2sgxs = ftxsgx-elf2sgxs;
-
-      node-release-sgx = pkgs.callPackage ./nix/pkgs/node.nix {
-        isSgx = true;
-        isRelease = true;
-        inherit craneLib llvmPackages elf2sgxsFixupHook;
-      };
-      node-debug-sgx = pkgs.callPackage ./nix/pkgs/node.nix {
-        isSgx = true;
-        isRelease = false;
-        inherit craneLib llvmPackages elf2sgxsFixupHook;
-      };
-      node-release-nosgx = pkgs.callPackage ./nix/pkgs/node.nix {
-        isSgx = false;
-        isRelease = true;
-        inherit craneLib llvmPackages elf2sgxsFixupHook;
-      };
-      node-debug-nosgx = pkgs.callPackage ./nix/pkgs/node.nix {
-        isSgx = false;
-        isRelease = false;
-        inherit craneLib llvmPackages elf2sgxsFixupHook;
-      };
-    });
+    # The lexe public monorepo packages
+    packages = eachSystemPkgs (
+      pkgs: let
+        lexePkgs = import ./nix/pkgs/default.nix {
+          pkgs = pkgs;
+          crane = crane;
+        };
+      in {
+        inherit
+          (lexePkgs)
+          ftxsgx-elf2sgxs
+          node-release-sgx
+          node-debug-sgx
+          node-release-nosgx
+          node-debug-nosgx
+          ;
+      }
+    );
 
     # easy access from `nix repl`
     # > :load-flake .
