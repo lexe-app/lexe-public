@@ -1,18 +1,18 @@
 {
-  description = "Lexe public flake";
+  description = "Lexe public monorepo flake";
 
   inputs = {
     # nixpkgs unstable
     #
-    # Use unstable as `oxalica/rust-overlay` seems to require it.
+    # We use unstable as `oxalica/rust-overlay` seems to require it.
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
 
     # We don't actually use this, but some dependencies do. Let's try to use the
     # same version.
     flake-utils.url = "github:numtide/flake-utils";
 
-    # pure, reproducible rust toolchain overlay. used to get toolchain from
-    # `rust-toolchain.toml`.
+    # pure, reproducible, rust toolchain overlay. used to get toolchain from
+    # our workspace `rust-toolchain.toml`.
     #
     # we must use a nightly rust toolchain for SGX reasons, so we can't use the
     # rust toolchain from nixpkgs.
@@ -85,7 +85,6 @@
         system = system;
         overlays = [
           # adds: `rust-bin.fromRustupToolchainFile` to this pkgs instance.
-          # From: `oxalica/rust-overlay`
           rust-overlay.overlays.default
         ];
       });
@@ -98,9 +97,12 @@
       );
   in {
     # The *.nix file formatter.
+    # Run with `nix fmt`.
     formatter = eachSystemPkgs (pkgs: pkgs.alejandra);
 
-    # The lexe public monorepo packages
+    # The lexe public monorepo packages.
+    # ex: `nix build .#node-release-sgx`
+    # ex: `nix run .#ftxsgx-elf2sgxs -- ...`
     packages = eachSystemPkgs (
       pkgs: let
         lexePkgs = import ./nix/pkgs/default.nix {
@@ -119,22 +121,39 @@
       }
     );
 
+    # lexe development shells
+    # ex: `nix develop .#sgx-cross`
+    devShells = eachSystemPkgs (pkgs: let
+      lib = nixpkgs.lib;
+      lexePkgs = self.packages.${pkgs.system};
+    in {
+      # shell for cross-compiling SGX node
+      sgx-cross = pkgs.mkShell {
+        name = "sgx-cross";
+        inputsFrom = [lexePkgs.node-release-sgx];
+      };
+
+      # tools for debugging build reproducibility
+      repro-debug = pkgs.mkShellNoCC {
+        name = "repro-debug";
+        packages = [pkgs.diffoscopeMinimal pkgs.nix-diff];
+      };
+
+      # default development shell
+      default = pkgs.mkShell {
+        name = "lexe";
+        inputsFrom = [lexePkgs.node-release-sgx];
+        packages =
+          []
+          ++ lib.optionals pkgs.stdenv.isDarwin [
+            pkgs.darwin.apple_sdk.frameworks.Security
+          ];
+      };
+    });
+
     # easy access from `nix repl`
     # > :load-flake .
     systemPkgs = systemPkgs;
-    # sgxCrossPkgs = sgxCrossPkgs;
     lib = nixpkgs.lib;
-
-    # devShells = eachSystemPkgs (pkgs: {
-    #   default = pkgs.mkShellNoCC {
-    #     packages = [pkgs.rust-lexe];
-    #   };
-    # });
-
-    devShells = eachSystemPkgs (pkgs: {
-      default = pkgs.mkShellNoCC {
-        packages = [pkgs.diffoscopeMinimal pkgs.nix-diff];
-      };
-    });
   };
 }

@@ -26,7 +26,30 @@ More information is available on our website: [lexe.app](https://lexe.app)
 - [`nix`](./nix): Reproducible node build (WIP)
 - [`SECURITY.md`](./SECURITY.md) contains information about Lexe's security model and responsible disclosure.
 
-## Dev Setup
+## Dev Setup (nix)
+
+Install `nix` with the [DeterminateSystems/nix-installer](https://github.com/DeterminateSystems/nix-installer).
+We suggest the multi-user installation.
+
+```bash
+$ curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
+    | sh -s -- install
+```
+
+Enter an ephemeral dev shell for working on the project. This shell is setup
+with all the tools needed to build, lint, run tests, etc...
+
+```bash
+$ nix develop
+```
+
+Try running the Rust tests:
+
+```bash
+$ cargo test
+```
+
+## Dev Setup (manual)
 
 Install `rustup`
 
@@ -62,7 +85,7 @@ Install the enclave toolchain (does not appear to work on M1 Macs)
 
 ```bash
 $ cd ~
-$ git clone --branch lexe https://github.com/lexe-app/rust-sgx.git
+$ git clone --branch lexe-2023_09_27 https://github.com/lexe-app/rust-sgx.git
 $ cd rust-sgx
 $ cargo install --path intel-sgx/fortanix-sgx-tools
 $ cargo install --path intel-sgx/sgxs-tools
@@ -112,24 +135,6 @@ See node help
 $ cargo run --bin node -- run --help
 $ cargo run --bin node --target=x86_64-fortanix-unknown-sgx -- run --help
 $ cargo run --bin node --release --target=x86_64-fortanix-unknown-sgx -- run --help
-```
-
-Run the node (add `--target=x86_64-fortanix-unknown-sgx` if running in SGX)
-```bash
-cargo run --bin [--target=x86_64-fortanix-unknown-sgx] node -- run \
-    --user-pk <user-pk> \
-    [--app-port <app-port>] \
-    [--host-port <host-port>] \
-    [--peer-port <peer-port>] \
-    --network <network> \
-    [-s | --shutdown-after-sync-if-no-activity] \
-    [-i | --inactivity-time-sec <inactivity-timer-sec>] \
-    [-m | --allow-mock] \
-    [--backend-url <backend-url>] \
-    [--runner-url <runner-url>] \
-    --esplora-url <esplora-url> \
-    --lsp <lsp-info> \
-    [--node-dns-name <node-dns-name>]
 ```
 - If running in SGX, make sure that you are running on real Intel hardware with
   SGX enabled.
