@@ -16,6 +16,11 @@
   # Shim a small set of libc fns so we can cross-compile SGX without glibc.
   sgx-libc-shim = pkgs.callPackage ./sgx-libc-shim.nix {};
 
+  # Inject env vars for cross-compiling to SGX into your `buildPhase`.
+  sgxCrossEnvBuildHook = pkgs.callPackage ./sgxCrossEnvBuildHook.nix {
+    inherit llvmPackages sgx-libc-shim;
+  };
+
   # Converts a compiled `x86_64-fortanix-unknown-sgx` ELF binary into
   # a `.sgxs` enclave file.
   ftxsgx-elf2sgxs = pkgs.callPackage ./ftxsgx-elf2sgxs.nix {
@@ -32,21 +37,21 @@
   node-release-sgx = pkgs.callPackage ./node.nix {
     isSgx = true;
     isRelease = true;
-    inherit craneLib llvmPackages elf2sgxsFixupHook sgx-libc-shim;
+    inherit craneLib sgxCrossEnvBuildHook elf2sgxsFixupHook;
   };
   node-debug-sgx = pkgs.callPackage ./node.nix {
     isSgx = true;
     isRelease = false;
-    inherit craneLib llvmPackages elf2sgxsFixupHook sgx-libc-shim;
+    inherit craneLib sgxCrossEnvBuildHook elf2sgxsFixupHook;
   };
   node-release-nosgx = pkgs.callPackage ./node.nix {
     isSgx = false;
     isRelease = true;
-    inherit craneLib llvmPackages elf2sgxsFixupHook sgx-libc-shim;
+    inherit craneLib sgxCrossEnvBuildHook elf2sgxsFixupHook;
   };
   node-debug-nosgx = pkgs.callPackage ./node.nix {
     isSgx = false;
     isRelease = false;
-    inherit craneLib llvmPackages elf2sgxsFixupHook sgx-libc-shim;
+    inherit craneLib sgxCrossEnvBuildHook elf2sgxsFixupHook;
   };
 }

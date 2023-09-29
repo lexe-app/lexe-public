@@ -8,7 +8,7 @@
   makeSetupHook,
   writeShellScript,
   #
-  # lexe packages
+  # lexePkgs
   #
   ftxsgx-elf2sgxs,
 }:

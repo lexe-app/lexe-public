@@ -5,16 +5,15 @@
   #
   darwin,
   lib,
-  llvmPackages,
   perl,
   protobuf,
   stdenvNoCC,
   #
-  # lexe packages
+  # lexePkgs
   #
   craneLib,
+  sgxCrossEnvBuildHook,
   elf2sgxsFixupHook,
-  sgx-libc-shim,
   #
   # options
   #
@@ -63,6 +62,8 @@
         perl
       ]
       ++ lib.optionals isSgx [
+        # cross-compiling env vars
+        sgxCrossEnvBuildHook
         # aesm-client crate build.rs
         protobuf
       ];
@@ -86,26 +87,6 @@
       else if isRelease
       then "release"
       else "dev";
-
-    # Use llvm toolchain for sgx since it's significantly better for
-    # cross-compiling.
-    #
-    # NOTE: `CC_*` and `CFLAGS_*` are used `cc-rs` in the `ring` build script,
-    #       while `CARGO_TARGET_*` is used by `cargo` itself.
-    CC_x86_64-fortanix-unknown-sgx = "${llvmPackages.clang-unwrapped}/bin/clang";
-    CARGO_TARGET_X86_64_FORTANIX_UNKNOWN_SGX_LINKER = "${llvmPackages.lld}/bin/ld.lld";
-    CFLAGS_x86_64-fortanix-unknown-sgx = let
-      clang-unwrapped = llvmPackages.clang-unwrapped;
-      clangVersion = lib.versions.major clang-unwrapped.version;
-      clangResourceDir = "${clang-unwrapped.lib}/lib/clang/${clangVersion}/include";
-    in [
-      # The base includes, like `stdint.h`, `stddef.h`, and CPU intrinsics.
-      "-isystem"
-      "${clangResourceDir}"
-      # libc shims -- the shimmed fn impls are provided by `rust-sgx/rs-libc`
-      "-isystem"
-      "${sgx-libc-shim}/include"
-    ];
 
     # We use `cargo`'s built-in stripping via the `release-sgx` profile.
     dontStrip = isSgx;
