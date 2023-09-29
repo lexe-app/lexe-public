@@ -17,8 +17,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{instrument, warn};
 
 use crate::{
-    api, api::GDriveClient, gname::GName, lexe_dir, models::GFileId,
-    oauth2::ApiCredentials,
+    api, api::GDriveClient, gvfs_file_id::GvfsFileId, lexe_dir,
+    models::GFileId, oauth2::ApiCredentials,
 };
 
 // Allows tests to assert that these `anyhow::Error`s happened.
@@ -72,9 +72,9 @@ pub struct GoogleVfs {
     ///   the cache is *complete*; therefore, it can be used to determine
     ///   whether a requested file *doesn't* exist (exclusion), in addition to
     ///   the standard case of determining an existing file's [`GFileId`].
-    /// - Since the [`VfsFileId`]s in the cache were built from [`GName`]s
+    /// - Since the [`VfsFileId`]s in the cache were built from [`GvfsFileId`]s
     ///   during init, all [`VfsFileId`]s contained in the cache are infallibly
-    ///   convertible to and from [`GName`]s.
+    ///   convertible to and from [`GvfsFileId`]s.
     ///
     /// ### Cache consistency
     ///
@@ -216,9 +216,9 @@ impl GoogleVfs {
         let gid_cache = all_gfiles
             .into_iter()
             .map(|gfile| {
-                let gname = GName::from_str(&gfile.name)
-                    .context("GFile did not have a valid gname")?;
-                let vfile_id = gname.to_vfile_id();
+                let gvfile_id = GvfsFileId::from_str(&gfile.name)
+                    .context("GFile did not have a valid gvfile_id")?;
+                let vfile_id = gvfile_id.to_vfile_id();
                 let vfile_gid = gfile.id;
                 Ok((vfile_id, vfile_gid))
             })
@@ -282,12 +282,12 @@ impl GoogleVfs {
         }
 
         // Upload the blob file into the GVFS root.
-        let gname = GName::try_from(&vfile.id)?;
+        let gvfile_id = GvfsFileId::try_from(&vfile.id)?;
         let gid = self
             .client
             .create_blob_file(
                 self.gvfs_root.gid.clone(),
-                gname.into_inner(),
+                gvfile_id.into_inner(),
                 vfile.data,
             )
             .await
@@ -315,12 +315,12 @@ impl GoogleVfs {
         // NOTE: We don't use `create_file` here in order to avoid a deadlock.
 
         // Upload the blob file into the GVFS root.
-        let gname = GName::try_from(&vfile.id)?;
+        let gvfile_id = GvfsFileId::try_from(&vfile.id)?;
         let gid = self
             .client
             .create_blob_file(
                 self.gvfs_root.gid.clone(),
-                gname.into_inner(),
+                gvfile_id.into_inner(),
                 vfile.data,
             )
             .await
@@ -380,37 +380,38 @@ impl GoogleVfs {
         // 2) the empty string is the "smallest" string.
         // Therefore, using "" as the filename guarantees that the [`VfsFileId`]
         // is smaller than all possible filenames contained in the vdir, since
-        // GName enforces that all filenames have at least one character.
+        // GvfsFileId enforces that all filenames have at least one character.
         let lower_bound = VfsFileId::new(vdir.dirname.clone(), String::new());
 
-        // Collect the gids and gnames of all files in this VFS subdir. Iterate
+        // Collect the gids and gvids of all files in this VFS subdir. Iterate
         // until the dirname no longer matches or there are no more items.
-        let mut subdir_gid_gnames = Vec::new();
+        let mut subdir_gid_gvids = Vec::new();
         for (vfile_id, gid) in locked_cache.range(lower_bound..) {
             if vfile_id.dir.dirname != vdir.dirname {
                 break;
             }
-            let gname = GName::try_from(vfile_id).expect("Cache invariant");
-            subdir_gid_gnames.push((gid.clone(), gname));
+            let gvfile_id =
+                GvfsFileId::try_from(vfile_id).expect("Cache invariant");
+            subdir_gid_gvids.push((gid.clone(), gvfile_id));
         }
 
         // Early return if the subdir contained no files
-        if subdir_gid_gnames.is_empty() {
+        if subdir_gid_gvids.is_empty() {
             return Ok(Vec::new());
         }
 
         // Download all of the files.
-        let vfiles = subdir_gid_gnames
+        let vfiles = subdir_gid_gvids
             .iter()
-            .map(|(gid, gname)| async {
+            .map(|(gid, gvfile_id)| async {
                 let data = self
                     .client
                     .download_blob_file(gid)
                     .await
-                    .with_context(|| gname.clone())
+                    .with_context(|| gvfile_id.clone())
                     .context("download_blob_file")?;
 
-                let vfile_id = gname.to_vfile_id();
+                let vfile_id = gvfile_id.to_vfile_id();
                 let vfile = VfsFile { id: vfile_id, data };
 
                 Ok::<VfsFile, anyhow::Error>(vfile)

@@ -90,8 +90,8 @@ pub mod oauth2;
 
 /// Lower-level API client.
 pub(crate) mod api;
-/// Defines a `GName` newtype representing an encoded `VfsFileId`.
-pub(crate) mod gname;
+/// Defines a `GvfsFileId` newtype representing an encoded `VfsFileId`.
+pub(crate) mod gvfs_file_id;
 /// Utilities relating to the Lexe data dir in My Drive.
 pub(crate) mod lexe_dir;
 /// API models.
