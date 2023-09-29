@@ -49,6 +49,36 @@ Try running the Rust tests:
 $ cargo test
 ```
 
+If you want to reproducibly build the user node SGX enclave, you'll need to
+follow the above setup instructions on an `x86_64-linux` machine or VM. You can
+check your machine architecture with a simple command:
+
+```bash
+$ uname -sm
+Linux x86_64
+```
+
+If you don't have one readily available, we suggest using a cloud VM (make sure
+it's running on an x86_64 CPU). If you use macOS, our engineers currently use
+[OrbStack](https://orbstack.dev/) to run local, near-native x86_64 linux
+pseudo-VMS. Follow our [OrbStack linux-builder setup](#orbstack-linux-builder-setup)
+to get going quickly. If you're on Windows, then WSL2 might work, though we
+haven't tried it.
+
+Once you have an `x86_64-linux` machine setup, reproduce the user node for the
+given release tag (e.g., `node-v0.1.0`):
+
+```bash
+$ git fetch --all --tags
+$ git checkout tags/node-v0.1.0 -b node-v0.1.0
+$ nix build .#node-release-sgx
+$ cat result/bin/node.measurement
+867d0c37d5af59644d9d30f376dc1f574de9196b3f8b0287f52d76a0e15d621b
+```
+
+TODO(phlip9): flesh this out more once the app provisioning UI flow is more
+functional.
+
 ## Dev Setup (manual)
 
 Install `rustup`
@@ -148,6 +178,49 @@ See full CLI options with:
 - `cargo run --bin node -- help`
 - `cargo run --bin node -- run --help`
 - `cargo run --bin node -- provision --help`
+
+## OrbStack linux-builder setup
+
+Follow these instructions if you're running on macOS and want to setup an
+[OrbStack](https://orbstack.dev/) x86_64 linux-builder VM.
+
+Download OrbStack. Either follow <https://orbstack.dev/download> or just install
+with homebrew:
+
+```bash
+$ brew install orbstack
+```
+
+Create a new NixOS VM called `linux-builder`:
+
+NOTE: when orbstack runs, you don't need to install the privileged docker
+socket helper, since we don't require it.
+
+```bash
+$ orb create nixos linux-builder
+```
+
+Now, you can either run everything on the remote machine, or use nix's built-in
+support for remote builds:
+
+```bash
+# (Option 1): either use the built-in nix remote build feature, from the macOS machine
+$ nix build \
+    --store ssh-ng://linux-builder@orb --eval-store auto --json \
+    .#packages.x86_64-linux.node-release-sgx \
+    | jq -r '.[].outputs.out'
+/nix/store/gqzb5vpprdmf8b7pw1c6ppiyqb90jab4-node-0.1.0
+
+# read the node measurement from the VM nix store
+$ cat ~/OrbStack/linux-builder/nix/store/gqzb5vpprdmf8b7pw1c6ppiyqb90jab4-node-0.1.0/bin/node.measurement
+bdd9eec1fbd625eec3b2a9e2a6072f60240c930b0867b47199730b320c148e8c
+
+# (Option 2): or shell into the VM and build:
+$ orb shell -m linux-builder
+(linux-builder)$ nix build .#packages.x86_64-linux.node-release-sgx
+(linux-builder)$ cat ./result/bin/node.measurement
+bdd9eec1fbd625eec3b2a9e2a6072f60240c930b0867b47199730b320c148e8c
+```
 
 ## License
 
