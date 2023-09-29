@@ -94,6 +94,12 @@
     dontPatchELF = isSgx;
     dontAutoPatchelf = isSgx;
     dontPatchShebangs = isSgx;
+
+    # When used as an input to a devShell, also export the sgxCross envs.
+    # not actually part of the build
+    shellHook = ''
+      sgxCrossEnvBuildHook
+    '';
   };
 
   depsOnly = craneLib.buildDepsOnly commonPackageArgs;
