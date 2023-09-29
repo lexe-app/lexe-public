@@ -117,8 +117,18 @@ impl GoogleVfs {
         maybe_given_gvfs_root: Option<GvfsRoot>,
     ) -> anyhow::Result<(Self, Option<GvfsRoot>)> {
         let client = GDriveClient::new(credentials);
+        Self::init_from_client(client, network, maybe_given_gvfs_root).await
+    }
 
+    /// Extracting this helper saves some extra API calls in tests.
+    async fn init_from_client(
+        client: GDriveClient,
+        network: Network,
+        maybe_given_gvfs_root: Option<GvfsRoot>,
+    ) -> anyhow::Result<(Self, Option<GvfsRoot>)> {
         let using_given_root = maybe_given_gvfs_root.is_some();
+        let mut gvfs_root_found_or_corrected = false;
+
         let mut gvfs_root = match maybe_given_gvfs_root {
             Some(given_gvfs_root) => {
                 let gvfs_network = given_gvfs_root.network;
@@ -131,11 +141,12 @@ impl GoogleVfs {
                 given_gvfs_root
             }
             None => {
+                gvfs_root_found_or_corrected = true;
+
                 let lexe_dir = lexe_dir::get_or_create_lexe_dir(&client)
                     .await
                     .context("get_or_create_lexe_dir 1")?
                     .id;
-
                 lexe_dir::get_or_create_gvfs_root(&client, &lexe_dir, network)
                     .await
                     .context("get_or_create_gvfs_root 1")?
@@ -143,17 +154,26 @@ impl GoogleVfs {
         };
 
         // Populate the cache by fetching the metadata of all gfiles.
-        let mut all_gfiles = client
+        let mut try_all_gfiles = client
             .list_direct_children(&gvfs_root.gid)
             .await
-            .context("list_direct_children 1")?;
+            .context("list_direct_children (original)");
 
-        // If we're using the given gvfs root and no results were returned, it's
-        // possible that the given gvfs root was wrong, since it's highly likely
-        // there would be files in the GVFS root.
-        // Search Google Drive for the gvfs root just in case.
-        let mut gvfs_root_to_persist = None;
-        if using_given_root && all_gfiles.is_empty() {
+        // If we're using the given gvfs root, it's possible it was wrong and
+        // that we've been acting on incorrect information. We'll search Google
+        // Drive for the gvfs root if we hit any of these cases:
+        //
+        // 1) list_direct_children returned an empty list: This is suspicious
+        //    because we expect there to be files in the gvfs. The gvfs gid
+        //    might be correctly-formatted but pointing to a non-existent dir.
+        // 2) list_direct_children returned error: It's possible that this error
+        //    was caused by a wrong or malformed gvfs root gid, so we should do
+        //    a search just in case.
+        let do_gvfs_search = match try_all_gfiles {
+            Ok(ref files) => files.is_empty(),
+            Err(_) => true,
+        };
+        if using_given_root && do_gvfs_search {
             let lexe_dir = lexe_dir::get_or_create_lexe_dir(&client)
                 .await
                 .context("get_or_create_lexe_dir 2")?
@@ -170,16 +190,18 @@ impl GoogleVfs {
                 );
 
                 // Update variables
-                gvfs_root = found_gvfs_root.clone();
-                gvfs_root_to_persist = Some(found_gvfs_root);
+                gvfs_root = found_gvfs_root;
+                gvfs_root_found_or_corrected = true;
 
-                // Refetch `all_gfiles`, since that was based on a bad gvfs root
-                all_gfiles = client
+                // Refetch `try_all_gfiles` since it was based on a bad root
+                try_all_gfiles = client
                     .list_direct_children(&gvfs_root.gid)
                     .await
-                    .context("list_direct_children 2")?;
+                    .context("list_direct_children (refetch)");
             }
         }
+
+        let all_gfiles = try_all_gfiles?;
 
         // Check that all gvfs files have a binary MIME type.
         for gfile in all_gfiles.iter() {
@@ -203,6 +225,13 @@ impl GoogleVfs {
             .collect::<anyhow::Result<BTreeMap<_, _>>>()
             .context("Could not build gid cache")?
             .apply(tokio::sync::RwLock::new);
+
+        // Return a GVFS root to persist if we found it or corrected it.
+        let gvfs_root_to_persist = if gvfs_root_found_or_corrected {
+            Some(gvfs_root.clone())
+        } else {
+            None
+        };
 
         let myself = Self {
             client,
@@ -402,10 +431,8 @@ mod test {
     /// Test utility to search for the Lexe dir and delete the regtest VFS root
     /// inside if it exists. We do NOT delete the entire Lexe dir in case there
     /// are "bitcoin" or "testnet" folders holding real funds.
-    async fn delete_regtest_vfs_root(credentials: ApiCredentials) {
-        let client = GDriveClient::new(credentials);
-
-        let maybe_lexe_dir = lexe_dir::find_lexe_dir(&client)
+    async fn delete_regtest_vfs_root(client: &GDriveClient) {
+        let maybe_lexe_dir = lexe_dir::find_lexe_dir(client)
             .await
             .expect("find_lexe_dir failed");
         let lexe_dir = match maybe_lexe_dir {
@@ -414,17 +441,17 @@ mod test {
         };
 
         let network_str = Network::REGTEST.to_string();
-        let maybe_vfs_root =
-            lexe_dir::get_gvfs_root_gid(&client, &lexe_dir.id, &network_str)
+        let maybe_gvfs_root =
+            lexe_dir::get_gvfs_root_gid(client, &lexe_dir.id, &network_str)
                 .await
                 .expect("get_vfs_root failed");
-        let regtest_vfs_root = match maybe_vfs_root {
+        let regtest_gvfs_root = match maybe_gvfs_root {
             Some(vr) => vr,
             None => return,
         };
 
         client
-            .delete_file(&regtest_vfs_root)
+            .delete_file(&regtest_gvfs_root)
             .await
             .expect("delete_file failed");
     }
@@ -435,22 +462,26 @@ mod test {
     /// export GOOGLE_REFRESH_TOKEN="<refresh_token>"
     /// export GOOGLE_ACCESS_TOKEN="<access_token>"
     /// export GOOGLE_ACCESS_TOKEN_EXPIRY="<timestamp>" # Set to 0 if unknown
-    /// cargo test -p gdrive -- --ignored test_vfs --show-output
+    /// cargo test -p gdrive -- --ignored test_gvfs --show-output
     /// ```
     #[ignore]
     #[tokio::test]
-    async fn test_vfs() {
+    async fn test_gvfs() {
         logger::init_for_testing();
 
         let credentials = ApiCredentials::from_env().unwrap();
+        let client = GDriveClient::new(credentials);
 
-        delete_regtest_vfs_root(credentials.clone()).await;
+        delete_regtest_vfs_root(&client).await;
 
         let network = Network::REGTEST;
-        let gid_cache = None;
-        let (gvfs, _) = GoogleVfs::init(credentials, network, gid_cache)
-            .await
-            .unwrap();
+        let gvfs_root = None;
+        let (gvfs, created_root) =
+            GoogleVfs::init_from_client(client, network, gvfs_root)
+                .await
+                .unwrap();
+        created_root
+            .expect("Should have been given the newly created root to persist");
 
         // Define the VFS files we'll be using throughout
         let file1 = VfsFile::new("dir".into(), "file1".into(), vec![1]);
@@ -496,6 +527,115 @@ mod test {
         // Attempting to delete file1 again should return a 'NotFound' error
         let err = gvfs.delete_file(&file1_data2.id).await.unwrap_err();
         assert!(err.to_string().contains(NOT_FOUND_MSG));
+    }
+
+    /// Initialize a [`GoogleVfs`] with a [`GvfsRoot`] whose [`GFileId`] is
+    /// correctly-formatted but points to a deleted or non-existent directory.
+    ///
+    /// Init should find 0 files, search for the gvfs root, and recover.
+    ///
+    /// ```bash
+    /// export GOOGLE_CLIENT_ID="<client_id>"
+    /// export GOOGLE_CLIENT_SECRET="<client_secret>"
+    /// export GOOGLE_REFRESH_TOKEN="<refresh_token>"
+    /// export GOOGLE_ACCESS_TOKEN="<access_token>"
+    /// export GOOGLE_ACCESS_TOKEN_EXPIRY="<timestamp>" # Set to 0 if unknown
+    /// cargo test -p gdrive -- --ignored test_init_deleted_root --show-output
+    /// ```
+    #[ignore]
+    #[tokio::test]
+    async fn test_init_deleted_root() {
+        logger::init_for_testing();
+
+        let credentials = ApiCredentials::from_env().unwrap();
+        let client = GDriveClient::new(credentials);
+
+        delete_regtest_vfs_root(&client).await;
+
+        let network = Network::REGTEST;
+
+        // Some random gid I created during testing
+        let deleted_gid =
+            GFileId("1kcQUtO1jMRw9MXJ-9ArWTgPa_elm2ikT".to_owned());
+        let deleted_root = GvfsRoot {
+            network,
+            gid: deleted_gid,
+        };
+
+        // Validate the precondition for our test: that list_direct_children
+        // will return a success response with 0 results in it.
+        let all_files = client
+            .list_direct_children(&deleted_root.gid)
+            .await
+            .expect("This test expects a success response but with 0 results");
+        assert!(all_files.is_empty(), "Test precondition not satisfied");
+
+        let (gvfs, updated_root) =
+            GoogleVfs::init_from_client(client, network, Some(deleted_root))
+                .await
+                .unwrap();
+        updated_root.expect("Should have been given an updated GVFS root");
+
+        // Sanity check that the updated gvfs root is valid
+        let file1 = VfsFile::new("dir".into(), "file1".into(), vec![1]);
+        gvfs.create_file(file1.clone()).await.unwrap();
+        let get_file1 = gvfs.get_file(&file1.id).await.unwrap().unwrap();
+        assert_eq!(get_file1, file1);
+    }
+
+    /// Initialize a [`GoogleVfs`] with a [`GvfsRoot`] whose [`GFileId`] is
+    /// completely invalid - the [`GFileId`] is not correctly formatted.
+    ///
+    /// Init should get a 404, search for the gvfs root, and recover.
+    ///
+    /// ```bash
+    /// export GOOGLE_CLIENT_ID="<client_id>"
+    /// export GOOGLE_CLIENT_SECRET="<client_secret>"
+    /// export GOOGLE_REFRESH_TOKEN="<refresh_token>"
+    /// export GOOGLE_ACCESS_TOKEN="<access_token>"
+    /// export GOOGLE_ACCESS_TOKEN_EXPIRY="<timestamp>" # Set to 0 if unknown
+    /// cargo test -p gdrive -- --ignored test_init_bogus_root --show-output
+    /// ```
+    #[ignore]
+    #[tokio::test]
+    async fn test_init_bogus_root() {
+        logger::init_for_testing();
+
+        let credentials = ApiCredentials::from_env().unwrap();
+        let client = GDriveClient::new(credentials);
+
+        // TODO(max): In the other case, make a call to the list_direct_children
+        // method to ensure that it actually does return Err.
+
+        delete_regtest_vfs_root(&client).await;
+
+        let network = Network::REGTEST;
+
+        let bogus_gid = GFileId("t0tAlLy!!wrong-/\\[]} format 11 ".to_owned());
+        let bogus_root = GvfsRoot {
+            network,
+            gid: bogus_gid,
+        };
+
+        // Validate the precondition for our test: that list_direct_children
+        // will return an error response.
+        client
+            .list_direct_children(&bogus_root.gid)
+            .await
+            .map(|_| ())
+            .expect_err("Test precondition not satisfied: expected Err resp");
+
+        let (gvfs, updated_root) =
+            GoogleVfs::init_from_client(client, network, Some(bogus_root))
+                .await
+                .unwrap();
+        updated_root.expect("Should have been given an updated GVFS root");
+
+        // Sanity check that the updated gvfs root is valid
+        let file1 = VfsFile::new("dir".into(), "file1".into(), vec![1]);
+        gvfs.create_file(file1.clone()).await.unwrap();
+        let get_file1 = gvfs.get_file(&file1.id).await.unwrap().unwrap();
+        assert_eq!(get_file1, file1);
     }
 
     /// Checks that the `dirname` contained in a [`VfsFileId`] takes precedence
