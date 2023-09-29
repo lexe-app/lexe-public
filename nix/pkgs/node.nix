@@ -14,6 +14,7 @@
   #
   craneLib,
   elf2sgxsFixupHook,
+  sgx-libc-shim,
   #
   # options
   #
@@ -27,19 +28,6 @@
   cargoToml = ../../node/Cargo.toml;
   cargoTomlContents = builtins.readFile cargoToml;
   crateInfo = craneLib.crateNameFromCargoToml {cargoTomlContents = cargoTomlContents;};
-
-  # copy the fake SGX libc shim into the nix store.
-  # placing the `sgx-libc-shim` in its own derivation seems to stop needless
-  # rebuilds.
-  sgx-libc-shim = stdenvNoCC.mkDerivation {
-    name = "sgx-libc-shim";
-    src = ../../sgx-libc-shim;
-    dontUnpack = true;
-    installPhase = ''
-      mkdir -p $out
-      cp -r $src/include $out/
-    '';
-  };
 
   # include hard-coded CA certs
   miscFilter = path: type: (
