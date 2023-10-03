@@ -20,6 +20,7 @@ tracing.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 
 [dev-dependencies]
+common = { path = "../common", features = ["test-utils"] }
 logger = { path = "../logger" }
 
 tokio = { workspace = true, features = [

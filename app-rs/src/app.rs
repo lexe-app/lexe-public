@@ -13,7 +13,7 @@ use common::{
     api::{
         auth::{BearerAuthenticator, UserSignupRequest},
         def::{AppBackendApi, AppNodeProvisionApi},
-        provision::NodeProvisionRequest,
+        provision::{GDriveCredentials, NodeProvisionRequest},
         NodePk, NodePkProof, UserPk,
     },
     attest,
@@ -141,7 +141,17 @@ impl App {
         // TODO(phlip9): Get real measurement from gateway/backend
         let measurement = enclave::MOCK_MEASUREMENT;
 
-        Self::signup_custom(rng, config, root_seed, measurement).await
+        // TODO(phlip9): Get real credentials by running the user through OAuth2
+        let gdrive_credentials = GDriveCredentials::dummy();
+
+        Self::signup_custom(
+            rng,
+            config,
+            root_seed,
+            measurement,
+            gdrive_credentials,
+        )
+        .await
     }
 
     /// Allows signing up with a specific [`RootSeed`] and [`Measurement`],
@@ -151,6 +161,7 @@ impl App {
         config: AppConfig,
         root_seed: RootSeed,
         measurement: Measurement,
+        gdrive_credentials: GDriveCredentials,
     ) -> anyhow::Result<Self> {
         // derive user key and node key
 
@@ -223,6 +234,7 @@ impl App {
                 user_pk,
                 node_pk,
                 root_seed: root_seed_clone,
+                gdrive_credentials,
             })
             .await
             .context("Failed to provision node")?;
