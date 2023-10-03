@@ -39,38 +39,8 @@
     rust-overlay,
     crane,
   }: let
-    # supported host systems
-    systems = [
-      "x86_64-linux"
-      "aarch64-linux"
-      "aarch64-darwin"
-      "x86_64-darwin"
-    ];
-
-    # genAttrs :: [ String ] -> (String -> Any) -> AttrSet
-    #
-    # ```
-    # > genAttrs [ "bob" "joe" ] (name: "hello ${name}")
-    # { bob = "hello bob"; joe = "hello joe" }
-    # ```
-    genAttrs = nixpkgs.lib.genAttrs;
-
-    # eachSystem :: (String -> AttrSet) -> AttrSet
-    #
-    # ```
-    # > eachSystem (system: { a = 123; b = "cool ${system}"; })
-    # {
-    #   "aarch64-darwin" = {
-    #     a = 123;
-    #     b = "cool aarch64-darwin";
-    #   };
-    #   "x86_64-linux" = {
-    #     a = 123;
-    #     b = "cool x86_64-linux";
-    #   };
-    # }
-    # ```
-    eachSystem = builder: genAttrs systems builder;
+    lexeLib = import ./nix/lib/default.nix {lib = nixpkgs.lib;};
+    eachSystem = lexeLib.eachSystem;
 
     # The "host" nixpkgs for each system.
     #
@@ -89,26 +59,22 @@
         ];
       });
 
-    # eachSystemPkgs :: (Nixpkgs -> AttrSet) -> AttrSet
-    eachSystemPkgs = builder:
-      eachSystem (
-        system:
-          builder systemPkgs.${system}
-      );
-  in {
-    # The *.nix file formatter.
-    # Run with `nix fmt`.
-    formatter = eachSystemPkgs (pkgs: pkgs.alejandra);
+    # eachSystemPkgs :: (builder :: Nixpkgs -> AttrSet) -> AttrSet
+    eachSystemPkgs = builder: eachSystem (system: builder systemPkgs.${system});
 
-    # The lexe public monorepo packages.
+    # All lexe public monorepo packages and package helpers, for each host
+    # system.
+    eachSystemLexePkgs = eachSystem (system: import ./nix/pkgs/default.nix {
+      pkgs = eachSystemPkgs.${system};
+      crane = crane;
+    });
+  in {
+    # The exposed lexe public monorepo packages.
     # ex: `nix build .#node-release-sgx`
     # ex: `nix run .#ftxsgx-elf2sgxs -- ...`
-    packages = eachSystemPkgs (
-      pkgs: let
-        lexePkgs = import ./nix/pkgs/default.nix {
-          pkgs = pkgs;
-          crane = crane;
-        };
+    packages = eachSystem (
+      system: let
+        lexePkgs = eachSystemLexePkgs.${system};
       in {
         inherit
           (lexePkgs)
@@ -122,23 +88,11 @@
     );
 
     # lexe development shells
-    # ex: `nix develop .#sgx-cross`
+    # ex: `nix develop`
     devShells = eachSystemPkgs (pkgs: let
       lib = nixpkgs.lib;
-      lexePkgs = self.packages.${pkgs.system};
+      lexePkgs = eachSystemLexePkgs.${pkgs.system};
     in {
-      # shell for cross-compiling SGX node
-      sgx-cross = pkgs.mkShell {
-        name = "sgx-cross";
-        inputsFrom = [lexePkgs.node-release-sgx];
-      };
-
-      # tools for debugging build reproducibility
-      repro-debug = pkgs.mkShellNoCC {
-        name = "repro-debug";
-        packages = [pkgs.diffoscopeMinimal pkgs.nix-diff];
-      };
-
       # default development shell
       default = pkgs.mkShell {
         name = "lexe";
@@ -151,9 +105,8 @@
       };
     });
 
-    # easy access from `nix repl`
-    # > :load-flake .
-    systemPkgs = systemPkgs;
-    lib = nixpkgs.lib;
+    # The *.nix file formatter.
+    # Run with `nix fmt`.
+    formatter = eachSystemPkgs (pkgs: pkgs.alejandra);
   };
 }
