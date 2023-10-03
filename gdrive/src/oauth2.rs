@@ -1,11 +1,8 @@
 #[cfg(test)]
 use std::env;
-use std::{
-    fmt,
-    time::{Duration, SystemTime},
-};
+use std::time::{Duration, SystemTime};
 
-use common::const_assert;
+use common::{api::provision::GDriveCredentials, const_assert};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, instrument, trace};
@@ -31,281 +28,180 @@ pub const MINIMUM_TOKEN_LIFETIME: Duration = Duration::from_secs(60);
 // Newly refreshed access tokens usually live for only 3600 seconds
 const_assert!(MINIMUM_TOKEN_LIFETIME.as_secs() < 3600);
 
-/// A complete set of credentials which will allow us to make requests to the
-/// Google Drive API and periodically refresh our access tokens.
-#[derive(Clone, Serialize, Deserialize)]
-pub struct ApiCredentials {
-    client_id: ApiSecret,
-    client_secret: ApiSecret,
-    refresh_token: ApiSecret,
-    access_token: ApiSecret,
-    /// Unix timestamp (in seconds) at which the current access token expires.
-    expires_at: u64,
-    /// Whether these credentials have been updated since deserialization.
-    /// If [`true`], these credentials should be repersisted to avoid an
-    /// unnecessary refresh in the future.
-    // Tells serde:
-    // - When serializing, skip this field
-    // - When deserializing, set this field to the output of `default_updated`
-    #[serde(skip_serializing, default = "default_updated")]
-    updated: bool,
+/// Makes a call to Google's `tokeninfo` endpoint to check:
+///
+/// - The access token has the required scope(s).
+/// - The access token has the expected access type.
+/// - Google recognizes our access token, and confirms it is not expired.
+///
+/// We should not need to call this method regularly - just once when the
+/// credentials were initially obtained from the user should be enough.
+///
+/// Returns [`true`] if the token was updated as a result of this call.
+#[instrument(skip_all, name = "(oauth2-check-token-info)")]
+pub async fn check_token_info(
+    client: &reqwest::Client,
+    credentials: &mut GDriveCredentials,
+) -> Result<bool, Error> {
+    debug!("Checking token info");
+
+    #[derive(Deserialize)]
+    struct TokenInfo {
+        scope: String,
+        expires_in: u32,
+        access_type: String,
+    }
+
+    let http_resp = client
+        .post("https://www.googleapis.com/oauth2/v3/tokeninfo")
+        .json(&[("access_token", &credentials.access_token)])
+        .send()
+        .await?;
+
+    let token_info = match http_resp.status() {
+        StatusCode::OK => http_resp.json::<TokenInfo>().await?,
+        // We get a 400 if the token expired
+        StatusCode::BAD_REQUEST => return Err(Error::TokenExpired),
+        code => {
+            let resp_str = http_resp.text().await?;
+            return Err(Error::Api { code, resp_str });
+        }
+    };
+
+    let TokenInfo {
+        scope,
+        expires_in,
+        access_type,
+    } = token_info;
+
+    if access_type != ACCESS_TYPE {
+        return Err(Error::WrongAccessType { access_type });
+    }
+
+    if scope != API_SCOPE {
+        return Err(Error::InsufficientScopes { scope });
+    }
+
+    let now_timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .expect("System time is before UNIX epoch")
+        .as_secs();
+    let expires_at = now_timestamp + expires_in as u64;
+
+    let mut updated = false;
+    if credentials.expires_at != expires_at {
+        credentials.expires_at = expires_at;
+        updated = true;
+    }
+
+    Ok(updated)
 }
 
-fn default_updated() -> bool {
-    false
-}
+/// Refreshes the access token contained in this set of credentials if its
+/// remaining lifetime is less than [`MINIMUM_TOKEN_LIFETIME`], or if it has
+/// already expired. Returns a [`bool`] representing whether the access token
+/// was updated. If so, the credentials should be repersisted in order to avoid
+/// an unnecessary refresh in the future.
+///
+/// These credentials are guaranteed to be valid (without needing a refresh) for
+/// [`MINIMUM_TOKEN_LIFETIME`] after a call to this method.
+#[instrument(skip_all, name = "(oauth2-refresh-if-necessary)")]
+pub async fn refresh_if_necessary(
+    client: &reqwest::Client,
+    credentials: &mut GDriveCredentials,
+) -> Result<bool, Error> {
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .expect("System time is before UNIX epoch")
+        .as_secs();
 
-/// A wrapper to help prevent accidentally logging API secrets. We still need
-/// make sure secrets are not included in query parameters, since those tend to
-/// show up in logs. Use the bearer auth header or POST requests instead.
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct ApiSecret(String);
-
-impl fmt::Debug for ApiSecret {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("ApiSecret(..)")
+    if credentials.expires_at > now + MINIMUM_TOKEN_LIFETIME.as_secs() {
+        // No refresh needed
+        trace!("Skipping API token refresh");
+        Ok(false)
+    } else {
+        refresh(client, credentials, now).await.map(|()| true)
     }
 }
 
-impl ApiCredentials {
-    pub fn new(
-        client_id: String,
-        client_secret: String,
-        refresh_token: String,
+async fn refresh(
+    client: &reqwest::Client,
+    credentials: &mut GDriveCredentials,
+    now: u64,
+) -> Result<(), Error> {
+    debug!("Refreshing access token");
+
+    #[derive(Serialize)]
+    struct RefreshRequest<'a> {
+        grant_type: &'a str,
+        client_id: &'a str,
+        client_secret: &'a str,
+        refresh_token: &'a str,
+    }
+
+    #[derive(Deserialize)]
+    struct RefreshResponse {
         access_token: String,
-        expires_at: u64,
-    ) -> Self {
-        Self {
-            client_id: ApiSecret(client_id),
-            client_secret: ApiSecret(client_secret),
-            refresh_token: ApiSecret(refresh_token),
-            access_token: ApiSecret(access_token),
-            expires_at,
-            updated: false,
-        }
+        expires_in: u32,
+        scope: String,
+        token_type: String,
     }
 
-    /// Attempts to construct an [`ApiCredentials`] from env.
-    ///
-    /// ```bash
-    /// export GOOGLE_CLIENT_ID="<client_id>"
-    /// export GOOGLE_CLIENT_SECRET="<client_secret>"
-    /// export GOOGLE_REFRESH_TOKEN="<refresh_token>"
-    /// export GOOGLE_ACCESS_TOKEN="<access_token>"
-    /// export GOOGLE_ACCESS_TOKEN_EXPIRY="<timestamp>" # Set to 0 if unknown
-    /// ```
-    #[cfg(test)] // Don't think we need this outside of tests
-    pub fn from_env() -> anyhow::Result<Self> {
-        use std::str::FromStr;
+    let req = RefreshRequest {
+        grant_type: "refresh_token",
+        client_id: &credentials.client_id,
+        client_secret: &credentials.client_secret,
+        refresh_token: &credentials.refresh_token,
+    };
 
-        use anyhow::Context;
+    let http_resp = client
+        .post("https://oauth2.googleapis.com/token")
+        .json(&req)
+        .send()
+        .await?;
 
-        let client_id = env::var("GOOGLE_CLIENT_ID")
-            .context("Missing 'GOOGLE_CLIENT_ID' in env")?;
-        let client_secret = env::var("GOOGLE_CLIENT_SECRET")
-            .context("Missing 'GOOGLE_CLIENT_SECRET' in env")?;
-        let refresh_token = env::var("GOOGLE_REFRESH_TOKEN")
-            .context("Missing 'GOOGLE_REFRESH_TOKEN' in env")?;
-        let access_token = env::var("GOOGLE_ACCESS_TOKEN")
-            .context("Missing 'GOOGLE_ACCESS_TOKEN' in env")?;
-        let expires_at_str = env::var("GOOGLE_ACCESS_TOKEN_EXPIRY")
-            .context("Missing 'GOOGLE_ACCESS_TOKEN_EXPIRY' in env")?;
-        let expires_at = u64::from_str(&expires_at_str)
-            .context("Invalid GOOGLE_ACCESS_TOKEN_EXPIRY")?;
+    let refresh_response = match http_resp.status() {
+        StatusCode::OK => http_resp.json::<RefreshResponse>().await?,
+        code => {
+            let resp_str = http_resp.text().await?;
+            return Err(Error::Api { code, resp_str });
+        }
+    };
 
-        Ok(Self::new(
-            client_id,
-            client_secret,
-            refresh_token,
-            access_token,
-            expires_at,
-        ))
+    let RefreshResponse {
+        access_token,
+        expires_in,
+        scope,
+        token_type,
+    } = refresh_response;
+
+    if scope != API_SCOPE {
+        return Err(Error::InsufficientScopes { scope });
     }
 
-    /// Get a reference to the contained `access_token`.
-    pub(crate) fn access_token(&self) -> &str {
-        &self.access_token.0
+    if token_type != TOKEN_TYPE {
+        return Err(Error::WrongTokenType { token_type });
     }
 
-    /// Whether these credentials have been updated since deserialization.
-    /// If [`true`], the caller should repersist these credentials to avoid an
-    /// unnecessary refresh in the future.
-    pub fn updated(&self) -> bool {
-        self.updated
+    let expires_at = now + expires_in as u64;
+
+    credentials.access_token = access_token;
+    credentials.expires_at = expires_at;
+
+    // For convenience keeping our test tokens up-to-date,
+    // print commands to update the corresponding env vars,
+    // EXCEPT if SKIP_GDRIVE_TOKEN_PRINT=1 (e.g. in CI)
+    #[cfg(test)]
+    if !matches!(env::var("SKIP_GDRIVE_TOKEN_PRINT").as_deref(), Ok("1")) {
+        let access_token = &credentials.access_token;
+        println!("API access token updated; set this in env:");
+        println!("```bash");
+        println!("export GOOGLE_ACCESS_TOKEN=\"{access_token}\"");
+        println!("export GOOGLE_ACCESS_TOKEN_EXPIRY=\"{expires_at}\"");
+        println!("```");
     }
 
-    /// Makes a call to Google's `tokeninfo` endpoint to check:
-    ///
-    /// - The access token has the required scope(s).
-    /// - The access token has the expected access type.
-    /// - Google recognizes our access token, and confirms it is not expired.
-    ///
-    /// We should not need to call this method regularly - just once when the
-    /// credentials were initially obtained from the user should be enough.
-    #[instrument(skip_all, name = "(oauth2-check-token-info)")]
-    pub async fn check_token_info(
-        &mut self,
-        client: &reqwest::Client,
-    ) -> Result<(), Error> {
-        debug!("Checking token info");
-
-        #[derive(Deserialize)]
-        struct TokenInfo {
-            scope: String,
-            expires_in: u32,
-            access_type: String,
-        }
-
-        let http_resp = client
-            .post("https://www.googleapis.com/oauth2/v3/tokeninfo")
-            .json(&[("access_token", &self.access_token.0)])
-            .send()
-            .await?;
-
-        let token_info = match http_resp.status() {
-            StatusCode::OK => http_resp.json::<TokenInfo>().await?,
-            // We get a 400 if the token expired
-            StatusCode::BAD_REQUEST => return Err(Error::TokenExpired),
-            code => {
-                let resp_str = http_resp.text().await?;
-                return Err(Error::Api { code, resp_str });
-            }
-        };
-
-        let TokenInfo {
-            scope,
-            expires_in,
-            access_type,
-        } = token_info;
-
-        if access_type != ACCESS_TYPE {
-            return Err(Error::WrongAccessType { access_type });
-        }
-
-        if scope != API_SCOPE {
-            return Err(Error::InsufficientScopes { scope });
-        }
-
-        let now_timestamp = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .expect("System time is before UNIX epoch")
-            .as_secs();
-        let expires_at = now_timestamp + expires_in as u64;
-
-        if self.expires_at != expires_at {
-            self.expires_at = expires_at;
-            self.updated = true;
-        }
-
-        Ok(())
-    }
-
-    /// Refreshes the access token contained in this set of credentials if its
-    /// remaining lifetime is less than [`MINIMUM_TOKEN_LIFETIME`], or if
-    /// it has already expired.
-    ///
-    /// These credentials are guaranteed to be valid (without needing a refresh)
-    /// for [`MINIMUM_TOKEN_LIFETIME`] after a call to this method.
-    #[instrument(skip_all, name = "(oauth2-refresh-if-necessary)")]
-    pub async fn refresh_if_necessary(
-        &mut self,
-        client: &reqwest::Client,
-    ) -> Result<(), Error> {
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .expect("System time is before UNIX epoch")
-            .as_secs();
-
-        if self.expires_at > now + MINIMUM_TOKEN_LIFETIME.as_secs() {
-            // No refresh needed
-            trace!("Skipping API token refresh");
-            Ok(())
-        } else {
-            self.refresh(client, now).await
-        }
-    }
-
-    async fn refresh(
-        &mut self,
-        client: &reqwest::Client,
-        now: u64,
-    ) -> Result<(), Error> {
-        debug!("Refreshing access token");
-
-        #[derive(Serialize)]
-        struct RefreshRequest<'a> {
-            grant_type: &'a str,
-            client_id: &'a str,
-            client_secret: &'a str,
-            refresh_token: &'a str,
-        }
-
-        #[derive(Deserialize)]
-        struct RefreshResponse {
-            access_token: ApiSecret,
-            expires_in: u32,
-            scope: String,
-            token_type: String,
-        }
-
-        let req = RefreshRequest {
-            grant_type: "refresh_token",
-            client_id: &self.client_id.0,
-            client_secret: &self.client_secret.0,
-            refresh_token: &self.refresh_token.0,
-        };
-
-        let http_resp = client
-            .post("https://oauth2.googleapis.com/token")
-            .json(&req)
-            .send()
-            .await?;
-
-        let refresh_response = match http_resp.status() {
-            StatusCode::OK => http_resp.json::<RefreshResponse>().await?,
-            code => {
-                let resp_str = http_resp.text().await?;
-                return Err(Error::Api { code, resp_str });
-            }
-        };
-
-        let RefreshResponse {
-            access_token,
-            expires_in,
-            scope,
-            token_type,
-        } = refresh_response;
-
-        if scope != API_SCOPE {
-            return Err(Error::InsufficientScopes { scope });
-        }
-
-        if token_type != TOKEN_TYPE {
-            return Err(Error::WrongTokenType { token_type });
-        }
-
-        let expires_at = now + expires_in as u64;
-
-        self.access_token = access_token;
-        self.expires_at = expires_at;
-        self.updated = true;
-
-        // For convenience keeping our test tokens up-to-date,
-        // print commands to update the corresponding env vars,
-        // EXCEPT if SKIP_GDRIVE_TOKEN_PRINT=1 (e.g. in CI)
-        #[cfg(test)]
-        if !matches!(env::var("SKIP_GDRIVE_TOKEN_PRINT").as_deref(), Ok("1")) {
-            let access_token = &self.access_token.0;
-            println!("API access token updated; set this in env:");
-            println!("```bash");
-            println!("export GOOGLE_ACCESS_TOKEN=\"{access_token}\"");
-            println!("export GOOGLE_ACCESS_TOKEN_EXPIRY=\"{expires_at}\"");
-            println!("```");
-        }
-
-        Ok(())
-    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -323,10 +219,10 @@ mod test {
     #[ignore]
     #[tokio::test]
     async fn test_credentials() {
-        let mut credentials = ApiCredentials::from_env().unwrap();
+        let mut credentials = GDriveCredentials::from_env().unwrap();
         let client = reqwest::Client::new();
 
-        match credentials.check_token_info(&client).await {
+        match check_token_info(&client, &mut credentials).await {
             Ok(_) => (),
             // We mostly just care that the request worked, since the token
             // we're testing with isn't guaranteed to be configured correctly.
@@ -336,8 +232,7 @@ mod test {
             _ => panic!("Validation failed"),
         }
 
-        credentials
-            .refresh_if_necessary(&client)
+        refresh_if_necessary(&client, &mut credentials)
             .await
             .expect("refresh_if_necessary failed");
     }

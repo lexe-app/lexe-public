@@ -1,13 +1,13 @@
-use std::time::Duration;
+use std::{ops::DerefMut, time::Duration};
 
 use anyhow::{ensure, Context};
+use common::api::provision::GDriveCredentials;
 use reqwest::{IntoUrl, Method};
 use serde::{de::DeserializeOwned, Serialize};
 
 use crate::{
     models::{Empty, GFile, GFileCow, GFileId, ListFiles, ListFilesResponse},
-    oauth2::ApiCredentials,
-    Error,
+    oauth2, Error,
 };
 
 const BASE_URL: &str = "https://www.googleapis.com/drive/v3";
@@ -25,11 +25,11 @@ pub(crate) const BINARY_MIME_TYPE: &str = "application/octet-stream";
 /// - Includes access tokens in requests.
 pub(crate) struct GDriveClient {
     client: reqwest::Client,
-    credentials: tokio::sync::Mutex<ApiCredentials>,
+    credentials: tokio::sync::Mutex<GDriveCredentials>,
 }
 
 impl GDriveClient {
-    pub fn new(credentials: ApiCredentials) -> Self {
+    pub fn new(credentials: GDriveCredentials) -> Self {
         let client = reqwest::Client::builder()
             .timeout(API_REQUEST_TIMEOUT)
             .build()
@@ -314,12 +314,15 @@ impl GDriveClient {
     ) -> Result<reqwest::Response, Error> {
         let req = {
             let mut locked_credentials = self.credentials.lock().await;
-            locked_credentials
-                .refresh_if_necessary(&self.client)
-                .await
-                .map_err(Box::new)
-                .map_err(Error::TokenRefresh)?;
-            req.bearer_auth(locked_credentials.access_token())
+            // TODO(max): Repersist the credentials if updated
+            let _updated = oauth2::refresh_if_necessary(
+                &self.client,
+                locked_credentials.deref_mut(),
+            )
+            .await
+            .map_err(Box::new)
+            .map_err(Error::TokenRefresh)?;
+            req.bearer_auth(&locked_credentials.access_token)
         };
 
         let req = req.build()?;

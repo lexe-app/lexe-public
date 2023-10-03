@@ -6,10 +6,10 @@
 //!
 //! ## Requirements
 //!
-//! The main public interfaces are [`ApiCredentials`] and [`GoogleVfs`]. The
+//! The main public interfaces are [`GDriveCredentials`] and [`GoogleVfs`]. The
 //! crate user is expected to walk the user through the [installed app OAuth2
 //! flow], and is required to supply five pieces of information which are
-//! necessary to construct the [`ApiCredentials`]:
+//! necessary to construct the [`GDriveCredentials`]:
 //!
 //! - `client_id`
 //! - `client_secret`
@@ -17,14 +17,15 @@
 //! - `refresh_token`
 //! - `access_token_expiry` (Can be set to 0 if unknown)
 //!
-//! The [`GoogleVfs`] can then be initialized using the [`ApiCredentials`] and
-//! used as an atomic VFS thereafter.
+//! The [`GoogleVfs`] can then be initialized using the [`GDriveCredentials`]
+//! and used as an atomic VFS thereafter.
 //!
 //! The VFS interface takes and returns raw [`Vec<u8>`] ciphertexts; it is up to
 //! the caller to handle encryption/decryption and check the integrity of
 //! returned ciphertexts.
 //!
 //! [installed app OAuth2 flow]: https://developers.google.com/identity/protocols/oauth2/native-app
+//! [`GDriveCredentials`]: common::api::provision::GDriveCredentials
 //!
 //! ## Rollback Protection
 //!
@@ -64,8 +65,8 @@
 //! - Run tests like `cargo test -p gdrive -- --ignored <test> --show-output`.
 //! - If an access token was refreshed during a test run, it will be printed to
 //!   stdout. Set `--show-output` if you want to update your local env vars.
-//! - Tests require setting env vars for each of the [`ApiCredentials`] fields.
-//!   Note that the vars must be `export`ed for the test binary to detect them.
+//! - Tests require setting env vars for the [`GDriveCredentials`] fields. Note
+//!   that the vars must be `export`ed for the test binary to detect them.
 //! - Some tests create and delete the `regtest` VFS dir. Use `--test-threads=1`
 //!   to avoid duplicates when running multiple ignored tests in one batch.
 //!
@@ -85,7 +86,7 @@ use thiserror::Error;
 
 /// Higher-level "Google VFS" interface.
 pub mod gvfs;
-/// Google OAuth2 credentials.
+/// Google OAuth2.
 pub mod oauth2;
 
 /// Lower-level API client.
@@ -98,7 +99,6 @@ pub(crate) mod lexe_dir;
 pub(crate) mod models;
 
 pub use gvfs::{GoogleVfs, GvfsRoot};
-pub use oauth2::ApiCredentials;
 
 #[derive(Debug, Error)]
 pub enum Error {

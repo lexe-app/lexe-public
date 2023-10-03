@@ -9,7 +9,10 @@ use std::{collections::BTreeMap, str::FromStr};
 
 use anyhow::{anyhow, bail, ensure, Context};
 use common::{
-    api::vfs::{VfsDirectory, VfsFile, VfsFileId},
+    api::{
+        provision::GDriveCredentials,
+        vfs::{VfsDirectory, VfsFile, VfsFileId},
+    },
     cli::Network,
     constants, Apply,
 };
@@ -17,8 +20,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{instrument, warn};
 
 use crate::{
-    api, api::GDriveClient, gvfs_file_id::GvfsFileId, lexe_dir,
-    models::GFileId, oauth2::ApiCredentials,
+    api, api::GDriveClient, gvfs_file_id::GvfsFileId, lexe_dir, models::GFileId,
 };
 
 // Allows tests to assert that these `anyhow::Error`s happened.
@@ -112,7 +114,7 @@ impl GoogleVfs {
     /// wrong, `Some(GvfsRoot)` is returned, which the caller should persist.
     #[instrument(skip_all, name = "(gvfs-init)")]
     pub async fn init(
-        credentials: ApiCredentials,
+        credentials: GDriveCredentials,
         network: Network,
         maybe_given_gvfs_root: Option<GvfsRoot>,
     ) -> anyhow::Result<(Self, Option<GvfsRoot>)> {
@@ -470,7 +472,7 @@ mod test {
     async fn test_gvfs() {
         logger::init_for_testing();
 
-        let credentials = ApiCredentials::from_env().unwrap();
+        let credentials = GDriveCredentials::from_env().unwrap();
         let client = GDriveClient::new(credentials);
 
         delete_regtest_vfs_root(&client).await;
@@ -548,7 +550,7 @@ mod test {
     async fn test_init_deleted_root() {
         logger::init_for_testing();
 
-        let credentials = ApiCredentials::from_env().unwrap();
+        let credentials = GDriveCredentials::from_env().unwrap();
         let client = GDriveClient::new(credentials);
 
         delete_regtest_vfs_root(&client).await;
@@ -602,7 +604,7 @@ mod test {
     async fn test_init_bogus_root() {
         logger::init_for_testing();
 
-        let credentials = ApiCredentials::from_env().unwrap();
+        let credentials = GDriveCredentials::from_env().unwrap();
         let client = GDriveClient::new(credentials);
 
         // TODO(max): In the other case, make a call to the list_direct_children
