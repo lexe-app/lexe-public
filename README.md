@@ -200,22 +200,78 @@ socket helper, since we don't require it.
 $ orb create nixos linux-builder
 ```
 
-Now, you can either run everything on the remote machine, or use nix's built-in
+In order to get a usable builder VM, we have to tweak the base NixOS config.
+This will install some extra required packages in the VM (git), enable some nix
+features, and tell the VM to sign its store packages:
+
+```bash
+$ orb push -m linux-builder ./nix/linux-builder/configuration.nix /tmp/configuration.nix
+$ orb run -m linux-builder --user root --shell <<EOF
+chown root:root /tmp/configuration.nix
+mv -f /tmp/configuration.nix /etc/nixos/configuration.nix
+nixos-rebuild switch
+EOF
+```
+
+After rebuilding, we'll add its newly generated signing public key to our host
+nix config:
+
+```bash
+$ VM_PUB_KEY=$(cat ~/OrbStack/linux-builder/etc/nix/store-signing-key.pub)
+$ cat <<EOF | sudo tee -a /etc/nix/nix.conf
+builders-use-substitutes = true
+extra-trusted-public-keys = ${VM_PUB_KEY}
+EOF
+```
+
+Add the VM as a remote builder:
+
+```bash
+$ cat <<EOF | sudo tee -a /etc/nix/machines
+ssh-ng://linux-builder@orb aarch64-linux,x86_64-linux - 8 - benchmark,big-parallel,gccarch-armv8-a,kvm,nixos-test - -
+EOF
+```
+
+For seamless remote builds to work, we'll also want to add the orbstack ssh
+config system-wide:
+
+```bash
+$ sudo mkdir -p /etc/ssh/ssh_config.d/
+$ cat ~/.orbstack/ssh/config | sed "s|~/|$HOME/|g" \
+    | sudo tee /etc/ssh/ssh_config.d/100-orb-linux-builder
+```
+
+Then restart the host's nix daemon so the changes take effect:
+
+```bash
+$ sudo launchctl kickstart -k system/org.nixos.nix-daemon
+```
+
+Now, you can either run everything on the builder VM, or use nix's built-in
 support for remote builds:
 
 ```bash
 # (Option 1): either use the built-in nix remote build feature, from the macOS machine
+
 $ nix build \
     --store ssh-ng://linux-builder@orb --eval-store auto --json \
     .#packages.x86_64-linux.node-release-sgx \
     | jq -r '.[].outputs.out'
 /nix/store/gqzb5vpprdmf8b7pw1c6ppiyqb90jab4-node-0.1.0
 
-# read the node measurement from the VM nix store
+# you can just read the node measurement from the VM nix store
 $ cat ~/OrbStack/linux-builder/nix/store/gqzb5vpprdmf8b7pw1c6ppiyqb90jab4-node-0.1.0/bin/node.measurement
 bdd9eec1fbd625eec3b2a9e2a6072f60240c930b0867b47199730b320c148e8c
 
+# or copy it to the host nix store and then read it
+$ nix copy \
+    --from ssh-ng://linux-builder@orb \
+    /nix/store/gqzb5vpprdmf8b7pw1c6ppiyqb90jab4-node-0.1.0
+$ cat /nix/store/gqzb5vpprdmf8b7pw1c6ppiyqb90jab4-node-0.1.0/bin/node.measurement
+bdd9eec1fbd625eec3b2a9e2a6072f60240c930b0867b47199730b320c148e8c
+
 # (Option 2): or shell into the VM and build:
+
 $ orb shell -m linux-builder
 (linux-builder)$ nix build .#packages.x86_64-linux.node-release-sgx
 (linux-builder)$ cat ./result/bin/node.measurement
