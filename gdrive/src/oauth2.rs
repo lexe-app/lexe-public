@@ -33,7 +33,7 @@ const_assert!(MINIMUM_TOKEN_LIFETIME.as_secs() < 3600);
 
 /// A complete set of credentials which will allow us to make requests to the
 /// Google Drive API and periodically refresh our access tokens.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct ApiCredentials {
     client_id: ApiSecret,
     client_secret: ApiSecret,

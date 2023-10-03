@@ -15,8 +15,6 @@
 //! in&&to a self-signed TLS certificate, which users must verify when
 //! connecting to the provisioning endpoint.
 
-#![allow(dead_code)]
-
 use std::{
     convert::Infallible,
     net::SocketAddr,
@@ -55,7 +53,6 @@ struct RequestContext {
     current_user_pk: UserPk,
     measurement: Measurement,
     shutdown: ShutdownChannel,
-    runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
     // TODO(phlip9): make generic, use test rng in test
     rng: SysRng,
@@ -88,7 +85,6 @@ pub async fn provision_node<R: Crng>(
         current_user_pk: args.user_pk,
         measurement,
         shutdown: shutdown.clone(),
-        runner_api: runner_api.clone(),
         backend_api,
         // TODO(phlip9): use passed in rng
         rng: SysRng::new(),
@@ -214,8 +210,10 @@ async fn provision_handler(
         .await
         .map_err(|e| NodeApiError {
             kind: NodeErrorKind::Provision,
-            msg: format!("Could not persist provisioned data: {e:#}"),
+            msg: format!("Could not persist sealed seed: {e:#}"),
         })?;
+
+    // TODO(max): Encrypt then upsert the gdrive_credentials to the backend
 
     // Provisioning done. Stop the node.
     ctx.shutdown.send();
@@ -265,8 +263,9 @@ mod test {
     use std::sync::Arc;
 
     use common::{
-        attest, attest::verify::EnclavePolicy, cli::node::ProvisionArgs,
-        rng::WeakRng, root_seed::RootSeed,
+        api::provision::GDriveCredentials, attest,
+        attest::verify::EnclavePolicy, cli::node::ProvisionArgs, rng::WeakRng,
+        root_seed::RootSeed,
     };
     use tokio_rustls::rustls;
 
@@ -349,10 +348,12 @@ mod test {
             tls_config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
 
             // client sends provision request to node
+            let gdrive_credentials = GDriveCredentials::dummy();
             let provision_req = NodeProvisionRequest {
                 user_pk,
                 node_pk,
                 root_seed,
+                gdrive_credentials,
             };
             let client = reqwest::Client::builder()
                 .use_preconfigured_tls(tls_config)
