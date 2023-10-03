@@ -76,10 +76,13 @@ const SCORER_FILENAME: &str = "scorer";
 // Non-singleton objects use a fixed directory with dynamic filenames
 pub(crate) const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 
-/// An Arc is held internally, so it is fine to clone and use directly.
-#[derive(Clone)]
 pub struct NodePersister {
-    inner: InnerPersister,
+    backend_api: Arc<dyn BackendApiClient + Send + Sync>,
+    authenticator: Arc<BearerAuthenticator>,
+    vfs_master_key: Arc<VfsMasterKey>,
+    user: User,
+    shutdown: ShutdownChannel,
+    channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
 }
 
 impl NodePersister {
@@ -91,39 +94,18 @@ impl NodePersister {
         shutdown: ShutdownChannel,
         channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
     ) -> Self {
-        let inner = InnerPersister {
+        Self {
             backend_api,
             authenticator,
             vfs_master_key,
             user,
             shutdown,
             channel_monitor_persister_tx,
-        };
-
-        Self { inner }
+        }
     }
 }
 
-impl Deref for NodePersister {
-    type Target = InnerPersister;
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
-/// The thing that actually impls the Persist trait. LDK requires that
-/// NodePersister Derefs to it.
-#[derive(Clone)]
-pub struct InnerPersister {
-    backend_api: Arc<dyn BackendApiClient + Send + Sync>,
-    authenticator: Arc<BearerAuthenticator>,
-    vfs_master_key: Arc<VfsMasterKey>,
-    user: User,
-    shutdown: ShutdownChannel,
-    channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
-}
-
-impl InnerPersister {
+impl NodePersister {
     /// Serializes an LDK [`Writeable`], encrypts the serialized bytes, and
     /// returns the final [`VfsFile`] which is ready to be persisted.
     fn encrypt_ldk_writeable<W: Writeable>(
@@ -487,7 +469,7 @@ impl InnerPersister {
 }
 
 #[async_trait]
-impl LexeInnerPersister for InnerPersister {
+impl LexeInnerPersister for NodePersister {
     fn encrypt_json<S: Serialize>(
         &self,
         directory: String,
@@ -714,7 +696,7 @@ impl LexeInnerPersister for InnerPersister {
     }
 }
 
-impl Persist<SignerType> for InnerPersister {
+impl Persist<SignerType> for NodePersister {
     fn persist_new_channel(
         &self,
         funding_txo: OutPoint,

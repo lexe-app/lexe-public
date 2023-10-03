@@ -53,7 +53,7 @@ mod lexe;
 /// [`AppNodeRunApi`]: common::api::def::AppNodeRunApi
 pub(crate) fn app_routes(
     parent_span: Option<span::Id>,
-    persister: NodePersister,
+    persister: Arc<NodePersister>,
     chain_monitor: Arc<ChainMonitorType>,
     wallet: LexeWallet,
     esplora: Arc<LexeEsplora>,
@@ -271,8 +271,8 @@ mod inject {
     }
 
     pub(super) fn persister(
-        persister: NodePersister,
-    ) -> impl Filter<Extract = (NodePersister,), Error = Infallible> + Clone
+        persister: Arc<NodePersister>,
+    ) -> impl Filter<Extract = (Arc<NodePersister>,), Error = Infallible> + Clone
     {
         warp::any().map(move || persister.clone())
     }

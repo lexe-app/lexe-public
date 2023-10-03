@@ -90,7 +90,7 @@ pub struct UserNode {
 
     // --- Actors --- //
     pub logger: LexeTracingLogger,
-    pub persister: NodePersister,
+    pub persister: Arc<NodePersister>,
     pub wallet: LexeWallet,
     fee_estimator: Arc<FeeEstimatorType>,
     broadcaster: Arc<BroadcasterType>,
@@ -202,14 +202,14 @@ impl UserNode {
         let authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
         let vfs_master_key = Arc::new(root_seed.derive_vfs_master_key());
-        let persister = NodePersister::new(
+        let persister = Arc::new(NodePersister::new(
             backend_api.clone(),
             authenticator,
             vfs_master_key,
             user,
             shutdown.clone(),
             channel_monitor_persister_tx,
-        );
+        ));
 
         // Initialize the chain monitor
         let chain_monitor = Arc::new(ChainMonitor::new(
@@ -492,7 +492,7 @@ impl UserNode {
         let bg_processor_task = LexeBackgroundProcessor::start::<
             NodeChannelManager,
             NodePeerManager,
-            NodePersister,
+            Arc<NodePersister>,
             NodeEventHandler,
         >(
             channel_manager.clone(),
