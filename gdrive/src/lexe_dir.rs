@@ -205,8 +205,9 @@ pub(crate) async fn get_gvfs_root_gid(
 
 #[cfg(test)]
 mod test {
+    use common::api::provision::GDriveCredentials;
+
     use super::*;
-    use crate::oauth2::ApiCredentials;
 
     /// ```bash
     /// export GOOGLE_CLIENT_ID="<client_id>"
@@ -219,7 +220,7 @@ mod test {
     #[ignore]
     #[tokio::test]
     async fn test_lexe_dir() {
-        let credentials = ApiCredentials::from_env().unwrap();
+        let credentials = GDriveCredentials::from_env().unwrap();
         let client = GDriveClient::new(credentials);
         let lexe_dir = get_or_create_lexe_dir(&client).await.unwrap();
         let lexe_dir_name = &lexe_dir.name;
