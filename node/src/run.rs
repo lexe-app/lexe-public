@@ -201,7 +201,7 @@ impl UserNode {
         // Initialize Persister
         let authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
-        let vfs_master_key = Arc::new(root_seed.derive_vfs_master_key());
+        let vfs_master_key = root_seed.derive_vfs_master_key();
         let persister = Arc::new(NodePersister::new(
             backend_api.clone(),
             authenticator,

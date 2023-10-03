@@ -79,7 +79,7 @@ pub(crate) const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 pub struct NodePersister {
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
     authenticator: Arc<BearerAuthenticator>,
-    vfs_master_key: Arc<VfsMasterKey>,
+    vfs_master_key: VfsMasterKey,
     user: User,
     shutdown: ShutdownChannel,
     channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
@@ -89,7 +89,7 @@ impl NodePersister {
     pub(crate) fn new(
         backend_api: Arc<dyn BackendApiClient + Send + Sync>,
         authenticator: Arc<BearerAuthenticator>,
-        vfs_master_key: Arc<VfsMasterKey>,
+        vfs_master_key: VfsMasterKey,
         user: User,
         shutdown: ShutdownChannel,
         channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
@@ -240,7 +240,7 @@ impl NodePersister {
             .context("Could not fetch `DbPayment`s")?
             .into_iter()
             // Decrypt into `Payment`s
-            .map(|p| payments::decrypt(self.vfs_master_key.as_ref(), p))
+            .map(|p| payments::decrypt(&self.vfs_master_key, p))
             // Convert to `BasicPayment`s
             .map(|res| res.map(BasicPayment::from))
             // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
@@ -259,7 +259,7 @@ impl NodePersister {
             .context("Could not fetch `DbPayment`s")?
             .into_iter()
             // Decrypt into `Payment`s
-            .map(|p| payments::decrypt(self.vfs_master_key.as_ref(), p))
+            .map(|p| payments::decrypt(&self.vfs_master_key, p))
             // Convert to `BasicPayment`s
             .map(|res| res.map(BasicPayment::from))
             // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
@@ -579,7 +579,7 @@ impl LexeInnerPersister for NodePersister {
             .context("Could not fetch pending `DbPayment`s")?
             .into_iter()
             // Decrypt into `Payment`s
-            .map(|p| payments::decrypt(self.vfs_master_key.as_ref(), p))
+            .map(|p| payments::decrypt(&self.vfs_master_key, p))
             // Convert Vec<Result<T, E>> -> Result<Vec<T>, E>
             .collect::<anyhow::Result<Vec<Payment>>>()
     }
@@ -600,11 +600,8 @@ impl LexeInnerPersister for NodePersister {
     ) -> anyhow::Result<PersistedPayment> {
         let mut rng = common::rng::SysRng::new();
 
-        let db_payment = payments::encrypt(
-            &mut rng,
-            self.vfs_master_key.as_ref(),
-            &checked.0,
-        );
+        let db_payment =
+            payments::encrypt(&mut rng, &self.vfs_master_key, &checked.0);
         let token = self.get_token().await?;
 
         self.backend_api
@@ -621,11 +618,8 @@ impl LexeInnerPersister for NodePersister {
     ) -> anyhow::Result<PersistedPayment> {
         let mut rng = common::rng::SysRng::new();
 
-        let db_payment = payments::encrypt(
-            &mut rng,
-            self.vfs_master_key.as_ref(),
-            &checked.0,
-        );
+        let db_payment =
+            payments::encrypt(&mut rng, &self.vfs_master_key, &checked.0);
         let token = self.get_token().await?;
 
         self.backend_api
@@ -648,11 +642,7 @@ impl LexeInnerPersister for NodePersister {
         let batch = checked_batch
             .iter()
             .map(|CheckedPayment(payment)| {
-                payments::encrypt(
-                    &mut rng,
-                    self.vfs_master_key.as_ref(),
-                    payment,
-                )
+                payments::encrypt(&mut rng, &self.vfs_master_key, payment)
             })
             .collect::<Vec<DbPayment>>();
 
@@ -681,7 +671,7 @@ impl LexeInnerPersister for NodePersister {
             .await
             .context("Could not fetch `DbPayment`s")?
             // Decrypt into `Payment`
-            .map(|p| payments::decrypt(self.vfs_master_key.as_ref(), p))
+            .map(|p| payments::decrypt(&self.vfs_master_key, p))
             .transpose()
             .context("Could not decrypt payment")?;
 
