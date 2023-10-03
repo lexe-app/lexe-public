@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use common::{
     api::{
         qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
@@ -10,14 +12,14 @@ use crate::{alias::NodePaymentsManagerType, persister::NodePersister};
 
 pub(super) async fn get_payments_by_ids(
     req: GetPaymentsByIds,
-    persister: NodePersister,
+    persister: Arc<NodePersister>,
 ) -> anyhow::Result<Vec<BasicPayment>> {
     persister.read_payments_by_ids(req).await
 }
 
 pub(super) async fn get_new_payments(
     req: GetNewPayments,
-    persister: NodePersister,
+    persister: Arc<NodePersister>,
 ) -> anyhow::Result<Vec<BasicPayment>> {
     persister.read_new_payments(req).await
 }

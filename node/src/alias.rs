@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use lexe_ln::{
     alias::{
         LexeChainMonitorType, LexeChannelManagerType, LexePeerManagerType,
@@ -7,11 +9,11 @@ use lexe_ln::{
 
 use crate::{channel_manager::NodeChannelManager, persister::NodePersister};
 
-pub(crate) type ChannelManagerType = LexeChannelManagerType<NodePersister>;
+pub(crate) type ChannelManagerType = LexeChannelManagerType<Arc<NodePersister>>;
 
-pub type ChainMonitorType = LexeChainMonitorType<NodePersister>;
+pub type ChainMonitorType = LexeChainMonitorType<Arc<NodePersister>>;
 
 pub(crate) type PeerManagerType = LexePeerManagerType<NodeChannelManager>;
 
 pub type NodePaymentsManagerType =
-    PaymentsManager<NodeChannelManager, NodePersister>;
+    PaymentsManager<NodeChannelManager, Arc<NodePersister>>;
