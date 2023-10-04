@@ -305,7 +305,7 @@ impl BearerAuthenticator {
     /// Returns the [`TokenWithExpiration`] if the auth request succeeds.
     ///
     /// NOTE: doesn't update the token cache
-    pub async fn authenticate<T: BearerAuthBackendApi + ?Sized>(
+    async fn authenticate<T: BearerAuthBackendApi + ?Sized>(
         &self,
         api: &T,
         now: SystemTime,
