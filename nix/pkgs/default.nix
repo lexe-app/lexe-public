@@ -33,25 +33,34 @@
     ftxsgx-elf2sgxs = ftxsgx-elf2sgxs;
   };
 
+  # Generic builder for Rust SGX crates.
+  buildRustSgxPackage = pkgs.callPackage ./buildRustSgxPackage.nix {
+    inherit craneLib sgxCrossEnvBuildHook elf2sgxsFixupHook;
+  };
+
   # User's node SGX enclave
-  node-release-sgx = pkgs.callPackage ./node.nix {
+  node-release-sgx = buildRustSgxPackage {
     isSgx = true;
     isRelease = true;
-    inherit craneLib sgxCrossEnvBuildHook elf2sgxsFixupHook;
+    cargoToml = ../../node/Cargo.toml;
+    workspaceRoot = ../..;
   };
-  node-debug-sgx = pkgs.callPackage ./node.nix {
-    isSgx = true;
-    isRelease = false;
-    inherit craneLib sgxCrossEnvBuildHook elf2sgxsFixupHook;
-  };
-  node-release-nosgx = pkgs.callPackage ./node.nix {
+  node-release-nosgx = buildRustSgxPackage {
     isSgx = false;
     isRelease = true;
-    inherit craneLib sgxCrossEnvBuildHook elf2sgxsFixupHook;
+    cargoToml = ../../node/Cargo.toml;
+    workspaceRoot = ../..;
   };
-  node-debug-nosgx = pkgs.callPackage ./node.nix {
+  node-debug-sgx = buildRustSgxPackage {
+    isSgx = true;
+    isRelease = false;
+    cargoToml = ../../node/Cargo.toml;
+    workspaceRoot = ../..;
+  };
+  node-debug-nosgx = buildRustSgxPackage {
     isSgx = false;
     isRelease = false;
-    inherit craneLib sgxCrossEnvBuildHook elf2sgxsFixupHook;
+    cargoToml = ../../node/Cargo.toml;
+    workspaceRoot = ../..;
   };
 }

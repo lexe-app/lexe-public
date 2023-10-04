@@ -14,17 +14,27 @@
   craneLib,
   sgxCrossEnvBuildHook,
   elf2sgxsFixupHook,
+}:
+
+# TODO(phlip9): add way to add custom nativeBuildInputs/buildInputs
+{
   #
   # options
   #
-  isRelease ? true,
+  # Path to crate Cargo.toml.
+  cargoToml,
+  # Path to workspace root.
+  workspaceRoot,
+  # Whether to build in release or debug mode.
+  isRelease,
   # this should probably be encapsulated into a new "stdenv" targetting
   # `x86_64-fortanix-unknown-sgx`, but I'm not quite sure how to do that yet.
-  isSgx ? true,
+  isSgx,
   # enable full, verbose build logs
   isVerbose ? false,
-}: let
-  cargoToml = ../../node/Cargo.toml;
+}:
+
+let
   cargoTomlContents = builtins.readFile cargoToml;
   crateInfo = craneLib.crateNameFromCargoToml {cargoTomlContents = cargoTomlContents;};
 
@@ -41,7 +51,7 @@
     (craneLib.filterCargoSources path type) || (miscFilter path type);
 
   src = lib.cleanSourceWith {
-    src = lib.cleanSource ../..;
+    src = lib.cleanSource workspaceRoot;
     filter = srcFilter;
   };
 
@@ -53,9 +63,17 @@
 
     # print cc full args list
     NIX_DEBUG = isVerbose;
+    # tells nix mkDerivation to strictly separate `nativeBuildInputs` and
+    # `buildInputs`, enforcing that build-time dependencies don't leak into the
+    # outputs. especially useful for cross-compiling.
     strictDeps = true;
+    # skip `cargo test` after build
+    # TODO(phlip9): conditionally enable this if `x86_64-linux` builder and
+    # builder has SGX enabled (`/dev/sgx` exists). Not sure how we would get
+    # aesmd access inside the build sandbox however.
     doCheck = false;
 
+    # build-only dependencies
     nativeBuildInputs =
       [
         # ring crate build.rs
@@ -68,6 +86,7 @@
         protobuf
       ];
 
+    # build and runtime dependencies
     buildInputs =
       []
       ++ lib.optionals (!isSgx && stdenvNoCC.isDarwin) [
@@ -75,6 +94,7 @@
         darwin.apple_sdk.frameworks.Security
       ];
 
+    # args passed to `cargo build`
     cargoExtraArgs = builtins.concatStringsSep " " (
       ["--offline" "--locked" "--package=${crateInfo.pname}"]
       ++ (lib.optionals isSgx ["--target=x86_64-fortanix-unknown-sgx"])

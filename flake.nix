@@ -39,8 +39,8 @@
     rust-overlay,
     crane,
   }: let
-    lexeLib = import ./nix/lib/default.nix {lib = nixpkgs.lib;};
-    eachSystem = lexeLib.eachSystem;
+    lexePubLib = import ./nix/lib/default.nix {lib = nixpkgs.lib;};
+    eachSystem = lexePubLib.eachSystem;
 
     # The "host" nixpkgs for each system.
     #
@@ -64,8 +64,8 @@
 
     # All lexe public monorepo packages and package helpers, for each host
     # system.
-    eachSystemLexePkgs = eachSystem (system: import ./nix/pkgs/default.nix {
-      pkgs = eachSystemPkgs.${system};
+    eachSystemLexePubPkgs = eachSystem (system: import ./nix/pkgs/default.nix {
+      pkgs = systemPkgs.${system};
       crane = crane;
     });
   in {
@@ -74,10 +74,10 @@
     # ex: `nix run .#ftxsgx-elf2sgxs -- ...`
     packages = eachSystem (
       system: let
-        lexePkgs = eachSystemLexePkgs.${system};
+        lexePubPkgs = eachSystemLexePubPkgs.${system};
       in {
         inherit
-          (lexePkgs)
+          (lexePubPkgs)
           ftxsgx-elf2sgxs
           node-release-sgx
           node-debug-sgx
@@ -91,12 +91,12 @@
     # ex: `nix develop`
     devShells = eachSystemPkgs (pkgs: let
       lib = nixpkgs.lib;
-      lexePkgs = eachSystemLexePkgs.${pkgs.system};
+      lexePubPkgs = eachSystemLexePubPkgs.${pkgs.system};
     in {
       # default development shell
       default = pkgs.mkShell {
         name = "lexe";
-        inputsFrom = [lexePkgs.node-release-sgx];
+        inputsFrom = [lexePubPkgs.node-release-sgx];
         packages =
           []
           ++ lib.optionals pkgs.stdenv.isDarwin [
