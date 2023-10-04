@@ -23,24 +23,22 @@ use std::{
 };
 
 use anyhow::Context;
-use bitcoin::secp256k1;
 use common::{
     api::{
         auth::BearerAuthenticator,
         def::NodeRunnerApi,
         error::{NodeApiError, NodeErrorKind},
         ports::UserPorts,
-        provision::{GDriveCredentials, NodeProvisionRequest, SealedSeed},
+        provision::{NodeProvisionRequest, SealedSeed},
         rest,
         vfs::VfsFileId,
-        Empty, NodePk, UserPk,
+        Empty, UserPk,
     },
     cli::node::ProvisionArgs,
     client::tls,
-    constants, ed25519, enclave,
+    constants, enclave,
     enclave::Measurement,
     rng::{Crng, SysRng},
-    root_seed::RootSeed,
     shutdown::ShutdownChannel,
 };
 use lexe_ln::persister;
@@ -161,28 +159,28 @@ fn app_routes(ctx: RequestContext) -> BoxedFilter<(Response<Body>,)> {
 /// Handles a provision request.
 ///
 /// POST /provision [`NodeProvisionRequest`] -> ()
-///
-/// Sample provision request:
-///
-/// ```json
-/// {
-///   "user_pk": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-///   "node_pk": "031355a4419a2b31c9b1ba2de0bcbefdd4a2ef6360f2b018736162a9b3be329fd4".parse().unwrap(),
-///   "root_seed": "86e4478f9f7e810d883f22ea2f0173e193904b488a62bb63764c82ba22b60ca7".parse().unwrap(),
-/// }
-/// ```
 async fn provision_handler(
     mut ctx: RequestContext,
     req: NodeProvisionRequest,
 ) -> Result<Empty, NodeApiError> {
     debug!("Received provision request");
 
-    let (user_key_pair, root_seed, gdrive_credentials) =
-        verify_provision_request(&mut ctx.rng, ctx.current_user_pk, req)?;
+    // Validation: the user pk derived from the given root seed should match the
+    // user pk given in our CLI args. This is a sanity check in case e.g. the
+    // provision request was routed to the wrong user node.
+    let user_key_pair = req.root_seed.derive_user_key_pair();
+    let derived_user_pk =
+        UserPk::from_ref(user_key_pair.public_key().as_inner());
+    if derived_user_pk != &ctx.current_user_pk {
+        return Err(NodeApiError::wrong_user_pk(
+            ctx.current_user_pk,
+            *derived_user_pk,
+        ));
+    }
 
     let sealed_seed_res = SealedSeed::seal_from_root_seed(
         &mut ctx.rng,
-        &root_seed,
+        &req.root_seed,
         ctx.measurement,
         enclave::machine_id(),
     );
@@ -220,12 +218,12 @@ async fn provision_handler(
         constants::SINGLETON_DIRECTORY,
         node_persister::GDRIVE_CREDENTIALS_FILENAME,
     );
-    let vfs_master_key = root_seed.derive_vfs_master_key();
+    let vfs_master_key = req.root_seed.derive_vfs_master_key();
     let file = persister::encrypt_json(
         &mut ctx.rng,
         &vfs_master_key,
         file_id,
-        &gdrive_credentials,
+        &req.gdrive_credentials,
     );
     ctx.backend_api
         .upsert_file(&file, token)
@@ -239,43 +237,6 @@ async fn provision_handler(
     ctx.shutdown.send();
 
     Ok(Empty {})
-}
-
-fn verify_provision_request<R: Crng>(
-    rng: &mut R,
-    current_user_pk: UserPk,
-    req: NodeProvisionRequest,
-) -> Result<(ed25519::KeyPair, RootSeed, GDriveCredentials), NodeApiError> {
-    let given_user_pk = req.user_pk;
-    if given_user_pk != current_user_pk {
-        return Err(NodeApiError::wrong_user_pk(
-            current_user_pk,
-            given_user_pk,
-        ));
-    }
-
-    let derived_user_key_pair = req.root_seed.derive_user_key_pair();
-    let derived_user_pk =
-        UserPk::from_ref(derived_user_key_pair.public_key().as_inner());
-    if derived_user_pk != &current_user_pk {
-        return Err(NodeApiError::wrong_user_pk(
-            current_user_pk,
-            *derived_user_pk,
-        ));
-    }
-
-    let given_node_pk = req.node_pk;
-    let derived_node_pk = NodePk(secp256k1::PublicKey::from(
-        req.root_seed.derive_node_key_pair(rng),
-    ));
-    if derived_node_pk != given_node_pk {
-        return Err(NodeApiError::wrong_node_pk(
-            derived_node_pk,
-            given_node_pk,
-        ));
-    }
-
-    Ok((derived_user_key_pair, req.root_seed, req.gdrive_credentials))
 }
 
 #[cfg(test)]
@@ -326,7 +287,6 @@ mod test {
     async fn test_provision() {
         let root_seed = RootSeed::from_u64(0x42);
         let user_pk = root_seed.derive_user_pk();
-        let node_pk = root_seed.derive_node_pk(&mut WeakRng::new());
 
         let args = ProvisionArgs {
             user_pk,
@@ -370,8 +330,6 @@ mod test {
             // client sends provision request to node
             let gdrive_credentials = GDriveCredentials::dummy();
             let provision_req = NodeProvisionRequest {
-                user_pk,
-                node_pk,
                 root_seed,
                 gdrive_credentials,
             };

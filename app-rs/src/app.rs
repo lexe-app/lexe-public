@@ -231,8 +231,6 @@ impl App {
 
         node_client
             .provision(NodeProvisionRequest {
-                user_pk,
-                node_pk,
                 root_seed: root_seed_clone,
                 gdrive_credentials,
             })
