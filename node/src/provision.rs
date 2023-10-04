@@ -30,22 +30,19 @@ use common::{
         error::{NodeApiError, NodeErrorKind},
         ports::UserPorts,
         provision::{NodeProvisionRequest, SealedSeed},
-        rest,
-        vfs::VfsFileId,
-        Empty, UserPk,
+        rest, Empty, UserPk,
     },
     cli::node::ProvisionArgs,
     client::tls,
-    constants, enclave,
+    enclave,
     enclave::Measurement,
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
 };
-use lexe_ln::persister;
 use tracing::{debug, info, instrument, warn, Span};
 use warp::{filters::BoxedFilter, http::Response, hyper::Body, Filter};
 
-use crate::{api::BackendApiClient, persister as node_persister};
+use crate::{api::BackendApiClient, persister};
 
 const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -214,24 +211,15 @@ async fn provision_handler(
         })?;
 
     // Encrypt the GDriveCredentials and upsert into Lexe's untrusted DB.
-    let file_id = VfsFileId::new(
-        constants::SINGLETON_DIRECTORY,
-        node_persister::GDRIVE_CREDENTIALS_FILENAME,
-    );
     let vfs_master_key = req.root_seed.derive_vfs_master_key();
-    let file = persister::encrypt_json(
+    persister::persist_gdrive_credentials(
         &mut ctx.rng,
+        ctx.backend_api.as_ref(),
         &vfs_master_key,
-        file_id,
         &req.gdrive_credentials,
-    );
-    ctx.backend_api
-        .upsert_file(&file, token)
-        .await
-        .map_err(|e| NodeApiError {
-            kind: NodeErrorKind::Provision,
-            msg: format!("Could not persist GDrive credentials: {e:#}"),
-        })?;
+        token,
+    )
+    .await?;
 
     // Provisioning done. Stop the node.
     ctx.shutdown.send();

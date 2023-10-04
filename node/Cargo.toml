@@ -36,6 +36,7 @@ threads = 2
 # --- LEXE --- #
 
 common = { path = "../common" }
+gdrive = { path = "../gdrive" }
 lexe-ln = { path = "../lexe-ln" }
 
 # --- BITCOIN  --- #
