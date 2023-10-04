@@ -205,8 +205,7 @@ impl UserNode {
 
         // If we're in staging or prod, fetch the encrypted GDriveCredentials
         // from Lexe's DB and init the GoogleVfs.
-        // TODO(max): Use this in the persister
-        let _maybe_google_vfs = if cfg!(feature = "test-utils") {
+        let maybe_google_vfs = if cfg!(feature = "test-utils") {
             None
         } else {
             let (try_gdrive_credentials, try_persisted_gvfs_root) = tokio::join!(
@@ -259,6 +258,7 @@ impl UserNode {
             backend_api.clone(),
             authenticator,
             vfs_master_key,
+            maybe_google_vfs,
             user,
             shutdown.clone(),
             channel_monitor_persister_tx,
