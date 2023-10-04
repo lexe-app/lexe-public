@@ -64,7 +64,7 @@
 
     # All lexe public monorepo packages and package helpers, for each host
     # system.
-    eachSystemLexePubPkgs = eachSystem (system: import ./nix/pkgs/default.nix {
+    systemLexePubPkgs = eachSystem (system: import ./nix/pkgs/default.nix {
       pkgs = systemPkgs.${system};
       crane = crane;
     });
@@ -74,7 +74,7 @@
     # ex: `nix run .#ftxsgx-elf2sgxs -- ...`
     packages = eachSystem (
       system: let
-        lexePubPkgs = eachSystemLexePubPkgs.${system};
+        lexePubPkgs = systemLexePubPkgs.${system};
       in {
         inherit
           (lexePubPkgs)
@@ -91,7 +91,7 @@
     # ex: `nix develop`
     devShells = eachSystemPkgs (pkgs: let
       lib = nixpkgs.lib;
-      lexePubPkgs = eachSystemLexePubPkgs.${pkgs.system};
+      lexePubPkgs = systemLexePubPkgs.${pkgs.system};
     in {
       # default development shell
       default = pkgs.mkShell {
