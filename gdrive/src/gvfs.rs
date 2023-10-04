@@ -487,9 +487,9 @@ mod test {
             .expect("Should have been given the newly created root to persist");
 
         // Define the VFS files we'll be using throughout
-        let file1 = VfsFile::new("dir".into(), "file1".into(), vec![1]);
-        let file1_data2 = VfsFile::new("dir".into(), "file1".into(), vec![2]);
-        let file2 = VfsFile::new("dir".into(), "file2".into(), vec![3]);
+        let file1 = VfsFile::new("dir", "file1", vec![1]);
+        let file1_data2 = VfsFile::new("dir", "file1", vec![2]);
+        let file2 = VfsFile::new("dir", "file2", vec![3]);
 
         // Create and get file1
         gvfs.create_file(file1.clone()).await.unwrap();
@@ -512,9 +512,7 @@ mod test {
         // Create file2 in the same directory, this time via upsert.
         // Fetch both files using `get_directory`.
         gvfs.upsert_file(file2.clone()).await.unwrap();
-        let node_dir = VfsDirectory {
-            dirname: "dir".into(),
-        };
+        let node_dir = VfsDirectory::new("dir");
         let get_dir_resp = gvfs.get_directory(&node_dir).await.unwrap();
         assert_eq!(get_dir_resp, vec![file1_data2.clone(), file2.clone()]);
 
@@ -580,7 +578,7 @@ mod test {
         updated_root.expect("Should have been given an updated GVFS root");
 
         // Sanity check that the updated gvfs root is valid
-        let file1 = VfsFile::new("dir".into(), "file1".into(), vec![1]);
+        let file1 = VfsFile::new("dir", "file1", vec![1]);
         gvfs.create_file(file1.clone()).await.unwrap();
         let get_file1 = gvfs.get_file(&file1.id).await.unwrap().unwrap();
         assert_eq!(get_file1, file1);
@@ -635,7 +633,7 @@ mod test {
         updated_root.expect("Should have been given an updated GVFS root");
 
         // Sanity check that the updated gvfs root is valid
-        let file1 = VfsFile::new("dir".into(), "file1".into(), vec![1]);
+        let file1 = VfsFile::new("dir", "file1", vec![1]);
         gvfs.create_file(file1.clone()).await.unwrap();
         let get_file1 = gvfs.get_file(&file1.id).await.unwrap().unwrap();
         assert_eq!(get_file1, file1);
