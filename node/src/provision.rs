@@ -30,21 +30,24 @@ use common::{
         def::NodeRunnerApi,
         error::{NodeApiError, NodeErrorKind},
         ports::UserPorts,
-        provision::{NodeProvisionRequest, SealedSeed},
-        rest, Empty, NodePk, UserPk,
+        provision::{GDriveCredentials, NodeProvisionRequest, SealedSeed},
+        rest,
+        vfs::VfsFileId,
+        Empty, NodePk, UserPk,
     },
     cli::node::ProvisionArgs,
     client::tls,
-    ed25519, enclave,
+    constants, ed25519, enclave,
     enclave::Measurement,
     rng::{Crng, SysRng},
     root_seed::RootSeed,
     shutdown::ShutdownChannel,
 };
+use lexe_ln::persister;
 use tracing::{debug, info, instrument, warn, Span};
 use warp::{filters::BoxedFilter, http::Response, hyper::Body, Filter};
 
-use crate::api::BackendApiClient;
+use crate::{api::BackendApiClient, persister as node_persister};
 
 const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
 
@@ -174,7 +177,7 @@ async fn provision_handler(
 ) -> Result<Empty, NodeApiError> {
     debug!("Received provision request");
 
-    let (user_key_pair, root_seed) =
+    let (user_key_pair, root_seed, gdrive_credentials) =
         verify_provision_request(&mut ctx.rng, ctx.current_user_pk, req)?;
 
     let sealed_seed_res = SealedSeed::seal_from_root_seed(
@@ -196,24 +199,41 @@ async fn provision_handler(
     let authenticator =
         BearerAuthenticator::new(user_key_pair, None /* maybe_token */);
     let token = authenticator
-        .authenticate(ctx.backend_api.as_ref(), SystemTime::now())
+        .get_token(ctx.backend_api.as_ref(), SystemTime::now())
         .await
         .map_err(|err| NodeApiError {
             kind: NodeErrorKind::BadAuth,
             msg: format!("{err:#}"),
-        })?
-        .token;
+        })?;
 
     // store the sealed seed and new node metadata in the backend
     ctx.backend_api
-        .create_sealed_seed(sealed_seed, token)
+        .create_sealed_seed(sealed_seed, token.clone())
         .await
         .map_err(|e| NodeApiError {
             kind: NodeErrorKind::Provision,
             msg: format!("Could not persist sealed seed: {e:#}"),
         })?;
 
-    // TODO(max): Encrypt then upsert the gdrive_credentials to the backend
+    // Encrypt the GDriveCredentials and upsert into Lexe's untrusted DB.
+    let file_id = VfsFileId::new(
+        constants::SINGLETON_DIRECTORY,
+        node_persister::GDRIVE_CREDENTIALS_FILENAME,
+    );
+    let vfs_master_key = root_seed.derive_vfs_master_key();
+    let file = persister::encrypt_json(
+        &mut ctx.rng,
+        &vfs_master_key,
+        file_id,
+        &gdrive_credentials,
+    );
+    ctx.backend_api
+        .upsert_file(&file, token)
+        .await
+        .map_err(|e| NodeApiError {
+            kind: NodeErrorKind::Provision,
+            msg: format!("Could not persist GDrive credentials: {e:#}"),
+        })?;
 
     // Provisioning done. Stop the node.
     ctx.shutdown.send();
@@ -225,7 +245,7 @@ fn verify_provision_request<R: Crng>(
     rng: &mut R,
     current_user_pk: UserPk,
     req: NodeProvisionRequest,
-) -> Result<(ed25519::KeyPair, RootSeed), NodeApiError> {
+) -> Result<(ed25519::KeyPair, RootSeed, GDriveCredentials), NodeApiError> {
     let given_user_pk = req.user_pk;
     if given_user_pk != current_user_pk {
         return Err(NodeApiError::wrong_user_pk(
@@ -255,7 +275,7 @@ fn verify_provision_request<R: Crng>(
         ));
     }
 
-    Ok((derived_user_key_pair, req.root_seed))
+    Ok((derived_user_key_pair, req.root_seed, req.gdrive_credentials))
 }
 
 #[cfg(test)]

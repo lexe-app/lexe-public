@@ -74,6 +74,7 @@ use crate::{
 const NETWORK_GRAPH_FILENAME: &str = "network_graph";
 const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 const SCORER_FILENAME: &str = "scorer";
+pub(crate) const GDRIVE_CREDENTIALS_FILENAME: &str = "gdrive_credentials";
 
 // Non-singleton objects use a fixed directory with dynamic filenames
 pub(crate) const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
