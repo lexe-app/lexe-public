@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use crate::test_utils::arbitrary;
 use crate::{
-    api::{NodePk, UserPk},
+    api::UserPk,
     enclave::{self, MachineId, Measurement, Sealed},
     hexstr_or_bytes,
     rng::Crng,
@@ -16,14 +16,8 @@ use crate::{
 
 /// The client sends this provisioning request to the node.
 #[derive(Serialize, Deserialize)]
-#[cfg_attr(test, derive(Debug))]
+#[cfg_attr(test, derive(Debug, Arbitrary))]
 pub struct NodeProvisionRequest {
-    /// The client's user pk.
-    pub user_pk: UserPk,
-    /// The client's node public key, derived from the root seed. The node
-    /// should sanity check by re-deriving the node pk and checking that it
-    /// equals the client's expected value.
-    pub node_pk: NodePk,
     /// The secret root seed the client wants to provision into the node.
     pub root_seed: RootSeed,
     /// The credentials required to store data in Google Drive.
@@ -203,48 +197,12 @@ impl SealedSeed {
     }
 }
 
-// --- impl Arbitrary --- //
-
-// Change to any(test, feature = "test-utils") only if needed; we end up with
-// needlessly long #[cfg_attr(...)] declarations otherwise.
+// only impl PartialEq in tests; not safe to compare root seeds w/o constant
+// time comparison.
 #[cfg(test)]
-mod test_impls {
-    use proptest::{
-        arbitrary::{any, Arbitrary},
-        strategy::{BoxedStrategy, Strategy},
-    };
-
-    use super::*;
-    use crate::rng::WeakRng;
-
-    impl Arbitrary for NodeProvisionRequest {
-        type Parameters = ();
-        type Strategy = BoxedStrategy<Self>;
-
-        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<WeakRng>(), any::<GDriveCredentials>())
-                .prop_map(|(mut rng, gdrive_credentials)| {
-                    let root_seed = RootSeed::from_rng(&mut rng);
-                    Self {
-                        user_pk: root_seed.derive_user_pk(),
-                        node_pk: root_seed.derive_node_pk(&mut rng),
-                        root_seed,
-                        gdrive_credentials,
-                    }
-                })
-                .boxed()
-        }
-    }
-
-    // only impl PartialEq in tests; not safe to compare root seeds w/o constant
-    // time comparison.
-
-    impl PartialEq for NodeProvisionRequest {
-        fn eq(&self, other: &Self) -> bool {
-            self.root_seed.expose_secret() == other.root_seed.expose_secret()
-                && self.user_pk == other.user_pk
-                && self.node_pk == other.node_pk
-        }
+impl PartialEq for NodeProvisionRequest {
+    fn eq(&self, other: &Self) -> bool {
+        self.root_seed.expose_secret() == other.root_seed.expose_secret()
     }
 }
 
@@ -260,19 +218,13 @@ mod test {
     fn test_node_provision_request_sample() {
         let mut rng = WeakRng::from_u64(12345);
         let root_seed = RootSeed::from_rng(&mut rng);
-        let user_pk = root_seed.derive_user_pk();
-        let node_pk = root_seed.derive_node_pk(&mut rng);
         let gdrive_credentials = GDriveCredentials::dummy();
         let req = NodeProvisionRequest {
-            user_pk,
-            node_pk,
             root_seed,
             gdrive_credentials,
         };
         let actual = serde_json::to_value(&req).unwrap();
         let expected = serde_json::json!({
-            "user_pk": "f2c1477810973cf17a74eccd01b6ed25494457408f8d506bad6c533dd7879331",
-            "node_pk": "0306808498ee778b885aeca86409d3ef286e061c9205f2c6080cba863d09f10e85",
             "root_seed": "0a7d28d375bc07250ca30e015a808a6d70d43c5a55c4d5828cdeacca640191a1",
             "gdrive_credentials": {
                 "client_id": "client_id",
