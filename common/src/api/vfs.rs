@@ -52,21 +52,40 @@ pub struct VfsFile {
     pub data: Vec<u8>,
 }
 
-impl VfsFileId {
-    pub fn new(dirname: String, filename: String) -> Self {
+impl VfsDirectory {
+    pub fn new(dirname: impl Into<String>) -> Self {
         Self {
-            dir: VfsDirectory { dirname },
-            filename,
+            dirname: dirname.into(),
+        }
+    }
+}
+
+impl VfsFileId {
+    pub fn new(
+        dirname: impl Into<String>,
+        filename: impl Into<String>,
+    ) -> Self {
+        Self {
+            dir: VfsDirectory {
+                dirname: dirname.into(),
+            },
+            filename: filename.into(),
         }
     }
 }
 
 impl VfsFile {
-    pub fn new(dirname: String, filename: String, data: Vec<u8>) -> Self {
+    pub fn new(
+        dirname: impl Into<String>,
+        filename: impl Into<String>,
+        data: Vec<u8>,
+    ) -> Self {
         Self {
             id: VfsFileId {
-                dir: VfsDirectory { dirname },
-                filename,
+                dir: VfsDirectory {
+                    dirname: dirname.into(),
+                },
+                filename: filename.into(),
             },
             data,
         }
