@@ -37,6 +37,8 @@ pub mod logger;
 pub mod p2p;
 /// Payments types.
 pub mod payments;
+/// Shared persisted logic.
+pub mod persister;
 /// Chain sync.
 pub mod sync;
 /// `TestEvent` channels and utils.

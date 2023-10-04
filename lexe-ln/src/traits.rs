@@ -27,13 +27,11 @@ use crate::{
 /// Defines all the persister methods needed in shared Lexe LN logic.
 #[async_trait]
 pub trait LexeInnerPersister: Persist<SignerType> {
-    /// Serialize an impl [`Serialize`] to JSON bytes, encrypt the bytes, and
-    /// return the [`VfsFile`] which is (almost) ready to be persisted.
-    fn encrypt_json<S: Serialize>(
+    fn encrypt_json(
         &self,
-        directory: String,
-        filename: String,
-        value: &S,
+        dirname: impl Into<String>,
+        filename: impl Into<String>,
+        value: &impl Serialize,
     ) -> VfsFile;
 
     async fn persist_file(

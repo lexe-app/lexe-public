@@ -25,6 +25,7 @@ use common::{
         payments::{BasicPayment, DbPayment, LxPaymentId, PaymentIndex},
         peer::ChannelPeer,
     },
+    rng::SysRng,
     shutdown::ShutdownChannel,
     vfs_encrypt::VfsMasterKey,
 };
@@ -41,6 +42,7 @@ use lexe_ln::{
         manager::{CheckedPayment, PersistedPayment},
         Payment,
     },
+    persister,
     traits::LexeInnerPersister,
     wallet::db::{DbData, WalletDb},
 };
@@ -60,7 +62,7 @@ use lightning::{
 };
 use serde::Serialize;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
 use crate::{
     alias::{ChainMonitorType, ChannelManagerType},
@@ -106,68 +108,22 @@ impl NodePersister {
 }
 
 impl NodePersister {
-    /// Serializes an LDK [`Writeable`], encrypts the serialized bytes, and
-    /// returns the final [`VfsFile`] which is ready to be persisted.
-    fn encrypt_ldk_writeable<W: Writeable>(
+    /// Sugar for calling [`persister::encrypt_ldk_writeable`].
+    #[inline]
+    fn encrypt_ldk_writeable(
         &self,
-        directory: String,
-        filename: String,
-        writeable: &W,
+        dirname: impl Into<String>,
+        filename: impl Into<String>,
+        writeable: &impl Writeable,
     ) -> VfsFile {
-        self.encrypt_file(directory, filename, &|mut_vec_u8| {
-            // - Writeable can write to any LDK lightning::util::ser::Writer
-            // - Writer is impl'd for all types that impl std::io::Write
-            // - Write is impl'd for Vec<u8>
-            // Therefore a Writeable can be written to a Vec<u8>.
-            writeable.write(mut_vec_u8).expect(
-                "Serialization into an in-memory buffer should never fail",
-            );
-        })
-    }
-
-    fn encrypt_file(
-        &self,
-        directory: String,
-        filename: String,
-        write_data_cb: &dyn Fn(&mut Vec<u8>),
-    ) -> VfsFile {
-        let mut rng = common::rng::SysRng::new();
-        // bind the directory and filename so files can't be moved around. the
-        // owner identity is already bound by the key derivation path.
-        //
-        // this is only a best-effort mitigation however. files in an untrusted
-        // storage can still be deleted or rolled back to an earlier version
-        // without detection currently.
-        let aad = &[directory.as_bytes(), filename.as_bytes()];
-        let data_size_hint = None;
-        let data = self.vfs_master_key.encrypt(
+        let mut rng = SysRng::new();
+        let vfile_id = VfsFileId::new(dirname.into(), filename.into());
+        persister::encrypt_ldk_writeable(
             &mut rng,
-            aad,
-            data_size_hint,
-            write_data_cb,
-        );
-
-        // Print a warning if the ciphertext is greater than 1 MB.
-        // We are interested in large LDK types as well as the WalletDb.
-        let data_len = data.len();
-        if data_len > 1_000_000 {
-            warn!("{directory}/{filename} is >1MB: {data_len} bytes");
-        }
-
-        VfsFile::new(directory, filename, data)
-    }
-
-    /// Decrypt a file from a previous call to `encrypt_file`.
-    fn decrypt_file(
-        &self,
-        directory: &str,
-        filename: &str,
-        data: Vec<u8>,
-    ) -> anyhow::Result<Vec<u8>> {
-        let aad = &[directory.as_bytes(), filename.as_bytes()];
-        self.vfs_master_key
-            .decrypt(aad, data)
-            .context("Failed to decrypt encrypted file")
+            &self.vfs_master_key,
+            vfile_id,
+            writeable,
+        )
     }
 
     async fn get_token(&self) -> anyhow::Result<BearerAuthToken> {
@@ -206,17 +162,13 @@ impl NodePersister {
         let wallet_db = match maybe_file {
             Some(file) => {
                 debug!("Decrypting and deserializing existing wallet db");
-                let db_bytes = self.decrypt_file(
-                    SINGLETON_DIRECTORY,
-                    WALLET_DB_FILENAME,
-                    file.data,
+                let db_data = persister::decrypt_json_file::<DbData>(
+                    &self.vfs_master_key,
+                    &file_id,
+                    file,
                 )?;
 
-                let inner =
-                    serde_json::from_slice::<DbData>(db_bytes.as_slice())
-                        .context("Could not deserialize DbData")?;
-
-                WalletDb::from_inner(inner, wallet_db_persister_tx)
+                WalletDb::from_inner(db_data, wallet_db_persister_tx)
             }
             None => {
                 debug!("No wallet db found, creating a new one");
@@ -291,10 +243,10 @@ impl NodePersister {
 
         let maybe_manager = match maybe_file {
             Some(file) => {
-                let data = self.decrypt_file(
-                    SINGLETON_DIRECTORY,
-                    CHANNEL_MANAGER_FILENAME,
-                    file.data,
+                let data = persister::decrypt_file(
+                    &self.vfs_master_key,
+                    &file_id,
+                    file,
                 )?;
                 let mut state_buf = Cursor::new(&data);
 
@@ -341,28 +293,29 @@ impl NodePersister {
         debug!("Reading channel monitors");
         // TODO Also attempt to read from the cloud
 
-        let cm_dir = VfsDirectory {
+        let dir = VfsDirectory {
             dirname: CHANNEL_MONITORS_DIRECTORY.to_owned(),
         };
         let token = self.get_token().await?;
 
-        let cm_file_vec = self
+        let all_files = self
             .backend_api
-            .get_directory(&cm_dir, token)
+            .get_directory(&dir, token)
             .await
             .context("Could not fetch channel monitors from DB")?;
 
         let mut result = Vec::new();
 
-        for cm_file in cm_file_vec {
-            let given = LxOutPoint::from_str(&cm_file.id.filename)
+        for file in all_files {
+            let given = LxOutPoint::from_str(&file.id.filename)
                 .context("Invalid funding txo string")?;
 
-            let data = self.decrypt_file(
-                CHANNEL_MONITORS_DIRECTORY,
-                &cm_file.id.filename,
-                cm_file.data,
-            )?;
+            let file_id = VfsFileId {
+                dir: dir.clone(),
+                filename: file.id.filename.clone(),
+            };
+            let data =
+                persister::decrypt_file(&self.vfs_master_key, &file_id, file)?;
             let mut state_buf = Cursor::new(&data);
 
             let (blockhash, channel_monitor) =
@@ -407,10 +360,10 @@ impl NodePersister {
 
         let scorer = match maybe_file {
             Some(file) => {
-                let data = self.decrypt_file(
-                    SINGLETON_DIRECTORY,
-                    SCORER_FILENAME,
-                    file.data,
+                let data = persister::decrypt_file(
+                    &self.vfs_master_key,
+                    &file_id,
+                    file,
                 )?;
                 let mut state_buf = Cursor::new(&data);
 
@@ -434,24 +387,24 @@ impl NodePersister {
         logger: LexeTracingLogger,
     ) -> anyhow::Result<NetworkGraphType> {
         debug!("Reading network graph");
-        let ng_file_id = VfsFileId::new(
+        let file_id = VfsFileId::new(
             SINGLETON_DIRECTORY.to_owned(),
             NETWORK_GRAPH_FILENAME.to_owned(),
         );
         let token = self.get_token().await?;
 
-        let ng_file_opt = self
+        let maybe_file = self
             .backend_api
-            .get_file(&ng_file_id, token)
+            .get_file(&file_id, token)
             .await
             .context("Could not fetch network graph from DB")?;
 
-        let ng = match ng_file_opt {
-            Some(ng_file) => {
-                let data = self.decrypt_file(
-                    SINGLETON_DIRECTORY,
-                    NETWORK_GRAPH_FILENAME,
-                    ng_file.data,
+        let network_graph = match maybe_file {
+            Some(file) => {
+                let data = persister::decrypt_file(
+                    &self.vfs_master_key,
+                    &file_id,
+                    file,
                 )?;
                 let mut state_buf = Cursor::new(&data);
 
@@ -464,22 +417,22 @@ impl NodePersister {
             None => NetworkGraph::new(network.0, logger),
         };
 
-        Ok(ng)
+        Ok(network_graph)
     }
 }
 
 #[async_trait]
 impl LexeInnerPersister for NodePersister {
-    fn encrypt_json<S: Serialize>(
+    #[inline]
+    fn encrypt_json(
         &self,
-        directory: String,
-        filename: String,
-        value: &S,
+        dirname: impl Into<String>,
+        filename: impl Into<String>,
+        value: &impl Serialize,
     ) -> VfsFile {
-        self.encrypt_file(directory, filename, &|mut_vec_u8| {
-            serde_json::to_writer(mut_vec_u8, value)
-                .expect("JSON serialization was not implemented correctly");
-        })
+        let mut rng = SysRng::new();
+        let vfile_id = VfsFileId::new(dirname.into(), filename.into());
+        persister::encrypt_json(&mut rng, &self.vfs_master_key, vfile_id, value)
     }
 
     async fn persist_file(
@@ -508,8 +461,8 @@ impl LexeInnerPersister for NodePersister {
         let token = self.get_token().await?;
 
         let file = self.encrypt_ldk_writeable(
-            SINGLETON_DIRECTORY.to_owned(),
-            CHANNEL_MANAGER_FILENAME.to_owned(),
+            SINGLETON_DIRECTORY,
+            CHANNEL_MANAGER_FILENAME,
             channel_manager,
         );
 
@@ -529,8 +482,8 @@ impl LexeInnerPersister for NodePersister {
         let token = self.get_token().await?;
 
         let file = self.encrypt_ldk_writeable(
-            SINGLETON_DIRECTORY.to_owned(),
-            NETWORK_GRAPH_FILENAME.to_owned(),
+            SINGLETON_DIRECTORY,
+            NETWORK_GRAPH_FILENAME,
             network_graph,
         );
 
@@ -549,8 +502,8 @@ impl LexeInnerPersister for NodePersister {
         let token = self.get_token().await?;
 
         let file = self.encrypt_ldk_writeable(
-            SINGLETON_DIRECTORY.to_owned(),
-            SCORER_FILENAME.to_owned(),
+            SINGLETON_DIRECTORY,
+            SCORER_FILENAME,
             scorer_mutex.lock().unwrap().deref(),
         );
 
@@ -697,7 +650,7 @@ impl Persist<SignerType> for NodePersister {
         info!("Persisting new channel {funding_txo}");
 
         let file = self.encrypt_ldk_writeable(
-            CHANNEL_MONITORS_DIRECTORY.to_owned(),
+            CHANNEL_MONITORS_DIRECTORY,
             funding_txo.to_string(),
             monitor,
         );
@@ -766,7 +719,7 @@ impl Persist<SignerType> for NodePersister {
         info!("Updating persisted channel {funding_txo}");
 
         let file = self.encrypt_ldk_writeable(
-            CHANNEL_MONITORS_DIRECTORY.to_owned(),
+            CHANNEL_MONITORS_DIRECTORY,
             funding_txo.to_string(),
             monitor,
         );
