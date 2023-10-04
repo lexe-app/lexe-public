@@ -1,6 +1,9 @@
 # This file describes the OrbStack `linux-builder` VM, used for building
 # x86_64-linux packages on macOS machines at near-native speed.
 # At the bottom are some Lexe customizations.
+#
+# See: <../../README.md#orbstack-linux-builder-setup> for how to update the VM
+# with this config.
 {
   modulesPath,
   pkgs,
@@ -59,6 +62,9 @@
 
     # Sign packages in the VM nix store
     secret-key-files = /etc/nix/store-signing-key
+
+    # Add path to share e.g. cargo target/ dir contents across builds
+    extra-sandbox-paths = /nix/var/cache/lexe
   '';
 
   # collect garbage monthly
@@ -89,6 +95,13 @@
         linux-builder.orb.local-1 \
         /etc/nix/store-signing-key \
         /etc/nix/store-signing-key.pub
+    '';
+  };
+
+  system.activationScripts.add-nix-var-cache-lexe-dir = {
+    text = ''
+      install -m 0755           -d /nix/var/cache
+      install -m 0775 -g nixbld -d /nix/var/cache/lexe
     '';
   };
 }
