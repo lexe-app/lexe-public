@@ -64,10 +64,11 @@
 
     # All lexe public monorepo packages and package helpers, for each host
     # system.
-    systemLexePubPkgs = eachSystem (system: import ./nix/pkgs/default.nix {
-      pkgs = systemPkgs.${system};
-      crane = crane;
-    });
+    systemLexePubPkgs = eachSystem (system:
+      import ./nix/pkgs/default.nix {
+        pkgs = systemPkgs.${system};
+        crane = crane;
+      });
   in {
     # The exposed lexe public monorepo packages.
     # ex: `nix build .#node-release-sgx`

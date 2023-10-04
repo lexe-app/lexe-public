@@ -15,7 +15,6 @@
   sgxCrossEnvBuildHook,
   elf2sgxsFixupHook,
 }:
-
 # TODO(phlip9): add way to add custom nativeBuildInputs/buildInputs
 {
   #
@@ -32,9 +31,7 @@
   isSgx,
   # enable full, verbose build logs
   isVerbose ? false,
-}:
-
-let
+}: let
   cargoTomlContents = builtins.readFile cargoToml;
   crateInfo = craneLib.crateNameFromCargoToml {cargoTomlContents = cargoTomlContents;};
 
