@@ -31,7 +31,7 @@ use common::{
     shutdown::ShutdownChannel,
     vfs_encrypt::VfsMasterKey,
 };
-use gdrive::GvfsRoot;
+use gdrive::{GoogleVfs, GvfsRoot};
 use lexe_ln::{
     alias::{
         BroadcasterType, ChannelMonitorType, FeeEstimatorType,
@@ -65,7 +65,7 @@ use lightning::{
 };
 use serde::Serialize;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, warn};
 
 use crate::{
     alias::{ChainMonitorType, ChannelManagerType},
@@ -87,6 +87,7 @@ pub struct NodePersister {
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
     authenticator: Arc<BearerAuthenticator>,
     vfs_master_key: Arc<VfsMasterKey>,
+    google_vfs: Option<Arc<GoogleVfs>>,
     user: User,
     shutdown: ShutdownChannel,
     channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
@@ -194,10 +195,13 @@ pub(crate) async fn read_gvfs_root(
 }
 
 impl NodePersister {
+    /// Initialize a [`NodePersister`].
+    /// `google_vfs` MUST be [`Some`] if we are running on testnet or mainnet.
     pub(crate) fn new(
         backend_api: Arc<dyn BackendApiClient + Send + Sync>,
         authenticator: Arc<BearerAuthenticator>,
         vfs_master_key: Arc<VfsMasterKey>,
+        google_vfs: Option<Arc<GoogleVfs>>,
         user: User,
         shutdown: ShutdownChannel,
         channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
@@ -206,6 +210,7 @@ impl NodePersister {
             backend_api,
             authenticator,
             vfs_master_key,
+            google_vfs,
             user,
             shutdown,
             channel_monitor_persister_tx,
@@ -339,20 +344,50 @@ impl NodePersister {
         );
         let token = self.get_token().await?;
 
-        let maybe_file = self
-            .backend_api
-            .get_file(&file_id, token)
-            .await
-            .context("Could not fetch channel manager from DB")?;
+        let maybe_chanman_bytes = match self.google_vfs {
+            Some(ref gvfs) => {
+                // Fetch the channel manager from Google *and* Lexe.
+                let (try_maybe_google_file, try_maybe_lexe_file) = tokio::join!(
+                    gvfs.get_file(&file_id),
+                    self.backend_api.get_file(&file_id, token),
+                );
+                let maybe_google_file = try_maybe_google_file
+                    .context("Error fetching from Google")?;
+                let maybe_lexe_file = try_maybe_lexe_file
+                    .context("Error fetching from Lexe (`Some` branch)")?;
 
-        let maybe_manager = match maybe_file {
-            Some(file) => {
-                let data = persister::decrypt_file(
-                    &self.vfs_master_key,
+                self.decrypt_channel_manager_and_fix_errors(
                     &file_id,
-                    file,
-                )?;
-                let mut state_buf = Cursor::new(&data);
+                    gvfs,
+                    maybe_google_file,
+                    maybe_lexe_file,
+                )
+                .await
+                .context("Chan man decryption or error resolution failed")?
+            }
+            // We're running in dev/test. Only fetch from Lexe's DB.
+            None => {
+                let maybe_file = self
+                    .backend_api
+                    .get_file(&file_id, token)
+                    .await
+                    .context("Error fetching from Lexe (`None` branch)")?;
+                maybe_file
+                    .map(|file| {
+                        persister::decrypt_file(
+                            &self.vfs_master_key,
+                            &file_id,
+                            file,
+                        )
+                        .context("Failed to decrypt file (`None` branch)")
+                    })
+                    .transpose()?
+            }
+        };
+
+        let maybe_manager = match maybe_chanman_bytes {
+            Some(chanman_bytes) => {
+                let mut state_buf = Cursor::new(&chanman_bytes);
 
                 let mut channel_monitor_mut_refs = Vec::new();
                 for (_, channel_monitor) in channel_monitors.iter_mut() {
@@ -523,6 +558,122 @@ impl NodePersister {
 
         Ok(network_graph)
     }
+
+    /// Given the [`Option<VfsFile>`]s for the channel manager returned to us by
+    /// both Google and Lexe, get the contained decrypted channel manager bytes.
+    ///
+    /// - If the files are the same, we decrypt either one and return the bytes.
+    /// - If the files are different, or one exists and the other doesn't, we'll
+    ///   reason about likely scenarios and resolve the discrepancy accordingly.
+    /// - If no files were returned, we return [`None`].
+    ///
+    /// This function must ONLY be called by [`read_channel_manager`], as its
+    /// reasoning is tightly coupled with assumptions relating to the channel
+    /// manager. It is extracted as a helper primarily so that the original
+    /// function body is easier to read.
+    ///
+    /// [`read_channel_manager`]: Self::read_channel_manager
+    async fn decrypt_channel_manager_and_fix_errors(
+        &self,
+        file_id: &VfsFileId,
+        gvfs: &GoogleVfs,
+        maybe_google_file: Option<VfsFile>,
+        maybe_lexe_file: Option<VfsFile>,
+    ) -> anyhow::Result<Option<Vec<u8>>> {
+        if maybe_google_file == maybe_lexe_file {
+            // Encrypted files match, therefore the contents match.
+            // Proceed to decrypt either one of them.
+            return maybe_google_file
+                .map(|file| {
+                    persister::decrypt_file(&self.vfs_master_key, file_id, file)
+                })
+                .transpose();
+        }
+        // Uh oh! There was a discrepancy between Google and Lexe.
+        // We'll have to do extra work to fix it.
+
+        // Decrypt the VFS files, thereby validating and authenticating them. We
+        // clone before decryption so that we don't have to re-encrypt the files
+        // later when we fix the discrepancy.
+        let maybe_google_bytes = maybe_google_file
+            .clone()
+            .map(|file| {
+                persister::decrypt_file(&self.vfs_master_key, file_id, file)
+                    .context("Failed to decrypt file from Google")
+            })
+            .transpose()?;
+        let maybe_lexe_bytes = maybe_lexe_file
+            .clone()
+            .map(|file| {
+                persister::decrypt_file(&self.vfs_master_key, file_id, file)
+                    .context("Failed to decrypt file from Lexe")
+            })
+            .transpose()?;
+
+        // Fix the discrepancy.
+        match (maybe_google_file, maybe_lexe_file) {
+            (Some(google_file), Some(_lexe_file)) => {
+                // The file was found in both GDrive and in Lexe's DB, but they
+                // were different. This could happen if a channel manager
+                // persist has a partial failure, updating one copy but not the
+                // other. GDrive offers rollback protection, so it is the
+                // primary source of truth. Update Lexe with the Google version.
+                warn!(
+                    "Data out of sync between Google and Lexe; \
+                      updating Lexe's version"
+                );
+                let token = self.get_token().await?;
+                self.backend_api
+                    .upsert_file(&google_file, token)
+                    .await
+                    .context("Failed to correct Lexe DB version")?;
+            }
+            (Some(ref google_file), None) => {
+                // The channel manager was found in GDrive but not in Lexe's DB.
+                // This should basically never happen unless (1) Lexe somehow
+                // lost their data or (2) the user requested to delete their
+                // account but somehow added the data back to their My Drive.
+                // Let's make some noise and copy the data into Lexe's DB.
+                error!(
+                    "Channel manager found in gdrive but not in Lexe's DB; /
+                    copying to Lexe's DB"
+                );
+                let token = self.get_token().await?;
+                self.backend_api
+                    .create_file(google_file, token)
+                    .await
+                    .context("Failed to correct Lexe DB version")?;
+            }
+            (None, Some(lexe_file)) => {
+                // Lexe has a valid channel manager in its DB, yet none was
+                // returned from a successful API call to Google.
+                // In other words, the user exists but they are missing
+                // *critical* information in their Google Drive.
+                //
+                // We assume that the user has lost their backup (by deleting
+                // the LexeData dir in My Drive despite all the "DO NOT DELETE"
+                // warnings to the contrary) and needs help with funds recovery.
+                // At this point, the user has no choice but to use the channel
+                // manager from Lexe's DB (which may have been rolled back).
+                //
+                // We'll make some noise then copy Lexe's channel manager back
+                // into the user's Google Drive.
+                error!(
+                    "Channel manager found in Lexe's DB but not in \
+                    Google Drive. The user appears to have lost their \
+                    backup. To prevent potential funds loss, we will \
+                    recover using the channel manager from Lexe's DB."
+                );
+                gvfs.create_file(lexe_file)
+                    .await
+                    .context("Failed to copy Lexe's data to GDrive")?;
+            }
+            (None, None) => unreachable!("Early exit checked for equality"),
+        }
+
+        // For security, the GDrive version always takes precedence.
+        Ok(maybe_google_bytes.or(maybe_lexe_bytes))
+    }
 }
 
 #[async_trait]
@@ -562,7 +713,6 @@ impl LexeInnerPersister for NodePersister {
         channel_manager: &W,
     ) -> anyhow::Result<()> {
         debug!("Persisting channel manager");
-        let token = self.get_token().await?;
 
         let file = self.encrypt_ldk_writeable(
             SINGLETON_DIRECTORY,
@@ -570,12 +720,49 @@ impl LexeInnerPersister for NodePersister {
             channel_manager,
         );
 
-        // Channel manager is more important so let's retry a few times
-        self.backend_api
-            .upsert_file_with_retries(&file, token, IMPORTANT_PERSIST_RETRIES)
-            .await
-            .map(|_| ())
-            .context("Could not persist channel manager")
+        let do_google_upsert = async {
+            match self.google_vfs {
+                Some(ref gvfs) => {
+                    let mut try_upsert = gvfs
+                        .upsert_file(file.clone())
+                        .await
+                        .context("(First attempt)");
+
+                    for i in 0..IMPORTANT_PERSIST_RETRIES {
+                        if try_upsert.is_ok() {
+                            break;
+                        } else {
+                            try_upsert = gvfs
+                                .upsert_file(file.clone())
+                                .await
+                                .with_context(|| format!("(Retry #{i})"));
+                        }
+                    }
+
+                    try_upsert.context("Failed to upsert to GVFS")
+                }
+                None => Ok(()),
+            }
+        };
+        let do_lexe_upsert = async {
+            let token = self.get_token().await?;
+            self.backend_api
+                .upsert_file_with_retries(
+                    &file,
+                    token,
+                    IMPORTANT_PERSIST_RETRIES,
+                )
+                .await
+                .map(|_| ())
+                .context("Failed to upsert to Lexe DB")
+        };
+
+        let (try_google_upsert, try_lexe_upsert) =
+            tokio::join!(do_google_upsert, do_lexe_upsert,);
+        try_google_upsert?;
+        try_lexe_upsert?;
+
+        Ok(())
     }
 
     async fn persist_graph(
