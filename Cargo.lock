@@ -2370,6 +2370,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "common",
  "futures",
+ "gdrive",
  "lexe-ln",
  "lightning",
  "lightning-invoice",

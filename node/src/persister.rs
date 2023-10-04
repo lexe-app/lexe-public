@@ -12,6 +12,8 @@ use bitcoin::hash_types::BlockHash;
 use common::{
     api::{
         auth::{BearerAuthToken, BearerAuthenticator},
+        error::{NodeApiError, NodeErrorKind},
+        provision::GDriveCredentials,
         qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIds},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Scid, User,
@@ -25,10 +27,11 @@ use common::{
         payments::{BasicPayment, DbPayment, LxPaymentId, PaymentIndex},
         peer::ChannelPeer,
     },
-    rng::SysRng,
+    rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
     vfs_encrypt::VfsMasterKey,
 };
+use gdrive::GvfsRoot;
 use lexe_ln::{
     alias::{
         BroadcasterType, ChannelMonitorType, FeeEstimatorType,
@@ -74,7 +77,8 @@ use crate::{
 const NETWORK_GRAPH_FILENAME: &str = "network_graph";
 const CHANNEL_MANAGER_FILENAME: &str = "channel_manager";
 const SCORER_FILENAME: &str = "scorer";
-pub(crate) const GDRIVE_CREDENTIALS_FILENAME: &str = "gdrive_credentials";
+const GDRIVE_CREDENTIALS_FILENAME: &str = "gdrive_credentials";
+const GVFS_ROOT_FILENAME: &str = "gvfs_root";
 
 // Non-singleton objects use a fixed directory with dynamic filenames
 pub(crate) const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
@@ -82,17 +86,118 @@ pub(crate) const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 pub struct NodePersister {
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
     authenticator: Arc<BearerAuthenticator>,
-    vfs_master_key: VfsMasterKey,
+    vfs_master_key: Arc<VfsMasterKey>,
     user: User,
     shutdown: ShutdownChannel,
     channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
+}
+
+/// Encrypts the given [`GDriveCredentials`] and upserts it into Lexe's DB.
+// This function is only used during provisioning (hence why we return
+// NodeErrorKind::Provision), but we define it here so that its implementation
+// is not separated from `read_gdrive_credentials`.
+pub(crate) async fn persist_gdrive_credentials(
+    rng: &mut impl Crng,
+    backend_api: &(dyn BackendApiClient + Send + Sync),
+    vfs_master_key: &VfsMasterKey,
+    credentials: &GDriveCredentials,
+    token: BearerAuthToken,
+) -> Result<(), NodeApiError> {
+    let file_id =
+        VfsFileId::new(SINGLETON_DIRECTORY, GDRIVE_CREDENTIALS_FILENAME);
+    let file =
+        persister::encrypt_json(rng, vfs_master_key, file_id, &credentials);
+
+    backend_api
+        .upsert_file(&file, token)
+        .await
+        .map_err(|e| NodeApiError {
+            kind: NodeErrorKind::Provision,
+            msg: format!("Could not persist GDrive credentials: {e:#}"),
+        })?;
+
+    Ok(())
+}
+
+pub(crate) async fn read_gdrive_credentials(
+    backend_api: &(dyn BackendApiClient + Send + Sync),
+    authenticator: &BearerAuthenticator,
+    vfs_master_key: &VfsMasterKey,
+) -> anyhow::Result<GDriveCredentials> {
+    let file_id =
+        VfsFileId::new(SINGLETON_DIRECTORY, GDRIVE_CREDENTIALS_FILENAME);
+    let token = authenticator
+        .get_token(backend_api, SystemTime::now())
+        .await
+        .context("Could not get auth token")?;
+
+    let file = backend_api
+        .get_file(&file_id, token)
+        .await
+        .context("Failed to fetch file")?
+        .context(
+            "No GDriveCredentials VFS file returned from DB; \
+                 perhaps it was never provisioned?",
+        )?;
+
+    let gdrive_credentials =
+        persister::decrypt_json_file(vfs_master_key, &file_id, file)?;
+
+    Ok(gdrive_credentials)
+}
+
+pub(crate) async fn persist_gvfs_root(
+    rng: &mut impl Crng,
+    backend_api: &(dyn BackendApiClient + Send + Sync),
+    authenticator: &BearerAuthenticator,
+    vfs_master_key: &VfsMasterKey,
+    gvfs_root: &GvfsRoot,
+) -> anyhow::Result<()> {
+    let file_id = VfsFileId::new(SINGLETON_DIRECTORY, GVFS_ROOT_FILENAME);
+    let file =
+        persister::encrypt_json(rng, vfs_master_key, file_id, &gvfs_root);
+
+    let token = authenticator
+        .get_token(backend_api, SystemTime::now())
+        .await
+        .context("Could not get auth token")?;
+
+    backend_api
+        .upsert_file(&file, token)
+        .await
+        .context("Could not upsert file")?;
+
+    Ok(())
+}
+
+pub(crate) async fn read_gvfs_root(
+    backend_api: &(dyn BackendApiClient + Send + Sync),
+    authenticator: &BearerAuthenticator,
+    vfs_master_key: &VfsMasterKey,
+) -> anyhow::Result<Option<GvfsRoot>> {
+    let file_id = VfsFileId::new(SINGLETON_DIRECTORY, GVFS_ROOT_FILENAME);
+    let token = authenticator
+        .get_token(backend_api, SystemTime::now())
+        .await
+        .context("Could not get auth token")?;
+
+    let maybe_gvfs_root = backend_api
+        .get_file(&file_id, token)
+        .await
+        .context("Failed to fetch file")?
+        .map(|file| {
+            persister::decrypt_json_file(vfs_master_key, &file_id, file)
+        })
+        .transpose()?;
+
+    Ok(maybe_gvfs_root)
 }
 
 impl NodePersister {
     pub(crate) fn new(
         backend_api: Arc<dyn BackendApiClient + Send + Sync>,
         authenticator: Arc<BearerAuthenticator>,
-        vfs_master_key: VfsMasterKey,
+        vfs_master_key: Arc<VfsMasterKey>,
         user: User,
         shutdown: ShutdownChannel,
         channel_monitor_persister_tx: mpsc::Sender<LxChannelMonitorUpdate>,
@@ -106,9 +211,7 @@ impl NodePersister {
             channel_monitor_persister_tx,
         }
     }
-}
 
-impl NodePersister {
     /// Sugar for calling [`persister::encrypt_ldk_writeable`].
     #[inline]
     fn encrypt_ldk_writeable(

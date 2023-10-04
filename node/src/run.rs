@@ -26,6 +26,7 @@ use futures::{
     future::FutureExt,
     stream::{FuturesUnordered, StreamExt},
 };
+use gdrive::GoogleVfs;
 use lexe_ln::{
     alias::{
         BroadcasterType, EsploraSyncClientType, FeeEstimatorType,
@@ -56,7 +57,7 @@ use lightning::{
 };
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, error, info, info_span, instrument};
+use tracing::{debug, error, info, info_span, instrument, warn};
 
 use crate::{
     alias::{ChainMonitorType, NodePaymentsManagerType},
@@ -66,6 +67,7 @@ use crate::{
     event_handler::NodeEventHandler,
     inactivity_timer::InactivityTimer,
     peer_manager::NodePeerManager,
+    persister,
     persister::NodePersister,
     server,
 };
@@ -185,6 +187,9 @@ impl UserNode {
         tasks.push(refresh_fees_task);
         let (user, root_seed, user_key_pair) =
             try_fetch.context("Failed to fetch provisioned secrets")?;
+        let authenticator =
+            Arc::new(BearerAuthenticator::new(user_key_pair, None));
+        let vfs_master_key = Arc::new(root_seed.derive_vfs_master_key());
 
         // Init LDK transaction sync; share LexeEsplora's connection pool
         // XXX(max): The esplora url passed to LDK is security-critical and thus
@@ -198,10 +203,58 @@ impl UserNode {
         let fee_estimator = esplora.clone();
         let broadcaster = esplora.clone();
 
+        // If we're in staging or prod, fetch the encrypted GDriveCredentials
+        // from Lexe's DB and init the GoogleVfs.
+        // TODO(max): Use this in the persister
+        let _maybe_google_vfs = if cfg!(feature = "test-utils") {
+            None
+        } else {
+            let (try_gdrive_credentials, try_persisted_gvfs_root) = tokio::join!(
+                persister::read_gdrive_credentials(
+                    backend_api.as_ref(),
+                    authenticator.as_ref(),
+                    &vfs_master_key,
+                ),
+                persister::read_gvfs_root(
+                    backend_api.as_ref(),
+                    authenticator.as_ref(),
+                    &vfs_master_key,
+                ),
+            );
+            let gdrive_credentials = try_gdrive_credentials
+                .context("Could not read GDrive credentials")?;
+            let persisted_gvfs_root = try_persisted_gvfs_root
+                // Failing shouldn't block rest of init, but it should be logged
+                .inspect_err(|e| warn!("Could not read gvfs root: {e:#}"))
+                .ok()
+                .flatten();
+
+            let (google_vfs, maybe_new_gvfs_root) = GoogleVfs::init(
+                gdrive_credentials,
+                args.network,
+                persisted_gvfs_root,
+            )
+            .await
+            .context("Failed to init Google VFS")?;
+
+            // If we were given a new GVFS root to persist, persist it.
+            // This should only happen once so it won't impact startup time.
+            if let Some(new_gvfs_root) = maybe_new_gvfs_root {
+                persister::persist_gvfs_root(
+                    rng,
+                    &*backend_api,
+                    &authenticator,
+                    &vfs_master_key,
+                    &new_gvfs_root,
+                )
+                .await
+                .context("Failed to persist new GVFS root")?;
+            }
+
+            Some(Arc::new(google_vfs))
+        };
+
         // Initialize Persister
-        let authenticator =
-            Arc::new(BearerAuthenticator::new(user_key_pair, None));
-        let vfs_master_key = root_seed.derive_vfs_master_key();
         let persister = Arc::new(NodePersister::new(
             backend_api.clone(),
             authenticator,
