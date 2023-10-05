@@ -1,4 +1,5 @@
 use std::{
+    collections::{HashMap, HashSet},
     io::Cursor,
     ops::Deref,
     str::FromStr,
@@ -18,6 +19,7 @@ use common::{
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Scid, User,
     },
+    backoff,
     cli::Network,
     constants::{
         IMPORTANT_PERSIST_RETRIES, SINGLETON_DIRECTORY, WALLET_DB_FILENAME,
@@ -30,7 +32,9 @@ use common::{
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
     vfs_encrypt::VfsMasterKey,
+    Apply,
 };
+use futures::future::TryFutureExt;
 use gdrive::{GoogleVfs, GvfsRoot};
 use lexe_ln::{
     alias::{
@@ -430,18 +434,38 @@ impl NodePersister {
         keys_manager: Arc<LexeKeysManager>,
     ) -> anyhow::Result<Vec<(BlockHash, ChannelMonitorType)>> {
         debug!("Reading channel monitors");
-        // TODO Also attempt to read from the cloud
 
-        let dir = VfsDirectory {
-            dirname: CHANNEL_MONITORS_DIRECTORY.to_owned(),
-        };
+        let dir = VfsDirectory::new(CHANNEL_MONITORS_DIRECTORY);
         let token = self.get_token().await?;
 
-        let all_files = self
-            .backend_api
-            .get_directory(&dir, token)
-            .await
-            .context("Could not fetch channel monitors from DB")?;
+        let all_files = match self.google_vfs {
+            Some(ref gvfs) => {
+                // We're running on testnet/mainnet.
+                // Fetch from both Google Drive and Lexe's DB.
+                let (try_google_files, try_lexe_files) = tokio::join!(
+                    gvfs.get_directory(&dir),
+                    self.backend_api.get_directory(&dir, token),
+                );
+                let google_files =
+                    try_google_files.context("Failed to fetch from Google")?;
+                let lexe_files = try_lexe_files
+                    .context("Failed to fetch from Lexe (`Some` branch)")?;
+
+                self.compare_channel_monitors_and_fix_errors(
+                    gvfs,
+                    google_files,
+                    lexe_files,
+                )
+                .await
+                .context("Monitor error resolution failed")?
+            }
+            // We're running in dev/test. Just fetch from Lexe's DB.
+            None => self
+                .backend_api
+                .get_directory(&dir, token)
+                .await
+                .context("Failed to fetch from Lexe (`None` branch)")?,
+        };
 
         let mut result = Vec::new();
 
@@ -674,6 +698,107 @@ impl NodePersister {
         // For security, the GDrive version always takes precedence.
         Ok(maybe_google_bytes.or(maybe_lexe_bytes))
     }
+
+    /// Compares the channel monitor files returned by both Google and Lexe,
+    /// returning a [`Vec<VfsFile>`] which we consider to be the "correct" set
+    /// of monitors.
+    ///
+    /// If Google and Lexe returned different results, we'll reason about likely
+    /// scenarios in each case and resolve the discrepancies accordingly.
+    ///
+    /// The logic is very similar to [`decrypt_channel_manager_and_fix_errors`],
+    /// but we should resist the urge to extract a function that abstracts over
+    /// both, since there are nuanced differences between them with important
+    /// security implications.
+    ///
+    /// [`decrypt_channel_manager_and_fix_errors`]: Self::decrypt_channel_manager_and_fix_errors
+    async fn compare_channel_monitors_and_fix_errors(
+        &self,
+        gvfs: &GoogleVfs,
+        mut google_files: Vec<VfsFile>,
+        mut lexe_files: Vec<VfsFile>,
+    ) -> anyhow::Result<Vec<VfsFile>> {
+        // Build a hashmap (&file_id -> &file) for both
+        let google_map = google_files
+            .iter()
+            .map(|file| (&file.id, file))
+            .collect::<HashMap<&VfsFileId, &VfsFile>>();
+        let lexe_map = lexe_files
+            .iter()
+            .map(|file| (&file.id, file))
+            .collect::<HashMap<&VfsFileId, &VfsFile>>();
+
+        // Early exit if Google and Lexe returned the same (encrypted) data.
+        if google_map == lexe_map {
+            return Ok(google_files);
+        }
+        // Uh oh! There was a discrepancy between Google's and Lexe's versions.
+        // Since GDrive has rollback protection it is the primary source
+        // of truth; fix any discrepancies by updating Lexe's version.
+
+        // A hashset of all `&VfsFileId`s.
+        let all_file_ids = google_map
+            .keys()
+            .chain(lexe_map.keys())
+            .copied()
+            .collect::<HashSet<&VfsFileId>>();
+
+        // Iterate through all known file ids and fix any discrepancies.
+        let mut to_append_to_google_files = Vec::<VfsFile>::new();
+        let mut to_append_to_lexe_files = Vec::<VfsFile>::new();
+        for file_id in all_file_ids {
+            match (google_map.get(&file_id), lexe_map.get(&file_id)) {
+                (Some(google_file), Some(lexe_file)) => {
+                    // Both Google and Lexe contained the file.
+                    if google_file != lexe_file {
+                        warn!("Found a monitor discrepancy: {file_id}");
+                        // Update Lexe's version.
+                        let token = self.get_token().await?;
+                        self.backend_api
+                            .upsert_file(google_file, token)
+                            .await
+                            .with_context(|| format!("{file_id}"))
+                            .context("Failed to fix Lexe's version")?;
+                    }
+                }
+                (Some(google_file), None) => {
+                    // Lexe didn't have the file. Copy it to Lexe.
+                    let token = self.get_token().await?;
+                    error!("Lexe DB is missing a monitor: {file_id}");
+                    self.backend_api
+                        .create_file(google_file, token)
+                        .await
+                        .with_context(|| format!("{file_id}"))
+                        .context("Failed to fix Lexe's version")?;
+                    to_append_to_lexe_files.push((*google_file).clone());
+                }
+                (None, Some(lexe_file)) => {
+                    // Google didn't have the file; restore from Lexe's version.
+                    // This case could be triggered by a deletion race where
+                    // deleting from Google succeeds but the node crashes before
+                    // it could be deleted from Lexe's DB. Since this is rare,
+                    // we should restore the monitor from Lexe's version in case
+                    // the deletion from Google was done on accident.
+                    // NOTE: if a malicious Lexe is intentionally trying to
+                    // resurface a previously-deleted monitor, that 'attack'
+                    // doesn't actually accomplish anything.
+                    error!("Restoring monitor from Lexe: {file_id}");
+                    gvfs.create_file((*lexe_file).clone())
+                        .await
+                        .with_context(|| format!("{file_id}"))
+                        .context("Failed to restore to Google")?;
+                    to_append_to_google_files.push((*lexe_file).clone());
+                }
+                (None, None) => unreachable!("HashSet was wrong"),
+            }
+        }
+
+        google_files.append(&mut to_append_to_google_files);
+        lexe_files.append(&mut to_append_to_lexe_files);
+
+        // All discrepancies have been fixed. Return the files.
+        Ok(google_files)
+    }
 }
 
 #[async_trait]
@@ -720,49 +845,14 @@ impl LexeInnerPersister for NodePersister {
             channel_manager,
         );
 
-        let do_google_upsert = async {
-            match self.google_vfs {
-                Some(ref gvfs) => {
-                    let mut try_upsert = gvfs
-                        .upsert_file(file.clone())
-                        .await
-                        .context("(First attempt)");
-
-                    for i in 0..IMPORTANT_PERSIST_RETRIES {
-                        if try_upsert.is_ok() {
-                            break;
-                        } else {
-                            try_upsert = gvfs
-                                .upsert_file(file.clone())
-                                .await
-                                .with_context(|| format!("(Retry #{i})"));
-                        }
-                    }
-
-                    try_upsert.context("Failed to upsert to GVFS")
-                }
-                None => Ok(()),
-            }
-        };
-        let do_lexe_upsert = async {
-            let token = self.get_token().await?;
-            self.backend_api
-                .upsert_file_with_retries(
-                    &file,
-                    token,
-                    IMPORTANT_PERSIST_RETRIES,
-                )
-                .await
-                .map(|_| ())
-                .context("Failed to upsert to Lexe DB")
-        };
-
-        let (try_google_upsert, try_lexe_upsert) =
-            tokio::join!(do_google_upsert, do_lexe_upsert,);
-        try_google_upsert?;
-        try_lexe_upsert?;
-
-        Ok(())
+        upsert_to_gdrive_and_lexe(
+            self.backend_api.clone(),
+            self.authenticator.clone(),
+            self.google_vfs.clone(),
+            file,
+        )
+        .await
+        .context("upsert_to_gdrive_and_lexe failed")
     }
 
     async fn persist_graph(
@@ -948,27 +1038,19 @@ impl Persist<SignerType> for NodePersister {
 
         // Generate a future for making a few attempts to persist the channel
         // monitor. It will be executed by the channel monitor persistence task.
-        let backend_api = self.backend_api.clone();
-        let authenticator = self.authenticator.clone();
-        let api_call_fut = Box::pin(async move {
-            // TODO(max): Also attempt to persist to cloud backup
-            let token = authenticator
-                .get_token(backend_api.as_ref(), SystemTime::now())
-                .await
-                .context("Could not get token")?;
-            // We upsert (instead of create) due to an occasional race where a
-            // channel monitor persist succeeds and the channel is resumed but
-            // the node shuts down before the channel manager is repersisted.
-            backend_api
-                .upsert_file_with_retries(
-                    &file,
-                    token,
-                    IMPORTANT_PERSIST_RETRIES,
-                )
-                .await
-                .map(|_| ())
-                .context("Couldn't persist updated channel monitor")
-        });
+        //
+        // NOTE that despite this being a new monitor, we upsert instead of
+        // create due to an occasional race where a channel monitor persist
+        // succeeds but the node shuts down before the channel manager is
+        // repersisted, causing the create_file call to fail at the next boot.
+        let api_call_fut = upsert_to_gdrive_and_lexe(
+            self.backend_api.clone(),
+            self.authenticator.clone(),
+            self.google_vfs.clone(),
+            file,
+        )
+        .map_err(|e| e.context("Failed to persist new channel monitor"))
+        .apply(Box::pin);
 
         let sequence_num = None;
         let kind = ChannelMonitorUpdateKind::New;
@@ -1017,24 +1099,14 @@ impl Persist<SignerType> for NodePersister {
 
         // Generate a future for making a few attempts to persist the channel
         // monitor. It will be executed by the channel monitor persistence task.
-        let backend_api = self.backend_api.clone();
-        let authenticator = self.authenticator.clone();
-        let api_call_fut = Box::pin(async move {
-            // TODO(max): Also attempt to persist to cloud backup
-            let token = authenticator
-                .get_token(backend_api.as_ref(), SystemTime::now())
-                .await
-                .context("Could not get token")?;
-            backend_api
-                .upsert_file_with_retries(
-                    &file,
-                    token,
-                    IMPORTANT_PERSIST_RETRIES,
-                )
-                .await
-                .map(|_| ())
-                .context("Couldn't persist updated channel monitor")
-        });
+        let api_call_fut = upsert_to_gdrive_and_lexe(
+            self.backend_api.clone(),
+            self.authenticator.clone(),
+            self.google_vfs.clone(),
+            file,
+        )
+        .map_err(|e| e.context("Failed to persist updated channel monitor"))
+        .apply(Box::pin);
 
         let sequence_num = update.as_ref().map(|u| u.update_id);
         let kind = ChannelMonitorUpdateKind::Updated;
@@ -1063,4 +1135,62 @@ impl Persist<SignerType> for NodePersister {
         // which freezes the channel until persistence succeeds.
         ChannelMonitorUpdateStatus::InProgress
     }
+}
+
+/// Helper to upsert an important VFS file to both Google Drive and Lexe's DB.
+///
+/// - The upsert to GDrive is skipped if `maybe_google_vfs` is [`None`].
+/// - Up to [`IMPORTANT_PERSIST_RETRIES`] additional attempts will be made if
+///   the first attempt fails.
+async fn upsert_to_gdrive_and_lexe(
+    backend_api: Arc<dyn BackendApiClient + Send + Sync>,
+    authenticator: Arc<BearerAuthenticator>,
+    maybe_google_vfs: Option<Arc<GoogleVfs>>,
+    file: VfsFile,
+) -> anyhow::Result<()> {
+    let do_google_upsert = async {
+        match maybe_google_vfs {
+            Some(gvfs) => {
+                let mut try_upsert = gvfs
+                    .upsert_file(file.clone())
+                    .await
+                    .context("(First attempt)");
+
+                let mut backoff_iter = backoff::get_backoff_iter();
+                for i in 0..IMPORTANT_PERSIST_RETRIES {
+                    if try_upsert.is_ok() {
+                        break;
+                    }
+
+                    tokio::time::sleep(backoff_iter.next().unwrap()).await;
+
+                    try_upsert = gvfs
+                        .upsert_file(file.clone())
+                        .await
+                        .with_context(|| format!("(Retry #{i})"));
+                }
+
+                try_upsert.context("Failed to upsert to GVFS")
+            }
+            None => Ok(()),
+        }
+    };
+    let do_lexe_upsert = async {
+        let token = authenticator
+            .get_token(backend_api.as_ref(), SystemTime::now())
+            .await
+            .context("Could not get token")?;
+        backend_api
+            .upsert_file_with_retries(&file, token, IMPORTANT_PERSIST_RETRIES)
+            .await
+            .map(|_| ())
+            .context("Failed to upsert to Lexe DB")
+    };
+
+    let (try_google_upsert, try_lexe_upsert) =
+        tokio::join!(do_google_upsert, do_lexe_upsert,);
+    try_google_upsert?;
+    try_lexe_upsert?;
+
+    Ok(())
 }
