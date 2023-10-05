@@ -14,6 +14,8 @@
 //! Growable or shrinkable collections of objects (e.g. channel monitors), are
 //! stored in their own "directory", e.g. `channel_monitors/<funding_txo>`.
 
+use std::{fmt, fmt::Display};
+
 use serde::{Deserialize, Serialize};
 
 use crate::hexstr_or_bytes;
@@ -89,6 +91,14 @@ impl VfsFile {
             },
             data,
         }
+    }
+}
+
+impl Display for VfsFileId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let dirname = &self.dir.dirname;
+        let filename = &self.filename;
+        write!(f, "{dirname}/{filename}")
     }
 }
 
