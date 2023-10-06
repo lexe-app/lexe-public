@@ -760,17 +760,23 @@ async fn fetch_provisioned_secrets(
         machine_id,
     };
 
-    let (user_res, sealed_seed_res) = tokio::join!(
+    let (try_maybe_user, try_maybe_sealed_seed) = tokio::join!(
         backend_api.get_user(user_pk),
         backend_api.get_sealed_seed(sealed_seed_id)
     );
 
-    let user_opt = user_res.context("Error while fetching user")?;
-    let sealed_seed_opt =
-        sealed_seed_res.context("Error while fetching sealed seed")?;
+    let maybe_user = try_maybe_user.context("Error while fetching user")?;
+    let maybe_sealed_seed =
+        try_maybe_sealed_seed.context("Error while fetching sealed seed")?;
 
-    match (user_opt, sealed_seed_opt) {
+    match (maybe_user, maybe_sealed_seed) {
         (Some(user), Some(sealed_seed)) => {
+            let db_user_pk = user.user_pk;
+            ensure!(
+                user_pk == db_user_pk,
+                "UserPk {db_user_pk} from DB didn't match {user_pk} from CLI"
+            );
+
             let root_seed = sealed_seed
                 .unseal_and_validate(&measurement, &machine_id)
                 .context("Could not validate or unseal sealed seed")?;
@@ -780,11 +786,9 @@ async fn fetch_provisioned_secrets(
                 UserPk::from_ref(user_key_pair.public_key().as_inner());
 
             ensure!(
-                &user.user_pk == derived_user_pk,
-                "The user_pk derived from the sealed seed '{}' doesn't match \
-                 the expected user_pk '{}'",
-                derived_user_pk,
-                user.user_pk,
+                &user_pk == derived_user_pk,
+                "The user_pk derived from the sealed seed {derived_user_pk} \
+                doesn't match the user_pk from CLI {user_pk} "
             );
 
             Ok((user, root_seed, user_key_pair))
