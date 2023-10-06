@@ -232,6 +232,7 @@ impl App {
         node_client
             .provision(NodeProvisionRequest {
                 root_seed: root_seed_clone,
+                network: config.network,
                 gdrive_credentials,
             })
             .await
