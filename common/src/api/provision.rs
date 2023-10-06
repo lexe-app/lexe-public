@@ -1,3 +1,5 @@
+use std::fmt;
+
 use anyhow::{ensure, Context};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -16,7 +18,7 @@ use crate::{
 
 /// The client sends this provisioning request to the node.
 #[derive(Serialize, Deserialize)]
-#[cfg_attr(test, derive(Debug, Arbitrary))]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct NodeProvisionRequest {
     /// The secret root seed the client wants to provision into the node.
     pub root_seed: RootSeed,
@@ -28,7 +30,7 @@ pub struct NodeProvisionRequest {
 /// Google Drive v3 API and periodically refreshing the contained access token.
 // Contains sensitive info so we only derive Debug in tests
 #[derive(Clone, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Debug, Arbitrary))]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct GDriveCredentials {
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
     pub client_id: String,
@@ -194,6 +196,27 @@ impl SealedSeed {
 
         // Validation complete, everything OK.
         Ok(root_seed)
+    }
+}
+
+impl fmt::Debug for NodeProvisionRequest {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("NodeProvisionRequest { .. }")
+    }
+}
+
+impl fmt::Debug for GDriveCredentials {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let client_id = &self.client_id;
+        let expires_at = &self.expires_at;
+        write!(
+            f,
+            "GDriveCredentials {{ \
+                client_id: {client_id}, \
+                expires_at: {expires_at}, \
+                .. \
+            }}"
+        )
     }
 }
 
