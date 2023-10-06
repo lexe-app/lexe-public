@@ -232,8 +232,11 @@ mod test {
     use std::sync::Arc;
 
     use common::{
-        api::provision::GDriveCredentials, attest,
-        attest::verify::EnclavePolicy, cli::node::ProvisionArgs, rng::WeakRng,
+        api::provision::GDriveCredentials,
+        attest,
+        attest::verify::EnclavePolicy,
+        cli::{node::ProvisionArgs, Network},
+        rng::WeakRng,
         root_seed::RootSeed,
     };
     use tokio_rustls::rustls;
@@ -317,8 +320,10 @@ mod test {
 
             // client sends provision request to node
             let gdrive_credentials = GDriveCredentials::dummy();
+            let network = Network::REGTEST;
             let provision_req = NodeProvisionRequest {
                 root_seed,
+                network,
                 gdrive_credentials,
             };
             let client = reqwest::Client::builder()

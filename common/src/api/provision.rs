@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::test_utils::arbitrary;
 use crate::{
     api::UserPk,
+    cli::Network,
     enclave::{self, MachineId, Measurement, Sealed},
     hexstr_or_bytes,
     rng::Crng,
@@ -22,6 +23,8 @@ use crate::{
 pub struct NodeProvisionRequest {
     /// The secret root seed the client wants to provision into the node.
     pub root_seed: RootSeed,
+    /// The [`Network`] that this [`RootSeed`] should be bound to.
+    pub network: Network,
     /// The credentials required to store data in Google Drive.
     pub gdrive_credentials: GDriveCredentials,
 }
@@ -242,13 +245,16 @@ mod test {
         let mut rng = WeakRng::from_u64(12345);
         let root_seed = RootSeed::from_rng(&mut rng);
         let gdrive_credentials = GDriveCredentials::dummy();
+        let network = Network::REGTEST;
         let req = NodeProvisionRequest {
             root_seed,
+            network,
             gdrive_credentials,
         };
         let actual = serde_json::to_value(&req).unwrap();
         let expected = serde_json::json!({
             "root_seed": "0a7d28d375bc07250ca30e015a808a6d70d43c5a55c4d5828cdeacca640191a1",
+            "network": "regtest",
             "gdrive_credentials": {
                 "client_id": "client_id",
                 "client_secret": "client_secret",
