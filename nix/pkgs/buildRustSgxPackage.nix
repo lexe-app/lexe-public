@@ -35,21 +35,10 @@
   cargoTomlContents = builtins.readFile cargoToml;
   crateInfo = craneLib.crateNameFromCargoToml {cargoTomlContents = cargoTomlContents;};
 
-  # include hard-coded CA certs
-  miscFilter = path: type: (
-    let
-      pathStr = builtins.toString path;
-      fileName = builtins.baseNameOf pathStr;
-    in (lib.hasSuffix ".der" fileName)
-  );
-
-  # strip all files not needed for Rust build
-  srcFilter = path: type:
-    (craneLib.filterCargoSources path type) || (miscFilter path type);
-
   src = lib.cleanSourceWith {
-    src = lib.cleanSource workspaceRoot;
-    filter = srcFilter;
+    src = workspaceRoot;
+    filter = path: type:
+      (craneLib.filterCargoSources path type) || (lib.hasSuffix ".der" path);
   };
 
   commonPackageArgs = {
