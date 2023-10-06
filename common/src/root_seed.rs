@@ -312,17 +312,32 @@ impl Serialize for RootSeed {
 }
 
 #[cfg(any(test, feature = "test-utils"))]
-impl proptest::arbitrary::Arbitrary for RootSeed {
-    type Strategy = proptest::strategy::BoxedStrategy<Self>;
-    type Parameters = ();
+mod test_impls {
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
 
-    fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-        use proptest::strategy::Strategy;
+    use super::*;
 
-        proptest::arbitrary::any::<[u8; 32]>()
-            .prop_map(|buf| Self::new(Secret::new(buf)))
-            .no_shrink()
-            .boxed()
+    impl Arbitrary for RootSeed {
+        type Strategy = BoxedStrategy<Self>;
+        type Parameters = ();
+
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            any::<[u8; 32]>()
+                .prop_map(|buf| Self::new(Secret::new(buf)))
+                .no_shrink()
+                .boxed()
+        }
+    }
+
+    // only impl PartialEq in tests; not safe to compare root seeds w/o constant
+    // time comparison.
+    impl PartialEq for RootSeed {
+        fn eq(&self, other: &Self) -> bool {
+            self.expose_secret() == other.expose_secret()
+        }
     }
 }
 

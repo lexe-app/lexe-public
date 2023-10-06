@@ -178,6 +178,7 @@ async fn provision_handler(
     let sealed_seed_res = SealedSeed::seal_from_root_seed(
         &mut ctx.rng,
         &req.root_seed,
+        req.network,
         ctx.measurement,
         enclave::machine_id(),
     );

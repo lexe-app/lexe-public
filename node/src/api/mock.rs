@@ -27,6 +27,7 @@ use common::{
         Empty, NodePk, Scid, User, UserPk,
     },
     byte_str::ByteStr,
+    cli::Network,
     constants::{self, SINGLETON_DIRECTORY},
     ed25519, enclave,
     ln::payments::{DbPayment, LxPaymentId, PaymentIndex, PaymentStatus},
@@ -53,6 +54,7 @@ fn make_sealed_seed(root_seed: &RootSeed) -> SealedSeed {
     SealedSeed::seal_from_root_seed(
         &mut SysRng::new(),
         root_seed,
+        Network::REGTEST,
         enclave::measurement(),
         enclave::machine_id(),
     )

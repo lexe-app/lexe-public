@@ -1,9 +1,9 @@
-use std::fmt;
+use std::{borrow::Cow, fmt};
 
 use anyhow::{ensure, Context};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
-use secrecy::ExposeSecret;
+use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
@@ -11,7 +11,8 @@ use crate::test_utils::arbitrary;
 use crate::{
     api::UserPk,
     cli::Network,
-    enclave::{self, MachineId, Measurement, Sealed},
+    enclave,
+    enclave::{MachineId, Measurement, Sealed},
     hexstr_or_bytes,
     rng::Crng,
     root_seed::RootSeed,
@@ -19,7 +20,8 @@ use crate::{
 
 /// The client sends this provisioning request to the node.
 #[derive(Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
+// Only impl PartialEq in tests since root seed comparison is not constant time.
+#[cfg_attr(test, derive(PartialEq, Arbitrary))]
 pub struct NodeProvisionRequest {
     /// The secret root seed the client wants to provision into the node.
     pub root_seed: RootSeed,
@@ -31,9 +33,8 @@ pub struct NodeProvisionRequest {
 
 /// A complete set of OAuth2 credentials which allows making requests to the
 /// Google Drive v3 API and periodically refreshing the contained access token.
-// Contains sensitive info so we only derive Debug in tests
 #[derive(Clone, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(test, derive(PartialEq, Arbitrary))]
 pub struct GDriveCredentials {
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
     pub client_id: String,
@@ -111,9 +112,13 @@ pub struct SealedSeedId {
 /// platform enclave keys that are software and version specific.
 ///
 /// This struct is returned directly from the DB so it should be considered as
-/// untrusted and not-yet-validated. To validate and convert a [`SealedSeed`]
-/// into a [`RootSeed`], use [`unseal_and_validate`]. To encrypt an existing
-/// [`RootSeed`] into a [`SealedSeed`], use [`seal_from_root_seed`].
+/// untrusted and not-yet-validated.
+/// - To validate and convert a [`SealedSeed`] into a [`RootSeed`], use
+///   [`unseal_and_validate`]. The returned [`RootSeed`] is bound to the
+///   returned [`Network`], which can then be used to validate the [`Network`]
+///   given by an untrusted source (e.g. by the Lexe operators via CLI args).
+/// - To encrypt an existing [`RootSeed`] (and [`Network`]) into a
+///   [`SealedSeed`], use [`seal_from_root_seed`].
 ///
 /// See [`crate::enclave::seal`] for more implementation details.
 ///
@@ -126,6 +131,20 @@ pub struct SealedSeed {
     /// The root seed, fully sealed + serialized.
     #[serde(with = "hexstr_or_bytes")]
     pub ciphertext: Vec<u8>,
+}
+
+/// The data that is actually sealed. This struct is serialized to JSON bytes
+/// before it is encrypted. By sealing the [`Network`] along with the
+/// [`RootSeed`], the root seed is bound to this [`Network`]. This allows us to
+/// validate the [`Network`] that Lexe passes in via CLI args, preventing any
+/// attacks that might be triggered by supplying the wrong network.
+#[derive(Serialize, Deserialize)]
+// Not safe to allow non-constant time comparisons outside of tests
+#[cfg_attr(test, derive(PartialEq))]
+struct RootSeedWithNetwork<'a> {
+    #[serde(with = "hexstr_or_bytes")]
+    root_seed: Cow<'a, [u8]>,
+    network: Network,
 }
 
 impl SealedSeed {
@@ -150,13 +169,24 @@ impl SealedSeed {
     pub fn seal_from_root_seed<R: Crng>(
         rng: &mut R,
         root_seed: &RootSeed,
+        network: Network,
         measurement: Measurement,
         machine_id: MachineId,
     ) -> anyhow::Result<Self> {
-        // Construct the root seed ciphertext
-        let root_seed_ref = root_seed.expose_secret().as_slice();
-        let sealed = enclave::seal(rng, Self::LABEL, root_seed_ref.into())
-            .context("Failed to seal root seed")?;
+        // RootSeedWithNetwork -> JSON bytes
+        let seed_w_network = RootSeedWithNetwork {
+            root_seed: Cow::Borrowed(root_seed.expose_secret().as_slice()),
+            network,
+        };
+        let json_bytes = serde_json::to_vec(&seed_w_network)
+            .context("Failed to serialize RootSeedWithMetadata")?;
+
+        // JSON bytes -> Sealed ciphertext
+        // enclave::seal will encrypt the (Cow::Owned) json bytes in place,
+        // thereby disposing of the sensitive root seed bytes.
+        let json_bytes_cow = Cow::Owned(json_bytes);
+        let sealed = enclave::seal(rng, Self::LABEL, json_bytes_cow)
+            .context("Failed to seal root seed w network")?;
         let ciphertext = sealed.serialize();
 
         // Derive / compute the other fields
@@ -169,7 +199,7 @@ impl SealedSeed {
         self,
         expected_measurement: &Measurement,
         expected_machine_id: &MachineId,
-    ) -> anyhow::Result<RootSeed> {
+    ) -> anyhow::Result<(RootSeed, Network)> {
         // Validate SGX fields
         ensure!(
             &self.id.measurement == expected_measurement,
@@ -180,15 +210,27 @@ impl SealedSeed {
             "Saved machine id doesn't match current machine id",
         );
 
-        // Unseal
+        // Ciphertext -unseal-> JSON bytes
         let sealed = Sealed::deserialize(&self.ciphertext)
-            .context("Failed to deserialize sealed seed")?;
-        let unsealed_seed = enclave::unseal(Self::LABEL, sealed)
+            .context("Failed to deserialize Sealed")?;
+        let unsealed_json_bytes = enclave::unseal(Self::LABEL, sealed)
             .context("Failed to unseal provisioned secrets")?;
 
-        // Reconstruct root seed
-        let root_seed = RootSeed::try_from(unsealed_seed.as_slice())
-            .context("Failed to deserialize root seed")?;
+        // JSON-deserialize -> RootSeedWithNetwork
+        let seed_w_network = serde_json::from_slice::<RootSeedWithNetwork>(
+            unsealed_json_bytes.as_slice(),
+        )
+        .context("Failed to JSON-deserialize unsealed bytes")?;
+        let network = seed_w_network.network;
+
+        // Ensure `RootSeedWithNetwork::root_seed` bytes are zeroized upon drop
+        let secret_root_seed =
+            Secret::new(seed_w_network.root_seed.into_owned());
+
+        // &Secret<Vec<u8>> -> RootSeed
+        let root_seed =
+            RootSeed::try_from(secret_root_seed.expose_secret().as_slice())
+                .context("Failed to deserialize root seed from secret bytes")?;
 
         // Validate user_pk
         let derived_user_pk = root_seed.derive_user_pk();
@@ -198,7 +240,7 @@ impl SealedSeed {
         );
 
         // Validation complete, everything OK.
-        Ok(root_seed)
+        Ok((root_seed, network))
     }
 }
 
@@ -223,12 +265,40 @@ impl fmt::Debug for GDriveCredentials {
     }
 }
 
-// only impl PartialEq in tests; not safe to compare root seeds w/o constant
-// time comparison.
+impl fmt::Debug for RootSeedWithNetwork<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Avoid formatting secrets.
+        let network = &self.network;
+        write!(
+            f,
+            "RootSeedWithNetwork {{\
+            network: {network}, \
+            root_seed: RootSeed(..) \
+        }}"
+        )
+    }
+}
+
 #[cfg(test)]
-impl PartialEq for NodeProvisionRequest {
-    fn eq(&self, other: &Self) -> bool {
-        self.root_seed.expose_secret() == other.root_seed.expose_secret()
+mod test_impls {
+    use proptest::{
+        arbitrary::{any, Arbitrary},
+        strategy::{BoxedStrategy, Strategy},
+    };
+
+    use super::*;
+
+    impl Arbitrary for RootSeedWithNetwork<'static> {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+        fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
+            (any::<Vec<u8>>(), any::<Network>())
+                .prop_map(|(root_seed_vec, network)| RootSeedWithNetwork {
+                    root_seed: Cow::from(root_seed_vec),
+                    network,
+                })
+                .boxed()
+        }
     }
 }
 
@@ -276,21 +346,23 @@ mod test {
         let measurement = enclave::measurement();
         let machine_id = enclave::machine_id();
 
-        proptest!(|(mut rng: WeakRng)| {
+        proptest!(|(mut rng: WeakRng, network1: Network)| {
             let root_seed1 = RootSeed::from_rng(&mut rng);
 
             let sealed_seed = SealedSeed::seal_from_root_seed(
                 &mut rng,
                 &root_seed1,
+                network1,
                 measurement,
                 machine_id,
             )
             .unwrap();
 
-            let root_seed2 = sealed_seed
+            let (root_seed2, network2) = sealed_seed
                 .unseal_and_validate(&measurement, &machine_id)
                 .unwrap();
 
+            assert_eq!(network1, network2);
             assert_eq!(
                 root_seed1.expose_secret(),
                 root_seed2.expose_secret(),
@@ -301,5 +373,10 @@ mod test {
     #[test]
     fn test_sealed_seed_id_roundtrip() {
         roundtrip::query_string_roundtrip_proptest::<SealedSeedId>();
+    }
+
+    #[test]
+    fn test_root_seed_json_roundtrip() {
+        roundtrip::json_value_canonical_proptest::<RootSeedWithNetwork>();
     }
 }
