@@ -10,7 +10,7 @@ use common::{
         auth::BearerAuthenticator, def::NodeRunnerApi, ports::UserPorts,
         provision::SealedSeedId, rest, Scid, User, UserPk,
     },
-    cli::{node::RunArgs, LspInfo},
+    cli::{node::RunArgs, LspInfo, Network},
     client::tls::node_run_tls_config,
     constants::{DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
     ed25519,
@@ -180,6 +180,7 @@ impl UserNode {
                 user_pk,
                 measurement,
                 machine_id,
+                args.network,
             ),
         );
         let (esplora, refresh_fees_task) =
@@ -751,6 +752,7 @@ async fn fetch_provisioned_secrets(
     user_pk: UserPk,
     measurement: Measurement,
     machine_id: MachineId,
+    cli_network: Network,
 ) -> anyhow::Result<(User, RootSeed, ed25519::KeyPair)> {
     debug!(%user_pk, %measurement, %machine_id, "fetching provisioned secrets");
 
@@ -777,9 +779,15 @@ async fn fetch_provisioned_secrets(
                 "UserPk {db_user_pk} from DB didn't match {user_pk} from CLI"
             );
 
-            let root_seed = sealed_seed
+            let (root_seed, unsealed_network) = sealed_seed
                 .unseal_and_validate(&measurement, &machine_id)
                 .context("Could not validate or unseal sealed seed")?;
+
+            ensure!(
+                unsealed_network == cli_network,
+                "Unsealed network didn't match network given by CLI: \
+                {unsealed_network} != {cli_network}"
+            );
 
             let user_key_pair = root_seed.derive_user_key_pair();
             let derived_user_pk =
