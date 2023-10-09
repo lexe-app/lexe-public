@@ -79,6 +79,10 @@ $ cat result/bin/node.measurement
 TODO(phlip9): flesh this out more once the app provisioning UI flow is more
 functional.
 
+If you're an engineer running `nix build` frequently and want faster incremental
+cargo builds in `nix`, consider following
+[these setup instructions](#fast-incremental-cargo-builds-in-nix).
+
 ## Dev Setup (manual)
 
 Install `rustup`
@@ -181,8 +185,9 @@ See full CLI options with:
 
 ## OrbStack linux-builder setup
 
-Follow these instructions if you're running on macOS and want to setup an
+Follow these instructions if you're running on macOS and want to setup anFast incremental cargo builds in `nix`
 [OrbStack](https://orbstack.dev/) x86_64 linux-builder VM.
+
 
 Download OrbStack. Either follow <https://orbstack.dev/download> or just install
 with homebrew:
@@ -277,6 +282,43 @@ $ orb shell -m linux-builder
 (linux-builder)$ cat ./result/bin/node.measurement
 bdd9eec1fbd625eec3b2a9e2a6072f60240c930b0867b47199730b320c148e8c
 ```
+
+## Fast incremental cargo builds in `nix`
+
+Follow these steps if:
+
+- You're an engineer working on the rust+nix build.
+- You're running `nix build` a lot and want faster incremental cargo builds.
+
+We'll be giving the nix build sandbox access to a shared, global cargo `target/`
+directory so we can fully reuse intermediate cargo build artifacts across
+`nix build` invocations.
+
+If you're using the `linux-builder` VM, then skip this; it's already setup for
+you.
+
+```bash
+$ sudo install -m 0755           -d /var/cache
+$ sudo install -m 2770 -g nixbld -d /var/cache/lexe
+
+# (linux)
+$ sudo setfacl --default -m group:nixbld:rwx /var/cache/lexe
+$ echo "extra-sandbox-paths = /var/cache/lexe" | sudo tee -a /etc/nix/nix.conf
+$ sudo systemctl restart nix-daemon.service
+
+# (macOS)
+$ sudo /bin/chmod +a "group:nixbld allow read,write,execute,delete,list,search,add_file,add_subdirectory,delete_child,readattr,writeattr,readextattr,writeextattr,chown,file_inherit,directory_inherit" /var/cache/lexe
+$ echo "extra-sandbox-paths = /private/var/cache/lexe" | sudo tee -a /etc/nix/nix.conf
+$ sudo launchctl kickstart -k system/org.nixos.nix-daemon
+```
+
+Here we're creating a new `/var/cache/lexe` directory that's only accessible to
+members of the `nixbld` group. We also set some special file settings so that
+all new files and directories created in `/var/cache/lexe` are automatically
+read/write/exec by all `nixbld` group members.
+
+Finally we tell `nix` to include the `/var/cache/lexe` directory when building
+packages the build sandbox.
 
 ## License
 
