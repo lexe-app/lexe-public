@@ -64,7 +64,7 @@
     secret-key-files = /etc/nix/store-signing-key
 
     # Add path to share e.g. cargo target/ dir contents across builds
-    extra-sandbox-paths = /nix/var/cache/lexe
+    extra-sandbox-paths = /var/cache/lexe
   '';
 
   # collect garbage monthly
@@ -100,8 +100,9 @@
 
   system.activationScripts.add-nix-var-cache-lexe-dir = {
     text = ''
-      install -m 0755           -d /nix/var/cache
-      install -m 0775 -g nixbld -d /nix/var/cache/lexe
+      install -m 0755           -d /var/cache
+      install -m 2770 -g nixbld -d /var/cache/lexe
+      ${pkgs.acl.bin}/bin/setfacl --default -m group:nixbld:rwx /var/cache/lexe
     '';
   };
 }
