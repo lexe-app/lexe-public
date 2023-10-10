@@ -83,6 +83,10 @@ in
 
       src = args.src or srcRust;
 
+      # Ensure strict separation between build-time and runtime deps.
+      # Ex: don't allow dynamically linking against .so's in a build-time dep.
+      strictDeps = args.strictDeps or true;
+
       # A directory of vendored cargo sources which can be consumed without
       # network access. Directory structure should basically follow the output
       # of `cargo vendor`.

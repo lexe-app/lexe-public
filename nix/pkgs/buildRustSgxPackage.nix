@@ -37,7 +37,8 @@ let
   cargoTomlContents = builtins.readFile cargoToml;
   cargoTomlParsed = builtins.fromTOML cargoTomlContents;
   crateInfo = cargoTomlParsed.package;
-  crateVersion = if (crateInfo.version.workspace or false)
+  crateVersion =
+    if (crateInfo.version.workspace or false)
     then throw "SGX crates must not use `version.workspace = true`"
     else crateInfo.version;
 
@@ -63,10 +64,8 @@ let
 
     # build-only dependencies
     nativeBuildInputs =
-      [
-        # ring crate build.rs
-        perl
-      ]
+      # ring crate build.rs
+      [perl]
       ++ lib.optionals isSgx [
         # cross-compiling env vars
         sgxCrossEnvBuildHook
@@ -76,11 +75,8 @@ let
 
     # build and runtime dependencies
     buildInputs =
-      []
-      ++ lib.optionals (!isSgx && stdenvNoCC.isDarwin) [
-        # ring crate uses Security.framework rng on apple platforms
-        darwin.apple_sdk.frameworks.Security
-      ];
+      # ring crate uses Security.framework rng on apple platforms
+      lib.optional (!isSgx && stdenvNoCC.isDarwin) darwin.apple_sdk.frameworks.Security;
 
     # args passed to `cargo build`
     cargoExtraArgs = builtins.concatStringsSep " " (
