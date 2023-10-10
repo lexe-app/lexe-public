@@ -59,6 +59,12 @@
     inherit craneLib cargoVendorDir srcRust sgxCrossEnvBuildHook elf2sgxsFixupHook ;
   };
 
+  # Generic rust builder for non-SGX crates. Supports shared nix cargo
+  # incremental build cache.
+  buildRustFast = pkgs.callPackage ./buildRustFast.nix {
+    inherit craneLib cargoVendorDir srcRust workspaceVersion;
+  };
+
   # User's node SGX enclave
   node-release-sgx = buildRustSgxPackage {
     cargoToml = ../../node/Cargo.toml;
