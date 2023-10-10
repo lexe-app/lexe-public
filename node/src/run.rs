@@ -8,13 +8,14 @@ use anyhow::{anyhow, bail, ensure, Context};
 use common::{
     api::{
         auth::BearerAuthenticator, def::NodeRunnerApi, ports::UserPorts,
-        provision::SealedSeedId, rest, Scid, User, UserPk,
+        provision::SealedSeedId, rest, User, UserPk,
     },
     cli::{node::RunArgs, LspInfo, Network},
     client::tls::node_run_tls_config,
     constants::{DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
     ed25519,
     enclave::{self, MachineId, Measurement, MIN_SGX_CPUSVN},
+    env::DeployEnv,
     notify,
     rng::Crng,
     root_seed::RootSeed,
@@ -82,32 +83,30 @@ const SHUTDOWN_TIME_LIMIT: Duration = Duration::from_secs(15);
 pub struct UserNode {
     // --- General --- //
     args: RunArgs,
-    pub(crate) user_ports: UserPorts,
-    // TODO(max): Can get rid of this field and others once integration tests
-    // trigger commands using API calls instead of using lexe_ln directly
-    pub scid: Scid,
+    deploy_env: DeployEnv,
+    user_ports: UserPorts,
     tasks: Vec<LxTask<()>>,
     channel_peer_tx: mpsc::Sender<ChannelPeerUpdate>,
     shutdown: ShutdownChannel,
 
     // --- Actors --- //
-    pub logger: LexeTracingLogger,
-    pub persister: Arc<NodePersister>,
-    pub wallet: LexeWallet,
+    logger: LexeTracingLogger,
+    persister: Arc<NodePersister>,
+    wallet: LexeWallet,
     fee_estimator: Arc<FeeEstimatorType>,
     broadcaster: Arc<BroadcasterType>,
     esplora: Arc<LexeEsplora>,
-    pub keys_manager: Arc<LexeKeysManager>,
-    pub chain_monitor: Arc<ChainMonitorType>,
-    pub(crate) network_graph: Arc<NetworkGraphType>,
+    keys_manager: Arc<LexeKeysManager>,
+    chain_monitor: Arc<ChainMonitorType>,
+    network_graph: Arc<NetworkGraphType>,
     gossip_sync: Arc<P2PGossipSyncType>,
     scorer: Arc<Mutex<ProbabilisticScorerType>>,
-    pub router: Arc<RouterType>,
-    pub channel_manager: NodeChannelManager,
+    router: Arc<RouterType>,
+    channel_manager: NodeChannelManager,
     onion_messenger: Arc<OnionMessengerType>,
-    pub peer_manager: NodePeerManager,
+    peer_manager: NodePeerManager,
     inactivity_timer: InactivityTimer,
-    pub payments_manager: NodePaymentsManagerType,
+    payments_manager: NodePaymentsManagerType,
 
     // --- Contexts --- //
     sync: Option<SyncContext>,
@@ -180,17 +179,25 @@ impl UserNode {
                 user_pk,
                 measurement,
                 machine_id,
-                args.network,
             ),
         );
         let (esplora, refresh_fees_task) =
             try_esplora.context("Failed to init esplora")?;
         tasks.push(refresh_fees_task);
-        let (user, root_seed, user_key_pair) =
+        let (user, root_seed, deploy_env, network, user_key_pair) =
             try_fetch.context("Failed to fetch provisioned secrets")?;
-        let authenticator =
-            Arc::new(BearerAuthenticator::new(user_key_pair, None));
-        let vfs_master_key = Arc::new(root_seed.derive_vfs_master_key());
+
+        // More validation
+        if deploy_env.is_staging_or_prod() && cfg!(feature = "test-utils") {
+            panic!("test-utils feature must be disabled in staging/prod!!");
+        }
+        let args_network = args.network;
+        ensure!(
+            network == args_network,
+            "Unsealed network didn't match network given by CLI: \
+            {network}!={args_network}",
+        );
+        // From here, `network` can be treated as a trusted input.
 
         // Init LDK transaction sync; share LexeEsplora's connection pool
         // XXX(max): The esplora url passed to LDK is security-critical and thus
@@ -206,9 +213,10 @@ impl UserNode {
 
         // If we're in staging or prod, fetch the encrypted GDriveCredentials
         // from Lexe's DB and init the GoogleVfs.
-        let maybe_google_vfs = if cfg!(feature = "test-utils") {
-            None
-        } else {
+        let authenticator =
+            Arc::new(BearerAuthenticator::new(user_key_pair, None));
+        let vfs_master_key = Arc::new(root_seed.derive_vfs_master_key());
+        let maybe_google_vfs = if deploy_env.is_staging_or_prod() {
             let (try_gdrive_credentials, try_persisted_gvfs_root) = tokio::join!(
                 persister::read_gdrive_credentials(
                     backend_api.as_ref(),
@@ -231,7 +239,7 @@ impl UserNode {
 
             let (google_vfs, maybe_new_gvfs_root) = GoogleVfs::init(
                 gdrive_credentials,
-                args.network,
+                network,
                 persisted_gvfs_root,
             )
             .await
@@ -252,6 +260,8 @@ impl UserNode {
             }
 
             Some(Arc::new(google_vfs))
+        } else {
+            None
         };
 
         // Initialize Persister
@@ -285,7 +295,7 @@ impl UserNode {
             try_pending_payments,
             try_finalized_payment_ids,
         ) = tokio::join!(
-            persister.read_network_graph(args.network, logger.clone()),
+            persister.read_network_graph(network, logger.clone()),
             persister.read_wallet_db(wallet_db_persister_tx),
             persister.read_scid(),
             persister.read_pending_payments(),
@@ -312,7 +322,7 @@ impl UserNode {
         // Init BDK wallet; share esplora connection pool, spawn persister task
         let wallet = LexeWallet::new(
             &root_seed,
-            args.network,
+            network,
             esplora.clone(),
             wallet_db.clone(),
         )
@@ -382,7 +392,7 @@ impl UserNode {
 
         // Init the NodeChannelManager
         let channel_manager = NodeChannelManager::init(
-            args.network,
+            network,
             maybe_manager,
             keys_manager.clone(),
             fee_estimator.clone(),
@@ -493,7 +503,7 @@ impl UserNode {
             payments_manager.clone(),
             args.lsp.clone(),
             scid,
-            args.network,
+            network,
             activity_tx,
         );
         let (app_addr, app_service_fut) = warp::serve(app_routes)
@@ -577,8 +587,8 @@ impl UserNode {
         Ok(Self {
             // General
             args,
+            deploy_env,
             user_ports,
-            scid,
             tasks,
             channel_peer_tx,
             shutdown,
@@ -653,6 +663,7 @@ impl UserNode {
         // Reconnect to Lexe's LSP.
         maybe_reconnect_to_lsp(
             &self.peer_manager,
+            self.deploy_env,
             self.args.allow_mock,
             &self.args.lsp,
             &self.channel_peer_tx,
@@ -752,8 +763,7 @@ async fn fetch_provisioned_secrets(
     user_pk: UserPk,
     measurement: Measurement,
     machine_id: MachineId,
-    cli_network: Network,
-) -> anyhow::Result<(User, RootSeed, ed25519::KeyPair)> {
+) -> anyhow::Result<(User, RootSeed, DeployEnv, Network, ed25519::KeyPair)> {
     debug!(%user_pk, %measurement, %machine_id, "fetching provisioned secrets");
 
     let sealed_seed_id = SealedSeedId {
@@ -779,16 +789,9 @@ async fn fetch_provisioned_secrets(
                 "UserPk {db_user_pk} from DB didn't match {user_pk} from CLI"
             );
 
-            // TODO(max): Use the deploy_env
-            let (root_seed, _deploy_env, unsealed_network) = sealed_seed
+            let (root_seed, deploy_env, unsealed_network) = sealed_seed
                 .unseal_and_validate(&measurement, &machine_id)
                 .context("Could not validate or unseal sealed seed")?;
-
-            ensure!(
-                unsealed_network == cli_network,
-                "Unsealed network didn't match network given by CLI: \
-                {unsealed_network} != {cli_network}"
-            );
 
             let user_key_pair = root_seed.derive_user_key_pair();
             let derived_user_pk =
@@ -800,7 +803,7 @@ async fn fetch_provisioned_secrets(
                 doesn't match the user_pk from CLI {user_pk} "
             );
 
-            Ok((user, root_seed, user_key_pair))
+            Ok((user, root_seed, deploy_env, unsealed_network, user_key_pair))
         }
         (None, None) => bail!("User does not exist yet"),
         (Some(_), None) => bail!(
@@ -813,24 +816,30 @@ async fn fetch_provisioned_secrets(
     }
 }
 
-/// Handles the nasty [`cfg_if`] logic of whether to reconnect to Lexe's LSP,
-/// taking in account whether we are mocking out the LSP as well.
+/// Handles the logic of whether to reconnect to Lexe's LSP, taking in account
+/// whether we are intend to mock out the LSP as well.
 ///
-/// If we are NOT in staging/prod, we MAY skip reconnecting to the LSP.
-/// This will be done ONLY IF we check to mock out the LSP's HTTP server (i.e.
-/// [`LspInfo::url`] is `None`) AND we have set the `allow_mock` safeguard.
+/// If we are on testnet/mainnet, mocking out the LSP is not allowed. Ignore all
+/// mock arguments and attempt to reconnect to Lexe's LSP, notifying our p2p
+/// reconnector to continuously reconnect if we disconnect for some reason.
 ///
-/// If we are in staging/prod, ignore all mock arguments and attempt to
-/// reconnect to Lexe's LSP, notifying our p2p reconnector to continuously
-/// reconnect if we disconnect for some reason.
+/// If we are NOT on testnet/mainnet, we MAY skip reconnecting to the LSP.
+/// This will be done ONLY IF [`LspInfo::url`] is `None` AND we have set the
+/// `allow_mock` safeguard which helps prevent accidental mocking.
 async fn maybe_reconnect_to_lsp(
     peer_manager: &NodePeerManager,
+    deploy_env: DeployEnv,
     allow_mock: bool,
     lsp: &LspInfo,
     channel_peer_tx: &mpsc::Sender<ChannelPeerUpdate>,
 ) -> anyhow::Result<()> {
-    // An async closure which reconnects to the LSP and notifies our reconnector
-    let do_reconnect = async {
+    if deploy_env.is_staging_or_prod() || lsp.url.is_some() {
+        // If --allow-mock was set, the caller may have made an error.
+        ensure!(
+            !allow_mock,
+            "--allow-mock was set but a LSP url was supplied"
+        );
+
         info!("Reconnecting to LSP");
         p2p::connect_channel_peer_if_necessary(
             peer_manager.clone(),
@@ -844,22 +853,10 @@ async fn maybe_reconnect_to_lsp(
         channel_peer_tx
             .try_send(add_lsp)
             .map_err(|e| anyhow!("Could not notify p2p reconnector: {e:#}"))?;
-
-        Ok::<(), anyhow::Error>(())
-    };
-
-    cfg_if::cfg_if! {
-        if #[cfg(any(test, feature = "test-utils"))] {
-            if lsp.url.is_some() {
-                do_reconnect.await
-            } else {
-                ensure!(allow_mock, "To mock the LSP, allow_mock must be set");
-                info!("Skipping P2P reconnection to LSP");
-                Ok(())
-            }
-        } else {
-            let _ = allow_mock;
-            do_reconnect.await
-        }
+    } else {
+        ensure!(allow_mock, "To mock the LSP, allow_mock must be set");
+        info!("Skipping P2P reconnection to LSP");
     }
+
+    Ok(())
 }
