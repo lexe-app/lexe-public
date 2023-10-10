@@ -31,6 +31,12 @@ impl DeployEnv {
             .apply(Self::from_str)
     }
 
+    /// Shorthand to check whether this [`DeployEnv`] is staging or prod.
+    #[inline]
+    pub fn is_staging_or_prod(self) -> bool {
+        matches!(self, Self::Staging | Self::Prod)
+    }
+
     /// Validate the [`Network`] parameter for this deploy environment.
     pub fn validate_network(&self, network: Network) -> anyhow::Result<()> {
         match self {
