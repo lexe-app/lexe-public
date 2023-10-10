@@ -9,21 +9,21 @@
   protobuf,
   stdenvNoCC,
   #
-  # lexePkgs
+  # lexe inputs
   #
   craneLib,
+  cargoVendorDir,
+  srcRust,
   sgxCrossEnvBuildHook,
   elf2sgxsFixupHook,
 }:
-# TODO(phlip9): add way to add custom nativeBuildInputs/buildInputs
+#
 {
   #
   # options
   #
-  # Path to crate Cargo.toml.
+  # Path to crate Cargo.toml
   cargoToml,
-  # Path to workspace root.
-  workspaceRoot,
   # Whether to build in release or debug mode.
   isRelease,
   # this should probably be encapsulated into a new "stdenv" targetting
@@ -31,21 +31,23 @@
   isSgx,
   # enable full, verbose build logs
   isVerbose ? false,
-}: let
+}:
+#
+let
   cargoTomlContents = builtins.readFile cargoToml;
-  crateInfo = craneLib.crateNameFromCargoToml {cargoTomlContents = cargoTomlContents;};
+  cargoTomlParsed = builtins.fromTOML cargoTomlContents;
+  crateInfo = cargoTomlParsed.package;
+  crateVersion = if (crateInfo.version.workspace or false)
+    then throw "SGX crates must not use `version.workspace = true`"
+    else crateInfo.version;
 
-  src = lib.cleanSourceWith {
-    src = workspaceRoot;
-    filter = path: type:
-      (craneLib.filterCargoSources path type) || (lib.hasSuffix ".der" path);
-  };
+  pname = crateInfo.name;
 
   commonPackageArgs = {
-    src = src;
+    pname = pname;
+    version = crateVersion;
 
-    pname = crateInfo.pname;
-    version = crateInfo.version;
+    src = srcRust;
 
     # print cc full args list
     NIX_DEBUG = isVerbose;
@@ -82,7 +84,7 @@
 
     # args passed to `cargo build`
     cargoExtraArgs = builtins.concatStringsSep " " (
-      ["--offline" "--locked" "--package=${crateInfo.pname}"]
+      ["--offline" "--locked" "--package=${pname}"]
       ++ (lib.optionals isSgx ["--target=x86_64-fortanix-unknown-sgx"])
       ++ (lib.optionals isVerbose ["-vv"])
     );
@@ -119,14 +121,14 @@ in
         commonPackageArgs.nativeBuildInputs
         ++ (lib.optionals isSgx [
           (elf2sgxsFixupHook {
-            cargoTomlContents = cargoTomlContents;
+            cargoTomlParsed = cargoTomlParsed;
             isRelease = isRelease;
           })
         ]);
 
       postFixup = ''
-        echo "ELF binary hash: $(sha256sum < $out/bin/${crateInfo.pname})"
-        echo "ELF binary size: $(stat --format='%s' $out/bin/${crateInfo.pname})"
+        echo "ELF binary hash: $(sha256sum < $out/bin/${pname})"
+        echo "ELF binary size: $(stat --format='%s' $out/bin/${pname})"
       '';
     }
   )

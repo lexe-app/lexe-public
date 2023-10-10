@@ -1,14 +1,35 @@
 # lexe public monorepo nix packages set
 {
+  lib,
   pkgs,
   crane,
 }: rec {
-  # A rust toolchain setup from our `rust-toolchain.toml` settings.
+  # cargo workspace Cargo.toml & Cargo.lock info
+  workspaceRoot = ../..;
+  workspaceToml = workspaceRoot + "/Cargo.toml";
+  workspaceLock = workspaceRoot + "/Cargo.lock";
+  workspaceTomlParsed = builtins.fromTOML (builtins.readFile workspaceToml);
+  workspaceVersion = workspaceTomlParsed.workspace.package.version;
+
+  # Instantiate the rust toolchain from our `rust-toolchain.toml`.
   rustLexeToolchain =
     pkgs.rust-bin.fromRustupToolchainFile ../../rust-toolchain.toml;
 
   # `crane` cargo builder instantiated with our rust toolchain settings.
   craneLib = (crane.mkLib pkgs).overrideToolchain rustLexeToolchain;
+
+  # workspace source directory, cleaned of anything not needed to build rust
+  # code
+  srcRust = lib.cleanSourceWith {
+    src = workspaceRoot;
+    filter = path: type:
+      (craneLib.filterCargoSources path type) || (lib.hasSuffix ".der" path);
+  };
+
+  # Download all cargo deps from the workspace Cargo.lock
+  cargoVendorDir = craneLib.vendorCargoDeps {
+    cargoLock = workspaceLock;
+  };
 
   # Use the latest clang/llvm for cross-compiling SGX.
   llvmPackages = pkgs.llvmPackages_latest;
@@ -35,32 +56,28 @@
 
   # Generic builder for Rust SGX crates.
   buildRustSgxPackage = pkgs.callPackage ./buildRustSgxPackage.nix {
-    inherit craneLib sgxCrossEnvBuildHook elf2sgxsFixupHook;
+    inherit craneLib cargoVendorDir srcRust sgxCrossEnvBuildHook elf2sgxsFixupHook ;
   };
 
   # User's node SGX enclave
   node-release-sgx = buildRustSgxPackage {
+    cargoToml = ../../node/Cargo.toml;
     isSgx = true;
     isRelease = true;
-    cargoToml = ../../node/Cargo.toml;
-    workspaceRoot = ../..;
   };
   node-release-nosgx = buildRustSgxPackage {
+    cargoToml = ../../node/Cargo.toml;
     isSgx = false;
     isRelease = true;
-    cargoToml = ../../node/Cargo.toml;
-    workspaceRoot = ../..;
   };
   node-debug-sgx = buildRustSgxPackage {
+    cargoToml = ../../node/Cargo.toml;
     isSgx = true;
     isRelease = false;
-    cargoToml = ../../node/Cargo.toml;
-    workspaceRoot = ../..;
   };
   node-debug-nosgx = buildRustSgxPackage {
+    cargoToml = ../../node/Cargo.toml;
     isSgx = false;
     isRelease = false;
-    cargoToml = ../../node/Cargo.toml;
-    workspaceRoot = ../..;
   };
 }

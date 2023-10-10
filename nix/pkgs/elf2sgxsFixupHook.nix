@@ -23,7 +23,9 @@
   # When this is false, the enclave will be built in "debug" mode, which will
   # fail production remote attestation but allow debugging with e.g. `gdb`.
   isRelease ? true,
-}: let
+}:
+#
+let
   inherit (builtins) mapAttrs toString;
 
   # convert all values in an attrset to strings
