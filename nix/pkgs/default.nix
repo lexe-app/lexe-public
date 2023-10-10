@@ -56,7 +56,7 @@
 
   # Generic builder for Rust SGX crates.
   buildRustSgxPackage = pkgs.callPackage ./buildRustSgxPackage.nix {
-    inherit craneLib cargoVendorDir srcRust sgxCrossEnvBuildHook elf2sgxsFixupHook ;
+    inherit craneLib cargoVendorDir srcRust sgxCrossEnvBuildHook elf2sgxsFixupHook;
   };
 
   # Generic rust builder for non-SGX crates. Supports shared nix cargo
@@ -85,5 +85,22 @@
     cargoToml = ../../node/Cargo.toml;
     isSgx = false;
     isRelease = false;
+  };
+
+  # Binary for running SGX enclaves.
+  run-sgx = buildRustFast {
+    cargoToml = ../../run-sgx/Cargo.toml;
+    cargoExtraArgs = "-p run-sgx --bin run-sgx --locked --offline";
+
+    nativeBuildInputs = lib.optionals (pkgs.hostPlatform.system == "x86_64-linux") [
+      # aesm-client crate build.rs
+      pkgs.protobuf
+      # enclave-runner crate
+      pkgs.pkg-config
+    ];
+
+    buildInputs =
+      # enclave-runner crate
+      lib.optional (pkgs.hostPlatform.system == "x86_64-linux") pkgs.openssl;
   };
 }

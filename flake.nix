@@ -84,6 +84,7 @@
           node-debug-sgx
           node-release-nosgx
           node-debug-nosgx
+          run-sgx
           ;
       }
     );
