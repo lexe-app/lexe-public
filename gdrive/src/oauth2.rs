@@ -28,6 +28,91 @@ pub const MINIMUM_TOKEN_LIFETIME: Duration = Duration::from_secs(60);
 // Newly refreshed access tokens usually live for only 3600 seconds
 const_assert!(MINIMUM_TOKEN_LIFETIME.as_secs() < 3600);
 
+/// Exchanges the auth `code` (and other info) for the `access_token`,
+/// returning the full [`GDriveCredentials`] which can then be persisted.
+///
+/// <https://developers.google.com/identity/protocols/oauth2/native-app#exchange-authorization-code>
+pub async fn auth_code_for_token(
+    client: &reqwest::Client,
+    client_id: String,
+    client_secret: String,
+    redirect_uri: &str,
+    code: &str,
+) -> Result<GDriveCredentials, Error> {
+    #[derive(Serialize)]
+    struct Request<'a> {
+        client_id: &'a str,
+        client_secret: &'a str,
+        redirect_uri: &'a str,
+        code: &'a str,
+        grant_type: &'static str,
+    }
+
+    #[derive(Deserialize)]
+    struct Response {
+        refresh_token: String,
+        access_token: String,
+        expires_in: u32,
+        scope: String,
+        token_type: String,
+    }
+
+    let request = Request {
+        client_id: &client_id,
+        client_secret: &client_secret,
+        redirect_uri,
+        code,
+        grant_type: "authorization_code",
+    };
+
+    let http_resp = client
+        .post("https://oauth2.googleapis.com/token")
+        .json(&request)
+        .send()
+        .await?;
+
+    let code = http_resp.status();
+    let response = if code.is_success() {
+        http_resp.json::<Response>().await?
+    } else {
+        let resp_str = match http_resp.bytes().await {
+            Ok(b) => String::from_utf8_lossy(&b).to_string(),
+            Err(e) => format!("Failed to get error response text: {e:#}"),
+        };
+        return Err(Error::Api { code, resp_str });
+    };
+
+    let Response {
+        refresh_token,
+        access_token,
+        expires_in,
+        scope,
+        token_type,
+    } = response;
+
+    // Validate response fields
+    if token_type != TOKEN_TYPE {
+        return Err(Error::WrongTokenType { token_type });
+    }
+    if scope != API_SCOPE {
+        return Err(Error::InsufficientScopes { scope });
+    }
+
+    let now_timestamp = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .expect("System time is before UNIX epoch")
+        .as_secs();
+    let expires_at = now_timestamp + expires_in as u64;
+
+    Ok(GDriveCredentials {
+        client_id,
+        client_secret,
+        refresh_token,
+        access_token,
+        expires_at,
+    })
+}
+
 /// Makes a call to Google's `tokeninfo` endpoint to check:
 ///
 /// - The access token has the required scope(s).
@@ -63,7 +148,10 @@ pub async fn check_token_info(
         // We get a 400 if the token expired
         StatusCode::BAD_REQUEST => return Err(Error::TokenExpired),
         code => {
-            let resp_str = http_resp.text().await?;
+            let resp_str = match http_resp.bytes().await {
+                Ok(b) => String::from_utf8_lossy(&b).to_string(),
+                Err(e) => format!("Failed to get error response text: {e:#}"),
+            };
             return Err(Error::Api { code, resp_str });
         }
     };
@@ -77,7 +165,6 @@ pub async fn check_token_info(
     if access_type != ACCESS_TYPE {
         return Err(Error::WrongAccessType { access_type });
     }
-
     if scope != API_SCOPE {
         return Err(Error::InsufficientScopes { scope });
     }
@@ -178,7 +265,6 @@ async fn refresh(
     if scope != API_SCOPE {
         return Err(Error::InsufficientScopes { scope });
     }
-
     if token_type != TOKEN_TYPE {
         return Err(Error::WrongTokenType { token_type });
     }
@@ -235,5 +321,93 @@ mod test {
         refresh_if_necessary(&client, &mut credentials)
             .await
             .expect("refresh_if_necessary failed");
+    }
+
+    /// Tests the [`auth_code_for_token`] function.
+    ///
+    /// Running this test requires:
+    /// 1) Passing `--ignored` to `cargo test`
+    /// 2) Setting the `GOOGLE_AUTH_CODE` env var (must be `export`ed)
+    ///
+    /// If `GOOGLE_AUTH_CODE` is missing, this test will pass silently.
+    /// This is because `#[ignore]`d tests are run in CI, but it is non-trivial
+    /// to programmatically obtain an auth code in order to run this test.
+    ///
+    /// Full instructions for running this test:
+    ///
+    /// ```bash
+    /// # Get these from a Lexe dev. You may need to be added a test user.
+    /// export GOOGLE_CLIENT_ID="<CLIENT_ID>"
+    /// export GOOGLE_CLIENT_SECRET="<CLIENT_SECRET>"
+    ///
+    /// # Run this block and follow the instructions:
+    /// (
+    ///     base_url="https://accounts.google.com/o/oauth2/v2/auth"
+    ///     # client_id and redirect_uri are configured in the
+    ///     # 'Lexe "web" OAuth client' in Google Cloud, for testing only
+    ///     client_id="$GOOGLE_CLIENT_ID"
+    ///     redirect_uri="https://localhost:6969/bogus"
+    ///     # Tell Google to give us an authorization code.
+    ///     response_type="code"
+    ///     scope="https://www.googleapis.com/auth/drive.file"
+    ///     access_type="offline"
+    ///
+    ///     urlencode() {
+    ///         jq -Rr '@uri' <<< "$1"
+    ///     }
+    ///     encoded_url="${base_url}?client_id=${client_id}&redirect_uri=$(urlencode "$redirect_uri")&response_type=$(urlencode "$response_type")&scope=$(urlencode "$scope")&access_type=${access_type}"
+    ///     
+    ///     echo
+    ///     echo "Visit this url in your browser, logging in with your lexe.app email:"
+    ///     echo "$encoded_url"
+    ///     echo
+    ///     echo "Then note the value of the 'code' parameter after the bogus redirect"
+    /// )
+    ///
+    /// # Save the url-encoded 'code' param to an env var, then decode it.
+    /// URL_ENCODED_AUTH_CODE="<CODE>"
+    /// export GOOGLE_AUTH_CODE=$(python3 -c "import sys, urllib.parse as ul; print(ul.unquote_plus(sys.argv[1]))" $URL_ENCODED_AUTH_CODE)
+    /// echo "Decoded auth code: $GOOGLE_AUTH_CODE"
+    ///
+    /// # Finally, run the test
+    /// cargo test -p gdrive -- --ignored test_auth_code_for_token --show-output
+    /// ```
+    #[ignore]
+    #[tokio::test]
+    async fn test_auth_code_for_token() {
+        // Skip the test body if "GOOGLE_AUTH_CODE" was not set
+        let code = match env::var("GOOGLE_AUTH_CODE") {
+            Ok(c) => c,
+            Err(_) => return,
+        };
+        let client_id = env::var("GOOGLE_CLIENT_ID")
+            .expect("This test requires GOOGLE_CLIENT_ID to be set");
+        let client_secret = env::var("GOOGLE_CLIENT_SECRET")
+            .expect("This test requires GOOGLE_CLIENT_SECRET to be set");
+
+        let client = reqwest::Client::new();
+        let redirect_uri = "https://localhost:6969/bogus";
+        let credentials = auth_code_for_token(
+            &client,
+            client_id,
+            client_secret,
+            redirect_uri,
+            &code,
+        )
+        .await
+        .unwrap();
+
+        // Convenience to make it easier to run other gdrive tests
+        if !matches!(env::var("SKIP_GDRIVE_TOKEN_PRINT").as_deref(), Ok("1")) {
+            let refresh_token = &credentials.refresh_token;
+            let access_token = &credentials.access_token;
+            let expires_at = &credentials.expires_at;
+            println!("Received API credentials; set this in env:");
+            println!("```bash");
+            println!("export GOOGLE_REFRESH_TOKEN=\"{refresh_token}\"");
+            println!("export GOOGLE_ACCESS_TOKEN=\"{access_token}\"");
+            println!("export GOOGLE_ACCESS_TOKEN_EXPIRY=\"{expires_at}\"");
+            println!("```");
+        }
     }
 }
