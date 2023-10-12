@@ -61,7 +61,7 @@
 
   # Generic rust builder for non-SGX crates. Supports shared nix cargo
   # incremental build cache.
-  buildRustFast = pkgs.callPackage ./buildRustFast.nix {
+  buildRustIncremental = pkgs.callPackage ./buildRustIncremental.nix {
     inherit craneLib cargoVendorDir srcRust workspaceVersion;
   };
 
@@ -88,7 +88,7 @@
   };
 
   # Binary for running SGX enclaves.
-  run-sgx = buildRustFast {
+  run-sgx = buildRustIncremental {
     cargoToml = ../../run-sgx/Cargo.toml;
     cargoExtraArgs = "-p run-sgx --bin run-sgx --locked --offline";
 
