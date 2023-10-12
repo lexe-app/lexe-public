@@ -36,7 +36,7 @@ jobs:
 
   # --- Linting the whole workspace --- #
   clippy:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
@@ -56,7 +56,7 @@ jobs:
 
   # --- Check the production binaries, which don't use feature unification --- #
   check-release:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
@@ -74,7 +74,7 @@ jobs:
   check-all-commits:
     # Only run this job on pull requests, not the master branch
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
         with: # Fetch the last 100 commits. PRs shouldn't be bigger than this
@@ -102,7 +102,7 @@ jobs:
           done
 
   test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
@@ -113,7 +113,7 @@ jobs:
       - run: cargo test --locked -- -Zunstable-options --report-time
 
   test-gdrive:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     env:
       # These secrets originate from a random Google account owned by Max.
       # Don't remove this account from the Lexe project test users in Google
@@ -140,7 +140,7 @@ jobs:
       - run: cargo test --locked -p gdrive -- --ignored --test-threads=1 -Zunstable-options --report-time
 
   fmt:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
@@ -149,7 +149,7 @@ jobs:
       - run: cargo fmt --all -- --check
 
   doc:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@master
