@@ -237,6 +237,7 @@ mod test {
         attest,
         attest::verify::EnclavePolicy,
         cli::{node::ProvisionArgs, Network},
+        env::DeployEnv,
         rng::WeakRng,
         root_seed::RootSeed,
     };
@@ -322,8 +323,10 @@ mod test {
             // client sends provision request to node
             let gdrive_credentials = GDriveCredentials::dummy();
             let network = Network::REGTEST;
+            let deploy_env = DeployEnv::Dev;
             let provision_req = NodeProvisionRequest {
                 root_seed,
+                deploy_env,
                 network,
                 gdrive_credentials,
             };

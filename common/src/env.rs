@@ -1,11 +1,16 @@
-use std::{env, str::FromStr};
+use std::{env, fmt, fmt::Display, str::FromStr};
 
 use anyhow::{anyhow, ensure, Context};
+#[cfg(test)]
+use proptest_derive::Arbitrary;
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{cli::Network, Apply};
 
-/// Represents a pre-validated `DEPLOY_ENVIRONMENT` configuration.
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+/// Represents a validated `DEPLOY_ENVIRONMENT` configuration.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(SerializeDisplay, DeserializeFromStr)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub enum DeployEnv {
     /// "dev"
     Dev,
@@ -65,5 +70,28 @@ impl FromStr for DeployEnv {
                 must be 'dev', 'staging', or 'prod'"
             )),
         }
+    }
+}
+
+impl Display for DeployEnv {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::Dev => "dev",
+            Self::Staging => "staging",
+            Self::Prod => "prod",
+        };
+        write!(f, "{s}")
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::test_utils::roundtrip;
+
+    #[test]
+    fn deploy_env_roundtrip() {
+        roundtrip::fromstr_display_roundtrip_proptest::<DeployEnv>();
+        roundtrip::json_string_roundtrip_proptest::<DeployEnv>();
     }
 }

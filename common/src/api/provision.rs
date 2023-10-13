@@ -13,6 +13,7 @@ use crate::{
     cli::Network,
     enclave,
     enclave::{MachineId, Measurement, Sealed},
+    env::DeployEnv,
     hexstr_or_bytes,
     rng::Crng,
     root_seed::RootSeed,
@@ -25,6 +26,8 @@ use crate::{
 pub struct NodeProvisionRequest {
     /// The secret root seed the client wants to provision into the node.
     pub root_seed: RootSeed,
+    /// The [`DeployEnv`] that this [`RootSeed`] should be bound to.
+    pub deploy_env: DeployEnv,
     /// The [`Network`] that this [`RootSeed`] should be bound to.
     pub network: Network,
     /// The credentials required to store data in Google Drive.
@@ -316,14 +319,17 @@ mod test {
         let root_seed = RootSeed::from_rng(&mut rng);
         let gdrive_credentials = GDriveCredentials::dummy();
         let network = Network::REGTEST;
+        let deploy_env = DeployEnv::Dev;
         let req = NodeProvisionRequest {
             root_seed,
             network,
             gdrive_credentials,
+            deploy_env,
         };
         let actual = serde_json::to_value(&req).unwrap();
         let expected = serde_json::json!({
             "root_seed": "0a7d28d375bc07250ca30e015a808a6d70d43c5a55c4d5828cdeacca640191a1",
+            "deploy_env": "dev",
             "network": "regtest",
             "gdrive_credentials": {
                 "client_id": "client_id",
