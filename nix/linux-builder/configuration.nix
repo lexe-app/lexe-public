@@ -49,30 +49,33 @@
   # CUSTOM LINUX-BUILDER CONFIG
   #
 
-  # Add all members of the `wheel` group to nix trusted-users.
-  nix.settings.trusted-users = ["@wheel"];
+  nix = {
+    # Add all members of the `wheel` group to nix trusted-users.
+    settings.trusted-users = ["@wheel"];
+
+    # Extra /etc/nix/nix.conf options.
+    extraOptions = ''
+      # `nix-command`: enable `nix XXX` (without hyphen) commands
+      # `flakes`: enable nix flakes
+      experimental-features = nix-command flakes
+
+      # Sign packages in the VM nix store
+      secret-key-files = /etc/nix/store-signing-key
+
+      # Add path to share e.g. cargo target/ dir contents across builds
+      extra-sandbox-paths = /var/cache/lexe
+    '';
+
+    # collect garbage monthly
+    # deletes unused items in the `/nix/store` to save some disk space.
+    gc = {
+      automatic = true;
+      dates = "monthly";
+    };
+  };
 
   # Enable git so `nix build` works in git repos.
   programs.git.enable = true;
-
-  nix.extraOptions = ''
-    # `nix-command`: enable `nix XXX` (without hyphen) commands
-    # `flakes`: enable nix flakes
-    experimental-features = nix-command flakes
-
-    # Sign packages in the VM nix store
-    secret-key-files = /etc/nix/store-signing-key
-
-    # Add path to share e.g. cargo target/ dir contents across builds
-    extra-sandbox-paths = /var/cache/lexe
-  '';
-
-  # collect garbage monthly
-  # deletes unused items in the `/nix/store` to save some disk space.
-  nix.gc = {
-    automatic = true;
-    dates = "monthly";
-  };
 
   # Add some packages to the environment
   environment.systemPackages = [
