@@ -18,17 +18,21 @@
     # rust toolchain from nixpkgs.
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
-      inputs.nixpkgs.follows = "nixpkgs"; # use our nixpkgs version
-      inputs.flake-utils.follows = "flake-utils";
+      inputs = {
+        nixpkgs.follows = "nixpkgs"; # use our nixpkgs version
+        flake-utils.follows = "flake-utils";
+      };
     };
 
     # library for building rust projects. supports basic incremental cargo
     # artifact caching.
     crane = {
       url = "github:ipetkov/crane";
-      inputs.nixpkgs.follows = "nixpkgs"; # use our nixpkgs version
-      inputs.rust-overlay.follows = "rust-overlay";
-      inputs.flake-utils.follows = "flake-utils";
+      inputs = {
+        nixpkgs.follows = "nixpkgs"; # use our nixpkgs version
+        rust-overlay.follows = "rust-overlay";
+        flake-utils.follows = "flake-utils";
+      };
     };
   };
 
@@ -99,11 +103,9 @@
       default = pkgs.mkShell {
         name = "lexe";
         inputsFrom = [lexePubPkgs.node-release-sgx];
-        packages =
-          []
-          ++ lib.optionals pkgs.stdenv.isDarwin [
-            pkgs.darwin.apple_sdk.frameworks.Security
-          ];
+        packages = lib.optionals pkgs.stdenv.isDarwin [
+          pkgs.darwin.apple_sdk.frameworks.Security
+        ];
       };
     });
 

@@ -29,7 +29,7 @@ let
   inherit (builtins) mapAttrs toString;
 
   # convert all values in an attrset to strings
-  valuesToString = attrs: (mapAttrs (_name: value: toString value) attrs);
+  valuesToString = attrs: (mapAttrs (_name: toString) attrs);
 
   settings = valuesToString cargoTomlParsed.package.metadata.fortanix-sgx;
   debugFlag =
