@@ -124,8 +124,7 @@ impl Default for RunArgs {
     /// `Option<T>` fields are not required by the node, and use node defaults.
     fn default() -> Self {
         use crate::test_utils::{
-            DUMMY_BACKEND_URL, DUMMY_ESPLORA_URL, DUMMY_LSP_INFO,
-            DUMMY_RUNNER_URL,
+            DUMMY_BACKEND_URL, DUMMY_ESPLORA_URL, DUMMY_RUNNER_URL,
         };
         Self {
             user_pk: UserPk::from_u64(1), // Test user
@@ -138,7 +137,7 @@ impl Default for RunArgs {
             backend_url: Some(DUMMY_BACKEND_URL.to_owned()),
             runner_url: Some(DUMMY_RUNNER_URL.to_owned()),
             esplora_url: DUMMY_ESPLORA_URL.to_owned(),
-            lsp: DUMMY_LSP_INFO.clone(),
+            lsp: LspInfo::dummy(),
             allow_mock: false,
         }
     }
