@@ -1,6 +1,8 @@
 use std::{env, fmt, fmt::Display, str::FromStr};
 
 use anyhow::{anyhow, ensure, Context};
+#[cfg(any(test, feature = "test-utils"))]
+use proptest::strategy::Strategy;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
@@ -55,6 +57,23 @@ impl DeployEnv {
         }
         Ok(())
     }
+
+    /// A strategy for *valid* combinations of [`DeployEnv`] and [`Network`].
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn any_valid_network_combo(
+    ) -> impl Strategy<Value = (DeployEnv, Network)> {
+        use proptest::strategy::Just;
+        // We *could* extract an associated const [(DeployEnv, Network); N]
+        // enumerating all *valid* combos, then iterate over all *possible*
+        // combos to test that `validate_network` is correct, but this
+        // boilerplate adds very little value.
+        proptest::prop_oneof![
+            Just((Self::Dev, Network::REGTEST)),
+            Just((Self::Dev, Network::TESTNET)),
+            Just((Self::Staging, Network::TESTNET)),
+            Just((Self::Prod, Network::MAINNET)),
+        ]
+    }
 }
 
 impl FromStr for DeployEnv {
@@ -86,6 +105,8 @@ impl Display for DeployEnv {
 
 #[cfg(test)]
 mod test {
+    use proptest::{prop_assert, proptest};
+
     use super::*;
     use crate::test_utils::roundtrip;
 
@@ -93,5 +114,14 @@ mod test {
     fn deploy_env_roundtrip() {
         roundtrip::fromstr_display_roundtrip_proptest::<DeployEnv>();
         roundtrip::json_string_roundtrip_proptest::<DeployEnv>();
+    }
+
+    #[test]
+    fn test_any_valid_network_combo() {
+        proptest!(|(
+            (deploy_env, network) in DeployEnv::any_valid_network_combo(),
+        )| {
+            prop_assert!(deploy_env.validate_network(network).is_ok());
+        })
     }
 }
