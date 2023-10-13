@@ -30,6 +30,7 @@ use common::{
     cli::Network,
     constants::{self, SINGLETON_DIRECTORY},
     ed25519, enclave,
+    env::DeployEnv,
     ln::payments::{DbPayment, LxPaymentId, PaymentIndex, PaymentStatus},
     rng::SysRng,
     root_seed::RootSeed,
@@ -54,6 +55,7 @@ fn make_sealed_seed(root_seed: &RootSeed) -> SealedSeed {
     SealedSeed::seal_from_root_seed(
         &mut SysRng::new(),
         root_seed,
+        DeployEnv::Dev,
         Network::REGTEST,
         enclave::measurement(),
         enclave::machine_id(),

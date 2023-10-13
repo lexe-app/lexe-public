@@ -779,7 +779,8 @@ async fn fetch_provisioned_secrets(
                 "UserPk {db_user_pk} from DB didn't match {user_pk} from CLI"
             );
 
-            let (root_seed, unsealed_network) = sealed_seed
+            // TODO(max): Use the deploy_env
+            let (root_seed, _deploy_env, unsealed_network) = sealed_seed
                 .unseal_and_validate(&measurement, &machine_id)
                 .context("Could not validate or unseal sealed seed")?;
 
