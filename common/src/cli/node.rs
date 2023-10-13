@@ -107,10 +107,8 @@ pub struct RunArgs {
     #[argh(option)]
     pub esplora_url: String,
 
-    /// the <node_pk>@<sock_addr> of the LSP.
+    /// info relating to Lexe's LSP.
     #[argh(option)]
-    // XXX(max): We need to verify this somehow; otherwise the node may accept
-    // channels from someone pretending to be Lexe.
     pub lsp: LspInfo,
 
     /// the DNS name the node enclave should include in its remote attestation
@@ -133,7 +131,7 @@ impl Default for RunArgs {
             user_pk: UserPk::from_u64(1), // Test user
             app_port: None,
             lexe_port: None,
-            network: Network::default(),
+            network: Network::REGTEST,
             shutdown_after_sync_if_no_activity: false,
             inactivity_timer_sec: 3600,
             node_dns_name: NODE_RUN_DNS.to_owned(),

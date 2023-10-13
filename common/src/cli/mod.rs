@@ -1,8 +1,5 @@
 use std::{
-    fmt::{self, Display},
-    net::SocketAddr,
-    path::Path,
-    process::Command,
+    fmt, fmt::Display, net::SocketAddr, path::Path, process::Command,
     str::FromStr,
 };
 
@@ -10,11 +7,11 @@ use anyhow::{ensure, Context};
 use bitcoin::{blockdata::constants, hash_types::BlockHash};
 use lightning::routing::{gossip::RoutingFees, router::RouteHintHop};
 use lightning_invoice::Currency;
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-#[cfg(any(test, feature = "test-utils"))]
+#[cfg(test)]
 use crate::test_utils::arbitrary;
 use crate::{
     api::{NodePk, Scid},
@@ -54,24 +51,18 @@ pub struct Network(pub bitcoin::Network);
 
 /// Information about the LSP which the user node needs to connect and to
 /// generate route hints when no channel exists.
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[cfg_attr(test, derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LspInfo {
     /// The protocol://host:port of the LSP's HTTP server. The node will
     /// default to a mock client if not supplied, provided that
     /// `--allow-mock` is set and we are not in prod.
-    #[cfg_attr(
-        any(test, feature = "test-utils"),
-        proptest(strategy = "arbitrary::any_option_string()")
-    )]
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
     pub url: Option<String>,
     // - ChannelPeer fields - //
     pub node_pk: NodePk,
     /// The socket on which the LSP accepts P2P LN connections from user nodes
-    #[cfg_attr(
-        any(test, feature = "test-utils"),
-        proptest(strategy = "arbitrary::any_socket_addr()")
-    )]
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_socket_addr()"))]
     pub addr: SocketAddr,
     // - RoutingFees fields - //
     pub base_msat: u32,
@@ -80,6 +71,19 @@ pub struct LspInfo {
     pub cltv_expiry_delta: u16,
     pub htlc_minimum_msat: u64,
     pub htlc_maximum_msat: u64,
+}
+
+/// Configuration info relating to Google OAuth2. When combined with an auth
+/// `code`, can be used to obtain a GDrive access token and refresh token.
+#[cfg_attr(test, derive(Arbitrary))]
+#[derive(Clone, Eq, PartialEq, Serialize, Deserialize)]
+pub struct OAuthConfig {
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
+    pub client_id: String,
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
+    pub client_secret: String,
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
+    pub redirect_uri: String,
 }
 
 // --- impl Network --- //
@@ -108,13 +112,6 @@ impl Network {
         constants::genesis_block(self.to_inner())
             .header
             .block_hash()
-    }
-}
-
-#[cfg(any(test, feature = "test-utils"))]
-impl Default for Network {
-    fn default() -> Self {
-        Self(bitcoin::Network::Regtest)
     }
 }
 
@@ -203,6 +200,38 @@ impl Display for LspInfo {
     }
 }
 
+// --- impl OAuthConfig --- //
+
+impl fmt::Debug for OAuthConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let client_id = &self.client_id;
+        let redirect_uri = &self.redirect_uri;
+        write!(
+            f,
+            "OAuthConfig {{ \
+                client_id: {client_id}, \
+                redirect_uri: {redirect_uri}, \
+                .. \
+            }}"
+        )
+    }
+}
+
+impl FromStr for OAuthConfig {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s).context("Invalid JSON")
+    }
+}
+
+impl Display for OAuthConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let json_str = serde_json::to_string(&self)
+            .expect("Does not contain map with non-string keys");
+        write!(f, "{json_str}")
+    }
+}
+
 // --- Arbitrary impls --- //
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -243,6 +272,13 @@ mod test {
 
     #[test]
     fn lsp_info_roundtrip() {
+        roundtrip::json_value_canonical_proptest::<LspInfo>();
         roundtrip::fromstr_display_roundtrip_proptest::<LspInfo>();
+    }
+
+    #[test]
+    fn oauth_config_roundtrip() {
+        roundtrip::json_value_canonical_proptest::<OAuthConfig>();
+        roundtrip::fromstr_display_roundtrip_proptest::<OAuthConfig>();
     }
 }
