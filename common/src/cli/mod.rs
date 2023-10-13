@@ -183,6 +183,27 @@ impl LspInfo {
             htlc_maximum_msat: Some(self.htlc_maximum_msat),
         }
     }
+
+    /// Returns a dummy [`LspInfo`] which can be used in tests.
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn dummy() -> Self {
+        use crate::{rng::WeakRng, root_seed::RootSeed, test_utils};
+
+        let mut rng = WeakRng::from_u64(20230216);
+        let node_pk = RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng);
+        let addr = SocketAddr::from(([127, 0, 0, 1], 42069));
+
+        Self {
+            url: Some(test_utils::DUMMY_LSP_URL.to_owned()),
+            node_pk,
+            addr,
+            base_msat: 0,
+            proportional_millionths: 3000,
+            cltv_expiry_delta: 72,
+            htlc_minimum_msat: 1,
+            htlc_maximum_msat: u64::MAX,
+        }
+    }
 }
 
 impl FromStr for LspInfo {
