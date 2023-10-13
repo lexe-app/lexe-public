@@ -118,10 +118,10 @@ pub struct SealedSeedId {
 /// untrusted and not-yet-validated.
 /// - To validate and convert a [`SealedSeed`] into a [`RootSeed`], use
 ///   [`unseal_and_validate`]. The returned [`RootSeed`] is bound to the
-///   returned [`Network`], which can then be used to validate the [`Network`]
-///   given by an untrusted source (e.g. by the Lexe operators via CLI args).
-/// - To encrypt an existing [`RootSeed`] (and [`Network`]) into a
-///   [`SealedSeed`], use [`seal_from_root_seed`].
+///   returned [`DeployEnv`] and [`Network`], which can then be used to validate
+///   e.g. the [`Network`] supplied by the Lexe operators via CLI args.
+/// - To encrypt an existing [`RootSeed`] (and [`DeployEnv`] and [`Network`])
+///   into a [`SealedSeed`], use [`seal_from_root_seed`].
 ///
 /// See [`crate::enclave::seal`] for more implementation details.
 ///
@@ -144,9 +144,10 @@ pub struct SealedSeed {
 #[derive(Serialize, Deserialize)]
 // Not safe to allow non-constant time comparisons outside of tests
 #[cfg_attr(test, derive(PartialEq))]
-struct RootSeedWithNetwork<'a> {
+struct RootSeedWithMetadata<'a> {
     #[serde(with = "hexstr_or_bytes")]
     root_seed: Cow<'a, [u8]>,
+    deploy_env: DeployEnv,
     network: Network,
 }
 
@@ -172,16 +173,18 @@ impl SealedSeed {
     pub fn seal_from_root_seed<R: Crng>(
         rng: &mut R,
         root_seed: &RootSeed,
+        deploy_env: DeployEnv,
         network: Network,
         measurement: Measurement,
         machine_id: MachineId,
     ) -> anyhow::Result<Self> {
-        // RootSeedWithNetwork -> JSON bytes
-        let seed_w_network = RootSeedWithNetwork {
+        // RootSeedWithMetadata -> JSON bytes
+        let seed_w_metadata = RootSeedWithMetadata {
             root_seed: Cow::Borrowed(root_seed.expose_secret().as_slice()),
+            deploy_env,
             network,
         };
-        let json_bytes = serde_json::to_vec(&seed_w_network)
+        let json_bytes = serde_json::to_vec(&seed_w_metadata)
             .context("Failed to serialize RootSeedWithMetadata")?;
 
         // JSON bytes -> Sealed ciphertext
@@ -202,7 +205,7 @@ impl SealedSeed {
         self,
         expected_measurement: &Measurement,
         expected_machine_id: &MachineId,
-    ) -> anyhow::Result<(RootSeed, Network)> {
+    ) -> anyhow::Result<(RootSeed, DeployEnv, Network)> {
         // Validate SGX fields
         ensure!(
             &self.id.measurement == expected_measurement,
@@ -219,16 +222,19 @@ impl SealedSeed {
         let unsealed_json_bytes = enclave::unseal(Self::LABEL, sealed)
             .context("Failed to unseal provisioned secrets")?;
 
-        // JSON-deserialize -> RootSeedWithNetwork
-        let seed_w_network = serde_json::from_slice::<RootSeedWithNetwork>(
+        // JSON-deserialize -> RootSeedWithMetadata
+        let seed_w_metadata = serde_json::from_slice::<RootSeedWithMetadata>(
             unsealed_json_bytes.as_slice(),
         )
         .context("Failed to JSON-deserialize unsealed bytes")?;
-        let network = seed_w_network.network;
+        let RootSeedWithMetadata {
+            root_seed,
+            deploy_env,
+            network,
+        } = seed_w_metadata;
 
-        // Ensure `RootSeedWithNetwork::root_seed` bytes are zeroized upon drop
-        let secret_root_seed =
-            Secret::new(seed_w_network.root_seed.into_owned());
+        // Ensure `RootSeedWithMetadata::root_seed` bytes are zeroized upon drop
+        let secret_root_seed = Secret::new(root_seed.into_owned());
 
         // &Secret<Vec<u8>> -> RootSeed
         let root_seed =
@@ -243,7 +249,7 @@ impl SealedSeed {
         );
 
         // Validation complete, everything OK.
-        Ok((root_seed, network))
+        Ok((root_seed, deploy_env, network))
     }
 }
 
@@ -268,16 +274,18 @@ impl fmt::Debug for GDriveCredentials {
     }
 }
 
-impl fmt::Debug for RootSeedWithNetwork<'_> {
+impl fmt::Debug for RootSeedWithMetadata<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Avoid formatting secrets.
+        let deploy_env = &self.deploy_env;
         let network = &self.network;
         write!(
             f,
-            "RootSeedWithNetwork {{\
-            network: {network}, \
-            root_seed: RootSeed(..) \
-        }}"
+            "RootSeedWithMetadata {{\
+                deploy_env: {deploy_env}, \
+                network: {network}, \
+                root_seed: RootSeed(..) \
+            }}"
         )
     }
 }
@@ -291,14 +299,17 @@ mod test_impls {
 
     use super::*;
 
-    impl Arbitrary for RootSeedWithNetwork<'static> {
+    impl Arbitrary for RootSeedWithMetadata<'static> {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            (any::<Vec<u8>>(), any::<Network>())
-                .prop_map(|(root_seed_vec, network)| RootSeedWithNetwork {
-                    root_seed: Cow::from(root_seed_vec),
-                    network,
+            (any::<Vec<u8>>(), any::<DeployEnv>(), any::<Network>())
+                .prop_map(|(root_seed_vec, deploy_env, network)| {
+                    RootSeedWithMetadata {
+                        root_seed: Cow::from(root_seed_vec),
+                        deploy_env,
+                        network,
+                    }
                 })
                 .boxed()
         }
@@ -352,22 +363,24 @@ mod test {
         let measurement = enclave::measurement();
         let machine_id = enclave::machine_id();
 
-        proptest!(|(mut rng: WeakRng, network1: Network)| {
+        proptest!(|(mut rng: WeakRng, env1: DeployEnv, network1: Network)| {
             let root_seed1 = RootSeed::from_rng(&mut rng);
 
             let sealed_seed = SealedSeed::seal_from_root_seed(
                 &mut rng,
                 &root_seed1,
+                env1,
                 network1,
                 measurement,
                 machine_id,
             )
             .unwrap();
 
-            let (root_seed2, network2) = sealed_seed
+            let (root_seed2, env2, network2) = sealed_seed
                 .unseal_and_validate(&measurement, &machine_id)
                 .unwrap();
 
+            assert_eq!(env1, env2);
             assert_eq!(network1, network2);
             assert_eq!(
                 root_seed1.expose_secret(),
@@ -383,6 +396,6 @@ mod test {
 
     #[test]
     fn test_root_seed_json_roundtrip() {
-        roundtrip::json_value_canonical_proptest::<RootSeedWithNetwork>();
+        roundtrip::json_value_canonical_proptest::<RootSeedWithMetadata>();
     }
 }
