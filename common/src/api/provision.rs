@@ -178,6 +178,8 @@ impl SealedSeed {
         measurement: Measurement,
         machine_id: MachineId,
     ) -> anyhow::Result<Self> {
+        deploy_env.validate_network(network)?;
+
         // RootSeedWithMetadata -> JSON bytes
         let seed_w_metadata = RootSeedWithMetadata {
             root_seed: Cow::Borrowed(root_seed.expose_secret().as_slice()),
@@ -233,7 +235,7 @@ impl SealedSeed {
             network,
         } = seed_w_metadata;
 
-        // Ensure `RootSeedWithMetadata::root_seed` bytes are zeroized upon drop
+        // Ensure seed bytes are zeroized upon drop, even if something errors
         let secret_root_seed = Secret::new(root_seed.into_owned());
 
         // &Secret<Vec<u8>> -> RootSeed
@@ -241,10 +243,10 @@ impl SealedSeed {
             RootSeed::try_from(secret_root_seed.expose_secret().as_slice())
                 .context("Failed to deserialize root seed from secret bytes")?;
 
-        // Validate user_pk
-        let derived_user_pk = root_seed.derive_user_pk();
+        // Validation
+        deploy_env.validate_network(network)?;
         ensure!(
-            self.id.user_pk == derived_user_pk,
+            self.id.user_pk == root_seed.derive_user_pk(),
             "Saved user pk doesn't match derived user pk"
         );
 
@@ -318,7 +320,7 @@ mod test_impls {
 
 #[cfg(test)]
 mod test {
-    use proptest::proptest;
+    use proptest::{arbitrary::any, proptest};
     use secrecy::ExposeSecret;
 
     use super::*;
@@ -363,7 +365,10 @@ mod test {
         let measurement = enclave::measurement();
         let machine_id = enclave::machine_id();
 
-        proptest!(|(mut rng: WeakRng, env1: DeployEnv, network1: Network)| {
+        proptest!(|(
+            mut rng in any::<WeakRng>(),
+            (env1, network1) in DeployEnv::any_valid_network_combo(),
+        )| {
             let root_seed1 = RootSeed::from_rng(&mut rng);
 
             let sealed_seed = SealedSeed::seal_from_root_seed(
