@@ -8,7 +8,7 @@ use proptest_derive::Arbitrary;
 use crate::test_utils::arbitrary;
 use crate::{
     api::{ports::Port, UserPk},
-    cli::{LspInfo, Network, ToCommand},
+    cli::{LspInfo, Network, OAuthConfig, ToCommand},
     constants::{NODE_PROVISION_DNS, NODE_RUN_DNS},
 };
 
@@ -210,6 +210,11 @@ pub struct ProvisionArgs {
     /// the port on which to accept a provision request from the client.
     #[argh(option)]
     pub port: Option<Port>,
+
+    /// configuration info for Google OAuth2.
+    /// Required only if running in staging / prod.
+    #[argh(option)]
+    pub oauth: Option<OAuthConfig>,
 }
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -222,6 +227,7 @@ impl Default for ProvisionArgs {
             port: None,
             backend_url: DUMMY_BACKEND_URL.to_owned(),
             runner_url: DUMMY_RUNNER_URL.to_owned(),
+            oauth: None,
         }
     }
 }
@@ -239,6 +245,9 @@ impl ToCommand for ProvisionArgs {
             .arg(&self.runner_url);
         if let Some(port) = self.port {
             cmd.arg("--port").arg(&port.to_string());
+        }
+        if let Some(ref oauth) = self.oauth {
+            cmd.arg("--oauth").arg(&oauth.to_string());
         }
         cmd
     }
