@@ -3,6 +3,7 @@
   lib,
   pkgs,
   crane,
+  lexePubLib,
 }: rec {
   # cargo workspace Cargo.toml & Cargo.lock info
   workspaceRoot = ../..;
@@ -45,7 +46,7 @@
   # Converts a compiled `x86_64-fortanix-unknown-sgx` ELF binary into
   # a `.sgxs` enclave file.
   ftxsgx-elf2sgxs = pkgs.callPackage ./ftxsgx-elf2sgxs.nix {
-    craneLib = craneLib;
+    inherit craneLib lexePubLib;
   };
 
   # A hook that runs `ftxsgx-elf2sgxs` on the output binary in the

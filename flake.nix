@@ -70,8 +70,10 @@
     # system.
     systemLexePubPkgs = eachSystem (system:
       import ./nix/pkgs/default.nix {
+        lib = nixpkgs.lib;
         pkgs = systemPkgs.${system};
         crane = crane;
+        lexePubLib = lexePubLib;
       });
   in {
     # The exposed lexe public monorepo packages.
