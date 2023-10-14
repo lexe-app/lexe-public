@@ -54,7 +54,7 @@
     cargoLockContents = builtins.readFile workspaceLock;
     githubUrl = "https://github.com/lexe-app/rust-sgx";
   };
-  rustSgxSrc = builtins.fetchGit (rustSgxRepo // { shallow = true; });
+  rustSgxSrc = builtins.fetchGit (rustSgxRepo // {shallow = true;});
   rustSgxCargoVendorDir = craneLib.vendorCargoDeps {
     cargoLock = "${rustSgxSrc}/Cargo.lock";
   };
@@ -69,6 +69,12 @@
   # `postFixup` phase.
   elf2sgxsFixupHook = pkgs.callPackage ./elf2sgxsFixupHook.nix {
     ftxsgx-elf2sgxs = ftxsgx-elf2sgxs;
+  };
+
+  # Run to detect the current system's support for Intel SGX. Only builds and
+  # runs on `x86_64-linux`.
+  sgx-detect = pkgs.callPackage ./sgx-detect.nix {
+    inherit buildRustIncremental rustSgxSrc rustSgxCargoVendorDir;
   };
 
   # Generic builder for Rust SGX crates.

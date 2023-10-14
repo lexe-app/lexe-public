@@ -12,19 +12,19 @@
   rustSgxSrc,
   rustSgxCargoVendorDir,
 }:
-  buildRustIncremental {
-    cargoToml = "${rustSgxSrc}/intel-sgx/fortanix-sgx-tools/Cargo.toml";
-    src = rustSgxSrc;
-    cargoVendorDir = rustSgxCargoVendorDir;
+buildRustIncremental {
+  cargoToml = "${rustSgxSrc}/intel-sgx/fortanix-sgx-tools/Cargo.toml";
+  src = rustSgxSrc;
+  cargoVendorDir = rustSgxCargoVendorDir;
 
-    pname = "ftxsgx-elf2sgxs";
-    doCheck = false;
+  pname = "ftxsgx-elf2sgxs";
+  doCheck = false;
 
-    cargoExtraArgs = builtins.concatStringsSep " " [
-      "--offline"
-      "--locked"
-      "--package=fortanix-sgx-tools"
-      "--bin=ftxsgx-elf2sgxs"
-      "--no-default-features"
-    ];
-  }
+  cargoExtraArgs = builtins.concatStringsSep " " [
+    "--offline"
+    "--locked"
+    "--package=fortanix-sgx-tools"
+    "--bin=ftxsgx-elf2sgxs"
+    "--no-default-features"
+  ];
+}
