@@ -43,7 +43,8 @@
     rust-overlay,
     crane,
   }: let
-    lexePubLib = import ./nix/lib/default.nix {lib = nixpkgs.lib;};
+    lib = nixpkgs.lib;
+    lexePubLib = import ./nix/lib/default.nix {lib = lib;};
     eachSystem = lexePubLib.eachSystem;
 
     # The "host" nixpkgs for each system.
@@ -82,17 +83,24 @@
     packages = eachSystem (
       system: let
         lexePubPkgs = systemLexePubPkgs.${system};
-      in {
-        inherit
-          (lexePubPkgs)
-          ftxsgx-elf2sgxs
-          node-release-sgx
-          node-debug-sgx
-          node-release-nosgx
-          node-debug-nosgx
-          run-sgx
-          ;
-      }
+      in
+        {
+          inherit
+            (lexePubPkgs)
+            ftxsgx-elf2sgxs
+            node-release-sgx
+            node-debug-sgx
+            node-release-nosgx
+            node-debug-nosgx
+            run-sgx
+            ;
+        }
+        // lib.optionalAttrs (system == "x86_64-linux") {
+          inherit
+            (lexePubPkgs)
+            sgx-detect
+            ;
+        }
     );
 
     # lexe development shells
