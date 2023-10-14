@@ -30,8 +30,14 @@ pub struct NodeProvisionRequest {
     pub deploy_env: DeployEnv,
     /// The [`Network`] that this [`RootSeed`] should be bound to.
     pub network: Network,
-    /// The credentials required to store data in Google Drive.
-    pub gdrive_credentials: GDriveCredentials,
+    /// The auth `code` which can used to obtain a [`GDriveCredentials`].
+    /// - Applicable only in staging/prod.
+    /// - If provided, the provisioning node will acquire the full
+    ///   [`GDriveCredentials`] and persist them (encrypted ofc) in Lexe's DB.
+    /// - If *not* provided, the provisioning node will ensure that a
+    ///   [`GDriveCredentials`] has already been persisted in Lexe's DB.
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
+    pub google_auth_code: Option<String>,
 }
 
 /// A complete set of OAuth2 credentials which allows making requests to the
@@ -330,27 +336,21 @@ mod test {
     fn test_node_provision_request_sample() {
         let mut rng = WeakRng::from_u64(12345);
         let root_seed = RootSeed::from_rng(&mut rng);
-        let gdrive_credentials = GDriveCredentials::dummy();
         let network = Network::REGTEST;
         let deploy_env = DeployEnv::Dev;
+        let google_auth_code = Some("auth_code".to_owned());
         let req = NodeProvisionRequest {
             root_seed,
-            network,
-            gdrive_credentials,
             deploy_env,
+            network,
+            google_auth_code,
         };
         let actual = serde_json::to_value(&req).unwrap();
         let expected = serde_json::json!({
             "root_seed": "0a7d28d375bc07250ca30e015a808a6d70d43c5a55c4d5828cdeacca640191a1",
             "deploy_env": "dev",
             "network": "regtest",
-            "gdrive_credentials": {
-                "client_id": "client_id",
-                "client_secret": "client_secret",
-                "refresh_token": "refresh_token",
-                "access_token": "access_token",
-                "expires_at": 0,
-            }
+            "google_auth_code": "auth_code",
         });
         assert_eq!(&actual, &expected);
     }
