@@ -1668,6 +1668,8 @@ dependencies = [
  "common",
  "futures",
  "logger",
+ "proptest",
+ "proptest-derive",
  "reqwest",
  "serde",
  "serde_json",

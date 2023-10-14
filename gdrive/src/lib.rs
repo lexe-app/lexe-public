@@ -25,7 +25,7 @@
 //! returned ciphertexts.
 //!
 //! [installed app OAuth2 flow]: https://developers.google.com/identity/protocols/oauth2/native-app
-//! [`GDriveCredentials`]: common::api::provision::GDriveCredentials
+//! [`GDriveCredentials`]: crate::oauth2::GDriveCredentials
 //!
 //! ## Rollback Protection
 //!

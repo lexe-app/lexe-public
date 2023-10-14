@@ -23,6 +23,8 @@ tokio = { workspace = true, features = ["sync"] }
 common = { path = "../common", features = ["test-utils"] }
 logger = { path = "../logger" }
 
+proptest.workspace = true
+proptest-derive.workspace = true
 tokio = { workspace = true, features = [
     "macros",
     "sync",

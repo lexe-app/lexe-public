@@ -205,9 +205,8 @@ pub(crate) async fn get_gvfs_root_gid(
 
 #[cfg(test)]
 mod test {
-    use common::api::provision::GDriveCredentials;
-
     use super::*;
+    use crate::oauth2::GDriveCredentials;
 
     /// ```bash
     /// export GOOGLE_CLIENT_ID="<client_id>"

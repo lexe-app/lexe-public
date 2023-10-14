@@ -9,10 +9,7 @@ use std::{collections::BTreeMap, str::FromStr};
 
 use anyhow::{anyhow, bail, ensure, Context};
 use common::{
-    api::{
-        provision::GDriveCredentials,
-        vfs::{VfsDirectory, VfsFile, VfsFileId},
-    },
+    api::vfs::{VfsDirectory, VfsFile, VfsFileId},
     cli::Network,
     constants, Apply,
 };
@@ -20,7 +17,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{instrument, warn};
 
 use crate::{
-    api, api::GDriveClient, gvfs_file_id::GvfsFileId, lexe_dir, models::GFileId,
+    api, api::GDriveClient, gvfs_file_id::GvfsFileId, lexe_dir,
+    models::GFileId, oauth2::GDriveCredentials,
 };
 
 // Allows tests to assert that these `anyhow::Error`s happened.
