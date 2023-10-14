@@ -1,8 +1,15 @@
 #[cfg(test)]
 use std::env;
-use std::time::{Duration, SystemTime};
+use std::{
+    fmt,
+    time::{Duration, SystemTime},
+};
 
-use common::{api::provision::GDriveCredentials, const_assert};
+use common::const_assert;
+#[cfg(test)]
+use common::test_utils::arbitrary;
+#[cfg(test)]
+use proptest_derive::Arbitrary;
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, instrument, trace};
@@ -27,6 +34,78 @@ const TOKEN_TYPE: &str = "Bearer";
 pub const MINIMUM_TOKEN_LIFETIME: Duration = Duration::from_secs(60);
 // Newly refreshed access tokens usually live for only 3600 seconds
 const_assert!(MINIMUM_TOKEN_LIFETIME.as_secs() < 3600);
+
+/// A complete set of OAuth2 credentials which allows making requests to the
+/// Google Drive v3 API and periodically refreshing the contained access token.
+#[derive(Clone, Serialize, Deserialize)]
+#[cfg_attr(test, derive(PartialEq, Arbitrary))]
+pub struct GDriveCredentials {
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
+    pub client_id: String,
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
+    pub client_secret: String,
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
+    pub refresh_token: String,
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
+    pub access_token: String,
+    /// Unix timestamp (in seconds) at which the current access token expires.
+    /// Set to 0 if unknown; the tokens will just be refreshed at next use.
+    pub expires_at: u64,
+}
+
+impl GDriveCredentials {
+    /// Attempts to construct an [`GDriveCredentials`] from env.
+    ///
+    /// ```bash
+    /// export GOOGLE_CLIENT_ID="<client_id>"
+    /// export GOOGLE_CLIENT_SECRET="<client_secret>"
+    /// export GOOGLE_REFRESH_TOKEN="<refresh_token>"
+    /// export GOOGLE_ACCESS_TOKEN="<access_token>"
+    /// export GOOGLE_ACCESS_TOKEN_EXPIRY="<timestamp>" # Set to 0 if unknown
+    /// ```
+    #[cfg(any(test, feature = "test-utils"))]
+    pub fn from_env() -> anyhow::Result<Self> {
+        use std::str::FromStr;
+
+        use anyhow::Context;
+
+        let client_id = env::var("GOOGLE_CLIENT_ID")
+            .context("Missing 'GOOGLE_CLIENT_ID' in env")?;
+        let client_secret = env::var("GOOGLE_CLIENT_SECRET")
+            .context("Missing 'GOOGLE_CLIENT_SECRET' in env")?;
+        let refresh_token = env::var("GOOGLE_REFRESH_TOKEN")
+            .context("Missing 'GOOGLE_REFRESH_TOKEN' in env")?;
+        let access_token = env::var("GOOGLE_ACCESS_TOKEN")
+            .context("Missing 'GOOGLE_ACCESS_TOKEN' in env")?;
+        let expires_at_str = env::var("GOOGLE_ACCESS_TOKEN_EXPIRY")
+            .context("Missing 'GOOGLE_ACCESS_TOKEN_EXPIRY' in env")?;
+        let expires_at = u64::from_str(&expires_at_str)
+            .context("Invalid GOOGLE_ACCESS_TOKEN_EXPIRY")?;
+
+        Ok(Self {
+            client_id,
+            client_secret,
+            refresh_token,
+            access_token,
+            expires_at,
+        })
+    }
+}
+
+impl fmt::Debug for GDriveCredentials {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let client_id = &self.client_id;
+        let expires_at = &self.expires_at;
+        write!(
+            f,
+            "GDriveCredentials {{ \
+                client_id: {client_id}, \
+                expires_at: {expires_at}, \
+                .. \
+            }}"
+        )
+    }
+}
 
 /// Exchanges the auth `code` (and other info) for the `access_token`,
 /// returning the full [`GDriveCredentials`] which can then be persisted.
@@ -292,7 +371,14 @@ async fn refresh(
 
 #[cfg(test)]
 mod test {
+    use common::test_utils::roundtrip;
+
     use super::*;
+
+    #[test]
+    fn credentials_roundtrip() {
+        roundtrip::json_value_canonical_proptest::<GDriveCredentials>();
+    }
 
     /// ```bash
     /// export GOOGLE_CLIENT_ID="<client_id>"

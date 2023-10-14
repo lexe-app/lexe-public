@@ -30,82 +30,14 @@ pub struct NodeProvisionRequest {
     pub deploy_env: DeployEnv,
     /// The [`Network`] that this [`RootSeed`] should be bound to.
     pub network: Network,
-    /// The auth `code` which can used to obtain a [`GDriveCredentials`].
+    /// The auth `code` which can used to obtain a set of GDrive credentials
     /// - Applicable only in staging/prod.
-    /// - If provided, the provisioning node will acquire the full
-    ///   [`GDriveCredentials`] and persist them (encrypted ofc) in Lexe's DB.
-    /// - If *not* provided, the provisioning node will ensure that a
-    ///   [`GDriveCredentials`] has already been persisted in Lexe's DB.
+    /// - If provided, the provisioning node will acquire the full set of
+    ///   GDrive credentials and persist them (encrypted ofc) in Lexe's DB.
+    /// - If *not* provided, the provisioning node will ensure that a set of
+    ///   GDrive credentials has already been persisted in Lexe's DB.
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
     pub google_auth_code: Option<String>,
-}
-
-/// A complete set of OAuth2 credentials which allows making requests to the
-/// Google Drive v3 API and periodically refreshing the contained access token.
-#[derive(Clone, Serialize, Deserialize)]
-#[cfg_attr(test, derive(PartialEq, Arbitrary))]
-pub struct GDriveCredentials {
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
-    pub client_id: String,
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
-    pub client_secret: String,
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
-    pub refresh_token: String,
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
-    pub access_token: String,
-    /// Unix timestamp (in seconds) at which the current access token expires.
-    /// Set to 0 if unknown; the tokens will just be refreshed at next use.
-    pub expires_at: u64,
-}
-
-impl GDriveCredentials {
-    /// Get a dummy value which can be used in tests.
-    // TODO(max): Re-add cfg once app-rs does actual oauth
-    // #[cfg(any(test, feature = "test-utils"))]
-    pub fn dummy() -> Self {
-        Self {
-            client_id: String::from("client_id"),
-            client_secret: String::from("client_secret"),
-            refresh_token: String::from("refresh_token"),
-            access_token: String::from("access_token"),
-            expires_at: 0,
-        }
-    }
-
-    /// Attempts to construct an [`GDriveCredentials`] from env.
-    ///
-    /// ```bash
-    /// export GOOGLE_CLIENT_ID="<client_id>"
-    /// export GOOGLE_CLIENT_SECRET="<client_secret>"
-    /// export GOOGLE_REFRESH_TOKEN="<refresh_token>"
-    /// export GOOGLE_ACCESS_TOKEN="<access_token>"
-    /// export GOOGLE_ACCESS_TOKEN_EXPIRY="<timestamp>" # Set to 0 if unknown
-    /// ```
-    #[cfg(any(test, feature = "test-utils"))]
-    pub fn from_env() -> anyhow::Result<Self> {
-        use std::{env, str::FromStr};
-
-        let client_id = env::var("GOOGLE_CLIENT_ID")
-            .context("Missing 'GOOGLE_CLIENT_ID' in env")?;
-        let client_secret = env::var("GOOGLE_CLIENT_SECRET")
-            .context("Missing 'GOOGLE_CLIENT_SECRET' in env")?;
-        let refresh_token = env::var("GOOGLE_REFRESH_TOKEN")
-            .context("Missing 'GOOGLE_REFRESH_TOKEN' in env")?;
-        let access_token = env::var("GOOGLE_ACCESS_TOKEN")
-            .context("Missing 'GOOGLE_ACCESS_TOKEN' in env")?;
-        let expires_at_str = env::var("GOOGLE_ACCESS_TOKEN_EXPIRY")
-            .context("Missing 'GOOGLE_ACCESS_TOKEN_EXPIRY' in env")?;
-        let expires_at = u64::from_str(&expires_at_str)
-            .context("Invalid GOOGLE_ACCESS_TOKEN_EXPIRY")?;
-
-        Ok(Self {
-            client_id,
-            client_secret,
-            refresh_token,
-            access_token,
-            expires_at,
-        })
-    }
 }
 
 /// Uniquely identifies a sealed seed using its primary key fields.
@@ -264,21 +196,6 @@ impl SealedSeed {
 impl fmt::Debug for NodeProvisionRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("NodeProvisionRequest { .. }")
-    }
-}
-
-impl fmt::Debug for GDriveCredentials {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let client_id = &self.client_id;
-        let expires_at = &self.expires_at;
-        write!(
-            f,
-            "GDriveCredentials {{ \
-                client_id: {client_id}, \
-                expires_at: {expires_at}, \
-                .. \
-            }}"
-        )
     }
 }
 

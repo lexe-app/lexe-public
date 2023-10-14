@@ -14,7 +14,6 @@ use common::{
     api::{
         auth::{BearerAuthToken, BearerAuthenticator},
         error::{NodeApiError, NodeErrorKind},
-        provision::GDriveCredentials,
         qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIds},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Scid, User,
@@ -35,7 +34,7 @@ use common::{
     Apply,
 };
 use futures::future::TryFutureExt;
-use gdrive::{GoogleVfs, GvfsRoot};
+use gdrive::{oauth2::GDriveCredentials, GoogleVfs, GvfsRoot};
 use lexe_ln::{
     alias::{
         BroadcasterType, ChannelMonitorType, FeeEstimatorType,
