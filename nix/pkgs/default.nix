@@ -43,10 +43,26 @@
     inherit llvmPackages sgx-libc-shim;
   };
 
+  # Generic rust builder for non-SGX crates. Supports shared nix cargo
+  # incremental build cache.
+  buildRustIncremental = pkgs.callPackage ./buildRustIncremental.nix {
+    inherit craneLib cargoVendorDir srcRust workspaceVersion;
+  };
+
+  # rust-sgx repo source
+  rustSgxRepo = lexePubLib.parseCargoLockGitDep {
+    cargoLockContents = builtins.readFile workspaceLock;
+    githubUrl = "https://github.com/lexe-app/rust-sgx";
+  };
+  rustSgxSrc = builtins.fetchGit (rustSgxRepo // { shallow = true; });
+  rustSgxCargoVendorDir = craneLib.vendorCargoDeps {
+    cargoLock = "${rustSgxSrc}/Cargo.lock";
+  };
+
   # Converts a compiled `x86_64-fortanix-unknown-sgx` ELF binary into
   # a `.sgxs` enclave file.
   ftxsgx-elf2sgxs = pkgs.callPackage ./ftxsgx-elf2sgxs.nix {
-    inherit craneLib lexePubLib;
+    inherit buildRustIncremental rustSgxSrc rustSgxCargoVendorDir;
   };
 
   # A hook that runs `ftxsgx-elf2sgxs` on the output binary in the
@@ -58,12 +74,6 @@
   # Generic builder for Rust SGX crates.
   buildRustSgxPackage = pkgs.callPackage ./buildRustSgxPackage.nix {
     inherit craneLib cargoVendorDir srcRust sgxCrossEnvBuildHook elf2sgxsFixupHook;
-  };
-
-  # Generic rust builder for non-SGX crates. Supports shared nix cargo
-  # incremental build cache.
-  buildRustIncremental = pkgs.callPackage ./buildRustIncremental.nix {
-    inherit craneLib cargoVendorDir srcRust workspaceVersion;
   };
 
   # User's node SGX enclave
