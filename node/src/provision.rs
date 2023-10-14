@@ -48,7 +48,8 @@ const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Clone)]
 struct RequestContext {
-    current_user_pk: UserPk,
+    args: Arc<ProvisionArgs>,
+    client: reqwest::Client,
     measurement: Measurement,
     shutdown: ShutdownChannel,
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
@@ -77,10 +78,15 @@ pub async fn provision_node<R: Crng>(
     debug!(%args.user_pk, args.port, %args.node_dns_name, "provisioning");
 
     // Set up the request context and warp routes.
+    let args = Arc::new(args);
+    // TODO(phlip9): Add Google certs here once the webpki feature is removed
+    // from the `gdrive` crate
+    let client = reqwest::Client::new();
     let measurement = enclave::measurement();
     let mut shutdown = ShutdownChannel::new();
     let ctx = RequestContext {
-        current_user_pk: args.user_pk,
+        args: args.clone(),
+        client,
         measurement,
         shutdown: shutdown.clone(),
         backend_api,
@@ -92,8 +98,9 @@ pub async fn provision_node<R: Crng>(
     let routes = routes.with(rest::trace_requests(Span::current().id()));
 
     // Set up the TLS config.
-    let tls_config = tls::node_provision_tls_config(rng, args.node_dns_name)
-        .context("Failed to build TLS config for provisioning")?;
+    let tls_config =
+        tls::node_provision_tls_config(rng, args.node_dns_name.clone())
+            .context("Failed to build TLS config for provisioning")?;
 
     // Set up a shutdown future that completes when either:
     //
@@ -168,9 +175,9 @@ async fn provision_handler(
     let user_key_pair = req.root_seed.derive_user_key_pair();
     let derived_user_pk =
         UserPk::from_ref(user_key_pair.public_key().as_inner());
-    if derived_user_pk != &ctx.current_user_pk {
+    if derived_user_pk != &ctx.args.user_pk {
         return Err(NodeApiError::wrong_user_pk(
-            ctx.current_user_pk,
+            ctx.args.user_pk,
             *derived_user_pk,
         ));
     }
@@ -212,18 +219,76 @@ async fn provision_handler(
             msg: format!("Could not persist sealed seed: {e:#}"),
         })?;
 
-    // Encrypt the GDriveCredentials and upsert into Lexe's untrusted DB.
-    let vfs_master_key = req.root_seed.derive_vfs_master_key();
-    persister::persist_gdrive_credentials(
-        &mut ctx.rng,
-        ctx.backend_api.as_ref(),
-        &vfs_master_key,
-        &req.gdrive_credentials,
-        token,
-    )
-    .await?;
+    if !req.deploy_env.is_staging_or_prod() {
+        // If we're not in staging/prod, provisioning is done. Stop the node.
+        ctx.shutdown.send();
+        return Ok(Empty {});
+    }
+    // We're in staging/prod. There's some more work to do.
 
-    // Provisioning done. Stop the node.
+    let oauth = ctx.args.oauth.clone().ok_or_else(|| NodeApiError {
+        kind: NodeErrorKind::Provision,
+        msg: "Missing OAuthConfig from Lexe operators".to_owned(),
+    })?;
+    let vfs_master_key = req.root_seed.derive_vfs_master_key();
+    match req.google_auth_code {
+        Some(code) => {
+            // We were given an auth code. Exchange for credentials and persist.
+
+            // Use the auth code to get a GDriveCredentials.
+            let credentials = gdrive::oauth2::auth_code_for_token(
+                &ctx.client,
+                oauth.client_id,
+                oauth.client_secret,
+                &oauth.redirect_uri,
+                &code,
+            )
+            .await
+            .map_err(|e| NodeApiError {
+                kind: NodeErrorKind::Provision,
+                msg: format!("Couldn't get tokens using code: {e:#}"),
+            })?;
+
+            // Encrypt the GDriveCredentials and upsert into Lexe's DB.
+            persister::persist_gdrive_credentials(
+                &mut ctx.rng,
+                ctx.backend_api.as_ref(),
+                &vfs_master_key,
+                &credentials,
+                token,
+            )
+            .await?;
+        }
+        None => {
+            // No auth code was provided. Ensure that credentials already exist.
+            let credentials = persister::read_gdrive_credentials(
+                ctx.backend_api.as_ref(),
+                &authenticator,
+                &vfs_master_key,
+            )
+            .await
+            .map_err(|e| NodeApiError {
+                kind: NodeErrorKind::Provision,
+                msg: format!("GDriveCredentials invalid or missing: {e:#}"),
+            })?;
+
+            // Sanity check the returned credentials
+            if oauth.client_id != credentials.client_id {
+                return Err(NodeApiError {
+                    kind: NodeErrorKind::Provision,
+                    msg: "`client_id`s didn't match!".to_owned(),
+                });
+            }
+            if oauth.client_secret != credentials.client_secret {
+                return Err(NodeApiError {
+                    kind: NodeErrorKind::Provision,
+                    msg: "`client_secret`s didn't match!".to_owned(),
+                });
+            }
+        }
+    }
+
+    // Provisioning is done. Stop the node.
     ctx.shutdown.send();
 
     Ok(Empty {})
@@ -234,7 +299,6 @@ mod test {
     use std::sync::Arc;
 
     use common::{
-        api::provision::GDriveCredentials,
         attest,
         attest::verify::EnclavePolicy,
         cli::{node::ProvisionArgs, Network},
@@ -322,14 +386,13 @@ mod test {
             tls_config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
 
             // client sends provision request to node
-            let gdrive_credentials = GDriveCredentials::dummy();
             let network = Network::REGTEST;
             let deploy_env = DeployEnv::Dev;
             let provision_req = NodeProvisionRequest {
                 root_seed,
                 deploy_env,
                 network,
-                gdrive_credentials,
+                google_auth_code: None,
             };
             let client = reqwest::Client::builder()
                 .use_preconfigured_tls(tls_config)
