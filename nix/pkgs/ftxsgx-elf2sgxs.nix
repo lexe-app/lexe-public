@@ -8,30 +8,17 @@
 # exact same enclave measurement as the SGX platform, without having to actually
 # load the enclave.
 {
-  lexePubLib,
-  craneLib,
-}: let
-  rustSgxRepo = lexePubLib.parseCargoLockGitDep {
-    cargoLockContents = builtins.readFile ../../Cargo.lock;
-    githubUrl = "https://github.com/lexe-app/rust-sgx";
-  };
-
-  rustSgxSrc = builtins.fetchGit {
-    inherit (rustSgxRepo) url ref rev;
-    shallow = true;
-  };
-
-  crateInfo = craneLib.crateNameFromCargoToml {
+  buildRustIncremental,
+  rustSgxSrc,
+  rustSgxCargoVendorDir,
+}:
+  buildRustIncremental {
     cargoToml = "${rustSgxSrc}/intel-sgx/fortanix-sgx-tools/Cargo.toml";
-  };
-in
-  craneLib.buildPackage {
     src = rustSgxSrc;
+    cargoVendorDir = rustSgxCargoVendorDir;
 
     pname = "ftxsgx-elf2sgxs";
-    version = crateInfo.version;
     doCheck = false;
-    cargoArtifacts = null;
 
     cargoExtraArgs = builtins.concatStringsSep " " [
       "--offline"
