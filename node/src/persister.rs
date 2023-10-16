@@ -11,6 +11,7 @@ use anyhow::{anyhow, ensure, Context};
 use async_trait::async_trait;
 use bitcoin::hash_types::BlockHash;
 use common::{
+    aes::AesMasterKey,
     api::{
         auth::{BearerAuthToken, BearerAuthenticator},
         error::{NodeApiError, NodeErrorKind},
@@ -30,7 +31,6 @@ use common::{
     },
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
-    vfs_encrypt::VfsMasterKey,
     Apply,
 };
 use futures::future::TryFutureExt;
@@ -89,7 +89,7 @@ pub(crate) const CHANNEL_MONITORS_DIRECTORY: &str = "channel_monitors";
 pub struct NodePersister {
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
     authenticator: Arc<BearerAuthenticator>,
-    vfs_master_key: Arc<VfsMasterKey>,
+    vfs_master_key: Arc<AesMasterKey>,
     google_vfs: Option<Arc<GoogleVfs>>,
     user: User,
     shutdown: ShutdownChannel,
@@ -103,7 +103,7 @@ pub struct NodePersister {
 pub(crate) async fn persist_gdrive_credentials(
     rng: &mut impl Crng,
     backend_api: &(dyn BackendApiClient + Send + Sync),
-    vfs_master_key: &VfsMasterKey,
+    vfs_master_key: &AesMasterKey,
     credentials: &GDriveCredentials,
     token: BearerAuthToken,
 ) -> Result<(), NodeApiError> {
@@ -126,7 +126,7 @@ pub(crate) async fn persist_gdrive_credentials(
 pub(crate) async fn read_gdrive_credentials(
     backend_api: &(dyn BackendApiClient + Send + Sync),
     authenticator: &BearerAuthenticator,
-    vfs_master_key: &VfsMasterKey,
+    vfs_master_key: &AesMasterKey,
 ) -> anyhow::Result<GDriveCredentials> {
     let file_id =
         VfsFileId::new(SINGLETON_DIRECTORY, GDRIVE_CREDENTIALS_FILENAME);
@@ -154,7 +154,7 @@ pub(crate) async fn persist_gvfs_root(
     rng: &mut impl Crng,
     backend_api: &(dyn BackendApiClient + Send + Sync),
     authenticator: &BearerAuthenticator,
-    vfs_master_key: &VfsMasterKey,
+    vfs_master_key: &AesMasterKey,
     gvfs_root: &GvfsRoot,
 ) -> anyhow::Result<()> {
     let file_id = VfsFileId::new(SINGLETON_DIRECTORY, GVFS_ROOT_FILENAME);
@@ -177,7 +177,7 @@ pub(crate) async fn persist_gvfs_root(
 pub(crate) async fn read_gvfs_root(
     backend_api: &(dyn BackendApiClient + Send + Sync),
     authenticator: &BearerAuthenticator,
-    vfs_master_key: &VfsMasterKey,
+    vfs_master_key: &AesMasterKey,
 ) -> anyhow::Result<Option<GvfsRoot>> {
     let file_id = VfsFileId::new(SINGLETON_DIRECTORY, GVFS_ROOT_FILENAME);
     let token = authenticator
@@ -203,7 +203,7 @@ impl NodePersister {
     pub(crate) fn new(
         backend_api: Arc<dyn BackendApiClient + Send + Sync>,
         authenticator: Arc<BearerAuthenticator>,
-        vfs_master_key: Arc<VfsMasterKey>,
+        vfs_master_key: Arc<AesMasterKey>,
         google_vfs: Option<Arc<GoogleVfs>>,
         user: User,
         shutdown: ShutdownChannel,

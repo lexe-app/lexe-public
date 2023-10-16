@@ -5,6 +5,7 @@
 
 use anyhow::Context;
 use common::{
+    aes::AesMasterKey,
     ln::{
         amount::Amount,
         hashes::LxTxid,
@@ -16,7 +17,6 @@ use common::{
     },
     rng::Crng,
     time::TimestampMs,
-    vfs_encrypt::VfsMasterKey,
 };
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -66,10 +66,10 @@ pub enum Payment {
 }
 
 /// Serializes a given payment to JSON and encrypts the payment under the given
-/// [`VfsMasterKey`], returning the [`DbPayment`] which can be persisted.
+/// [`AesMasterKey`], returning the [`DbPayment`] which can be persisted.
 pub fn encrypt(
     rng: &mut impl Crng,
-    vfs_master_key: &VfsMasterKey,
+    vfs_master_key: &AesMasterKey,
     payment: &Payment,
 ) -> DbPayment {
     // Serialize the payment as JSON bytes.
@@ -92,9 +92,9 @@ pub fn encrypt(
 }
 
 /// Given a [`DbPayment`], attempts to decrypt the associated ciphertext using
-/// the given [`VfsMasterKey`], returning the deserialized [`Payment`].
+/// the given [`AesMasterKey`], returning the deserialized [`Payment`].
 pub fn decrypt(
-    vfs_master_key: &VfsMasterKey,
+    vfs_master_key: &AesMasterKey,
     db_payment: DbPayment,
 ) -> anyhow::Result<Payment> {
     let aad = &[];
@@ -580,9 +580,7 @@ impl OutboundSpontaneousPaymentStatus {
 
 #[cfg(test)]
 mod test {
-    use common::{
-        rng::WeakRng, test_utils::roundtrip, vfs_encrypt::VfsMasterKey,
-    };
+    use common::{aes::AesMasterKey, rng::WeakRng, test_utils::roundtrip};
     use proptest::{
         arbitrary::any, prop_assert_eq, proptest, test_runner::Config,
     };
@@ -612,7 +610,7 @@ mod test {
     fn payment_encryption_roundtrip() {
         proptest!(|(
             mut rng in any::<WeakRng>(),
-            vfs_master_key in any::<VfsMasterKey>(),
+            vfs_master_key in any::<AesMasterKey>(),
             p1 in any::<Payment>(),
         )| {
             let encrypted = super::encrypt(&mut rng, &vfs_master_key, &p1);

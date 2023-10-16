@@ -1,8 +1,8 @@
 use anyhow::{ensure, Context};
 use common::{
+    aes::AesMasterKey,
     api::vfs::{VfsFile, VfsFileId},
     rng::Crng,
-    vfs_encrypt::VfsMasterKey,
 };
 use lightning::util::ser::Writeable;
 use serde::{de::DeserializeOwned, Serialize};
@@ -12,7 +12,7 @@ use tracing::warn;
 /// packages everything up into a [`VfsFile`] which is ready to be persisted.
 pub fn encrypt_ldk_writeable(
     rng: &mut impl Crng,
-    vfs_master_key: &VfsMasterKey,
+    vfs_master_key: &AesMasterKey,
     file_id: VfsFileId,
     writeable: &impl Writeable,
 ) -> VfsFile {
@@ -31,7 +31,7 @@ pub fn encrypt_ldk_writeable(
 /// packages everything up into a [`VfsFile`] which is ready to be persisted.
 pub fn encrypt_json(
     rng: &mut impl Crng,
-    vfs_master_key: &VfsMasterKey,
+    vfs_master_key: &AesMasterKey,
     file_id: VfsFileId,
     value: &impl Serialize,
 ) -> VfsFile {
@@ -43,7 +43,7 @@ pub fn encrypt_json(
 
 fn encrypt_file(
     rng: &mut impl Crng,
-    vfs_master_key: &VfsMasterKey,
+    vfs_master_key: &AesMasterKey,
     file_id: VfsFileId,
     write_data_cb: &dyn Fn(&mut Vec<u8>),
 ) -> VfsFile {
@@ -78,7 +78,7 @@ fn encrypt_file(
 ///
 /// If successful, returns the decrypted plaintext bytes contained in the file.
 pub fn decrypt_file(
-    vfs_master_key: &VfsMasterKey,
+    vfs_master_key: &AesMasterKey,
     expected_file_id: &VfsFileId,
     returned_file: VfsFile,
 ) -> anyhow::Result<Vec<u8>> {
@@ -106,7 +106,7 @@ pub fn decrypt_file(
 /// JSON plaintext bytes into the expected type.
 #[inline]
 pub fn decrypt_json_file<D: DeserializeOwned>(
-    vfs_master_key: &VfsMasterKey,
+    vfs_master_key: &AesMasterKey,
     expected_file_id: &VfsFileId,
     returned_file: VfsFile,
 ) -> anyhow::Result<D> {

@@ -27,7 +27,7 @@
 //!
 //! This scheme is inspired by "Derive Key Mode" described in
 //! [(2017) GueronLindel](https://eprint.iacr.org/2017/702.pdf).
-//! "Derive Key Mode" uses a long-term "master key" (see `VfsMasterKey`), which
+//! "Derive Key Mode" uses a long-term "master key" (see `AesMasterKey`), which
 //! isn't used to encrypt data; rather, it's used to derive per-message keys
 //! from a large random key-id, sampled per message (see `KeyId`).
 //!
@@ -58,7 +58,7 @@
 //! 3. aad := Aad(version, key-id, user-aad)
 //! 4. encrypt-key := HKDF-Extract-Expand(
 //!         ikm=master-key,
-//!         salt=SHA-256("LEXE-REALM::VfsMasterKey"),
+//!         salt=SHA-256("LEXE-REALM::AesMasterKey"),
 //!         info=key-id,
 //!         out-len=32 bytes,
 //!    )
@@ -107,13 +107,13 @@ const fn encrypted_len(plaintext_len: usize) -> usize {
     VERSION_LEN + KEY_ID_LEN + plaintext_len + TAG_LEN
 }
 
-/// The `VfsMasterKey` is used to derive unique single-use encrypt keys for
+/// The `AesMasterKey` is used to derive unique single-use encrypt keys for
 /// encrypting or decrypting a blob.
 ///
-/// `RootSeed` -- derive("vfs master key") --> `VfsMasterKey`
+/// `RootSeed` -- derive("vfs master key") --> `AesMasterKey`
 // We store the salted+extracted PRK directly to avoid recomputing it every
 // time we encrypt something.
-pub struct VfsMasterKey(hkdf::Prk);
+pub struct AesMasterKey(hkdf::Prk);
 
 #[derive(RefCast, Serialize)]
 #[repr(transparent)]
@@ -147,15 +147,15 @@ struct ZeroNonce(Option<aead::Nonce>);
 #[error("decrypt error: ciphertext or metadata may be corrupted")]
 pub struct DecryptError;
 
-impl fmt::Debug for VfsMasterKey {
+impl fmt::Debug for AesMasterKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("VfsMasterKey(..)")
+        f.write_str("AesMasterKey(..)")
     }
 }
 
-impl VfsMasterKey {
+impl AesMasterKey {
     const HKDF_SALT: [u8; 32] =
-        sha256::digest_const(b"LEXE-REALM::VfsMasterKey").into_inner();
+        sha256::digest_const(b"LEXE-REALM::AesMasterKey").into_inner();
 
     pub fn new(root_seed_derived_secret: &[u8; 32]) -> Self {
         Self(
@@ -383,7 +383,7 @@ mod arbitrary_impl {
     use super::*;
     use crate::root_seed::RootSeed;
 
-    impl Arbitrary for VfsMasterKey {
+    impl Arbitrary for AesMasterKey {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
@@ -458,7 +458,7 @@ mod test {
             "00\
              b0abd2beab31c1d925c5d8059cf90068eece2c41a3a6e4454d84e36ad6858a01\
              \
-             009ab2c3ab0915889b601a750046741e",
+             a3a8f403c7b7ada7c212d4995945230c",
         )
         .unwrap();
 
@@ -470,17 +470,18 @@ mod test {
         let aad = b"my context".as_slice();
         let plaintext = b"my cool message".as_slice();
 
-        // // uncomment to regen
-        // let encrypted = vfs_key.encrypt(&mut rng, &[aad], None, &|out|
-        //     out.put(plaintext));
+        // uncomment to regen
+        // #[rustfmt::skip]
+        // let encrypted = vfs_key
+        //     .encrypt(&mut rng, &[aad], None, &|out| out.put(plaintext));
         // println!("encrypted: {}", hex::display(&encrypted));
 
         let encrypted = hex::decode(
             // [version] || [key_id] || [ciphertext] || [tag]
             "00\
              b0abd2beab31c1d925c5d8059cf90068eece2c41a3a6e4454d84e36ad6858a01\
-             5f6dfab9fead5a523038bb2a59cd22\
-             fa2880532c7dbc0692441193b100fc2a",
+             a906e368cab56d92127d440b5c4bdd\
+             b132a8c1b3760ff36f3ded72c5847d93",
         )
         .unwrap();
 
