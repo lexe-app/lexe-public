@@ -58,6 +58,8 @@ pub mod ln;
 pub mod net;
 /// A channel for sending deduplicated notifications with no data attached.
 pub mod notify;
+/// Password-based encryption for arbitrary bytes.
+pub mod password;
 /// Random number generation.
 pub mod rng;
 /// `RootSeed`.
