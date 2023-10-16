@@ -143,7 +143,7 @@ struct DecryptKey(aead::OpeningKey<ZeroNonce>);
 /// more than once (for a particular instance).
 struct ZeroNonce(Option<aead::Nonce>);
 
-#[derive(Debug, Error)]
+#[derive(Clone, Debug, Error)]
 #[error("decrypt error: ciphertext or metadata may be corrupted")]
 pub struct DecryptError;
 
