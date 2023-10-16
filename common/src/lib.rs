@@ -22,6 +22,8 @@
 pub use reqwest;
 pub use secrecy::Secret;
 
+/// Encrypt/decrypt blobs for remote storage.
+pub mod aes;
 /// API definitions, errors, clients, and structs sent across the wire.
 pub mod api;
 /// Remote attestation.
@@ -70,8 +72,6 @@ pub mod task;
 pub mod test_event;
 /// `TimestampMs`
 pub mod time;
-/// Encrypt/decrypt VFS blobs for remote storage.
-pub mod vfs_encrypt;
 
 /// Feature-gated test utilities that can be shared across crate boundaries.
 #[cfg(any(test, feature = "test-utils"))]

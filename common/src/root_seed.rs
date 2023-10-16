@@ -12,11 +12,11 @@ use secrecy::{zeroize::Zeroizing, ExposeSecret, Secret, SecretVec};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
+    aes::AesMasterKey,
     api::{NodePk, UserPk},
     ed25519, hex,
     rng::{self, Crng},
     sha256,
-    vfs_encrypt::VfsMasterKey,
 };
 
 // TODO(phlip9): [perf] consider storing extracted `Prk` alongside seed to
@@ -197,9 +197,9 @@ impl RootSeed {
         NodePk(secp256k1::PublicKey::from(self.derive_node_key_pair(rng)))
     }
 
-    pub fn derive_vfs_master_key(&self) -> VfsMasterKey {
+    pub fn derive_vfs_master_key(&self) -> AesMasterKey {
         let secret = self.derive(&[b"vfs master key"]);
-        VfsMasterKey::new(secret.expose_secret())
+        AesMasterKey::new(secret.expose_secret())
     }
 
     #[cfg(any(test, feature = "test-utils"))]
