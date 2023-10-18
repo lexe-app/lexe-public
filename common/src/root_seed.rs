@@ -1,6 +1,6 @@
 use std::{fmt, str::FromStr};
 
-use anyhow::{bail, ensure};
+use anyhow::{bail, ensure, Context};
 use bip39::{Language, Mnemonic};
 use bitcoin::{
     secp256k1,
@@ -12,10 +12,11 @@ use secrecy::{zeroize::Zeroizing, ExposeSecret, Secret, SecretVec};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
+    aes,
     aes::AesMasterKey,
     api::{NodePk, UserPk},
-    ed25519, hex,
-    rng::{self, Crng},
+    ed25519, hex, password, rng,
+    rng::Crng,
     sha256,
 };
 
@@ -206,6 +207,75 @@ impl RootSeed {
     pub fn as_bytes(&self) -> &[u8] {
         self.0.expose_secret().as_slice()
     }
+
+    // --- Password encryption --- //
+
+    /// Attempts to encrypt this root seed under the given password.
+    ///
+    /// The password must have at least [`MIN_PASSWORD_LENGTH`] characters and
+    /// must not have any more than [`MAX_PASSWORD_LENGTH`] characters.
+    ///
+    /// Returns a [`Vec<u8>`] which can be persisted and later decrypted using
+    /// only the given password.
+    ///
+    /// [`MIN_PASSWORD_LENGTH`]: crate::password::MIN_PASSWORD_LENGTH
+    /// [`MAX_PASSWORD_LENGTH`]: crate::password::MAX_PASSWORD_LENGTH
+    pub fn password_encrypt(
+        &self,
+        rng: &mut impl Crng,
+        password: &str,
+    ) -> anyhow::Result<Vec<u8>> {
+        // Sample a completely random salt for maximum security.
+        let mut salt = [0u8; 32];
+        rng.fill_bytes(&mut salt);
+
+        // Obtain the password-encrypted AES ciphertext.
+        let mut aes_ciphertext =
+            password::encrypt(rng, password, &salt, self.0.expose_secret())
+                .context("Password encryption failed")?;
+
+        // Final persistable value is `salt || aes_ciphertext`
+        let mut combined = Vec::from(salt);
+        combined.append(&mut aes_ciphertext);
+
+        // Sanity check the length of the combined salt + aes_ciphertext.
+        // Combined length is 32 bytes (salt) + encrypted length of 32 byte seed
+        let expected_combined_len = 32 + aes::encrypted_len(32);
+        assert!(combined.len() == expected_combined_len);
+
+        Ok(combined)
+    }
+
+    /// Attempts to construct a [`RootSeed`] given a decryption password and the
+    /// [`Vec<u8>`] returned from a previous call to [`password_encrypt`].
+    ///
+    /// [`password_encrypt`]: Self::password_encrypt
+    pub fn password_decrypt(
+        password: &str,
+        mut combined: Vec<u8>,
+    ) -> anyhow::Result<Self> {
+        // Combined length is 32 bytes (salt) + encrypted length of 32 byte seed
+        let expected_combined_len = 32 + aes::encrypted_len(32);
+        ensure!(
+            combined.len() == expected_combined_len,
+            "Combined bytes had the wrong length"
+        );
+
+        // Split `salt || aes_ciphertext` into component parts
+        let aes_ciphertext = combined.split_off(32);
+        let unsized_salt = combined.into_boxed_slice();
+        let salt = Box::<[u8; 32]>::try_from(unsized_salt)
+            .expect("We split off at 32, so there are exactly 32 bytes");
+
+        // Password-decrypt.
+        let root_seed_bytes =
+            password::decrypt(password, &salt, aes_ciphertext)
+                .map(Secret::new)
+                .context("Password decryption failed")?;
+
+        // Construct the RootSeed
+        Self::try_from(root_seed_bytes.expose_secret().as_slice())
+    }
 }
 
 impl ExposeSecret<[u8; Self::LENGTH]> for RootSeed {
@@ -343,7 +413,10 @@ mod test_impls {
 
 #[cfg(test)]
 mod test {
-    use proptest::{arbitrary::any, collection::vec, prop_assert_eq, proptest};
+    use proptest::{
+        arbitrary::any, collection::vec, prop_assert_eq, proptest,
+        strategy::Strategy, test_runner::Config,
+    };
 
     use super::*;
     use crate::{hex, rng::WeakRng, sha256};
@@ -681,5 +754,58 @@ mod test {
         assert_eq!(str1, seed1.to_mnemonic().to_string());
         assert_eq!(str2, seed2.to_mnemonic().to_string());
         assert_eq!(str3, seed3.to_mnemonic().to_string());
+    }
+
+    #[test]
+    fn password_encryption_roundtrip() {
+        use password::{MAX_PASSWORD_LENGTH, MIN_PASSWORD_LENGTH};
+
+        let password_length_range = MIN_PASSWORD_LENGTH..MAX_PASSWORD_LENGTH;
+        let any_valid_password =
+            proptest::collection::vec(any::<char>(), password_length_range)
+                .prop_map(String::from_iter);
+
+        // Reduce cases since we do key stretching which is quite expensive
+        let config = Config::with_cases(16);
+        proptest!(config, |(
+            mut rng in any::<WeakRng>(),
+            password in any_valid_password,
+        )| {
+            let root_seed1 = RootSeed::from_rng(&mut rng);
+            let encrypted = root_seed1.password_encrypt(&mut rng, &password)
+                .unwrap();
+            let root_seed2 = RootSeed::password_decrypt(&password, encrypted)
+                .unwrap();
+            assert_eq!(root_seed1, root_seed2);
+        })
+    }
+
+    #[test]
+    fn password_decryption_compatibility() {
+        let root_seed1 = RootSeed::new(Secret::new([69u8; 32]));
+        let password1 = "password1234";
+        // Uncomment to regenerate
+        // let mut rng = WeakRng::from_u64(20231017);
+        // let encrypted =
+        //     root_seed1.password_encrypt(&mut rng, password1).unwrap();
+        // let encrypted_hex = hex::display(&encrypted);
+        // println!("Encrypted: {encrypted_hex}");
+        let encrypted = hex::decode("adcfc4aef26858bacfae83dd19e735bb145203ab18183cbe932cd742b4446e7300b561678b0652666b316288bbb57552c4f40e91d8e440fd1085cba610204ca98232ee7bb333f81785725beb6b86d74528f943e22da4e606a6ac6659f5e2e218a20e7b7e0ef6eb7be3d32a7cc17ab89543").unwrap();
+        let root_seed1_decrypted =
+            RootSeed::password_decrypt(password1, encrypted).unwrap();
+        assert_eq!(root_seed1, root_seed1_decrypted);
+
+        let root_seed2 = RootSeed::new(Secret::new([0u8; 32]));
+        let password2 = "                ";
+        // Uncomment to regenerate
+        // let mut rng = WeakRng::from_u64(20231017);
+        // let encrypted =
+        //     root_seed2.password_encrypt(&mut rng, password2).unwrap();
+        // let encrypted_hex = hex::display(&encrypted);
+        // println!("Encrypted: {encrypted_hex}");
+        let encrypted = hex::decode("adcfc4aef26858bacfae83dd19e735bb145203ab18183cbe932cd742b4446e7300b561678b0652666b316288bbb57552c4f40e91d8e440fd1085cba610204ca98228a306f06e2f18e566079d5b5ff8bdb6832267793d457d8f05da537dc5e66bc6baada33631959d25b7dc0f89843f5d66").unwrap();
+        let root_seed2_decrypted =
+            RootSeed::password_decrypt(password2, encrypted).unwrap();
+        assert_eq!(root_seed2, root_seed2_decrypted);
     }
 }
