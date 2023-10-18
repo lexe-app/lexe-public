@@ -197,6 +197,45 @@ pub(crate) async fn read_gvfs_root(
     Ok(maybe_gvfs_root)
 }
 
+/// Checks whether a password-encrypted [`RootSeed`] exists in Google Drive.
+/// Does not check if the backup is well-formed, matches the current seed, etc.
+///
+/// [`RootSeed`]: common::root_seed::RootSeed
+#[inline]
+pub(crate) async fn password_encrypted_root_seed_exists(
+    google_vfs: &GoogleVfs,
+    network: Network,
+) -> bool {
+    // This fn barely does anything, but we want it close to the impl of
+    // `persist_password_encrypted_root_seed` for ez inspection
+    let filename = format!("{network}_root_seed");
+    let file_id = VfsFileId::new(SINGLETON_DIRECTORY, filename);
+    google_vfs.file_exists(&file_id).await
+}
+
+/// Persists the given password-encrypted [`RootSeed`] to GDrive.
+/// Uses CREATE semantics (i.e. errors if the file already exists) because it
+/// seems dangerous to overwrite a (possibly different) [`RootSeed`] which could
+/// be storing funds.
+///
+/// [`RootSeed`]: common::root_seed::RootSeed
+pub(crate) async fn persist_password_encrypted_root_seed(
+    google_vfs: &GoogleVfs,
+    network: Network,
+    encrypted_seed: Vec<u8>,
+) -> anyhow::Result<()> {
+    // We include network in the filename as a safeguard against mixing seeds up
+    let filename = format!("{network}_root_seed");
+    let file = VfsFile::new(SINGLETON_DIRECTORY, filename, encrypted_seed);
+
+    google_vfs
+        .create_file(file)
+        .await
+        .context("Failed to create root seed file")?;
+
+    Ok(())
+}
+
 impl NodePersister {
     /// Initialize a [`NodePersister`].
     /// `google_vfs` MUST be [`Some`] if we are running on testnet or mainnet.
