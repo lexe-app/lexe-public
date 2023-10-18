@@ -103,7 +103,7 @@ const TAG_LEN: usize = 16;
 
 /// The length of the final encrypted ciphertext + version byte + key_id + tag
 /// given an input plaintext length.
-const fn encrypted_len(plaintext_len: usize) -> usize {
+pub const fn encrypted_len(plaintext_len: usize) -> usize {
     VERSION_LEN + KEY_ID_LEN + plaintext_len + TAG_LEN
 }
 
