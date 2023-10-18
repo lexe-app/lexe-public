@@ -157,7 +157,7 @@ mod test {
     #[test]
     fn encryption_roundtrip() {
         // Reduce cases since we do key stretching which is quite expensive
-        let config = Config::with_cases(16);
+        let config = Config::with_cases(4);
         let password_length_range = MIN_PASSWORD_LENGTH..MAX_PASSWORD_LENGTH;
         let any_valid_password =
             proptest::collection::vec(any::<char>(), password_length_range)
