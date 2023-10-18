@@ -50,6 +50,8 @@ pub mod env;
 pub mod hex;
 /// serde_with helper for bytes types.
 pub mod hexstr_or_bytes;
+/// `hex_str_or_bytes` but for [`Option`] bytes types.
+pub mod hexstr_or_bytes_opt;
 /// Iterator extensions.
 pub mod iter;
 /// Bitcoin / Lightning Lexe newtypes which can't go in lexe-ln
