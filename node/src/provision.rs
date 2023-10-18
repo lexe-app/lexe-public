@@ -39,6 +39,7 @@ use common::{
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
 };
+use gdrive::GoogleVfs;
 use tracing::{debug, info, instrument, warn, Span};
 use warp::{filters::BoxedFilter, http::Response, hyper::Body, Filter};
 
@@ -173,13 +174,9 @@ async fn provision_handler(
     // user pk given in our CLI args. This is a sanity check in case e.g. the
     // provision request was routed to the wrong user node.
     let user_key_pair = req.root_seed.derive_user_key_pair();
-    let derived_user_pk =
-        UserPk::from_ref(user_key_pair.public_key().as_inner());
-    if derived_user_pk != &ctx.args.user_pk {
-        return Err(NodeApiError::wrong_user_pk(
-            ctx.args.user_pk,
-            *derived_user_pk,
-        ));
+    let user_pk = UserPk::from_ref(user_key_pair.public_key().as_inner());
+    if user_pk != &ctx.args.user_pk {
+        return Err(NodeApiError::wrong_user_pk(ctx.args.user_pk, *user_pk));
     }
 
     let sealed_seed_res = SealedSeed::seal_from_root_seed(
@@ -231,7 +228,7 @@ async fn provision_handler(
         msg: "Missing OAuthConfig from Lexe operators".to_owned(),
     })?;
     let vfs_master_key = req.root_seed.derive_vfs_master_key();
-    match req.google_auth_code {
+    let credentials = match req.google_auth_code {
         Some(code) => {
             // We were given an auth code. Exchange for credentials and persist.
 
@@ -258,6 +255,8 @@ async fn provision_handler(
                 token,
             )
             .await?;
+
+            credentials
         }
         None => {
             // No auth code was provided. Ensure that credentials already exist.
@@ -285,10 +284,85 @@ async fn provision_handler(
                     msg: "`client_secret`s didn't match!".to_owned(),
                 });
             }
+
+            credentials
         }
+    };
+
+    // If no password-encrypted root seed was provided, provisioning is done.
+    let encrypted_seed = match req.encrypted_seed {
+        None => {
+            ctx.shutdown.send();
+            return Ok(Empty {});
+        }
+        Some(p) => p,
+    };
+
+    // See if we have a persisted gvfs root.
+    let maybe_persisted_gvfs_root = persister::read_gvfs_root(
+        &*ctx.backend_api,
+        &authenticator,
+        &vfs_master_key,
+    )
+    .await
+    .map_err(|e| NodeApiError {
+        kind: NodeErrorKind::Provision,
+        msg: format!("Failed to fetch persisted gvfs root: {e:#}"),
+    })?;
+
+    // Init the GVFS. This makes ~one API call to populate the cache.
+    let (google_vfs, maybe_new_gvfs_root) =
+        GoogleVfs::init(credentials, req.network, maybe_persisted_gvfs_root)
+            .await
+            .map_err(|e| NodeApiError {
+                kind: NodeErrorKind::Provision,
+                msg: format!("Failed to init Google VFS: {e:#}"),
+            })?;
+
+    // If we were given a new GVFS root to persist, persist it.
+    // This should only happen once.
+    if let Some(new_gvfs_root) = maybe_new_gvfs_root {
+        persister::persist_gvfs_root(
+            &mut ctx.rng,
+            &*ctx.backend_api,
+            &authenticator,
+            &vfs_master_key,
+            &new_gvfs_root,
+        )
+        .await
+        .map_err(|e| NodeApiError {
+            kind: NodeErrorKind::Provision,
+            msg: format!("Failed to persist new gvfs root: {e:#}"),
+        })?;
     }
 
-    // Provisioning is done. Stop the node.
+    // See if an encrypted root seed backup already exists. This does not check
+    // whether the backup is well-formed, matches the current seed, etc.
+    let backup_exists = persister::password_encrypted_root_seed_exists(
+        &google_vfs,
+        req.network,
+    )
+    .await;
+
+    if !backup_exists {
+        // We should create a backup in GDrive.
+        persister::persist_password_encrypted_root_seed(
+            &google_vfs,
+            req.network,
+            encrypted_seed,
+        )
+        .await
+        .map_err(|e| NodeApiError {
+            kind: NodeErrorKind::Provision,
+            msg: format!("Failed to persist encrypted root seed: {e:#}"),
+        })?;
+    }
+
+    // TODO(max): Since we made calls to GDrive, the GDriveCredentials may have
+    // been updated. If so, persist the updated credentials so we can avoid a
+    // refresh when the node restarts in run mode.
+
+    // Provisioning is finally done. Stop the node.
     ctx.shutdown.send();
 
     Ok(Empty {})
