@@ -144,12 +144,16 @@ impl App {
         // TODO(phlip9): Get real auth code by running the user through OAuth2
         let google_auth_code = None;
 
+        // TODO(phlip9): Get encryption password by prompting the user
+        let password = None;
+
         Self::signup_custom(
             rng,
             config,
             root_seed,
             measurement,
             google_auth_code,
+            password,
         )
         .await
     }
@@ -162,6 +166,7 @@ impl App {
         root_seed: RootSeed,
         measurement: Measurement,
         google_auth_code: Option<String>,
+        password: Option<String>,
     ) -> anyhow::Result<Self> {
         // derive user key and node key
 
@@ -229,12 +234,18 @@ impl App {
         let root_seed_clone =
             RootSeed::new(Secret::new(*root_seed.expose_secret()));
 
+        let encrypted_seed = password
+            .map(|p| root_seed.password_encrypt(rng, &p))
+            .transpose()
+            .context("Could not encrypt root seed under password")?;
+
         node_client
             .provision(NodeProvisionRequest {
                 root_seed: root_seed_clone,
                 deploy_env: config.deploy_env.into(),
                 network: config.network,
                 google_auth_code,
+                encrypted_seed,
             })
             .await
             .context("Failed to provision node")?;

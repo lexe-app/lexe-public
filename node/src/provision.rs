@@ -393,6 +393,7 @@ mod test {
                 deploy_env,
                 network,
                 google_auth_code: None,
+                encrypted_seed: None,
             };
             let client = reqwest::Client::builder()
                 .use_preconfigured_tls(tls_config)

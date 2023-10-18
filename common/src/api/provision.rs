@@ -14,7 +14,7 @@ use crate::{
     enclave,
     enclave::{MachineId, Measurement, Sealed},
     env::DeployEnv,
-    hexstr_or_bytes,
+    hexstr_or_bytes, hexstr_or_bytes_opt,
     rng::Crng,
     root_seed::RootSeed,
 };
@@ -34,10 +34,31 @@ pub struct NodeProvisionRequest {
     /// - Applicable only in staging/prod.
     /// - If provided, the provisioning node will acquire the full set of
     ///   GDrive credentials and persist them (encrypted ofc) in Lexe's DB.
-    /// - If *not* provided, the provisioning node will ensure that a set of
+    /// - If NOT provided, the provisioning node will ensure that a set of
     ///   GDrive credentials has already been persisted in Lexe's DB.
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
     pub google_auth_code: Option<String>,
+    /// The password-encrypted [`RootSeed`].
+    /// - Applicable only in staging/prod.
+    /// - If [`Some`], the node will back up this encrypted [`RootSeed`] in
+    ///   Google Drive. If a backup already exists, it is not overwritten.
+    /// - If [`None`], no API calls are made, and no validation is done,
+    ///   including to check whether a backup exists.
+    ///
+    /// This parameter should be [`Some`] at least on the very first time that
+    /// a user provisions, and only occasionally thereafter (e.g. once
+    /// every upgrade). If the user is provisioning to multiple CPU
+    /// enclaves at the same time, this field should be [`Some`] for only
+    /// one of the requests, in order to prevent duplicate / conflicting
+    /// work. Otherwise, pass [`None`] to avoid unnecessary validation when it
+    /// is known that the user already has a root seed backed up.
+    ///
+    /// We require the client to password-encrypt prior to sending the
+    /// provision request to prevent leaking the length of the password. It
+    /// also allows the node to avoid running 600K HMAC iterations at
+    /// provision time.
+    #[serde(with = "hexstr_or_bytes_opt")]
+    pub encrypted_seed: Option<Vec<u8>>,
 }
 
 /// Uniquely identifies a sealed seed using its primary key fields.
@@ -256,11 +277,13 @@ mod test {
         let network = Network::REGTEST;
         let deploy_env = DeployEnv::Dev;
         let google_auth_code = Some("auth_code".to_owned());
+        let encrypted_seed = None;
         let req = NodeProvisionRequest {
             root_seed,
             deploy_env,
             network,
             google_auth_code,
+            encrypted_seed,
         };
         let actual = serde_json::to_value(&req).unwrap();
         let expected = serde_json::json!({
@@ -268,6 +291,7 @@ mod test {
             "deploy_env": "dev",
             "network": "regtest",
             "google_auth_code": "auth_code",
+            "encrypted_seed": null,
         });
         assert_eq!(&actual, &expected);
     }
