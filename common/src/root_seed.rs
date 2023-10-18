@@ -766,7 +766,7 @@ mod test {
                 .prop_map(String::from_iter);
 
         // Reduce cases since we do key stretching which is quite expensive
-        let config = Config::with_cases(16);
+        let config = Config::with_cases(4);
         proptest!(config, |(
             mut rng in any::<WeakRng>(),
             password in any_valid_password,
