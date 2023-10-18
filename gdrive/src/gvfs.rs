@@ -242,6 +242,11 @@ impl GoogleVfs {
         Ok((myself, gvfs_root_to_persist))
     }
 
+    /// Whether a file for the given [`VfsFileId`] exists.
+    pub async fn file_exists(&self, vfile_id: &VfsFileId) -> bool {
+        self.gid_cache.read().await.get(vfile_id).is_some()
+    }
+
     #[instrument(skip_all, name = "(gvfs-get-file)")]
     pub async fn get_file(
         &self,
