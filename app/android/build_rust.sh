@@ -22,33 +22,33 @@ set -o pipefail
 set -o nounset
 
 CARGO_NDK_VERSION="3.0.1"
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET="aarch64-linux-android"
 
 if [[ ! -x "$(command -v cargo)" ]]; then
-    echo "error: Couldn't find 'cargo' or 'rustup' binary. \
+  echo "error: Couldn't find 'cargo' or 'rustup' binary. \
 Please set up local Rust toolchain."
-    exit 1
+  exit 1
 fi
 
 if [[ ! -x "$(command -v cargo-ndk)" ]]; then
-    echo "info: Installing cargo-ndk"
-    cargo install --version="$CARGO_NDK_VERSION" cargo-ndk
-elif [[ ! $(cargo ndk --version) == "cargo-ndk $CARGO_NDK_VERSION" ]]; then
-    echo "info: Updating cargo-ndk to version $CARGO_NDK_VERSION"
-    cargo install --force --version="$CARGO_NDK_VERSION" cargo-ndk
+  echo "info: Installing cargo-ndk"
+  cargo install --version="$CARGO_NDK_VERSION" cargo-ndk
+elif [[ $(cargo ndk --version) != "cargo-ndk $CARGO_NDK_VERSION" ]]; then
+  echo "info: Updating cargo-ndk to version $CARGO_NDK_VERSION"
+  cargo install --force --version="$CARGO_NDK_VERSION" cargo-ndk
 fi
 
 if ! rustup target list --installed | grep -q "$TARGET"; then
-    echo "info: Installing missing Rust toolchain for target: $TARGET"
-    rustup target add "$TARGET"
+  echo "info: Installing missing Rust toolchain for target: $TARGET"
+  rustup target add "$TARGET"
 fi
 
 # TODO(phlip9): get backtraces working...
 # --no-strip
 
 cargo ndk \
-    --target="$TARGET" \
-    --output-dir="$SCRIPT_DIR/app/src/main/jniLibs" \
-    --platform=33 \
-    -- build -p app-rs "$@"
+  --target="$TARGET" \
+  --output-dir="$SCRIPT_DIR/app/src/main/jniLibs" \
+  --platform=33 \
+  -- build -p app-rs "$@"
