@@ -124,7 +124,7 @@ Not all persisted data is encrypted. Unencrypted metadata includes:
 This unencrypted metadata allows Lexe's DB to different one user's data from another's, and to be able to retrieve the correct data entries upon request.
 See the node's persister for more details.
 
-### Protecting against rollbacks using a 3rd party cloud
+### Protecting against rollbacks using Google Drive
 
 One attack vector that SGX explicitly does not protect against is rollbacks or deletions of data persisted outside of the enclave.
 Although Raven cannot fool a user's node into accepting data that it did not persist itself, Raven could feed in an older version of the data which the node previously persisted but which has since been invalidated, or refuse to provide the data at all.
@@ -132,13 +132,12 @@ Although Raven cannot fool a user's node into accepting data that it did not per
 Rollback protection is very important for Lightning Network nodes since without it, a malicious Lexe LSP could "roll back" its channel state with the user node to some point in the past where the LSP had a higher balance and cooperatively close the channel with the user's node, effectively stealing funds from the user.
 
 Hence, Lexe's database is treated as an untrusted data store, suitable for storing information which does not compromise user funds if rolled back and which is not entirely critical to the node's operation - examples include payment history and the network graph data.
-Critical persisted data which must be secure against rollback attacks (such as channel state) is instead stored in each user's personal cloud storage account, such as in Google Drive or iCloud.
+Critical persisted data which must be secure against rollback attacks (such as channel state) is instead stored in each user's personal Google Drive account.
 
 - The persisted data is accessible to the user in the case that they want to close all channels and withdraw all of their funds from their Lexe node using an open-source recovery tool, which does not require the assistance or cooperation of the Lexe company (or even for the Lexe company to exist). The open-source recovery tool spins up a small Lightning node, closes all open channels, and sweeps all funds to an external address specified by the user.
-- The persisted data is also programmatically accessible to the user's node running inside the SGX enclave via a cloud storage API, in order to read previously persisted data (i.e. check against rollbacks) as well as persist new updates.
-- The _plaintext_ of the persisted data is _not_ accessible to the cloud storage provider, since it is encrypted under a key derived from the user's root seed. The root seed is backed up either as a 24 word mnemonic offline (for advanced users) or is encrypted under a password which the Lexe app regularly quizzes the user on (the more common case).
+- The persisted data is also programmatically accessible to the user's node running inside the SGX enclave via the Google Drive API, in order to read previously persisted data (i.e. check against rollbacks) as well as persist new updates.
+- The _plaintext_ of the persisted data is _not_ accessible to the cloud storage provider, since it is encrypted under a key derived from the user's root seed. The root seed is encrypted under a password which the Lexe app regularly quizzes the user on.
 - Even though the API key for accessing the user's cloud account is provisioned into an enclave running on Lexe's infrastructure, Lexe itself does not have access to any personally-identifiable information which can be obtained from the API key because Lexe does not have access to the API key. In other words, users can connect their personal cloud accounts to their Lexe nodes without revealing any information about themselves (such as the email address used for their cloud account) to the Lexe company.
-    
 
 ### Denial-of-Service Protection via HTTPS queries and "Security Reports"
 
