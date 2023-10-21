@@ -14,6 +14,7 @@ use common::{
     constants, Apply,
 };
 use serde::{Deserialize, Serialize};
+use tokio::sync::watch;
 use tracing::{instrument, warn};
 
 use crate::{
@@ -110,14 +111,24 @@ impl GoogleVfs {
     ///
     /// If no [`GvfsRoot`] was supplied, or if the supplied [`GvfsRoot`] was
     /// wrong, `Some(GvfsRoot)` is returned, which the caller should persist.
+    ///
+    /// Whenever the [`GDriveCredentials`] is refreshed, an update is sent over
+    /// the returned [`watch::Receiver`], which the caller should persist.
     #[instrument(skip_all, name = "(gvfs-init)")]
     pub async fn init(
         credentials: GDriveCredentials,
         network: Network,
         maybe_given_gvfs_root: Option<GvfsRoot>,
-    ) -> anyhow::Result<(Self, Option<GvfsRoot>)> {
-        let client = GDriveClient::new(credentials);
-        Self::init_from_client(client, network, maybe_given_gvfs_root).await
+    ) -> anyhow::Result<(
+        Self,
+        Option<GvfsRoot>,
+        watch::Receiver<GDriveCredentials>,
+    )> {
+        let (client, credentials_rx) = GDriveClient::new(credentials);
+        let (google_vfs, maybe_new_gvfs_root) =
+            Self::init_from_client(client, network, maybe_given_gvfs_root)
+                .await?;
+        Ok((google_vfs, maybe_new_gvfs_root, credentials_rx))
     }
 
     /// Extracting this helper saves some extra API calls in tests.
@@ -476,7 +487,7 @@ mod test {
         logger::init_for_testing();
 
         let credentials = GDriveCredentials::from_env().unwrap();
-        let client = GDriveClient::new(credentials);
+        let (client, _rx) = GDriveClient::new(credentials);
 
         delete_regtest_vfs_root(&client).await;
 
@@ -552,7 +563,7 @@ mod test {
         logger::init_for_testing();
 
         let credentials = GDriveCredentials::from_env().unwrap();
-        let client = GDriveClient::new(credentials);
+        let (client, _rx) = GDriveClient::new(credentials);
 
         delete_regtest_vfs_root(&client).await;
 
@@ -606,7 +617,7 @@ mod test {
         logger::init_for_testing();
 
         let credentials = GDriveCredentials::from_env().unwrap();
-        let client = GDriveClient::new(credentials);
+        let (client, _rx) = GDriveClient::new(credentials);
 
         // TODO(max): In the other case, make a call to the list_direct_children
         // method to ensure that it actually does return Err.
