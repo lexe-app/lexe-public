@@ -1,0 +1,25 @@
+[package]
+name = "sgx-test"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# --- LEXE --- #
+
+common = { path = "../common" }
+
+[package.metadata.fortanix-sgx]
+# Whether to enable EDP debugging features in the enclave. Default: true.
+# This must be disabled in prod.
+debug = false
+# Heap size in bytes. Default: 0x200_0000.
+heap-size = 0x20_0000
+# SSA frame size (in pages) for each thread. Default: 1.
+# You normally don't need to change the SSA frame size.
+ssaframesize = 1
+# Stack size (in bytes) for each thread. Default: 0x2_0000.
+stack-size = 0x2_0000
+# The max number of threads we can spawn concurrently inside the SGX enclave.
+threads = 1

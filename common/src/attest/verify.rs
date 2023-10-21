@@ -198,10 +198,10 @@ impl<'a> AttestEvidence<'a> {
 /// pretty pictures showing the chain of trust from the Intel SGX root CA down
 /// to the application enclave's ReportData, visit:
 /// [phlip9.com/notes - SGX Remote Attestation Quote Verification](https://phlip9.com/notes/confidential%20computing/intel%20SGX/remote%20attestation/#remote-attestation-quote-verification)
-struct SgxQuoteVerifier;
+pub struct SgxQuoteVerifier;
 
 impl SgxQuoteVerifier {
-    fn verify(
+    pub fn verify(
         &self,
         quote_bytes: &[u8],
         now: SystemTime,
