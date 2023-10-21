@@ -209,7 +209,7 @@ async fn provision_handler(
 
     // store the sealed seed and new node metadata in the backend
     ctx.backend_api
-        .create_sealed_seed(sealed_seed, token.clone())
+        .create_sealed_seed(sealed_seed, token)
         .await
         .map_err(|e| NodeApiError {
             kind: NodeErrorKind::Provision,
@@ -247,14 +247,21 @@ async fn provision_handler(
             })?;
 
             // Encrypt the GDriveCredentials and upsert into Lexe's DB.
-            persister::persist_gdrive_credentials(
+            let credentials_file = persister::encrypt_gdrive_credentials(
                 &mut ctx.rng,
-                ctx.backend_api.as_ref(),
                 &vfs_master_key,
                 &credentials,
-                token,
+            );
+            persister::persist_file(
+                ctx.backend_api.as_ref(),
+                &authenticator,
+                &credentials_file,
             )
-            .await?;
+            .await
+            .map_err(|e| NodeApiError {
+                kind: NodeErrorKind::Provision,
+                msg: format!("Could not persist new GDrive credentials: {e:#}"),
+            })?;
 
             credentials
         }
@@ -311,7 +318,7 @@ async fn provision_handler(
     })?;
 
     // Init the GVFS. This makes ~one API call to populate the cache.
-    let (google_vfs, maybe_new_gvfs_root) =
+    let (google_vfs, maybe_new_gvfs_root, mut credentials_rx) =
         GoogleVfs::init(credentials, req.network, maybe_persisted_gvfs_root)
             .await
             .map_err(|e| NodeApiError {
@@ -358,9 +365,25 @@ async fn provision_handler(
         })?;
     }
 
-    // TODO(max): Since we made calls to GDrive, the GDriveCredentials may have
-    // been updated. If so, persist the updated credentials so we can avoid a
-    // refresh when the node restarts in run mode.
+    // If the GDriveCredentials were updated during our calls to GDrive, persist
+    // the updated credentials so we can possibly avoid a unnecessary refresh.
+    if let Ok(true) = credentials_rx.has_changed() {
+        let credentials_file = persister::encrypt_gdrive_credentials(
+            &mut ctx.rng,
+            &vfs_master_key,
+            &credentials_rx.borrow_and_update(),
+        );
+        persister::persist_file(
+            ctx.backend_api.as_ref(),
+            &authenticator,
+            &credentials_file,
+        )
+        .await
+        .map_err(|e| NodeApiError {
+            kind: NodeErrorKind::Provision,
+            msg: format!("Could not persist updated GDrive credentials: {e:#}"),
+        })?;
+    }
 
     // Provisioning is finally done. Stop the node.
     ctx.shutdown.send();

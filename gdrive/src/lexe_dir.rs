@@ -220,7 +220,7 @@ mod test {
     #[tokio::test]
     async fn test_lexe_dir() {
         let credentials = GDriveCredentials::from_env().unwrap();
-        let client = GDriveClient::new(credentials);
+        let (client, _rx) = GDriveClient::new(credentials);
         let lexe_dir = get_or_create_lexe_dir(&client).await.unwrap();
         let lexe_dir_name = &lexe_dir.name;
         println!("Lexe dir: {lexe_dir_name}");

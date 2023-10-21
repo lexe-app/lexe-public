@@ -3,6 +3,7 @@ use std::{ops::DerefMut, time::Duration};
 use anyhow::{ensure, Context};
 use reqwest::{IntoUrl, Method};
 use serde::{de::DeserializeOwned, Serialize};
+use tokio::sync::watch;
 
 use crate::{
     models::{Empty, GFile, GFileCow, GFileId, ListFiles, ListFilesResponse},
@@ -27,18 +28,32 @@ pub(crate) const BINARY_MIME_TYPE: &str = "application/octet-stream";
 pub(crate) struct GDriveClient {
     client: reqwest::Client,
     credentials: tokio::sync::Mutex<GDriveCredentials>,
+    credentials_tx: watch::Sender<GDriveCredentials>,
 }
 
 impl GDriveClient {
-    pub fn new(credentials: GDriveCredentials) -> Self {
+    pub fn new(
+        credentials: GDriveCredentials,
+    ) -> (Self, watch::Receiver<GDriveCredentials>) {
         let client = reqwest::Client::builder()
             .timeout(API_REQUEST_TIMEOUT)
             .build()
             .expect("Failed to build reqwest Client");
-        Self {
+
+        let (credentials_tx, mut credentials_rx) =
+            watch::channel(credentials.clone());
+        // Mark the current value as seen so that the first call to changed()
+        // does not return immediately, to prevent redundant persists.
+        credentials_rx.borrow_and_update();
+        assert!(!credentials_rx.has_changed().expect("already closed??"));
+
+        let myself = Self {
             client,
             credentials: tokio::sync::Mutex::new(credentials),
-        }
+            credentials_tx,
+        };
+
+        (myself, credentials_rx)
     }
 
     // --- Helpers --- //
@@ -315,14 +330,23 @@ impl GDriveClient {
     ) -> Result<reqwest::Response, Error> {
         let req = {
             let mut locked_credentials = self.credentials.lock().await;
-            // TODO(max): Repersist the credentials if updated
-            let _updated = oauth2::refresh_if_necessary(
+            let updated = oauth2::refresh_if_necessary(
                 &self.client,
                 locked_credentials.deref_mut(),
             )
             .await
             .map_err(Box::new)
             .map_err(Error::TokenRefresh)?;
+
+            // If the access token was refreshed, update the credentials in the
+            // channel with the new access_token and expires_at timestamp.
+            if updated {
+                self.credentials_tx.send_modify(|c| {
+                    c.access_token = locked_credentials.access_token.clone();
+                    c.expires_at = locked_credentials.expires_at;
+                });
+            }
+
             req.bearer_auth(&locked_credentials.access_token)
         };
 
