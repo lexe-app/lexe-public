@@ -49,6 +49,9 @@
   # CUSTOM LINUX-BUILDER CONFIG
   #
 
+  # Re-enable man pages
+  documentation.man.enable = true;
+
   nix = {
     # Add all members of the `wheel` group to nix trusted-users.
     settings.trusted-users = ["@wheel"];
