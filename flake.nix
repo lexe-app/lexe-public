@@ -91,17 +91,19 @@
           inherit
             (lexePubPkgs)
             ftxsgx-elf2sgxs
-            node-release-sgx
+            node-debug-nosgx
             node-debug-sgx
             node-release-nosgx
-            node-debug-nosgx
-            run-sgx
+            node-release-sgx
             ;
         }
         // lib.optionalAttrs (system == "x86_64-linux") {
           inherit
             (lexePubPkgs)
+            run-sgx
+            run-sgx-test
             sgx-detect
+            sgx-test
             ;
         }
     );

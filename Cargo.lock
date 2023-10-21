@@ -3349,6 +3349,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "sgx-test"
+version = "0.1.0"
+dependencies = [
+ "common",
+]
+
+[[package]]
 name = "sgx-toml"
 version = "0.1.0"
 dependencies = [

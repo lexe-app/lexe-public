@@ -120,4 +120,16 @@
       # enclave-runner crate
       lib.optional (pkgs.hostPlatform.system == "x86_64-linux") pkgs.openssl;
   };
+
+  # Tiny enclave that exercises some basic SGX platform features.
+  sgx-test = buildRustSgxPackage {
+    cargoToml = ../../sgx-test/Cargo.toml;
+    isSgx = true;
+    isRelease = true;
+  };
+
+  # Convenience script to run `sgx-test`.
+  run-sgx-test = pkgs.writeShellScriptBin "run-sgx-test" ''
+    ${run-sgx}/bin/run-sgx ${sgx-test}/bin/sgx-test.sgxs
+  '';
 }
