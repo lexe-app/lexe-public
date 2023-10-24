@@ -58,7 +58,7 @@ in
       # compute the enclave measurement (SHA-256 hash of the enclave binary)
       # and dump it into `<binName>.measurement`
       local measurement=$(sha256sum --binary $sgxsPath | cut -d ' ' -f 1)
-      echo "$measurement" > $binPath.measurement
+      echo -n "$measurement" > $binPath.measurement
       echo "SGXS enclave measurement: \"$measurement\""
       echo "SGXS enclave size: $(stat --format='%s' $sgxsPath)"
     }
