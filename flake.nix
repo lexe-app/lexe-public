@@ -38,15 +38,8 @@
     };
   };
 
-  outputs = {
-    self,
-    nixpkgs,
-    flake-utils,
-    flake-compat,
-    rust-overlay,
-    crane,
-  }: let
-    lib = nixpkgs.lib;
+  outputs = {self, ...} @ inputs: let
+    lib = inputs.nixpkgs.lib;
     lexePubLib = import ./nix/lib/default.nix {lib = lib;};
     eachSystem = lexePubLib.eachSystem;
 
@@ -59,11 +52,11 @@
     # }
     # ```
     systemPkgs = eachSystem (system:
-      import nixpkgs {
+      import inputs.nixpkgs {
         system = system;
         overlays = [
           # adds: `rust-bin.fromRustupToolchainFile` to this pkgs instance.
-          rust-overlay.overlays.default
+          inputs.rust-overlay.overlays.default
         ];
       });
 
@@ -74,9 +67,9 @@
     # system.
     systemLexePubPkgs = eachSystem (system:
       import ./nix/pkgs/default.nix {
-        lib = nixpkgs.lib;
+        lib = inputs.nixpkgs.lib;
         pkgs = systemPkgs.${system};
-        crane = crane;
+        crane = inputs.crane;
         lexePubLib = lexePubLib;
       });
   in {
@@ -111,7 +104,7 @@
     # lexe development shells
     # ex: `nix develop`
     devShells = eachSystemPkgs (pkgs: let
-      lib = nixpkgs.lib;
+      lib = inputs.nixpkgs.lib;
       lexePubPkgs = systemLexePubPkgs.${pkgs.system};
     in {
       # default development shell
