@@ -35,7 +35,6 @@ fn main() {
     let pubkey = ed25519::PublicKey::new([69; 32]);
     println!("fake pubkey we're attesting to: {pubkey}");
 
-    let mut rng = SysRng::new();
     let cert_ext = attest::quote_enclave(&mut rng, &pubkey)
         .expect("Failed to produce remote attestation");
     let evidence =
