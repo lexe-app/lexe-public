@@ -41,16 +41,16 @@
   system.stateVersion = "21.05"; # Did you read the comment?
 
   # As this is intended as a stadalone image, undo some of the minimal profile stuff
-  documentation.enable = true;
-  documentation.nixos.enable = true;
+  documentation = {
+    enable = true;
+    nixos.enable = true;
+    man.enable = true;
+  };
   environment.noXlibs = false;
 
   #
   # CUSTOM LINUX-BUILDER CONFIG
   #
-
-  # Re-enable man pages
-  documentation.man.enable = true;
 
   nix = {
     # Add all members of the `wheel` group to nix trusted-users.
