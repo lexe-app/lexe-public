@@ -31,9 +31,6 @@
       url = "github:ipetkov/crane";
       inputs = {
         nixpkgs.follows = "nixpkgs"; # use our nixpkgs version
-        rust-overlay.follows = "rust-overlay";
-        flake-utils.follows = "flake-utils";
-        flake-compat.follows = "flake-compat";
       };
     };
   };
