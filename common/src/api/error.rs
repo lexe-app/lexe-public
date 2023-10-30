@@ -520,14 +520,16 @@ error_kind! {
         WrongUserPk = 100,
         /// Given node pk doesn't match node pk derived from seed
         WrongNodePk = 101,
+        /// Given measurement doesn't match current enclave measurement
+        WrongMeasurement = 102,
         /// Error occurred during provisioning
-        Provision = 102,
+        Provision = 103,
         /// Node unable to authenticate
-        BadAuth = 103,
+        BadAuth = 104,
         /// Could not proxy request to node
-        Proxy = 104,
+        Proxy = 105,
         /// Error while executing command
-        Command = 105,
+        Command = 106,
     }
 }
 
@@ -803,6 +805,7 @@ impl ToHttpStatus for NodeApiError {
 
             WrongUserPk => CLIENT_400_BAD_REQUEST,
             WrongNodePk => CLIENT_400_BAD_REQUEST,
+            WrongMeasurement => CLIENT_400_BAD_REQUEST,
             Provision => SERVER_500_INTERNAL_SERVER_ERROR,
             BadAuth => CLIENT_401_UNAUTHORIZED,
             Proxy => SERVER_502_BAD_GATEWAY,

@@ -30,6 +30,7 @@ use common::{
         error::{NodeApiError, NodeErrorKind},
         ports::UserPorts,
         provision::{NodeProvisionRequest, SealedSeed},
+        qs::GetByMeasurement,
         rest, Empty, UserPk,
     },
     cli::node::ProvisionArgs,
@@ -41,7 +42,7 @@ use common::{
 };
 use gdrive::GoogleVfs;
 use tracing::{debug, info, instrument, warn, Span};
-use warp::{filters::BoxedFilter, http::Response, hyper::Body, Filter};
+use warp::{filters::BoxedFilter, http::Response, hyper::Body, Filter, Reply};
 
 use crate::{api::BackendApiClient, persister};
 
@@ -56,13 +57,6 @@ struct RequestContext {
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
     // TODO(phlip9): make generic, use test rng in test
     rng: SysRng,
-}
-
-/// Makes a [`RequestContext`] available to subsequent [`Filter`]s.
-fn with_request_context(
-    ctx: RequestContext,
-) -> impl Filter<Extract = (RequestContext,), Error = Infallible> + Clone {
-    warp::any().map(move || ctx.clone())
 }
 
 /// Provision a user node.
@@ -94,7 +88,7 @@ pub async fn provision_node<R: Crng>(
         // TODO(phlip9): use passed in rng
         rng: SysRng::new(),
     };
-    let routes = app_routes(ctx);
+    let routes = routes(ctx);
     // TODO(phlip9): remove when rest::serve_* supports TLS
     let routes = routes.with(rest::trace_requests(Span::current().id()));
 
@@ -145,112 +139,294 @@ pub async fn provision_node<R: Crng>(
     Ok(())
 }
 
-/// Implements [`AppNodeProvisionApi`] - only callable by the node owner.
+/// Implements:
+/// - [`AppNodeProvisionApi`] - only callable by the node owner.
+/// - [`LexeNodeProvisionApi`] - only callable by the Lexe operators.
 ///
 /// [`AppNodeProvisionApi`]: common::api::def::AppNodeProvisionApi
-fn app_routes(ctx: RequestContext) -> BoxedFilter<(Response<Body>,)> {
-    let provision = warp::path::path("provision")
+/// [`LexeNodeProvisionApi`]: common::api::def::LexeNodeProvisionApi
+fn routes(ctx: RequestContext) -> BoxedFilter<(Response<Body>,)> {
+    let measurement = ctx.measurement;
+    let shutdown = ctx.shutdown.clone();
+
+    // AppNodeProvisionApi
+    let provision = warp::path("provision")
         .and(warp::post())
-        .and(with_request_context(ctx))
+        .and(inject::request_context(ctx))
         .and(warp::body::json::<NodeProvisionRequest>())
-        .then(provision_handler)
+        .then(handlers::provision)
         .map(rest::into_response);
+    let app_routes = warp::path("app").and(provision);
 
-    let routes = warp::path("app").and(provision);
+    // LexeNodeProvisionApi
+    let shutdown = warp::path("shutdown")
+        .and(warp::get())
+        .and(warp::query::<GetByMeasurement>())
+        .and(inject::measurement(measurement))
+        .and(inject::shutdown(shutdown))
+        .map(handlers::shutdown)
+        .map(rest::into_response);
+    let lexe_routes = warp::path("lexe").and(shutdown);
 
-    routes.boxed()
+    app_routes.or(lexe_routes).map(Reply::into_response).boxed()
 }
 
-/// Handles a provision request.
-///
-/// POST /provision [`NodeProvisionRequest`] -> ()
-async fn provision_handler(
-    mut ctx: RequestContext,
-    req: NodeProvisionRequest,
-) -> Result<Empty, NodeApiError> {
-    debug!("Received provision request");
+/// Filters for injecting structs/data into subsequent [`Filter`]s.
+mod inject {
+    use super::*;
 
-    // Validation: the user pk derived from the given root seed should match the
-    // user pk given in our CLI args. This is a sanity check in case e.g. the
-    // provision request was routed to the wrong user node.
-    let user_key_pair = req.root_seed.derive_user_key_pair();
-    let user_pk = UserPk::from_ref(user_key_pair.public_key().as_inner());
-    if user_pk != &ctx.args.user_pk {
-        return Err(NodeApiError::wrong_user_pk(ctx.args.user_pk, *user_pk));
+    pub(super) fn request_context(
+        ctx: RequestContext,
+    ) -> impl Filter<Extract = (RequestContext,), Error = Infallible> + Clone
+    {
+        warp::any().map(move || ctx.clone())
     }
 
-    let sealed_seed_res = SealedSeed::seal_from_root_seed(
-        &mut ctx.rng,
-        &req.root_seed,
-        req.deploy_env,
-        req.network,
-        ctx.measurement,
-        enclave::machine_id(),
-    );
+    pub(super) fn measurement(
+        measurement: Measurement,
+    ) -> impl Filter<Extract = (Measurement,), Error = Infallible> + Clone {
+        warp::any().map(move || measurement)
+    }
 
-    let sealed_seed = sealed_seed_res.map_err(|err| NodeApiError {
-        kind: NodeErrorKind::Provision,
-        msg: format!("{err:#}"),
-    })?;
+    pub(super) fn shutdown(
+        shutdown: ShutdownChannel,
+    ) -> impl Filter<Extract = (ShutdownChannel,), Error = Infallible> + Clone
+    {
+        warp::any().map(move || shutdown.clone())
+    }
+}
 
-    // TODO(phlip9): [perf] could get the user to pass us their auth token in
-    // the provision request instead of reauthing here.
+/// API handlers.
+mod handlers {
+    use super::*;
 
-    // authenticate as the user to the backend
-    let authenticator =
-        BearerAuthenticator::new(user_key_pair, None /* maybe_token */);
-    let token = authenticator
-        .get_token(ctx.backend_api.as_ref(), SystemTime::now())
-        .await
-        .map_err(|err| NodeApiError {
-            kind: NodeErrorKind::BadAuth,
+    /// POST /app/provision [`NodeProvisionRequest`] -> [`()`]
+    pub(super) async fn provision(
+        mut ctx: RequestContext,
+        req: NodeProvisionRequest,
+    ) -> Result<Empty, NodeApiError> {
+        debug!("Received provision request");
+
+        // Validation: the user pk derived from the given root seed should match
+        // the user pk given in our CLI args. This is a sanity check in
+        // case e.g. the provision request was routed to the wrong user
+        // node.
+        let user_key_pair = req.root_seed.derive_user_key_pair();
+        let user_pk = UserPk::from_ref(user_key_pair.public_key().as_inner());
+        if user_pk != &ctx.args.user_pk {
+            return Err(NodeApiError::wrong_user_pk(
+                ctx.args.user_pk,
+                *user_pk,
+            ));
+        }
+
+        let sealed_seed_res = SealedSeed::seal_from_root_seed(
+            &mut ctx.rng,
+            &req.root_seed,
+            req.deploy_env,
+            req.network,
+            ctx.measurement,
+            enclave::machine_id(),
+        );
+
+        let sealed_seed = sealed_seed_res.map_err(|err| NodeApiError {
+            kind: NodeErrorKind::Provision,
             msg: format!("{err:#}"),
         })?;
 
-    // store the sealed seed and new node metadata in the backend
-    ctx.backend_api
-        .create_sealed_seed(sealed_seed, token)
+        // TODO(phlip9): [perf] could get the user to pass us their auth token
+        // in the provision request instead of reauthing here.
+
+        // authenticate as the user to the backend
+        let authenticator = BearerAuthenticator::new(
+            user_key_pair,
+            None, /* maybe_token */
+        );
+        let token = authenticator
+            .get_token(ctx.backend_api.as_ref(), SystemTime::now())
+            .await
+            .map_err(|err| NodeApiError {
+                kind: NodeErrorKind::BadAuth,
+                msg: format!("{err:#}"),
+            })?;
+
+        // store the sealed seed and new node metadata in the backend
+        ctx.backend_api
+            .create_sealed_seed(sealed_seed, token)
+            .await
+            .map_err(|e| NodeApiError {
+                kind: NodeErrorKind::Provision,
+                msg: format!("Could not persist sealed seed: {e:#}"),
+            })?;
+
+        if !req.deploy_env.is_staging_or_prod() {
+            // If we're not in staging/prod, provisioning is done. Stop the
+            // node.
+            ctx.shutdown.send();
+            return Ok(Empty {});
+        }
+        // We're in staging/prod. There's some more work to do.
+
+        let oauth = ctx.args.oauth.clone().ok_or_else(|| NodeApiError {
+            kind: NodeErrorKind::Provision,
+            msg: "Missing OAuthConfig from Lexe operators".to_owned(),
+        })?;
+        let vfs_master_key = req.root_seed.derive_vfs_master_key();
+        let credentials = match req.google_auth_code {
+            Some(code) => {
+                // We were given an auth code. Exchange for credentials and
+                // persist.
+
+                // Use the auth code to get a GDriveCredentials.
+                let credentials = gdrive::oauth2::auth_code_for_token(
+                    &ctx.client,
+                    oauth.client_id,
+                    oauth.client_secret,
+                    &oauth.redirect_uri,
+                    &code,
+                )
+                .await
+                .map_err(|e| NodeApiError {
+                    kind: NodeErrorKind::Provision,
+                    msg: format!("Couldn't get tokens using code: {e:#}"),
+                })?;
+
+                // Encrypt the GDriveCredentials and upsert into Lexe's DB.
+                let credentials_file = persister::encrypt_gdrive_credentials(
+                    &mut ctx.rng,
+                    &vfs_master_key,
+                    &credentials,
+                );
+                persister::persist_file(
+                    ctx.backend_api.as_ref(),
+                    &authenticator,
+                    &credentials_file,
+                )
+                .await
+                .map_err(|e| NodeApiError {
+                    kind: NodeErrorKind::Provision,
+                    msg: format!(
+                        "Could not persist new GDrive credentials: {e:#}"
+                    ),
+                })?;
+
+                credentials
+            }
+            None => {
+                // No auth code was provided. Ensure that credentials already
+                // exist.
+                let credentials = persister::read_gdrive_credentials(
+                    ctx.backend_api.as_ref(),
+                    &authenticator,
+                    &vfs_master_key,
+                )
+                .await
+                .map_err(|e| NodeApiError {
+                    kind: NodeErrorKind::Provision,
+                    msg: format!("GDriveCredentials invalid or missing: {e:#}"),
+                })?;
+
+                // Sanity check the returned credentials
+                if oauth.client_id != credentials.client_id {
+                    return Err(NodeApiError {
+                        kind: NodeErrorKind::Provision,
+                        msg: "`client_id`s didn't match!".to_owned(),
+                    });
+                }
+                if oauth.client_secret != credentials.client_secret {
+                    return Err(NodeApiError {
+                        kind: NodeErrorKind::Provision,
+                        msg: "`client_secret`s didn't match!".to_owned(),
+                    });
+                }
+
+                credentials
+            }
+        };
+
+        // If no password-encrypted root seed was provided, provisioning is
+        // done.
+        let encrypted_seed = match req.encrypted_seed {
+            None => {
+                ctx.shutdown.send();
+                return Ok(Empty {});
+            }
+            Some(p) => p,
+        };
+
+        // See if we have a persisted gvfs root.
+        let maybe_persisted_gvfs_root = persister::read_gvfs_root(
+            &*ctx.backend_api,
+            &authenticator,
+            &vfs_master_key,
+        )
         .await
         .map_err(|e| NodeApiError {
             kind: NodeErrorKind::Provision,
-            msg: format!("Could not persist sealed seed: {e:#}"),
+            msg: format!("Failed to fetch persisted gvfs root: {e:#}"),
         })?;
 
-    if !req.deploy_env.is_staging_or_prod() {
-        // If we're not in staging/prod, provisioning is done. Stop the node.
-        ctx.shutdown.send();
-        return Ok(Empty {});
-    }
-    // We're in staging/prod. There's some more work to do.
-
-    let oauth = ctx.args.oauth.clone().ok_or_else(|| NodeApiError {
-        kind: NodeErrorKind::Provision,
-        msg: "Missing OAuthConfig from Lexe operators".to_owned(),
-    })?;
-    let vfs_master_key = req.root_seed.derive_vfs_master_key();
-    let credentials = match req.google_auth_code {
-        Some(code) => {
-            // We were given an auth code. Exchange for credentials and persist.
-
-            // Use the auth code to get a GDriveCredentials.
-            let credentials = gdrive::oauth2::auth_code_for_token(
-                &ctx.client,
-                oauth.client_id,
-                oauth.client_secret,
-                &oauth.redirect_uri,
-                &code,
+        // Init the GVFS. This makes ~one API call to populate the cache.
+        let (google_vfs, maybe_new_gvfs_root, mut credentials_rx) =
+            GoogleVfs::init(
+                credentials,
+                req.network,
+                maybe_persisted_gvfs_root,
             )
             .await
             .map_err(|e| NodeApiError {
                 kind: NodeErrorKind::Provision,
-                msg: format!("Couldn't get tokens using code: {e:#}"),
+                msg: format!("Failed to init Google VFS: {e:#}"),
             })?;
 
-            // Encrypt the GDriveCredentials and upsert into Lexe's DB.
+        // If we were given a new GVFS root to persist, persist it.
+        // This should only happen once.
+        if let Some(new_gvfs_root) = maybe_new_gvfs_root {
+            persister::persist_gvfs_root(
+                &mut ctx.rng,
+                &*ctx.backend_api,
+                &authenticator,
+                &vfs_master_key,
+                &new_gvfs_root,
+            )
+            .await
+            .map_err(|e| NodeApiError {
+                kind: NodeErrorKind::Provision,
+                msg: format!("Failed to persist new gvfs root: {e:#}"),
+            })?;
+        }
+
+        // See if an encrypted root seed backup already exists. This does not
+        // check whether the backup is well-formed, matches the current
+        // seed, etc.
+        let backup_exists = persister::password_encrypted_root_seed_exists(
+            &google_vfs,
+            req.network,
+        )
+        .await;
+
+        if !backup_exists {
+            // We should create a backup in GDrive.
+            persister::persist_password_encrypted_root_seed(
+                &google_vfs,
+                req.network,
+                encrypted_seed,
+            )
+            .await
+            .map_err(|e| NodeApiError {
+                kind: NodeErrorKind::Provision,
+                msg: format!("Failed to persist encrypted root seed: {e:#}"),
+            })?;
+        }
+
+        // If the GDriveCredentials were updated during our calls to GDrive,
+        // persist the updated credentials so we can possibly avoid a
+        // unnecessary refresh.
+        if let Ok(true) = credentials_rx.has_changed() {
             let credentials_file = persister::encrypt_gdrive_credentials(
                 &mut ctx.rng,
                 &vfs_master_key,
-                &credentials,
+                &credentials_rx.borrow_and_update(),
             );
             persister::persist_file(
                 ctx.backend_api.as_ref(),
@@ -260,135 +436,38 @@ async fn provision_handler(
             .await
             .map_err(|e| NodeApiError {
                 kind: NodeErrorKind::Provision,
-                msg: format!("Could not persist new GDrive credentials: {e:#}"),
+                msg: format!(
+                    "Could not persist updated GDrive credentials: {e:#}"
+                ),
             })?;
-
-            credentials
         }
-        None => {
-            // No auth code was provided. Ensure that credentials already exist.
-            let credentials = persister::read_gdrive_credentials(
-                ctx.backend_api.as_ref(),
-                &authenticator,
-                &vfs_master_key,
-            )
-            .await
-            .map_err(|e| NodeApiError {
-                kind: NodeErrorKind::Provision,
-                msg: format!("GDriveCredentials invalid or missing: {e:#}"),
-            })?;
 
-            // Sanity check the returned credentials
-            if oauth.client_id != credentials.client_id {
-                return Err(NodeApiError {
-                    kind: NodeErrorKind::Provision,
-                    msg: "`client_id`s didn't match!".to_owned(),
-                });
-            }
-            if oauth.client_secret != credentials.client_secret {
-                return Err(NodeApiError {
-                    kind: NodeErrorKind::Provision,
-                    msg: "`client_secret`s didn't match!".to_owned(),
-                });
-            }
+        // Provisioning is finally done. Stop the node.
+        ctx.shutdown.send();
 
-            credentials
-        }
-    };
-
-    // If no password-encrypted root seed was provided, provisioning is done.
-    let encrypted_seed = match req.encrypted_seed {
-        None => {
-            ctx.shutdown.send();
-            return Ok(Empty {});
-        }
-        Some(p) => p,
-    };
-
-    // See if we have a persisted gvfs root.
-    let maybe_persisted_gvfs_root = persister::read_gvfs_root(
-        &*ctx.backend_api,
-        &authenticator,
-        &vfs_master_key,
-    )
-    .await
-    .map_err(|e| NodeApiError {
-        kind: NodeErrorKind::Provision,
-        msg: format!("Failed to fetch persisted gvfs root: {e:#}"),
-    })?;
-
-    // Init the GVFS. This makes ~one API call to populate the cache.
-    let (google_vfs, maybe_new_gvfs_root, mut credentials_rx) =
-        GoogleVfs::init(credentials, req.network, maybe_persisted_gvfs_root)
-            .await
-            .map_err(|e| NodeApiError {
-                kind: NodeErrorKind::Provision,
-                msg: format!("Failed to init Google VFS: {e:#}"),
-            })?;
-
-    // If we were given a new GVFS root to persist, persist it.
-    // This should only happen once.
-    if let Some(new_gvfs_root) = maybe_new_gvfs_root {
-        persister::persist_gvfs_root(
-            &mut ctx.rng,
-            &*ctx.backend_api,
-            &authenticator,
-            &vfs_master_key,
-            &new_gvfs_root,
-        )
-        .await
-        .map_err(|e| NodeApiError {
-            kind: NodeErrorKind::Provision,
-            msg: format!("Failed to persist new gvfs root: {e:#}"),
-        })?;
+        Ok(Empty {})
     }
 
-    // See if an encrypted root seed backup already exists. This does not check
-    // whether the backup is well-formed, matches the current seed, etc.
-    let backup_exists = persister::password_encrypted_root_seed_exists(
-        &google_vfs,
-        req.network,
-    )
-    .await;
+    /// GET /lexe/shutdown [`GetByMeasurement`] -> [`()`]
+    pub(super) fn shutdown(
+        req: GetByMeasurement,
+        measurement: Measurement,
+        shutdown: ShutdownChannel,
+    ) -> Result<Empty, NodeApiError> {
+        // Sanity check that the caller did indeed intend to shut down this node
+        let given_measure = &req.measurement;
+        if given_measure != &measurement {
+            return Err(NodeApiError {
+                kind: NodeErrorKind::WrongMeasurement,
+                msg: format!("Given: {given_measure}, current: {measurement}"),
+            });
+        }
 
-    if !backup_exists {
-        // We should create a backup in GDrive.
-        persister::persist_password_encrypted_root_seed(
-            &google_vfs,
-            req.network,
-            encrypted_seed,
-        )
-        .await
-        .map_err(|e| NodeApiError {
-            kind: NodeErrorKind::Provision,
-            msg: format!("Failed to persist encrypted root seed: {e:#}"),
-        })?;
+        // Send a shutdown signal.
+        shutdown.send();
+
+        Ok(Empty {})
     }
-
-    // If the GDriveCredentials were updated during our calls to GDrive, persist
-    // the updated credentials so we can possibly avoid a unnecessary refresh.
-    if let Ok(true) = credentials_rx.has_changed() {
-        let credentials_file = persister::encrypt_gdrive_credentials(
-            &mut ctx.rng,
-            &vfs_master_key,
-            &credentials_rx.borrow_and_update(),
-        );
-        persister::persist_file(
-            ctx.backend_api.as_ref(),
-            &authenticator,
-            &credentials_file,
-        )
-        .await
-        .map_err(|e| NodeApiError {
-            kind: NodeErrorKind::Provision,
-            msg: format!("Could not persist updated GDrive credentials: {e:#}"),
-        })?;
-    }
-
-    // Provisioning is finally done. Stop the node.
-    ctx.shutdown.send();
-
-    Ok(Empty {})
 }
 
 #[cfg(test)]
