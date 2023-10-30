@@ -26,7 +26,7 @@ use async_trait::async_trait;
 use bitcoin::Address;
 
 #[cfg(doc)]
-use crate::api::qs::GetByUserPk;
+use crate::api::qs::{GetByMeasurement, GetByUserPk};
 use crate::{
     api::{
         auth::{
@@ -53,6 +53,7 @@ use crate::{
         Empty, NodePk, Scid, User, UserPk,
     },
     ed25519,
+    enclave::Measurement,
     ln::{
         hashes::LxTxid,
         invoice::LxInvoice,
@@ -283,6 +284,16 @@ pub trait LexeNodeRunApi {
 
     /// GET /lexe/shutdown [`GetByUserPk`] -> [`Empty`]
     async fn shutdown(&self, user_pk: UserPk) -> Result<Empty, NodeApiError>;
+}
+
+/// Defines the API the node exposes to the Lexe operators at provision time.
+#[async_trait]
+pub trait LexeNodeProvisionApi {
+    /// GET /lexe/shutdown [`GetByMeasurement`] -> [`Empty`]
+    async fn shutdown(
+        &self,
+        measurement: Measurement,
+    ) -> Result<Empty, NodeApiError>;
 }
 
 /// Defines the api that the node exposes to the app during provisioning.

@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::ln::payments::LxPaymentId;
 use crate::{
     api::{NodePk, Scid, UserPk},
+    enclave::Measurement,
     ln::payments::PaymentIndex,
 };
 
@@ -39,6 +40,13 @@ pub struct GetByNodePk {
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct GetByScid {
     pub scid: Scid,
+}
+
+/// Query parameter struct for fetching by measurement.
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+pub struct GetByMeasurement {
+    pub measurement: Measurement,
 }
 
 /// Query parameter struct for fetching a payment by its index.
@@ -102,6 +110,11 @@ mod test {
     #[test]
     fn get_by_scid_roundtrip() {
         query_string_roundtrip_proptest::<GetByScid>();
+    }
+
+    #[test]
+    fn get_by_measurement_roundtrip() {
+        query_string_roundtrip_proptest::<GetByMeasurement>();
     }
 
     #[test]
