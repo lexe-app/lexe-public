@@ -15,12 +15,7 @@
 //! in&&to a self-signed TLS certificate, which users must verify when
 //! connecting to the provisioning endpoint.
 
-use std::{
-    convert::Infallible,
-    net::SocketAddr,
-    sync::Arc,
-    time::{Duration, SystemTime},
-};
+use std::{convert::Infallible, net::SocketAddr, sync::Arc, time::SystemTime};
 
 use anyhow::Context;
 use common::{
@@ -41,19 +36,16 @@ use common::{
     shutdown::ShutdownChannel,
 };
 use gdrive::GoogleVfs;
-use tracing::{debug, info, instrument, warn, Span};
+use tracing::{debug, info, instrument, Span};
 use warp::{filters::BoxedFilter, http::Response, hyper::Body, Filter, Reply};
 
 use crate::{api::BackendApiClient, persister};
-
-const PROVISION_TIMEOUT: Duration = Duration::from_secs(10);
 
 #[derive(Clone)]
 struct RequestContext {
     args: Arc<ProvisionArgs>,
     client: reqwest::Client,
     measurement: Measurement,
-    shutdown: ShutdownChannel,
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
     // TODO(phlip9): make generic, use test rng in test
     rng: SysRng,
@@ -78,17 +70,16 @@ pub async fn provision_node<R: Crng>(
     // from the `gdrive` crate
     let client = reqwest::Client::new();
     let measurement = enclave::measurement();
-    let mut shutdown = ShutdownChannel::new();
     let ctx = RequestContext {
         args: args.clone(),
         client,
         measurement,
-        shutdown: shutdown.clone(),
         backend_api,
         // TODO(phlip9): use passed in rng
         rng: SysRng::new(),
     };
-    let routes = routes(ctx);
+    let shutdown = ShutdownChannel::new();
+    let routes = routes(ctx, shutdown.clone());
     // TODO(phlip9): remove when rest::serve_* supports TLS
     let routes = routes.with(rest::trace_requests(Span::current().id()));
 
@@ -97,31 +88,12 @@ pub async fn provision_node<R: Crng>(
         tls::node_provision_tls_config(rng, args.node_dns_name.clone())
             .context("Failed to build TLS config for provisioning")?;
 
-    // Set up a shutdown future that completes when either:
-    //
-    // a) Provisioning succeeds and `provision_handler` sends a shutdown signal
-    // b) Provisioning times out.
-    //
-    // This future is passed into and driven by the warp service, allowing it to
-    // gracefully shut down once either of these conditions has been reached.
-    let warp_shutdown_fut = async move {
-        tokio::select! {
-            () = shutdown.recv() => info!("Provision succeeded"),
-            _ = tokio::time::sleep(PROVISION_TIMEOUT) => {
-                warn!("Timed out waiting for successful provision request");
-                // Send a shutdown signal just in case we later add another task
-                // that depends on the timeout
-                shutdown.send();
-            }
-        }
-    };
-
     // Finally, set up the warp service, passing in the above components.
     let addr = SocketAddr::from(([127, 0, 0, 1], args.port.unwrap_or(0)));
     let (listen_addr, service) = warp::serve(routes)
         .tls()
         .preconfigured_tls(tls_config)
-        .bind_with_graceful_shutdown(addr, warp_shutdown_fut);
+        .bind_with_graceful_shutdown(addr, shutdown.recv_owned());
     let app_port = listen_addr.port();
     info!(%listen_addr, "listening for connections");
 
@@ -145,9 +117,11 @@ pub async fn provision_node<R: Crng>(
 ///
 /// [`AppNodeProvisionApi`]: common::api::def::AppNodeProvisionApi
 /// [`LexeNodeProvisionApi`]: common::api::def::LexeNodeProvisionApi
-fn routes(ctx: RequestContext) -> BoxedFilter<(Response<Body>,)> {
+fn routes(
+    ctx: RequestContext,
+    shutdown: ShutdownChannel,
+) -> BoxedFilter<(Response<Body>,)> {
     let measurement = ctx.measurement;
-    let shutdown = ctx.shutdown.clone();
 
     // AppNodeProvisionApi
     let provision = warp::path("provision")
@@ -208,9 +182,8 @@ mod handlers {
         debug!("Received provision request");
 
         // Validation: the user pk derived from the given root seed should match
-        // the user pk given in our CLI args. This is a sanity check in
-        // case e.g. the provision request was routed to the wrong user
-        // node.
+        // the user pk given in our CLI args. This is a sanity check in case
+        // e.g. the provision request was routed to the wrong user node.
         let user_key_pair = req.root_seed.derive_user_key_pair();
         let user_pk = UserPk::from_ref(user_key_pair.public_key().as_inner());
         if user_pk != &ctx.args.user_pk {
@@ -260,9 +233,7 @@ mod handlers {
             })?;
 
         if !req.deploy_env.is_staging_or_prod() {
-            // If we're not in staging/prod, provisioning is done. Stop the
-            // node.
-            ctx.shutdown.send();
+            // If we're not in staging/prod, provisioning is done.
             return Ok(Empty {});
         }
         // We're in staging/prod. There's some more work to do.
@@ -344,13 +315,9 @@ mod handlers {
             }
         };
 
-        // If no password-encrypted root seed was provided, provisioning is
-        // done.
+        // If no password-encrypted root seed was provided, we are done.
         let encrypted_seed = match req.encrypted_seed {
-            None => {
-                ctx.shutdown.send();
-                return Ok(Empty {});
-            }
+            None => return Ok(Empty {}),
             Some(p) => p,
         };
 
@@ -442,9 +409,7 @@ mod handlers {
             })?;
         }
 
-        // Provisioning is finally done. Stop the node.
-        ctx.shutdown.send();
-
+        // Provisioning is finally done.
         Ok(Empty {})
     }
 
@@ -475,6 +440,7 @@ mod test {
     use std::sync::Arc;
 
     use common::{
+        api::error::ErrorResponse,
         attest,
         attest::verify::EnclavePolicy,
         cli::{node::ProvisionArgs, Network},
@@ -546,7 +512,7 @@ mod test {
             let req = notifs_rx.recv().await.unwrap();
             assert_eq!(req.user_pk, user_pk);
             let provision_ports = req.unwrap_provision();
-            let port = provision_ports.app_port;
+            let app_port = provision_ports.app_port;
 
             let expect_dummy_quote = cfg!(not(target_env = "sgx"));
 
@@ -571,20 +537,35 @@ mod test {
                 google_auth_code: None,
                 encrypted_seed: None,
             };
-            let client = reqwest::Client::builder()
+            let app_client = reqwest::Client::builder()
                 .use_preconfigured_tls(tls_config)
                 .build()
                 .unwrap();
-            let resp = client
-                .post(format!("https://localhost:{port}/app/provision"))
+            let resp = app_client
+                .post(format!("https://localhost:{app_port}/app/provision"))
                 .json(&provision_req)
                 .send()
                 .await
                 .unwrap();
             if !resp.status().is_success() {
-                let err: common::api::error::ErrorResponse =
-                    resp.json().await.unwrap();
+                let err = resp.json::<ErrorResponse>().await.unwrap();
                 panic!("Failed to provision: {err:#?}");
+            }
+
+            // Now simulate the Lexe operators sending a shutdown signal.
+            // TODO(max): Use this reqwest::Client once we have a non-TLS port
+            // let lexe_client = reqwest::Client::new();
+            let measurement = enclave::measurement();
+            let data = GetByMeasurement { measurement };
+            let resp = app_client
+                .get(format!("https://localhost:{app_port}/lexe/shutdown"))
+                .query(&data)
+                .send()
+                .await
+                .unwrap();
+            if !resp.status().is_success() {
+                let err = resp.json::<ErrorResponse>().await.unwrap();
+                panic!("Failed to initiate graceful shutdown: {err:#?}");
             }
         };
 
