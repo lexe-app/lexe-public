@@ -171,9 +171,9 @@ pub(crate) fn app_routes(
 }
 
 // XXX: Add Lexe authentication
-/// Implements [`LexeNodeApi`] - endpoints only callable by the Lexe operators.
+/// Implements [`LexeNodeRunApi`] - only callable by the Lexe operators.
 ///
-/// [`LexeNodeApi`]: common::api::def::LexeNodeApi
+/// [`LexeNodeRunApi`]: common::api::def::LexeNodeRunApi
 pub(crate) fn lexe_routes(
     current_pk: UserPk,
     channel_manager: NodeChannelManager,
