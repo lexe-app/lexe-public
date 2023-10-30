@@ -25,12 +25,8 @@
 use async_trait::async_trait;
 use bitcoin::Address;
 
-use super::{
-    command::{EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse},
-    error::GatewayApiError,
-    fiat_rates::FiatRates,
-    Empty,
-};
+#[cfg(doc)]
+use crate::api::qs::GetByUserPk;
 use crate::{
     api::{
         auth::{
@@ -38,10 +34,15 @@ use crate::{
             UserSignupRequest,
         },
         command::{
-            CreateInvoiceRequest, NodeInfo, OpenChannelRequest,
+            CreateInvoiceRequest, EstimateFeeSendOnchainRequest,
+            EstimateFeeSendOnchainResponse, NodeInfo, OpenChannelRequest,
             PayInvoiceRequest, SendOnchainRequest,
         },
-        error::{BackendApiError, LspApiError, NodeApiError, RunnerApiError},
+        error::{
+            BackendApiError, GatewayApiError, LspApiError, NodeApiError,
+            RunnerApiError,
+        },
+        fiat_rates::FiatRates,
         ports::UserPorts,
         provision::{NodeProvisionRequest, SealedSeed, SealedSeedId},
         qs::{
@@ -49,7 +50,7 @@ use crate::{
             UpdatePaymentNote,
         },
         vfs::{VfsDirectory, VfsFile, VfsFileId},
-        NodePk, Scid, User, UserPk,
+        Empty, NodePk, Scid, User, UserPk,
     },
     ed25519,
     ln::{
@@ -64,8 +65,6 @@ use crate::{
 #[async_trait]
 pub trait NodeBackendApi {
     /// GET /node/v1/user [`GetByUserPk`] -> [`Option<User>`]
-    ///
-    /// [`GetByUserPk`]: super::qs::GetByUserPk
     async fn get_user(
         &self,
         user_pk: UserPk,
@@ -86,7 +85,7 @@ pub trait NodeBackendApi {
 
     /// GET /node/v1/scid [`GetByNodePk`] -> [`Option<Scid>`]
     ///
-    /// [`GetByNodePk`]: super::qs::GetByNodePk
+    /// [`GetByNodePk`]: crate::api::qs::GetByNodePk
     async fn get_scid(
         &self,
         node_pk: NodePk,
@@ -237,7 +236,7 @@ pub trait BearerAuthBackendApi {
 pub trait NodeLspApi {
     /// GET /node/v1/scid [`GetByNodePk`] -> [`Option<Scid>`]
     ///
-    /// [`GetByNodePk`]: super::qs::GetByNodePk
+    /// [`GetByNodePk`]: crate::api::qs::GetByNodePk
     async fn get_new_scid(&self, node_pk: NodePk) -> Result<Scid, LspApiError>;
 }
 
@@ -251,12 +250,10 @@ pub trait NodeRunnerApi {
     ) -> Result<UserPorts, RunnerApiError>;
 }
 
-/// Defines the api that the node exposes to the Lexe operators.
+/// Defines the API the node exposes to the Lexe operators at run time.
 #[async_trait]
-pub trait LexeNodeApi {
+pub trait LexeNodeRunApi {
     /// GET /lexe/status [`GetByUserPk`] -> [`Empty`]
-    ///
-    /// [`GetByUserPk`]: super::qs::GetByUserPk
     async fn status(&self, user_pk: UserPk) -> Result<Empty, NodeApiError>;
 
     /// POST /lexe/resync [`Empty`] -> [`Empty`]
@@ -285,8 +282,6 @@ pub trait LexeNodeApi {
     async fn test_event(&self, op: TestEventOp) -> Result<(), NodeApiError>;
 
     /// GET /lexe/shutdown [`GetByUserPk`] -> [`Empty`]
-    ///
-    /// [`GetByUserPk`]: super::qs::GetByUserPk
     async fn shutdown(&self, user_pk: UserPk) -> Result<Empty, NodeApiError>;
 }
 
