@@ -33,6 +33,7 @@ pub struct RunPorts {
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct ProvisionPorts {
     pub app_port: Port,
+    pub lexe_port: Port,
 }
 
 // --- impl UserPorts --- //
@@ -51,10 +52,17 @@ impl UserPorts {
     }
 
     /// Shorthand to construct a UserPorts containing a Provision variant.
-    pub fn new_provision(user_pk: UserPk, app_port: Port) -> Self {
+    pub fn new_provision(
+        user_pk: UserPk,
+        app_port: Port,
+        lexe_port: Port,
+    ) -> Self {
         Self {
             user_pk,
-            ports: Ports::Provision(ProvisionPorts { app_port }),
+            ports: Ports::Provision(ProvisionPorts {
+                app_port,
+                lexe_port,
+            }),
         }
     }
 
@@ -77,6 +85,14 @@ impl Ports {
         match self {
             Self::Run(run_ports) => run_ports.app_port,
             Self::Provision(provision_ports) => provision_ports.app_port,
+        }
+    }
+
+    /// Shorthand to return the Lexe operator port.
+    pub fn lexe(&self) -> Port {
+        match self {
+            Self::Run(run_ports) => run_ports.lexe_port,
+            Self::Provision(provision_ports) => provision_ports.lexe_port,
         }
     }
 

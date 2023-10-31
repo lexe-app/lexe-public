@@ -1,5 +1,3 @@
-// #![allow(dead_code)] // TODO(max): Remove and replace with SGX cfgs
-
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     str::FromStr,
@@ -103,7 +101,6 @@ fn node_pk(user_pk: UserPk) -> NodePk {
 
 pub(crate) struct MockRunnerClient {
     notifs_tx: mpsc::Sender<UserPorts>,
-    #[allow(dead_code)] // Used in tests
     notifs_rx: Mutex<Option<mpsc::Receiver<UserPorts>>>,
 }
 
@@ -117,7 +114,6 @@ impl MockRunnerClient {
         }
     }
 
-    #[allow(dead_code)] // Used in tests
     pub(crate) fn notifs_rx(&self) -> mpsc::Receiver<UserPorts> {
         self.notifs_rx
             .lock()

@@ -15,7 +15,12 @@
 //! in&&to a self-signed TLS certificate, which users must verify when
 //! connecting to the provisioning endpoint.
 
-use std::{convert::Infallible, net::SocketAddr, sync::Arc, time::SystemTime};
+use std::{
+    convert::Infallible,
+    net::TcpListener,
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use anyhow::Context;
 use common::{
@@ -32,14 +37,19 @@ use common::{
     client::tls,
     enclave,
     enclave::Measurement,
+    net,
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
+    task::LxTask,
+    Apply,
 };
 use gdrive::GoogleVfs;
-use tracing::{debug, info, instrument, Span};
-use warp::{filters::BoxedFilter, http::Response, hyper::Body, Filter, Reply};
+use tracing::{debug, info, info_span, instrument, Span};
+use warp::{filters::BoxedFilter, http::Response, hyper::Body, Filter};
 
 use crate::{api::BackendApiClient, persister};
+
+const WARP_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[derive(Clone)]
 struct RequestContext {
@@ -79,51 +89,76 @@ pub async fn provision_node<R: Crng>(
         rng: SysRng::new(),
     };
     let shutdown = ShutdownChannel::new();
-    let routes = routes(ctx, shutdown.clone());
-    // TODO(phlip9): remove when rest::serve_* supports TLS
-    let routes = routes.with(rest::trace_requests(Span::current().id()));
 
-    // Set up the TLS config.
-    let tls_config =
+    let app_routes = app_routes(ctx);
+    // TODO(phlip9): remove when rest::serve_* supports TLS
+    let app_routes =
+        app_routes.with(rest::trace_requests(Span::current().id()));
+    let app_tls_config =
         tls::node_provision_tls_config(rng, args.node_dns_name.clone())
             .context("Failed to build TLS config for provisioning")?;
-
-    // Finally, set up the warp service, passing in the above components.
-    let addr = SocketAddr::from(([127, 0, 0, 1], args.port.unwrap_or(0)));
-    let (listen_addr, service) = warp::serve(routes)
+    let (app_addr, app_service) = warp::serve(app_routes)
         .tls()
-        .preconfigured_tls(tls_config)
-        .bind_with_graceful_shutdown(addr, shutdown.recv_owned());
-    let app_port = listen_addr.port();
-    info!(%listen_addr, "listening for connections");
+        .preconfigured_tls(app_tls_config)
+        .bind_with_graceful_shutdown(
+            net::LOCALHOST_WITH_EPHEMERAL_PORT,
+            shutdown.clone().recv_owned(),
+        );
+    let app_port = app_addr.port();
+    let app_api_task = LxTask::spawn_named_with_span(
+        "app api",
+        info_span!(parent: None, "(app-api)"),
+        app_service,
+    );
+
+    let lexe_routes = lexe_routes(measurement, shutdown.clone());
+    let lexe_listener =
+        TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
+            .context("Could not bind TcpListener for Lexe operator API")?;
+    let (lexe_api_task, lexe_addr) =
+        rest::serve_routes_with_listener_and_shutdown(
+            lexe_routes,
+            shutdown.clone().recv_owned(),
+            lexe_listener,
+            "lexe api",
+            info_span!(parent: None, "(lexe-api)"),
+        )
+        .context("Failed to serve Lexe routes")?;
+    let lexe_port = lexe_addr.port();
+
+    info!(%app_addr, %lexe_addr, "API socket addresses: ");
 
     // Notify the runner that we're ready for a client connection
-    let user_ports = UserPorts::new_provision(args.user_pk, app_port);
+    let user_ports =
+        UserPorts::new_provision(args.user_pk, app_port, lexe_port);
     runner_api
         .ready(user_ports)
         .await
         .context("Failed to notify runner of our readiness")?;
     debug!("Notified runner; awaiting client request");
 
-    // Drive the warp service, wait for finish
-    service.await;
+    // Wait for shutdown signal
+    shutdown.recv_owned().await;
+
+    // Check that the API tasks haven't hung
+    app_api_task
+        .apply(|fut| tokio::time::timeout(WARP_SHUTDOWN_TIMEOUT, fut))
+        .await
+        .context("Timed out waiting for app API task to finish")?
+        .context("App task panicked")?;
+    lexe_api_task
+        .apply(|fut| tokio::time::timeout(WARP_SHUTDOWN_TIMEOUT, fut))
+        .await
+        .context("Timed out waiting for Lexe API task to finish")?
+        .context("Lexe task panicked")?;
 
     Ok(())
 }
 
-/// Implements:
-/// - [`AppNodeProvisionApi`] - only callable by the node owner.
-/// - [`LexeNodeProvisionApi`] - only callable by the Lexe operators.
+/// Implements [`AppNodeProvisionApi`] - only callable by the node owner.
 ///
 /// [`AppNodeProvisionApi`]: common::api::def::AppNodeProvisionApi
-/// [`LexeNodeProvisionApi`]: common::api::def::LexeNodeProvisionApi
-fn routes(
-    ctx: RequestContext,
-    shutdown: ShutdownChannel,
-) -> BoxedFilter<(Response<Body>,)> {
-    let measurement = ctx.measurement;
-
-    // AppNodeProvisionApi
+fn app_routes(ctx: RequestContext) -> BoxedFilter<(Response<Body>,)> {
     let provision = warp::path("provision")
         .and(warp::post())
         .and(inject::request_context(ctx))
@@ -132,7 +167,16 @@ fn routes(
         .map(rest::into_response);
     let app_routes = warp::path("app").and(provision);
 
-    // LexeNodeProvisionApi
+    app_routes.boxed()
+}
+
+/// Implements [`LexeNodeProvisionApi`] - only callable by the Lexe operators.
+///
+/// [`LexeNodeProvisionApi`]: common::api::def::LexeNodeProvisionApi
+fn lexe_routes(
+    measurement: Measurement,
+    shutdown: ShutdownChannel,
+) -> BoxedFilter<(Response<Body>,)> {
     let shutdown = warp::path("shutdown")
         .and(warp::get())
         .and(warp::query::<GetByMeasurement>())
@@ -142,7 +186,7 @@ fn routes(
         .map(rest::into_response);
     let lexe_routes = warp::path("lexe").and(shutdown);
 
-    app_routes.or(lexe_routes).map(Reply::into_response).boxed()
+    lexe_routes.boxed()
 }
 
 /// Filters for injecting structs/data into subsequent [`Filter`]s.
@@ -513,6 +557,7 @@ mod test {
             assert_eq!(req.user_pk, user_pk);
             let provision_ports = req.unwrap_provision();
             let app_port = provision_ports.app_port;
+            let lexe_port = provision_ports.lexe_port;
 
             let expect_dummy_quote = cfg!(not(target_env = "sgx"));
 
@@ -542,6 +587,7 @@ mod test {
                 .build()
                 .unwrap();
             let resp = app_client
+                // Note the https://
                 .post(format!("https://localhost:{app_port}/app/provision"))
                 .json(&provision_req)
                 .send()
@@ -553,12 +599,11 @@ mod test {
             }
 
             // Now simulate the Lexe operators sending a shutdown signal.
-            // TODO(max): Use this reqwest::Client once we have a non-TLS port
-            // let lexe_client = reqwest::Client::new();
+            let lexe_client = reqwest::Client::new();
             let measurement = enclave::measurement();
             let data = GetByMeasurement { measurement };
-            let resp = app_client
-                .get(format!("https://localhost:{app_port}/lexe/shutdown"))
+            let resp = lexe_client
+                .get(format!("http://localhost:{lexe_port}/lexe/shutdown"))
                 .query(&data)
                 .send()
                 .await
