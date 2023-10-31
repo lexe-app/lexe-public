@@ -6,7 +6,7 @@ use common::{
             BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi,
         },
         error::{BackendApiError, LspApiError, RunnerApiError},
-        ports::UserPorts,
+        ports::Ports,
         provision::{SealedSeed, SealedSeedId},
         qs::{
             GetByNodePk, GetByUserPk, GetNewPayments, GetPaymentByIndex,
@@ -39,10 +39,7 @@ impl RunnerClient {
 
 #[async_trait]
 impl NodeRunnerApi for RunnerClient {
-    async fn ready(
-        &self,
-        data: UserPorts,
-    ) -> Result<UserPorts, RunnerApiError> {
+    async fn ready(&self, data: Ports) -> Result<Ports, RunnerApiError> {
         let runner = &self.runner_url;
         let req = self.rest.post(format!("{runner}/node/ready"), &data);
         // TODO(phlip9): authenticate runner callbacks?

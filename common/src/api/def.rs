@@ -43,7 +43,7 @@ use crate::{
             RunnerApiError,
         },
         fiat_rates::FiatRates,
-        ports::UserPorts,
+        ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed, SealedSeedId},
         qs::{
             GetNewPayments, GetPaymentByIndex, GetPaymentsByIds,
@@ -244,11 +244,8 @@ pub trait NodeLspApi {
 /// Defines the api that the runner exposes to the node.
 #[async_trait]
 pub trait NodeRunnerApi {
-    /// POST /node/ready [`UserPorts`] -> [`UserPorts`]
-    async fn ready(
-        &self,
-        user_ports: UserPorts,
-    ) -> Result<UserPorts, RunnerApiError>;
+    /// POST /node/ready [`Ports`] -> [`Ports`]
+    async fn ready(&self, ports: Ports) -> Result<Ports, RunnerApiError>;
 }
 
 /// Defines the API the node exposes to the Lexe operators at run time.

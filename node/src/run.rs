@@ -8,7 +8,7 @@ use anyhow::{anyhow, bail, ensure, Context};
 use common::{
     aes::AesMasterKey,
     api::{
-        auth::BearerAuthenticator, def::NodeRunnerApi, ports::UserPorts,
+        auth::BearerAuthenticator, def::NodeRunnerApi, ports::Ports,
         provision::SealedSeedId, rest, User, UserPk,
     },
     cli::{node::RunArgs, LspInfo, Network},
@@ -85,7 +85,7 @@ pub struct UserNode {
     // --- General --- //
     args: RunArgs,
     deploy_env: DeployEnv,
-    user_ports: UserPorts,
+    ports: Ports,
     tasks: Vec<LxTask<()>>,
     channel_peer_tx: mpsc::Sender<ChannelPeerUpdate>,
     shutdown: ShutdownChannel,
@@ -520,7 +520,7 @@ impl UserNode {
         tasks.push(lexe_warp_task);
 
         // Prepare the ports that we'll notify the runner of once we're ready
-        let user_ports = UserPorts::new_run(user_pk, app_port, lexe_port);
+        let ports = Ports::new_run(user_pk, app_port, lexe_port);
 
         // Init background processor
         let bg_processor_task = LexeBackgroundProcessor::start::<
@@ -558,7 +558,7 @@ impl UserNode {
             // General
             args,
             deploy_env,
-            user_ports,
+            ports,
             tasks,
             channel_peer_tx,
             shutdown,
@@ -649,7 +649,7 @@ impl UserNode {
         // the LSP is connected to us when it makes its open_channel request, we
         // reconnect to the LSP *before* sending the /ready callback.
         ctxt.runner_api
-            .ready(self.user_ports)
+            .ready(self.ports)
             .await
             .context("Could not notify runner of ready status")?;
 

@@ -1,23 +1,11 @@
 use serde::{Deserialize, Serialize};
 
-use crate::api::UserPk;
+use crate::{api::UserPk, enclave::Measurement};
 
 pub type Port = u16;
 
-/// Used to return the port of a loaded node.
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct PortReply {
-    pub ports: Ports,
-}
-
-/// Used to (de)serialize /ready requests and responses
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-pub struct UserPorts {
-    pub user_pk: UserPk,
-    pub ports: Ports,
-}
-
-// TODO(max): Expose only one port, then remove this entire enum + child structs
+/// Represents the ports used by a user node.
+/// Used to (de)serialize /ready requests and responses.
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub enum Ports {
     Run(RunPorts),
@@ -26,60 +14,55 @@ pub enum Ports {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct RunPorts {
+    pub user_pk: UserPk,
     pub app_port: Port,
     pub lexe_port: Port,
 }
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct ProvisionPorts {
+    // TODO(max): Get rid of this field
+    pub user_pk: UserPk,
+    pub measurement: Measurement,
     pub app_port: Port,
     pub lexe_port: Port,
 }
 
-// --- impl UserPorts --- //
-
-impl UserPorts {
-    /// Shorthand to construct a UserPorts containing a Run variant.
+impl Ports {
+    /// Shorthand to construct a [`Ports`] containing a Run variant.
     /// Be careful to specify the app/lexe ports in the correct order.
     pub fn new_run(user_pk: UserPk, app_port: Port, lexe_port: Port) -> Self {
-        Self {
+        Ports::Run(RunPorts {
             user_pk,
-            ports: Ports::Run(RunPorts {
-                app_port,
-                lexe_port,
-            }),
-        }
+            app_port,
+            lexe_port,
+        })
     }
 
-    /// Shorthand to construct a UserPorts containing a Provision variant.
+    /// Shorthand to construct a [`Ports`] containing a Provision variant.
+    /// Be careful to specify the app/lexe ports in the correct order.
     pub fn new_provision(
         user_pk: UserPk,
+        measurement: Measurement,
         app_port: Port,
         lexe_port: Port,
     ) -> Self {
-        Self {
+        Ports::Provision(ProvisionPorts {
             user_pk,
-            ports: Ports::Provision(ProvisionPorts {
-                app_port,
-                lexe_port,
-            }),
+            measurement,
+            app_port,
+            lexe_port,
+        })
+    }
+
+    // hACK - TODO(max): Remove
+    pub fn user_pk(&self) -> UserPk {
+        match self {
+            Self::Run(RunPorts { user_pk, .. }) => *user_pk,
+            Self::Provision(ProvisionPorts { user_pk, .. }) => *user_pk,
         }
     }
 
-    /// 'Unwraps' self to the RunPorts struct.
-    pub fn unwrap_run(self) -> RunPorts {
-        self.ports.unwrap_run()
-    }
-
-    /// 'Unwraps' self to the ProvisionPorts struct.
-    pub fn unwrap_provision(self) -> ProvisionPorts {
-        self.ports.unwrap_provision()
-    }
-}
-
-// --- impl Ports --- //
-
-impl Ports {
     /// Shorthand to return the app port.
     pub fn app(&self) -> Port {
         match self {

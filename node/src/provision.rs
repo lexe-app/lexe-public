@@ -28,7 +28,7 @@ use common::{
         auth::BearerAuthenticator,
         def::NodeRunnerApi,
         error::{NodeApiError, NodeErrorKind},
-        ports::UserPorts,
+        ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed},
         qs::GetByMeasurement,
         rest, Empty, UserPk,
@@ -129,10 +129,10 @@ pub async fn provision_node<R: Crng>(
     info!(%app_addr, %lexe_addr, "API socket addresses: ");
 
     // Notify the runner that we're ready for a client connection
-    let user_ports =
-        UserPorts::new_provision(args.user_pk, app_port, lexe_port);
+    let ports =
+        Ports::new_provision(args.user_pk, measurement, app_port, lexe_port);
     runner_api
-        .ready(user_ports)
+        .ready(ports)
         .await
         .context("Failed to notify runner of our readiness")?;
     debug!("Notified runner; awaiting client request");
@@ -554,7 +554,7 @@ mod test {
         let test_task = async {
             // runner recv ready notification w/ listening port
             let req = notifs_rx.recv().await.unwrap();
-            assert_eq!(req.user_pk, user_pk);
+            assert_eq!(req.user_pk(), user_pk);
             let provision_ports = req.unwrap_provision();
             let app_port = provision_ports.app_port;
             let lexe_port = provision_ports.lexe_port;

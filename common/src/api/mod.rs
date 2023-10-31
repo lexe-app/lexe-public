@@ -35,7 +35,7 @@ pub mod def;
 pub mod error;
 /// Data types returned from the fiat exchange rate API.
 pub mod fiat_rates;
-/// `Port`, `Ports`, `UserPorts`, `RunPorts`, etc.
+/// `Port`, `Ports`, `RunPorts`, etc.
 pub mod ports;
 /// Data types specific to provisioning.
 pub mod provision;
