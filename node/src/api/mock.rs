@@ -18,7 +18,7 @@ use common::{
         error::{
             BackendApiError, BackendErrorKind, LspApiError, RunnerApiError,
         },
-        ports::UserPorts,
+        ports::Ports,
         provision::{SealedSeed, SealedSeedId},
         qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIds},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
@@ -100,8 +100,8 @@ fn node_pk(user_pk: UserPk) -> NodePk {
 // --- The mock clients --- //
 
 pub(crate) struct MockRunnerClient {
-    notifs_tx: mpsc::Sender<UserPorts>,
-    notifs_rx: Mutex<Option<mpsc::Receiver<UserPorts>>>,
+    notifs_tx: mpsc::Sender<Ports>,
+    notifs_rx: Mutex<Option<mpsc::Receiver<Ports>>>,
 }
 
 impl MockRunnerClient {
@@ -114,7 +114,7 @@ impl MockRunnerClient {
         }
     }
 
-    pub(crate) fn notifs_rx(&self) -> mpsc::Receiver<UserPorts> {
+    pub(crate) fn notifs_rx(&self) -> mpsc::Receiver<Ports> {
         self.notifs_rx
             .lock()
             .unwrap()
@@ -125,12 +125,9 @@ impl MockRunnerClient {
 
 #[async_trait]
 impl NodeRunnerApi for MockRunnerClient {
-    async fn ready(
-        &self,
-        user_ports: UserPorts,
-    ) -> Result<UserPorts, RunnerApiError> {
-        let _ = self.notifs_tx.try_send(user_ports);
-        Ok(user_ports)
+    async fn ready(&self, ports: Ports) -> Result<Ports, RunnerApiError> {
+        let _ = self.notifs_tx.try_send(ports);
+        Ok(ports)
     }
 }
 
