@@ -283,14 +283,21 @@ pub trait LexeNodeRunApi {
     async fn test_event(&self, op: TestEventOp) -> Result<(), NodeApiError>;
 
     /// GET /lexe/shutdown [`GetByUserPk`] -> [`Empty`]
-    async fn shutdown(&self, user_pk: UserPk) -> Result<Empty, NodeApiError>;
+    ///
+    /// Not to be confused with [`LexeNodeProvisionApi::shutdown_provision`].
+    async fn shutdown_run(
+        &self,
+        user_pk: UserPk,
+    ) -> Result<Empty, NodeApiError>;
 }
 
 /// Defines the API the node exposes to the Lexe operators at provision time.
 #[async_trait]
 pub trait LexeNodeProvisionApi {
     /// GET /lexe/shutdown [`GetByMeasurement`] -> [`Empty`]
-    async fn shutdown(
+    ///
+    /// Not to be confused with [`LexeNodeRunApi::shutdown_run`].
+    async fn shutdown_provision(
         &self,
         measurement: Measurement,
     ) -> Result<Empty, NodeApiError>;
