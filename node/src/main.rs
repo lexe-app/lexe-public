@@ -1,7 +1,7 @@
 use std::{io::Write, process::ExitCode, time::Instant};
 
 use lexe_ln::logger;
-use node::cli::NodeArgs;
+use node::{cli::NodeArgs, CUSTOM_VERSION, SEMVER_VERSION};
 use tracing::{error, info};
 
 pub fn main() -> ExitCode {
@@ -14,6 +14,15 @@ pub fn main() -> ExitCode {
     logger::init();
 
     let args = argh::from_env::<NodeArgs>();
+
+    // If --version was given, print the version and exit. We handle this here
+    // (not NodeArgs::run) to skip the "Node completed successfully" msg below.
+    if args.version {
+        let custom_str = CUSTOM_VERSION.unwrap_or("None");
+        println!("node-v{SEMVER_VERSION} (Custom version: {custom_str})");
+        return ExitCode::SUCCESS;
+    }
+
     let result = args.run();
     let elapsed = start.elapsed();
 
