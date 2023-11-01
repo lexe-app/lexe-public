@@ -157,18 +157,24 @@ $ cargo test
 Build the node
 ```bash
 # Build for the local environment (non-SGX)
-$ cargo build --bin node
+$ cargo build -p node
 # Build for SGX
-$ cargo build --bin node --target=x86_64-fortanix-unknown-sgx
-$ cargo build --bin node --release --target=x86_64-fortanix-unknown-sgx
+$ cargo build -p node --target=x86_64-fortanix-unknown-sgx
+$ cargo build -p node --release --target=x86_64-fortanix-unknown-sgx
+```
+
+Check that the node runs by printing the current version
+```bash
+$ cargo run -p node -- --version
+$ cargo run -p node --target=x86_64-fortanix-unknown-sgx -- --version
+$ cargo run -p node --release --target=x86_64-fortanix-unknown-sgx -- --version
 ```
 
 See node help
-
 ```bash
-$ cargo run --bin node -- run --help
-$ cargo run --bin node --target=x86_64-fortanix-unknown-sgx -- run --help
-$ cargo run --bin node --release --target=x86_64-fortanix-unknown-sgx -- run --help
+$ cargo run -p node -- run --help
+$ cargo run -p node --target=x86_64-fortanix-unknown-sgx -- run --help
+$ cargo run -p node --release --target=x86_64-fortanix-unknown-sgx -- run --help
 ```
 - If running in SGX, make sure that you are running on real Intel hardware with
   SGX enabled.
@@ -179,9 +185,9 @@ $ cargo run --bin node --release --target=x86_64-fortanix-unknown-sgx -- run --h
   best-effort basis and is not tested (or used) regularly by Lexe devs.
 
 See full CLI options with:
-- `cargo run --bin node -- help`
-- `cargo run --bin node -- run --help`
-- `cargo run --bin node -- provision --help`
+- `cargo run -p node -- help`
+- `cargo run -p node -- run --help`
+- `cargo run -p node -- provision --help`
 
 ## OrbStack linux-builder setup
 

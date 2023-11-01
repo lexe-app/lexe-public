@@ -7,6 +7,18 @@
 // Easy side-effects in Result / Option chains
 #![feature(result_option_inspect)]
 
+use common::const_assert;
+
+/// The semver version as specified in the crate Cargo.toml, e.g. "0.1.0".
+/// This is baked in at compile time and thus can be treated as a trusted input.
+pub const SEMVER_VERSION: &str = env!("CARGO_PKG_VERSION");
+const_assert!(!SEMVER_VERSION.is_empty());
+/// A custom version specified via `CUSTOM_NODE_VERSION` env at compile time.
+/// This is usually "local" (or some variant) in dev; is [`None`] otherwise.
+/// Exists so that we can create nearly-identical local builds with different
+/// measurements in order to test re-provisioning logic.
+pub const CUSTOM_VERSION: Option<&str> = option_env!("CUSTOM_NODE_VERSION");
+
 pub mod cli;
 
 mod alias;

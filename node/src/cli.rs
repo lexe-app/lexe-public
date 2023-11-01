@@ -13,8 +13,13 @@ use crate::{
 /// A wrapper around [`NodeCommand`] that serves as [`argh::TopLevelCommand`].
 #[derive(Debug, PartialEq, Eq, FromArgs)]
 pub struct NodeArgs {
+    /// show the current version, then exit.
+    #[argh(switch)]
+    pub version: bool,
+
+    // Has to be Option otherwise --version doesn't work
     #[argh(subcommand)]
-    cmd: NodeCommand,
+    command: Option<NodeCommand>,
 }
 
 impl NodeArgs {
@@ -33,7 +38,11 @@ impl NodeArgs {
             .context("Failed to build Tokio runtime")?;
         let mut rng = SysRng::new();
 
-        match self.cmd {
+        let command = self
+            .command
+            .context("Missing subcommand: try 'help', 'run', or 'provision'")?;
+
+        match command {
             NodeCommand::Run(args) => rt
                 .block_on(async {
                     let mut node = UserNode::init(&mut rng, args)
