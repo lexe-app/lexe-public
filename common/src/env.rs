@@ -31,6 +31,12 @@ impl DeployEnv {
             .apply(Self::from_str)
     }
 
+    /// Shorthand to check whether this [`DeployEnv`] is dev.
+    #[inline]
+    pub fn is_dev(self) -> bool {
+        matches!(self, Self::Dev)
+    }
+
     /// Shorthand to check whether this [`DeployEnv`] is staging or prod.
     #[inline]
     pub fn is_staging_or_prod(self) -> bool {
