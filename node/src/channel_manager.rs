@@ -181,10 +181,6 @@ impl Deref for NodeChannelManager {
 }
 
 impl NodeChannelManager {
-    pub fn arc_inner(&self) -> Arc<ChannelManagerType> {
-        self.0.clone()
-    }
-
     pub(crate) fn init(
         network: Network,
         maybe_manager: Option<(BlockHash, ChannelManagerType)>,

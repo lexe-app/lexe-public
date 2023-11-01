@@ -7,15 +7,15 @@
 // Easy side-effects in Result / Option chains
 #![feature(result_option_inspect)]
 
-pub mod alias;
-pub mod channel_manager;
 pub mod cli;
-pub mod peer_manager;
-pub mod persister;
-pub mod run;
 
+mod alias;
 mod api;
+mod channel_manager;
 mod event_handler;
 mod inactivity_timer;
+mod peer_manager;
+mod persister;
 mod provision;
+mod run;
 mod server;
