@@ -111,4 +111,51 @@
       ${pkgs.acl.bin}/bin/setfacl --default -m group:nixbld:rwx /var/cache/lexe
     '';
   };
+
+  # vim keybinds in bash
+  environment.etc."inputrc".text = ''
+    # GNU readline settings
+    #
+    # ### Inspiration
+    #
+    # <https://www.topbug.net/blog/2017/07/31/inputrc-for-humans/>
+    # <https://github.com/atweiden/dotfiles/blob/master/.inputrc>
+
+    # use vi mode
+    set editing-mode vi
+    set keymap vi
+
+    # allow UTF-8 input and output, instead of showing stuff like
+    # $'\0123\0456'
+    set input-meta on
+    set output-meta on
+    set convert-meta off
+
+    # display possible completions according to $LC_COLORS
+    set colored-stats on
+
+    # auto completion ignores case
+    set completion-ignore-case on
+
+    # only display 3 characters of the common prefix in the completion
+    set completion-prefix-display-length 3
+
+    # display a / after any symlinked directories
+    set mark-symlinked-directories on
+
+    # don't ring the bell, but instead show the completions immediately
+    set show-all-if-ambiguous on
+    set show-all-if-unmodified on
+
+    # append completions by characters that indicate their file type according to
+    # stat
+    set visible-stats on
+
+    # Be more intelligent when autocompleting by also looking at the text
+    # after the cursor. For example, when the current line is "cd
+    # ~/src/mozil", and the cursor is on the "z", pressing Tab will not
+    # autocomplete it to "cd ~/src/mozillail", but to "cd ~/src/mozilla".
+    # (This is supported by the Readline used by Bash 4.)
+    set skip-completed-text on
+  '';
 }
