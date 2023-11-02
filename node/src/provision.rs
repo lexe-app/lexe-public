@@ -132,7 +132,7 @@ pub async fn provision_node<R: Crng>(
     let ports =
         Ports::new_provision(args.user_pk, measurement, app_port, lexe_port);
     runner_api
-        .ready(ports)
+        .ready(&ports)
         .await
         .context("Failed to notify runner of our readiness")?;
     debug!("Notified runner; awaiting client request");
