@@ -31,7 +31,7 @@ use common::{
         ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed},
         qs::GetByMeasurement,
-        rest, Empty, UserPk,
+        rest, Empty,
     },
     cli::node::ProvisionArgs,
     client::tls,
@@ -225,18 +225,6 @@ mod handlers {
     ) -> Result<Empty, NodeApiError> {
         debug!("Received provision request");
 
-        // Validation: the user pk derived from the given root seed should match
-        // the user pk given in our CLI args. This is a sanity check in case
-        // e.g. the provision request was routed to the wrong user node.
-        let user_key_pair = req.root_seed.derive_user_key_pair();
-        let user_pk = UserPk::from_ref(user_key_pair.public_key().as_inner());
-        if user_pk != &ctx.args.user_pk {
-            return Err(NodeApiError::wrong_user_pk(
-                ctx.args.user_pk,
-                *user_pk,
-            ));
-        }
-
         let sealed_seed_res = SealedSeed::seal_from_root_seed(
             &mut ctx.rng,
             &req.root_seed,
@@ -255,6 +243,7 @@ mod handlers {
         // in the provision request instead of reauthing here.
 
         // authenticate as the user to the backend
+        let user_key_pair = req.root_seed.derive_user_key_pair();
         let authenticator = BearerAuthenticator::new(
             user_key_pair,
             None, /* maybe_token */
