@@ -244,8 +244,8 @@ pub trait NodeLspApi {
 /// Defines the api that the runner exposes to the node.
 #[async_trait]
 pub trait NodeRunnerApi {
-    /// POST /node/ready [`Ports`] -> [`Ports`]
-    async fn ready(&self, ports: Ports) -> Result<Ports, RunnerApiError>;
+    /// POST /node/ready [`Ports`] -> [`Empty`]
+    async fn ready(&self, ports: &Ports) -> Result<Empty, RunnerApiError>;
 }
 
 /// Defines the API the node exposes to the Lexe operators at run time.
