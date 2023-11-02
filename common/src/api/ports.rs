@@ -55,6 +55,16 @@ impl Ports {
         })
     }
 
+    /// Returns a crude identifier which allows one to identify a node given its
+    /// [`Ports`] in logs. `UserPk(<user_pk>)` or `Measurement(<measurement>)`.
+    pub fn identifier(&self) -> String {
+        match self {
+            Self::Run(RunPorts { user_pk, .. }) => format!("UserPk({user_pk})"),
+            Self::Provision(ProvisionPorts { measurement, .. }) =>
+                format!("Measurement({measurement})"),
+        }
+    }
+
     // hACK - TODO(max): Remove
     pub fn user_pk(&self) -> UserPk {
         match self {
