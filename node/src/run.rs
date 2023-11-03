@@ -1,5 +1,5 @@
 use std::{
-    net::{Ipv4Addr, TcpListener},
+    net::TcpListener,
     sync::{atomic::AtomicBool, Arc, Mutex},
     time::{Duration, Instant},
 };
@@ -17,7 +17,7 @@ use common::{
     ed25519,
     enclave::{self, MachineId, Measurement, MIN_SGX_CPUSVN},
     env::DeployEnv,
-    notify,
+    net, notify,
     rng::{Crng, SysRng},
     root_seed::RootSeed,
     shutdown::ShutdownChannel,
@@ -481,11 +481,11 @@ impl UserNode {
             .preconfigured_tls(app_tls)
             // A value of 0 indicates that the OS will assign a port for us
             .bind_with_graceful_shutdown(
-                ([127, 0, 0, 1], args.app_port.unwrap_or(0)),
+                net::LOCALHOST_WITH_EPHEMERAL_PORT,
                 shutdown.clone().recv_owned(),
             );
         let app_port = app_addr.port();
-        info!("App service listening on port {}", app_port);
+        info!("App service listening on port {app_port}");
         tasks.push(LxTask::spawn_named_with_span(
             "node app api",
             app_span,
@@ -494,8 +494,6 @@ impl UserNode {
 
         // TODO(phlip9): authenticate lexe<->node
         // Start warp service for Lexe operators
-        let lexe_bind_addr =
-            (Ipv4Addr::new(127, 0, 0, 1), args.lexe_port.unwrap_or(0));
         let (lexe_warp_task, lexe_addr) =
             rest::serve_routes_with_listener_and_shutdown(
                 server::lexe_routes(
@@ -509,7 +507,7 @@ impl UserNode {
                     shutdown.clone(),
                 ),
                 shutdown.clone().recv_owned(),
-                TcpListener::bind(lexe_bind_addr)?,
+                TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)?,
                 "lexe node api",
                 info_span!(parent: None, "(lexe-node-api)"),
             )

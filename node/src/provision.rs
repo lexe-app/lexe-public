@@ -72,7 +72,7 @@ pub async fn provision_node<R: Crng>(
     runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
 ) -> anyhow::Result<()> {
-    debug!(%args.user_pk, args.port, %args.node_dns_name, "provisioning");
+    debug!(?args.port, %args.node_dns_name, "provisioning");
 
     // Set up the request context and warp routes.
     let args = Arc::new(args);
@@ -129,8 +129,7 @@ pub async fn provision_node<R: Crng>(
     info!(%app_addr, %lexe_addr, "API socket addresses: ");
 
     // Notify the runner that we're ready for a client connection
-    let ports =
-        Ports::new_provision(args.user_pk, measurement, app_port, lexe_port);
+    let ports = Ports::new_provision(measurement, app_port, lexe_port);
     runner_api
         .ready(&ports)
         .await
@@ -519,10 +518,8 @@ mod test {
     #[tokio::test]
     async fn test_provision() {
         let root_seed = RootSeed::from_u64(0x42);
-        let user_pk = root_seed.derive_user_pk();
 
         let args = ProvisionArgs {
-            user_pk,
             // we're not going through a proxy and can't change DNS resolution
             // here (yet), so just bind cert to "localhost".
             node_dns_name: "localhost".to_owned(),
@@ -542,9 +539,8 @@ mod test {
 
         let test_task = async {
             // runner recv ready notification w/ listening port
-            let req = notifs_rx.recv().await.unwrap();
-            assert_eq!(req.user_pk(), user_pk);
-            let provision_ports = req.unwrap_provision();
+            let ports = notifs_rx.recv().await.unwrap();
+            let provision_ports = ports.unwrap_provision();
             let app_port = provision_ports.app_port;
             let lexe_port = provision_ports.lexe_port;
 
