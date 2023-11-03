@@ -21,8 +21,6 @@ pub struct RunPorts {
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct ProvisionPorts {
-    // TODO(max): Get rid of this field
-    pub user_pk: UserPk,
     pub measurement: Measurement,
     pub app_port: Port,
     pub lexe_port: Port,
@@ -42,13 +40,11 @@ impl Ports {
     /// Shorthand to construct a [`Ports`] containing a Provision variant.
     /// Be careful to specify the app/lexe ports in the correct order.
     pub fn new_provision(
-        user_pk: UserPk,
         measurement: Measurement,
         app_port: Port,
         lexe_port: Port,
     ) -> Self {
         Ports::Provision(ProvisionPorts {
-            user_pk,
             measurement,
             app_port,
             lexe_port,
@@ -62,14 +58,6 @@ impl Ports {
             Self::Run(RunPorts { user_pk, .. }) => format!("UserPk({user_pk})"),
             Self::Provision(ProvisionPorts { measurement, .. }) =>
                 format!("Measurement({measurement})"),
-        }
-    }
-
-    // hACK - TODO(max): Remove
-    pub fn user_pk(&self) -> UserPk {
-        match self {
-            Self::Run(RunPorts { user_pk, .. }) => *user_pk,
-            Self::Provision(ProvisionPorts { user_pk, .. }) => *user_pk,
         }
     }
 

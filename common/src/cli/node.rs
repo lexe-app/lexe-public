@@ -22,16 +22,6 @@ pub enum NodeCommand {
     Provision(ProvisionArgs),
 }
 
-impl NodeCommand {
-    /// Shorthand to get the UserPk from NodeCommand
-    pub fn user_pk(&self) -> UserPk {
-        match self {
-            Self::Run(args) => args.user_pk,
-            Self::Provision(args) => args.user_pk,
-        }
-    }
-}
-
 impl ToCommand for NodeCommand {
     fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
         match self {
@@ -49,16 +39,6 @@ pub struct RunArgs {
     /// the Lexe user pk used in queries to the persistence API
     #[argh(option)]
     pub user_pk: UserPk,
-
-    /// the port warp uses to accept requests from the owner.
-    /// Defaults to a port assigned by the OS
-    #[argh(option)]
-    pub app_port: Option<Port>,
-
-    /// the port warp uses to accept requests from the Lexe operators.
-    /// Defaults to a port assigned by the OS
-    #[argh(option)]
-    pub lexe_port: Option<Port>,
 
     /// bitcoin, testnet, regtest, or signet.
     #[argh(option)]
@@ -128,8 +108,6 @@ impl Default for RunArgs {
         };
         Self {
             user_pk: UserPk::from_u64(1), // Test user
-            app_port: None,
-            lexe_port: None,
             network: Network::REGTEST,
             shutdown_after_sync_if_no_activity: false,
             inactivity_timer_sec: 3600,
@@ -171,12 +149,6 @@ impl ToCommand for RunArgs {
         if let Some(ref runner_url) = self.runner_url {
             cmd.arg("--runner-url").arg(runner_url);
         }
-        if let Some(app_port) = self.app_port {
-            cmd.arg("--app-port").arg(&app_port.to_string());
-        }
-        if let Some(lexe_port) = self.lexe_port {
-            cmd.arg("--lexe-port").arg(&lexe_port.to_string());
-        }
 
         cmd
     }
@@ -187,10 +159,6 @@ impl ToCommand for RunArgs {
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand, name = "provision")]
 pub struct ProvisionArgs {
-    /// the Lexe user pk to provision the node for
-    #[argh(option)]
-    pub user_pk: UserPk,
-
     /// the DNS name the node enclave should include in its remote attestation
     /// certificate and the which client will expect in its connection
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
@@ -222,7 +190,6 @@ impl Default for ProvisionArgs {
     fn default() -> Self {
         use crate::test_utils::{DUMMY_BACKEND_URL, DUMMY_RUNNER_URL};
         Self {
-            user_pk: UserPk::from_u64(1), // Test user
             node_dns_name: "provision.lexe.tech".to_owned(),
             port: None,
             backend_url: DUMMY_BACKEND_URL.to_owned(),
@@ -235,8 +202,6 @@ impl Default for ProvisionArgs {
 impl ToCommand for ProvisionArgs {
     fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
         cmd.arg("provision")
-            .arg("--user-pk")
-            .arg(&self.user_pk.to_string())
             .arg("--node-dns-name")
             .arg(&self.node_dns_name)
             .arg("--backend-url")
