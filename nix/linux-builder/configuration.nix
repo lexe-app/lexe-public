@@ -87,7 +87,14 @@
     # pause the build if it breaks, letting you drop into a container to inspect.
     # See: <https://nixos.org/manual/nixpkgs/stable/#breakpointhook>
     pkgs.cntr
+    # `just` command runner
+    pkgs.just
   ];
+
+  environment.shellAliases = {
+    g = "git";
+    j = "just";
+  };
 
   # automatically generate a signing key for the VM's local nix store at startup
   # if it doesn't exist already.
