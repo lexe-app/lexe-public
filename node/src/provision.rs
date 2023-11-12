@@ -36,7 +36,7 @@ use common::{
     cli::node::ProvisionArgs,
     client::tls,
     enclave,
-    enclave::Measurement,
+    enclave::{MachineId, Measurement},
     net,
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
@@ -55,6 +55,7 @@ const WARP_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 struct RequestContext {
     args: Arc<ProvisionArgs>,
     client: reqwest::Client,
+    machine_id: MachineId,
     measurement: Measurement,
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
     // TODO(phlip9): make generic, use test rng in test
@@ -79,10 +80,12 @@ pub async fn provision_node<R: Crng>(
     // TODO(phlip9): Add Google certs here once the webpki feature is removed
     // from the `gdrive` crate
     let client = reqwest::Client::new();
+    let machine_id = enclave::machine_id();
     let measurement = enclave::measurement();
     let ctx = RequestContext {
         args: args.clone(),
         client,
+        machine_id,
         measurement,
         backend_api,
         // TODO(phlip9): use passed in rng
@@ -230,7 +233,7 @@ mod handlers {
             req.deploy_env,
             req.network,
             ctx.measurement,
-            enclave::machine_id(),
+            ctx.machine_id,
         );
 
         let sealed_seed = sealed_seed_res.map_err(|err| NodeApiError {
