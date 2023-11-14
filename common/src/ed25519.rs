@@ -35,7 +35,7 @@
 // TODO(phlip9): Submit PR to ring for `Ed25519Ctx` support so we don't have to
 //               pre-hash.
 
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 use asn1_rs::{oid, Oid};
 use bytes::{BufMut, Bytes, BytesMut};
@@ -259,6 +259,14 @@ impl KeyPair {
         }
     }
 
+    pub fn from_seed_owned(seed: [u8; 32]) -> Self {
+        let key_pair = ring::signature::Ed25519KeyPair::from_seed_unchecked(
+            &seed,
+        )
+        .expect("This should never fail, as the seed is exactly 32 bytes");
+        Self { seed, key_pair }
+    }
+
     /// Create a new `ed25519::KeyPair` from a random 32-byte seed and the
     /// expected public key. Will return an error if the derived public key
     /// doesn't match.
@@ -285,7 +293,7 @@ impl KeyPair {
     pub fn from_rng(rng: &mut dyn Crng) -> Self {
         let mut seed = [0u8; 32];
         rng.fill_bytes(seed.as_mut_slice());
-        Self::from_seed(&seed)
+        Self::from_seed_owned(seed)
     }
 
     /// Convert the current `ed25519::KeyPair` into an [`rcgen::KeyPair`].
@@ -423,6 +431,20 @@ impl fmt::Debug for KeyPair {
     }
 }
 
+impl FromHex for KeyPair {
+    fn from_hex(s: &str) -> Result<Self, hex::DecodeError> {
+        <[u8; 32]>::from_hex(s).map(Self::from_seed_owned)
+    }
+}
+
+impl FromStr for KeyPair {
+    type Err = hex::DecodeError;
+    #[inline]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_hex(s)
+    }
+}
+
 // -- impl PublicKey --- //
 
 impl PublicKey {
@@ -526,6 +548,14 @@ impl FromHex for PublicKey {
     }
 }
 
+impl FromStr for PublicKey {
+    type Err = hex::DecodeError;
+    #[inline]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_hex(s)
+    }
+}
+
 impl fmt::Display for PublicKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", hex::display(self.as_slice()))
@@ -588,6 +618,14 @@ impl TryFrom<&[u8]> for Signature {
 impl FromHex for Signature {
     fn from_hex(s: &str) -> Result<Self, hex::DecodeError> {
         <[u8; 64]>::from_hex(s).map(Self::new)
+    }
+}
+
+impl FromStr for Signature {
+    type Err = hex::DecodeError;
+    #[inline]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_hex(s)
     }
 }
 
