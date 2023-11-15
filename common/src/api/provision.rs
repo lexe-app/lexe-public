@@ -11,7 +11,7 @@ use crate::test_utils::arbitrary;
 use crate::{
     api::UserPk,
     cli::Network,
-    enclave,
+    ed25519, enclave,
     enclave::{MachineId, Measurement, Sealed},
     env::DeployEnv,
     hexstr_or_bytes, hexstr_or_bytes_opt,
@@ -86,9 +86,9 @@ pub struct SealedSeedId {
 ///
 /// [`unseal_and_validate`]: Self::unseal_and_validate
 /// [`seal_from_root_seed`]: Self::seal_from_root_seed
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub struct SealedSeed {
-    #[serde(flatten)]
     pub id: SealedSeedId,
     /// The root seed, fully sealed + serialized.
     #[serde(with = "hexstr_or_bytes")]
@@ -214,6 +214,10 @@ impl SealedSeed {
     }
 }
 
+impl ed25519::Signable for SealedSeed {
+    const DOMAIN_SEPARATOR_STR: &'static [u8] = b"LEXE-REALM::SealedSeed";
+}
+
 impl fmt::Debug for NodeProvisionRequest {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("NodeProvisionRequest { .. }")
@@ -333,6 +337,11 @@ mod test {
                 root_seed2.expose_secret(),
             );
         });
+    }
+
+    #[test]
+    fn test_sealed_seed_signable_roundtrip() {
+        roundtrip::signed_roundtrip_proptest::<SealedSeed>();
     }
 
     #[test]
