@@ -165,7 +165,7 @@ impl NodeBackendApi for BackendClient {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .post(format!("{backend}/node/v1/sealed_seed"), &data)
+            .put(format!("{backend}/node/v1/sealed_seed"), &data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
