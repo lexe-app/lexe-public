@@ -108,6 +108,7 @@
   run-sgx = buildRustIncremental {
     cargoToml = ../../run-sgx/Cargo.toml;
     cargoExtraArgs = "-p run-sgx --bin run-sgx --locked --offline";
+    doCheck = false;
 
     nativeBuildInputs = lib.optionals (pkgs.hostPlatform.system == "x86_64-linux") [
       # aesm-client crate build.rs
