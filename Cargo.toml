@@ -98,6 +98,8 @@ tempfile = "3"
 thiserror = "1"
 # Lower-level async TLS interface
 tokio-rustls = { version = "0.23", default-features = false }
+# serde-compatible TOML-parsing library
+toml = "0.7"
 # Scoped, structured logging for asynchronous systems
 tracing = "0.1"
 tracing-core = "0.1"
