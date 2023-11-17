@@ -6,8 +6,6 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-# serde-compatible TOML-parsing library
-toml = "0.7"
-
 anyhow.workspace = true
 serde.workspace = true
+toml.workspace = true
