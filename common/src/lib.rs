@@ -20,7 +20,7 @@
 
 // Some re-exports to prevent having to re-declare dependencies
 pub use reqwest;
-pub use secrecy::Secret;
+pub use secrecy::{ExposeSecret, Secret};
 
 /// Encrypt/decrypt blobs for remote storage.
 pub mod aes;
