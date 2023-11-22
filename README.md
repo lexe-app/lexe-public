@@ -338,3 +338,5 @@ packages in the build sandbox.
 
 All files in this repository are licensed under the [PolyForm Noncommercial
 License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0/).
+
+© 2022-2023 Lexe Corporation
