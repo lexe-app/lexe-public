@@ -3,7 +3,7 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::{ensure, Context};
+use anyhow::{bail, ensure, Context};
 use bitcoin::{blockdata::constants, hash_types::BlockHash};
 use lightning::routing::{gossip::RoutingFees, router::RouteHintHop};
 use lightning_invoice::Currency;
@@ -15,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use crate::test_utils::arbitrary;
 use crate::{
     api::{NodePk, Scid},
+    constants::{MAINNET_ESPLORA_WHITELIST, TESTNET_ESPLORA_WHITELIST},
     ln::peer::ChannelPeer,
 };
 
@@ -113,18 +114,37 @@ impl Network {
             .header
             .block_hash()
     }
+
+    /// Validates the given esplora url against this network. Use this to check
+    /// that an esplora url is contained in the appropriate whitelist.
+    pub fn validate_esplora_url(
+        &self,
+        esplora_url: &str,
+    ) -> anyhow::Result<()> {
+        match *self {
+            Self::MAINNET => ensure!(
+                MAINNET_ESPLORA_WHITELIST.contains(&esplora_url),
+                "Esplora url not contained in mainnet whitelist",
+            ),
+            Self::TESTNET => ensure!(
+                TESTNET_ESPLORA_WHITELIST.contains(&esplora_url),
+                "Esplora url not contained in testnet whitelist",
+            ),
+            Self::SIGNET => bail!("Missing signet esplora whitelist"),
+            // Regtest can use whatever
+            Self::REGTEST => (),
+        }
+        Ok(())
+    }
 }
 
 impl FromStr for Network {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let network = bitcoin::Network::from_str(s)?;
-        ensure!(
-            !matches!(network, bitcoin::Network::Bitcoin),
-            "Mainnet is disabled for now"
-        );
-        Ok(Self(network))
+        bitcoin::Network::from_str(s)
+            .map(Self)
+            .context("Failed to parse bitcoin::Network")
     }
 }
 
@@ -270,8 +290,7 @@ mod arbitrary_impls {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             proptest::prop_oneof! {
-                // TODO: Mainnet is disabled for now
-                // Just(Network(bitcoin::Network::Bitcoin)),
+                Just(Network(bitcoin::Network::Bitcoin)),
                 Just(Network(bitcoin::Network::Testnet)),
                 Just(Network(bitcoin::Network::Regtest)),
                 Just(Network(bitcoin::Network::Signet)),

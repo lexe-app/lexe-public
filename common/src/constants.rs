@@ -24,11 +24,23 @@ pub const MAX_PAYMENT_NOTE_BYTES: usize = 512;
 /// The standard port used for Lightning Network P2P connections
 pub const STANDARD_LIGHTNING_P2P_PORT: Port = 9735;
 
-// Blockstream Esplora API
-pub const BLOCKSTREAM_ESPLORA_MAINNET_URL: &str =
-    "https://blockstream.info/api";
-pub const LEXE_ESPLORA_TESTNET_URL: &str =
-    "http://esplora-testnet.lexe.tech:3001";
+// Mainnet Esplora urls
+pub const MAINNET_BLOCKSTREAM_ESPLORA: &str = "https://blockstream.info/api";
+pub const MAINNET_KUUTAMO_ESPLORA: &str = "https://esplora.kuutamo.cloud";
+pub const MAINNET_ESPLORA_WHITELIST: [&str; 2] =
+    [MAINNET_BLOCKSTREAM_ESPLORA, MAINNET_KUUTAMO_ESPLORA];
+
+// Testnet Esplora urls
+pub const TESTNET_BLOCKSTREAM_ESPLORA: &str =
+    "https://blockstream.info/testnet/api";
+pub const TESTNET_KUUTAMO_ESPLORA: &str =
+    "https://esplora.testnet.kuutamo.cloud";
+pub const TESTNET_LEXE_ESPLORA: &str = "http://esplora-testnet.lexe.tech:3001";
+pub const TESTNET_ESPLORA_WHITELIST: [&str; 3] = [
+    TESTNET_BLOCKSTREAM_ESPLORA,
+    TESTNET_KUUTAMO_ESPLORA,
+    TESTNET_LEXE_ESPLORA,
+];
 
 /// Fake DNS name used by the node reverse proxy to route owner requests to a
 /// node awaiting provisioning. This DNS name doesn't actually resolve.
@@ -48,14 +60,14 @@ pub fn lexe_distinguished_name_prefix() -> DistinguishedName {
     name
 }
 
-/// The certificate for Google Trust Services, i.e. blockstream.info's CA. Since
-/// we trust 0 roots by default, it is necessary to include this cert in our TLS
-/// config whenever we make a request to blockstream.info. For added security,
-/// don't use the GTS-trusting [`reqwest::Client`] for requests to other sites.
-// Not Valid Before=Thursday, June 18, 2020 at 5:00:42 PM Pacific Daylight Time
-// Not Valid After=Thursday, January 27, 2028 at 4:00:42 PM Pacific Standard
-// Time Tip: You can see the full human-readable cert info with macOS Quick
-// Look.
+/// The certificate for Google Trust Services, i.e. the CA for blockstream.info
+/// and kuutamo.cloud. Since we trust 0 roots by default, it is necessary to
+/// include this cert in our TLS config whenever we make a request to either of
+/// these sites. For added security, don't use the GTS-trusting
+/// [`reqwest::Client`] for requests to other sites.
+// Not Valid Before=Thursday, June 18, 2020 at 5:00:42 PM PDT
+// Not Valid After=Thursday, January 27, 2028 at 4:00:42 PM PST
+// Tip: You can see the full human-readable cert info with macOS Quick Look.
 pub const GOOGLE_CA_CERT_DER: &[u8] =
     include_bytes!("../data/google-trust-services-ca-cert.der");
 
