@@ -53,6 +53,7 @@ dcap-ql.workspace = true
 dotenvy.workspace = true
 futures.workspace = true
 hyper = { workspace = true, features = ["http1", "http2", "server", "tcp"] }
+rand_core.workspace = true
 rcgen.workspace = true
 reqwest = { workspace = true, features = ["json", "rustls-tls-manual-roots"] }
 rustls = { workspace = true, features = ["dangerous_configuration"] }
@@ -83,8 +84,6 @@ warp = { workspace = true, features = ["tls"] }
 bcs = "0.1"
 # Small conversion from fixed ECDSA signature to ASN.1 format
 num-bigint = { version = "0.4", default-features = false, features = [] }
-# Core rand traits for generating randomness
-rand_core = { version = "0.6", default-features = false, features = ["alloc"] }
 # Safely cast &T to &U when T is a single field new-type
 ref-cast = "1"
 # Deserialize PEM certs

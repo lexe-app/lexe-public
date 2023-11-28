@@ -74,6 +74,9 @@ futures = "0.3"
 proptest = { version = "1", default-features = false }
 # Arbitrary derive macro
 proptest-derive = "0.4"
+# Traits and utilities for generating randomness
+rand = { version = "0.8", default-features = false }
+rand_core = { version = "0.6", default-features = false, features = ["alloc"] }
 # Easily generate x509 certs with ring
 rcgen = { version = "0.10", default-features = false }
 # High-level HTTP client
