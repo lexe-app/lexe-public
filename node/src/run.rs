@@ -190,7 +190,7 @@ impl UserNode {
         let (user, root_seed, deploy_env, network, user_key_pair) =
             try_fetch.context("Failed to fetch provisioned secrets")?;
 
-        // More validation
+        // Validate deploy env and network
         if deploy_env.is_staging_or_prod() && cfg!(feature = "test-utils") {
             panic!("test-utils feature must be disabled in staging/prod!!");
         }
@@ -201,6 +201,13 @@ impl UserNode {
             {network}!={args_network}",
         );
         // From here, `network` can be treated as a trusted input.
+
+        // Validate esplora url
+        let esplora_url = &args.esplora_url;
+        info!(%esplora_url);
+        network
+            .validate_esplora_url(esplora_url)
+            .context("Invalid esplora url")?;
 
         // Init LDK transaction sync; share LexeEsplora's connection pool
         // XXX(max): The esplora url passed to LDK is security-critical and thus
