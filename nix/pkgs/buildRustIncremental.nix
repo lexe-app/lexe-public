@@ -61,6 +61,7 @@
   cargoToml,
   # Set this to `false` to unconditionally skip the shared cargo build cache and
   # just build from scratch every time.
+  # TODO(phlip9): need to fix cache... probably use sccache?
   enableSharedCargoBuildCache ? true,
   ...
 } @ args:
@@ -119,10 +120,6 @@ in
 
           if [[ -d /var/cache/lexe && -w /var/cache/lexe ]]; then
             export CARGO_TARGET_DIR=/var/cache/lexe/target
-
-            # set incremental builds enabled when using the shared build cache
-            # NOTE: cargo wants the string "true" and not "1"
-            export CARGO_BUILD_INCREMENTAL="true"
 
             # Without this, nix will complain when it statically links stuff from the
             # persistent cache dir. Not actually a problem here.
