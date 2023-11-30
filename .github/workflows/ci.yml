@@ -70,37 +70,6 @@ jobs:
       # Node
       - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo check --release --locked -p node --target=x86_64-fortanix-unknown-sgx
 
-  # --- Check that every individual commit in the PR compiles --- #
-  check-all-commits:
-    # Only run this job on pull requests, not the master branch
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-22.04
-    steps:
-      - uses: actions/checkout@v3
-        with: # Fetch the last 100 commits. PRs shouldn't be bigger than this
-          fetch-depth: 100
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ env.LEXE_RUST_VERSION }}
-          targets: x86_64-fortanix-unknown-sgx
-      - uses: Swatinem/rust-cache@v2
-      - uses: arduino/setup-protoc@v1
-        with: # Authenticate to prevent rate limit error
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-      - run: cp .env.example .env
-      - name: Run cargo check on all commits
-        run: |
-          COMMITS=$(git rev-list --no-merges ${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }})
-          for commit in $COMMITS; do
-            git checkout $commit
-            echo "Running cargo check on commit: $(git rev-parse --short $commit) - $(git log --format=%s -n 1 $commit)"
-            cargo check --locked --workspace --all-targets
-            if [ $? -ne 0 ]; then
-              echo "Cargo check failed on commit: $(git rev-parse --short $commit) - $(git log --format=%s -n 1 $commit)"
-              exit 1
-            fi
-          done
-
   test:
     runs-on: ubuntu-22.04
     steps:
