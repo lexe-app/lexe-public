@@ -8,11 +8,11 @@
 # exact same enclave measurement as the SGX platform, without having to actually
 # load the enclave.
 {
-  buildRustIncremental,
+  buildRustSccache,
   rustSgxSrc,
   rustSgxCargoVendorDir,
 }:
-buildRustIncremental {
+buildRustSccache {
   cargoToml = "${rustSgxSrc}/intel-sgx/fortanix-sgx-tools/Cargo.toml";
   src = rustSgxSrc;
   cargoVendorDir = rustSgxCargoVendorDir;

@@ -289,21 +289,20 @@ $ orb shell -m linux-builder
 bdd9eec1fbd625eec3b2a9e2a6072f60240c930b0867b47199730b320c148e8c
 ```
 
-## Fast incremental cargo builds in `nix`
+## (Optional) Faster `nix` cargo rebuilds
 
 Follow these steps if:
 
 - You're an engineer working on the rust+nix build.
 - You're running `nix build` a lot and want faster incremental cargo builds.
 
-Once setup, [`buildRustIncremental`](./nix/pkgs/buildRustIncremental.nix) will
-make incremental Rust builds MUCH faster. However, avoid using
-`buildRustIncremental` for reproducibility-critical packages like the SGX
-enclaves.
+Once setup, [`buildRustSccache`](./nix/pkgs/buildRustSccache.nix) will make
+incremental Rust rebuilds faster. However, avoid using `buildRustSccache`
+for reproducibility-critical packages like the SGX enclaves.
 
 To get this working, we give the nix build sandbox access to a shared, global
-cargo `target/` directory so we can fully reuse intermediate cargo build
-artifacts across `nix build` invocations.
+directory so that `sccache` can reuse already-built `rustc` compilation
+artifacts across different nix builds.
 
 If you're using the `linux-builder` VM, then skip this; it's already setup for
 you.
@@ -322,9 +321,6 @@ $ sudo /bin/chmod +a "group:nixbld allow read,write,execute,delete,list,search,a
 $ echo "extra-sandbox-paths = /private/var/cache/lexe" | sudo tee -a /etc/nix/nix.conf
 $ sudo launchctl kickstart -k system/org.nixos.nix-daemon
 ```
-
-NOTE: you'll want to run `sudo rm -rf /var/cache/lexe/target` periodically, just
-like `cargo clean`.
 
 Here we're creating a new `/var/cache/lexe` directory that's only accessible to
 members of the `nixbld` group. We also set some special file settings so that
