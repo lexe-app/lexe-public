@@ -9,11 +9,11 @@
   #
   # lexePubPkgs
   #
-  buildRustIncremental,
+  buildRustSccache,
   rustSgxSrc,
   rustSgxCargoVendorDir,
 }:
-buildRustIncremental {
+buildRustSccache {
   cargoToml = "${rustSgxSrc}/intel-sgx/sgxs-tools/Cargo.toml";
   src = rustSgxSrc;
   cargoVendorDir = rustSgxCargoVendorDir;

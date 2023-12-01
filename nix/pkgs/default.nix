@@ -43,10 +43,11 @@
     inherit llvmPackages sgx-libc-shim;
   };
 
-  # Generic rust builder for non-SGX crates. Supports shared nix cargo
-  # incremental build cache.
-  buildRustIncremental = pkgs.callPackage ./buildRustIncremental.nix {
-    inherit craneLib cargoVendorDir srcRust workspaceVersion;
+  # Generic rust builder for non-SGX crates. Supports shared nix cargo build
+  # caching with `sccache`. Use this for builds that don't require 100%
+  # reproducibility.
+  buildRustSccache = pkgs.callPackage ./buildRustSccache.nix {
+    inherit craneLib cargoVendorDir lexePubLib srcRust workspaceVersion;
   };
 
   # rust-sgx repo source
@@ -62,7 +63,7 @@
   # Converts a compiled `x86_64-fortanix-unknown-sgx` ELF binary into
   # a `.sgxs` enclave file.
   ftxsgx-elf2sgxs = pkgs.callPackage ./ftxsgx-elf2sgxs.nix {
-    inherit buildRustIncremental rustSgxSrc rustSgxCargoVendorDir;
+    inherit buildRustSccache rustSgxSrc rustSgxCargoVendorDir;
   };
 
   # A hook that runs `ftxsgx-elf2sgxs` on the output binary in the
@@ -74,7 +75,7 @@
   # Run to detect the current system's support for Intel SGX. Only builds and
   # runs on `x86_64-linux`.
   sgx-detect = pkgs.callPackage ./sgx-detect.nix {
-    inherit buildRustIncremental rustSgxSrc rustSgxCargoVendorDir;
+    inherit buildRustSccache rustSgxSrc rustSgxCargoVendorDir;
   };
 
   # Generic builder for Rust SGX crates.
@@ -105,9 +106,9 @@
   };
 
   # Binary for running SGX enclaves.
-  run-sgx = buildRustIncremental {
+  run-sgx = buildRustSccache {
     cargoToml = ../../run-sgx/Cargo.toml;
-    cargoExtraArgs = "-p run-sgx --bin run-sgx --locked --offline";
+    cargoExtraArgs = "--package=run-sgx --bin=run-sgx --locked --offline";
     doCheck = false;
 
     nativeBuildInputs = lib.optionals (pkgs.hostPlatform.system == "x86_64-linux") [

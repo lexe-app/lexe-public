@@ -70,4 +70,25 @@
     ref = elemAt matches 0;
     rev = elemAt matches 1;
   };
+
+  # In a string `inputStr`, replace all matches of `regex` with `replacement`.
+  #
+  # ```
+  # > inputStr = "--package=run-sgx --bin=run-sgx --locked --offline"
+  # > regexReplaceAll "--bin( |=)[^ ]+" "" inputStr
+  # "--package=run-sgx  --locked --offline"
+  # ```
+  regexReplaceAll = regex: replacement: inputStr: let
+    inherit (builtins) concatStringsSep isString map split;
+
+    # ex: inputStr = "foo bar baz", regex = "bar" => [ "foo " ["bar"] " baz" ]
+    splits = split regex inputStr;
+
+    matchesReplaced = map (s:
+      if isString s
+      then s
+      else replacement)
+    splits;
+  in
+    concatStringsSep "" matchesReplaced;
 }
