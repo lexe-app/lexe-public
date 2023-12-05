@@ -34,7 +34,12 @@
 # - cached builds are about 0.4-0.5x time (faster)
 # - uncached builds are about 1.1-1.2x time (extra overhead)
 # - sccache sadly can't cache proc-macro crates...
-#
+# - sccache is somewhat less effective on macOS, since macOS doesn't support
+#   proper chroot+bind mounts, which means nix has to run the build in a
+#   directory like `/private/tmp/nix-build-secretctl-deps-0.1.0.drv-0/build`
+#   instead of just `/build` like linux. This means caching will only happen
+#   per-derivation rather than across derivations. Running multiple concurrent
+#   builds will also not share caches.
 #
 # ## Shared build directory Explanation
 #
@@ -121,6 +126,10 @@ let
       cargoArtifacts = null;
 
       env.ENABLE_SCCACHE = enableSccache;
+
+      # sccache runs an ephemeral localhost server while the derivation is
+      # building. We need this setting on macOS to allow the server to bind.
+      __darwinAllowLocalNetworking = enableSccache;
 
       env.CARGO_INCREMENTAL = "false";
 
