@@ -21,7 +21,7 @@ pub fn main() -> ExitCode {
     if args.version {
         let custom_str = CUSTOM_VERSION.unwrap_or("None");
         let measurement = enclave::measurement();
-        println!("node-v{SEMVER_VERSION} (Custom version: {custom_str})");
+        println!("node-{SEMVER_VERSION} (Custom version: {custom_str})");
         println!("Measurement: {measurement}");
         return ExitCode::SUCCESS;
     }
