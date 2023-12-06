@@ -2,7 +2,7 @@ use std::{io::Write, process::ExitCode, time::Instant};
 
 use common::enclave;
 use lexe_ln::logger;
-use node::{cli::NodeArgs, CUSTOM_VERSION, SEMVER_VERSION};
+use node::{cli::NodeArgs, DEV_VERSION, SEMVER_VERSION};
 use tracing::{error, info};
 
 pub fn main() -> ExitCode {
@@ -19,9 +19,9 @@ pub fn main() -> ExitCode {
     // If --version was given, print the version and exit. We handle this here
     // (not NodeArgs::run) to skip the "Node completed successfully" msg below.
     if args.version {
-        let custom_str = CUSTOM_VERSION.unwrap_or("None");
+        let dev_version_str = DEV_VERSION.unwrap_or("None");
         let measurement = enclave::measurement();
-        println!("node-{SEMVER_VERSION} (Custom version: {custom_str})");
+        println!("node-{SEMVER_VERSION} (Dev version: {dev_version_str})");
         println!("Measurement: {measurement}");
         return ExitCode::SUCCESS;
     }

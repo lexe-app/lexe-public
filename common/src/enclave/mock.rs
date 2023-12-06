@@ -82,20 +82,20 @@ pub fn unseal(label: &[u8], sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
     Ok(ciphertext)
 }
 
-/// A custom measurement, only applicable to non-SGX dev builds, which allows
+/// A dev measurement, only applicable to non-SGX dev builds, which allows
 /// nearly-identical local binaries to have a differing measurements which are
 /// also accessible at run time, without the need to wire through CLI args.
-const CUSTOM_MEASUREMENT: Option<Measurement> =
-    match option_env!("CUSTOM_MEASUREMENT") {
-        // Panics at compile time if CUSTOM_MEASUREMENT isn't valid [u8; 32] hex
+const DEV_MEASUREMENT: Option<Measurement> =
+    match option_env!("DEV_MEASUREMENT") {
+        // Panics at compile time if DEV_MEASUREMENT isn't valid [u8; 32] hex
         Some(hex) => Some(Measurement::new(hex::decode_const(hex.as_bytes()))),
         // Option::map is not const
         None => None,
     };
 
-/// Prefers [`CUSTOM_MEASUREMENT`], otherwise defaults to [`MOCK_MEASUREMENT`].
+/// Prefers [`DEV_MEASUREMENT`], otherwise defaults to [`MOCK_MEASUREMENT`].
 pub fn measurement() -> Measurement {
-    CUSTOM_MEASUREMENT.unwrap_or(MOCK_MEASUREMENT)
+    DEV_MEASUREMENT.unwrap_or(MOCK_MEASUREMENT)
 }
 
 pub fn machine_id() -> MachineId {
