@@ -85,7 +85,11 @@ mod sgx {
         // take ~700 us as the PCK cert cache is hot.
         let qe_quote_info = aesm_client
             .init_quote_ex(key_id_buf.clone())
-            .expect("Failed to get the Quoting Enclave (QE) QuoteInfo");
+            .map_err(|err| {
+                format_err!(
+                    "failed to get the Quoting Enclave (QE) QuoteInfo: {err:#}"
+                )
+            })?;
 
         // 4. Build our enclave Report
         //
