@@ -89,6 +89,8 @@
     pkgs.cntr
     # `just` command runner
     pkgs.just
+    # cat files with syntax highlighting
+    pkgs.bat
   ];
 
   environment.shellAliases = {
@@ -117,6 +119,13 @@
       install -m 2770 -g nixbld -d /var/cache/lexe
       ${pkgs.acl.bin}/bin/setfacl --default -m group:nixbld:rwx /var/cache/lexe
     '';
+  };
+
+  # enable fzf fuzzy finder
+  programs.fzf = {
+    fuzzyCompletion = true;
+    # e.g. hit CTRL-R in bash to fuzzy search through bash history
+    keybindings = true;
   };
 
   # vim keybinds in bash
