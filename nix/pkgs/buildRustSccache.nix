@@ -86,6 +86,9 @@
   # Set this to `false` to unconditionally skip the shared build cache and just
   # build from scratch every time.
   enableSccache ? true,
+  # If `true`, skip the separate dependencies-only build derivation. The extra
+  # step is not super useful for crates outside our workspace.
+  skipDepsOnlyBuild ? false,
   ...
 } @ args:
 #
@@ -101,6 +104,7 @@ let
   cleanedArgs = builtins.removeAttrs args [
     "cargoToml"
     "enableSccache"
+    "skipDepsOnlyBuild"
   ];
 
   commonPackageArgs =
@@ -187,7 +191,10 @@ let
       '';
     };
 
-  # compile external dependencies in a separate derivation
+  # Compile external dependencies in a separate derivation.
+  #
+  # For workspace crates, this means we can often skip recompiling dependencies
+  # if only workspace code has changed.
   depsOnly = craneLib.buildDepsOnly (builtins.removeAttrs commonPackageArgs [
       # For depsOnly build, I don't think we want any custom install/fixup phase
       # work, since it's not actually building the real output binary/library.
@@ -208,6 +215,6 @@ let
     });
 in
   craneLib.buildPackage (commonPackageArgs
-    // {
+    // lib.optionalAttrs (!skipDepsOnlyBuild) {
       cargoArtifacts = depsOnly;
     })
