@@ -76,14 +76,14 @@ use common::{
     rng::SysRng,
 };
 use flutter_rust_bridge::{
-    frb, handler::ReportDartErrorHandler, RustOpaque, StreamSink, SyncReturn,
+    frb,
+    handler::{ReportDartErrorHandler, ThreadPoolExecutor},
+    RustOpaque, StreamSink, SyncReturn,
 };
 
 pub use crate::app::App;
 use crate::{
-    dart_task_handler::{LxExecutor, LxHandler},
-    form, logger,
-    secret_store::SecretStore,
+    dart_task_handler::LxHandler, form, logger, secret_store::SecretStore,
 };
 
 // TODO(phlip9): land real async support in flutter_rust_bridge
@@ -128,7 +128,7 @@ pub(crate) static FLUTTER_RUST_BRIDGE_HANDLER: LazyLock<LxHandler> =
         // doesn't show stdout/stderr...)
 
         let error_handler = ReportDartErrorHandler;
-        LxHandler::new(LxExecutor::new(error_handler), error_handler)
+        LxHandler::new(ThreadPoolExecutor::new(error_handler), error_handler)
     });
 
 #[frb(dart_metadata=("freezed"))]
