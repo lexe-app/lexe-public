@@ -39,14 +39,14 @@ dependencies:
   duration: ^3.0.12
 
   # Used by the generated flutter_rust_bridge FFI bindings.
-  ffi: ^2.0.2
+  ffi: ^2.1.0
 
   # flutter SDK
   flutter:
     sdk: flutter
 
   # The high-level memory safe interface for generated Rust<->dart ffi bindings.
-  flutter_rust_bridge: ^1.78.0
+  flutter_rust_bridge: ^1.82.5
 
   # QR code scanning
   # NOTE: I tried `mobile_scanner`, but that adds a ton of closed source, MLKit
@@ -60,7 +60,7 @@ dependencies:
   intl: ^0.18.0
 
   # Used by the generated flutter_rust_bridge ffi bindings.
-  meta: ^1.9.1
+  meta: ^1.10.0
 
   # Platform-specific paths (used to find app data directory).
   path_provider: ^2.0.15
@@ -73,7 +73,7 @@ dependencies:
 dev_dependencies:
   # Used by freezed for codegen. app-rs-codegen runs this after generating the
   # flutter_rust_bridge bindings.
-  build_runner: ^2.4.5
+  build_runner: ^2.4.7
 
   # Used by flutter_rust_bridge to generate the dart ffi bingings at build-time.
   ffigen: ^8.0.2
