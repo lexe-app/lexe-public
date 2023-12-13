@@ -270,15 +270,32 @@ $ pod --version
 
 #### Ensure the iOS Simulator app works
 
+Download the latest iOS platform (~7.5 GiB)
+
+```bash
+$ xcodebuild -downloadPlatform iOS
+```
+
 Search for "Simulator" in Spotlight and then open it. An emulated iPhone should
 pop up after a minute or so.
 
-For me (Philip) the Simulator app wasn't available initially--my guess is that
-Xcode installs it lazily, on an as-needed basis. To fix this, I had to open
-and run a random sample iOS app in Xcode.
+Flutter should then pick up the simulated iPhone as an available target:
 
-A quick way to do this is to create a new project based on the "App" template,
-set the "Product Name" to whatever, set the "Organization Identifier" to
+```bash
+$ just flutter devices
+Found 3 connected devices:
+
+  iPhone 15 Pro Max (mobile) • D8810737-2E02-4EF5-83DA-72934A34398B • ios          •
+  com.apple.CoreSimulator.SimRuntime.iOS-17-0 (simulator)
+
+  ...
+```
+
+If this doesn't work (no iPhone shows up), try running a random sample iOS app
+in Xcode -- this seems to force Xcode to actually install everything.
+
+A quick way to do this is to create a new project based on the "App" template.
+Set the "Product Name" to whatever, set the "Organization Identifier" to
 whatever, then run the app by pressing the "Play" button near the top of the
 screen. The app should build and the simulated iPhone should pop up on the
 screen. The temporary project can then be deleted from wherever it was created

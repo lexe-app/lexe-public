@@ -86,15 +86,16 @@ class SendPaymentPage extends StatelessWidget {
         info("SendPaymentPage: onGenerateRoute: $settings");
 
         return MaterialPageRoute(
-          // This `WillPopScope` thing is so we can exit out of the sub-flow
+          // This `PopScope` thing is so we can exit out of the sub-flow
           // navigation once we're done. Without this, we just end up at a blank
           // screen after completing the form. There's almost certainly a better
           // way to do this.
-          builder: (context) => WillPopScope(
-            onWillPop: () async {
-              info("SendPaymentPage: onWillPop");
+          builder: (context) => PopScope(
+            // Set this to false so we can control the `pop`
+            canPop: false,
+            onPopInvoked: (didPop) async {
+              info("SendPaymentPage: onPopInvoked");
               parentNavigator.pop(true);
-              return false;
             },
             child: SendPaymentAddressPage(sendCtx: this.sendCtx),
           ),
