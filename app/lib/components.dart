@@ -96,16 +96,16 @@ class FilledPlaceholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double heightFactor;
+    final double height;
     if (!this.forText) {
-      heightFactor = 1.0;
+      height = this.height;
     } else {
-      heightFactor = MediaQuery.of(context).textScaleFactor;
+      height = MediaQuery.of(context).textScaler.scale(this.height);
     }
 
     return SizedBox(
       width: this.width,
-      height: this.height * heightFactor,
+      height: height,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: this.color,

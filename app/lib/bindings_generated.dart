@@ -1013,9 +1013,9 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   }
 
   late final _wire_debug_delete_secret_storePtr = _lookup<
-      ffi.NativeFunction<
-          WireSyncReturn Function(
-              ffi.Pointer<wire_Config>)>>('wire_debug_delete_secret_store');
+          ffi
+          .NativeFunction<WireSyncReturn Function(ffi.Pointer<wire_Config>)>>(
+      'wire_debug_delete_secret_store');
   late final _wire_debug_delete_secret_store =
       _wire_debug_delete_secret_storePtr
           .asFunction<WireSyncReturn Function(ffi.Pointer<wire_Config>)>();
@@ -1382,9 +1382,9 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   }
 
   late final _new_uint_8_list_0Ptr = _lookup<
-      ffi.NativeFunction<
-          ffi.Pointer<wire_uint_8_list> Function(
-              ffi.Int32)>>('new_uint_8_list_0');
+          ffi
+          .NativeFunction<ffi.Pointer<wire_uint_8_list> Function(ffi.Int32)>>(
+      'new_uint_8_list_0');
   late final _new_uint_8_list_0 = _new_uint_8_list_0Ptr
       .asFunction<ffi.Pointer<wire_uint_8_list> Function(int)>();
 
