@@ -29,14 +29,14 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   # Used by the generated flutter_rust_bridge FFI bindings.
-  collection: ^1.17.1
+  collection: ^1.18.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.2
+  cupertino_icons: ^1.0.6
 
   # The low-level runtime interface for generated dart ffi bindings.
-  duration: ^3.0.12
+  duration: ^3.0.13
 
   # Used by the generated flutter_rust_bridge FFI bindings.
   ffi: ^2.1.0
@@ -54,21 +54,21 @@ dependencies:
   flutter_zxing: ^1.5.0
 
   # Immutable record types and Rust-style enums in Dart.
-  freezed_annotation: ^2.2.0
+  freezed_annotation: ^2.4.1
 
   # International number, currency, and date formatting
-  intl: ^0.18.0
+  intl: ^0.18.1
 
   # Used by the generated flutter_rust_bridge ffi bindings.
   meta: ^1.10.0
 
   # Platform-specific paths (used to find app data directory).
-  path_provider: ^2.0.15
+  path_provider: ^2.1.1
 
   # Reactive primitives for asynchronous programming
   rxdart: ^0.27.7
   # rxdart extensions
-  rxdart_ext: ^0.2.8
+  rxdart_ext: ^0.2.9
 
 dev_dependencies:
   # Used by freezed for codegen. app-rs-codegen runs this after generating the
@@ -83,13 +83,13 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^2.0.0
+  flutter_lints: ^2.0.3
 
   flutter_test:
     sdk: flutter
 
   # Codegen for immutable record types and Rust-style enums in Dart.
-  freezed: ^2.3.5
+  freezed: ^2.4.5
 
   integration_test:
     sdk: flutter
