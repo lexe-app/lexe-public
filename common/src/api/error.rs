@@ -464,6 +464,8 @@ error_kind! {
         Cancelled = 101,
         /// Runner error
         Runner = 102,
+        /// Client provided a measurement which is unknown to the runner
+        UnknownMeasurement = 103,
     }
 }
 
@@ -770,6 +772,7 @@ impl ToHttpStatus for RunnerApiError {
             AtCapacity => SERVER_500_INTERNAL_SERVER_ERROR,
             Cancelled => SERVER_500_INTERNAL_SERVER_ERROR,
             Runner => SERVER_500_INTERNAL_SERVER_ERROR,
+            UnknownMeasurement => CLIENT_400_BAD_REQUEST,
         }
     }
 }
