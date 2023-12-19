@@ -88,11 +88,20 @@ Future<Config> build() async {
   final deployEnv = api.deployEnvFromStr(s: _deployEnvStr);
   final network = api.networkFromStr(s: _networkStr);
 
+  final gatewayUrl = switch (deployEnv) {
+    DeployEnv.Prod => "http://api.lexe.app",
+    DeployEnv.Staging => "http://api.staging.lexe.app",
+    // Use the build-time env $DEV_GATEWAY_URL in local dev.
+    // We can't hard code this since deploying to a real mobile device in dev
+    // requires connecting to the dev machine over the local LAN.
+    DeployEnv.Dev => _devGatewayUrlStr,
+  };
+
   return Config(
     deployEnv: deployEnv,
     network: network,
     useSgx: _useSgx,
-    gatewayUrl: _devGatewayUrlStr,
+    gatewayUrl: gatewayUrl,
     baseAppDataDir: baseAppDataDir.path,
     useMockSecretStore: false,
   );
