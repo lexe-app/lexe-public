@@ -458,14 +458,23 @@ error_kind! {
 
         // --- Runner --- //
 
-        /// Runner cannot take any more commands
-        AtCapacity = 100,
-        /// Runner gave up servicing the request, likely at capacity
-        Cancelled = 101,
-        /// Runner error
-        Runner = 102,
-        /// Client provided a measurement which is unknown to the runner
-        UnknownMeasurement = 103,
+        /// General Runner error
+        Runner = 100,
+        /// Caller provided an unknown or unserviceable measurement
+        UnknownMeasurement = 101,
+        /// Caller requested a version which is too old
+        OldVersion = 102,
+        /// Requested node temporarily unavailable, most likely due to a common
+        /// race condition; retry the request (temporary error)
+        TemporarilyUnavailable = 103,
+        /// Runner service is unavailable (semi-permanent error)
+        ServiceUnavailable = 104,
+        /// Runner is at capacity and cannot handle this request
+        AtCapacity = 105,
+        /// Runner is at capacity and gave up on servicing this request
+        Cancelled = 106,
+        /// Requested node failed to boot
+        Boot = 107,
     }
 }
 
@@ -769,10 +778,14 @@ impl ToHttpStatus for RunnerApiError {
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
 
-            AtCapacity => SERVER_500_INTERNAL_SERVER_ERROR,
-            Cancelled => SERVER_500_INTERNAL_SERVER_ERROR,
             Runner => SERVER_500_INTERNAL_SERVER_ERROR,
-            UnknownMeasurement => CLIENT_400_BAD_REQUEST,
+            UnknownMeasurement => CLIENT_404_NOT_FOUND,
+            OldVersion => CLIENT_400_BAD_REQUEST,
+            TemporarilyUnavailable => CLIENT_409_CONFLICT,
+            ServiceUnavailable => SERVER_503_SERVICE_UNAVAILABLE,
+            AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
+            Cancelled => SERVER_503_SERVICE_UNAVAILABLE,
+            Boot => SERVER_500_INTERNAL_SERVER_ERROR,
         }
     }
 }
