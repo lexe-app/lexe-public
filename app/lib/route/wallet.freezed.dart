@@ -23,8 +23,8 @@ mixin _$BalanceState {
 
 /// @nodoc
 
-class _$_BalanceState extends _BalanceState {
-  const _$_BalanceState(
+class _$BalanceStateImpl extends _BalanceState {
+  const _$BalanceStateImpl(
       {required this.balanceSats,
       required this.fiatName,
       required this.fiatRate})
@@ -46,7 +46,7 @@ class _$_BalanceState extends _BalanceState {
   bool operator ==(dynamic other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
-            other is _$_BalanceState &&
+            other is _$BalanceStateImpl &&
             (identical(other.balanceSats, balanceSats) ||
                 other.balanceSats == balanceSats) &&
             (identical(other.fiatName, fiatName) ||
@@ -63,7 +63,7 @@ abstract class _BalanceState extends BalanceState {
   const factory _BalanceState(
       {required final int? balanceSats,
       required final String fiatName,
-      required final FiatRate? fiatRate}) = _$_BalanceState;
+      required final FiatRate? fiatRate}) = _$BalanceStateImpl;
   const _BalanceState._() : super._();
 
   @override

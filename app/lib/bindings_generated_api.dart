@@ -6,8 +6,10 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
-
+import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'package:collection/collection.dart';
+
+part 'bindings_generated_api.freezed.dart';
 
 abstract class AppRs {
   DeployEnv deployEnvFromStr({required String s, dynamic hint});
@@ -281,31 +283,24 @@ class AppHandle {
 
 /// A unique, client-generated id for payment types (onchain send,
 /// ln spontaneous send) that need an extra id for idempotency.
-class ClientPaymentId {
-  final U8Array32 id;
-
-  const ClientPaymentId({
-    required this.id,
-  });
+@freezed
+class ClientPaymentId with _$ClientPaymentId {
+  const factory ClientPaymentId({
+    required U8Array32 id,
+  }) = _ClientPaymentId;
 }
 
 /// Dart-serializable configuration we get from the flutter side.
-class Config {
-  final DeployEnv deployEnv;
-  final Network network;
-  final String gatewayUrl;
-  final bool useSgx;
-  final String baseAppDataDir;
-  final bool useMockSecretStore;
-
-  const Config({
-    required this.deployEnv,
-    required this.network,
-    required this.gatewayUrl,
-    required this.useSgx,
-    required this.baseAppDataDir,
-    required this.useMockSecretStore,
-  });
+@freezed
+class Config with _$Config {
+  const factory Config({
+    required DeployEnv deployEnv,
+    required Network network,
+    required String gatewayUrl,
+    required bool useSgx,
+    required String baseAppDataDir,
+    required bool useMockSecretStore,
+  }) = _Config;
 }
 
 enum ConfirmationPriority {
@@ -350,24 +345,20 @@ class FeeEstimate {
   });
 }
 
-class FiatRate {
-  final String fiat;
-  final double rate;
-
-  const FiatRate({
-    required this.fiat,
-    required this.rate,
-  });
+@freezed
+class FiatRate with _$FiatRate {
+  const factory FiatRate({
+    required String fiat,
+    required double rate,
+  }) = _FiatRate;
 }
 
-class FiatRates {
-  final int timestampMs;
-  final List<FiatRate> rates;
-
-  const FiatRates({
-    required this.timestampMs,
-    required this.rates,
-  });
+@freezed
+class FiatRates with _$FiatRates {
+  const factory FiatRates({
+    required int timestampMs,
+    required List<FiatRate> rates,
+  }) = _FiatRates;
 }
 
 enum Network {
@@ -376,14 +367,12 @@ enum Network {
   Regtest,
 }
 
-class NodeInfo {
-  final String nodePk;
-  final int localBalanceSats;
-
-  const NodeInfo({
-    required this.nodePk,
-    required this.localBalanceSats,
-  });
+@freezed
+class NodeInfo with _$NodeInfo {
+  const factory NodeInfo({
+    required String nodePk,
+    required int localBalanceSats,
+  }) = _NodeInfo;
 }
 
 enum PaymentDirection {
@@ -420,27 +409,17 @@ class SendOnchainRequest {
 }
 
 /// Just the info we need to display an entry in the payments list UI.
-class ShortPayment {
-  final String index;
-  final PaymentKind kind;
-  final PaymentDirection direction;
-  final int? amountSat;
-  final PaymentStatus status;
-
-  /// This field will prioritize the `note` the user explicitly sets, over
-  /// the LN invoice description which is not user controlled.
-  final String? note;
-  final int createdAt;
-
-  const ShortPayment({
-    required this.index,
-    required this.kind,
-    required this.direction,
-    this.amountSat,
-    required this.status,
-    this.note,
-    required this.createdAt,
-  });
+@freezed
+class ShortPayment with _$ShortPayment {
+  const factory ShortPayment({
+    required String index,
+    required PaymentKind kind,
+    required PaymentDirection direction,
+    int? amountSat,
+    required PaymentStatus status,
+    String? note,
+    required int createdAt,
+  }) = _ShortPayment;
 }
 
 class U8Array32 extends NonGrowableListView<int> {
