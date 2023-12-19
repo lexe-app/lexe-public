@@ -10,7 +10,6 @@ use std::{error::Error, fmt};
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tokio::sync::{mpsc, oneshot};
 // So the consts fit in 80 chars
 use warp::http::status::StatusCode as Status;
 
@@ -954,21 +953,6 @@ impl From<super::InvalidNodePkProofSignature> for BackendApiError {
 }
 
 // --- Misc -> RunnerApiError impls --- //
-
-impl<T> From<mpsc::error::TrySendError<T>> for RunnerApiError {
-    fn from(err: mpsc::error::TrySendError<T>) -> Self {
-        let kind = RunnerErrorKind::AtCapacity;
-        let msg = format!("{err:#}");
-        Self { kind, msg }
-    }
-}
-impl From<oneshot::error::RecvError> for RunnerApiError {
-    fn from(err: oneshot::error::RecvError) -> Self {
-        let kind = RunnerErrorKind::Cancelled;
-        let msg = format!("{err:#}");
-        Self { kind, msg }
-    }
-}
 
 // --- Misc -> GatewayErrorKind impls --- //
 
