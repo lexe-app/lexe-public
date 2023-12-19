@@ -1570,9 +1570,9 @@ dependencies = [
 
 [[package]]
 name = "flutter_rust_bridge_macros"
-version = "1.61.1"
+version = "1.82.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d5cd827645690ef378be57a890d0581e17c28d07b712872af7d744f454fd27d"
+checksum = "d562b0fd8cbcd221b57107275eb45c2ffa39c04396b9420b25f2a8b9580f600b"
 
 [[package]]
 name = "fnv"
