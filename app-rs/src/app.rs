@@ -352,14 +352,14 @@ impl From<Config> for AppConfig {
         let deploy_env = config.deploy_env;
         let network = config.network;
         let gateway_url = config.gateway_url;
-        let use_sgx = false;
+        let use_sgx = config.use_sgx;
         let build = BuildFlavor {
             deploy_env,
             network: network.into(),
             use_sgx,
         };
-
         let allow_debug_enclaves = deploy_env == Dev;
+        let use_mock_secret_store = config.use_mock_secret_store;
 
         // The base app data directory.
         // See: dart fn [`path_provider.getApplicationSupportDirectory()`](https://pub.dev/documentation/path_provider/latest/path_provider/getApplicationSupportDirectory.html)
@@ -370,21 +370,27 @@ impl From<Config> for AppConfig {
         // "dev-regtest-dbg".
         let app_data_dir = base_app_data_dir.join(build.to_string());
 
-        let use_mock_secret_store = config.use_mock_secret_store;
-
-        match (&deploy_env, &network) {
-            // (Prod, Mainnet) => todo!(),
-            // (Staging, Testnet) => todo!(),
-            (Dev, Testnet) | (Dev, Regtest) => Self {
-                deploy_env,
-                network: network.into(),
-                gateway_url,
-                use_sgx,
-                allow_debug_enclaves,
-                app_data_dir,
-                use_mock_secret_store,
-            },
+        match (
+            &deploy_env,
+            &network,
+            use_sgx,
+            allow_debug_enclaves,
+            use_mock_secret_store,
+        ) {
+            (Prod, Mainnet, true, false, false) => (),
+            (Staging, Testnet, true, false, false) => (),
+            (Dev, Testnet, _, _, _) | (Dev, Regtest, _, _, _) => (),
             _ => panic!("Unsupported app config combination: {build}"),
+        }
+
+        Self {
+            deploy_env,
+            network: network.into(),
+            gateway_url,
+            use_sgx,
+            allow_debug_enclaves,
+            app_data_dir,
+            use_mock_secret_store,
         }
     }
 }
