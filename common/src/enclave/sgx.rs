@@ -10,11 +10,14 @@ use ring::{
     hkdf::{self, HKDF_SHA256},
 };
 use secrecy::zeroize::Zeroizing;
-use sgx_isa::{AttributesFlags, Keyname, Keypolicy};
+use sgx_isa::{Keyname, Keypolicy};
 
 use crate::{
     const_assert_usize_eq,
-    enclave::{Error, MachineId, Measurement, Sealed, MIN_SGX_CPUSVN},
+    enclave::{
+        attributes, miscselect, xfrm, Error, MachineId, Measurement, Sealed,
+        MIN_SGX_CPUSVN,
+    },
     rng::Crng,
     sha256,
 };
@@ -79,19 +82,9 @@ impl KeyRequest {
         let mut keyid = [0u8; 32];
         rng.fill_bytes(&mut keyid);
 
-        // TODO(phlip9): take another pass at choosing attribute masks.
-
-        // adapted from:
-        // <https://github.com/openenclave/openenclave/blob/e79d334c7f3b9fb2ab3efddbacf215d1713c2413/include/openenclave/bits/sgx/sgxtypes.h#L1097>
-
-        // ignore reserved bits + PROVISIONKEY + EINITTOKENKEY
-        let attribute_mask: u64 = !(0xffffffffffffc0
-            | AttributesFlags::PROVISIONKEY.bits()
-            | AttributesFlags::EINITTOKENKEY.bits());
-        // bind all
-        let xfrm_mask: u64 = !0;
-        // bind upper byte
-        let misc_mask: u32 = 0xf0000000;
+        let attribute_mask: u64 = attributes::LEXE_MASK.bits();
+        let xfrm_mask: u64 = xfrm::LEXE_MASK;
+        let misc_mask: u32 = miscselect::LEXE_MASK.bits();
 
         // Since we only ever use the `MRENCLAVE` key policy, the ISVSVN doesn't
         // provide us any value. If there was a vulnerability discovered in the

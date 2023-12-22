@@ -39,6 +39,94 @@ pub const MOCK_MACHINE_ID: MachineId =
 pub const MIN_SGX_CPUSVN: MinCpusvn =
     MinCpusvn::new(hex::decode_const(b"08080e0dffff01000000000000000000"));
 
+// SGX platform feature flags vs masks
+//
+// Each feature set has two components: a MASK, which determines _which_
+// features we want to bind, and then the FLAGS, which determines the _value_
+// (on/off) of each (bound) feature. All bits in FLAGS that aren't also set in
+// MASK are ignored.
+//
+// As a simplified example, let's look at a system with only two features:
+// DEBUG = 0b01 and FAST = 0b10. Suppose DEBUG enables the enclave DEBUG mode,
+// which isn't safe for production, while FAST enables some high-performance CPU
+// hardware feature.
+//
+// If we're building an enclave for production, we care about the values of both
+// features, so we set MASK = 0b11. It would be a problem if our enclave ran
+// with DEBUG enabled and FAST turned off, so we set FLAGS = 0b10.
+//
+// In the event we don't care about the FAST feature (maybe we need to run on
+// both old and new CPUs), we would instead only bind the DEBUG feature, with
+// MASK = 0b01. In this case, only the value of the DEBUG bit matters and the
+// FAST bit is completely ignored, so FLAGS = 0b01 and 0b11 are both equivalent.
+//
+// By not including a feature in our MASK, we are effectively allowing
+// the platform to determine the value at runtime.
+
+/// SGX platform feature flags
+///
+/// See: [`AttributesFlags`](sgx_isa::AttributesFlags)
+pub mod attributes {
+    use sgx_isa::AttributesFlags;
+
+    /// In production, ensure the SGX debug flag is turned off. We're also not
+    /// currently using any other features, like KSS (Key sharing and
+    /// separation) or AEX Notify (Async Enclave eXit Notify).
+    pub const LEXE_FLAGS_PROD: AttributesFlags = AttributesFlags::MODE64BIT;
+
+    pub const LEXE_FLAGS_DEBUG: AttributesFlags =
+        LEXE_FLAGS_PROD.union(AttributesFlags::DEBUG);
+
+    /// The flags we want to bind (whether on or off).
+    pub const LEXE_MASK: AttributesFlags = AttributesFlags::INIT
+        .union(AttributesFlags::DEBUG)
+        .union(AttributesFlags::MODE64BIT);
+}
+
+/// XFRM: CPU feature flags
+///
+/// See: <https://github.com/intel/linux-sgx> `common/inc/sgx_attributes.h`
+pub mod xfrm {
+    /// Legacy XFRM which includes the basic feature bits required by SGX
+    /// x87 state(0x01) and SSE state(0x02).
+    pub const LEGACY: u64 = 0x0000000000000003;
+    /// AVX XFRM which includes AVX state(0x04) and SSE state(0x02) required by
+    /// AVX.
+    pub const AVX: u64 = 0x0000000000000006;
+    /// AVX-512 XFRM.
+    pub const AVX512: u64 = 0x00000000000000e6;
+    /// MPX XFRM - not supported.
+    pub const MPX: u64 = 0x0000000000000018;
+    /// PKRU state.
+    pub const PKRU: u64 = 0x0000000000000200;
+    /// AMX XFRM, including XTILEDATA(0x40000) and XTILECFG(0x20000).
+    pub const AMX: u64 = 0x0000000000060000;
+
+    /// Features required by LEXE enclaves.
+    ///
+    /// Absolutely mandatory requirements:
+    ///   + SSE3+ (basic vectorization)
+    ///   + AESNI (AES crypto accelerators).
+    ///
+    /// Full AVX512 is not required but at least ensures we're running on more
+    /// recent hardware.
+    pub const LEXE_FLAGS: u64 = AVX512 | LEGACY;
+
+    /// Require LEXE features but allow new ones, determined at runtime.
+    pub const LEXE_MASK: u64 = LEXE_FLAGS;
+}
+
+/// SGX platform MISCSELECT feature flags
+pub mod miscselect {
+    use sgx_isa::Miscselect;
+
+    /// Don't need any features.
+    pub const LEXE_FLAGS: Miscselect = Miscselect::empty();
+
+    /// Bind nothing.
+    pub const LEXE_MASK: Miscselect = Miscselect::empty();
+}
+
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("SGX error: {0:?}")]
