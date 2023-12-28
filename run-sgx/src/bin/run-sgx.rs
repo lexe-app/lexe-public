@@ -37,13 +37,20 @@ pub struct Args {
 pub struct Options {
     /// path to the ".sgxs" enclave binary
     #[argh(positional)]
-    pub bin: String,
+    pub bin: PathBuf,
 
-    // TODO(phlip9): figure out why this isn't working
-    /// optional path to the ".sig" enclave SIGSTRUCT file. defaults to the
-    /// binary path with ".sig" instead of ".sgxs" if unset.
+    /// create a just-in-time dummy enclave signature with DEBUG enabled
+    /// instead of using any adjacent ".sigstruct" file. Useful when
+    /// developing to avoid the ".sgxs" signing ceremony.
+    #[argh(switch)]
+    pub debug: bool,
+
+    /// optional path to the ".sigstruct" enclave SIGSTRUCT file. defaults to
+    /// the binary path with ".sigstruct" instead of ".sgxs" if unset.
+    /// `run-sgx` will fail if it can't find a ".sigstruct", unless
+    /// `--debug` is set.
     #[argh(option)]
-    pub sig: Option<String>,
+    pub sigstruct: Option<PathBuf>,
 
     /// optional path to the original elf binary, before going through the
     /// ".sgxs" conversion.
@@ -55,7 +62,7 @@ pub struct Options {
     ///
     /// If the file doesn't exist, backtraces just won't be symbolized.
     #[argh(option)]
-    pub elf: Option<String>,
+    pub elf: Option<PathBuf>,
 }
 
 // -- impl Args -- //
@@ -79,16 +86,15 @@ impl Args {
             .einittoken_provider(aesm_client)
             .build();
 
-        let bin_path = Path::new(&self.opts.bin);
-        let maybe_elf_bin_path =
-            self.opts.elf.as_ref().map(PathBuf::from).or_else(|| {
-                let elf = bin_path.with_extension("");
-                if elf.exists() {
-                    Some(elf)
-                } else {
-                    None
-                }
-            });
+        let bin_path: &Path = &self.opts.bin;
+        let maybe_elf_bin_path = self.opts.elf.clone().or_else(|| {
+            let elf = bin_path.with_extension("");
+            if elf.exists() {
+                Some(elf)
+            } else {
+                None
+            }
+        });
         let mut enclave = EnclaveBuilder::new(bin_path);
 
         // problem: enclave can't talk to the AESM (fs access denied).
@@ -96,18 +102,25 @@ impl Args {
         // unix socket.
         enclave.usercall_extension(AesmProxy);
 
-        // works for now
-        enclave.dummy_signature();
-
-        // TODO(phlip9): figure out why this isn't working
-        // let maybe_sig = self.opts.sig.as_ref();
-        // let sig_path = maybe_sig
-        //     .map(PathBuf::from)
-        //     .unwrap_or_else(|| bin_path.with_extension("sig"));
-        // dbg!(&sig_path);
-        // enclave
-        //     .signature(sig_path)
-        //     .context("Failed to read .sig sigstruct")?;
+        // load enclave sigstruct
+        if !self.opts.debug {
+            // Load sigstruct from arg path or adjacent .sigstruct file
+            let sigstruct_path = self
+                .opts
+                .sigstruct
+                .clone()
+                .unwrap_or_else(|| bin_path.with_extension("sigstruct"));
+            let sigstruct_path_ref: &Path = &sigstruct_path;
+            enclave.signature(sigstruct_path_ref).with_context(|| {
+                format!(
+                    "Failed to read sigstruct: '{}'. If this is just for local development, try using '--debug'.",
+                    sigstruct_path_ref.display()
+                )
+            })?;
+        } else {
+            // Create a DEBUG sigstruct with a dummy keypair.
+            enclave.dummy_signature();
+        }
 
         // attach the enclave's args
         enclave.args(self.enclave_args);
