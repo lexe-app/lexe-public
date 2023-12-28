@@ -132,6 +132,6 @@
 
   # Convenience script to run `sgx-test`.
   run-sgx-test = pkgs.writeShellScriptBin "run-sgx-test" ''
-    ${run-sgx}/bin/run-sgx ${sgx-test}/bin/sgx-test.sgxs
+    ${run-sgx}/bin/run-sgx ${sgx-test}/bin/sgx-test.sgxs --debug
   '';
 }

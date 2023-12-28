@@ -2,21 +2,15 @@
 
 #![allow(dead_code)]
 
-use std::process::Command;
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-use std::{
-    env,
-    path::{Path, PathBuf},
-};
+use std::{env, path::Path};
+use std::{path::PathBuf, process::Command};
 
 use anyhow::{format_err, Context, Result};
 use argh::{EarlyExit, FromArgs, TopLevelCommand};
 use serde::Deserialize;
 #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
 use sgx_toml::FortanixSgxConfig;
-
-// const DEBUG_SIGNER_KEY_PEM_BYTES: &[u8] =
-//     std::include_bytes!("../../data/debug-signer-key.pem");
 
 #[derive(Debug)]
 pub struct Args {
@@ -29,7 +23,7 @@ pub struct Args {
 pub struct Options {
     /// path to the compiled enclave binary in standard ELF format, not ".sgxs"
     #[argh(positional)]
-    pub elf_bin: String,
+    pub elf_bin: PathBuf,
 }
 
 /// The subset of a crate's `Cargo.toml` with the SGX config.
@@ -97,8 +91,6 @@ impl Args {
 
         // 2. convert compiled ELF binary to SGXS format
 
-        // TODO(phlip9): inline? would remove error-prone setup step
-
         let elf_bin_path = Path::new(&self.opts.elf_bin);
 
         let mut sgxs_bin_path = elf_bin_path.to_path_buf();
@@ -125,50 +117,16 @@ impl Args {
         run_cmd(ftxsgx_elf2sgxs_cmd)
             .context("Failed to convert enclave binary to .sgxs")?;
 
-        // 3. sign `<enclave-binary>.sgxs` with a dummy key (for now) to get a
-        //    serialized `Sigstruct` as `<enclave-binary>.sig`.
-
-        // TODO(phlip9): inline? would remove error-prone setup step
-
-        // TODO(phlip9): figure out why this isn't working
-        // // dump debug signer key to file
-        // let mut key_path = sgxs_bin_path.clone();
-        // key_path.set_file_name("debug-signer-key.pem");
-        //
-        // fs::write(&key_path, &DEBUG_SIGNER_KEY_PEM_BYTES).with_context(
-        //     || {
-        //         format!(
-        //             "Failed to write debug key file: {}",
-        //             key_path.display(),
-        //         )
-        //     },
-        // )?;
-        //
-        // let mut sigstruct_path = sgxs_bin_path.clone();
-        // sigstruct_path.set_extension("sig");
-        //
-        // let mut sgxs_sign_cmd = Command::new("sgxs-sign");
-        // sgxs_sign_cmd
-        //     // input .sgxs
-        //     .arg(&sgxs_bin_path)
-        //     // output .sig sigstruct
-        //     .arg(&sigstruct_path)
-        //     .arg("--key")
-        //     .arg(&key_path);
-        //
-        // if debug {
-        //     sgxs_sign_cmd.arg("--debug");
-        // }
-        //
-        // run_cmd(sgxs_sign_cmd).context("Failed to sign enclave")?;
-
-        // 4. run the enclave with `run-sgx`
+        // 3. run the enclave with `run-sgx`
 
         let mut run_sgx_cmd = Command::new("run-sgx");
         run_sgx_cmd
             .arg(&sgxs_bin_path)
             .arg("--elf")
             .arg(elf_bin_path)
+            // sign as DEBUG enclave w/ dummy keypair just before running. this
+            // avoids tedious sign-sgxs infrastructure while developing.
+            .arg("--debug")
             .arg("--")
             .args(self.enclave_args);
 
