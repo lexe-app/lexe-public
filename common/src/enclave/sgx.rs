@@ -245,6 +245,10 @@ pub fn measurement() -> Measurement {
     Measurement::new(sgx_isa::Report::for_self().mrenclave)
 }
 
+pub fn signer() -> Measurement {
+    Measurement::new(sgx_isa::Report::for_self().mrsigner)
+}
+
 pub fn machine_id() -> MachineId {
     // use a fixed keyid
     let keyid = *b"~~~~ LEXE MACHINE ID KEY ID ~~~~";

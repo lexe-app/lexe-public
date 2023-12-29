@@ -28,6 +28,16 @@ use crate::{
 pub const MOCK_MEASUREMENT: Measurement =
     Measurement::new(*b"~~~~~~~ LEXE MOCK ENCLAVE ~~~~~~");
 
+pub const MOCK_SIGNER: Measurement =
+    Measurement::new(*b"======= LEXE MOCK SIGNER =======");
+
+/// The enclave signer measurement our production enclaves should be signed
+/// with. Inside an enclave, retrieve the signer with
+/// [`enclave::signer()`](signer).
+pub const PROD_SIGNER: Measurement = Measurement::new(hex::decode_const(
+    b"02d07f56b7f4a71d32211d6821beaeb316fbf577d02bab0dfe1f18a73de08a8e",
+));
+
 // TODO(phlip9): use the machine id of my dev machine until we build a proper
 //               get-machine-id bin util.
 pub const MOCK_MACHINE_ID: MachineId =
@@ -473,6 +483,27 @@ pub fn measurement() -> Measurement {
             sgx::measurement()
         } else {
             mock::measurement()
+        }
+    }
+}
+
+/// Retrieve the enclave signer measurement of the current running enclave.
+/// Every enclave is signed with an RSA keypair, plus some extra metadata.
+///
+/// + In SGX, this value is called the [`MRSIGNER`].
+///
+/// + In mock mode, this returns a fixed value.
+///
+/// + The signer is a 3072-bit RSA keypair with exponent=3. The signer
+///   measurement is the SHA-256 hash of the (little-endian) public key modulus.
+///
+/// [`MRSIGNER`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#signer-measurement-mrsigner
+pub fn signer() -> Measurement {
+    cfg_if! {
+        if #[cfg(target_env = "sgx")] {
+            sgx::signer()
+        } else {
+            mock::signer()
         }
     }
 }
