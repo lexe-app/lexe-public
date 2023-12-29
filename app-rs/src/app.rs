@@ -70,8 +70,7 @@ impl App {
         let enclave_policy = attest::EnclavePolicy {
             allow_debug: config.allow_debug_enclaves,
             trusted_mrenclaves: Some(vec![measurement]),
-            // TODO(phlip9): load expected lexe signer from build config
-            trusted_mrsigner: None,
+            trusted_mrsigner: config.enclave_signer(),
         };
         let attest_verifier = attest::ServerCertVerifier {
             expect_dummy_quote: !config.use_sgx,
@@ -189,8 +188,7 @@ impl App {
         let enclave_policy = attest::EnclavePolicy {
             allow_debug: config.allow_debug_enclaves,
             trusted_mrenclaves: Some(vec![measurement]),
-            // TODO(phlip9): load expected lexe signer from build config
-            trusted_mrsigner: None,
+            trusted_mrsigner: config.enclave_signer(),
         };
         let attest_verifier = attest::ServerCertVerifier {
             expect_dummy_quote: !use_sgx,
@@ -340,6 +338,15 @@ impl AppConfig {
             deploy_env: self.deploy_env,
             network: self.network,
             use_sgx: self.use_sgx,
+        }
+    }
+
+    /// The enclave signer we should expect for each deploy env. In Dev we set
+    /// this to `None` as we don't use the signer infra there.
+    pub fn enclave_signer(&self) -> Option<Measurement> {
+        match self.deploy_env {
+            DeployEnv::Prod | DeployEnv::Staging => Some(enclave::PROD_SIGNER),
+            DeployEnv::Dev => None,
         }
     }
 }
