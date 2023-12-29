@@ -10,7 +10,7 @@ use ring::{
     hkdf::{self, HKDF_SHA256},
 };
 
-use super::MOCK_MEASUREMENT;
+use super::{MOCK_MEASUREMENT, MOCK_SIGNER};
 use crate::{
     enclave::{Error, MachineId, Measurement, Sealed, MOCK_MACHINE_ID},
     hex,
@@ -96,6 +96,10 @@ const DEV_MEASUREMENT: Option<Measurement> =
 /// Prefers [`DEV_MEASUREMENT`], otherwise defaults to [`MOCK_MEASUREMENT`].
 pub fn measurement() -> Measurement {
     DEV_MEASUREMENT.unwrap_or(MOCK_MEASUREMENT)
+}
+
+pub fn signer() -> Measurement {
+    MOCK_SIGNER
 }
 
 pub fn machine_id() -> MachineId {
