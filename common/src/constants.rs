@@ -2,7 +2,7 @@ use std::include_bytes;
 
 use rcgen::{DistinguishedName, DnType};
 
-use crate::api::ports::Port;
+use crate::{api::ports::Port, enclave::MrShort};
 
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 pub const SMALLER_CHANNEL_SIZE: usize = 16;
@@ -42,10 +42,16 @@ pub const TESTNET_ESPLORA_WHITELIST: [&str; 3] = [
     TESTNET_LEXE_ESPLORA,
 ];
 
-/// Fake DNS name used by the reverse proxy to route requests to user nodes in
-/// provision / run mode respectively. This DNS name doesn't actually resolve.
-pub const NODE_PROVISION_DNS: &str = "provision.lexe.tech";
+/// Fake DNS names used by the reverse proxy to route requests to user nodes.
+/// Provision mode uses "{mr_short}.provision.lexe.tech" and run mode uses
+/// "run.lexe.tech". These DNS names don't actually resolve.
 pub const NODE_RUN_DNS: &str = "run.lexe.tech";
+pub fn node_provision_dns(mr_short: &MrShort) -> String {
+    // TODO(max): Use this
+    let _ = format!("{mr_short}.{NODE_PROVISION_DNS_SUFFIX}");
+    NODE_PROVISION_DNS_SUFFIX.to_owned()
+}
+pub const NODE_PROVISION_DNS_SUFFIX: &str = "provision.lexe.tech";
 
 pub fn lexe_distinguished_name_prefix() -> DistinguishedName {
     let mut name = DistinguishedName::new();

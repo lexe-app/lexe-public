@@ -9,7 +9,7 @@ use crate::{
     attest,
     attest::cert::AttestationCert,
     client::certs::{CaCert, ClientCert, NodeCert},
-    ed25519,
+    constants, ed25519,
     rng::Crng,
     root_seed::RootSeed,
 };
@@ -224,16 +224,18 @@ impl rustls::client::ServerCertVerifier for ServerCertVerifier {
 
         match maybe_dns_name {
             // Verify using derived node-client CA when node is running
-            Some("run.lexe.tech") => self.node_verifier.verify_server_cert(
-                end_entity,
-                intermediates,
-                server_name,
-                scts,
-                ocsp_response,
-                now,
-            ),
+            Some(constants::NODE_RUN_DNS) =>
+                self.node_verifier.verify_server_cert(
+                    end_entity,
+                    intermediates,
+                    server_name,
+                    scts,
+                    ocsp_response,
+                    now,
+                ),
             // Verify remote attestation cert when provisioning node
-            Some("provision.lexe.tech") =>
+            Some(dns_name)
+                if dns_name.ends_with(constants::NODE_PROVISION_DNS_SUFFIX) =>
                 self.attest_verifier.verify_server_cert(
                     end_entity,
                     intermediates,
