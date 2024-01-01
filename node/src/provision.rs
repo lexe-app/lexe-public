@@ -73,7 +73,7 @@ pub async fn provision_node<R: Crng>(
     runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
 ) -> anyhow::Result<()> {
-    debug!(?args.port, %args.node_dns_name, "provisioning");
+    debug!(?args.port, "provisioning");
 
     // Set up the request context and warp routes.
     let args = Arc::new(args);
@@ -97,9 +97,17 @@ pub async fn provision_node<R: Crng>(
     // TODO(phlip9): remove when rest::serve_* supports TLS
     let app_routes =
         app_routes.with(rest::trace_requests(Span::current().id()));
-    let app_tls_config =
-        tls::node_provision_tls_config(rng, args.node_dns_name.clone())
-            .context("Failed to build TLS config for provisioning")?;
+    cfg_if::cfg_if! {
+        if #[cfg(not(test))] {
+            let dns_name = common::constants::NODE_PROVISION_DNS.to_owned();
+        } else {
+            // In tests we're not going through a proxy, so just bind cert to
+            // "localhost".
+            let dns_name = "localhost".to_owned();
+        }
+    }
+    let app_tls_config = tls::node_provision_tls_config(rng, dns_name)
+        .context("Failed to build TLS config for provisioning")?;
     let (app_addr, app_service) = warp::serve(app_routes)
         .tls()
         .preconfigured_tls(app_tls_config)
@@ -522,12 +530,7 @@ mod test {
     async fn test_provision() {
         let root_seed = RootSeed::from_u64(0x42);
 
-        let args = ProvisionArgs {
-            // we're not going through a proxy and can't change DNS resolution
-            // here (yet), so just bind cert to "localhost".
-            node_dns_name: "localhost".to_owned(),
-            ..ProvisionArgs::default()
-        };
+        let args = ProvisionArgs::default();
 
         let runner_api = Arc::new(MockRunnerClient::new());
         let backend_api = Arc::new(MockBackendClient::new());

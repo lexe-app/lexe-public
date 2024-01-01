@@ -9,7 +9,6 @@ use crate::test_utils::arbitrary;
 use crate::{
     api::{ports::Port, UserPk},
     cli::{LspInfo, Network, OAuthConfig, ToCommand},
-    constants::{NODE_PROVISION_DNS, NODE_RUN_DNS},
 };
 
 /// Commands accepted by the user node.
@@ -90,12 +89,6 @@ pub struct RunArgs {
     /// info relating to Lexe's LSP.
     #[argh(option)]
     pub lsp: LspInfo,
-
-    /// the DNS name the node enclave should include in its remote attestation
-    /// certificate and the client will expect in its connection
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
-    #[argh(option, default = "NODE_RUN_DNS.to_owned()")]
-    pub node_dns_name: String,
 }
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -111,7 +104,6 @@ impl Default for RunArgs {
             network: Network::REGTEST,
             shutdown_after_sync_if_no_activity: false,
             inactivity_timer_sec: 3600,
-            node_dns_name: NODE_RUN_DNS.to_owned(),
             backend_url: Some(DUMMY_BACKEND_URL.to_owned()),
             runner_url: Some(DUMMY_RUNNER_URL.to_owned()),
             esplora_url: DUMMY_ESPLORA_URL.to_owned(),
@@ -133,9 +125,7 @@ impl ToCommand for RunArgs {
             .arg("--esplora-url")
             .arg(&self.esplora_url)
             .arg("--lsp")
-            .arg(&self.lsp.to_string())
-            .arg("--node-dns-name")
-            .arg(&self.node_dns_name);
+            .arg(&self.lsp.to_string());
 
         if self.shutdown_after_sync_if_no_activity {
             cmd.arg("-s");
@@ -159,12 +149,6 @@ impl ToCommand for RunArgs {
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
 #[argh(subcommand, name = "provision")]
 pub struct ProvisionArgs {
-    /// the DNS name the node enclave should include in its remote attestation
-    /// certificate and the which client will expect in its connection
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
-    #[argh(option, default = "NODE_PROVISION_DNS.to_owned()")]
-    pub node_dns_name: String,
-
     /// protocol://host:port of the backend.
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
     #[argh(option)]
@@ -190,7 +174,6 @@ impl Default for ProvisionArgs {
     fn default() -> Self {
         use crate::test_utils::{DUMMY_BACKEND_URL, DUMMY_RUNNER_URL};
         Self {
-            node_dns_name: "provision.lexe.tech".to_owned(),
             port: None,
             backend_url: DUMMY_BACKEND_URL.to_owned(),
             runner_url: DUMMY_RUNNER_URL.to_owned(),
@@ -202,8 +185,6 @@ impl Default for ProvisionArgs {
 impl ToCommand for ProvisionArgs {
     fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
         cmd.arg("provision")
-            .arg("--node-dns-name")
-            .arg(&self.node_dns_name)
             .arg("--backend-url")
             .arg(&self.backend_url)
             .arg("--runner-url")
