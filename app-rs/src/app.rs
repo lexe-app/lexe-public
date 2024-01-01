@@ -92,8 +92,6 @@ impl App {
             gateway_client.clone(),
             &dummy_lexe_ca_cert(),
             attest_verifier,
-            constants::NODE_PROVISION_HTTPS,
-            constants::NODE_RUN_HTTPS,
         )
         .context("Failed to build NodeClient")?;
 
@@ -210,8 +208,6 @@ impl App {
             gateway_client.clone(),
             &dummy_lexe_ca_cert(),
             attest_verifier,
-            constants::NODE_PROVISION_HTTPS,
-            constants::NODE_RUN_HTTPS,
         )
         .context("Failed to build NodeClient")?;
 

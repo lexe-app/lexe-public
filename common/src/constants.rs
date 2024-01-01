@@ -42,15 +42,10 @@ pub const TESTNET_ESPLORA_WHITELIST: [&str; 3] = [
     TESTNET_LEXE_ESPLORA,
 ];
 
-/// Fake DNS name used by the node reverse proxy to route owner requests to a
-/// node awaiting provisioning. This DNS name doesn't actually resolve.
+/// Fake DNS name used by the reverse proxy to route requests to user nodes in
+/// provision / run mode respectively. This DNS name doesn't actually resolve.
 pub const NODE_PROVISION_DNS: &str = "provision.lexe.tech";
-pub const NODE_PROVISION_HTTPS: &str = "https://provision.lexe.tech";
-
-/// Fake DNS name used by the node reverse proxy to route owner requests to a
-/// running node. This DNS name doesn't actually resolve.
 pub const NODE_RUN_DNS: &str = "run.lexe.tech";
-pub const NODE_RUN_HTTPS: &str = "https://run.lexe.tech";
 
 pub fn lexe_distinguished_name_prefix() -> DistinguishedName {
     let mut name = DistinguishedName::new();
