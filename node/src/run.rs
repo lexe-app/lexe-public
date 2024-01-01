@@ -13,7 +13,7 @@ use common::{
     },
     cli::{node::RunArgs, LspInfo, Network},
     client::tls::node_run_tls_config,
-    constants::{DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
+    constants::{self, DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
     ed25519,
     enclave::{self, MachineId, Measurement, MIN_SGX_CPUSVN},
     env::DeployEnv,
@@ -461,8 +461,8 @@ impl UserNode {
         ));
 
         // Build app service TLS config for authenticating owner
-        let node_dns = args.node_dns_name.clone();
-        let app_tls = node_run_tls_config(rng, &root_seed, vec![node_dns])
+        let dns_names = vec![constants::NODE_RUN_DNS.to_owned()];
+        let app_tls = node_run_tls_config(rng, &root_seed, dns_names)
             .context("Failed to build owner service TLS config")?;
 
         // Start warp service for app
