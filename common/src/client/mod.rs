@@ -46,6 +46,9 @@ use crate::{
     root_seed::RootSeed,
 };
 
+const NODE_PROVISION_HTTPS: &str = "https://provision.lexe.tech";
+const NODE_RUN_HTTPS: &str = "https://run.lexe.tech";
+
 /// The Lexe app's client to the gateway itself.
 #[derive(Clone)]
 pub struct GatewayClient {
@@ -61,8 +64,8 @@ pub struct GatewayClient {
 pub struct NodeClient {
     rest: RestClient,
     gateway_client: GatewayClient,
-    provision_url: &'static str,
-    run_url: &'static str,
+    provision_url: String,
+    run_url: String,
     authenticator: Arc<BearerAuthenticator>,
 }
 
@@ -189,13 +192,14 @@ impl NodeClient {
         gateway_client: GatewayClient,
         gateway_ca: &rustls::Certificate,
         attest_verifier: attest::ServerCertVerifier,
-        provision_url: &'static str,
-        run_url: &'static str,
     ) -> anyhow::Result<Self> {
+        let provision_url = NODE_PROVISION_HTTPS.to_owned();
+        let run_url = NODE_RUN_HTTPS.to_owned();
+
         let proxy = Self::proxy_config(
             &gateway_client.gateway_url,
-            provision_url,
-            run_url,
+            &provision_url,
+            &run_url,
             authenticator.clone(),
         )
         .context("Invalid proxy config")?;
@@ -260,7 +264,7 @@ impl NodeClient {
         // but this callback isn't async... Instead we have to read the most
         // recently cached token and be diligent about calling
         // `self.ensure_authed()` before calling any auth'ed API.
-        Ok(reqwest::Proxy::custom(move |url| {
+        let proxy = reqwest::Proxy::custom(move |url| {
             if url_base_eq(url, &run_url) || url_base_eq(url, &provision_url) {
                 let auth_token = authenticator
                     .get_maybe_cached_token()
@@ -280,7 +284,9 @@ impl NodeClient {
             } else {
                 None
             }
-        }))
+        });
+
+        Ok(proxy)
     }
 
     /// Ensure the client has a fresh auth token for the gateway proxy.
