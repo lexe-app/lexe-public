@@ -99,7 +99,9 @@ pub async fn provision_node<R: Crng>(
         app_routes.with(rest::trace_requests(Span::current().id()));
     cfg_if::cfg_if! {
         if #[cfg(not(test))] {
-            let dns_name = common::constants::NODE_PROVISION_DNS.to_owned();
+            use common::{constants, enclave::MrShort};
+            let mr_short = MrShort::from(&measurement);
+            let dns_name = constants::node_provision_dns(&mr_short).to_owned();
         } else {
             // In tests we're not going through a proxy, so just bind cert to
             // "localhost".

@@ -40,14 +40,14 @@ use crate::{
         rest::{RequestBuilderExt, RestClient, API_REQUEST_TIMEOUT, GET, POST},
         Empty,
     },
-    attest, ed25519,
+    attest, constants,
+    constants::node_provision_dns,
+    ed25519,
+    enclave::Measurement,
     ln::{hashes::LxTxid, invoice::LxInvoice, payments::BasicPayment},
     rng::Crng,
     root_seed::RootSeed,
 };
-
-const NODE_PROVISION_HTTPS: &str = "https://provision.lexe.tech";
-const NODE_RUN_HTTPS: &str = "https://run.lexe.tech";
 
 /// The Lexe app's client to the gateway itself.
 #[derive(Clone)]
@@ -188,13 +188,17 @@ impl NodeClient {
     pub fn new<R: Crng>(
         rng: &mut R,
         seed: &RootSeed,
+        measurement: &Measurement,
         authenticator: Arc<BearerAuthenticator>,
         gateway_client: GatewayClient,
         gateway_ca: &rustls::Certificate,
         attest_verifier: attest::ServerCertVerifier,
     ) -> anyhow::Result<Self> {
-        let provision_url = NODE_PROVISION_HTTPS.to_owned();
-        let run_url = NODE_RUN_HTTPS.to_owned();
+        let mr_short = measurement.short();
+        let provision_dns = node_provision_dns(&mr_short);
+        let provision_url = format!("https://{provision_dns}");
+        let run_dns = constants::NODE_RUN_DNS;
+        let run_url = format!("https://{run_dns}");
 
         let proxy = Self::proxy_config(
             &gateway_client.gateway_url,
@@ -233,9 +237,9 @@ impl NodeClient {
     ///
     /// This function sets up a client-side [`reqwest::Proxy`] config which
     /// looks for requests to the user node (i.e., urls starting with the fake
-    /// DNS name `provision.lexe.tech` or `run.lexe.tech`) and instructs
-    /// `reqwest` to use an HTTPS CONNECT tunnel over which to send the
-    /// requests.
+    /// DNS name `{mr_short}.provision.lexe.tech` or `run.lexe.tech`) and
+    /// instructs `reqwest` to use an HTTPS CONNECT tunnel over which to send
+    /// the requests.
     fn proxy_config(
         gateway_url: &str,
         provision_url: &str,

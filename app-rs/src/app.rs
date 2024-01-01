@@ -88,6 +88,7 @@ impl App {
         let node_client = NodeClient::new(
             rng,
             &root_seed,
+            &measurement,
             bearer_authenticator,
             gateway_client.clone(),
             &dummy_lexe_ca_cert(),
@@ -204,6 +205,7 @@ impl App {
         let node_client = NodeClient::new(
             rng,
             &root_seed,
+            &measurement,
             bearer_authenticator,
             gateway_client.clone(),
             &dummy_lexe_ca_cert(),
