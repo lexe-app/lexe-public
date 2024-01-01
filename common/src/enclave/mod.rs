@@ -74,6 +74,11 @@ impl From<sgx_isa::ErrorCode> for Error {
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Measurement(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
+/// A [`Measurement`] shortened to its first four bytes (8 hex chars).
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[derive(Copy, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
+pub struct MrShort(#[serde(with = "hexstr_or_bytes")] [u8; 4]);
+
 impl Measurement {
     pub const fn new(bytes: [u8; 32]) -> Self {
         Self(bytes)
@@ -89,6 +94,10 @@ impl Measurement {
 
     pub fn as_slice(&self) -> &[u8] {
         &self.0
+    }
+
+    pub fn short(&self) -> MrShort {
+        MrShort::from(self)
     }
 }
 
@@ -106,6 +115,42 @@ impl fmt::Display for Measurement {
 }
 
 impl fmt::Debug for Measurement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self}")
+    }
+}
+
+impl MrShort {
+    pub const fn new(bytes: [u8; 4]) -> Self {
+        Self(bytes)
+    }
+
+    /// Whether this [`MrShort`] is a prefix of the given [`Measurement`].
+    fn is_prefix_of(&self, long: &Measurement) -> bool {
+        self.0 == long.0[..4]
+    }
+}
+
+impl From<&Measurement> for MrShort {
+    fn from(long: &Measurement) -> Self {
+        (long.0)[..4].try_into().map(Self).unwrap()
+    }
+}
+
+impl FromStr for MrShort {
+    type Err = hex::DecodeError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        <[u8; 4]>::from_hex(s).map(Self::new)
+    }
+}
+
+impl fmt::Display for MrShort {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::display(self.0.as_slice()))
+    }
+}
+
+impl fmt::Debug for MrShort {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self}")
     }
@@ -500,6 +545,25 @@ mod test {
         let m1 = machine_id();
         let m2 = machine_id();
         assert_eq!(m1, m2);
+    }
+
+    #[test]
+    fn test_mr_short() {
+        proptest!(|(
+            long1 in any::<Measurement>(),
+            long2 in any::<Measurement>(),
+        )| {
+            let short1 = long1.short();
+            let short2 = long2.short();
+            assert!(short1.is_prefix_of(&long1));
+            assert!(short2.is_prefix_of(&long2));
+
+            if short1 != short2 {
+                assert_ne!(long1, long2);
+                assert!(!short1.is_prefix_of(&long2));
+                assert!(!short2.is_prefix_of(&long1));
+            }
+        });
     }
 
     // TODO(phlip9): test KeyRequest mutations
