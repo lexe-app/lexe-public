@@ -194,7 +194,7 @@ mod test {
             .unwrap();
 
         let node_key_pair = ed25519::KeyPair::from_seed(&[0x33; 32]).to_rcgen();
-        let node_names = vec!["example.node.lexe.tech".to_owned()];
+        let node_names = vec!["example.node.lexe.app".to_owned()];
         let node_cert =
             NodeCert::from_key_pair(node_key_pair, node_names).unwrap();
         let node_cert_der = node_cert.serialize_der_signed(&ca_cert).unwrap();

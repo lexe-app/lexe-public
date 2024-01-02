@@ -237,7 +237,7 @@ impl NodeClient {
     ///
     /// This function sets up a client-side [`reqwest::Proxy`] config which
     /// looks for requests to the user node (i.e., urls starting with the fake
-    /// DNS name `{mr_short}.provision.lexe.tech` or `run.lexe.tech`) and
+    /// DNS name `{mr_short}.provision.lexe.app` or `run.lexe.app`) and
     /// instructs `reqwest` to use an HTTPS CONNECT tunnel over which to send
     /// the requests.
     fn proxy_config(

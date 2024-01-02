@@ -89,7 +89,7 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "tech.lexe" "\0"
+            VALUE "CompanyName", "app.lexe" "\0"
             VALUE "FileDescription", "lexeapp" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "lexeapp" "\0"

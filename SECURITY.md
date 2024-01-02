@@ -6,7 +6,7 @@ The following outlines Lexe's disclosure process and security model.
 ## Responsible Disclosure
 
 If you find a security vulnerability that affects Lexe or Lexe's users, we would deeply appreciate following a responsible disclosure process.
-Please email your report to `disclosure@lexe.tech`, after which we will review your report, attempt to reproduce the vulnerability, and try our best to release a patch for the vulnerability within 90 days.
+Please email your report to `disclosure@lexe.app`, after which we will review your report, attempt to reproduce the vulnerability, and try our best to release a patch for the vulnerability within 90 days.
 We will keep you updated on the status of the vulnerability as we work through steps to address it.
 
 Lexe does not have a standardized bug bounty program yet, but we will do our best to compensate you accordingly, especially for more serious vulnerabilities.
