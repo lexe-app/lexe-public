@@ -20,16 +20,16 @@ use crate::{
 /// Currently we verify 3 different cases, depending on the remote cert's dns
 /// name.
 ///
-/// 1. "run.lexe.tech" => verify one of the client's previously provisioned
+/// 1. "run.lexe.app" => verify one of the client's previously provisioned
 ///    nodes.
-/// 2. "provision.lexe.tech" => verify the remote attestation TLS cert for a
+/// 2. "provision.lexe.app" => verify the remote attestation TLS cert for a
 ///    machine the client might want to provision with their secrets.
 /// 3. other => verify a lexe endpoint, using a pinned CA cert.
 struct ServerCertVerifier {
-    /// "run.lexe.tech" node-cert verifier
+    /// "run.lexe.app" node-cert verifier
     node_verifier: WebPkiVerifier,
 
-    /// "provision.lexe.tech" remote attestation verifier
+    /// "provision.lexe.app" remote attestation verifier
     attest_verifier: attest::ServerCertVerifier,
 
     /// other (e.g., lexe reverse proxy) lexe CA verifier
@@ -247,7 +247,7 @@ impl rustls::client::ServerCertVerifier for ServerCertVerifier {
             // Other domains (i.e., node reverse proxy) verify using pinned
             // lexe CA
             // TODO(phlip9): this should be a strict DNS name, like
-            // `proxy.lexe.tech`. Come back once DNS names are more solid.
+            // `proxy.lexe.app`. Come back once DNS names are more solid.
             _ => self.lexe_verifier.verify_server_cert(
                 end_entity,
                 intermediates,
@@ -338,7 +338,7 @@ mod test {
         let (client_stream, server_stream) = duplex(4096);
 
         let seed = [0x42; 32];
-        let dns_name = "run.lexe.tech";
+        let dns_name = "run.lexe.app";
 
         // client tries to connect
         let client = async move {

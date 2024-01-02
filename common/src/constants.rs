@@ -35,7 +35,7 @@ pub const TESTNET_BLOCKSTREAM_ESPLORA: &str =
     "https://blockstream.info/testnet/api";
 pub const TESTNET_KUUTAMO_ESPLORA: &str =
     "https://esplora.testnet.kuutamo.cloud";
-pub const TESTNET_LEXE_ESPLORA: &str = "http://esplora-testnet.lexe.tech:3001";
+pub const TESTNET_LEXE_ESPLORA: &str = "http://testnet.esplora.lexe.app:3001";
 pub const TESTNET_ESPLORA_WHITELIST: [&str; 3] = [
     TESTNET_BLOCKSTREAM_ESPLORA,
     TESTNET_KUUTAMO_ESPLORA,
@@ -43,13 +43,13 @@ pub const TESTNET_ESPLORA_WHITELIST: [&str; 3] = [
 ];
 
 /// Fake DNS names used by the reverse proxy to route requests to user nodes.
-/// Provision mode uses "{mr_short}.provision.lexe.tech" and run mode uses
-/// "run.lexe.tech". These DNS names don't actually resolve.
-pub const NODE_RUN_DNS: &str = "run.lexe.tech";
+/// Provision mode uses "{mr_short}.provision.lexe.app" and run mode uses
+/// "run.lexe.app". These DNS names don't actually resolve.
+pub const NODE_RUN_DNS: &str = "run.lexe.app";
 pub fn node_provision_dns(mr_short: &MrShort) -> String {
     format!("{mr_short}.{NODE_PROVISION_DNS_SUFFIX}")
 }
-pub const NODE_PROVISION_DNS_SUFFIX: &str = "provision.lexe.tech";
+pub const NODE_PROVISION_DNS_SUFFIX: &str = "provision.lexe.app";
 
 pub fn lexe_distinguished_name_prefix() -> DistinguishedName {
     let mut name = DistinguishedName::new();

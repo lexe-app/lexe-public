@@ -665,7 +665,7 @@ mod test {
     fn test_verify_dummy_server_cert() {
         let mut rng = SysRng::new();
 
-        let dns_name = "node.lexe.tech";
+        let dns_name = "node.lexe.app";
         let dns_names = vec![dns_name.to_owned()];
 
         let cert_key_pair = ed25519::KeyPair::from_rng(&mut rng).to_rcgen();
