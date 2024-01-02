@@ -47,9 +47,7 @@ pub const TESTNET_ESPLORA_WHITELIST: [&str; 3] = [
 /// "run.lexe.tech". These DNS names don't actually resolve.
 pub const NODE_RUN_DNS: &str = "run.lexe.tech";
 pub fn node_provision_dns(mr_short: &MrShort) -> String {
-    // TODO(max): Use this
-    let _ = format!("{mr_short}.{NODE_PROVISION_DNS_SUFFIX}");
-    NODE_PROVISION_DNS_SUFFIX.to_owned()
+    format!("{mr_short}.{NODE_PROVISION_DNS_SUFFIX}")
 }
 pub const NODE_PROVISION_DNS_SUFFIX: &str = "provision.lexe.tech";
 
