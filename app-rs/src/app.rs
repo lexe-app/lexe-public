@@ -67,14 +67,9 @@ impl App {
         // TODO(phlip9): load expected measurement from user settings
         let measurement = enclave::MOCK_MEASUREMENT;
 
-        let enclave_policy = attest::EnclavePolicy {
-            allow_debug: config.allow_debug_enclaves,
-            trusted_mrenclaves: Some(vec![measurement]),
-            trusted_mrsigner: config.enclave_signer(),
-        };
         let attest_verifier = attest::ServerCertVerifier {
             expect_dummy_quote: !config.use_sgx,
-            enclave_policy,
+            enclave_policy: config.enclave_trust_policy(measurement),
         };
 
         let user_key_pair = root_seed.derive_user_key_pair();
@@ -185,14 +180,9 @@ impl App {
 
         let gateway_url = config.gateway_url.clone();
         let use_sgx = config.use_sgx;
-        let enclave_policy = attest::EnclavePolicy {
-            allow_debug: config.allow_debug_enclaves,
-            trusted_mrenclaves: Some(vec![measurement]),
-            trusted_mrsigner: config.enclave_signer(),
-        };
         let attest_verifier = attest::ServerCertVerifier {
             expect_dummy_quote: !use_sgx,
-            enclave_policy,
+            enclave_policy: config.enclave_trust_policy(measurement),
         };
 
         let bearer_authenticator =
@@ -341,12 +331,18 @@ impl AppConfig {
         }
     }
 
-    /// The enclave signer we should expect for each deploy env. In Dev we set
-    /// this to `None` as we don't use the signer infra there.
-    pub fn enclave_signer(&self) -> Option<Measurement> {
-        match self.deploy_env {
-            DeployEnv::Prod | DeployEnv::Staging => Some(enclave::PROD_SIGNER),
-            DeployEnv::Dev => None,
+    pub fn enclave_trust_policy(
+        &self,
+        trusted_measurement: Measurement,
+    ) -> attest::EnclavePolicy {
+        let deploy_env = common::env::DeployEnv::from(self.deploy_env);
+        attest::EnclavePolicy {
+            allow_debug: self.allow_debug_enclaves,
+            trusted_mrenclaves: Some(vec![trusted_measurement]),
+            trusted_mrsigner: Some(enclave::expected_signer(
+                self.use_sgx,
+                deploy_env,
+            )),
         }
     }
 }

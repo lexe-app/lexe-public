@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
+    env::DeployEnv,
     hex::{self, FromHex},
     hexstr_or_bytes,
     rng::Crng,
@@ -30,6 +31,16 @@ pub const MOCK_MEASUREMENT: Measurement =
 
 pub const MOCK_SIGNER: Measurement =
     Measurement::new(*b"======= LEXE MOCK SIGNER =======");
+
+/// The enclave signer measurement our debug enclaves are signed with.
+/// This is also the measurement of the fortanix/rust-sgx dummy key:
+/// <https://github.com/fortanix/rust-sgx/blob/master/intel-sgx/enclave-runner/src/dummy.key>
+///
+/// Running an enclave with `run-sgx .. --debug` will automatically sign with
+/// this key just before running.
+pub const DEV_SIGNER: Measurement = Measurement::new(hex::decode_const(
+    b"9affcfae47b848ec2caf1c49b4b283531e1cc425f93582b36806e52a43d78d1a",
+));
 
 /// The enclave signer measurement our production enclaves should be signed
 /// with. Inside an enclave, retrieve the signer with
@@ -505,6 +516,19 @@ pub fn signer() -> Measurement {
         } else {
             mock::signer()
         }
+    }
+}
+
+/// Return the expected signer measurement by [`DeployEnv`] and whether we're in
+/// mock or sgx mode.
+pub const fn expected_signer(use_sgx: bool, env: DeployEnv) -> Measurement {
+    if use_sgx {
+        match env {
+            DeployEnv::Prod | DeployEnv::Staging => PROD_SIGNER,
+            DeployEnv::Dev => DEV_SIGNER,
+        }
+    } else {
+        MOCK_SIGNER
     }
 }
 
