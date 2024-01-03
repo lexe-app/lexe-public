@@ -57,8 +57,10 @@ pub const MOCK_MACHINE_ID: MachineId =
 
 /// In SGX enclaves, this is the current CPUSVN we commit to when
 /// sealing data.
+///
+/// Updated: 2024/01/03 - Linux SGX platform v2.21
 pub const MIN_SGX_CPUSVN: MinCpusvn =
-    MinCpusvn::new(hex::decode_const(b"08080e0dffff01000000000000000000"));
+    MinCpusvn::new(hex::decode_const(b"0c0c100fffff01000000000000000000"));
 
 // SGX platform feature flags vs masks
 //
