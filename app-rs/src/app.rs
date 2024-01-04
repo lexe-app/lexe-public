@@ -16,8 +16,7 @@ use common::{
         provision::NodeProvisionRequest,
         NodePk, NodePkProof, UserPk,
     },
-    attest,
-    client::{tls::dummy_lexe_ca_cert, GatewayClient, NodeClient},
+    client::{GatewayClient, NodeClient},
     constants, enclave,
     enclave::Measurement,
     rng::Crng,
@@ -67,11 +66,6 @@ impl App {
         // TODO(phlip9): load expected measurement from user settings
         let measurement = enclave::MOCK_MEASUREMENT;
 
-        let attest_verifier = attest::ServerCertVerifier {
-            expect_dummy_quote: !config.use_sgx,
-            enclave_policy: config.enclave_trust_policy(measurement),
-        };
-
         let user_key_pair = root_seed.derive_user_key_pair();
         let user_pk = *user_key_pair.public_key();
         let bearer_authenticator =
@@ -81,12 +75,12 @@ impl App {
 
         let node_client = NodeClient::new(
             rng,
+            config.use_sgx,
             &root_seed,
-            &measurement,
+            config.deploy_env.into(),
+            measurement,
             bearer_authenticator,
             gateway_client.clone(),
-            &dummy_lexe_ca_cert(),
-            attest_verifier,
         )
         .context("Failed to build NodeClient")?;
 
@@ -179,11 +173,6 @@ impl App {
         // build NodeClient
 
         let gateway_url = config.gateway_url.clone();
-        let use_sgx = config.use_sgx;
-        let attest_verifier = attest::ServerCertVerifier {
-            expect_dummy_quote: !use_sgx,
-            enclave_policy: config.enclave_trust_policy(measurement),
-        };
 
         let bearer_authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
@@ -192,12 +181,12 @@ impl App {
 
         let node_client = NodeClient::new(
             rng,
+            config.use_sgx,
             &root_seed,
-            &measurement,
+            config.deploy_env.into(),
+            measurement,
             bearer_authenticator,
             gateway_client.clone(),
-            &dummy_lexe_ca_cert(),
-            attest_verifier,
         )
         .context("Failed to build NodeClient")?;
 
@@ -313,7 +302,6 @@ pub struct AppConfig {
     pub network: common::cli::Network,
     pub gateway_url: String,
     pub use_sgx: bool,
-    pub allow_debug_enclaves: bool,
     pub app_data_dir: PathBuf,
     pub use_mock_secret_store: bool,
 }
@@ -328,21 +316,6 @@ impl AppConfig {
             deploy_env: self.deploy_env,
             network: self.network,
             use_sgx: self.use_sgx,
-        }
-    }
-
-    pub fn enclave_trust_policy(
-        &self,
-        trusted_measurement: Measurement,
-    ) -> attest::EnclavePolicy {
-        let deploy_env = common::env::DeployEnv::from(self.deploy_env);
-        attest::EnclavePolicy {
-            allow_debug: self.allow_debug_enclaves,
-            trusted_mrenclaves: Some(vec![trusted_measurement]),
-            trusted_mrsigner: Some(enclave::expected_signer(
-                self.use_sgx,
-                deploy_env,
-            )),
         }
     }
 }
@@ -361,8 +334,6 @@ impl From<Config> for AppConfig {
             network: network.into(),
             use_sgx,
         };
-        let allow_debug_enclaves = deploy_env == Dev;
-        let use_mock_secret_store = config.use_mock_secret_store;
 
         // The base app data directory.
         // See: dart fn [`path_provider.getApplicationSupportDirectory()`](https://pub.dev/documentation/path_provider/latest/path_provider/getApplicationSupportDirectory.html)
@@ -373,16 +344,12 @@ impl From<Config> for AppConfig {
         // "dev-regtest-dbg".
         let app_data_dir = base_app_data_dir.join(build.to_string());
 
-        match (
-            &deploy_env,
-            &network,
-            use_sgx,
-            allow_debug_enclaves,
-            use_mock_secret_store,
-        ) {
-            (Prod, Mainnet, true, false, false) => (),
-            (Staging, Testnet, true, false, false) => (),
-            (Dev, Testnet, _, _, _) | (Dev, Regtest, _, _, _) => (),
+        let use_mock_secret_store = config.use_mock_secret_store;
+
+        match (&deploy_env, &network, use_sgx, use_mock_secret_store) {
+            (Prod, Mainnet, true, false) => (),
+            (Staging, Testnet, true, false) => (),
+            (Dev, Testnet, _, _) | (Dev, Regtest, _, _) => (),
             _ => panic!("Unsupported app config combination: {build}"),
         }
 
@@ -391,7 +358,6 @@ impl From<Config> for AppConfig {
             network: network.into(),
             gateway_url,
             use_sgx,
-            allow_debug_enclaves,
             app_data_dir,
             use_mock_secret_store,
         }
