@@ -43,7 +43,8 @@ use crate::{
     attest, constants,
     constants::node_provision_dns,
     ed25519,
-    enclave::Measurement,
+    enclave::{self, Measurement},
+    env::DeployEnv,
     ln::{hashes::LxTxid, invoice::LxInvoice, payments::BasicPayment},
     rng::Crng,
     root_seed::RootSeed,
@@ -185,14 +186,14 @@ impl UnwindSafe for NodeClient {}
 impl RefUnwindSafe for NodeClient {}
 
 impl NodeClient {
-    pub fn new<R: Crng>(
-        rng: &mut R,
-        seed: &RootSeed,
-        measurement: &Measurement,
+    pub fn new(
+        rng: &mut impl Crng,
+        use_sgx: bool,
+        root_seed: &RootSeed,
+        deploy_env: DeployEnv,
+        measurement: Measurement,
         authenticator: Arc<BearerAuthenticator>,
         gateway_client: GatewayClient,
-        gateway_ca: &rustls::Certificate,
-        attest_verifier: attest::ServerCertVerifier,
     ) -> anyhow::Result<Self> {
         let mr_short = measurement.short();
         let provision_dns = node_provision_dns(&mr_short);
@@ -208,8 +209,25 @@ impl NodeClient {
         )
         .context("Invalid proxy config")?;
 
-        let tls =
-            tls::client_tls_config(rng, gateway_ca, seed, attest_verifier)?;
+        let enclave_policy = attest::EnclavePolicy {
+            allow_debug: deploy_env.is_dev(),
+            trusted_mrenclaves: Some(vec![measurement]),
+            trusted_mrsigner: Some(enclave::expected_signer(
+                use_sgx, deploy_env,
+            )),
+        };
+        let attest_verifier = attest::ServerCertVerifier {
+            expect_dummy_quote: !use_sgx,
+            enclave_policy,
+        };
+        // XXX(max): Use real cert
+        let gateway_ca = tls::dummy_lexe_ca_cert();
+        let tls = tls::client_tls_config(
+            rng,
+            &gateway_ca,
+            root_seed,
+            attest_verifier,
+        )?;
 
         let reqwest_client = reqwest::Client::builder()
             .proxy(proxy)
