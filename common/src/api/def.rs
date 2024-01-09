@@ -305,9 +305,13 @@ pub trait LexeNodeProvisionApi {
 /// Defines the api that the node exposes to the app during provisioning.
 #[async_trait]
 pub trait AppNodeProvisionApi {
+    /// Provision a node with the given [`Measurement`]. The provisioning node's
+    /// remote attestation will be checked against the given [`Measurement`].
+    ///
     /// POST /app/provision [`NodeProvisionRequest`] -> [`Empty`]
     async fn provision(
         &self,
+        measurement: Measurement,
         data: NodeProvisionRequest,
     ) -> Result<Empty, NodeApiError>;
 }
