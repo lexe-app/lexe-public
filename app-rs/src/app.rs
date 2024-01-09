@@ -63,9 +63,6 @@ impl App {
             Some(s) => s,
         };
 
-        // TODO(phlip9): load expected measurement from user settings
-        let measurement = enclave::MOCK_MEASUREMENT;
-
         let user_key_pair = root_seed.derive_user_key_pair();
         let user_pk = *user_key_pair.public_key();
         let bearer_authenticator =
@@ -78,7 +75,6 @@ impl App {
             config.use_sgx,
             &root_seed,
             config.deploy_env.into(),
-            measurement,
             bearer_authenticator,
             gateway_client.clone(),
         )
@@ -184,7 +180,6 @@ impl App {
             config.use_sgx,
             &root_seed,
             config.deploy_env.into(),
-            measurement,
             bearer_authenticator,
             gateway_client.clone(),
         )

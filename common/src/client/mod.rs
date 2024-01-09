@@ -1,5 +1,12 @@
-// TODO
+//! This module contains the code for the [`NodeClient`] and [`GatewayClient`]
+//! that the app uses to connect to the user node / gateway respectively, as
+//! well as related TLS configurations and certificates for both the client side
+//! (app) and server side (node/gateway).
+//!
+//! [`NodeClient`]: crate::client::NodeClient
+//! [`GatewayClient`]: crate::client::GatewayClient
 
+/// TLS certs.
 pub mod certs;
 /// TLS configurations for the client to the node.
 pub mod tls;
@@ -50,26 +57,34 @@ use crate::{
     root_seed::RootSeed,
 };
 
-/// The Lexe app's client to the gateway itself.
+/// The client to the gateway itself, i.e. requests terminate at the gateway.
 #[derive(Clone)]
 pub struct GatewayClient {
     rest: RestClient,
     gateway_url: String,
 }
 
-/// The Lexe app's client to the user node.
+/// The client to the user node.
 ///
 /// Requests are proxied via the gateway CONNECT proxies. These proxies avoid
 /// exposing user nodes to the public internet and enforce user authentication
 /// and other request rate limits.
+///
+/// - Requests made to running nodes use the Run-specific [`RestClient`] which
+///   includes a TLS configuration for [`RootSeed`]-based mTLS.
+/// - Requests made to provisioning nodes as a [`RestClient`] which is created
+///   on-the-fly. This is because it is necessary to include a TLS config which
+///   checks the server's remote attestation against a [`Measurement`] which is
+///   only known at provisioning time. This is also desirable because provision
+///   requests generally happen only once, so there is no need to maintain a
+///   connection pool after provisioning has complete.
 pub struct NodeClient {
+    gateway_client: GatewayClient,
     /// The [`RestClient`] used to communicate with a Run node.
     run_rest: RestClient,
-    /// The [`RestClient`] used to communicate with a Provision node.
-    provision_rest: RestClient,
-    gateway_client: GatewayClient,
-    provision_url: String,
     run_url: String,
+    use_sgx: bool,
+    deploy_env: DeployEnv,
     authenticator: Arc<BearerAuthenticator>,
 }
 
@@ -194,15 +209,11 @@ impl NodeClient {
         use_sgx: bool,
         root_seed: &RootSeed,
         deploy_env: DeployEnv,
-        measurement: Measurement,
         authenticator: Arc<BearerAuthenticator>,
         gateway_client: GatewayClient,
     ) -> anyhow::Result<Self> {
         let run_dns = constants::NODE_RUN_DNS;
         let run_url = format!("https://{run_dns}");
-        let mr_short = measurement.short();
-        let provision_dns = node_provision_dns(&mr_short);
-        let provision_url = format!("https://{provision_dns}");
 
         let run_rest = {
             let proxy = Self::proxy_config(
@@ -228,59 +239,31 @@ impl NodeClient {
             RestClient::from_preconfigured_client(reqwest_client)
         };
 
-        // TODO(max): Do this init on-the-fly
-        let provision_rest = {
-            let proxy = Self::proxy_config(
-                &gateway_client.gateway_url,
-                &provision_url,
-                authenticator.clone(),
-            )
-            .context("Invalid proxy config")?;
-
-            let enclave_policy = attest::EnclavePolicy {
-                allow_debug: deploy_env.is_dev(),
-                trusted_mrenclaves: Some(vec![measurement]),
-                trusted_mrsigner: Some(enclave::expected_signer(
-                    use_sgx, deploy_env,
-                )),
-            };
-            // XXX(max): Use real cert
-            let lexe_ca_cert = tls::dummy_lexe_ca_cert();
-            let tls = tls::client_provision_tls_config(
-                use_sgx,
-                &lexe_ca_cert,
-                enclave_policy,
-            )?;
-
-            let reqwest_client = reqwest::Client::builder()
-                .proxy(proxy)
-                .user_agent("lexe-node-client")
-                .use_preconfigured_tls(tls)
-                .timeout(API_REQUEST_TIMEOUT)
-                .build()
-                .context("Failed to build client")?;
-
-            RestClient::from_preconfigured_client(reqwest_client)
-        };
-
         Ok(Self {
-            run_rest,
-            provision_rest,
             gateway_client,
-            provision_url,
+            run_rest,
             run_url,
+            use_sgx,
+            deploy_env,
             authenticator,
         })
     }
 
-    /// User nodes are not exposed to the public internet. Instead a secure
-    /// tunnel is first established via the lexe gateway proxy to the user's
-    /// node only after they have successfully authenticated. Requests to the
-    /// user's node are then sent over the secure tunnel.
+    /// User nodes are not exposed to the public internet. Instead, a secure
+    /// tunnel (TLS) is first established via the lexe gateway proxy to the
+    /// user's node only after they have successfully authenticated with Lexe.
+    ///
+    /// Essentially, we have a TLS-in-TLS scheme:
+    ///
+    /// - The outer layer terminates at Lexe's gateway proxy and prevents the
+    ///   public internet from seeing auth tokens sent to the gateway proxy.
+    /// - The inner layer terminates inside the SGX enclave and prevents the
+    ///   Lexe operators from snooping on or tampering with data sent to/from
+    ///   the app <-> node.
     ///
     /// This function sets up a client-side [`reqwest::Proxy`] config which
-    /// looks for requests to the user node (i.e., urls starting with the fake
-    /// DNS name `{mr_short}.provision.lexe.app` or `run.lexe.app`) and
+    /// looks for requests to the user node (i.e., urls starting with one of the
+    /// fake DNS names `{mr_short}.provision.lexe.app` or `run.lexe.app`) and
     /// instructs `reqwest` to use an HTTPS CONNECT tunnel over which to send
     /// the requests.
     fn proxy_config(
@@ -353,22 +336,76 @@ impl NodeClient {
                 }
             })
     }
+
+    /// Builds a Provision-specific [`RestClient`] which can be used to make a
+    /// provision request to a provisioning node.
+    fn provision_rest_client(
+        &self,
+        measurement: Measurement,
+        provision_url: &str,
+    ) -> anyhow::Result<RestClient> {
+        let proxy = Self::proxy_config(
+            &self.gateway_client.gateway_url,
+            provision_url,
+            self.authenticator.clone(),
+        )
+        .context("Invalid proxy config")?;
+
+        let enclave_policy = attest::EnclavePolicy {
+            allow_debug: self.deploy_env.is_dev(),
+            trusted_mrenclaves: Some(vec![measurement]),
+            trusted_mrsigner: Some(enclave::expected_signer(
+                self.use_sgx,
+                self.deploy_env,
+            )),
+        };
+        // XXX(max): Use real cert
+        let lexe_ca_cert = tls::dummy_lexe_ca_cert();
+        let tls = tls::client_provision_tls_config(
+            self.use_sgx,
+            &lexe_ca_cert,
+            enclave_policy,
+        )?;
+
+        let reqwest_client = reqwest::Client::builder()
+            .proxy(proxy)
+            .user_agent("lexe-node-client")
+            .use_preconfigured_tls(tls)
+            .timeout(API_REQUEST_TIMEOUT)
+            .build()
+            .context("Failed to build client")?;
+
+        let provision_rest =
+            RestClient::from_preconfigured_client(reqwest_client);
+
+        Ok(provision_rest)
+    }
 }
 
 #[async_trait]
 impl AppNodeProvisionApi for NodeClient {
     async fn provision(
         &self,
-        // TODO(max): Use this
-        _measurement: Measurement,
+        measurement: Measurement,
         data: NodeProvisionRequest,
     ) -> Result<Empty, NodeApiError> {
+        let mr_short = measurement.short();
+        let provision_dns = node_provision_dns(&mr_short);
+        let provision_url = format!("https://{provision_dns}");
+
+        // Create rest client on the fly
+        let provision_rest = self
+            .provision_rest_client(measurement, &provision_url)
+            .context("Failed to build provision rest client")
+            .map_err(|e| NodeApiError {
+                kind: NodeErrorKind::Provision,
+                msg: format!("{e:#}"),
+            })?;
+
         self.ensure_authed().await?;
-        let provision_url = &self.provision_url;
-        let req = self
-            .provision_rest
+        let req = provision_rest
             .post(format!("{provision_url}/app/provision"), &data);
-        self.provision_rest.send(req).await
+        provision_rest.send(req).await
     }
 }
 
