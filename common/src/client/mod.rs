@@ -359,6 +359,8 @@ impl NodeClient {
 impl AppNodeProvisionApi for NodeClient {
     async fn provision(
         &self,
+        // TODO(max): Use this
+        _measurement: Measurement,
         data: NodeProvisionRequest,
     ) -> Result<Empty, NodeApiError> {
         self.ensure_authed().await?;

@@ -214,14 +214,15 @@ impl App {
             .transpose()
             .context("Could not encrypt root seed under password")?;
 
+        let provision_req = NodeProvisionRequest {
+            root_seed: root_seed_clone,
+            deploy_env: config.deploy_env.into(),
+            network: config.network,
+            google_auth_code,
+            encrypted_seed,
+        };
         node_client
-            .provision(NodeProvisionRequest {
-                root_seed: root_seed_clone,
-                deploy_env: config.deploy_env.into(),
-                network: config.network,
-                google_auth_code,
-                encrypted_seed,
-            })
+            .provision(measurement, provision_req)
             .await
             .context("Failed to provision node")?;
 
