@@ -43,6 +43,7 @@ use crate::{
             RunnerApiError,
         },
         fiat_rates::FiatRates,
+        models::LatestRelease,
         ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed, SealedSeedId},
         qs::{
@@ -388,4 +389,9 @@ pub trait AppNodeRunApi {
 pub trait AppGatewayApi {
     /// GET /app/v1/fiat_rates [`Empty`] -> [`FiatRates`]
     async fn get_fiat_rates(&self) -> Result<FiatRates, GatewayApiError>;
+
+    /// Get the measurement and semver version of the latest node release.
+    ///
+    /// GET /app/v1/latest_release [`Empty`] -> [`LatestRelease`]
+    async fn latest_release(&self) -> Result<LatestRelease, GatewayApiError>;
 }
