@@ -12,13 +12,12 @@ use anyhow::{anyhow, Context};
 use common::{
     api::{
         auth::{BearerAuthenticator, UserSignupRequest},
-        def::{AppBackendApi, AppNodeProvisionApi},
+        def::{AppBackendApi, AppGatewayApi, AppNodeProvisionApi},
         provision::NodeProvisionRequest,
         NodePk, NodePkProof, UserPk,
     },
     client::{GatewayClient, NodeClient},
-    constants, enclave,
-    enclave::Measurement,
+    constants,
     rng::Crng,
     root_seed::RootSeed,
     Secret,
@@ -121,33 +120,21 @@ impl App {
         // sample a new RootSeed
         let root_seed = RootSeed::from_rng(rng);
 
-        // TODO(phlip9): Get real measurement from gateway/backend
-        let measurement = enclave::MOCK_MEASUREMENT;
-
         // TODO(phlip9): Get real auth code by running the user through OAuth2
         let google_auth_code = None;
 
         // TODO(phlip9): Get encryption password by prompting the user
         let password = None;
 
-        Self::signup_custom(
-            rng,
-            config,
-            root_seed,
-            measurement,
-            google_auth_code,
-            password,
-        )
-        .await
+        Self::signup_custom(rng, config, root_seed, google_auth_code, password)
+            .await
     }
 
-    /// Allows signing up with a specific [`RootSeed`] and [`Measurement`],
-    /// useful in tests.
+    /// Allows signing up with a specific [`RootSeed`], useful in tests.
     pub async fn signup_custom<R: Crng>(
         rng: &mut R,
         config: AppConfig,
         root_seed: RootSeed,
-        measurement: Measurement,
         google_auth_code: Option<String>,
         password: Option<String>,
     ) -> anyhow::Result<Self> {
@@ -166,15 +153,12 @@ impl App {
             .sign_struct(&signup_req)
             .expect("Should never fail to serialize UserSignupRequest");
 
-        // build NodeClient
+        // build NodeClient, GatewayClient
 
         let gateway_url = config.gateway_url.clone();
-
         let bearer_authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
-
         let gateway_client = GatewayClient::new(gateway_url);
-
         let node_client = NodeClient::new(
             rng,
             config.use_sgx,
@@ -187,12 +171,14 @@ impl App {
 
         // TODO(phlip9): retries?
 
-        // signup the user
-
-        gateway_client
-            .signup(signed_signup_req.cloned())
-            .await
-            .context("Failed to signup user")?;
+        // signup the user and get the latest release
+        let (try_signup, try_latest_release) = tokio::join!(
+            gateway_client.signup(signed_signup_req.cloned()),
+            gateway_client.latest_release(),
+        );
+        try_signup.context("Failed to signup user")?;
+        let latest_release =
+            try_latest_release.context("Could not fetch latest measurement")?;
 
         // provision new node enclave
 
@@ -217,7 +203,7 @@ impl App {
             encrypted_seed,
         };
         node_client
-            .provision(measurement, provision_req)
+            .provision(latest_release.measurement, provision_req)
             .await
             .context("Failed to provision node")?;
 
