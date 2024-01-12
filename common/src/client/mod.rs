@@ -42,6 +42,7 @@ use crate::{
             BackendApiError, GatewayApiError, NodeApiError, NodeErrorKind,
         },
         fiat_rates::FiatRates,
+        models::LatestRelease,
         provision::NodeProvisionRequest,
         qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
         rest::{RequestBuilderExt, RestClient, API_REQUEST_TIMEOUT, GET, POST},
@@ -142,6 +143,14 @@ impl AppGatewayApi for GatewayClient {
         let req = self
             .rest
             .get(format!("{gateway_url}/app/v1/fiat_rates"), &Empty {});
+        self.rest.send(req).await
+    }
+
+    async fn latest_release(&self) -> Result<LatestRelease, GatewayApiError> {
+        let gateway_url = &self.gateway_url;
+        let req = self
+            .rest
+            .get(format!("{gateway_url}/app/v1/latest_release"), &Empty {});
         self.rest.send(req).await
     }
 }
