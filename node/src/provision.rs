@@ -4,7 +4,7 @@
 //! users and for existing users upgrading to new enclave versions.
 //!
 //! The intention of the provisioning process is for users to transfer their
-//! secure secrets into a trusted enclave version with the operator (lexe)
+//! secure secrets into a trusted enclave version without the operator (lexe)
 //! learning their secrets. These secrets include sensitive data like wallet
 //! private keys or mTLS certificates.
 //!
@@ -237,18 +237,17 @@ mod handlers {
     ) -> Result<Empty, NodeApiError> {
         debug!("Received provision request");
 
-        let sealed_seed_res = SealedSeed::seal_from_root_seed(
+        let sealed_seed = SealedSeed::seal_from_root_seed(
             &mut ctx.rng,
             &req.root_seed,
             req.deploy_env,
             req.network,
             ctx.measurement,
             ctx.machine_id,
-        );
-
-        let sealed_seed = sealed_seed_res.map_err(|err| NodeApiError {
+        )
+        .map_err(|e| NodeApiError {
             kind: NodeErrorKind::Provision,
-            msg: format!("{err:#}"),
+            msg: format!("{e:#}"),
         })?;
 
         // TODO(phlip9): [perf] could get the user to pass us their auth token
@@ -360,11 +359,20 @@ mod handlers {
             }
         };
 
-        // If no password-encrypted root seed was provided, we are done.
-        let encrypted_seed = match req.encrypted_seed {
-            None => return Ok(Empty {}),
-            Some(p) => p,
-        };
+        // If we are not allowed to access the Google VFS, we are done.
+        if !req.allow_gvfs_access {
+            // It is a usage error if they also provided a pw-encrypted seed.
+            if req.encrypted_seed.is_some() {
+                return Err(NodeApiError {
+                    kind: NodeErrorKind::Provision,
+                    msg: "A root seed backup was provided, but it cannot be \
+                        persisted because `allow_gvfs_access=false`"
+                        .to_owned(),
+                });
+            }
+
+            return Ok(Empty {});
+        }
 
         // See if we have a persisted gvfs root.
         let maybe_persisted_gvfs_root = persister::read_gvfs_root(
@@ -391,71 +399,92 @@ mod handlers {
                 msg: format!("Failed to init Google VFS: {e:#}"),
             })?;
 
-        // If we were given a new GVFS root to persist, persist it.
-        // This should only happen once.
-        if let Some(new_gvfs_root) = maybe_new_gvfs_root {
-            persister::persist_gvfs_root(
-                &mut ctx.rng,
-                &*ctx.backend_api,
-                &authenticator,
-                &vfs_master_key,
-                &new_gvfs_root,
-            )
-            .await
-            .map_err(|e| NodeApiError {
-                kind: NodeErrorKind::Provision,
-                msg: format!("Failed to persist new gvfs root: {e:#}"),
-            })?;
-        }
+        // Do the GVFS operations in an async closure so we have a chance to
+        // update the GDriveCredentials in Lexe's DB regardless of Ok/Err.
+        let do_gvfs_ops = async {
+            // If we were given a new GVFS root to persist, persist it.
+            // This should only happen once.
+            if let Some(new_gvfs_root) = maybe_new_gvfs_root {
+                persister::persist_gvfs_root(
+                    &mut ctx.rng,
+                    &*ctx.backend_api,
+                    &authenticator,
+                    &vfs_master_key,
+                    &new_gvfs_root,
+                )
+                .await
+                .map_err(|e| NodeApiError {
+                    kind: NodeErrorKind::Provision,
+                    msg: format!("Failed to persist new gvfs root: {e:#}"),
+                })?;
+            }
 
-        // See if an encrypted root seed backup already exists. This does not
-        // check whether the backup is well-formed, matches the current
-        // seed, etc.
-        let backup_exists = persister::password_encrypted_root_seed_exists(
-            &google_vfs,
-            req.network,
-        )
-        .await;
-
-        if !backup_exists {
-            // We should create a backup in GDrive.
-            persister::persist_password_encrypted_root_seed(
+            // See if a root seed backup already exists. This does not check
+            // whether the backup is well-formed, matches the current seed, etc.
+            let backup_exists = persister::password_encrypted_root_seed_exists(
                 &google_vfs,
                 req.network,
-                encrypted_seed,
             )
-            .await
-            .map_err(|e| NodeApiError {
-                kind: NodeErrorKind::Provision,
-                msg: format!("Failed to persist encrypted root seed: {e:#}"),
-            })?;
-        }
+            .await;
 
-        // If the GDriveCredentials were updated during our calls to GDrive,
-        // persist the updated credentials so we can possibly avoid a
-        // unnecessary refresh.
-        if let Ok(true) = credentials_rx.has_changed() {
-            let credentials_file = persister::encrypt_gdrive_credentials(
-                &mut ctx.rng,
-                &vfs_master_key,
-                &credentials_rx.borrow_and_update(),
-            );
-            persister::persist_file(
-                ctx.backend_api.as_ref(),
-                &authenticator,
-                &credentials_file,
-            )
-            .await
-            .map_err(|e| NodeApiError {
-                kind: NodeErrorKind::Provision,
-                msg: format!(
-                    "Could not persist updated GDrive credentials: {e:#}"
-                ),
-            })?;
-        }
+            // If no backup exists in GDrive, we should create one, or error if
+            // no pw-encrypted root seed was provided.
+            if !backup_exists {
+                let encrypted_seed =
+                    req.encrypted_seed.ok_or_else(|| NodeApiError {
+                        kind: NodeErrorKind::Provision,
+                        msg:
+                            "Missing pw-encrypted root seed backup in GDrive; \
+                            please provide one in another provision request"
+                                .to_owned(),
+                    })?;
 
-        // Provisioning is finally done.
-        Ok(Empty {})
+                persister::persist_password_encrypted_root_seed(
+                    &google_vfs,
+                    req.network,
+                    encrypted_seed,
+                )
+                .await
+                .map_err(|e| NodeApiError {
+                    kind: NodeErrorKind::Provision,
+                    msg: format!(
+                        "Failed to persist encrypted root seed: {e:#}"
+                    ),
+                })?;
+            }
+
+            Ok::<_, NodeApiError>(())
+        };
+        let try_gvfs_ops = do_gvfs_ops.await;
+
+        // If the GDriveCredentials were updated during the calls above, persist
+        // the updated credentials so we can avoid a unnecessary refresh.
+        let try_update_credentials =
+            if matches!(credentials_rx.has_changed(), Ok(true)) {
+                let credentials_file = persister::encrypt_gdrive_credentials(
+                    &mut ctx.rng,
+                    &vfs_master_key,
+                    &credentials_rx.borrow_and_update(),
+                );
+
+                persister::persist_file(
+                    ctx.backend_api.as_ref(),
+                    &authenticator,
+                    &credentials_file,
+                )
+                .await
+                .map_err(|e| NodeApiError {
+                    kind: NodeErrorKind::Provision,
+                    msg: format!(
+                        "Could not persist updated GDrive credentials: {e:#}"
+                    ),
+                })
+            } else {
+                Ok(())
+            };
+
+        // Finally done. Return the first of any errors, otherwise Ok(Empty {}).
+        try_gvfs_ops.and(try_update_credentials).map(|()| Empty {})
     }
 
     /// GET /lexe/shutdown [`GetByMeasurement`] -> [`()`]
@@ -573,6 +602,7 @@ mod test {
                 deploy_env,
                 network,
                 google_auth_code: None,
+                allow_gvfs_access: false,
                 encrypted_seed: None,
             };
             let app_client = reqwest::Client::builder()
