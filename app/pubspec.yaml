@@ -57,6 +57,7 @@ dependencies:
   freezed_annotation: ^2.4.1
 
   # International number, currency, and date formatting
+  google_sign_in: ^6.2.1
   intl: ^0.18.1
 
   # Used by the generated flutter_rust_bridge ffi bindings.
