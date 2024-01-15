@@ -19,7 +19,7 @@ use crate::{
     root_seed::RootSeed,
 };
 
-/// The client sends this provisioning request to the node.
+/// The client sends this request to the provisioning node.
 #[derive(Serialize, Deserialize)]
 // Only impl PartialEq in tests since root seed comparison is not constant time.
 #[cfg_attr(test, derive(PartialEq, Arbitrary))]
@@ -30,7 +30,7 @@ pub struct NodeProvisionRequest {
     pub deploy_env: DeployEnv,
     /// The [`Network`] that this [`RootSeed`] should be bound to.
     pub network: Network,
-    /// The auth `code` which can used to obtain a set of GDrive credentials
+    /// The auth `code` which can used to obtain a set of GDrive credentials.
     /// - Applicable only in staging/prod.
     /// - If provided, the provisioning node will acquire the full set of
     ///   GDrive credentials and persist them (encrypted ofc) in Lexe's DB.
@@ -38,25 +38,48 @@ pub struct NodeProvisionRequest {
     ///   GDrive credentials has already been persisted in Lexe's DB.
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_option_string()"))]
     pub google_auth_code: Option<String>,
-    /// The password-encrypted [`RootSeed`].
+    /// Whether this provision instance is allowed to access the user's
+    /// `GoogleVfs`. In order to ensure that different provision instances do
+    /// not overwrite each other's updates to the `GoogleVfs`, this paramater
+    /// must only be [`true`] for at most one provision instance at a time.
+    ///
+    /// - The mobile app must always set this to [`true`], and must ensure that
+    ///   it is only (re-)provisioning one instance at a time. Node version
+    ///   approval and revocation (which requires mutating the `GoogleVfs`) can
+    ///   only be handled if this is set to [`true`].
+    /// - Running nodes, which initiate root seed replication, must always set
+    ///   this to [`false`], so that replicating instances will not overwrite
+    ///   updates made by (re-)provisioning instances.
+    ///
+    /// NOTE that it is always possible that while this instance is
+    /// provisioning, the user's node is also running. Even when this parameter
+    /// is [`true`], the provision instance must be careful not to mutate
+    /// `GoogleVfs` data which can also be mutated by a running user node,
+    /// unless a persistence race between the provision and run modes is
+    /// acceptable.
+    ///
+    /// See `GoogleVfs::gid_cache` for more info on GVFS consistency.
+    pub allow_gvfs_access: bool,
+    /// The password-encrypted [`RootSeed`] which should be backed up in
+    /// GDrive.
     /// - Applicable only in staging/prod.
-    /// - If [`Some`], the node will back up this encrypted [`RootSeed`] in
-    ///   Google Drive. If a backup already exists, it is not overwritten.
+    /// - Requires [`allow_gvfs_access`]=[`true`] if [`Some`]; errors
+    ///   otherwise.
+    /// - If [`Some`], the provision instance will back up this encrypted
+    ///   [`RootSeed`] in Google Drive. If a backup already exists, it is not
+    ///   overwritten.
     /// - If [`None`], no API calls are made, and no validation is done,
     ///   including to check whether a backup exists.
+    /// - The mobile app should set this to [`Some`] at least on the very first
+    ///   provision. The mobile app can also pass [`None`] to avoid unnecessary
+    ///   work when it is known that the user already has a root seed backup.
+    /// - Replication (from running nodes) should always set this to [`None`].
+    /// - We require the client to password-encrypt prior to sending the
+    ///   provision request to prevent leaking the length of the password. It
+    ///   also shifts the burden of running the 600K HMAC iterations from the
+    ///   provision instance to the mobile app.
     ///
-    /// This parameter should be [`Some`] at least on the very first time that
-    /// a user provisions, and only occasionally thereafter (e.g. once
-    /// every upgrade). If the user is provisioning to multiple CPU
-    /// enclaves at the same time, this field should be [`Some`] for only
-    /// one of the requests, in order to prevent duplicate / conflicting
-    /// work. Otherwise, pass [`None`] to avoid unnecessary validation when it
-    /// is known that the user already has a root seed backed up.
-    ///
-    /// We require the client to password-encrypt prior to sending the
-    /// provision request to prevent leaking the length of the password. It
-    /// also allows the node to avoid running 600K HMAC iterations at
-    /// provision time.
+    /// [`allow_gvfs_access`]: Self::allow_gvfs_access
     #[serde(with = "hexstr_or_bytes_opt")]
     pub encrypted_seed: Option<Vec<u8>>,
 }
@@ -277,17 +300,13 @@ mod test {
     #[test]
     fn test_node_provision_request_sample() {
         let mut rng = WeakRng::from_u64(12345);
-        let root_seed = RootSeed::from_rng(&mut rng);
-        let network = Network::REGTEST;
-        let deploy_env = DeployEnv::Dev;
-        let google_auth_code = Some("auth_code".to_owned());
-        let encrypted_seed = None;
         let req = NodeProvisionRequest {
-            root_seed,
-            deploy_env,
-            network,
-            google_auth_code,
-            encrypted_seed,
+            root_seed: RootSeed::from_rng(&mut rng),
+            deploy_env: DeployEnv::Dev,
+            network: Network::REGTEST,
+            google_auth_code: Some("auth_code".to_owned()),
+            allow_gvfs_access: false,
+            encrypted_seed: None,
         };
         let actual = serde_json::to_value(&req).unwrap();
         let expected = serde_json::json!({
@@ -295,6 +314,7 @@ mod test {
             "deploy_env": "dev",
             "network": "regtest",
             "google_auth_code": "auth_code",
+            "allow_gvfs_access": false,
             "encrypted_seed": null,
         });
         assert_eq!(&actual, &expected);

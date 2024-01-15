@@ -200,6 +200,7 @@ impl App {
             deploy_env: config.deploy_env.into(),
             network: config.network,
             google_auth_code,
+            allow_gvfs_access: true,
             encrypted_seed,
         };
         node_client
