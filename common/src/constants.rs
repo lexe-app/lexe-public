@@ -35,10 +35,12 @@ pub const TESTNET_BLOCKSTREAM_ESPLORA: &str =
     "https://blockstream.info/testnet/api";
 pub const TESTNET_KUUTAMO_ESPLORA: &str =
     "https://esplora.testnet.kuutamo.cloud";
+pub const TESTNET_LTBL_ESPLORA: &str = "https://testnet-electrs.ltbl.io:3004";
 pub const TESTNET_LEXE_ESPLORA: &str = "http://testnet.esplora.lexe.app:3001";
-pub const TESTNET_ESPLORA_WHITELIST: [&str; 3] = [
+pub const TESTNET_ESPLORA_WHITELIST: [&str; 4] = [
     TESTNET_BLOCKSTREAM_ESPLORA,
     TESTNET_KUUTAMO_ESPLORA,
+    TESTNET_LTBL_ESPLORA,
     TESTNET_LEXE_ESPLORA,
 ];
 
@@ -69,14 +71,21 @@ pub fn lexe_distinguished_name_prefix() -> DistinguishedName {
 // Tip: You can see the full human-readable cert info with macOS Quick Look.
 pub const GOOGLE_CA_CERT_DER: &[u8] =
     include_bytes!("../data/google-trust-services-ca-cert.der");
+/// The root CA cert for Amazon's Root CA 1, used by `ltbl.io`.
+// Not Valid Before=Thursday, June 4, 2015 at 7:04:38 PM China Standard Time
+// Not Valid After=Monday, June 4, 2035 at 7:04:38 PM China Standard Time
+pub const LETSENCRYPT_ROOT_CA_CERT_DER: &[u8] =
+    include_bytes!("../data/letsencrypt-isrg-root-x1-cert.der");
 
 #[cfg(test)]
 mod test {
+    use reqwest::tls::Certificate;
+
     use super::*;
 
     #[test]
-    fn google_ca_cert_der_parses() {
-        use reqwest::tls::Certificate;
+    fn test_parse_ca_certs() {
         Certificate::from_der(GOOGLE_CA_CERT_DER).unwrap();
+        Certificate::from_der(LETSENCRYPT_ROOT_CA_CERT_DER).unwrap();
     }
 }
