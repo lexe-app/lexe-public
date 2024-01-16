@@ -2427,6 +2427,7 @@ dependencies = [
  "rcgen",
  "reqwest",
  "secrecy",
+ "semver",
  "serde",
  "serde_json",
  "sgx-panic-backtrace",

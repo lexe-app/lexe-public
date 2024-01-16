@@ -2,10 +2,21 @@ use std::include_bytes;
 
 use rcgen::{DistinguishedName, DnType};
 
-use crate::{api::ports::Port, enclave::MrShort};
+use crate::{
+    api::ports::Port,
+    const_assert,
+    enclave::{Measurement, MrShort},
+};
 
 pub const DEFAULT_CHANNEL_SIZE: usize = 256;
 pub const SMALLER_CHANNEL_SIZE: usize = 16;
+
+/// If a node release needs to be yanked, add its semver version and measurement
+/// here. See `node::approved_versions` for more info.
+// e.g. "0.1.0", "0.2.1-alpha.1".
+pub const YANKED_NODE_VERSIONS: [&str; 0] = [];
+pub const YANKED_NODE_MEASUREMENTS: [Measurement; 0] = [];
+const_assert!(YANKED_NODE_VERSIONS.len() == YANKED_NODE_MEASUREMENTS.len());
 
 /// The default number of persist retries for important objects.
 pub const IMPORTANT_PERSIST_RETRIES: usize = 5;

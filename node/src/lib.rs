@@ -23,6 +23,7 @@ pub mod cli;
 
 mod alias;
 mod api;
+mod approved_versions;
 mod channel_manager;
 mod event_handler;
 mod inactivity_timer;
