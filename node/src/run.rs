@@ -749,7 +749,7 @@ async fn fetch_provisioned_secrets(
 
     let (try_maybe_user, try_maybe_sealed_seed) = tokio::join!(
         backend_api.get_user(user_pk),
-        backend_api.get_sealed_seed(sealed_seed_id)
+        backend_api.get_sealed_seed(&sealed_seed_id)
     );
 
     let maybe_user = try_maybe_user.context("Error while fetching user")?;

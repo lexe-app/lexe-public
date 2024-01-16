@@ -75,7 +75,7 @@ pub trait NodeBackendApi {
     /// GET /node/v1/sealed_seed [`SealedSeedId`] -> [`Option<SealedSeed>`]
     async fn get_sealed_seed(
         &self,
-        data: SealedSeedId,
+        data: &SealedSeedId,
     ) -> Result<Option<SealedSeed>, BackendApiError>;
 
     /// PUT /node/v1/sealed_seed [`SealedSeed`] -> [`Empty`]
@@ -83,7 +83,7 @@ pub trait NodeBackendApi {
     /// Idempotent: does nothing if the [`SealedSeedId`] already exists.
     async fn create_sealed_seed(
         &self,
-        data: SealedSeed,
+        data: &SealedSeed,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 

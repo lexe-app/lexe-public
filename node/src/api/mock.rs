@@ -216,14 +216,14 @@ impl NodeBackendApi for MockBackendClient {
     /// Always return the dummy version
     async fn get_sealed_seed(
         &self,
-        data: SealedSeedId,
+        data: &SealedSeedId,
     ) -> Result<Option<SealedSeed>, BackendApiError> {
         Ok(Some(sealed_seed(&data.user_pk)))
     }
 
     async fn create_sealed_seed(
         &self,
-        _data: SealedSeed,
+        _data: &SealedSeed,
         _auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
         Ok(Empty {})
