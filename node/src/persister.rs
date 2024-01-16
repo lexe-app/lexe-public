@@ -72,6 +72,7 @@ use tracing::{debug, error, info, warn};
 use crate::{
     alias::{ChainMonitorType, ChannelManagerType},
     api::BackendApiClient,
+    approved_versions::ApprovedVersions,
     channel_manager::USER_CONFIG,
 };
 
@@ -237,6 +238,60 @@ pub(crate) async fn persist_password_encrypted_root_seed(
         .create_file(file)
         .await
         .context("Failed to create root seed file")?;
+
+    Ok(())
+}
+
+/// Read the [`ApprovedVersions`] list from Google Drive, if it exists.
+#[allow(dead_code)] // TODO(max): Remove
+pub(crate) async fn read_approved_versions(
+    google_vfs: &GoogleVfs,
+    vfs_master_key: &AesMasterKey,
+) -> anyhow::Result<Option<ApprovedVersions>> {
+    let file_id = VfsFileId::new(SINGLETON_DIRECTORY, "approved_versions");
+    let maybe_file = google_vfs
+        .get_file(&file_id)
+        .await
+        .context("Could not fetch approved versions file")?;
+
+    let approved_versions = match maybe_file {
+        Some(file) => persister::decrypt_json_file::<ApprovedVersions>(
+            vfs_master_key,
+            &file_id,
+            file,
+        )
+        .context("Failed to decrypt approved versions file")?,
+        None => return Ok(None),
+    };
+
+    Ok(Some(approved_versions))
+}
+
+/// Persists the given [`ApprovedVersions`] to GDrive.
+#[allow(dead_code)] // TODO(max): Remove
+pub(crate) async fn persist_approved_versions(
+    rng: &mut impl Crng,
+    google_vfs: &GoogleVfs,
+    vfs_master_key: &AesMasterKey,
+    approved_versions: &ApprovedVersions,
+) -> anyhow::Result<()> {
+    let file_id = VfsFileId::new(SINGLETON_DIRECTORY, "approved_versions");
+    // While encrypting this isn't totally necessary, it's a good safeguard in
+    // case a user's GDrive gets compromised and the attacker wants to force the
+    // user to approve an old (vulnerable) version. Adding this layer of
+    // encryption prevents the attacker from writing their own ApprovedVersions
+    // if they don't have access to the user's root seed.
+    let file = persister::encrypt_json(
+        rng,
+        vfs_master_key,
+        file_id,
+        approved_versions,
+    );
+
+    google_vfs
+        .upsert_file(file)
+        .await
+        .context("Failed to upsert approved versions file")?;
 
     Ok(())
 }

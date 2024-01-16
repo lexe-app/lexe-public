@@ -254,6 +254,7 @@ impl GoogleVfs {
     }
 
     /// Whether a file for the given [`VfsFileId`] exists.
+    /// This method only reads from the cache so it is essentially free.
     pub async fn file_exists(&self, vfile_id: &VfsFileId) -> bool {
         self.gid_cache.read().await.get(vfile_id).is_some()
     }
