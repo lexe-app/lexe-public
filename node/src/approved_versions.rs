@@ -59,7 +59,6 @@ impl ApprovedVersions {
     const MAX_SIZE: usize = 3;
 
     /// Get a new [`ApprovedVersions`] which is completely empty.
-    #[allow(dead_code)] // TODO(max): Remove
     pub(crate) fn new() -> Self {
         let approved = BTreeMap::new();
         Self { approved }
@@ -74,7 +73,6 @@ impl ApprovedVersions {
     ///
     /// Errors if the current version is too old to be approved, or if
     /// [`ApprovedVersions`] contains inconsistent data.
-    #[allow(dead_code)] // TODO(max): Remove
     pub(crate) fn approve_and_revoke(
         &mut self,
         user_pk: &UserPk,

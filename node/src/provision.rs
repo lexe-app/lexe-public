@@ -228,7 +228,11 @@ mod inject {
 
 /// API handlers.
 mod handlers {
+    use common::api::error::{BackendApiError, BackendErrorKind};
+    use tracing::warn;
+
     use super::*;
+    use crate::approved_versions::ApprovedVersions;
 
     /// POST /app/provision [`NodeProvisionRequest`] -> [`()`]
     pub(super) async fn provision(
@@ -275,6 +279,7 @@ mod handlers {
                 kind: NodeErrorKind::Provision,
                 msg: format!("Could not persist sealed seed: {e:#}"),
             })?;
+        let user_pk = sealed_seed.id.user_pk;
 
         if !req.deploy_env.is_staging_or_prod() {
             // If we're not in staging/prod, provisioning is done.
@@ -451,6 +456,79 @@ mod handlers {
                         "Failed to persist encrypted root seed: {e:#}"
                     ),
                 })?;
+            }
+
+            // Fetch the approved versions list or create an empty one.
+            let mut approved_versions =
+                persister::read_approved_versions(&google_vfs, &vfs_master_key)
+                    .await
+                    .map_err(|e| NodeApiError {
+                        kind: NodeErrorKind::Provision,
+                        msg: format!("Couldn't read approved versions: {e:#}"),
+                    })?
+                    .unwrap_or_else(ApprovedVersions::new);
+
+            // Approve the current version, revoke old/yanked versions, etc.
+            let (updated, revoked) = approved_versions
+                .approve_and_revoke(&user_pk, ctx.measurement)
+                .map_err(|e| NodeApiError {
+                    kind: NodeErrorKind::Provision,
+                    msg: format!("Error updating approved versions: {e:#}"),
+                })?;
+
+            // If the list was updated, we need to (re)persist it.
+            if updated {
+                persister::persist_approved_versions(
+                    &mut ctx.rng,
+                    &google_vfs,
+                    &vfs_master_key,
+                    &approved_versions,
+                )
+                .await
+                .map_err(|e| NodeApiError {
+                    kind: NodeErrorKind::Provision,
+                    msg: format!("Persist approved versions failed: {e:#}"),
+                })?;
+            }
+
+            // If any versions were revoked, delete their sealed seeds.
+            if !revoked.is_empty() {
+                // Ok to delete serially bc usually there's only 1
+                for (revoked_version, revoked_measurement) in revoked {
+                    let token = authenticator
+                        .get_token(ctx.backend_api.as_ref(), SystemTime::now())
+                        .await
+                        .map_err(|e| NodeApiError {
+                            kind: NodeErrorKind::BadAuth,
+                            msg: format!("{e:#}"),
+                        })?;
+                    let try_delete = ctx
+                        .backend_api
+                        .delete_sealed_seeds(revoked_measurement, token.clone())
+                        .await;
+
+                    match try_delete {
+                        Ok(_) => info!(
+                            %user_pk, %revoked_version, %revoked_measurement,
+                            "Deleted revoked sealed seed"
+                        ),
+                        Err(BackendApiError {
+                            kind: BackendErrorKind::NotFound,
+                            msg,
+                        }) => warn!(
+                            %user_pk, %revoked_version, %revoked_measurement,
+                            "Failed to delete revoked sealed seeds: \
+                             revoked measurement wasn't found in DB: {msg}"
+                        ),
+                        Err(e) =>
+                            return Err(NodeApiError {
+                                kind: NodeErrorKind::Provision,
+                                msg: format!(
+                                    "Error deleting revoked sealed seeds: {e:#}"
+                                ),
+                            }),
+                    }
+                }
             }
 
             Ok::<_, NodeApiError>(())

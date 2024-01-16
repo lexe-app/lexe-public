@@ -243,7 +243,6 @@ pub(crate) async fn persist_password_encrypted_root_seed(
 }
 
 /// Read the [`ApprovedVersions`] list from Google Drive, if it exists.
-#[allow(dead_code)] // TODO(max): Remove
 pub(crate) async fn read_approved_versions(
     google_vfs: &GoogleVfs,
     vfs_master_key: &AesMasterKey,
@@ -268,7 +267,6 @@ pub(crate) async fn read_approved_versions(
 }
 
 /// Persists the given [`ApprovedVersions`] to GDrive.
-#[allow(dead_code)] // TODO(max): Remove
 pub(crate) async fn persist_approved_versions(
     rng: &mut impl Crng,
     google_vfs: &GoogleVfs,
