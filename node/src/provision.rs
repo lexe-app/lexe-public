@@ -269,7 +269,7 @@ mod handlers {
 
         // store the sealed seed and new node metadata in the backend
         ctx.backend_api
-            .create_sealed_seed(sealed_seed, token)
+            .create_sealed_seed(&sealed_seed, token)
             .await
             .map_err(|e| NodeApiError {
                 kind: NodeErrorKind::Provision,

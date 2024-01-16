@@ -148,24 +148,24 @@ impl NodeBackendApi for BackendClient {
     // not authenticated, node calls this to get sealed seed on startup
     async fn get_sealed_seed(
         &self,
-        data: SealedSeedId,
+        data: &SealedSeedId,
     ) -> Result<Option<SealedSeed>, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .get(format!("{backend}/node/v1/sealed_seed"), &data);
+            .get(format!("{backend}/node/v1/sealed_seed"), data);
         self.rest.send(req).await
     }
 
     async fn create_sealed_seed(
         &self,
-        data: SealedSeed,
+        data: &SealedSeed,
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .put(format!("{backend}/node/v1/sealed_seed"), &data)
+            .put(format!("{backend}/node/v1/sealed_seed"), data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }
