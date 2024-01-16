@@ -88,6 +88,8 @@ rust_decimal_macros = { version = "1", default-features = false }
 rustls = { version = "0.20", default-features = false }
 # A wrapper type for carefully handling secrets
 secrecy = "0.8"
+# SemVer version newtype for parsing and precedence
+semver = "1"
 # Serialization / deserialization framework
 serde = { version = "1", features = ["derive"] }
 serde_with = { version = "2", default-features = false }
