@@ -71,7 +71,7 @@ use crate::{
     peer_manager::NodePeerManager,
     persister,
     persister::NodePersister,
-    server,
+    server, SEMVER_VERSION,
 };
 
 // TODO(max): Move this to common::constants
@@ -245,8 +245,8 @@ impl UserNode {
         let persister = Arc::new(NodePersister::new(
             backend_api.clone(),
             authenticator,
-            vfs_master_key,
-            maybe_google_vfs,
+            vfs_master_key.clone(),
+            maybe_google_vfs.clone(),
             user,
             shutdown.clone(),
             channel_monitor_persister_tx,
@@ -261,23 +261,58 @@ impl UserNode {
             persister.clone(),
         ));
 
-        // Read network graph, wallet db, scid, and payments
+        // A closure to read the approved versions list if we have a gvfs.
+        let read_maybe_approved_versions = async {
+            let google_vfs = match maybe_google_vfs {
+                None => return Ok(None),
+                Some(ref gvfs) => gvfs,
+            };
+            persister::read_approved_versions(google_vfs, &vfs_master_key).await
+        };
+
+        // Read as much as possible concurrently to reduce init time
         let (wallet_db_persister_tx, wallet_db_persister_rx) =
             mpsc::channel(SMALLER_CHANNEL_SIZE);
         #[rustfmt::skip] // Does not respect 80 char line width
         let (
+            try_maybe_approved_versions,
             try_network_graph,
             try_wallet_db,
             try_scid,
             try_pending_payments,
             try_finalized_payment_ids,
         ) = tokio::join!(
+            read_maybe_approved_versions,
             persister.read_network_graph(network, logger.clone()),
             persister.read_wallet_db(wallet_db_persister_tx),
             persister.read_scid(),
             persister.read_pending_payments(),
             persister.read_finalized_payment_ids(),
         );
+        if deploy_env.is_staging_or_prod() {
+            let maybe_approved_versions = try_maybe_approved_versions
+                .context("Couldn't read approved versions")?;
+            // Erroring here prevents an attacker with access to a target user's
+            // gdrive from deleting the user's approved versions list in an
+            // attempt to roll back the user to an older vulnerable version.
+            let approved_versions = maybe_approved_versions.context(
+                "No approved versions list found; \
+                 for safety we'll assume that *nothing* has been approved; \
+                 shutting down.",
+            )?;
+            let current_version = semver::Version::parse(SEMVER_VERSION)
+                .expect("Checked in approved_versions tests");
+            let approved_measurement =
+                approved_versions.approved.get(&current_version).context(
+                    "Current version not found in approved versions list; \
+                     we are not authorized to run; shutting down.",
+                )?;
+            ensure!(
+                *approved_measurement == measurement,
+                "Current measurement doesn't match approved measurement: \
+                {approved_measurement}",
+            );
+        }
         let network_graph = try_network_graph
             .map(Arc::new)
             .context("Could not read network graph")?;
