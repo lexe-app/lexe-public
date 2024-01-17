@@ -36,7 +36,7 @@ pub struct SecretStore {
 impl SecretStore {
     #[cfg_attr(target_os = "android", allow(dead_code))]
     fn service_name(build: BuildFlavor) -> String {
-        format!("tech.lexe.lexeapp.{build}")
+        format!("app.lexe.lexeapp.{build}")
     }
 
     /// Create a new `SecretStore`.
