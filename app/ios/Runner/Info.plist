@@ -22,6 +22,17 @@
 	<string>$(FLUTTER_BUILD_NAME)</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.495704988639-ook7rjckct44o668nt1f58sd3bharq2p</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
@@ -51,5 +62,9 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>GIDClientID</key>
+	<string>495704988639-ook7rjckct44o668nt1f58sd3bharq2p.apps.googleusercontent.com</string>
+	<key>GIDServerClientID</key>
+	<string>495704988639-19bfg8k5f3runiio4apbicpounc10gh1.apps.googleusercontent.com</string>
 </dict>
 </plist>

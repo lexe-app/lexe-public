@@ -5,6 +5,9 @@
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart' show FfiException;
 import 'package:meta/meta.dart' show immutable;
 
+/// [Result]s from the Rust FFI layer.
+typedef FfiResult<T> = Result<T, FfiError>;
+
 @immutable
 sealed class Result<T, E> {
   const Result();
@@ -178,9 +181,6 @@ final class Err<T, E> extends Result<T, E> {
   int get hashCode => this.err.hashCode;
 }
 
-/// [Result]s from the Rust FFI layer.
-typedef FfiResult<T> = Result<T, FfiError>;
-
 /// Used to extract only `anyhow::Result`s from Rust FFI layer exceptions.
 /// Rust panics are _not_ caught. Panics are not for control flow and are not
 /// meant to be recoverable.
@@ -204,4 +204,13 @@ final class FfiError implements Exception {
 
   @override
   String toString() => "FFI Error: $message";
+}
+
+final class MessageException implements Exception {
+  const MessageException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => this.message;
 }
