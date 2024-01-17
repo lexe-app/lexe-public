@@ -87,6 +87,16 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
+    /// Delete all sealed seeds which have the given measurement and the user_pk
+    /// of the authenticated user.
+    ///
+    /// DELETE /node/v1/sealed_seed [`GetByMeasurement`] -> [`Empty`]
+    async fn delete_sealed_seeds(
+        &self,
+        measurement: Measurement,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError>;
+
     /// GET /node/v1/scid [`GetByNodePk`] -> [`Option<Scid>`]
     ///
     /// [`GetByNodePk`]: crate::api::qs::GetByNodePk
