@@ -9,14 +9,15 @@ use common::{
         ports::Ports,
         provision::{SealedSeed, SealedSeedId},
         qs::{
-            GetByNodePk, GetByUserPk, GetNewPayments, GetPaymentByIndex,
-            GetPaymentsByIds,
+            GetByMeasurement, GetByNodePk, GetByUserPk, GetNewPayments,
+            GetPaymentByIndex, GetPaymentsByIds,
         },
         rest::{RequestBuilderExt, RestClient, POST},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Empty, NodePk, Scid, User, UserPk,
     },
     ed25519,
+    enclave::Measurement,
     ln::payments::{DbPayment, LxPaymentId},
 };
 
@@ -166,6 +167,20 @@ impl NodeBackendApi for BackendClient {
         let req = self
             .rest
             .put(format!("{backend}/node/v1/sealed_seed"), data)
+            .bearer_auth(&auth);
+        self.rest.send(req).await
+    }
+
+    async fn delete_sealed_seeds(
+        &self,
+        measurement: Measurement,
+        auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError> {
+        let backend = &self.backend_url;
+        let data = GetByMeasurement { measurement };
+        let req = self
+            .rest
+            .delete(format!("{backend}/node/v1/sealed_seed"), &data)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }

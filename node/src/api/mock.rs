@@ -27,7 +27,8 @@ use common::{
     byte_str::ByteStr,
     cli::Network,
     constants::{self, SINGLETON_DIRECTORY},
-    ed25519, enclave,
+    ed25519,
+    enclave::{self, Measurement},
     env::DeployEnv,
     ln::payments::{DbPayment, LxPaymentId, PaymentIndex, PaymentStatus},
     rng::SysRng,
@@ -224,6 +225,14 @@ impl NodeBackendApi for MockBackendClient {
     async fn create_sealed_seed(
         &self,
         _data: &SealedSeed,
+        _auth: BearerAuthToken,
+    ) -> Result<Empty, BackendApiError> {
+        Ok(Empty {})
+    }
+
+    async fn delete_sealed_seeds(
+        &self,
+        _measurement: Measurement,
         _auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError> {
         Ok(Empty {})
