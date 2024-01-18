@@ -38,6 +38,16 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kFormValidateBitcoinAddressConstMeta;
 
+  /// Validate whether `password` has an appropriate length.
+  ///
+  /// The return type is a bit funky: `Option<String>`. `None` means
+  /// `address_str` is valid, while `Some(msg)` means it is not (with given
+  /// error message). We return in this format to better match the flutter
+  /// `FormField` validator API.
+  String? formValidatePassword({required String password, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kFormValidatePasswordConstMeta;
+
   /// Init the Rust [`tracing`] logger. Also sets the current `RUST_LOG_TX`
   /// instance, which ships Rust logs over to the dart side for printing.
   ///

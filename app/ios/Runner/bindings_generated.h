@@ -76,6 +76,8 @@ WireSyncReturn wire_gen_client_payment_id(void);
 WireSyncReturn wire_form_validate_bitcoin_address(struct wire_uint_8_list *address_str,
                                                   int32_t current_network);
 
+WireSyncReturn wire_form_validate_password(struct wire_uint_8_list *password);
+
 void wire_init_rust_log_stream(int64_t port_, struct wire_uint_8_list *rust_log);
 
 WireSyncReturn wire_debug_delete_secret_store(struct wire_Config *config);
@@ -145,6 +147,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_network_from_str);
     dummy_var ^= ((int64_t) (void*) wire_gen_client_payment_id);
     dummy_var ^= ((int64_t) (void*) wire_form_validate_bitcoin_address);
+    dummy_var ^= ((int64_t) (void*) wire_form_validate_password);
     dummy_var ^= ((int64_t) (void*) wire_init_rust_log_stream);
     dummy_var ^= ((int64_t) (void*) wire_debug_delete_secret_store);
     dummy_var ^= ((int64_t) (void*) wire_load__static_method__AppHandle);

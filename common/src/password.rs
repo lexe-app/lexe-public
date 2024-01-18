@@ -21,7 +21,7 @@
 use std::num::NonZeroU32;
 
 use ring::pbkdf2;
-use secrecy::Secret;
+use secrecy::Zeroize;
 use thiserror::Error;
 
 use crate::{aes, aes::AesMasterKey, const_assert, rng::Crng};
@@ -141,7 +141,7 @@ fn derive_aes_key(password: &str, salt: &[u8; 32]) -> AesMasterKey {
     );
     let aes_key = AesMasterKey::new(&aes_key_buf);
     // Ensure AES key seed bytes are zeroized.
-    std::mem::drop(Secret::new(aes_key_buf));
+    aes_key_buf.zeroize();
     aes_key
 }
 
