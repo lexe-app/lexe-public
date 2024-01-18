@@ -82,6 +82,21 @@ fn wire_form_validate_bitcoin_address_impl(
         },
     )
 }
+fn wire_form_validate_password_impl(
+    password: impl Wire2Api<String> + UnwindSafe,
+) -> support::WireSyncReturn {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
+        WrapInfo {
+            debug_name: "form_validate_password",
+            port: None,
+            mode: FfiCallMode::Sync,
+        },
+        move || {
+            let api_password = password.wire2api();
+            Result::<_, ()>::Ok(form_validate_password(api_password))
+        },
+    )
+}
 fn wire_init_rust_log_stream_impl(
     port_: MessagePort,
     rust_log: impl Wire2Api<String> + UnwindSafe,
@@ -724,6 +739,13 @@ mod io {
         current_network: i32,
     ) -> support::WireSyncReturn {
         wire_form_validate_bitcoin_address_impl(address_str, current_network)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_form_validate_password(
+        password: *mut wire_uint_8_list,
+    ) -> support::WireSyncReturn {
+        wire_form_validate_password_impl(password)
     }
 
     #[no_mangle]

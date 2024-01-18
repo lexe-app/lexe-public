@@ -73,6 +73,7 @@ use common::{
         },
         ConfirmationPriority as ConfirmationPriorityRs,
     },
+    password,
     rng::SysRng,
 };
 use flutter_rust_bridge::{
@@ -80,6 +81,7 @@ use flutter_rust_bridge::{
     handler::{ReportDartErrorHandler, ThreadPoolExecutor},
     RustOpaque, StreamSink, SyncReturn,
 };
+use secrecy::Zeroize;
 
 pub use crate::app::App;
 use crate::{
@@ -397,6 +399,23 @@ pub fn form_validate_bitcoin_address(
     SyncReturn(match result {
         Ok(()) => None,
         Err(msg) => Some(msg),
+    })
+}
+
+/// Validate whether `password` has an appropriate length.
+///
+/// The return type is a bit funky: `Option<String>`. `None` means
+/// `address_str` is valid, while `Some(msg)` means it is not (with given
+/// error message). We return in this format to better match the flutter
+/// `FormField` validator API.
+pub fn form_validate_password(
+    mut password: String,
+) -> SyncReturn<Option<String>> {
+    let result = password::validate_password_len(&password);
+    password.zeroize();
+    SyncReturn(match result {
+        Ok(()) => None,
+        Err(err) => Some(err.to_string()),
     })
 }
 

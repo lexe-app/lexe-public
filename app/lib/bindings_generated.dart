@@ -100,6 +100,24 @@ class AppRsImpl implements AppRs {
         argNames: ["addressStr", "currentNetwork"],
       );
 
+  String? formValidatePassword({required String password, dynamic hint}) {
+    var arg0 = _platform.api2wire_String(password);
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner.wire_form_validate_password(arg0),
+      parseSuccessData: _wire2api_opt_String,
+      parseErrorData: null,
+      constMeta: kFormValidatePasswordConstMeta,
+      argValues: [password],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kFormValidatePasswordConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "form_validate_password",
+        argNames: ["password"],
+      );
+
   Stream<String> initRustLogStream({required String rustLog, dynamic hint}) {
     var arg0 = _platform.api2wire_String(rustLog);
     return _platform.executeStream(FlutterRustBridgeTask(
@@ -1012,6 +1030,21 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _wire_form_validate_bitcoin_address =
       _wire_form_validate_bitcoin_addressPtr.asFunction<
           WireSyncReturn Function(ffi.Pointer<wire_uint_8_list>, int)>();
+
+  WireSyncReturn wire_form_validate_password(
+    ffi.Pointer<wire_uint_8_list> password,
+  ) {
+    return _wire_form_validate_password(
+      password,
+    );
+  }
+
+  late final _wire_form_validate_passwordPtr = _lookup<
+      ffi.NativeFunction<
+          WireSyncReturn Function(
+              ffi.Pointer<wire_uint_8_list>)>>('wire_form_validate_password');
+  late final _wire_form_validate_password = _wire_form_validate_passwordPtr
+      .asFunction<WireSyncReturn Function(ffi.Pointer<wire_uint_8_list>)>();
 
   void wire_init_rust_log_stream(
     int port_,
