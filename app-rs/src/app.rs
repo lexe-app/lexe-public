@@ -20,14 +20,15 @@ use common::{
     constants,
     rng::Crng,
     root_seed::RootSeed,
-    Secret,
+    Apply, Secret,
 };
 use secrecy::ExposeSecret;
 use tracing::{info, instrument, warn};
 
 use crate::{
     bindings::{Config, DeployEnv, Network},
-    payments::{self, FlatFileFs, PaymentDb, PaymentSyncSummary},
+    ffs::FlatFileFs,
+    payments::{self, PaymentDb, PaymentSyncSummary},
     secret_store::SecretStore,
 };
 
@@ -80,9 +81,9 @@ impl App {
         .context("Failed to build NodeClient")?;
 
         let flat_fs = FlatFileFs::create_dir_all(config.payment_db_dir())?;
-        let payment_db = Mutex::new(
-            PaymentDb::read(flat_fs).context("Failed to load payment db")?,
-        );
+        let payment_db = PaymentDb::read(flat_fs)
+            .context("Failed to load payment db")?
+            .apply(Mutex::new);
 
         {
             let node_pk = root_seed.derive_node_pk(rng);

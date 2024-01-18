@@ -23,6 +23,8 @@ pub mod bindings_generated;
 /// The low-level handler `flutter_rust_bridge` calls to run dart tasks from the
 /// ffi bridge.
 mod dart_task_handler;
+/// `FlatFileFs` and `Ffs`.
+mod ffs;
 /// UI form input helpers.
 mod form;
 /// Pipe `tracing` log messages from native Rust to Dart.

@@ -25,14 +25,7 @@
 //! [`BasicPayment`]: common::ln::payments::BasicPayment
 //! [`PaymentDb`]: crate::payments::PaymentDb
 
-use std::{
-    fs,
-    io::{self, Read},
-    path::PathBuf,
-    str::FromStr,
-    string::ToString,
-    sync::Mutex,
-};
+use std::{io, str::FromStr, string::ToString, sync::Mutex};
 
 use anyhow::{format_err, Context};
 use common::{
@@ -46,9 +39,11 @@ use common::{
 use roaring::RoaringBitmap;
 use tracing::{instrument, warn};
 
+use crate::ffs::Ffs;
+
 /// The app's local [`BasicPayment`] database, synced from the user node.
-pub struct PaymentDb<V> {
-    vfs: V,
+pub struct PaymentDb<F> {
+    ffs: F,
     state: PaymentDbState,
 }
 
@@ -88,120 +83,6 @@ pub struct PaymentSyncSummary {
     num_new: usize,
 }
 
-/// Abstraction over a flat file system, suitable for mocking.
-pub trait Vfs {
-    fn read(&self, filename: &str) -> io::Result<Vec<u8>> {
-        let mut buf = Vec::new();
-        self.read_into(filename, &mut buf)?;
-        Ok(buf)
-    }
-    fn read_into(&self, filename: &str, buf: &mut Vec<u8>) -> io::Result<()>;
-
-    fn read_dir(&self) -> io::Result<Vec<String>> {
-        let mut filenames = Vec::new();
-        self.read_dir_visitor(|filename| {
-            filenames.push(filename.to_owned());
-            Ok(())
-        })?;
-        Ok(filenames)
-    }
-    fn read_dir_visitor(
-        &self,
-        dir_visitor: impl FnMut(&str) -> io::Result<()>,
-    ) -> io::Result<()>;
-
-    fn write(&self, filename: &str, data: &[u8]) -> io::Result<()>;
-
-    /// Delete all files and directories in the `Vfs`.
-    fn delete_all(&self) -> io::Result<()>;
-}
-
-/// File system impl for [`Vfs`] that does real IO.
-pub struct FlatFileFs {
-    base_dir: PathBuf,
-}
-
-// -- impl FlatFileFs -- //
-
-impl FlatFileFs {
-    fn new(base_dir: PathBuf) -> Self {
-        Self { base_dir }
-    }
-
-    /// Create a new `FlatFileFs` ready for use.
-    ///
-    /// Normally, it's expected that this directory already exists. In case that
-    /// directory doesn't exist, this fn will create `base_dir` and any parent
-    /// directories.
-    pub fn create_dir_all(base_dir: PathBuf) -> anyhow::Result<Self> {
-        fs::create_dir_all(&base_dir).with_context(|| {
-            format!("Failed to create directory ({})", base_dir.display())
-        })?;
-        Ok(Self::new(base_dir))
-    }
-
-    /// Create a new `FlatFileFs` at `base_dir`, but clean any existing files
-    /// first.
-    pub fn create_clean_dir_all(base_dir: PathBuf) -> anyhow::Result<Self> {
-        // Clean up any existing directory, if it exists.
-        if let Err(err) = fs::remove_dir_all(&base_dir) {
-            match err.kind() {
-                io::ErrorKind::NotFound => (),
-                _ => return Err(anyhow::Error::new(err))
-                    .with_context(|| {
-                        format!(
-                            "Something went wrong while trying to clean the directory ({})",
-                            base_dir.display(),
-                        )
-                    }),
-            }
-        }
-
-        Self::create_dir_all(base_dir)
-    }
-}
-
-impl Vfs for FlatFileFs {
-    fn read_into(&self, filename: &str, buf: &mut Vec<u8>) -> io::Result<()> {
-        let path = self.base_dir.join(filename);
-        let mut file = fs::File::open(path)?;
-        file.read_to_end(buf)?;
-        Ok(())
-    }
-
-    fn read_dir_visitor(
-        &self,
-        mut dir_visitor: impl FnMut(&str) -> io::Result<()>,
-    ) -> io::Result<()> {
-        for maybe_file_entry in self.base_dir.read_dir()? {
-            let file_entry = maybe_file_entry?;
-
-            // Only visit files.
-            if file_entry.file_type()?.is_file() {
-                // Just skip non-UTF-8 filenames.
-                if let Some(filename) = file_entry.file_name().to_str() {
-                    dir_visitor(filename)?;
-                }
-            }
-        }
-        Ok(())
-    }
-
-    fn write(&self, filename: &str, data: &[u8]) -> io::Result<()> {
-        // NOTE: could use `atomicwrites` crate to make this a little safer
-        // against random crashes. definitely not free though; costs at
-        // least 5 ms per write on Linux (while macOS just ignores fsyncs lol).
-        fs::write(self.base_dir.join(filename), data)?;
-        Ok(())
-    }
-
-    fn delete_all(&self) -> io::Result<()> {
-        fs::remove_dir_all(&self.base_dir)?;
-        fs::create_dir(&self.base_dir)?;
-        Ok(())
-    }
-}
-
 // -- impl PaymentDb -- //
 
 fn io_err_invalid_data<E>(err: E) -> io::Error
@@ -211,27 +92,27 @@ where
     io::Error::new(io::ErrorKind::InvalidData, err)
 }
 
-impl<V: Vfs> PaymentDb<V> {
+impl<F: Ffs> PaymentDb<F> {
     /// Create a new empty `PaymentDb`. Does not touch disk/storage.
-    pub fn empty(vfs: V) -> Self {
+    pub fn empty(ffs: F) -> Self {
         Self {
-            vfs,
+            ffs,
             state: PaymentDbState::empty(),
         }
     }
 
     /// Read all the payments on-disk into a new `PaymentDb`.
-    pub fn read(vfs: V) -> anyhow::Result<Self> {
-        let state = PaymentDbState::read(&vfs)
+    pub fn read(ffs: F) -> anyhow::Result<Self> {
+        let state = PaymentDbState::read(&ffs)
             .context("Failed to read on-disk PaymentDb state")?;
 
-        Ok(Self { vfs, state })
+        Ok(Self { ffs, state })
     }
 
     /// Clear the in-memory state and delete the on-disk payment db.
     pub fn delete(&mut self) -> io::Result<()> {
         self.state = PaymentDbState::empty();
-        self.vfs.delete_all()
+        self.ffs.delete_all()
     }
 
     #[inline]
@@ -252,7 +133,7 @@ impl<V: Vfs> PaymentDb<V> {
         self.state.debug_assert_invariants();
 
         // (2.)
-        let on_disk_state = PaymentDbState::read(&self.vfs)
+        let on_disk_state = PaymentDbState::read(&self.ffs)
             .expect("Failed to re-read on-disk state");
         assert_eq!(on_disk_state, self.state);
     }
@@ -260,12 +141,12 @@ impl<V: Vfs> PaymentDb<V> {
     /// Write a payment to on-disk storage. Does not update `PaymentDb` indexes
     /// or in-memory state though.
     // Making this an associated fn avoids some borrow checker issues.
-    fn write_payment(vfs: &V, payment: &BasicPayment) -> io::Result<()> {
+    fn write_payment(ffs: &F, payment: &BasicPayment) -> io::Result<()> {
         let idx = payment.index();
         let filename = idx.to_string();
         let data =
             serde_json::to_vec(&payment).expect("Failed to serialize payment");
-        vfs.write(&filename, &data)
+        ffs.write(&filename, &data)
     }
 
     /// Insert a batch of new payments synced from the user node.
@@ -316,7 +197,7 @@ impl<V: Vfs> PaymentDb<V> {
                 }
             }
 
-            Self::write_payment(&self.vfs, new_payment)?;
+            Self::write_payment(&self.ffs, new_payment)?;
 
             vec_idx += 1;
         }
@@ -373,7 +254,7 @@ impl<V: Vfs> PaymentDb<V> {
         }
 
         // Payment is changed; persist the updated payment to storage.
-        Self::write_payment(&self.vfs, &updated_payment)?;
+        Self::write_payment(&self.ffs, &updated_payment)?;
 
         // If the payment is now finalized, remove from pending payments index.
         if !updated_payment.is_pending() {
@@ -446,11 +327,11 @@ impl PaymentDbState {
         )
     }
 
-    fn read<V: Vfs>(vfs: &V) -> anyhow::Result<Self> {
+    fn read<F: Ffs>(ffs: &F) -> anyhow::Result<Self> {
         let mut buf: Vec<u8> = Vec::new();
         let mut payments: Vec<BasicPayment> = Vec::new();
 
-        vfs.read_dir_visitor(|filename| {
+        ffs.read_dir_visitor(|filename| {
             let payment_index = match PaymentIndex::from_str(filename) {
                 Ok(idx) => idx,
                 Err(err) => {
@@ -464,7 +345,7 @@ impl PaymentDbState {
             };
 
             buf.clear();
-            vfs.read_into(filename, &mut buf)?;
+            ffs.read_into(filename, &mut buf)?;
 
             let payment: BasicPayment = serde_json::from_slice(&buf)
                 .with_context(|| {
@@ -646,8 +527,8 @@ impl PaymentSyncSummary {
 ///
 /// (1.) Fetch any updates to our currently pending payments.
 /// (2.) Fetch any new payments made since our last sync.
-pub async fn sync_payments<V: Vfs, N: AppNodeRunApi>(
-    db: &Mutex<PaymentDb<V>>,
+pub async fn sync_payments<F: Ffs, N: AppNodeRunApi>(
+    db: &Mutex<PaymentDb<F>>,
     node: &N,
     batch_size: u16,
 ) -> anyhow::Result<PaymentSyncSummary> {
@@ -677,8 +558,8 @@ pub async fn sync_payments<V: Vfs, N: AppNodeRunApi>(
 /// updates. Returns 0 if nothing changed with the pending payments since our
 /// last sync.
 #[instrument(skip_all, name = "(pending)")]
-async fn sync_pending_payments<V: Vfs, N: AppNodeRunApi>(
-    db: &Mutex<PaymentDb<V>>,
+async fn sync_pending_payments<F: Ffs, N: AppNodeRunApi>(
+    db: &Mutex<PaymentDb<F>>,
     node: &N,
     batch_size: u16,
 ) -> anyhow::Result<usize> {
@@ -739,8 +620,8 @@ async fn sync_pending_payments<V: Vfs, N: AppNodeRunApi>(
 ///
 /// Returns the number of new payments.
 #[instrument(skip_all, name = "(new)")]
-async fn sync_new_payments<V: Vfs, N: AppNodeRunApi>(
-    db: &Mutex<PaymentDb<V>>,
+async fn sync_new_payments<F: Ffs, N: AppNodeRunApi>(
+    db: &Mutex<PaymentDb<F>>,
     node: &N,
     batch_size: u16,
 ) -> anyhow::Result<usize> {
@@ -819,26 +700,27 @@ mod test {
     use tempfile::tempdir;
 
     use super::*;
+    use crate::ffs::FlatFileFs;
 
     fn io_err_not_found(filename: &str) -> io::Error {
         io::Error::new(io::ErrorKind::NotFound, filename)
     }
 
     #[derive(Debug)]
-    struct MockVfs {
-        inner: RefCell<MockVfsInner>,
+    struct MockFfs {
+        inner: RefCell<MockFfsInner>,
     }
 
     #[derive(Debug)]
-    struct MockVfsInner {
+    struct MockFfsInner {
         rng: WeakRng,
         files: BTreeMap<String, Vec<u8>>,
     }
 
-    impl MockVfs {
+    impl MockFfs {
         fn new() -> Self {
             Self {
-                inner: RefCell::new(MockVfsInner {
+                inner: RefCell::new(MockFfsInner {
                     rng: WeakRng::new(),
                     files: BTreeMap::new(),
                 }),
@@ -847,7 +729,7 @@ mod test {
 
         fn from_rng(rng: WeakRng) -> Self {
             Self {
-                inner: RefCell::new(MockVfsInner {
+                inner: RefCell::new(MockFfsInner {
                     rng,
                     files: BTreeMap::new(),
                 }),
@@ -855,7 +737,7 @@ mod test {
         }
     }
 
-    impl Vfs for MockVfs {
+    impl Ffs for MockFfs {
         fn read_into(
             &self,
             filename: &str,
@@ -1020,16 +902,16 @@ mod test {
 
     #[test]
     fn read_from_empty() {
-        let mock_vfs = MockVfs::new();
-        let mock_vfs_db = PaymentDb::read(mock_vfs).unwrap();
-        assert!(mock_vfs_db.state.is_empty());
+        let mock_ffs = MockFfs::new();
+        let mock_ffs_db = PaymentDb::read(mock_ffs).unwrap();
+        assert!(mock_ffs_db.state.is_empty());
 
         let tempdir = tempdir().unwrap();
         let temp_fs = FlatFileFs::new(tempdir.path().to_path_buf());
         let temp_fs_db = PaymentDb::read(temp_fs).unwrap();
         assert!(temp_fs_db.state.is_empty());
 
-        assert_eq!(mock_vfs_db.state, temp_fs_db.state);
+        assert_eq!(mock_ffs_db.state, temp_fs_db.state);
     }
 
     fn arb_payments(
@@ -1105,17 +987,17 @@ mod test {
             let temp_fs = FlatFileFs::new(tempdir.path().to_path_buf());
             let mut temp_fs_db = PaymentDb::empty(temp_fs);
 
-            let mock_vfs = MockVfs::from_rng(rng);
-            let mut mock_vfs_db = PaymentDb::empty(mock_vfs);
+            let mock_ffs = MockFfs::from_rng(rng);
+            let mut mock_ffs_db = PaymentDb::empty(mock_ffs);
 
             let mut payments_iter = payments.clone().into_values();
             visit_batches(&mut payments_iter, batch_sizes, |new_payment_batch| {
-                mock_vfs_db.insert_new_payments(new_payment_batch.clone()).unwrap();
+                mock_ffs_db.insert_new_payments(new_payment_batch.clone()).unwrap();
                 temp_fs_db.insert_new_payments(new_payment_batch).unwrap();
             });
 
             assert_eq!(
-                mock_vfs_db.state().latest_payment_index(),
+                mock_ffs_db.state().latest_payment_index(),
                 payments.last_key_value().map(|(k, _v)| k),
             );
             assert_eq!(
@@ -1123,7 +1005,7 @@ mod test {
                 payments.last_key_value().map(|(k, _v)| k),
             );
 
-            assert_eq!(mock_vfs_db.state, temp_fs_db.state);
+            assert_eq!(mock_ffs_db.state, temp_fs_db.state);
         });
     }
 
@@ -1158,8 +1040,8 @@ mod test {
     #[tokio::test]
     async fn test_sync_empty() {
         let mock_node = MockNode::new(BTreeMap::new());
-        let mock_vfs = MockVfs::new();
-        let db = Mutex::new(PaymentDb::empty(mock_vfs));
+        let mock_ffs = MockFfs::new();
+        let db = Mutex::new(PaymentDb::empty(mock_ffs));
 
         sync_payments(&db, &mock_node, 5).await.unwrap();
 
@@ -1190,18 +1072,18 @@ mod test {
             let mut mock_node = MockNode::new(payments);
 
             let mut rng2 = WeakRng::from_u64(rng.next_u64());
-            let mock_vfs = MockVfs::from_rng(rng);
-            let db = Mutex::new(PaymentDb::empty(mock_vfs));
+            let mock_ffs = MockFfs::from_rng(rng);
+            let db = Mutex::new(PaymentDb::empty(mock_ffs));
 
             rt.block_on(sync_payments(&db, &mock_node, req_batch_size))
                 .unwrap();
 
             assert_db_payments_eq(&db.lock().unwrap().state.payments, &mock_node.payments);
 
-            // reread and resync db from vfs -- should not change
+            // reread and resync db from ffs -- should not change
 
-            let mock_vfs = db.into_inner().unwrap().vfs;
-            let db = Mutex::new(PaymentDb::read(mock_vfs).unwrap());
+            let mock_ffs = db.into_inner().unwrap().ffs;
+            let db = Mutex::new(PaymentDb::read(mock_ffs).unwrap());
 
             rt.block_on(sync_payments(&db, &mock_node, req_batch_size))
                 .unwrap();
