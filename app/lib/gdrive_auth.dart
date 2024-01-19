@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart' show GoogleSignIn;
-import 'package:lexeapp/logger.dart' show error;
 
-import '../../components.dart'
-    show HeadingText, LxBackButton, LxFilledButton, ScrollableSinglePageBody;
 import '../../result.dart' show MessageException;
-import '../../style.dart' show Space;
 
 // This `GoogleSignIn` class tracks the currently signed-in Google user (if any)
 // and let's us request Google oauth2 scopes (permissions). On iOS/macOS it
