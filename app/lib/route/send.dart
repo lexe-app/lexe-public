@@ -26,6 +26,7 @@ import '../../components.dart'
         LxCloseButton,
         LxCloseButtonKind,
         LxFilledButton,
+        MultistepFlow,
         ScrollableSinglePageBody,
         SubheadingText,
         ZigZag;
@@ -79,30 +80,8 @@ class SendPaymentPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final parentNavigator = Navigator.of(context);
-
-    return Navigator(
-      onGenerateRoute: (RouteSettings settings) {
-        info("SendPaymentPage: onGenerateRoute: $settings");
-
-        return MaterialPageRoute(
-          // This `PopScope` thing is so we can exit out of the sub-flow
-          // navigation once we're done. Without this, we just end up at a blank
-          // screen after completing the form. There's almost certainly a better
-          // way to do this.
-          builder: (context) => PopScope(
-            // Set this to false so we can control the `pop`
-            canPop: false,
-            onPopInvoked: (didPop) async {
-              info("SendPaymentPage: onPopInvoked");
-              parentNavigator.pop(true);
-            },
-            child: SendPaymentAddressPage(sendCtx: this.sendCtx),
-          ),
-          settings: settings,
-        );
-      },
-    );
+    return MultistepFlow(
+        builder: (_) => SendPaymentAddressPage(sendCtx: sendCtx));
   }
 }
 

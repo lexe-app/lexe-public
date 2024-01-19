@@ -68,6 +68,46 @@ class ScrollableSinglePageBody extends StatelessWidget {
   }
 }
 
+/// Start a new multistep UI flow.
+///
+/// This widget enables the Back button vs Close button logic, where the back
+/// button takes you back one page in the flow and the close button closes exits
+/// the flow entirely.
+///
+/// It works by creating a new child [Navigator] to contain the pages within the
+/// flow. The back button pops pages from this child [Navigator], while the
+/// close button pops the whole stack from the parent [Navigator].
+class MultistepFlow extends StatelessWidget {
+  const MultistepFlow({super.key, required this.builder});
+
+  final WidgetBuilder builder;
+
+  @override
+  Widget build(BuildContext context) {
+    final parentNavigator = Navigator.of(context);
+
+    return Navigator(
+      onGenerateRoute: (RouteSettings settings) {
+        return MaterialPageRoute(
+          // This `PopScope` thing is so we can exit out of the sub-flow
+          // navigation once we're done. Without this, we just end up at a blank
+          // screen after completing the form. There's almost certainly a better
+          // way to do this.
+          builder: (context) => PopScope(
+            // Set this to false so we can control the `pop`
+            canPop: false,
+            onPopInvoked: (didPop) async {
+              parentNavigator.pop(true);
+            },
+            child: builder(context),
+          ),
+          settings: settings,
+        );
+      },
+    );
+  }
+}
+
 /// A simple colored box that we can show while some real content is loading.
 ///
 /// The `width` and `height` are optional. If left `null`, that dimension will
