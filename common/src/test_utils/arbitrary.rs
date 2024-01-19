@@ -13,6 +13,7 @@ use proptest::{
     collection, prop_oneof,
     strategy::{Just, Strategy},
 };
+use semver::{BuildMetadata, Prerelease};
 
 use crate::api::NodePk;
 
@@ -278,6 +279,24 @@ pub fn any_mainnet_address() -> impl Strategy<Value = Address> {
         any_script().prop_map(|script| Address::p2wsh(&script, NET)),
         // TODO(phlip9): taproot
     ]
+}
+
+/// An `Arbitrary`-like [`Strategy`] for [`semver::Version`]s.
+/// Does not include prerelease or build metadata components.
+pub fn any_semver_version() -> impl Strategy<Value = semver::Version> {
+    (0..=u64::MAX, 0..=u64::MAX, 0..=u64::MAX).prop_map(
+        |(major, minor, patch)| {
+            let pre = Prerelease::EMPTY;
+            let build = BuildMetadata::EMPTY;
+            semver::Version {
+                major,
+                minor,
+                patch,
+                pre,
+                build,
+            }
+        },
+    )
 }
 
 #[cfg(test)]

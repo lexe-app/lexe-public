@@ -950,6 +950,7 @@ dependencies = [
  "rustls",
  "rustls-pemfile",
  "secrecy",
+ "semver",
  "serde",
  "serde_json",
  "serde_urlencoded",
