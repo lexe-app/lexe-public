@@ -61,6 +61,7 @@ ring.workspace = true
 rust_decimal.workspace = true
 rust_decimal_macros.workspace = true
 secrecy.workspace = true
+semver = { workspace = true, features = ["serde"] }
 serde.workspace = true
 serde_with = { workspace = true, features = ["macros"] }
 serde_json.workspace = true

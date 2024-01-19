@@ -6,14 +6,14 @@ use crate::enclave::Measurement;
 #[cfg(test)]
 use crate::test_utils::arbitrary;
 
-/// The measurement of the latest available release, and its semver version.
+/// The semver version and measurement of a node release.
 #[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
-pub struct LatestRelease {
-    pub measurement: Measurement,
+pub struct NodeRelease {
     /// e.g. "0.1.0", "0.0.0-dev.1"
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_string()"))]
-    pub version: String,
+    #[cfg_attr(test, proptest(strategy = "arbitrary::any_semver_version()"))]
+    pub version: semver::Version,
+    pub measurement: Measurement,
 }
 
 #[cfg(test)]
@@ -22,7 +22,7 @@ mod test {
     use crate::test_utils::roundtrip;
 
     #[test]
-    fn latest_release_roundtrip() {
-        roundtrip::json_value_canonical_proptest::<LatestRelease>();
+    fn node_release_roundtrip() {
+        roundtrip::json_value_canonical_proptest::<NodeRelease>();
     }
 }

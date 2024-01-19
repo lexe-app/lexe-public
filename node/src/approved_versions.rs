@@ -153,12 +153,12 @@ impl ApprovedVersions {
 
 #[cfg(test)]
 mod arbitrary_impl {
+    use common::test_utils::arbitrary;
     use proptest::{
         arbitrary::{any, Arbitrary},
         collection,
         strategy::{BoxedStrategy, Strategy},
     };
-    use semver::{BuildMetadata, Prerelease};
 
     use super::*;
 
@@ -169,32 +169,13 @@ mod arbitrary_impl {
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let size_range = 0..=ApprovedVersions::MAX_SIZE;
             let any_approved = collection::btree_map(
-                any_semver_version(),
+                arbitrary::any_semver_version(),
                 any::<Measurement>(),
                 size_range.clone(),
             );
 
             any_approved.prop_map(|approved| Self { approved }).boxed()
         }
-    }
-
-    /// An `Arbitrary`-like [`Strategy`] for [`semver::Version`]s.
-    /// Does not include prerelease or build metadata components; these are
-    /// not worth the effort just for testing a serde roundtrip.
-    fn any_semver_version() -> impl Strategy<Value = semver::Version> {
-        (0..=u64::MAX, 0..=u64::MAX, 0..=u64::MAX).prop_map(
-            |(major, minor, patch)| {
-                let pre = Prerelease::EMPTY;
-                let build = BuildMetadata::EMPTY;
-                semver::Version {
-                    major,
-                    minor,
-                    patch,
-                    pre,
-                    build,
-                }
-            },
-        )
     }
 }
 
