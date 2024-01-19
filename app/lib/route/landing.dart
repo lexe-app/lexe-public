@@ -192,14 +192,21 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
   Future<void> _onPressed() async {
     info("pressed create wallet button");
 
-    final Config config = this.widget.config;
-
     // disable button while signing up
     setState(() => this._disableButton = true);
 
+    await _doSignup();
+
+    setState(() => this._disableButton = false);
+  }
+
+  Future<void> _doSignup() async {
+    final Config config = this.widget.config;
+
+    // TODO(phlip9): full onboarding flow
+
     final result = await Result.tryFfiAsync(
         () async => AppHandle.signup(bridge: api, config: config));
-
     if (!this.mounted) return;
 
     final AppHandle app;
@@ -207,10 +214,7 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
       case Ok(:final ok):
         app = ok;
       case Err(:final err):
-        setState(() => this._disableButton = false);
         error("Failed to sign up and create wallet: $err");
-        // ScaffoldMessenger.of(context)
-        //     .showSnackBar(SnackBar(content: Text("$err")));
         return;
     }
 

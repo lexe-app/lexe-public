@@ -29,7 +29,8 @@ import '../../components.dart'
         MultistepFlow,
         ScrollableSinglePageBody,
         SubheadingText,
-        ZigZag;
+        ZigZag,
+        baseInputDecoration;
 import '../../currency_format.dart' as currency_format;
 import '../../date_format.dart' as date_format;
 import '../../input_formatter.dart'
@@ -84,21 +85,6 @@ class SendPaymentPage extends StatelessWidget {
         builder: (_) => SendPaymentAddressPage(sendCtx: sendCtx));
   }
 }
-
-const InputDecoration baseInputDecoration = InputDecoration(
-  hintStyle: TextStyle(color: LxColors.grey750),
-  filled: true,
-  fillColor: LxColors.clearB0,
-  // hoverColor: LxColors.clearB50,
-  // Remove left and right padding so we have more room for
-  // amount text.
-  contentPadding: EdgeInsets.symmetric(vertical: Space.s300),
-  // errorBorder: InputBorder.none,
-  focusedBorder: InputBorder.none,
-  // focusedErrorBorder: InputBorder.none,
-  disabledBorder: InputBorder.none,
-  enabledBorder: InputBorder.none,
-);
 
 class NextButton extends LxFilledButton {
   const NextButton({super.key, required super.onTap})
@@ -171,8 +157,8 @@ class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
     }
 
     // Actually try to parse as a bitcoin address.
-    // TODO(phlip9): this API should return a bare enum and flutter should
-    // handle converting that to a human-readable error message.
+    // TODO(phlip9): this API should return a bare error enum and flutter should
+    // convert that to a human-readable error message (for translations).
     final maybeErrMsg = api.formValidateBitcoinAddress(
       currentNetwork: this.widget.sendCtx.configNetwork,
       addressStr: addressStr,

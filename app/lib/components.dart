@@ -9,6 +9,21 @@ import '../../style.dart' show Fonts, LxColors, LxRadius, Space;
 
 typedef VoidContextCallback = void Function(BuildContext);
 
+const InputDecoration baseInputDecoration = InputDecoration(
+  hintStyle: TextStyle(color: LxColors.grey750),
+  filled: true,
+  fillColor: LxColors.clearB0,
+  // hoverColor: LxColors.clearB50,
+  // Remove left and right padding so we have more room for
+  // amount text.
+  contentPadding: EdgeInsets.symmetric(vertical: Space.s300),
+  // errorBorder: InputBorder.none,
+  focusedBorder: InputBorder.none,
+  // focusedErrorBorder: InputBorder.none,
+  disabledBorder: InputBorder.none,
+  enabledBorder: InputBorder.none,
+);
+
 /// A more robust body for a [Scaffold]. Use this widget when you expect the
 /// body area to almost always be in view, but can gracefully handle smaller
 /// viewports (like when the onscreen keyboard pops up).

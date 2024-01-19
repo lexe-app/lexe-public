@@ -44,6 +44,7 @@ import 'route/send.dart'
         SendPaymentConfirmPage,
         SendPaymentPage;
 import 'route/show_qr.dart' show ShowQrPage;
+import 'route/signup.dart' show SignupBackupPasswordPage, SignupPage;
 import 'route/wallet.dart' show WalletPage;
 import 'style.dart' show Fonts, LxColors, LxTheme, Space;
 
@@ -189,6 +190,9 @@ class LexeDesignHome extends StatelessWidget {
               feeEstimates: feeEstimates,
             ),
           ),
+          Component("SignupPage", (context) => SignupPage(config: config)),
+          Component("SignupBackupPasswordPage",
+              (context) => const SignupBackupPasswordPage()),
         ],
       ),
     );
