@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../bindings.dart' show api;
 import '../bindings_generated_api.dart' show AppHandle, Config;
 import '../components.dart'
     show
+        AnimatedFillButton,
         HeadingText,
         LxBackButton,
         LxCloseButton,
@@ -16,7 +19,7 @@ import '../components.dart'
 import '../gdrive_auth.dart' show GDriveAuthInfo, tryGDriveAuth;
 import '../logger.dart' show dbg, error, info;
 import '../result.dart' show Err, Ok, Result;
-import '../style.dart' show Fonts, Space;
+import '../style.dart' show Fonts, LxColors, Space;
 
 /// The entry point for the signup flow.
 class SignupPage extends StatelessWidget {
@@ -29,12 +32,14 @@ class SignupPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      MultistepFlow(builder: (_) => const SignupGDriveAuthPage());
+      MultistepFlow(builder: (_) => SignupGDriveAuthPage(config: config));
 }
 
 /// This page has a button to ask for the user's consent for GDrive permissions.
 class SignupGDriveAuthPage extends StatefulWidget {
-  const SignupGDriveAuthPage({super.key});
+  const SignupGDriveAuthPage({super.key, required this.config});
+
+  final Config config;
 
   @override
   State<StatefulWidget> createState() => _SignupGDriveAuthPageState();
@@ -60,7 +65,9 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
 
     // ignore: use_build_context_synchronously
     final AppHandle? flowResult = await Navigator.of(this.context).push(
-        MaterialPageRoute(builder: (_) => const SignupBackupPasswordPage()));
+        MaterialPageRoute(
+            builder: (_) => SignupBackupPasswordPage(
+                config: this.widget.config, authInfo: authInfo)));
     if (!this.mounted) return;
 
     if (flowResult != null) {
@@ -91,7 +98,11 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
 }
 
 class SignupBackupPasswordPage extends StatefulWidget {
-  const SignupBackupPasswordPage({super.key});
+  const SignupBackupPasswordPage(
+      {super.key, required this.config, required this.authInfo});
+
+  final Config config;
+  final GDriveAuthInfo authInfo;
 
   @override
   State<SignupBackupPasswordPage> createState() =>
@@ -101,6 +112,14 @@ class SignupBackupPasswordPage extends StatefulWidget {
 class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
   final GlobalKey<FormFieldState<String>> passwordFieldKey = GlobalKey();
   final GlobalKey<FormFieldState<String>> confirmPasswordFieldKey = GlobalKey();
+
+  final ValueNotifier<bool> isSigningUp = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    this.isSigningUp.dispose();
+    super.dispose();
+  }
 
   Result<String, String?> validatePassword(String? password) {
     if (password == null || password.isEmpty) {
@@ -133,8 +152,12 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
   }
 
   Future<void> onSubmit() async {
+    // Ignore press while signing up
+    if (this.isSigningUp.value) return;
+
+    final passwordIsValid = this.passwordFieldKey.currentState!.validate();
     final fieldState = this.confirmPasswordFieldKey.currentState!;
-    if (!fieldState.validate()) {
+    if (!passwordIsValid || !fieldState.validate()) {
       return;
     }
 
@@ -146,7 +169,29 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
         return;
     }
 
-    info("signing up: '$password'");
+    info("SignupBackupPasswordPage: ready to sign up");
+
+    this.isSigningUp.value = true;
+
+    final result = await Result.tryFfiAsync(
+      () async => AppHandle.signup(
+        bridge: api,
+        config: this.widget.config,
+        googleAuthCode: this.widget.authInfo.authCode,
+        password: password,
+      ),
+    );
+    if (!this.mounted) return;
+
+    this.isSigningUp.value = false;
+
+    switch (result) {
+      case Ok(:final ok):
+        // ignore: use_build_context_synchronously
+        unawaited(Navigator.of(this.context).maybePop(ok));
+      case Err(:final err):
+        error("Failed to signup: $err");
+    }
   }
 
   @override
@@ -205,10 +250,29 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
           ),
           const SizedBox(height: Space.s800),
         ],
-        bottom: LxFilledButton(
-          label: const Text("Sign up"),
-          icon: const Icon(Icons.arrow_forward_rounded),
-          onTap: () {},
+        bottom: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.end,
+          verticalDirection: VerticalDirection.down,
+          children: [
+            const Expanded(child: SizedBox(height: Space.s500)),
+
+            // Disable the button and show a loading indicator while sending the
+            // request.
+            ValueListenableBuilder(
+              valueListenable: this.isSigningUp,
+              builder: (context, isSending, widget) => AnimatedFillButton(
+                label: const Text("Sign up"),
+                icon: const Icon(Icons.arrow_forward_rounded),
+                onTap: this.onSubmit,
+                loading: isSending,
+                style: FilledButton.styleFrom(
+                  backgroundColor: LxColors.moneyGoUp,
+                  foregroundColor: LxColors.grey1000,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

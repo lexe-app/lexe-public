@@ -123,6 +123,74 @@ class MultistepFlow extends StatelessWidget {
   }
 }
 
+/// It animates into a shortened button with a loading indicator inside when
+/// we're e.g. sending a payment request and awaiting the response.
+class AnimatedFillButton extends StatefulWidget {
+  const AnimatedFillButton({
+    super.key,
+    required this.onTap,
+    required this.loading,
+    required this.label,
+    required this.icon,
+    this.style,
+  });
+
+  final VoidCallback? onTap;
+  final bool loading;
+  final Widget label;
+  final Widget icon;
+  final ButtonStyle? style;
+
+  bool get enabled => this.onTap != null;
+
+  @override
+  State<AnimatedFillButton> createState() => _AnimatedFillButtonState();
+}
+
+class _AnimatedFillButtonState extends State<AnimatedFillButton> {
+  @override
+  Widget build(BuildContext context) {
+    final loading = this.widget.loading;
+
+    // When we're loading, we:
+    // (1) shorten and disable the button width
+    // (2) replace the button label with a loading indicator
+    // (3) hide the button icon
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.decelerate,
+      // We need to set a maximum width, since we can't interpolate between an
+      // unbounded width and a finite width.
+      width: (!loading) ? 450.0 : Space.s900,
+      child: LxFilledButton(
+        // Disable the button while loading.
+        onTap: (!loading) ? this.widget.onTap : null,
+        label: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 150),
+          child: (!loading)
+              ? this.widget.label
+              : const Center(
+                  child: SizedBox.square(
+                    dimension: Fonts.size300,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.0,
+                      color: LxColors.clearB200,
+                    ),
+                  ),
+                ),
+        ),
+        icon: AnimatedOpacity(
+          opacity: (!loading) ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 150),
+          child: this.widget.icon,
+        ),
+        style: this.widget.style,
+      ),
+    );
+  }
+}
+
 /// A simple colored box that we can show while some real content is loading.
 ///
 /// The `width` and `height` are optional. If left `null`, that dimension will
