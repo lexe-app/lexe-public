@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:google_sign_in/google_sign_in.dart' show GoogleSignIn;
+import 'package:google_sign_in/google_sign_in.dart'
+    show GoogleSignIn, GoogleSignInAccount;
 
-import '../../result.dart' show MessageException;
+import '../../result.dart';
 
 // This `GoogleSignIn` class tracks the currently signed-in Google user (if any)
 // and let's us request Google oauth2 scopes (permissions). On iOS/macOS it
@@ -24,7 +25,7 @@ final _googleSignIn = GoogleSignIn(
   scopes: ["https://www.googleapis.com/auth/drive.file"],
 );
 
-/// After successfully getting user consent
+/// Returned from Google OAuth 2 after getting user consent.
 @immutable
 final class GDriveAuthInfo {
   const GDriveAuthInfo({required this.authCode});
@@ -32,38 +33,58 @@ final class GDriveAuthInfo {
   final String authCode;
 }
 
-/// Open a browser window to request user consent for GDrive file permissions.
-///
-/// - On success, returns a [GDriveAuthInfo], which contains an auth code that
-///   the backend user enclave can use to get real access+refresh tokens.
-/// - If the user cancels, returns null.
-/// - May throw an [Exception].
-///
-/// This flow lets us access GDrive from the remote enclave while doing the
-/// authn+authz in the mobile app. Each platform is configured with a
-/// "serverClientId", which is the oauth client id used by our backend node
-/// enclaves. This id is different from the "clientId"; in fact, each client
-/// platform actually has its own separate clientId.
-///
-/// The `serverAuthCode` we get here on the client is a one-time use
-/// auth code that we can exchange on the node enclave for an access+refresh
-/// token. We use those tokens inside the enclave to access GDrive on behalf of
-/// the user.
-///
-/// Docs: <https://developers.google.com/identity/sign-in/ios/offline-access>
-/// Android config: <../../android/app/src/main/res/values/strings.xml>
-/// iOS config: <../../ios/Runner/Info.plist>
-/// macOS config: <../../macos/Runner/Info.plist>
-Future<GDriveAuthInfo?> tryGDriveAuth() async {
-  final account = await _googleSignIn.signIn();
-  // Can be null if user canceled sign, rejected consent, hit back button, etc...
-  if (account == null) return null;
+abstract interface class GDriveAuth {
+  static const GDriveAuth prod = ProdGDriveAuth();
 
-  final serverAuthCode = account.serverAuthCode;
-  if (serverAuthCode == null) {
-    // This only seems to happen when our app is misconfigured
-    throw const MessageException("response is missing serverAuthCode");
+  /// Open a browser window to request user consent for GDrive file permissions.
+  ///
+  /// - On success, returns a [GDriveAuthInfo], which contains an auth code that
+  ///   the backend user enclave can use to get real access+refresh tokens.
+  /// - If the user cancels, returns null.
+  /// - May throw an [Exception].
+  ///
+  /// This flow lets us access GDrive from the remote enclave while doing the
+  /// authn+authz in the mobile app. Each platform is configured with a
+  /// "serverClientId", which is the oauth client id used by our backend node
+  /// enclaves. This id is different from the "clientId"; in fact, each client
+  /// platform actually has its own separate clientId.
+  ///
+  /// The `serverAuthCode` we get here on the client is a one-time use
+  /// auth code that we can exchange on the node enclave for an access+refresh
+  /// token. We use those tokens inside the enclave to access GDrive on behalf
+  /// of the user.
+  ///
+  /// Docs: <https://developers.google.com/identity/sign-in/ios/offline-access>
+  /// Android config: <../../android/app/src/main/res/values/strings.xml>
+  /// iOS config: <../../ios/Runner/Info.plist>
+  /// macOS config: <../../macos/Runner/Info.plist>
+  Future<Result<GDriveAuthInfo?, Exception>> tryAuth();
+}
+
+class ProdGDriveAuth implements GDriveAuth {
+  const ProdGDriveAuth();
+
+  @override
+  Future<Result<GDriveAuthInfo?, Exception>> tryAuth() async {
+    final result = await Result.tryAsync<GoogleSignInAccount?, Exception>(
+        _googleSignIn.signIn);
+
+    final String? serverAuthCode;
+    switch (result) {
+      case Ok(:final ok):
+        // Can be null if user canceled sign, rejected consent, hit back button
+        if (ok == null) return const Ok(null);
+        serverAuthCode = ok.serverAuthCode;
+      case Err(:final err):
+        return Err(err);
+    }
+
+    if (serverAuthCode == null) {
+      // This should only happen when our app is misconfigured (missing
+      // serverClientId configuration).
+      throw StateError("response is missing serverAuthCode");
+    }
+
+    return Ok(GDriveAuthInfo(authCode: serverAuthCode));
   }
-
-  return GDriveAuthInfo(authCode: serverAuthCode);
 }
