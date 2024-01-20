@@ -205,8 +205,14 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
 
     // TODO(phlip9): full onboarding flow
 
-    final result = await Result.tryFfiAsync(
-        () async => AppHandle.signup(bridge: api, config: config));
+    const googleAuthCode = "dummy";
+    const password = "dummy";
+
+    final result = await Result.tryFfiAsync(() async => AppHandle.signup(
+        bridge: api,
+        config: config,
+        googleAuthCode: googleAuthCode,
+        password: password));
     if (!this.mounted) return;
 
     final AppHandle app;

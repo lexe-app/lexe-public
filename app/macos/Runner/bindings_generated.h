@@ -88,7 +88,10 @@ void wire_restore__static_method__AppHandle(int64_t port_,
                                             struct wire_Config *config,
                                             struct wire_uint_8_list *seed_phrase);
 
-void wire_signup__static_method__AppHandle(int64_t port_, struct wire_Config *config);
+void wire_signup__static_method__AppHandle(int64_t port_,
+                                           struct wire_Config *config,
+                                           struct wire_uint_8_list *google_auth_code,
+                                           struct wire_uint_8_list *password);
 
 void wire_node_info__method__AppHandle(int64_t port_, struct wire_AppHandle *that);
 

@@ -89,7 +89,10 @@ abstract class AppRs {
   FlutterRustBridgeTaskConstMeta get kRestoreStaticMethodAppHandleConstMeta;
 
   Future<AppHandle> signupStaticMethodAppHandle(
-      {required Config config, dynamic hint});
+      {required Config config,
+      required String googleAuthCode,
+      required String password,
+      dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kSignupStaticMethodAppHandleConstMeta;
 
@@ -212,8 +215,16 @@ class AppHandle {
           config: config, seedPhrase: seedPhrase, hint: hint);
 
   static Future<AppHandle> signup(
-          {required AppRs bridge, required Config config, dynamic hint}) =>
-      bridge.signupStaticMethodAppHandle(config: config, hint: hint);
+          {required AppRs bridge,
+          required Config config,
+          required String googleAuthCode,
+          required String password,
+          dynamic hint}) =>
+      bridge.signupStaticMethodAppHandle(
+          config: config,
+          googleAuthCode: googleAuthCode,
+          password: password,
+          hint: hint);
 
   Future<NodeInfo> nodeInfo({dynamic hint}) => bridge.nodeInfoMethodAppHandle(
         that: this,

@@ -596,12 +596,21 @@ impl AppHandle {
         })
     }
 
-    pub fn signup(config: Config) -> anyhow::Result<AppHandle> {
+    pub fn signup(
+        config: Config,
+        google_auth_code: String,
+        password: String,
+    ) -> anyhow::Result<AppHandle> {
         block_on(async move {
-            App::signup(&mut SysRng::new(), config.into())
-                .await
-                .context("Failed to generate and signup new wallet")
-                .map(Self::new)
+            App::signup(
+                &mut SysRng::new(),
+                config.into(),
+                google_auth_code,
+                password,
+            )
+            .await
+            .context("Failed to generate and signup new wallet")
+            .map(Self::new)
         })
     }
 

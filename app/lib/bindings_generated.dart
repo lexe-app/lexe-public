@@ -197,15 +197,20 @@ class AppRsImpl implements AppRs {
       );
 
   Future<AppHandle> signupStaticMethodAppHandle(
-      {required Config config, dynamic hint}) {
+      {required Config config,
+      required String googleAuthCode,
+      required String password,
+      dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_config(config);
+    var arg1 = _platform.api2wire_String(googleAuthCode);
+    var arg2 = _platform.api2wire_String(password);
     return _platform.executeNormal(FlutterRustBridgeTask(
-      callFfi: (port_) =>
-          _platform.inner.wire_signup__static_method__AppHandle(port_, arg0),
+      callFfi: (port_) => _platform.inner
+          .wire_signup__static_method__AppHandle(port_, arg0, arg1, arg2),
       parseSuccessData: (d) => _wire2api_app_handle(d),
       parseErrorData: _wire2api_FrbAnyhowException,
       constMeta: kSignupStaticMethodAppHandleConstMeta,
-      argValues: [config],
+      argValues: [config, googleAuthCode, password],
       hint: hint,
     ));
   }
@@ -213,7 +218,7 @@ class AppRsImpl implements AppRs {
   FlutterRustBridgeTaskConstMeta get kSignupStaticMethodAppHandleConstMeta =>
       const FlutterRustBridgeTaskConstMeta(
         debugName: "signup__static_method__AppHandle",
-        argNames: ["config"],
+        argNames: ["config", "googleAuthCode", "password"],
       );
 
   Future<NodeInfo> nodeInfoMethodAppHandle(
@@ -1122,20 +1127,29 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   void wire_signup__static_method__AppHandle(
     int port_,
     ffi.Pointer<wire_Config> config,
+    ffi.Pointer<wire_uint_8_list> google_auth_code,
+    ffi.Pointer<wire_uint_8_list> password,
   ) {
     return _wire_signup__static_method__AppHandle(
       port_,
       config,
+      google_auth_code,
+      password,
     );
   }
 
   late final _wire_signup__static_method__AppHandlePtr = _lookup<
           ffi.NativeFunction<
-              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_Config>)>>(
+              ffi.Void Function(
+                  ffi.Int64,
+                  ffi.Pointer<wire_Config>,
+                  ffi.Pointer<wire_uint_8_list>,
+                  ffi.Pointer<wire_uint_8_list>)>>(
       'wire_signup__static_method__AppHandle');
   late final _wire_signup__static_method__AppHandle =
-      _wire_signup__static_method__AppHandlePtr
-          .asFunction<void Function(int, ffi.Pointer<wire_Config>)>();
+      _wire_signup__static_method__AppHandlePtr.asFunction<
+          void Function(int, ffi.Pointer<wire_Config>,
+              ffi.Pointer<wire_uint_8_list>, ffi.Pointer<wire_uint_8_list>)>();
 
   void wire_node_info__method__AppHandle(
     int port_,
