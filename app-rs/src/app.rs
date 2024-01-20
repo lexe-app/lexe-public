@@ -116,15 +116,22 @@ impl App {
     pub async fn signup<R: Crng>(
         rng: &mut R,
         config: AppConfig,
+        google_auth_code: String,
+        password: String,
     ) -> anyhow::Result<Self> {
         // sample a new RootSeed
         let root_seed = RootSeed::from_rng(rng);
 
-        // TODO(phlip9): Get real auth code by running the user through OAuth2
-        let google_auth_code = None;
+        // TODO(phlip9): what if we need to retry signup? we should probably
+        // check SecretStore defensively to see if we've already signed up and
+        // stored a RootSeed.
 
-        // TODO(phlip9): Get encryption password by prompting the user
-        let password = None;
+        // single-use `serverAuthCode` from Google OAuth 2 consent flow, used by
+        // the enclave to get access+refresh tokens.
+        let google_auth_code = Some(google_auth_code);
+
+        // The root seed backup password.
+        let password = Some(password);
 
         Self::signup_custom(rng, config, root_seed, google_auth_code, password)
             .await
@@ -207,6 +214,8 @@ impl App {
             .provision(latest_release.measurement, provision_req)
             .await
             .context("Failed to provision node")?;
+
+        // TODO(phlip9): commit RootSeed earlier?
 
         // we've successfully signed up and provisioned our node; we can finally
         // "commit" and persist our root seed

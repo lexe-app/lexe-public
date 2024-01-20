@@ -170,6 +170,8 @@ fn wire_restore__static_method__AppHandle_impl(
 fn wire_signup__static_method__AppHandle_impl(
     port_: MessagePort,
     config: impl Wire2Api<Config> + UnwindSafe,
+    google_auth_code: impl Wire2Api<String> + UnwindSafe,
+    password: impl Wire2Api<String> + UnwindSafe,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, AppHandle, _>(
         WrapInfo {
@@ -179,7 +181,15 @@ fn wire_signup__static_method__AppHandle_impl(
         },
         move || {
             let api_config = config.wire2api();
-            move |task_callback| AppHandle::signup(api_config)
+            let api_google_auth_code = google_auth_code.wire2api();
+            let api_password = password.wire2api();
+            move |task_callback| {
+                AppHandle::signup(
+                    api_config,
+                    api_google_auth_code,
+                    api_password,
+                )
+            }
         },
     )
 }
@@ -784,8 +794,15 @@ mod io {
     pub extern "C" fn wire_signup__static_method__AppHandle(
         port_: i64,
         config: *mut wire_Config,
+        google_auth_code: *mut wire_uint_8_list,
+        password: *mut wire_uint_8_list,
     ) {
-        wire_signup__static_method__AppHandle_impl(port_, config)
+        wire_signup__static_method__AppHandle_impl(
+            port_,
+            config,
+            google_auth_code,
+            password,
+        )
     }
 
     #[no_mangle]
