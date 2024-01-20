@@ -6,6 +6,7 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show Intl;
+import 'package:lexeapp/result.dart';
 
 import 'bindings.dart' show api;
 import 'bindings_generated_api.dart'
@@ -30,7 +31,7 @@ import 'bindings_generated_api.dart'
 import 'cfg.dart' as cfg;
 import 'components.dart' show HeadingText, ScrollableSinglePageBody;
 import 'date_format.dart' as date_format;
-import 'gdrive_auth.dart' show GDriveAuthInfo;
+import 'gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
 import 'logger.dart' as logger;
 import 'logger.dart' show info;
 import 'route/backup_wallet.dart' show BackupWalletPage;
@@ -86,6 +87,7 @@ class LexeDesignHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mockApp = MockAppHandle(bridge: api);
+    const mockGDriveAuth = MockGDriveAuth();
 
     final cidBytes = List.generate(32, (idx) => idx);
     final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
@@ -191,7 +193,13 @@ class LexeDesignHome extends StatelessWidget {
               feeEstimates: feeEstimates,
             ),
           ),
-          Component("SignupPage", (context) => SignupPage(config: config)),
+          Component(
+            "SignupPage",
+            (context) => SignupPage(
+              config: config,
+              gdriveAuth: mockGDriveAuth,
+            ),
+          ),
           Component(
             "SignupBackupPasswordPage",
             (context) => SignupBackupPasswordPage(
@@ -381,6 +389,16 @@ class MockAppHandle extends AppHandle {
       .shortPayments
       .where((payment) => payment.status != PaymentStatus.Pending)
       .length;
+}
+
+class MockGDriveAuth implements GDriveAuth {
+  const MockGDriveAuth();
+
+  @override
+  Future<Result<GDriveAuthInfo?, Exception>> tryAuth() => Future.delayed(
+        const Duration(milliseconds: 1200),
+        () => const Ok(GDriveAuthInfo(authCode: "fake")),
+      );
 }
 
 class Component extends StatelessWidget {

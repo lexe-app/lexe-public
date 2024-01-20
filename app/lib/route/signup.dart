@@ -16,9 +16,9 @@ import '../components.dart'
         ScrollableSinglePageBody,
         SubheadingText,
         baseInputDecoration;
-import '../gdrive_auth.dart' show GDriveAuthInfo, tryGDriveAuth;
+import '../gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
 import '../logger.dart' show dbg, error, info;
-import '../result.dart' show Err, Ok, Result;
+import '../result.dart';
 import '../style.dart' show Fonts, LxColors, Space;
 
 /// The entry point for the signup flow.
@@ -26,20 +26,31 @@ class SignupPage extends StatelessWidget {
   const SignupPage({
     super.key,
     required this.config,
+    required this.gdriveAuth,
   });
 
   final Config config;
+  final GDriveAuth gdriveAuth;
 
   @override
-  Widget build(BuildContext context) =>
-      MultistepFlow(builder: (_) => SignupGDriveAuthPage(config: config));
+  Widget build(BuildContext context) => MultistepFlow(
+        builder: (_) => SignupGDriveAuthPage(
+          config: config,
+          gdriveAuth: gdriveAuth,
+        ),
+      );
 }
 
 /// This page has a button to ask for the user's consent for GDrive permissions.
 class SignupGDriveAuthPage extends StatefulWidget {
-  const SignupGDriveAuthPage({super.key, required this.config});
+  const SignupGDriveAuthPage({
+    super.key,
+    required this.config,
+    required this.gdriveAuth,
+  });
 
   final Config config;
+  final GDriveAuth gdriveAuth;
 
   @override
   State<StatefulWidget> createState() => _SignupGDriveAuthPageState();
@@ -47,21 +58,22 @@ class SignupGDriveAuthPage extends StatefulWidget {
 
 class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
   Future<void> onAuthPressed() async {
-    final GDriveAuthInfo authInfo;
-    try {
-      final maybeAuthInfo = await tryGDriveAuth();
-      if (!this.mounted) return;
+    final result = await this.widget.gdriveAuth.tryAuth();
+    if (!this.mounted) return;
 
-      // user canceled. they might want to try again, so don't pop yet.
-      if (maybeAuthInfo == null) return;
-      authInfo = maybeAuthInfo;
-    } on Exception catch (err) {
-      error("Failed to auth user with GDrive: $err");
-      return;
+    final GDriveAuthInfo authInfo;
+    switch (result) {
+      case Ok(:final ok):
+        // user canceled. they might want to try again, so don't pop yet.
+        if (ok == null) return;
+        authInfo = ok;
+      case Err(:final err):
+        error("Failed to auth user with GDrive: $err");
+        return;
     }
 
     // TODO(phlip9): pass auth info to flow
-    dbg(authInfo);
+    dbg(authInfo.authCode);
 
     // ignore: use_build_context_synchronously
     final AppHandle? flowResult = await Navigator.of(this.context).push(
