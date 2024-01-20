@@ -30,6 +30,7 @@ import 'bindings_generated_api.dart'
 import 'cfg.dart' as cfg;
 import 'components.dart' show HeadingText, ScrollableSinglePageBody;
 import 'date_format.dart' as date_format;
+import 'gdrive_auth.dart' show GDriveAuthInfo;
 import 'logger.dart' as logger;
 import 'logger.dart' show info;
 import 'route/backup_wallet.dart' show BackupWalletPage;
@@ -191,8 +192,13 @@ class LexeDesignHome extends StatelessWidget {
             ),
           ),
           Component("SignupPage", (context) => SignupPage(config: config)),
-          Component("SignupBackupPasswordPage",
-              (context) => const SignupBackupPasswordPage()),
+          Component(
+            "SignupBackupPasswordPage",
+            (context) => SignupBackupPasswordPage(
+              config: config,
+              authInfo: const GDriveAuthInfo(authCode: "fake"),
+            ),
+          ),
         ],
       ),
     );

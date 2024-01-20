@@ -197,6 +197,7 @@ class _CreateWalletButtonState extends State<CreateWalletButton> {
 
     await _doSignup();
 
+    if (!this.mounted) return;
     setState(() => this._disableButton = false);
   }
 
