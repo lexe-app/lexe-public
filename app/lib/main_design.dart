@@ -46,7 +46,7 @@ import 'route/send.dart'
         SendPaymentConfirmPage,
         SendPaymentPage;
 import 'route/show_qr.dart' show ShowQrPage;
-import 'route/signup.dart' show SignupBackupPasswordPage, SignupPage;
+import 'route/signup.dart' show SignupApi, SignupBackupPasswordPage, SignupPage;
 import 'route/wallet.dart' show WalletPage;
 import 'style.dart' show Fonts, LxColors, LxTheme, Space;
 
@@ -88,6 +88,7 @@ class LexeDesignHome extends StatelessWidget {
   Widget build(BuildContext context) {
     final mockApp = MockAppHandle(bridge: api);
     const mockGDriveAuth = MockGDriveAuth();
+    final mockSignupApi = MockSignupApi(app: mockApp);
 
     final cidBytes = List.generate(32, (idx) => idx);
     final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
@@ -198,6 +199,7 @@ class LexeDesignHome extends StatelessWidget {
             (context) => SignupPage(
               config: config,
               gdriveAuth: mockGDriveAuth,
+              signupApi: mockSignupApi,
             ),
           ),
           Component(
@@ -205,6 +207,7 @@ class LexeDesignHome extends StatelessWidget {
             (context) => SignupBackupPasswordPage(
               config: config,
               authInfo: const GDriveAuthInfo(authCode: "fake"),
+              signupApi: mockSignupApi,
             ),
           ),
         ],
@@ -431,4 +434,21 @@ class Component extends StatelessWidget {
       },
     );
   }
+}
+
+class MockSignupApi extends SignupApi {
+  const MockSignupApi({required this.app});
+
+  final AppHandle app;
+
+  @override
+  Future<FfiResult<AppHandle>> signup({
+    required Config config,
+    required String googleAuthCode,
+    required String password,
+  }) =>
+      Future.delayed(
+        const Duration(milliseconds: 2000),
+        () => Ok(this.app),
+      );
 }

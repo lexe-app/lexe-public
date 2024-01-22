@@ -17,9 +17,26 @@ import '../components.dart'
         SubheadingText,
         baseInputDecoration;
 import '../gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
-import '../logger.dart' show dbg, error, info;
+import '../logger.dart' show error, info;
 import '../result.dart';
 import '../style.dart' show Fonts, LxColors, Space;
+
+/// A tiny interface for mocking the `signup` call.
+class SignupApi {
+  const SignupApi();
+
+  Future<FfiResult<AppHandle>> signup({
+    required Config config,
+    required String googleAuthCode,
+    required String password,
+  }) =>
+      Result.tryFfiAsync(() => AppHandle.signup(
+            bridge: api,
+            config: config,
+            googleAuthCode: googleAuthCode,
+            password: password,
+          ));
+}
 
 /// The entry point for the signup flow.
 class SignupPage extends StatelessWidget {
@@ -27,16 +44,19 @@ class SignupPage extends StatelessWidget {
     super.key,
     required this.config,
     required this.gdriveAuth,
+    required this.signupApi,
   });
 
   final Config config;
   final GDriveAuth gdriveAuth;
+  final SignupApi signupApi;
 
   @override
   Widget build(BuildContext context) => MultistepFlow(
         builder: (_) => SignupGDriveAuthPage(
           config: config,
           gdriveAuth: gdriveAuth,
+          signupApi: signupApi,
         ),
       );
 }
@@ -47,10 +67,12 @@ class SignupGDriveAuthPage extends StatefulWidget {
     super.key,
     required this.config,
     required this.gdriveAuth,
+    required this.signupApi,
   });
 
   final Config config;
   final GDriveAuth gdriveAuth;
+  final SignupApi signupApi;
 
   @override
   State<StatefulWidget> createState() => _SignupGDriveAuthPageState();
@@ -72,14 +94,14 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
         return;
     }
 
-    // TODO(phlip9): pass auth info to flow
-    dbg(authInfo.authCode);
-
-    // ignore: use_build_context_synchronously
-    final AppHandle? flowResult = await Navigator.of(this.context).push(
-        MaterialPageRoute(
+    final AppHandle? flowResult =
+        // ignore: use_build_context_synchronously
+        await Navigator.of(this.context).push(MaterialPageRoute(
             builder: (_) => SignupBackupPasswordPage(
-                config: this.widget.config, authInfo: authInfo)));
+                  config: this.widget.config,
+                  signupApi: this.widget.signupApi,
+                  authInfo: authInfo,
+                )));
     if (!this.mounted) return;
 
     if (flowResult != null) {
@@ -110,10 +132,15 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
 }
 
 class SignupBackupPasswordPage extends StatefulWidget {
-  const SignupBackupPasswordPage(
-      {super.key, required this.config, required this.authInfo});
+  const SignupBackupPasswordPage({
+    super.key,
+    required this.config,
+    required this.signupApi,
+    required this.authInfo,
+  });
 
   final Config config;
+  final SignupApi signupApi;
   final GDriveAuthInfo authInfo;
 
   @override
@@ -185,14 +212,11 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
 
     this.isSigningUp.value = true;
 
-    final result = await Result.tryFfiAsync(
-      () async => AppHandle.signup(
-        bridge: api,
-        config: this.widget.config,
-        googleAuthCode: this.widget.authInfo.authCode,
-        password: password,
-      ),
-    );
+    final result = await this.widget.signupApi.signup(
+          config: this.widget.config,
+          googleAuthCode: this.widget.authInfo.authCode,
+          password: password,
+        );
     if (!this.mounted) return;
 
     this.isSigningUp.value = false;
