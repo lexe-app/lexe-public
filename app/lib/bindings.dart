@@ -8,7 +8,7 @@
 import 'dart:ffi' as ffi;
 import 'dart:io' as io;
 
-import 'bindings_generated.dart' as bindings_generated;
+import 'bindings_generated.dart' show AppRsImpl;
 import 'cfg.dart' as cfg;
 
 /// Android only supports ffi via dynamically linked libraries.
@@ -53,4 +53,4 @@ ffi.DynamicLibrary _loadLibrary() {
 }
 
 // The instantiated Rust API. Use it like `api.hello()`.
-final api = bindings_generated.AppRsImpl(_loadLibrary());
+final AppRsImpl api = AppRsImpl(_loadLibrary());
