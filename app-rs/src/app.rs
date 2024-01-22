@@ -13,6 +13,7 @@ use common::{
     api::{
         auth::{BearerAuthenticator, UserSignupRequest},
         def::{AppBackendApi, AppGatewayApi, AppNodeProvisionApi},
+        models::NodeRelease,
         provision::NodeProvisionRequest,
         NodePk, NodePkProof, UserPk,
     },
@@ -27,9 +28,10 @@ use tracing::{info, instrument, warn};
 
 use crate::{
     bindings::{Config, DeployEnv, Network},
-    ffs::FlatFileFs,
+    ffs::{Ffs, FlatFileFs},
     payments::{self, PaymentDb, PaymentSyncSummary},
     secret_store::SecretStore,
+    storage,
 };
 
 pub struct App {
@@ -63,13 +65,12 @@ impl App {
             Some(s) => s,
         };
 
+        // Init API clients
         let user_key_pair = root_seed.derive_user_key_pair();
         let user_pk = *user_key_pair.public_key();
         let bearer_authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
-
         let gateway_client = GatewayClient::new(config.gateway_url.clone());
-
         let node_client = NodeClient::new(
             rng,
             config.use_sgx,
@@ -80,10 +81,67 @@ impl App {
         )
         .context("Failed to build NodeClient")?;
 
-        let flat_fs = FlatFileFs::create_dir_all(config.payment_db_dir())?;
-        let payment_db = PaymentDb::read(flat_fs)
+        // Init local storage
+        let app_data_ffs =
+            FlatFileFs::create_dir_all(config.app_data_dir.clone())
+                .context("Could not create app data ffs")?;
+        let payments_ffs = FlatFileFs::create_dir_all(config.payment_db_dir())
+            .context("Could not create payments ffs")?;
+        let payment_db = PaymentDb::read(payments_ffs)
             .context("Failed to load payment db")?
             .apply(Mutex::new);
+
+        // See if there is a newer version we haven't provisioned to yet.
+        // If so, re-provision to it and update the latest_provisioned file.
+        let maybe_latest_provisioned =
+            storage::read_latest_provisioned(&app_data_ffs)
+                .context("Colud not read latest provisioned")?;
+        if maybe_latest_provisioned.is_none() {
+            warn!("Could not find latest provisioned file. Was it deleted?");
+        }
+        let latest_release = gateway_client
+            .latest_release()
+            .await
+            .context("Could not fetch latest release")?;
+        // TODO(max): Ensure that user has approved this version before
+        // proceeding to re-provision.
+        let do_reprovision = match maybe_latest_provisioned {
+            // Compare `semver::Version`s.
+            Some(latest_provisioned) =>
+                latest_provisioned.version < latest_release.version,
+            // If there is no latest provision release, just (re-)provision.
+            None => true,
+        };
+        if do_reprovision {
+            // TODO(max): We might want to ask Lexe if our GDriveCredentials are
+            // currently working. If not, we should run the user through the
+            // oauth flow again then pass this as Some().
+            let google_auth_code = None;
+            // TODO(max): We should probably check whether the root seed backup
+            // already exists before proceeding to set this as None. Or if we
+            // have access to the password somewhere, we could always set this
+            // to Some(_) to ensure the user always has a root seed backup.
+            let password = None;
+            Self::do_provision(
+                rng,
+                &node_client,
+                &latest_release,
+                &config,
+                &root_seed,
+                &app_data_ffs,
+                google_auth_code,
+                password,
+            )
+            .await
+            .context("Re-provision failed")?;
+            info!(
+                version = %latest_release.version,
+                measurement = %latest_release.measurement,
+                "Re-provisioned to latest release"
+            );
+        } else {
+            info!("Already provisioned to latest release")
+        }
 
         {
             let node_pk = root_seed.derive_node_pk(rng);
@@ -114,8 +172,8 @@ impl App {
         todo!()
     }
 
-    pub async fn signup<R: Crng>(
-        rng: &mut R,
+    pub async fn signup(
+        rng: &mut impl Crng,
         config: AppConfig,
         google_auth_code: String,
         password: String,
@@ -139,22 +197,20 @@ impl App {
     }
 
     /// Allows signing up with a specific [`RootSeed`], useful in tests.
-    pub async fn signup_custom<R: Crng>(
-        rng: &mut R,
+    pub async fn signup_custom(
+        rng: &mut impl Crng,
         config: AppConfig,
         root_seed: RootSeed,
         google_auth_code: Option<String>,
-        password: Option<String>,
+        maybe_password: Option<String>,
     ) -> anyhow::Result<Self> {
         // derive user key and node key
-
         let user_key_pair = root_seed.derive_user_key_pair();
         let user_pk = UserPk::from(*user_key_pair.public_key());
         let node_key_pair = root_seed.derive_node_key_pair(rng);
         let node_pk = NodePk(node_key_pair.public_key());
 
         // gen + sign the UserSignupRequest
-
         let node_pk_proof = NodePkProof::sign(rng, &node_key_pair);
         let signup_req = UserSignupRequest { node_pk_proof };
         let (_, signed_signup_req) = user_key_pair
@@ -162,11 +218,9 @@ impl App {
             .expect("Should never fail to serialize UserSignupRequest");
 
         // build NodeClient, GatewayClient
-
-        let gateway_url = config.gateway_url.clone();
         let bearer_authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
-        let gateway_client = GatewayClient::new(gateway_url);
+        let gateway_client = GatewayClient::new(config.gateway_url.clone());
         let node_client = NodeClient::new(
             rng,
             config.use_sgx,
@@ -177,6 +231,15 @@ impl App {
         )
         .context("Failed to build NodeClient")?;
 
+        // Init local storage
+        let app_data_ffs =
+            FlatFileFs::create_dir_all(config.app_data_dir.clone())
+                .context("Could not create app data ffs")?;
+        let payments_ffs =
+            FlatFileFs::create_clean_dir_all(config.payment_db_dir())
+                .context("Could not create payments ffs")?;
+        let payment_db = Mutex::new(PaymentDb::empty(payments_ffs));
+
         // TODO(phlip9): retries?
 
         // signup the user and get the latest release
@@ -186,49 +249,32 @@ impl App {
         );
         try_signup.context("Failed to signup user")?;
         let latest_release =
-            try_latest_release.context("Could not fetch latest measurement")?;
+            try_latest_release.context("Could not fetch latest release")?;
 
-        // provision new node enclave
-
-        // TODO(phlip9): we could get rid of this extra RootSeed copy on the
-        // stack by using something like a `Cow<'a, &RootSeed>` in
-        // `NodeProvisionRequest`. Ofc we still have the seed serialized in a
-        // heap-allocated json blob when we make the request, which is much
-        // harder for us to zeroize...
-        let root_seed_clone =
-            RootSeed::new(Secret::new(*root_seed.expose_secret()));
-
-        let encrypted_seed = password
-            .map(|p| root_seed.password_encrypt(rng, &p))
-            .transpose()
-            .context("Could not encrypt root seed under password")?;
-
-        let provision_req = NodeProvisionRequest {
-            root_seed: root_seed_clone,
-            deploy_env: config.deploy_env.into(),
-            network: config.network,
+        // Provision the node for the first time and update latest_provisioned.
+        // TODO(max): Ensure that user has approved this version before
+        // proceeding to re-provision.
+        Self::do_provision(
+            rng,
+            &node_client,
+            &latest_release,
+            &config,
+            &root_seed,
+            &app_data_ffs,
             google_auth_code,
-            allow_gvfs_access: true,
-            encrypted_seed,
-        };
-        node_client
-            .provision(latest_release.measurement, provision_req)
-            .await
-            .context("Failed to provision node")?;
+            maybe_password.as_deref(),
+        )
+        .await
+        .context("First provision failed")?;
 
         // TODO(phlip9): commit RootSeed earlier?
 
         // we've successfully signed up and provisioned our node; we can finally
         // "commit" and persist our root seed
-
         let secret_store = SecretStore::new(&config);
         secret_store
             .write_root_seed(&root_seed)
             .context("Failed to persist root seed")?;
-
-        let flat_fs =
-            FlatFileFs::create_clean_dir_all(config.payment_db_dir())?;
-        let payment_db = Mutex::new(PaymentDb::empty(flat_fs));
 
         info!(
             %user_pk,
@@ -286,6 +332,48 @@ impl App {
 
     pub fn payment_db(&self) -> &Mutex<PaymentDb<FlatFileFs>> {
         &self.payment_db
+    }
+
+    /// Provision to the given release and update the "latest_provisioned" file.
+    async fn do_provision(
+        rng: &mut impl Crng,
+        node_client: &NodeClient,
+        node_release: &NodeRelease,
+        config: &AppConfig,
+        root_seed: &RootSeed,
+        app_data_ffs: &impl Ffs,
+        google_auth_code: Option<String>,
+        maybe_password: Option<&str>,
+    ) -> anyhow::Result<()> {
+        // TODO(phlip9): we could get rid of this extra RootSeed copy on the
+        // stack by using something like a `Cow<'a, &RootSeed>` in
+        // `NodeProvisionRequest`. Ofc we still have the seed serialized in a
+        // heap-allocated json blob when we make the request, which is much
+        // harder for us to zeroize...
+        let root_seed_clone =
+            RootSeed::new(Secret::new(*root_seed.expose_secret()));
+        let encrypted_seed = maybe_password
+            .map(|pass| root_seed.password_encrypt(rng, pass))
+            .transpose()
+            .context("Could not encrypt root seed under password")?;
+
+        let provision_req = NodeProvisionRequest {
+            root_seed: root_seed_clone,
+            deploy_env: config.deploy_env.into(),
+            network: config.network,
+            google_auth_code,
+            allow_gvfs_access: true,
+            encrypted_seed,
+        };
+        node_client
+            .provision(node_release.measurement, provision_req)
+            .await
+            .context("Failed to provision node")?;
+
+        storage::write_latest_provisioned(app_data_ffs, node_release)
+            .context("Could not write latest provisioned")?;
+
+        Ok(())
     }
 }
 
