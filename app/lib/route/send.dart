@@ -82,7 +82,7 @@ class SendPaymentPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultistepFlow(
+    return MultistepFlow<bool?>(
         builder: (_) => SendPaymentAddressPage(sendCtx: sendCtx));
   }
 }

@@ -63,7 +63,7 @@ class SignupPage extends StatelessWidget {
   final SignupApi signupApi;
 
   @override
-  Widget build(BuildContext context) => MultistepFlow(
+  Widget build(BuildContext context) => MultistepFlow<AppHandle?>(
         builder: (_) => SignupGDriveAuthPage(
           config: config,
           gdriveAuth: gdriveAuth,
@@ -116,8 +116,10 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
     if (flowResult == null) return;
     if (!this.mounted) return;
 
+    info("SignupGDriveAuthPage: successful signup");
+
     // ignore: use_build_context_synchronously
-    await Navigator.of(this.context).maybePop(flowResult);
+    unawaited(Navigator.of(this.context).maybePop(flowResult));
   }
 
   @override

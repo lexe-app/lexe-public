@@ -5,7 +5,7 @@ import 'dart:async' show StreamController;
 import 'package:flutter/material.dart';
 import 'package:rxdart_ext/rxdart_ext.dart';
 
-import '../../style.dart' show Fonts, LxColors, LxRadius, Space;
+import 'style.dart' show Fonts, LxColors, LxRadius, Space;
 
 typedef VoidContextCallback = void Function(BuildContext);
 
@@ -92,7 +92,7 @@ class ScrollableSinglePageBody extends StatelessWidget {
 /// It works by creating a new child [Navigator] to contain the pages within the
 /// flow. The back button pops pages from this child [Navigator], while the
 /// close button pops the whole stack from the parent [Navigator].
-class MultistepFlow extends StatelessWidget {
+class MultistepFlow<T> extends StatelessWidget {
   const MultistepFlow({super.key, required this.builder});
 
   final WidgetBuilder builder;
@@ -103,24 +103,37 @@ class MultistepFlow extends StatelessWidget {
 
     return Navigator(
       onGenerateRoute: (RouteSettings settings) {
-        return MaterialPageRoute(
-          // This `PopScope` thing is so we can exit out of the sub-flow
-          // navigation once we're done. Without this, we just end up at a blank
-          // screen after completing the form. There's almost certainly a better
-          // way to do this.
-          builder: (context) => PopScope(
-            // Set this to false so we can control the `pop`
-            canPop: false,
-            onPopInvoked: (didPop) async {
-              parentNavigator.pop(true);
-            },
-            child: builder(context),
-          ),
+        return _PopToParentRoute<T>(
+          parentNavigator: parentNavigator,
           settings: settings,
+          builder: builder,
         );
       },
     );
   }
+}
+
+/// A tiny wrapper around [MaterialPageRoute] that just propagates the results
+/// of the current [Navigator.pop] to a [parentNavigator].
+class _PopToParentRoute<T> extends MaterialPageRoute<T> {
+  _PopToParentRoute({
+    required super.builder,
+    super.settings,
+    required this.parentNavigator,
+  });
+
+  final NavigatorState parentNavigator;
+
+  @override
+  bool didPop(T? result) {
+    final superDidPop = super.didPop(result);
+    parentNavigator.pop(result);
+    return superDidPop;
+  }
+
+  /// maybePop => always pop
+  @override
+  RoutePopDisposition get popDisposition => RoutePopDisposition.pop;
 }
 
 /// It animates into a shortened button with a loading indicator inside when
