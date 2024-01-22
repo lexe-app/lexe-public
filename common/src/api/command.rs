@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     api::NodePk,
+    enclave::Measurement,
     ln::{
         amount::Amount, balance::Balance, channel::ChannelId,
         invoice::LxInvoice, payments::ClientPaymentId, ConfirmationPriority,
@@ -11,6 +12,8 @@ use crate::{
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NodeInfo {
+    pub version: semver::Version,
+    pub measurement: Measurement,
     pub node_pk: NodePk,
     pub num_channels: usize,
     pub num_usable_channels: usize,

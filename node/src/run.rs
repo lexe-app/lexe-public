@@ -516,6 +516,7 @@ impl UserNode {
             args.lsp.clone(),
             scid,
             network,
+            measurement,
             activity_tx,
         );
         let (app_addr, app_service_fut) = warp::serve(app_routes)
