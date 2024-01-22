@@ -46,7 +46,8 @@ impl SecretStore {
     /// directory. See module comments for more details.
     pub fn new(config: &AppConfig) -> Self {
         if config.use_mock_secret_store {
-            return Self::mock();
+            // Some tests rely on a persistent (tempdir) mock secret store
+            return Self::file(&config.app_data_dir);
         }
 
         cfg_if! {
@@ -87,6 +88,7 @@ impl SecretStore {
 
     /// Create a mock SecretStore. Writing to this mock store does not actually
     /// persist them.
+    #[allow(unused)] // Not used, but leaving around in case it is useful later
     fn mock() -> Self {
         let mock = keyring::mock::MockCredentialBuilder {}
             .build(None, "mock", "root_seed.hex")
