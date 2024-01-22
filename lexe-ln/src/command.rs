@@ -16,6 +16,7 @@ use common::{
         Empty, NodePk, Scid,
     },
     cli::{LspInfo, Network},
+    enclave::Measurement,
     ln::{
         amount::Amount, channel::LxChannelDetails, hashes::LxTxid,
         invoice::LxInvoice, payments::LxPaymentHash,
@@ -69,6 +70,8 @@ pub enum CreateInvoiceCaller {
 
 #[instrument(skip_all, name = "(node-info)")]
 pub async fn node_info<CM, PM, PS>(
+    version: semver::Version,
+    measurement: Measurement,
     channel_manager: CM,
     peer_manager: PM,
     wallet: LexeWallet,
@@ -98,6 +101,8 @@ where
         .sum();
 
     let info = NodeInfo {
+        version,
+        measurement,
         node_pk,
         num_channels,
         num_usable_channels,

@@ -24,8 +24,10 @@ use common::{
         rest, Scid, UserPk,
     },
     cli::{LspInfo, Network},
+    enclave::Measurement,
     shutdown::ShutdownChannel,
     test_event::TestEventOp,
+    Apply,
 };
 use lexe_ln::{
     alias::RouterType, command::CreateInvoiceCaller, esplora::LexeEsplora,
@@ -41,6 +43,7 @@ use crate::{
     channel_manager::NodeChannelManager,
     peer_manager::NodePeerManager,
     persister::NodePersister,
+    DEV_VERSION, SEMVER_VERSION,
 };
 
 /// Handlers for commands that can only be initiated by the app.
@@ -65,6 +68,7 @@ pub(crate) fn app_routes(
     lsp_info: LspInfo,
     scid: Scid,
     network: Network,
+    measurement: Measurement,
     activity_tx: mpsc::Sender<()>,
 ) -> BoxedFilter<(Response<Body>,)> {
     let app_base = warp::path("app")
@@ -75,8 +79,15 @@ pub(crate) fn app_routes(
         })
         .untuple_one();
 
+    let version = DEV_VERSION
+        .unwrap_or(SEMVER_VERSION)
+        .apply(semver::Version::parse)
+        .expect("Checked in tests");
+
     let node_info = warp::path("node_info")
         .and(warp::get())
+        .and(inject::version(version))
+        .and(inject::measurement(measurement))
         .and(inject::channel_manager(channel_manager.clone()))
         .and(inject::peer_manager(peer_manager))
         .and(inject::wallet(wallet.clone()))
@@ -261,6 +272,19 @@ mod inject {
         user_pk: UserPk,
     ) -> impl Filter<Extract = (UserPk,), Error = Infallible> + Clone {
         warp::any().map(move || user_pk)
+    }
+
+    pub(super) fn version(
+        version: semver::Version,
+    ) -> impl Filter<Extract = (semver::Version,), Error = Infallible> + Clone
+    {
+        warp::any().map(move || version.clone())
+    }
+
+    pub(super) fn measurement(
+        measurement: Measurement,
+    ) -> impl Filter<Extract = (Measurement,), Error = Infallible> + Clone {
+        warp::any().map(move || measurement)
     }
 
     pub(super) fn shutdown(

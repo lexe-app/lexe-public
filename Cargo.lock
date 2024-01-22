@@ -2114,6 +2114,7 @@ dependencies = [
  "proptest-derive",
  "rust_decimal",
  "secrecy",
+ "semver",
  "serde",
  "serde_json",
  "serde_with",
