@@ -100,6 +100,11 @@ pub(crate) mod models;
 
 pub use gvfs::{GoogleVfs, GvfsRoot};
 
+/// The expected value of `scope`.
+// Gives us the ability to manage files and folders in My Drive that were
+// created by our app. Qualifies as one of Google's "non-sensitive" scopes.
+pub const API_SCOPE: &str = "https://www.googleapis.com/auth/drive.file";
+
 #[derive(Debug, Error)]
 pub enum Error {
     // -- OAuth2 Token errors -- //
@@ -107,7 +112,9 @@ pub enum Error {
     TokenRefresh(Box<Self>),
     #[error("Token expired")]
     TokenExpired,
-    #[error("Token did not have sufficient scopes (permissions): {scope}")]
+    #[error(
+        "Token doesn't grant the '{API_SCOPE}' scope: token scope: '{scope}'"
+    )]
     InsufficientScopes { scope: String },
     #[error("Token had an access_type other than 'offline': {access_type}")]
     WrongAccessType { access_type: String },
