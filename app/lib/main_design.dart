@@ -109,7 +109,13 @@ class LexeDesignHome extends StatelessWidget {
             child: HeadingText(text: "Lexe Design Home"),
           ),
           const SizedBox(height: Space.s500),
-          Component("LandingPage", (_) => LandingPage(config: config)),
+          Component(
+              "LandingPage",
+              (_) => LandingPage(
+                    config: config,
+                    gdriveAuth: mockGDriveAuth,
+                    signupApi: mockSignupApi,
+                  )),
           Component("BackupWalletPage",
               (_) => BackupWalletPage(config: config, app: mockApp)),
           Component(
@@ -436,7 +442,7 @@ class Component extends StatelessWidget {
   }
 }
 
-class MockSignupApi extends SignupApi {
+class MockSignupApi implements SignupApi {
   const MockSignupApi({required this.app});
 
   final AppHandle app;

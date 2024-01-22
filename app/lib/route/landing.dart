@@ -5,17 +5,63 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
-import '../bindings.dart' show api;
 import '../bindings_generated_api.dart' show AppHandle, Config;
+import '../gdrive_auth.dart' show GDriveAuth;
 import '../logger.dart' show error, info;
-import '../result.dart';
 import '../style.dart' show Fonts, LxColors, Space;
-import 'backup_wallet.dart' show BackupWalletPage;
+import 'signup.dart' show SignupApi, SignupPage;
+import 'wallet.dart' show WalletPage;
 
-class LandingPage extends StatelessWidget {
-  const LandingPage({super.key, required this.config});
+class LandingPage extends StatefulWidget {
+  const LandingPage({
+    super.key,
+    required this.config,
+    required this.gdriveAuth,
+    required this.signupApi,
+  });
 
   final Config config;
+  final GDriveAuth gdriveAuth;
+  final SignupApi signupApi;
+
+  @override
+  State<LandingPage> createState() => _LandingPageState();
+}
+
+class _LandingPageState extends State<LandingPage> {
+  /// Start the Signup UI flow. Future resolves when the user has either
+  /// (1) completed the flow and signed up or (2) canceled the flow.
+  Future<void> doSignupFlow() async {
+    info("do signup flow");
+
+    final AppHandle? flowResult =
+        await Navigator.of(this.context).push(MaterialPageRoute(
+      builder: (_) => SignupPage(
+        config: this.widget.config,
+        gdriveAuth: this.widget.gdriveAuth,
+        signupApi: this.widget.signupApi,
+      ),
+    ));
+
+    if (flowResult == null) return;
+    if (!this.mounted) return;
+
+    info("successfully signed up!");
+
+    // ignore: use_build_context_synchronously
+    unawaited(Navigator.of(this.context).pushReplacement(MaterialPageRoute(
+      builder: (_) => WalletPage(
+        config: this.widget.config,
+        app: flowResult,
+      ),
+    )));
+  }
+
+  /// Start the Wallet Restore UI flow. Future resolves when the user has either
+  /// (1) completed the flow and restored or (2) canceled the flow.
+  Future<void> doRestoreFlow() async {
+    info("do restore flow");
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +106,11 @@ class LandingPage extends StatelessWidget {
                     Container(
                       padding: EdgeInsets.only(bottom: bottom),
                       alignment: Alignment.bottomCenter,
-                      child: LandingButtons(config: this.config),
+                      child: LandingButtons(
+                        config: this.widget.config,
+                        onSignupPressed: () => unawaited(this.doSignupFlow()),
+                        onRecoverPressed: () => unawaited(this.doRestoreFlow()),
+                      ),
                     ),
                   ]),
                 ),
@@ -142,9 +192,15 @@ class LandingCarouselIndicators extends StatelessWidget {
 }
 
 class LandingButtons extends StatelessWidget {
-  const LandingButtons({super.key, required this.config});
+  const LandingButtons(
+      {super.key,
+      required this.config,
+      required this.onSignupPressed,
+      required this.onRecoverPressed});
 
   final Config config;
+  final VoidCallback onSignupPressed;
+  final VoidCallback onRecoverPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -153,109 +209,41 @@ class LandingButtons extends StatelessWidget {
       children: [
         const LandingCarouselIndicators(),
         const SizedBox(height: 24.0),
-        CreateWalletButton(config: this.config),
+        // Signup
+        FilledButton(
+          onPressed: this.onSignupPressed,
+          style: FilledButton.styleFrom(
+            backgroundColor: LxColors.background,
+            disabledBackgroundColor: LxColors.clearW200,
+            foregroundColor: LxColors.foreground,
+            disabledForegroundColor: LxColors.clearB300,
+            fixedSize: const Size(300.0, Space.s750),
+          ),
+          child: const CreateWalletText(),
+        ),
+
         const SizedBox(height: 16.0),
+        // Recover Wallet
         OutlinedButton(
-          onPressed: () => info("pressed recover wallet button"),
+          onPressed: this.onRecoverPressed,
           style: OutlinedButton.styleFrom(
             side: const BorderSide(color: LxColors.clearW600, width: 2.0),
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
             fixedSize: const Size(300.0, Space.s750),
             shape: const StadiumBorder(),
           ),
-          child: const Text("I have a Lexe wallet",
-              style: TextStyle(
-                fontFamily: "Inter V",
-                fontSize: Fonts.size300,
-                color: LxColors.clearW600,
-                height: 1.0,
-                decoration: TextDecoration.none,
-              )),
+          child: const Text(
+            "I have a Lexe wallet",
+            style: TextStyle(
+              fontFamily: "Inter V",
+              fontSize: Fonts.size300,
+              color: LxColors.clearW600,
+              height: 1.0,
+              decoration: TextDecoration.none,
+            ),
+          ),
         ),
       ],
-    );
-  }
-}
-
-class CreateWalletButton extends StatefulWidget {
-  const CreateWalletButton({super.key, required this.config});
-
-  final Config config;
-
-  @override
-  State<CreateWalletButton> createState() => _CreateWalletButtonState();
-}
-
-class _CreateWalletButtonState extends State<CreateWalletButton> {
-  bool _disableButton = false;
-
-  Future<void> _onPressed() async {
-    info("pressed create wallet button");
-
-    // disable button while signing up
-    setState(() => this._disableButton = true);
-
-    await _doSignup();
-
-    if (!this.mounted) return;
-    setState(() => this._disableButton = false);
-  }
-
-  Future<void> _doSignup() async {
-    final Config config = this.widget.config;
-
-    // TODO(phlip9): full onboarding flow
-
-    const googleAuthCode = "dummy";
-    const password = "dummy";
-
-    final result = await Result.tryFfiAsync(() async => AppHandle.signup(
-        bridge: api,
-        config: config,
-        googleAuthCode: googleAuthCode,
-        password: password));
-    if (!this.mounted) return;
-
-    final AppHandle app;
-    switch (result) {
-      case Ok(:final ok):
-        app = ok;
-      case Err(:final err):
-        error("Failed to sign up and create wallet: $err");
-        return;
-    }
-
-    // TODO(phlip9): disable restore button while request is processing? o/w
-    // user could navigate away while account is getting created...
-
-    info("done signing up");
-
-    if (context.mounted) {
-      unawaited(Navigator.of(context).pushReplacement(MaterialPageRoute(
-        builder: (BuildContext _) => BackupWalletPage(config: config, app: app),
-      )));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FilledButton(
-      onPressed: this._disableButton ? null : this._onPressed,
-      style: FilledButton.styleFrom(
-        backgroundColor: LxColors.background,
-        disabledBackgroundColor: LxColors.clearW200,
-        foregroundColor: LxColors.foreground,
-        disabledForegroundColor: LxColors.clearB300,
-        fixedSize: const Size(300.0, Space.s750),
-      ),
-      child: (!this._disableButton)
-          ? const CreateWalletText()
-          : const SizedBox.square(
-              dimension: 24.0,
-              child: CircularProgressIndicator(
-                strokeWidth: 3.0,
-                color: LxColors.clearW200,
-              )),
     );
   }
 }
