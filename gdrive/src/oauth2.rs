@@ -14,16 +14,12 @@ use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, instrument, trace};
 
-use crate::Error;
+use crate::{Error, API_SCOPE};
 
 /// The expected value of `access_type`.
 // 'offline' tells Google to give us refresh token that allows us to refresh the
 // access token while the user is offline.
 const ACCESS_TYPE: &str = "offline";
-/// The expected value of `scope`.
-// Gives us the ability to manage files and folders in My Drive that were
-// created by our app. Qualifies as one of Google's "non-sensitive" scopes.
-const API_SCOPE: &str = "https://www.googleapis.com/auth/drive.file";
 /// The expected value of `token_type`.
 // For the foreseeable future we are only interested in bearer auth tokens.
 const TOKEN_TYPE: &str = "Bearer";
@@ -173,7 +169,8 @@ pub async fn auth_code_for_token(
     if token_type != TOKEN_TYPE {
         return Err(Error::WrongTokenType { token_type });
     }
-    if scope != API_SCOPE {
+    // Ensure we were actually granted the required gdrive API scope
+    if scope.split(' ').all(|s| s != API_SCOPE) {
         return Err(Error::InsufficientScopes { scope });
     }
 
@@ -435,7 +432,10 @@ mod test {
     ///     redirect_uri="https://localhost:6969/bogus"
     ///     # Tell Google to give us an authorization code.
     ///     response_type="code"
-    ///     scope="https://www.googleapis.com/auth/drive.file"
+    ///     # The auth/drive.file permissions.
+    ///     # Everything else is empirically observed from the actual mobile app
+    ///     # auth flow.
+    ///     scope="https://www.googleapis.com/auth/drive.file openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
     ///     access_type="offline"
     ///
     ///     urlencode() {
