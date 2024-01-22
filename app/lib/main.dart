@@ -5,9 +5,11 @@ import 'bindings.dart' show api;
 import 'bindings_generated_api.dart' show AppHandle, Config;
 import 'cfg.dart' as cfg;
 import 'date_format.dart' as date_format;
+import 'gdrive_auth.dart' show GDriveAuth;
 import 'logger.dart' as logger;
 import 'logger.dart' show info;
 import 'route/landing.dart' show LandingPage;
+import 'route/signup.dart' show SignupApi;
 import 'route/wallet.dart' show WalletPage;
 import 'style.dart' show LxColors, LxTheme;
 
@@ -42,7 +44,11 @@ Future<void> main() async {
     child = WalletPage(config: config, app: maybeApp);
   } else {
     // no wallet persisted => first run -> show landing
-    child = LandingPage(config: config);
+    child = LandingPage(
+      config: config,
+      gdriveAuth: GDriveAuth.prod,
+      signupApi: SignupApi.prod,
+    );
   }
 
   runApp(LexeApp(

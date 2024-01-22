@@ -22,9 +22,20 @@ import '../result.dart';
 import '../style.dart' show Fonts, LxColors, Space;
 
 /// A tiny interface for mocking the `signup` call.
-class SignupApi {
-  const SignupApi();
+abstract interface class SignupApi {
+  static const SignupApi prod = _ProdSignupApi();
 
+  Future<FfiResult<AppHandle>> signup({
+    required Config config,
+    required String googleAuthCode,
+    required String password,
+  });
+}
+
+class _ProdSignupApi implements SignupApi {
+  const _ProdSignupApi();
+
+  @override
   Future<FfiResult<AppHandle>> signup({
     required Config config,
     required String googleAuthCode,
@@ -102,12 +113,11 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
                   signupApi: this.widget.signupApi,
                   authInfo: authInfo,
                 )));
+    if (flowResult == null) return;
     if (!this.mounted) return;
 
-    if (flowResult != null) {
-      // ignore: use_build_context_synchronously
-      await Navigator.of(this.context).maybePop(flowResult);
-    }
+    // ignore: use_build_context_synchronously
+    await Navigator.of(this.context).maybePop(flowResult);
   }
 
   @override
