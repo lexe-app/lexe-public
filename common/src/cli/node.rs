@@ -1,8 +1,13 @@
-use std::process::Command;
+use std::{
+    fmt::{self, Display},
+    process::Command,
+    str::FromStr,
+};
 
 use argh::FromArgs;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
+use serde::{Deserialize, Serialize};
 
 #[cfg(test)]
 use crate::test_utils::arbitrary;
@@ -32,7 +37,7 @@ impl ToCommand for NodeCommand {
 
 /// Run a user node
 #[cfg_attr(test, derive(Arbitrary))]
-#[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
+#[derive(Clone, Debug, PartialEq, Eq, FromArgs, Serialize, Deserialize)]
 #[argh(subcommand, name = "run")]
 pub struct RunArgs {
     /// the Lexe user pk used in queries to the persistence API
@@ -140,9 +145,25 @@ impl ToCommand for RunArgs {
     }
 }
 
+impl FromStr for RunArgs {
+    type Err = serde_json::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s)
+    }
+}
+
+impl Display for RunArgs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // serde_json::to_writer takes io::Write but `f` only impls fmt::Write
+        let s =
+            serde_json::to_string(&self).expect("JSON serialization failed");
+        write!(f, "{s}")
+    }
+}
+
 /// Provision a new user node
 #[cfg_attr(test, derive(Arbitrary))]
-#[derive(Clone, Debug, PartialEq, Eq, FromArgs)]
+#[derive(Clone, Debug, PartialEq, Eq, FromArgs, Serialize, Deserialize)]
 #[argh(subcommand, name = "provision")]
 pub struct ProvisionArgs {
     /// protocol://host:port of the backend.
@@ -194,6 +215,22 @@ impl ToCommand for ProvisionArgs {
     }
 }
 
+impl FromStr for ProvisionArgs {
+    type Err = serde_json::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s)
+    }
+}
+
+impl Display for ProvisionArgs {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // serde_json::to_writer takes io::Write but `f` only impls fmt::Write
+        let s =
+            serde_json::to_string(&self).expect("JSON serialization failed");
+        write!(f, "{s}")
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::path::Path;
@@ -201,6 +238,7 @@ mod test {
     use proptest::{arbitrary::any, proptest, test_runner::Config};
 
     use super::*;
+    use crate::test_utils::roundtrip;
 
     #[test]
     fn proptest_cmd_roundtrip() {
@@ -228,5 +266,17 @@ mod test {
             // Assert
             assert_eq!(cmd1, cmd2);
         })
+    }
+
+    #[test]
+    fn node_args_json_string_roundtrip() {
+        roundtrip::json_string_roundtrip_proptest::<RunArgs>();
+        roundtrip::json_string_roundtrip_proptest::<ProvisionArgs>();
+    }
+
+    #[test]
+    fn node_args_fromstr_display_roundtrip() {
+        roundtrip::fromstr_display_roundtrip_proptest::<RunArgs>();
+        roundtrip::fromstr_display_roundtrip_proptest::<ProvisionArgs>();
     }
 }

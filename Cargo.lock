@@ -917,7 +917,6 @@ dependencies = [
  "aes 0.8.2",
  "aesm-client",
  "anyhow",
- "argh",
  "asn1-rs",
  "async-trait",
  "base64 0.13.1",
