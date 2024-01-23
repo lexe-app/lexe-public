@@ -55,7 +55,6 @@ lightning-transaction-sync.workspace = true
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
-argh.workspace = true
 async-trait.workspace = true
 bytes.workspace = true
 cfg-if.workspace = true

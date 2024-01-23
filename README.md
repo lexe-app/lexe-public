@@ -184,10 +184,7 @@ $ cargo run -p node --release --target=x86_64-fortanix-unknown-sgx -- run --help
   `--runner-url`, or LSP url. Note that mocking functionality is provided on a
   best-effort basis and is not tested (or used) regularly by Lexe devs.
 
-See full CLI options with:
-- `cargo run -p node -- help`
-- `cargo run -p node -- run --help`
-- `cargo run -p node -- provision --help`
+See `RunArgs`/`ProvisionArgs` contained in `common::cli::node` for full options.
 
 ## OrbStack linux-builder setup
 
