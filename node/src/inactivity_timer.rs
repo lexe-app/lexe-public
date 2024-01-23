@@ -19,7 +19,7 @@ use tracing::{debug, info, trace};
 pub struct InactivityTimer {
     /// Whether to signal a shutdown if no activity was detected at the
     /// beginning of `start()`
-    shutdown_after_sync_if_no_activity: bool,
+    shutdown_after_sync: bool,
     /// The duration that the inactivity timer will reset to whenever it
     /// receives an activity event.
     duration: Duration,
@@ -31,14 +31,14 @@ pub struct InactivityTimer {
 
 impl InactivityTimer {
     pub fn new(
-        shutdown_after_sync_if_no_activity: bool,
+        shutdown_after_sync: bool,
         inactivity_timer_sec: u64,
         activity_rx: mpsc::Receiver<()>,
         shutdown: ShutdownChannel,
     ) -> Self {
         let duration = Duration::from_secs(inactivity_timer_sec);
         Self {
-            shutdown_after_sync_if_no_activity,
+            shutdown_after_sync,
             duration,
             activity_rx,
             shutdown,
@@ -47,7 +47,7 @@ impl InactivityTimer {
 
     /// Starts the inactivity timer.
     pub async fn start(&mut self) {
-        if self.shutdown_after_sync_if_no_activity {
+        if self.shutdown_after_sync {
             match self.activity_rx.try_recv() {
                 Ok(()) => {
                     trace!("Activity detected, starting shutdown timer");
@@ -122,14 +122,14 @@ mod tests {
     }
 
     fn get_test_materials(
-        shutdown_after_sync_if_no_activity: bool,
+        shutdown_after_sync: bool,
         inactivity_timer_sec: u64,
     ) -> TestMaterials {
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
         let shutdown = ShutdownChannel::new();
         let actor_shutdown = shutdown.clone();
         let actor = InactivityTimer::new(
-            shutdown_after_sync_if_no_activity,
+            shutdown_after_sync,
             inactivity_timer_sec,
             activity_rx,
             actor_shutdown,
@@ -173,12 +173,10 @@ mod tests {
     /// Case 1: shutdown_after_sync enabled, no activity
     #[tokio::test(start_paused = true)]
     async fn case_1() {
-        let shutdown_after_sync_if_no_activity = true;
+        let shutdown_after_sync = true;
         let inactivity_timer_sec = 1;
-        let mut mats = get_test_materials(
-            shutdown_after_sync_if_no_activity,
-            inactivity_timer_sec,
-        );
+        let mut mats =
+            get_test_materials(shutdown_after_sync, inactivity_timer_sec);
         let actor_fut = mats.actor.start();
 
         // Actor should finish instantly
@@ -188,12 +186,10 @@ mod tests {
     /// Case 2: shutdown_after_sync enabled, *with* activity
     #[tokio::test(start_paused = true)]
     async fn case_2() {
-        let shutdown_after_sync_if_no_activity = true;
+        let shutdown_after_sync = true;
         let inactivity_timer_sec = 1;
-        let mut mats = get_test_materials(
-            shutdown_after_sync_if_no_activity,
-            inactivity_timer_sec,
-        );
+        let mut mats =
+            get_test_materials(shutdown_after_sync, inactivity_timer_sec);
         let _ = mats.activity_tx.send(()).await;
         let actor_fut = mats.actor.start();
 
@@ -204,12 +200,10 @@ mod tests {
     /// Case 3: shutdown_after_sync not enabled, no activity
     #[tokio::test(start_paused = true)]
     async fn case_3() {
-        let shutdown_after_sync_if_no_activity = false;
+        let shutdown_after_sync = false;
         let inactivity_timer_sec = 1;
-        let mut mats = get_test_materials(
-            shutdown_after_sync_if_no_activity,
-            inactivity_timer_sec,
-        );
+        let mut mats =
+            get_test_materials(shutdown_after_sync, inactivity_timer_sec);
         let actor_fut = mats.actor.start();
 
         // Actor should finish at about 1000ms (1 sec)
@@ -220,12 +214,10 @@ mod tests {
     /// inactivity timer resets
     #[tokio::test(start_paused = true)]
     async fn case_4() {
-        let shutdown_after_sync_if_no_activity = false;
+        let shutdown_after_sync = false;
         let inactivity_timer_sec = 1;
-        let mut mats = get_test_materials(
-            shutdown_after_sync_if_no_activity,
-            inactivity_timer_sec,
-        );
+        let mut mats =
+            get_test_materials(shutdown_after_sync, inactivity_timer_sec);
         let actor_fut = mats.actor.start();
 
         // Spawn a task to generate an activity event 500ms in
@@ -246,12 +238,10 @@ mod tests {
     /// activity timer
     #[tokio::test(start_paused = true)]
     async fn case_5() {
-        let shutdown_after_sync_if_no_activity = false;
+        let shutdown_after_sync = false;
         let inactivity_timer_sec = 1;
-        let mut mats = get_test_materials(
-            shutdown_after_sync_if_no_activity,
-            inactivity_timer_sec,
-        );
+        let mut mats =
+            get_test_materials(shutdown_after_sync, inactivity_timer_sec);
         let actor_fut = mats.actor.start();
 
         // Spawn a task to generate an activity event 500ms in and a shutdown

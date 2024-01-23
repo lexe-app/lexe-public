@@ -235,9 +235,9 @@ impl LexeBackgroundProcessor {
             //   accidentally trigger a force close..
             // - For the network graph and scorer, it is possible that the node
             //   is shut down before they have gotten a chance to be persisted,
-            //   (e.g. `shutdown_after_sync_if_no_activity` is set), and since
-            //   we're already another API call for the channel manager, we
-            //   might as well concurrently persist these as well.
+            //   (e.g. `shutdown_after_sync` is set), and since we're already
+            //   another API call for the channel manager, we might as well
+            //   concurrently persist these as well.
             let network_graph = gossip_sync.network_graph();
             let results = tokio::join!(
                 persister.persist_manager(channel_manager.deref()),
