@@ -22,7 +22,7 @@ pub enum NodeCommand {
 }
 
 impl ToCommand for NodeCommand {
-    fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
+    fn append_args(&self, cmd: &mut Command) {
         match self {
             Self::Run(args) => args.append_args(cmd),
             Self::Provision(args) => args.append_args(cmd),
@@ -114,7 +114,7 @@ impl Default for RunArgs {
 }
 
 impl ToCommand for RunArgs {
-    fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
+    fn append_args(&self, cmd: &mut Command) {
         cmd.arg("run")
             .arg("--user-pk")
             .arg(&self.user_pk.to_string())
@@ -139,8 +139,6 @@ impl ToCommand for RunArgs {
         if let Some(ref runner_url) = self.runner_url {
             cmd.arg("--runner-url").arg(runner_url);
         }
-
-        cmd
     }
 }
 
@@ -183,7 +181,7 @@ impl Default for ProvisionArgs {
 }
 
 impl ToCommand for ProvisionArgs {
-    fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command {
+    fn append_args(&self, cmd: &mut Command) {
         cmd.arg("provision")
             .arg("--backend-url")
             .arg(&self.backend_url)
@@ -195,7 +193,6 @@ impl ToCommand for ProvisionArgs {
         if let Some(ref oauth) = self.oauth {
             cmd.arg("--oauth").arg(&oauth.to_string());
         }
-        cmd
     }
 }
 

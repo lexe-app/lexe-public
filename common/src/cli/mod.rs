@@ -33,7 +33,7 @@ pub trait ToCommand {
     }
 
     /// Serialize and append the contained args to an existing [`Command`].
-    fn append_args<'a>(&self, cmd: &'a mut Command) -> &'a mut Command;
+    fn append_args(&self, cmd: &mut Command);
 }
 
 /// A wrapper around [`bitcoin::Network`] that implements [`FromStr`] /
