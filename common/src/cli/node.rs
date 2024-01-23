@@ -4,7 +4,6 @@ use std::{
     str::FromStr,
 };
 
-use argh::FromArgs;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -18,35 +17,29 @@ use crate::{
 
 /// Run a user node
 #[cfg_attr(test, derive(Arbitrary))]
-#[derive(Clone, Debug, PartialEq, Eq, FromArgs, Serialize, Deserialize)]
-#[argh(subcommand, name = "run")]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RunArgs {
     /// the Lexe user pk used in queries to the persistence API
-    #[argh(option)]
     pub user_pk: UserPk,
 
     /// bitcoin, testnet, regtest, or signet.
-    #[argh(option)]
     pub network: Network,
 
     /// whether the node should shut down after completing sync and other
     /// maintenance tasks. This only applies if no activity was detected prior
     /// to the completion of sync (which is usually what happens). Useful when
     /// starting nodes for maintenance purposes.
-    #[argh(switch, short = 's')]
     pub shutdown_after_sync: bool,
 
     /// how long the node will stay online (in seconds) without any activity
     /// before shutting itself down. The timer resets whenever the node
     /// receives some activity.
-    #[argh(option, short = 'i')]
     pub inactivity_timer_sec: u64,
 
     /// whether the node is allowed to use mock clients instead of real ones.
     /// This option exists as a safeguard to prevent accidentally using a mock
     /// client by forgetting to pass `Some(url)` for the various Lexe services.
     /// Mock clients are only available during dev, and are cfg'd out in prod.
-    #[argh(switch, short = 'm')]
     pub allow_mock: bool,
 
     /// protocol://host:port of the backend. Defaults to a mock client if not
@@ -55,7 +48,6 @@ pub struct RunArgs {
         test,
         proptest(strategy = "arbitrary::any_option_simple_string()")
     )]
-    #[argh(option)]
     pub backend_url: Option<String>,
 
     /// protocol://host:port of the runner. Defaults to a mock client if not
@@ -64,16 +56,13 @@ pub struct RunArgs {
         test,
         proptest(strategy = "arbitrary::any_option_simple_string()")
     )]
-    #[argh(option)]
     pub runner_url: Option<String>,
 
     /// protocol://host:port of Lexe's Esplora server.
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
-    #[argh(option)]
     pub esplora_url: String,
 
     /// info relating to Lexe's LSP.
-    #[argh(option)]
     pub lsp: LspInfo,
 }
 
@@ -99,30 +88,7 @@ impl Default for RunArgs {
 
 impl ToCommand for RunArgs {
     fn append_args(&self, cmd: &mut Command) {
-        cmd.arg("run")
-            .arg("--user-pk")
-            .arg(&self.user_pk.to_string())
-            .arg("-i")
-            .arg(&self.inactivity_timer_sec.to_string())
-            .arg("--network")
-            .arg(&self.network.to_string())
-            .arg("--esplora-url")
-            .arg(&self.esplora_url)
-            .arg("--lsp")
-            .arg(&self.lsp.to_string());
-
-        if self.shutdown_after_sync {
-            cmd.arg("-s");
-        }
-        if self.allow_mock {
-            cmd.arg("--allow-mock");
-        }
-        if let Some(ref backend_url) = self.backend_url {
-            cmd.arg("--backend-url").arg(backend_url);
-        }
-        if let Some(ref runner_url) = self.runner_url {
-            cmd.arg("--runner-url").arg(runner_url);
-        }
+        cmd.arg("run").arg(&self.to_string());
     }
 }
 
@@ -144,26 +110,21 @@ impl Display for RunArgs {
 
 /// Provision a new user node
 #[cfg_attr(test, derive(Arbitrary))]
-#[derive(Clone, Debug, PartialEq, Eq, FromArgs, Serialize, Deserialize)]
-#[argh(subcommand, name = "provision")]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ProvisionArgs {
     /// protocol://host:port of the backend.
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
-    #[argh(option)]
     pub backend_url: String,
 
     /// protocol://host:port of the runner.
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
-    #[argh(option)]
     pub runner_url: String,
 
     /// the port on which to accept a provision request from the client.
-    #[argh(option)]
     pub port: Option<Port>,
 
     /// configuration info for Google OAuth2.
     /// Required only if running in staging / prod.
-    #[argh(option)]
     pub oauth: Option<OAuthConfig>,
 }
 
@@ -182,17 +143,7 @@ impl Default for ProvisionArgs {
 
 impl ToCommand for ProvisionArgs {
     fn append_args(&self, cmd: &mut Command) {
-        cmd.arg("provision")
-            .arg("--backend-url")
-            .arg(&self.backend_url)
-            .arg("--runner-url")
-            .arg(&self.runner_url);
-        if let Some(port) = self.port {
-            cmd.arg("--port").arg(&port.to_string());
-        }
-        if let Some(ref oauth) = self.oauth {
-            cmd.arg("--oauth").arg(&oauth.to_string());
-        }
+        cmd.arg("provision").arg(&self.to_string());
     }
 }
 
