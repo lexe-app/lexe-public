@@ -14,7 +14,7 @@ use crate::{
 };
 
 /// A wrapper around [`NodeCommand`] that serves as [`argh::TopLevelCommand`].
-#[derive(Debug, PartialEq, Eq, FromArgs)]
+#[derive(Debug, Eq, PartialEq, FromArgs)]
 pub struct NodeArgs {
     /// show the current version, then exit.
     #[argh(switch)]
@@ -30,8 +30,26 @@ pub struct NodeArgs {
 #[argh(subcommand)]
 #[allow(clippy::large_enum_variant)] // It will be Run most of the time
 pub enum NodeCommand {
-    Run(RunArgs),
-    Provision(ProvisionArgs),
+    Run(RunArgsWrapper),
+    Provision(ProvisionArgsWrapper),
+}
+
+/// A `FromArgs` impl which takes [`RunArgs`] as a positional argument.
+#[derive(Clone, Debug, Eq, PartialEq, FromArgs)]
+#[argh(subcommand, name = "run")]
+pub struct RunArgsWrapper {
+    /// the JSON string-serialized [`RunArgs`].
+    #[argh(positional)]
+    pub args: RunArgs,
+}
+
+/// A `FromArgs` impl which takes [`ProvisionArgs`] as a positional argument.
+#[derive(Clone, Debug, Eq, PartialEq, FromArgs)]
+#[argh(subcommand, name = "provision")]
+pub struct ProvisionArgsWrapper {
+    /// the JSON string-serialized [`ProvisionArgs`].
+    #[argh(positional)]
+    pub args: ProvisionArgs,
 }
 
 impl NodeArgs {
@@ -55,7 +73,7 @@ impl NodeArgs {
             .context("Missing subcommand: try 'help', 'run', or 'provision'")?;
 
         match command {
-            NodeCommand::Run(args) => rt
+            NodeCommand::Run(RunArgsWrapper { args }) => rt
                 .block_on(async {
                     let mut node = UserNode::init(&mut rng, args)
                         .await
@@ -64,7 +82,7 @@ impl NodeArgs {
                     node.run().await.context("Error while running")
                 })
                 .context("Error running node"),
-            NodeCommand::Provision(args) => {
+            NodeCommand::Provision(ProvisionArgsWrapper { args }) => {
                 let runner_api =
                     Arc::new(RunnerClient::new(args.runner_url.clone()));
                 let backend_api =
