@@ -585,7 +585,7 @@ impl UserNode {
 
         // Construct (but don't start) the inactivity timer
         let inactivity_timer = InactivityTimer::new(
-            args.shutdown_after_sync_if_no_activity,
+            args.shutdown_after_sync,
             args.inactivity_timer_sec,
             activity_rx,
             shutdown.clone(),

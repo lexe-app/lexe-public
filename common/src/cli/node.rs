@@ -46,14 +46,14 @@ pub struct RunArgs {
     /// whether the node should shut down after completing sync and other
     /// maintenance tasks. This only applies if no activity was detected prior
     /// to the completion of sync (which is usually what happens). Useful when
-    /// starting nodes for maintenance purposes. Defaults to false.
+    /// starting nodes for maintenance purposes.
     #[argh(switch, short = 's')]
-    pub shutdown_after_sync_if_no_activity: bool,
+    pub shutdown_after_sync: bool,
 
     /// how long the node will stay online (in seconds) without any activity
     /// before shutting itself down. The timer resets whenever the node
-    /// receives some activity. Defaults to 3600 seconds (1 hour)
-    #[argh(option, short = 'i', default = "3600")]
+    /// receives some activity.
+    #[argh(option, short = 'i')]
     pub inactivity_timer_sec: u64,
 
     /// whether the node is allowed to use mock clients instead of real ones.
@@ -93,8 +93,6 @@ pub struct RunArgs {
 
 #[cfg(any(test, feature = "test-utils"))]
 impl Default for RunArgs {
-    /// Non-`Option<T>` fields are required by the node, with no node defaults.
-    /// `Option<T>` fields are not required by the node, and use node defaults.
     fn default() -> Self {
         use crate::test_utils::{
             DUMMY_BACKEND_URL, DUMMY_ESPLORA_URL, DUMMY_RUNNER_URL,
@@ -102,7 +100,7 @@ impl Default for RunArgs {
         Self {
             user_pk: UserPk::from_u64(1), // Test user
             network: Network::REGTEST,
-            shutdown_after_sync_if_no_activity: false,
+            shutdown_after_sync: false,
             inactivity_timer_sec: 3600,
             backend_url: Some(DUMMY_BACKEND_URL.to_owned()),
             runner_url: Some(DUMMY_RUNNER_URL.to_owned()),
@@ -127,7 +125,7 @@ impl ToCommand for RunArgs {
             .arg("--lsp")
             .arg(&self.lsp.to_string());
 
-        if self.shutdown_after_sync_if_no_activity {
+        if self.shutdown_after_sync {
             cmd.arg("-s");
         }
         if self.allow_mock {
