@@ -16,25 +16,6 @@ use crate::{
     cli::{LspInfo, Network, OAuthConfig, ToCommand},
 };
 
-/// Commands accepted by the user node.
-#[cfg_attr(test, derive(Arbitrary))]
-#[derive(Clone, Debug, Eq, PartialEq, FromArgs)]
-#[argh(subcommand)]
-#[allow(clippy::large_enum_variant)] // It will be Run most of the time
-pub enum NodeCommand {
-    Run(RunArgs),
-    Provision(ProvisionArgs),
-}
-
-impl ToCommand for NodeCommand {
-    fn append_args(&self, cmd: &mut Command) {
-        match self {
-            Self::Run(args) => args.append_args(cmd),
-            Self::Provision(args) => args.append_args(cmd),
-        }
-    }
-}
-
 /// Run a user node
 #[cfg_attr(test, derive(Arbitrary))]
 #[derive(Clone, Debug, PartialEq, Eq, FromArgs, Serialize, Deserialize)]
@@ -233,40 +214,8 @@ impl Display for ProvisionArgs {
 
 #[cfg(test)]
 mod test {
-    use std::path::Path;
-
-    use proptest::{arbitrary::any, proptest, test_runner::Config};
-
     use super::*;
     use crate::test_utils::roundtrip;
-
-    #[test]
-    fn proptest_cmd_roundtrip() {
-        let config = Config {
-            max_shrink_iters: 32_000,
-            ..Default::default()
-        };
-
-        proptest!(config, |(
-            path_str in arbitrary::any_simple_string(),
-            cmd1 in any::<NodeCommand>(),
-        )| {
-            let path = Path::new(&path_str);
-            // Convert to std::process::Command
-            let std_cmd = cmd1.to_command(path);
-            // Convert to an iterator over &str args
-            let mut args_iter = std_cmd.get_args().filter_map(|s| s.to_str());
-            // Pop the first arg which contains the subcommand name e.g. 'run'
-            let subcommand = args_iter.next().unwrap();
-            // Collect the remaining args into a vec
-            let cmd_args: Vec<&str> = args_iter.collect();
-            dbg!(&cmd_args);
-            // Deserialize back into struct
-            let cmd2 = NodeCommand::from_args(&[subcommand], &cmd_args).unwrap();
-            // Assert
-            assert_eq!(cmd1, cmd2);
-        })
-    }
 
     #[test]
     fn node_args_json_string_roundtrip() {
