@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use argh::FromArgs;
-use common::{cli::node::NodeCommand, rng::SysRng};
+use common::{
+    cli::node::{ProvisionArgs, RunArgs},
+    rng::SysRng,
+};
 
 use crate::{
     api::client::{BackendClient, RunnerClient},
@@ -20,6 +23,15 @@ pub struct NodeArgs {
     // Has to be Option otherwise --version doesn't work
     #[argh(subcommand)]
     command: Option<NodeCommand>,
+}
+
+/// Commands accepted by the user node.
+#[derive(Clone, Debug, Eq, PartialEq, FromArgs)]
+#[argh(subcommand)]
+#[allow(clippy::large_enum_variant)] // It will be Run most of the time
+pub enum NodeCommand {
+    Run(RunArgs),
+    Provision(ProvisionArgs),
 }
 
 impl NodeArgs {
