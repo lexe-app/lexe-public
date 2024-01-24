@@ -61,6 +61,11 @@ base64 = "0.13"
 bytes = "1"
 # Write #[cfg(..)] if-else statements without repeating clauses
 cfg-if = "1"
+# Datetime utilities
+chrono = { version = "0.4", default-features = false, features = [
+    "std",
+    "clock"
+] }
 # Allows setting environment variables using a .env file.
 # dotenvy is a better maintained fork of dotenv
 dotenvy = "0.15"
