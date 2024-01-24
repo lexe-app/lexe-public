@@ -103,6 +103,16 @@ impl fmt::Debug for GDriveCredentials {
     }
 }
 
+/// Verify that the GDrive OAuth response has a scope that contains our required
+/// [`API_SCOPE`].
+fn verify_response_scope(scope: String) -> Result<(), Error> {
+    if scope.split(' ').any(|s| s == API_SCOPE) {
+        Ok(())
+    } else {
+        Err(Error::InsufficientScopes { scope })
+    }
+}
+
 /// Exchanges the auth `code` (and other info) for the `access_token`,
 /// returning the full [`GDriveCredentials`] which can then be persisted.
 ///
@@ -170,9 +180,7 @@ pub async fn auth_code_for_token(
         return Err(Error::WrongTokenType { token_type });
     }
     // Ensure we were actually granted the required gdrive API scope
-    if scope.split(' ').all(|s| s != API_SCOPE) {
-        return Err(Error::InsufficientScopes { scope });
-    }
+    verify_response_scope(scope)?;
 
     let now_timestamp = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
@@ -241,9 +249,8 @@ pub async fn check_token_info(
     if access_type != ACCESS_TYPE {
         return Err(Error::WrongAccessType { access_type });
     }
-    if scope != API_SCOPE {
-        return Err(Error::InsufficientScopes { scope });
-    }
+    // Ensure we were actually granted the required gdrive API scope
+    verify_response_scope(scope)?;
 
     let now_timestamp = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
@@ -338,12 +345,11 @@ async fn refresh(
         token_type,
     } = refresh_response;
 
-    if scope != API_SCOPE {
-        return Err(Error::InsufficientScopes { scope });
-    }
     if token_type != TOKEN_TYPE {
         return Err(Error::WrongTokenType { token_type });
     }
+    // Ensure we were actually granted the required gdrive API scope
+    verify_response_scope(scope)?;
 
     let expires_at = now + expires_in as u64;
 
