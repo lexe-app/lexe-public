@@ -5,7 +5,9 @@
     # nixpkgs unstable
     #
     # We use unstable as `oxalica/rust-overlay` seems to require it.
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    # TODO(phlip9): use upstream when PR gets merged
+    # nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:phlip9/nixpkgs/update-sgx-2.23";
 
     # We don't actually use these, but some dependencies do. Let's try to use the
     # same versions.
