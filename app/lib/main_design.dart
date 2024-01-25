@@ -32,8 +32,7 @@ import 'cfg.dart' as cfg;
 import 'components.dart' show HeadingText, ScrollableSinglePageBody;
 import 'date_format.dart' as date_format;
 import 'gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
-import 'logger.dart' as logger;
-import 'logger.dart' show info;
+import 'logger.dart';
 import 'route/backup_wallet.dart' show BackupWalletPage;
 import 'route/landing.dart' show LandingPage;
 import 'route/scan.dart' show ScanPage;
@@ -62,7 +61,7 @@ Future<void> main() async {
   // Intl.defaultLocale = "fr_FR"; // French - France
   // Intl.defaultLocale = "nb"; // Norwegian Bokmål
 
-  logger.init();
+  Logger.init();
 
   final Config config = await cfg.buildTest();
   info("Test build config: $config");

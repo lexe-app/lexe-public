@@ -13,13 +13,62 @@ const int _levelWarn = 3;
 const int _levelError = 4;
 
 // The global logger instance. Might be uninitialized (null).
-_Logger? _logger;
+Logger? _logger;
 
 /// The global logger state and configuration.
-class _Logger {
-  _Logger(this.minLogLevel);
+class Logger {
+  const Logger._(this.minLogLevel);
 
   final int minLogLevel;
+
+  /// Initialize the global logger. Will throw an exception if it's already
+  /// initialized.
+  static void init() {
+    final alreadyInit = !tryInit();
+    if (alreadyInit) {
+      throw Exception("Dart logger is already initialized!");
+    }
+  }
+
+  /// Try to initialize the global logger. Returns `true` if successful, `false`
+  /// if the logger was already initialized.
+  static bool tryInit() {
+    final String rustLog;
+    final int minLogLevel;
+
+    // Check if the global logger is already set.
+    if (_logger != null) {
+      return false;
+    } else {
+      rustLog = cfg.rustLogFromEnv();
+      minLogLevel = _logLevelFromRustLog(rustLog);
+      _logger = Logger._(minLogLevel);
+    }
+
+    // Register a stream of log entries from Rust -> Dart.
+    final Stream<String> rustLogRx;
+
+    switch (Result.tryFfi(() => api.initRustLogStream(rustLog: rustLog))) {
+      case Ok(:final ok):
+        rustLogRx = ok;
+      case Err():
+        // Rust logger is already initialized?
+        return false;
+    }
+
+    // "Spawn" a task listening on the Rust log stream. It just forwards Rust log
+    // messages to the Dart logger.
+    //
+    // For some reason, this doesn't spawn in a reasonable amount of time if the
+    // tryInit fn isn't marked `async`...
+    rustLogRx.listen((formattedLog) {
+      // Rust log messages are already filtered and formatted. Just print them
+      // directly.
+      _logger!.logRaw(formattedLog);
+    });
+
+    return true;
+  }
 
   void log(int logLevel, String message) {
     if (logLevel >= this.minLogLevel) {
@@ -30,85 +79,44 @@ class _Logger {
     }
   }
 
+  @pragma('vm:prefer-inline')
   void logRaw(String formattedLog) {
     debugPrint(formattedLog);
   }
 }
 
-/// Initialize the global logger. Will throw an exception if it's already
-/// initialized.
-void init() {
-  final alreadyInit = !tryInit();
-  if (alreadyInit) {
-    throw Exception("Dart logger is already initialized!");
-  }
-}
-
-/// Try to initialize the global logger. Returns `true` if successful, `false`
-/// if the logger was already initialized.
-bool tryInit() {
-  final String rustLog;
-  final int minLogLevel;
-
-  // Check if the global logger is already set.
-  if (_logger != null) {
-    return false;
-  } else {
-    rustLog = cfg.rustLogFromEnv();
-    minLogLevel = _logLevelFromRustLog(rustLog);
-    _logger = _Logger(minLogLevel);
-  }
-
-  // Register a stream of log entries from Rust -> Dart.
-  final Stream<String> rustLogRx;
-
-  switch (Result.tryFfi(() => api.initRustLogStream(rustLog: rustLog))) {
-    case Ok(:final ok):
-      rustLogRx = ok;
-    case Err():
-      // Rust logger is already initialized?
-      return false;
-  }
-
-  // "Spawn" a task listening on the Rust log stream. It just forwards Rust log
-  // messages to the Dart logger.
-  //
-  // For some reason, this doesn't spawn in a reasonable amount of time if the
-  // tryInit fn isn't marked `async`...
-  rustLogRx.listen((formattedLog) {
-    // Rust log messages are already filtered and formatted. Just print them
-    // directly.
-    _logger!.logRaw(formattedLog);
-  });
-
-  return true;
-}
-
+@pragma('vm:prefer-inline')
 T dbg<T>(T value) {
   info("$value");
   return value;
 }
 
+@pragma('vm:prefer-inline')
 void trace(String message) {
   _logger?.log(_levelTrace, message);
 }
 
+@pragma('vm:prefer-inline')
 void debug(String message) {
   _logger?.log(_levelDebug, message);
 }
 
+@pragma('vm:prefer-inline')
 void info(String message) {
   _logger?.log(_levelInfo, message);
 }
 
+@pragma('vm:prefer-inline')
 void warn(String message) {
   _logger?.log(_levelWarn, message);
 }
 
+@pragma('vm:prefer-inline')
 void error(String message) {
   _logger?.log(_levelError, message);
 }
 
+@pragma('vm:prefer-inline')
 String _levelToString(int logLevel) {
   if (logLevel == _levelTrace) {
     return "TRACE";
@@ -123,6 +131,7 @@ String _levelToString(int logLevel) {
   }
 }
 
+@pragma('vm:prefer-inline')
 int? _parseLogLevel(String target) {
   if (target == "trace") {
     return _levelTrace;
