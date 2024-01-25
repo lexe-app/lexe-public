@@ -33,6 +33,9 @@ pub trait Ffs {
 
     /// Delete all files and directories in the `Ffs`.
     fn delete_all(&self) -> io::Result<()>;
+
+    /// Delete file.
+    fn delete(&self, filename: &str) -> io::Result<()>;
 }
 
 /// File system impl for [`Ffs`] that does real IO.
@@ -81,8 +84,7 @@ impl FlatFileFs {
 
 impl Ffs for FlatFileFs {
     fn read_into(&self, filename: &str, buf: &mut Vec<u8>) -> io::Result<()> {
-        let path = self.base_dir.join(filename);
-        let mut file = fs::File::open(path)?;
+        let mut file = fs::File::open(self.base_dir.join(filename))?;
         file.read_to_end(buf)?;
         Ok(())
     }
@@ -116,6 +118,11 @@ impl Ffs for FlatFileFs {
     fn delete_all(&self) -> io::Result<()> {
         fs::remove_dir_all(&self.base_dir)?;
         fs::create_dir(&self.base_dir)?;
+        Ok(())
+    }
+
+    fn delete(&self, filename: &str) -> io::Result<()> {
+        fs::remove_file(self.base_dir.join(filename))?;
         Ok(())
     }
 }
