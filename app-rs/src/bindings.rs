@@ -137,14 +137,18 @@ pub(crate) static FLUTTER_RUST_BRIDGE_HANDLER: LazyLock<LxHandler> =
 #[frb(dart_metadata=("freezed"))]
 pub struct NodeInfo {
     pub node_pk: String,
-    pub local_balance_sats: u64,
+    pub version: String,
+    pub measurement: String,
+    pub spendable_balance_sats: u64,
 }
 
 impl From<NodeInfoRs> for NodeInfo {
     fn from(info: NodeInfoRs) -> Self {
         Self {
             node_pk: info.node_pk.to_string(),
-            local_balance_sats: info.local_balance.sats_u64(),
+            version: info.version.to_string(),
+            measurement: info.measurement.to_string(),
+            spendable_balance_sats: info.spendable_balance().sats_u64(),
         }
     }
 }
