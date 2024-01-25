@@ -785,6 +785,13 @@ mod test {
             self.inner.borrow_mut().files = BTreeMap::new();
             Ok(())
         }
+
+        fn delete(&self, filename: &str) -> io::Result<()> {
+            match self.inner.borrow_mut().files.remove(filename) {
+                Some(_) => Ok(()),
+                None => Err(io_err_not_found(filename)),
+            }
+        }
     }
 
     struct MockNode {
