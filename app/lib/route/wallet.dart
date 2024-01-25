@@ -146,7 +146,7 @@ class WalletPageState extends State<WalletPage> {
 
   /// Called when the "Send" button is pressed. Pushes the send payment page
   /// onto the navigation stack.
-  void onSendPressed() {
+  Future<void> onSendPressed() async {
     final maybeNodeInfo = this.nodeInfos.value;
     if (maybeNodeInfo == null) {
       return;
@@ -154,9 +154,8 @@ class WalletPageState extends State<WalletPage> {
 
     final balanceSats = maybeNodeInfo.spendableBalanceSats;
 
-    // TODO(phlip9): use result of `Navigator.pop()` in page to know whether to
-    // resync payments (if a payment was actually made).
-    Navigator.of(this.context).push(MaterialPageRoute(
+    final bool? flowResult =
+        await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (context) => SendPaymentPage(
         sendCtx: SendContext.cidFromRng(
           app: this.widget.app,
@@ -165,6 +164,12 @@ class WalletPageState extends State<WalletPage> {
         ),
       ),
     ));
+
+    // User canceled
+    if (flowResult == null || !flowResult) return;
+
+    // Refresh to pick up new payment
+    this.triggerRefresh();
   }
 
   void onDebugPressed() {
