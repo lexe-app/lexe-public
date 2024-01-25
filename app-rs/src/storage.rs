@@ -32,3 +32,14 @@ pub(crate) fn write_latest_provisioned(
         .write(LATEST_PROVISIONED_FILENAME, &json_bytes)
         .context("Ffs::write failed")
 }
+
+/// Delete the latest provisioned [`NodeRelease`] file.
+pub(crate) fn delete_latest_provisioned(
+    app_data_ffs: &impl Ffs,
+) -> anyhow::Result<()> {
+    match app_data_ffs.delete(LATEST_PROVISIONED_FILENAME) {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(anyhow!("Ffs::delete failed: {e:#}")),
+    }
+}

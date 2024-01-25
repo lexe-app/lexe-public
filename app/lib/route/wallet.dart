@@ -310,7 +310,8 @@ class WalletDrawer extends StatelessWidget {
               icon: Icons.help_outline_rounded,
               onTap: this.onSupportPressed,
             ),
-            if (config.deployEnv == DeployEnv.Dev)
+            if (config.deployEnv == DeployEnv.Dev ||
+                config.deployEnv == DeployEnv.Staging)
               DrawerListItem(
                 title: "Debug",
                 icon: Icons.bug_report_outlined,
