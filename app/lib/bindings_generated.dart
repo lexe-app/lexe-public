@@ -155,6 +155,24 @@ class AppRsImpl implements AppRs {
         argNames: ["config"],
       );
 
+  void debugDeleteLatestProvisioned({required Config config, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_config(config);
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner.wire_debug_delete_latest_provisioned(arg0),
+      parseSuccessData: _wire2api_unit,
+      parseErrorData: _wire2api_FrbAnyhowException,
+      constMeta: kDebugDeleteLatestProvisionedConstMeta,
+      argValues: [config],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kDebugDeleteLatestProvisionedConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "debug_delete_latest_provisioned",
+        argNames: ["config"],
+      );
+
   Future<AppHandle?> loadStaticMethodAppHandle(
       {required Config config, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_config(config);
@@ -1082,6 +1100,22 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       'wire_debug_delete_secret_store');
   late final _wire_debug_delete_secret_store =
       _wire_debug_delete_secret_storePtr
+          .asFunction<WireSyncReturn Function(ffi.Pointer<wire_Config>)>();
+
+  WireSyncReturn wire_debug_delete_latest_provisioned(
+    ffi.Pointer<wire_Config> config,
+  ) {
+    return _wire_debug_delete_latest_provisioned(
+      config,
+    );
+  }
+
+  late final _wire_debug_delete_latest_provisionedPtr = _lookup<
+          ffi
+          .NativeFunction<WireSyncReturn Function(ffi.Pointer<wire_Config>)>>(
+      'wire_debug_delete_latest_provisioned');
+  late final _wire_debug_delete_latest_provisioned =
+      _wire_debug_delete_latest_provisionedPtr
           .asFunction<WireSyncReturn Function(ffi.Pointer<wire_Config>)>();
 
   void wire_load__static_method__AppHandle(

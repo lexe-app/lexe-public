@@ -78,6 +78,11 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kDebugDeleteSecretStoreConstMeta;
 
+  /// Delete the local latest_release file.
+  void debugDeleteLatestProvisioned({required Config config, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kDebugDeleteLatestProvisionedConstMeta;
+
   Future<AppHandle?> loadStaticMethodAppHandle(
       {required Config config, dynamic hint});
 

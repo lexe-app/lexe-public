@@ -85,7 +85,8 @@ use secrecy::Zeroize;
 
 pub use crate::app::App;
 use crate::{
-    dart_task_handler::LxHandler, form, logger, secret_store::SecretStore,
+    app::AppConfig, dart_task_handler::LxHandler, ffs::FlatFileFs, form,
+    logger, secret_store::SecretStore, storage,
 };
 
 // TODO(phlip9): land real async support in flutter_rust_bridge
@@ -554,6 +555,17 @@ pub fn debug_delete_secret_store(
     config: Config,
 ) -> anyhow::Result<SyncReturn<()>> {
     SecretStore::new(&config.into()).delete().map(SyncReturn)
+}
+
+/// Delete the local latest_release file.
+pub fn debug_delete_latest_provisioned(
+    config: Config,
+) -> anyhow::Result<SyncReturn<()>> {
+    let app_config = AppConfig::from(config);
+    let app_data_ffs = FlatFileFs::create_dir_all(app_config.app_data_dir)
+        .context("Could not create app data ffs")?;
+    storage::delete_latest_provisioned(&app_data_ffs)?;
+    Ok(SyncReturn(()))
 }
 
 fn block_on<T, Fut>(future: Fut) -> T

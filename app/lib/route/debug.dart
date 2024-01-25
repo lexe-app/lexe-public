@@ -36,6 +36,12 @@ class DebugPage extends StatelessWidget {
         .inspectErr((err) => error(err.message));
   }
 
+  void doDeleteLatestProvisionedFile() {
+    info("Deleting latest_provisioned file");
+    Result.tryFfi(() => api.debugDeleteLatestProvisioned(config: this.config))
+        .inspectErr((err) => error(err.message));
+  }
+
   @override
   Widget build(BuildContext context) {
     const bodyPadding = EdgeInsets.symmetric(horizontal: Space.s600);
@@ -46,19 +52,13 @@ class DebugPage extends StatelessWidget {
         leading: const LxCloseButton(),
       ),
       body: ScrollableSinglePageBody(
-        padding: EdgeInsets.zero,
+        padding: bodyPadding,
         body: [
-          const Padding(
-            padding: bodyPadding,
-            child: HeadingText(text: "Lexe Debug"),
-          ),
-          const Padding(
-            padding: bodyPadding,
-            child: SubheadingText(text: "Page for manipulating app internals."),
-          ),
+          const HeadingText(text: "Lexe Debug"),
+          const SubheadingText(text: "Page for manipulating app internals."),
           const SizedBox(height: Space.s600),
           ListTile(
-            contentPadding: bodyPadding,
+            contentPadding: EdgeInsets.zero,
             title: const Text("Delete local PaymentDb"),
             subtitle: const Text(
               "The PaymentDb will be recreated after the next payment sync",
@@ -67,7 +67,17 @@ class DebugPage extends StatelessWidget {
             onTap: this.doDeleteLocalPaymentDb,
           ),
           ListTile(
-            contentPadding: bodyPadding,
+            contentPadding: EdgeInsets.zero,
+            title: const Text("Delete latest_provisioned file"),
+            subtitle: const Text(
+              "On next restart, will ask the Lexe API for the most recent node "
+              "version and unconditionally provision to it.",
+              style: TextStyle(color: LxColors.fgTertiary),
+            ),
+            onTap: this.doDeleteLatestProvisionedFile,
+          ),
+          ListTile(
+            contentPadding: EdgeInsets.zero,
             title: const Text("Delete SecretStore & RootSeed"),
             subtitle: const Text.rich(TextSpan(children: [
               TextSpan(

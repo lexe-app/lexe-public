@@ -133,6 +133,21 @@ fn wire_debug_delete_secret_store_impl(
         },
     )
 }
+fn wire_debug_delete_latest_provisioned_impl(
+    config: impl Wire2Api<Config> + UnwindSafe,
+) -> support::WireSyncReturn {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
+        WrapInfo {
+            debug_name: "debug_delete_latest_provisioned",
+            port: None,
+            mode: FfiCallMode::Sync,
+        },
+        move || {
+            let api_config = config.wire2api();
+            debug_delete_latest_provisioned(api_config)
+        },
+    )
+}
 fn wire_load__static_method__AppHandle_impl(
     port_: MessagePort,
     config: impl Wire2Api<Config> + UnwindSafe,
@@ -771,6 +786,13 @@ mod io {
         config: *mut wire_Config,
     ) -> support::WireSyncReturn {
         wire_debug_delete_secret_store_impl(config)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_debug_delete_latest_provisioned(
+        config: *mut wire_Config,
+    ) -> support::WireSyncReturn {
+        wire_debug_delete_latest_provisioned_impl(config)
     }
 
     #[no_mangle]
