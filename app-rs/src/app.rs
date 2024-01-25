@@ -49,6 +49,7 @@ pub struct App {
 impl App {
     /// Try to load the root seed from the platform secret store and app state
     /// from the local storage. Returns `None` if this is the first run.
+    #[instrument(skip_all, name = "(load)")]
     pub async fn load<R: Crng>(
         rng: &mut R,
         config: AppConfig,
@@ -96,13 +97,23 @@ impl App {
         let maybe_latest_provisioned =
             storage::read_latest_provisioned(&app_data_ffs)
                 .context("Colud not read latest provisioned")?;
-        if maybe_latest_provisioned.is_none() {
-            warn!("Could not find latest provisioned file. Was it deleted?");
+        match &maybe_latest_provisioned {
+            Some(x) =>
+                info!(version = %x.version, measurement = %x.measurement, "latest provisioned"),
+            None =>
+                warn!("Could not find latest provisioned file. Was it deleted?"),
         }
+
         let latest_release = gateway_client
             .latest_release()
             .await
             .context("Could not fetch latest release")?;
+        info!(
+            version = %latest_release.version,
+            measurement = %latest_release.measurement,
+            "latest release",
+        );
+
         // TODO(max): Ensure that user has approved this version before
         // proceeding to re-provision.
         let do_reprovision = match maybe_latest_provisioned {
@@ -134,11 +145,7 @@ impl App {
             )
             .await
             .context("Re-provision failed")?;
-            info!(
-                version = %latest_release.version,
-                measurement = %latest_release.measurement,
-                "Re-provisioned to latest release"
-            );
+            info!("Successfully re-provisioned to latest release");
         } else {
             info!("Already provisioned to latest release")
         }
@@ -165,6 +172,7 @@ impl App {
         }))
     }
 
+    #[instrument(skip_all, name = "(restore)")]
     pub async fn restore(
         _config: AppConfig,
         _seed_phrase: String,
@@ -197,6 +205,7 @@ impl App {
     }
 
     /// Allows signing up with a specific [`RootSeed`], useful in tests.
+    #[instrument(skip_all, name = "(signup)")]
     pub async fn signup_custom(
         rng: &mut impl Crng,
         config: AppConfig,
