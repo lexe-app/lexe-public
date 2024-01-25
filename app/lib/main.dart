@@ -6,8 +6,7 @@ import 'bindings_generated_api.dart' show AppHandle, Config;
 import 'cfg.dart' as cfg;
 import 'date_format.dart' as date_format;
 import 'gdrive_auth.dart' show GDriveAuth;
-import 'logger.dart' as logger;
-import 'logger.dart' show info;
+import 'logger.dart';
 import 'route/landing.dart' show LandingPage;
 import 'route/signup.dart' show SignupApi;
 import 'route/wallet.dart' show WalletPage;
@@ -31,7 +30,7 @@ Future<void> main() async {
   // Initialize date formatting locale data for ALL locales.
   await date_format.initializeDateLocaleData();
 
-  logger.init();
+  Logger.init();
 
   final Config config = await cfg.build();
   info("Build config: $config");
