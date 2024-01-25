@@ -1,7 +1,5 @@
 /// Reusable flutter UI components
 
-import 'dart:async' show StreamController;
-
 import 'package:flutter/material.dart';
 import 'package:rxdart_ext/rxdart_ext.dart';
 
@@ -448,16 +446,6 @@ class StateStreamBuilder<T> extends StreamBuilder<T> {
           builder: (BuildContext context, AsyncSnapshot<T> snapshot) =>
               builder(context, snapshot.data),
         );
-}
-
-extension StreamControllerExt<T> on StreamController<T> {
-  /// Calls `add(event)` as long as the `StreamController` is not already
-  /// closed.
-  void addIfNotClosed(T event) {
-    if (!this.isClosed) {
-      this.add(event);
-    }
-  }
 }
 
 /// A zigzag line that spans the width of its container.
