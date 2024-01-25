@@ -239,22 +239,32 @@ abstract class _FiatRates implements FiatRates {
 /// @nodoc
 mixin _$NodeInfo {
   String get nodePk => throw _privateConstructorUsedError;
-  int get localBalanceSats => throw _privateConstructorUsedError;
+  String get version => throw _privateConstructorUsedError;
+  String get measurement => throw _privateConstructorUsedError;
+  int get spendableBalanceSats => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
 
 class _$NodeInfoImpl implements _NodeInfo {
-  const _$NodeInfoImpl({required this.nodePk, required this.localBalanceSats});
+  const _$NodeInfoImpl(
+      {required this.nodePk,
+      required this.version,
+      required this.measurement,
+      required this.spendableBalanceSats});
 
   @override
   final String nodePk;
   @override
-  final int localBalanceSats;
+  final String version;
+  @override
+  final String measurement;
+  @override
+  final int spendableBalanceSats;
 
   @override
   String toString() {
-    return 'NodeInfo(nodePk: $nodePk, localBalanceSats: $localBalanceSats)';
+    return 'NodeInfo(nodePk: $nodePk, version: $version, measurement: $measurement, spendableBalanceSats: $spendableBalanceSats)';
   }
 
   @override
@@ -263,23 +273,33 @@ class _$NodeInfoImpl implements _NodeInfo {
         (other.runtimeType == runtimeType &&
             other is _$NodeInfoImpl &&
             (identical(other.nodePk, nodePk) || other.nodePk == nodePk) &&
-            (identical(other.localBalanceSats, localBalanceSats) ||
-                other.localBalanceSats == localBalanceSats));
+            (identical(other.version, version) || other.version == version) &&
+            (identical(other.measurement, measurement) ||
+                other.measurement == measurement) &&
+            (identical(other.spendableBalanceSats, spendableBalanceSats) ||
+                other.spendableBalanceSats == spendableBalanceSats));
   }
 
   @override
-  int get hashCode => Object.hash(runtimeType, nodePk, localBalanceSats);
+  int get hashCode => Object.hash(
+      runtimeType, nodePk, version, measurement, spendableBalanceSats);
 }
 
 abstract class _NodeInfo implements NodeInfo {
   const factory _NodeInfo(
       {required final String nodePk,
-      required final int localBalanceSats}) = _$NodeInfoImpl;
+      required final String version,
+      required final String measurement,
+      required final int spendableBalanceSats}) = _$NodeInfoImpl;
 
   @override
   String get nodePk;
   @override
-  int get localBalanceSats;
+  String get version;
+  @override
+  String get measurement;
+  @override
+  int get spendableBalanceSats;
 }
 
 /// @nodoc

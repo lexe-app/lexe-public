@@ -397,7 +397,9 @@ enum Network {
 class NodeInfo with _$NodeInfo {
   const factory NodeInfo({
     required String nodePk,
-    required int localBalanceSats,
+    required String version,
+    required String measurement,
+    required int spendableBalanceSats,
   }) = _NodeInfo;
 }
 

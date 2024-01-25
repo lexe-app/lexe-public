@@ -643,11 +643,13 @@ class AppRsImpl implements AppRs {
 
   NodeInfo _wire2api_node_info(dynamic raw) {
     final arr = raw as List<dynamic>;
-    if (arr.length != 2)
-      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
     return NodeInfo(
       nodePk: _wire2api_String(arr[0]),
-      localBalanceSats: _wire2api_u64(arr[1]),
+      version: _wire2api_String(arr[1]),
+      measurement: _wire2api_String(arr[2]),
+      spendableBalanceSats: _wire2api_u64(arr[3]),
     );
   }
 

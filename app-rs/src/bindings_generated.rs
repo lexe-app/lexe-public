@@ -647,7 +647,9 @@ impl support::IntoDart for NodeInfo {
     fn into_dart(self) -> support::DartAbi {
         vec![
             self.node_pk.into_into_dart().into_dart(),
-            self.local_balance_sats.into_into_dart().into_dart(),
+            self.version.into_into_dart().into_dart(),
+            self.measurement.into_into_dart().into_dart(),
+            self.spendable_balance_sats.into_into_dart().into_dart(),
         ]
         .into_dart()
     }

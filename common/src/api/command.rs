@@ -113,6 +113,19 @@ pub struct CloseChannelRequest {
     pub maybe_counterparty: Option<NodePk>,
 }
 
+impl NodeInfo {
+    /// The top-level, user-visible balance on e.g. the wallet home screen.
+    /// This is the lightning balance (`local_balance`, always spendable) plus
+    /// the on-chain balance (`confirmed_sat` + `trusted_pending_sat`,
+    /// almost-certainly-spendable).
+    pub fn spendable_balance(&self) -> Amount {
+        Amount::try_from_sats_u64(self.wallet_balance.get_spendable())
+            .ok()
+            .and_then(|b| b.checked_add(self.local_balance))
+            .expect("Overflow computing user's spendable wallet balance")
+    }
+}
+
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary {
     use proptest::{
