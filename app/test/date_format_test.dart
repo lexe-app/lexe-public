@@ -51,6 +51,20 @@ void main() {
     expect(date_format.formatDateCompact(now: now, then: secs15, locale: "fr"),
         "15s");
 
+    // -15 secs + formatSeconds:false = "just now"
+    expect(
+        date_format.formatDateCompact(
+            now: now, then: secs15, locale: "en_US", formatSeconds: false),
+        "just now");
+    expect(
+        date_format.formatDateCompact(
+            now: now, then: secs15, locale: "nb", formatSeconds: false),
+        "just now");
+    expect(
+        date_format.formatDateCompact(
+            now: now, then: secs15, locale: "fr", formatSeconds: false),
+        "just now");
+
     // -5d ish = June 16, 2023 = "Jun 16"
     final jun16 = dateTimeFromUnix(1686938392000);
     expect(
