@@ -45,6 +45,12 @@ String? formatDateCompact({
 
   /// Use `locale` instead of the current configured locale. Used for testing.
   String? locale,
+
+  // For UI that shows several durations updating dynamically, it can be
+  // distracting to show the seconds ticking across many elements. Setting this
+  // option to `false` will format short durations (under a minute) as
+  // "just now" instead of e.g. "15s".
+  bool formatSeconds = true,
 }) {
   final DateTime now2 = now ?? DateTime.now();
 
@@ -55,7 +61,10 @@ String? formatDateCompact({
 
   final span = now2.difference(then);
 
-  if (span.inDays <= 3) {
+  if (!formatSeconds && span.inSeconds < 60) {
+    // TODO(phlip9): internationalize
+    return "just now";
+  } else if (span.inDays <= 3) {
     return formatDurationCompact(span, abbreviated: true, locale: locale);
   } else if (span.inDays <= 31 * 6) {
     return DateFormat.MMMd(locale).format(then);
