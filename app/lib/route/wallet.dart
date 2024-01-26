@@ -1,6 +1,6 @@
 // The primary wallet page.
 
-import 'dart:async' show StreamController;
+import 'dart:async' show StreamController, Timer;
 
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' show freezed;
@@ -590,7 +590,7 @@ enum PaymentsListFilter {
       };
 }
 
-class SliverPaymentsList extends StatelessWidget {
+class SliverPaymentsList extends StatefulWidget {
   const SliverPaymentsList({
     super.key,
     required this.app,
@@ -601,13 +601,44 @@ class SliverPaymentsList extends StatelessWidget {
   final PaymentsListFilter filter;
 
   @override
+  State<SliverPaymentsList> createState() => _SliverPaymentsListState();
+}
+
+class _SliverPaymentsListState extends State<SliverPaymentsList> {
+  // When this stream ticks, all the payments' createdAt label should update.
+  // This stream ticks every 30 seconds. All the payment times should also
+  // update at the same time, which is why they all share the same ticker
+  // stream, hoisted up here to the parent list widget.
+  final StateSubject<DateTime> paymentDateUpdates =
+      StateSubject(DateTime.now());
+  Timer? paymentDateUpdatesTimer;
+
+  @override
+  void dispose() {
+    this.paymentDateUpdatesTimer?.cancel();
+    this.paymentDateUpdates.close();
+
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    this.paymentDateUpdatesTimer =
+        Timer.periodic(const Duration(seconds: 30), (timer) {
+      this.paymentDateUpdates.addIfNotClosed(DateTime.now());
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final int paymentKindCount = switch (this.filter) {
-      PaymentsListFilter.all => this.app.getNumPayments(),
-      PaymentsListFilter.pending => this.app.getNumPendingPayments(),
-      PaymentsListFilter.finalized => this.app.getNumFinalizedPayments(),
+    final int paymentKindCount = switch (this.widget.filter) {
+      PaymentsListFilter.all => this.widget.app.getNumPayments(),
+      PaymentsListFilter.pending => this.widget.app.getNumPendingPayments(),
+      PaymentsListFilter.finalized => this.widget.app.getNumFinalizedPayments(),
     };
-    info("build SliverPaymentsList: filter: ${this.filter}, "
+    info("build SliverPaymentsList: filter: ${this.widget.filter}, "
         "paymentKindCount: $paymentKindCount");
 
     final numHeaders = switch (paymentKindCount) {
@@ -628,7 +659,7 @@ class SliverPaymentsList extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: Space.s400, vertical: Space.s200),
                 child: Text(
-                  this.filter.asTitle(),
+                  this.widget.filter.asTitle(),
                   style: Fonts.fontUI.copyWith(
                     fontSize: Fonts.size200,
                     color: LxColors.fgTertiary,
@@ -641,17 +672,24 @@ class SliverPaymentsList extends StatelessWidget {
 
           final scrollIdx = paymentPlusHeaderIdx - numHeaders;
 
-          final ShortPayment? payment = switch (this.filter) {
+          final ShortPayment? payment = switch (this.widget.filter) {
             PaymentsListFilter.all =>
-              this.app.getPaymentByScrollIdx(scrollIdx: scrollIdx),
-            PaymentsListFilter.pending =>
-              this.app.getPendingPaymentByScrollIdx(scrollIdx: scrollIdx),
-            PaymentsListFilter.finalized =>
-              this.app.getFinalizedPaymentByScrollIdx(scrollIdx: scrollIdx),
+              this.widget.app.getPaymentByScrollIdx(scrollIdx: scrollIdx),
+            PaymentsListFilter.pending => this
+                .widget
+                .app
+                .getPendingPaymentByScrollIdx(scrollIdx: scrollIdx),
+            PaymentsListFilter.finalized => this
+                .widget
+                .app
+                .getFinalizedPaymentByScrollIdx(scrollIdx: scrollIdx),
           };
 
           if (payment != null) {
-            return PaymentsListEntry(payment: payment);
+            return PaymentsListEntry(
+              payment: payment,
+              paymentDateUpdates: this.paymentDateUpdates,
+            );
           } else {
             return null;
           }
@@ -680,8 +718,10 @@ String formatFiatValue({
 }
 
 class PaymentsListEntry extends StatelessWidget {
-  PaymentsListEntry({required this.payment}) : super(key: Key(payment.index));
+  PaymentsListEntry({required this.payment, required this.paymentDateUpdates})
+      : super(key: Key(payment.index));
 
+  final StateStream<DateTime> paymentDateUpdates;
   final ShortPayment payment;
 
   @override
@@ -785,21 +825,29 @@ class PaymentsListEntry extends StatelessWidget {
       overflow: TextOverflow.ellipsis,
     );
 
+    // Wrap the "createdAt" text so that it updates every ~30 sec, not just
+    // when we refresh.
     final createdAt = DateTime.fromMillisecondsSinceEpoch(payment.createdAt);
-    final createdAtStr = date_format.formatDateCompact(then: createdAt);
+    final secondaryDateText = StateStreamBuilder(
+        stream: this.paymentDateUpdates,
+        builder: (_, now) {
+          final createdAtStr = date_format.formatDateCompact(
+              then: createdAt, now: now, formatSeconds: false);
 
-    // ex: "10min"
-    // ex: "Jun 16"
-    // ex: "14h"
-    final secondaryDateText = Text(
-      createdAtStr ?? "",
-      maxLines: 1,
-      textAlign: TextAlign.end,
-      style: Fonts.fontUI.copyWith(
-        fontSize: Fonts.size200,
-        color: LxColors.fgTertiary,
-      ),
-    );
+          // ex: "just now" (less than a min old)
+          // ex: "10min"
+          // ex: "Jun 16"
+          // ex: "14h"
+          return Text(
+            createdAtStr ?? "",
+            maxLines: 1,
+            textAlign: TextAlign.end,
+            style: Fonts.fontUI.copyWith(
+              fontSize: Fonts.size200,
+              color: LxColors.fgTertiary,
+            ),
+          );
+        });
 
     return ListTile(
       // list tile styling

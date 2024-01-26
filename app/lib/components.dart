@@ -430,11 +430,11 @@ typedef StateStreamWidgetBuilder<T> = Widget Function(
   T data,
 );
 
-/// A small helper `Widget` that builds a new widget everytime a `StateStream`
+/// A small helper [Widget] that builds a new widget every time a [StateStream]
 /// gets an update.
 ///
-/// This is slightly nicer than the standard `StreamBuilder` because
-/// `StateStream`s always have an initial value and never error.
+/// This widget can be more convenient than a standard [StreamBuilder] because
+/// [StateStream]s always have an initial value and never error.
 class StateStreamBuilder<T> extends StreamBuilder<T> {
   StateStreamBuilder({
     super.key,
