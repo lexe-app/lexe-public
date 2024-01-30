@@ -47,6 +47,7 @@ lightning-invoice.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 bytes.workspace = true
+chrono.workspace = true
 cfg-if.workspace = true
 dcap-ql.workspace = true
 dotenvy.workspace = true
