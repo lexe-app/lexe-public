@@ -23,6 +23,6 @@ mod test {
 
     #[test]
     fn node_release_roundtrip() {
-        roundtrip::json_value_canonical_proptest::<NodeRelease>();
+        roundtrip::json_value_roundtrip_proptest::<NodeRelease>();
     }
 }

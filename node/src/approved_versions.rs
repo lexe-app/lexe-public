@@ -187,7 +187,7 @@ mod test {
 
     #[test]
     fn versions_serde_roundtrip() {
-        roundtrip::json_value_canonical_proptest::<ApprovedVersions>();
+        roundtrip::json_value_roundtrip_proptest::<ApprovedVersions>();
     }
 
     #[test]

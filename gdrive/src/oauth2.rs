@@ -380,7 +380,7 @@ mod test {
 
     #[test]
     fn credentials_roundtrip() {
-        roundtrip::json_value_canonical_proptest::<GDriveCredentials>();
+        roundtrip::json_value_roundtrip_proptest::<GDriveCredentials>();
     }
 
     /// ```bash

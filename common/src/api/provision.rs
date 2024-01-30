@@ -322,7 +322,7 @@ mod test {
 
     #[test]
     fn test_node_provision_request_json_canonical() {
-        roundtrip::json_value_canonical_proptest::<NodeProvisionRequest>();
+        roundtrip::json_value_roundtrip_proptest::<NodeProvisionRequest>();
     }
 
     #[test]
@@ -371,6 +371,6 @@ mod test {
 
     #[test]
     fn test_root_seed_json_roundtrip() {
-        roundtrip::json_value_canonical_proptest::<RootSeedWithMetadata>();
+        roundtrip::json_value_roundtrip_proptest::<RootSeedWithMetadata>();
     }
 }
