@@ -475,6 +475,6 @@ mod test {
 
     #[test]
     fn node_scid_roundtrips() {
-        roundtrip::json_value_canonical_proptest::<NodeScid>();
+        roundtrip::json_value_roundtrip_proptest::<NodeScid>();
     }
 }

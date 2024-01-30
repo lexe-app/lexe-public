@@ -312,13 +312,13 @@ mod test {
 
     #[test]
     fn lsp_info_roundtrip() {
-        roundtrip::json_value_canonical_proptest::<LspInfo>();
+        roundtrip::json_value_roundtrip_proptest::<LspInfo>();
         roundtrip::fromstr_display_roundtrip_proptest::<LspInfo>();
     }
 
     #[test]
     fn oauth_config_roundtrip() {
-        roundtrip::json_value_canonical_proptest::<OAuthConfig>();
+        roundtrip::json_value_roundtrip_proptest::<OAuthConfig>();
         roundtrip::fromstr_display_roundtrip_proptest::<OAuthConfig>();
     }
 }

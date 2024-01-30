@@ -1085,7 +1085,7 @@ mod test {
 
     #[test]
     fn error_response_serde_roundtrip() {
-        roundtrip::json_value_canonical_proptest::<ErrorResponse>();
+        roundtrip::json_value_roundtrip_proptest::<ErrorResponse>();
     }
 
     #[test]

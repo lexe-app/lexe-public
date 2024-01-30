@@ -109,10 +109,10 @@ mod arbitrary_impl {
 #[cfg(test)]
 mod test {
     use super::FiatRates;
-    use crate::test_utils::roundtrip::json_value_canonical_proptest;
+    use crate::test_utils::roundtrip::json_value_roundtrip_proptest;
 
     #[test]
     fn fiat_rates_roundtrip() {
-        json_value_canonical_proptest::<FiatRates>();
+        json_value_roundtrip_proptest::<FiatRates>();
     }
 }

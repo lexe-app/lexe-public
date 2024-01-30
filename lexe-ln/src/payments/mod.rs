@@ -589,7 +589,7 @@ mod test {
 
     #[test]
     fn top_level_payment_serde_roundtrip() {
-        roundtrip::json_value_canonical_proptest::<Payment>();
+        roundtrip::json_value_roundtrip_proptest::<Payment>();
     }
 
     #[test]

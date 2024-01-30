@@ -47,9 +47,9 @@ where
 /// canonical, even if our comparison is field order-invariant.
 ///
 /// ```ignore
-/// json_value_canonical_proptest::<BearerAuthRequest>();
+/// json_value_roundtrip_proptest::<BearerAuthRequest>();
 /// ```
-pub fn json_value_canonical_proptest<T>()
+pub fn json_value_roundtrip_proptest<T>()
 where
     T: Arbitrary + PartialEq + Serialize + DeserializeOwned,
 {
