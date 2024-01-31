@@ -240,7 +240,7 @@ macro_rules! error_kind {
                 let name = (*self).to_name();
                 let msg = (*self).to_msg();
                 let code = (*self).to_code();
-                // ex: "[102=EntityConversion] Could not convert entity to type"
+                // ex: "[102=Duplicate] Resource was duplicate"
                 // No ':' because the ServiceApiError's Display impl adds it.
                 write!(f, "[{code}={name}]{msg}")
             }
@@ -420,8 +420,8 @@ error_kind! {
         NotFound = 101,
         /// Resource was duplicate
         Duplicate = 102,
-        /// Could not convert entity to type
-        EntityConversion = 103,
+        /// Could not convert field or model to type
+        Conversion = 103,
         /// User failed authentication
         Unauthenticated = 104,
         /// User not authorized
@@ -432,6 +432,8 @@ error_kind! {
         InvalidParsedRequest = 107,
         /// Request batch size is over the limit
         BatchSizeOverLimit = 108,
+        /// Could not convert entity to type
+        EntityConversion = 109
     }
 }
 
@@ -631,6 +633,12 @@ impl BackendApiError {
         let msg = kind.to_msg().to_owned();
         Self { kind, msg }
     }
+
+    pub fn conversion(error: impl fmt::Display) -> Self {
+        let kind = BackendErrorKind::Conversion;
+        let msg = format!("{error:#}");
+        Self { kind, msg }
+    }
 }
 
 impl NodeApiError {
@@ -755,12 +763,13 @@ impl ToHttpStatus for BackendApiError {
             Database => SERVER_500_INTERNAL_SERVER_ERROR,
             NotFound => CLIENT_404_NOT_FOUND,
             Duplicate => CLIENT_409_CONFLICT,
-            EntityConversion => SERVER_500_INTERNAL_SERVER_ERROR,
+            Conversion => SERVER_500_INTERNAL_SERVER_ERROR,
             Unauthenticated => CLIENT_401_UNAUTHORIZED,
             Unauthorized => CLIENT_401_UNAUTHORIZED,
             AuthExpired => CLIENT_401_UNAUTHORIZED,
             InvalidParsedRequest => CLIENT_400_BAD_REQUEST,
             BatchSizeOverLimit => CLIENT_400_BAD_REQUEST,
+            EntityConversion => SERVER_500_INTERNAL_SERVER_ERROR,
         }
     }
 }
