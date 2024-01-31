@@ -30,6 +30,12 @@ class QrImage extends StatefulWidget {
 class _QrImageState extends State<QrImage> {
   ui.Image? qrImage;
 
+  @override
+  void initState() {
+    super.initState();
+    unawaited(encodeQrImage());
+  }
+
   Future<void> encodeQrImage() async {
     final value = this.widget.value;
     final dimension = this.widget.dimension;
@@ -59,11 +65,8 @@ class _QrImageState extends State<QrImage> {
         dimension,
         dimension,
         ui.PixelFormat.rgba8888,
-        (imageResult) {
-          this.setState(() {
-            this.qrImage = imageResult;
-          });
-        },
+        allowUpscaling: false,
+        this.setQRImage,
       );
     } else {
       error(
@@ -71,18 +74,29 @@ class _QrImageState extends State<QrImage> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    unawaited(encodeQrImage());
+  void setQRImage(ui.Image qrImage) {
+    if (!this.mounted) {
+      qrImage.dispose();
+      return;
+    }
+
+    this.setState(() {
+      this.maybeDisposeQRImage();
+      this.qrImage = qrImage;
+    });
+  }
+
+  void maybeDisposeQRImage() {
+    if (this.qrImage != null) {
+      this.qrImage!.dispose();
+      this.qrImage = null;
+    }
   }
 
   @override
   void dispose() {
+    this.maybeDisposeQRImage();
     super.dispose();
-    if (this.qrImage != null) {
-      this.qrImage!.dispose();
-    }
   }
 
   @override
