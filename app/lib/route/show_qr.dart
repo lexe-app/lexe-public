@@ -1,15 +1,15 @@
 // Page for showing a QR code
 
 import 'dart:async' show unawaited;
-import 'dart:typed_data' show Uint32List, Uint8List;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_zxing/flutter_zxing.dart' show Encode, EncodeParams, zx;
+import 'package:flutter_zxing/flutter_zxing.dart'
+    show EccLevel, Encode, EncodeParams, Format, zx;
 
-import '../../components.dart' show LxCloseButton;
-import '../../logger.dart' show error;
-import '../../style.dart' show LxColors, Space;
+import '../components.dart' show LxCloseButton, ScrollableSinglePageBody;
+import '../logger.dart';
+import '../style.dart' show LxColors, Space;
 
 class QrImage extends StatefulWidget {
   const QrImage({
@@ -45,23 +45,19 @@ class _QrImageState extends State<QrImage> {
       params: EncodeParams(
         width: dimension,
         height: dimension,
+        margin: 0,
+        format: Format.qrCode,
+        eccLevel: EccLevel.medium,
       ),
     );
 
     if (encodeResult.isValid) {
-      // image data is in RGBA format (i.e., each byte: 0xAABBGGRR)
-      final Uint32List dataU32 = encodeResult.data!;
-
-      // * Annoyingly, the normal black values in the base image are actually
-      //   transparent black (0x00000000) while the white values are opaque
-      //   white (0xffffffff).
-      // * We can work around this with the `srcOut` blend mode when displaying
-      //   the image.
-
-      final Uint8List dataU8 = Uint8List.view(dataU32.buffer);
-
+      // The image data is in RGBA format. With a standard black-and-white QR
+      // code in mind, the colors here are "black" == 0x00000000 and
+      // "white" == 0xffffffff.
+      final data = encodeResult.data!.buffer.asUint8List();
       ui.decodeImageFromPixels(
-        dataU8,
+        data,
         dimension,
         dimension,
         ui.PixelFormat.rgba8888,
@@ -110,6 +106,12 @@ class _QrImageState extends State<QrImage> {
             height: dimension,
             color: this.widget.color,
             isAntiAlias: true,
+            // * The normal black values in the QR image are actually
+            //   transparent black (0x00000000) while the white values are
+            //   opaque white (0xffffffff).
+            // * To show the black parts of the QR with our chosen `color` while
+            //   leaving the white parts transparent, we can use the `srcOut`
+            //   blend mode.
             colorBlendMode: BlendMode.srcOut,
           )
         : SizedBox.square(dimension: dimension);
@@ -128,12 +130,17 @@ class ShowQrPage extends StatelessWidget {
         leadingWidth: Space.appBarLeadingWidth,
         leading: const LxCloseButton(),
       ),
-      body: Center(
-        child: QrImage(
-          value: this.value,
-          dimension: 300,
-          color: LxColors.foreground,
-        ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const SizedBox(height: Space.s900),
+          Center(
+            child: QrImage(
+              value: this.value,
+              dimension: 300,
+              color: LxColors.foreground,
+            ),
+          )
+        ],
       ),
     );
   }
