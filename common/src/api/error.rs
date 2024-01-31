@@ -13,12 +13,9 @@ use thiserror::Error;
 // So the consts fit in 80 chars
 use warp::http::status::StatusCode as Status;
 
+use super::{auth, NodePk, UserPk};
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
-use crate::{
-    api::{auth, NodePk, UserPk},
-    hex,
-};
 
 // Associated constants can't be imported.
 pub const CLIENT_400_BAD_REQUEST: Status = Status::BAD_REQUEST;
@@ -432,8 +429,6 @@ error_kind! {
         InvalidParsedRequest = 107,
         /// Request batch size is over the limit
         BatchSizeOverLimit = 108,
-        /// Could not convert entity to type
-        EntityConversion = 109
     }
 }
 
@@ -616,6 +611,12 @@ impl BackendApiError {
         Self { kind, msg }
     }
 
+    pub fn unauthenticated(error: impl fmt::Display) -> Self {
+        let kind = BackendErrorKind::Unauthenticated;
+        let msg = format!("{error:#}");
+        Self { kind, msg }
+    }
+
     pub fn invalid_parsed_req(msg: impl Into<String>) -> Self {
         let kind = BackendErrorKind::InvalidParsedRequest;
         let msg = msg.into();
@@ -636,6 +637,18 @@ impl BackendApiError {
 
     pub fn conversion(error: impl fmt::Display) -> Self {
         let kind = BackendErrorKind::Conversion;
+        let msg = format!("{error:#}");
+        Self { kind, msg }
+    }
+}
+
+impl From<auth::Error> for BackendApiError {
+    fn from(error: auth::Error) -> Self {
+        let kind = match error {
+            auth::Error::ClockDrift => BackendErrorKind::AuthExpired,
+            auth::Error::Expired => BackendErrorKind::AuthExpired,
+            _ => BackendErrorKind::Unauthenticated,
+        };
         let msg = format!("{error:#}");
         Self { kind, msg }
     }
@@ -769,7 +782,6 @@ impl ToHttpStatus for BackendApiError {
             AuthExpired => CLIENT_401_UNAUTHORIZED,
             InvalidParsedRequest => CLIENT_400_BAD_REQUEST,
             BatchSizeOverLimit => CLIENT_400_BAD_REQUEST,
-            EntityConversion => SERVER_500_INTERNAL_SERVER_ERROR,
         }
     }
 }
@@ -918,60 +930,6 @@ impl From<RestClientError> for LspApiError {
         Self { kind, msg }
     }
 }
-
-// --- Misc -> BackendApiError impls --- //
-
-impl From<bitcoin::secp256k1::Error> for BackendApiError {
-    fn from(err: bitcoin::secp256k1::Error) -> Self {
-        let kind = BackendErrorKind::EntityConversion;
-        let msg = format!("Pubkey decode error: {err:#}");
-        Self { kind, msg }
-    }
-}
-impl From<hex::DecodeError> for BackendApiError {
-    fn from(err: hex::DecodeError) -> Self {
-        let kind = BackendErrorKind::EntityConversion;
-        let msg = format!("Hex decode error: {err:#}");
-        Self { kind, msg }
-    }
-}
-impl From<std::num::ParseIntError> for BackendApiError {
-    fn from(err: std::num::ParseIntError) -> Self {
-        let kind = BackendErrorKind::EntityConversion;
-        let msg = format!("Integer parsing error: {err:#}");
-        Self { kind, msg }
-    }
-}
-impl From<auth::Error> for BackendApiError {
-    fn from(err: auth::Error) -> Self {
-        let kind = match err {
-            auth::Error::ClockDrift => BackendErrorKind::AuthExpired,
-            auth::Error::Expired => BackendErrorKind::AuthExpired,
-            _ => BackendErrorKind::Unauthenticated,
-        };
-        let msg = format!("{err:#}");
-        Self { kind, msg }
-    }
-}
-impl From<super::InvalidNodePkProofSignature> for BackendApiError {
-    fn from(err: super::InvalidNodePkProofSignature) -> Self {
-        let kind = BackendErrorKind::Unauthenticated;
-        let msg = err.to_string();
-        Self { kind, msg }
-    }
-}
-
-// --- Misc -> RunnerApiError impls --- //
-
-// --- Misc -> GatewayErrorKind impls --- //
-
-// (Placeholder only, for consistency)
-
-// --- Misc -> NodeApiError impls --- //
-
-// (Placeholder only, for consistency)
-
-// --- Misc -> LspApiError impls --- //
 
 // (Placeholder only, for consistency)
 
