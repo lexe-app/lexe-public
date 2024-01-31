@@ -51,7 +51,13 @@ dependencies:
   # QR code scanning
   # NOTE: I tried `mobile_scanner`, but that adds a ton of closed source, MLKit
   # junk, which is kinda sketch and added a bunch of build headaches.
-  flutter_zxing: ^1.5.0
+  flutter_zxing:
+    # version: ^1.5.2
+    # TODO(phlip9): remove after PR lands
+    # <https://github.com/khoren93/flutter_zxing/pull/126>
+    git:
+      url: https://github.com/phlip9/flutter_zxing.git
+      ref: fix_ffi_bugs_plus_gitdep_hack
 
   # Immutable record types and Rust-style enums in Dart.
   freezed_annotation: ^2.4.1
