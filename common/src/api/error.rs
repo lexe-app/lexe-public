@@ -672,6 +672,12 @@ impl NodeApiError {
         let kind = NodeErrorKind::WrongNodePk;
         Self { kind, msg }
     }
+
+    pub fn proxy(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = NodeErrorKind::Proxy;
+        Self { kind, msg }
+    }
 }
 
 impl GatewayApiError {
