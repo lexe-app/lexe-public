@@ -413,6 +413,14 @@ impl PaymentDbState {
             .collect()
     }
 
+    /// Get a payment by its stable db `vec_idx`.
+    pub fn get_payment_by_vec_idx(
+        &self,
+        vec_idx: usize,
+    ) -> Option<&BasicPayment> {
+        self.payments.get(vec_idx)
+    }
+
     /// Get a payment by scroll index in UI order (newest to oldest).
     /// Also return the stable `vec_idx` to lookup this payment again.
     pub fn get_payment_by_scroll_idx(
@@ -1030,6 +1038,10 @@ mod test {
                 let actual = db_state.get_payment_by_scroll_idx(scroll_idx);
                 let naive = db_state.payments.iter().enumerate().rev().nth(scroll_idx);
                 assert_eq!(actual, naive);
+                assert_eq!(
+                    actual.map(|(_, payment)| payment),
+                    actual.and_then(|(vec_idx, _)| db_state.get_payment_by_vec_idx(vec_idx)),
+                );
 
                 // get_pending_payment_by_scroll_idx
                 let actual = db_state.get_pending_payment_by_scroll_idx(scroll_idx);
@@ -1041,6 +1053,10 @@ mod test {
                     .filter(|(_vec_idx, payment)| payment.is_pending())
                     .nth(scroll_idx);
                 assert_eq!(actual, naive);
+                assert_eq!(
+                    actual.map(|(_, payment)| payment),
+                    actual.and_then(|(vec_idx, _)| db_state.get_payment_by_vec_idx(vec_idx)),
+                );
 
                 // get_finalized_payment_by_scroll_idx
                 let actual = db_state.get_finalized_payment_by_scroll_idx(scroll_idx);
@@ -1052,6 +1068,10 @@ mod test {
                     .filter(|(_vec_idx, payment)| payment.is_finalized())
                     .nth(scroll_idx);
                 assert_eq!(actual, naive);
+                assert_eq!(
+                    actual.map(|(_, payment)| payment),
+                    actual.and_then(|(vec_idx, _)| db_state.get_payment_by_vec_idx(vec_idx)),
+                );
             }
         });
     }

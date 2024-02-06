@@ -327,6 +327,26 @@ fn wire_sync_payments__method__AppHandle_impl(
         },
     )
 }
+fn wire_get_payment_by_vec_idx__method__AppHandle_impl(
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+    vec_idx: impl Wire2Api<usize> + UnwindSafe,
+) -> support::WireSyncReturn {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_sync(
+        WrapInfo {
+            debug_name: "get_payment_by_vec_idx__method__AppHandle",
+            port: None,
+            mode: FfiCallMode::Sync,
+        },
+        move || {
+            let api_that = that.wire2api();
+            let api_vec_idx = vec_idx.wire2api();
+            Result::<_, ()>::Ok(AppHandle::get_payment_by_vec_idx(
+                &api_that,
+                api_vec_idx,
+            ))
+        },
+    )
+}
 fn wire_get_payment_by_scroll_idx__method__AppHandle_impl(
     that: impl Wire2Api<AppHandle> + UnwindSafe,
     scroll_idx: impl Wire2Api<usize> + UnwindSafe,
@@ -885,6 +905,14 @@ mod io {
         that: *mut wire_AppHandle,
     ) {
         wire_sync_payments__method__AppHandle_impl(port_, that)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_get_payment_by_vec_idx__method__AppHandle(
+        that: *mut wire_AppHandle,
+        vec_idx: usize,
+    ) -> support::WireSyncReturn {
+        wire_get_payment_by_vec_idx__method__AppHandle_impl(that, vec_idx)
     }
 
     #[no_mangle]

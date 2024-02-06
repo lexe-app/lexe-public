@@ -357,6 +357,10 @@ class MockAppHandle extends AppHandle {
       );
 
   @override
+  ShortPayment? getPaymentByVecIdx({required int vecIdx, dynamic hint}) =>
+      this.shortPayments[vecIdx];
+
+  @override
   (int, ShortPayment)? getPaymentByScrollIdx(
       {required int scrollIdx, dynamic hint}) {
     if (scrollIdx >= this.shortPayments.length) {

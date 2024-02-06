@@ -144,6 +144,12 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kSyncPaymentsMethodAppHandleConstMeta;
 
+  ShortPayment? getPaymentByVecIdxMethodAppHandle(
+      {required AppHandle that, required int vecIdx, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetPaymentByVecIdxMethodAppHandleConstMeta;
+
   (int, ShortPayment)? getPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint});
 
@@ -270,6 +276,12 @@ class AppHandle {
   Future<bool> syncPayments({dynamic hint}) =>
       bridge.syncPaymentsMethodAppHandle(
         that: this,
+      );
+
+  ShortPayment? getPaymentByVecIdx({required int vecIdx, dynamic hint}) =>
+      bridge.getPaymentByVecIdxMethodAppHandle(
+        that: this,
+        vecIdx: vecIdx,
       );
 
   (int, ShortPayment)? getPaymentByScrollIdx(
