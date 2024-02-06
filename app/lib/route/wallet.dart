@@ -24,6 +24,7 @@ import '../date_format.dart' as date_format;
 import '../logger.dart';
 import '../result.dart';
 import '../route/debug.dart' show DebugPage;
+import '../route/payment_detail.dart' show PaymentDetailPage;
 import '../route/send.dart' show SendContext, SendPaymentPage;
 import '../stream_ext.dart';
 import '../style.dart' show Fonts, LxColors, Space;
@@ -181,6 +182,13 @@ class WalletPageState extends State<WalletPage> {
     ));
   }
 
+  /// Called when one of the payments in the [SliverPaymentsList] is tapped.
+  void onPaymentTap(int paymentVecIdx) {
+    Navigator.of(this.context).push(MaterialPageRoute(
+      builder: (context) => PaymentDetailPage(vecIdx: paymentVecIdx),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -238,6 +246,7 @@ class WalletPageState extends State<WalletPage> {
             builder: (context, snapshot) => SliverPaymentsList(
               app: this.widget.app,
               filter: PaymentsListFilter.pending,
+              onPaymentTap: this.onPaymentTap,
             ),
           ),
 
@@ -248,6 +257,7 @@ class WalletPageState extends State<WalletPage> {
             builder: (context, snapshot) => SliverPaymentsList(
               app: this.widget.app,
               filter: PaymentsListFilter.finalized,
+              onPaymentTap: this.onPaymentTap,
             ),
           )
         ],
@@ -590,15 +600,19 @@ enum PaymentsListFilter {
       };
 }
 
+typedef PaymentTapCallback = void Function(int paymentVecIdx);
+
 class SliverPaymentsList extends StatefulWidget {
   const SliverPaymentsList({
     super.key,
     required this.app,
     required this.filter,
+    required this.onPaymentTap,
   });
 
   final AppHandle app;
   final PaymentsListFilter filter;
+  final PaymentTapCallback onPaymentTap;
 
   @override
   State<SliverPaymentsList> createState() => _SliverPaymentsListState();
@@ -684,17 +698,15 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
                 .app
                 .getFinalizedPaymentByScrollIdx(scrollIdx: scrollIdx),
           };
+          if (result == null) return null;
 
-          final payment = result?.$2;
-
-          if (payment != null) {
-            return PaymentsListEntry(
-              payment: payment,
-              paymentDateUpdates: this.paymentDateUpdates,
-            );
-          } else {
-            return null;
-          }
+          final (vecIdx, payment) = result;
+          return PaymentsListEntry(
+            vecIdx: vecIdx,
+            payment: payment,
+            paymentDateUpdates: this.paymentDateUpdates,
+            onTap: () => this.widget.onPaymentTap(vecIdx),
+          );
         },
         // findChildIndexCallback: (Key childKey) => this.app.getPaymentScrollIdxByPaymentId(childKey),
       ),
@@ -720,9 +732,14 @@ String formatFiatValue({
 }
 
 class PaymentsListEntry extends StatelessWidget {
-  PaymentsListEntry({required this.payment, required this.paymentDateUpdates})
-      : super(key: Key(payment.index));
+  PaymentsListEntry({
+    required int vecIdx,
+    required this.payment,
+    required this.paymentDateUpdates,
+    required this.onTap,
+  }) : super(key: ValueKey<int>(vecIdx));
 
+  final VoidCallback onTap;
   final StateStream<DateTime> paymentDateUpdates;
   final ShortPayment payment;
 
@@ -852,6 +869,8 @@ class PaymentsListEntry extends StatelessWidget {
         });
 
     return ListTile(
+      onTap: this.onTap,
+
       // list tile styling
 
       contentPadding: const EdgeInsets.symmetric(
