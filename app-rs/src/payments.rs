@@ -414,10 +414,11 @@ impl PaymentDbState {
     }
 
     /// Get a payment by scroll index in UI order (newest to oldest).
+    /// Also return the stable `vec_idx` to lookup this payment again.
     pub fn get_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> Option<&BasicPayment> {
+    ) -> Option<(usize, &BasicPayment)> {
         // vec_idx | scroll_idx | payment timestamp
         // 0       | 2          | 23
         // 1       | 1          | 50
@@ -431,14 +432,15 @@ impl PaymentDbState {
         }
 
         let vec_idx = num_payments - scroll_idx - 1;
-        Some(&self.payments[vec_idx])
+        Some((vec_idx, &self.payments[vec_idx]))
     }
 
     /// Get a pending payment by scroll index in UI order (newest to oldest).
+    /// Also return the stable `vec_idx` to lookup this payment again.
     pub fn get_pending_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> Option<&BasicPayment> {
+    ) -> Option<(usize, &BasicPayment)> {
         // early exit
         let num_pending = self.num_pending();
         if scroll_idx >= num_pending {
@@ -457,18 +459,20 @@ impl PaymentDbState {
         let vec_idx = self
             .pending
             .select(rank as u32)
-            .expect("We've already checked the payment index is in-bounds");
+            .expect("We've already checked the payment index is in-bounds")
+            as usize;
 
-        Some(&self.payments[vec_idx as usize])
+        Some((vec_idx, &self.payments[vec_idx]))
     }
 
     /// Get a completed or failed payment by scroll index in UI order
     /// (newest to oldest). scroll index here is also the "reverse" rank of all
     /// finalized payments.
+    /// Also return the stable `vec_idx` to lookup this payment again.
     pub fn get_finalized_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> Option<&BasicPayment> {
+    ) -> Option<(usize, &BasicPayment)> {
         // early exit
         let num_finalized = self.num_finalized();
         if scroll_idx >= num_finalized {
@@ -493,9 +497,10 @@ impl PaymentDbState {
         // list.
         let num_pending_below = self.num_pending() - num_pending_at_or_above;
 
-        let payment = self
+        let (vec_idx, payment) = self
             .payments
             .iter()
+            .enumerate()
             .rev()
             // scroll_idx is our initial "reverse rank estimate". this would be
             // the true reverse rank if there were no pending payments below us
@@ -504,11 +509,11 @@ impl PaymentDbState {
             // if there are some pending payments below us, we need to correct
             // our initial estimate and skip that many finalized payments to get
             // the correct reverse rank
-            .filter(|payment| payment.is_finalized())
+            .filter(|(_vec_idx, payment)| payment.is_finalized())
             .nth(num_pending_below)
             .expect("We've already checked the payment is in-bounds");
 
-        Some(payment)
+        Some((vec_idx, payment))
     }
 }
 
@@ -1023,17 +1028,29 @@ mod test {
             for scroll_idx in 0..(n+5) {
                 // get_payment_by_scroll_idx
                 let actual = db_state.get_payment_by_scroll_idx(scroll_idx);
-                let naive = db_state.payments.iter().rev().nth(scroll_idx);
+                let naive = db_state.payments.iter().enumerate().rev().nth(scroll_idx);
                 assert_eq!(actual, naive);
 
                 // get_pending_payment_by_scroll_idx
                 let actual = db_state.get_pending_payment_by_scroll_idx(scroll_idx);
-                let naive = db_state.payments.iter().rev().filter(|payment| payment.is_pending()).nth(scroll_idx);
+                let naive = db_state
+                    .payments
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .filter(|(_vec_idx, payment)| payment.is_pending())
+                    .nth(scroll_idx);
                 assert_eq!(actual, naive);
 
                 // get_finalized_payment_by_scroll_idx
                 let actual = db_state.get_finalized_payment_by_scroll_idx(scroll_idx);
-                let naive = db_state.payments.iter().rev().filter(|payment| payment.is_finalized()).nth(scroll_idx);
+                let naive = db_state
+                    .payments
+                    .iter()
+                    .enumerate()
+                    .rev()
+                    .filter(|(_vec_idx, payment)| payment.is_finalized())
+                    .nth(scroll_idx);
                 assert_eq!(actual, naive);
             }
         });
