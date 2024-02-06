@@ -689,6 +689,7 @@ impl AppHandle {
             db_lock
                 .state()
                 .get_payment_by_scroll_idx(scroll_idx)
+                .map(|xy| xy.1)
                 .map(ShortPayment::from),
         )
     }
@@ -702,6 +703,7 @@ impl AppHandle {
             db_lock
                 .state()
                 .get_pending_payment_by_scroll_idx(scroll_idx)
+                .map(|xy| xy.1)
                 .map(ShortPayment::from),
         )
     }
@@ -715,6 +717,7 @@ impl AppHandle {
             db_lock
                 .state()
                 .get_finalized_payment_by_scroll_idx(scroll_idx)
+                .map(|xy| xy.1)
                 .map(ShortPayment::from),
         )
     }
