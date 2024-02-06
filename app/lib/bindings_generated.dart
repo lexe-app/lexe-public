@@ -387,14 +387,14 @@ class AppRsImpl implements AppRs {
         argNames: ["that"],
       );
 
-  ShortPayment? getPaymentByScrollIdxMethodAppHandle(
+  (int, ShortPayment)? getPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     var arg1 = api2wire_usize(scrollIdx);
     return _platform.executeSync(FlutterRustBridgeSyncTask(
       callFfi: () => _platform.inner
           .wire_get_payment_by_scroll_idx__method__AppHandle(arg0, arg1),
-      parseSuccessData: _wire2api_opt_box_autoadd_short_payment,
+      parseSuccessData: _wire2api_opt_box_autoadd___record__usize_short_payment,
       parseErrorData: null,
       constMeta: kGetPaymentByScrollIdxMethodAppHandleConstMeta,
       argValues: [that, scrollIdx],
@@ -409,7 +409,7 @@ class AppRsImpl implements AppRs {
             argNames: ["that", "scrollIdx"],
           );
 
-  ShortPayment? getPendingPaymentByScrollIdxMethodAppHandle(
+  (int, ShortPayment)? getPendingPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     var arg1 = api2wire_usize(scrollIdx);
@@ -417,7 +417,7 @@ class AppRsImpl implements AppRs {
       callFfi: () => _platform.inner
           .wire_get_pending_payment_by_scroll_idx__method__AppHandle(
               arg0, arg1),
-      parseSuccessData: _wire2api_opt_box_autoadd_short_payment,
+      parseSuccessData: _wire2api_opt_box_autoadd___record__usize_short_payment,
       parseErrorData: null,
       constMeta: kGetPendingPaymentByScrollIdxMethodAppHandleConstMeta,
       argValues: [that, scrollIdx],
@@ -432,7 +432,7 @@ class AppRsImpl implements AppRs {
             argNames: ["that", "scrollIdx"],
           );
 
-  ShortPayment? getFinalizedPaymentByScrollIdxMethodAppHandle(
+  (int, ShortPayment)? getFinalizedPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     var arg1 = api2wire_usize(scrollIdx);
@@ -440,7 +440,7 @@ class AppRsImpl implements AppRs {
       callFfi: () => _platform.inner
           .wire_get_finalized_payment_by_scroll_idx__method__AppHandle(
               arg0, arg1),
-      parseSuccessData: _wire2api_opt_box_autoadd_short_payment,
+      parseSuccessData: _wire2api_opt_box_autoadd___record__usize_short_payment,
       parseErrorData: null,
       constMeta: kGetFinalizedPaymentByScrollIdxMethodAppHandleConstMeta,
       argValues: [that, scrollIdx],
@@ -537,6 +537,17 @@ class AppRsImpl implements AppRs {
     return raw as String;
   }
 
+  (int, ShortPayment) _wire2api___record__usize_short_payment(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2) {
+      throw Exception('Expected 2 elements, got ${arr.length}');
+    }
+    return (
+      _wire2api_usize(arr[0]),
+      _wire2api_short_payment(arr[1]),
+    );
+  }
+
   AppHandle _wire2api_app_handle(dynamic raw) {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
@@ -551,16 +562,17 @@ class AppRsImpl implements AppRs {
     return raw as bool;
   }
 
+  (int, ShortPayment) _wire2api_box_autoadd___record__usize_short_payment(
+      dynamic raw) {
+    return raw as (int, ShortPayment);
+  }
+
   AppHandle _wire2api_box_autoadd_app_handle(dynamic raw) {
     return _wire2api_app_handle(raw);
   }
 
   FeeEstimate _wire2api_box_autoadd_fee_estimate(dynamic raw) {
     return _wire2api_fee_estimate(raw);
-  }
-
-  ShortPayment _wire2api_box_autoadd_short_payment(dynamic raw) {
-    return _wire2api_short_payment(raw);
   }
 
   int _wire2api_box_autoadd_u64(dynamic raw) {
@@ -657,16 +669,19 @@ class AppRsImpl implements AppRs {
     return raw == null ? null : _wire2api_String(raw);
   }
 
+  (int, ShortPayment)? _wire2api_opt_box_autoadd___record__usize_short_payment(
+      dynamic raw) {
+    return raw == null
+        ? null
+        : _wire2api_box_autoadd___record__usize_short_payment(raw);
+  }
+
   AppHandle? _wire2api_opt_box_autoadd_app_handle(dynamic raw) {
     return raw == null ? null : _wire2api_box_autoadd_app_handle(raw);
   }
 
   FeeEstimate? _wire2api_opt_box_autoadd_fee_estimate(dynamic raw) {
     return raw == null ? null : _wire2api_box_autoadd_fee_estimate(raw);
-  }
-
-  ShortPayment? _wire2api_opt_box_autoadd_short_payment(dynamic raw) {
-    return raw == null ? null : _wire2api_box_autoadd_short_payment(raw);
   }
 
   int? _wire2api_opt_box_autoadd_u64(dynamic raw) {

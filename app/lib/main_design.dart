@@ -357,37 +357,43 @@ class MockAppHandle extends AppHandle {
       );
 
   @override
-  ShortPayment? getPaymentByScrollIdx({required int scrollIdx, dynamic hint}) {
+  (int, ShortPayment)? getPaymentByScrollIdx(
+      {required int scrollIdx, dynamic hint}) {
     if (scrollIdx >= this.shortPayments.length) {
       return null;
     }
-    return this.shortPayments[this.shortPayments.length - scrollIdx - 1];
+    final vecIdx = this.shortPayments.length - scrollIdx - 1;
+    return (vecIdx, this.shortPayments[vecIdx]);
   }
 
   @override
-  ShortPayment? getPendingPaymentByScrollIdx(
+  (int, ShortPayment)? getPendingPaymentByScrollIdx(
       {required int scrollIdx, dynamic hint}) {
     if (scrollIdx >= this.getNumPendingPayments()) {
       return null;
     }
-    return this
+    final payment = this
         .shortPayments
         .reversed
         .where((payment) => payment.status == PaymentStatus.Pending)
         .elementAt(scrollIdx);
+    final vecIdx = this.shortPayments.indexOf(payment);
+    return (vecIdx, payment);
   }
 
   @override
-  ShortPayment? getFinalizedPaymentByScrollIdx(
+  (int, ShortPayment)? getFinalizedPaymentByScrollIdx(
       {required int scrollIdx, dynamic hint}) {
     if (scrollIdx >= this.getNumFinalizedPayments()) {
       return null;
     }
-    return this
+    final payment = this
         .shortPayments
         .reversed
         .where((payment) => payment.status != PaymentStatus.Pending)
         .elementAt(scrollIdx);
+    final vecIdx = this.shortPayments.indexOf(payment);
+    return (vecIdx, payment);
   }
 
   @override

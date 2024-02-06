@@ -144,19 +144,19 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kSyncPaymentsMethodAppHandleConstMeta;
 
-  ShortPayment? getPaymentByScrollIdxMethodAppHandle(
+  (int, ShortPayment)? getPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta
       get kGetPaymentByScrollIdxMethodAppHandleConstMeta;
 
-  ShortPayment? getPendingPaymentByScrollIdxMethodAppHandle(
+  (int, ShortPayment)? getPendingPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta
       get kGetPendingPaymentByScrollIdxMethodAppHandleConstMeta;
 
-  ShortPayment? getFinalizedPaymentByScrollIdxMethodAppHandle(
+  (int, ShortPayment)? getFinalizedPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta
@@ -272,20 +272,21 @@ class AppHandle {
         that: this,
       );
 
-  ShortPayment? getPaymentByScrollIdx({required int scrollIdx, dynamic hint}) =>
+  (int, ShortPayment)? getPaymentByScrollIdx(
+          {required int scrollIdx, dynamic hint}) =>
       bridge.getPaymentByScrollIdxMethodAppHandle(
         that: this,
         scrollIdx: scrollIdx,
       );
 
-  ShortPayment? getPendingPaymentByScrollIdx(
+  (int, ShortPayment)? getPendingPaymentByScrollIdx(
           {required int scrollIdx, dynamic hint}) =>
       bridge.getPendingPaymentByScrollIdxMethodAppHandle(
         that: this,
         scrollIdx: scrollIdx,
       );
 
-  ShortPayment? getFinalizedPaymentByScrollIdx(
+  (int, ShortPayment)? getFinalizedPaymentByScrollIdx(
           {required int scrollIdx, dynamic hint}) =>
       bridge.getFinalizedPaymentByScrollIdxMethodAppHandle(
         that: this,
