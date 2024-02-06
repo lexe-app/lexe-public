@@ -1,5 +1,5 @@
-//! Get a quote for the running node enclave and return it as an x509 cert
 //! custom extension, which we'll embed into our remote attestation cert.
+//! Get a quote for the running node enclave and return it as an x509 cert
 //!
 //! On non-SGX platforms, we just return a dummy extension for now.
 
@@ -22,10 +22,12 @@ mod sgx {
     use sgx_isa::{Report, Targetinfo};
 
     use crate::{
-        attest::{cert::SgxAttestationExtension, verify::EnclavePolicy},
         ed25519, hex,
         rng::Crng,
         sha256,
+        tls::attestation::{
+            cert::SgxAttestationExtension, verifier::EnclavePolicy,
+        },
     };
 
     #[cfg(not(target_feature = "aes"))]
@@ -303,7 +305,9 @@ mod not_sgx {
     use anyhow::Result;
     use rcgen::CustomExtension;
 
-    use crate::{attest::cert::SgxAttestationExtension, ed25519, rng::Crng};
+    use crate::{
+        ed25519, rng::Crng, tls::attestation::cert::SgxAttestationExtension,
+    };
 
     pub fn quote_enclave(
         _rng: &mut dyn Crng,

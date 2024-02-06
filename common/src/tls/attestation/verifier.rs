@@ -11,8 +11,8 @@ use webpki::{TlsServerTrustAnchors, TrustAnchor};
 use x509_parser::certificate::X509Certificate;
 
 use crate::{
-    attest::cert::SgxAttestationExtension, ed25519, enclave::Measurement, hex,
-    sha256,
+    ed25519, enclave::Measurement, hex, sha256,
+    tls::attestation::cert::SgxAttestationExtension,
 };
 
 /// The Enclave Signer Measurement (MRSIGNER) of the current Intel Quoting
@@ -24,7 +24,7 @@ const INTEL_QE_IDENTITY_MRSIGNER: Measurement =
 
 /// The DER-encoded Intel SGX trust anchor cert.
 const INTEL_SGX_ROOT_CA_CERT_DER: &[u8] =
-    include_bytes!("../../data/intel-sgx-root-ca.der");
+    include_bytes!("../../../data/intel-sgx-root-ca.der");
 
 /// Lazily parse the Intel SGX trust anchor cert.
 ///
@@ -68,7 +68,7 @@ static SUPPORTED_SIG_ALGS: &[&webpki::SignatureAlgorithm] = &[
 /// (3) the remote attestation binds to the server's certificate key pair. Once
 /// these checks are successful, the client and secure can establish a secure
 /// TLS channel.
-pub struct ServerCertVerifier {
+pub(super) struct ServerCertVerifier {
     /// if `true`, expect a fake dummy quote. Used only for testing.
     pub expect_dummy_quote: bool,
     /// the verifier's policy for trusting the remote enclave.
@@ -574,17 +574,18 @@ mod test {
 
     use super::*;
     use crate::{
-        attest::cert::{AttestationCert, SgxAttestationExtension},
         ed25519, hex,
         rng::SysRng,
+        tls::attestation::cert::{AttestationCert, SgxAttestationExtension},
     };
 
-    const MRENCLAVE_HEX: &str = include_str!("../../test_data/mrenclave.hex");
+    const MRENCLAVE_HEX: &str =
+        include_str!("../../../test_data/mrenclave.hex");
     const SGX_SERVER_CERT_PEM: &str =
-        include_str!("../../test_data/attest_cert.pem");
+        include_str!("../../../test_data/attest_cert.pem");
 
     const INTEL_SGX_ROOT_CA_CERT_PEM: &str =
-        include_str!("../../test_data/intel-sgx-root-ca.pem");
+        include_str!("../../../test_data/intel-sgx-root-ca.pem");
 
     // TODO(phlip9): test verification catches bad evidence
 

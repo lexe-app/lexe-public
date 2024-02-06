@@ -12,7 +12,6 @@ use common::{
         provision::SealedSeedId, rest, User, UserPk,
     },
     cli::{node::RunArgs, LspInfo, Network},
-    client::tls::node_run_tls_config,
     constants::{self, DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
     ed25519,
     enclave::{self, MachineId, Measurement, MIN_SGX_CPUSVN},
@@ -22,7 +21,7 @@ use common::{
     root_seed::RootSeed,
     shutdown::ShutdownChannel,
     task::{self, LxTask},
-    Apply,
+    tls, Apply,
 };
 use futures::{
     future::FutureExt,
@@ -497,8 +496,9 @@ impl UserNode {
 
         // Build app service TLS config for authenticating owner
         let dns_names = vec![constants::NODE_RUN_DNS.to_owned()];
-        let app_tls = node_run_tls_config(rng, &root_seed, dns_names)
-            .context("Failed to build owner service TLS config")?;
+        let app_tls =
+            tls::shared_seed::node_run_tls_config(rng, &root_seed, dns_names)
+                .context("Failed to build owner service TLS config")?;
 
         // Start warp service for app
         let app_span = info_span!(parent: None, "(node-app-api)");
