@@ -6,11 +6,6 @@
 //! [`NodeClient`]: crate::client::NodeClient
 //! [`GatewayClient`]: crate::client::GatewayClient
 
-/// TLS certs.
-pub mod certs;
-/// TLS configurations for the client to the node.
-pub mod tls;
-
 use std::{
     panic::{RefUnwindSafe, UnwindSafe},
     sync::Arc,
@@ -48,7 +43,7 @@ use crate::{
         rest::{RequestBuilderExt, RestClient, API_REQUEST_TIMEOUT, GET, POST},
         Empty,
     },
-    attest, constants,
+    constants,
     constants::node_provision_dns,
     ed25519,
     enclave::{self, Measurement},
@@ -56,6 +51,7 @@ use crate::{
     ln::{hashes::LxTxid, invoice::LxInvoice, payments::BasicPayment},
     rng::Crng,
     root_seed::RootSeed,
+    tls,
 };
 
 /// The client to the gateway itself, i.e. requests terminate at the gateway.
@@ -234,8 +230,11 @@ impl NodeClient {
 
             // XXX(max): Use real cert
             let lexe_ca_cert = tls::dummy_lexe_ca_cert();
-            let tls =
-                tls::client_run_tls_config(rng, &lexe_ca_cert, root_seed)?;
+            let tls = tls::shared_seed::client_run_tls_config(
+                rng,
+                &lexe_ca_cert,
+                root_seed,
+            )?;
 
             let reqwest_client = reqwest::Client::builder()
                 .proxy(proxy)
@@ -360,7 +359,7 @@ impl NodeClient {
         )
         .context("Invalid proxy config")?;
 
-        let enclave_policy = attest::EnclavePolicy {
+        let enclave_policy = tls::attestation::verifier::EnclavePolicy {
             allow_debug: self.deploy_env.is_dev(),
             trusted_mrenclaves: Some(vec![measurement]),
             trusted_mrsigner: Some(enclave::expected_signer(
@@ -370,7 +369,7 @@ impl NodeClient {
         };
         // XXX(max): Use real cert
         let lexe_ca_cert = tls::dummy_lexe_ca_cert();
-        let tls = tls::client_provision_tls_config(
+        let tls = tls::attestation::client_provision_tls_config(
             self.use_sgx,
             &lexe_ca_cert,
             enclave_policy,

@@ -26,8 +26,6 @@ pub use secrecy::{ExposeSecret, Secret};
 pub mod aes;
 /// API definitions, errors, clients, and structs sent across the wire.
 pub mod api;
-/// Remote attestation.
-pub mod attest;
 /// Exponential backoff.
 pub mod backoff;
 /// [`tokio::Bytes`](bytes::Bytes) but must contain a string.
@@ -76,6 +74,8 @@ pub mod task;
 pub mod test_event;
 /// `TimestampMs`
 pub mod time;
+/// TLS certs and configurations.
+pub mod tls;
 
 /// Feature-gated test utilities that can be shared across crate boundaries.
 #[cfg(any(test, feature = "test-utils"))]

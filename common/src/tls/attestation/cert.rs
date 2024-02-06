@@ -246,4 +246,39 @@ mod test {
         assert_eq!(b"test".as_slice(), ext2.quote.as_ref());
         assert_eq!(b"foo".as_slice(), ext2.qe_report.as_ref());
     }
+
+    #[cfg(target_env = "sgx")]
+    #[test]
+    #[ignore] // << uncomment to dump fresh attestation cert
+    fn dump_attest_cert() {
+        use crate::{
+            ed25519, enclave,
+            rng::WeakRng,
+            tls::{attestation, attestation::cert::AttestationCert},
+        };
+
+        let mut rng = WeakRng::new();
+        let cert_key_pair = ed25519::KeyPair::from_seed(&[0x42; 32]);
+        let cert_pk = cert_key_pair.public_key();
+        let attestation =
+            attestation::quote::quote_enclave(&mut rng, cert_pk).unwrap();
+        let dns_names = vec!["localhost".to_string()];
+
+        let attest_cert = AttestationCert::new(
+            cert_key_pair.to_rcgen(),
+            dns_names,
+            attestation,
+        )
+        .unwrap();
+
+        println!("measurement: '{}'", enclave::measurement());
+        println!("cert_pk: '{cert_pk}'");
+
+        let cert_der = attest_cert.serialize_der_signed().unwrap();
+
+        println!("attestation certificate:");
+        println!("-----BEGIN CERTIFICATE-----");
+        println!("{}", base64::encode(cert_der));
+        println!("-----END CERTIFICATE-----");
+    }
 }

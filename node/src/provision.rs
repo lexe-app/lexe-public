@@ -34,14 +34,13 @@ use common::{
         rest, Empty,
     },
     cli::node::ProvisionArgs,
-    client::tls,
     enclave,
     enclave::{MachineId, Measurement},
     net,
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
     task::LxTask,
-    Apply,
+    tls, Apply,
 };
 use gdrive::GoogleVfs;
 use tracing::{debug, info, info_span, instrument, Span};
@@ -108,8 +107,9 @@ pub async fn provision_node<R: Crng>(
             let dns_name = "localhost".to_owned();
         }
     }
-    let app_tls_config = tls::node_provision_tls_config(rng, dns_name)
-        .context("Failed to build TLS config for provisioning")?;
+    let app_tls_config =
+        tls::attestation::node_provision_tls_config(rng, dns_name)
+            .context("Failed to build TLS config for provisioning")?;
     let (app_addr, app_service) = warp::serve(app_routes)
         .tls()
         .preconfigured_tls(app_tls_config)
@@ -584,39 +584,5 @@ mod handlers {
         shutdown.send();
 
         Ok(Empty {})
-    }
-}
-
-#[cfg(test)]
-mod test {
-
-    #[cfg(target_env = "sgx")]
-    #[test]
-    #[ignore] // << uncomment to dump fresh attestation cert
-    fn dump_attest_cert() {
-        use common::{attest, ed25519, enclave, rng::WeakRng};
-
-        let mut rng = WeakRng::new();
-        let cert_key_pair = ed25519::KeyPair::from_seed(&[0x42; 32]);
-        let cert_pk = cert_key_pair.public_key();
-        let attestation = attest::quote_enclave(&mut rng, cert_pk).unwrap();
-        let dns_names = vec!["localhost".to_string()];
-
-        let attest_cert = attest::AttestationCert::new(
-            cert_key_pair.to_rcgen(),
-            dns_names,
-            attestation,
-        )
-        .unwrap();
-
-        println!("measurement: '{}'", enclave::measurement());
-        println!("cert_pk: '{cert_pk}'");
-
-        let cert_der = attest_cert.serialize_der_signed().unwrap();
-
-        println!("attestation certificate:");
-        println!("-----BEGIN CERTIFICATE-----");
-        println!("{}", base64::encode(cert_der));
-        println!("-----END CERTIFICATE-----");
     }
 }
