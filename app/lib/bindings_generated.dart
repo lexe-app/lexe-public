@@ -387,6 +387,28 @@ class AppRsImpl implements AppRs {
         argNames: ["that"],
       );
 
+  ShortPayment? getPaymentByVecIdxMethodAppHandle(
+      {required AppHandle that, required int vecIdx, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    var arg1 = api2wire_usize(vecIdx);
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner
+          .wire_get_payment_by_vec_idx__method__AppHandle(arg0, arg1),
+      parseSuccessData: _wire2api_opt_box_autoadd_short_payment,
+      parseErrorData: null,
+      constMeta: kGetPaymentByVecIdxMethodAppHandleConstMeta,
+      argValues: [that, vecIdx],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetPaymentByVecIdxMethodAppHandleConstMeta =>
+          const FlutterRustBridgeTaskConstMeta(
+            debugName: "get_payment_by_vec_idx__method__AppHandle",
+            argNames: ["that", "vecIdx"],
+          );
+
   (int, ShortPayment)? getPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
@@ -575,6 +597,10 @@ class AppRsImpl implements AppRs {
     return _wire2api_fee_estimate(raw);
   }
 
+  ShortPayment _wire2api_box_autoadd_short_payment(dynamic raw) {
+    return _wire2api_short_payment(raw);
+  }
+
   int _wire2api_box_autoadd_u64(dynamic raw) {
     return _wire2api_u64(raw);
   }
@@ -682,6 +708,10 @@ class AppRsImpl implements AppRs {
 
   FeeEstimate? _wire2api_opt_box_autoadd_fee_estimate(dynamic raw) {
     return raw == null ? null : _wire2api_box_autoadd_fee_estimate(raw);
+  }
+
+  ShortPayment? _wire2api_opt_box_autoadd_short_payment(dynamic raw) {
+    return raw == null ? null : _wire2api_box_autoadd_short_payment(raw);
   }
 
   int? _wire2api_opt_box_autoadd_u64(dynamic raw) {
@@ -1335,6 +1365,24 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _wire_sync_payments__method__AppHandle =
       _wire_sync_payments__method__AppHandlePtr
           .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
+
+  WireSyncReturn wire_get_payment_by_vec_idx__method__AppHandle(
+    ffi.Pointer<wire_AppHandle> that,
+    int vec_idx,
+  ) {
+    return _wire_get_payment_by_vec_idx__method__AppHandle(
+      that,
+      vec_idx,
+    );
+  }
+
+  late final _wire_get_payment_by_vec_idx__method__AppHandlePtr = _lookup<
+      ffi.NativeFunction<
+          WireSyncReturn Function(ffi.Pointer<wire_AppHandle>,
+              ffi.UintPtr)>>('wire_get_payment_by_vec_idx__method__AppHandle');
+  late final _wire_get_payment_by_vec_idx__method__AppHandle =
+      _wire_get_payment_by_vec_idx__method__AppHandlePtr.asFunction<
+          WireSyncReturn Function(ffi.Pointer<wire_AppHandle>, int)>();
 
   WireSyncReturn wire_get_payment_by_scroll_idx__method__AppHandle(
     ffi.Pointer<wire_AppHandle> that,

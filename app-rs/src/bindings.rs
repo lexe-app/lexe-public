@@ -680,6 +680,19 @@ impl AppHandle {
             .map(|summary| summary.any_changes())
     }
 
+    pub fn get_payment_by_vec_idx(
+        &self,
+        vec_idx: usize,
+    ) -> SyncReturn<Option<ShortPayment>> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        SyncReturn(
+            db_lock
+                .state()
+                .get_payment_by_vec_idx(vec_idx)
+                .map(ShortPayment::from),
+        )
+    }
+
     pub fn get_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
