@@ -144,7 +144,7 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kSyncPaymentsMethodAppHandleConstMeta;
 
-  ShortPayment? getPaymentByVecIdxMethodAppHandle(
+  Payment? getPaymentByVecIdxMethodAppHandle(
       {required AppHandle that, required int vecIdx, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta
@@ -278,7 +278,7 @@ class AppHandle {
         that: this,
       );
 
-  ShortPayment? getPaymentByVecIdx({required int vecIdx, dynamic hint}) =>
+  Payment? getPaymentByVecIdx({required int vecIdx, dynamic hint}) =>
       bridge.getPaymentByVecIdxMethodAppHandle(
         that: this,
         vecIdx: vecIdx,
@@ -400,6 +400,18 @@ class FiatRates with _$FiatRates {
   }) = _FiatRates;
 }
 
+/// A lightning invoice with useful fields parsed out for the flutter frontend.
+/// Mirrors the [`LxInvoice`] type.
+@freezed
+class Invoice with _$Invoice {
+  const factory Invoice({
+    required String string,
+    String? description,
+    required int createdAt,
+    required int expiresAt,
+  }) = _Invoice;
+}
+
 enum Network {
   Mainnet,
   Testnet,
@@ -414,6 +426,26 @@ class NodeInfo with _$NodeInfo {
     required String measurement,
     required int spendableBalanceSats,
   }) = _NodeInfo;
+}
+
+/// The complete payment info, used in the payment detail page. Mirrors the
+/// [`BasicPayment`] type.
+@freezed
+class Payment with _$Payment {
+  const factory Payment({
+    required String index,
+    required PaymentKind kind,
+    required PaymentDirection direction,
+    Invoice? invoice,
+    String? replacement,
+    int? amountSat,
+    required int feesSat,
+    required PaymentStatus status,
+    required String statusStr,
+    String? note,
+    required int createdAt,
+    int? finalizedAt,
+  }) = _Payment;
 }
 
 enum PaymentDirection {

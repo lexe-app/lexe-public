@@ -1,7 +1,6 @@
 use std::{
     cmp::Ordering,
     fmt::{self, Display},
-    ops::Deref,
     str::FromStr,
 };
 
@@ -10,7 +9,6 @@ use bitcoin_hashes::{sha256, Hash};
 use lightning::ln::{
     channelmanager::PaymentId, PaymentHash, PaymentPreimage, PaymentSecret,
 };
-use lightning_invoice::Bolt11InvoiceDescription;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -261,15 +259,7 @@ impl BasicPayment {
         let maybe_note = self.note.as_deref().filter(|s| !s.is_empty());
 
         maybe_note.or_else(|| {
-            self.invoice.as_ref().and_then(|invoice| {
-                match invoice.0.description() {
-                    Bolt11InvoiceDescription::Direct(description)
-                        if !description.is_empty() =>
-                        Some(description.deref()),
-                    // Hash description is not useful yet
-                    _ => None,
-                }
-            })
+            self.invoice.as_ref().and_then(LxInvoice::description_str)
         })
     }
 }

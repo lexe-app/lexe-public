@@ -237,6 +237,73 @@ abstract class _FiatRates implements FiatRates {
 }
 
 /// @nodoc
+mixin _$Invoice {
+  String get string => throw _privateConstructorUsedError;
+  String? get description => throw _privateConstructorUsedError;
+  int get createdAt => throw _privateConstructorUsedError;
+  int get expiresAt => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$InvoiceImpl implements _Invoice {
+  const _$InvoiceImpl(
+      {required this.string,
+      this.description,
+      required this.createdAt,
+      required this.expiresAt});
+
+  @override
+  final String string;
+  @override
+  final String? description;
+  @override
+  final int createdAt;
+  @override
+  final int expiresAt;
+
+  @override
+  String toString() {
+    return 'Invoice(string: $string, description: $description, createdAt: $createdAt, expiresAt: $expiresAt)';
+  }
+
+  @override
+  bool operator ==(dynamic other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$InvoiceImpl &&
+            (identical(other.string, string) || other.string == string) &&
+            (identical(other.description, description) ||
+                other.description == description) &&
+            (identical(other.createdAt, createdAt) ||
+                other.createdAt == createdAt) &&
+            (identical(other.expiresAt, expiresAt) ||
+                other.expiresAt == expiresAt));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, string, description, createdAt, expiresAt);
+}
+
+abstract class _Invoice implements Invoice {
+  const factory _Invoice(
+      {required final String string,
+      final String? description,
+      required final int createdAt,
+      required final int expiresAt}) = _$InvoiceImpl;
+
+  @override
+  String get string;
+  @override
+  String? get description;
+  @override
+  int get createdAt;
+  @override
+  int get expiresAt;
+}
+
+/// @nodoc
 mixin _$NodeInfo {
   String get nodePk => throw _privateConstructorUsedError;
   String get version => throw _privateConstructorUsedError;
@@ -300,6 +367,152 @@ abstract class _NodeInfo implements NodeInfo {
   String get measurement;
   @override
   int get spendableBalanceSats;
+}
+
+/// @nodoc
+mixin _$Payment {
+  String get index => throw _privateConstructorUsedError;
+  PaymentKind get kind => throw _privateConstructorUsedError;
+  PaymentDirection get direction => throw _privateConstructorUsedError;
+  Invoice? get invoice => throw _privateConstructorUsedError;
+  String? get replacement => throw _privateConstructorUsedError;
+  int? get amountSat => throw _privateConstructorUsedError;
+  int get feesSat => throw _privateConstructorUsedError;
+  PaymentStatus get status => throw _privateConstructorUsedError;
+  String get statusStr => throw _privateConstructorUsedError;
+  String? get note => throw _privateConstructorUsedError;
+  int get createdAt => throw _privateConstructorUsedError;
+  int? get finalizedAt => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PaymentImpl implements _Payment {
+  const _$PaymentImpl(
+      {required this.index,
+      required this.kind,
+      required this.direction,
+      this.invoice,
+      this.replacement,
+      this.amountSat,
+      required this.feesSat,
+      required this.status,
+      required this.statusStr,
+      this.note,
+      required this.createdAt,
+      this.finalizedAt});
+
+  @override
+  final String index;
+  @override
+  final PaymentKind kind;
+  @override
+  final PaymentDirection direction;
+  @override
+  final Invoice? invoice;
+  @override
+  final String? replacement;
+  @override
+  final int? amountSat;
+  @override
+  final int feesSat;
+  @override
+  final PaymentStatus status;
+  @override
+  final String statusStr;
+  @override
+  final String? note;
+  @override
+  final int createdAt;
+  @override
+  final int? finalizedAt;
+
+  @override
+  String toString() {
+    return 'Payment(index: $index, kind: $kind, direction: $direction, invoice: $invoice, replacement: $replacement, amountSat: $amountSat, feesSat: $feesSat, status: $status, statusStr: $statusStr, note: $note, createdAt: $createdAt, finalizedAt: $finalizedAt)';
+  }
+
+  @override
+  bool operator ==(dynamic other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PaymentImpl &&
+            (identical(other.index, index) || other.index == index) &&
+            (identical(other.kind, kind) || other.kind == kind) &&
+            (identical(other.direction, direction) ||
+                other.direction == direction) &&
+            (identical(other.invoice, invoice) || other.invoice == invoice) &&
+            (identical(other.replacement, replacement) ||
+                other.replacement == replacement) &&
+            (identical(other.amountSat, amountSat) ||
+                other.amountSat == amountSat) &&
+            (identical(other.feesSat, feesSat) || other.feesSat == feesSat) &&
+            (identical(other.status, status) || other.status == status) &&
+            (identical(other.statusStr, statusStr) ||
+                other.statusStr == statusStr) &&
+            (identical(other.note, note) || other.note == note) &&
+            (identical(other.createdAt, createdAt) ||
+                other.createdAt == createdAt) &&
+            (identical(other.finalizedAt, finalizedAt) ||
+                other.finalizedAt == finalizedAt));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      runtimeType,
+      index,
+      kind,
+      direction,
+      invoice,
+      replacement,
+      amountSat,
+      feesSat,
+      status,
+      statusStr,
+      note,
+      createdAt,
+      finalizedAt);
+}
+
+abstract class _Payment implements Payment {
+  const factory _Payment(
+      {required final String index,
+      required final PaymentKind kind,
+      required final PaymentDirection direction,
+      final Invoice? invoice,
+      final String? replacement,
+      final int? amountSat,
+      required final int feesSat,
+      required final PaymentStatus status,
+      required final String statusStr,
+      final String? note,
+      required final int createdAt,
+      final int? finalizedAt}) = _$PaymentImpl;
+
+  @override
+  String get index;
+  @override
+  PaymentKind get kind;
+  @override
+  PaymentDirection get direction;
+  @override
+  Invoice? get invoice;
+  @override
+  String? get replacement;
+  @override
+  int? get amountSat;
+  @override
+  int get feesSat;
+  @override
+  PaymentStatus get status;
+  @override
+  String get statusStr;
+  @override
+  String? get note;
+  @override
+  int get createdAt;
+  @override
+  int? get finalizedAt;
 }
 
 /// @nodoc

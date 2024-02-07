@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../bindings_generated_api.dart'
-    show AppHandle, PaymentDirection, PaymentStatus, ShortPayment;
+    show AppHandle, Payment, PaymentDirection, PaymentStatus;
 import '../components.dart'
     show HeadingText, LxCloseButton, ScrollableSinglePageBody, SubheadingText;
 import '../style.dart' show Space;
@@ -54,7 +54,7 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
 class PaymentDetailPageInner extends StatelessWidget {
   const PaymentDetailPageInner({super.key, required this.payment});
 
-  final ShortPayment payment;
+  final Payment payment;
 
   @override
   Widget build(BuildContext context) {

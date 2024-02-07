@@ -387,14 +387,14 @@ class AppRsImpl implements AppRs {
         argNames: ["that"],
       );
 
-  ShortPayment? getPaymentByVecIdxMethodAppHandle(
+  Payment? getPaymentByVecIdxMethodAppHandle(
       {required AppHandle that, required int vecIdx, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     var arg1 = api2wire_usize(vecIdx);
     return _platform.executeSync(FlutterRustBridgeSyncTask(
       callFfi: () => _platform.inner
           .wire_get_payment_by_vec_idx__method__AppHandle(arg0, arg1),
-      parseSuccessData: _wire2api_opt_box_autoadd_short_payment,
+      parseSuccessData: _wire2api_opt_box_autoadd_payment,
       parseErrorData: null,
       constMeta: kGetPaymentByVecIdxMethodAppHandleConstMeta,
       argValues: [that, vecIdx],
@@ -599,8 +599,16 @@ class AppRsImpl implements AppRs {
     return _wire2api_fee_estimate(raw);
   }
 
-  ShortPayment _wire2api_box_autoadd_short_payment(dynamic raw) {
-    return _wire2api_short_payment(raw);
+  int _wire2api_box_autoadd_i64(dynamic raw) {
+    return _wire2api_i64(raw);
+  }
+
+  Invoice _wire2api_box_autoadd_invoice(dynamic raw) {
+    return _wire2api_invoice(raw);
+  }
+
+  Payment _wire2api_box_autoadd_payment(dynamic raw) {
+    return _wire2api_payment(raw);
   }
 
   int _wire2api_box_autoadd_u64(dynamic raw) {
@@ -673,6 +681,18 @@ class AppRsImpl implements AppRs {
     return castInt(raw);
   }
 
+  Invoice _wire2api_invoice(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return Invoice(
+      string: _wire2api_String(arr[0]),
+      description: _wire2api_opt_String(arr[1]),
+      createdAt: _wire2api_i64(arr[2]),
+      expiresAt: _wire2api_i64(arr[3]),
+    );
+  }
+
   List<FiatRate> _wire2api_list_fiat_rate(dynamic raw) {
     return (raw as List<dynamic>).map(_wire2api_fiat_rate).toList();
   }
@@ -712,12 +732,40 @@ class AppRsImpl implements AppRs {
     return raw == null ? null : _wire2api_box_autoadd_fee_estimate(raw);
   }
 
-  ShortPayment? _wire2api_opt_box_autoadd_short_payment(dynamic raw) {
-    return raw == null ? null : _wire2api_box_autoadd_short_payment(raw);
+  int? _wire2api_opt_box_autoadd_i64(dynamic raw) {
+    return raw == null ? null : _wire2api_box_autoadd_i64(raw);
+  }
+
+  Invoice? _wire2api_opt_box_autoadd_invoice(dynamic raw) {
+    return raw == null ? null : _wire2api_box_autoadd_invoice(raw);
+  }
+
+  Payment? _wire2api_opt_box_autoadd_payment(dynamic raw) {
+    return raw == null ? null : _wire2api_box_autoadd_payment(raw);
   }
 
   int? _wire2api_opt_box_autoadd_u64(dynamic raw) {
     return raw == null ? null : _wire2api_box_autoadd_u64(raw);
+  }
+
+  Payment _wire2api_payment(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 12)
+      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    return Payment(
+      index: _wire2api_String(arr[0]),
+      kind: _wire2api_payment_kind(arr[1]),
+      direction: _wire2api_payment_direction(arr[2]),
+      invoice: _wire2api_opt_box_autoadd_invoice(arr[3]),
+      replacement: _wire2api_opt_String(arr[4]),
+      amountSat: _wire2api_opt_box_autoadd_u64(arr[5]),
+      feesSat: _wire2api_u64(arr[6]),
+      status: _wire2api_payment_status(arr[7]),
+      statusStr: _wire2api_String(arr[8]),
+      note: _wire2api_opt_String(arr[9]),
+      createdAt: _wire2api_i64(arr[10]),
+      finalizedAt: _wire2api_opt_box_autoadd_i64(arr[11]),
+    );
   }
 
   PaymentDirection _wire2api_payment_direction(dynamic raw) {
