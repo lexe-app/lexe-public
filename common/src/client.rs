@@ -46,7 +46,7 @@ use crate::{
     constants,
     constants::node_provision_dns,
     ed25519,
-    enclave::{self, Measurement},
+    enclave::Measurement,
     env::DeployEnv,
     ln::{hashes::LxTxid, invoice::LxInvoice, payments::BasicPayment},
     rng::Crng,
@@ -228,18 +228,14 @@ impl NodeClient {
             )
             .context("Invalid proxy config")?;
 
-            // XXX(max): Use real cert
-            let lexe_ca_cert = tls::dummy_lexe_ca_cert();
-            let tls = tls::shared_seed::client_run_tls_config(
-                rng,
-                &lexe_ca_cert,
-                root_seed,
+            let tls_config = tls::shared_seed::app_node_run_client_config(
+                rng, deploy_env, root_seed,
             )?;
 
             let reqwest_client = RestClient::client_builder()
                 .proxy(proxy)
                 .user_agent("lexe-node-client")
-                .use_preconfigured_tls(tls)
+                .use_preconfigured_tls(tls_config)
                 .build()
                 .context("Failed to build client")?;
 
@@ -358,26 +354,16 @@ impl NodeClient {
         )
         .context("Invalid proxy config")?;
 
-        let enclave_policy = tls::attestation::verifier::EnclavePolicy {
-            allow_debug: self.deploy_env.is_dev(),
-            trusted_mrenclaves: Some(vec![measurement]),
-            trusted_mrsigner: Some(enclave::expected_signer(
-                self.use_sgx,
-                self.deploy_env,
-            )),
-        };
-        // XXX(max): Use real cert
-        let lexe_ca_cert = tls::dummy_lexe_ca_cert();
-        let tls = tls::attestation::client_provision_tls_config(
+        let tls_config = tls::attestation::app_node_provision_client_config(
             self.use_sgx,
-            &lexe_ca_cert,
-            enclave_policy,
-        )?;
+            self.deploy_env,
+            measurement,
+        );
 
         let reqwest_client = RestClient::client_builder()
             .proxy(proxy)
             .user_agent("lexe-node-client")
-            .use_preconfigured_tls(tls)
+            .use_preconfigured_tls(tls_config)
             .build()
             .context("Failed to build client")?;
 

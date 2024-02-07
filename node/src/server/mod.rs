@@ -35,7 +35,7 @@ use lexe_ln::{
     wallet::LexeWallet,
 };
 use tokio::sync::{mpsc, oneshot};
-use tracing::{span, trace};
+use tracing::trace;
 use warp::{filters::BoxedFilter, http::Response, hyper::Body, Filter, Reply};
 
 use crate::{
@@ -55,7 +55,6 @@ mod lexe;
 ///
 /// [`AppNodeRunApi`]: common::api::def::AppNodeRunApi
 pub(crate) fn app_routes(
-    parent_span: Option<span::Id>,
     persister: Arc<NodePersister>,
     chain_monitor: Arc<ChainMonitorType>,
     wallet: LexeWallet,
@@ -178,7 +177,7 @@ pub(crate) fn app_routes(
             .map(Reply::into_response),
     );
 
-    routes.with(rest::trace_requests(parent_span)).boxed()
+    routes.boxed()
 }
 
 // XXX: Add Lexe authentication

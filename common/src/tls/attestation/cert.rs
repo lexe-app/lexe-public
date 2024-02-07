@@ -3,13 +3,13 @@
 
 use std::{borrow::Cow, fmt};
 
-use rcgen::{date_time_ymd, DnType, RcgenError, SanType};
+use anyhow::Context;
+use rcgen::RcgenError;
 use yasna::models::ObjectIdentifier;
 
-use crate::{constants, ed25519, hex};
+use crate::{ed25519, hex, rng::Crng, tls};
 
-/// An x509 certificate containing remote attestation endorsements, usually
-/// owned by the lexe node.
+/// An x509 certificate containing remote attestation endorsements.
 pub struct AttestationCert(rcgen::Certificate);
 
 // TODO(phlip9): attestation extension type should be shared w/ client
@@ -33,47 +33,65 @@ pub struct SgxAttestationExtension<'a, 'b> {
     //    5. TODO: locally verifiable Report
 }
 
-// -- impl CertificateParams -- //
+// -- impl AttestationCert -- //
 
 impl AttestationCert {
-    /// Generate a new attestation certificate using the given `key_pair`, node
-    /// `dns_names`, and enclave remote `attestation` evidence (provided as a
-    /// custom x509 cert extension).
-    pub fn new(
-        key_pair: rcgen::KeyPair,
-        dns_names: Vec<String>,
-        attestation: rcgen::CustomExtension,
-    ) -> Result<Self, RcgenError> {
-        // TODO(phlip9): don't know how much DN matters...
-        let mut name = constants::lexe_distinguished_name_prefix();
-        name.push(DnType::CommonName, "node provisioning cert");
+    /// The Common Name (CN) component of this cert's Distinguished Name (DN).
+    const COMMON_NAME: &str = "Lexe remote attestation cert";
 
-        let subject_alt_names = dns_names
-            .into_iter()
-            .map(SanType::DnsName)
-            .collect::<Vec<_>>();
+    /// Sample a fresh cert keypair, gather remote attestation evidence, and
+    /// embed these in an ephemeral TLS cert which has the remote attestation
+    /// evidence embedded, and which is bound to the given DNS name.
+    pub fn generate(
+        rng: &mut impl Crng,
+        dns_name: String,
+    ) -> anyhow::Result<Self> {
+        // Generate a fresh key pair, which we'll use for the attestation cert.
+        let key_pair = ed25519::KeyPair::from_rng(rng);
 
-        let mut params = rcgen::CertificateParams::default();
+        // Get our enclave measurement and cert pk quoted by the enclave
+        // platform. This process binds the cert pk to the quote evidence. When
+        // a client verifies the Quote, they can also trust that the cert was
+        // generated on a valid, genuine enclave. Once this trust is settled,
+        // they can safely provision secrets onto the enclave via the newly
+        // established secure TLS channel.
+        //
+        // Get the quote as an x509 cert extension that we'll embed in our
+        // self-signed provisioning cert.
+        let attestation_ext =
+            super::quote::quote_enclave(rng, key_pair.public_key())
+                .context("Failed to quote enclave")?;
+        let cert_ext = attestation_ext.to_cert_extension();
 
-        params.alg = &rcgen::PKCS_ED25519;
-        params.key_pair = Some(ed25519::verify_compatible(key_pair)?);
-        // no expiration
-        // TODO(phlip9): attest certs should be short lived or ephemeral
-        params.not_before = date_time_ymd(1975, 1, 1);
-        params.not_after = date_time_ymd(4096, 1, 1);
-        params.distinguished_name = name;
-        params.subject_alt_names = subject_alt_names;
-        params.custom_extensions.push(attestation);
+        let now = time::OffsetDateTime::now_utc();
+        let not_before = now - time::Duration::HOUR;
+        let not_after = now + time::Duration::HOUR;
+        let subject_alt_names = vec![rcgen::SanType::DnsName(dns_name)];
 
-        Ok(Self(rcgen::Certificate::from_params(params)?))
+        let cert = tls::build_rcgen_cert(
+            Self::COMMON_NAME,
+            not_before,
+            not_after,
+            subject_alt_names,
+            &key_pair,
+            |params: &mut rcgen::CertificateParams| {
+                params.custom_extensions = vec![cert_ext];
+            },
+        );
+
+        Ok(Self(cert))
     }
 
-    pub fn serialize_der_signed(&self) -> Result<Vec<u8>, RcgenError> {
-        self.0.serialize_der()
+    /// DER-encode and self-sign the attestation cert.
+    pub fn serialize_der_self_signed(
+        &self,
+    ) -> Result<rustls::Certificate, RcgenError> {
+        self.0.serialize_der().map(rustls::Certificate)
     }
 
-    pub fn serialize_key_der(&self) -> Vec<u8> {
-        self.0.serialize_private_key_der()
+    /// DER-encode the attestation cert's private key.
+    pub fn serialize_key_der(&self) -> rustls::PrivateKey {
+        rustls::PrivateKey(self.0.serialize_private_key_der())
     }
 }
 
@@ -162,6 +180,7 @@ impl<'a, 'b> fmt::Debug for SgxAttestationExtension<'a, 'b> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::rng::WeakRng;
 
     #[test]
     fn test_keypair_pk_len() {
@@ -173,16 +192,10 @@ mod test {
 
     #[test]
     fn test_gen_cert() {
-        let key_pair = rcgen::KeyPair::generate(&rcgen::PKCS_ED25519).unwrap();
-        let dns_names = vec!["hello.world".to_string()];
-        let attestation = SgxAttestationExtension {
-            quote: b"aaaaa".as_slice().into(),
-            qe_report: b"zzzzzz".as_slice().into(),
-        }
-        .to_cert_extension();
-        let cert =
-            AttestationCert::new(key_pair, dns_names, attestation).unwrap();
-        let _cert_bytes = cert.serialize_der_signed().unwrap();
+        let mut rng = WeakRng::from_u64(20240217);
+        let dns_name = "hello.world".to_owned();
+        let cert = AttestationCert::generate(&mut rng, dns_name).unwrap();
+        let _cert_bytes = cert.serialize_der_self_signed().unwrap();
         // println!("cert:\n{}", pretty_hex(&cert_bytes));
 
         // example: `openssl -in cert.pem -text
@@ -245,40 +258,5 @@ mod test {
 
         assert_eq!(b"test".as_slice(), ext2.quote.as_ref());
         assert_eq!(b"foo".as_slice(), ext2.qe_report.as_ref());
-    }
-
-    #[cfg(target_env = "sgx")]
-    #[test]
-    #[ignore] // << uncomment to dump fresh attestation cert
-    fn dump_attest_cert() {
-        use crate::{
-            ed25519, enclave,
-            rng::WeakRng,
-            tls::{attestation, attestation::cert::AttestationCert},
-        };
-
-        let mut rng = WeakRng::new();
-        let cert_key_pair = ed25519::KeyPair::from_seed(&[0x42; 32]);
-        let cert_pk = cert_key_pair.public_key();
-        let attestation =
-            attestation::quote::quote_enclave(&mut rng, cert_pk).unwrap();
-        let dns_names = vec!["localhost".to_string()];
-
-        let attest_cert = AttestationCert::new(
-            cert_key_pair.to_rcgen(),
-            dns_names,
-            attestation,
-        )
-        .unwrap();
-
-        println!("measurement: '{}'", enclave::measurement());
-        println!("cert_pk: '{cert_pk}'");
-
-        let cert_der = attest_cert.serialize_der_signed().unwrap();
-
-        println!("attestation certificate:");
-        println!("-----BEGIN CERTIFICATE-----");
-        println!("{}", base64::encode(cert_der));
-        println!("-----END CERTIFICATE-----");
     }
 }

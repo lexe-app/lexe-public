@@ -3,10 +3,13 @@
 use std::{sync::Arc, time::SystemTime};
 
 use anyhow::Context;
-use rustls::client::WebPkiVerifier;
+use rustls::client::{ServerCertVerifier, WebPkiVerifier};
 
-use super::attestation;
-use crate::{constants, ed25519, rng::Crng};
+use self::verifier::EnclavePolicy;
+use super::lexe_ca;
+#[cfg(doc)]
+use crate::api::def::AppNodeProvisionApi;
+use crate::{constants, enclave::Measurement, env::DeployEnv, rng::Crng};
 
 /// Self-signed x509 cert containing enclave remote attestation endorsements.
 pub mod cert;
@@ -15,88 +18,94 @@ pub mod quote;
 /// Verify remote attestation endorsements directly or embedded in x509 certs.
 pub mod verifier;
 
-pub fn node_provision_tls_config<R: Crng>(
-    rng: &mut R,
-    dns_name: String,
+/// Server-side TLS config for [`AppNodeProvisionApi`].
+pub fn app_node_provision_server_config(
+    rng: &mut impl Crng,
+    measurement: &Measurement,
 ) -> anyhow::Result<rustls::ServerConfig> {
-    // Generate a fresh key pair, which we'll use for the provisioning cert.
-    let cert_key_pair = ed25519::KeyPair::from_rng(rng).to_rcgen();
+    // Bind the remote attestation cert to the node provision dns.
+    let mr_short = measurement.short();
+    let dns_name = constants::node_provision_dns(&mr_short).to_owned();
 
-    // Get our enclave measurement and cert pk quoted by the enclave
-    // platform. This process binds the cert pk to the quote evidence. When
-    // a client verifies the Quote, they can also trust that the cert was
-    // generated on a valid, genuine enclave. Once this trust is settled,
-    // they can safely provision secrets onto the enclave via the newly
-    // established secure TLS channel.
-    //
-    // Returns the quote as an x509 cert extension that we'll embed in our
-    // self-signed provisioning cert.
-    let cert_pk = ed25519::PublicKey::try_from(&cert_key_pair).unwrap();
-    let attestation = attestation::quote::quote_enclave(rng, &cert_pk)
-        .context("Failed to get node enclave quoted")?;
+    let cert = cert::AttestationCert::generate(rng, dns_name)
+        .context("Could not generate remote attestation cert")?;
+    let cert_der = cert
+        .serialize_der_self_signed()
+        .context("Failed to sign and serialize attestation cert")?;
+    let cert_key_der = cert.serialize_key_der();
 
-    // Generate a self-signed x509 cert with the remote attestation embedded.
-    let dns_names = vec![dns_name];
-    let cert =
-        cert::AttestationCert::new(cert_key_pair, dns_names, attestation)
-            .context("Failed to generate remote attestation cert")?;
-    let cert_der = rustls::Certificate(
-        cert.serialize_der_signed()
-            .context("Failed to sign and serialize attestation cert")?,
-    );
-    let cert_key_der = rustls::PrivateKey(cert.serialize_key_der());
-
-    let mut config = rustls::ServerConfig::builder()
-        .with_safe_defaults()
+    let mut config = super::lexe_default_server_config()
         .with_no_client_auth()
         .with_single_cert(vec![cert_der], cert_key_der)
         .context("Failed to build TLS config")?;
-    config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
+    config.alpn_protocols = super::LEXE_ALPN_PROTOCOLS.clone();
 
     Ok(config)
 }
 
-pub fn client_provision_tls_config(
+/// Client-side TLS config for [`AppNodeProvisionApi`].
+pub fn app_node_provision_client_config(
     use_sgx: bool,
-    lexe_ca_cert: &rustls::Certificate,
-    enclave_policy: attestation::verifier::EnclavePolicy,
-) -> anyhow::Result<rustls::ClientConfig> {
-    let attest_verifier = attestation::verifier::ServerCertVerifier {
+    deploy_env: DeployEnv,
+    measurement: Measurement,
+) -> rustls::ClientConfig {
+    let enclave_policy = EnclavePolicy::trust_measurement_with_signer(
+        use_sgx,
+        deploy_env,
+        measurement,
+    );
+    let attestation_verifier = verifier::AttestationVerifier {
         expect_dummy_quote: !use_sgx,
         enclave_policy,
     };
+    let public_lexe_verifier = lexe_ca::public_lexe_verifier(deploy_env);
 
-    let server_cert_verifier = ProvisionCertVerifier {
-        lexe_verifier: super::lexe_verifier(lexe_ca_cert)?,
-        attest_verifier,
+    let server_cert_verifier = AppNodeProvisionVerifier {
+        public_lexe_verifier,
+        attestation_verifier,
     };
 
-    // TODO(phlip9): use exactly TLSv1.3, ciphersuite TLS13_AES_128_GCM_SHA256,
-    // and key exchange X25519
-    let mut config = rustls::ClientConfig::builder()
-        .with_safe_defaults()
+    let mut config = super::lexe_default_client_config()
         .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
         .with_no_client_auth();
-    // TODO(phlip9): ensure this matches the reqwest config
-    config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
+    config.alpn_protocols = super::LEXE_ALPN_PROTOCOLS.clone();
 
-    Ok(config)
+    config
 }
 
-/// The client's [`rustls::client::ServerCertVerifier`] for verifying the TLS
-/// certs of a provisioning node, including remote attestation.
-struct ProvisionCertVerifier {
-    /// "<mr_short>.provision.lexe.app" remote attestation verifier
-    attest_verifier: attestation::verifier::ServerCertVerifier,
-    /// other (e.g., lexe reverse proxy) lexe CA verifier
-    lexe_verifier: WebPkiVerifier,
+/// The client's [`ServerCertVerifier`] for [`AppNodeProvisionApi`] TLS.
+///
+/// - When the app wishes to provision, it will make a request to the node using
+///   a fake provision DNS given by [`constants::node_provision_dns`]. However,
+///   requests are first routed through lexe's reverse proxy, which parses the
+///   fake provision DNS in the SNI extension to determine (1) whether we want
+///   to connect to a running or provisioning node and (2) the [`MrShort`] of
+///   the measurement we wish to provision so it can route accordingly.
+/// - The [`rustls::ServerName`] is given by the [`NodeClient`] reqwest client.
+///   This is the gateway DNS when connecting to Lexe's proxy, otherwise it is
+///   the node's fake provision DNS. See [`NodeClient::provision`] for details.
+/// - The [`AppNodeProvisionVerifier`] thus chooses between two "sub-verifiers"
+///   according to the [`rustls::ServerName`] given to us by [`reqwest`]. We use
+///   the public Lexe WebPKI verifier when establishing the outer TLS connection
+///   with the gateway, and we use the remote attestation verifier for the inner
+///   TLS connection which terminates inside the user node SGX enclave.
+///
+/// [`MrShort`]: crate::enclave::MrShort
+/// [`NodeClient`]: crate::client::NodeClient
+/// [`NodeClient::provision`]: crate::client::NodeClient::provision
+struct AppNodeProvisionVerifier {
+    /// `<mr_short>.provision.lexe.app` remote attestation verifier
+    attestation_verifier: verifier::AttestationVerifier,
+    /// `<TODO>.lexe.app` Lexe reverse proxy verifier - trusts the Lexe CA
+    public_lexe_verifier: WebPkiVerifier,
 }
 
-impl rustls::client::ServerCertVerifier for ProvisionCertVerifier {
+impl ServerCertVerifier for AppNodeProvisionVerifier {
     fn verify_server_cert(
         &self,
         end_entity: &rustls::Certificate,
         intermediates: &[rustls::Certificate],
+        // This comes from the reqwest client, not the server.
         server_name: &rustls::ServerName,
         scts: &mut dyn Iterator<Item = &[u8]>,
         ocsp_response: &[u8],
@@ -111,7 +120,7 @@ impl rustls::client::ServerCertVerifier for ProvisionCertVerifier {
             // Verify remote attestation cert when provisioning node
             Some(dns_name)
                 if dns_name.ends_with(constants::NODE_PROVISION_DNS_SUFFIX) =>
-                self.attest_verifier.verify_server_cert(
+                self.attestation_verifier.verify_server_cert(
                     end_entity,
                     intermediates,
                     server_name,
@@ -121,9 +130,9 @@ impl rustls::client::ServerCertVerifier for ProvisionCertVerifier {
                 ),
             // Other domains (i.e., node reverse proxy) verify using pinned
             // lexe CA
-            // TODO(phlip9): this should be a strict DNS name, like
+            // TODO(phlip8): this should be a strict DNS name, like
             // `proxy.lexe.app`. Come back once DNS names are more solid.
-            _ => self.lexe_verifier.verify_server_cert(
+            _ => self.public_lexe_verifier.verify_server_cert(
                 end_entity,
                 intermediates,
                 server_name,

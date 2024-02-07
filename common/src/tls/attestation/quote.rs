@@ -11,14 +11,13 @@ pub use not_sgx::quote_enclave;
 
 #[cfg(target_env = "sgx")]
 mod sgx {
-    use std::{fmt, net::TcpStream};
+    use std::{borrow::Cow, fmt, net::TcpStream};
 
     use aes::Aes128;
     use aesm_client::{sgx::AesmClientExt, AesmClient};
-    use anyhow::{ensure, format_err, Context, Result};
+    use anyhow::{ensure, format_err, Context};
     use bytemuck::{Pod, Zeroable};
     use cmac::{digest::generic_array::GenericArray, Cmac, Mac};
-    use rcgen::CustomExtension;
     use sgx_isa::{Report, Targetinfo};
 
     use crate::{
@@ -38,7 +37,7 @@ mod sgx {
     pub fn quote_enclave(
         rng: &mut dyn Crng,
         cert_pk: &ed25519::PublicKey,
-    ) -> Result<CustomExtension> {
+    ) -> anyhow::Result<SgxAttestationExtension<'static, 'static>> {
         // TODO(phlip9): AESM retries
 
         // 1. Connect to the local AESM service.
@@ -164,11 +163,10 @@ mod sgx {
 
         // 7. Collect the attestation evidence into an x509 cert extension
 
-        let attestation = SgxAttestationExtension {
-            quote: quote_res.quote().into(),
-            qe_report: quote_res.qe_report().into(),
-        };
-        Ok(attestation.to_cert_extension())
+        Ok(SgxAttestationExtension {
+            quote: Cow::Owned(quote_res.quote().to_vec()),
+            qe_report: Cow::Owned(quote_res.qe_report().to_vec()),
+        })
     }
 
     // dumb error type compatibility hack
@@ -302,9 +300,6 @@ mod sgx {
 
 #[cfg(not(target_env = "sgx"))]
 mod not_sgx {
-    use anyhow::Result;
-    use rcgen::CustomExtension;
-
     use crate::{
         ed25519, rng::Crng, tls::attestation::cert::SgxAttestationExtension,
     };
@@ -312,10 +307,8 @@ mod not_sgx {
     pub fn quote_enclave(
         _rng: &mut dyn Crng,
         _cert_pk: &ed25519::PublicKey,
-    ) -> Result<CustomExtension> {
+    ) -> anyhow::Result<SgxAttestationExtension<'static, 'static>> {
         // TODO(phlip9): use a different dummy extension?
-
-        let dummy_attestation = SgxAttestationExtension::dummy();
-        Ok(dummy_attestation.to_cert_extension())
+        Ok(SgxAttestationExtension::dummy())
     }
 }

@@ -1,7 +1,5 @@
 use std::include_bytes;
 
-use rcgen::{DistinguishedName, DnType};
-
 use crate::{
     api::ports::Port,
     const_assert,
@@ -63,14 +61,6 @@ pub fn node_provision_dns(mr_short: &MrShort) -> String {
     format!("{mr_short}.{NODE_PROVISION_DNS_SUFFIX}")
 }
 pub const NODE_PROVISION_DNS_SUFFIX: &str = "provision.lexe.app";
-
-pub fn lexe_distinguished_name_prefix() -> DistinguishedName {
-    let mut name = DistinguishedName::new();
-    name.push(DnType::CountryName, "US");
-    name.push(DnType::StateOrProvinceName, "CA");
-    name.push(DnType::OrganizationName, "lexe-app");
-    name
-}
 
 // --- Root CA certs --- //
 //

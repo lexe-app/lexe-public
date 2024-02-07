@@ -114,11 +114,12 @@ impl RootSeed {
         SecretVec::new(out)
     }
 
-    /// Derive the CA cert that endorses client and node certs. These certs
-    /// provide mutual authentication for client <-> node connections.
-    pub fn derive_client_ca_key_pair(&self) -> rcgen::KeyPair {
-        let seed = self.derive(&[b"client ca key pair"]);
-        ed25519::KeyPair::from_seed(seed.expose_secret()).to_rcgen()
+    /// Derive the keypair for the CA cert that endorses client and server certs
+    /// under the "shared seed" mTLS construction. These certs provide mutual
+    /// authentication for client <-> server connections.
+    pub fn derive_shared_seed_tls_ca_key_pair(&self) -> ed25519::KeyPair {
+        let seed = self.derive(&[b"shared seed tls ca key pair"]);
+        ed25519::KeyPair::from_seed(seed.expose_secret())
     }
 
     /// Derive the user key pair, which is the key behind the [`UserPk`]. This

@@ -39,7 +39,6 @@ use std::{fmt, str::FromStr};
 
 use asn1_rs::{oid, Oid};
 use bytes::{BufMut, Bytes, BytesMut};
-use rcgen::RcgenError;
 use ref_cast::RefCast;
 use ring::signature::KeyPair as _;
 use serde::{Deserialize, Serialize};
@@ -716,18 +715,6 @@ impl<T: Signable + Clone> Clone for Signed<T> {
     }
 }
 
-// -- random utilities -- //
-
-pub fn verify_compatible(
-    key_pair: rcgen::KeyPair,
-) -> Result<rcgen::KeyPair, RcgenError> {
-    if key_pair.is_compatible(&rcgen::PKCS_ED25519) {
-        Ok(key_pair)
-    } else {
-        Err(RcgenError::UnsupportedSignatureAlgorithm)
-    }
-}
-
 // -- low-level PKCS#8 serialization/deserialization -- //
 
 // Since ed25519 secret keys and public keys are always serialized with the same
@@ -854,7 +841,11 @@ mod test {
     fn test_to_rcgen() {
         proptest!(|(key_pair in arb_key_pair())| {
             let rcgen_key_pair = key_pair.to_rcgen();
-            assert_eq!(rcgen_key_pair.public_key_raw(), key_pair.public_key().as_slice());
+            assert_eq!(
+                rcgen_key_pair.public_key_raw(),
+                key_pair.public_key().as_slice()
+            );
+            assert!(rcgen_key_pair.is_compatible(&rcgen::PKCS_ED25519));
         });
     }
 

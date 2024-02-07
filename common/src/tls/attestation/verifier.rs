@@ -7,11 +7,15 @@ use asn1_rs::FromDer;
 use dcap_ql::quote::{
     Qe3CertDataPckCertChain, Quote, Quote3SignatureEcdsaP256,
 };
+use rustls::client::ServerCertVerifier;
 use webpki::{TlsServerTrustAnchors, TrustAnchor};
 use x509_parser::certificate::X509Certificate;
 
 use crate::{
-    ed25519, enclave::Measurement, hex, sha256,
+    ed25519,
+    enclave::{self, Measurement},
+    env::DeployEnv,
+    hex, sha256,
     tls::attestation::cert::SgxAttestationExtension,
 };
 
@@ -59,7 +63,7 @@ static SUPPORTED_SIG_ALGS: &[&webpki::SignatureAlgorithm] = &[
 // 1. server cert verifier (server cert should contain dns names)
 // 2. TODO(phlip9): client cert verifier (dns names ignored)
 
-/// An x509 certificate verifier that also checks embedded remote attestation
+/// A [`ServerCertVerifier`] that also checks embedded remote attestation
 /// evidence.
 ///
 /// Clients use this verifier to check that
@@ -68,14 +72,14 @@ static SUPPORTED_SIG_ALGS: &[&webpki::SignatureAlgorithm] = &[
 /// (3) the remote attestation binds to the server's certificate key pair. Once
 /// these checks are successful, the client and secure can establish a secure
 /// TLS channel.
-pub(super) struct ServerCertVerifier {
+pub struct AttestationVerifier {
     /// if `true`, expect a fake dummy quote. Used only for testing.
     pub expect_dummy_quote: bool,
     /// the verifier's policy for trusting the remote enclave.
     pub enclave_policy: EnclavePolicy,
 }
 
-impl rustls::client::ServerCertVerifier for ServerCertVerifier {
+impl ServerCertVerifier for AttestationVerifier {
     fn verify_server_cert(
         &self,
         end_entity: &rustls::Certificate,
@@ -372,17 +376,33 @@ fn parse_cert_pem_to_der(s: &str) -> Result<Vec<u8>> {
 pub struct EnclavePolicy {
     /// Allow enclaves in DEBUG mode. This should only be used in development.
     pub allow_debug: bool,
-    // TODO(phlip9): new type
     /// The set of trusted enclave measurements. If set to `None`, ignore the
     /// `mrenclave` field.
     pub trusted_mrenclaves: Option<Vec<Measurement>>,
-    // TODO(phlip9): new type
     /// The trusted enclave signer key id. If set to `None`, ignore the
     /// `mrsigner` field.
     pub trusted_mrsigner: Option<Measurement>,
 }
 
 impl EnclavePolicy {
+    /// An [`EnclavePolicy`] which only trusts the given [`Measurement`], and
+    /// which must be signed by an appropriate signer, taking into account our
+    /// deploy environment and whether we're actually expecting an SGX enclave.
+    /// This is generally what you want.
+    pub fn trust_measurement_with_signer(
+        use_sgx: bool,
+        deploy_env: DeployEnv,
+        measurement: Measurement,
+    ) -> Self {
+        Self {
+            allow_debug: deploy_env.is_dev(),
+            trusted_mrenclaves: Some(vec![measurement]),
+            trusted_mrsigner: Some(enclave::expected_signer(
+                use_sgx, deploy_env,
+            )),
+        }
+    }
+
     /// A policy that trusts any enclave.
     pub fn dangerous_trust_any() -> Self {
         Self {
@@ -568,19 +588,16 @@ fn rustls_err(s: impl fmt::Display) -> rustls::Error {
 
 #[cfg(test)]
 mod test {
-    use std::{include_str, iter, time::Duration};
+    use std::{include_str, iter};
 
-    use rustls::client::ServerCertVerifier as _;
+    use rustls::client::ServerCertVerifier;
 
     use super::*;
-    use crate::{
-        ed25519, hex,
-        rng::SysRng,
-        tls::attestation::cert::{AttestationCert, SgxAttestationExtension},
-    };
+    use crate::{hex, rng::WeakRng, tls::attestation::cert::AttestationCert};
 
     const MRENCLAVE_HEX: &str =
         include_str!("../../../test_data/mrenclave.hex");
+    /// This can be regenerated using [`dump_attest_cert`].
     const SGX_SERVER_CERT_PEM: &str =
         include_str!("../../../test_data/attest_cert.pem");
 
@@ -594,13 +611,6 @@ mod test {
         hex::decode_to_slice(MRENCLAVE_HEX.trim(), mrenclave.as_mut_slice())
             .unwrap();
         Measurement::new(mrenclave)
-    }
-
-    fn mock_timestamp() -> SystemTime {
-        // some time in 2022 lol
-        SystemTime::UNIX_EPOCH
-            .checked_add(Duration::from_secs(1_660_000_000))
-            .unwrap()
     }
 
     #[test]
@@ -637,7 +647,7 @@ mod test {
     fn test_verify_sgx_server_cert() {
         let cert_der = parse_cert_pem_to_der(SGX_SERVER_CERT_PEM).unwrap();
 
-        let verifier = ServerCertVerifier {
+        let verifier = AttestationVerifier {
             expect_dummy_quote: false,
             enclave_policy: EnclavePolicy {
                 allow_debug: true,
@@ -657,25 +667,21 @@ mod test {
                 &rustls::ServerName::try_from("localhost").unwrap(),
                 &mut scts,
                 ocsp_response,
-                mock_timestamp(),
+                SystemTime::now(),
             )
             .unwrap();
     }
 
     #[test]
     fn test_verify_dummy_server_cert() {
-        let mut rng = SysRng::new();
+        let mut rng = WeakRng::new();
 
-        let dns_name = "node.lexe.app";
-        let dns_names = vec![dns_name.to_owned()];
+        let dns_name = "run.lexe.app".to_owned();
+        let cert =
+            AttestationCert::generate(&mut rng, dns_name.clone()).unwrap();
+        let cert_der = cert.serialize_der_self_signed().unwrap();
 
-        let cert_key_pair = ed25519::KeyPair::from_rng(&mut rng).to_rcgen();
-        let attestation = SgxAttestationExtension::dummy().to_cert_extension();
-        let cert = AttestationCert::new(cert_key_pair, dns_names, attestation)
-            .unwrap();
-        let cert_der = cert.serialize_der_signed().unwrap();
-
-        let verifier = ServerCertVerifier {
+        let verifier = AttestationVerifier {
             expect_dummy_quote: true,
             enclave_policy: EnclavePolicy::dangerous_trust_any(),
         };
@@ -686,13 +692,36 @@ mod test {
 
         verifier
             .verify_server_cert(
-                &rustls::Certificate(cert_der),
+                &cert_der,
                 intermediates,
-                &rustls::ServerName::try_from(dns_name).unwrap(),
+                &rustls::ServerName::try_from(dns_name.as_str()).unwrap(),
                 &mut scts,
                 ocsp_response,
-                mock_timestamp(),
+                SystemTime::now(),
             )
             .unwrap();
+    }
+
+    #[test]
+    #[ignore] // << uncomment to dump fresh attestation cert
+    fn dump_attest_cert() {
+        use crate::{
+            enclave, rng::WeakRng, tls::attestation::cert::AttestationCert,
+        };
+
+        let mut rng = WeakRng::new();
+        let dns_name = "localhost".to_owned();
+
+        let attest_cert =
+            AttestationCert::generate(&mut rng, dns_name).unwrap();
+
+        println!("measurement: '{}'", enclave::measurement());
+
+        let cert_der = attest_cert.serialize_der_self_signed().unwrap();
+
+        println!("attestation certificate:");
+        println!("-----BEGIN CERTIFICATE-----");
+        println!("{}", base64::encode(cert_der));
+        println!("-----END CERTIFICATE-----");
     }
 }
