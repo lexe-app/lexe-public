@@ -185,7 +185,7 @@ class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
             onPressed: this.onQrPressed,
             icon: const Icon(Icons.qr_code_rounded),
           ),
-          const SizedBox(width: Space.s400),
+          const SizedBox(width: Space.appBarTrailingPadding),
         ],
       ),
       body: ScrollableSinglePageBody(
@@ -392,7 +392,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
         leading: const LxBackButton(),
         actions: const [
           LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
-          SizedBox(width: Space.s400),
+          SizedBox(width: Space.appBarTrailingPadding),
         ],
       ),
       body: ScrollableSinglePageBody(
@@ -656,7 +656,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
         leading: const LxBackButton(),
         actions: const [
           LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
-          SizedBox(width: Space.s400),
+          SizedBox(width: Space.appBarTrailingPadding),
         ],
       ),
       body: ScrollableSinglePageBody(

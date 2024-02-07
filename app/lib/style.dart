@@ -243,6 +243,9 @@ class Space {
   /// 64 px
   static const double appBarLeadingWidth = 64.0;
 
+  /// 16 px
+  static const double appBarTrailingPadding = Space.s400;
+
   /// 0 px
   static const double s0 = 0.0;
 
