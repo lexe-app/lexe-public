@@ -6,7 +6,6 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show Intl;
-import 'package:lexeapp/result.dart';
 
 import 'bindings.dart' show api;
 import 'bindings_generated_api.dart'
@@ -33,8 +32,10 @@ import 'components.dart' show HeadingText, ScrollableSinglePageBody;
 import 'date_format.dart' as date_format;
 import 'gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
 import 'logger.dart';
+import 'result.dart';
 import 'route/backup_wallet.dart' show BackupWalletPage;
 import 'route/landing.dart' show LandingPage;
+import 'route/payment_detail.dart' show PaymentDetailPageInner;
 import 'route/scan.dart' show ScanPage;
 import 'route/send.dart'
     show
@@ -214,6 +215,21 @@ class LexeDesignHome extends StatelessWidget {
               authInfo: const GDriveAuthInfo(authCode: "fake"),
               signupApi: mockSignupApi,
             ),
+          ),
+          Component(
+            "PaymentDetailPage",
+            subtitle: "btc pending outbound",
+            (context) => const PaymentDetailPageInner(
+                payment: ShortPayment(
+              index:
+                  "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+              kind: PaymentKind.Onchain,
+              direction: PaymentDirection.Outbound,
+              amountSat: 77000,
+              status: PaymentStatus.Pending,
+              note: "Brunch w/ friends",
+              createdAt: 1687385080000,
+            )),
           ),
         ],
       ),
