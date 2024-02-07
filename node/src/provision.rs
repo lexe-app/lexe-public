@@ -589,27 +589,12 @@ mod handlers {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
-    use common::{
-        api::error::ErrorResponse,
-        attest,
-        attest::verify::EnclavePolicy,
-        cli::{node::ProvisionArgs, Network},
-        env::DeployEnv,
-        rng::WeakRng,
-        root_seed::RootSeed,
-    };
-    use tokio_rustls::rustls;
-
-    use super::*;
-    use crate::api::mock::{MockBackendClient, MockRunnerClient};
 
     #[cfg(target_env = "sgx")]
     #[test]
     #[ignore] // << uncomment to dump fresh attestation cert
     fn dump_attest_cert() {
-        use common::ed25519;
+        use common::{attest, ed25519, enclave, rng::WeakRng};
 
         let mut rng = WeakRng::new();
         let cert_key_pair = ed25519::KeyPair::from_seed(&[0x42; 32]);
@@ -633,94 +618,5 @@ mod test {
         println!("-----BEGIN CERTIFICATE-----");
         println!("{}", base64::encode(cert_der));
         println!("-----END CERTIFICATE-----");
-    }
-
-    #[tokio::test]
-    async fn test_provision() {
-        let root_seed = RootSeed::from_u64(0x42);
-
-        let args = ProvisionArgs::default();
-
-        let runner_api = Arc::new(MockRunnerClient::new());
-        let backend_api = Arc::new(MockBackendClient::new());
-        let mut notifs_rx = runner_api.notifs_rx();
-
-        let provision_task = async {
-            let mut rng = WeakRng::new();
-            provision_node(&mut rng, args, runner_api, backend_api)
-                .await
-                .unwrap();
-        };
-
-        let test_task = async {
-            // runner recv ready notification w/ listening port
-            let ports = notifs_rx.recv().await.unwrap();
-            let provision_ports = ports.unwrap_provision();
-            let app_port = provision_ports.app_port;
-            let lexe_port = provision_ports.lexe_port;
-
-            let expect_dummy_quote = cfg!(not(target_env = "sgx"));
-
-            let mut tls_config = rustls::ClientConfig::builder()
-                .with_safe_defaults()
-                .with_custom_certificate_verifier(Arc::new(
-                    attest::ServerCertVerifier {
-                        expect_dummy_quote,
-                        enclave_policy: EnclavePolicy::trust_self(),
-                    },
-                ))
-                .with_no_client_auth();
-            tls_config.alpn_protocols = vec!["h2".into(), "http/1.1".into()];
-
-            // client sends provision request to node
-            let network = Network::REGTEST;
-            let deploy_env = DeployEnv::Dev;
-            let provision_req = NodeProvisionRequest {
-                root_seed,
-                deploy_env,
-                network,
-                google_auth_code: None,
-                allow_gvfs_access: false,
-                encrypted_seed: None,
-            };
-            let app_client = reqwest::Client::builder()
-                .use_preconfigured_tls(tls_config)
-                .build()
-                .unwrap();
-            let resp = app_client
-                // Note the https://
-                .post(format!("https://localhost:{app_port}/app/provision"))
-                .json(&provision_req)
-                .send()
-                .await
-                .unwrap();
-            if !resp.status().is_success() {
-                let err = resp.json::<ErrorResponse>().await.unwrap();
-                panic!("Failed to provision: {err:#?}");
-            }
-
-            // Now simulate the Lexe operators sending a shutdown signal.
-            let lexe_client = reqwest::Client::new();
-            let measurement = enclave::measurement();
-            let data = GetByMeasurement { measurement };
-            let resp = lexe_client
-                .get(format!("http://localhost:{lexe_port}/lexe/shutdown"))
-                .query(&data)
-                .send()
-                .await
-                .unwrap();
-            if !resp.status().is_success() {
-                let err = resp.json::<ErrorResponse>().await.unwrap();
-                panic!("Failed to initiate graceful shutdown: {err:#?}");
-            }
-        };
-
-        let (_, _) = tokio::join!(provision_task, test_task);
-
-        // test that we can unseal the provisioned data
-
-        // TODO(phlip9): add mock db
-        // let node = api.get_node(user_pk).await.unwrap().unwrap();
-        // assert_eq!(node.user_pk, user_pk);
     }
 }
