@@ -236,6 +236,7 @@ class LexeDesignHome extends StatelessWidget {
               createdAt: 1687385080000,
             )),
           ),
+          const SizedBox(height: Space.s800),
         ],
       ),
     );

@@ -169,6 +169,7 @@ class WalletPageState extends State<WalletPage> {
 
     // User canceled
     if (flowResult == null || !flowResult) return;
+    if (!this.mounted) return;
 
     // Refresh to pick up new payment
     this.triggerRefresh();
@@ -758,7 +759,20 @@ class PaymentsListEntry extends StatelessWidget {
     final leadingIcon = PaymentListIcon(kind: kind);
 
     // TODO(phlip9): figure out a heuristic to get the counterparty name.
-    final primaryStr = primaryPaymentLabel(status, direction);
+    final String primaryStr;
+    if (status == PaymentStatus.Pending) {
+      if (direction == PaymentDirection.Inbound) {
+        primaryStr = "Receiving payment";
+      } else {
+        primaryStr = "Sending payment";
+      }
+    } else {
+      if (direction == PaymentDirection.Inbound) {
+        primaryStr = "You received";
+      } else {
+        primaryStr = "You sent";
+      }
+    }
 
     // ex: "Receiving payment" (pending, inbound)
     // ex: "Sending payment" (pending, outbound)
@@ -922,9 +936,10 @@ class PaymentListIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = (this.kind == PaymentKind.Onchain)
-        ? Icons.currency_bitcoin_rounded
-        : Icons.bolt_rounded;
+    final icon = switch (this.kind) {
+      PaymentKind.Onchain => Icons.currency_bitcoin_rounded,
+      PaymentKind.Invoice || PaymentKind.Spontaneous => Icons.bolt_rounded,
+    };
 
     return DecoratedBox(
       decoration: const BoxDecoration(
