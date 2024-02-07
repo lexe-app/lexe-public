@@ -150,23 +150,23 @@ abstract class AppRs {
   FlutterRustBridgeTaskConstMeta
       get kGetPaymentByVecIdxMethodAppHandleConstMeta;
 
-  (int, ShortPayment)? getPaymentByScrollIdxMethodAppHandle(
+  (int, ShortPayment)? getShortPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta
-      get kGetPaymentByScrollIdxMethodAppHandleConstMeta;
+      get kGetShortPaymentByScrollIdxMethodAppHandleConstMeta;
 
-  (int, ShortPayment)? getPendingPaymentByScrollIdxMethodAppHandle(
+  (int, ShortPayment)? getPendingShortPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta
-      get kGetPendingPaymentByScrollIdxMethodAppHandleConstMeta;
+      get kGetPendingShortPaymentByScrollIdxMethodAppHandleConstMeta;
 
-  (int, ShortPayment)? getFinalizedPaymentByScrollIdxMethodAppHandle(
+  (int, ShortPayment)? getFinalizedShortPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta
-      get kGetFinalizedPaymentByScrollIdxMethodAppHandleConstMeta;
+      get kGetFinalizedShortPaymentByScrollIdxMethodAppHandleConstMeta;
 
   int getNumPaymentsMethodAppHandle({required AppHandle that, dynamic hint});
 
@@ -284,23 +284,23 @@ class AppHandle {
         vecIdx: vecIdx,
       );
 
-  (int, ShortPayment)? getPaymentByScrollIdx(
+  (int, ShortPayment)? getShortPaymentByScrollIdx(
           {required int scrollIdx, dynamic hint}) =>
-      bridge.getPaymentByScrollIdxMethodAppHandle(
+      bridge.getShortPaymentByScrollIdxMethodAppHandle(
         that: this,
         scrollIdx: scrollIdx,
       );
 
-  (int, ShortPayment)? getPendingPaymentByScrollIdx(
+  (int, ShortPayment)? getPendingShortPaymentByScrollIdx(
           {required int scrollIdx, dynamic hint}) =>
-      bridge.getPendingPaymentByScrollIdxMethodAppHandle(
+      bridge.getPendingShortPaymentByScrollIdxMethodAppHandle(
         that: this,
         scrollIdx: scrollIdx,
       );
 
-  (int, ShortPayment)? getFinalizedPaymentByScrollIdx(
+  (int, ShortPayment)? getFinalizedShortPaymentByScrollIdx(
           {required int scrollIdx, dynamic hint}) =>
-      bridge.getFinalizedPaymentByScrollIdxMethodAppHandle(
+      bridge.getFinalizedShortPaymentByScrollIdxMethodAppHandle(
         that: this,
         scrollIdx: scrollIdx,
       );

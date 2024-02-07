@@ -409,71 +409,73 @@ class AppRsImpl implements AppRs {
             argNames: ["that", "vecIdx"],
           );
 
-  (int, ShortPayment)? getPaymentByScrollIdxMethodAppHandle(
+  (int, ShortPayment)? getShortPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     var arg1 = api2wire_usize(scrollIdx);
     return _platform.executeSync(FlutterRustBridgeSyncTask(
       callFfi: () => _platform.inner
-          .wire_get_payment_by_scroll_idx__method__AppHandle(arg0, arg1),
+          .wire_get_short_payment_by_scroll_idx__method__AppHandle(arg0, arg1),
       parseSuccessData: _wire2api_opt_box_autoadd___record__usize_short_payment,
       parseErrorData: null,
-      constMeta: kGetPaymentByScrollIdxMethodAppHandleConstMeta,
+      constMeta: kGetShortPaymentByScrollIdxMethodAppHandleConstMeta,
       argValues: [that, scrollIdx],
       hint: hint,
     ));
   }
 
   FlutterRustBridgeTaskConstMeta
-      get kGetPaymentByScrollIdxMethodAppHandleConstMeta =>
+      get kGetShortPaymentByScrollIdxMethodAppHandleConstMeta =>
           const FlutterRustBridgeTaskConstMeta(
-            debugName: "get_payment_by_scroll_idx__method__AppHandle",
+            debugName: "get_short_payment_by_scroll_idx__method__AppHandle",
             argNames: ["that", "scrollIdx"],
           );
 
-  (int, ShortPayment)? getPendingPaymentByScrollIdxMethodAppHandle(
+  (int, ShortPayment)? getPendingShortPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     var arg1 = api2wire_usize(scrollIdx);
     return _platform.executeSync(FlutterRustBridgeSyncTask(
       callFfi: () => _platform.inner
-          .wire_get_pending_payment_by_scroll_idx__method__AppHandle(
+          .wire_get_pending_short_payment_by_scroll_idx__method__AppHandle(
               arg0, arg1),
       parseSuccessData: _wire2api_opt_box_autoadd___record__usize_short_payment,
       parseErrorData: null,
-      constMeta: kGetPendingPaymentByScrollIdxMethodAppHandleConstMeta,
+      constMeta: kGetPendingShortPaymentByScrollIdxMethodAppHandleConstMeta,
       argValues: [that, scrollIdx],
       hint: hint,
     ));
   }
 
   FlutterRustBridgeTaskConstMeta
-      get kGetPendingPaymentByScrollIdxMethodAppHandleConstMeta =>
+      get kGetPendingShortPaymentByScrollIdxMethodAppHandleConstMeta =>
           const FlutterRustBridgeTaskConstMeta(
-            debugName: "get_pending_payment_by_scroll_idx__method__AppHandle",
+            debugName:
+                "get_pending_short_payment_by_scroll_idx__method__AppHandle",
             argNames: ["that", "scrollIdx"],
           );
 
-  (int, ShortPayment)? getFinalizedPaymentByScrollIdxMethodAppHandle(
+  (int, ShortPayment)? getFinalizedShortPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     var arg1 = api2wire_usize(scrollIdx);
     return _platform.executeSync(FlutterRustBridgeSyncTask(
       callFfi: () => _platform.inner
-          .wire_get_finalized_payment_by_scroll_idx__method__AppHandle(
+          .wire_get_finalized_short_payment_by_scroll_idx__method__AppHandle(
               arg0, arg1),
       parseSuccessData: _wire2api_opt_box_autoadd___record__usize_short_payment,
       parseErrorData: null,
-      constMeta: kGetFinalizedPaymentByScrollIdxMethodAppHandleConstMeta,
+      constMeta: kGetFinalizedShortPaymentByScrollIdxMethodAppHandleConstMeta,
       argValues: [that, scrollIdx],
       hint: hint,
     ));
   }
 
   FlutterRustBridgeTaskConstMeta
-      get kGetFinalizedPaymentByScrollIdxMethodAppHandleConstMeta =>
+      get kGetFinalizedShortPaymentByScrollIdxMethodAppHandleConstMeta =>
           const FlutterRustBridgeTaskConstMeta(
-            debugName: "get_finalized_payment_by_scroll_idx__method__AppHandle",
+            debugName:
+                "get_finalized_short_payment_by_scroll_idx__method__AppHandle",
             argNames: ["that", "scrollIdx"],
           );
 
@@ -1384,63 +1386,67 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _wire_get_payment_by_vec_idx__method__AppHandlePtr.asFunction<
           WireSyncReturn Function(ffi.Pointer<wire_AppHandle>, int)>();
 
-  WireSyncReturn wire_get_payment_by_scroll_idx__method__AppHandle(
+  WireSyncReturn wire_get_short_payment_by_scroll_idx__method__AppHandle(
     ffi.Pointer<wire_AppHandle> that,
     int scroll_idx,
   ) {
-    return _wire_get_payment_by_scroll_idx__method__AppHandle(
+    return _wire_get_short_payment_by_scroll_idx__method__AppHandle(
       that,
       scroll_idx,
     );
   }
 
-  late final _wire_get_payment_by_scroll_idx__method__AppHandlePtr = _lookup<
-          ffi.NativeFunction<
-              WireSyncReturn Function(
-                  ffi.Pointer<wire_AppHandle>, ffi.UintPtr)>>(
-      'wire_get_payment_by_scroll_idx__method__AppHandle');
-  late final _wire_get_payment_by_scroll_idx__method__AppHandle =
-      _wire_get_payment_by_scroll_idx__method__AppHandlePtr.asFunction<
-          WireSyncReturn Function(ffi.Pointer<wire_AppHandle>, int)>();
-
-  WireSyncReturn wire_get_pending_payment_by_scroll_idx__method__AppHandle(
-    ffi.Pointer<wire_AppHandle> that,
-    int scroll_idx,
-  ) {
-    return _wire_get_pending_payment_by_scroll_idx__method__AppHandle(
-      that,
-      scroll_idx,
-    );
-  }
-
-  late final _wire_get_pending_payment_by_scroll_idx__method__AppHandlePtr =
+  late final _wire_get_short_payment_by_scroll_idx__method__AppHandlePtr =
       _lookup<
               ffi.NativeFunction<
                   WireSyncReturn Function(
                       ffi.Pointer<wire_AppHandle>, ffi.UintPtr)>>(
-          'wire_get_pending_payment_by_scroll_idx__method__AppHandle');
-  late final _wire_get_pending_payment_by_scroll_idx__method__AppHandle =
-      _wire_get_pending_payment_by_scroll_idx__method__AppHandlePtr.asFunction<
+          'wire_get_short_payment_by_scroll_idx__method__AppHandle');
+  late final _wire_get_short_payment_by_scroll_idx__method__AppHandle =
+      _wire_get_short_payment_by_scroll_idx__method__AppHandlePtr.asFunction<
           WireSyncReturn Function(ffi.Pointer<wire_AppHandle>, int)>();
 
-  WireSyncReturn wire_get_finalized_payment_by_scroll_idx__method__AppHandle(
+  WireSyncReturn
+      wire_get_pending_short_payment_by_scroll_idx__method__AppHandle(
     ffi.Pointer<wire_AppHandle> that,
     int scroll_idx,
   ) {
-    return _wire_get_finalized_payment_by_scroll_idx__method__AppHandle(
+    return _wire_get_pending_short_payment_by_scroll_idx__method__AppHandle(
       that,
       scroll_idx,
     );
   }
 
-  late final _wire_get_finalized_payment_by_scroll_idx__method__AppHandlePtr =
+  late final _wire_get_pending_short_payment_by_scroll_idx__method__AppHandlePtr =
       _lookup<
               ffi.NativeFunction<
                   WireSyncReturn Function(
                       ffi.Pointer<wire_AppHandle>, ffi.UintPtr)>>(
-          'wire_get_finalized_payment_by_scroll_idx__method__AppHandle');
-  late final _wire_get_finalized_payment_by_scroll_idx__method__AppHandle =
-      _wire_get_finalized_payment_by_scroll_idx__method__AppHandlePtr
+          'wire_get_pending_short_payment_by_scroll_idx__method__AppHandle');
+  late final _wire_get_pending_short_payment_by_scroll_idx__method__AppHandle =
+      _wire_get_pending_short_payment_by_scroll_idx__method__AppHandlePtr
+          .asFunction<
+              WireSyncReturn Function(ffi.Pointer<wire_AppHandle>, int)>();
+
+  WireSyncReturn
+      wire_get_finalized_short_payment_by_scroll_idx__method__AppHandle(
+    ffi.Pointer<wire_AppHandle> that,
+    int scroll_idx,
+  ) {
+    return _wire_get_finalized_short_payment_by_scroll_idx__method__AppHandle(
+      that,
+      scroll_idx,
+    );
+  }
+
+  late final _wire_get_finalized_short_payment_by_scroll_idx__method__AppHandlePtr =
+      _lookup<
+              ffi.NativeFunction<
+                  WireSyncReturn Function(
+                      ffi.Pointer<wire_AppHandle>, ffi.UintPtr)>>(
+          'wire_get_finalized_short_payment_by_scroll_idx__method__AppHandle');
+  late final _wire_get_finalized_short_payment_by_scroll_idx__method__AppHandle =
+      _wire_get_finalized_short_payment_by_scroll_idx__method__AppHandlePtr
           .asFunction<
               WireSyncReturn Function(ffi.Pointer<wire_AppHandle>, int)>();
 

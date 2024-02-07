@@ -693,7 +693,7 @@ impl AppHandle {
         )
     }
 
-    pub fn get_payment_by_scroll_idx(
+    pub fn get_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
     ) -> SyncReturn<Option<(usize, ShortPayment)>> {
@@ -705,7 +705,7 @@ impl AppHandle {
         )
     }
 
-    pub fn get_pending_payment_by_scroll_idx(
+    pub fn get_pending_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
     ) -> SyncReturn<Option<(usize, ShortPayment)>> {
@@ -720,7 +720,7 @@ impl AppHandle {
         )
     }
 
-    pub fn get_finalized_payment_by_scroll_idx(
+    pub fn get_finalized_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
     ) -> SyncReturn<Option<(usize, ShortPayment)>> {

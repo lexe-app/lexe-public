@@ -377,7 +377,7 @@ class MockAppHandle extends AppHandle {
       this.shortPayments[vecIdx];
 
   @override
-  (int, ShortPayment)? getPaymentByScrollIdx(
+  (int, ShortPayment)? getShortPaymentByScrollIdx(
       {required int scrollIdx, dynamic hint}) {
     if (scrollIdx >= this.shortPayments.length) {
       return null;
@@ -387,7 +387,7 @@ class MockAppHandle extends AppHandle {
   }
 
   @override
-  (int, ShortPayment)? getPendingPaymentByScrollIdx(
+  (int, ShortPayment)? getPendingShortPaymentByScrollIdx(
       {required int scrollIdx, dynamic hint}) {
     if (scrollIdx >= this.getNumPendingPayments()) {
       return null;
@@ -402,7 +402,7 @@ class MockAppHandle extends AppHandle {
   }
 
   @override
-  (int, ShortPayment)? getFinalizedPaymentByScrollIdx(
+  (int, ShortPayment)? getFinalizedShortPaymentByScrollIdx(
       {required int scrollIdx, dynamic hint}) {
     if (scrollIdx >= this.getNumFinalizedPayments()) {
       return null;

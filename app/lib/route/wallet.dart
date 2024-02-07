@@ -692,15 +692,15 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
 
           final (int, ShortPayment)? result = switch (this.widget.filter) {
             PaymentsListFilter.all =>
-              this.widget.app.getPaymentByScrollIdx(scrollIdx: scrollIdx),
+              this.widget.app.getShortPaymentByScrollIdx(scrollIdx: scrollIdx),
             PaymentsListFilter.pending => this
                 .widget
                 .app
-                .getPendingPaymentByScrollIdx(scrollIdx: scrollIdx),
+                .getPendingShortPaymentByScrollIdx(scrollIdx: scrollIdx),
             PaymentsListFilter.finalized => this
                 .widget
                 .app
-                .getFinalizedPaymentByScrollIdx(scrollIdx: scrollIdx),
+                .getFinalizedShortPaymentByScrollIdx(scrollIdx: scrollIdx),
           };
           if (result == null) return null;
 
