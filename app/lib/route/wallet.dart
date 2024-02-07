@@ -24,7 +24,8 @@ import '../date_format.dart' as date_format;
 import '../logger.dart';
 import '../result.dart';
 import '../route/debug.dart' show DebugPage;
-import '../route/payment_detail.dart' show PaymentDetailPage;
+import '../route/payment_detail.dart'
+    show PaymentDetailPage, primaryPaymentLabel;
 import '../route/send.dart' show SendContext, SendPaymentPage;
 import '../stream_ext.dart';
 import '../style.dart' show Fonts, LxColors, Space;
@@ -185,7 +186,10 @@ class WalletPageState extends State<WalletPage> {
   /// Called when one of the payments in the [SliverPaymentsList] is tapped.
   void onPaymentTap(int paymentVecIdx) {
     Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (context) => PaymentDetailPage(vecIdx: paymentVecIdx),
+      builder: (context) => PaymentDetailPage(
+        app: this.widget.app,
+        vecIdx: paymentVecIdx,
+      ),
     ));
   }
 
@@ -754,20 +758,7 @@ class PaymentsListEntry extends StatelessWidget {
     final leadingIcon = PaymentListIcon(kind: kind);
 
     // TODO(phlip9): figure out a heuristic to get the counterparty name.
-    final String primaryStr;
-    if (status == PaymentStatus.Pending) {
-      if (direction == PaymentDirection.Inbound) {
-        primaryStr = "Receiving payment";
-      } else {
-        primaryStr = "Sending payment";
-      }
-    } else {
-      if (direction == PaymentDirection.Inbound) {
-        primaryStr = "You received";
-      } else {
-        primaryStr = "You sent";
-      }
-    }
+    final primaryStr = primaryPaymentLabel(status, direction);
 
     // ex: "Receiving payment" (pending, inbound)
     // ex: "Sending payment" (pending, outbound)

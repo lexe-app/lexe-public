@@ -693,8 +693,6 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
           const SizedBox(height: Space.s100),
 
-          // TODO(phlip9): add "edit" button next to "Network Fee" that shows
-          // fee selection page.
           Row(
             mainAxisSize: MainAxisSize.max,
             mainAxisAlignment: MainAxisAlignment.start,
