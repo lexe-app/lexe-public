@@ -43,7 +43,7 @@ use common::{
     tls, Apply,
 };
 use gdrive::GoogleVfs;
-use tracing::{debug, info, info_span, instrument, Span};
+use tracing::{debug, info, info_span, instrument};
 use warp::{filters::BoxedFilter, http::Response, hyper::Body, Filter};
 
 use crate::{api::BackendApiClient, persister};
@@ -90,36 +90,24 @@ pub async fn provision_node<R: Crng>(
     };
     let shutdown = ShutdownChannel::new();
 
+    const APP_API_SPAN_NAME: &str = "(app-provision-api)";
+    let app_api_span = info_span!(parent: None, APP_API_SPAN_NAME);
     let app_routes = app_routes(ctx);
-    // TODO(phlip9): remove when rest::serve_* supports TLS
-    let app_routes =
-        app_routes.with(rest::trace_requests(Span::current().id()));
-    cfg_if::cfg_if! {
-        if #[cfg(not(test))] {
-            use common::{constants, enclave::MrShort};
-            let mr_short = MrShort::from(&measurement);
-            let dns_name = constants::node_provision_dns(&mr_short).to_owned();
-        } else {
-            // In tests we're not going through a proxy, so just bind cert to
-            // "localhost".
-            let dns_name = "localhost".to_owned();
-        }
-    }
     let app_tls_config =
-        tls::attestation::node_provision_tls_config(rng, dns_name)
+        tls::attestation::app_node_provision_server_config(rng, &measurement)
             .context("Failed to build TLS config for provisioning")?;
-    let (app_addr, app_service) = warp::serve(app_routes)
-        .tls()
-        .preconfigured_tls(app_tls_config)
-        .bind_with_graceful_shutdown(
-            net::LOCALHOST_WITH_EPHEMERAL_PORT,
-            shutdown.clone().recv_owned(),
-        );
+    let (app_addr, app_service_fut) = rest::build_service_fut(
+        app_routes,
+        app_tls_config,
+        net::LOCALHOST_WITH_EPHEMERAL_PORT,
+        &app_api_span,
+        shutdown.clone(),
+    );
     let app_port = app_addr.port();
     let app_api_task = LxTask::spawn_named_with_span(
-        "app api",
-        info_span!(parent: None, "(app-api)"),
-        app_service,
+        APP_API_SPAN_NAME,
+        app_api_span,
+        app_service_fut,
     );
 
     let lexe_routes = lexe_routes(measurement, shutdown.clone());

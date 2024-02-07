@@ -53,20 +53,46 @@ pub const PUT: Method = Method::PUT;
 pub const POST: Method = Method::POST;
 pub const DELETE: Method = Method::DELETE;
 
+/// Builds a service future given the warp routes, TLS config, and other info.
+/// The resulting `impl Future<Output = ()>` can be spawned into a [`LxTask`].
+// NOTE: We intentionally avoid generics to avoid code bloat.
+// NOTE: We return a future and don't spawn it into a task because some of our
+// orchestration code benefits from using futures (as opposed to tasks) as its
+// basic unit, so as to reduce indirection from multiple layers of tasks.
+pub fn build_service_fut(
+    routes: BoxedFilter<(Response<Body>,)>,
+    tls_config: rustls::ServerConfig,
+    // TODO(max): This needs to be a TcpListener, since breaking the LSP <->
+    // Runner codependency requires binding the runner's TcpListener first.
+    // TODO(max): Remove the SocketAddr from return type once complete
+    bind_addr: SocketAddr,
+    api_span: &Span,
+    // The server will listen on this channel for a graceful shutdown signal.
+    shutdown: ShutdownChannel,
+) -> (SocketAddr, BoxFuture<'static, ()>) {
+    let instrumented_routes = routes.with(trace_requests(api_span.id()));
+    // TODO(max): This server needs backpressure
+    let server = warp::serve(instrumented_routes);
+    let tls_server = server.tls().preconfigured_tls(tls_config);
+    let (addr, service_fut) = tls_server
+        // TODO(max): Enforce timeout on webserver shutdown with `HYPER_TIMEOUT`
+        .bind_with_graceful_shutdown(bind_addr, shutdown.recv_owned());
+    let boxed_service_fut = Box::pin(service_fut);
+    (addr, boxed_service_fut)
+}
+
 /// Helper to serve a set of [`warp`] routes given a graceful shutdown
 /// [`Future`], an existing std [`TcpListener`], the name of the task, and a
 /// [`tracing::Span`]. Be sure to include `parent: None` when building the span
 /// if you wish to prevent the API task from inheriting the parent [span label].
-pub fn serve_routes_with_listener_and_shutdown<F>(
+// TODO(max): Remove once no longer used, or rename to serve_with_no_tls or smth
+pub fn serve_routes_with_listener_and_shutdown(
     routes: BoxedFilter<(Response<Body>,)>,
-    graceful_shutdown_fut: F,
+    graceful_shutdown_fut: impl Future<Output = ()> + Send + 'static,
     listener: TcpListener,
     task_name: impl Into<String>,
     span: Span,
-) -> anyhow::Result<(LxTask<()>, SocketAddr)>
-where
-    F: Future<Output = ()> + Send + 'static,
-{
+) -> anyhow::Result<(LxTask<()>, SocketAddr)> {
     serve_routes_with_listener_and_shutdown_boxed(
         routes,
         Box::pin(graceful_shutdown_fut),
@@ -131,13 +157,12 @@ fn serve_routes_with_listener_and_shutdown_boxed(
 /// ## Usage
 ///
 /// ```ignore
-/// let api_span = info!(parent: None, "(api)");
-///
-/// let routes = node_proxy.or(backend_apis).or(app_gateway_api);
-///
-/// routes.with(rest::trace_requests(api_span.id())).boxed()
+/// const API_SPAN_NAME: &str = "(my-api)";
+/// let api_span = info!(parent: None, API_SPAN_NAME);
+/// let routes = node_proxy.or(backend_apis).or(app_gateway_api).boxed();
+/// let instrumented_routes = routes.with(rest::trace_requests(api_span.id()));
 /// ```
-pub fn trace_requests(
+fn trace_requests(
     parent_span_id: Option<span::Id>,
 ) -> warp::trace::Trace<impl Fn(warp::trace::Info<'_>) -> Span + Clone> {
     warp::trace::trace(move |req_info| {

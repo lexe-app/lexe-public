@@ -12,7 +12,7 @@ use common::{
         provision::SealedSeedId, rest, User, UserPk,
     },
     cli::{node::RunArgs, LspInfo, Network},
-    constants::{self, DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
+    constants::{DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
     ed25519,
     enclave::{self, MachineId, Measurement, MIN_SGX_CPUSVN},
     env::DeployEnv,
@@ -494,16 +494,10 @@ impl UserNode {
             shutdown.clone(),
         ));
 
-        // Build app service TLS config for authenticating owner
-        let dns_names = vec![constants::NODE_RUN_DNS.to_owned()];
-        let app_tls =
-            tls::shared_seed::node_run_tls_config(rng, &root_seed, dns_names)
-                .context("Failed to build owner service TLS config")?;
-
         // Start warp service for app
-        let app_span = info_span!(parent: None, "(node-app-api)");
+        const APP_API_SPAN_NAME: &str = "(app-run-api)";
+        let app_api_span = info_span!(parent: None, APP_API_SPAN_NAME);
         let app_routes = server::app_routes(
-            app_span.id(),
             persister.clone(),
             chain_monitor.clone(),
             wallet.clone(),
@@ -519,36 +513,39 @@ impl UserNode {
             measurement,
             activity_tx,
         );
-        let (app_addr, app_service_fut) = warp::serve(app_routes)
-            .tls()
-            .preconfigured_tls(app_tls)
-            // A value of 0 indicates that the OS will assign a port for us
-            .bind_with_graceful_shutdown(
-                net::LOCALHOST_WITH_EPHEMERAL_PORT,
-                shutdown.clone().recv_owned(),
-            );
+        let app_tls_config =
+            tls::shared_seed::app_node_run_server_config(rng, &root_seed)
+                .context("Failed to build owner service TLS config")?;
+        let (app_addr, app_service_fut) = rest::build_service_fut(
+            app_routes,
+            app_tls_config,
+            net::LOCALHOST_WITH_EPHEMERAL_PORT,
+            &app_api_span,
+            shutdown.clone(),
+        );
         let app_port = app_addr.port();
         info!("App service listening on port {app_port}");
         tasks.push(LxTask::spawn_named_with_span(
-            "node app api",
-            app_span,
+            APP_API_SPAN_NAME,
+            app_api_span,
             app_service_fut,
         ));
 
         // TODO(phlip9): authenticate lexe<->node
-        // Start warp service for Lexe operators
-        let (lexe_warp_task, lexe_addr) =
+        // Start API service for Lexe operators
+        let lexe_routes = server::lexe_routes(
+            args.user_pk,
+            channel_manager.clone(),
+            peer_manager.clone(),
+            args.lsp.clone(),
+            bdk_resync_tx,
+            ldk_resync_tx,
+            test_event_rx,
+            shutdown.clone(),
+        );
+        let (lexe_api_task, lexe_api_addr) =
             rest::serve_routes_with_listener_and_shutdown(
-                server::lexe_routes(
-                    args.user_pk,
-                    channel_manager.clone(),
-                    peer_manager.clone(),
-                    args.lsp.clone(),
-                    bdk_resync_tx,
-                    ldk_resync_tx,
-                    test_event_rx,
-                    shutdown.clone(),
-                ),
+                lexe_routes,
                 shutdown.clone().recv_owned(),
                 TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)?,
                 "lexe node api",
@@ -556,9 +553,9 @@ impl UserNode {
             )
             .context("Failed to serve lexe node api")?;
 
-        let lexe_port = lexe_addr.port();
+        let lexe_port = lexe_api_addr.port();
         info!("Lexe service listening on port {lexe_port}");
-        tasks.push(lexe_warp_task);
+        tasks.push(lexe_api_task);
 
         // Prepare the ports that we'll notify the runner of once we're ready
         let ports = Ports::new_run(user_pk, app_port, lexe_port);

@@ -5,10 +5,7 @@ use common::{
     rng::SysRng,
     tls::{
         attestation,
-        attestation::{
-            cert::SgxAttestationExtension,
-            verifier::{EnclavePolicy, SgxQuoteVerifier},
-        },
+        attestation::verifier::{EnclavePolicy, SgxQuoteVerifier},
     },
 };
 
@@ -38,10 +35,8 @@ fn main() {
     let pubkey = ed25519::PublicKey::new([69; 32]);
     println!("fake pubkey we're attesting to: {pubkey}");
 
-    let cert_ext = attestation::quote::quote_enclave(&mut rng, &pubkey)
+    let evidence = attestation::quote::quote_enclave(&mut rng, &pubkey)
         .expect("Failed to produce remote attestation");
-    let evidence =
-        SgxAttestationExtension::from_der_bytes(cert_ext.content()).unwrap();
 
     println!("SGX DER-serialized evidence:");
     println!("quote: {}", hex::display(&evidence.quote));
