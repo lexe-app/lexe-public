@@ -6,10 +6,38 @@ use std::{
 use lightning_invoice::Bolt11Invoice;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
+use crate::time::{self, TimestampMs};
+
 /// Wraps [`lightning_invoice::Bolt11Invoice`] to impl [`serde`] Serialize /
 /// Deserialize using the LDK's [`FromStr`] / [`Display`] impls.
 #[derive(Clone, Debug, Eq, PartialEq, SerializeDisplay, DeserializeFromStr)]
 pub struct LxInvoice(pub Bolt11Invoice);
+
+impl LxInvoice {
+    /// Get the invoice creation timestamp. Returns an error if the timestamp
+    /// is several hundred million years in the future.
+    pub fn created_at(&self) -> Result<TimestampMs, time::Error> {
+        TimestampMs::try_from(self.0.timestamp())
+    }
+
+    /// Get the invoice creation timestamp unconditionally.
+    pub fn saturating_created_at(&self) -> TimestampMs {
+        self.created_at().unwrap_or(TimestampMs::MAX)
+    }
+
+    /// Get the invoice expiration timestamp. Returns an error if the timestamp
+    /// is several hundred million years in the future.
+    pub fn expires_at(&self) -> Result<TimestampMs, time::Error> {
+        let duration_since_epoch =
+            self.0.expires_at().ok_or(time::Error::TooLarge)?;
+        TimestampMs::try_from(duration_since_epoch)
+    }
+
+    /// Get the invoice expiration timestamp unconditionally.
+    pub fn saturating_expires_at(&self) -> TimestampMs {
+        self.expires_at().unwrap_or(TimestampMs::MAX)
+    }
+}
 
 impl FromStr for LxInvoice {
     type Err = lightning_invoice::ParseOrSemanticError;
