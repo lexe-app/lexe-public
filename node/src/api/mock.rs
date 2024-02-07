@@ -115,6 +115,7 @@ impl MockRunnerClient {
         }
     }
 
+    #[allow(dead_code)] // TODO(max): Remove
     pub(crate) fn notifs_rx(&self) -> mpsc::Receiver<Ports> {
         self.notifs_rx
             .lock()
