@@ -66,6 +66,7 @@ use common::{
     },
     ln::{
         amount::Amount,
+        invoice::LxInvoice,
         payments::{
             ClientPaymentId as ClientPaymentIdRs,
             PaymentDirection as PaymentDirectionRs,
@@ -341,13 +342,16 @@ impl From<PaymentKindRs> for PaymentKind {
 #[frb(dart_metadata=("freezed"))]
 pub struct ShortPayment {
     pub index: String,
+
     pub kind: PaymentKind,
     pub direction: PaymentDirection,
+
     pub amount_sat: Option<u64>,
+
     pub status: PaymentStatus,
-    /// This field will prioritize the `note` the user explicitly sets, over
-    /// the LN invoice description which is not user controlled.
+
     pub note: Option<String>,
+
     pub created_at: i64,
 }
 
@@ -355,12 +359,93 @@ impl From<&BasicPayment> for ShortPayment {
     fn from(payment: &BasicPayment) -> Self {
         Self {
             index: payment.index().to_string(),
+
             kind: PaymentKind::from(payment.kind),
             direction: PaymentDirection::from(payment.direction),
+
             amount_sat: payment.amount.map(|amt| amt.sats_u64()),
+
             status: PaymentStatus::from(payment.status),
-            note: payment.note_or_description().map(|s| s.to_owned()),
+
+            note: payment.note_or_description().map(String::from),
+
             created_at: payment.created_at().as_i64(),
+        }
+    }
+}
+
+/// The complete payment info, used in the payment detail page. Mirrors the
+/// [`BasicPayment`] type.
+#[frb(dart_metadata=("freezed"))]
+pub struct Payment {
+    pub index: String,
+
+    pub kind: PaymentKind,
+    pub direction: PaymentDirection,
+
+    pub invoice: Option<Invoice>,
+
+    pub replacement: Option<String>,
+
+    pub amount_sat: Option<u64>,
+    pub fees_sat: u64,
+
+    pub status: PaymentStatus,
+    pub status_str: String,
+
+    pub note: Option<String>,
+
+    pub created_at: i64,
+    pub finalized_at: Option<i64>,
+}
+
+impl From<&BasicPayment> for Payment {
+    fn from(payment: &BasicPayment) -> Self {
+        Self {
+            index: payment.index().to_string(),
+
+            kind: PaymentKind::from(payment.kind),
+            direction: PaymentDirection::from(payment.direction),
+
+            invoice: payment.invoice.as_ref().map(Invoice::from),
+
+            replacement: payment.replacement.map(|txid| txid.to_string()),
+
+            amount_sat: payment.amount.map(|amt| amt.sats_u64()),
+            fees_sat: payment.fees.sats_u64(),
+
+            status: PaymentStatus::from(payment.status),
+            status_str: payment.status_str.clone(),
+
+            note: payment.note_or_description().map(String::from),
+
+            created_at: payment.created_at().as_i64(),
+            finalized_at: payment.finalized_at.map(|t| t.as_i64()),
+        }
+    }
+}
+
+/// A lightning invoice with useful fields parsed out for the flutter frontend.
+/// Mirrors the [`LxInvoice`] type.
+#[frb(dart_metadata=("freezed"))]
+pub struct Invoice {
+    pub string: String,
+
+    pub description: Option<String>,
+
+    pub created_at: i64,
+    pub expires_at: i64,
+}
+
+impl From<&LxInvoice> for Invoice {
+    fn from(invoice: &LxInvoice) -> Self {
+        Self {
+            string: invoice.to_string(),
+
+            description: invoice.description_str().map(String::from),
+
+            created_at: invoice.saturating_created_at().as_i64(),
+            expires_at: invoice.saturating_expires_at().as_i64(),
         }
     }
 }
@@ -683,13 +768,13 @@ impl AppHandle {
     pub fn get_payment_by_vec_idx(
         &self,
         vec_idx: usize,
-    ) -> SyncReturn<Option<ShortPayment>> {
+    ) -> SyncReturn<Option<Payment>> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         SyncReturn(
             db_lock
                 .state()
                 .get_payment_by_vec_idx(vec_idx)
-                .map(ShortPayment::from),
+                .map(Payment::from),
         )
     }
 

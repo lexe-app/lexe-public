@@ -651,6 +651,24 @@ impl rust2dart::IntoIntoDart<FiatRates> for FiatRates {
     }
 }
 
+impl support::IntoDart for Invoice {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.string.into_into_dart().into_dart(),
+            self.description.into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+            self.expires_at.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for Invoice {}
+impl rust2dart::IntoIntoDart<Invoice> for Invoice {
+    fn into_into_dart(self) -> Self {
+        self
+    }
+}
+
 impl support::IntoDart for Network {
     fn into_dart(self) -> support::DartAbi {
         match self {
@@ -681,6 +699,32 @@ impl support::IntoDart for NodeInfo {
 }
 impl support::IntoDartExceptPrimitive for NodeInfo {}
 impl rust2dart::IntoIntoDart<NodeInfo> for NodeInfo {
+    fn into_into_dart(self) -> Self {
+        self
+    }
+}
+
+impl support::IntoDart for Payment {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.index.into_into_dart().into_dart(),
+            self.kind.into_into_dart().into_dart(),
+            self.direction.into_into_dart().into_dart(),
+            self.invoice.into_dart(),
+            self.replacement.into_dart(),
+            self.amount_sat.into_dart(),
+            self.fees_sat.into_into_dart().into_dart(),
+            self.status.into_into_dart().into_dart(),
+            self.status_str.into_into_dart().into_dart(),
+            self.note.into_dart(),
+            self.created_at.into_into_dart().into_dart(),
+            self.finalized_at.into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for Payment {}
+impl rust2dart::IntoIntoDart<Payment> for Payment {
     fn into_into_dart(self) -> Self {
         self
     }

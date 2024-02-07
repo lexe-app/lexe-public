@@ -20,7 +20,9 @@ import 'bindings_generated_api.dart'
         FeeEstimate,
         FiatRate,
         FiatRates,
+        Invoice,
         NodeInfo,
+        Payment,
         PaymentDirection,
         PaymentKind,
         PaymentStatus,
@@ -220,13 +222,16 @@ class LexeDesignHome extends StatelessWidget {
             "PaymentDetailPage",
             subtitle: "btc pending outbound",
             (context) => const PaymentDetailPageInner(
-                payment: ShortPayment(
+                payment: Payment(
               index:
                   "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
               kind: PaymentKind.Onchain,
               direction: PaymentDirection.Outbound,
+              invoice: null,
               amountSat: 77000,
+              feesSat: 3349,
               status: PaymentStatus.Pending,
+              statusStr: "broadcasted",
               note: "Brunch w/ friends",
               createdAt: 1687385080000,
             )),
@@ -249,67 +254,91 @@ class MockAppHandle extends AppHandle {
       : super(bridge: bridge, inner: MockApp(bridge));
 
   // New user has no payments
-  // List<ShortPayment> shortPayments = [];
+  // List<Payment> payments = [];
 
   // Some sample data
-  List<ShortPayment> shortPayments = [
-    const ShortPayment(
+  List<Payment> payments = [
+    const Payment(
       index:
           "0000001687090000000-bc_551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66",
       kind: PaymentKind.Onchain,
       direction: PaymentDirection.Inbound,
       amountSat: 20000,
+      feesSat: 2233,
       status: PaymentStatus.Completed,
-      // note: "tb1qhlqcmf383f9zddmvc36ngwxjlffgtk5ldrrsav",
+      statusStr: "fully confirmed (6+ confirmations)",
       createdAt: 1670090392000,
     ),
-    const ShortPayment(
+    const Payment(
       index:
           "0000001687120000000-bc_46e52089b60b00de067c84ce58d34a75ffd71a106f720855bc099f20da11700c",
       kind: PaymentKind.Onchain,
       direction: PaymentDirection.Outbound,
       amountSat: 95000000,
+      feesSat: 433,
       status: PaymentStatus.Failed,
+      statusStr: "dropped from mempool",
       note: "Sweep from Muun",
       createdAt: 1671818392000,
     ),
-    const ShortPayment(
+    const Payment(
       index:
           "0000001687130000000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
       kind: PaymentKind.Spontaneous,
       direction: PaymentDirection.Outbound,
       amountSat: 123000,
+      feesSat: 615,
       status: PaymentStatus.Pending,
+      statusStr: "pending",
       note: "🍑🍑🍑🍆🍆🍆😂😂😂",
       createdAt: 1686938392000,
     ),
-    const ShortPayment(
+    const Payment(
       index:
           "0000001687150000000-ln_6f9dad93ceb2e78181ef5cb73601a28930e9774204d6fb335297b1f4add83d30",
       kind: PaymentKind.Invoice,
       direction: PaymentDirection.Inbound,
+      invoice: Invoice(
+        string:
+            "lnbcrt1pvjluezpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqdq5vdhkven9v5sxyetpdeessp5zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygs9q5sqqqqqqqqqqqqqqqqsgq2a25dxl5hrntdtn6zvydt7d66hyzsyhqs4wdynavys42xgl6sgx9c4g7me86a27t07mdtfry458rtjr0v92cnmswpsjscgt2vcse3sgpz3uapa",
+        description: "some note the invoice creator set",
+        createdAt: 1687140000000,
+        expiresAt: 1687160000000,
+      ),
       amountSat: 4470000,
+      feesSat: 22350,
       status: PaymentStatus.Pending,
+      statusStr: "claiming",
       note:
           "My super long note that really is too long it just keeps going and going",
       createdAt: 1687150000000,
     ),
-    const ShortPayment(
+    const Payment(
       index:
           "0000001687200000000-ln_6fc9375017dd3d911fe4ee52f4becd2f376384f42053381a09c99cca61dbf87a",
       kind: PaymentKind.Invoice,
       direction: PaymentDirection.Inbound,
+      invoice: Invoice(
+        string:
+            "lnbcrt1metc0ejddlfthml0fz7z0e3zjk7wu2ltewa7lmms49a7lm6gh0h77l89yus9par2qqcw60rr4058g6slcty49q4uv5420qhu9tk7d080dys8e2lwy5u2q2uvstpynnc76u7x9f0y03sx06zlqfwcyjtuuu42j4eu9z478jtuu24wawlwalycdlp847j9087ftu90cfl9d57wnt3vqtu2q2uthj3j6tcz6y7z0etdqm7z5erx32wme699587wj2ndwghteta8d4gasv9tw34q49cmqf7xttrx8jh66m4saw9mcelt5epyjj5eqfezaz4uykh65hlmamhusq5ffuc25lryvmks7spuyljk60rpah4ek0r95nhng6s4rlyu4zucrfyu3r577z5598yg32whcfl9d5wd2l92535hcmrpardvhz05dg23fv3wnj7xqtpqpn72httdspp5dcs72ef655jh50zvzl9q08m8c9vx2pyqpn50kaf459fktsslvwtqsp5zmlelhnpqnxf5vfs8g3dpjjpwnuw5p50z3xzulya5wl8lp5xn7uq9qrsgqcqdtnm4um9mexh07x098dsnfrj0g27dux806kdtn5sumqu2v8dwm6xmc6u4khmmfv29n9m3mnhp7ta59gv49z6tflmmv89wmpa3jehplhqefudz2dc9huagppr2yu5",
+        createdAt: 1687100000000,
+        expiresAt: 1687300000000,
+      ),
       amountSat: 222000,
+      feesSat: 1466,
       status: PaymentStatus.Completed,
+      statusStr: "completed",
       createdAt: 1687200000000,
     ),
-    const ShortPayment(
+    const Payment(
       index:
           "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
       kind: PaymentKind.Onchain,
       direction: PaymentDirection.Outbound,
       amountSat: 77000,
+      feesSat: 2881,
       status: PaymentStatus.Completed,
+      statusStr: "fully confirmed (6+ confirmations)",
       note: "Brunch w/ friends",
       createdAt: 1687385080000,
     ),
@@ -373,17 +402,17 @@ class MockAppHandle extends AppHandle {
       );
 
   @override
-  ShortPayment? getPaymentByVecIdx({required int vecIdx, dynamic hint}) =>
-      this.shortPayments[vecIdx];
+  Payment? getPaymentByVecIdx({required int vecIdx, dynamic hint}) =>
+      this.payments[vecIdx];
 
   @override
   (int, ShortPayment)? getShortPaymentByScrollIdx(
       {required int scrollIdx, dynamic hint}) {
-    if (scrollIdx >= this.shortPayments.length) {
+    if (scrollIdx >= this.payments.length) {
       return null;
     }
-    final vecIdx = this.shortPayments.length - scrollIdx - 1;
-    return (vecIdx, this.shortPayments[vecIdx]);
+    final vecIdx = this.payments.length - scrollIdx - 1;
+    return (vecIdx, this.payments[vecIdx].intoShort());
   }
 
   @override
@@ -393,12 +422,12 @@ class MockAppHandle extends AppHandle {
       return null;
     }
     final payment = this
-        .shortPayments
+        .payments
         .reversed
         .where((payment) => payment.status == PaymentStatus.Pending)
         .elementAt(scrollIdx);
-    final vecIdx = this.shortPayments.indexOf(payment);
-    return (vecIdx, payment);
+    final vecIdx = this.payments.indexOf(payment);
+    return (vecIdx, payment.intoShort());
   }
 
   @override
@@ -408,26 +437,26 @@ class MockAppHandle extends AppHandle {
       return null;
     }
     final payment = this
-        .shortPayments
+        .payments
         .reversed
         .where((payment) => payment.status != PaymentStatus.Pending)
         .elementAt(scrollIdx);
-    final vecIdx = this.shortPayments.indexOf(payment);
-    return (vecIdx, payment);
+    final vecIdx = this.payments.indexOf(payment);
+    return (vecIdx, payment.intoShort());
   }
 
   @override
-  int getNumPayments({dynamic hint}) => this.shortPayments.length;
+  int getNumPayments({dynamic hint}) => this.payments.length;
 
   @override
   int getNumPendingPayments({dynamic hint}) => this
-      .shortPayments
+      .payments
       .where((payment) => payment.status == PaymentStatus.Pending)
       .length;
 
   @override
   int getNumFinalizedPayments({dynamic hint}) => this
-      .shortPayments
+      .payments
       .where((payment) => payment.status != PaymentStatus.Pending)
       .length;
 }
@@ -488,5 +517,17 @@ class MockSignupApi implements SignupApi {
       Future.delayed(
         const Duration(milliseconds: 2000),
         () => Ok(this.app),
+      );
+}
+
+extension PaymentExt on Payment {
+  ShortPayment intoShort() => ShortPayment(
+        index: this.index,
+        kind: this.kind,
+        direction: this.direction,
+        amountSat: this.amountSat,
+        status: this.status,
+        note: this.note,
+        createdAt: this.createdAt,
       );
 }

@@ -3,7 +3,7 @@ use std::{
     str::FromStr,
 };
 
-use lightning_invoice::Bolt11Invoice;
+use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescription};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::time::{self, TimestampMs};
@@ -14,6 +14,18 @@ use crate::time::{self, TimestampMs};
 pub struct LxInvoice(pub Bolt11Invoice);
 
 impl LxInvoice {
+    /// If the invoice contains a non-empty, inline description, then return
+    /// that as a string. Otherwise return None.
+    pub fn description_str(&self) -> Option<&str> {
+        match self.0.description() {
+            Bolt11InvoiceDescription::Direct(description)
+                if !description.is_empty() =>
+                Some(description),
+            // Hash description is not useful yet
+            _ => None,
+        }
+    }
+
     /// Get the invoice creation timestamp. Returns an error if the timestamp
     /// is several hundred million years in the future.
     pub fn created_at(&self) -> Result<TimestampMs, time::Error> {
