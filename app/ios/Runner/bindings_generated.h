@@ -116,14 +116,14 @@ void wire_sync_payments__method__AppHandle(int64_t port_, struct wire_AppHandle 
 WireSyncReturn wire_get_payment_by_vec_idx__method__AppHandle(struct wire_AppHandle *that,
                                                               uintptr_t vec_idx);
 
-WireSyncReturn wire_get_payment_by_scroll_idx__method__AppHandle(struct wire_AppHandle *that,
-                                                                 uintptr_t scroll_idx);
+WireSyncReturn wire_get_short_payment_by_scroll_idx__method__AppHandle(struct wire_AppHandle *that,
+                                                                       uintptr_t scroll_idx);
 
-WireSyncReturn wire_get_pending_payment_by_scroll_idx__method__AppHandle(struct wire_AppHandle *that,
-                                                                         uintptr_t scroll_idx);
+WireSyncReturn wire_get_pending_short_payment_by_scroll_idx__method__AppHandle(struct wire_AppHandle *that,
+                                                                               uintptr_t scroll_idx);
 
-WireSyncReturn wire_get_finalized_payment_by_scroll_idx__method__AppHandle(struct wire_AppHandle *that,
-                                                                           uintptr_t scroll_idx);
+WireSyncReturn wire_get_finalized_short_payment_by_scroll_idx__method__AppHandle(struct wire_AppHandle *that,
+                                                                                 uintptr_t scroll_idx);
 
 WireSyncReturn wire_get_num_payments__method__AppHandle(struct wire_AppHandle *that);
 
@@ -170,9 +170,9 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_delete_payment_db__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_sync_payments__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_payment_by_vec_idx__method__AppHandle);
-    dummy_var ^= ((int64_t) (void*) wire_get_payment_by_scroll_idx__method__AppHandle);
-    dummy_var ^= ((int64_t) (void*) wire_get_pending_payment_by_scroll_idx__method__AppHandle);
-    dummy_var ^= ((int64_t) (void*) wire_get_finalized_payment_by_scroll_idx__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_get_short_payment_by_scroll_idx__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_get_pending_short_payment_by_scroll_idx__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_get_finalized_short_payment_by_scroll_idx__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_num_payments__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_num_pending_payments__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_num_finalized_payments__method__AppHandle);
