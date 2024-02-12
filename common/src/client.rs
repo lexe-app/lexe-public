@@ -40,7 +40,7 @@ use crate::{
         models::NodeRelease,
         provision::NodeProvisionRequest,
         qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
-        rest::{RequestBuilderExt, RestClient, API_REQUEST_TIMEOUT, GET, POST},
+        rest::{RequestBuilderExt, RestClient, GET, POST},
         Empty,
     },
     constants,
@@ -236,15 +236,14 @@ impl NodeClient {
                 root_seed,
             )?;
 
-            let reqwest_client = reqwest::Client::builder()
+            let reqwest_client = RestClient::client_builder()
                 .proxy(proxy)
                 .user_agent("lexe-node-client")
                 .use_preconfigured_tls(tls)
-                .timeout(API_REQUEST_TIMEOUT)
                 .build()
                 .context("Failed to build client")?;
 
-            RestClient::from_preconfigured_client(reqwest_client)
+            RestClient::from_inner(reqwest_client)
         };
 
         Ok(Self {
@@ -375,16 +374,14 @@ impl NodeClient {
             enclave_policy,
         )?;
 
-        let reqwest_client = reqwest::Client::builder()
+        let reqwest_client = RestClient::client_builder()
             .proxy(proxy)
             .user_agent("lexe-node-client")
             .use_preconfigured_tls(tls)
-            .timeout(API_REQUEST_TIMEOUT)
             .build()
             .context("Failed to build client")?;
 
-        let provision_rest =
-            RestClient::from_preconfigured_client(reqwest_client);
+        let provision_rest = RestClient::from_inner(reqwest_client);
 
         Ok(provision_rest)
     }

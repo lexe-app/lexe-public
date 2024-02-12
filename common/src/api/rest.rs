@@ -334,32 +334,25 @@ pub struct RestClient {
 
 impl Default for RestClient {
     fn default() -> Self {
-        let client = reqwest::Client::builder()
-            .timeout(API_REQUEST_TIMEOUT)
-            .build()
-            .expect("Failed to build reqwest Client");
-        Self { client }
+        Self::new()
     }
 }
 
 impl RestClient {
     pub fn new() -> Self {
-        Self::default()
+        let client = Self::client_builder()
+            .build()
+            .expect("Failed to build reqwest Client");
+        Self { client }
     }
 
-    /// Constructs a [`RestClient`] from a preconfigured [`reqwest::Client`].
-    ///
-    /// NOTE: This constructor cannot verify that a timeout was set, so don't
-    /// forget to configure one like so:
-    ///
-    /// ```
-    /// use common::api::rest::API_REQUEST_TIMEOUT;
-    /// let reqwest_client = reqwest::ClientBuilder::new()
-    ///     .timeout(API_REQUEST_TIMEOUT)
-    ///     .build()
-    ///     .expect("Failed to build client");
-    /// ```
-    pub fn from_preconfigured_client(client: reqwest::Client) -> Self {
+    /// Get a [`reqwest::ClientBuilder`] with some defaults set.
+    pub fn client_builder() -> reqwest::ClientBuilder {
+        reqwest::Client::builder().timeout(API_REQUEST_TIMEOUT)
+    }
+
+    /// Construct a [`RestClient`] from a [`reqwest::Client`].
+    pub fn from_inner(client: reqwest::Client) -> Self {
         Self { client }
     }
 
