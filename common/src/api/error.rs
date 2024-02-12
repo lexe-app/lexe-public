@@ -654,6 +654,14 @@ impl From<auth::Error> for BackendApiError {
     }
 }
 
+impl GatewayApiError {
+    pub fn fiat_rates_missing() -> Self {
+        let kind = GatewayErrorKind::FiatRatesMissing;
+        let msg = kind.to_string();
+        Self { kind, msg }
+    }
+}
+
 impl NodeApiError {
     pub fn wrong_user_pk(current_pk: UserPk, given_pk: UserPk) -> Self {
         // We don't name these 'expected' and 'actual' because the meaning of
@@ -678,12 +686,18 @@ impl NodeApiError {
         let kind = NodeErrorKind::Proxy;
         Self { kind, msg }
     }
+
+    pub fn provision(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = NodeErrorKind::Provision;
+        Self { kind, msg }
+    }
 }
 
-impl GatewayApiError {
-    pub fn fiat_rates_missing() -> Self {
-        let kind = GatewayErrorKind::FiatRatesMissing;
-        let msg = kind.to_string();
+impl LspApiError {
+    pub fn provision(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = LspErrorKind::Provision;
         Self { kind, msg }
     }
 }

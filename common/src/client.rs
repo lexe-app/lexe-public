@@ -405,10 +405,7 @@ impl AppNodeProvisionApi for NodeClient {
         let provision_rest = self
             .provision_rest_client(measurement, &provision_url)
             .context("Failed to build provision rest client")
-            .map_err(|e| NodeApiError {
-                kind: NodeErrorKind::Provision,
-                msg: format!("{e:#}"),
-            })?;
+            .map_err(NodeApiError::provision)?;
 
         self.ensure_authed().await?;
         let req = provision_rest
