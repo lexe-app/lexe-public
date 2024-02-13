@@ -53,7 +53,7 @@ const WARP_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 #[derive(Clone)]
 struct RequestContext {
     args: Arc<ProvisionArgs>,
-    client: reqwest::Client,
+    client: gdrive::ReqwestClient,
     machine_id: MachineId,
     measurement: Measurement,
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
@@ -76,9 +76,7 @@ pub async fn provision_node<R: Crng>(
 
     // Set up the request context and warp routes.
     let args = Arc::new(args);
-    // TODO(phlip9): Add Google certs here once the webpki feature is removed
-    // from the `gdrive` crate
-    let client = reqwest::Client::new();
+    let client = gdrive::ReqwestClient::new();
     let machine_id = enclave::machine_id();
     let measurement = enclave::measurement();
     let ctx = RequestContext {

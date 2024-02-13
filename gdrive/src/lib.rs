@@ -99,6 +99,7 @@ pub(crate) mod lexe_dir;
 pub(crate) mod models;
 
 pub use gvfs::{GoogleVfs, GvfsRoot};
+pub use oauth2::ReqwestClient;
 
 /// The expected value of `scope`.
 // Gives us the ability to manage files and folders in My Drive that were

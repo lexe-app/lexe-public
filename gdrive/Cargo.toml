@@ -11,9 +11,7 @@ common = { path = "../common" }
 anyhow.workspace = true
 futures.workspace = true
 thiserror.workspace = true
-# TODO(phlip9): extract just the google PKI root CA certs from webpki-roots and
-# use only those when making requests against google drive
-reqwest = { workspace = true, features = ["json", "multipart", "rustls-tls-webpki-roots"] }
+reqwest = { workspace = true, features = ["json", "multipart", "rustls-tls-manual-roots"] }
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true

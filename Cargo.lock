@@ -3016,7 +3016,7 @@ checksum = "c08c74e62047bb2de4ff487b251e4a92e24f48745648451635cec7d591162d9f"
 [[package]]
 name = "reqwest"
 version = "0.11.12"
-source = "git+https://github.com/lexe-app/reqwest?branch=lexe#70cdc0c05c248dc43e5cb899c0df3e3087f09a06"
+source = "git+https://github.com/lexe-app/reqwest?branch=lexe#dfcfaf6aa33fd642943fa96af009713a011cbbc7"
 dependencies = [
  "base64 0.13.1",
  "bytes",
@@ -3049,7 +3049,6 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
- "webpki-roots 0.22.6",
  "winreg",
 ]
 
@@ -4052,7 +4051,7 @@ dependencies = [
  "rustls 0.21.7",
  "rustls-webpki",
  "url",
- "webpki-roots 0.25.3",
+ "webpki-roots",
 ]
 
 [[package]]
@@ -4236,15 +4235,6 @@ checksum = "07ecc0cd7cac091bf682ec5efa18b1cff79d617b84181f38b3951dbe135f607f"
 dependencies = [
  "ring",
  "untrusted",
-]
-
-[[package]]
-name = "webpki-roots"
-version = "0.22.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6c71e40d7d2c34a5106301fb632274ca37242cd0c9d3e64dbece371a40a2d87"
-dependencies = [
- "webpki",
 ]
 
 [[package]]
