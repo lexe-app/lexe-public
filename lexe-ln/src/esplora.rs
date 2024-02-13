@@ -12,13 +12,8 @@ use anyhow::{anyhow, Context};
 use bdk::FeeRate;
 use bitcoin::{blockdata::transaction::Transaction, OutPoint};
 use common::{
-    constants,
-    ln::hashes::LxTxid,
-    reqwest::{self, tls::Certificate},
-    shutdown::ShutdownChannel,
-    task::LxTask,
-    test_event::TestEvent,
-    Apply,
+    constants, ln::hashes::LxTxid, reqwest, shutdown::ShutdownChannel,
+    task::LxTask, test_event::TestEvent, Apply,
 };
 use esplora_client::{api::OutputStatus, AsyncClient};
 use lightning::chain::chaininterface::{
@@ -108,14 +103,13 @@ impl LexeEsplora {
         test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<(Arc<Self>, LxTask<()>)> {
-        // We need to manually trust the root CAs used by our Esplora providers
-        // since we don't trust any roots by default.
         let google_ca_cert =
-            Certificate::from_der(constants::GOOGLE_CA_CERT_DER)
+            reqwest::Certificate::from_der(constants::GTS_ROOT_R1_CA_CERT_DER)
                 .context("Invalid Google CA der cert")?;
-        let letsencrypt_ca_cert =
-            Certificate::from_der(constants::LETSENCRYPT_ROOT_CA_CERT_DER)
-                .context("Invalid Google CA der cert")?;
+        let letsencrypt_ca_cert = reqwest::Certificate::from_der(
+            constants::LETSENCRYPT_ROOT_CA_CERT_DER,
+        )
+        .context("Invalid Google CA der cert")?;
         let reqwest_client = reqwest::ClientBuilder::new()
             .add_root_certificate(google_ca_cert)
             .add_root_certificate(letsencrypt_ca_cert)

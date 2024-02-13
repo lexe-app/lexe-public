@@ -2,12 +2,13 @@
 use std::env;
 use std::{
     fmt,
+    ops::Deref,
     time::{Duration, SystemTime},
 };
 
-use common::const_assert;
 #[cfg(test)]
 use common::test_utils::arbitrary;
+use common::{const_assert, constants};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use reqwest::StatusCode;
@@ -16,6 +17,8 @@ use tracing::{debug, instrument, trace};
 
 use crate::{Error, API_SCOPE};
 
+/// The default timeout for requests to Google APIs
+const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 /// The expected value of `access_type`.
 // 'offline' tells Google to give us refresh token that allows us to refresh the
 // access token while the user is offline.
@@ -30,6 +33,34 @@ const TOKEN_TYPE: &str = "Bearer";
 pub const MINIMUM_TOKEN_LIFETIME: Duration = Duration::from_secs(60);
 // Newly refreshed access tokens usually live for only 3600 seconds
 const_assert!(MINIMUM_TOKEN_LIFETIME.as_secs() < 3600);
+
+/// A newtype for [`reqwest::Client`] which ensures that any passed-in clients
+/// have TLS, timeouts etc configured correctly for Google Drive.
+#[derive(Clone)]
+pub struct ReqwestClient(reqwest::Client);
+
+impl Deref for ReqwestClient {
+    type Target = reqwest::Client;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl ReqwestClient {
+    #[allow(clippy::new_without_default)] // TODO(max): How to disable this?
+    pub fn new() -> Self {
+        let google_ca_cert =
+            reqwest::Certificate::from_der(constants::GTS_ROOT_R1_CA_CERT_DER)
+                .expect("Checked in tests");
+        reqwest::Client::builder()
+            .https_only(true)
+            .add_root_certificate(google_ca_cert)
+            .timeout(API_REQUEST_TIMEOUT)
+            .build()
+            .map(Self)
+            .expect("Failed to build ReqwestClient")
+    }
+}
 
 /// A complete set of OAuth2 credentials which allows making requests to the
 /// Google Drive v3 API and periodically refreshing the contained access token.
@@ -118,7 +149,7 @@ fn verify_response_scope(scope: String) -> Result<(), Error> {
 ///
 /// <https://developers.google.com/identity/protocols/oauth2/native-app#exchange-authorization-code>
 pub async fn auth_code_for_token(
-    client: &reqwest::Client,
+    client: &ReqwestClient,
     client_id: String,
     client_secret: String,
     redirect_uri: &str,
@@ -209,7 +240,7 @@ pub async fn auth_code_for_token(
 /// Returns [`true`] if the token was updated as a result of this call.
 #[instrument(skip_all, name = "(oauth2-check-token-info)")]
 pub async fn check_token_info(
-    client: &reqwest::Client,
+    client: &ReqwestClient,
     credentials: &mut GDriveCredentials,
 ) -> Result<bool, Error> {
     debug!("Checking token info");
@@ -277,7 +308,7 @@ pub async fn check_token_info(
 /// [`MINIMUM_TOKEN_LIFETIME`] after a call to this method.
 #[instrument(skip_all, name = "(oauth2-refresh-if-necessary)")]
 pub async fn refresh_if_necessary(
-    client: &reqwest::Client,
+    client: &ReqwestClient,
     credentials: &mut GDriveCredentials,
 ) -> Result<bool, Error> {
     let now = SystemTime::now()
@@ -295,7 +326,7 @@ pub async fn refresh_if_necessary(
 }
 
 async fn refresh(
-    client: &reqwest::Client,
+    client: &ReqwestClient,
     credentials: &mut GDriveCredentials,
     now: u64,
 ) -> Result<(), Error> {
@@ -395,7 +426,7 @@ mod test {
     #[tokio::test]
     async fn test_credentials() {
         let mut credentials = GDriveCredentials::from_env().unwrap();
-        let client = reqwest::Client::new();
+        let client = ReqwestClient::new();
 
         match check_token_info(&client, &mut credentials).await {
             Ok(_) => (),
@@ -477,7 +508,7 @@ mod test {
         let client_secret = env::var("GOOGLE_CLIENT_SECRET")
             .expect("This test requires GOOGLE_CLIENT_SECRET to be set");
 
-        let client = reqwest::Client::new();
+        let client = ReqwestClient::new();
         let redirect_uri = "https://localhost:6969/bogus";
         let credentials = auth_code_for_token(
             &client,

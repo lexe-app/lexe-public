@@ -1,4 +1,4 @@
-use std::{ops::DerefMut, time::Duration};
+use std::ops::DerefMut;
 
 use anyhow::{ensure, Context};
 use reqwest::{IntoUrl, Method};
@@ -7,14 +7,12 @@ use tokio::sync::watch;
 
 use crate::{
     models::{Empty, GFile, GFileCow, GFileId, ListFiles, ListFilesResponse},
-    oauth2,
-    oauth2::GDriveCredentials,
+    oauth2::{self, GDriveCredentials, ReqwestClient},
     Error,
 };
 
 const BASE_URL: &str = "https://www.googleapis.com/drive/v3";
 const BASE_UPLOAD_URL: &str = "https://www.googleapis.com/upload/drive/v3";
-const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 pub(crate) const FOLDER_MIME_TYPE: &str = "application/vnd.google-apps.folder";
 pub(crate) const BINARY_MIME_TYPE: &str = "application/octet-stream";
 
@@ -26,7 +24,7 @@ pub(crate) const BINARY_MIME_TYPE: &str = "application/octet-stream";
 ///   refreshing access tokens when needed.
 /// - Includes access tokens in requests.
 pub(crate) struct GDriveClient {
-    client: reqwest::Client,
+    client: ReqwestClient,
     credentials: tokio::sync::Mutex<GDriveCredentials>,
     credentials_tx: watch::Sender<GDriveCredentials>,
 }
@@ -35,11 +33,7 @@ impl GDriveClient {
     pub fn new(
         credentials: GDriveCredentials,
     ) -> (Self, watch::Receiver<GDriveCredentials>) {
-        let client = reqwest::Client::builder()
-            .timeout(API_REQUEST_TIMEOUT)
-            .build()
-            .expect("Failed to build reqwest Client");
-
+        let client = ReqwestClient::new();
         let (credentials_tx, mut credentials_rx) =
             watch::channel(credentials.clone());
         // Mark the current value as seen so that the first call to changed()
