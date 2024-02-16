@@ -126,27 +126,3 @@ pub fn lexe_distinguished_name(common_name: &str) -> DistinguishedName {
     name.push(DnType::CommonName, common_name);
     name
 }
-
-/// Whether the given DER-encoded X.509 NAME contains the given Common Name.
-/// Returns [`false`] if the DER was not a valid encoding of a X.509 NAME.
-/// Intended to be used inside a [`rustls::client::ResolvesClientCert`] impl.
-pub fn x509_name_der_contains_common_name(
-    x509_name_der: &[u8],
-    expected_common_name: &str,
-) -> bool {
-    use asn1_rs::FromDer;
-    let inner = || -> Option<()> {
-        // Parse X.509 NAME
-        let (_rest, x509_name) =
-            x509_parser::x509::X509Name::from_der(x509_name_der).ok()?;
-        // Extract common name and compare
-        let parsed_common_name_attr = x509_name.iter_common_name().next()?;
-        let parsed_common_name = parsed_common_name_attr.as_str().ok()?;
-        if parsed_common_name == expected_common_name {
-            Some(())
-        } else {
-            None
-        }
-    };
-    inner().is_some()
-}
