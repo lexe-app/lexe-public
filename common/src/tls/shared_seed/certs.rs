@@ -24,7 +24,7 @@ pub struct SharedSeedServerCert(rcgen::Certificate);
 
 impl SharedSeedCaCert {
     /// The Common Name (CN) component of this cert's Distinguished Name (DN).
-    pub const COMMON_NAME: &str = "Lexe shared seed CA cert";
+    const COMMON_NAME: &str = "Lexe shared seed CA cert";
 
     /// Deterministically derive the shared seed CA cert from the [`RootSeed`].
     pub fn from_root_seed(root_seed: &RootSeed) -> Self {

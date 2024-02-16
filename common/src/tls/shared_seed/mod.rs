@@ -96,12 +96,28 @@ pub fn app_node_run_client_config(
         public_lexe_verifier,
     };
 
-    let client_cert_resolver = SharedSeedCertResolver::new(rng, &ca_cert)
-        .context("Failed to build client certs")?;
+    // Generate shared seed client cert and sign with derived CA
+    let client_cert = certs::SharedSeedClientCert::generate_from_rng(rng);
+    let client_cert_der = client_cert
+        .serialize_der_ca_signed(&ca_cert)
+        .context("Failed to sign and serialize ephemeral client cert")?;
+    let client_cert_key_der = client_cert.serialize_key_der();
 
     let mut config = super::lexe_default_client_config()
         .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
-        .with_client_cert_resolver(Arc::new(client_cert_resolver));
+        // NOTE: .with_single_cert() uses a client cert resolver which always
+        // presents our client cert when asked. Does this introduce overhead by
+        // needlessly presenting our shared seed client cert to the proxy which
+        // doesn't actually require client auth? The answer is no, because the
+        // proxy would then not send a CertificateRequest message during the
+        // handshake, which is what actually prompts the client to send its
+        // client cert. So the client never sends its cert to the proxy at all,
+        // and defaults to a regular TLS handshake, with no mTLS overhead.
+        // A custom client cert resolver is only needed if the proxy *also*
+        // requires client auth, meaning we'd need to choose the correct cert to
+        // present depending on whether the end entity is the proxy or the node.
+        .with_single_cert(vec![client_cert_der], client_cert_key_der)
+        .context("Failed to build rustls::ClientConfig")?;
     config.alpn_protocols = super::LEXE_ALPN_PROTOCOLS.clone();
 
     Ok(config)
@@ -190,74 +206,6 @@ impl ServerCertVerifier for AppNodeRunVerifier {
 
     fn request_scts(&self) -> bool {
         false
-    }
-}
-
-/// The client's mTLS cert resolver for a running node. During a TLS handshake,
-/// this resolver decides whether to present the client's cert to the server.
-// TODO(max): Update docs
-struct SharedSeedCertResolver {
-    /// Our client's serialized cert + cert key pair
-    cert_with_key: Arc<rustls::sign::CertifiedKey>,
-}
-
-impl SharedSeedCertResolver {
-    /// Samples a new child cert then signs with the shared seed CA.
-    fn new<R: Crng>(
-        rng: &mut R,
-        ca_cert: &certs::SharedSeedCaCert,
-    ) -> anyhow::Result<Self> {
-        // generate an ephemeral client cert
-        let client_cert = certs::SharedSeedClientCert::generate_from_rng(rng);
-        let client_cert_der = client_cert
-            .serialize_der_ca_signed(ca_cert)
-            .context("Failed to sign and serialize ephemeral client cert")?;
-        let client_cert_key_der = client_cert.serialize_key_der();
-
-        // massage into rustls types
-        let signing_key = rustls::sign::any_eddsa_type(&client_cert_key_der)
-            .context("Failed to parse client cert ed25519 sk")?;
-        let cert_with_key =
-            rustls::sign::CertifiedKey::new(vec![client_cert_der], signing_key);
-
-        Ok(Self {
-            cert_with_key: Arc::new(cert_with_key),
-        })
-    }
-}
-
-impl rustls::client::ResolvesClientCert for SharedSeedCertResolver {
-    fn resolve(
-        &self,
-        // Server-supplied list of acceptable issuers (CAs). This is unverified
-        // by rustls but is expected to be a list of DER-encoded X501 NAMEs.
-        acceptable_issuers: &[&[u8]],
-        // The server's supported signature schemes.
-        supported_sigschemes: &[rustls::SignatureScheme],
-    ) -> Option<Arc<rustls::sign::CertifiedKey>> {
-        // Whether the list of acceptable issuers includes the shared seed CA.
-        // For simplicity, we only check that the list contains the common name.
-        let ca_in_acceptable_issuers =
-            acceptable_issuers.iter().any(|x509_name_der| {
-                super::x509_name_der_contains_common_name(
-                    x509_name_der,
-                    certs::SharedSeedCaCert::COMMON_NAME,
-                )
-            });
-
-        // Whether the supported sigschemes includes the CA sigscheme (ed25519)
-        let ca_sigscheme_is_supported =
-            supported_sigschemes.contains(&rustls::SignatureScheme::ED25519);
-
-        if ca_in_acceptable_issuers && ca_sigscheme_is_supported {
-            Some(self.cert_with_key.clone())
-        } else {
-            None
-        }
-    }
-
-    fn has_certs(&self) -> bool {
-        true
     }
 }
 
