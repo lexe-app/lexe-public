@@ -1007,6 +1007,7 @@ dependencies = [
  "sgx-panic-backtrace",
  "sha2-const",
  "thiserror",
+ "time 0.3.31",
  "tokio",
  "tokio-rustls",
  "tokio-test",
