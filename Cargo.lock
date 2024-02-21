@@ -2954,6 +2954,7 @@ dependencies = [
  "ring",
  "time 0.3.31",
  "yasna",
+ "zeroize",
 ]
 
 [[package]]
