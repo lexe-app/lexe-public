@@ -3,7 +3,7 @@ use std::{env, fmt, fmt::Display, str::FromStr};
 use anyhow::{anyhow, ensure, Context};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::strategy::Strategy;
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
@@ -12,7 +12,7 @@ use crate::{cli::Network, Apply};
 /// Represents a validated `DEPLOY_ENVIRONMENT` configuration.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum DeployEnv {
     /// "dev"
     Dev,
