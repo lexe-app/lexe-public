@@ -23,6 +23,10 @@ pub enum DeployEnv {
 }
 
 impl DeployEnv {
+    /// All possible [`DeployEnv`]s, useful to iterate over in tests.
+    #[cfg(any(test, feature = "test-utils"))]
+    pub const ALL: [DeployEnv; 3] = [Self::Dev, Self::Staging, Self::Prod];
+
     /// Read a [`DeployEnv`] from env, or err if it was invalid / didn't exist.
     pub fn from_env() -> anyhow::Result<Self> {
         env::var("DEPLOY_ENVIRONMENT")
