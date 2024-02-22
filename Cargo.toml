@@ -210,14 +210,11 @@ lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning
 # https://doc.rust-lang.org/cargo/reference/profiles.html#split-debuginfo
 # split-debuginfo = "packed"
 
-# [profile.release]
-# panic = "abort"
-# # NOTE(phlip9): enable for smaller binary size
-# codegen-units = 1
-# lto = true
-# opt-level = "s"
-# debug = 0
-# strip = "debuginfo"
+[profile.release]
+# Enable "thin" LTO (link-time optimization) for better perf+binary size. "fat"
+# LTO is marginally better perf-wise but much slower linking time.
+lto = "thin"
+strip = "debuginfo"
 
 # The Rust profile used when building the node SGX enclave in release mode.
 # These options are tuned through trial and error to minimize reproducibility
@@ -233,6 +230,3 @@ lto = "thin"
 opt-level = 2
 debug = "none"
 strip = "debuginfo"
-
-# [profile.dev]
-# panic = "abort"
