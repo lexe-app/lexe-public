@@ -205,13 +205,6 @@ lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning
 # lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }
 # lightning-transaction-sync = { path = "../../ldk/lightning-transaction-sync" }
 
-# [profile.dev]
-# This fixes 'warning: can't find symbol' when debugging, but breaks the
-# server's build.rs, so it should always be commented out in git. More info:
-# https://github.com/rust-lang/rust/issues/40787#issuecomment-1019465942
-# https://doc.rust-lang.org/cargo/reference/profiles.html#split-debuginfo
-# split-debuginfo = "packed"
-
 [profile.release]
 # Enable "thin" LTO (link-time optimization) for better perf+binary size. "fat"
 # LTO is marginally better perf-wise but much slower linking time.
@@ -232,3 +225,19 @@ lto = "thin"
 opt-level = 2
 debug = "none"
 strip = "debuginfo"
+
+# NOTE: dev includes `check`, `clippy`, `test`, etc
+[profile.dev]
+# Our debug binaries are seriously bloated with sections like `.debug_pubtypes`
+# eating literally _hundreds_ of MiB. All this debug info is useless outside of
+# a debugger, which we rarely use.
+#
+# > Generates the minimal amount of debug info for backtraces with filename/line
+# > number info, but not anything else, i.e. no variable or function parameter
+# > info.
+debug = "line-tables-only"
+# This fixes 'warning: can't find symbol' when debugging, but breaks the
+# server's build.rs, so it should always be commented out in git. More info:
+# https://github.com/rust-lang/rust/issues/40787#issuecomment-1019465942
+# https://doc.rust-lang.org/cargo/reference/profiles.html#split-debuginfo
+# split-debuginfo = "packed"
