@@ -33,15 +33,18 @@ impl Regtest {
         info!("Initializing regtest");
 
         // Init bitcoind
-        let bitcoind_exe_path = bitcoind::downloaded_exe_path()
-            .expect("Didn't specify bitcoind version in feature flags");
+        let bitcoind_exe_path = std::env::var("BITCOIND_EXE")
+            .or_else(|_| bitcoind::downloaded_exe_path())
+            .expect("Didn't specify oneof `$BITCOIND_EXE` or bitcoind version in feature flags");
         debug!(%bitcoind_exe_path);
         let bitcoind =
             BitcoinD::new(bitcoind_exe_path).expect("Failed to init bitcoind");
 
         // Construct electrsd conf
-        let electrsd_exe_path = electrsd::downloaded_exe_path()
-            .expect("Didn't specify electrsd version in feature flags");
+        let electrsd_exe_path = std::env::var("ELECTRS_EXE")
+            .ok()
+            .or_else(electrsd::downloaded_exe_path)
+            .expect("Didn't specify oneof `$ELECTRS_EXE` or electrsd version in feature flags");
         debug!(%electrsd_exe_path);
         let mut electrsd_conf = electrsd::Conf::default();
         // Expose esplora endpoint

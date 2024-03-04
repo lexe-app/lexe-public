@@ -82,6 +82,7 @@
         {
           inherit
             (lexePubPkgs)
+            bitcoind
             blockstream-electrs
             ftxsgx-elf2sgxs
             node-debug-nosgx
