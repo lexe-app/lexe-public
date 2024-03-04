@@ -82,6 +82,7 @@
         {
           inherit
             (lexePubPkgs)
+            blockstream-electrs
             ftxsgx-elf2sgxs
             node-debug-nosgx
             node-debug-sgx
