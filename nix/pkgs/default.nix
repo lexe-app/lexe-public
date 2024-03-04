@@ -50,6 +50,9 @@
     inherit craneLib cargoVendorDir lexePubLib srcRust workspaceVersion;
   };
 
+  # bitcoind - Bitcoin core wallet (just an alias)
+  bitcoind = pkgs.bitcoind;
+
   # Blockstream fork of electrs BTC chain index server, used in integration tests
   blockstream-electrs = pkgs.callPackage ./blockstream-electrs.nix {
     inherit buildRustSccache craneLib;
