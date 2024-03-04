@@ -50,6 +50,11 @@
     inherit craneLib cargoVendorDir lexePubLib srcRust workspaceVersion;
   };
 
+  # Blockstream fork of electrs BTC chain index server, used in integration tests
+  blockstream-electrs = pkgs.callPackage ./blockstream-electrs.nix {
+    inherit buildRustSccache craneLib;
+  };
+
   # rust-sgx repo source
   rustSgxRepo = lexePubLib.parseCargoLockGitDep {
     cargoLockContents = builtins.readFile workspaceLock;
