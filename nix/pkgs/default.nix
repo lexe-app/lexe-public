@@ -120,15 +120,12 @@
     doCheck = false;
 
     nativeBuildInputs = lib.optionals (pkgs.hostPlatform.system == "x86_64-linux") [
+      # ring crate build.rs
+      pkgs.perl
+
       # aesm-client crate build.rs
       pkgs.protobuf
-      # enclave-runner crate
-      pkgs.pkg-config
     ];
-
-    buildInputs =
-      # enclave-runner crate
-      lib.optional (pkgs.hostPlatform.system == "x86_64-linux") pkgs.openssl;
   };
 
   # Tiny enclave that exercises some basic SGX platform features.

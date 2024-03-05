@@ -75,6 +75,7 @@ impl Args {
 
         use aesm_client::AesmClient;
         use anyhow::Context;
+        use common::enclave;
         use enclave_runner::EnclaveBuilder;
         use run_sgx::aesm_proxy::AesmProxy;
         use sgxs_loaders::isgx;
@@ -118,8 +119,16 @@ impl Args {
                 )
             })?;
         } else {
-            // Create a DEBUG sigstruct with a dummy keypair.
-            enclave.dummy_signature();
+            // Create a debug sigstruct with the dev signer keypair.
+            let bin_file = std::fs::File::open(bin_path)
+                .context("Failed to open .sgxs binary")?;
+            let measurement = enclave::compute_measurement(bin_file)
+                .context("Failed to compute SGX binary measurement")?;
+            let key = sgxs_sign::KeyPair::dev_signer();
+            let sigstruct = key
+                .sign_sgxs(measurement, true, None)
+                .context("Failed to sign .sgxs")?;
+            enclave.sigstruct(sigstruct);
         }
 
         // attach the enclave's args
