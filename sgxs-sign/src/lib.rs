@@ -36,7 +36,7 @@ use common::{
 use rsa::{
     pkcs1::{DecodeRsaPrivateKey, EncodeRsaPrivateKey, EncodeRsaPublicKey},
     pkcs1v15::Pkcs1v15Sign,
-    pkcs8::{DecodePrivateKey, EncodePrivateKey},
+    pkcs8::{DecodePrivateKey, EncodePrivateKey, EncodePublicKey},
     traits::{PublicKeyParts, SignatureScheme},
 };
 use sgxs::{
@@ -90,6 +90,13 @@ fn sign_sgxs_generic<K: SgxRsaOps, H: SgxHashOps>(
 impl KeyPair {
     const NUM_BITS: usize = 3072;
 
+    pub fn dev_signer() -> Self {
+        Self::deserialize_pkcs8_der(include_bytes!(
+            "../data/dev-sgxs-signer.der"
+        ))
+        .expect("Failed to deserialize dev sgxs signer")
+    }
+
     pub fn from_rng(rng: &mut impl Crng) -> Self {
         // SGX assumes exp=3
         let exp = rsa::BigUint::from(3_u8);
@@ -141,12 +148,35 @@ impl KeyPair {
         )
     }
 
+    pub fn serialize_pubkey_pkcs8_der(&self) -> Vec<u8> {
+        let pubkey: &rsa::RsaPublicKey = self.inner.as_ref();
+        pubkey
+            .to_public_key_der()
+            .expect("Failed to PKCS#8 DER-serialize RSA pubkey")
+            .into_vec()
+    }
+
     pub fn serialize_pubkey_pkcs1_der_legacy(&self) -> Vec<u8> {
         let pubkey: &rsa::RsaPublicKey = self.inner.as_ref();
         pubkey
             .to_pkcs1_der()
             .expect("Failed to PKCS#1 DER-serialize RSA pubkey")
             .into_vec()
+    }
+
+    /// Return the signer measurement (also known as the MRSIGNER).
+    ///
+    /// The signer measurement is the SHA-256 hash of the pubkey modulus in
+    /// little endian byte order.
+    ///
+    /// See: <https://github.com/intel/linux-sgx/blob/sgx_2.22/sdk/sign_tool/SignTool/manage_metadata.cpp#L1807>
+    pub fn signer_measurement(&self) -> enclave::Measurement {
+        let modulus = self.n();
+        let mut modulus_buf = [0u8; 384];
+        modulus_buf[..modulus.len()].copy_from_slice(&modulus);
+
+        let measurement = sha256::digest(&modulus_buf);
+        enclave::Measurement::new(measurement.into_inner())
     }
 
     fn padding_scheme() -> Pkcs1v15Sign {
@@ -345,6 +375,12 @@ mod test {
         let ref_sigstruct_bytes = hex::decode(ref_sigstruct_hex).unwrap();
 
         assert_eq!(sigstruct_bytes, &ref_sigstruct_bytes);
+    }
+
+    #[test]
+    fn test_dev_signer_measurement() {
+        let key = KeyPair::dev_signer();
+        assert_eq!(key.signer_measurement(), enclave::DEV_SIGNER);
     }
 
     #[test]
