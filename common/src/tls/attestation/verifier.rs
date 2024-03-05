@@ -593,7 +593,7 @@ mod test {
     use rustls::client::ServerCertVerifier;
 
     use super::*;
-    use crate::{hex, rng::WeakRng, tls::attestation::cert::AttestationCert};
+    use crate::hex;
 
     const MRENCLAVE_HEX: &str =
         include_str!("../../../test_data/mrenclave.hex");
@@ -672,8 +672,12 @@ mod test {
             .unwrap();
     }
 
+    // SGX generates a real quote
+    #[cfg(not(target_env = "sgx"))]
     #[test]
     fn test_verify_dummy_server_cert() {
+        use crate::{rng::WeakRng, tls::attestation::cert::AttestationCert};
+
         let mut rng = WeakRng::new();
 
         let dns_name = "run.lexe.app".to_owned();
