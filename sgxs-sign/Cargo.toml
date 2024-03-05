@@ -1,0 +1,20 @@
+[package]
+name = "sgxs-sign"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+
+# --- LEXE --- #
+
+common = { path = "../common" }
+
+# --- WORKSPACE --- #
+
+anyhow.workspace = true
+sgxs.workspace = true
+
+# RustCrypto/rsa - flexible RSA impl used b/c SGX does non-standard enclave signing
+rsa = { version = "0.9.6", default-features = false, features = ["u64_digit"] }

@@ -12,6 +12,7 @@ members = [
     "run-sgx",
     "sgx-test",
     "sgx-toml",
+    "sgxs-sign",
 ]
 
 [workspace.package]
@@ -138,6 +139,7 @@ mio = "=0.8.4"
 ring = "=0.16.20"
 # Core SGX types and platform intrinsics (for sealing, reports, etc...)
 sgx-isa = "=0.4.0"
+sgxs = "=0.7.3"
 sgxs-loaders = "=0.3.3"
 # Asynchronous runtime
 tokio = { version = "=1.21.2", default-features = false }
@@ -159,6 +161,7 @@ proptest-derive = { git = "https://github.com/proptest-rs/proptest", ref = "dcb1
 reqwest = { git = "https://github.com/lexe-app/reqwest", branch = "lexe" }
 ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.16.20-2023_09_26" }
 sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
+sgxs = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 tokio = { git = "https://github.com/lexe-app/tokio", branch = "lexe-1.21.2-2023_09_20" }
 # This warp fork:
