@@ -12,7 +12,7 @@
 //! dependency on `openssl`, which significantly complicates our build. This
 //! crate instead uses the rust-only `RustCrypto/rsa` crate.
 //!
-//! ### Why we can't use `ring`
+//! ### Why we can't use `ring` v0.16.20
 //!
 //! Ideally we would only use a single crypto backend (oneof `ring`, `openssl`,
 //! or `RustCrypto` crates) and we already use `ring` (almost) everywhere else.
@@ -34,7 +34,6 @@ use common::{
     sha256, Secret,
 };
 use rsa::{
-    pkcs1::{DecodeRsaPrivateKey, EncodeRsaPrivateKey, EncodeRsaPublicKey},
     pkcs1v15::Pkcs1v15Sign,
     pkcs8::{DecodePrivateKey, EncodePrivateKey, EncodePublicKey},
     traits::{PublicKeyParts, SignatureScheme},
@@ -48,7 +47,7 @@ use sgxs::{
 /// [`Sigstruct`]s.
 ///
 /// This implementation lets us avoid any `openssl` dependency in our codebase.
-#[derive(PartialEq)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct KeyPair {
     inner: rsa::RsaPrivateKey,
 }
@@ -114,35 +113,26 @@ impl KeyPair {
         Ok(Self { inner })
     }
 
-    #[allow(dead_code)]
-    fn deserialize_pkcs8_der(bytes: &[u8]) -> anyhow::Result<Self> {
+    pub fn deserialize_pkcs8_der(bytes: &[u8]) -> anyhow::Result<Self> {
         rsa::RsaPrivateKey::from_pkcs8_der(bytes)
             .map_err(|err| format_err!("Failed to deserialize PKCS#8 DER-encoded SGX RSA 3072 keypair: {err:?}"))
             .and_then(Self::try_from_inner)
     }
 
-    pub fn deserialize_pkcs1_der_legacy(bytes: &[u8]) -> anyhow::Result<Self> {
+    #[allow(dead_code)]
+    #[cfg(test)]
+    fn deserialize_pkcs1_der_legacy(bytes: &[u8]) -> anyhow::Result<Self> {
+        use rsa::pkcs1::DecodeRsaPrivateKey;
         rsa::RsaPrivateKey::from_pkcs1_der(bytes)
             .map_err(|err| format_err!("Failed to deserialize legacy PKCS#1 DER-encoded SGX RSA 3072 keypair: {err:?}"))
             .and_then(Self::try_from_inner)
     }
 
-    #[allow(dead_code)]
-    fn serialize_pkcs8_der(&self) -> Secret<Vec<u8>> {
+    pub fn serialize_pkcs8_der(&self) -> Secret<Vec<u8>> {
         Secret::new(
             self.inner
                 .to_pkcs8_der()
                 .expect("Failed to PKCS#8 DER-serialize RSA keypair")
-                .as_bytes()
-                .to_vec(),
-        )
-    }
-
-    pub fn serialize_pkcs1_der_legacy(&self) -> Secret<Vec<u8>> {
-        Secret::new(
-            self.inner
-                .to_pkcs1_der()
-                .expect("Failed to PKCS#1 DER-serialize RSA keypair")
                 .as_bytes()
                 .to_vec(),
         )
@@ -156,20 +146,12 @@ impl KeyPair {
             .into_vec()
     }
 
-    pub fn serialize_pubkey_pkcs1_der_legacy(&self) -> Vec<u8> {
-        let pubkey: &rsa::RsaPublicKey = self.inner.as_ref();
-        pubkey
-            .to_pkcs1_der()
-            .expect("Failed to PKCS#1 DER-serialize RSA pubkey")
-            .into_vec()
-    }
-
     /// Return the signer measurement (also known as the MRSIGNER).
     ///
     /// The signer measurement is the SHA-256 hash of the pubkey modulus in
     /// little endian byte order.
     ///
-    /// See: <https://github.com/intel/linux-sgx/blob/sgx_2.22/sdk/sign_tool/SignTool/manage_metadata.cpp#L1807>
+    /// See: <https://github.com/intel/linux-sgx/blob/sgx_2.23/sdk/sign_tool/SignTool/manage_metadata.cpp#L1807>
     pub fn signer_measurement(&self) -> enclave::Measurement {
         let modulus = self.n();
         let mut modulus_buf = [0u8; 384];
@@ -241,8 +223,8 @@ impl KeyPair {
             .map_err(|err| StringError(format!("{err:?}").into()))
     }
 
-    #[allow(dead_code)]
-    pub fn verify_sigstruct_signature(
+    #[cfg(test)]
+    fn verify_sigstruct_signature(
         &self,
         sigstruct: &Sigstruct,
     ) -> Result<(), StringError> {
@@ -297,6 +279,17 @@ impl SgxRsaOps for KeyPair {
     }
 }
 
+/// Compute the `q1` and `q2` values from the RSA pubkey modulus, `n`, and the
+/// signature, `sig_slice`. These values then go into their corresponding
+/// [`Sigstruct`] fields.
+///
+/// Not sure why SGX requires computing these values, but it does. : )
+///
+/// The commented out test below, `test_openssl_parity`, checks for equivalence
+/// w/ `rust-sgx`'s implementation.
+///
+/// See: [`linux-sgx/sign_tool::calc_RSAq1q2`](https://github.com/intel/linux-sgx/blob/sgx_2.23/sdk/sign_tool/SignTool/sign_tool.cpp#L349)
+/// See: [`rust-sgx/sgxs::calculate_q1_q2`](https://github.com/fortanix/rust-sgx/blob/e2f677b28e2a934bc3b3d20cc201962f0bf556b3/intel-sgx/sgxs/src/crypto/mod.rs#L85)
 fn calculate_rsa_q1_q2(
     n: &rsa::BigUint,
     sig_slice: &[u8],
@@ -385,20 +378,14 @@ mod test {
 
     #[test]
     fn test_ser_de() {
-        let mut rng = SysRng::new();
-        let key = KeyPair::from_rng(&mut rng);
-        let key_bytes_pkcs1 = key.serialize_pkcs1_der_legacy();
+        // Sampling RSA keys takes a long time... (several seconds)
+        let key = KeyPair::dev_signer();
         let key_bytes_pkcs8 = key.serialize_pkcs8_der();
 
-        let key_pkcs1 = KeyPair::deserialize_pkcs1_der_legacy(
-            key_bytes_pkcs1.expose_secret(),
-        )
-        .unwrap();
         let key_pkcs8 =
             KeyPair::deserialize_pkcs8_der(key_bytes_pkcs8.expose_secret())
                 .unwrap();
 
-        assert_eq!(key, key_pkcs1);
         assert_eq!(key, key_pkcs8);
     }
 }
