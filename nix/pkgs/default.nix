@@ -116,7 +116,7 @@
   # Binary for running SGX enclaves.
   run-sgx = buildRustSccache {
     cargoToml = ../../run-sgx/Cargo.toml;
-    cargoExtraArgs = "--package=run-sgx --bin=run-sgx --locked --offline";
+    cargoExtraArgs = "--package=run-sgx --locked --offline";
     doCheck = false;
 
     nativeBuildInputs = lib.optionals (pkgs.hostPlatform.system == "x86_64-linux") [
