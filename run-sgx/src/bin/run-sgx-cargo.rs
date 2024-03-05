@@ -1,16 +1,9 @@
 //! TODO
 
-#![allow(dead_code)]
-
-#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-use std::{env, path::Path};
 use std::{path::PathBuf, process::Command};
 
 use anyhow::{format_err, Context, Result};
 use argh::{EarlyExit, FromArgs, TopLevelCommand};
-use serde::Deserialize;
-#[cfg(all(target_arch = "x86_64", target_os = "linux"))]
-use sgx_toml::FortanixSgxConfig;
 
 #[derive(Debug)]
 pub struct Args {
@@ -26,49 +19,15 @@ pub struct Options {
     pub elf_bin: PathBuf,
 }
 
-/// The subset of a crate's `Cargo.toml` with the SGX config.
-///
-/// ```toml
-/// [package.metadata.fortanix_sgx]
-/// heap_size = 0x2000000
-/// ssaframesize = 1
-/// stack_size = 0x20000
-/// threads = 4
-/// debug = true
-/// ```
-#[derive(Deserialize, Debug)]
-pub struct SgxConfig {
-    package: Package,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct Package {
-    #[serde(default)]
-    metadata: Metadata,
-}
-
-#[derive(Deserialize, Debug, Default)]
-#[serde(rename_all = "kebab-case")]
-pub struct Metadata {
-    #[serde(default)]
-    fortanix_sgx: Target,
-}
-
-#[derive(Deserialize, Debug, Default)]
-#[serde(rename_all = "kebab-case")]
-pub struct Target {
-    heap_size: Option<u64>,
-    ssaframesize: Option<u32>,
-    stack_size: Option<u32>,
-    threads: Option<u32>,
-    debug: Option<bool>,
-}
-
 // -- impl Args -- //
 
 impl Args {
     #[cfg(all(target_arch = "x86_64", target_os = "linux"))]
     pub fn run(self) -> Result<()> {
+        use std::{env, path::Path};
+
+        use sgx_toml::FortanixSgxConfig;
+
         // 1. read SGX config from crate's Cargo.toml
 
         // CARGO_MANIFEST_DIR is the directory containing the Cargo.toml of the
@@ -164,6 +123,7 @@ impl TopLevelCommand for Args {}
 
 // -- utils -- //
 
+#[allow(dead_code)]
 fn run_cmd(mut cmd: Command) -> Result<()> {
     // run the command and collect its status
     let status = cmd
