@@ -8,7 +8,9 @@ version.workspace = true
 [dependencies]
 # --- LEXE --- #
 
+common = { path = "../common" }
 sgx-toml = { path = "../sgx-toml" }
+sgxs-sign = { path = "../sgxs-sign" }
 
 # --- WORKSPACE --- #
 
@@ -28,6 +30,6 @@ rustc-demangle = "0.1"
 
 [target.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.dependencies]
 aesm-client.workspace = true
-enclave-runner = { workspace = true, features = ["crypto-openssl"] }
+enclave-runner.workspace = true
 sgx-isa.workspace = true
 sgxs-loaders.workspace = true
