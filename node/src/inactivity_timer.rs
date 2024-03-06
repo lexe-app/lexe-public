@@ -170,94 +170,123 @@ mod tests {
         assert!(shutdown.try_recv());
     }
 
-    /// Case 1: shutdown_after_sync enabled, no activity
-    #[tokio::test(start_paused = true)]
-    async fn case_1() {
-        let shutdown_after_sync = true;
-        let inactivity_timer_sec = 1;
-        let mut mats =
-            get_test_materials(shutdown_after_sync, inactivity_timer_sec);
-        let actor_fut = mats.actor.start();
+    // A tokio runtime w/ time paused.
+    fn test_rt_paused_time() -> tokio::runtime::Runtime {
+        tokio::runtime::Builder::new_current_thread()
+            // Only `enable_time()` to avoid spawning a new thread.
+            //
+            // In SGX, `node` is configured w/ only 2 threads, so `enable_all()`
+            // in the default `#[tokio::test]` spawns one too many threads
+            // (test harness, test thread, tokio io driver -> async-usercalls)
+            .enable_time()
+            .start_paused(true)
+            .build()
+            .unwrap()
+    }
 
-        // Actor should finish instantly
-        bound_finish(actor_fut, mats.shutdown, None, Some(1)).await;
+    fn do_test_paused_time(fut: impl Future<Output = ()>) {
+        test_rt_paused_time().block_on(fut)
+    }
+
+    /// Case 1: shutdown_after_sync enabled, no activity
+    #[test]
+    fn case_1() {
+        do_test_paused_time(async {
+            let shutdown_after_sync = true;
+            let inactivity_timer_sec = 1;
+            let mut mats =
+                get_test_materials(shutdown_after_sync, inactivity_timer_sec);
+            let actor_fut = mats.actor.start();
+
+            // Actor should finish instantly
+            bound_finish(actor_fut, mats.shutdown, None, Some(1)).await;
+        });
     }
 
     /// Case 2: shutdown_after_sync enabled, *with* activity
-    #[tokio::test(start_paused = true)]
-    async fn case_2() {
-        let shutdown_after_sync = true;
-        let inactivity_timer_sec = 1;
-        let mut mats =
-            get_test_materials(shutdown_after_sync, inactivity_timer_sec);
-        let _ = mats.activity_tx.send(()).await;
-        let actor_fut = mats.actor.start();
+    #[test]
+    fn case_2() {
+        do_test_paused_time(async {
+            let shutdown_after_sync = true;
+            let inactivity_timer_sec = 1;
+            let mut mats =
+                get_test_materials(shutdown_after_sync, inactivity_timer_sec);
+            let _ = mats.activity_tx.send(()).await;
+            let actor_fut = mats.actor.start();
 
-        // Actor should finish at 1000ms (1 sec)
-        bound_finish(actor_fut, mats.shutdown, Some(999), Some(1001)).await;
+            // Actor should finish at 1000ms (1 sec)
+            bound_finish(actor_fut, mats.shutdown, Some(999), Some(1001)).await;
+        });
     }
 
     /// Case 3: shutdown_after_sync not enabled, no activity
-    #[tokio::test(start_paused = true)]
-    async fn case_3() {
-        let shutdown_after_sync = false;
-        let inactivity_timer_sec = 1;
-        let mut mats =
-            get_test_materials(shutdown_after_sync, inactivity_timer_sec);
-        let actor_fut = mats.actor.start();
+    #[test]
+    fn case_3() {
+        do_test_paused_time(async {
+            let shutdown_after_sync = false;
+            let inactivity_timer_sec = 1;
+            let mut mats =
+                get_test_materials(shutdown_after_sync, inactivity_timer_sec);
+            let actor_fut = mats.actor.start();
 
-        // Actor should finish at about 1000ms (1 sec)
-        bound_finish(actor_fut, mats.shutdown, Some(999), Some(1001)).await;
+            // Actor should finish at about 1000ms (1 sec)
+            bound_finish(actor_fut, mats.shutdown, Some(999), Some(1001)).await;
+        });
     }
 
     /// Case 4: shutdown_after_sync not enabled, *with* activity; i.e. the
     /// inactivity timer resets
-    #[tokio::test(start_paused = true)]
-    async fn case_4() {
-        let shutdown_after_sync = false;
-        let inactivity_timer_sec = 1;
-        let mut mats =
-            get_test_materials(shutdown_after_sync, inactivity_timer_sec);
-        let actor_fut = mats.actor.start();
+    #[test]
+    fn case_4() {
+        do_test_paused_time(async {
+            let shutdown_after_sync = false;
+            let inactivity_timer_sec = 1;
+            let mut mats =
+                get_test_materials(shutdown_after_sync, inactivity_timer_sec);
+            let actor_fut = mats.actor.start();
 
-        // Spawn a task to generate an activity event 500ms in
-        let activity_tx = mats.activity_tx.clone();
-        use common::task::LxTask;
-        let activity_task = LxTask::spawn(async move {
-            time::sleep(Duration::from_millis(500)).await;
-            let _ = activity_tx.send(()).await;
+            // Spawn a task to generate an activity event 500ms in
+            let activity_tx = mats.activity_tx.clone();
+            use common::task::LxTask;
+            let activity_task = LxTask::spawn(async move {
+                time::sleep(Duration::from_millis(500)).await;
+                let _ = activity_tx.send(()).await;
+            });
+
+            // Actor should finish at about 1500ms
+            bound_finish(actor_fut, mats.shutdown, Some(1499), Some(1501))
+                .await;
+            activity_task.await.unwrap();
         });
-
-        // Actor should finish at about 1500ms
-        bound_finish(actor_fut, mats.shutdown, Some(1499), Some(1501)).await;
-        activity_task.await.unwrap();
     }
 
     /// Case 5: shutdown_after_sync not enabled, *with* activity, *with*
     /// shutdown signal. The shutdown signal should take precedence over the
     /// activity timer
-    #[tokio::test(start_paused = true)]
-    async fn case_5() {
-        let shutdown_after_sync = false;
-        let inactivity_timer_sec = 1;
-        let mut mats =
-            get_test_materials(shutdown_after_sync, inactivity_timer_sec);
-        let actor_fut = mats.actor.start();
+    #[test]
+    fn case_5() {
+        do_test_paused_time(async {
+            let shutdown_after_sync = false;
+            let inactivity_timer_sec = 1;
+            let mut mats =
+                get_test_materials(shutdown_after_sync, inactivity_timer_sec);
+            let actor_fut = mats.actor.start();
 
-        // Spawn a task to generate an activity event 500ms in and a shutdown
-        // signal 750ms in
-        let activity_tx = mats.activity_tx.clone();
-        let shutdown = mats.shutdown.clone();
-        use common::task::LxTask;
-        let activity_task = LxTask::spawn(async move {
-            time::sleep(Duration::from_millis(500)).await;
-            let _ = activity_tx.send(()).await;
-            time::sleep(Duration::from_millis(250)).await;
-            shutdown.send();
+            // Spawn a task to generate an activity event 500ms in and a
+            // shutdown signal 750ms in
+            let activity_tx = mats.activity_tx.clone();
+            let shutdown = mats.shutdown.clone();
+            use common::task::LxTask;
+            let activity_task = LxTask::spawn(async move {
+                time::sleep(Duration::from_millis(500)).await;
+                let _ = activity_tx.send(()).await;
+                time::sleep(Duration::from_millis(250)).await;
+                shutdown.send();
+            });
+
+            // Actor should finish at about 750ms despite receiving activity
+            bound_finish(actor_fut, mats.shutdown, Some(749), Some(751)).await;
+            activity_task.await.unwrap();
         });
-
-        // Actor should finish at about 750ms despite receiving activity
-        bound_finish(actor_fut, mats.shutdown, Some(749), Some(751)).await;
-        activity_task.await.unwrap();
     }
 }
