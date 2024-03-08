@@ -52,7 +52,9 @@ cfg-if.workspace = true
 dcap-ql.workspace = true
 dotenvy.workspace = true
 futures.workspace = true
-hyper = { workspace = true, features = ["http1", "http2", "server", "tcp"] }
+# Use both hyper 0.14.28 and 1.0 at the same time while we transition
+hyper = { workspace = true, features = ["http1", "http2", "server"] }
+hyper_old = { workspace = true, features = ["http1", "http2", "server", "tcp"] }
 rand_core.workspace = true
 rcgen.workspace = true
 reqwest = { workspace = true, features = ["json", "rustls-tls-manual-roots"] }

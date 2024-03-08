@@ -44,7 +44,7 @@ pub static CONTENT_TYPE_ED25519_BCS: HeaderValue =
 
 // Default parameters
 pub const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
-/// The maximum time [`hyper::Server`] can take to gracefully shut down.
+/// The maximum time [`hyper_old::Server`] can take to gracefully shut down.
 pub const HYPER_TIMEOUT: Duration = Duration::from_secs(3);
 
 // Avoid `Method::` prefix. Associated constants can't be imported
@@ -111,11 +111,11 @@ fn serve_routes_with_listener_and_shutdown_boxed(
     span: Span,
 ) -> anyhow::Result<(LxTask<()>, SocketAddr)> {
     let api_service = warp::service(routes.with(trace_requests(span.id())));
-    let make_service = hyper::service::make_service_fn(move |_| {
+    let make_service = hyper_old::service::make_service_fn(move |_| {
         let api_service_clone = api_service.clone();
         async move { Ok::<_, Infallible>(api_service_clone) }
     });
-    let server = hyper::Server::from_tcp(listener)
+    let server = hyper_old::Server::from_tcp(listener)
         .context("Could not create hyper Server")?
         .serve(make_service);
     let socket_addr = server.local_addr();
