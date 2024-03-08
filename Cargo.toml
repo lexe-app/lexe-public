@@ -132,7 +132,7 @@ dcap-ql = { version = "=0.3.4", default-features = false }
 # Fortanix EDP crate for running SGX applications, includes usercall extensions
 enclave-runner = { version = "=0.5.1", default-features = false }
 # Low-level HTTP server
-hyper = { version = "=0.14.18", default-features = false }
+hyper = { version = "=0.14.28", default-features = false }
 # Required by tokio
 mio = "=0.8.4"
 # Safe and small crypto primitives based on BoringSSL
@@ -154,7 +154,7 @@ async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe
 atty = { git = "https://github.com/softprops/atty", rev = "6633c0e1446aa19e6cd00e00e39770da43081bda" }
 dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
-hyper = { git = "https://github.com/lexe-app/hyper", branch = "hyper-sgx-0.14.18" }
+hyper = { git = "https://github.com/lexe-app/hyper", branch = "lexe-v0.14.28-2024_03_08" }
 mio = { git = "https://github.com/lexe-app/mio", branch = "mio-sgx-0.8.4" }
 # Remove this `proptest-derive` patch when `v0.4` gets published to crates.io
 proptest-derive = { git = "https://github.com/proptest-rs/proptest", ref = "dcb181c5fe0bc2e1afced79670d35e05f8c7ca21" }

@@ -1930,8 +1930,8 @@ checksum = "df3b46402a9d5adb4c86a0cf463f42e19994e3ee891101b1841f30a545cb49a9"
 
 [[package]]
 name = "hyper"
-version = "0.14.18"
-source = "git+https://github.com/lexe-app/hyper?branch=hyper-sgx-0.14.18#cf9b4da339ddafd2a71b9853891d1f18821b21b7"
+version = "0.14.28"
+source = "git+https://github.com/lexe-app/hyper?branch=lexe-v0.14.28-2024_03_08#4d072553660a707b7a22b8e4b811e0458e865895"
 dependencies = [
  "bytes",
  "futures-channel",
