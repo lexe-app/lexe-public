@@ -84,6 +84,8 @@ warp = { workspace = true, features = ["tls"] }
 
 # --- GENERAL --- #
 
+# hyper and tower Service-based webserver
+axum-server = { version = "0.6", default-features = false }
 # Binary canonical serialization format
 bcs = "0.1"
 # Small conversion from fixed ECDSA signature to ASN.1 format
