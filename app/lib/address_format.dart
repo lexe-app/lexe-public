@@ -1,4 +1,5 @@
 /// Bitcoin and lightning address formatting
+library;
 
 /// Shorten a long bitcoin address by inserting an ellipsis (...) into the
 /// _middle_ while leaving the start and end intact. Users often compare

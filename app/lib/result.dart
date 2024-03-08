@@ -108,7 +108,7 @@ final class Ok<T, E> extends Result<T, E> {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     if (identical(this, other)) return true;
 
     return other is Ok && this.ok == other.ok;
@@ -171,7 +171,7 @@ final class Err<T, E> extends Result<T, E> {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     if (identical(this, other)) return true;
 
     return other is Err && this.err == other.err;

@@ -60,9 +60,9 @@ chrono = { version = "0.4", default-features = false, features = [
 # dotenvy is a better maintained fork of dotenv
 dotenvy = "0.15"
 # High-level memory-safe Rust<->Dart FFI bindings.
-flutter_rust_bridge = { version = "=1.82.5", default-features = false, features = [] }
+flutter_rust_bridge = { version = "=1.82.6", default-features = false, features = [] }
 # The Rust+Dart codegen for flutter_rust_bridge
-flutter_rust_bridge_codegen = { version = "=1.82.5", default-features = false, features = [] }
+flutter_rust_bridge_codegen = { version = "=1.82.6", default-features = false, features = [] }
 # Utils for working with futures
 futures = "0.3"
 # Low-level async HTTP library and server

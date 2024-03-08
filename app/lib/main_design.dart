@@ -251,8 +251,7 @@ class MockApp extends App {
 }
 
 class MockAppHandle extends AppHandle {
-  MockAppHandle({required AppRs bridge})
-      : super(bridge: bridge, inner: MockApp(bridge));
+  MockAppHandle({required super.bridge}) : super(inner: MockApp(bridge));
 
   // New user has no payments
   // List<Payment> payments = [];
