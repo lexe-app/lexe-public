@@ -12,7 +12,7 @@ part of 'bindings_generated_api.dart';
 T _$identity<T>(T value) => value;
 
 final _privateConstructorUsedError = UnsupportedError(
-    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#custom-getters-and-methods');
+    'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
 /// @nodoc
 mixin _$ClientPaymentId {
@@ -33,7 +33,7 @@ class _$ClientPaymentIdImpl implements _ClientPaymentId {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$ClientPaymentIdImpl &&
@@ -93,7 +93,7 @@ class _$ConfigImpl implements _Config {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$ConfigImpl &&
@@ -159,7 +159,7 @@ class _$FiatRateImpl implements _FiatRate {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$FiatRateImpl &&
@@ -211,7 +211,7 @@ class _$FiatRatesImpl implements _FiatRates {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$FiatRatesImpl &&
@@ -268,7 +268,7 @@ class _$InvoiceImpl implements _Invoice {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$InvoiceImpl &&
@@ -335,7 +335,7 @@ class _$NodeInfoImpl implements _NodeInfo {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$NodeInfoImpl &&
@@ -433,7 +433,7 @@ class _$PaymentImpl implements _Payment {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$PaymentImpl &&
@@ -559,7 +559,7 @@ class _$ShortPaymentImpl implements _ShortPayment {
   }
 
   @override
-  bool operator ==(dynamic other) {
+  bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == runtimeType &&
             other is _$ShortPaymentImpl &&

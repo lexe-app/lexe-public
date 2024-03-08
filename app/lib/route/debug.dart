@@ -1,6 +1,7 @@
 /// # Lexe Debug Page
 ///
 /// A page for manipulating app internals during development.
+library;
 
 import 'package:flutter/material.dart';
 

@@ -24,8 +24,7 @@ import '../date_format.dart' as date_format;
 import '../logger.dart';
 import '../result.dart';
 import '../route/debug.dart' show DebugPage;
-import '../route/payment_detail.dart'
-    show PaymentDetailPage, primaryPaymentLabel;
+import '../route/payment_detail.dart' show PaymentDetailPage;
 import '../route/send.dart' show SendContext, SendPaymentPage;
 import '../stream_ext.dart';
 import '../style.dart' show Fonts, LxColors, Space;

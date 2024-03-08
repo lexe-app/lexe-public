@@ -1,4 +1,5 @@
 /// Reusable flutter UI components
+library;
 
 import 'package:flutter/material.dart';
 import 'package:rxdart_ext/rxdart_ext.dart';
