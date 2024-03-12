@@ -17,7 +17,7 @@ argh.workspace = true
 serde.workspace = true
 tokio = { workspace = true, features = ["net"] }
 
-# --- GENERAL --- #
+# --- CRATE-SPECIFIC --- #
 
 # Efficiently find newline byte in byte array
 memchr = "2"
