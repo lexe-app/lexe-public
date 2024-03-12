@@ -27,25 +27,15 @@ stack-size = 0x20_0000
 threads = 8
 
 [dependencies]
-# --- BITCOIN --- #
-
-bitcoin = { workspace = true, features = ["serde"] }
-bitcoin_hashes.workspace = true
-bitcoin-bech32.workspace = true
-base64.workspace = true
-bip39 = { version = "2", features = ["zeroize"] }
-
-# --- LIGHTNING --- #
-
-lightning.workspace = true
-lightning-invoice.workspace = true
-# lightning-net-tokio.workspace = true
-# lightning-transaction-sync.workspace = true
 
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
 async-trait.workspace = true
+bitcoin = { workspace = true, features = ["serde"] }
+bitcoin_hashes.workspace = true
+bitcoin-bech32.workspace = true
+base64.workspace = true
 bytes.workspace = true
 chrono.workspace = true
 cfg-if.workspace = true
@@ -55,6 +45,10 @@ futures.workspace = true
 # Use both hyper 0.14.28 and 1.0 at the same time while we transition
 hyper = { workspace = true, features = ["http1", "http2", "server"] }
 hyper_old = { workspace = true, features = ["http1", "http2", "server", "tcp"] }
+lightning.workspace = true
+lightning-invoice.workspace = true
+# lightning-net-tokio.workspace = true
+# lightning-transaction-sync.workspace = true
 rand_core.workspace = true
 rcgen.workspace = true
 reqwest = { workspace = true, features = ["json", "rustls-tls-manual-roots"] }
@@ -67,8 +61,6 @@ semver = { workspace = true, features = ["serde"] }
 serde.workspace = true
 serde_with = { workspace = true, features = ["macros"] }
 serde_json.workspace = true
-# This version should track the one that `warp` uses internally.
-serde_urlencoded = { optional = true, version = "0.7" }
 sgx-isa.workspace = true
 thiserror.workspace = true
 time.workspace = true
@@ -82,12 +74,14 @@ tokio = { workspace = true, features = [
 tracing.workspace = true
 warp = { workspace = true, features = ["tls"] }
 
-# --- GENERAL --- #
+# --- CRATE-SPECIFIC --- #
 
 # hyper and tower Service-based webserver
 axum-server = { version = "0.6", default-features = false }
 # Binary canonical serialization format
 bcs = "0.1"
+# BIP39 mnemonic codes
+bip39 = { version = "2", features = ["zeroize"] }
 # Small conversion from fixed ECDSA signature to ASN.1 format
 num-bigint = { version = "0.4", default-features = false, features = [] }
 # Safely cast &T to &U when T is a single field new-type
@@ -106,7 +100,13 @@ asn1-rs = { version = "0.5", default-features = false }
 # For constructing/parsing ASN.1 data in x509 certs
 yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
 
-# --- DEPENDENCIES USED ONLY WITHIN SGX --- #
+# --- FEATURE-CONDITIONAL --- #
+# These must have `optional = true` to prevent infecting production binaries.
+
+proptest = { optional = true, workspace = true, features = ["alloc"] }
+proptest-derive = { optional = true, workspace = true }
+# This version should track the one that `warp` uses internally.
+serde_urlencoded = { optional = true, version = "0.7" }
 
 [target.'cfg(target_env = "sgx")'.dependencies]
 # For verifying SGX Report MACs
@@ -118,14 +118,6 @@ bytemuck = { version = "1", default-features = false, features = ["derive", "min
 # For verifying SGX Report MACs
 cmac = { version = "0.7", features = ["std", "zeroize"] }
 
-# --- DEPENDENCIES NEEDED ONLY BY TEST-UTILS --- #
-# These must have `optional = true` to prevent infecting production binaries.
-# If a test-utils dependency must be available in both SGX and not-SGX, put it
-# in both sections so that this ALL CAPS block can remain contiguous.
-
-proptest = { optional = true, workspace = true, features = ["alloc"] }
-proptest-derive = { optional = true, workspace = true }
-
 [target.'cfg(not(target_env = "sgx"))'.dependencies]
 # Bitcoind + electrum + esplora regtest
 # Note that electrsd reexports bitcoind and electrum-client in its crate root.
@@ -136,9 +128,6 @@ proptest-derive = { optional = true, workspace = true }
 electrsd = { optional = true, version = "0.22", features = [ "bitcoind_22_0", "esplora_a33e97e1", "legacy" ] }
 # Include std impls when testing outside of SGX
 proptest = { optional = true, workspace = true, features = ["std"] }
-proptest-derive = { optional = true, workspace = true }
-
-# --- DEV DEPENDENCIES, ALL PLATFORMS --- #
 
 [dev-dependencies]
 proptest = { workspace = true, features = ["alloc"] }
@@ -158,13 +147,9 @@ tokio-rustls.workspace = true
 # Utilities for testing futures
 tokio-test = "0.4"
 
-# --- DEV DEPENDENCIES, SGX ONLY --- #
-
 [target.'cfg(target_env = "sgx")'.dev-dependencies]
 # Print backtraces in tests
 sgx-panic-backtrace = "0.1"
-
-# --- DEV DEPENDENCIES, NON-SGX ONLY --- #
 
 [target.'cfg(not(target_env = "sgx"))'.dev-dependencies]
 # Bitcoind + electrum + esplora regtest

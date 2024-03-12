@@ -28,25 +28,10 @@ license = "PolyForm Noncommercial License 1.0.0"
 version = "0.1.0"
 
 [workspace.dependencies]
-# Use this section to declare dependencies used across many lexe crates.
+# Use this section to declare dependencies used across multiple lexe crates.
 # Lexe crates can then inherit the dependency using `workspace = true`.
 # This makes it easier to keep dependency versions in sync. More info:
 # https://doc.rust-lang.org/cargo/reference/workspaces.html#the-dependencies-table
-
-# --- BITCOIN --- #
-
-bitcoin = "0.29"
-bitcoin-bech32 = "0.12"
-bitcoin_hashes = "0.11"
-
-# --- LIGHTNING --- #
-
-lightning = { version = "0.0.116", features = ["max_level_trace"] }
-lightning-invoice = { version = "0.24" }
-lightning-net-tokio = { version = "0.0.116" }
-lightning-transaction-sync = { version = "0.0.116", features = ["esplora-async"] }
-
-# --- GENERAL --- #
 
 # Ad hoc error definition, easy error propagation, error chains
 anyhow = "1"
@@ -58,6 +43,10 @@ argh = "0.1"
 async-trait = "0.1"
 # Converting to/from base 64.
 base64 = "0.13"
+# rust-bitcoin suite of libraries
+bitcoin = "0.29"
+bitcoin-bech32 = "0.12"
+bitcoin_hashes = "0.11"
 # Abstractions for working with bytes
 bytes = "1"
 # Write #[cfg(..)] if-else statements without repeating clauses
@@ -119,14 +108,12 @@ tracing = "0.1"
 tracing-core = "0.1"
 tracing-subscriber = { version = "0.3", default-features = false }
 
-# --- SGX-PATCHED DEPENDENCIES --- #
-# Use this section to declare dependencies which we have patched, and for which
-# we thus expect to maintain our patch indefinitely.
+# --- PATCHED DEPENDENCIES --- #
+# Use this section to declare patched dependencies.
 # - See the following [patch.crates-io] section for patch declarations.
-# - The version specified should be the exact version compatible with our patch.
-# - Transitive dependencies (mio, ring, etc) which are not depended on directly
-#   by Lexe crates should also be declared here; the pinned version will be
-#   propagated to Lexe crates via workspace-level dependency resolution.
+# - The version should use `=` to pin the exact version our patch applies to.
+#   `=` ensures `cargo update` doesn't accidentally update the dependency,
+#   leading to it becoming incompatible with our patch.
 
 # A client for the Intel AESM service. Used during attestation to get quoted.
 aesm-client = { version = "=0.5.4", default-features = false, features = ["sgxs"] }
@@ -136,6 +123,11 @@ dcap-ql = { version = "=0.3.4", default-features = false }
 enclave-runner = { version = "=0.5.1", default-features = false }
 # Hyper-related utilities
 hyper-util = { version = "=0.1.3", default-features = false }
+# LDK (rust-lightning) libraries
+lightning = { version = "=0.0.116", features = ["max_level_trace"] }
+lightning-invoice = { version = "=0.24" }
+lightning-net-tokio = { version = "=0.0.116" }
+lightning-transaction-sync = { version = "=0.0.116", features = ["esplora-async"] }
 # Required by tokio
 mio = "=0.8.4"
 # Safe and small crypto primitives based on BoringSSL
@@ -150,43 +142,57 @@ tokio = { version = "=1.21.2", default-features = false }
 warp = { version = "=0.3.4", default-features = false }
 
 [patch.crates-io]
-# NOTE: Make sure to duplicate any changes to the `server`'s root Cargo.toml,
-# otherwise the `server`'s dependency versions won't match.
+# NOTE: Make sure to duplicate any changes to the root Cargo.toml.
+
+# Fortanix EDP (rust-sgx) crates:
+# * Add async-usercalls
+# * Allow users to redirect enclave standard input/output
+# * update tokio from 0.2 to 1.15.0
+# * usecall-extension examples need more unique name to silence warns
+# * enclave-runner: just depend on tokio "1" vs. pinning exact version
+# * Support building just ftxsgx-elf2sgxs on non-x86 platforms
 aesm-client = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
-hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", branch = "lexe-v0.14.28-2024_03_08" }
-mio = { git = "https://github.com/lexe-app/mio", branch = "mio-sgx-0.8.4" }
-reqwest = { git = "https://github.com/lexe-app/reqwest", branch = "lexe" }
-ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.16.20-2023_09_26" }
 sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 sgxs = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
-tokio = { git = "https://github.com/lexe-app/tokio", branch = "lexe-1.21.2-2023_09_20" }
-# This warp fork:
-# * b807792 - trace: extract `Response<Body>` directly to reduce friction
-# * 2cbad40 - trace: tweak warp request `tracing` to include request time directly
-# * f8c13d9 - add HTTP on-upgrade filter
-# * dc560ed - Allow users to provide a preconfigured TLS configuration
-warp = { git = "https://github.com/lexe-app/warp", branch = "lexe-2023_06_29" }
-# warp = { path = "../../../forks/warp" }
 
-# This BDK fork:
-# 1) Derives PartialEq, Eq for SyncTime, used in tests
-# 2) Makes bdk::Wallet and EsploraBlockchain thread-safe* (finally Send!) under
-#    the condition that bdk::Wallet is wrapped in a Mutex of some sort.
-#    *See the commit messages in the patch for details.
-# 3) Reintroduces the Send bound in bdk-macros' `async_trait`s, required for (2)
-# 4) Reduces `CACHE_ADDR_BATCH_SIZE` from 100 to 1.
+# * Replace RefCell with tokio::sync::RwLock 
+# * Wallet and EsploraBlockchain are thread-safe*+
+# * Reduce CACHE_ADDR_BATCH_SIZE from 100 -> 1
+# * chore: Update esplora-client 0.3->0.4
 bdk = { git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.27.1-2023_07_07" }
 bdk-macros = { git = "https://github.com/lexe-app/bdk", branch = "lexe-v0.27.1-2023_07_07" }
 # bdk = { path = "../../bdk", default-features = false, features = ["async-interface", "use-esplora-async"] }
 # bdk-macros = { path = "../../bdk/macros" }
 
-# Commit 370e798 fixes an issue where socket2 was enabled if the tokio feature
-# was enabled. TODO(max): Remove this patch once hyper-util 0.1.4 is released
+# * fix: enable socket2 only for client-legacy
+# TODO(max): Remove this patch once hyper-util 0.1.4 is released
 hyper-util = { git = "https://github.com/hyperium/hyper-util", rev = "370e798e4664313776810bdbb891390aeb204d5a" }
+
+# * support sgx: Remove socket2 dependency. Just use tokio APIs directly. 
+# TODO(max): Remove this patch once everything updates to hyper 1.0
+hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", branch = "lexe-v0.14.28-2024_03_08" }
+
+# * sgx: update SGX port
+mio = { git = "https://github.com/lexe-app/mio", branch = "mio-sgx-0.8.4" }
+
+# * proxy: expose ProxyScheme and IntoProxyScheme. add set_http_auth.
+# * lib: Fail compilation if using insecure TLS roots
+reqwest = { git = "https://github.com/lexe-app/reqwest", branch = "lexe" }
+
+# * rand: Use RDRAND for SystemRandom on Intel SGX targets
+# * cpu: use static cpuid feature set in SGX enclaves
+# * build: Always build from source
+# * build: exclude SGX from stack-protector 
+ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.16.20-2023_09_26" }
+
+# * sgx: update tokio SGX port from 1.15.0 to 1.21.2
+# * features: remove fs compile error, since warp requires it. 
+# * rename: lexe-tech -> lexe-app
+tokio = { git = "https://github.com/lexe-app/tokio", branch = "lexe-1.21.2-2023_09_20" }
 
 # miniscript v0.9.1 nightly compiler backport fix
 #
@@ -200,17 +206,21 @@ hyper-util = { git = "https://github.com/hyperium/hyper-util", rev = "370e798e46
 # `bitcoin` crate version).
 miniscript = { git = "https://github.com/lexe-app/rust-miniscript", branch = "lexe-v0.9.1-infinite-recursion-fix" }
 
-# We maintain a patch which propagates tracing spans across `tokio::spawn`s.
+# * lightning-net-tokio: Propagate tracing spans
 lightning = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
 lightning-invoice = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
 lightning-net-tokio = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
 lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning", branch = "lexe-v0.0.116-2023_08_02" }
-
-# For debugging LDK or testing patches during local development
 # lightning = { path = "../../ldk/lightning" }
 # lightning-invoice = { path = "../../ldk/lightning-invoice" }
 # lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }
 # lightning-transaction-sync = { path = "../../ldk/lightning-transaction-sync" }
+
+# * b807792 - trace: extract `Response<Body>` directly to reduce friction
+# * 2cbad40 - trace: tweak warp request `tracing` to include request time directly
+# * f8c13d9 - add HTTP on-upgrade filter
+# * dc560ed - Allow users to provide a preconfigured TLS configuration
+warp = { git = "https://github.com/lexe-app/warp", branch = "lexe-2023_06_29" }
 
 [profile.release]
 # Enable "thin" LTO (link-time optimization) for better perf+binary size. "fat"
