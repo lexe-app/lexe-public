@@ -154,7 +154,6 @@ warp = { version = "=0.3.4", default-features = false }
 # otherwise the `server`'s dependency versions won't match.
 aesm-client = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
-atty = { git = "https://github.com/softprops/atty", rev = "6633c0e1446aa19e6cd00e00e39770da43081bda" }
 dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", branch = "lexe-v0.14.28-2024_03_08" }
