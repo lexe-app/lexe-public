@@ -158,8 +158,6 @@ dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09
 enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", branch = "lexe-v0.14.28-2024_03_08" }
 mio = { git = "https://github.com/lexe-app/mio", branch = "mio-sgx-0.8.4" }
-# Remove this `proptest-derive` patch when `v0.4` gets published to crates.io
-proptest-derive = { git = "https://github.com/proptest-rs/proptest", ref = "dcb181c5fe0bc2e1afced79670d35e05f8c7ca21" }
 reqwest = { git = "https://github.com/lexe-app/reqwest", branch = "lexe" }
 ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.16.20-2023_09_26" }
 sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
