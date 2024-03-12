@@ -21,7 +21,7 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-CARGO_NDK_VERSION="3.0.1"
+CARGO_NDK_VERSION="3.4.0"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TARGET="aarch64-linux-android"
 
