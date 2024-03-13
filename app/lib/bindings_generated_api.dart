@@ -184,6 +184,11 @@ abstract class AppRs {
   FlutterRustBridgeTaskConstMeta
       get kGetNumFinalizedPaymentsMethodAppHandleConstMeta;
 
+  Future<void> updatePaymentNoteMethodAppHandle(
+      {required AppHandle that, required UpdatePaymentNote req, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kUpdatePaymentNoteMethodAppHandleConstMeta;
+
   DropFnType get dropOpaqueApp;
   ShareFnType get shareOpaqueApp;
   OpaqueTypeFinalizer get AppFinalizer;
@@ -317,6 +322,13 @@ class AppHandle {
   int getNumFinalizedPayments({dynamic hint}) =>
       bridge.getNumFinalizedPaymentsMethodAppHandle(
         that: this,
+      );
+
+  Future<void> updatePaymentNote(
+          {required UpdatePaymentNote req, dynamic hint}) =>
+      bridge.updatePaymentNoteMethodAppHandle(
+        that: this,
+        req: req,
       );
 }
 
@@ -502,4 +514,14 @@ class U8Array32 extends NonGrowableListView<int> {
         super(inner);
   U8Array32.unchecked(Uint8List inner) : super(inner);
   U8Array32.init() : super(Uint8List(arraySize));
+}
+
+class UpdatePaymentNote {
+  final String index;
+  final String? note;
+
+  const UpdatePaymentNote({
+    required this.index,
+    this.note,
+  });
 }

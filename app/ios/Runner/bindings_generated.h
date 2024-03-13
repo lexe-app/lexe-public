@@ -57,6 +57,11 @@ typedef struct wire_EstimateFeeSendOnchainRequest {
   uint64_t amount_sats;
 } wire_EstimateFeeSendOnchainRequest;
 
+typedef struct wire_UpdatePaymentNote {
+  struct wire_uint_8_list *index;
+  struct wire_uint_8_list *note;
+} wire_UpdatePaymentNote;
+
 void store_dart_post_cobject(DartPostCObjectFnType ptr);
 
 Dart_Handle get_dart_object(uintptr_t ptr);
@@ -131,6 +136,10 @@ WireSyncReturn wire_get_num_pending_payments__method__AppHandle(struct wire_AppH
 
 WireSyncReturn wire_get_num_finalized_payments__method__AppHandle(struct wire_AppHandle *that);
 
+void wire_update_payment_note__method__AppHandle(int64_t port_,
+                                                 struct wire_AppHandle *that,
+                                                 struct wire_UpdatePaymentNote *req);
+
 struct wire_App new_App(void);
 
 struct wire_AppHandle *new_box_autoadd_app_handle_0(void);
@@ -140,6 +149,8 @@ struct wire_Config *new_box_autoadd_config_0(void);
 struct wire_EstimateFeeSendOnchainRequest *new_box_autoadd_estimate_fee_send_onchain_request_0(void);
 
 struct wire_SendOnchainRequest *new_box_autoadd_send_onchain_request_0(void);
+
+struct wire_UpdatePaymentNote *new_box_autoadd_update_payment_note_0(void);
 
 struct wire_uint_8_list *new_uint_8_list_0(int32_t len);
 
@@ -176,11 +187,13 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_get_num_payments__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_num_pending_payments__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_num_finalized_payments__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_update_payment_note__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) new_App);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_app_handle_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_config_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_estimate_fee_send_onchain_request_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_send_onchain_request_0);
+    dummy_var ^= ((int64_t) (void*) new_box_autoadd_update_payment_note_0);
     dummy_var ^= ((int64_t) (void*) new_uint_8_list_0);
     dummy_var ^= ((int64_t) (void*) drop_opaque_App);
     dummy_var ^= ((int64_t) (void*) share_opaque_App);
