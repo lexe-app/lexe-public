@@ -24,7 +24,7 @@ pub struct SharedSeedServerCert(rcgen::Certificate);
 
 impl SharedSeedCaCert {
     /// The Common Name (CN) component of this cert's Distinguished Name (DN).
-    const COMMON_NAME: &str = "Lexe shared seed CA cert";
+    const COMMON_NAME: &'static str = "Lexe shared seed CA cert";
 
     /// Deterministically derive the shared seed CA cert from the [`RootSeed`].
     pub fn from_root_seed(root_seed: &RootSeed) -> Self {
@@ -57,7 +57,7 @@ impl SharedSeedCaCert {
 
 impl SharedSeedClientCert {
     /// The Common Name (CN) component of this cert's Distinguished Name (DN).
-    const COMMON_NAME: &str = "Lexe shared seed client cert";
+    const COMMON_NAME: &'static str = "Lexe shared seed client cert";
 
     /// Generate an ephemeral client cert with a randomly-sampled keypair.
     pub fn generate_from_rng(rng: &mut impl Crng) -> Self {
@@ -103,7 +103,7 @@ impl SharedSeedClientCert {
 
 impl SharedSeedServerCert {
     /// The Common Name (CN) component of this cert's Distinguished Name (DN).
-    const COMMON_NAME: &str = "Lexe shared seed server cert";
+    const COMMON_NAME: &'static str = "Lexe shared seed server cert";
 
     /// Generate an ephemeral server cert with a randomly-sampled keypair.
     pub fn from_rng(rng: &mut impl Crng, dns_name: String) -> Self {

@@ -336,7 +336,7 @@ impl GDriveClient {
             // channel with the new access_token and expires_at timestamp.
             if updated {
                 self.credentials_tx.send_modify(|c| {
-                    c.access_token = locked_credentials.access_token.clone();
+                    c.access_token.clone_from(&locked_credentials.access_token);
                     c.expires_at = locked_credentials.expires_at;
                 });
             }

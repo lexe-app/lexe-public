@@ -19,17 +19,10 @@ pub(crate) mod client;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod mock;
 
-/// A trait for a client that implements both backend API traits, plus some
-/// methods which allow the caller to specify the number of retries.
+/// A trait for a client that implements both backend API traits, plus a
+/// method which allows the caller to specify the number of retries.
 #[async_trait]
 pub trait BackendApiClient: NodeBackendApi + BearerAuthBackendApi {
-    async fn create_file_with_retries(
-        &self,
-        file: &VfsFile,
-        auth: BearerAuthToken,
-        retries: usize,
-    ) -> Result<Empty, BackendApiError>;
-
     async fn upsert_file_with_retries(
         &self,
         file: &VfsFile,

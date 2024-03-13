@@ -143,7 +143,7 @@ impl ApprovedVersions {
         // If the current version is not contained in the list at this point,
         // it was added and immediately removed; it is too old to be approved.
         ensure!(
-            self.approved.get(&cur_version).is_some(),
+            self.approved.contains_key(&cur_version),
             "Current version {cur_version} is too old to be approved"
         );
 

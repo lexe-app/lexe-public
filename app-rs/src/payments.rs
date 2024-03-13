@@ -25,7 +25,7 @@
 //! [`BasicPayment`]: common::ln::payments::BasicPayment
 //! [`PaymentDb`]: crate::payments::PaymentDb
 
-use std::{io, str::FromStr, string::ToString, sync::Mutex};
+use std::{io, str::FromStr, sync::Mutex};
 
 use anyhow::{format_err, Context};
 use common::{
@@ -683,11 +683,7 @@ mod test {
             qs::UpdatePaymentNote,
             Empty,
         },
-        ln::{
-            hashes::LxTxid,
-            invoice::LxInvoice,
-            payments::{BasicPayment, PaymentStatus},
-        },
+        ln::{hashes::LxTxid, invoice::LxInvoice, payments::PaymentStatus},
         rng::{shuffle, RngCore, WeakRng},
     };
     use proptest::{
@@ -887,12 +883,11 @@ mod test {
                     break;
                 }
 
-                match cursor.value() {
-                    Some(payment) => out.push(payment.clone()),
+                match cursor.next() {
+                    Some((_index, payment)) => out.push(payment.clone()),
                     None => break,
                 }
 
-                cursor.move_next();
                 limit -= 1;
             }
             Ok(out)

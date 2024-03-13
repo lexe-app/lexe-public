@@ -71,7 +71,9 @@ pub fn app_node_run_server_config(
         .with_client_cert_verifier(client_cert_verifier)
         .with_single_cert(vec![server_cert_der], server_cert_key_der)
         .context("Failed to build rustls::ServerConfig")?;
-    config.alpn_protocols = super::LEXE_ALPN_PROTOCOLS.clone();
+    config
+        .alpn_protocols
+        .clone_from(&super::LEXE_ALPN_PROTOCOLS);
 
     Ok(config)
 }
@@ -118,7 +120,9 @@ pub fn app_node_run_client_config(
         // present depending on whether the end entity is the proxy or the node.
         .with_client_auth_cert(vec![client_cert_der], client_cert_key_der)
         .context("Failed to build rustls::ClientConfig")?;
-    config.alpn_protocols = super::LEXE_ALPN_PROTOCOLS.clone();
+    config
+        .alpn_protocols
+        .clone_from(&super::LEXE_ALPN_PROTOCOLS);
 
     Ok(config)
 }
@@ -211,11 +215,8 @@ impl ServerCertVerifier for AppNodeRunVerifier {
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
     use secrecy::Secret;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
-    use tokio_rustls::rustls;
 
     use super::*;
     use crate::rng::WeakRng;

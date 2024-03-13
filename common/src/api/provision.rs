@@ -292,7 +292,6 @@ mod test_impls {
 #[cfg(test)]
 mod test {
     use proptest::{arbitrary::any, proptest};
-    use secrecy::ExposeSecret;
 
     use super::*;
     use crate::{rng::WeakRng, test_utils::roundtrip};

@@ -1,5 +1,5 @@
 use std::{
-    cmp::{Ord, Ordering, PartialOrd},
+    cmp::Ordering,
     collections::BTreeMap,
     fmt::{self, Display},
     mem,
@@ -141,14 +141,7 @@ enum DbOp {
 // External = 0, Internal = 1; External < Internal
 impl PartialOrd for Path {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        use KeychainKind::{External, Internal};
-        match (self.keychain, other.keychain) {
-            (External, Internal) => Some(Ordering::Less),
-            (Internal, External) => Some(Ordering::Greater),
-            // When keychain is equal, compare the child index
-            (External, External) | (Internal, Internal) =>
-                self.child.partial_cmp(&other.child),
-        }
+        Some(self.cmp(other))
     }
 }
 

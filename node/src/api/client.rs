@@ -91,18 +91,6 @@ impl BackendClient {
 
 #[async_trait]
 impl BackendApiClient for BackendClient {
-    async fn create_file_with_retries(
-        &self,
-        data: &VfsFile,
-        auth: BearerAuthToken,
-        retries: usize,
-    ) -> Result<Empty, BackendApiError> {
-        let backend = &self.backend_url;
-        let url = format!("{backend}/node/v1/file");
-        let req = self.rest.post(url, data).bearer_auth(&auth);
-        self.rest.send_with_retries(req, retries, &[]).await
-    }
-
     async fn upsert_file_with_retries(
         &self,
         data: &VfsFile,

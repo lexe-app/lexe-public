@@ -1,6 +1,5 @@
 use std::{
     cmp::Ordering,
-    convert::TryFrom,
     fmt::{self, Display},
     ops::Deref,
     str::FromStr,

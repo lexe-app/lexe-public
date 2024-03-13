@@ -576,7 +576,7 @@ fn report_try_from_truncated(bytes: &[u8]) -> anyhow::Result<sgx_isa::Report> {
 }
 
 /// A small struct for pretty-printing a [`sgx_isa::Report`].
-struct ReportDebug<'a>(&'a sgx_isa::Report);
+pub struct ReportDebug<'a>(&'a sgx_isa::Report);
 
 impl<'a> fmt::Debug for ReportDebug<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -604,10 +604,7 @@ fn rustls_err(s: impl fmt::Display) -> rustls::Error {
 mod test {
     use std::{include_str, iter};
 
-    use rustls::client::ServerCertVerifier;
-
     use super::*;
-    use crate::hex;
 
     const MRENCLAVE_HEX: &str =
         include_str!("../../../test_data/mrenclave.hex");

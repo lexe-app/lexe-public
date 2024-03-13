@@ -37,7 +37,7 @@ pub struct SgxAttestationExtension<'a, 'b> {
 
 impl AttestationCert {
     /// The Common Name (CN) component of this cert's Distinguished Name (DN).
-    const COMMON_NAME: &str = "Lexe remote attestation cert";
+    const COMMON_NAME: &'static str = "Lexe remote attestation cert";
 
     /// Sample a fresh cert keypair, gather remote attestation evidence, and
     /// embed these in an ephemeral TLS cert which has the remote attestation
