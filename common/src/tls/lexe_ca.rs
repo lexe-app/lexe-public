@@ -52,7 +52,7 @@ pub fn lexe_client_verifier(
     let mut roots = RootCertStore::empty();
     roots.add(&lexe_ca_cert).expect("Checked in tests");
 
-    AllowAnyAuthenticatedClient::new(roots)
+    Arc::new(AllowAnyAuthenticatedClient::new(roots))
 }
 
 /// Get a dummy Lexe CA cert along with its corresponding private key.

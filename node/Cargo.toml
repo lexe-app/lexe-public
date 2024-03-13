@@ -74,7 +74,6 @@ tokio = { workspace = true, features = [
     "sync",
     "time"
 ] }
-tokio-rustls.workspace = true
 tracing.workspace = true
 warp = { workspace = true, features = ["tls"] }
 

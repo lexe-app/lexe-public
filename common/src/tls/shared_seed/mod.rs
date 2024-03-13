@@ -65,7 +65,7 @@ pub fn app_node_run_server_config(
         .add(&ca_cert_der)
         .context("rustls failed to deserialize CA cert DER bytes")?;
     let client_cert_verifier =
-        rustls::server::AllowAnyAuthenticatedClient::new(roots);
+        Arc::new(rustls::server::AllowAnyAuthenticatedClient::new(roots));
 
     let mut config = super::lexe_default_server_config()
         .with_client_cert_verifier(client_cert_verifier)
@@ -116,7 +116,7 @@ pub fn app_node_run_client_config(
         // A custom client cert resolver is only needed if the proxy *also*
         // requires client auth, meaning we'd need to choose the correct cert to
         // present depending on whether the end entity is the proxy or the node.
-        .with_single_cert(vec![client_cert_der], client_cert_key_der)
+        .with_client_auth_cert(vec![client_cert_der], client_cert_key_der)
         .context("Failed to build rustls::ClientConfig")?;
     config.alpn_protocols = super::LEXE_ALPN_PROTOCOLS.clone();
 

@@ -15,7 +15,7 @@ use std::{
 use anyhow::Context;
 use async_trait::async_trait;
 use bitcoin::Address;
-use reqwest::{IntoProxyScheme, Url};
+use reqwest::Url;
 use warp::http;
 
 use crate::{
@@ -274,6 +274,8 @@ impl NodeClient {
         node_url: &str,
         authenticator: Arc<BearerAuthenticator>,
     ) -> anyhow::Result<reqwest::Proxy> {
+        use reqwest::IntoProxyScheme;
+
         let node_url = Url::parse(node_url).context("Invalid node url")?;
 
         let proxy_scheme_no_auth = gateway_url
@@ -308,7 +310,7 @@ impl NodeClient {
                 .unwrap();
 
                 let mut proxy_scheme = proxy_scheme_no_auth.clone();
-                proxy_scheme.set_http_auth(auth_header);
+                proxy_scheme.set_custom_http_auth(auth_header);
 
                 Some(proxy_scheme)
             } else {
