@@ -42,6 +42,19 @@ String formatSatsAmount(
   return "$sign$amountStr$suffix";
 }
 
+/// Format a fiat currency amount.
+String formatFiat(
+  double amountFiat,
+  String fiatName, {
+  String? locale,
+}) {
+  final NumberFormat currencyFormatter = NumberFormat.simpleCurrency(
+    name: fiatName,
+    locale: locale,
+  );
+  return currencyFormatter.format(amountFiat);
+}
+
 /// Format a fiat currency amount, but return the whole and fractional values
 /// separately.
 ///
