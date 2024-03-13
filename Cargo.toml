@@ -78,13 +78,11 @@ rand = { version = "0.8", default-features = false }
 rand_core = { version = "0.6", default-features = false, features = ["alloc"] }
 # Easily generate x509 certs with ring
 rcgen = { version = "0.10", default-features = false, features = ["zeroize"] }
-# High-level HTTP client
-reqwest = { version = "0.11", default-features = false }
 # Decimal number representation suitable for financial calculations
 rust_decimal = { version = "1", default-features = false, features = ["serde"] }
 rust_decimal_macros = { version = "1", default-features = false }
 # TLS library
-rustls = { version = "0.20", default-features = false }
+rustls = { version = "0.21", default-features = false }
 # A wrapper type for carefully handling secrets
 secrecy = "0.8"
 # SemVer version newtype for parsing and precedence
@@ -99,8 +97,6 @@ tempfile = "3"
 thiserror = "1"
 # Datetime library used by rcgen. Should match rcgen's `time` version
 time = "0.3"
-# Lower-level async TLS interface
-tokio-rustls = { version = "0.23", default-features = false }
 # serde-compatible TOML-parsing library
 toml = "0.7"
 # Scoped, structured logging for asynchronous systems
@@ -130,6 +126,8 @@ lightning-net-tokio = { version = "=0.0.116" }
 lightning-transaction-sync = { version = "=0.0.116", features = ["esplora-async"] }
 # Required by tokio
 mio = "=0.8.4"
+# High-level HTTP client
+reqwest = { version = "=0.11.26", default-features = false }
 # Safe and small crypto primitives based on BoringSSL
 ring = "=0.16.20"
 # Core SGX types and platform intrinsics (for sealing, reports, etc...)
@@ -139,7 +137,7 @@ sgxs-loaders = "=0.3.3"
 # Asynchronous runtime
 tokio = { version = "=1.21.2", default-features = false }
 # Filter-based webserver
-warp = { version = "=0.3.4", default-features = false }
+warp = { version = "=0.3.6", default-features = false }
 
 [patch.crates-io]
 # NOTE: Make sure to duplicate any changes to the root Cargo.toml.
@@ -179,9 +177,9 @@ hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", bran
 # * sgx: update SGX port
 mio = { git = "https://github.com/lexe-app/mio", branch = "mio-sgx-0.8.4" }
 
-# * proxy: expose ProxyScheme and IntoProxyScheme. add set_http_auth.
+# * proxy: Expose `ProxyScheme`, `set_custom_http_auth`
 # * lib: Fail compilation if using insecure TLS roots
-reqwest = { git = "https://github.com/lexe-app/reqwest", branch = "lexe" }
+reqwest = { git = "https://github.com/lexe-app/reqwest", branch = "lexe-v0.11.26-2024_03_12" }
 
 # * rand: Use RDRAND for SystemRandom on Intel SGX targets
 # * cpu: use static cpuid feature set in SGX enclaves
@@ -216,11 +214,12 @@ lightning-transaction-sync = { git = "https://github.com/lexe-app/rust-lightning
 # lightning-net-tokio = { path = "../../ldk/lightning-net-tokio" }
 # lightning-transaction-sync = { path = "../../ldk/lightning-transaction-sync" }
 
-# * b807792 - trace: extract `Response<Body>` directly to reduce friction
-# * 2cbad40 - trace: tweak warp request `tracing` to include request time directly
-# * f8c13d9 - add HTTP on-upgrade filter
-# * dc560ed - Allow users to provide a preconfigured TLS configuration
-warp = { git = "https://github.com/lexe-app/warp", branch = "lexe-2023_06_29" }
+# * Allow users to provide a preconfigured TLS configuration
+# * add HTTP on-upgrade filter
+# * trace: tweak warp request `tracing` to include request time directly
+# * trace: extract `Response<Body>` directly to reduce friction
+# * trace: Tweak tracing log messages
+warp = { git = "https://github.com/lexe-app/warp", branch = "lexe-v0.3.6-2023_03_12" }
 
 [profile.release]
 # Enable "thin" LTO (link-time optimization) for better perf+binary size. "fat"

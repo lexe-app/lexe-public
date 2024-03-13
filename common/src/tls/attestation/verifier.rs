@@ -1,8 +1,13 @@
 //! Verify remote attestation endorsements directly or embedded in x509 certs.
 
-use std::{fmt, include_bytes, io::Cursor, sync::LazyLock, time::SystemTime};
+use std::{
+    fmt, include_bytes,
+    io::Cursor,
+    sync::{Arc, LazyLock},
+    time::SystemTime,
+};
 
-use anyhow::{bail, ensure, format_err, Context, Result};
+use anyhow::{bail, ensure, format_err, Context};
 use asn1_rs::FromDer;
 use dcap_ql::quote::{
     Qe3CertDataPckCertChain, Quote, Quote3SignatureEcdsaP256,
@@ -158,38 +163,47 @@ struct AttestEvidence<'a> {
 
 impl<'a> AttestEvidence<'a> {
     fn parse_cert_der(cert_der: &'a [u8]) -> Result<Self, rustls::Error> {
-        use rustls::Error;
+        use std::io;
+
+        /// Shorthand to construct a [`rustls::Error::InvalidCertificate`]
+        /// from a [`std::error::Error`] impl.
+        fn invalid_cert_error(
+            error: impl std::error::Error + Send + Sync + 'static,
+        ) -> rustls::Error {
+            let cert_error = rustls::CertificateError::Other(Arc::new(error));
+            rustls::Error::InvalidCertificate(cert_error)
+        }
 
         // TODO(phlip9): manually parse the cert fields we care about w/ yasna
         // instead of pulling in a whole extra x509 cert parser...
 
-        let (unparsed_data, cert) = X509Certificate::from_der(cert_der)
-            .map_err(|err| Error::InvalidCertificateData(err.to_string()))?;
+        let (unparsed_data, cert) =
+            X509Certificate::from_der(cert_der).map_err(invalid_cert_error)?;
 
         if !unparsed_data.is_empty() {
-            return Err(Error::InvalidCertificateData(
-                "leftover unparsed cert data".to_string(),
-            ));
+            // Need to construct something that impls `std::error::Error`
+            // Apparently `anyhow::Error` doesn't implement `std::error::Error`?
+            let msg = "leftover unparsed cert data";
+            let io_error = io::Error::new(io::ErrorKind::Other, msg);
+            return Err(invalid_cert_error(io_error));
         }
 
         let cert_pk = ed25519::PublicKey::try_from(cert.public_key())
-            .map_err(|err| Error::InvalidCertificateData(err.to_string()))?;
+            .map_err(invalid_cert_error)?;
 
         let sgx_ext_oid = SgxAttestationExtension::oid_asn1_rs();
         let cert_ext = cert
             .get_extension_unique(&sgx_ext_oid)
-            .map_err(|err| Error::InvalidCertificateData(err.to_string()))?
+            .map_err(invalid_cert_error)?
             .ok_or_else(|| {
-                Error::InvalidCertificateData(
-                    "no SGX attestation extension".to_string(),
-                )
+                let msg = "no SGX attestation extension";
+                invalid_cert_error(io::Error::new(io::ErrorKind::Other, msg))
             })?;
 
         let attest = SgxAttestationExtension::from_der_bytes(cert_ext.value)
-            .map_err(|err| {
-                Error::InvalidCertificateData(format!(
-                    "invalid SGX attestation: {err}"
-                ))
+            .map_err(|e| {
+                let msg = format!("invalid SGX attestation: {e:#}");
+                invalid_cert_error(io::Error::new(io::ErrorKind::Other, msg))
             })?;
 
         Ok(Self { cert_pk, attest })
@@ -209,7 +223,7 @@ impl SgxQuoteVerifier {
         &self,
         quote_bytes: &[u8],
         now: SystemTime,
-    ) -> Result<sgx_isa::Report> {
+    ) -> anyhow::Result<sgx_isa::Report> {
         let quote = Quote::parse(quote_bytes)
             .map_err(DisplayErr::new)
             .context("Failed to parse SGX Quote")?;
@@ -355,7 +369,7 @@ impl std::error::Error for DisplayErr {
     }
 }
 
-fn parse_cert_pem_to_der(s: &str) -> Result<Vec<u8>> {
+fn parse_cert_pem_to_der(s: &str) -> anyhow::Result<Vec<u8>> {
     let mut cursor = Cursor::new(s.as_bytes());
 
     let item = rustls_pemfile::read_one(&mut cursor)
@@ -465,7 +479,7 @@ impl EnclavePolicy {
     pub fn verify<'a>(
         &self,
         report: &'a sgx_isa::Report,
-    ) -> Result<&'a [u8; 64]> {
+    ) -> anyhow::Result<&'a [u8; 64]> {
         if !self.allow_debug {
             let is_debug = report
                 .attributes
@@ -505,7 +519,7 @@ impl EnclavePolicy {
 ///     s INTEGER
 /// }
 /// ```
-fn get_ecdsa_sig_der(sig: &[u8]) -> Result<Vec<u8>> {
+fn get_ecdsa_sig_der(sig: &[u8]) -> anyhow::Result<Vec<u8>> {
     if sig.len() % 2 != 0 {
         bail!("sig not even: {}", sig.len());
     }
@@ -527,7 +541,7 @@ fn get_ecdsa_sig_der(sig: &[u8]) -> Result<Vec<u8>> {
 
 fn read_attestation_pk(
     bytes: &[u8],
-) -> Result<ring::signature::UnparsedPublicKey<[u8; 65]>> {
+) -> anyhow::Result<ring::signature::UnparsedPublicKey<[u8; 65]>> {
     ensure!(bytes.len() == 64, "Attestation public key is in an unrecognized format; expected exactly 64 bytes, actual len: {}", bytes.len());
 
     let mut attestation_public_key = [0u8; 65];
@@ -545,7 +559,7 @@ fn read_attestation_pk(
 /// expected [`Report`] size, then deserializes it.
 ///
 /// [`Report`]: sgx_isa::Report
-fn report_try_from_truncated(bytes: &[u8]) -> Result<sgx_isa::Report> {
+fn report_try_from_truncated(bytes: &[u8]) -> anyhow::Result<sgx_isa::Report> {
     use sgx_isa::Report;
 
     let len = bytes.len();
