@@ -6,6 +6,7 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show Intl;
+import 'package:rxdart_ext/rxdart_ext.dart';
 
 import 'bindings.dart' show api;
 import 'bindings_generated_api.dart'
@@ -50,6 +51,7 @@ import 'route/send.dart'
 import 'route/show_qr.dart' show ShowQrPage;
 import 'route/signup.dart' show SignupApi, SignupBackupPasswordPage, SignupPage;
 import 'route/wallet.dart' show WalletPage;
+import 'stream_ext.dart';
 import 'style.dart' show Fonts, LxColors, LxTheme, Space;
 
 Future<void> main() async {
@@ -76,15 +78,44 @@ Future<void> main() async {
       themeMode: ThemeMode.light,
       theme: LxTheme.light(),
       debugShowCheckedModeBanner: false,
-      home: LexeDesignHome(config: config),
+      home: LexeDesignPage(config: config),
     ),
   );
 }
 
-class LexeDesignHome extends StatelessWidget {
-  const LexeDesignHome({super.key, required this.config});
+class LexeDesignPage extends StatefulWidget {
+  const LexeDesignPage({super.key, required this.config});
 
   final Config config;
+
+  @override
+  State<LexeDesignPage> createState() => _LexeDesignPageState();
+}
+
+class _LexeDesignPageState extends State<LexeDesignPage> {
+  // When this stream ticks, all the payments' createdAt label should update.
+  // This stream ticks every 30 seconds.
+  final StateSubject<DateTime> paymentDateUpdates =
+      StateSubject(DateTime.now());
+  Timer? paymentDateUpdatesTimer;
+
+  @override
+  void dispose() {
+    this.paymentDateUpdatesTimer?.cancel();
+    this.paymentDateUpdates.close();
+
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    this.paymentDateUpdatesTimer =
+        Timer.periodic(const Duration(seconds: 30), (timer) {
+      this.paymentDateUpdates.addIfNotClosed(DateTime.now());
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,17 +145,17 @@ class LexeDesignHome extends StatelessWidget {
           Component(
               "LandingPage",
               (_) => LandingPage(
-                    config: config,
+                    config: widget.config,
                     gdriveAuth: mockGDriveAuth,
                     signupApi: mockSignupApi,
                   )),
           Component("BackupWalletPage",
-              (_) => BackupWalletPage(config: config, app: mockApp)),
+              (_) => BackupWalletPage(config: widget.config, app: mockApp)),
           Component(
               "WalletPage",
               (_) => WalletPage(
                     app: mockApp,
-                    config: config,
+                    config: widget.config,
                   )),
           Component("ScanPage", (_) => const ScanPage()),
           Component(
@@ -154,7 +185,7 @@ class LexeDesignHome extends StatelessWidget {
             (context) => SendPaymentPage(
               sendCtx: SendContext(
                 app: mockApp,
-                configNetwork: config.network,
+                configNetwork: widget.config.network,
                 balanceSats: 123456,
                 cid: cid,
               ),
@@ -165,7 +196,7 @@ class LexeDesignHome extends StatelessWidget {
             (context) => SendPaymentAmountPage(
               sendCtx: SendContext(
                 app: mockApp,
-                configNetwork: config.network,
+                configNetwork: widget.config.network,
                 balanceSats: 73450,
                 cid: cid,
               ),
@@ -178,7 +209,7 @@ class LexeDesignHome extends StatelessWidget {
             (context) => SendPaymentConfirmPage(
               sendCtx: SendContext(
                 app: mockApp,
-                configNetwork: config.network,
+                configNetwork: widget.config.network,
                 balanceSats: 73450,
                 cid: cid,
               ),
@@ -193,7 +224,7 @@ class LexeDesignHome extends StatelessWidget {
             (context) => SendPaymentConfirmPage(
               sendCtx: SendContext(
                 app: mockApp,
-                configNetwork: config.network,
+                configNetwork: widget.config.network,
                 balanceSats: 73450,
                 cid: cid,
               ),
@@ -205,7 +236,7 @@ class LexeDesignHome extends StatelessWidget {
           Component(
             "SignupPage",
             (context) => SignupPage(
-              config: config,
+              config: widget.config,
               gdriveAuth: mockGDriveAuth,
               signupApi: mockSignupApi,
             ),
@@ -213,7 +244,7 @@ class LexeDesignHome extends StatelessWidget {
           Component(
             "SignupBackupPasswordPage",
             (context) => SignupBackupPasswordPage(
-              config: config,
+              config: widget.config,
               authInfo: const GDriveAuthInfo(authCode: "fake"),
               signupApi: mockSignupApi,
             ),
@@ -221,20 +252,112 @@ class LexeDesignHome extends StatelessWidget {
           Component(
             "PaymentDetailPage",
             subtitle: "btc pending outbound",
-            (context) => const PaymentDetailPageInner(
-                payment: Payment(
-              index:
-                  "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
-              kind: PaymentKind.Onchain,
-              direction: PaymentDirection.Outbound,
-              invoice: null,
-              amountSat: 77000,
-              feesSat: 3349,
-              status: PaymentStatus.Pending,
-              statusStr: "broadcasted",
-              note: "Brunch w/ friends",
-              createdAt: 1687385080000,
-            )),
+            (context) => PaymentDetailPageInner(
+              payment: Payment(
+                index:
+                    "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+                kind: PaymentKind.Onchain,
+                direction: PaymentDirection.Outbound,
+                invoice: null,
+                amountSat: 77000,
+                feesSat: 3349,
+                status: PaymentStatus.Pending,
+                statusStr: "partially confirmed (1-5 confirmations)",
+                note: "Brunch w/ friends",
+                createdAt: DateTime.now()
+                    .subtract(const Duration(minutes: 3))
+                    .millisecondsSinceEpoch,
+              ),
+              paymentDateUpdates: this.paymentDateUpdates,
+            ),
+          ),
+          Component(
+            "PaymentDetailPage",
+            subtitle: "btc completed outbound",
+            (context) => PaymentDetailPageInner(
+              payment: Payment(
+                index:
+                    "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+                kind: PaymentKind.Onchain,
+                direction: PaymentDirection.Outbound,
+                invoice: null,
+                amountSat: 77000,
+                feesSat: 3349,
+                status: PaymentStatus.Completed,
+                statusStr: "fully confirmed (6+ confirmations)",
+                note: "Brunch w/ friends",
+                createdAt: DateTime.now()
+                    .subtract(const Duration(minutes: 75))
+                    .millisecondsSinceEpoch,
+              ),
+              paymentDateUpdates: this.paymentDateUpdates,
+            ),
+          ),
+          Component(
+            "PaymentDetailPage",
+            subtitle: "btc pending inbound",
+            (context) => PaymentDetailPageInner(
+              payment: Payment(
+                index:
+                    "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+                kind: PaymentKind.Onchain,
+                direction: PaymentDirection.Inbound,
+                invoice: null,
+                amountSat: 1469,
+                feesSat: 0,
+                status: PaymentStatus.Pending,
+                statusStr: "partially confirmed (1-5 confirmations)",
+                note: "Brunch w/ friends",
+                createdAt: DateTime.now()
+                    .subtract(const Duration(minutes: 15))
+                    .millisecondsSinceEpoch,
+              ),
+              paymentDateUpdates: this.paymentDateUpdates,
+            ),
+          ),
+          Component(
+            "PaymentDetailPage",
+            subtitle: "btc completed inbound",
+            (context) => PaymentDetailPageInner(
+              payment: Payment(
+                index:
+                    "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+                kind: PaymentKind.Onchain,
+                direction: PaymentDirection.Inbound,
+                invoice: null,
+                amountSat: 1469,
+                feesSat: 0,
+                status: PaymentStatus.Completed,
+                statusStr: "fully confirmed (6+ confirmations)",
+                note: "Brunch w/ friends",
+                createdAt: DateTime.now()
+                    .subtract(const Duration(days: 2, hours: 3))
+                    .millisecondsSinceEpoch,
+              ),
+              paymentDateUpdates: this.paymentDateUpdates,
+            ),
+          ),
+          Component(
+            "PaymentDetailPage",
+            subtitle: "btc failed inbound",
+            (context) => PaymentDetailPageInner(
+              payment: Payment(
+                index:
+                    "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+                kind: PaymentKind.Onchain,
+                direction: PaymentDirection.Inbound,
+                invoice: null,
+                amountSat: 1469,
+                feesSat: 0,
+                status: PaymentStatus.Failed,
+                statusStr: "dropped from mempool",
+                note: "Brunch w/ friends",
+                createdAt: DateTime.now()
+                    .subtract(const Duration(days: 5))
+                    .millisecondsSinceEpoch,
+              ),
+              paymentDateUpdates: this.paymentDateUpdates,
+            ),
           ),
           const SizedBox(height: Space.s800),
         ],
