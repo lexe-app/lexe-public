@@ -49,7 +49,7 @@
 //!   as a separate task on the threadpool. Just reading a value out of some
 //!   in-memory state is probably cheaper overall to use `SyncReturn`.
 
-use std::{convert::TryFrom, future::Future, str::FromStr, sync::LazyLock};
+use std::{future::Future, str::FromStr, sync::LazyLock};
 
 use anyhow::{anyhow, Context};
 pub use common::ln::payments::BasicPayment;

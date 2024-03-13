@@ -160,15 +160,6 @@ impl MockBackendClient {
 
 #[async_trait]
 impl BackendApiClient for MockBackendClient {
-    async fn create_file_with_retries(
-        &self,
-        data: &VfsFile,
-        auth: BearerAuthToken,
-        _retries: usize,
-    ) -> Result<Empty, BackendApiError> {
-        self.create_file(data, auth).await
-    }
-
     async fn upsert_file_with_retries(
         &self,
         data: &VfsFile,

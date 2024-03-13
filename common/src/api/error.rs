@@ -963,7 +963,6 @@ pub mod invariants {
     };
 
     use super::*;
-    use crate::test_utils::arbitrary;
 
     pub fn assert_error_kind_invariants<T>()
     where

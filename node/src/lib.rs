@@ -4,8 +4,6 @@
 #![deny(clippy::disallowed_methods)]
 // once_cell replacement in std (called LazyLock)
 #![feature(lazy_cell)]
-// Easy side-effects in Result / Option chains
-#![feature(result_option_inspect)]
 
 use common::const_assert;
 

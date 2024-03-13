@@ -246,9 +246,12 @@ impl AesMasterKey {
 
         // parse out version and key_id w/o advancing `data`
         let (version, key_id) = {
-            let data = data.as_slice();
-            let (version, data) = data.split_array_ref::<VERSION_LEN>();
-            let (key_id, _) = data.split_array_ref::<KEY_ID_LEN>();
+            let (version, data) = data
+                .split_first_chunk::<VERSION_LEN>()
+                .expect("data.len() checked above");
+            let (key_id, _) = data
+                .split_first_chunk::<KEY_ID_LEN>()
+                .expect("data.len() checked above");
             (version[0], key_id)
         };
 

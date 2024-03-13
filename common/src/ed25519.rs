@@ -217,11 +217,15 @@ fn deserialize_signed_struct(
     }
 
     // deserialize signer public key
-    let (signer, serialized) = serialized.split_array_ref::<PUBLIC_KEY_LEN>();
+    let (signer, serialized) = serialized
+        .split_first_chunk::<PUBLIC_KEY_LEN>()
+        .expect("serialized.len() checked above");
     let signer = PublicKey::from_ref(signer);
 
     // deserialize signature
-    let (sig, ser_struct) = serialized.split_array_ref::<SIGNATURE_LEN>();
+    let (sig, ser_struct) = serialized
+        .split_first_chunk::<SIGNATURE_LEN>()
+        .expect("serialized.len() checked above");
     let sig = Signature::from_ref(sig);
 
     Ok((signer, sig, ser_struct))

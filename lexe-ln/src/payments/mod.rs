@@ -580,7 +580,7 @@ impl OutboundSpontaneousPaymentStatus {
 
 #[cfg(test)]
 mod test {
-    use common::{aes::AesMasterKey, rng::WeakRng, test_utils::roundtrip};
+    use common::{rng::WeakRng, test_utils::roundtrip};
     use proptest::{
         arbitrary::any, prop_assert_eq, proptest, test_runner::Config,
     };

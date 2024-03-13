@@ -15,8 +15,6 @@
 //! The following test suite was copied on 2022-12-24 from BDK's 0.25 release:
 //! <https://github.com/bitcoindevkit/bdk/blob/d288cbbbbc223355ca3a8f13375b97366ed6edd7/src/database/mod.rs#L216>
 
-use std::str::FromStr;
-
 use bitcoin::{
     consensus::{encode::deserialize, serialize},
     hashes::hex::*,

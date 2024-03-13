@@ -38,7 +38,9 @@ pub fn app_node_provision_server_config(
         .with_no_client_auth()
         .with_single_cert(vec![cert_der], cert_key_der)
         .context("Failed to build TLS config")?;
-    config.alpn_protocols = super::LEXE_ALPN_PROTOCOLS.clone();
+    config
+        .alpn_protocols
+        .clone_from(&super::LEXE_ALPN_PROTOCOLS);
 
     Ok(config)
 }
@@ -68,7 +70,9 @@ pub fn app_node_provision_client_config(
     let mut config = super::lexe_default_client_config()
         .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
         .with_no_client_auth();
-    config.alpn_protocols = super::LEXE_ALPN_PROTOCOLS.clone();
+    config
+        .alpn_protocols
+        .clone_from(&super::LEXE_ALPN_PROTOCOLS);
 
     config
 }

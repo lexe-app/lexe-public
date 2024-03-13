@@ -106,10 +106,6 @@ mod tests {
     use std::future::Future;
 
     use common::constants::DEFAULT_CHANNEL_SIZE;
-    use tokio::{
-        sync::mpsc,
-        time::{self, Duration},
-    };
 
     use super::*;
 
