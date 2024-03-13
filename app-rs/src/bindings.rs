@@ -63,6 +63,8 @@ use common::{
         },
         def::{AppGatewayApi, AppNodeRunApi},
         fiat_rates::FiatRates as FiatRatesRs,
+        qs::UpdatePaymentNote as UpdatePaymentNoteRs,
+        Empty,
     },
     ln::{
         amount::Amount,
@@ -70,7 +72,8 @@ use common::{
         payments::{
             ClientPaymentId as ClientPaymentIdRs,
             PaymentDirection as PaymentDirectionRs,
-            PaymentKind as PaymentKindRs, PaymentStatus as PaymentStatusRs,
+            PaymentIndex as PaymentIndexRs, PaymentKind as PaymentKindRs,
+            PaymentStatus as PaymentStatusRs,
         },
         ConfirmationPriority as ConfirmationPriorityRs,
     },
@@ -614,6 +617,22 @@ impl From<FeeEstimateRs> for FeeEstimate {
     }
 }
 
+pub struct UpdatePaymentNote {
+    pub index: String,
+    pub note: Option<String>,
+}
+
+impl TryFrom<UpdatePaymentNote> for UpdatePaymentNoteRs {
+    type Error = anyhow::Error;
+
+    fn try_from(value: UpdatePaymentNote) -> Result<Self, Self::Error> {
+        Ok(Self {
+            index: PaymentIndexRs::from_str(&value.index)?,
+            note: value.note,
+        })
+    }
+}
+
 /// Init the Rust [`tracing`] logger. Also sets the current `RUST_LOG_TX`
 /// instance, which ships Rust logs over to the dart side for printing.
 ///
@@ -833,5 +852,15 @@ impl AppHandle {
     pub fn get_num_finalized_payments(&self) -> SyncReturn<usize> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         SyncReturn(db_lock.state().num_finalized())
+    }
+
+    pub fn update_payment_note(
+        &self,
+        req: UpdatePaymentNote,
+    ) -> anyhow::Result<()> {
+        let req = UpdatePaymentNoteRs::try_from(req)?;
+        block_on(self.inner.node_client().update_payment_note(req))
+            .map(|Empty {}| ())
+            .map_err(anyhow::Error::new)
     }
 }

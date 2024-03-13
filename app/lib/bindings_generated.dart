@@ -540,6 +540,28 @@ class AppRsImpl implements AppRs {
             argNames: ["that"],
           );
 
+  Future<void> updatePaymentNoteMethodAppHandle(
+      {required AppHandle that, required UpdatePaymentNote req, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    var arg1 = _platform.api2wire_box_autoadd_update_payment_note(req);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner
+          .wire_update_payment_note__method__AppHandle(port_, arg0, arg1),
+      parseSuccessData: _wire2api_unit,
+      parseErrorData: _wire2api_FrbAnyhowException,
+      constMeta: kUpdatePaymentNoteMethodAppHandleConstMeta,
+      argValues: [that, req],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta
+      get kUpdatePaymentNoteMethodAppHandleConstMeta =>
+          const FlutterRustBridgeTaskConstMeta(
+            debugName: "update_payment_note__method__AppHandle",
+            argNames: ["that", "req"],
+          );
+
   DropFnType get dropOpaqueApp => _platform.inner.drop_opaque_App;
   ShareFnType get shareOpaqueApp => _platform.inner.share_opaque_App;
   OpaqueTypeFinalizer get AppFinalizer => _platform.AppFinalizer;
@@ -907,6 +929,14 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   }
 
   @protected
+  ffi.Pointer<wire_UpdatePaymentNote> api2wire_box_autoadd_update_payment_note(
+      UpdatePaymentNote raw) {
+    final ptr = inner.new_box_autoadd_update_payment_note_0();
+    _api_fill_to_wire_update_payment_note(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
   ffi.Pointer<wire_uint_8_list> api2wire_opt_String(String? raw) {
     return raw == null ? ffi.nullptr : api2wire_String(raw);
   }
@@ -966,6 +996,11 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     _api_fill_to_wire_send_onchain_request(apiObj, wireObj.ref);
   }
 
+  void _api_fill_to_wire_box_autoadd_update_payment_note(
+      UpdatePaymentNote apiObj, ffi.Pointer<wire_UpdatePaymentNote> wireObj) {
+    _api_fill_to_wire_update_payment_note(apiObj, wireObj.ref);
+  }
+
   void _api_fill_to_wire_client_payment_id(
       ClientPaymentId apiObj, wire_ClientPaymentId wireObj) {
     wireObj.id = api2wire_u8_array_32(apiObj.id);
@@ -993,6 +1028,12 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     wireObj.address = api2wire_String(apiObj.address);
     wireObj.amount_sats = api2wire_u64(apiObj.amountSats);
     wireObj.priority = api2wire_confirmation_priority(apiObj.priority);
+    wireObj.note = api2wire_opt_String(apiObj.note);
+  }
+
+  void _api_fill_to_wire_update_payment_note(
+      UpdatePaymentNote apiObj, wire_UpdatePaymentNote wireObj) {
+    wireObj.index = api2wire_String(apiObj.index);
     wireObj.note = api2wire_opt_String(apiObj.note);
   }
 }
@@ -1546,6 +1587,28 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _wire_get_num_finalized_payments__method__AppHandlePtr
           .asFunction<WireSyncReturn Function(ffi.Pointer<wire_AppHandle>)>();
 
+  void wire_update_payment_note__method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_AppHandle> that,
+    ffi.Pointer<wire_UpdatePaymentNote> req,
+  ) {
+    return _wire_update_payment_note__method__AppHandle(
+      port_,
+      that,
+      req,
+    );
+  }
+
+  late final _wire_update_payment_note__method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>,
+                  ffi.Pointer<wire_UpdatePaymentNote>)>>(
+      'wire_update_payment_note__method__AppHandle');
+  late final _wire_update_payment_note__method__AppHandle =
+      _wire_update_payment_note__method__AppHandlePtr.asFunction<
+          void Function(int, ffi.Pointer<wire_AppHandle>,
+              ffi.Pointer<wire_UpdatePaymentNote>)>();
+
   wire_App new_App() {
     return _new_App();
   }
@@ -1598,6 +1661,17 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _new_box_autoadd_send_onchain_request_0 =
       _new_box_autoadd_send_onchain_request_0Ptr
           .asFunction<ffi.Pointer<wire_SendOnchainRequest> Function()>();
+
+  ffi.Pointer<wire_UpdatePaymentNote> new_box_autoadd_update_payment_note_0() {
+    return _new_box_autoadd_update_payment_note_0();
+  }
+
+  late final _new_box_autoadd_update_payment_note_0Ptr = _lookup<
+          ffi.NativeFunction<ffi.Pointer<wire_UpdatePaymentNote> Function()>>(
+      'new_box_autoadd_update_payment_note_0');
+  late final _new_box_autoadd_update_payment_note_0 =
+      _new_box_autoadd_update_payment_note_0Ptr
+          .asFunction<ffi.Pointer<wire_UpdatePaymentNote> Function()>();
 
   ffi.Pointer<wire_uint_8_list> new_uint_8_list_0(
     int len,
@@ -1716,6 +1790,12 @@ final class wire_EstimateFeeSendOnchainRequest extends ffi.Struct {
 
   @ffi.Uint64()
   external int amount_sats;
+}
+
+final class wire_UpdatePaymentNote extends ffi.Struct {
+  external ffi.Pointer<wire_uint_8_list> index;
+
+  external ffi.Pointer<wire_uint_8_list> note;
 }
 
 typedef DartPostCObjectFnType = ffi.Pointer<

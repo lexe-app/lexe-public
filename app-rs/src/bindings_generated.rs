@@ -460,6 +460,26 @@ fn wire_get_num_finalized_payments__method__AppHandle_impl(
         },
     )
 }
+fn wire_update_payment_note__method__AppHandle_impl(
+    port_: MessagePort,
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+    req: impl Wire2Api<UpdatePaymentNote> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, (), _>(
+        WrapInfo {
+            debug_name: "update_payment_note__method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_that = that.wire2api();
+            let api_req = req.wire2api();
+            move |task_callback| {
+                AppHandle::update_payment_note(&api_that, api_req)
+            }
+        },
+    )
+}
 // Section: wrapper structs
 
 // Section: static checks
@@ -1015,6 +1035,15 @@ mod io {
         wire_get_num_finalized_payments__method__AppHandle_impl(that)
     }
 
+    #[no_mangle]
+    pub extern "C" fn wire_update_payment_note__method__AppHandle(
+        port_: i64,
+        that: *mut wire_AppHandle,
+        req: *mut wire_UpdatePaymentNote,
+    ) {
+        wire_update_payment_note__method__AppHandle_impl(port_, that, req)
+    }
+
     // Section: allocate functions
 
     #[no_mangle]
@@ -1044,6 +1073,12 @@ mod io {
     pub extern "C" fn new_box_autoadd_send_onchain_request_0(
     ) -> *mut wire_SendOnchainRequest {
         support::new_leak_box_ptr(wire_SendOnchainRequest::new_with_null_ptr())
+    }
+
+    #[no_mangle]
+    pub extern "C" fn new_box_autoadd_update_payment_note_0(
+    ) -> *mut wire_UpdatePaymentNote {
+        support::new_leak_box_ptr(wire_UpdatePaymentNote::new_with_null_ptr())
     }
 
     #[no_mangle]
@@ -1119,6 +1154,12 @@ mod io {
             Wire2Api::<SendOnchainRequest>::wire2api(*wrap).into()
         }
     }
+    impl Wire2Api<UpdatePaymentNote> for *mut wire_UpdatePaymentNote {
+        fn wire2api(self) -> UpdatePaymentNote {
+            let wrap = unsafe { support::box_from_leak_ptr(self) };
+            Wire2Api::<UpdatePaymentNote>::wire2api(*wrap).into()
+        }
+    }
     impl Wire2Api<ClientPaymentId> for wire_ClientPaymentId {
         fn wire2api(self) -> ClientPaymentId {
             ClientPaymentId {
@@ -1176,6 +1217,14 @@ mod io {
             }
         }
     }
+    impl Wire2Api<UpdatePaymentNote> for wire_UpdatePaymentNote {
+        fn wire2api(self) -> UpdatePaymentNote {
+            UpdatePaymentNote {
+                index: self.index.wire2api(),
+                note: self.note.wire2api(),
+            }
+        }
+    }
 
     // Section: wire structs
 
@@ -1230,6 +1279,13 @@ mod io {
     pub struct wire_uint_8_list {
         ptr: *mut u8,
         len: i32,
+    }
+
+    #[repr(C)]
+    #[derive(Clone)]
+    pub struct wire_UpdatePaymentNote {
+        index: *mut wire_uint_8_list,
+        note: *mut wire_uint_8_list,
     }
 
     // Section: impl NewWithNullPtr
@@ -1327,6 +1383,21 @@ mod io {
     }
 
     impl Default for wire_SendOnchainRequest {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+
+    impl NewWithNullPtr for wire_UpdatePaymentNote {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                index: core::ptr::null_mut(),
+                note: core::ptr::null_mut(),
+            }
+        }
+    }
+
+    impl Default for wire_UpdatePaymentNote {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
