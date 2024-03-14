@@ -44,7 +44,7 @@ dependencies = [
 [[package]]
 name = "aesm-client"
 version = "0.5.4"
-source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#c93685ab61a240386f6d2f66b31d4cd4e3803767"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#dcd29a551bd1efa04b42776298ebb615328aecaf"
 dependencies = [
  "byteorder",
  "failure",
@@ -432,7 +432,7 @@ dependencies = [
 [[package]]
 name = "async-usercalls"
 version = "0.1.0"
-source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#c93685ab61a240386f6d2f66b31d4cd4e3803767"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#dcd29a551bd1efa04b42776298ebb615328aecaf"
 dependencies = [
  "crossbeam-channel",
  "fnv",
@@ -1229,7 +1229,7 @@ dependencies = [
 [[package]]
 name = "dcap-ql"
 version = "0.3.4"
-source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#c93685ab61a240386f6d2f66b31d4cd4e3803767"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#dcd29a551bd1efa04b42776298ebb615328aecaf"
 dependencies = [
  "byteorder",
  "failure",
@@ -1359,7 +1359,7 @@ dependencies = [
 [[package]]
 name = "enclave-runner"
 version = "0.5.1"
-source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#c93685ab61a240386f6d2f66b31d4cd4e3803767"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#dcd29a551bd1efa04b42776298ebb615328aecaf"
 dependencies = [
  "crossbeam",
  "failure",
@@ -1656,7 +1656,7 @@ dependencies = [
 [[package]]
 name = "fortanix-sgx-abi"
 version = "0.5.0"
-source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#c93685ab61a240386f6d2f66b31d4cd4e3803767"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#dcd29a551bd1efa04b42776298ebb615328aecaf"
 
 [[package]]
 name = "futures"
@@ -2175,7 +2175,7 @@ dependencies = [
 [[package]]
 name = "ipc-queue"
 version = "0.2.0"
-source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#c93685ab61a240386f6d2f66b31d4cd4e3803767"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#dcd29a551bd1efa04b42776298ebb615328aecaf"
 dependencies = [
  "fortanix-sgx-abi",
 ]
@@ -3548,7 +3548,7 @@ dependencies = [
 [[package]]
 name = "sgx-isa"
 version = "0.4.0"
-source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#c93685ab61a240386f6d2f66b31d4cd4e3803767"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#dcd29a551bd1efa04b42776298ebb615328aecaf"
 dependencies = [
  "bitflags 1.3.2",
 ]
@@ -3581,7 +3581,7 @@ dependencies = [
 [[package]]
 name = "sgxs"
 version = "0.7.3"
-source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#c93685ab61a240386f6d2f66b31d4cd4e3803767"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#dcd29a551bd1efa04b42776298ebb615328aecaf"
 dependencies = [
  "byteorder",
  "failure",
@@ -3593,7 +3593,7 @@ dependencies = [
 [[package]]
 name = "sgxs-loaders"
 version = "0.3.3"
-source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#c93685ab61a240386f6d2f66b31d4cd4e3803767"
+source = "git+https://github.com/lexe-app/rust-sgx?branch=lexe-2023_09_27#dcd29a551bd1efa04b42776298ebb615328aecaf"
 dependencies = [
  "bitflags 1.3.2",
  "failure",
