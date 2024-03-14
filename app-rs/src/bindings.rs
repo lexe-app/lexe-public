@@ -79,6 +79,7 @@ use common::{
     },
     password,
     rng::SysRng,
+    Apply,
 };
 use flutter_rust_bridge::{
     frb,
@@ -789,12 +790,11 @@ impl AppHandle {
         vec_idx: usize,
     ) -> SyncReturn<Option<Payment>> {
         let db_lock = self.inner.payment_db().lock().unwrap();
-        SyncReturn(
-            db_lock
-                .state()
-                .get_payment_by_vec_idx(vec_idx)
-                .map(Payment::from),
-        )
+        db_lock
+            .state()
+            .get_payment_by_vec_idx(vec_idx)
+            .map(Payment::from)
+            .apply(SyncReturn)
     }
 
     pub fn get_short_payment_by_scroll_idx(
@@ -802,11 +802,11 @@ impl AppHandle {
         scroll_idx: usize,
     ) -> SyncReturn<Option<(usize, ShortPayment)>> {
         let db_lock = self.inner.payment_db().lock().unwrap();
-        SyncReturn(
-            db_lock.state().get_payment_by_scroll_idx(scroll_idx).map(
-                |(vec_idx, payment)| (vec_idx, ShortPayment::from(payment)),
-            ),
-        )
+        db_lock
+            .state()
+            .get_payment_by_scroll_idx(scroll_idx)
+            .map(|(vec_idx, payment)| (vec_idx, ShortPayment::from(payment)))
+            .apply(SyncReturn)
     }
 
     pub fn get_pending_short_payment_by_scroll_idx(
@@ -814,14 +814,11 @@ impl AppHandle {
         scroll_idx: usize,
     ) -> SyncReturn<Option<(usize, ShortPayment)>> {
         let db_lock = self.inner.payment_db().lock().unwrap();
-        SyncReturn(
-            db_lock
-                .state()
-                .get_pending_payment_by_scroll_idx(scroll_idx)
-                .map(|(vec_idx, payment)| {
-                    (vec_idx, ShortPayment::from(payment))
-                }),
-        )
+        db_lock
+            .state()
+            .get_pending_payment_by_scroll_idx(scroll_idx)
+            .map(|(vec_idx, payment)| (vec_idx, ShortPayment::from(payment)))
+            .apply(SyncReturn)
     }
 
     pub fn get_finalized_short_payment_by_scroll_idx(
@@ -829,29 +826,26 @@ impl AppHandle {
         scroll_idx: usize,
     ) -> SyncReturn<Option<(usize, ShortPayment)>> {
         let db_lock = self.inner.payment_db().lock().unwrap();
-        SyncReturn(
-            db_lock
-                .state()
-                .get_finalized_payment_by_scroll_idx(scroll_idx)
-                .map(|(vec_idx, payment)| {
-                    (vec_idx, ShortPayment::from(payment))
-                }),
-        )
+        db_lock
+            .state()
+            .get_finalized_payment_by_scroll_idx(scroll_idx)
+            .map(|(vec_idx, payment)| (vec_idx, ShortPayment::from(payment)))
+            .apply(SyncReturn)
     }
 
     pub fn get_num_payments(&self) -> SyncReturn<usize> {
         let db_lock = self.inner.payment_db().lock().unwrap();
-        SyncReturn(db_lock.state().num_payments())
+        db_lock.state().num_payments().apply(SyncReturn)
     }
 
     pub fn get_num_pending_payments(&self) -> SyncReturn<usize> {
         let db_lock = self.inner.payment_db().lock().unwrap();
-        SyncReturn(db_lock.state().num_pending())
+        db_lock.state().num_pending().apply(SyncReturn)
     }
 
     pub fn get_num_finalized_payments(&self) -> SyncReturn<usize> {
         let db_lock = self.inner.payment_db().lock().unwrap();
-        SyncReturn(db_lock.state().num_finalized())
+        db_lock.state().num_finalized().apply(SyncReturn)
     }
 
     pub fn update_payment_note(
