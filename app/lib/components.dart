@@ -2,8 +2,11 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MaxLengthEnforcement;
 import 'package:rxdart_ext/rxdart_ext.dart';
 
+import 'bindings_generated.dart' show MAX_PAYMENT_NOTE_BYTES;
+import 'input_formatter.dart' show MaxUtf8BytesInputFormatter;
 import 'style.dart' show Fonts, LxColors, LxRadius, Space;
 
 typedef VoidContextCallback = void Function(BuildContext);
@@ -421,6 +424,80 @@ class SubheadingText extends StatelessWidget {
       style: Fonts.fontUI.copyWith(
         color: LxColors.grey600,
         fontSize: Fonts.size300,
+      ),
+    );
+  }
+}
+
+/// Text entry field for a user to set a payment's note.
+class PaymentNoteInput extends StatelessWidget {
+  const PaymentNoteInput({
+    super.key,
+    required this.fieldKey,
+    required this.onSubmit,
+    this.initialNote,
+    this.isEnabled = true,
+  });
+
+  final GlobalKey<FormFieldState<String>> fieldKey;
+  final VoidCallback onSubmit;
+  final String? initialNote;
+  final bool isEnabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      key: this.fieldKey,
+
+      // Disable the input field while the send request is pending.
+      enabled: this.isEnabled,
+
+      initialValue: this.initialNote,
+
+      autofocus: false,
+      keyboardType: TextInputType.text,
+      textInputAction: TextInputAction.send,
+      onEditingComplete: this.onSubmit,
+      maxLines: null,
+      maxLength: 200,
+      maxLengthEnforcement: MaxLengthEnforcement.enforced,
+
+      // Silently limit input to 512 bytes. This could be a little
+      // confusing if the user inputs a ton of emojis or CJK characters
+      // I guess.
+      inputFormatters: const [
+        MaxUtf8BytesInputFormatter(maxBytes: MAX_PAYMENT_NOTE_BYTES),
+      ],
+
+      decoration: const InputDecoration(
+        hintStyle: TextStyle(color: LxColors.grey550),
+        hintText: "What's this payment for? (optional)",
+        counterStyle: TextStyle(color: LxColors.grey550),
+        border: OutlineInputBorder(),
+        enabledBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: LxColors.fgTertiary)),
+        focusedBorder: OutlineInputBorder(
+            borderSide: BorderSide(color: LxColors.foreground)),
+      ),
+
+      // Only show "XX/YY" character limit counter when text area is focused.
+      buildCounter: (context,
+              {required int currentLength,
+              required int? maxLength,
+              required bool isFocused}) =>
+          (isFocused && maxLength != null)
+              ? Text("$currentLength/$maxLength",
+                  style: const TextStyle(
+                      fontSize: Fonts.size100,
+                      color: LxColors.grey550,
+                      height: 1.0))
+              : const SizedBox(height: Fonts.size100),
+
+      style: Fonts.fontBody.copyWith(
+        fontSize: Fonts.size200,
+        height: 1.5,
+        color: LxColors.fgSecondary,
+        letterSpacing: -0.15,
       ),
     );
   }
