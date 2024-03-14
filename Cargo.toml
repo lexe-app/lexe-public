@@ -41,6 +41,12 @@ arc-swap = "1.6"
 argh = "0.1"
 # async fn's in trait methods
 async-trait = "0.1"
+# Web framework from tokio-rs community based on tokio, hyper, and tower.
+axum = { version = "0.7", default-features = false, features = [
+    "http1",
+    "http2",
+    "macros" # Exposes `#[debug_handler]` and other useful macros
+] }
 # Converting to/from base 64.
 base64 = "0.13"
 # rust-bitcoin suite of libraries
@@ -118,6 +124,8 @@ tracing-subscriber = { version = "0.3", default-features = false }
 
 # A client for the Intel AESM service. Used during attestation to get quoted.
 aesm-client = { version = "=0.5.4", default-features = false, features = ["sgxs"] }
+# High level webserver based on axum, tokio, hyper, and tower
+axum-server = "=0.6.0"
 # SGX Quote types
 dcap-ql = { version = "=0.3.4", default-features = false }
 # Fortanix EDP crate for running SGX applications, includes usercall extensions
@@ -164,6 +172,9 @@ enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-
 sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 sgxs = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
+
+# * server: Propagate current span across `tokio::spawn`
+axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-v0.6.0-2024_03_18" }
 
 # * Replace RefCell with tokio::sync::RwLock 
 # * Wallet and EsploraBlockchain are thread-safe*+
