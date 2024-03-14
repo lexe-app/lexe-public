@@ -278,6 +278,8 @@ macro_rules! error_kind {
         impl From<CommonErrorKind> for $error_kind_name {
             #[inline]
             fn from(common: CommonErrorKind) -> Self {
+                // We can use `Self::from_code` here bc `error_kind_invariants`
+                // checks that the recovered `ServiceApiError` kind != Unknown
                 Self::from_code(common.to_code())
             }
         }
@@ -399,6 +401,9 @@ pub enum CommonErrorKind {
     Timeout = 4,
     /// Error decoding/deserializing the HTTP response body
     Decode = 5,
+    /// General server error
+    Server = 6,
+    // NOTE: If adding a variant, be sure to also update Self::KINDS!
 }
 
 error_kind! {
@@ -420,6 +425,8 @@ error_kind! {
         Timeout = 4,
         /// Error decoding/deserializing the HTTP response body
         Decode = 5,
+        /// General server error
+        Server = 6,
 
         // --- Backend --- //
 
@@ -463,6 +470,8 @@ error_kind! {
         Timeout = 4,
         /// Error decoding/deserializing the HTTP response body
         Decode = 5,
+        /// General server error
+        Server = 6,
 
         // --- Runner --- //
 
@@ -505,6 +514,8 @@ error_kind! {
         Timeout = 4,
         /// Error decoding/deserializing the HTTP response body
         Decode = 5,
+        /// General server error
+        Server = 6,
 
         // --- Gateway --- //
 
@@ -532,6 +543,8 @@ error_kind! {
         Timeout = 4,
         /// Error decoding/deserializing the HTTP response body
         Decode = 5,
+        /// General server error
+        Server = 6,
 
         // --- Node --- //
 
@@ -571,6 +584,8 @@ error_kind! {
         Timeout = 4,
         /// Error decoding/deserializing the HTTP response body
         Decode = 5,
+        /// General server error
+        Server = 6,
 
         // --- LSP --- //
 
@@ -606,6 +621,7 @@ impl CommonErrorKind {
         Self::Connect,
         Self::Timeout,
         Self::Decode,
+        Self::Server,
     ];
 
     #[inline]
@@ -804,6 +820,7 @@ impl ToHttpStatus for BackendApiError {
             Connect => SERVER_503_SERVICE_UNAVAILABLE,
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
+            Server => SERVER_500_INTERNAL_SERVER_ERROR,
 
             Database => SERVER_500_INTERNAL_SERVER_ERROR,
             NotFound => CLIENT_404_NOT_FOUND,
@@ -829,6 +846,7 @@ impl ToHttpStatus for RunnerApiError {
             Connect => SERVER_503_SERVICE_UNAVAILABLE,
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
+            Server => SERVER_500_INTERNAL_SERVER_ERROR,
 
             Runner => SERVER_500_INTERNAL_SERVER_ERROR,
             UnknownMeasurement => CLIENT_404_NOT_FOUND,
@@ -853,6 +871,7 @@ impl ToHttpStatus for GatewayApiError {
             Connect => SERVER_503_SERVICE_UNAVAILABLE,
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
+            Server => SERVER_500_INTERNAL_SERVER_ERROR,
 
             FiatRatesMissing => SERVER_500_INTERNAL_SERVER_ERROR,
         }
@@ -870,6 +889,7 @@ impl ToHttpStatus for NodeApiError {
             Connect => SERVER_503_SERVICE_UNAVAILABLE,
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
+            Server => SERVER_500_INTERNAL_SERVER_ERROR,
 
             WrongUserPk => CLIENT_400_BAD_REQUEST,
             WrongNodePk => CLIENT_400_BAD_REQUEST,
@@ -893,6 +913,7 @@ impl ToHttpStatus for LspApiError {
             Connect => SERVER_503_SERVICE_UNAVAILABLE,
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
+            Server => SERVER_500_INTERNAL_SERVER_ERROR,
 
             Provision => SERVER_500_INTERNAL_SERVER_ERROR,
             Scid => SERVER_500_INTERNAL_SERVER_ERROR,
