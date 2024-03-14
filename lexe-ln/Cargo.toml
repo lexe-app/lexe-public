@@ -17,30 +17,20 @@ test-utils = ["common/test-utils"]
 
 common = { path = "../common" }
 
-# --- BITCOIN --- #
-
-bitcoin.workspace = true
-bitcoin-bech32.workspace = true
-bitcoin_hashes.workspace = true
-base64.workspace = true
-# Descriptor-based Bitcoin wallet library
-bdk = { version = "0.27", default-features = false, features = ["async-interface", "use-esplora-async"] }
-# Async Esplora client
-esplora-client = { version = "0.4", default-features = false, features = ["async"] }
-
-# --- LIGHTNING --- #
-
-lightning.workspace = true
-lightning-invoice.workspace = true
-lightning-net-tokio.workspace = true
-lightning-transaction-sync.workspace = true
-
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
 async-trait.workspace = true
+base64.workspace = true
+bitcoin.workspace = true
+bitcoin-bech32.workspace = true
+bitcoin_hashes.workspace = true
 cfg-if.workspace = true
 futures.workspace = true
+lightning.workspace = true
+lightning-invoice.workspace = true
+lightning-net-tokio.workspace = true
+lightning-transaction-sync.workspace = true
 rust_decimal.workspace = true
 secrecy.workspace = true
 semver.workspace = true
@@ -66,6 +56,13 @@ tracing-subscriber = { workspace = true, features = [
     "std",
     "tracing-log",
 ] }
+
+# --- CRATE-SPECIFIC --- #
+
+# Descriptor-based Bitcoin wallet library
+bdk = { version = "0.27", default-features = false, features = ["async-interface", "use-esplora-async"] }
+# Async Esplora client
+esplora-client = { version = "0.4", default-features = false, features = ["async"] }
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }
