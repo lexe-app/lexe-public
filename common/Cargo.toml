@@ -32,6 +32,8 @@ threads = 8
 
 anyhow.workspace = true
 async-trait.workspace = true
+axum = { workspace = true, features = ["json", "query"] }
+axum-server = { workspace = true, features = ["tls-rustls"] }
 bitcoin = { workspace = true, features = ["serde"] }
 bitcoin_hashes.workspace = true
 bitcoin-bech32.workspace = true
@@ -79,8 +81,6 @@ warp = { workspace = true, features = ["tls"] }
 
 # --- CRATE-SPECIFIC --- #
 
-# hyper and tower Service-based webserver
-axum-server = { version = "0.6", default-features = false }
 # Binary canonical serialization format
 bcs = "0.1"
 # BIP39 mnemonic codes
