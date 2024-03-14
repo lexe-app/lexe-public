@@ -39,26 +39,20 @@ common = { path = "../common" }
 gdrive = { path = "../gdrive" }
 lexe-ln = { path = "../lexe-ln" }
 
-# --- BITCOIN  --- #
-
-bitcoin.workspace = true
-bitcoin-bech32.workspace = true
-base64.workspace = true
-
-# --- LIGHTNING --- #
-
-lightning.workspace = true
-lightning-invoice.workspace = true
-lightning-net-tokio.workspace = true
-lightning-transaction-sync.workspace = true
-
 # --- WORKSPACE --- #
 
 anyhow.workspace = true
 async-trait.workspace = true
+base64.workspace = true
+bitcoin.workspace = true
+bitcoin-bech32.workspace = true
 bytes.workspace = true
 cfg-if.workspace = true
 futures.workspace = true
+lightning.workspace = true
+lightning-invoice.workspace = true
+lightning-net-tokio.workspace = true
+lightning-transaction-sync.workspace = true
 rcgen.workspace = true
 reqwest = { workspace = true, features = ["json", "rustls-tls-manual-roots"] }
 secrecy.workspace = true
