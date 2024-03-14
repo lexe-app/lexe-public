@@ -29,7 +29,8 @@ import 'bindings_generated_api.dart'
         PaymentStatus,
         SendOnchainRequest,
         ShortPayment,
-        U8Array32;
+        U8Array32,
+        UpdatePaymentNote;
 import 'cfg.dart' as cfg;
 import 'components.dart' show HeadingText, ScrollableSinglePageBody;
 import 'date_format.dart' as date_format;
@@ -253,6 +254,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             "PaymentDetailPage",
             subtitle: "btc pending outbound",
             (context) => PaymentDetailPageInner(
+              app: mockApp,
               payment: Payment(
                 index:
                     "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
@@ -275,6 +277,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             "PaymentDetailPage",
             subtitle: "btc completed outbound",
             (context) => PaymentDetailPageInner(
+              app: mockApp,
               payment: Payment(
                 index:
                     "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
@@ -297,6 +300,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             "PaymentDetailPage",
             subtitle: "btc pending inbound",
             (context) => PaymentDetailPageInner(
+              app: mockApp,
               payment: Payment(
                 index:
                     "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
@@ -319,6 +323,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             "PaymentDetailPage",
             subtitle: "btc completed inbound",
             (context) => PaymentDetailPageInner(
+              app: mockApp,
               payment: Payment(
                 index:
                     "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
@@ -341,6 +346,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             "PaymentDetailPage",
             subtitle: "btc failed inbound",
             (context) => PaymentDetailPageInner(
+              app: mockApp,
               payment: Payment(
                 index:
                     "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
@@ -354,6 +360,34 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 note: "Brunch w/ friends",
                 createdAt: DateTime.now()
                     .subtract(const Duration(days: 5))
+                    .millisecondsSinceEpoch,
+              ),
+              paymentDateUpdates: this.paymentDateUpdates,
+            ),
+          ),
+          Component(
+            "PaymentDetailPage",
+            subtitle: "ln invoice pending inbound",
+            (context) => PaymentDetailPageInner(
+              app: mockApp,
+              payment: Payment(
+                index:
+                    "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+                kind: PaymentKind.Invoice,
+                direction: PaymentDirection.Inbound,
+                invoice: const Invoice(
+                  string:
+                      "lnbcrt1metc0ejddlfthml0fz7z0e3zjk7wu2ltewa7lmms49a7lm6gh0h77l89yus9par2qqcw60rr4058g6slcty49q4uv5420qhu9tk7d080dys8e2lwy5u2q2uvstpynnc76u7x9f0y03sx06zlqfwcyjtuuu42j4eu9z478jtuu24wawlwalycdlp847j9087ftu90cfl9d57wnt3vqtu2q2uthj3j6tcz6y7z0etdqm7z5erx32wme699587wj2ndwghteta8d4gasv9tw34q49cmqf7xttrx8jh66m4saw9mcelt5epyjj5eqfezaz4uykh65hlmamhusq5ffuc25lryvmks7spuyljk60rpah4ek0r95nhng6s4rlyu4zucrfyu3r577z5598yg32whcfl9d5wd2l92535hcmrpardvhz05dg23fv3wnj7xqtpqpn72httdspp5dcs72ef655jh50zvzl9q08m8c9vx2pyqpn50kaf459fktsslvwtqsp5zmlelhnpqnxf5vfs8g3dpjjpwnuw5p50z3xzulya5wl8lp5xn7uq9qrsgqcqdtnm4um9mexh07x098dsnfrj0g27dux806kdtn5sumqu2v8dwm6xmc6u4khmmfv29n9m3mnhp7ta59gv49z6tflmmv89wmpa3jehplhqefudz2dc9huagppr2yu5",
+                  createdAt: 1687100000000,
+                  expiresAt: 1687300000000,
+                ),
+                amountSat: 77000,
+                feesSat: 3349,
+                status: PaymentStatus.Pending,
+                statusStr: "invoice generated",
+                note: "Brunch w/ friends",
+                createdAt: DateTime.now()
+                    .subtract(const Duration(minutes: 3))
                     .millisecondsSinceEpoch,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
@@ -519,10 +553,8 @@ class MockAppHandle extends AppHandle {
       Future.value("bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl");
 
   @override
-  Future<bool> syncPayments({dynamic hint}) => Future.delayed(
-        const Duration(milliseconds: 1500),
-        () => true,
-      );
+  Future<bool> syncPayments({dynamic hint}) =>
+      Future.delayed(const Duration(milliseconds: 1500), () => true);
 
   @override
   Payment? getPaymentByVecIdx({required int vecIdx, dynamic hint}) =>
@@ -582,6 +614,11 @@ class MockAppHandle extends AppHandle {
       .payments
       .where((payment) => payment.status != PaymentStatus.Pending)
       .length;
+
+  @override
+  Future<void> updatePaymentNote(
+          {required UpdatePaymentNote req, dynamic hint}) =>
+      Future.delayed(const Duration(milliseconds: 1000), () => ());
 }
 
 class MockGDriveAuth implements GDriveAuth {

@@ -44,6 +44,9 @@ linter:
     # how is this even allowed??
     only_throw_errors: true
 
+    # Rust-style "ignored" arguments in closures/methods
+    no_leading_underscores_for_local_identifiers: false
+
     # Avoid async functions that return `void` instead of `Future<void>`.
     avoid_void_async: true
     # Like `#[must_use]` on futures. If you actually want to spawn a future,

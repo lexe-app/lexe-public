@@ -3,12 +3,10 @@
 import 'dart:math' show max;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show MaxLengthEnforcement;
 
-import '../../address_format.dart' as address_format;
-import '../../bindings.dart' show api;
-import '../../bindings_generated.dart' show MAX_PAYMENT_NOTE_BYTES;
-import '../../bindings_generated_api.dart'
+import '../address_format.dart' as address_format;
+import '../bindings.dart' show api;
+import '../bindings_generated_api.dart'
     show
         AppHandle,
         ClientPaymentId,
@@ -18,7 +16,7 @@ import '../../bindings_generated_api.dart'
         FeeEstimate,
         Network,
         SendOnchainRequest;
-import '../../components.dart'
+import '../components.dart'
     show
         AnimatedFillButton,
         DashPainter,
@@ -28,20 +26,18 @@ import '../../components.dart'
         LxCloseButtonKind,
         LxFilledButton,
         MultistepFlow,
+        PaymentNoteInput,
         ScrollableSinglePageBody,
         SubheadingText,
         ZigZag,
         baseInputDecoration;
-import '../../currency_format.dart' as currency_format;
-import '../../date_format.dart' as date_format;
-import '../../input_formatter.dart'
-    show
-        AlphaNumericInputFormatter,
-        IntInputFormatter,
-        MaxUtf8BytesInputFormatter;
-import '../../logger.dart' show error, info;
-import '../../result.dart';
-import '../../style.dart' show Fonts, LxColors, Space;
+import '../currency_format.dart' as currency_format;
+import '../date_format.dart' as date_format;
+import '../input_formatter.dart'
+    show AlphaNumericInputFormatter, IntInputFormatter;
+import '../logger.dart' show error, info;
+import '../result.dart';
+import '../style.dart' show Fonts, LxColors, Space;
 
 /// Context used during the send payment flow.
 @immutable
@@ -776,43 +772,10 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
           // Optional payment note input
           ValueListenableBuilder(
             valueListenable: this.isSending,
-            builder: (context, isSending, widget) => TextFormField(
-              key: this.noteFieldKey,
-
-              // Disable the input field while the send request is pending.
-              enabled: !isSending,
-
-              autofocus: false,
-              keyboardType: TextInputType.text,
-              textInputAction: TextInputAction.send,
-              onEditingComplete: this.onSend,
-              maxLines: null,
-              maxLength: 200,
-              maxLengthEnforcement: MaxLengthEnforcement.enforced,
-
-              // Silently limit input to 512 bytes. This could be a little
-              // confusing if the user inputs a ton of emojis or CJK characters
-              // I guess.
-              inputFormatters: const [
-                MaxUtf8BytesInputFormatter(maxBytes: MAX_PAYMENT_NOTE_BYTES),
-              ],
-
-              decoration: const InputDecoration(
-                hintStyle: TextStyle(color: LxColors.grey550),
-                hintText: "What's this payment for? (optional)",
-                counterStyle: TextStyle(color: LxColors.grey550),
-                border: OutlineInputBorder(),
-                enabledBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: LxColors.fgTertiary)),
-                focusedBorder: OutlineInputBorder(
-                    borderSide: BorderSide(color: LxColors.foreground)),
-              ),
-              style: Fonts.fontBody.copyWith(
-                fontSize: Fonts.size200,
-                height: 1.5,
-                color: LxColors.fgSecondary,
-                letterSpacing: -0.15,
-              ),
+            builder: (context, isSending, widget) => PaymentNoteInput(
+              fieldKey: this.noteFieldKey,
+              onSubmit: this.onSend,
+              isEnabled: !isSending,
             ),
           ),
 

@@ -10,12 +10,18 @@ import '../bindings_generated_api.dart'
         Payment,
         PaymentDirection,
         PaymentKind,
-        PaymentStatus;
+        PaymentStatus,
+        UpdatePaymentNote;
 import '../components.dart'
-    show LxCloseButton, ScrollableSinglePageBody, StateStreamBuilder;
+    show
+        LxCloseButton,
+        PaymentNoteInput,
+        ScrollableSinglePageBody,
+        StateStreamBuilder;
 import '../currency_format.dart' as currency_format;
 import '../date_format.dart' as date_format;
 import '../logger.dart';
+import '../result.dart';
 import '../stream_ext.dart';
 import '../style.dart' show Fonts, LxColors, Space;
 
@@ -73,6 +79,7 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
     }
 
     return PaymentDetailPageInner(
+      app: this.widget.app,
       payment: payment,
       paymentDateUpdates: this.paymentDateUpdates,
     );
@@ -82,10 +89,12 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
 class PaymentDetailPageInner extends StatelessWidget {
   const PaymentDetailPageInner({
     super.key,
+    required this.app,
     required this.payment,
     required this.paymentDateUpdates,
   });
 
+  final AppHandle app;
   final Payment payment;
   final StateStream<DateTime> paymentDateUpdates;
 
@@ -141,14 +150,14 @@ class PaymentDetailPageInner extends StatelessWidget {
         // status.
         if (status != PaymentStatus.Completed)
           Padding(
-            padding: const EdgeInsets.only(bottom: Space.s400),
+            padding: const EdgeInsets.only(top: Space.s200, bottom: Space.s200),
             child: PaymentDetailStatusCard(
               status: status,
               statusStr: this.payment.statusStr,
             ),
           ),
 
-        const SizedBox(height: Space.s600),
+        const SizedBox(height: Space.s700),
 
         if (maybeAmountSat != null)
           PaymentDetailPrimaryAmount(
@@ -158,7 +167,13 @@ class PaymentDetailPageInner extends StatelessWidget {
             fiatName: "USD",
             fiatRate: const FiatRate(fiat: "USD", rate: 73021.29890205512),
           ),
+        const SizedBox(height: Space.s700),
 
+        PaymentDetailNoteInput(
+          app: this.app,
+          paymentIndex: this.payment.index,
+          initialNote: this.payment.note,
+        ),
         const SizedBox(height: Space.s600),
       ]),
     );
@@ -320,7 +335,7 @@ class PaymentDetailStatusCard extends StatelessWidget {
     return Card(
       color: LxColors.grey1000,
       elevation: 0.0,
-      margin: const EdgeInsets.all(Space.s200),
+      margin: const EdgeInsets.all(0),
       child: Padding(
         padding: const EdgeInsets.all(Space.s400),
         child: Row(
@@ -429,6 +444,112 @@ class PaymentDetailPrimaryAmount extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ),
+      ],
+    );
+  }
+}
+
+class PaymentDetailNoteInput extends StatefulWidget {
+  const PaymentDetailNoteInput({
+    super.key,
+    required this.app,
+    required this.paymentIndex,
+    required this.initialNote,
+  });
+
+  final AppHandle app;
+  final String paymentIndex;
+  final String? initialNote;
+
+  @override
+  State<PaymentDetailNoteInput> createState() => _PaymentDetailNoteInputState();
+}
+
+class _PaymentDetailNoteInputState extends State<PaymentDetailNoteInput> {
+  final GlobalKey<FormFieldState<String>> fieldKey = GlobalKey();
+
+  final ValueNotifier<String?> submitError = ValueNotifier(null);
+  final ValueNotifier<bool> isSubmitting = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    this.submitError.dispose();
+    this.isSubmitting.dispose();
+    super.dispose();
+  }
+
+  Future<void> onSubmit() async {
+    if (this.isSubmitting.value) return;
+
+    this.isSubmitting.value = true;
+    this.submitError.value = null;
+
+    final req = UpdatePaymentNote(
+      index: this.widget.paymentIndex,
+      note: this.fieldKey.currentState!.value,
+    );
+    final result = await Result.tryFfiAsync(
+        () async => this.widget.app.updatePaymentNote(req: req));
+
+    if (!this.mounted) return;
+
+    switch (result) {
+      case Ok():
+        this.isSubmitting.value = false;
+        this.submitError.value = null;
+        return;
+
+      case Err(:final err):
+        error("PaymentDetailNoteInput: error updating note: $err");
+        this.isSubmitting.value = false;
+        this.submitError.value = err.message;
+        return;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const Text("Payment note",
+                style: TextStyle(color: LxColors.fgSecondary)),
+            const SizedBox(width: Space.s400),
+
+            // Show a small spinner while submitting.
+            ValueListenableBuilder(
+              valueListenable: this.isSubmitting,
+              child: const SizedBox.square(
+                dimension: Fonts.size200,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.0,
+                  color: LxColors.fgTertiary,
+                ),
+              ),
+              builder: (_context, submitting, child) => AnimatedOpacity(
+                opacity: submitting ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 150),
+                child: child,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: Space.s200),
+
+        // note text field
+        ValueListenableBuilder(
+          valueListenable: this.isSubmitting,
+          builder: (_context, submitting, _child) => PaymentNoteInput(
+            fieldKey: this.fieldKey,
+            onSubmit: this.onSubmit,
+            initialNote: this.widget.initialNote,
+            isEnabled: !submitting,
+          ),
+        ),
       ],
     );
   }
