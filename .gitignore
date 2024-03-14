@@ -1,6 +1,9 @@
 # GENERAL
 .ldk/
 
+# Explicitly ignore .git so we can use `--hidden` with tools like rg / fastmod
+.git/
+
 # ignore `nix build` output symlink
 /result
 
