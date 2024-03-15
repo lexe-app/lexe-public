@@ -65,12 +65,18 @@ pub trait ToHttpStatus {
 /// A 'trait alias' defining all the supertraits a service error type must impl
 /// to be accepted for use in the `RestClient` and across all Lexe services.
 pub trait ServiceApiError:
-    From<CommonError> + From<ErrorResponse> + Into<ErrorResponse> + Error + Clone
+    ToHttpStatus
+    + From<CommonError>
+    + From<ErrorResponse>
+    + Into<ErrorResponse>
+    + Error
+    + Clone
 {
 }
 
 impl<E> ServiceApiError for E where
-    E: From<CommonError>
+    E: ToHttpStatus
+        + From<CommonError>
         + From<ErrorResponse>
         + Into<ErrorResponse>
         + Error
