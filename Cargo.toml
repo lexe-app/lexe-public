@@ -232,6 +232,12 @@ warp = { git = "https://github.com/lexe-app/warp", branch = "lexe-v0.3.6-2023_03
 lto = "thin"
 strip = "debuginfo"
 
+# For some reason, the `ring` build via nix + x86_64-unknown-linux-gnu is
+# failing in its `build.rs` because it's compiling the native code with `-O0`
+# (no optimizations)...
+[profile.release.build-override]
+opt-level = 3
+
 # The Rust profile used when building the node SGX enclave in release mode.
 # These options are tuned through trial and error to minimize reproducibility
 # issues :)
