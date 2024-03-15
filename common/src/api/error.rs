@@ -416,6 +416,20 @@ pub enum CommonErrorKind {
     // NOTE: If adding a variant, be sure to also update Self::KINDS!
 }
 
+impl ToHttpStatus for CommonErrorKind {
+    fn to_http_status(&self) -> StatusCode {
+        use CommonErrorKind::*;
+        match self {
+            UnknownReqwest => CLIENT_400_BAD_REQUEST,
+            Building => CLIENT_400_BAD_REQUEST,
+            Connect => SERVER_503_SERVICE_UNAVAILABLE,
+            Timeout => SERVER_504_GATEWAY_TIMEOUT,
+            Decode => SERVER_502_BAD_GATEWAY,
+            Server => SERVER_500_INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
 api_error_kind! {
     /// All variants of errors that the backend can return.
     #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
