@@ -37,7 +37,7 @@ pub type ErrorCode = u16;
 /// Everything else is converted to / from it.
 ///
 /// For displaying the full human-readable message to the user, convert
-/// `ErrorResponse` to the corresponding service error type first.
+/// `ErrorResponse` to the corresponding API error type first.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct ErrorResponse {
@@ -62,11 +62,11 @@ pub trait ToHttpStatus {
     }
 }
 
-/// A 'trait alias' defining all the supertraits a service error type must impl
-/// to be accepted for use in the `RestClient` and across all Lexe services.
-pub trait ServiceApiError:
+/// A 'trait alias' defining all the supertraits an API error type must impl
+/// to be accepted for use in the `RestClient` and across all Lexe APIs.
+pub trait ApiError:
     ToHttpStatus
-    + From<CommonError>
+    + From<CommonApiError>
     + From<ErrorResponse>
     + Into<ErrorResponse>
     + Error
@@ -74,9 +74,9 @@ pub trait ServiceApiError:
 {
 }
 
-impl<E> ServiceApiError for E where
+impl<E> ApiError for E where
     E: ToHttpStatus
-        + From<CommonError>
+        + From<CommonApiError>
         + From<ErrorResponse>
         + Into<ErrorResponse>
         + Error
@@ -84,11 +84,11 @@ impl<E> ServiceApiError for E where
 {
 }
 
-/// `ErrorKindGenerated` is the set of methods and traits derived by the
-/// `error_kind!` macro.
+/// `ApiErrorKind` defines the methods required of all API error kinds.
+/// Implementations of this trait are derived by `api_error_kind!`.
 ///
 /// Try to keep this light, since debugging macros is a pain : )
-pub trait ErrorKindGenerated:
+pub trait ApiErrorKind:
     Copy
     + Clone
     + Default
@@ -126,9 +126,9 @@ pub trait ErrorKindGenerated:
     fn from_code(code: ErrorCode) -> Self;
 }
 
-// --- error_kind! macro --- //
+// --- api_error_kind! macro --- //
 
-// Easily debug/view the `error_kind!` macro expansion with `cargo expand`:
+// Easily debug/view the `api_error_kind!` expansion with `cargo expand`:
 //
 // ```bash
 // $ cargo install cargo-expand
@@ -137,12 +137,12 @@ pub trait ErrorKindGenerated:
 // ```
 
 /// This macro takes an error kind enum declaration and generates impls for the
-/// trait [`ErrorKindGenerated`] (and its dependent traits).
+/// trait [`ApiErrorKind`] (and its dependent traits).
 ///
 /// ### Example
 ///
 /// ```ignore
-/// error_kind! {
+/// api_error_kind! {
 ///     #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 ///     pub enum FooErrorKind {
 ///         /// Unknown error
@@ -160,10 +160,10 @@ pub trait ErrorKindGenerated:
 ///   _must_ be first. This handles any unrecognized errors seen from remote
 ///   services and preserves the error code for debugging / propagating.
 ///
-/// * Doc strings on the error variants are used for
-///   [`ErrorKindGenerated::to_msg`] and the [`fmt::Display`] impl.
+/// * Doc strings on the error variants are used for [`ApiErrorKind::to_msg`]
+///   and the [`fmt::Display`] impl.
 #[macro_export]
-macro_rules! error_kind {
+macro_rules! api_error_kind {
     {
         $(#[$enum_meta:meta])*
         pub enum $error_kind_name:ident {
@@ -193,7 +193,7 @@ macro_rules! error_kind {
 
         // --- macro-generated impls --- //
 
-        impl ErrorKindGenerated for $error_kind_name {
+        impl ApiErrorKind for $error_kind_name {
             const KINDS: &'static [Self] = &[
                 $( Self::$item_name, )*
             ];
@@ -252,7 +252,7 @@ macro_rules! error_kind {
                 let msg = (*self).to_msg();
                 let code = (*self).to_code();
                 // ex: "[102=Duplicate] Resource was duplicate"
-                // No ':' because the ServiceApiError's Display impl adds it.
+                // No ':' because the ApiError's Display impl adds it.
                 write!(f, "[{code}={name}]{msg}")
             }
         }
@@ -279,7 +279,7 @@ macro_rules! error_kind {
             #[inline]
             fn from(common: CommonErrorKind) -> Self {
                 // We can use `Self::from_code` here bc `error_kind_invariants`
-                // checks that the recovered `ServiceApiError` kind != Unknown
+                // checks that the recovered `ApiError` kind != Unknown
                 Self::from_code(common.to_code())
             }
         }
@@ -311,11 +311,11 @@ macro_rules! error_kind {
 
 // --- Error structs --- //
 
-/// Errors common to all `ServiceApiError`s.
+/// Errors common to all `ApiError`s.
 /// This error should not be used directly. Rather, it serves as an intermediate
-/// representation; `ServiceApiError`s must define a `From<CommonError>` impl to
+/// representation; `ApiError`s must define a `From<CommonApiError>` impl to
 /// ensure they have covered these cases.
-pub struct CommonError {
+pub struct CommonApiError {
     pub kind: CommonErrorKind,
     pub msg: String,
 }
@@ -387,7 +387,7 @@ pub struct LspApiError {
 
 // --- Error variants --- //
 
-/// Error variants common to all `ServiceApiError`s.
+/// Error variants common to all `ApiError`s.
 #[derive(Copy, Clone, Debug)]
 #[repr(u16)]
 pub enum CommonErrorKind {
@@ -406,7 +406,7 @@ pub enum CommonErrorKind {
     // NOTE: If adding a variant, be sure to also update Self::KINDS!
 }
 
-error_kind! {
+api_error_kind! {
     /// All variants of errors that the backend can return.
     #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
     pub enum BackendErrorKind {
@@ -451,7 +451,7 @@ error_kind! {
     }
 }
 
-error_kind! {
+api_error_kind! {
     /// All variants of errors that the runner can return.
     #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
     pub enum RunnerErrorKind {
@@ -495,7 +495,7 @@ error_kind! {
     }
 }
 
-error_kind! {
+api_error_kind! {
     /// All variants of errors that the gateway can return.
     #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
     pub enum GatewayErrorKind {
@@ -524,7 +524,7 @@ error_kind! {
     }
 }
 
-error_kind! {
+api_error_kind! {
     /// All variants of errors that the node can return.
     #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
     pub enum NodeErrorKind {
@@ -565,7 +565,7 @@ error_kind! {
     }
 }
 
-error_kind! {
+api_error_kind! {
     /// All variants of errors that the LSP can return.
     #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
     pub enum LspErrorKind {
@@ -598,9 +598,9 @@ error_kind! {
     }
 }
 
-// --- CommonError impl --- //
+// --- CommonApiError impl --- //
 
-impl CommonError {
+impl CommonApiError {
     pub(crate) fn new(kind: CommonErrorKind, msg: String) -> Self {
         Self { kind, msg }
     }
@@ -741,7 +741,7 @@ impl warp::reject::Reject for GatewayApiError {}
 impl warp::reject::Reject for NodeApiError {}
 impl warp::reject::Reject for LspApiError {}
 
-// --- ErrorResponse -> ServiceApiError impls --- //
+// --- ErrorResponse -> ApiError impls --- //
 
 impl From<ErrorResponse> for BackendApiError {
     fn from(ErrorResponse { code, msg }: ErrorResponse) -> Self {
@@ -774,7 +774,7 @@ impl From<ErrorResponse> for LspApiError {
     }
 }
 
-// --- ServiceApiError -> ErrorResponse impls --- //
+// --- ApiError -> ErrorResponse impls --- //
 
 impl From<BackendApiError> for ErrorResponse {
     fn from(BackendApiError { kind, msg }: BackendApiError) -> Self {
@@ -922,9 +922,9 @@ impl ToHttpStatus for LspApiError {
     }
 }
 
-// --- Library crate -> CommonError impls --- //
+// --- Library crate -> CommonApiError impls --- //
 
-impl From<serde_json::Error> for CommonError {
+impl From<serde_json::Error> for CommonApiError {
     fn from(err: serde_json::Error) -> Self {
         let kind = CommonErrorKind::Decode;
         let msg = format!("Failed to deserialize response as json: {err:#}");
@@ -933,7 +933,7 @@ impl From<serde_json::Error> for CommonError {
 }
 
 // Be more granular than just returning a general reqwest::Error
-impl From<reqwest::Error> for CommonError {
+impl From<reqwest::Error> for CommonApiError {
     fn from(err: reqwest::Error) -> Self {
         let msg = format!("{err:#}");
         let kind = if err.is_builder() {
@@ -951,34 +951,34 @@ impl From<reqwest::Error> for CommonError {
     }
 }
 
-// --- CommonError -> ServiceApiError impls --- //
+// --- CommonApiError -> ApiError impls --- //
 
-impl From<CommonError> for BackendApiError {
-    fn from(CommonError { kind, msg }: CommonError) -> Self {
+impl From<CommonApiError> for BackendApiError {
+    fn from(CommonApiError { kind, msg }: CommonApiError) -> Self {
         let kind = BackendErrorKind::from(kind);
         Self { kind, msg }
     }
 }
-impl From<CommonError> for RunnerApiError {
-    fn from(CommonError { kind, msg }: CommonError) -> Self {
+impl From<CommonApiError> for RunnerApiError {
+    fn from(CommonApiError { kind, msg }: CommonApiError) -> Self {
         let kind = RunnerErrorKind::from(kind);
         Self { kind, msg }
     }
 }
-impl From<CommonError> for GatewayApiError {
-    fn from(CommonError { kind, msg }: CommonError) -> Self {
+impl From<CommonApiError> for GatewayApiError {
+    fn from(CommonApiError { kind, msg }: CommonApiError) -> Self {
         let kind = GatewayErrorKind::from(kind);
         Self { kind, msg }
     }
 }
-impl From<CommonError> for NodeApiError {
-    fn from(CommonError { kind, msg }: CommonError) -> Self {
+impl From<CommonApiError> for NodeApiError {
+    fn from(CommonApiError { kind, msg }: CommonApiError) -> Self {
         let kind = NodeErrorKind::from(kind);
         Self { kind, msg }
     }
 }
-impl From<CommonError> for LspApiError {
-    fn from(CommonError { kind, msg }: CommonError) -> Self {
+impl From<CommonApiError> for LspApiError {
+    fn from(CommonApiError { kind, msg }: CommonApiError) -> Self {
         let kind = LspErrorKind::from(kind);
         Self { kind, msg }
     }
@@ -999,7 +999,7 @@ pub mod invariants {
 
     pub fn assert_error_kind_invariants<T>()
     where
-        T: ErrorKindGenerated + Arbitrary,
+        T: ApiErrorKind + Arbitrary,
     {
         // error code 0 and default error code must be unknown
         assert!(T::from_code(0).is_unknown());
@@ -1056,24 +1056,24 @@ pub mod invariants {
         });
     }
 
-    pub fn assert_service_error_invariants<S, K>()
+    pub fn assert_api_error_invariants<E, K>()
     where
-        S: ServiceApiError + Arbitrary + PartialEq,
-        K: ErrorKindGenerated + Arbitrary,
+        E: ApiError + Arbitrary + PartialEq,
+        K: ApiErrorKind + Arbitrary,
     {
         // Double roundtrip proptest
-        // - ServiceApiError -> ErrorResponse -> ServiceApiError
-        // - ErrorResponse -> ServiceApiError -> ErrorResponse
+        // - ApiError -> ErrorResponse -> ApiError
+        // - ErrorResponse -> ApiError -> ErrorResponse
         // i.e. The errors should be equal in serialized & unserialized form.
-        proptest!(|(e1 in any::<S>())| {
+        proptest!(|(e1 in any::<E>())| {
             let err_resp1 = Into::<ErrorResponse>::into(e1.clone());
-            let e2 = S::from(err_resp1.clone());
+            let e2 = E::from(err_resp1.clone());
             let err_resp2 = Into::<ErrorResponse>::into(e2.clone());
             prop_assert_eq!(e1, e2);
             prop_assert_eq!(err_resp1, err_resp2);
         });
 
-        // Check that the ServiceApiError Display impl is of form
+        // Check that the ApiError Display impl is of form
         // `[<code>=<kind_name>] <kind_msg>: <main_msg>`
         proptest!(|(
             kind in any::<K>(),
@@ -1082,11 +1082,11 @@ pub mod invariants {
             let code = kind.to_code();
             let msg = main_msg.clone();
             let err_resp = ErrorResponse { code, msg };
-            let service_error = S::from(err_resp);
+            let api_error = E::from(err_resp);
             let kind_name = kind.to_name();
             let kind_msg = kind.to_msg();
 
-            let actual_display = format!("{service_error}");
+            let actual_display = format!("{api_error}");
             // e.g. "[0=Unknown] Unknown error: Additional context"
             let expected_display =
                 format!("[{code}={kind_name}]{kind_msg}: {main_msg}");
@@ -1124,12 +1124,12 @@ mod test {
     }
 
     #[test]
-    fn service_api_error_invariants() {
-        use invariants::assert_service_error_invariants;
-        assert_service_error_invariants::<BackendApiError, BackendErrorKind>();
-        assert_service_error_invariants::<RunnerApiError, RunnerErrorKind>();
-        assert_service_error_invariants::<GatewayApiError, GatewayErrorKind>();
-        assert_service_error_invariants::<NodeApiError, NodeErrorKind>();
-        assert_service_error_invariants::<LspApiError, LspErrorKind>();
+    fn api_error_invariants() {
+        use invariants::assert_api_error_invariants;
+        assert_api_error_invariants::<BackendApiError, BackendErrorKind>();
+        assert_api_error_invariants::<RunnerApiError, RunnerErrorKind>();
+        assert_api_error_invariants::<GatewayApiError, GatewayErrorKind>();
+        assert_api_error_invariants::<NodeApiError, NodeErrorKind>();
+        assert_api_error_invariants::<LspApiError, LspErrorKind>();
     }
 }
