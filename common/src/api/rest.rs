@@ -8,23 +8,19 @@ use std::{
 use anyhow::Context;
 use bytes::Bytes;
 use futures::future::BoxFuture;
+use http_old::{
+    header::{HeaderValue, CONTENT_TYPE},
+    response::Response,
+    status::StatusCode,
+    Method,
+};
 use reqwest::IntoUrl;
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::time;
 use tracing::{
     debug, error, field, info, info_span, span, warn, Instrument, Span,
 };
-use warp::{
-    filters::BoxedFilter,
-    http::{
-        header::{HeaderValue, CONTENT_TYPE},
-        response::Response,
-        status::StatusCode,
-        Method,
-    },
-    hyper::Body,
-    Filter, Rejection,
-};
+use warp::{filters::BoxedFilter, hyper::Body, Filter, Rejection};
 
 use crate::{
     api::error::{
@@ -211,7 +207,7 @@ pub fn into_response<T: Serialize, E: ToHttpStatus + Into<ErrorResponse>>(
 ) -> Response<Body> {
     match reply_res {
         Ok(data) => build_json_response(StatusCode::OK, &data),
-        Err(err) => build_json_response(err.to_http_status(), &err.into()),
+        Err(err) => build_json_response(err.to_old_http_status(), &err.into()),
     }
 }
 
@@ -252,7 +248,7 @@ pub fn prerendered_json_into_response<E: ToHttpStatus + Into<ErrorResponse>>(
 ) -> Response<Body> {
     match reply_res {
         Ok(data) => build_json_response_inner(StatusCode::OK, Ok(data.into())),
-        Err(err) => build_json_response(err.to_http_status(), &err.into()),
+        Err(err) => build_json_response(err.to_old_http_status(), &err.into()),
     }
 }
 
@@ -285,7 +281,7 @@ pub async fn recover_error_response<
     err: Rejection,
 ) -> Result<Response<Body>, Rejection> {
     if let Some(err) = err.find::<E>() {
-        let status = err.to_http_status();
+        let status = err.to_old_http_status();
         // TODO(phlip9): find returns &E... figure out how to remove clone
         let err: ErrorResponse = err.clone().into();
         Ok(build_json_response(status, &err))

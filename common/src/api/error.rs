@@ -6,27 +6,28 @@
 
 use std::{error::Error, fmt};
 
+use http::status::StatusCode;
+use http_old::status::StatusCode as OldStatusCode;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-// So the consts fit in 80 chars
-use warp::http::status::StatusCode as Status;
 
 use super::{auth, NodePk, UserPk};
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
 
 // Associated constants can't be imported.
-pub const CLIENT_400_BAD_REQUEST: Status = Status::BAD_REQUEST;
-pub const CLIENT_401_UNAUTHORIZED: Status = Status::UNAUTHORIZED;
-pub const CLIENT_404_NOT_FOUND: Status = Status::NOT_FOUND;
-pub const CLIENT_409_CONFLICT: Status = Status::CONFLICT;
-pub const SERVER_500_INTERNAL_SERVER_ERROR: Status =
-    Status::INTERNAL_SERVER_ERROR;
-pub const SERVER_502_BAD_GATEWAY: Status = Status::BAD_GATEWAY;
-pub const SERVER_503_SERVICE_UNAVAILABLE: Status = Status::SERVICE_UNAVAILABLE;
-pub const SERVER_504_GATEWAY_TIMEOUT: Status = Status::GATEWAY_TIMEOUT;
+pub const CLIENT_400_BAD_REQUEST: StatusCode = StatusCode::BAD_REQUEST;
+pub const CLIENT_401_UNAUTHORIZED: StatusCode = StatusCode::UNAUTHORIZED;
+pub const CLIENT_404_NOT_FOUND: StatusCode = StatusCode::NOT_FOUND;
+pub const CLIENT_409_CONFLICT: StatusCode = StatusCode::CONFLICT;
+pub const SERVER_500_INTERNAL_SERVER_ERROR: StatusCode =
+    StatusCode::INTERNAL_SERVER_ERROR;
+pub const SERVER_502_BAD_GATEWAY: StatusCode = StatusCode::BAD_GATEWAY;
+pub const SERVER_503_SERVICE_UNAVAILABLE: StatusCode =
+    StatusCode::SERVICE_UNAVAILABLE;
+pub const SERVER_504_GATEWAY_TIMEOUT: StatusCode = StatusCode::GATEWAY_TIMEOUT;
 
 /// `ErrorCode` is the common serialized representation for all `ErrorKind`s.
 pub type ErrorCode = u16;
@@ -45,9 +46,20 @@ pub struct ErrorResponse {
     pub msg: String,
 }
 
-/// Get the HTTP status code returned for a particular Error.
+/// A trait to get the HTTP status code for a given Error.
 pub trait ToHttpStatus {
-    fn to_http_status(&self) -> Status;
+    fn to_http_status(&self) -> StatusCode;
+    // TODO(max): Compat hack; remove once warp is removed
+    fn to_old_http_status(&self) -> OldStatusCode {
+        let status_u16 = self.to_http_status().as_u16();
+        // This conversion *should* be infallible, but in case we're somehow
+        // constructing an out-of-bounds status code somewhere, we'll panic in
+        // debug but clamp to the nearest bound in staging/prod.
+        debug_assert!(status_u16 >= 100, "Underflow");
+        debug_assert!(status_u16 < 1000, "Overflow");
+        let bounded_status_u16 = status_u16.clamp(100, 999);
+        OldStatusCode::from_u16(bounded_status_u16).expect("Bounded above")
+    }
 }
 
 /// A 'trait alias' defining all the supertraits a service error type must impl
@@ -782,7 +794,7 @@ impl From<LspApiError> for ErrorResponse {
 // --- ToHttpStatus impls --- //
 
 impl ToHttpStatus for BackendApiError {
-    fn to_http_status(&self) -> Status {
+    fn to_http_status(&self) -> StatusCode {
         use BackendErrorKind::*;
         match self.kind {
             Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
@@ -807,7 +819,7 @@ impl ToHttpStatus for BackendApiError {
 }
 
 impl ToHttpStatus for RunnerApiError {
-    fn to_http_status(&self) -> Status {
+    fn to_http_status(&self) -> StatusCode {
         use RunnerErrorKind::*;
         match self.kind {
             Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
@@ -831,7 +843,7 @@ impl ToHttpStatus for RunnerApiError {
 }
 
 impl ToHttpStatus for GatewayApiError {
-    fn to_http_status(&self) -> Status {
+    fn to_http_status(&self) -> StatusCode {
         use GatewayErrorKind::*;
         match self.kind {
             Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
@@ -848,7 +860,7 @@ impl ToHttpStatus for GatewayApiError {
 }
 
 impl ToHttpStatus for NodeApiError {
-    fn to_http_status(&self) -> Status {
+    fn to_http_status(&self) -> StatusCode {
         use NodeErrorKind::*;
         match self.kind {
             Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
@@ -871,7 +883,7 @@ impl ToHttpStatus for NodeApiError {
 }
 
 impl ToHttpStatus for LspApiError {
-    fn to_http_status(&self) -> Status {
+    fn to_http_status(&self) -> StatusCode {
         use LspErrorKind::*;
         match self.kind {
             Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
