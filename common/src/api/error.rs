@@ -126,18 +126,76 @@ pub trait ApiErrorKind:
     fn from_code(code: ErrorCode) -> Self;
 }
 
-// --- api_error_kind! macro --- //
+// --- api_error! and api_error_kind! macros --- //
 
-// Easily debug/view the `api_error_kind!` expansion with `cargo expand`:
+// Easily debug/view the macro expansions with `cargo expand`:
 //
 // ```bash
 // $ cargo install cargo-expand
-// $ cd common/
+// $ cd public/common/
 // $ cargo expand api::error
 // ```
 
+/// This macro takes the name of an [`ApiError`] and its error kind type to
+/// generate the various impls required by the [`ApiError`] trait alias.
+///
+/// This macro should be used in combination with `api_error_kind!` below.
+///
+/// ```ignore
+/// api_error!(FooApiError, FooErrorKind);
+/// ```
+#[macro_export]
+macro_rules! api_error {
+    ($api_error:ident, $api_error_kind:ident) => {
+        #[derive(Error, Clone, Debug, Eq, PartialEq, Hash)]
+        #[error("{kind}: {msg}")]
+        #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+        pub struct $api_error {
+            pub kind: $api_error_kind,
+            #[cfg_attr(
+                any(test, feature = "test-utils"),
+                proptest(strategy = "arbitrary::any_string()")
+            )]
+            pub msg: String,
+        }
+
+        // Allow our error types to be returned as Rejections from warp Filters
+        // using `warp::reject::custom`. TODO(max): Remove eventually
+        impl warp::reject::Reject for $api_error {}
+
+        impl From<ErrorResponse> for $api_error {
+            fn from(ErrorResponse { code, msg }: ErrorResponse) -> Self {
+                let kind = $api_error_kind::from_code(code);
+                Self { kind, msg }
+            }
+        }
+
+        impl From<$api_error> for ErrorResponse {
+            fn from($api_error { kind, msg }: $api_error) -> Self {
+                let code = kind.to_code();
+                Self { code, msg }
+            }
+        }
+
+        impl From<CommonApiError> for $api_error {
+            fn from(CommonApiError { kind, msg }: CommonApiError) -> Self {
+                let kind = $api_error_kind::from(kind);
+                Self { kind, msg }
+            }
+        }
+
+        impl ToHttpStatus for $api_error {
+            fn to_http_status(&self) -> StatusCode {
+                self.kind.to_http_status()
+            }
+        }
+    };
+}
+
 /// This macro takes an error kind enum declaration and generates impls for the
 /// trait [`ApiErrorKind`] (and its dependent traits).
+///
+/// Each invocation should be paired with a `ToHttpStatus` impl.
 ///
 /// ### Example
 ///
@@ -152,6 +210,18 @@ pub trait ApiErrorKind:
 ///         Foo = 1,
 ///         /// Bar failed to complete
 ///         Bar = 2,
+///     }
+/// }
+///
+/// impl ToHttpStatus for FooErrorKind {
+///     fn to_http_status(&self) -> StatusCode {
+///         use FooErrorKind::*;
+///         match self {
+///             Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
+///
+///             Foo => CLIENT_400_BAD_REQUEST,
+///             Bar => SERVER_500_INTERNAL_SERVER_ERROR,
+///         }
 ///     }
 /// }
 /// ```
@@ -311,79 +381,20 @@ macro_rules! api_error_kind {
 
 // --- Error structs --- //
 
-/// Errors common to all `ApiError`s.
-/// This error should not be used directly. Rather, it serves as an intermediate
-/// representation; `ApiError`s must define a `From<CommonApiError>` impl to
-/// ensure they have covered these cases.
+/// Errors common to all [`ApiError`]s. This error should not be used directly.
+/// Rather, it serves as an intermediate type; [`ApiError`]s must define a
+/// `From<CommonApiError>` impl to ensure they have covered these cases.
 pub struct CommonApiError {
     pub kind: CommonErrorKind,
     pub msg: String,
 }
 
-/// The primary error type that the backend returns.
-#[derive(Error, Clone, Debug, Eq, PartialEq, Hash)]
-#[error("{kind}: {msg}")]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct BackendApiError {
-    pub kind: BackendErrorKind,
-    #[cfg_attr(
-        any(test, feature = "test-utils"),
-        proptest(strategy = "arbitrary::any_string()")
-    )]
-    pub msg: String,
-}
-
-/// The primary error type that the runner returns.
-#[derive(Error, Clone, Debug, Eq, PartialEq, Hash)]
-#[error("{kind}: {msg}")]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct RunnerApiError {
-    pub kind: RunnerErrorKind,
-    #[cfg_attr(
-        any(test, feature = "test-utils"),
-        proptest(strategy = "arbitrary::any_string()")
-    )]
-    pub msg: String,
-}
-
-/// The primary error type that the gateway returns.
-#[derive(Error, Clone, Debug, Eq, PartialEq, Hash)]
-#[error("{kind}: {msg}")]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct GatewayApiError {
-    pub kind: GatewayErrorKind,
-    #[cfg_attr(
-        any(test, feature = "test-utils"),
-        proptest(strategy = "arbitrary::any_string()")
-    )]
-    pub msg: String,
-}
-
-/// The primary error type that the node returns.
-#[derive(Error, Clone, Debug, Eq, PartialEq, Hash)]
-#[error("{kind}: {msg}")]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct NodeApiError {
-    pub kind: NodeErrorKind,
-    #[cfg_attr(
-        any(test, feature = "test-utils"),
-        proptest(strategy = "arbitrary::any_string()")
-    )]
-    pub msg: String,
-}
-
-/// The primary error type that the LSP returns.
-#[derive(Error, Clone, Debug, Eq, PartialEq, Hash)]
-#[error("{kind}: {msg}")]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub struct LspApiError {
-    pub kind: LspErrorKind,
-    #[cfg_attr(
-        any(test, feature = "test-utils"),
-        proptest(strategy = "arbitrary::any_string()")
-    )]
-    pub msg: String,
-}
+// TODO(max): Alphabetize everything
+api_error!(BackendApiError, BackendErrorKind);
+api_error!(RunnerApiError, RunnerErrorKind);
+api_error!(GatewayApiError, GatewayErrorKind);
+api_error!(NodeApiError, NodeErrorKind);
+api_error!(LspApiError, LspErrorKind);
 
 // --- Error variants --- //
 
@@ -598,7 +609,7 @@ api_error_kind! {
     }
 }
 
-// --- CommonApiError impl --- //
+// --- CommonApiError / CommonErrorKind impls --- //
 
 impl CommonApiError {
     pub(crate) fn new(kind: CommonErrorKind, msg: String) -> Self {
@@ -610,8 +621,6 @@ impl CommonApiError {
         self.kind.to_code()
     }
 }
-
-// --- CommonErrorKind impl --- //
 
 impl CommonErrorKind {
     #[cfg(any(test, feature = "test-utils"))]
@@ -630,7 +639,34 @@ impl CommonErrorKind {
     }
 }
 
-// --- Misc constructors / helpers --- //
+impl From<serde_json::Error> for CommonApiError {
+    fn from(err: serde_json::Error) -> Self {
+        let kind = CommonErrorKind::Decode;
+        let msg = format!("Failed to deserialize response as json: {err:#}");
+        Self { kind, msg }
+    }
+}
+
+impl From<reqwest::Error> for CommonApiError {
+    fn from(err: reqwest::Error) -> Self {
+        let msg = format!("{err:#}");
+        // Be more granular than just returning a general reqwest::Error
+        let kind = if err.is_builder() {
+            CommonErrorKind::Building
+        } else if err.is_connect() {
+            CommonErrorKind::Connect
+        } else if err.is_timeout() {
+            CommonErrorKind::Timeout
+        } else if err.is_decode() {
+            CommonErrorKind::Decode
+        } else {
+            CommonErrorKind::UnknownReqwest
+        };
+        Self { kind, msg }
+    }
+}
+
+// --- ApiError impls --- //
 
 impl BackendApiError {
     pub fn unauthorized_user() -> Self {
@@ -730,89 +766,12 @@ impl LspApiError {
     }
 }
 
-// --- warp::reject::Reject impls --- ///
-
-// Allow our error types to be returned as Rejections from warp Filters using
-// `warp::reject::custom`.
-
-impl warp::reject::Reject for BackendApiError {}
-impl warp::reject::Reject for RunnerApiError {}
-impl warp::reject::Reject for GatewayApiError {}
-impl warp::reject::Reject for NodeApiError {}
-impl warp::reject::Reject for LspApiError {}
-
-// --- ErrorResponse -> ApiError impls --- //
-
-impl From<ErrorResponse> for BackendApiError {
-    fn from(ErrorResponse { code, msg }: ErrorResponse) -> Self {
-        let kind = BackendErrorKind::from_code(code);
-        Self { kind, msg }
-    }
-}
-impl From<ErrorResponse> for RunnerApiError {
-    fn from(ErrorResponse { code, msg }: ErrorResponse) -> Self {
-        let kind = RunnerErrorKind::from_code(code);
-        Self { kind, msg }
-    }
-}
-impl From<ErrorResponse> for GatewayApiError {
-    fn from(ErrorResponse { code, msg }: ErrorResponse) -> Self {
-        let kind = GatewayErrorKind::from_code(code);
-        Self { kind, msg }
-    }
-}
-impl From<ErrorResponse> for NodeApiError {
-    fn from(ErrorResponse { code, msg }: ErrorResponse) -> Self {
-        let kind = NodeErrorKind::from_code(code);
-        Self { kind, msg }
-    }
-}
-impl From<ErrorResponse> for LspApiError {
-    fn from(ErrorResponse { code, msg }: ErrorResponse) -> Self {
-        let kind = LspErrorKind::from_code(code);
-        Self { kind, msg }
-    }
-}
-
-// --- ApiError -> ErrorResponse impls --- //
-
-impl From<BackendApiError> for ErrorResponse {
-    fn from(BackendApiError { kind, msg }: BackendApiError) -> Self {
-        let code = kind.to_code();
-        Self { code, msg }
-    }
-}
-impl From<RunnerApiError> for ErrorResponse {
-    fn from(RunnerApiError { kind, msg }: RunnerApiError) -> Self {
-        let code = kind.to_code();
-        Self { code, msg }
-    }
-}
-impl From<GatewayApiError> for ErrorResponse {
-    fn from(GatewayApiError { kind, msg }: GatewayApiError) -> Self {
-        let code = kind.to_code();
-        Self { code, msg }
-    }
-}
-impl From<NodeApiError> for ErrorResponse {
-    fn from(NodeApiError { kind, msg }: NodeApiError) -> Self {
-        let code = kind.to_code();
-        Self { code, msg }
-    }
-}
-impl From<LspApiError> for ErrorResponse {
-    fn from(LspApiError { kind, msg }: LspApiError) -> Self {
-        let code = kind.to_code();
-        Self { code, msg }
-    }
-}
-
 // --- ToHttpStatus impls --- //
 
-impl ToHttpStatus for BackendApiError {
+impl ToHttpStatus for BackendErrorKind {
     fn to_http_status(&self) -> StatusCode {
         use BackendErrorKind::*;
-        match self.kind {
+        match self {
             Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
 
             UnknownReqwest => CLIENT_400_BAD_REQUEST,
@@ -835,10 +794,10 @@ impl ToHttpStatus for BackendApiError {
     }
 }
 
-impl ToHttpStatus for RunnerApiError {
+impl ToHttpStatus for RunnerErrorKind {
     fn to_http_status(&self) -> StatusCode {
         use RunnerErrorKind::*;
-        match self.kind {
+        match self {
             Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
 
             UnknownReqwest => CLIENT_400_BAD_REQUEST,
@@ -860,10 +819,10 @@ impl ToHttpStatus for RunnerApiError {
     }
 }
 
-impl ToHttpStatus for GatewayApiError {
+impl ToHttpStatus for GatewayErrorKind {
     fn to_http_status(&self) -> StatusCode {
         use GatewayErrorKind::*;
-        match self.kind {
+        match self {
             Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
 
             UnknownReqwest => CLIENT_400_BAD_REQUEST,
@@ -878,10 +837,10 @@ impl ToHttpStatus for GatewayApiError {
     }
 }
 
-impl ToHttpStatus for NodeApiError {
+impl ToHttpStatus for NodeErrorKind {
     fn to_http_status(&self) -> StatusCode {
         use NodeErrorKind::*;
-        match self.kind {
+        match self {
             Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
 
             UnknownReqwest => CLIENT_400_BAD_REQUEST,
@@ -902,10 +861,10 @@ impl ToHttpStatus for NodeApiError {
     }
 }
 
-impl ToHttpStatus for LspApiError {
+impl ToHttpStatus for LspErrorKind {
     fn to_http_status(&self) -> StatusCode {
         use LspErrorKind::*;
-        match self.kind {
+        match self {
             Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
 
             UnknownReqwest => CLIENT_400_BAD_REQUEST,
@@ -921,70 +880,6 @@ impl ToHttpStatus for LspApiError {
         }
     }
 }
-
-// --- Library crate -> CommonApiError impls --- //
-
-impl From<serde_json::Error> for CommonApiError {
-    fn from(err: serde_json::Error) -> Self {
-        let kind = CommonErrorKind::Decode;
-        let msg = format!("Failed to deserialize response as json: {err:#}");
-        Self { kind, msg }
-    }
-}
-
-// Be more granular than just returning a general reqwest::Error
-impl From<reqwest::Error> for CommonApiError {
-    fn from(err: reqwest::Error) -> Self {
-        let msg = format!("{err:#}");
-        let kind = if err.is_builder() {
-            CommonErrorKind::Building
-        } else if err.is_connect() {
-            CommonErrorKind::Connect
-        } else if err.is_timeout() {
-            CommonErrorKind::Timeout
-        } else if err.is_decode() {
-            CommonErrorKind::Decode
-        } else {
-            CommonErrorKind::UnknownReqwest
-        };
-        Self { kind, msg }
-    }
-}
-
-// --- CommonApiError -> ApiError impls --- //
-
-impl From<CommonApiError> for BackendApiError {
-    fn from(CommonApiError { kind, msg }: CommonApiError) -> Self {
-        let kind = BackendErrorKind::from(kind);
-        Self { kind, msg }
-    }
-}
-impl From<CommonApiError> for RunnerApiError {
-    fn from(CommonApiError { kind, msg }: CommonApiError) -> Self {
-        let kind = RunnerErrorKind::from(kind);
-        Self { kind, msg }
-    }
-}
-impl From<CommonApiError> for GatewayApiError {
-    fn from(CommonApiError { kind, msg }: CommonApiError) -> Self {
-        let kind = GatewayErrorKind::from(kind);
-        Self { kind, msg }
-    }
-}
-impl From<CommonApiError> for NodeApiError {
-    fn from(CommonApiError { kind, msg }: CommonApiError) -> Self {
-        let kind = NodeErrorKind::from(kind);
-        Self { kind, msg }
-    }
-}
-impl From<CommonApiError> for LspApiError {
-    fn from(CommonApiError { kind, msg }: CommonApiError) -> Self {
-        let kind = LspErrorKind::from(kind);
-        Self { kind, msg }
-    }
-}
-
-// (Placeholder only, for consistency)
 
 // --- Test utils for asserting error invariants --- //
 
