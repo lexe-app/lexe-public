@@ -24,7 +24,7 @@ use warp::{filters::BoxedFilter, hyper::Body, Filter, Rejection};
 
 use crate::{
     api::error::{
-        ErrorCode, ErrorResponse, RestClientError, RestClientErrorKind,
+        CommonError, CommonErrorKind, ErrorCode, ErrorResponse,
         ServiceApiError, ToHttpStatus,
     },
     backoff,
@@ -322,11 +322,11 @@ fn build_json_response_inner(
 /// API's result type.
 ///
 /// On success, this json deserializes the response body. On error, this
-/// converts the generic [`ErrorResponse`] or [`RestClientError`] into the
+/// converts the generic [`ErrorResponse`] or [`CommonError`] into the
 /// specific API error type, like
 /// [`BackendApiError`](crate::api::error::BackendApiError)
 fn convert_rest_response<T, E>(
-    response: Result<Result<Bytes, ErrorResponse>, RestClientError>,
+    response: Result<Result<Bytes, ErrorResponse>, CommonError>,
 ) -> Result<T, E>
 where
     T: DeserializeOwned,
@@ -335,9 +335,9 @@ where
     match response {
         Ok(Ok(bytes)) =>
             Ok(serde_json::from_slice::<T>(&bytes).map_err(|err| {
-                let kind = RestClientErrorKind::Decode;
+                let kind = CommonErrorKind::Decode;
                 let msg = format!("Failed to deser response as json: {err:#}");
-                RestClientError::new(kind, msg)
+                CommonError::new(kind, msg)
             })?),
         Ok(Err(err_api)) => Err(E::from(err_api)),
         Err(err_client) => Err(E::from(err_client)),
@@ -449,7 +449,7 @@ impl RestClient {
         T: DeserializeOwned,
         E: ServiceApiError,
     {
-        let request = request_builder.build().map_err(RestClientError::from)?;
+        let request = request_builder.build().map_err(CommonError::from)?;
         let span = Self::request_span(&request);
         let response = self.send_inner(request).instrument(span).await;
         convert_rest_response(response)
@@ -472,7 +472,7 @@ impl RestClient {
         T: DeserializeOwned,
         E: ServiceApiError,
     {
-        let request = request_builder.build().map_err(RestClientError::from)?;
+        let request = request_builder.build().map_err(CommonError::from)?;
         let span = Self::request_span(&request);
         let response = self
             .send_with_retries_inner(request, retries, stop_codes)
@@ -489,7 +489,7 @@ impl RestClient {
         request: reqwest::Request,
         retries: usize,
         stop_codes: &[ErrorCode],
-    ) -> Result<Result<Bytes, ErrorResponse>, RestClientError> {
+    ) -> Result<Result<Bytes, ErrorResponse>, CommonError> {
         let mut backoff_durations = backoff::get_backoff_iter();
         let mut attempts_left = retries + 1;
 
@@ -546,7 +546,7 @@ impl RestClient {
     async fn send_inner(
         &self,
         request: reqwest::Request,
-    ) -> Result<Result<Bytes, ErrorResponse>, RestClientError> {
+    ) -> Result<Result<Bytes, ErrorResponse>, CommonError> {
         let start = tokio::time::Instant::now().into_std();
         debug!(target: "http", "New (outbound) Sending request");
 
