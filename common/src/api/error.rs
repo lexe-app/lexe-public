@@ -46,22 +46,6 @@ pub struct ErrorResponse {
     pub msg: String,
 }
 
-/// A trait to get the HTTP status code for a given Error.
-pub trait ToHttpStatus {
-    fn to_http_status(&self) -> StatusCode;
-    // TODO(max): Compat hack; remove once warp is removed
-    fn to_old_http_status(&self) -> OldStatusCode {
-        let status_u16 = self.to_http_status().as_u16();
-        // This conversion *should* be infallible, but in case we're somehow
-        // constructing an out-of-bounds status code somewhere, we'll panic in
-        // debug but clamp to the nearest bound in staging/prod.
-        debug_assert!(status_u16 >= 100, "Underflow");
-        debug_assert!(status_u16 < 1000, "Overflow");
-        let bounded_status_u16 = status_u16.clamp(100, 999);
-        OldStatusCode::from_u16(bounded_status_u16).expect("Bounded above")
-    }
-}
-
 /// A 'trait alias' defining all the supertraits an API error type must impl
 /// to be accepted for use in the `RestClient` and across all Lexe APIs.
 pub trait ApiError:
@@ -124,6 +108,22 @@ pub trait ApiErrorKind:
     /// This method is infallible as every error kind must always have an
     /// `Unknown(_)` variant for backwards compatibility.
     fn from_code(code: ErrorCode) -> Self;
+}
+
+/// A trait to get the HTTP status code for a given Error.
+pub trait ToHttpStatus {
+    fn to_http_status(&self) -> StatusCode;
+    // TODO(max): Compat hack; remove once warp is removed
+    fn to_old_http_status(&self) -> OldStatusCode {
+        let status_u16 = self.to_http_status().as_u16();
+        // This conversion *should* be infallible, but in case we're somehow
+        // constructing an out-of-bounds status code somewhere, we'll panic in
+        // debug but clamp to the nearest bound in staging/prod.
+        debug_assert!(status_u16 >= 100, "Underflow");
+        debug_assert!(status_u16 < 1000, "Overflow");
+        let bounded_status_u16 = status_u16.clamp(100, 999);
+        OldStatusCode::from_u16(bounded_status_u16).expect("Bounded above")
+    }
 }
 
 // --- api_error! and api_error_kind! macros --- //
@@ -389,12 +389,11 @@ pub struct CommonApiError {
     pub msg: String,
 }
 
-// TODO(max): Alphabetize everything
 api_error!(BackendApiError, BackendErrorKind);
-api_error!(RunnerApiError, RunnerErrorKind);
 api_error!(GatewayApiError, GatewayErrorKind);
-api_error!(NodeApiError, NodeErrorKind);
 api_error!(LspApiError, LspErrorKind);
+api_error!(NodeApiError, NodeErrorKind);
+api_error!(RunnerApiError, RunnerErrorKind);
 
 // --- Error variants --- //
 
@@ -462,47 +461,29 @@ api_error_kind! {
     }
 }
 
-api_error_kind! {
-    /// All variants of errors that the runner can return.
-    #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-    pub enum RunnerErrorKind {
-        /// Unknown error
-        Unknown(ErrorCode),
+impl ToHttpStatus for BackendErrorKind {
+    fn to_http_status(&self) -> StatusCode {
+        use BackendErrorKind::*;
+        match self {
+            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
 
-        // --- Common --- //
+            UnknownReqwest => CLIENT_400_BAD_REQUEST,
+            Building => CLIENT_400_BAD_REQUEST,
+            Connect => SERVER_503_SERVICE_UNAVAILABLE,
+            Timeout => SERVER_504_GATEWAY_TIMEOUT,
+            Decode => SERVER_502_BAD_GATEWAY,
+            Server => SERVER_500_INTERNAL_SERVER_ERROR,
 
-        /// Unknown Reqwest client error
-        UnknownReqwest = 1,
-        /// Error building the HTTP request
-        Building = 2,
-        /// Error connecting to a remote HTTP service
-        Connect = 3,
-        /// Request timed out
-        Timeout = 4,
-        /// Error decoding/deserializing the HTTP response body
-        Decode = 5,
-        /// General server error
-        Server = 6,
-
-        // --- Runner --- //
-
-        /// General Runner error
-        Runner = 100,
-        /// Caller provided an unknown or unserviceable measurement
-        UnknownMeasurement = 101,
-        /// Caller requested a version which is too old
-        OldVersion = 102,
-        /// Requested node temporarily unavailable, most likely due to a common
-        /// race condition; retry the request (temporary error)
-        TemporarilyUnavailable = 103,
-        /// Runner service is unavailable (semi-permanent error)
-        ServiceUnavailable = 104,
-        /// Runner is at capacity and cannot handle this request
-        AtCapacity = 105,
-        /// Runner is at capacity and gave up on servicing this request
-        Cancelled = 106,
-        /// Requested node failed to boot
-        Boot = 107,
+            Database => SERVER_500_INTERNAL_SERVER_ERROR,
+            NotFound => CLIENT_404_NOT_FOUND,
+            Duplicate => CLIENT_409_CONFLICT,
+            Conversion => SERVER_500_INTERNAL_SERVER_ERROR,
+            Unauthenticated => CLIENT_401_UNAUTHORIZED,
+            Unauthorized => CLIENT_401_UNAUTHORIZED,
+            AuthExpired => CLIENT_401_UNAUTHORIZED,
+            InvalidParsedRequest => CLIENT_400_BAD_REQUEST,
+            BatchSizeOverLimit => CLIENT_400_BAD_REQUEST,
+        }
     }
 }
 
@@ -532,6 +513,77 @@ api_error_kind! {
 
         /// Missing fiat exchange rates; issue with upstream data source.
         FiatRatesMissing = 100,
+    }
+}
+
+impl ToHttpStatus for GatewayErrorKind {
+    fn to_http_status(&self) -> StatusCode {
+        use GatewayErrorKind::*;
+        match self {
+            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
+
+            UnknownReqwest => CLIENT_400_BAD_REQUEST,
+            Building => CLIENT_400_BAD_REQUEST,
+            Connect => SERVER_503_SERVICE_UNAVAILABLE,
+            Timeout => SERVER_504_GATEWAY_TIMEOUT,
+            Decode => SERVER_502_BAD_GATEWAY,
+            Server => SERVER_500_INTERNAL_SERVER_ERROR,
+
+            FiatRatesMissing => SERVER_500_INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+api_error_kind! {
+    /// All variants of errors that the LSP can return.
+    #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+    pub enum LspErrorKind {
+        /// Unknown error
+        Unknown(ErrorCode),
+
+        // --- Common --- //
+
+        /// Unknown Reqwest client error
+        UnknownReqwest = 1,
+        /// Error building the HTTP request
+        Building = 2,
+        /// Error connecting to a remote HTTP service
+        Connect = 3,
+        /// Request timed out
+        Timeout = 4,
+        /// Error decoding/deserializing the HTTP response body
+        Decode = 5,
+        /// General server error
+        Server = 6,
+
+        // --- LSP --- //
+
+        /// Error occurred during provisioning
+        Provision = 100,
+        /// Error occurred while fetching new scid
+        Scid = 101,
+        /// Error while executing command
+        Command = 102,
+    }
+}
+
+impl ToHttpStatus for LspErrorKind {
+    fn to_http_status(&self) -> StatusCode {
+        use LspErrorKind::*;
+        match self {
+            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
+
+            UnknownReqwest => CLIENT_400_BAD_REQUEST,
+            Building => CLIENT_400_BAD_REQUEST,
+            Connect => SERVER_503_SERVICE_UNAVAILABLE,
+            Timeout => SERVER_504_GATEWAY_TIMEOUT,
+            Decode => SERVER_502_BAD_GATEWAY,
+            Server => SERVER_500_INTERNAL_SERVER_ERROR,
+
+            Provision => SERVER_500_INTERNAL_SERVER_ERROR,
+            Scid => SERVER_500_INTERNAL_SERVER_ERROR,
+            Command => SERVER_500_INTERNAL_SERVER_ERROR,
+        }
     }
 }
 
@@ -576,10 +628,34 @@ api_error_kind! {
     }
 }
 
+impl ToHttpStatus for NodeErrorKind {
+    fn to_http_status(&self) -> StatusCode {
+        use NodeErrorKind::*;
+        match self {
+            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
+
+            UnknownReqwest => CLIENT_400_BAD_REQUEST,
+            Building => CLIENT_400_BAD_REQUEST,
+            Connect => SERVER_503_SERVICE_UNAVAILABLE,
+            Timeout => SERVER_504_GATEWAY_TIMEOUT,
+            Decode => SERVER_502_BAD_GATEWAY,
+            Server => SERVER_500_INTERNAL_SERVER_ERROR,
+
+            WrongUserPk => CLIENT_400_BAD_REQUEST,
+            WrongNodePk => CLIENT_400_BAD_REQUEST,
+            WrongMeasurement => CLIENT_400_BAD_REQUEST,
+            Provision => SERVER_500_INTERNAL_SERVER_ERROR,
+            BadAuth => CLIENT_401_UNAUTHORIZED,
+            Proxy => SERVER_502_BAD_GATEWAY,
+            Command => SERVER_500_INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
 api_error_kind! {
-    /// All variants of errors that the LSP can return.
+    /// All variants of errors that the runner can return.
     #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
-    pub enum LspErrorKind {
+    pub enum RunnerErrorKind {
         /// Unknown error
         Unknown(ErrorCode),
 
@@ -598,14 +674,50 @@ api_error_kind! {
         /// General server error
         Server = 6,
 
-        // --- LSP --- //
+        // --- Runner --- //
 
-        /// Error occurred during provisioning
-        Provision = 100,
-        /// Error occurred while fetching new scid
-        Scid = 101,
-        /// Error while executing command
-        Command = 102,
+        /// General Runner error
+        Runner = 100,
+        /// Caller provided an unknown or unserviceable measurement
+        UnknownMeasurement = 101,
+        /// Caller requested a version which is too old
+        OldVersion = 102,
+        /// Requested node temporarily unavailable, most likely due to a common
+        /// race condition; retry the request (temporary error)
+        TemporarilyUnavailable = 103,
+        /// Runner service is unavailable (semi-permanent error)
+        ServiceUnavailable = 104,
+        /// Runner is at capacity and cannot handle this request
+        AtCapacity = 105,
+        /// Runner is at capacity and gave up on servicing this request
+        Cancelled = 106,
+        /// Requested node failed to boot
+        Boot = 107,
+    }
+}
+
+impl ToHttpStatus for RunnerErrorKind {
+    fn to_http_status(&self) -> StatusCode {
+        use RunnerErrorKind::*;
+        match self {
+            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
+
+            UnknownReqwest => CLIENT_400_BAD_REQUEST,
+            Building => CLIENT_400_BAD_REQUEST,
+            Connect => SERVER_503_SERVICE_UNAVAILABLE,
+            Timeout => SERVER_504_GATEWAY_TIMEOUT,
+            Decode => SERVER_502_BAD_GATEWAY,
+            Server => SERVER_500_INTERNAL_SERVER_ERROR,
+
+            Runner => SERVER_500_INTERNAL_SERVER_ERROR,
+            UnknownMeasurement => CLIENT_404_NOT_FOUND,
+            OldVersion => CLIENT_400_BAD_REQUEST,
+            TemporarilyUnavailable => CLIENT_409_CONFLICT,
+            ServiceUnavailable => SERVER_503_SERVICE_UNAVAILABLE,
+            AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
+            Cancelled => SERVER_503_SERVICE_UNAVAILABLE,
+            Boot => SERVER_500_INTERNAL_SERVER_ERROR,
+        }
     }
 }
 
@@ -726,6 +838,14 @@ impl GatewayApiError {
     }
 }
 
+impl LspApiError {
+    pub fn provision(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = LspErrorKind::Provision;
+        Self { kind, msg }
+    }
+}
+
 impl NodeApiError {
     pub fn wrong_user_pk(current_pk: UserPk, given_pk: UserPk) -> Self {
         // We don't name these 'expected' and 'actual' because the meaning of
@@ -755,129 +875,6 @@ impl NodeApiError {
         let msg = format!("{error:#}");
         let kind = NodeErrorKind::Provision;
         Self { kind, msg }
-    }
-}
-
-impl LspApiError {
-    pub fn provision(error: impl fmt::Display) -> Self {
-        let msg = format!("{error:#}");
-        let kind = LspErrorKind::Provision;
-        Self { kind, msg }
-    }
-}
-
-// --- ToHttpStatus impls --- //
-
-impl ToHttpStatus for BackendErrorKind {
-    fn to_http_status(&self) -> StatusCode {
-        use BackendErrorKind::*;
-        match self {
-            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
-
-            UnknownReqwest => CLIENT_400_BAD_REQUEST,
-            Building => CLIENT_400_BAD_REQUEST,
-            Connect => SERVER_503_SERVICE_UNAVAILABLE,
-            Timeout => SERVER_504_GATEWAY_TIMEOUT,
-            Decode => SERVER_502_BAD_GATEWAY,
-            Server => SERVER_500_INTERNAL_SERVER_ERROR,
-
-            Database => SERVER_500_INTERNAL_SERVER_ERROR,
-            NotFound => CLIENT_404_NOT_FOUND,
-            Duplicate => CLIENT_409_CONFLICT,
-            Conversion => SERVER_500_INTERNAL_SERVER_ERROR,
-            Unauthenticated => CLIENT_401_UNAUTHORIZED,
-            Unauthorized => CLIENT_401_UNAUTHORIZED,
-            AuthExpired => CLIENT_401_UNAUTHORIZED,
-            InvalidParsedRequest => CLIENT_400_BAD_REQUEST,
-            BatchSizeOverLimit => CLIENT_400_BAD_REQUEST,
-        }
-    }
-}
-
-impl ToHttpStatus for RunnerErrorKind {
-    fn to_http_status(&self) -> StatusCode {
-        use RunnerErrorKind::*;
-        match self {
-            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
-
-            UnknownReqwest => CLIENT_400_BAD_REQUEST,
-            Building => CLIENT_400_BAD_REQUEST,
-            Connect => SERVER_503_SERVICE_UNAVAILABLE,
-            Timeout => SERVER_504_GATEWAY_TIMEOUT,
-            Decode => SERVER_502_BAD_GATEWAY,
-            Server => SERVER_500_INTERNAL_SERVER_ERROR,
-
-            Runner => SERVER_500_INTERNAL_SERVER_ERROR,
-            UnknownMeasurement => CLIENT_404_NOT_FOUND,
-            OldVersion => CLIENT_400_BAD_REQUEST,
-            TemporarilyUnavailable => CLIENT_409_CONFLICT,
-            ServiceUnavailable => SERVER_503_SERVICE_UNAVAILABLE,
-            AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
-            Cancelled => SERVER_503_SERVICE_UNAVAILABLE,
-            Boot => SERVER_500_INTERNAL_SERVER_ERROR,
-        }
-    }
-}
-
-impl ToHttpStatus for GatewayErrorKind {
-    fn to_http_status(&self) -> StatusCode {
-        use GatewayErrorKind::*;
-        match self {
-            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
-
-            UnknownReqwest => CLIENT_400_BAD_REQUEST,
-            Building => CLIENT_400_BAD_REQUEST,
-            Connect => SERVER_503_SERVICE_UNAVAILABLE,
-            Timeout => SERVER_504_GATEWAY_TIMEOUT,
-            Decode => SERVER_502_BAD_GATEWAY,
-            Server => SERVER_500_INTERNAL_SERVER_ERROR,
-
-            FiatRatesMissing => SERVER_500_INTERNAL_SERVER_ERROR,
-        }
-    }
-}
-
-impl ToHttpStatus for NodeErrorKind {
-    fn to_http_status(&self) -> StatusCode {
-        use NodeErrorKind::*;
-        match self {
-            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
-
-            UnknownReqwest => CLIENT_400_BAD_REQUEST,
-            Building => CLIENT_400_BAD_REQUEST,
-            Connect => SERVER_503_SERVICE_UNAVAILABLE,
-            Timeout => SERVER_504_GATEWAY_TIMEOUT,
-            Decode => SERVER_502_BAD_GATEWAY,
-            Server => SERVER_500_INTERNAL_SERVER_ERROR,
-
-            WrongUserPk => CLIENT_400_BAD_REQUEST,
-            WrongNodePk => CLIENT_400_BAD_REQUEST,
-            WrongMeasurement => CLIENT_400_BAD_REQUEST,
-            Provision => SERVER_500_INTERNAL_SERVER_ERROR,
-            BadAuth => CLIENT_401_UNAUTHORIZED,
-            Proxy => SERVER_502_BAD_GATEWAY,
-            Command => SERVER_500_INTERNAL_SERVER_ERROR,
-        }
-    }
-}
-
-impl ToHttpStatus for LspErrorKind {
-    fn to_http_status(&self) -> StatusCode {
-        use LspErrorKind::*;
-        match self {
-            Unknown(_) => SERVER_500_INTERNAL_SERVER_ERROR,
-
-            UnknownReqwest => CLIENT_400_BAD_REQUEST,
-            Building => CLIENT_400_BAD_REQUEST,
-            Connect => SERVER_503_SERVICE_UNAVAILABLE,
-            Timeout => SERVER_504_GATEWAY_TIMEOUT,
-            Decode => SERVER_502_BAD_GATEWAY,
-            Server => SERVER_500_INTERNAL_SERVER_ERROR,
-
-            Provision => SERVER_500_INTERNAL_SERVER_ERROR,
-            Scid => SERVER_500_INTERNAL_SERVER_ERROR,
-            Command => SERVER_500_INTERNAL_SERVER_ERROR,
-        }
     }
 }
 
@@ -1012,19 +1009,19 @@ mod test {
     #[test]
     fn error_kind_invariants() {
         invariants::assert_error_kind_invariants::<BackendErrorKind>();
-        invariants::assert_error_kind_invariants::<RunnerErrorKind>();
         invariants::assert_error_kind_invariants::<GatewayErrorKind>();
-        invariants::assert_error_kind_invariants::<NodeErrorKind>();
         invariants::assert_error_kind_invariants::<LspErrorKind>();
+        invariants::assert_error_kind_invariants::<NodeErrorKind>();
+        invariants::assert_error_kind_invariants::<RunnerErrorKind>();
     }
 
     #[test]
     fn api_error_invariants() {
         use invariants::assert_api_error_invariants;
         assert_api_error_invariants::<BackendApiError, BackendErrorKind>();
-        assert_api_error_invariants::<RunnerApiError, RunnerErrorKind>();
         assert_api_error_invariants::<GatewayApiError, GatewayErrorKind>();
-        assert_api_error_invariants::<NodeApiError, NodeErrorKind>();
         assert_api_error_invariants::<LspApiError, LspErrorKind>();
+        assert_api_error_invariants::<NodeApiError, NodeErrorKind>();
+        assert_api_error_invariants::<RunnerApiError, RunnerErrorKind>();
     }
 }
