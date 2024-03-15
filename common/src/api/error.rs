@@ -65,16 +65,12 @@ pub trait ToHttpStatus {
 /// A 'trait alias' defining all the supertraits a service error type must impl
 /// to be accepted for use in the `RestClient` and across all Lexe services.
 pub trait ServiceApiError:
-    From<RestClientError>
-    + From<ErrorResponse>
-    + Into<ErrorResponse>
-    + Error
-    + Clone
+    From<CommonError> + From<ErrorResponse> + Into<ErrorResponse> + Error + Clone
 {
 }
 
 impl<E> ServiceApiError for E where
-    E: From<RestClientError>
+    E: From<CommonError>
         + From<ErrorResponse>
         + Into<ErrorResponse>
         + Error
@@ -271,11 +267,11 @@ macro_rules! error_kind {
             }
         }
 
-        // --- impl From RestClientErrorKind --- //
+        // --- impl From CommonErrorKind --- //
 
-        impl From<RestClientErrorKind> for $error_kind_name {
+        impl From<CommonErrorKind> for $error_kind_name {
             #[inline]
-            fn from(common: RestClientErrorKind) -> Self {
+            fn from(common: CommonErrorKind) -> Self {
                 Self::from_code(common.to_code())
             }
         }
@@ -307,12 +303,12 @@ macro_rules! error_kind {
 
 // --- Error structs --- //
 
-/// Defines the common classes of errors that the `RestClient` can generate.
+/// Errors common to all `ServiceApiError`s.
 /// This error should not be used directly. Rather, it serves as an intermediate
-/// representation; service api errors must define a `From<RestClientError>`
-/// impl to ensure they have covered these cases.
-pub struct RestClientError {
-    pub kind: RestClientErrorKind,
+/// representation; `ServiceApiError`s must define a `From<CommonError>` impl to
+/// ensure they have covered these cases.
+pub struct CommonError {
+    pub kind: CommonErrorKind,
     pub msg: String,
 }
 
@@ -383,12 +379,10 @@ pub struct LspApiError {
 
 // --- Error variants --- //
 
-/// All variants of errors that the [`RestClient`] can generate.
-///
-/// [`RestClient`]: crate::api::rest::RestClient
+/// Error variants common to all `ServiceApiError`s.
 #[derive(Copy, Clone, Debug)]
 #[repr(u16)]
-pub enum RestClientErrorKind {
+pub enum CommonErrorKind {
     /// Unknown Reqwest client error
     UnknownReqwest = 1,
     /// Error building the HTTP request
@@ -583,10 +577,10 @@ error_kind! {
     }
 }
 
-// --- RestClientError impl --- //
+// --- CommonError impl --- //
 
-impl RestClientError {
-    pub(crate) fn new(kind: RestClientErrorKind, msg: String) -> Self {
+impl CommonError {
+    pub(crate) fn new(kind: CommonErrorKind, msg: String) -> Self {
         Self { kind, msg }
     }
 
@@ -596,9 +590,9 @@ impl RestClientError {
     }
 }
 
-// --- RestClientErrorKind impl --- //
+// --- CommonErrorKind impl --- //
 
-impl RestClientErrorKind {
+impl CommonErrorKind {
     #[cfg(any(test, feature = "test-utils"))]
     const KINDS: &'static [Self] = &[
         Self::UnknownReqwest,
@@ -901,63 +895,63 @@ impl ToHttpStatus for LspApiError {
     }
 }
 
-// --- Library crate -> RestClientError impls --- //
+// --- Library crate -> CommonError impls --- //
 
-impl From<serde_json::Error> for RestClientError {
+impl From<serde_json::Error> for CommonError {
     fn from(err: serde_json::Error) -> Self {
-        let kind = RestClientErrorKind::Decode;
+        let kind = CommonErrorKind::Decode;
         let msg = format!("Failed to deserialize response as json: {err:#}");
         Self { kind, msg }
     }
 }
 
 // Be more granular than just returning a general reqwest::Error
-impl From<reqwest::Error> for RestClientError {
+impl From<reqwest::Error> for CommonError {
     fn from(err: reqwest::Error) -> Self {
         let msg = format!("{err:#}");
         let kind = if err.is_builder() {
-            RestClientErrorKind::Building
+            CommonErrorKind::Building
         } else if err.is_connect() {
-            RestClientErrorKind::Connect
+            CommonErrorKind::Connect
         } else if err.is_timeout() {
-            RestClientErrorKind::Timeout
+            CommonErrorKind::Timeout
         } else if err.is_decode() {
-            RestClientErrorKind::Decode
+            CommonErrorKind::Decode
         } else {
-            RestClientErrorKind::UnknownReqwest
+            CommonErrorKind::UnknownReqwest
         };
         Self { kind, msg }
     }
 }
 
-// --- RestClientError -> ServiceApiError impls --- //
+// --- CommonError -> ServiceApiError impls --- //
 
-impl From<RestClientError> for BackendApiError {
-    fn from(RestClientError { kind, msg }: RestClientError) -> Self {
+impl From<CommonError> for BackendApiError {
+    fn from(CommonError { kind, msg }: CommonError) -> Self {
         let kind = BackendErrorKind::from(kind);
         Self { kind, msg }
     }
 }
-impl From<RestClientError> for RunnerApiError {
-    fn from(RestClientError { kind, msg }: RestClientError) -> Self {
+impl From<CommonError> for RunnerApiError {
+    fn from(CommonError { kind, msg }: CommonError) -> Self {
         let kind = RunnerErrorKind::from(kind);
         Self { kind, msg }
     }
 }
-impl From<RestClientError> for GatewayApiError {
-    fn from(RestClientError { kind, msg }: RestClientError) -> Self {
+impl From<CommonError> for GatewayApiError {
+    fn from(CommonError { kind, msg }: CommonError) -> Self {
         let kind = GatewayErrorKind::from(kind);
         Self { kind, msg }
     }
 }
-impl From<RestClientError> for NodeApiError {
-    fn from(RestClientError { kind, msg }: RestClientError) -> Self {
+impl From<CommonError> for NodeApiError {
+    fn from(CommonError { kind, msg }: CommonError) -> Self {
         let kind = NodeErrorKind::from(kind);
         Self { kind, msg }
     }
 }
-impl From<RestClientError> for LspApiError {
-    fn from(RestClientError { kind, msg }: RestClientError) -> Self {
+impl From<CommonError> for LspApiError {
+    fn from(CommonError { kind, msg }: CommonError) -> Self {
         let kind = LspErrorKind::from(kind);
         Self { kind, msg }
     }
@@ -984,13 +978,13 @@ pub mod invariants {
         assert!(T::from_code(0).is_unknown());
         assert!(T::default().is_unknown());
 
-        // RestClientErrorKind is a strict subset of T
+        // CommonErrorKind is a strict subset of T
         //
         // Client [ _, 1, 2, 3, 4, 5, 6 ]
         //      T [ _, 1, 2, 3, 4, 5,   , 100, 101 ]
         //                            ^
         //                           BAD
-        for client_kind in RestClientErrorKind::KINDS {
+        for client_kind in CommonErrorKind::KINDS {
             let client_code = client_kind.to_code();
             let other_kind = T::from_code(client_kind.to_code());
             let other_code = other_kind.to_code();
@@ -998,7 +992,7 @@ pub mod invariants {
 
             if other_kind.is_unknown() {
                 panic!(
-                    "all RestClientErrorKind's should be covered; \
+                    "all CommonErrorKind's should be covered; \
                      missing client code: {client_code}, \
                      client kind: {client_kind:?}",
                 );
@@ -1088,7 +1082,7 @@ mod test {
 
     #[test]
     fn client_error_kinds_non_zero() {
-        for kind in RestClientErrorKind::KINDS {
+        for kind in CommonErrorKind::KINDS {
             assert_ne!(kind.to_code(), 0);
         }
     }
