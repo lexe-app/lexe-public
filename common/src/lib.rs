@@ -11,8 +11,6 @@
 #![feature(split_array)]
 // Allow e.g. warp::Filter<Extract: warp::Reply> syntax
 #![feature(associated_type_bounds)]
-// Enforce disallowed methods clippy lint
-#![deny(clippy::disallowed_methods)]
 // Ignore this issue with `proptest_derive::Arbitrary`.
 #![allow(clippy::arc_with_non_send_sync)]
 

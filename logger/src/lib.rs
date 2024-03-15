@@ -3,9 +3,6 @@
 //! See also: the `logger` module in the `public/lexe-ln` crate for log config
 //! in enclaves.
 
-// Enforce disallowed methods clippy lint
-#![deny(clippy::disallowed_methods)]
-
 use std::str::FromStr;
 
 use tracing::Level;
