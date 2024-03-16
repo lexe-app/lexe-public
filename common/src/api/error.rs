@@ -414,6 +414,10 @@ pub enum CommonErrorKind {
     Decode = 5,
     /// General server error
     Server = 6,
+    /// Client provided a bad request that the server rejected
+    Rejection = 7,
+    /// Server is currently at capacity; retry later
+    AtCapacity = 8,
     // NOTE: If adding a variant, be sure to also update Self::KINDS!
 }
 
@@ -427,6 +431,8 @@ impl ToHttpStatus for CommonErrorKind {
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
             Server => SERVER_500_INTERNAL_SERVER_ERROR,
+            Rejection => CLIENT_400_BAD_REQUEST,
+            AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
         }
     }
 }
@@ -452,6 +458,10 @@ api_error_kind! {
         Decode = 5,
         /// General server error
         Server = 6,
+        /// Client provided a bad request that the server rejected
+        Rejection = 7,
+        /// Server is at capacity
+        AtCapacity = 8,
 
         // --- Backend --- //
 
@@ -488,6 +498,8 @@ impl ToHttpStatus for BackendErrorKind {
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
             Server => SERVER_500_INTERNAL_SERVER_ERROR,
+            Rejection => CLIENT_400_BAD_REQUEST,
+            AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
 
             Database => SERVER_500_INTERNAL_SERVER_ERROR,
             NotFound => CLIENT_404_NOT_FOUND,
@@ -523,6 +535,10 @@ api_error_kind! {
         Decode = 5,
         /// General server error
         Server = 6,
+        /// Client provided a bad request that the server rejected
+        Rejection = 7,
+        /// Server is at capacity
+        AtCapacity = 8,
 
         // --- Gateway --- //
 
@@ -543,6 +559,8 @@ impl ToHttpStatus for GatewayErrorKind {
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
             Server => SERVER_500_INTERNAL_SERVER_ERROR,
+            Rejection => CLIENT_400_BAD_REQUEST,
+            AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
 
             FiatRatesMissing => SERVER_500_INTERNAL_SERVER_ERROR,
         }
@@ -570,6 +588,10 @@ api_error_kind! {
         Decode = 5,
         /// General server error
         Server = 6,
+        /// Client provided a bad request that the server rejected
+        Rejection = 7,
+        /// Server is at capacity
+        AtCapacity = 8,
 
         // --- LSP --- //
 
@@ -594,6 +616,8 @@ impl ToHttpStatus for LspErrorKind {
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
             Server => SERVER_500_INTERNAL_SERVER_ERROR,
+            Rejection => CLIENT_400_BAD_REQUEST,
+            AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
 
             Provision => SERVER_500_INTERNAL_SERVER_ERROR,
             Scid => SERVER_500_INTERNAL_SERVER_ERROR,
@@ -623,6 +647,10 @@ api_error_kind! {
         Decode = 5,
         /// General server error
         Server = 6,
+        /// Client provided a bad request that the server rejected
+        Rejection = 7,
+        /// Server is at capacity
+        AtCapacity = 8,
 
         // --- Node --- //
 
@@ -655,6 +683,8 @@ impl ToHttpStatus for NodeErrorKind {
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
             Server => SERVER_500_INTERNAL_SERVER_ERROR,
+            Rejection => CLIENT_400_BAD_REQUEST,
+            AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
 
             WrongUserPk => CLIENT_400_BAD_REQUEST,
             WrongNodePk => CLIENT_400_BAD_REQUEST,
@@ -688,6 +718,10 @@ api_error_kind! {
         Decode = 5,
         /// General server error
         Server = 6,
+        /// Client provided a bad request that the server rejected
+        Rejection = 7,
+        /// Server is at capacity
+        AtCapacity = 8,
 
         // --- Runner --- //
 
@@ -702,12 +736,8 @@ api_error_kind! {
         TemporarilyUnavailable = 103,
         /// Runner service is unavailable (semi-permanent error)
         ServiceUnavailable = 104,
-        /// Runner is at capacity and cannot handle this request
-        AtCapacity = 105,
-        /// Runner is at capacity and gave up on servicing this request
-        Cancelled = 106,
         /// Requested node failed to boot
-        Boot = 107,
+        Boot = 106,
     }
 }
 
@@ -723,14 +753,14 @@ impl ToHttpStatus for RunnerErrorKind {
             Timeout => SERVER_504_GATEWAY_TIMEOUT,
             Decode => SERVER_502_BAD_GATEWAY,
             Server => SERVER_500_INTERNAL_SERVER_ERROR,
+            Rejection => CLIENT_400_BAD_REQUEST,
+            AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
 
             Runner => SERVER_500_INTERNAL_SERVER_ERROR,
             UnknownMeasurement => CLIENT_404_NOT_FOUND,
             OldVersion => CLIENT_400_BAD_REQUEST,
             TemporarilyUnavailable => CLIENT_409_CONFLICT,
             ServiceUnavailable => SERVER_503_SERVICE_UNAVAILABLE,
-            AtCapacity => SERVER_503_SERVICE_UNAVAILABLE,
-            Cancelled => SERVER_503_SERVICE_UNAVAILABLE,
             Boot => SERVER_500_INTERNAL_SERVER_ERROR,
         }
     }
@@ -758,6 +788,8 @@ impl CommonErrorKind {
         Self::Timeout,
         Self::Decode,
         Self::Server,
+        Self::Rejection,
+        Self::AtCapacity,
     ];
 
     #[inline]
