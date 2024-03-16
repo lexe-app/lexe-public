@@ -80,6 +80,7 @@ pub trait ApiErrorKind:
     + PartialEq
     + fmt::Debug
     + fmt::Display
+    + ToHttpStatus
     + From<ErrorCode>
     + Sized
     + 'static
@@ -911,23 +912,26 @@ pub mod invariants {
         assert!(T::from_code(0).is_unknown());
         assert!(T::default().is_unknown());
 
-        // CommonErrorKind is a strict subset of T
+        // CommonErrorKind is a strict subset of ApiErrorKind
         //
-        // Client [ _, 1, 2, 3, 4, 5, 6 ]
-        //      T [ _, 1, 2, 3, 4, 5,   , 100, 101 ]
-        //                            ^
-        //                           BAD
-        for client_kind in CommonErrorKind::KINDS {
-            let client_code = client_kind.to_code();
-            let other_kind = T::from_code(client_kind.to_code());
-            let other_code = other_kind.to_code();
-            assert_eq!(client_code, other_code, "client codes must roundtrip");
+        // CommonErrorKind [ _, 1, 2, 3, 4, 5, 6 ]
+        //    ApiErrorKind [ _, 1, 2, 3, 4, 5,   , 100, 101 ]
+        //                                     ^
+        //                                    BAD
+        for common_kind in CommonErrorKind::KINDS {
+            let common_code = common_kind.to_code();
+            let common_status = common_kind.to_http_status();
+            let api_kind = T::from_code(common_kind.to_code());
+            let api_code = api_kind.to_code();
+            let api_status = api_kind.to_http_status();
+            assert_eq!(common_code, api_code, "Error codes must match");
+            assert_eq!(common_status, api_status, "HTTP statuses must match");
 
-            if other_kind.is_unknown() {
+            if api_kind.is_unknown() {
                 panic!(
                     "all CommonErrorKind's should be covered; \
-                     missing client code: {client_code}, \
-                     client kind: {client_kind:?}",
+                     missing common code: {common_code}, \
+                     common kind: {common_kind:?}",
                 );
             }
         }
