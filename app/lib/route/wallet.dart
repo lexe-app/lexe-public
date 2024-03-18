@@ -854,8 +854,8 @@ class PaymentsListEntry extends StatelessWidget {
     final secondaryDateText = StateStreamBuilder(
         stream: this.paymentDateUpdates,
         builder: (_, now) {
-          final createdAtStr = date_format.formatDateCompact(
-              then: createdAt, now: now, formatSeconds: false);
+          final createdAtStr =
+              date_format.formatDateCompact(then: createdAt, now: now);
 
           // ex: "just now" (less than a min old)
           // ex: "10min"

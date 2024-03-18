@@ -21,6 +21,58 @@ Future<void> initializeDateLocaleData() async {
   await date_symbol_data_local.initializeDateFormatting();
 }
 
+// TODO(phlip9): internationalize
+String justNowStr({String? locale}) => "just now";
+
+// TODO(phlip9): use <https://docs.rs/icu_relativetime/latest/icu_relativetime/struct.RelativeTimeFormatter.html>
+// (via https://pub.dev/packages/intl4x ?)
+
+/// Less-compactly format a `DateTime` that's in the past. Will return `null` if
+/// the `DateTime` is in the future.
+///
+/// The underlying `Intl` library will throw an error if
+/// `initializeDateLocaleData()` hasn't been called yet (and the locale isn't
+/// the default `en_US`).
+///
+/// * Format spans shorter than 3 days in duration format, e.g., "3 hours ago",
+///   "2 days ago".
+///
+/// * Format spans shorter than 6 months as an abbreviated date without the
+///   year, e.g., "Jun 15", "Feb 3".
+///
+/// * Format longer spans as a compact date, e.g.,
+///   "6/15/2023" (formatting depends on the locale)
+String? formatDate({
+  /// The time in the past that we want to format.
+  required DateTime then,
+
+  /// The current time, otherwise `DateTime.now()`. Used for testing.
+  DateTime? now,
+
+  /// Use `locale` instead of the current configured locale. Used for testing.
+  String? locale,
+}) {
+  final DateTime now2 = now ?? DateTime.now();
+
+  // Can't format dates in the future
+  if (then.isAfter(now2)) {
+    return null;
+  }
+
+  final span = now2.difference(then);
+
+  if (span.inSeconds < 60) {
+    return justNowStr(locale: locale);
+  } else if (span.inDays <= 3) {
+    return formatDurationCompact(span,
+        abbreviated: false, addAgo: true, locale: locale);
+  } else if (span.inDays <= 31 * 6) {
+    return DateFormat.MMMd(locale).format(then);
+  } else {
+    return DateFormat.yMd(locale).format(then);
+  }
+}
+
 /// Compactly format a `DateTime` that's in the past. Will return `null` if the
 /// `DateTime` is in the future.
 ///
@@ -29,7 +81,7 @@ Future<void> initializeDateLocaleData() async {
 /// the default `en_US`).
 ///
 /// * Format spans shorter than 3 days in an abbreviated duration format, e.g.,
-///   "10s", "3h", "2d".
+///   "3h", "2d".
 ///
 /// * Format spans shorter than 6 months as an abbreviated date without the
 ///   year, e.g., "Jun 15", "Feb 3".
@@ -45,12 +97,6 @@ String? formatDateCompact({
 
   /// Use `locale` instead of the current configured locale. Used for testing.
   String? locale,
-
-  // For UI that shows several durations updating dynamically, it can be
-  // distracting to show the seconds ticking across many elements. Setting this
-  // option to `false` will format short durations (under a minute) as
-  // "just now" instead of e.g. "15s".
-  bool formatSeconds = true,
 }) {
   final DateTime now2 = now ?? DateTime.now();
 
@@ -61,11 +107,11 @@ String? formatDateCompact({
 
   final span = now2.difference(then);
 
-  if (!formatSeconds && span.inSeconds < 60) {
-    // TODO(phlip9): internationalize
-    return "just now";
+  if (span.inSeconds < 60) {
+    return justNowStr(locale: locale);
   } else if (span.inDays <= 3) {
-    return formatDurationCompact(span, abbreviated: true, locale: locale);
+    return formatDurationCompact(span,
+        abbreviated: true, addAgo: false, locale: locale);
   } else if (span.inDays <= 31 * 6) {
     return DateFormat.MMMd(locale).format(then);
   } else {
@@ -75,15 +121,23 @@ String? formatDateCompact({
 
 String formatDurationCompact(
   Duration duration, {
-  bool abbreviated = false,
+  required bool abbreviated,
+  required bool addAgo,
   String? locale,
-}) =>
-    prettyDuration(
-      duration,
-      locale: lookupDurationLocale(locale),
-      abbreviated: abbreviated,
-      first: true,
-    );
+}) {
+  final str = prettyDuration(
+    duration,
+    locale: lookupDurationLocale(locale),
+    abbreviated: abbreviated,
+    first: true,
+  );
+  if (addAgo) {
+    // TODO(phlip9): internationalize
+    return "$str ago";
+  } else {
+    return str;
+  }
+}
 
 /// The locale names used by the `duration` dart package are almost all "short"
 /// locale names w/o the country code. This lookup function:
