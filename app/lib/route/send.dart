@@ -903,8 +903,11 @@ class ChooseFeeDialogOption extends StatelessWidget {
       ConfirmationPriority.Background => 72,
     };
     final confDuration = Duration(minutes: 10 * confBlockTarget);
-    final confDurationStr =
-        date_format.formatDurationCompact(confDuration, abbreviated: false);
+    final confDurationStr = date_format.formatDurationCompact(
+      confDuration,
+      abbreviated: false,
+      addAgo: false,
+    );
 
     return ListTile(
       selected: this.isSelected,

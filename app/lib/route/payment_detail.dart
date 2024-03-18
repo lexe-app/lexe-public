@@ -296,8 +296,7 @@ class PaymentDetailDirectionTime extends StatelessWidget {
       }
     }
 
-    final createdAtStr = date_format.formatDateCompact(
-        then: createdAt, now: now, formatSeconds: false);
+    final createdAtStr = date_format.formatDate(then: createdAt, now: now);
 
     return RichText(
       text: TextSpan(

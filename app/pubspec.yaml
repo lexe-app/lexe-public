@@ -35,7 +35,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.6
 
-  # The low-level runtime interface for generated dart ffi bindings.
+  # Pretty duration formatting.
   duration: ^3.0.13
 
   # Used by the generated flutter_rust_bridge FFI bindings.
