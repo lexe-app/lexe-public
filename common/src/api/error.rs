@@ -924,6 +924,18 @@ impl LspApiError {
         let kind = LspErrorKind::Provision;
         Self { kind, msg }
     }
+
+    pub fn scid(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = LspErrorKind::Scid;
+        Self { kind, msg }
+    }
+
+    pub fn command(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = LspErrorKind::Command;
+        Self { kind, msg }
+    }
 }
 
 impl NodeApiError {
