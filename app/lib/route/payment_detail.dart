@@ -1,5 +1,6 @@
 import 'dart:async' show Timer;
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:rxdart_ext/rxdart_ext.dart';
 
@@ -15,6 +16,7 @@ import '../bindings_generated_api.dart'
 import '../components.dart'
     show
         LxCloseButton,
+        LxRefreshButton,
         PaymentNoteInput,
         ScrollableSinglePageBody,
         StateStreamBuilder;
@@ -33,11 +35,29 @@ class PaymentDetailPage extends StatefulWidget {
   const PaymentDetailPage({
     super.key,
     required this.app,
-    required this.vecIdx,
+    required this.paymentVecIdx,
+    required this.paymentsUpdated,
+    required this.isRefreshing,
+    required this.triggerRefresh,
   });
 
   final AppHandle app;
-  final int vecIdx;
+  final int paymentVecIdx;
+  final Stream<Null> paymentsUpdated;
+  final ValueListenable<bool> isRefreshing;
+  final VoidCallback triggerRefresh;
+
+  Payment getPayment() {
+    final vecIdx = this.paymentVecIdx;
+    final payment = this.app.getPaymentByVecIdx(vecIdx: vecIdx);
+
+    if (payment == null) {
+      throw StateError(
+          "PaymentDb is in an invalid state: missing payment @ vec_idx: $vecIdx");
+    }
+
+    return payment;
+  }
 
   @override
   State<PaymentDetailPage> createState() => _PaymentDetailPageState();
@@ -49,6 +69,8 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
   final StateSubject<DateTime> paymentDateUpdates =
       StateSubject(DateTime.now());
   Timer? paymentDateUpdatesTimer;
+
+  late Payment payment = this.widget.getPayment();
 
   @override
   void dispose() {
@@ -62,26 +84,35 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
   void initState() {
     super.initState();
 
+    // Update the relative dates on a timer.
     this.paymentDateUpdatesTimer =
         Timer.periodic(const Duration(seconds: 30), (timer) {
       this.paymentDateUpdates.addIfNotClosed(DateTime.now());
+    });
+
+    // After we sync some new payments, fetch the payment from the local db.
+    this.widget.paymentsUpdated.listen((_) {
+      if (!this.mounted) return;
+
+      final newPayment = this.widget.getPayment();
+
+      if (this.payment != newPayment) {
+        info("PaymentDetailPage: payment updated");
+        this.setState(() {
+          this.payment = newPayment;
+        });
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final vecIdx = this.widget.vecIdx;
-    final payment = this.widget.app.getPaymentByVecIdx(vecIdx: vecIdx);
-
-    if (payment == null) {
-      throw StateError(
-          "PaymentDb is in an invalid state: missing payment @ vec_idx: $vecIdx");
-    }
-
     return PaymentDetailPageInner(
       app: this.widget.app,
-      payment: payment,
+      payment: this.payment,
       paymentDateUpdates: this.paymentDateUpdates,
+      isRefreshing: this.widget.isRefreshing,
+      triggerRefresh: this.widget.triggerRefresh,
     );
   }
 }
@@ -92,11 +123,15 @@ class PaymentDetailPageInner extends StatelessWidget {
     required this.app,
     required this.payment,
     required this.paymentDateUpdates,
+    required this.triggerRefresh,
+    required this.isRefreshing,
   });
 
   final AppHandle app;
   final Payment payment;
   final StateStream<DateTime> paymentDateUpdates;
+  final ValueListenable<bool> isRefreshing;
+  final VoidCallback triggerRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -113,9 +148,9 @@ class PaymentDetailPageInner extends StatelessWidget {
         leadingWidth: Space.appBarLeadingWidth,
         leading: const LxCloseButton(),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => info("payment detail: refresh pressed"),
+          LxRefreshButton(
+            isRefreshing: this.isRefreshing,
+            triggerRefresh: this.triggerRefresh,
           ),
           const SizedBox(width: Space.appBarTrailingPadding),
         ],

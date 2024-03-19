@@ -271,6 +271,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     .millisecondsSinceEpoch,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
+              isRefreshing: ValueNotifier(false),
+              triggerRefresh: () {},
             ),
           ),
           Component(
@@ -294,6 +296,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     .millisecondsSinceEpoch,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
+              isRefreshing: ValueNotifier(false),
+              triggerRefresh: () {},
             ),
           ),
           Component(
@@ -317,6 +321,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     .millisecondsSinceEpoch,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
+              isRefreshing: ValueNotifier(false),
+              triggerRefresh: () {},
             ),
           ),
           Component(
@@ -340,6 +346,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     .millisecondsSinceEpoch,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
+              isRefreshing: ValueNotifier(false),
+              triggerRefresh: () {},
             ),
           ),
           Component(
@@ -363,6 +371,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     .millisecondsSinceEpoch,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
+              isRefreshing: ValueNotifier(false),
+              triggerRefresh: () {},
             ),
           ),
           Component(
@@ -391,6 +401,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     .millisecondsSinceEpoch,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
+              isRefreshing: ValueNotifier(false),
+              triggerRefresh: () {},
             ),
           ),
           const SizedBox(height: Space.s800),

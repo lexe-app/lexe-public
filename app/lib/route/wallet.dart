@@ -238,7 +238,10 @@ class WalletPageState extends State<WalletPage> {
     Navigator.of(this.context).push(MaterialPageRoute(
       builder: (context) => PaymentDetailPage(
         app: this.widget.app,
-        vecIdx: paymentVecIdx,
+        paymentVecIdx: paymentVecIdx,
+        paymentsUpdated: this.paymentsUpdated.stream,
+        isRefreshing: this.isRefreshing,
+        triggerRefresh: this.triggerRefresh,
       ),
     ));
   }
