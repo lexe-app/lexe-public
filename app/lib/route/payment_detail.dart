@@ -339,20 +339,14 @@ class PaymentDetailDirectionTime extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String directionLabel;
-    if (status == PaymentStatus.Pending) {
-      if (direction == PaymentDirection.Inbound) {
-        directionLabel = "Receiving";
-      } else {
-        directionLabel = "Sending";
-      }
-    } else {
-      if (direction == PaymentDirection.Inbound) {
-        directionLabel = "Received";
-      } else {
-        directionLabel = "Sent";
-      }
-    }
+    final directionLabel = switch ((status, direction)) {
+      ((PaymentStatus.Pending, PaymentDirection.Inbound)) => "Receiving",
+      ((PaymentStatus.Pending, PaymentDirection.Outbound)) => "Sending",
+      ((PaymentStatus.Completed, PaymentDirection.Inbound)) => "Received",
+      ((PaymentStatus.Completed, PaymentDirection.Outbound)) => "Sent",
+      ((PaymentStatus.Failed, PaymentDirection.Inbound)) => "Failed to receive",
+      ((PaymentStatus.Failed, PaymentDirection.Outbound)) => "Failed to send",
+    };
 
     final createdAtStr = date_format.formatDate(then: createdAt, now: now);
 
