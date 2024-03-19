@@ -15,9 +15,11 @@ import '../bindings_generated_api.dart'
         UpdatePaymentNote;
 import '../components.dart'
     show
+        FilledPlaceholder,
         LxCloseButton,
         LxRefreshButton,
         PaymentNoteInput,
+        ValueStreamBuilder,
         ScrollableSinglePageBody,
         StateStreamBuilder;
 import '../currency_format.dart' as currency_format;
@@ -37,14 +39,29 @@ class PaymentDetailPage extends StatefulWidget {
     required this.app,
     required this.paymentVecIdx,
     required this.paymentsUpdated,
+    required this.fiatRate,
     required this.isRefreshing,
     required this.triggerRefresh,
   });
 
   final AppHandle app;
+
+  /// The index of this payment in the [app_rs::payments::PaymentDb].
   final int paymentVecIdx;
+
+  /// We receive a notification on this [Stream]
   final Stream<Null> paymentsUpdated;
+
+  /// A stream of [FiatRate] (user's preferred fiat + its exchange rate). May
+  /// be null if we're still fetching the rates at startup.
+  final ValueStream<FiatRate?> fiatRate;
+
+  /// True when we are currently refreshing (includes syncing payments from our
+  /// node).
   final ValueListenable<bool> isRefreshing;
+
+  /// Call this function to (maybe) start a new refresh. Will do nothing if
+  /// we're currently refreshing.
   final VoidCallback triggerRefresh;
 
   Payment getPayment() {
@@ -111,6 +128,7 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
       app: this.widget.app,
       payment: this.payment,
       paymentDateUpdates: this.paymentDateUpdates,
+      fiatRate: this.widget.fiatRate,
       isRefreshing: this.widget.isRefreshing,
       triggerRefresh: this.widget.triggerRefresh,
     );
@@ -123,6 +141,7 @@ class PaymentDetailPageInner extends StatelessWidget {
     required this.app,
     required this.payment,
     required this.paymentDateUpdates,
+    required this.fiatRate,
     required this.triggerRefresh,
     required this.isRefreshing,
   });
@@ -130,6 +149,7 @@ class PaymentDetailPageInner extends StatelessWidget {
   final AppHandle app;
   final Payment payment;
   final StateStream<DateTime> paymentDateUpdates;
+  final ValueStream<FiatRate?> fiatRate;
   final ValueListenable<bool> isRefreshing;
   final VoidCallback triggerRefresh;
 
@@ -195,12 +215,15 @@ class PaymentDetailPageInner extends StatelessWidget {
         const SizedBox(height: Space.s700),
 
         if (maybeAmountSat != null)
-          PaymentDetailPrimaryAmount(
-            status: status,
-            direction: direction,
-            amountSat: maybeAmountSat,
-            fiatName: "USD",
-            fiatRate: const FiatRate(fiat: "USD", rate: 73021.29890205512),
+          ValueStreamBuilder(
+            stream: this.fiatRate,
+            builder: (_context, fiatRate) => PaymentDetailPrimaryAmount(
+              status: status,
+              direction: direction,
+              amountSat: maybeAmountSat,
+              // fiatRate: const FiatRate(fiat: "USD", rate: 73021.29890205512),
+              fiatRate: fiatRate,
+            ),
           ),
         const SizedBox(height: Space.s700),
 
@@ -415,14 +438,12 @@ class PaymentDetailPrimaryAmount extends StatelessWidget {
     required this.status,
     required this.direction,
     required this.amountSat,
-    required this.fiatName,
     this.fiatRate,
   });
 
   final PaymentStatus status;
   final PaymentDirection direction;
   final int amountSat;
-  final String fiatName;
   final FiatRate? fiatRate;
 
   String? maybeAmountFiatStr() {
@@ -433,7 +454,7 @@ class PaymentDetailPrimaryAmount extends StatelessWidget {
 
     final amountBtc = currency_format.satsToBtc(this.amountSat);
     final amountFiat = amountBtc * fiatRate.rate;
-    return currency_format.formatFiat(amountFiat, this.fiatName);
+    return currency_format.formatFiat(amountFiat, fiatRate.fiat);
   }
 
   @override
@@ -463,21 +484,26 @@ class PaymentDetailPrimaryAmount extends StatelessWidget {
           ),
           textAlign: TextAlign.center,
         ),
-        if (maybeAmountFiatStr != null)
-          Padding(
-            padding: const EdgeInsets.only(top: Space.s300),
-            child: Text(
-              "≈ $maybeAmountFiatStr",
-              style: Fonts.fontUI.copyWith(
-                letterSpacing: -0.5,
-                fontSize: Fonts.size500,
-                fontVariations: [Fonts.weightNormal],
-                fontFeatures: [Fonts.featSlashedZero],
-                color: LxColors.fgTertiary,
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ),
+        Padding(
+          padding: const EdgeInsets.only(top: Space.s300),
+          child: (maybeAmountFiatStr != null)
+              ? Text(
+                  "≈ $maybeAmountFiatStr",
+                  style: Fonts.fontUI.copyWith(
+                    letterSpacing: -0.5,
+                    fontSize: Fonts.size500,
+                    fontVariations: [Fonts.weightNormal],
+                    fontFeatures: [Fonts.featSlashedZero],
+                    color: LxColors.fgTertiary,
+                  ),
+                  textAlign: TextAlign.center,
+                )
+              : const FilledPlaceholder(
+                  width: Space.s1000,
+                  height: Fonts.size500,
+                  forText: true,
+                ),
+        ),
       ],
     );
   }

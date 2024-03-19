@@ -240,6 +240,7 @@ class WalletPageState extends State<WalletPage> {
         app: this.widget.app,
         paymentVecIdx: paymentVecIdx,
         paymentsUpdated: this.paymentsUpdated.stream,
+        fiatRate: this.fiatRate.stream,
         isRefreshing: this.isRefreshing,
         triggerRefresh: this.triggerRefresh,
       ),
