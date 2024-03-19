@@ -19,7 +19,8 @@ import '../bindings_generated_api.dart'
         PaymentKind,
         PaymentStatus,
         ShortPayment;
-import '../components.dart' show FilledPlaceholder, StateStreamBuilder;
+import '../components.dart'
+    show FilledPlaceholder, LxRefreshButton, StateStreamBuilder;
 import '../currency_format.dart' as currency_format;
 import '../date_format.dart' as date_format;
 import '../logger.dart';
@@ -108,6 +109,7 @@ class WalletPageState extends State<WalletPage> {
   @override
   void dispose() {
     this.refresh.close();
+    this.isRefreshing.dispose();
     this.paymentsUpdated.close();
     this.nodeInfos.close();
     this.fiatRate.close();
@@ -255,9 +257,9 @@ class WalletPageState extends State<WalletPage> {
 
         // ⟳ - Trigger refresh of current balance, payments, etc...
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: this.triggerRefresh,
+          LxRefreshButton(
+            isRefreshing: this.isRefreshing,
+            triggerRefresh: this.triggerRefresh,
           ),
           const SizedBox(width: Space.s100),
         ],
