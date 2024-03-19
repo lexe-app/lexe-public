@@ -13,6 +13,7 @@ import '../bindings_generated_api.dart'
         Config,
         DeployEnv,
         FiatRate,
+        FiatRates,
         NodeInfo,
         PaymentDirection,
         PaymentKind,
@@ -48,6 +49,9 @@ class WalletPageState extends State<WalletPage> {
   /// A stream controller to trigger refreshes of the wallet page contents.
   final StreamController<Null> refresh = StreamController.broadcast();
 
+  /// True if there's currently an outstanding refresh.
+  final ValueNotifier<bool> isRefreshing = ValueNotifier(false);
+
   /// A stream controller to notify when some payments are updated.
   final StreamController<Null> paymentsUpdated = StreamController.broadcast();
 
@@ -61,15 +65,31 @@ class WalletPageState extends State<WalletPage> {
   final StateSubject<BalanceState> balanceStates =
       StateSubject(BalanceState.placeholder);
 
+  // TODO(phlip9): get from user preferences
+  final String fiatPreference = "USD";
+  // final String fiatPreference = "EUR";
+
   @override
   void initState() {
     super.initState();
 
-    final app = this.widget.app;
-
-    // TODO(phlip9): get from user preferences
-    const String fiatName = "USD";
-    // const String fiatName = "EUR";
+    // Call `this.onRefresh` when we get a new refresh (and always once at
+    // page open). Refreshes are also throttled and won't trigger while a
+    // a previous refresh is pending.
+    this
+        .refresh
+        .stream
+        // ignore `triggerRefresh` if we're currently refreshing.
+        .where((_) => !this.isRefreshing.value)
+        // but unconditionally start with an initial "refresh" to load node
+        // state.
+        .startWith(null)
+        // ignore multiple refreshes if the user triggers again within 5 secs.
+        .throttleTime(const Duration(seconds: 5))
+        .log(id: "refresh start")
+        // ok we're actually refreshing for real this time! do some bookkeeping
+        // and send some requests.
+        .listen(this.onRefresh);
 
     // A stream of `BalanceState`s that gets updated when `nodeInfos` or
     // `fiatRate` are updated. Since it's fed into a `StateSubject`, it also
@@ -78,42 +98,11 @@ class WalletPageState extends State<WalletPage> {
       this.nodeInfos.map((nodeInfo) => nodeInfo?.spendableBalanceSats),
       this.fiatRate,
       (balanceSats, fiatRate) => BalanceState(
-          balanceSats: balanceSats, fiatName: fiatName, fiatRate: fiatRate),
+        balanceSats: balanceSats,
+        fiatName: this.fiatPreference,
+        fiatRate: fiatRate,
+      ),
     ).listen(this.balanceStates.addIfNotClosed);
-
-    // A stream of refreshes, starting with an initial refresh.
-    final Stream<Null> refreshRx = this.refresh.stream.startWith(null);
-
-    // on refresh, update the current node info
-    refreshRx.asyncMap((_) => app.nodeInfo()).log(id: "fiatRates").listen(
-          this.nodeInfos.addIfNotClosed,
-          onError: (err) => (),
-        );
-
-    // on refresh, update fiat rate
-    refreshRx
-        .asyncMap((_) => app.fiatRates())
-        .map((fiatRates) =>
-            fiatRates.rates.firstWhere((rate) => rate.fiat == fiatName))
-        .log(id: "fiatRates")
-        .listen(
-          this.fiatRate.addIfNotClosed,
-          onError: (err) => (),
-        );
-
-    // on refresh, sync payments from node
-    refreshRx
-        .asyncMap((_) => app.syncPayments())
-        .log(id: "syncPayments: anyChangedPayments")
-        .listen(
-      (anyChangedPayments) {
-        // Only re-render payments if they've actually changed.
-        if (anyChangedPayments) {
-          this.paymentsUpdated.addIfNotClosed(null);
-        }
-      },
-      onError: (err) => (),
-    );
   }
 
   @override
@@ -127,14 +116,73 @@ class WalletPageState extends State<WalletPage> {
     super.dispose();
   }
 
-  void openScaffoldDrawer() {
-    this.scaffoldKey.currentState?.openDrawer();
+  /// User triggers a refresh (fetch balance, fiat rates, payment sync).
+  /// NOTE: the refresh stream is throttled (on)
+  void triggerRefresh() => this.refresh.addNull();
+
+  /// On refresh, resync state from the node.
+  Future<void> onRefresh(Null n) async {
+    this.isRefreshing.value = true;
+
+    await (fetchNodeInfo(), fetchFiatRates(), syncPayments()).wait;
+
+    if (!this.mounted) return;
+    this.isRefreshing.value = false;
   }
 
-  /// Triggers a refresh (fetch balance, fiat rates, payment sync).
-  void triggerRefresh() {
-    info("refresh triggered");
-    this.refresh.addNull();
+  Future<void> fetchNodeInfo() async {
+    final res = await Result.tryFfiAsync(this.widget.app.nodeInfo);
+    switch (res) {
+      case Ok(:final ok):
+        info("nodeInfo: $ok");
+        this.nodeInfos.addIfNotClosed(ok);
+        return;
+      case Err(:final err):
+        error("Failed to fetch nodeInfo: $err");
+        return;
+    }
+  }
+
+  Future<void> fetchFiatRates() async {
+    final res = await Result.tryFfiAsync(this.widget.app.fiatRates);
+
+    final FiatRates fiatRates;
+    switch (res) {
+      case Ok(:final ok):
+        fiatRates = ok;
+      case Err(:final err):
+        error("Failed to fetch fiatRates: $err");
+        return;
+    }
+
+    // Select just fiat rate for user's current preferred fiat currency
+    final fiatRate =
+        fiatRates.rates.firstWhere((rate) => rate.fiat == this.fiatPreference);
+    info("fiatRate: $fiatRate, timestampMs: ${fiatRates.timestampMs}");
+
+    this.fiatRate.addIfNotClosed(fiatRate);
+  }
+
+  Future<void> syncPayments() async {
+    final res = await Result.tryFfiAsync(this.widget.app.syncPayments);
+
+    final bool anyChangedPayments;
+    switch (res) {
+      case Ok(:final ok):
+        anyChangedPayments = ok;
+      case Err(:final err):
+        error("Failed to syncPayments: $err");
+        return;
+    }
+
+    // Only re-render payments if they've actually changed.
+    if (anyChangedPayments) {
+      this.paymentsUpdated.addIfNotClosed(null);
+    }
+  }
+
+  void openScaffoldDrawer() {
+    this.scaffoldKey.currentState?.openDrawer();
   }
 
   /// Called when the "Receive" button is pressed. Pushes the receive payment
