@@ -1,6 +1,7 @@
 /// Reusable flutter UI components
 library;
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MaxLengthEnforcement;
 import 'package:rxdart_ext/rxdart_ext.dart';
@@ -319,6 +320,48 @@ class LxBackButton extends StatelessWidget {
       onPressed: () => Navigator.of(context).pop(),
     );
   }
+}
+
+/// ⟳ - Animated refresh button, usually placed on the [AppBar] to refresh the
+/// page contents.
+///
+/// Takes a [ValueNotifier<bool>] which notifies this button of the current
+/// refresh state (idle or refreshing).
+//
+// TODO(phlip9): I'd prefer the refresh button itself spin while we're loading,
+// as it'd make a cleaner animation IMO. However, it will take too long atm.
+class LxRefreshButton extends StatelessWidget {
+  const LxRefreshButton({
+    super.key,
+    required this.isRefreshing,
+    required this.triggerRefresh,
+  });
+
+  final ValueListenable<bool> isRefreshing;
+  final VoidCallback triggerRefresh;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder(
+        valueListenable: this.isRefreshing,
+        builder: (_context, isRefreshing, _child) => IconButton(
+          // disable while we're refreshing.
+          onPressed: (isRefreshing) ? null : this.triggerRefresh,
+
+          // animate icon to a spinner while we're refreshing.
+          icon: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 150),
+            child: (!isRefreshing)
+                ? const Icon(Icons.refresh_rounded)
+                : const SizedBox.square(
+                    dimension: Fonts.size500,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3.0,
+                      color: LxColors.fgTertiary,
+                    ),
+                  ),
+          ),
+        ),
+      );
 }
 
 /// A filled button with an icon. Used as the primary action button.
