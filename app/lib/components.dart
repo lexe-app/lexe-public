@@ -569,6 +569,29 @@ class StateStreamBuilder<T> extends StreamBuilder<T> {
         );
 }
 
+typedef ValueStreamWidgetBuilder<T> = Widget Function(
+  BuildContext context,
+  T? data,
+);
+
+/// A small helper [Widget] that builds a new widget every time a [ValueStream]
+/// gets an update.
+///
+/// The main difference with [StateStreamBuilder] is that the stream value might
+/// be [null] if there was an error.
+class ValueStreamBuilder<T> extends StreamBuilder<T> {
+  ValueStreamBuilder({
+    super.key,
+    required ValueStream<T> stream,
+    required ValueStreamWidgetBuilder builder,
+  }) : super(
+          stream: stream,
+          initialData: stream.value,
+          builder: (BuildContext context, AsyncSnapshot<T> snapshot) =>
+              builder(context, snapshot.data),
+        );
+}
+
 /// A zigzag line that spans the width of its container.
 ///
 /// zigzag -> \/\/\/\/\/\/\/

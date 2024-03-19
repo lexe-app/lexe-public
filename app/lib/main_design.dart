@@ -118,6 +118,13 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
     });
   }
 
+  ValueStream<FiatRate?> makeFiatRateStream() =>
+      Stream.fromIterable(<FiatRate?>[
+        const FiatRate(fiat: "USD", rate: 73111.19),
+        const FiatRate(fiat: "USD", rate: 73222.29),
+        const FiatRate(fiat: "USD", rate: 73333.39),
+      ]).interval(const Duration(seconds: 2)).shareValueSeeded(null);
+
   @override
   Widget build(BuildContext context) {
     final mockApp = MockAppHandle(bridge: api);
@@ -271,6 +278,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     .millisecondsSinceEpoch,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
+              fiatRate: this.makeFiatRateStream(),
               isRefreshing: ValueNotifier(false),
               triggerRefresh: () {},
             ),
@@ -296,6 +304,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     .millisecondsSinceEpoch,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
+              fiatRate: this.makeFiatRateStream(),
               isRefreshing: ValueNotifier(false),
               triggerRefresh: () {},
             ),
@@ -321,6 +330,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     .millisecondsSinceEpoch,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
+              fiatRate: this.makeFiatRateStream(),
               isRefreshing: ValueNotifier(false),
               triggerRefresh: () {},
             ),
@@ -346,6 +356,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     .millisecondsSinceEpoch,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
+              fiatRate: this.makeFiatRateStream(),
               isRefreshing: ValueNotifier(false),
               triggerRefresh: () {},
             ),
@@ -371,6 +382,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     .millisecondsSinceEpoch,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
+              fiatRate: this.makeFiatRateStream(),
               isRefreshing: ValueNotifier(false),
               triggerRefresh: () {},
             ),
@@ -401,6 +413,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     .millisecondsSinceEpoch,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
+              fiatRate: this.makeFiatRateStream(),
               isRefreshing: ValueNotifier(false),
               triggerRefresh: () {},
             ),
