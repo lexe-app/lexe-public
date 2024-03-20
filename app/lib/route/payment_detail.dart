@@ -156,6 +156,17 @@ class PaymentDetailPageInner extends StatelessWidget {
   final ValueListenable<bool> isRefreshing;
   final VoidCallback triggerRefresh;
 
+  // HACK: parsing the serialized form like this is ugly af.
+  String paymentIdxBody() {
+    final paymentIdx = this.payment.index;
+    final splitIdx = paymentIdx.lastIndexOf('_');
+    if (splitIdx < 0) {
+      return paymentIdx;
+    } else {
+      return paymentIdx.substring(splitIdx + 1);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final kind = this.payment.kind;
@@ -178,6 +189,15 @@ class PaymentDetailPageInner extends StatelessWidget {
         : null;
 
     final maybeAmountSat = this.payment.amountSat;
+
+    // Label should be kept in sync with "common::ln::payments::LxPaymentId"
+    final paymentIdxLabel = switch ((kind, direction)) {
+      (PaymentKind.Invoice, _) => "LN payment hash",
+      (PaymentKind.Spontaneous, _) => "LN payment hash",
+      (PaymentKind.Onchain, PaymentDirection.Inbound) => "BTC txid",
+      (PaymentKind.Onchain, PaymentDirection.Outbound) => "Lexe Client Id",
+    };
+    final paymentIdxBody = this.paymentIdxBody();
 
     const pagePaddingInsets = EdgeInsets.symmetric(horizontal: pagePadding);
 
@@ -293,10 +313,13 @@ class PaymentDetailPageInner extends StatelessWidget {
                   currency_format.formatSatsAmount(feesSat, satsSuffix: true)),
         ]),
 
-        if (invoice != null)
-          PaymentDetailInfoCard(children: [
+        PaymentDetailInfoCard(children: [
+          PaymentDetailInfoRow(label: paymentIdxLabel, value: paymentIdxBody),
+          if (invoice != null)
             PaymentDetailInfoRow(label: "Invoice", value: invoice.string),
-          ]),
+        ]),
+
+        const SizedBox(height: Space.s400),
       ]),
     );
   }
