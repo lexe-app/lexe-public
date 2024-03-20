@@ -19,9 +19,9 @@ import '../components.dart'
         LxCloseButton,
         LxRefreshButton,
         PaymentNoteInput,
-        ValueStreamBuilder,
         ScrollableSinglePageBody,
-        StateStreamBuilder;
+        StateStreamBuilder,
+        ValueStreamBuilder;
 import '../currency_format.dart' as currency_format;
 import '../date_format.dart' as date_format;
 import '../logger.dart';
@@ -135,6 +135,9 @@ class _PaymentDetailPageState extends State<PaymentDetailPage> {
   }
 }
 
+const double pagePadding = Space.s400;
+const double bodyPadding = Space.s300;
+
 class PaymentDetailPageInner extends StatelessWidget {
   const PaymentDetailPageInner({
     super.key,
@@ -158,10 +161,25 @@ class PaymentDetailPageInner extends StatelessWidget {
     final kind = this.payment.kind;
     final status = this.payment.status;
     final direction = this.payment.direction;
-    final createdAt =
-        DateTime.fromMillisecondsSinceEpoch(this.payment.createdAt);
+    final invoice = this.payment.invoice;
+    final amountSat = this.payment.amountSat;
+    final feesSat = this.payment.feesSat;
+
+    final createdAt = DateTime.fromMillisecondsSinceEpoch(
+      this.payment.createdAt,
+      isUtc: true,
+    );
+    final expiresAt = (invoice != null)
+        ? DateTime.fromMillisecondsSinceEpoch(invoice.expiresAt, isUtc: true)
+        : null;
+    final maybeFinalizedAt = this.payment.finalizedAt;
+    final finalizedAt = (maybeFinalizedAt != null)
+        ? DateTime.fromMillisecondsSinceEpoch(maybeFinalizedAt, isUtc: true)
+        : null;
 
     final maybeAmountSat = this.payment.amountSat;
+
+    const pagePaddingInsets = EdgeInsets.symmetric(horizontal: pagePadding);
 
     return Scaffold(
       appBar: AppBar(
@@ -175,7 +193,7 @@ class PaymentDetailPageInner extends StatelessWidget {
           const SizedBox(width: Space.appBarTrailingPadding),
         ],
       ),
-      body: ScrollableSinglePageBody(body: [
+      body: ScrollableSinglePageBody(padding: pagePaddingInsets, body: [
         const SizedBox(height: Space.s500),
 
         // Big LN/BTC icon + status badge
@@ -201,11 +219,14 @@ class PaymentDetailPageInner extends StatelessWidget {
         ),
         const SizedBox(height: Space.s400),
 
+        // TODO(phlip9): LN invoice "expires in X min" goes here?
         // If pending or failed, show a card with more info on the current
         // status.
         if (status != PaymentStatus.Completed)
           Padding(
-            padding: const EdgeInsets.only(top: Space.s200, bottom: Space.s200),
+            // padding: const EdgeInsets.only(top: Space.s200, bottom: Space.s200),
+            padding: const EdgeInsets.symmetric(
+                vertical: Space.s200, horizontal: Space.s600),
             child: PaymentDetailStatusCard(
               status: status,
               statusStr: this.payment.statusStr,
@@ -214,6 +235,7 @@ class PaymentDetailPageInner extends StatelessWidget {
 
         const SizedBox(height: Space.s700),
 
+        // Amount sent/received in BTC and fiat.
         if (maybeAmountSat != null)
           ValueStreamBuilder(
             stream: this.fiatRate,
@@ -221,18 +243,60 @@ class PaymentDetailPageInner extends StatelessWidget {
               status: status,
               direction: direction,
               amountSat: maybeAmountSat,
-              // fiatRate: const FiatRate(fiat: "USD", rate: 73021.29890205512),
               fiatRate: fiatRate,
             ),
           ),
-        const SizedBox(height: Space.s700),
+        const SizedBox(height: Space.s400),
 
-        PaymentDetailNoteInput(
-          app: this.app,
-          paymentIndex: this.payment.index,
-          initialNote: this.payment.note,
+        // The payment's note field
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: bodyPadding),
+          child: PaymentDetailNoteInput(
+            app: this.app,
+            paymentIndex: this.payment.index,
+            initialNote: this.payment.note,
+          ),
         ),
-        const SizedBox(height: Space.s600),
+        const SizedBox(height: Space.s1000),
+
+        // Payment date info
+        PaymentDetailInfoCard(header: "Payment details", children: [
+          PaymentDetailInfoRow(
+            label: "Created at",
+            value: date_format.formatDateFull(createdAt),
+          ),
+          if (expiresAt != null)
+            PaymentDetailInfoRow(
+              label: "Expires at",
+              value: date_format.formatDateFull(expiresAt),
+            ),
+          if (finalizedAt != null)
+            PaymentDetailInfoRow(
+              label: "Finalized at",
+              value: date_format.formatDateFull(finalizedAt),
+            ),
+        ]),
+
+        // Full payment amount + fees info
+        PaymentDetailInfoCard(children: [
+          if (amountSat != null)
+            PaymentDetailInfoRow(
+              label: "Amount",
+              value: currency_format.formatSatsAmount(amountSat,
+                  direction: direction, satsSuffix: true),
+            ),
+
+          // TODO(phlip9): breakdown fees
+          PaymentDetailInfoRow(
+              label: "Fees",
+              value:
+                  currency_format.formatSatsAmount(feesSat, satsSuffix: true)),
+        ]),
+
+        if (invoice != null)
+          PaymentDetailInfoCard(children: [
+            PaymentDetailInfoRow(label: "Invoice", value: invoice.string),
+          ]),
       ]),
     );
   }
@@ -571,7 +635,10 @@ class _PaymentDetailNoteInputState extends State<PaymentDetailNoteInput> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             const Text("Payment note",
-                style: TextStyle(color: LxColors.fgSecondary)),
+                style: TextStyle(
+                  fontSize: Fonts.size200,
+                  color: LxColors.fgTertiary,
+                )),
             const SizedBox(width: Space.s400),
 
             // Show a small spinner while submitting.
@@ -607,4 +674,98 @@ class _PaymentDetailNoteInputState extends State<PaymentDetailNoteInput> {
       ],
     );
   }
+}
+
+class PaymentDetailInfoCard extends StatelessWidget {
+  const PaymentDetailInfoCard({super.key, required this.children, this.header});
+
+  final String? header;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final section = Card(
+      color: LxColors.grey1000,
+      elevation: 0.0,
+      margin: const EdgeInsets.all(0),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+            horizontal: bodyPadding, vertical: Space.s300 / 2),
+        child: Column(
+          children: this.children,
+        ),
+      ),
+    );
+
+    const intraCardSpace = Space.s200;
+
+    final header = this.header;
+    if (header != null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: intraCardSpace),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding:
+                  const EdgeInsets.only(left: bodyPadding, bottom: Space.s200),
+              child: Text(
+                header,
+                style: const TextStyle(
+                  color: LxColors.fgTertiary,
+                  fontSize: Fonts.size200,
+                ),
+              ),
+            ),
+            section,
+          ],
+        ),
+      );
+    } else {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: intraCardSpace),
+        child: section,
+      );
+    }
+  }
+}
+
+class PaymentDetailInfoRow extends StatelessWidget {
+  const PaymentDetailInfoRow(
+      {super.key, required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.symmetric(vertical: Space.s300 / 2),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints.tightFor(width: Space.s900),
+              child: Text(
+                this.label,
+                style: const TextStyle(
+                  color: LxColors.grey550,
+                  fontSize: Fonts.size200,
+                ),
+              ),
+            ),
+            const SizedBox(width: Space.s400),
+            Expanded(
+              // TODO(phlip9): just copy to clipboard on tap or hold?
+              child: SelectableText(
+                this.value,
+                style: const TextStyle(
+                  color: LxColors.fgSecondary,
+                  fontSize: Fonts.size200,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
 }

@@ -302,6 +302,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 createdAt: DateTime.now()
                     .subtract(const Duration(minutes: 75))
                     .millisecondsSinceEpoch,
+                finalizedAt: DateTime.now()
+                    .subtract(const Duration(
+                        minutes: 15, seconds: 43, milliseconds: 111))
+                    .millisecondsSinceEpoch,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
               fiatRate: this.makeFiatRateStream(),
@@ -353,6 +357,9 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 note: "Brunch w/ friends",
                 createdAt: DateTime.now()
                     .subtract(const Duration(days: 2, hours: 3))
+                    .millisecondsSinceEpoch,
+                finalizedAt: DateTime.now()
+                    .subtract(const Duration(days: 1, hours: 17, seconds: 55))
                     .millisecondsSinceEpoch,
               ),
               paymentDateUpdates: this.paymentDateUpdates,
