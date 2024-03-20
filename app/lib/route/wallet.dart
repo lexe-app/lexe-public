@@ -85,8 +85,8 @@ class WalletPageState extends State<WalletPage> {
         // but unconditionally start with an initial "refresh" to load node
         // state.
         .startWith(null)
-        // ignore multiple refreshes if the user triggers again within 5 secs.
-        .throttleTime(const Duration(seconds: 5))
+        // ignore multiple refreshes if the user triggers again within 3 secs.
+        .throttleTime(const Duration(seconds: 3))
         .log(id: "refresh start")
         // ok we're actually refreshing for real this time! do some bookkeeping
         // and send some requests.
