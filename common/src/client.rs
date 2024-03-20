@@ -93,7 +93,7 @@ impl GatewayClient {
     pub fn new(gateway_url: String) -> Self {
         // TODO(phlip9): gateway TLS config
         Self {
-            rest: RestClient::new(),
+            rest: RestClient::new("app", "gateway"),
             gateway_url,
         }
     }
@@ -231,14 +231,15 @@ impl NodeClient {
                 rng, deploy_env, root_seed,
             )?;
 
-            let reqwest_client = RestClient::client_builder()
+            let from = "app";
+            let reqwest_client = RestClient::client_builder(from)
                 .proxy(proxy)
-                .user_agent("lexe-node-client")
                 .use_preconfigured_tls(tls_config)
                 .build()
                 .context("Failed to build client")?;
 
-            RestClient::from_inner(reqwest_client)
+            let to = "node-run";
+            RestClient::from_inner(reqwest_client, from, to)
         };
 
         Ok(Self {
@@ -361,14 +362,15 @@ impl NodeClient {
             measurement,
         );
 
-        let reqwest_client = RestClient::client_builder()
+        let from = "app";
+        let reqwest_client = RestClient::client_builder(from)
             .proxy(proxy)
-            .user_agent("lexe-node-client")
             .use_preconfigured_tls(tls_config)
             .build()
             .context("Failed to build client")?;
 
-        let provision_rest = RestClient::from_inner(reqwest_client);
+        let to = "node-provision";
+        let provision_rest = RestClient::from_inner(reqwest_client, from, to);
 
         Ok(provision_rest)
     }

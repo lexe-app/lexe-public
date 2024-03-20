@@ -29,10 +29,9 @@ pub(crate) struct RunnerClient {
 }
 
 impl RunnerClient {
-    #[allow(dead_code)] // TODO(max): Remove
     pub(crate) fn new(runner_url: String) -> Self {
         Self {
-            rest: RestClient::new(),
+            rest: RestClient::new("node", "runner"),
             runner_url,
         }
     }
@@ -55,10 +54,9 @@ pub(crate) struct LspClient {
 }
 
 impl LspClient {
-    #[allow(dead_code)] // TODO(max): Remove
     pub(crate) fn new(lsp_url: String) -> Self {
         Self {
-            rest: RestClient::new(),
+            rest: RestClient::new("node", "lsp"),
             lsp_url,
         }
     }
@@ -80,10 +78,9 @@ pub(crate) struct BackendClient {
 }
 
 impl BackendClient {
-    #[allow(dead_code)] // TODO(max): Remove
     pub(crate) fn new(backend_url: String) -> Self {
         Self {
-            rest: RestClient::new(),
+            rest: RestClient::new("node", "backend"),
             backend_url,
         }
     }
