@@ -705,13 +705,15 @@ class AppRsImpl implements AppRs {
 
   Invoice _wire2api_invoice(dynamic raw) {
     final arr = raw as List<dynamic>;
-    if (arr.length != 4)
-      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    if (arr.length != 6)
+      throw Exception('unexpected arr length: expect 6 but see ${arr.length}');
     return Invoice(
       string: _wire2api_String(arr[0]),
       description: _wire2api_opt_String(arr[1]),
       createdAt: _wire2api_i64(arr[2]),
       expiresAt: _wire2api_i64(arr[3]),
+      amountSats: _wire2api_opt_box_autoadd_u64(arr[4]),
+      payeePubkey: _wire2api_opt_String(arr[5]),
     );
   }
 

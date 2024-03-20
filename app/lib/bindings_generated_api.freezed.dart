@@ -242,6 +242,8 @@ mixin _$Invoice {
   String? get description => throw _privateConstructorUsedError;
   int get createdAt => throw _privateConstructorUsedError;
   int get expiresAt => throw _privateConstructorUsedError;
+  int? get amountSats => throw _privateConstructorUsedError;
+  String? get payeePubkey => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -251,7 +253,9 @@ class _$InvoiceImpl implements _Invoice {
       {required this.string,
       this.description,
       required this.createdAt,
-      required this.expiresAt});
+      required this.expiresAt,
+      this.amountSats,
+      this.payeePubkey});
 
   @override
   final String string;
@@ -261,10 +265,14 @@ class _$InvoiceImpl implements _Invoice {
   final int createdAt;
   @override
   final int expiresAt;
+  @override
+  final int? amountSats;
+  @override
+  final String? payeePubkey;
 
   @override
   String toString() {
-    return 'Invoice(string: $string, description: $description, createdAt: $createdAt, expiresAt: $expiresAt)';
+    return 'Invoice(string: $string, description: $description, createdAt: $createdAt, expiresAt: $expiresAt, amountSats: $amountSats, payeePubkey: $payeePubkey)';
   }
 
   @override
@@ -278,12 +286,16 @@ class _$InvoiceImpl implements _Invoice {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.expiresAt, expiresAt) ||
-                other.expiresAt == expiresAt));
+                other.expiresAt == expiresAt) &&
+            (identical(other.amountSats, amountSats) ||
+                other.amountSats == amountSats) &&
+            (identical(other.payeePubkey, payeePubkey) ||
+                other.payeePubkey == payeePubkey));
   }
 
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, string, description, createdAt, expiresAt);
+  int get hashCode => Object.hash(runtimeType, string, description, createdAt,
+      expiresAt, amountSats, payeePubkey);
 }
 
 abstract class _Invoice implements Invoice {
@@ -291,7 +303,9 @@ abstract class _Invoice implements Invoice {
       {required final String string,
       final String? description,
       required final int createdAt,
-      required final int expiresAt}) = _$InvoiceImpl;
+      required final int expiresAt,
+      final int? amountSats,
+      final String? payeePubkey}) = _$InvoiceImpl;
 
   @override
   String get string;
@@ -301,6 +315,10 @@ abstract class _Invoice implements Invoice {
   int get createdAt;
   @override
   int get expiresAt;
+  @override
+  int? get amountSats;
+  @override
+  String? get payeePubkey;
 }
 
 /// @nodoc

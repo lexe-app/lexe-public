@@ -439,6 +439,10 @@ pub struct Invoice {
 
     pub created_at: i64,
     pub expires_at: i64,
+
+    pub amount_sats: Option<u64>,
+
+    pub payee_pubkey: Option<String>,
 }
 
 impl From<&LxInvoice> for Invoice {
@@ -450,6 +454,10 @@ impl From<&LxInvoice> for Invoice {
 
             created_at: invoice.saturating_created_at().as_i64(),
             expires_at: invoice.saturating_expires_at().as_i64(),
+
+            amount_sats: invoice.amount_sats(),
+
+            payee_pubkey: invoice.0.payee_pub_key().map(|x| x.to_string()),
         }
     }
 }

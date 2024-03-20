@@ -6,7 +6,10 @@ use std::{
 use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescription};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
-use crate::time::{self, TimestampMs};
+use crate::{
+    ln::amount::Amount,
+    time::{self, TimestampMs},
+};
 
 /// Wraps [`lightning_invoice::Bolt11Invoice`] to impl [`serde`] Serialize /
 /// Deserialize using the LDK's [`FromStr`] / [`Display`] impls.
@@ -24,6 +27,13 @@ impl LxInvoice {
             // Hash description is not useful yet
             _ => None,
         }
+    }
+
+    /// The invoice amount in satoshis, if included.
+    pub fn amount_sats(&self) -> Option<u64> {
+        self.0
+            .amount_milli_satoshis()
+            .map(|x| Amount::from_msat(x).sats_u64())
     }
 
     /// Get the invoice creation timestamp. Returns an error if the timestamp
