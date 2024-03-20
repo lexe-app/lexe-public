@@ -406,9 +406,13 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 direction: PaymentDirection.Inbound,
                 invoice: const Invoice(
                   string:
-                      "lnbcrt1metc0ejddlfthml0fz7z0e3zjk7wu2ltewa7lmms49a7lm6gh0h77l89yus9par2qqcw60rr4058g6slcty49q4uv5420qhu9tk7d080dys8e2lwy5u2q2uvstpynnc76u7x9f0y03sx06zlqfwcyjtuuu42j4eu9z478jtuu24wawlwalycdlp847j9087ftu90cfl9d57wnt3vqtu2q2uthj3j6tcz6y7z0etdqm7z5erx32wme699587wj2ndwghteta8d4gasv9tw34q49cmqf7xttrx8jh66m4saw9mcelt5epyjj5eqfezaz4uykh65hlmamhusq5ffuc25lryvmks7spuyljk60rpah4ek0r95nhng6s4rlyu4zucrfyu3r577z5598yg32whcfl9d5wd2l92535hcmrpardvhz05dg23fv3wnj7xqtpqpn72httdspp5dcs72ef655jh50zvzl9q08m8c9vx2pyqpn50kaf459fktsslvwtqsp5zmlelhnpqnxf5vfs8g3dpjjpwnuw5p50z3xzulya5wl8lp5xn7uq9qrsgqcqdtnm4um9mexh07x098dsnfrj0g27dux806kdtn5sumqu2v8dwm6xmc6u4khmmfv29n9m3mnhp7ta59gv49z6tflmmv89wmpa3jehplhqefudz2dc9huagppr2yu5",
-                  createdAt: 1687100000000,
-                  expiresAt: 1687300000000,
+                      "lnbcrt803490n1pjg7g5qxq8pjg7gh0pp5cmj7gmzeyec3f7gavn0sup5mpkhpwmu6zdr9dqsthg0xzep33xqqsp5dfhkjumxv3hkj6npwdhkgenfdfshxmmfv3nx5mmfwdskg6nxda5s9qrsgqdq42d6kuerp0ysxyun4de3kscqpcnp4qwla7nx7p5e5nau5k2hh2gxf736rhw0naslthr3jmyu5jqk8gjx7v7tm22urnycvxd86jt9yze25gj9akn38ye980rhc6cgttteuwur0jpmjgs60dwnfhfq7ccrudq634petu6v0dq29wv7et4dv5eh7g7jsq34v77q",
+                  createdAt: 1687102080710,
+                  expiresAt: 1687102191305,
+                  amountSats: 80349,
+                  description: "Sunday brunch",
+                  payeePubkey:
+                      "e68d44c7024939d9328ebb3eecf3b93b74f4c92075afb294f749330dde4cdfbfe5a75ff4cbb752a40e1c4947255d2a9c0ae88c826b5f47d6d660ce9b7c6ebca1",
                 ),
                 amountSat: 77000,
                 feesSat: 3349,
