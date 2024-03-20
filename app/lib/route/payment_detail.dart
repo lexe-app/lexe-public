@@ -172,15 +172,21 @@ class PaymentDetailPageInner extends StatelessWidget {
     final kind = this.payment.kind;
     final status = this.payment.status;
     final direction = this.payment.direction;
+    final directionLabel =
+        (direction == PaymentDirection.Inbound) ? "received" : "sent";
+
     final invoice = this.payment.invoice;
+    final payeePubkey = invoice?.payeePubkey;
+
     final amountSat = this.payment.amountSat;
     final feesSat = this.payment.feesSat;
+    final invoiceAmountSat = invoice?.amountSats;
 
     final createdAt = DateTime.fromMillisecondsSinceEpoch(
       this.payment.createdAt,
       isUtc: true,
     );
-    final expiresAt = (invoice != null)
+    final expiresAt = (invoice != null && status != PaymentStatus.Completed)
         ? DateTime.fromMillisecondsSinceEpoch(invoice.expiresAt, isUtc: true)
         : null;
     final maybeFinalizedAt = this.payment.finalizedAt;
@@ -192,10 +198,10 @@ class PaymentDetailPageInner extends StatelessWidget {
 
     // Label should be kept in sync with "common::ln::payments::LxPaymentId"
     final paymentIdxLabel = switch ((kind, direction)) {
-      (PaymentKind.Invoice, _) => "LN payment hash",
-      (PaymentKind.Spontaneous, _) => "LN payment hash",
-      (PaymentKind.Onchain, PaymentDirection.Inbound) => "BTC txid",
-      (PaymentKind.Onchain, PaymentDirection.Outbound) => "Lexe Client Id",
+      (PaymentKind.Invoice, _) => "Payment hash",
+      (PaymentKind.Spontaneous, _) => "Payment hash",
+      (PaymentKind.Onchain, PaymentDirection.Inbound) => "Txid",
+      (PaymentKind.Onchain, PaymentDirection.Outbound) => "Client payment id",
     };
     final paymentIdxBody = this.paymentIdxBody();
 
@@ -301,9 +307,16 @@ class PaymentDetailPageInner extends StatelessWidget {
         PaymentDetailInfoCard(children: [
           if (amountSat != null)
             PaymentDetailInfoRow(
-              label: "Amount",
-              value: currency_format.formatSatsAmount(amountSat,
-                  direction: direction, satsSuffix: true),
+              label: "Amount $directionLabel",
+              value:
+                  currency_format.formatSatsAmount(amountSat, satsSuffix: true),
+            ),
+
+          if (invoiceAmountSat != null)
+            PaymentDetailInfoRow(
+              label: "Invoiced amount",
+              value: currency_format.formatSatsAmount(invoiceAmountSat,
+                  satsSuffix: true),
             ),
 
           // TODO(phlip9): breakdown fees
@@ -313,8 +326,15 @@ class PaymentDetailPageInner extends StatelessWidget {
                   currency_format.formatSatsAmount(feesSat, satsSuffix: true)),
         ]),
 
+        // Low-level stuff
         PaymentDetailInfoCard(children: [
+          // oneof: BTC txid, LN payment hash, Lx ClientPaymentId
           PaymentDetailInfoRow(label: paymentIdxLabel, value: paymentIdxBody),
+
+          if (payeePubkey != null)
+            PaymentDetailInfoRow(label: "Payee public key", value: payeePubkey),
+
+          // the full invoice
           if (invoice != null)
             PaymentDetailInfoRow(label: "Invoice", value: invoice.string),
         ]),

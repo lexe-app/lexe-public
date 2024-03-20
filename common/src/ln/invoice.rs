@@ -155,8 +155,22 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
+    use std::time::Duration;
+
+    use bitcoin::{
+        hashes::{sha256, Hash},
+        secp256k1::Secp256k1,
+    };
+    use lightning::ln::{
+        channelmanager::MIN_FINAL_CLTV_EXPIRY_DELTA, PaymentSecret,
+    };
+    use lightning_invoice::{Currency, InvoiceBuilder};
+
     use super::*;
-    use crate::test_utils::roundtrip;
+    use crate::{
+        cli::Network, hex, rng::WeakRng, root_seed::RootSeed,
+        test_utils::roundtrip,
+    };
 
     #[test]
     fn invoice_serde_roundtrip() {
@@ -166,5 +180,50 @@ mod test {
     #[test]
     fn invoice_fromstr_display_roundtrip() {
         roundtrip::fromstr_display_roundtrip_proptest::<LxInvoice>();
+    }
+
+    // Used to generate example invoices for UI tests.
+    #[test]
+    fn dump_invoice() {
+        let seed = RootSeed::from_u64(123);
+        let node_key_pair =
+            seed.derive_node_key_pair(&mut WeakRng::from_u64(123));
+
+        let network = Network::REGTEST;
+        let amount_sats = 77_000 + 3_349;
+        let created_at = Duration::from_millis(1687102080710);
+        let expires_at = Duration::from_millis(1687102191305);
+        let description = "Sunday brunch";
+        let payment_hash = sha256::Hash::hash(b"idk");
+        let payment_secret =
+            PaymentSecret(*b"joisfdoijasodfijasoidfjoisadjfoi");
+        let payee_pubkey = node_key_pair.public_key();
+
+        dbg!(network.0);
+        dbg!(amount_sats);
+        dbg!(created_at.as_millis());
+        dbg!(expires_at.as_millis());
+        dbg!(description);
+        dbg!(payment_hash);
+        dbg!(hex::encode(&payment_secret.0));
+        dbg!(payee_pubkey);
+
+        let invoice = InvoiceBuilder::new(Currency::from(network))
+            .amount_milli_satoshis(Amount::from_sats_u32(amount_sats).msat())
+            .duration_since_epoch(created_at)
+            .expiry_time(expires_at)
+            .payment_hash(payment_hash)
+            .payment_secret(payment_secret)
+            .description(description.to_owned())
+            .min_final_cltv_expiry_delta(MIN_FINAL_CLTV_EXPIRY_DELTA as u64)
+            .payee_pub_key(payee_pubkey)
+            .build_signed(|hash| {
+                Secp256k1::new()
+                    .sign_ecdsa_recoverable(hash, &node_key_pair.secret_key())
+            })
+            .unwrap();
+
+        let invoice_str = invoice.to_string();
+        dbg!(&invoice_str);
     }
 }
