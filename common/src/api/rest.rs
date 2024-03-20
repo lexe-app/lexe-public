@@ -351,37 +351,51 @@ where
     }
 }
 
-/// A generic RestClient. [`reqwest::Client`] holds an [`Arc`] internally, so
-/// likewise, [`RestClient`] can be cloned and used directly, without [`Arc`].
-///
-/// [`Arc`]: std::sync::Arc
+/// A generic RestClient which conforms to Lexe's API.
 #[derive(Clone)]
 pub struct RestClient {
     client: reqwest::Client,
-}
-
-impl Default for RestClient {
-    fn default() -> Self {
-        Self::new()
-    }
+    /// The process that this [`RestClient`] is being called from, e.g. "app"
+    from: &'static str,
+    /// The process that this [`RestClient`] is calling, e.g. "node-run"
+    to: &'static str,
 }
 
 impl RestClient {
-    pub fn new() -> Self {
-        let client = Self::client_builder()
+    /// The `from` and `to` fields should specify the client and server
+    /// components of the API trait that this [`RestClient`] is used for.
+    /// The [`RestClient`] will log both fields so that requests from this
+    /// client can be differentiated from those made by other clients in the
+    /// same process, and propagate the `from` field to the server via the user
+    /// agent header so that servers can identify requesting clients.
+    ///
+    /// ```
+    /// # use common::api::rest::RestClient;
+    /// # use http::header::HeaderValue;
+    /// let backend_api = RestClient::new("node", "backend");
+    /// let runner_api = RestClient::new("node", "runner");
+    /// ```
+    pub fn new(from: &'static str, to: &'static str) -> Self {
+        let client = Self::client_builder(from)
             .build()
             .expect("Failed to build reqwest Client");
-        Self { client }
+        Self { client, from, to }
     }
 
     /// Get a [`reqwest::ClientBuilder`] with some defaults set.
-    pub fn client_builder() -> reqwest::ClientBuilder {
-        reqwest::Client::builder().timeout(API_REQUEST_TIMEOUT)
+    pub fn client_builder(from: &'static str) -> reqwest::ClientBuilder {
+        reqwest::Client::builder()
+            .user_agent(from)
+            .timeout(API_REQUEST_TIMEOUT)
     }
 
     /// Construct a [`RestClient`] from a [`reqwest::Client`].
-    pub fn from_inner(client: reqwest::Client) -> Self {
-        Self { client }
+    pub fn from_inner(
+        client: reqwest::Client,
+        from: &'static str,
+        to: &'static str,
+    ) -> Self {
+        Self { client, from, to }
     }
 
     // --- RequestBuilder helpers --- //
@@ -435,10 +449,12 @@ impl RestClient {
 
     // --- Request send/recv --- //
 
-    fn request_span(req: &reqwest::Request) -> tracing::Span {
+    fn request_span(&self, req: &reqwest::Request) -> tracing::Span {
         info_span!(
             target: "http",
             "(http)(cli)",
+            from = %self.from,
+            to = %self.to,
             method = %req.method(),
             url = %req.url(),
             // the "attempts left" is set in the span later on
@@ -457,7 +473,7 @@ impl RestClient {
         E: ApiError,
     {
         let request = request_builder.build().map_err(CommonApiError::from)?;
-        let span = Self::request_span(&request);
+        let span = self.request_span(&request);
         let response = self.send_inner(request).instrument(span).await;
         convert_rest_response(response)
     }
@@ -480,7 +496,7 @@ impl RestClient {
         E: ApiError,
     {
         let request = request_builder.build().map_err(CommonApiError::from)?;
-        let span = Self::request_span(&request);
+        let span = self.request_span(&request);
         let response = self
             .send_with_retries_inner(request, retries, stop_codes)
             .instrument(span)
@@ -527,13 +543,13 @@ impl RestClient {
             // that we should bail on and stop retrying.
             match self.send_inner(request_clone).await {
                 Ok(Ok(bytes)) => return Ok(Ok(bytes)),
-                Ok(Err(err_api)) =>
-                    if stop_codes.contains(&err_api.code) {
-                        return Ok(Err(err_api));
+                Ok(Err(api_error)) =>
+                    if stop_codes.contains(&api_error.code) {
+                        return Ok(Err(api_error));
                     },
-                Err(err_client) => {
-                    if stop_codes.contains(&err_client.to_code()) {
-                        return Err(err_client);
+                Err(common_error) => {
+                    if stop_codes.contains(&common_error.to_code()) {
+                        return Err(common_error);
                     }
                 }
             }
