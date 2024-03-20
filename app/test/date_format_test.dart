@@ -3,6 +3,16 @@ import 'package:flutter_test/flutter_test.dart' show expect, test;
 import 'package:lexeapp/date_format.dart' as date_format;
 
 void main() {
+  test("date_format.formatDateFull", () async {
+    DateTime dateTimeFromUnix(int msSinceEpoch) =>
+        DateTime.fromMillisecondsSinceEpoch(msSinceEpoch, isUtc: true);
+
+    expect(
+      date_format.formatDateFullInner(dateTimeFromUnix(1687385095000)),
+      "2023-06-21 22:04:55",
+    );
+  });
+
   test("date_format.formatDate", () async {
     await date_format.initializeDateLocaleData();
 

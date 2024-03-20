@@ -27,6 +27,38 @@ String justNowStr({String? locale}) => "just now";
 // TODO(phlip9): use <https://docs.rs/icu_relativetime/latest/icu_relativetime/struct.RelativeTimeFormatter.html>
 // (via https://pub.dev/packages/intl4x ?)
 
+/// Format a [DateTime] as a full ISO 8601-formatted string, except more
+/// human-readable (e.g., remove milliseconds offset, remove 'T' character).
+///
+/// Ex:
+///
+/// ```dart
+/// final t = DateTime.fromMillisecondsSinceEpoch(1687385095000, isUtc: true);
+/// assert(formatDateFull(t) == "2023-06-21 22:04:55");
+/// ```
+String formatDateFull(DateTime dateTime) =>
+    // Use local timezone for display
+    formatDateFullInner(dateTime.toLocal());
+
+/// Use [formatDateFull], not this function.
+///
+/// This function is used for testing without depending on the test runner's
+/// system time zone.
+String formatDateFullInner(DateTime t) {
+  // impl mostly copied from <https://api.flutter.dev/flutter/dart-core/DateTime/toIso8601String.html>
+
+  final year = t.year;
+  String y =
+      (year >= -9999 && year <= 9999) ? _fourDigits(year) : _sixDigits(year);
+  String m = _twoDigits(t.month);
+  String d = _twoDigits(t.day);
+  String h = _twoDigits(t.hour);
+  String min = _twoDigits(t.minute);
+  String sec = _twoDigits(t.second);
+
+  return "$y-$m-$d $h:$min:$sec";
+}
+
 /// Less-compactly format a `DateTime` that's in the past. Will return `null` if
 /// the `DateTime` is in the future.
 ///
@@ -165,4 +197,26 @@ DurationLocale lookupDurationLocale(String? locale) {
   }
 
   return defaultDurationLocale;
+}
+
+// from: <https://github.com/dart-lang/sdk/blob/a0392698bf748ac16cc374ba92c34383c9372b23/sdk/lib/core/date_time.dart#L551-L577>
+
+String _twoDigits(int n) {
+  if (n >= 10) return "$n";
+  return "0$n";
+}
+
+String _fourDigits(int n) {
+  int absN = n.abs();
+  if (absN >= 1000) return "$absN";
+  if (absN >= 100) return "0$absN";
+  if (absN >= 10) return "00$absN";
+  return "000$absN";
+}
+
+String _sixDigits(int n) {
+  assert(n > 9999);
+  int absN = n.abs();
+  if (absN >= 100000) return "$absN";
+  return "0$absN";
 }
