@@ -5,11 +5,20 @@
 
 use std::str::FromStr;
 
+use anyhow::anyhow;
+#[cfg(doc)]
+use common::api::trace::TraceId;
+use common::{api::trace, define_trace_id_fns};
 use tracing::Level;
 use tracing_subscriber::{
-    filter::Targets,
-    layer::{Layer, SubscriberExt},
-    util::{SubscriberInitExt, TryInitError},
+    filter::{Filtered, Targets},
+    fmt::{
+        format::{Compact, DefaultFields, Format},
+        Layer as FmtLayer,
+    },
+    layer::{Layer as LayerTrait, Layered, SubscriberExt},
+    util::SubscriberInitExt,
+    Registry,
 };
 
 /// Initialize a global `tracing` logger.
@@ -40,12 +49,41 @@ pub fn init_for_testing() {
 
 /// Try to initialize a global logger. Will return an `Err` if there is another
 /// global logger already set.
-pub fn try_init() -> Result<(), TryInitError> {
+pub fn try_init() -> anyhow::Result<()> {
+    subscriber().try_init().context("Logger already set")?;
+
+    define_trace_id_fns!(SubscriberType);
+    trace::GET_TRACE_ID_FN
+        .set(get_trace_id_from_span)
+        .map_err(|_| anyhow!("GET_TRACE_ID_FN already set"))?;
+    trace::INSERT_TRACE_ID_FN
+        .set(insert_trace_id_into_span)
+        .map_err(|_| anyhow!("INSERT_TRACE_ID_FN already set"))?;
+
+    Ok(())
+}
+
+/// The full type of our subscriber which is downcasted to when recovering
+/// [`TraceId`]s. If having trouble naming this correctly, change this to some
+/// dummy value (e.g. `u32`) and the compiler will tell you what it should be.
+type SubscriberType = Layered<
+    Filtered<
+        FmtLayer<Registry, DefaultFields, Format<Compact>>,
+        Targets,
+        Registry,
+    >,
+    Registry,
+>;
+
+/// Generates our [`tracing::Subscriber`] impl. This function is extracted so
+/// that we can check the correctness of the `SubscriberType` type alias, which
+/// allows us to downcast back to our subscriber to recover [`TraceId`]s.
+fn subscriber() -> SubscriberType {
     // TODO(phlip9): non-blocking writer for prod
     // see: https://docs.rs/tracing-appender/latest/tracing_appender/non_blocking/index.html
 
-    // Defaults to INFO logs if no `RUST_LOG` env var is set or we can't parse
-    // the targets filter.
+    // Defaults to INFO logs if no `RUST_LOG` env var is set or we can't
+    // parse the targets filter.
     let rust_log_filter = std::env::var("RUST_LOG")
         .ok()
         .and_then(|rust_log| Targets::from_str(&rust_log).ok())
@@ -56,10 +94,22 @@ pub fn try_init() -> Result<(), TryInitError> {
         .with_level(true)
         .with_target(true)
         // Enable colored outputs for stdout.
-        // TODO(max): This should be disabled when outputting to files - a
-        //            second subscriber is probably needed.
+        // NOTE: This should be disabled if outputting to files
         .with_ansi(true)
         .with_filter(rust_log_filter);
 
-    tracing_subscriber::registry().with(stdout_log).try_init()
+    tracing_subscriber::registry().with(stdout_log)
+}
+
+#[cfg(test)]
+mod test {
+    use common::api::trace::TraceId;
+
+    use super::*;
+
+    #[test]
+    fn get_and_insert_trace_ids() {
+        let _ = try_init();
+        TraceId::get_and_insert_test_impl();
+    }
 }

@@ -6,6 +6,13 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+# --- LEXE --- #
+
+common = { path = "../common" }
+
+# --- WORKSPACE --- #
+
+anyhow.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = [
     # Enable colored log outputs
@@ -15,3 +22,7 @@ tracing-subscriber = { workspace = true, features = [
     "std",
     "tracing-log",
 ] }
+
+[dev-dependencies]
+# Enable common test-utils in tests
+common = { path = "../common", features = ["test-utils"] }

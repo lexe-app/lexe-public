@@ -35,6 +35,8 @@
 
 use std::{ops::Deref, str::FromStr, sync::LazyLock};
 
+use anyhow::anyhow;
+use common::{api::trace, define_trace_id_fns};
 use lightning::util::logger::{Level as LdkLevel, Logger, Record};
 use tracing_core::{
     dispatcher,
@@ -44,10 +46,14 @@ use tracing_core::{
     Callsite, Event, Kind, Level, Metadata,
 };
 use tracing_subscriber::{
-    filter::Targets,
-    layer::SubscriberExt,
-    util::{SubscriberInitExt, TryInitError},
-    Layer,
+    filter::{Filtered, Targets},
+    fmt::{
+        format::{Compact, DefaultFields, Format},
+        Layer,
+    },
+    layer::{Layered, SubscriberExt},
+    util::SubscriberInitExt,
+    Layer as LayerTrait, Registry,
 };
 
 /// Initialize the global `tracing` logger.
@@ -75,7 +81,36 @@ pub fn init_for_testing() {
 
 /// Try to initialize a global logger. Will return an `Err` if there is another
 /// global logger already set.
-pub fn try_init() -> Result<(), TryInitError> {
+pub fn try_init() -> anyhow::Result<()> {
+    subscriber()
+        .try_init()
+        .context("Logger already initialized")?;
+    define_trace_id_fns!(SubscriberType);
+    trace::GET_TRACE_ID_FN
+        .set(get_trace_id_from_span)
+        .map_err(|_| anyhow!("GET_TRACE_ID_FN already set"))?;
+    trace::INSERT_TRACE_ID_FN
+        .set(insert_trace_id_into_span)
+        .map_err(|_| anyhow!("INSERT_TRACE_ID_FN already set"))?;
+    Ok(())
+}
+
+/// The full type of our subscriber which is downcasted to when recovering
+/// `TraceId`s. If having trouble naming this correctly, change this to some
+/// dummy value (e.g. `u32`) and the compiler will tell you what it should be.
+type SubscriberType = Layered<
+    Filtered<
+        Layer<Registry, DefaultFields, Format<Compact>>,
+        Targets,
+        Registry,
+    >,
+    Registry,
+>;
+
+/// Generates our [`tracing::Subscriber`] impl. This function is extracted so
+/// that we can check the correctness of the `SubscriberType` type alias, which
+/// allows us to downcast back to our subscriber to recover `TraceId`s.
+fn subscriber() -> SubscriberType {
     // For the node, just parse a simplified target filter from the env. The
     // `env_filter` feature pulls in too many dependencies (like regex) for SGX.
     //
@@ -96,7 +131,7 @@ pub fn try_init() -> Result<(), TryInitError> {
         .with_ansi(true)
         .with_filter(rust_log_filter);
 
-    tracing_subscriber::registry().with(stdout_log).try_init()
+    tracing_subscriber::registry().with(stdout_log)
 }
 
 // -- LexeTracingLogger -- //
@@ -250,6 +285,7 @@ fn loglevel_to_cs(
 mod test {
     use std::collections::HashMap;
 
+    use common::api::trace::TraceId;
     use tracing_core::{
         span::{Attributes, Id, Record},
         Dispatch, Subscriber,
@@ -311,5 +347,11 @@ mod test {
             let ldk_logger = LexeTracingLogger::new();
             lightning::log_error!(ldk_logger, "hello: {}", 123);
         });
+    }
+
+    #[test]
+    fn get_and_insert_trace_ids() {
+        let _ = try_init();
+        TraceId::get_and_insert_test_impl();
     }
 }

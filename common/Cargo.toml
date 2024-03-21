@@ -54,6 +54,7 @@ lightning.workspace = true
 lightning-invoice.workspace = true
 # lightning-net-tokio.workspace = true
 # lightning-transaction-sync.workspace = true
+rand.workspace = true
 rand_core.workspace = true
 rcgen.workspace = true
 reqwest = { workspace = true, features = ["json", "rustls-tls-manual-roots"] }
@@ -77,6 +78,7 @@ tokio = { workspace = true, features = [
     "time"
 ] }
 tracing.workspace = true
+tracing-subscriber.workspace = true
 warp = { workspace = true, features = ["tls"] }
 
 # --- CRATE-SPECIFIC --- #
