@@ -20,15 +20,17 @@ use http_old::{
 use reqwest::IntoUrl;
 use serde::{de::DeserializeOwned, Serialize};
 use tokio::time;
-use tracing::{
-    debug, error, field, info, info_span, span, warn, Instrument, Span,
-};
+use tracing::{debug, error, info, info_span, span, warn, Instrument, Span};
 use warp::{filters::BoxedFilter, hyper::Body, Filter, Rejection};
 
+use super::trace::TraceId;
 use crate::{
-    api::error::{
-        ApiError, CommonApiError, CommonErrorKind, ErrorCode, ErrorResponse,
-        ToHttpStatus,
+    api::{
+        error::{
+            ApiError, CommonApiError, CommonErrorKind, ErrorCode,
+            ErrorResponse, ToHttpStatus,
+        },
+        trace::{self, DisplayMs},
     },
     backoff,
     byte_str::ByteStr,
@@ -309,7 +311,7 @@ fn build_json_response_inner(
     maybe_json: Result<Bytes, serde_json::Error>,
 ) -> OldResponse<Body> {
     let body = maybe_json.map(Body::from).unwrap_or_else(|e| {
-        error!(target: "http", "Couldn't serialize response: {e:#}");
+        error!(target: trace::TARGET, "Couldn't serialize response: {e:#}");
         status = OldStatusCode::INTERNAL_SERVER_ERROR;
         Body::empty()
     });
@@ -449,19 +451,6 @@ impl RestClient {
 
     // --- Request send/recv --- //
 
-    fn request_span(&self, req: &reqwest::Request) -> tracing::Span {
-        info_span!(
-            target: "http",
-            "(http)(cli)",
-            from = %self.from,
-            to = %self.to,
-            method = %req.method(),
-            url = %req.url(),
-            // the "attempts left" is set in the span later on
-            attempts_left = field::Empty,
-        )
-    }
-
     /// Sends the built HTTP request once. Tries to JSON deserialize the
     /// response body to `T`.
     pub async fn send<T, E>(
@@ -473,8 +462,12 @@ impl RestClient {
         E: ApiError,
     {
         let request = request_builder.build().map_err(CommonApiError::from)?;
-        let span = self.request_span(&request);
-        let response = self.send_inner(request).instrument(span).await;
+        let (request_span, trace_id) =
+            trace::client::request_span(&request, self.from, self.to);
+        let response = self
+            .send_inner(request, &trace_id)
+            .instrument(request_span)
+            .await;
         convert_rest_response(response)
     }
 
@@ -496,10 +489,11 @@ impl RestClient {
         E: ApiError,
     {
         let request = request_builder.build().map_err(CommonApiError::from)?;
-        let span = self.request_span(&request);
+        let (request_span, trace_id) =
+            trace::client::request_span(&request, self.from, self.to);
         let response = self
-            .send_with_retries_inner(request, retries, stop_codes)
-            .instrument(span)
+            .send_with_retries_inner(request, retries, stop_codes, &trace_id)
+            .instrument(request_span)
             .await;
         convert_rest_response(response)
     }
@@ -512,6 +506,7 @@ impl RestClient {
         request: reqwest::Request,
         retries: usize,
         stop_codes: &[ErrorCode],
+        trace_id: &TraceId,
     ) -> Result<Result<Bytes, ErrorResponse>, CommonApiError> {
         let mut backoff_durations = backoff::get_backoff_iter();
         let mut attempts_left = retries + 1;
@@ -541,7 +536,7 @@ impl RestClient {
 
             // send the request and look for any error codes in the response
             // that we should bail on and stop retrying.
-            match self.send_inner(request_clone).await {
+            match self.send_inner(request_clone, trace_id).await {
                 Ok(Ok(bytes)) => return Ok(Ok(bytes)),
                 Ok(Err(api_error)) =>
                     if stop_codes.contains(&api_error.code) {
@@ -563,23 +558,35 @@ impl RestClient {
         assert_eq!(attempts_left, 1);
         tracing::Span::current().record("attempts_left", attempts_left);
 
-        self.send_inner(request.take().unwrap()).await
+        self.send_inner(request.take().unwrap(), trace_id).await
     }
 
     async fn send_inner(
         &self,
-        request: reqwest::Request,
+        mut request: reqwest::Request,
+        trace_id: &TraceId,
     ) -> Result<Result<Bytes, ErrorResponse>, CommonApiError> {
         let start = tokio::time::Instant::now().into_std();
-        debug!(target: "http", "New (outbound) Sending request");
+        // This message should mirror `LxOnRequest`.
+        debug!(target: trace::TARGET, "New client request");
+
+        // Add the trace id header to the request.
+        match request.headers_mut().try_insert(
+            trace::TRACE_ID_HEADER_NAME.clone(),
+            trace_id.to_header_value(),
+        ) {
+            Ok(None) => (),
+            Ok(Some(_)) => warn!(target: trace::TARGET, "Trace id existed?"),
+            Err(e) => warn!(target: trace::TARGET, "Header map full?: {e:#}"),
+        }
 
         // send the request, await the response headers
-        let resp = self.client.execute(request).await.inspect_err(|err| {
-            let time = start.elapsed();
+        let resp = self.client.execute(request).await.inspect_err(|e| {
+            let req_time = DisplayMs(start.elapsed());
             warn!(
-                target: "http",
-                ?time,
-                "Done (err)(sending) Error sending request: {err:#}"
+                target: trace::TARGET,
+                %req_time,
+                "Done (error)(sending) Error sending request: {e:#}"
             );
         })?;
 
@@ -588,41 +595,44 @@ impl RestClient {
 
         if resp.status().is_success() {
             // success => await response body
-            let bytes = resp.bytes().await.inspect_err(|err| {
-                let time = start.elapsed();
+            let bytes = resp.bytes().await.inspect_err(|e| {
+                let req_time = DisplayMs(start.elapsed());
                 warn!(
-                    target: "http",
+                    target: trace::TARGET,
+                    %req_time,
                     %status,
-                    ?time,
-                    "Done (err)(receiving) Couldn't receive success response body: {err:#}",
+                    "Done (error)(receiving) \
+                     Couldn't receive success response body: {e:#}",
                 );
             })?;
 
-            let time = start.elapsed();
-            info!(target: "http", %status, ?time, "Done (success)");
+            let req_time = DisplayMs(start.elapsed());
+            info!(target: trace::TARGET, %req_time, %status, "Done (success)");
             Ok(Ok(bytes))
         } else {
             // http error => await response json and convert to ErrorResponse
-            let err = resp.json::<ErrorResponse>().await.inspect_err(|err| {
-                let time = start.elapsed();
-                warn!(
-                    target: "http",
-                    %status,
-                    ?time,
-                    "Done (err)(receiving) Couldn't receive ErrorResponse json: {err:#}",
-                );
-            })?;
+            let error =
+                resp.json::<ErrorResponse>().await.inspect_err(|e| {
+                    let req_time = DisplayMs(start.elapsed());
+                    warn!(
+                        target: trace::TARGET,
+                        %req_time,
+                        %status,
+                        "Done (error)(receiving) \
+                         Couldn't receive ErrorResponse: {e:#}",
+                    );
+                })?;
 
-            let time = start.elapsed();
+            let req_time = DisplayMs(start.elapsed());
             warn!(
-                target: "http",
+                target: trace::TARGET,
+                %req_time,
                 %status,
-                ?time,
-                err_code = %err.code,
-                err_msg = %err.msg,
-                "Done (err)(response) Server returned error response",
+                error_code = %error.code,
+                error_msg = %error.msg,
+                "Done (error)(response) Server returned error response",
             );
-            Ok(Err(err))
+            Ok(Err(error))
         }
     }
 }

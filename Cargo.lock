@@ -1089,6 +1089,7 @@ dependencies = [
  "num-bigint",
  "proptest",
  "proptest-derive",
+ "rand",
  "rand_core",
  "rcgen",
  "ref-cast",
@@ -1117,6 +1118,7 @@ dependencies = [
  "tower-http",
  "tower-service",
  "tracing",
+ "tracing-subscriber",
  "warp",
  "webpki",
  "x509-parser",
@@ -2493,6 +2495,8 @@ checksum = "b5e6163cb8c49088c2c36f57875e58ccd8c87c7427f7fbd50ea6710b2f3f2e8f"
 name = "logger"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "common",
  "tracing",
  "tracing-subscriber",
 ]

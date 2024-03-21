@@ -10,13 +10,15 @@ use std::{
 };
 
 use arc_swap::ArcSwapOption;
+use common::{api::trace, define_trace_id_fns};
 use flutter_rust_bridge::StreamSink;
 use tracing::{field, span, Event, Level, Subscriber};
 use tracing_subscriber::{
-    filter::Targets,
-    layer::{Context, Layer, SubscriberExt},
+    filter::{Filtered, Targets},
+    layer::{Context, Layer, Layered, SubscriberExt},
     registry::{LookupSpan, SpanRef},
     util::SubscriberInitExt,
+    Registry,
 };
 
 /// A channel to dart. Formatted rust log messages are sent across this channel
@@ -35,17 +37,33 @@ struct FormattedSpanFields {
 pub(crate) fn init(rust_log_tx: StreamSink<String>, rust_log: &str) {
     RUST_LOG_TX.store(Some(Arc::new(rust_log_tx)));
 
+    let subscriber = subscriber(rust_log);
+
+    // _DONT_ panic here if there is already a logger set. Instead we just
+    // update the `RUST_LOG_TX`. We do this to support flutter hot reload.
+    let _ = subscriber.try_init();
+    define_trace_id_fns!(SubscriberType);
+    let _ = trace::GET_TRACE_ID_FN.set(get_trace_id_from_span);
+    let _ = trace::INSERT_TRACE_ID_FN.set(insert_trace_id_into_span);
+}
+
+/// The full type of our subscriber which is downcasted to when recovering
+/// `TraceId`s. If having trouble naming this correctly, change this to some
+/// dummy value (e.g. `u32`) and the compiler will tell you what it should be.
+type SubscriberType =
+    Layered<Filtered<DartLogLayer, Targets, Registry>, Registry>;
+
+/// Generates our [`tracing::Subscriber`] impl. This function is extracted so
+/// that we can check the correctness of the `SubscriberType` type alias, which
+/// allows us to downcast back to our subscriber to recover `TraceId`s.
+fn subscriber(rust_log: &str) -> SubscriberType {
     let rust_log_filter = Targets::from_str(rust_log)
         .ok()
         .unwrap_or_else(|| Targets::new().with_default(Level::INFO));
 
     let dart_log_layer = DartLogLayer::new().with_filter(rust_log_filter);
 
-    // _DONT_ panic here if there is already a logger set. Instead we just
-    // update the `RUST_LOG_TX`. We do this to support flutter hot reload.
-    let _ = tracing_subscriber::registry()
-        .with(dart_log_layer)
-        .try_init();
+    tracing_subscriber::registry().with(dart_log_layer)
 }
 
 impl DartLogLayer {
@@ -193,4 +211,20 @@ fn fmt_span_fields<S: Subscriber + for<'a> LookupSpan<'a>>(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use common::api::trace::TraceId;
+    use flutter_rust_bridge::rust2dart::Rust2Dart;
+
+    use super::*;
+
+    #[test]
+    fn get_and_insert_trace_ids() {
+        let rust_log_tx = StreamSink::new(Rust2Dart::new(6969));
+        let rust_log = "INFO";
+        init(rust_log_tx, rust_log);
+        TraceId::get_and_insert_test_impl();
+    }
 }

@@ -45,6 +45,8 @@ pub mod provision;
 pub mod qs;
 /// A client and helpers that enforce common REST semantics across Lexe crates.
 pub mod rest;
+/// API tracing utilities for both client and server.
+pub mod trace;
 /// Data types implementing vfs-based node persistence.
 pub mod vfs;
 
