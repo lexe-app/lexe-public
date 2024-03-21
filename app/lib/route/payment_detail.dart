@@ -304,27 +304,29 @@ class PaymentDetailPageInner extends StatelessWidget {
         ]),
 
         // Full payment amount + fees info
-        PaymentDetailInfoCard(children: [
-          if (amountSat != null)
-            PaymentDetailInfoRow(
-              label: "Amount $directionLabel",
-              value:
-                  currency_format.formatSatsAmount(amountSat, satsSuffix: true),
-            ),
+        // TODO(phlip9): deemphasize fiat amount below
+        ValueStreamBuilder(
+          stream: this.fiatRate,
+          builder: (_context, fiatRate) => PaymentDetailInfoCard(children: [
+            if (amountSat != null)
+              PaymentDetailInfoRow(
+                label: "Amount $directionLabel",
+                value: formatSatsAmountFiatBelow(amountSat, fiatRate),
+              ),
 
-          if (invoiceAmountSat != null)
-            PaymentDetailInfoRow(
-              label: "Invoiced amount",
-              value: currency_format.formatSatsAmount(invoiceAmountSat,
-                  satsSuffix: true),
-            ),
+            if (invoiceAmountSat != null)
+              PaymentDetailInfoRow(
+                label: "Invoiced amount",
+                value: formatSatsAmountFiatBelow(invoiceAmountSat, fiatRate),
+              ),
 
-          // TODO(phlip9): breakdown fees
-          PaymentDetailInfoRow(
+            // TODO(phlip9): breakdown fees
+            PaymentDetailInfoRow(
               label: "Fees",
-              value:
-                  currency_format.formatSatsAmount(feesSat, satsSuffix: true)),
-        ]),
+              value: formatSatsAmountFiatBelow(feesSat, fiatRate),
+            ),
+          ]),
+        ),
 
         // Low-level stuff
         PaymentDetailInfoCard(children: [
@@ -342,6 +344,18 @@ class PaymentDetailPageInner extends StatelessWidget {
         const SizedBox(height: Space.s400),
       ]),
     );
+  }
+}
+
+String formatSatsAmountFiatBelow(int amountSats, FiatRate? fiatRate) {
+  final amountSatsStr =
+      currency_format.formatSatsAmount(amountSats, satsSuffix: true);
+  if (fiatRate != null) {
+    final fiatAmount = currency_format.satsToBtc(amountSats) * fiatRate.rate;
+    final fiatAmountStr = currency_format.formatFiat(fiatAmount, fiatRate.fiat);
+    return "$amountSatsStr\n≈ $fiatAmountStr (now)";
+  } else {
+    return "$amountSatsStr\n";
   }
 }
 
@@ -794,6 +808,7 @@ class PaymentDetailInfoRow extends StatelessWidget {
                 style: const TextStyle(
                   color: LxColors.grey550,
                   fontSize: Fonts.size200,
+                  height: 1.3,
                 ),
               ),
             ),
@@ -805,6 +820,8 @@ class PaymentDetailInfoRow extends StatelessWidget {
                 style: const TextStyle(
                   color: LxColors.fgSecondary,
                   fontSize: Fonts.size200,
+                  height: 1.3,
+                  fontFeatures: [Fonts.featDisambugation],
                 ),
               ),
             ),
