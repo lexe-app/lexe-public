@@ -343,10 +343,10 @@ class MockAppHandle extends AppHandle {
         () => const FiatRates(
           timestampMs: 1679863795,
           rates: [
-            FiatRate(fiat: "USD", rate: 30296.1951578664 /* USD/BTC */),
+            FiatRate(fiat: "USD", rate: 73111.19 /* USD/BTC */),
             FiatRate(
               fiat: "EUR",
-              rate: 30296.1951578664 /* USD/BTC */ * 1.10 /* EUR/USD */,
+              rate: 73111.19 /* USD/BTC */ * 1.10 /* EUR/USD */,
             ),
           ],
         ),
