@@ -169,6 +169,22 @@ class PaymentDetailPageInner extends StatelessWidget {
     }
   }
 
+  void openBottomSheet(BuildContext context) {
+    unawaited(showModalBottomSheet(
+      backgroundColor: LxColors.background,
+      elevation: 0.0,
+      clipBehavior: Clip.hardEdge,
+      enableDrag: true,
+      isDismissible: true,
+      isScrollControlled: true,
+      context: context,
+      builder: (context) => PaymentDetailBottomSheet2(
+        payment: this.payment,
+        fiatRate: this.fiatRate,
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final kind = this.payment.kind;
@@ -263,31 +279,13 @@ class PaymentDetailPageInner extends StatelessWidget {
         ],
 
         // Payment details button
-        // -> opens a modal bottom sheet with the full payment info
+        // -> opens a modal bottom sheet with the complete payment info
         bottom: Padding(
-          padding: const EdgeInsets.symmetric(
-              horizontal: pagePadding, vertical: Space.s400),
+          padding: const EdgeInsets.symmetric(horizontal: pagePadding),
           child: LxFilledButton(
             label: const Text("Payment details"),
             icon: const Icon(Icons.arrow_upward_rounded),
-            // style: OutlinedButton.styleFrom(
-            //   // foregroundColor: LxColors.foreground,
-            //   shape: const StadiumBorder(),
-            //   side: const BorderSide(width: 2, color: LxColors.fgSecondary),
-            //   // maximumSize: const Size.fromHeight(Space.s900),
-            // ),
-            onTap: () {
-              unawaited(showModalBottomSheet(
-                scrollControlDisabledMaxHeightRatio: 0.60,
-                backgroundColor: LxColors.background,
-                elevation: 0.0,
-                context: context,
-                builder: (context) => PaymentDetailBottomSheet2(
-                  payment: this.payment,
-                  fiatRate: this.fiatRate,
-                ),
-              ));
-            },
+            onTap: () => this.openBottomSheet(context),
           ),
         ),
       ),
@@ -364,101 +362,114 @@ class PaymentDetailBottomSheet2 extends StatelessWidget {
     };
     final paymentIdxBody = this.paymentIdxBody();
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: pagePadding),
-      child: CustomScrollView(
-        slivers: [
-          SliverList.list(children: [
-            const Padding(
-              padding: EdgeInsets.only(
-                  left: bodyPadding, top: Space.s400, bottom: Space.s400),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Text(
-                    "Payment details",
-                    style: TextStyle(
-                      fontSize: Fonts.size600,
-                      fontVariations: [Fonts.weightMedium],
-                      letterSpacing: -0.5,
-                      height: 1.0,
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6,
+      maxChildSize: 0.6,
+      minChildSize: 0.0,
+      expand: false,
+      shouldCloseOnMinExtent: true,
+      builder: (context, scrollController) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: pagePadding),
+        child: CustomScrollView(
+          controller: scrollController,
+          slivers: [
+            SliverList.list(children: [
+              const SheetDragHandle(),
+
+              // Sheet heading and close button
+              const Padding(
+                padding: EdgeInsets.only(
+                    left: bodyPadding, top: Space.s200, bottom: Space.s400),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Text(
+                      "Payment details",
+                      style: TextStyle(
+                        fontSize: Fonts.size600,
+                        fontVariations: [Fonts.weightMedium],
+                        letterSpacing: -0.5,
+                        height: 1.0,
+                      ),
                     ),
-                  ),
-                  LxCloseButton(kind: LxCloseButtonKind.closeFromTop),
-                ],
+                    LxCloseButton(kind: LxCloseButtonKind.closeFromTop),
+                  ],
+                ),
               ),
-            ),
 
-            // Payment date info
-            PaymentDetailInfoCard(children: [
-              PaymentDetailInfoRow(
-                label: "Created at",
-                value: date_format.formatDateFull(createdAt),
-              ),
-              if (expiresAt != null)
+              // Payment date info
+              PaymentDetailInfoCard(children: [
                 PaymentDetailInfoRow(
-                  label: "Expires at",
-                  value: date_format.formatDateFull(expiresAt),
+                  label: "Created at",
+                  value: date_format.formatDateFull(createdAt),
                 ),
-              if (finalizedAt != null)
-                PaymentDetailInfoRow(
-                  label: "Finalized at",
-                  value: date_format.formatDateFull(finalizedAt),
-                ),
-            ]),
-
-            // Full payment amount + fees info
-            // TODO(phlip9): deemphasize fiat amount below
-            ValueStreamBuilder(
-              stream: this.fiatRate,
-              builder: (_context, fiatRate) => PaymentDetailInfoCard(children: [
-                if (amountSat != null)
+                if (expiresAt != null)
                   PaymentDetailInfoRow(
-                    label: "Amount $directionLabel",
-                    value: formatSatsAmountFiatBelow(amountSat, fiatRate),
+                    label: "Expires at",
+                    value: date_format.formatDateFull(expiresAt),
                   ),
-
-                if (invoiceAmountSat != null)
+                if (finalizedAt != null)
                   PaymentDetailInfoRow(
-                    label: "Invoiced amount",
-                    value:
-                        formatSatsAmountFiatBelow(invoiceAmountSat, fiatRate),
+                    label: "Finalized at",
+                    value: date_format.formatDateFull(finalizedAt),
                   ),
-
-                // TODO(phlip9): breakdown fees
-                PaymentDetailInfoRow(
-                  label: "Fees",
-                  value: formatSatsAmountFiatBelow(feesSat, fiatRate),
-                ),
               ]),
-            ),
 
-            // Low-level stuff
-            PaymentDetailInfoCard(children: [
-              // oneof: BTC txid, LN payment hash, Lx ClientPaymentId
-              PaymentDetailInfoRow(
-                  label: paymentIdxLabel, value: paymentIdxBody),
+              // Full payment amount + fees info
+              // TODO(phlip9): deemphasize fiat amount below
+              ValueStreamBuilder(
+                stream: this.fiatRate,
+                builder: (_context, fiatRate) =>
+                    PaymentDetailInfoCard(children: [
+                  if (amountSat != null)
+                    PaymentDetailInfoRow(
+                      label: "Amount $directionLabel",
+                      value: formatSatsAmountFiatBelow(amountSat, fiatRate),
+                    ),
 
-              if (payeePubkey != null)
+                  if (invoiceAmountSat != null)
+                    PaymentDetailInfoRow(
+                      label: "Invoiced amount",
+                      value:
+                          formatSatsAmountFiatBelow(invoiceAmountSat, fiatRate),
+                    ),
+
+                  // TODO(phlip9): breakdown fees
+                  PaymentDetailInfoRow(
+                    label: "Fees",
+                    value: formatSatsAmountFiatBelow(feesSat, fiatRate),
+                  ),
+                ]),
+              ),
+
+              // Low-level stuff
+              PaymentDetailInfoCard(children: [
+                // oneof: BTC txid, LN payment hash, Lx ClientPaymentId
                 PaymentDetailInfoRow(
-                    label: "Payee public key", value: payeePubkey),
+                    label: paymentIdxLabel, value: paymentIdxBody),
 
-              // the full invoice
-              if (invoice != null)
-                PaymentDetailInfoRow(label: "Invoice", value: invoice.string),
+                if (payeePubkey != null)
+                  PaymentDetailInfoRow(
+                      label: "Payee public key", value: payeePubkey),
+
+                // the full invoice
+                if (invoice != null)
+                  PaymentDetailInfoRow(label: "Invoice", value: invoice.string),
+              ]),
+
+              const SizedBox(height: Space.s400)
             ]),
-
-            const SizedBox(height: Space.s400)
-          ]),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
+/// The little colored bar at the very top of the bottom sheet.
 class SheetDragHandle extends StatelessWidget {
-  const SheetDragHandle({super.key, this.color = LxColors.grey800});
+  const SheetDragHandle({super.key, this.color = LxColors.grey750});
 
   final Color color;
 
