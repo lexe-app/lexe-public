@@ -1,7 +1,6 @@
 /// Reusable flutter UI components
 library;
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MaxLengthEnforcement;
@@ -404,16 +403,19 @@ class LxFilledButton extends StatelessWidget {
       maximumSize: const Size.fromHeight(Space.s700),
     );
 
-    final ButtonStyle buttonStyle =
-        (this.style != null) ? this.style!.merge(defaultStyle) : defaultStyle;
+    final userButtonStyle = this.style;
+    final ButtonStyle buttonStyle = (userButtonStyle != null)
+        ? defaultStyle.merge(userButtonStyle)
+        : defaultStyle;
 
     const TextStyle defaultTextStyle = TextStyle(
       fontSize: Fonts.size300,
       fontVariations: [Fonts.weightMedium],
     );
 
-    final TextStyle textStyle = (this.textStyle != null)
-        ? this.textStyle!.merge(defaultTextStyle)
+    final userTextStyle = this.textStyle;
+    final TextStyle textStyle = (userTextStyle != null)
+        ? defaultTextStyle.merge(userTextStyle)
         : defaultTextStyle;
 
     return FilledButton(
