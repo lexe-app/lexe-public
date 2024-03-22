@@ -16,20 +16,20 @@ import '../bindings_generated_api.dart'
 import '../components.dart'
     show
         FilledPlaceholder,
-        HeadingText,
         LxCloseButton,
+        LxCloseButtonKind,
+        LxFilledButton,
         LxRefreshButton,
         PaymentNoteInput,
         ScrollableSinglePageBody,
         StateStreamBuilder,
-        SubheadingText,
         ValueStreamBuilder;
 import '../currency_format.dart' as currency_format;
 import '../date_format.dart' as date_format;
 import '../logger.dart';
 import '../result.dart';
 import '../stream_ext.dart';
-import '../style.dart' show Fonts, LxColors, LxRadius, Space;
+import '../style.dart' show Fonts, LxColors, Space;
 
 /// A page for displaying a single payment, in detail.
 ///
@@ -174,38 +174,10 @@ class PaymentDetailPageInner extends StatelessWidget {
     final kind = this.payment.kind;
     final status = this.payment.status;
     final direction = this.payment.direction;
-    final directionLabel =
-        (direction == PaymentDirection.Inbound) ? "received" : "sent";
-
-    final invoice = this.payment.invoice;
-    final payeePubkey = invoice?.payeePubkey;
-
-    final amountSat = this.payment.amountSat;
-    final feesSat = this.payment.feesSat;
-    final invoiceAmountSat = invoice?.amountSats;
-
     final createdAt = DateTime.fromMillisecondsSinceEpoch(
-      this.payment.createdAt,
-      isUtc: true,
-    );
-    final expiresAt = (invoice != null && status != PaymentStatus.Completed)
-        ? DateTime.fromMillisecondsSinceEpoch(invoice.expiresAt, isUtc: true)
-        : null;
-    final maybeFinalizedAt = this.payment.finalizedAt;
-    final finalizedAt = (maybeFinalizedAt != null)
-        ? DateTime.fromMillisecondsSinceEpoch(maybeFinalizedAt, isUtc: true)
-        : null;
-
+        this.payment.createdAt,
+        isUtc: true);
     final maybeAmountSat = this.payment.amountSat;
-
-    // Label should be kept in sync with "common::ln::payments::LxPaymentId"
-    final paymentIdxLabel = switch ((kind, direction)) {
-      (PaymentKind.Invoice, _) => "Payment hash",
-      (PaymentKind.Spontaneous, _) => "Payment hash",
-      (PaymentKind.Onchain, PaymentDirection.Inbound) => "Txid",
-      (PaymentKind.Onchain, PaymentDirection.Outbound) => "Client payment id",
-    };
-    final paymentIdxBody = this.paymentIdxBody();
 
     const pagePaddingInsets = EdgeInsets.symmetric(horizontal: pagePadding);
 
@@ -221,133 +193,103 @@ class PaymentDetailPageInner extends StatelessWidget {
           const SizedBox(width: Space.appBarTrailingPadding),
         ],
       ),
-      body: ScrollableSinglePageBody(padding: pagePaddingInsets, body: [
-        const SizedBox(height: Space.s500),
+      body: ScrollableSinglePageBody(
+        padding: pagePaddingInsets,
+        body: [
+          const SizedBox(height: Space.s500),
 
-        // Big LN/BTC icon + status badge
-        Align(
-          alignment: Alignment.topCenter,
-          child: PaymentDetailIcon(
-            kind: kind,
-            status: status,
-          ),
-        ),
-
-        const SizedBox(height: Space.s500),
-
-        // Direction + short time
-        StateStreamBuilder(
-          stream: this.paymentDateUpdates,
-          builder: (_, now) => PaymentDetailDirectionTime(
-            status: status,
-            direction: direction,
-            createdAt: createdAt,
-            now: now,
-          ),
-        ),
-        const SizedBox(height: Space.s400),
-
-        // TODO(phlip9): LN invoice "expires in X min" goes here?
-        // If pending or failed, show a card with more info on the current
-        // status.
-        if (status != PaymentStatus.Completed)
-          Padding(
-            // padding: const EdgeInsets.only(top: Space.s200, bottom: Space.s200),
-            padding: const EdgeInsets.symmetric(
-                vertical: Space.s200, horizontal: Space.s600),
-            child: PaymentDetailStatusCard(
+          // Big LN/BTC icon + status badge
+          Align(
+            alignment: Alignment.topCenter,
+            child: PaymentDetailIcon(
+              kind: kind,
               status: status,
-              statusStr: this.payment.statusStr,
             ),
           ),
 
-        const SizedBox(height: Space.s700),
+          const SizedBox(height: Space.s500),
 
-        // Amount sent/received in BTC and fiat.
-        if (maybeAmountSat != null)
-          ValueStreamBuilder(
-            stream: this.fiatRate,
-            builder: (_context, fiatRate) => PaymentDetailPrimaryAmount(
+          // Direction + short time
+          StateStreamBuilder(
+            stream: this.paymentDateUpdates,
+            builder: (_, now) => PaymentDetailDirectionTime(
               status: status,
               direction: direction,
-              amountSat: maybeAmountSat,
-              fiatRate: fiatRate,
+              createdAt: createdAt,
+              now: now,
             ),
           ),
-        const SizedBox(height: Space.s400),
+          const SizedBox(height: Space.s400),
 
-        // The payment's note field
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: bodyPadding),
-          child: PaymentDetailNoteInput(
-            app: this.app,
-            paymentIndex: this.payment.index,
-            initialNote: this.payment.note,
+          // TODO(phlip9): LN invoice "expires in X min" goes here?
+          // If pending or failed, show a card with more info on the current
+          // status.
+          if (status != PaymentStatus.Completed)
+            Padding(
+              // padding: const EdgeInsets.only(top: Space.s200, bottom: Space.s200),
+              padding: const EdgeInsets.symmetric(
+                  vertical: Space.s200, horizontal: Space.s600),
+              child: PaymentDetailStatusCard(
+                status: status,
+                statusStr: this.payment.statusStr,
+              ),
+            ),
+
+          const SizedBox(height: Space.s700),
+
+          // Amount sent/received in BTC and fiat.
+          if (maybeAmountSat != null)
+            ValueStreamBuilder(
+              stream: this.fiatRate,
+              builder: (_context, fiatRate) => PaymentDetailPrimaryAmount(
+                status: status,
+                direction: direction,
+                amountSat: maybeAmountSat,
+                fiatRate: fiatRate,
+              ),
+            ),
+          const SizedBox(height: Space.s400),
+
+          // The payment's note field
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: bodyPadding),
+            child: PaymentDetailNoteInput(
+              app: this.app,
+              paymentIndex: this.payment.index,
+              initialNote: this.payment.note,
+            ),
+          ),
+          const SizedBox(height: Space.s1000),
+        ],
+
+        // Payment details button
+        // -> opens a modal bottom sheet with the full payment info
+        bottom: Padding(
+          padding: const EdgeInsets.symmetric(
+              horizontal: pagePadding, vertical: Space.s400),
+          child: LxFilledButton(
+            label: const Text("Payment details"),
+            icon: const Icon(Icons.arrow_upward_rounded),
+            // style: OutlinedButton.styleFrom(
+            //   // foregroundColor: LxColors.foreground,
+            //   shape: const StadiumBorder(),
+            //   side: const BorderSide(width: 2, color: LxColors.fgSecondary),
+            //   // maximumSize: const Size.fromHeight(Space.s900),
+            // ),
+            onTap: () {
+              unawaited(showModalBottomSheet(
+                scrollControlDisabledMaxHeightRatio: 0.60,
+                backgroundColor: LxColors.background,
+                elevation: 0.0,
+                context: context,
+                builder: (context) => PaymentDetailBottomSheet2(
+                  payment: this.payment,
+                  fiatRate: this.fiatRate,
+                ),
+              ));
+            },
           ),
         ),
-        const SizedBox(height: Space.s1000),
-        //
-        // // Payment date info
-        // PaymentDetailInfoCard(header: "Payment details", children: [
-        //   PaymentDetailInfoRow(
-        //     label: "Created at",
-        //     value: date_format.formatDateFull(createdAt),
-        //   ),
-        //   if (expiresAt != null)
-        //     PaymentDetailInfoRow(
-        //       label: "Expires at",
-        //       value: date_format.formatDateFull(expiresAt),
-        //     ),
-        //   if (finalizedAt != null)
-        //     PaymentDetailInfoRow(
-        //       label: "Finalized at",
-        //       value: date_format.formatDateFull(finalizedAt),
-        //     ),
-        // ]),
-        //
-        // // Full payment amount + fees info
-        // // TODO(phlip9): deemphasize fiat amount below
-        // ValueStreamBuilder(
-        //   stream: this.fiatRate,
-        //   builder: (_context, fiatRate) => PaymentDetailInfoCard(children: [
-        //     if (amountSat != null)
-        //       PaymentDetailInfoRow(
-        //         label: "Amount $directionLabel",
-        //         value: formatSatsAmountFiatBelow(amountSat, fiatRate),
-        //       ),
-        //
-        //     if (invoiceAmountSat != null)
-        //       PaymentDetailInfoRow(
-        //         label: "Invoiced amount",
-        //         value: formatSatsAmountFiatBelow(invoiceAmountSat, fiatRate),
-        //       ),
-        //
-        //     // TODO(phlip9): breakdown fees
-        //     PaymentDetailInfoRow(
-        //       label: "Fees",
-        //       value: formatSatsAmountFiatBelow(feesSat, fiatRate),
-        //     ),
-        //   ]),
-        // ),
-        //
-        // // Low-level stuff
-        // PaymentDetailInfoCard(children: [
-        //   // oneof: BTC txid, LN payment hash, Lx ClientPaymentId
-        //   PaymentDetailInfoRow(label: paymentIdxLabel, value: paymentIdxBody),
-        //
-        //   if (payeePubkey != null)
-        //     PaymentDetailInfoRow(label: "Payee public key", value: payeePubkey),
-        //
-        //   // the full invoice
-        //   if (invoice != null)
-        //     PaymentDetailInfoRow(label: "Invoice", value: invoice.string),
-        // ]),
-
-        const SizedBox(height: Space.s400),
-      ]),
-      bottomSheet: PaymentDetailBottomSheet(
-        payment: this.payment,
-        fiatRate: this.fiatRate,
       ),
     );
   }
@@ -365,42 +307,15 @@ String formatSatsAmountFiatBelow(int amountSats, FiatRate? fiatRate) {
   }
 }
 
-class PaymentDetailBottomSheet extends StatefulWidget {
-  const PaymentDetailBottomSheet(
-      {super.key, required this.payment, required this.fiatRate});
+class PaymentDetailBottomSheet2 extends StatelessWidget {
+  const PaymentDetailBottomSheet2({
+    super.key,
+    required this.payment,
+    required this.fiatRate,
+  });
 
   final Payment payment;
   final ValueStream<FiatRate?> fiatRate;
-
-  @override
-  State<PaymentDetailBottomSheet> createState() =>
-      _PaymentDetailBottomSheetState();
-}
-
-class _PaymentDetailBottomSheetState extends State<PaymentDetailBottomSheet>
-    with TickerProviderStateMixin {
-  final sheetKey = GlobalKey();
-  final controller = DraggableScrollableController();
-
-  late final Payment payment = this.widget.payment;
-
-  bool didInitialScroll = false;
-
-  // AnimationController? controller;
-
-  @override
-  void initState() {
-    super.initState();
-
-    unawaited(this.controller.animateTo(0.2,
-        duration: const Duration(milliseconds: 150), curve: Curves.bounceIn));
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
 
   // HACK: parsing the serialized form like this is ugly af.
   String paymentIdxBody() {
@@ -449,127 +364,117 @@ class _PaymentDetailBottomSheetState extends State<PaymentDetailBottomSheet>
     };
     final paymentIdxBody = this.paymentIdxBody();
 
-    if (!this.didInitialScroll) {
-      this.didInitialScroll = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!this.mounted) return;
-        unawaited(this.controller.animateTo(
-              0.15,
-              duration: const Duration(milliseconds: 500),
-              curve: Curves.easeOutQuint,
-            ));
-      });
-    }
-
-    return DraggableScrollableSheet(
-      key: this.sheetKey,
-      initialChildSize: 0.12,
-      minChildSize: 0.12,
-      maxChildSize: 0.6,
-      expand: false,
-      snap: true,
-      // snapSizes: const [0.5],
-      controller: this.controller,
-      shouldCloseOnMinExtent: false,
-
-      builder: (context, scrollController) => Container(
-        decoration: BoxDecoration(
-          color: LxColors.grey1000,
-          borderRadius: BorderRadius.circular(LxRadius.r400),
-        ),
-        padding: const EdgeInsets.only(
-            left: pagePadding, right: pagePadding, top: Space.s100),
-        clipBehavior: Clip.antiAlias,
-        child: CustomScrollView(
-          primary: false,
-          controller: scrollController,
-          physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics()),
-          slivers: [
-            SliverList.list(children: [
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.only(top: Space.s200),
-                  width: Space.s800,
-                  height: 4,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: LxColors.grey800,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-
-              const Center(child: HeadingText(text: "Payment details")),
-              const SizedBox(height: Space.s400),
-
-              // Payment date info
-              PaymentDetailInfoCard(children: [
-                PaymentDetailInfoRow(
-                  label: "Created at",
-                  value: date_format.formatDateFull(createdAt),
-                ),
-                if (expiresAt != null)
-                  PaymentDetailInfoRow(
-                    label: "Expires at",
-                    value: date_format.formatDateFull(expiresAt),
-                  ),
-                if (finalizedAt != null)
-                  PaymentDetailInfoRow(
-                    label: "Finalized at",
-                    value: date_format.formatDateFull(finalizedAt),
-                  ),
-              ]),
-
-              // Full payment amount + fees info
-              // TODO(phlip9): deemphasize fiat amount below
-              ValueStreamBuilder(
-                stream: this.widget.fiatRate,
-                builder: (_context, fiatRate) =>
-                    PaymentDetailInfoCard(children: [
-                  if (amountSat != null)
-                    PaymentDetailInfoRow(
-                      label: "Amount $directionLabel",
-                      value: formatSatsAmountFiatBelow(amountSat, fiatRate),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: pagePadding),
+      child: CustomScrollView(
+        slivers: [
+          SliverList.list(children: [
+            const Padding(
+              padding: EdgeInsets.only(
+                  left: bodyPadding, top: Space.s400, bottom: Space.s400),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    "Payment details",
+                    style: TextStyle(
+                      fontSize: Fonts.size600,
+                      fontVariations: [Fonts.weightMedium],
+                      letterSpacing: -0.5,
+                      height: 1.0,
                     ),
-
-                  if (invoiceAmountSat != null)
-                    PaymentDetailInfoRow(
-                      label: "Invoiced amount",
-                      value:
-                          formatSatsAmountFiatBelow(invoiceAmountSat, fiatRate),
-                    ),
-
-                  // TODO(phlip9): breakdown fees
-                  PaymentDetailInfoRow(
-                    label: "Fees",
-                    value: formatSatsAmountFiatBelow(feesSat, fiatRate),
                   ),
-                ]),
+                  LxCloseButton(kind: LxCloseButtonKind.closeFromTop),
+                ],
               ),
+            ),
 
-              // Low-level stuff
-              PaymentDetailInfoCard(children: [
-                // oneof: BTC txid, LN payment hash, Lx ClientPaymentId
+            // Payment date info
+            PaymentDetailInfoCard(children: [
+              PaymentDetailInfoRow(
+                label: "Created at",
+                value: date_format.formatDateFull(createdAt),
+              ),
+              if (expiresAt != null)
                 PaymentDetailInfoRow(
-                    label: paymentIdxLabel, value: paymentIdxBody),
-
-                if (payeePubkey != null)
-                  PaymentDetailInfoRow(
-                      label: "Payee public key", value: payeePubkey),
-
-                // the full invoice
-                if (invoice != null)
-                  PaymentDetailInfoRow(label: "Invoice", value: invoice.string),
-              ]),
-
-              const SizedBox(height: Space.s400)
+                  label: "Expires at",
+                  value: date_format.formatDateFull(expiresAt),
+                ),
+              if (finalizedAt != null)
+                PaymentDetailInfoRow(
+                  label: "Finalized at",
+                  value: date_format.formatDateFull(finalizedAt),
+                ),
             ]),
-          ],
-        ),
+
+            // Full payment amount + fees info
+            // TODO(phlip9): deemphasize fiat amount below
+            ValueStreamBuilder(
+              stream: this.fiatRate,
+              builder: (_context, fiatRate) => PaymentDetailInfoCard(children: [
+                if (amountSat != null)
+                  PaymentDetailInfoRow(
+                    label: "Amount $directionLabel",
+                    value: formatSatsAmountFiatBelow(amountSat, fiatRate),
+                  ),
+
+                if (invoiceAmountSat != null)
+                  PaymentDetailInfoRow(
+                    label: "Invoiced amount",
+                    value:
+                        formatSatsAmountFiatBelow(invoiceAmountSat, fiatRate),
+                  ),
+
+                // TODO(phlip9): breakdown fees
+                PaymentDetailInfoRow(
+                  label: "Fees",
+                  value: formatSatsAmountFiatBelow(feesSat, fiatRate),
+                ),
+              ]),
+            ),
+
+            // Low-level stuff
+            PaymentDetailInfoCard(children: [
+              // oneof: BTC txid, LN payment hash, Lx ClientPaymentId
+              PaymentDetailInfoRow(
+                  label: paymentIdxLabel, value: paymentIdxBody),
+
+              if (payeePubkey != null)
+                PaymentDetailInfoRow(
+                    label: "Payee public key", value: payeePubkey),
+
+              // the full invoice
+              if (invoice != null)
+                PaymentDetailInfoRow(label: "Invoice", value: invoice.string),
+            ]),
+
+            const SizedBox(height: Space.s400)
+          ]),
+        ],
       ),
     );
   }
+}
+
+class SheetDragHandle extends StatelessWidget {
+  const SheetDragHandle({super.key, this.color = LxColors.grey800});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Container(
+          margin: const EdgeInsets.only(top: Space.s200),
+          width: Space.s800,
+          height: 4,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: this.color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      );
 }
 
 class PaymentDetailIcon extends StatelessWidget {
