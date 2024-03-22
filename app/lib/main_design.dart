@@ -126,6 +126,22 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
         const FiatRate(fiat: "USD", rate: 73333.39),
       ]).interval(const Duration(seconds: 2)).shareValueSeeded(null);
 
+  /// Complete the payment after a few seconds
+  ValueNotifier<Payment> makeCompletingPayment(final Payment payment) {
+    final notifier = ValueNotifier(payment);
+
+    unawaited(Future.delayed(const Duration(seconds: 4), () {
+      final p = notifier.value;
+      notifier.value = p.copyWith(
+        status: PaymentStatus.Completed,
+        statusStr: "completed",
+        finalizedAt: DateTime.now().millisecondsSinceEpoch,
+      );
+    }));
+
+    return notifier;
+  }
+
   @override
   Widget build(BuildContext context) {
     final mockApp = MockAppHandle(bridge: api);
@@ -263,7 +279,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             subtitle: "btc failed outbound",
             (context) => PaymentDetailPageInner(
               app: mockApp,
-              payment: dummyOnchainOutboundFailed01,
+              payment: ValueNotifier(dummyOnchainOutboundFailed01),
               paymentDateUpdates: this.paymentDateUpdates,
               fiatRate: this.makeFiatRateStream(),
               isRefreshing: ValueNotifier(false),
@@ -275,7 +291,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             subtitle: "btc completed inbound",
             (context) => PaymentDetailPageInner(
               app: mockApp,
-              payment: dummyOnchainInboundCompleted01,
+              payment: ValueNotifier(dummyOnchainInboundCompleted01),
               paymentDateUpdates: this.paymentDateUpdates,
               fiatRate: this.makeFiatRateStream(),
               isRefreshing: ValueNotifier(false),
@@ -287,7 +303,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             subtitle: "ln invoice pending inbound",
             (context) => PaymentDetailPageInner(
               app: mockApp,
-              payment: dummyInvoiceInboundPending01,
+              payment: this.makeCompletingPayment(dummyInvoiceInboundPending01),
               paymentDateUpdates: this.paymentDateUpdates,
               fiatRate: this.makeFiatRateStream(),
               isRefreshing: ValueNotifier(false),
@@ -512,6 +528,54 @@ extension PaymentExt on Payment {
         status: this.status,
         note: this.note,
         createdAt: this.createdAt,
+      );
+
+  Payment copyWith({
+    String? index,
+    PaymentKind? kind,
+    PaymentDirection? direction,
+    Invoice? invoice,
+    String? replacement,
+    int? amountSat,
+    int? feesSat,
+    PaymentStatus? status,
+    String? statusStr,
+    String? note,
+    int? createdAt,
+    int? finalizedAt,
+  }) =>
+      Payment(
+        index: index ?? this.index,
+        kind: kind ?? this.kind,
+        direction: direction ?? this.direction,
+        invoice: invoice ?? this.invoice,
+        replacement: replacement ?? this.replacement,
+        amountSat: amountSat ?? this.amountSat,
+        feesSat: feesSat ?? this.feesSat,
+        status: status ?? this.status,
+        statusStr: statusStr ?? this.statusStr,
+        note: note ?? this.note,
+        createdAt: createdAt ?? this.createdAt,
+        finalizedAt: finalizedAt ?? this.finalizedAt,
+      );
+}
+
+extension InvoiceExt on Invoice {
+  Invoice copyWith({
+    String? string,
+    String? description,
+    int? createdAt,
+    int? expiresAt,
+    int? amountSats,
+    String? payeePubkey,
+  }) =>
+      Invoice(
+        string: string ?? this.string,
+        description: description ?? this.description,
+        createdAt: createdAt ?? this.createdAt,
+        expiresAt: expiresAt ?? this.expiresAt,
+        amountSats: amountSats ?? this.amountSats,
+        payeePubkey: payeePubkey ?? this.payeePubkey,
       );
 }
 
