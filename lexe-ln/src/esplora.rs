@@ -12,8 +12,8 @@ use anyhow::{anyhow, Context};
 use bdk::FeeRate;
 use bitcoin::{blockdata::transaction::Transaction, OutPoint};
 use common::{
-    constants, ln::hashes::LxTxid, reqwest, shutdown::ShutdownChannel,
-    task::LxTask, test_event::TestEvent, Apply,
+    constants, ln::hashes::LxTxid, shutdown::ShutdownChannel, task::LxTask,
+    test_event::TestEvent, Apply,
 };
 use esplora_client::{api::OutputStatus, AsyncClient};
 use lightning::chain::chaininterface::{
@@ -103,14 +103,15 @@ impl LexeEsplora {
         test_event_tx: TestEventSender,
         shutdown: ShutdownChannel,
     ) -> anyhow::Result<(Arc<Self>, LxTask<()>)> {
-        let google_ca_cert =
-            reqwest::Certificate::from_der(constants::GTS_ROOT_R1_CA_CERT_DER)
-                .context("Invalid Google CA der cert")?;
-        let letsencrypt_ca_cert = reqwest::Certificate::from_der(
+        let google_ca_cert = reqwest11::Certificate::from_der(
+            constants::GTS_ROOT_R1_CA_CERT_DER,
+        )
+        .context("Invalid Google CA der cert")?;
+        let letsencrypt_ca_cert = reqwest11::Certificate::from_der(
             constants::LETSENCRYPT_ROOT_CA_CERT_DER,
         )
         .context("Invalid Google CA der cert")?;
-        let reqwest_client = reqwest::ClientBuilder::new()
+        let reqwest_client = reqwest11::ClientBuilder::new()
             .add_root_certificate(google_ca_cert)
             .add_root_certificate(letsencrypt_ca_cert)
             .timeout(ESPLORA_CLIENT_TIMEOUT)

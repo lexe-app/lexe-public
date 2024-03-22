@@ -8,11 +8,14 @@ use std::{
 use anyhow::Context;
 use bytes::Bytes;
 use futures::future::BoxFuture;
-use http_old::{
+use http::{
     header::{HeaderValue, CONTENT_TYPE},
-    response::Response,
-    status::StatusCode,
     Method,
+};
+use http_old::{
+    header::{HeaderValue as OldHeaderValue, CONTENT_TYPE as OLD_CONTENT_TYPE},
+    response::Response as OldResponse,
+    status::StatusCode as OldStatusCode,
 };
 use reqwest::IntoUrl;
 use serde::{de::DeserializeOwned, Serialize};
@@ -56,7 +59,7 @@ pub const DELETE: Method = Method::DELETE;
 // orchestration code benefits from using futures (as opposed to tasks) as its
 // basic unit, so as to reduce indirection from multiple layers of tasks.
 pub fn build_service_fut(
-    routes: BoxedFilter<(Response<Body>,)>,
+    routes: BoxedFilter<(OldResponse<Body>,)>,
     tls_config: rustls::ServerConfig,
     // TODO(max): This needs to be a TcpListener, since breaking the LSP <->
     // Runner codependency requires binding the runner's TcpListener first.
@@ -83,7 +86,7 @@ pub fn build_service_fut(
 /// if you wish to prevent the API task from inheriting the parent [span label].
 // TODO(max): Remove once no longer used, or rename to serve_with_no_tls or smth
 pub fn serve_routes_with_listener_and_shutdown(
-    routes: BoxedFilter<(Response<Body>,)>,
+    routes: BoxedFilter<(OldResponse<Body>,)>,
     graceful_shutdown_fut: impl Future<Output = ()> + Send + 'static,
     listener: TcpListener,
     task_name: impl Into<String>,
@@ -100,7 +103,7 @@ pub fn serve_routes_with_listener_and_shutdown(
 
 // Reduce some code bloat by boxing the warp routes and shutdown future.
 fn serve_routes_with_listener_and_shutdown_boxed(
-    routes: BoxedFilter<(Response<Body>,)>,
+    routes: BoxedFilter<(OldResponse<Body>,)>,
     graceful_shutdown_fut: BoxFuture<'static, ()>,
     listener: TcpListener,
     task_name: String,
@@ -178,7 +181,7 @@ fn trace_requests(
     })
 }
 
-/// A warp helper that converts `Result<T, E>` into [`Response<Body>`].
+/// A warp helper that converts `Result<T, E>` into [`OldResponse<Body>`].
 /// This function should be used after all *fallible* warp handlers because:
 ///
 /// 1) `RestClient::send_and_deserialize` relies on the HTTP status code to
@@ -204,14 +207,14 @@ fn trace_requests(
 /// ```
 pub fn into_response<T: Serialize, E: ToHttpStatus + Into<ErrorResponse>>(
     reply_res: Result<T, E>,
-) -> Response<Body> {
+) -> OldResponse<Body> {
     match reply_res {
-        Ok(data) => build_json_response(StatusCode::OK, &data),
+        Ok(data) => build_json_response(OldStatusCode::OK, &data),
         Err(err) => build_json_response(err.to_old_http_status(), &err.into()),
     }
 }
 
-/// Like [`into_response`], but converts `T` into [`Response<Body>`]. This fn
+/// Like [`into_response`], but converts `T` into [`OldResponse<Body>`]. This fn
 /// should be used for the same reasons that [`into_response`] is used, but
 /// applies only to *infallible* handlers.
 ///
@@ -224,8 +227,8 @@ pub fn into_response<T: Serialize, E: ToHttpStatus + Into<ErrorResponse>>(
 ///     .map(lexe_ln::command::list_channels)
 ///     .map(rest::into_succ_response);
 /// ```
-pub fn into_succ_response<T: Serialize>(data: T) -> Response<Body> {
-    build_json_response(StatusCode::OK, &data)
+pub fn into_succ_response<T: Serialize>(data: T) -> OldResponse<Body> {
+    build_json_response(OldStatusCode::OK, &data)
 }
 
 /// Like [`into_response`], but you pass a successful, pre-rendered json
@@ -245,9 +248,10 @@ pub fn into_succ_response<T: Serialize>(data: T) -> Response<Body> {
 /// ```
 pub fn prerendered_json_into_response<E: ToHttpStatus + Into<ErrorResponse>>(
     reply_res: Result<ByteStr, E>,
-) -> Response<Body> {
+) -> OldResponse<Body> {
     match reply_res {
-        Ok(data) => build_json_response_inner(StatusCode::OK, Ok(data.into())),
+        Ok(data) =>
+            build_json_response_inner(OldStatusCode::OK, Ok(data.into())),
         Err(err) => build_json_response(err.to_old_http_status(), &err.into()),
     }
 }
@@ -279,7 +283,7 @@ pub async fn recover_error_response<
     E: Clone + ToHttpStatus + Into<ErrorResponse> + warp::reject::Reject + 'static,
 >(
     err: Rejection,
-) -> Result<Response<Body>, Rejection> {
+) -> Result<OldResponse<Body>, Rejection> {
     if let Some(err) = err.find::<E>() {
         let status = err.to_old_http_status();
         // TODO(phlip9): find returns &E... figure out how to remove clone
@@ -290,28 +294,31 @@ pub async fn recover_error_response<
     }
 }
 
-/// Constructs a JSON [`Response<Body>`] from the given data and status code.
+/// Constructs a JSON [`OldResponse<Body>`] from the given data and status code.
 /// If serialization fails for some reason (unlikely), log the error,
 /// default to an empty body, and override the status code to 500.
 fn build_json_response<T: Serialize>(
-    status: StatusCode,
+    status: OldStatusCode,
     data: &T,
-) -> Response<Body> {
+) -> OldResponse<Body> {
     build_json_response_inner(status, serde_json::to_vec(data).map(Bytes::from))
 }
 
 fn build_json_response_inner(
-    mut status: StatusCode,
+    mut status: OldStatusCode,
     maybe_json: Result<Bytes, serde_json::Error>,
-) -> Response<Body> {
+) -> OldResponse<Body> {
     let body = maybe_json.map(Body::from).unwrap_or_else(|e| {
         error!(target: "http", "Couldn't serialize response: {e:#}");
-        status = StatusCode::INTERNAL_SERVER_ERROR;
+        status = OldStatusCode::INTERNAL_SERVER_ERROR;
         Body::empty()
     });
 
-    Response::builder()
-        .header(CONTENT_TYPE, HeaderValue::from_static("application/json"))
+    OldResponse::builder()
+        .header(
+            OLD_CONTENT_TYPE,
+            OldHeaderValue::from_static("application/json"),
+        )
         .status(status)
         .body(body)
         // Only the header could have errored by this point

@@ -3,8 +3,9 @@
 use std::sync::Arc;
 
 use rustls::{
-    client::WebPkiVerifier,
-    server::{AllowAnyAuthenticatedClient, ClientCertVerifier},
+    client::WebPkiServerVerifier,
+    pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer},
+    server::{danger::ClientCertVerifier, WebPkiClientVerifier},
     RootCertStore,
 };
 
@@ -12,16 +13,16 @@ use super::CertWithKey;
 use crate::{ed25519, env::DeployEnv};
 
 /// Get the appropriate DER-encoded Lexe CA cert for this deploy environment.
-pub fn lexe_ca_cert(deploy_env: DeployEnv) -> rustls::Certificate {
+pub fn lexe_ca_cert(deploy_env: DeployEnv) -> CertificateDer<'static> {
     match deploy_env {
         DeployEnv::Dev => dummy_lexe_ca_cert().cert_der,
         DeployEnv::Prod => dummy_lexe_ca_cert().cert_der,
         DeployEnv::Staging => dummy_lexe_ca_cert().cert_der,
         // TODO(max): Switch to hard-coded certs in common::constants
         // DeployEnv::Staging =>
-        //     rustls::Certificate(constants::LEXE_STAGING_CA_CERT_DER),
+        //     CertificateDer::from(constants::LEXE_STAGING_CA_CERT_DER),
         // DeployEnv::Prod =>
-        //     rustls::Certificate(constants::LEXE_PROD_CA_CERT_DER),
+        //     CertificateDer::from(constants::LEXE_PROD_CA_CERT_DER),
     }
 }
 
@@ -31,15 +32,18 @@ pub fn lexe_ca_cert(deploy_env: DeployEnv) -> rustls::Certificate {
 /// This verifier enforces certificate transparency, so should only be used for
 /// requests to Lexe infrastructure made over the public (external) Internet.
 ///
-/// [`ServerCertVerifier`]: rustls::client::ServerCertVerifier
-pub fn public_lexe_verifier(deploy_env: DeployEnv) -> WebPkiVerifier {
+/// [`ServerCertVerifier`]: rustls::client::danger::ServerCertVerifier
+pub fn public_lexe_verifier(
+    deploy_env: DeployEnv,
+) -> Arc<WebPkiServerVerifier> {
     let lexe_ca_cert = lexe_ca_cert(deploy_env);
 
     let mut lexe_roots = RootCertStore::empty();
-    lexe_roots.add(&lexe_ca_cert).expect("Checked in tests");
+    lexe_roots.add(lexe_ca_cert).expect("Checked in tests");
     // TODO(phlip9): actually enforce cert transparency
-    let lexe_ct_policy = None;
-    WebPkiVerifier::new(lexe_roots, lexe_ct_policy)
+    WebPkiServerVerifier::builder(Arc::new(lexe_roots))
+        .build()
+        .expect("Checked in tests")
 }
 
 /// Get a [`ClientCertVerifier`] which verifies that a presented client cert has
@@ -50,9 +54,14 @@ pub fn lexe_client_verifier(
     let lexe_ca_cert = lexe_ca_cert(deploy_env);
 
     let mut roots = RootCertStore::empty();
-    roots.add(&lexe_ca_cert).expect("Checked in tests");
+    roots.add(lexe_ca_cert).expect("Checked in tests");
 
-    Arc::new(AllowAnyAuthenticatedClient::new(roots))
+    WebPkiClientVerifier::builder_with_provider(
+        Arc::new(roots),
+        super::LEXE_CRYPTO_PROVIDER.clone(),
+    )
+    .build()
+    .expect("Checked in tests")
 }
 
 /// Get a dummy Lexe CA cert along with its corresponding private key.
@@ -69,10 +78,13 @@ pub fn dummy_lexe_ca_cert() -> CertWithKey {
             params.name_constraints = None;
         },
     );
-    let dummy_cert_der =
-        dummy_cert.serialize_der().map(rustls::Certificate).unwrap();
-    let dummy_cert_key_der =
-        rustls::PrivateKey(dummy_cert.serialize_private_key_der());
+    let dummy_cert_der = dummy_cert
+        .serialize_der()
+        .map(CertificateDer::from)
+        .unwrap();
+    let dummy_cert_key_der = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
+        dummy_cert.serialize_private_key_der(),
+    ));
 
     CertWithKey {
         cert_der: dummy_cert_der,

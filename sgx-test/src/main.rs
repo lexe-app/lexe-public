@@ -1,5 +1,3 @@
-use std::time::SystemTime;
-
 use common::{
     ed25519, enclave, hex,
     rng::SysRng,
@@ -42,7 +40,7 @@ fn main() {
     println!("quote: {}", hex::display(&evidence.quote));
     println!("qe_report: {}", hex::display(&evidence.qe_report));
 
-    let now = SystemTime::now();
+    let now = common::tls::rustls::pki_types::UnixTime::now();
     let quote_verifier = SgxQuoteVerifier;
     let report = quote_verifier
         .verify(&evidence.quote, now)

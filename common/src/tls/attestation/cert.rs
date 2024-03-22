@@ -4,7 +4,7 @@
 use std::{borrow::Cow, fmt};
 
 use anyhow::Context;
-use rcgen::RcgenError;
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use yasna::models::ObjectIdentifier;
 
 use crate::{ed25519, hex, rng::Crng, tls};
@@ -85,13 +85,14 @@ impl AttestationCert {
     /// DER-encode and self-sign the attestation cert.
     pub fn serialize_der_self_signed(
         &self,
-    ) -> Result<rustls::Certificate, RcgenError> {
-        self.0.serialize_der().map(rustls::Certificate)
+    ) -> Result<CertificateDer<'static>, rcgen::Error> {
+        self.0.serialize_der().map(CertificateDer::from)
     }
 
     /// DER-encode the attestation cert's private key.
-    pub fn serialize_key_der(&self) -> rustls::PrivateKey {
-        rustls::PrivateKey(self.0.serialize_private_key_der())
+    pub fn serialize_key_der(&self) -> PrivateKeyDer<'static> {
+        let owned_der_bytes = self.0.serialize_private_key_der();
+        PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(owned_der_bytes))
     }
 }
 
