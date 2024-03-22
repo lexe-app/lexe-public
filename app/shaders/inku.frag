@@ -89,9 +89,9 @@ float colormap_lexe_blue(float x) {
 
 vec4 colormap_lexe(float x) {
     return vec4(
-        colormap_lexe_red(x),
-        colormap_lexe_blue(x),
-        colormap_lexe_green(x),
+        1.0 - colormap_lexe_red(x),
+        1.0 - colormap_lexe_blue(x),
+        1.0 - colormap_lexe_green(x),
         1.0
     );
 }

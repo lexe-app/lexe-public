@@ -8,7 +8,7 @@ import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import '../bindings_generated_api.dart' show AppHandle, Config;
 import '../gdrive_auth.dart' show GDriveAuth;
 import '../logger.dart' show error, info;
-import '../style.dart' show Fonts, LxColors, Space;
+import '../style.dart' show Fonts, LxColors, LxTheme, Space;
 import 'signup.dart' show SignupApi, SignupPage;
 import 'wallet.dart' show WalletPage;
 
@@ -68,13 +68,13 @@ class _LandingPageState extends State<LandingPage> {
     // set the SystemUiOverlay bars to transparent so the background shader
     // shows through.
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
+      value: LxTheme.systemOverlayStyleLight.copyWith(
         statusBarColor: LxColors.clearW0,
         systemNavigationBarColor: LxColors.clearW0,
         systemNavigationBarDividerColor: LxColors.clearW0,
       ),
       child: Scaffold(
-        backgroundColor: LxColors.grey75,
+        backgroundColor: LxColors.background,
         body: Stack(children: [
           const InkuShader(child: Center()),
           LayoutBuilder(
@@ -132,7 +132,7 @@ class LandingCalloutText extends StatelessWidget {
       "LIGHTNING.\nBITCOIN.\nONE WALLET.",
       overflow: TextOverflow.clip,
       style: Fonts.fontHero.copyWith(
-        color: LxColors.background,
+        color: LxColors.foreground,
       ),
     );
 
@@ -144,7 +144,7 @@ class LandingCalloutText extends StatelessWidget {
         Text(
           "brought to you by",
           style: Fonts.fontUI.copyWith(
-            color: LxColors.clearW500,
+            color: LxColors.clearB700,
             fontSize: Fonts.size100,
             fontVariations: [Fonts.weightExtraLight],
           ),
@@ -153,7 +153,7 @@ class LandingCalloutText extends StatelessWidget {
         Text(
           "LEXE™",
           style: Fonts.fontHubot.copyWith(
-            color: LxColors.clearW600,
+            color: LxColors.clearB700,
             fontSize: Fonts.size100,
             fontVariations: [Fonts.weightMedium],
             height: 1.0,
@@ -181,11 +181,11 @@ class LandingCarouselIndicators extends StatelessWidget {
     return const Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.circle, size: 12.0, color: LxColors.clearW600),
+        Icon(Icons.circle, size: 12.0, color: LxColors.clearB600),
         SizedBox(width: 12.0),
-        Icon(Icons.circle, size: 12.0, color: LxColors.clearW200),
+        Icon(Icons.circle, size: 12.0, color: LxColors.clearB200),
         SizedBox(width: 12.0),
-        Icon(Icons.circle, size: 12.0, color: LxColors.clearW200),
+        Icon(Icons.circle, size: 12.0, color: LxColors.clearB200),
       ],
     );
   }
@@ -213,10 +213,10 @@ class LandingButtons extends StatelessWidget {
         FilledButton(
           onPressed: this.onSignupPressed,
           style: FilledButton.styleFrom(
-            backgroundColor: LxColors.background,
-            disabledBackgroundColor: LxColors.clearW200,
-            foregroundColor: LxColors.foreground,
-            disabledForegroundColor: LxColors.clearB300,
+            backgroundColor: LxColors.foreground,
+            disabledBackgroundColor: LxColors.clearB300,
+            foregroundColor: LxColors.background,
+            disabledForegroundColor: LxColors.clearW200,
             fixedSize: const Size(300.0, Space.s750),
           ),
           child: const CreateWalletText(),
@@ -227,7 +227,7 @@ class LandingButtons extends StatelessWidget {
         OutlinedButton(
           onPressed: this.onRecoverPressed,
           style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: LxColors.clearW600, width: 2.0),
+            side: const BorderSide(color: LxColors.clearB600, width: 2.0),
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
             fixedSize: const Size(300.0, Space.s750),
             shape: const StadiumBorder(),
@@ -237,7 +237,7 @@ class LandingButtons extends StatelessWidget {
             style: TextStyle(
               fontFamily: "Inter V",
               fontSize: Fonts.size300,
-              color: LxColors.clearW600,
+              color: LxColors.clearB800,
               height: 1.0,
               decoration: TextDecoration.none,
             ),
@@ -259,6 +259,7 @@ class CreateWalletText extends StatelessWidget {
         Text(
           "Create new wallet",
           style: Fonts.fontUI.copyWith(
+            color: LxColors.background,
             fontSize: Fonts.size300,
             fontVariations: [Fonts.weightMedium],
           ),
@@ -266,7 +267,7 @@ class CreateWalletText extends StatelessWidget {
         Container(
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.all(8.0),
-          child: const Icon(Icons.chevron_right),
+          child: const Icon(Icons.chevron_right_rounded),
         )
       ],
     );

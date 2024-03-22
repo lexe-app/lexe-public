@@ -103,6 +103,7 @@ class LxTheme {
         // the right of the drawer.
         scrimColor: LxColors.clearB200,
       ),
+      // buttonTheme:
     );
   }
 }
