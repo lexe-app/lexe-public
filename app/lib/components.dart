@@ -1,6 +1,7 @@
 /// Reusable flutter UI components
 library;
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MaxLengthEnforcement;
@@ -65,6 +66,14 @@ class ScrollableSinglePageBody extends StatelessWidget {
       child: CustomScrollView(
         primary: true,
         slivers: [
+          // TODO(phlip9): replace refresh buttons w/ pull-to-refresh?
+          // CupertinoSliverRefreshControl(
+          //   onRefresh: () async {
+          //     await Future.delayed(const Duration(seconds: 1));
+          //     print("Refresh!");
+          //   },
+          // ),
+
           // The primary body widgets.
           SliverList.list(children: this.body),
 
