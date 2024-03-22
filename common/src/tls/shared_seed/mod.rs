@@ -24,12 +24,19 @@
 //!
 //! [`RootSeed`]: crate::root_seed::RootSeed
 
-use std::{sync::Arc, time::SystemTime};
+use std::sync::Arc;
 
 use anyhow::Context;
 use rustls::{
-    client::{ServerCertVerifier, WebPkiVerifier},
-    RootCertStore,
+    client::{
+        danger::{
+            HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
+        },
+        WebPkiServerVerifier,
+    },
+    pki_types::{CertificateDer, ServerName, UnixTime},
+    server::WebPkiClientVerifier,
+    DigitallySignedStruct, RootCertStore,
 };
 
 use super::lexe_ca;
@@ -59,15 +66,19 @@ pub fn app_node_run_server_config(
         .context("Failed to sign and serialize ephemeral server cert")?;
     let server_cert_key_der = server_cert.serialize_key_der();
 
-    // Build our rustls::server::ClientCertVerifier which trusts our derived CA
+    // Build our ClientCertVerifier which trusts our derived CA
     let mut roots = rustls::RootCertStore::empty();
     roots
-        .add(&ca_cert_der)
+        .add(ca_cert_der)
         .context("rustls failed to deserialize CA cert DER bytes")?;
-    let client_cert_verifier =
-        Arc::new(rustls::server::AllowAnyAuthenticatedClient::new(roots));
+    let client_cert_verifier = WebPkiClientVerifier::builder_with_provider(
+        Arc::new(roots),
+        super::LEXE_CRYPTO_PROVIDER.clone(),
+    )
+    .build()
+    .context("Failed to build client cert verifier")?;
 
-    let mut config = super::lexe_default_server_config()
+    let mut config = super::lexe_server_config()
         .with_client_cert_verifier(client_cert_verifier)
         .with_single_cert(vec![server_cert_der], server_cert_key_der)
         .context("Failed to build rustls::ServerConfig")?;
@@ -105,7 +116,8 @@ pub fn app_node_run_client_config(
         .context("Failed to sign and serialize ephemeral client cert")?;
     let client_cert_key_der = client_cert.serialize_key_der();
 
-    let mut config = super::lexe_default_client_config()
+    let mut config = super::lexe_client_config()
+        .dangerous()
         .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
         // NOTE: .with_single_cert() uses a client cert resolver which always
         // presents our client cert when asked. Does this introduce overhead by
@@ -130,16 +142,17 @@ pub fn app_node_run_client_config(
 /// Shorthand to build a [`ServerCertVerifier`] which trusts the derived CA.
 pub fn shared_seed_verifier(
     ca_cert: &certs::SharedSeedCaCert,
-) -> anyhow::Result<WebPkiVerifier> {
+) -> anyhow::Result<Arc<WebPkiServerVerifier>> {
     let ca_cert_der = ca_cert
         .serialize_der_self_signed()
         .context("Failed to sign and serialize shared seed CA cert")?;
     let mut roots = RootCertStore::empty();
     roots
-        .add(&ca_cert_der)
+        .add(ca_cert_der)
         .context("Failed to re-parse shared seed CA cert")?;
-    let ct_policy = None;
-    let verifier = WebPkiVerifier::new(roots, ct_policy);
+    let verifier = WebPkiServerVerifier::builder(Arc::new(roots))
+        .build()
+        .context("Could not build shared seed server verifier")?;
     Ok(verifier)
 }
 
@@ -150,35 +163,35 @@ pub fn shared_seed_verifier(
 ///   requests are first routed through lexe's reverse proxy, which parses the
 ///   fake run DNS in the SNI extension to determine whether we want to connect
 ///   to a running or provisioning node so it can route accordingly.
-/// - The [`rustls::ServerName`] is given by the [`NodeClient`] reqwest client.
-///   This is the gateway DNS when connecting to Lexe's proxy, otherwise it is
-///   the node's fake run DNS. See [`NodeClient`]'s `run_url` for context.
+/// - The [`ServerName`] is given by the [`NodeClient`] reqwest client. This is
+///   the gateway DNS when connecting to Lexe's proxy, otherwise it is the
+///   node's fake run DNS. See [`NodeClient`]'s `run_url` for context.
 /// - The [`AppNodeRunVerifier`] thus chooses between two "sub-verifiers"
-///   according to the [`rustls::ServerName`] given to us by [`reqwest`]. We use
-///   the public Lexe WebPKI verifier when establishing the outer TLS connection
+///   according to the [`ServerName`] given to us by [`reqwest`]. We use the
+///   public Lexe WebPKI verifier when establishing the outer TLS connection
 ///   with the gateway, and we use the shared seed verifier for the inner TLS
 ///   connection which terminates inside the user node SGX enclave.
 ///
 /// [`NodeClient`]: crate::client::NodeClient
+#[derive(Debug)]
 struct AppNodeRunVerifier {
     /// `run.lexe.app` shared seed verifier - trusts the derived CA
-    shared_seed_verifier: WebPkiVerifier,
+    shared_seed_verifier: Arc<WebPkiServerVerifier>,
     /// `<TODO>.lexe.app` Lexe reverse proxy verifier - trusts the Lexe CA
-    public_lexe_verifier: WebPkiVerifier,
+    public_lexe_verifier: Arc<WebPkiServerVerifier>,
 }
 
 impl ServerCertVerifier for AppNodeRunVerifier {
     fn verify_server_cert(
         &self,
-        end_entity: &rustls::Certificate,
-        intermediates: &[rustls::Certificate],
-        server_name: &rustls::ServerName,
-        scts: &mut dyn Iterator<Item = &[u8]>,
+        end_entity: &CertificateDer,
+        intermediates: &[CertificateDer],
+        server_name: &ServerName,
         ocsp_response: &[u8],
-        now: SystemTime,
-    ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
+        now: UnixTime,
+    ) -> Result<ServerCertVerified, rustls::Error> {
         let maybe_dns_name = match server_name {
-            rustls::ServerName::DnsName(dns) => Some(dns.as_ref()),
+            ServerName::DnsName(dns) => Some(dns.as_ref()),
             _ => None,
         };
 
@@ -189,7 +202,6 @@ impl ServerCertVerifier for AppNodeRunVerifier {
                     end_entity,
                     intermediates,
                     server_name,
-                    scts,
                     ocsp_response,
                     now,
                 ),
@@ -201,15 +213,39 @@ impl ServerCertVerifier for AppNodeRunVerifier {
                 end_entity,
                 intermediates,
                 server_name,
-                scts,
                 ocsp_response,
                 now,
             ),
         }
     }
 
-    fn request_scts(&self) -> bool {
-        false
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        // We intentionally do not support TLSv1.2.
+        let error = rustls::PeerIncompatible::ServerDoesNotSupportTls12Or13;
+        Err(rustls::Error::PeerIncompatible(error))
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        rustls::crypto::verify_tls13_signature(
+            message,
+            cert,
+            dss,
+            &super::LEXE_SIGNATURE_ALGORITHMS,
+        )
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        super::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
     }
 }
 
@@ -247,7 +283,7 @@ mod test {
 
             let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
             let dns_name = constants::NODE_RUN_DNS;
-            let sni = rustls::ServerName::try_from(dns_name).unwrap();
+            let sni = ServerName::try_from(dns_name).unwrap();
             let mut stream =
                 connector.connect(sni, client_stream).await.unwrap();
 

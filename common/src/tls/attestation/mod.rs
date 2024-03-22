@@ -1,15 +1,25 @@
 //! (m)TLS based on SGX remote attestation.
 
-use std::{sync::Arc, time::SystemTime};
+use std::sync::Arc;
 
 use anyhow::Context;
-use rustls::client::{ServerCertVerifier, WebPkiVerifier};
+use rustls::{
+    client::{
+        danger::{
+            HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
+        },
+        WebPkiServerVerifier,
+    },
+    pki_types::{CertificateDer, ServerName, UnixTime},
+    DigitallySignedStruct,
+};
 
 use self::verifier::EnclavePolicy;
-use super::lexe_ca;
 #[cfg(doc)]
 use crate::api::def::AppNodeProvisionApi;
-use crate::{constants, enclave::Measurement, env::DeployEnv, rng::Crng};
+use crate::{
+    constants, enclave::Measurement, env::DeployEnv, rng::Crng, tls::lexe_ca,
+};
 
 /// Self-signed x509 cert containing enclave remote attestation endorsements.
 pub mod cert;
@@ -34,7 +44,7 @@ pub fn app_node_provision_server_config(
         .context("Failed to sign and serialize attestation cert")?;
     let cert_key_der = cert.serialize_key_der();
 
-    let mut config = super::lexe_default_server_config()
+    let mut config = super::lexe_server_config()
         .with_no_client_auth()
         .with_single_cert(vec![cert_der], cert_key_der)
         .context("Failed to build TLS config")?;
@@ -67,7 +77,8 @@ pub fn app_node_provision_client_config(
         attestation_verifier,
     };
 
-    let mut config = super::lexe_default_client_config()
+    let mut config = super::lexe_client_config()
+        .dangerous()
         .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
         .with_no_client_auth();
     config
@@ -85,38 +96,38 @@ pub fn app_node_provision_client_config(
 ///   fake provision DNS in the SNI extension to determine (1) whether we want
 ///   to connect to a running or provisioning node and (2) the [`MrShort`] of
 ///   the measurement we wish to provision so it can route accordingly.
-/// - The [`rustls::ServerName`] is given by the [`NodeClient`] reqwest client.
-///   This is the gateway DNS when connecting to Lexe's proxy, otherwise it is
-///   the node's fake provision DNS. See [`NodeClient::provision`] for details.
+/// - The [`ServerName`] is given by the [`NodeClient`] reqwest client. This is
+///   the gateway DNS when connecting to Lexe's proxy, otherwise it is the
+///   node's fake provision DNS. See [`NodeClient::provision`] for details.
 /// - The [`AppNodeProvisionVerifier`] thus chooses between two "sub-verifiers"
-///   according to the [`rustls::ServerName`] given to us by [`reqwest`]. We use
-///   the public Lexe WebPKI verifier when establishing the outer TLS connection
+///   according to the [`ServerName`] given to us by [`reqwest`]. We use the
+///   public Lexe WebPKI verifier when establishing the outer TLS connection
 ///   with the gateway, and we use the remote attestation verifier for the inner
 ///   TLS connection which terminates inside the user node SGX enclave.
 ///
 /// [`MrShort`]: crate::enclave::MrShort
 /// [`NodeClient`]: crate::client::NodeClient
 /// [`NodeClient::provision`]: crate::client::NodeClient::provision
+#[derive(Debug)]
 struct AppNodeProvisionVerifier {
     /// `<mr_short>.provision.lexe.app` remote attestation verifier
     attestation_verifier: verifier::AttestationVerifier,
     /// `<TODO>.lexe.app` Lexe reverse proxy verifier - trusts the Lexe CA
-    public_lexe_verifier: WebPkiVerifier,
+    public_lexe_verifier: Arc<WebPkiServerVerifier>,
 }
 
 impl ServerCertVerifier for AppNodeProvisionVerifier {
     fn verify_server_cert(
         &self,
-        end_entity: &rustls::Certificate,
-        intermediates: &[rustls::Certificate],
+        end_entity: &CertificateDer,
+        intermediates: &[CertificateDer],
         // This comes from the reqwest client, not the server.
-        server_name: &rustls::ServerName,
-        scts: &mut dyn Iterator<Item = &[u8]>,
+        server_name: &ServerName,
         ocsp_response: &[u8],
-        now: SystemTime,
-    ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
+        now: UnixTime,
+    ) -> Result<ServerCertVerified, rustls::Error> {
         let maybe_dns_name = match server_name {
-            rustls::ServerName::DnsName(dns) => Some(dns.as_ref()),
+            ServerName::DnsName(dns) => Some(dns.as_ref()),
             _ => None,
         };
 
@@ -128,7 +139,6 @@ impl ServerCertVerifier for AppNodeProvisionVerifier {
                     end_entity,
                     intermediates,
                     server_name,
-                    scts,
                     ocsp_response,
                     now,
                 ),
@@ -140,14 +150,38 @@ impl ServerCertVerifier for AppNodeProvisionVerifier {
                 end_entity,
                 intermediates,
                 server_name,
-                scts,
                 ocsp_response,
                 now,
             ),
         }
     }
 
-    fn request_scts(&self) -> bool {
-        false
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        // We intentionally do not support TLSv1.2.
+        let error = rustls::PeerIncompatible::ServerDoesNotSupportTls12Or13;
+        Err(rustls::Error::PeerIncompatible(error))
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        rustls::crypto::verify_tls13_signature(
+            message,
+            cert,
+            dss,
+            &super::LEXE_SIGNATURE_ALGORITHMS,
+        )
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        super::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
     }
 }

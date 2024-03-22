@@ -16,7 +16,6 @@ use anyhow::Context;
 use async_trait::async_trait;
 use bitcoin::Address;
 use reqwest::Url;
-use warp::http;
 
 use crate::{
     api::{

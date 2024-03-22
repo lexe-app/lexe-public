@@ -4,7 +4,6 @@ use std::{
     fmt, include_bytes,
     io::Cursor,
     sync::{Arc, LazyLock},
-    time::SystemTime,
 };
 
 use anyhow::{bail, ensure, format_err, Context};
@@ -12,7 +11,13 @@ use asn1_rs::FromDer;
 use dcap_ql::quote::{
     Qe3CertDataPckCertChain, Quote, Quote3SignatureEcdsaP256,
 };
-use rustls::client::ServerCertVerifier;
+use rustls::{
+    client::danger::{
+        HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
+    },
+    pki_types::{CertificateDer, ServerName, UnixTime},
+    DigitallySignedStruct,
+};
 use webpki::{TlsServerTrustAnchors, TrustAnchor};
 use x509_parser::certificate::X509Certificate;
 
@@ -21,7 +26,7 @@ use crate::{
     enclave::{self, Measurement},
     env::DeployEnv,
     hex, sha256,
-    tls::attestation::cert::SgxAttestationExtension,
+    tls::{self, attestation::cert::SgxAttestationExtension},
 };
 
 /// The Enclave Signer Measurement (MRSIGNER) of the current Intel Quoting
@@ -77,6 +82,7 @@ static SUPPORTED_SIG_ALGS: &[&webpki::SignatureAlgorithm] = &[
 /// (3) the remote attestation binds to the server's certificate key pair. Once
 /// these checks are successful, the client and secure can establish a secure
 /// TLS channel.
+#[derive(Debug)]
 pub struct AttestationVerifier {
     /// if `true`, expect a fake dummy quote. Used only for testing.
     pub expect_dummy_quote: bool,
@@ -87,13 +93,12 @@ pub struct AttestationVerifier {
 impl ServerCertVerifier for AttestationVerifier {
     fn verify_server_cert(
         &self,
-        end_entity: &rustls::Certificate,
-        intermediates: &[rustls::Certificate],
-        server_name: &rustls::ServerName,
-        scts: &mut dyn Iterator<Item = &[u8]>,
+        end_entity: &CertificateDer,
+        intermediates: &[CertificateDer],
+        server_name: &ServerName,
         ocsp_response: &[u8],
-        now: SystemTime,
-    ) -> Result<rustls::client::ServerCertVerified, rustls::Error> {
+        now: UnixTime,
+    ) -> Result<ServerCertVerified, rustls::Error> {
         // there should be no intermediate certs
         if !intermediates.is_empty() {
             return Err(rustls_err("received unexpected intermediate certs"));
@@ -103,23 +108,24 @@ impl ServerCertVerifier for AttestationVerifier {
         //    well-formed, signatures verify, validity ranges OK, SNI matches,
         //    etc...
         let mut trust_roots = rustls::RootCertStore::empty();
-        trust_roots.add(end_entity).map_err(rustls_err)?;
+        trust_roots.add(end_entity.to_owned()).map_err(rustls_err)?;
 
-        let ct_policy = None;
-        let webpki_verifier =
-            rustls::client::WebPkiVerifier::new(trust_roots, ct_policy);
+        let webpki_verifier = rustls::client::WebPkiServerVerifier::builder(
+            Arc::new(trust_roots),
+        )
+        .build()
+        .map_err(|e| rustls::Error::General(e.to_string()))?;
 
         let verified_token = webpki_verifier.verify_server_cert(
             end_entity,
             &[],
             server_name,
-            scts,
             ocsp_response,
             now,
         )?;
 
         // 2. extract enclave attestation quote from the cert
-        let evidence = AttestEvidence::parse_cert_der(&end_entity.0)?;
+        let evidence = AttestEvidence::parse_cert_der(end_entity)?;
 
         if !self.expect_dummy_quote {
             // 3. verify Quote
@@ -151,8 +157,33 @@ impl ServerCertVerifier for AttestationVerifier {
         Ok(verified_token)
     }
 
-    fn request_scts(&self) -> bool {
-        false
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        // We intentionally do not support TLSv1.2.
+        let error = rustls::PeerIncompatible::ServerDoesNotSupportTls12Or13;
+        Err(rustls::Error::PeerIncompatible(error))
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        rustls::crypto::verify_tls13_signature(
+            message,
+            cert,
+            dss,
+            &tls::LEXE_SIGNATURE_ALGORITHMS,
+        )
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        tls::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
     }
 }
 
@@ -170,7 +201,8 @@ impl<'a> AttestEvidence<'a> {
         fn invalid_cert_error(
             error: impl std::error::Error + Send + Sync + 'static,
         ) -> rustls::Error {
-            let cert_error = rustls::CertificateError::Other(Arc::new(error));
+            let other_error = rustls::OtherError(Arc::new(error));
+            let cert_error = rustls::CertificateError::Other(other_error);
             rustls::Error::InvalidCertificate(cert_error)
         }
 
@@ -222,7 +254,7 @@ impl SgxQuoteVerifier {
     pub fn verify(
         &self,
         quote_bytes: &[u8],
-        now: SystemTime,
+        now: UnixTime,
     ) -> anyhow::Result<sgx_isa::Report> {
         let quote = Quote::parse(quote_bytes)
             .map_err(DisplayErr::new)
@@ -263,11 +295,10 @@ impl SgxQuoteVerifier {
         let pck_cert = webpki::EndEntityCert::try_from(pck_cert_der.as_slice())
             .context("Invalid PCK cert")?;
 
-        let now =
-            webpki::Time::try_from(now).context("Our time source is bad")?;
+        let now = webpki::Time::from_seconds_since_unix_epoch(now.as_secs());
 
-        // We don't use the full `rustls::WebPkiVerifier` here since the PCK
-        // certs aren't truly webpki certs, as they don't bind to DNS names.
+        // We don't use the full `rustls::WebPkiServerVerifier` here since the
+        // PCK certs aren't truly webpki certs, as they don't bind to DNS names.
         //
         // Instead, we skip the DNS checks by using the lower-level `EndEntity`
         // verification methods directly.
@@ -387,6 +418,7 @@ fn parse_cert_pem_to_der(s: &str) -> anyhow::Result<Vec<u8>> {
 // TODO(phlip9): check `cpusvn`, `isvsvn`, `isvprodid`
 
 /// A verifier's policy for which enclaves it should trust.
+#[derive(Debug)]
 pub struct EnclavePolicy {
     /// Allow enclaves in DEBUG mode. This should only be used in development.
     pub allow_debug: bool,
@@ -602,7 +634,7 @@ fn rustls_err(s: impl fmt::Display) -> rustls::Error {
 
 #[cfg(test)]
 mod test {
-    use std::{include_str, iter};
+    use std::include_str;
 
     use super::*;
 
@@ -640,7 +672,7 @@ mod test {
         let cert_der = parse_cert_pem_to_der(SGX_SERVER_CERT_PEM).unwrap();
         let evidence = AttestEvidence::parse_cert_der(&cert_der).unwrap();
 
-        let now = SystemTime::now();
+        let now = UnixTime::now();
         let verifier = SgxQuoteVerifier;
         let report = verifier.verify(&evidence.attest.quote, now).unwrap();
 
@@ -668,17 +700,15 @@ mod test {
         };
 
         let intermediates = &[];
-        let mut scts = iter::empty();
         let ocsp_response = &[];
 
         verifier
             .verify_server_cert(
-                &rustls::Certificate(cert_der),
+                &CertificateDer::from(cert_der),
                 intermediates,
-                &rustls::ServerName::try_from("localhost").unwrap(),
-                &mut scts,
+                &ServerName::try_from("localhost").unwrap(),
                 ocsp_response,
-                SystemTime::now(),
+                UnixTime::now(),
             )
             .unwrap();
     }
@@ -702,17 +732,15 @@ mod test {
         };
 
         let intermediates = &[];
-        let mut scts = iter::empty();
         let ocsp_response = &[];
 
         verifier
             .verify_server_cert(
                 &cert_der,
                 intermediates,
-                &rustls::ServerName::try_from(dns_name.as_str()).unwrap(),
-                &mut scts,
+                &ServerName::try_from(dns_name.as_str()).unwrap(),
                 ocsp_response,
-                SystemTime::now(),
+                UnixTime::now(),
             )
             .unwrap();
     }
