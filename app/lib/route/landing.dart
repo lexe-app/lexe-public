@@ -388,25 +388,43 @@ class AnimatedShaderState extends State<AnimatedShader>
 
   @override
   Widget build(BuildContext context) {
+    final scrollController = this.widget.carouselScrollController;
+    double prevOffset = scrollController.offset;
+
     return AnimatedBuilder(
       animation: this.animationController,
-      builder: (BuildContext _, Widget? child) => CustomPaint(
-        painter: ShaderPainter(widget.shader, this.animationController.value),
-        // raster cache probably shouldn't cache this since it changes every frame
-        isComplex: false,
-        willChange: true,
-        child: child,
-      ),
+      builder: (BuildContext _, Widget? child) {
+        // Add some small EMA dampening to scroll offset.
+        const a = 0.25;
+        final nextOffset = a * scrollController.offset + (1.0 - a) * prevOffset;
+        prevOffset = nextOffset;
+
+        return CustomPaint(
+          painter: ShaderPainter(
+            widget.shader,
+            this.animationController.value,
+            nextOffset,
+          ),
+          // raster cache probably shouldn't cache this since it changes every frame
+          isComplex: false,
+          willChange: true,
+          child: child,
+        );
+      },
       child: widget.child,
     );
   }
 }
 
 class ShaderPainter extends CustomPainter {
-  const ShaderPainter(this.shader, this.time);
+  const ShaderPainter(this.shader, this.time, this.scrollOffset);
 
   final ui.FragmentShader shader;
   final double time;
+
+  // The offset of the carousel in pixels
+  // (first page = 0, second page = +screen width, ...)
+  final double scrollOffset;
 
   @override
   void paint(ui.Canvas canvas, ui.Size size) {
@@ -417,6 +435,9 @@ class ShaderPainter extends CustomPainter {
     shader.setFloat(1, size.height);
     // 2 : u_time
     shader.setFloat(2, this.time);
+    // 3 : u_scroll_offset
+    final double normalizedScrollOffset = this.scrollOffset / size.height;
+    shader.setFloat(3, normalizedScrollOffset);
 
     final screenRect = Rect.fromLTWH(0.0, 0.0, size.width, size.height);
     final paint = Paint()..shader = this.shader;
