@@ -372,8 +372,8 @@ class Fonts {
   /// 30 px
   static const double size700 = 30.0;
 
-  /// 40 px
-  static const double size800 = 40.0;
+  /// 36 px
+  static const double size800 = 36.0;
 
   static const FontVariation weightThin = FontVariation("wght", 100);
   static const FontVariation weightExtraLight = FontVariation("wght", 200);
