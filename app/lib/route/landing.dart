@@ -87,6 +87,13 @@ class _LandingPageState extends State<LandingPage> {
     info("do restore flow");
   }
 
+  void nextPage() {
+    unawaited(this.carouselScrollController.nextPage(
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.ease,
+        ));
+  }
+
   @override
   Widget build(BuildContext context) {
     final numPages = landingPages.length;
@@ -98,10 +105,14 @@ class _LandingPageState extends State<LandingPage> {
       child: Scaffold(
         backgroundColor: LxColors.background,
         body: Stack(children: [
+          // Background shader.
           InkuShader(
             carouselScrollController: this.carouselScrollController,
             child: const Center(),
           ),
+
+          // Main body content, with max width and height, centered in the
+          // viewport.
           LayoutBuilder(
             builder: (BuildContext context, BoxConstraints viewport) {
               final viewportHeight = viewport.maxHeight;
@@ -122,6 +133,7 @@ class _LandingPageState extends State<LandingPage> {
                     maxHeight: maxHeight,
                   ),
                   child: Stack(fit: StackFit.passthrough, children: [
+                    // Landing marketing pages.
                     Container(
                       padding: EdgeInsets.only(top: top),
                       child: PageView.builder(
@@ -145,6 +157,8 @@ class _LandingPageState extends State<LandingPage> {
                         },
                       ),
                     ),
+
+                    // Action buttons (signup, restore) and page indicators.
                     Container(
                       padding: EdgeInsets.only(bottom: bottom),
                       alignment: Alignment.bottomCenter,
@@ -164,6 +178,22 @@ class _LandingPageState extends State<LandingPage> {
                 ),
               );
             },
+          ),
+
+          // Next page button.
+          Align(
+            alignment: Alignment.centerRight,
+            child: ValueListenableBuilder(
+              valueListenable: this.selectedPageIndex,
+              builder: (context, selectedPageIndex, child) => IconButton(
+                icon: const Icon(Icons.chevron_right_rounded),
+                iconSize: Fonts.size800,
+                color: LxColors.clearB300,
+                disabledColor: LxColors.clearB100,
+                onPressed:
+                    (selectedPageIndex != numPages - 1) ? this.nextPage : null,
+              ),
+            ),
           ),
         ]),
       ),
