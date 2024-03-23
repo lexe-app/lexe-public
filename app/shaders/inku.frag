@@ -4,9 +4,19 @@
 
 precision lowp float;
 
-layout(location = 0) uniform vec2 u_resolution;
-layout(location = 1) uniform float u_time;
+// Uniforms (per-shader-invocation inputs)
 
+// The (width, height) of the shader paint area, in pixels.
+uniform vec2 u_resolution;
+// Time, in seconds.
+uniform float u_time;
+// Horizontal scroll offset of the landing page carousel, in global normalized
+// coordinates (i.e., center of first screen is (0, 0)).
+uniform float u_scroll_offset;
+
+// Outputs
+
+// What color this pixel should be (RGBA).
 layout(location = 0) out vec4 o_frag_color;
 
 // // This "rose" colormap comes from:
@@ -126,11 +136,10 @@ const mat2 mtx = mat2( 0.81,  0.59, -0.61,  0.82 );
 
 float fbm(vec2 p)
 {
-    float f = 0.0;
-    float t = 0.035 * u_time;
-    // float t = 0.0;
-    // float t = 0.5 * u_time;
+    // float t = 0.035 * u_time;
+    float t = 0.035 * (u_time + (10.0 * u_scroll_offset));
 
+    float f = 0.0;
     f += 0.500000*noise(p + t); p = mtx*p*2.02;
     f += 0.031250*noise(p - t); p = mtx*p*2.01;
     f += 0.250000*noise(p); p = mtx*p*2.03;
@@ -144,9 +153,17 @@ float fbm(vec2 p)
     return f/0.96875;
 }
 
-float pattern(in vec2 p)
+float pattern(vec2 p)
 {
 	return fbm(p + fbm(p + fbm(p)));
+}
+
+vec2 rotate(vec2 v, const vec2 around, float rad)
+{
+	float s = sin(rad);
+	float c = cos(rad);
+	mat2 m = mat2(c, -s, s, c);
+	return (m * (v - around)) + around;
 }
 
 void main() {
@@ -160,14 +177,19 @@ void main() {
     // skia and impeller rendering backends.
     vec2 pos = FlutterFragCoord().xy;
 
-    // Global normalized screen coordinates
+    // Global normalized screen coordinates for current pixel
     //
     // gp.y in [-1.0, 1.0]
     vec2 gp = ((2.0 * pos) - u_resolution.xy) / u_resolution.y;
 
+    // Translate and rotate view a little while we scroll.
+    gp += vec2(0.25 * u_scroll_offset - 0.25, 1.0);
+    gp = rotate(gp, vec2(0.5, 1.0), -0.10 * u_scroll_offset);
+
     // float darken = 0.8;
-    float brightness = 1.0;
-    float zoom = 1.5;
+    float brightness = 1.0 + sin(0.0);
+    // float zoom = 1.5;
+    float zoom = 1.5 + (0.25 * u_scroll_offset);
     float gamma = 1.5;
 
     // Generate a shade value in [0.0, 1.0]
