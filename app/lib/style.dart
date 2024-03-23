@@ -29,6 +29,18 @@ class LxTheme {
     systemNavigationBarDividerColor: LxColors.background,
   );
 
+  static const SystemUiOverlayStyle systemOverlayStyleLightClearBg =
+      SystemUiOverlayStyle(
+    // From: SystemUiOverlayStyle.dark
+    systemNavigationBarIconBrightness: Brightness.light,
+    statusBarIconBrightness: Brightness.dark,
+    statusBarBrightness: Brightness.light,
+    // Lexe overrides
+    statusBarColor: LxColors.clearW0,
+    systemNavigationBarColor: LxColors.clearW0,
+    systemNavigationBarDividerColor: LxColors.clearW0,
+  );
+
   static const SystemUiOverlayStyle systemOverlayStyleDark =
       SystemUiOverlayStyle(
     // From: SystemUiOverlayStyle.light
@@ -39,6 +51,18 @@ class LxTheme {
     statusBarColor: LxColors.foreground,
     systemNavigationBarColor: LxColors.foreground,
     systemNavigationBarDividerColor: LxColors.foreground,
+  );
+
+  static const SystemUiOverlayStyle systemOverlayStyleDarkClearBg =
+      SystemUiOverlayStyle(
+    // From: SystemUiOverlayStyle.light
+    systemNavigationBarIconBrightness: Brightness.light,
+    statusBarIconBrightness: Brightness.light,
+    statusBarBrightness: Brightness.dark,
+    // Lexe overrides
+    statusBarColor: LxColors.clearB0,
+    systemNavigationBarColor: LxColors.clearB0,
+    systemNavigationBarDividerColor: LxColors.clearB0,
   );
 
   /// The Lexe light theme for `MaterialApp` compatibility
