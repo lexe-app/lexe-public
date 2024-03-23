@@ -3,6 +3,7 @@ import 'dart:math' show max;
 import 'dart:ui' as ui;
 
 import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
@@ -31,10 +32,12 @@ class LandingPage extends StatefulWidget {
 
 class _LandingPageState extends State<LandingPage> {
   final PageController carouselScrollController = PageController();
+  final ValueNotifier<int> selectedPageIndex = ValueNotifier(0);
 
   @override
   void dispose() {
     carouselScrollController.dispose();
+    selectedPageIndex.dispose();
     super.dispose();
   }
 
@@ -79,6 +82,8 @@ class _LandingPageState extends State<LandingPage> {
 
   @override
   Widget build(BuildContext context) {
+    const int numPages = 3;
+
     // set the SystemUiOverlay bars to transparent so the background shader
     // shows through.
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -115,10 +120,12 @@ class _LandingPageState extends State<LandingPage> {
                       child: PageView.builder(
                         controller: this.carouselScrollController,
                         scrollBehavior: const CupertinoScrollBehavior(),
+                        onPageChanged: (pageIndex) =>
+                            this.selectedPageIndex.value = pageIndex,
                         itemBuilder: (context, idx) {
                           final Widget child;
 
-                          if (idx >= 0 && idx < 3) {
+                          if (idx >= 0 && idx < numPages) {
                             child = const LandingCalloutText();
                           } else {
                             return null;
@@ -142,6 +149,8 @@ class _LandingPageState extends State<LandingPage> {
                         constraints: const BoxConstraints(maxWidth: maxWidth),
                         child: LandingButtons(
                           config: this.widget.config,
+                          numPages: numPages,
+                          selectedPageIndex: this.selectedPageIndex,
                           onSignupPressed: () => unawaited(this.doSignupFlow()),
                           onRecoverPressed: () =>
                               unawaited(this.doRestoreFlow()),
@@ -211,40 +220,87 @@ class LandingCalloutText extends StatelessWidget {
 }
 
 class LandingCarouselIndicators extends StatelessWidget {
-  const LandingCarouselIndicators({super.key});
+  const LandingCarouselIndicators({
+    super.key,
+    required this.selectedPageIndex,
+    required this.numPages,
+  });
+
+  final int numPages;
+  final ValueListenable<int> selectedPageIndex;
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.circle, size: Space.s300, color: LxColors.clearB600),
-        SizedBox(width: Space.s300),
-        Icon(Icons.circle, size: Space.s300, color: LxColors.clearB200),
-        SizedBox(width: Space.s300),
-        Icon(Icons.circle, size: Space.s300, color: LxColors.clearB200),
-      ],
+      children: List<Widget>.generate(
+        3,
+        (index) => LandingCarouselIndicator(
+            index: index, selectedPageIndex: this.selectedPageIndex),
+      ),
+    );
+  }
+}
+
+class LandingCarouselIndicator extends StatelessWidget {
+  const LandingCarouselIndicator({
+    super.key,
+    required this.index,
+    required this.selectedPageIndex,
+  });
+
+  final int index;
+  final ValueListenable<int> selectedPageIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Space.s100),
+      child: ValueListenableBuilder(
+        valueListenable: this.selectedPageIndex,
+        builder: (context, selectedPageIndex, child) {
+          final isActive = selectedPageIndex == this.index;
+
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            height: 6.0,
+            width: isActive ? 20 : 6,
+            decoration: BoxDecoration(
+              color: isActive ? LxColors.clearB600 : LxColors.clearB200,
+              borderRadius: const BorderRadius.all(Radius.circular(12)),
+            ),
+          );
+        },
+      ),
     );
   }
 }
 
 class LandingButtons extends StatelessWidget {
-  const LandingButtons(
-      {super.key,
-      required this.config,
-      required this.onSignupPressed,
-      required this.onRecoverPressed});
+  const LandingButtons({
+    super.key,
+    required this.config,
+    required this.onSignupPressed,
+    required this.onRecoverPressed,
+    required this.selectedPageIndex,
+    required this.numPages,
+  });
 
   final Config config;
   final VoidCallback onSignupPressed;
   final VoidCallback onRecoverPressed;
+  final int numPages;
+  final ValueListenable<int> selectedPageIndex;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const LandingCarouselIndicators(),
+        LandingCarouselIndicators(
+          numPages: this.numPages,
+          selectedPageIndex: this.selectedPageIndex,
+        ),
         const SizedBox(height: 24.0),
         // Signup
         FilledButton(
