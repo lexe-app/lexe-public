@@ -30,6 +30,13 @@ class LandingPage extends StatefulWidget {
   State<LandingPage> createState() => _LandingPageState();
 }
 
+const List<Widget> landingPages = [
+  LandingCalloutText(heroText: "LIGHTNING.\nBITCOIN.\nONE WALLET."),
+  LandingCalloutText(heroText: "RECEIVE\nPAYMENTS\n24/7."),
+  LandingCalloutText(heroText: "ZERO\nCOMPROMISE\nSELF CUSTODY."),
+  LandingCalloutText(heroText: "MAX SECURITY.\nPOWERED BY SGX™."),
+];
+
 class _LandingPageState extends State<LandingPage> {
   final PageController carouselScrollController = PageController();
   final ValueNotifier<int> selectedPageIndex = ValueNotifier(0);
@@ -82,7 +89,7 @@ class _LandingPageState extends State<LandingPage> {
 
   @override
   Widget build(BuildContext context) {
-    const int numPages = 3;
+    final numPages = landingPages.length;
 
     // set the SystemUiOverlay bars to transparent so the background shader
     // shows through.
@@ -120,23 +127,19 @@ class _LandingPageState extends State<LandingPage> {
                       child: PageView.builder(
                         controller: this.carouselScrollController,
                         scrollBehavior: const CupertinoScrollBehavior(),
-                        onPageChanged: (pageIndex) =>
-                            this.selectedPageIndex.value = pageIndex,
+                        onPageChanged: (pageIndex) {
+                          if (!this.mounted) return;
+                          this.selectedPageIndex.value = pageIndex;
+                        },
                         itemBuilder: (context, idx) {
-                          final Widget child;
-
-                          if (idx >= 0 && idx < numPages) {
-                            child = const LandingCalloutText();
-                          } else {
-                            return null;
-                          }
+                          if (idx < 0 || idx >= numPages) return null;
 
                           return Container(
                             alignment: Alignment.topCenter,
                             child: ConstrainedBox(
                               constraints:
                                   const BoxConstraints(maxWidth: maxWidth),
-                              child: child,
+                              child: landingPages[idx],
                             ),
                           );
                         },
@@ -169,12 +172,14 @@ class _LandingPageState extends State<LandingPage> {
 }
 
 class LandingCalloutText extends StatelessWidget {
-  const LandingCalloutText({super.key});
+  const LandingCalloutText({super.key, required this.heroText});
+
+  final String heroText;
 
   @override
   Widget build(BuildContext context) {
     final heroText = Text(
-      "LIGHTNING.\nBITCOIN.\nONE WALLET.",
+      this.heroText,
       overflow: TextOverflow.clip,
       style: Fonts.fontHero.copyWith(
         color: LxColors.foreground,
@@ -234,10 +239,9 @@ class LandingCarouselIndicators extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List<Widget>.generate(
-        3,
-        (index) => LandingCarouselIndicator(
-            index: index, selectedPageIndex: this.selectedPageIndex),
-      ),
+          this.numPages,
+          (index) => LandingCarouselIndicator(
+              index: index, selectedPageIndex: this.selectedPageIndex)),
     );
   }
 }
