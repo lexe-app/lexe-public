@@ -2,6 +2,7 @@ import 'dart:async' show unawaited;
 import 'dart:math' show max;
 import 'dart:ui' as ui;
 
+import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
@@ -29,6 +30,19 @@ class LandingPage extends StatefulWidget {
 }
 
 class _LandingPageState extends State<LandingPage> {
+  final PageController carouselScrollController = PageController();
+
+  @override
+  void dispose() {
+    carouselScrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
   /// Start the Signup UI flow. Future resolves when the user has either
   /// (1) completed the flow and signed up or (2) canceled the flow.
   Future<void> doSignupFlow() async {
@@ -68,20 +82,19 @@ class _LandingPageState extends State<LandingPage> {
     // set the SystemUiOverlay bars to transparent so the background shader
     // shows through.
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: LxTheme.systemOverlayStyleLight.copyWith(
-        statusBarColor: LxColors.clearW0,
-        systemNavigationBarColor: LxColors.clearW0,
-        systemNavigationBarDividerColor: LxColors.clearW0,
-      ),
+      value: LxTheme.systemOverlayStyleLightClearBg,
       child: Scaffold(
         backgroundColor: LxColors.background,
         body: Stack(children: [
-          const InkuShader(child: Center()),
+          InkuShader(
+            carouselScrollController: this.carouselScrollController,
+            child: const Center(),
+          ),
           LayoutBuilder(
             builder: (BuildContext context, BoxConstraints viewport) {
               final viewportHeight = viewport.maxHeight;
 
-              const width = 300.0;
+              const maxWidth = 300.0;
               const minHeight = 525.0;
               const verticalBreakpoint = 700.0;
 
@@ -93,23 +106,46 @@ class _LandingPageState extends State<LandingPage> {
               return Center(
                 child: Container(
                   constraints: BoxConstraints(
-                    minWidth: width,
-                    maxWidth: width,
                     minHeight: minHeight,
                     maxHeight: maxHeight,
                   ),
                   child: Stack(fit: StackFit.passthrough, children: [
                     Container(
                       padding: EdgeInsets.only(top: top),
-                      child: const LandingCalloutText(),
+                      child: PageView.builder(
+                        controller: this.carouselScrollController,
+                        scrollBehavior: const CupertinoScrollBehavior(),
+                        itemBuilder: (context, idx) {
+                          final Widget child;
+
+                          if (idx >= 0 && idx < 3) {
+                            child = const LandingCalloutText();
+                          } else {
+                            return null;
+                          }
+
+                          return Container(
+                            alignment: Alignment.topCenter,
+                            child: ConstrainedBox(
+                              constraints:
+                                  const BoxConstraints(maxWidth: maxWidth),
+                              child: child,
+                            ),
+                          );
+                        },
+                      ),
                     ),
                     Container(
                       padding: EdgeInsets.only(bottom: bottom),
                       alignment: Alignment.bottomCenter,
-                      child: LandingButtons(
-                        config: this.widget.config,
-                        onSignupPressed: () => unawaited(this.doSignupFlow()),
-                        onRecoverPressed: () => unawaited(this.doRestoreFlow()),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: maxWidth),
+                        child: LandingButtons(
+                          config: this.widget.config,
+                          onSignupPressed: () => unawaited(this.doSignupFlow()),
+                          onRecoverPressed: () =>
+                              unawaited(this.doRestoreFlow()),
+                        ),
                       ),
                     ),
                   ]),
@@ -165,8 +201,9 @@ class LandingCalloutText extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        const SizedBox(height: Space.s100),
         heroText,
-        const SizedBox(height: 16.0),
+        const SizedBox(height: Space.s400),
         lexeText,
       ],
     );
@@ -181,11 +218,11 @@ class LandingCarouselIndicators extends StatelessWidget {
     return const Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.circle, size: 12.0, color: LxColors.clearB600),
-        SizedBox(width: 12.0),
-        Icon(Icons.circle, size: 12.0, color: LxColors.clearB200),
-        SizedBox(width: 12.0),
-        Icon(Icons.circle, size: 12.0, color: LxColors.clearB200),
+        Icon(Icons.circle, size: Space.s300, color: LxColors.clearB600),
+        SizedBox(width: Space.s300),
+        Icon(Icons.circle, size: Space.s300, color: LxColors.clearB200),
+        SizedBox(width: Space.s300),
+        Icon(Icons.circle, size: Space.s300, color: LxColors.clearB200),
       ],
     );
   }
@@ -275,8 +312,13 @@ class CreateWalletText extends StatelessWidget {
 }
 
 class InkuShader extends StatelessWidget {
-  const InkuShader({super.key, this.child});
+  const InkuShader({
+    super.key,
+    required this.carouselScrollController,
+    this.child,
+  });
 
+  final PageController carouselScrollController;
   final Widget? child;
 
   static Future<ui.FragmentShader> load() async {
@@ -298,15 +340,25 @@ class InkuShader extends StatelessWidget {
             return const SizedBox();
           }
 
-          return AnimatedShader(shader: snapshot.data!, child: this.child);
+          return AnimatedShader(
+            shader: snapshot.data!,
+            carouselScrollController: carouselScrollController,
+            child: this.child,
+          );
         });
   }
 }
 
 class AnimatedShader extends StatefulWidget {
-  const AnimatedShader({super.key, required this.shader, this.child});
+  const AnimatedShader({
+    super.key,
+    required this.shader,
+    required this.carouselScrollController,
+    this.child,
+  });
 
   final ui.FragmentShader shader;
+  final PageController carouselScrollController;
   final Widget? child;
 
   @override
