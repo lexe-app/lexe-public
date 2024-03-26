@@ -1,17 +1,5 @@
-import 'dart:ui' show FontFeature, FontVariation, TextDecoration;
-
 import 'package:flutter/foundation.dart' as foundation;
-import 'package:flutter/material.dart'
-    show
-        Brightness,
-        Color,
-        ColorScheme,
-        IconThemeData,
-        MaterialColor,
-        TextStyle,
-        ThemeData,
-        Typography,
-        VisualDensity;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 class LxTheme {
@@ -96,6 +84,9 @@ class LxTheme {
     return baseTheme.copyWith(
       visualDensity: VisualDensity.comfortable,
       scaffoldBackgroundColor: LxColors.background,
+      brightness: Brightness.light,
+
+      // [AppBar]
       appBarTheme: baseTheme.appBarTheme.copyWith(
         backgroundColor: LxColors.background,
         foregroundColor: LxColors.foreground,
@@ -119,6 +110,8 @@ class LxTheme {
         iconTheme: appBarIconTheme,
         actionsIconTheme: appBarIconTheme,
       ),
+
+      // [Drawer]
       drawerTheme: baseTheme.drawerTheme.copyWith(
         // make the drawer blend with the system bar
         backgroundColor: LxColors.background,
@@ -127,7 +120,38 @@ class LxTheme {
         // the right of the drawer.
         scrimColor: LxColors.clearB200,
       ),
-      // buttonTheme:
+
+      // [OutlinedButton]
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: LxColors.foreground,
+          disabledForegroundColor: LxColors.fgTertiary,
+          backgroundColor: LxColors.clearB0,
+          disabledBackgroundColor: LxColors.clearB0,
+          padding: const EdgeInsets.all(Space.s450),
+          textStyle: const TextStyle(
+            fontFamily: "Inter V",
+            fontSize: Fonts.size400,
+            height: 1.0,
+            fontVariations: [Fonts.weightMedium],
+            decoration: TextDecoration.none,
+          ),
+        ).copyWith(
+          // Place dynamic styles here, i.e., styles that should change in
+          // different button states (ex: normal, focused, disabled, hover, ...)
+
+          // deemphasize disabled button border
+          side: MaterialStateProperty.resolveWith((Set<MaterialState> states) {
+            // disabled => deemphasized border
+            if (states.contains(MaterialState.disabled)) {
+              return const BorderSide(color: LxColors.fgTertiary, width: 2.0);
+            }
+
+            // normal
+            return const BorderSide(color: LxColors.foreground, width: 2.0);
+          }),
+        ),
+      ),
     );
   }
 }
@@ -285,6 +309,9 @@ class Space {
 
   /// 16 px
   static const double s400 = 16.0;
+
+  /// 16 px
+  static const double s450 = 20.0;
 
   /// 24 px
   static const double s500 = 24.0;

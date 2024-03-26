@@ -440,6 +440,40 @@ class LxFilledButton extends StatelessWidget {
   }
 }
 
+class LxOutlinedButton extends StatelessWidget {
+  const LxOutlinedButton({
+    super.key,
+    required this.onTap,
+    this.label,
+    this.icon,
+    this.style,
+  });
+
+  final Widget? label;
+  final Widget? icon;
+  final VoidCallback? onTap;
+  final ButtonStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = this.label;
+    final icon = this.icon;
+
+    return OutlinedButton(
+      onPressed: this.onTap,
+      style: this.style,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          if (label != null) label,
+          if (icon != null)
+            Align(alignment: Alignment.centerRight, child: icon),
+        ],
+      ),
+    );
+  }
+}
+
 /// Heading/title text that sits directly beneath the AppBar.
 class HeadingText extends StatelessWidget {
   const HeadingText({

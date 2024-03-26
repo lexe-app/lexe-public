@@ -20,7 +20,11 @@ import '../bindings_generated_api.dart'
         PaymentStatus,
         ShortPayment;
 import '../components.dart'
-    show FilledPlaceholder, LxRefreshButton, StateStreamBuilder;
+    show
+        FilledPlaceholder,
+        LxOutlinedButton,
+        LxRefreshButton,
+        StateStreamBuilder;
 import '../currency_format.dart' as currency_format;
 import '../date_format.dart' as date_format;
 import '../logger.dart';
@@ -399,20 +403,11 @@ class WalletDrawer extends StatelessWidget {
             // < Invite Friends >
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Space.s500),
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  backgroundColor: LxColors.background,
-                  foregroundColor: LxColors.foreground,
-                  side:
-                      const BorderSide(color: LxColors.foreground, width: 2.0),
-                  padding: const EdgeInsets.symmetric(vertical: Space.s500),
-                ),
-                onPressed: this.onInvitePressed,
-                child: Text("Invite Friends",
-                    style: Fonts.fontUI.copyWith(
-                      fontSize: Fonts.size400,
-                      fontVariations: [Fonts.weightMedium],
-                    )),
+              child: LxOutlinedButton(
+                // TODO(phlip9): we use a closure to see button w/o disabled
+                // styling. remove extra closure when real functionality exists.
+                onTap: () => this.onInvitePressed?.call(),
+                label: const Text("Invite Friends"),
               ),
             ),
             const SizedBox(height: Space.s600),
