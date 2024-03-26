@@ -616,14 +616,8 @@ class WalletActionButton extends StatelessWidget {
       children: [
         FilledButton(
           onPressed: this.onPressed,
-          style: FilledButton.styleFrom(
-            backgroundColor: LxColors.grey975,
-            disabledBackgroundColor: LxColors.grey850,
-            foregroundColor: LxColors.foreground,
-            disabledForegroundColor: LxColors.grey725,
-          ),
           child: Padding(
-            padding: const EdgeInsets.all(Space.s400),
+            padding: const EdgeInsets.symmetric(horizontal: Space.s450),
             child: Icon(this.icon, size: Fonts.size700),
           ),
         ),
