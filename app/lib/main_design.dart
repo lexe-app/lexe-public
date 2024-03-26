@@ -33,7 +33,13 @@ import 'bindings_generated_api.dart'
         U8Array32,
         UpdatePaymentNote;
 import 'cfg.dart' as cfg;
-import 'components.dart' show HeadingText, ScrollableSinglePageBody;
+import 'components.dart'
+    show
+        HeadingText,
+        LxBackButton,
+        LxOutlinedButton,
+        ScrollableSinglePageBody,
+        SubheadingText;
 import 'date_format.dart' as date_format;
 import 'gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
 import 'logger.dart';
@@ -309,6 +315,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               isRefreshing: ValueNotifier(false),
               triggerRefresh: () {},
             ),
+          ),
+          Component(
+            "Buttons",
+            (context) => const ButtonDesignPage(),
           ),
           const SizedBox(height: Space.s800),
         ],
@@ -700,3 +710,64 @@ const Payment dummyInvoiceInboundCompleted01 = Payment(
   createdAt: 1687100002000,
   finalizedAt: 1687100005000,
 );
+
+// Some design-specific pages
+
+class ButtonDesignPage extends StatelessWidget {
+  const ButtonDesignPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // info(
+    //     "OutlinedButtonThemeData: ${Theme.of(context).outlinedButtonTheme.style}");
+    // info(
+    //     "OutlinedButton.defaultStyleOf: ${OutlinedButton.defaultStyleOf(context)}");
+
+    return Theme(
+      // // Uncomment to view default material theme:
+      // data: ThemeData.light(useMaterial3: true),
+      data: LxTheme.light(),
+      child: Scaffold(
+        appBar: AppBar(
+          leadingWidth: Space.appBarLeadingWidth,
+          leading: const LxBackButton(),
+        ),
+        body: ScrollableSinglePageBody(
+          body: [
+            const HeadingText(text: "Button design page"),
+            const SubheadingText(text: "Check button styling here"),
+            const SizedBox(height: Space.s600),
+
+            // Outlined Buttons
+            const HeadingText(text: "Outlined buttons"),
+            const SizedBox(height: Space.s400),
+
+            // normal
+            LxOutlinedButton(onTap: () {}, label: const Text("Send")),
+            const SizedBox(height: Space.s400),
+
+            // disabled
+            const LxOutlinedButton(onTap: null, label: Text("Send")),
+            const SizedBox(height: Space.s400),
+
+            // normal + icon
+            LxOutlinedButton(
+              onTap: () {},
+              label: const Text("Next"),
+              icon: const Icon(Icons.arrow_forward_rounded),
+            ),
+            const SizedBox(height: Space.s400),
+
+            // disabled + icon
+            const LxOutlinedButton(
+              onTap: null,
+              label: Text("Next"),
+              icon: Icon(Icons.arrow_forward_rounded),
+            ),
+            const SizedBox(height: Space.s400),
+          ],
+        ),
+      ),
+    );
+  }
+}

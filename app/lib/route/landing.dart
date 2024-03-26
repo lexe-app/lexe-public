@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import '../bindings_generated_api.dart' show AppHandle, Config;
+import '../components.dart' show LxOutlinedButton;
 import '../gdrive_auth.dart' show GDriveAuth;
 import '../logger.dart' show error, info;
 import '../style.dart' show Fonts, LxColors, LxTheme, Space;
@@ -331,12 +332,14 @@ class LandingButtons extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Indicator dots to show which page we're on.
         LandingCarouselIndicators(
           numPages: this.numPages,
           selectedPageIndex: this.selectedPageIndex,
         ),
-        const SizedBox(height: 24.0),
-        // Signup
+        const SizedBox(height: Space.s500),
+
+        // Signup ->
         FilledButton(
           onPressed: this.onSignupPressed,
           style: FilledButton.styleFrom(
@@ -348,28 +351,25 @@ class LandingButtons extends StatelessWidget {
           ),
           child: const CreateWalletText(),
         ),
+        const SizedBox(height: Space.s400),
 
-        const SizedBox(height: 16.0),
         // Recover Wallet
-        OutlinedButton(
-          onPressed: this.onRecoverPressed,
-          style: OutlinedButton.styleFrom(
-            side: const BorderSide(color: LxColors.clearB600, width: 2.0),
-            padding: const EdgeInsets.symmetric(horizontal: 32.0),
-            fixedSize: const Size(300.0, Space.s750),
-            shape: const StadiumBorder(),
+        LxOutlinedButton(
+          onTap: this.onRecoverPressed,
+          style: ButtonStyle(
+            side: MaterialStateProperty.all(
+                const BorderSide(color: LxColors.clearB600, width: 2.0)),
+            fixedSize: MaterialStateProperty.all(const Size(300.0, Space.s750)),
           ),
-          child: const Text(
+          label: const Text(
             "I have a Lexe wallet",
             style: TextStyle(
-              fontFamily: "Inter V",
               fontSize: Fonts.size300,
               color: LxColors.clearB800,
-              height: 1.0,
-              decoration: TextDecoration.none,
             ),
           ),
         ),
+        const SizedBox(height: Space.s400),
       ],
     );
   }
