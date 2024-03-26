@@ -196,7 +196,7 @@ class _AnimatedFillButtonState extends State<AnimatedFillButton> {
               ? this.widget.label
               : const Center(
                   child: SizedBox.square(
-                    dimension: Fonts.size300,
+                    dimension: Fonts.size400,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.0,
                       color: LxColors.clearB200,
@@ -372,10 +372,10 @@ class LxRefreshButton extends StatelessWidget {
       );
 }
 
-/// A filled button with an icon. Used as the primary action button.
+/// An outlined button with an icon. Used as a secondary action button.
 ///
-/// It's like the standard `FilledButton.icon`, but the text is properly
-/// centered in the button.
+/// It's like the standard `OutlinedButton.icon`, but the text is properly
+/// centered in the button and the icon is right aligned.
 class LxFilledButton extends StatelessWidget {
   const LxFilledButton({
     super.key,
@@ -383,63 +383,27 @@ class LxFilledButton extends StatelessWidget {
     this.label,
     this.icon,
     this.style,
-    this.textStyle,
   });
 
   final Widget? label;
   final Widget? icon;
   final VoidCallback? onTap;
-
   final ButtonStyle? style;
-  final TextStyle? textStyle;
 
   @override
   Widget build(BuildContext context) {
-    final ButtonStyle defaultStyle = FilledButton.styleFrom(
-      backgroundColor: LxColors.grey1000,
-      disabledBackgroundColor: LxColors.grey850,
-      foregroundColor: LxColors.foreground,
-      disabledForegroundColor: LxColors.grey725,
-      maximumSize: const Size.fromHeight(Space.s700),
-    );
-
-    final userButtonStyle = this.style;
-    final ButtonStyle buttonStyle = (userButtonStyle != null)
-        ? defaultStyle.merge(userButtonStyle)
-        : defaultStyle;
-
-    const TextStyle defaultTextStyle = TextStyle(
-      fontSize: Fonts.size300,
-      fontVariations: [Fonts.weightMedium],
-    );
-
-    final userTextStyle = this.textStyle;
-    final TextStyle textStyle = (userTextStyle != null)
-        ? defaultTextStyle.merge(userTextStyle)
-        : defaultTextStyle;
-
     return FilledButton(
       onPressed: this.onTap,
-      style: buttonStyle,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          if (this.label != null)
-            DefaultTextStyle.merge(style: textStyle, child: this.label!),
-          if (this.icon != null)
-            Align(
-              alignment: Alignment.centerRight,
-              child: IconTheme.merge(
-                data: IconThemeData(size: textStyle.fontSize),
-                child: this.icon!,
-              ),
-            )
-        ],
-      ),
+      style: this.style,
+      child: ButtonChild(label: this.label, icon: this.icon),
     );
   }
 }
 
+/// An outlined button with an icon. Used as a secondary action button.
+///
+/// It's like the standard `OutlinedButton.icon`, but the text is properly
+/// centered in the button and the icon is right aligned.
 class LxOutlinedButton extends StatelessWidget {
   const LxOutlinedButton({
     super.key,
@@ -456,20 +420,31 @@ class LxOutlinedButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = this.label;
-    final icon = this.icon;
-
     return OutlinedButton(
       onPressed: this.onTap,
       style: this.style,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          if (label != null) label,
-          if (icon != null)
-            Align(alignment: Alignment.centerRight, child: icon),
-        ],
-      ),
+      child: ButtonChild(label: this.label, icon: this.icon),
+    );
+  }
+}
+
+class ButtonChild extends StatelessWidget {
+  const ButtonChild({super.key, this.label, this.icon});
+
+  final Widget? label;
+  final Widget? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = this.label;
+    final icon = this.icon;
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        if (label != null) label,
+        if (icon != null) Align(alignment: Alignment.centerRight, child: icon),
+      ],
     );
   }
 }

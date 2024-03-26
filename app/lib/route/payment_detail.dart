@@ -280,9 +280,9 @@ class PaymentDetailPageInner extends StatelessWidget {
             bottom: Padding(
               padding: const EdgeInsets.symmetric(horizontal: pagePadding),
               child: LxFilledButton(
-                label: const Text("Payment details"),
-                icon: const Icon(Icons.arrow_upward_rounded),
                 onTap: () => this.openBottomSheet(context),
+                label: const Text("Payment Details"),
+                icon: const Icon(Icons.arrow_upward_rounded),
               ),
             ),
           );

@@ -5,6 +5,12 @@ import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 class LxTheme {
   LxTheme._();
 
+  // These [SystemUiOverlayStyle] define the colors for the system top-bar and
+  // bottom-bar while our app is open. These are different than e.g. the
+  // [AppBar] in that we don't define and render these in the app, only describe
+  // how they should be styled to the OS.
+
+  // theme: light, icons: dark, background: light
   static const SystemUiOverlayStyle systemOverlayStyleLight =
       SystemUiOverlayStyle(
     // From: SystemUiOverlayStyle.dark
@@ -17,6 +23,7 @@ class LxTheme {
     systemNavigationBarDividerColor: LxColors.background,
   );
 
+  // theme: light, icons: dark, background: clear
   static const SystemUiOverlayStyle systemOverlayStyleLightClearBg =
       SystemUiOverlayStyle(
     // From: SystemUiOverlayStyle.dark
@@ -29,6 +36,7 @@ class LxTheme {
     systemNavigationBarDividerColor: LxColors.clearW0,
   );
 
+  // theme: dark, icons: light, background: dark
   static const SystemUiOverlayStyle systemOverlayStyleDark =
       SystemUiOverlayStyle(
     // From: SystemUiOverlayStyle.light
@@ -41,6 +49,7 @@ class LxTheme {
     systemNavigationBarDividerColor: LxColors.foreground,
   );
 
+  // theme: dark, icons: light, background: clear
   static const SystemUiOverlayStyle systemOverlayStyleDarkClearBg =
       SystemUiOverlayStyle(
     // From: SystemUiOverlayStyle.light
@@ -53,13 +62,15 @@ class LxTheme {
     systemNavigationBarDividerColor: LxColors.clearB0,
   );
 
-  /// The Lexe light theme for `MaterialApp` compatibility
+  /// The global, Lexe-specific light theme.
   static ThemeData light() {
+    // Derive a basic colorscheme from our grey colors.
     final colorScheme = ColorScheme.fromSwatch(
       primarySwatch: LxColors.greySwatch,
       brightness: Brightness.light,
     );
 
+    // Text styling
     final typography = Typography.material2021(
       platform: foundation.defaultTargetPlatform,
       colorScheme: colorScheme,
@@ -70,6 +81,9 @@ class LxTheme {
       bodyColor: LxColors.foreground,
     );
 
+    // Start with a basic theme generated from our greyscale colors. This will
+    // provide somewhat reasonable default styling for things that we haven't
+    // explicitly styled ourselves.
     final baseTheme = ThemeData.from(
       colorScheme: colorScheme,
       useMaterial3: true,
@@ -125,17 +139,13 @@ class LxTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: LxColors.foreground,
-          disabledForegroundColor: LxColors.fgTertiary,
           backgroundColor: LxColors.clearB0,
+          disabledForegroundColor: LxColors.fgTertiary,
           disabledBackgroundColor: LxColors.clearB0,
           padding: const EdgeInsets.all(Space.s450),
-          textStyle: const TextStyle(
-            fontFamily: "Inter V",
-            fontSize: Fonts.size400,
-            height: 1.0,
-            fontVariations: [Fonts.weightMedium],
-            decoration: TextDecoration.none,
-          ),
+          minimumSize: const Size.square(Fonts.size400 + 2 * Space.s450),
+          maximumSize: const Size.fromHeight(Fonts.size400 + 2 * Space.s450),
+          textStyle: Fonts.fontButton,
         ).copyWith(
           // Place dynamic styles here, i.e., styles that should change in
           // different button states (ex: normal, focused, disabled, hover, ...)
@@ -146,10 +156,24 @@ class LxTheme {
             if (states.contains(MaterialState.disabled)) {
               return const BorderSide(color: LxColors.fgTertiary, width: 2.0);
             }
-
             // normal
             return const BorderSide(color: LxColors.foreground, width: 2.0);
           }),
+        ),
+      ),
+
+      // [FilledButton]
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          foregroundColor: LxColors.foreground,
+          backgroundColor: LxColors.grey1000,
+          disabledForegroundColor: LxColors.fgTertiary,
+          disabledBackgroundColor: LxColors.grey850,
+          padding: const EdgeInsets.all(Space.s450),
+          minimumSize: const Size.square(Fonts.size400 + 2 * Space.s450),
+          maximumSize: const Size.fromHeight(Fonts.size400 + 2 * Space.s450),
+          textStyle: Fonts.fontButton,
+          side: const BorderSide(color: LxColors.clearB0, width: 0.0),
         ),
       ),
     );
@@ -442,31 +466,40 @@ class Fonts {
   static const TextStyle fontBody = TextStyle(
     debugLabel: "Fonts.fontBody",
     fontFamily: "Inter V",
-    fontSize: size300,
+    fontSize: Fonts.size300,
     color: LxColors.foreground,
     height: 1.5,
-    fontVariations: [weightNormal],
+    fontVariations: [Fonts.weightNormal],
     decoration: TextDecoration.none,
   );
 
   static const TextStyle fontUI = TextStyle(
     debugLabel: "Fonts.fontUI",
     fontFamily: "Inter V",
-    fontSize: size300,
+    fontSize: Fonts.size300,
     color: LxColors.foreground,
     height: 1.0,
     // fontFeatures: [slashedZero],
-    fontVariations: [weightNormal],
+    fontVariations: [Fonts.weightNormal],
+    decoration: TextDecoration.none,
+  );
+
+  static const TextStyle fontButton = TextStyle(
+    debugLabel: "Fonts.fontButton",
+    fontFamily: "Inter V",
+    fontSize: Fonts.size400,
+    height: 1.0,
+    fontVariations: [Fonts.weightMedium],
     decoration: TextDecoration.none,
   );
 
   static const TextStyle fontHero = TextStyle(
     debugLabel: "Fonts.fontHero",
     fontFamily: "Hubot Sans",
-    fontSize: size800,
+    fontSize: Fonts.size800,
     color: LxColors.foreground,
     height: 1.5,
-    fontVariations: [weightBold, widthTight],
+    fontVariations: [Fonts.weightBold, Fonts.widthTight],
     decoration: TextDecoration.none,
   );
 }

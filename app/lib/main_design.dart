@@ -37,6 +37,7 @@ import 'components.dart'
     show
         HeadingText,
         LxBackButton,
+        LxFilledButton,
         LxOutlinedButton,
         ScrollableSinglePageBody,
         SubheadingText;
@@ -716,6 +717,10 @@ const Payment dummyInvoiceInboundCompleted01 = Payment(
 class ButtonDesignPage extends StatelessWidget {
   const ButtonDesignPage({super.key});
 
+  static void onTap() {
+    info("tapped");
+  }
+
   @override
   Widget build(BuildContext context) {
     // info(
@@ -733,17 +738,20 @@ class ButtonDesignPage extends StatelessWidget {
           leading: const LxBackButton(),
         ),
         body: ScrollableSinglePageBody(
+          // padding: const EdgeInsets.symmetric(horizontal: Space.s900),
           body: [
             const HeadingText(text: "Button design page"),
             const SubheadingText(text: "Check button styling here"),
             const SizedBox(height: Space.s600),
 
+            //
             // Outlined Buttons
+            //
             const HeadingText(text: "Outlined buttons"),
             const SizedBox(height: Space.s400),
 
             // normal
-            LxOutlinedButton(onTap: () {}, label: const Text("Send")),
+            const LxOutlinedButton(onTap: onTap, label: Text("Send")),
             const SizedBox(height: Space.s400),
 
             // disabled
@@ -751,10 +759,10 @@ class ButtonDesignPage extends StatelessWidget {
             const SizedBox(height: Space.s400),
 
             // normal + icon
-            LxOutlinedButton(
-              onTap: () {},
-              label: const Text("Next"),
-              icon: const Icon(Icons.arrow_forward_rounded),
+            const LxOutlinedButton(
+              onTap: onTap,
+              label: Text("Next"),
+              icon: Icon(Icons.arrow_forward_rounded),
             ),
             const SizedBox(height: Space.s400),
 
@@ -765,6 +773,100 @@ class ButtonDesignPage extends StatelessWidget {
               icon: Icon(Icons.arrow_forward_rounded),
             ),
             const SizedBox(height: Space.s400),
+
+            //
+            // Filled Buttons
+            //
+            const SizedBox(height: Space.s400),
+            const HeadingText(text: "Filled buttons"),
+            const SizedBox(height: Space.s400),
+
+            // normal
+            const LxFilledButton(
+              onTap: onTap,
+              label: Text("Send"),
+            ),
+            const SizedBox(height: Space.s400),
+
+            // disabled
+            const LxFilledButton(
+              onTap: null,
+              label: Text("Send"),
+            ),
+            const SizedBox(height: Space.s400),
+
+            // moneyGoUp + icon
+            LxFilledButton(
+              onTap: onTap,
+              label: const Text("Send"),
+              icon: const Icon(Icons.arrow_forward_rounded),
+              style: FilledButton.styleFrom(
+                backgroundColor: LxColors.moneyGoUp,
+                foregroundColor: LxColors.grey1000,
+              ),
+            ),
+            const SizedBox(height: Space.s400),
+
+            // dark + icon
+            LxFilledButton(
+              onTap: onTap,
+              label: const Text("Send"),
+              icon: const Icon(Icons.arrow_forward_rounded),
+              style: FilledButton.styleFrom(
+                backgroundColor: LxColors.foreground,
+                foregroundColor: LxColors.background,
+              ),
+            ),
+            const SizedBox(height: Space.s400),
+
+            // disabled + icon
+            const LxFilledButton(
+              onTap: null,
+              label: Text("Send"),
+              icon: Icon(Icons.arrow_forward_rounded),
+            ),
+            const SizedBox(height: Space.s600),
+
+            //
+            // Buttons in a row
+            //
+            const HeadingText(text: "Buttons in a row"),
+            const SizedBox(height: Space.s400),
+
+            const Row(
+              children: [
+                Expanded(
+                    child:
+                        LxOutlinedButton(onTap: onTap, label: Text("Cancel"))),
+                SizedBox(width: Space.s400),
+                Expanded(
+                  child: LxFilledButton(
+                    onTap: onTap,
+                    label: Text("Next"),
+                    icon: Icon(Icons.arrow_forward_rounded),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: Space.s400),
+
+            const Row(
+              children: [
+                Expanded(
+                    child:
+                        LxOutlinedButton(onTap: onTap, label: Text("Cancel"))),
+                SizedBox(width: Space.s200),
+                Expanded(
+                    child: LxOutlinedButton(onTap: onTap, label: Text("Skip"))),
+                SizedBox(width: Space.s200),
+                Expanded(
+                  child: LxFilledButton(onTap: onTap, label: Text("Next")),
+                ),
+              ],
+            ),
+            const SizedBox(height: Space.s400),
+
+            const SizedBox(height: Space.s1200),
           ],
         ),
       ),

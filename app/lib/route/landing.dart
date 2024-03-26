@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import '../bindings_generated_api.dart' show AppHandle, Config;
-import '../components.dart' show LxOutlinedButton;
+import '../components.dart' show LxFilledButton, LxOutlinedButton;
 import '../gdrive_auth.dart' show GDriveAuth;
 import '../logger.dart' show error, info;
 import '../style.dart' show Fonts, LxColors, LxTheme, Space;
@@ -340,16 +340,15 @@ class LandingButtons extends StatelessWidget {
         const SizedBox(height: Space.s500),
 
         // Signup ->
-        FilledButton(
-          onPressed: this.onSignupPressed,
+        LxFilledButton(
+          onTap: this.onSignupPressed,
           style: FilledButton.styleFrom(
             backgroundColor: LxColors.foreground,
-            disabledBackgroundColor: LxColors.clearB300,
             foregroundColor: LxColors.background,
-            disabledForegroundColor: LxColors.clearW200,
-            fixedSize: const Size(300.0, Space.s750),
+            fixedSize: const Size(300.0, Space.s800),
           ),
-          child: const CreateWalletText(),
+          label: const Text("Create new wallet"),
+          icon: const Icon(Icons.chevron_right_rounded),
         ),
         const SizedBox(height: Space.s400),
 
@@ -357,45 +356,11 @@ class LandingButtons extends StatelessWidget {
         LxOutlinedButton(
           onTap: this.onRecoverPressed,
           style: ButtonStyle(
-            side: MaterialStateProperty.all(
-                const BorderSide(color: LxColors.clearB600, width: 2.0)),
-            fixedSize: MaterialStateProperty.all(const Size(300.0, Space.s750)),
+            fixedSize: MaterialStateProperty.all(const Size(300.0, Space.s800)),
           ),
-          label: const Text(
-            "I have a Lexe wallet",
-            style: TextStyle(
-              fontSize: Fonts.size300,
-              color: LxColors.clearB800,
-            ),
-          ),
+          label: const Text("I have a Lexe wallet"),
         ),
         const SizedBox(height: Space.s400),
-      ],
-    );
-  }
-}
-
-class CreateWalletText extends StatelessWidget {
-  const CreateWalletText({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        Text(
-          "Create new wallet",
-          style: Fonts.fontUI.copyWith(
-            color: LxColors.background,
-            fontSize: Fonts.size300,
-            fontVariations: [Fonts.weightMedium],
-          ),
-        ),
-        Container(
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.all(8.0),
-          child: const Icon(Icons.chevron_right_rounded),
-        )
       ],
     );
   }
