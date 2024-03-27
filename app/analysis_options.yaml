@@ -58,6 +58,9 @@ linter:
     # Sort imports like we do in rust.
     combinators_ordering: true
     directives_ordering: true
+    # Relative imports are confusing and cause churn when refactoring.
+    avoid_relative_lib_imports: true
+    always_use_package_imports: true
 
     # Put constructors first.
     # TODO(phlip9): how to disable this lint for the generated files?

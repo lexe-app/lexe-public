@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart'
     show GoogleSignIn, GoogleSignInAccount;
 
-import '../../result.dart';
+import 'package:lexeapp/result.dart';
 
 // This `GoogleSignIn` class tracks the currently signed-in Google user (if any)
 // and let's us request Google oauth2 scopes (permissions). On iOS/macOS it

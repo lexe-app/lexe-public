@@ -7,10 +7,8 @@ import 'dart:typed_data' show Uint8List;
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' show Intl;
-import 'package:rxdart_ext/rxdart_ext.dart';
-
-import 'bindings.dart' show api;
-import 'bindings_generated_api.dart'
+import 'package:lexeapp/bindings.dart' show api;
+import 'package:lexeapp/bindings_generated_api.dart'
     show
         App,
         AppHandle,
@@ -32,8 +30,8 @@ import 'bindings_generated_api.dart'
         ShortPayment,
         U8Array32,
         UpdatePaymentNote;
-import 'cfg.dart' as cfg;
-import 'components.dart'
+import 'package:lexeapp/cfg.dart' as cfg;
+import 'package:lexeapp/components.dart'
     show
         HeadingText,
         LxBackButton,
@@ -41,15 +39,15 @@ import 'components.dart'
         LxOutlinedButton,
         ScrollableSinglePageBody,
         SubheadingText;
-import 'date_format.dart' as date_format;
-import 'gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
-import 'logger.dart';
-import 'result.dart';
-import 'route/landing.dart' show LandingPage;
-import 'route/payment_detail.dart' show PaymentDetailPageInner;
-import 'route/receive.dart' show ReceivePaymentPage;
-import 'route/scan.dart' show ScanPage;
-import 'route/send.dart'
+import 'package:lexeapp/date_format.dart' as date_format;
+import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
+import 'package:lexeapp/logger.dart';
+import 'package:lexeapp/result.dart';
+import 'package:lexeapp/route/landing.dart' show LandingPage;
+import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
+import 'package:lexeapp/route/receive.dart' show ReceivePaymentPage;
+import 'package:lexeapp/route/scan.dart' show ScanPage;
+import 'package:lexeapp/route/send.dart'
     show
         SendAmountAll,
         SendAmountExact,
@@ -57,11 +55,13 @@ import 'route/send.dart'
         SendPaymentAmountPage,
         SendPaymentConfirmPage,
         SendPaymentPage;
-import 'route/show_qr.dart' show ShowQrPage;
-import 'route/signup.dart' show SignupApi, SignupBackupPasswordPage, SignupPage;
-import 'route/wallet.dart' show WalletPage;
-import 'stream_ext.dart';
-import 'style.dart' show Fonts, LxColors, LxTheme, Space;
+import 'package:lexeapp/route/show_qr.dart' show ShowQrPage;
+import 'package:lexeapp/route/signup.dart'
+    show SignupApi, SignupBackupPasswordPage, SignupPage;
+import 'package:lexeapp/route/wallet.dart' show WalletPage;
+import 'package:lexeapp/stream_ext.dart';
+import 'package:lexeapp/style.dart' show Fonts, LxColors, LxTheme, Space;
+import 'package:rxdart_ext/rxdart_ext.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

@@ -10,7 +10,7 @@ import 'package:flutter/services.dart'
         TextSelection;
 import 'package:intl/intl.dart' show NumberFormat;
 
-import 'result.dart';
+import 'package:lexeapp/result.dart';
 
 /// [AlphaNumericInputFormatter] is a [TextInputFormatter] that restricts input
 /// text to alpha-numeric characters (a-z, A-Z, 0-9).

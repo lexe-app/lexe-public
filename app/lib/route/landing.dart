@@ -6,14 +6,13 @@ import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
-
-import '../bindings_generated_api.dart' show AppHandle, Config;
-import '../components.dart' show LxFilledButton, LxOutlinedButton;
-import '../gdrive_auth.dart' show GDriveAuth;
-import '../logger.dart' show error, info;
-import '../style.dart' show Fonts, LxColors, LxTheme, Space;
-import 'signup.dart' show SignupApi, SignupPage;
-import 'wallet.dart' show WalletPage;
+import 'package:lexeapp/bindings_generated_api.dart' show AppHandle, Config;
+import 'package:lexeapp/components.dart' show LxFilledButton, LxOutlinedButton;
+import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
+import 'package:lexeapp/logger.dart' show error, info;
+import 'package:lexeapp/route/signup.dart' show SignupApi, SignupPage;
+import 'package:lexeapp/route/wallet.dart' show WalletPage;
+import 'package:lexeapp/style.dart' show Fonts, LxColors, LxTheme, Space;
 
 class LandingPage extends StatefulWidget {
   const LandingPage({

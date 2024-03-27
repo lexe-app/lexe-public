@@ -2,9 +2,9 @@ import 'dart:async' show Stream;
 
 import 'package:flutter/foundation.dart' show debugPrint;
 
-import 'bindings.dart' show api;
-import 'cfg.dart' as cfg;
-import 'result.dart';
+import 'package:lexeapp/bindings.dart' show api;
+import 'package:lexeapp/cfg.dart' as cfg;
+import 'package:lexeapp/result.dart';
 
 const int _levelTrace = 0;
 const int _levelDebug = 1;

@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl_standalone.dart' as intl_standalone;
 
-import 'bindings.dart' show api;
-import 'bindings_generated_api.dart' show AppHandle, Config;
-import 'cfg.dart' as cfg;
-import 'date_format.dart' as date_format;
-import 'gdrive_auth.dart' show GDriveAuth;
-import 'logger.dart';
-import 'route/landing.dart' show LandingPage;
-import 'route/signup.dart' show SignupApi;
-import 'route/wallet.dart' show WalletPage;
-import 'style.dart' show LxColors, LxTheme;
+import 'package:lexeapp/bindings.dart' show api;
+import 'package:lexeapp/bindings_generated_api.dart' show AppHandle, Config;
+import 'package:lexeapp/cfg.dart' as cfg;
+import 'package:lexeapp/date_format.dart' as date_format;
+import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
+import 'package:lexeapp/logger.dart';
+import 'package:lexeapp/route/landing.dart' show LandingPage;
+import 'package:lexeapp/route/signup.dart' show SignupApi;
+import 'package:lexeapp/route/wallet.dart' show WalletPage;
+import 'package:lexeapp/style.dart' show LxColors, LxTheme;
 
 Future<void> main() async {
   // runZonedGuarded(

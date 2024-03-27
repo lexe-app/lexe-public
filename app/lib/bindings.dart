@@ -8,8 +8,8 @@
 import 'dart:ffi' as ffi;
 import 'dart:io' as io;
 
-import 'bindings_generated.dart' show AppRsImpl;
-import 'cfg.dart' as cfg;
+import 'package:lexeapp/bindings_generated.dart' show AppRsImpl;
+import 'package:lexeapp/cfg.dart' as cfg;
 
 /// Android only supports ffi via dynamically linked libraries.
 /// We'll statically link our ffi library for all other platforms.

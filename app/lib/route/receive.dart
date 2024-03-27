@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'package:lexeapp/components.dart'
     show HeadingText, LxBackButton, ScrollableSinglePageBody;
 import 'package:lexeapp/style.dart' show Space;

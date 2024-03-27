@@ -4,11 +4,10 @@ library;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MaxLengthEnforcement;
+import 'package:lexeapp/bindings_generated.dart' show MAX_PAYMENT_NOTE_BYTES;
+import 'package:lexeapp/input_formatter.dart' show MaxUtf8BytesInputFormatter;
+import 'package:lexeapp/style.dart' show Fonts, LxColors, LxRadius, Space;
 import 'package:rxdart_ext/rxdart_ext.dart';
-
-import 'bindings_generated.dart' show MAX_PAYMENT_NOTE_BYTES;
-import 'input_formatter.dart' show MaxUtf8BytesInputFormatter;
-import 'style.dart' show Fonts, LxColors, LxRadius, Space;
 
 typedef VoidContextCallback = void Function(BuildContext);
 

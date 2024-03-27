@@ -4,9 +4,9 @@ import 'dart:math' show max;
 
 import 'package:flutter/material.dart';
 
-import '../address_format.dart' as address_format;
-import '../bindings.dart' show api;
-import '../bindings_generated_api.dart'
+import 'package:lexeapp/address_format.dart' as address_format;
+import 'package:lexeapp/bindings.dart' show api;
+import 'package:lexeapp/bindings_generated_api.dart'
     show
         AppHandle,
         ClientPaymentId,
@@ -16,7 +16,7 @@ import '../bindings_generated_api.dart'
         FeeEstimate,
         Network,
         SendOnchainRequest;
-import '../components.dart'
+import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
         DashPainter,
@@ -31,13 +31,13 @@ import '../components.dart'
         SubheadingText,
         ZigZag,
         baseInputDecoration;
-import '../currency_format.dart' as currency_format;
-import '../date_format.dart' as date_format;
-import '../input_formatter.dart'
+import 'package:lexeapp/currency_format.dart' as currency_format;
+import 'package:lexeapp/date_format.dart' as date_format;
+import 'package:lexeapp/input_formatter.dart'
     show AlphaNumericInputFormatter, IntInputFormatter;
-import '../logger.dart' show error, info;
-import '../result.dart';
-import '../style.dart' show Fonts, LxColors, Space;
+import 'package:lexeapp/logger.dart' show error, info;
+import 'package:lexeapp/result.dart';
+import 'package:lexeapp/style.dart' show Fonts, LxColors, Space;
 
 /// Context used during the send payment flow.
 @immutable
