@@ -174,41 +174,35 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           ),
           const SizedBox(height: Space.s500),
           Component(
-              "LandingPage",
-              (_) => LandingPage(
-                    config: widget.config,
-                    gdriveAuth: mockGDriveAuth,
-                    signupApi: mockSignupApi,
-                  )),
+            "LandingPage",
+            (context) => LandingPage(
+              config: widget.config,
+              gdriveAuth: mockGDriveAuth,
+              signupApi: mockSignupApi,
+            ),
+          ),
+          Component(
+            "SignupPage",
+            (context) => SignupPage(
+              config: widget.config,
+              gdriveAuth: mockGDriveAuth,
+              signupApi: mockSignupApi,
+            ),
+          ),
+          Component(
+            "SignupBackupPasswordPage",
+            (context) => SignupBackupPasswordPage(
+              config: widget.config,
+              authInfo: const GDriveAuthInfo(authCode: "fake"),
+              signupApi: mockSignupApi,
+            ),
+          ),
           Component(
               "WalletPage",
               (_) => WalletPage(
                     app: mockApp,
                     config: widget.config,
                   )),
-          Component("ScanPage", (_) => const ScanPage()),
-          Component(
-            "ShowQrPage",
-            subtitle: "standard bip21",
-            (_) => const ShowQrPage(
-              value:
-                  "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday",
-            ),
-          ),
-          Component(
-            "ShowQrPage",
-            subtitle: "bitcoin address only",
-            (_) => const ShowQrPage(
-                value: "bitcoin:BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4"),
-          ),
-          Component(
-            "ShowQrPage",
-            subtitle: "unified bolt 12",
-            (_) => const ShowQrPage(
-              value:
-                  "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday&lightning=LNBC10U1P3PJ257PP5YZTKWJCZ5FTL5LAXKAV23ZMZEKAW37ZK6KMV80PK4XAEV5QHTZ7QDPDWD3XGER9WD5KWM36YPRX7U3QD36KUCMGYP282ETNV3SHJCQZPGXQYZ5VQSP5USYC4LK9CHSFP53KVCNVQ456GANH60D89REYKDNGSMTJ6YW3NHVQ9QYYSSQJCEWM5CJWZ4A6RFJX77C490YCED6PEMK0UPKXHY89CMM7SCT66K8GNEANWYKZGDRWRFJE69H9U5U0W57RRCSYSAS7GADWMZXC8C6T0SPJAZUP6",
-            ),
-          ),
           Component(
             "SendPaymentPage",
             (context) => SendPaymentPage(
@@ -263,22 +257,6 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
           ),
           Component(
-            "SignupPage",
-            (context) => SignupPage(
-              config: widget.config,
-              gdriveAuth: mockGDriveAuth,
-              signupApi: mockSignupApi,
-            ),
-          ),
-          Component(
-            "SignupBackupPasswordPage",
-            (context) => SignupBackupPasswordPage(
-              config: widget.config,
-              authInfo: const GDriveAuthInfo(authCode: "fake"),
-              signupApi: mockSignupApi,
-            ),
-          ),
-          Component(
             "PaymentDetailPage",
             subtitle: "btc failed outbound",
             (context) => PaymentDetailPageInner(
@@ -312,6 +290,29 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               fiatRate: this.makeFiatRateStream(),
               isRefreshing: ValueNotifier(false),
               triggerRefresh: () {},
+            ),
+          ),
+          Component("ScanPage", (_) => const ScanPage()),
+          Component(
+            "ShowQrPage",
+            subtitle: "standard bip21",
+            (_) => const ShowQrPage(
+              value:
+                  "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday",
+            ),
+          ),
+          Component(
+            "ShowQrPage",
+            subtitle: "bitcoin address only",
+            (_) => const ShowQrPage(
+                value: "bitcoin:BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4"),
+          ),
+          Component(
+            "ShowQrPage",
+            subtitle: "unified bolt 12",
+            (_) => const ShowQrPage(
+              value:
+                  "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday&lightning=LNBC10U1P3PJ257PP5YZTKWJCZ5FTL5LAXKAV23ZMZEKAW37ZK6KMV80PK4XAEV5QHTZ7QDPDWD3XGER9WD5KWM36YPRX7U3QD36KUCMGYP282ETNV3SHJCQZPGXQYZ5VQSP5USYC4LK9CHSFP53KVCNVQ456GANH60D89REYKDNGSMTJ6YW3NHVQ9QYYSSQJCEWM5CJWZ4A6RFJX77C490YCED6PEMK0UPKXHY89CMM7SCT66K8GNEANWYKZGDRWRFJE69H9U5U0W57RRCSYSAS7GADWMZXC8C6T0SPJAZUP6",
             ),
           ),
           Component(
