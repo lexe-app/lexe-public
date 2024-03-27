@@ -6,6 +6,7 @@
 
 use std::{error::Error, fmt};
 
+use axum::response::IntoResponse;
 use http::status::StatusCode;
 use http_old::status::StatusCode as OldStatusCode;
 #[cfg(any(test, feature = "test-utils"))]
@@ -14,6 +15,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use super::{auth, NodePk, UserPk};
+use crate::api::server;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
 
@@ -81,6 +83,7 @@ pub trait ApiErrorKind:
     + fmt::Debug
     + fmt::Display
     + ToHttpStatus
+    + From<CommonErrorKind>
     + From<ErrorCode>
     + Sized
     + 'static
@@ -188,6 +191,14 @@ macro_rules! api_error {
         impl ToHttpStatus for $api_error {
             fn to_http_status(&self) -> StatusCode {
                 self.kind.to_http_status()
+            }
+        }
+
+        impl IntoResponse for $api_error {
+            fn into_response(self) -> http::Response<axum::body::Body> {
+                let status = self.to_http_status();
+                let error_response = ErrorResponse::from(self);
+                server::build_json_response(status, &error_response)
             }
         }
     };
@@ -382,9 +393,16 @@ macro_rules! api_error_kind {
 
 // --- Error structs --- //
 
-/// Errors common to all [`ApiError`]s. This error should not be used directly.
-/// Rather, it serves as an intermediate type; [`ApiError`]s must define a
-/// `From<CommonApiError>` impl to ensure they have covered these cases.
+/// Errors common to all [`ApiError`]s.
+///
+/// - This is an intermediate error type which should only be used in API
+///   library code (e.g. [`RestClient`], [`api::server`]) which cannot assume a
+///   specific API error type.
+/// - [`ApiError`]s and [`ApiErrorKind`]s must impl `From<CommonApiError>` and
+///   `From<CommonErrorKind>` respectively to ensure all cases are covered.
+///
+/// [`RestClient`]: super::rest::RestClient
+/// [`api::server`]: super::server
 pub struct CommonApiError {
     pub kind: CommonErrorKind,
     pub msg: String,
@@ -822,6 +840,21 @@ impl From<reqwest::Error> for CommonApiError {
             CommonErrorKind::UnknownReqwest
         };
         Self { kind, msg }
+    }
+}
+
+impl From<CommonApiError> for ErrorResponse {
+    fn from(CommonApiError { kind, msg }: CommonApiError) -> Self {
+        let code = kind.to_code();
+        Self { code, msg }
+    }
+}
+
+impl IntoResponse for CommonApiError {
+    fn into_response(self) -> http::Response<axum::body::Body> {
+        let status = self.kind.to_http_status();
+        let error_response = ErrorResponse::from(self);
+        server::build_json_response(status, &error_response)
     }
 }
 

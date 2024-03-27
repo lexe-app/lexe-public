@@ -19,6 +19,35 @@ disallowed-methods = [
     { path = "tokio::task::join_set::JoinSet::spawn_on", reason = "Use LxTask::spawn" },
     { path = "tokio::task::join_set::Builder::spawn_on", reason = "Use LxTask::spawn" },
 ]
+disallowed-types = [
+    # Ban implementors of axum::extract::FromRequest[Parts] bc their rejections are incompatible.
+    # - OriginalUri, RawQuery, and State are fine bc they're infallible.
+    # - The FromRequestParts impls on foreign (HTTP) types are fine bc they're all infallible.
+    { path = "axum::Json",                      reason = "Use LxJson" },
+    { path = "axum::Extension",                 reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::ConnectInfo",      reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::Form",             reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::Host",             reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::MatchedPath",      reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::Multipart",        reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::NestedPath",       reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::OriginalUri",      reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::Path",             reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::Query",            reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::RawForm",          reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::RawPathParams",    reason = "Bad Rejection. Use or add to api::server::extract." },
+    { path = "axum::extract::WebSocketUpgrade", reason = "Bad Rejection. Use or add to api::server::extract." },
+
+    # TODO(max): Also ban other layers like this which return incompatible responses instead of errors
+    { path = "tower_http::timeout::Timeout",      reason = """\
+    The response generated on timeout has an empty body and doesn't match our API. Use tower::timeout::Timeout \
+    instead and axum::error_handling::HandleError to convert timeout errors to `ErrorResponse`s.\
+    """ },
+    { path = "tower_http::timeout::TimeoutLayer", reason = """\
+    The response generated on timeout has an empty body and doesn't match our API. Use tower::timeout::TimeoutLayer \
+    instead and axum::error_handling::HandleErrorLayer to convert timeout errors to `ErrorResponse`s.\
+    """ }
+]
 
 # Suppress useless too_many_arguments lint
 too-many-arguments-threshold = 20
