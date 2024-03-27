@@ -191,6 +191,8 @@ class WalletPageState extends State<WalletPage> {
     this.scaffoldKey.currentState?.openDrawer();
   }
 
+  void onScanPressed() {}
+
   /// Called when the "Receive" button is pressed. Pushes the receive payment
   /// page onto the navigation stack.
   Future<void> onReceivePressed() async {
@@ -291,8 +293,8 @@ class WalletPageState extends State<WalletPage> {
             ),
             const SizedBox(height: Space.s700),
             WalletActions(
-              // + - (doesn't exist yet) fund wallet from exchange integration
-              onFundPressed: null,
+              // ☐ - Quickly scan a QR code
+              onScanPressed: this.onScanPressed,
               // ↓ - Open BTC/LN receive payment page
               onReceivePressed: this.onReceivePressed,
               // ↑ - Open BTC/LN send payment page
@@ -560,12 +562,12 @@ class PrimaryBalanceText extends StatelessWidget {
 class WalletActions extends StatelessWidget {
   const WalletActions({
     super.key,
-    this.onFundPressed,
+    this.onScanPressed,
     this.onSendPressed,
     this.onReceivePressed,
   });
 
-  final VoidCallback? onFundPressed;
+  final VoidCallback? onScanPressed;
   final VoidCallback? onSendPressed;
   final VoidCallback? onReceivePressed;
 
@@ -575,9 +577,9 @@ class WalletActions extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         WalletActionButton(
-          onPressed: this.onFundPressed,
-          icon: Icons.add_rounded,
-          label: "Fund",
+          onPressed: this.onScanPressed,
+          icon: Icons.crop_free_rounded,
+          label: "Scan",
         ),
         const SizedBox(width: Space.s400),
         WalletActionButton(
