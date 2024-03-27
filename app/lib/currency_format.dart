@@ -2,7 +2,7 @@
 
 import 'package:intl/intl.dart' show NumberFormat;
 
-import 'bindings_generated_api.dart' show PaymentDirection;
+import 'package:lexeapp/bindings_generated_api.dart' show PaymentDirection;
 
 double satsToBtc(int sats) => sats * 1e-8;
 

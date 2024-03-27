@@ -1,8 +1,7 @@
 import 'dart:async' show Stream, StreamController;
 
+import 'package:lexeapp/logger.dart';
 import 'package:rxdart_ext/rxdart_ext.dart';
-
-import 'logger.dart';
 
 extension StreamControllerExt<T> on StreamController<T> {
   /// Calls `add(event)` as long as the `StreamController` is not already

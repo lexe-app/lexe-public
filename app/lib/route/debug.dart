@@ -5,13 +5,13 @@ library;
 
 import 'package:flutter/material.dart';
 
-import '../../bindings.dart' show api;
-import '../../bindings_generated_api.dart' show AppHandle, Config;
-import '../../components.dart'
+import 'package:lexeapp/bindings.dart' show api;
+import 'package:lexeapp/bindings_generated_api.dart' show AppHandle, Config;
+import 'package:lexeapp/components.dart'
     show HeadingText, LxCloseButton, ScrollableSinglePageBody, SubheadingText;
-import '../../logger.dart' show error, info;
-import '../../result.dart';
-import '../../style.dart' show LxColors, Space;
+import 'package:lexeapp/logger.dart' show error, info;
+import 'package:lexeapp/result.dart';
+import 'package:lexeapp/style.dart' show LxColors, Space;
 
 class DebugPage extends StatelessWidget {
   const DebugPage({

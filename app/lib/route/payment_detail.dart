@@ -2,9 +2,7 @@ import 'dart:async' show Timer, unawaited;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
-import 'package:rxdart_ext/rxdart_ext.dart';
-
-import '../bindings_generated_api.dart'
+import 'package:lexeapp/bindings_generated_api.dart'
     show
         AppHandle,
         FiatRate,
@@ -13,7 +11,7 @@ import '../bindings_generated_api.dart'
         PaymentKind,
         PaymentStatus,
         UpdatePaymentNote;
-import '../components.dart'
+import 'package:lexeapp/components.dart'
     show
         FilledPlaceholder,
         LxCloseButton,
@@ -24,12 +22,13 @@ import '../components.dart'
         ScrollableSinglePageBody,
         StateStreamBuilder,
         ValueStreamBuilder;
-import '../currency_format.dart' as currency_format;
-import '../date_format.dart' as date_format;
-import '../logger.dart';
-import '../result.dart';
-import '../stream_ext.dart';
-import '../style.dart' show Fonts, LxColors, Space;
+import 'package:lexeapp/currency_format.dart' as currency_format;
+import 'package:lexeapp/date_format.dart' as date_format;
+import 'package:lexeapp/logger.dart';
+import 'package:lexeapp/result.dart';
+import 'package:lexeapp/stream_ext.dart';
+import 'package:lexeapp/style.dart' show Fonts, LxColors, Space;
+import 'package:rxdart_ext/rxdart_ext.dart';
 
 /// A page for displaying a single payment, in detail.
 ///

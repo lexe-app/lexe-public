@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../bindings.dart' show api;
-import '../bindings_generated_api.dart' show AppHandle, Config;
-import '../components.dart'
+import 'package:lexeapp/bindings.dart' show api;
+import 'package:lexeapp/bindings_generated_api.dart' show AppHandle, Config;
+import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
         HeadingText,
@@ -16,10 +16,10 @@ import '../components.dart'
         ScrollableSinglePageBody,
         SubheadingText,
         baseInputDecoration;
-import '../gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
-import '../logger.dart' show error, info;
-import '../result.dart';
-import '../style.dart' show Fonts, LxColors, Space;
+import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
+import 'package:lexeapp/logger.dart' show error, info;
+import 'package:lexeapp/result.dart';
+import 'package:lexeapp/style.dart' show Fonts, LxColors, Space;
 
 /// A tiny interface for mocking the `signup` call.
 abstract interface class SignupApi {

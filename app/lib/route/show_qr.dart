@@ -7,9 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart'
     show EccLevel, Encode, EncodeParams, Format, zx;
 
-import '../components.dart' show LxCloseButton, ScrollableSinglePageBody;
-import '../logger.dart';
-import '../style.dart' show LxColors, Space;
+import 'package:lexeapp/components.dart'
+    show LxCloseButton, ScrollableSinglePageBody;
+import 'package:lexeapp/logger.dart';
+import 'package:lexeapp/style.dart' show LxColors, Space;
 
 class QrImage extends StatefulWidget {
   const QrImage({

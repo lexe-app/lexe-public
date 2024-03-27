@@ -9,11 +9,12 @@
 //! * `DEV_GATEWAY_URL`: url of local development gateway
 
 import 'dart:io' show Directory, Platform;
-import 'package:flutter/foundation.dart' show kDebugMode;
-import 'package:path_provider/path_provider.dart' as path_provider;
 
-import 'bindings.dart' show api;
-import 'bindings_generated_api.dart' show Config, DeployEnv, Network;
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:lexeapp/bindings.dart' show api;
+import 'package:lexeapp/bindings_generated_api.dart'
+    show Config, DeployEnv, Network;
+import 'package:path_provider/path_provider.dart' as path_provider;
 
 /// `true` when the flutter app is built in debug mode with debugging info and
 /// debug symbols built-in (i.e., not profile or release mode).
