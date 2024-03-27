@@ -45,7 +45,6 @@ import 'date_format.dart' as date_format;
 import 'gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
 import 'logger.dart';
 import 'result.dart';
-import 'route/backup_wallet.dart' show BackupWalletPage;
 import 'route/landing.dart' show LandingPage;
 import 'route/payment_detail.dart' show PaymentDetailPageInner;
 import 'route/scan.dart' show ScanPage;
@@ -181,8 +180,6 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                     gdriveAuth: mockGDriveAuth,
                     signupApi: mockSignupApi,
                   )),
-          Component("BackupWalletPage",
-              (_) => BackupWalletPage(config: widget.config, app: mockApp)),
           Component(
               "WalletPage",
               (_) => WalletPage(
