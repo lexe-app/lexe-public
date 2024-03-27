@@ -25,6 +25,8 @@ use crate::{
     sha256,
 };
 
+// TODO(max): Consider extracting these into a `lexe-api` crate: `error`,
+// `rest`, `server`, `trace`. Only some Lexe crates actually need these.
 /// Authentication and User Signup.
 pub mod auth;
 /// Data types used in APIs for top level commands.
@@ -45,6 +47,8 @@ pub mod provision;
 pub mod qs;
 /// A client and helpers that enforce common REST semantics across Lexe crates.
 pub mod rest;
+/// Webserver utilities.
+pub mod server;
 /// API tracing utilities for both client and server.
 pub mod trace;
 /// Data types implementing vfs-based node persistence.
