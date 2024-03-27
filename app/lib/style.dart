@@ -2,6 +2,14 @@ import 'package:flutter/foundation.dart' as foundation;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
+/// Our global flutter theme overrides.
+///
+/// Ideally, most of our components inherit solid default styling from here, to
+/// reduce per-component style drift and copy-paste errors.
+///
+/// While modifying or debugging these global stylings during development, it's
+/// helpful to wrap the page or component in a
+/// `Theme(data: LxTheme.light(), child: ...)` so that hot-reloading works.
 class LxTheme {
   LxTheme._();
 

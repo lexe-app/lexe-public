@@ -47,6 +47,7 @@ import 'logger.dart';
 import 'result.dart';
 import 'route/landing.dart' show LandingPage;
 import 'route/payment_detail.dart' show PaymentDetailPageInner;
+import 'route/receive.dart' show ReceivePaymentPage;
 import 'route/scan.dart' show ScanPage;
 import 'route/send.dart'
     show
@@ -256,6 +257,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               feeEstimates: feeEstimates,
             ),
           ),
+          Component(
+              "ReceivePaymentPage", (context) => const ReceivePaymentPage()),
           Component(
             "PaymentDetailPage",
             subtitle: "btc failed outbound",

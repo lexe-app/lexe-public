@@ -1,6 +1,6 @@
 // The primary wallet page.
 
-import 'dart:async' show StreamController, Timer;
+import 'dart:async' show StreamController, Timer, unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' show freezed;
@@ -31,6 +31,7 @@ import '../logger.dart';
 import '../result.dart';
 import '../route/debug.dart' show DebugPage;
 import '../route/payment_detail.dart' show PaymentDetailPage;
+import '../route/receive.dart' show ReceivePaymentPage;
 import '../route/send.dart' show SendContext, SendPaymentPage;
 import '../stream_ext.dart';
 import '../style.dart' show Fonts, LxColors, Space;
@@ -199,6 +200,12 @@ class WalletPageState extends State<WalletPage> {
     // TODO(phlip9): remove this temporary hack once the recv UI gets build
     final result = await Result.tryFfiAsync(() => this.widget.app.getAddress());
     info("getAddress => $result");
+
+    if (!this.mounted) return;
+
+    unawaited(Navigator.of(this.context).push(
+      MaterialPageRoute(builder: (context) => const ReceivePaymentPage()),
+    ));
   }
 
   /// Called when the "Send" button is pressed. Pushes the send payment page
