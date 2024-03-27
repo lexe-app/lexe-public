@@ -113,7 +113,7 @@ toml = "0.7"
 # Scoped, structured logging for asynchronous systems
 tracing = "0.1"
 tracing-core = "0.1"
-tracing-subscriber = { version = "0.3", default-features = false }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["smallvec"] }
 
 # --- PATCHED DEPENDENCIES --- #
 # Use this section to declare patched dependencies.
