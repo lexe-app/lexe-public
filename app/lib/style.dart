@@ -446,6 +446,8 @@ class Fonts {
 
   static const FontVariation widthTight = FontVariation("wdth", 90);
 
+  static const FontVariation italic = FontVariation("ital", 10);
+
   /// Slashed zero
   static const FontFeature featSlashedZero = FontFeature.slashedZero();
 
@@ -508,6 +510,17 @@ class Fonts {
     color: LxColors.foreground,
     height: 1.5,
     fontVariations: [Fonts.weightBold, Fonts.widthTight],
+    decoration: TextDecoration.none,
+  );
+
+  static const TextStyle fontLogo = TextStyle(
+    debugLabel: "Fonts.fontHero",
+    fontFamily: "Hubot Sans",
+    fontSize: Fonts.size800,
+    color: LxColors.foreground,
+    height: 1.0,
+    fontVariations: [Fonts.weightBold, Fonts.italic],
+    letterSpacing: -0.6,
     decoration: TextDecoration.none,
   );
 }
