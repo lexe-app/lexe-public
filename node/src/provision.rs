@@ -15,40 +15,36 @@
 //! in&&to a self-signed TLS certificate, which users must verify when
 //! connecting to the provisioning endpoint.
 
-use std::{
-    convert::Infallible,
-    net::TcpListener,
-    sync::Arc,
-    time::{Duration, SystemTime},
-};
+use std::{net::TcpListener, sync::Arc, time::SystemTime};
 
 use anyhow::Context;
+use axum::{
+    routing::{get, post},
+    Router,
+};
 use common::{
     api::{
+        self,
         auth::BearerAuthenticator,
         def::NodeRunnerApi,
         error::{NodeApiError, NodeErrorKind},
         ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed},
         qs::GetByMeasurement,
-        rest, Empty,
+        server::LayerConfig,
+        Empty,
     },
     cli::node::ProvisionArgs,
-    enclave,
-    enclave::{MachineId, Measurement},
+    enclave::{self, MachineId, Measurement},
     net,
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
-    task::LxTask,
-    tls, Apply,
+    tls,
 };
 use gdrive::GoogleVfs;
 use tracing::{debug, info, info_span, instrument};
-use warp::{filters::BoxedFilter, http::Response, hyper::Body, Filter};
 
 use crate::{api::BackendApiClient, persister};
-
-const WARP_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(2);
 
 #[derive(Clone)]
 struct RequestContext {
@@ -90,42 +86,51 @@ pub async fn provision_node<R: Crng>(
     };
     let shutdown = ShutdownChannel::new();
 
-    const APP_API_SPAN_NAME: &str = "(app-provision-api)";
-    let app_api_span = info_span!(parent: None, APP_API_SPAN_NAME);
-    let app_routes = app_routes(ctx);
-    let app_tls_config =
+    const APP_SERVER_SPAN_NAME: &str = "(app-node-provision-server)";
+    let app_listener = TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
+        .context("Failed to bind app listener")?;
+    let app_port = app_listener
+        .local_addr()
+        .context("Couldn't get app addr")?
+        .port();
+    let (app_tls_config, app_dns) =
         tls::attestation::app_node_provision_server_config(rng, &measurement)
             .context("Failed to build TLS config for provisioning")?;
-    let (app_addr, app_service_fut) = rest::build_service_fut(
-        app_routes,
-        app_tls_config,
-        net::LOCALHOST_WITH_EPHEMERAL_PORT,
-        &app_api_span,
-        shutdown.clone(),
-    );
-    let app_port = app_addr.port();
-    let app_api_task = LxTask::spawn_named_with_span(
-        APP_API_SPAN_NAME,
-        app_api_span,
-        app_service_fut,
-    );
-
-    let lexe_routes = lexe_routes(measurement, shutdown.clone());
-    let lexe_listener =
-        TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
-            .context("Could not bind TcpListener for Lexe operator API")?;
-    let (lexe_api_task, lexe_addr) =
-        rest::serve_routes_with_listener_and_shutdown(
-            lexe_routes,
-            shutdown.clone().recv_owned(),
-            lexe_listener,
-            "lexe api",
-            info_span!(parent: None, "(lexe-api)"),
+    let (app_server_task, _app_url) =
+        api::server::spawn_server_task_with_listener(
+            app_listener,
+            app_router(ctx),
+            LayerConfig::default(),
+            Some((Arc::new(app_tls_config), app_dns.as_str())),
+            APP_SERVER_SPAN_NAME,
+            info_span!(parent: None, APP_SERVER_SPAN_NAME),
+            shutdown.clone(),
         )
-        .context("Failed to serve Lexe routes")?;
-    let lexe_port = lexe_addr.port();
+        .context("Failed to spawn app node provision server task")?;
 
-    info!(%app_addr, %lexe_addr, "API socket addresses: ");
+    const LEXE_SERVER_SPAN_NAME: &str = "(lexe-node-provision-server)";
+    let lexe_listener = TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
+        .context("Failed to bind lexe listener")?;
+    let lexe_port = lexe_listener
+        .local_addr()
+        .context("Couldn't get lexe addr")?
+        .port();
+    let lexe_tls_and_dns = None;
+    let lexe_router = lexe_router(LexeRouterState {
+        measurement,
+        shutdown: shutdown.clone(),
+    });
+    let (lexe_server_task, _lexe_url) =
+        api::server::spawn_server_task_with_listener(
+            lexe_listener,
+            lexe_router,
+            LayerConfig::default(),
+            lexe_tls_and_dns,
+            LEXE_SERVER_SPAN_NAME,
+            info_span!(parent: None, LEXE_SERVER_SPAN_NAME),
+            shutdown,
+        )
+        .context("Failed to spawn lexe node provision server task")?;
 
     // Notify the runner that we're ready for a client connection
     let ports = Ports::new_provision(measurement, app_port, lexe_port);
@@ -135,20 +140,9 @@ pub async fn provision_node<R: Crng>(
         .context("Failed to notify runner of our readiness")?;
     debug!("Notified runner; awaiting client request");
 
-    // Wait for shutdown signal
-    shutdown.recv_owned().await;
-
-    // Check that the API tasks haven't hung
-    app_api_task
-        .apply(|fut| tokio::time::timeout(WARP_SHUTDOWN_TIMEOUT, fut))
-        .await
-        .context("Timed out waiting for app API task to finish")?
-        .context("App task panicked")?;
-    lexe_api_task
-        .apply(|fut| tokio::time::timeout(WARP_SHUTDOWN_TIMEOUT, fut))
-        .await
-        .context("Timed out waiting for Lexe API task to finish")?
-        .context("Lexe task panicked")?;
+    // Wait for API servers to receive shutdown signal and gracefully shut down
+    app_server_task.await.context("App task panicked")?;
+    lexe_server_task.await.context("Lexe task panicked")?;
 
     Ok(())
 }
@@ -156,75 +150,43 @@ pub async fn provision_node<R: Crng>(
 /// Implements [`AppNodeProvisionApi`] - only callable by the node owner.
 ///
 /// [`AppNodeProvisionApi`]: common::api::def::AppNodeProvisionApi
-fn app_routes(ctx: RequestContext) -> BoxedFilter<(Response<Body>,)> {
-    let provision = warp::path("provision")
-        .and(warp::post())
-        .and(inject::request_context(ctx))
-        .and(warp::body::json::<NodeProvisionRequest>())
-        .then(handlers::provision)
-        .map(rest::into_response);
-    let app_routes = warp::path("app").and(provision);
+fn app_router(ctx: RequestContext) -> Router<()> {
+    Router::new()
+        .route("/app/provision", post(handlers::provision))
+        .with_state(ctx)
+}
 
-    app_routes.boxed()
+#[derive(Clone)]
+struct LexeRouterState {
+    measurement: Measurement,
+    shutdown: ShutdownChannel,
 }
 
 /// Implements [`LexeNodeProvisionApi`] - only callable by the Lexe operators.
 ///
 /// [`LexeNodeProvisionApi`]: common::api::def::LexeNodeProvisionApi
-fn lexe_routes(
-    measurement: Measurement,
-    shutdown: ShutdownChannel,
-) -> BoxedFilter<(Response<Body>,)> {
-    let shutdown = warp::path("shutdown")
-        .and(warp::get())
-        .and(warp::query::<GetByMeasurement>())
-        .and(inject::measurement(measurement))
-        .and(inject::shutdown(shutdown))
-        .map(handlers::shutdown)
-        .map(rest::into_response);
-    let lexe_routes = warp::path("lexe").and(shutdown);
-
-    lexe_routes.boxed()
-}
-
-/// Filters for injecting structs/data into subsequent [`Filter`]s.
-mod inject {
-    use super::*;
-
-    pub(super) fn request_context(
-        ctx: RequestContext,
-    ) -> impl Filter<Extract = (RequestContext,), Error = Infallible> + Clone
-    {
-        warp::any().map(move || ctx.clone())
-    }
-
-    pub(super) fn measurement(
-        measurement: Measurement,
-    ) -> impl Filter<Extract = (Measurement,), Error = Infallible> + Clone {
-        warp::any().map(move || measurement)
-    }
-
-    pub(super) fn shutdown(
-        shutdown: ShutdownChannel,
-    ) -> impl Filter<Extract = (ShutdownChannel,), Error = Infallible> + Clone
-    {
-        warp::any().map(move || shutdown.clone())
-    }
+fn lexe_router(state: LexeRouterState) -> Router<()> {
+    Router::new()
+        .route("/lexe/shutdown", get(handlers::shutdown))
+        .with_state(state)
 }
 
 /// API handlers.
 mod handlers {
-    use common::api::error::{BackendApiError, BackendErrorKind};
+    use axum::extract::State;
+    use common::api::{
+        error::{BackendApiError, BackendErrorKind},
+        server::{extract::LxQuery, LxJson},
+    };
     use tracing::warn;
 
     use super::*;
     use crate::approved_versions::ApprovedVersions;
 
-    /// POST /app/provision [`NodeProvisionRequest`] -> [`()`]
     pub(super) async fn provision(
-        mut ctx: RequestContext,
-        req: NodeProvisionRequest,
-    ) -> Result<Empty, NodeApiError> {
+        State(mut ctx): State<RequestContext>,
+        LxJson(req): LxJson<NodeProvisionRequest>,
+    ) -> Result<LxJson<Empty>, NodeApiError> {
         debug!("Received provision request");
 
         let sealed_seed = SealedSeed::seal_from_root_seed(
@@ -264,7 +226,7 @@ mod handlers {
 
         if !req.deploy_env.is_staging_or_prod() {
             // If we're not in staging/prod, provisioning is done.
-            return Ok(Empty {});
+            return Ok(LxJson(Empty {}));
         }
         // We're in staging/prod. There's some more work to do.
 
@@ -347,7 +309,7 @@ mod handlers {
                 ));
             }
 
-            return Ok(Empty {});
+            return Ok(LxJson(Empty {}));
         }
 
         // See if we have a persisted gvfs root.
@@ -512,15 +474,20 @@ mod handlers {
             };
 
         // Finally done. Return the first of any errors, otherwise Ok(Empty {}).
-        try_gvfs_ops.and(try_update_credentials).map(|()| Empty {})
+        try_gvfs_ops
+            .and(try_update_credentials)
+            .map(|()| LxJson(Empty {}))
     }
 
-    /// GET /lexe/shutdown [`GetByMeasurement`] -> [`()`]
-    pub(super) fn shutdown(
-        req: GetByMeasurement,
-        measurement: Measurement,
-        shutdown: ShutdownChannel,
-    ) -> Result<Empty, NodeApiError> {
+    pub(super) async fn shutdown(
+        State(state): State<LexeRouterState>,
+        LxQuery(req): LxQuery<GetByMeasurement>,
+    ) -> Result<LxJson<Empty>, NodeApiError> {
+        let LexeRouterState {
+            measurement,
+            shutdown,
+        } = state;
+
         // Sanity check that the caller did indeed intend to shut down this node
         let given_measure = &req.measurement;
         if given_measure != &measurement {
@@ -533,6 +500,6 @@ mod handlers {
         // Send a shutdown signal.
         shutdown.send();
 
-        Ok(Empty {})
+        Ok(LxJson(Empty {}))
     }
 }
