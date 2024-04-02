@@ -510,20 +510,22 @@ impl LxRejectionKind {
 // --- Extractors --- //
 
 pub mod extract {
+    use axum::extract::FromRequestParts;
+
     use super::*;
 
     /// Lexe API-compliant version of [`axum::extract::Query`].
     pub struct LxQuery<T>(pub T);
 
     #[async_trait]
-    impl<T: DeserializeOwned, S: Send + Sync> FromRequest<S> for LxQuery<T> {
+    impl<T: DeserializeOwned, S: Send + Sync> FromRequestParts<S> for LxQuery<T> {
         type Rejection = LxRejection;
 
-        async fn from_request(
-            req: http::Request<axum::body::Body>,
+        async fn from_request_parts(
+            parts: &mut http::request::Parts,
             state: &S,
         ) -> Result<Self, Self::Rejection> {
-            axum::extract::Query::from_request(req, state)
+            axum::extract::Query::from_request_parts(parts, state)
                 .await
                 .map(|axum::extract::Query(t)| Self(t))
                 .map_err(LxRejection::from)
