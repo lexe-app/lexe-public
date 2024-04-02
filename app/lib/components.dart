@@ -762,3 +762,79 @@ class DashPainter extends CustomPainter {
         this.dashThickness != oldDelegate.dashThickness;
   }
 }
+
+/// Visual carousel indicator dots for displaying (1) the current selected page
+/// index in a carousel, and (2) the number of pages in the carousel.
+///
+/// Ex: If there are 3 pages in a carousel, and we're currently on the middle
+///     page, the indicators will look like:
+///
+///     * -- *
+class CarouselIndicators extends StatelessWidget {
+  const CarouselIndicators({
+    super.key,
+    required this.selectedPageIndex,
+    required this.numPages,
+    this.activeColor = LxColors.clearB600,
+    this.inactiveColor = LxColors.clearB200,
+  });
+
+  final int numPages;
+  final ValueListenable<int> selectedPageIndex;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List<Widget>.generate(
+        this.numPages,
+        (index) => CarouselIndicator(
+          index: index,
+          selectedPageIndex: this.selectedPageIndex,
+          activeColor: this.activeColor,
+          inactiveColor: this.inactiveColor,
+        ),
+      ),
+    );
+  }
+}
+
+class CarouselIndicator extends StatelessWidget {
+  const CarouselIndicator({
+    super.key,
+    required this.index,
+    required this.selectedPageIndex,
+    required this.activeColor,
+    required this.inactiveColor,
+  });
+
+  final int index;
+  final ValueListenable<int> selectedPageIndex;
+  final Color activeColor;
+  final Color inactiveColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Space.s100),
+      child: ValueListenableBuilder(
+        valueListenable: this.selectedPageIndex,
+        builder: (context, selectedPageIndex, child) {
+          final isActive = selectedPageIndex == this.index;
+
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            height: 6.0,
+            width: isActive ? 20 : 6,
+            decoration: BoxDecoration(
+              color: isActive ? this.activeColor : this.inactiveColor,
+              borderRadius: const BorderRadius.all(Radius.circular(12)),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}

@@ -7,7 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:lexeapp/bindings_generated_api.dart' show AppHandle, Config;
-import 'package:lexeapp/components.dart' show LxFilledButton, LxOutlinedButton;
+import 'package:lexeapp/components.dart'
+    show CarouselIndicators, LxFilledButton, LxOutlinedButton;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/route/signup.dart' show SignupApi, SignupPage;
@@ -254,62 +255,6 @@ class LandingCalloutText extends StatelessWidget {
   }
 }
 
-class LandingCarouselIndicators extends StatelessWidget {
-  const LandingCarouselIndicators({
-    super.key,
-    required this.selectedPageIndex,
-    required this.numPages,
-  });
-
-  final int numPages;
-  final ValueListenable<int> selectedPageIndex;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List<Widget>.generate(
-          this.numPages,
-          (index) => LandingCarouselIndicator(
-              index: index, selectedPageIndex: this.selectedPageIndex)),
-    );
-  }
-}
-
-class LandingCarouselIndicator extends StatelessWidget {
-  const LandingCarouselIndicator({
-    super.key,
-    required this.index,
-    required this.selectedPageIndex,
-  });
-
-  final int index;
-  final ValueListenable<int> selectedPageIndex;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Space.s100),
-      child: ValueListenableBuilder(
-        valueListenable: this.selectedPageIndex,
-        builder: (context, selectedPageIndex, child) {
-          final isActive = selectedPageIndex == this.index;
-
-          return AnimatedContainer(
-            duration: const Duration(milliseconds: 250),
-            height: 6.0,
-            width: isActive ? 20 : 6,
-            decoration: BoxDecoration(
-              color: isActive ? LxColors.clearB600 : LxColors.clearB200,
-              borderRadius: const BorderRadius.all(Radius.circular(12)),
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
-
 class LandingButtons extends StatelessWidget {
   const LandingButtons({
     super.key,
@@ -332,7 +277,7 @@ class LandingButtons extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // Indicator dots to show which page we're on.
-        LandingCarouselIndicators(
+        CarouselIndicators(
           numPages: this.numPages,
           selectedPageIndex: this.selectedPageIndex,
         ),
