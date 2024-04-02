@@ -9,7 +9,7 @@ use common::{
     aes::AesMasterKey,
     api::{
         auth::BearerAuthenticator, def::NodeRunnerApi, ports::Ports,
-        provision::SealedSeedId, rest, User, UserPk,
+        provision::SealedSeedId, server::LayerConfig, User, UserPk,
     },
     cli::{node::RunArgs, LspInfo, Network},
     constants::{DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
@@ -62,15 +62,14 @@ use tracing::{debug, error, info, info_span, instrument, warn};
 
 use crate::{
     alias::{ChainMonitorType, NodePaymentsManagerType},
-    api,
-    api::BackendApiClient,
+    api::{self, BackendApiClient},
     channel_manager::NodeChannelManager,
     event_handler::NodeEventHandler,
     inactivity_timer::InactivityTimer,
     peer_manager::NodePeerManager,
-    persister,
-    persister::NodePersister,
-    server, SEMVER_VERSION,
+    persister::{self, NodePersister},
+    server::{self, AppRouterState, LexeRouterState},
+    DEV_VERSION, SEMVER_VERSION,
 };
 
 // TODO(max): Move this to common::constants
@@ -165,6 +164,12 @@ impl UserNode {
         let (test_event_tx, test_event_rx) = test_event::channel("(node)");
         let test_event_rx = Arc::new(tokio::sync::Mutex::new(test_event_rx));
         let shutdown = ShutdownChannel::new();
+
+        // Version
+        let version = DEV_VERSION
+            .unwrap_or(SEMVER_VERSION)
+            .apply(semver::Version::parse)
+            .expect("Checked in tests");
 
         // Collect all handles to spawned tasks
         let mut tasks = Vec::with_capacity(10);
@@ -494,68 +499,78 @@ impl UserNode {
             shutdown.clone(),
         ));
 
-        // Start warp service for app
-        const APP_API_SPAN_NAME: &str = "(app-run-api)";
-        let app_api_span = info_span!(parent: None, APP_API_SPAN_NAME);
-        let app_routes = server::app_routes(
-            persister.clone(),
-            chain_monitor.clone(),
-            wallet.clone(),
-            esplora.clone(),
-            router.clone(),
-            channel_manager.clone(),
-            peer_manager.clone(),
-            keys_manager.clone(),
-            payments_manager.clone(),
-            args.lsp.clone(),
+        // Start API server for app
+        let app_router_state = Arc::new(AppRouterState {
+            version,
+            persister: persister.clone(),
+            chain_monitor: chain_monitor.clone(),
+            wallet: wallet.clone(),
+            esplora: esplora.clone(),
+            router: router.clone(),
+            channel_manager: channel_manager.clone(),
+            peer_manager: peer_manager.clone(),
+            keys_manager: keys_manager.clone(),
+            payments_manager: payments_manager.clone(),
+            lsp_info: args.lsp.clone(),
             scid,
             network,
             measurement,
             activity_tx,
-        );
-        let app_tls_config =
+        });
+        let app_listener =
+            TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
+                .context("Failed to bind app listener")?;
+        let app_port = app_listener
+            .local_addr()
+            .context("Couldn't get app addr")?
+            .port();
+        let (app_tls_config, app_dns) =
             tls::shared_seed::app_node_run_server_config(rng, &root_seed)
                 .context("Failed to build owner service TLS config")?;
-        let (app_addr, app_service_fut) = rest::build_service_fut(
-            app_routes,
-            app_tls_config,
-            net::LOCALHOST_WITH_EPHEMERAL_PORT,
-            &app_api_span,
-            shutdown.clone(),
-        );
-        let app_port = app_addr.port();
-        info!("App service listening on port {app_port}");
-        tasks.push(LxTask::spawn_named_with_span(
-            APP_API_SPAN_NAME,
-            app_api_span,
-            app_service_fut,
-        ));
+        const APP_SERVER_SPAN_NAME: &str = "(app-node-run-server)";
+        let (app_server_task, _app_url) =
+            common::api::server::spawn_server_task_with_listener(
+                app_listener,
+                server::app_router(app_router_state),
+                LayerConfig::default(),
+                Some((Arc::new(app_tls_config), app_dns.as_str())),
+                APP_SERVER_SPAN_NAME,
+                info_span!(parent: None, APP_SERVER_SPAN_NAME),
+                shutdown.clone(),
+            )
+            .context("Failed to spawn app node run server task")?;
+        tasks.push(app_server_task);
 
+        // Start API server for Lexe operators
         // TODO(phlip9): authenticate lexe<->node
-        // Start API service for Lexe operators
-        let lexe_routes = server::lexe_routes(
-            args.user_pk,
-            channel_manager.clone(),
-            peer_manager.clone(),
-            args.lsp.clone(),
+        let lexe_router_state = Arc::new(LexeRouterState {
+            user_pk: args.user_pk,
+            channel_manager: channel_manager.clone(),
+            peer_manager: peer_manager.clone(),
+            lsp_info: args.lsp.clone(),
             bdk_resync_tx,
             ldk_resync_tx,
             test_event_rx,
-            shutdown.clone(),
-        );
-        let (lexe_api_task, lexe_api_addr) =
-            rest::serve_routes_with_listener_and_shutdown(
-                lexe_routes,
-                shutdown.clone().recv_owned(),
-                TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)?,
-                "lexe node api",
-                info_span!(parent: None, "(lexe-node-api)"),
+            shutdown: shutdown.clone(),
+        });
+        let lexe_listener =
+            TcpListener::bind(net::LOCALHOST_WITH_EPHEMERAL_PORT)
+                .context("Failed to bind lexe listener")?;
+        let lexe_port = lexe_listener.local_addr()?.port();
+        const LEXE_SERVER_SPAN_NAME: &str = "(lexe-node-run-server)";
+        let lexe_tls_and_dns = None;
+        let (lexe_server_task, _lexe_url) =
+            common::api::server::spawn_server_task_with_listener(
+                lexe_listener,
+                server::lexe_router(lexe_router_state),
+                LayerConfig::default(),
+                lexe_tls_and_dns,
+                LEXE_SERVER_SPAN_NAME,
+                info_span!(parent: None, LEXE_SERVER_SPAN_NAME),
+                shutdown.clone(),
             )
-            .context("Failed to serve lexe node api")?;
-
-        let lexe_port = lexe_api_addr.port();
-        info!("Lexe service listening on port {lexe_port}");
-        tasks.push(lexe_api_task);
+            .context("Failed to spawn lexe node run server task")?;
+        tasks.push(lexe_server_task);
 
         // Prepare the ports that we'll notify the runner of once we're ready
         let ports = Ports::new_run(user_pk, app_port, lexe_port);
