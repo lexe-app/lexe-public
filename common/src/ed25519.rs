@@ -167,9 +167,9 @@ pub fn accept_any_signer(_: &PublicKey) -> bool {
     true
 }
 
-/// Verify a serialized and signed [`Signable`] struct. Returns the deserialized
-/// struct inside a [`Signed`] proof that it was in fact signed by the
-/// associated [`ed25519::PublicKey`](PublicKey).
+/// Verify a BCS-serialized and signed [`Signable`] struct.
+/// Returns the deserialized struct inside a [`Signed`] proof that it was in
+/// fact signed by the associated [`ed25519::PublicKey`](PublicKey).
 ///
 /// Signed struct signatures are created using
 /// [`ed25519::KeyPair::sign_struct`](KeyPair::sign_struct).
