@@ -45,14 +45,7 @@ import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
-import 'package:lexeapp/route/receive.dart'
-    show
-        ReceivePaymentPage,
-        ReceivePaymentPage2,
-        ReceivePaymentPage3,
-        ReceivePaymentPage4,
-        ReceivePaymentPage5,
-        ReceivePaymentPage6;
+import 'package:lexeapp/route/receive.dart' show ReceivePaymentPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send.dart'
     show
@@ -266,16 +259,6 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           ),
           Component(
               "ReceivePaymentPage", (context) => const ReceivePaymentPage()),
-          Component(
-              "ReceivePaymentPage2", (context) => const ReceivePaymentPage2()),
-          Component(
-              "ReceivePaymentPage3", (context) => const ReceivePaymentPage3()),
-          Component(
-              "ReceivePaymentPage4", (context) => const ReceivePaymentPage4()),
-          Component(
-              "ReceivePaymentPage5", (context) => const ReceivePaymentPage5()),
-          Component(
-              "ReceivePaymentPage6", (context) => const ReceivePaymentPage6()),
           Component(
             "PaymentDetailPage",
             subtitle: "btc failed outbound",
