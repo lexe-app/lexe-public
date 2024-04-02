@@ -100,7 +100,7 @@ rustls-webpki = { version = "0.102", package = "rustls-webpki" }
 # Const SHA256 hash
 sha2-const = "0.1"
 # Tower utilities
-tower = { version = "0.4", features = ["buffer", "limit", "load-shed", "timeout", "util"] }
+tower = { workspace = true, features = ["buffer", "limit", "load-shed", "timeout", "util"] }
 tower-http = { version = "0.5", features = ["trace"] }
 tower-service = "0.3"
 # Verify x509 certificates

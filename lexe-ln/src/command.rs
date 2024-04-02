@@ -4,7 +4,7 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context};
-use bitcoin::{bech32::ToBase32, Address};
+use bitcoin::bech32::ToBase32;
 use bitcoin_hashes::{sha256, Hash};
 use common::{
     api::{
@@ -129,11 +129,9 @@ where
 
 /// Uses the given `[bdk|ldk]_resync_tx` to retrigger BDK and LDK sync, and
 /// returns once sync has either completed or timed out.
-///
-/// This function is intended to be used as a warp handler.
 pub async fn resync(
-    bdk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
-    ldk_resync_tx: mpsc::Sender<oneshot::Sender<()>>,
+    bdk_resync_tx: &mpsc::Sender<oneshot::Sender<()>>,
+    ldk_resync_tx: &mpsc::Sender<oneshot::Sender<()>>,
 ) -> anyhow::Result<Empty> {
     /// How long we'll wait to hear a callback before giving up.
     // NOTE: Our default reqwest::Client timeout is 15 seconds.
@@ -473,6 +471,8 @@ pub async fn estimate_fee_send_onchain(
 }
 
 #[instrument(skip_all, name = "(get-address)")]
-pub async fn get_address(wallet: LexeWallet) -> anyhow::Result<Address> {
+pub async fn get_address(
+    wallet: LexeWallet,
+) -> anyhow::Result<bitcoin::Address> {
     wallet.get_address().await
 }

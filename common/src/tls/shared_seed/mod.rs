@@ -48,10 +48,11 @@ use crate::{constants, env::DeployEnv, rng::Crng, root_seed::RootSeed};
 pub mod certs;
 
 /// Server-side TLS config for [`AppNodeRunApi`].
+/// Also returns the node's DNS name.
 pub fn app_node_run_server_config(
     rng: &mut impl Crng,
     root_seed: &RootSeed,
-) -> anyhow::Result<rustls::ServerConfig> {
+) -> anyhow::Result<(rustls::ServerConfig, String)> {
     // Derive shared seed CA cert
     let ca_cert = certs::SharedSeedCaCert::from_root_seed(root_seed);
     let ca_cert_der = ca_cert
@@ -60,7 +61,8 @@ pub fn app_node_run_server_config(
 
     // Build shared seed server cert and sign with derived CA
     let dns_name = constants::NODE_RUN_DNS.to_owned();
-    let server_cert = certs::SharedSeedServerCert::from_rng(rng, dns_name);
+    let server_cert =
+        certs::SharedSeedServerCert::from_rng(rng, dns_name.clone());
     let server_cert_der = server_cert
         .serialize_der_ca_signed(&ca_cert)
         .context("Failed to sign and serialize ephemeral server cert")?;
@@ -86,7 +88,7 @@ pub fn app_node_run_server_config(
         .alpn_protocols
         .clone_from(&super::LEXE_ALPN_PROTOCOLS);
 
-    Ok(config)
+    Ok((config, dns_name))
 }
 
 /// Client-side TLS config for [`AppNodeRunApi`].
@@ -307,7 +309,8 @@ mod test {
             let seed = RootSeed::new(Secret::new(seed));
             let mut rng = WeakRng::from_u64(222);
 
-            let config = app_node_run_server_config(&mut rng, &seed).unwrap();
+            let (config, _dns) =
+                app_node_run_server_config(&mut rng, &seed).unwrap();
             let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
             let mut stream = acceptor.accept(server_stream).await.unwrap();
 

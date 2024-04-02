@@ -23,7 +23,6 @@
 #![deny(missing_docs)]
 
 use async_trait::async_trait;
-use bitcoin::Address;
 
 #[cfg(doc)]
 use crate::api::qs::{GetByMeasurement, GetByUserPk};
@@ -362,11 +361,11 @@ pub trait AppNodeRunApi {
         req: EstimateFeeSendOnchainRequest,
     ) -> Result<EstimateFeeSendOnchainResponse, NodeApiError>;
 
-    /// POST /app/get_address [`Empty`] -> [`Address`]
+    /// POST /app/get_address [`Empty`] -> [`bitcoin::Address`]
     ///
     /// Returns an address which can be used to receive funds. It is unused
     /// unless there is an incoming tx and BDK hasn't detected it yet.
-    async fn get_address(&self) -> Result<Address, NodeApiError>;
+    async fn get_address(&self) -> Result<bitcoin::Address, NodeApiError>;
 
     /// POST /v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
     ///

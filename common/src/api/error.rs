@@ -968,6 +968,12 @@ impl NodeApiError {
         let kind = NodeErrorKind::Provision;
         Self { kind, msg }
     }
+
+    pub fn command(error: impl fmt::Display) -> Self {
+        let msg = format!("{error:#}");
+        let kind = NodeErrorKind::Command;
+        Self { kind, msg }
+    }
 }
 
 // --- Test utils for asserting error invariants --- //

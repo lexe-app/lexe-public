@@ -1,34 +1,44 @@
+use std::sync::Arc;
+
+use axum::extract::State;
 use common::{
     api::{
-        command::OpenChannelRequest, error::NodeApiError, qs::GetByUserPk,
-        Empty, UserPk,
+        command::OpenChannelRequest,
+        error::NodeApiError,
+        qs::GetByUserPk,
+        server::{extract::LxQuery, LxJson},
+        Empty,
     },
-    ln::peer::ChannelPeer,
-    shutdown::ShutdownChannel,
+    test_event::TestEventOp,
 };
+use lexe_ln::test_event;
 
-use crate::{
-    channel_manager::NodeChannelManager, peer_manager::NodePeerManager,
-};
+use crate::server::LexeRouterState;
 
-pub async fn status(
-    given: GetByUserPk,
-    current_pk: UserPk,
-) -> Result<Empty, NodeApiError> {
-    let given_pk = given.user_pk;
-    if current_pk == given_pk {
-        Ok(Empty {})
+pub(super) async fn status(
+    State(state): State<Arc<LexeRouterState>>,
+    LxQuery(req): LxQuery<GetByUserPk>,
+) -> Result<LxJson<Empty>, NodeApiError> {
+    if state.user_pk == req.user_pk {
+        Ok(LxJson(Empty {}))
     } else {
-        Err(NodeApiError::wrong_user_pk(current_pk, given_pk))
+        Err(NodeApiError::wrong_user_pk(state.user_pk, req.user_pk))
     }
 }
 
-pub async fn open_channel(
-    req: OpenChannelRequest,
-    channel_manager: NodeChannelManager,
-    peer_manager: NodePeerManager,
-    lsp_channel_peer: ChannelPeer,
-) -> anyhow::Result<Empty> {
+pub(super) async fn resync(
+    State(state): State<Arc<LexeRouterState>>,
+) -> Result<LxJson<Empty>, NodeApiError> {
+    lexe_ln::command::resync(&state.bdk_resync_tx, &state.ldk_resync_tx)
+        .await
+        .map(LxJson)
+        .map_err(NodeApiError::command)
+}
+
+pub(super) async fn open_channel(
+    State(state): State<Arc<LexeRouterState>>,
+    LxJson(req): LxJson<OpenChannelRequest>,
+) -> Result<LxJson<Empty>, NodeApiError> {
     cfg_if::cfg_if! {
         if #[cfg(any(test, feature = "test-utils"))] {
             use anyhow::Context;
@@ -38,38 +48,50 @@ pub async fn open_channel(
 
             let mut rng = SysRng::new();
             let user_channel_id = channel::get_random_u128(&mut rng);
-            let relationship =
-                ChannelRelationship::UserToLsp { lsp_channel_peer };
+            let relationship = ChannelRelationship::UserToLsp {
+                lsp_channel_peer: state.lsp_info.channel_peer(),
+            };
             lexe_ln::channel::open_channel(
-                channel_manager,
-                peer_manager,
+                state.channel_manager.clone(),
+                state.peer_manager.clone(),
                 user_channel_id,
                 req.value,
                 relationship,
                 channel_manager::USER_CONFIG,
             )
             .await
+            .map(LxJson)
             .context("Failed to open channel to LSP")
+            .map_err(NodeApiError::command)
         } else {
+            let _ = state.channel_manager;
+            let _ = state.peer_manager;
+            let _ = state.lsp_info;
             let _ = req;
-            let _ = channel_manager;
-            let _ = peer_manager;
-            let _ = lsp_channel_peer;
-            anyhow::bail!("This endpoint is disabled in staging/prod");
+            let msg = "This endpoint is disabled in staging/prod";
+            Err(NodeApiError::command(msg))
         }
     }
 }
 
-pub fn shutdown(
-    given: GetByUserPk,
-    current_pk: UserPk,
-    shutdown: ShutdownChannel,
-) -> Result<Empty, NodeApiError> {
-    let given_pk = given.user_pk;
-    if current_pk == given_pk {
-        shutdown.send();
-        Ok(Empty {})
+pub(super) async fn test_event(
+    State(state): State<Arc<LexeRouterState>>,
+    LxJson(op): LxJson<TestEventOp>,
+) -> Result<LxJson<()>, NodeApiError> {
+    test_event::do_op(op, state.test_event_rx.clone())
+        .await
+        .map(LxJson)
+        .map_err(NodeApiError::command)
+}
+
+pub(super) async fn shutdown(
+    State(state): State<Arc<LexeRouterState>>,
+    LxQuery(req): LxQuery<GetByUserPk>,
+) -> Result<LxJson<Empty>, NodeApiError> {
+    if state.user_pk == req.user_pk {
+        state.shutdown.send();
+        Ok(LxJson(Empty {}))
     } else {
-        Err(NodeApiError::wrong_user_pk(current_pk, given_pk))
+        Err(NodeApiError::wrong_user_pk(state.user_pk, req.user_pk))
     }
 }
