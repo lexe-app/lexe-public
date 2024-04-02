@@ -50,7 +50,7 @@ use async_trait::async_trait;
 use axum::{
     error_handling::HandleErrorLayer,
     extract::{
-        rejection::{JsonRejection, QueryRejection},
+        rejection::{BytesRejection, JsonRejection, QueryRejection},
         FromRequest,
     },
     response::IntoResponse,
@@ -65,11 +65,12 @@ use tower::{
 };
 use tracing::{debug, error, info, warn, Instrument};
 
+use super::auth;
 use crate::{
     api::error::{
         CommonApiError, CommonErrorKind, ErrorResponse, ToHttpStatus,
     },
-    const_assert,
+    const_assert, ed25519,
     shutdown::ShutdownChannel,
     task::LxTask,
 };
@@ -417,14 +418,48 @@ pub struct LxRejection {
     source_msg: String,
 }
 
-/// The [`axum::extract::rejection`] that the [`LxRejection`] was built from.
+/// The source of this [`LxRejection`].
 enum LxRejectionKind {
+    // -- From `axum::extract::rejection` -- //
+    /// [`BytesRejection`]
+    Bytes,
     /// [`JsonRejection`]
     Json,
     /// [`QueryRejection`]
     Query,
+
+    // -- Other -- //
+    Auth,
     /// Client request did not match any paths in the [`Router`].
     BadEndpoint,
+    /// [`ed25519::Error`]
+    Ed25519,
+}
+
+// Use explicit `.map_err()`s instead of From impls for non-obvious conversions
+impl LxRejection {
+    pub fn from_ed25519(error: ed25519::Error) -> Self {
+        Self {
+            kind: LxRejectionKind::Ed25519,
+            source_msg: format!("{error:#}"),
+        }
+    }
+
+    pub fn from_bearer_auth(error: auth::Error) -> Self {
+        Self {
+            kind: LxRejectionKind::Auth,
+            source_msg: format!("{error:#}"),
+        }
+    }
+}
+
+impl From<BytesRejection> for LxRejection {
+    fn from(bytes_rejection: BytesRejection) -> Self {
+        Self {
+            kind: LxRejectionKind::Bytes,
+            source_msg: bytes_rejection.body_text(),
+        }
+    }
 }
 
 impl From<JsonRejection> for LxRejection {
@@ -451,7 +486,7 @@ impl IntoResponse for LxRejection {
         // "Bad JSON: Failed to deserialize the JSON body into the target type"
         let kind_msg = self.kind.to_msg();
         let source_msg = &self.source_msg;
-        let msg = format!("{kind_msg}: {source_msg}");
+        let msg = format!("Rejection: {kind_msg}: {source_msg}");
         let common_error = CommonApiError { kind, msg };
         common_error.into_response()
     }
@@ -461,9 +496,13 @@ impl LxRejectionKind {
     /// A generic error message for this rejection kind.
     fn to_msg(&self) -> &'static str {
         match self {
+            Self::Bytes => "Bad request bytes",
             Self::Json => "Client provided bad JSON",
             Self::Query => "Client provided bad query string",
+
+            Self::Auth => "Bad bearer auth token",
             Self::BadEndpoint => "Client requested a non-existent endpoint",
+            Self::Ed25519 => "Ed25519 error",
         }
     }
 }
