@@ -29,15 +29,16 @@ pub mod quote;
 pub mod verifier;
 
 /// Server-side TLS config for [`AppNodeProvisionApi`].
+/// Also returns the node's DNS name.
 pub fn app_node_provision_server_config(
     rng: &mut impl Crng,
     measurement: &Measurement,
-) -> anyhow::Result<rustls::ServerConfig> {
+) -> anyhow::Result<(rustls::ServerConfig, String)> {
     // Bind the remote attestation cert to the node provision dns.
     let mr_short = measurement.short();
     let dns_name = constants::node_provision_dns(&mr_short).to_owned();
 
-    let cert = cert::AttestationCert::generate(rng, dns_name)
+    let cert = cert::AttestationCert::generate(rng, dns_name.clone())
         .context("Could not generate remote attestation cert")?;
     let cert_der = cert
         .serialize_der_self_signed()
@@ -52,7 +53,7 @@ pub fn app_node_provision_server_config(
         .alpn_protocols
         .clone_from(&super::LEXE_ALPN_PROTOCOLS);
 
-    Ok(config)
+    Ok((config, dns_name))
 }
 
 /// Client-side TLS config for [`AppNodeProvisionApi`].

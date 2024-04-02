@@ -43,6 +43,7 @@ lexe-ln = { path = "../lexe-ln" }
 
 anyhow.workspace = true
 async-trait.workspace = true
+axum.workspace = true
 base64.workspace = true
 bitcoin.workspace = true
 bitcoin-bech32.workspace = true
