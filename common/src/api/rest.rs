@@ -54,34 +54,6 @@ pub const PUT: Method = Method::PUT;
 pub const POST: Method = Method::POST;
 pub const DELETE: Method = Method::DELETE;
 
-/// Builds a service future given the warp routes, TLS config, and other info.
-/// The resulting `impl Future<Output = ()>` can be spawned into a [`LxTask`].
-// NOTE: We intentionally avoid generics to avoid code bloat.
-// NOTE: We return a future and don't spawn it into a task because some of our
-// orchestration code benefits from using futures (as opposed to tasks) as its
-// basic unit, so as to reduce indirection from multiple layers of tasks.
-pub fn build_service_fut(
-    routes: BoxedFilter<(OldResponse<Body>,)>,
-    tls_config: rustls::ServerConfig,
-    // TODO(max): This needs to be a TcpListener, since breaking the LSP <->
-    // Runner codependency requires binding the runner's TcpListener first.
-    // TODO(max): Remove the SocketAddr from return type once complete
-    bind_addr: SocketAddr,
-    api_span: &Span,
-    // The server will listen on this channel for a graceful shutdown signal.
-    shutdown: ShutdownChannel,
-) -> (SocketAddr, BoxFuture<'static, ()>) {
-    let instrumented_routes = routes.with(trace_requests(api_span.id()));
-    // TODO(max): This server needs backpressure
-    let server = warp::serve(instrumented_routes);
-    let tls_server = server.tls().preconfigured_tls(tls_config);
-    let (addr, service_fut) = tls_server
-        // TODO(max): Enforce timeout on webserver shutdown with `HYPER_TIMEOUT`
-        .bind_with_graceful_shutdown(bind_addr, shutdown.recv_owned());
-    let boxed_service_fut = Box::pin(service_fut);
-    (addr, boxed_service_fut)
-}
-
 /// Helper to serve a set of [`warp`] routes given a graceful shutdown
 /// [`Future`], an existing std [`TcpListener`], the name of the task, and a
 /// [`tracing::Span`]. Be sure to include `parent: None` when building the span
