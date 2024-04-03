@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 import 'package:lexeapp/bindings_generated_api.dart' show AppHandle, Config;
 import 'package:lexeapp/components.dart'
-    show CarouselIndicators, LxFilledButton, LxOutlinedButton;
+    show CarouselIndicatorsAndButtons, LxFilledButton, LxOutlinedButton;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/route/signup.dart' show SignupApi, SignupPage;
@@ -86,6 +86,13 @@ class _LandingPageState extends State<LandingPage> {
   /// (1) completed the flow and restored or (2) canceled the flow.
   Future<void> doRestoreFlow() async {
     info("do restore flow");
+  }
+
+  void prevPage() {
+    unawaited(this.carouselScrollController.previousPage(
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.ease,
+        ));
   }
 
   void nextPage() {
@@ -172,6 +179,8 @@ class _LandingPageState extends State<LandingPage> {
                           onSignupPressed: () => unawaited(this.doSignupFlow()),
                           onRecoverPressed: () =>
                               unawaited(this.doRestoreFlow()),
+                          onTapPrev: this.prevPage,
+                          onTapNext: this.nextPage,
                         ),
                       ),
                     ),
@@ -179,22 +188,6 @@ class _LandingPageState extends State<LandingPage> {
                 ),
               );
             },
-          ),
-
-          // Next page button.
-          Align(
-            alignment: Alignment.centerRight,
-            child: ValueListenableBuilder(
-              valueListenable: this.selectedPageIndex,
-              builder: (context, selectedPageIndex, child) => IconButton(
-                icon: const Icon(Icons.chevron_right_rounded),
-                iconSize: Fonts.size800,
-                color: LxColors.clearB300,
-                disabledColor: LxColors.clearB100,
-                onPressed:
-                    (selectedPageIndex != numPages - 1) ? this.nextPage : null,
-              ),
-            ),
           ),
         ]),
       ),
@@ -263,13 +256,19 @@ class LandingButtons extends StatelessWidget {
     required this.onRecoverPressed,
     required this.selectedPageIndex,
     required this.numPages,
+    required this.onTapPrev,
+    required this.onTapNext,
   });
 
   final Config config;
-  final VoidCallback onSignupPressed;
-  final VoidCallback onRecoverPressed;
+
   final int numPages;
   final ValueListenable<int> selectedPageIndex;
+
+  final VoidCallback onSignupPressed;
+  final VoidCallback onRecoverPressed;
+  final VoidCallback onTapPrev;
+  final VoidCallback onTapNext;
 
   @override
   Widget build(BuildContext context) {
@@ -277,11 +276,13 @@ class LandingButtons extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // Indicator dots to show which page we're on.
-        CarouselIndicators(
+        CarouselIndicatorsAndButtons(
           numPages: this.numPages,
           selectedPageIndex: this.selectedPageIndex,
+          onTapPrev: this.onTapPrev,
+          onTapNext: this.onTapNext,
         ),
-        const SizedBox(height: Space.s500),
+        const SizedBox(height: Space.s300),
 
         // Signup ->
         LxFilledButton(
