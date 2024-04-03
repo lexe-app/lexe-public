@@ -5,35 +5,95 @@ import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/material.dart';
 
 import 'package:lexeapp/address_format.dart' as address_format;
+import 'package:lexeapp/bindings_generated_api.dart';
 import 'package:lexeapp/components.dart'
     show
         CarouselIndicatorsAndButtons,
+        FilledPlaceholder,
         LxBackButton,
         LxFilledButton,
-        ScrollableSinglePageBody;
+        ScrollableSinglePageBody,
+        ValueStreamBuilder;
+import 'package:lexeapp/currency_format.dart';
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/route/show_qr.dart' show QrImage;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxRadius, Space;
+import 'package:rxdart/rxdart.dart';
 
 // LN + BTC cards
 const int numCards = 2;
 
 const double minViewportWidth = 365.0;
 
+/// The inputs used to generate a [PaymentOffer].
+class PaymentOfferInputs {
+  const PaymentOfferInputs({
+    required this.kind,
+    required this.amountSats,
+    required this.description,
+  });
+
+  final PaymentOfferKind kind;
+  final int? amountSats;
+  final String? description;
+}
+
+enum PaymentOfferKind {
+  lightningInvoice,
+  lightningOffer,
+  lightningSpontaneous,
+  btcAddress,
+}
+
+class PaymentOffer {
+  const PaymentOffer({
+    required this.kind,
+    required this.code,
+    required this.uri,
+    required this.amountSats,
+    required this.description,
+  });
+
+  final PaymentOfferKind kind;
+
+  final String? code;
+  final String? uri;
+
+  final int? amountSats;
+  final String? description;
+
+  String titleStr() => switch (this.kind) {
+        PaymentOfferKind.lightningInvoice => "Lightning invoice",
+        PaymentOfferKind.lightningOffer => "Lightning offer",
+        PaymentOfferKind.lightningSpontaneous =>
+          "Lightning spontaneous payment",
+        PaymentOfferKind.btcAddress => "Bitcoin address",
+      };
+}
+
 class ReceivePaymentPage extends StatelessWidget {
-  const ReceivePaymentPage({super.key});
+  const ReceivePaymentPage({super.key, required this.fiatRate});
+
+  /// Updating stream of fiat rates.
+  final ValueStream<FiatRate?> fiatRate;
 
   @override
   Widget build(BuildContext context) => ReceivePaymentPageInner(
         viewportWidth:
             MediaQuery.maybeSizeOf(context)?.width ?? minViewportWidth,
+        fiatRate: this.fiatRate,
       );
 }
 
+/// We need this extra intermediate "inner" widget so we can init the
+/// [PageController] with a `viewportFraction` derived from the screen width.
 class ReceivePaymentPageInner extends StatefulWidget {
-  const ReceivePaymentPageInner({super.key, required this.viewportWidth});
+  const ReceivePaymentPageInner(
+      {super.key, required this.viewportWidth, required this.fiatRate});
 
   final double viewportWidth;
+
+  final ValueStream<FiatRate?> fiatRate;
 
   @override
   State<ReceivePaymentPageInner> createState() =>
@@ -41,21 +101,36 @@ class ReceivePaymentPageInner extends StatefulWidget {
 }
 
 class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
-  // The current primary card on-screen.
+  /// The current primary card on-screen.
   final ValueNotifier<int> selectedCardIndex = ValueNotifier(0);
 
-  late PageController cardController;
+  /// Controls the card [PageView].
+  late PageController cardController = this.newCardController();
 
-  @override
-  void initState() {
-    super.initState();
-    cardController = this.newCardController();
-  }
+  final ValueNotifier<PaymentOffer> lnPaymentOffer = ValueNotifier(
+    const PaymentOffer(
+      kind: PaymentOfferKind.lightningInvoice,
+      code: null,
+      uri: null,
+      amountSats: null,
+      description: null,
+    ),
+  );
+
+  final ValueNotifier<PaymentOffer> btcPaymentOffer = ValueNotifier(
+    const PaymentOffer(
+      kind: PaymentOfferKind.btcAddress,
+      code: null,
+      uri: null,
+      amountSats: null,
+      description: null,
+    ),
+  );
 
   @override
   void dispose() {
-    this.selectedCardIndex.dispose();
     this.cardController.dispose();
+    this.selectedCardIndex.dispose();
     super.dispose();
   }
 
@@ -100,7 +175,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
           // QR
           SizedBox(
             height: 545.0,
-            child: PageView.builder(
+            child: PageView(
               controller: this.cardController,
               scrollBehavior: const CupertinoScrollBehavior(),
               padEnds: true,
@@ -109,12 +184,24 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
                 if (!this.mounted) return;
                 this.selectedCardIndex.value = pageIndex;
               },
-              itemCount: numCards,
-              itemBuilder: (context, idx) {
-                if (idx == 0) return const LnInvoiceCard();
-                if (idx == 1) return const BtcAddressCard();
-                return null;
-              },
+              children: [
+                ValueListenableBuilder(
+                  valueListenable: this.lnPaymentOffer,
+                  builder: (_context, lnPaymentOffer, _child) =>
+                      PaymentOfferCard(
+                    paymentOffer: lnPaymentOffer,
+                    fiatRate: this.widget.fiatRate,
+                  ),
+                ),
+                ValueListenableBuilder(
+                  valueListenable: this.btcPaymentOffer,
+                  builder: (_context, btcPaymentOffer, _child) =>
+                      PaymentOfferCard(
+                    paymentOffer: btcPaymentOffer,
+                    fiatRate: this.widget.fiatRate,
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -168,8 +255,187 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   }
 }
 
-class ReceiveCard extends StatelessWidget {
-  const ReceiveCard({super.key, required this.child});
+class PaymentOfferCard extends StatelessWidget {
+  const PaymentOfferCard(
+      {super.key, required this.paymentOffer, required this.fiatRate});
+
+  final PaymentOffer paymentOffer;
+  final ValueStream<FiatRate?> fiatRate;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = this.paymentOffer.code;
+    // final code = "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r";
+    // final code = "lno1pqps7sjqpgtyzm3qv4uxzmtsd3jjqer9wd3hy6tsw35k7msjzfpy7nz5yqcnygrfdej82um5wf5k2uckyypwa3eyt44h6txtxquqh7lz5djge4afgfjn7k4rgrkuag0jsd5xvxg";
+    // final code = "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r";
+
+    final amountSats = this.paymentOffer.amountSats;
+    // final amountSats = 5300;
+    final amountSatsStr = (amountSats != null)
+        ? formatSatsAmount(amountSats, satsSuffix: false)
+        : null;
+
+    final description = this.paymentOffer.description;
+    // final description = "the rice house 🍕";
+
+    return CardBox(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // kind
+          Text(
+            this.paymentOffer.titleStr(),
+            style: const TextStyle(
+              color: LxColors.foreground,
+              fontSize: Fonts.size300,
+              fontVariations: [Fonts.weightMedium],
+              letterSpacing: -0.5,
+              height: 1.0,
+            ),
+          ),
+
+          // raw code string + copy button
+          if (code != null)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  address_format.ellipsizeBtcAddress(code),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: Fonts.size100,
+                    color: LxColors.fgTertiary,
+                    height: 1.0,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.copy_rounded,
+                    // size: Fonts.size300,
+                  ),
+                  color: LxColors.fgTertiary,
+                  visualDensity:
+                      const VisualDensity(horizontal: -4.0, vertical: -4.0),
+                  padding: EdgeInsets.zero,
+                  iconSize: Fonts.size300,
+                  // style: IconButton.styleFrom(fixedSize: Size.square(20.0)),
+                ),
+              ],
+            ),
+          if (code == null)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 10.0),
+              child: FilledPlaceholder(
+                width: Space.s900,
+                forText: true,
+                height: Fonts.size100,
+              ),
+            ),
+          const SizedBox(height: Space.s100),
+
+          // QR code
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final double dim = constraints.maxWidth;
+              if (code != null) {
+                return QrImage(
+                  value: code,
+                  dimension: dim.toInt(),
+                  color: LxColors.foreground,
+                );
+              } else {
+                return FilledPlaceholder(width: dim, height: dim);
+              }
+            },
+          ),
+
+          if (amountSatsStr != null || description != null)
+            const SizedBox(height: Space.s400),
+
+          // Amount (sats)
+          if (amountSatsStr != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: Space.s100),
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(text: amountSatsStr),
+                    const TextSpan(
+                        text: " sats",
+                        style: TextStyle(color: LxColors.grey550)),
+                  ],
+                  style: const TextStyle(
+                    fontSize: Fonts.size600,
+                    letterSpacing: -0.5,
+                    fontVariations: [Fonts.weightMedium],
+                    height: 1.0,
+                  ),
+                ),
+              ),
+            ),
+
+          // Amount (fiat)
+          ValueStreamBuilder(
+            stream: this.fiatRate,
+            builder: (context, fiatRate) {
+              if (amountSats == null) return const SizedBox.shrink();
+
+              final String? amountFiatStr;
+              if (fiatRate != null) {
+                final amountFiat = fiatRate.rate * satsToBtc(amountSats);
+                amountFiatStr = formatFiat(amountFiat, fiatRate.fiat);
+              } else {
+                amountFiatStr = null;
+              }
+
+              const fontSize = Fonts.size400;
+
+              return (amountFiatStr != null)
+                  ? Text(
+                      "≈ $amountFiatStr",
+                      style: const TextStyle(
+                        color: LxColors.fgTertiary,
+                        fontSize: fontSize,
+                        letterSpacing: -0.5,
+                        height: 1.0,
+                      ),
+                    )
+                  : const FilledPlaceholder(
+                      height: fontSize,
+                      width: Space.s900,
+                      forText: true,
+                    );
+            },
+          ),
+
+          if (amountSatsStr != null && description != null)
+            const SizedBox(height: Space.s400),
+
+          // Description
+          if (description != null)
+            Text(
+              description,
+              style: const TextStyle(
+                color: LxColors.foreground,
+                fontSize: Fonts.size200,
+                height: 1.5,
+                letterSpacing: -0.5,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Rounded card styling.
+class CardBox extends StatelessWidget {
+  const CardBox({super.key, required this.child});
 
   final Widget child;
 
@@ -195,291 +461,6 @@ class ReceiveCard extends StatelessWidget {
         ),
         const Expanded(child: Center()),
       ],
-    );
-  }
-}
-
-class LnInvoiceCard extends StatelessWidget {
-  const LnInvoiceCard({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ReceiveCard(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // kind
-          const Text(
-            "Lightning offer",
-            style: TextStyle(
-              color: LxColors.foreground,
-              fontSize: Fonts.size300,
-              fontVariations: [Fonts.weightMedium],
-              letterSpacing: -0.5,
-              height: 1.0,
-            ),
-          ),
-
-          // raw code string + copy button
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                address_format.ellipsizeBtcAddress(
-                    "lno1pqps7sjqpgtyzm3qv4uxzmtsd3jjqer9wd3hy6tsw35k7msjzfpy7nz5yqcnygrfdej82um5wf5k2uckyypwa3eyt44h6txtxquqh7lz5djge4afgfjn7k4rgrkuag0jsd5xvxg"),
-                // "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r",
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: Fonts.size100,
-                  color: LxColors.fgTertiary,
-                  height: 1.0,
-                ),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(
-                  Icons.copy_rounded,
-                  // size: Fonts.size300,
-                ),
-                color: LxColors.fgTertiary,
-                visualDensity:
-                    const VisualDensity(horizontal: -4.0, vertical: -4.0),
-                padding: EdgeInsets.zero,
-                iconSize: Fonts.size300,
-                // style: IconButton.styleFrom(fixedSize: Size.square(20.0)),
-              ),
-            ],
-          ),
-          const SizedBox(height: Space.s200),
-
-          // QR code
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return QrImage(
-                value:
-                    "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r",
-                // value:
-                //     "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday&lightning=LNBC10U1P3PJ257PP5YZTKWJCZ5FTL5LAXKAV23ZMZEKAW37ZK6KMV80PK4XAEV5QHTZ7QDPDWD3XGER9WD5KWM36YPRX7U3QD36KUCMGYP282ETNV3SHJCQZPGXQYZ5VQSP5USYC4LK9CHSFP53KVCNVQ456GANH60D89REYKDNGSMTJ6YW3NHVQ9QYYSSQJCEWM5CJWZ4A6RFJX77C490YCED6PEMK0UPKXHY89CMM7SCT66K8GNEANWYKZGDRWRFJE69H9U5U0W57RRCSYSAS7GADWMZXC8C6T0SPJAZUP6",
-                // value: "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U",
-                dimension: constraints.maxWidth.toInt(),
-                color: LxColors.foreground,
-              );
-            },
-          ),
-          const SizedBox(height: Space.s400),
-
-          // Amount (sats)
-          const Text.rich(
-            TextSpan(
-              children: [
-                TextSpan(text: "5,300 "),
-                TextSpan(
-                    text: "sats", style: TextStyle(color: LxColors.grey550)),
-              ],
-              style: TextStyle(
-                fontSize: Fonts.size600,
-                letterSpacing: -0.5,
-                fontVariations: [Fonts.weightMedium],
-                height: 1.0,
-              ),
-            ),
-          ),
-          const SizedBox(height: Space.s100),
-
-          // Amount (fiat)
-          const Text(
-            "≈ \$3.69",
-            style: TextStyle(
-              color: LxColors.fgTertiary,
-              fontSize: Fonts.size400,
-              letterSpacing: -0.5,
-              height: 1.0,
-            ),
-          ),
-          const SizedBox(height: Space.s400),
-
-          // Description
-          const Text(
-            "the rice house 🍕",
-            style: TextStyle(
-              color: LxColors.foreground,
-              fontSize: Fonts.size200,
-              height: 1.5,
-              letterSpacing: -0.5,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class BtcAddressCard extends StatelessWidget {
-  const BtcAddressCard({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return ReceiveCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  "Bitcoin address",
-                  style: TextStyle(
-                    color: LxColors.foreground,
-                    fontSize: Fonts.size300,
-                    fontVariations: [Fonts.weightMedium],
-                    letterSpacing: -0.5,
-                    height: 1.0,
-                  ),
-                ),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(
-                  Icons.copy_rounded,
-                  // size: Fonts.size300,
-                ),
-                color: LxColors.fgSecondary,
-                visualDensity:
-                    const VisualDensity(horizontal: -3.0, vertical: -3.0),
-                padding: EdgeInsets.zero,
-                iconSize: Fonts.size500,
-                // style: IconButton.styleFrom(fixedSize: Size.square(20.0)),
-              ),
-            ],
-          ),
-          // const SizedBox(height: Space.s100),
-          // Row(
-          //   children: [
-          //     const Expanded(
-          //       child: Text(
-          //         "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r",
-          //         maxLines: 1,
-          //         overflow: TextOverflow.ellipsis,
-          //         style: TextStyle(
-          //           fontSize: Fonts.size100,
-          //           color: LxColors.fgTertiary,
-          //         ),
-          //       ),
-          //     ),
-          //     IconButton(
-          //       onPressed: () {},
-          //       icon: const Icon(
-          //         Icons.copy_rounded,
-          //         // size: Fonts.size300,
-          //       ),
-          //       color: LxColors.fgTertiary,
-          //       visualDensity:
-          //           const VisualDensity(horizontal: -4.0, vertical: -4.0),
-          //       padding: EdgeInsets.zero,
-          //       iconSize: Fonts.size300,
-          //       // style: IconButton.styleFrom(fixedSize: Size.square(20.0)),
-          //     ),
-          //   ],
-          // ),
-          const SizedBox(height: Space.s400),
-          // const Text(
-          //   "invoices can only be paid once!",
-          //   style: TextStyle(
-          //     color: LxColors.fgTertiary,
-          //     fontSize: Fonts.size200,
-          //     // fontVariations: [Fonts.weightMedium],
-          //     // letterSpacing: -0.5,
-          //     height: 1.5,
-          //   ),
-          // ),
-          // const SizedBox(height: Space.s300),
-          // const Text(
-          //   "the rice house 🍕",
-          //   style: TextStyle(
-          //     color: LxColors.grey550,
-          //     fontSize: Fonts.size300,
-          //     letterSpacing: -0.25,
-          //     height: 1.5,
-          //     // fontVariations: [Fonts.weightMedium],
-          //   ),
-          // ),
-          // const SizedBox(height: Space.s400),
-          LayoutBuilder(
-            builder: (context, constraints) => QrImage(
-              // value:
-              //     "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r",
-              // value:
-              //     "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday&lightning=LNBC10U1P3PJ257PP5YZTKWJCZ5FTL5LAXKAV23ZMZEKAW37ZK6KMV80PK4XAEV5QHTZ7QDPDWD3XGER9WD5KWM36YPRX7U3QD36KUCMGYP282ETNV3SHJCQZPGXQYZ5VQSP5USYC4LK9CHSFP53KVCNVQ456GANH60D89REYKDNGSMTJ6YW3NHVQ9QYYSSQJCEWM5CJWZ4A6RFJX77C490YCED6PEMK0UPKXHY89CMM7SCT66K8GNEANWYKZGDRWRFJE69H9U5U0W57RRCSYSAS7GADWMZXC8C6T0SPJAZUP6",
-              value: "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U",
-              dimension: constraints.maxWidth.toInt(),
-              color: LxColors.foreground,
-            ),
-          ),
-          // const SizedBox(height: Space.s400),
-
-          // Row(
-          //   mainAxisAlignment: MainAxisAlignment.start,
-          //   crossAxisAlignment: CrossAxisAlignment.start,
-          //   children: [
-          //     Expanded(
-          //       child: Column(
-          //         crossAxisAlignment: CrossAxisAlignment.start,
-          //         children: [
-          //           ActionChip.elevated(
-          //             onPressed: () {},
-          //             avatar: const Icon(
-          //               Icons.add_rounded,
-          //               color: LxColors.foreground,
-          //             ),
-          //             color: const MaterialStatePropertyAll(
-          //                 LxColors.grey1000),
-          //             label: const Text("Note"),
-          //             labelStyle:
-          //                 const TextStyle(color: LxColors.foreground),
-          //             elevation: 0.0,
-          //             shadowColor: LxColors.clearB0,
-          //             side: const BorderSide(color: LxColors.foreground),
-          //           ),
-          //         ],
-          //       ),
-          //       // Chip(
-          //       //   label: Text("Description"),
-          //       // ),
-          //     ),
-          //     const SizedBox(width: Space.s300),
-          //     Expanded(
-          //       child: Column(
-          //         crossAxisAlignment: CrossAxisAlignment.end,
-          //         children: [
-          //           // ActionChip.elevated(
-          //           //   onPressed: () {},
-          //           //   avatar: const Icon(
-          //           //     Icons.add_rounded,
-          //           //     color: LxColors.foreground,
-          //           //   ),
-          //           //   color: const MaterialStatePropertyAll(
-          //           //       LxColors.grey1000),
-          //           //   label: const Text("Amount"),
-          //           //   labelStyle:
-          //           //       const TextStyle(color: LxColors.foreground),
-          //           //   elevation: 0.0,
-          //           //   shadowColor: LxColors.clearB0,
-          //           //   side: const BorderSide(color: LxColors.foreground),
-          //           // ),
-          //         ],
-          //       ),
-          //     ),
-          //   ],
-          // ),
-
-          // const SizedBox(height: Space.s500),
-          const SizedBox(height: Space.s600),
-        ],
-      ),
     );
   }
 }

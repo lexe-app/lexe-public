@@ -602,7 +602,7 @@ class ValueStreamBuilder<T> extends StreamBuilder<T> {
   ValueStreamBuilder({
     super.key,
     required ValueStream<T> stream,
-    required ValueStreamWidgetBuilder builder,
+    required ValueStreamWidgetBuilder<T> builder,
   }) : super(
           stream: stream,
           initialData: stream.value,

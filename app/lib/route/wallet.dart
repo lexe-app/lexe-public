@@ -203,7 +203,11 @@ class WalletPageState extends State<WalletPage> {
     if (!this.mounted) return;
 
     unawaited(Navigator.of(this.context).push(
-      MaterialPageRoute(builder: (context) => const ReceivePaymentPage()),
+      MaterialPageRoute(
+        builder: (context) => ReceivePaymentPage(
+          fiatRate: this.fiatRate.stream,
+        ),
+      ),
     ));
   }
 

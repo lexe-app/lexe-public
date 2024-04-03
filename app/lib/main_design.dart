@@ -258,7 +258,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
           ),
           Component(
-              "ReceivePaymentPage", (context) => const ReceivePaymentPage()),
+            "ReceivePaymentPage",
+            (context) => ReceivePaymentPage(
+              fiatRate: this.makeFiatRateStream(),
+            ),
+          ),
           Component(
             "PaymentDetailPage",
             subtitle: "btc failed outbound",
