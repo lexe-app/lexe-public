@@ -763,6 +763,70 @@ class DashPainter extends CustomPainter {
   }
 }
 
+/// Carousel indicators + next/prev button combo
+///
+/// ```
+/// <      * * --      >
+/// ```
+class CarouselIndicatorsAndButtons extends StatelessWidget {
+  const CarouselIndicatorsAndButtons({
+    super.key,
+    required this.numPages,
+    required this.selectedPageIndex,
+    this.onTapPrev,
+    this.onTapNext,
+    this.arrowColor = LxColors.clearB400,
+    this.arrowDisabledColor = LxColors.clearB0,
+    this.indicatorActiveColor = LxColors.clearB600,
+    this.indicatorInactiveColor = LxColors.clearB200,
+  });
+
+  final int numPages;
+  final ValueListenable<int> selectedPageIndex;
+
+  final VoidCallback? onTapPrev;
+  final VoidCallback? onTapNext;
+
+  final Color arrowColor;
+  final Color arrowDisabledColor;
+  final Color indicatorActiveColor;
+  final Color indicatorInactiveColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        ValueListenableBuilder(
+          valueListenable: this.selectedPageIndex,
+          builder: (_context, idx, _child) => IconButton(
+            onPressed: (idx > 0) ? this.onTapPrev : null,
+            icon: const Icon(Icons.chevron_left_rounded),
+            color: this.arrowColor,
+            disabledColor: this.arrowDisabledColor,
+          ),
+        ),
+        CarouselIndicators(
+          numPages: this.numPages,
+          selectedPageIndex: this.selectedPageIndex,
+          activeColor: this.indicatorActiveColor,
+          inactiveColor: this.indicatorInactiveColor,
+        ),
+        ValueListenableBuilder(
+          valueListenable: this.selectedPageIndex,
+          builder: (_context, idx, _child) => IconButton(
+            onPressed: (idx < this.numPages - 1) ? this.onTapNext : null,
+            icon: const Icon(Icons.chevron_right_rounded),
+            color: this.arrowColor,
+            disabledColor: this.arrowDisabledColor,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Visual carousel indicator dots for displaying (1) the current selected page
 /// index in a carousel, and (2) the number of pages in the carousel.
 ///

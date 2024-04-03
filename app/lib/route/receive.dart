@@ -1,11 +1,13 @@
-import 'dart:math';
+import 'dart:async' show unawaited;
+import 'dart:math' show max;
 
+import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/material.dart';
 
 import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/components.dart'
     show
-        CarouselIndicators,
+        CarouselIndicatorsAndButtons,
         LxBackButton,
         LxFilledButton,
         ScrollableSinglePageBody;
@@ -13,14 +15,67 @@ import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/route/show_qr.dart' show QrImage;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxRadius, Space;
 
-class ReceivePaymentPage extends StatefulWidget {
+// LN + BTC cards
+const int numCards = 2;
+
+const double minViewportWidth = 365.0;
+
+class ReceivePaymentPage extends StatelessWidget {
   const ReceivePaymentPage({super.key});
 
   @override
-  State<ReceivePaymentPage> createState() => ReceivePaymentPageState();
+  Widget build(BuildContext context) => ReceivePaymentPageInner(
+        viewportWidth:
+            MediaQuery.maybeSizeOf(context)?.width ?? minViewportWidth,
+      );
 }
 
-class ReceivePaymentPageState extends State<ReceivePaymentPage> {
+class ReceivePaymentPageInner extends StatefulWidget {
+  const ReceivePaymentPageInner({super.key, required this.viewportWidth});
+
+  final double viewportWidth;
+
+  @override
+  State<ReceivePaymentPageInner> createState() =>
+      ReceivePaymentPageInnerState();
+}
+
+class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
+  // The current primary card on-screen.
+  final ValueNotifier<int> selectedCardIndex = ValueNotifier(0);
+
+  late PageController cardController;
+
+  @override
+  void initState() {
+    super.initState();
+    cardController = this.newCardController();
+  }
+
+  @override
+  void dispose() {
+    this.selectedCardIndex.dispose();
+    this.cardController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(ReceivePaymentPageInner oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (this.widget.viewportWidth != oldWidget.viewportWidth) {
+      final oldController = this.cardController;
+      this.cardController = this.newCardController();
+      oldController.dispose();
+    }
+  }
+
+  PageController newCardController() => PageController(
+        initialPage: this.selectedCardIndex.value,
+        viewportFraction:
+            minViewportWidth / max(minViewportWidth, this.widget.viewportWidth),
+      );
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -45,19 +100,21 @@ class ReceivePaymentPageState extends State<ReceivePaymentPage> {
           // QR
           SizedBox(
             height: 545.0,
-            child: LayoutBuilder(
-              builder: (context, constraints) => PageView(
-                controller: PageController(
-                  initialPage: 0,
-                  viewportFraction:
-                      min(1.0, 365.0 / max(1.0, constraints.minWidth)),
-                ),
-                padEnds: true,
-                children: const [
-                  LnInvoiceCard(),
-                  BtcAddressCard(),
-                ],
-              ),
+            child: PageView.builder(
+              controller: this.cardController,
+              scrollBehavior: const CupertinoScrollBehavior(),
+              padEnds: true,
+              allowImplicitScrolling: false,
+              onPageChanged: (pageIndex) {
+                if (!this.mounted) return;
+                this.selectedCardIndex.value = pageIndex;
+              },
+              itemCount: numCards,
+              itemBuilder: (context, idx) {
+                if (idx == 0) return const LnInvoiceCard();
+                if (idx == 1) return const BtcAddressCard();
+                return null;
+              },
             ),
           ),
 
@@ -65,31 +122,15 @@ class ReceivePaymentPageState extends State<ReceivePaymentPage> {
 
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: Space.s600),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                const IconButton(
-                  onPressed: null,
-                  icon: Icon(Icons.chevron_left_rounded),
-                  color: LxColors.fgSecondary,
-                  disabledColor: LxColors.clearB0,
-                  padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
-                ),
-                CarouselIndicators(
-                  selectedPageIndex: ValueNotifier(0),
-                  numPages: 2,
-                ),
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(Icons.chevron_right_rounded),
-                  color: LxColors.fgSecondary,
-                  disabledColor: LxColors.clearB0,
-                  padding: EdgeInsets.zero,
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
+            child: CarouselIndicatorsAndButtons(
+              numPages: numCards,
+              selectedPageIndex: this.selectedCardIndex,
+              onTapPrev: () => unawaited(this.cardController.previousPage(
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.ease)),
+              onTapNext: () => unawaited(this.cardController.nextPage(
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.ease)),
             ),
           ),
 
@@ -168,6 +209,7 @@ class LnInvoiceCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // kind
           const Text(
             "Lightning offer",
             style: TextStyle(
@@ -178,7 +220,8 @@ class LnInvoiceCard extends StatelessWidget {
               height: 1.0,
             ),
           ),
-          // const SizedBox(height: Space.s100),
+
+          // raw code string + copy button
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -210,28 +253,8 @@ class LnInvoiceCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: Space.s200),
-          // const Text(
-          //   "invoices can only be paid once!",
-          //   style: TextStyle(
-          //     color: LxColors.fgTertiary,
-          //     fontSize: Fonts.size200,
-          //     // fontVariations: [Fonts.weightMedium],
-          //     // letterSpacing: -0.5,
-          //     height: 1.5,
-          //   ),
-          // ),
-          // const SizedBox(height: Space.s300),
-          // const Text(
-          //   "the rice house 🍕",
-          //   style: TextStyle(
-          //     color: LxColors.grey550,
-          //     fontSize: Fonts.size300,
-          //     letterSpacing: -0.25,
-          //     height: 1.5,
-          //     // fontVariations: [Fonts.weightMedium],
-          //   ),
-          // ),
-          // const SizedBox(height: Space.s400),
+
+          // QR code
           LayoutBuilder(
             builder: (context, constraints) {
               return QrImage(
@@ -279,8 +302,7 @@ class LnInvoiceCard extends StatelessWidget {
 
           // Description
           const Text(
-            // "the rice house 🍕",
-            "really really long description holy shit just stfu you need to stop please omg i can't anymore",
+            "the rice house 🍕",
             style: TextStyle(
               color: LxColors.foreground,
               fontSize: Fonts.size200,
@@ -290,8 +312,6 @@ class LnInvoiceCard extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
-          // const SizedBox(height: Space.s200),
-          // const SizedBox(height: Space.s500),
         ],
       ),
     );
