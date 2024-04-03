@@ -41,6 +41,7 @@ use std::{
     future::Future,
     io,
     net::{SocketAddr, TcpListener},
+    str::FromStr,
     sync::Arc,
     time::Duration,
 };
@@ -51,7 +52,7 @@ use axum::{
     error_handling::HandleErrorLayer,
     extract::{
         rejection::{BytesRejection, JsonRejection, QueryRejection},
-        FromRequest,
+        DefaultBodyLimit, FromRequest,
     },
     response::IntoResponse,
     Router,
@@ -61,7 +62,7 @@ use http::{header::CONTENT_TYPE, HeaderValue, StatusCode, Version};
 use serde::{de::DeserializeOwned, Serialize};
 use tower::{
     buffer::BufferLayer, limit::ConcurrencyLimitLayer,
-    load_shed::LoadShedLayer, timeout::TimeoutLayer,
+    load_shed::LoadShedLayer, timeout::TimeoutLayer, util::MapRequestLayer,
 };
 use tracing::{debug, error, info, warn, Instrument};
 
@@ -97,6 +98,7 @@ const_assert!(
 /// assert_eq!(
 ///     LayerConfig::default(),
 ///     LayerConfig {
+///         body_limit: Some(16384),
 ///         load_shed: true,
 ///         buffer_size: Some(4096),
 ///         concurrency: Some(4096),
@@ -106,6 +108,9 @@ const_assert!(
 /// ```
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LayerConfig {
+    /// The maximum size of the request body in bytes ([`None`] to disable).
+    /// Helps prevent DoS, but may need to be increased for some services.
+    pub body_limit: Option<usize>,
     /// Whether to shed load when the service has reached capacity.
     /// Helps prevent OOM when combined with the buffer or concurrency layer.
     pub load_shed: bool,
@@ -125,6 +130,8 @@ pub struct LayerConfig {
 impl Default for LayerConfig {
     fn default() -> Self {
         Self {
+            // 16KiB is sufficient for most Lexe services.
+            body_limit: Some(16384),
             load_shed: true,
             // TODO(max): We are using very high values right now because it
             // doesn't make sense to constrain anything until we have run some
@@ -201,6 +208,26 @@ pub fn build_server_fut_with_listener(
     let middleware_stack = tower::ServiceBuilder::new()
         // Log everything on its way in and out, even load-shedded requests.
         .layer(super::trace::server::trace_layer(server_span.clone()))
+        // Immediately reject anything with a CONTENT_LENGTH over the limit.
+        .layer(axum::middleware::map_request_with_state(
+            layer_config.body_limit,
+            middleware::check_content_length_header,
+        ))
+        // Set the default request body limit for all requests. This adds a
+        // `DefaultBodyLimitKind` (private axum type) into the request
+        // extensions so that any inner layers or extractors which call
+        // `axum::RequestExt::[with|into]_limited_body` will pick it up.
+        // NOTE that many of our extractors transitively rely on the Bytes
+        // extractor which will default to a 2MB limit if this is not set.
+        .layer(
+            layer_config
+                .body_limit
+                .map(DefaultBodyLimit::max)
+                .unwrap_or_else(DefaultBodyLimit::disable),
+        )
+        // Here, we explicitly apply the body limit from the request extensions,
+        // transforming the request body type into `http_body_util::Limited`.
+        .layer(MapRequestLayer::new(axum::RequestExt::with_limited_body))
         // Handles errors from the load_shed, buffer, and concurrency layers.
         .layer(HandleErrorLayer::new(|error| async move {
             CommonApiError {
@@ -432,6 +459,8 @@ enum LxRejectionKind {
     Auth,
     /// Client request did not match any paths in the [`Router`].
     BadEndpoint,
+    /// Request body length over limit
+    BodyLengthOverLimit,
     /// [`ed25519::Error`]
     Ed25519,
 }
@@ -502,6 +531,7 @@ impl LxRejectionKind {
 
             Self::Auth => "Bad bearer auth token",
             Self::BadEndpoint => "Client requested a non-existent endpoint",
+            Self::BodyLengthOverLimit => "Request body length over limit",
             Self::Ed25519 => "Ed25519 error",
         }
     }
@@ -533,6 +563,45 @@ pub mod extract {
     }
 
     // TODO(max): There will soon be more extractor types here
+}
+
+// --- Custom middleware --- //
+
+pub mod middleware {
+    use axum::extract::State;
+
+    use super::*;
+
+    /// Checks the `CONTENT_LENGTH` header and returns an early rejection if the
+    /// contained value exceeds our configured body limit. This optimization
+    /// allows us to avoid unnecessary work processing the request further.
+    ///
+    /// NOTE: This does not enforce the body length!! Use [`DefaultBodyLimit`]
+    /// in combination with [`axum::RequestExt::with_limited_body`] to do so.
+    pub async fn check_content_length_header<B>(
+        // `LayerConfig::body_limit`
+        State(config_body_limit): State<Option<usize>>,
+        request: http::Request<B>,
+    ) -> Result<http::Request<B>, LxRejection> {
+        let content_length = request
+            .headers()
+            .get(http::header::CONTENT_LENGTH)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value_str| usize::from_str(value_str).ok());
+
+        // If a limit is configured and the header value exceeds it, reject.
+        if content_length
+            .zip(config_body_limit)
+            .is_some_and(|(length, limit)| length > limit)
+        {
+            return Err(LxRejection {
+                kind: LxRejectionKind::BodyLengthOverLimit,
+                source_msg: "Content length header over limit".to_owned(),
+            });
+        }
+
+        Ok(request)
+    }
 }
 
 // --- Helpers --- //

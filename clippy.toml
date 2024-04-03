@@ -39,13 +39,19 @@ disallowed-types = [
     { path = "axum::extract::WebSocketUpgrade", reason = "Bad Rejection. Use or add to api::server::extract." },
 
     # TODO(max): Also ban other layers like this which return incompatible responses instead of errors
-    { path = "tower_http::timeout::Timeout",      reason = """\
-    The response generated on timeout has an empty body and doesn't match our API. Use tower::timeout::Timeout \
-    instead and axum::error_handling::HandleError to convert timeout errors to `ErrorResponse`s.\
+    { path = "tower_http::timeout::Timeout",             reason = """\
+        Incompatible HTTP error response. Use tower::timeout::Timeout instead.\
     """ },
-    { path = "tower_http::timeout::TimeoutLayer", reason = """\
-    The response generated on timeout has an empty body and doesn't match our API. Use tower::timeout::TimeoutLayer \
-    instead and axum::error_handling::HandleErrorLayer to convert timeout errors to `ErrorResponse`s.\
+    { path = "tower_http::timeout::TimeoutLayer",        reason = """\
+        Incompatible HTTP error response. Use tower::timeout::TimeoutLayer instead.\
+    """ },
+    { path = "tower_http::limit::RequestBodyLimit",      reason = """\
+        Incompatible HTTP error response. \
+        Use DefaultBodyLimit and axum::RequestExt::with_limited_body instead.\
+    """ },
+    { path = "tower_http::limit::RequestBodyLimitLayer", reason = """\
+        Incompatible HTTP error response. \
+        Use DefaultBodyLimit and axum::RequestExt::with_limited_body instead.\
     """ }
 ]
 
