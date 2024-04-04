@@ -38,6 +38,7 @@
 //! [`spawn_server_task_with_listener`]: crate::api::server::spawn_server_task_with_listener
 
 use std::{
+    fmt,
     future::Future,
     io,
     net::{SocketAddr, TcpListener},
@@ -434,6 +435,28 @@ impl<T: Serialize> IntoResponse for LxJson<T> {
     }
 }
 
+impl<T: Clone> Clone for LxJson<T> {
+    fn clone(&self) -> Self {
+        Self(self.0.clone())
+    }
+}
+
+impl<T: Copy> Copy for LxJson<T> {}
+
+impl<T: fmt::Debug> fmt::Debug for LxJson<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        T::fmt(&self.0, f)
+    }
+}
+
+impl<T: Eq + PartialEq> Eq for LxJson<T> {}
+
+impl<T: PartialEq> PartialEq for LxJson<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.eq(&other.0)
+    }
+}
+
 // --- LxRejection --- //
 
 /// Our own [`axum::extract::rejection`] type with an [`IntoResponse`] impl
@@ -559,6 +582,26 @@ pub mod extract {
                 .await
                 .map(|axum::extract::Query(t)| Self(t))
                 .map_err(LxRejection::from)
+        }
+    }
+
+    impl<T: Clone> Clone for LxQuery<T> {
+        fn clone(&self) -> Self {
+            Self(self.0.clone())
+        }
+    }
+
+    impl<T: fmt::Debug> fmt::Debug for LxQuery<T> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            T::fmt(&self.0, f)
+        }
+    }
+
+    impl<T: Eq + PartialEq> Eq for LxQuery<T> {}
+
+    impl<T: PartialEq> PartialEq for LxQuery<T> {
+        fn eq(&self, other: &Self) -> bool {
+            self.0.eq(&other.0)
         }
     }
 
