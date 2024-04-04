@@ -65,6 +65,8 @@ use crate::{
 /// Defines the api that the backend exposes to the node.
 #[async_trait]
 pub trait NodeBackendApi {
+    // --- Unauthenticated --- //
+
     /// GET /node/v1/user [`GetByUserPk`] -> [`Option<User>`]
     async fn get_user(
         &self,
@@ -76,6 +78,8 @@ pub trait NodeBackendApi {
         &self,
         data: &SealedSeedId,
     ) -> Result<Option<SealedSeed>, BackendApiError>;
+
+    // --- Bearer authentication required --- //
 
     /// PUT /node/v1/sealed_seed [`SealedSeed`] -> [`Empty`]
     ///
