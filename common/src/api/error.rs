@@ -896,6 +896,12 @@ impl BackendApiError {
         let msg = format!("{error:#}");
         Self { kind, msg }
     }
+
+    pub fn database(error: impl fmt::Display) -> Self {
+        let kind = BackendErrorKind::Database;
+        let msg = format!("{error:#}");
+        Self { kind, msg }
+    }
 }
 
 impl From<auth::Error> for BackendApiError {
