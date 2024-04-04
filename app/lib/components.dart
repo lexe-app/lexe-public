@@ -380,6 +380,7 @@ class LxRefreshButton extends StatelessWidget {
 /// It's like the standard `OutlinedButton.icon`, but the text is properly
 /// centered in the button and the icon is right aligned.
 class LxFilledButton extends StatelessWidget {
+  /// Standard white-bg, black-fg, filled button.
   const LxFilledButton({
     super.key,
     required this.onTap,
@@ -387,6 +388,46 @@ class LxFilledButton extends StatelessWidget {
     this.icon,
     this.style,
   });
+
+  /// Primary emphasis button. moneyGoUp-bg, white-fg, filled button.
+  LxFilledButton.tonal({
+    super.key,
+    required this.onTap,
+    this.label,
+    this.icon,
+    ButtonStyle? style,
+  }) : this.style = ButtonStyle(
+          foregroundColor: MaterialStateProperty.resolveWith(
+            (states) => (!states.contains(MaterialState.disabled))
+                ? LxColors.grey1000
+                : null,
+          ),
+          backgroundColor: MaterialStateProperty.resolveWith(
+            (states) => (!states.contains(MaterialState.disabled))
+                ? LxColors.moneyGoUp
+                : null,
+          ),
+        ).merge(style);
+
+  /// High emphasis button. black-bg, white-fg, filled button.
+  LxFilledButton.strong({
+    super.key,
+    required this.onTap,
+    this.label,
+    this.icon,
+    ButtonStyle? style,
+  }) : this.style = ButtonStyle(
+          foregroundColor: MaterialStateProperty.resolveWith(
+            (states) => (!states.contains(MaterialState.disabled))
+                ? LxColors.background
+                : null,
+          ),
+          backgroundColor: MaterialStateProperty.resolveWith(
+            (states) => (!states.contains(MaterialState.disabled))
+                ? LxColors.foreground
+                : null,
+          ),
+        ).merge(style);
 
   final Widget? label;
   final Widget? icon;

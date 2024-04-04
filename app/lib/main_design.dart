@@ -808,26 +808,18 @@ class ButtonDesignPage extends StatelessWidget {
             const SizedBox(height: Space.s400),
 
             // moneyGoUp + icon
-            LxFilledButton(
+            LxFilledButton.tonal(
               onTap: onTap,
               label: const Text("Send"),
               icon: const Icon(Icons.arrow_forward_rounded),
-              style: FilledButton.styleFrom(
-                backgroundColor: LxColors.moneyGoUp,
-                foregroundColor: LxColors.grey1000,
-              ),
             ),
             const SizedBox(height: Space.s400),
 
             // dark + icon
-            LxFilledButton(
+            LxFilledButton.strong(
               onTap: onTap,
               label: const Text("Send"),
               icon: const Icon(Icons.arrow_forward_rounded),
-              style: FilledButton.styleFrom(
-                backgroundColor: LxColors.foreground,
-                foregroundColor: LxColors.background,
-              ),
             ),
             const SizedBox(height: Space.s400),
 
