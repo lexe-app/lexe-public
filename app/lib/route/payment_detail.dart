@@ -20,6 +20,7 @@ import 'package:lexeapp/components.dart'
         LxRefreshButton,
         PaymentNoteInput,
         ScrollableSinglePageBody,
+        SheetDragHandle,
         StateStreamBuilder,
         ValueStreamBuilder;
 import 'package:lexeapp/currency_format.dart' as currency_format;
@@ -478,27 +479,6 @@ class PaymentDetailBottomSheet extends StatelessWidget {
       ),
     );
   }
-}
-
-/// The little colored bar at the very top of the bottom sheet.
-class SheetDragHandle extends StatelessWidget {
-  const SheetDragHandle({super.key, this.color = LxColors.grey750});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) => Center(
-        child: Container(
-          margin: const EdgeInsets.only(top: Space.s200),
-          width: Space.s800,
-          height: 4,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: this.color,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        ),
-      );
 }
 
 class PaymentDetailIcon extends StatelessWidget {

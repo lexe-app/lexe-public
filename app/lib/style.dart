@@ -184,6 +184,32 @@ class LxTheme {
           side: const BorderSide(color: LxColors.clearB0, width: 0.0),
         ),
       ),
+
+      // [Radio] button
+      radioTheme: RadioThemeData(
+        fillColor: MaterialStateProperty.resolveWith((states) =>
+            (states.contains(MaterialState.disabled))
+                ? LxColors.fgTertiary
+                : LxColors.foreground),
+      ),
+
+      // [ListTile]
+      listTileTheme: ListTileThemeData(
+        minVerticalPadding: Space.s200,
+        titleTextStyle: Fonts.fontUI.copyWith(
+          fontSize: Fonts.size300,
+          height: 1.5,
+          fontVariations: [Fonts.weightMedium],
+        ),
+        subtitleTextStyle: Fonts.fontUI.copyWith(
+          fontSize: Fonts.size200,
+          height: 1.25,
+          color: LxColors.grey450,
+        ),
+        leadingAndTrailingTextStyle: Fonts.fontUI.copyWith(
+          fontSize: Fonts.size300,
+        ),
+      ),
     );
   }
 }

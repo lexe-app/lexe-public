@@ -10,18 +10,18 @@ import 'package:lexeapp/components.dart'
     show
         CarouselIndicatorsAndButtons,
         FilledPlaceholder,
+        HeadingText,
         LxBackButton,
         LxFilledButton,
         ScrollableSinglePageBody,
+        SheetDragHandle,
         ValueStreamBuilder;
 import 'package:lexeapp/currency_format.dart';
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/route/show_qr.dart' show QrImage;
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxRadius, Space;
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxRadius, LxTheme, Space;
 import 'package:rxdart/rxdart.dart';
-
-// LN + BTC cards
-const int numCards = 2;
 
 const double minViewportWidth = 365.0;
 
@@ -41,8 +41,17 @@ class PaymentOfferInputs {
 enum PaymentOfferKind {
   lightningInvoice,
   lightningOffer,
-  lightningSpontaneous,
+  // lightningSpontaneous,
   btcAddress,
+  btcTaproot,
+  ;
+
+  bool isLightning() => switch (this) {
+        PaymentOfferKind.lightningInvoice => true,
+        PaymentOfferKind.lightningOffer => true,
+        PaymentOfferKind.btcAddress => false,
+        PaymentOfferKind.btcTaproot => false,
+      };
 }
 
 class PaymentOffer {
@@ -65,9 +74,9 @@ class PaymentOffer {
   String titleStr() => switch (this.kind) {
         PaymentOfferKind.lightningInvoice => "Lightning invoice",
         PaymentOfferKind.lightningOffer => "Lightning offer",
-        PaymentOfferKind.lightningSpontaneous =>
-          "Lightning spontaneous payment",
+        // PaymentOfferKind.lightningSpontaneous => "Lightning spontaneous payment",
         PaymentOfferKind.btcAddress => "Bitcoin address",
+        PaymentOfferKind.btcTaproot => "Bitcoin taproot address",
       };
 }
 
@@ -107,28 +116,32 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   /// Controls the card [PageView].
   late PageController cardController = this.newCardController();
 
-  final ValueNotifier<PaymentOffer> lnPaymentOffer = ValueNotifier(
-    const PaymentOffer(
-      kind: PaymentOfferKind.lightningInvoice,
-      code: null,
-      uri: null,
-      amountSats: null,
-      description: null,
+  final List<ValueNotifier<PaymentOffer>> paymentOffers = [
+    ValueNotifier(
+      const PaymentOffer(
+        kind: PaymentOfferKind.lightningInvoice,
+        code: null,
+        uri: null,
+        amountSats: null,
+        description: null,
+      ),
     ),
-  );
-
-  final ValueNotifier<PaymentOffer> btcPaymentOffer = ValueNotifier(
-    const PaymentOffer(
-      kind: PaymentOfferKind.btcAddress,
-      code: null,
-      uri: null,
-      amountSats: null,
-      description: null,
+    ValueNotifier(
+      const PaymentOffer(
+        kind: PaymentOfferKind.btcAddress,
+        code: null,
+        uri: null,
+        amountSats: null,
+        description: null,
+      ),
     ),
-  );
+  ];
 
   @override
   void dispose() {
+    for (final paymentOffer in this.paymentOffers) {
+      paymentOffer.dispose();
+    }
     this.cardController.dispose();
     this.selectedCardIndex.dispose();
     super.dispose();
@@ -151,6 +164,24 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
             minViewportWidth / max(minViewportWidth, this.widget.viewportWidth),
       );
 
+  ValueNotifier<PaymentOffer> currentOffer() =>
+      this.paymentOffers[this.selectedCardIndex.value];
+
+  void openSettingsBottomSheet(BuildContext context) {
+    unawaited(showModalBottomSheet(
+      backgroundColor: LxColors.background,
+      elevation: 0.0,
+      clipBehavior: Clip.hardEdge,
+      enableDrag: true,
+      isDismissible: true,
+      isScrollControlled: true,
+      context: context,
+      builder: (context) => ReceiveSettingsBottomSheet(
+        kind: this.currentOffer().value.kind,
+      ),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -172,7 +203,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
         body: [
           const SizedBox(height: Space.s500),
 
-          // QR
+          // Payment offer card
           SizedBox(
             height: 545.0,
             child: PageView(
@@ -184,24 +215,16 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
                 if (!this.mounted) return;
                 this.selectedCardIndex.value = pageIndex;
               },
-              children: [
-                ValueListenableBuilder(
-                  valueListenable: this.lnPaymentOffer,
-                  builder: (_context, lnPaymentOffer, _child) =>
-                      PaymentOfferCard(
-                    paymentOffer: lnPaymentOffer,
-                    fiatRate: this.widget.fiatRate,
-                  ),
-                ),
-                ValueListenableBuilder(
-                  valueListenable: this.btcPaymentOffer,
-                  builder: (_context, btcPaymentOffer, _child) =>
-                      PaymentOfferCard(
-                    paymentOffer: btcPaymentOffer,
-                    fiatRate: this.widget.fiatRate,
-                  ),
-                ),
-              ],
+              children: this
+                  .paymentOffers
+                  .map((offer) => ValueListenableBuilder(
+                        valueListenable: offer,
+                        builder: (_context, offer, _child) => PaymentOfferCard(
+                          paymentOffer: offer,
+                          fiatRate: this.widget.fiatRate,
+                        ),
+                      ))
+                  .toList(),
             ),
           ),
 
@@ -210,7 +233,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: Space.s600),
             child: CarouselIndicatorsAndButtons(
-              numPages: numCards,
+              numPages: this.paymentOffers.length,
               selectedPageIndex: this.selectedCardIndex,
               onTapPrev: () => unawaited(this.cardController.previousPage(
                   duration: const Duration(milliseconds: 500),
@@ -229,7 +252,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
               children: [
                 LxFilledButton(
                   icon: const Icon(Icons.settings_rounded),
-                  onTap: () {},
+                  onTap: () => this.openSettingsBottomSheet(context),
                 ),
                 const SizedBox(width: Space.s200),
                 LxFilledButton(
@@ -266,7 +289,8 @@ class PaymentOfferCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final code = this.paymentOffer.code;
     // final code = "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r";
-    // final code = "lno1pqps7sjqpgtyzm3qv4uxzmtsd3jjqer9wd3hy6tsw35k7msjzfpy7nz5yqcnygrfdej82um5wf5k2uckyypwa3eyt44h6txtxquqh7lz5djge4afgfjn7k4rgrkuag0jsd5xvxg";
+    // final code =
+    //     "lno1pqps7sjqpgtyzm3qv4uxzmtsd3jjqer9wd3hy6tsw35k7msjzfpy7nz5yqcnygrfdej82um5wf5k2uckyypwa3eyt44h6txtxquqh7lz5djge4afgfjn7k4rgrkuag0jsd5xvxg";
     // final code = "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r";
 
     final amountSats = this.paymentOffer.amountSats;
@@ -334,7 +358,7 @@ class PaymentOfferCard extends StatelessWidget {
                 height: Fonts.size100,
               ),
             ),
-          const SizedBox(height: Space.s100),
+          // const SizedBox(height: Space.s100),
 
           // QR code
           LayoutBuilder(
@@ -461,6 +485,114 @@ class CardBox extends StatelessWidget {
         ),
         const Expanded(child: Center()),
       ],
+    );
+  }
+}
+
+const bottomSheetBodyPadding = Space.s600;
+
+class ReceiveSettingsBottomSheet extends StatelessWidget {
+  const ReceiveSettingsBottomSheet({super.key, required this.kind});
+
+  final PaymentOfferKind kind;
+
+  void onKindSelected(PaymentOfferKind kind) {
+    info("ReceiveSettingsBottomSheet: selected kind: $kind");
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: LxTheme.light(),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SheetDragHandle(),
+          const SizedBox(height: Space.s200),
+          const Padding(
+            padding: EdgeInsets.symmetric(
+                horizontal: bottomSheetBodyPadding, vertical: Space.s300),
+            child: HeadingText(text: "Receive settings"),
+          ),
+
+          // Lightning
+          if (this.kind.isLightning())
+            PaymentOfferKindRadio(
+              kind: PaymentOfferKind.lightningInvoice,
+              selected: this.kind,
+              title: const Text("Lightning invoice"),
+              subtitle: const Text(
+                  "Widely supported. Invoices can only be paid once!"),
+              onChanged: this.onKindSelected,
+            ),
+          if (this.kind.isLightning())
+            PaymentOfferKindRadio(
+              kind: PaymentOfferKind.lightningOffer,
+              selected: this.kind,
+              title: const Text("Lightning offer"),
+              subtitle: const Text(
+                  "New. Offers can be paid many times. Paste one on your twitter!"),
+              onChanged: this.onKindSelected,
+            ),
+
+          // BTC
+          if (!this.kind.isLightning())
+            PaymentOfferKindRadio(
+              kind: PaymentOfferKind.btcAddress,
+              selected: this.kind,
+              title: const Text("Bitcoin SegWit address"),
+              subtitle: const Text("Recommended. Supported by most wallets."),
+              onChanged: this.onKindSelected,
+            ),
+          if (!this.kind.isLightning())
+            PaymentOfferKindRadio(
+              kind: PaymentOfferKind.btcTaproot,
+              selected: this.kind,
+              title: const Text("Bitcoin Taproot address"),
+              subtitle: const Text(
+                  "Newer format. Reduced fees and increased privacy."),
+              onChanged: this.onKindSelected,
+            ),
+          const SizedBox(height: Space.s600),
+        ],
+      ),
+    );
+  }
+}
+
+class PaymentOfferKindRadio extends StatelessWidget {
+  const PaymentOfferKindRadio({
+    super.key,
+    required this.kind,
+    required this.selected,
+    required this.title,
+    required this.subtitle,
+    required this.onChanged,
+  });
+
+  final PaymentOfferKind kind;
+  final PaymentOfferKind selected;
+
+  final Widget title;
+  final Widget subtitle;
+
+  final void Function(PaymentOfferKind)? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final onChanged = this.onChanged;
+
+    return RadioListTile<PaymentOfferKind>(
+      toggleable: false,
+      controlAffinity: ListTileControlAffinity.trailing,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: bottomSheetBodyPadding),
+      value: this.kind,
+      groupValue: this.selected,
+      onChanged: (onChanged != null) ? (kind) => onChanged(kind!) : null,
+      title: this.title,
+      subtitle: this.subtitle,
     );
   }
 }
