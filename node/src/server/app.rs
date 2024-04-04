@@ -4,16 +4,16 @@ use axum::extract::State;
 use common::{
     api::{
         command::{
-            CreateInvoiceRequest, EstimateFeeSendOnchainRequest,
-            EstimateFeeSendOnchainResponse, NodeInfo, PayInvoiceRequest,
-            SendOnchainRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse,
+            EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
+            NodeInfo, PayInvoiceRequest, SendOnchainRequest,
         },
         error::NodeApiError,
         qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
         server::{extract::LxQuery, LxJson},
         Empty,
     },
-    ln::{hashes::LxTxid, invoice::LxInvoice, payments::BasicPayment},
+    ln::{hashes::LxTxid, payments::BasicPayment},
 };
 use lexe_ln::command::CreateInvoiceCaller;
 
@@ -38,7 +38,7 @@ pub(super) async fn node_info(
 pub(super) async fn create_invoice(
     State(state): State<Arc<AppRouterState>>,
     LxJson(req): LxJson<CreateInvoiceRequest>,
-) -> Result<LxJson<LxInvoice>, NodeApiError> {
+) -> Result<LxJson<CreateInvoiceResponse>, NodeApiError> {
     let caller = CreateInvoiceCaller::UserNode {
         lsp_info: state.lsp_info.clone(),
         scid: state.scid,

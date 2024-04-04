@@ -9,9 +9,9 @@ use bitcoin_hashes::{sha256, Hash};
 use common::{
     api::{
         command::{
-            CreateInvoiceRequest, EstimateFeeSendOnchainRequest,
-            EstimateFeeSendOnchainResponse, NodeInfo, PayInvoiceRequest,
-            SendOnchainRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse,
+            EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
+            NodeInfo, PayInvoiceRequest, SendOnchainRequest,
         },
         Empty, NodePk, Scid,
     },
@@ -168,7 +168,7 @@ pub async fn create_invoice<CM, PS>(
     payments_manager: PaymentsManager<CM, PS>,
     caller: CreateInvoiceCaller,
     network: Network,
-) -> anyhow::Result<LxInvoice>
+) -> anyhow::Result<CreateInvoiceResponse>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
@@ -275,7 +275,7 @@ where
 
     info!("Success: Generated invoice {invoice}");
 
-    Ok(invoice)
+    Ok(CreateInvoiceResponse { invoice })
 }
 
 #[instrument(skip_all, name = "(pay-invoice)")]

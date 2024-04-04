@@ -688,15 +688,15 @@ mod test {
     use common::{
         api::{
             command::{
-                CreateInvoiceRequest, EstimateFeeSendOnchainRequest,
-                EstimateFeeSendOnchainResponse, NodeInfo, PayInvoiceRequest,
-                SendOnchainRequest,
+                CreateInvoiceRequest, CreateInvoiceResponse,
+                EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
+                NodeInfo, PayInvoiceRequest, SendOnchainRequest,
             },
             error::NodeApiError,
             qs::UpdatePaymentNote,
             Empty,
         },
-        ln::{hashes::LxTxid, invoice::LxInvoice, payments::PaymentStatus},
+        ln::{hashes::LxTxid, payments::PaymentStatus},
         rng::{shuffle, RngCore, WeakRng},
     };
     use proptest::{
@@ -825,7 +825,7 @@ mod test {
         async fn create_invoice(
             &self,
             _req: CreateInvoiceRequest,
-        ) -> Result<LxInvoice, NodeApiError> {
+        ) -> Result<CreateInvoiceResponse, NodeApiError> {
             unimplemented!()
         }
         async fn pay_invoice(
