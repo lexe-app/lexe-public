@@ -902,3 +902,24 @@ class CarouselIndicator extends StatelessWidget {
     );
   }
 }
+
+/// The little colored bar at the very top of a bottom sheet.
+class SheetDragHandle extends StatelessWidget {
+  const SheetDragHandle({super.key, this.color = LxColors.grey725});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Center(
+        child: Container(
+          margin: const EdgeInsets.only(top: Space.s200),
+          width: Space.s800,
+          height: 4,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: this.color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      );
+}
