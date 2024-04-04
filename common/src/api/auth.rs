@@ -47,6 +47,9 @@ pub enum Error {
 
     #[error("bearer auth token is not valid base64")]
     Base64Decode,
+
+    #[error("bearer auth token was not provided")]
+    Missing,
 }
 
 /// The inner, signed part of the request a new user makes when they first sign
