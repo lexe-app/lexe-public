@@ -6,6 +6,7 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:intl/intl.dart' show Intl;
 import 'package:lexeapp/bindings.dart' show api;
 import 'package:lexeapp/bindings_generated_api.dart'
@@ -45,7 +46,8 @@ import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
-import 'package:lexeapp/route/receive.dart' show ReceivePaymentPage;
+import 'package:lexeapp/route/receive.dart'
+    show ReceivePaymentPage, ReceivePaymentSetAmountPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send.dart'
     show
@@ -264,6 +266,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
           ),
           Component(
+            "ReceivePaymentSetAmountPage",
+            (context) => const ReceivePaymentSetAmountPage(),
+          ),
+          Component(
             "PaymentDetailPage",
             subtitle: "btc failed outbound",
             (context) => PaymentDetailPageInner(
@@ -401,6 +407,7 @@ class MockAppHandle extends AppHandle {
           normal: FeeEstimate(amountSats: 722),
           background: FeeEstimate(amountSats: 563),
         ),
+        // () => throw FfiError("Request timed out").toFfi(),
       );
 
   @override

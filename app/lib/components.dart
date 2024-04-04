@@ -1,11 +1,15 @@
 /// Reusable flutter UI components
 library;
 
+import 'dart:math' show max;
+
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MaxLengthEnforcement;
 import 'package:lexeapp/bindings_generated.dart' show MAX_PAYMENT_NOTE_BYTES;
-import 'package:lexeapp/input_formatter.dart' show MaxUtf8BytesInputFormatter;
+import 'package:lexeapp/input_formatter.dart'
+    show IntInputFormatter, MaxUtf8BytesInputFormatter;
+import 'package:lexeapp/result.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxRadius, Space;
 import 'package:rxdart_ext/rxdart_ext.dart';
 
@@ -486,6 +490,89 @@ class SubheadingText extends StatelessWidget {
       style: Fonts.fontUI.copyWith(
         color: LxColors.grey600,
         fontSize: Fonts.size300,
+      ),
+    );
+  }
+}
+
+class PaymentAmountInput extends StatelessWidget {
+  const PaymentAmountInput({
+    super.key,
+    required this.fieldKey,
+    required this.intInputFormatter,
+    this.onEditingComplete,
+    this.validate,
+  });
+
+  final GlobalKey<FormFieldState<String>> fieldKey;
+  final IntInputFormatter intInputFormatter;
+
+  final VoidCallback? onEditingComplete;
+
+  final Result<(), String?> Function(int amount)? validate;
+
+  Result<(), String?> validateAmountStr(String? maybeAmountStr) {
+    if (maybeAmountStr == null || maybeAmountStr.isEmpty) {
+      return const Err(null);
+    }
+
+    final int amount;
+    switch (this.intInputFormatter.tryParse(maybeAmountStr)) {
+      case Ok(:final ok):
+        amount = ok;
+      case Err():
+        return const Err("Amount must be a number.");
+    }
+
+    // Don't show any error message if the field is effectively empty.
+    if (amount <= 0) {
+      return const Err(null);
+    }
+
+    final validate = this.validate;
+    return (validate != null) ? validate(amount) : const Ok(());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // <amount> sats
+    return TextFormField(
+      key: this.fieldKey,
+      autofocus: true,
+      keyboardType:
+          const TextInputType.numberWithOptions(signed: false, decimal: false),
+      initialValue: "0",
+      textDirection: TextDirection.ltr,
+      textInputAction: TextInputAction.next,
+      textAlign: TextAlign.right,
+      onEditingComplete: this.onEditingComplete,
+      validator: (str) => this.validateAmountStr(str).err,
+      decoration: baseInputDecoration.copyWith(
+        hintText: "0",
+        // Goal: I want the amount to be right-aligned, starting from the
+        //       center of the screen.
+        //
+        // |    vvvvvvv            |
+        // |    123,456| sats      |
+        // |                       |
+        //
+        // There's probably a better way to do this, but this works. Just
+        // expand the " sats" suffix so that it takes up half the width (minus
+        // some correction).
+        suffix: LayoutBuilder(
+          builder: (context, constraints) => ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: max(0.0, (constraints.maxWidth / 2) - Space.s450),
+            ),
+            child: const Text(" sats"),
+          ),
+        ),
+      ),
+      inputFormatters: [this.intInputFormatter],
+      style: Fonts.fontUI.copyWith(
+        fontSize: Fonts.size800,
+        fontVariations: [Fonts.weightMedium],
+        letterSpacing: -0.5,
       ),
     );
   }
