@@ -24,9 +24,9 @@ use crate::{
             UserSignupRequest,
         },
         command::{
-            CreateInvoiceRequest, EstimateFeeSendOnchainRequest,
-            EstimateFeeSendOnchainResponse, NodeInfo, PayInvoiceRequest,
-            SendOnchainRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse,
+            EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
+            NodeInfo, PayInvoiceRequest, SendOnchainRequest,
         },
         def::{
             AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
@@ -42,12 +42,11 @@ use crate::{
         rest::{RequestBuilderExt, RestClient, GET, POST},
         Empty,
     },
-    constants,
-    constants::node_provision_dns,
+    constants::{self, node_provision_dns},
     ed25519,
     enclave::Measurement,
     env::DeployEnv,
-    ln::{hashes::LxTxid, invoice::LxInvoice, payments::BasicPayment},
+    ln::{hashes::LxTxid, payments::BasicPayment},
     rng::Crng,
     root_seed::RootSeed,
     tls,
@@ -413,7 +412,7 @@ impl AppNodeRunApi for NodeClient {
     async fn create_invoice(
         &self,
         data: CreateInvoiceRequest,
-    ) -> Result<LxInvoice, NodeApiError> {
+    ) -> Result<CreateInvoiceResponse, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/create_invoice");

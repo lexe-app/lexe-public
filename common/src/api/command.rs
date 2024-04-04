@@ -42,6 +42,11 @@ pub struct CreateInvoiceRequest {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct CreateInvoiceResponse {
+    pub invoice: LxInvoice,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct PayInvoiceRequest {
     /// The invoice we want to pay.
     pub invoice: LxInvoice,

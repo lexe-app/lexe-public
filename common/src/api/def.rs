@@ -24,6 +24,7 @@
 
 use async_trait::async_trait;
 
+use super::command::CreateInvoiceResponse;
 #[cfg(doc)]
 use crate::api::qs::{GetByMeasurement, GetByUserPk};
 use crate::{
@@ -56,7 +57,6 @@ use crate::{
     enclave::Measurement,
     ln::{
         hashes::LxTxid,
-        invoice::LxInvoice,
         payments::{BasicPayment, DbPayment, LxPaymentId},
     },
     test_event::TestEventOp,
@@ -336,11 +336,12 @@ pub trait AppNodeRunApi {
     /// GET /app/node_info [`Empty`] -> [`NodeInfo`]
     async fn node_info(&self) -> Result<NodeInfo, NodeApiError>;
 
-    /// POST /app/create_invoice [`CreateInvoiceRequest`] -> [`LxInvoice`]
+    /// POST /app/create_invoice [`CreateInvoiceRequest`]
+    ///                          -> [`CreateInvoiceResponse`]
     async fn create_invoice(
         &self,
         req: CreateInvoiceRequest,
-    ) -> Result<LxInvoice, NodeApiError>;
+    ) -> Result<CreateInvoiceResponse, NodeApiError>;
 
     /// POST /app/pay_invoice [`PayInvoiceRequest`] -> [`Empty`]
     async fn pay_invoice(
