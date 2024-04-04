@@ -26,6 +26,7 @@ import 'package:lexeapp/components.dart'
         LxCloseButtonKind,
         LxFilledButton,
         MultistepFlow,
+        PaymentAmountInput,
         PaymentNoteInput,
         ScrollableSinglePageBody,
         SubheadingText,
@@ -284,17 +285,17 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
       sendAmount = const SendAmountAll();
     } else {
       final fieldState = this.amountFieldKey.currentState!;
-      if (!fieldState.validate()) {
-        return;
-      }
+      if (!fieldState.validate()) return;
 
-      final result = this.validateAmountStr(fieldState.value).ok;
-      if (result == null) {
-        return;
-      }
-      final int amountSats = result;
+      final value = fieldState.value;
+      if (value == null || value.isEmpty) return;
 
-      sendAmount = SendAmountExact(amountSats);
+      switch (this.intInputFormatter.tryParse(value)) {
+        case Err():
+          return;
+        case Ok(:final ok):
+          sendAmount = SendAmountExact(ok);
+      }
     }
 
     final amountSats = switch (sendAmount) {
@@ -352,29 +353,12 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     }
   }
 
-  Result<int, String?> validateAmountStr(String? maybeAmountStr) {
-    if (maybeAmountStr == null || maybeAmountStr.isEmpty) {
-      return const Err(null);
-    }
-
-    final int amount;
-    switch (this.intInputFormatter.tryParse(maybeAmountStr)) {
-      case Ok(:final ok):
-        amount = ok;
-      case Err():
-        return const Err("Amount must be a number.");
-    }
-
-    // Don't show any error message if the field is effectively empty.
-    if (amount <= 0) {
-      return const Err(null);
-    }
-
+  Result<(), String?> validateAmount(int amount) {
     if (amount > this.widget.sendCtx.balanceSats) {
       return const Err("You can't send more than your current balance.");
     }
 
-    return Ok(amount);
+    return const Ok(());
   }
 
   @override
@@ -398,43 +382,11 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           const SizedBox(height: Space.s850),
 
           // <amount> sats
-          TextFormField(
-            key: this.amountFieldKey,
-            autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(
-                signed: false, decimal: false),
-            initialValue: "0",
-            textDirection: TextDirection.ltr,
-            textInputAction: TextInputAction.next,
-            textAlign: TextAlign.right,
+          PaymentAmountInput(
+            fieldKey: this.amountFieldKey,
+            intInputFormatter: this.intInputFormatter,
             onEditingComplete: this.onNext,
-            validator: (str) => this.validateAmountStr(str).err,
-            decoration: baseInputDecoration.copyWith(
-              hintText: "0",
-              // Goal: I want the amount to be right-aligned, starting from the
-              //       center of the screen.
-              //
-              // |    vvvvvvv            |
-              // |    123,456| sats      |
-              // |                       |
-              //
-              // There's probably a better way to do this, but this works. Just
-              // expand the " sats" suffix so that it's
-              suffix: LayoutBuilder(
-                builder: (context, constraints) => ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minWidth: max(0.0, (constraints.maxWidth / 2) - Space.s200),
-                  ),
-                  child: const Text(" sats"),
-                ),
-              ),
-            ),
-            inputFormatters: [this.intInputFormatter],
-            style: Fonts.fontUI.copyWith(
-              fontSize: Fonts.size800,
-              fontVariations: [Fonts.weightMedium],
-              letterSpacing: -0.5,
-            ),
+            validate: this.validateAmount,
           ),
 
           const SizedBox(height: Space.s700),

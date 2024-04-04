@@ -13,11 +13,16 @@ import 'package:lexeapp/components.dart'
         HeadingText,
         LxBackButton,
         LxFilledButton,
+        PaymentAmountInput,
+        PaymentNoteInput,
         ScrollableSinglePageBody,
         SheetDragHandle,
-        ValueStreamBuilder;
+        ValueStreamBuilder,
+        baseInputDecoration;
 import 'package:lexeapp/currency_format.dart';
+import 'package:lexeapp/input_formatter.dart';
 import 'package:lexeapp/logger.dart';
+import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/show_qr.dart' show QrImage;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxRadius, LxTheme, Space;
@@ -182,6 +187,13 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     ));
   }
 
+  Future<void> onTapSetAmount() async {
+    final PaymentOfferInputs? flowResult =
+        await Navigator.of(this.context).push(MaterialPageRoute(
+      builder: (_) => const ReceivePaymentSetAmountPage(),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -264,7 +276,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
                   child: LxFilledButton(
                     label: const Text("Amount"),
                     icon: const Icon(Icons.add_rounded),
-                    onTap: () {},
+                    onTap: this.onTapSetAmount,
                   ),
                 ),
               ],
@@ -593,6 +605,71 @@ class PaymentOfferKindRadio extends StatelessWidget {
       onChanged: (onChanged != null) ? (kind) => onChanged(kind!) : null,
       title: this.title,
       subtitle: this.subtitle,
+    );
+  }
+}
+
+/// A page for the user to set a desired amount and optional description on
+/// their payment offer.
+class ReceivePaymentSetAmountPage extends StatefulWidget {
+  const ReceivePaymentSetAmountPage({super.key});
+
+  @override
+  State<ReceivePaymentSetAmountPage> createState() =>
+      _ReceivePaymentSetAmountPageState();
+}
+
+class _ReceivePaymentSetAmountPageState
+    extends State<ReceivePaymentSetAmountPage> {
+  final GlobalKey<FormFieldState<String>> amountFieldKey = GlobalKey();
+  final GlobalKey<FormFieldState<String>> descriptionFieldKey = GlobalKey();
+
+  final IntInputFormatter intInputFormatter = IntInputFormatter();
+
+  Result<int, String?> validateAmountStr(String? maybeAmountStr) {
+    if (maybeAmountStr == null || maybeAmountStr.isEmpty) {
+      return const Err(null);
+    }
+
+    final int amount;
+    switch (this.intInputFormatter.tryParse(maybeAmountStr)) {
+      case Ok(:final ok):
+        amount = ok;
+      case Err():
+        return const Err("Amount must be a number.");
+    }
+
+    // Don't show any error message if the field is effectively empty.
+    if (amount <= 0) {
+      return const Err(null);
+    }
+
+    return Ok(amount);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxBackButton(),
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const HeadingText(text: "Set receive amount"),
+          const SizedBox(height: Space.s850),
+
+          // <amount> sats
+          PaymentAmountInput(
+            fieldKey: this.amountFieldKey,
+            intInputFormatter: this.intInputFormatter,
+          ),
+
+          const SizedBox(height: Space.s700),
+
+          PaymentNoteInput(fieldKey: this.descriptionFieldKey, onSubmit: () {}),
+        ],
+      ),
     );
   }
 }

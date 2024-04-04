@@ -200,6 +200,8 @@ final class FfiError implements Exception {
     }
   }
 
+  FfiException toFfi() => FfiException("RESULT_ERROR", this.message);
+
   final String message;
 
   @override
