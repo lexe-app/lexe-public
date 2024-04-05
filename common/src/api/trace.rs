@@ -116,6 +116,15 @@ impl TraceId {
     /// Get the [`TraceId`] from the `Extensions` of the given span or any of
     /// its parents, logging any errors that occur as warnings.
     fn get_from_span(span: &tracing::Span) -> Option<Self> {
+        // Tests are usually not instrumented with tracing spans. To prevent
+        // tests from spamming "WARN: Span is not enabled", we return early if
+        // the given span was disabled and we are in test. In prod, however,
+        // ~everything should be instrumented, so we do want to log the `WARN`s.
+        #[cfg(any(test, feature = "test-utils"))]
+        if span.is_disabled() {
+            return None;
+        }
+
         let try_get_trace_id = || {
             // Fetch the `get_trace_id_from_span` fn pointer from the static.
             let get_trace_id_fn = GET_TRACE_ID_FN.get().context(
