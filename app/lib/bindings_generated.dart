@@ -347,6 +347,29 @@ class AppRsImpl implements AppRs {
         argNames: ["that"],
       );
 
+  Future<CreateInvoiceResponse> createInvoiceMethodAppHandle(
+      {required AppHandle that,
+      required CreateInvoiceRequest req,
+      dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    var arg1 = _platform.api2wire_box_autoadd_create_invoice_request(req);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner
+          .wire_create_invoice__method__AppHandle(port_, arg0, arg1),
+      parseSuccessData: _wire2api_create_invoice_response,
+      parseErrorData: _wire2api_FrbAnyhowException,
+      constMeta: kCreateInvoiceMethodAppHandleConstMeta,
+      argValues: [that, req],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kCreateInvoiceMethodAppHandleConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "create_invoice__method__AppHandle",
+        argNames: ["that", "req"],
+      );
+
   Future<void> deletePaymentDbMethodAppHandle(
       {required AppHandle that, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
@@ -646,6 +669,15 @@ class AppRsImpl implements AppRs {
     );
   }
 
+  CreateInvoiceResponse _wire2api_create_invoice_response(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return CreateInvoiceResponse(
+      invoice: _wire2api_invoice(arr[0]),
+    );
+  }
+
   DeployEnv _wire2api_deploy_env(dynamic raw) {
     return DeployEnv.values[raw as int];
   }
@@ -872,6 +904,11 @@ int api2wire_network(Network raw) {
 }
 
 @protected
+int api2wire_u32(int raw) {
+  return raw;
+}
+
+@protected
 int api2wire_u8(int raw) {
   return raw;
 }
@@ -914,6 +951,14 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   }
 
   @protected
+  ffi.Pointer<wire_CreateInvoiceRequest>
+      api2wire_box_autoadd_create_invoice_request(CreateInvoiceRequest raw) {
+    final ptr = inner.new_box_autoadd_create_invoice_request_0();
+    _api_fill_to_wire_create_invoice_request(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
   ffi.Pointer<wire_EstimateFeeSendOnchainRequest>
       api2wire_box_autoadd_estimate_fee_send_onchain_request(
           EstimateFeeSendOnchainRequest raw) {
@@ -931,6 +976,11 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   }
 
   @protected
+  ffi.Pointer<ffi.Uint64> api2wire_box_autoadd_u64(int raw) {
+    return inner.new_box_autoadd_u64_0(api2wire_u64(raw));
+  }
+
+  @protected
   ffi.Pointer<wire_UpdatePaymentNote> api2wire_box_autoadd_update_payment_note(
       UpdatePaymentNote raw) {
     final ptr = inner.new_box_autoadd_update_payment_note_0();
@@ -941,6 +991,11 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   @protected
   ffi.Pointer<wire_uint_8_list> api2wire_opt_String(String? raw) {
     return raw == null ? ffi.nullptr : api2wire_String(raw);
+  }
+
+  @protected
+  ffi.Pointer<ffi.Uint64> api2wire_opt_box_autoadd_u64(int? raw) {
+    return raw == null ? ffi.nullptr : api2wire_box_autoadd_u64(raw);
   }
 
   @protected
@@ -987,6 +1042,12 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     _api_fill_to_wire_config(apiObj, wireObj.ref);
   }
 
+  void _api_fill_to_wire_box_autoadd_create_invoice_request(
+      CreateInvoiceRequest apiObj,
+      ffi.Pointer<wire_CreateInvoiceRequest> wireObj) {
+    _api_fill_to_wire_create_invoice_request(apiObj, wireObj.ref);
+  }
+
   void _api_fill_to_wire_box_autoadd_estimate_fee_send_onchain_request(
       EstimateFeeSendOnchainRequest apiObj,
       ffi.Pointer<wire_EstimateFeeSendOnchainRequest> wireObj) {
@@ -1015,6 +1076,13 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     wireObj.use_sgx = api2wire_bool(apiObj.useSgx);
     wireObj.base_app_data_dir = api2wire_String(apiObj.baseAppDataDir);
     wireObj.use_mock_secret_store = api2wire_bool(apiObj.useMockSecretStore);
+  }
+
+  void _api_fill_to_wire_create_invoice_request(
+      CreateInvoiceRequest apiObj, wire_CreateInvoiceRequest wireObj) {
+    wireObj.expiry_secs = api2wire_u32(apiObj.expirySecs);
+    wireObj.amount_sats = api2wire_opt_box_autoadd_u64(apiObj.amountSats);
+    wireObj.description = api2wire_opt_String(apiObj.description);
   }
 
   void _api_fill_to_wire_estimate_fee_send_onchain_request(
@@ -1423,6 +1491,28 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _wire_get_address__method__AppHandlePtr
           .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
 
+  void wire_create_invoice__method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_AppHandle> that,
+    ffi.Pointer<wire_CreateInvoiceRequest> req,
+  ) {
+    return _wire_create_invoice__method__AppHandle(
+      port_,
+      that,
+      req,
+    );
+  }
+
+  late final _wire_create_invoice__method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>,
+                  ffi.Pointer<wire_CreateInvoiceRequest>)>>(
+      'wire_create_invoice__method__AppHandle');
+  late final _wire_create_invoice__method__AppHandle =
+      _wire_create_invoice__method__AppHandlePtr.asFunction<
+          void Function(int, ffi.Pointer<wire_AppHandle>,
+              ffi.Pointer<wire_CreateInvoiceRequest>)>();
+
   void wire_delete_payment_db__method__AppHandle(
     int port_,
     ffi.Pointer<wire_AppHandle> that,
@@ -1639,6 +1729,19 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _new_box_autoadd_config_0 = _new_box_autoadd_config_0Ptr
       .asFunction<ffi.Pointer<wire_Config> Function()>();
 
+  ffi.Pointer<wire_CreateInvoiceRequest>
+      new_box_autoadd_create_invoice_request_0() {
+    return _new_box_autoadd_create_invoice_request_0();
+  }
+
+  late final _new_box_autoadd_create_invoice_request_0Ptr = _lookup<
+          ffi
+          .NativeFunction<ffi.Pointer<wire_CreateInvoiceRequest> Function()>>(
+      'new_box_autoadd_create_invoice_request_0');
+  late final _new_box_autoadd_create_invoice_request_0 =
+      _new_box_autoadd_create_invoice_request_0Ptr
+          .asFunction<ffi.Pointer<wire_CreateInvoiceRequest> Function()>();
+
   ffi.Pointer<wire_EstimateFeeSendOnchainRequest>
       new_box_autoadd_estimate_fee_send_onchain_request_0() {
     return _new_box_autoadd_estimate_fee_send_onchain_request_0();
@@ -1663,6 +1766,20 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _new_box_autoadd_send_onchain_request_0 =
       _new_box_autoadd_send_onchain_request_0Ptr
           .asFunction<ffi.Pointer<wire_SendOnchainRequest> Function()>();
+
+  ffi.Pointer<ffi.Uint64> new_box_autoadd_u64_0(
+    int value,
+  ) {
+    return _new_box_autoadd_u64_0(
+      value,
+    );
+  }
+
+  late final _new_box_autoadd_u64_0Ptr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<ffi.Uint64> Function(ffi.Uint64)>>(
+          'new_box_autoadd_u64_0');
+  late final _new_box_autoadd_u64_0 = _new_box_autoadd_u64_0Ptr
+      .asFunction<ffi.Pointer<ffi.Uint64> Function(int)>();
 
   ffi.Pointer<wire_UpdatePaymentNote> new_box_autoadd_update_payment_note_0() {
     return _new_box_autoadd_update_payment_note_0();
@@ -1792,6 +1909,15 @@ final class wire_EstimateFeeSendOnchainRequest extends ffi.Struct {
 
   @ffi.Uint64()
   external int amount_sats;
+}
+
+final class wire_CreateInvoiceRequest extends ffi.Struct {
+  @ffi.Uint32()
+  external int expiry_secs;
+
+  external ffi.Pointer<ffi.Uint64> amount_sats;
+
+  external ffi.Pointer<wire_uint_8_list> description;
 }
 
 final class wire_UpdatePaymentNote extends ffi.Struct {

@@ -129,6 +129,13 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kGetAddressMethodAppHandleConstMeta;
 
+  Future<CreateInvoiceResponse> createInvoiceMethodAppHandle(
+      {required AppHandle that,
+      required CreateInvoiceRequest req,
+      dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kCreateInvoiceMethodAppHandleConstMeta;
+
   /// Delete both the local payment state and the on-disk payment db.
   Future<void> deletePaymentDbMethodAppHandle(
       {required AppHandle that, dynamic hint});
@@ -268,6 +275,13 @@ class AppHandle {
         that: this,
       );
 
+  Future<CreateInvoiceResponse> createInvoice(
+          {required CreateInvoiceRequest req, dynamic hint}) =>
+      bridge.createInvoiceMethodAppHandle(
+        that: this,
+        req: req,
+      );
+
   /// Delete both the local payment state and the on-disk payment db.
   Future<void> deletePaymentDb({dynamic hint}) =>
       bridge.deletePaymentDbMethodAppHandle(
@@ -358,6 +372,26 @@ enum ConfirmationPriority {
   High,
   Normal,
   Background,
+}
+
+class CreateInvoiceRequest {
+  final int expirySecs;
+  final int? amountSats;
+  final String? description;
+
+  const CreateInvoiceRequest({
+    required this.expirySecs,
+    this.amountSats,
+    this.description,
+  });
+}
+
+class CreateInvoiceResponse {
+  final Invoice invoice;
+
+  const CreateInvoiceResponse({
+    required this.invoice,
+  });
 }
 
 enum DeployEnv {
