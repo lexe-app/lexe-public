@@ -295,6 +295,24 @@ fn wire_get_address__method__AppHandle_impl(
         },
     )
 }
+fn wire_create_invoice__method__AppHandle_impl(
+    port_: MessagePort,
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+    req: impl Wire2Api<CreateInvoiceRequest> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, CreateInvoiceResponse, _>(
+        WrapInfo {
+            debug_name: "create_invoice__method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_that = that.wire2api();
+            let api_req = req.wire2api();
+            move |task_callback| AppHandle::create_invoice(&api_that, api_req)
+        },
+    )
+}
 fn wire_delete_payment_db__method__AppHandle_impl(
     port_: MessagePort,
     that: impl Wire2Api<AppHandle> + UnwindSafe,
@@ -522,6 +540,7 @@ impl Wire2Api<ConfirmationPriority> for i32 {
         }
     }
 }
+
 impl Wire2Api<DeployEnv> for i32 {
     fn wire2api(self) -> DeployEnv {
         match self {
@@ -549,6 +568,11 @@ impl Wire2Api<Network> for i32 {
     }
 }
 
+impl Wire2Api<u32> for u32 {
+    fn wire2api(self) -> u32 {
+        self
+    }
+}
 impl Wire2Api<u64> for u64 {
     fn wire2api(self) -> u64 {
         self
@@ -586,6 +610,18 @@ impl support::IntoDart for ClientPaymentId {
 }
 impl support::IntoDartExceptPrimitive for ClientPaymentId {}
 impl rust2dart::IntoIntoDart<ClientPaymentId> for ClientPaymentId {
+    fn into_into_dart(self) -> Self {
+        self
+    }
+}
+
+impl support::IntoDart for CreateInvoiceResponse {
+    fn into_dart(self) -> support::DartAbi {
+        vec![self.invoice.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for CreateInvoiceResponse {}
+impl rust2dart::IntoIntoDart<CreateInvoiceResponse> for CreateInvoiceResponse {
     fn into_into_dart(self) -> Self {
         self
     }
@@ -963,6 +999,15 @@ mod io {
     }
 
     #[no_mangle]
+    pub extern "C" fn wire_create_invoice__method__AppHandle(
+        port_: i64,
+        that: *mut wire_AppHandle,
+        req: *mut wire_CreateInvoiceRequest,
+    ) {
+        wire_create_invoice__method__AppHandle_impl(port_, that, req)
+    }
+
+    #[no_mangle]
     pub extern "C" fn wire_delete_payment_db__method__AppHandle(
         port_: i64,
         that: *mut wire_AppHandle,
@@ -1064,6 +1109,12 @@ mod io {
     }
 
     #[no_mangle]
+    pub extern "C" fn new_box_autoadd_create_invoice_request_0(
+    ) -> *mut wire_CreateInvoiceRequest {
+        support::new_leak_box_ptr(wire_CreateInvoiceRequest::new_with_null_ptr())
+    }
+
+    #[no_mangle]
     pub extern "C" fn new_box_autoadd_estimate_fee_send_onchain_request_0(
     ) -> *mut wire_EstimateFeeSendOnchainRequest {
         support::new_leak_box_ptr(
@@ -1075,6 +1126,11 @@ mod io {
     pub extern "C" fn new_box_autoadd_send_onchain_request_0(
     ) -> *mut wire_SendOnchainRequest {
         support::new_leak_box_ptr(wire_SendOnchainRequest::new_with_null_ptr())
+    }
+
+    #[no_mangle]
+    pub extern "C" fn new_box_autoadd_u64_0(value: u64) -> *mut u64 {
+        support::new_leak_box_ptr(value)
     }
 
     #[no_mangle]
@@ -1142,6 +1198,12 @@ mod io {
             Wire2Api::<Config>::wire2api(*wrap).into()
         }
     }
+    impl Wire2Api<CreateInvoiceRequest> for *mut wire_CreateInvoiceRequest {
+        fn wire2api(self) -> CreateInvoiceRequest {
+            let wrap = unsafe { support::box_from_leak_ptr(self) };
+            Wire2Api::<CreateInvoiceRequest>::wire2api(*wrap).into()
+        }
+    }
     impl Wire2Api<EstimateFeeSendOnchainRequest>
         for *mut wire_EstimateFeeSendOnchainRequest
     {
@@ -1154,6 +1216,11 @@ mod io {
         fn wire2api(self) -> SendOnchainRequest {
             let wrap = unsafe { support::box_from_leak_ptr(self) };
             Wire2Api::<SendOnchainRequest>::wire2api(*wrap).into()
+        }
+    }
+    impl Wire2Api<u64> for *mut u64 {
+        fn wire2api(self) -> u64 {
+            unsafe { *support::box_from_leak_ptr(self) }
         }
     }
     impl Wire2Api<UpdatePaymentNote> for *mut wire_UpdatePaymentNote {
@@ -1178,6 +1245,16 @@ mod io {
                 use_sgx: self.use_sgx.wire2api(),
                 base_app_data_dir: self.base_app_data_dir.wire2api(),
                 use_mock_secret_store: self.use_mock_secret_store.wire2api(),
+            }
+        }
+    }
+
+    impl Wire2Api<CreateInvoiceRequest> for wire_CreateInvoiceRequest {
+        fn wire2api(self) -> CreateInvoiceRequest {
+            CreateInvoiceRequest {
+                expiry_secs: self.expiry_secs.wire2api(),
+                amount_sats: self.amount_sats.wire2api(),
+                description: self.description.wire2api(),
             }
         }
     }
@@ -1257,6 +1334,14 @@ mod io {
         use_sgx: bool,
         base_app_data_dir: *mut wire_uint_8_list,
         use_mock_secret_store: bool,
+    }
+
+    #[repr(C)]
+    #[derive(Clone)]
+    pub struct wire_CreateInvoiceRequest {
+        expiry_secs: u32,
+        amount_sats: *mut u64,
+        description: *mut wire_uint_8_list,
     }
 
     #[repr(C)]
@@ -1352,6 +1437,22 @@ mod io {
     }
 
     impl Default for wire_Config {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+
+    impl NewWithNullPtr for wire_CreateInvoiceRequest {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                expiry_secs: Default::default(),
+                amount_sats: core::ptr::null_mut(),
+                description: core::ptr::null_mut(),
+            }
+        }
+    }
+
+    impl Default for wire_CreateInvoiceRequest {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }

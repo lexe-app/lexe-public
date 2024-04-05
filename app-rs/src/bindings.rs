@@ -56,6 +56,8 @@ pub use common::ln::payments::BasicPayment;
 use common::{
     api::{
         command::{
+            CreateInvoiceRequest as CreateInvoiceRequestRs,
+            CreateInvoiceResponse as CreateInvoiceResponseRs,
             EstimateFeeSendOnchainRequest as EstimateFeeSendOnchainRequestRs,
             EstimateFeeSendOnchainResponse as EstimateFeeSendOnchainResponseRs,
             FeeEstimate as FeeEstimateRs, NodeInfo as NodeInfoRs,
@@ -633,12 +635,43 @@ pub struct UpdatePaymentNote {
 
 impl TryFrom<UpdatePaymentNote> for UpdatePaymentNoteRs {
     type Error = anyhow::Error;
-
     fn try_from(value: UpdatePaymentNote) -> Result<Self, Self::Error> {
         Ok(Self {
             index: PaymentIndexRs::from_str(&value.index)?,
             note: value.note,
         })
+    }
+}
+
+pub struct CreateInvoiceRequest {
+    pub expiry_secs: u32,
+    pub amount_sats: Option<u64>,
+    pub description: Option<String>,
+}
+
+impl TryFrom<CreateInvoiceRequest> for CreateInvoiceRequestRs {
+    type Error = anyhow::Error;
+    fn try_from(value: CreateInvoiceRequest) -> Result<Self, Self::Error> {
+        Ok(Self {
+            expiry_secs: value.expiry_secs,
+            amount: value
+                .amount_sats
+                .map(Amount::try_from_sats_u64)
+                .transpose()?,
+            description: value.description,
+        })
+    }
+}
+
+pub struct CreateInvoiceResponse {
+    pub invoice: Invoice,
+}
+
+impl From<CreateInvoiceResponseRs> for CreateInvoiceResponse {
+    fn from(value: CreateInvoiceResponseRs) -> Self {
+        Self {
+            invoice: Invoice::from(&value.invoice),
+        }
     }
 }
 
@@ -775,6 +808,16 @@ impl AppHandle {
     pub fn get_address(&self) -> anyhow::Result<String> {
         block_on(self.inner.node_client().get_address())
             .map(|addr| addr.to_string())
+            .map_err(anyhow::Error::new)
+    }
+
+    pub fn create_invoice(
+        &self,
+        req: CreateInvoiceRequest,
+    ) -> anyhow::Result<CreateInvoiceResponse> {
+        let req = CreateInvoiceRequestRs::try_from(req)?;
+        block_on(self.inner.node_client().create_invoice(req))
+            .map(CreateInvoiceResponse::from)
             .map_err(anyhow::Error::new)
     }
 
