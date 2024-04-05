@@ -40,7 +40,6 @@
 use std::{
     fmt,
     future::Future,
-    io,
     net::{SocketAddr, TcpListener},
     str::FromStr,
     sync::Arc,
@@ -147,6 +146,7 @@ impl Default for LayerConfig {
 // --- Server helpers --- //
 
 /// Constructs an API server future which can be spawned into a task.
+/// Additionally returns the server url.
 ///
 /// Use this helper when it is useful to poll multiple futures in a single task
 /// to reduce the amount of task nesting / indirection. If there is only one
@@ -160,22 +160,26 @@ pub fn build_server_fut(
     bind_addr: SocketAddr,
     router: Router<()>,
     layer_config: LayerConfig,
-    maybe_tls_config: Option<Arc<rustls::ServerConfig>>,
+    // TLS config + DNS name
+    maybe_tls_and_dns: Option<(Arc<rustls::ServerConfig>, &str)>,
+    server_span_name: &str,
     server_span: tracing::Span,
     // Send on this channel to begin a graceful shutdown of the server.
     shutdown: ShutdownChannel,
-) -> Result<(impl Future<Output = ()>, SocketAddr), io::Error> {
-    let listener = TcpListener::bind(bind_addr)?;
-    let local_addr = listener.local_addr()?;
-    let server_fut = build_server_fut_with_listener(
+) -> anyhow::Result<(impl Future<Output = ()>, String)> {
+    let listener =
+        TcpListener::bind(bind_addr).context("Could not bind TCP listener")?;
+    let (server_fut, server_url) = build_server_fut_with_listener(
         listener,
         router,
         layer_config,
-        maybe_tls_config,
+        maybe_tls_and_dns,
+        server_span_name,
         server_span,
         shutdown,
-    );
-    Ok((server_fut, local_addr))
+    )
+    .context("Could not build server future")?;
+    Ok((server_fut, server_url))
 }
 
 /// [`build_server_fut`] but takes a [`TcpListener`] instead of [`SocketAddr`].
@@ -185,11 +189,28 @@ pub fn build_server_fut_with_listener(
     listener: TcpListener,
     router: Router<()>,
     layer_config: LayerConfig,
-    maybe_tls_config: Option<Arc<rustls::ServerConfig>>,
+    // TLS config + DNS name
+    maybe_tls_and_dns: Option<(Arc<rustls::ServerConfig>, &str)>,
+    server_span_name: &str,
     server_span: tracing::Span,
     // Send on this channel to begin a graceful shutdown of the server.
     mut shutdown: ShutdownChannel,
-) -> impl Future<Output = ()> {
+) -> anyhow::Result<(impl Future<Output = ()>, String)> {
+    // Build the url here bc it's easy to mess up. `http[s]://{dns:port,addr}`
+    let using_tls = maybe_tls_and_dns.is_some();
+    let (maybe_tls_config, maybe_dns_name) = maybe_tls_and_dns.unzip();
+    let server_addr = listener
+        .local_addr()
+        .context("Could not get local address of TcpListener")?;
+    let server_url = if using_tls {
+        let dns_name = maybe_dns_name.expect("Must be Some bc using_tls=true");
+        let server_port = server_addr.port();
+        format!("https://{dns_name}:{server_port}")
+    } else {
+        format!("http://{server_addr}")
+    };
+    info!("Url for {server_span_name}: {server_url}");
+
     // Add a fallback which triggers if no routes were matched. Returns a
     // "bad endpoint" rejection with the requested path and method.
     let router_with_fallback =
@@ -300,7 +321,7 @@ pub fn build_server_fut_with_listener(
         handle.graceful_shutdown(Some(SHUTDOWN_GRACE_PERIOD));
     };
 
-    async {
+    let combined_fut = async {
         tokio::pin!(server_fut);
         tokio::select! {
             biased; // Ensure graceful shutdown future finishes first
@@ -312,7 +333,9 @@ pub fn build_server_fut_with_listener(
             Err(_) => warn!("API server timed out during shutdown"),
         }
     }
-    .instrument(server_span)
+    .instrument(server_span);
+
+    Ok((combined_fut, server_url))
 }
 
 /// [`build_server_fut`] but additionally spawns the server future into an
@@ -359,35 +382,22 @@ pub fn spawn_server_task_with_listener(
     // Send on this channel to begin a graceful shutdown of the server.
     shutdown: ShutdownChannel,
 ) -> anyhow::Result<(LxTask<()>, String)> {
-    let using_tls = maybe_tls_and_dns.is_some();
-    let (maybe_tls_config, maybe_dns_name) = maybe_tls_and_dns.unzip();
-    let server_addr = listener
-        .local_addr()
-        .context("Could not get local address of TcpListener")?;
-    let server_fut = build_server_fut_with_listener(
+    let (server_fut, server_url) = build_server_fut_with_listener(
         listener,
         router,
         layer_config,
-        maybe_tls_config,
+        maybe_tls_and_dns,
+        server_span_name,
         server_span.clone(),
         shutdown,
-    );
+    )
+    .context("Failed to build server future")?;
 
     let server_task = LxTask::spawn_named_with_span(
         server_span_name,
         server_span,
         server_fut,
     );
-
-    // Log the url here bc it's easy to mess up: `http[s]://{dns:port,addr}`
-    let server_url = if using_tls {
-        let dns_name = maybe_dns_name.expect("Must be Some bc using_tls=true");
-        let server_port = server_addr.port();
-        format!("https://{dns_name}:{server_port}")
-    } else {
-        format!("http://{server_addr}")
-    };
-    info!("Url for {server_span_name}: {server_url}");
 
     Ok((server_task, server_url))
 }
