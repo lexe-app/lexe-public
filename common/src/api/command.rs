@@ -38,7 +38,11 @@ pub struct CreateInvoiceRequest {
     pub expiry_secs: u32,
     pub amount: Option<Amount>,
     /// The description to be encoded into the invoice.
-    pub description: String,
+    ///
+    /// If `None`, the `description` field inside the invoice will be an empty
+    /// string (""), as lightning _requires_ a description (or description
+    /// hash) to be set.
+    pub description: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

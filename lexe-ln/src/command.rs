@@ -211,7 +211,7 @@ where
     // _create_invoice_from_channelmanager_and_duration_since_epoch_with_payment_hash
     #[rustfmt::skip] // Nicer for the generic annotations to be aligned
     let mut builder = InvoiceBuilder::new(currency)          // <D, H, T, C, S>
-        .description(req.description)                        // D: False -> True
+        .description(req.description.unwrap_or_default())    // D: False -> True
         .payment_hash(sha256_hash)                           // H: False -> True
         .current_timestamp()                                 // T: False -> True
         .min_final_cltv_expiry_delta(u64::from(cltv_expiry)) // C: False -> True
@@ -219,6 +219,7 @@ where
         .basic_mpp()                                         // S: _ -> True
         .expiry_time(expiry_time)
         .payee_pub_key(our_node_pk);
+
     if let Some(amount) = req.amount {
         builder = builder.amount_milli_satoshis(amount.msat());
     }
