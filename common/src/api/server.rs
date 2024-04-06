@@ -83,7 +83,7 @@ const HTTP_VERSION: Version = Version::HTTP_2;
 /// terminate before initiating a hard shutdown.
 const SHUTDOWN_GRACE_PERIOD: Duration = Duration::from_secs(3);
 /// The maximum time we'll wait for a server to complete shutdown.
-const SERVER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+pub const SERVER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 const_assert!(
     SHUTDOWN_GRACE_PERIOD.as_secs() < SERVER_SHUTDOWN_TIMEOUT.as_secs()
 );
