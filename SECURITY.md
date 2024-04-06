@@ -30,14 +30,14 @@ Eve does not have access to Lexe's cloud instances.
 
 In addition to Eve's capabilities, Mallory can tamper with network messages sent to and from Lexe's servers over the wire.
 
-### Rogue employee Raven
+### Rogue employee Roger
 
-In addition to Mallory's capabilities, Raven has access to Lexe's cloud instances, where the Lexe's database is stored and where users' Lightning nodes run.
-Raven has access to Lexe's LSP, and can broadcast old channel states in order to attempt to steal funds from Lexe users.
-Raven can prevent a node from running at all, run a node as many times as she wants (including in parallel, with command line inputs of her choice), or stop a node at an arbitrary point during its execution.
-Using these powers, Raven can attempt side-channel attacks on users' nodes with the goal of retrieving sensitive information from within SGX. Raven also has access to Lexe's software signing key.
+In addition to Mallory's capabilities, Roger has access to Lexe's cloud instances, where the Lexe's database is stored and where users' Lightning nodes run.
+Roger has access to Lexe's LSP, and can broadcast old channel states in order to attempt to steal funds from Lexe users.
+Roger can prevent a node from running at all, run a node as many times as she wants (including in parallel, with command line inputs of her choice), or stop a node at an arbitrary point during its execution.
+Using these powers, Roger can attempt side-channel attacks on users' nodes with the goal of retrieving sensitive information from within SGX. Roger also has access to Lexe's software signing key.
 
-Although we would never want to risk our hard-earned trust and reputation by attacking our own users, for Lexe to qualify as non-custodial, we must demonstrate that Lexe users are reasonably secure even in the presence of a Raven-like adversary.
+Although we would never want to risk our hard-earned trust and reputation by attacking our own users, for Lexe to qualify as non-custodial, we must demonstrate that Lexe users are reasonably secure even in the presence of a Roger-like adversary.
 Security-conscious users who take the time to read through Lexe's source code will notice that user nodes have been carefully designed to protect even against this threat model.
 
 ## Threat Models
@@ -69,7 +69,7 @@ If you are interested in regularly verifying Lexe releases and publicly attestin
 Some additional details:
 
 - Verifying the remote attestation is done programmatically inside the user's mobile app as part of the secret provisioning process. But how does the user know that their mobile app is _actually_ doing the verification, instead of simply accepting all attestations? In short, the mobile apps are open-source and reproducible as well.
-- Note that Rogue Raven, who has access to Lexe's software signing key, can release a malicious update. In order to protect against this, a security conscious user must first verify the node build before approving the new measurement inside their mobile app, which begins the secret provisioning step for the new measurement. Due to how key derivation for SGX sealing works, secrets provisioned into an old measurement are not accessible to a new program with a different measurement unless the secret is re-provisioned into the new program, so a malicious update which the user does not approve is not able to access any sensitive information previously provisioned into the enclave.
+- Note that Rogue Roger, who has access to Lexe's software signing key, can release a malicious update. In order to protect against this, a security conscious user must first verify the node build before approving the new measurement inside their mobile app, which begins the secret provisioning step for the new measurement. Due to how key derivation for SGX sealing works, secrets provisioned into an old measurement are not accessible to a new program with a different measurement unless the secret is re-provisioned into the new program, so a malicious update which the user does not approve is not able to access any sensitive information previously provisioned into the enclave.
 - Users should be aware that app registries such as Google Play or the App Store may contain malicious client software if Lexe's software signing key has been compromised or if the registry itself has been compromised. Security-conscious users should verify their mobile client builds or simply run their own mobile build from source.
 
 ### Sealing the provisioned root seed
@@ -83,7 +83,7 @@ The sealed root seed can thus be safely persisted in Lexe's DB, which the node a
 
 ### Secure communication with the enclave
 
-All communication between the user's mobile app and the user's Lightning node is done over TLS, which guarantees confidentiality, integrity, and authentication in the presence of Eve-, Mallory-, and Raven-type adversaries.
+All communication between the user's mobile app and the user's Lightning node is done over TLS, which guarantees confidentiality, integrity, and authentication in the presence of Eve-, Mallory-, and Roger-type adversaries.
 
 During the secret provisioning process, the user's mobile client connects using a TLS certificate presented by the node.
 Authentication is achieved by verifying the remote attestation quote embedded within this initial TLS certificate.
@@ -112,7 +112,7 @@ Man-in-the-middle attacks on the inner TLS connection are prevented due to the a
 ### Confidentiality, integrity and authentication of persisted data
 
 Each user's Lexe node needs to persist some data for normal node operation.
-To ensure that this data remains confidential, the sensitive components are encrypted using AES-GCM, an **authenticated encryption** algorithm which ensures that Raven cannot overwrite this data with her own chosen inputs and also have it be accepted by the node the next time it decrypts this data.
+To ensure that this data remains confidential, the sensitive components are encrypted using AES-GCM, an **authenticated encryption** algorithm which ensures that Roger cannot overwrite this data with her own chosen inputs and also have it be accepted by the node the next time it decrypts this data.
 The sensitive fields are encrypted under a key derived from the user's root seed and then the ciphertext is stored in Lexe's database along with some metadata.
 
 Not all persisted data is encrypted. Unencrypted metadata includes:
@@ -127,7 +127,7 @@ See the node's persister for more details.
 ### Protecting against rollbacks using Google Drive
 
 One attack vector that SGX explicitly does not protect against is rollbacks or deletions of data persisted outside of the enclave.
-Although Raven cannot fool a user's node into accepting data that it did not persist itself, Raven could feed in an older version of the data which the node previously persisted but which has since been invalidated, or refuse to provide the data at all.
+Although Roger cannot fool a user's node into accepting data that it did not persist itself, Roger could feed in an older version of the data which the node previously persisted but which has since been invalidated, or refuse to provide the data at all.
 
 Rollback protection is very important for Lightning Network nodes since without it, a malicious Lexe LSP could "roll back" its channel state with the user node to some point in the past where the LSP had a higher balance and cooperatively close the channel with the user's node, effectively stealing funds from the user.
 
@@ -142,7 +142,7 @@ Critical persisted data which must be secure against rollback attacks (such as c
 ### Denial-of-Service Protection via HTTPS queries and "Security Reports"
 
 Another attack vector that SGX does not prevent is **denial-of-service**.
-When a user's node queries the blockchain to sync to the latest chain tip or check for channel breaches, Raven could provide the node with block data corresponding to a false chain, or she could refuse to provide the data at all.
+When a user's node queries the blockchain to sync to the latest chain tip or check for channel breaches, Roger could provide the node with block data corresponding to a false chain, or she could refuse to provide the data at all.
 
 Thus, any block data coming from Lexe's Bitcoin full node must be considered untrusted.
 User nodes can still use this data to sync to the latest chain tip, validating the block headers along the way.
@@ -165,7 +165,7 @@ In order for security-conscious users to remain fully secure against denial-of-s
 If the user has a channel open, and sees that at least one security report has been generated in the last `our_to_self_delay` blocks, then the user knows that at the present moment their funds are safe, although ideally there should be a report generated at least once every day.
 
 If there are no security reports available, or if they have not been generated frequently enough, the user should immediately use the open-source recovery tool to sweep their funds to an external address.
-During this process, the recovery tool will check for and contest any observed channel breaches, thus preventing any loss of funds to a Raven-type adversary.
+During this process, the recovery tool will check for and contest any observed channel breaches, thus preventing any loss of funds to a Roger-type adversary.
 
 ### Attacks on SGX
 
@@ -200,7 +200,7 @@ Lastly, Lexe utilizes defense in depth.
 The _key_ observation here is that even if SGX's isolation guarantees have been partially compromised, the primary assets that Lexe needs to protect are the cryptographic keys used inside the node.
 More specifically, Lexe can harden the user node software against side channel and transient execution attacks by ensuring that sensitive operations (such as signing data) are conducted by libraries which are constant time.
 For example, the library that Lexe uses for ed25519 (`ring`) has been hardened in this regard, and so has the library used for node signatures (`secp256k1`), which requires passing in a random number generator any time a sensitive cryptographic operation is conducted.
-What this means is that absent a complete break of SGX's confidentiality or attestation guarantees, Raven will have a very hard time trying to extract sensitive data out of the enclave.
+What this means is that absent a complete break of SGX's confidentiality or attestation guarantees, Roger will have a very hard time trying to extract sensitive data out of the enclave.
 Additionally, we are careful to zeroize memory after keys have been `drop()`ped in order to prevent leaking sensitive information in the case that an attacker has an exploit capable of reading uninitialized memory (such as ÆPIC Leak).
 
 ### Intel
