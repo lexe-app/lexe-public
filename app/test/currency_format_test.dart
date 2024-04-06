@@ -19,6 +19,20 @@ void main() {
     assertApproxEq(0.00001234, currency_format.satsToBtc(1234));
   });
 
+  test("currency_format.formatSatsToBtcForUri", () {
+    const btc = 100000000;
+
+    expect("0.0", currency_format.formatSatsToBtcForUri(0));
+    expect("0.00000001", currency_format.formatSatsToBtcForUri(1));
+    expect("0.000025", currency_format.formatSatsToBtcForUri(2500));
+    expect("23.000025", currency_format.formatSatsToBtcForUri(23 * btc + 2500));
+    expect("1.0", currency_format.formatSatsToBtcForUri(btc));
+    expect("0.1", currency_format.formatSatsToBtcForUri(btc ~/ 10));
+    expect("0.01", currency_format.formatSatsToBtcForUri(btc ~/ 100));
+    expect("0.00123", currency_format.formatSatsToBtcForUri(123000));
+    expect("1.00123", currency_format.formatSatsToBtcForUri(btc + 123000));
+  });
+
   test("currency_format.formatSatsAmount", () {
     expect(currency_format.formatSatsAmount(0, locale: "en_US"), "0 sats");
     expect(currency_format.formatSatsAmount(0, locale: "da_DK"), "0 sats");
