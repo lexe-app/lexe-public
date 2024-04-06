@@ -982,6 +982,26 @@ impl NodeApiError {
     }
 }
 
+impl RunnerApiError {
+    pub fn at_capacity(error: impl fmt::Display) -> Self {
+        let kind = RunnerErrorKind::AtCapacity;
+        let msg = format!("{error:#}");
+        Self { kind, msg }
+    }
+
+    pub fn temporarily_unavailable(error: impl fmt::Display) -> Self {
+        let kind = RunnerErrorKind::TemporarilyUnavailable;
+        let msg = format!("{error:#}");
+        Self { kind, msg }
+    }
+
+    pub fn service_unavailable(error: impl fmt::Display) -> Self {
+        let kind = RunnerErrorKind::ServiceUnavailable;
+        let msg = format!("{error:#}");
+        Self { kind, msg }
+    }
+}
+
 // --- Test utils for asserting error invariants --- //
 
 #[cfg(any(test, feature = "test-utils"))]
