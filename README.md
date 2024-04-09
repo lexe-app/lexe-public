@@ -23,7 +23,7 @@ More information is available on our website: [lexe.app](https://lexe.app)
   - Cryptography: ed25519, ring, secp256k1, AES-256-GCM, SHA-256, root seeds, key derivation, rng, E2EE "vfs" for untrusted storage
   - Utils: hex, byte strings, test-utils, tasks, channels, exponential backoff, iterator extensions
   - and other miscellaneous things.
-- [`nix`](./nix): Reproducible node build (WIP)
+- [`flake.nix`](./flake.nix): Reproducible node build
 - [`SECURITY.md`](./SECURITY.md) contains information about Lexe's security model and responsible disclosure.
 
 ## Dev Setup (nix)
@@ -76,8 +76,7 @@ $ cat result/bin/node.measurement
 867d0c37d5af59644d9d30f376dc1f574de9196b3f8b0287f52d76a0e15d621b
 ```
 
-TODO(phlip9): flesh this out more once the app provisioning UI flow is more
-functional.
+<!-- TODO(phlip9): flesh this out more once the app provisioning UI flow is more functional. -->
 
 If you're an engineer running `nix build` frequently and want faster incremental
 cargo builds in `nix`, consider following
@@ -188,7 +187,7 @@ See `RunArgs`/`ProvisionArgs` contained in `common::cli::node` for full options.
 
 ## OrbStack linux-builder setup
 
-Follow these instructions if you're running on macOS and want to setup anFast incremental cargo builds in `nix`
+Follow these instructions if you're running on macOS and want to setup fast incremental cargo builds in `nix`
 [OrbStack](https://orbstack.dev/) x86_64 linux-builder VM.
 
 
