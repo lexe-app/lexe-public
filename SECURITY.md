@@ -34,7 +34,7 @@ In addition to Eve's capabilities, Mallory can tamper with network messages sent
 
 In addition to Mallory's capabilities, Roger has access to Lexe's cloud instances, where the Lexe's database is stored and where users' Lightning nodes run.
 Roger has access to Lexe's LSP, and can broadcast old channel states in order to attempt to steal funds from Lexe users.
-Roger can prevent a node from running at all, run a node as many times as she wants (including in parallel, with command line inputs of her choice), or stop a node at an arbitrary point during its execution.
+Roger can prevent a node from running at all, run a node as many times as she wants (including in parallel, with command line inputs of his choice), or stop a node at an arbitrary point during its execution.
 Using these powers, Roger can attempt side-channel attacks on users' nodes with the goal of retrieving sensitive information from within SGX. Roger also has access to Lexe's software signing key.
 
 Although we would never want to risk our hard-earned trust and reputation by attacking our own users, for Lexe to qualify as non-custodial, we must demonstrate that Lexe users are reasonably secure even in the presence of a Roger-like adversary.
@@ -112,7 +112,7 @@ Man-in-the-middle attacks on the inner TLS connection are prevented due to the a
 ### Confidentiality, integrity and authentication of persisted data
 
 Each user's Lexe node needs to persist some data for normal node operation.
-To ensure that this data remains confidential, the sensitive components are encrypted using AES-GCM, an **authenticated encryption** algorithm which ensures that Roger cannot overwrite this data with her own chosen inputs and also have it be accepted by the node the next time it decrypts this data.
+To ensure that this data remains confidential, the sensitive components are encrypted using AES-GCM, an **authenticated encryption** algorithm which ensures that Roger cannot overwrite this data with his own chosen inputs and also have it be accepted by the node the next time it decrypts this data.
 The sensitive fields are encrypted under a key derived from the user's root seed and then the ciphertext is stored in Lexe's database along with some metadata.
 
 Not all persisted data is encrypted. Unencrypted metadata includes:
