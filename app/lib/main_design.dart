@@ -423,16 +423,22 @@ class MockAppHandle extends AppHandle {
   Future<CreateInvoiceResponse> createInvoice(
       {required CreateInvoiceRequest req, dynamic hint}) {
     final now = DateTime.now();
+    final createdAt = now.millisecondsSinceEpoch;
     final expiresAt =
         now.add(Duration(seconds: req.expirySecs)).millisecondsSinceEpoch;
+
+    final dummy = dummyInvoiceInboundPending01.invoice!;
 
     return Future.delayed(
       const Duration(milliseconds: 1000),
       () => CreateInvoiceResponse(
-        invoice: dummyInvoiceInboundPending01.invoice!.copyWith(
-          description: req.description,
+        invoice: Invoice(
+          string: dummy.string,
+          createdAt: createdAt,
           expiresAt: expiresAt,
           amountSats: req.amountSats,
+          description: req.description,
+          payeePubkey: dummy.payeePubkey,
         ),
       ),
     );
@@ -604,25 +610,6 @@ extension PaymentExt on Payment {
         note: note ?? this.note,
         createdAt: createdAt ?? this.createdAt,
         finalizedAt: finalizedAt ?? this.finalizedAt,
-      );
-}
-
-extension InvoiceExt on Invoice {
-  Invoice copyWith({
-    String? string,
-    String? description,
-    int? createdAt,
-    int? expiresAt,
-    int? amountSats,
-    String? payeePubkey,
-  }) =>
-      Invoice(
-        string: string ?? this.string,
-        description: description ?? this.description,
-        createdAt: createdAt ?? this.createdAt,
-        expiresAt: expiresAt ?? this.expiresAt,
-        amountSats: amountSats ?? this.amountSats,
-        payeePubkey: payeePubkey ?? this.payeePubkey,
       );
 }
 
