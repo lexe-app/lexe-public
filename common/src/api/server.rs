@@ -38,7 +38,7 @@
 //! [`spawn_server_task_with_listener`]: crate::api::server::spawn_server_task_with_listener
 
 use std::{
-    fmt,
+    fmt::{self, Display},
     future::Future,
     net::{SocketAddr, TcpListener},
     str::FromStr,
@@ -501,6 +501,8 @@ enum LxRejectionKind {
     BodyLengthOverLimit,
     /// [`ed25519::Error`]
     Ed25519,
+    /// Gateway proxy
+    Proxy,
 }
 
 // Use explicit `.map_err()`s instead of From impls for non-obvious conversions
@@ -515,6 +517,13 @@ impl LxRejection {
     pub fn from_bearer_auth(error: auth::Error) -> Self {
         Self {
             kind: LxRejectionKind::Auth,
+            source_msg: format!("{error:#}"),
+        }
+    }
+
+    pub fn proxy(error: impl Display) -> Self {
+        Self {
+            kind: LxRejectionKind::Proxy,
             source_msg: format!("{error:#}"),
         }
     }
@@ -581,6 +590,7 @@ impl LxRejectionKind {
             Self::BadEndpoint => "Client requested a non-existent endpoint",
             Self::BodyLengthOverLimit => "Request body length over limit",
             Self::Ed25519 => "Ed25519 error",
+            Self::Proxy => "Proxy error",
         }
     }
 }
