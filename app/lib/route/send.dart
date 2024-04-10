@@ -385,6 +385,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
             intInputFormatter: this.intInputFormatter,
             onEditingComplete: this.onNext,
             validate: this.validateAmount,
+            allowEmpty: false,
           ),
 
           const SizedBox(height: Space.s700),

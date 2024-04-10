@@ -477,10 +477,33 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   }
 
   Future<void> onTapSetAmount() async {
-    // final PaymentOfferInputs? _flowResult =
-    await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (_) => const ReceivePaymentSetAmountPage(),
-    ));
+    final prev = this.paymentOfferInputs.value;
+    final prevAD = (amountSats: prev.amountSats, description: prev.description);
+
+    final ({int? amountSats, String? description})? flowResult =
+        await Navigator.of(this.context).push(
+      MaterialPageRoute(
+        builder: (_) => const ReceivePaymentSetAmountPage(),
+      ),
+    );
+
+    if (!this.mounted || flowResult == null || flowResult == prevAD) return;
+
+    // LN invoice needs to be reloaded.
+    final lnOffer = this.lnOffer().value;
+    this.lnOffer().value = PaymentOffer(
+      kind: lnOffer.kind,
+      code: null,
+      expiresAt: null,
+      amountSats: flowResult.amountSats,
+      description: flowResult.description,
+    );
+
+    this.paymentOfferInputs.value = PaymentOfferInputs(
+      kindByPage: prev.kindByPage,
+      amountSats: flowResult.amountSats,
+      description: flowResult.description,
+    );
   }
 
   @override
@@ -954,25 +977,37 @@ class _ReceivePaymentSetAmountPageState
 
   final IntInputFormatter intInputFormatter = IntInputFormatter();
 
-  Result<int, String?> validateAmountStr(String? maybeAmountStr) {
-    if (maybeAmountStr == null || maybeAmountStr.isEmpty) {
-      return const Err(null);
+  void onConfirm() {
+    final amountState = this.amountFieldKey.currentState!;
+    if (!amountState.validate()) return;
+
+    final String? amountStr = amountState.value;
+    final int? amountSats;
+    if (amountStr != null) {
+      final a = this.intInputFormatter.tryParse(amountStr).ok;
+      if (a != 0) {
+        amountSats = a;
+      } else {
+        amountSats = null;
+      }
+    } else {
+      amountSats = null;
     }
 
-    final int amount;
-    switch (this.intInputFormatter.tryParse(maybeAmountStr)) {
-      case Ok(:final ok):
-        amount = ok;
-      case Err():
-        return const Err("Amount must be a number.");
+    final descriptionState = this.descriptionFieldKey.currentState!;
+    if (!descriptionState.validate()) return;
+
+    final String? d = descriptionState.value;
+    final String? description;
+    if (d != null) {
+      // "" => null
+      description = (d.isNotEmpty) ? d : null;
+    } else {
+      description = null;
     }
 
-    // Don't show any error message if the field is effectively empty.
-    if (amount <= 0) {
-      return const Err(null);
-    }
-
-    return Ok(amount);
+    final flowResult = (amountSats: amountSats, description: description);
+    unawaited(Navigator.of(this.context).maybePop(flowResult));
   }
 
   @override
@@ -991,16 +1026,20 @@ class _ReceivePaymentSetAmountPageState
           PaymentAmountInput(
             fieldKey: this.amountFieldKey,
             intInputFormatter: this.intInputFormatter,
+            allowEmpty: true,
           ),
 
           const SizedBox(height: Space.s850),
 
-          PaymentNoteInput(fieldKey: this.descriptionFieldKey, onSubmit: () {}),
+          PaymentNoteInput(
+            fieldKey: this.descriptionFieldKey,
+            onSubmit: this.onConfirm,
+          ),
         ],
         bottom: LxFilledButton(
           label: const Text("Confirm"),
           icon: const Icon(Icons.arrow_forward_rounded),
-          onTap: () {},
+          onTap: this.onConfirm,
         ),
       ),
     );

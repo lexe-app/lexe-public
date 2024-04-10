@@ -541,6 +541,7 @@ class PaymentAmountInput extends StatelessWidget {
     super.key,
     required this.fieldKey,
     required this.intInputFormatter,
+    required this.allowEmpty,
     this.onEditingComplete,
     this.validate,
   });
@@ -552,9 +553,15 @@ class PaymentAmountInput extends StatelessWidget {
 
   final Result<(), String?> Function(int amount)? validate;
 
+  final bool allowEmpty;
+
   Result<(), String?> validateAmountStr(String? maybeAmountStr) {
     if (maybeAmountStr == null || maybeAmountStr.isEmpty) {
-      return const Err(null);
+      if (this.allowEmpty) {
+        return const Ok(());
+      } else {
+        return const Err(null);
+      }
     }
 
     final int amount;
