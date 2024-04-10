@@ -270,7 +270,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           ),
           Component(
             "ReceivePaymentSetAmountPage",
-            (context) => const ReceivePaymentSetAmountPage(),
+            (context) => const ReceivePaymentSetAmountPage(
+              prevAmountSats: null,
+              prevDescription: "hello world",
+            ),
           ),
           Component(
             "PaymentDetailPage",

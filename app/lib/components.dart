@@ -542,18 +542,20 @@ class PaymentAmountInput extends StatelessWidget {
     required this.fieldKey,
     required this.intInputFormatter,
     required this.allowEmpty,
-    this.onEditingComplete,
     this.validate,
+    this.onEditingComplete,
+    this.initialValue,
   });
 
   final GlobalKey<FormFieldState<String>> fieldKey;
+
   final IntInputFormatter intInputFormatter;
+  final bool allowEmpty;
+  final Result<(), String?> Function(int amount)? validate;
 
   final VoidCallback? onEditingComplete;
 
-  final Result<(), String?> Function(int amount)? validate;
-
-  final bool allowEmpty;
+  final int? initialValue;
 
   Result<(), String?> validateAmountStr(String? maybeAmountStr) {
     if (maybeAmountStr == null || maybeAmountStr.isEmpty) {
@@ -589,7 +591,7 @@ class PaymentAmountInput extends StatelessWidget {
       autofocus: true,
       keyboardType:
           const TextInputType.numberWithOptions(signed: false, decimal: false),
-      initialValue: "0",
+      initialValue: this.initialValue?.toString() ?? "0",
       textDirection: TextDirection.ltr,
       textInputAction: TextInputAction.next,
       textAlign: TextAlign.right,
