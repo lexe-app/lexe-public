@@ -1,7 +1,5 @@
 // Send payment page
 
-import 'dart:math' show max;
-
 import 'package:flutter/material.dart';
 
 import 'package:lexeapp/address_format.dart' as address_format;

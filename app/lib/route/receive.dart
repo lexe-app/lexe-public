@@ -3,7 +3,6 @@ import 'dart:math' show max;
 
 import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/material.dart';
-
 import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/bindings_generated_api.dart';
 import 'package:lexeapp/components.dart'
@@ -17,8 +16,7 @@ import 'package:lexeapp/components.dart'
         PaymentNoteInput,
         ScrollableSinglePageBody,
         SheetDragHandle,
-        ValueStreamBuilder,
-        baseInputDecoration;
+        ValueStreamBuilder;
 import 'package:lexeapp/currency_format.dart';
 import 'package:lexeapp/input_formatter.dart';
 import 'package:lexeapp/logger.dart';
@@ -30,15 +28,18 @@ import 'package:rxdart/rxdart.dart';
 
 const double minViewportWidth = 365.0;
 
+const int lnPageIdx = 0;
+const int btcPageIdx = 1;
+
 /// The inputs used to generate a [PaymentOffer].
 class PaymentOfferInputs {
   const PaymentOfferInputs({
-    required this.kind,
+    required this.kindByPage,
     required this.amountSats,
     required this.description,
   });
 
-  final PaymentOfferKind kind;
+  final List<PaymentOfferKind> kindByPage;
   final int? amountSats;
   final String? description;
 }
@@ -57,24 +58,25 @@ enum PaymentOfferKind {
         PaymentOfferKind.btcAddress => false,
         PaymentOfferKind.btcTaproot => false,
       };
+
+  bool isBtc() => !this.isLightning();
 }
 
+@immutable
 class PaymentOffer {
   const PaymentOffer({
     required this.kind,
     required this.code,
-    required this.uri,
     required this.amountSats,
     required this.description,
+    required this.expiresAt,
   });
 
   final PaymentOfferKind kind;
-
   final String? code;
-  final String? uri;
-
   final int? amountSats;
   final String? description;
+  final DateTime? expiresAt;
 
   String titleStr() => switch (this.kind) {
         PaymentOfferKind.lightningInvoice => "Lightning invoice",
@@ -83,31 +85,102 @@ class PaymentOffer {
         PaymentOfferKind.btcAddress => "Bitcoin address",
         PaymentOfferKind.btcTaproot => "Bitcoin taproot address",
       };
+
+  // TODO(phlip9): do this in rust, more robustly. Also uppercase for QR
+  // encoding.
+  String? uri() {
+    final code = this.code;
+    if (code == null) return null;
+
+    final amountSats = this.amountSats;
+    final description = this.description;
+
+    if (this.kind.isLightning()) {
+      return "lightning:$code";
+    } else {
+      final base = "bitcoin:$code";
+      final params = [
+        if (amountSats != null) "amount=${formatSatsToBtcForUri(amountSats)}",
+        if (description != null) "message=$description",
+      ];
+      final String paramsStr;
+      if (params.isNotEmpty) {
+        paramsStr = "?${params.join('&')}";
+      } else {
+        paramsStr = "";
+      }
+      return "$base$paramsStr";
+    }
+  }
+
+  PaymentOffer clone() => PaymentOffer(
+        kind: this.kind,
+        code: this.code,
+        amountSats: this.amountSats,
+        description: this.description,
+        expiresAt: this.expiresAt,
+      );
+
+  @override
+  String toString() {
+    return 'PaymentOffer(kind: $kind, code: $code, amountSats: $amountSats, description: $description, expiresAt: $expiresAt)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == this.runtimeType &&
+            other is PaymentOffer &&
+            (identical(other.kind, this.kind) || other.kind == this.kind) &&
+            (identical(other.code, this.code) || other.code == this.code) &&
+            (identical(other.amountSats, this.amountSats) ||
+                other.amountSats == this.amountSats) &&
+            (identical(other.description, this.description) ||
+                other.description == this.description) &&
+            (identical(other.expiresAt, this.expiresAt) ||
+                other.expiresAt == this.expiresAt));
+  }
+
+  @override
+  int get hashCode => Object.hash(this.runtimeType, this.kind, this.code,
+      this.amountSats, this.description, this.expiresAt);
 }
 
 class ReceivePaymentPage extends StatelessWidget {
-  const ReceivePaymentPage({super.key, required this.fiatRate});
+  const ReceivePaymentPage({
+    super.key,
+    required this.app,
+    required this.fiatRate,
+  });
+
+  final AppHandle app;
 
   /// Updating stream of fiat rates.
   final ValueStream<FiatRate?> fiatRate;
 
   @override
   Widget build(BuildContext context) => ReceivePaymentPageInner(
+        app: this.app,
+        fiatRate: this.fiatRate,
         viewportWidth:
             MediaQuery.maybeSizeOf(context)?.width ?? minViewportWidth,
-        fiatRate: this.fiatRate,
       );
 }
 
 /// We need this extra intermediate "inner" widget so we can init the
 /// [PageController] with a `viewportFraction` derived from the screen width.
 class ReceivePaymentPageInner extends StatefulWidget {
-  const ReceivePaymentPageInner(
-      {super.key, required this.viewportWidth, required this.fiatRate});
+  const ReceivePaymentPageInner({
+    super.key,
+    required this.app,
+    required this.fiatRate,
+    required this.viewportWidth,
+  });
+
+  final AppHandle app;
+  final ValueStream<FiatRate?> fiatRate;
 
   final double viewportWidth;
-
-  final ValueStream<FiatRate?> fiatRate;
 
   @override
   State<ReceivePaymentPageInner> createState() =>
@@ -121,34 +194,59 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   /// Controls the card [PageView].
   late PageController cardController = this.newCardController();
 
+  final ValueNotifier<PaymentOfferInputs> paymentOfferInputs = ValueNotifier(
+    const PaymentOfferInputs(
+      kindByPage: [
+        PaymentOfferKind.lightningInvoice,
+        PaymentOfferKind.btcAddress,
+      ],
+      amountSats: null,
+      description: null,
+    ),
+  );
+
   final List<ValueNotifier<PaymentOffer>> paymentOffers = [
     ValueNotifier(
       const PaymentOffer(
         kind: PaymentOfferKind.lightningInvoice,
         code: null,
-        uri: null,
         amountSats: null,
         description: null,
+        expiresAt: null,
       ),
     ),
     ValueNotifier(
       const PaymentOffer(
         kind: PaymentOfferKind.btcAddress,
         code: null,
-        uri: null,
         amountSats: null,
         description: null,
+        expiresAt: null,
       ),
     ),
   ];
 
   @override
+  void initState() {
+    super.initState();
+
+    this.paymentOfferInputs.addListener(this.doFetchLn);
+    this.paymentOfferInputs.addListener(this.doFetchBtc);
+
+    unawaited(this.doFetchLn());
+    unawaited(this.doFetchBtc());
+  }
+
+  @override
   void dispose() {
+    this.paymentOfferInputs.dispose();
     for (final paymentOffer in this.paymentOffers) {
       paymentOffer.dispose();
     }
+
     this.cardController.dispose();
     this.selectedCardIndex.dispose();
+
     super.dispose();
   }
 
@@ -171,6 +269,155 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
   ValueNotifier<PaymentOffer> currentOffer() =>
       this.paymentOffers[this.selectedCardIndex.value];
+  ValueNotifier<PaymentOffer> lnOffer() => this.paymentOffers[lnPageIdx];
+  ValueNotifier<PaymentOffer> btcOffer() => this.paymentOffers[btcPageIdx];
+
+  /// Fetch a bitcoin address for the given [PaymentOfferInputs] and return a
+  /// full [PaymentOffer].
+  ///
+  /// Will skip actually sending a new request if only the `inputs.amountSats`
+  /// or `inputs.description` changed.
+  Future<PaymentOffer?> fetchBtcOffer(
+    PaymentOfferInputs inputs,
+    PaymentOffer prev,
+  ) async {
+    final btcKind = inputs.kindByPage[btcPageIdx];
+
+    // sanity check
+    assert(btcKind.isBtc());
+
+    // TODO(phlip9): actually add ability to fetch a taproot address
+    assert(btcKind != PaymentOfferKind.btcTaproot);
+
+    info("ReceivePaymentPage: fetchBtcOffer: kind: $btcKind, prev: $prev");
+
+    // We only need to fetch a new address code if the address kind changed.
+    // Otherwise, we can skip the extra request to the user's node.
+    if (prev.code != null && prev.kind == btcKind) {
+      return PaymentOffer(
+        kind: prev.kind,
+        code: prev.code,
+        expiresAt: prev.expiresAt,
+
+        // Just update the amount/description
+        amountSats: inputs.amountSats,
+        description: inputs.description,
+      );
+    }
+
+    final result = await Result.tryFfiAsync(this.widget.app.getAddress);
+
+    final String address;
+    switch (result) {
+      case Err(:final err):
+        // TODO(phlip9): error display
+        error("ReceivePaymentPage: fetchBtcOffer: failed to getAddress: $err");
+        return null;
+
+      case Ok(:final ok):
+        address = ok;
+        info("ReceivePaymentPage: fetchBtcOffer: getAddress => '$address'");
+    }
+
+    return PaymentOffer(
+      kind: btcKind,
+      code: address,
+      amountSats: prev.amountSats,
+      description: prev.description,
+      expiresAt: prev.expiresAt,
+    );
+  }
+
+  /// Fetch the Lightning invoice/offer for the given `PaymentOfferInputs`.
+  Future<PaymentOffer?> fetchLnOffer(
+    PaymentOfferInputs inputs,
+    PaymentOffer prev,
+  ) async {
+    final lnKind = inputs.kindByPage[0];
+
+    // sanity check
+    assert(lnKind.isLightning());
+    // TODO(phlip9): actually support BOLT12 offers.
+    assert(lnKind == PaymentOfferKind.lightningInvoice);
+
+    final req = CreateInvoiceRequest(
+      // TODO(phlip9): choose a good default expiration
+      expirySecs: 3600,
+      amountSats: inputs.amountSats,
+      description: inputs.description,
+    );
+
+    info(
+        "ReceivePaymentPage: doFetchLn: kind: $lnKind, req: { amountSats: ${req.amountSats}, exp: ${req.expirySecs} }");
+
+    final result =
+        await Result.tryFfiAsync(() => this.widget.app.createInvoice(req: req));
+
+    final Invoice invoice;
+    switch (result) {
+      case Err(:final err):
+        // TODO(phlip9): error display
+        error(
+            "ReceivePaymentPage: doFetchLn: failed to create invoice: $err, req: req: { amountStas: ${req.amountSats}, exp: ${req.expirySecs} }");
+        return null;
+
+      case Ok(:final ok):
+        invoice = ok.invoice;
+        info("ReceivePaymentPage: doFetchLn: createInvoice => done");
+    }
+
+    return PaymentOffer(
+      kind: lnKind,
+      code: invoice.string,
+      amountSats: invoice.amountSats,
+      description: invoice.description,
+      expiresAt: DateTime.fromMillisecondsSinceEpoch(invoice.expiresAt),
+    );
+  }
+
+  Future<void> doFetchBtc() async {
+    final inputs = this.paymentOfferInputs.value;
+    final btcOfferNotifier = this.btcOffer();
+    final prev = btcOfferNotifier.value;
+
+    final offer = await this.fetchBtcOffer(inputs, prev);
+
+    // Canceled / navigated away => ignore
+    if (!this.mounted) return;
+
+    // Error => ignore (TODO: handle)
+    if (offer == null) return;
+
+    // Stale request => ignore
+    if (prev != btcOfferNotifier.value) {
+      info("ReceivePaymentPage: doFetchBtc: stale request, ignoring response");
+      return;
+    }
+
+    btcOfferNotifier.value = offer;
+  }
+
+  Future<void> doFetchLn() async {
+    final inputs = this.paymentOfferInputs.value;
+    final lnOfferNotifier = this.lnOffer();
+    final prev = lnOfferNotifier.value;
+
+    final offer = await this.fetchLnOffer(inputs, prev);
+
+    // Canceled / navigated away => ignore
+    if (!this.mounted) return;
+
+    // Error => ignore (TODO: handle)
+    if (offer == null) return;
+
+    // Stale request => ignore
+    if (prev != lnOfferNotifier.value) {
+      info("ReceivePaymentPage: doFetchLn: stale request, ignoring response");
+      return;
+    }
+
+    lnOfferNotifier.value = offer;
+  }
 
   void openSettingsBottomSheet(BuildContext context) {
     unawaited(showModalBottomSheet(
@@ -188,8 +435,8 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   }
 
   Future<void> onTapSetAmount() async {
-    final PaymentOfferInputs? flowResult =
-        await Navigator.of(this.context).push(MaterialPageRoute(
+    // final PaymentOfferInputs? _flowResult =
+    await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => const ReceivePaymentSetAmountPage(),
     ));
   }
@@ -304,15 +551,27 @@ class PaymentOfferCard extends StatelessWidget {
     // final code =
     //     "lno1pqps7sjqpgtyzm3qv4uxzmtsd3jjqer9wd3hy6tsw35k7msjzfpy7nz5yqcnygrfdej82um5wf5k2uckyypwa3eyt44h6txtxquqh7lz5djge4afgfjn7k4rgrkuag0jsd5xvxg";
     // final code = "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r";
+    // final code = "bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl";
+    // final code = null;
+
+    final uri = this.paymentOffer.uri();
+    // final uri = "lightning:lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r";
+    // final uri =
+    //     "lightning:lno1pqps7sjqpgtyzm3qv4uxzmtsd3jjqer9wd3hy6tsw35k7msjzfpy7nz5yqcnygrfdej82um5wf5k2uckyypwa3eyt44h6txtxquqh7lz5djge4afgfjn7k4rgrkuag0jsd5xvxg";
+    // final uri = "lightning:lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r";
+    // final uri = "bitcoin:bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl";
+    // final uri = null;
 
     final amountSats = this.paymentOffer.amountSats;
     // final amountSats = 5300;
+    // final amountSats = null;
     final amountSatsStr = (amountSats != null)
         ? formatSatsAmount(amountSats, satsSuffix: false)
         : null;
 
     final description = this.paymentOffer.description;
     // final description = "the rice house 🍕";
+    // final description = null;
 
     return CardBox(
       child: Column(
@@ -376,15 +635,21 @@ class PaymentOfferCard extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final double dim = constraints.maxWidth;
-              if (code != null) {
-                return QrImage(
-                  value: code,
-                  dimension: dim.toInt(),
-                  color: LxColors.foreground,
-                );
-              } else {
-                return FilledPlaceholder(width: dim, height: dim);
-              }
+              final key = ValueKey(uri ?? "");
+
+              return AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: (uri != null)
+                    ? QrImage(
+                        // `AnimatedSwitcher` should also run the switch
+                        // animation when the QR code contents change.
+                        key: key,
+                        value: uri,
+                        dimension: dim.toInt(),
+                        color: LxColors.foreground,
+                      )
+                    : FilledPlaceholder(key: key, width: dim, height: dim),
+              );
             },
           ),
 
@@ -665,10 +930,15 @@ class _ReceivePaymentSetAmountPageState
             intInputFormatter: this.intInputFormatter,
           ),
 
-          const SizedBox(height: Space.s700),
+          const SizedBox(height: Space.s850),
 
           PaymentNoteInput(fieldKey: this.descriptionFieldKey, onSubmit: () {}),
         ],
+        bottom: LxFilledButton(
+          label: const Text("Confirm"),
+          icon: const Icon(Icons.arrow_forward_rounded),
+          onTap: () {},
+        ),
       ),
     );
   }

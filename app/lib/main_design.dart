@@ -16,6 +16,8 @@ import 'package:lexeapp/bindings_generated_api.dart'
         AppRs,
         ClientPaymentId,
         Config,
+        CreateInvoiceRequest,
+        CreateInvoiceResponse,
         EstimateFeeSendOnchainRequest,
         EstimateFeeSendOnchainResponse,
         FeeEstimate,
@@ -262,6 +264,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
           Component(
             "ReceivePaymentPage",
             (context) => ReceivePaymentPage(
+              app: mockApp,
               fiatRate: this.makeFiatRateStream(),
             ),
           ),
@@ -411,8 +414,29 @@ class MockAppHandle extends AppHandle {
       );
 
   @override
-  Future<String> getAddress({dynamic hint}) =>
-      Future.value("bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl");
+  Future<String> getAddress({dynamic hint}) => Future.delayed(
+        const Duration(milliseconds: 1200),
+        () => "bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl",
+      );
+
+  @override
+  Future<CreateInvoiceResponse> createInvoice(
+      {required CreateInvoiceRequest req, dynamic hint}) {
+    final now = DateTime.now();
+    final expiresAt =
+        now.add(Duration(seconds: req.expirySecs)).millisecondsSinceEpoch;
+
+    return Future.delayed(
+      const Duration(milliseconds: 1000),
+      () => CreateInvoiceResponse(
+        invoice: dummyInvoiceInboundPending01.invoice!.copyWith(
+          description: req.description,
+          expiresAt: expiresAt,
+          amountSats: req.amountSats,
+        ),
+      ),
+    );
+  }
 
   @override
   Future<bool> syncPayments({dynamic hint}) =>

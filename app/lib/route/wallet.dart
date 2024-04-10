@@ -205,6 +205,7 @@ class WalletPageState extends State<WalletPage> {
     unawaited(Navigator.of(this.context).push(
       MaterialPageRoute(
         builder: (context) => ReceivePaymentPage(
+          app: this.widget.app,
           fiatRate: this.fiatRate.stream,
         ),
       ),
