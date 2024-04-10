@@ -51,7 +51,9 @@ use async_trait::async_trait;
 use axum::{
     error_handling::HandleErrorLayer,
     extract::{
-        rejection::{BytesRejection, JsonRejection, QueryRejection},
+        rejection::{
+            BytesRejection, HostRejection, JsonRejection, QueryRejection,
+        },
         DefaultBodyLimit, FromRequest,
     },
     response::IntoResponse,
@@ -483,12 +485,15 @@ enum LxRejectionKind {
     // -- From `axum::extract::rejection` -- //
     /// [`BytesRejection`]
     Bytes,
+    /// [`HostRejection`]
+    Host,
     /// [`JsonRejection`]
     Json,
     /// [`QueryRejection`]
     Query,
 
     // -- Other -- //
+    /// Bearer auth
     Auth,
     /// Client request did not match any paths in the [`Router`].
     BadEndpoint,
@@ -520,6 +525,15 @@ impl From<BytesRejection> for LxRejection {
         Self {
             kind: LxRejectionKind::Bytes,
             source_msg: bytes_rejection.body_text(),
+        }
+    }
+}
+
+impl From<HostRejection> for LxRejection {
+    fn from(host_rejection: HostRejection) -> Self {
+        Self {
+            kind: LxRejectionKind::Host,
+            source_msg: host_rejection.body_text(),
         }
     }
 }
@@ -559,6 +573,7 @@ impl LxRejectionKind {
     fn to_msg(&self) -> &'static str {
         match self {
             Self::Bytes => "Bad request bytes",
+            Self::Host => "Missing or invalid host",
             Self::Json => "Client provided bad JSON",
             Self::Query => "Client provided bad query string",
 
@@ -615,7 +630,26 @@ pub mod extract {
         }
     }
 
-    // TODO(max): There will soon be more extractor types here
+    /// Lexe API-compliant version of [`axum::extract::Host`].
+    ///
+    /// The `Host` and `X-Forwarded-Host` headers may be set by a malicious
+    /// client, so be sure not to depend on them for security.
+    pub struct LxHost(pub String);
+
+    #[async_trait]
+    impl<S: Send + Sync> FromRequestParts<S> for LxHost {
+        type Rejection = LxRejection;
+
+        async fn from_request_parts(
+            parts: &mut http::request::Parts,
+            state: &S,
+        ) -> Result<Self, Self::Rejection> {
+            axum::extract::Host::from_request_parts(parts, state)
+                .await
+                .map(|axum::extract::Host(t)| Self(t))
+                .map_err(LxRejection::from)
+        }
+    }
 }
 
 // --- Custom middleware --- //
