@@ -58,9 +58,9 @@ pub const TESTNET_ESPLORA_WHITELIST: [&str; 4] = [
 /// "run.lexe.app". These DNS names don't actually resolve.
 pub const NODE_RUN_DNS: &str = "run.lexe.app";
 pub fn node_provision_dns(mr_short: &MrShort) -> String {
-    format!("{mr_short}.{NODE_PROVISION_DNS_SUFFIX}")
+    format!("{mr_short}{NODE_PROVISION_DNS_SUFFIX}")
 }
-pub const NODE_PROVISION_DNS_SUFFIX: &str = "provision.lexe.app";
+pub const NODE_PROVISION_DNS_SUFFIX: &str = ".provision.lexe.app";
 
 // --- Root CA certs --- //
 //
