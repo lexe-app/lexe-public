@@ -483,7 +483,10 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     final ({int? amountSats, String? description})? flowResult =
         await Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (_) => const ReceivePaymentSetAmountPage(),
+        builder: (_) => ReceivePaymentSetAmountPage(
+          prevAmountSats: prevAD.amountSats,
+          prevDescription: prevAD.description,
+        ),
       ),
     );
 
@@ -963,7 +966,14 @@ class PaymentOfferKindRadio extends StatelessWidget {
 /// A page for the user to set a desired amount and optional description on
 /// their payment offer.
 class ReceivePaymentSetAmountPage extends StatefulWidget {
-  const ReceivePaymentSetAmountPage({super.key});
+  const ReceivePaymentSetAmountPage({
+    super.key,
+    required this.prevAmountSats,
+    required this.prevDescription,
+  });
+
+  final int? prevAmountSats;
+  final String? prevDescription;
 
   @override
   State<ReceivePaymentSetAmountPage> createState() =>
@@ -1020,21 +1030,25 @@ class _ReceivePaymentSetAmountPageState
       body: ScrollableSinglePageBody(
         body: [
           const HeadingText(text: "Set receive amount"),
-          const SizedBox(height: Space.s850),
+          const SizedBox(height: Space.s800),
 
           // <amount> sats
           PaymentAmountInput(
             fieldKey: this.amountFieldKey,
             intInputFormatter: this.intInputFormatter,
             allowEmpty: true,
+            initialValue: this.widget.prevAmountSats,
           ),
 
-          const SizedBox(height: Space.s850),
+          const SizedBox(height: Space.s800),
 
           PaymentNoteInput(
             fieldKey: this.descriptionFieldKey,
             onSubmit: this.onConfirm,
+            initialNote: this.widget.prevDescription,
           ),
+
+          const SizedBox(height: Space.s400),
         ],
         bottom: LxFilledButton(
           label: const Text("Confirm"),
