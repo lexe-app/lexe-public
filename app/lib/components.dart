@@ -913,7 +913,7 @@ class CarouselIndicatorsAndButtons extends StatelessWidget {
     this.onTapPrev,
     this.onTapNext,
     this.arrowColor = LxColors.clearB400,
-    this.arrowDisabledColor = LxColors.clearB0,
+    this.arrowDisabledOpacity = 0.0,
     this.indicatorActiveColor = LxColors.clearB600,
     this.indicatorInactiveColor = LxColors.clearB200,
   });
@@ -925,7 +925,7 @@ class CarouselIndicatorsAndButtons extends StatelessWidget {
   final VoidCallback? onTapNext;
 
   final Color arrowColor;
-  final Color arrowDisabledColor;
+  final double arrowDisabledOpacity;
   final Color indicatorActiveColor;
   final Color indicatorInactiveColor;
 
@@ -935,29 +935,48 @@ class CarouselIndicatorsAndButtons extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        // < : prev page
         ValueListenableBuilder(
           valueListenable: this.selectedPageIndex,
-          builder: (_context, idx, _child) => IconButton(
-            onPressed: (idx > 0) ? this.onTapPrev : null,
-            icon: const Icon(Icons.chevron_left_rounded),
-            color: this.arrowColor,
-            disabledColor: this.arrowDisabledColor,
-          ),
+          builder: (_context, idx, _child) {
+            final isEnabled = idx > 0;
+            return AnimatedOpacity(
+              opacity: (isEnabled) ? 1.0 : this.arrowDisabledOpacity,
+              duration: const Duration(milliseconds: 150),
+              child: IconButton(
+                onPressed: (isEnabled) ? this.onTapPrev : null,
+                icon: const Icon(Icons.chevron_left_rounded),
+                color: this.arrowColor,
+                disabledColor: this.arrowColor,
+              ),
+            );
+          },
         ),
+
+        // page indicator
         CarouselIndicators(
           numPages: this.numPages,
           selectedPageIndex: this.selectedPageIndex,
           activeColor: this.indicatorActiveColor,
           inactiveColor: this.indicatorInactiveColor,
         ),
+
+        // > : next page
         ValueListenableBuilder(
           valueListenable: this.selectedPageIndex,
-          builder: (_context, idx, _child) => IconButton(
-            onPressed: (idx < this.numPages - 1) ? this.onTapNext : null,
-            icon: const Icon(Icons.chevron_right_rounded),
-            color: this.arrowColor,
-            disabledColor: this.arrowDisabledColor,
-          ),
+          builder: (_context, idx, _child) {
+            final isEnabled = idx < this.numPages - 1;
+            return AnimatedOpacity(
+              opacity: (isEnabled) ? 1.0 : this.arrowDisabledOpacity,
+              duration: const Duration(milliseconds: 150),
+              child: IconButton(
+                onPressed: (isEnabled) ? this.onTapNext : null,
+                icon: const Icon(Icons.chevron_right_rounded),
+                color: this.arrowColor,
+                disabledColor: this.arrowColor,
+              ),
+            );
+          },
         ),
       ],
     );
