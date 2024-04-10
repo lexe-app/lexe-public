@@ -32,6 +32,7 @@ const int lnPageIdx = 0;
 const int btcPageIdx = 1;
 
 /// The inputs used to generate a [PaymentOffer].
+@immutable
 class PaymentOfferInputs {
   const PaymentOfferInputs({
     required this.kindByPage,
@@ -42,6 +43,28 @@ class PaymentOfferInputs {
   final List<PaymentOfferKind> kindByPage;
   final int? amountSats;
   final String? description;
+
+  @override
+  String toString() {
+    return 'PaymentOfferInputs(kindByPage: $kindByPage, amountSats: $amountSats, description: $description)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == this.runtimeType &&
+            other is PaymentOfferInputs &&
+            (identical(other.kindByPage, this.kindByPage) ||
+                other.kindByPage == this.kindByPage) &&
+            (identical(other.amountSats, this.amountSats) ||
+                other.amountSats == this.amountSats) &&
+            (identical(other.description, this.description) ||
+                other.description == this.description));
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      this.runtimeType, this.kindByPage, this.amountSats, this.description);
 }
 
 enum PaymentOfferKind {
@@ -112,14 +135,6 @@ class PaymentOffer {
       return "$base$paramsStr";
     }
   }
-
-  PaymentOffer clone() => PaymentOffer(
-        kind: this.kind,
-        code: this.code,
-        amountSats: this.amountSats,
-        description: this.description,
-        expiresAt: this.expiresAt,
-      );
 
   @override
   String toString() {
@@ -287,7 +302,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     assert(btcKind.isBtc());
 
     // TODO(phlip9): actually add ability to fetch a taproot address
-    assert(btcKind != PaymentOfferKind.btcTaproot);
+    // assert(btcKind != PaymentOfferKind.btcTaproot);
 
     info("ReceivePaymentPage: fetchBtcOffer: kind: $btcKind, prev: $prev");
 
@@ -338,7 +353,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     // sanity check
     assert(lnKind.isLightning());
     // TODO(phlip9): actually support BOLT12 offers.
-    assert(lnKind == PaymentOfferKind.lightningInvoice);
+    // assert(lnKind == PaymentOfferKind.lightningInvoice);
 
     final req = CreateInvoiceRequest(
       // TODO(phlip9): choose a good default expiration
@@ -419,8 +434,10 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     lnOfferNotifier.value = offer;
   }
 
-  void openSettingsBottomSheet(BuildContext context) {
-    unawaited(showModalBottomSheet(
+  /// Open the [ReceiveSettingsBottomSheet] for the user to modify the current
+  /// page's receive offer settings.
+  Future<void> openSettingsBottomSheet(BuildContext context) async {
+    final PaymentOfferKind? kind = await showModalBottomSheet<PaymentOfferKind>(
       backgroundColor: LxColors.background,
       elevation: 0.0,
       clipBehavior: Clip.hardEdge,
@@ -431,7 +448,32 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       builder: (context) => ReceiveSettingsBottomSheet(
         kind: this.currentOffer().value.kind,
       ),
-    ));
+    );
+
+    if (!this.mounted || kind == null) return;
+
+    final offerNotifier = this.currentOffer();
+    final prevOffer = offerNotifier.value;
+    offerNotifier.value = PaymentOffer(
+      amountSats: prevOffer.amountSats,
+      description: prevOffer.description,
+      // Update these fields. We'll unset the code to prevent accidentally
+      // scanning the old QR and indicate that the new QR is loading.
+      kind: kind,
+      code: null,
+      expiresAt: null,
+    );
+
+    final pageIdx = this.selectedCardIndex.value;
+    final prevInputs = this.paymentOfferInputs.value;
+    this.paymentOfferInputs.value = PaymentOfferInputs(
+      // Update the new desired offer kind for the current page.
+      kindByPage: (pageIdx == 0)
+          ? ([kind, prevInputs.kindByPage[1]])
+          : ([prevInputs.kindByPage[0], kind]),
+      amountSats: prevInputs.amountSats,
+      description: prevInputs.description,
+    );
   }
 
   Future<void> onTapSetAmount() async {
@@ -627,6 +669,7 @@ class PaymentOfferCard extends StatelessWidget {
                 width: Space.s900,
                 forText: true,
                 height: Fonts.size100,
+                color: LxColors.background,
               ),
             ),
           // const SizedBox(height: Space.s100),
@@ -648,7 +691,21 @@ class PaymentOfferCard extends StatelessWidget {
                         dimension: dim.toInt(),
                         color: LxColors.foreground,
                       )
-                    : FilledPlaceholder(key: key, width: dim, height: dim),
+                    : FilledPlaceholder(
+                        key: key,
+                        width: dim,
+                        height: dim,
+                        color: LxColors.background,
+                        child: const Center(
+                          child: SizedBox.square(
+                            dimension: Fonts.size800,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 3.0,
+                              color: LxColors.clearB200,
+                            ),
+                          ),
+                        ),
+                      ),
               );
             },
           ),
@@ -708,6 +765,7 @@ class PaymentOfferCard extends StatelessWidget {
                       height: fontSize,
                       width: Space.s900,
                       forText: true,
+                      color: LxColors.background,
                     );
             },
           ),
@@ -773,8 +831,9 @@ class ReceiveSettingsBottomSheet extends StatelessWidget {
 
   final PaymentOfferKind kind;
 
-  void onKindSelected(PaymentOfferKind kind) {
-    info("ReceiveSettingsBottomSheet: selected kind: $kind");
+  void onKindSelected(BuildContext context, PaymentOfferKind flowResult) {
+    info("ReceiveSettingsBottomSheet: selected kind: $flowResult");
+    unawaited(Navigator.of(context).maybePop(flowResult));
   }
 
   @override
@@ -801,7 +860,7 @@ class ReceiveSettingsBottomSheet extends StatelessWidget {
               title: const Text("Lightning invoice"),
               subtitle: const Text(
                   "Widely supported. Invoices can only be paid once!"),
-              onChanged: this.onKindSelected,
+              onChanged: (kind) => this.onKindSelected(context, kind),
             ),
           if (this.kind.isLightning())
             PaymentOfferKindRadio(
@@ -810,7 +869,9 @@ class ReceiveSettingsBottomSheet extends StatelessWidget {
               title: const Text("Lightning offer"),
               subtitle: const Text(
                   "New. Offers can be paid many times. Paste one on your twitter!"),
-              onChanged: this.onKindSelected,
+              // TODO(phlip9): uncomment when BOLT12 offers are supported.
+              // onChanged: (kind) => this.onKindSelected(context, kind),
+              onChanged: null,
             ),
 
           // BTC
@@ -820,7 +881,7 @@ class ReceiveSettingsBottomSheet extends StatelessWidget {
               selected: this.kind,
               title: const Text("Bitcoin SegWit address"),
               subtitle: const Text("Recommended. Supported by most wallets."),
-              onChanged: this.onKindSelected,
+              onChanged: (kind) => this.onKindSelected(context, kind),
             ),
           if (!this.kind.isLightning())
             PaymentOfferKindRadio(
@@ -829,7 +890,9 @@ class ReceiveSettingsBottomSheet extends StatelessWidget {
               title: const Text("Bitcoin Taproot address"),
               subtitle: const Text(
                   "Newer format. Reduced fees and increased privacy."),
-              onChanged: this.onKindSelected,
+              // TODO(phlip9): uncomment when taproot addresses are supported.
+              // onChanged: (kind) => this.onKindSelected(context, kind),
+              onChanged: null,
             ),
           const SizedBox(height: Space.s600),
         ],
