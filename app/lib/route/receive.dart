@@ -13,6 +13,7 @@ import 'package:lexeapp/components.dart'
         HeadingText,
         LxBackButton,
         LxFilledButton,
+        LxOutlinedButton,
         PaymentAmountInput,
         PaymentNoteInput,
         ScrollableSinglePageBody,
@@ -533,7 +534,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
           // Payment offer card
           SizedBox(
-            height: 545.0,
+            height: 575.0,
             child: PageView(
               controller: this.cardController,
               scrollBehavior: const CupertinoScrollBehavior(),
@@ -578,6 +579,8 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
             padding: const EdgeInsets.symmetric(horizontal: Space.s600),
             child: Row(
               children: [
+                const Expanded(child: Center()),
+                const SizedBox(width: Space.s200),
                 LxFilledButton(
                   icon: const Icon(Icons.settings_rounded),
                   onTap: () => this.openSettingsBottomSheet(context),
@@ -588,13 +591,14 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
                   onTap: () {},
                 ),
                 const SizedBox(width: Space.s200),
-                Expanded(
-                  child: LxFilledButton(
-                    label: const Text("Amount"),
-                    icon: const Icon(Icons.add_rounded),
-                    onTap: this.onTapSetAmount,
-                  ),
-                ),
+                const Expanded(child: Center()),
+                // Expanded(
+                //   child: LxFilledButton(
+                //     label: const Text("Amount"),
+                //     icon: const Icon(Icons.add_rounded),
+                //     onTap: this.onTapSetAmount,
+                //   ),
+                // ),
               ],
             ),
           ),
@@ -833,6 +837,48 @@ class PaymentOfferCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
+
+          if (description == null && amountSatsStr == null)
+            Padding(
+              padding: const EdgeInsets.only(top: Space.s400),
+              child: OutlinedButton(
+                onPressed: () {},
+                style: const ButtonStyle(
+                  // shape: MaterialStatePropertyAll(RoundedRectangleBorder(
+                  //     borderRadius: BorderRadius.all(
+                  //         Radius.circular(LxRadius.r200)))),
+                  // side: MaterialStatePropertyAll(BorderSide(
+                  //   color: LxColors.foreground,
+                  //   width: 2.0,
+                  // )),
+
+                  padding: MaterialStatePropertyAll(
+                    EdgeInsets.symmetric(
+                        vertical: Space.s200, horizontal: Space.s600),
+                  ),
+                  visualDensity: VisualDensity.compact,
+                  // textStyle: MaterialStatePropertyAll(TextStyle(
+                  //   color: LxColors.foreground,
+                  //   fontSize: Fonts.size300,
+                  //   fontVariations: [Fonts.weightBold],
+                  // )),
+                  // fixedSize: MaterialStatePropertyAll(Size.fromHeight(44.0)),
+                ),
+                child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      SizedBox(width: Space.s200),
+                      Text(
+                        "Amount",
+                        style: TextStyle(
+                          fontSize: Fonts.size300,
+                        ),
+                      ),
+                      SizedBox(width: Space.s200),
+                      Icon(Icons.add_rounded),
+                    ]),
+              ),
+            ),
         ],
       ),
     );
@@ -860,7 +906,7 @@ class CardBox extends StatelessWidget {
             ),
             clipBehavior: Clip.antiAlias,
             padding: const EdgeInsets.fromLTRB(
-                Space.s500, Space.s500, Space.s500, Space.s500),
+                Space.s500, Space.s450, Space.s500, Space.s500),
             constraints: const BoxConstraints(maxWidth: 350.0),
             child: this.child,
           ),
