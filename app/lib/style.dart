@@ -368,7 +368,7 @@ class Space {
   /// 16 px
   static const double s400 = 16.0;
 
-  /// 16 px
+  /// 20 px
   static const double s450 = 20.0;
 
   /// 24 px
