@@ -572,6 +572,8 @@ impl IntoResponse for LxRejection {
         let kind_msg = self.kind.to_msg();
         let source_msg = &self.source_msg;
         let msg = format!("Rejection: {kind_msg}: {source_msg}");
+        // Log the rejection now since our trace layer can't access this info
+        warn!("{msg}");
         let common_error = CommonApiError { kind, msg };
         common_error.into_response()
     }
