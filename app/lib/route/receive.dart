@@ -3,6 +3,7 @@ import 'dart:math' show max;
 
 import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/bindings_generated_api.dart';
 import 'package:lexeapp/components.dart'
@@ -612,15 +613,38 @@ class PaymentOfferCard extends StatelessWidget {
   final PaymentOffer paymentOffer;
   final ValueStream<FiatRate?> fiatRate;
 
+  void showSnackBarOnCopySuccess(BuildContext context) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text("Copied to clipboard.")));
+  }
+
+  void showSnackBarOnCopyError(BuildContext context, Object err) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Failed to copy to clipboard: $err")));
+  }
+
+  /// Copy the current card's offer code to the user clipboard.
+  void onTapCopy(BuildContext context) {
+    final code = this.paymentOffer.code;
+    if (code == null) return;
+    unawaited(
+      Clipboard.setData(ClipboardData(text: code))
+          .then((_) => this.showSnackBarOnCopySuccess(context))
+          .catchError((err) => this.showSnackBarOnCopyError(context, err)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final code = this.paymentOffer.code;
+    // final code = null;
     // final code = "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r";
     // final code =
     //     "lno1pqps7sjqpgtyzm3qv4uxzmtsd3jjqer9wd3hy6tsw35k7msjzfpy7nz5yqcnygrfdej82um5wf5k2uckyypwa3eyt44h6txtxquqh7lz5djge4afgfjn7k4rgrkuag0jsd5xvxg";
     // final code = "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r";
     // final code = "bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl";
-    // final code = null;
 
     final uri = this.paymentOffer.uri();
     // final uri = "lightning:lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r";
@@ -660,37 +684,34 @@ class PaymentOfferCard extends StatelessWidget {
 
           // raw code string + copy button
           if (code != null)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  address_format.ellipsizeBtcAddress(code),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: Fonts.size100,
-                    color: LxColors.fgTertiary,
-                    height: 1.0,
-                  ),
+            TextButton.icon(
+              onPressed: () => this.onTapCopy(context),
+              icon: Text(
+                address_format.ellipsizeBtcAddress(code),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: Fonts.size100,
+                  color: LxColors.grey550,
+                  height: 1.0,
                 ),
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.copy_rounded,
-                    // size: Fonts.size300,
-                  ),
-                  color: LxColors.fgTertiary,
-                  visualDensity:
-                      const VisualDensity(horizontal: -4.0, vertical: -4.0),
-                  padding: EdgeInsets.zero,
-                  iconSize: Fonts.size300,
-                  // style: IconButton.styleFrom(fixedSize: Size.square(20.0)),
-                ),
-              ],
+              ),
+              label: const Icon(
+                Icons.copy_rounded,
+                size: Fonts.size300,
+                color: LxColors.grey550,
+              ),
+              style: ButtonStyle(
+                padding: const MaterialStatePropertyAll(EdgeInsets.zero),
+                visualDensity:
+                    const VisualDensity(horizontal: -3.0, vertical: -3.0),
+                shape: MaterialStatePropertyAll(RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(LxRadius.r200))),
+              ),
             ),
           if (code == null)
             const Padding(
-              padding: EdgeInsets.symmetric(vertical: 10.0),
+              padding: EdgeInsets.symmetric(vertical: Space.s200),
               child: FilledPlaceholder(
                 width: Space.s900,
                 forText: true,
