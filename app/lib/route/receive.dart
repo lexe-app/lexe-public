@@ -13,11 +13,11 @@ import 'package:lexeapp/components.dart'
         HeadingText,
         LxBackButton,
         LxFilledButton,
-        LxOutlinedButton,
         PaymentAmountInput,
         PaymentNoteInput,
         ScrollableSinglePageBody,
         SheetDragHandle,
+        SubheadingText,
         ValueStreamBuilder;
 import 'package:lexeapp/currency_format.dart';
 import 'package:lexeapp/input_formatter.dart';
@@ -610,6 +610,130 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   }
 }
 
+class ReceivePaymentPage2 extends StatelessWidget {
+  const ReceivePaymentPage2({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final viewportWidth =
+        MediaQuery.maybeSizeOf(context)?.width ?? minViewportWidth;
+
+    const PaymentOffer paymentOffer1 = PaymentOffer(
+      kind: PaymentOfferKind.lightningInvoice,
+      code:
+          "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r",
+      amountSats: null,
+      description: null,
+      expiresAt: null,
+    );
+
+    const PaymentOffer paymentOffer2 = PaymentOffer(
+      kind: PaymentOfferKind.lightningInvoice,
+      code:
+          "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r",
+      amountSats: 45750,
+      description: null,
+      expiresAt: null,
+    );
+
+    const FiatRate fiatRate = FiatRate(fiat: "USD", rate: 69123.45);
+    final ValueStream<FiatRate?> fiatRates =
+        Stream.fromIterable(<FiatRate?>[fiatRate]).shareValueSeeded(fiatRate);
+
+    final pageController = PageController(
+      initialPage: 0,
+      viewportFraction: minViewportWidth / max(minViewportWidth, viewportWidth),
+    );
+
+    final selectedPageIndex = ValueNotifier(0);
+
+    final pages = <Widget>[
+      PaymentOfferCard(paymentOffer: paymentOffer1, fiatRate: fiatRates),
+      PaymentOfferCard2(paymentOffer: paymentOffer1, fiatRate: fiatRates),
+      PaymentOfferCard2(paymentOffer: paymentOffer2, fiatRate: fiatRates),
+      PaymentOfferCard3(paymentOffer: paymentOffer1, fiatRate: fiatRates),
+      PaymentOfferCard3(paymentOffer: paymentOffer2, fiatRate: fiatRates),
+      PaymentOfferCard4(paymentOffer: paymentOffer1, fiatRate: fiatRates),
+      PaymentOfferCard4(paymentOffer: paymentOffer2, fiatRate: fiatRates),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxBackButton(),
+        // title: const Text(
+        //   "Receive payment",
+        //   style: TextStyle(
+        //     color: LxColors.fgTertiary,
+        //     fontSize: Fonts.size500,
+        //     fontVariations: [Fonts.weightMedium],
+        //     letterSpacing: -0.5,
+        //     height: 1.0,
+        //   ),
+        // ),
+      ),
+      body: ScrollableSinglePageBody(
+        padding: EdgeInsets.zero,
+        body: [
+          const SizedBox(height: Space.s200),
+
+          // Payment offer card
+          SizedBox(
+            height: 575.0,
+            child: PageView(
+              controller: pageController,
+              scrollBehavior: const CupertinoScrollBehavior(),
+              padEnds: true,
+              allowImplicitScrolling: false,
+              onPageChanged: (pageIdx) => selectedPageIndex.value = pageIdx,
+              children: pages,
+            ),
+          ),
+
+          const SizedBox(height: Space.s400),
+
+          // const SizedBox(height: Space.s200),
+          //
+          // Padding(
+          //   padding: const EdgeInsets.symmetric(horizontal: Space.s600),
+          //   child: Row(
+          //     children: [
+          //       const Expanded(child: Center()),
+          //       const SizedBox(width: Space.s200),
+          //       LxFilledButton(
+          //         icon: const Icon(Icons.settings_rounded),
+          //         onTap: () {},
+          //       ),
+          //       const SizedBox(width: Space.s200),
+          //       LxFilledButton(
+          //         icon: const Icon(Icons.share_rounded),
+          //         onTap: () {},
+          //       ),
+          //       const SizedBox(width: Space.s200),
+          //       const Expanded(child: Center()),
+          //       // Expanded(
+          //       //   child: LxFilledButton(
+          //       //     label: const Text("Amount"),
+          //       //     icon: const Icon(Icons.add_rounded),
+          //       //     onTap: this.onTapSetAmount,
+          //       //   ),
+          //       // ),
+          //     ],
+          //   ),
+          // ),
+        ],
+        bottom: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Space.s600),
+          child: CarouselIndicatorsAndButtons(
+            numPages: pages.length,
+            selectedPageIndex: selectedPageIndex,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class PaymentOfferCard extends StatelessWidget {
   const PaymentOfferCard(
       {super.key, required this.paymentOffer, required this.fiatRate});
@@ -881,6 +1005,942 @@ class PaymentOfferCard extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+class PaymentOfferCard2 extends StatelessWidget {
+  const PaymentOfferCard2(
+      {super.key, required this.paymentOffer, required this.fiatRate});
+
+  final PaymentOffer paymentOffer;
+  final ValueStream<FiatRate?> fiatRate;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = this.paymentOffer.code;
+    final uri = this.paymentOffer.uri();
+    // final uri = null;
+    final amountSats = this.paymentOffer.amountSats;
+    final amountSatsStr = (amountSats != null)
+        ? formatSatsAmount(amountSats, satsSuffix: false)
+        : null;
+    final description = this.paymentOffer.description;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Space.s200),
+          child: Container(
+            decoration: BoxDecoration(
+              color: LxColors.grey1000,
+              borderRadius: BorderRadius.circular(LxRadius.r300),
+            ),
+            clipBehavior: Clip.antiAlias,
+            padding: const EdgeInsets.all(Space.s450),
+            constraints: const BoxConstraints(maxWidth: 350.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // QR code
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final double dim = constraints.maxWidth;
+                    final key = ValueKey(uri ?? "");
+
+                    return AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      child: (uri != null)
+                          ? Container(
+                              decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6.0)),
+                              clipBehavior: Clip.hardEdge,
+                              child: QrImage(
+                                // `AnimatedSwitcher` should also run the switch
+                                // animation when the QR code contents change.
+                                key: key,
+                                value: uri,
+                                dimension: dim.toInt(),
+                                color: LxColors.foreground,
+                              ),
+                            )
+                          : FilledPlaceholder(
+                              key: key,
+                              width: dim,
+                              height: dim,
+                              color: LxColors.background,
+                              borderRadius: 6.0,
+                              child: const Center(
+                                child: SizedBox.square(
+                                  dimension: Fonts.size800,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3.0,
+                                    color: LxColors.clearB200,
+                                  ),
+                                ),
+                              ),
+                            ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Space
+        const SizedBox(height: Space.s400),
+
+        // Info
+        Container(
+          decoration: BoxDecoration(
+            color: LxColors.grey1000,
+            borderRadius: BorderRadius.circular(LxRadius.r300),
+          ),
+          clipBehavior: Clip.antiAlias,
+          padding: const EdgeInsets.fromLTRB(
+              Space.s450, Space.s400, Space.s450, Space.s450),
+          constraints: const BoxConstraints(maxWidth: 350.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(width: 350.0 - 2 * Space.s400),
+              // kind
+              Text(
+                this.paymentOffer.titleStr(),
+                style: const TextStyle(
+                  color: LxColors.foreground,
+                  fontSize: Fonts.size300,
+                  fontVariations: [Fonts.weightMedium],
+                  letterSpacing: -0.5,
+                  height: 1.0,
+                ),
+              ),
+
+              // raw code string + copy button
+              if (code != null)
+                TextButton.icon(
+                  onPressed: () {},
+                  icon: Text(
+                    address_format.ellipsizeBtcAddress(code),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: Fonts.size100,
+                      color: LxColors.grey550,
+                      height: 1.0,
+                    ),
+                  ),
+                  label: const Icon(
+                    Icons.copy_rounded,
+                    size: Fonts.size300,
+                    color: LxColors.grey550,
+                  ),
+                  style: ButtonStyle(
+                    padding: const MaterialStatePropertyAll(EdgeInsets.zero),
+                    visualDensity:
+                        const VisualDensity(horizontal: -3.0, vertical: -3.0),
+                    shape: MaterialStatePropertyAll(RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(LxRadius.r200))),
+                  ),
+                ),
+              if (code == null)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: Space.s200),
+                  child: FilledPlaceholder(
+                    width: Space.s900,
+                    forText: true,
+                    height: Fonts.size100,
+                    color: LxColors.background,
+                  ),
+                ),
+              // const SizedBox(height: Space.s100),
+
+              if (amountSatsStr != null || description != null)
+                const SizedBox(height: Space.s400),
+
+              // Amount (sats)
+              if (amountSatsStr != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: Space.s100),
+                  child: Text.rich(
+                    TextSpan(
+                      children: [
+                        TextSpan(text: amountSatsStr),
+                        const TextSpan(
+                            text: " sats",
+                            style: TextStyle(color: LxColors.grey550)),
+                      ],
+                      style: const TextStyle(
+                        fontSize: Fonts.size600,
+                        letterSpacing: -0.5,
+                        fontVariations: [Fonts.weightMedium],
+                        height: 1.0,
+                      ),
+                    ),
+                  ),
+                ),
+
+              // Amount (fiat)
+              ValueStreamBuilder(
+                stream: this.fiatRate,
+                builder: (context, fiatRate) {
+                  if (amountSats == null) return const SizedBox.shrink();
+
+                  final String? amountFiatStr;
+                  if (fiatRate != null) {
+                    final amountFiat = fiatRate.rate * satsToBtc(amountSats);
+                    amountFiatStr = formatFiat(amountFiat, fiatRate.fiat);
+                  } else {
+                    amountFiatStr = null;
+                  }
+
+                  const fontSize = Fonts.size400;
+
+                  return (amountFiatStr != null)
+                      ? Text(
+                          "≈ $amountFiatStr",
+                          style: const TextStyle(
+                            color: LxColors.fgTertiary,
+                            fontSize: fontSize,
+                            letterSpacing: -0.5,
+                            height: 1.0,
+                          ),
+                        )
+                      : const FilledPlaceholder(
+                          height: fontSize,
+                          width: Space.s900,
+                          forText: true,
+                          color: LxColors.background,
+                        );
+                },
+              ),
+
+              if (amountSatsStr != null && description != null)
+                const SizedBox(height: Space.s400),
+
+              // Description
+              if (description != null)
+                Text(
+                  description,
+                  style: const TextStyle(
+                    color: LxColors.foreground,
+                    fontSize: Fonts.size200,
+                    height: 1.5,
+                    letterSpacing: -0.5,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+
+              if (description == null && amountSatsStr == null)
+                Padding(
+                  padding: const EdgeInsets.only(top: Space.s400),
+                  child: OutlinedButton(
+                    onPressed: () {},
+                    style: const ButtonStyle(
+                      // shape: MaterialStatePropertyAll(RoundedRectangleBorder(
+                      //     borderRadius: BorderRadius.all(
+                      //         Radius.circular(LxRadius.r200)))),
+                      // side: MaterialStatePropertyAll(BorderSide(
+                      //   color: LxColors.foreground,
+                      //   width: 2.0,
+                      // )),
+
+                      padding: MaterialStatePropertyAll(
+                        EdgeInsets.symmetric(
+                            vertical: Space.s200, horizontal: Space.s600),
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      // textStyle: MaterialStatePropertyAll(TextStyle(
+                      //   color: LxColors.foreground,
+                      //   fontSize: Fonts.size300,
+                      //   fontVariations: [Fonts.weightBold],
+                      // )),
+                      // fixedSize: MaterialStatePropertyAll(Size.fromHeight(44.0)),
+                    ),
+                    child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(width: Space.s200),
+                          Text(
+                            "Amount",
+                            style: TextStyle(
+                              fontSize: Fonts.size300,
+                            ),
+                          ),
+                          SizedBox(width: Space.s200),
+                          Icon(Icons.add_rounded),
+                        ]),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const Expanded(child: Center()),
+      ],
+    );
+  }
+}
+
+class PaymentOfferCard3 extends StatelessWidget {
+  const PaymentOfferCard3(
+      {super.key, required this.paymentOffer, required this.fiatRate});
+
+  final PaymentOffer paymentOffer;
+  final ValueStream<FiatRate?> fiatRate;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = this.paymentOffer.code;
+    final uri = this.paymentOffer.uri();
+    final amountSats = this.paymentOffer.amountSats;
+    final amountSatsStr = (amountSats != null)
+        ? formatSatsAmount(amountSats, satsSuffix: false)
+        : null;
+    final description = this.paymentOffer.description;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Space.s200),
+          child: Container(
+            // padding: const EdgeInsets.all(Space.s450),
+            constraints: const BoxConstraints(maxWidth: 350.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    Space.s450,
+                    Space.s0,
+                    Space.s450,
+                    Space.s400,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      //   // const SizedBox(width: 300.0 - 2 * Space.s400),
+                      //   // kind
+                      Text(
+                        this.paymentOffer.titleStr(),
+                        style: const TextStyle(
+                          color: LxColors.foreground,
+                          fontSize: Fonts.size300,
+                          fontVariations: [Fonts.weightMedium],
+                          letterSpacing: -0.5,
+                          height: 1.5,
+                        ),
+                      ),
+                      const Text(
+                        "Receive Bitcoin instantly with Lightning",
+                        style: TextStyle(
+                          color: LxColors.grey600,
+                          fontSize: Fonts.size100,
+                          // fontVariations: [Fonts.weightMedium],
+                          // letterSpacing: -0.5,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // QR code
+                Container(
+                  decoration: BoxDecoration(
+                    color: LxColors.grey1000,
+                    borderRadius: BorderRadius.circular(LxRadius.r300),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(
+                    Space.s450,
+                    Space.s450,
+                    Space.s450,
+                    Space.s200,
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final double dim = constraints.maxWidth;
+                          final key = ValueKey(uri ?? "");
+
+                          return AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 250),
+                            child: (uri != null)
+                                ? Container(
+                                    decoration: BoxDecoration(
+                                        borderRadius:
+                                            BorderRadius.circular(6.0)),
+                                    clipBehavior: Clip.hardEdge,
+                                    child: QrImage(
+                                      // `AnimatedSwitcher` should also run the switch
+                                      // animation when the QR code contents change.
+                                      key: key,
+                                      value: uri,
+                                      dimension: dim.toInt(),
+                                      color: LxColors.foreground,
+                                    ),
+                                  )
+                                : FilledPlaceholder(
+                                    key: key,
+                                    width: dim,
+                                    height: dim,
+                                    color: LxColors.background,
+                                    borderRadius: 6.0,
+                                    child: const Center(
+                                      child: SizedBox.square(
+                                        dimension: Fonts.size800,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 3.0,
+                                          color: LxColors.clearB200,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                          );
+                        },
+                      ),
+
+                      // raw code string + copy button
+                      if (code != null)
+                        TextButton.icon(
+                          onPressed: () {},
+                          icon: Text(
+                            address_format.ellipsizeBtcAddress(code),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: Fonts.size100,
+                              color: LxColors.grey550,
+                              height: 1.0,
+                            ),
+                          ),
+                          label: const Icon(
+                            Icons.copy_rounded,
+                            size: Fonts.size300,
+                            color: LxColors.grey550,
+                          ),
+                          style: ButtonStyle(
+                            padding:
+                                const MaterialStatePropertyAll(EdgeInsets.zero),
+                            visualDensity: const VisualDensity(
+                                horizontal: -3.0, vertical: -3.0),
+                            shape: MaterialStatePropertyAll(
+                                RoundedRectangleBorder(
+                                    borderRadius:
+                                        BorderRadius.circular(LxRadius.r200))),
+                          ),
+                        ),
+                      if (code == null)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: Space.s200),
+                          child: FilledPlaceholder(
+                            width: Space.s900,
+                            forText: true,
+                            height: Fonts.size100,
+                            color: LxColors.background,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Space.s450, vertical: Space.s450),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Amount (sats)
+                      if (amountSatsStr != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: Space.s100),
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(text: amountSatsStr),
+                                const TextSpan(
+                                    text: " sats",
+                                    style: TextStyle(color: LxColors.grey550)),
+                              ],
+                              style: const TextStyle(
+                                fontSize: Fonts.size600,
+                                letterSpacing: -0.5,
+                                fontVariations: [Fonts.weightMedium],
+                                height: 1.0,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                      // Amount (fiat)
+                      ValueStreamBuilder(
+                        stream: this.fiatRate,
+                        builder: (context, fiatRate) {
+                          if (amountSats == null) {
+                            return const SizedBox.shrink();
+                          }
+
+                          final String? amountFiatStr;
+                          if (fiatRate != null) {
+                            final amountFiat =
+                                fiatRate.rate * satsToBtc(amountSats);
+                            amountFiatStr =
+                                formatFiat(amountFiat, fiatRate.fiat);
+                          } else {
+                            amountFiatStr = null;
+                          }
+
+                          const fontSize = Fonts.size400;
+
+                          return (amountFiatStr != null)
+                              ? Text(
+                                  "≈ $amountFiatStr",
+                                  style: const TextStyle(
+                                    color: LxColors.fgTertiary,
+                                    fontSize: fontSize,
+                                    letterSpacing: -0.5,
+                                    height: 1.0,
+                                  ),
+                                )
+                              : const FilledPlaceholder(
+                                  height: fontSize,
+                                  width: Space.s900,
+                                  forText: true,
+                                  color: LxColors.background,
+                                );
+                        },
+                      ),
+
+                      if (amountSatsStr != null && description != null)
+                        const SizedBox(height: Space.s400),
+
+                      // Description
+                      if (description != null)
+                        Text(
+                          description,
+                          style: const TextStyle(
+                            color: LxColors.foreground,
+                            fontSize: Fonts.size200,
+                            height: 1.5,
+                            letterSpacing: -0.5,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+
+                      if (description == null && amountSatsStr == null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: Space.s100),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              LxFilledButton.strong(
+                                onTap: () {},
+                                style: const ButtonStyle(
+                                  // shape: MaterialStatePropertyAll(RoundedRectangleBorder(
+                                  //     borderRadius: BorderRadius.all(
+                                  //         Radius.circular(LxRadius.r200)))),
+                                  // side: MaterialStatePropertyAll(BorderSide(
+                                  //   color: LxColors.foreground,
+                                  //   width: 2.0,
+                                  // )),
+
+                                  padding: MaterialStatePropertyAll(
+                                    EdgeInsets.symmetric(
+                                        vertical: Space.s200,
+                                        horizontal: Space.s600),
+                                  ),
+                                  visualDensity: VisualDensity.compact,
+                                  // textStyle: MaterialStatePropertyAll(TextStyle(
+                                  //   color: LxColors.foreground,
+                                  //   fontSize: Fonts.size300,
+                                  //   fontVariations: [Fonts.weightBold],
+                                  // )),
+                                  // fixedSize: MaterialStatePropertyAll(Size.fromHeight(44.0)),
+                                ),
+                                label: const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      SizedBox(width: Space.s200),
+                                      Text(
+                                        "Amount",
+                                        style: TextStyle(
+                                          fontSize: Fonts.size300,
+                                        ),
+                                      ),
+                                      SizedBox(width: Space.s200),
+                                      Icon(Icons.add_rounded),
+                                    ]),
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Space
+        const SizedBox(height: Space.s400),
+        const Expanded(child: Center()),
+      ],
+    );
+  }
+}
+
+class PaymentOfferCard4 extends StatelessWidget {
+  const PaymentOfferCard4(
+      {super.key, required this.paymentOffer, required this.fiatRate});
+
+  final PaymentOffer paymentOffer;
+  final ValueStream<FiatRate?> fiatRate;
+
+  @override
+  Widget build(BuildContext context) {
+    final code = this.paymentOffer.code;
+    final uri = this.paymentOffer.uri();
+    final amountSats = this.paymentOffer.amountSats;
+    final amountSatsStr = (amountSats != null)
+        ? formatSatsAmount(amountSats, satsSuffix: false)
+        : null;
+    final description = this.paymentOffer.description;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Space.s200),
+          child: Container(
+            // padding: const EdgeInsets.all(Space.s450),
+            constraints: const BoxConstraints(maxWidth: 350.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    Space.s450,
+                    Space.s0,
+                    Space.s450,
+                    Space.s400,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      //   // const SizedBox(width: 300.0 - 2 * Space.s400),
+                      //   // kind
+                      Text(
+                        this.paymentOffer.titleStr(),
+                        style: const TextStyle(
+                          color: LxColors.foreground,
+                          fontSize: Fonts.size300,
+                          fontVariations: [Fonts.weightMedium],
+                          letterSpacing: -0.5,
+                          height: 1.5,
+                        ),
+                      ),
+                      const Text(
+                        "Receive Bitcoin instantly with Lightning",
+                        style: TextStyle(
+                          color: LxColors.grey600,
+                          fontSize: Fonts.size100,
+                          // fontVariations: [Fonts.weightMedium],
+                          // letterSpacing: -0.5,
+                          height: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // QR code
+                Container(
+                  decoration: BoxDecoration(
+                    color: LxColors.grey1000,
+                    borderRadius: BorderRadius.circular(LxRadius.r300),
+                  ),
+                  padding: const EdgeInsets.fromLTRB(
+                    Space.s450,
+                    Space.s450,
+                    Space.s450,
+                    Space.s200,
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final double dim = constraints.maxWidth;
+                          final key = ValueKey(uri ?? "");
+
+                          return AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 250),
+                            child: (uri != null)
+                                ? Container(
+                                    decoration: BoxDecoration(
+                                        borderRadius:
+                                            BorderRadius.circular(6.0)),
+                                    clipBehavior: Clip.hardEdge,
+                                    child: QrImage(
+                                      // `AnimatedSwitcher` should also run the switch
+                                      // animation when the QR code contents change.
+                                      key: key,
+                                      value: uri,
+                                      dimension: dim.toInt(),
+                                      color: LxColors.foreground,
+                                    ),
+                                  )
+                                : FilledPlaceholder(
+                                    key: key,
+                                    width: dim,
+                                    height: dim,
+                                    color: LxColors.background,
+                                    borderRadius: 6.0,
+                                    child: const Center(
+                                      child: SizedBox.square(
+                                        dimension: Fonts.size800,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 3.0,
+                                          color: LxColors.clearB200,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                          );
+                        },
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // raw code string + copy button
+                          if (code != null)
+                            TextButton.icon(
+                              onPressed: () {},
+                              label: Text(
+                                address_format.ellipsizeBtcAddress(code),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: Fonts.size100,
+                                  color: LxColors.grey550,
+                                ),
+                              ),
+                              icon: const Icon(
+                                Icons.copy_rounded,
+                                size: Fonts.size300,
+                                color: LxColors.grey550,
+                              ),
+                              // style: ButtonStyle(
+                              //   // padding: const MaterialStatePropertyAll(
+                              //   //     EdgeInsets.zero),
+                              //   // visualDensity: const VisualDensity(
+                              //   //     horizontal: -3.0, vertical: -3.0),
+                              //   shape: MaterialStatePropertyAll(
+                              //       RoundedRectangleBorder(
+                              //           borderRadius: BorderRadius.circular(
+                              //               LxRadius.r200))),
+                              // ),
+                            ),
+                          if (code == null)
+                            const Padding(
+                              padding:
+                                  EdgeInsets.symmetric(vertical: Space.s200),
+                              child: FilledPlaceholder(
+                                width: Space.s900,
+                                forText: true,
+                                height: Fonts.size100,
+                                color: LxColors.background,
+                              ),
+                            ),
+
+                          if (!(description == null && amountSatsStr == null))
+                            const Center(),
+                          if (description == null && amountSatsStr == null)
+                            TextButton.icon(
+                              onPressed: () {},
+                              icon: const Icon(Icons.add_rounded),
+                              label: const Text(
+                                "Amount",
+                                style: TextStyle(
+                                  fontVariations: [Fonts.weightMedium],
+                                ),
+                              ),
+                              style: const ButtonStyle(
+                                foregroundColor: MaterialStatePropertyAll(
+                                    LxColors.moneyGoUp),
+                              ),
+                            ),
+                          // Padding(
+                          //   padding: const EdgeInsets.only(top: Space.s100),
+                          //   child: Row(
+                          //     mainAxisAlignment: MainAxisAlignment.center,
+                          //     children: [
+                          //       LxFilledButton.strong(
+                          //         onTap: () {},
+                          //         style: const ButtonStyle(
+                          //           // shape: MaterialStatePropertyAll(RoundedRectangleBorder(
+                          //           //     borderRadius: BorderRadius.all(
+                          //           //         Radius.circular(LxRadius.r200)))),
+                          //           // side: MaterialStatePropertyAll(BorderSide(
+                          //           //   color: LxColors.foreground,
+                          //           //   width: 2.0,
+                          //           // )),
+                          //
+                          //           padding: MaterialStatePropertyAll(
+                          //             EdgeInsets.symmetric(
+                          //                 vertical: Space.s100,
+                          //                 horizontal: Space.s300),
+                          //           ),
+                          //           // visualDensity: VisualDensity.compact,
+                          //           visualDensity: VisualDensity(
+                          //               horizontal: -3.0, vertical: -3.0),
+                          //           // textStyle: MaterialStatePropertyAll(TextStyle(
+                          //           //   color: LxColors.foreground,
+                          //           //   fontSize: Fonts.size300,
+                          //           //   fontVariations: [Fonts.weightBold],
+                          //           // )),
+                          //           // fixedSize: MaterialStatePropertyAll(Size.fromHeight(44.0)),
+                          //         ),
+                          //         label: const Row(
+                          //             mainAxisAlignment:
+                          //                 MainAxisAlignment.center,
+                          //             children: [
+                          //               SizedBox(width: Space.s200),
+                          //               Text(
+                          //                 "Amount",
+                          //                 style: TextStyle(
+                          //                   fontSize: Fonts.size200,
+                          //                 ),
+                          //               ),
+                          //               SizedBox(width: Space.s200),
+                          //               Icon(
+                          //                 Icons.add_rounded,
+                          //                 // size: Fonts.size,
+                          //               ),
+                          //             ]),
+                          //       ),
+                          //     ],
+                          //   ),
+                          // ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: Space.s450, vertical: Space.s450),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Amount (sats)
+                      if (amountSatsStr != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: Space.s100),
+                          child: Text.rich(
+                            TextSpan(
+                              children: [
+                                TextSpan(text: amountSatsStr),
+                                const TextSpan(
+                                    text: " sats",
+                                    style: TextStyle(color: LxColors.grey550)),
+                              ],
+                              style: const TextStyle(
+                                fontSize: Fonts.size600,
+                                letterSpacing: -0.5,
+                                fontVariations: [Fonts.weightMedium],
+                                height: 1.0,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                      // Amount (fiat)
+                      ValueStreamBuilder(
+                        stream: this.fiatRate,
+                        builder: (context, fiatRate) {
+                          if (amountSats == null) {
+                            return const SizedBox.shrink();
+                          }
+
+                          final String? amountFiatStr;
+                          if (fiatRate != null) {
+                            final amountFiat =
+                                fiatRate.rate * satsToBtc(amountSats);
+                            amountFiatStr =
+                                formatFiat(amountFiat, fiatRate.fiat);
+                          } else {
+                            amountFiatStr = null;
+                          }
+
+                          const fontSize = Fonts.size400;
+
+                          return (amountFiatStr != null)
+                              ? Text(
+                                  "≈ $amountFiatStr",
+                                  style: const TextStyle(
+                                    color: LxColors.fgTertiary,
+                                    fontSize: fontSize,
+                                    letterSpacing: -0.5,
+                                    height: 1.0,
+                                  ),
+                                )
+                              : const FilledPlaceholder(
+                                  height: fontSize,
+                                  width: Space.s900,
+                                  forText: true,
+                                  color: LxColors.background,
+                                );
+                        },
+                      ),
+
+                      if (amountSatsStr != null && description != null)
+                        const SizedBox(height: Space.s400),
+
+                      // Description
+                      if (description != null)
+                        Text(
+                          description,
+                          style: const TextStyle(
+                            color: LxColors.foreground,
+                            fontSize: Fonts.size200,
+                            height: 1.5,
+                            letterSpacing: -0.5,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Space
+        const SizedBox(height: Space.s400),
+        const Expanded(child: Center()),
+      ],
     );
   }
 }
