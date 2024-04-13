@@ -83,11 +83,19 @@ class LxTheme {
       platform: foundation.defaultTargetPlatform,
       colorScheme: colorScheme,
     );
-    final textTheme = typography.black.apply(
-      fontFamily: "Inter V",
-      displayColor: LxColors.foreground,
-      bodyColor: LxColors.foreground,
-    );
+
+    // TODO(phlip9): need to tweak these...
+    // https://m3.material.io/styles/typography/type-scale-tokens
+
+    final textTheme = typography.black
+        .apply(
+          fontFamily: "Inter V",
+          displayColor: LxColors.foreground,
+          bodyColor: LxColors.foreground,
+        )
+        .copyWith(
+          headlineSmall: Fonts.fontHeadlineSmall,
+        );
 
     // Start with a basic theme generated from our greyscale colors. This will
     // provide somewhat reasonable default styling for things that we haven't
@@ -535,6 +543,16 @@ class Fonts {
     height: 1.0,
     fontVariations: [Fonts.weightMedium],
     decoration: TextDecoration.none,
+  );
+
+  static const TextStyle fontHeadlineSmall = TextStyle(
+    debugLabel: "Fonts.fontHeadlineSmall",
+    fontFamily: "Inter V",
+    fontSize: Fonts.size600,
+    height: 1.2,
+    fontVariations: [Fonts.weightMedium],
+    decoration: TextDecoration.none,
+    letterSpacing: -0.5,
   );
 
   static const TextStyle fontHero = TextStyle(
