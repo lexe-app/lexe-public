@@ -4,6 +4,7 @@ import 'dart:math' show max;
 import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/bindings_generated_api.dart';
 import 'package:lexeapp/components.dart'
@@ -2013,284 +2014,315 @@ class PaymentOfferCard5 extends StatelessWidget {
         : null;
     final description = this.paymentOffer.description;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Space.s200),
-      child: Container(
-        // padding: const EdgeInsets.all(Space.s450),
-        constraints: const BoxConstraints(maxWidth: 350.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                Space.s450,
-                Space.s0,
-                Space.s450,
-                Space.s400,
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  //   // const SizedBox(width: 300.0 - 2 * Space.s400),
-                  //   // kind
-                  Text(
-                    this.paymentOffer.titleStr(),
-                    style: const TextStyle(
-                      color: LxColors.foreground,
-                      fontSize: Fonts.size400,
-                      fontVariations: [Fonts.weightMedium],
-                      letterSpacing: -0.5,
-                      height: 1.5,
-                    ),
-                  ),
-                  const Text(
-                    "Receive Bitcoin instantly with Lightning",
-                    style: TextStyle(
-                      color: LxColors.grey600,
-                      fontSize: Fonts.size100,
-                      // fontVariations: [Fonts.weightMedium],
-                      // letterSpacing: -0.5,
-                      height: 1.2,
-                    ),
-                  ),
-                ],
-              ),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: Space.s300),
+      // padding: const EdgeInsets.all(Space.s450),
+      constraints: const BoxConstraints(maxWidth: 350.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              Space.s450,
+              Space.s0,
+              Space.s450,
+              Space.s400,
             ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                //   // const SizedBox(width: 300.0 - 2 * Space.s400),
+                //   // kind
+                Text(
+                  this.paymentOffer.titleStr(),
+                  style: const TextStyle(
+                    color: LxColors.foreground,
+                    fontSize: Fonts.size400,
+                    fontVariations: [Fonts.weightMedium],
+                    letterSpacing: -0.5,
+                    height: 1.5,
+                  ),
+                ),
+                const Text(
+                  "Receive Bitcoin instantly with Lightning",
+                  style: TextStyle(
+                    color: LxColors.grey600,
+                    fontSize: Fonts.size100,
+                    // fontVariations: [Fonts.weightMedium],
+                    // letterSpacing: -0.5,
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
 
-            // Card
-            Container(
-              decoration: BoxDecoration(
-                color: LxColors.grey1000,
-                borderRadius: BorderRadius.circular(LxRadius.r300),
-              ),
-              padding: const EdgeInsets.fromLTRB(
-                Space.s450,
-                Space.s100,
-                Space.s450,
-                Space.s450,
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // code + tertiary icons
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      // raw code string + copy button
-                      if (code != null)
-                        Transform.translate(
-                          offset: const Offset(-Space.s300, Space.s0),
-                          child: TextButton.icon(
-                            onPressed: () {},
-                            icon: Text(
-                              address_format.ellipsizeBtcAddress(code),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: Fonts.size100,
-                                color: LxColors.grey550,
-                              ),
-                            ),
-                            label: const Icon(
-                              Icons.copy_rounded,
-                              size: Fonts.size300,
+          // Card
+          Container(
+            decoration: BoxDecoration(
+              color: LxColors.grey1000,
+              borderRadius: BorderRadius.circular(LxRadius.r300),
+            ),
+            padding: const EdgeInsets.fromLTRB(
+              Space.s450,
+              Space.s100,
+              Space.s450,
+              Space.s450,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // code + tertiary icons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.start,
+                  children: [
+                    // raw code string + copy button
+                    if (code != null)
+                      Transform.translate(
+                        offset: const Offset(-Space.s300, Space.s0),
+                        child: TextButton.icon(
+                          onPressed: () {},
+                          icon: Text(
+                            address_format.ellipsizeBtcAddress(code),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: Fonts.size100,
                               color: LxColors.grey550,
                             ),
                           ),
-                        ),
-                      if (code == null)
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: Space.s200),
-                          child: FilledPlaceholder(
-                            width: Space.s900,
-                            forText: true,
-                            height: Fonts.size100,
-                            color: LxColors.background,
+                          label: const Icon(
+                            Icons.copy_rounded,
+                            size: Fonts.size300,
+                            color: LxColors.grey550,
                           ),
                         ),
-
-                      const Expanded(child: Center()),
-
-                      IconButton(
-                        onPressed: () {},
-                        icon: const Icon(Icons.more_horiz_rounded),
-                        visualDensity: VisualDensity.compact,
                       ),
-                    ],
-                  ),
+                    if (code == null)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: Space.s200),
+                        child: FilledPlaceholder(
+                          width: Space.s900,
+                          forText: true,
+                          height: Fonts.size100,
+                          color: LxColors.background,
+                        ),
+                      ),
 
-                  // QR code
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final double dim = constraints.maxWidth;
-                      final key = ValueKey(uri ?? "");
+                    const Expanded(child: Center()),
 
-                      return AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 250),
-                        child: (uri != null)
-                            ? Container(
-                                decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(6.0)),
-                                clipBehavior: Clip.hardEdge,
-                                child: QrImage(
-                                  // `AnimatedSwitcher` should also run the switch
-                                  // animation when the QR code contents change.
-                                  key: key,
-                                  value: uri,
-                                  dimension: dim.toInt(),
-                                  color: LxColors.foreground,
-                                ),
-                              )
-                            : FilledPlaceholder(
+                    IconButton(
+                      onPressed: () {},
+                      icon: const Icon(Icons.more_horiz_rounded),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ],
+                ),
+
+                // QR code
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final double dim = constraints.maxWidth;
+                    final key = ValueKey(uri ?? "");
+
+                    return AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      child: (uri != null)
+                          ? Container(
+                              decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6.0)),
+                              clipBehavior: Clip.hardEdge,
+                              child: QrImage(
+                                // `AnimatedSwitcher` should also run the switch
+                                // animation when the QR code contents change.
                                 key: key,
-                                width: dim,
-                                height: dim,
-                                color: LxColors.background,
-                                borderRadius: 6.0,
-                                child: const Center(
-                                  child: SizedBox.square(
-                                    dimension: Fonts.size800,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 3.0,
-                                      color: LxColors.clearB200,
-                                    ),
+                                value: uri,
+                                dimension: dim.toInt(),
+                                color: LxColors.foreground,
+                              ),
+                            )
+                          : FilledPlaceholder(
+                              key: key,
+                              width: dim,
+                              height: dim,
+                              color: LxColors.background,
+                              borderRadius: 6.0,
+                              child: const Center(
+                                child: SizedBox.square(
+                                  dimension: Fonts.size800,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 3.0,
+                                    color: LxColors.clearB200,
                                   ),
                                 ),
                               ),
-                      );
-                    },
-                  ),
-
-                  // + Amount button
-                  if (amountSatsStr == null && description == null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: Space.s450),
-                      child: OutlinedButton(
-                        onPressed: () {},
-                        style: ButtonStyle(
-                          // fixedSize: MaterialStatePropertyAll(
-                          //     Size.fromHeight(44.0)),
-                          visualDensity: const VisualDensity(
-                              horizontal: -3.0, vertical: -3.0),
-                          shape:
-                              MaterialStatePropertyAll(RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(LxRadius.r200),
-                          )),
-                        ),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.add_rounded),
-                            SizedBox(width: Space.s200),
-                            Text(
-                              "Amount",
-                              style: TextStyle(
-                                fontSize: Fonts.size300,
-                              ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  if (amountSatsStr != null || description != null)
-                    const SizedBox(height: Space.s400),
+                    );
+                  },
+                ),
 
-                  // Amount (sats)
-                  if (amountSatsStr != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: Space.s100),
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(text: amountSatsStr),
-                            const TextSpan(
-                                text: " sats",
-                                style: TextStyle(color: LxColors.grey550)),
-                          ],
-                          style: const TextStyle(
-                            fontSize: Fonts.size600,
-                            letterSpacing: -0.5,
-                            fontVariations: [Fonts.weightMedium],
-                            height: 1.0,
+                // + Amount button
+                if (amountSatsStr == null && description == null)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: Space.s400),
+                        child: OutlinedButton(
+                          onPressed: () {},
+                          style: const ButtonStyle(
+                            // fixedSize: MaterialStatePropertyAll(
+                            //     Size.fromHeight(44.0)),
+                            visualDensity:
+                                VisualDensity(horizontal: -3.0, vertical: -3.0),
+                            // shape: MaterialStatePropertyAll(
+                            //     RoundedRectangleBorder(
+                            //   borderRadius:
+                            //       BorderRadius.circular(LxRadius.r200),
+                            // )),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.add_rounded),
+                              SizedBox(width: Space.s200),
+                              Text(
+                                "Amount",
+                                style: TextStyle(
+                                  fontSize: Fonts.size300,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
+                    ],
+                  ),
+                if (amountSatsStr != null || description != null)
+                  const SizedBox(height: Space.s400),
+
+                // Amount (sats)
+                if (amountSatsStr != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: Space.s100),
+                    child: Text.rich(
+                      TextSpan(
+                        children: [
+                          TextSpan(text: amountSatsStr),
+                          const TextSpan(
+                              text: " sats",
+                              style: TextStyle(color: LxColors.grey550)),
+                        ],
+                        style: const TextStyle(
+                          fontSize: Fonts.size600,
+                          letterSpacing: -0.5,
+                          fontVariations: [Fonts.weightMedium],
+                          height: 1.0,
+                        ),
+                      ),
                     ),
-
-                  // Amount (fiat)
-                  ValueStreamBuilder(
-                    stream: this.fiatRate,
-                    builder: (context, fiatRate) {
-                      if (amountSats == null) {
-                        return const SizedBox.shrink();
-                      }
-
-                      final String? amountFiatStr;
-                      if (fiatRate != null) {
-                        final amountFiat =
-                            fiatRate.rate * satsToBtc(amountSats);
-                        amountFiatStr = formatFiat(amountFiat, fiatRate.fiat);
-                      } else {
-                        amountFiatStr = null;
-                      }
-
-                      const fontSize = Fonts.size400;
-
-                      return (amountFiatStr != null)
-                          ? Text(
-                              "≈ $amountFiatStr",
-                              style: const TextStyle(
-                                color: LxColors.fgTertiary,
-                                fontSize: fontSize,
-                                letterSpacing: -0.5,
-                                height: 1.0,
-                              ),
-                            )
-                          : const FilledPlaceholder(
-                              height: fontSize,
-                              width: Space.s900,
-                              forText: true,
-                              color: LxColors.background,
-                            );
-                    },
                   ),
 
-                  if (amountSatsStr != null && description != null)
-                    const SizedBox(height: Space.s400),
+                // Amount (fiat)
+                ValueStreamBuilder(
+                  stream: this.fiatRate,
+                  builder: (context, fiatRate) {
+                    if (amountSats == null) {
+                      return const SizedBox.shrink();
+                    }
 
-                  // Description
-                  if (description != null)
-                    Text(
-                      description,
-                      style: const TextStyle(
-                        color: LxColors.foreground,
-                        fontSize: Fonts.size200,
-                        height: 1.5,
-                        letterSpacing: -0.5,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                    final String? amountFiatStr;
+                    if (fiatRate != null) {
+                      final amountFiat = fiatRate.rate * satsToBtc(amountSats);
+                      amountFiatStr = formatFiat(amountFiat, fiatRate.fiat);
+                    } else {
+                      amountFiatStr = null;
+                    }
+
+                    const fontSize = Fonts.size400;
+
+                    return (amountFiatStr != null)
+                        ? Text(
+                            "≈ $amountFiatStr",
+                            style: const TextStyle(
+                              color: LxColors.fgTertiary,
+                              fontSize: fontSize,
+                              letterSpacing: -0.5,
+                              height: 1.0,
+                            ),
+                          )
+                        : const FilledPlaceholder(
+                            height: fontSize,
+                            width: Space.s900,
+                            forText: true,
+                            color: LxColors.background,
+                          );
+                  },
+                ),
+
+                if (amountSatsStr != null && description != null)
+                  const SizedBox(height: Space.s400),
+
+                // Description
+                if (description != null)
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      color: LxColors.foreground,
+                      fontSize: Fonts.size200,
+                      height: 1.5,
+                      letterSpacing: -0.5,
                     ),
-                ],
-              ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+              ],
             ),
+          ),
 
-            const SizedBox(height: Space.s450),
+          const SizedBox(height: Space.s450),
 
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+          // Container(
+          //   margin: const EdgeInsets.symmetric(horizontal: Space.s450),
+          //   padding: const EdgeInsets.all(Space.s200),
+          //   color: LxColors.moneyGoUp,
+          //   child: const Text.rich(
+          //     TextSpan(children: [
+          //       TextSpan(
+          //           text:
+          //               "Receiving via Lightning will incur an initial setup fee of "),
+          //       TextSpan(
+          //         text: "2,000 sats",
+          //         style: TextStyle(fontVariations: [Fonts.weightSemiBold]),
+          //       )
+          //     ]),
+          //   ),
+          // ),
+
+          // good
+
+          Padding(
+            padding: const EdgeInsets.only(left: Space.s450, right: Space.s200),
+            child: Row(
               children: [
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: Space.s450),
+                const Expanded(
                   child: Text.rich(
                     TextSpan(children: [
+                      // Pay invoice once
                       TextSpan(
-                          text: "Watch out! ",
-                          style: TextStyle(fontVariations: [Fonts.weightBold])),
-                      TextSpan(text: "Invoices can only be paid once."),
+                          text:
+                              "Invoices can only be paid once. Reusing an invoice may result in lost payments. "),
+                      TextSpan(
+                        text: "Read more",
+                        style: TextStyle(
+                          decoration: TextDecoration.underline,
+                          decorationColor: LxColors.grey550,
+                          decorationThickness: 1.0,
+                        ),
+                      ),
                     ]),
                     style: TextStyle(
                       color: LxColors.grey550,
@@ -2298,16 +2330,68 @@ class PaymentOfferCard5 extends StatelessWidget {
                     ),
                   ),
                 ),
+                IconButton(
+                  onPressed: () {},
+                  icon: const Icon(
+                    Icons.close_rounded,
+                  ),
+                  color: LxColors.grey650,
+                )
               ],
             ),
+          ),
 
-            // Space
-            // const SizedBox(height: Space.s400),
+          // const Padding(
+          //   padding: EdgeInsets.symmetric(horizontal: Space.s450),
+          //   child: Row(
+          //     children: [
+          //       Padding(
+          //         padding: EdgeInsets.only(right: Space.s400),
+          //         child: Icon(
+          //           Icons.warning_rounded,
+          //           color: LxColors.grey550,
+          //         ),
+          //       ),
+          //       Expanded(
+          //         child: Text.rich(
+          //           TextSpan(children: [
+          //             // TextSpan(
+          //             //     text: "Watch out! ",
+          //             //     style: TextStyle(fontVariations: [Fonts.weightBold])),
+          //             // TextSpan(text: "Invoices can only be paid once."),
+          //             // TextSpan(
+          //             //   text: "WARNING:  ",
+          //             //   style:
+          //             //       TextStyle(fontVariations: [Fonts.weightMedium]),
+          //             // ),
+          //             TextSpan(
+          //                 text:
+          //                     "Invoices can only be paid once. Reusing an invoice may result in lost payments. "),
+          //             // TextSpan(
+          //             //   text: "Why?",
+          //             //   style: TextStyle(
+          //             //     decoration: TextDecoration.underline,
+          //             //     decorationColor: LxColors.grey550,
+          //             //     decorationThickness: 1.5,
+          //             //   ),
+          //             // ),
+          //           ]),
+          //           style: TextStyle(
+          //             color: LxColors.grey550,
+          //             fontSize: Fonts.size100,
+          //           ),
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
 
-            // Push elements outside page to bottom
-            const Expanded(child: Center()),
-          ],
-        ),
+          // Space
+          // const SizedBox(height: Space.s400),
+
+          // Push elements outside page to bottom
+          const Expanded(child: Center()),
+        ],
       ),
     );
   }
