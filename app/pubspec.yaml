@@ -46,6 +46,7 @@ dependencies:
     sdk: flutter
 
   # The high-level memory safe interface for generated Rust<->dart ffi bindings.
+  flutter_markdown: ^0.6.22+1
   flutter_rust_bridge: ^1.82.5
 
   # QR code scanning
