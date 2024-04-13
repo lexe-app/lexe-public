@@ -427,6 +427,7 @@ class LxFilledButton extends StatelessWidget {
                 ? LxColors.foreground
                 : null,
           ),
+          overlayColor: const MaterialStatePropertyAll(LxColors.clearW200),
         ).merge(style);
 
   final Widget? label;
@@ -473,7 +474,8 @@ class LxOutlinedButton extends StatelessWidget {
 }
 
 class ButtonChild extends StatelessWidget {
-  const ButtonChild({super.key, this.label, this.icon});
+  const ButtonChild({super.key, this.label, this.icon})
+      : assert(label != null || icon != null);
 
   final Widget? label;
   final Widget? icon;
@@ -483,11 +485,19 @@ class ButtonChild extends StatelessWidget {
     final label = this.label;
     final icon = this.icon;
 
+    if (label == null) {
+      return icon!;
+    }
+
+    if (icon == null) {
+      return label;
+    }
+
     return Stack(
       alignment: Alignment.center,
       children: [
-        if (label != null) label,
-        if (icon != null) Align(alignment: Alignment.centerRight, child: icon),
+        label,
+        Align(alignment: Alignment.centerRight, child: icon),
       ],
     );
   }

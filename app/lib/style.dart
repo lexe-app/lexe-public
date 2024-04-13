@@ -251,6 +251,14 @@ class LxColors {
   // static const Color errorText = Color(0xff994133);
   static const Color errorText = Color(0xffb82a14);
 
+  /// hsl(257deg 95% 68%)
+  static const Color linkText = Color(0xff8d60fb);
+
+  /// hsl(158deg 95% 40%)
+  // static Color linkText = HSLColor.fromAHSL(1.0, 158.0, 0.95, 0.35).toColor();
+  /// hsl(214deg 94% 50%)
+  // static const Color linkText = Color(0xff0870f7);
+
   // Greys
 
   static const Color grey0 = Color(0xff000000);
