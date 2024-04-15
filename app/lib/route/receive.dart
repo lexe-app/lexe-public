@@ -632,7 +632,8 @@ class ReceivePaymentPage2 extends StatelessWidget {
       kind: PaymentOfferKind.lightningInvoice,
       code:
           "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r",
-      amountSats: 45750,
+      // amountSats: 45750,
+      amountSats: null,
       description: "the rice house 🍕",
       expiresAt: null,
     );
@@ -2114,10 +2115,13 @@ class PaymentOfferCard5 extends StatelessWidget {
 
                     const Expanded(child: Center()),
 
-                    IconButton(
-                      onPressed: () {},
-                      icon: const Icon(Icons.more_horiz_rounded),
-                      visualDensity: VisualDensity.compact,
+                    Transform.translate(
+                      offset: const Offset(Space.s200, 0.0),
+                      child: IconButton(
+                        onPressed: () {},
+                        icon: const Icon(Icons.more_horiz_rounded),
+                        visualDensity: VisualDensity.compact,
+                      ),
                     ),
                   ],
                 ),
@@ -2166,12 +2170,25 @@ class PaymentOfferCard5 extends StatelessWidget {
 
                 // + Amount button
                 if (amountSatsStr == null && description == null)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(top: Space.s400),
-                        child: OutlinedButton(
+                  Padding(
+                    padding: const EdgeInsets.only(top: Space.s400),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        // IconButton(
+                        //   onPressed: () {},
+                        //   icon: const Icon(Icons.copy_rounded),
+                        //   color: LxColors.fgSecondary,
+                        //   iconSize: 20.0,
+                        // ),
+                        // IconButton(
+                        //   onPressed: () {},
+                        //   icon: const Icon(Icons.share_rounded),
+                        //   color: LxColors.fgSecondary,
+                        //   iconSize: 20.0,
+                        // ),
+                        // const Expanded(child: Center()),
+                        OutlinedButton(
                           onPressed: () {},
                           style: const ButtonStyle(
                             // fixedSize: MaterialStatePropertyAll(
@@ -2187,6 +2204,7 @@ class PaymentOfferCard5 extends StatelessWidget {
                           child: const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
+                              SizedBox(width: Space.s200),
                               Icon(Icons.add_rounded),
                               SizedBox(width: Space.s200),
                               Text(
@@ -2195,89 +2213,136 @@ class PaymentOfferCard5 extends StatelessWidget {
                                   fontSize: Fonts.size300,
                                 ),
                               ),
+                              SizedBox(width: Space.s400),
                             ],
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 if (amountSatsStr != null || description != null)
                   const SizedBox(height: Space.s400),
 
-                // Amount (sats)
-                if (amountSatsStr != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: Space.s100),
-                    child: Text.rich(
-                      TextSpan(
+                if (amountSatsStr != null || description != null)
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisSize: MainAxisSize.max,
+                    children: [
+                      // Amount and/or description
+                      Column(
+                        mainAxisSize: MainAxisSize.max,
                         children: [
-                          TextSpan(text: amountSatsStr),
-                          const TextSpan(
-                              text: " sats",
-                              style: TextStyle(color: LxColors.grey550)),
+                          // Amount (sats)
+                          if (amountSatsStr != null)
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(bottom: Space.s100),
+                              child: Text.rich(
+                                TextSpan(
+                                  children: [
+                                    TextSpan(text: amountSatsStr),
+                                    const TextSpan(
+                                        text: " sats",
+                                        style:
+                                            TextStyle(color: LxColors.grey550)),
+                                  ],
+                                  style: const TextStyle(
+                                    fontSize: Fonts.size600,
+                                    letterSpacing: -0.5,
+                                    fontVariations: [Fonts.weightMedium],
+                                    height: 1.0,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                          // Amount (fiat)
+                          ValueStreamBuilder(
+                            stream: this.fiatRate,
+                            builder: (context, fiatRate) {
+                              if (amountSats == null) {
+                                return const SizedBox.shrink();
+                              }
+
+                              final String? amountFiatStr;
+                              if (fiatRate != null) {
+                                final amountFiat =
+                                    fiatRate.rate * satsToBtc(amountSats);
+                                amountFiatStr =
+                                    formatFiat(amountFiat, fiatRate.fiat);
+                              } else {
+                                amountFiatStr = null;
+                              }
+
+                              const fontSize = Fonts.size400;
+
+                              return (amountFiatStr != null)
+                                  ? Text(
+                                      "≈ $amountFiatStr",
+                                      style: const TextStyle(
+                                        color: LxColors.fgTertiary,
+                                        fontSize: fontSize,
+                                        letterSpacing: -0.5,
+                                        height: 1.0,
+                                      ),
+                                    )
+                                  : const FilledPlaceholder(
+                                      height: fontSize,
+                                      width: Space.s900,
+                                      forText: true,
+                                      color: LxColors.background,
+                                    );
+                            },
+                          ),
+
+                          if (amountSatsStr != null && description != null)
+                            const SizedBox(height: Space.s400),
+
+                          // Description
+                          if (description != null)
+                            Text(
+                              description,
+                              style: const TextStyle(
+                                color: LxColors.foreground,
+                                fontSize: Fonts.size200,
+                                height: 1.5,
+                                letterSpacing: -0.5,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                         ],
-                        style: const TextStyle(
-                          fontSize: Fonts.size600,
-                          letterSpacing: -0.5,
-                          fontVariations: [Fonts.weightMedium],
-                          height: 1.0,
+                      ),
+
+                      // // edit icon
+                      // Transform.translate(
+                      //   offset: const Offset(Space.s200, 0.0),
+                      //   child: IconButton(
+                      //     onPressed: () {},
+                      //     icon: const Icon(
+                      //       Icons.edit_outlined,
+                      //       size: Fonts.size500,
+                      //       color: LxColors.fgSecondary,
+                      //     ),
+                      //   ),
+                      // ),
+
+                      // edit icon
+                      Transform.translate(
+                        offset: const Offset(Space.s200, 0.0),
+                        child: TextButton.icon(
+                          onPressed: () {},
+                          label: const Text(
+                            "Edit",
+                            style: TextStyle(fontSize: Fonts.size200),
+                          ),
+                          icon: const Icon(
+                            Icons.edit_square,
+                            size: Fonts.size200,
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-
-                // Amount (fiat)
-                ValueStreamBuilder(
-                  stream: this.fiatRate,
-                  builder: (context, fiatRate) {
-                    if (amountSats == null) {
-                      return const SizedBox.shrink();
-                    }
-
-                    final String? amountFiatStr;
-                    if (fiatRate != null) {
-                      final amountFiat = fiatRate.rate * satsToBtc(amountSats);
-                      amountFiatStr = formatFiat(amountFiat, fiatRate.fiat);
-                    } else {
-                      amountFiatStr = null;
-                    }
-
-                    const fontSize = Fonts.size400;
-
-                    return (amountFiatStr != null)
-                        ? Text(
-                            "≈ $amountFiatStr",
-                            style: const TextStyle(
-                              color: LxColors.fgTertiary,
-                              fontSize: fontSize,
-                              letterSpacing: -0.5,
-                              height: 1.0,
-                            ),
-                          )
-                        : const FilledPlaceholder(
-                            height: fontSize,
-                            width: Space.s900,
-                            forText: true,
-                            color: LxColors.background,
-                          );
-                  },
-                ),
-
-                if (amountSatsStr != null && description != null)
-                  const SizedBox(height: Space.s400),
-
-                // Description
-                if (description != null)
-                  Text(
-                    description,
-                    style: const TextStyle(
-                      color: LxColors.foreground,
-                      fontSize: Fonts.size200,
-                      height: 1.5,
-                      letterSpacing: -0.5,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                    ],
                   ),
               ],
             ),
@@ -2323,10 +2388,28 @@ class PaymentOfferCard5 extends StatelessWidget {
                           decorationThickness: 1.0,
                         ),
                       ),
+
+                      // // Zero-conf ()
+                      // TextSpan(text: "Receiving more than "),
+                      // TextSpan(
+                      //   text: "150,000 sats",
+                      //   style: TextStyle(
+                      //     fontVariations: [Fonts.weightSemiBold],
+                      //   ),
+                      // ),
+                      // TextSpan(text: " will incur an initial setup fee of "),
+                      // TextSpan(
+                      //   text: "2,500 sats",
+                      //   style: TextStyle(
+                      //     fontVariations: [Fonts.weightSemiBold],
+                      //   ),
+                      // ),
+                      // TextSpan(text: "."),
                     ]),
                     style: TextStyle(
                       color: LxColors.grey550,
                       fontSize: Fonts.size100,
+                      // letterSpacing: -0.2,
                     ),
                   ),
                 ),
