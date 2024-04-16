@@ -658,6 +658,8 @@ class PaymentOfferCard extends StatelessWidget {
     // final description = "the rice house 🍕";
     // final description = null;
 
+    final isLightning = this.paymentOffer.kind.isLightning();
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: Space.s300),
       constraints: const BoxConstraints(maxWidth: 350.0),
@@ -812,7 +814,11 @@ class PaymentOfferCard extends StatelessWidget {
                 ),
 
                 // + Amount button
-                if (amountSatsStr == null && description == null)
+                //
+                // We only allow editing the amount for LN, since we can't yet
+                // accurately correlate info we put in a BIP21 URI with the
+                // actual tx that comes in.
+                if (isLightning && amountSatsStr == null && description == null)
                   Padding(
                     padding: const EdgeInsets.only(top: Space.s400),
                     child: Row(
@@ -821,15 +827,8 @@ class PaymentOfferCard extends StatelessWidget {
                         OutlinedButton(
                           onPressed: () {},
                           style: const ButtonStyle(
-                            // fixedSize: MaterialStatePropertyAll(
-                            //     Size.fromHeight(44.0)),
                             visualDensity:
                                 VisualDensity(horizontal: -3.0, vertical: -3.0),
-                            // shape: MaterialStatePropertyAll(
-                            //     RoundedRectangleBorder(
-                            //   borderRadius:
-                            //       BorderRadius.circular(LxRadius.r200),
-                            // )),
                           ),
                           child: const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -979,58 +978,60 @@ class PaymentOfferCard extends StatelessWidget {
           // Under-card section
 
           // Warning/info block
-          Padding(
-            padding: const EdgeInsets.only(left: Space.s450, right: Space.s200),
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Text.rich(
-                    TextSpan(children: [
-                      // Pay invoice once
-                      TextSpan(
-                          text:
-                              "Invoices can only be paid once. Reusing an invoice may result in lost payments. "),
-                      TextSpan(
-                        text: "Read more",
-                        style: TextStyle(
-                          decoration: TextDecoration.underline,
-                          decorationColor: LxColors.grey550,
-                          decorationThickness: 1.0,
+          if (this.paymentOffer.kind == PaymentOfferKind.lightningInvoice)
+            Padding(
+              padding:
+                  const EdgeInsets.only(left: Space.s450, right: Space.s200),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text.rich(
+                      TextSpan(children: [
+                        // Pay invoice once
+                        TextSpan(
+                            text:
+                                "Invoices can only be paid once. Reusing an invoice may result in lost payments. "),
+                        TextSpan(
+                          text: "Read more",
+                          style: TextStyle(
+                            decoration: TextDecoration.underline,
+                            decorationColor: LxColors.grey550,
+                            decorationThickness: 1.0,
+                          ),
                         ),
-                      ),
 
-                      // // Zero-conf ()
-                      // TextSpan(text: "Receiving more than "),
-                      // TextSpan(
-                      //   text: "150,000 sats",
-                      //   style: TextStyle(
-                      //     fontVariations: [Fonts.weightSemiBold],
-                      //   ),
-                      // ),
-                      // TextSpan(text: " will incur an initial setup fee of "),
-                      // TextSpan(
-                      //   text: "2,500 sats",
-                      //   style: TextStyle(
-                      //     fontVariations: [Fonts.weightSemiBold],
-                      //   ),
-                      // ),
-                      // TextSpan(text: "."),
-                    ]),
-                    style: TextStyle(
-                      color: LxColors.grey550,
-                      fontSize: Fonts.size100,
-                      // letterSpacing: -0.2,
+                        // // Zero-conf ()
+                        // TextSpan(text: "Receiving more than "),
+                        // TextSpan(
+                        //   text: "150,000 sats",
+                        //   style: TextStyle(
+                        //     fontVariations: [Fonts.weightSemiBold],
+                        //   ),
+                        // ),
+                        // TextSpan(text: " will incur an initial setup fee of "),
+                        // TextSpan(
+                        //   text: "2,500 sats",
+                        //   style: TextStyle(
+                        //     fontVariations: [Fonts.weightSemiBold],
+                        //   ),
+                        // ),
+                        // TextSpan(text: "."),
+                      ]),
+                      style: TextStyle(
+                        color: LxColors.grey550,
+                        fontSize: Fonts.size100,
+                        // letterSpacing: -0.2,
+                      ),
                     ),
                   ),
-                ),
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(LxIcons.close),
-                  color: LxColors.grey650,
-                )
-              ],
+                  IconButton(
+                    onPressed: () {},
+                    icon: const Icon(LxIcons.close),
+                    color: LxColors.grey650,
+                  )
+                ],
+              ),
             ),
-          ),
 
           // Push elements outside page to bottom
           const Expanded(child: Center()),
