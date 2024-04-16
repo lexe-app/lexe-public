@@ -1,11 +1,13 @@
 import 'dart:async' show unawaited;
+import 'dart:io' show Platform;
 import 'dart:math' show max;
 
 import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:lexeapp/address_format.dart' as address_format;
-import 'package:lexeapp/bindings_generated_api.dart';
+import 'package:lexeapp/bindings_generated_api.dart'
+    show AppHandle, CreateInvoiceRequest, FiatRate, Invoice;
 import 'package:lexeapp/components.dart'
     show
         CarouselIndicatorsAndButtons,
@@ -16,15 +18,14 @@ import 'package:lexeapp/components.dart'
         PaymentAmountInput,
         PaymentNoteInput,
         ScrollableSinglePageBody,
-        SheetDragHandle,
         ValueStreamBuilder;
-import 'package:lexeapp/currency_format.dart';
-import 'package:lexeapp/input_formatter.dart';
+import 'package:lexeapp/currency_format.dart' as currency_format;
+import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/show_qr.dart' show QrImage;
 import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxIcons, LxRadius, LxTheme, Space;
+    show Fonts, LxColors, LxIcons, LxRadius, Space;
 import 'package:rxdart/rxdart.dart';
 
 const double minViewportWidth = 365.0;
@@ -110,6 +111,18 @@ class PaymentOffer {
         PaymentOfferKind.btcTaproot => "Bitcoin taproot address",
       };
 
+  String subtitleStr() => switch (this.kind) {
+        PaymentOfferKind.lightningInvoice =>
+          "Receive Bitcoin instantly with Lightning",
+        PaymentOfferKind.btcAddress =>
+          "Receive Bitcoin from anywhere. Slower and more expensive than Lightning.",
+
+        // TODO(phlip9): impl
+        PaymentOfferKind.btcTaproot => "",
+        PaymentOfferKind.lightningOffer => "",
+        // PaymentOfferKind.lightningSpontaneous => "",
+      };
+
   // TODO(phlip9): do this in rust, more robustly. Also uppercase for QR
   // encoding.
   String? uri() {
@@ -124,7 +137,8 @@ class PaymentOffer {
     } else {
       final base = "bitcoin:$code";
       final params = [
-        if (amountSats != null) "amount=${formatSatsToBtcForUri(amountSats)}",
+        if (amountSats != null)
+          "amount=${currency_format.formatSatsToBtcForUri(amountSats)}",
         if (description != null) "message=$description",
       ];
       final String paramsStr;
@@ -435,47 +449,47 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     lnOfferNotifier.value = offer;
   }
 
-  /// Open the [ReceiveSettingsBottomSheet] for the user to modify the current
-  /// page's receive offer settings.
-  Future<void> openSettingsBottomSheet(BuildContext context) async {
-    final PaymentOfferKind? kind = await showModalBottomSheet<PaymentOfferKind>(
-      backgroundColor: LxColors.background,
-      elevation: 0.0,
-      clipBehavior: Clip.hardEdge,
-      enableDrag: true,
-      isDismissible: true,
-      isScrollControlled: true,
-      context: context,
-      builder: (context) => ReceiveSettingsBottomSheet(
-        kind: this.currentOffer().value.kind,
-      ),
-    );
-
-    if (!this.mounted || kind == null) return;
-
-    final offerNotifier = this.currentOffer();
-    final prevOffer = offerNotifier.value;
-    offerNotifier.value = PaymentOffer(
-      amountSats: prevOffer.amountSats,
-      description: prevOffer.description,
-      // Update these fields. We'll unset the code to prevent accidentally
-      // scanning the old QR and indicate that the new QR is loading.
-      kind: kind,
-      code: null,
-      expiresAt: null,
-    );
-
-    final pageIdx = this.selectedCardIndex.value;
-    final prevInputs = this.paymentOfferInputs.value;
-    this.paymentOfferInputs.value = PaymentOfferInputs(
-      // Update the new desired offer kind for the current page.
-      kindByPage: (pageIdx == 0)
-          ? ([kind, prevInputs.kindByPage[1]])
-          : ([prevInputs.kindByPage[0], kind]),
-      amountSats: prevInputs.amountSats,
-      description: prevInputs.description,
-    );
-  }
+  // /// Open the [ReceiveSettingsBottomSheet] for the user to modify the current
+  // /// page's receive offer settings.
+  // Future<void> openSettingsBottomSheet(BuildContext context) async {
+  //   final PaymentOfferKind? kind = await showModalBottomSheet<PaymentOfferKind>(
+  //     backgroundColor: LxColors.background,
+  //     elevation: 0.0,
+  //     clipBehavior: Clip.hardEdge,
+  //     enableDrag: true,
+  //     isDismissible: true,
+  //     isScrollControlled: true,
+  //     context: context,
+  //     builder: (context) => ReceiveSettingsBottomSheet(
+  //       kind: this.currentOffer().value.kind,
+  //     ),
+  //   );
+  //
+  //   if (!this.mounted || kind == null) return;
+  //
+  //   final offerNotifier = this.currentOffer();
+  //   final prevOffer = offerNotifier.value;
+  //   offerNotifier.value = PaymentOffer(
+  //     amountSats: prevOffer.amountSats,
+  //     description: prevOffer.description,
+  //     // Update these fields. We'll unset the code to prevent accidentally
+  //     // scanning the old QR and indicate that the new QR is loading.
+  //     kind: kind,
+  //     code: null,
+  //     expiresAt: null,
+  //   );
+  //
+  //   final pageIdx = this.selectedCardIndex.value;
+  //   final prevInputs = this.paymentOfferInputs.value;
+  //   this.paymentOfferInputs.value = PaymentOfferInputs(
+  //     // Update the new desired offer kind for the current page.
+  //     kindByPage: (pageIdx == 0)
+  //         ? ([kind, prevInputs.kindByPage[1]])
+  //         : ([prevInputs.kindByPage[0], kind]),
+  //     amountSats: prevInputs.amountSats,
+  //     description: prevInputs.description,
+  //   );
+  // }
 
   Future<void> onTapSetAmount() async {
     final prev = this.paymentOfferInputs.value;
@@ -517,149 +531,6 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
         leadingWidth: Space.appBarLeadingWidth,
         leading: const LxBackButton(),
         title: const Text(
-          "Receive payment",
-          style: TextStyle(
-            fontSize: Fonts.size500,
-            fontVariations: [Fonts.weightMedium],
-            letterSpacing: -0.5,
-            height: 1.0,
-          ),
-        ),
-      ),
-      body: ScrollableSinglePageBody(
-        padding: EdgeInsets.zero,
-        body: [
-          const SizedBox(height: Space.s500),
-
-          // Payment offer card
-          SizedBox(
-            height: 575.0,
-            child: PageView(
-              controller: this.cardController,
-              scrollBehavior: const CupertinoScrollBehavior(),
-              padEnds: true,
-              allowImplicitScrolling: false,
-              onPageChanged: (pageIndex) {
-                if (!this.mounted) return;
-                this.selectedCardIndex.value = pageIndex;
-              },
-              children: this
-                  .paymentOffers
-                  .map((offer) => ValueListenableBuilder(
-                        valueListenable: offer,
-                        builder: (_context, offer, _child) => PaymentOfferCard(
-                          paymentOffer: offer,
-                          fiatRate: this.widget.fiatRate,
-                        ),
-                      ))
-                  .toList(),
-            ),
-          ),
-
-          const SizedBox(height: Space.s400),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Space.s600),
-            child: CarouselIndicatorsAndButtons(
-              numPages: this.paymentOffers.length,
-              selectedPageIndex: this.selectedCardIndex,
-              onTapPrev: () => unawaited(this.cardController.previousPage(
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.ease)),
-              onTapNext: () => unawaited(this.cardController.nextPage(
-                  duration: const Duration(milliseconds: 500),
-                  curve: Curves.ease)),
-            ),
-          ),
-
-          const SizedBox(height: Space.s200),
-
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Space.s600),
-            child: Row(
-              children: [
-                const Expanded(child: Center()),
-                const SizedBox(width: Space.s200),
-                LxFilledButton(
-                  icon: const Icon(LxIcons.settings, fill: 1.0),
-                  onTap: () => this.openSettingsBottomSheet(context),
-                ),
-                const SizedBox(width: Space.s200),
-                LxFilledButton(
-                  icon: const Icon(LxIcons.share, fill: 1.0),
-                  onTap: () {},
-                ),
-                const SizedBox(width: Space.s200),
-                const Expanded(child: Center()),
-                // Expanded(
-                //   child: LxFilledButton(
-                //     label: const Text("Amount"),
-                //     icon: const Icon(LxIcons.add),
-                //     onTap: this.onTapSetAmount,
-                //   ),
-                // ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: Space.s400),
-        ],
-      ),
-    );
-  }
-}
-
-class ReceivePaymentPage2 extends StatelessWidget {
-  const ReceivePaymentPage2({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final viewportWidth =
-        MediaQuery.maybeSizeOf(context)?.width ?? minViewportWidth;
-
-    const PaymentOffer paymentOffer1 = PaymentOffer(
-      kind: PaymentOfferKind.lightningInvoice,
-      code:
-          "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r",
-      amountSats: null,
-      description: null,
-      expiresAt: null,
-    );
-
-    const PaymentOffer paymentOffer2 = PaymentOffer(
-      kind: PaymentOfferKind.lightningInvoice,
-      code:
-          "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r",
-      amountSats: 45750,
-      // amountSats: null,
-      description: "the rice house 🍕",
-      // description:
-      //     "really long note asdef aoisdjfoia asdjf fldkj the rice house 🍕",
-      // description: null,
-      expiresAt: null,
-    );
-
-    const FiatRate fiatRate = FiatRate(fiat: "USD", rate: 69123.45);
-    final ValueStream<FiatRate?> fiatRates =
-        Stream.fromIterable(<FiatRate?>[fiatRate]).shareValueSeeded(fiatRate);
-
-    final pageController = PageController(
-      initialPage: 0,
-      viewportFraction: minViewportWidth / max(minViewportWidth, viewportWidth),
-    );
-
-    final selectedPageIndex = ValueNotifier(0);
-
-    final pages = <Widget>[
-      PaymentOfferCard5(paymentOffer: paymentOffer1, fiatRate: fiatRates),
-      PaymentOfferCard5(paymentOffer: paymentOffer2, fiatRate: fiatRates),
-    ];
-
-    return Scaffold(
-      appBar: AppBar(
-        leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxBackButton(),
-        title: const Text(
           "Receive",
           // "Receive payment",
           style: TextStyle(
@@ -683,12 +554,24 @@ class ReceivePaymentPage2 extends StatelessWidget {
             height: 650.0,
             // height: 575.0,
             child: PageView(
-              controller: pageController,
+              controller: this.cardController,
               scrollBehavior: const CupertinoScrollBehavior(),
               padEnds: true,
               allowImplicitScrolling: false,
-              onPageChanged: (pageIdx) => selectedPageIndex.value = pageIdx,
-              children: pages,
+              onPageChanged: (pageIdx) {
+                if (!this.mounted) return;
+                this.selectedCardIndex.value = pageIdx;
+              },
+              children: this
+                  .paymentOffers
+                  .map((offer) => ValueListenableBuilder(
+                        valueListenable: offer,
+                        builder: (_context, offer, _child) => PaymentOfferCard(
+                          paymentOffer: offer,
+                          fiatRate: this.widget.fiatRate,
+                        ),
+                      ))
+                  .toList(),
             ),
           ),
 
@@ -697,8 +580,14 @@ class ReceivePaymentPage2 extends StatelessWidget {
         bottom: Padding(
           padding: const EdgeInsets.symmetric(horizontal: Space.s600),
           child: CarouselIndicatorsAndButtons(
-            numPages: pages.length,
-            selectedPageIndex: selectedPageIndex,
+            numPages: this.paymentOffers.length,
+            selectedPageIndex: this.selectedCardIndex,
+            onTapPrev: () => unawaited(this.cardController.previousPage(
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.ease)),
+            onTapNext: () => unawaited(this.cardController.nextPage(
+                duration: const Duration(milliseconds: 500),
+                curve: Curves.ease)),
           ),
         ),
       ),
@@ -715,14 +604,18 @@ class PaymentOfferCard extends StatelessWidget {
 
   void showSnackBarOnCopySuccess(BuildContext context) {
     if (!context.mounted) return;
+
+    // Android platform automatically shows a bottom snackbar.
+    if (Platform.isAndroid) return;
+
     ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text("Copied to clipboard.")));
+        .showSnackBar(const SnackBar(content: Text("Copied to clipboard")));
   }
 
   void showSnackBarOnCopyError(BuildContext context, Object err) {
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to copy to clipboard: $err")));
+        const SnackBar(content: Text("Failed to copy to clipboard")));
   }
 
   /// Copy the current card's offer code to the user clipboard.
@@ -747,257 +640,23 @@ class PaymentOfferCard extends StatelessWidget {
     // final code = "bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl";
 
     final uri = this.paymentOffer.uri();
+    // final uri = null;
     // final uri = "lightning:lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r";
     // final uri =
     //     "lightning:lno1pqps7sjqpgtyzm3qv4uxzmtsd3jjqer9wd3hy6tsw35k7msjzfpy7nz5yqcnygrfdej82um5wf5k2uckyypwa3eyt44h6txtxquqh7lz5djge4afgfjn7k4rgrkuag0jsd5xvxg";
     // final uri = "lightning:lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r";
     // final uri = "bitcoin:bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl";
-    // final uri = null;
 
     final amountSats = this.paymentOffer.amountSats;
     // final amountSats = 5300;
     // final amountSats = null;
     final amountSatsStr = (amountSats != null)
-        ? formatSatsAmount(amountSats, satsSuffix: false)
+        ? currency_format.formatSatsAmount(amountSats, satsSuffix: false)
         : null;
 
     final description = this.paymentOffer.description;
     // final description = "the rice house 🍕";
     // final description = null;
-
-    return CardBox(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // kind
-          Text(
-            this.paymentOffer.titleStr(),
-            style: const TextStyle(
-              color: LxColors.foreground,
-              fontSize: Fonts.size300,
-              fontVariations: [Fonts.weightMedium],
-              letterSpacing: -0.5,
-              height: 1.0,
-            ),
-          ),
-
-          // raw code string + copy button
-          if (code != null)
-            TextButton.icon(
-              onPressed: () => this.onTapCopy(context),
-              icon: Text(
-                address_format.ellipsizeBtcAddress(code),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: Fonts.size100,
-                  color: LxColors.grey550,
-                  height: 1.0,
-                ),
-              ),
-              label: const Icon(
-                LxIcons.copy,
-                opticalSize: LxIcons.opszSemiDense,
-                size: Fonts.size300,
-                color: LxColors.grey550,
-              ),
-              style: ButtonStyle(
-                padding: const MaterialStatePropertyAll(EdgeInsets.zero),
-                visualDensity:
-                    const VisualDensity(horizontal: -3.0, vertical: -3.0),
-                shape: MaterialStatePropertyAll(RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(LxRadius.r200))),
-              ),
-            ),
-          if (code == null)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: Space.s200),
-              child: FilledPlaceholder(
-                width: Space.s900,
-                forText: true,
-                height: Fonts.size100,
-                color: LxColors.background,
-              ),
-            ),
-          // const SizedBox(height: Space.s100),
-
-          // QR code
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final double dim = constraints.maxWidth;
-              final key = ValueKey(uri ?? "");
-
-              return AnimatedSwitcher(
-                duration: const Duration(milliseconds: 250),
-                child: (uri != null)
-                    ? QrImage(
-                        // `AnimatedSwitcher` should also run the switch
-                        // animation when the QR code contents change.
-                        key: key,
-                        value: uri,
-                        dimension: dim.toInt(),
-                        color: LxColors.foreground,
-                      )
-                    : FilledPlaceholder(
-                        key: key,
-                        width: dim,
-                        height: dim,
-                        color: LxColors.background,
-                        child: const Center(
-                          child: SizedBox.square(
-                            dimension: Fonts.size800,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 3.0,
-                              color: LxColors.clearB200,
-                            ),
-                          ),
-                        ),
-                      ),
-              );
-            },
-          ),
-
-          if (amountSatsStr != null || description != null)
-            const SizedBox(height: Space.s400),
-
-          // Amount (sats)
-          if (amountSatsStr != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: Space.s100),
-              child: Text.rich(
-                TextSpan(
-                  children: [
-                    TextSpan(text: amountSatsStr),
-                    const TextSpan(
-                        text: " sats",
-                        style: TextStyle(color: LxColors.grey550)),
-                  ],
-                  style: const TextStyle(
-                    fontSize: Fonts.size600,
-                    letterSpacing: -0.5,
-                    fontVariations: [Fonts.weightMedium],
-                    height: 1.0,
-                  ),
-                ),
-              ),
-            ),
-
-          // Amount (fiat)
-          ValueStreamBuilder(
-            stream: this.fiatRate,
-            builder: (context, fiatRate) {
-              if (amountSats == null) return const SizedBox.shrink();
-
-              final String? amountFiatStr;
-              if (fiatRate != null) {
-                final amountFiat = fiatRate.rate * satsToBtc(amountSats);
-                amountFiatStr = formatFiat(amountFiat, fiatRate.fiat);
-              } else {
-                amountFiatStr = null;
-              }
-
-              const fontSize = Fonts.size400;
-
-              return (amountFiatStr != null)
-                  ? Text(
-                      "≈ $amountFiatStr",
-                      style: const TextStyle(
-                        color: LxColors.fgTertiary,
-                        fontSize: fontSize,
-                        letterSpacing: -0.5,
-                        height: 1.0,
-                      ),
-                    )
-                  : const FilledPlaceholder(
-                      height: fontSize,
-                      width: Space.s900,
-                      forText: true,
-                      color: LxColors.background,
-                    );
-            },
-          ),
-
-          if (amountSatsStr != null && description != null)
-            const SizedBox(height: Space.s400),
-
-          // Description
-          if (description != null)
-            Text(
-              description,
-              style: const TextStyle(
-                color: LxColors.foreground,
-                fontSize: Fonts.size200,
-                height: 1.5,
-                letterSpacing: -0.5,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-
-          if (description == null && amountSatsStr == null)
-            Padding(
-              padding: const EdgeInsets.only(top: Space.s400),
-              child: OutlinedButton(
-                onPressed: () {},
-                style: const ButtonStyle(
-                  // shape: MaterialStatePropertyAll(RoundedRectangleBorder(
-                  //     borderRadius: BorderRadius.all(
-                  //         Radius.circular(LxRadius.r200)))),
-                  // side: MaterialStatePropertyAll(BorderSide(
-                  //   color: LxColors.foreground,
-                  //   width: 2.0,
-                  // )),
-
-                  padding: MaterialStatePropertyAll(
-                    EdgeInsets.symmetric(
-                        vertical: Space.s200, horizontal: Space.s600),
-                  ),
-                  visualDensity: VisualDensity.compact,
-                  // textStyle: MaterialStatePropertyAll(TextStyle(
-                  //   color: LxColors.foreground,
-                  //   fontSize: Fonts.size300,
-                  //   fontVariations: [Fonts.weightBold],
-                  // )),
-                  // fixedSize: MaterialStatePropertyAll(Size.fromHeight(44.0)),
-                ),
-                child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(width: Space.s200),
-                      Text(
-                        "Amount",
-                        style: TextStyle(
-                          fontSize: Fonts.size300,
-                        ),
-                      ),
-                      SizedBox(width: Space.s200),
-                      Icon(LxIcons.add),
-                    ]),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class PaymentOfferCard5 extends StatelessWidget {
-  const PaymentOfferCard5(
-      {super.key, required this.paymentOffer, required this.fiatRate});
-
-  final PaymentOffer paymentOffer;
-  final ValueStream<FiatRate?> fiatRate;
-
-  @override
-  Widget build(BuildContext context) {
-    final code = this.paymentOffer.code;
-    final uri = this.paymentOffer.uri();
-    final amountSats = this.paymentOffer.amountSats;
-    final amountSatsStr = (amountSats != null)
-        ? formatSatsAmount(amountSats, satsSuffix: false)
-        : null;
-    final description = this.paymentOffer.description;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: Space.s300),
@@ -1028,9 +687,9 @@ class PaymentOfferCard5 extends StatelessWidget {
                     height: 1.5,
                   ),
                 ),
-                const Text(
-                  "Receive Bitcoin instantly with Lightning",
-                  style: TextStyle(
+                Text(
+                  this.paymentOffer.subtitleStr(),
+                  style: const TextStyle(
                     color: LxColors.grey600,
                     fontSize: Fonts.size100,
                     height: 1.2,
@@ -1085,7 +744,7 @@ class PaymentOfferCard5 extends StatelessWidget {
                       ),
                     if (code == null)
                       const Padding(
-                        padding: EdgeInsets.symmetric(vertical: Space.s200),
+                        padding: EdgeInsets.symmetric(vertical: 15.0),
                         child: FilledPlaceholder(
                           width: Space.s900,
                           forText: true,
@@ -1238,10 +897,10 @@ class PaymentOfferCard5 extends StatelessWidget {
 
                                 final String? amountFiatStr;
                                 if (fiatRate != null) {
-                                  final amountFiat =
-                                      fiatRate.rate * satsToBtc(amountSats);
-                                  amountFiatStr =
-                                      formatFiat(amountFiat, fiatRate.fiat);
+                                  final amountFiat = fiatRate.rate *
+                                      currency_format.satsToBtc(amountSats);
+                                  amountFiatStr = currency_format.formatFiat(
+                                      amountFiat, fiatRate.fiat);
                                 } else {
                                   amountFiatStr = null;
                                 }
@@ -1413,118 +1072,118 @@ class CardBox extends StatelessWidget {
   }
 }
 
-const bottomSheetBodyPadding = Space.s600;
-
-class ReceiveSettingsBottomSheet extends StatelessWidget {
-  const ReceiveSettingsBottomSheet({super.key, required this.kind});
-
-  final PaymentOfferKind kind;
-
-  void onKindSelected(BuildContext context, PaymentOfferKind flowResult) {
-    info("ReceiveSettingsBottomSheet: selected kind: $flowResult");
-    unawaited(Navigator.of(context).maybePop(flowResult));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Theme(
-      data: LxTheme.light(),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SheetDragHandle(),
-          const SizedBox(height: Space.s200),
-          const Padding(
-            padding: EdgeInsets.symmetric(
-                horizontal: bottomSheetBodyPadding, vertical: Space.s300),
-            child: HeadingText(text: "Receive settings"),
-          ),
-
-          // Lightning
-          if (this.kind.isLightning())
-            PaymentOfferKindRadio(
-              kind: PaymentOfferKind.lightningInvoice,
-              selected: this.kind,
-              title: const Text("Lightning invoice"),
-              subtitle: const Text(
-                  "Widely supported. Invoices can only be paid once!"),
-              onChanged: (kind) => this.onKindSelected(context, kind),
-            ),
-          if (this.kind.isLightning())
-            PaymentOfferKindRadio(
-              kind: PaymentOfferKind.lightningOffer,
-              selected: this.kind,
-              title: const Text("Lightning offer"),
-              subtitle: const Text(
-                  "New. Offers can be paid many times. Paste one on your twitter!"),
-              // TODO(phlip9): uncomment when BOLT12 offers are supported.
-              // onChanged: (kind) => this.onKindSelected(context, kind),
-              onChanged: null,
-            ),
-
-          // BTC
-          if (!this.kind.isLightning())
-            PaymentOfferKindRadio(
-              kind: PaymentOfferKind.btcAddress,
-              selected: this.kind,
-              title: const Text("Bitcoin SegWit address"),
-              subtitle: const Text("Recommended. Supported by most wallets."),
-              onChanged: (kind) => this.onKindSelected(context, kind),
-            ),
-          if (!this.kind.isLightning())
-            PaymentOfferKindRadio(
-              kind: PaymentOfferKind.btcTaproot,
-              selected: this.kind,
-              title: const Text("Bitcoin Taproot address"),
-              subtitle: const Text(
-                  "Newer format. Reduced fees and increased privacy."),
-              // TODO(phlip9): uncomment when taproot addresses are supported.
-              // onChanged: (kind) => this.onKindSelected(context, kind),
-              onChanged: null,
-            ),
-          const SizedBox(height: Space.s600),
-        ],
-      ),
-    );
-  }
-}
-
-class PaymentOfferKindRadio extends StatelessWidget {
-  const PaymentOfferKindRadio({
-    super.key,
-    required this.kind,
-    required this.selected,
-    required this.title,
-    required this.subtitle,
-    required this.onChanged,
-  });
-
-  final PaymentOfferKind kind;
-  final PaymentOfferKind selected;
-
-  final Widget title;
-  final Widget subtitle;
-
-  final void Function(PaymentOfferKind)? onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final onChanged = this.onChanged;
-
-    return RadioListTile<PaymentOfferKind>(
-      toggleable: false,
-      controlAffinity: ListTileControlAffinity.trailing,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: bottomSheetBodyPadding),
-      value: this.kind,
-      groupValue: this.selected,
-      onChanged: (onChanged != null) ? (kind) => onChanged(kind!) : null,
-      title: this.title,
-      subtitle: this.subtitle,
-    );
-  }
-}
+// const bottomSheetBodyPadding = Space.s600;
+//
+// class ReceiveSettingsBottomSheet extends StatelessWidget {
+//   const ReceiveSettingsBottomSheet({super.key, required this.kind});
+//
+//   final PaymentOfferKind kind;
+//
+//   void onKindSelected(BuildContext context, PaymentOfferKind flowResult) {
+//     info("ReceiveSettingsBottomSheet: selected kind: $flowResult");
+//     unawaited(Navigator.of(context).maybePop(flowResult));
+//   }
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return Theme(
+//       data: LxTheme.light(),
+//       child: Column(
+//         mainAxisSize: MainAxisSize.min,
+//         crossAxisAlignment: CrossAxisAlignment.start,
+//         children: [
+//           const SheetDragHandle(),
+//           const SizedBox(height: Space.s200),
+//           const Padding(
+//             padding: EdgeInsets.symmetric(
+//                 horizontal: bottomSheetBodyPadding, vertical: Space.s300),
+//             child: HeadingText(text: "Receive settings"),
+//           ),
+//
+//           // Lightning
+//           if (this.kind.isLightning())
+//             PaymentOfferKindRadio(
+//               kind: PaymentOfferKind.lightningInvoice,
+//               selected: this.kind,
+//               title: const Text("Lightning invoice"),
+//               subtitle: const Text(
+//                   "Widely supported. Invoices can only be paid once!"),
+//               onChanged: (kind) => this.onKindSelected(context, kind),
+//             ),
+//           if (this.kind.isLightning())
+//             PaymentOfferKindRadio(
+//               kind: PaymentOfferKind.lightningOffer,
+//               selected: this.kind,
+//               title: const Text("Lightning offer"),
+//               subtitle: const Text(
+//                   "New. Offers can be paid many times. Paste one on your twitter!"),
+//               // TODO_(phlip9): uncomment when BOLT12 offers are supported.
+//               // onChanged: (kind) => this.onKindSelected(context, kind),
+//               onChanged: null,
+//             ),
+//
+//           // BTC
+//           if (!this.kind.isLightning())
+//             PaymentOfferKindRadio(
+//               kind: PaymentOfferKind.btcAddress,
+//               selected: this.kind,
+//               title: const Text("Bitcoin SegWit address"),
+//               subtitle: const Text("Recommended. Supported by most wallets."),
+//               onChanged: (kind) => this.onKindSelected(context, kind),
+//             ),
+//           if (!this.kind.isLightning())
+//             PaymentOfferKindRadio(
+//               kind: PaymentOfferKind.btcTaproot,
+//               selected: this.kind,
+//               title: const Text("Bitcoin Taproot address"),
+//               subtitle: const Text(
+//                   "Newer format. Reduced fees and increased privacy."),
+//               // TODO_(phlip9): uncomment when taproot addresses are supported.
+//               // onChanged: (kind) => this.onKindSelected(context, kind),
+//               onChanged: null,
+//             ),
+//           const SizedBox(height: Space.s600),
+//         ],
+//       ),
+//     );
+//   }
+// }
+//
+// class PaymentOfferKindRadio extends StatelessWidget {
+//   const PaymentOfferKindRadio({
+//     super.key,
+//     required this.kind,
+//     required this.selected,
+//     required this.title,
+//     required this.subtitle,
+//     required this.onChanged,
+//   });
+//
+//   final PaymentOfferKind kind;
+//   final PaymentOfferKind selected;
+//
+//   final Widget title;
+//   final Widget subtitle;
+//
+//   final void Function(PaymentOfferKind)? onChanged;
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     final onChanged = this.onChanged;
+//
+//     return RadioListTile<PaymentOfferKind>(
+//       toggleable: false,
+//       controlAffinity: ListTileControlAffinity.trailing,
+//       contentPadding:
+//           const EdgeInsets.symmetric(horizontal: bottomSheetBodyPadding),
+//       value: this.kind,
+//       groupValue: this.selected,
+//       onChanged: (onChanged != null) ? (kind) => onChanged(kind!) : null,
+//       title: this.title,
+//       subtitle: this.subtitle,
+//     );
+//   }
+// }
 
 /// A page for the user to set a desired amount and optional description on
 /// their payment offer.

@@ -50,7 +50,7 @@ import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
 import 'package:lexeapp/route/receive.dart'
-    show ReceivePaymentPage, ReceivePaymentPage2, ReceivePaymentSetAmountPage;
+    show ReceivePaymentPage, ReceivePaymentSetAmountPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send.dart'
     show
@@ -271,10 +271,6 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 app: mockApp,
                 fiatRate: this.makeFiatRateStream(),
               ),
-            ),
-            Component(
-              "ReceivePaymentPage2",
-              (context) => const ReceivePaymentPage2(),
             ),
             Component(
               "ReceivePaymentSetAmountPage",
