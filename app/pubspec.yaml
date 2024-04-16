@@ -33,6 +33,7 @@ dependencies:
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
+  # TODO(phlip9): disable pre-release
   cupertino_icons: ^1.0.6
 
   # Pretty duration formatting.
@@ -66,6 +67,10 @@ dependencies:
   # International number, currency, and date formatting
   google_sign_in: ^6.2.1
   intl: ^0.18.1
+
+  # Use up-to-date Material 3 icons
+  # TODO(phlip9): before release, build explicit icon set.
+  material_symbols_icons: ^4.2719.3
 
   # Used by the generated flutter_rust_bridge ffi bindings.
   meta: ^1.10.0
@@ -113,6 +118,7 @@ flutter:
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
+  # TODO(phlip9): disable pre-release
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
@@ -138,9 +144,9 @@ flutter:
   # When we go to launch, we could probably shave off ~1.5 MiB from the app size
   # by only shipping the exact, static font variantions that we ultimately use.
   fonts:
-    - family: "Mona Sans"
-      fonts:
-        - asset: fonts/Mona-Sans.ttf
+    # - family: "Mona Sans"
+    #   fonts:
+    #     - asset: fonts/Mona-Sans.ttf
     - family: "Hubot Sans"
       fonts:
         - asset: fonts/Hubot-Sans.ttf

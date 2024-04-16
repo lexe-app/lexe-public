@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart' as foundation;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
+import 'package:lexeapp/logger.dart';
+import 'package:material_symbols_icons/symbols.dart';
 
 /// Our global flutter theme overrides.
 ///
@@ -115,6 +117,11 @@ class LxTheme {
       visualDensity: VisualDensity.comfortable,
       scaffoldBackgroundColor: LxColors.background,
       brightness: Brightness.light,
+
+      iconTheme: baseTheme.iconTheme.copyWith(
+        color: LxColors.foreground,
+        weight: LxIcons.weightSemiBold,
+      ),
 
       // [AppBar]
       appBarTheme: baseTheme.appBarTheme.copyWith(
@@ -575,4 +582,158 @@ class Fonts {
     letterSpacing: -0.6,
     decoration: TextDecoration.none,
   );
+}
+
+/// All icons Lexe app uses.
+final class LxIcons {
+  const LxIcons._();
+
+  //
+  // Icon weights (correspond w/ Fonts.weightXXX)
+  //
+
+  /// 100
+  static const double weightThin = 100;
+
+  /// 200
+  static const double weightExtraLight = 200;
+
+  /// 300
+  static const double weightLight = 300;
+
+  /// 400
+  static const double weightNormal = 400;
+
+  /// 500
+  static const double weightMedium = 500;
+
+  /// 600
+  static const double weightSemiBold = 600;
+
+  /// 700
+  static const double weightBold = 700;
+
+  /// 800
+  static const double weightExtraBold = 800;
+
+  /// 900
+  static const double weightBlack = 900;
+
+  //
+  // Grade
+  //
+  // Both grade and weight affect icon thickness. Use grade for fine-grained
+  // adjustments.
+
+  /// -25
+  static const double gradeLight = -25;
+
+  /// 0
+  static const double gradeNormal = 0;
+
+  /// 25
+  static const double gradeMedium = 25;
+
+  //
+  // Optical size
+  //
+  // Use optical size to ensure an icon has the same perceived weight at
+  // different sizes.
+
+  /// 20dp
+  static const double opszDense = 20;
+
+  /// 28dp
+  static const double opszSemiDense = 28;
+
+  /// 40dp
+  static const double opszSemiComfort = 40;
+
+  /// 48dp
+  static const double opszComfort = 48;
+
+  //
+  // Standard Lexe icons
+  //
+
+  /// Menu icon (≡ hamburger menu)
+  static const IconData menu = Symbols.menu_rounded;
+
+  /// Page or dialogue close icon (x icon)
+  static const IconData close = Symbols.close_rounded;
+
+  /// <- back icon (left arrow)
+  static const IconData back = Symbols.arrow_back_rounded;
+
+  /// < more subdued back icon (left caret)
+  static const IconData backSecondary = Symbols.chevron_left_rounded;
+
+  /// -> next icon (right arrow)
+  static const IconData next = Symbols.arrow_forward_rounded;
+
+  /// > more subdued next icon (right caret)
+  static const IconData nextSecondary = Symbols.chevron_right_rounded;
+
+  /// refresh icon (spin arrow)
+  static const IconData refresh = Symbols.refresh_rounded;
+
+  /// Receive payment icon (down arrow)
+  static const IconData receive = Symbols.arrow_downward_rounded;
+
+  /// Send payment icon (up arrow)
+  static const IconData send = Symbols.arrow_upward_rounded;
+
+  /// Expand up (up arrow)
+  static const IconData expandUp = Symbols.arrow_upward_rounded;
+
+  /// Empty scanner (scan box)
+  static const IconData scan = Symbols.crop_free_rounded;
+
+  /// Scan box with QR code inside (scan box with qr inside)
+  static const IconData scanDetailed = Symbols.qr_code_scanner_rounded;
+
+  /// Edit icon (pen in square)
+  static const IconData edit = Symbols.edit_square_rounded;
+
+  /// Share icon (network thing)
+  static const IconData share = Symbols.share_rounded;
+
+  /// Copy icon (stacked boxes)
+  static const IconData copy = Symbols.content_copy_rounded;
+
+  /// Add icon (+ icon)
+  static const IconData add = Symbols.add_rounded;
+
+  /// More actions icon (3 horizontal dots)
+  static const IconData moreHoriz = Symbols.more_horiz_rounded;
+
+  /// Settings icon (gear)
+  static const IconData settings = Symbols.settings_rounded;
+
+  /// Backup icon (cloud with up arrow)
+  static const IconData backup = Symbols.backup_rounded;
+
+  /// Security icon (outlined lock)
+  static const IconData security = Symbols.lock_outline_rounded;
+
+  /// Support/help icon (? in circle)
+  static const IconData support = Symbols.help_outline_rounded;
+
+  /// Debug symbol (bug)
+  static const IconData debug = Symbols.bug_report_rounded;
+
+  /// Success symbol, used inside a small badge (checkmark)
+  static const IconData completedBadge = Symbols.check_rounded;
+
+  /// Pending symbol, used inside a small badge (two circle arrows / syncing)
+  static const IconData pendingBadge = Symbols.sync_rounded;
+
+  /// Error symbol, used inside a small badge (x icon)
+  static const IconData failedBadge = Symbols.close_rounded;
+
+  /// Bitcoin symbol icon (₿/B currency symbol)
+  static const IconData bitcoin = Symbols.currency_bitcoin_rounded;
+
+  /// Lightning symbol icon (lightning bolt)
+  static const IconData lightning = Symbols.bolt_rounded;
 }

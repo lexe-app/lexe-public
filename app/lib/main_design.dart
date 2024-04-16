@@ -65,7 +65,8 @@ import 'package:lexeapp/route/signup.dart'
     show SignupApi, SignupBackupPasswordPage, SignupPage;
 import 'package:lexeapp/route/wallet.dart' show WalletPage;
 import 'package:lexeapp/stream_ext.dart';
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxTheme, Space;
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxIcons, LxTheme, Space;
 import 'package:rxdart_ext/rxdart_ext.dart';
 
 Future<void> main() async {
@@ -169,186 +170,190 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       background: FeeEstimate(amountSats: 563),
     );
 
-    return Scaffold(
-      body: ScrollableSinglePageBody(
-        padding: EdgeInsets.zero,
-        body: [
-          const SizedBox(height: Space.s800),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: Space.s600),
-            child: HeadingText(text: "Lexe Design Home"),
-          ),
-          const SizedBox(height: Space.s500),
-          Component(
-            "LandingPage",
-            (context) => LandingPage(
-              config: widget.config,
-              gdriveAuth: mockGDriveAuth,
-              signupApi: mockSignupApi,
+    return Theme(
+      data: LxTheme.light(),
+      child: Scaffold(
+        body: ScrollableSinglePageBody(
+          padding: EdgeInsets.zero,
+          body: [
+            const SizedBox(height: Space.s800),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: Space.s600),
+              child: HeadingText(text: "Lexe Design Home"),
             ),
-          ),
-          Component(
-            "SignupPage",
-            (context) => SignupPage(
-              config: widget.config,
-              gdriveAuth: mockGDriveAuth,
-              signupApi: mockSignupApi,
-            ),
-          ),
-          Component(
-            "SignupBackupPasswordPage",
-            (context) => SignupBackupPasswordPage(
-              config: widget.config,
-              authInfo: const GDriveAuthInfo(authCode: "fake"),
-              signupApi: mockSignupApi,
-            ),
-          ),
-          Component(
-              "WalletPage",
-              (_) => WalletPage(
-                    app: mockApp,
-                    config: widget.config,
-                  )),
-          Component(
-            "SendPaymentPage",
-            (context) => SendPaymentPage(
-              sendCtx: SendContext(
-                app: mockApp,
-                configNetwork: widget.config.network,
-                balanceSats: 123456,
-                cid: cid,
+            const SizedBox(height: Space.s500),
+            Component(
+              "LandingPage",
+              (context) => LandingPage(
+                config: widget.config,
+                gdriveAuth: mockGDriveAuth,
+                signupApi: mockSignupApi,
               ),
             ),
-          ),
-          Component(
-            "SendPaymentAmountPage",
-            (context) => SendPaymentAmountPage(
-              sendCtx: SendContext(
-                app: mockApp,
-                configNetwork: widget.config.network,
-                balanceSats: 73450,
-                cid: cid,
+            Component(
+              "SignupPage",
+              (context) => SignupPage(
+                config: widget.config,
+                gdriveAuth: mockGDriveAuth,
+                signupApi: mockSignupApi,
               ),
-              address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
             ),
-          ),
-          Component(
-            "SendPaymentConfirmPage",
-            subtitle: "sending exact amount",
-            (context) => SendPaymentConfirmPage(
-              sendCtx: SendContext(
-                app: mockApp,
-                configNetwork: widget.config.network,
-                balanceSats: 73450,
-                cid: cid,
+            Component(
+              "SignupBackupPasswordPage",
+              (context) => SignupBackupPasswordPage(
+                config: widget.config,
+                authInfo: const GDriveAuthInfo(authCode: "fake"),
+                signupApi: mockSignupApi,
               ),
-              address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
-              sendAmount: const SendAmountExact(2500),
-              feeEstimates: feeEstimates,
             ),
-          ),
-          Component(
-            "SendPaymentConfirmPage",
-            subtitle: "sending full balance",
-            (context) => SendPaymentConfirmPage(
-              sendCtx: SendContext(
-                app: mockApp,
-                configNetwork: widget.config.network,
-                balanceSats: 73450,
-                cid: cid,
+            Component(
+                "WalletPage",
+                (_) => WalletPage(
+                      app: mockApp,
+                      config: widget.config,
+                    )),
+            Component(
+              "SendPaymentPage",
+              (context) => SendPaymentPage(
+                sendCtx: SendContext(
+                  app: mockApp,
+                  configNetwork: widget.config.network,
+                  balanceSats: 123456,
+                  cid: cid,
+                ),
               ),
-              address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
-              sendAmount: const SendAmountAll(),
-              feeEstimates: feeEstimates,
             ),
-          ),
-          Component(
-            "ReceivePaymentPage",
-            (context) => ReceivePaymentPage(
-              app: mockApp,
-              fiatRate: this.makeFiatRateStream(),
+            Component(
+              "SendPaymentAmountPage",
+              (context) => SendPaymentAmountPage(
+                sendCtx: SendContext(
+                  app: mockApp,
+                  configNetwork: widget.config.network,
+                  balanceSats: 73450,
+                  cid: cid,
+                ),
+                address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+              ),
             ),
-          ),
-          Component(
-            "ReceivePaymentPage2",
-            (context) => const ReceivePaymentPage2(),
-          ),
-          Component(
-            "ReceivePaymentSetAmountPage",
-            (context) => const ReceivePaymentSetAmountPage(
-              prevAmountSats: null,
-              prevDescription: "hello world",
+            Component(
+              "SendPaymentConfirmPage",
+              subtitle: "sending exact amount",
+              (context) => SendPaymentConfirmPage(
+                sendCtx: SendContext(
+                  app: mockApp,
+                  configNetwork: widget.config.network,
+                  balanceSats: 73450,
+                  cid: cid,
+                ),
+                address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+                sendAmount: const SendAmountExact(2500),
+                feeEstimates: feeEstimates,
+              ),
             ),
-          ),
-          Component(
-            "PaymentDetailPage",
-            subtitle: "btc failed outbound",
-            (context) => PaymentDetailPageInner(
-              app: mockApp,
-              payment: ValueNotifier(dummyOnchainOutboundFailed01),
-              paymentDateUpdates: this.paymentDateUpdates,
-              fiatRate: this.makeFiatRateStream(),
-              isRefreshing: ValueNotifier(false),
-              triggerRefresh: () {},
+            Component(
+              "SendPaymentConfirmPage",
+              subtitle: "sending full balance",
+              (context) => SendPaymentConfirmPage(
+                sendCtx: SendContext(
+                  app: mockApp,
+                  configNetwork: widget.config.network,
+                  balanceSats: 73450,
+                  cid: cid,
+                ),
+                address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+                sendAmount: const SendAmountAll(),
+                feeEstimates: feeEstimates,
+              ),
             ),
-          ),
-          Component(
-            "PaymentDetailPage",
-            subtitle: "btc completed inbound",
-            (context) => PaymentDetailPageInner(
-              app: mockApp,
-              payment: ValueNotifier(dummyOnchainInboundCompleted01),
-              paymentDateUpdates: this.paymentDateUpdates,
-              fiatRate: this.makeFiatRateStream(),
-              isRefreshing: ValueNotifier(false),
-              triggerRefresh: () {},
+            Component(
+              "ReceivePaymentPage",
+              (context) => ReceivePaymentPage(
+                app: mockApp,
+                fiatRate: this.makeFiatRateStream(),
+              ),
             ),
-          ),
-          Component(
-            "PaymentDetailPage",
-            subtitle: "ln invoice pending inbound",
-            (context) => PaymentDetailPageInner(
-              app: mockApp,
-              payment: this.makeCompletingPayment(dummyInvoiceInboundPending01),
-              paymentDateUpdates: this.paymentDateUpdates,
-              fiatRate: this.makeFiatRateStream(),
-              isRefreshing: ValueNotifier(false),
-              triggerRefresh: () {},
+            Component(
+              "ReceivePaymentPage2",
+              (context) => const ReceivePaymentPage2(),
             ),
-          ),
-          Component("ScanPage", (_) => const ScanPage()),
-          Component(
-            "ShowQrPage",
-            subtitle: "standard bip21",
-            (_) => const ShowQrPage(
-              value:
-                  "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday",
+            Component(
+              "ReceivePaymentSetAmountPage",
+              (context) => const ReceivePaymentSetAmountPage(
+                prevAmountSats: null,
+                prevDescription: "hello world",
+              ),
             ),
-          ),
-          Component(
-            "ShowQrPage",
-            subtitle: "bitcoin address only",
-            (_) => const ShowQrPage(
-                value: "bitcoin:BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4"),
-          ),
-          Component(
-            "ShowQrPage",
-            subtitle: "unified bolt 12",
-            (_) => const ShowQrPage(
-              value:
-                  "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday&lightning=LNBC10U1P3PJ257PP5YZTKWJCZ5FTL5LAXKAV23ZMZEKAW37ZK6KMV80PK4XAEV5QHTZ7QDPDWD3XGER9WD5KWM36YPRX7U3QD36KUCMGYP282ETNV3SHJCQZPGXQYZ5VQSP5USYC4LK9CHSFP53KVCNVQ456GANH60D89REYKDNGSMTJ6YW3NHVQ9QYYSSQJCEWM5CJWZ4A6RFJX77C490YCED6PEMK0UPKXHY89CMM7SCT66K8GNEANWYKZGDRWRFJE69H9U5U0W57RRCSYSAS7GADWMZXC8C6T0SPJAZUP6",
+            Component(
+              "PaymentDetailPage",
+              subtitle: "btc failed outbound",
+              (context) => PaymentDetailPageInner(
+                app: mockApp,
+                payment: ValueNotifier(dummyOnchainOutboundFailed01),
+                paymentDateUpdates: this.paymentDateUpdates,
+                fiatRate: this.makeFiatRateStream(),
+                isRefreshing: ValueNotifier(false),
+                triggerRefresh: () {},
+              ),
             ),
-          ),
-          Component(
-            "Buttons",
-            (context) => const ButtonDesignPage(),
-          ),
-          Component(
-            "Markdown",
-            (context) => const MarkdownPage(),
-          ),
-          const SizedBox(height: Space.s800),
-        ],
+            Component(
+              "PaymentDetailPage",
+              subtitle: "btc completed inbound",
+              (context) => PaymentDetailPageInner(
+                app: mockApp,
+                payment: ValueNotifier(dummyOnchainInboundCompleted01),
+                paymentDateUpdates: this.paymentDateUpdates,
+                fiatRate: this.makeFiatRateStream(),
+                isRefreshing: ValueNotifier(false),
+                triggerRefresh: () {},
+              ),
+            ),
+            Component(
+              "PaymentDetailPage",
+              subtitle: "ln invoice pending inbound",
+              (context) => PaymentDetailPageInner(
+                app: mockApp,
+                payment:
+                    this.makeCompletingPayment(dummyInvoiceInboundPending01),
+                paymentDateUpdates: this.paymentDateUpdates,
+                fiatRate: this.makeFiatRateStream(),
+                isRefreshing: ValueNotifier(false),
+                triggerRefresh: () {},
+              ),
+            ),
+            Component("ScanPage", (_) => const ScanPage()),
+            Component(
+              "ShowQrPage",
+              subtitle: "standard bip21",
+              (_) => const ShowQrPage(
+                value:
+                    "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday",
+              ),
+            ),
+            Component(
+              "ShowQrPage",
+              subtitle: "bitcoin address only",
+              (_) => const ShowQrPage(
+                  value: "bitcoin:BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4"),
+            ),
+            Component(
+              "ShowQrPage",
+              subtitle: "unified bolt 12",
+              (_) => const ShowQrPage(
+                value:
+                    "bitcoin:BC1QYLH3U67J673H6Y6ALV70M0PL2YZ53TZHVXGG7U?amount=0.00001&label=sbddesign%3A%20For%20lunch%20Tuesday&message=For%20lunch%20Tuesday&lightning=LNBC10U1P3PJ257PP5YZTKWJCZ5FTL5LAXKAV23ZMZEKAW37ZK6KMV80PK4XAEV5QHTZ7QDPDWD3XGER9WD5KWM36YPRX7U3QD36KUCMGYP282ETNV3SHJCQZPGXQYZ5VQSP5USYC4LK9CHSFP53KVCNVQ456GANH60D89REYKDNGSMTJ6YW3NHVQ9QYYSSQJCEWM5CJWZ4A6RFJX77C490YCED6PEMK0UPKXHY89CMM7SCT66K8GNEANWYKZGDRWRFJE69H9U5U0W57RRCSYSAS7GADWMZXC8C6T0SPJAZUP6",
+              ),
+            ),
+            Component(
+              "Buttons",
+              (context) => const ButtonDesignPage(),
+            ),
+            Component(
+              "Markdown",
+              (context) => const MarkdownPage(),
+            ),
+            const SizedBox(height: Space.s800),
+          ],
+        ),
       ),
     );
   }
@@ -797,7 +802,7 @@ class ButtonDesignPage extends StatelessWidget {
             const LxOutlinedButton(
               onTap: onTap,
               label: Text("Next"),
-              icon: Icon(Icons.arrow_forward_rounded),
+              icon: Icon(LxIcons.next),
             ),
             const SizedBox(height: Space.s400),
 
@@ -805,7 +810,7 @@ class ButtonDesignPage extends StatelessWidget {
             const LxOutlinedButton(
               onTap: null,
               label: Text("Next"),
-              icon: Icon(Icons.arrow_forward_rounded),
+              icon: Icon(LxIcons.next),
             ),
             const SizedBox(height: Space.s400),
 
@@ -834,7 +839,7 @@ class ButtonDesignPage extends StatelessWidget {
             LxFilledButton.tonal(
               onTap: onTap,
               label: const Text("Send"),
-              icon: const Icon(Icons.arrow_forward_rounded),
+              icon: const Icon(LxIcons.next),
             ),
             const SizedBox(height: Space.s400),
 
@@ -842,7 +847,7 @@ class ButtonDesignPage extends StatelessWidget {
             LxFilledButton.strong(
               onTap: onTap,
               label: const Text("Send"),
-              icon: const Icon(Icons.arrow_forward_rounded),
+              icon: const Icon(LxIcons.next),
             ),
             const SizedBox(height: Space.s400),
 
@@ -850,7 +855,7 @@ class ButtonDesignPage extends StatelessWidget {
             const LxFilledButton(
               onTap: null,
               label: Text("Send"),
-              icon: Icon(Icons.arrow_forward_rounded),
+              icon: Icon(LxIcons.next),
             ),
             const SizedBox(height: Space.s600),
 
@@ -870,7 +875,7 @@ class ButtonDesignPage extends StatelessWidget {
                   child: LxFilledButton(
                     onTap: onTap,
                     label: Text("Next"),
-                    icon: Icon(Icons.arrow_forward_rounded),
+                    icon: Icon(LxIcons.next),
                   ),
                 ),
               ],

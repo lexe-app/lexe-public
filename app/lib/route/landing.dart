@@ -13,7 +13,8 @@ import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/route/signup.dart' show SignupApi, SignupPage;
 import 'package:lexeapp/route/wallet.dart' show WalletPage;
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxTheme, Space;
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxIcons, LxTheme, Space;
 
 class LandingPage extends StatefulWidget {
   const LandingPage({
@@ -276,11 +277,14 @@ class LandingButtons extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         // Indicator dots to show which page we're on.
-        CarouselIndicatorsAndButtons(
-          numPages: this.numPages,
-          selectedPageIndex: this.selectedPageIndex,
-          onTapPrev: this.onTapPrev,
-          onTapNext: this.onTapNext,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 7.0),
+          child: CarouselIndicatorsAndButtons(
+            numPages: this.numPages,
+            selectedPageIndex: this.selectedPageIndex,
+            onTapPrev: this.onTapPrev,
+            onTapNext: this.onTapNext,
+          ),
         ),
         const SizedBox(height: Space.s300),
 
@@ -293,7 +297,7 @@ class LandingButtons extends StatelessWidget {
             fixedSize: const Size(300.0, Space.s800),
           ),
           label: const Text("Create new wallet"),
-          icon: const Icon(Icons.chevron_right_rounded),
+          icon: const Icon(LxIcons.nextSecondary),
         ),
         const SizedBox(height: Space.s400),
 

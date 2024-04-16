@@ -26,7 +26,7 @@ import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/show_qr.dart' show QrImage;
 import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxRadius, LxTheme, Space;
+    show Fonts, LxColors, LxIcons, LxRadius, LxTheme, Space;
 import 'package:rxdart/rxdart.dart';
 
 const double minViewportWidth = 365.0;
@@ -583,12 +583,12 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
                 const Expanded(child: Center()),
                 const SizedBox(width: Space.s200),
                 LxFilledButton(
-                  icon: const Icon(Icons.settings_rounded),
+                  icon: const Icon(LxIcons.settings, fill: 1.0),
                   onTap: () => this.openSettingsBottomSheet(context),
                 ),
                 const SizedBox(width: Space.s200),
                 LxFilledButton(
-                  icon: const Icon(Icons.share_rounded),
+                  icon: const Icon(LxIcons.share, fill: 1.0),
                   onTap: () {},
                 ),
                 const SizedBox(width: Space.s200),
@@ -596,7 +596,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
                 // Expanded(
                 //   child: LxFilledButton(
                 //     label: const Text("Amount"),
-                //     icon: const Icon(Icons.add_rounded),
+                //     icon: const Icon(LxIcons.add),
                 //     onTap: this.onTapSetAmount,
                 //   ),
                 // ),
@@ -707,12 +707,12 @@ class ReceivePaymentPage2 extends StatelessWidget {
           //       const Expanded(child: Center()),
           //       const SizedBox(width: Space.s200),
           //       LxFilledButton(
-          //         icon: const Icon(Icons.settings_rounded),
+          //         icon: const Icon(LxIcons.settings),
           //         onTap: () {},
           //       ),
           //       const SizedBox(width: Space.s200),
           //       LxFilledButton(
-          //         icon: const Icon(Icons.share_rounded),
+          //         icon: const Icon(LxIcons.share, fill: 1.0),
           //         onTap: () {},
           //       ),
           //       const SizedBox(width: Space.s200),
@@ -720,7 +720,7 @@ class ReceivePaymentPage2 extends StatelessWidget {
           //       // Expanded(
           //       //   child: LxFilledButton(
           //       //     label: const Text("Amount"),
-          //       //     icon: const Icon(Icons.add_rounded),
+          //       //     icon: const Icon(LxIcons.add),
           //       //     onTap: this.onTapSetAmount,
           //       //   ),
           //       // ),
@@ -831,7 +831,8 @@ class PaymentOfferCard extends StatelessWidget {
                 ),
               ),
               label: const Icon(
-                Icons.copy_rounded,
+                LxIcons.copy,
+                opticalSize: LxIcons.opszSemiDense,
                 size: Fonts.size300,
                 color: LxColors.grey550,
               ),
@@ -1005,7 +1006,7 @@ class PaymentOfferCard extends StatelessWidget {
                         ),
                       ),
                       SizedBox(width: Space.s200),
-                      Icon(Icons.add_rounded),
+                      Icon(LxIcons.add),
                     ]),
               ),
             ),
@@ -1142,7 +1143,8 @@ class PaymentOfferCard2 extends StatelessWidget {
                     ),
                   ),
                   label: const Icon(
-                    Icons.copy_rounded,
+                    LxIcons.copy,
+                    opticalSize: LxIcons.opszSemiDense,
                     size: Fonts.size300,
                     color: LxColors.grey550,
                   ),
@@ -1280,7 +1282,7 @@ class PaymentOfferCard2 extends StatelessWidget {
                             ),
                           ),
                           SizedBox(width: Space.s200),
-                          Icon(Icons.add_rounded),
+                          Icon(LxIcons.add),
                         ]),
                   ),
                 ),
@@ -1433,7 +1435,8 @@ class PaymentOfferCard3 extends StatelessWidget {
                             ),
                           ),
                           label: const Icon(
-                            Icons.copy_rounded,
+                            LxIcons.copy,
+                            opticalSize: LxIcons.opszSemiDense,
                             size: Fonts.size300,
                             color: LxColors.grey550,
                           ),
@@ -1587,7 +1590,7 @@ class PaymentOfferCard3 extends StatelessWidget {
                                         ),
                                       ),
                                       SizedBox(width: Space.s200),
-                                      Icon(Icons.add_rounded),
+                                      Icon(LxIcons.add),
                                     ]),
                               ),
                             ],
@@ -1750,7 +1753,8 @@ class PaymentOfferCard4 extends StatelessWidget {
                                 ),
                               ),
                               icon: const Icon(
-                                Icons.copy_rounded,
+                                LxIcons.copy,
+                                opticalSize: LxIcons.opszSemiDense,
                                 size: Fonts.size300,
                                 color: LxColors.grey550,
                               ),
@@ -1786,7 +1790,7 @@ class PaymentOfferCard4 extends StatelessWidget {
                           if (description == null && amountSatsStr == null)
                             TextButton.icon(
                               onPressed: () {},
-                              icon: const Icon(Icons.add_rounded),
+                              icon: const Icon(LxIcons.add),
                               label: const Text(
                                 "Amount",
                                 style: TextStyle(
@@ -1847,7 +1851,7 @@ class PaymentOfferCard4 extends StatelessWidget {
                           //               ),
                           //               SizedBox(width: Space.s200),
                           //               Icon(
-                          //                 Icons.add_rounded,
+                          //                 LxIcons.add,
                           //                 // size: Fonts.size,
                           //               ),
                           //             ]),
@@ -1866,7 +1870,7 @@ class PaymentOfferCard4 extends StatelessWidget {
                       //     label: const Row(
                       //       mainAxisAlignment: MainAxisAlignment.center,
                       //       children: [
-                      //         Icon(Icons.add_rounded),
+                      //         Icon(LxIcons.add),
                       //         SizedBox(width: Space.s200),
                       //         Text(
                       //           "Amount",
@@ -2096,9 +2100,10 @@ class PaymentOfferCard5 extends StatelessWidget {
                             ),
                           ),
                           label: const Icon(
-                            Icons.copy_rounded,
+                            LxIcons.copy,
+                            opticalSize: LxIcons.opszSemiDense,
                             size: Fonts.size300,
-                            color: LxColors.grey550,
+                            color: LxColors.grey600,
                           ),
                         ),
                       ),
@@ -2119,7 +2124,10 @@ class PaymentOfferCard5 extends StatelessWidget {
                       offset: const Offset(Space.s200, 0.0),
                       child: IconButton(
                         onPressed: () {},
-                        icon: const Icon(Icons.more_horiz_rounded),
+                        icon: const Icon(
+                          LxIcons.moreHoriz,
+                          opticalSize: LxIcons.opszSemiDense,
+                        ),
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
@@ -2177,13 +2185,13 @@ class PaymentOfferCard5 extends StatelessWidget {
                       children: [
                         // IconButton(
                         //   onPressed: () {},
-                        //   icon: const Icon(Icons.copy_rounded),
+                        //   icon: const Icon(LxIcons.copy, opticalSize: LxIcons.opszSemiDense),
                         //   color: LxColors.fgSecondary,
                         //   iconSize: 20.0,
                         // ),
                         // IconButton(
                         //   onPressed: () {},
-                        //   icon: const Icon(Icons.share_rounded),
+                        //   icon: const Icon(LxIcons.share, fill: 1.0),
                         //   color: LxColors.fgSecondary,
                         //   iconSize: 20.0,
                         // ),
@@ -2205,7 +2213,7 @@ class PaymentOfferCard5 extends StatelessWidget {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               SizedBox(width: Space.s200),
-                              Icon(Icons.add_rounded),
+                              Icon(LxIcons.add),
                               SizedBox(width: Space.s200),
                               Text(
                                 "Amount",
@@ -2320,7 +2328,7 @@ class PaymentOfferCard5 extends StatelessWidget {
                       //   child: IconButton(
                       //     onPressed: () {},
                       //     icon: const Icon(
-                      //       Icons.edit_outlined,
+                      //       LxIcons.edit,
                       //       size: Fonts.size500,
                       //       color: LxColors.fgSecondary,
                       //     ),
@@ -2336,10 +2344,7 @@ class PaymentOfferCard5 extends StatelessWidget {
                             "Edit",
                             style: TextStyle(fontSize: Fonts.size200),
                           ),
-                          icon: const Icon(
-                            Icons.edit_square,
-                            size: Fonts.size200,
-                          ),
+                          icon: const Icon(LxIcons.edit, size: Fonts.size200),
                         ),
                       ),
                     ],
@@ -2415,59 +2420,12 @@ class PaymentOfferCard5 extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: () {},
-                  icon: const Icon(
-                    Icons.close_rounded,
-                  ),
+                  icon: const Icon(LxIcons.close),
                   color: LxColors.grey650,
                 )
               ],
             ),
           ),
-
-          // const Padding(
-          //   padding: EdgeInsets.symmetric(horizontal: Space.s450),
-          //   child: Row(
-          //     children: [
-          //       Padding(
-          //         padding: EdgeInsets.only(right: Space.s400),
-          //         child: Icon(
-          //           Icons.warning_rounded,
-          //           color: LxColors.grey550,
-          //         ),
-          //       ),
-          //       Expanded(
-          //         child: Text.rich(
-          //           TextSpan(children: [
-          //             // TextSpan(
-          //             //     text: "Watch out! ",
-          //             //     style: TextStyle(fontVariations: [Fonts.weightBold])),
-          //             // TextSpan(text: "Invoices can only be paid once."),
-          //             // TextSpan(
-          //             //   text: "WARNING:  ",
-          //             //   style:
-          //             //       TextStyle(fontVariations: [Fonts.weightMedium]),
-          //             // ),
-          //             TextSpan(
-          //                 text:
-          //                     "Invoices can only be paid once. Reusing an invoice may result in lost payments. "),
-          //             // TextSpan(
-          //             //   text: "Why?",
-          //             //   style: TextStyle(
-          //             //     decoration: TextDecoration.underline,
-          //             //     decorationColor: LxColors.grey550,
-          //             //     decorationThickness: 1.5,
-          //             //   ),
-          //             // ),
-          //           ]),
-          //           style: TextStyle(
-          //             color: LxColors.grey550,
-          //             fontSize: Fonts.size100,
-          //           ),
-          //         ),
-          //       ),
-          //     ],
-          //   ),
-          // ),
 
           // Space
           // const SizedBox(height: Space.s400),
@@ -2714,7 +2672,7 @@ class _ReceivePaymentSetAmountPageState
         ],
         bottom: LxFilledButton(
           label: const Text("Confirm"),
-          icon: const Icon(Icons.arrow_forward_rounded),
+          icon: const Icon(LxIcons.next),
           onTap: this.onConfirm,
         ),
       ),
