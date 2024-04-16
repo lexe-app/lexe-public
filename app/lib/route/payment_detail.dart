@@ -28,7 +28,7 @@ import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/stream_ext.dart';
-import 'package:lexeapp/style.dart' show Fonts, LxColors, Space;
+import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 import 'package:rxdart_ext/rxdart_ext.dart';
 
 /// A page for displaying a single payment, in detail.
@@ -282,7 +282,7 @@ class PaymentDetailPageInner extends StatelessWidget {
               child: LxFilledButton(
                 onTap: () => this.openBottomSheet(context),
                 label: const Text("Payment Details"),
-                icon: const Icon(Icons.arrow_upward_rounded),
+                icon: const Icon(LxIcons.expandUp),
               ),
             ),
           );
@@ -493,10 +493,13 @@ class PaymentDetailIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconData = switch (this.kind) {
-      PaymentKind.Onchain => Icons.currency_bitcoin_rounded,
-      PaymentKind.Invoice || PaymentKind.Spontaneous => Icons.bolt_rounded,
+    final isLightning = switch (this.kind) {
+      PaymentKind.Invoice || PaymentKind.Spontaneous => true,
+      PaymentKind.Onchain => false,
     };
+
+    const size = Space.s700;
+    const color = LxColors.fgSecondary;
 
     final icon = DecoratedBox(
       decoration: const BoxDecoration(
@@ -505,23 +508,31 @@ class PaymentDetailIcon extends StatelessWidget {
       ),
       child: SizedBox.square(
         dimension: Space.s800,
-        child: Icon(
-          iconData,
-          size: Space.s700,
-          color: LxColors.fgSecondary,
-        ),
+        child: (isLightning)
+            ? const Icon(
+                LxIcons.lightning,
+                size: size,
+                color: color,
+                fill: 1.0,
+                weight: LxIcons.weightExtraLight,
+              )
+            : const Icon(
+                LxIcons.bitcoin,
+                size: size,
+                color: color,
+              ),
       ),
     );
 
     return switch (this.status) {
       PaymentStatus.Completed => PaymentDetailIconBadge(
-          icon: Icons.check_rounded,
+          icon: LxIcons.completedBadge,
           color: LxColors.background,
           backgroundColor: LxColors.moneyGoUp,
           child: icon,
         ),
       PaymentStatus.Pending => PaymentDetailIconBadge(
-          icon: Icons.sync_rounded,
+          icon: LxIcons.pendingBadge,
           color: LxColors.background,
           // Use "green" also for pending. Assume payments will generally be
           // successful. Don't scare users.
@@ -530,7 +541,7 @@ class PaymentDetailIcon extends StatelessWidget {
           child: icon,
         ),
       PaymentStatus.Failed => PaymentDetailIconBadge(
-          icon: Icons.close_rounded,
+          icon: LxIcons.failedBadge,
           color: LxColors.background,
           backgroundColor: LxColors.errorText,
           child: icon,

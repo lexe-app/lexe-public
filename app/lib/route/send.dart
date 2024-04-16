@@ -36,7 +36,8 @@ import 'package:lexeapp/input_formatter.dart'
     show AlphaNumericInputFormatter, IntInputFormatter;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
-import 'package:lexeapp/style.dart' show Fonts, LxColors, Space;
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxIcons, LxTheme, Space;
 
 /// Context used during the send payment flow.
 @immutable
@@ -86,7 +87,7 @@ class NextButton extends LxFilledButton {
   const NextButton({super.key, required super.onTap})
       : super(
           label: const Text("Next"),
-          icon: const Icon(Icons.arrow_forward_rounded),
+          icon: const Icon(LxIcons.next),
         );
 }
 
@@ -171,48 +172,51 @@ class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
   Widget build(BuildContext context) {
     // TODO(phlip9): autofill address from user's clipboard if one exists
 
-    return Scaffold(
-      appBar: AppBar(
-        leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
-        actions: [
-          IconButton(
-            onPressed: this.onQrPressed,
-            icon: const Icon(Icons.qr_code_rounded),
-          ),
-          const SizedBox(width: Space.appBarTrailingPadding),
-        ],
-      ),
-      body: ScrollableSinglePageBody(
-        body: [
-          const HeadingText(text: "Who are we paying?"),
-          const SizedBox(height: Space.s300),
-          TextFormField(
-            key: this.addressFieldKey,
-            autofocus: true,
-            // `visiblePassword` gives ready access to letters + numbers
-            keyboardType: TextInputType.visiblePassword,
-            textDirection: TextDirection.ltr,
-            textInputAction: TextInputAction.next,
-            validator: (str) => this.validateBitcoinAddress(str).err,
-            onEditingComplete: this.onNext,
-            // Bitcoin addresses are alphanumeric
-            inputFormatters: [AlphaNumericInputFormatter()],
-            decoration:
-                baseInputDecoration.copyWith(hintText: "Bitcoin address"),
-            style: Fonts.fontUI.copyWith(
-              fontSize: Fonts.size700,
-              fontVariations: [Fonts.weightMedium],
-              // Use unambiguous character alternatives (0OIl1) to avoid
-              // confusion in the unfortunate event that a user has to
-              // manually type in an address.
-              fontFeatures: [Fonts.featDisambugation],
-              letterSpacing: -0.5,
+    return Theme(
+      data: LxTheme.light(),
+      child: Scaffold(
+        appBar: AppBar(
+          leadingWidth: Space.appBarLeadingWidth,
+          leading: const LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
+          actions: [
+            IconButton(
+              onPressed: this.onQrPressed,
+              icon: const Icon(LxIcons.scanDetailed),
             ),
-          ),
-          const SizedBox(height: Space.s800),
-        ],
-        bottom: NextButton(onTap: this.onNext),
+            const SizedBox(width: Space.appBarTrailingPadding),
+          ],
+        ),
+        body: ScrollableSinglePageBody(
+          body: [
+            const HeadingText(text: "Who are we paying?"),
+            const SizedBox(height: Space.s300),
+            TextFormField(
+              key: this.addressFieldKey,
+              autofocus: true,
+              // `visiblePassword` gives ready access to letters + numbers
+              keyboardType: TextInputType.visiblePassword,
+              textDirection: TextDirection.ltr,
+              textInputAction: TextInputAction.next,
+              validator: (str) => this.validateBitcoinAddress(str).err,
+              onEditingComplete: this.onNext,
+              // Bitcoin addresses are alphanumeric
+              inputFormatters: [AlphaNumericInputFormatter()],
+              decoration:
+                  baseInputDecoration.copyWith(hintText: "Bitcoin address"),
+              style: Fonts.fontUI.copyWith(
+                fontSize: Fonts.size700,
+                fontVariations: [Fonts.weightMedium],
+                // Use unambiguous character alternatives (0OIl1) to avoid
+                // confusion in the unfortunate event that a user has to
+                // manually type in an address.
+                fontFeatures: [Fonts.featDisambugation],
+                letterSpacing: -0.5,
+              ),
+            ),
+            const SizedBox(height: Space.s800),
+          ],
+          bottom: NextButton(onTap: this.onNext),
+        ),
       ),
     );
   }
@@ -439,7 +443,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
                 padding: const EdgeInsets.only(top: Space.s500),
                 child: AnimatedFillButton(
                   label: const Text("Next"),
-                  icon: const Icon(Icons.arrow_forward_rounded),
+                  icon: const Icon(LxIcons.next),
                   onTap: this.onNext,
                   loading: estimatingFee,
                 ),
@@ -655,30 +659,16 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
                 // Sadly flutter doesn't allow us to increase the space b/w the
                 // text and the underline. The default text decoration looks
                 // ugly af. So we have this hack to draw a dashed line...
-                child: const Stack(
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  mainAxisAlignment: MainAxisAlignment.start,
                   children: [
-                    // dashed underline beneath text
-                    Positioned(
-                      left: 0.0,
-                      right: 0.0,
-                      bottom: 0.0,
-                      child: CustomPaint(
-                          painter: DashPainter(
-                              color: LxColors.grey650, dashThickness: 1.5)),
-                    ),
-                    // Network Fee text + icon
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        Text("Network Fee"),
-                        SizedBox(width: Space.s200),
-                        Icon(
-                          Icons.edit_rounded,
-                          size: Fonts.size300,
-                          color: LxColors.grey625,
-                        ),
-                      ],
+                    Text("Network Fee"),
+                    SizedBox(width: Space.s200),
+                    Icon(
+                      LxIcons.edit,
+                      size: Fonts.size300,
+                      color: LxColors.grey625,
                     ),
                   ],
                 ),
@@ -755,7 +745,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
               valueListenable: this.isSending,
               builder: (context, isSending, widget) => AnimatedFillButton(
                 label: const Text("Send"),
-                icon: const Icon(Icons.arrow_forward_rounded),
+                icon: const Icon(LxIcons.next),
                 onTap: this.onSend,
                 loading: isSending,
                 style: FilledButton.styleFrom(

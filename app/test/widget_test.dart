@@ -9,6 +9,7 @@
 // import 'package:flutter_test/flutter_test.dart';
 //
 // import 'package:lexeapp/main.dart';
+// import 'package:lexeapp/style.dart' show LxIcons;
 //
 // void main() {
 //   testWidgets('Counter increments smoke test', (WidgetTester tester) async {
@@ -20,7 +21,7 @@
 //     expect(find.text('1'), findsNothing);
 //
 //     // Tap the '+' icon and trigger a frame.
-//     await tester.tap(find.byIcon(Icons.add));
+//     await tester.tap(find.byIcon(LxIcons.add));
 //     await tester.pump();
 //
 //     // Verify that our counter has incremented.

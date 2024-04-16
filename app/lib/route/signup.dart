@@ -19,7 +19,7 @@ import 'package:lexeapp/components.dart'
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
-import 'package:lexeapp/style.dart' show Fonts, LxColors, Space;
+import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// A tiny interface for mocking the `signup` call.
 abstract interface class SignupApi {
@@ -135,7 +135,7 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
         ],
         bottom: LxFilledButton(
           label: const Text("Sign in with Google Drive"),
-          icon: const Icon(Icons.arrow_forward_rounded),
+          icon: const Icon(LxIcons.next),
           onTap: this.onAuthPressed,
         ),
       ),
@@ -311,7 +311,7 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
               valueListenable: this.isSigningUp,
               builder: (context, isSending, widget) => AnimatedFillButton(
                 label: const Text("Sign up"),
-                icon: const Icon(Icons.arrow_forward_rounded),
+                icon: const Icon(LxIcons.next),
                 onTap: this.onSubmit,
                 loading: isSending,
                 style: FilledButton.styleFrom(

@@ -10,7 +10,8 @@ import 'package:lexeapp/bindings_generated.dart' show MAX_PAYMENT_NOTE_BYTES;
 import 'package:lexeapp/input_formatter.dart'
     show IntInputFormatter, MaxUtf8BytesInputFormatter;
 import 'package:lexeapp/result.dart';
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxRadius, Space;
+import 'package:lexeapp/style.dart'
+    show Fonts, LxColors, LxIcons, LxRadius, Space;
 import 'package:rxdart_ext/rxdart_ext.dart';
 
 typedef VoidContextCallback = void Function(BuildContext);
@@ -306,7 +307,7 @@ class LxCloseButton extends StatelessWidget {
       // This alignment positions the button correctly on both sides of the app
       // bar.
       alignment: Alignment.centerRight,
-      icon: const Icon(Icons.close_rounded),
+      icon: const Icon(LxIcons.close),
       onPressed: () => this.onTap(context),
     );
   }
@@ -327,7 +328,7 @@ class LxBackButton extends StatelessWidget {
       // This alignment positions the button correctly on both sides of the app
       // bar.
       alignment: Alignment.centerRight,
-      icon: const Icon(Icons.arrow_back_rounded),
+      icon: const Icon(LxIcons.back),
       onPressed: () => Navigator.of(context).pop(),
     );
   }
@@ -362,7 +363,7 @@ class LxRefreshButton extends StatelessWidget {
           icon: AnimatedSwitcher(
             duration: const Duration(milliseconds: 150),
             child: (!isRefreshing)
-                ? const Icon(Icons.refresh_rounded)
+                ? const Icon(LxIcons.refresh)
                 : const SizedBox.square(
                     dimension: Fonts.size500,
                     child: CircularProgressIndicator(
@@ -955,7 +956,7 @@ class CarouselIndicatorsAndButtons extends StatelessWidget {
               duration: const Duration(milliseconds: 150),
               child: IconButton(
                 onPressed: (isEnabled) ? this.onTapPrev : null,
-                icon: const Icon(Icons.chevron_left_rounded),
+                icon: const Icon(LxIcons.backSecondary),
                 color: this.arrowColor,
                 disabledColor: this.arrowColor,
               ),
@@ -981,7 +982,7 @@ class CarouselIndicatorsAndButtons extends StatelessWidget {
               duration: const Duration(milliseconds: 150),
               child: IconButton(
                 onPressed: (isEnabled) ? this.onTapNext : null,
-                icon: const Icon(Icons.chevron_right_rounded),
+                icon: const Icon(LxIcons.nextSecondary),
                 color: this.arrowColor,
                 disabledColor: this.arrowColor,
               ),
