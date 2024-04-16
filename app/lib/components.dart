@@ -11,7 +11,7 @@ import 'package:lexeapp/input_formatter.dart'
     show IntInputFormatter, MaxUtf8BytesInputFormatter;
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxIcons, LxRadius, Space;
+    show Fonts, LxBreakpoints, LxColors, LxIcons, LxRadius, Space;
 import 'package:rxdart_ext/rxdart_ext.dart';
 
 typedef VoidContextCallback = void Function(BuildContext);
@@ -50,11 +50,16 @@ class ScrollableSinglePageBody extends StatelessWidget {
   const ScrollableSinglePageBody({
     super.key,
     required this.body,
+    this.useFullWidth = false,
     this.padding = const EdgeInsets.symmetric(horizontal: Space.s600),
     this.bottom,
     this.bottomAlignment = Alignment.bottomCenter,
     this.bottomPadding = const EdgeInsets.only(bottom: Space.s600),
   });
+
+  /// If true, this page will always use the full screen width. Otherwise, by
+  /// default, the page will be centered with a max-width on larger screens.
+  final bool useFullWidth;
 
   final List<Widget> body;
   final EdgeInsets padding;
@@ -64,6 +69,32 @@ class ScrollableSinglePageBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const maxWidth = LxBreakpoints.mobile;
+
+    final EdgeInsets innerPadding;
+    if (!useFullWidth) {
+      final width = MediaQuery.sizeOf(context).width;
+
+      innerPadding = (width <= maxWidth)
+          ? EdgeInsets.zero
+          : EdgeInsets.only(left: 0.5 * (width - maxWidth));
+    } else {
+      innerPadding = EdgeInsets.zero;
+    }
+
+    final sliverBody = SliverList.list(children: this.body);
+
+    final sliverBottom = SliverFillRemaining(
+      hasScrollBody: false,
+      child: Align(
+        alignment: this.bottomAlignment,
+        child: Padding(
+          padding: this.bottomPadding,
+          child: this.bottom,
+        ),
+      ),
+    );
+
     return Padding(
       padding: this.padding,
       child: CustomScrollView(
@@ -78,20 +109,29 @@ class ScrollableSinglePageBody extends StatelessWidget {
           // ),
 
           // The primary body widgets.
-          SliverList.list(children: this.body),
+          if (!this.useFullWidth)
+            SliverPadding(
+              padding: innerPadding,
+              sliver: SliverConstrainedCrossAxis(
+                maxExtent: maxWidth,
+                sliver: sliverBody,
+              ),
+            )
+          else
+            sliverBody,
 
           // The bottom widgets; these expand to fill the available space.
           if (this.bottom != null)
-            SliverFillRemaining(
-              hasScrollBody: false,
-              child: Align(
-                alignment: this.bottomAlignment,
-                child: Padding(
-                  padding: this.bottomPadding,
-                  child: this.bottom,
+            if (!this.useFullWidth)
+              SliverPadding(
+                padding: innerPadding,
+                sliver: SliverConstrainedCrossAxis(
+                  maxExtent: maxWidth,
+                  sliver: sliverBottom,
                 ),
-              ),
-            ),
+              )
+            else
+              sliverBottom,
         ],
       ),
     );

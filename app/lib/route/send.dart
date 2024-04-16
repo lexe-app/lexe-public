@@ -17,7 +17,6 @@ import 'package:lexeapp/bindings_generated_api.dart'
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
-        DashPainter,
         HeadingText,
         LxBackButton,
         LxCloseButton,

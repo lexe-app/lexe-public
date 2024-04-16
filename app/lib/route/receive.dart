@@ -4,7 +4,6 @@ import 'dart:math' show max;
 import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
-import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/bindings_generated_api.dart';
 import 'package:lexeapp/components.dart'
@@ -18,7 +17,6 @@ import 'package:lexeapp/components.dart'
         PaymentNoteInput,
         ScrollableSinglePageBody,
         SheetDragHandle,
-        SubheadingText,
         ValueStreamBuilder;
 import 'package:lexeapp/currency_format.dart';
 import 'package:lexeapp/input_formatter.dart';
@@ -634,9 +632,9 @@ class ReceivePaymentPage2 extends StatelessWidget {
           "lnbcrt2234660n1pjg7xnqxq8pjg7stspp5sq0le60mua87e3lvd7njw9khmesk0nzkqa34qc4jg7tm2num5jlqsp58p4rswtywdnx5wtn8pjxv6nnvsukv6mdve4xzernd9nx5mmpv35s9qrsgqdqhg35hyetrwssxgetsdaekjaqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jshcgr3e64wp4uum2c336uprxrhl34ryvgnl56y2usgmvpkt0xajyn4qfvguh7fgm6d07n00hxcrktmkz9qnprr3gxlzy2f4q9r68scwsp5d6f6r",
       amountSats: 45750,
       // amountSats: null,
-      // description: "the rice house 🍕",
-      description:
-          "really long note asdef aoisdjfoia asdjf fldkj the rice house 🍕",
+      description: "the rice house 🍕",
+      // description:
+      //     "really long note asdef aoisdjfoia asdjf fldkj the rice house 🍕",
       // description: null,
       expiresAt: null,
     );
@@ -682,6 +680,7 @@ class ReceivePaymentPage2 extends StatelessWidget {
       ),
       body: ScrollableSinglePageBody(
         padding: EdgeInsets.zero,
+        useFullWidth: true,
         body: [
           const SizedBox(height: Space.s200),
 

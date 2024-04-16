@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart' as foundation;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
-import 'package:lexeapp/logger.dart';
 import 'package:material_symbols_icons/symbols.dart';
 
 /// Our global flutter theme overrides.
@@ -12,7 +11,7 @@ import 'package:material_symbols_icons/symbols.dart';
 /// While modifying or debugging these global stylings during development, it's
 /// helpful to wrap the page or component in a
 /// `Theme(data: LxTheme.light(), child: ...)` so that hot-reloading works.
-class LxTheme {
+final class LxTheme {
   LxTheme._();
 
   // These [SystemUiOverlayStyle] define the colors for the system top-bar and
@@ -229,7 +228,7 @@ class LxTheme {
   }
 }
 
-class LxColors {
+final class LxColors {
   LxColors._();
 
   // A half-transparent red for debugging.
@@ -367,7 +366,7 @@ class LxColors {
   static const Color clearB1000 = Color(0xff000000);
 }
 
-class Space {
+final class Space {
   Space._();
 
   /// 64 px
@@ -434,7 +433,7 @@ class Space {
   static const double s1200 = 256.0;
 }
 
-class LxRadius {
+final class LxRadius {
   LxRadius._();
 
   /// 0 px
@@ -456,7 +455,7 @@ class LxRadius {
   static const double r500 = 62.0;
 }
 
-class Fonts {
+final class Fonts {
   Fonts._();
 
   /// 12 px
@@ -736,4 +735,12 @@ final class LxIcons {
 
   /// Lightning symbol icon (lightning bolt)
   static const IconData lightning = Symbols.bolt_rounded;
+}
+
+/// Screen width breakpoints
+final class LxBreakpoints {
+  const LxBreakpoints._();
+
+  /// mobile screen - 500dp
+  static const double mobile = 500.0;
 }
