@@ -78,6 +78,8 @@ class IntInputFormatter extends TextInputFormatter {
         },
       );
 
+  String formatInt(int value) => this.formatter.format(value);
+
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
