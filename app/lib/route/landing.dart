@@ -346,7 +346,7 @@ class InkuShader extends StatelessWidget {
 
           return AnimatedShader(
             shader: snapshot.data!,
-            carouselScrollController: carouselScrollController,
+            carouselScrollController: this.carouselScrollController,
             child: this.child,
           );
         });
@@ -390,17 +390,32 @@ class AnimatedShaderState extends State<AnimatedShader>
     super.dispose();
   }
 
+  /// phlip9: saw an error once where the scroll controller wasn't yet attached
+  /// to the carousel by the time the shader rendered, so this method is just
+  /// a super defensive way to get the scroll offset, but defaults to 0.0 if
+  /// something is weird.
+  double scrollOffset() {
+    final controller = this.widget.carouselScrollController;
+    final positions = controller.positions;
+
+    if (positions.isEmpty) return 0.0;
+
+    final position = positions.first;
+    if (!position.hasPixels) return 0.0;
+
+    return position.pixels;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final scrollController = this.widget.carouselScrollController;
-    double prevOffset = scrollController.offset;
+    double prevOffset = this.scrollOffset();
 
     return AnimatedBuilder(
       animation: this.animationController,
       builder: (BuildContext _, Widget? child) {
         // Add some small EMA dampening to scroll offset.
         const a = 0.25;
-        final nextOffset = a * scrollController.offset + (1.0 - a) * prevOffset;
+        final nextOffset = a * this.scrollOffset() + (1.0 - a) * prevOffset;
         prevOffset = nextOffset;
 
         return CustomPaint(
