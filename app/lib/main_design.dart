@@ -275,7 +275,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             Component(
               "ReceivePaymentEditInvoicePage",
               (context) => const ReceivePaymentEditInvoicePage(
-                prev: LnInvoiceInputs(amountSats: null, description: null),
+                prev: LnInvoiceInputs(amountSats: 123456, description: null),
               ),
             ),
             Component(

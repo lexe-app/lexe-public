@@ -636,13 +636,17 @@ class PaymentAmountInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final int? initialValue = this.initialValue;
+
     // <amount> sats
     return TextFormField(
       key: this.fieldKey,
       autofocus: true,
       keyboardType:
           const TextInputType.numberWithOptions(signed: false, decimal: false),
-      initialValue: this.initialValue?.toString() ?? "0",
+      initialValue: (initialValue != null)
+          ? this.intInputFormatter.formatInt(initialValue)
+          : "0",
       textDirection: TextDirection.ltr,
       textInputAction: TextInputAction.next,
       textAlign: TextAlign.right,
