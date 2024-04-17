@@ -50,7 +50,7 @@ import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
 import 'package:lexeapp/route/receive.dart'
-    show ReceivePaymentPage, ReceivePaymentSetAmountPage;
+    show LnInvoiceInputs, ReceivePaymentEditInvoicePage, ReceivePaymentPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send.dart'
     show
@@ -273,10 +273,9 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               ),
             ),
             Component(
-              "ReceivePaymentSetAmountPage",
-              (context) => const ReceivePaymentSetAmountPage(
-                prevAmountSats: null,
-                prevDescription: "hello world",
+              "ReceivePaymentEditInvoicePage",
+              (context) => const ReceivePaymentEditInvoicePage(
+                prev: LnInvoiceInputs(amountSats: null, description: null),
               ),
             ),
             Component(

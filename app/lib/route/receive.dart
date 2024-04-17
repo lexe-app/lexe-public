@@ -33,31 +33,63 @@ const double minViewportWidth = 365.0;
 const int lnPageIdx = 0;
 const int btcPageIdx = 1;
 
-/// The inputs used to generate a [PaymentOffer].
+/// The kind of payment to receive, across both BTC and LN.
+enum PaymentOfferKind {
+  lightningInvoice,
+  btcAddress,
+
+  // TODO(phlip9): impl
+  // lightningSpontaneous,
+  // lightningOffer,
+  // btcTaproot,
+  ;
+
+  bool isLightning() => switch (this) {
+        PaymentOfferKind.lightningInvoice => true,
+        PaymentOfferKind.btcAddress => false,
+
+        // TODO(phlip9): impl
+        // PaymentOfferKind.lightningSpontaneous => true,
+        // PaymentOfferKind.lightningOffer => true,
+        // PaymentOfferKind.btcTaproot => false,
+      };
+
+  bool isBtc() => !this.isLightning();
+}
+
+/// The Bitcoin address type to receive with.
+enum BtcAddrKind {
+  segwit,
+  // TODO(phlip9): impl
+  // taproot,
+  ;
+
+  PaymentOfferKind toOfferKind() => switch (this) {
+        BtcAddrKind.segwit => PaymentOfferKind.btcAddress,
+      };
+}
+
+/// The inputs used to generate a Lightning invoice [PaymentOffer].
 @immutable
-class PaymentOfferInputs {
-  const PaymentOfferInputs({
-    required this.kindByPage,
+class LnInvoiceInputs {
+  const LnInvoiceInputs({
     required this.amountSats,
     required this.description,
   });
 
-  final List<PaymentOfferKind> kindByPage;
   final int? amountSats;
   final String? description;
 
   @override
   String toString() {
-    return 'PaymentOfferInputs(kindByPage: $kindByPage, amountSats: $amountSats, description: $description)';
+    return 'InvoiceInputs(amountSats: $amountSats, description: $description)';
   }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         (other.runtimeType == this.runtimeType &&
-            other is PaymentOfferInputs &&
-            (identical(other.kindByPage, this.kindByPage) ||
-                other.kindByPage == this.kindByPage) &&
+            other is LnInvoiceInputs &&
             (identical(other.amountSats, this.amountSats) ||
                 other.amountSats == this.amountSats) &&
             (identical(other.description, this.description) ||
@@ -65,26 +97,32 @@ class PaymentOfferInputs {
   }
 
   @override
-  int get hashCode => Object.hash(
-      this.runtimeType, this.kindByPage, this.amountSats, this.description);
+  int get hashCode =>
+      Object.hash(this.runtimeType, this.amountSats, this.description);
 }
 
-enum PaymentOfferKind {
-  lightningInvoice,
-  lightningOffer,
-  // lightningSpontaneous,
-  btcAddress,
-  btcTaproot,
-  ;
+/// The inputs used to generate a Bitcoin address [PaymentOffer].
+@immutable
+class BtcAddrInputs {
+  const BtcAddrInputs({required this.kind});
 
-  bool isLightning() => switch (this) {
-        PaymentOfferKind.lightningInvoice => true,
-        PaymentOfferKind.lightningOffer => true,
-        PaymentOfferKind.btcAddress => false,
-        PaymentOfferKind.btcTaproot => false,
-      };
+  final BtcAddrKind kind;
 
-  bool isBtc() => !this.isLightning();
+  @override
+  String toString() {
+    return 'BitcoinAddressInputs(kind: $kind)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == this.runtimeType &&
+            other is BtcAddrInputs &&
+            (identical(other.kind, this.kind) || other.kind == this.kind));
+  }
+
+  @override
+  int get hashCode => Object.hash(this.runtimeType, this.kind);
 }
 
 @immutable
@@ -105,21 +143,22 @@ class PaymentOffer {
 
   String titleStr() => switch (this.kind) {
         PaymentOfferKind.lightningInvoice => "Lightning invoice",
-        PaymentOfferKind.lightningOffer => "Lightning offer",
-        // PaymentOfferKind.lightningSpontaneous => "Lightning spontaneous payment",
         PaymentOfferKind.btcAddress => "Bitcoin address",
-        PaymentOfferKind.btcTaproot => "Bitcoin taproot address",
+
+        // PaymentOfferKind.lightningSpontaneous => "Lightning spontaneous payment",
+        // PaymentOfferKind.lightningOffer => "Lightning offer",
+        // PaymentOfferKind.btcTaproot => "Bitcoin taproot address",
       };
 
   String subtitleStr() => switch (this.kind) {
         PaymentOfferKind.lightningInvoice =>
           "Receive Bitcoin instantly with Lightning",
         PaymentOfferKind.btcAddress =>
-          "Receive Bitcoin from anywhere. Slower and more expensive than Lightning.",
+          "Receive Bitcoin from anywhere. Slower and more expensive than via Lightning.",
 
         // TODO(phlip9): impl
-        PaymentOfferKind.btcTaproot => "",
-        PaymentOfferKind.lightningOffer => "",
+        // PaymentOfferKind.btcTaproot => "",
+        // PaymentOfferKind.lightningOffer => "",
         // PaymentOfferKind.lightningSpontaneous => "",
       };
 
@@ -218,23 +257,28 @@ class ReceivePaymentPageInner extends StatefulWidget {
 }
 
 class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
-  /// The current primary card on-screen.
-  final ValueNotifier<int> selectedCardIndex = ValueNotifier(0);
+  /// Controls the [PageView].
+  late PageController pageController = this.newPageController();
 
-  /// Controls the card [PageView].
-  late PageController cardController = this.newCardController();
+  /// The current primary page on-screen.
+  final ValueNotifier<int> selectedPageIndex = ValueNotifier(0);
 
-  final ValueNotifier<PaymentOfferInputs> paymentOfferInputs = ValueNotifier(
-    const PaymentOfferInputs(
-      kindByPage: [
-        PaymentOfferKind.lightningInvoice,
-        PaymentOfferKind.btcAddress,
-      ],
+  /// Inputs that determine when we should fetch a new lightning invoice.
+  final ValueNotifier<LnInvoiceInputs> lnInvoiceInputs = ValueNotifier(
+    const LnInvoiceInputs(
       amountSats: null,
       description: null,
     ),
   );
 
+  /// Inputs that determine when we should fetch a new bitcoin address.
+  final ValueNotifier<BtcAddrInputs> btcAddrInputs = ValueNotifier(
+    const BtcAddrInputs(
+      kind: BtcAddrKind.segwit,
+    ),
+  );
+
+  /// Each page offer.
   final List<ValueNotifier<PaymentOffer>> paymentOffers = [
     ValueNotifier(
       const PaymentOffer(
@@ -260,8 +304,13 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   void initState() {
     super.initState();
 
-    this.paymentOfferInputs.addListener(this.doFetchLn);
-    this.paymentOfferInputs.addListener(this.doFetchBtc);
+    // Fetch a new invoice when certain LN inputs change.
+    this.lnInvoiceInputs.addListener(this.doFetchLn);
+
+    // Fetch a new btc address when certain BTC inputs change.
+    this.btcAddrInputs.addListener(this.doFetchBtc);
+
+    // Kick us off by fetching an initial zero-amount invoice and a btc address.
 
     unawaited(this.doFetchLn());
     unawaited(this.doFetchBtc());
@@ -269,13 +318,15 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
   @override
   void dispose() {
-    this.paymentOfferInputs.dispose();
+    this.pageController.dispose();
+    this.selectedPageIndex.dispose();
+
+    this.lnInvoiceInputs.dispose();
+    this.btcAddrInputs.dispose();
+
     for (final paymentOffer in this.paymentOffers) {
       paymentOffer.dispose();
     }
-
-    this.cardController.dispose();
-    this.selectedCardIndex.dispose();
 
     super.dispose();
   }
@@ -284,21 +335,22 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   void didUpdateWidget(ReceivePaymentPageInner oldWidget) {
     super.didUpdateWidget(oldWidget);
 
+    // We need to rebuild the [PageController] when the window resizes.
     if (this.widget.viewportWidth != oldWidget.viewportWidth) {
-      final oldController = this.cardController;
-      this.cardController = this.newCardController();
+      final oldController = this.pageController;
+      this.pageController = this.newPageController();
       oldController.dispose();
     }
   }
 
-  PageController newCardController() => PageController(
-        initialPage: this.selectedCardIndex.value,
+  PageController newPageController() => PageController(
+        initialPage: this.selectedPageIndex.value,
         viewportFraction:
             minViewportWidth / max(minViewportWidth, this.widget.viewportWidth),
       );
 
   ValueNotifier<PaymentOffer> currentOffer() =>
-      this.paymentOffers[this.selectedCardIndex.value];
+      this.paymentOffers[this.selectedPageIndex.value];
   ValueNotifier<PaymentOffer> lnOffer() => this.paymentOffers[lnPageIdx];
   ValueNotifier<PaymentOffer> btcOffer() => this.paymentOffers[btcPageIdx];
 
@@ -308,32 +360,13 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   /// Will skip actually sending a new request if only the `inputs.amountSats`
   /// or `inputs.description` changed.
   Future<PaymentOffer?> fetchBtcOffer(
-    PaymentOfferInputs inputs,
+    BtcAddrInputs inputs,
     PaymentOffer prev,
   ) async {
-    final btcKind = inputs.kindByPage[btcPageIdx];
-
-    // sanity check
-    assert(btcKind.isBtc());
-
     // TODO(phlip9): actually add ability to fetch a taproot address
     // assert(btcKind != PaymentOfferKind.btcTaproot);
 
-    info("ReceivePaymentPage: fetchBtcOffer: kind: $btcKind, prev: $prev");
-
-    // We only need to fetch a new address code if the address kind changed.
-    // Otherwise, we can skip the extra request to the user's node.
-    if (prev.code != null && prev.kind == btcKind) {
-      return PaymentOffer(
-        kind: prev.kind,
-        code: prev.code,
-        expiresAt: prev.expiresAt,
-
-        // Just update the amount/description
-        amountSats: inputs.amountSats,
-        description: inputs.description,
-      );
-    }
+    info("ReceivePaymentPage: fetchBtcOffer: inputs: $inputs, prev: $prev");
 
     final result = await Result.tryFfiAsync(this.widget.app.getAddress);
 
@@ -350,7 +383,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     }
 
     return PaymentOffer(
-      kind: btcKind,
+      kind: inputs.kind.toOfferKind(),
       code: address,
       amountSats: prev.amountSats,
       description: prev.description,
@@ -359,14 +392,10 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   }
 
   /// Fetch the Lightning invoice/offer for the given `PaymentOfferInputs`.
-  Future<PaymentOffer?> fetchLnOffer(
-    PaymentOfferInputs inputs,
+  Future<PaymentOffer?> fetchLnInvoiceOffer(
+    LnInvoiceInputs inputs,
     PaymentOffer prev,
   ) async {
-    final lnKind = inputs.kindByPage[0];
-
-    // sanity check
-    assert(lnKind.isLightning());
     // TODO(phlip9): actually support BOLT12 offers.
     // assert(lnKind == PaymentOfferKind.lightningInvoice);
 
@@ -378,7 +407,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     );
 
     info(
-        "ReceivePaymentPage: doFetchLn: kind: $lnKind, req: { amountSats: ${req.amountSats}, exp: ${req.expirySecs} }");
+        "ReceivePaymentPage: doFetchLn: inputs: $inputs, req: { amountSats: ${req.amountSats}, exp: ${req.expirySecs} }");
 
     final result =
         await Result.tryFfiAsync(() => this.widget.app.createInvoice(req: req));
@@ -397,7 +426,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     }
 
     return PaymentOffer(
-      kind: lnKind,
+      kind: PaymentOfferKind.lightningInvoice,
       code: invoice.string,
       amountSats: invoice.amountSats,
       description: invoice.description,
@@ -406,7 +435,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   }
 
   Future<void> doFetchBtc() async {
-    final inputs = this.paymentOfferInputs.value;
+    final inputs = this.btcAddrInputs.value;
     final btcOfferNotifier = this.btcOffer();
     final prev = btcOfferNotifier.value;
 
@@ -424,15 +453,16 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       return;
     }
 
+    // Everything's good -> update our current BTC page offer
     btcOfferNotifier.value = offer;
   }
 
   Future<void> doFetchLn() async {
-    final inputs = this.paymentOfferInputs.value;
+    final inputs = this.lnInvoiceInputs.value;
     final lnOfferNotifier = this.lnOffer();
     final prev = lnOfferNotifier.value;
 
-    final offer = await this.fetchLnOffer(inputs, prev);
+    final offer = await this.fetchLnInvoiceOffer(inputs, prev);
 
     // Canceled / navigated away => ignore
     if (!this.mounted) return;
@@ -446,6 +476,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       return;
     }
 
+    // Everything's good -> update our current LN page offer
     lnOfferNotifier.value = offer;
   }
 
@@ -479,7 +510,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   //     expiresAt: null,
   //   );
   //
-  //   final pageIdx = this.selectedCardIndex.value;
+  //   final pageIdx = this.selectedPageIndex.value;
   //   final prevInputs = this.paymentOfferInputs.value;
   //   this.paymentOfferInputs.value = PaymentOfferInputs(
   //     // Update the new desired offer kind for the current page.
@@ -491,23 +522,35 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   //   );
   // }
 
-  Future<void> onTapSetAmount() async {
-    final prev = this.paymentOfferInputs.value;
-    final prevAD = (amountSats: prev.amountSats, description: prev.description);
+  // Open an edit page when we press a "+ Amount" or "Edit" button for the given
+  // page.
+  Future<void> openEditPage(PaymentOfferKind kind) async {
+    // Only support setting amount/desc for invoices atm.
+    if (kind != PaymentOfferKind.lightningInvoice) return;
 
-    final ({int? amountSats, String? description})? flowResult =
-        await Navigator.of(this.context).push(
+    switch (kind) {
+      case PaymentOfferKind.lightningInvoice:
+        await this.openEditInvoicePage();
+        return;
+
+      // Other kinds don't support editing amount/description yet.
+      default:
+        return;
+    }
+  }
+
+  Future<void> openEditInvoicePage() async {
+    final prev = this.lnInvoiceInputs.value;
+
+    final LnInvoiceInputs? flowResult = await Navigator.of(this.context).push(
       MaterialPageRoute(
-        builder: (_) => ReceivePaymentSetAmountPage(
-          prevAmountSats: prevAD.amountSats,
-          prevDescription: prevAD.description,
-        ),
+        builder: (_) => ReceivePaymentEditInvoicePage(prev: prev),
       ),
     );
 
-    if (!this.mounted || flowResult == null || flowResult == prevAD) return;
+    if (!this.mounted || flowResult == null || flowResult == prev) return;
 
-    // LN invoice needs to be reloaded.
+    // Clear LN invoice code so it's clear we're fetching a new one.
     final lnOffer = this.lnOffer().value;
     this.lnOffer().value = PaymentOffer(
       kind: lnOffer.kind,
@@ -517,11 +560,8 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
       description: flowResult.description,
     );
 
-    this.paymentOfferInputs.value = PaymentOfferInputs(
-      kindByPage: prev.kindByPage,
-      amountSats: flowResult.amountSats,
-      description: flowResult.description,
-    );
+    // Update inputs to fetch new invoice.
+    this.lnInvoiceInputs.value = flowResult;
   }
 
   @override
@@ -549,26 +589,28 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
           // const SizedBox(height: Space.s500),
           const SizedBox(height: Space.s200),
 
-          // Payment offer card
+          // Payment offer pages (LN invoice, BTC address)
           SizedBox(
             height: 650.0,
             // height: 575.0,
             child: PageView(
-              controller: this.cardController,
+              controller: this.pageController,
               scrollBehavior: const CupertinoScrollBehavior(),
               padEnds: true,
               allowImplicitScrolling: false,
               onPageChanged: (pageIdx) {
                 if (!this.mounted) return;
-                this.selectedCardIndex.value = pageIdx;
+                this.selectedPageIndex.value = pageIdx;
               },
               children: this
                   .paymentOffers
                   .map((offer) => ValueListenableBuilder(
                         valueListenable: offer,
-                        builder: (_context, offer, _child) => PaymentOfferCard(
+                        builder: (_context, offer, _child) => PaymentOfferPage(
                           paymentOffer: offer,
                           fiatRate: this.widget.fiatRate,
+                          openSetAmountPage: () =>
+                              this.openEditPage(offer.kind),
                         ),
                       ))
                   .toList(),
@@ -581,11 +623,11 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
           padding: const EdgeInsets.symmetric(horizontal: Space.s600),
           child: CarouselIndicatorsAndButtons(
             numPages: this.paymentOffers.length,
-            selectedPageIndex: this.selectedCardIndex,
-            onTapPrev: () => unawaited(this.cardController.previousPage(
+            selectedPageIndex: this.selectedPageIndex,
+            onTapPrev: () => unawaited(this.pageController.previousPage(
                 duration: const Duration(milliseconds: 500),
                 curve: Curves.ease)),
-            onTapNext: () => unawaited(this.cardController.nextPage(
+            onTapNext: () => unawaited(this.pageController.nextPage(
                 duration: const Duration(milliseconds: 500),
                 curve: Curves.ease)),
           ),
@@ -595,12 +637,26 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
   }
 }
 
-class PaymentOfferCard extends StatelessWidget {
-  const PaymentOfferCard(
-      {super.key, required this.paymentOffer, required this.fiatRate});
+class PaymentOfferPage extends StatelessWidget {
+  const PaymentOfferPage({
+    super.key,
+    required this.paymentOffer,
+    required this.fiatRate,
+    required this.openSetAmountPage,
+  });
 
   final PaymentOffer paymentOffer;
   final ValueStream<FiatRate?> fiatRate;
+
+  final VoidCallback openSetAmountPage;
+
+  void onTapSetAmount() {
+    openSetAmountPage();
+  }
+
+  void onTapEdit() {
+    openSetAmountPage();
+  }
 
   void showSnackBarOnCopySuccess(BuildContext context) {
     if (!context.mounted) return;
@@ -618,7 +674,7 @@ class PaymentOfferCard extends StatelessWidget {
         const SnackBar(content: Text("Failed to copy to clipboard")));
   }
 
-  /// Copy the current card's offer code to the user clipboard.
+  /// Copy the current page's offer code to the user clipboard.
   void onTapCopy(BuildContext context) {
     final code = this.paymentOffer.code;
     if (code == null) return;
@@ -702,18 +758,7 @@ class PaymentOfferCard extends StatelessWidget {
           ),
 
           // Card
-          Container(
-            decoration: BoxDecoration(
-              color: LxColors.grey1000,
-              borderRadius: BorderRadius.circular(LxRadius.r300),
-            ),
-            padding: const EdgeInsets.fromLTRB(
-              Space.s450,
-              Space.s100,
-              Space.s450,
-              Space.s450,
-            ),
-            clipBehavior: Clip.antiAlias,
+          CardBox(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -726,7 +771,7 @@ class PaymentOfferCard extends StatelessWidget {
                       Transform.translate(
                         offset: const Offset(-Space.s300, Space.s0),
                         child: TextButton.icon(
-                          onPressed: () {},
+                          onPressed: () => this.onTapCopy(context),
                           icon: Text(
                             address_format.ellipsizeBtcAddress(code),
                             maxLines: 1,
@@ -738,9 +783,10 @@ class PaymentOfferCard extends StatelessWidget {
                           ),
                           label: const Icon(
                             LxIcons.copy,
-                            opticalSize: LxIcons.opszSemiDense,
+                            opticalSize: LxIcons.opszDense,
+                            weight: LxIcons.weightNormal,
                             size: Fonts.size300,
-                            color: LxColors.grey600,
+                            color: LxColors.grey550,
                           ),
                         ),
                       ),
@@ -825,7 +871,7 @@ class PaymentOfferCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         OutlinedButton(
-                          onPressed: () {},
+                          onPressed: this.onTapSetAmount,
                           style: const ButtonStyle(
                             visualDensity:
                                 VisualDensity(horizontal: -3.0, vertical: -3.0),
@@ -935,7 +981,7 @@ class PaymentOfferCard extends StatelessWidget {
                                 style: const TextStyle(
                                   color: LxColors.foreground,
                                   fontSize: Fonts.size200,
-                                  height: 1.5,
+                                  height: 1.25,
                                   letterSpacing: -0.25,
                                 ),
                                 maxLines: 2,
@@ -952,7 +998,7 @@ class PaymentOfferCard extends StatelessWidget {
                         offset: const Offset(Space.s200, -Space.s200),
                         // offset: const Offset(Space.s200, 0.0),
                         child: TextButton.icon(
-                          onPressed: () {},
+                          onPressed: this.onTapEdit,
                           label: const Text(
                             "Edit",
                             style: TextStyle(
@@ -1048,29 +1094,20 @@ class CardBox extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.start,
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Space.s200),
-          child: Container(
-            decoration: BoxDecoration(
-              color: LxColors.grey1000,
-              borderRadius: BorderRadius.circular(LxRadius.r300),
-            ),
-            clipBehavior: Clip.antiAlias,
-            padding: const EdgeInsets.fromLTRB(
-                Space.s500, Space.s450, Space.s500, Space.s500),
-            constraints: const BoxConstraints(maxWidth: 350.0),
-            child: this.child,
-          ),
+  Widget build(BuildContext context) => Container(
+        decoration: BoxDecoration(
+          color: LxColors.grey1000,
+          borderRadius: BorderRadius.circular(LxRadius.r300),
         ),
-        const Expanded(child: Center()),
-      ],
-    );
-  }
+        padding: const EdgeInsets.fromLTRB(
+          Space.s450,
+          Space.s100,
+          Space.s450,
+          Space.s450,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: child,
+      );
 }
 
 // const bottomSheetBodyPadding = Space.s600;
@@ -1188,23 +1225,18 @@ class CardBox extends StatelessWidget {
 
 /// A page for the user to set a desired amount and optional description on
 /// their payment offer.
-class ReceivePaymentSetAmountPage extends StatefulWidget {
-  const ReceivePaymentSetAmountPage({
-    super.key,
-    required this.prevAmountSats,
-    required this.prevDescription,
-  });
+class ReceivePaymentEditInvoicePage extends StatefulWidget {
+  const ReceivePaymentEditInvoicePage({super.key, required this.prev});
 
-  final int? prevAmountSats;
-  final String? prevDescription;
+  final LnInvoiceInputs prev;
 
   @override
-  State<ReceivePaymentSetAmountPage> createState() =>
-      _ReceivePaymentSetAmountPageState();
+  State<ReceivePaymentEditInvoicePage> createState() =>
+      _ReceivePaymentEditInvoicePageState();
 }
 
-class _ReceivePaymentSetAmountPageState
-    extends State<ReceivePaymentSetAmountPage> {
+class _ReceivePaymentEditInvoicePageState
+    extends State<ReceivePaymentEditInvoicePage> {
   final GlobalKey<FormFieldState<String>> amountFieldKey = GlobalKey();
   final GlobalKey<FormFieldState<String>> descriptionFieldKey = GlobalKey();
 
@@ -1239,7 +1271,10 @@ class _ReceivePaymentSetAmountPageState
       description = null;
     }
 
-    final flowResult = (amountSats: amountSats, description: description);
+    final flowResult = LnInvoiceInputs(
+      amountSats: amountSats,
+      description: description,
+    );
     unawaited(Navigator.of(this.context).maybePop(flowResult));
   }
 
@@ -1260,7 +1295,7 @@ class _ReceivePaymentSetAmountPageState
             fieldKey: this.amountFieldKey,
             intInputFormatter: this.intInputFormatter,
             allowEmpty: true,
-            initialValue: this.widget.prevAmountSats,
+            initialValue: this.widget.prev.amountSats,
           ),
 
           const SizedBox(height: Space.s800),
@@ -1268,7 +1303,7 @@ class _ReceivePaymentSetAmountPageState
           PaymentNoteInput(
             fieldKey: this.descriptionFieldKey,
             onSubmit: this.onConfirm,
-            initialNote: this.widget.prevDescription,
+            initialNote: this.widget.prev.description,
           ),
 
           const SizedBox(height: Space.s400),
