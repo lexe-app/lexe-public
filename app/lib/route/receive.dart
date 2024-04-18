@@ -591,7 +591,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
 
           // Payment offer pages (LN invoice, BTC address)
           SizedBox(
-            height: 650.0,
+            height: 660.0,
             // height: 575.0,
             child: PageView(
               controller: this.pageController,
@@ -1025,26 +1025,25 @@ class PaymentOfferPage extends StatelessWidget {
 
           // Warning/info block
           if (this.paymentOffer.kind == PaymentOfferKind.lightningInvoice)
-            Padding(
-              padding:
-                  const EdgeInsets.only(left: Space.s450, right: Space.s200),
+            const Padding(
+              padding: EdgeInsets.only(left: Space.s450, right: Space.s200),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text.rich(
                       TextSpan(children: [
                         // Pay invoice once
                         TextSpan(
                             text:
                                 "Invoices can only be paid once. Reusing an invoice may result in lost payments. "),
-                        TextSpan(
-                          text: "Read more",
-                          style: TextStyle(
-                            decoration: TextDecoration.underline,
-                            decorationColor: LxColors.grey550,
-                            decorationThickness: 1.0,
-                          ),
-                        ),
+                        // TextSpan(
+                        //   text: "\nRead more",
+                        //   style: TextStyle(
+                        //     decoration: TextDecoration.underline,
+                        //     decorationColor: LxColors.grey550,
+                        //     decorationThickness: 1.0,
+                        //   ),
+                        // ),
 
                         // // Zero-conf ()
                         // TextSpan(text: "Receiving more than "),
@@ -1070,17 +1069,49 @@ class PaymentOfferPage extends StatelessWidget {
                       ),
                     ),
                   ),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(LxIcons.close),
-                    color: LxColors.grey650,
-                  )
+                  // IconButton(
+                  //   onPressed: () {},
+                  //   icon: const Icon(LxIcons.close),
+                  //   color: LxColors.grey650,
+                  // )
                 ],
               ),
             ),
 
           // Push elements outside page to bottom
           const Expanded(child: Center()),
+
+          // Bottom action buttons
+          Padding(
+            padding: const EdgeInsets.only(top: Space.s300),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: Space.s200),
+                  child: FilledButton(
+                    onPressed: () => this.onTapCopy(context),
+                    child: const Icon(LxIcons.copy),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: Space.s200),
+                  child: FilledButton(
+                    onPressed: () {},
+                    child: const Icon(LxIcons.share),
+                  ),
+                ),
+                if (isLightning)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Space.s200),
+                    child: FilledButton(
+                      onPressed: () {},
+                      child: const Icon(LxIcons.refresh),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ],
       ),
     );
