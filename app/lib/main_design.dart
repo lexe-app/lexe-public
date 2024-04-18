@@ -1,6 +1,9 @@
 // An alternate application entrypoint specifically for designing pages
 // and components in isolation, without actually touching any real backends.
 
+// Ignore this lint as flutter_rust_bridge ffi errors don't impl Error/Exception...
+// ignore_for_file: only_throw_errors
+
 import 'dart:async';
 import 'dart:typed_data' show Uint8List;
 
@@ -273,9 +276,17 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               ),
             ),
             Component(
+              "ReceivePaymentPage",
+              subtitle: "fetch invoice error",
+              (context) => ReceivePaymentPage(
+                app: MockAppHandleErroring(bridge: api),
+                fiatRate: this.makeFiatRateStream(),
+              ),
+            ),
+            Component(
               "ReceivePaymentEditInvoicePage",
               (context) => const ReceivePaymentEditInvoicePage(
-                prev: LnInvoiceInputs(amountSats: 123456, description: null),
+                prev: LnInvoiceInputs(amountSats: null, description: null),
               ),
             ),
             Component(
@@ -523,6 +534,20 @@ class MockAppHandle extends AppHandle {
   Future<void> updatePaymentNote(
           {required UpdatePaymentNote req, dynamic hint}) =>
       Future.delayed(const Duration(milliseconds: 1000), () => ());
+}
+
+/// An [AppHandle] that usually errors first.
+class MockAppHandleErroring extends MockAppHandle {
+  MockAppHandleErroring({required super.bridge});
+
+  @override
+  Future<CreateInvoiceResponse> createInvoice(
+      {required CreateInvoiceRequest req, dynamic hint}) {
+    return Future.delayed(
+      const Duration(milliseconds: 1000),
+      () => throw const FfiError("Request timed out").toFfi(),
+    );
+  }
 }
 
 class MockGDriveAuth implements GDriveAuth {
