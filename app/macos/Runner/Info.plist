@@ -31,6 +31,10 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>GIDClientID</key>
+	<string>495704988639-ook7rjckct44o668nt1f58sd3bharq2p.apps.googleusercontent.com</string>
+	<key>GIDServerClientID</key>
+	<string>495704988639-19bfg8k5f3runiio4apbicpounc10gh1.apps.googleusercontent.com</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSHumanReadableCopyright</key>
@@ -39,9 +43,5 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
-	<key>GIDClientID</key>
-	<string>495704988639-ook7rjckct44o668nt1f58sd3bharq2p.apps.googleusercontent.com</string>
-	<key>GIDServerClientID</key>
-	<string>495704988639-19bfg8k5f3runiio4apbicpounc10gh1.apps.googleusercontent.com</string>
 </dict>
 </plist>
