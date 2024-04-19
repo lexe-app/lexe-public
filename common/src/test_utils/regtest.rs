@@ -1,4 +1,4 @@
-use std::{cmp, env, time::Duration};
+use std::{cmp, env, path::PathBuf, time::Duration};
 
 use anyhow::Context;
 use bitcoin::{
@@ -29,14 +29,25 @@ pub struct Regtest {
 }
 
 impl Regtest {
-    pub async fn init() -> Self {
+    /// Start a new local dev regtest cluster running `bitcoind` and
+    /// `Blockstream/electrsd`.
+    ///
+    /// `data_dir`: if not None, data will be persisted _across_ runs in this
+    ///             directory. Otherwise, both will save data into an ephemeral
+    ///             temp. dir.
+    pub async fn init(data_dir: Option<PathBuf>) -> Self {
         info!("Initializing regtest");
 
-        // Init bitcoind
+        // Configure bitcoind
         let bitcoind_exe_path = std::env::var("BITCOIND_EXE")
             .or_else(|_| bitcoind::downloaded_exe_path())
             .expect("Didn't specify oneof `$BITCOIND_EXE` or bitcoind version in feature flags");
         debug!(%bitcoind_exe_path);
+
+        let mut bitcoind_conf = bitcoind::Conf::default();
+        bitcoind_conf.staticdir = data_dir.as_ref().map(|d| d.join("bitcoind"));
+
+        // Init bitcoind
         let bitcoind =
             BitcoinD::new(bitcoind_exe_path).expect("Failed to init bitcoind");
 
@@ -46,9 +57,12 @@ impl Regtest {
             .or_else(electrsd::downloaded_exe_path)
             .expect("Didn't specify oneof `$ELECTRS_EXE` or electrsd version in feature flags");
         debug!(%electrsd_exe_path);
+
         let mut electrsd_conf = electrsd::Conf::default();
+        electrsd_conf.staticdir = data_dir.as_ref().map(|d| d.join("electrsd"));
         // Expose esplora endpoint
         electrsd_conf.http_enabled = true;
+
         // Include electrsd stderr if RUST_LOG begins with "trace".
         // This is v helpful to enable if you're having problems with electrsd
         if let Some(log_os_str) = env::var_os("RUST_LOG") {
