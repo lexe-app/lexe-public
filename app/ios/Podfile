@@ -9,6 +9,11 @@ project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
   'Release' => :release,
+
+  # "design" mode flavor
+  'Debug-design' => :debug,
+  'Profile-design' => :release,
+  'Release-design' => :release,
 }
 
 def flutter_root
