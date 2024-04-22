@@ -194,8 +194,11 @@ impl App {
         // stored a RootSeed.
 
         // single-use `serverAuthCode` from Google OAuth 2 consent flow, used by
-        // the enclave to get access+refresh tokens.
-        let google_auth_code = Some(google_auth_code);
+        // the enclave to get access+refresh tokens. Ignored in local dev.
+        let google_auth_code = match config.deploy_env {
+            DeployEnv::Dev => None,
+            DeployEnv::Prod | DeployEnv::Staging => Some(google_auth_code),
+        };
 
         // The root seed backup password.
         let password = Some(password);
