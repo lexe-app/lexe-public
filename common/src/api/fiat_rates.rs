@@ -22,7 +22,7 @@ pub struct FiatCode(pub String);
 /// We just return this as an `f64`, which is kind of haram but also super
 /// convenient. Fortunately, all our accounting is done using BTC and we only
 /// use these exchange rates for display purposes, so it's probably OK?
-#[derive(PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Copy, PartialEq, Deserialize, Serialize)]
 #[serde(transparent)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct FiatBtcPrice(pub f64);
