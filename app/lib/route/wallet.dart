@@ -155,6 +155,7 @@ class WalletPageState extends State<WalletPage> {
     final FiatRates fiatRates;
     switch (res) {
       case Ok(:final ok):
+        info("fiatRates: $ok");
         fiatRates = ok;
       case Err(:final err):
         error("Failed to fetch fiatRates: $err");
@@ -175,6 +176,7 @@ class WalletPageState extends State<WalletPage> {
     final bool anyChangedPayments;
     switch (res) {
       case Ok(:final ok):
+        info("syncPayments: any changed: $ok");
         anyChangedPayments = ok;
       case Err(:final err):
         error("Failed to syncPayments: $err");

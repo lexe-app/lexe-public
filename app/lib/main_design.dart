@@ -161,7 +161,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
   @override
   Widget build(BuildContext context) {
     final mockApp = MockAppHandle(bridge: api);
-    const mockGDriveAuth = MockGDriveAuth();
+    const mockGDriveAuth = GDriveAuth.mock;
     final mockSignupApi = MockSignupApi(app: mockApp);
 
     final cidBytes = List.generate(32, (idx) => idx);
@@ -548,16 +548,6 @@ class MockAppHandleErroring extends MockAppHandle {
       () => throw const FfiError("Request timed out").toFfi(),
     );
   }
-}
-
-class MockGDriveAuth implements GDriveAuth {
-  const MockGDriveAuth();
-
-  @override
-  Future<Result<GDriveAuthInfo?, Exception>> tryAuth() => Future.delayed(
-        const Duration(milliseconds: 1200),
-        () => const Ok(GDriveAuthInfo(authCode: "fake")),
-      );
 }
 
 class Component extends StatelessWidget {

@@ -35,6 +35,7 @@ final class GDriveAuthInfo {
 
 abstract interface class GDriveAuth {
   static const GDriveAuth prod = ProdGDriveAuth();
+  static const GDriveAuth mock = MockGDriveAuth();
 
   /// Open a browser window to request user consent for GDrive file permissions.
   ///
@@ -87,4 +88,16 @@ class ProdGDriveAuth implements GDriveAuth {
 
     return Ok(GDriveAuthInfo(authCode: serverAuthCode));
   }
+}
+
+/// A basic mock [GDriveAuth] impl. It just returns a dummy auth token after a
+/// delay, without doing any oauth.
+class MockGDriveAuth implements GDriveAuth {
+  const MockGDriveAuth();
+
+  @override
+  Future<Result<GDriveAuthInfo?, Exception>> tryAuth() => Future.delayed(
+        const Duration(milliseconds: 1200),
+        () => const Ok(GDriveAuthInfo(authCode: "fake")),
+      );
 }
