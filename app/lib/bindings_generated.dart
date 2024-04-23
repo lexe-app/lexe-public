@@ -173,6 +173,40 @@ class AppRsImpl implements AppRs {
         argNames: ["config"],
       );
 
+  Future<void> debugUnconditionalPanic({dynamic hint}) {
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner.wire_debug_unconditional_panic(port_),
+      parseSuccessData: _wire2api_unit,
+      parseErrorData: null,
+      constMeta: kDebugUnconditionalPanicConstMeta,
+      argValues: [],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kDebugUnconditionalPanicConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "debug_unconditional_panic",
+        argNames: [],
+      );
+
+  Future<void> debugUnconditionalError({dynamic hint}) {
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner.wire_debug_unconditional_error(port_),
+      parseSuccessData: _wire2api_unit,
+      parseErrorData: _wire2api_FrbAnyhowException,
+      constMeta: kDebugUnconditionalErrorConstMeta,
+      argValues: [],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kDebugUnconditionalErrorConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "debug_unconditional_error",
+        argNames: [],
+      );
+
   Future<AppHandle?> loadStaticMethodAppHandle(
       {required Config config, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_config(config);
@@ -1325,6 +1359,34 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _wire_debug_delete_latest_provisioned =
       _wire_debug_delete_latest_provisionedPtr
           .asFunction<WireSyncReturn Function(ffi.Pointer<wire_Config>)>();
+
+  void wire_debug_unconditional_panic(
+    int port_,
+  ) {
+    return _wire_debug_unconditional_panic(
+      port_,
+    );
+  }
+
+  late final _wire_debug_unconditional_panicPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+          'wire_debug_unconditional_panic');
+  late final _wire_debug_unconditional_panic =
+      _wire_debug_unconditional_panicPtr.asFunction<void Function(int)>();
+
+  void wire_debug_unconditional_error(
+    int port_,
+  ) {
+    return _wire_debug_unconditional_error(
+      port_,
+    );
+  }
+
+  late final _wire_debug_unconditional_errorPtr =
+      _lookup<ffi.NativeFunction<ffi.Void Function(ffi.Int64)>>(
+          'wire_debug_unconditional_error');
+  late final _wire_debug_unconditional_error =
+      _wire_debug_unconditional_errorPtr.asFunction<void Function(int)>();
 
   void wire_load__static_method__AppHandle(
     int port_,

@@ -148,6 +148,19 @@ fn wire_debug_delete_latest_provisioned_impl(
         },
     )
 }
+fn wire_debug_unconditional_panic_impl(port_: MessagePort) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_,_,_,(),_>(WrapInfo{ debug_name: "debug_unconditional_panic", port: Some(port_), mode: FfiCallMode::Normal }, move || {  move |task_callback| Result::<_,()>::Ok(debug_unconditional_panic()) })
+}
+fn wire_debug_unconditional_error_impl(port_: MessagePort) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, (), _>(
+        WrapInfo {
+            debug_name: "debug_unconditional_error",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || move |task_callback| debug_unconditional_error(),
+    )
+}
 fn wire_load__static_method__AppHandle_impl(
     port_: MessagePort,
     config: impl Wire2Api<Config> + UnwindSafe,
@@ -922,6 +935,16 @@ mod io {
         config: *mut wire_Config,
     ) -> support::WireSyncReturn {
         wire_debug_delete_latest_provisioned_impl(config)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_debug_unconditional_panic(port_: i64) {
+        wire_debug_unconditional_panic_impl(port_)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_debug_unconditional_error(port_: i64) {
+        wire_debug_unconditional_error_impl(port_)
     }
 
     #[no_mangle]

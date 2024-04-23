@@ -95,6 +95,10 @@ WireSyncReturn wire_debug_delete_secret_store(struct wire_Config *config);
 
 WireSyncReturn wire_debug_delete_latest_provisioned(struct wire_Config *config);
 
+void wire_debug_unconditional_panic(int64_t port_);
+
+void wire_debug_unconditional_error(int64_t port_);
+
 void wire_load__static_method__AppHandle(int64_t port_, struct wire_Config *config);
 
 void wire_restore__static_method__AppHandle(int64_t port_,
@@ -184,6 +188,8 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_init_rust_log_stream);
     dummy_var ^= ((int64_t) (void*) wire_debug_delete_secret_store);
     dummy_var ^= ((int64_t) (void*) wire_debug_delete_latest_provisioned);
+    dummy_var ^= ((int64_t) (void*) wire_debug_unconditional_panic);
+    dummy_var ^= ((int64_t) (void*) wire_debug_unconditional_error);
     dummy_var ^= ((int64_t) (void*) wire_load__static_method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_restore__static_method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_signup__static_method__AppHandle);

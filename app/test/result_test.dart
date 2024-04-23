@@ -1,8 +1,34 @@
+// Ignore this lint as flutter_rust_bridge ffi errors don't impl Error/Exception...
+// ignore_for_file: only_throw_errors
+
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
+    show PanicException;
 import 'package:flutter_test/flutter_test.dart' show expect, test;
 
+import 'package:lexeapp/bindings.dart' show api;
 import 'package:lexeapp/result.dart';
 
 int conjure3() => 3;
+
+int fakeApiSync(String param) {
+  throw FfiError("Error $param").toFfi();
+}
+
+int fakeApiSync2() {
+  throw const FfiError("Error").toFfi();
+}
+
+Future<int> fakeApiAsync(String param) async {
+  throw FfiError("Error $param").toFfi();
+}
+
+Future<int> fakeApiAsync2() async {
+  throw const FfiError("Error").toFfi();
+}
+
+void expectFirstLineEq(final String? actual, final String? expected) {
+  expect(actual?.split('\n').firstOrNull, expected);
+}
 
 void main() {
   test("result : operator == and hashCode", () {
@@ -24,5 +50,37 @@ void main() {
     assert(ok1.hashCode == ok2.hashCode);
     assert(ok1.hashCode != ok3.hashCode);
     assert(ok1.hashCode == ok4.hashCode);
+  });
+
+  test("result : tryFfi", () {
+    final res1 = Result.tryFfi(() => fakeApiSync("foo"));
+    expectFirstLineEq(res1.err?.message, "Error foo");
+
+    final res2 = Result.tryFfi(fakeApiSync2);
+    expectFirstLineEq(res2.err?.message, "Error");
+  });
+
+  test("result : tryFfiAsync", () async {
+    final res1 = await Result.tryFfiAsync(() => fakeApiAsync("bar"));
+    expectFirstLineEq(res1.err?.message, "Error bar");
+
+    final res2 = await Result.tryFfiAsync(fakeApiAsync2);
+    expectFirstLineEq(res2.err?.message, "Error");
+
+    final res3 = await Result.tryFfiAsync(api.debugUnconditionalError);
+    expectFirstLineEq(res3.err?.message, "Error inside app-rs");
+  });
+
+  // The fake panic messages may include a stacktrace after the error message
+  // when `RUST_BACKTRACE=1`, so we'll only compare the first line.
+
+  test("result : tryFfiAsync (panic)",
+      skip: "panics always dump to stdout, cluttering test output", () async {
+    try {
+      final res1 = await Result.tryFfiAsync(api.debugUnconditionalPanic);
+      throw Exception("Panics should NOT be caught, res: $res1");
+    } on PanicException catch (err) {
+      expectFirstLineEq(err.error, "Panic inside app-rs");
+    }
   });
 }
