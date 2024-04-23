@@ -1,7 +1,7 @@
 //! Manage self-signed x509 certificate containing enclave remote attestation
 //! endorsements.
 
-use std::{borrow::Cow, fmt};
+use std::{borrow::Cow, fmt, time::Duration};
 
 use anyhow::Context;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
@@ -45,6 +45,7 @@ impl AttestationCert {
     pub fn generate(
         rng: &mut impl Crng,
         dns_name: String,
+        lifetime: Duration,
     ) -> anyhow::Result<Self> {
         // Generate a fresh key pair, which we'll use for the attestation cert.
         let key_pair = ed25519::KeyPair::from_rng(rng);
@@ -65,7 +66,7 @@ impl AttestationCert {
 
         let now = time::OffsetDateTime::now_utc();
         let not_before = now - time::Duration::HOUR;
-        let not_after = now + time::Duration::HOUR;
+        let not_after = now + lifetime;
         let subject_alt_names = vec![rcgen::SanType::DnsName(dns_name)];
 
         let cert = tls::build_rcgen_cert(
@@ -195,7 +196,10 @@ mod test {
     fn test_gen_cert() {
         let mut rng = WeakRng::from_u64(20240217);
         let dns_name = "hello.world".to_owned();
-        let cert = AttestationCert::generate(&mut rng, dns_name).unwrap();
+        let lifetime = Duration::from_secs(3600);
+
+        let cert =
+            AttestationCert::generate(&mut rng, dns_name, lifetime).unwrap();
         let _cert_bytes = cert.serialize_der_self_signed().unwrap();
         // println!("cert:\n{}", pretty_hex(&cert_bytes));
 

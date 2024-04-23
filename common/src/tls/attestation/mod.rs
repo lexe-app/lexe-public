@@ -1,6 +1,6 @@
 //! (m)TLS based on SGX remote attestation.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use anyhow::Context;
 use rustls::{
@@ -37,8 +37,12 @@ pub fn app_node_provision_server_config(
     // Bind the remote attestation cert to the node provision dns.
     let mr_short = measurement.short();
     let dns_name = constants::node_provision_dns(&mr_short).to_owned();
+    // Use long lifetime. Until we can refresh TLS cert during runtime, this has
+    // to be longer than the time between deploys (when the provision service
+    // would restart).
+    let lifetime = Duration::from_secs(7_884_000); // 3 months
 
-    let cert = cert::AttestationCert::generate(rng, dns_name.clone())
+    let cert = cert::AttestationCert::generate(rng, dns_name.clone(), lifetime)
         .context("Could not generate remote attestation cert")?;
     let cert_der = cert
         .serialize_der_self_signed()
