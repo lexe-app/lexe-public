@@ -85,21 +85,19 @@ pub const NODE_PROVISION_DNS_SUFFIX: &str = "provision.lexe.app";
 // - Tip: You can see the full human-readable cert info with macOS Quick Look.
 
 /// The root CA cert for Google Trust Services Root R1, used by googleapis.com,
-/// blockstream.info, and kuutamo.cloud.
+/// blockstream.info, kuutamo.cloud, and coincap.io.
+// Serial Number=02:03:E5:93:6F:31:B0:13:49:88:6B:A2:17
 // Not Valid Before=Wednesday, June 22, 2016 at 8:00:00 AM China Standard Time
 // Not Valid After=Sunday, June 22, 2036 at 8:00:00 AM China Standard Time
 pub const GTS_ROOT_R1_CA_CERT_DER: &[u8] =
     include_bytes!("../data/google-trust-services-root-r1-ca-cert.der");
+
 /// The root CA cert for Amazon's Root CA 1, used by `ltbl.io`.
+// Serial Number=82:10:cf:b0:d2:40:e3:59:44:63:e0:bb:63:82:8b:00
 // Not Valid Before=Thursday, June 4, 2015 at 7:04:38 PM China Standard Time
 // Not Valid After=Monday, June 4, 2035 at 7:04:38 PM China Standard Time
 pub const LETSENCRYPT_ROOT_CA_CERT_DER: &[u8] =
     include_bytes!("../data/letsencrypt-isrg-root-x1-cert.der");
-/// The root CA cert for Baltimore CyberTrust Root, used by `coincap.io`.
-// Not Valid Before=Saturday, May 13, 2000 at 2:46:00 AM China Standard Time
-// Not Valid After=Tuesday, May 13, 2025 at 7:59:00 AM China Standard Time
-pub const BALTIMORE_CYBERTRUST_ROOT_CA_CERT_DER: &[u8] =
-    include_bytes!("../data/baltimore-cybertrust-root-ca-cert.der");
 
 #[cfg(test)]
 mod test {
@@ -111,6 +109,5 @@ mod test {
     fn test_parse_ca_certs() {
         Certificate::from_der(GTS_ROOT_R1_CA_CERT_DER).unwrap();
         Certificate::from_der(LETSENCRYPT_ROOT_CA_CERT_DER).unwrap();
-        Certificate::from_der(BALTIMORE_CYBERTRUST_ROOT_CA_CERT_DER).unwrap();
     }
 }
