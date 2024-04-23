@@ -634,7 +634,7 @@ fn rustls_err(s: impl fmt::Display) -> rustls::Error {
 
 #[cfg(test)]
 mod test {
-    use std::include_str;
+    use std::{include_str, time::Duration};
 
     use super::*;
 
@@ -720,10 +720,12 @@ mod test {
         use crate::{rng::WeakRng, tls::attestation::cert::AttestationCert};
 
         let mut rng = WeakRng::new();
-
         let dns_name = "run.lexe.app".to_owned();
+        let lifetime = Duration::from_secs(60);
+
         let cert =
-            AttestationCert::generate(&mut rng, dns_name.clone()).unwrap();
+            AttestationCert::generate(&mut rng, dns_name.clone(), lifetime)
+                .unwrap();
         let cert_der = cert.serialize_der_self_signed().unwrap();
 
         let verifier = AttestationVerifier {
@@ -754,9 +756,10 @@ mod test {
 
         let mut rng = WeakRng::new();
         let dns_name = "localhost".to_owned();
+        let lifetime = Duration::from_secs(60);
 
         let attest_cert =
-            AttestationCert::generate(&mut rng, dns_name).unwrap();
+            AttestationCert::generate(&mut rng, dns_name, lifetime).unwrap();
 
         println!("measurement: '{}'", enclave::measurement());
 
