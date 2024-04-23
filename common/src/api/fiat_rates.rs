@@ -58,6 +58,18 @@ pub struct FiatRates {
     pub rates: BTreeMap<FiatCode, FiatBtcPrice>,
 }
 
+impl FiatRates {
+    pub fn dummy() -> Self {
+        Self {
+            timestamp_ms: TimestampMs::now(),
+            rates: BTreeMap::from_iter([
+                (FiatCode("USD".to_owned()), FiatBtcPrice(67086.56654977065)),
+                (FiatCode("EUR".to_owned()), FiatBtcPrice(62965.97545915064)),
+            ]),
+        }
+    }
+}
+
 // --- impl FiatCode --- //
 
 impl Borrow<str> for FiatCode {
