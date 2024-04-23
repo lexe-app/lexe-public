@@ -35,6 +35,7 @@ import 'package:lexeapp/bindings_generated_api.dart'
         PaymentStatus,
         SendOnchainRequest,
         ShortPayment,
+        ShortPaymentAndIndex,
         U8Array32,
         UpdatePaymentNote;
 import 'package:lexeapp/cfg.dart' as cfg;
@@ -476,17 +477,18 @@ class MockAppHandle extends AppHandle {
       this.payments[vecIdx];
 
   @override
-  (int, ShortPayment)? getShortPaymentByScrollIdx(
+  ShortPaymentAndIndex? getShortPaymentByScrollIdx(
       {required int scrollIdx, dynamic hint}) {
     if (scrollIdx >= this.payments.length) {
       return null;
     }
     final vecIdx = this.payments.length - scrollIdx - 1;
-    return (vecIdx, this.payments[vecIdx].intoShort());
+    final payment = this.payments[vecIdx];
+    return ShortPaymentAndIndex(vecIdx: vecIdx, payment: payment.intoShort());
   }
 
   @override
-  (int, ShortPayment)? getPendingShortPaymentByScrollIdx(
+  ShortPaymentAndIndex? getPendingShortPaymentByScrollIdx(
       {required int scrollIdx, dynamic hint}) {
     if (scrollIdx >= this.getNumPendingPayments()) {
       return null;
@@ -497,11 +499,11 @@ class MockAppHandle extends AppHandle {
         .where((payment) => payment.status == PaymentStatus.Pending)
         .elementAt(scrollIdx);
     final vecIdx = this.payments.indexOf(payment);
-    return (vecIdx, payment.intoShort());
+    return ShortPaymentAndIndex(vecIdx: vecIdx, payment: payment.intoShort());
   }
 
   @override
-  (int, ShortPayment)? getFinalizedShortPaymentByScrollIdx(
+  ShortPaymentAndIndex? getFinalizedShortPaymentByScrollIdx(
       {required int scrollIdx, dynamic hint}) {
     if (scrollIdx >= this.getNumFinalizedPayments()) {
       return null;
@@ -512,7 +514,7 @@ class MockAppHandle extends AppHandle {
         .where((payment) => payment.status != PaymentStatus.Pending)
         .elementAt(scrollIdx);
     final vecIdx = this.payments.indexOf(payment);
-    return (vecIdx, payment.intoShort());
+    return ShortPaymentAndIndex(vecIdx: vecIdx, payment: payment.intoShort());
   }
 
   @override

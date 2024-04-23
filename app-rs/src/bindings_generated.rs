@@ -872,6 +872,22 @@ impl rust2dart::IntoIntoDart<ShortPayment> for ShortPayment {
     }
 }
 
+impl support::IntoDart for ShortPaymentAndIndex {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.vec_idx.into_into_dart().into_dart(),
+            self.payment.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for ShortPaymentAndIndex {}
+impl rust2dart::IntoIntoDart<ShortPaymentAndIndex> for ShortPaymentAndIndex {
+    fn into_into_dart(self) -> Self {
+        self
+    }
+}
+
 // Section: executor
 
 /* nothing since executor detected */

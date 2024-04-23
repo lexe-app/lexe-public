@@ -167,19 +167,19 @@ abstract class AppRs {
   FlutterRustBridgeTaskConstMeta
       get kGetPaymentByVecIdxMethodAppHandleConstMeta;
 
-  (int, ShortPayment)? getShortPaymentByScrollIdxMethodAppHandle(
+  ShortPaymentAndIndex? getShortPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta
       get kGetShortPaymentByScrollIdxMethodAppHandleConstMeta;
 
-  (int, ShortPayment)? getPendingShortPaymentByScrollIdxMethodAppHandle(
+  ShortPaymentAndIndex? getPendingShortPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta
       get kGetPendingShortPaymentByScrollIdxMethodAppHandleConstMeta;
 
-  (int, ShortPayment)? getFinalizedShortPaymentByScrollIdxMethodAppHandle(
+  ShortPaymentAndIndex? getFinalizedShortPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta
@@ -313,21 +313,21 @@ class AppHandle {
         vecIdx: vecIdx,
       );
 
-  (int, ShortPayment)? getShortPaymentByScrollIdx(
+  ShortPaymentAndIndex? getShortPaymentByScrollIdx(
           {required int scrollIdx, dynamic hint}) =>
       bridge.getShortPaymentByScrollIdxMethodAppHandle(
         that: this,
         scrollIdx: scrollIdx,
       );
 
-  (int, ShortPayment)? getPendingShortPaymentByScrollIdx(
+  ShortPaymentAndIndex? getPendingShortPaymentByScrollIdx(
           {required int scrollIdx, dynamic hint}) =>
       bridge.getPendingShortPaymentByScrollIdxMethodAppHandle(
         that: this,
         scrollIdx: scrollIdx,
       );
 
-  (int, ShortPayment)? getFinalizedShortPaymentByScrollIdx(
+  ShortPaymentAndIndex? getFinalizedShortPaymentByScrollIdx(
           {required int scrollIdx, dynamic hint}) =>
       bridge.getFinalizedShortPaymentByScrollIdxMethodAppHandle(
         that: this,
@@ -551,6 +551,18 @@ class ShortPayment with _$ShortPayment {
     String? note,
     required int createdAt,
   }) = _ShortPayment;
+}
+
+/// Just a `(usize, ShortPayment)`, but packaged in a struct until
+/// `flutter_rust_bridge` stops breaking on tuples.
+class ShortPaymentAndIndex {
+  final int vecIdx;
+  final ShortPayment payment;
+
+  const ShortPaymentAndIndex({
+    required this.vecIdx,
+    required this.payment,
+  });
 }
 
 class U8Array32 extends NonGrowableListView<int> {
