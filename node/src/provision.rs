@@ -68,7 +68,7 @@ pub async fn provision_node<R: Crng>(
     runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
     backend_api: Arc<dyn BackendApiClient + Send + Sync>,
 ) -> anyhow::Result<()> {
-    debug!(?args.port, "provisioning");
+    debug!("provisioning");
 
     // Set up the request context and warp routes.
     let args = Arc::new(args);
