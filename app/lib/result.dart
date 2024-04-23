@@ -2,7 +2,8 @@
 
 // ignore_for_file: nullable_type_in_catch_clause, only_throw_errors
 
-import 'package:flutter_rust_bridge/flutter_rust_bridge.dart' show FfiException;
+import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
+    show FrbAnyhowException;
 import 'package:meta/meta.dart' show immutable;
 
 /// [Result]s from the Rust FFI layer.
@@ -52,13 +53,15 @@ sealed class Result<T, E> {
 
   /// Convenience for `Result.try_` but specialized for calling the Rust ffi.
   static FfiResult<T> tryFfi<T>(final T Function() fn) =>
-      Result<T, FfiException>.try_(fn).mapErr(FfiError.fromFfi);
+      Result<T, FrbAnyhowException>.try_(fn).mapErr(FfiError.fromFfi);
 
   /// Convenience for `Result.tryAsync` but specialized for calling the Rust
   /// ffi.
   static Future<FfiResult<T>> tryFfiAsync<T>(
-          final Future<T> Function() fn) async =>
-      (await Result.tryAsync<T, FfiException>(fn)).mapErr(FfiError.fromFfi);
+      final Future<T> Function() fn) async {
+    final res = await Result.tryAsync<T, FrbAnyhowException>(fn);
+    return res.mapErr(FfiError.fromFfi);
+  }
 }
 
 @immutable
@@ -187,20 +190,9 @@ final class Err<T, E> extends Result<T, E> {
 final class FfiError implements Exception {
   const FfiError(this.message);
 
-  factory FfiError.fromFfi(final FfiException err) {
-    switch (err.code) {
-      // These are from Rust ffi fn's that return `anyhow::Result`.
-      case "RESULT_ERROR":
-        return FfiError(err.message);
-      // DON'T catch panics.
-      case "PANIC_ERROR":
-        throw err;
-      default:
-        throw err;
-    }
-  }
+  FfiError.fromFfi(final FrbAnyhowException err) : this(err.anyhow);
 
-  FfiException toFfi() => FfiException("RESULT_ERROR", this.message);
+  FrbAnyhowException toFfi() => FrbAnyhowException(this.message);
 
   final String message;
 

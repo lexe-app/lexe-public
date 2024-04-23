@@ -83,6 +83,16 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kDebugDeleteLatestProvisionedConstMeta;
 
+  /// Unconditionally panic (for testing).
+  Future<void> debugUnconditionalPanic({dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kDebugUnconditionalPanicConstMeta;
+
+  /// Unconditionally return Err (for testing).
+  Future<void> debugUnconditionalError({dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kDebugUnconditionalErrorConstMeta;
+
   Future<AppHandle?> loadStaticMethodAppHandle(
       {required Config config, dynamic hint});
 

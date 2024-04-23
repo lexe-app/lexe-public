@@ -718,6 +718,16 @@ pub fn debug_delete_latest_provisioned(
     Ok(SyncReturn(()))
 }
 
+/// Unconditionally panic (for testing).
+pub fn debug_unconditional_panic() {
+    panic!("Panic inside app-rs");
+}
+
+/// Unconditionally return Err (for testing).
+pub fn debug_unconditional_error() -> anyhow::Result<()> {
+    Err(anyhow::format_err!("Error inside app-rs"))
+}
+
 fn block_on<T, Fut>(future: Fut) -> T
 where
     Fut: Future<Output = T>,
