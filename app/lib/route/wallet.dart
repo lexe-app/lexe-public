@@ -16,7 +16,8 @@ import 'package:lexeapp/bindings_generated_api.dart'
         PaymentDirection,
         PaymentKind,
         PaymentStatus,
-        ShortPayment;
+        ShortPayment,
+        ShortPaymentAndIndex;
 import 'package:lexeapp/components.dart'
     show
         FilledPlaceholder,
@@ -754,7 +755,7 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
 
           final scrollIdx = paymentPlusHeaderIdx - numHeaders;
 
-          final (int, ShortPayment)? result = switch (this.widget.filter) {
+          final ShortPaymentAndIndex? result = switch (this.widget.filter) {
             PaymentsListFilter.all =>
               this.widget.app.getShortPaymentByScrollIdx(scrollIdx: scrollIdx),
             PaymentsListFilter.pending => this
@@ -768,12 +769,11 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
           };
           if (result == null) return null;
 
-          final (vecIdx, payment) = result;
           return PaymentsListEntry(
-            vecIdx: vecIdx,
-            payment: payment,
+            vecIdx: result.vecIdx,
+            payment: result.payment,
             paymentDateUpdates: this.paymentDateUpdates,
-            onTap: () => this.widget.onPaymentTap(vecIdx),
+            onTap: () => this.widget.onPaymentTap(result.vecIdx),
           );
         },
         // findChildIndexCallback: (Key childKey) => this.app.getPaymentScrollIdxByPaymentId(childKey),

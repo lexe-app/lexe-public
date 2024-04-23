@@ -466,14 +466,14 @@ class AppRsImpl implements AppRs {
             argNames: ["that", "vecIdx"],
           );
 
-  (int, ShortPayment)? getShortPaymentByScrollIdxMethodAppHandle(
+  ShortPaymentAndIndex? getShortPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     var arg1 = api2wire_usize(scrollIdx);
     return _platform.executeSync(FlutterRustBridgeSyncTask(
       callFfi: () => _platform.inner
           .wire_get_short_payment_by_scroll_idx__method__AppHandle(arg0, arg1),
-      parseSuccessData: _wire2api_opt_box_autoadd___record__usize_short_payment,
+      parseSuccessData: _wire2api_opt_box_autoadd_short_payment_and_index,
       parseErrorData: null,
       constMeta: kGetShortPaymentByScrollIdxMethodAppHandleConstMeta,
       argValues: [that, scrollIdx],
@@ -488,7 +488,7 @@ class AppRsImpl implements AppRs {
             argNames: ["that", "scrollIdx"],
           );
 
-  (int, ShortPayment)? getPendingShortPaymentByScrollIdxMethodAppHandle(
+  ShortPaymentAndIndex? getPendingShortPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     var arg1 = api2wire_usize(scrollIdx);
@@ -496,7 +496,7 @@ class AppRsImpl implements AppRs {
       callFfi: () => _platform.inner
           .wire_get_pending_short_payment_by_scroll_idx__method__AppHandle(
               arg0, arg1),
-      parseSuccessData: _wire2api_opt_box_autoadd___record__usize_short_payment,
+      parseSuccessData: _wire2api_opt_box_autoadd_short_payment_and_index,
       parseErrorData: null,
       constMeta: kGetPendingShortPaymentByScrollIdxMethodAppHandleConstMeta,
       argValues: [that, scrollIdx],
@@ -512,7 +512,7 @@ class AppRsImpl implements AppRs {
             argNames: ["that", "scrollIdx"],
           );
 
-  (int, ShortPayment)? getFinalizedShortPaymentByScrollIdxMethodAppHandle(
+  ShortPaymentAndIndex? getFinalizedShortPaymentByScrollIdxMethodAppHandle(
       {required AppHandle that, required int scrollIdx, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     var arg1 = api2wire_usize(scrollIdx);
@@ -520,7 +520,7 @@ class AppRsImpl implements AppRs {
       callFfi: () => _platform.inner
           .wire_get_finalized_short_payment_by_scroll_idx__method__AppHandle(
               arg0, arg1),
-      parseSuccessData: _wire2api_opt_box_autoadd___record__usize_short_payment,
+      parseSuccessData: _wire2api_opt_box_autoadd_short_payment_and_index,
       parseErrorData: null,
       constMeta: kGetFinalizedShortPaymentByScrollIdxMethodAppHandleConstMeta,
       argValues: [that, scrollIdx],
@@ -640,17 +640,6 @@ class AppRsImpl implements AppRs {
     return raw as String;
   }
 
-  (int, ShortPayment) _wire2api___record__usize_short_payment(dynamic raw) {
-    final arr = raw as List<dynamic>;
-    if (arr.length != 2) {
-      throw Exception('Expected 2 elements, got ${arr.length}');
-    }
-    return (
-      _wire2api_usize(arr[0]),
-      _wire2api_short_payment(arr[1]),
-    );
-  }
-
   AppHandle _wire2api_app_handle(dynamic raw) {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
@@ -663,11 +652,6 @@ class AppRsImpl implements AppRs {
 
   bool _wire2api_bool(dynamic raw) {
     return raw as bool;
-  }
-
-  (int, ShortPayment) _wire2api_box_autoadd___record__usize_short_payment(
-      dynamic raw) {
-    return raw as (int, ShortPayment);
   }
 
   AppHandle _wire2api_box_autoadd_app_handle(dynamic raw) {
@@ -688,6 +672,11 @@ class AppRsImpl implements AppRs {
 
   Payment _wire2api_box_autoadd_payment(dynamic raw) {
     return _wire2api_payment(raw);
+  }
+
+  ShortPaymentAndIndex _wire2api_box_autoadd_short_payment_and_index(
+      dynamic raw) {
+    return _wire2api_short_payment_and_index(raw);
   }
 
   int _wire2api_box_autoadd_u64(dynamic raw) {
@@ -807,13 +796,6 @@ class AppRsImpl implements AppRs {
     return raw == null ? null : _wire2api_String(raw);
   }
 
-  (int, ShortPayment)? _wire2api_opt_box_autoadd___record__usize_short_payment(
-      dynamic raw) {
-    return raw == null
-        ? null
-        : _wire2api_box_autoadd___record__usize_short_payment(raw);
-  }
-
   AppHandle? _wire2api_opt_box_autoadd_app_handle(dynamic raw) {
     return raw == null ? null : _wire2api_box_autoadd_app_handle(raw);
   }
@@ -832,6 +814,13 @@ class AppRsImpl implements AppRs {
 
   Payment? _wire2api_opt_box_autoadd_payment(dynamic raw) {
     return raw == null ? null : _wire2api_box_autoadd_payment(raw);
+  }
+
+  ShortPaymentAndIndex? _wire2api_opt_box_autoadd_short_payment_and_index(
+      dynamic raw) {
+    return raw == null
+        ? null
+        : _wire2api_box_autoadd_short_payment_and_index(raw);
   }
 
   int? _wire2api_opt_box_autoadd_u64(dynamic raw) {
@@ -882,6 +871,16 @@ class AppRsImpl implements AppRs {
       status: _wire2api_payment_status(arr[4]),
       note: _wire2api_opt_String(arr[5]),
       createdAt: _wire2api_i64(arr[6]),
+    );
+  }
+
+  ShortPaymentAndIndex _wire2api_short_payment_and_index(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return ShortPaymentAndIndex(
+      vecIdx: _wire2api_usize(arr[0]),
+      payment: _wire2api_short_payment(arr[1]),
     );
   }
 

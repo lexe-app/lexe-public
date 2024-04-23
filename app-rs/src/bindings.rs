@@ -380,6 +380,14 @@ impl From<&BasicPayment> for ShortPayment {
     }
 }
 
+/// Just a `(usize, ShortPayment)`, but packaged in a struct until
+/// `flutter_rust_bridge` stops breaking on tuples.
+// TODO(phlip9): remove this after updating frb
+pub struct ShortPaymentAndIndex {
+    pub vec_idx: usize,
+    pub payment: ShortPayment,
+}
+
 /// The complete payment info, used in the payment detail page. Mirrors the
 /// [`BasicPayment`] type.
 #[frb(dart_metadata=("freezed"))]
@@ -861,36 +869,45 @@ impl AppHandle {
     pub fn get_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> SyncReturn<Option<(usize, ShortPayment)>> {
+    ) -> SyncReturn<Option<ShortPaymentAndIndex>> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock
             .state()
             .get_payment_by_scroll_idx(scroll_idx)
-            .map(|(vec_idx, payment)| (vec_idx, ShortPayment::from(payment)))
+            .map(|(vec_idx, payment)| ShortPaymentAndIndex {
+                vec_idx,
+                payment: ShortPayment::from(payment),
+            })
             .apply(SyncReturn)
     }
 
     pub fn get_pending_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> SyncReturn<Option<(usize, ShortPayment)>> {
+    ) -> SyncReturn<Option<ShortPaymentAndIndex>> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock
             .state()
             .get_pending_payment_by_scroll_idx(scroll_idx)
-            .map(|(vec_idx, payment)| (vec_idx, ShortPayment::from(payment)))
+            .map(|(vec_idx, payment)| ShortPaymentAndIndex {
+                vec_idx,
+                payment: ShortPayment::from(payment),
+            })
             .apply(SyncReturn)
     }
 
     pub fn get_finalized_short_payment_by_scroll_idx(
         &self,
         scroll_idx: usize,
-    ) -> SyncReturn<Option<(usize, ShortPayment)>> {
+    ) -> SyncReturn<Option<ShortPaymentAndIndex>> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock
             .state()
             .get_finalized_payment_by_scroll_idx(scroll_idx)
-            .map(|(vec_idx, payment)| (vec_idx, ShortPayment::from(payment)))
+            .map(|(vec_idx, payment)| ShortPaymentAndIndex {
+                vec_idx,
+                payment: ShortPayment::from(payment),
+            })
             .apply(SyncReturn)
     }
 
