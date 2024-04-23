@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(test)]
 use crate::test_utils::arbitrary;
 use crate::{
-    api::{ports::Port, UserPk},
+    api::UserPk,
     cli::{LspInfo, Network, OAuthConfig, ToCommand},
 };
 
@@ -120,9 +120,6 @@ pub struct ProvisionArgs {
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_simple_string()"))]
     pub runner_url: String,
 
-    /// the port on which to accept a provision request from the client.
-    pub port: Option<Port>,
-
     /// configuration info for Google OAuth2.
     /// Required only if running in staging / prod.
     pub oauth: Option<OAuthConfig>,
@@ -133,7 +130,6 @@ impl Default for ProvisionArgs {
     fn default() -> Self {
         use crate::test_utils::{DUMMY_BACKEND_URL, DUMMY_RUNNER_URL};
         Self {
-            port: None,
             backend_url: DUMMY_BACKEND_URL.to_owned(),
             runner_url: DUMMY_RUNNER_URL.to_owned(),
             oauth: None,
