@@ -47,6 +47,8 @@ tracing-subscriber = { workspace = true, features = [
 # --- OTHER --- #
 
 keyring = { version = "2.0", default-features = false, features = [
+    "platform-macos",
+    "platform-ios",
     "linux-secret-service-rt-tokio-crypto-rust",
 ] }
 roaring = "0.10"
