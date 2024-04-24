@@ -15,7 +15,7 @@
     package="app.lexe.lexeapp">
 
     <application
-        android:label="lexeapp"
+        android:label="Lexe"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher" >
 
