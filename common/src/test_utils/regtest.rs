@@ -48,8 +48,8 @@ impl Regtest {
         bitcoind_conf.staticdir = data_dir.as_ref().map(|d| d.join("bitcoind"));
 
         // Init bitcoind
-        let bitcoind =
-            BitcoinD::new(bitcoind_exe_path).expect("Failed to init bitcoind");
+        let bitcoind = BitcoinD::with_conf(bitcoind_exe_path, &bitcoind_conf)
+            .expect("Failed to init bitcoind");
 
         // Construct electrsd conf
         let electrsd_exe_path = std::env::var("ELECTRS_EXE")
