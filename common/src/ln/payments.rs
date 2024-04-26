@@ -32,7 +32,7 @@ use crate::{
 /// It is essentially the `Payment` type flattened out such that each field is
 /// the result of the corresponding `Payment` getter.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[cfg_attr(all(any(test, feature = "test-utils")), derive(Arbitrary))]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct BasicPayment {
     pub index: PaymentIndex,
 
@@ -251,6 +251,35 @@ impl BasicPayment {
     #[inline]
     pub fn is_finalized(&self) -> bool {
         !self.is_pending()
+    }
+
+    pub fn is_pending_not_junk(&self) -> bool {
+        self.is_pending() && !self.is_junk()
+    }
+
+    pub fn is_finalized_not_junk(&self) -> bool {
+        self.is_finalized() && !self.is_junk()
+    }
+
+    /// "Junk" payments are unimportant, usually not-user-initiated payments
+    /// that we don't display by default, unless a user explicitly opts-in to a
+    /// a "show everything" filter for debugging.
+    ///
+    /// For example, the current receive UI generates a "junk" BOLT11 invoice on
+    /// every page open, but we don't want this invoice to show up in the
+    /// payments list unless it actually gets paid.
+    pub fn is_junk(&self) -> bool {
+        // amount-less, description-less inbound BOLT11 invoices are junk
+        // payments unless paid.
+        let junk_amountless_invoice = self.status != PaymentStatus::Completed
+            && self.kind == PaymentKind::Invoice
+            && self.direction == PaymentDirection::Inbound
+            && (self.amount.is_none() || self.note_or_description().is_none());
+
+        // TODO(phlip9): also don't show pending/failed "superseded" invoices,
+        // where the user edited the amount/description.
+
+        junk_amountless_invoice
     }
 
     /// Returns the user's note or invoice description, prefering note over

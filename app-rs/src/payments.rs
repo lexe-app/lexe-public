@@ -56,13 +56,13 @@ pub struct PaymentDb<F> {
 // asynchronously and off the main UI thread, which is highly latency
 // sensitive.
 //
-// 1. All `BasicPayment`s stored in append-only, ordered `Vec`. (Except we can
-//    modify non-index fields, like status or note).
-// 2. Pending index is a bitmap.
+// All `BasicPayment`s are stored in an append-only, ordered `Vec`. (Although we
+// can modify non-primary-key fields, like status or note).
 //
-// In the future, we could be even more clever and serialize+store the `pending`
-// bitmap on-disk. Then we wouldn't even need to load all the payments on
+// In the future, we could be even more clever and serialize+store the bitmap
+// indexes on-disk. Then we wouldn't even need to load all the payments on
 // startup and could instead lazy load them. Something to do later.
+//
 /// Pure in-memory state of the [`PaymentDb`].
 #[derive(Debug, PartialEq)]
 pub struct PaymentDbState {
@@ -71,10 +71,37 @@ pub struct PaymentDbState {
     // Sorted from oldest to newest (reverse of the UI scroll order).
     payments: Vec<BasicPayment>,
 
-    // An index of currently pending payments.
+    // An index of currently pending payments. Used during sync, when we ask
+    // the node for any updates to these pending payments.
     //
-    // Invariant: `pending.contains(vec_idx) == payments[vec_idx].is_pending()`
+    // Invariant:
+    //
+    // ```
+    // pending.contains(vec_idx) == payments[vec_idx].is_pending()
+    // ```
     pending: RoaringBitmap,
+
+    // An index of currently pending and not junk payments (see
+    // [`BasicPayment::is_junk`]). The wallet page displays these payments
+    // under the "Pending" section by default.
+    //
+    // Invariant:
+    //
+    // ```
+    // pending_not_junk.contains(vec_idx) == payments[vec_idx].is_pending_not_junk()
+    // ```
+    pending_not_junk: RoaringBitmap,
+
+    // An index of currently finalized and not junk payments (see
+    // [`BasicPayment::is_junk`]). The wallet page displays these payments
+    // under the "Completed" section by default.
+    //
+    // Invariant:
+    //
+    // ```
+    // finalized_not_junk.contains(vec_idx) == payments[vec_idx].is_finalized_not_junk()
+    // ```
+    finalized_not_junk: RoaringBitmap,
 }
 
 #[derive(Debug)]
@@ -187,16 +214,44 @@ impl<F: Ffs> PaymentDb<F> {
         let mut vec_idx = self.state.num_payments() as u32;
 
         for new_payment in &new_payments {
+            //
+            // Insert into respective indexes. Since it's a new payment, it
+            // should not already exist in one of the indexes.
+            //
+
             if new_payment.is_pending() {
-                let not_already_in_pending = self.state.pending.insert(vec_idx);
-                let already_in_pending = !not_already_in_pending;
-                if already_in_pending {
+                let not_already_in = self.state.pending.insert(vec_idx);
+                let already_in = !not_already_in;
+                if already_in {
                     return Err(io_err_invalid_data(
                         "new payment is somehow already in our pending index",
                     ));
                 }
             }
 
+            if new_payment.is_pending_not_junk() {
+                let not_already_in =
+                    self.state.pending_not_junk.insert(vec_idx);
+                let already_in = !not_already_in;
+                if already_in {
+                    return Err(io_err_invalid_data(
+                        "new payment is somehow already in our pending_not_junk index",
+                    ));
+                }
+            }
+
+            if new_payment.is_finalized_not_junk() {
+                let not_already_in =
+                    self.state.finalized_not_junk.insert(vec_idx);
+                let already_in = !not_already_in;
+                if already_in {
+                    return Err(io_err_invalid_data(
+                        "new payment is somehow already in our finalized_not_junk index",
+                    ));
+                }
+            }
+
+            // Persist payment to ffs
             Self::write_payment(&self.ffs, new_payment)?;
 
             vec_idx += 1;
@@ -235,7 +290,10 @@ impl<F: Ffs> PaymentDb<F> {
     ) -> io::Result<usize> {
         let updated_payment_index = updated_payment.index();
 
+        //
         // Get the current, pending payment.
+        //
+
         let search_result = self
             .state
             .payments
@@ -256,16 +314,47 @@ impl<F: Ffs> PaymentDb<F> {
         // Payment is changed; persist the updated payment to storage.
         Self::write_payment(&self.ffs, &updated_payment)?;
 
-        // If the payment is now finalized, remove from pending payments index.
-        if !updated_payment.is_pending() {
-            let was_pending = self.state.pending.remove(vec_idx as u32);
+        //
+        // Update indexes
+        //
+
+        let vec_idx = vec_idx as u32;
+
+        // pending -> !pending
+        if existing_payment.is_pending() && !updated_payment.is_pending() {
+            let was_in = self.state.pending.remove(vec_idx);
             assert!(
-                was_pending,
-                "PaymentDb is corrupted! Pending payment not in index!"
+                was_in,
+                "PaymentDb is corrupted! (pending) payment was not in index!"
             );
         }
 
+        // pending_not_junk -> !pending_not_junk
+        if existing_payment.is_pending_not_junk()
+            && !updated_payment.is_pending_not_junk()
+        {
+            let was_in = self.state.pending_not_junk.remove(vec_idx);
+            assert!(
+                was_in,
+                "PaymentDb is corrupted! (pending_not_junk) payment was not in index!"
+            );
+        }
+
+        // !finalized_not_junk -> finalized_not_junk
+        if !existing_payment.is_finalized_not_junk()
+            && updated_payment.is_finalized_not_junk()
+        {
+            let was_not_in = self.state.finalized_not_junk.insert(vec_idx);
+            assert!(
+                was_not_in,
+                "PaymentDb is corrupted! (finalized_not_junk) payment was already in index!"
+            );
+        }
+
+        //
         // Update in-memory state.
+        //
+
         *existing_payment = updated_payment;
 
         Ok(1)
@@ -279,6 +368,8 @@ impl PaymentDbState {
         Self {
             payments: Vec::new(),
             pending: RoaringBitmap::new(),
+            pending_not_junk: RoaringBitmap::new(),
+            finalized_not_junk: RoaringBitmap::new(),
         }
     }
 
@@ -286,9 +377,8 @@ impl PaymentDbState {
     ///
     /// (1.) The payments are currently sorted by `PaymentIndex` from oldest to
     ///      newest.
-    /// (2.) Re-computing the pending payments index should exactly match the
-    ///      its current value.
-    /// (3.) The indexes are what we expect.
+    /// (2.) Re-computing the indexes should exactly match the current one.
+    /// (3.) Sanity check the invariants of indexes.
     fn debug_assert_invariants(&self) {
         if cfg!(not(debug_assertions)) {
             return;
@@ -304,29 +394,72 @@ impl PaymentDbState {
         let rebuilt_pending_index = Self::build_pending_index(&self.payments);
         assert_eq!(rebuilt_pending_index, self.pending);
 
+        let rebuilt_pending_not_junk_index =
+            Self::build_pending_not_junk_index(&self.payments);
+        assert_eq!(rebuilt_pending_not_junk_index, self.pending_not_junk);
+
+        let rebuilt_finalized_not_junk_index =
+            Self::build_finalized_not_junk_index(&self.payments);
+        assert_eq!(rebuilt_finalized_not_junk_index, self.finalized_not_junk);
+
         // (3.)
         for (vec_idx, payment) in self.payments.iter().enumerate() {
+            let vec_idx = vec_idx as u32;
+
+            assert_eq!(payment.is_pending(), self.pending.contains(vec_idx));
             assert_eq!(
-                payment.is_pending(),
-                self.pending.contains(vec_idx as u32)
+                payment.is_pending_not_junk(),
+                self.pending_not_junk.contains(vec_idx),
+            );
+            assert_eq!(
+                payment.is_finalized_not_junk(),
+                self.finalized_not_junk.contains(vec_idx),
+            );
+
+            assert_eq!(
+                payment.is_junk(),
+                !self.pending_not_junk.contains(vec_idx)
+                    && !self.finalized_not_junk.contains(vec_idx),
             );
         }
     }
 
-    fn build_pending_index(payments: &[BasicPayment]) -> RoaringBitmap {
-        let iter_pending_idxs =
-            payments.iter().enumerate().filter_map(|(idx, payment)| {
-                if payment.is_pending() {
-                    Some(idx as u32)
-                } else {
-                    None
-                }
-            });
-        RoaringBitmap::from_sorted_iter(iter_pending_idxs).expect(
+    /// Build a `RoaringBitmap` index that matches the given binary `filter`.
+    /// The filter returns `Some(vec_idx)` for a given [`BasicPayment`] if that
+    /// payment should be in the index.
+    fn build_index<F>(payments: &[BasicPayment], filter: F) -> RoaringBitmap
+    where
+        F: Fn((usize, &BasicPayment)) -> Option<u32>,
+    {
+        let iter = payments.iter().enumerate().filter_map(filter);
+        RoaringBitmap::from_sorted_iter(iter).expect(
             "The indexes must be sorted, since we're iterating from 0..n",
         )
     }
 
+    fn build_pending_index(payments: &[BasicPayment]) -> RoaringBitmap {
+        Self::build_index(payments, |(vec_idx, payment)| {
+            payment.is_pending().then_some(vec_idx as u32)
+        })
+    }
+
+    fn build_pending_not_junk_index(
+        payments: &[BasicPayment],
+    ) -> RoaringBitmap {
+        Self::build_index(payments, |(vec_idx, payment)| {
+            payment.is_pending_not_junk().then_some(vec_idx as u32)
+        })
+    }
+
+    fn build_finalized_not_junk_index(
+        payments: &[BasicPayment],
+    ) -> RoaringBitmap {
+        Self::build_index(payments, |(vec_idx, payment)| {
+            payment.is_finalized_not_junk().then_some(vec_idx as u32)
+        })
+    }
+
+    /// Read the DB state from disk.
     fn read<F: Ffs>(ffs: &F) -> anyhow::Result<Self> {
         let mut buf: Vec<u8> = Vec::new();
         let mut payments: Vec<BasicPayment> = Vec::new();
@@ -376,7 +509,16 @@ impl PaymentDbState {
         payments.dedup_by(|x, y| x.index == y.index);
 
         let pending = Self::build_pending_index(&payments);
-        let state = Self { payments, pending };
+        let pending_not_junk = Self::build_pending_not_junk_index(&payments);
+        let finalized_not_junk =
+            Self::build_finalized_not_junk_index(&payments);
+
+        let state = Self {
+            payments,
+            pending,
+            pending_not_junk,
+            finalized_not_junk,
+        };
 
         state.debug_assert_invariants();
         state
@@ -395,9 +537,16 @@ impl PaymentDbState {
         self.pending.len() as usize
     }
 
-    /// Finalized := Completed || Failed
     pub fn num_finalized(&self) -> usize {
         self.num_payments() - self.num_pending()
+    }
+
+    pub fn num_pending_not_junk(&self) -> usize {
+        self.pending_not_junk.len() as usize
+    }
+
+    pub fn num_finalized_not_junk(&self) -> usize {
+        self.finalized_not_junk.len() as usize
     }
 
     /// The latest/newest payment that the `PaymentDb` has synced from the user
@@ -434,12 +583,12 @@ impl PaymentDbState {
         //
         // vec_idx := num_payments - scroll_idx - 1
 
-        let num_payments = self.num_payments();
-        if scroll_idx >= num_payments {
+        let n = self.num_payments();
+        if scroll_idx >= n {
             return None;
         }
 
-        let vec_idx = num_payments - scroll_idx - 1;
+        let vec_idx = n - scroll_idx - 1;
         Some((vec_idx, &self.payments[vec_idx]))
     }
 
@@ -522,6 +671,70 @@ impl PaymentDbState {
             .expect("We've already checked the payment is in-bounds");
 
         Some((vec_idx, payment))
+    }
+
+    /// Get a pending && not junk payment by scroll index in UI order (newest to
+    /// oldest). Also return the stable `vec_idx` to lookup this payment
+    /// again.
+    pub fn get_pending_not_junk_payment_by_scroll_idx(
+        &self,
+        scroll_idx: usize,
+    ) -> Option<(usize, &BasicPayment)> {
+        // early exit
+        let n = self.num_pending_not_junk();
+        if scroll_idx >= n {
+            return None;
+        }
+
+        // scroll_idx == reverse rank, i.e., rank in the reversed list of only
+        // pending && not junk payments.
+        let reverse_rank = scroll_idx;
+
+        // since `RoaringBitmap::select` operates on normal rank, we need to
+        // convert from reverse rank to normal rank.
+        let rank = n - reverse_rank - 1;
+
+        // `select` returns the index of the pending payment at the given rank.
+        let vec_idx = self
+            .pending_not_junk
+            .select(rank as u32)
+            .expect("We've already checked the payment index is in-bounds")
+            as usize;
+
+        Some((vec_idx, &self.payments[vec_idx]))
+    }
+
+    /// Get a completed or failed, not junk payment by scroll index in UI order
+    /// (newest to oldest). scroll index here is also the "reverse" rank of all
+    /// finalized payments. Also return the stable `vec_idx` to lookup this
+    /// payment again.
+    pub fn get_finalized_not_junk_payment_by_scroll_idx(
+        &self,
+        scroll_idx: usize,
+    ) -> Option<(usize, &BasicPayment)> {
+        // early exit
+        let n = self.num_finalized_not_junk();
+        if scroll_idx >= n {
+            return None;
+        }
+
+        // scroll_idx == reverse rank, i.e., rank in the reversed list of only
+        // finalized && not junk payments.
+        let reverse_rank = scroll_idx;
+
+        // since `RoaringBitmap::select` operates on normal rank, we need to
+        // convert from reverse rank to normal rank.
+        let rank = n - reverse_rank - 1;
+
+        // `select` returns the index of the finalized && not junk payment at
+        // the given rank.
+        let vec_idx = self
+            .finalized_not_junk
+            .select(rank as u32)
+            .expect("We've already checked the payment index is in-bounds")
+            as usize;
+
+        Some((vec_idx, &self.payments[vec_idx]))
     }
 }
 
@@ -1044,13 +1257,13 @@ mod test {
                 );
 
                 // get_pending_payment_by_scroll_idx
-                let actual = db_state.get_pending_payment_by_scroll_idx(scroll_idx);
+                let actual = db_state.get_pending_not_junk_payment_by_scroll_idx(scroll_idx);
                 let naive = db_state
                     .payments
                     .iter()
                     .enumerate()
                     .rev()
-                    .filter(|(_vec_idx, payment)| payment.is_pending())
+                    .filter(|(_vec_idx, payment)| payment.is_pending_not_junk())
                     .nth(scroll_idx);
                 assert_eq!(actual, naive);
                 assert_eq!(
@@ -1059,13 +1272,13 @@ mod test {
                 );
 
                 // get_finalized_payment_by_scroll_idx
-                let actual = db_state.get_finalized_payment_by_scroll_idx(scroll_idx);
+                let actual = db_state.get_finalized_not_junk_payment_by_scroll_idx(scroll_idx);
                 let naive = db_state
                     .payments
                     .iter()
                     .enumerate()
                     .rev()
-                    .filter(|(_vec_idx, payment)| payment.is_finalized())
+                    .filter(|(_vec_idx, payment)| payment.is_finalized_not_junk())
                     .nth(scroll_idx);
                 assert_eq!(actual, naive);
                 assert_eq!(
