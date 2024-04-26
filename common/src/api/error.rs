@@ -8,7 +8,6 @@ use std::{error::Error, fmt};
 
 use axum::response::IntoResponse;
 use http::status::StatusCode;
-use http_old::status::StatusCode as OldStatusCode;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -117,17 +116,6 @@ pub trait ApiErrorKind:
 /// A trait to get the HTTP status code for a given Error.
 pub trait ToHttpStatus {
     fn to_http_status(&self) -> StatusCode;
-    // TODO(max): Compat hack; remove once warp is removed
-    fn to_old_http_status(&self) -> OldStatusCode {
-        let status_u16 = self.to_http_status().as_u16();
-        // This conversion *should* be infallible, but in case we're somehow
-        // constructing an out-of-bounds status code somewhere, we'll panic in
-        // debug but clamp to the nearest bound in staging/prod.
-        debug_assert!(status_u16 >= 100, "Underflow");
-        debug_assert!(status_u16 < 1000, "Overflow");
-        let bounded_status_u16 = status_u16.clamp(100, 999);
-        OldStatusCode::from_u16(bounded_status_u16).expect("Bounded above")
-    }
 }
 
 // --- api_error! and api_error_kind! macros --- //
@@ -162,10 +150,6 @@ macro_rules! api_error {
             )]
             pub msg: String,
         }
-
-        // Allow our error types to be returned as Rejections from warp Filters
-        // using `warp::reject::custom`. TODO(max): Remove eventually
-        impl warp::reject::Reject for $api_error {}
 
         impl From<ErrorResponse> for $api_error {
             fn from(ErrorResponse { code, msg }: ErrorResponse) -> Self {

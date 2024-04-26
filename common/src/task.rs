@@ -196,7 +196,7 @@ impl<T> LxTask<T> {
     /// let span = info_span!(parent: None, "(my-span)");
     /// ```
     ///
-    /// It is generally preferred to add spans to crates with
+    /// It is generally preferred to add spans with
     /// [`macro@tracing::instrument`], using [`LxTask::spawn_no_inherit`] or
     /// [`LxTask::spawn_named_no_inherit`] in orchestration code when necessary,
     /// since the span labels will be outputted in logs regardless whether the
@@ -205,28 +205,15 @@ impl<T> LxTask<T> {
     /// service [`Future`] elsewhere. [`LxTask::spawn_named_with_span`] is
     /// useful for this case.
     ///
-    /// Note that in the specific case of [`warp`], instrumenting the service
-    /// [`Future`] (annoyingly) might not actually propogate the span to its
-    /// async handlers due to its internal calls to [`tokio::spawn`] not
-    /// using [`Instrument::in_current_span`].
-    ///
-    /// TODO(max): Patch warp to fix this? The fix can be confirmed by checking
-    /// that the "LSP provision succeeded; shutting down" msg produced during
-    /// the supervisor tests includes a span label.
-    ///
     /// ```
     /// # #[tokio::test]
     /// # async fn test_spawn_named_with_span() {
     /// use common::task::LxTask;
-    /// use tracing::{info, info_span};
-    /// use warp::{Filter, Rejection, Reply};
+    /// use tracing::{info, instrument};
     ///
-    /// // Typical API code. Adding #[tracing::instrument] here doesn't do
-    /// // what we want, which is to include a span label for ALL log msgs
-    /// // produced by the API service, which includes warp, hyper, etc.
-    /// fn my_routes()
-    /// -> impl Filter<Extract = (impl Reply,), Error = Rejection> + Clone {
-    ///     warp::path("hello").map(|| "Hello, world!")
+    /// // Typical library code.
+    /// fn my_library_function() {
+    ///     info!("This is prefixed by (my-span) when called inside the task");
     /// }
     ///
     /// // Typical orchestration code.
@@ -234,15 +221,12 @@ impl<T> LxTask<T> {
     /// async fn orchestrate() {
     ///     info!("This is prefixed by (orchestrator)");
     ///
-    ///     let service_fut = warp::serve(my_routes())
-    ///         .run(([127, 0, 0, 1], 0));
-    ///
-    ///     // Requests to the server include (my-api) but not (orchestrator)
     ///     let task = LxTask::spawn_named_with_span(
     ///         "my task name",
-    ///         info_span!(parent: None, "(my-api)"),
+    ///         info_span!(parent: None, "(my-span)"),
     ///         async move {
-    ///             service_fut.await;
+    ///             // This logs a message with (my-span) but not (orchestrator)
+    ///             my_library_function();
     ///         }
     ///     );
     ///     task.await;

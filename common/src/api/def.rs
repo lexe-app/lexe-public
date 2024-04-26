@@ -3,7 +3,7 @@
 //! This module, as closely as possible, defines the various APIs exposed by
 //! different services to different clients. Although we do not have
 //! compile-time guarantees that the services exposed exactly match the
-//! definitions below, it is straightforward to compare the warp routes and
+//! definitions below, it is straightforward to compare the Axum routers and
 //! handlers with the definitions below to ensure consistency.
 //!
 //! ## Guidelines

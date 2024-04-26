@@ -1078,10 +1078,8 @@ dependencies = [
  "dotenvy",
  "electrsd",
  "futures",
- "http 0.2.11",
  "http 1.1.0",
  "http-body-util",
- "hyper 0.14.28",
  "hyper 1.2.0",
  "hyper-util",
  "lightning",
@@ -1119,7 +1117,6 @@ dependencies = [
  "tower-service",
  "tracing",
  "tracing-subscriber",
- "warp",
  "webpki",
  "x509-parser",
  "yasna",
@@ -1945,30 +1942,6 @@ name = "hashbrown"
 version = "0.14.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "290f1a1d9242c78d09ce40a5e87e7554ee637af1351968159f4952f028f75604"
-
-[[package]]
-name = "headers"
-version = "0.3.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06683b93020a07e3dbcf5f8c0f6d40080d725bea7936fc01ad345c01b97dc270"
-dependencies = [
- "base64 0.21.7",
- "bytes",
- "headers-core",
- "http 0.2.11",
- "httpdate",
- "mime",
- "sha1",
-]
-
-[[package]]
-name = "headers-core"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7f66481bfee273957b1f20485a4ff3362987f85b2c236580d81b4eb7a326429"
-dependencies = [
- "http 0.2.11",
-]
 
 [[package]]
 name = "heck"
@@ -3564,12 +3537,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f98d2aa92eebf49b69786be48e4477826b256916e84a57ff2a4f21923b48eb4c"
 
 [[package]]
-name = "scoped-tls"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1cf6437eb19a8f4a6cc0f7dca544973b0b78843adbfeb3683d1a94a0024a294"
-
-[[package]]
 name = "scopeguard"
 version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4606,35 +4573,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa7760aed19e106de2c7c0b581b509f2f25d3dacaf737cb82ac61bc6d760b0e"
 dependencies = [
  "try-lock",
-]
-
-[[package]]
-name = "warp"
-version = "0.3.6"
-source = "git+https://github.com/lexe-app/warp?branch=lexe-v0.3.6-2024_03_21#011bfb9a7fb118cbac975712fa09c88105e3423c"
-dependencies = [
- "bytes",
- "futures-channel",
- "futures-util",
- "headers",
- "http 0.2.11",
- "hyper 0.14.28",
- "log",
- "mime",
- "mime_guess",
- "percent-encoding",
- "pin-project",
- "rustls-pemfile 1.0.4",
- "scoped-tls",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "tokio",
- "tokio-rustls 0.25.0",
- "tokio-stream",
- "tokio-util",
- "tower-service",
- "tracing",
 ]
 
 [[package]]

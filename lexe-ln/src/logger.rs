@@ -14,13 +14,13 @@
 //! You can also filter logs on a per-crate/per-module basis:
 //!
 //! ```bash
-//! $ RUST_LOG=warn,node=debug,warp::filters::trace=error cargo run node
+//! $ RUST_LOG=warn,node=debug,hyper::client::conn=error cargo run node
 //! ```
 //!
 //! Breaking down the above example, it would:
 //!
 //! 1. expose all `DEBUG`+ logs from the `node` crate
-//! 2. silence all logs except `ERROR`s from the `trace` module in `warp`
+//! 2. silence all logs except `ERROR`s from the `conn` module in `hyper`
 //! 3. default all other targets to `WARN`+
 //!
 //! ### Syntax

@@ -24,7 +24,7 @@ pub fn channel(label: &'static str) -> (TestEventSender, TestEventReceiver) {
     (sender, receiver)
 }
 
-/// A warp handler for calling any of the [`TestEventReceiver`] methods.
+/// A handler for calling any of the [`TestEventReceiver`] methods.
 pub async fn do_op(
     op: TestEventOp,
     rx: Arc<tokio::sync::Mutex<TestEventReceiver>>,

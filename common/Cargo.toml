@@ -45,11 +45,8 @@ dcap-ql.workspace = true
 dotenvy.workspace = true
 futures.workspace = true
 http.workspace = true
-http_old.workspace = true
 http-body-util.workspace = true
-# Use both hyper 0.14.28 and 1.0 at the same time while we transition
 hyper = { workspace = true, features = ["http1", "http2", "server"] }
-hyper_old = { workspace = true, features = ["http1", "http2", "server", "tcp"] }
 lightning.workspace = true
 lightning-invoice.workspace = true
 # lightning-net-tokio.workspace = true
@@ -79,7 +76,6 @@ tokio = { workspace = true, features = [
 ] }
 tracing.workspace = true
 tracing-subscriber.workspace = true
-warp = { workspace = true, features = ["tls"] }
 
 # --- CRATE-SPECIFIC --- #
 
@@ -118,7 +114,7 @@ yasna = { version = "0.5", default-features = false, features = ["num-bigint"] }
 
 proptest = { optional = true, workspace = true, features = ["alloc"] }
 proptest-derive = { optional = true, workspace = true }
-# This version should track the one that `warp` uses internally.
+# This version should track the one that `axum` uses internally.
 serde_urlencoded = { optional = true, version = "0.7" }
 
 [target.'cfg(target_env = "sgx")'.dependencies]
@@ -149,7 +145,7 @@ proptest = { optional = true, workspace = true, features = ["std"] }
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
 serde_json.workspace = true
-# This version should track the one that `warp` uses internally.
+# This version should track the one that `axum` uses internally.
 serde_urlencoded = "0.7"
 tokio = { workspace = true, features = [
     "io-util",

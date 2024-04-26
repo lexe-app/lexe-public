@@ -70,7 +70,7 @@ pub async fn provision_node<R: Crng>(
 ) -> anyhow::Result<()> {
     debug!("provisioning");
 
-    // Set up the request context and warp routes.
+    // Set up the request context and API servers.
     let args = Arc::new(args);
     let client = gdrive::ReqwestClient::new();
     let machine_id = enclave::machine_id();
