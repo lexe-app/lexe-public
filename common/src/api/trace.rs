@@ -582,10 +582,11 @@ pub(crate) mod server {
     impl<B> OnRequest<B> for LxOnRequest {
         fn on_request(
             &mut self,
-            _request: &http::Request<B>,
+            request: &http::Request<B>,
             _request_span: &tracing::Span,
         ) {
-            debug!(target: TARGET, "New server request");
+            let headers = request.headers();
+            debug!(target: TARGET, ?headers, "New server request");
         }
     }
 
@@ -603,7 +604,9 @@ pub(crate) mod server {
             _request_span: &tracing::Span,
         ) {
             let status = response.status();
+            let headers = response.headers();
             let resp_time = DisplayMs(resp_time);
+
             if status.is_success() {
                 info!(target: TARGET, %resp_time, ?status, "Done (success)");
             } else if status.is_client_error() {
@@ -617,6 +620,12 @@ pub(crate) mod server {
             } else {
                 info!(target: TARGET, %resp_time, ?status, "Done (other)");
             }
+
+            // Log the headers too, but only at DEBUG.
+            debug!(
+                target: TARGET, %resp_time, ?status, ?headers,
+                "Done (headers)",
+            );
         }
     }
 
