@@ -38,6 +38,7 @@
 //! [`spawn_server_task_with_listener`]: crate::api::server::spawn_server_task_with_listener
 
 use std::{
+    convert::Infallible,
     fmt::{self, Display},
     future::Future,
     net::{SocketAddr, TcpListener},
@@ -57,7 +58,8 @@ use axum::{
         DefaultBodyLimit, FromRequest,
     },
     response::IntoResponse,
-    Router,
+    routing::RouterIntoService,
+    Router, ServiceExt as AxumServiceExt,
 };
 use axum_server::tls_rustls::RustlsConfig;
 use http::{header::CONTENT_TYPE, HeaderValue, StatusCode, Version};
@@ -65,13 +67,15 @@ use serde::{de::DeserializeOwned, Serialize};
 use tower::{
     buffer::BufferLayer, limit::ConcurrencyLimitLayer,
     load_shed::LoadShedLayer, timeout::TimeoutLayer, util::MapRequestLayer,
+    Layer,
 };
 use tracing::{debug, error, info, warn, Instrument};
 
 use super::auth;
 use crate::{
-    api::error::{
-        CommonApiError, CommonErrorKind, ErrorResponse, ToHttpStatus,
+    api::{
+        error::{CommonApiError, CommonErrorKind, ErrorResponse, ToHttpStatus},
+        trace,
     },
     const_assert, ed25519,
     shutdown::ShutdownChannel,
@@ -105,6 +109,7 @@ const_assert!(
 ///         buffer_size: Some(4096),
 ///         concurrency: Some(4096),
 ///         handling_timeout: Some(Duration::from_secs(15)),
+///         default_fallback: true,
 ///     }
 /// );
 /// ```
@@ -127,6 +132,16 @@ pub struct LayerConfig {
     /// ([`None`] to disable). Helps prevent degenerate cases which take
     /// abnormally long to process from crowding out normal workloads.
     pub handling_timeout: Option<Duration>,
+    /// Whether to add Lexe's default [`Router::fallback`] to the [`Router`].
+    /// The [`Router::fallback`] is called if no routes were matched;
+    /// Lexe's [`default_fallback`] returns a "bad endpoint" rejection along
+    /// with the requested method and path.
+    ///
+    /// If you need to set a custom fallback, set this to [`false`], otherwise
+    /// your custom fallback will be clobbered by Lexe's [`default_fallback`].
+    /// NOTE, however, that the caller is responsible for ensuring that the
+    /// [`Router`] has a fallback configured in this case.
+    pub default_fallback: bool,
 }
 
 impl Default for LayerConfig {
@@ -141,6 +156,7 @@ impl Default for LayerConfig {
             buffer_size: Some(4096),
             concurrency: Some(4096),
             handling_timeout: Some(Duration::from_secs(15)),
+            default_fallback: true,
         }
     }
 }
@@ -213,30 +229,59 @@ pub fn build_server_fut_with_listener(
     };
     info!("Url for {server_span_name}: {server_url}");
 
-    // Add a fallback which triggers if no routes were matched. Returns a
-    // "bad endpoint" rejection with the requested path and method.
-    let router_with_fallback =
-        router.fallback(|method: http::Method, uri: http::Uri| async move {
-            let path = uri.path();
-            LxRejection {
-                kind: LxRejectionKind::BadEndpoint,
-                // e.g. "POST /app/node_info"
-                source_msg: format!("{method} {path}"),
-            }
-        });
+    // Add Lexe's default fallback if it is enabled in the LayerConfig.
+    let router = if layer_config.default_fallback {
+        router.fallback(default_fallback)
+    } else {
+        router
+    };
 
-    // Set up our middleware stack which wraps our Router.
+    // Used to annotate the service / request / response types
+    // at each point in the ServiceBuilder chains.
+    type HyperService = RouterIntoService<hyper::body::Incoming, ()>;
+    type AxumService = RouterIntoService<axum::body::Body, ()>;
+    type HyperReq = http::Request<hyper::body::Incoming>;
+    type AxumReq = http::Request<axum::body::Body>;
+    type AxumResp = http::Response<axum::body::Body>;
+    type TraceResp = http::Response<
+        tower_http::trace::ResponseBody<
+            axum::body::Body,
+            tower_http::classify::NeverClassifyEos<anyhow::Error>,
+            (),
+            trace::server::LxOnEos,
+            trace::server::LxOnFailure,
+        >,
+    >;
+
+    // The outer middleware stack which wraps the entire Router.
+    //
     // Axum docs explain ordering better than tower's ServiceBuilder docs do:
     // https://docs.rs/axum/latest/axum/middleware/index.html#ordering
     // Basically, requests go from top to bottom and responses bottom to top.
-    let middleware_stack = tower::ServiceBuilder::new()
+    let outer_middleware = tower::ServiceBuilder::new()
+        .check_service::<HyperService, HyperReq, AxumResp, Infallible>()
         // Log everything on its way in and out, even load-shedded requests.
+        // This layer changes the response type.
         .layer(super::trace::server::trace_layer(server_span.clone()))
+        .check_service::<HyperService, HyperReq, TraceResp, Infallible>()
+        // Run our post-processor which can modify responses *after* the Axum
+        // Router has constructed the response.
+        .layer(tower::util::MapResponseLayer::new(
+            middleware::post_process_response,
+        ))
+        .check_service::<HyperService, HyperReq, TraceResp, Infallible>();
+
+    // The inner middleware stack which is cloned to each route in the Router.
+    // We put most of the layers here because it is a lot easier to work with
+    // axum types; moving these outside quickly degenerates into type hell.
+    let inner_middleware = tower::ServiceBuilder::new()
+        .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Immediately reject anything with a CONTENT_LENGTH over the limit.
         .layer(axum::middleware::map_request_with_state(
             layer_config.body_limit,
             middleware::check_content_length_header,
         ))
+        .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Set the default request body limit for all requests. This adds a
         // `DefaultBodyLimitKind` (private axum type) into the request
         // extensions so that any inner layers or extractors which call
@@ -249,9 +294,11 @@ pub fn build_server_fut_with_listener(
                 .map(DefaultBodyLimit::max)
                 .unwrap_or_else(DefaultBodyLimit::disable),
         )
+        .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Here, we explicitly apply the body limit from the request extensions,
         // transforming the request body type into `http_body_util::Limited`.
         .layer(MapRequestLayer::new(axum::RequestExt::with_limited_body))
+        .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Handles errors from the load_shed, buffer, and concurrency layers.
         .layer(HandleErrorLayer::new(|error| async move {
             CommonApiError {
@@ -262,13 +309,17 @@ pub fn build_server_fut_with_listener(
         // Returns an error if the inner service returns Poll::Pending.
         // Helps prevent OOM when combined with the buffer or concurrency layer.
         .option_layer(layer_config.load_shed.then(LoadShedLayer::new))
+        .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Returns Poll::Pending when the buffer is full (backpressure).
         // Allows the server to immediately work on more queued requests when a
         // request completes, and prevents a large backlog from building up.
+        // Note that while the layer is often cloned, the buffer itself is not.
         .option_layer(layer_config.buffer_size.map(BufferLayer::new))
+        .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Returns Poll::Pending when the concurrency limit has been reached.
         // Helps prevent the CPU from maxing out, resulting in thrashing.
         .option_layer(layer_config.concurrency.map(ConcurrencyLimitLayer::new))
+        .check_service::<AxumService, AxumReq, AxumResp, Infallible>()
         // Handles errors generated by the timeout layer.
         .layer(HandleErrorLayer::new(|error| async move {
             CommonApiError {
@@ -279,14 +330,21 @@ pub fn build_server_fut_with_listener(
         // Returns an error if the inner service takes longer than the timeout
         // to handle the request. Prevents degenerate cases which take
         // abnormally long to process from crowding out normal workloads.
-        .option_layer(layer_config.handling_timeout.map(TimeoutLayer::new));
+        .option_layer(layer_config.handling_timeout.map(TimeoutLayer::new))
+        .check_service::<AxumService, AxumReq, AxumResp, Infallible>();
 
-    let layered_router = router_with_fallback.layer(middleware_stack);
+    // Apply inner middleware
+    let layered_router = router.layer(inner_middleware);
+    // Convert into Service
+    let router_service = layered_router.into_service::<hyper::body::Incoming>();
+    // Apply outer middleware
+    let layered_service = Layer::layer(&outer_middleware, router_service);
+    // Convert into MakeService
+    let make_service = layered_service.into_make_service();
 
     let handle = axum_server::Handle::new();
     let handle_clone = handle.clone();
     let server_fut = async {
-        let make_service = layered_router.into_make_service();
         let serve_result = match maybe_tls_config {
             Some(tls_config) => {
                 let axum_tls_config = RustlsConfig::from_config(tls_config);
@@ -668,8 +726,13 @@ pub mod extract {
 
 pub mod middleware {
     use axum::extract::State;
+    use http::HeaderName;
 
     use super::*;
+
+    /// The header name used for response post-processing signals.
+    pub static POST_PROCESS_HEADER: HeaderName =
+        HeaderName::from_static("lx-post-process");
 
     /// Checks the `CONTENT_LENGTH` header and returns an early rejection if the
     /// contained value exceeds our configured body limit. This optimization
@@ -701,9 +764,52 @@ pub mod middleware {
 
         Ok(request)
     }
+
+    /// A post-processor which can be used to modify the [`http::Response`]s
+    /// returned by an [`axum::Router`]. This is done by signalling the desired
+    /// modification in a fake [`POST_PROCESS_HEADER`] which is also removed
+    /// during post-processing. This can be used to override Axum defaults
+    /// which one does not have access to from within the [`Router`]. Currently,
+    /// this only supports a "remove-content-length" command which removes the
+    /// content-length header set by Axum, but can be easily extended.
+    pub(super) fn post_process_response(
+        mut response: http::Response<axum::body::Body>,
+    ) -> http::Response<axum::body::Body> {
+        let value = match response.headers_mut().remove(&POST_PROCESS_HEADER) {
+            Some(v) => v,
+            None => return response,
+        };
+
+        match value.as_bytes() {
+            b"remove-content-length" => {
+                response.headers_mut().remove(http::header::CONTENT_LENGTH);
+                debug!("Post process: Removed content-length header");
+            }
+            unknown => {
+                let unknown_str = String::from_utf8_lossy(unknown);
+                warn!("Post process: Invalid header value: {unknown_str}");
+            }
+        }
+
+        response
+    }
 }
 
 // --- Helpers --- //
+
+/// Lexe's default fallback [`Handler`](axum::handler::Handler).
+/// Returns a "bad endpoint" rejection along with the requested method and path.
+pub async fn default_fallback(
+    method: http::Method,
+    uri: http::Uri,
+) -> LxRejection {
+    let path = uri.path();
+    LxRejection {
+        kind: LxRejectionKind::BadEndpoint,
+        // e.g. "POST /app/node_info"
+        source_msg: format!("{method} {path}"),
+    }
+}
 
 /// Constructs a JSON [`http::Response<axum::body::Body>`] from the data and
 /// status code. If serialization fails for some reason (very unlikely), log and
