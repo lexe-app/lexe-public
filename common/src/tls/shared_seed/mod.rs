@@ -264,7 +264,7 @@ mod test {
     // TODO(max): Add a snapshot test for deterministic derivation of shared
     // seed CA cert
 
-    // test shared seed TLS handshake directly w/o any other warp/reqwest infra
+    // test shared seed TLS handshake directly w/o any other axum/reqwest infra
     #[tokio::test]
     async fn test_tls_handshake_succeeds() {
         // a fake pair of connected streams

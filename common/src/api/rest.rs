@@ -1,42 +1,23 @@
-use std::{
-    convert::Infallible,
-    future::Future,
-    net::{SocketAddr, TcpListener},
-    time::Duration,
-};
+use std::time::Duration;
 
-use anyhow::Context;
 use bytes::Bytes;
-use futures::future::BoxFuture;
 use http::{
     header::{HeaderValue, CONTENT_TYPE},
     Method,
 };
-use http_old::{
-    header::{HeaderValue as OldHeaderValue, CONTENT_TYPE as OLD_CONTENT_TYPE},
-    response::Response as OldResponse,
-    status::StatusCode as OldStatusCode,
-};
 use reqwest::IntoUrl;
 use serde::{de::DeserializeOwned, Serialize};
-use tokio::time;
-use tracing::{debug, error, info, info_span, span, warn, Instrument, Span};
-use warp::{filters::BoxedFilter, hyper::Body, Filter, Rejection};
+use tracing::{debug, info, warn, Instrument};
 
 use super::trace::TraceId;
 use crate::{
     api::{
         error::{
-            ApiError, CommonApiError, CommonErrorKind, ErrorCode,
-            ErrorResponse, ToHttpStatus,
+            ApiError, CommonApiError, CommonErrorKind, ErrorCode, ErrorResponse,
         },
         trace::{self, DisplayMs},
     },
-    backoff,
-    byte_str::ByteStr,
-    ed25519,
-    shutdown::ShutdownChannel,
-    task::LxTask,
+    backoff, ed25519,
 };
 
 /// The CONTENT-TYPE header for signed BCS-serialized structs.
@@ -45,285 +26,12 @@ pub static CONTENT_TYPE_ED25519_BCS: HeaderValue =
 
 // Default parameters
 pub const API_REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
-/// The maximum time [`hyper_old::Server`] can take to gracefully shut down.
-pub const HYPER_TIMEOUT: Duration = Duration::from_secs(3);
 
 // Avoid `Method::` prefix. Associated constants can't be imported
 pub const GET: Method = Method::GET;
 pub const PUT: Method = Method::PUT;
 pub const POST: Method = Method::POST;
 pub const DELETE: Method = Method::DELETE;
-
-/// Helper to serve a set of [`warp`] routes given a graceful shutdown
-/// [`Future`], an existing std [`TcpListener`], the name of the task, and a
-/// [`tracing::Span`]. Be sure to include `parent: None` when building the span
-/// if you wish to prevent the API task from inheriting the parent [span label].
-// TODO(max): Remove once no longer used, or rename to serve_with_no_tls or smth
-pub fn serve_routes_with_listener_and_shutdown(
-    routes: BoxedFilter<(OldResponse<Body>,)>,
-    graceful_shutdown_fut: impl Future<Output = ()> + Send + 'static,
-    listener: TcpListener,
-    task_name: impl Into<String>,
-    span: Span,
-) -> anyhow::Result<(LxTask<()>, SocketAddr)> {
-    serve_routes_with_listener_and_shutdown_boxed(
-        routes,
-        Box::pin(graceful_shutdown_fut),
-        listener,
-        task_name.into(),
-        span,
-    )
-}
-
-// Reduce some code bloat by boxing the warp routes and shutdown future.
-fn serve_routes_with_listener_and_shutdown_boxed(
-    routes: BoxedFilter<(OldResponse<Body>,)>,
-    graceful_shutdown_fut: BoxFuture<'static, ()>,
-    listener: TcpListener,
-    task_name: String,
-    span: Span,
-) -> anyhow::Result<(LxTask<()>, SocketAddr)> {
-    let api_service = warp::service(routes.with(trace_requests(span.id())));
-    let make_service = hyper_old::service::make_service_fn(move |_| {
-        let api_service_clone = api_service.clone();
-        async move { Ok::<_, Infallible>(api_service_clone) }
-    });
-    let server = hyper_old::Server::from_tcp(listener)
-        .context("Could not create hyper Server")?
-        .serve(make_service);
-    let socket_addr = server.local_addr();
-    // Instead of giving the graceful shutdown future to hyper directly, we
-    // let the spawned task wait on it so that we can enforce a hyper timeout.
-    let shutdown = ShutdownChannel::new();
-    let graceful_server =
-        server.with_graceful_shutdown(shutdown.clone().recv_owned());
-    let task = LxTask::spawn_named_with_span(task_name, span, async move {
-        tokio::pin!(graceful_server);
-        tokio::select! {
-            () = graceful_shutdown_fut => (),
-            _ = &mut graceful_server => return error!("Server exited early"),
-        }
-        info!("Initiating hyper server graceful shutdown");
-        shutdown.send();
-        match time::timeout(HYPER_TIMEOUT, graceful_server).await {
-            Ok(Ok(())) => debug!("Hyper server shutdown success"),
-            Ok(Err(e)) => warn!("Hyper server returned error: {e:#}"),
-            Err(_) => warn!("Hyper server timed out during shutdown"),
-        }
-    });
-    Ok((task, socket_addr))
-}
-
-/// Adds [`tracing`] to all requests.
-///
-/// * Wraps all requests in a [`tracing::Span`] for the duration of the request.
-/// * `debug!` logs when the request initally enters the warp router.
-/// * `info!` logs when the request completes and the response is generated.
-///   Includes info like response status, handling time, and error messages.
-///
-/// It manually takes an (optional) [`span::Id`] for the parent span. This is
-/// definitely a bit awkward, but it seems to work for now. The hyper service
-/// does request handling on freshly spawned tasks, so it's a bit difficult to
-/// get our warp routes to pick up the correct parent span without just manually
-/// passing the right id over.
-///
-/// ## Usage
-///
-/// ```ignore
-/// const API_SPAN_NAME: &str = "(my-api)";
-/// let api_span = info!(parent: None, API_SPAN_NAME);
-/// let routes = node_proxy.or(backend_apis).or(app_gateway_api).boxed();
-/// let instrumented_routes = routes.with(rest::trace_requests(api_span.id()));
-/// ```
-fn trace_requests(
-    parent_span_id: Option<span::Id>,
-) -> warp::trace::Trace<impl Fn(warp::trace::Info<'_>) -> Span + Clone> {
-    warp::trace::trace(move |req_info| {
-        let url = req_info
-            .uri()
-            .path_and_query()
-            .map(|url| url.as_str())
-            .unwrap_or("/");
-        info_span!(
-            target: "http",
-            parent: parent_span_id.clone(),
-            "(http)(srv)",
-            method = %req_info.method(),
-            url = %url,
-            version = ?req_info.version(),
-        )
-    })
-}
-
-/// A warp helper that converts `Result<T, E>` into [`OldResponse<Body>`].
-/// This function should be used after all *fallible* warp handlers because:
-///
-/// 1) `RestClient::send_and_deserialize` relies on the HTTP status code to
-///    determine whether a response should be deserialized as the requested
-///    object or as the error type. This function handles this automatically and
-///    consistently across all Lexe APIs.
-/// 2) It saves time; there is no need to call reply::json(&resp) in every warp
-///    handler or to manually set the error code in every response.
-/// 3) Removing the [`warp::Reply`] serialization step from the warp handlers
-///    allows each handler to be independently unit and integration tested.
-///
-/// For infallible handlers, use [`into_succ_response`] instead.
-///
-/// ## Usage
-///
-/// ```ignore
-/// let status = warp::path("status")
-///     .and(warp::get())
-///     .and(warp::query::<GetByUserPk>())
-///     .and(inject::user_pk(user_pk))
-///     .then(runner::status)
-///     .map(rest::into_response);
-/// ```
-pub fn into_response<T: Serialize, E: ToHttpStatus + Into<ErrorResponse>>(
-    reply_res: Result<T, E>,
-) -> OldResponse<Body> {
-    match reply_res {
-        Ok(data) => build_json_response(OldStatusCode::OK, &data),
-        Err(err) => build_json_response(err.to_old_http_status(), &err.into()),
-    }
-}
-
-/// Like [`into_response`], but converts `T` into [`OldResponse<Body>`]. This fn
-/// should be used for the same reasons that [`into_response`] is used, but
-/// applies only to *infallible* handlers.
-///
-/// ## Usage
-///
-/// ```ignore
-/// let list_channels = warp::path("list_channels")
-///     .and(warp::get())
-///     .and(inject::channel_manager(channel_manager.clone()))
-///     .map(lexe_ln::command::list_channels)
-///     .map(rest::into_succ_response);
-/// ```
-pub fn into_succ_response<T: Serialize>(data: T) -> OldResponse<Body> {
-    build_json_response(OldStatusCode::OK, &data)
-}
-
-/// Like [`into_response`], but you pass a successful, pre-rendered json
-/// response instead of serializing on-the-spot. Can be useful if a response is
-/// already cached and serialized.
-///
-/// ## Usage
-///
-/// ```ignore
-/// fn handler() -> Result<ByteStr, Error> {
-///     Ok(ByteStr::from_static(r#"{ "foo": 123, "bar": "asdf" }"#))
-/// }
-///
-/// let route = warp::get()
-///     .map(handler)
-///     .map(rest::prerendered_json_into_response);
-/// ```
-pub fn prerendered_json_into_response<E: ToHttpStatus + Into<ErrorResponse>>(
-    reply_res: Result<ByteStr, E>,
-) -> OldResponse<Body> {
-    match reply_res {
-        Ok(data) =>
-            build_json_response_inner(OldStatusCode::OK, Ok(data.into())),
-        Err(err) => build_json_response(err.to_old_http_status(), &err.into()),
-    }
-}
-
-/// A warp helper for recovering one of our [`api::error`](crate::api::error)
-/// types if it was emitted from an intermediate filter's rejection and then
-/// converting into the standard json error response.
-///
-/// ## Usage
-///
-/// ```ignore
-/// let root = warp::path::end()
-///     .then(handlers::root);
-///
-/// let foo = warp::path("foo")
-///     .and(warp::get())
-///     // Some custom filter returns a `warp::reject::custom` around one of our
-///     // error types.
-///     .and(|| warp::reject::custom(GatewayApiError { .. }))
-///     .then(handlers::foo)
-///     .map(rest::into_response);
-///
-/// root.or(foo)
-///     // recover the `GatewayApiError` from above and return standard json
-///     // error response
-///     .recover(recover_error_response::<GatewayApiError>)
-/// ```
-pub async fn recover_error_response<
-    E: Clone + ToHttpStatus + Into<ErrorResponse> + warp::reject::Reject + 'static,
->(
-    err: Rejection,
-) -> Result<OldResponse<Body>, Rejection> {
-    if let Some(err) = err.find::<E>() {
-        let status = err.to_old_http_status();
-        // TODO(phlip9): find returns &E... figure out how to remove clone
-        let err: ErrorResponse = err.clone().into();
-        Ok(build_json_response(status, &err))
-    } else {
-        Err(err)
-    }
-}
-
-/// Constructs a JSON [`OldResponse<Body>`] from the given data and status code.
-/// If serialization fails for some reason (unlikely), log the error,
-/// default to an empty body, and override the status code to 500.
-fn build_json_response<T: Serialize>(
-    status: OldStatusCode,
-    data: &T,
-) -> OldResponse<Body> {
-    build_json_response_inner(status, serde_json::to_vec(data).map(Bytes::from))
-}
-
-fn build_json_response_inner(
-    mut status: OldStatusCode,
-    maybe_json: Result<Bytes, serde_json::Error>,
-) -> OldResponse<Body> {
-    let body = maybe_json.map(Body::from).unwrap_or_else(|e| {
-        error!(target: trace::TARGET, "Couldn't serialize response: {e:#}");
-        status = OldStatusCode::INTERNAL_SERVER_ERROR;
-        Body::empty()
-    });
-
-    OldResponse::builder()
-        .header(
-            OLD_CONTENT_TYPE,
-            OldHeaderValue::from_static("application/json"),
-        )
-        .status(status)
-        .body(body)
-        // Only the header could have errored by this point
-        .expect("Invalid hard-coded header")
-}
-
-/// Converts the concrete, non-generic Rest response result to the specific
-/// API's result type.
-///
-/// On success, this json deserializes the response body. On error, this
-/// converts the generic [`ErrorResponse`] or [`CommonApiError`] into the
-/// specific API error type, like
-/// [`BackendApiError`](crate::api::error::BackendApiError)
-fn convert_rest_response<T, E>(
-    response: Result<Result<Bytes, ErrorResponse>, CommonApiError>,
-) -> Result<T, E>
-where
-    T: DeserializeOwned,
-    E: ApiError,
-{
-    match response {
-        Ok(Ok(bytes)) =>
-            Ok(serde_json::from_slice::<T>(&bytes).map_err(|err| {
-                let kind = CommonErrorKind::Decode;
-                let msg = format!("Failed to deser response as json: {err:#}");
-                CommonApiError::new(kind, msg)
-            })?),
-        Ok(Err(err_api)) => Err(E::from(err_api)),
-        Err(err_client) => Err(E::from(err_client)),
-    }
-}
 
 /// A generic RestClient which conforms to Lexe's API.
 #[derive(Clone)]
@@ -440,7 +148,7 @@ impl RestClient {
             .send_inner(request, &trace_id)
             .instrument(request_span)
             .await;
-        convert_rest_response(response)
+        Self::convert_rest_response(response)
     }
 
     /// Sends the built HTTP request, retrying up to `retries` times. Tries to
@@ -467,7 +175,7 @@ impl RestClient {
             .send_with_retries_inner(request, retries, stop_codes, &trace_id)
             .instrument(request_span)
             .await;
-        convert_rest_response(response)
+        Self::convert_rest_response(response)
     }
 
     // the `send_inner` and `send_with_retries_inner` intentionally use zero
@@ -605,6 +313,34 @@ impl RestClient {
                 "Done (error)(response) Server returned error response",
             );
             Ok(Err(error))
+        }
+    }
+
+    /// Converts the concrete, non-generic Rest response result to the specific
+    /// API's result type.
+    ///
+    /// On success, this json deserializes the response body. On error, this
+    /// converts the generic [`ErrorResponse`] or [`CommonApiError`] into the
+    /// specific API error type, like [`BackendApiError`].
+    ///
+    /// [`BackendApiError`]: crate::api::error::BackendApiError
+    fn convert_rest_response<T, E>(
+        response: Result<Result<Bytes, ErrorResponse>, CommonApiError>,
+    ) -> Result<T, E>
+    where
+        T: DeserializeOwned,
+        E: ApiError,
+    {
+        match response {
+            Ok(Ok(bytes)) =>
+                Ok(serde_json::from_slice::<T>(&bytes).map_err(|err| {
+                    let kind = CommonErrorKind::Decode;
+                    let msg =
+                        format!("Failed to deser response as json: {err:#}");
+                    CommonApiError::new(kind, msg)
+                })?),
+            Ok(Err(err_api)) => Err(E::from(err_api)),
+            Err(err_client) => Err(E::from(err_client)),
         }
     }
 }
