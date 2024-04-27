@@ -54,7 +54,7 @@ lightning-invoice.workspace = true
 rand.workspace = true
 rand_core.workspace = true
 rcgen.workspace = true
-reqwest = { workspace = true, features = ["json", "rustls-tls-manual-roots"] }
+reqwest = { workspace = true, features = ["http2", "json", "rustls-tls-manual-roots"] }
 rustls.workspace = true
 ring.workspace = true
 rust_decimal.workspace = true
@@ -137,8 +137,8 @@ cmac = { version = "0.7", features = ["std", "zeroize"] }
 electrsd = { optional = true, version = "0.22", features = [ "bitcoind_22_0", "esplora_a33e97e1", "legacy" ] }
 # Enable the `client-legacy-socket2` feature from our patch when outside of SGX.
 # This can be removed if our `client-legacy-socket2` patch is removed.
-hyper-util = { workspace = true, features = ["client-legacy-socket2"] }
 # Include std impls when testing outside of SGX
+hyper-util = { workspace = true, features = ["client-legacy-socket2"] }
 proptest = { optional = true, workspace = true, features = ["std"] }
 
 [dev-dependencies]

@@ -76,7 +76,7 @@ http = "1"
 http-body-util = "0.1"
 # Low-level async HTTP library and server
 # Use both hyper 0.14.28 and 1.0 at the same time while we transition
-hyper = { version = "1", default-features = false }
+hyper = { version = "1", default-features = false, features = ["http2"] }
 hyper_old = { version = "=0.14.28", package = "hyper", default-features = false, features = ["deprecated"] }
 # Property-based testing
 proptest = { version = "1", default-features = false }
@@ -131,7 +131,7 @@ dcap-ql = { version = "=0.3.4", default-features = false }
 # Fortanix EDP crate for running SGX applications, includes usercall extensions
 enclave-runner = { version = "=0.5.1", default-features = false }
 # Hyper-related utilities
-hyper-util = { version = "=0.1.3", default-features = false }
+hyper-util = { version = "=0.1.3", default-features = false, features = ["http2"] }
 # LDK (rust-lightning) libraries
 lightning = { version = "=0.0.116", features = ["max_level_trace"] }
 lightning-invoice = { version = "=0.24" }
@@ -140,7 +140,7 @@ lightning-transaction-sync = { version = "=0.0.116", features = ["esplora-async"
 # Required by tokio
 mio = "=0.8.4"
 # High-level HTTP client
-reqwest = { version = "=0.12.1", default-features = false }
+reqwest = { version = "=0.12.1", default-features = false, features = ["http2"] }
 # TODO(max): Remove once esplora-client no longer needs it
 reqwest11 = { version = "=0.11.26", package = "reqwest", default-features = false }
 # Safe and small crypto primitives based on BoringSSL
