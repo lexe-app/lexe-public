@@ -3273,6 +3273,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-util",
+ "h2 0.4.2",
  "http 1.1.0",
  "http-body 1.0.0",
  "http-body-util",

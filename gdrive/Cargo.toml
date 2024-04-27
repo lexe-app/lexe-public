@@ -11,7 +11,7 @@ common = { path = "../common" }
 anyhow.workspace = true
 futures.workspace = true
 thiserror.workspace = true
-reqwest = { workspace = true, features = ["json", "multipart", "rustls-tls-manual-roots"] }
+reqwest = { workspace = true, features = ["http2", "json", "multipart", "rustls-tls-manual-roots"] }
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
