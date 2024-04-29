@@ -536,6 +536,57 @@ class AppRsImpl implements AppRs {
             argNames: ["that", "scrollIdx"],
           );
 
+  ShortPaymentAndIndex? getPendingNotJunkShortPaymentByScrollIdxMethodAppHandle(
+      {required AppHandle that, required int scrollIdx, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    var arg1 = api2wire_usize(scrollIdx);
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner
+          .wire_get_pending_not_junk_short_payment_by_scroll_idx__method__AppHandle(
+              arg0, arg1),
+      parseSuccessData: _wire2api_opt_box_autoadd_short_payment_and_index,
+      parseErrorData: null,
+      constMeta:
+          kGetPendingNotJunkShortPaymentByScrollIdxMethodAppHandleConstMeta,
+      argValues: [that, scrollIdx],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetPendingNotJunkShortPaymentByScrollIdxMethodAppHandleConstMeta =>
+          const FlutterRustBridgeTaskConstMeta(
+            debugName:
+                "get_pending_not_junk_short_payment_by_scroll_idx__method__AppHandle",
+            argNames: ["that", "scrollIdx"],
+          );
+
+  ShortPaymentAndIndex?
+      getFinalizedNotJunkShortPaymentByScrollIdxMethodAppHandle(
+          {required AppHandle that, required int scrollIdx, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    var arg1 = api2wire_usize(scrollIdx);
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner
+          .wire_get_finalized_not_junk_short_payment_by_scroll_idx__method__AppHandle(
+              arg0, arg1),
+      parseSuccessData: _wire2api_opt_box_autoadd_short_payment_and_index,
+      parseErrorData: null,
+      constMeta:
+          kGetFinalizedNotJunkShortPaymentByScrollIdxMethodAppHandleConstMeta,
+      argValues: [that, scrollIdx],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetFinalizedNotJunkShortPaymentByScrollIdxMethodAppHandleConstMeta =>
+          const FlutterRustBridgeTaskConstMeta(
+            debugName:
+                "get_finalized_not_junk_short_payment_by_scroll_idx__method__AppHandle",
+            argNames: ["that", "scrollIdx"],
+          );
+
   int getNumPaymentsMethodAppHandle({required AppHandle that, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     return _platform.executeSync(FlutterRustBridgeSyncTask(
@@ -594,6 +645,48 @@ class AppRsImpl implements AppRs {
       get kGetNumFinalizedPaymentsMethodAppHandleConstMeta =>
           const FlutterRustBridgeTaskConstMeta(
             debugName: "get_num_finalized_payments__method__AppHandle",
+            argNames: ["that"],
+          );
+
+  int getNumPendingNotJunkPaymentsMethodAppHandle(
+      {required AppHandle that, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner
+          .wire_get_num_pending_not_junk_payments__method__AppHandle(arg0),
+      parseSuccessData: _wire2api_usize,
+      parseErrorData: null,
+      constMeta: kGetNumPendingNotJunkPaymentsMethodAppHandleConstMeta,
+      argValues: [that],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetNumPendingNotJunkPaymentsMethodAppHandleConstMeta =>
+          const FlutterRustBridgeTaskConstMeta(
+            debugName: "get_num_pending_not_junk_payments__method__AppHandle",
+            argNames: ["that"],
+          );
+
+  int getNumFinalizedNotJunkPaymentsMethodAppHandle(
+      {required AppHandle that, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    return _platform.executeSync(FlutterRustBridgeSyncTask(
+      callFfi: () => _platform.inner
+          .wire_get_num_finalized_not_junk_payments__method__AppHandle(arg0),
+      parseSuccessData: _wire2api_usize,
+      parseErrorData: null,
+      constMeta: kGetNumFinalizedNotJunkPaymentsMethodAppHandleConstMeta,
+      argValues: [that],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetNumFinalizedNotJunkPaymentsMethodAppHandleConstMeta =>
+          const FlutterRustBridgeTaskConstMeta(
+            debugName: "get_num_finalized_not_junk_payments__method__AppHandle",
             argNames: ["that"],
           );
 
@@ -1692,6 +1785,50 @@ class AppRsWire implements FlutterRustBridgeWireBase {
           .asFunction<
               WireSyncReturn Function(ffi.Pointer<wire_AppHandle>, int)>();
 
+  WireSyncReturn
+      wire_get_pending_not_junk_short_payment_by_scroll_idx__method__AppHandle(
+    ffi.Pointer<wire_AppHandle> that,
+    int scroll_idx,
+  ) {
+    return _wire_get_pending_not_junk_short_payment_by_scroll_idx__method__AppHandle(
+      that,
+      scroll_idx,
+    );
+  }
+
+  late final _wire_get_pending_not_junk_short_payment_by_scroll_idx__method__AppHandlePtr =
+      _lookup<
+              ffi.NativeFunction<
+                  WireSyncReturn Function(
+                      ffi.Pointer<wire_AppHandle>, ffi.UintPtr)>>(
+          'wire_get_pending_not_junk_short_payment_by_scroll_idx__method__AppHandle');
+  late final _wire_get_pending_not_junk_short_payment_by_scroll_idx__method__AppHandle =
+      _wire_get_pending_not_junk_short_payment_by_scroll_idx__method__AppHandlePtr
+          .asFunction<
+              WireSyncReturn Function(ffi.Pointer<wire_AppHandle>, int)>();
+
+  WireSyncReturn
+      wire_get_finalized_not_junk_short_payment_by_scroll_idx__method__AppHandle(
+    ffi.Pointer<wire_AppHandle> that,
+    int scroll_idx,
+  ) {
+    return _wire_get_finalized_not_junk_short_payment_by_scroll_idx__method__AppHandle(
+      that,
+      scroll_idx,
+    );
+  }
+
+  late final _wire_get_finalized_not_junk_short_payment_by_scroll_idx__method__AppHandlePtr =
+      _lookup<
+              ffi.NativeFunction<
+                  WireSyncReturn Function(
+                      ffi.Pointer<wire_AppHandle>, ffi.UintPtr)>>(
+          'wire_get_finalized_not_junk_short_payment_by_scroll_idx__method__AppHandle');
+  late final _wire_get_finalized_not_junk_short_payment_by_scroll_idx__method__AppHandle =
+      _wire_get_finalized_not_junk_short_payment_by_scroll_idx__method__AppHandlePtr
+          .asFunction<
+              WireSyncReturn Function(ffi.Pointer<wire_AppHandle>, int)>();
+
   WireSyncReturn wire_get_num_payments__method__AppHandle(
     ffi.Pointer<wire_AppHandle> that,
   ) {
@@ -1738,6 +1875,40 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       'wire_get_num_finalized_payments__method__AppHandle');
   late final _wire_get_num_finalized_payments__method__AppHandle =
       _wire_get_num_finalized_payments__method__AppHandlePtr
+          .asFunction<WireSyncReturn Function(ffi.Pointer<wire_AppHandle>)>();
+
+  WireSyncReturn wire_get_num_pending_not_junk_payments__method__AppHandle(
+    ffi.Pointer<wire_AppHandle> that,
+  ) {
+    return _wire_get_num_pending_not_junk_payments__method__AppHandle(
+      that,
+    );
+  }
+
+  late final _wire_get_num_pending_not_junk_payments__method__AppHandlePtr =
+      _lookup<
+              ffi.NativeFunction<
+                  WireSyncReturn Function(ffi.Pointer<wire_AppHandle>)>>(
+          'wire_get_num_pending_not_junk_payments__method__AppHandle');
+  late final _wire_get_num_pending_not_junk_payments__method__AppHandle =
+      _wire_get_num_pending_not_junk_payments__method__AppHandlePtr
+          .asFunction<WireSyncReturn Function(ffi.Pointer<wire_AppHandle>)>();
+
+  WireSyncReturn wire_get_num_finalized_not_junk_payments__method__AppHandle(
+    ffi.Pointer<wire_AppHandle> that,
+  ) {
+    return _wire_get_num_finalized_not_junk_payments__method__AppHandle(
+      that,
+    );
+  }
+
+  late final _wire_get_num_finalized_not_junk_payments__method__AppHandlePtr =
+      _lookup<
+              ffi.NativeFunction<
+                  WireSyncReturn Function(ffi.Pointer<wire_AppHandle>)>>(
+          'wire_get_num_finalized_not_junk_payments__method__AppHandle');
+  late final _wire_get_num_finalized_not_junk_payments__method__AppHandle =
+      _wire_get_num_finalized_not_junk_payments__method__AppHandlePtr
           .asFunction<WireSyncReturn Function(ffi.Pointer<wire_AppHandle>)>();
 
   void wire_update_payment_note__method__AppHandle(

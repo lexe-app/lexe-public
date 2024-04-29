@@ -911,6 +911,36 @@ impl AppHandle {
             .apply(SyncReturn)
     }
 
+    pub fn get_pending_not_junk_short_payment_by_scroll_idx(
+        &self,
+        scroll_idx: usize,
+    ) -> SyncReturn<Option<ShortPaymentAndIndex>> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        db_lock
+            .state()
+            .get_pending_not_junk_payment_by_scroll_idx(scroll_idx)
+            .map(|(vec_idx, payment)| ShortPaymentAndIndex {
+                vec_idx,
+                payment: ShortPayment::from(payment),
+            })
+            .apply(SyncReturn)
+    }
+
+    pub fn get_finalized_not_junk_short_payment_by_scroll_idx(
+        &self,
+        scroll_idx: usize,
+    ) -> SyncReturn<Option<ShortPaymentAndIndex>> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        db_lock
+            .state()
+            .get_finalized_not_junk_payment_by_scroll_idx(scroll_idx)
+            .map(|(vec_idx, payment)| ShortPaymentAndIndex {
+                vec_idx,
+                payment: ShortPayment::from(payment),
+            })
+            .apply(SyncReturn)
+    }
+
     pub fn get_num_payments(&self) -> SyncReturn<usize> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock.state().num_payments().apply(SyncReturn)
@@ -924,6 +954,16 @@ impl AppHandle {
     pub fn get_num_finalized_payments(&self) -> SyncReturn<usize> {
         let db_lock = self.inner.payment_db().lock().unwrap();
         db_lock.state().num_finalized().apply(SyncReturn)
+    }
+
+    pub fn get_num_pending_not_junk_payments(&self) -> SyncReturn<usize> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        db_lock.state().num_pending_not_junk().apply(SyncReturn)
+    }
+
+    pub fn get_num_finalized_not_junk_payments(&self) -> SyncReturn<usize> {
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        db_lock.state().num_finalized_not_junk().apply(SyncReturn)
     }
 
     pub fn update_payment_note(
