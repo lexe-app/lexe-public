@@ -317,24 +317,24 @@ class WalletPageState extends State<WalletPage> {
             const SizedBox(height: Space.s800),
           ])),
 
-          // Pending payments + header
+          // Pending payments && not junk + header
           StreamBuilder(
             stream: this.paymentsUpdated.stream,
             initialData: null,
             builder: (context, snapshot) => SliverPaymentsList(
               app: this.widget.app,
-              filter: PaymentsListFilter.pending,
+              filter: PaymentsListFilter.pendingNotJunk,
               onPaymentTap: this.onPaymentTap,
             ),
           ),
 
-          // Completed+Failed payments + header
+          // Completed+Failed && not junk payments + header
           StreamBuilder(
             stream: this.paymentsUpdated.stream,
             initialData: null,
             builder: (context, snapshot) => SliverPaymentsList(
               app: this.widget.app,
-              filter: PaymentsListFilter.finalized,
+              filter: PaymentsListFilter.finalizedNotJunk,
               onPaymentTap: this.onPaymentTap,
             ),
           )
@@ -660,12 +660,17 @@ class WalletActionButton extends StatelessWidget {
 enum PaymentsListFilter {
   all,
   pending,
-  finalized;
+  pendingNotJunk,
+  finalized,
+  finalizedNotJunk,
+  ;
 
   String asTitle() => switch (this) {
         all => "Payments",
         pending => "Pending",
+        pendingNotJunk => "Pending",
         finalized => "Completed",
+        finalizedNotJunk => "Completed",
       };
 }
 
@@ -719,7 +724,11 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
     final int paymentKindCount = switch (this.widget.filter) {
       PaymentsListFilter.all => this.widget.app.getNumPayments(),
       PaymentsListFilter.pending => this.widget.app.getNumPendingPayments(),
+      PaymentsListFilter.pendingNotJunk =>
+        this.widget.app.getNumPendingNotJunkPayments(),
       PaymentsListFilter.finalized => this.widget.app.getNumFinalizedPayments(),
+      PaymentsListFilter.finalizedNotJunk =>
+        this.widget.app.getNumFinalizedNotJunkPayments(),
     };
     info("build SliverPaymentsList: filter: ${this.widget.filter}, "
         "paymentKindCount: $paymentKindCount");
@@ -762,10 +771,19 @@ class _SliverPaymentsListState extends State<SliverPaymentsList> {
                 .widget
                 .app
                 .getPendingShortPaymentByScrollIdx(scrollIdx: scrollIdx),
+            PaymentsListFilter.pendingNotJunk => this
+                .widget
+                .app
+                .getPendingNotJunkShortPaymentByScrollIdx(scrollIdx: scrollIdx),
             PaymentsListFilter.finalized => this
                 .widget
                 .app
                 .getFinalizedShortPaymentByScrollIdx(scrollIdx: scrollIdx),
+            PaymentsListFilter.finalizedNotJunk => this
+                .widget
+                .app
+                .getFinalizedNotJunkShortPaymentByScrollIdx(
+                    scrollIdx: scrollIdx),
           };
           if (result == null) return null;
 
