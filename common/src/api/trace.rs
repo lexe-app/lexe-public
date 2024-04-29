@@ -586,7 +586,8 @@ pub(crate) mod server {
             _request_span: &tracing::Span,
         ) {
             let headers = request.headers();
-            debug!(target: TARGET, ?headers, "New server request");
+            debug!(target: TARGET, "New server request");
+            debug!(target: TARGET, ?headers, "Server request (headers)");
         }
     }
 
