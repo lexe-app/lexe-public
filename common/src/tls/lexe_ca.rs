@@ -10,7 +10,34 @@ use rustls::{
 };
 
 use super::CertWithKey;
+#[cfg(doc)]
+use crate::{
+    api::def::{AppBackendApi, AppGatewayApi, BearerAuthBackendApi},
+    client::GatewayClient,
+};
 use crate::{ed25519, env::DeployEnv};
+
+/// Client-side TLS config for app<->gateway APIs, i.e. the [`GatewayClient`].
+/// This TLS config covers:
+/// - [`AppGatewayApi`]
+/// - [`AppBackendApi`]
+/// - [`BearerAuthBackendApi`] for the app
+///
+/// It does *not* cover the gateway's node proxy.
+pub fn app_gateway_client_config(
+    deploy_env: DeployEnv,
+) -> rustls::ClientConfig {
+    // Only trust Lexe's CA, no WebPKI roots, no client auth.
+    let lexe_verifier = public_lexe_verifier(deploy_env);
+    let mut config = super::lexe_client_config()
+        .with_webpki_verifier(lexe_verifier)
+        .with_no_client_auth();
+    config
+        .alpn_protocols
+        .clone_from(&super::LEXE_ALPN_PROTOCOLS);
+
+    config
+}
 
 /// Get the appropriate DER-encoded Lexe CA cert for this deploy environment.
 pub fn lexe_ca_cert(deploy_env: DeployEnv) -> CertificateDer<'static> {
