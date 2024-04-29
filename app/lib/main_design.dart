@@ -385,7 +385,9 @@ class MockAppHandle extends AppHandle {
     dummyOnchainOutboundFailed01,
     dummySpontaneousOutboundPending01,
     dummyInvoiceInboundPending01,
+    dummyInvoiceInboundPending02,
     dummyInvoiceInboundCompleted01,
+    dummyInvoiceInboundFailed01,
     dummyOnchainOutboundCompleted01,
   ].sortedBy((payment) => payment.index);
 
@@ -476,61 +478,72 @@ class MockAppHandle extends AppHandle {
   Payment? getPaymentByVecIdx({required int vecIdx, dynamic hint}) =>
       this.payments[vecIdx];
 
+  ShortPaymentAndIndex? _getByScrollIdx({
+    required bool Function(Payment) filter,
+    required int scrollIdx,
+  }) {
+    final result = this
+        .payments
+        .reversed // can't `reversed` after .indexed...
+        .indexed
+        .where((x) => filter(x.$2))
+        .elementAtOrNull(scrollIdx);
+    if (result == null) return null;
+    return ShortPaymentAndIndex(
+      vecIdx: this.payments.length - result.$1 - 1,
+      payment: result.$2.intoShort(),
+    );
+  }
+
   @override
   ShortPaymentAndIndex? getShortPaymentByScrollIdx(
-      {required int scrollIdx, dynamic hint}) {
-    if (scrollIdx >= this.payments.length) {
-      return null;
-    }
-    final vecIdx = this.payments.length - scrollIdx - 1;
-    final payment = this.payments[vecIdx];
-    return ShortPaymentAndIndex(vecIdx: vecIdx, payment: payment.intoShort());
-  }
+          {required int scrollIdx, dynamic hint}) =>
+      this._getByScrollIdx(filter: (_) => true, scrollIdx: scrollIdx);
 
   @override
   ShortPaymentAndIndex? getPendingShortPaymentByScrollIdx(
-      {required int scrollIdx, dynamic hint}) {
-    if (scrollIdx >= this.getNumPendingPayments()) {
-      return null;
-    }
-    final payment = this
-        .payments
-        .reversed
-        .where((payment) => payment.status == PaymentStatus.Pending)
-        .elementAt(scrollIdx);
-    final vecIdx = this.payments.indexOf(payment);
-    return ShortPaymentAndIndex(vecIdx: vecIdx, payment: payment.intoShort());
-  }
+          {required int scrollIdx, dynamic hint}) =>
+      this._getByScrollIdx(
+          filter: (payment) => payment.isPending(), scrollIdx: scrollIdx);
+
+  @override
+  ShortPaymentAndIndex? getPendingNotJunkShortPaymentByScrollIdx(
+          {required int scrollIdx, dynamic hint}) =>
+      this._getByScrollIdx(
+          filter: (payment) => payment.isPendingNotJunk(),
+          scrollIdx: scrollIdx);
 
   @override
   ShortPaymentAndIndex? getFinalizedShortPaymentByScrollIdx(
-      {required int scrollIdx, dynamic hint}) {
-    if (scrollIdx >= this.getNumFinalizedPayments()) {
-      return null;
-    }
-    final payment = this
-        .payments
-        .reversed
-        .where((payment) => payment.status != PaymentStatus.Pending)
-        .elementAt(scrollIdx);
-    final vecIdx = this.payments.indexOf(payment);
-    return ShortPaymentAndIndex(vecIdx: vecIdx, payment: payment.intoShort());
-  }
+          {required int scrollIdx, dynamic hint}) =>
+      this._getByScrollIdx(
+          filter: (payment) => payment.isFinalized(), scrollIdx: scrollIdx);
+
+  @override
+  ShortPaymentAndIndex? getFinalizedNotJunkShortPaymentByScrollIdx(
+          {required int scrollIdx, dynamic hint}) =>
+      this._getByScrollIdx(
+          filter: (payment) => payment.isFinalizedNotJunk(),
+          scrollIdx: scrollIdx);
 
   @override
   int getNumPayments({dynamic hint}) => this.payments.length;
 
   @override
-  int getNumPendingPayments({dynamic hint}) => this
-      .payments
-      .where((payment) => payment.status == PaymentStatus.Pending)
-      .length;
+  int getNumPendingPayments({dynamic hint}) =>
+      this.payments.where((payment) => payment.isPending()).length;
 
   @override
-  int getNumFinalizedPayments({dynamic hint}) => this
-      .payments
-      .where((payment) => payment.status != PaymentStatus.Pending)
-      .length;
+  int getNumPendingNotJunkPayments({dynamic hint}) =>
+      this.payments.where((payment) => payment.isPendingNotJunk()).length;
+
+  @override
+  int getNumFinalizedPayments({dynamic hint}) =>
+      this.payments.where((payment) => payment.isFinalized()).length;
+
+  @override
+  int getNumFinalizedNotJunkPayments({dynamic hint}) =>
+      this.payments.where((payment) => payment.isFinalizedNotJunk()).length;
 
   @override
   Future<void> updatePaymentNote(
@@ -640,6 +653,19 @@ extension PaymentExt on Payment {
         createdAt: createdAt ?? this.createdAt,
         finalizedAt: finalizedAt ?? this.finalizedAt,
       );
+
+  bool isPending() => this.status == PaymentStatus.Pending;
+  bool isPendingNotJunk() => this.isPending() && !this.isJunk();
+  bool isFinalized() => this.status != PaymentStatus.Pending;
+  bool isFinalizedNotJunk() => this.isFinalized() && !this.isJunk();
+
+  // Keep in sync with [`BasicPayment::is_junk()`] in `common/src/ln/payments.rs`.
+  bool isJunk() =>
+      // junk amountless invoice
+      this.status != PaymentStatus.Completed &&
+      this.kind == PaymentKind.Invoice &&
+      this.direction == PaymentDirection.Inbound &&
+      (this.amountSat == null || this.note == null);
 }
 
 // Dummy payments data
@@ -740,6 +766,30 @@ const Payment dummyInvoiceInboundPending01 = Payment(
   createdAt: 1687140003000,
 );
 
+// Junk payment
+const Payment dummyInvoiceInboundPending02 = Payment(
+  index:
+      "0000001714432815000-ln_c6e5e46c59267114f91d64df0e069b0dae176f9a134656820bba1e6164318980",
+  kind: PaymentKind.Invoice,
+  direction: PaymentDirection.Inbound,
+  invoice: Invoice(
+    string:
+        "lnbcrt1pnrq2e0xq8pnrqvaepp5cmj7gmzeyec3f7gavn0sup5mpkhpwmu6zdr9dqsthg0xzep33xqqsp5dfhkjumxv3hkj6npwdhkgenfdfshxmmfv3nx5mmfwdskg6nxda5s9qrsgqdqqcqpcnp4qwla7nx7p5e5nau5k2hh2gxf736rhw0naslthr3jmyu5jqk8gjx7v62qr2p6rh6v38kclflj2yk5x90jsshpe77tjzngc4enn2muxwhu54haacvyef60y5xz2xslezykrvfqlj9yfe4d0tdjrdtx44jusr8sqtehvp3",
+    description: null,
+    createdAt: 1714432815000,
+    expiresAt: 1714435001000,
+    amountSats: null,
+    payeePubkey:
+        "e68d44c7024939d9328ebb3eecf3b93b74f4c92075afb294f749330dde4cdfbfe5a75ff4cbb752a40e1c4947255d2a9c0ae88c826b5f47d6d660ce9b7c6ebca1",
+  ),
+  amountSat: null,
+  feesSat: 0,
+  status: PaymentStatus.Pending,
+  statusStr: "claiming",
+  note: null,
+  createdAt: 1714432815000,
+);
+
 const Payment dummyInvoiceInboundCompleted01 = Payment(
   index:
       "0000001687100002000-ln_801ffce9fbe74fecc7ec6fa72716d7de6167cc5607635062b24797b54f9ba4be",
@@ -762,6 +812,30 @@ const Payment dummyInvoiceInboundCompleted01 = Payment(
   note: null,
   createdAt: 1687100002000,
   finalizedAt: 1687100005000,
+);
+
+// Junk payment (failed)
+const Payment dummyInvoiceInboundFailed01 = Payment(
+  index:
+      "0000001700222815000-ln_034a21eee2bea4288ec9582b10a4abd6bfdca83855b25257279e67dd02f77d43",
+  kind: PaymentKind.Invoice,
+  direction: PaymentDirection.Inbound,
+  invoice: Invoice(
+    string:
+        "lnbcrt1pj4w46lxq8pj4whlfpp5qd9zrmhzh6jz3rkftq43pf9t66lae2pc2ke9y4e8nena6qhh04pssp5v9k8xerxdfhkj6n0d9ekg6nxda5hxer2vekxk6npd3skk6nnve5s9qrsgqdqqcqpcnp4q0tmlmj0gdeksm6el92s4v3gtw2nt3fjpp7czafjpfd9tgmv052jsc5p3dhdl25x88ndth9qzc4ms2wm5xwa9xfw56dapyaj5n84vv7djsgul2gyjdvk9xzu2pjqv59lfssmft95x43gqqqq5g05r93epkpqpq8a02n",
+    description: null,
+    createdAt: 1700222815000,
+    expiresAt: 1700225001000,
+    amountSats: null,
+    payeePubkey:
+        "28157d6ca3555a0a3275817d0832c535955b28b20a55f9596f6873434feebfd797d4b245397fab8f8f94dcdd32aac475d64893aa042f18b8d725e116082ae909",
+  ),
+  amountSat: null,
+  feesSat: 0,
+  status: PaymentStatus.Failed,
+  statusStr: "expired",
+  note: null,
+  createdAt: 1700222815000,
 );
 
 // Some design-specific pages
