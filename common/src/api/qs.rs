@@ -22,35 +22,35 @@ use crate::{
 // <https://github.com/serde-rs/serde/issues/1183>
 
 /// Query parameter struct for fetching by user pk
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct GetByUserPk {
     pub user_pk: UserPk,
 }
 
 /// Query parameter struct for fetching by node pk
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct GetByNodePk {
     pub node_pk: NodePk,
 }
 
 /// Query parameter struct for fetching by scid
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct GetByScid {
     pub scid: Scid,
 }
 
 /// Query parameter struct for fetching by measurement.
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct GetByMeasurement {
     pub measurement: Measurement,
 }
 
 /// Query parameter struct for fetching a payment by its index.
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct GetPaymentByIndex {
     /// The index of the payment to be fetched.
@@ -60,7 +60,7 @@ pub struct GetPaymentByIndex {
 
 /// Query parameter struct for syncing batches of new payments to local storage.
 /// Results are returned in ascending `(created_at, payment_id)` order.
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct GetNewPayments {
     /// Optional [`PaymentIndex`] at which the results should start, exclusive.
@@ -84,7 +84,7 @@ pub struct GetPaymentsByIds {
 
 /// Struct for updating payment notes.
 // TODO(max): Not a query param struct; maybe these structs should be moved...
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct UpdatePaymentNote {
     /// The index of the payment whose note should be updated.
     pub index: PaymentIndex,

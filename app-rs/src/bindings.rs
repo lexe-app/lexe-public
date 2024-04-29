@@ -971,8 +971,15 @@ impl AppHandle {
         req: UpdatePaymentNote,
     ) -> anyhow::Result<()> {
         let req = UpdatePaymentNoteRs::try_from(req)?;
-        block_on(self.inner.node_client().update_payment_note(req))
+        // Update remote store first
+        block_on(self.inner.node_client().update_payment_note(req.clone()))
             .map(|Empty {}| ())
-            .map_err(anyhow::Error::new)
+            .map_err(anyhow::Error::new)?;
+        // Update local store after
+        self.inner
+            .payment_db()
+            .lock()
+            .unwrap()
+            .update_payment_note(req)
     }
 }
