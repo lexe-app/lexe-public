@@ -31,7 +31,7 @@ use anyhow::{format_err, Context};
 use common::{
     api::{
         def::AppNodeRunApi,
-        qs::{GetNewPayments, GetPaymentsByIds},
+        qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
     },
     iter::IteratorExt,
     ln::payments::{BasicPayment, LxPaymentId, PaymentIndex},
@@ -294,17 +294,14 @@ impl<F: Ffs> PaymentDb<F> {
         // Get the current, pending payment.
         //
 
-        let search_result = self
+        let vec_idx = self
             .state
-            .payments
-            .binary_search_by_key(&updated_payment_index, BasicPayment::index);
-        let (vec_idx, existing_payment) = match search_result {
-            Err(_) => panic!(
+            .get_vec_idx_by_payment_index(updated_payment_index)
+            .expect(
                 "PaymentDb is corrupted! We are missing a pending payment \
-                 that should exist!"
-            ),
-            Ok(idx) => (idx, self.state.payments.get_mut(idx).unwrap()),
-        };
+                 that should exist!",
+            );
+        let existing_payment = self.state.payments.get_mut(vec_idx).unwrap();
 
         // No change to payment; skip.
         if &updated_payment == existing_payment {
@@ -358,6 +355,23 @@ impl<F: Ffs> PaymentDb<F> {
         *existing_payment = updated_payment;
 
         Ok(1)
+    }
+
+    pub fn update_payment_note(
+        &mut self,
+        req: UpdatePaymentNote,
+    ) -> anyhow::Result<()> {
+        let vec_idx = self
+            .state
+            .get_vec_idx_by_payment_index(&req.index)
+            .context("Updating non-existent payment")?;
+
+        let payment = self.state.get_mut_payment_by_vec_idx(vec_idx).unwrap();
+        payment.note = req.note;
+
+        Self::write_payment(&self.ffs, payment)
+            .context("Failed to write payment to local db")?;
+        Ok(())
     }
 }
 
@@ -571,12 +585,28 @@ impl PaymentDbState {
             .collect()
     }
 
+    pub fn get_vec_idx_by_payment_index(
+        &self,
+        payment_index: &PaymentIndex,
+    ) -> Option<usize> {
+        self.payments
+            .binary_search_by_key(&payment_index, BasicPayment::index)
+            .ok()
+    }
+
     /// Get a payment by its stable db `vec_idx`.
     pub fn get_payment_by_vec_idx(
         &self,
         vec_idx: usize,
     ) -> Option<&BasicPayment> {
         self.payments.get(vec_idx)
+    }
+
+    pub fn get_mut_payment_by_vec_idx(
+        &mut self,
+        vec_idx: usize,
+    ) -> Option<&mut BasicPayment> {
+        self.payments.get_mut(vec_idx)
     }
 
     /// Get a payment by scroll index in UI order (newest to oldest).
@@ -916,7 +946,6 @@ mod test {
                 NodeInfo, PayInvoiceRequest, SendOnchainRequest,
             },
             error::NodeApiError,
-            qs::UpdatePaymentNote,
             Empty,
         },
         ln::{hashes::LxTxid, payments::PaymentStatus},
