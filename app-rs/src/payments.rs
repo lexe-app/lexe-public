@@ -379,6 +379,7 @@ impl PaymentDbState {
     ///      newest.
     /// (2.) Re-computing the indexes should exactly match the current one.
     /// (3.) Sanity check the invariants of indexes.
+    /// (4.) Some indexes are subsets of others.
     fn debug_assert_invariants(&self) {
         if cfg!(not(debug_assertions)) {
             return;
@@ -422,6 +423,14 @@ impl PaymentDbState {
                     && !self.finalized_not_junk.contains(vec_idx),
             );
         }
+
+        // (4.)
+        assert!(self.num_pending() >= self.num_pending_not_junk());
+        assert!(self.pending_not_junk.is_subset(&self.pending));
+
+        assert!(self.num_finalized() >= self.num_finalized_not_junk());
+        // > no finalized index yet.
+        // assert!(self.finalized_not_junk.is_subset(&self.finalized));
     }
 
     /// Build a `RoaringBitmap` index that matches the given binary `filter`.
@@ -818,6 +827,7 @@ async fn sync_pending_payments<F: Ffs, N: AppNodeRunApi>(
                 "Node returned more payments than we expected!"
             ));
         }
+
         // for (pending_id, resp_payment) in
         //     pending_ids_batch.iter().zip(resp_payments.iter())
         // {
@@ -1237,6 +1247,32 @@ mod test {
         });
     }
 
+    fn assert_get_by_scroll_idx<F1, F2>(
+        db_state: &PaymentDbState,
+        actual_fn: F1,
+        naive_filter_fn: F2,
+        scroll_idx: usize,
+    ) where
+        F1: Fn(&PaymentDbState, usize) -> Option<(usize, &BasicPayment)>,
+        F2: Fn(&BasicPayment) -> bool,
+    {
+        let actual = actual_fn(db_state, scroll_idx);
+        let naive = db_state
+            .payments
+            .iter()
+            .enumerate()
+            .rev()
+            .filter(|(_vec_idx, payment)| naive_filter_fn(payment))
+            .nth(scroll_idx);
+        assert_eq!(actual, naive);
+        assert_eq!(
+            actual.map(|(_, payment)| payment),
+            actual.and_then(
+                |(vec_idx, _)| db_state.get_payment_by_vec_idx(vec_idx)
+            ),
+        );
+    }
+
     #[test]
     fn test_get_payment_kinds() {
         let config = proptest::test_runner::Config::with_cases(10);
@@ -1247,43 +1283,39 @@ mod test {
             // include a few extra indices after `n` just to make sure we don't
             // choke on out-of-range
             for scroll_idx in 0..(n+5) {
-                // get_payment_by_scroll_idx
-                let actual = db_state.get_payment_by_scroll_idx(scroll_idx);
-                let naive = db_state.payments.iter().enumerate().rev().nth(scroll_idx);
-                assert_eq!(actual, naive);
-                assert_eq!(
-                    actual.map(|(_, payment)| payment),
-                    actual.and_then(|(vec_idx, _)| db_state.get_payment_by_vec_idx(vec_idx)),
+                assert_get_by_scroll_idx(
+                    &db_state,
+                    PaymentDbState::get_payment_by_scroll_idx,
+                    |_payment| true,
+                    scroll_idx,
                 );
 
-                // get_pending_payment_by_scroll_idx
-                let actual = db_state.get_pending_not_junk_payment_by_scroll_idx(scroll_idx);
-                let naive = db_state
-                    .payments
-                    .iter()
-                    .enumerate()
-                    .rev()
-                    .filter(|(_vec_idx, payment)| payment.is_pending_not_junk())
-                    .nth(scroll_idx);
-                assert_eq!(actual, naive);
-                assert_eq!(
-                    actual.map(|(_, payment)| payment),
-                    actual.and_then(|(vec_idx, _)| db_state.get_payment_by_vec_idx(vec_idx)),
+                assert_get_by_scroll_idx(
+                    &db_state,
+                    PaymentDbState::get_pending_payment_by_scroll_idx,
+                    BasicPayment::is_pending,
+                    scroll_idx,
                 );
 
-                // get_finalized_payment_by_scroll_idx
-                let actual = db_state.get_finalized_not_junk_payment_by_scroll_idx(scroll_idx);
-                let naive = db_state
-                    .payments
-                    .iter()
-                    .enumerate()
-                    .rev()
-                    .filter(|(_vec_idx, payment)| payment.is_finalized_not_junk())
-                    .nth(scroll_idx);
-                assert_eq!(actual, naive);
-                assert_eq!(
-                    actual.map(|(_, payment)| payment),
-                    actual.and_then(|(vec_idx, _)| db_state.get_payment_by_vec_idx(vec_idx)),
+                assert_get_by_scroll_idx(
+                    &db_state,
+                    PaymentDbState::get_pending_not_junk_payment_by_scroll_idx,
+                    BasicPayment::is_pending_not_junk,
+                    scroll_idx,
+                );
+
+                assert_get_by_scroll_idx(
+                    &db_state,
+                    PaymentDbState::get_finalized_payment_by_scroll_idx,
+                    BasicPayment::is_finalized,
+                    scroll_idx,
+                );
+
+                assert_get_by_scroll_idx(
+                    &db_state,
+                    PaymentDbState::get_finalized_not_junk_payment_by_scroll_idx,
+                    BasicPayment::is_finalized_not_junk,
+                    scroll_idx,
                 );
             }
         });
