@@ -49,7 +49,7 @@ use crate::{
     ln::{hashes::LxTxid, payments::BasicPayment},
     rng::Crng,
     root_seed::RootSeed,
-    tls,
+    tls::{self, lexe_ca},
 };
 
 /// The client to the gateway itself, i.e. requests terminate at the gateway.
@@ -89,12 +89,20 @@ impl UnwindSafe for GatewayClient {}
 impl RefUnwindSafe for GatewayClient {}
 
 impl GatewayClient {
-    pub fn new(gateway_url: String) -> Self {
-        // TODO(phlip9): gateway TLS config
-        Self {
-            rest: RestClient::new("app", "gateway"),
-            gateway_url,
-        }
+    pub fn new(
+        deploy_env: DeployEnv,
+        gateway_url: String,
+    ) -> anyhow::Result<Self> {
+        let tls_config = lexe_ca::app_gateway_client_config(deploy_env);
+
+        let (from, to) = ("app", "gateway");
+        let reqwest_client = RestClient::client_builder(from)
+            .use_preconfigured_tls(tls_config)
+            .build()
+            .context("Failed to build client")?;
+        let rest = RestClient::from_inner(reqwest_client, from, to);
+
+        Ok(Self { rest, gateway_url })
     }
 }
 

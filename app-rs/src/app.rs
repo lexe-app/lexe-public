@@ -71,7 +71,11 @@ impl App {
         let user_pk = *user_key_pair.public_key();
         let bearer_authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
-        let gateway_client = GatewayClient::new(config.gateway_url.clone());
+        let gateway_client = GatewayClient::new(
+            config.deploy_env.into(),
+            config.gateway_url.clone(),
+        )
+        .context("Failed to build GatewayClient")?;
         let node_client = NodeClient::new(
             rng,
             config.use_sgx,
@@ -232,7 +236,11 @@ impl App {
         // build NodeClient, GatewayClient
         let bearer_authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
-        let gateway_client = GatewayClient::new(config.gateway_url.clone());
+        let gateway_client = GatewayClient::new(
+            config.deploy_env.into(),
+            config.gateway_url.clone(),
+        )
+        .context("Failed to build GatewayClient")?;
         let node_client = NodeClient::new(
             rng,
             config.use_sgx,
