@@ -144,11 +144,21 @@ WireSyncReturn wire_get_pending_short_payment_by_scroll_idx__method__AppHandle(s
 WireSyncReturn wire_get_finalized_short_payment_by_scroll_idx__method__AppHandle(struct wire_AppHandle *that,
                                                                                  uintptr_t scroll_idx);
 
+WireSyncReturn wire_get_pending_not_junk_short_payment_by_scroll_idx__method__AppHandle(struct wire_AppHandle *that,
+                                                                                        uintptr_t scroll_idx);
+
+WireSyncReturn wire_get_finalized_not_junk_short_payment_by_scroll_idx__method__AppHandle(struct wire_AppHandle *that,
+                                                                                          uintptr_t scroll_idx);
+
 WireSyncReturn wire_get_num_payments__method__AppHandle(struct wire_AppHandle *that);
 
 WireSyncReturn wire_get_num_pending_payments__method__AppHandle(struct wire_AppHandle *that);
 
 WireSyncReturn wire_get_num_finalized_payments__method__AppHandle(struct wire_AppHandle *that);
+
+WireSyncReturn wire_get_num_pending_not_junk_payments__method__AppHandle(struct wire_AppHandle *that);
+
+WireSyncReturn wire_get_num_finalized_not_junk_payments__method__AppHandle(struct wire_AppHandle *that);
 
 void wire_update_payment_note__method__AppHandle(int64_t port_,
                                                  struct wire_AppHandle *that,
@@ -205,9 +215,13 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_get_short_payment_by_scroll_idx__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_pending_short_payment_by_scroll_idx__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_finalized_short_payment_by_scroll_idx__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_get_pending_not_junk_short_payment_by_scroll_idx__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_get_finalized_not_junk_short_payment_by_scroll_idx__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_num_payments__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_num_pending_payments__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_num_finalized_payments__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_get_num_pending_not_junk_payments__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_get_num_finalized_not_junk_payments__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_update_payment_note__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) new_App);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_app_handle_0);

@@ -185,6 +185,19 @@ abstract class AppRs {
   FlutterRustBridgeTaskConstMeta
       get kGetFinalizedShortPaymentByScrollIdxMethodAppHandleConstMeta;
 
+  ShortPaymentAndIndex? getPendingNotJunkShortPaymentByScrollIdxMethodAppHandle(
+      {required AppHandle that, required int scrollIdx, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetPendingNotJunkShortPaymentByScrollIdxMethodAppHandleConstMeta;
+
+  ShortPaymentAndIndex?
+      getFinalizedNotJunkShortPaymentByScrollIdxMethodAppHandle(
+          {required AppHandle that, required int scrollIdx, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetFinalizedNotJunkShortPaymentByScrollIdxMethodAppHandleConstMeta;
+
   int getNumPaymentsMethodAppHandle({required AppHandle that, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kGetNumPaymentsMethodAppHandleConstMeta;
@@ -200,6 +213,18 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta
       get kGetNumFinalizedPaymentsMethodAppHandleConstMeta;
+
+  int getNumPendingNotJunkPaymentsMethodAppHandle(
+      {required AppHandle that, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetNumPendingNotJunkPaymentsMethodAppHandleConstMeta;
+
+  int getNumFinalizedNotJunkPaymentsMethodAppHandle(
+      {required AppHandle that, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetNumFinalizedNotJunkPaymentsMethodAppHandleConstMeta;
 
   Future<void> updatePaymentNoteMethodAppHandle(
       {required AppHandle that, required UpdatePaymentNote req, dynamic hint});
@@ -334,6 +359,20 @@ class AppHandle {
         scrollIdx: scrollIdx,
       );
 
+  ShortPaymentAndIndex? getPendingNotJunkShortPaymentByScrollIdx(
+          {required int scrollIdx, dynamic hint}) =>
+      bridge.getPendingNotJunkShortPaymentByScrollIdxMethodAppHandle(
+        that: this,
+        scrollIdx: scrollIdx,
+      );
+
+  ShortPaymentAndIndex? getFinalizedNotJunkShortPaymentByScrollIdx(
+          {required int scrollIdx, dynamic hint}) =>
+      bridge.getFinalizedNotJunkShortPaymentByScrollIdxMethodAppHandle(
+        that: this,
+        scrollIdx: scrollIdx,
+      );
+
   int getNumPayments({dynamic hint}) => bridge.getNumPaymentsMethodAppHandle(
         that: this,
       );
@@ -345,6 +384,16 @@ class AppHandle {
 
   int getNumFinalizedPayments({dynamic hint}) =>
       bridge.getNumFinalizedPaymentsMethodAppHandle(
+        that: this,
+      );
+
+  int getNumPendingNotJunkPayments({dynamic hint}) =>
+      bridge.getNumPendingNotJunkPaymentsMethodAppHandle(
+        that: this,
+      );
+
+  int getNumFinalizedNotJunkPayments({dynamic hint}) =>
+      bridge.getNumFinalizedNotJunkPaymentsMethodAppHandle(
         that: this,
       );
 
