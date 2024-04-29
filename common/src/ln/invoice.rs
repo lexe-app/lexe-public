@@ -183,20 +183,21 @@ mod test {
     }
 
     // Used to generate example invoices for UI tests.
+    #[ignore]
     #[test]
     fn dump_invoice() {
-        let seed = RootSeed::from_u64(123);
+        let seed = RootSeed::from_u64(12345);
         let node_key_pair =
             seed.derive_node_key_pair(&mut WeakRng::from_u64(123));
 
         let network = Network::REGTEST;
-        let amount_sats = 77_000 + 3_349;
-        let created_at = Duration::from_millis(1687102080710);
-        let expires_at = Duration::from_millis(1687102191305);
-        let description = "Sunday brunch";
-        let payment_hash = sha256::Hash::hash(b"idk");
+        let amount_sats = None;
+        let created_at = Duration::from_millis(1700222815000);
+        let expires_at = Duration::from_millis(1700225001000);
+        let description = "";
+        let payment_hash = sha256::Hash::hash(b"446(54)6(54)");
         let payment_secret =
-            PaymentSecret(*b"joisfdoijasodfijasoidfjoisadjfoi");
+            PaymentSecret(*b"alsdfjoijoisdjfoisdjflkjalakjsfi");
         let payee_pubkey = node_key_pair.public_key();
 
         dbg!(network.0);
@@ -208,15 +209,22 @@ mod test {
         dbg!(hex::encode(&payment_secret.0));
         dbg!(payee_pubkey);
 
-        let invoice = InvoiceBuilder::new(Currency::from(network))
-            .amount_milli_satoshis(Amount::from_sats_u32(amount_sats).msat())
+        let mut builder = InvoiceBuilder::new(Currency::from(network))
             .duration_since_epoch(created_at)
             .expiry_time(expires_at)
             .payment_hash(payment_hash)
             .payment_secret(payment_secret)
             .description(description.to_owned())
             .min_final_cltv_expiry_delta(MIN_FINAL_CLTV_EXPIRY_DELTA as u64)
-            .payee_pub_key(payee_pubkey)
+            .payee_pub_key(payee_pubkey);
+
+        if let Some(amount_sats) = amount_sats {
+            builder = builder.amount_milli_satoshis(
+                Amount::from_sats_u32(amount_sats).msat(),
+            );
+        }
+
+        let invoice = builder
             .build_signed(|hash| {
                 Secp256k1::new()
                     .sign_ecdsa_recoverable(hash, &node_key_pair.secret_key())
