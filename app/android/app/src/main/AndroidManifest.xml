@@ -2,7 +2,7 @@
 <manifest
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    package="app.lexe.lexeapp">
+    package="${applicationId}">
 
     <application
         ..
@@ -12,10 +12,10 @@
 
 <manifest
     xmlns:android="http://schemas.android.com/apk/res/android"
-    package="app.lexe.lexeapp">
+    package="${applicationId}">
 
     <application
-        android:label="Lexe"
+        android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher" >
 

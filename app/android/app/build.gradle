@@ -41,8 +41,10 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId "app.lexe.lexeapp"
+        // The app name. ex: displayed under the icon on the user's home screen.
+        resValue "string", "app_name", "Lexe"
+
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
 
@@ -61,6 +63,21 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig signingConfigs.debug
+        }
+    }
+
+    flavorDimensions "flavor"
+
+    productFlavors {
+        // TODO(phlip9): add separate prod/staging/dev flavors?
+
+        // Lexe design mode
+        design {
+            dimension "flavor"
+            // The app name. ex: displayed under the icon on the user's home screen.
+            resValue "string", "app_name", "Lexe Design"
+            applicationIdSuffix ".design"
+            versionNameSuffix "-design"
         }
     }
 }
