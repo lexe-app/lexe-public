@@ -21,6 +21,7 @@ use common::{
     enclave::Measurement,
     env::DeployEnv,
     ln::payments::{DbPayment, LxPaymentId},
+    tls::lexe_ca,
 };
 
 use crate::api::BackendApiClient;
@@ -32,11 +33,14 @@ pub(crate) struct RunnerClient {
 
 impl RunnerClient {
     pub(crate) fn new(
-        _deploy_env: DeployEnv,
+        deploy_env: DeployEnv,
         runner_url: String,
     ) -> anyhow::Result<Self> {
+        let tls_config = lexe_ca::node_lexe_client_config(deploy_env);
+
         let (from, to) = ("node", "runner");
         let reqwest_client = RestClient::client_builder(from)
+            .use_preconfigured_tls(tls_config)
             .build()
             .context("Failed to build client")?;
         let rest = RestClient::from_inner(reqwest_client, from, to);
