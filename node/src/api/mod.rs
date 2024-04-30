@@ -67,14 +67,18 @@ pub(crate) fn new_backend_api(
 /// Helper to initiate a client to the LSP.
 pub(crate) fn new_lsp_api(
     allow_mock: bool,
+    deploy_env: DeployEnv,
     maybe_lsp_url: Option<String>,
 ) -> anyhow::Result<Arc<dyn NodeLspApi + Send + Sync>> {
     cfg_if::cfg_if! {
         if #[cfg(any(test, feature = "test-utils"))] {
             // Can use real OR mock client during development
             match maybe_lsp_url {
-                Some(lsp_url) =>
-                    Ok(Arc::new(client::LspClient::new(lsp_url))),
+                Some(lsp_url) => {
+                    let lsp_client = client::LspClient::new(deploy_env, lsp_url)
+                        .context("Could not init LspClient")?;
+                    Ok(Arc::new(lsp_client))
+                }
                 None => {
                     ensure!(
                         allow_mock,
@@ -86,9 +90,12 @@ pub(crate) fn new_lsp_api(
         } else {
             // Can only use the real lsp client in staging/prod
             let _ = allow_mock;
+            let _ = deploy_env;
             let lsp_url = maybe_lsp_url
                 .context("LspInfo's url field must be Some(_) in staging/prod")?;
-            Ok(Arc::new(client::LspClient::new(lsp_url)))
+            let lsp_client = client::LspClient::new(deploy_env, lsp_url)
+                .context("Could not init LspClient")?;
+            Ok(Arc::new(lsp_client))
         }
     }
 }
