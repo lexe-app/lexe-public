@@ -152,9 +152,12 @@ pub fn shared_seed_verifier(
     roots
         .add(ca_cert_der)
         .context("Failed to re-parse shared seed CA cert")?;
-    let verifier = WebPkiServerVerifier::builder(Arc::new(roots))
-        .build()
-        .context("Could not build shared seed server verifier")?;
+    let verifier = WebPkiServerVerifier::builder_with_provider(
+        Arc::new(roots),
+        super::LEXE_CRYPTO_PROVIDER.clone(),
+    )
+    .build()
+    .context("Could not build shared seed server verifier")?;
     Ok(verifier)
 }
 

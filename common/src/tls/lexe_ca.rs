@@ -68,9 +68,12 @@ pub fn public_lexe_verifier(
     let mut lexe_roots = RootCertStore::empty();
     lexe_roots.add(lexe_ca_cert).expect("Checked in tests");
     // TODO(phlip9): actually enforce cert transparency
-    WebPkiServerVerifier::builder(Arc::new(lexe_roots))
-        .build()
-        .expect("Checked in tests")
+    WebPkiServerVerifier::builder_with_provider(
+        Arc::new(lexe_roots),
+        super::LEXE_CRYPTO_PROVIDER.clone(),
+    )
+    .build()
+    .expect("Checked in tests")
 }
 
 /// Get a [`ClientCertVerifier`] which verifies that a presented client cert has

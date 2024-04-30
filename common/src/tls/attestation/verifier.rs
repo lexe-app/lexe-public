@@ -110,11 +110,13 @@ impl ServerCertVerifier for AttestationVerifier {
         let mut trust_roots = rustls::RootCertStore::empty();
         trust_roots.add(end_entity.to_owned()).map_err(rustls_err)?;
 
-        let webpki_verifier = rustls::client::WebPkiServerVerifier::builder(
-            Arc::new(trust_roots),
-        )
-        .build()
-        .map_err(|e| rustls::Error::General(e.to_string()))?;
+        let webpki_verifier =
+            rustls::client::WebPkiServerVerifier::builder_with_provider(
+                Arc::new(trust_roots),
+                tls::LEXE_CRYPTO_PROVIDER.clone(),
+            )
+            .build()
+            .map_err(|e| rustls::Error::General(e.to_string()))?;
 
         let verified_token = webpki_verifier.verify_server_cert(
             end_entity,
