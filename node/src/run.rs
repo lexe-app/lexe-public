@@ -146,7 +146,6 @@ impl UserNode {
         let backend_api =
             api::new_backend_api(args.allow_mock, args.backend_url.clone())
                 .context("Failed to init dyn BackendApiClient")?;
-        let lsp_api = api::new_lsp_api(args.allow_mock, args.lsp.url.clone())?;
 
         // Init channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
@@ -203,13 +202,18 @@ impl UserNode {
         );
         // From here, `deploy_env` and `network` can be treated as trusted.
 
-        // Init Runner API client, which requires the deploy env.
+        // Init the remaining API clients
         let runner_api = api::new_runner_api(
             args.allow_mock,
             deploy_env,
             args.runner_url.clone(),
         )
         .context("Failed to init dyn NodeRunnerApi")?;
+        let lsp_api = api::new_lsp_api(
+            args.allow_mock,
+            deploy_env,
+            args.lsp.url.clone(),
+        )?;
 
         // Validate esplora url
         let esplora_url = &args.esplora_url;

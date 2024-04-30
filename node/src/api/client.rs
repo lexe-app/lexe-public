@@ -66,11 +66,20 @@ pub(crate) struct LspClient {
 }
 
 impl LspClient {
-    pub(crate) fn new(lsp_url: String) -> Self {
-        Self {
-            rest: RestClient::new("node", "lsp"),
-            lsp_url,
-        }
+    pub(crate) fn new(
+        deploy_env: DeployEnv,
+        lsp_url: String,
+    ) -> anyhow::Result<Self> {
+        let tls_config = lexe_ca::node_lexe_client_config(deploy_env);
+
+        let (from, to) = ("node", "lsp");
+        let reqwest_client = RestClient::client_builder(from)
+            .use_preconfigured_tls(tls_config)
+            .build()
+            .context("Failed to build client")?;
+        let rest = RestClient::from_inner(reqwest_client, from, to);
+
+        Ok(Self { rest, lsp_url })
     }
 }
 
