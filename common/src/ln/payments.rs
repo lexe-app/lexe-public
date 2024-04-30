@@ -200,13 +200,13 @@ pub enum LxPaymentId {
 ///
 /// Its primary purpose is to prevent accidental double payments. Internal
 /// structure (if any) is opaque to the node.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct ClientPaymentId(#[serde(with = "hexstr_or_bytes")] pub [u8; 32]);
 
 /// Newtype for [`PaymentHash`] which impls [`Serialize`] / [`Deserialize`].
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct LxPaymentHash(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
@@ -333,6 +333,20 @@ impl ClientPaymentId {
         let mut random_buf = [0u8; 32];
         rng.fill_bytes(&mut random_buf);
         Self(random_buf)
+    }
+}
+
+impl fmt::Debug for ClientPaymentId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::display(&self.0))
+    }
+}
+
+// --- impl LxPaymentHash --- //
+
+impl fmt::Debug for LxPaymentHash {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", hex::display(&self.0))
     }
 }
 

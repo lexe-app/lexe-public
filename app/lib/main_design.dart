@@ -560,7 +560,9 @@ class MockAppHandleErroring extends MockAppHandle {
       {required CreateInvoiceRequest req, dynamic hint}) {
     return Future.delayed(
       const Duration(milliseconds: 1000),
-      () => throw const FfiError("Request timed out").toFfi(),
+      () => throw const FfiError(
+              "[106=Command] Error while executing command: Failed to register new payment")
+          .toFfi(),
     );
   }
 }
