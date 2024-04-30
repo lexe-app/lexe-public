@@ -26,7 +26,7 @@ use common::{
     api::{
         self,
         auth::BearerAuthenticator,
-        def::NodeRunnerApi,
+        def::{NodeBackendApi, NodeRunnerApi},
         error::{NodeApiError, NodeErrorKind},
         ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed},
@@ -36,6 +36,7 @@ use common::{
     },
     cli::node::ProvisionArgs,
     enclave::{self, MachineId, Measurement},
+    env::DeployEnv,
     net,
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
@@ -44,15 +45,19 @@ use common::{
 use gdrive::GoogleVfs;
 use tracing::{debug, info, info_span, instrument};
 
-use crate::{api::BackendApiClient, persister};
+use crate::{
+    api::client::{BackendClient, RunnerClient},
+    persister,
+};
 
 #[derive(Clone)]
 struct RequestContext {
     args: Arc<ProvisionArgs>,
     client: gdrive::ReqwestClient,
+    untrusted_deploy_env: DeployEnv,
     machine_id: MachineId,
     measurement: Measurement,
-    backend_api: Arc<dyn BackendApiClient + Send + Sync>,
+    backend_client: Arc<BackendClient>,
     // TODO(phlip9): make generic, use test rng in test
     rng: SysRng,
 }
@@ -65,10 +70,13 @@ struct RequestContext {
 pub async fn provision_node<R: Crng>(
     rng: &mut R,
     args: ProvisionArgs,
-    runner_api: Arc<dyn NodeRunnerApi + Send + Sync>,
-    backend_api: Arc<dyn BackendApiClient + Send + Sync>,
 ) -> anyhow::Result<()> {
-    debug!("provisioning");
+    info!("Initializing provision service");
+
+    let runner_client =
+        RunnerClient::new(args.untrusted_deploy_env, args.runner_url.clone())
+            .context("Failed to init RunnerClient")?;
+    let backend_client = Arc::new(BackendClient::new(args.backend_url.clone()));
 
     // Set up the request context and API servers.
     let args = Arc::new(args);
@@ -78,9 +86,10 @@ pub async fn provision_node<R: Crng>(
     let ctx = RequestContext {
         args: args.clone(),
         client,
+        untrusted_deploy_env: args.untrusted_deploy_env,
         machine_id,
         measurement,
-        backend_api,
+        backend_client,
         // TODO(phlip9): use passed in rng
         rng: SysRng::new(),
     };
@@ -134,7 +143,7 @@ pub async fn provision_node<R: Crng>(
 
     // Notify the runner that we're ready for a client connection
     let ports = Ports::new_provision(measurement, app_port, lexe_port);
-    runner_api
+    runner_client
         .ready(&ports)
         .await
         .context("Failed to notify runner of our readiness")?;
@@ -189,6 +198,16 @@ mod handlers {
     ) -> Result<LxJson<Empty>, NodeApiError> {
         debug!("Received provision request");
 
+        if ctx.untrusted_deploy_env != req.deploy_env {
+            // Benign error but we should quit just in case. Lexe could be under
+            // attack, but it's more likely the client was just misconfigured.
+            let req_env = req.deploy_env;
+            let arg_env = ctx.untrusted_deploy_env;
+            return Err(NodeApiError::provision(format!(
+                "Non-matching deploy envs: request {req_env}, args {arg_env}"
+            )));
+        }
+
         let sealed_seed = SealedSeed::seal_from_root_seed(
             &mut ctx.rng,
             &req.root_seed,
@@ -209,7 +228,7 @@ mod handlers {
             None, /* maybe_token */
         );
         let token = authenticator
-            .get_token(ctx.backend_api.as_ref(), SystemTime::now())
+            .get_token(ctx.backend_client.as_ref(), SystemTime::now())
             .await
             .map_err(|err| NodeApiError {
                 kind: NodeErrorKind::BadAuth,
@@ -217,7 +236,7 @@ mod handlers {
             })?;
 
         // store the sealed seed and new node metadata in the backend
-        ctx.backend_api
+        ctx.backend_client
             .create_sealed_seed(&sealed_seed, token)
             .await
             .context("Could not persist sealed seed")
@@ -261,7 +280,7 @@ mod handlers {
                     &credentials,
                 );
                 persister::persist_file(
-                    ctx.backend_api.as_ref(),
+                    ctx.backend_client.as_ref(),
                     &authenticator,
                     &credentials_file,
                 )
@@ -275,7 +294,7 @@ mod handlers {
                 // No auth code was provided. Ensure that credentials already
                 // exist.
                 let credentials = persister::read_gdrive_credentials(
-                    ctx.backend_api.as_ref(),
+                    ctx.backend_client.as_ref(),
                     &authenticator,
                     &vfs_master_key,
                 )
@@ -314,7 +333,7 @@ mod handlers {
 
         // See if we have a persisted gvfs root.
         let maybe_persisted_gvfs_root = persister::read_gvfs_root(
-            &*ctx.backend_api,
+            &*ctx.backend_client,
             &authenticator,
             &vfs_master_key,
         )
@@ -341,7 +360,7 @@ mod handlers {
             if let Some(new_gvfs_root) = maybe_new_gvfs_root {
                 persister::persist_gvfs_root(
                     &mut ctx.rng,
-                    &*ctx.backend_api,
+                    &*ctx.backend_client,
                     &authenticator,
                     &vfs_master_key,
                     &new_gvfs_root,
@@ -412,14 +431,17 @@ mod handlers {
                 // Ok to delete serially bc usually there's only 1
                 for (revoked_version, revoked_measurement) in revoked {
                     let token = authenticator
-                        .get_token(ctx.backend_api.as_ref(), SystemTime::now())
+                        .get_token(
+                            ctx.backend_client.as_ref(),
+                            SystemTime::now(),
+                        )
                         .await
                         .map_err(|e| NodeApiError {
                             kind: NodeErrorKind::BadAuth,
                             msg: format!("{e:#}"),
                         })?;
                     let try_delete = ctx
-                        .backend_api
+                        .backend_client
                         .delete_sealed_seeds(revoked_measurement, token.clone())
                         .await;
 
@@ -462,7 +484,7 @@ mod handlers {
                 );
 
                 persister::persist_file(
-                    ctx.backend_api.as_ref(),
+                    ctx.backend_client.as_ref(),
                     &authenticator,
                     &credentials_file,
                 )

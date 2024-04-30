@@ -1,3 +1,4 @@
+use anyhow::Context;
 use async_trait::async_trait;
 use common::{
     api::{
@@ -18,6 +19,7 @@ use common::{
     },
     ed25519,
     enclave::Measurement,
+    env::DeployEnv,
     ln::payments::{DbPayment, LxPaymentId},
 };
 
@@ -29,11 +31,17 @@ pub(crate) struct RunnerClient {
 }
 
 impl RunnerClient {
-    pub(crate) fn new(runner_url: String) -> Self {
-        Self {
-            rest: RestClient::new("node", "runner"),
-            runner_url,
-        }
+    pub(crate) fn new(
+        _deploy_env: DeployEnv,
+        runner_url: String,
+    ) -> anyhow::Result<Self> {
+        let (from, to) = ("node", "runner");
+        let reqwest_client = RestClient::client_builder(from)
+            .build()
+            .context("Failed to build client")?;
+        let rest = RestClient::from_inner(reqwest_client, from, to);
+
+        Ok(Self { rest, runner_url })
     }
 }
 
