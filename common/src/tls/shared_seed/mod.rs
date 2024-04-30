@@ -105,7 +105,7 @@ pub fn app_node_run_client_config(
     // - Public Lexe verifier trusts the hard-coded Lexe cert.
     let shared_seed_verifier = shared_seed_verifier(&ca_cert)
         .context("Failed to build shared seed verifier")?;
-    let public_lexe_verifier = lexe_ca::public_lexe_verifier(deploy_env);
+    let public_lexe_verifier = lexe_ca::lexe_server_verifier(deploy_env);
     let server_cert_verifier = AppNodeRunVerifier {
         shared_seed_verifier,
         public_lexe_verifier,

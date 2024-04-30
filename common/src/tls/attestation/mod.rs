@@ -75,7 +75,7 @@ pub fn app_node_provision_client_config(
         expect_dummy_quote: !use_sgx,
         enclave_policy,
     };
-    let public_lexe_verifier = lexe_ca::public_lexe_verifier(deploy_env);
+    let public_lexe_verifier = lexe_ca::lexe_server_verifier(deploy_env);
 
     let server_cert_verifier = AppNodeProvisionVerifier {
         public_lexe_verifier,

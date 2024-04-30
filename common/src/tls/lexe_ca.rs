@@ -17,7 +17,7 @@ use crate::{
 };
 use crate::{ed25519, env::DeployEnv};
 
-/// Client-side TLS config for app<->gateway APIs, i.e. the [`GatewayClient`].
+/// Client-side TLS config for app->gateway APIs, i.e. the [`GatewayClient`].
 /// This TLS config covers:
 /// - [`AppGatewayApi`]
 /// - [`AppBackendApi`]
@@ -28,7 +28,7 @@ pub fn app_gateway_client_config(
     deploy_env: DeployEnv,
 ) -> rustls::ClientConfig {
     // Only trust Lexe's CA, no WebPKI roots, no client auth.
-    let lexe_verifier = public_lexe_verifier(deploy_env);
+    let lexe_verifier = lexe_server_verifier(deploy_env);
     let mut config = super::lexe_client_config()
         .with_webpki_verifier(lexe_verifier)
         .with_no_client_auth();
@@ -56,18 +56,14 @@ pub fn lexe_ca_cert(deploy_env: DeployEnv) -> CertificateDer<'static> {
 /// Get a [`ServerCertVerifier`] which verifies that a presented server cert has
 /// been signed by Lexe's CA (without trusting Mozilla's WebPKI roots).
 ///
-/// This verifier enforces certificate transparency, so should only be used for
-/// requests to Lexe infrastructure made over the public (external) Internet.
-///
 /// [`ServerCertVerifier`]: rustls::client::danger::ServerCertVerifier
-pub fn public_lexe_verifier(
+pub fn lexe_server_verifier(
     deploy_env: DeployEnv,
 ) -> Arc<WebPkiServerVerifier> {
     let lexe_ca_cert = lexe_ca_cert(deploy_env);
 
     let mut lexe_roots = RootCertStore::empty();
     lexe_roots.add(lexe_ca_cert).expect("Checked in tests");
-    // TODO(phlip9): actually enforce cert transparency
     WebPkiServerVerifier::builder_with_provider(
         Arc::new(lexe_roots),
         super::LEXE_CRYPTO_PROVIDER.clone(),
@@ -132,7 +128,7 @@ mod test {
     fn verifier_helpers_dont_panic() {
         let config = Config::with_cases(4);
         proptest!(config, |(deploy_env in any::<DeployEnv>())| {
-            public_lexe_verifier(deploy_env);
+            lexe_server_verifier(deploy_env);
             lexe_client_verifier(deploy_env);
         })
     }
