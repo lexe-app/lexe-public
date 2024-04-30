@@ -137,7 +137,7 @@ impl UserNode {
         // Initialize the Logger
         let logger = LexeTracingLogger::new();
 
-        // Get user_pk, measurement, and HTTP client, used throughout init
+        // Get user_pk, measurement, and HTTP clients used throughout init
         let user_pk = args.user_pk;
         let measurement = enclave::measurement();
         let machine_id = enclave::machine_id();
@@ -146,9 +146,6 @@ impl UserNode {
         let backend_api =
             api::new_backend_api(args.allow_mock, args.backend_url.clone())
                 .context("Failed to init dyn BackendApiClient")?;
-        let runner_api =
-            api::new_runner_api(args.allow_mock, args.runner_url.clone())
-                .context("Failed to init dyn NodeRunnerApi")?;
         let lsp_api = api::new_lsp_api(args.allow_mock, args.lsp.url.clone())?;
 
         // Init channels
@@ -204,7 +201,15 @@ impl UserNode {
             "Unsealed network didn't match network given by CLI: \
             {network}!={args_network}",
         );
-        // From here, `network` can be treated as a trusted input.
+        // From here, `deploy_env` and `network` can be treated as trusted.
+
+        // Init Runner API client, which requires the deploy env.
+        let runner_api = api::new_runner_api(
+            args.allow_mock,
+            deploy_env,
+            args.runner_url.clone(),
+        )
+        .context("Failed to init dyn NodeRunnerApi")?;
 
         // Validate esplora url
         let esplora_url = &args.esplora_url;

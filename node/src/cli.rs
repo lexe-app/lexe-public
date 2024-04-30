@@ -1,4 +1,4 @@
-use std::{env, str::FromStr, sync::Arc};
+use std::{env, str::FromStr};
 
 use anyhow::{bail, Context};
 use common::{
@@ -7,12 +7,7 @@ use common::{
     rng::SysRng,
 };
 
-use crate::{
-    api::client::{BackendClient, RunnerClient},
-    provision,
-    run::UserNode,
-    DEV_VERSION, SEMVER_VERSION,
-};
+use crate::{provision, run::UserNode, DEV_VERSION, SEMVER_VERSION};
 
 /// Commands accepted by the user node.
 pub enum NodeCommand {
@@ -82,20 +77,9 @@ impl NodeCommand {
                     node.run().await.context("Error while running")
                 })
                 .context("Error running node"),
-            Self::Provision(args) => {
-                let runner_api =
-                    Arc::new(RunnerClient::new(args.runner_url.clone()));
-                let backend_api =
-                    Arc::new(BackendClient::new(args.backend_url.clone()));
-
-                rt.block_on(provision::provision_node(
-                    &mut rng,
-                    args,
-                    runner_api,
-                    backend_api,
-                ))
-                .context("Error while provisioning")
-            }
+            Self::Provision(args) => rt
+                .block_on(provision::provision_node(&mut rng, args))
+                .context("Error while provisioning"),
         }
     }
 }

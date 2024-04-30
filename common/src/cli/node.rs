@@ -13,6 +13,7 @@ use crate::test_utils::arbitrary;
 use crate::{
     api::UserPk,
     cli::{LspInfo, Network, OAuthConfig, ToCommand},
+    env::DeployEnv,
 };
 
 /// Run a user node
@@ -123,6 +124,10 @@ pub struct ProvisionArgs {
     /// configuration info for Google OAuth2.
     /// Required only if running in staging / prod.
     pub oauth: Option<OAuthConfig>,
+
+    /// The current deploy environment passed to us by Lexe (or someone in
+    /// Lexe's cloud). This input should be treated as untrusted.
+    pub untrusted_deploy_env: DeployEnv,
 }
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -133,6 +138,7 @@ impl Default for ProvisionArgs {
             backend_url: DUMMY_BACKEND_URL.to_owned(),
             runner_url: DUMMY_RUNNER_URL.to_owned(),
             oauth: None,
+            untrusted_deploy_env: DeployEnv::Dev,
         }
     }
 }

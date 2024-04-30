@@ -2,15 +2,19 @@ use std::sync::Arc;
 
 #[cfg(any(test, feature = "test-utils"))]
 use anyhow::ensure;
-#[cfg(not(any(test, feature = "test-utils")))]
 use anyhow::Context;
 use async_trait::async_trait;
-use common::api::{
-    auth::BearerAuthToken,
-    def::{BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi},
-    error::BackendApiError,
-    vfs::VfsFile,
-    Empty,
+use common::{
+    api::{
+        auth::BearerAuthToken,
+        def::{
+            BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi,
+        },
+        error::BackendApiError,
+        vfs::VfsFile,
+        Empty,
+    },
+    env::DeployEnv,
 };
 
 /// Real clients.
@@ -92,16 +96,21 @@ pub(crate) fn new_lsp_api(
 /// Helper to initiate a client to the runner.
 pub(crate) fn new_runner_api(
     allow_mock: bool,
+    deploy_env: DeployEnv,
     maybe_runner_url: Option<String>,
 ) -> anyhow::Result<Arc<dyn NodeRunnerApi + Send + Sync>> {
     cfg_if::cfg_if! {
         if #[cfg(any(test, feature = "test-utils"))] {
             // Can use real OR mock client during development
             match maybe_runner_url {
-                Some(runner_url) =>
-                    Ok(Arc::new(client::RunnerClient::new(runner_url))),
+                Some(runner_url) => {
+                    let runner_client =
+                        client::RunnerClient::new(deploy_env, runner_url)
+                            .context("Failed to init RunnerClient")?;
+                    Ok(Arc::new(runner_client))
+                }
                 None => {
-                    ensure!(
+                    anyhow::ensure!(
                         allow_mock,
                         "Runner url not supplied, or --allow-mock wasn't set"
                     );
@@ -111,9 +120,12 @@ pub(crate) fn new_runner_api(
         } else {
             // Can only use the real runner client in staging/prod
             let _ = allow_mock;
+            let _ = deploy_env;
             let runner_url = maybe_runner_url
                 .context("--runner-url must be supplied in staging/prod")?;
-            Ok(Arc::new(client::RunnerClient::new(runner_url)))
+            let runner_client = client::RunnerClient::new(deploy_env, runner_url)
+                .context("Failed to init RunnerClient")?;
+            Ok(Arc::new(runner_client))
         }
     }
 }
