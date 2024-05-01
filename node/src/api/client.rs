@@ -21,7 +21,7 @@ use common::{
     enclave::Measurement,
     env::DeployEnv,
     ln::payments::{DbPayment, LxPaymentId},
-    tls::lexe_ca,
+    tls::attestation,
 };
 
 use crate::api::BackendApiClient;
@@ -36,7 +36,7 @@ impl RunnerClient {
         deploy_env: DeployEnv,
         runner_url: String,
     ) -> anyhow::Result<Self> {
-        let tls_config = lexe_ca::node_lexe_client_config(deploy_env);
+        let tls_config = attestation::node_lexe_client_config(deploy_env);
 
         let (from, to) = ("node", "runner");
         let reqwest_client = RestClient::client_builder(from)
@@ -70,7 +70,7 @@ impl LspClient {
         deploy_env: DeployEnv,
         lsp_url: String,
     ) -> anyhow::Result<Self> {
-        let tls_config = lexe_ca::node_lexe_client_config(deploy_env);
+        let tls_config = attestation::node_lexe_client_config(deploy_env);
 
         let (from, to) = ("node", "lsp");
         let reqwest_client = RestClient::client_builder(from)
@@ -103,7 +103,7 @@ impl BackendClient {
         deploy_env: DeployEnv,
         backend_url: String,
     ) -> anyhow::Result<Self> {
-        let tls_config = lexe_ca::node_lexe_client_config(deploy_env);
+        let tls_config = attestation::node_lexe_client_config(deploy_env);
 
         let (from, to) = ("node", "backend");
         let reqwest_client = RestClient::client_builder(from)

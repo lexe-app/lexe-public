@@ -17,6 +17,10 @@ use rustls::{
 use self::verifier::EnclavePolicy;
 #[cfg(doc)]
 use crate::api::def::AppNodeProvisionApi;
+#[cfg(doc)]
+use crate::api::def::{
+    BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi,
+};
 use crate::{
     constants, enclave::Measurement, env::DeployEnv, rng::Crng, tls::lexe_ca,
 };
@@ -85,6 +89,24 @@ pub fn app_node_provision_client_config(
     let mut config = super::lexe_client_config()
         .dangerous()
         .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
+        .with_no_client_auth();
+    config
+        .alpn_protocols
+        .clone_from(&super::LEXE_ALPN_PROTOCOLS);
+
+    config
+}
+
+/// Client-side TLS config for node->Lexe APIs. This TLS config covers:
+/// - [`NodeBackendApi`]
+/// - [`NodeLspApi`]
+/// - [`NodeRunnerApi`]
+/// - [`BearerAuthBackendApi`] for the node
+pub fn node_lexe_client_config(deploy_env: DeployEnv) -> rustls::ClientConfig {
+    // Only trust Lexe's CA, no WebPKI roots, no client auth.
+    let lexe_verifier = lexe_ca::lexe_server_verifier(deploy_env);
+    let mut config = super::lexe_client_config()
+        .with_webpki_verifier(lexe_verifier)
         .with_no_client_auth();
     config
         .alpn_protocols
