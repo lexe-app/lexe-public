@@ -143,9 +143,12 @@ impl UserNode {
         let machine_id = enclave::machine_id();
         // TODO(phlip9): Compare this with current cpusvn
         let _min_cpusvn = MIN_SGX_CPUSVN;
-        let backend_api =
-            api::new_backend_api(args.allow_mock, args.backend_url.clone())
-                .context("Failed to init dyn BackendApiClient")?;
+        let backend_api = api::new_backend_api(
+            args.allow_mock,
+            args.untrusted_deploy_env,
+            args.backend_url.clone(),
+        )
+        .context("Failed to init dyn BackendApiClient")?;
 
         // Init channels
         let (activity_tx, activity_rx) = mpsc::channel(DEFAULT_CHANNEL_SIZE);
@@ -194,6 +197,11 @@ impl UserNode {
         if deploy_env.is_staging_or_prod() && cfg!(feature = "test-utils") {
             panic!("test-utils feature must be disabled in staging/prod!!");
         }
+        let args_deploy_env = args.untrusted_deploy_env;
+        ensure!(
+            args_deploy_env == deploy_env,
+            "Mismatched deploy envs: {args_deploy_env} != {deploy_env}"
+        );
         let args_network = args.network;
         ensure!(
             network == args_network,

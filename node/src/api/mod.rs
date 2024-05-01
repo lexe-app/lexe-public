@@ -38,14 +38,19 @@ pub trait BackendApiClient: NodeBackendApi + BearerAuthBackendApi {
 /// Helper to initiate a client to the backend.
 pub(crate) fn new_backend_api(
     allow_mock: bool,
+    deploy_env: DeployEnv,
     maybe_backend_url: Option<String>,
 ) -> anyhow::Result<Arc<dyn BackendApiClient + Send + Sync>> {
     cfg_if::cfg_if! {
         if #[cfg(any(test, feature = "test-utils"))] {
             // Can use real OR mock client during development
             match maybe_backend_url {
-                Some(backend_url) =>
-                    Ok(Arc::new(client::BackendClient::new(backend_url))),
+                Some(backend_url) => {
+                    let backend_client =
+                        client::BackendClient::new(deploy_env, backend_url)
+                            .context("Failed to init BackendClient")?;
+                    Ok(Arc::new(backend_client))
+                }
                 None => {
                     ensure!(
                         allow_mock,
@@ -59,7 +64,10 @@ pub(crate) fn new_backend_api(
             let _ = allow_mock;
             let backend_url = maybe_backend_url
                 .context("--backend-url must be supplied in staging/prod")?;
-            Ok(Arc::new(client::BackendClient::new(backend_url)))
+            let backend_client =
+                client::BackendClient::new(deploy_env, backend_url)
+                    .context("Failed to init BackendClient")?;
+            Ok(Arc::new(backend_client))
         }
     }
 }
