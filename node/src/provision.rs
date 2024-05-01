@@ -76,7 +76,9 @@ pub async fn provision_node<R: Crng>(
     let runner_client =
         RunnerClient::new(args.untrusted_deploy_env, args.runner_url.clone())
             .context("Failed to init RunnerClient")?;
-    let backend_client = Arc::new(BackendClient::new(args.backend_url.clone()));
+    let backend_client =
+        BackendClient::new(args.untrusted_deploy_env, args.backend_url.clone())
+            .context("Failed to init BackendClient")?;
 
     // Set up the request context and API servers.
     let args = Arc::new(args);
@@ -89,7 +91,7 @@ pub async fn provision_node<R: Crng>(
         untrusted_deploy_env: args.untrusted_deploy_env,
         machine_id,
         measurement,
-        backend_client,
+        backend_client: Arc::new(backend_client),
         // TODO(phlip9): use passed in rng
         rng: SysRng::new(),
     };

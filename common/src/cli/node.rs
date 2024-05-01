@@ -65,6 +65,10 @@ pub struct RunArgs {
 
     /// info relating to Lexe's LSP.
     pub lsp: LspInfo,
+
+    /// The current deploy environment passed to us by Lexe (or someone in
+    /// Lexe's cloud). This input should be treated as untrusted.
+    pub untrusted_deploy_env: DeployEnv,
 }
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -83,6 +87,7 @@ impl Default for RunArgs {
             esplora_url: DUMMY_ESPLORA_URL.to_owned(),
             lsp: LspInfo::dummy(),
             allow_mock: false,
+            untrusted_deploy_env: DeployEnv::Dev,
         }
     }
 }

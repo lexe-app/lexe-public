@@ -99,11 +99,20 @@ pub(crate) struct BackendClient {
 }
 
 impl BackendClient {
-    pub(crate) fn new(backend_url: String) -> Self {
-        Self {
-            rest: RestClient::new("node", "backend"),
-            backend_url,
-        }
+    pub(crate) fn new(
+        deploy_env: DeployEnv,
+        backend_url: String,
+    ) -> anyhow::Result<Self> {
+        let tls_config = lexe_ca::node_lexe_client_config(deploy_env);
+
+        let (from, to) = ("node", "backend");
+        let reqwest_client = RestClient::client_builder(from)
+            .use_preconfigured_tls(tls_config)
+            .build()
+            .context("Failed to build client")?;
+        let rest = RestClient::from_inner(reqwest_client, from, to);
+
+        Ok(Self { rest, backend_url })
     }
 }
 
