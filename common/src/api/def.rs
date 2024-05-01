@@ -265,6 +265,9 @@ pub trait NodeRunnerApi {
 }
 
 /// Defines the API the node exposes to the Lexe operators at run time.
+///
+/// NOTE: For performance, this API does not use TLS! This API should only
+/// contain methods for limited operational and lifecycle management endpoints.
 #[async_trait]
 pub trait LexeNodeRunApi {
     /// GET /lexe/status [`GetByUserPk`] -> [`Empty`]
@@ -305,6 +308,9 @@ pub trait LexeNodeRunApi {
 }
 
 /// Defines the API the node exposes to the Lexe operators at provision time.
+///
+/// NOTE: For performance, this API does not use TLS! This API should only
+/// contain methods for limited operational and lifecycle management endpoints.
 #[async_trait]
 pub trait LexeNodeProvisionApi {
     /// GET /lexe/shutdown [`GetByMeasurement`] -> [`Empty`]
