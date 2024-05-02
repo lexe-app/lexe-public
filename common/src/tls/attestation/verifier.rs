@@ -434,18 +434,18 @@ pub struct EnclavePolicy {
 }
 
 impl EnclavePolicy {
-    /// An [`EnclavePolicy`] which only trusts the given [`Measurement`], and
+    /// An [`EnclavePolicy`] which only trusts the given [`Measurement`]s, and
     /// which must be signed by an appropriate signer, taking into account our
     /// deploy environment and whether we're actually expecting an SGX enclave.
     /// This is generally what you want.
-    pub fn trust_measurement_with_signer(
+    pub fn trust_measurements_with_signer(
         use_sgx: bool,
         deploy_env: DeployEnv,
-        measurement: Measurement,
+        measurements: Vec<Measurement>,
     ) -> Self {
         Self {
             allow_debug: deploy_env.is_dev(),
-            trusted_mrenclaves: Some(vec![measurement]),
+            trusted_mrenclaves: Some(measurements),
             trusted_mrsigner: Some(enclave::expected_signer(
                 use_sgx, deploy_env,
             )),
