@@ -4,7 +4,11 @@ use std::{
 };
 
 use anyhow::{bail, ensure, Context};
-use bitcoin::{blockdata::constants, hash_types::BlockHash};
+use bitcoin::{
+    blockdata::constants::{self, ChainHash},
+    hash_types::BlockHash,
+};
+use bitcoin_hashes::Hash;
 use lightning::routing::{gossip::RoutingFees, router::RouteHintHop};
 use lightning_invoice::Currency;
 #[cfg(test)]
@@ -95,6 +99,10 @@ impl Network {
     pub const REGTEST: Self = Self(bitcoin::Network::Regtest);
     pub const SIGNET: Self = Self(bitcoin::Network::Signet);
 
+    pub const ALL: [Self; 4] =
+        [Self::MAINNET, Self::TESTNET, Self::REGTEST, Self::SIGNET];
+
+    #[inline]
     pub fn to_inner(self) -> bitcoin::Network {
         self.0
     }
@@ -108,11 +116,19 @@ impl Network {
         }
     }
 
-    /// Gets the blockhash of the genesis block of this [`Network`]
-    pub fn genesis_hash(self) -> BlockHash {
-        constants::genesis_block(self.to_inner())
-            .header
-            .block_hash()
+    /// Gets the [`BlockHash`] of the genesis block for this [`Network`].
+    pub fn genesis_block_hash(self) -> BlockHash {
+        let chain_hash = Self::genesis_chain_hash(self);
+        let hash =
+            bitcoin::hashes::sha256d::Hash::from_inner(chain_hash.into_bytes());
+        BlockHash::from_hash(hash)
+    }
+
+    /// Gets the block hash of the genesis block for this [`Network`], but
+    /// returns the other [`ChainHash`] newtype.
+    #[inline]
+    pub fn genesis_chain_hash(self) -> ChainHash {
+        constants::ChainHash::using_genesis_block(self.to_inner())
     }
 
     /// Validates the given esplora url against this network. Use this to check
@@ -303,7 +319,7 @@ mod arbitrary_impls {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::test_utils::roundtrip;
+    use crate::{hex, test_utils::roundtrip};
 
     #[test]
     fn network_roundtrip() {
@@ -320,5 +336,28 @@ mod test {
     fn oauth_config_roundtrip() {
         roundtrip::json_value_roundtrip_proptest::<OAuthConfig>();
         roundtrip::fromstr_display_roundtrip_proptest::<OAuthConfig>();
+    }
+
+    // Sanity check that Hash(genesis_block) == precomputed hash
+    #[test]
+    fn check_precomputed_genesis_block_hashes() {
+        for network in Network::ALL {
+            let precomputed = network.genesis_block_hash();
+            let computed = constants::genesis_block(network.to_inner())
+                .header
+                .block_hash();
+            assert_eq!(precomputed, computed);
+        }
+    }
+
+    // Sanity check mainnet genesis block hash
+    #[test]
+    fn absolutely_check_mainnet_genesis_hash() {
+        let expected = hex::decode(
+            "6fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000",
+        )
+        .unwrap();
+        let actual = Network::MAINNET.genesis_chain_hash();
+        assert_eq!(actual.as_bytes().as_slice(), expected.as_slice());
     }
 }
