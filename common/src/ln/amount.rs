@@ -101,6 +101,7 @@ impl Amount {
     /// [`bitcoin::Amount::MAX_MONEY`]; primarily useful as a sanity check.
     // 21 million BTC * 100 million sats per BTC.
     pub const MAX_BITCOIN_SUPPLY: Self = Self(dec!(21_000_000_0000_0000));
+    pub const MAX_BITCOIN_SUPPLY_SATS_U64: u64 = 21_000_000_0000_0000;
 
     // --- Constructors --- //
 
@@ -290,7 +291,7 @@ impl Div<Decimal> for Amount {
 // --- Tests and test infra --- //
 
 #[cfg(any(test, feature = "test-utils"))]
-mod arbitrary_impl {
+pub mod arb {
     use proptest::{
         arbitrary::{any, Arbitrary},
         strategy::{BoxedStrategy, Strategy},
@@ -298,12 +299,19 @@ mod arbitrary_impl {
 
     use super::*;
 
+    /// All possible amounts
     impl Arbitrary for Amount {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             any::<u64>().prop_map(Amount::from_msat).boxed()
         }
+    }
+
+    /// Maximum satoshi-precision amounts for e.g. onchain payments.
+    pub fn sats_amount() -> impl Strategy<Value = Amount> {
+        (0_u64..=Amount::MAX_BITCOIN_SUPPLY_SATS_U64)
+            .prop_map(|sats_u64| Amount::try_from_sats_u64(sats_u64).unwrap())
     }
 }
 

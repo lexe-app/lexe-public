@@ -2893,6 +2893,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8835116a5c179084a830efb3adc117ab007512b535bc1a21c991d3b32a6b44dd"
 
 [[package]]
+name = "payment-uri"
+version = "0.1.0"
+dependencies = [
+ "bitcoin",
+ "common",
+ "percent-encoding",
+ "proptest",
+ "proptest-derive",
+ "rust_decimal",
+ "rust_decimal_macros",
+]
+
+[[package]]
 name = "percent-encoding"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
