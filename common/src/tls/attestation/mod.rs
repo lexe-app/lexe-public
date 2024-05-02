@@ -75,10 +75,10 @@ pub fn app_node_provision_client_config(
     deploy_env: DeployEnv,
     measurement: Measurement,
 ) -> rustls::ClientConfig {
-    let enclave_policy = EnclavePolicy::trust_measurement_with_signer(
+    let enclave_policy = EnclavePolicy::trust_measurements_with_signer(
         use_sgx,
         deploy_env,
-        measurement,
+        vec![measurement],
     );
     let attestation_verifier = verifier::AttestationServerVerifier {
         expect_dummy_quote: !use_sgx,
