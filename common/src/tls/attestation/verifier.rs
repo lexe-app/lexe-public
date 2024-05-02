@@ -1,7 +1,8 @@
 //! Verify remote attestation endorsements directly or embedded in x509 certs.
 
 use std::{
-    fmt, include_bytes,
+    fmt::{self, Debug, Display},
+    include_bytes,
     io::Cursor,
     sync::{Arc, LazyLock},
 };
@@ -83,14 +84,14 @@ static SUPPORTED_SIG_ALGS: &[&webpki::SignatureAlgorithm] = &[
 /// these checks are successful, the client and secure can establish a secure
 /// TLS channel.
 #[derive(Debug)]
-pub struct AttestationVerifier {
+pub struct AttestationServerVerifier {
     /// if `true`, expect a fake dummy quote. Used only for testing.
     pub expect_dummy_quote: bool,
     /// the verifier's policy for trusting the remote enclave.
     pub enclave_policy: EnclavePolicy,
 }
 
-impl ServerCertVerifier for AttestationVerifier {
+impl ServerCertVerifier for AttestationServerVerifier {
     fn verify_server_cert(
         &self,
         end_entity: &CertificateDer,
@@ -189,13 +190,13 @@ impl ServerCertVerifier for AttestationVerifier {
     }
 }
 
-struct AttestEvidence<'a> {
-    cert_pk: ed25519::PublicKey,
-    attest: SgxAttestationExtension<'a, 'a>,
+pub struct AttestEvidence<'a> {
+    pub cert_pk: ed25519::PublicKey,
+    pub attest: SgxAttestationExtension<'a, 'a>,
 }
 
 impl<'a> AttestEvidence<'a> {
-    fn parse_cert_der(cert_der: &'a [u8]) -> Result<Self, rustls::Error> {
+    pub fn parse_cert_der(cert_der: &'a [u8]) -> Result<Self, rustls::Error> {
         use std::io;
 
         /// Shorthand to construct a [`rustls::Error::InvalidCertificate`]
@@ -385,12 +386,12 @@ impl SgxQuoteVerifier {
 struct DisplayErr(String);
 
 impl DisplayErr {
-    fn new(err: impl fmt::Display) -> Self {
+    fn new(err: impl Display) -> Self {
         Self(format!("{err:#}"))
     }
 }
 
-impl fmt::Display for DisplayErr {
+impl Display for DisplayErr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)
     }
@@ -612,7 +613,7 @@ fn report_try_from_truncated(bytes: &[u8]) -> anyhow::Result<sgx_isa::Report> {
 /// A small struct for pretty-printing a [`sgx_isa::Report`].
 pub struct ReportDebug<'a>(&'a sgx_isa::Report);
 
-impl<'a> fmt::Debug for ReportDebug<'a> {
+impl<'a> Debug for ReportDebug<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Report")
             .field("cpusvn", &hex::display(&self.0.cpusvn))
@@ -630,7 +631,8 @@ impl<'a> fmt::Debug for ReportDebug<'a> {
     }
 }
 
-fn rustls_err(s: impl fmt::Display) -> rustls::Error {
+/// Convenience to create a [`rustls::Error`] from a [`Display`]able object.
+pub fn rustls_err(s: impl Display) -> rustls::Error {
     rustls::Error::General(s.to_string())
 }
 
@@ -692,7 +694,7 @@ mod test {
     fn test_verify_sgx_server_cert() {
         let cert_der = parse_cert_pem_to_der(SGX_SERVER_CERT_PEM).unwrap();
 
-        let verifier = AttestationVerifier {
+        let verifier = AttestationServerVerifier {
             expect_dummy_quote: false,
             enclave_policy: EnclavePolicy {
                 allow_debug: true,
@@ -730,7 +732,7 @@ mod test {
                 .unwrap();
         let cert_der = cert.serialize_der_self_signed().unwrap();
 
-        let verifier = AttestationVerifier {
+        let verifier = AttestationServerVerifier {
             expect_dummy_quote: true,
             enclave_policy: EnclavePolicy::dangerous_trust_any(),
         };

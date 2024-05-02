@@ -75,14 +75,14 @@ pub fn app_node_provision_client_config(
         deploy_env,
         measurement,
     );
-    let attestation_verifier = verifier::AttestationVerifier {
+    let attestation_verifier = verifier::AttestationServerVerifier {
         expect_dummy_quote: !use_sgx,
         enclave_policy,
     };
-    let public_lexe_verifier = lexe_ca::lexe_server_verifier(deploy_env);
+    let lexe_server_verifier = lexe_ca::lexe_server_verifier(deploy_env);
 
     let server_cert_verifier = AppNodeProvisionVerifier {
-        public_lexe_verifier,
+        lexe_server_verifier,
         attestation_verifier,
     };
 
@@ -138,9 +138,9 @@ pub fn node_lexe_client_config(deploy_env: DeployEnv) -> rustls::ClientConfig {
 #[derive(Debug)]
 struct AppNodeProvisionVerifier {
     /// `<mr_short>.provision.lexe.app` remote attestation verifier
-    attestation_verifier: verifier::AttestationVerifier,
-    /// `<TODO>.lexe.app` Lexe reverse proxy verifier - trusts the Lexe CA
-    public_lexe_verifier: Arc<WebPkiServerVerifier>,
+    attestation_verifier: verifier::AttestationServerVerifier,
+    /// Lexe server verifier - trusts the Lexe CA
+    lexe_server_verifier: Arc<WebPkiServerVerifier>,
 }
 
 impl ServerCertVerifier for AppNodeProvisionVerifier {
@@ -169,11 +169,8 @@ impl ServerCertVerifier for AppNodeProvisionVerifier {
                     ocsp_response,
                     now,
                 ),
-            // Other domains (i.e., node reverse proxy) verify using pinned
-            // lexe CA
-            // TODO(phlip8): this should be a strict DNS name, like
-            // `proxy.lexe.app`. Come back once DNS names are more solid.
-            _ => self.public_lexe_verifier.verify_server_cert(
+            // Other domains (i.e., node reverse proxy) verify using lexe CA
+            _ => self.lexe_server_verifier.verify_server_cert(
                 end_entity,
                 intermediates,
                 server_name,
