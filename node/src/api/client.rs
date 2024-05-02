@@ -21,7 +21,8 @@ use common::{
     enclave::Measurement,
     env::DeployEnv,
     ln::payments::{DbPayment, LxPaymentId},
-    tls::attestation,
+    rng::Crng,
+    tls::attestation::{self, NodeMode},
 };
 
 use crate::api::BackendApiClient;
@@ -33,10 +34,14 @@ pub(crate) struct RunnerClient {
 
 impl RunnerClient {
     pub(crate) fn new(
+        rng: &mut impl Crng,
         deploy_env: DeployEnv,
+        node_mode: NodeMode,
         runner_url: String,
     ) -> anyhow::Result<Self> {
-        let tls_config = attestation::node_lexe_client_config(deploy_env);
+        let tls_config =
+            attestation::node_lexe_client_config(rng, deploy_env, node_mode)
+                .context("Failed to build Node->Lexe client TLS config")?;
 
         let (from, to) = ("node", "runner");
         let reqwest_client = RestClient::client_builder(from)
@@ -67,10 +72,14 @@ pub(crate) struct LspClient {
 
 impl LspClient {
     pub(crate) fn new(
+        rng: &mut impl Crng,
         deploy_env: DeployEnv,
+        node_mode: NodeMode,
         lsp_url: String,
     ) -> anyhow::Result<Self> {
-        let tls_config = attestation::node_lexe_client_config(deploy_env);
+        let tls_config =
+            attestation::node_lexe_client_config(rng, deploy_env, node_mode)
+                .context("Failed to build Node->Lexe client TLS config")?;
 
         let (from, to) = ("node", "lsp");
         let reqwest_client = RestClient::client_builder(from)
@@ -100,10 +109,14 @@ pub(crate) struct BackendClient {
 
 impl BackendClient {
     pub(crate) fn new(
+        rng: &mut impl Crng,
         deploy_env: DeployEnv,
+        node_mode: NodeMode,
         backend_url: String,
     ) -> anyhow::Result<Self> {
-        let tls_config = attestation::node_lexe_client_config(deploy_env);
+        let tls_config =
+            attestation::node_lexe_client_config(rng, deploy_env, node_mode)
+                .context("Failed to build Node->Lexe client TLS config")?;
 
         let (from, to) = ("node", "backend");
         let reqwest_client = RestClient::client_builder(from)

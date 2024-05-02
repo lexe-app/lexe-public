@@ -40,7 +40,7 @@ use common::{
     net,
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
-    tls,
+    tls::{self, attestation::NodeMode},
 };
 use gdrive::GoogleVfs;
 use tracing::{debug, info, info_span, instrument};
@@ -67,24 +67,35 @@ struct RequestContext {
 /// The `UserPk` is given by the runner so we know which user we should
 /// provision to and have a simple method to authenticate their connection.
 #[instrument(skip_all, parent = None, name = "(node-provision)")]
-pub async fn provision_node<R: Crng>(
-    rng: &mut R,
+pub async fn provision_node(
+    rng: &mut impl Crng,
     args: ProvisionArgs,
 ) -> anyhow::Result<()> {
     info!("Initializing provision service");
 
-    let runner_client =
-        RunnerClient::new(args.untrusted_deploy_env, args.runner_url.clone())
-            .context("Failed to init RunnerClient")?;
-    let backend_client =
-        BackendClient::new(args.untrusted_deploy_env, args.backend_url.clone())
-            .context("Failed to init BackendClient")?;
+    // Init API clients.
+    let measurement = enclave::measurement();
+    let mr_short = measurement.short();
+    let node_mode = NodeMode::Provision { mr_short };
+    let runner_client = RunnerClient::new(
+        rng,
+        args.untrusted_deploy_env,
+        node_mode,
+        args.runner_url.clone(),
+    )
+    .context("Failed to init RunnerClient")?;
+    let backend_client = BackendClient::new(
+        rng,
+        args.untrusted_deploy_env,
+        node_mode,
+        args.backend_url.clone(),
+    )
+    .context("Failed to init BackendClient")?;
 
     // Set up the request context and API servers.
     let args = Arc::new(args);
     let client = gdrive::ReqwestClient::new();
     let machine_id = enclave::machine_id();
-    let measurement = enclave::measurement();
     let ctx = RequestContext {
         args: args.clone(),
         client,

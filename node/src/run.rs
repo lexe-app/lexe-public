@@ -21,7 +21,8 @@ use common::{
     root_seed::RootSeed,
     shutdown::ShutdownChannel,
     task::{self, LxTask},
-    tls, Apply,
+    tls::{self, attestation::NodeMode},
+    Apply,
 };
 use futures::{
     future::FutureExt,
@@ -127,8 +128,8 @@ impl UserNode {
     // the data in ~one roundtrip to the API, and then deserialize the data in
     // the required order.
     #[instrument(skip_all, name = "(node)")]
-    pub async fn init<R: Crng>(
-        rng: &mut R,
+    pub async fn init(
+        rng: &mut impl Crng,
         args: RunArgs,
     ) -> anyhow::Result<Self> {
         info!(%args.user_pk, "Initializing node");
@@ -143,9 +144,12 @@ impl UserNode {
         let machine_id = enclave::machine_id();
         // TODO(phlip9): Compare this with current cpusvn
         let _min_cpusvn = MIN_SGX_CPUSVN;
+        let node_mode = NodeMode::Run;
         let backend_api = api::new_backend_api(
+            rng,
             args.allow_mock,
             args.untrusted_deploy_env,
+            node_mode,
             args.backend_url.clone(),
         )
         .context("Failed to init dyn BackendApiClient")?;
@@ -212,14 +216,18 @@ impl UserNode {
 
         // Init the remaining API clients
         let runner_api = api::new_runner_api(
+            rng,
             args.allow_mock,
             deploy_env,
+            node_mode,
             args.runner_url.clone(),
         )
         .context("Failed to init dyn NodeRunnerApi")?;
         let lsp_api = api::new_lsp_api(
+            rng,
             args.allow_mock,
             deploy_env,
+            node_mode,
             args.lsp.url.clone(),
         )?;
 

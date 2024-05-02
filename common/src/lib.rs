@@ -7,6 +7,8 @@
 #![feature(const_option)]
 // once_cell replacement in std (called LazyLock)
 #![feature(lazy_cell)]
+// Enable `get_or_try_init` for `OnceCell` and `OnceLock`
+#![feature(once_cell_try)]
 // Used in `enclave/sgx` module for sealing.
 #![feature(split_array)]
 // Ignore this issue with `proptest_derive::Arbitrary`.
