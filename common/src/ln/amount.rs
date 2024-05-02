@@ -48,6 +48,15 @@
 //! [`Amount`]: crate::ln::amount::Amount
 //! [`Decimal`]: rust_decimal::Decimal
 
+// When writing large satoshi-denominated values, it's easier to parse the
+// fractional satoshi amounts when they're grouped differently from the whole
+// bitcoin amounts.
+//
+// Ex: suppose we have "1,305.00250372 BTC". It's hard to parse the consistenly
+// spaced 130_500_250_372 sats, vs 1_305_0025_0372, which groups the fractional
+// sats portion differently.
+#![allow(clippy::inconsistent_digit_grouping)]
+
 use std::{
     fmt::{self, Display},
     ops::{Add, Div, Mul, Sub},
@@ -91,7 +100,7 @@ impl Amount {
     /// The maximum supply of Bitcoin that can ever exist. Analogous to
     /// [`bitcoin::Amount::MAX_MONEY`]; primarily useful as a sanity check.
     // 21 million BTC * 100 million sats per BTC.
-    pub const MAX_BITCOIN_SUPPLY: Self = Self(dec!(2_100_000_000_000_000));
+    pub const MAX_BITCOIN_SUPPLY: Self = Self(dec!(21_000_000_0000_0000));
 
     // --- Constructors --- //
 
@@ -123,7 +132,7 @@ impl Amount {
     /// Construct an [`Amount`] from a BTC [`Decimal`] value.
     #[inline]
     pub fn try_from_btc(btc: Decimal) -> Result<Self, Error> {
-        Self::try_from_inner(btc * dec!(100_000_000))
+        Self::try_from_inner(btc * dec!(1_0000_0000))
     }
 
     // --- Getters --- //
@@ -153,7 +162,12 @@ impl Amount {
     /// Returns the [`Amount`] as a [`Decimal`] BTC value.
     #[inline]
     pub fn btc(&self) -> Decimal {
-        self.0 / dec!(100_000_000)
+        self.0 / dec!(1_0000_0000)
+    }
+
+    /// Round the sub-satoshi-precision part of the decimal.
+    pub fn round_sat(&self) -> Self {
+        Self(self.0.round())
     }
 
     // --- Checked arithmetic --- //
@@ -295,10 +309,12 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
+
     use proptest::{arbitrary::any, prop_assert, prop_assert_eq, proptest};
 
     use super::*;
-    use crate::Apply;
+    use crate::{test_utils::arbitrary, Apply};
 
     /// Check the correctness of the associated constants.
     #[test]
@@ -425,5 +441,120 @@ mod test {
             let checked_amount2 = checked_int.checked_mul(dec!(10)).unwrap();
             prop_assert_eq!(amount1, checked_amount2);
         })
+    }
+
+    /// Test rounding to the nearest satoshi.
+    #[test]
+    fn amount_round_sat_btc() {
+        //
+        // All whole sats values are unaffected by sats-rounding.
+        //
+
+        fn expect_no_precision_loss(amount: Amount) {
+            assert_eq!(amount.btc(), amount.round_sat().btc());
+        }
+
+        expect_no_precision_loss(Amount::from_sats_u32(0));
+        expect_no_precision_loss(Amount::from_sats_u32(10_0000));
+        expect_no_precision_loss(Amount::from_sats_u32(10_0010_0005));
+        expect_no_precision_loss(
+            Amount::try_from_sats_u64(20_999_999_9999_9999).unwrap(),
+        );
+
+        proptest!(|(amount_u64: u64)| {
+            // make all generated values representable
+            let amount_u64 = amount_u64 % 2_100_000_000_000_000;
+            let amount = Amount::try_from_sats_u64(amount_u64).unwrap();
+            expect_no_precision_loss(amount);
+        });
+
+        //
+        // sub-satoshi decimal part gets rounded
+        //
+
+        assert_eq!(Amount::from_msat(1).round_sat().btc(), Amount::ZERO.btc());
+        assert_eq!(
+            Amount::from_msat(1_001).round_sat().btc(),
+            Amount::from_sats_u32(1).btc(),
+        );
+        assert_eq!(
+            Amount::from_msat(1_501).round_sat().btc(),
+            Amount::from_sats_u32(2).btc(),
+        );
+    }
+
+    /// Test parsing BTC-denominated decimal values.
+    #[test]
+    fn amount_btc_str() {
+        fn parse_btc_str(input: &str) -> Option<Amount> {
+            Decimal::from_str(input)
+                .ok()
+                .and_then(|btc_decimal| Amount::try_from_btc(btc_decimal).ok())
+        }
+        fn parse_eq(input: &str, expected: Amount) {
+            assert_eq!(parse_btc_str(input).unwrap(), expected);
+        }
+        fn parse_fail(input: &str) {
+            if let Some(amount) = parse_btc_str(input) {
+                panic!(
+                    "Should fail to parse BTC str: '{input}', got: {amount:?}"
+                );
+            }
+        }
+
+        // These should parse correctly.
+
+        parse_eq("0", Amount::ZERO);
+        parse_eq("0.", Amount::ZERO);
+        parse_eq(".0", Amount::ZERO);
+        parse_eq("0.001", Amount::from_sats_u32(10_0000));
+        parse_eq("10.00", Amount::from_sats_u32(10_0000_0000));
+        parse_eq("10.", Amount::from_sats_u32(10_0000_0000));
+        parse_eq("10", Amount::from_sats_u32(10_0000_0000));
+        parse_eq("10.00000000", Amount::from_sats_u32(10_0000_0000));
+        parse_eq("10.00001230", Amount::from_sats_u32(10_0000_1230));
+        parse_eq("10.69696969", Amount::from_sats_u32(10_6969_6969));
+        parse_eq("0.00001230", Amount::from_sats_u32(1230));
+        parse_eq("0.69696969", Amount::from_sats_u32(6969_6969));
+        parse_eq(".00001230", Amount::from_sats_u32(1230));
+        parse_eq(".69696969", Amount::from_sats_u32(6969_6969));
+        parse_eq(
+            "20000000",
+            Amount::try_from_sats_u64(20_000_000_0000_0000).unwrap(),
+        );
+        parse_eq(
+            "20999999.99999999",
+            Amount::try_from_sats_u64(20_999_999_9999_9999).unwrap(),
+        );
+
+        // These should not parse.
+
+        parse_fail(".");
+        parse_fail("asdif.");
+        parse_fail("156.(6kfjaosid");
+        parse_fail("-156");
+        parse_fail("-15.4984");
+        parse_fail("-.4");
+        parse_fail(" 0.4");
+        parse_fail("0.4 ");
+
+        // Amounts should roundtrip: Amount -> BTC decimal string -> Amount.
+
+        proptest!(|(amount: Amount)| {
+            let amount_btc_str = amount.btc().to_string();
+            let amount_round_sat_btc_str = amount.round_sat().btc().to_string();
+            let amount_btc_str_btc = parse_btc_str(&amount_btc_str).unwrap();
+            let amount_round_sat_btc_str_btc = parse_btc_str(&amount_round_sat_btc_str).unwrap();
+            prop_assert_eq!(amount, amount_btc_str_btc);
+            prop_assert_eq!(amount.btc(), amount_btc_str_btc.btc());
+            prop_assert_eq!(amount.round_sat(), amount_round_sat_btc_str_btc);
+            prop_assert_eq!(amount.round_sat().btc(), amount_round_sat_btc_str_btc.btc());
+        });
+
+        // Should never panic parsing any strings.
+
+        proptest!(|(s in arbitrary::any_string())| {
+            let _ = parse_btc_str(&s);
+        });
     }
 }
