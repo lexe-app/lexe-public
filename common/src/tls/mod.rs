@@ -42,18 +42,19 @@ pub static LEXE_CRYPTO_PROVIDER: LazyLock<Arc<rustls::crypto::CryptoProvider>> =
 
 /// The value to pass to
 /// [`ServerCertVerifier::supported_verify_schemes`](rustls::client::danger::ServerCertVerifier::supported_verify_schemes)
-static LEXE_SUPPORTED_VERIFY_SCHEMES: LazyLock<Vec<rustls::SignatureScheme>> =
-    LazyLock::new(|| {
-        LEXE_SIGNATURE_ALGORITHMS
-            .mapping
-            .iter()
-            .map(|(sigscheme, _sig_verify_alg)| *sigscheme)
-            .collect()
-    });
+pub static LEXE_SUPPORTED_VERIFY_SCHEMES: LazyLock<
+    Vec<rustls::SignatureScheme>,
+> = LazyLock::new(|| {
+    LEXE_SIGNATURE_ALGORITHMS
+        .mapping
+        .iter()
+        .map(|(sigscheme, _sig_verify_alg)| *sigscheme)
+        .collect()
+});
 
 /// Lexe signature algorithms: Only Ed25519.
 /// Pass this to [`rustls::crypto::verify_tls13_signature`].
-static LEXE_SIGNATURE_ALGORITHMS: WebPkiSupportedAlgorithms =
+pub static LEXE_SIGNATURE_ALGORITHMS: WebPkiSupportedAlgorithms =
     WebPkiSupportedAlgorithms {
         all: &[rustls_webpki::ring::ED25519],
         mapping: &[(

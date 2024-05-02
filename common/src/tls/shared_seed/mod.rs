@@ -105,10 +105,10 @@ pub fn app_node_run_client_config(
     // - Public Lexe verifier trusts the hard-coded Lexe cert.
     let shared_seed_verifier = shared_seed_verifier(&ca_cert)
         .context("Failed to build shared seed verifier")?;
-    let public_lexe_verifier = lexe_ca::lexe_server_verifier(deploy_env);
+    let lexe_server_verifier = lexe_ca::lexe_server_verifier(deploy_env);
     let server_cert_verifier = AppNodeRunVerifier {
         shared_seed_verifier,
-        public_lexe_verifier,
+        lexe_server_verifier,
     };
 
     // Generate shared seed client cert and sign with derived CA
@@ -182,8 +182,8 @@ pub fn shared_seed_verifier(
 struct AppNodeRunVerifier {
     /// `run.lexe.app` shared seed verifier - trusts the derived CA
     shared_seed_verifier: Arc<WebPkiServerVerifier>,
-    /// `<TODO>.lexe.app` Lexe reverse proxy verifier - trusts the Lexe CA
-    public_lexe_verifier: Arc<WebPkiServerVerifier>,
+    /// Lexe server verifier - trusts the Lexe CA
+    lexe_server_verifier: Arc<WebPkiServerVerifier>,
 }
 
 impl ServerCertVerifier for AppNodeRunVerifier {
@@ -210,11 +210,8 @@ impl ServerCertVerifier for AppNodeRunVerifier {
                     ocsp_response,
                     now,
                 ),
-            // Other domains (i.e., node reverse proxy) verify using pinned
-            // lexe CA
-            // TODO(phlip9): this should be a strict DNS name, like
-            // `proxy.lexe.app`. Come back once DNS names are more solid.
-            _ => self.public_lexe_verifier.verify_server_cert(
+            // Other domains (i.e., node reverse proxy) verify using lexe CA
+            _ => self.lexe_server_verifier.verify_server_cert(
                 end_entity,
                 intermediates,
                 server_name,
