@@ -44,6 +44,8 @@ pub struct RestClient {
 }
 
 impl RestClient {
+    /// Builds a new [`RestClient`] with the given TLS config.
+    ///
     /// The `from` and `to` fields should specify the client and server
     /// components of the API trait that this [`RestClient`] is used for.
     /// The [`RestClient`] will log both fields so that requests from this
@@ -57,6 +59,33 @@ impl RestClient {
     /// let backend_api = RestClient::new("node", "backend");
     /// let runner_api = RestClient::new("node", "runner");
     /// ```
+    // TODO(max): Rename to just `new` after TLS is implemented everywhere
+    pub fn new_tls(
+        from: &'static str,
+        to: &'static str,
+        tls_config: rustls::ClientConfig,
+    ) -> Self {
+        let client = Self::client_builder(from)
+            .use_preconfigured_tls(tls_config)
+            .build()
+            .expect("Failed to build reqwest Client");
+        Self { client, from, to }
+    }
+
+    /// The `from` and `to` fields should specify the client and server
+    /// components of the API trait that this [`RestClient`] is used for.
+    /// The [`RestClient`] will log both fields so that requests from this
+    /// client can be differentiated from those made by other clients in the
+    /// same process, and propagate the `from` field to the server via the user
+    /// agent header so that servers can identify requesting clients.
+    ///
+    /// ```
+    /// # use common::api::rest::RestClient;
+    /// # use http::header::HeaderValue;
+    /// let backend_api = RestClient::new("node", "backend");
+    /// let runner_api = RestClient::new("node", "runner");
+    /// ```
+    // TODO(max): Rename to `new_insecure` after TLS is implemented everywhere
     pub fn new(from: &'static str, to: &'static str) -> Self {
         let client = Self::client_builder(from)
             .build()
