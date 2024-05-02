@@ -20,8 +20,10 @@ pub mod balance;
 pub mod channel;
 /// Bitcoin hash types, such as `LxTxid`.
 pub mod hashes;
-/// `LxInvoice`.
+/// `LxInvoice`, a wrapper around LDK's BOLT11 invoice type.
 pub mod invoice;
+/// `LxOffer`, a wrapper around LDK's BOLT12 offer type.
+pub mod offer;
 /// Payments types and newtypes.
 pub mod payments;
 /// `ChannelPeer`.
