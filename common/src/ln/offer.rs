@@ -176,9 +176,23 @@ mod test {
 
     use super::*;
     use crate::{
+        cli::Network,
         rng::{RngExt, WeakRng},
         test_utils::roundtrip,
     };
+
+    #[test]
+    fn offer_parse_examples() {
+        let o = Offer::from_str("lno1pg257enxv4ezqcneype82um50ynhxgrwdajx293pqglnyxw6q0hzngfdusg8umzuxe8kquuz7pjl90ldj8wadwgs0xlmc").unwrap();
+        assert!(o.supports_chain(Network::MAINNET.genesis_chain_hash()));
+        assert_eq!(o.amount(), None);
+        assert_eq!(o.description().0, "Offer by rusty's node");
+
+        Offer::from_str("lno1qgsyxjtl6luzd9t3pr62xr7eemp6awnejusgf6gw45q75vcfqqqqqqq2p32x2um5ypmx2cm5dae8x93pqthvwfzadd7jejes8q9lhc4rvjxd022zv5l44g6qah82ru5rdpnpj").unwrap();
+        Offer::from_str("lno1pqqnyzsmx5cx6umpwssx6atvw35j6ut4v9h8g6t50ysx7enxv4epyrmjw4ehgcm0wfczucm0d5hxzag5qqtzzq3lxgva5qlw9xsjmeqs0ek9cdj0vpec9ur972l7mywa66u3q7dlhs").unwrap();
+        Offer::from_str("lno1qsgqqqqqqqqqqqqqqqqqqqqqqqqqqzsv23jhxapqwejkxar0wfe3vggzamrjghtt05kvkvpcp0a79gmy3nt6jsn98ad2xs8de6sl9qmgvcvs").unwrap();
+        Offer::from_str("lno1pqpzwyq2p32x2um5ypmx2cm5dae8x93pqthvwfzadd7jejes8q9lhc4rvjxd022zv5l44g6qah82ru5rdpnpj").unwrap();
+    }
 
     #[test]
     fn offer_serde_roundtrip() {

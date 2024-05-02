@@ -1,7 +1,7 @@
 use std::{ops::Deref, sync::Arc, time::SystemTime};
 
 use anyhow::Context;
-use bitcoin::{blockdata::constants, BlockHash};
+use bitcoin::BlockHash;
 use common::cli::Network;
 use lexe_ln::{
     alias::{BroadcasterType, FeeEstimatorType, RouterType},
@@ -198,13 +198,11 @@ impl NodeChannelManager {
             None => {
                 // We're starting a fresh node.
                 // Use the genesis block as the current best block.
-                let network = network.to_inner();
-                let genesis_hash =
-                    constants::genesis_block(network).header.block_hash();
+                let genesis_hash = network.genesis_block_hash();
                 let genesis_height = 0;
                 let best_block = BestBlock::new(genesis_hash, genesis_height);
                 let chain_params = ChainParameters {
-                    network,
+                    network: network.to_inner(),
                     best_block,
                 };
                 let current_timestamp = SystemTime::now()
