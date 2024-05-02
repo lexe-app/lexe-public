@@ -15,6 +15,8 @@ use common::{
         Empty,
     },
     env::DeployEnv,
+    rng::Crng,
+    tls::attestation::NodeMode,
 };
 
 /// Real clients.
@@ -37,8 +39,10 @@ pub trait BackendApiClient: NodeBackendApi + BearerAuthBackendApi {
 
 /// Helper to initiate a client to the backend.
 pub(crate) fn new_backend_api(
+    rng: &mut impl Crng,
     allow_mock: bool,
     deploy_env: DeployEnv,
+    node_mode: NodeMode,
     maybe_backend_url: Option<String>,
 ) -> anyhow::Result<Arc<dyn BackendApiClient + Send + Sync>> {
     cfg_if::cfg_if! {
@@ -46,9 +50,10 @@ pub(crate) fn new_backend_api(
             // Can use real OR mock client during development
             match maybe_backend_url {
                 Some(backend_url) => {
-                    let backend_client =
-                        client::BackendClient::new(deploy_env, backend_url)
-                            .context("Failed to init BackendClient")?;
+                    let backend_client = client::BackendClient::new(
+                        rng, deploy_env, node_mode, backend_url
+                    )
+                    .context("Failed to init BackendClient")?;
                     Ok(Arc::new(backend_client))
                 }
                 None => {
@@ -64,9 +69,10 @@ pub(crate) fn new_backend_api(
             let _ = allow_mock;
             let backend_url = maybe_backend_url
                 .context("--backend-url must be supplied in staging/prod")?;
-            let backend_client =
-                client::BackendClient::new(deploy_env, backend_url)
-                    .context("Failed to init BackendClient")?;
+            let backend_client = client::BackendClient::new(
+                rng, deploy_env, node_mode, backend_url
+            )
+            .context("Failed to init BackendClient")?;
             Ok(Arc::new(backend_client))
         }
     }
@@ -74,8 +80,10 @@ pub(crate) fn new_backend_api(
 
 /// Helper to initiate a client to the LSP.
 pub(crate) fn new_lsp_api(
+    rng: &mut impl Crng,
     allow_mock: bool,
     deploy_env: DeployEnv,
+    node_mode: NodeMode,
     maybe_lsp_url: Option<String>,
 ) -> anyhow::Result<Arc<dyn NodeLspApi + Send + Sync>> {
     cfg_if::cfg_if! {
@@ -83,8 +91,10 @@ pub(crate) fn new_lsp_api(
             // Can use real OR mock client during development
             match maybe_lsp_url {
                 Some(lsp_url) => {
-                    let lsp_client = client::LspClient::new(deploy_env, lsp_url)
-                        .context("Could not init LspClient")?;
+                    let lsp_client = client::LspClient::new(
+                        rng, deploy_env, node_mode, lsp_url
+                    )
+                    .context("Failed to init LspClient")?;
                     Ok(Arc::new(lsp_client))
                 }
                 None => {
@@ -101,8 +111,9 @@ pub(crate) fn new_lsp_api(
             let _ = deploy_env;
             let lsp_url = maybe_lsp_url
                 .context("LspInfo's url field must be Some(_) in staging/prod")?;
-            let lsp_client = client::LspClient::new(deploy_env, lsp_url)
-                .context("Could not init LspClient")?;
+            let lsp_client =
+                client::LspClient::new(rng, deploy_env, node_mode, lsp_url)
+                    .context("Failed to init LspClient")?;
             Ok(Arc::new(lsp_client))
         }
     }
@@ -110,8 +121,10 @@ pub(crate) fn new_lsp_api(
 
 /// Helper to initiate a client to the runner.
 pub(crate) fn new_runner_api(
+    rng: &mut impl Crng,
     allow_mock: bool,
     deploy_env: DeployEnv,
+    node_mode: NodeMode,
     maybe_runner_url: Option<String>,
 ) -> anyhow::Result<Arc<dyn NodeRunnerApi + Send + Sync>> {
     cfg_if::cfg_if! {
@@ -119,9 +132,10 @@ pub(crate) fn new_runner_api(
             // Can use real OR mock client during development
             match maybe_runner_url {
                 Some(runner_url) => {
-                    let runner_client =
-                        client::RunnerClient::new(deploy_env, runner_url)
-                            .context("Failed to init RunnerClient")?;
+                    let runner_client = client::RunnerClient::new(
+                        rng, deploy_env, node_mode, runner_url
+                    )
+                    .context("Failed to init RunnerClient")?;
                     Ok(Arc::new(runner_client))
                 }
                 None => {
@@ -138,8 +152,10 @@ pub(crate) fn new_runner_api(
             let _ = deploy_env;
             let runner_url = maybe_runner_url
                 .context("--runner-url must be supplied in staging/prod")?;
-            let runner_client = client::RunnerClient::new(deploy_env, runner_url)
-                .context("Failed to init RunnerClient")?;
+            let runner_client = client::RunnerClient::new(
+                rng, deploy_env, node_mode, runner_url
+            )
+            .context("Failed to init RunnerClient")?;
             Ok(Arc::new(runner_client))
         }
     }

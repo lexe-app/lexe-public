@@ -1,6 +1,9 @@
 //! (m)TLS based on SGX remote attestation.
 
-use std::{sync::Arc, time::Duration};
+use std::{
+    sync::{Arc, OnceLock},
+    time::Duration,
+};
 
 use anyhow::Context;
 use rustls::{
@@ -22,7 +25,11 @@ use crate::api::def::{
     BearerAuthBackendApi, NodeBackendApi, NodeLspApi, NodeRunnerApi,
 };
 use crate::{
-    constants, enclave::Measurement, env::DeployEnv, rng::Crng, tls::lexe_ca,
+    constants,
+    enclave::{Measurement, MrShort},
+    env::DeployEnv,
+    rng::Crng,
+    tls::{lexe_ca, CertWithKey},
 };
 
 /// Self-signed x509 cert containing enclave remote attestation endorsements.
@@ -38,24 +45,22 @@ pub fn app_node_provision_server_config(
     rng: &mut impl Crng,
     measurement: &Measurement,
 ) -> anyhow::Result<(rustls::ServerConfig, String)> {
-    // Bind the remote attestation cert to the node provision dns.
     let mr_short = measurement.short();
-    let dns_name = constants::node_provision_dns(&mr_short).to_owned();
-    // Use long lifetime. Until we can refresh TLS cert during runtime, this has
-    // to be longer than the time between deploys (when the provision service
-    // would restart).
-    let lifetime = Duration::from_secs(7_884_000); // 3 months
-
-    let cert = cert::AttestationCert::generate(rng, dns_name.clone(), lifetime)
-        .context("Could not generate remote attestation cert")?;
-    let cert_der = cert
-        .serialize_der_self_signed()
-        .context("Failed to sign and serialize attestation cert")?;
-    let cert_key_der = cert.serialize_key_der();
+    let node_mode = NodeMode::Provision { mr_short };
+    let (attestation_cert_with_key, dns_name) =
+        get_or_generate_node_attestation_cert(rng, node_mode)
+            .context("Failed to get or generate node attestation cert")?;
+    let CertWithKey {
+        cert_der: attestation_cert_der,
+        key_der: attestation_cert_key_der,
+    } = attestation_cert_with_key;
 
     let mut config = super::lexe_server_config()
         .with_no_client_auth()
-        .with_single_cert(vec![cert_der], cert_key_der)
+        .with_single_cert(
+            vec![attestation_cert_der.clone()],
+            attestation_cert_key_der.clone_key(),
+        )
         .context("Failed to build TLS config")?;
     config
         .alpn_protocols
@@ -102,17 +107,98 @@ pub fn app_node_provision_client_config(
 /// - [`NodeLspApi`]
 /// - [`NodeRunnerApi`]
 /// - [`BearerAuthBackendApi`] for the node
-pub fn node_lexe_client_config(deploy_env: DeployEnv) -> rustls::ClientConfig {
+pub fn node_lexe_client_config(
+    rng: &mut impl Crng,
+    deploy_env: DeployEnv,
+    node_mode: NodeMode,
+) -> anyhow::Result<rustls::ClientConfig> {
     // Only trust Lexe's CA, no WebPKI roots, no client auth.
-    let lexe_verifier = lexe_ca::lexe_server_verifier(deploy_env);
+    let lexe_server_verifier = lexe_ca::lexe_server_verifier(deploy_env);
+
+    // Authenticate ourselves using remote attestation.
+    let (attestation_cert_with_key, _) =
+        get_or_generate_node_attestation_cert(rng, node_mode)
+            .context("Failed to get or generate node attestation cert")?;
+    let CertWithKey {
+        cert_der: attestation_cert_der,
+        key_der: attestation_cert_key_der,
+    } = attestation_cert_with_key;
+
     let mut config = super::lexe_client_config()
-        .with_webpki_verifier(lexe_verifier)
-        .with_no_client_auth();
+        .with_webpki_verifier(lexe_server_verifier)
+        .with_client_auth_cert(
+            vec![attestation_cert_der.clone()],
+            attestation_cert_key_der.clone_key(),
+        )
+        .context("Failed to build TLS config")?;
     config
         .alpn_protocols
         .clone_from(&super::LEXE_ALPN_PROTOCOLS);
 
-    config
+    Ok(config)
+}
+
+/// The mode that the user node is currently running in, and associated info.
+#[derive(Copy, Clone)]
+pub enum NodeMode {
+    Provision { mr_short: MrShort },
+    Run,
+}
+
+/// A helper to get or generate a remote attestation TLS cert for the user node.
+/// This function prevents the user node from generating multiple (duplicate)
+/// remote attestations during a single node lifetime.
+/// Additionally returns the DNS name that the cert was bound to.
+fn get_or_generate_node_attestation_cert(
+    rng: &mut impl Crng,
+    node_mode: NodeMode,
+) -> anyhow::Result<(&CertWithKey, String)> {
+    // Determine the cert lifetime. Until we can refresh the TLS cert during
+    // runtime, this has to be longer than the time between node restarts.
+    let lifetime = match node_mode {
+        // Long lifetime (3 months); Provision nodes restart once every deploy.
+        NodeMode::Provision { .. } => Duration::from_secs(60 * 60 * 24 * 90),
+        // Medium lifetime; Run nodes restart fairly frequently.
+        NodeMode::Run => Duration::from_secs(60 * 60 * 24 * 14), // 2 weeks
+    };
+
+    // The DNS name to bind the remote attestation cert to. Currently only
+    // useful for a provisioning node which embeds the remote attestation
+    // evidence in its server cert. For Node->Lexe TLS (used in both run and
+    // provision mode), the attestation evidence is embedded in a client cert,
+    // where the DNS name doesn't matter.
+    let dns_name = match node_mode {
+        NodeMode::Provision { mr_short } =>
+            constants::node_provision_dns(&mr_short),
+        NodeMode::Run => constants::NODE_RUN_DNS.to_owned(),
+    };
+
+    // Only generate a remote attestation cert once during a node's lifetime.
+    // Subsequent calls will reuse the cert (and its key).
+    static ATTESTATION_CERT: OnceLock<CertWithKey> = OnceLock::new();
+
+    let attestation_cert_with_key = ATTESTATION_CERT
+        .get_or_try_init(|| {
+            let cert = cert::AttestationCert::generate(
+                rng,
+                dns_name.clone(),
+                lifetime,
+            )
+            .context("Could not generate remote attestation cert")?;
+            let cert_der = cert
+                .serialize_der_self_signed()
+                .context("Failed to sign and serialize attestation cert")?;
+            let cert_key_der = cert.serialize_key_der();
+            let cert_with_key = CertWithKey {
+                cert_der,
+                key_der: cert_key_der,
+            };
+
+            Ok::<_, anyhow::Error>(cert_with_key)
+        })
+        .context("Couldn't get or init attestation cert")?;
+
+    Ok((attestation_cert_with_key, dns_name))
 }
 
 /// The client's [`ServerCertVerifier`] for [`AppNodeProvisionApi`] TLS.
