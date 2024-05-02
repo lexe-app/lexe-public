@@ -54,7 +54,7 @@ pub fn any_string() -> impl Strategy<Value = String> {
 /// }
 /// ```
 pub fn any_option_string() -> impl Strategy<Value = Option<String>> {
-    proptest::option::weighted(0.5, any_string())
+    proptest::option::of(any_string())
 }
 
 /// A strategy for simple (i.e. alphanumeric) strings, useful when the contents
@@ -71,7 +71,7 @@ pub fn any_simple_string() -> impl Strategy<Value = String> {
 ///
 /// The option has a 50% probability of being [`Some`].
 pub fn any_option_simple_string() -> impl Strategy<Value = Option<String>> {
-    proptest::option::weighted(0.5, any_simple_string())
+    proptest::option::of(any_simple_string())
 }
 
 /// An `Arbitrary`-like [`Strategy`] for [`SocketAddr`]s which are guaranteed to

@@ -32,6 +32,19 @@ pub trait Crng: RngCore + CryptoRng {}
 
 impl<R: RngCore + CryptoRng> Crng for R {}
 
+/// Minimal extension trait on `RngCore`.
+pub trait RngExt: RngCore {
+    fn gen_bytes<const N: usize>(&mut self) -> [u8; N];
+}
+
+impl<R: RngCore> RngExt for R {
+    fn gen_bytes<const N: usize>(&mut self) -> [u8; N] {
+        let mut out = [0u8; N];
+        self.fill_bytes(&mut out);
+        out
+    }
+}
+
 /// A compatibility wrapper so we can use `ring`'s PRG with `rand` traits.
 #[derive(Clone, Debug)]
 pub struct SysRng(ring::rand::SystemRandom);
@@ -78,6 +91,14 @@ impl RngCore for SysRng {
     }
 }
 
+impl lightning::sign::EntropySource for SysRng {
+    fn get_secure_random_bytes(&self) -> [u8; 32] {
+        let mut out = [0u8; 32];
+        self.0.fill(&mut out).expect("ring SystemRandom failed");
+        out
+    }
+}
+
 /// A small, fast, _non-cryptographic_ rng with decent statistical properties.
 /// Useful for sampling non-security sensitive data or as a deterministic RNG
 /// for tests (instead of the [`SysRng`] above, which uses the global OS RNG).
@@ -86,6 +107,7 @@ impl RngCore for SysRng {
 ///
 /// [`Xoroshiro64Star`]: https://github.com/rust-random/rngs/blob/master/rand_xoshiro/src/xoroshiro64star.rs
 #[derive(Debug)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Clone))]
 pub struct WeakRng {
     s0: u32,
     s1: u32,
@@ -160,6 +182,13 @@ impl SeedableRng for WeakRng {
                 s1: parts[1],
             }
         }
+    }
+}
+
+#[cfg(any(test, feature = "test-utils"))]
+impl lightning::sign::EntropySource for WeakRng {
+    fn get_secure_random_bytes(&self) -> [u8; 32] {
+        self.clone().gen_bytes()
     }
 }
 
