@@ -28,6 +28,9 @@ threads = 8
 
 [dependencies]
 
+# --- LEXE --- #
+lazy-lock = { path = "../lazy-lock" }
+
 # --- WORKSPACE --- #
 
 anyhow.workspace = true

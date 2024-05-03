@@ -3,8 +3,6 @@
 
 // Allow e.g. PS: Deref<Target: LexeInnerPersister> in generics
 #![feature(associated_type_bounds)]
-// once_cell replacement in std (called LazyLock)
-#![feature(lazy_cell)]
 // Ignore this issue with `proptest_derive::Arbitrary`.
 #![allow(clippy::arc_with_non_send_sync)]
 // Allow e.g. `CHANNEL_MANAGER` in generics to clearly distinguish between

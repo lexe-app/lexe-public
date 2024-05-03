@@ -4,7 +4,7 @@ use std::{
     fmt::{self, Debug, Display},
     include_bytes,
     io::Cursor,
-    sync::{Arc, LazyLock},
+    sync::Arc,
 };
 
 use anyhow::{bail, ensure, format_err, Context};
@@ -12,6 +12,7 @@ use asn1_rs::FromDer;
 use dcap_ql::quote::{
     Qe3CertDataPckCertChain, Quote, Quote3SignatureEcdsaP256,
 };
+use lazy_lock::LazyLock;
 use rustls::{
     client::danger::{
         HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,

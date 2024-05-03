@@ -37,6 +37,7 @@ threads = 2
 
 common = { path = "../common" }
 gdrive = { path = "../gdrive" }
+lazy-lock = { path = "../lazy-lock" }
 lexe-ln = { path = "../lexe-ln" }
 
 # --- WORKSPACE --- #

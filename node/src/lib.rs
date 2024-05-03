@@ -1,8 +1,5 @@
 //! Managed Lightning Network node that runs in a secure enclave.
 
-// once_cell replacement in std (called LazyLock)
-#![feature(lazy_cell)]
-
 use common::const_assert;
 
 /// The semver version as specified in the crate Cargo.toml, e.g. "0.1.0".

@@ -5,7 +5,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::Context;
+use anyhow::{format_err, Context};
 use rustls::{
     client::{
         danger::{
@@ -175,10 +175,11 @@ fn get_or_generate_node_attestation_cert(
 
     // Only generate a remote attestation cert once during a node's lifetime.
     // Subsequent calls will reuse the cert (and its key).
-    static ATTESTATION_CERT: OnceLock<CertWithKey> = OnceLock::new();
+    static ATTESTATION_CERT: OnceLock<anyhow::Result<CertWithKey>> =
+        OnceLock::new();
 
     let attestation_cert_with_key = ATTESTATION_CERT
-        .get_or_try_init(|| {
+        .get_or_init(|| {
             let cert = cert::AttestationCert::generate(
                 rng,
                 dns_name.clone(),
@@ -194,9 +195,12 @@ fn get_or_generate_node_attestation_cert(
                 key_der: cert_key_der,
             };
 
-            Ok::<_, anyhow::Error>(cert_with_key)
+            Ok(cert_with_key)
         })
-        .context("Couldn't get or init attestation cert")?;
+        .as_ref()
+        .map_err(|err| {
+            format_err!("Couldn't get or init attestation cert: {err:#}")
+        })?;
 
     Ok((attestation_cert_with_key, dns_name))
 }
