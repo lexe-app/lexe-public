@@ -1,5 +1,6 @@
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
+use lazy_lock::LazyLock;
 use rcgen::{DistinguishedName, DnType};
 use rustls::{
     crypto::WebPkiSupportedAlgorithms,

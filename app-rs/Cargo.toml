@@ -23,6 +23,7 @@ crate-type = [
 # --- LEXE --- #
 
 common = { path = "../common" }
+lazy-lock = { path = "../lazy-lock" }
 
 # --- WORKSPACE --- #
 

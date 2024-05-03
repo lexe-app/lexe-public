@@ -1,7 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     str::FromStr,
-    sync::{LazyLock, Mutex},
+    sync::Mutex,
 };
 
 use async_trait::async_trait;
@@ -35,6 +35,7 @@ use common::{
     root_seed::RootSeed,
     time::TimestampMs,
 };
+use lazy_lock::LazyLock;
 use tokio::sync::mpsc;
 
 use crate::{api::BackendApiClient, persister};

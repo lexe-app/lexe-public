@@ -4,8 +4,6 @@
 #![feature(btree_cursors)]
 #![feature(is_sorted)]
 #![feature(iter_order_by)]
-// once_cell replacement in std (called LazyLock)
-#![feature(lazy_cell)]
 // Allow e.g. `CHANNEL_MANAGER` in generics to clearly distinguish between
 // concrete and generic types
 #![allow(non_camel_case_types)]

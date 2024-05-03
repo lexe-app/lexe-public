@@ -49,7 +49,7 @@
 //!   as a separate task on the threadpool. Just reading a value out of some
 //!   in-memory state is probably cheaper overall to use `SyncReturn`.
 
-use std::{future::Future, str::FromStr, sync::LazyLock};
+use std::{future::Future, str::FromStr};
 
 use anyhow::{anyhow, Context};
 pub use common::ln::payments::BasicPayment;
@@ -88,6 +88,7 @@ use flutter_rust_bridge::{
     handler::{ReportDartErrorHandler, ThreadPoolExecutor},
     RustOpaque, StreamSink, SyncReturn,
 };
+use lazy_lock::LazyLock;
 use secrecy::Zeroize;
 
 pub use crate::app::App;
