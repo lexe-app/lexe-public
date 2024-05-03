@@ -182,10 +182,10 @@ mod test {
         roundtrip::fromstr_display_roundtrip_proptest::<LxInvoice>();
     }
 
-    // Used to generate example invoices for UI tests.
+    // Used to generate example invoices with specific values.
     #[ignore]
     #[test]
-    fn dump_invoice() {
+    fn invoice_dump() {
         let seed = RootSeed::from_u64(12345);
         let node_key_pair =
             seed.derive_node_key_pair(&mut WeakRng::from_u64(123));
