@@ -9,8 +9,9 @@ use std::{
     task::{ready, Context, Poll},
 };
 
-use anyhow::{format_err, Result};
+use anyhow::{format_err, Context as _, Result};
 use argh::{EarlyExit, FromArgs, TopLevelCommand};
+use lazy_lock::LazyLock;
 use object::{
     read::{SymbolMap, SymbolMapName},
     Object,
@@ -423,68 +424,50 @@ pub fn backtrace_symbolizer_stream<W: AsyncWrite + Unpin>(
 
 // -- lazy load symbol map -- //
 
-fn io_err_other<E>(err: E) -> io::Error
-where
-    E: Into<Box<dyn std::error::Error + Send + Sync>>,
-{
-    io::Error::new(io::ErrorKind::Other, err)
-}
-
-// The symbol names that `object` parses from a binary are just references to
-// parts of the binary, so they can't live longer than the binary itself. This
-// is significantly easier if all the lifetimes are 'static, so we just stuff
-// these intermediate values into global `OnceLock`s.
-
+/// We'll set this value at startup with the corresponding `--elf <path>` arg.
+/// See: [`Options::elf`].
 static ENCLAVE_ELF_BIN_PATH: OnceLock<PathBuf> = OnceLock::new();
 
-fn enclave_elf_bin_bytes() -> Option<&'static [u8]> {
-    static ENCLAVE_ELF_BIN_BYTES: OnceLock<Option<Vec<u8>>> = OnceLock::new();
+/// Lazily read, parse, and load the enclave symbol table so we can symbolize
+/// enclave panic backtraces. We wan't to avoid this large memory overhead
+/// during normal operation, since panics are usually rare.
+///
+/// This contains a `LazyLock` inside so only load this once, even if there are
+/// multiple panics.
+fn enclave_elf_symbol_map() -> &'static SymbolMap<SymbolMapName<'static>> {
+    fn read_enclave_elf_symbol_map(
+    ) -> anyhow::Result<SymbolMap<SymbolMapName<'static>>> {
+        let path = ENCLAVE_ELF_BIN_PATH
+            .get()
+            .context("ENCLAVE_ELF_BIN_PATH not set")?;
 
-    ENCLAVE_ELF_BIN_BYTES
-        .get_or_init(|| -> Option<Vec<u8>> {
-            ENCLAVE_ELF_BIN_PATH
-                .get()
-                .ok_or_else(|| io_err_other("ENCLAVE_ELF_BIN_PATH not set"))
-                .and_then(std::fs::read)
+        // We'll hold onto these bytes for the rest of the program lifetime.
+        // Let's just `Vec::leak` to get a `&'static` that we can return
+        // references to.
+        let elf_bytes: &'static [u8] = &*std::fs::read(path)
+            .context("Failed to read enclave ELF binary")?
+            .leak();
+
+        let elf_object = object::File::parse(elf_bytes)
+            .context("Failed to parse enclave ELF binary as an ELF object")?;
+
+        Ok(elf_object.symbol_map())
+    }
+
+    static ENCLAVE_ELF_SYMBOL_MAP: LazyLock<SymbolMap<SymbolMapName<'static>>> =
+        LazyLock::new(|| {
+            read_enclave_elf_symbol_map()
                 .map_err(|err| {
                     eprintln!(
-                        "run-sgx: error reading enclave elf binary: {err}"
-                    );
+                        "run-sgx: Failed to build enclave symbol map: {err:#}"
+                    )
                 })
-                .ok()
-        })
-        .as_ref()
-        .map(|bytes| bytes.as_slice())
-}
+                // Just return an empty symbol map if there was some error
+                // reading or parsing the elf binary.
+                .unwrap_or_else(|()| SymbolMap::new(Vec::new()))
+        });
 
-fn enclave_elf_object() -> Option<&'static object::File<'static, &'static [u8]>>
-{
-    static ENCLAVE_ELF_OBJECT: OnceLock<
-        Option<object::File<'static, &'static [u8]>>,
-    > = OnceLock::new();
-
-    ENCLAVE_ELF_OBJECT.get_or_init(|| {
-        let bytes = enclave_elf_bin_bytes()?;
-        object::File::parse(bytes)
-            .map_err(|err| {
-                eprintln!("run-sgx: error parsing enclave elf binary as an elf object: {err}");
-            })
-            .ok()
-    })
-    .as_ref()
-}
-
-fn enclave_elf_symbol_map() -> &'static SymbolMap<SymbolMapName<'static>> {
-    static ENCLAVE_ELF_SYMBOL_MAP: OnceLock<SymbolMap<SymbolMapName<'static>>> =
-        OnceLock::new();
-
-    ENCLAVE_ELF_SYMBOL_MAP.get_or_init(|| {
-        enclave_elf_object()
-            .map(|obj| obj.symbol_map())
-            // just return an empty symbol map if there was some error
-            // reading or parsing the elf binary
-            .unwrap_or_else(|| SymbolMap::new(Vec::new()))
-    })
+    &ENCLAVE_ELF_SYMBOL_MAP
 }
 
 // -- main -- //
