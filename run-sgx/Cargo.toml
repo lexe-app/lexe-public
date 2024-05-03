@@ -8,6 +8,7 @@ version.workspace = true
 [dependencies]
 # --- LEXE --- #
 
+lazy-lock = { path = "../lazy-lock" }
 sgx-toml = { path = "../sgx-toml" }
 
 # --- WORKSPACE --- #
