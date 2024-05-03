@@ -6,6 +6,7 @@ members = [
     "app-rs-codegen",
     "common",
     "gdrive",
+    "lazy-lock",
     "lexe-ln",
     "logger",
     "node",
