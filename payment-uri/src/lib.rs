@@ -2,6 +2,11 @@
 //!
 //! This module parses various BTC-related payment methods permissively. That
 //! means we should parse inputs that are not strictly well-formed.
+//!
+//! Other wallet parsers for comparison:
+//! + [MutinyWallet/bitcoin_waila](https://github.com/MutinyWallet/bitcoin-waila/blob/master/waila/src/lib.rs)
+//! + [breez/breez-sdk - input_parser.rs](https://github.com/breez/breez-sdk/blob/main/libs/sdk-core/src/input_parser.rs)
+//! + [ACINQ/phoenix - Parser](https://github.com/ACINQ/phoenix/blob/master/phoenix-shared/src/commonMain/kotlin/fr.acinq.phoenix/utils/Parser.kt)
 
 // TODO(phlip9): remove
 #![allow(dead_code)]
@@ -9,7 +14,7 @@
 use core::fmt;
 use std::{borrow::Cow, str::FromStr};
 
-use common::ln::{amount::Amount, invoice::LxInvoice};
+use common::ln::{amount::Amount, invoice::LxInvoice, offer::LxOffer};
 #[cfg(test)]
 use common::{ln::amount, test_utils::arbitrary};
 #[cfg(test)]
@@ -58,11 +63,11 @@ const BIP21_ASCII_SET: percent_encoding::AsciiSet =
 /// For example, a Unified BTC QR code contains a single [`Bip21Uri`], which may
 /// contain _multiple_ discrete payment methods (an onchain address, a BOLT11
 /// invoice, a BOLT12 offer).
+#[allow(clippy::large_enum_variant)]
 pub enum PaymentMethod {
     Onchain(Onchain),
     Invoice(LxInvoice),
-    // TODO(phlip9): BOLT12 offers
-    // Offer()
+    Offer(LxOffer),
 }
 
 /// An onchain payment method, usually parsed from a standalone BTC address or
@@ -117,8 +122,7 @@ fn parse_onchain_btc_amount(s: &str) -> Option<Amount> {
 pub struct Bip21Uri {
     onchain: Option<Onchain>,
     invoice: Option<LxInvoice>,
-    // TODO(phlip9): BOLT12 offers
-    // offer: Option<()>,
+    offer: Option<LxOffer>,
 }
 
 impl Bip21Uri {
@@ -135,52 +139,63 @@ impl Bip21Uri {
         let mut out = Self {
             onchain: None,
             invoice: None,
+            offer: None,
         };
 
-        // (Unified QR) Search for BOLT11 invoice and/or BOLT12 offer
+        // Skip the `Onchain` method if we see any `req-` parameters, as per the
+        // spec. However, we're going to partially ignore the spec and
+        // unconditionally parse out BOLT11 and BOLT12 pieces, since they're
+        // fully self-contained formats. This probably won't be an issue
+        // regardless, since `req-` params aren't used much in practice.
+        let mut skip_onchain = false;
+
+        // (Unified QR) Parse BOLT11 invoice and/or BOLT12 offer
         // <https://bitcoinqr.dev/>
         for param in &uri.params {
             match param.key.as_ref() {
-                "lightning" if out.invoice.is_none() =>
-                    out.invoice = LxInvoice::from_str(&param.value).ok(),
+                "lightning" if out.invoice.is_none() => {
+                    if let Ok(invoice) = LxInvoice::from_str(&param.value) {
+                        out.invoice = Some(invoice);
+                    } else if let Ok(offer) = LxOffer::from_str(&param.value) {
+                        // bitcoinqr.dev showcases an offer inside a `lightning`
+                        // parameter
+                        out.offer = Some(offer);
+                    }
+                }
 
-                // TODO(phlip9): BOLT12 offers
-                // "b12" => if offer.is_none() => {}
+                "b12" if out.offer.is_none() =>
+                    out.offer = LxOffer::from_str(&param.value).ok(),
+
+                // We'll respect required && unrecognized bip21 params by
+                // throwing out the whole onchain method.
+                _ if param.key.starts_with("req-") => skip_onchain = true,
 
                 // ignore duplicates or other keys
                 _ => {}
             }
         }
 
-        // Can only parse the `Onchain` payment method if there's an address.
-        if let Ok(address) = bitcoin::Address::from_str(&uri.body) {
-            let mut amount = None;
-            let mut label = None;
-            let mut message = None;
+        // Parse `Onchain` payment method
+        if !skip_onchain {
+            if let Ok(address) = bitcoin::Address::from_str(&uri.body) {
+                let mut amount = None;
+                let mut label = None;
+                let mut message = None;
 
-            let mut skip = false;
+                for param in uri.params {
+                    match param.key.as_ref() {
+                        "amount" if amount.is_none() =>
+                            amount = parse_onchain_btc_amount(&param.value),
+                        "label" if label.is_none() =>
+                            label = Some(param.value.into_owned()),
+                        "message" if message.is_none() =>
+                            message = Some(param.value.into_owned()),
 
-            for param in uri.params {
-                match param.key.as_ref() {
-                    "amount" if amount.is_none() =>
-                        amount = parse_onchain_btc_amount(&param.value),
-                    "label" if label.is_none() =>
-                        label = Some(param.value.into_owned()),
-                    "message" if message.is_none() =>
-                        message = Some(param.value.into_owned()),
-
-                    // We'll respect required && unrecognized bip21 params by
-                    // throwing out the whole onchain method.
-                    _ if param.key.starts_with("req-") => {
-                        skip = true;
-                        break;
+                        // ignore duplicates or other keys
+                        _ => {}
                     }
-                    // ignore duplicates
-                    _ => {}
                 }
-            }
 
-            if !skip {
                 out.onchain = Some(Onchain {
                     address,
                     amount,
@@ -198,6 +213,7 @@ impl Bip21Uri {
         let mut body = Cow::Borrowed("");
         let mut params = Vec::new();
 
+        // BIP21 onchain portion
         if let Some(onchain) = &self.onchain {
             body = Cow::Owned(onchain.address.to_string());
 
@@ -225,10 +241,19 @@ impl Bip21Uri {
             }
         }
 
+        // BOLT11 invoice param
         if let Some(invoice) = &self.invoice {
             params.push(UriParam {
                 key: Cow::Borrowed("lightning"),
                 value: Cow::Owned(invoice.to_string()),
+            });
+        }
+
+        // BOLT12 offer param
+        if let Some(offer) = &self.offer {
+            params.push(UriParam {
+                key: Cow::Borrowed("b12"),
+                value: Cow::Owned(offer.to_string()),
             });
         }
 
@@ -250,7 +275,9 @@ impl Iterator for Bip21Uri {
         if let Some(invoice) = self.invoice.take() {
             return Some(PaymentMethod::Invoice(invoice));
         }
-        // TODO(phlip9): BOLT12 offers
+        if let Some(offer) = self.offer.take() {
+            return Some(PaymentMethod::Offer(offer));
+        }
         None
     }
 }
@@ -367,6 +394,7 @@ mod test {
                     message: None,
                 }),
                 invoice: None,
+                offer: None,
             }),
         );
 
@@ -386,6 +414,7 @@ mod test {
                     message: None,
                 }),
                 invoice: None,
+                offer: None,
             }),
         );
 
@@ -405,6 +434,7 @@ mod test {
                     message: None,
                 }),
                 invoice: None,
+                offer: None,
             }),
         );
 
@@ -424,6 +454,7 @@ mod test {
                     message: None,
                 }),
                 invoice: None,
+                offer: None,
             }),
         );
 
@@ -443,6 +474,7 @@ mod test {
                     message: Some("hello world".to_owned()),
                 }),
                 invoice: None,
+                offer: None,
             }),
         );
 
@@ -454,20 +486,70 @@ mod test {
             Some(Bip21Uri {
                 onchain: None,
                 invoice: None,
+                offer: None,
             }),
         );
+
+        // BOLT12 offer
+        let address_str =
+            "bc1qm9r9x9h2c9wptaz0873vyfv8ckx2lcdx8f48ucttzqft7r0q2yasxkt2lw";
+        let address = bitcoin::Address::from_str(address_str).unwrap();
+        let offer_str =
+            "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q";
+        let offer = LxOffer::from_str(offer_str).unwrap();
+        let expected = Some(Bip21Uri {
+            onchain: Some(Onchain {
+                address: address.clone(),
+                amount: None,
+                label: None,
+                message: None,
+            }),
+            invoice: None,
+            offer: Some(offer.clone()),
+        });
+        // Support both `lightning=<offer>` and `b12=<offer>` params.
+        let actual1 =
+            Bip21Uri::parse(&format!("bitcoin:{address_str}?b12={offer_str}"));
+        let actual2 = Bip21Uri::parse(&format!(
+            "bitcoin:{address_str}?lightning={offer_str}"
+        ));
+        assert_eq!(actual1, expected);
+        assert_eq!(actual2, expected);
     }
 
+    // roundtrip: Bip21Uri -> String -> Bip21Uri
     #[test]
-    fn test_bip21_uri_props() {
+    fn test_bip21_uri_prop_roundtrip() {
         proptest!(|(uri: Bip21Uri)| {
-            // roundtrip: Bip21Uri -> String -> Bip21Uri
             let actual = Bip21Uri::parse(&uri.to_string());
             prop_assert_eq!(Some(uri), actual);
         });
+    }
 
+    // appending junk after the `<address>?` should be fine
+    #[test]
+    fn test_bip21_uri_prop_append_junk() {
+        proptest!(|(address in any_mainnet_address(), junk: String)| {
+            let uri = Bip21Uri {
+                onchain: Some(Onchain { address, amount: None, label: None, message: None }),
+                invoice: None,
+                offer: None,
+            };
+            let uri_str = uri.to_string();
+            let uri_str_with_junk = format!("{uri_str}?{junk}");
+            let uri_parsed = Bip21Uri::parse(&uri_str_with_junk).unwrap();
+
+            prop_assert_eq!(
+                uri.onchain.unwrap().address,
+                uri_parsed.onchain.unwrap().address
+            );
+        });
+    }
+
+    // inserting a `req-` URI param should make us to skip the onchain method
+    #[test]
+    fn test_bip21_uri_prop_req_param() {
         proptest!(|(uri: Bip21Uri, key: String, value: String, param_idx: Index)| {
-            // inserting a `req-` param should cause us to skip the onchain method
 
             let mut uri_raw = uri.to_uri();
             let param_idx = param_idx.index(uri_raw.params.len() + 1);
@@ -481,21 +563,22 @@ mod test {
             prop_assert_eq!(None, actual1.onchain);
             prop_assert_eq!(uri.invoice, actual1.invoice);
         });
+    }
 
-        proptest!(|(address in any_mainnet_address(), junk: String)| {
-            // appending junk after the `<address>?` should be fine
-            let uri = Bip21Uri {
-                onchain: Some(Onchain { address, amount: None, label: None, message: None }),
-                invoice: None,
-            };
-            let uri_str = uri.to_string();
-            let uri_str_with_junk = format!("{uri_str}?{junk}");
-            let uri_parsed = Bip21Uri::parse(&uri_str_with_junk).unwrap();
+    // support `lightning=<offer>` param
+    #[test]
+    fn test_bip21_uri_prop_lightning_offer_param() {
+        proptest!(|(uri: Bip21Uri, offer: LxOffer)| {
+            let mut uri_raw = uri.to_uri();
+            let offer_str = Cow::Owned(offer.to_string());
+            let param = UriParam { key: "lightning".into(), value: offer_str };
+            uri_raw.params.insert(0, param);
 
-            prop_assert_eq!(
-                uri.onchain.unwrap().address,
-                uri_parsed.onchain.unwrap().address
-            );
+            let actual = Bip21Uri::parse_uri(uri_raw).unwrap();
+            let mut expected = uri;
+            expected.offer = Some(offer);
+
+            prop_assert_eq!(actual, expected);
         });
     }
 }
