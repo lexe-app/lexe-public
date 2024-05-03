@@ -4,8 +4,24 @@ use lightning::offers::{offer::Offer, parse::Bolt12ParseError};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 /// A Lightning BOLT12 offer.
+///
+/// The inner offer is boxed, since the LDK type is pretty big (~500 B).
 #[derive(Clone, Debug, SerializeDisplay, DeserializeFromStr)]
 pub struct LxOffer(pub Offer);
+
+impl LxOffer {
+    #[inline]
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0.as_ref()
+    }
+}
+
+impl From<Offer> for LxOffer {
+    #[inline]
+    fn from(value: Offer) -> Self {
+        LxOffer(value)
+    }
+}
 
 impl fmt::Display for LxOffer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -23,8 +39,8 @@ impl FromStr for LxOffer {
 // TODO(phlip9): ldk master has Eq/PartialEq impl'd. remove after we update.
 impl PartialEq for LxOffer {
     fn eq(&self, other: &Self) -> bool {
-        let self_bytes: &[u8] = self.0.as_ref();
-        let other_bytes: &[u8] = other.0.as_ref();
+        let self_bytes: &[u8] = self.as_bytes();
+        let other_bytes: &[u8] = other.as_bytes();
         self_bytes == other_bytes
     }
 }
@@ -70,10 +86,12 @@ mod arb {
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             let rng = any::<WeakRng>();
-            let description = arbitrary::any_string();
-            let chain = any::<Option<Network>>();
+            let network = any::<Option<Network>>();
+            let is_blinded = any::<bool>();
+            let description = arbitrary::any_option_string();
             let amount = any::<Option<Amount>>();
-            let expiry = any::<Option<u64>>();
+            let expiry =
+                any::<Option<u64>>().prop_map(|x| x.map(Duration::from_secs));
             let issuer = any_option_string();
             let quantity = option::of(prop_oneof![
                 any::<NonZeroU64>().prop_map(Quantity::Bounded),
@@ -81,13 +99,13 @@ mod arb {
                 Just(Quantity::One),
             ]);
             // TODO(phlip9): technically there could be more than one path...
-            // NOTE: len = 1 will not set a path, since you need at least 2 hops
-            let path_len = 0_usize..5;
+            let path_len = 0_usize..4;
 
             (
                 rng,
+                network,
+                is_blinded,
                 description,
-                chain,
                 amount,
                 expiry,
                 issuer,
@@ -96,73 +114,126 @@ mod arb {
             )
                 .prop_map(
                     |(
-                        mut rng,
+                        rng,
+                        network,
+                        is_blinded,
                         description,
-                        chain,
                         amount,
                         expiry,
                         issuer,
                         quantity,
                         path_len,
                     )| {
-                        let root_seed = RootSeed::from_rng(&mut rng);
-                        let node_pk = root_seed.derive_node_pk(&mut rng);
-                        let expanded_key_material =
-                            lightning::sign::KeyMaterial(rng.gen_bytes());
-                        let expanded_key =
-                            ExpandedKey::new(&expanded_key_material);
-                        let secp_ctx =
-                            crate::rng::get_randomized_secp256k1_ctx(&mut rng);
-
-                        let mut offer = OfferBuilder::deriving_signing_pubkey(
+                        gen_offer(
+                            rng,
+                            network,
+                            is_blinded,
                             description,
-                            node_pk.inner(),
-                            &expanded_key,
-                            &mut rng,
-                            &secp_ctx,
-                        );
-
-                        if let Some(chain) = chain {
-                            offer = offer.chain(chain.to_inner());
-                        }
-                        if let Some(amount) = amount {
-                            offer = offer.amount_msats(amount.msat());
-                        }
-                        if let Some(expiry) = expiry {
-                            offer = offer
-                                .absolute_expiry(Duration::from_secs(expiry));
-                        }
-                        if let Some(issuer) = issuer {
-                            offer = offer.issuer(issuer);
-                        }
-                        if let Some(quantity) = quantity {
-                            offer = offer.supported_quantity(quantity);
-                        }
-                        if path_len > 2 {
-                            let mut node_pks = Vec::new();
-                            for _ in 0..path_len {
-                                node_pks.push(
-                                    RootSeed::from_rng(&mut rng)
-                                        .derive_node_pk(&mut rng)
-                                        .inner(),
-                                );
-                            }
-                            offer = offer.path(
-                                BlindedPath::new_for_message(
-                                    &node_pks, &rng, &secp_ctx,
-                                )
-                                .unwrap(),
-                            );
-                        }
-
-                        offer
-                            .build()
-                            .map(LxOffer)
-                            .expect("Failed to build BOLT12 offer")
+                            amount,
+                            expiry,
+                            issuer,
+                            quantity,
+                            path_len,
+                        )
                     },
                 )
                 .boxed()
         }
+    }
+
+    /// un-builder-ify the OfferBuilder API
+    pub(super) fn gen_offer(
+        mut rng: WeakRng,
+        network: Option<Network>,
+        is_blinded: bool,
+        description: Option<String>,
+        amount: Option<Amount>,
+        expiry: Option<Duration>,
+        issuer: Option<String>,
+        quantity: Option<Quantity>,
+        // NOTE: len <= 1 will not set a path
+        path_len: usize,
+    ) -> LxOffer {
+        let root_seed = RootSeed::from_rng(&mut rng);
+        let node_pk = root_seed.derive_node_pk(&mut rng);
+        let expanded_key_material =
+            lightning::sign::KeyMaterial(rng.gen_bytes());
+        let expanded_key = ExpandedKey::new(&expanded_key_material);
+        let secp_ctx = crate::rng::get_randomized_secp256k1_ctx(&mut rng);
+
+        let network = network.map(Network::to_inner);
+        let amount = amount.map(|x| x.msat());
+        let path = if path_len > 2 {
+            let mut node_pks = Vec::new();
+            for _ in 0..path_len {
+                node_pks.push(
+                    RootSeed::from_rng(&mut rng)
+                        .derive_node_pk(&mut rng)
+                        .inner(),
+                );
+            }
+            let path = BlindedPath::new_for_message(&node_pks, &rng, &secp_ctx);
+            Some(path.unwrap())
+        } else {
+            None
+        };
+
+        // TODO(phlip9): bolt spec master now allows no description; reflect
+        // that here after ldk updates.
+        let description_str = description.unwrap_or_default();
+
+        // each builder constructor returns a different type, hence the copying
+        let offer = if is_blinded {
+            let mut offer = OfferBuilder::deriving_signing_pubkey(
+                description_str,
+                node_pk.inner(),
+                &expanded_key,
+                &mut rng,
+                &secp_ctx,
+            );
+            if let Some(network) = network {
+                offer = offer.chain(network);
+            }
+            if let Some(amount) = amount {
+                offer = offer.amount_msats(amount);
+            }
+            if let Some(expiry) = expiry {
+                offer = offer.absolute_expiry(expiry);
+            }
+            if let Some(issuer) = issuer {
+                offer = offer.issuer(issuer);
+            }
+            if let Some(quantity) = quantity {
+                offer = offer.supported_quantity(quantity);
+            }
+            if let Some(path) = path {
+                offer = offer.path(path);
+            }
+            offer.build()
+        } else {
+            let mut offer = OfferBuilder::new(description_str, node_pk.inner());
+            if let Some(network) = network {
+                offer = offer.chain(network);
+            }
+            if let Some(amount) = amount {
+                offer = offer.amount_msats(amount);
+            }
+            if let Some(expiry) = expiry {
+                offer = offer.absolute_expiry(expiry);
+            }
+            if let Some(issuer) = issuer {
+                offer = offer.issuer(issuer);
+            }
+            if let Some(quantity) = quantity {
+                offer = offer.supported_quantity(quantity);
+            }
+            if let Some(path) = path {
+                offer = offer.path(path);
+            }
+            offer.build()
+        };
+
+        LxOffer(offer.expect("Failed to build BOLT12 offer"))
     }
 }
 
@@ -173,16 +244,29 @@ mod test {
         strategy::Strategy,
         test_runner::{Config, RngAlgorithm, TestRng, TestRunner},
     };
+    use test::arb::gen_offer;
 
     use super::*;
     use crate::{
+        api::NodePk,
         cli::Network,
+        hex,
         rng::{RngExt, WeakRng},
         test_utils::roundtrip,
     };
 
     #[test]
     fn offer_parse_examples() {
+        // basically the smallest possible offer (just a node pubkey)
+        let o = Offer::from_str(
+            "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q",
+        )
+        .unwrap();
+        assert_eq!(
+            o.signing_pubkey(),
+            NodePk::from_str("024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8").unwrap().inner(),
+        );
+
         let o = Offer::from_str("lno1pg257enxv4ezqcneype82um50ynhxgrwdajx293pqglnyxw6q0hzngfdusg8umzuxe8kquuz7pjl90ldj8wadwgs0xlmc").unwrap();
         assert!(o.supports_chain(Network::MAINNET.genesis_chain_hash()));
         assert_eq!(o.amount(), None);
@@ -204,6 +288,7 @@ mod test {
         roundtrip::fromstr_display_roundtrip_proptest::<LxOffer>();
     }
 
+    // Generate example offers using the proptest strategy.
     #[ignore]
     #[test]
     fn offer_sample_data() {
@@ -229,5 +314,50 @@ mod test {
 
         dbg!(value);
         dbg!(value_str);
+    }
+
+    // Generate example offers with specific values.
+    #[ignore]
+    #[test]
+    fn offer_dump() {
+        let rng = WeakRng::from_u64(123);
+
+        // false => use node_pk to sign offer (less privacy)
+        // true => derive a signing keypair per offer (add ~50 B per offer).
+        let is_blinded = false;
+        let network = None; // None ==> BTC mainnet
+        let description = None;
+        let amount = None;
+        // duration since Unix epoch
+        let expiry = None;
+        let issuer = None;
+        let quantity = None;
+        let path_len = 0;
+
+        let offer = gen_offer(
+            rng,
+            network,
+            is_blinded,
+            description,
+            amount,
+            expiry,
+            issuer,
+            quantity,
+            path_len,
+        );
+        let offer_str = offer.to_string();
+        let offer_len = offer_str.len();
+        let offer_metadata_hex = offer.0.metadata().map(|x| hex::encode(x));
+        let node_pk = NodePk(offer.0.signing_pubkey());
+
+        println!("---");
+        dbg!(offer);
+        println!("---");
+        dbg!(offer_str);
+        dbg!(offer_len);
+        println!("---");
+        dbg!(node_pk);
+        dbg!(offer_metadata_hex);
+        println!("---");
     }
 }
