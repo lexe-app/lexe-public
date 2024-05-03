@@ -1,6 +1,3 @@
-// Enable `OnceLock::get_or_try_init`
-#![feature(once_cell_try)]
-
 use std::{
     fmt,
     io::{self, Write},
@@ -440,35 +437,41 @@ where
 
 static ENCLAVE_ELF_BIN_PATH: OnceLock<PathBuf> = OnceLock::new();
 
-fn enclave_elf_bin_bytes() -> io::Result<&'static [u8]> {
-    static ENCLAVE_ELF_BIN_BYTES: OnceLock<Vec<u8>> = OnceLock::new();
+fn enclave_elf_bin_bytes() -> Option<&'static [u8]> {
+    static ENCLAVE_ELF_BIN_BYTES: OnceLock<Option<Vec<u8>>> = OnceLock::new();
 
     ENCLAVE_ELF_BIN_BYTES
-        .get_or_try_init(|| -> io::Result<Vec<u8>> {
-            let path = ENCLAVE_ELF_BIN_PATH
+        .get_or_init(|| -> Option<Vec<u8>> {
+            ENCLAVE_ELF_BIN_PATH
                 .get()
-                .ok_or_else(|| io_err_other("ENCLAVE_ELF_BIN_PATH not set"))?;
-            std::fs::read(path).map_err(|err| {
-                eprintln!("run-sgx: error reading enclave elf binary: {err}");
-                err
-            })
+                .ok_or_else(|| io_err_other("ENCLAVE_ELF_BIN_PATH not set"))
+                .and_then(std::fs::read)
+                .map_err(|err| {
+                    eprintln!(
+                        "run-sgx: error reading enclave elf binary: {err}"
+                    );
+                })
+                .ok()
         })
-        .map(Vec::as_slice)
+        .as_ref()
+        .map(|bytes| bytes.as_slice())
 }
 
-fn enclave_elf_object(
-) -> io::Result<&'static object::File<'static, &'static [u8]>> {
-    static ENCLAVE_ELF_OBJECT: OnceLock<object::File<'static, &'static [u8]>> =
-        OnceLock::new();
+fn enclave_elf_object() -> Option<&'static object::File<'static, &'static [u8]>>
+{
+    static ENCLAVE_ELF_OBJECT: OnceLock<
+        Option<object::File<'static, &'static [u8]>>,
+    > = OnceLock::new();
 
-    ENCLAVE_ELF_OBJECT.get_or_try_init(|| {
+    ENCLAVE_ELF_OBJECT.get_or_init(|| {
         let bytes = enclave_elf_bin_bytes()?;
         object::File::parse(bytes)
             .map_err(|err| {
                 eprintln!("run-sgx: error parsing enclave elf binary as an elf object: {err}");
-                io::Error::new(io::ErrorKind::Other, err)
             })
+            .ok()
     })
+    .as_ref()
 }
 
 fn enclave_elf_symbol_map() -> &'static SymbolMap<SymbolMapName<'static>> {
@@ -480,7 +483,7 @@ fn enclave_elf_symbol_map() -> &'static SymbolMap<SymbolMapName<'static>> {
             .map(|obj| obj.symbol_map())
             // just return an empty symbol map if there was some error
             // reading or parsing the elf binary
-            .unwrap_or_else(|_| SymbolMap::new(Vec::new()))
+            .unwrap_or_else(|| SymbolMap::new(Vec::new()))
     })
 }
 
