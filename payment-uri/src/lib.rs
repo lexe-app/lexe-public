@@ -31,31 +31,67 @@ const BIP21_ASCII_SET: percent_encoding::AsciiSet =
         .remove(b'_')
         .remove(b'~');
 
-// TODO(phlip9): todo
-//
-// pub struct PaymentMethods(Vec<PaymentMethod>);
-//
-// impl PaymentMethods {
-//     pub fn parse(s: &str) -> Vec<PaymentMethod> {
-//         let s = s.trim();
-//
-//         if let Some(uri) = Uri::parse(s) {
-//             return Self::parse_uri(uri);
-//         }
-//
-//         Vec::new()
-//     }
-//
-//     fn parse_uri(uri: Uri) -> Vec<PaymentMethod> {
-//         if uri.scheme.eq_ignore_ascii_case("bitcoin") {
-//             return Bip21Uri::parse_uri(uri)
-//                 .map(|xs| xs.collect())
-//                 .unwrap_or_default();
-//         }
-//
-//         Vec::new()
-//     }
-// }
+// TODO(phlip9): BOLT12 refund
+pub enum PaymentUri {
+    // ex: "bc1qfjeyfl..."
+    Address(bitcoin::Address),
+
+    // ex: "lnbc1pvjlue..."
+    Invoice(LxInvoice),
+
+    // ex: "lno1pqps7sj..."
+    Offer(LxOffer),
+
+    // ex: "lightning:lnbc1pvjlue..." or
+    //     "lightning:lno1pqps7..."
+    LightningUri(LightningUri),
+
+    // ex: "bitcoin:bc1qfj..." or
+    Bip21Uri(Bip21Uri),
+}
+
+impl PaymentUri {
+    pub fn parse(s: &str) -> Option<Self> {
+        let s = s.trim();
+
+        // ex: "bitcoin:bc1qfj..." or
+        //     "lightning:lnbc1pvjlue..." or
+        //     "lightning:lno1pqps7..." or ...
+        if let Some(uri) = Uri::parse(s) {
+            // ex: "bitcoin:bc1qfj..."
+            if Bip21Uri::matches_scheme(uri.scheme) {
+                return Some(Self::Bip21Uri(Bip21Uri::parse_uri_inner(uri)));
+            }
+
+            // ex: "lightning:lnbc1pvjlue..." or
+            //     "lightning:lno1pqps7..."
+            if LightningUri::matches_scheme(uri.scheme) {
+                return Some(Self::LightningUri(
+                    LightningUri::parse_uri_inner(uri),
+                ));
+            }
+
+            return None;
+        }
+
+        // ex: "lnbc1pvjlue..."
+        if let Ok(invoice) = LxInvoice::from_str(s) {
+            return Some(Self::Invoice(invoice));
+        }
+
+        // ex: "lno1pqps7sj..."
+        if let Ok(offer) = LxOffer::from_str(s) {
+            return Some(Self::Offer(offer));
+        }
+
+        // ex: "bc1qfjeyfl..."
+        if let Ok(address) = bitcoin::Address::from_str(s) {
+            return Some(Self::Address(address));
+        }
+
+        None
+    }
+}
 
 /// A single "payment method" -- each kind here should correspond with a single
 /// linear payment flow for a user, where there are no other alternate methods.
@@ -126,15 +162,28 @@ pub struct Bip21Uri {
 }
 
 impl Bip21Uri {
+    const URI_SCHEME: &'static str = "bitcoin";
+
+    fn matches_scheme(scheme: &str) -> bool {
+        scheme.eq_ignore_ascii_case(Self::URI_SCHEME)
+    }
+
     fn parse(s: &str) -> Option<Self> {
+        let s = s.trim();
         let uri = Uri::parse(s)?;
         Self::parse_uri(uri)
     }
 
     fn parse_uri(uri: Uri) -> Option<Self> {
-        if !uri.scheme.eq_ignore_ascii_case("bitcoin") {
+        if !Self::matches_scheme(uri.scheme) {
             return None;
         }
+
+        Some(Self::parse_uri_inner(uri))
+    }
+
+    fn parse_uri_inner(uri: Uri) -> Self {
+        debug_assert!(Self::matches_scheme(uri.scheme));
 
         let mut out = Self {
             onchain: None,
@@ -153,13 +202,20 @@ impl Bip21Uri {
         // <https://bitcoinqr.dev/>
         for param in &uri.params {
             match param.key.as_ref() {
-                "lightning" if out.invoice.is_none() => {
-                    if let Ok(invoice) = LxInvoice::from_str(&param.value) {
-                        out.invoice = Some(invoice);
-                    } else if let Ok(offer) = LxOffer::from_str(&param.value) {
-                        // bitcoinqr.dev showcases an offer inside a `lightning`
-                        // parameter
-                        out.offer = Some(offer);
+                "lightning" if out.invoice.is_none() || out.offer.is_none() => {
+                    if out.invoice.is_none() {
+                        if let Ok(invoice) = LxInvoice::from_str(&param.value) {
+                            out.invoice = Some(invoice);
+                            continue;
+                        }
+                    }
+                    if out.offer.is_none() {
+                        if let Ok(offer) = LxOffer::from_str(&param.value) {
+                            // bitcoinqr.dev showcases an offer inside a
+                            // `lightning` parameter
+                            out.offer = Some(offer);
+                            continue;
+                        }
                     }
                 }
 
@@ -205,20 +261,22 @@ impl Bip21Uri {
             }
         }
 
-        Some(out)
+        out
     }
 
     fn to_uri(&self) -> Uri<'_> {
-        let scheme = "bitcoin";
-        let mut body = Cow::Borrowed("");
-        let mut params = Vec::new();
+        let mut out = Uri {
+            scheme: Self::URI_SCHEME,
+            body: Cow::Borrowed(""),
+            params: Vec::new(),
+        };
 
         // BIP21 onchain portion
         if let Some(onchain) = &self.onchain {
-            body = Cow::Owned(onchain.address.to_string());
+            out.body = Cow::Owned(onchain.address.to_string());
 
             if let Some(amount) = &onchain.amount {
-                params.push(UriParam {
+                out.params.push(UriParam {
                     key: Cow::Borrowed("amount"),
                     // We need to round to satoshi-precision for this to be a
                     // valid on-chain amount.
@@ -227,14 +285,14 @@ impl Bip21Uri {
             }
 
             if let Some(label) = &onchain.label {
-                params.push(UriParam {
+                out.params.push(UriParam {
                     key: Cow::Borrowed("label"),
                     value: Cow::Borrowed(label),
                 });
             }
 
             if let Some(message) = &onchain.message {
-                params.push(UriParam {
+                out.params.push(UriParam {
                     key: Cow::Borrowed("message"),
                     value: Cow::Borrowed(message),
                 });
@@ -243,7 +301,7 @@ impl Bip21Uri {
 
         // BOLT11 invoice param
         if let Some(invoice) = &self.invoice {
-            params.push(UriParam {
+            out.params.push(UriParam {
                 key: Cow::Borrowed("lightning"),
                 value: Cow::Owned(invoice.to_string()),
             });
@@ -251,17 +309,13 @@ impl Bip21Uri {
 
         // BOLT12 offer param
         if let Some(offer) = &self.offer {
-            params.push(UriParam {
+            out.params.push(UriParam {
                 key: Cow::Borrowed("b12"),
                 value: Cow::Owned(offer.to_string()),
             });
         }
 
-        Uri {
-            scheme,
-            body,
-            params,
-        }
+        out
     }
 }
 
@@ -288,6 +342,107 @@ impl fmt::Display for Bip21Uri {
     }
 }
 
+/// A "lightning:" URI.
+pub struct LightningUri {
+    invoice: Option<LxInvoice>,
+    offer: Option<LxOffer>,
+}
+
+impl LightningUri {
+    const URI_SCHEME: &'static str = "lightning";
+
+    fn matches_scheme(scheme: &str) -> bool {
+        scheme.eq_ignore_ascii_case(Self::URI_SCHEME)
+    }
+
+    fn parse(s: &str) -> Option<Self> {
+        let s = s.trim();
+        let uri = Uri::parse(s)?;
+        Self::parse_uri(uri)
+    }
+
+    fn parse_uri(uri: Uri) -> Option<Self> {
+        if !Self::matches_scheme(uri.scheme) {
+            return None;
+        }
+        Some(Self::parse_uri_inner(uri))
+    }
+
+    fn parse_uri_inner(uri: Uri) -> Self {
+        debug_assert!(Self::matches_scheme(uri.scheme));
+
+        let mut out = LightningUri {
+            invoice: None,
+            offer: None,
+        };
+
+        // Try parsing the body as an invoice or offer
+
+        if let Ok(invoice) = LxInvoice::from_str(&uri.body) {
+            out.invoice = Some(invoice);
+        } else if let Ok(offer) = LxOffer::from_str(&uri.body) {
+            out.offer = Some(offer);
+        }
+
+        // Try parsing from the query params
+
+        for param in uri.params {
+            match param.key.as_ref() {
+                "lightning" if out.invoice.is_none() || out.offer.is_none() => {
+                    if out.invoice.is_none() {
+                        if let Ok(invoice) = LxInvoice::from_str(&param.value) {
+                            out.invoice = Some(invoice);
+                            continue;
+                        }
+                    }
+                    if out.offer.is_none() {
+                        if let Ok(offer) = LxOffer::from_str(&param.value) {
+                            out.offer = Some(offer);
+                            continue;
+                        }
+                    }
+                }
+
+                "b12" if out.offer.is_none() =>
+                    out.offer = LxOffer::from_str(&param.value).ok(),
+
+                // ignore duplicates or other keys
+                _ => {}
+            }
+        }
+
+        out
+    }
+
+    fn to_uri(&self) -> Uri<'_> {
+        let mut out = Uri {
+            scheme: Self::URI_SCHEME,
+            body: Cow::Borrowed(""),
+            params: Vec::new(),
+        };
+
+        // For now, we'll prioritize BOLT11 invoice in the body position, for
+        // compatibility.
+
+        if let Some(invoice) = &self.invoice {
+            out.body = Cow::Owned(invoice.to_string());
+
+            // If we also have an offer, put it in the "b12" param I guess.
+            if let Some(offer) = &self.offer {
+                out.params.push(UriParam {
+                    key: Cow::Borrowed("b12"),
+                    value: Cow::Owned(offer.to_string()),
+                });
+            }
+        } else if let Some(offer) = &self.offer {
+            // If we just have an offer, put it in the body
+            out.body = Cow::Owned(offer.to_string());
+        }
+
+        out
+    }
+}
+
 /// A raw, parsed URI. The params (both key and value) are percent-encoded. See
 /// [URI syntax - RFC 3986](https://datatracker.ietf.org/doc/html/rfc3986).
 ///
@@ -305,12 +460,23 @@ struct Uri<'a> {
 }
 
 impl<'a> Uri<'a> {
+    // syntax: `<scheme>:<body>?<key1>=<value1>&<key2>=<value2>&...`
     fn parse(s: &'a str) -> Option<Self> {
         // parse scheme
+        // ex: "bitcoin:bc1qfj..." -> `scheme = "bitcoin"`
         let (scheme, rest) = s.split_once(':')?;
 
+        // heuristic: limit scheme to 12 characters. If an input exceeds this,
+        // then it's probably not a URI.
+        if scheme.len() > 12 {
+            return None;
+        }
+
+        // ex: "bitcoin:bc1qfj...?message=hello" -> `body = "bc1qfj..."`
         let (body, rest) = rest.split_once('?').unwrap_or((rest, ""));
 
+        // ex: "bitcoin:bc1qfj...?message=hello%20world&amount=0.1"
+        //     -> `params = [("message", "hello world"), ("amount", "0.1")]`
         let params = rest
             .split('&')
             .filter_map(UriParam::parse)
@@ -381,14 +547,14 @@ mod test {
         // manual test cases
 
         // just an address
+        let address =
+            bitcoin::Address::from_str("13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU")
+                .unwrap();
         assert_eq!(
             Bip21Uri::parse("bitcoin:13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU"),
             Some(Bip21Uri {
                 onchain: Some(Onchain {
-                    address: bitcoin::Address::from_str(
-                        "13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU"
-                    )
-                    .unwrap(),
+                    address: address.clone(),
                     amount: None,
                     label: None,
                     message: None,
@@ -405,10 +571,7 @@ mod test {
             ),
             Some(Bip21Uri {
                 onchain: Some(Onchain {
-                    address: bitcoin::Address::from_str(
-                        "13cqLpxv6cZ71X7JjgrdTbLGqhcEzBSBnU"
-                    )
-                    .unwrap(),
+                    address: address.clone(),
                     amount: None,
                     label: None,
                     message: None,
