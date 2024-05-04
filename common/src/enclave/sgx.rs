@@ -19,7 +19,7 @@ use crate::{
         MIN_SGX_CPUSVN,
     },
     rng::Crng,
-    sha256,
+    sha256, ArrayExt,
 };
 
 /// We salt the HKDF for domain separation purposes.
@@ -143,7 +143,7 @@ impl KeyRequest {
     /// We sample a unique sealing key per seal request. just grab the random
     /// part of the label as a nonce.
     fn single_use_nonce(&self) -> OnlyOnce {
-        let (_, nonce) = self.0.keyid.rsplit_array_ref::<12>();
+        let (_, nonce) = self.0.keyid.rsplit_array_ref_stable::<12>();
         OnlyOnce(Some(Nonce::assume_unique_for_key(*nonce)))
     }
 

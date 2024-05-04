@@ -1,9 +1,5 @@
 //! The native Rust code for the Lexe mobile app.
 
-// For payments db node mocks
-#![feature(btree_cursors)]
-#![feature(is_sorted)]
-#![feature(iter_order_by)]
 // Allow e.g. `CHANNEL_MANAGER` in generics to clearly distinguish between
 // concrete and generic types
 #![allow(non_camel_case_types)]

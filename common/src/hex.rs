@@ -8,6 +8,8 @@ use std::{
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::SliceExt;
+
 /// Errors which can be produced while decoding a hex string.
 #[derive(Copy, Clone, Debug, Error, Serialize, Deserialize)]
 pub enum DecodeError {
@@ -165,7 +167,7 @@ impl<'a> fmt::Debug for HexDisplay<'a> {
 // --- Internal helpers --- //
 
 fn hex_str_to_chunks(hex: &str) -> Result<&[[u8; 2]], DecodeError> {
-    let (hex_chunks, extra) = hex.as_bytes().as_chunks::<2>();
+    let (hex_chunks, extra) = hex.as_bytes().as_chunks_stable::<2>();
     if extra.is_empty() {
         Ok(hex_chunks)
     } else {

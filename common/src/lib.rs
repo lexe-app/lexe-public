@@ -1,12 +1,6 @@
 //! The `common` crate contains types and functionality shared between the Lexe
 //! node and client code.
 
-// Used in `hex` module. Not super necessary, but convenient.
-#![feature(slice_as_chunks)]
-// Used in `rng` module. Avoids a runtime panic.
-#![feature(const_option)]
-// Used in `enclave/sgx` module for sealing.
-#![feature(split_array)]
 // Ignore this issue with `proptest_derive::Arbitrary`.
 #![allow(clippy::arc_with_non_send_sync)]
 // `proptest_derive::Arbitrary` issue. This will hard-error for edition 2024 so
@@ -129,6 +123,15 @@ pub const fn const_ref_cast<T: ref_cast::RefCast>(from: &T::From) -> &T {
     unsafe { &*(from as *const T::From as *const T) }
 }
 
+/// [`Option::unwrap`] but works in `const fn`.
+// TODO(phlip9): remove this when const unwrap stabilizes
+pub const fn const_option_unwrap<T: Copy>(option: Option<T>) -> T {
+    match option {
+        Some(value) => value,
+        None => panic!("unwrap on None"),
+    }
+}
+
 /// A trait which allows us to apply functions (including tuple enum variants)
 /// to non-[`Iterator`]/[`Result`]/[`Option`] values for cleaner iterator-like
 /// chains. It exposes an [`apply`] method and is implemented for all `T`.
@@ -185,5 +188,80 @@ where
     #[inline]
     fn apply(self, f: F) -> U {
         f(self)
+    }
+}
+
+/// Copies of nightly-only functions for `&[u8]`.
+// TODO(phlip9): remove functions as they stabilize.
+trait SliceExt {
+    //
+    // `<&[u8]>::as_chunks`
+    //
+
+    /// Splits the slice into a slice of `N`-element arrays,
+    /// starting at the beginning of the slice,
+    /// and a remainder slice with length strictly less than `N`.
+    fn as_chunks_stable<const N: usize>(&self) -> (&[[u8; N]], &[u8]);
+
+    unsafe fn as_chunks_unchecked_stable<const N: usize>(&self) -> &[[u8; N]];
+}
+
+impl SliceExt for [u8] {
+    //
+    // `<&[u8]>::as_chunks`
+    //
+
+    #[inline]
+    fn as_chunks_stable<const N: usize>(&self) -> (&[[u8; N]], &[u8]) {
+        assert!(N != 0, "chunk size must be non-zero");
+
+        let len = self.len() / N;
+        let (multiple_of_n, remainder) = self.split_at(len * N);
+        // SAFETY: We already panicked for zero, and ensured by construction
+        // that the length of the subslice is a multiple of N.
+        let array_slice = unsafe { multiple_of_n.as_chunks_unchecked_stable() };
+        (array_slice, remainder)
+    }
+
+    #[inline]
+    unsafe fn as_chunks_unchecked_stable<const N: usize>(&self) -> &[[u8; N]] {
+        // SAFETY: Caller must guarantee that `N` is nonzero and exactly divides
+        // the slice length
+        let new_len = self.len() / N;
+        // SAFETY: We cast a slice of `new_len * N` elements into
+        // a slice of `new_len` many `N` elements chunks.
+        unsafe { std::slice::from_raw_parts(self.as_ptr().cast(), new_len) }
+    }
+}
+
+/// Copies of nightly-only functions for `[u8; N]`.
+// TODO(phlip9): remove functions as they stabilize.
+trait ArrayExt<const N: usize> {
+    /// Divides one array reference into two at an index.
+    ///
+    /// The first will contain all indices from `[0, M)` (excluding
+    /// the index `M` itself) and the second will contain all
+    /// indices from `[M, N)` (excluding the index `N` itself).
+    fn split_array_ref_stable<const M: usize>(&self) -> (&[u8; M], &[u8]);
+
+    /// Divides one array reference into two at an index from the end.
+    ///
+    /// The first will contain all indices from `[0, N - M)` (excluding
+    /// the index `N - M` itself) and the second will contain all
+    /// indices from `[N - M, N)` (excluding the index `N` itself).
+    #[cfg(target_env = "sgx")]
+    fn rsplit_array_ref_stable<const M: usize>(&self) -> (&[u8], &[u8; M]);
+}
+
+impl<const N: usize> ArrayExt<N> for [u8; N] {
+    #[inline]
+    fn split_array_ref_stable<const M: usize>(&self) -> (&[u8; M], &[u8]) {
+        self[..].split_first_chunk::<M>().unwrap()
+    }
+
+    #[cfg(target_env = "sgx")]
+    #[inline]
+    fn rsplit_array_ref_stable<const M: usize>(&self) -> (&[u8], &[u8; M]) {
+        self[..].split_last_chunk::<M>().unwrap()
     }
 }

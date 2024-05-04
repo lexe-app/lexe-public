@@ -24,14 +24,19 @@ use ring::pbkdf2;
 use secrecy::Zeroize;
 use thiserror::Error;
 
-use crate::{aes, aes::AesMasterKey, const_assert, rng::Crng};
+use crate::{
+    aes::{self, AesMasterKey},
+    const_assert, const_option_unwrap,
+    rng::Crng,
+};
 
 /// The specific algorithm used for our password encryption scheme.
 static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
 /// The number of iterations used to stretch the derived key.
 /// OWASP recommends 600K iterations for PBKDF2-HMAC-SHA256:
 /// <https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2>
-const PBKDF2_ITERATIONS: NonZeroU32 = NonZeroU32::new(600_000).unwrap();
+const PBKDF2_ITERATIONS: NonZeroU32 =
+    const_option_unwrap(NonZeroU32::new(600_000));
 
 /// The byte length of the secret used to construct the [`AesMasterKey`].
 const AES_KEY_LEN: usize = ring::digest::SHA256_OUTPUT_LEN;
