@@ -81,6 +81,11 @@
 //! cargo test -p gdrive -- --test-threads=1 --ignored --show-output [<test-name>]
 //! ```
 
+// `proptest_derive::Arbitrary` issue. This will hard-error for edition 2024 so
+// hopefully it gets fixed soon...
+// See: <https://github.com/proptest-rs/proptest/issues/447>
+#![allow(non_local_definitions)]
+
 use reqwest::StatusCode;
 use thiserror::Error;
 

@@ -9,6 +9,10 @@
 #![feature(split_array)]
 // Ignore this issue with `proptest_derive::Arbitrary`.
 #![allow(clippy::arc_with_non_send_sync)]
+// `proptest_derive::Arbitrary` issue. This will hard-error for edition 2024 so
+// hopefully it gets fixed soon...
+// See: <https://github.com/proptest-rs/proptest/issues/447>
+#![allow(non_local_definitions)]
 
 // Some re-exports to prevent having to re-declare dependencies
 pub use reqwest;
@@ -78,7 +82,7 @@ pub mod test_utils;
 #[macro_export]
 macro_rules! const_assert {
     ($x:expr $(,)?) => {
-        #[allow(unknown_lints, clippy::eq_op)]
+        #[allow(clippy::const_is_empty, clippy::eq_op, unknown_lints)]
         const _: [(); 0 - !{
             const CONST_ASSERT: bool = $x;
             CONST_ASSERT

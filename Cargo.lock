@@ -3385,6 +3385,7 @@ dependencies = [
  "argh",
  "common",
  "enclave-runner",
+ "lazy-lock",
  "memchr",
  "object 0.30.4",
  "rustc-demangle",
