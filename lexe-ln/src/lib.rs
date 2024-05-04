@@ -1,13 +1,15 @@
 //! The `lexe-ln` crate contains shared Bitcoin + Lightning logic, utilities,
 //! and newtypes.
 
-// Allow e.g. PS: Deref<Target: LexeInnerPersister> in generics
-#![feature(associated_type_bounds)]
 // Ignore this issue with `proptest_derive::Arbitrary`.
 #![allow(clippy::arc_with_non_send_sync)]
 // Allow e.g. `CHANNEL_MANAGER` in generics to clearly distinguish between
 // concrete and generic types
 #![allow(non_camel_case_types)]
+// `proptest_derive::Arbitrary` issue. This will hard-error for edition 2024 so
+// hopefully it gets fixed soon...
+// See: <https://github.com/proptest-rs/proptest/issues/447>
+#![allow(non_local_definitions)]
 
 /// Type aliases.
 pub mod alias;

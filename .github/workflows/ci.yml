@@ -28,7 +28,7 @@ env:
   CARGO_TERM_COLOR: always
   # less wasteful caching w/ non-incremental builds
   CARGO_INCREMENTAL: 0
-  LEXE_RUST_VERSION: nightly-2024-03-12
+  LEXE_RUST_VERSION: nightly-2024-05-03
   LEXE_CI: 1
 
 jobs:
