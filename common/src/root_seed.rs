@@ -17,7 +17,7 @@ use crate::{
     api::{NodePk, UserPk},
     ed25519, hex, password, rng,
     rng::Crng,
-    sha256,
+    sha256, ArrayExt,
 };
 
 // TODO(phlip9): [perf] consider storing extracted `Prk` alongside seed to
@@ -325,7 +325,7 @@ impl TryFrom<Mnemonic> for RootSeed {
 
         ensure!(entropy_len == 32, "Should contain exactly 32 bytes");
 
-        let (seed_buf, _remainder) = entropy.split_array_ref::<32>();
+        let (seed_buf, _remainder) = entropy.split_array_ref_stable::<32>();
 
         Ok(Self(Secret::new(*seed_buf)))
     }

@@ -12,8 +12,10 @@ use rand_core::le::read_u32_into;
 pub use rand_core::{CryptoRng, RngCore, SeedableRng};
 use ring::rand::SecureRandom;
 
+use crate::const_option_unwrap;
+
 const RAND_ERROR_CODE: NonZeroU32 =
-    NonZeroU32::new(rand_core::Error::CUSTOM_START).unwrap();
+    const_option_unwrap(NonZeroU32::new(rand_core::Error::CUSTOM_START));
 
 /// Helper to get a `secp256k1` context randomized for side-channel resistance.
 /// Use this function instead of calling [`Secp256k1::new`] directly.

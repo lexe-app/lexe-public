@@ -934,7 +934,7 @@ async fn sync_new_payments<F: Ffs, N: AppNodeRunApi>(
 
 #[cfg(test)]
 mod test {
-    use std::{cell::RefCell, collections::BTreeMap, ops::Bound};
+    use std::{cell::RefCell, collections::BTreeMap};
 
     use async_trait::async_trait;
     use bitcoin::Address;
@@ -1116,15 +1116,8 @@ mod test {
                     let id = LxPaymentId::from_str(id_str).unwrap();
                     self.payments
                         .iter()
-                        .find_map(
-                            |(idx, p)| {
-                                if idx.id == id {
-                                    Some(p)
-                                } else {
-                                    None
-                                }
-                            },
-                        )
+                        .find(|(idx, _p)| idx.id == id)
+                        .map(|(_idx, p)| p)
                         .cloned()
                 })
                 .collect())
@@ -1135,27 +1128,30 @@ mod test {
             &self,
             req: GetNewPayments,
         ) -> Result<Vec<BasicPayment>, NodeApiError> {
-            let lower_bound = match &req.start_index {
-                Some(idx) => Bound::Excluded(idx),
-                None => Bound::Unbounded,
+            let iter = match req.start_index {
+                Some(idx) => {
+                    // Advance the iter until we find the first key where
+                    // key > req.start_index
+                    let mut iter = self.payments.iter().peekable();
+                    while let Some((key, _value)) = iter.peek() {
+                        if *key > &idx {
+                            break;
+                        } else {
+                            iter.next();
+                        }
+                    }
+                    iter
+                }
+                // Match the other branch's return type
+                None => self.payments.iter().peekable(),
             };
-            let mut limit = req.limit.unwrap_or(u16::MAX);
-            let mut cursor = self.payments.lower_bound(lower_bound);
 
-            let mut out = Vec::new();
-            loop {
-                if limit == 0 {
-                    break;
-                }
+            let limit = req.limit.unwrap_or(u16::MAX);
 
-                match cursor.next() {
-                    Some((_index, payment)) => out.push(payment.clone()),
-                    None => break,
-                }
-
-                limit -= 1;
-            }
-            Ok(out)
+            Ok(iter
+                .take(limit as usize)
+                .map(|(_key, value)| value.clone())
+                .collect::<Vec<_>>())
         }
 
         /// PUT /app/payments/note [`UpdatePaymentNote`] -> [`()`]
