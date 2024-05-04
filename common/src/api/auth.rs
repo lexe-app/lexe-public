@@ -16,6 +16,7 @@ use crate::{
         def::BearerAuthBackendApi,
         error::{BackendApiError, BackendErrorKind},
     },
+    array,
     byte_str::ByteStr,
     ed25519::{self, Signed},
 };
@@ -170,8 +171,8 @@ impl UserSignupRequest {
 }
 
 impl ed25519::Signable for UserSignupRequest {
-    const DOMAIN_SEPARATOR_STR: &'static [u8] =
-        b"LEXE-REALM::UserSignupRequest";
+    const DOMAIN_SEPARATOR: [u8; 32] =
+        array::pad(*b"LEXE-REALM::UserSignupRequest");
 }
 
 // -- impl BearerAuthRequest -- //
@@ -218,8 +219,8 @@ impl BearerAuthRequest {
 }
 
 impl ed25519::Signable for BearerAuthRequest {
-    const DOMAIN_SEPARATOR_STR: &'static [u8] =
-        b"LEXE-REALM::BearerAuthRequest";
+    const DOMAIN_SEPARATOR: [u8; 32] =
+        array::pad(*b"LEXE-REALM::BearerAuthRequest");
 }
 
 // -- impl BearerAuthToken -- //

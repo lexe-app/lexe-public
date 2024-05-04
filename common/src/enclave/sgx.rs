@@ -13,18 +13,17 @@ use secrecy::zeroize::Zeroizing;
 use sgx_isa::{Keyname, Keypolicy};
 
 use crate::{
+    array::{self, ArrayExt},
     const_assert_usize_eq,
     enclave::{
         attributes, miscselect, xfrm, Error, MachineId, Measurement, Sealed,
         MIN_SGX_CPUSVN,
     },
     rng::Crng,
-    sha256, ArrayExt,
 };
 
 /// We salt the HKDF for domain separation purposes.
-const HKDF_SALT: [u8; 32] =
-    sha256::digest_const(b"LEXE-REALM::SgxSealing").into_inner();
+const HKDF_SALT: [u8; 32] = array::pad(*b"LEXE-REALM::SgxSealing");
 
 /// AES-256-GCM tag length
 pub const TAG_LEN: usize = 16;

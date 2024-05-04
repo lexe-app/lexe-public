@@ -196,14 +196,14 @@ mod test {
             password: "medium-length!123123".to_owned(),
             salt: [0u8; 32],
             data1: b"",
-            maybe_ciphertext: Some("00a9ebf955ed070fe7acefe66e5a007b2c4165d3c2c23efc6a91d60a37e3a7b618a371d4d69c15c26d8f932b5d02fa696f"),
+            maybe_ciphertext: Some("00a9ebf955ed070fe7acefe66e5a007b2c4165d3c2c23efc6a91d60a37e3a7b6181e4156d15d513cb9cee00739a226466e"),
         };
         // Case 1: Minimum-length password as of 2023-10-16 (12 chars)
         let case1 = TestCase {
             password: "passwordword".to_owned(),
             salt: [69; 32],
             data1: b"*jaw drops* awooga! hummina hummina bazooing!",
-            maybe_ciphertext: Some("00a9ebf955ed070fe7acefe66e5a007b2c4165d3c2c23efc6a91d60a37e3a7b618a490066b79d69ce4c3af0ee82b9940818c933d5dc17f345ffc298deaa16c5f6fd5756145f9451bccb8b76bbb455847318a3c8e53907a6c6da3326981ae"),
+            maybe_ciphertext: Some("00a9ebf955ed070fe7acefe66e5a007b2c4165d3c2c23efc6a91d60a37e3a7b6180c0d3cd90616335f13f5de7c9df0a1d89a7aec282b8083089c2360962e22db1a57685e82aea236c053b88495021767e0c17e05b3f72a86cfbbffc3724a"),
         };
         // Case 2: Maximum-length password as of 2023-10-16 (512 chars)
         let password = (0u32..512)
@@ -213,7 +213,7 @@ mod test {
             password,
             salt: [69; 32],
             data1: b"*jaw drops* awooga! hummina hummina bazooing!",
-            maybe_ciphertext: Some("00a9ebf955ed070fe7acefe66e5a007b2c4165d3c2c23efc6a91d60a37e3a7b61855392c880944537511464ae9d4ff1b0736e68532631c56bbe9833363792d75ba1d49a04ac85235e1c4a9c2dd660955a189821d0fcaa08819d0fd3904b7"),
+            maybe_ciphertext: Some("00a9ebf955ed070fe7acefe66e5a007b2c4165d3c2c23efc6a91d60a37e3a7b618cf7a8ff3ea628ed33fb32428930340557454454258dedc67c9a3a5e350c2408ad82e6a8ac02779fd9df3f513364b6351301271cfd2c515fdca0cd15de0"),
         };
 
         for (i, case) in [case0, case1, case2].into_iter().enumerate() {

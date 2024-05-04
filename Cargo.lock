@@ -1106,7 +1106,6 @@ dependencies = [
  "serde_with",
  "sgx-isa",
  "sgx-panic-backtrace",
- "sha2-const",
  "thiserror",
  "time 0.3.31",
  "tokio",
@@ -3844,12 +3843,6 @@ dependencies = [
  "cpufeatures",
  "digest",
 ]
-
-[[package]]
-name = "sha2-const"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5edcd790916d95ff81bdc1505b09c74d30d47a755929cc8c71c59cbbfa99f91b"
 
 [[package]]
 name = "sharded-slab"

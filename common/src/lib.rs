@@ -16,6 +16,8 @@ pub use secrecy::{ExposeSecret, Secret};
 pub mod aes;
 /// API definitions, errors, clients, and structs sent across the wire.
 pub mod api;
+/// `[u8; N]` array functions.
+pub mod array;
 /// Exponential backoff.
 pub mod backoff;
 /// [`tokio::Bytes`](bytes::Bytes) but must contain a string.
@@ -231,37 +233,5 @@ impl SliceExt for [u8] {
         // SAFETY: We cast a slice of `new_len * N` elements into
         // a slice of `new_len` many `N` elements chunks.
         unsafe { std::slice::from_raw_parts(self.as_ptr().cast(), new_len) }
-    }
-}
-
-/// Copies of nightly-only functions for `[u8; N]`.
-// TODO(phlip9): remove functions as they stabilize.
-trait ArrayExt<const N: usize> {
-    /// Divides one array reference into two at an index.
-    ///
-    /// The first will contain all indices from `[0, M)` (excluding
-    /// the index `M` itself) and the second will contain all
-    /// indices from `[M, N)` (excluding the index `N` itself).
-    fn split_array_ref_stable<const M: usize>(&self) -> (&[u8; M], &[u8]);
-
-    /// Divides one array reference into two at an index from the end.
-    ///
-    /// The first will contain all indices from `[0, N - M)` (excluding
-    /// the index `N - M` itself) and the second will contain all
-    /// indices from `[N - M, N)` (excluding the index `N` itself).
-    #[cfg(target_env = "sgx")]
-    fn rsplit_array_ref_stable<const M: usize>(&self) -> (&[u8], &[u8; M]);
-}
-
-impl<const N: usize> ArrayExt<N> for [u8; N] {
-    #[inline]
-    fn split_array_ref_stable<const M: usize>(&self) -> (&[u8; M], &[u8]) {
-        self[..].split_first_chunk::<M>().unwrap()
-    }
-
-    #[cfg(target_env = "sgx")]
-    #[inline]
-    fn rsplit_array_ref_stable<const M: usize>(&self) -> (&[u8], &[u8; M]) {
-        self[..].split_last_chunk::<M>().unwrap()
     }
 }

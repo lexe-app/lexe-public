@@ -58,7 +58,7 @@
 //! 3. aad := Aad(version, key-id, user-aad)
 //! 4. encrypt-key := HKDF-Extract-Expand(
 //!         ikm=master-key,
-//!         salt=SHA-256("LEXE-REALM::AesMasterKey"),
+//!         salt=array::pad::<32>("LEXE-REALM::AesMasterKey"),
 //!         info=key-id,
 //!         out-len=32 bytes,
 //!    )
@@ -90,7 +90,7 @@ use ring::{
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::{const_ref_cast, rng::Crng, sha256};
+use crate::{array, const_ref_cast, rng::Crng};
 
 /// serialized version length
 const VERSION_LEN: usize = 1;
@@ -115,6 +115,12 @@ pub const fn encrypted_len(plaintext_len: usize) -> usize {
 // time we encrypt something.
 pub struct AesMasterKey(hkdf::Prk);
 
+/// `KeyId` is the value used to derive the single-use message
+/// encryption/decryption key from the [`AesMasterKey`] HKDF.
+///
+/// As explained in the module docs, AES-GCM nonces are too small (12-bytes), so
+/// we use what is effectively a synthetic nonce scheme by deriving single-use
+/// keys from a larger pool of entropy (2^32 bits) for each separate encryption.
 #[derive(RefCast, Serialize)]
 #[repr(transparent)]
 struct KeyId([u8; 32]);
@@ -154,8 +160,7 @@ impl fmt::Debug for AesMasterKey {
 }
 
 impl AesMasterKey {
-    const HKDF_SALT: [u8; 32] =
-        sha256::digest_const(b"LEXE-REALM::AesMasterKey").into_inner();
+    const HKDF_SALT: [u8; 32] = array::pad(*b"LEXE-REALM::AesMasterKey");
 
     pub fn new(root_seed_derived_secret: &[u8; 32]) -> Self {
         Self(
@@ -452,7 +457,7 @@ mod test {
 
         // aad = [], plaintext = ""
 
-        // // uncomment to regen
+        // uncomment to regen
         // let encrypted = vfs_key.encrypt(&mut rng, &[], None, &|_| ());
         // println!("encrypted: {}", hex::display(&encrypted));
 
@@ -461,7 +466,7 @@ mod test {
             "00\
              b0abd2beab31c1d925c5d8059cf90068eece2c41a3a6e4454d84e36ad6858a01\
              \
-             a3a8f403c7b7ada7c212d4995945230c",
+             0e2d1f6d16e9bb5738de28b4f180f07f",
         )
         .unwrap();
 
@@ -473,7 +478,7 @@ mod test {
         let aad = b"my context".as_slice();
         let plaintext = b"my cool message".as_slice();
 
-        // uncomment to regen
+        // // uncomment to regen
         // #[rustfmt::skip]
         // let encrypted = vfs_key
         //     .encrypt(&mut rng, &[aad], None, &|out| out.put(plaintext));
@@ -482,9 +487,9 @@ mod test {
         let encrypted = hex::decode(
             // [version] || [key_id] || [ciphertext] || [tag]
             "00\
-             b0abd2beab31c1d925c5d8059cf90068eece2c41a3a6e4454d84e36ad6858a01\
-             a906e368cab56d92127d440b5c4bdd\
-             b132a8c1b3760ff36f3ded72c5847d93",
+             c87fea5c4db8c16d3dae5a6ead5ee5985fa7c38721b9624e37772adea6a48aae\
+             22f52c6f08440092338d16e3402eaf\
+             c3972d357e56dad4cc42c6a80da4ac35",
         )
         .unwrap();
 

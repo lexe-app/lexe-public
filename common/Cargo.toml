@@ -96,8 +96,6 @@ rustls-pemfile = "1"
 # The version should match that used by rustls.
 # For some reason this breaks if we don't specify `package = "rustls-webpki"`
 rustls-webpki = { version = "0.102", package = "rustls-webpki" }
-# Const SHA256 hash
-sha2-const = "0.1"
 # Tower utilities
 tower = { workspace = true, features = ["buffer", "limit", "load-shed", "timeout", "util"] }
 tower-http = { version = "0.5", features = ["trace"] }

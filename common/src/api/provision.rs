@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::test_utils::arbitrary;
 use crate::{
     api::UserPk,
+    array,
     cli::Network,
     ed25519, enclave,
     enclave::{MachineId, Measurement, Sealed},
@@ -238,7 +239,7 @@ impl SealedSeed {
 }
 
 impl ed25519::Signable for SealedSeed {
-    const DOMAIN_SEPARATOR_STR: &'static [u8] = b"LEXE-REALM::SealedSeed";
+    const DOMAIN_SEPARATOR: [u8; 32] = array::pad(*b"LEXE-REALM::SealedSeed");
 }
 
 impl fmt::Debug for NodeProvisionRequest {

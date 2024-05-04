@@ -33,21 +33,6 @@ pub fn digest_many(inputs: &[&[u8]]) -> Hash {
     ctx.finish()
 }
 
-/// SHA-256 digest a single input at compile time.
-pub const fn digest_const(input: &[u8]) -> Hash {
-    digest_many_const(&[input])
-}
-
-/// SHA-256 digest multiple concatenated inputs at compile time.
-pub const fn digest_many_const(mut inputs: &[&[u8]]) -> Hash {
-    let mut acc = sha2_const::Sha256::new();
-    while let Some((input, rest)) = inputs.split_first() {
-        acc = acc.update(input);
-        inputs = rest;
-    }
-    Hash::new(acc.finalize())
-}
-
 // -- impl Hash -- //
 
 impl Hash {
@@ -150,10 +135,6 @@ impl io::Write for Context {
 
 #[cfg(test)]
 mod test {
-    use std::io::Write;
-
-    use proptest::{arbitrary::any, proptest};
-
     use crate::{hex, sha256};
 
     // sanity check
@@ -163,27 +144,5 @@ mod test {
         let expected =
             "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
         assert_eq!(&actual, expected);
-    }
-
-    #[test]
-    fn test_digest_equiv() {
-        proptest!(|(inputs in any::<Vec<Vec<u8>>>())| {
-            let inputs_ref = inputs
-                .iter()
-                .map(|v| v.as_slice())
-                .collect::<Vec<_>>();
-
-            let h1 = sha256::digest_many(&inputs_ref);
-            let h2 = sha256::digest_many_const(&inputs_ref);
-
-            let mut ctxt = sha256::Context::new();
-            for input in inputs_ref {
-                ctxt.write_all(input).unwrap();
-            }
-            let h3 = ctxt.finish();
-
-            assert_eq!(h1, h2);
-            assert_eq!(h1, h3);
-        });
     }
 }
