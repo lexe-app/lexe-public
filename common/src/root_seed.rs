@@ -12,12 +12,11 @@ use secrecy::{zeroize::Zeroizing, ExposeSecret, Secret, SecretVec};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
-    aes,
-    aes::AesMasterKey,
+    aes::{self, AesMasterKey},
     api::{NodePk, UserPk},
-    ed25519, hex, password, rng,
-    rng::Crng,
-    sha256, ArrayExt,
+    array::{self, ArrayExt},
+    ed25519, hex, password,
+    rng::{self, Crng},
 };
 
 // TODO(phlip9): [perf] consider storing extracted `Prk` alongside seed to
@@ -34,8 +33,7 @@ impl RootSeed {
     const HKDF_MAX_OUT_LEN: usize = 8160 /* 255*32 */;
 
     /// We salt the HKDF for domain separation purposes.
-    const HKDF_SALT: [u8; 32] =
-        sha256::digest_const(b"LEXE-REALM::RootSeed").into_inner();
+    const HKDF_SALT: [u8; 32] = array::pad(*b"LEXE-REALM::RootSeed");
 
     pub fn new(bytes: Secret<[u8; Self::LENGTH]>) -> Self {
         Self(bytes)
@@ -420,7 +418,7 @@ mod test {
     };
 
     use super::*;
-    use crate::rng::WeakRng;
+    use crate::{rng::WeakRng, sha256};
 
     // simple implementations of some crypto functions for equivalence testing
 
@@ -543,13 +541,13 @@ mod test {
         let out32 = seed.derive_vec(&[b"very cool secret"], 32);
         let out32_2 = seed.derive(&[b"very cool secret"]);
 
-        assert_eq!("4ea4ee14ed456f80", hex::encode(out8.expose_secret()));
+        assert_eq!("c724f46ae4c48017", hex::encode(out8.expose_secret()));
         assert_eq!(
-            "4ea4ee14ed456f801a98634ee9665c1d",
+            "c724f46ae4c480172a75cf775dbb64b1",
             hex::encode(out16.expose_secret())
         );
         assert_eq!(
-            "4ea4ee14ed456f801a98634ee9665c1d4be183f550d914097ae2dece5ece3f97",
+            "c724f46ae4c480172a75cf775dbb64b160beb74137eb7d0cef72fde0523674de",
             hex::encode(out32.expose_secret())
         );
         assert_eq!(out32.expose_secret(), out32_2.expose_secret());
@@ -785,26 +783,28 @@ mod test {
     fn password_decryption_compatibility() {
         let root_seed1 = RootSeed::new(Secret::new([69u8; 32]));
         let password1 = "password1234";
-        // Uncomment to regenerate
+        // // Uncomment to regenerate
         // let mut rng = WeakRng::from_u64(20231017);
         // let encrypted =
         //     root_seed1.password_encrypt(&mut rng, password1).unwrap();
         // let encrypted_hex = hex::display(&encrypted);
         // println!("Encrypted: {encrypted_hex}");
-        let encrypted = hex::decode("adcfc4aef26858bacfae83dd19e735bb145203ab18183cbe932cd742b4446e7300b561678b0652666b316288bbb57552c4f40e91d8e440fd1085cba610204ca98232ee7bb333f81785725beb6b86d74528f943e22da4e606a6ac6659f5e2e218a20e7b7e0ef6eb7be3d32a7cc17ab89543").unwrap();
+
+        let encrypted = hex::decode("adcfc4aef26858bacfae83dd19e735bb145203ab18183cbe932cd742b4446e7300b561678b0652666b316288bbb57552c4f40e91d8e440fd1085cba610204ca982f52fce471de27fe360e9560cee0996e55ce7ac323201908b7ff261b8ff425a87d215e83870e45062d988627c8cb7216b").unwrap();
         let root_seed1_decrypted =
             RootSeed::password_decrypt(password1, encrypted).unwrap();
         assert_eq!(root_seed1, root_seed1_decrypted);
 
         let root_seed2 = RootSeed::new(Secret::new([0u8; 32]));
         let password2 = "                ";
-        // Uncomment to regenerate
+        // // Uncomment to regenerate
         // let mut rng = WeakRng::from_u64(20231017);
         // let encrypted =
         //     root_seed2.password_encrypt(&mut rng, password2).unwrap();
         // let encrypted_hex = hex::display(&encrypted);
         // println!("Encrypted: {encrypted_hex}");
-        let encrypted = hex::decode("adcfc4aef26858bacfae83dd19e735bb145203ab18183cbe932cd742b4446e7300b561678b0652666b316288bbb57552c4f40e91d8e440fd1085cba610204ca98228a306f06e2f18e566079d5b5ff8bdb6832267793d457d8f05da537dc5e66bc6baada33631959d25b7dc0f89843f5d66").unwrap();
+
+        let encrypted = hex::decode("adcfc4aef26858bacfae83dd19e735bb145203ab18183cbe932cd742b4446e7300b561678b0652666b316288bbb57552c4f40e91d8e440fd1085cba610204ca982062fbcb21c14cdb9d107f2f359e0f272e473d2cdb71a870d8fb19d1169c160876ee1ccde4f73a8f2b4ebc9bed68f6139").unwrap();
         let root_seed2_decrypted =
             RootSeed::password_decrypt(password2, encrypted).unwrap();
         assert_eq!(root_seed2, root_seed2_decrypted);

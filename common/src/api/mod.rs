@@ -17,8 +17,8 @@ use crate::rng::WeakRng;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::root_seed::RootSeed;
 use crate::{
-    const_ref_cast, ed25519,
-    ed25519::Signable,
+    array, const_ref_cast,
+    ed25519::{self, Signable},
     hex::{self, FromHex},
     hexstr_or_bytes,
     rng::Crng,
@@ -308,7 +308,7 @@ impl NodePkProof {
 }
 
 impl Signable for NodePkProof {
-    const DOMAIN_SEPARATOR_STR: &'static [u8] = b"LEXE-REALM::NodePkProof";
+    const DOMAIN_SEPARATOR: [u8; 32] = array::pad(*b"LEXE-REALM::NodePkProof");
 }
 
 #[cfg(any(test, feature = "test-utils"))]

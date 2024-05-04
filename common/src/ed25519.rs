@@ -141,21 +141,13 @@ pub struct InvalidSignature;
 /// signature in order to bind that signature to only this particular type.
 pub trait Signable {
     /// Implementors will only need to fill in this value. An example is
-    /// `"LEXE-REALM::RootSeed"`, used in the
+    /// `array::pad(*b"LEXE-REALM::RootSeed")`, used in the
     /// [`RootSeed`](crate::root_seed::RootSeed).
-    ///
-    /// Any length is fine, as the value is SHA-256 hashed at compile time to
-    /// reduce it to a constant size.
-    const DOMAIN_SEPARATOR_STR: &'static [u8];
-
-    /// The actual domain separation value prepended to signatures on this type.
-    const DOMAIN_SEPARATOR: [u8; 32] =
-        sha256::digest_const(Self::DOMAIN_SEPARATOR_STR).into_inner();
+    const DOMAIN_SEPARATOR: [u8; 32];
 }
 
 // Blanket trait impl for &T.
 impl<T: Signable> Signable for &T {
-    const DOMAIN_SEPARATOR_STR: &'static [u8] = T::DOMAIN_SEPARATOR_STR;
     const DOMAIN_SEPARATOR: [u8; 32] = T::DOMAIN_SEPARATOR;
 }
 
@@ -796,6 +788,7 @@ mod test {
     use proptest_derive::Arbitrary;
 
     use super::*;
+    use crate::array;
 
     fn arb_seed() -> impl Strategy<Value = [u8; 32]> {
         any::<[u8; 32]>().no_shrink()
@@ -809,8 +802,8 @@ mod test {
     struct SignableBytes(Vec<u8>);
 
     impl Signable for SignableBytes {
-        const DOMAIN_SEPARATOR_STR: &'static [u8] =
-            b"LEXE-REALM::SignableBytes";
+        const DOMAIN_SEPARATOR: [u8; 32] =
+            array::pad(*b"LEXE-REALM::SignableBytes");
     }
 
     impl fmt::Debug for SignableBytes {
@@ -996,14 +989,14 @@ mod test {
         struct Foo(u32);
 
         impl Signable for Foo {
-            const DOMAIN_SEPARATOR_STR: &'static [u8] = b"LEXE-REALM::Foo";
+            const DOMAIN_SEPARATOR: [u8; 32] = array::pad(*b"LEXE-REALM::Foo");
         }
 
         #[derive(Debug, Deserialize, Serialize)]
         struct Bar(u32);
 
         impl Signable for Bar {
-            const DOMAIN_SEPARATOR_STR: &'static [u8] = b"LEXE-REALM::Bar";
+            const DOMAIN_SEPARATOR: [u8; 32] = array::pad(*b"LEXE-REALM::Bar");
         }
 
         fn arb_foo() -> impl Strategy<Value = Foo> {
