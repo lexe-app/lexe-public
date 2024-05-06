@@ -17,7 +17,8 @@ use rustls::{
         HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier,
     },
     pki_types::{CertificateDer, ServerName, UnixTime},
-    DigitallySignedStruct,
+    server::danger::{ClientCertVerified, ClientCertVerifier},
+    DigitallySignedStruct, DistinguishedName,
 };
 use webpki::{TlsServerTrustAnchors, TrustAnchor};
 use x509_parser::certificate::X509Certificate;
@@ -74,32 +75,50 @@ static SUPPORTED_SIG_ALGS: &[&webpki::SignatureAlgorithm] = &[
 // 1. server cert verifier (server cert should contain dns names)
 // 2. TODO(phlip9): client cert verifier (dns names ignored)
 
-/// A [`ServerCertVerifier`] that also checks embedded remote attestation
-/// evidence.
+/// A [`ClientCertVerifier`] and [`ServerCertVerifier`] that also checks
+/// embedded remote attestation evidence.
 ///
-/// Clients use this verifier to check that
-/// (1) a server's certificate is valid,
-/// (2) the remote attestation is valid (according to the client's policy), and
-/// (3) the remote attestation binds to the server's certificate key pair. Once
-/// these checks are successful, the client and secure can establish a secure
-/// TLS channel.
+/// Clients or servers connecting to a remote enclave use this to check that:
+/// (1) the remote's certificate is valid,
+/// (2) the remote attestation is valid (according to the enclave policy), and
+/// (3) the remote attestation binds to the presented certificate key pair. Once
+/// these checks are successful, the client and server (one of which is inside
+/// an SGX enclave) can establish a secure TLS channel.
 #[derive(Debug)]
-pub struct AttestationServerVerifier {
+pub struct AttestationCertVerifier {
     /// if `true`, expect a fake dummy quote. Used only for testing.
     pub expect_dummy_quote: bool,
     /// the verifier's policy for trusting the remote enclave.
     pub enclave_policy: EnclavePolicy,
 }
 
-impl ServerCertVerifier for AttestationServerVerifier {
-    fn verify_server_cert(
+/// Whether the verifier is currently being used to verify client or server
+/// certs, along with any additional parameters if necessary.
+enum VerifierParams<'param> {
+    /// Server cert verification params.
+    Server {
+        server_name: &'param ServerName<'param>,
+        ocsp_response: &'param [u8],
+    },
+    /// Client cert verification params.
+    Client,
+}
+
+/// A client or server cert verification token.
+enum CertVerified {
+    Client(ClientCertVerified),
+    Server(ServerCertVerified),
+}
+
+impl AttestationCertVerifier {
+    /// Shared logic for verifying a client or server attestation cert.
+    fn verify_attestation_cert(
         &self,
+        verifier_params: VerifierParams,
         end_entity: &CertificateDer,
         intermediates: &[CertificateDer],
-        server_name: &ServerName,
-        ocsp_response: &[u8],
         now: UnixTime,
-    ) -> Result<ServerCertVerified, rustls::Error> {
+    ) -> Result<CertVerified, rustls::Error> {
         // there should be no intermediate certs
         if !intermediates.is_empty() {
             return Err(rustls_err("received unexpected intermediate certs"));
@@ -110,22 +129,41 @@ impl ServerCertVerifier for AttestationServerVerifier {
         //    etc...
         let mut trust_roots = rustls::RootCertStore::empty();
         trust_roots.add(end_entity.to_owned()).map_err(rustls_err)?;
-
-        let webpki_verifier =
-            rustls::client::WebPkiServerVerifier::builder_with_provider(
-                Arc::new(trust_roots),
-                tls::LEXE_CRYPTO_PROVIDER.clone(),
-            )
-            .build()
-            .map_err(|e| rustls::Error::General(e.to_string()))?;
-
-        let verified_token = webpki_verifier.verify_server_cert(
-            end_entity,
-            &[],
-            server_name,
-            ocsp_response,
-            now,
-        )?;
+        let cert_verified = match verifier_params {
+            VerifierParams::Client => {
+                let webpki_verifier =
+                    rustls::server::WebPkiClientVerifier::builder_with_provider(
+                        Arc::new(trust_roots),
+                        tls::LEXE_CRYPTO_PROVIDER.clone(),
+                    )
+                    .build()
+                    .map_err(|e| rustls::Error::General(e.to_string()))?;
+                webpki_verifier
+                    .verify_client_cert(end_entity, &[], now)
+                    .map(CertVerified::Client)?
+            }
+            VerifierParams::Server {
+                server_name,
+                ocsp_response,
+            } => {
+                let webpki_verifier =
+                    rustls::client::WebPkiServerVerifier::builder_with_provider(
+                        Arc::new(trust_roots),
+                        tls::LEXE_CRYPTO_PROVIDER.clone(),
+                    )
+                    .build()
+                    .map_err(|e| rustls::Error::General(e.to_string()))?;
+                webpki_verifier
+                    .verify_server_cert(
+                        end_entity,
+                        &[],
+                        server_name,
+                        ocsp_response,
+                        now,
+                    )
+                    .map(CertVerified::Server)?
+            }
+        };
 
         // 2. extract enclave attestation quote from the cert
         let evidence = AttestEvidence::parse_cert_der(end_entity)?;
@@ -150,14 +188,98 @@ impl ServerCertVerifier for AttestationServerVerifier {
             //    this x509 cert.
             if &reportdata[..32] != evidence.cert_pk.as_slice() {
                 return Err(rustls_err(
-                    "enclave's report is not actually binding to the presented x509 cert"
+                    "enclave's report is not binding to the presented x509 cert"
                 ));
             }
         } else if evidence.attest != SgxAttestationExtension::dummy() {
             return Err(rustls_err("invalid SGX attestation"));
         }
 
-        Ok(verified_token)
+        Ok(cert_verified)
+    }
+}
+
+impl ServerCertVerifier for AttestationCertVerifier {
+    fn verify_server_cert(
+        &self,
+        end_entity: &CertificateDer,
+        intermediates: &[CertificateDer],
+        server_name: &ServerName,
+        ocsp_response: &[u8],
+        now: UnixTime,
+    ) -> Result<ServerCertVerified, rustls::Error> {
+        let verifier_params = VerifierParams::Server {
+            server_name,
+            ocsp_response,
+        };
+        let cert_verified = self.verify_attestation_cert(
+            verifier_params,
+            end_entity,
+            intermediates,
+            now,
+        )?;
+
+        match cert_verified {
+            CertVerified::Client(_) =>
+                panic!("verify_attestation_cert returned wrong token kind"),
+            CertVerified::Server(verified) => Ok(verified),
+        }
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &CertificateDer<'_>,
+        _dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        // We intentionally do not support TLSv1.2.
+        let error = rustls::PeerIncompatible::ServerDoesNotSupportTls12Or13;
+        Err(rustls::Error::PeerIncompatible(error))
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        message: &[u8],
+        cert: &CertificateDer<'_>,
+        dss: &DigitallySignedStruct,
+    ) -> Result<HandshakeSignatureValid, rustls::Error> {
+        rustls::crypto::verify_tls13_signature(
+            message,
+            cert,
+            dss,
+            &tls::LEXE_SIGNATURE_ALGORITHMS,
+        )
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<rustls::SignatureScheme> {
+        tls::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
+    }
+}
+
+impl ClientCertVerifier for AttestationCertVerifier {
+    fn root_hint_subjects(&self) -> &[DistinguishedName] {
+        &[]
+    }
+
+    fn verify_client_cert(
+        &self,
+        end_entity: &CertificateDer,
+        intermediates: &[CertificateDer],
+        now: UnixTime,
+    ) -> Result<ClientCertVerified, rustls::Error> {
+        let verifier_params = VerifierParams::Client;
+        let cert_verified = self.verify_attestation_cert(
+            verifier_params,
+            end_entity,
+            intermediates,
+            now,
+        )?;
+
+        match cert_verified {
+            CertVerified::Client(verified) => Ok(verified),
+            CertVerified::Server(_) =>
+                panic!("verify_attestation_cert returned wrong token kind"),
+        }
     }
 
     fn verify_tls12_signature(
@@ -191,12 +313,12 @@ impl ServerCertVerifier for AttestationServerVerifier {
 }
 
 pub struct AttestEvidence<'a> {
-    pub cert_pk: ed25519::PublicKey,
-    pub attest: SgxAttestationExtension<'a, 'a>,
+    cert_pk: ed25519::PublicKey,
+    attest: SgxAttestationExtension<'a, 'a>,
 }
 
 impl<'a> AttestEvidence<'a> {
-    pub fn parse_cert_der(cert_der: &'a [u8]) -> Result<Self, rustls::Error> {
+    fn parse_cert_der(cert_der: &'a [u8]) -> Result<Self, rustls::Error> {
         use std::io;
 
         /// Shorthand to construct a [`rustls::Error::InvalidCertificate`]
@@ -632,7 +754,7 @@ impl<'a> Debug for ReportDebug<'a> {
 }
 
 /// Convenience to create a [`rustls::Error`] from a [`Display`]able object.
-pub fn rustls_err(s: impl Display) -> rustls::Error {
+fn rustls_err(s: impl Display) -> rustls::Error {
     rustls::Error::General(s.to_string())
 }
 
@@ -694,7 +816,7 @@ mod test {
     fn test_verify_sgx_server_cert() {
         let cert_der = parse_cert_pem_to_der(SGX_SERVER_CERT_PEM).unwrap();
 
-        let verifier = AttestationServerVerifier {
+        let verifier = AttestationCertVerifier {
             expect_dummy_quote: false,
             enclave_policy: EnclavePolicy {
                 allow_debug: true,
@@ -732,7 +854,7 @@ mod test {
                 .unwrap();
         let cert_der = cert.serialize_der_self_signed().unwrap();
 
-        let verifier = AttestationServerVerifier {
+        let verifier = AttestationCertVerifier {
             expect_dummy_quote: true,
             enclave_policy: EnclavePolicy::dangerous_trust_any(),
         };
