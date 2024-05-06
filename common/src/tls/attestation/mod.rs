@@ -80,7 +80,7 @@ pub fn app_node_provision_client_config(
         deploy_env,
         vec![measurement],
     );
-    let attestation_verifier = verifier::AttestationServerVerifier {
+    let attestation_verifier = verifier::AttestationCertVerifier {
         expect_dummy_quote: !use_sgx,
         enclave_policy,
     };
@@ -224,7 +224,7 @@ fn get_or_generate_node_attestation_cert(
 #[derive(Debug)]
 struct AppNodeProvisionVerifier {
     /// `<mr_short>.provision.lexe.app` remote attestation verifier
-    attestation_verifier: verifier::AttestationServerVerifier,
+    attestation_verifier: verifier::AttestationCertVerifier,
     /// Lexe server verifier - trusts the Lexe CA
     lexe_server_verifier: Arc<WebPkiServerVerifier>,
 }
