@@ -575,6 +575,18 @@ impl EnclavePolicy {
         }
     }
 
+    /// An [`EnclavePolicy`] which trusts any measurement signed by the
+    /// [`enclave::expected_signer`].
+    pub fn trust_expected_signer(use_sgx: bool, deploy_env: DeployEnv) -> Self {
+        Self {
+            allow_debug: deploy_env.is_dev(),
+            trusted_mrenclaves: None,
+            trusted_mrsigner: Some(enclave::expected_signer(
+                use_sgx, deploy_env,
+            )),
+        }
+    }
+
     /// A policy that trusts any enclave.
     pub fn dangerous_trust_any() -> Self {
         Self {
