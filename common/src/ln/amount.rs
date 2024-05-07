@@ -104,6 +104,11 @@ impl Amount {
     pub const MAX_BITCOIN_SUPPLY_SATS_U64: u64 = 21_000_000_0000_0000;
     pub const MAX_BITCOIN_SUPPLY_MSATS_U64: u64 = 21_000_000_0000_0000_000;
 
+    /// The maximum amount we can set in a BOLT11 invoice via the LDK
+    /// [`lightning_invoice::InvoiceBuilder::amount_milli_satoshis`] API.
+    /// Setting above this value will overflow!
+    pub const INVOICE_MAX_AMOUNT_MSATS_U64: u64 = u64::MAX / 10;
+
     // --- Constructors --- //
 
     /// Construct an [`Amount`] from a millisatoshi [`u64`] value.
@@ -146,6 +151,17 @@ impl Amount {
         (self.0 * dec!(1000))
             .to_u64()
             .expect("Amount::MAX == u64::MAX millisats")
+    }
+
+    /// Returns the [`Amount`] as a [`u64`] millisatoshi value, but safe to
+    /// use when _building_ a BOLT11 lightning invoice.
+    pub fn invoice_safe_msat(&self) -> Result<u64, Error> {
+        let msat = self.msat();
+        if msat <= Self::INVOICE_MAX_AMOUNT_MSATS_U64 {
+            Ok(msat)
+        } else {
+            Err(Error::TooLarge)
+        }
     }
 
     /// Returns the [`Amount`] as a [`u64`] satoshi value.
