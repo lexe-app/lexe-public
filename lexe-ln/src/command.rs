@@ -221,7 +221,7 @@ where
         .payee_pub_key(our_node_pk);
 
     if let Some(amount) = req.amount {
-        builder = builder.amount_milli_satoshis(amount.msat());
+        builder = builder.amount_milli_satoshis(amount.invoice_safe_msat()?);
     }
 
     // Construct the route hints.
