@@ -60,6 +60,7 @@ impl RestClient {
     ) -> Self {
         let client = Self::client_builder(from)
             .use_preconfigured_tls(tls_config)
+            .https_only(true)
             .build()
             .expect("Failed to build reqwest Client");
         Self { client, from, to }
@@ -69,15 +70,19 @@ impl RestClient {
     /// This should only be used for non-security-critical endpoints.
     pub fn new_insecure(from: &'static str, to: &'static str) -> Self {
         let client = Self::client_builder(from)
+            .https_only(false)
             .build()
             .expect("Failed to build reqwest Client");
         Self { client, from, to }
     }
 
     /// Get a [`reqwest::ClientBuilder`] with some defaults set.
+    /// NOTE that for safety, `https_only` is set to `true`, but you can
+    /// override it if needed.
     pub fn client_builder(from: &'static str) -> reqwest::ClientBuilder {
         reqwest::Client::builder()
             .user_agent(from)
+            .https_only(true)
             .timeout(API_REQUEST_TIMEOUT)
     }
 
