@@ -71,7 +71,7 @@ pub fn app_node_run_server_config(
     // Build our ClientCertVerifier which trusts our derived CA
     let mut roots = rustls::RootCertStore::empty();
     roots
-        .add(ca_cert_der)
+        .add(ca_cert_der.into())
         .context("rustls failed to deserialize CA cert DER bytes")?;
     let client_cert_verifier = WebPkiClientVerifier::builder_with_provider(
         Arc::new(roots),
@@ -82,7 +82,10 @@ pub fn app_node_run_server_config(
 
     let mut config = super::lexe_server_config()
         .with_client_cert_verifier(client_cert_verifier)
-        .with_single_cert(vec![server_cert_der], server_cert_key_der)
+        .with_single_cert(
+            vec![server_cert_der.into()],
+            server_cert_key_der.into(),
+        )
         .context("Failed to build rustls::ServerConfig")?;
     config
         .alpn_protocols
@@ -132,7 +135,10 @@ pub fn app_node_run_client_config(
         // A custom client cert resolver is only needed if the proxy *also*
         // requires client auth, meaning we'd need to choose the correct cert to
         // present depending on whether the end entity is the proxy or the node.
-        .with_client_auth_cert(vec![client_cert_der], client_cert_key_der)
+        .with_client_auth_cert(
+            vec![client_cert_der.into()],
+            client_cert_key_der.into(),
+        )
         .context("Failed to build rustls::ClientConfig")?;
     config
         .alpn_protocols
@@ -150,7 +156,7 @@ pub fn shared_seed_verifier(
         .context("Failed to sign and serialize shared seed CA cert")?;
     let mut roots = RootCertStore::empty();
     roots
-        .add(ca_cert_der)
+        .add(ca_cert_der.into())
         .context("Failed to re-parse shared seed CA cert")?;
     let verifier = WebPkiServerVerifier::builder_with_provider(
         Arc::new(roots),

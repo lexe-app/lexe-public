@@ -4,12 +4,13 @@ use std::sync::Arc;
 
 use rustls::{
     client::WebPkiServerVerifier,
-    pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer},
     server::{danger::ClientCertVerifier, WebPkiClientVerifier},
     RootCertStore,
 };
 
-use super::CertWithKey;
+use super::types::{
+    CertWithKey, LxCertificateDer, LxPrivateKeyDer, LxPrivateKeyDerKind,
+};
 #[cfg(doc)]
 use crate::{
     api::def::{AppBackendApi, AppGatewayApi, BearerAuthBackendApi},
@@ -40,7 +41,7 @@ pub fn app_gateway_client_config(
 }
 
 /// Get the appropriate DER-encoded Lexe CA cert for this deploy environment.
-pub fn lexe_ca_cert(deploy_env: DeployEnv) -> CertificateDer<'static> {
+pub fn lexe_ca_cert(deploy_env: DeployEnv) -> LxCertificateDer {
     match deploy_env {
         DeployEnv::Dev => dummy_lexe_ca_cert().cert_der,
         DeployEnv::Prod => dummy_lexe_ca_cert().cert_der,
@@ -63,7 +64,9 @@ pub fn lexe_server_verifier(
     let lexe_ca_cert = lexe_ca_cert(deploy_env);
 
     let mut lexe_roots = RootCertStore::empty();
-    lexe_roots.add(lexe_ca_cert).expect("Checked in tests");
+    lexe_roots
+        .add(lexe_ca_cert.into())
+        .expect("Checked in tests");
     WebPkiServerVerifier::builder_with_provider(
         Arc::new(lexe_roots),
         super::LEXE_CRYPTO_PROVIDER.clone(),
@@ -80,7 +83,7 @@ pub fn lexe_client_verifier(
     let lexe_ca_cert = lexe_ca_cert(deploy_env);
 
     let mut roots = RootCertStore::empty();
-    roots.add(lexe_ca_cert).expect("Checked in tests");
+    roots.add(lexe_ca_cert.into()).expect("Checked in tests");
 
     WebPkiClientVerifier::builder_with_provider(
         Arc::new(roots),
@@ -106,11 +109,12 @@ pub fn dummy_lexe_ca_cert() -> CertWithKey {
     );
     let dummy_cert_der = dummy_cert
         .serialize_der()
-        .map(CertificateDer::from)
+        .map(LxCertificateDer::from)
         .unwrap();
-    let dummy_cert_key_der = PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(
-        dummy_cert.serialize_private_key_der(),
-    ));
+    let dummy_cert_key_kind = LxPrivateKeyDerKind::Pkcs8;
+    let dummy_cert_key_bytes = dummy_cert.serialize_private_key_der();
+    let dummy_cert_key_der =
+        LxPrivateKeyDer::new(dummy_cert_key_kind, dummy_cert_key_bytes);
 
     CertWithKey {
         cert_der: dummy_cert_der,

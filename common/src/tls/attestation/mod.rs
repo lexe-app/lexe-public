@@ -29,7 +29,7 @@ use crate::{
     enclave::{Measurement, MrShort},
     env::DeployEnv,
     rng::Crng,
-    tls::{lexe_ca, CertWithKey},
+    tls::{lexe_ca, types::CertWithKey},
 };
 
 /// Self-signed x509 cert containing enclave remote attestation endorsements.
@@ -47,20 +47,14 @@ pub fn app_node_provision_server_config(
 ) -> anyhow::Result<(rustls::ServerConfig, String)> {
     let mr_short = measurement.short();
     let node_mode = NodeMode::Provision { mr_short };
-    let (attestation_cert_with_key, dns_name) =
+    let (attestation_cert, dns_name) =
         get_or_generate_node_attestation_cert(rng, node_mode)
             .context("Failed to get or generate node attestation cert")?;
-    let CertWithKey {
-        cert_der: attestation_cert_der,
-        key_der: attestation_cert_key_der,
-    } = attestation_cert_with_key;
+    let CertWithKey { cert_der, key_der } = attestation_cert.clone();
 
     let mut config = super::lexe_server_config()
         .with_no_client_auth()
-        .with_single_cert(
-            vec![attestation_cert_der.clone()],
-            attestation_cert_key_der.clone_key(),
-        )
+        .with_single_cert(vec![cert_der.into()], key_der.into())
         .context("Failed to build TLS config")?;
     config
         .alpn_protocols
@@ -116,20 +110,14 @@ pub fn node_lexe_client_config(
     let lexe_server_verifier = lexe_ca::lexe_server_verifier(deploy_env);
 
     // Authenticate ourselves using remote attestation.
-    let (attestation_cert_with_key, _) =
+    let (attestation_cert, _) =
         get_or_generate_node_attestation_cert(rng, node_mode)
             .context("Failed to get or generate node attestation cert")?;
-    let CertWithKey {
-        cert_der: attestation_cert_der,
-        key_der: attestation_cert_key_der,
-    } = attestation_cert_with_key;
+    let CertWithKey { cert_der, key_der } = attestation_cert.clone();
 
     let mut config = super::lexe_client_config()
         .with_webpki_verifier(lexe_server_verifier)
-        .with_client_auth_cert(
-            vec![attestation_cert_der.clone()],
-            attestation_cert_key_der.clone_key(),
-        )
+        .with_client_auth_cert(vec![cert_der.into()], key_der.into())
         .context("Failed to build TLS config")?;
     config
         .alpn_protocols
@@ -178,7 +166,7 @@ fn get_or_generate_node_attestation_cert(
     static ATTESTATION_CERT: OnceLock<anyhow::Result<CertWithKey>> =
         OnceLock::new();
 
-    let attestation_cert_with_key = ATTESTATION_CERT
+    let attestation_cert = ATTESTATION_CERT
         .get_or_init(|| {
             let cert = cert::AttestationCert::generate(
                 rng,
@@ -189,11 +177,8 @@ fn get_or_generate_node_attestation_cert(
             let cert_der = cert
                 .serialize_der_self_signed()
                 .context("Failed to sign and serialize attestation cert")?;
-            let cert_key_der = cert.serialize_key_der();
-            let cert_with_key = CertWithKey {
-                cert_der,
-                key_der: cert_key_der,
-            };
+            let key_der = cert.serialize_key_der();
+            let cert_with_key = CertWithKey { cert_der, key_der };
 
             Ok(cert_with_key)
         })
@@ -202,7 +187,7 @@ fn get_or_generate_node_attestation_cert(
             format_err!("Couldn't get or init attestation cert: {err:#}")
         })?;
 
-    Ok((attestation_cert_with_key, dns_name))
+    Ok((attestation_cert, dns_name))
 }
 
 /// The client's [`ServerCertVerifier`] for [`AppNodeProvisionApi`] TLS.
