@@ -861,7 +861,7 @@ class AppRsImpl implements AppRs {
       createdAt: _wire2api_i64(arr[2]),
       expiresAt: _wire2api_i64(arr[3]),
       amountSats: _wire2api_opt_box_autoadd_u64(arr[4]),
-      payeePubkey: _wire2api_opt_String(arr[5]),
+      payeePubkey: _wire2api_String(arr[5]),
     );
   }
 

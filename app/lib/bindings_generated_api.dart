@@ -515,7 +515,7 @@ class Invoice with _$Invoice {
     required int createdAt,
     required int expiresAt,
     int? amountSats,
-    String? payeePubkey,
+    required String payeePubkey,
   }) = _Invoice;
 }
 

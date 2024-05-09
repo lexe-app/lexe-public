@@ -7,9 +7,11 @@ use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescription};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
+    api::NodePk,
     cli::Network,
     ln::amount::Amount,
     time::{self, TimestampMs},
+    Apply,
 };
 
 /// Wraps [`lightning_invoice::Bolt11Invoice`] to impl [`serde`] Serialize /
@@ -67,6 +69,21 @@ impl LxInvoice {
     /// Get the invoice expiration timestamp unconditionally.
     pub fn saturating_expires_at(&self) -> TimestampMs {
         self.expires_at().unwrap_or(TimestampMs::MAX)
+    }
+
+    /// Get the invoice payee's [`NodePk`].
+    ///
+    /// If the pubkey is not included directly in the invoice, we have to
+    /// `ecrecover` the pubkey, which is somewhat more expensive (~20-40 us).
+    pub fn payee_node_pk(&self) -> NodePk {
+        self.0
+            .payee_pub_key()
+            .copied()
+            // If the payee didn't include the pubkey directly in the
+            // invoice, we have to `ecrecover` from the msg+signature, which
+            // is somewhat more expensive.
+            .unwrap_or_else(|| self.0.recover_payee_pub_key())
+            .apply(NodePk)
     }
 }
 
