@@ -21,10 +21,26 @@ pub mod shared_seed;
 pub use rustls;
 
 /// Convenience struct to pass around a DER-encoded cert with its private key,
-/// like `rcgen::CertifiedKey`. Can be passed into [`rustls::ConfigBuilder`].
+/// like `rcgen::CertifiedKey`.
 pub struct CertWithKey {
     pub cert_der: CertificateDer<'static>,
     pub key_der: PrivateKeyDer<'static>,
+}
+
+impl Clone for CertWithKey {
+    fn clone(&self) -> Self {
+        Self {
+            cert_der: self.cert_der.clone(),
+            key_der: self.key_der.clone_key(),
+        }
+    }
+}
+
+/// A [`CertWithKey`] bound to a specific DNS name.
+#[derive(Clone)]
+pub struct BoundCertWithKey {
+    pub cert: CertWithKey,
+    pub dns: String,
 }
 
 /// Our [`rustls::crypto::CryptoProvider`].
