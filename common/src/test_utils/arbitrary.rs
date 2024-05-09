@@ -1,17 +1,26 @@
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::{
+    cmp::{max, min},
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
+};
 
 use bitcoin::{
     blockdata::{opcodes, script},
     hashes::Hash,
     secp256k1,
-    util::address,
+    util::address::{self, Payload},
     Address, Network, OutPoint, PackedLockTime, Script, ScriptHash, Sequence,
     Transaction, TxIn, TxOut, Txid, Witness,
 };
 use chrono::Utc;
+use lightning::routing::{
+    gossip::RoutingFees,
+    router::{RouteHint, RouteHintHop},
+};
+use lightning_invoice::Fallback;
 use proptest::{
     arbitrary::any,
-    collection, prop_oneof,
+    collection::vec,
+    prop_oneof,
     strategy::{Just, Strategy},
 };
 use semver::{BuildMetadata, Prerelease};
@@ -36,7 +45,7 @@ use crate::api::NodePk;
 /// ```
 pub fn any_string() -> impl Strategy<Value = String> {
     // Maximum length = 256
-    proptest::collection::vec(any::<char>(), 0..256).prop_map(String::from_iter)
+    vec(any::<char>(), 0..256).prop_map(String::from_iter)
 }
 
 /// An [`Option`] version of [`any_string`].
@@ -159,7 +168,7 @@ pub fn any_script() -> impl Strategy<Value = Script> {
     }
 
     // Limit Vec<u8>s to 8 bytes
-    let any_vec_u8 = collection::vec(any::<u8>(), 0..=8);
+    let any_vec_u8 = vec(any::<u8>(), 0..=8);
 
     let any_push_op = prop_oneof![
         any::<i64>().prop_map(PushOp::Int),
@@ -172,7 +181,7 @@ pub fn any_script() -> impl Strategy<Value = Script> {
     ];
 
     // Include anywhere from 0 to 8 instructions in the script
-    collection::vec(any_push_op, 0..=8).prop_map(|vec_of_push_ops| {
+    vec(any_push_op, 0..=8).prop_map(|vec_of_push_ops| {
         let mut builder = script::Builder::new();
         for push_op in vec_of_push_ops {
             builder = push_op.do_push(builder);
@@ -185,8 +194,8 @@ pub fn any_script() -> impl Strategy<Value = Script> {
 pub fn any_witness() -> impl Strategy<Value = Witness> {
     // The `Vec<Vec<u8>>`s from any::<Vec<u8>>() are too big,
     // so we limit to 8x8 = 64 bytes.
-    let any_vec_u8 = collection::vec(any::<u8>(), 0..=8);
-    let any_vec_vec_u8 = collection::vec(any_vec_u8, 0..=8);
+    let any_vec_u8 = vec(any::<u8>(), 0..=8);
+    let any_vec_vec_u8 = vec(any_vec_u8, 0..=8);
     any_vec_vec_u8.prop_map(Witness::from_vec)
 }
 
@@ -219,8 +228,8 @@ pub fn any_txout() -> impl Strategy<Value = TxOut> {
 pub fn any_raw_tx() -> impl Strategy<Value = Transaction> {
     let any_lock_time = any::<u32>().prop_map(PackedLockTime);
     // Txns include anywhere from 1 to 2 inputs / outputs
-    let any_vec_of_txins = collection::vec(any_txin(), 1..=2);
-    let any_vec_of_txouts = collection::vec(any_txout(), 1..=2);
+    let any_vec_of_txins = vec(any_txin(), 1..=2);
+    let any_vec_of_txouts = vec(any_txout(), 1..=2);
     (any_lock_time, any_vec_of_txins, any_vec_of_txouts).prop_map(
         |(lock_time, input, output)| Transaction {
             version: 1,
@@ -249,6 +258,7 @@ pub fn any_txid() -> impl Strategy<Value = Txid> {
     any::<[u8; 32]>()
         .prop_map(bitcoin::hashes::sha256d::Hash::from_inner)
         .prop_map(Txid::from_hash)
+        .no_shrink()
     // */
 }
 
@@ -311,6 +321,64 @@ pub fn any_chrono_datetime() -> impl Strategy<Value = chrono::DateTime<Utc>> {
         .prop_filter_map("Invalid chrono::DateTime<Utc>", |(secs, nanos)| {
             chrono::DateTime::from_timestamp(secs, nanos)
         })
+}
+
+/// An `Arbitrary`-like [`Strategy`] for a lightning invoice on-chain
+/// [`Fallback`] address.
+pub fn any_onchain_fallback() -> impl Strategy<Value = Fallback> {
+    any_mainnet_address().prop_map(|address| match address.payload {
+        Payload::WitnessProgram { version, program } =>
+            Fallback::SegWitProgram { version, program },
+        Payload::PubkeyHash(pkh) => Fallback::PubKeyHash(pkh),
+        Payload::ScriptHash(sh) => Fallback::ScriptHash(sh),
+    })
+}
+
+/// An `Arbitrary`-like [`Strategy`] for a lightning [`RouteHint`].
+pub fn any_route_hint() -> impl Strategy<Value = RouteHint> {
+    vec(any_route_hint_hop(), 0..=2).prop_map(RouteHint)
+}
+
+/// An `Arbitrary`-like [`Strategy`] for a lightning [`RouteHintHop`].
+pub fn any_route_hint_hop() -> impl Strategy<Value = RouteHintHop> {
+    let src_node_id = any::<NodePk>();
+    let scid = any::<u64>();
+    let base_msat = any::<u32>();
+    let proportional_millionths = any::<u32>();
+    let cltv_expiry_delta = any::<u16>();
+    let htlc_msat1 = any::<Option<u64>>();
+    let htlc_msat2 = any::<Option<u64>>();
+
+    (
+        src_node_id,
+        scid,
+        base_msat,
+        proportional_millionths,
+        cltv_expiry_delta,
+        htlc_msat1,
+        htlc_msat2,
+    )
+        .prop_map(
+            |(
+                src_node_id,
+                scid,
+                base_msat,
+                proportional_millionths,
+                cltv_expiry_delta,
+                htlc_msat1,
+                htlc_msat2,
+            )| RouteHintHop {
+                src_node_id: src_node_id.0,
+                short_channel_id: scid,
+                fees: RoutingFees {
+                    base_msat,
+                    proportional_millionths,
+                },
+                cltv_expiry_delta,
+                htlc_minimum_msat: min(htlc_msat1, htlc_msat2),
+                htlc_maximum_msat: max(htlc_msat1, htlc_msat2),
+            },
+        )
 }
 
 #[cfg(test)]

@@ -7,6 +7,7 @@ use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescription};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
+    cli::Network,
     ln::amount::Amount,
     time::{self, TimestampMs},
 };
@@ -17,6 +18,11 @@ use crate::{
 pub struct LxInvoice(pub Bolt11Invoice);
 
 impl LxInvoice {
+    #[inline]
+    pub fn network(&self) -> Network {
+        Network(self.0.network())
+    }
+
     /// If the invoice contains a non-empty, inline description, then return
     /// that as a string. Otherwise return None.
     pub fn description_str(&self) -> Option<&str> {
@@ -29,11 +35,14 @@ impl LxInvoice {
         }
     }
 
+    pub fn amount(&self) -> Option<Amount> {
+        self.0.amount_milli_satoshis().map(Amount::from_msat)
+    }
+
     /// The invoice amount in satoshis, if included.
+    #[inline]
     pub fn amount_sats(&self) -> Option<u64> {
-        self.0
-            .amount_milli_satoshis()
-            .map(|x| Amount::from_msat(x).sats_u64())
+        self.amount().map(|x| x.sats_u64())
     }
 
     /// Get the invoice creation timestamp. Returns an error if the timestamp
@@ -76,80 +85,182 @@ impl Display for LxInvoice {
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
-    use std::time::{Duration, UNIX_EPOCH};
+    use std::time::Duration;
 
     use bitcoin::{
         hashes::{sha256, Hash},
-        secp256k1::{self, Secp256k1},
+        secp256k1::{self, Message},
     };
-    use lightning::ln::PaymentSecret;
-    use lightning_invoice::{Currency, InvoiceBuilder, MAX_TIMESTAMP};
+    use lightning::{ln::PaymentSecret, routing::router::RouteHint};
+    use lightning_invoice::{Fallback, InvoiceBuilder, MAX_TIMESTAMP};
     use proptest::{
         arbitrary::{any, Arbitrary},
+        option, result,
         strategy::{BoxedStrategy, Strategy},
     };
 
     use super::*;
     use crate::{
-        cli::Network, rng::WeakRng, root_seed::RootSeed, test_utils::arbitrary,
+        rng::{self, WeakRng},
+        root_seed::RootSeed,
+        test_utils::arbitrary,
     };
 
     impl Arbitrary for LxInvoice {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
-            let currency = any::<Network>().prop_map(Currency::from);
-            let description = arbitrary::any_string();
-            let payment_hash = any::<[u8; 32]>()
-                .prop_map(|buf| sha256::Hash::from_slice(&buf).unwrap());
-            let payment_secret = any::<[u8; 32]>().prop_map(PaymentSecret);
-            let timestamp = (0..MAX_TIMESTAMP)
-                .prop_map(Duration::from_secs)
-                .prop_map(|duration| UNIX_EPOCH + duration);
-            let min_final_cltv_expiry_delta = any::<u64>();
-            let secret_key = any::<WeakRng>()
-                .prop_map(|mut rng| {
-                    RootSeed::from_rng(&mut rng).derive_node_key_pair(&mut rng)
-                })
-                .prop_map(secp256k1::SecretKey::from);
+            let bytes32 = any::<[u8; 32]>().no_shrink();
+
+            let node_key_pair = any::<WeakRng>().prop_map(|mut rng| {
+                RootSeed::from_rng(&mut rng).derive_node_key_pair(&mut rng)
+            });
+            let network = any::<Network>();
+            let description_or_hash =
+                result::maybe_ok(arbitrary::any_string(), bytes32);
+            let timestamp = (0..MAX_TIMESTAMP).prop_map(Duration::from_secs);
+
+            let payment_secret = bytes32;
+            let payment_hash = bytes32;
+            let min_final_cltv_expiry_delta = any::<u16>();
+            let amount = any::<Option<Amount>>();
+            let expiry_duration = any::<Option<Duration>>();
+            let metadata = any::<Option<Vec<u8>>>();
+            let add_pubkey = any::<bool>();
+            let fallback = option::of(arbitrary::any_onchain_fallback());
+            let route_hint = arbitrary::any_route_hint();
+
+            // need to group some generators into their own sub-tuples since
+            // proptest only impls `Strategy` for tuples with <= 12
+            // elements...
+
+            let ext = (fallback, route_hint);
 
             (
-                currency,
-                description,
-                payment_hash,
-                payment_secret,
+                node_key_pair,
+                network,
+                description_or_hash,
                 timestamp,
+                payment_secret,
+                payment_hash,
                 min_final_cltv_expiry_delta,
-                secret_key,
+                amount,
+                expiry_duration,
+                metadata,
+                add_pubkey,
+                ext,
             )
                 .prop_map(
                     |(
-                        currency,
-                        description,
-                        payment_hash,
-                        payment_secret,
+                        node_key_pair,
+                        network,
+                        description_or_hash,
                         timestamp,
+                        payment_secret,
+                        payment_hash,
                         min_final_cltv_expiry_delta,
-                        secret_key,
+                        amount,
+                        expiry_duration,
+                        metadata,
+                        add_pubkey,
+                        (fallback, route_hint),
                     )| {
-                        let invoice = InvoiceBuilder::new(currency)
-                            .description(description)
-                            .payment_hash(payment_hash)
-                            .payment_secret(payment_secret)
-                            .timestamp(timestamp)
-                            .min_final_cltv_expiry_delta(
-                                min_final_cltv_expiry_delta,
-                            )
-                            .build_signed(|hash| {
-                                Secp256k1::new()
-                                    .sign_ecdsa_recoverable(hash, &secret_key)
-                            })
-                            .expect("Could not build invoice");
-                        Self(invoice)
+                        gen_invoice(
+                            node_key_pair,
+                            network,
+                            description_or_hash,
+                            timestamp,
+                            payment_secret,
+                            payment_hash,
+                            min_final_cltv_expiry_delta,
+                            amount,
+                            expiry_duration,
+                            metadata,
+                            add_pubkey,
+                            fallback,
+                            route_hint,
+                        )
                     },
                 )
                 .boxed()
         }
+    }
+
+    /// Un-builder-ify the [`InvoiceBuilder`] API, since the extra type params
+    /// get in the way when generating via proptest. Only used during testing.
+    pub(super) fn gen_invoice(
+        node_key_pair: secp256k1::KeyPair,
+        network: Network,
+        description_or_hash: Result<String, [u8; 32]>,
+        timestamp: Duration,
+        payment_secret: [u8; 32],
+        payment_hash: [u8; 32],
+        min_final_cltv_expiry_delta: u16,
+        amount: Option<Amount>,
+        expiry_duration: Option<Duration>,
+        metadata: Option<Vec<u8>>,
+        add_pubkey: bool,
+        fallback: Option<Fallback>,
+        route_hint: RouteHint,
+    ) -> LxInvoice {
+        let secp_ctx = {
+            // This rng doesn't affect the output.
+            let mut rng = WeakRng::from_u64(981999);
+            rng::get_randomized_secp256k1_ctx(&mut rng)
+        };
+
+        // Build invoice
+
+        let invoice = InvoiceBuilder::new(network.into());
+
+        let invoice = match description_or_hash {
+            Ok(string) => invoice.description(string),
+            Err(hash) =>
+                invoice.description_hash(sha256::Hash::from_inner(hash)),
+        };
+
+        let mut invoice = invoice
+            .duration_since_epoch(timestamp)
+            .payment_hash(sha256::Hash::from_inner(payment_hash))
+            .payment_secret(PaymentSecret(payment_secret))
+            .basic_mpp()
+            .min_final_cltv_expiry_delta(min_final_cltv_expiry_delta.into());
+
+        if let Some(amount) = amount {
+            let msat = amount
+                .invoice_safe_msat()
+                .unwrap_or(Amount::INVOICE_MAX_AMOUNT_MSATS_U64);
+            invoice = invoice.amount_milli_satoshis(msat);
+        }
+        if let Some(expiry_duration) = expiry_duration {
+            let expiry_time = timestamp
+                .saturating_add(expiry_duration)
+                .min(Duration::from_secs(MAX_TIMESTAMP));
+            invoice = invoice.expiry_time(expiry_time);
+        }
+        if add_pubkey {
+            invoice = invoice.payee_pub_key(node_key_pair.public_key());
+        }
+        if let Some(fallback) = fallback {
+            invoice = invoice.fallback(fallback);
+        }
+        if !route_hint.0.is_empty() {
+            invoice = invoice.private_route(route_hint);
+        }
+
+        // Sign invoice
+
+        let do_sign = |msg: &Message| {
+            secp_ctx.sign_ecdsa_recoverable(msg, &node_key_pair.secret_key())
+        };
+
+        let invoice = match metadata {
+            Some(metadata) =>
+                invoice.payment_metadata(metadata).build_signed(do_sign),
+            None => invoice.build_signed(do_sign),
+        };
+
+        LxInvoice(invoice.expect("Failed to build and sign invoice"))
     }
 }
 
@@ -157,18 +268,22 @@ mod arbitrary_impl {
 mod test {
     use std::time::Duration;
 
-    use bitcoin::{
-        hashes::{sha256, Hash},
-        secp256k1::Secp256k1,
+    use lightning::{
+        ln::channelmanager::MIN_FINAL_CLTV_EXPIRY_DELTA,
+        routing::router::RouteHint,
     };
-    use lightning::ln::{
-        channelmanager::MIN_FINAL_CLTV_EXPIRY_DELTA, PaymentSecret,
+    use proptest::{
+        strategy::Strategy,
+        test_runner::{RngAlgorithm, TestRng, TestRunner},
     };
-    use lightning_invoice::{Currency, InvoiceBuilder};
+    use rand::Rng;
+    use test::arbitrary_impl::gen_invoice;
 
     use super::*;
     use crate::{
-        cli::Network, hex, rng::WeakRng, root_seed::RootSeed,
+        rng::{RngExt, WeakRng},
+        root_seed::RootSeed,
+        sha256,
         test_utils::roundtrip,
     };
 
@@ -182,54 +297,91 @@ mod test {
         roundtrip::fromstr_display_roundtrip_proptest::<LxInvoice>();
     }
 
-    // Used to generate example invoices with specific values.
+    // Generate example invoices using the proptest strategy.
+    #[ignore]
+    #[test]
+    fn invoice_sample_data() {
+        let mut rng = WeakRng::from_u64(366519812156561);
+        let seed = rng.gen_bytes::<32>();
+        let test_rng = TestRng::from_seed(RngAlgorithm::ChaCha, &seed);
+        let config = proptest::test_runner::Config::default();
+        let mut test_runner = TestRunner::new_with_rng(config, test_rng);
+
+        let strategy = proptest::arbitrary::any::<LxInvoice>();
+
+        for _ in 0..10 {
+            let value = {
+                let mut value_tree =
+                    strategy.new_tree(&mut test_runner).unwrap();
+
+                // simplify a little
+                let simp_iters = rng.gen_range(0u8..128);
+                dbg!(simp_iters);
+                for _ in 0..simp_iters {
+                    if !value_tree.simplify() {
+                        break;
+                    }
+                }
+
+                value_tree.current()
+            };
+            let value_str = value.to_string();
+
+            // dbg!(value);
+            dbg!(value_str);
+        }
+    }
+
+    // Generate example invoices with specific values.
     #[ignore]
     #[test]
     fn invoice_dump() {
-        let seed = RootSeed::from_u64(12345);
-        let node_key_pair =
-            seed.derive_node_key_pair(&mut WeakRng::from_u64(123));
+        let node_key_pair = RootSeed::from_u64(12345)
+            .derive_node_key_pair(&mut WeakRng::from_u64(123));
 
         let network = Network::REGTEST;
-        let amount_sats = None;
+        let amount =
+            Some(Amount::from_msat(Amount::INVOICE_MAX_AMOUNT_MSATS_U64));
         let created_at = Duration::from_millis(1700222815000);
-        let expires_at = Duration::from_millis(1700225001000);
-        let description = "";
-        let payment_hash = sha256::Hash::hash(b"446(54)6(54)");
-        let payment_secret =
-            PaymentSecret(*b"alsdfjoijoisdjfoisdjflkjalakjsfi");
-        let payee_pubkey = node_key_pair.public_key();
+        let expires_at = Some(Duration::from_millis(1700225001000));
+        let description_or_hash = Ok("".to_owned());
+        let payment_secret = sha256::digest(b"iosdjfosid fjo");
+        let payment_hash = sha256::digest(b"446(54)6(54)");
+        let min_final_cltv_expiry_delta = MIN_FINAL_CLTV_EXPIRY_DELTA;
+        let metadata = None;
+        let add_pubkey = false;
+        let fallback = None;
+        let route_hint = RouteHint(vec![]);
 
         dbg!(network.0);
-        dbg!(amount_sats);
+        dbg!(amount);
         dbg!(created_at.as_millis());
-        dbg!(expires_at.as_millis());
-        dbg!(description);
+        dbg!(expires_at.map(|x| x.as_millis()));
+        dbg!(&description_or_hash);
+        dbg!(payment_secret);
         dbg!(payment_hash);
-        dbg!(hex::encode(&payment_secret.0));
-        dbg!(payee_pubkey);
+        dbg!(min_final_cltv_expiry_delta);
+        dbg!(&metadata);
+        dbg!(node_key_pair.public_key());
+        dbg!(add_pubkey);
+        dbg!(&fallback);
+        dbg!(&route_hint);
 
-        let mut builder = InvoiceBuilder::new(Currency::from(network))
-            .duration_since_epoch(created_at)
-            .expiry_time(expires_at)
-            .payment_hash(payment_hash)
-            .payment_secret(payment_secret)
-            .description(description.to_owned())
-            .min_final_cltv_expiry_delta(MIN_FINAL_CLTV_EXPIRY_DELTA as u64)
-            .payee_pub_key(payee_pubkey);
-
-        if let Some(amount_sats) = amount_sats {
-            builder = builder.amount_milli_satoshis(
-                Amount::from_sats_u32(amount_sats).msat(),
-            );
-        }
-
-        let invoice = builder
-            .build_signed(|hash| {
-                Secp256k1::new()
-                    .sign_ecdsa_recoverable(hash, &node_key_pair.secret_key())
-            })
-            .unwrap();
+        let invoice = gen_invoice(
+            node_key_pair,
+            network,
+            description_or_hash,
+            created_at,
+            payment_secret.into_inner(),
+            payment_hash.into_inner(),
+            min_final_cltv_expiry_delta,
+            amount,
+            expires_at.map(|x| x.saturating_sub(created_at)),
+            metadata,
+            add_pubkey,
+            fallback,
+            route_hint,
+        );
 
         let invoice_str = invoice.to_string();
         dbg!(&invoice_str);
