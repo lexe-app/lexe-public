@@ -64,6 +64,7 @@ mod arb {
         blinded_path::BlindedPath,
         ln::inbound_payment::ExpandedKey,
         offers::offer::{OfferBuilder, Quantity},
+        sign::KeyMaterial,
     };
     use proptest::{
         arbitrary::{any, Arbitrary},
@@ -75,7 +76,7 @@ mod arb {
     use crate::{
         cli::Network,
         ln::amount::Amount,
-        rng::{RngExt, WeakRng},
+        rng::{self, RngExt, WeakRng},
         root_seed::RootSeed,
         test_utils::arbitrary::{self, any_option_string},
     };
@@ -141,7 +142,8 @@ mod arb {
         }
     }
 
-    /// un-builder-ify the OfferBuilder API
+    /// Un-builder-ify the [`OfferBuilder`] API, since the extra type parameters
+    /// get in the way when generating via proptest. Only used in testing.
     pub(super) fn gen_offer(
         mut rng: WeakRng,
         network: Option<Network>,
@@ -156,10 +158,9 @@ mod arb {
     ) -> LxOffer {
         let root_seed = RootSeed::from_rng(&mut rng);
         let node_pk = root_seed.derive_node_pk(&mut rng);
-        let expanded_key_material =
-            lightning::sign::KeyMaterial(rng.gen_bytes());
+        let expanded_key_material = KeyMaterial(rng.gen_bytes());
         let expanded_key = ExpandedKey::new(&expanded_key_material);
-        let secp_ctx = crate::rng::get_randomized_secp256k1_ctx(&mut rng);
+        let secp_ctx = rng::get_randomized_secp256k1_ctx(&mut rng);
 
         let network = network.map(Network::to_inner);
         let amount = amount.map(|x| x.msat());
