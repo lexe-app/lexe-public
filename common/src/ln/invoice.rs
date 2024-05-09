@@ -128,7 +128,7 @@ mod arbitrary_impl {
             let metadata = any::<Option<Vec<u8>>>();
             let add_pubkey = any::<bool>();
             let fallback = option::of(arbitrary::any_onchain_fallback());
-            let route_hint = arbitrary::any_route_hint();
+            let route_hint = arbitrary::any_invoice_route_hint();
 
             // need to group some generators into their own sub-tuples since
             // proptest only impls `Strategy` for tuples with <= 12

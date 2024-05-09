@@ -1,7 +1,4 @@
-use std::{
-    cmp::{max, min},
-    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
-};
+use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 
 use bitcoin::{
     blockdata::{opcodes, script},
@@ -334,20 +331,23 @@ pub fn any_onchain_fallback() -> impl Strategy<Value = Fallback> {
     })
 }
 
-/// An `Arbitrary`-like [`Strategy`] for a lightning [`RouteHint`].
-pub fn any_route_hint() -> impl Strategy<Value = RouteHint> {
-    vec(any_route_hint_hop(), 0..=2).prop_map(RouteHint)
+/// An `Arbitrary`-like [`Strategy`] for a lightning invoice [`RouteHint`].
+/// Invoice [`RouteHint`]s don't include HTLC min/max msat amounts.
+pub fn any_invoice_route_hint() -> impl Strategy<Value = RouteHint> {
+    vec(any_invoice_route_hint_hop(), 0..=2).prop_map(RouteHint)
 }
 
-/// An `Arbitrary`-like [`Strategy`] for a lightning [`RouteHintHop`].
-pub fn any_route_hint_hop() -> impl Strategy<Value = RouteHintHop> {
+/// An `Arbitrary`-like [`Strategy`] for a lightning invoice [`RouteHintHop`].
+/// Invoice [`RouteHintHop`]s don't include HTLC min/max msat amounts.
+pub fn any_invoice_route_hint_hop() -> impl Strategy<Value = RouteHintHop> {
     let src_node_id = any::<NodePk>();
     let scid = any::<u64>();
     let base_msat = any::<u32>();
     let proportional_millionths = any::<u32>();
     let cltv_expiry_delta = any::<u16>();
-    let htlc_msat1 = any::<Option<u64>>();
-    let htlc_msat2 = any::<Option<u64>>();
+    // NOTE: BOLT11 invoice route hint hops don't include the HTLC min/max sat
+    // amounts.
+    // See: <https://github.com/lightningdevkit/rust-lightning/blob/806b7f0e312c59c87fd628fb71e7c4a77a39645a/lightning-invoice/src/de.rs#L615-L616>
 
     (
         src_node_id,
@@ -355,8 +355,6 @@ pub fn any_route_hint_hop() -> impl Strategy<Value = RouteHintHop> {
         base_msat,
         proportional_millionths,
         cltv_expiry_delta,
-        htlc_msat1,
-        htlc_msat2,
     )
         .prop_map(
             |(
@@ -365,8 +363,6 @@ pub fn any_route_hint_hop() -> impl Strategy<Value = RouteHintHop> {
                 base_msat,
                 proportional_millionths,
                 cltv_expiry_delta,
-                htlc_msat1,
-                htlc_msat2,
             )| RouteHintHop {
                 src_node_id: src_node_id.0,
                 short_channel_id: scid,
@@ -375,8 +371,8 @@ pub fn any_route_hint_hop() -> impl Strategy<Value = RouteHintHop> {
                     proportional_millionths,
                 },
                 cltv_expiry_delta,
-                htlc_minimum_msat: min(htlc_msat1, htlc_msat2),
-                htlc_maximum_msat: max(htlc_msat1, htlc_msat2),
+                htlc_minimum_msat: None,
+                htlc_maximum_msat: None,
             },
         )
 }
