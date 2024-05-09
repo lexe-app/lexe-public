@@ -877,7 +877,7 @@ mod test {
 
         verifier
             .verify_server_cert(
-                &cert_der,
+                &cert_der.into(),
                 intermediates,
                 &ServerName::try_from(dns_name.as_str()).unwrap(),
                 ocsp_response,
@@ -906,7 +906,7 @@ mod test {
 
         println!("attestation certificate:");
         println!("-----BEGIN CERTIFICATE-----");
-        println!("{}", base64::encode(cert_der));
+        println!("{}", base64::encode(cert_der.as_bytes()));
         println!("-----END CERTIFICATE-----");
     }
 }

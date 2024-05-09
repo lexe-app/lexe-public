@@ -4,10 +4,16 @@
 use std::{borrow::Cow, fmt, time::Duration};
 
 use anyhow::Context;
-use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use yasna::models::ObjectIdentifier;
 
-use crate::{ed25519, hex, rng::Crng, tls};
+use crate::{
+    ed25519, hex,
+    rng::Crng,
+    tls::{
+        self,
+        types::{LxCertificateDer, LxPrivateKeyDer, LxPrivateKeyDerKind},
+    },
+};
 
 /// An x509 certificate containing remote attestation endorsements.
 pub struct AttestationCert(rcgen::Certificate);
@@ -86,14 +92,15 @@ impl AttestationCert {
     /// DER-encode and self-sign the attestation cert.
     pub fn serialize_der_self_signed(
         &self,
-    ) -> Result<CertificateDer<'static>, rcgen::Error> {
-        self.0.serialize_der().map(CertificateDer::from)
+    ) -> Result<LxCertificateDer, rcgen::Error> {
+        self.0.serialize_der().map(LxCertificateDer::from)
     }
 
     /// DER-encode the attestation cert's private key.
-    pub fn serialize_key_der(&self) -> PrivateKeyDer<'static> {
-        let owned_der_bytes = self.0.serialize_private_key_der();
-        PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(owned_der_bytes))
+    pub fn serialize_key_der(&self) -> LxPrivateKeyDer {
+        let kind = LxPrivateKeyDerKind::Pkcs8;
+        let der_bytes = self.0.serialize_private_key_der();
+        LxPrivateKeyDer::new(kind, der_bytes)
     }
 }
 

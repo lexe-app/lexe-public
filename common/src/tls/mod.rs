@@ -2,11 +2,7 @@ use std::sync::Arc;
 
 use lazy_lock::LazyLock;
 use rcgen::{DistinguishedName, DnType};
-use rustls::{
-    crypto::WebPkiSupportedAlgorithms,
-    pki_types::{CertificateDer, PrivateKeyDer},
-    ClientConfig, ServerConfig,
-};
+use rustls::{crypto::WebPkiSupportedAlgorithms, ClientConfig, ServerConfig};
 
 use crate::ed25519;
 
@@ -16,32 +12,11 @@ pub mod attestation;
 pub mod lexe_ca;
 /// mTLS based on a shared `RootSeed`.
 pub mod shared_seed;
+/// TLS newtypes, namely DER-encoded certs and cert keys.
+pub mod types;
 
 /// Allow accessing [`rustls`] via `common::tls`
 pub use rustls;
-
-/// Convenience struct to pass around a DER-encoded cert with its private key,
-/// like `rcgen::CertifiedKey`.
-pub struct CertWithKey {
-    pub cert_der: CertificateDer<'static>,
-    pub key_der: PrivateKeyDer<'static>,
-}
-
-impl Clone for CertWithKey {
-    fn clone(&self) -> Self {
-        Self {
-            cert_der: self.cert_der.clone(),
-            key_der: self.key_der.clone_key(),
-        }
-    }
-}
-
-/// A [`CertWithKey`] bound to a specific DNS name.
-#[derive(Clone)]
-pub struct BoundCertWithKey {
-    pub cert: CertWithKey,
-    pub dns: String,
-}
 
 /// Our [`rustls::crypto::CryptoProvider`].
 /// Use this instead of [`rustls::crypto::ring::default_provider`].

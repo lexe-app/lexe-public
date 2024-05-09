@@ -1,8 +1,14 @@
 //! Contains the CA cert and end-entity certs for "shared seed" mTLS.
 
-use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
-
-use crate::{ed25519, rng::Crng, root_seed::RootSeed, tls};
+use crate::{
+    ed25519,
+    rng::Crng,
+    root_seed::RootSeed,
+    tls::{
+        self,
+        types::{LxCertificateDer, LxPrivateKeyDer, LxPrivateKeyDerKind},
+    },
+};
 
 /// The derived CA cert used as the trust anchor for both client and server.
 ///
@@ -50,8 +56,8 @@ impl SharedSeedCaCert {
     /// DER-encode and self-sign the CA cert.
     pub fn serialize_der_self_signed(
         &self,
-    ) -> Result<CertificateDer<'static>, rcgen::Error> {
-        self.0.serialize_der().map(CertificateDer::from)
+    ) -> Result<LxCertificateDer, rcgen::Error> {
+        self.0.serialize_der().map(LxCertificateDer::from)
     }
 }
 
@@ -89,16 +95,17 @@ impl SharedSeedClientCert {
     pub fn serialize_der_ca_signed(
         &self,
         ca_cert: &SharedSeedCaCert,
-    ) -> Result<CertificateDer<'static>, rcgen::Error> {
+    ) -> Result<LxCertificateDer, rcgen::Error> {
         self.0
             .serialize_der_with_signer(&ca_cert.0)
-            .map(CertificateDer::from)
+            .map(LxCertificateDer::from)
     }
 
     /// DER-encode the cert's private key.
-    pub fn serialize_key_der(&self) -> PrivateKeyDer<'static> {
-        let owned_der_bytes = self.0.serialize_private_key_der();
-        PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(owned_der_bytes))
+    pub fn serialize_key_der(&self) -> LxPrivateKeyDer {
+        let kind = LxPrivateKeyDerKind::Pkcs8;
+        let der_bytes = self.0.serialize_private_key_der();
+        LxPrivateKeyDer::new(kind, der_bytes)
     }
 }
 
@@ -135,16 +142,17 @@ impl SharedSeedServerCert {
     pub fn serialize_der_ca_signed(
         &self,
         ca_cert: &SharedSeedCaCert,
-    ) -> Result<CertificateDer<'static>, rcgen::Error> {
+    ) -> Result<LxCertificateDer, rcgen::Error> {
         self.0
             .serialize_der_with_signer(&ca_cert.0)
-            .map(CertificateDer::from)
+            .map(LxCertificateDer::from)
     }
 
     /// DER-encode the cert's private key.
-    pub fn serialize_key_der(&self) -> PrivateKeyDer<'static> {
-        let owned_der_bytes = self.0.serialize_private_key_der();
-        PrivateKeyDer::Pkcs8(PrivatePkcs8KeyDer::from(owned_der_bytes))
+    pub fn serialize_key_der(&self) -> LxPrivateKeyDer {
+        let kind = LxPrivateKeyDerKind::Pkcs8;
+        let der_bytes = self.0.serialize_private_key_der();
+        LxPrivateKeyDer::new(kind, der_bytes)
     }
 }
 
@@ -160,19 +168,22 @@ mod test {
         let ca_cert = SharedSeedCaCert::from_root_seed(&root_seed);
         let ca_cert_der = ca_cert.serialize_der_self_signed().unwrap();
 
-        let _ = webpki::TrustAnchor::try_from_cert_der(&ca_cert_der).unwrap();
+        let _ = webpki::TrustAnchor::try_from_cert_der(ca_cert_der.as_bytes())
+            .unwrap();
 
         let client_cert = SharedSeedClientCert::generate_from_rng(&mut rng);
         let client_cert_der =
             client_cert.serialize_der_ca_signed(&ca_cert).unwrap();
 
-        let _ = webpki::EndEntityCert::try_from(&*client_cert_der).unwrap();
+        let _ = webpki::EndEntityCert::try_from(client_cert_der.as_bytes())
+            .unwrap();
 
         let dns_name = "run.lexe.app".to_owned();
         let server_cert = SharedSeedServerCert::from_rng(&mut rng, dns_name);
         let server_cert_der =
             server_cert.serialize_der_ca_signed(&ca_cert).unwrap();
 
-        let _ = webpki::EndEntityCert::try_from(&*server_cert_der).unwrap();
+        let _ = webpki::EndEntityCert::try_from(server_cert_der.as_bytes())
+            .unwrap();
     }
 }
