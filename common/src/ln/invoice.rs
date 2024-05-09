@@ -289,19 +289,15 @@ mod test {
         ln::channelmanager::MIN_FINAL_CLTV_EXPIRY_DELTA,
         routing::router::RouteHint,
     };
-    use proptest::{
-        strategy::Strategy,
-        test_runner::{RngAlgorithm, TestRng, TestRunner},
-    };
-    use rand::Rng;
+    use proptest::arbitrary::any;
     use test::arbitrary_impl::gen_invoice;
 
     use super::*;
     use crate::{
-        rng::{RngExt, WeakRng},
+        rng::WeakRng,
         root_seed::RootSeed,
         sha256,
-        test_utils::roundtrip,
+        test_utils::{arbitrary, roundtrip},
     };
 
     #[test]
@@ -319,32 +315,12 @@ mod test {
     #[test]
     fn invoice_sample_data() {
         let mut rng = WeakRng::from_u64(366519812156561);
-        let seed = rng.gen_bytes::<32>();
-        let test_rng = TestRng::from_seed(RngAlgorithm::ChaCha, &seed);
-        let config = proptest::test_runner::Config::default();
-        let mut test_runner = TestRunner::new_with_rng(config, test_rng);
+        let strategy = any::<LxInvoice>();
+        let value_iter = arbitrary::gen_value_iter(&mut rng, strategy);
 
-        let strategy = proptest::arbitrary::any::<LxInvoice>();
-
-        for _ in 0..10 {
-            let value = {
-                let mut value_tree =
-                    strategy.new_tree(&mut test_runner).unwrap();
-
-                // simplify a little
-                let simp_iters = rng.gen_range(0u8..128);
-                dbg!(simp_iters);
-                for _ in 0..simp_iters {
-                    if !value_tree.simplify() {
-                        break;
-                    }
-                }
-
-                value_tree.current()
-            };
+        for value in value_iter.take(10) {
             let value_str = value.to_string();
-
-            // dbg!(value);
+            dbg!(value);
             dbg!(value_str);
         }
     }

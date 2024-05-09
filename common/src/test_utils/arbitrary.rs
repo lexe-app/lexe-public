@@ -18,11 +18,16 @@ use proptest::{
     arbitrary::any,
     collection::vec,
     prop_oneof,
-    strategy::{Just, Strategy},
+    strategy::{Just, Strategy, ValueTree},
+    test_runner::{Config, RngAlgorithm, TestRng, TestRunner},
 };
+use rand::Rng;
 use semver::{BuildMetadata, Prerelease};
 
-use crate::api::NodePk;
+use crate::{
+    api::NodePk,
+    rng::{RngExt, WeakRng},
+};
 
 // --- Rust types --- ///
 
@@ -377,10 +382,79 @@ pub fn any_invoice_route_hint_hop() -> impl Strategy<Value = RouteHintHop> {
         )
 }
 
+// --- Generate values directly from a [`proptest`] [`Strategy`] --- //
+
+/// Generate a single value from a [`proptest`] [`Strategy`]. Avoid all the
+/// proptest macro junk. Useful for generating sample data.
+pub fn gen_value<T, S: Strategy<Value = T>>(
+    rng: &mut WeakRng,
+    strategy: S,
+) -> T {
+    GenValueIter::new(rng, strategy).next().unwrap()
+}
+
+/// Generate an unlimited values from a [`proptest`] [`Strategy`]. Avoid all the
+/// proptest macro junk. Useful for generating sample data. Produces more varied
+/// data than just running [`gen_value`] in a loop.
+pub fn gen_value_iter<T, S: Strategy<Value = T>>(
+    rng: &mut WeakRng,
+    strategy: S,
+) -> GenValueIter<T, S> {
+    GenValueIter::new(rng, strategy)
+}
+
+/// An [`Iterator`] that generates values of type `T`, according to a
+/// [`proptest`] [`Strategy`].
+pub struct GenValueIter<T, S: Strategy<Value = T>> {
+    rng: WeakRng,
+    strategy: S,
+    proptest_runner: TestRunner,
+}
+
+impl<T, S: Strategy<Value = T>> GenValueIter<T, S> {
+    fn new(rng: &mut WeakRng, strategy: S) -> Self {
+        // Extract this to save on some code bloat.
+        fn make_proptest_runner(rng: &mut WeakRng) -> TestRunner {
+            let seed = rng.gen_bytes::<32>();
+            let test_rng = TestRng::from_seed(RngAlgorithm::ChaCha, &seed);
+            TestRunner::new_with_rng(Config::default(), test_rng)
+        }
+        let proptest_runner = make_proptest_runner(rng);
+        Self {
+            rng: rng.clone(),
+            strategy,
+            proptest_runner,
+        }
+    }
+}
+
+impl<T, S: Strategy<Value = T>> Iterator for GenValueIter<T, S> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut value_tree = self
+            .strategy
+            .new_tree(&mut self.proptest_runner)
+            .expect("Failed to build ValueTree from Strategy");
+
+        // Call `simplify` a bit to get some more interesting data.
+        // NOTE: `complicate` doesn't do what you think it does -- it's more
+        // like "undo" for the previous, successful `simplify` call.
+        let simplify_iters = self.rng.gen_range(0..128);
+        for _ in 0..simplify_iters {
+            // `simplify` returns `false` if there's no more simplification to
+            // do.
+            if !value_tree.simplify() {
+                break;
+            }
+        }
+
+        Some(value_tree.current())
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use proptest::test_runner::Config;
-
     use super::*;
     use crate::test_utils::roundtrip;
 

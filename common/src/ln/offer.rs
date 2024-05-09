@@ -240,11 +240,7 @@ mod arb {
 
 #[cfg(test)]
 mod test {
-    use proptest::{
-        arbitrary::any,
-        strategy::Strategy,
-        test_runner::{Config, RngAlgorithm, TestRng, TestRunner},
-    };
+    use proptest::arbitrary::any;
     use test::arb::gen_offer;
 
     use super::*;
@@ -252,8 +248,8 @@ mod test {
         api::NodePk,
         cli::Network,
         hex,
-        rng::{RngExt, WeakRng},
-        test_utils::roundtrip,
+        rng::WeakRng,
+        test_utils::{arbitrary, roundtrip},
     };
 
     #[test]
@@ -294,27 +290,14 @@ mod test {
     #[test]
     fn offer_sample_data() {
         let mut rng = WeakRng::from_u64(949846484986610);
-        let seed = rng.gen_bytes::<32>();
-        let test_rng = TestRng::from_seed(RngAlgorithm::ChaCha, &seed);
-        let config = Config::default();
-        let mut test_runner = TestRunner::new_with_rng(config, test_rng);
+        let strategy = any::<LxOffer>();
+        let value_iter = arbitrary::gen_value_iter(&mut rng, strategy);
 
-        let offer_strategy = any::<LxOffer>();
-
-        let value = {
-            let mut value_tree =
-                offer_strategy.new_tree(&mut test_runner).unwrap();
-            for _ in 0..128 {
-                if !value_tree.simplify() {
-                    break;
-                }
-            }
-            value_tree.current()
-        };
-        let value_str = value.to_string();
-
-        dbg!(value);
-        dbg!(value_str);
+        for value in value_iter.take(10) {
+            let value_str = value.to_string();
+            dbg!(value);
+            dbg!(value_str);
+        }
     }
 
     // Generate example offers with specific values.
