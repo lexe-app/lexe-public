@@ -243,7 +243,7 @@ mixin _$Invoice {
   int get createdAt => throw _privateConstructorUsedError;
   int get expiresAt => throw _privateConstructorUsedError;
   int? get amountSats => throw _privateConstructorUsedError;
-  String? get payeePubkey => throw _privateConstructorUsedError;
+  String get payeePubkey => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -255,7 +255,7 @@ class _$InvoiceImpl implements _Invoice {
       required this.createdAt,
       required this.expiresAt,
       this.amountSats,
-      this.payeePubkey});
+      required this.payeePubkey});
 
   @override
   final String string;
@@ -268,7 +268,7 @@ class _$InvoiceImpl implements _Invoice {
   @override
   final int? amountSats;
   @override
-  final String? payeePubkey;
+  final String payeePubkey;
 
   @override
   String toString() {
@@ -305,7 +305,7 @@ abstract class _Invoice implements Invoice {
       required final int createdAt,
       required final int expiresAt,
       final int? amountSats,
-      final String? payeePubkey}) = _$InvoiceImpl;
+      required final String payeePubkey}) = _$InvoiceImpl;
 
   @override
   String get string;
@@ -318,7 +318,7 @@ abstract class _Invoice implements Invoice {
   @override
   int? get amountSats;
   @override
-  String? get payeePubkey;
+  String get payeePubkey;
 }
 
 /// @nodoc

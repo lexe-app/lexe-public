@@ -777,7 +777,7 @@ impl support::IntoDart for Invoice {
             self.created_at.into_into_dart().into_dart(),
             self.expires_at.into_into_dart().into_dart(),
             self.amount_sats.into_dart(),
-            self.payee_pubkey.into_dart(),
+            self.payee_pubkey.into_into_dart().into_dart(),
         ]
         .into_dart()
     }

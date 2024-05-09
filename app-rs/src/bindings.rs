@@ -453,7 +453,7 @@ pub struct Invoice {
 
     pub amount_sats: Option<u64>,
 
-    pub payee_pubkey: Option<String>,
+    pub payee_pubkey: String,
 }
 
 impl From<&LxInvoice> for Invoice {
@@ -468,7 +468,7 @@ impl From<&LxInvoice> for Invoice {
 
             amount_sats: invoice.amount_sats(),
 
-            payee_pubkey: invoice.0.payee_pub_key().map(|x| x.to_string()),
+            payee_pubkey: invoice.payee_node_pk().to_string(),
         }
     }
 }
