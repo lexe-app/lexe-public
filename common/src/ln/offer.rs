@@ -1,18 +1,68 @@
 use std::{fmt, str::FromStr};
 
-use lightning::offers::{offer::Offer, parse::Bolt12ParseError};
+use lightning::offers::{
+    offer::{self, CurrencyCode, Offer},
+    parse::Bolt12ParseError,
+};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
+use crate::{api::NodePk, cli::Network, ln::amount::Amount};
+
 /// A Lightning BOLT12 offer.
-///
-/// The inner offer is boxed, since the LDK type is pretty big (~500 B).
 #[derive(Clone, Debug, SerializeDisplay, DeserializeFromStr)]
 pub struct LxOffer(pub Offer);
 
 impl LxOffer {
+    /// Return the serialized offer.
     #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_ref()
+    }
+
+    /// Return `true` if this offer is payable on the given [`Network`], e.g.,
+    /// mainnet, testnet, etc...
+    pub fn supports_network(&self, network: Network) -> bool {
+        self.0.supports_chain(network.genesis_chain_hash())
+    }
+
+    /// Returns the payee [`NodePk`]. May not be a real node id if the offer is
+    /// blinded for recipient privacy.
+    pub fn payee_node_pk(&self) -> NodePk {
+        NodePk(self.0.signing_pubkey())
+    }
+
+    /// Returns the Bitcoin-denominated [`Amount`], if any.
+    pub fn amount(&self) -> Option<Amount> {
+        match self.0.amount()? {
+            offer::Amount::Bitcoin { amount_msats } =>
+                Some(Amount::from_msat(*amount_msats)),
+            offer::Amount::Currency { .. } => None,
+        }
+    }
+
+    /// Returns the fiat-denominated amount, if any. Returns the fiat ISO4217
+    /// currency code along with the ISO4217 exponent amount (e.g., USD cents).
+    // TODO(phlip9): needs a new type
+    pub fn fiat_amount(&self) -> Option<(CurrencyCode, u64)> {
+        match self.0.amount()? {
+            offer::Amount::Bitcoin { .. } => None,
+            offer::Amount::Currency {
+                iso4217_code,
+                amount,
+            } => Some((*iso4217_code, *amount)),
+        }
+    }
+
+    /// Returns the offer description, if any.
+    pub fn description(&self) -> Option<&str> {
+        // TODO(phlip9): bolt spec master now allows no description; reflect
+        // that here after ldk updates.
+        let d = self.0.description().0;
+        if d.is_empty() {
+            None
+        } else {
+            Some(d)
+        }
     }
 }
 
@@ -74,8 +124,6 @@ mod arb {
 
     use super::*;
     use crate::{
-        cli::Network,
-        ln::amount::Amount,
         rng::{self, RngExt, WeakRng},
         root_seed::RootSeed,
         test_utils::arbitrary::{self, any_option_string},
@@ -245,8 +293,6 @@ mod test {
 
     use super::*;
     use crate::{
-        api::NodePk,
-        cli::Network,
         hex,
         rng::WeakRng,
         test_utils::{arbitrary, roundtrip},
@@ -255,19 +301,24 @@ mod test {
     #[test]
     fn offer_parse_examples() {
         // basically the smallest possible offer (just a node pubkey)
-        let o = Offer::from_str(
+        let o = LxOffer::from_str(
             "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q",
         )
         .unwrap();
         assert_eq!(
-            o.signing_pubkey(),
-            NodePk::from_str("024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8").unwrap().inner(),
+            o.payee_node_pk(),
+            NodePk::from_str("024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8").unwrap(),
         );
-
-        let o = Offer::from_str("lno1pg257enxv4ezqcneype82um50ynhxgrwdajx293pqglnyxw6q0hzngfdusg8umzuxe8kquuz7pjl90ldj8wadwgs0xlmc").unwrap();
-        assert!(o.supports_chain(Network::MAINNET.genesis_chain_hash()));
+        assert!(o.supports_network(Network::MAINNET));
         assert_eq!(o.amount(), None);
-        assert_eq!(o.description().0, "Offer by rusty's node");
+        assert_eq!(o.fiat_amount(), None);
+        assert_eq!(o.description(), None);
+
+        let o = LxOffer::from_str("lno1pg257enxv4ezqcneype82um50ynhxgrwdajx293pqglnyxw6q0hzngfdusg8umzuxe8kquuz7pjl90ldj8wadwgs0xlmc").unwrap();
+        assert!(o.supports_network(Network::MAINNET));
+        assert_eq!(o.amount(), None);
+        assert_eq!(o.fiat_amount(), None);
+        assert_eq!(o.description(), Some("Offer by rusty's node"));
 
         Offer::from_str("lno1qgsyxjtl6luzd9t3pr62xr7eemp6awnejusgf6gw45q75vcfqqqqqqq2p32x2um5ypmx2cm5dae8x93pqthvwfzadd7jejes8q9lhc4rvjxd022zv5l44g6qah82ru5rdpnpj").unwrap();
         Offer::from_str("lno1pqqnyzsmx5cx6umpwssx6atvw35j6ut4v9h8g6t50ysx7enxv4epyrmjw4ehgcm0wfczucm0d5hxzag5qqtzzq3lxgva5qlw9xsjmeqs0ek9cdj0vpec9ur972l7mywa66u3q7dlhs").unwrap();

@@ -18,7 +18,7 @@ use serde::{de, Serialize};
 pub struct TimestampMs(i64);
 
 /// Errors that can occur when attempting to construct a [`TimestampMs`].
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("timestamp value is negative")]
     Negative,
