@@ -8,9 +8,6 @@
 //! + [breez/breez-sdk - input_parser.rs](https://github.com/breez/breez-sdk/blob/main/libs/sdk-core/src/input_parser.rs)
 //! + [ACINQ/phoenix - Parser](https://github.com/ACINQ/phoenix/blob/master/phoenix-shared/src/commonMain/kotlin/fr.acinq.phoenix/utils/Parser.kt)
 
-// TODO(phlip9): remove
-#![allow(dead_code)]
-
 use core::fmt;
 use std::{borrow::Cow, str::FromStr};
 
@@ -23,30 +20,47 @@ use proptest::strategy::Strategy;
 use proptest_derive::Arbitrary;
 use rust_decimal::Decimal;
 
-// https://datatracker.ietf.org/doc/html/rfc3986#section-2.3
-const BIP21_ASCII_SET: percent_encoding::AsciiSet =
-    percent_encoding::NON_ALPHANUMERIC
-        .remove(b'-')
-        .remove(b'.')
-        .remove(b'_')
-        .remove(b'~');
-
+/// A decoded "Payment URI", usually from a scanned QR code, manually pasted
+/// code, or handling a URI open (like tapping a `bitcoin:bc1qfjeyfl...` URI in
+/// your mobile browser or in another app).
+///
+/// Many variants give multiple ways to pay, with e.g. BOLT11 invoices including
+/// an onchain fallback, or BIP21 URIs including an optional BOLT11 invoice.
+#[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(test, derive(Arbitrary))]
 pub enum PaymentUri {
-    // ex: "bc1qfjeyfl..."
+    /// A standalone onchain Bitcoin address.
+    ///
+    /// ex: "bc1qfjeyfl..."
+    #[cfg_attr(
+        test,
+        proptest(
+            strategy = "arbitrary::any_mainnet_address().prop_map(Self::Address)"
+        )
+    )]
     Address(bitcoin::Address),
 
-    // ex: "lnbc1pvjlue..."
+    /// A standalone BOLT11 Lightning invoice.
+    ///
+    /// ex: "lnbc1pvjlue..."
     Invoice(LxInvoice),
 
+    /// A standalone BOLT12 Lightning offer.
+    ///
+    /// ex: "lno1pqps7sj..."
     // TODO(phlip9): BOLT12 refund
-    // ex: "lno1pqps7sj..."
     Offer(LxOffer),
 
-    // ex: "lightning:lnbc1pvjlue..." or
-    //     "lightning:lno1pqps7..."
+    /// A Lightning URI, containing a BOLT11 invoice or BOLT12 offer.
+    ///
+    /// ex: "lightning:lnbc1pvjlue..." or
+    ///     "lightning:lno1pqps7..."
     LightningUri(LightningUri),
 
-    // ex: "bitcoin:bc1qfj..." or
+    /// An BIP21 URI, containing an onchain payment description, plus optional
+    /// BOLT11 invoice and/or BOLT12 offer.
+    ///
+    /// ex: "bitcoin:bc1qfj..."
     Bip21Uri(Bip21Uri),
 }
 
@@ -54,6 +68,8 @@ impl PaymentUri {
     pub fn parse(s: &str) -> Option<Self> {
         let s = s.trim();
 
+        // Try parsing a URI-looking thing
+        //
         // ex: "bitcoin:bc1qfj..." or
         //     "lightning:lnbc1pvjlue..." or
         //     "lightning:lno1pqps7..." or ...
@@ -90,6 +106,19 @@ impl PaymentUri {
         }
 
         None
+    }
+}
+
+impl fmt::Display for PaymentUri {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use std::fmt::Display;
+        match self {
+            Self::Address(address) => Display::fmt(address, f),
+            Self::Invoice(invoice) => Display::fmt(invoice, f),
+            Self::Offer(offer) => Display::fmt(offer, f),
+            Self::LightningUri(ln_uri) => Display::fmt(ln_uri, f),
+            Self::Bip21Uri(bip21_uri) => Display::fmt(bip21_uri, f),
+        }
     }
 }
 
@@ -168,13 +197,13 @@ pub struct Bip21Uri {
 impl Bip21Uri {
     const URI_SCHEME: &'static str = "bitcoin";
 
-    fn matches_scheme(scheme: &str) -> bool {
+    pub fn matches_scheme(scheme: &str) -> bool {
         // Use `eq_ignore_ascii_case` as it's technically in-spec for the scheme
         // to be upper, lower, or even mixed case.
         scheme.eq_ignore_ascii_case(Self::URI_SCHEME)
     }
 
-    fn parse(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         let s = s.trim();
         let uri = Uri::parse(s)?;
         Self::parse_uri(uri)
@@ -365,7 +394,7 @@ impl fmt::Display for Bip21Uri {
 /// // Long bolt12 offer
 /// lightning:lno1pt7srytwezar7l6w2ulj4uv932cu3w327zhmmys2fcqzvt6t9rct4d48tfy098avnujrcfx34rcm3y4pyhec8yyw9lcel8ydyhpt2g0352nf8m5vh8efp09nvf4y7agt726ft26u9megd0u37x6eh9n572464ynm7j9f9xln37uteayx37psmuyn3knj55f69a2rluyljk60r9dd3yer628n3kq2es49724g928zszhrc4mqc2zl8rv53ps3kleh6x50rdaxj3wzjf8nszr2z7734q9nv0wz4vq0p8u4knp2tuvchw50r85ls4zqqz0nkjng3u9usxuk3malhheepvu2xs40fz45hmeemy9t03nl9gyt3ynspsuau2q2u0gd7jqthytq9c94euv6h2njeuyljk6rluyljk683s497zmgtfcqu2cgduyljk6q6tl53zw6au484j5jlu90kw4dr2p9c2jnlc5q4mp222nq7wyfnt2z9qjwl0aapdw0p2vrnnceffagu2q2ac5q4mee4tvf84z8kf6x7xu6rwl34x5c5apw6x5qkempvnhmh0l3hz024s469gn0rw485cn0fq4usaw0p0uzjfvz2flnkk3m7lln5z8m22hs4x4tzukrkthmh0cqpcygqjlqvl3l000tzr7szgsrcc8my32l79fckr7nj63n4f4alqznxem3w0l2er4nd4q9mp7fkuysxv5mxwf0gkjawaz4kxdgdp0dt8uncu9xtmuwl6mrjrnh5jg0tgpdqvpmnqytlhs98r8xynazuqqf3w0f4ps7mchujfkn38nps73dcvrxxuqqxdu0w6z9uplpajgz6ujphevcrccrzav2euc7h9ydctaeg9j8es0e3an5c9js5vmqp6ukr6326ae5e0avhxjs82pepypgz5edrrpjgfhxhccmtq0nuljxdcjr5lxeyg9vqkgtr3e5qqejl7s98yzewt6avqfpscw7chgyty43cmp0vml2qm7uk6gg96tglm2ucqfwjkjsd5rd6smc45gtr3n87p9qxq5era4fcqty72z984af4cgw9pzr8f59908hntawk89k0695ycywtsqpqnfufqzscy7eg3rpgvvuwa0vgfgjl5q6u2sm72hch2eu7xu6t08j5j7cpuvyszuk9uu7hxflfpdds0ef384p7zw6dr367xxmdg8352hev2gdc2jlpwywhgav3wsmu2q2uhnx0qdhzghjkw7e2h8n52f2zwnm72qep9e0tysjutnl7wxmhw0nh6pcurwghg4rfuu5379zdu5ajja4xzfuf0cfl9d5p8p2tuyljk6r3s4yp5aqkwkghtceeqy6u2q2ugf00vh5sr00h77j25x34reehxdjc2jhlj969tcfl9d5u2q2as59a7amluujh7qxnuv24xprmuyljk69crw34rptwth3j6jftuyn3wxlpv5ak9au9f0jn6t2au5m3zgkpu49k7nphu4tnkc09r5u5t32dwpy9tnc9pkghfv4kxextte2nzvzvle6p0yttuh9duy5s2vl9tdkknema09wp8p22wkzhynv9ffucwdn7z0jh7ymhs49x4w08294s0ncmvfx7zsg9xcm9t3gptsmytege9dgytce3w4g9g3v9f0r4j73khzu7wrta0g2a7lmmu4xjk9u9tzs2u70rtv3hqmxsleedagpkfcq9mcfl9d56x50p8u4k33n4udtjk97l0aa7ztc82ef9lef4raj7x5m0fc2pfw08za9kyk0r9dn3yhwpg4r727edv7r5chq62fuptccdv5wrva8k93pqd56rmfv68psmvwzzhse6pj4xg7gu6jrzega4qvzs9f9f4wjvftxj
 /// ```
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct LightningUri {
     invoice: Option<LxInvoice>,
@@ -381,7 +410,7 @@ impl LightningUri {
         scheme.eq_ignore_ascii_case(Self::URI_SCHEME)
     }
 
-    fn parse(s: &str) -> Option<Self> {
+    pub fn parse(s: &str) -> Option<Self> {
         let s = s.trim();
         let uri = Uri::parse(s)?;
         Self::parse_uri(uri)
@@ -492,6 +521,21 @@ struct Uri<'a> {
 }
 
 impl<'a> Uri<'a> {
+    /// These are the ASCII characters that we will percent-encode inside a URI
+    /// query string key or value. We're somewhat conservative here and require
+    /// all non-alphanumeric characters to be percent-encoded (with the
+    /// exception of of a few control characters, designated in [RFC 3986]).
+    ///
+    /// Only used for encoding. We will decode all percent-encoded characters.
+    ///
+    /// [RFC 3986]: https://datatracker.ietf.org/doc/html/rfc3986#section-2.3
+    const PERCENT_ENCODE_ASCII_SET: percent_encoding::AsciiSet =
+        percent_encoding::NON_ALPHANUMERIC
+            .remove(b'-')
+            .remove(b'.')
+            .remove(b'_')
+            .remove(b'~');
+
     // syntax: `<scheme>:<body>?<key1>=<value1>&<key2>=<value2>&...`
     fn parse(s: &'a str) -> Option<Self> {
         // parse scheme
@@ -533,11 +577,11 @@ impl<'a> fmt::Display for Uri<'a> {
         for param in &self.params {
             let key = percent_encoding::utf8_percent_encode(
                 &param.key,
-                &BIP21_ASCII_SET,
+                &Self::PERCENT_ENCODE_ASCII_SET,
             );
             let value = percent_encoding::utf8_percent_encode(
                 &param.value,
-                &BIP21_ASCII_SET,
+                &Self::PERCENT_ENCODE_ASCII_SET,
             );
 
             write!(f, "{sep}{key}={value}")?;
@@ -547,7 +591,8 @@ impl<'a> fmt::Display for Uri<'a> {
     }
 }
 
-/// A single `<key>=<value>` URI parameter. The `value` is percent-encoded.
+/// A single `<key>=<value>` URI parameter. Both `key` and `value` are
+/// percent-encoded.
 #[derive(Debug)]
 struct UriParam<'a> {
     key: Cow<'a, str>,
@@ -570,12 +615,32 @@ impl<'a> UriParam<'a> {
 #[cfg(test)]
 mod test {
     use common::{
-        cli::Network, test_utils::arbitrary::any_mainnet_address,
+        cli::Network, rng::WeakRng, test_utils::arbitrary::any_mainnet_address,
         time::TimestampMs,
     };
-    use proptest::{prop_assert_eq, proptest, sample::Index};
+    use proptest::{arbitrary::any, prop_assert_eq, proptest, sample::Index};
 
     use super::*;
+
+    #[test]
+    fn test_payment_uri_roundtrip() {
+        proptest!(|(uri: PaymentUri)| {
+            let actual = PaymentUri::parse(&uri.to_string());
+            prop_assert_eq!(Some(uri), actual);
+        });
+    }
+
+    // cargo test -p payment-uri -- payment_uri_sample --ignored --nocapture
+    #[ignore]
+    #[test]
+    fn payment_uri_sample() {
+        let mut rng = WeakRng::from_u64(891010909651);
+        let strategy = any::<PaymentUri>();
+        let value_iter = arbitrary::gen_value_iter(&mut rng, strategy);
+        for (idx, value) in value_iter.take(50).enumerate() {
+            println!("{idx:>3}: \"{value}\"");
+        }
+    }
 
     #[test]
     fn test_bip21_uri_manual() {
