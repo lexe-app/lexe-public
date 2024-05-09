@@ -42,14 +42,7 @@ impl RunnerClient {
         let tls_config =
             attestation::node_lexe_client_config(rng, deploy_env, node_mode)
                 .context("Failed to build Node->Lexe client TLS config")?;
-
-        let (from, to) = ("node", "runner");
-        let reqwest_client = RestClient::client_builder(from)
-            .use_preconfigured_tls(tls_config)
-            .build()
-            .context("Failed to build client")?;
-        let rest = RestClient::from_inner(reqwest_client, from, to);
-
+        let rest = RestClient::new("node", "runner", tls_config);
         Ok(Self { rest, runner_url })
     }
 }
@@ -80,13 +73,7 @@ impl LspClient {
         let tls_config =
             attestation::node_lexe_client_config(rng, deploy_env, node_mode)
                 .context("Failed to build Node->Lexe client TLS config")?;
-
-        let (from, to) = ("node", "lsp");
-        let reqwest_client = RestClient::client_builder(from)
-            .use_preconfigured_tls(tls_config)
-            .build()
-            .context("Failed to build client")?;
-        let rest = RestClient::from_inner(reqwest_client, from, to);
+        let rest = RestClient::new("node", "lsp", tls_config);
 
         Ok(Self { rest, lsp_url })
     }
@@ -118,12 +105,7 @@ impl BackendClient {
             attestation::node_lexe_client_config(rng, deploy_env, node_mode)
                 .context("Failed to build Node->Lexe client TLS config")?;
 
-        let (from, to) = ("node", "backend");
-        let reqwest_client = RestClient::client_builder(from)
-            .use_preconfigured_tls(tls_config)
-            .build()
-            .context("Failed to build client")?;
-        let rest = RestClient::from_inner(reqwest_client, from, to);
+        let rest = RestClient::new("node", "backend", tls_config);
 
         Ok(Self { rest, backend_url })
     }
