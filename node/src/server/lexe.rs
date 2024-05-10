@@ -42,12 +42,11 @@ pub(super) async fn open_channel(
     cfg_if::cfg_if! {
         if #[cfg(any(test, feature = "test-utils"))] {
             use anyhow::Context;
-            use common::rng::SysRng;
-            use lexe_ln::{channel, channel::ChannelRelationship};
+            use common::rng::{RngExt, SysRng};
+            use lexe_ln::channel::ChannelRelationship;
             use crate::channel_manager;
 
-            let mut rng = SysRng::new();
-            let user_channel_id = channel::get_random_u128(&mut rng);
+            let user_channel_id = SysRng::new().gen_u128();
             let relationship = ChannelRelationship::UserToLsp {
                 lsp_channel_peer: state.lsp_info.channel_peer(),
             };

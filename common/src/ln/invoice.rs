@@ -118,7 +118,7 @@ mod arbitrary_impl {
 
     use super::*;
     use crate::{
-        rng::{self, WeakRng},
+        rng::{RngExt, WeakRng},
         root_seed::RootSeed,
         test_utils::arbitrary,
     };
@@ -220,11 +220,8 @@ mod arbitrary_impl {
         fallback: Option<Fallback>,
         route_hint: RouteHint,
     ) -> LxInvoice {
-        let secp_ctx = {
-            // This rng doesn't affect the output.
-            let mut rng = WeakRng::from_u64(981999);
-            rng::get_randomized_secp256k1_ctx(&mut rng)
-        };
+        // This rng doesn't affect the output.
+        let secp_ctx = WeakRng::from_u64(981999).gen_secp256k1_ctx();
 
         // Build invoice
 

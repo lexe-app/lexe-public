@@ -124,7 +124,7 @@ mod arb {
 
     use super::*;
     use crate::{
-        rng::{self, RngExt, WeakRng},
+        rng::{RngExt, WeakRng},
         root_seed::RootSeed,
         test_utils::arbitrary::{self, any_option_string},
     };
@@ -208,7 +208,7 @@ mod arb {
         let node_pk = root_seed.derive_node_pk(&mut rng);
         let expanded_key_material = KeyMaterial(rng.gen_bytes());
         let expanded_key = ExpandedKey::new(&expanded_key_material);
-        let secp_ctx = rng::get_randomized_secp256k1_ctx(&mut rng);
+        let secp_ctx = rng.gen_secp256k1_ctx();
 
         let network = network.map(Network::to_inner);
         let amount = amount.map(|x| x.msat());

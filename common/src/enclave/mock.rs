@@ -14,7 +14,7 @@ use super::{MOCK_MEASUREMENT, MOCK_SIGNER};
 use crate::{
     enclave::{Error, MachineId, Measurement, Sealed, MOCK_MACHINE_ID},
     hex,
-    rng::Crng,
+    rng::{Crng, RngExt},
 };
 
 struct MockKeyRequest {
@@ -22,9 +22,8 @@ struct MockKeyRequest {
 }
 
 impl MockKeyRequest {
-    fn gen_sealing_request(rng: &mut dyn Crng) -> Self {
-        let mut keyid = [0u8; 32];
-        rng.fill_bytes(&mut keyid);
+    fn gen_sealing_request(mut rng: &mut dyn Crng) -> Self {
+        let keyid = rng.gen_bytes();
         Self { keyid }
     }
 

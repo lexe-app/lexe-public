@@ -19,7 +19,7 @@ use crate::{
         attributes, miscselect, xfrm, Error, MachineId, Measurement, Sealed,
         MIN_SGX_CPUSVN,
     },
-    rng::Crng,
+    rng::{Crng, RngExt},
 };
 
 /// We salt the HKDF for domain separation purposes.
@@ -77,9 +77,8 @@ impl KeyRequest {
     /// Generate a request for a unique, encrypt-at-most-once sealing key. The
     /// sealing key will only be recoverable on enclaves with the same
     /// `MRENCLAVE` measurement.
-    fn gen_sealing_request(rng: &mut dyn Crng) -> Self {
-        let mut keyid = [0u8; 32];
-        rng.fill_bytes(&mut keyid);
+    fn gen_sealing_request(mut rng: &mut dyn Crng) -> Self {
+        let keyid = rng.gen_bytes();
 
         let attribute_mask: u64 = attributes::LEXE_MASK.bits();
         let xfrm_mask: u64 = xfrm::LEXE_MASK;

@@ -8,8 +8,12 @@
 //! + [breez/breez-sdk - input_parser.rs](https://github.com/breez/breez-sdk/blob/main/libs/sdk-core/src/input_parser.rs)
 //! + [ACINQ/phoenix - Parser](https://github.com/ACINQ/phoenix/blob/master/phoenix-shared/src/commonMain/kotlin/fr.acinq.phoenix/utils/Parser.kt)
 
-use core::fmt;
-use std::{borrow::Cow, str::FromStr};
+// `proptest_derive::Arbitrary` issue. This will hard-error for edition 2024 so
+// hopefully it gets fixed soon...
+// See: <https://github.com/proptest-rs/proptest/issues/447>
+#![allow(non_local_definitions)]
+
+use std::{borrow::Cow, fmt, str::FromStr};
 
 use common::ln::{amount::Amount, invoice::LxInvoice, offer::LxOffer};
 #[cfg(test)]
