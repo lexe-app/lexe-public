@@ -139,8 +139,7 @@ mod arb {
             let is_blinded = any::<bool>();
             let description = arbitrary::any_option_string();
             let amount = any::<Option<Amount>>();
-            let expiry =
-                any::<Option<u64>>().prop_map(|x| x.map(Duration::from_secs));
+            let expiry = arbitrary::any_option_duration();
             let issuer = any_option_string();
             let quantity = option::of(prop_oneof![
                 any::<NonZeroU64>().prop_map(Quantity::Bounded),

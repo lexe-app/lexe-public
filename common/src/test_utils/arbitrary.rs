@@ -1,4 +1,7 @@
-use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+use std::{
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
+    time::Duration,
+};
 
 use bitcoin::{
     blockdata::{opcodes, script},
@@ -113,6 +116,17 @@ pub fn any_socket_addr() -> impl Strategy<Value = SocketAddr> {
         any_sockv4.prop_map(SocketAddr::V4),
         any_sockv6.prop_map(SocketAddr::V6),
     }
+}
+
+/// An `Arbitrary`-like [`Strategy`] for [`Duration`]s that works inside SGX.
+pub fn any_duration() -> impl Strategy<Value = Duration> {
+    (any::<u64>(), any::<u32>())
+        .prop_map(|(secs, nanos)| Duration::new(secs, nanos))
+}
+
+/// An [`Option`] version of [`any_duration`] that works inside SGX.
+pub fn any_option_duration() -> impl Strategy<Value = Option<Duration>> {
+    proptest::option::of(any_duration())
 }
 
 // --- Bitcoin types --- //

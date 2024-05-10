@@ -141,7 +141,7 @@ mod arbitrary_impl {
             let payment_hash = bytes32;
             let min_final_cltv_expiry_delta = any::<u16>();
             let amount = any::<Option<Amount>>();
-            let expiry_duration = any::<Option<Duration>>();
+            let expiry_duration = arbitrary::any_option_duration();
             let metadata = any::<Option<Vec<u8>>>();
             let add_pubkey = any::<bool>();
             let fallback = option::of(arbitrary::any_onchain_fallback());
