@@ -51,10 +51,20 @@ jobs:
       - run: cargo clippy --locked --workspace
       # Native + tests
       - run: cargo clippy --locked --workspace --tests
+  clippy-sgx:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.LEXE_RUST_VERSION }}
+          targets: x86_64-fortanix-unknown-sgx
+      - uses: Swatinem/rust-cache@v2
+      - uses: arduino/setup-protoc@v3
       # SGX
-      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo clippy --locked -p node -p common -p lexe-ln --target=x86_64-fortanix-unknown-sgx
+      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo clippy --locked -p node -p common -p lexe-ln -p sgx-info -p sgx-test --target=x86_64-fortanix-unknown-sgx
       # SGX + tests
-      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo clippy --locked -p node -p common -p lexe-ln --target=x86_64-fortanix-unknown-sgx --tests
+      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo clippy --locked -p node -p common -p lexe-ln -p sgx-info -p sgx-test --target=x86_64-fortanix-unknown-sgx --tests
 
   # --- Check the production binaries, which don't use feature unification --- #
   check-release:
