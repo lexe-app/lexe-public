@@ -48,7 +48,7 @@ use x509_parser::x509::SubjectPublicKeyInfo;
 use crate::{
     const_assert_usize_eq, const_ref_cast,
     hex::{self, FromHex},
-    rng::Crng,
+    rng::{Crng, RngExt},
     sha256,
 };
 
@@ -285,10 +285,8 @@ impl KeyPair {
     ///
     /// Use this when sampling a key pair for the first time or sampling an
     /// ephemeral key pair.
-    pub fn from_rng(rng: &mut dyn Crng) -> Self {
-        let mut seed = [0u8; 32];
-        rng.fill_bytes(seed.as_mut_slice());
-        Self::from_seed_owned(seed)
+    pub fn from_rng(mut rng: &mut dyn Crng) -> Self {
+        Self::from_seed_owned(rng.gen_bytes())
     }
 
     /// Convert the current `ed25519::KeyPair` into an [`rcgen::KeyPair`].

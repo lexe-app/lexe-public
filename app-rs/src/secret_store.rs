@@ -211,7 +211,7 @@ mod test {
     fn test_keyring_store() {
         use std::ffi::OsStr;
 
-        use common::rng::RngCore;
+        use common::rng::RngExt;
 
         // SKIP this test in CI, since the Github CI instance is headless and/or
         // doesn't give us access to the gnome keyring.
@@ -220,13 +220,11 @@ mod test {
         }
 
         let mut rng = SysRng::new();
-        let mut buf = [0u8; 8];
-        rng.fill_bytes(&mut buf);
+        let dummy_id = rng.gen_u64();
 
         // use a dummy service name to be absolutely sure we don't clobber any
         // existing keyring entry.
-        let dummy_service =
-            format!("lexe.dummy.{:08x}", u64::from_le_bytes(buf));
+        let dummy_service = format!("lexe.dummy.{:08x}", dummy_id);
         let secret_store = SecretStore::keyring_inner(&dummy_service);
         test_secret_store(&mut rng, &secret_store);
     }

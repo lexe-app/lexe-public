@@ -4,7 +4,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use common::rng::Crng;
+use common::rng::{Crng, RngExt};
 use lexe_ln::{
     alias::{OnionMessengerType, P2PGossipSyncType},
     keys_manager::LexeKeysManager,
@@ -28,16 +28,13 @@ impl Deref for NodePeerManager {
 
 impl NodePeerManager {
     pub(crate) fn init(
-        rng: &mut dyn Crng,
+        mut rng: &mut dyn Crng,
         keys_manager: Arc<LexeKeysManager>,
         channel_manager: NodeChannelManager,
         gossip_sync: Arc<P2PGossipSyncType>,
         onion_messenger: Arc<OnionMessengerType>,
         logger: LexeTracingLogger,
     ) -> Self {
-        let mut ephemeral_bytes = Zeroizing::new([0u8; 32]);
-        rng.fill_bytes(ephemeral_bytes.as_mut_slice());
-
         let lightning_msg_handler = MessageHandler {
             chan_handler: channel_manager,
             route_handler: gossip_sync,
@@ -58,6 +55,7 @@ impl NodePeerManager {
             .try_into()
             .expect("It's the year 2038 and you own nothing");
 
+        let ephemeral_bytes = Zeroizing::new(rng.gen_bytes());
         let peer_manager: PeerManagerType = PeerManagerType::new(
             lightning_msg_handler,
             current_time,

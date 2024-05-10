@@ -22,7 +22,7 @@ mod sgx {
 
     use crate::{
         ed25519, hex,
-        rng::Crng,
+        rng::{Crng, RngExt},
         sha256,
         tls::attestation::{
             cert::SgxAttestationExtension, verifier::EnclavePolicy,
@@ -35,7 +35,7 @@ mod sgx {
     );
 
     pub fn quote_enclave(
-        rng: &mut dyn Crng,
+        mut rng: &mut dyn Crng,
         cert_pk: &ed25519::PublicKey,
     ) -> anyhow::Result<SgxAttestationExtension<'static, 'static>> {
         // TODO(phlip9): AESM retries
@@ -108,8 +108,7 @@ mod sgx {
         // 5. Get enclave Report Quoted
 
         // Sample a nonce for this request to protect against replay attacks.
-        let mut req_nonce = vec![0u8; 16];
-        rng.fill_bytes(&mut req_nonce);
+        let req_nonce = rng.gen_bytes::<16>().to_vec();
 
         let report_ref: &[u8] = report.as_ref();
         let quote_res = aesm_client

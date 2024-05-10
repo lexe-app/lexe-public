@@ -20,7 +20,7 @@ use crate::{
     hex::{self, FromHex},
     hexstr_or_bytes,
     ln::{amount::Amount, hashes::LxTxid, invoice::LxInvoice},
-    rng::RngCore,
+    rng::{RngCore, RngExt},
     time::TimestampMs,
 };
 
@@ -330,9 +330,7 @@ impl ClientPaymentId {
     /// Sample a random [`ClientPaymentId`].
     /// The rng is not required to be cryptographically secure.
     pub fn from_rng(rng: &mut impl RngCore) -> Self {
-        let mut random_buf = [0u8; 32];
-        rng.fill_bytes(&mut random_buf);
-        Self(random_buf)
+        Self(rng.gen_bytes())
     }
 }
 

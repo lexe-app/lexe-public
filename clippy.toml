@@ -8,6 +8,7 @@ disallowed-methods = [
     { path = "rustls::crypto::ring::default_provider",               reason = "Use LEXE_CRYPTO_PROVIDER" },
     { path = "rustls::server::WebPkiClientVerifier::builder",        reason = "Use LEXE_CRYPTO_PROVIDER" },
     { path = "rustls::client::WebPkiServerVerifier::builder",        reason = "Use LEXE_CRYPTO_PROVIDER" },
+
     { path = "tokio::spawn",                             reason = "Use LxTask::spawn" },
     { path = "tokio::task::spawn",                       reason = "Use LxTask::spawn" },
     { path = "tokio::runtime::Handle::spawn",            reason = "Use LxTask::spawn" },
@@ -18,6 +19,10 @@ disallowed-methods = [
     { path = "tokio::task::Builder::spawn_on",           reason = "Use LxTask::spawn" },
     { path = "tokio::task::join_set::JoinSet::spawn_on", reason = "Use LxTask::spawn" },
     { path = "tokio::task::join_set::Builder::spawn_on", reason = "Use LxTask::spawn" },
+
+    { path = "secp256k1::Secp256k1::new", reason = "Use `RngExt::gen_secp256k1_ctx`" },
+    { path = "secp256k1::Secp256k1::gen_new", reason = "Use `RngExt::gen_secp256k1_ctx`" },
+    { path = "secp256k1::Secp256k1::signing_only", reason = "Use `RngExt::gen_secp256k1_ctx_signing`" },
 ]
 disallowed-types = [
     # Ban implementors of axum::extract::FromRequest[Parts] bc their rejections are incompatible.

@@ -90,7 +90,10 @@ use ring::{
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::{array, const_ref_cast, rng::Crng};
+use crate::{
+    array, const_ref_cast,
+    rng::{Crng, RngExt},
+};
 
 /// serialized version length
 const VERSION_LEN: usize = 1;
@@ -349,9 +352,7 @@ impl KeyId {
     }
 
     fn gen<R: Crng>(rng: &mut R) -> Self {
-        let mut key_id = KeyId([0u8; 32]);
-        rng.fill_bytes(&mut key_id.0[..]);
-        key_id
+        Self(rng.gen_bytes())
     }
 }
 

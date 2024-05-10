@@ -21,7 +21,7 @@ use crate::{
     ed25519::{self, Signable},
     hex::{self, FromHex},
     hexstr_or_bytes,
-    rng::Crng,
+    rng::{Crng, RngExt},
     sha256,
 };
 
@@ -281,16 +281,11 @@ impl NodePkProof {
         rng: &mut R,
         node_key_pair: &secp256k1::KeyPair,
     ) -> Self {
-        let mut ctx = Secp256k1::signing_only();
-
-        // The Secp256k1 context must be randomized for side-channel resistance.
-        let mut secp_randomness = [0u8; 32];
-        rng.fill_bytes(&mut secp_randomness);
-        ctx.seeded_randomize(&secp_randomness);
-
         let node_pk = NodePk::from(node_key_pair.public_key());
         let msg = Self::message(&node_pk);
-        let sig = ctx.sign_ecdsa(&msg, &node_key_pair.secret_key());
+        let sig = rng
+            .gen_secp256k1_ctx_signing()
+            .sign_ecdsa(&msg, &node_key_pair.secret_key());
 
         Self { node_pk, sig }
     }
@@ -298,10 +293,9 @@ impl NodePkProof {
     /// Verify a [`NodePkProof`], getting the verified [`NodePk`] contained
     /// inside on success.
     pub fn verify(&self) -> Result<&NodePk, InvalidNodePkProofSignature> {
-        let ctx = Secp256k1::verification_only();
-
         let msg = Self::message(&self.node_pk);
-        ctx.verify_ecdsa(&msg, &self.sig, &self.node_pk.0)
+        Secp256k1::verification_only()
+            .verify_ecdsa(&msg, &self.sig, &self.node_pk.0)
             .map(|()| &self.node_pk)
             .map_err(|_| InvalidNodePkProofSignature)
     }

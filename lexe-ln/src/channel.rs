@@ -4,7 +4,6 @@ use anyhow::{anyhow, ensure, Context};
 use common::{
     api::{command::CloseChannelRequest, Empty, NodePk},
     ln::{amount::Amount, peer::ChannelPeer},
-    rng::Crng,
 };
 use lightning::util::config::UserConfig;
 use tokio::sync::mpsc;
@@ -34,15 +33,6 @@ pub enum ChannelRelationship<PS: LexePersister> {
         persister: PS,
         channel_peer_tx: mpsc::Sender<ChannelPeerUpdate>,
     },
-}
-
-/// Generates a random [`u128`] which can be used as a [`user_channel_id`].
-///
-/// [`user_channel_id`]: lightning::ln::channelmanager::ChannelDetails::user_channel_id
-pub fn get_random_u128<R: Crng>(rng: &mut R) -> u128 {
-    let mut buf = [0u8; 16];
-    rng.fill_bytes(&mut buf);
-    u128::from_le_bytes(buf)
 }
 
 /// Handles the full logic of opening a channel, including connecting to the

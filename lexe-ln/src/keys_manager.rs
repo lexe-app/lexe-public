@@ -14,7 +14,11 @@ use bitcoin::{
     },
     util::address::{Address, Payload},
 };
-use common::{api::NodePk, rng::Crng, root_seed::RootSeed};
+use common::{
+    api::NodePk,
+    rng::{Crng, RngExt},
+    root_seed::RootSeed,
+};
 use lightning::{
     ln::{
         msgs::{DecodeError, UnsignedGossipMessage},
@@ -66,8 +70,8 @@ impl LexeKeysManager {
         let ldk_seed = root_seed.derive_ldk_seed(rng);
         // KeysManager requires a "starting_time_secs" and "starting_time_nanos"
         // to seed an CRNG. We just provide random values from our system CRNG.
-        let random_secs = rng.next_u64();
-        let random_nanos = rng.next_u32();
+        let random_secs = rng.gen_u64();
+        let random_nanos = rng.gen_u32();
         let inner = KeysManager::new(
             ldk_seed.expose_secret(),
             random_secs,
@@ -101,8 +105,8 @@ impl LexeKeysManager {
 
         // KeysManager requires a "starting_time_secs" and "starting_time_nanos"
         // to seed an CRNG. We just provide random values from our system CRNG.
-        let random_secs = rng.next_u64();
-        let random_nanos = rng.next_u32();
+        let random_secs = rng.gen_u64();
+        let random_nanos = rng.gen_u32();
         let inner = KeysManager::new(
             ldk_seed.expose_secret(),
             random_secs,

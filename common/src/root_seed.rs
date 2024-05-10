@@ -7,7 +7,6 @@ use bitcoin::{
     util::bip32::{ChildNumber, ExtendedPrivKey},
     Network,
 };
-use rand_core::{CryptoRng, RngCore};
 use secrecy::{zeroize::Zeroizing, ExposeSecret, Secret, SecretVec};
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -16,7 +15,7 @@ use crate::{
     api::{NodePk, UserPk},
     array::{self, ArrayExt},
     ed25519, hex, password,
-    rng::{self, Crng},
+    rng::{Crng, RngExt},
 };
 
 // TODO(phlip9): [perf] consider storing extracted `Prk` alongside seed to
@@ -47,13 +46,8 @@ impl RootSeed {
         Self::new(Secret::new(seed))
     }
 
-    pub fn from_rng<R>(rng: &mut R) -> Self
-    where
-        R: RngCore + CryptoRng,
-    {
-        let mut seed = [0u8; Self::LENGTH];
-        rng.fill_bytes(&mut seed);
-        Self(Secret::new(seed))
+    pub fn from_rng<R: Crng>(rng: &mut R) -> Self {
+        Self(Secret::new(rng.gen_bytes()))
     }
 
     // --- BIP39 Mnemonics --- //
@@ -154,7 +148,7 @@ impl RootSeed {
         let master_xprv = self.derive_bip32_master_xprv(Network::Bitcoin);
 
         // Derive the hardened child key at `m/535h`, where 535 is T9 for "LDK"
-        let secp_ctx = rng::get_randomized_secp256k1_ctx(rng);
+        let secp_ctx = rng.gen_secp256k1_ctx();
         let m_535h =
             ChildNumber::from_hardened_idx(535).expect("Is within [0, 2^31-1]");
         let ldk_xprv = master_xprv
@@ -181,7 +175,7 @@ impl RootSeed {
         )
         .expect("should never fail; the sizes match up");
 
-        let secp_ctx = rng::get_randomized_secp256k1_ctx(rng);
+        let secp_ctx = rng.gen_secp256k1_ctx();
         let m_0h = ChildNumber::from_hardened_idx(0)
             .expect("should never fail; index is in range");
         let node_sk = ldk_xprv
@@ -225,8 +219,7 @@ impl RootSeed {
         password: &str,
     ) -> anyhow::Result<Vec<u8>> {
         // Sample a completely random salt for maximum security.
-        let mut salt = [0u8; 32];
-        rng.fill_bytes(&mut salt);
+        let salt = rng.gen_bytes();
 
         // Obtain the password-encrypted AES ciphertext.
         let mut aes_ciphertext =
@@ -606,7 +599,7 @@ mod test {
         )| {
             let network1 = network1.to_inner();
             let network2 = network2.to_inner();
-            let secp_ctx = rng::get_randomized_secp256k1_ctx(&mut rng);
+            let secp_ctx = rng.gen_secp256k1_ctx();
 
             // Network DOES matter for master xprvs (and all xprvs in general).
             let master_xprv1 = root_seed.derive_bip32_master_xprv(network1);

@@ -2,7 +2,7 @@
 
 use std::num::NonZeroU32;
 
-use bitcoin::secp256k1::{All, Secp256k1};
+use bitcoin::secp256k1::{All, Secp256k1, SignOnly};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::{
     arbitrary::{any, Arbitrary},
@@ -17,24 +17,31 @@ use crate::const_option_unwrap;
 const RAND_ERROR_CODE: NonZeroU32 =
     const_option_unwrap(NonZeroU32::new(rand_core::Error::CUSTOM_START));
 
-/// Helper to get a `secp256k1` context randomized for side-channel resistance.
-/// Use this function instead of calling [`Secp256k1::new`] directly.
-pub fn get_randomized_secp256k1_ctx<R: Crng>(rng: &mut R) -> Secp256k1<All> {
-    let mut random_buf = [0u8; 32];
-    rng.fill_bytes(&mut random_buf);
-    let mut secp_ctx = Secp256k1::new();
-    secp_ctx.seeded_randomize(&random_buf);
-    secp_ctx
-}
-
 /// A succinct trait alias for a Cryptographically Secure PRNG.
 pub trait Crng: RngCore + CryptoRng {}
 
 impl<R: RngCore + CryptoRng> Crng for R {}
 
-/// Minimal extension trait on `RngCore`.
+/// Minimal extension trait on [`rand_core::RngCore`], containing small utility
+/// methods for generating random values.
 pub trait RngExt: RngCore {
     fn gen_bytes<const N: usize>(&mut self) -> [u8; N];
+    fn gen_bool(&mut self) -> bool;
+    fn gen_u8(&mut self) -> u8;
+    fn gen_u16(&mut self) -> u16;
+    fn gen_u32(&mut self) -> u32;
+    fn gen_u64(&mut self) -> u64;
+    fn gen_u128(&mut self) -> u128;
+
+    /// Helper to get a `secp256k1` context randomized for side-channel
+    /// resistance. Suitable for both signing and signature verification.
+    /// Use this function instead of calling [`Secp256k1::new`] directly.
+    fn gen_secp256k1_ctx(&mut self) -> Secp256k1<All>;
+
+    /// Helper to get a `secp256k1` context randomized for side-channel
+    /// resistance. This context can only sign, not verify.
+    /// Use this function instead of calling [`Secp256k1::new`] directly.
+    fn gen_secp256k1_ctx_signing(&mut self) -> Secp256k1<SignOnly>;
 }
 
 impl<R: RngCore> RngExt for R {
@@ -42,6 +49,50 @@ impl<R: RngCore> RngExt for R {
         let mut out = [0u8; N];
         self.fill_bytes(&mut out);
         out
+    }
+
+    fn gen_bool(&mut self) -> bool {
+        let byte: [u8; 1] = self.gen_bytes();
+        byte[0] & 0x1 == 0
+    }
+
+    #[inline]
+    fn gen_u8(&mut self) -> u8 {
+        u8::from_le_bytes(self.gen_bytes())
+    }
+
+    #[inline]
+    fn gen_u16(&mut self) -> u16 {
+        u16::from_le_bytes(self.gen_bytes())
+    }
+
+    #[inline]
+    fn gen_u32(&mut self) -> u32 {
+        self.next_u32()
+    }
+
+    #[inline]
+    fn gen_u64(&mut self) -> u64 {
+        self.next_u64()
+    }
+
+    #[inline]
+    fn gen_u128(&mut self) -> u128 {
+        u128::from_le_bytes(self.gen_bytes())
+    }
+
+    fn gen_secp256k1_ctx(&mut self) -> Secp256k1<All> {
+        #[allow(clippy::disallowed_methods)]
+        let mut ctx = Secp256k1::new();
+        ctx.seeded_randomize(&self.gen_bytes());
+        ctx
+    }
+
+    fn gen_secp256k1_ctx_signing(&mut self) -> Secp256k1<SignOnly> {
+        #[allow(clippy::disallowed_methods)]
+        let mut ctx = Secp256k1::signing_only();
+        ctx.seeded_randomize(&self.gen_bytes());
+        ctx
     }
 }
 

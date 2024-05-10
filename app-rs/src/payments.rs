@@ -949,7 +949,7 @@ mod test {
             Empty,
         },
         ln::{hashes::LxTxid, payments::PaymentStatus},
-        rng::{shuffle, RngCore, WeakRng},
+        rng::{shuffle, RngExt, WeakRng},
     };
     use proptest::{
         arbitrary::any,
@@ -1380,7 +1380,7 @@ mod test {
         )| {
             let mut mock_node = MockNode::new(payments);
 
-            let mut rng2 = WeakRng::from_u64(rng.next_u64());
+            let mut rng2 = WeakRng::from_u64(rng.gen_u64());
             let mock_ffs = MockFfs::from_rng(rng);
             let db = Mutex::new(PaymentDb::empty(mock_ffs));
 
@@ -1414,7 +1414,7 @@ mod test {
                     let finalize_idx = finalize_idx.index(pending_payments.len());
                     let payment = &pending_payments[finalize_idx];
                     finalized_payments.push(payment.index());
-                    let new_status = if rng2.next_u32() % 2 == 0 {
+                    let new_status = if rng2.gen_bool() {
                         PaymentStatus::Completed
                     } else {
                         PaymentStatus::Failed

@@ -6,7 +6,10 @@ use bitcoin::{
     },
     secp256k1,
 };
-use common::{rng, rng::SysRng, test_event::TestEvent};
+use common::{
+    rng::{RngExt, SysRng},
+    test_event::TestEvent,
+};
 use lightning::{
     chain::chaininterface::{ConfirmationTarget, FeeEstimator},
     events::Event,
@@ -130,7 +133,7 @@ where
     let destination_change_script = wallet.get_address().await?.script_pubkey();
     let feerate_sat_per_1000_weight =
         esplora.get_est_sat_per_1000_weight(ConfirmationTarget::Normal);
-    let secp_ctx = rng::get_randomized_secp256k1_ctx(&mut SysRng::new());
+    let secp_ctx = SysRng::new().gen_secp256k1_ctx();
 
     // We set nLockTime to the current height to discourage fee sniping.
     let best_height = channel_manager.current_best_block().height();

@@ -15,7 +15,7 @@ use tracing::{span, warn, Dispatch};
 
 #[cfg(doc)]
 use crate::api::rest::RestClient;
-use crate::rng::{SysRng, WeakRng};
+use crate::rng::{RngExt, SysRng, WeakRng};
 
 /// The `target` that should be used for request spans and events.
 // Short, greppable, low chance of collision in logs
@@ -72,7 +72,7 @@ impl TraceId {
             let rng: &mut WeakRng = match maybe_rng.as_mut() {
                 Some(rng) => rng,
                 None => {
-                    let seed = SysRng::new().next_u64();
+                    let seed = SysRng::new().gen_u64();
                     let rng = WeakRng::from_u64(seed);
                     maybe_rng.insert(rng)
                 }
