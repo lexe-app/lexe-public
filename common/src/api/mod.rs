@@ -21,7 +21,7 @@ use crate::{
     ed25519::{self, Signable},
     hex::{self, FromHex},
     hexstr_or_bytes,
-    rng::{Crng, RngExt},
+    rng::Crng,
     sha256,
 };
 

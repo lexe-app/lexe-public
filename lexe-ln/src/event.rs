@@ -7,7 +7,7 @@ use bitcoin::{
     secp256k1,
 };
 use common::{
-    rng::{RngExt, SysRng},
+    rng::{Crng, SysRng},
     test_event::TestEvent,
 };
 use lightning::{

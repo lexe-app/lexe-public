@@ -17,10 +17,35 @@ use crate::const_option_unwrap;
 const RAND_ERROR_CODE: NonZeroU32 =
     const_option_unwrap(NonZeroU32::new(rand_core::Error::CUSTOM_START));
 
-/// A succinct trait alias for a Cryptographically Secure PRNG.
-pub trait Crng: RngCore + CryptoRng {}
+/// A succinct trait alias for a Cryptographically Secure PRNG. Includes a few
+/// utility methods for security-critical random value generation.
+pub trait Crng: RngCore + CryptoRng {
+    /// Helper to get a `secp256k1` context randomized for side-channel
+    /// resistance. Suitable for both signing and signature verification.
+    /// Use this function instead of calling [`Secp256k1::new`] directly.
+    fn gen_secp256k1_ctx(&mut self) -> Secp256k1<All>;
 
-impl<R: RngCore + CryptoRng> Crng for R {}
+    /// Helper to get a `secp256k1` context randomized for side-channel
+    /// resistance. This context can only sign, not verify.
+    /// Use this function instead of calling [`Secp256k1::new`] directly.
+    fn gen_secp256k1_ctx_signing(&mut self) -> Secp256k1<SignOnly>;
+}
+
+impl<R: RngCore + CryptoRng> Crng for R {
+    fn gen_secp256k1_ctx(&mut self) -> Secp256k1<All> {
+        #[allow(clippy::disallowed_methods)]
+        let mut ctx = Secp256k1::new();
+        ctx.seeded_randomize(&self.gen_bytes());
+        ctx
+    }
+
+    fn gen_secp256k1_ctx_signing(&mut self) -> Secp256k1<SignOnly> {
+        #[allow(clippy::disallowed_methods)]
+        let mut ctx = Secp256k1::signing_only();
+        ctx.seeded_randomize(&self.gen_bytes());
+        ctx
+    }
+}
 
 /// Minimal extension trait on [`rand_core::RngCore`], containing small utility
 /// methods for generating random values.
@@ -32,16 +57,6 @@ pub trait RngExt: RngCore {
     fn gen_u32(&mut self) -> u32;
     fn gen_u64(&mut self) -> u64;
     fn gen_u128(&mut self) -> u128;
-
-    /// Helper to get a `secp256k1` context randomized for side-channel
-    /// resistance. Suitable for both signing and signature verification.
-    /// Use this function instead of calling [`Secp256k1::new`] directly.
-    fn gen_secp256k1_ctx(&mut self) -> Secp256k1<All>;
-
-    /// Helper to get a `secp256k1` context randomized for side-channel
-    /// resistance. This context can only sign, not verify.
-    /// Use this function instead of calling [`Secp256k1::new`] directly.
-    fn gen_secp256k1_ctx_signing(&mut self) -> Secp256k1<SignOnly>;
 }
 
 impl<R: RngCore> RngExt for R {
@@ -79,20 +94,6 @@ impl<R: RngCore> RngExt for R {
     #[inline]
     fn gen_u128(&mut self) -> u128 {
         u128::from_le_bytes(self.gen_bytes())
-    }
-
-    fn gen_secp256k1_ctx(&mut self) -> Secp256k1<All> {
-        #[allow(clippy::disallowed_methods)]
-        let mut ctx = Secp256k1::new();
-        ctx.seeded_randomize(&self.gen_bytes());
-        ctx
-    }
-
-    fn gen_secp256k1_ctx_signing(&mut self) -> Secp256k1<SignOnly> {
-        #[allow(clippy::disallowed_methods)]
-        let mut ctx = Secp256k1::signing_only();
-        ctx.seeded_randomize(&self.gen_bytes());
-        ctx
     }
 }
 

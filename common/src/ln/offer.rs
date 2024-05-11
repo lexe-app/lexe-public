@@ -124,7 +124,7 @@ mod arb {
 
     use super::*;
     use crate::{
-        rng::{RngExt, WeakRng},
+        rng::{Crng, RngExt, WeakRng},
         root_seed::RootSeed,
         test_utils::arbitrary::{self, any_option_string},
     };
