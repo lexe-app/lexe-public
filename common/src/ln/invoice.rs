@@ -118,7 +118,7 @@ mod arbitrary_impl {
 
     use super::*;
     use crate::{
-        rng::{RngExt, WeakRng},
+        rng::{Crng, WeakRng},
         root_seed::RootSeed,
         test_utils::arbitrary,
     };
