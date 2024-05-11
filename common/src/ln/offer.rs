@@ -9,6 +9,94 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 use crate::{api::NodePk, cli::Network, ln::amount::Amount};
 
 /// A Lightning BOLT12 offer.
+///
+/// ## Examples
+///
+/// To start, we have just about the shortest possible offer: an unblinded
+/// [`NodePk`], at just 64 bytes long.
+///
+/// ```not_rust
+/// "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q"
+///
+/// Offer {
+///     bytes: [ .. ],
+///     contents: OfferContents {
+///         chains: None,
+///         metadata: None,
+///         amount: None,
+///         description: "",
+///         features: [],
+///         absolute_expiry: None,
+///         issuer: None,
+///         paths: None,
+///         supported_quantity: One,
+///         payee_node_pk: 024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8,
+///     },
+/// },
+/// ```
+///
+/// Here's an offer with an amount, description, and "issuer" (payee name), at
+/// 142 bytes long.
+///
+/// ```not_rust
+/// "lno1pqzqzhhncq9pwargd9ejq6tnyp6xsefqv3jhxcmjd9c8g6t0dcfpyargd9ejq6tnyp6xsefqd9ehxat9wgtzzqjfqrp6zred4gydz79xakcsls72576n6r4qqdrtecut4yxssh92aq"
+///
+///
+/// Offer {
+///     bytes: [ .. ],
+///     contents: OfferContents {
+///         chains: None,
+///         metadata: None,
+///         amount: Some( Bitcoin { amount_msats: 23000000 },),
+///         description: "this is the description",
+///         features: [],
+///         absolute_expiry: None,
+///         issuer: Some("this is the issuer"),
+///         paths: None,
+///         supported_quantity: One,
+///         payee_node_pk: 024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8,
+///     },
+/// },
+/// ```
+///
+/// And that same offer but with a blinded path, now 500 bytes. Notice that the
+/// `payee_node_pk` is different (blinded).
+///
+///
+/// ```not_rust
+/// "lno1qsgp3atwlvef5dfjngmladyyruuwvzqyq9008sq2za6xs6tnyp5hxgr5dpjjqer9wd3hy6tsw35k7mssesp8gcupm5mqgczgk58nxcjvs9yrg9390v8cc8jkyzq67j8x4gzkcrczfmv9cujazf9ws6jkfs9dld2ach6l9v32c9n6jkskgw5t2xp9zkuqyq4yvhz2yelft86qvnqppkt65623cs2dxmhm3mtqy2s6r5njdkcmrsqrxfs0vzt3z9635m89gqtzka8cfajtkdd3vknawyzq54hywm5ktllf7fl2ykvazfgfntp3qa7ljl0qgt2vkagzd8cpq0nctp5aqxtug2m8xhrmhd7l06vzy34vfflvrwvfyrngmfnqqyrrkfdzg229nuy2le0de6xfk7u6zgf8g6rfwvsxjueqw35x2grfwdeh2etjzcssxjqh6kmxxv3qxp9f8srkptd7xyzfjtfpz2usaxlq50vgxpm6u2n6"
+///
+/// Offer {
+///     bytes: [ .. ],
+///     contents: OfferContents {
+///         chains: None,
+///         metadata: Some("18f56efb329a35329a37feb4841f38e6"),
+///         amount: Some( Bitcoin { amount_msats: 23000000 },),
+///         description: "this is the description",
+///         features: [],
+///         absolute_expiry: None,
+///         issuer: Some("this is the issuer"),
+///         paths: Some([
+///             BlindedPath {
+///                 introduction_node_id: 0f6c05aae648af8120561e8c0f7b25163448814c62330fb548600436dd816374aaec6016fae2ab91d670b639dcc8846da8fcdfbf4ea19050f8fd262df2d0dc21,
+///                 blinding_point: b8152518b5a843165aa967c12ab2f2f5c55db5df0a4c566ae84a125d725cd84eb0dbcb7ebe7404bfc4eefb70e34458b78566e28e28aeaabc4d344291b8506bcd,
+///                 blinded_hops: [
+///                     BlindedHop {
+///                         blinded_node_id: 1c1bdb26271d1a2a02d68efb6ed314c45169aa970d014c06f459e967a2c465a4cc876a78e5774826a420981dc49f35d4105da4ecd08d1f1429ad8acb09a8cfd6,
+///                         encrypted_payload: [ .. ],
+///                     },
+///                     BlindedHop {
+///                         blinded_node_id: 66da680e92981beca7c46a2482e9f77dbb7b5c73b6427c19d06958783e10f069467f3c9c418f044d1599b6a1237f5d2b866e08427f0ba0abc3cc38730a7d94ea,
+///                         encrypted_payload: [ .. ],
+///                     },
+///                 ],
+///             },
+///         ]),
+///         supported_quantity: One,
+///         payee_node_pk: 034817d5b6633220304a93c0760adbe3104992d2112b90e9be0a3d883077ae2a7a,
+///     },
+/// },
+/// ```
 #[derive(Clone, Debug, SerializeDisplay, DeserializeFromStr)]
 pub struct LxOffer(pub Offer);
 
@@ -211,7 +299,7 @@ mod arb {
 
         let network = network.map(Network::to_inner);
         let amount = amount.map(|x| x.msat());
-        let path = if path_len > 2 {
+        let path = if path_len >= 2 {
             let mut node_pks = Vec::new();
             for _ in 0..path_len {
                 node_pks.push(
@@ -358,15 +446,15 @@ mod test {
 
         // false => use node_pk to sign offer (less privacy)
         // true => derive a signing keypair per offer (add ~50 B per offer).
-        let is_blinded = false;
+        let is_blinded = true;
         let network = None; // None ==> BTC mainnet
-        let description = None;
-        let amount = None;
+        let description = Some("this is the description".to_owned());
+        let amount = Some(Amount::from_sats_u32(23_000));
         // duration since Unix epoch
         let expiry = None;
-        let issuer = None;
+        let issuer = Some("this is the issuer".to_owned());
         let quantity = None;
-        let path_len = 0;
+        let path_len = 2;
 
         let offer = gen_offer(
             rng,
@@ -393,5 +481,15 @@ mod test {
         dbg!(node_pk);
         dbg!(offer_metadata_hex);
         println!("---");
+    }
+
+    #[ignore]
+    #[test]
+    fn offer_decode() {
+        let offer_str =
+            "lno1pgqpvggzfyqv8gg09k4q35tc5mkmzr7re2nm20gw5qp5d08r3w5s6zzu4t5q";
+        let offer = LxOffer::from_str(offer_str).unwrap();
+        dbg!(&offer);
+        dbg!(offer.payee_node_pk());
     }
 }
