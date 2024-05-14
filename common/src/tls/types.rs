@@ -44,8 +44,9 @@ use crate::test_utils::arbitrary;
     any(test, feature = "test-utils"),
     derive(Debug, Eq, PartialEq, Arbitrary)
 )]
-pub struct BoundCertWithKey {
+pub struct DnsCertWithKey {
     pub cert: CertWithKey,
+
     #[cfg_attr(
         any(test, feature = "test-utils"),
         proptest(strategy = "arbitrary::any_string()")
