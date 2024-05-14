@@ -37,8 +37,6 @@ use crate::test_utils::arbitrary;
 /// Convenience struct to pass around a DER-encoded cert with its private key
 /// and the DNS name it was bound to.
 #[derive(Clone, Serialize, Deserialize)]
-// This Arbitrary impl is only used for serde tests and generates invalid keys.
-// Feel free to update the impl if needed.
 #[cfg_attr(
     any(test, feature = "test-utils"),
     derive(Debug, Eq, PartialEq, Arbitrary)
@@ -66,7 +64,7 @@ pub struct CertWithKey {
 
 /// A [`CertificateDer`] which can be serialized and deserialized.
 /// Can be constructed from arbitrary bytes; does not enforce any invariants.
-// This Arbitrary impl is only used for serde tests and generates invalid keys.
+// This Arbitrary impl is only used for serde tests and generates invalid certs.
 // Feel free to update the impl if needed.
 #[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(
@@ -78,6 +76,8 @@ pub struct LxCertificateDer(#[serde(with = "hexstr_or_bytes")] Vec<u8>);
 /// A [`PrivatePkcs8KeyDer`] which can be serialized and deserialized.
 /// Can be constructed from arbitrary bytes; does not enforce any invariants.
 #[derive(Clone, Serialize, Deserialize)]
+// This Arbitrary impl is only used for serde tests and generates invalid keys.
+// Feel free to update the impl if needed.
 #[cfg_attr(
     any(test, feature = "test-utils"),
     derive(Debug, Eq, PartialEq, Arbitrary)
