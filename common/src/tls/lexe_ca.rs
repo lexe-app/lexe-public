@@ -8,9 +8,7 @@ use rustls::{
     RootCertStore,
 };
 
-use super::types::{
-    CertWithKey, LxCertificateDer, LxPrivateKeyDer, LxPrivateKeyDerKind,
-};
+use super::types::{CertWithKey, LxCertificateDer, LxPrivatePkcs8KeyDer};
 #[cfg(doc)]
 use crate::{
     api::def::{AppBackendApi, AppGatewayApi, BearerAuthBackendApi},
@@ -111,10 +109,8 @@ pub fn dummy_lexe_ca_cert() -> CertWithKey {
         .serialize_der()
         .map(LxCertificateDer::from)
         .unwrap();
-    let dummy_cert_key_kind = LxPrivateKeyDerKind::Pkcs8;
-    let dummy_cert_key_bytes = dummy_cert.serialize_private_key_der();
     let dummy_cert_key_der =
-        LxPrivateKeyDer::new(dummy_cert_key_kind, dummy_cert_key_bytes);
+        LxPrivatePkcs8KeyDer::from(dummy_cert.serialize_private_key_der());
 
     CertWithKey {
         cert_der: dummy_cert_der,
