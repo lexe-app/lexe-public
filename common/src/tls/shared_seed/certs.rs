@@ -6,7 +6,7 @@ use crate::{
     root_seed::RootSeed,
     tls::{
         self,
-        types::{LxCertificateDer, LxPrivateKeyDer, LxPrivateKeyDerKind},
+        types::{LxCertificateDer, LxPrivatePkcs8KeyDer},
     },
 };
 
@@ -102,10 +102,8 @@ impl SharedSeedClientCert {
     }
 
     /// DER-encode the cert's private key.
-    pub fn serialize_key_der(&self) -> LxPrivateKeyDer {
-        let kind = LxPrivateKeyDerKind::Pkcs8;
-        let der_bytes = self.0.serialize_private_key_der();
-        LxPrivateKeyDer::new(kind, der_bytes)
+    pub fn serialize_key_der(&self) -> LxPrivatePkcs8KeyDer {
+        LxPrivatePkcs8KeyDer::from(self.0.serialize_private_key_der())
     }
 }
 
@@ -149,10 +147,8 @@ impl SharedSeedServerCert {
     }
 
     /// DER-encode the cert's private key.
-    pub fn serialize_key_der(&self) -> LxPrivateKeyDer {
-        let kind = LxPrivateKeyDerKind::Pkcs8;
-        let der_bytes = self.0.serialize_private_key_der();
-        LxPrivateKeyDer::new(kind, der_bytes)
+    pub fn serialize_key_der(&self) -> LxPrivatePkcs8KeyDer {
+        LxPrivatePkcs8KeyDer::from(self.0.serialize_private_key_der())
     }
 }
 

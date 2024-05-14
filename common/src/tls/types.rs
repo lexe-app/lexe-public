@@ -11,15 +11,15 @@
 /// - [`rcgen::Certificate::serialize_private_key_der`]
 /// - Passed in via args, env, or read from a file
 ///
-/// Step 2: Into [`LxCertificateDer`] and [`LxPrivateKeyDer`]
-/// - [`LxCertificateDer::new`] or via [`From<Vec<u8>>`] impl
-/// - [`LxPrivateKeyDer::new`]
+/// Step 2: Into [`LxCertificateDer`] and [`LxPrivatePkcs8KeyDer`]
+/// - [`LxCertificateDer::from`] (from [`Vec<u8>`])
+/// - [`LxPrivatePkcs8KeyDer::from`] (from [`Vec<u8>`])
 ///
 /// Step 3: Into [`CertificateDer<'_>`] and [`PrivateKeyDer<'_>`]
 /// - `impl From<LxCertificateDer> for CertificateDer<'static>`
-/// - `impl From<LxPrivateKeyDer> for PrivateKeyDer<'static>`
+/// - `impl From<LxPrivatePkcs8KeyDer> for PrivateKeyDer<'static>`
 /// - `impl<'der> From<&'der LxCertificateDer> for CertificateDer<'der>`
-/// - `impl<'der> From<&'der LxPrivateKeyDer> for PrivateKeyDer<'der>`
+/// - `impl<'der> From<&'der LxPrivatePkcs8KeyDer> for PrivateKeyDer<'der>`
 ///
 /// Trying to move backwards at any step generally requires copying and
 /// re-allocation, so try not to do that. For example, avoid premature
@@ -27,10 +27,7 @@
 
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
-use rustls::pki_types::{
-    CertificateDer, PrivateKeyDer, PrivatePkcs1KeyDer, PrivatePkcs8KeyDer,
-    PrivateSec1KeyDer,
-};
+use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use serde::{Deserialize, Serialize};
 
 use crate::hexstr_or_bytes;
@@ -40,6 +37,8 @@ use crate::test_utils::arbitrary;
 /// Convenience struct to pass around a DER-encoded cert with its private key
 /// and the DNS name it was bound to.
 #[derive(Clone, Serialize, Deserialize)]
+// This Arbitrary impl is only used for serde tests and generates invalid keys.
+// Feel free to update the impl if needed.
 #[cfg_attr(
     any(test, feature = "test-utils"),
     derive(Debug, Eq, PartialEq, Arbitrary)
@@ -62,56 +61,40 @@ pub struct DnsCertWithKey {
 )]
 pub struct CertWithKey {
     pub cert_der: LxCertificateDer,
-    pub key_der: LxPrivateKeyDer,
+    pub key_der: LxPrivatePkcs8KeyDer,
 }
 
 /// A [`CertificateDer`] which can be serialized and deserialized.
 /// Can be constructed from arbitrary bytes; does not enforce any invariants.
+// This Arbitrary impl is only used for serde tests and generates invalid keys.
+// Feel free to update the impl if needed.
 #[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(
     any(test, feature = "test-utils"),
     derive(Debug, Eq, PartialEq, Arbitrary)
 )]
-pub struct LxCertificateDer(Vec<u8>);
+pub struct LxCertificateDer(#[serde(with = "hexstr_or_bytes")] Vec<u8>);
 
-/// A [`PrivateKeyDer`] which can be serialized and deserialized.
+/// A [`PrivatePkcs8KeyDer`] which can be serialized and deserialized.
 /// Can be constructed from arbitrary bytes; does not enforce any invariants.
 #[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(
     any(test, feature = "test-utils"),
     derive(Debug, Eq, PartialEq, Arbitrary)
 )]
-pub struct LxPrivateKeyDer {
-    kind: LxPrivateKeyDerKind,
-    /// DER-encoded bytes.
-    #[serde(with = "hexstr_or_bytes")]
-    der_bytes: Vec<u8>,
-}
-
-/// Maps to the different [`PrivateKeyDer`] kinds.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-pub enum LxPrivateKeyDerKind {
-    Pkcs1,
-    Sec1,
-    Pkcs8,
-}
+pub struct LxPrivatePkcs8KeyDer(#[serde(with = "hexstr_or_bytes")] Vec<u8>);
 
 // --- impl LxCertificateDer --- //
 
 impl LxCertificateDer {
-    pub fn new(der_bytes: Vec<u8>) -> Self {
-        Self(der_bytes)
-    }
-
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_slice()
     }
 }
 
 impl From<Vec<u8>> for LxCertificateDer {
-    fn from(bytes: Vec<u8>) -> Self {
-        Self(bytes)
+    fn from(der_bytes: Vec<u8>) -> Self {
+        Self(der_bytes)
     }
 }
 
@@ -127,40 +110,40 @@ impl<'der> From<&'der LxCertificateDer> for CertificateDer<'der> {
     }
 }
 
-// --- impl LxPrivateKeyDer --- //
+// --- impl LxPrivatePkcs8KeyDer --- //
 
-impl LxPrivateKeyDer {
-    pub fn new(kind: LxPrivateKeyDerKind, der_bytes: Vec<u8>) -> Self {
-        Self { kind, der_bytes }
-    }
-
+impl LxPrivatePkcs8KeyDer {
     pub fn as_bytes(&self) -> &[u8] {
-        self.der_bytes.as_slice()
+        self.0.as_slice()
+    }
+}
+
+impl From<Vec<u8>> for LxPrivatePkcs8KeyDer {
+    fn from(der_bytes: Vec<u8>) -> Self {
+        Self(der_bytes)
     }
 }
 
 /// We intentionally avoid the reverse impls because they require re-allocation.
-impl From<LxPrivateKeyDer> for PrivateKeyDer<'static> {
-    fn from(LxPrivateKeyDer { kind, der_bytes }: LxPrivateKeyDer) -> Self {
-        match kind {
-            LxPrivateKeyDerKind::Pkcs1 =>
-                Self::from(PrivatePkcs1KeyDer::from(der_bytes)),
-            LxPrivateKeyDerKind::Sec1 =>
-                Self::from(PrivateSec1KeyDer::from(der_bytes)),
-            LxPrivateKeyDerKind::Pkcs8 =>
-                Self::from(PrivatePkcs8KeyDer::from(der_bytes)),
-        }
+impl From<LxPrivatePkcs8KeyDer> for PrivateKeyDer<'static> {
+    fn from(lx_key: LxPrivatePkcs8KeyDer) -> Self {
+        Self::from(PrivatePkcs8KeyDer::from(lx_key.0))
     }
 }
-impl<'der> From<&'der LxPrivateKeyDer> for PrivateKeyDer<'der> {
-    fn from(lx_key: &'der LxPrivateKeyDer) -> Self {
-        match lx_key.kind {
-            LxPrivateKeyDerKind::Pkcs1 =>
-                Self::from(PrivatePkcs1KeyDer::from(lx_key.as_bytes())),
-            LxPrivateKeyDerKind::Sec1 =>
-                Self::from(PrivateSec1KeyDer::from(lx_key.as_bytes())),
-            LxPrivateKeyDerKind::Pkcs8 =>
-                Self::from(PrivatePkcs8KeyDer::from(lx_key.as_bytes())),
-        }
+impl<'der> From<&'der LxPrivatePkcs8KeyDer> for PrivateKeyDer<'der> {
+    fn from(lx_key: &'der LxPrivatePkcs8KeyDer) -> Self {
+        Self::from(PrivatePkcs8KeyDer::from(lx_key.as_bytes()))
+    }
+}
+
+/// We intentionally avoid the reverse impls because they require re-allocation.
+impl From<LxPrivatePkcs8KeyDer> for PrivatePkcs8KeyDer<'static> {
+    fn from(lx_key: LxPrivatePkcs8KeyDer) -> Self {
+        Self::from(lx_key.0)
+    }
+}
+impl<'der> From<&'der LxPrivatePkcs8KeyDer> for PrivatePkcs8KeyDer<'der> {
+    fn from(lx_key: &'der LxPrivatePkcs8KeyDer) -> Self {
+        Self::from(lx_key.as_bytes())
     }
 }
