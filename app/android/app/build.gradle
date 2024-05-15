@@ -88,27 +88,49 @@ flutter {
 
 dependencies {}
 
-// This section adds gradle build hooks so that we always build the Rust
-// `app-rs` crate for android.
-[
-    Debug: null,
-    Profile: '--release',
-    Release: '--release',
-].each {
-    def taskPostfix = it.key
-    def profileMode = it.value
+//
+// Setup Android gradle build x Rust `cargo ndk build` integration.
+//
+// This will run `../build_rust.sh` before building all the flutter/java code.
+// The script runs `cargo ndk build` and dumps the native .so libs in
+// `./src/main/jniLibs/`
+//
 
-    tasks.whenTaskAdded { task ->
-        if (task.name == "javaPreCompile$taskPostfix") {
-            task.dependsOn "cargoBuild$taskPostfix"
+// For each build type (e.g. debug, profile, release)
+// buildType: [ApplicationBuildType](https://developer.android.com/reference/tools/gradle-api/8.4/com/android/build/api/dsl/ApplicationBuildType)
+android.buildTypes.all { buildType ->
+    def profileName = buildType.name.capitalize()
+    def profileArg = buildType.isDebuggable() ? null : '--release'
+    // println "register: cargoBuild$profileName"
+
+    // Register a new task that runs `cargo ndk build` with the right debug vs
+    // release build profile. We don't currently build the native Rust lib
+    // differently for different `productFlavors`.
+    //
+    // tasks: [TaskCollection](https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.api.tasks/-task-collection/index.html)
+    // [Exec](https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.api.tasks/-exec/index.html)
+    tasks.register("cargoBuild$profileName", Exec) {
+        workingDir "../.."
+        commandLine "android/build_rust.sh"
+        if (profileArg != null) {
+            args profileArg
         }
     }
 
-    tasks.register("cargoBuild$taskPostfix", Exec) {
-        workingDir "../.."
-        commandLine "android/build_rust.sh"
-        if (profileMode != null) {
-            args profileMode
+    // For each product flavor build (e.g., "" (default), "design"), make sure
+    // they run the right `cargo ndk build`.
+    //
+    // flavor: [ApplicationProductFlavor](https://developer.android.com/reference/tools/gradle-api/8.4/com/android/build/api/dsl/ApplicationProductFlavor)
+    (android.productFlavors*.name + "").each { flavorName ->
+        def taskPostfix = flavorName.capitalize() + profileName
+
+        // task: [Task](https://docs.gradle.org/current/kotlin-dsl/gradle/org.gradle.api/-task/depends-on.html)
+        tasks.whenTaskAdded { task ->
+            if (task.name == "javaPreCompile$taskPostfix") {
+                // println "javaPreCompile$taskPostfix -> cargoBuild$profileName"
+                task.dependsOn "cargoBuild$profileName"
+            }
         }
     }
 }
+
