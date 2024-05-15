@@ -347,3 +347,67 @@ impl ServerCertVerifier for AppNodeProvisionVerifier {
         super::LEXE_SUPPORTED_VERIFY_SCHEMES.clone()
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{enclave, rng::WeakRng, tls::test_utils};
+
+    /// Sanity check an App->Node Provision TLS handshake
+    #[tokio::test]
+    async fn app_node_provision_handshake_succeeds() {
+        let client_measurement = enclave::measurement();
+
+        let [client_result, server_result] =
+            do_app_node_provision_tls_handshake(client_measurement).await;
+
+        client_result.unwrap();
+        server_result.unwrap();
+    }
+
+    /// App->Node Provision TLS handshake should fail if the client trusts a
+    /// different measurement from the one reported by the enclave.
+    #[tokio::test]
+    async fn app_node_provision_negative_test() {
+        let client_measurement = Measurement::new([69; 32]);
+
+        let [client_result, server_result] =
+            do_app_node_provision_tls_handshake(client_measurement).await;
+
+        let client_error = client_result.unwrap_err();
+        assert!(client_error.contains("Client didn't connect"));
+        assert!(client_error
+            .contains("our trust policy rejected the remote enclave"));
+        assert!(server_result.unwrap_err().contains("Server didn't accept"));
+    }
+
+    // Shorthand to do a App->Node Provision TLS handshake.
+    async fn do_app_node_provision_tls_handshake(
+        client_measurement: Measurement,
+    ) -> [Result<(), String>; 2] {
+        let mut rng = WeakRng::from_u64(20240514);
+        let use_sgx = cfg!(target_env = "sgx");
+        let deploy_env = DeployEnv::Dev;
+
+        // NOTE: It is a pain to make a attestation quote (both SGX and non-SGX)
+        // which pretends to attest to a passed-in bogus measurement, but it is
+        // not impossible. Maybe this can be added in the future.
+        let server_measurement = enclave::measurement();
+        let expected_dns =
+            constants::node_provision_dns(&server_measurement.short());
+
+        let client_config = Arc::new(app_node_provision_client_config(
+            use_sgx,
+            deploy_env,
+            client_measurement,
+        ));
+
+        let server_config =
+            app_node_provision_server_config(&mut rng, &server_measurement)
+                .map(|(config, _dns)| Arc::new(config))
+                .unwrap();
+
+        test_utils::do_tls_handshake(client_config, server_config, expected_dns)
+            .await
+    }
+}
