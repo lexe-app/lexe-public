@@ -14,6 +14,7 @@ test-utils = [
   "dep:proptest",
   "dep:proptest-derive",
   "dep:serde_urlencoded",
+  "dep:tokio-rustls",
 ]
 
 [package.metadata.fortanix-sgx]
@@ -117,6 +118,8 @@ proptest = { optional = true, workspace = true, features = ["alloc"] }
 proptest-derive = { optional = true, workspace = true }
 # This version should track the one that `axum` uses internally.
 serde_urlencoded = { optional = true, version = "0.7" }
+# Lower-level async TLS interface
+tokio-rustls = { optional = true, version = "0.25", default-features = false }
 
 [target.'cfg(target_env = "sgx")'.dependencies]
 # For verifying SGX Report MACs

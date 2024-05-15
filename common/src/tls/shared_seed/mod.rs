@@ -259,11 +259,14 @@ impl ServerCertVerifier for AppNodeRunVerifier {
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
+
     use secrecy::Secret;
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use super::*;
-    use crate::rng::WeakRng;
+    use crate::{
+        env::DeployEnv, rng::WeakRng, root_seed::RootSeed, tls::test_utils,
+    };
 
     // TODO(max): Add a negative test: different root seeds should fail auth
     // (both client and server reject)
@@ -271,66 +274,20 @@ mod test {
     // test shared seed TLS handshake directly w/o any other axum/reqwest infra
     #[tokio::test]
     async fn test_tls_handshake_succeeds() {
-        // a fake pair of connected streams
-        let (client_stream, server_stream) = tokio::io::duplex(4096);
+        let seed = RootSeed::new(Secret::new([0x42; 32]));
+        let mut rng = WeakRng::from_u64(20240514);
+        let deploy_env = DeployEnv::Dev;
 
-        let seed = [0x42; 32];
+        let client_config =
+            app_node_run_client_config(&mut rng, deploy_env, &seed)
+                .map(Arc::new)
+                .unwrap();
+        let (server_config, server_dns) =
+            app_node_run_server_config(&mut rng, &seed)
+                .map(|(c, d)| (Arc::new(c), d))
+                .unwrap();
 
-        // client tries to connect
-        let client = async move {
-            // should be able to independently derive CA key pair
-            let seed = RootSeed::new(Secret::new(seed));
-            let mut rng = WeakRng::from_u64(111);
-
-            let deploy_env = DeployEnv::Dev;
-            let config =
-                app_node_run_client_config(&mut rng, deploy_env, &seed)
-                    .unwrap();
-
-            let connector = tokio_rustls::TlsConnector::from(Arc::new(config));
-            let dns_name = constants::NODE_RUN_DNS;
-            let sni = ServerName::try_from(dns_name).unwrap();
-            let mut stream =
-                connector.connect(sni, client_stream).await.unwrap();
-
-            // client: >> send "hello"
-
-            stream.write_all(b"hello").await.unwrap();
-            stream.flush().await.unwrap();
-            stream.shutdown().await.unwrap();
-
-            // client: << recv "goodbye"
-
-            let mut resp = Vec::new();
-            stream.read_to_end(&mut resp).await.unwrap();
-
-            assert_eq!(&resp, b"goodbye");
-        };
-
-        // node should accept handshake
-        let node = async move {
-            // should be able to independently derive CA key pair
-            let seed = RootSeed::new(Secret::new(seed));
-            let mut rng = WeakRng::from_u64(222);
-
-            let (config, _dns) =
-                app_node_run_server_config(&mut rng, &seed).unwrap();
-            let acceptor = tokio_rustls::TlsAcceptor::from(Arc::new(config));
-            let mut stream = acceptor.accept(server_stream).await.unwrap();
-
-            // node: >> recv "hello"
-
-            let mut req = Vec::new();
-            stream.read_to_end(&mut req).await.unwrap();
-
-            assert_eq!(&req, b"hello");
-
-            // node: << send "goodbye"
-
-            stream.write_all(b"goodbye").await.unwrap();
-            stream.shutdown().await.unwrap();
-        };
-
-        tokio::join!(client, node);
+        test_utils::do_tls_handshake(client_config, server_config, server_dns)
+            .await;
     }
 }

@@ -164,3 +164,60 @@ pub fn lexe_distinguished_name(common_name: &str) -> DistinguishedName {
     name.push(DnType::CommonName, common_name);
     name
 }
+
+/// TLS-specific test utilities.
+#[cfg(any(test, feature = "test-utils"))]
+pub mod test_utils {
+    use std::sync::Arc;
+
+    use rustls::pki_types::ServerName;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    use super::*;
+
+    /// Conducts a TLS handshake without any other [`reqwest`]/[`axum`] infra,
+    /// over a fake pair of connected streams.
+    pub async fn do_tls_handshake(
+        client_config: Arc<ClientConfig>,
+        server_config: Arc<ServerConfig>,
+        server_dns: String,
+    ) {
+        // a fake pair of connected streams
+        let (client_stream, server_stream) = tokio::io::duplex(4096);
+
+        // client connects, sends "hello", receives "goodbye"
+        let client = async move {
+            let connector = tokio_rustls::TlsConnector::from(client_config);
+            let sni = ServerName::try_from(server_dns).unwrap();
+            let mut stream =
+                connector.connect(sni, client_stream).await.unwrap();
+
+            // client: >> send "hello"
+            stream.write_all(b"hello").await.unwrap();
+            stream.flush().await.unwrap();
+            stream.shutdown().await.unwrap();
+
+            // client: << recv "goodbye"
+            let mut resp = Vec::new();
+            stream.read_to_end(&mut resp).await.unwrap();
+            assert_eq!(&resp, b"goodbye");
+        };
+
+        // server accepts, receives "hello", responds with "goodbye"
+        let server = async move {
+            let acceptor = tokio_rustls::TlsAcceptor::from(server_config);
+            let mut stream = acceptor.accept(server_stream).await.unwrap();
+
+            // server: >> recv "hello"
+            let mut req = Vec::new();
+            stream.read_to_end(&mut req).await.unwrap();
+            assert_eq!(&req, b"hello");
+
+            // server: << send "goodbye"
+            stream.write_all(b"goodbye").await.unwrap();
+            stream.shutdown().await.unwrap();
+        };
+
+        tokio::join!(client, server);
+    }
+}
