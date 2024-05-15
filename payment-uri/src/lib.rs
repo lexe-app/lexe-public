@@ -111,6 +111,41 @@ impl PaymentUri {
 
         None
     }
+
+    /// "Flatten" the [`PaymentUri`] into its component [`PaymentMethod`]s.
+    pub fn flatten(self) -> Vec<PaymentMethod> {
+        let mut out = Vec::new();
+        match self {
+            Self::Address(address) =>
+                out.push(PaymentMethod::Onchain(Onchain::from(address))),
+            Self::Invoice(invoice) => flatten_invoice_into(invoice, &mut out),
+            Self::Offer(offer) => out.push(PaymentMethod::Offer(offer)),
+            Self::LightningUri(LightningUri { invoice, offer }) => {
+                if let Some(invoice) = invoice {
+                    flatten_invoice_into(invoice, &mut out);
+                }
+                if let Some(offer) = offer {
+                    out.push(PaymentMethod::Offer(offer));
+                }
+            }
+            Self::Bip21Uri(Bip21Uri {
+                onchain,
+                invoice,
+                offer,
+            }) => {
+                if let Some(onchain) = onchain {
+                    out.push(PaymentMethod::Onchain(onchain));
+                }
+                if let Some(invoice) = invoice {
+                    flatten_invoice_into(invoice, &mut out);
+                }
+                if let Some(offer) = offer {
+                    out.push(PaymentMethod::Offer(offer));
+                }
+            }
+        }
+        out
+    }
 }
 
 impl fmt::Display for PaymentUri {
@@ -124,6 +159,30 @@ impl fmt::Display for PaymentUri {
             Self::Bip21Uri(bip21_uri) => Display::fmt(bip21_uri, f),
         }
     }
+}
+
+/// "Flatten" an [`LxInvoice`] into its "component" [`PaymentMethod`]s, pushing
+/// them into an existing `Vec`.
+fn flatten_invoice_into(invoice: LxInvoice, out: &mut Vec<PaymentMethod>) {
+    let onchain_fallback_addrs = invoice.onchain_fallbacks();
+    out.reserve(1 + onchain_fallback_addrs.len());
+
+    // BOLT11 invoices may include onchain fallback addresses.
+    if !onchain_fallback_addrs.is_empty() {
+        let description = invoice.description_str().map(str::to_owned);
+        let amount = invoice.amount();
+
+        for address in onchain_fallback_addrs {
+            out.push(PaymentMethod::Onchain(Onchain {
+                address,
+                amount,
+                label: None,
+                message: description.clone(),
+            }));
+        }
+    }
+
+    out.push(PaymentMethod::Invoice(invoice));
 }
 
 /// A single "payment method" -- each kind here should correspond with a single
@@ -145,19 +204,30 @@ pub enum PaymentMethod {
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct Onchain {
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_mainnet_address()"))]
-    address: bitcoin::Address,
+    pub address: bitcoin::Address,
 
     #[cfg_attr(
         test,
         proptest(strategy = "amount::arb::sats_amount().prop_map(Some)")
     )]
-    amount: Option<Amount>,
+    pub amount: Option<Amount>,
 
     /// The recipient/payee name.
-    label: Option<String>,
+    pub label: Option<String>,
 
     /// The payment description.
-    message: Option<String>,
+    pub message: Option<String>,
+}
+
+impl From<bitcoin::Address> for Onchain {
+    fn from(address: bitcoin::Address) -> Self {
+        Self {
+            address,
+            amount: None,
+            label: None,
+            message: None,
+        }
+    }
 }
 
 /// Parse an onchain amount in BTC, e.g. "1.0024" => 1_0024_0000 sats. This
@@ -193,9 +263,9 @@ fn parse_onchain_btc_amount(s: &str) -> Option<Amount> {
 #[derive(Debug, Default, PartialEq, Eq)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct Bip21Uri {
-    onchain: Option<Onchain>,
-    invoice: Option<LxInvoice>,
-    offer: Option<LxOffer>,
+    pub onchain: Option<Onchain>,
+    pub invoice: Option<LxInvoice>,
+    pub offer: Option<LxOffer>,
 }
 
 impl Bip21Uri {
@@ -358,23 +428,6 @@ impl Bip21Uri {
     }
 }
 
-impl Iterator for Bip21Uri {
-    type Item = PaymentMethod;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if let Some(onchain) = self.onchain.take() {
-            return Some(PaymentMethod::Onchain(onchain));
-        }
-        if let Some(invoice) = self.invoice.take() {
-            return Some(PaymentMethod::Invoice(invoice));
-        }
-        if let Some(offer) = self.offer.take() {
-            return Some(PaymentMethod::Offer(offer));
-        }
-        None
-    }
-}
-
 impl fmt::Display for Bip21Uri {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Display::fmt(&self.to_uri(), f)
@@ -401,8 +454,8 @@ impl fmt::Display for Bip21Uri {
 #[derive(Debug, PartialEq, Eq)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct LightningUri {
-    invoice: Option<LxInvoice>,
-    offer: Option<LxOffer>,
+    pub invoice: Option<LxInvoice>,
+    pub offer: Option<LxOffer>,
 }
 
 impl LightningUri {
