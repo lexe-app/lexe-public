@@ -54,6 +54,7 @@ impl LxInvoice {
     }
 
     /// Get the invoice creation timestamp unconditionally.
+    #[inline]
     pub fn saturating_created_at(&self) -> TimestampMs {
         self.created_at().unwrap_or(TimestampMs::MAX)
     }
@@ -67,6 +68,7 @@ impl LxInvoice {
     }
 
     /// Get the invoice expiration timestamp unconditionally.
+    #[inline]
     pub fn saturating_expires_at(&self) -> TimestampMs {
         self.expires_at().unwrap_or(TimestampMs::MAX)
     }
@@ -84,6 +86,14 @@ impl LxInvoice {
             // is somewhat more expensive.
             .unwrap_or_else(|| self.0.recover_payee_pub_key())
             .apply(NodePk)
+    }
+
+    /// BOLT11 Invoices can attach optional onchain addresses for a payee to
+    /// use if the lightning payment is not feasible. This fn returns those
+    /// addresses.
+    #[inline]
+    pub fn onchain_fallbacks(&self) -> Vec<bitcoin::Address> {
+        self.0.fallback_addresses()
     }
 }
 
