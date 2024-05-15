@@ -268,26 +268,50 @@ mod test {
         env::DeployEnv, rng::WeakRng, root_seed::RootSeed, tls::test_utils,
     };
 
-    // TODO(max): Add a negative test: different root seeds should fail auth
-    // (both client and server reject)
-
-    // test shared seed TLS handshake directly w/o any other axum/reqwest infra
+    /// App->Node TLS handshake should succeed when using the same seed.
     #[tokio::test]
-    async fn test_tls_handshake_succeeds() {
-        let seed = RootSeed::new(Secret::new([0x42; 32]));
+    async fn app_node_run_handshake_succeeds() {
+        let client_seed = RootSeed::new(Secret::new([0x42; 32]));
+        let server_seed = RootSeed::new(Secret::new([0x42; 32]));
+
+        let [client_result, server_result] =
+            do_app_node_run_tls_handshake(&client_seed, &server_seed).await;
+
+        client_result.unwrap();
+        server_result.unwrap();
+    }
+
+    /// App->Node TLS handshake should fail when using different seeds.
+    #[tokio::test]
+    async fn app_node_run_handshake_fails_with_different_seeds() {
+        let client_seed = RootSeed::new(Secret::new([0x42; 32]));
+        let server_seed = RootSeed::new(Secret::new([0x69; 32]));
+
+        let [client_result, server_result] =
+            do_app_node_run_tls_handshake(&client_seed, &server_seed).await;
+
+        assert!(client_result.unwrap_err().contains("Client didn't connect"));
+        assert!(server_result.unwrap_err().contains("Server didn't accept"));
+    }
+
+    // Shorthand to do a App->Node Run TLS handshake.
+    async fn do_app_node_run_tls_handshake(
+        client_seed: &RootSeed,
+        server_seed: &RootSeed,
+    ) -> [Result<(), String>; 2] {
         let mut rng = WeakRng::from_u64(20240514);
         let deploy_env = DeployEnv::Dev;
 
         let client_config =
-            app_node_run_client_config(&mut rng, deploy_env, &seed)
+            app_node_run_client_config(&mut rng, deploy_env, client_seed)
                 .map(Arc::new)
                 .unwrap();
         let (server_config, server_dns) =
-            app_node_run_server_config(&mut rng, &seed)
+            app_node_run_server_config(&mut rng, server_seed)
                 .map(|(c, d)| (Arc::new(c), d))
                 .unwrap();
 
         test_utils::do_tls_handshake(client_config, server_config, server_dns)
-            .await;
+            .await
     }
 }

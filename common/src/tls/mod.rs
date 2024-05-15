@@ -170,54 +170,84 @@ pub fn lexe_distinguished_name(common_name: &str) -> DistinguishedName {
 pub mod test_utils {
     use std::sync::Arc;
 
+    use anyhow::Context;
     use rustls::pki_types::ServerName;
     use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
     use super::*;
 
     /// Conducts a TLS handshake without any other [`reqwest`]/[`axum`] infra,
-    /// over a fake pair of connected streams.
+    /// over a fake pair of connected streams. Returns the client and server
+    /// results instead of panicking so that negative cases can be tested too.
     pub async fn do_tls_handshake(
         client_config: Arc<ClientConfig>,
         server_config: Arc<ServerConfig>,
-        server_dns: String,
-    ) {
+        // This is the DNS name that the *client* expects the server to have.
+        expected_dns: String,
+    ) -> [Result<(), String>; 2] {
         // a fake pair of connected streams
         let (client_stream, server_stream) = tokio::io::duplex(4096);
 
         // client connects, sends "hello", receives "goodbye"
         let client = async move {
             let connector = tokio_rustls::TlsConnector::from(client_config);
-            let sni = ServerName::try_from(server_dns).unwrap();
-            let mut stream =
-                connector.connect(sni, client_stream).await.unwrap();
+            let sni = ServerName::try_from(expected_dns).unwrap();
+            let mut stream = connector
+                .connect(sni, client_stream)
+                .await
+                .context("Client didn't connect")?;
 
             // client: >> send "hello"
-            stream.write_all(b"hello").await.unwrap();
-            stream.flush().await.unwrap();
-            stream.shutdown().await.unwrap();
+            stream
+                .write_all(b"hello")
+                .await
+                .context("Could not write hello")?;
+            stream.flush().await.context("Toilet clogged")?;
+            stream.shutdown().await.context("Could not shutdown")?;
 
             // client: << recv "goodbye"
             let mut resp = Vec::new();
-            stream.read_to_end(&mut resp).await.unwrap();
+            stream.read_to_end(&mut resp).await.context("Read failed")?;
             assert_eq!(&resp, b"goodbye");
+
+            Ok::<_, anyhow::Error>(())
         };
 
         // server accepts, receives "hello", responds with "goodbye"
         let server = async move {
             let acceptor = tokio_rustls::TlsAcceptor::from(server_config);
-            let mut stream = acceptor.accept(server_stream).await.unwrap();
+            let mut stream = acceptor
+                .accept(server_stream)
+                .await
+                .context("Server didn't accept")?;
 
             // server: >> recv "hello"
             let mut req = Vec::new();
-            stream.read_to_end(&mut req).await.unwrap();
+            stream.read_to_end(&mut req).await.context("Read failed")?;
             assert_eq!(&req, b"hello");
 
             // server: << send "goodbye"
-            stream.write_all(b"goodbye").await.unwrap();
-            stream.shutdown().await.unwrap();
+            stream
+                .write_all(b"goodbye")
+                .await
+                .context("Could not write goodbye")?;
+            stream.shutdown().await.context("Could not shutdown")?;
+
+            Ok::<_, anyhow::Error>(())
         };
 
-        tokio::join!(client, server);
+        let (client_result, server_result) = tokio::join!(client, server);
+
+        // Convert `anyhow::Error`s to strings for better ergonomics downstream
+        let (client_result, server_result) = (
+            client_result.map_err(|e| format!("{e:#}")),
+            server_result.map_err(|e| format!("{e:#}")),
+        );
+
+        println!("Client result: {client_result:?}");
+        println!("Server result: {server_result:?}");
+        println!("---");
+
+        [client_result, server_result]
     }
 }
