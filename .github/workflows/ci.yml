@@ -62,9 +62,9 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v3
       # SGX
-      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo clippy --locked -p node -p common -p lexe-ln -p sgx-info -p sgx-test --target=x86_64-fortanix-unknown-sgx
+      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx
       # SGX + tests
-      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo clippy --locked -p node -p common -p lexe-ln -p sgx-info -p sgx-test --target=x86_64-fortanix-unknown-sgx --tests
+      - run: RUSTFLAGS="-C target-feature=+aes,+ssse3 -D warnings" cargo clippy --locked -p node -p common -p lexe-ln -p sgx-test --target=x86_64-fortanix-unknown-sgx --tests
 
   # --- Check the production binaries, which don't use feature unification --- #
   check-release:
