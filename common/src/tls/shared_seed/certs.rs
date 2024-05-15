@@ -155,7 +155,7 @@ impl SharedSeedServerCert {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::rng::WeakRng;
+    use crate::{hex, rng::WeakRng};
 
     #[test]
     fn test_certs_parse_successfully() {
@@ -181,5 +181,60 @@ mod test {
 
         let _ = webpki::EndEntityCert::try_from(server_cert_der.as_bytes())
             .unwrap();
+    }
+
+    /// Check that the derived CA keypair is the same as a snapshot from the
+    /// same [`RootSeed`].
+    ///
+    /// ```
+    /// $ cargo test -p common derived_ca_keypair_snapshot_test -- --show-output
+    /// ```
+    #[test]
+    fn derived_ca_keypair_snapshot_test() {
+        let root_seed = RootSeed::from_u64(20240514);
+        let derived_keypair = root_seed.derive_shared_seed_tls_ca_key_pair();
+        let derived_keypair_seed = derived_keypair.secret_key();
+
+        let snapshot_keypair_seed = hex::decode(
+            "1960322cd55473e9a1bdc5b53f3089dada0f825858b9a4da4ab09f9b1008b46d",
+        )
+        .unwrap();
+
+        assert_eq!(derived_keypair_seed, snapshot_keypair_seed.as_slice());
+
+        // Uncomment to regenerate
+        // let derived_keypair_hex = hex::display(derived_keypair_seed);
+        // println!("---");
+        // println!("{derived_keypair_hex}");
+        // println!("---");
+    }
+
+    /// Tests that a freshly derived shared seed CA cert serialized into DER is
+    /// bit-for-bit the same as a snapshot from the same [`RootSeed`].
+    ///
+    /// ```
+    /// $ cargo test -p common ca_cert_snapshot_test -- --show-output
+    /// ```
+    // Bit-for-bit serialization compatibility is a stronger guarantee than we
+    // need - I wrote the test this way to save time. If shared seed CA cert
+    // generation needs to change in a backwards compatible way, update this
+    // test so that we only check that *handshakes* between the older and newer
+    // certs succeed (which is a bit more annoying to write)
+    #[test]
+    fn ca_cert_snapshot_test() {
+        let snapshot_cert_der = hex::decode("308201ae30820160a00302010202142b404543fa6a1885d7615fd0d3313b0dcaf4b47b300506032b65703050310b300906035504060c025553310b300906035504080c0243413111300f060355040a0c086c6578652d6170703121301f06035504030c184c65786520736861726564207365656420434120636572743020170d3735303130313030303030305a180f34303936303130313030303030305a3050310b300906035504060c025553310b300906035504080c0243413111300f060355040a0c086c6578652d6170703121301f06035504030c184c6578652073686172656420736565642043412063657274302a300506032b6570032100ee71f429ce11f0538aeac1d9fae23ddf4fcf831d1b9e111b8144192a3820dcc7a34a304830130603551d11040c300a82086c6578652e617070301d0603551d0e04160414ab404543fa6a1885d7615fd0d3313b0dcaf4b47b30120603551d130101ff040830060101ff020100300506032b6570034100fbfe35aa1ac3c7548aefda98dd03fb181fc317a41c2fa051d169e89d34a7946a95c288d0cc8591824f758060d1df4288237813f445137c3da90d457aa06ca400").unwrap();
+
+        let root_seed = RootSeed::from_u64(20240514);
+        let rederived_cert = SharedSeedCaCert::from_root_seed(&root_seed);
+        let rederived_cert_der =
+            rederived_cert.serialize_der_self_signed().unwrap();
+
+        assert_eq!(rederived_cert_der.as_bytes(), snapshot_cert_der.as_slice());
+
+        // Uncomment to regenerate
+        // let rederived_cert_hex = hex::display(rederived_cert_der.as_bytes());
+        // println!("---");
+        // println!("{rederived_cert_hex}");
+        // println!("---");
     }
 }
