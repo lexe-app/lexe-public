@@ -14,6 +14,7 @@ common = { path = "../common" }
 
 # --- WORKSPACE --- #
 
+anyhow.workspace = true
 bitcoin.workspace = true
 rust_decimal.workspace = true
 rust_decimal_macros.workspace = true

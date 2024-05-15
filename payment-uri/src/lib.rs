@@ -15,6 +15,7 @@
 
 use std::{borrow::Cow, fmt, str::FromStr};
 
+use anyhow::ensure;
 use common::{
     cli::Network,
     ln::{amount::Amount, invoice::LxInvoice, offer::LxOffer},
@@ -149,6 +150,52 @@ impl PaymentUri {
         }
         out
     }
+
+    /// Resolve the `PaymentUri` into a single, "best" [`PaymentMethod`].
+    //
+    // phlip9: this impl is currently pretty dumb and just unconditionally
+    // returns the first (valid) BOLT11 invoice it finds, o/w onchain. It's not
+    // hard to imagine a better strategy, like using our current
+    // liquidity/balance to decide onchain vs LN, or returning all methods and
+    // giving the user a choice. This'll also need to be async in the future, as
+    // we'll need to fetch invoices from any LNURL endpoints we come across.
+    pub fn resolve_best(
+        self,
+        network: Network,
+    ) -> anyhow::Result<PaymentMethod> {
+        // A single scanned/opened PaymentUri can contain multiple different
+        // payment methods (e.g., a LN BOLT11 invoice + an onchain fallback
+        // address).
+        let mut payment_methods = self.flatten();
+
+        // Filter out all methods that aren't valid for our current network
+        // (e.g., ignore all testnet addresses when we're cfg'd for mainnet).
+        payment_methods.retain(|method| method.supports_network(network));
+
+        ensure!(
+            !payment_methods.is_empty(),
+            "Payment code is not valid for {network}"
+        );
+
+        // Pick the most preferable payment method.
+        let best = payment_methods
+            .into_iter()
+            .max_by_key(|x| match x {
+                PaymentMethod::Invoice(_) => 2,
+                PaymentMethod::Onchain(_) => 1,
+                // TODO(phlip9): increase priority when BOLT12 support
+                PaymentMethod::Offer(_) => 0,
+            })
+            .expect("We just checked there's at least one method");
+
+        // TODO(phlip9): remove when BOLT12 support
+        ensure!(
+            !best.is_offer(),
+            "Lexe doesn't currently support Lightning BOLT12 Offers",
+        );
+
+        Ok(best)
+    }
 }
 
 impl fmt::Display for PaymentUri {
@@ -202,6 +249,18 @@ pub enum PaymentMethod {
 }
 
 impl PaymentMethod {
+    pub fn is_onchain(&self) -> bool {
+        matches!(self, Self::Onchain(_))
+    }
+
+    pub fn is_invoice(&self) -> bool {
+        matches!(self, Self::Invoice(_))
+    }
+
+    pub fn is_offer(&self) -> bool {
+        matches!(self, Self::Offer(_))
+    }
+
     pub fn supports_network(&self, network: Network) -> bool {
         match self {
             Self::Onchain(x) => x.supports_network(network),

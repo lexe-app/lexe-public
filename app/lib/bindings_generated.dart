@@ -118,6 +118,27 @@ class AppRsImpl implements AppRs {
         argNames: ["password"],
       );
 
+  Future<PaymentMethod> paymentUriResolveBest(
+      {required Network network, required String uriStr, dynamic hint}) {
+    var arg0 = api2wire_network(network);
+    var arg1 = _platform.api2wire_String(uriStr);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) =>
+          _platform.inner.wire_payment_uri_resolve_best(port_, arg0, arg1),
+      parseSuccessData: _wire2api_payment_method,
+      parseErrorData: _wire2api_FrbAnyhowException,
+      constMeta: kPaymentUriResolveBestConstMeta,
+      argValues: [network, uriStr],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kPaymentUriResolveBestConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "payment_uri_resolve_best",
+        argNames: ["network", "uriStr"],
+      );
+
   Stream<String> initRustLogStream({required String rustLog, dynamic hint}) {
     var arg0 = _platform.api2wire_String(rustLog);
     return _platform.executeStream(FlutterRustBridgeTask(
@@ -763,6 +784,10 @@ class AppRsImpl implements AppRs {
     return _wire2api_invoice(raw);
   }
 
+  Onchain _wire2api_box_autoadd_onchain(dynamic raw) {
+    return _wire2api_onchain(raw);
+  }
+
   Payment _wire2api_box_autoadd_payment(dynamic raw) {
     return _wire2api_payment(raw);
   }
@@ -885,6 +910,18 @@ class AppRsImpl implements AppRs {
     );
   }
 
+  Onchain _wire2api_onchain(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 4)
+      throw Exception('unexpected arr length: expect 4 but see ${arr.length}');
+    return Onchain(
+      address: _wire2api_String(arr[0]),
+      amountSats: _wire2api_opt_box_autoadd_u64(arr[1]),
+      label: _wire2api_opt_String(arr[2]),
+      message: _wire2api_opt_String(arr[3]),
+    );
+  }
+
   String? _wire2api_opt_String(dynamic raw) {
     return raw == null ? null : _wire2api_String(raw);
   }
@@ -946,6 +983,23 @@ class AppRsImpl implements AppRs {
 
   PaymentKind _wire2api_payment_kind(dynamic raw) {
     return PaymentKind.values[raw as int];
+  }
+
+  PaymentMethod _wire2api_payment_method(dynamic raw) {
+    switch (raw[0]) {
+      case 0:
+        return PaymentMethod_Onchain(
+          _wire2api_box_autoadd_onchain(raw[1]),
+        );
+      case 1:
+        return PaymentMethod_Invoice(
+          _wire2api_box_autoadd_invoice(raw[1]),
+        );
+      case 2:
+        return PaymentMethod_Offer();
+      default:
+        throw Exception("unreachable");
+    }
   }
 
   PaymentStatus _wire2api_payment_status(dynamic raw) {
@@ -1402,6 +1456,25 @@ class AppRsWire implements FlutterRustBridgeWireBase {
               ffi.Pointer<wire_uint_8_list>)>>('wire_form_validate_password');
   late final _wire_form_validate_password = _wire_form_validate_passwordPtr
       .asFunction<WireSyncReturn Function(ffi.Pointer<wire_uint_8_list>)>();
+
+  void wire_payment_uri_resolve_best(
+    int port_,
+    int network,
+    ffi.Pointer<wire_uint_8_list> uri_str,
+  ) {
+    return _wire_payment_uri_resolve_best(
+      port_,
+      network,
+      uri_str,
+    );
+  }
+
+  late final _wire_payment_uri_resolve_bestPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Void Function(ffi.Int64, ffi.Int32,
+              ffi.Pointer<wire_uint_8_list>)>>('wire_payment_uri_resolve_best');
+  late final _wire_payment_uri_resolve_best = _wire_payment_uri_resolve_bestPtr
+      .asFunction<void Function(int, int, ffi.Pointer<wire_uint_8_list>)>();
 
   void wire_init_rust_log_stream(
     int port_,

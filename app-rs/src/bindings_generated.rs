@@ -97,6 +97,26 @@ fn wire_form_validate_password_impl(
         },
     )
 }
+fn wire_payment_uri_resolve_best_impl(
+    port_: MessagePort,
+    network: impl Wire2Api<Network> + UnwindSafe,
+    uri_str: impl Wire2Api<String> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, PaymentMethod, _>(
+        WrapInfo {
+            debug_name: "payment_uri_resolve_best",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_network = network.wire2api();
+            let api_uri_str = uri_str.wire2api();
+            move |task_callback| {
+                payment_uri_resolve_best(api_network, api_uri_str)
+            }
+        },
+    )
+}
 fn wire_init_rust_log_stream_impl(
     port_: MessagePort,
     rust_log: impl Wire2Api<String> + UnwindSafe,
@@ -824,6 +844,24 @@ impl rust2dart::IntoIntoDart<NodeInfo> for NodeInfo {
     }
 }
 
+impl support::IntoDart for Onchain {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.address.into_into_dart().into_dart(),
+            self.amount_sats.into_dart(),
+            self.label.into_dart(),
+            self.message.into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for Onchain {}
+impl rust2dart::IntoIntoDart<Onchain> for Onchain {
+    fn into_into_dart(self) -> Self {
+        self
+    }
+}
+
 impl support::IntoDart for Payment {
     fn into_dart(self) -> support::DartAbi {
         vec![
@@ -878,6 +916,25 @@ impl support::IntoDart for PaymentKind {
 }
 impl support::IntoDartExceptPrimitive for PaymentKind {}
 impl rust2dart::IntoIntoDart<PaymentKind> for PaymentKind {
+    fn into_into_dart(self) -> Self {
+        self
+    }
+}
+
+impl support::IntoDart for PaymentMethod {
+    fn into_dart(self) -> support::DartAbi {
+        match self {
+            Self::Onchain(field0) =>
+                vec![0.into_dart(), field0.into_into_dart().into_dart()],
+            Self::Invoice(field0) =>
+                vec![1.into_dart(), field0.into_into_dart().into_dart()],
+            Self::Offer => vec![2.into_dart()],
+        }
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for PaymentMethod {}
+impl rust2dart::IntoIntoDart<PaymentMethod> for PaymentMethod {
     fn into_into_dart(self) -> Self {
         self
     }
@@ -978,6 +1035,15 @@ mod io {
         password: *mut wire_uint_8_list,
     ) -> support::WireSyncReturn {
         wire_form_validate_password_impl(password)
+    }
+
+    #[no_mangle]
+    pub extern "C" fn wire_payment_uri_resolve_best(
+        port_: i64,
+        network: i32,
+        uri_str: *mut wire_uint_8_list,
+    ) {
+        wire_payment_uri_resolve_best_impl(port_, network, uri_str)
     }
 
     #[no_mangle]
