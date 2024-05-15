@@ -28,6 +28,7 @@ import 'package:lexeapp/bindings_generated_api.dart'
         FiatRate,
         FiatRates,
         Invoice,
+        Network,
         NodeInfo,
         Payment,
         PaymentDirection,
@@ -161,6 +162,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
 
   @override
   Widget build(BuildContext context) {
+    const network = Network.Regtest;
     final mockApp = MockAppHandle(bridge: api);
     const mockGDriveAuth = GDriveAuth.mock;
     final mockSignupApi = MockSignupApi(app: mockApp);
@@ -327,7 +329,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 triggerRefresh: () {},
               ),
             ),
-            Component("ScanPage", (_) => const ScanPage()),
+            Component("ScanPage", (_) => const ScanPage(network: network)),
             Component(
               "ShowQrPage",
               subtitle: "standard bip21",

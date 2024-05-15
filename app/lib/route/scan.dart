@@ -2,14 +2,72 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart'
-    show FixedScannerOverlay, ReaderWidget;
+    show Code, FixedScannerOverlay, ReaderWidget;
+import 'package:lexeapp/bindings.dart' show api;
+import 'package:lexeapp/bindings_generated_api.dart'
+    show Network, PaymentMethod;
 
 import 'package:lexeapp/components.dart' show LxCloseButton;
-import 'package:lexeapp/logger.dart' show info;
+import 'package:lexeapp/logger.dart';
+import 'package:lexeapp/result.dart';
 import 'package:lexeapp/style.dart' show LxColors, LxRadius, LxTheme, Space;
 
-class ScanPage extends StatelessWidget {
-  const ScanPage({super.key});
+class ScanPage extends StatefulWidget {
+  const ScanPage({super.key, required this.network});
+
+  final Network network;
+
+  @override
+  State<ScanPage> createState() => _ScanPageState();
+}
+
+class _ScanPageState extends State<ScanPage> {
+  // TODO(phlip9): in the future, once resolving a code actually requires
+  // network requests, let's show a loading spinner when this is true.
+  bool isProcessing = false;
+
+  Future<void> onScan(final Code code) async {
+    final text = code.text;
+
+    // flutter_zxing doesn't call our callback w/ invalid codes, but `Code`
+    // stuffs both valid/error cases in one struct...
+    if (text == null) return;
+
+    // Skip any new results if we're still processing a prev. scanned QR code.
+    if (this.isProcessing) return;
+
+    this.isProcessing = true;
+    try {
+      info("Scanned code: \"$text\"");
+
+      // Try to resolve the QR code into a single, "best" payment method. "Best"
+      // currently means just unconditionally prefer BOLT11 invoices, but should
+      // smarter in the future.
+      final result = await Result.tryFfiAsync(() => api.paymentUriResolveBest(
+            network: this.widget.network,
+            uriStr: text,
+          ));
+
+      if (!this.mounted) return;
+
+      final PaymentMethod paymentMethod;
+      switch (result) {
+        case Ok(:final ok):
+          paymentMethod = ok;
+        case Err(:final err):
+          warn("Failed to resolve QR code: $err");
+          // TODO(phlip9): could probably use a better error display
+          ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
+            content: Text(err.message),
+          ));
+          return;
+      }
+
+      info("Scanned QR with best payment method: $paymentMethod");
+    } finally {
+      this.isProcessing = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,9 +96,7 @@ class ScanPage extends StatelessWidget {
       //               OS like macOS, linux, windows.
       // We're waiting on the flutter `camera` pkg to support desktop OS's.
       body: ReaderWidget(
-        onScan: (barcode) {
-          info("barcode: '${barcode.text}'");
-        },
+        onScan: this.onScan,
         showFlashlight: false,
         showToggleCamera: false,
         cropPercent: 0.50,
