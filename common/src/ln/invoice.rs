@@ -25,6 +25,11 @@ impl LxInvoice {
         Network(self.0.network())
     }
 
+    #[inline]
+    pub fn supports_network(&self, network: Network) -> bool {
+        self.network() == network
+    }
+
     /// If the invoice contains a non-empty, inline description, then return
     /// that as a string. Otherwise return None.
     pub fn description_str(&self) -> Option<&str> {

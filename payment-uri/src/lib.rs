@@ -15,7 +15,10 @@
 
 use std::{borrow::Cow, fmt, str::FromStr};
 
-use common::ln::{amount::Amount, invoice::LxInvoice, offer::LxOffer};
+use common::{
+    cli::Network,
+    ln::{amount::Amount, invoice::LxInvoice, offer::LxOffer},
+};
 #[cfg(test)]
 use common::{ln::amount, test_utils::arbitrary};
 #[cfg(test)]
@@ -198,6 +201,16 @@ pub enum PaymentMethod {
     Offer(LxOffer),
 }
 
+impl PaymentMethod {
+    pub fn supports_network(&self, network: Network) -> bool {
+        match self {
+            Self::Onchain(x) => x.supports_network(network),
+            Self::Invoice(x) => x.supports_network(network),
+            Self::Offer(x) => x.supports_network(network),
+        }
+    }
+}
+
 /// An onchain payment method, usually parsed from a standalone BTC address or
 /// BIP21 URI.
 #[derive(Debug, PartialEq, Eq)]
@@ -217,6 +230,13 @@ pub struct Onchain {
 
     /// The payment description.
     pub message: Option<String>,
+}
+
+impl Onchain {
+    #[inline]
+    pub fn supports_network(&self, network: Network) -> bool {
+        self.address.is_valid_for_network(network.to_inner())
+    }
 }
 
 impl From<bitcoin::Address> for Onchain {
