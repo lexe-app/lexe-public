@@ -15,12 +15,12 @@
 //!   to the [`RootSeed`].
 //!
 //! Under this "shared seed" mTLS scheme, both the client and server use their
-//! root seed to independently derive a shared CA keypair, which they use to
-//! sign their respective client and server end-entity certs which they present
-//! to their counterparty. When authenticating their counterparty, they will
-//! simply check that the presented end-entity cert has been signed by the
+//! root seed to independently derive a shared CA cert and keypair, which they
+//! use to sign their respective client and server end-entity certs which they
+//! present to their counterparty. When authenticating their counterparty, they
+//! will simply check that the presented end-entity cert has been signed by the
 //! shared CA, which could only have been possible if the counterparty was also
-//! able to derive the shared CA keypair.
+//! able to derive the shared CA cert and keypair.
 //!
 //! [`RootSeed`]: crate::root_seed::RootSeed
 
@@ -267,8 +267,6 @@ mod test {
 
     // TODO(max): Add a negative test: different root seeds should fail auth
     // (both client and server reject)
-    // TODO(max): Add a snapshot test for deterministic derivation of shared
-    // seed CA cert
 
     // test shared seed TLS handshake directly w/o any other axum/reqwest infra
     #[tokio::test]
