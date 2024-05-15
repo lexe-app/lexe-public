@@ -388,6 +388,68 @@ abstract class _NodeInfo implements NodeInfo {
 }
 
 /// @nodoc
+mixin _$Onchain {
+  String get address => throw _privateConstructorUsedError;
+  int? get amountSats => throw _privateConstructorUsedError;
+  String? get label => throw _privateConstructorUsedError;
+  String? get message => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$OnchainImpl implements _Onchain {
+  const _$OnchainImpl(
+      {required this.address, this.amountSats, this.label, this.message});
+
+  @override
+  final String address;
+  @override
+  final int? amountSats;
+  @override
+  final String? label;
+  @override
+  final String? message;
+
+  @override
+  String toString() {
+    return 'Onchain(address: $address, amountSats: $amountSats, label: $label, message: $message)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$OnchainImpl &&
+            (identical(other.address, address) || other.address == address) &&
+            (identical(other.amountSats, amountSats) ||
+                other.amountSats == amountSats) &&
+            (identical(other.label, label) || other.label == label) &&
+            (identical(other.message, message) || other.message == message));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, address, amountSats, label, message);
+}
+
+abstract class _Onchain implements Onchain {
+  const factory _Onchain(
+      {required final String address,
+      final int? amountSats,
+      final String? label,
+      final String? message}) = _$OnchainImpl;
+
+  @override
+  String get address;
+  @override
+  int? get amountSats;
+  @override
+  String? get label;
+  @override
+  String? get message;
+}
+
+/// @nodoc
 mixin _$Payment {
   String get index => throw _privateConstructorUsedError;
   PaymentKind get kind => throw _privateConstructorUsedError;
@@ -531,6 +593,347 @@ abstract class _Payment implements Payment {
   int get createdAt;
   @override
   int? get finalizedAt;
+}
+
+/// @nodoc
+mixin _$PaymentMethod {
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(Onchain field0) onchain,
+    required TResult Function(Invoice field0) invoice,
+    required TResult Function() offer,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(Onchain field0)? onchain,
+    TResult? Function(Invoice field0)? invoice,
+    TResult? Function()? offer,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(Onchain field0)? onchain,
+    TResult Function(Invoice field0)? invoice,
+    TResult Function()? offer,
+    required TResult orElse(),
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(PaymentMethod_Onchain value) onchain,
+    required TResult Function(PaymentMethod_Invoice value) invoice,
+    required TResult Function(PaymentMethod_Offer value) offer,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(PaymentMethod_Onchain value)? onchain,
+    TResult? Function(PaymentMethod_Invoice value)? invoice,
+    TResult? Function(PaymentMethod_Offer value)? offer,
+  }) =>
+      throw _privateConstructorUsedError;
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(PaymentMethod_Onchain value)? onchain,
+    TResult Function(PaymentMethod_Invoice value)? invoice,
+    TResult Function(PaymentMethod_Offer value)? offer,
+    required TResult orElse(),
+  }) =>
+      throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PaymentMethod_OnchainImpl implements PaymentMethod_Onchain {
+  const _$PaymentMethod_OnchainImpl(this.field0);
+
+  @override
+  final Onchain field0;
+
+  @override
+  String toString() {
+    return 'PaymentMethod.onchain(field0: $field0)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PaymentMethod_OnchainImpl &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(Onchain field0) onchain,
+    required TResult Function(Invoice field0) invoice,
+    required TResult Function() offer,
+  }) {
+    return onchain(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(Onchain field0)? onchain,
+    TResult? Function(Invoice field0)? invoice,
+    TResult? Function()? offer,
+  }) {
+    return onchain?.call(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(Onchain field0)? onchain,
+    TResult Function(Invoice field0)? invoice,
+    TResult Function()? offer,
+    required TResult orElse(),
+  }) {
+    if (onchain != null) {
+      return onchain(field0);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(PaymentMethod_Onchain value) onchain,
+    required TResult Function(PaymentMethod_Invoice value) invoice,
+    required TResult Function(PaymentMethod_Offer value) offer,
+  }) {
+    return onchain(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(PaymentMethod_Onchain value)? onchain,
+    TResult? Function(PaymentMethod_Invoice value)? invoice,
+    TResult? Function(PaymentMethod_Offer value)? offer,
+  }) {
+    return onchain?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(PaymentMethod_Onchain value)? onchain,
+    TResult Function(PaymentMethod_Invoice value)? invoice,
+    TResult Function(PaymentMethod_Offer value)? offer,
+    required TResult orElse(),
+  }) {
+    if (onchain != null) {
+      return onchain(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class PaymentMethod_Onchain implements PaymentMethod {
+  const factory PaymentMethod_Onchain(final Onchain field0) =
+      _$PaymentMethod_OnchainImpl;
+
+  Onchain get field0;
+}
+
+/// @nodoc
+
+class _$PaymentMethod_InvoiceImpl implements PaymentMethod_Invoice {
+  const _$PaymentMethod_InvoiceImpl(this.field0);
+
+  @override
+  final Invoice field0;
+
+  @override
+  String toString() {
+    return 'PaymentMethod.invoice(field0: $field0)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PaymentMethod_InvoiceImpl &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(Onchain field0) onchain,
+    required TResult Function(Invoice field0) invoice,
+    required TResult Function() offer,
+  }) {
+    return invoice(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(Onchain field0)? onchain,
+    TResult? Function(Invoice field0)? invoice,
+    TResult? Function()? offer,
+  }) {
+    return invoice?.call(field0);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(Onchain field0)? onchain,
+    TResult Function(Invoice field0)? invoice,
+    TResult Function()? offer,
+    required TResult orElse(),
+  }) {
+    if (invoice != null) {
+      return invoice(field0);
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(PaymentMethod_Onchain value) onchain,
+    required TResult Function(PaymentMethod_Invoice value) invoice,
+    required TResult Function(PaymentMethod_Offer value) offer,
+  }) {
+    return invoice(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(PaymentMethod_Onchain value)? onchain,
+    TResult? Function(PaymentMethod_Invoice value)? invoice,
+    TResult? Function(PaymentMethod_Offer value)? offer,
+  }) {
+    return invoice?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(PaymentMethod_Onchain value)? onchain,
+    TResult Function(PaymentMethod_Invoice value)? invoice,
+    TResult Function(PaymentMethod_Offer value)? offer,
+    required TResult orElse(),
+  }) {
+    if (invoice != null) {
+      return invoice(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class PaymentMethod_Invoice implements PaymentMethod {
+  const factory PaymentMethod_Invoice(final Invoice field0) =
+      _$PaymentMethod_InvoiceImpl;
+
+  Invoice get field0;
+}
+
+/// @nodoc
+
+class _$PaymentMethod_OfferImpl implements PaymentMethod_Offer {
+  const _$PaymentMethod_OfferImpl();
+
+  @override
+  String toString() {
+    return 'PaymentMethod.offer()';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PaymentMethod_OfferImpl);
+  }
+
+  @override
+  int get hashCode => runtimeType.hashCode;
+
+  @override
+  @optionalTypeArgs
+  TResult when<TResult extends Object?>({
+    required TResult Function(Onchain field0) onchain,
+    required TResult Function(Invoice field0) invoice,
+    required TResult Function() offer,
+  }) {
+    return offer();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? whenOrNull<TResult extends Object?>({
+    TResult? Function(Onchain field0)? onchain,
+    TResult? Function(Invoice field0)? invoice,
+    TResult? Function()? offer,
+  }) {
+    return offer?.call();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeWhen<TResult extends Object?>({
+    TResult Function(Onchain field0)? onchain,
+    TResult Function(Invoice field0)? invoice,
+    TResult Function()? offer,
+    required TResult orElse(),
+  }) {
+    if (offer != null) {
+      return offer();
+    }
+    return orElse();
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult map<TResult extends Object?>({
+    required TResult Function(PaymentMethod_Onchain value) onchain,
+    required TResult Function(PaymentMethod_Invoice value) invoice,
+    required TResult Function(PaymentMethod_Offer value) offer,
+  }) {
+    return offer(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult? mapOrNull<TResult extends Object?>({
+    TResult? Function(PaymentMethod_Onchain value)? onchain,
+    TResult? Function(PaymentMethod_Invoice value)? invoice,
+    TResult? Function(PaymentMethod_Offer value)? offer,
+  }) {
+    return offer?.call(this);
+  }
+
+  @override
+  @optionalTypeArgs
+  TResult maybeMap<TResult extends Object?>({
+    TResult Function(PaymentMethod_Onchain value)? onchain,
+    TResult Function(PaymentMethod_Invoice value)? invoice,
+    TResult Function(PaymentMethod_Offer value)? offer,
+    required TResult orElse(),
+  }) {
+    if (offer != null) {
+      return offer(this);
+    }
+    return orElse();
+  }
+}
+
+abstract class PaymentMethod_Offer implements PaymentMethod {
+  const factory PaymentMethod_Offer() = _$PaymentMethod_OfferImpl;
 }
 
 /// @nodoc

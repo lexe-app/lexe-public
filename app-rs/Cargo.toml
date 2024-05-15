@@ -24,6 +24,7 @@ crate-type = [
 
 common = { path = "../common" }
 lazy-lock = { path = "../lazy-lock" }
+payment-uri = { path = "../payment-uri" }
 
 # --- WORKSPACE --- #
 

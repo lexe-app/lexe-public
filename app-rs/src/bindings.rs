@@ -440,6 +440,45 @@ impl From<&BasicPayment> for Payment {
     }
 }
 
+/// A potential scanned/pasted payment.
+pub enum PaymentMethod {
+    Onchain(Onchain),
+    Invoice(Invoice),
+    Offer, // TODO(phlip9): support BOLT12 offers
+}
+
+impl From<payment_uri::PaymentMethod> for PaymentMethod {
+    fn from(value: payment_uri::PaymentMethod) -> Self {
+        match value {
+            payment_uri::PaymentMethod::Onchain(x) =>
+                Self::Onchain(Onchain::from(x)),
+            payment_uri::PaymentMethod::Invoice(x) =>
+                Self::Invoice(Invoice::from(x)),
+            payment_uri::PaymentMethod::Offer(_) => Self::Offer,
+        }
+    }
+}
+
+/// A potential onchain Bitcoin payment.
+#[frb(dart_metadata=("freezed"))]
+pub struct Onchain {
+    pub address: String,
+    pub amount_sats: Option<u64>,
+    pub label: Option<String>,
+    pub message: Option<String>,
+}
+
+impl From<payment_uri::Onchain> for Onchain {
+    fn from(value: payment_uri::Onchain) -> Self {
+        Self {
+            address: value.address.to_string(),
+            amount_sats: value.amount.map(|amt| amt.sats_u64()),
+            label: value.label,
+            message: value.message,
+        }
+    }
+}
+
 /// A lightning invoice with useful fields parsed out for the flutter frontend.
 /// Mirrors the [`LxInvoice`] type.
 #[frb(dart_metadata=("freezed"))]
@@ -470,6 +509,13 @@ impl From<&LxInvoice> for Invoice {
 
             payee_pubkey: invoice.payee_node_pk().to_string(),
         }
+    }
+}
+
+impl From<LxInvoice> for Invoice {
+    #[inline]
+    fn from(value: LxInvoice) -> Self {
+        Self::from(&value)
     }
 }
 
@@ -682,6 +728,20 @@ impl From<CreateInvoiceResponseRs> for CreateInvoiceResponse {
             invoice: Invoice::from(&value.invoice),
         }
     }
+}
+
+/// Resolve a (possible) [`PaymentUri`] string that we just
+/// scanned/pasted into the best [`PaymentMethod`] for us to pay.
+///
+/// [`PaymentUri`]: payment_uri::PaymentUri
+pub fn payment_uri_resolve_best(
+    network: Network,
+    uri_str: String,
+) -> anyhow::Result<PaymentMethod> {
+    payment_uri::PaymentUri::parse(&uri_str)
+        .context("Unrecognized payment code")?
+        .resolve_best(network.into())
+        .map(PaymentMethod::from)
 }
 
 /// Init the Rust [`tracing`] logger. Also sets the current `RUST_LOG_TX`

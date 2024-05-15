@@ -48,6 +48,15 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kFormValidatePasswordConstMeta;
 
+  /// Resolve a (possible) [`PaymentUri`] string that we just
+  /// scanned/pasted into the best [`PaymentMethod`] for us to pay.
+  ///
+  /// [`PaymentUri`]: payment_uri::PaymentUri
+  Future<PaymentMethod> paymentUriResolveBest(
+      {required Network network, required String uriStr, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kPaymentUriResolveBestConstMeta;
+
   /// Init the Rust [`tracing`] logger. Also sets the current `RUST_LOG_TX`
   /// instance, which ships Rust logs over to the dart side for printing.
   ///
@@ -535,6 +544,17 @@ class NodeInfo with _$NodeInfo {
   }) = _NodeInfo;
 }
 
+/// A potential onchain Bitcoin payment.
+@freezed
+class Onchain with _$Onchain {
+  const factory Onchain({
+    required String address,
+    int? amountSats,
+    String? label,
+    String? message,
+  }) = _Onchain;
+}
+
 /// The complete payment info, used in the payment detail page. Mirrors the
 /// [`BasicPayment`] type.
 @freezed
@@ -564,6 +584,17 @@ enum PaymentKind {
   Onchain,
   Invoice,
   Spontaneous,
+}
+
+@freezed
+class PaymentMethod with _$PaymentMethod {
+  const factory PaymentMethod.onchain(
+    Onchain field0,
+  ) = PaymentMethod_Onchain;
+  const factory PaymentMethod.invoice(
+    Invoice field0,
+  ) = PaymentMethod_Invoice;
+  const factory PaymentMethod.offer() = PaymentMethod_Offer;
 }
 
 enum PaymentStatus {
