@@ -373,7 +373,7 @@ mod test {
     #[test]
     fn test_dev_signer_measurement() {
         let key = KeyPair::dev_signer();
-        assert_eq!(key.signer_measurement(), enclave::DEV_SIGNER);
+        assert_eq!(key.signer_measurement(), enclave::Measurement::DEV_SIGNER);
     }
 
     #[test]
