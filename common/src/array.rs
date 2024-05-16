@@ -33,7 +33,6 @@ pub trait ArrayExt<const N: usize> {
     /// The first will contain all indices from `[0, N - M)` (excluding
     /// the index `N - M` itself) and the second will contain all
     /// indices from `[N - M, N)` (excluding the index `N` itself).
-    #[cfg(target_env = "sgx")]
     fn rsplit_array_ref_stable<const M: usize>(&self) -> (&[u8], &[u8; M]);
 }
 
@@ -43,7 +42,6 @@ impl<const N: usize> ArrayExt<N> for [u8; N] {
         self[..].split_first_chunk::<M>().unwrap()
     }
 
-    #[cfg(target_env = "sgx")]
     #[inline]
     fn rsplit_array_ref_stable<const M: usize>(&self) -> (&[u8], &[u8; M]) {
         self[..].split_last_chunk::<M>().unwrap()
