@@ -3,7 +3,7 @@ use std::{env, str::FromStr};
 use anyhow::{bail, Context};
 use common::{
     cli::node::{ProvisionArgs, RunArgs},
-    enclave,
+    enclave::Measurement,
     rng::SysRng,
 };
 
@@ -26,7 +26,7 @@ impl NodeCommand {
             // If --version or --help was given, just print and exit.
             (Some("version"), _) | (Some("--version"), _) => {
                 let dev_version_str = DEV_VERSION.unwrap_or("None");
-                let measurement = enclave::measurement();
+                let measurement = Measurement::enclave();
                 println!(
                     "node-{SEMVER_VERSION} (Dev version: {dev_version_str})"
                 );

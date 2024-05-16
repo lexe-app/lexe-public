@@ -26,7 +26,7 @@ use x509_parser::certificate::X509Certificate;
 
 use crate::{
     ed25519,
-    enclave::{self, Measurement},
+    enclave::Measurement,
     env::DeployEnv,
     hex, sha256,
     tls::{self, attestation::cert::SgxAttestationExtension},
@@ -569,19 +569,19 @@ impl EnclavePolicy {
         Self {
             allow_debug: deploy_env.is_dev(),
             trusted_mrenclaves: Some(measurements),
-            trusted_mrsigner: Some(enclave::expected_signer(
+            trusted_mrsigner: Some(Measurement::expected_signer(
                 use_sgx, deploy_env,
             )),
         }
     }
 
     /// An [`EnclavePolicy`] which trusts any measurement signed by the
-    /// [`enclave::expected_signer`].
+    /// [`Measurement::expected_signer`].
     pub fn trust_expected_signer(use_sgx: bool, deploy_env: DeployEnv) -> Self {
         Self {
             allow_debug: deploy_env.is_dev(),
             trusted_mrenclaves: None,
-            trusted_mrsigner: Some(enclave::expected_signer(
+            trusted_mrsigner: Some(Measurement::expected_signer(
                 use_sgx, deploy_env,
             )),
         }
@@ -889,9 +889,7 @@ mod test {
     #[test]
     #[ignore] // << uncomment to dump fresh attestation cert
     fn dump_attest_cert() {
-        use crate::{
-            enclave, rng::WeakRng, tls::attestation::cert::AttestationCert,
-        };
+        use crate::{rng::WeakRng, tls::attestation::cert::AttestationCert};
 
         let mut rng = WeakRng::new();
         let dns_name = "localhost".to_owned();
@@ -900,7 +898,7 @@ mod test {
         let attest_cert =
             AttestationCert::generate(&mut rng, dns_name, lifetime).unwrap();
 
-        println!("measurement: '{}'", enclave::measurement());
+        println!("measurement: '{}'", Measurement::enclave());
 
         let cert_der = attest_cert.serialize_der_self_signed().unwrap();
 

@@ -29,42 +29,6 @@ use crate::{
     sha256,
 };
 
-// Old APIs
-// TODO(max): Replace all usages of these with the associated const
-pub const MOCK_MEASUREMENT: Measurement = Measurement::MOCK_ENCLAVE;
-pub const MOCK_SIGNER: Measurement = Measurement::MOCK_SIGNER;
-pub const DEV_SIGNER: Measurement = Measurement::DEV_SIGNER;
-pub const PROD_SIGNER: Measurement = Measurement::PROD_SIGNER;
-pub const MOCK_MACHINE_ID: MachineId = MachineId::MOCK;
-pub const MIN_SGX_CPUSVN: MinCpusvn = MinCpusvn::CURRENT;
-pub fn measurement() -> Measurement {
-    Measurement::enclave()
-}
-pub fn signer() -> Measurement {
-    Measurement::signer()
-}
-pub const fn expected_signer(use_sgx: bool, env: DeployEnv) -> Measurement {
-    Measurement::expected_signer(use_sgx, env)
-}
-pub fn compute_measurement(
-    sgxs_reader: impl io::Read,
-) -> io::Result<Measurement> {
-    Measurement::compute_from_sgxs(sgxs_reader)
-}
-pub fn machine_id() -> MachineId {
-    MachineId::current()
-}
-pub fn seal(
-    rng: &mut dyn Crng,
-    label: &[u8],
-    data: Cow<'_, [u8]>,
-) -> Result<Sealed<'static>, Error> {
-    Sealed::seal(rng, label, data)
-}
-pub fn unseal(label: &[u8], sealed: Sealed<'_>) -> Result<Vec<u8>, Error> {
-    Sealed::unseal(sealed, label)
-}
-
 // --- SGX feature flag consts --- //
 
 // SGX platform feature flags vs masks
@@ -952,7 +916,7 @@ mod test {
     use ring::aead::AES_256_GCM;
 
     use super::*;
-    use crate::{enclave, rng::WeakRng, test_utils::roundtrip};
+    use crate::{rng::WeakRng, test_utils::roundtrip};
 
     // TODO(phlip9): test KeyRequest mutations
     // TODO(phlip9): test truncate/extend mutations
@@ -973,15 +937,15 @@ mod test {
 
     #[test]
     fn test_measurement_consistent() {
-        let m1 = enclave::measurement();
-        let m2 = enclave::measurement();
+        let m1 = Measurement::enclave();
+        let m2 = Measurement::enclave();
         assert_eq!(m1, m2);
     }
 
     #[test]
     fn test_machine_id_consistent() {
-        let m1 = enclave::machine_id();
-        let m2 = enclave::machine_id();
+        let m1 = MachineId::current();
+        let m2 = MachineId::current();
         assert_eq!(m1, m2);
     }
 
@@ -1027,17 +991,17 @@ mod test {
         let mut rng = WeakRng::new();
 
         let sealed =
-            enclave::seal(&mut rng, b"", b"".as_slice().into()).unwrap();
-        let unsealed = enclave::unseal(b"", sealed).unwrap();
+            Sealed::seal(&mut rng, b"", b"".as_slice().into()).unwrap();
+        let unsealed = Sealed::unseal(sealed, b"").unwrap();
         assert_eq!(&unsealed, b"");
 
-        let sealed = enclave::seal(
+        let sealed = Sealed::seal(
             &mut rng,
             b"cool label",
             b"cool data".as_slice().into(),
         )
         .unwrap();
-        let unsealed = enclave::unseal(b"cool label", sealed).unwrap();
+        let unsealed = Sealed::unseal(sealed, b"cool label").unwrap();
         assert_eq!(&unsealed, b"cool data");
     }
 
@@ -1047,8 +1011,8 @@ mod test {
         let arb_data = any::<Vec<u8>>();
 
         proptest!(|(mut rng in any::<WeakRng>(), label in arb_label, data in arb_data)| {
-            let sealed = enclave::seal(&mut rng, &label, data.clone().into()).unwrap();
-            let unsealed = enclave::unseal(&label, sealed).unwrap();
+            let sealed = Sealed::seal(&mut rng, &label, data.clone().into()).unwrap();
+            let unsealed = Sealed::unseal(sealed, &label).unwrap();
             assert_eq!(&data, &unsealed);
         });
     }
@@ -1068,7 +1032,7 @@ mod test {
             data in arb_data,
             mutation in arb_mutation,
         )| {
-            let sealed = enclave::seal(&mut rng, &label, data.into()).unwrap();
+            let sealed = Sealed::seal(&mut rng, &label, data.into()).unwrap();
 
             let keyrequest = sealed.keyrequest;
             let ciphertext_original = sealed.ciphertext.into_owned();
@@ -1086,7 +1050,7 @@ mod test {
             };
 
             // TODO(phlip9): check error
-            enclave::unseal(&label, sealed).unwrap_err();
+            Sealed::unseal(sealed, &label).unwrap_err();
         });
     }
 

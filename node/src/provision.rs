@@ -35,7 +35,7 @@ use common::{
         Empty,
     },
     cli::node::ProvisionArgs,
-    enclave::{self, MachineId, Measurement},
+    enclave::{MachineId, Measurement},
     env::DeployEnv,
     net,
     rng::{Crng, SysRng},
@@ -74,7 +74,7 @@ pub async fn provision_node(
     info!("Initializing provision service");
 
     // Init API clients.
-    let measurement = enclave::measurement();
+    let measurement = Measurement::enclave();
     let mr_short = measurement.short();
     let node_mode = NodeMode::Provision { mr_short };
     let runner_client = RunnerClient::new(
@@ -95,7 +95,7 @@ pub async fn provision_node(
     // Set up the request context and API servers.
     let args = Arc::new(args);
     let client = gdrive::ReqwestClient::new();
-    let machine_id = enclave::machine_id();
+    let machine_id = MachineId::current();
     let ctx = RequestContext {
         args: args.clone(),
         client,
