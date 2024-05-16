@@ -13,7 +13,7 @@ use crate::{
     array,
     cli::Network,
     ed25519,
-    enclave::{MachineId, Measurement, Sealed},
+    enclave::{self, MachineId, Measurement, Sealed},
     env::DeployEnv,
     hexstr_or_bytes, hexstr_or_bytes_opt,
     rng::Crng,
@@ -106,7 +106,7 @@ pub struct SealedSeedId {
 /// - To encrypt an existing [`RootSeed`] (and [`DeployEnv`] and [`Network`])
 ///   into a [`SealedSeed`], use [`seal_from_root_seed`].
 ///
-/// See [`crate::enclave::Sealed::seal`] for more implementation details.
+/// See [`crate::enclave::seal`] for more implementation details.
 ///
 /// [`unseal_and_validate`]: Self::unseal_and_validate
 /// [`seal_from_root_seed`]: Self::seal_from_root_seed
@@ -176,7 +176,7 @@ impl SealedSeed {
         // Sealed::seal will encrypt the (Cow::Owned) json bytes in place,
         // thereby disposing of the sensitive root seed bytes.
         let json_bytes_cow = Cow::Owned(json_bytes);
-        let sealed = Sealed::seal(rng, Self::LABEL, json_bytes_cow)
+        let sealed = enclave::seal(rng, Self::LABEL, json_bytes_cow)
             .context("Failed to seal root seed w network")?;
         let ciphertext = sealed.serialize();
 
@@ -204,7 +204,7 @@ impl SealedSeed {
         // Ciphertext -unseal-> JSON bytes
         let sealed = Sealed::deserialize(&self.ciphertext)
             .context("Failed to deserialize Sealed")?;
-        let unsealed_json_bytes = Sealed::unseal(sealed, Self::LABEL)
+        let unsealed_json_bytes = enclave::unseal(sealed, Self::LABEL)
             .context("Failed to unseal provisioned secrets")?;
 
         // JSON-deserialize -> RootSeedWithMetadata
@@ -295,7 +295,7 @@ mod test {
     use proptest::{arbitrary::any, proptest};
 
     use super::*;
-    use crate::{rng::WeakRng, test_utils::roundtrip};
+    use crate::{enclave, rng::WeakRng, test_utils::roundtrip};
 
     #[test]
     fn test_node_provision_request_sample() {
@@ -327,8 +327,8 @@ mod test {
 
     #[test]
     fn test_seal_unseal_roundtrip() {
-        let measurement = Measurement::enclave();
-        let machine_id = MachineId::current();
+        let measurement = enclave::measurement();
+        let machine_id = enclave::machine_id();
 
         proptest!(|(
             mut rng in any::<WeakRng>(),

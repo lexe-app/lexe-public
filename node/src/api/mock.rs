@@ -28,7 +28,7 @@ use common::{
     cli::Network,
     constants::{self, SINGLETON_DIRECTORY},
     ed25519,
-    enclave::{MachineId, Measurement},
+    enclave::{self, Measurement},
     env::DeployEnv,
     ln::payments::{DbPayment, LxPaymentId, PaymentIndex, PaymentStatus},
     rng::SysRng,
@@ -57,8 +57,8 @@ fn make_sealed_seed(root_seed: &RootSeed) -> SealedSeed {
         root_seed,
         DeployEnv::Dev,
         Network::REGTEST,
-        Measurement::enclave(),
-        MachineId::current(),
+        enclave::measurement(),
+        enclave::machine_id(),
     )
     .expect("Failed to seal test root seed")
 }

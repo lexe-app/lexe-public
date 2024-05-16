@@ -14,7 +14,7 @@ use common::{
     cli::{node::RunArgs, LspInfo, Network},
     constants::{DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
     ed25519,
-    enclave::{MachineId, Measurement, MinCpusvn},
+    enclave::{self, MachineId, Measurement, MinCpusvn},
     env::DeployEnv,
     net, notify,
     rng::{Crng, SysRng},
@@ -140,8 +140,8 @@ impl UserNode {
 
         // Get user_pk, measurement, and HTTP clients used throughout init
         let user_pk = args.user_pk;
-        let measurement = Measurement::enclave();
-        let machine_id = MachineId::current();
+        let measurement = enclave::measurement();
+        let machine_id = enclave::machine_id();
         // TODO(phlip9): Compare this with current cpusvn
         let _min_cpusvn = MinCpusvn::CURRENT;
         let node_mode = NodeMode::Run;

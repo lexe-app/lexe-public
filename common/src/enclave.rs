@@ -1,5 +1,6 @@
-//! Interfaces over in-enclave APIs.
-//! Dummy data is provided outside enclaves for debugging.
+//! SGX provides a number of ISA extensions which can be called in-enclave.
+//! This module provides APIs for these along with related newtypes and consts.
+//! Outside of SGX, dummy data is returned. See [`sgx_isa`] for more info.
 
 use std::{borrow::Cow, fmt, io, mem, str::FromStr};
 
@@ -29,94 +30,197 @@ use crate::{
     sha256,
 };
 
-// --- SGX feature flag consts --- //
+// --- SGX 'Platform APIs' --- //
+// These call ISA extensions provided by SGX, or return dummy data if non-SGX.
 
-// SGX platform feature flags vs masks
-//
-// Each feature set has two components: a MASK, which determines _which_
-// features we want to bind, and then the FLAGS, which determines the _value_
-// (on/off) of each (bound) feature. All bits in FLAGS that aren't also set in
-// MASK are ignored.
-//
-// As a simplified example, let's look at a system with only two features:
-// DEBUG = 0b01 and FAST = 0b10. Suppose DEBUG enables the enclave DEBUG mode,
-// which isn't safe for production, while FAST enables some high-performance CPU
-// hardware feature.
-//
-// If we're building an enclave for production, we care about the values of both
-// features, so we set MASK = 0b11. It would be a problem if our enclave ran
-// with DEBUG enabled and FAST turned off, so we set FLAGS = 0b10.
-//
-// In the event we don't care about the FAST feature (maybe we need to run on
-// both old and new CPUs), we would instead only bind the DEBUG feature, with
-// MASK = 0b01. In this case, only the value of the DEBUG bit matters and the
-// FAST bit is completely ignored, so FLAGS = 0b01 and 0b11 are both equivalent.
-//
-// By not including a feature in our MASK, we are effectively allowing
-// the platform to determine the value at runtime.
-
-/// SGX platform feature flags
+/// Return the current enclave measurement.
 ///
-/// See: [`AttributesFlags`](sgx_isa::AttributesFlags)
-pub mod attributes {
-    use sgx_isa::AttributesFlags;
-
-    /// In production, ensure the SGX debug flag is turned off. We're also not
-    /// currently using any other features, like KSS (Key sharing and
-    /// separation) or AEX Notify (Async Enclave eXit Notify).
-    pub const LEXE_FLAGS_PROD: AttributesFlags = AttributesFlags::MODE64BIT;
-
-    pub const LEXE_FLAGS_DEBUG: AttributesFlags =
-        LEXE_FLAGS_PROD.union(AttributesFlags::DEBUG);
-
-    /// The flags we want to bind (whether on or off).
-    pub const LEXE_MASK: AttributesFlags = AttributesFlags::INIT
-        .union(AttributesFlags::DEBUG)
-        .union(AttributesFlags::MODE64BIT);
+/// + In SGX, this is often called the [`MRENCLAVE`].
+/// + In mock mode, this returns a fixed value.
+/// + The enclave measurement is a SHA-256 hash summary of the enclave code and
+///   initial memory contents.
+/// + This hash uniquely identifies an enclave; any change to the code will also
+///   change the measurement.
+///
+/// [`MRENCLAVE`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#enclave-measurement-mrenclave
+pub fn measurement() -> Measurement {
+    cfg_if! {
+        if #[cfg(target_env = "sgx")] {
+            Measurement::new(sgx_isa::Report::for_self().mrenclave)
+        } else {
+            // Prefers `DEV_ENCLAVE`, otherwise defaults to `MOCK_ENCLAVE`.
+            Measurement::DEV_ENCLAVE.unwrap_or(Measurement::MOCK_ENCLAVE)
+        }
+    }
 }
 
-/// XFRM: CPU feature flags
+/// Retrieve the enclave signer measurement of the current running enclave.
+/// Every enclave is signed with an RSA keypair, plus some extra metadata.
 ///
-/// See: <https://github.com/intel/linux-sgx> `common/inc/sgx_attributes.h`
-pub mod xfrm {
-    /// Legacy XFRM which includes the basic feature bits required by SGX
-    /// x87 state(0x01) and SSE state(0x02).
-    pub const LEGACY: u64 = 0x0000000000000003;
-    /// AVX XFRM which includes AVX state(0x04) and SSE state(0x02) required by
-    /// AVX.
-    pub const AVX: u64 = 0x0000000000000006;
-    /// AVX-512 XFRM.
-    pub const AVX512: u64 = 0x00000000000000e6;
-    /// MPX XFRM - not supported.
-    pub const MPX: u64 = 0x0000000000000018;
-    /// PKRU state.
-    pub const PKRU: u64 = 0x0000000000000200;
-    /// AMX XFRM, including XTILEDATA(0x40000) and XTILECFG(0x20000).
-    pub const AMX: u64 = 0x0000000000060000;
-
-    /// Features required by LEXE enclaves.
-    ///
-    /// Absolutely mandatory requirements:
-    ///   + SSE3+ (basic vectorization)
-    ///   + AESNI (AES crypto accelerators).
-    ///
-    /// Full AVX512 is not required but at least ensures we're running on more
-    /// recent hardware.
-    pub const LEXE_FLAGS: u64 = AVX512 | LEGACY;
-
-    /// Require LEXE features but allow new ones, determined at runtime.
-    pub const LEXE_MASK: u64 = LEXE_FLAGS;
+/// + In SGX, this value is called the [`MRSIGNER`].
+/// + In mock mode, this returns a fixed value.
+/// + The signer is a 3072-bit RSA keypair with exponent=3. The signer
+///   measurement is the SHA-256 hash of the (little-endian) public key modulus.
+///
+/// [`MRSIGNER`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#signer-measurement-mrsigner
+pub fn signer() -> Measurement {
+    cfg_if! {
+        if #[cfg(target_env = "sgx")] {
+            Measurement::new(sgx_isa::Report::for_self().mrsigner)
+        } else {
+            Measurement::MOCK_SIGNER
+        }
+    }
 }
 
-/// SGX platform MISCSELECT feature flags
-pub mod miscselect {
-    use sgx_isa::Miscselect;
+/// Get the current machine id from inside an enclave.
+pub fn machine_id() -> MachineId {
+    cfg_if! {
+        if #[cfg(target_env = "sgx")] {
+            use sgx_isa::{Keyname, Keypolicy};
 
-    /// Don't need any features.
-    pub const LEXE_FLAGS: Miscselect = Miscselect::empty();
+            // use a fixed keyid
+            let keyid = *b"~~~~ LEXE MACHINE ID KEY ID ~~~~";
 
-    /// Bind nothing.
-    pub const LEXE_MASK: Miscselect = Miscselect::empty();
+            // bind the signer (lexe) not the enclave. this way all our
+            // enclaves can get the same machine id
+            let keypolicy = Keypolicy::MRSIGNER;
+
+            // bind none, not even DEBUG
+            let attribute_mask: u64 = 0;
+            // bind none
+            let xfrm_mask: u64 = 0;
+            // bind none
+            let misc_mask: u32 = 0;
+
+            // Not a secret value. No reason to ever bump this.
+            let isvsvn = 0;
+
+            // Prevent very old platforms from getting the identifier. This
+            // is not a security mitigation, just an early signal that a
+            // platform wasn't brought up correctly.
+            let cpusvn = MinCpusvn::CURRENT;
+
+            let keyrequest = sgx_isa::Keyrequest {
+                keyname: Keyname::Seal as _,
+                keypolicy,
+                isvsvn,
+                cpusvn: cpusvn.inner(),
+                attributemask: [attribute_mask, xfrm_mask],
+                miscmask: misc_mask,
+                keyid,
+                ..Default::default()
+            };
+
+            // This should never panic unless we run on very old SGX hardware.
+            let bytes =
+                keyrequest.egetkey().expect("Failed to get machine id");
+
+            MachineId::new(bytes)
+        } else {
+            MachineId::MOCK
+        }
+    }
+}
+
+/// Seal and encrypt data in an enclave so that it's only readable inside
+/// another enclave running the same software.
+///
+/// Users should also provide a unique domain-separation `label` for each
+/// unique sealing type or location.
+///
+/// Data is currently encrypted with AES-256-GCM using the [`ring`] backend.
+///
+/// In SGX, this sealed data is only readable by other enclave instances
+/// with the exact same [`MRENCLAVE`] measurement. The sealing key also
+/// commits to the platform [CPUSVN], meaning enclaves running on platforms
+/// with out-of-date SGX TCB will be unable to unseal data sealed on updated
+/// SGX platforms.
+///
+/// SGX sealing keys are sampled uniquely and only used to encrypt data
+/// once. In effect, the `keyid` is a nonce but the key itself is only
+/// deriveable inside an enclave with an exactly matching [`MRENCLAVE`]
+/// (among other things).
+///
+/// [`MRENCLAVE`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#enclave-measurement-mrenclave
+/// [CPUSVN]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#security-version-number-svn
+pub fn seal(
+    rng: &mut dyn Crng,
+    label: &[u8],
+    data: Cow<'_, [u8]>,
+) -> Result<Sealed<'static>, Error> {
+    cfg_if! {
+        if #[cfg(target_env = "sgx")] {
+            let keyrequest = LxKeyRequest::gen_sealing_request(rng);
+            let mut sealing_key = keyrequest.derive_sealing_key(label)?;
+
+            let mut ciphertext = data.into_owned();
+            let tag = sealing_key
+                .seal_in_place_separate_tag(Aad::empty(), &mut ciphertext)
+                .map_err(|_| Error::SealInputTooLarge)?;
+            ciphertext.extend_from_slice(tag.as_ref());
+
+            Ok(Sealed {
+                keyrequest: keyrequest.as_bytes().to_vec().into(),
+                ciphertext: Cow::Owned(ciphertext),
+            })
+        } else {
+            let keyrequest = MockKeyRequest::gen_sealing_request(rng);
+            let key = keyrequest.derive_key(label);
+            let mut ciphertext = data.into_owned();
+            let nonce = Nonce::assume_unique_for_key([0u8; 12]);
+            key
+                .seal_in_place_append_tag(nonce, Aad::empty(), &mut ciphertext)
+                .map_err(|_| Error::SealInputTooLarge)?;
+            Ok(Sealed {
+                keyrequest: keyrequest.as_bytes().to_vec().into(),
+                ciphertext: Cow::Owned(ciphertext),
+            })
+        }
+    }
+}
+
+/// Unseal and decrypt data previously sealed with [`seal`].
+pub fn unseal(sealed: Sealed<'_>, label: &[u8]) -> Result<Vec<u8>, Error> {
+    cfg_if! {
+        if #[cfg(target_env = "sgx")] {
+            // the ciphertext is too small
+            if sealed.ciphertext.len() < Sealed::TAG_LEN {
+                return Err(Error::UnsealInputTooSmall);
+            }
+
+            let keyrequest =
+                LxKeyRequest::try_from_bytes(&sealed.keyrequest)?;
+            let mut unsealing_key = keyrequest.derive_unsealing_key(label)?;
+
+            let mut ciphertext = sealed.ciphertext.into_owned();
+            let plaintext_ref = unsealing_key
+                .open_in_place(Aad::empty(), &mut ciphertext)
+                .map_err(|_| Error::UnsealDecryptionError)?;
+            let plaintext_len = plaintext_ref.len();
+
+            // unsealing happens in-place. set the length of the now
+            // decrypted ciphertext blob and return that.
+            ciphertext.truncate(plaintext_len);
+            Ok(ciphertext)
+        } else {
+            let keyrequest =
+                MockKeyRequest::try_from_bytes(&sealed.keyrequest)?;
+            let key = keyrequest.derive_key(label);
+            let nonce = Nonce::assume_unique_for_key([0u8; 12]);
+
+            let mut ciphertext = sealed.ciphertext.into_owned();
+            let plaintext_ref = key
+                .open_in_place(nonce, Aad::empty(), &mut ciphertext)
+                .map_err(|_| Error::UnsealDecryptionError)?;
+            let plaintext_len = plaintext_ref.len();
+
+            // unsealing happens in-place. set the length of the now
+            // decrypted ciphertext blob and return that.
+            ciphertext.truncate(plaintext_len);
+            Ok(ciphertext)
+        }
+    }
 }
 
 // --- Types --- //
@@ -144,8 +248,8 @@ pub enum Error {
 
 /// An enclave measurement.
 ///
-/// Get the current enclave measurement with [`Measurement::enclave`].
-/// Get the current signer measurement with [`Measurement::signer`].
+/// Get the current enclave measurement with [`measurement`].
+/// Get the current signer measurement with [`signer`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[derive(Copy, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Measurement(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
@@ -159,7 +263,7 @@ pub struct MrShort(#[serde(with = "hexstr_or_bytes")] [u8; 4]);
 ///
 /// The intention with this identifier is to compactly communicate whether a
 /// piece of hardware with this id (in its current state) has the _capability_
-/// to [`unseal`] some [`Sealed`] data that was [`sealed`] on hardware
+/// to [`unseal`] some [`Sealed`] data that was [`seal`]ed on hardware
 /// possessing the same id.
 ///
 /// An easy way to show unsealing capability is to actually derive a key from
@@ -176,8 +280,6 @@ pub struct MrShort(#[serde(with = "hexstr_or_bytes")] [u8; 4]);
 ///       the CPUSVN) since it allows us to easily upgrade the SGX TCB platform
 ///       without needing to also online-migrate sealed enclave state.
 ///
-/// [`sealed`]: Sealed::seal
-/// [`unseal`]: Sealed::unseal
 /// [CPUSVN]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#security-version-number-svn
 /// [`OWNER_EPOCH`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#owner-epoch
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
@@ -258,51 +360,10 @@ impl Measurement {
     ));
 
     /// The enclave signer measurement our production enclaves should be signed
-    /// with. Inside an enclave, get the signer with [`Measurement::signer`].
+    /// with. Inside an enclave, get the signer with [`signer`].
     pub const PROD_SIGNER: Self = Self::new(hex::decode_const(
         b"02d07f56b7f4a71d32211d6821beaeb316fbf577d02bab0dfe1f18a73de08a8e",
     ));
-
-    /// Return the current enclave measurement.
-    ///
-    /// + In SGX, this is often called the [`MRENCLAVE`].
-    /// + In mock mode, this returns a fixed value.
-    /// + The enclave measurement is a SHA-256 hash summary of the enclave code
-    ///   and initial memory contents.
-    /// + This hash uniquely identifies an enclave; any change to the code will
-    ///   also change the measurement.
-    ///
-    /// [`MRENCLAVE`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#enclave-measurement-mrenclave
-    pub fn enclave() -> Self {
-        cfg_if! {
-            if #[cfg(target_env = "sgx")] {
-                Self::new(sgx_isa::Report::for_self().mrenclave)
-            } else {
-                // Prefers `DEV_ENCLAVE`, otherwise defaults to `MOCK_ENCLAVE`.
-                Self::DEV_ENCLAVE.unwrap_or(Self::MOCK_ENCLAVE)
-            }
-        }
-    }
-
-    /// Retrieve the enclave signer measurement of the current running enclave.
-    /// Every enclave is signed with an RSA keypair, plus some extra metadata.
-    ///
-    /// + In SGX, this value is called the [`MRSIGNER`].
-    /// + In mock mode, this returns a fixed value.
-    /// + The signer is a 3072-bit RSA keypair with exponent=3. The signer
-    ///   measurement is the SHA-256 hash of the (little-endian) public key
-    ///   modulus.
-    ///
-    /// [`MRSIGNER`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#signer-measurement-mrsigner
-    pub fn signer() -> Self {
-        cfg_if! {
-            if #[cfg(target_env = "sgx")] {
-                Measurement::new(sgx_isa::Report::for_self().mrsigner)
-            } else {
-                Self::MOCK_SIGNER
-            }
-        }
-    }
 
     /// Return the expected signer measurement by [`DeployEnv`] and whether
     /// we're in mock or sgx mode.
@@ -426,59 +487,9 @@ impl fmt::Debug for MrShort {
 
 impl MachineId {
     // TODO(phlip9): use the machine id of my dev machine until we build a
-    // proper               get-machine-id bin util.
+    // proper get-machine-id bin util.
     pub const MOCK: Self =
         MachineId::new(hex::decode_const(b"52bc575eb9618084083ca7b3a45a2a76"));
-
-    /// Get the current machine id from inside an enclave.
-    pub fn current() -> Self {
-        cfg_if! {
-            if #[cfg(target_env = "sgx")] {
-                use sgx_isa::{Keyname, Keypolicy};
-
-                // use a fixed keyid
-                let keyid = *b"~~~~ LEXE MACHINE ID KEY ID ~~~~";
-
-                // bind the signer (lexe) not the enclave. this way all our
-                // enclaves can get the same machine id
-                let keypolicy = Keypolicy::MRSIGNER;
-
-                // bind none, not even DEBUG
-                let attribute_mask: u64 = 0;
-                // bind none
-                let xfrm_mask: u64 = 0;
-                // bind none
-                let misc_mask: u32 = 0;
-
-                // Not a secret value. No reason to ever bump this.
-                let isvsvn = 0;
-
-                // Prevent very old platforms from getting the identifier. This
-                // is not a security mitigation, just an early signal that a
-                // platform wasn't brought up correctly.
-                let cpusvn = MinCpusvn::CURRENT;
-
-                let keyrequest = sgx_isa::Keyrequest {
-                    keyname: Keyname::Seal as _,
-                    keypolicy,
-                    isvsvn,
-                    cpusvn: cpusvn.inner(),
-                    attributemask: [attribute_mask, xfrm_mask],
-                    miscmask: misc_mask,
-                    keyid,
-                    ..Default::default()
-                };
-
-                // This should never panic unless we run on very old SGX hardware.
-                let bytes =
-                    keyrequest.egetkey().expect("Failed to get machine id");
-
-                MachineId::new(bytes)
-            } else {
-                Self::MOCK
-            }
-        }
-    }
 
     pub const fn new(bytes: [u8; 16]) -> Self {
         Self(bytes)
@@ -547,114 +558,12 @@ impl fmt::Debug for MinCpusvn {
 
 // --- impl Sealed --- //
 
-impl Sealed<'static> {
-    /// Seal and encrypt data in an enclave so that it's only readable inside
-    /// another enclave running the same software.
-    ///
-    /// Users should also provide a unique domain-separation `label` for each
-    /// unique sealing type or location.
-    ///
-    /// Data is currently encrypted with AES-256-GCM using the [`ring`] backend.
-    ///
-    /// In SGX, this sealed data is only readable by other enclave instances
-    /// with the exact same [`MRENCLAVE`] measurement. The sealing key also
-    /// commits to the platform [CPUSVN], meaning enclaves running on platforms
-    /// with out-of-date SGX TCB will be unable to unseal data sealed on updated
-    /// SGX platforms.
-    ///
-    /// SGX sealing keys are sampled uniquely and only used to encrypt data
-    /// once. In effect, the `keyid` is a nonce but the key itself is only
-    /// deriveable inside an enclave with an exactly matching [`MRENCLAVE`]
-    /// (among other things).
-    ///
-    /// [`MRENCLAVE`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#enclave-measurement-mrenclave
-    /// [CPUSVN]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#security-version-number-svn
-    pub fn seal(
-        rng: &mut dyn Crng,
-        label: &[u8],
-        data: Cow<'_, [u8]>,
-    ) -> Result<Self, Error> {
-        cfg_if! {
-            if #[cfg(target_env = "sgx")] {
-                let keyrequest = LxKeyRequest::gen_sealing_request(rng);
-                let mut sealing_key = keyrequest.derive_sealing_key(label)?;
-
-                let mut ciphertext = data.into_owned();
-                let tag = sealing_key
-                    .seal_in_place_separate_tag(Aad::empty(), &mut ciphertext)
-                    .map_err(|_| Error::SealInputTooLarge)?;
-                ciphertext.extend_from_slice(tag.as_ref());
-
-                Ok(Self {
-                    keyrequest: keyrequest.as_bytes().to_vec().into(),
-                    ciphertext: Cow::Owned(ciphertext),
-                })
-            } else {
-                let keyrequest = MockKeyRequest::gen_sealing_request(rng);
-                let key = keyrequest.derive_key(label);
-                let mut ciphertext = data.into_owned();
-                let nonce = Nonce::assume_unique_for_key([0u8; 12]);
-                key
-                    .seal_in_place_append_tag(nonce, Aad::empty(), &mut ciphertext)
-                    .map_err(|_| Error::SealInputTooLarge)?;
-                Ok(Sealed {
-                    keyrequest: keyrequest.as_bytes().to_vec().into(),
-                    ciphertext: Cow::Owned(ciphertext),
-                })
-            }
-        }
-    }
-}
-
 impl<'a> Sealed<'a> {
     /// AES-256-GCM tag length
     pub const TAG_LEN: usize = 16;
 
     /// We salt the HKDF for domain separation purposes.
     const HKDF_SALT: [u8; 32] = array::pad(*b"LEXE-REALM::SgxSealing");
-
-    /// Unseal and decrypt data previously sealed with [`seal`](Sealed::seal)
-    pub fn unseal(self, label: &[u8]) -> Result<Vec<u8>, Error> {
-        cfg_if! {
-            if #[cfg(target_env = "sgx")] {
-                // the ciphertext is too small
-                if self.ciphertext.len() < Self::TAG_LEN {
-                    return Err(Error::UnsealInputTooSmall);
-                }
-
-                let keyrequest =
-                    LxKeyRequest::try_from_bytes(&self.keyrequest)?;
-                let mut unsealing_key = keyrequest.derive_unsealing_key(label)?;
-
-                let mut ciphertext = self.ciphertext.into_owned();
-                let plaintext_ref = unsealing_key
-                    .open_in_place(Aad::empty(), &mut ciphertext)
-                    .map_err(|_| Error::UnsealDecryptionError)?;
-                let plaintext_len = plaintext_ref.len();
-
-                // unsealing happens in-place. set the length of the now
-                // decrypted ciphertext blob and return that.
-                ciphertext.truncate(plaintext_len);
-                Ok(ciphertext)
-            } else {
-                let keyrequest =
-                    MockKeyRequest::try_from_bytes(&self.keyrequest)?;
-                let key = keyrequest.derive_key(label);
-                let nonce = Nonce::assume_unique_for_key([0u8; 12]);
-
-                let mut ciphertext = self.ciphertext.into_owned();
-                let plaintext_ref = key
-                    .open_in_place(nonce, Aad::empty(), &mut ciphertext)
-                    .map_err(|_| Error::UnsealDecryptionError)?;
-                let plaintext_len = plaintext_ref.len();
-
-                // unsealing happens in-place. set the length of the now
-                // decrypted ciphertext blob and return that.
-                ciphertext.truncate(plaintext_len);
-                Ok(ciphertext)
-            }
-        }
-    }
 
     pub fn serialize(&self) -> Vec<u8> {
         let out_len = mem::size_of::<u32>()
@@ -684,8 +593,8 @@ impl<'a> Sealed<'a> {
         }
     }
 
-    /// Helper to split a byte slice into a 4 byte little-endian slice and the
-    /// remainder. Errors if the input slice is smaller than 4 bytes.
+    // Helper to split a byte slice into a 4 byte little-endian slice and the
+    // remainder. Errors if the input slice is smaller than 4 bytes.
     fn read_bytes(bytes: &[u8]) -> Result<(&[u8], &[u8]), Error> {
         let (len, bytes) = Self::read_u32_le(bytes)?;
         let len = len as usize;
@@ -696,8 +605,8 @@ impl<'a> Sealed<'a> {
         }
     }
 
-    /// Reads a little-endian [`u32`] from the start of a slice. Returns the
-    /// [`u32`] and the remainder, or errors if there aren't enough bytes.
+    // Reads a little-endian u32 from the start of a slice. Returns the u32 and
+    // the remainder, or errors if there aren't enough bytes.
     fn read_u32_le(mut bytes: &[u8]) -> Result<(u32, &[u8]), Error> {
         if bytes.len() >= mem::size_of::<u32>() {
             Ok((bytes.get_u32_le(), bytes))
@@ -910,6 +819,96 @@ impl NonceSequence for OnlyOnce {
     }
 }
 
+// --- SGX feature flag consts --- //
+
+// SGX platform feature flags vs masks
+//
+// Each feature set has two components: a MASK, which determines _which_
+// features we want to bind, and then the FLAGS, which determines the _value_
+// (on/off) of each (bound) feature. All bits in FLAGS that aren't also set in
+// MASK are ignored.
+//
+// As a simplified example, let's look at a system with only two features:
+// DEBUG = 0b01 and FAST = 0b10. Suppose DEBUG enables the enclave DEBUG mode,
+// which isn't safe for production, while FAST enables some high-performance CPU
+// hardware feature.
+//
+// If we're building an enclave for production, we care about the values of both
+// features, so we set MASK = 0b11. It would be a problem if our enclave ran
+// with DEBUG enabled and FAST turned off, so we set FLAGS = 0b10.
+//
+// In the event we don't care about the FAST feature (maybe we need to run on
+// both old and new CPUs), we would instead only bind the DEBUG feature, with
+// MASK = 0b01. In this case, only the value of the DEBUG bit matters and the
+// FAST bit is completely ignored, so FLAGS = 0b01 and 0b11 are both equivalent.
+//
+// By not including a feature in our MASK, we are effectively allowing
+// the platform to determine the value at runtime.
+
+/// SGX platform feature flags
+///
+/// See: [`AttributesFlags`](sgx_isa::AttributesFlags)
+pub mod attributes {
+    use sgx_isa::AttributesFlags;
+
+    /// In production, ensure the SGX debug flag is turned off. We're also not
+    /// currently using any other features, like KSS (Key sharing and
+    /// separation) or AEX Notify (Async Enclave eXit Notify).
+    pub const LEXE_FLAGS_PROD: AttributesFlags = AttributesFlags::MODE64BIT;
+
+    pub const LEXE_FLAGS_DEBUG: AttributesFlags =
+        LEXE_FLAGS_PROD.union(AttributesFlags::DEBUG);
+
+    /// The flags we want to bind (whether on or off).
+    pub const LEXE_MASK: AttributesFlags = AttributesFlags::INIT
+        .union(AttributesFlags::DEBUG)
+        .union(AttributesFlags::MODE64BIT);
+}
+
+/// XFRM: CPU feature flags
+///
+/// See: <https://github.com/intel/linux-sgx> `common/inc/sgx_attributes.h`
+pub mod xfrm {
+    /// Legacy XFRM which includes the basic feature bits required by SGX
+    /// x87 state(0x01) and SSE state(0x02).
+    pub const LEGACY: u64 = 0x0000000000000003;
+    /// AVX XFRM which includes AVX state(0x04) and SSE state(0x02) required by
+    /// AVX.
+    pub const AVX: u64 = 0x0000000000000006;
+    /// AVX-512 XFRM.
+    pub const AVX512: u64 = 0x00000000000000e6;
+    /// MPX XFRM - not supported.
+    pub const MPX: u64 = 0x0000000000000018;
+    /// PKRU state.
+    pub const PKRU: u64 = 0x0000000000000200;
+    /// AMX XFRM, including XTILEDATA(0x40000) and XTILECFG(0x20000).
+    pub const AMX: u64 = 0x0000000000060000;
+
+    /// Features required by LEXE enclaves.
+    ///
+    /// Absolutely mandatory requirements:
+    ///   + SSE3+ (basic vectorization)
+    ///   + AESNI (AES crypto accelerators).
+    ///
+    /// Full AVX512 is not required but at least ensures we're running on more
+    /// recent hardware.
+    pub const LEXE_FLAGS: u64 = AVX512 | LEGACY;
+
+    /// Require LEXE features but allow new ones, determined at runtime.
+    pub const LEXE_MASK: u64 = LEXE_FLAGS;
+}
+
+/// SGX platform MISCSELECT feature flags
+pub mod miscselect {
+    use sgx_isa::Miscselect;
+
+    /// Don't need any features.
+    pub const LEXE_FLAGS: Miscselect = Miscselect::empty();
+
+    /// Bind nothing.
+    pub const LEXE_MASK: Miscselect = Miscselect::empty();
+}
+
 #[cfg(test)]
 mod test {
     use proptest::{arbitrary::any, prop_assume, proptest, strategy::Strategy};
@@ -937,15 +936,15 @@ mod test {
 
     #[test]
     fn test_measurement_consistent() {
-        let m1 = Measurement::enclave();
-        let m2 = Measurement::enclave();
+        let m1 = super::measurement();
+        let m2 = super::measurement();
         assert_eq!(m1, m2);
     }
 
     #[test]
     fn test_machine_id_consistent() {
-        let m1 = MachineId::current();
-        let m2 = MachineId::current();
+        let m1 = super::machine_id();
+        let m2 = super::machine_id();
         assert_eq!(m1, m2);
     }
 
@@ -990,18 +989,17 @@ mod test {
     fn test_sealing_roundtrip_basic() {
         let mut rng = WeakRng::new();
 
-        let sealed =
-            Sealed::seal(&mut rng, b"", b"".as_slice().into()).unwrap();
-        let unsealed = Sealed::unseal(sealed, b"").unwrap();
+        let sealed = super::seal(&mut rng, b"", b"".as_slice().into()).unwrap();
+        let unsealed = super::unseal(sealed, b"").unwrap();
         assert_eq!(&unsealed, b"");
 
-        let sealed = Sealed::seal(
+        let sealed = super::seal(
             &mut rng,
             b"cool label",
             b"cool data".as_slice().into(),
         )
         .unwrap();
-        let unsealed = Sealed::unseal(sealed, b"cool label").unwrap();
+        let unsealed = super::unseal(sealed, b"cool label").unwrap();
         assert_eq!(&unsealed, b"cool data");
     }
 
@@ -1011,8 +1009,8 @@ mod test {
         let arb_data = any::<Vec<u8>>();
 
         proptest!(|(mut rng in any::<WeakRng>(), label in arb_label, data in arb_data)| {
-            let sealed = Sealed::seal(&mut rng, &label, data.clone().into()).unwrap();
-            let unsealed = Sealed::unseal(sealed, &label).unwrap();
+            let sealed = super::seal(&mut rng, &label, data.clone().into()).unwrap();
+            let unsealed = super::unseal(sealed, &label).unwrap();
             assert_eq!(&data, &unsealed);
         });
     }
@@ -1032,7 +1030,7 @@ mod test {
             data in arb_data,
             mutation in arb_mutation,
         )| {
-            let sealed = Sealed::seal(&mut rng, &label, data.into()).unwrap();
+            let sealed = super::seal(&mut rng, &label, data.into()).unwrap();
 
             let keyrequest = sealed.keyrequest;
             let ciphertext_original = sealed.ciphertext.into_owned();
@@ -1050,7 +1048,7 @@ mod test {
             };
 
             // TODO(phlip9): check error
-            Sealed::unseal(sealed, &label).unwrap_err();
+            super::unseal(sealed, &label).unwrap_err();
         });
     }
 
