@@ -12,3 +12,7 @@ targets:
         options:
           # Disable generation of `copyWith` methods
           copy_with: false
+          # Since we use dart3, with full pattern matching support, we don't
+          # need these legacy pattern matching helpers.
+          map: false
+          when: false
