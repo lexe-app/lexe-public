@@ -776,6 +776,7 @@ mod test {
     use std::{include_str, time::Duration};
 
     use super::*;
+    use crate::enclave;
 
     const MRENCLAVE_HEX: &str =
         include_str!("../../../test_data/mrenclave.hex");
@@ -898,7 +899,7 @@ mod test {
         let attest_cert =
             AttestationCert::generate(&mut rng, dns_name, lifetime).unwrap();
 
-        println!("measurement: '{}'", Measurement::enclave());
+        println!("measurement: '{}'", enclave::measurement());
 
         let cert_der = attest_cert.serialize_der_self_signed().unwrap();
 

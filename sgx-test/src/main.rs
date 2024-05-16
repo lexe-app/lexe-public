@@ -1,7 +1,5 @@
 use common::{
-    ed25519,
-    enclave::{MachineId, Measurement, Sealed},
-    hex,
+    ed25519, enclave, hex,
     rng::SysRng,
     tls::attestation::{
         self,
@@ -12,21 +10,21 @@ use common::{
 fn main() {
     println!("SGX test");
 
-    println!("machine_id: {}", MachineId::current());
-    println!("measurement: {}", Measurement::enclave());
+    println!("machine_id: {}", enclave::machine_id());
+    println!("measurement: {}", enclave::measurement());
 
     println!("\nSEALING");
 
     let mut rng = SysRng::new();
     let label = b"label".as_slice();
     let data = b"my data".as_slice();
-    let sealed = Sealed::seal(&mut rng, label, data.into())
+    let sealed = enclave::seal(&mut rng, label, data.into())
         .expect("Failed to seal some data");
     println!(
         "seal('label', 'my data') := {}",
         hex::display(&sealed.serialize())
     );
-    let unsealed = Sealed::unseal(sealed, label)
+    let unsealed = enclave::unseal(sealed, label)
         .expect("Failed to unseal some sealed data");
     assert_eq!(&unsealed, data);
 
