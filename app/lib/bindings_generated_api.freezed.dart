@@ -596,52 +596,7 @@ abstract class _Payment implements Payment {
 }
 
 /// @nodoc
-mixin _$PaymentMethod {
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function(Onchain field0) onchain,
-    required TResult Function(Invoice field0) invoice,
-    required TResult Function() offer,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(Onchain field0)? onchain,
-    TResult? Function(Invoice field0)? invoice,
-    TResult? Function()? offer,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function(Onchain field0)? onchain,
-    TResult Function(Invoice field0)? invoice,
-    TResult Function()? offer,
-    required TResult orElse(),
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(PaymentMethod_Onchain value) onchain,
-    required TResult Function(PaymentMethod_Invoice value) invoice,
-    required TResult Function(PaymentMethod_Offer value) offer,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(PaymentMethod_Onchain value)? onchain,
-    TResult? Function(PaymentMethod_Invoice value)? invoice,
-    TResult? Function(PaymentMethod_Offer value)? offer,
-  }) =>
-      throw _privateConstructorUsedError;
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(PaymentMethod_Onchain value)? onchain,
-    TResult Function(PaymentMethod_Invoice value)? invoice,
-    TResult Function(PaymentMethod_Offer value)? offer,
-    required TResult orElse(),
-  }) =>
-      throw _privateConstructorUsedError;
-}
+mixin _$PaymentMethod {}
 
 /// @nodoc
 
@@ -666,74 +621,6 @@ class _$PaymentMethod_OnchainImpl implements PaymentMethod_Onchain {
 
   @override
   int get hashCode => Object.hash(runtimeType, field0);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function(Onchain field0) onchain,
-    required TResult Function(Invoice field0) invoice,
-    required TResult Function() offer,
-  }) {
-    return onchain(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(Onchain field0)? onchain,
-    TResult? Function(Invoice field0)? invoice,
-    TResult? Function()? offer,
-  }) {
-    return onchain?.call(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function(Onchain field0)? onchain,
-    TResult Function(Invoice field0)? invoice,
-    TResult Function()? offer,
-    required TResult orElse(),
-  }) {
-    if (onchain != null) {
-      return onchain(field0);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(PaymentMethod_Onchain value) onchain,
-    required TResult Function(PaymentMethod_Invoice value) invoice,
-    required TResult Function(PaymentMethod_Offer value) offer,
-  }) {
-    return onchain(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(PaymentMethod_Onchain value)? onchain,
-    TResult? Function(PaymentMethod_Invoice value)? invoice,
-    TResult? Function(PaymentMethod_Offer value)? offer,
-  }) {
-    return onchain?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(PaymentMethod_Onchain value)? onchain,
-    TResult Function(PaymentMethod_Invoice value)? invoice,
-    TResult Function(PaymentMethod_Offer value)? offer,
-    required TResult orElse(),
-  }) {
-    if (onchain != null) {
-      return onchain(this);
-    }
-    return orElse();
-  }
 }
 
 abstract class PaymentMethod_Onchain implements PaymentMethod {
@@ -766,74 +653,6 @@ class _$PaymentMethod_InvoiceImpl implements PaymentMethod_Invoice {
 
   @override
   int get hashCode => Object.hash(runtimeType, field0);
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function(Onchain field0) onchain,
-    required TResult Function(Invoice field0) invoice,
-    required TResult Function() offer,
-  }) {
-    return invoice(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(Onchain field0)? onchain,
-    TResult? Function(Invoice field0)? invoice,
-    TResult? Function()? offer,
-  }) {
-    return invoice?.call(field0);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function(Onchain field0)? onchain,
-    TResult Function(Invoice field0)? invoice,
-    TResult Function()? offer,
-    required TResult orElse(),
-  }) {
-    if (invoice != null) {
-      return invoice(field0);
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(PaymentMethod_Onchain value) onchain,
-    required TResult Function(PaymentMethod_Invoice value) invoice,
-    required TResult Function(PaymentMethod_Offer value) offer,
-  }) {
-    return invoice(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(PaymentMethod_Onchain value)? onchain,
-    TResult? Function(PaymentMethod_Invoice value)? invoice,
-    TResult? Function(PaymentMethod_Offer value)? offer,
-  }) {
-    return invoice?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(PaymentMethod_Onchain value)? onchain,
-    TResult Function(PaymentMethod_Invoice value)? invoice,
-    TResult Function(PaymentMethod_Offer value)? offer,
-    required TResult orElse(),
-  }) {
-    if (invoice != null) {
-      return invoice(this);
-    }
-    return orElse();
-  }
 }
 
 abstract class PaymentMethod_Invoice implements PaymentMethod {
@@ -862,74 +681,6 @@ class _$PaymentMethod_OfferImpl implements PaymentMethod_Offer {
 
   @override
   int get hashCode => runtimeType.hashCode;
-
-  @override
-  @optionalTypeArgs
-  TResult when<TResult extends Object?>({
-    required TResult Function(Onchain field0) onchain,
-    required TResult Function(Invoice field0) invoice,
-    required TResult Function() offer,
-  }) {
-    return offer();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? whenOrNull<TResult extends Object?>({
-    TResult? Function(Onchain field0)? onchain,
-    TResult? Function(Invoice field0)? invoice,
-    TResult? Function()? offer,
-  }) {
-    return offer?.call();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeWhen<TResult extends Object?>({
-    TResult Function(Onchain field0)? onchain,
-    TResult Function(Invoice field0)? invoice,
-    TResult Function()? offer,
-    required TResult orElse(),
-  }) {
-    if (offer != null) {
-      return offer();
-    }
-    return orElse();
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult map<TResult extends Object?>({
-    required TResult Function(PaymentMethod_Onchain value) onchain,
-    required TResult Function(PaymentMethod_Invoice value) invoice,
-    required TResult Function(PaymentMethod_Offer value) offer,
-  }) {
-    return offer(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult? mapOrNull<TResult extends Object?>({
-    TResult? Function(PaymentMethod_Onchain value)? onchain,
-    TResult? Function(PaymentMethod_Invoice value)? invoice,
-    TResult? Function(PaymentMethod_Offer value)? offer,
-  }) {
-    return offer?.call(this);
-  }
-
-  @override
-  @optionalTypeArgs
-  TResult maybeMap<TResult extends Object?>({
-    TResult Function(PaymentMethod_Onchain value)? onchain,
-    TResult Function(PaymentMethod_Invoice value)? invoice,
-    TResult Function(PaymentMethod_Offer value)? offer,
-    required TResult orElse(),
-  }) {
-    if (offer != null) {
-      return offer(this);
-    }
-    return orElse();
-  }
 }
 
 abstract class PaymentMethod_Offer implements PaymentMethod {
