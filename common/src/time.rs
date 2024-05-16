@@ -44,20 +44,44 @@ impl TimestampMs {
         Self::try_from(SystemTime::now()).unwrap()
     }
 
-    /// Returns the contained [`i64`].
+    /// Get this unix timestamp as an [`i64`] in milliseconds from unix epoch.
     #[inline]
     pub fn as_i64(self) -> i64 {
         self.0
     }
+
+    /// Get this unix timestamp as a [`u64`] in milliseconds from unix epoch.
+    /// The conversion is infallible as the inner [`i64`] is guaranteed to be
+    /// non-negative and in-range.
+    pub fn into_u64(self) -> u64 {
+        u64::try_from(self.0)
+            .expect("The inner value is guaranteed to be non-negative")
+    }
+
+    /// Get this unix timestamp as a [`Duration`] from the unix epoch.
+    #[inline]
+    pub fn into_duration(self) -> Duration {
+        Duration::from_millis(self.into_u64())
+    }
+
+    #[inline]
+    pub fn into_system_time(self) -> SystemTime {
+        // This add is infallible -- it doesn't panic even with Self::MAX.
+        UNIX_EPOCH + self.into_duration()
+    }
 }
 
-/// Get a [`SystemTime`] corresponding to this timestamp.
+impl From<TimestampMs> for Duration {
+    #[inline]
+    fn from(t: TimestampMs) -> Self {
+        t.into_duration()
+    }
+}
+
 impl From<TimestampMs> for SystemTime {
-    fn from(timestamp: TimestampMs) -> Self {
-        let timestamp_u64 = u64::try_from(timestamp.0)
-            .expect("Non-negative invariant was violated");
-        let duration_since_epoch = Duration::from_millis(timestamp_u64);
-        UNIX_EPOCH + duration_since_epoch
+    #[inline]
+    fn from(t: TimestampMs) -> Self {
+        t.into_system_time()
     }
 }
 
@@ -87,24 +111,35 @@ impl TryFrom<Duration> for TimestampMs {
     }
 }
 
-/// Attempt to convert an [`i64`] into a [`TimestampMs`].
+/// Attempt to convert an [`i64`] in milliseconds since unix epoch into a
+/// [`TimestampMs`].
 impl TryFrom<i64> for TimestampMs {
     type Error = Error;
     #[inline]
-    fn try_from(inner: i64) -> Result<Self, Self::Error> {
-        if inner >= Self::MIN.0 {
-            Ok(Self(inner))
+    fn try_from(ms: i64) -> Result<Self, Self::Error> {
+        if ms >= Self::MIN.0 {
+            Ok(Self(ms))
         } else {
             Err(Error::Negative)
         }
     }
 }
 
+/// Attempt to convert a [`u64`] in milliseconds since unix epoch into a
+/// [`TimestampMs`].
+impl TryFrom<u64> for TimestampMs {
+    type Error = Error;
+    #[inline]
+    fn try_from(ms: u64) -> Result<Self, Self::Error> {
+        Self::try_from(Duration::from_millis(ms))
+    }
+}
+
 /// Construct a [`TimestampMs`] from a [`u32`]. Useful in tests.
 impl From<u32> for TimestampMs {
     #[inline]
-    fn from(inner: u32) -> Self {
-        Self(i64::from(inner))
+    fn from(ms: u32) -> Self {
+        Self(i64::from(ms))
     }
 }
 
@@ -151,6 +186,8 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
+    use proptest::proptest;
+
     use super::*;
     use crate::test_utils::roundtrip;
 
@@ -166,5 +203,23 @@ mod test {
         assert_eq!(serde_json::from_str::<TimestampMs>("42").unwrap().0, 42);
         assert_eq!(serde_json::from_str::<TimestampMs>("0").unwrap().0, 0);
         assert!(serde_json::from_str::<TimestampMs>("-42").is_err());
+    }
+
+    // Value conversions should roundtrip.
+    fn assert_conversion_roundtrips(t: TimestampMs) {
+        assert_eq!(TimestampMs::try_from(t.as_i64()), Ok(t));
+        assert_eq!(TimestampMs::try_from(t.into_u64()), Ok(t));
+        assert_eq!(TimestampMs::try_from(t.into_duration()), Ok(t));
+        assert_eq!(TimestampMs::try_from(t.into_system_time()), Ok(t));
+    }
+
+    #[test]
+    fn timestamp_conversions_roundtrip() {
+        assert_conversion_roundtrips(TimestampMs::MIN);
+        assert_conversion_roundtrips(TimestampMs::MAX);
+
+        proptest!(|(t: TimestampMs)| {
+            assert_conversion_roundtrips(t);
+        });
     }
 }
