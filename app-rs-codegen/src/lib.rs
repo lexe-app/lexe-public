@@ -106,10 +106,11 @@ impl Args {
             extra_c_output_path: Some(vec![path_to_string(macos_path)?]),
 
             // Other options
-            wasm: false,
+            dart3: true,
             dart_format_line_length: 80,
-            skip_add_mod_to_lib: true,
             inline_rust: true,
+            skip_add_mod_to_lib: true,
+            wasm: false,
             ..Default::default()
         });
 

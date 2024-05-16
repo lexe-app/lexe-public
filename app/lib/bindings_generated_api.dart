@@ -587,7 +587,7 @@ enum PaymentKind {
 }
 
 @freezed
-class PaymentMethod with _$PaymentMethod {
+sealed class PaymentMethod with _$PaymentMethod {
   const factory PaymentMethod.onchain(
     Onchain field0,
   ) = PaymentMethod_Onchain;
