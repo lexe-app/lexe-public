@@ -24,7 +24,6 @@
 
 use async_trait::async_trait;
 
-use super::command::CreateInvoiceResponse;
 #[cfg(doc)]
 use crate::api::qs::{GetByMeasurement, GetByUserPk};
 use crate::{
@@ -34,9 +33,11 @@ use crate::{
             UserSignupRequest,
         },
         command::{
-            CreateInvoiceRequest, EstimateFeeSendOnchainRequest,
-            EstimateFeeSendOnchainResponse, NodeInfo, OpenChannelRequest,
-            PayInvoiceRequest, SendOnchainRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse,
+            EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
+            NodeInfo, OpenChannelRequest, PayInvoiceRequest,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            SendOnchainRequest,
         },
         error::{
             BackendApiError, GatewayApiError, LspApiError, NodeApiError,
@@ -354,6 +355,17 @@ pub trait AppNodeRunApi {
         &self,
         req: PayInvoiceRequest,
     ) -> Result<Empty, NodeApiError>;
+
+    /// POST /app/preflight_pay_invoice [`PreflightPayInvoiceRequest`]
+    ///                                 -> [`PreflightPayInvoiceResponse`]
+    ///
+    /// This endpoint lets the app ask its node to "pre-flight" a BOLT11 invoice
+    /// payment without going through with the actual payment. We verify as much
+    /// as we can, find a route, and get the fee estimates.
+    async fn preflight_pay_invoice(
+        &self,
+        req: PreflightPayInvoiceRequest,
+    ) -> Result<PreflightPayInvoiceResponse, NodeApiError>;
 
     /// POST /app/send_onchain [`SendOnchainRequest`] -> [`LxTxid`]
     ///

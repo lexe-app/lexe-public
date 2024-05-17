@@ -61,15 +61,14 @@ pub(crate) struct AppRouterState {
 /// [`AppNodeRunApi`]: common::api::def::AppNodeRunApi
 pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
     let activity_tx = state.activity_tx.clone();
-    Router::new()
+    #[rustfmt::skip]
+    let router = Router::new()
         .route("/app/node_info", get(app::node_info))
         .route("/app/create_invoice", post(app::create_invoice))
         .route("/app/pay_invoice", post(app::pay_invoice))
+        .route("/app/preflight_pay_invoice", post(app::preflight_pay_invoice))
         .route("/app/send_onchain", post(app::send_onchain))
-        .route(
-            "/app/estimate_fee_send_onchain",
-            get(app::estimate_fee_send_onchain),
-        )
+        .route("/app/estimate_fee_send_onchain", get(app::estimate_fee_send_onchain))
         .route("/app/get_address", post(app::get_address))
         .route("/app/payments/ids", post(app::get_payments_by_ids))
         .route("/app/payments/new", get(app::get_new_payments))
@@ -80,7 +79,8 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
             debug!("Sending activity event");
             let _ = activity_tx.try_send(());
             request
-        }))
+        }));
+    router
 }
 
 pub(crate) struct LexeRouterState {

@@ -943,7 +943,8 @@ mod test {
             command::{
                 CreateInvoiceRequest, CreateInvoiceResponse,
                 EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
-                NodeInfo, PayInvoiceRequest, SendOnchainRequest,
+                NodeInfo, PayInvoiceRequest, PreflightPayInvoiceRequest,
+                PreflightPayInvoiceResponse, SendOnchainRequest,
             },
             error::NodeApiError,
             Empty,
@@ -1084,6 +1085,12 @@ mod test {
             &self,
             _req: PayInvoiceRequest,
         ) -> Result<Empty, NodeApiError> {
+            unimplemented!()
+        }
+        async fn preflight_pay_invoice(
+            &self,
+            _req: PreflightPayInvoiceRequest,
+        ) -> Result<PreflightPayInvoiceResponse, NodeApiError> {
             unimplemented!()
         }
         async fn send_onchain(

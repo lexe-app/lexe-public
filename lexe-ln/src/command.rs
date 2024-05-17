@@ -8,7 +8,8 @@ use common::{
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse,
             EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
-            NodeInfo, PayInvoiceRequest, SendOnchainRequest,
+            NodeInfo, PayInvoiceRequest, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, SendOnchainRequest,
         },
         Empty, NodePk, Scid,
     },
@@ -353,6 +354,36 @@ where
             Err(anyhow!("LDK returned RouteNotFound (OIP {payment_hash})"))
         }
     }
+}
+
+#[instrument(skip_all, name = "(preflight-pay-invoice)")]
+pub async fn preflight_pay_invoice<CM, PS>(
+    req: PreflightPayInvoiceRequest,
+    router: Arc<RouterType>,
+    channel_manager: CM,
+    payments_manager: PaymentsManager<CM, PS>,
+) -> anyhow::Result<PreflightPayInvoiceResponse>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    let req = PayInvoiceRequest {
+        invoice: req.invoice,
+        fallback_amount: req.fallback_amount,
+        // User note not relevant for pre-flight.
+        note: None,
+    };
+    let preflight = preflight_pay_invoice_inner(
+        req,
+        router,
+        &channel_manager,
+        &payments_manager,
+    )
+    .await?;
+    Ok(PreflightPayInvoiceResponse {
+        amount: preflight.payment.amount,
+        fees: preflight.payment.fees,
+    })
 }
 
 #[instrument(skip_all, name = "(send-onchain)")]
