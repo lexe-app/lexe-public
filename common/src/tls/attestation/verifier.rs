@@ -169,10 +169,11 @@ impl AttestationCertVerifier {
         if !self.expect_dummy_quote {
             // 3. verify Quote
             let quote_verifier = SgxQuoteVerifier;
-            let enclave_report =
-                quote_verifier.verify(&evidence.attest.quote, now).map_err(
-                    |err| rustls_err(format!("invalid SGX Quote: {err:#}")),
-                )?;
+            let enclave_report = quote_verifier
+                .verify(&evidence.cert_ext.quote, now)
+                .map_err(|err| {
+                    rustls_err(format!("invalid SGX Quote: {err:#}"))
+                })?;
 
             // 4. decide if we can trust this enclave
             let reportdata =
@@ -189,7 +190,7 @@ impl AttestationCertVerifier {
                     "enclave's report is not binding to the presented x509 cert"
                 ));
             }
-        } else if evidence.attest != SgxAttestationExtension::dummy() {
+        } else if evidence.cert_ext != SgxAttestationExtension::dummy() {
             return Err(rustls_err("invalid SGX attestation"));
         }
 
@@ -313,7 +314,7 @@ impl ClientCertVerifier for AttestationCertVerifier {
 /// TODO(max): Needs docs
 pub struct AttestEvidence<'quote> {
     cert_pk: ed25519::PublicKey,
-    attest: SgxAttestationExtension<'quote>,
+    cert_ext: SgxAttestationExtension<'quote>,
 }
 
 impl<'a> AttestEvidence<'a> {
@@ -356,13 +357,13 @@ impl<'a> AttestEvidence<'a> {
                 invalid_cert_error(io::Error::new(io::ErrorKind::Other, msg))
             })?;
 
-        let attest = SgxAttestationExtension::from_der_bytes(cert_ext.value)
+        let cert_ext = SgxAttestationExtension::from_der_bytes(cert_ext.value)
             .map_err(|e| {
                 let msg = format!("invalid SGX attestation: {e:#}");
                 invalid_cert_error(io::Error::new(io::ErrorKind::Other, msg))
             })?;
 
-        Ok(Self { cert_pk, attest })
+        Ok(Self { cert_pk, cert_ext })
     }
 }
 
@@ -806,7 +807,7 @@ mod test {
 
         let now = UnixTime::now();
         let verifier = SgxQuoteVerifier;
-        let report = verifier.verify(&evidence.attest.quote, now).unwrap();
+        let report = verifier.verify(&evidence.cert_ext.quote, now).unwrap();
 
         // println!("{:#?}", ReportDebug(&report));
 
