@@ -34,10 +34,11 @@ mod sgx {
         "Intel AES-NI intrinsics must be enabled at compile time via RUSTFLAGS"
     );
 
+    /// TODO(max): Needs docs
     pub fn quote_enclave(
         mut rng: &mut dyn Crng,
         cert_pk: &ed25519::PublicKey,
-    ) -> anyhow::Result<SgxAttestationExtension<'static, 'static>> {
+    ) -> anyhow::Result<SgxAttestationExtension<'static>> {
         // TODO(phlip9): AESM retries
 
         // 1. Connect to the local AESM service.
@@ -164,7 +165,6 @@ mod sgx {
 
         Ok(SgxAttestationExtension {
             quote: Cow::Owned(quote_res.quote().to_vec()),
-            qe_report: Cow::Owned(quote_res.qe_report().to_vec()),
         })
     }
 
@@ -306,7 +306,7 @@ mod not_sgx {
     pub fn quote_enclave(
         _rng: &mut dyn Crng,
         _cert_pk: &ed25519::PublicKey,
-    ) -> anyhow::Result<SgxAttestationExtension<'static, 'static>> {
+    ) -> anyhow::Result<SgxAttestationExtension<'static>> {
         // TODO(phlip9): use a different dummy extension?
         Ok(SgxAttestationExtension::dummy())
     }

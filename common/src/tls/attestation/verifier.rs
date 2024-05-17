@@ -73,11 +73,8 @@ static SUPPORTED_SIG_ALGS: &[&webpki::SignatureAlgorithm] = &[
     &webpki::RSA_PKCS1_3072_8192_SHA384,
 ];
 
-// 1. server cert verifier (server cert should contain dns names)
-// 2. TODO(phlip9): client cert verifier (dns names ignored)
-
-/// A [`ClientCertVerifier`] and [`ServerCertVerifier`] that also checks
-/// embedded remote attestation evidence.
+/// A [`ClientCertVerifier`] and [`ServerCertVerifier`] which verifies embedded
+/// remote attestation evidence according to a configured [`EnclavePolicy`].
 ///
 /// Clients or servers connecting to a remote enclave use this to check that:
 /// (1) the remote's certificate is valid,
@@ -313,9 +310,10 @@ impl ClientCertVerifier for AttestationCertVerifier {
     }
 }
 
-pub struct AttestEvidence<'a> {
+/// TODO(max): Needs docs
+pub struct AttestEvidence<'quote> {
     cert_pk: ed25519::PublicKey,
-    attest: SgxAttestationExtension<'a, 'a>,
+    attest: SgxAttestationExtension<'quote>,
 }
 
 impl<'a> AttestEvidence<'a> {
@@ -377,6 +375,7 @@ impl<'a> AttestEvidence<'a> {
 pub struct SgxQuoteVerifier;
 
 impl SgxQuoteVerifier {
+    /// TODO(max): Needs docs - esp wrt the report returned here
     pub fn verify(
         &self,
         quote_bytes: &[u8],
@@ -444,7 +443,6 @@ impl SgxQuoteVerifier {
         // 2. Verify the Platform Certification Enclave (PCE) endorses the
         //    Quoting Enclave (QE) Report.
 
-        // TODO(phlip9): parse PCK cert pk + algorithm vs hard-coding scheme
         pck_cert
             .verify_signature(
                 &webpki::ECDSA_P256_SHA256,
