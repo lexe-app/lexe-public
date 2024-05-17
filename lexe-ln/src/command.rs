@@ -1,7 +1,4 @@
-use std::{
-    sync::Arc,
-    time::{Duration, SystemTime},
-};
+use std::{sync::Arc, time::Duration};
 
 use anyhow::{anyhow, bail, Context};
 use bitcoin::bech32::ToBase32;
@@ -19,7 +16,7 @@ use common::{
     enclave::Measurement,
     ln::{
         amount::Amount, channel::LxChannelDetails, hashes::LxTxid,
-        invoice::LxInvoice, payments::LxPaymentHash,
+        invoice::LxInvoice,
     },
 };
 use lightning::{
@@ -290,80 +287,22 @@ where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
 {
-    // Abort and don't even save the payment if the invoice has already expired.
-    // BOLT11: "A payer: after the timestamp plus expiry has passed: SHOULD NOT
-    // attempt a payment."
-    let invoice = req.invoice.0;
-    if invoice.is_expired() {
-        bail!("Invoice has already expired");
-    }
+    // Pre-flight the invoice payment (verify and route).
+    let PreflightedPayInvoice {
+        payment,
+        route_params,
+        recipient_fields,
+    } = preflight_pay_invoice_inner(
+        req,
+        router,
+        &channel_manager,
+        &payments_manager,
+    )
+    .await?;
+    let payment_hash = payment.hash;
 
-    // Construct a RouteParameters for the payment, modeled after how
-    // `lightning_invoice::payment::pay_invoice_using_amount` does it.
-    let payer_pubkey = channel_manager.get_our_node_id();
-    let payee_pubkey = invoice
-        .payee_pub_key()
-        .cloned()
-        .unwrap_or_else(|| invoice.recover_payee_pub_key());
-    let final_value_msat = invoice
-        .amount_milli_satoshis()
-        .inspect(|_| {
-            debug_assert!(
-                req.fallback_amount.is_none(),
-                "Nit: Fallback should only be provided for amountless invoices",
-            )
-        })
-        .or(req.fallback_amount.map(|amt| amt.msat()))
-        .context("Missing fallback amount for amountless invoice")?;
-    let final_cltv_expiry_delta =
-        u32::try_from(invoice.min_final_cltv_expiry_delta())
-            .context("Min final CLTV expiry delta too large to fit in u32")?;
-    let expires_at = invoice
-        .timestamp()
-        .checked_add(invoice.expiry_time())
-        .context("Computing expiry time overflowed")?;
-    let expires_at_timestamp = expires_at
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .context("Invalid invoice expiration")?
-        .as_secs();
-    // TODO(max): Support paying BOLT12 invoices
-    let mut payment_params =
-        PaymentParameters::from_node_id(payee_pubkey, final_cltv_expiry_delta)
-            .with_expiry_time(expires_at_timestamp)
-            .with_route_hints(invoice.route_hints())
-            .map_err(|()| anyhow!("(route hints) Wrong payment param kind"))?;
-    if let Some(features) = invoice.features().cloned() {
-        // TODO(max): Support paying BOLT12 invoices
-        payment_params = payment_params
-            .with_bolt11_features(features)
-            .map_err(|()| anyhow!("(features) Wrong payment param kind"))?;
-    }
-    let route_params = RouteParameters {
-        payment_params,
-        final_value_msat,
-    };
-
-    // Find a Route so we can estimate the fees to be paid. Modeled after
-    // `lightning::ln::outbound_payment::OutboundPayments::pay_internal`.
-    let usable_channels = channel_manager.list_usable_channels();
-    let refs_usable_channels = usable_channels.iter().collect::<Vec<_>>();
-    let first_hops = Some(refs_usable_channels.as_slice());
-    let in_flight_htlcs = channel_manager.compute_inflight_htlcs();
-    let route = router
-        .find_route(&payer_pubkey, &route_params, first_hops, in_flight_htlcs)
-        .map_err(|e| anyhow!("Could not find route to recipient: {}", e.err))?;
-
-    // Extract a few more values needed later before we consume the Invoice.
-    let payment_hash = PaymentHash(invoice.payment_hash().into_inner());
-    let payment_id = PaymentId(payment_hash.0);
-    let hash = LxPaymentHash::from(payment_hash);
-    let recipient_fields = RecipientOnionFields {
-        payment_secret: Some(*invoice.payment_secret()),
-        payment_metadata: None,
-    };
-
-    // Create and register the new payment, checking that it is unique.
-    let payment = OutboundInvoicePayment::new(invoice, &route, req.note);
+    // Pre-flight looks good, now we can register this payment in the Lexe
+    // payments manager.
     payments_manager
         .new_payment(payment.into())
         .await
@@ -372,14 +311,14 @@ where
     // Send the payment, letting LDK handle payment retries, and match on the
     // result, registering a failure with the payments manager if appropriate.
     match channel_manager.send_payment(
-        payment_hash,
+        PaymentHash::from(payment_hash),
         recipient_fields,
-        payment_id,
+        PaymentId::from(payment_hash),
         route_params,
         OUTBOUND_PAYMENT_RETRY_STRATEGY,
     ) {
         Ok(()) => {
-            info!(%hash, "Success: OIP initiated immediately");
+            info!(hash = %payment_hash, "Success: OIP initiated immediately");
             Ok(Empty {})
         }
         Err(RetryableSendFailure::DuplicatePayment) => {
@@ -387,7 +326,9 @@ where
             // for uniqueness when registering the new payment above. If it
             // somehow does, we should let the first payment follow its course,
             // and wait for a PaymentSent or PaymentFailed event.
-            Err(anyhow!("Somehow got DuplicatePayment error (OIP {hash})"))
+            Err(anyhow!(
+                "Somehow got DuplicatePayment error (OIP {payment_hash})"
+            ))
         }
         Err(RetryableSendFailure::PaymentExpired) => {
             // We've already checked the expiry of the invoice to be paid, but
@@ -395,10 +336,10 @@ where
             // returned, LDK does not track the payment and thus will not emit a
             // PaymentFailed later, so we should fail the payment now.
             payments_manager
-                .payment_failed(hash)
+                .payment_failed(payment_hash)
                 .await
                 .context("(PaymentExpired) Could not register failure")?;
-            Err(anyhow!("LDK returned PaymentExpired (OIP {hash})"))
+            Err(anyhow!("LDK returned PaymentExpired (OIP {payment_hash})"))
         }
         Err(RetryableSendFailure::RouteNotFound) => {
             // It appears that if this variant is returned, LDK does not track
@@ -406,10 +347,10 @@ where
             // If the user wants to retry, they'll need to ask the recipient to
             // generate a new invoice. TODO(max): Is this really what we want?
             payments_manager
-                .payment_failed(hash)
+                .payment_failed(payment_hash)
                 .await
                 .context("(RouteNotFound) Could not register failure")?;
-            Err(anyhow!("LDK returned RouteNotFound (OIP {hash})"))
+            Err(anyhow!("LDK returned RouteNotFound (OIP {payment_hash})"))
         }
     }
 }
@@ -476,4 +417,100 @@ pub async fn get_address(
     wallet: LexeWallet,
 ) -> anyhow::Result<bitcoin::Address> {
     wallet.get_address().await
+}
+
+// A preflighted BOLT11 invoice payment. That is, this is the outcome of
+// validating and routing a BOLT11 invoice, without actually paying yet.
+struct PreflightedPayInvoice {
+    payment: OutboundInvoicePayment,
+    route_params: RouteParameters,
+    recipient_fields: RecipientOnionFields,
+}
+
+// Preflight (validate and route) a new potential BOLT11 invoice that we might
+// pay.
+async fn preflight_pay_invoice_inner<CM, PS>(
+    req: PayInvoiceRequest,
+    router: Arc<RouterType>,
+    channel_manager: &CM,
+    payments_manager: &PaymentsManager<CM, PS>,
+) -> anyhow::Result<PreflightedPayInvoice>
+where
+    CM: LexeChannelManager<PS>,
+    PS: LexePersister,
+{
+    let invoice = req.invoice;
+
+    // Fail expired invoices early.
+    if invoice.is_expired() {
+        bail!("Invoice has expired");
+    }
+
+    // Fail invoice double-payment early.
+    if payments_manager
+        .contains_payment_id(&invoice.payment_id())
+        .await
+    {
+        bail!("We've already tried paying this invoice");
+    }
+
+    // Construct a RouteParameters for the payment, modeled after how
+    // `lightning_invoice::payment::pay_invoice_using_amount` does it.
+    let payer_pubkey = channel_manager.get_our_node_id();
+    let payee_pubkey = invoice.payee_node_pk().0;
+    let amount = invoice
+        .amount()
+        .inspect(|_| {
+            debug_assert!(
+                req.fallback_amount.is_none(),
+                "Nit: Fallback should only be provided for amountless invoices",
+            )
+        })
+        .or(req.fallback_amount)
+        .context("Missing fallback amount for amountless invoice")?;
+    let expires_at = invoice.expires_at()?.into_duration().as_secs();
+
+    // TODO(max): Support paying BOLT12 invoices
+    let mut payment_params = PaymentParameters::from_node_id(
+        payee_pubkey,
+        invoice.min_final_cltv_expiry_delta_u32()?,
+    )
+    .with_expiry_time(expires_at)
+    .with_route_hints(invoice.0.route_hints())
+    .map_err(|()| anyhow!("(route hints) Wrong payment param kind"))?;
+
+    if let Some(features) = invoice.0.features().cloned() {
+        // TODO(max): Support paying BOLT12 invoices
+        payment_params = payment_params
+            .with_bolt11_features(features)
+            .map_err(|()| anyhow!("(features) Wrong payment param kind"))?;
+    }
+
+    let route_params = RouteParameters {
+        payment_params,
+        final_value_msat: amount.msat(),
+    };
+
+    // Find a Route so we can estimate the fees to be paid. Modeled after
+    // `lightning::ln::outbound_payment::OutboundPayments::pay_internal`.
+    let usable_channels = channel_manager.list_usable_channels();
+    let refs_usable_channels = usable_channels.iter().collect::<Vec<_>>();
+    let first_hops = Some(refs_usable_channels.as_slice());
+    let in_flight_htlcs = channel_manager.compute_inflight_htlcs();
+    let route = router
+        .find_route(&payer_pubkey, &route_params, first_hops, in_flight_htlcs)
+        .map_err(|e| anyhow!("Could not find route to recipient: {}", e.err))?;
+
+    let payment_secret = invoice.payment_secret().into();
+    let recipient_fields = RecipientOnionFields {
+        payment_secret: Some(payment_secret),
+        payment_metadata: None,
+    };
+
+    let payment = OutboundInvoicePayment::new(invoice, &route, req.note);
+    Ok(PreflightedPayInvoice {
+        payment,
+        route_params,
+        recipient_fields,
+    })
 }
