@@ -20,7 +20,6 @@ use lightning::{
     ln::channelmanager::ChannelManager,
 };
 use lightning::{ln::channelmanager::Retry, routing::router::Route};
-use lightning_invoice::Bolt11Invoice;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -95,14 +94,14 @@ pub enum OutboundInvoicePaymentStatus {
 
 impl OutboundInvoicePayment {
     pub fn new(
-        invoice: Bolt11Invoice,
+        invoice: LxInvoice,
         route: &Route,
         note: Option<String>,
     ) -> Self {
-        let hash = LxPaymentHash::from(*invoice.payment_hash());
-        let secret = LxPaymentSecret::from(*invoice.payment_secret());
+        let hash = invoice.payment_hash();
+        let secret = invoice.payment_secret();
         Self {
-            invoice: Box::new(LxInvoice(invoice)),
+            invoice: Box::new(invoice),
             hash,
             secret,
             preimage: None,

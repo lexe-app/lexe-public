@@ -3,13 +3,17 @@ use std::{
     str::FromStr,
 };
 
+use anyhow::Context;
 use lightning_invoice::{Bolt11Invoice, Bolt11InvoiceDescription};
 use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
     api::NodePk,
     cli::Network,
-    ln::amount::Amount,
+    ln::{
+        amount::Amount,
+        payments::{LxPaymentHash, LxPaymentId, LxPaymentSecret},
+    },
     time::{self, TimestampMs},
     Apply,
 };
@@ -20,6 +24,27 @@ use crate::{
 pub struct LxInvoice(pub Bolt11Invoice);
 
 impl LxInvoice {
+    /// The invoice payment hash. The payer will receive the preimage to this
+    /// hash upon successful payment, as proof-of-payment.
+    #[inline]
+    pub fn payment_hash(&self) -> LxPaymentHash {
+        LxPaymentHash::from(*self.0.payment_hash())
+    }
+
+    /// The invoice payment secret, used to authenticate the payer to the payee
+    /// and tie MPP HTLCs together.
+    #[inline]
+    pub fn payment_secret(&self) -> LxPaymentSecret {
+        LxPaymentSecret::from(*self.0.payment_secret())
+    }
+
+    /// Lexe's main identifier for this payment, which for BOLT11 invoice
+    /// payments is just the [`LxInvoice::payment_hash`].
+    #[inline]
+    pub fn payment_id(&self) -> LxPaymentId {
+        LxPaymentId::Lightning(self.payment_hash())
+    }
+
     #[inline]
     pub fn network(&self) -> Network {
         Network(self.0.network())
@@ -37,11 +62,13 @@ impl LxInvoice {
             Bolt11InvoiceDescription::Direct(description)
                 if !description.is_empty() =>
                 Some(description),
-            // Hash description is not useful yet
+            // Hash description is not useful to us yet
             _ => None,
         }
     }
 
+    /// Return the invoice's requested amount, if present. An invoice may leave
+    /// the final amount up to the payer, in which case this field will be None.
     pub fn amount(&self) -> Option<Amount> {
         self.0.amount_milli_satoshis().map(Amount::from_msat)
     }
@@ -62,6 +89,11 @@ impl LxInvoice {
     #[inline]
     pub fn saturating_created_at(&self) -> TimestampMs {
         self.created_at().unwrap_or(TimestampMs::MAX)
+    }
+
+    #[inline]
+    pub fn is_expired(&self) -> bool {
+        self.0.is_expired()
     }
 
     /// Get the invoice expiration timestamp. Returns an error if the timestamp
@@ -93,6 +125,16 @@ impl LxInvoice {
             .apply(NodePk)
     }
 
+    /// Returns the invoice's `min_final_cltv_expiry_delta` time, if present,
+    /// otherwise [`lightning_invoice::DEFAULT_MIN_FINAL_CLTV_EXPIRY_DELTA`].
+    pub fn min_final_cltv_expiry_delta_u32(&self) -> anyhow::Result<u32> {
+        u32::try_from(self.0.min_final_cltv_expiry_delta())
+            .ok()
+            .context(
+                "Invoice min final CLTV expiry delta too large to fit in a u32",
+            )
+    }
+
     /// BOLT11 Invoices can attach optional onchain addresses for a payee to
     /// use if the lightning payment is not feasible. This fn returns those
     /// addresses.
@@ -111,7 +153,7 @@ impl FromStr for LxInvoice {
 
 impl Display for LxInvoice {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
+        Display::fmt(&self.0, f)
     }
 }
 

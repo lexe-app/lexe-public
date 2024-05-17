@@ -267,6 +267,12 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         Ok(())
     }
 
+    /// Returns true if we already have a payment with the given [`LxPaymentId`]
+    /// registered.
+    pub async fn contains_payment_id(&self, id: &LxPaymentId) -> bool {
+        self.data.lock().await.contains_payment_id(id)
+    }
+
     /// Attempt to update the personal note on a payment.
     #[instrument(skip_all, name = "(update-payment-note)")]
     pub async fn update_payment_note(
@@ -741,6 +747,10 @@ impl PaymentsData {
                 self.finalized.insert(id);
             }
         }
+    }
+
+    fn contains_payment_id(&self, id: &LxPaymentId) -> bool {
+        self.pending.contains_key(id) || self.finalized.contains(id)
     }
 
     fn check_new_payment(
