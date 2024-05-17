@@ -1,4 +1,67 @@
 //! (m)TLS based on SGX remote attestation.
+//!
+//! # High-level remote attestation process
+//!
+//! See philip's notes: <https://phlip9.com/notes/confidential%20computing/intel%20SGX/remote%20attestation/>
+//!
+//! # Code-level remote attestation + TLS process
+//!
+//! On the prover side, inside SGX:
+//!
+//! 1) An [`AttestationCert`] is generated during the construction of an
+//!    attestation-based TLS config ([`AttestationCert::generate`]).
+//! 2) [`AttestationCert::generate`] calls [`quote::quote_enclave`], which does
+//!    the low-level work to actually generate an attestation quote which binds
+//!    to and endorses the cert's pubkey. See philip's notes for more on the SGX
+//!    [`quote`]. In our code, the [`quote`] is just a [`Cow<'a, [u8]>`].
+//! 3) The [`quote`] bytes are packaged up into a [`SgxAttestationExtension`],
+//!    which is a x509 cert extension containing all evidence needed by the
+//!    client to verify the remote attestation. The [`SgxAttestationExtension`]
+//!    is embedded into the [`AttestationCert`] presented to the verifier.
+//!
+//! On the verifier side, typically outside of SGX:
+//!
+//! 4) The verifier uses the [`AttestationCertVerifier`] as the
+//!    [`ClientCertVerifier`] or [`ServerCertVerifier`] in its TLS config, which
+//!    verifies remote attestation evidence and accepts or rejects the TLS
+//!    connection according to a configured [`EnclavePolicy`]. Within the
+//!    [`AttestationCertVerifier`]'s verification logic:
+//!
+//!    a) A [`AttestEvidence`] is parsed from a DER-encoded [`AttestationCert`]
+//!       via [`AttestEvidence::parse_cert_der`]. The [`AttestEvidence`]
+//!       consists of a [`SgxAttestationExtension`] and the certificate pubkey.
+//!    b) The [`SgxQuoteVerifier`] verifies the quote component of the
+//!       [`AttestEvidence`]. [`SgxQuoteVerifier::verify`] outputs an
+//!       application [`REPORT`] verified to have been endorsed by the
+//!       [`QE`] [`REPORT`], which was itself endorsed by the [PCE], and so on
+//!       until the chain of trust terminates at the Intel SGX trust root CA.
+//!    c) [`EnclavePolicy::verify`] checks that the application [`REPORT`]
+//!       is trusted by the [`EnclavePolicy`], and returns its [`REPORTDATA`].
+//!    d) The [`AttestationCertVerifier`] checks that the pubkey attested to in
+//!       the application [`REPORT`] [`REPORTDATA`] matches the cert pubkey.
+//!
+//! 5) Finally, if all verifications passed, a TLS connection is established.
+//!
+//! [`quote`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#quote
+//! [Quoting Enclave]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#quoting-enclave-qe
+//! [`QE`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#quoting-enclave-qe
+//! [PCE]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#provisioning-certification-enclave-pce
+//! [`REPORT`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#report-ereport
+//! [`REPORTDATA`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#report-ereport
+//! [`AttestationCert`]: attestation::cert::AttestationCert
+//! [`AttestationCert::generate`]: attestation::cert::AttestationCert::generate
+//! [`AttestationCertVerifier`]: attestation::verifier::AttestationCertVerifier
+//! [`AttestEvidence`]: attestation::verifier::AttestEvidence
+//! [`AttestEvidence::parse_cert_der`]: attestation::verifier::AttestEvidence::parse_cert_der
+//! [`SgxAttestationExtension`]: attestation::cert::SgxAttestationExtension
+//! [`SgxQuoteVerifier`]: attestation::verifier::SgxQuoteVerifier
+//! [`SgxQuoteVerifier::verify`]:
+//! attestation::verifier::SgxQuoteVerifier::verify
+//! [`quote::quote_enclave`]: attestation::quote::quote_enclave
+//! [`ClientCertVerifier`]: rustls::server::danger::ClientCertVerifier
+//! [`ServerCertVerifier`]: rustls::client::danger::ServerCertVerifier
+//! [`EnclavePolicy`]: attestation::verifier::EnclavePolicy
+//! [`EnclavePolicy::verify`]: attestation::verifier::EnclavePolicy::verify
 
 use std::{
     sync::{Arc, OnceLock},
