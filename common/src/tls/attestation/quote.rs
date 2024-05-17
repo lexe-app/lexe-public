@@ -328,8 +328,8 @@ mod not_sgx {
 
     pub fn quote_enclave(
         _rng: &mut dyn Crng,
-        _cert_pk: &ed25519::PublicKey,
+        cert_pk: &ed25519::PublicKey,
     ) -> anyhow::Result<SgxAttestationExtension<'static>> {
-        Ok(SgxAttestationExtension::dummy())
+        Ok(SgxAttestationExtension::dummy(cert_pk))
     }
 }
