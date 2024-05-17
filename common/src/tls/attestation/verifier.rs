@@ -167,32 +167,33 @@ impl AttestationCertVerifier {
         // 2. extract enclave attestation quote from the cert
         let evidence = AttestEvidence::parse_cert_der(end_entity)?;
 
-        if !self.expect_dummy_quote {
-            // 3. verify Quote
+        // 3. verify Quote
+        let enclave_report = if !self.expect_dummy_quote {
             let quote_verifier = SgxQuoteVerifier;
-            let enclave_report = quote_verifier
+            quote_verifier
                 .verify(&evidence.cert_ext.quote, now)
                 .map_err(|err| {
                     rustls_err(format!("invalid SGX Quote: {err:#}"))
-                })?;
+                })?
+        } else {
+            sgx_isa::Report::try_copy_from(evidence.cert_ext.quote.as_ref())
+                .ok_or_else(|| rustls_err("Could not copy Report"))?
+        };
 
-            // 4. decide if we can trust this enclave
-            let reportdata =
-                self.enclave_policy.verify(&enclave_report).map_err(|err| {
-                    rustls_err(format!(
-                        "our trust policy rejected the remote enclave: {err:#}"
-                    ))
-                })?;
+        // 4. check that this enclave satisfies our enclave policy
+        let reportdata =
+            self.enclave_policy.verify(&enclave_report).map_err(|err| {
+                rustls_err(format!(
+                    "our trust policy rejected the remote enclave: {err:#}"
+                ))
+            })?;
 
-            // 5. check that the pk in the enclave Report matches the one in
-            //    this x509 cert.
-            if !reportdata.contains(&evidence.cert_pk) {
-                return Err(rustls_err(
-                    "enclave's report is not binding to the presented x509 cert"
-                ));
-            }
-        } else if evidence.cert_ext != SgxAttestationExtension::dummy() {
-            return Err(rustls_err("invalid SGX attestation"));
+        // 5. check that the pk in the enclave Report matches the one in this
+        //    x509 cert.
+        if !reportdata.contains(&evidence.cert_pk) {
+            return Err(rustls_err(
+                "enclave's report is not binding to the presented x509 cert",
+            ));
         }
 
         Ok(cert_verified)
