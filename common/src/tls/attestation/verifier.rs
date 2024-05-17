@@ -24,6 +24,7 @@ use rustls::{
 use webpki::{TlsServerTrustAnchors, TrustAnchor};
 use x509_parser::certificate::X509Certificate;
 
+use super::quote::ReportData;
 use crate::{
     ed25519,
     enclave::Measurement,
@@ -185,7 +186,7 @@ impl AttestationCertVerifier {
 
             // 5. check that the pk in the enclave Report matches the one in
             //    this x509 cert.
-            if &reportdata[..32] != evidence.cert_pk.as_slice() {
+            if !reportdata.contains(&evidence.cert_pk) {
                 return Err(rustls_err(
                     "enclave's report is not binding to the presented x509 cert"
                 ));
@@ -471,10 +472,10 @@ impl SgxQuoteVerifier {
             .context("Invalid QE identity")?;
 
         ensure!(
-            &qe3_reportdata[..32] == expected_reportdata.as_slice(),
+            &qe3_reportdata.as_inner()[..32] == expected_reportdata.as_slice(),
             "Quoting Enclave's Report data doesn't match the Quote attestation pk: \
              actual: '{}', expected: '{}'",
-            hex::display(&qe3_reportdata[..32]),
+            hex::display(&qe3_reportdata.as_inner()[..32]),
             expected_reportdata,
         );
 
@@ -644,11 +645,11 @@ impl EnclavePolicy {
     }
 
     /// Verify that an enclave [`sgx_isa::Report`] is trustworthy according to
-    /// this policy. Returns the `ReportData` if the verification is successful.
-    pub fn verify<'a>(
+    /// this policy. Returns the [`ReportData`] if verification is successful.
+    pub fn verify(
         &self,
-        report: &'a sgx_isa::Report,
-    ) -> anyhow::Result<&'a [u8; 64]> {
+        report: &sgx_isa::Report,
+    ) -> anyhow::Result<ReportData> {
         if !self.allow_debug {
             let is_debug = report
                 .attributes
@@ -673,7 +674,7 @@ impl EnclavePolicy {
             );
         }
 
-        Ok(&report.reportdata)
+        Ok(ReportData::new(report.reportdata))
     }
 }
 

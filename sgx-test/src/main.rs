@@ -63,8 +63,13 @@ fn main() {
     let mut expected_reportdata = [0u8; 64];
     expected_reportdata[0..32].copy_from_slice(pubkey.as_slice());
 
+    assert!(
+        reportdata.contains(&pubkey),
+        "SGX Quote doesn't contain dummy pubkey"
+    );
     assert_eq!(
-        reportdata, &expected_reportdata,
-        "SGX Quote isn't committing to the dummy pubkey"
+        reportdata.as_inner(),
+        &expected_reportdata,
+        "SGX Quote contains extraneous data"
     );
 }

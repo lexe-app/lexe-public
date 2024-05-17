@@ -9,6 +9,45 @@ pub use sgx::quote_enclave;
 #[cfg(not(target_env = "sgx"))]
 pub use not_sgx::quote_enclave;
 
+use crate::ed25519;
+
+/// Small newtype for [`sgx_isa::Report::reportdata`] field.
+/// For now, we only use the first 32 out of 64 bytes to commit to a cert pk.
+#[derive(Debug)]
+pub struct ReportData([u8; 64]);
+
+impl ReportData {
+    /// Construct from the `reportdata` of an existing [`sgx_isa::Report`].
+    pub fn new(reportdata: [u8; 64]) -> Self {
+        Self(reportdata)
+    }
+
+    pub fn from_cert_pk(pk: &ed25519::PublicKey) -> Self {
+        let mut report_data = [0u8; 64];
+        // ed25519 pks are always 32 bytes.
+        // This will panic if this internal invariant is somehow not true.
+        report_data[..32].copy_from_slice(pk.as_ref());
+        Self(report_data)
+    }
+
+    pub fn as_inner(&self) -> &[u8; 64] {
+        &self.0
+    }
+
+    pub fn into_inner(self) -> [u8; 64] {
+        self.0
+    }
+
+    pub fn as_slice(&self) -> &[u8] {
+        self.0.as_slice()
+    }
+
+    /// Whether the first 32 bytes contains the given [`ed25519::PublicKey`].
+    pub fn contains(&self, cert_pk: &ed25519::PublicKey) -> bool {
+        &self.0[..32] == cert_pk.as_slice()
+    }
+}
+
 #[cfg(target_env = "sgx")]
 mod sgx {
     use std::{borrow::Cow, fmt, net::TcpStream};
@@ -20,8 +59,9 @@ mod sgx {
     use cmac::{digest::generic_array::GenericArray, Cmac, Mac};
     use sgx_isa::{Report, Targetinfo};
 
+    use super::*;
     use crate::{
-        ed25519, hex,
+        hex,
         rng::{Crng, RngExt},
         sha256,
         tls::attestation::{
@@ -99,7 +139,7 @@ mod sgx {
         // the verifier checks the attestation evidence, this linkage is
         // what allows them to then trust the associated certificate.
 
-        let report_data = ReportData::new(cert_pk);
+        let report_data = ReportData::from_cert_pk(cert_pk);
         let qe_target_info =
             Targetinfo::try_copy_from(qe_quote_info.target_info())
                 .context("Failed to deserialize QE Quote Targetinfo")?;
@@ -153,7 +193,7 @@ mod sgx {
         expected_reportdata[0..32].copy_from_slice(h_nonce_quote.as_ref());
 
         ensure!(
-            &expected_reportdata == qe_reportdata,
+            &expected_reportdata == qe_reportdata.as_inner(),
             "QE ReportData doesn't match the expected value: actual: '{}', expected: '{}'",
             hex::display(qe_reportdata.as_slice()),
             hex::display(expected_reportdata.as_slice()),
@@ -279,35 +319,17 @@ mod sgx {
             self.algorithm_id == SGX_QL_ALG_ECDSA_P256
         }
     }
-
-    struct ReportData([u8; 64]);
-
-    impl ReportData {
-        fn new(pk: &ed25519::PublicKey) -> Self {
-            let mut report_data = [0u8; 64];
-            // ed25519 pks are always 32 bytes. This will panic if this internal
-            // invariant is somehow not true.
-            report_data[..32].copy_from_slice(pk.as_ref());
-            Self(report_data)
-        }
-
-        fn as_inner(&self) -> &[u8; 64] {
-            &self.0
-        }
-    }
 }
 
 #[cfg(not(target_env = "sgx"))]
 mod not_sgx {
-    use crate::{
-        ed25519, rng::Crng, tls::attestation::cert::SgxAttestationExtension,
-    };
+    use super::*;
+    use crate::{rng::Crng, tls::attestation::cert::SgxAttestationExtension};
 
     pub fn quote_enclave(
         _rng: &mut dyn Crng,
         _cert_pk: &ed25519::PublicKey,
     ) -> anyhow::Result<SgxAttestationExtension<'static>> {
-        // TODO(phlip9): use a different dummy extension?
         Ok(SgxAttestationExtension::dummy())
     }
 }
