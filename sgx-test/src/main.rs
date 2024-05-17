@@ -38,7 +38,6 @@ fn main() {
 
     println!("SGX DER-serialized evidence:");
     println!("quote: {}", hex::display(&evidence.quote));
-    println!("qe_report: {}", hex::display(&evidence.qe_report));
 
     let now = common::tls::rustls::pki_types::UnixTime::now();
     let quote_verifier = SgxQuoteVerifier;
