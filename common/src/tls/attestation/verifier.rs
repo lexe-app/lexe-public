@@ -317,7 +317,7 @@ pub struct AttestEvidence<'quote> {
 }
 
 impl<'a> AttestEvidence<'a> {
-    fn parse_cert_der(cert_der: &'a [u8]) -> Result<Self, rustls::Error> {
+    pub fn parse_cert_der(cert_der: &'a [u8]) -> Result<Self, rustls::Error> {
         use std::io;
 
         /// Shorthand to construct a [`rustls::Error::InvalidCertificate`]
