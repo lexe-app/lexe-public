@@ -63,6 +63,27 @@ pub struct PayInvoiceRequest {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct PreflightPayInvoiceRequest {
+    /// The invoice we want to pay.
+    pub invoice: LxInvoice,
+    /// Specifies the amount we will pay if the invoice to be paid is
+    /// amountless. This field must be [`Some`] for amountless invoices.
+    pub fallback_amount: Option<Amount>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PreflightPayInvoiceResponse {
+    /// The total amount to-be-paid for the pre-flighted [`LxInvoice`],
+    /// excluding the fees.
+    ///
+    /// This value may be different from the value originally requested if some
+    /// we had to reach `htlc_minimum_msat` for some intermediate hops.
+    pub amount: Amount,
+    /// The total amount of fees to-be-paid for the pre-flighted [`LxInvoice`].
+    pub fees: Amount,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct SendOnchainRequest {
     /// The identifier to use for this payment.
     pub cid: ClientPaymentId,
