@@ -33,6 +33,38 @@ use crate::{
 // --- SGX 'Platform APIs' --- //
 // These call ISA extensions provided by SGX, or return dummy data if non-SGX.
 
+/// Get an [`sgx_isa::Report`] for the current enclave by calling [`EREPORT`].
+///
+/// [`EREPORT`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#report-ereport
+pub fn report() -> sgx_isa::Report {
+    cfg_if! {
+        if #[cfg(target_env = "sgx")] {
+            sgx_isa::Report::for_self()
+        } else {
+            sgx_isa::Report {
+                cpusvn: MinCpusvn::CURRENT.0,
+                miscselect: miscselect::LEXE_FLAGS,
+                _reserved1: [0; 28],
+                attributes: sgx_isa::Attributes {
+                    // Just use prod value since the flags are fake anyway
+                    flags: attributes::LEXE_FLAGS_PROD,
+                    xfrm: xfrm::LEXE_FLAGS,
+                },
+                mrenclave: measurement().0,
+                _reserved2: [0; 32],
+                mrsigner: signer().0,
+                _reserved3: [0; 96],
+                isvprodid: 0u16,
+                isvsvn: 0u16,
+                _reserved4: [0; 60],
+                reportdata: [0; 64],
+                keyid: MachineId::KEY_ID,
+                mac: [0; 16],
+            }
+        }
+    }
+}
+
 /// Return the current enclave measurement.
 ///
 /// + In SGX, this is often called the [`MRENCLAVE`].
@@ -46,7 +78,7 @@ use crate::{
 pub fn measurement() -> Measurement {
     cfg_if! {
         if #[cfg(target_env = "sgx")] {
-            Measurement::new(sgx_isa::Report::for_self().mrenclave)
+            Measurement::new(report().mrenclave)
         } else {
             // Prefers `DEV_ENCLAVE`, otherwise defaults to `MOCK_ENCLAVE`.
             Measurement::DEV_ENCLAVE.unwrap_or(Measurement::MOCK_ENCLAVE)
@@ -66,7 +98,7 @@ pub fn measurement() -> Measurement {
 pub fn signer() -> Measurement {
     cfg_if! {
         if #[cfg(target_env = "sgx")] {
-            Measurement::new(sgx_isa::Report::for_self().mrsigner)
+            Measurement::new(report().mrsigner)
         } else {
             Measurement::MOCK_SIGNER
         }
@@ -80,7 +112,7 @@ pub fn machine_id() -> MachineId {
             use sgx_isa::{Keyname, Keypolicy};
 
             // use a fixed keyid
-            let keyid = *b"~~~~ LEXE MACHINE ID KEY ID ~~~~";
+            let keyid = MachineId::KEY_ID;
 
             // bind the signer (lexe) not the enclave. this way all our
             // enclaves can get the same machine id
@@ -490,6 +522,9 @@ impl MachineId {
     // proper get-machine-id bin util.
     pub const MOCK: Self =
         MachineId::new(hex::decode_const(b"52bc575eb9618084083ca7b3a45a2a76"));
+
+    /// We use a fixed keyid
+    const KEY_ID: [u8; 32] = *b"~~~~ LEXE MACHINE ID KEY ID ~~~~";
 
     pub const fn new(bytes: [u8; 16]) -> Self {
         Self(bytes)
