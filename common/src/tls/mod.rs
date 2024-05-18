@@ -76,7 +76,7 @@ pub static DEFAULT_SUBJECT_ALT_NAMES: LazyLock<Vec<rcgen::SanType>> =
 
 /// Helper to get a builder for a [`ClientConfig`] with Lexe's presets.
 /// NOTE: Remember: Set `alpn_protocols` to [`LEXE_ALPN_PROTOCOLS`] afterwards!
-pub fn lexe_client_config(
+pub fn client_config_builder(
 ) -> rustls::ConfigBuilder<ClientConfig, rustls::WantsVerifier> {
     // We use the correct provider and TLS versions here
     #[allow(clippy::disallowed_methods)]
@@ -87,7 +87,7 @@ pub fn lexe_client_config(
 
 /// Helper to get a builder for a [`ServerConfig`] with Lexe's presets.
 /// NOTE: Remember: Set `alpn_protocols` to [`LEXE_ALPN_PROTOCOLS`] afterwards!
-pub fn lexe_server_config(
+pub fn server_config_builder(
 ) -> rustls::ConfigBuilder<ServerConfig, rustls::WantsVerifier> {
     // We use the correct provider and TLS versions here
     #[allow(clippy::disallowed_methods)]

@@ -115,7 +115,7 @@ pub fn app_node_provision_server_config(
             .context("Failed to get or generate node attestation cert")?;
     let CertWithKey { cert_der, key_der } = attestation_cert.clone();
 
-    let mut config = super::lexe_server_config()
+    let mut config = super::server_config_builder()
         .with_no_client_auth()
         .with_single_cert(vec![cert_der.into()], key_der.into())
         .context("Failed to build TLS config")?;
@@ -148,7 +148,7 @@ pub fn app_node_provision_client_config(
         attestation_verifier,
     };
 
-    let mut config = super::lexe_client_config()
+    let mut config = super::client_config_builder()
         .dangerous()
         .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
         .with_no_client_auth();
@@ -178,7 +178,7 @@ pub fn node_lexe_client_config(
             .context("Failed to get or generate node attestation cert")?;
     let CertWithKey { cert_der, key_der } = attestation_cert.clone();
 
-    let mut config = super::lexe_client_config()
+    let mut config = super::client_config_builder()
         .with_webpki_verifier(lexe_server_verifier)
         .with_client_auth_cert(vec![cert_der.into()], key_der.into())
         .context("Failed to build TLS config")?;

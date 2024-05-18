@@ -28,7 +28,7 @@ pub fn app_gateway_client_config(
 ) -> rustls::ClientConfig {
     // Only trust Lexe's CA, no WebPKI roots, no client auth.
     let lexe_verifier = lexe_server_verifier(deploy_env);
-    let mut config = super::lexe_client_config()
+    let mut config = super::client_config_builder()
         .with_webpki_verifier(lexe_verifier)
         .with_no_client_auth();
     config
