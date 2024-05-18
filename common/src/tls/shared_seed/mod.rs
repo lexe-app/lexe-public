@@ -80,7 +80,7 @@ pub fn app_node_run_server_config(
     .build()
     .context("Failed to build client cert verifier")?;
 
-    let mut config = super::lexe_server_config()
+    let mut config = super::server_config_builder()
         .with_client_cert_verifier(client_cert_verifier)
         .with_single_cert(
             vec![server_cert_der.into()],
@@ -121,7 +121,7 @@ pub fn app_node_run_client_config(
         .context("Failed to sign and serialize ephemeral client cert")?;
     let client_cert_key_der = client_cert.serialize_key_der();
 
-    let mut config = super::lexe_client_config()
+    let mut config = super::client_config_builder()
         .dangerous()
         .with_custom_certificate_verifier(Arc::new(server_cert_verifier))
         // NOTE: .with_single_cert() uses a client cert resolver which always
