@@ -774,25 +774,19 @@ mod test {
     use std::{include_str, time::Duration};
 
     use super::*;
-    use crate::enclave;
 
-    const MRENCLAVE_HEX: &str =
-        include_str!("../../../test_data/mrenclave.hex");
-    /// This can be regenerated using [`dump_attest_cert`].
+    /// These two consts can be regenerated (in SGX) using [`dump_attest_cert`].
+    /// Be sure to update [`SERVER_MRENCLAVE`] too, o.w. the test will fail.
     const SGX_SERVER_CERT_PEM: &str =
         include_str!("../../../test_data/attest_cert.pem");
+    const SERVER_MRENCLAVE: Measurement = Measurement::new(hex::decode_const(
+        b"738f61792535f905807365a0f6023275b6a44972f48986c94aa7976c31bf1eb6",
+    ));
 
     const INTEL_SGX_ROOT_CA_CERT_PEM: &str =
         include_str!("../../../test_data/intel-sgx-root-ca.pem");
 
     // TODO(phlip9): test verification catches bad evidence
-
-    fn example_mrenclave() -> Measurement {
-        let mut mrenclave = [0u8; 32];
-        hex::decode_to_slice(MRENCLAVE_HEX.trim(), mrenclave.as_mut_slice())
-            .unwrap();
-        Measurement::new(mrenclave)
-    }
 
     #[test]
     fn test_intel_sgx_trust_anchor_der_pem_equal() {
@@ -818,7 +812,7 @@ mod test {
 
         let enclave_policy = EnclavePolicy {
             allow_debug: true,
-            trusted_mrenclaves: Some(vec![example_mrenclave()]),
+            trusted_mrenclaves: Some(vec![SERVER_MRENCLAVE]),
             trusted_mrsigner: None,
         };
         enclave_policy.verify(&report).unwrap();
@@ -832,7 +826,7 @@ mod test {
             expect_dummy_quote: false,
             enclave_policy: EnclavePolicy {
                 allow_debug: true,
-                trusted_mrenclaves: Some(vec![example_mrenclave()]),
+                trusted_mrenclaves: Some(vec![SERVER_MRENCLAVE]),
                 trusted_mrsigner: None,
             },
         };
@@ -885,19 +879,29 @@ mod test {
             .unwrap();
     }
 
+    /// Dump fresh attestation cert (intended for SGX only):
+    ///
+    /// ```bash
+    /// cargo test -p common --target=x86_64-fortanix-unknown-sgx dump_attest_cert -- --ignored --show-output
+    /// ```
     #[test]
-    #[ignore] // << uncomment to dump fresh attestation cert
+    #[cfg(target_env = "sgx")]
+    #[ignore]
     fn dump_attest_cert() {
-        use crate::{rng::WeakRng, tls::attestation::cert::AttestationCert};
+        use crate::{
+            enclave, rng::WeakRng, tls::attestation::cert::AttestationCert,
+        };
 
         let mut rng = WeakRng::new();
         let dns_name = "localhost".to_owned();
-        let lifetime = Duration::from_secs(60);
+        // Use a long lifetime so the test won't fail just bc the cert expired
+        let lifetime = Duration::from_secs(60 * 60 * 24 * 365 * 1000);
 
         let attest_cert =
             AttestationCert::generate(&mut rng, dns_name, lifetime).unwrap();
 
         println!("measurement: '{}'", enclave::measurement());
+        println!("Set `SERVER_MRENCLAVE` to this value.");
 
         let cert_der = attest_cert.serialize_der_self_signed().unwrap();
 

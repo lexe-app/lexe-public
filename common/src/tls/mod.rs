@@ -67,7 +67,6 @@ static LEXE_KEY_EXCHANGE_GROUPS: &[&dyn rustls::crypto::SupportedKxGroup] =
 
 /// Lexe default value for [`ClientConfig::alpn_protocols`] and
 /// [`ServerConfig::alpn_protocols`]: HTTP/1.1 and HTTP/2
-// TODO(phlip9): ensure this matches the reqwest config
 pub static LEXE_ALPN_PROTOCOLS: LazyLock<Vec<Vec<u8>>> =
     LazyLock::new(|| vec!["h2".into(), "http/1.1".into()]);
 /// A safe default for [`rcgen::CertificateParams::subject_alt_names`] when
