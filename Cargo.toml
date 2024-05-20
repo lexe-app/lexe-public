@@ -174,7 +174,9 @@ sgxs = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27
 sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
 
 # * server: Propagate current span across `tokio::spawn`
-axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-v0.6.0-2024_03_18" }
+# * fix: propagate graceful shutdown to inner hyper connection
+#   PR: <https://github.com/programatik29/axum-server/pull/119>
+axum-server = { git = "https://github.com/lexe-app/axum-server", branch = "lexe-v0.6.0-2024_05_20" }
 
 # * Replace RefCell with tokio::sync::RwLock 
 # * Wallet and EsploraBlockchain are thread-safe*+
