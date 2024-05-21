@@ -450,6 +450,61 @@ abstract class _Onchain implements Onchain {
 }
 
 /// @nodoc
+mixin _$PayInvoiceRequest {
+  String get invoice => throw _privateConstructorUsedError;
+  int? get fallbackAmountSats => throw _privateConstructorUsedError;
+  String? get note => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PayInvoiceRequestImpl implements _PayInvoiceRequest {
+  const _$PayInvoiceRequestImpl(
+      {required this.invoice, this.fallbackAmountSats, this.note});
+
+  @override
+  final String invoice;
+  @override
+  final int? fallbackAmountSats;
+  @override
+  final String? note;
+
+  @override
+  String toString() {
+    return 'PayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats, note: $note)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PayInvoiceRequestImpl &&
+            (identical(other.invoice, invoice) || other.invoice == invoice) &&
+            (identical(other.fallbackAmountSats, fallbackAmountSats) ||
+                other.fallbackAmountSats == fallbackAmountSats) &&
+            (identical(other.note, note) || other.note == note));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, invoice, fallbackAmountSats, note);
+}
+
+abstract class _PayInvoiceRequest implements PayInvoiceRequest {
+  const factory _PayInvoiceRequest(
+      {required final String invoice,
+      final int? fallbackAmountSats,
+      final String? note}) = _$PayInvoiceRequestImpl;
+
+  @override
+  String get invoice;
+  @override
+  int? get fallbackAmountSats;
+  @override
+  String? get note;
+}
+
+/// @nodoc
 mixin _$Payment {
   String get index => throw _privateConstructorUsedError;
   PaymentKind get kind => throw _privateConstructorUsedError;

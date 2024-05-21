@@ -15,8 +15,9 @@
 //! representations in the generated Dart code.
 //!
 //! The generated Dart interface lives in
+//! `../../app/lib/bindings_generated.dart` (impls) and
 //! `../../app/lib/bindings_generated_api.dart` (definitions) and
-//! `../../app/lib/bindings_generated.dart` (impls).
+//! `../../app/lib/bindings_generated_api.freezed.dart` (dart `freezed` codegen)
 //!
 //! The low-level generated Rust C-ABI interface is in
 //! [`crate::bindings_generated`].
@@ -61,6 +62,7 @@ use common::{
             EstimateFeeSendOnchainRequest as EstimateFeeSendOnchainRequestRs,
             EstimateFeeSendOnchainResponse as EstimateFeeSendOnchainResponseRs,
             FeeEstimate as FeeEstimateRs, NodeInfo as NodeInfoRs,
+            PayInvoiceRequest as PayInvoiceRequestRs,
             SendOnchainRequest as SendOnchainRequestRs,
         },
         def::{AppGatewayApi, AppNodeRunApi},
@@ -519,6 +521,29 @@ impl From<LxInvoice> for Invoice {
     }
 }
 
+/// Mirrors the [`common::api::command::PayInvoiceRequest`] type.
+#[frb(dart_metadata=("freezed"))]
+pub struct PayInvoiceRequest {
+    pub invoice: String,
+    pub fallback_amount_sats: Option<u64>,
+    pub note: Option<String>,
+}
+
+impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
+    type Error = anyhow::Error;
+    fn try_from(value: PayInvoiceRequest) -> Result<Self, Self::Error> {
+        let fallback_amount = match value.fallback_amount_sats {
+            Some(amount) => Some(Amount::try_from_sats_u64(amount)?),
+            None => None,
+        };
+        Ok(Self {
+            invoice: LxInvoice::from_str(&value.invoice)?,
+            fallback_amount,
+            note: value.note,
+        })
+    }
+}
+
 /// A unique, client-generated id for payment types (onchain send,
 /// ln spontaneous send) that need an extra id for idempotency.
 #[frb(dart_metadata=("freezed"))]
@@ -897,6 +922,13 @@ impl AppHandle {
         let req = CreateInvoiceRequestRs::try_from(req)?;
         block_on(self.inner.node_client().create_invoice(req))
             .map(CreateInvoiceResponse::from)
+            .map_err(anyhow::Error::new)
+    }
+
+    pub fn pay_invoice(&self, req: PayInvoiceRequest) -> anyhow::Result<()> {
+        let req = PayInvoiceRequestRs::try_from(req)?;
+        block_on(self.inner.node_client().pay_invoice(req))
+            .map(|Empty {}| ())
             .map_err(anyhow::Error::new)
     }
 
