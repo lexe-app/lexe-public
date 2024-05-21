@@ -1,5 +1,7 @@
 // Send payment page
 
+// ignore_for_file: camel_case_types, unnecessary_import
+
 import 'package:flutter/material.dart';
 
 import 'package:lexeapp/address_format.dart' as address_format;
@@ -7,13 +9,20 @@ import 'package:lexeapp/bindings.dart' show api;
 import 'package:lexeapp/bindings_generated_api.dart'
     show
         AppHandle,
+        Balance,
         ClientPaymentId,
         ConfirmationPriority,
         EstimateFeeSendOnchainRequest,
         EstimateFeeSendOnchainResponse,
         FeeEstimate,
+        Invoice,
         Network,
+        Onchain,
+        PaymentMethod,
+        PreflightPayInvoiceResponse,
         SendOnchainRequest;
+import 'package:lexeapp/bindings_generated_api.dart';
+import 'package:lexeapp/bindings_generated_api_ext.dart';
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
@@ -40,30 +49,105 @@ import 'package:lexeapp/style.dart'
 
 /// Context used during the send payment flow.
 @immutable
-final class SendContext {
+class SendContext {
   const SendContext({
     required this.app,
     required this.configNetwork,
-    required this.balanceSats,
+    required this.balance,
     required this.cid,
   });
 
-  factory SendContext.cidFromRng({
-    required AppHandle app,
-    required Network configNetwork,
-    required int balanceSats,
-  }) =>
-      SendContext(
-        app: app,
-        configNetwork: configNetwork,
-        balanceSats: balanceSats,
-        cid: api.genClientPaymentId(),
-      );
-
   final AppHandle app;
   final Network configNetwork;
-  final int balanceSats;
+
+  /// The current spendable wallet balance, for all payment methods
+  /// (LN, onchain).
+  final Balance balance;
+
+  /// A unique, client-generated id for payment types (onchain send,
+  /// ln spontaneous send) that need an extra id for idempotency.
   final ClientPaymentId cid;
+}
+
+@immutable
+class SendContext_NeedAmount extends SendContext {
+  const SendContext_NeedAmount({
+    required super.app,
+    required super.configNetwork,
+    required super.balance,
+    required super.cid,
+    required this.paymentMethod,
+  });
+
+  /// The current payment method (onchain send, BOLT11 invoice send, BOLT12
+  /// offer send) and associated details, like amount or description.
+  ///
+  /// If we're just hitting the "Send" button on the main wallet page, this will
+  /// be null.
+  /// Otherwise, this will be non-null if we're coming from a QR code scan or
+  /// URI open.
+  final PaymentMethod paymentMethod;
+
+  int balanceSats() => this.balance.balanceByKind(this.paymentMethod.kind());
+}
+
+@immutable
+class SendContext_Preflighted extends SendContext {
+  const SendContext_Preflighted({
+    required super.app,
+    required super.configNetwork,
+    required super.balance,
+    required super.cid,
+    required this.preflightedPayment,
+  });
+
+  final PreflightedPayment preflightedPayment;
+
+  int balanceSats() =>
+      this.balance.balanceByKind(this.preflightedPayment.kind());
+}
+
+/// A preflighted [PaymentMethod] -- the user's node has made sure the payment
+/// checks out and is ready to send, without actually sending it.
+///
+/// For example, an [Onchain] payment will check against our balance and get
+/// network fee estimates, while an [Invoice] will check our balance and
+/// liquidity, then find a route and get a fee estimate.
+@immutable
+sealed class PreflightedPayment {
+  PaymentKind kind();
+}
+
+@immutable
+class PreflightedPayment_Invoice implements PreflightedPayment {
+  const PreflightedPayment_Invoice(
+      {required this.invoice, required this.preflight});
+
+  final Invoice invoice;
+  final PreflightPayInvoiceResponse preflight;
+
+  @override
+  PaymentKind kind() => PaymentKind.Invoice;
+}
+
+@immutable
+class PreflightedPayment_Onchain implements PreflightedPayment {
+  const PreflightedPayment_Onchain(
+      {required this.onchain, required this.preflight});
+
+  final Onchain onchain;
+  final EstimateFeeSendOnchainResponse preflight;
+
+  @override
+  PaymentKind kind() => PaymentKind.Onchain;
+}
+
+// TODO(phlip9): impl BOLT12 offer
+class PreflightedPayment_Offer implements PreflightedPayment {
+  const PreflightedPayment_Offer();
+
+  @override
+  PaymentKind kind() => throw UnimplementedError();
 }
 
 /// The entry point for the send payment flow.
@@ -77,8 +161,14 @@ class SendPaymentPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Dispatch to the right initial page
     return MultistepFlow<bool?>(
         builder: (_) => SendPaymentAddressPage(sendCtx: sendCtx));
+
+    // case: ctx.paymentMethod == null
+    //       => SendPaymentAddressPage
+    // case: ctx.paymentPreflight == null
+    //       => SendPaymentAmountPage
   }
 }
 
@@ -126,10 +216,31 @@ class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
         return;
     }
 
+    // TODO(phlip9): parse and resolve payment method from field
+
+    final paymentMethod = PaymentMethod.onchain(Onchain(
+      address: address,
+      amountSats: null,
+      label: null,
+      message: null,
+    ));
+
+    final sendCtx = this.widget.sendCtx;
+
+    final nextSendCtx = SendContext_NeedAmount(
+      app: sendCtx.app,
+      configNetwork: sendCtx.configNetwork,
+      balance: sendCtx.balance,
+      cid: sendCtx.cid,
+      paymentMethod: paymentMethod,
+    );
+
+    // TODO(phlip9): dispatch to NeedAmount vs Confirm page depending on
+    // PaymentMethod.
     final bool? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SendPaymentAmountPage(
-        sendCtx: this.widget.sendCtx,
+        sendCtx: nextSendCtx,
         address: address,
       ),
     ));
@@ -251,7 +362,7 @@ class SendPaymentAmountPage extends StatefulWidget {
     required this.address,
   });
 
-  final SendContext sendCtx;
+  final SendContext_NeedAmount sendCtx;
   final String address;
 
   @override
@@ -320,6 +431,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     // Reset loading animation.
     this.estimatingFee.value = false;
 
+    // TODO(phlip9): preflight by payment method
+
     final EstimateFeeSendOnchainResponse feeEstimates;
     switch (result) {
       case Ok(:final ok):
@@ -331,13 +444,31 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
         return;
     }
 
+    // TODO(phlip9): get this from `paymentMethod`
+    final onchain = Onchain(address: this.widget.address);
+
+    final preflightedPayment = PreflightedPayment_Onchain(
+      onchain: onchain,
+      preflight: feeEstimates,
+    );
+
+    final sendCtx = this.widget.sendCtx;
+
+    final nextSendCtx = SendContext_Preflighted(
+      app: sendCtx.app,
+      configNetwork: sendCtx.configNetwork,
+      balance: sendCtx.balance,
+      cid: sendCtx.cid,
+      preflightedPayment: preflightedPayment,
+    );
+
     // Everything looks good so far -- navigate to the confirmation page.
 
     final bool? flowResult =
         // ignore: use_build_context_synchronously
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SendPaymentConfirmPage(
-        sendCtx: this.widget.sendCtx,
+        sendCtx: nextSendCtx,
         address: this.widget.address,
         sendAmount: sendAmount,
         feeEstimates: feeEstimates,
@@ -355,8 +486,17 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   }
 
   Result<(), String?> validateAmount(int amount) {
-    if (amount > this.widget.sendCtx.balanceSats) {
-      return const Err("You can't send more than your current balance.");
+    final balanceSats = this.widget.sendCtx.balanceSats();
+    if (amount > balanceSats) {
+      final kind = this.widget.sendCtx.paymentMethod.kind();
+      final kindLabel = switch (kind) {
+        PaymentKind.Onchain => "on-chain",
+        PaymentKind.Invoice || PaymentKind.Spontaneous => "lightning",
+      };
+      final balanceStr =
+          currency_format.formatSatsAmount(balanceSats, satsSuffix: true);
+      return Err(
+          "This amount is more than your bitcoin $kindLabel spendable balance of $balanceStr.");
     }
 
     return const Ok(());
@@ -365,7 +505,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   @override
   Widget build(BuildContext context) {
     final balanceStr = currency_format
-        .formatSatsAmount(this.widget.sendCtx.balanceSats, satsSuffix: true);
+        .formatSatsAmount(this.widget.sendCtx.balanceSats(), satsSuffix: true);
 
     return Scaffold(
       appBar: AppBar(
@@ -473,7 +613,7 @@ class SendPaymentConfirmPage extends StatefulWidget {
     required this.feeEstimates,
   });
 
-  final SendContext sendCtx;
+  final SendContext_Preflighted sendCtx;
   final String address;
   final SendAmount sendAmount;
   final EstimateFeeSendOnchainResponse feeEstimates;
@@ -567,7 +707,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
         SendAmountExact(:final amountSats) => amountSats,
         // TODO(phlip9): the exact amount will need to come from the
         // pre-validation + fee estimation request.
-        SendAmountAll() => this.widget.sendCtx.balanceSats,
+        SendAmountAll() => this.widget.sendCtx.balanceSats(),
       };
 
   int feeSats() {

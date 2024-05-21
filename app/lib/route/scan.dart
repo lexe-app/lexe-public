@@ -6,6 +6,7 @@ import 'package:flutter_zxing/flutter_zxing.dart'
 import 'package:lexeapp/bindings.dart' show api;
 import 'package:lexeapp/bindings_generated_api.dart'
     show Network, PaymentMethod;
+// import 'package:lexeapp/bindings_generated_api_ext.dart' show PaymentMethodExt;
 
 import 'package:lexeapp/components.dart' show LxCloseButton;
 import 'package:lexeapp/logger.dart';
@@ -64,6 +65,21 @@ class _ScanPageState extends State<ScanPage> {
       }
 
       info("Scanned QR with best payment method: $paymentMethod");
+
+      // final int? amountSats = paymentMethod.amountSats();
+      //
+      // if (amountSats == null) {
+      //
+      // }
+
+      // if (amountSats == null) {
+      //
+      // }
+
+      // if the paymentMethod needs an amount, then jump to the
+      // `SendPaymentAmountPage`. otherwise, if the payment already has a fixed
+      // amount, we need to pre-flight the payment (look for LN route, estimate
+      // fees) and jump to the `SendPaymentConfirmPage`.
     } finally {
       this.isProcessing = false;
     }

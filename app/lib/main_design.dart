@@ -31,9 +31,11 @@ import 'package:lexeapp/bindings_generated_api.dart'
         Invoice,
         Network,
         NodeInfo,
+        Onchain,
         Payment,
         PaymentDirection,
         PaymentKind,
+        PaymentMethod,
         PaymentStatus,
         SendOnchainRequest,
         ShortPaymentAndIndex,
@@ -60,9 +62,12 @@ import 'package:lexeapp/route/receive.dart'
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send.dart'
     show
+        PreflightedPayment_Onchain,
         SendAmountAll,
         SendAmountExact,
         SendContext,
+        SendContext_NeedAmount,
+        SendContext_Preflighted,
         SendPaymentAmountPage,
         SendPaymentConfirmPage,
         SendPaymentPage;
@@ -171,6 +176,12 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
     final cidBytes = List.generate(32, (idx) => idx);
     final cid = ClientPaymentId(id: U8Array32(Uint8List.fromList(cidBytes)));
 
+    const balance = Balance(
+      onchainSats: 111111,
+      lightningSats: 222222,
+      totalSats: 111111 + 222222,
+    );
+
     const feeEstimates = EstimateFeeSendOnchainResponse(
       high: FeeEstimate(amountSats: 849),
       normal: FeeEstimate(amountSats: 722),
@@ -225,32 +236,44 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 sendCtx: SendContext(
                   app: mockApp,
                   configNetwork: widget.config.network,
-                  balanceSats: 123456,
+                  balance: balance,
                   cid: cid,
                 ),
               ),
             ),
             Component(
               "SendPaymentAmountPage",
+              subtitle: "onchain address-only",
               (context) => SendPaymentAmountPage(
-                sendCtx: SendContext(
-                  app: mockApp,
-                  configNetwork: widget.config.network,
-                  balanceSats: 73450,
-                  cid: cid,
-                ),
+                sendCtx: SendContext_NeedAmount(
+                    app: mockApp,
+                    configNetwork: widget.config.network,
+                    balance: balance,
+                    cid: cid,
+                    paymentMethod: const PaymentMethod.onchain(
+                      Onchain(
+                          address:
+                              "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"),
+                    )),
                 address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
               ),
             ),
             Component(
               "SendPaymentConfirmPage",
-              subtitle: "sending exact amount",
+              subtitle: "exact amount onchain",
               (context) => SendPaymentConfirmPage(
-                sendCtx: SendContext(
+                sendCtx: SendContext_Preflighted(
                   app: mockApp,
                   configNetwork: widget.config.network,
-                  balanceSats: 73450,
+                  balance: balance,
                   cid: cid,
+                  preflightedPayment: const PreflightedPayment_Onchain(
+                    onchain: Onchain(
+                      address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+                      amountSats: 2500,
+                    ),
+                    preflight: feeEstimates,
+                  ),
                 ),
                 address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
                 sendAmount: const SendAmountExact(2500),
@@ -261,11 +284,18 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "SendPaymentConfirmPage",
               subtitle: "sending full balance",
               (context) => SendPaymentConfirmPage(
-                sendCtx: SendContext(
+                sendCtx: SendContext_Preflighted(
                   app: mockApp,
                   configNetwork: widget.config.network,
-                  balanceSats: 73450,
+                  balance: balance,
                   cid: cid,
+                  preflightedPayment: const PreflightedPayment_Onchain(
+                    onchain: Onchain(
+                      address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+                      amountSats: 2500,
+                    ),
+                    preflight: feeEstimates,
+                  ),
                 ),
                 address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
                 sendAmount: const SendAmountAll(),
