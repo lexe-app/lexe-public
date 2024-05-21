@@ -16,6 +16,7 @@
 /// - [`LxPrivatePkcs8KeyDer::from`] (from [`Vec<u8>`])
 ///
 /// Step 3: Into [`CertificateDer<'_>`] and [`PrivateKeyDer<'_>`]
+/// - [`CertWithKey::into_chain_and_key`]
 /// - `impl From<LxCertificateDer> for CertificateDer<'static>`
 /// - `impl From<LxPrivatePkcs8KeyDer> for PrivateKeyDer<'static>`
 /// - `impl<'der> From<&'der LxCertificateDer> for CertificateDer<'der>`
@@ -51,7 +52,7 @@ pub struct DnsCertWithKey {
     pub dns: String,
 }
 
-/// A DER-encoded cert with its private key.
+/// A DER-encoded cert with its private key and possibly the issuing CA cert.
 #[derive(Clone, Serialize, Deserialize)]
 #[cfg_attr(
     any(test, feature = "test-utils"),
@@ -60,6 +61,27 @@ pub struct DnsCertWithKey {
 pub struct CertWithKey {
     pub cert_der: LxCertificateDer,
     pub key_der: LxPrivatePkcs8KeyDer,
+    /// The DER-encoded cert of the Lexe CA that signed this end-entity cert,
+    /// which was itself signed by the old Lexe CA during a Lexe CA rotation.
+    ///
+    /// 99%+ of the time you can just leave this field as [`None`].
+    ///
+    /// This field is only required to be [`Some`] if:
+    /// 1) This [`CertWithKey`] corresponds to an end-entity cert used to
+    ///    authenticate ourselves for "Lexe CA" TLS, i.e. the remote verifier
+    ///    requires that [`Self::cert_der`] has been signed by the Lexe CA.
+    /// 2) Lexe is undergoing a (very rare) root CA key rotation.
+    /// 3) We expect to communicate with remote clients/servers that trust the
+    ///    old Lexe CA, but have not yet upgraded to trust the new one.
+    ///
+    /// If all conditions are met, then this field must contain the *new* Lexe
+    /// CA cert, which has been signed by the old Lexe CA. [`Self::cert_der`]
+    /// must then be an end-entity cert signed by the *new* CA.
+    /// [`CertWithKey::into_chain_and_key`] will then include both of these
+    /// certs in the cert chain presented to remote verifiers.
+    ///
+    /// See the docs on `LexeRootCaCert` for more info.
+    pub ca_cert_der: Option<LxCertificateDer>,
 }
 
 /// A [`CertificateDer`] which can be serialized and deserialized.
@@ -83,6 +105,22 @@ pub struct LxCertificateDer(#[serde(with = "hexstr_or_bytes")] Vec<u8>);
     derive(Debug, Eq, PartialEq, Arbitrary)
 )]
 pub struct LxPrivatePkcs8KeyDer(#[serde(with = "hexstr_or_bytes")] Vec<u8>);
+
+// --- impl CertWithKey --- //
+
+impl CertWithKey {
+    /// Converts self into the parameters required by [`rustls::ConfigBuilder`].
+    pub fn into_chain_and_key(
+        self,
+    ) -> (Vec<CertificateDer<'static>>, PrivateKeyDer<'static>) {
+        // NOTE: The end-entity cert needs to go *first* in this Vec.
+        let mut cert_chain = vec![self.cert_der.into()];
+        if let Some(ca_cert_der) = self.ca_cert_der {
+            cert_chain.push(ca_cert_der.into());
+        }
+        (cert_chain, self.key_der.into())
+    }
+}
 
 // --- impl LxCertificateDer --- //
 
