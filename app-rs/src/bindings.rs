@@ -151,16 +151,43 @@ pub struct NodeInfo {
     pub node_pk: String,
     pub version: String,
     pub measurement: String,
-    pub spendable_balance_sats: u64,
+    pub balance: Balance,
 }
 
 impl From<NodeInfoRs> for NodeInfo {
     fn from(info: NodeInfoRs) -> Self {
+        let balance = Balance::from(&info);
         Self {
             node_pk: info.node_pk.to_string(),
             version: info.version.to_string(),
             measurement: info.measurement.to_string(),
-            spendable_balance_sats: info.spendable_balance().sats_u64(),
+            balance,
+        }
+    }
+}
+
+#[frb(dart_metadata=("freezed"))]
+pub struct Balance {
+    /// The top-level balance we'll show on the user screen.
+    pub total_sats: u64,
+    /// The amount we can currently spend from our outbound LN channel
+    /// capacity.
+    pub lightning_sats: u64,
+    /// The amount of spendable onchain funds, i.e., those that are confirmed
+    /// or otherwise trusted but maybe pending (self-generated UTXOs).
+    pub onchain_sats: u64,
+}
+
+impl From<&NodeInfoRs> for Balance {
+    fn from(info: &NodeInfoRs) -> Self {
+        let lightning_sats = info.lightning_balance.sats_u64();
+        let onchain_sats = info.onchain_balance.get_spendable_sats();
+        let total_sats = lightning_sats + onchain_sats;
+
+        Self {
+            total_sats,
+            lightning_sats,
+            onchain_sats,
         }
     }
 }

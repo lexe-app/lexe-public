@@ -18,6 +18,7 @@ import 'package:lexeapp/bindings_generated_api.dart'
         App,
         AppHandle,
         AppRs,
+        Balance,
         ClientPaymentId,
         Config,
         CreateInvoiceRequest,
@@ -394,17 +395,24 @@ class MockAppHandle extends AppHandle {
   ].sortedBy((payment) => payment.index);
 
   @override
-  Future<NodeInfo> nodeInfo({dynamic hint}) => Future.delayed(
-        const Duration(milliseconds: 1000),
-        () => const NodeInfo(
+  Future<NodeInfo> nodeInfo({dynamic hint}) =>
+      Future.delayed(const Duration(milliseconds: 1000), () {
+        const lightningSats = 409801;
+        const onchainSats = 366430;
+        const totalSats = lightningSats + onchainSats;
+        return const NodeInfo(
           nodePk:
               "03fedbc6adf1a7175389d26b2896d10ef00fa71c81ba085a7c8cd34b6a4e0f7556",
           version: "1.2.3",
           measurement:
               "1d97c2c837b09ec7b0e0b26cb6fa9a211be84c8fdb53299cc9ee8884c7a25ac1",
-          spendableBalanceSats: 727505,
-        ),
-      );
+          balance: Balance(
+            totalSats: totalSats,
+            lightningSats: lightningSats,
+            onchainSats: onchainSats,
+          ),
+        );
+      });
 
   @override
   Future<FiatRates> fiatRates({dynamic hint}) => Future.delayed(

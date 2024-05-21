@@ -101,7 +101,7 @@ class WalletPageState extends State<WalletPage> {
     // `fiatRate` are updated. Since it's fed into a `StateSubject`, it also
     // avoids widget rebuilds if new state == old state.
     Rx.combineLatest2(
-      this.nodeInfos.map((nodeInfo) => nodeInfo?.spendableBalanceSats),
+      this.nodeInfos.map((nodeInfo) => nodeInfo?.balance.totalSats),
       this.fiatRate,
       (balanceSats, fiatRate) => BalanceState(
         balanceSats: balanceSats,
@@ -223,7 +223,8 @@ class WalletPageState extends State<WalletPage> {
       return;
     }
 
-    final balanceSats = maybeNodeInfo.spendableBalanceSats;
+    // TODO(phlip9): pass whole `Balance` in context
+    final balanceSats = maybeNodeInfo.balance.totalSats;
 
     final bool? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(

@@ -1,12 +1,19 @@
 /// Extension methods on Dart/Rust FFI types.
 library;
 
+import 'package:lexeapp/bindings.dart' show api;
+
 import 'package:lexeapp/bindings_generated_api.dart'
     show
+        ClientPaymentId,
         Invoice,
         Payment,
         PaymentDirection,
         PaymentKind,
+        PaymentMethod,
+        PaymentMethod_Invoice,
+        PaymentMethod_Offer,
+        PaymentMethod_Onchain,
         PaymentStatus,
         ShortPayment;
 
@@ -62,4 +69,18 @@ extension PaymentExt on Payment {
       this.kind == PaymentKind.Invoice &&
       this.direction == PaymentDirection.Inbound &&
       (this.amountSat == null || this.note == null);
+}
+
+extension ClientPaymentIdExt on ClientPaymentId {
+  static ClientPaymentId generate() => api.genClientPaymentId();
+}
+
+extension PaymentMethodExt on PaymentMethod {
+  /// Return the payment method amount in satoshis, if any.
+  int? amountSats() => switch (this) {
+        PaymentMethod_Onchain(:final field0) => field0.amountSats,
+        PaymentMethod_Invoice(:final field0) => field0.amountSats,
+        PaymentMethod_Offer() =>
+          throw UnsupportedError("BOLT12 offers not supported yet"),
+      };
 }

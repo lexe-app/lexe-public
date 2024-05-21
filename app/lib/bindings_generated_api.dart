@@ -440,6 +440,15 @@ class AppHandle {
       );
 }
 
+@freezed
+class Balance with _$Balance {
+  const factory Balance({
+    required int totalSats,
+    required int lightningSats,
+    required int onchainSats,
+  }) = _Balance;
+}
+
 /// A unique, client-generated id for payment types (onchain send,
 /// ln spontaneous send) that need an extra id for idempotency.
 @freezed
@@ -566,7 +575,7 @@ class NodeInfo with _$NodeInfo {
     required String nodePk,
     required String version,
     required String measurement,
-    required int spendableBalanceSats,
+    required Balance balance,
   }) = _NodeInfo;
 }
 

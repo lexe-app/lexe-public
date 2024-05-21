@@ -17,12 +17,12 @@ pub struct Balance {
 
 impl Balance {
     /// Get sum of trusted pending and confirmed coins
-    pub fn get_spendable(&self) -> u64 {
+    pub fn get_spendable_sats(&self) -> u64 {
         self.confirmed_sat + self.trusted_pending_sat
     }
 
     /// Get the whole balance visible to the wallet
-    pub fn get_total(&self) -> u64 {
+    pub fn get_total_sats(&self) -> u64 {
         self.confirmed_sat
             + self.trusted_pending_sat
             + self.untrusted_pending_sat
@@ -32,8 +32,8 @@ impl Balance {
 
 impl std::fmt::Display for Balance {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let spendable = self.get_spendable();
-        let total = self.get_total();
+        let spendable = self.get_spendable_sats();
+        let total = self.get_total_sats();
         write!(
             f,
             "{{ spendable balance: {spendable} sats, total: {total} sats }}"
