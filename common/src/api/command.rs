@@ -17,10 +17,10 @@ pub struct NodeInfo {
     pub node_pk: NodePk,
     pub num_channels: usize,
     pub num_usable_channels: usize,
-    pub local_balance: Amount,
+    pub lightning_balance: Amount,
     pub num_peers: usize,
     /// Our on-chain wallet [`Balance`].
-    pub wallet_balance: Balance,
+    pub onchain_balance: Balance,
     /// The number of pending channel monitor updates.
     /// If this isn't 0, it's likely that at least one channel is paused.
     pub pending_monitor_updates: usize,
@@ -149,9 +149,9 @@ impl NodeInfo {
     /// the on-chain balance (`confirmed_sat` + `trusted_pending_sat`,
     /// almost-certainly-spendable).
     pub fn spendable_balance(&self) -> Amount {
-        Amount::try_from_sats_u64(self.wallet_balance.get_spendable())
+        Amount::try_from_sats_u64(self.onchain_balance.get_spendable())
             .ok()
-            .and_then(|b| b.checked_add(self.local_balance))
+            .and_then(|b| b.checked_add(self.lightning_balance))
             .expect("Overflow computing user's spendable wallet balance")
     }
 }

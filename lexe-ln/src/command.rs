@@ -86,11 +86,11 @@ where
     let num_channels = channels.len();
     let num_usable_channels = channels.iter().filter(|c| c.is_usable).count();
 
-    let local_balance_msat = channels.iter().map(|c| c.balance_msat).sum();
-    let local_balance = Amount::from_msat(local_balance_msat);
+    let lightning_balance_msat = channels.iter().map(|c| c.balance_msat).sum();
+    let lightning_balance = Amount::from_msat(lightning_balance_msat);
     let num_peers = peer_manager.get_peer_node_ids().len();
 
-    let wallet_balance = wallet.get_balance().await?;
+    let onchain_balance = wallet.get_balance().await?;
 
     let pending_monitor_updates = chain_monitor
         .list_pending_monitor_updates()
@@ -104,9 +104,9 @@ where
         node_pk,
         num_channels,
         num_usable_channels,
-        local_balance,
+        lightning_balance,
         num_peers,
-        wallet_balance,
+        onchain_balance,
         pending_monitor_updates,
     };
 
