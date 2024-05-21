@@ -155,6 +155,11 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kCreateInvoiceMethodAppHandleConstMeta;
 
+  Future<void> payInvoiceMethodAppHandle(
+      {required AppHandle that, required PayInvoiceRequest req, dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta get kPayInvoiceMethodAppHandleConstMeta;
+
   /// Delete both the local payment state and the on-disk payment db.
   Future<void> deletePaymentDbMethodAppHandle(
       {required AppHandle that, dynamic hint});
@@ -322,6 +327,12 @@ class AppHandle {
   Future<CreateInvoiceResponse> createInvoice(
           {required CreateInvoiceRequest req, dynamic hint}) =>
       bridge.createInvoiceMethodAppHandle(
+        that: this,
+        req: req,
+      );
+
+  Future<void> payInvoice({required PayInvoiceRequest req, dynamic hint}) =>
+      bridge.payInvoiceMethodAppHandle(
         that: this,
         req: req,
       );
@@ -553,6 +564,16 @@ class Onchain with _$Onchain {
     String? label,
     String? message,
   }) = _Onchain;
+}
+
+/// Mirrors the [`common::api::command::PayInvoiceRequest`] type.
+@freezed
+class PayInvoiceRequest with _$PayInvoiceRequest {
+  const factory PayInvoiceRequest({
+    required String invoice,
+    int? fallbackAmountSats,
+    String? note,
+  }) = _PayInvoiceRequest;
 }
 
 /// The complete payment info, used in the payment detail page. Mirrors the

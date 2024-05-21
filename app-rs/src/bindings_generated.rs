@@ -346,6 +346,24 @@ fn wire_create_invoice__method__AppHandle_impl(
         },
     )
 }
+fn wire_pay_invoice__method__AppHandle_impl(
+    port_: MessagePort,
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+    req: impl Wire2Api<PayInvoiceRequest> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, (), _>(
+        WrapInfo {
+            debug_name: "pay_invoice__method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_that = that.wire2api();
+            let api_req = req.wire2api();
+            move |task_callback| AppHandle::pay_invoice(&api_that, api_req)
+        },
+    )
+}
 fn wire_delete_payment_db__method__AppHandle_impl(
     port_: MessagePort,
     that: impl Wire2Api<AppHandle> + UnwindSafe,
@@ -1162,6 +1180,15 @@ mod io {
     }
 
     #[no_mangle]
+    pub extern "C" fn wire_pay_invoice__method__AppHandle(
+        port_: i64,
+        that: *mut wire_AppHandle,
+        req: *mut wire_PayInvoiceRequest,
+    ) {
+        wire_pay_invoice__method__AppHandle_impl(port_, that, req)
+    }
+
+    #[no_mangle]
     pub extern "C" fn wire_delete_payment_db__method__AppHandle(
         port_: i64,
         that: *mut wire_AppHandle,
@@ -1307,6 +1334,12 @@ mod io {
     }
 
     #[no_mangle]
+    pub extern "C" fn new_box_autoadd_pay_invoice_request_0(
+    ) -> *mut wire_PayInvoiceRequest {
+        support::new_leak_box_ptr(wire_PayInvoiceRequest::new_with_null_ptr())
+    }
+
+    #[no_mangle]
     pub extern "C" fn new_box_autoadd_send_onchain_request_0(
     ) -> *mut wire_SendOnchainRequest {
         support::new_leak_box_ptr(wire_SendOnchainRequest::new_with_null_ptr())
@@ -1396,6 +1429,12 @@ mod io {
             Wire2Api::<EstimateFeeSendOnchainRequest>::wire2api(*wrap).into()
         }
     }
+    impl Wire2Api<PayInvoiceRequest> for *mut wire_PayInvoiceRequest {
+        fn wire2api(self) -> PayInvoiceRequest {
+            let wrap = unsafe { support::box_from_leak_ptr(self) };
+            Wire2Api::<PayInvoiceRequest>::wire2api(*wrap).into()
+        }
+    }
     impl Wire2Api<SendOnchainRequest> for *mut wire_SendOnchainRequest {
         fn wire2api(self) -> SendOnchainRequest {
             let wrap = unsafe { support::box_from_leak_ptr(self) };
@@ -1454,6 +1493,15 @@ mod io {
         }
     }
 
+    impl Wire2Api<PayInvoiceRequest> for wire_PayInvoiceRequest {
+        fn wire2api(self) -> PayInvoiceRequest {
+            PayInvoiceRequest {
+                invoice: self.invoice.wire2api(),
+                fallback_amount_sats: self.fallback_amount_sats.wire2api(),
+                note: self.note.wire2api(),
+            }
+        }
+    }
     impl Wire2Api<SendOnchainRequest> for wire_SendOnchainRequest {
         fn wire2api(self) -> SendOnchainRequest {
             SendOnchainRequest {
@@ -1533,6 +1581,14 @@ mod io {
     pub struct wire_EstimateFeeSendOnchainRequest {
         address: *mut wire_uint_8_list,
         amount_sats: u64,
+    }
+
+    #[repr(C)]
+    #[derive(Clone)]
+    pub struct wire_PayInvoiceRequest {
+        invoice: *mut wire_uint_8_list,
+        fallback_amount_sats: *mut u64,
+        note: *mut wire_uint_8_list,
     }
 
     #[repr(C)]
@@ -1652,6 +1708,22 @@ mod io {
     }
 
     impl Default for wire_EstimateFeeSendOnchainRequest {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+
+    impl NewWithNullPtr for wire_PayInvoiceRequest {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                invoice: core::ptr::null_mut(),
+                fallback_amount_sats: core::ptr::null_mut(),
+                note: core::ptr::null_mut(),
+            }
+        }
+    }
+
+    impl Default for wire_PayInvoiceRequest {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }

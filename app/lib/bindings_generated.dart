@@ -425,6 +425,27 @@ class AppRsImpl implements AppRs {
         argNames: ["that", "req"],
       );
 
+  Future<void> payInvoiceMethodAppHandle(
+      {required AppHandle that, required PayInvoiceRequest req, dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    var arg1 = _platform.api2wire_box_autoadd_pay_invoice_request(req);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner
+          .wire_pay_invoice__method__AppHandle(port_, arg0, arg1),
+      parseSuccessData: _wire2api_unit,
+      parseErrorData: _wire2api_FrbAnyhowException,
+      constMeta: kPayInvoiceMethodAppHandleConstMeta,
+      argValues: [that, req],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta get kPayInvoiceMethodAppHandleConstMeta =>
+      const FlutterRustBridgeTaskConstMeta(
+        debugName: "pay_invoice__method__AppHandle",
+        argNames: ["that", "req"],
+      );
+
   Future<void> deletePaymentDbMethodAppHandle(
       {required AppHandle that, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
@@ -1148,6 +1169,14 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   }
 
   @protected
+  ffi.Pointer<wire_PayInvoiceRequest> api2wire_box_autoadd_pay_invoice_request(
+      PayInvoiceRequest raw) {
+    final ptr = inner.new_box_autoadd_pay_invoice_request_0();
+    _api_fill_to_wire_pay_invoice_request(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
   ffi.Pointer<wire_SendOnchainRequest>
       api2wire_box_autoadd_send_onchain_request(SendOnchainRequest raw) {
     final ptr = inner.new_box_autoadd_send_onchain_request_0();
@@ -1234,6 +1263,11 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     _api_fill_to_wire_estimate_fee_send_onchain_request(apiObj, wireObj.ref);
   }
 
+  void _api_fill_to_wire_box_autoadd_pay_invoice_request(
+      PayInvoiceRequest apiObj, ffi.Pointer<wire_PayInvoiceRequest> wireObj) {
+    _api_fill_to_wire_pay_invoice_request(apiObj, wireObj.ref);
+  }
+
   void _api_fill_to_wire_box_autoadd_send_onchain_request(
       SendOnchainRequest apiObj, ffi.Pointer<wire_SendOnchainRequest> wireObj) {
     _api_fill_to_wire_send_onchain_request(apiObj, wireObj.ref);
@@ -1270,6 +1304,14 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
       wire_EstimateFeeSendOnchainRequest wireObj) {
     wireObj.address = api2wire_String(apiObj.address);
     wireObj.amount_sats = api2wire_u64(apiObj.amountSats);
+  }
+
+  void _api_fill_to_wire_pay_invoice_request(
+      PayInvoiceRequest apiObj, wire_PayInvoiceRequest wireObj) {
+    wireObj.invoice = api2wire_String(apiObj.invoice);
+    wireObj.fallback_amount_sats =
+        api2wire_opt_box_autoadd_u64(apiObj.fallbackAmountSats);
+    wireObj.note = api2wire_opt_String(apiObj.note);
   }
 
   void _api_fill_to_wire_send_onchain_request(
@@ -1740,6 +1782,28 @@ class AppRsWire implements FlutterRustBridgeWireBase {
           void Function(int, ffi.Pointer<wire_AppHandle>,
               ffi.Pointer<wire_CreateInvoiceRequest>)>();
 
+  void wire_pay_invoice__method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_AppHandle> that,
+    ffi.Pointer<wire_PayInvoiceRequest> req,
+  ) {
+    return _wire_pay_invoice__method__AppHandle(
+      port_,
+      that,
+      req,
+    );
+  }
+
+  late final _wire_pay_invoice__method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>,
+                  ffi.Pointer<wire_PayInvoiceRequest>)>>(
+      'wire_pay_invoice__method__AppHandle');
+  late final _wire_pay_invoice__method__AppHandle =
+      _wire_pay_invoice__method__AppHandlePtr.asFunction<
+          void Function(int, ffi.Pointer<wire_AppHandle>,
+              ffi.Pointer<wire_PayInvoiceRequest>)>();
+
   void wire_delete_payment_db__method__AppHandle(
     int port_,
     ffi.Pointer<wire_AppHandle> that,
@@ -2060,6 +2124,17 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _new_box_autoadd_estimate_fee_send_onchain_request_0Ptr.asFunction<
           ffi.Pointer<wire_EstimateFeeSendOnchainRequest> Function()>();
 
+  ffi.Pointer<wire_PayInvoiceRequest> new_box_autoadd_pay_invoice_request_0() {
+    return _new_box_autoadd_pay_invoice_request_0();
+  }
+
+  late final _new_box_autoadd_pay_invoice_request_0Ptr = _lookup<
+          ffi.NativeFunction<ffi.Pointer<wire_PayInvoiceRequest> Function()>>(
+      'new_box_autoadd_pay_invoice_request_0');
+  late final _new_box_autoadd_pay_invoice_request_0 =
+      _new_box_autoadd_pay_invoice_request_0Ptr
+          .asFunction<ffi.Pointer<wire_PayInvoiceRequest> Function()>();
+
   ffi.Pointer<wire_SendOnchainRequest>
       new_box_autoadd_send_onchain_request_0() {
     return _new_box_autoadd_send_onchain_request_0();
@@ -2223,6 +2298,14 @@ final class wire_CreateInvoiceRequest extends ffi.Struct {
   external ffi.Pointer<ffi.Uint64> amount_sats;
 
   external ffi.Pointer<wire_uint_8_list> description;
+}
+
+final class wire_PayInvoiceRequest extends ffi.Struct {
+  external ffi.Pointer<wire_uint_8_list> invoice;
+
+  external ffi.Pointer<ffi.Uint64> fallback_amount_sats;
+
+  external ffi.Pointer<wire_uint_8_list> note;
 }
 
 final class wire_UpdatePaymentNote extends ffi.Struct {
