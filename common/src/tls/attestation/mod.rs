@@ -113,11 +113,11 @@ pub fn app_node_provision_server_config(
     let (attestation_cert, dns_name) =
         get_or_generate_node_attestation_cert(rng, node_mode)
             .context("Failed to get or generate node attestation cert")?;
-    let CertWithKey { cert_der, key_der } = attestation_cert.clone();
+    let (cert_chain, cert_key) = attestation_cert.clone().into_chain_and_key();
 
     let mut config = super::server_config_builder()
         .with_no_client_auth()
-        .with_single_cert(vec![cert_der.into()], key_der.into())
+        .with_single_cert(cert_chain, cert_key)
         .context("Failed to build TLS config")?;
     config
         .alpn_protocols
@@ -176,11 +176,11 @@ pub fn node_lexe_client_config(
     let (attestation_cert, _) =
         get_or_generate_node_attestation_cert(rng, node_mode)
             .context("Failed to get or generate node attestation cert")?;
-    let CertWithKey { cert_der, key_der } = attestation_cert.clone();
+    let (cert_chain, cert_key) = attestation_cert.clone().into_chain_and_key();
 
     let mut config = super::client_config_builder()
         .with_webpki_verifier(lexe_server_verifier)
-        .with_client_auth_cert(vec![cert_der.into()], key_der.into())
+        .with_client_auth_cert(cert_chain, cert_key)
         .context("Failed to build TLS config")?;
     config
         .alpn_protocols
@@ -241,7 +241,11 @@ fn get_or_generate_node_attestation_cert(
                 .serialize_der_self_signed()
                 .context("Failed to sign and serialize attestation cert")?;
             let key_der = cert.serialize_key_der();
-            let cert_with_key = CertWithKey { cert_der, key_der };
+            let cert_with_key = CertWithKey {
+                cert_der,
+                key_der,
+                ca_cert_der: None,
+            };
 
             Ok(cert_with_key)
         })

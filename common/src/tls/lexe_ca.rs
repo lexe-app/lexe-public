@@ -115,6 +115,7 @@ pub fn dummy_lexe_ca_cert() -> CertWithKey {
     CertWithKey {
         cert_der: dummy_cert_der,
         key_der: dummy_cert_key_der,
+        ca_cert_der: None,
     }
 }
 
