@@ -723,6 +723,23 @@ impl rust2dart::IntoIntoDart<AppHandle> for AppHandle {
     }
 }
 
+impl support::IntoDart for Balance {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.total_sats.into_into_dart().into_dart(),
+            self.lightning_sats.into_into_dart().into_dart(),
+            self.onchain_sats.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for Balance {}
+impl rust2dart::IntoIntoDart<Balance> for Balance {
+    fn into_into_dart(self) -> Self {
+        self
+    }
+}
+
 impl support::IntoDart for ClientPaymentId {
     fn into_dart(self) -> support::DartAbi {
         vec![self.id.into_into_dart().into_dart()].into_dart()
@@ -870,7 +887,7 @@ impl support::IntoDart for NodeInfo {
             self.node_pk.into_into_dart().into_dart(),
             self.version.into_into_dart().into_dart(),
             self.measurement.into_into_dart().into_dart(),
-            self.spendable_balance_sats.into_into_dart().into_dart(),
+            self.balance.into_into_dart().into_dart(),
         ]
         .into_dart()
     }

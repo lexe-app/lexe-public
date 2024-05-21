@@ -810,6 +810,17 @@ class AppRsImpl implements AppRs {
     );
   }
 
+  Balance _wire2api_balance(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return Balance(
+      totalSats: _wire2api_u64(arr[0]),
+      lightningSats: _wire2api_u64(arr[1]),
+      onchainSats: _wire2api_u64(arr[2]),
+    );
+  }
+
   bool _wire2api_bool(dynamic raw) {
     return raw as bool;
   }
@@ -952,7 +963,7 @@ class AppRsImpl implements AppRs {
       nodePk: _wire2api_String(arr[0]),
       version: _wire2api_String(arr[1]),
       measurement: _wire2api_String(arr[2]),
-      spendableBalanceSats: _wire2api_u64(arr[3]),
+      balance: _wire2api_balance(arr[3]),
     );
   }
 

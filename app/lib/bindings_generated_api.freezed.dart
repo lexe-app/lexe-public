@@ -15,6 +15,65 @@ final _privateConstructorUsedError = UnsupportedError(
     'It seems like you constructed your class using `MyClass._()`. This constructor is only meant to be used by freezed and you are not supposed to need it nor use it.\nPlease check the documentation here for more information: https://github.com/rrousselGit/freezed#adding-getters-and-methods-to-our-models');
 
 /// @nodoc
+mixin _$Balance {
+  int get totalSats => throw _privateConstructorUsedError;
+  int get lightningSats => throw _privateConstructorUsedError;
+  int get onchainSats => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$BalanceImpl implements _Balance {
+  const _$BalanceImpl(
+      {required this.totalSats,
+      required this.lightningSats,
+      required this.onchainSats});
+
+  @override
+  final int totalSats;
+  @override
+  final int lightningSats;
+  @override
+  final int onchainSats;
+
+  @override
+  String toString() {
+    return 'Balance(totalSats: $totalSats, lightningSats: $lightningSats, onchainSats: $onchainSats)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$BalanceImpl &&
+            (identical(other.totalSats, totalSats) ||
+                other.totalSats == totalSats) &&
+            (identical(other.lightningSats, lightningSats) ||
+                other.lightningSats == lightningSats) &&
+            (identical(other.onchainSats, onchainSats) ||
+                other.onchainSats == onchainSats));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, totalSats, lightningSats, onchainSats);
+}
+
+abstract class _Balance implements Balance {
+  const factory _Balance(
+      {required final int totalSats,
+      required final int lightningSats,
+      required final int onchainSats}) = _$BalanceImpl;
+
+  @override
+  int get totalSats;
+  @override
+  int get lightningSats;
+  @override
+  int get onchainSats;
+}
+
+/// @nodoc
 mixin _$ClientPaymentId {
   U8Array32 get id => throw _privateConstructorUsedError;
 }
@@ -326,7 +385,7 @@ mixin _$NodeInfo {
   String get nodePk => throw _privateConstructorUsedError;
   String get version => throw _privateConstructorUsedError;
   String get measurement => throw _privateConstructorUsedError;
-  int get spendableBalanceSats => throw _privateConstructorUsedError;
+  Balance get balance => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -336,7 +395,7 @@ class _$NodeInfoImpl implements _NodeInfo {
       {required this.nodePk,
       required this.version,
       required this.measurement,
-      required this.spendableBalanceSats});
+      required this.balance});
 
   @override
   final String nodePk;
@@ -345,11 +404,11 @@ class _$NodeInfoImpl implements _NodeInfo {
   @override
   final String measurement;
   @override
-  final int spendableBalanceSats;
+  final Balance balance;
 
   @override
   String toString() {
-    return 'NodeInfo(nodePk: $nodePk, version: $version, measurement: $measurement, spendableBalanceSats: $spendableBalanceSats)';
+    return 'NodeInfo(nodePk: $nodePk, version: $version, measurement: $measurement, balance: $balance)';
   }
 
   @override
@@ -361,13 +420,12 @@ class _$NodeInfoImpl implements _NodeInfo {
             (identical(other.version, version) || other.version == version) &&
             (identical(other.measurement, measurement) ||
                 other.measurement == measurement) &&
-            (identical(other.spendableBalanceSats, spendableBalanceSats) ||
-                other.spendableBalanceSats == spendableBalanceSats));
+            (identical(other.balance, balance) || other.balance == balance));
   }
 
   @override
-  int get hashCode => Object.hash(
-      runtimeType, nodePk, version, measurement, spendableBalanceSats);
+  int get hashCode =>
+      Object.hash(runtimeType, nodePk, version, measurement, balance);
 }
 
 abstract class _NodeInfo implements NodeInfo {
@@ -375,7 +433,7 @@ abstract class _NodeInfo implements NodeInfo {
       {required final String nodePk,
       required final String version,
       required final String measurement,
-      required final int spendableBalanceSats}) = _$NodeInfoImpl;
+      required final Balance balance}) = _$NodeInfoImpl;
 
   @override
   String get nodePk;
@@ -384,7 +442,7 @@ abstract class _NodeInfo implements NodeInfo {
   @override
   String get measurement;
   @override
-  int get spendableBalanceSats;
+  Balance get balance;
 }
 
 /// @nodoc
