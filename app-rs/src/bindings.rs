@@ -63,6 +63,8 @@ use common::{
             EstimateFeeSendOnchainResponse as EstimateFeeSendOnchainResponseRs,
             FeeEstimate as FeeEstimateRs, NodeInfo as NodeInfoRs,
             PayInvoiceRequest as PayInvoiceRequestRs,
+            PreflightPayInvoiceRequest as PreflightPayInvoiceRequestRs,
+            PreflightPayInvoiceResponse as PreflightPayInvoiceResponseRs,
             SendOnchainRequest as SendOnchainRequestRs,
         },
         def::{AppGatewayApi, AppNodeRunApi},
@@ -544,6 +546,43 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
     }
 }
 
+/// See [`common::api::command::PreflightPayInvoiceRequest`].
+pub struct PreflightPayInvoiceRequest {
+    pub invoice: String,
+    pub fallback_amount_sats: Option<u64>,
+}
+
+impl TryFrom<PreflightPayInvoiceRequest> for PreflightPayInvoiceRequestRs {
+    type Error = anyhow::Error;
+    fn try_from(
+        value: PreflightPayInvoiceRequest,
+    ) -> Result<Self, Self::Error> {
+        let fallback_amount = match value.fallback_amount_sats {
+            Some(amount) => Some(Amount::try_from_sats_u64(amount)?),
+            None => None,
+        };
+        Ok(Self {
+            invoice: LxInvoice::from_str(&value.invoice)?,
+            fallback_amount,
+        })
+    }
+}
+
+/// See [`common::api::command::PreflightPayInvoiceResponse`].
+pub struct PreflightPayInvoiceResponse {
+    pub amount_sats: u64,
+    pub fees_sats: u64,
+}
+
+impl From<PreflightPayInvoiceResponseRs> for PreflightPayInvoiceResponse {
+    fn from(value: PreflightPayInvoiceResponseRs) -> Self {
+        Self {
+            amount_sats: value.amount.sats_u64(),
+            fees_sats: value.fees.sats_u64(),
+        }
+    }
+}
+
 /// A unique, client-generated id for payment types (onchain send,
 /// ln spontaneous send) that need an extra id for idempotency.
 #[frb(dart_metadata=("freezed"))]
@@ -922,6 +961,16 @@ impl AppHandle {
         let req = CreateInvoiceRequestRs::try_from(req)?;
         block_on(self.inner.node_client().create_invoice(req))
             .map(CreateInvoiceResponse::from)
+            .map_err(anyhow::Error::new)
+    }
+
+    pub fn preflight_pay_invoice(
+        &self,
+        req: PreflightPayInvoiceRequest,
+    ) -> anyhow::Result<PreflightPayInvoiceResponse> {
+        let req = PreflightPayInvoiceRequestRs::try_from(req)?;
+        block_on(self.inner.node_client().preflight_pay_invoice(req))
+            .map(PreflightPayInvoiceResponse::from)
             .map_err(anyhow::Error::new)
     }
 

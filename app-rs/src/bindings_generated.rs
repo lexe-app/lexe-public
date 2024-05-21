@@ -346,6 +346,26 @@ fn wire_create_invoice__method__AppHandle_impl(
         },
     )
 }
+fn wire_preflight_pay_invoice__method__AppHandle_impl(
+    port_: MessagePort,
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+    req: impl Wire2Api<PreflightPayInvoiceRequest> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, PreflightPayInvoiceResponse, _>(
+        WrapInfo {
+            debug_name: "preflight_pay_invoice__method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_that = that.wire2api();
+            let api_req = req.wire2api();
+            move |task_callback| {
+                AppHandle::preflight_pay_invoice(&api_that, api_req)
+            }
+        },
+    )
+}
 fn wire_pay_invoice__method__AppHandle_impl(
     port_: MessagePort,
     that: impl Wire2Api<AppHandle> + UnwindSafe,
@@ -975,6 +995,24 @@ impl rust2dart::IntoIntoDart<PaymentStatus> for PaymentStatus {
     }
 }
 
+impl support::IntoDart for PreflightPayInvoiceResponse {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.amount_sats.into_into_dart().into_dart(),
+            self.fees_sats.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for PreflightPayInvoiceResponse {}
+impl rust2dart::IntoIntoDart<PreflightPayInvoiceResponse>
+    for PreflightPayInvoiceResponse
+{
+    fn into_into_dart(self) -> Self {
+        self
+    }
+}
+
 impl support::IntoDart for ShortPayment {
     fn into_dart(self) -> support::DartAbi {
         vec![
@@ -1180,6 +1218,15 @@ mod io {
     }
 
     #[no_mangle]
+    pub extern "C" fn wire_preflight_pay_invoice__method__AppHandle(
+        port_: i64,
+        that: *mut wire_AppHandle,
+        req: *mut wire_PreflightPayInvoiceRequest,
+    ) {
+        wire_preflight_pay_invoice__method__AppHandle_impl(port_, that, req)
+    }
+
+    #[no_mangle]
     pub extern "C" fn wire_pay_invoice__method__AppHandle(
         port_: i64,
         that: *mut wire_AppHandle,
@@ -1340,6 +1387,14 @@ mod io {
     }
 
     #[no_mangle]
+    pub extern "C" fn new_box_autoadd_preflight_pay_invoice_request_0(
+    ) -> *mut wire_PreflightPayInvoiceRequest {
+        support::new_leak_box_ptr(
+            wire_PreflightPayInvoiceRequest::new_with_null_ptr(),
+        )
+    }
+
+    #[no_mangle]
     pub extern "C" fn new_box_autoadd_send_onchain_request_0(
     ) -> *mut wire_SendOnchainRequest {
         support::new_leak_box_ptr(wire_SendOnchainRequest::new_with_null_ptr())
@@ -1435,6 +1490,14 @@ mod io {
             Wire2Api::<PayInvoiceRequest>::wire2api(*wrap).into()
         }
     }
+    impl Wire2Api<PreflightPayInvoiceRequest>
+        for *mut wire_PreflightPayInvoiceRequest
+    {
+        fn wire2api(self) -> PreflightPayInvoiceRequest {
+            let wrap = unsafe { support::box_from_leak_ptr(self) };
+            Wire2Api::<PreflightPayInvoiceRequest>::wire2api(*wrap).into()
+        }
+    }
     impl Wire2Api<SendOnchainRequest> for *mut wire_SendOnchainRequest {
         fn wire2api(self) -> SendOnchainRequest {
             let wrap = unsafe { support::box_from_leak_ptr(self) };
@@ -1499,6 +1562,14 @@ mod io {
                 invoice: self.invoice.wire2api(),
                 fallback_amount_sats: self.fallback_amount_sats.wire2api(),
                 note: self.note.wire2api(),
+            }
+        }
+    }
+    impl Wire2Api<PreflightPayInvoiceRequest> for wire_PreflightPayInvoiceRequest {
+        fn wire2api(self) -> PreflightPayInvoiceRequest {
+            PreflightPayInvoiceRequest {
+                invoice: self.invoice.wire2api(),
+                fallback_amount_sats: self.fallback_amount_sats.wire2api(),
             }
         }
     }
@@ -1589,6 +1660,13 @@ mod io {
         invoice: *mut wire_uint_8_list,
         fallback_amount_sats: *mut u64,
         note: *mut wire_uint_8_list,
+    }
+
+    #[repr(C)]
+    #[derive(Clone)]
+    pub struct wire_PreflightPayInvoiceRequest {
+        invoice: *mut wire_uint_8_list,
+        fallback_amount_sats: *mut u64,
     }
 
     #[repr(C)]
@@ -1724,6 +1802,21 @@ mod io {
     }
 
     impl Default for wire_PayInvoiceRequest {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+
+    impl NewWithNullPtr for wire_PreflightPayInvoiceRequest {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                invoice: core::ptr::null_mut(),
+                fallback_amount_sats: core::ptr::null_mut(),
+            }
+        }
+    }
+
+    impl Default for wire_PreflightPayInvoiceRequest {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }
