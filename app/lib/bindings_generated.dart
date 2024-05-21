@@ -425,6 +425,31 @@ class AppRsImpl implements AppRs {
         argNames: ["that", "req"],
       );
 
+  Future<PreflightPayInvoiceResponse> preflightPayInvoiceMethodAppHandle(
+      {required AppHandle that,
+      required PreflightPayInvoiceRequest req,
+      dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    var arg1 =
+        _platform.api2wire_box_autoadd_preflight_pay_invoice_request(req);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner
+          .wire_preflight_pay_invoice__method__AppHandle(port_, arg0, arg1),
+      parseSuccessData: _wire2api_preflight_pay_invoice_response,
+      parseErrorData: _wire2api_FrbAnyhowException,
+      constMeta: kPreflightPayInvoiceMethodAppHandleConstMeta,
+      argValues: [that, req],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta
+      get kPreflightPayInvoiceMethodAppHandleConstMeta =>
+          const FlutterRustBridgeTaskConstMeta(
+            debugName: "preflight_pay_invoice__method__AppHandle",
+            argNames: ["that", "req"],
+          );
+
   Future<void> payInvoiceMethodAppHandle(
       {required AppHandle that, required PayInvoiceRequest req, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
@@ -1027,6 +1052,17 @@ class AppRsImpl implements AppRs {
     return PaymentStatus.values[raw as int];
   }
 
+  PreflightPayInvoiceResponse _wire2api_preflight_pay_invoice_response(
+      dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return PreflightPayInvoiceResponse(
+      amountSats: _wire2api_u64(arr[0]),
+      feesSats: _wire2api_u64(arr[1]),
+    );
+  }
+
   ShortPayment _wire2api_short_payment(dynamic raw) {
     final arr = raw as List<dynamic>;
     if (arr.length != 7)
@@ -1177,6 +1213,15 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   }
 
   @protected
+  ffi.Pointer<wire_PreflightPayInvoiceRequest>
+      api2wire_box_autoadd_preflight_pay_invoice_request(
+          PreflightPayInvoiceRequest raw) {
+    final ptr = inner.new_box_autoadd_preflight_pay_invoice_request_0();
+    _api_fill_to_wire_preflight_pay_invoice_request(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
   ffi.Pointer<wire_SendOnchainRequest>
       api2wire_box_autoadd_send_onchain_request(SendOnchainRequest raw) {
     final ptr = inner.new_box_autoadd_send_onchain_request_0();
@@ -1268,6 +1313,12 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     _api_fill_to_wire_pay_invoice_request(apiObj, wireObj.ref);
   }
 
+  void _api_fill_to_wire_box_autoadd_preflight_pay_invoice_request(
+      PreflightPayInvoiceRequest apiObj,
+      ffi.Pointer<wire_PreflightPayInvoiceRequest> wireObj) {
+    _api_fill_to_wire_preflight_pay_invoice_request(apiObj, wireObj.ref);
+  }
+
   void _api_fill_to_wire_box_autoadd_send_onchain_request(
       SendOnchainRequest apiObj, ffi.Pointer<wire_SendOnchainRequest> wireObj) {
     _api_fill_to_wire_send_onchain_request(apiObj, wireObj.ref);
@@ -1312,6 +1363,14 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     wireObj.fallback_amount_sats =
         api2wire_opt_box_autoadd_u64(apiObj.fallbackAmountSats);
     wireObj.note = api2wire_opt_String(apiObj.note);
+  }
+
+  void _api_fill_to_wire_preflight_pay_invoice_request(
+      PreflightPayInvoiceRequest apiObj,
+      wire_PreflightPayInvoiceRequest wireObj) {
+    wireObj.invoice = api2wire_String(apiObj.invoice);
+    wireObj.fallback_amount_sats =
+        api2wire_opt_box_autoadd_u64(apiObj.fallbackAmountSats);
   }
 
   void _api_fill_to_wire_send_onchain_request(
@@ -1782,6 +1841,28 @@ class AppRsWire implements FlutterRustBridgeWireBase {
           void Function(int, ffi.Pointer<wire_AppHandle>,
               ffi.Pointer<wire_CreateInvoiceRequest>)>();
 
+  void wire_preflight_pay_invoice__method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_AppHandle> that,
+    ffi.Pointer<wire_PreflightPayInvoiceRequest> req,
+  ) {
+    return _wire_preflight_pay_invoice__method__AppHandle(
+      port_,
+      that,
+      req,
+    );
+  }
+
+  late final _wire_preflight_pay_invoice__method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>,
+                  ffi.Pointer<wire_PreflightPayInvoiceRequest>)>>(
+      'wire_preflight_pay_invoice__method__AppHandle');
+  late final _wire_preflight_pay_invoice__method__AppHandle =
+      _wire_preflight_pay_invoice__method__AppHandlePtr.asFunction<
+          void Function(int, ffi.Pointer<wire_AppHandle>,
+              ffi.Pointer<wire_PreflightPayInvoiceRequest>)>();
+
   void wire_pay_invoice__method__AppHandle(
     int port_,
     ffi.Pointer<wire_AppHandle> that,
@@ -2135,6 +2216,19 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _new_box_autoadd_pay_invoice_request_0Ptr
           .asFunction<ffi.Pointer<wire_PayInvoiceRequest> Function()>();
 
+  ffi.Pointer<wire_PreflightPayInvoiceRequest>
+      new_box_autoadd_preflight_pay_invoice_request_0() {
+    return _new_box_autoadd_preflight_pay_invoice_request_0();
+  }
+
+  late final _new_box_autoadd_preflight_pay_invoice_request_0Ptr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<wire_PreflightPayInvoiceRequest>
+              Function()>>('new_box_autoadd_preflight_pay_invoice_request_0');
+  late final _new_box_autoadd_preflight_pay_invoice_request_0 =
+      _new_box_autoadd_preflight_pay_invoice_request_0Ptr.asFunction<
+          ffi.Pointer<wire_PreflightPayInvoiceRequest> Function()>();
+
   ffi.Pointer<wire_SendOnchainRequest>
       new_box_autoadd_send_onchain_request_0() {
     return _new_box_autoadd_send_onchain_request_0();
@@ -2298,6 +2392,12 @@ final class wire_CreateInvoiceRequest extends ffi.Struct {
   external ffi.Pointer<ffi.Uint64> amount_sats;
 
   external ffi.Pointer<wire_uint_8_list> description;
+}
+
+final class wire_PreflightPayInvoiceRequest extends ffi.Struct {
+  external ffi.Pointer<wire_uint_8_list> invoice;
+
+  external ffi.Pointer<ffi.Uint64> fallback_amount_sats;
 }
 
 final class wire_PayInvoiceRequest extends ffi.Struct {

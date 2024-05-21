@@ -155,6 +155,14 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kCreateInvoiceMethodAppHandleConstMeta;
 
+  Future<PreflightPayInvoiceResponse> preflightPayInvoiceMethodAppHandle(
+      {required AppHandle that,
+      required PreflightPayInvoiceRequest req,
+      dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta
+      get kPreflightPayInvoiceMethodAppHandleConstMeta;
+
   Future<void> payInvoiceMethodAppHandle(
       {required AppHandle that, required PayInvoiceRequest req, dynamic hint});
 
@@ -327,6 +335,13 @@ class AppHandle {
   Future<CreateInvoiceResponse> createInvoice(
           {required CreateInvoiceRequest req, dynamic hint}) =>
       bridge.createInvoiceMethodAppHandle(
+        that: this,
+        req: req,
+      );
+
+  Future<PreflightPayInvoiceResponse> preflightPayInvoice(
+          {required PreflightPayInvoiceRequest req, dynamic hint}) =>
+      bridge.preflightPayInvoiceMethodAppHandle(
         that: this,
         req: req,
       );
@@ -622,6 +637,28 @@ enum PaymentStatus {
   Pending,
   Completed,
   Failed,
+}
+
+/// See [`common::api::command::PreflightPayInvoiceRequest`].
+class PreflightPayInvoiceRequest {
+  final String invoice;
+  final int? fallbackAmountSats;
+
+  const PreflightPayInvoiceRequest({
+    required this.invoice,
+    this.fallbackAmountSats,
+  });
+}
+
+/// See [`common::api::command::PreflightPayInvoiceResponse`].
+class PreflightPayInvoiceResponse {
+  final int amountSats;
+  final int feesSats;
+
+  const PreflightPayInvoiceResponse({
+    required this.amountSats,
+    required this.feesSats,
+  });
 }
 
 class SendOnchainRequest {
