@@ -5,6 +5,7 @@ import 'package:lexeapp/bindings.dart' show api;
 
 import 'package:lexeapp/bindings_generated_api.dart'
     show
+        Balance,
         ClientPaymentId,
         Invoice,
         Payment,
@@ -16,6 +17,10 @@ import 'package:lexeapp/bindings_generated_api.dart'
         PaymentMethod_Onchain,
         PaymentStatus,
         ShortPayment;
+
+//
+// Payment
+//
 
 extension PaymentExt on Payment {
   ShortPayment intoShort() => ShortPayment(
@@ -71,9 +76,17 @@ extension PaymentExt on Payment {
       (this.amountSat == null || this.note == null);
 }
 
+//
+// ClientPaymentId
+//
+
 extension ClientPaymentIdExt on ClientPaymentId {
   static ClientPaymentId generate() => api.genClientPaymentId();
 }
+
+//
+// PaymentMethod
+//
 
 extension PaymentMethodExt on PaymentMethod {
   /// Return the payment method amount in satoshis, if any.
@@ -82,5 +95,24 @@ extension PaymentMethodExt on PaymentMethod {
         PaymentMethod_Invoice(:final field0) => field0.amountSats,
         PaymentMethod_Offer() =>
           throw UnsupportedError("BOLT12 offers not supported yet"),
+      };
+
+  PaymentKind kind() => switch (this) {
+        PaymentMethod_Onchain() => PaymentKind.Onchain,
+        PaymentMethod_Invoice() => PaymentKind.Invoice,
+        // TODO(phlip9): impl BOLT12 offers
+        PaymentMethod_Offer() => throw UnimplementedError(),
+      };
+}
+
+//
+// Balance
+//
+
+extension BalanceExt on Balance {
+  int balanceByKind(final PaymentKind kind) => switch (kind) {
+        PaymentKind.Onchain => this.onchainSats,
+        PaymentKind.Invoice => this.lightningSats,
+        PaymentKind.Spontaneous => this.lightningSats,
       };
 }

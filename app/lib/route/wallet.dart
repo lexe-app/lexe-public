@@ -18,6 +18,8 @@ import 'package:lexeapp/bindings_generated_api.dart'
         PaymentStatus,
         ShortPayment,
         ShortPaymentAndIndex;
+import 'package:lexeapp/bindings_generated_api_ext.dart'
+    show ClientPaymentIdExt;
 import 'package:lexeapp/components.dart'
     show
         FilledPlaceholder,
@@ -224,15 +226,16 @@ class WalletPageState extends State<WalletPage> {
     }
 
     // TODO(phlip9): pass whole `Balance` in context
-    final balanceSats = maybeNodeInfo.balance.totalSats;
+    final balance = maybeNodeInfo.balance;
 
     final bool? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (context) => SendPaymentPage(
-        sendCtx: SendContext.cidFromRng(
+        sendCtx: SendContext(
           app: this.widget.app,
           configNetwork: this.widget.config.network,
-          balanceSats: balanceSats,
+          balance: balance,
+          cid: ClientPaymentIdExt.generate(),
         ),
       ),
     ));
