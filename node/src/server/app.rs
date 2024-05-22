@@ -6,8 +6,8 @@ use common::{
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse,
             EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
-            NodeInfo, PayInvoiceRequest, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, SendOnchainRequest,
+            NodeInfo, PayInvoiceRequest, PayOnchainRequest,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
         },
         error::NodeApiError,
         qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
@@ -89,7 +89,7 @@ pub(super) async fn preflight_pay_invoice(
 
 pub(super) async fn send_onchain(
     State(state): State<Arc<AppRouterState>>,
-    LxJson(req): LxJson<SendOnchainRequest>,
+    LxJson(req): LxJson<PayOnchainRequest>,
 ) -> Result<LxJson<LxTxid>, NodeApiError> {
     lexe_ln::command::send_onchain(
         req,

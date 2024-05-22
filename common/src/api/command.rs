@@ -84,7 +84,7 @@ pub struct PreflightPayInvoiceResponse {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct SendOnchainRequest {
+pub struct PayOnchainRequest {
     /// The identifier to use for this payment.
     pub cid: ClientPaymentId,
     /// The address we want to send funds to.

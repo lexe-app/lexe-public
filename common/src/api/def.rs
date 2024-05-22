@@ -35,9 +35,8 @@ use crate::{
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse,
             EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
-            NodeInfo, OpenChannelRequest, PayInvoiceRequest,
+            NodeInfo, OpenChannelRequest, PayInvoiceRequest, PayOnchainRequest,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            SendOnchainRequest,
         },
         error::{
             BackendApiError, GatewayApiError, LspApiError, NodeApiError,
@@ -367,12 +366,12 @@ pub trait AppNodeRunApi {
         req: PreflightPayInvoiceRequest,
     ) -> Result<PreflightPayInvoiceResponse, NodeApiError>;
 
-    /// POST /app/send_onchain [`SendOnchainRequest`] -> [`LxTxid`]
+    /// POST /app/send_onchain [`PayOnchainRequest`] -> [`LxTxid`]
     ///
     /// Returns the [`LxTxid`] of the newly broadcasted transaction.
     async fn send_onchain(
         &self,
-        req: SendOnchainRequest,
+        req: PayOnchainRequest,
     ) -> Result<LxTxid, NodeApiError>;
 
     /// GET /app/estimate_fee_send_onchain [`EstimateFeeSendOnchainRequest`]
