@@ -374,10 +374,10 @@ pub trait AppNodeRunApi {
         req: PayOnchainRequest,
     ) -> Result<PayOnchainResponse, NodeApiError>;
 
-    /// GET /app/preflight_pay_onchain [`PreflightPayOnchainRequest`]
-    ///                                 -> [`PreflightPayOnchainResponse`]
+    /// POST /app/preflight_pay_onchain [`PreflightPayOnchainRequest`]
+    ///                              -> [`PreflightPayOnchainResponse`]
     ///
-    /// Returns estimated network fees for a potential onchain send.
+    /// Returns estimated network fees for a potential onchain payment.
     async fn preflight_pay_onchain(
         &self,
         req: PreflightPayOnchainRequest,
