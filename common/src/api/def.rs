@@ -33,11 +33,11 @@ use crate::{
             UserSignupRequest,
         },
         command::{
-            CreateInvoiceRequest, CreateInvoiceResponse,
-            EstimateFeeSendOnchainResponse, NodeInfo, OpenChannelRequest,
-            PayInvoiceRequest, PayOnchainRequest, PayOnchainResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOnchainRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
+            OpenChannelRequest, PayInvoiceRequest, PayOnchainRequest,
+            PayOnchainResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse,
         },
         error::{
             BackendApiError, GatewayApiError, LspApiError, NodeApiError,
@@ -375,13 +375,13 @@ pub trait AppNodeRunApi {
     ) -> Result<PayOnchainResponse, NodeApiError>;
 
     /// GET /app/estimate_fee_send_onchain [`PreflightPayOnchainRequest`]
-    ///                                 -> [`EstimateFeeSendOnchainResponse`]
+    ///                                 -> [`PreflightPayOnchainResponse`]
     ///
     /// Returns estimated network fees for a potential onchain send.
     async fn estimate_fee_send_onchain(
         &self,
         req: PreflightPayOnchainRequest,
-    ) -> Result<EstimateFeeSendOnchainResponse, NodeApiError>;
+    ) -> Result<PreflightPayOnchainResponse, NodeApiError>;
 
     /// POST /app/get_address [`Empty`] -> [`bitcoin::Address`]
     ///

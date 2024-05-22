@@ -114,7 +114,7 @@ pub struct PreflightPayOnchainRequest {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct EstimateFeeSendOnchainResponse {
+pub struct PreflightPayOnchainResponse {
     /// Corresponds with [`ConfirmationPriority::High`]
     ///
     /// The high estimate is optional--we don't want to block the user from

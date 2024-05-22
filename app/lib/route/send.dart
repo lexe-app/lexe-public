@@ -12,7 +12,6 @@ import 'package:lexeapp/bindings_generated_api.dart'
         Balance,
         ClientPaymentId,
         ConfirmationPriority,
-        EstimateFeeSendOnchainResponse,
         FeeEstimate,
         Invoice,
         Network,
@@ -20,7 +19,8 @@ import 'package:lexeapp/bindings_generated_api.dart'
         PayOnchainRequest,
         PaymentMethod,
         PreflightPayInvoiceResponse,
-        PreflightPayOnchainRequest;
+        PreflightPayOnchainRequest,
+        PreflightPayOnchainResponse;
 import 'package:lexeapp/bindings_generated_api.dart';
 import 'package:lexeapp/bindings_generated_api_ext.dart';
 import 'package:lexeapp/components.dart'
@@ -136,7 +136,7 @@ class PreflightedPayment_Onchain implements PreflightedPayment {
       {required this.onchain, required this.preflight});
 
   final Onchain onchain;
-  final EstimateFeeSendOnchainResponse preflight;
+  final PreflightPayOnchainResponse preflight;
 
   @override
   PaymentKind kind() => PaymentKind.Onchain;
@@ -433,7 +433,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
     // TODO(phlip9): preflight by payment method
 
-    final EstimateFeeSendOnchainResponse feeEstimates;
+    final PreflightPayOnchainResponse feeEstimates;
     switch (result) {
       case Ok(:final ok):
         feeEstimates = ok;
@@ -616,7 +616,7 @@ class SendPaymentConfirmPage extends StatefulWidget {
   final SendContext_Preflighted sendCtx;
   final String address;
   final SendAmount sendAmount;
-  final EstimateFeeSendOnchainResponse feeEstimates;
+  final PreflightPayOnchainResponse feeEstimates;
 
   @override
   State<SendPaymentConfirmPage> createState() => _SendPaymentConfirmPageState();
@@ -910,7 +910,7 @@ class ChooseFeeDialog extends StatelessWidget {
     required this.selected,
   });
 
-  final EstimateFeeSendOnchainResponse feeEstimates;
+  final PreflightPayOnchainResponse feeEstimates;
   final ConfirmationPriority selected;
 
   @override

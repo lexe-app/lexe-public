@@ -355,7 +355,7 @@ class AppRsImpl implements AppRs {
         argNames: ["that", "req"],
       );
 
-  Future<EstimateFeeSendOnchainResponse> estimateFeeSendOnchainMethodAppHandle(
+  Future<PreflightPayOnchainResponse> estimateFeeSendOnchainMethodAppHandle(
       {required AppHandle that,
       required PreflightPayOnchainRequest req,
       dynamic hint}) {
@@ -365,7 +365,7 @@ class AppRsImpl implements AppRs {
     return _platform.executeNormal(FlutterRustBridgeTask(
       callFfi: (port_) => _platform.inner
           .wire_estimate_fee_send_onchain__method__AppHandle(port_, arg0, arg1),
-      parseSuccessData: _wire2api_estimate_fee_send_onchain_response,
+      parseSuccessData: _wire2api_preflight_pay_onchain_response,
       parseErrorData: _wire2api_FrbAnyhowException,
       constMeta: kEstimateFeeSendOnchainMethodAppHandleConstMeta,
       argValues: [that, req],
@@ -878,18 +878,6 @@ class AppRsImpl implements AppRs {
     return DeployEnv.values[raw as int];
   }
 
-  EstimateFeeSendOnchainResponse _wire2api_estimate_fee_send_onchain_response(
-      dynamic raw) {
-    final arr = raw as List<dynamic>;
-    if (arr.length != 3)
-      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
-    return EstimateFeeSendOnchainResponse(
-      high: _wire2api_opt_box_autoadd_fee_estimate(arr[0]),
-      normal: _wire2api_fee_estimate(arr[1]),
-      background: _wire2api_fee_estimate(arr[2]),
-    );
-  }
-
   double _wire2api_f64(dynamic raw) {
     return raw as double;
   }
@@ -1069,6 +1057,18 @@ class AppRsImpl implements AppRs {
     return PreflightPayInvoiceResponse(
       amountSats: _wire2api_u64(arr[0]),
       feesSats: _wire2api_u64(arr[1]),
+    );
+  }
+
+  PreflightPayOnchainResponse _wire2api_preflight_pay_onchain_response(
+      dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 3)
+      throw Exception('unexpected arr length: expect 3 but see ${arr.length}');
+    return PreflightPayOnchainResponse(
+      high: _wire2api_opt_box_autoadd_fee_estimate(arr[0]),
+      normal: _wire2api_fee_estimate(arr[1]),
+      background: _wire2api_fee_estimate(arr[2]),
     );
   }
 

@@ -296,21 +296,20 @@ fn wire_estimate_fee_send_onchain__method__AppHandle_impl(
     that: impl Wire2Api<AppHandle> + UnwindSafe,
     req: impl Wire2Api<PreflightPayOnchainRequest> + UnwindSafe,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER
-        .wrap::<_, _, _, EstimateFeeSendOnchainResponse, _>(
-            WrapInfo {
-                debug_name: "estimate_fee_send_onchain__method__AppHandle",
-                port: Some(port_),
-                mode: FfiCallMode::Normal,
-            },
-            move || {
-                let api_that = that.wire2api();
-                let api_req = req.wire2api();
-                move |task_callback| {
-                    AppHandle::estimate_fee_send_onchain(&api_that, api_req)
-                }
-            },
-        )
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, PreflightPayOnchainResponse, _>(
+        WrapInfo {
+            debug_name: "estimate_fee_send_onchain__method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_that = that.wire2api();
+            let api_req = req.wire2api();
+            move |task_callback| {
+                AppHandle::estimate_fee_send_onchain(&api_that, api_req)
+            }
+        },
+    )
 }
 fn wire_get_address__method__AppHandle_impl(
     port_: MessagePort,
@@ -780,25 +779,6 @@ impl rust2dart::IntoIntoDart<DeployEnv> for DeployEnv {
     }
 }
 
-impl support::IntoDart for EstimateFeeSendOnchainResponse {
-    fn into_dart(self) -> support::DartAbi {
-        vec![
-            self.high.into_dart(),
-            self.normal.into_into_dart().into_dart(),
-            self.background.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl support::IntoDartExceptPrimitive for EstimateFeeSendOnchainResponse {}
-impl rust2dart::IntoIntoDart<EstimateFeeSendOnchainResponse>
-    for EstimateFeeSendOnchainResponse
-{
-    fn into_into_dart(self) -> Self {
-        self
-    }
-}
-
 impl support::IntoDart for FeeEstimate {
     fn into_dart(self) -> support::DartAbi {
         vec![self.amount_sats.into_into_dart().into_dart()].into_dart()
@@ -1023,6 +1003,25 @@ impl support::IntoDart for PreflightPayInvoiceResponse {
 impl support::IntoDartExceptPrimitive for PreflightPayInvoiceResponse {}
 impl rust2dart::IntoIntoDart<PreflightPayInvoiceResponse>
     for PreflightPayInvoiceResponse
+{
+    fn into_into_dart(self) -> Self {
+        self
+    }
+}
+
+impl support::IntoDart for PreflightPayOnchainResponse {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.high.into_dart(),
+            self.normal.into_into_dart().into_dart(),
+            self.background.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for PreflightPayOnchainResponse {}
+impl rust2dart::IntoIntoDart<PreflightPayOnchainResponse>
+    for PreflightPayOnchainResponse
 {
     fn into_into_dart(self) -> Self {
         self

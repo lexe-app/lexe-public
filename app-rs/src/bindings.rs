@@ -59,13 +59,13 @@ use common::{
         command::{
             CreateInvoiceRequest as CreateInvoiceRequestRs,
             CreateInvoiceResponse as CreateInvoiceResponseRs,
-            EstimateFeeSendOnchainResponse as EstimateFeeSendOnchainResponseRs,
             FeeEstimate as FeeEstimateRs, NodeInfo as NodeInfoRs,
             PayInvoiceRequest as PayInvoiceRequestRs,
             PayOnchainRequest as PayOnchainRequestRs,
             PreflightPayInvoiceRequest as PreflightPayInvoiceRequestRs,
             PreflightPayInvoiceResponse as PreflightPayInvoiceResponseRs,
             PreflightPayOnchainRequest as PreflightPayOnchainRequestRs,
+            PreflightPayOnchainResponse as PreflightPayOnchainResponseRs,
         },
         def::{AppGatewayApi, AppNodeRunApi},
         fiat_rates::FiatRates as FiatRatesRs,
@@ -744,14 +744,14 @@ impl TryFrom<PreflightPayOnchainRequest> for PreflightPayOnchainRequestRs {
     }
 }
 
-pub struct EstimateFeeSendOnchainResponse {
+pub struct PreflightPayOnchainResponse {
     pub high: Option<FeeEstimate>,
     pub normal: FeeEstimate,
     pub background: FeeEstimate,
 }
 
-impl From<EstimateFeeSendOnchainResponseRs> for EstimateFeeSendOnchainResponse {
-    fn from(resp: EstimateFeeSendOnchainResponseRs) -> Self {
+impl From<PreflightPayOnchainResponseRs> for PreflightPayOnchainResponse {
+    fn from(resp: PreflightPayOnchainResponseRs) -> Self {
         Self {
             high: resp.high.map(FeeEstimate::from),
             normal: FeeEstimate::from(resp.normal),
@@ -966,10 +966,10 @@ impl AppHandle {
     pub fn estimate_fee_send_onchain(
         &self,
         req: PreflightPayOnchainRequest,
-    ) -> anyhow::Result<EstimateFeeSendOnchainResponse> {
+    ) -> anyhow::Result<PreflightPayOnchainResponse> {
         let req = PreflightPayOnchainRequestRs::try_from(req)?;
         block_on(self.inner.node_client().estimate_fee_send_onchain(req))
-            .map(EstimateFeeSendOnchainResponse::from)
+            .map(PreflightPayOnchainResponse::from)
             .map_err(anyhow::Error::new)
     }
 
