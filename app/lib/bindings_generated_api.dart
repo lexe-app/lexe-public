@@ -130,10 +130,10 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kFiatRatesMethodAppHandleConstMeta;
 
-  Future<void> sendOnchainMethodAppHandle(
-      {required AppHandle that, required SendOnchainRequest req, dynamic hint});
+  Future<void> payOnchainMethodAppHandle(
+      {required AppHandle that, required PayOnchainRequest req, dynamic hint});
 
-  FlutterRustBridgeTaskConstMeta get kSendOnchainMethodAppHandleConstMeta;
+  FlutterRustBridgeTaskConstMeta get kPayOnchainMethodAppHandleConstMeta;
 
   Future<EstimateFeeSendOnchainResponse> estimateFeeSendOnchainMethodAppHandle(
       {required AppHandle that,
@@ -315,8 +315,8 @@ class AppHandle {
         that: this,
       );
 
-  Future<void> sendOnchain({required SendOnchainRequest req, dynamic hint}) =>
-      bridge.sendOnchainMethodAppHandle(
+  Future<void> payOnchain({required PayOnchainRequest req, dynamic hint}) =>
+      bridge.payOnchainMethodAppHandle(
         that: this,
         req: req,
       );
@@ -600,6 +600,22 @@ class PayInvoiceRequest with _$PayInvoiceRequest {
   }) = _PayInvoiceRequest;
 }
 
+class PayOnchainRequest {
+  final ClientPaymentId cid;
+  final String address;
+  final int amountSats;
+  final ConfirmationPriority priority;
+  final String? note;
+
+  const PayOnchainRequest({
+    required this.cid,
+    required this.address,
+    required this.amountSats,
+    required this.priority,
+    this.note,
+  });
+}
+
 /// The complete payment info, used in the payment detail page. Mirrors the
 /// [`BasicPayment`] type.
 @freezed
@@ -667,22 +683,6 @@ class PreflightPayInvoiceResponse {
   const PreflightPayInvoiceResponse({
     required this.amountSats,
     required this.feesSats,
-  });
-}
-
-class SendOnchainRequest {
-  final ClientPaymentId cid;
-  final String address;
-  final int amountSats;
-  final ConfirmationPriority priority;
-  final String? note;
-
-  const SendOnchainRequest({
-    required this.cid,
-    required this.address,
-    required this.amountSats,
-    required this.priority,
-    this.note,
   });
 }
 

@@ -273,21 +273,21 @@ fn wire_fiat_rates__method__AppHandle_impl(
         },
     )
 }
-fn wire_send_onchain__method__AppHandle_impl(
+fn wire_pay_onchain__method__AppHandle_impl(
     port_: MessagePort,
     that: impl Wire2Api<AppHandle> + UnwindSafe,
-    req: impl Wire2Api<SendOnchainRequest> + UnwindSafe,
+    req: impl Wire2Api<PayOnchainRequest> + UnwindSafe,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, (), _>(
         WrapInfo {
-            debug_name: "send_onchain__method__AppHandle",
+            debug_name: "pay_onchain__method__AppHandle",
             port: Some(port_),
             mode: FfiCallMode::Normal,
         },
         move || {
             let api_that = that.wire2api();
             let api_req = req.wire2api();
-            move |task_callback| AppHandle::send_onchain(&api_that, api_req)
+            move |task_callback| AppHandle::pay_onchain(&api_that, api_req)
         },
     )
 }
@@ -1200,12 +1200,12 @@ mod io {
     }
 
     #[no_mangle]
-    pub extern "C" fn wire_send_onchain__method__AppHandle(
+    pub extern "C" fn wire_pay_onchain__method__AppHandle(
         port_: i64,
         that: *mut wire_AppHandle,
-        req: *mut wire_SendOnchainRequest,
+        req: *mut wire_PayOnchainRequest,
     ) {
-        wire_send_onchain__method__AppHandle_impl(port_, that, req)
+        wire_pay_onchain__method__AppHandle_impl(port_, that, req)
     }
 
     #[no_mangle]
@@ -1404,17 +1404,17 @@ mod io {
     }
 
     #[no_mangle]
+    pub extern "C" fn new_box_autoadd_pay_onchain_request_0(
+    ) -> *mut wire_PayOnchainRequest {
+        support::new_leak_box_ptr(wire_PayOnchainRequest::new_with_null_ptr())
+    }
+
+    #[no_mangle]
     pub extern "C" fn new_box_autoadd_preflight_pay_invoice_request_0(
     ) -> *mut wire_PreflightPayInvoiceRequest {
         support::new_leak_box_ptr(
             wire_PreflightPayInvoiceRequest::new_with_null_ptr(),
         )
-    }
-
-    #[no_mangle]
-    pub extern "C" fn new_box_autoadd_send_onchain_request_0(
-    ) -> *mut wire_SendOnchainRequest {
-        support::new_leak_box_ptr(wire_SendOnchainRequest::new_with_null_ptr())
     }
 
     #[no_mangle]
@@ -1507,18 +1507,18 @@ mod io {
             Wire2Api::<PayInvoiceRequest>::wire2api(*wrap).into()
         }
     }
+    impl Wire2Api<PayOnchainRequest> for *mut wire_PayOnchainRequest {
+        fn wire2api(self) -> PayOnchainRequest {
+            let wrap = unsafe { support::box_from_leak_ptr(self) };
+            Wire2Api::<PayOnchainRequest>::wire2api(*wrap).into()
+        }
+    }
     impl Wire2Api<PreflightPayInvoiceRequest>
         for *mut wire_PreflightPayInvoiceRequest
     {
         fn wire2api(self) -> PreflightPayInvoiceRequest {
             let wrap = unsafe { support::box_from_leak_ptr(self) };
             Wire2Api::<PreflightPayInvoiceRequest>::wire2api(*wrap).into()
-        }
-    }
-    impl Wire2Api<SendOnchainRequest> for *mut wire_SendOnchainRequest {
-        fn wire2api(self) -> SendOnchainRequest {
-            let wrap = unsafe { support::box_from_leak_ptr(self) };
-            Wire2Api::<SendOnchainRequest>::wire2api(*wrap).into()
         }
     }
     impl Wire2Api<u64> for *mut u64 {
@@ -1582,22 +1582,22 @@ mod io {
             }
         }
     }
-    impl Wire2Api<PreflightPayInvoiceRequest> for wire_PreflightPayInvoiceRequest {
-        fn wire2api(self) -> PreflightPayInvoiceRequest {
-            PreflightPayInvoiceRequest {
-                invoice: self.invoice.wire2api(),
-                fallback_amount_sats: self.fallback_amount_sats.wire2api(),
-            }
-        }
-    }
-    impl Wire2Api<SendOnchainRequest> for wire_SendOnchainRequest {
-        fn wire2api(self) -> SendOnchainRequest {
-            SendOnchainRequest {
+    impl Wire2Api<PayOnchainRequest> for wire_PayOnchainRequest {
+        fn wire2api(self) -> PayOnchainRequest {
+            PayOnchainRequest {
                 cid: self.cid.wire2api(),
                 address: self.address.wire2api(),
                 amount_sats: self.amount_sats.wire2api(),
                 priority: self.priority.wire2api(),
                 note: self.note.wire2api(),
+            }
+        }
+    }
+    impl Wire2Api<PreflightPayInvoiceRequest> for wire_PreflightPayInvoiceRequest {
+        fn wire2api(self) -> PreflightPayInvoiceRequest {
+            PreflightPayInvoiceRequest {
+                invoice: self.invoice.wire2api(),
+                fallback_amount_sats: self.fallback_amount_sats.wire2api(),
             }
         }
     }
@@ -1681,19 +1681,19 @@ mod io {
 
     #[repr(C)]
     #[derive(Clone)]
-    pub struct wire_PreflightPayInvoiceRequest {
-        invoice: *mut wire_uint_8_list,
-        fallback_amount_sats: *mut u64,
-    }
-
-    #[repr(C)]
-    #[derive(Clone)]
-    pub struct wire_SendOnchainRequest {
+    pub struct wire_PayOnchainRequest {
         cid: wire_ClientPaymentId,
         address: *mut wire_uint_8_list,
         amount_sats: u64,
         priority: i32,
         note: *mut wire_uint_8_list,
+    }
+
+    #[repr(C)]
+    #[derive(Clone)]
+    pub struct wire_PreflightPayInvoiceRequest {
+        invoice: *mut wire_uint_8_list,
+        fallback_amount_sats: *mut u64,
     }
 
     #[repr(C)]
@@ -1824,22 +1824,7 @@ mod io {
         }
     }
 
-    impl NewWithNullPtr for wire_PreflightPayInvoiceRequest {
-        fn new_with_null_ptr() -> Self {
-            Self {
-                invoice: core::ptr::null_mut(),
-                fallback_amount_sats: core::ptr::null_mut(),
-            }
-        }
-    }
-
-    impl Default for wire_PreflightPayInvoiceRequest {
-        fn default() -> Self {
-            Self::new_with_null_ptr()
-        }
-    }
-
-    impl NewWithNullPtr for wire_SendOnchainRequest {
+    impl NewWithNullPtr for wire_PayOnchainRequest {
         fn new_with_null_ptr() -> Self {
             Self {
                 cid: Default::default(),
@@ -1851,7 +1836,22 @@ mod io {
         }
     }
 
-    impl Default for wire_SendOnchainRequest {
+    impl Default for wire_PayOnchainRequest {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+
+    impl NewWithNullPtr for wire_PreflightPayInvoiceRequest {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                invoice: core::ptr::null_mut(),
+                fallback_amount_sats: core::ptr::null_mut(),
+            }
+        }
+    }
+
+    impl Default for wire_PreflightPayInvoiceRequest {
         fn default() -> Self {
             Self::new_with_null_ptr()
         }

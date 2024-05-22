@@ -32,12 +32,12 @@ import 'package:lexeapp/bindings_generated_api.dart'
         Network,
         NodeInfo,
         Onchain,
+        PayOnchainRequest,
         Payment,
         PaymentDirection,
         PaymentKind,
         PaymentMethod,
         PaymentStatus,
-        SendOnchainRequest,
         ShortPaymentAndIndex,
         U8Array32,
         UpdatePaymentNote;
@@ -460,8 +460,8 @@ class MockAppHandle extends AppHandle {
       );
 
   @override
-  Future<void> sendOnchain({
-    required SendOnchainRequest req,
+  Future<void> payOnchain({
+    required PayOnchainRequest req,
     dynamic hint,
   }) =>
       Future.delayed(const Duration(milliseconds: 1200), () {});

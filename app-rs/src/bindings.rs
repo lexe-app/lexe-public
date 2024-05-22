@@ -63,7 +63,7 @@ use common::{
             EstimateFeeSendOnchainResponse as EstimateFeeSendOnchainResponseRs,
             FeeEstimate as FeeEstimateRs, NodeInfo as NodeInfoRs,
             PayInvoiceRequest as PayInvoiceRequestRs,
-            PayOnchainRequest as SendOnchainRequestRs,
+            PayOnchainRequest as PayOnchainRequestRs,
             PreflightPayInvoiceRequest as PreflightPayInvoiceRequestRs,
             PreflightPayInvoiceResponse as PreflightPayInvoiceResponseRs,
         },
@@ -701,7 +701,7 @@ fn validate_note(note: String) -> anyhow::Result<String> {
     }
 }
 
-pub struct SendOnchainRequest {
+pub struct PayOnchainRequest {
     pub cid: ClientPaymentId,
     pub address: String,
     pub amount_sats: u64,
@@ -709,10 +709,10 @@ pub struct SendOnchainRequest {
     pub note: Option<String>,
 }
 
-impl TryFrom<SendOnchainRequest> for SendOnchainRequestRs {
+impl TryFrom<PayOnchainRequest> for PayOnchainRequestRs {
     type Error = anyhow::Error;
 
-    fn try_from(req: SendOnchainRequest) -> anyhow::Result<Self> {
+    fn try_from(req: PayOnchainRequest) -> anyhow::Result<Self> {
         let address = bitcoin::Address::from_str(&req.address)
             .map_err(|_| anyhow!("The bitcoin address isn't valid."))?;
         let amount = Amount::try_from_sats_u64(req.amount_sats)?;
@@ -958,10 +958,10 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
-    pub fn send_onchain(&self, req: SendOnchainRequest) -> anyhow::Result<()> {
-        let req = SendOnchainRequestRs::try_from(req)?;
+    pub fn pay_onchain(&self, req: PayOnchainRequest) -> anyhow::Result<()> {
+        let req = PayOnchainRequestRs::try_from(req)?;
         block_on(self.inner.node_client().pay_onchain(req))
-            .map(|_txid| ())
+            .map(|_resp| ())
             .map_err(anyhow::Error::new)
     }
 
