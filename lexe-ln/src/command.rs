@@ -6,10 +6,10 @@ use bitcoin_hashes::{sha256, Hash};
 use common::{
     api::{
         command::{
-            CreateInvoiceRequest, CreateInvoiceResponse,
-            EstimateFeeSendOnchainResponse, NodeInfo, PayInvoiceRequest,
-            PayOnchainRequest, PayOnchainResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
+            PayInvoiceRequest, PayOnchainRequest, PayOnchainResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
         },
         Empty, NodePk, Scid,
     },
@@ -436,7 +436,7 @@ where
 pub async fn estimate_fee_send_onchain(
     req: PreflightPayOnchainRequest,
     wallet: LexeWallet,
-) -> anyhow::Result<EstimateFeeSendOnchainResponse> {
+) -> anyhow::Result<PreflightPayOnchainResponse> {
     wallet.estimate_fee_send_onchain(req).await
 }
 

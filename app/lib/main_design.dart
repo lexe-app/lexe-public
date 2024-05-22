@@ -23,7 +23,6 @@ import 'package:lexeapp/bindings_generated_api.dart'
         Config,
         CreateInvoiceRequest,
         CreateInvoiceResponse,
-        EstimateFeeSendOnchainResponse,
         FeeEstimate,
         FiatRate,
         FiatRates,
@@ -38,6 +37,7 @@ import 'package:lexeapp/bindings_generated_api.dart'
         PaymentMethod,
         PaymentStatus,
         PreflightPayOnchainRequest,
+        PreflightPayOnchainResponse,
         ShortPaymentAndIndex,
         U8Array32,
         UpdatePaymentNote;
@@ -182,7 +182,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
       totalSats: 111111 + 222222,
     );
 
-    const feeEstimates = EstimateFeeSendOnchainResponse(
+    const feeEstimates = PreflightPayOnchainResponse(
       high: FeeEstimate(amountSats: 849),
       normal: FeeEstimate(amountSats: 722),
       background: FeeEstimate(amountSats: 563),
@@ -467,11 +467,11 @@ class MockAppHandle extends AppHandle {
       Future.delayed(const Duration(milliseconds: 1200), () {});
 
   @override
-  Future<EstimateFeeSendOnchainResponse> estimateFeeSendOnchain(
+  Future<PreflightPayOnchainResponse> estimateFeeSendOnchain(
           {required PreflightPayOnchainRequest req, dynamic hint}) =>
       Future.delayed(
         const Duration(seconds: 1),
-        () => const EstimateFeeSendOnchainResponse(
+        () => const PreflightPayOnchainResponse(
           high: FeeEstimate(amountSats: 849),
           normal: FeeEstimate(amountSats: 722),
           background: FeeEstimate(amountSats: 563),

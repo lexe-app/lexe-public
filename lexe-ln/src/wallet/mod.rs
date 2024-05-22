@@ -16,8 +16,8 @@ use bitcoin::{
 };
 use common::{
     api::command::{
-        EstimateFeeSendOnchainResponse, FeeEstimate, PayOnchainRequest,
-        PreflightPayOnchainRequest,
+        FeeEstimate, PayOnchainRequest, PreflightPayOnchainRequest,
+        PreflightPayOnchainResponse,
     },
     cli::Network,
     constants::{
@@ -282,7 +282,7 @@ impl LexeWallet {
     pub(crate) async fn estimate_fee_send_onchain(
         &self,
         req: PreflightPayOnchainRequest,
-    ) -> anyhow::Result<EstimateFeeSendOnchainResponse> {
+    ) -> anyhow::Result<PreflightPayOnchainResponse> {
         let high_prio = ConfirmationTarget::from(ConfirmationPriority::High);
         let normal_prio =
             ConfirmationTarget::from(ConfirmationPriority::Normal);
@@ -318,7 +318,7 @@ impl LexeWallet {
         )
         .ok();
 
-        Ok(EstimateFeeSendOnchainResponse {
+        Ok(PreflightPayOnchainResponse {
             high: high_fee,
             normal: normal_fee,
             background: background_fee,

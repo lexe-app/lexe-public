@@ -941,11 +941,10 @@ mod test {
     use common::{
         api::{
             command::{
-                CreateInvoiceRequest, CreateInvoiceResponse,
-                EstimateFeeSendOnchainResponse, NodeInfo, PayInvoiceRequest,
-                PayOnchainRequest, PayOnchainResponse,
+                CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
+                PayInvoiceRequest, PayOnchainRequest, PayOnchainResponse,
                 PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-                PreflightPayOnchainRequest,
+                PreflightPayOnchainRequest, PreflightPayOnchainResponse,
             },
             error::NodeApiError,
             Empty,
@@ -1103,7 +1102,7 @@ mod test {
         async fn estimate_fee_send_onchain(
             &self,
             _req: PreflightPayOnchainRequest,
-        ) -> Result<EstimateFeeSendOnchainResponse, NodeApiError> {
+        ) -> Result<PreflightPayOnchainResponse, NodeApiError> {
             unimplemented!();
         }
         async fn get_address(&self) -> Result<Address, NodeApiError> {

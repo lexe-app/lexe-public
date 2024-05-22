@@ -4,10 +4,10 @@ use axum::extract::State;
 use common::{
     api::{
         command::{
-            CreateInvoiceRequest, CreateInvoiceResponse,
-            EstimateFeeSendOnchainResponse, NodeInfo, PayInvoiceRequest,
-            PayOnchainRequest, PayOnchainResponse, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
+            CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
+            PayInvoiceRequest, PayOnchainRequest, PayOnchainResponse,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
         },
         error::NodeApiError,
         qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
@@ -105,7 +105,7 @@ pub(super) async fn pay_onchain(
 pub(super) async fn estimate_fee_send_onchain(
     State(state): State<Arc<AppRouterState>>,
     LxQuery(req): LxQuery<PreflightPayOnchainRequest>,
-) -> Result<LxJson<EstimateFeeSendOnchainResponse>, NodeApiError> {
+) -> Result<LxJson<PreflightPayOnchainResponse>, NodeApiError> {
     lexe_ln::command::estimate_fee_send_onchain(req, state.wallet.clone())
         .await
         .map(LxJson)
