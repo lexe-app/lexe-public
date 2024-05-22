@@ -460,7 +460,7 @@ impl AppNodeRunApi for NodeClient {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/preflight_pay_onchain");
-        let req = self.run_rest.get(url, &req);
+        let req = self.run_rest.post(url, &req);
         self.run_rest.send(req).await
     }
 
