@@ -26,7 +26,7 @@ use crate::{
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse,
             EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
-            NodeInfo, PayInvoiceRequest, PayOnchainRequest,
+            NodeInfo, PayInvoiceRequest, PayOnchainRequest, PayOnchainResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
         },
         def::{
@@ -47,7 +47,7 @@ use crate::{
     ed25519,
     enclave::Measurement,
     env::DeployEnv,
-    ln::{hashes::LxTxid, payments::BasicPayment},
+    ln::payments::BasicPayment,
     rng::Crng,
     root_seed::RootSeed,
     tls::{self, lexe_ca},
@@ -445,7 +445,7 @@ impl AppNodeRunApi for NodeClient {
     async fn send_onchain(
         &self,
         req: PayOnchainRequest,
-    ) -> Result<LxTxid, NodeApiError> {
+    ) -> Result<PayOnchainResponse, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/send_onchain");

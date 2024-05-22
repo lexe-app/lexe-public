@@ -944,12 +944,13 @@ mod test {
                 CreateInvoiceRequest, CreateInvoiceResponse,
                 EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
                 NodeInfo, PayInvoiceRequest, PayOnchainRequest,
-                PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+                PayOnchainResponse, PreflightPayInvoiceRequest,
+                PreflightPayInvoiceResponse,
             },
             error::NodeApiError,
             Empty,
         },
-        ln::{hashes::LxTxid, payments::PaymentStatus},
+        ln::payments::PaymentStatus,
         rng::{shuffle, RngExt, WeakRng},
     };
     use proptest::{
@@ -1096,7 +1097,7 @@ mod test {
         async fn send_onchain(
             &self,
             _req: PayOnchainRequest,
-        ) -> Result<LxTxid, NodeApiError> {
+        ) -> Result<PayOnchainResponse, NodeApiError> {
             unimplemented!()
         }
         async fn estimate_fee_send_onchain(
