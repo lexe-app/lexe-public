@@ -102,11 +102,11 @@ pub(super) async fn pay_onchain(
     .map_err(NodeApiError::command)
 }
 
-pub(super) async fn estimate_fee_send_onchain(
+pub(super) async fn preflight_pay_onchain(
     State(state): State<Arc<AppRouterState>>,
     LxQuery(req): LxQuery<PreflightPayOnchainRequest>,
 ) -> Result<LxJson<PreflightPayOnchainResponse>, NodeApiError> {
-    lexe_ln::command::estimate_fee_send_onchain(req, state.wallet.clone())
+    lexe_ln::command::preflight_pay_onchain(req, state.wallet.clone())
         .await
         .map(LxJson)
         .map_err(NodeApiError::command)

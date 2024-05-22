@@ -433,11 +433,11 @@ where
 }
 
 #[instrument(skip_all, name = "(estimate-fee-send-onchain)")]
-pub async fn estimate_fee_send_onchain(
+pub async fn preflight_pay_onchain(
     req: PreflightPayOnchainRequest,
     wallet: LexeWallet,
 ) -> anyhow::Result<PreflightPayOnchainResponse> {
-    wallet.estimate_fee_send_onchain(req).await
+    wallet.preflight_pay_onchain(req).await
 }
 
 #[instrument(skip_all, name = "(get-address)")]

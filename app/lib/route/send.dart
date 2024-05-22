@@ -424,7 +424,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     final req = PreflightPayOnchainRequest(
         address: this.widget.address, amountSats: amountSats);
     final result = await Result.tryFfiAsync(
-        () async => this.widget.sendCtx.app.estimateFeeSendOnchain(req: req));
+        () async => this.widget.sendCtx.app.preflightPayOnchain(req: req));
 
     if (!this.mounted) return;
 

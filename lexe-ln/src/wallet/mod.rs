@@ -279,7 +279,7 @@ impl LexeWallet {
     ///
     /// This fn deliberately avoids modifying the [`WalletDb`] state. We don't
     /// want to generate unnecessary addresses that we need to watch and sync.
-    pub(crate) async fn estimate_fee_send_onchain(
+    pub(crate) async fn preflight_pay_onchain(
         &self,
         req: PreflightPayOnchainRequest,
     ) -> anyhow::Result<PreflightPayOnchainResponse> {
@@ -296,13 +296,13 @@ impl LexeWallet {
         let locked_wallet = self.wallet.lock().await;
 
         // We _require_ a tx to at least be able to use normal fee rate.
-        let normal_fee = Self::estimate_fee_send_onchain_inner(
+        let normal_fee = Self::preflight_pay_onchain_inner(
             &locked_wallet,
             &req.address,
             req.amount,
             normal_feerate,
         )?;
-        let background_fee = Self::estimate_fee_send_onchain_inner(
+        let background_fee = Self::preflight_pay_onchain_inner(
             &locked_wallet,
             &req.address,
             req.amount,
@@ -310,7 +310,7 @@ impl LexeWallet {
         )?;
 
         // The high fee rate tx is allowed to fail with insufficient balance.
-        let high_fee = Self::estimate_fee_send_onchain_inner(
+        let high_fee = Self::preflight_pay_onchain_inner(
             &locked_wallet,
             &req.address,
             req.amount,
@@ -325,7 +325,7 @@ impl LexeWallet {
         })
     }
 
-    fn estimate_fee_send_onchain_inner(
+    fn preflight_pay_onchain_inner(
         wallet: &Wallet<WalletDb>,
         address: &bitcoin::Address,
         amount: Amount,

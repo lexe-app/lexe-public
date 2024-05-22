@@ -467,7 +467,7 @@ class MockAppHandle extends AppHandle {
       Future.delayed(const Duration(milliseconds: 1200), () {});
 
   @override
-  Future<PreflightPayOnchainResponse> estimateFeeSendOnchain(
+  Future<PreflightPayOnchainResponse> preflightPayOnchain(
           {required PreflightPayOnchainRequest req, dynamic hint}) =>
       Future.delayed(
         const Duration(seconds: 1),
