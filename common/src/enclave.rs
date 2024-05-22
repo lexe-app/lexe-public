@@ -22,7 +22,7 @@ use thiserror::Error;
 
 use crate::{
     array::{self, ArrayExt},
-    const_assert_usize_eq,
+    const_assert_usize_eq, enclave,
     env::DeployEnv,
     hex::{self, FromHex},
     hexstr_or_bytes,
@@ -50,9 +50,9 @@ pub fn report() -> sgx_isa::Report {
                     flags: attributes::LEXE_FLAGS_PROD,
                     xfrm: xfrm::LEXE_FLAGS,
                 },
-                mrenclave: measurement().0,
+                mrenclave: enclave::measurement().0,
                 _reserved2: [0; 32],
-                mrsigner: signer().0,
+                mrsigner: enclave::signer().0,
                 _reserved3: [0; 96],
                 isvprodid: 0u16,
                 isvsvn: 0u16,
@@ -79,7 +79,7 @@ pub fn report() -> sgx_isa::Report {
 pub fn measurement() -> Measurement {
     cfg_if! {
         if #[cfg(target_env = "sgx")] {
-            Measurement::new(report().mrenclave)
+            Measurement::new(enclave::report().mrenclave)
         } else {
             // Prefers `DEV_ENCLAVE`, otherwise defaults to `MOCK_ENCLAVE`.
             Measurement::DEV_ENCLAVE.unwrap_or(Measurement::MOCK_ENCLAVE)
@@ -99,7 +99,7 @@ pub fn measurement() -> Measurement {
 pub fn signer() -> Measurement {
     cfg_if! {
         if #[cfg(target_env = "sgx")] {
-            Measurement::new(report().mrsigner)
+            Measurement::new(enclave::report().mrsigner)
         } else {
             Measurement::MOCK_SIGNER
         }
