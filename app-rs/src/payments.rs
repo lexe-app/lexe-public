@@ -943,8 +943,8 @@ mod test {
             command::{
                 CreateInvoiceRequest, CreateInvoiceResponse,
                 EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
-                NodeInfo, PayInvoiceRequest, PreflightPayInvoiceRequest,
-                PreflightPayInvoiceResponse, SendOnchainRequest,
+                NodeInfo, PayInvoiceRequest, PayOnchainRequest,
+                PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
             },
             error::NodeApiError,
             Empty,
@@ -1095,7 +1095,7 @@ mod test {
         }
         async fn send_onchain(
             &self,
-            _req: SendOnchainRequest,
+            _req: PayOnchainRequest,
         ) -> Result<LxTxid, NodeApiError> {
             unimplemented!()
         }

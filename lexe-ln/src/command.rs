@@ -8,8 +8,8 @@ use common::{
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse,
             EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
-            NodeInfo, PayInvoiceRequest, PreflightPayInvoiceRequest,
-            PreflightPayInvoiceResponse, SendOnchainRequest,
+            NodeInfo, PayInvoiceRequest, PayOnchainRequest,
+            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
         },
         Empty, NodePk, Scid,
     },
@@ -388,7 +388,7 @@ where
 
 #[instrument(skip_all, name = "(send-onchain)")]
 pub async fn send_onchain<CM, PS>(
-    req: SendOnchainRequest,
+    req: PayOnchainRequest,
     wallet: LexeWallet,
     esplora: Arc<LexeEsplora>,
     payments_manager: PaymentsManager<CM, PS>,

@@ -3,7 +3,7 @@ use bitcoin::Transaction;
 #[cfg(test)]
 use common::test_utils::arbitrary;
 use common::{
-    api::command::SendOnchainRequest,
+    api::command::PayOnchainRequest,
     ln::{
         amount::Amount,
         hashes::LxTxid,
@@ -87,7 +87,7 @@ pub enum OnchainSendStatus {
 }
 
 impl OnchainSend {
-    pub fn new(tx: Transaction, req: SendOnchainRequest, fees: Amount) -> Self {
+    pub fn new(tx: Transaction, req: PayOnchainRequest, fees: Amount) -> Self {
         Self {
             cid: req.cid,
             txid: LxTxid(tx.txid()),

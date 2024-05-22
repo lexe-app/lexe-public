@@ -17,7 +17,7 @@ use bitcoin::{
 use common::{
     api::command::{
         EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
-        FeeEstimate, SendOnchainRequest,
+        FeeEstimate, PayOnchainRequest,
     },
     cli::Network,
     constants::{
@@ -236,7 +236,7 @@ impl LexeWallet {
     /// [`Address`], packaging up all of this info in a new [`OnchainSend`].
     pub(crate) async fn create_onchain_send(
         &self,
-        req: SendOnchainRequest,
+        req: PayOnchainRequest,
     ) -> anyhow::Result<OnchainSend> {
         // Get current fee rate for requested block confirmation target
         let conf_target = ConfirmationTarget::from(req.priority);
