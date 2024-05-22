@@ -44,13 +44,13 @@ typedef struct wire_ClientPaymentId {
   struct wire_uint_8_list *id;
 } wire_ClientPaymentId;
 
-typedef struct wire_SendOnchainRequest {
+typedef struct wire_PayOnchainRequest {
   struct wire_ClientPaymentId cid;
   struct wire_uint_8_list *address;
   uint64_t amount_sats;
   int32_t priority;
   struct wire_uint_8_list *note;
-} wire_SendOnchainRequest;
+} wire_PayOnchainRequest;
 
 typedef struct wire_EstimateFeeSendOnchainRequest {
   struct wire_uint_8_list *address;
@@ -129,9 +129,9 @@ void wire_node_info__method__AppHandle(int64_t port_, struct wire_AppHandle *tha
 
 void wire_fiat_rates__method__AppHandle(int64_t port_, struct wire_AppHandle *that);
 
-void wire_send_onchain__method__AppHandle(int64_t port_,
-                                          struct wire_AppHandle *that,
-                                          struct wire_SendOnchainRequest *req);
+void wire_pay_onchain__method__AppHandle(int64_t port_,
+                                         struct wire_AppHandle *that,
+                                         struct wire_PayOnchainRequest *req);
 
 void wire_estimate_fee_send_onchain__method__AppHandle(int64_t port_,
                                                        struct wire_AppHandle *that,
@@ -199,9 +199,9 @@ struct wire_EstimateFeeSendOnchainRequest *new_box_autoadd_estimate_fee_send_onc
 
 struct wire_PayInvoiceRequest *new_box_autoadd_pay_invoice_request_0(void);
 
-struct wire_PreflightPayInvoiceRequest *new_box_autoadd_preflight_pay_invoice_request_0(void);
+struct wire_PayOnchainRequest *new_box_autoadd_pay_onchain_request_0(void);
 
-struct wire_SendOnchainRequest *new_box_autoadd_send_onchain_request_0(void);
+struct wire_PreflightPayInvoiceRequest *new_box_autoadd_preflight_pay_invoice_request_0(void);
 
 uint64_t *new_box_autoadd_u64_0(uint64_t value);
 
@@ -233,7 +233,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_signup__static_method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_node_info__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_fiat_rates__method__AppHandle);
-    dummy_var ^= ((int64_t) (void*) wire_send_onchain__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_pay_onchain__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_estimate_fee_send_onchain__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_address__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_create_invoice__method__AppHandle);
@@ -259,8 +259,8 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_create_invoice_request_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_estimate_fee_send_onchain_request_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_pay_invoice_request_0);
+    dummy_var ^= ((int64_t) (void*) new_box_autoadd_pay_onchain_request_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_preflight_pay_invoice_request_0);
-    dummy_var ^= ((int64_t) (void*) new_box_autoadd_send_onchain_request_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_u64_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_update_payment_note_0);
     dummy_var ^= ((int64_t) (void*) new_uint_8_list_0);

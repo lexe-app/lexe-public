@@ -18,9 +18,9 @@ import 'package:lexeapp/bindings_generated_api.dart'
         Invoice,
         Network,
         Onchain,
+        PayOnchainRequest,
         PaymentMethod,
-        PreflightPayInvoiceResponse,
-        SendOnchainRequest;
+        PreflightPayInvoiceResponse;
 import 'package:lexeapp/bindings_generated_api.dart';
 import 'package:lexeapp/bindings_generated_api_ext.dart';
 import 'package:lexeapp/components.dart'
@@ -652,7 +652,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       // TODO(phlip9): implement "send full balance"
       SendAmountAll() => throw UnimplementedError(),
     };
-    final req = SendOnchainRequest(
+    final req = PayOnchainRequest(
       cid: this.widget.sendCtx.cid,
       address: this.widget.address,
       amountSats: amountSats,
@@ -662,7 +662,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     final app = this.widget.sendCtx.app;
 
     final result =
-        await Result.tryFfiAsync(() async => app.sendOnchain(req: req));
+        await Result.tryFfiAsync(() async => app.payOnchain(req: req));
 
     if (!this.mounted) return;
 

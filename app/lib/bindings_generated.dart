@@ -334,26 +334,24 @@ class AppRsImpl implements AppRs {
         argNames: ["that"],
       );
 
-  Future<void> sendOnchainMethodAppHandle(
-      {required AppHandle that,
-      required SendOnchainRequest req,
-      dynamic hint}) {
+  Future<void> payOnchainMethodAppHandle(
+      {required AppHandle that, required PayOnchainRequest req, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
-    var arg1 = _platform.api2wire_box_autoadd_send_onchain_request(req);
+    var arg1 = _platform.api2wire_box_autoadd_pay_onchain_request(req);
     return _platform.executeNormal(FlutterRustBridgeTask(
       callFfi: (port_) => _platform.inner
-          .wire_send_onchain__method__AppHandle(port_, arg0, arg1),
+          .wire_pay_onchain__method__AppHandle(port_, arg0, arg1),
       parseSuccessData: _wire2api_unit,
       parseErrorData: _wire2api_FrbAnyhowException,
-      constMeta: kSendOnchainMethodAppHandleConstMeta,
+      constMeta: kPayOnchainMethodAppHandleConstMeta,
       argValues: [that, req],
       hint: hint,
     ));
   }
 
-  FlutterRustBridgeTaskConstMeta get kSendOnchainMethodAppHandleConstMeta =>
+  FlutterRustBridgeTaskConstMeta get kPayOnchainMethodAppHandleConstMeta =>
       const FlutterRustBridgeTaskConstMeta(
-        debugName: "send_onchain__method__AppHandle",
+        debugName: "pay_onchain__method__AppHandle",
         argNames: ["that", "req"],
       );
 
@@ -1224,19 +1222,19 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   }
 
   @protected
+  ffi.Pointer<wire_PayOnchainRequest> api2wire_box_autoadd_pay_onchain_request(
+      PayOnchainRequest raw) {
+    final ptr = inner.new_box_autoadd_pay_onchain_request_0();
+    _api_fill_to_wire_pay_onchain_request(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
   ffi.Pointer<wire_PreflightPayInvoiceRequest>
       api2wire_box_autoadd_preflight_pay_invoice_request(
           PreflightPayInvoiceRequest raw) {
     final ptr = inner.new_box_autoadd_preflight_pay_invoice_request_0();
     _api_fill_to_wire_preflight_pay_invoice_request(raw, ptr.ref);
-    return ptr;
-  }
-
-  @protected
-  ffi.Pointer<wire_SendOnchainRequest>
-      api2wire_box_autoadd_send_onchain_request(SendOnchainRequest raw) {
-    final ptr = inner.new_box_autoadd_send_onchain_request_0();
-    _api_fill_to_wire_send_onchain_request(raw, ptr.ref);
     return ptr;
   }
 
@@ -1324,15 +1322,15 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     _api_fill_to_wire_pay_invoice_request(apiObj, wireObj.ref);
   }
 
+  void _api_fill_to_wire_box_autoadd_pay_onchain_request(
+      PayOnchainRequest apiObj, ffi.Pointer<wire_PayOnchainRequest> wireObj) {
+    _api_fill_to_wire_pay_onchain_request(apiObj, wireObj.ref);
+  }
+
   void _api_fill_to_wire_box_autoadd_preflight_pay_invoice_request(
       PreflightPayInvoiceRequest apiObj,
       ffi.Pointer<wire_PreflightPayInvoiceRequest> wireObj) {
     _api_fill_to_wire_preflight_pay_invoice_request(apiObj, wireObj.ref);
-  }
-
-  void _api_fill_to_wire_box_autoadd_send_onchain_request(
-      SendOnchainRequest apiObj, ffi.Pointer<wire_SendOnchainRequest> wireObj) {
-    _api_fill_to_wire_send_onchain_request(apiObj, wireObj.ref);
   }
 
   void _api_fill_to_wire_box_autoadd_update_payment_note(
@@ -1376,21 +1374,21 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     wireObj.note = api2wire_opt_String(apiObj.note);
   }
 
+  void _api_fill_to_wire_pay_onchain_request(
+      PayOnchainRequest apiObj, wire_PayOnchainRequest wireObj) {
+    _api_fill_to_wire_client_payment_id(apiObj.cid, wireObj.cid);
+    wireObj.address = api2wire_String(apiObj.address);
+    wireObj.amount_sats = api2wire_u64(apiObj.amountSats);
+    wireObj.priority = api2wire_confirmation_priority(apiObj.priority);
+    wireObj.note = api2wire_opt_String(apiObj.note);
+  }
+
   void _api_fill_to_wire_preflight_pay_invoice_request(
       PreflightPayInvoiceRequest apiObj,
       wire_PreflightPayInvoiceRequest wireObj) {
     wireObj.invoice = api2wire_String(apiObj.invoice);
     wireObj.fallback_amount_sats =
         api2wire_opt_box_autoadd_u64(apiObj.fallbackAmountSats);
-  }
-
-  void _api_fill_to_wire_send_onchain_request(
-      SendOnchainRequest apiObj, wire_SendOnchainRequest wireObj) {
-    _api_fill_to_wire_client_payment_id(apiObj.cid, wireObj.cid);
-    wireObj.address = api2wire_String(apiObj.address);
-    wireObj.amount_sats = api2wire_u64(apiObj.amountSats);
-    wireObj.priority = api2wire_confirmation_priority(apiObj.priority);
-    wireObj.note = api2wire_opt_String(apiObj.note);
   }
 
   void _api_fill_to_wire_update_payment_note(
@@ -1768,27 +1766,27 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _wire_fiat_rates__method__AppHandlePtr
           .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
 
-  void wire_send_onchain__method__AppHandle(
+  void wire_pay_onchain__method__AppHandle(
     int port_,
     ffi.Pointer<wire_AppHandle> that,
-    ffi.Pointer<wire_SendOnchainRequest> req,
+    ffi.Pointer<wire_PayOnchainRequest> req,
   ) {
-    return _wire_send_onchain__method__AppHandle(
+    return _wire_pay_onchain__method__AppHandle(
       port_,
       that,
       req,
     );
   }
 
-  late final _wire_send_onchain__method__AppHandlePtr = _lookup<
+  late final _wire_pay_onchain__method__AppHandlePtr = _lookup<
           ffi.NativeFunction<
               ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>,
-                  ffi.Pointer<wire_SendOnchainRequest>)>>(
-      'wire_send_onchain__method__AppHandle');
-  late final _wire_send_onchain__method__AppHandle =
-      _wire_send_onchain__method__AppHandlePtr.asFunction<
+                  ffi.Pointer<wire_PayOnchainRequest>)>>(
+      'wire_pay_onchain__method__AppHandle');
+  late final _wire_pay_onchain__method__AppHandle =
+      _wire_pay_onchain__method__AppHandlePtr.asFunction<
           void Function(int, ffi.Pointer<wire_AppHandle>,
-              ffi.Pointer<wire_SendOnchainRequest>)>();
+              ffi.Pointer<wire_PayOnchainRequest>)>();
 
   void wire_estimate_fee_send_onchain__method__AppHandle(
     int port_,
@@ -2227,6 +2225,17 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _new_box_autoadd_pay_invoice_request_0Ptr
           .asFunction<ffi.Pointer<wire_PayInvoiceRequest> Function()>();
 
+  ffi.Pointer<wire_PayOnchainRequest> new_box_autoadd_pay_onchain_request_0() {
+    return _new_box_autoadd_pay_onchain_request_0();
+  }
+
+  late final _new_box_autoadd_pay_onchain_request_0Ptr = _lookup<
+          ffi.NativeFunction<ffi.Pointer<wire_PayOnchainRequest> Function()>>(
+      'new_box_autoadd_pay_onchain_request_0');
+  late final _new_box_autoadd_pay_onchain_request_0 =
+      _new_box_autoadd_pay_onchain_request_0Ptr
+          .asFunction<ffi.Pointer<wire_PayOnchainRequest> Function()>();
+
   ffi.Pointer<wire_PreflightPayInvoiceRequest>
       new_box_autoadd_preflight_pay_invoice_request_0() {
     return _new_box_autoadd_preflight_pay_invoice_request_0();
@@ -2239,18 +2248,6 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _new_box_autoadd_preflight_pay_invoice_request_0 =
       _new_box_autoadd_preflight_pay_invoice_request_0Ptr.asFunction<
           ffi.Pointer<wire_PreflightPayInvoiceRequest> Function()>();
-
-  ffi.Pointer<wire_SendOnchainRequest>
-      new_box_autoadd_send_onchain_request_0() {
-    return _new_box_autoadd_send_onchain_request_0();
-  }
-
-  late final _new_box_autoadd_send_onchain_request_0Ptr = _lookup<
-          ffi.NativeFunction<ffi.Pointer<wire_SendOnchainRequest> Function()>>(
-      'new_box_autoadd_send_onchain_request_0');
-  late final _new_box_autoadd_send_onchain_request_0 =
-      _new_box_autoadd_send_onchain_request_0Ptr
-          .asFunction<ffi.Pointer<wire_SendOnchainRequest> Function()>();
 
   ffi.Pointer<ffi.Uint64> new_box_autoadd_u64_0(
     int value,
@@ -2375,7 +2372,7 @@ final class wire_ClientPaymentId extends ffi.Struct {
   external ffi.Pointer<wire_uint_8_list> id;
 }
 
-final class wire_SendOnchainRequest extends ffi.Struct {
+final class wire_PayOnchainRequest extends ffi.Struct {
   external wire_ClientPaymentId cid;
 
   external ffi.Pointer<wire_uint_8_list> address;
