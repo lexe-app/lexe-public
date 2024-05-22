@@ -27,7 +27,7 @@ use x509_parser::certificate::X509Certificate;
 use super::quote::ReportData;
 use crate::{
     ed25519,
-    enclave::Measurement,
+    enclave::{self, Measurement},
     env::DeployEnv,
     hex, sha256,
     tls::{self, attestation::cert::SgxAttestationExtension},
@@ -619,29 +619,21 @@ impl EnclavePolicy {
 
     /// A policy that trusts only the local enclave. Useful in tests.
     pub fn trust_self() -> Self {
-        #[cfg(target_env = "sgx")]
-        {
-            let self_report = sgx_isa::Report::for_self();
-            let report_mrenclave = Measurement::new(self_report.mrenclave);
-            let report_mrsigner = Measurement::new(self_report.mrsigner);
+        let self_report = enclave::report();
+        let report_mrenclave = Measurement::new(self_report.mrenclave);
+        let report_mrsigner = Measurement::new(self_report.mrsigner);
 
-            let allow_debug = self_report
-                .attributes
-                .flags
-                .contains(sgx_isa::AttributesFlags::DEBUG);
-            let trusted_mrenclaves = Some(vec![report_mrenclave]);
-            let trusted_mrsigner = Some(report_mrsigner);
-            Self {
-                allow_debug,
-                trusted_mrenclaves,
-                trusted_mrsigner,
-            }
-        }
-        #[cfg(not(target_env = "sgx"))]
-        {
-            // TODO(phlip9): add some SGX interface that will provide fixed
-            // dummy values outside SGX
-            Self::dangerous_trust_any()
+        let allow_debug = self_report
+            .attributes
+            .flags
+            .contains(sgx_isa::AttributesFlags::DEBUG);
+        let trusted_mrenclaves = Some(vec![report_mrenclave]);
+        let trusted_mrsigner = Some(report_mrsigner);
+
+        Self {
+            allow_debug,
+            trusted_mrenclaves,
+            trusted_mrsigner,
         }
     }
 
