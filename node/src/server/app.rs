@@ -6,7 +6,7 @@ use common::{
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse,
             EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
-            NodeInfo, PayInvoiceRequest, PayOnchainRequest,
+            NodeInfo, PayInvoiceRequest, PayOnchainRequest, PayOnchainResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
         },
         error::NodeApiError,
@@ -14,7 +14,7 @@ use common::{
         server::{extract::LxQuery, LxJson},
         Empty,
     },
-    ln::{hashes::LxTxid, payments::BasicPayment},
+    ln::payments::BasicPayment,
 };
 use lexe_ln::command::CreateInvoiceCaller;
 
@@ -87,11 +87,11 @@ pub(super) async fn preflight_pay_invoice(
     .map_err(NodeApiError::command)
 }
 
-pub(super) async fn send_onchain(
+pub(super) async fn pay_onchain(
     State(state): State<Arc<AppRouterState>>,
     LxJson(req): LxJson<PayOnchainRequest>,
-) -> Result<LxJson<LxTxid>, NodeApiError> {
-    lexe_ln::command::send_onchain(
+) -> Result<LxJson<PayOnchainResponse>, NodeApiError> {
+    lexe_ln::command::pay_onchain(
         req,
         state.wallet.clone(),
         state.esplora.clone(),

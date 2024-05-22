@@ -442,13 +442,13 @@ impl AppNodeRunApi for NodeClient {
         self.run_rest.send(req).await
     }
 
-    async fn send_onchain(
+    async fn pay_onchain(
         &self,
         req: PayOnchainRequest,
     ) -> Result<PayOnchainResponse, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/app/send_onchain");
+        let url = format!("{run_url}/app/pay_onchain");
         let req = self.run_rest.post(url, &req);
         self.run_rest.send(req).await
     }

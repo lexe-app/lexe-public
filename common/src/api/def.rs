@@ -364,12 +364,12 @@ pub trait AppNodeRunApi {
         req: PreflightPayInvoiceRequest,
     ) -> Result<PreflightPayInvoiceResponse, NodeApiError>;
 
-    /// POST /app/send_onchain [`PayOnchainRequest`] -> [`PayOnchainResponse`]
+    /// POST /app/pay_onchain [`PayOnchainRequest`] -> [`PayOnchainResponse`]
     ///
     /// Pay bitcoin onchain. If the address is valid and we have sufficient
     /// onchain funds, this will broadcast a new transaction to the bitcoin
     /// mempool.
-    async fn send_onchain(
+    async fn pay_onchain(
         &self,
         req: PayOnchainRequest,
     ) -> Result<PayOnchainResponse, NodeApiError>;

@@ -960,7 +960,7 @@ impl AppHandle {
 
     pub fn send_onchain(&self, req: SendOnchainRequest) -> anyhow::Result<()> {
         let req = SendOnchainRequestRs::try_from(req)?;
-        block_on(self.inner.node_client().send_onchain(req))
+        block_on(self.inner.node_client().pay_onchain(req))
             .map(|_txid| ())
             .map_err(anyhow::Error::new)
     }

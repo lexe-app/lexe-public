@@ -1094,7 +1094,7 @@ mod test {
         ) -> Result<PreflightPayInvoiceResponse, NodeApiError> {
             unimplemented!()
         }
-        async fn send_onchain(
+        async fn pay_onchain(
             &self,
             _req: PayOnchainRequest,
         ) -> Result<PayOnchainResponse, NodeApiError> {
