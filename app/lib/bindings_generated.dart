@@ -355,7 +355,7 @@ class AppRsImpl implements AppRs {
         argNames: ["that", "req"],
       );
 
-  Future<PreflightPayOnchainResponse> estimateFeeSendOnchainMethodAppHandle(
+  Future<PreflightPayOnchainResponse> preflightPayOnchainMethodAppHandle(
       {required AppHandle that,
       required PreflightPayOnchainRequest req,
       dynamic hint}) {
@@ -364,19 +364,19 @@ class AppRsImpl implements AppRs {
         _platform.api2wire_box_autoadd_preflight_pay_onchain_request(req);
     return _platform.executeNormal(FlutterRustBridgeTask(
       callFfi: (port_) => _platform.inner
-          .wire_estimate_fee_send_onchain__method__AppHandle(port_, arg0, arg1),
+          .wire_preflight_pay_onchain__method__AppHandle(port_, arg0, arg1),
       parseSuccessData: _wire2api_preflight_pay_onchain_response,
       parseErrorData: _wire2api_FrbAnyhowException,
-      constMeta: kEstimateFeeSendOnchainMethodAppHandleConstMeta,
+      constMeta: kPreflightPayOnchainMethodAppHandleConstMeta,
       argValues: [that, req],
       hint: hint,
     ));
   }
 
   FlutterRustBridgeTaskConstMeta
-      get kEstimateFeeSendOnchainMethodAppHandleConstMeta =>
+      get kPreflightPayOnchainMethodAppHandleConstMeta =>
           const FlutterRustBridgeTaskConstMeta(
-            debugName: "estimate_fee_send_onchain__method__AppHandle",
+            debugName: "preflight_pay_onchain__method__AppHandle",
             argNames: ["that", "req"],
           );
 
@@ -1788,25 +1788,25 @@ class AppRsWire implements FlutterRustBridgeWireBase {
           void Function(int, ffi.Pointer<wire_AppHandle>,
               ffi.Pointer<wire_PayOnchainRequest>)>();
 
-  void wire_estimate_fee_send_onchain__method__AppHandle(
+  void wire_preflight_pay_onchain__method__AppHandle(
     int port_,
     ffi.Pointer<wire_AppHandle> that,
     ffi.Pointer<wire_PreflightPayOnchainRequest> req,
   ) {
-    return _wire_estimate_fee_send_onchain__method__AppHandle(
+    return _wire_preflight_pay_onchain__method__AppHandle(
       port_,
       that,
       req,
     );
   }
 
-  late final _wire_estimate_fee_send_onchain__method__AppHandlePtr = _lookup<
+  late final _wire_preflight_pay_onchain__method__AppHandlePtr = _lookup<
           ffi.NativeFunction<
               ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>,
                   ffi.Pointer<wire_PreflightPayOnchainRequest>)>>(
-      'wire_estimate_fee_send_onchain__method__AppHandle');
-  late final _wire_estimate_fee_send_onchain__method__AppHandle =
-      _wire_estimate_fee_send_onchain__method__AppHandlePtr.asFunction<
+      'wire_preflight_pay_onchain__method__AppHandle');
+  late final _wire_preflight_pay_onchain__method__AppHandle =
+      _wire_preflight_pay_onchain__method__AppHandlePtr.asFunction<
           void Function(int, ffi.Pointer<wire_AppHandle>,
               ffi.Pointer<wire_PreflightPayOnchainRequest>)>();
 

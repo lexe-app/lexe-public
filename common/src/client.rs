@@ -453,13 +453,13 @@ impl AppNodeRunApi for NodeClient {
         self.run_rest.send(req).await
     }
 
-    async fn estimate_fee_send_onchain(
+    async fn preflight_pay_onchain(
         &self,
         req: PreflightPayOnchainRequest,
     ) -> Result<PreflightPayOnchainResponse, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/app/estimate_fee_send_onchain");
+        let url = format!("{run_url}/app/preflight_pay_onchain");
         let req = self.run_rest.get(url, &req);
         self.run_rest.send(req).await
     }

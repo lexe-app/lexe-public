@@ -135,13 +135,13 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kPayOnchainMethodAppHandleConstMeta;
 
-  Future<PreflightPayOnchainResponse> estimateFeeSendOnchainMethodAppHandle(
+  Future<PreflightPayOnchainResponse> preflightPayOnchainMethodAppHandle(
       {required AppHandle that,
       required PreflightPayOnchainRequest req,
       dynamic hint});
 
   FlutterRustBridgeTaskConstMeta
-      get kEstimateFeeSendOnchainMethodAppHandleConstMeta;
+      get kPreflightPayOnchainMethodAppHandleConstMeta;
 
   Future<String> getAddressMethodAppHandle(
       {required AppHandle that, dynamic hint});
@@ -321,9 +321,9 @@ class AppHandle {
         req: req,
       );
 
-  Future<PreflightPayOnchainResponse> estimateFeeSendOnchain(
+  Future<PreflightPayOnchainResponse> preflightPayOnchain(
           {required PreflightPayOnchainRequest req, dynamic hint}) =>
-      bridge.estimateFeeSendOnchainMethodAppHandle(
+      bridge.preflightPayOnchainMethodAppHandle(
         that: this,
         req: req,
       );

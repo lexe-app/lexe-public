@@ -963,12 +963,12 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
-    pub fn estimate_fee_send_onchain(
+    pub fn preflight_pay_onchain(
         &self,
         req: PreflightPayOnchainRequest,
     ) -> anyhow::Result<PreflightPayOnchainResponse> {
         let req = PreflightPayOnchainRequestRs::try_from(req)?;
-        block_on(self.inner.node_client().estimate_fee_send_onchain(req))
+        block_on(self.inner.node_client().preflight_pay_onchain(req))
             .map(PreflightPayOnchainResponse::from)
             .map_err(anyhow::Error::new)
     }

@@ -291,14 +291,14 @@ fn wire_pay_onchain__method__AppHandle_impl(
         },
     )
 }
-fn wire_estimate_fee_send_onchain__method__AppHandle_impl(
+fn wire_preflight_pay_onchain__method__AppHandle_impl(
     port_: MessagePort,
     that: impl Wire2Api<AppHandle> + UnwindSafe,
     req: impl Wire2Api<PreflightPayOnchainRequest> + UnwindSafe,
 ) {
     FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, PreflightPayOnchainResponse, _>(
         WrapInfo {
-            debug_name: "estimate_fee_send_onchain__method__AppHandle",
+            debug_name: "preflight_pay_onchain__method__AppHandle",
             port: Some(port_),
             mode: FfiCallMode::Normal,
         },
@@ -306,7 +306,7 @@ fn wire_estimate_fee_send_onchain__method__AppHandle_impl(
             let api_that = that.wire2api();
             let api_req = req.wire2api();
             move |task_callback| {
-                AppHandle::estimate_fee_send_onchain(&api_that, api_req)
+                AppHandle::preflight_pay_onchain(&api_that, api_req)
             }
         },
     )
@@ -1207,12 +1207,12 @@ mod io {
     }
 
     #[no_mangle]
-    pub extern "C" fn wire_estimate_fee_send_onchain__method__AppHandle(
+    pub extern "C" fn wire_preflight_pay_onchain__method__AppHandle(
         port_: i64,
         that: *mut wire_AppHandle,
         req: *mut wire_PreflightPayOnchainRequest,
     ) {
-        wire_estimate_fee_send_onchain__method__AppHandle_impl(port_, that, req)
+        wire_preflight_pay_onchain__method__AppHandle_impl(port_, that, req)
     }
 
     #[no_mangle]

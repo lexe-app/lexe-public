@@ -177,7 +177,7 @@ mod test {
     use crate::test_utils::roundtrip::query_string_roundtrip_proptest;
 
     #[test]
-    fn estimate_fee_send_onchain_roundtrip() {
+    fn preflight_pay_onchain_roundtrip() {
         query_string_roundtrip_proptest::<PreflightPayOnchainRequest>();
     }
 }

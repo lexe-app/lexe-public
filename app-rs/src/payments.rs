@@ -1099,7 +1099,7 @@ mod test {
         ) -> Result<PayOnchainResponse, NodeApiError> {
             unimplemented!()
         }
-        async fn estimate_fee_send_onchain(
+        async fn preflight_pay_onchain(
             &self,
             _req: PreflightPayOnchainRequest,
         ) -> Result<PreflightPayOnchainResponse, NodeApiError> {
