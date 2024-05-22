@@ -8,17 +8,14 @@ use common::{
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse,
             EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
-            NodeInfo, PayInvoiceRequest, PayOnchainRequest,
+            NodeInfo, PayInvoiceRequest, PayOnchainRequest, PayOnchainResponse,
             PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
         },
         Empty, NodePk, Scid,
     },
     cli::{LspInfo, Network},
     enclave::Measurement,
-    ln::{
-        amount::Amount, channel::LxChannelDetails, hashes::LxTxid,
-        invoice::LxInvoice,
-    },
+    ln::{amount::Amount, channel::LxChannelDetails, invoice::LxInvoice},
 };
 use lightning::{
     ln::{
@@ -386,13 +383,13 @@ where
     })
 }
 
-#[instrument(skip_all, name = "(send-onchain)")]
-pub async fn send_onchain<CM, PS>(
+#[instrument(skip_all, name = "(pay-onchain)")]
+pub async fn pay_onchain<CM, PS>(
     req: PayOnchainRequest,
     wallet: LexeWallet,
     esplora: Arc<LexeEsplora>,
     payments_manager: PaymentsManager<CM, PS>,
-) -> anyhow::Result<LxTxid>
+) -> anyhow::Result<PayOnchainResponse>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
@@ -432,7 +429,7 @@ where
     // ensures that the txid is unique before we broadcast in case there is a
     // txid collision for some reason (e.g. duplicate requests)
 
-    Ok(txid)
+    Ok(PayOnchainResponse { txid })
 }
 
 #[instrument(skip_all, name = "(estimate-fee-send-onchain)")]
