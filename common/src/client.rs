@@ -25,9 +25,9 @@ use crate::{
         },
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse,
-            EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
-            NodeInfo, PayInvoiceRequest, PayOnchainRequest, PayOnchainResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            EstimateFeeSendOnchainResponse, NodeInfo, PayInvoiceRequest,
+            PayOnchainRequest, PayOnchainResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
         },
         def::{
             AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
@@ -455,7 +455,7 @@ impl AppNodeRunApi for NodeClient {
 
     async fn estimate_fee_send_onchain(
         &self,
-        req: EstimateFeeSendOnchainRequest,
+        req: PreflightPayOnchainRequest,
     ) -> Result<EstimateFeeSendOnchainResponse, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;

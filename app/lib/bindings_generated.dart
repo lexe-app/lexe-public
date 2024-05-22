@@ -357,11 +357,11 @@ class AppRsImpl implements AppRs {
 
   Future<EstimateFeeSendOnchainResponse> estimateFeeSendOnchainMethodAppHandle(
       {required AppHandle that,
-      required EstimateFeeSendOnchainRequest req,
+      required PreflightPayOnchainRequest req,
       dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     var arg1 =
-        _platform.api2wire_box_autoadd_estimate_fee_send_onchain_request(req);
+        _platform.api2wire_box_autoadd_preflight_pay_onchain_request(req);
     return _platform.executeNormal(FlutterRustBridgeTask(
       callFfi: (port_) => _platform.inner
           .wire_estimate_fee_send_onchain__method__AppHandle(port_, arg0, arg1),
@@ -1205,15 +1205,6 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   }
 
   @protected
-  ffi.Pointer<wire_EstimateFeeSendOnchainRequest>
-      api2wire_box_autoadd_estimate_fee_send_onchain_request(
-          EstimateFeeSendOnchainRequest raw) {
-    final ptr = inner.new_box_autoadd_estimate_fee_send_onchain_request_0();
-    _api_fill_to_wire_estimate_fee_send_onchain_request(raw, ptr.ref);
-    return ptr;
-  }
-
-  @protected
   ffi.Pointer<wire_PayInvoiceRequest> api2wire_box_autoadd_pay_invoice_request(
       PayInvoiceRequest raw) {
     final ptr = inner.new_box_autoadd_pay_invoice_request_0();
@@ -1235,6 +1226,15 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
           PreflightPayInvoiceRequest raw) {
     final ptr = inner.new_box_autoadd_preflight_pay_invoice_request_0();
     _api_fill_to_wire_preflight_pay_invoice_request(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
+  ffi.Pointer<wire_PreflightPayOnchainRequest>
+      api2wire_box_autoadd_preflight_pay_onchain_request(
+          PreflightPayOnchainRequest raw) {
+    final ptr = inner.new_box_autoadd_preflight_pay_onchain_request_0();
+    _api_fill_to_wire_preflight_pay_onchain_request(raw, ptr.ref);
     return ptr;
   }
 
@@ -1311,12 +1311,6 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     _api_fill_to_wire_create_invoice_request(apiObj, wireObj.ref);
   }
 
-  void _api_fill_to_wire_box_autoadd_estimate_fee_send_onchain_request(
-      EstimateFeeSendOnchainRequest apiObj,
-      ffi.Pointer<wire_EstimateFeeSendOnchainRequest> wireObj) {
-    _api_fill_to_wire_estimate_fee_send_onchain_request(apiObj, wireObj.ref);
-  }
-
   void _api_fill_to_wire_box_autoadd_pay_invoice_request(
       PayInvoiceRequest apiObj, ffi.Pointer<wire_PayInvoiceRequest> wireObj) {
     _api_fill_to_wire_pay_invoice_request(apiObj, wireObj.ref);
@@ -1331,6 +1325,12 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
       PreflightPayInvoiceRequest apiObj,
       ffi.Pointer<wire_PreflightPayInvoiceRequest> wireObj) {
     _api_fill_to_wire_preflight_pay_invoice_request(apiObj, wireObj.ref);
+  }
+
+  void _api_fill_to_wire_box_autoadd_preflight_pay_onchain_request(
+      PreflightPayOnchainRequest apiObj,
+      ffi.Pointer<wire_PreflightPayOnchainRequest> wireObj) {
+    _api_fill_to_wire_preflight_pay_onchain_request(apiObj, wireObj.ref);
   }
 
   void _api_fill_to_wire_box_autoadd_update_payment_note(
@@ -1359,13 +1359,6 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     wireObj.description = api2wire_opt_String(apiObj.description);
   }
 
-  void _api_fill_to_wire_estimate_fee_send_onchain_request(
-      EstimateFeeSendOnchainRequest apiObj,
-      wire_EstimateFeeSendOnchainRequest wireObj) {
-    wireObj.address = api2wire_String(apiObj.address);
-    wireObj.amount_sats = api2wire_u64(apiObj.amountSats);
-  }
-
   void _api_fill_to_wire_pay_invoice_request(
       PayInvoiceRequest apiObj, wire_PayInvoiceRequest wireObj) {
     wireObj.invoice = api2wire_String(apiObj.invoice);
@@ -1389,6 +1382,13 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     wireObj.invoice = api2wire_String(apiObj.invoice);
     wireObj.fallback_amount_sats =
         api2wire_opt_box_autoadd_u64(apiObj.fallbackAmountSats);
+  }
+
+  void _api_fill_to_wire_preflight_pay_onchain_request(
+      PreflightPayOnchainRequest apiObj,
+      wire_PreflightPayOnchainRequest wireObj) {
+    wireObj.address = api2wire_String(apiObj.address);
+    wireObj.amount_sats = api2wire_u64(apiObj.amountSats);
   }
 
   void _api_fill_to_wire_update_payment_note(
@@ -1791,7 +1791,7 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   void wire_estimate_fee_send_onchain__method__AppHandle(
     int port_,
     ffi.Pointer<wire_AppHandle> that,
-    ffi.Pointer<wire_EstimateFeeSendOnchainRequest> req,
+    ffi.Pointer<wire_PreflightPayOnchainRequest> req,
   ) {
     return _wire_estimate_fee_send_onchain__method__AppHandle(
       port_,
@@ -1803,12 +1803,12 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _wire_estimate_fee_send_onchain__method__AppHandlePtr = _lookup<
           ffi.NativeFunction<
               ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>,
-                  ffi.Pointer<wire_EstimateFeeSendOnchainRequest>)>>(
+                  ffi.Pointer<wire_PreflightPayOnchainRequest>)>>(
       'wire_estimate_fee_send_onchain__method__AppHandle');
   late final _wire_estimate_fee_send_onchain__method__AppHandle =
       _wire_estimate_fee_send_onchain__method__AppHandlePtr.asFunction<
           void Function(int, ffi.Pointer<wire_AppHandle>,
-              ffi.Pointer<wire_EstimateFeeSendOnchainRequest>)>();
+              ffi.Pointer<wire_PreflightPayOnchainRequest>)>();
 
   void wire_get_address__method__AppHandle(
     int port_,
@@ -2201,19 +2201,6 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _new_box_autoadd_create_invoice_request_0Ptr
           .asFunction<ffi.Pointer<wire_CreateInvoiceRequest> Function()>();
 
-  ffi.Pointer<wire_EstimateFeeSendOnchainRequest>
-      new_box_autoadd_estimate_fee_send_onchain_request_0() {
-    return _new_box_autoadd_estimate_fee_send_onchain_request_0();
-  }
-
-  late final _new_box_autoadd_estimate_fee_send_onchain_request_0Ptr = _lookup<
-          ffi.NativeFunction<
-              ffi.Pointer<wire_EstimateFeeSendOnchainRequest> Function()>>(
-      'new_box_autoadd_estimate_fee_send_onchain_request_0');
-  late final _new_box_autoadd_estimate_fee_send_onchain_request_0 =
-      _new_box_autoadd_estimate_fee_send_onchain_request_0Ptr.asFunction<
-          ffi.Pointer<wire_EstimateFeeSendOnchainRequest> Function()>();
-
   ffi.Pointer<wire_PayInvoiceRequest> new_box_autoadd_pay_invoice_request_0() {
     return _new_box_autoadd_pay_invoice_request_0();
   }
@@ -2248,6 +2235,19 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _new_box_autoadd_preflight_pay_invoice_request_0 =
       _new_box_autoadd_preflight_pay_invoice_request_0Ptr.asFunction<
           ffi.Pointer<wire_PreflightPayInvoiceRequest> Function()>();
+
+  ffi.Pointer<wire_PreflightPayOnchainRequest>
+      new_box_autoadd_preflight_pay_onchain_request_0() {
+    return _new_box_autoadd_preflight_pay_onchain_request_0();
+  }
+
+  late final _new_box_autoadd_preflight_pay_onchain_request_0Ptr = _lookup<
+      ffi.NativeFunction<
+          ffi.Pointer<wire_PreflightPayOnchainRequest>
+              Function()>>('new_box_autoadd_preflight_pay_onchain_request_0');
+  late final _new_box_autoadd_preflight_pay_onchain_request_0 =
+      _new_box_autoadd_preflight_pay_onchain_request_0Ptr.asFunction<
+          ffi.Pointer<wire_PreflightPayOnchainRequest> Function()>();
 
   ffi.Pointer<ffi.Uint64> new_box_autoadd_u64_0(
     int value,
@@ -2386,7 +2386,7 @@ final class wire_PayOnchainRequest extends ffi.Struct {
   external ffi.Pointer<wire_uint_8_list> note;
 }
 
-final class wire_EstimateFeeSendOnchainRequest extends ffi.Struct {
+final class wire_PreflightPayOnchainRequest extends ffi.Struct {
   external ffi.Pointer<wire_uint_8_list> address;
 
   @ffi.Uint64()

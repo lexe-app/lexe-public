@@ -5,9 +5,9 @@ use common::{
     api::{
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse,
-            EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
-            NodeInfo, PayInvoiceRequest, PayOnchainRequest, PayOnchainResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            EstimateFeeSendOnchainResponse, NodeInfo, PayInvoiceRequest,
+            PayOnchainRequest, PayOnchainResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
         },
         error::NodeApiError,
         qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
@@ -104,7 +104,7 @@ pub(super) async fn pay_onchain(
 
 pub(super) async fn estimate_fee_send_onchain(
     State(state): State<Arc<AppRouterState>>,
-    LxQuery(req): LxQuery<EstimateFeeSendOnchainRequest>,
+    LxQuery(req): LxQuery<PreflightPayOnchainRequest>,
 ) -> Result<LxJson<EstimateFeeSendOnchainResponse>, NodeApiError> {
     lexe_ln::command::estimate_fee_send_onchain(req, state.wallet.clone())
         .await

@@ -16,8 +16,8 @@ use bitcoin::{
 };
 use common::{
     api::command::{
-        EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
-        FeeEstimate, PayOnchainRequest,
+        EstimateFeeSendOnchainResponse, FeeEstimate, PayOnchainRequest,
+        PreflightPayOnchainRequest,
     },
     cli::Network,
     constants::{
@@ -281,7 +281,7 @@ impl LexeWallet {
     /// want to generate unnecessary addresses that we need to watch and sync.
     pub(crate) async fn estimate_fee_send_onchain(
         &self,
-        req: EstimateFeeSendOnchainRequest,
+        req: PreflightPayOnchainRequest,
     ) -> anyhow::Result<EstimateFeeSendOnchainResponse> {
         let high_prio = ConfirmationTarget::from(ConfirmationPriority::High);
         let normal_prio =
