@@ -23,7 +23,6 @@ import 'package:lexeapp/bindings_generated_api.dart'
         Config,
         CreateInvoiceRequest,
         CreateInvoiceResponse,
-        EstimateFeeSendOnchainRequest,
         EstimateFeeSendOnchainResponse,
         FeeEstimate,
         FiatRate,
@@ -38,6 +37,7 @@ import 'package:lexeapp/bindings_generated_api.dart'
         PaymentKind,
         PaymentMethod,
         PaymentStatus,
+        PreflightPayOnchainRequest,
         ShortPaymentAndIndex,
         U8Array32,
         UpdatePaymentNote;
@@ -468,7 +468,7 @@ class MockAppHandle extends AppHandle {
 
   @override
   Future<EstimateFeeSendOnchainResponse> estimateFeeSendOnchain(
-          {required EstimateFeeSendOnchainRequest req, dynamic hint}) =>
+          {required PreflightPayOnchainRequest req, dynamic hint}) =>
       Future.delayed(
         const Duration(seconds: 1),
         () => const EstimateFeeSendOnchainResponse(

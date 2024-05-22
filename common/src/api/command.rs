@@ -106,7 +106,7 @@ pub struct PayOnchainResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
-pub struct EstimateFeeSendOnchainRequest {
+pub struct PreflightPayOnchainRequest {
     /// The address we want to send funds to.
     pub address: Address,
     /// How much Bitcoin we want to send.
@@ -159,7 +159,7 @@ mod arbitrary {
     use super::*;
     use crate::test_utils::arbitrary::any_mainnet_address;
 
-    impl Arbitrary for EstimateFeeSendOnchainRequest {
+    impl Arbitrary for PreflightPayOnchainRequest {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
@@ -178,6 +178,6 @@ mod test {
 
     #[test]
     fn estimate_fee_send_onchain_roundtrip() {
-        query_string_roundtrip_proptest::<EstimateFeeSendOnchainRequest>();
+        query_string_roundtrip_proptest::<PreflightPayOnchainRequest>();
     }
 }

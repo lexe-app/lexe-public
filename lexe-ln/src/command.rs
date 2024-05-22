@@ -7,9 +7,9 @@ use common::{
     api::{
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse,
-            EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
-            NodeInfo, PayInvoiceRequest, PayOnchainRequest, PayOnchainResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            EstimateFeeSendOnchainResponse, NodeInfo, PayInvoiceRequest,
+            PayOnchainRequest, PayOnchainResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
         },
         Empty, NodePk, Scid,
     },
@@ -434,7 +434,7 @@ where
 
 #[instrument(skip_all, name = "(estimate-fee-send-onchain)")]
 pub async fn estimate_fee_send_onchain(
-    req: EstimateFeeSendOnchainRequest,
+    req: PreflightPayOnchainRequest,
     wallet: LexeWallet,
 ) -> anyhow::Result<EstimateFeeSendOnchainResponse> {
     wallet.estimate_fee_send_onchain(req).await

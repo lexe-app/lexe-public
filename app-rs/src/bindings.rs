@@ -59,13 +59,13 @@ use common::{
         command::{
             CreateInvoiceRequest as CreateInvoiceRequestRs,
             CreateInvoiceResponse as CreateInvoiceResponseRs,
-            EstimateFeeSendOnchainRequest as EstimateFeeSendOnchainRequestRs,
             EstimateFeeSendOnchainResponse as EstimateFeeSendOnchainResponseRs,
             FeeEstimate as FeeEstimateRs, NodeInfo as NodeInfoRs,
             PayInvoiceRequest as PayInvoiceRequestRs,
             PayOnchainRequest as PayOnchainRequestRs,
             PreflightPayInvoiceRequest as PreflightPayInvoiceRequestRs,
             PreflightPayInvoiceResponse as PreflightPayInvoiceResponseRs,
+            PreflightPayOnchainRequest as PreflightPayOnchainRequestRs,
         },
         def::{AppGatewayApi, AppNodeRunApi},
         fiat_rates::FiatRates as FiatRatesRs,
@@ -727,17 +727,15 @@ impl TryFrom<PayOnchainRequest> for PayOnchainRequestRs {
     }
 }
 
-pub struct EstimateFeeSendOnchainRequest {
+pub struct PreflightPayOnchainRequest {
     pub address: String,
     pub amount_sats: u64,
 }
 
-impl TryFrom<EstimateFeeSendOnchainRequest>
-    for EstimateFeeSendOnchainRequestRs
-{
+impl TryFrom<PreflightPayOnchainRequest> for PreflightPayOnchainRequestRs {
     type Error = anyhow::Error;
 
-    fn try_from(req: EstimateFeeSendOnchainRequest) -> anyhow::Result<Self> {
+    fn try_from(req: PreflightPayOnchainRequest) -> anyhow::Result<Self> {
         let address = bitcoin::Address::from_str(&req.address)
             .map_err(|_| anyhow!("The bitcoin address isn't valid."))?;
         let amount = Amount::try_from_sats_u64(req.amount_sats)?;
@@ -967,9 +965,9 @@ impl AppHandle {
 
     pub fn estimate_fee_send_onchain(
         &self,
-        req: EstimateFeeSendOnchainRequest,
+        req: PreflightPayOnchainRequest,
     ) -> anyhow::Result<EstimateFeeSendOnchainResponse> {
-        let req = EstimateFeeSendOnchainRequestRs::try_from(req)?;
+        let req = PreflightPayOnchainRequestRs::try_from(req)?;
         block_on(self.inner.node_client().estimate_fee_send_onchain(req))
             .map(EstimateFeeSendOnchainResponse::from)
             .map_err(anyhow::Error::new)

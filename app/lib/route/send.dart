@@ -12,7 +12,6 @@ import 'package:lexeapp/bindings_generated_api.dart'
         Balance,
         ClientPaymentId,
         ConfirmationPriority,
-        EstimateFeeSendOnchainRequest,
         EstimateFeeSendOnchainResponse,
         FeeEstimate,
         Invoice,
@@ -20,7 +19,8 @@ import 'package:lexeapp/bindings_generated_api.dart'
         Onchain,
         PayOnchainRequest,
         PaymentMethod,
-        PreflightPayInvoiceResponse;
+        PreflightPayInvoiceResponse,
+        PreflightPayOnchainRequest;
 import 'package:lexeapp/bindings_generated_api.dart';
 import 'package:lexeapp/bindings_generated_api_ext.dart';
 import 'package:lexeapp/components.dart'
@@ -421,7 +421,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     this.estimatingFee.value = true;
 
     // Fetch the fee estimates for this potential onchain send.
-    final req = EstimateFeeSendOnchainRequest(
+    final req = PreflightPayOnchainRequest(
         address: this.widget.address, amountSats: amountSats);
     final result = await Result.tryFfiAsync(
         () async => this.widget.sendCtx.app.estimateFeeSendOnchain(req: req));
