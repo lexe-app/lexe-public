@@ -36,7 +36,8 @@ use crate::{
             CreateInvoiceRequest, CreateInvoiceResponse,
             EstimateFeeSendOnchainRequest, EstimateFeeSendOnchainResponse,
             NodeInfo, OpenChannelRequest, PayInvoiceRequest, PayOnchainRequest,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
+            PayOnchainResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse,
         },
         error::{
             BackendApiError, GatewayApiError, LspApiError, NodeApiError,
@@ -55,10 +56,7 @@ use crate::{
     },
     ed25519,
     enclave::Measurement,
-    ln::{
-        hashes::LxTxid,
-        payments::{BasicPayment, DbPayment, LxPaymentId},
-    },
+    ln::payments::{BasicPayment, DbPayment, LxPaymentId},
     test_event::TestEventOp,
 };
 
@@ -366,13 +364,15 @@ pub trait AppNodeRunApi {
         req: PreflightPayInvoiceRequest,
     ) -> Result<PreflightPayInvoiceResponse, NodeApiError>;
 
-    /// POST /app/send_onchain [`PayOnchainRequest`] -> [`LxTxid`]
+    /// POST /app/send_onchain [`PayOnchainRequest`] -> [`PayOnchainResponse`]
     ///
-    /// Returns the [`LxTxid`] of the newly broadcasted transaction.
+    /// Pay bitcoin onchain. If the address is valid and we have sufficient
+    /// onchain funds, this will broadcast a new transaction to the bitcoin
+    /// mempool.
     async fn send_onchain(
         &self,
         req: PayOnchainRequest,
-    ) -> Result<LxTxid, NodeApiError>;
+    ) -> Result<PayOnchainResponse, NodeApiError>;
 
     /// GET /app/estimate_fee_send_onchain [`EstimateFeeSendOnchainRequest`]
     ///                                 -> [`EstimateFeeSendOnchainResponse`]

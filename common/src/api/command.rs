@@ -5,7 +5,7 @@ use crate::{
     api::NodePk,
     enclave::Measurement,
     ln::{
-        amount::Amount, balance::Balance, channel::ChannelId,
+        amount::Amount, balance::Balance, channel::ChannelId, hashes::LxTxid,
         invoice::LxInvoice, payments::ClientPaymentId, ConfirmationPriority,
     },
 };
@@ -97,6 +97,12 @@ pub struct PayOnchainRequest {
     pub priority: ConfirmationPriority,
     /// An optional personal note for this payment.
     pub note: Option<String>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct PayOnchainResponse {
+    /// The Bitcoin txid for the transaction we just submitted to the mempool.
+    pub txid: LxTxid,
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
