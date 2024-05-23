@@ -14,6 +14,8 @@ use serde::{Deserialize, Serialize};
 
 /// `Amount`.
 pub mod amount;
+/// `AmountOrAll`.
+pub mod amount_or_all;
 /// `Balance`.
 pub mod balance;
 /// Channel outpoint, details, counterparty
