@@ -223,11 +223,13 @@ impl LspInfo {
     /// Returns a dummy [`LspInfo`] which can be used in tests.
     #[cfg(any(test, feature = "test-utils"))]
     pub fn dummy() -> Self {
+        use std::net::Ipv6Addr;
+
         use crate::{rng::WeakRng, root_seed::RootSeed, test_utils};
 
         let mut rng = WeakRng::from_u64(20230216);
         let node_pk = RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng);
-        let addr = SocketAddr::from(([127, 0, 0, 1], 42069));
+        let addr = SocketAddr::from((Ipv6Addr::LOCALHOST, 42069));
 
         Self {
             url: Some(test_utils::DUMMY_LSP_URL.to_owned()),

@@ -1,8 +1,10 @@
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::net::{Ipv6Addr, SocketAddr, SocketAddrV6};
 
-/// A [`SocketAddr`] to bind to localhost with an OS-assigned port.
+/// A IPv6 [`SocketAddr`] to bind to localhost with an OS-assigned port.
+// We should always try to use IPv6 because it will work everywhere;
+// IPv4 may produce errors in some environments.
 pub const LOCALHOST_WITH_EPHEMERAL_PORT: SocketAddr =
-    SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0));
+    SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::LOCALHOST, 0, 0, 0));
 
 /// Returns an ephemeral port assigned by the OS which should be available for
 /// the next ~60s after this function is called.
