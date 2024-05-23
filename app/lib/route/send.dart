@@ -47,7 +47,7 @@ import 'package:lexeapp/result.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
 
-/// Context used during the send payment flow.
+/// Common context used during any step in the send payment flow.
 @immutable
 class SendContext {
   const SendContext({
@@ -69,6 +69,8 @@ class SendContext {
   final ClientPaymentId cid;
 }
 
+/// Context needed when we're collecting an amount from the user for a potential
+/// [PaymentMethod].
 @immutable
 class SendContext_NeedAmount extends SendContext {
   const SendContext_NeedAmount({
@@ -91,6 +93,8 @@ class SendContext_NeedAmount extends SendContext {
   int balanceSats() => this.balance.balanceByKind(this.paymentMethod.kind());
 }
 
+/// Context after we've successfully preflighted a payment and are just waiting
+/// for the user to confirm (and maybe tweak the note or fee priority).
 @immutable
 class SendContext_Preflighted extends SendContext {
   const SendContext_Preflighted({
@@ -150,7 +154,9 @@ class PreflightedPayment_Offer implements PreflightedPayment {
   PaymentKind kind() => throw UnimplementedError();
 }
 
-/// The entry point for the send payment flow.
+/// The entry point for the send payment flow. This will dispatch to the right
+/// initial screen depending on the [SendContext]. It also sets up a new
+/// [MultistepFlow] so navigation back/stop works well for this subflow.
 class SendPaymentPage extends StatelessWidget {
   const SendPaymentPage({
     super.key,
@@ -162,28 +168,26 @@ class SendPaymentPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Dispatch to the right initial page
+    final sendCtx = this.sendCtx;
     return MultistepFlow<bool?>(
-        builder: (_) => SendPaymentAddressPage(sendCtx: sendCtx));
-
-    // case: ctx.paymentMethod == null
-    //       => SendPaymentAddressPage
-    // case: ctx.paymentPreflight == null
-    //       => SendPaymentAmountPage
+      builder: (_) => switch (sendCtx) {
+        SendContext_Preflighted() =>
+          // SendPaymentConfirmPage(sendCtx: sendCtx, ..),
+          throw UnimplementedError("todo"),
+        SendContext_NeedAmount() =>
+          // SendPaymentAmountPage(sendCtx: sendCtx, address: address),
+          throw UnimplementedError("todo"),
+        SendContext() => SendPaymentNeedUriPage(sendCtx: sendCtx),
+      },
+    );
   }
 }
 
-class NextButton extends LxFilledButton {
-  const NextButton({super.key, required super.onTap})
-      : super(
-          label: const Text("Next"),
-          icon: const Icon(LxIcons.next),
-        );
-}
-
-/// In the send payment flow, this page collects the user's destination bitcoin
-/// address.
-class SendPaymentAddressPage extends StatefulWidget {
-  const SendPaymentAddressPage({
+/// If the user is just hitting the "Send" button with no extra context, then we
+/// need to collect a [PaymentUri] of some kind (bitcoin address, LN invoice,
+/// etc...)
+class SendPaymentNeedUriPage extends StatefulWidget {
+  const SendPaymentNeedUriPage({
     super.key,
     required this.sendCtx,
   });
@@ -191,10 +195,10 @@ class SendPaymentAddressPage extends StatefulWidget {
   final SendContext sendCtx;
 
   @override
-  State<StatefulWidget> createState() => _SendPaymentAddressPageState();
+  State<StatefulWidget> createState() => _SendPaymentNeedUriPageState();
 }
 
-class _SendPaymentAddressPageState extends State<SendPaymentAddressPage> {
+class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
   final GlobalKey<FormFieldState<String>> addressFieldKey = GlobalKey();
 
   void onQrPressed() {
@@ -898,6 +902,14 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       ),
     );
   }
+}
+
+class NextButton extends LxFilledButton {
+  const NextButton({super.key, required super.onTap})
+      : super(
+          label: const Text("Next"),
+          icon: const Icon(LxIcons.next),
+        );
 }
 
 /// The modal dialog for the user to choose the BTC send network fee preset.
