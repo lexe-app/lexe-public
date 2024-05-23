@@ -902,7 +902,7 @@ mod test {
 
         println!("attestation certificate:");
         println!("-----BEGIN CERTIFICATE-----");
-        println!("{}", base64::encode(cert_der.as_bytes()));
+        println!("{}", base64::encode(cert_der.as_slice()));
         println!("-----END CERTIFICATE-----");
     }
 }

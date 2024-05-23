@@ -1,30 +1,34 @@
-/// TLS newtypes.
-///
-/// # Avoiding redundant allocations
-///
-/// The DER-encoded data in these types generally flows through the
-/// following transformations.
-///
-/// Step 1: Into [`Vec<u8>`]
-/// - [`rcgen::Certificate::serialize_der`]
-/// - [`rcgen::Certificate::serialize_der_with_signer`]
-/// - [`rcgen::Certificate::serialize_private_key_der`]
-/// - Passed in via args, env, or read from a file
-///
-/// Step 2: Into [`LxCertificateDer`] and [`LxPrivatePkcs8KeyDer`]
-/// - [`LxCertificateDer::from`] (from [`Vec<u8>`])
-/// - [`LxPrivatePkcs8KeyDer::from`] (from [`Vec<u8>`])
-///
-/// Step 3: Into [`CertificateDer<'_>`] and [`PrivateKeyDer<'_>`]
-/// - [`CertWithKey::into_chain_and_key`]
-/// - `impl From<LxCertificateDer> for CertificateDer<'static>`
-/// - `impl From<LxPrivatePkcs8KeyDer> for PrivateKeyDer<'static>`
-/// - `impl<'der> From<&'der LxCertificateDer> for CertificateDer<'der>`
-/// - `impl<'der> From<&'der LxPrivatePkcs8KeyDer> for PrivateKeyDer<'der>`
-///
-/// Trying to move backwards at any step generally requires copying and
-/// re-allocation, so try not to do that. For example, avoid premature
-/// conversions into [`CertificateDer<'_>`] or [`PrivateKeyDer<'_>`].
+//! TLS newtypes.
+//!
+//! # Avoiding redundant allocations
+//!
+//! The DER-encoded data in these types generally flows through the
+//! following transformations.
+//!
+//! Step 1: Into [`Vec<u8>`]
+//! - [`rcgen::Certificate::serialize_der`]
+//! - [`rcgen::Certificate::serialize_der_with_signer`]
+//! - [`rcgen::Certificate::serialize_private_key_der`]
+//! - Passed in via args, env, or read from a file
+//!
+//! Step 2: Into [`LxCertificateDer`] and [`LxPrivatePkcs8KeyDer`]
+//! - `impl From<Vec<u8>> for LxCertificateDer`
+//! - `impl From<Vec<u8>> for LxPrivatePkcs8KeyDer`
+//!
+//! Step 3: Into [`CertificateDer<'_>`] and [`PrivateKeyDer<'_>`]
+//! - [`CertWithKey::into_chain_and_key`]
+//! - `impl From<LxCertificateDer> for CertificateDer<'static>`
+//! - `impl From<LxPrivatePkcs8KeyDer> for PrivateKeyDer<'static>`
+//! - `impl<'der> From<&'der LxCertificateDer> for CertificateDer<'der>`
+//! - `impl<'der> From<&'der LxPrivatePkcs8KeyDer> for PrivateKeyDer<'der>`
+//!
+//! Trying to move backwards at any step generally requires copying and
+//! re-allocation, so try not to do that. For example, avoid premature
+//! conversions into [`CertificateDer<'_>`] or [`PrivateKeyDer<'_>`].
+//!
+//! [`CertWithKey::into_chain_and_key`]: crate::tls::types::CertWithKey::into_chain_and_key
+//! [`LxCertificateDer`]: crate::tls::types::LxCertificateDer
+//! [`LxPrivatePkcs8KeyDer`]: crate::tls::types::LxPrivatePkcs8KeyDer
 
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
@@ -125,7 +129,7 @@ impl CertWithKey {
 // --- impl LxCertificateDer --- //
 
 impl LxCertificateDer {
-    pub fn as_bytes(&self) -> &[u8] {
+    pub fn as_slice(&self) -> &[u8] {
         self.0.as_slice()
     }
 }
@@ -144,7 +148,7 @@ impl From<LxCertificateDer> for CertificateDer<'static> {
 }
 impl<'der> From<&'der LxCertificateDer> for CertificateDer<'der> {
     fn from(lx_cert: &'der LxCertificateDer) -> Self {
-        Self::from(lx_cert.as_bytes())
+        Self::from(lx_cert.as_slice())
     }
 }
 

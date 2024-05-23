@@ -164,14 +164,14 @@ mod test {
         let ca_cert = SharedSeedCaCert::from_root_seed(&root_seed);
         let ca_cert_der = ca_cert.serialize_der_self_signed().unwrap();
 
-        let _ = webpki::TrustAnchor::try_from_cert_der(ca_cert_der.as_bytes())
+        let _ = webpki::TrustAnchor::try_from_cert_der(ca_cert_der.as_slice())
             .unwrap();
 
         let client_cert = SharedSeedClientCert::generate_from_rng(&mut rng);
         let client_cert_der =
             client_cert.serialize_der_ca_signed(&ca_cert).unwrap();
 
-        let _ = webpki::EndEntityCert::try_from(client_cert_der.as_bytes())
+        let _ = webpki::EndEntityCert::try_from(client_cert_der.as_slice())
             .unwrap();
 
         let dns_name = "run.lexe.app".to_owned();
@@ -179,7 +179,7 @@ mod test {
         let server_cert_der =
             server_cert.serialize_der_ca_signed(&ca_cert).unwrap();
 
-        let _ = webpki::EndEntityCert::try_from(server_cert_der.as_bytes())
+        let _ = webpki::EndEntityCert::try_from(server_cert_der.as_slice())
             .unwrap();
     }
 
@@ -229,7 +229,7 @@ mod test {
         let rederived_cert_der =
             rederived_cert.serialize_der_self_signed().unwrap();
 
-        assert_eq!(rederived_cert_der.as_bytes(), snapshot_cert_der.as_slice());
+        assert_eq!(rederived_cert_der.as_slice(), snapshot_cert_der.as_slice());
 
         // Uncomment to regenerate
         // let rederived_cert_hex = hex::display(rederived_cert_der.as_bytes());
