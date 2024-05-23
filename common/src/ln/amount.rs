@@ -60,8 +60,10 @@
 use std::{
     fmt::{self, Display},
     ops::{Add, Div, Mul, Sub},
+    str::FromStr,
 };
 
+use anyhow::format_err;
 use rust_decimal::{prelude::ToPrimitive, Decimal};
 use rust_decimal_macros::dec;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -244,6 +246,16 @@ impl Display for Amount {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // Delegate to Decimal's Display impl which respects `std::fmt` syntax.
         Decimal::fmt(&self.0, f)
+    }
+}
+
+impl FromStr for Amount {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let decimal =
+            Decimal::from_str(s).map_err(|err| format_err!("{err}"))?;
+        Ok(Amount::try_from_inner(decimal)?)
     }
 }
 
