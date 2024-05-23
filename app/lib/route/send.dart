@@ -125,9 +125,12 @@ sealed class PreflightedPayment {
 @immutable
 class PreflightedPayment_Invoice implements PreflightedPayment {
   const PreflightedPayment_Invoice(
-      {required this.invoice, required this.preflight});
+      {required this.invoice,
+      required this.amountSats,
+      required this.preflight});
 
   final Invoice invoice;
+  final int amountSats;
   final PreflightPayInvoiceResponse preflight;
 
   @override
@@ -442,11 +445,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     final bool? flowResult =
         // ignore: use_build_context_synchronously
         await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (_) => SendPaymentConfirmPage(
-        sendCtx: nextSendCtx,
-        address: this.widget.address,
-        feeEstimates: feeEstimates,
-      ),
+      builder: (_) => SendPaymentConfirmPage(sendCtx: nextSendCtx),
     ));
 
     info("SendPaymentAmountPage: flow result: $flowResult, mounted: $mounted");
@@ -556,13 +555,9 @@ class SendPaymentConfirmPage extends StatefulWidget {
   const SendPaymentConfirmPage({
     super.key,
     required this.sendCtx,
-    required this.address,
-    required this.feeEstimates,
   });
 
   final SendContext_Preflighted sendCtx;
-  final String address;
-  final PreflightPayOnchainResponse feeEstimates;
 
   @override
   State<SendPaymentConfirmPage> createState() => _SendPaymentConfirmPageState();
@@ -586,24 +581,46 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     super.dispose();
   }
 
-  Future<void> onSend() async {
+  Future<FfiResult<void>> doPayOnchain(
+      final PreflightedPayment_Onchain preflighted) async {
+    final req = PayOnchainRequest(
+      cid: this.widget.sendCtx.cid,
+      address: preflighted.onchain.address,
+      amountSats: preflighted.amountSats,
+      priority: this.confPriority.value,
+      note: this.note(),
+    );
+
+    final app = this.widget.sendCtx.app;
+
+    return Result.tryFfiAsync(() async => app.payOnchain(req: req));
+  }
+
+  Future<FfiResult<void>> doPayInvoice(
+      final PreflightedPayment_Invoice preflighted) async {
+    final req = PayInvoiceRequest(
+      invoice: preflighted.invoice.string,
+      fallbackAmountSats: preflighted.amountSats,
+      note: this.note(),
+    );
+
+    final app = this.widget.sendCtx.app;
+    return Result.tryFfiAsync(() async => app.payInvoice(req: req));
+  }
+
+  Future<void> onConfirm() async {
     if (this.isSending.value) return;
 
     // We're sending; clear the errors and disable the form inputs.
     this.isSending.value = true;
     this.sendError.value = null;
 
-    final req = PayOnchainRequest(
-      cid: this.widget.sendCtx.cid,
-      address: this.widget.address,
-      amountSats: this.amountSats(),
-      priority: ConfirmationPriority.Normal,
-    );
-
-    final app = this.widget.sendCtx.app;
-
-    final result =
-        await Result.tryFfiAsync(() async => app.payOnchain(req: req));
+    final preflighted = this.widget.sendCtx.preflightedPayment;
+    final result = switch (preflighted) {
+      PreflightedPayment_Onchain() => await this.doPayOnchain(preflighted),
+      PreflightedPayment_Invoice() => await this.doPayInvoice(preflighted),
+      PreflightedPayment_Offer() => throw UnimplementedError(),
+    };
 
     if (!this.mounted) return;
 
@@ -627,12 +644,13 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     }
   }
 
-  Future<void> chooseOnchainFeeRate() async {
+  Future<void> chooseOnchainFeeRate(
+      final PreflightedPayment_Onchain preflighted) async {
     final ConfirmationPriority? result = await showDialog(
       context: this.context,
       useRootNavigator: false,
       builder: (context) => ChooseOnchainFeeDialog(
-        feeEstimates: this.widget.feeEstimates,
+        feeEstimates: preflighted.preflight,
         selected: this.confPriority.value,
       ),
     );
@@ -651,21 +669,35 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
           throw UnimplementedError("BOLT12 offers are unsupported"),
       };
 
-  int feeSats() {
-    final feeEstimates = this.widget.feeEstimates;
-    return switch (this.confPriority.value) {
-      // invariant: High can not be selected if there are insufficient funds
-      ConfirmationPriority.High => feeEstimates.high!.amountSats,
-      ConfirmationPriority.Normal => feeEstimates.normal.amountSats,
-      ConfirmationPriority.Background => feeEstimates.background.amountSats,
-    };
-  }
+  int feeSats() => switch (this.widget.sendCtx.preflightedPayment) {
+        PreflightedPayment_Onchain(:final preflight) => switch (
+              this.confPriority.value) {
+            // invariant: High can not be selected if there are insufficient funds
+            ConfirmationPriority.High => preflight.high!.amountSats,
+            ConfirmationPriority.Normal => preflight.normal.amountSats,
+            ConfirmationPriority.Background => preflight.background.amountSats,
+          },
+        PreflightedPayment_Invoice(:final preflight) => preflight.feesSats,
+        PreflightedPayment_Offer() =>
+          throw UnimplementedError("BOLT12 offers are unsupported"),
+      };
 
   int totalSats() => this.amountSats() + this.feeSats();
 
+  String payee() => switch (this.widget.sendCtx.preflightedPayment) {
+        PreflightedPayment_Invoice(:final invoice) => invoice.payeePubkey,
+        PreflightedPayment_Onchain(:final onchain) => onchain.address,
+        PreflightedPayment_Offer() =>
+          throw UnimplementedError("BOLT12 offers are unsupported"),
+      };
+
+  String? note() => this.noteFieldKey.currentState?.value;
+
   @override
   Widget build(BuildContext context) {
-    final shortAddr = address_format.ellipsizeBtcAddress(this.widget.address);
+    final preflighted = this.widget.sendCtx.preflightedPayment;
+
+    final shortPayee = address_format.ellipsizeBtcAddress(this.payee());
 
     final amountSatsStr = currency_format.formatSatsAmount(this.amountSats());
 
@@ -710,16 +742,21 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             children: [
               const Text("To", style: textStyleSecondary),
               Text(
-                shortAddr,
+                shortPayee,
                 style: textStylePrimary
                     .copyWith(fontFeatures: [Fonts.featDisambugation]),
               ),
               // TODO(phlip9): button to expand address for full verification
               // and copy-to-clipboard
+              // TODO(phlip9): link to block explorer or node pubkey info
             ],
           ),
 
           const SizedBox(height: Space.s500),
+
+          //
+          // Amount to-be-received by the payee
+          //
 
           Row(
             mainAxisSize: MainAxisSize.max,
@@ -732,54 +769,78 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
           const SizedBox(height: Space.s100),
 
-          Row(
-            mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.start,
-            children: [
-              TextButton(
-                onPressed: this.chooseOnchainFeeRate,
-                style: TextButton.styleFrom(
-                  textStyle: textStyleSecondary,
-                  foregroundColor: LxColors.grey550,
-                  shape: const LinearBorder(),
-                  padding: const EdgeInsets.only(right: Space.s200),
+          //
+          // Network Fee
+          //
+
+          if (preflighted case PreflightedPayment_Onchain())
+            Row(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.start,
+              children: [
+                TextButton(
+                  onPressed: () async => this.chooseOnchainFeeRate(preflighted),
+                  style: TextButton.styleFrom(
+                    textStyle: textStyleSecondary,
+                    foregroundColor: LxColors.grey550,
+                    shape: const LinearBorder(),
+                    padding: const EdgeInsets.only(right: Space.s200),
+                  ),
+                  // Sadly flutter doesn't allow us to increase the space b/w the
+                  // text and the underline. The default text decoration looks
+                  // ugly af. So we have this hack to draw a dashed line...
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.start,
+                    children: [
+                      Text("Network Fee"),
+                      SizedBox(width: Space.s200),
+                      Icon(
+                        LxIcons.edit,
+                        size: Fonts.size300,
+                        color: LxColors.grey625,
+                      ),
+                    ],
+                  ),
                 ),
-                // Sadly flutter doesn't allow us to increase the space b/w the
-                // text and the underline. The default text decoration looks
-                // ugly af. So we have this hack to draw a dashed line...
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    Text("Network Fee"),
-                    SizedBox(width: Space.s200),
-                    Icon(
-                      LxIcons.edit,
-                      size: Fonts.size300,
-                      color: LxColors.grey625,
-                    ),
-                  ],
+                const Expanded(child: SizedBox()),
+                ValueListenableBuilder(
+                    valueListenable: this.confPriority,
+                    builder: (context, confPriority, child) {
+                      final feeSatsStr =
+                          currency_format.formatSatsAmount(this.feeSats());
+                      return Text(
+                        "~$feeSatsStr",
+                        style: textStyleSecondary,
+                      );
+                    })
+              ],
+            ),
+
+          if (preflighted case PreflightedPayment_Invoice(:final preflight))
+            Row(
+              mainAxisSize: MainAxisSize.max,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Network Fee", style: textStyleSecondary),
+                Text(
+                  currency_format.formatSatsAmount(preflight.feesSats),
+                  style: textStyleSecondary,
                 ),
-              ),
-              const Expanded(child: SizedBox()),
-              ValueListenableBuilder(
-                  valueListenable: this.confPriority,
-                  builder: (context, confPriority, child) {
-                    final feeSatsStr =
-                        currency_format.formatSatsAmount(this.feeSats());
-                    return Text(
-                      "~$feeSatsStr",
-                      style: textStyleSecondary,
-                    );
-                  })
-            ],
-          ),
+              ],
+            ),
+
+          // sparator - /\/\/\/\/\/\/\/\/\/\/
 
           const SizedBox(
             height: Space.s650,
             child: ZigZag(
                 color: LxColors.grey750, zigWidth: 14.0, strokeWidth: 1.0),
           ),
+
+          //
+          // Total amount sent by user/payer
+          //
 
           Row(
             mainAxisSize: MainAxisSize.max,
@@ -798,17 +859,23 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
           const SizedBox(height: Space.s700),
 
+          //
           // Optional payment note input
+          //
+
           ValueListenableBuilder(
             valueListenable: this.isSending,
             builder: (context, isSending, widget) => PaymentNoteInput(
               fieldKey: this.noteFieldKey,
-              onSubmit: this.onSend,
+              onSubmit: this.onConfirm,
               isEnabled: !isSending,
             ),
           ),
 
+          //
           // Send payment error
+          //
+
           ValueListenableBuilder(
             valueListenable: this.sendError,
             builder: (context, sendError, widget) => Padding(
@@ -834,7 +901,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
               builder: (context, isSending, widget) => AnimatedFillButton(
                 label: const Text("Send"),
                 icon: const Icon(LxIcons.next),
-                onTap: this.onSend,
+                onTap: this.onConfirm,
                 loading: isSending,
                 style: FilledButton.styleFrom(
                   backgroundColor: LxColors.moneyGoUp,
