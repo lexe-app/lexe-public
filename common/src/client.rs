@@ -549,6 +549,13 @@ mod test {
                 "https://127.0.0.1:8080/my_cool_method&query=params",
                 "https://127.0.0.1:8080/&query=params",
             ],
+            vec![
+                "https://[::1]:8080",
+                "https://[::1]:8080/",
+                "https://[::1]:8080/my_cool_method",
+                "https://[::1]:8080/my_cool_method&query=params",
+                "https://[::1]:8080/&query=params",
+            ],
         ];
 
         let eq_classes = eq_classes

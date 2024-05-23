@@ -83,7 +83,7 @@ impl Regtest {
             Some(ref url) => format!("http://{url}"),
             None => panic!("Missing esplora feature or not enabled in Conf"),
         };
-        debug!(%esplora_url);
+        info!("Esplora URL: {esplora_url}");
 
         let regtest = Self {
             bitcoind,
