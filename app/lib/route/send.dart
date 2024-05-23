@@ -136,10 +136,14 @@ class PreflightedPayment_Invoice implements PreflightedPayment {
 
 @immutable
 class PreflightedPayment_Onchain implements PreflightedPayment {
-  const PreflightedPayment_Onchain(
-      {required this.onchain, required this.preflight});
+  const PreflightedPayment_Onchain({
+    required this.onchain,
+    required this.amountSats,
+    required this.preflight,
+  });
 
   final Onchain onchain;
+  final int amountSats;
   final PreflightPayOnchainResponse preflight;
 
   @override
@@ -336,28 +340,6 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
   }
 }
 
-/// When sending on-chain, the user has the option to send either
-/// (1) an exact amount
-/// (2) their full wallet balance
-///
-/// (2) is convenient for the user to explicitly select so they don't have to do
-/// any math or know the current & exact fee rate.
-sealed class SendAmount {
-  const SendAmount();
-}
-
-final class SendAmountAll extends SendAmount {
-  const SendAmountAll();
-}
-
-final class SendAmountExact extends SendAmount {
-  const SendAmountExact(this.amountSats);
-  final int amountSats;
-
-  @override
-  String toString() => "SendAmountExact(${this.amountSats})";
-}
-
 /// Send payment flow: this page collects the [SendAmount] from the user.
 class SendPaymentAmountPage extends StatefulWidget {
   const SendPaymentAmountPage({
@@ -378,7 +360,6 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
   final IntInputFormatter intInputFormatter = IntInputFormatter();
 
-  final ValueNotifier<bool> sendFullBalanceEnabled = ValueNotifier(false);
   final ValueNotifier<String?> estimateFeeError = ValueNotifier(null);
   final ValueNotifier<bool> estimatingFee = ValueNotifier(false);
 
@@ -386,7 +367,6 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
   void dispose() {
     estimatingFee.dispose();
     estimateFeeError.dispose();
-    sendFullBalanceEnabled.dispose();
 
     super.dispose();
   }
@@ -396,29 +376,19 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     this.estimateFeeError.value = null;
 
     // Validate the amount field.
-    final SendAmount sendAmount;
-    if (sendFullBalanceEnabled.value) {
-      sendAmount = const SendAmountAll();
-    } else {
-      final fieldState = this.amountFieldKey.currentState!;
-      if (!fieldState.validate()) return;
+    final fieldState = this.amountFieldKey.currentState!;
+    if (!fieldState.validate()) return;
 
-      final value = fieldState.value;
-      if (value == null || value.isEmpty) return;
+    final value = fieldState.value;
+    if (value == null || value.isEmpty) return;
 
-      switch (this.intInputFormatter.tryParse(value)) {
-        case Err():
-          return;
-        case Ok(:final ok):
-          sendAmount = SendAmountExact(ok);
-      }
+    final int amountSats;
+    switch (this.intInputFormatter.tryParse(value)) {
+      case Err():
+        return;
+      case Ok(:final ok):
+        amountSats = ok;
     }
-
-    final amountSats = switch (sendAmount) {
-      SendAmountAll() =>
-        throw UnimplementedError("Send full balance not supported yet"),
-      SendAmountExact(:final amountSats) => amountSats,
-    };
 
     // Only start the loading animation once the initial amount validation is
     // done.
@@ -453,6 +423,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
     final preflightedPayment = PreflightedPayment_Onchain(
       onchain: onchain,
+      amountSats: amountSats,
       preflight: feeEstimates,
     );
 
@@ -474,7 +445,6 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
       builder: (_) => SendPaymentConfirmPage(
         sendCtx: nextSendCtx,
         address: this.widget.address,
-        sendAmount: sendAmount,
         feeEstimates: feeEstimates,
       ),
     ));
@@ -544,32 +514,6 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
           children: [
             const Expanded(child: SizedBox(height: Space.s500)),
 
-            // Send full balance switch
-            ValueListenableBuilder(
-              valueListenable: this.sendFullBalanceEnabled,
-              builder: (context, isEnabled, _) => SwitchListTile(
-                value: isEnabled,
-                // TODO(phlip9): When a user selects "Send full balance", also
-                // 1. deemphasize / grey out out the amount field
-                // 2. set the value to the expected amount we'll send incl. fees
-                // 3. if the user starts typing in the amount field again, unset
-                //    the "send full balance" widget
-                onChanged: (newValue) =>
-                    this.sendFullBalanceEnabled.value = newValue,
-                title: Text(
-                  "Send full balance",
-                  textAlign: TextAlign.end,
-                  style: Fonts.fontUI.copyWith(color: LxColors.grey600),
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: Space.s550),
-                inactiveTrackColor: LxColors.grey1000,
-                activeTrackColor: LxColors.moneyGoUp,
-                inactiveThumbColor: LxColors.background,
-                controlAffinity: ListTileControlAffinity.trailing,
-              ),
-            ),
-
             // Error fetching fee estimate
             ValueListenableBuilder(
               valueListenable: this.estimateFeeError,
@@ -613,13 +557,11 @@ class SendPaymentConfirmPage extends StatefulWidget {
     super.key,
     required this.sendCtx,
     required this.address,
-    required this.sendAmount,
     required this.feeEstimates,
   });
 
   final SendContext_Preflighted sendCtx;
   final String address;
-  final SendAmount sendAmount;
   final PreflightPayOnchainResponse feeEstimates;
 
   @override
@@ -651,15 +593,10 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     this.isSending.value = true;
     this.sendError.value = null;
 
-    final amountSats = switch (this.widget.sendAmount) {
-      SendAmountExact(:final amountSats) => amountSats,
-      // TODO(phlip9): implement "send full balance"
-      SendAmountAll() => throw UnimplementedError(),
-    };
     final req = PayOnchainRequest(
       cid: this.widget.sendCtx.cid,
       address: this.widget.address,
-      amountSats: amountSats,
+      amountSats: this.amountSats(),
       priority: ConfirmationPriority.Normal,
     );
 
@@ -709,8 +646,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
 
   int amountSats() => switch (this.widget.sendCtx.preflightedPayment) {
         PreflightedPayment_Invoice(:final preflight) => preflight.amountSats,
-        PreflightedPayment_Onchain(:final onchain) =>
-          onchain.amountSats! /* TODO(phlip9) */,
+        PreflightedPayment_Onchain(:final amountSats) => amountSats,
         PreflightedPayment_Offer() =>
           throw UnimplementedError("BOLT12 offers are unsupported"),
       };

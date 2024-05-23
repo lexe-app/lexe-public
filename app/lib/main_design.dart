@@ -63,8 +63,6 @@ import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send.dart'
     show
         PreflightedPayment_Onchain,
-        SendAmountAll,
-        SendAmountExact,
         SendContext,
         SendContext_NeedAmount,
         SendContext_Preflighted,
@@ -273,32 +271,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                       amountSats: 2500,
                     ),
                     preflight: feeEstimates,
+                    amountSats: 2500,
                   ),
                 ),
                 address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
-                sendAmount: const SendAmountExact(2500),
-                feeEstimates: feeEstimates,
-              ),
-            ),
-            Component(
-              "SendPaymentConfirmPage",
-              subtitle: "sending full balance",
-              (context) => SendPaymentConfirmPage(
-                sendCtx: SendContext_Preflighted(
-                  app: mockApp,
-                  configNetwork: widget.config.network,
-                  balance: balance,
-                  cid: cid,
-                  preflightedPayment: const PreflightedPayment_Onchain(
-                    onchain: Onchain(
-                      address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
-                      amountSats: 2500,
-                    ),
-                    preflight: feeEstimates,
-                  ),
-                ),
-                address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
-                sendAmount: const SendAmountAll(),
                 feeEstimates: feeEstimates,
               ),
             ),
