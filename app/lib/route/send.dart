@@ -690,11 +690,11 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     }
   }
 
-  Future<void> chooseFeeRate() async {
+  Future<void> chooseOnchainFeeRate() async {
     final ConfirmationPriority? result = await showDialog(
       context: this.context,
       useRootNavigator: false,
-      builder: (context) => ChooseFeeDialog(
+      builder: (context) => ChooseOnchainFeeDialog(
         feeEstimates: this.widget.feeEstimates,
         selected: this.confPriority.value,
       ),
@@ -707,11 +707,12 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     }
   }
 
-  int amountSats() => switch (this.widget.sendAmount) {
-        SendAmountExact(:final amountSats) => amountSats,
-        // TODO(phlip9): the exact amount will need to come from the
-        // pre-validation + fee estimation request.
-        SendAmountAll() => this.widget.sendCtx.balanceSats(),
+  int amountSats() => switch (this.widget.sendCtx.preflightedPayment) {
+        PreflightedPayment_Invoice(:final preflight) => preflight.amountSats,
+        PreflightedPayment_Onchain(:final onchain) =>
+          onchain.amountSats! /* TODO(phlip9) */,
+        PreflightedPayment_Offer() =>
+          throw UnimplementedError("BOLT12 offers are unsupported"),
       };
 
   int feeSats() {
@@ -744,6 +745,14 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       fontVariations: [],
     );
 
+    final paymentKind = this.widget.sendCtx.preflightedPayment.kind();
+    final subheading = switch (paymentKind) {
+      PaymentKind.Onchain => "Sending bitcoin on-chain",
+      PaymentKind.Invoice => "Sending bitcoin via lightning invoice",
+      PaymentKind.Spontaneous =>
+        "Sending bitcoin via lightning spontaneous payment",
+    };
+
     return Scaffold(
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
@@ -756,7 +765,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       body: ScrollableSinglePageBody(
         body: [
           const HeadingText(text: "Confirm payment"),
-          const SubheadingText(text: "Sending bitcoin on-chain"),
+          SubheadingText(text: subheading),
           const SizedBox(height: Space.s700),
 
           Row(
@@ -792,7 +801,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               TextButton(
-                onPressed: this.chooseFeeRate,
+                onPressed: this.chooseOnchainFeeRate,
                 style: TextButton.styleFrom(
                   textStyle: textStyleSecondary,
                   foregroundColor: LxColors.grey550,
@@ -915,8 +924,8 @@ class NextButton extends LxFilledButton {
 /// The modal dialog for the user to choose the BTC send network fee preset.
 ///
 /// The dialog `Navigator.pop`s  a `ConfirmationPriority?`.
-class ChooseFeeDialog extends StatelessWidget {
-  const ChooseFeeDialog({
+class ChooseOnchainFeeDialog extends StatelessWidget {
+  const ChooseOnchainFeeDialog({
     super.key,
     required this.feeEstimates,
     required this.selected,
