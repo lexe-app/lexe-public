@@ -40,12 +40,10 @@ import 'package:lexeapp/components.dart'
         baseInputDecoration;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
-import 'package:lexeapp/input_formatter.dart'
-    show AlphaNumericInputFormatter, IntInputFormatter;
+import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
-import 'package:lexeapp/style.dart'
-    show Fonts, LxColors, LxIcons, LxTheme, Space;
+import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// Common context used during any step in the send payment flow.
 @immutable
@@ -269,38 +267,65 @@ class SendPaymentNeedUriPage extends StatefulWidget {
 }
 
 class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
-  final GlobalKey<FormFieldState<String>> addressFieldKey = GlobalKey();
+  final GlobalKey<FormFieldState<String>> paymentUriFieldKey = GlobalKey();
+
+  final ValueNotifier<bool> isPending = ValueNotifier(false);
+  final ValueNotifier<String?> errorMessage = ValueNotifier(null);
+
+  @override
+  void dispose() {
+    this.errorMessage.dispose();
+    this.isPending.dispose();
+
+    super.dispose();
+  }
 
   void onQrPressed() {
     info("pressed QR button");
   }
 
   Future<void> onNext() async {
-    final fieldState = this.addressFieldKey.currentState!;
-    if (!fieldState.validate()) {
-      return;
-    }
+    // Hide error message
+    this.errorMessage.value = null;
 
-    final String address;
+    // Validate the payment URI field.
+    final fieldState = this.paymentUriFieldKey.currentState!;
+    if (!fieldState.validate()) return;
 
-    switch (this.validateBitcoinAddress(fieldState.value!)) {
+    final uriStr = fieldState.value;
+    if (uriStr == null || uriStr.isEmpty) return;
+
+    // Start the loading animation
+    this.isPending.value = true;
+
+    // Try parsing the payment URI and resolving it to a single payment method.
+    final network = this.widget.sendCtx.configNetwork;
+    final result = await Result.tryFfiAsync(() async =>
+        api.paymentUriResolveBest(network: network, uriStr: uriStr));
+
+    if (!this.mounted) return;
+
+    // Done loading
+    this.isPending.value = false;
+
+    // Check if resolving was successful, or show an error message.
+    final PaymentMethod paymentMethod;
+    switch (result) {
       case Ok(:final ok):
-        address = ok;
-      case Err():
+        paymentMethod = ok;
+        this.errorMessage.value = null;
+      case Err(:final err):
+        error("Error resolving payment URI: $err");
+        this.errorMessage.value = err.message;
         return;
     }
 
-    // TODO(phlip9): parse and resolve payment method from field
+    info("Resolved input '$uriStr' to payment method: $paymentMethod");
 
-    final paymentMethod = PaymentMethod.onchain(Onchain(
-      address: address,
-      amountSats: null,
-      label: null,
-      message: null,
-    ));
+    // TODO(phlip9): dispatch to NeedAmount vs Confirm page depending on
+    // PaymentMethod.
 
     final sendCtx = this.widget.sendCtx;
-
     final nextSendCtx = SendContext_NeedAmount(
       app: sendCtx.app,
       configNetwork: sendCtx.configNetwork,
@@ -309,14 +334,12 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
       paymentMethod: paymentMethod,
     );
 
-    // TODO(phlip9): dispatch to NeedAmount vs Confirm page depending on
-    // PaymentMethod.
     final bool? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SendPaymentAmountPage(sendCtx: nextSendCtx),
     ));
 
-    info("SendPaymentAddressPage: flow result: $flowResult, mounted: $mounted");
+    info("SendPaymentNeedUriPage: flow result: $flowResult, mounted: $mounted");
 
     if (!this.mounted) return;
 
@@ -326,77 +349,96 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
     }
   }
 
-  /// Ensure the bitcoin address is properly formatted and targets the right
-  /// bitcoin network (mainnet, testnet, regtest) for our build.
-  Result<String, String?> validateBitcoinAddress(String? addressStr) {
+  /// Parse the payment URI (address, invoice, offer, BIP21, LN URI, ...) and
+  /// check that it's valid for our current network (mainnet, testnet, ...).
+  Future<Result<PaymentMethod, String?>> resolveBestPaymentUri(
+    String? uriStr,
+  ) async {
     // Don't show any error message if the input is empty.
-    if (addressStr == null || addressStr.isEmpty) {
+    if (uriStr == null || uriStr.isEmpty) {
       return const Err(null);
     }
 
-    // Actually try to parse as a bitcoin address.
+    // Actually try to parse and resolve the payment URI.
+    final network = this.widget.sendCtx.configNetwork;
     // TODO(phlip9): this API should return a bare error enum and flutter should
     // convert that to a human-readable error message (for translations).
-    final maybeErrMsg = api.formValidateBitcoinAddress(
-      currentNetwork: this.widget.sendCtx.configNetwork,
-      addressStr: addressStr,
-    );
-
-    if (maybeErrMsg == null) {
-      return Ok(addressStr);
-    } else {
-      return Err(maybeErrMsg);
-    }
+    final result = await Result.tryFfiAsync(() async =>
+        api.paymentUriResolveBest(network: network, uriStr: uriStr));
+    return result.mapErr((err) => err.message);
   }
 
   @override
   Widget build(BuildContext context) {
-    // TODO(phlip9): autofill address from user's clipboard if one exists
+    return Scaffold(
+      appBar: AppBar(
+        leadingWidth: Space.appBarLeadingWidth,
+        leading: const LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
+        actions: [
+          IconButton(
+            onPressed: this.onQrPressed,
+            icon: const Icon(LxIcons.scanDetailed),
+          ),
+          const SizedBox(width: Space.appBarTrailingPadding),
+        ],
+      ),
+      body: ScrollableSinglePageBody(
+        body: [
+          const HeadingText(text: "Who are we paying?"),
+          const SizedBox(height: Space.s300),
 
-    return Theme(
-      data: LxTheme.light(),
-      child: Scaffold(
-        appBar: AppBar(
-          leadingWidth: Space.appBarLeadingWidth,
-          leading: const LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
-          actions: [
-            IconButton(
-              onPressed: this.onQrPressed,
-              icon: const Icon(LxIcons.scanDetailed),
+          // Enter payment URI text field
+          TextFormField(
+            key: this.paymentUriFieldKey,
+            autofocus: true,
+            // `visiblePassword` gives ready access to letters + numbers
+            keyboardType: TextInputType.visiblePassword,
+            textDirection: TextDirection.ltr,
+            textInputAction: TextInputAction.next,
+            onEditingComplete: this.onNext,
+            decoration: baseInputDecoration.copyWith(
+                hintText: "Address, Invoice, Node Pubkey"),
+            style: Fonts.fontUI.copyWith(
+              fontSize: Fonts.size700,
+              fontVariations: [Fonts.weightMedium],
+              // Use unambiguous character alternatives (0OIl1) to avoid
+              // confusion in the unfortunate event that a user has to
+              // manually type in an address.
+              fontFeatures: [Fonts.featDisambugation],
+              letterSpacing: -0.5,
             ),
-            const SizedBox(width: Space.appBarTrailingPadding),
-          ],
-        ),
-        body: ScrollableSinglePageBody(
-          body: [
-            const HeadingText(text: "Who are we paying?"),
-            const SizedBox(height: Space.s300),
-            TextFormField(
-              key: this.addressFieldKey,
-              autofocus: true,
-              // `visiblePassword` gives ready access to letters + numbers
-              keyboardType: TextInputType.visiblePassword,
-              textDirection: TextDirection.ltr,
-              textInputAction: TextInputAction.next,
-              validator: (str) => this.validateBitcoinAddress(str).err,
-              onEditingComplete: this.onNext,
-              // Bitcoin addresses are alphanumeric
-              inputFormatters: [AlphaNumericInputFormatter()],
-              decoration:
-                  baseInputDecoration.copyWith(hintText: "Bitcoin address"),
-              style: Fonts.fontUI.copyWith(
-                fontSize: Fonts.size700,
-                fontVariations: [Fonts.weightMedium],
-                // Use unambiguous character alternatives (0OIl1) to avoid
-                // confusion in the unfortunate event that a user has to
-                // manually type in an address.
-                fontFeatures: [Fonts.featDisambugation],
-                letterSpacing: -0.5,
+          ),
+          const SizedBox(height: Space.s800),
+        ],
+        bottom: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            const Expanded(child: SizedBox(height: Space.s500)),
+
+            // Error parsing, resolving, and/or preflighting payment
+            ValueListenableBuilder(
+              valueListenable: this.errorMessage,
+              builder: (_context, errorMessage, _widget) => ErrorMessageSection(
+                title: "",
+                message: errorMessage,
               ),
             ),
-            const SizedBox(height: Space.s800),
+
+            // -> Next
+            ValueListenableBuilder(
+              valueListenable: this.isPending,
+              builder: (_context, isPending, _widget) => Padding(
+                padding: const EdgeInsets.only(top: Space.s500),
+                child: AnimatedFillButton(
+                  label: const Text("Next"),
+                  icon: const Icon(LxIcons.next),
+                  onTap: this.onNext,
+                  loading: isPending,
+                ),
+              ),
+            ),
           ],
-          bottom: NextButton(onTap: this.onNext),
         ),
       ),
     );
@@ -426,8 +468,8 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
 
   @override
   void dispose() {
-    estimatingFee.dispose();
-    estimateFeeError.dispose();
+    this.estimatingFee.dispose();
+    this.estimateFeeError.dispose();
 
     super.dispose();
   }
@@ -545,14 +587,13 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
         bottom: Column(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.end,
-          verticalDirection: VerticalDirection.down,
           children: [
             const Expanded(child: SizedBox(height: Space.s500)),
 
             // Error fetching fee estimate
             ValueListenableBuilder(
               valueListenable: this.estimateFeeError,
-              builder: (context, errorMessage, widget) => ErrorMessageSection(
+              builder: (_context, errorMessage, _widget) => ErrorMessageSection(
                 title: "Error fetching fee estimate",
                 message: errorMessage,
               ),
@@ -561,7 +602,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
             // Next ->
             ValueListenableBuilder(
               valueListenable: this.estimatingFee,
-              builder: (context, estimatingFee, widget) => Padding(
+              builder: (_context, estimatingFee, _widget) => Padding(
                 padding: const EdgeInsets.only(top: Space.s500),
                 child: AnimatedFillButton(
                   label: const Text("Next"),
