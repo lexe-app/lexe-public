@@ -197,7 +197,7 @@ final class FfiError implements Exception {
   final String message;
 
   @override
-  String toString() => "FFI Error: $message";
+  String toString() => this.message;
 }
 
 final class MessageException implements Exception {

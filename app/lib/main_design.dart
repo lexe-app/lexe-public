@@ -244,16 +244,15 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               subtitle: "onchain address-only",
               (context) => SendPaymentAmountPage(
                 sendCtx: SendContext_NeedAmount(
-                    app: mockApp,
-                    configNetwork: widget.config.network,
-                    balance: balance,
-                    cid: cid,
-                    paymentMethod: const PaymentMethod.onchain(
-                      Onchain(
-                          address:
-                              "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"),
-                    )),
-                address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+                  app: mockApp,
+                  configNetwork: widget.config.network,
+                  balance: balance,
+                  cid: cid,
+                  paymentMethod: const PaymentMethod.onchain(
+                    Onchain(
+                        address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"),
+                  ),
+                ),
               ),
             ),
             Component(
