@@ -61,14 +61,13 @@ import 'package:lexeapp/route/receive.dart'
     show LnInvoiceInputs, ReceivePaymentEditInvoicePage, ReceivePaymentPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send/page.dart'
+    show SendPaymentAmountPage, SendPaymentConfirmPage, SendPaymentPage;
+import 'package:lexeapp/route/send/state.dart'
     show
         PreflightedPayment_Onchain,
         SendContext,
         SendContext_NeedAmount,
-        SendContext_Preflighted,
-        SendPaymentAmountPage,
-        SendPaymentConfirmPage,
-        SendPaymentPage;
+        SendContext_Preflighted;
 import 'package:lexeapp/route/show_qr.dart' show ShowQrPage;
 import 'package:lexeapp/route/signup.dart'
     show SignupApi, SignupBackupPasswordPage, SignupPage;
