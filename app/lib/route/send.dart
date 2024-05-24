@@ -91,6 +91,69 @@ class SendContext_NeedAmount extends SendContext {
   final PaymentMethod paymentMethod;
 
   int balanceSats() => this.balance.balanceByKind(this.paymentMethod.kind());
+
+  /// Using the current [PaymentMethod], preflight the payment with the given
+  /// amount.
+  Future<FfiResult<SendContext_Preflighted>> preflight(
+    final int amountSats,
+  ) async {
+    final paymentMethod = this.paymentMethod;
+
+    final PreflightedPayment preflighted;
+    switch (paymentMethod) {
+      // Onchain
+      case PaymentMethod_Onchain(:final field0):
+        final onchain = field0;
+
+        final req = PreflightPayOnchainRequest(
+          address: onchain.address,
+          amountSats: amountSats,
+        );
+
+        final result = await Result.tryFfiAsync(
+            () async => this.app.preflightPayOnchain(req: req));
+
+        switch (result) {
+          case Ok(:final ok):
+            preflighted = PreflightedPayment_Onchain(
+                onchain: onchain, amountSats: amountSats, preflight: ok);
+          case Err(:final err):
+            return Err(err);
+        }
+
+      // BOLT11 Invoice
+      case PaymentMethod_Invoice(:final field0):
+        final invoice = field0;
+
+        final req = PreflightPayInvoiceRequest(
+          invoice: invoice.string,
+          fallbackAmountSats: amountSats,
+        );
+
+        final result = await Result.tryFfiAsync(
+            () async => this.app.preflightPayInvoice(req: req));
+
+        switch (result) {
+          case Ok(:final ok):
+            preflighted = PreflightedPayment_Invoice(
+                invoice: invoice, amountSats: amountSats, preflight: ok);
+          case Err(:final err):
+            return Err(err);
+        }
+
+      // BOLT12 Offer
+      case PaymentMethod_Offer():
+        throw UnimplementedError("BOLT12 offers not supported");
+    }
+
+    return Ok(SendContext_Preflighted(
+      app: this.app,
+      configNetwork: this.configNetwork,
+      balance: this.balance,
+      cid: this.cid,
+      preflightedPayment: preflighted,
+    ));
+  }
 }
 
 /// Context after we've successfully preflighted a payment and are just waiting
@@ -250,10 +313,7 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
     // PaymentMethod.
     final bool? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (_) => SendPaymentAmountPage(
-        sendCtx: nextSendCtx,
-        address: address,
-      ),
+      builder: (_) => SendPaymentAmountPage(sendCtx: nextSendCtx),
     ));
 
     info("SendPaymentAddressPage: flow result: $flowResult, mounted: $mounted");
@@ -348,11 +408,9 @@ class SendPaymentAmountPage extends StatefulWidget {
   const SendPaymentAmountPage({
     super.key,
     required this.sendCtx,
-    required this.address,
   });
 
   final SendContext_NeedAmount sendCtx;
-  final String address;
 
   @override
   State<SendPaymentAmountPage> createState() => _SendPaymentAmountPageState();
@@ -397,57 +455,35 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     // done.
     this.estimatingFee.value = true;
 
-    // Fetch the fee estimates for this potential onchain send.
-    final req = PreflightPayOnchainRequest(
-        address: this.widget.address, amountSats: amountSats);
-    final result = await Result.tryFfiAsync(
-        () async => this.widget.sendCtx.app.preflightPayOnchain(req: req));
+    // Preflight the payment. That means we're checking, on the node itself,
+    // for enough balance, if there's a route, fees, etc...
+    final result = await this.widget.sendCtx.preflight(amountSats);
 
     if (!this.mounted) return;
 
     // Reset loading animation.
     this.estimatingFee.value = false;
 
-    // TODO(phlip9): preflight by payment method
-
-    final PreflightPayOnchainResponse feeEstimates;
+    // Check if preflight was successful, or show an error message.
+    final SendContext_Preflighted nextSendCtx;
     switch (result) {
       case Ok(:final ok):
-        feeEstimates = ok;
+        nextSendCtx = ok;
         this.estimateFeeError.value = null;
       case Err(:final err):
-        error("Error fetching fee estimates: ${err.message}");
+        error("Error preflighting payment: $err");
         this.estimateFeeError.value = err.message;
         return;
     }
 
-    // TODO(phlip9): get this from `paymentMethod`
-    final onchain = Onchain(address: this.widget.address);
-
-    final preflightedPayment = PreflightedPayment_Onchain(
-      onchain: onchain,
-      amountSats: amountSats,
-      preflight: feeEstimates,
-    );
-
-    final sendCtx = this.widget.sendCtx;
-
-    final nextSendCtx = SendContext_Preflighted(
-      app: sendCtx.app,
-      configNetwork: sendCtx.configNetwork,
-      balance: sendCtx.balance,
-      cid: sendCtx.cid,
-      preflightedPayment: preflightedPayment,
-    );
-
     // Everything looks good so far -- navigate to the confirmation page.
-
     final bool? flowResult =
         // ignore: use_build_context_synchronously
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SendPaymentConfirmPage(sendCtx: nextSendCtx),
     ));
 
+    // Confirm page results:
     info("SendPaymentAmountPage: flow result: $flowResult, mounted: $mounted");
 
     if (!this.mounted) return;
