@@ -33,7 +33,7 @@ import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/debug.dart' show DebugPage;
 import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPage;
 import 'package:lexeapp/route/receive.dart' show ReceivePaymentPage;
-import 'package:lexeapp/route/send.dart' show SendContext, SendPaymentPage;
+import 'package:lexeapp/route/send/page.dart' show SendContext, SendPaymentPage;
 import 'package:lexeapp/stream_ext.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 import 'package:rxdart_ext/rxdart_ext.dart';
