@@ -65,6 +65,64 @@ class SendContext {
   /// A unique, client-generated id for payment types (onchain send,
   /// ln spontaneous send) that need an extra id for idempotency.
   final ClientPaymentId cid;
+
+  /// Parse the payment URI (address, invoice, offer, BIP21, LN URI, ...) and
+  /// check that it's valid for our current network (mainnet, testnet, ...).
+  /// Then, if the payment already has an amount attached, try to preflight it
+  /// immediately.
+  Future<Result<(SendContext_Preflighted?, SendContext_NeedAmount), String?>>
+      resolveAndMaybePreflight(String uriStr) async {
+    // Try to parse and resolve the payment URI into a single "best" PaymentMethod.
+    // TODO(phlip9): this API should return a bare error enum and flutter should
+    // convert that to a human-readable error message (for translations).
+    final result = await Result.tryFfiAsync(() async =>
+        api.paymentUriResolveBest(network: this.configNetwork, uriStr: uriStr));
+
+    // Check if resolving was successful.
+    final PaymentMethod paymentMethod;
+    switch (result) {
+      case Ok(:final ok):
+        paymentMethod = ok;
+      case Err(:final err):
+        error("Error resolving payment URI: $err");
+        return Err(err.message);
+    }
+
+    final uriStrShort = address_format.ellipsizeBtcAddress(uriStr);
+    info("Resolved input '$uriStrShort' to payment method: $paymentMethod");
+
+    final needAmountSendCtx = SendContext_NeedAmount(
+      app: this.app,
+      configNetwork: this.configNetwork,
+      balance: this.balance,
+      cid: this.cid,
+      paymentMethod: paymentMethod,
+    );
+
+    // Try preflighting the payment if it already has an amount set.
+    final int? maybePreflightableAmount =
+        needAmountSendCtx.canPreflightImmediately();
+    final SendContext_Preflighted? preflightedSendCtx;
+
+    if (maybePreflightableAmount != null) {
+      final int amountSats = maybePreflightableAmount;
+
+      final result = await needAmountSendCtx.preflight(amountSats);
+
+      // Check if payment preflight was successful, or show an error message.
+      switch (result) {
+        case Ok(:final ok):
+          preflightedSendCtx = ok;
+        case Err(:final err):
+          error("Error preflighting payment: $err");
+          return Err(err.message);
+      }
+    } else {
+      preflightedSendCtx = null;
+    }
+
+    return Ok((preflightedSendCtx, needAmountSendCtx));
+  }
 }
 
 /// Context needed when we're collecting an amount from the user for a potential
@@ -89,6 +147,15 @@ class SendContext_NeedAmount extends SendContext {
   final PaymentMethod paymentMethod;
 
   int balanceSats() => this.balance.balanceByKind(this.paymentMethod.kind());
+
+  /// Returns Some amount if this payment method already has an amount attached
+  /// and can be preflighted immediately.
+  int? canPreflightImmediately() => switch (this.paymentMethod) {
+        PaymentMethod_Onchain(:final field0) => field0.amountSats,
+        PaymentMethod_Invoice(:final field0) => field0.amountSats,
+        PaymentMethod_Offer() =>
+          throw UnimplementedError("BOLT12 offers unsupported"),
+      };
 
   /// Using the current [PaymentMethod], preflight the payment with the given
   /// amount.
@@ -293,79 +360,51 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
     if (!fieldState.validate()) return;
 
     final uriStr = fieldState.value;
+
+    // Don't bother showing an error if the input is empty.
     if (uriStr == null || uriStr.isEmpty) return;
 
-    // Start the loading animation
+    // Start loading animation
     this.isPending.value = true;
 
-    // Try parsing the payment URI and resolving it to a single payment method.
-    final network = this.widget.sendCtx.configNetwork;
-    final result = await Result.tryFfiAsync(() async =>
-        api.paymentUriResolveBest(network: network, uriStr: uriStr));
-
+    // Try resolving the payment URI to a "best" payment method. Then try
+    // immediately preflighting it if it already has an associated amount.
+    final result = await this.widget.sendCtx.resolveAndMaybePreflight(uriStr);
     if (!this.mounted) return;
 
-    // Done loading
+    // Stop loading animation
     this.isPending.value = false;
 
-    // Check if resolving was successful, or show an error message.
-    final PaymentMethod paymentMethod;
+    // Check the results, or show an error on the page.
+    final SendContext_Preflighted? maybePreflighted;
+    final SendContext_NeedAmount elseNeedAmount;
     switch (result) {
       case Ok(:final ok):
-        paymentMethod = ok;
-        this.errorMessage.value = null;
+        maybePreflighted = ok.$1;
+        elseNeedAmount = ok.$2;
       case Err(:final err):
-        error("Error resolving payment URI: $err");
-        this.errorMessage.value = err.message;
+        this.errorMessage.value = err;
         return;
     }
 
-    info("Resolved input '$uriStr' to payment method: $paymentMethod");
-
-    // TODO(phlip9): dispatch to NeedAmount vs Confirm page depending on
-    // PaymentMethod.
-
-    final sendCtx = this.widget.sendCtx;
-    final nextSendCtx = SendContext_NeedAmount(
-      app: sendCtx.app,
-      configNetwork: sendCtx.configNetwork,
-      balance: sendCtx.balance,
-      cid: sendCtx.cid,
-      paymentMethod: paymentMethod,
-    );
-
+    // If we still need an amount, then we have to collect that first.
+    // Otherwise, a successful payment preflight means we can go directly to the
+    // confirm page.
     final bool? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (_) => SendPaymentAmountPage(sendCtx: nextSendCtx),
+      builder: (_) => (maybePreflighted != null)
+          ? SendPaymentConfirmPage(sendCtx: maybePreflighted)
+          : SendPaymentAmountPage(sendCtx: elseNeedAmount),
     ));
 
     info("SendPaymentNeedUriPage: flow result: $flowResult, mounted: $mounted");
-
     if (!this.mounted) return;
 
+    // Successfully sent payment -- return result to parent page.
     if (flowResult == true) {
       // ignore: use_build_context_synchronously
       await Navigator.of(this.context).maybePop(flowResult);
     }
-  }
-
-  /// Parse the payment URI (address, invoice, offer, BIP21, LN URI, ...) and
-  /// check that it's valid for our current network (mainnet, testnet, ...).
-  Future<Result<PaymentMethod, String?>> resolveBestPaymentUri(
-    String? uriStr,
-  ) async {
-    // Don't show any error message if the input is empty.
-    if (uriStr == null || uriStr.isEmpty) {
-      return const Err(null);
-    }
-
-    // Actually try to parse and resolve the payment URI.
-    final network = this.widget.sendCtx.configNetwork;
-    // TODO(phlip9): this API should return a bare error enum and flutter should
-    // convert that to a human-readable error message (for translations).
-    final result = await Result.tryFfiAsync(() async =>
-        api.paymentUriResolveBest(network: network, uriStr: uriStr));
-    return result.mapErr((err) => err.message);
   }
 
   @override
