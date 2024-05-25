@@ -64,9 +64,9 @@ import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
     show
         PreflightedPayment_Onchain,
-        SendContext_NeedAmount,
-        SendContext_NeedUri,
-        SendContext_Preflighted;
+        SendState_NeedAmount,
+        SendState_NeedUri,
+        SendState_Preflighted;
 import 'package:lexeapp/route/show_qr.dart' show ShowQrPage;
 import 'package:lexeapp/route/signup.dart'
     show SignupApi, SignupBackupPasswordPage, SignupPage;
@@ -229,7 +229,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "SendPaymentNeedUriPage",
               (context) => SendPaymentPage(
                 startNewFlow: true,
-                sendCtx: SendContext_NeedUri(
+                sendCtx: SendState_NeedUri(
                   app: mockApp,
                   configNetwork: widget.config.network,
                   balance: balance,
@@ -242,7 +242,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               subtitle: "onchain address-only",
               (context) => SendPaymentPage(
                 startNewFlow: true,
-                sendCtx: SendContext_NeedAmount(
+                sendCtx: SendState_NeedAmount(
                   app: mockApp,
                   configNetwork: widget.config.network,
                   balance: balance,
@@ -259,7 +259,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               subtitle: "onchain",
               (context) => SendPaymentPage(
                 startNewFlow: true,
-                sendCtx: SendContext_Preflighted(
+                sendCtx: SendState_Preflighted(
                   app: mockApp,
                   configNetwork: widget.config.network,
                   balance: balance,
@@ -335,7 +335,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "ScanPage",
               (_) => MultistepFlow<bool?>(
                 builder: (_) => ScanPage(
-                  sendCtx: SendContext_NeedUri(
+                  sendCtx: SendState_NeedUri(
                     app: mockApp,
                     configNetwork: widget.config.network,
                     balance: balance,
