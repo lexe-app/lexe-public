@@ -41,31 +41,37 @@ import 'package:lexeapp/route/send/state.dart'
         PreflightedPayment_Onchain,
         SendContext,
         SendContext_NeedAmount,
+        SendContext_NeedUri,
         SendContext_Preflighted;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// The entry point for the send payment flow. This will dispatch to the right
-/// initial screen depending on the [SendContext]. It also sets up a new
-/// [MultistepFlow] so navigation back/stop works well for this subflow.
+/// initial screen depending on the [SendContext]. If [startNewFlow], then it
+/// also sets up a new / [MultistepFlow] so navigation "close" will exit out of
+/// the whole flow.
 class SendPaymentPage extends StatelessWidget {
   const SendPaymentPage({
     super.key,
     required this.sendCtx,
+    required this.startNewFlow,
   });
 
   final SendContext sendCtx;
+  final bool startNewFlow;
+
+  Widget buildInnerSendPage() {
+    final sendCtx = this.sendCtx;
+    return switch (sendCtx) {
+      SendContext_Preflighted() => SendPaymentConfirmPage(sendCtx: sendCtx),
+      SendContext_NeedAmount() => SendPaymentAmountPage(sendCtx: sendCtx),
+      SendContext_NeedUri() => SendPaymentNeedUriPage(sendCtx: sendCtx),
+    };
+  }
 
   @override
-  Widget build(BuildContext context) {
-    final sendCtx = this.sendCtx;
-    return MultistepFlow<bool?>(
-      builder: (_) => switch (sendCtx) {
-        SendContext_Preflighted() => SendPaymentConfirmPage(sendCtx: sendCtx),
-        SendContext_NeedAmount() => SendPaymentAmountPage(sendCtx: sendCtx),
-        SendContext() => SendPaymentNeedUriPage(sendCtx: sendCtx),
-      },
-    );
-  }
+  Widget build(BuildContext context) => (this.startNewFlow)
+      ? MultistepFlow<bool?>(builder: (_) => this.buildInnerSendPage())
+      : this.buildInnerSendPage();
 }
 
 /// If the user is just hitting the "Send" button with no extra context, then we
@@ -77,7 +83,7 @@ class SendPaymentNeedUriPage extends StatefulWidget {
     required this.sendCtx,
   });
 
-  final SendContext sendCtx;
+  final SendContext_NeedUri sendCtx;
 
   @override
   State<StatefulWidget> createState() => _SendPaymentNeedUriPageState();
@@ -138,12 +144,10 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
     this.isPending.value = false;
 
     // Check the results, or show an error on the page.
-    final SendContext_Preflighted? maybePreflighted;
-    final SendContext_NeedAmount elseNeedAmount;
+    final SendContext sendCtx;
     switch (result) {
       case Ok(:final ok):
-        maybePreflighted = ok.$1;
-        elseNeedAmount = ok.$2;
+        sendCtx = ok;
       case Err(:final err):
         this.errorMessage.value = err;
         return;
@@ -154,9 +158,7 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
     // confirm page.
     final bool? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (_) => (maybePreflighted != null)
-          ? SendPaymentConfirmPage(sendCtx: maybePreflighted)
-          : SendPaymentAmountPage(sendCtx: elseNeedAmount),
+      builder: (_) => SendPaymentPage(sendCtx: sendCtx, startNewFlow: false),
     ));
 
     info("SendPaymentNeedUriPage: flow result: $flowResult, mounted: $mounted");

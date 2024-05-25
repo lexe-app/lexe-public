@@ -36,7 +36,7 @@ import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPage;
 import 'package:lexeapp/route/receive.dart' show ReceivePaymentPage;
 import 'package:lexeapp/route/scan.dart';
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
-import 'package:lexeapp/route/send/state.dart' show SendContext;
+import 'package:lexeapp/route/send/state.dart' show SendContext_NeedUri;
 import 'package:lexeapp/stream_ext.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 import 'package:rxdart_ext/rxdart_ext.dart';
@@ -226,7 +226,8 @@ class WalletPageState extends State<WalletPage> {
 
     final bool? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (context) => SendPaymentPage(sendCtx: sendCtx),
+      builder: (context) =>
+          SendPaymentPage(sendCtx: sendCtx, startNewFlow: true),
     ));
 
     // User canceled
@@ -260,13 +261,13 @@ class WalletPageState extends State<WalletPage> {
     this.triggerRefresh();
   }
 
-  SendContext? tryCollectSendContext() {
+  SendContext_NeedUri? tryCollectSendContext() {
     final maybeNodeInfo = this.nodeInfos.value;
     if (maybeNodeInfo == null) {
       return null;
     }
     final balance = maybeNodeInfo.balance;
-    return SendContext(
+    return SendContext_NeedUri(
       app: this.widget.app,
       configNetwork: this.widget.config.network,
       balance: balance,
