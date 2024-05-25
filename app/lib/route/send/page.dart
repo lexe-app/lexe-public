@@ -33,6 +33,7 @@ import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
+import 'package:lexeapp/route/scan.dart' show ScanPage;
 import 'package:lexeapp/route/send/state.dart'
     show
         PreflightedPayment_Invoice,
@@ -56,16 +57,11 @@ class SendPaymentPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Dispatch to the right initial page
     final sendCtx = this.sendCtx;
     return MultistepFlow<bool?>(
       builder: (_) => switch (sendCtx) {
-        SendContext_Preflighted() =>
-          // SendPaymentConfirmPage(sendCtx: sendCtx, ..),
-          throw UnimplementedError("todo"),
-        SendContext_NeedAmount() =>
-          // SendPaymentAmountPage(sendCtx: sendCtx, address: address),
-          throw UnimplementedError("todo"),
+        SendContext_Preflighted() => SendPaymentConfirmPage(sendCtx: sendCtx),
+        SendContext_NeedAmount() => SendPaymentAmountPage(sendCtx: sendCtx),
         SendContext() => SendPaymentNeedUriPage(sendCtx: sendCtx),
       },
     );
@@ -101,8 +97,20 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
     super.dispose();
   }
 
-  void onQrPressed() {
-    info("pressed QR button");
+  Future<void> onScanPressed() async {
+    info("pressed QR scan button");
+
+    final bool? flowResult =
+        await Navigator.of(this.context).push(MaterialPageRoute(
+      builder: (_context) => ScanPage(sendCtx: this.widget.sendCtx),
+    ));
+    if (!this.mounted) return;
+
+    // Successfully sent payment -- return result to parent page.
+    if (flowResult == true) {
+      // ignore: use_build_context_synchronously
+      await Navigator.of(this.context).maybePop(flowResult);
+    }
   }
 
   Future<void> onNext() async {
@@ -169,7 +177,7 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
         leading: const LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
         actions: [
           IconButton(
-            onPressed: this.onQrPressed,
+            onPressed: this.onScanPressed,
             icon: const Icon(LxIcons.scanDetailed),
           ),
           const SizedBox(width: Space.appBarTrailingPadding),
