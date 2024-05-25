@@ -27,7 +27,6 @@ import 'package:lexeapp/bindings_generated_api.dart'
         FiatRate,
         FiatRates,
         Invoice,
-        Network,
         NodeInfo,
         Onchain,
         PayOnchainRequest,
@@ -49,6 +48,7 @@ import 'package:lexeapp/components.dart'
         LxBackButton,
         LxFilledButton,
         LxOutlinedButton,
+        MultistepFlow,
         ScrollableSinglePageBody,
         SubheadingText;
 import 'package:lexeapp/date_format.dart' as date_format;
@@ -60,8 +60,7 @@ import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPageInner;
 import 'package:lexeapp/route/receive.dart'
     show LnInvoiceInputs, ReceivePaymentEditInvoicePage, ReceivePaymentPage;
 import 'package:lexeapp/route/scan.dart' show ScanPage;
-import 'package:lexeapp/route/send/page.dart'
-    show SendPaymentAmountPage, SendPaymentConfirmPage, SendPaymentPage;
+import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
     show
         PreflightedPayment_Onchain,
@@ -165,7 +164,6 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
 
   @override
   Widget build(BuildContext context) {
-    const network = Network.Regtest;
     final mockApp = MockAppHandle(bridge: api);
     const mockGDriveAuth = GDriveAuth.mock;
     final mockSignupApi = MockSignupApi(app: mockApp);
@@ -228,7 +226,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                       config: widget.config,
                     )),
             Component(
-              "SendPaymentPage",
+              "SendPaymentNeedUriPage",
               (context) => SendPaymentPage(
                 sendCtx: SendContext(
                   app: mockApp,
@@ -241,7 +239,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             Component(
               "SendPaymentAmountPage",
               subtitle: "onchain address-only",
-              (context) => SendPaymentAmountPage(
+              (context) => SendPaymentPage(
                 sendCtx: SendContext_NeedAmount(
                   app: mockApp,
                   configNetwork: widget.config.network,
@@ -256,8 +254,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
             Component(
               "SendPaymentConfirmPage",
-              subtitle: "exact amount onchain",
-              (context) => SendPaymentConfirmPage(
+              subtitle: "onchain",
+              (context) => SendPaymentPage(
                 sendCtx: SendContext_Preflighted(
                   app: mockApp,
                   configNetwork: widget.config.network,
@@ -265,9 +263,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                   cid: cid,
                   preflightedPayment: const PreflightedPayment_Onchain(
                     onchain: Onchain(
-                      address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
-                      amountSats: 2500,
-                    ),
+                        address: "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"),
                     preflight: feeEstimates,
                     amountSats: 2500,
                   ),
@@ -332,7 +328,19 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 triggerRefresh: () {},
               ),
             ),
-            Component("ScanPage", (_) => const ScanPage(network: network)),
+            Component(
+              "ScanPage",
+              (_) => MultistepFlow<bool?>(
+                builder: (_) => ScanPage(
+                  sendCtx: SendContext(
+                    app: mockApp,
+                    configNetwork: widget.config.network,
+                    balance: balance,
+                    cid: cid,
+                  ),
+                ),
+              ),
+            ),
             Component(
               "ShowQrPage",
               subtitle: "standard bip21",

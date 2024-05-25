@@ -3,29 +3,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart'
     show Code, FixedScannerOverlay, ReaderWidget;
-import 'package:lexeapp/bindings.dart' show api;
-import 'package:lexeapp/bindings_generated_api.dart'
-    show Network, PaymentMethod;
-// import 'package:lexeapp/bindings_generated_api_ext.dart' show PaymentMethodExt;
-
-import 'package:lexeapp/components.dart' show LxCloseButton;
+import 'package:lexeapp/components.dart'
+    show LxBackButton, LxCloseButton, LxCloseButtonKind;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
+import 'package:lexeapp/route/send/page.dart'
+    show SendPaymentAmountPage, SendPaymentConfirmPage;
+import 'package:lexeapp/route/send/state.dart'
+    show SendContext, SendContext_NeedAmount, SendContext_Preflighted;
 import 'package:lexeapp/style.dart' show LxColors, LxRadius, LxTheme, Space;
 
 class ScanPage extends StatefulWidget {
-  const ScanPage({super.key, required this.network});
+  const ScanPage({super.key, required this.sendCtx});
 
-  final Network network;
+  final SendContext sendCtx;
 
   @override
   State<ScanPage> createState() => _ScanPageState();
 }
 
 class _ScanPageState extends State<ScanPage> {
-  // TODO(phlip9): in the future, once resolving a code actually requires
-  // network requests, let's show a loading spinner when this is true.
-  bool isProcessing = false;
+  // TODO(phlip9): show a spinner while processing
+  ValueNotifier<bool> isProcessing = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    this.isProcessing.dispose();
+
+    super.dispose();
+  }
 
   Future<void> onScan(final Code code) async {
     final text = code.text;
@@ -35,53 +41,53 @@ class _ScanPageState extends State<ScanPage> {
     if (text == null) return;
 
     // Skip any new results if we're still processing a prev. scanned QR code.
-    if (this.isProcessing) return;
+    if (this.isProcessing.value) return;
 
-    this.isProcessing = true;
-    try {
-      info("Scanned code: \"$text\"");
+    // Start loading animation
+    this.isProcessing.value = true;
 
-      // Try to resolve the QR code into a single, "best" payment method. "Best"
-      // currently means just unconditionally prefer BOLT11 invoices, but should
-      // smarter in the future.
-      final result = await Result.tryFfiAsync(() => api.paymentUriResolveBest(
-            network: this.widget.network,
-            uriStr: text,
-          ));
+    // Try resolving the payment URI to a "best" payment method. Then try
+    // immediately preflighting it if it already has an associated amount.
+    final result = await this.widget.sendCtx.resolveAndMaybePreflight(text);
+    if (!this.mounted) return;
 
-      if (!this.mounted) return;
+    // Stop loading animation
+    this.isProcessing.value = false;
 
-      final PaymentMethod paymentMethod;
-      switch (result) {
-        case Ok(:final ok):
-          paymentMethod = ok;
-        case Err(:final err):
-          warn("Failed to resolve QR code: $err");
-          // TODO(phlip9): could probably use a better error display
+    // Check the results, or show an error on the page.
+    final SendContext_Preflighted? maybePreflighted;
+    final SendContext_NeedAmount elseNeedAmount;
+    switch (result) {
+      case Ok(:final ok):
+        maybePreflighted = ok.$1;
+        elseNeedAmount = ok.$2;
+      case Err(:final err):
+        // TODO(phlip9): could probably use a better error display
+        if (err != null) {
           ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
-            content: Text(err.message),
+            content: Text(err),
           ));
-          return;
-      }
+        }
+        return;
+    }
 
-      info("Scanned QR with best payment method: $paymentMethod");
+    // If we still need an amount, then we have to collect that first.
+    // Otherwise, a successful payment preflight means we can go directly to the
+    // confirm page.
+    final bool? flowResult =
+        await Navigator.of(this.context).push(MaterialPageRoute(
+      builder: (_) => (maybePreflighted != null)
+          ? SendPaymentConfirmPage(sendCtx: maybePreflighted)
+          : SendPaymentAmountPage(sendCtx: elseNeedAmount),
+    ));
 
-      // final int? amountSats = paymentMethod.amountSats();
-      //
-      // if (amountSats == null) {
-      //
-      // }
+    info("SendPaymentNeedUriPage: flow result: $flowResult, mounted: $mounted");
+    if (!this.mounted) return;
 
-      // if (amountSats == null) {
-      //
-      // }
-
-      // if the paymentMethod needs an amount, then jump to the
-      // `SendPaymentAmountPage`. otherwise, if the payment already has a fixed
-      // amount, we need to pre-flight the payment (look for LN route, estimate
-      // fees) and jump to the `SendPaymentConfirmPage`.
-    } finally {
-      this.isProcessing = false;
+    // Successfully sent payment -- return result to parent page.
+    if (flowResult == true) {
+      // ignore: use_build_context_synchronously
+      await Navigator.of(this.context).maybePop(flowResult);
     }
   }
 
@@ -97,7 +103,11 @@ class _ScanPageState extends State<ScanPage> {
 
         // X - quit scanning
         leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxCloseButton(),
+        leading: const LxBackButton(),
+        actions: const [
+          LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
+          SizedBox(width: Space.appBarTrailingPadding),
+        ],
 
         // * Make the top status bar transparent, so the whole screen includes
         //   the camera view.
