@@ -9,13 +9,13 @@ import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
-    show SendContext, SendContext_NeedUri;
+    show SendState, SendState_NeedUri;
 import 'package:lexeapp/style.dart' show LxColors, LxRadius, LxTheme, Space;
 
 class ScanPage extends StatefulWidget {
   const ScanPage({super.key, required this.sendCtx});
 
-  final SendContext_NeedUri sendCtx;
+  final SendState_NeedUri sendCtx;
 
   @override
   State<ScanPage> createState() => _ScanPageState();
@@ -54,7 +54,7 @@ class _ScanPageState extends State<ScanPage> {
     this.isProcessing.value = false;
 
     // Check the results, or show an error on the page.
-    final SendContext sendCtx;
+    final SendState sendCtx;
     switch (result) {
       case Ok(:final ok):
         sendCtx = ok;

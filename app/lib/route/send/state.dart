@@ -29,12 +29,12 @@ import 'package:lexeapp/result.dart';
 /// An enum containing all the different major states for the outbound send
 /// payment flow (see: `app/lib/route/send/page.dart`).
 @immutable
-sealed class SendContext {}
+sealed class SendState {}
 
 /// Initial state if we're just beginning a send flow with no extra user input.
 @immutable
-class SendContext_NeedUri implements SendContext {
-  const SendContext_NeedUri({
+class SendState_NeedUri implements SendState {
+  const SendState_NeedUri({
     required this.app,
     required this.configNetwork,
     required this.balance,
@@ -50,7 +50,7 @@ class SendContext_NeedUri implements SendContext {
   /// check that it's valid for our current network (mainnet, testnet, ...).
   /// Then, if the payment already has an amount attached, try to preflight it
   /// immediately.
-  Future<Result<SendContext, String?>> resolveAndMaybePreflight(
+  Future<Result<SendState, String?>> resolveAndMaybePreflight(
       String uriStr) async {
     // Try to parse and resolve the payment URI into a single "best" PaymentMethod.
     // TODO(phlip9): this API should return a bare error enum and flutter should
@@ -71,7 +71,7 @@ class SendContext_NeedUri implements SendContext {
     final uriStrShort = address_format.ellipsizeBtcAddress(uriStr);
     info("Resolved input '$uriStrShort' to payment method: $paymentMethod");
 
-    final needAmountSendCtx = SendContext_NeedAmount(
+    final needAmountSendCtx = SendState_NeedAmount(
       app: this.app,
       configNetwork: this.configNetwork,
       balance: this.balance,
@@ -98,8 +98,8 @@ class SendContext_NeedUri implements SendContext {
 /// State needed when we've resolved a "best" [PaymentMethod], but still need
 /// to collect an amount from the user.
 @immutable
-class SendContext_NeedAmount implements SendContext {
-  const SendContext_NeedAmount({
+class SendState_NeedAmount implements SendState {
+  const SendState_NeedAmount({
     required this.app,
     required this.configNetwork,
     required this.balance,
@@ -134,7 +134,7 @@ class SendContext_NeedAmount implements SendContext {
 
   /// Using the current [PaymentMethod], preflight the payment with the given
   /// amount.
-  Future<FfiResult<SendContext_Preflighted>> preflight(
+  Future<FfiResult<SendState_Preflighted>> preflight(
     final int amountSats,
   ) async {
     final paymentMethod = this.paymentMethod;
@@ -186,7 +186,7 @@ class SendContext_NeedAmount implements SendContext {
         throw UnimplementedError("BOLT12 offers not supported");
     }
 
-    return Ok(SendContext_Preflighted(
+    return Ok(SendState_Preflighted(
       app: this.app,
       configNetwork: this.configNetwork,
       balance: this.balance,
@@ -199,8 +199,8 @@ class SendContext_NeedAmount implements SendContext {
 /// State after we've successfully preflighted a payment and are just waiting
 /// for the user to confirm (and maybe tweak the note or fee priority).
 @immutable
-class SendContext_Preflighted implements SendContext {
-  const SendContext_Preflighted({
+class SendState_Preflighted implements SendState {
+  const SendState_Preflighted({
     required this.app,
     required this.configNetwork,
     required this.balance,

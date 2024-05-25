@@ -39,14 +39,14 @@ import 'package:lexeapp/route/send/state.dart'
         PreflightedPayment_Invoice,
         PreflightedPayment_Offer,
         PreflightedPayment_Onchain,
-        SendContext,
-        SendContext_NeedAmount,
-        SendContext_NeedUri,
-        SendContext_Preflighted;
+        SendState,
+        SendState_NeedAmount,
+        SendState_NeedUri,
+        SendState_Preflighted;
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// The entry point for the send payment flow. This will dispatch to the right
-/// initial screen depending on the [SendContext]. If [startNewFlow], then it
+/// initial screen depending on the [SendState]. If [startNewFlow], then it
 /// also sets up a new / [MultistepFlow] so navigation "close" will exit out of
 /// the whole flow.
 class SendPaymentPage extends StatelessWidget {
@@ -56,15 +56,15 @@ class SendPaymentPage extends StatelessWidget {
     required this.startNewFlow,
   });
 
-  final SendContext sendCtx;
+  final SendState sendCtx;
   final bool startNewFlow;
 
   Widget buildInnerSendPage() {
     final sendCtx = this.sendCtx;
     return switch (sendCtx) {
-      SendContext_Preflighted() => SendPaymentConfirmPage(sendCtx: sendCtx),
-      SendContext_NeedAmount() => SendPaymentAmountPage(sendCtx: sendCtx),
-      SendContext_NeedUri() => SendPaymentNeedUriPage(sendCtx: sendCtx),
+      SendState_Preflighted() => SendPaymentConfirmPage(sendCtx: sendCtx),
+      SendState_NeedAmount() => SendPaymentAmountPage(sendCtx: sendCtx),
+      SendState_NeedUri() => SendPaymentNeedUriPage(sendCtx: sendCtx),
     };
   }
 
@@ -83,7 +83,7 @@ class SendPaymentNeedUriPage extends StatefulWidget {
     required this.sendCtx,
   });
 
-  final SendContext_NeedUri sendCtx;
+  final SendState_NeedUri sendCtx;
 
   @override
   State<StatefulWidget> createState() => _SendPaymentNeedUriPageState();
@@ -144,7 +144,7 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
     this.isPending.value = false;
 
     // Check the results, or show an error on the page.
-    final SendContext sendCtx;
+    final SendState sendCtx;
     switch (result) {
       case Ok(:final ok):
         sendCtx = ok;
@@ -255,7 +255,7 @@ class SendPaymentAmountPage extends StatefulWidget {
     required this.sendCtx,
   });
 
-  final SendContext_NeedAmount sendCtx;
+  final SendState_NeedAmount sendCtx;
 
   @override
   State<SendPaymentAmountPage> createState() => _SendPaymentAmountPageState();
@@ -310,7 +310,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     this.estimatingFee.value = false;
 
     // Check if preflight was successful, or show an error message.
-    final SendContext_Preflighted nextSendCtx;
+    final SendState_Preflighted nextSendCtx;
     switch (result) {
       case Ok(:final ok):
         nextSendCtx = ok;
@@ -437,7 +437,7 @@ class SendPaymentConfirmPage extends StatefulWidget {
     required this.sendCtx,
   });
 
-  final SendContext_Preflighted sendCtx;
+  final SendState_Preflighted sendCtx;
 
   @override
   State<SendPaymentConfirmPage> createState() => _SendPaymentConfirmPageState();
