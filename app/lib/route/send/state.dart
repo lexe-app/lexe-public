@@ -26,10 +26,15 @@ import 'package:lexeapp/bindings_generated_api_ext.dart';
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
 
-/// Common context used during any step in the send payment flow.
+/// An enum containing all the different major states for the outbound send
+/// payment flow (see: `app/lib/route/send/page.dart`).
 @immutable
-class SendContext {
-  const SendContext({
+sealed class SendContext {}
+
+/// Initial state if we're just beginning a send flow with no extra user input.
+@immutable
+class SendContext_NeedUri implements SendContext {
+  const SendContext_NeedUri({
     required this.app,
     required this.configNetwork,
     required this.balance,
@@ -38,21 +43,15 @@ class SendContext {
 
   final AppHandle app;
   final Network configNetwork;
-
-  /// The current spendable wallet balance, for all payment methods
-  /// (LN, onchain).
   final Balance balance;
-
-  /// A unique, client-generated id for payment types (onchain send,
-  /// ln spontaneous send) that need an extra id for idempotency.
   final ClientPaymentId cid;
 
   /// Parse the payment URI (address, invoice, offer, BIP21, LN URI, ...) and
   /// check that it's valid for our current network (mainnet, testnet, ...).
   /// Then, if the payment already has an amount attached, try to preflight it
   /// immediately.
-  Future<Result<(SendContext_Preflighted?, SendContext_NeedAmount), String?>>
-      resolveAndMaybePreflight(String uriStr) async {
+  Future<Result<SendContext, String?>> resolveAndMaybePreflight(
+      String uriStr) async {
     // Try to parse and resolve the payment URI into a single "best" PaymentMethod.
     // TODO(phlip9): this API should return a bare error enum and flutter should
     // convert that to a human-readable error message (for translations).
@@ -83,40 +82,35 @@ class SendContext {
     // Try preflighting the payment if it already has an amount set.
     final int? maybePreflightableAmount =
         needAmountSendCtx.canPreflightImmediately();
-    final SendContext_Preflighted? preflightedSendCtx;
 
-    if (maybePreflightableAmount != null) {
-      final int amountSats = maybePreflightableAmount;
+    // Can't preflight yet, need user to enter amount.
+    if (maybePreflightableAmount == null) return Ok(needAmountSendCtx);
 
-      final result = await needAmountSendCtx.preflight(amountSats);
-
-      // Check if payment preflight was successful, or show an error message.
-      switch (result) {
-        case Ok(:final ok):
-          preflightedSendCtx = ok;
-        case Err(:final err):
-          error("Error preflighting payment: $err");
-          return Err(err.message);
-      }
-    } else {
-      preflightedSendCtx = null;
-    }
-
-    return Ok((preflightedSendCtx, needAmountSendCtx));
+    // Preflight payment
+    final int amountSats = maybePreflightableAmount;
+    return (await needAmountSendCtx.preflight(amountSats)).mapErr((err) {
+      error("Error preflighting payment: $err");
+      return err.message;
+    });
   }
 }
 
-/// Context needed when we're collecting an amount from the user for a potential
-/// [PaymentMethod].
+/// State needed when we've resolved a "best" [PaymentMethod], but still need
+/// to collect an amount from the user.
 @immutable
-class SendContext_NeedAmount extends SendContext {
+class SendContext_NeedAmount implements SendContext {
   const SendContext_NeedAmount({
-    required super.app,
-    required super.configNetwork,
-    required super.balance,
-    required super.cid,
+    required this.app,
+    required this.configNetwork,
+    required this.balance,
+    required this.cid,
     required this.paymentMethod,
   });
+
+  final AppHandle app;
+  final Network configNetwork;
+  final Balance balance;
+  final ClientPaymentId cid;
 
   /// The current payment method (onchain send, BOLT11 invoice send, BOLT12
   /// offer send) and associated details, like amount or description.
@@ -202,17 +196,22 @@ class SendContext_NeedAmount extends SendContext {
   }
 }
 
-/// Context after we've successfully preflighted a payment and are just waiting
+/// State after we've successfully preflighted a payment and are just waiting
 /// for the user to confirm (and maybe tweak the note or fee priority).
 @immutable
-class SendContext_Preflighted extends SendContext {
+class SendContext_Preflighted implements SendContext {
   const SendContext_Preflighted({
-    required super.app,
-    required super.configNetwork,
-    required super.balance,
-    required super.cid,
+    required this.app,
+    required this.configNetwork,
+    required this.balance,
+    required this.cid,
     required this.preflightedPayment,
   });
+
+  final AppHandle app;
+  final Network configNetwork;
+  final Balance balance;
+  final ClientPaymentId cid;
 
   final PreflightedPayment preflightedPayment;
 

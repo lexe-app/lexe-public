@@ -7,16 +7,15 @@ import 'package:lexeapp/components.dart'
     show LxBackButton, LxCloseButton, LxCloseButtonKind;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
-import 'package:lexeapp/route/send/page.dart'
-    show SendPaymentAmountPage, SendPaymentConfirmPage;
+import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
-    show SendContext, SendContext_NeedAmount, SendContext_Preflighted;
+    show SendContext, SendContext_NeedUri;
 import 'package:lexeapp/style.dart' show LxColors, LxRadius, LxTheme, Space;
 
 class ScanPage extends StatefulWidget {
   const ScanPage({super.key, required this.sendCtx});
 
-  final SendContext sendCtx;
+  final SendContext_NeedUri sendCtx;
 
   @override
   State<ScanPage> createState() => _ScanPageState();
@@ -55,12 +54,10 @@ class _ScanPageState extends State<ScanPage> {
     this.isProcessing.value = false;
 
     // Check the results, or show an error on the page.
-    final SendContext_Preflighted? maybePreflighted;
-    final SendContext_NeedAmount elseNeedAmount;
+    final SendContext sendCtx;
     switch (result) {
       case Ok(:final ok):
-        maybePreflighted = ok.$1;
-        elseNeedAmount = ok.$2;
+        sendCtx = ok;
       case Err(:final err):
         // TODO(phlip9): could probably use a better error display
         if (err != null) {
@@ -76,9 +73,7 @@ class _ScanPageState extends State<ScanPage> {
     // confirm page.
     final bool? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (_) => (maybePreflighted != null)
-          ? SendPaymentConfirmPage(sendCtx: maybePreflighted)
-          : SendPaymentAmountPage(sendCtx: elseNeedAmount),
+      builder: (_) => SendPaymentPage(sendCtx: sendCtx, startNewFlow: false),
     ));
 
     info("SendPaymentNeedUriPage: flow result: $flowResult, mounted: $mounted");

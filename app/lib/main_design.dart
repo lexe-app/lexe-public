@@ -64,8 +64,8 @@ import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
     show
         PreflightedPayment_Onchain,
-        SendContext,
         SendContext_NeedAmount,
+        SendContext_NeedUri,
         SendContext_Preflighted;
 import 'package:lexeapp/route/show_qr.dart' show ShowQrPage;
 import 'package:lexeapp/route/signup.dart'
@@ -228,7 +228,8 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             Component(
               "SendPaymentNeedUriPage",
               (context) => SendPaymentPage(
-                sendCtx: SendContext(
+                startNewFlow: true,
+                sendCtx: SendContext_NeedUri(
                   app: mockApp,
                   configNetwork: widget.config.network,
                   balance: balance,
@@ -240,6 +241,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "SendPaymentAmountPage",
               subtitle: "onchain address-only",
               (context) => SendPaymentPage(
+                startNewFlow: true,
                 sendCtx: SendContext_NeedAmount(
                   app: mockApp,
                   configNetwork: widget.config.network,
@@ -256,6 +258,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "SendPaymentConfirmPage",
               subtitle: "onchain",
               (context) => SendPaymentPage(
+                startNewFlow: true,
                 sendCtx: SendContext_Preflighted(
                   app: mockApp,
                   configNetwork: widget.config.network,
@@ -332,7 +335,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "ScanPage",
               (_) => MultistepFlow<bool?>(
                 builder: (_) => ScanPage(
-                  sendCtx: SendContext(
+                  sendCtx: SendContext_NeedUri(
                     app: mockApp,
                     configNetwork: widget.config.network,
                     balance: balance,
