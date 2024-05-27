@@ -438,13 +438,13 @@ class LxFilledButton extends StatelessWidget {
     this.icon,
     ButtonStyle? style,
   }) : this.style = ButtonStyle(
-          foregroundColor: MaterialStateProperty.resolveWith(
-            (states) => (!states.contains(MaterialState.disabled))
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => (!states.contains(WidgetState.disabled))
                 ? LxColors.grey1000
                 : null,
           ),
-          backgroundColor: MaterialStateProperty.resolveWith(
-            (states) => (!states.contains(MaterialState.disabled))
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => (!states.contains(WidgetState.disabled))
                 ? LxColors.moneyGoUp
                 : null,
           ),
@@ -458,17 +458,17 @@ class LxFilledButton extends StatelessWidget {
     this.icon,
     ButtonStyle? style,
   }) : this.style = ButtonStyle(
-          foregroundColor: MaterialStateProperty.resolveWith(
-            (states) => (!states.contains(MaterialState.disabled))
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => (!states.contains(WidgetState.disabled))
                 ? LxColors.background
                 : null,
           ),
-          backgroundColor: MaterialStateProperty.resolveWith(
-            (states) => (!states.contains(MaterialState.disabled))
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) => (!states.contains(WidgetState.disabled))
                 ? LxColors.foreground
                 : null,
           ),
-          overlayColor: const MaterialStatePropertyAll(LxColors.clearW200),
+          overlayColor: const WidgetStatePropertyAll(LxColors.clearW200),
         ).merge(style);
 
   final Widget? label;

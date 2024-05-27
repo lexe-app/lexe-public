@@ -305,7 +305,7 @@ class LandingButtons extends StatelessWidget {
         LxOutlinedButton(
           onTap: this.onRecoverPressed,
           style: ButtonStyle(
-            fixedSize: MaterialStateProperty.all(const Size(300.0, Space.s800)),
+            fixedSize: WidgetStateProperty.all(const Size(300.0, Space.s800)),
           ),
           label: const Text("I have a Lexe wallet"),
         ),
