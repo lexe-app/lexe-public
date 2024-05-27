@@ -173,9 +173,9 @@ final class LxTheme {
           // different button states (ex: normal, focused, disabled, hover, ...)
 
           // deemphasize disabled button border
-          side: MaterialStateProperty.resolveWith((Set<MaterialState> states) {
+          side: WidgetStateProperty.resolveWith((Set<WidgetState> states) {
             // disabled => deemphasized border
-            if (states.contains(MaterialState.disabled)) {
+            if (states.contains(WidgetState.disabled)) {
               return const BorderSide(color: LxColors.fgTertiary, width: 2.0);
             }
             // normal
@@ -201,8 +201,8 @@ final class LxTheme {
 
       // [Radio] button
       radioTheme: RadioThemeData(
-        fillColor: MaterialStateProperty.resolveWith((states) =>
-            (states.contains(MaterialState.disabled))
+        fillColor: WidgetStateProperty.resolveWith((states) =>
+            (states.contains(WidgetState.disabled))
                 ? LxColors.fgTertiary
                 : LxColors.foreground),
       ),
