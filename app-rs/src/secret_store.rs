@@ -18,7 +18,6 @@ use std::{
     io,
     path::{Path, PathBuf},
     str::FromStr,
-    sync::Mutex,
 };
 
 use anyhow::Context;
@@ -30,7 +29,7 @@ use secrecy::ExposeSecret;
 use crate::app::{AppConfig, BuildFlavor};
 
 pub struct SecretStore {
-    root_seed_entry: Mutex<keyring::Entry>,
+    root_seed_cred: Box<dyn CredentialApi + Send + Sync>,
 }
 
 impl SecretStore {
@@ -42,7 +41,7 @@ impl SecretStore {
     /// Create a new `SecretStore`.
     ///
     /// For all platforms except Android, this will use the user's OS-provided
-    /// keyring. Android will just store secrets in the app's internal data
+    /// keychain. Android will just store secrets in the app's internal data
     /// directory. See module comments for more details.
     pub fn new(config: &AppConfig) -> Self {
         if config.use_mock_secret_store {
@@ -51,26 +50,43 @@ impl SecretStore {
         }
 
         cfg_if! {
-            if #[cfg(not(target_os = "android"))] {
-                Self::keyring(config.build_flavor())
-            } else {
+            if #[cfg(target_os = "android")] {
                 Self::file(&config.app_data_dir)
+            } else {
+                Self::keychain(config.build_flavor())
             }
         }
     }
 
     /// A secret store that uses the system keychain.
-    #[cfg_attr(target_os = "android", allow(dead_code))]
-    fn keyring(build: BuildFlavor) -> Self {
+    #[cfg(not(target_os = "android"))]
+    fn keychain(build: BuildFlavor) -> Self {
         let service = Self::service_name(build);
-        Self::keyring_inner(&service)
+
+        Self::keychain_inner(&service)
     }
 
-    #[cfg_attr(target_os = "android", allow(dead_code))]
-    fn keyring_inner(service: &str) -> Self {
-        let entry = keyring::Entry::new(service, "root_seed.hex").unwrap();
-        Self {
-            root_seed_entry: Mutex::new(entry),
+    #[cfg(not(target_os = "android"))]
+    fn keychain_inner(service: &str) -> Self {
+        let target = None;
+        let user = "root_seed.hex";
+
+        cfg_if! {
+            if #[cfg(target_os = "ios")] {
+                Self {
+                    root_seed_cred: Box::new(keyring::ios::IosCredential::new_with_target(target, service, user).unwrap()),
+                }
+            } else if #[cfg(target_os = "macos")] {
+                Self {
+                    root_seed_cred: Box::new(keyring::macos::MacCredential::new_with_target(target, service, user).unwrap()),
+                }
+            } else if #[cfg(target_os = "linux")] {
+                Self {
+                    root_seed_cred: Box::new(keyring::secret_service::SsCredential::new_with_target(target, service, user).unwrap()),
+                }
+            } else {
+                compile_error!("Configure a keychain backend for this OS")
+            }
         }
     }
 
@@ -78,11 +94,10 @@ impl SecretStore {
     /// directory. Currently only used on Android.
     #[cfg_attr(not(target_os = "android"), allow(dead_code))]
     fn file(app_data_dir: &Path) -> Self {
-        let credential =
-            Box::new(FileCredential::new(app_data_dir.join("root_seed.hex")));
-        let entry = keyring::Entry::new_with_credential(credential);
         Self {
-            root_seed_entry: Mutex::new(entry),
+            root_seed_cred: Box::new(FileCredential::new(
+                app_data_dir.join("root_seed.hex"),
+            )),
         }
     }
 
@@ -90,12 +105,10 @@ impl SecretStore {
     /// persist them.
     #[allow(unused)] // Not used, but leaving around in case it is useful later
     fn mock() -> Self {
-        let mock = keyring::mock::MockCredentialBuilder {}
-            .build(None, "mock", "root_seed.hex")
-            .unwrap();
-        let entry = keyring::Entry::new_with_credential(mock);
         Self {
-            root_seed_entry: Mutex::new(entry),
+            root_seed_cred: keyring::mock::MockCredentialBuilder {}
+                .build(None, "mock", "root_seed.hex")
+                .unwrap(),
         }
     }
 
@@ -106,7 +119,7 @@ impl SecretStore {
     }
 
     pub fn read_root_seed(&self) -> anyhow::Result<Option<RootSeed>> {
-        let res = self.root_seed_entry.lock().unwrap().get_password();
+        let res = self.root_seed_cred.get_password();
         match res {
             Ok(s) => {
                 let root_seed = RootSeed::from_str(&s).context(
@@ -122,17 +135,13 @@ impl SecretStore {
 
     pub fn write_root_seed(&self, root_seed: &RootSeed) -> anyhow::Result<()> {
         let root_seed_hex = hex::encode(root_seed.expose_secret().as_slice());
-        self.root_seed_entry
-            .lock()
-            .unwrap()
+        self.root_seed_cred
             .set_password(&root_seed_hex)
             .context("Failed to write root seed into keyring")
     }
 
     pub fn delete_root_seed(&self) -> anyhow::Result<()> {
-        self.root_seed_entry
-            .lock()
-            .unwrap()
+        self.root_seed_cred
             .delete_password()
             .context("Failed to delete root seed from keyring")
     }
@@ -211,13 +220,18 @@ mod test {
     fn test_keyring_store() {
         use std::ffi::OsStr;
 
-        use common::rng::RngExt;
-
         // SKIP this test in CI, since the Github CI instance is headless and/or
         // doesn't give us access to the gnome keyring.
         if std::env::var_os("LEXE_CI").as_deref() == Some(OsStr::new("1")) {
             return;
         }
+
+        test_keyring_secret_store_inner();
+    }
+
+    #[cfg(not(any(target_os = "android", target_os = "linux")))]
+    fn test_keyring_secret_store_inner() {
+        use common::rng::RngExt;
 
         let mut rng = SysRng::new();
         let dummy_id = rng.gen_u64();
@@ -225,7 +239,7 @@ mod test {
         // use a dummy service name to be absolutely sure we don't clobber any
         // existing keyring entry.
         let dummy_service = format!("lexe.dummy.{:08x}", dummy_id);
-        let secret_store = SecretStore::keyring_inner(&dummy_service);
+        let secret_store = SecretStore::keychain_inner(&dummy_service);
         test_secret_store(&mut rng, &secret_store);
     }
 
