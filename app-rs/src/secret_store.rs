@@ -16,8 +16,10 @@
 //!
 //! [`RootSeed`]: common::root_seed::RootSeed
 
+#[cfg(unix)]
+use std::os::unix::fs::OpenOptionsExt;
 use std::{
-    io,
+    io::{self, Write},
     path::{Path, PathBuf},
     str::FromStr,
     thread,
@@ -177,7 +179,15 @@ impl CredentialApi for FileCredential {
             std::fs::create_dir_all(parent).map_err(io_err_to_keyring_err)?;
         }
 
-        std::fs::write(&self.path, password.as_bytes())
+        let mut opts = std::fs::OpenOptions::new();
+        opts.write(true).create(true).truncate(true);
+
+        // Set the file permissions to rw------- (owner r/w only)
+        #[cfg(unix)]
+        opts.mode(0o600);
+
+        opts.open(self.path.as_path())
+            .and_then(|mut file| file.write_all(password.as_bytes()))
             .map_err(io_err_to_keyring_err)
     }
 
