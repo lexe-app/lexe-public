@@ -4,8 +4,10 @@
 //! Uses [`hwchen/keychain-rs`](https://github.com/hwchen/keyring-rs) for all
 //! platforms except Android.
 //!
-//! * **Linux:** uses the desktop secret-service via dbus.
-//! * **macOS+iOS:** uses Keychain
+//! * **Linux:** uses the desktop secret-service via dbus. If you're on
+//!   Ubuntu/Pop!_OS/some Gnome distro, then you can inspect the secrets with
+//!   `seahorse`.
+//! * **macOS+iOS:** uses Keychain.app
 //! * **Windows:** uses wincreds
 //! * **Android:** stores it in a file in the app data directory (accessing the
 //!   JVM-only [`Android Keystore`](https://developer.android.com/training/articles/keystore)
@@ -18,6 +20,7 @@ use std::{
     io,
     path::{Path, PathBuf},
     str::FromStr,
+    thread,
 };
 
 use anyhow::Context;
@@ -82,7 +85,7 @@ impl SecretStore {
                 }
             } else if #[cfg(target_os = "linux")] {
                 Self {
-                    root_seed_cred: Box::new(keyring::secret_service::SsCredential::new_with_target(target, service, user).unwrap()),
+                    root_seed_cred: Box::new(ThreadKeyringCredential(Box::new(keyring::secret_service::SsCredential::new_with_target(target, service, user).unwrap()))),
                 }
             } else {
                 compile_error!("Configure a keychain backend for this OS")
@@ -193,6 +196,46 @@ impl CredentialApi for FileCredential {
     }
 }
 
+/// A small shim around a [`keyring::Credential`] that does each operation
+/// inside a newly spawned thread.
+///
+/// This exists just to support Linux, whose `keyring::secret_store` impl uses
+/// a tokio `block_on` somewhere inside. Since we normally call the
+/// `SecretStore` from async code, this will panic without this. Running all
+/// keyring ops from inside their own temporary thread solves the issue.
+#[cfg_attr(target_os = "android", allow(dead_code))]
+struct ThreadKeyringCredential(Box<dyn CredentialApi + Send + Sync>);
+
+impl ThreadKeyringCredential {
+    #[cfg_attr(target_os = "android", allow(dead_code))]
+    fn thread_op<F, R>(f: F) -> R
+    where
+        F: FnOnce() -> R,
+        F: Send,
+        R: Send,
+    {
+        thread::scope(|s| s.spawn(f).join().expect("Thread panicked"))
+    }
+}
+
+impl CredentialApi for ThreadKeyringCredential {
+    fn set_password(&self, password: &str) -> keyring::Result<()> {
+        Self::thread_op(|| self.0.set_password(password))
+    }
+
+    fn get_password(&self) -> keyring::Result<String> {
+        Self::thread_op(|| self.0.get_password())
+    }
+
+    fn delete_password(&self) -> keyring::Result<()> {
+        Self::thread_op(|| self.0.delete_password())
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
 #[cfg(test)]
 mod test {
     use common::rng::SysRng;
@@ -229,7 +272,20 @@ mod test {
         test_keyring_secret_store_inner();
     }
 
-    #[cfg(not(any(target_os = "android", target_os = "linux")))]
+    // `cargo test -p app-rs -- test_keyring_store_linux --ignored`
+    //
+    // NOTE: don't remove this async. The linux keyring-rs backend does a
+    // `block_on` "under-the-hood" and running this test in an async block
+    // ensures we can call it like we normally do (that is, inside an outer
+    // `block_on`).
+    #[cfg(not(target_os = "android"))]
+    #[tokio::test]
+    #[ignore]
+    async fn test_keyring_store_linux() {
+        test_keyring_secret_store_inner();
+    }
+
+    #[cfg(not(target_os = "android"))]
     fn test_keyring_secret_store_inner() {
         use common::rng::RngExt;
 
