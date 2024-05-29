@@ -91,6 +91,13 @@ set_target_properties(${BINARY_NAME}
 # them to the application.
 include(flutter/generated_plugins.cmake)
 
+# ### LEXE
+#
+# This little script effectively calls `cargo build -p app-rs` on every build.
+# It builds the `app-rs` crate as a shared lib (`libapp_rs.so`) and tells cmake
+# to link and bundle it with the flutter app binary.
+#
+include(cargo-build.cmake)
 
 # === Installation ===
 # By default, "installing" just makes a relocatable bundle in the build
