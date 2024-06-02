@@ -36,7 +36,6 @@ use common::{
     },
     cli::node::ProvisionArgs,
     enclave::{self, MachineId, Measurement},
-    env::DeployEnv,
     net,
     rng::{Crng, SysRng},
     shutdown::ShutdownChannel,
@@ -54,7 +53,6 @@ use crate::{
 struct RequestContext {
     args: Arc<ProvisionArgs>,
     client: gdrive::ReqwestClient,
-    untrusted_deploy_env: DeployEnv,
     machine_id: MachineId,
     measurement: Measurement,
     backend_client: Arc<BackendClient>,
@@ -99,7 +97,6 @@ pub async fn provision_node(
     let ctx = RequestContext {
         args: args.clone(),
         client,
-        untrusted_deploy_env: args.untrusted_deploy_env,
         machine_id,
         measurement,
         backend_client: Arc::new(backend_client),
@@ -211,13 +208,18 @@ mod handlers {
     ) -> Result<LxJson<Empty>, NodeApiError> {
         debug!("Received provision request");
 
-        if ctx.untrusted_deploy_env != req.deploy_env {
-            // Benign error but we should quit just in case. Lexe could be under
-            // attack, but it's more likely the client was just misconfigured.
+        // Sanity check with no meaningful security; an attacker with cloud
+        // access can still set the deploy env or network to whatever they need.
+        if ctx.args.untrusted_deploy_env != req.deploy_env
+            || ctx.args.untrusted_network != req.network
+        {
             let req_env = req.deploy_env;
-            let arg_env = ctx.untrusted_deploy_env;
+            let req_net = req.deploy_env;
+            let ctx_env = ctx.args.untrusted_deploy_env;
+            let ctx_net = ctx.args.untrusted_deploy_env;
             return Err(NodeApiError::provision(format!(
-                "Non-matching deploy envs: request {req_env}, args {arg_env}"
+                "Probable configuration error, client and node don't agree on current env: \
+                 client: ({req_env}, {req_net}), node: ({ctx_env}, {ctx_net})"
             )));
         }
 
