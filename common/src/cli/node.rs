@@ -133,6 +133,10 @@ pub struct ProvisionArgs {
     /// The current deploy environment passed to us by Lexe (or someone in
     /// Lexe's cloud). This input should be treated as untrusted.
     pub untrusted_deploy_env: DeployEnv,
+
+    /// The current deploy network passed to us by Lexe (or someone in
+    /// Lexe's cloud). This input should be treated as untrusted.
+    pub untrusted_network: Network,
 }
 
 #[cfg(any(test, feature = "test-utils"))]
@@ -144,6 +148,7 @@ impl Default for ProvisionArgs {
             runner_url: DUMMY_RUNNER_URL.to_owned(),
             oauth: None,
             untrusted_deploy_env: DeployEnv::Dev,
+            untrusted_network: Network::REGTEST,
         }
     }
 }
