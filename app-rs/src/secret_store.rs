@@ -213,11 +213,11 @@ impl CredentialApi for FileCredential {
 /// a tokio `block_on` somewhere inside. Since we normally call the
 /// `SecretStore` from async code, this will panic without this. Running all
 /// keyring ops from inside their own temporary thread solves the issue.
-#[cfg_attr(target_os = "android", allow(dead_code))]
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 struct ThreadKeyringCredential(Box<dyn CredentialApi + Send + Sync>);
 
 impl ThreadKeyringCredential {
-    #[cfg_attr(target_os = "android", allow(dead_code))]
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     fn thread_op<F, R>(f: F) -> R
     where
         F: FnOnce() -> R,
