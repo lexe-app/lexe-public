@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart'
-    show Code, FixedScannerOverlay, ReaderWidget;
+    show Code, FixedScannerOverlay, Format, ReaderWidget;
 import 'package:lexeapp/components.dart'
     show LxBackButton, LxCloseButton, LxCloseButtonKind;
 import 'package:lexeapp/logger.dart';
@@ -118,15 +118,21 @@ class _ScanPageState extends State<ScanPage> {
       // We're waiting on the flutter `camera` pkg to support desktop OS's.
       body: ReaderWidget(
         onScan: this.onScan,
+
+        // Bottom "action" buttons, like "open from gallery".
         showFlashlight: false,
         showToggleCamera: false,
         cropPercent: 0.50,
         actionButtonsAlignment: Alignment.bottomCenter,
         actionButtonsPadding: const EdgeInsets.all(Space.s600),
+
+        // Show this while the camera is still loading.
         loading: const DecoratedBox(
           decoration: BoxDecoration(color: LxColors.foreground),
           child: Center(),
         ),
+
+        // The partially transparent overlay outside of the main scan region.
         scannerOverlay: const FixedScannerOverlay(
           borderColor: LxColors.grey975,
           // grey900 x clear700
@@ -136,6 +142,10 @@ class _ScanPageState extends State<ScanPage> {
           borderWidth: 8.0,
           cutOutSize: 240.0,
         ),
+
+        // Code scanner parameters
+        // Only scan QR codes -- this makes scanning faster than `Format.any`.
+        codeFormat: Format.qrCode,
       ),
     );
   }
