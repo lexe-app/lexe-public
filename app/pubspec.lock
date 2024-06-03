@@ -387,12 +387,11 @@ packages:
   flutter_zxing:
     dependency: "direct main"
     description:
-      path: "."
-      ref: fix_ffi_bugs_plus_gitdep_hack
-      resolved-ref: "9f4ee3d6251aefb5ce7566e7a2d0c02d71605b92"
-      url: "https://github.com/phlip9/flutter_zxing.git"
-    source: git
-    version: "1.5.2"
+      name: flutter_zxing
+      sha256: "39129e121e471f04fb6cfa11a9cdf45e990b8cc0346ab3d1fae49930871ff922"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.6.1"
   freezed:
     dependency: "direct dev"
     description:
@@ -1063,5 +1062,5 @@ packages:
     source: hosted
     version: "2.2.0"
 sdks:
-  dart: ">=3.3.0 <4.0.0"
-  flutter: ">=3.19.0"
+  dart: ">=3.4.1 <4.0.0"
+  flutter: ">=3.22.1"
