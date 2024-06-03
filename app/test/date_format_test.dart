@@ -63,7 +63,7 @@ void main() {
     expect(date_format.formatDate(now: now, then: jun16, locale: "en_US"),
         "Jun 16");
     expect(date_format.formatDate(now: now, then: jun16, locale: "nb"),
-        "16. jun.");
+        "16. juni");
     expect(
         date_format.formatDate(now: now, then: jun16, locale: "fr"), "16 juin");
 
@@ -158,7 +158,7 @@ void main() {
         date_format.formatDateCompact(now: now, then: jun16, locale: "en_US"),
         "Jun 16");
     expect(date_format.formatDateCompact(now: now, then: jun16, locale: "nb"),
-        "16. jun.");
+        "16. juni");
     expect(date_format.formatDateCompact(now: now, then: jun16, locale: "fr"),
         "16 juin");
 

@@ -47,9 +47,10 @@ dependencies:
   flutter:
     sdk: flutter
 
+  flutter_markdown: ^0.7.1
+
   # The high-level memory safe interface for generated Rust<->dart ffi bindings.
-  flutter_markdown: ^0.6.22+1
-  flutter_rust_bridge: ^1.82.5
+  flutter_rust_bridge: 1.82.6
 
   # QR code scanning
   # NOTE: I tried `mobile_scanner`, but that adds a ton of closed source, MLKit
@@ -61,7 +62,7 @@ dependencies:
 
   # International number, currency, and date formatting
   google_sign_in: ^6.2.1
-  intl: ^0.18.1
+  intl: ^0.19.0
 
   # Use up-to-date Material 3 icons
   # TODO(phlip9): before release, build explicit icon set.
@@ -91,7 +92,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^3.0.1
+  flutter_lints: ^4.0.0
 
   flutter_test:
     sdk: flutter

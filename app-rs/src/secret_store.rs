@@ -216,8 +216,8 @@ impl CredentialApi for FileCredential {
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 struct ThreadKeyringCredential(Box<dyn CredentialApi + Send + Sync>);
 
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 impl ThreadKeyringCredential {
-    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     fn thread_op<F, R>(f: F) -> R
     where
         F: FnOnce() -> R,
@@ -228,6 +228,7 @@ impl ThreadKeyringCredential {
     }
 }
 
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 impl CredentialApi for ThreadKeyringCredential {
     fn set_password(&self, password: &str) -> keyring::Result<()> {
         Self::thread_op(|| self.0.set_password(password))
