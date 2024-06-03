@@ -104,7 +104,7 @@ pub(super) async fn pay_onchain(
 
 pub(super) async fn preflight_pay_onchain(
     State(state): State<Arc<AppRouterState>>,
-    LxQuery(req): LxQuery<PreflightPayOnchainRequest>,
+    LxJson(req): LxJson<PreflightPayOnchainRequest>,
 ) -> Result<LxJson<PreflightPayOnchainResponse>, NodeApiError> {
     lexe_ln::command::preflight_pay_onchain(req, state.wallet.clone())
         .await

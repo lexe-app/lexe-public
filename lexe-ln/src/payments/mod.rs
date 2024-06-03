@@ -524,7 +524,7 @@ impl OnchainSendStatus {
 impl OnchainReceiveStatus {
     pub fn as_str(&self) -> &str {
         match self {
-            Self::Zeroconf => "zeroconf",
+            Self::Zeroconf => "in mempool awaiting confirmations",
             Self::PartiallyConfirmed =>
                 "partially confirmed (1-5 confirmations)",
             Self::PartiallyReplaced =>
