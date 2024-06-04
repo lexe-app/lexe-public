@@ -12,6 +12,8 @@ use lightning::chain::chaininterface::ConfirmationTarget;
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
+/// `LxSocketAddress`
+pub mod addr;
 /// `Amount`.
 pub mod amount;
 /// `AmountOrAll`.
