@@ -6,6 +6,11 @@ use std::{
 
 use anyhow::{ensure, Context};
 use lightning::util::ser::Hostname;
+#[cfg(any(test, feature = "test-utils"))]
+use proptest_derive::Arbitrary;
+
+#[cfg(any(test, feature = "test-utils"))]
+use crate::test_utils::arbitrary;
 
 /// `LxSocketAddress` represents an internet address of a remote lightning
 /// network peer.
@@ -15,10 +20,34 @@ use lightning::util::ser::Hostname;
 /// addresses since we don't currently support TOR. It also has a well-defined
 /// human-readable serialization format, unlike the LDK type.
 #[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum LxSocketAddress {
-    TcpIp4 { ip: Ipv4Addr, port: u16 },
-    TcpIp6 { ip: Ipv6Addr, port: u16 },
-    TcpDns { hostname: Hostname, port: u16 },
+    TcpIp4 {
+        #[cfg_attr(
+            any(test, feature = "test-utils"),
+            proptest(strategy = "arbitrary::any_ipv4_addr()")
+        )]
+        ip: Ipv4Addr,
+        port: u16,
+    },
+
+    TcpIp6 {
+        #[cfg_attr(
+            any(test, feature = "test-utils"),
+            proptest(strategy = "arbitrary::any_ipv6_addr()")
+        )]
+        ip: Ipv6Addr,
+        port: u16,
+    },
+
+    TcpDns {
+        #[cfg_attr(
+            any(test, feature = "test-utils"),
+            proptest(strategy = "arbitrary::any_hostname()")
+        )]
+        hostname: Hostname,
+        port: u16,
+    },
     // Intentionally left out: OnionV2, OnionV3
     // We don't support TOR connections atm.
 }
@@ -56,7 +85,7 @@ impl FromStr for LxSocketAddress {
 
         let first_byte = s.as_bytes()[0];
 
-        // IPv6 socket addr always starts with '['
+        // IPv6 socket addr format always starts with '['.
         if first_byte == b'[' {
             // Reuse the SocketAddrV6 parser, but make sure we reject any inputs
             // with extra scope_id or flowinfo.
@@ -74,12 +103,12 @@ impl FromStr for LxSocketAddress {
             return Err(anyhow::format_err!("hostname can't be empty"));
         }
 
-        // Try parsing as IPv4
+        // Try parsing as an IPv4 address.
         if let Ok(ip4) = Ipv4Addr::from_str(prefix) {
             return Ok(LxSocketAddress::TcpIp4 { ip: ip4, port });
         }
 
-        // Try parsing the prefix as a hostname / dns name
+        // Try parsing as a hostname / dns name.
         if let Ok(hostname) = Hostname::try_from(prefix.to_owned()) {
             return Ok(Self::TcpDns { hostname, port });
         }
@@ -104,6 +133,7 @@ impl Display for LxSocketAddress {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::test_utils::roundtrip;
 
     #[test]
     fn test_basic() {
@@ -141,5 +171,10 @@ mod test {
                 port: 9735
             },
         );
+    }
+
+    #[test]
+    fn test_roundtrip() {
+        roundtrip::fromstr_display_roundtrip_proptest::<LxSocketAddress>();
     }
 }

@@ -1,5 +1,6 @@
 use std::{
     net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
+    ops::RangeInclusive,
     time::Duration,
 };
 
@@ -12,9 +13,12 @@ use bitcoin::{
     Transaction, TxIn, TxOut, Txid, Witness,
 };
 use chrono::Utc;
-use lightning::routing::{
-    gossip::RoutingFees,
-    router::{RouteHint, RouteHintHop},
+use lightning::{
+    routing::{
+        gossip::RoutingFees,
+        router::{RouteHint, RouteHintHop},
+    },
+    util::ser::Hostname,
 };
 use lightning_invoice::Fallback;
 use proptest::{
@@ -74,10 +78,11 @@ pub fn any_option_string() -> impl Strategy<Value = Option<String>> {
 /// A strategy for simple (i.e. alphanumeric) strings, useful when the contents
 /// of a [`String`] aren't the interesting thing to test.
 pub fn any_simple_string() -> impl Strategy<Value = String> {
-    let any_alphanumeric_char =
-        proptest::char::ranges(vec!['a'..='z', 'A'..='Z', '0'..='9'].into());
+    static RANGES: &[RangeInclusive<char>] = &['0'..='9', 'A'..='Z', 'a'..='z'];
 
-    proptest::collection::vec(any_alphanumeric_char, 0..256)
+    let any_alphanum_char = proptest::char::ranges(RANGES.into());
+
+    proptest::collection::vec(any_alphanum_char, 0..256)
         .prop_map(String::from_iter)
 }
 
@@ -86,6 +91,34 @@ pub fn any_simple_string() -> impl Strategy<Value = String> {
 /// The option has a 50% probability of being [`Some`].
 pub fn any_option_simple_string() -> impl Strategy<Value = Option<String>> {
     proptest::option::of(any_simple_string())
+}
+
+/// An `Arbitrary`-like [`Strategy`] for LDK's [`Hostname`] type. `Hostname` is
+/// just a DNS-like string with 1..=255 alphanumeric + '-' + '.' chars.
+pub fn any_hostname() -> impl Strategy<Value = Hostname> {
+    static RANGES: &[RangeInclusive<char>; 4] = &[
+        '0'..='9',
+        'A'..='Z',
+        'a'..='z',
+        // This range conveniently contains only these two chars.
+        '-'..='.',
+    ];
+
+    let any_valid_char = proptest::char::ranges(RANGES.into());
+
+    proptest::collection::vec(any_valid_char, 1..256)
+        .prop_map(String::from_iter)
+        .prop_map(|s| Hostname::try_from(s).unwrap())
+}
+
+/// An `Arbitrary`-like [`Strategy`] for [`Ipv4Addr`] that works in SGX.
+pub fn any_ipv4_addr() -> impl Strategy<Value = Ipv4Addr> {
+    any::<[u8; 4]>().prop_map(Ipv4Addr::from)
+}
+
+/// An `Arbitrary`-like [`Strategy`] for [`Ipv6Addr`] that works in SGX.
+pub fn any_ipv6_addr() -> impl Strategy<Value = Ipv6Addr> {
+    any::<[u8; 16]>().prop_map(Ipv6Addr::from)
 }
 
 /// An `Arbitrary`-like [`Strategy`] for [`SocketAddr`]s which are guaranteed to
@@ -98,8 +131,8 @@ pub fn any_option_simple_string() -> impl Strategy<Value = Option<String>> {
 pub fn any_socket_addr() -> impl Strategy<Value = SocketAddr> {
     // We don't use `any::<SocketAddr>().prop_map(...)` because
     // `any::<SocketAddr>()` is not available inside SGX.
-    let any_ipv4 = any::<[u8; 4]>().prop_map(Ipv4Addr::from);
-    let any_ipv6 = any::<[u8; 16]>().prop_map(Ipv6Addr::from);
+    let any_ipv4 = any_ipv4_addr();
+    let any_ipv6 = any_ipv6_addr();
     let any_port = any::<u16>();
     let flowinfo = 0;
     let any_scope_id = any::<u32>();
