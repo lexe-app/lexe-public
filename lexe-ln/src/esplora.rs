@@ -122,9 +122,9 @@ impl LexeEsplora {
         let client = AsyncClient::from_client(esplora_url, reqwest_client);
 
         // Initialize the fee rate estimates to some sane default values
-        let high_prio_fees = AtomicU32::new(5000);
-        let normal_fees = AtomicU32::new(2000);
-        let background_fees = AtomicU32::new(500);
+        let high_prio_fees = AtomicU32::new(13_000); // 13 sat/vB
+        let normal_fees = AtomicU32::new(6_000); // 6 sat/vB
+        let background_fees = AtomicU32::new(1_000); // 1 sat/vB
         let mempool_minimum_fees = AtomicU32::new(FEERATE_FLOOR_SATS_PER_KW);
 
         // Instantiate
