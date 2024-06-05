@@ -1,42 +1,35 @@
 use std::{
     fmt::{self, Display},
-    net::SocketAddr,
     str::FromStr,
 };
 
-use anyhow::{bail, Context};
+use anyhow::Context;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
 
-use crate::api::NodePk;
-#[cfg(test)]
-use crate::test_utils::arbitrary;
+use crate::{api::NodePk, ln::addr::LxSocketAddress};
 
-#[derive(Clone, Debug, Hash, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct ChannelPeer {
     pub node_pk: NodePk,
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_socket_addr()"))]
-    pub addr: SocketAddr,
+    pub addr: LxSocketAddress,
 }
 
 /// `<node_pk>@<addr>`
 impl FromStr for ChannelPeer {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> anyhow::Result<Self> {
-        // vec![<node_pk>, <addr>]
-        let mut parts = s.split('@');
-        let (pk_str, addr_str) =
-            match (parts.next(), parts.next(), parts.next()) {
-                (Some(pk_str), Some(addr_str), None) => (pk_str, addr_str),
-                _ => bail!("Should be in format <node_pk>@<socket_addr>"),
-            };
+        let (node_pk_str, addr_str) = s
+            .split_once('@')
+            .context("no '@' separator. missing socket addr or node pk.")?;
 
         let node_pk =
-            NodePk::from_str(pk_str).context("Invalid node public key")?;
-        let addr =
-            SocketAddr::from_str(addr_str).context("Invalid socket address")?;
+            NodePk::from_str(node_pk_str).context("Invalid node public key")?;
+        let addr = LxSocketAddress::from_str(addr_str)
+            .context("Invalid socket address")?;
 
         Ok(Self { node_pk, addr })
     }
@@ -57,7 +50,41 @@ mod test {
     use crate::test_utils::roundtrip;
 
     #[test]
-    fn channel_peer_roundtrip() {
+    fn test_basic() {
+        let assert_fromstr = |s| ChannelPeer::from_str(s).unwrap();
+        let assert_json = |s| serde_json::from_str::<ChannelPeer>(s).unwrap();
+
+        assert_fromstr("024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8@1.2.3.4:5050");
+        assert_fromstr("024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8@[2600:1700::a2c2:d3f1]:5050");
+        assert_fromstr("024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8@lsp.lexe.app:5050");
+
+        assert_json(
+            r#"{
+                "node_pk": "024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8",
+                "addr": "1.2.3.4:5050"
+            }"#,
+        );
+        assert_json(
+            r#"{
+                "node_pk": "024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8",
+                "addr": "[2600:1700::a2c2:d3f1]:5050"
+            }"#,
+        );
+        assert_json(
+            r#"{
+                "node_pk": "024900c3a10f2daa08d178a6edb10fc3caa7b53d0ea00346bce38ba90d085caae8",
+                "addr": "lsp.lexe.app:5050"
+            }"#,
+        );
+    }
+
+    #[test]
+    fn test_from_str_roundtrip() {
         roundtrip::fromstr_display_roundtrip_proptest::<ChannelPeer>();
+    }
+
+    #[test]
+    fn test_json_roundtrip() {
+        roundtrip::json_string_roundtrip_proptest::<ChannelPeer>();
     }
 }

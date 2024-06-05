@@ -1,13 +1,14 @@
 use std::{
     fmt::{self, Display},
-    net::{Ipv4Addr, Ipv6Addr, SocketAddrV4, SocketAddrV6},
+    net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
     str::FromStr,
 };
 
-use anyhow::{ensure, Context};
-use lightning::util::ser::Hostname;
+use anyhow::{ensure, format_err, Context};
+use lightning::{ln::msgs::NetAddress, util::ser::Hostname};
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
+use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
@@ -19,10 +20,11 @@ use crate::test_utils::arbitrary;
 /// `SocketAddress` on LDK master), but intentionally ignores all TOR-related
 /// addresses since we don't currently support TOR. It also has a well-defined
 /// human-readable serialization format, unlike the LDK type.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum LxSocketAddress {
-    TcpIp4 {
+    TcpIpv4 {
         #[cfg_attr(
             any(test, feature = "test-utils"),
             proptest(strategy = "arbitrary::any_ipv4_addr()")
@@ -31,7 +33,7 @@ pub enum LxSocketAddress {
         port: u16,
     },
 
-    TcpIp6 {
+    TcpIpv6 {
         #[cfg_attr(
             any(test, feature = "test-utils"),
             proptest(strategy = "arbitrary::any_ipv6_addr()")
@@ -54,7 +56,7 @@ pub enum LxSocketAddress {
 
 impl From<SocketAddrV4> for LxSocketAddress {
     fn from(value: SocketAddrV4) -> Self {
-        Self::TcpIp4 {
+        Self::TcpIpv4 {
             ip: *value.ip(),
             port: value.port(),
         }
@@ -68,20 +70,66 @@ impl TryFrom<SocketAddrV6> for LxSocketAddress {
             addr.scope_id() == 0 && addr.flowinfo() == 0,
             "IPv6 address' scope_id and flowinfo must both be zero"
         );
-        Ok(Self::TcpIp6 {
+        Ok(Self::TcpIpv6 {
             ip: *addr.ip(),
             port: addr.port(),
         })
     }
 }
 
+impl TryFrom<SocketAddr> for LxSocketAddress {
+    type Error = anyhow::Error;
+    fn try_from(value: SocketAddr) -> Result<Self, Self::Error> {
+        match value {
+            SocketAddr::V4(v4) => Ok(Self::from(v4)),
+            SocketAddr::V6(v6) => Self::try_from(v6),
+        }
+    }
+}
+
+impl From<LxSocketAddress> for NetAddress {
+    fn from(value: LxSocketAddress) -> Self {
+        match value {
+            LxSocketAddress::TcpIpv4 { ip, port } => Self::IPv4 {
+                addr: ip.octets(),
+                port,
+            },
+            LxSocketAddress::TcpIpv6 { ip, port } => Self::IPv6 {
+                addr: ip.octets(),
+                port,
+            },
+            LxSocketAddress::TcpDns { hostname, port } =>
+                Self::Hostname { hostname, port },
+        }
+    }
+}
+
+impl TryFrom<NetAddress> for LxSocketAddress {
+    type Error = anyhow::Error;
+    fn try_from(value: NetAddress) -> Result<Self, Self::Error> {
+        match value {
+            NetAddress::IPv4 { addr, port } => Ok(Self::TcpIpv4 {
+                ip: Ipv4Addr::from(addr),
+                port,
+            }),
+            NetAddress::IPv6 { addr, port } => Ok(Self::TcpIpv6 {
+                ip: Ipv6Addr::from(addr),
+                port,
+            }),
+            NetAddress::Hostname { hostname, port } =>
+                Ok(Self::TcpDns { hostname, port }),
+            NetAddress::OnionV2(..) | NetAddress::OnionV3 { .. } =>
+                Err(format_err!("TOR onion addresses are unsupported")),
+        }
+    }
+}
+
+// `<ip4 | ip6 | hostname>:<port>`
 impl FromStr for LxSocketAddress {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.is_empty() {
-            return Err(anyhow::format_err!("empty string is invalid"));
-        }
+        ensure!(!s.is_empty(), "empty string is invalid");
 
         let first_byte = s.as_bytes()[0];
 
@@ -99,13 +147,11 @@ impl FromStr for LxSocketAddress {
             s.rsplit_once(':').context("port is required")?;
         let port = u16::from_str(port_str).context("invalid port")?;
 
-        if prefix.is_empty() {
-            return Err(anyhow::format_err!("hostname can't be empty"));
-        }
+        ensure!(!prefix.is_empty(), "hostname can't be empty");
 
         // Try parsing as an IPv4 address.
         if let Ok(ip4) = Ipv4Addr::from_str(prefix) {
-            return Ok(LxSocketAddress::TcpIp4 { ip: ip4, port });
+            return Ok(LxSocketAddress::TcpIpv4 { ip: ip4, port });
         }
 
         // Try parsing as a hostname / dns name.
@@ -113,16 +159,16 @@ impl FromStr for LxSocketAddress {
             return Ok(Self::TcpDns { hostname, port });
         }
 
-        Err(anyhow::format_err!("not a valid hostname or IP address"))
+        Err(format_err!("not a valid hostname or IP address"))
     }
 }
 
 impl Display for LxSocketAddress {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::TcpIp4 { ip, port } =>
+            Self::TcpIpv4 { ip, port } =>
                 Display::fmt(&SocketAddrV4::new(*ip, *port), f),
-            Self::TcpIp6 { ip, port } =>
+            Self::TcpIpv6 { ip, port } =>
                 Display::fmt(&SocketAddrV6::new(*ip, *port, 0, 0), f),
             Self::TcpDns { hostname, port } =>
                 write!(f, "{}:{port}", hostname.as_str()),
@@ -134,6 +180,11 @@ impl Display for LxSocketAddress {
 mod test {
     use super::*;
     use crate::test_utils::roundtrip;
+
+    #[test]
+    fn test_fromstr_json_equiv() {
+        roundtrip::fromstr_json_string_equiv::<LxSocketAddress>();
+    }
 
     #[test]
     fn test_basic() {
@@ -151,14 +202,14 @@ mod test {
         // good
         assert_eq!(
             LxSocketAddress::from_str("1.2.3.4:5050").unwrap(),
-            LxSocketAddress::TcpIp4 {
+            LxSocketAddress::TcpIpv4 {
                 ip: [1, 2, 3, 4].into(),
                 port: 5050
             },
         );
         assert_eq!(
             LxSocketAddress::from_str("[::1]:5050").unwrap(),
-            LxSocketAddress::TcpIp6 {
+            LxSocketAddress::TcpIpv6 {
                 ip: [0_u16, 0, 0, 0, 0, 0, 0, 1].into(),
                 port: 5050
             },
@@ -171,10 +222,5 @@ mod test {
                 port: 9735
             },
         );
-    }
-
-    #[test]
-    fn test_roundtrip() {
-        roundtrip::fromstr_display_roundtrip_proptest::<LxSocketAddress>();
     }
 }

@@ -1,8 +1,4 @@
-use std::{
-    collections::HashMap,
-    net::{IpAddr, SocketAddr},
-    time::Duration,
-};
+use std::{collections::HashMap, time::Duration};
 
 use anyhow::{bail, Context};
 use common::{
@@ -13,7 +9,6 @@ use common::{
     task::LxTask,
 };
 use futures::future;
-use lightning::ln::msgs::NetAddress;
 use tokio::{net::TcpStream, sync::mpsc, time};
 use tracing::{debug, info, info_span, warn, Instrument};
 
@@ -23,16 +18,6 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 /// The maximum amount of time we'll allow LDK to complete the P2P handshake.
 const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
-
-/// Attempts to convert a [`NetAddress`] to a [`SocketAddr`].
-pub fn net_addr_to_sock_addr(net_addr: NetAddress) -> Option<SocketAddr> {
-    use NetAddress::*;
-    match net_addr {
-        IPv4 { addr, port } => Some(SocketAddr::new(IpAddr::from(addr), port)),
-        IPv6 { addr, port } => Some(SocketAddr::new(IpAddr::from(addr), port)),
-        OnionV2(_) | OnionV3 { .. } | Hostname { .. } => None,
-    }
-}
 
 /// Every time a channel peer is added or removed, a [`ChannelPeerUpdate`] is
 /// generated and sent to the [p2p reconnector task] via an [`mpsc`] channel.
@@ -123,14 +108,17 @@ where
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
+    // SGX does name resolution outside the enclave, so we have to do this extra
+    // dance and avoid the natural solution of impl'ing `ToSocketAddrs` on
+    // `LxSocketAddress`.
+    let addr_str = channel_peer.addr.to_string();
     debug!("Connecting to channel peer {channel_peer}");
-    let stream =
-        time::timeout(CONNECT_TIMEOUT, TcpStream::connect(channel_peer.addr))
-            .await
-            .context("Connect request timed out")?
-            .context("TcpStream::connect() failed")?
-            .into_std()
-            .context("Could not convert tokio TcpStream to std TcpStream")?;
+    let stream = time::timeout(CONNECT_TIMEOUT, TcpStream::connect(addr_str))
+        .await
+        .context("Connect request timed out")?
+        .context("TcpStream::connect() failed")?
+        .into_std()
+        .context("Could not convert tokio TcpStream to std TcpStream")?;
 
     // NOTE: `setup_outbound()` returns a future which completes when the
     // connection closes, which we do not need to poll because a task was

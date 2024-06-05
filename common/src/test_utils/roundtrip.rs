@@ -233,3 +233,41 @@ where
         prop_assert_eq!(value1, value2)
     });
 }
+
+/// Quickly create a roundtrip proptest for both [`FromStr`] and json
+/// [`Serialize`] impl, and assert that they're both equivalent, i.e., the
+/// serialized json representation is just the display wrapped in double-quotes.
+pub fn fromstr_json_string_equiv<T>()
+where
+    T: Arbitrary + PartialEq + Debug,
+    T: FromStr + Display,
+    T: Serialize + DeserializeOwned,
+    <T as FromStr>::Err: Debug,
+{
+    fromstr_json_string_equiv_custom(any::<T>(), Config::default())
+}
+
+/// Create a roundtrip proptest for both [`FromStr`] and json [`Serialize`]
+/// impl, and assert that they're both equivalent, i.e., the serialized json
+/// representation is just the display wrapped in double-quotes.
+pub fn fromstr_json_string_equiv_custom<S, T>(strategy: S, config: Config)
+where
+    S: Strategy<Value = T>,
+    T: PartialEq + Debug,
+    T: FromStr + Display,
+    T: Serialize + DeserializeOwned,
+    <T as FromStr>::Err: Debug,
+{
+    proptest!(config, |(value in strategy)| {
+        let ser_display = value.to_string();
+        let ser_json = serde_json::to_string(&value).unwrap();
+
+        prop_assert_eq!(&format!("\"{ser_display}\""), &ser_json);
+
+        let value_fromstr = T::from_str(&ser_display).unwrap();
+        let value_json = serde_json::from_str::<T>(&ser_json).unwrap();
+
+        prop_assert_eq!(&value_fromstr, &value);
+        prop_assert_eq!(&value_json, &value);
+    });
+}

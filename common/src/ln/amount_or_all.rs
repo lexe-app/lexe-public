@@ -47,24 +47,12 @@ impl FromStr for AmountOrAll {
 
 #[cfg(test)]
 mod test {
-    use proptest::proptest;
-
     use super::*;
+    use crate::test_utils::roundtrip;
 
     #[test]
-    fn test_fromstr_display_and_serde_equiv() {
-        proptest!(|(amount: AmountOrAll)| {
-            let str_serde = serde_json::to_string(&amount).unwrap();
-            let str_fmt = amount.to_string();
-            let str_fmt_json = format!("\"{str_fmt}\"");
-
-            assert_eq!(str_serde, str_fmt_json);
-
-            let deser_serde = serde_json::from_str::<AmountOrAll>(&str_fmt_json).unwrap();
-            let deser_fromstr = AmountOrAll::from_str(&str_fmt).unwrap();
-
-            assert_eq!(deser_serde, deser_fromstr);
-        });
+    fn test_fromstr_json_string_equiv() {
+        roundtrip::fromstr_json_string_equiv::<AmountOrAll>();
     }
 
     #[test]
