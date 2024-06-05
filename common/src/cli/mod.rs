@@ -1,7 +1,4 @@
-use std::{
-    fmt, fmt::Display, net::SocketAddr, path::Path, process::Command,
-    str::FromStr,
-};
+use std::{fmt, fmt::Display, path::Path, process::Command, str::FromStr};
 
 use anyhow::{bail, ensure, Context};
 use bitcoin::{
@@ -20,7 +17,7 @@ use crate::test_utils::arbitrary;
 use crate::{
     api::{NodePk, Scid},
     constants::{MAINNET_ESPLORA_WHITELIST, TESTNET_ESPLORA_WHITELIST},
-    ln::peer::ChannelPeer,
+    ln::{addr::LxSocketAddress, peer::ChannelPeer},
 };
 
 /// User node CLI args.
@@ -67,8 +64,7 @@ pub struct LspInfo {
     // - ChannelPeer fields - //
     pub node_pk: NodePk,
     /// The socket on which the LSP accepts P2P LN connections from user nodes
-    #[cfg_attr(test, proptest(strategy = "arbitrary::any_socket_addr()"))]
-    pub addr: SocketAddr,
+    pub addr: LxSocketAddress,
     // - RoutingFees fields - //
     pub base_msat: u32,
     pub proportional_millionths: u32,
@@ -202,7 +198,7 @@ impl LspInfo {
     pub fn channel_peer(&self) -> ChannelPeer {
         ChannelPeer {
             node_pk: self.node_pk,
-            addr: self.addr,
+            addr: self.addr.clone(),
         }
     }
 
@@ -229,7 +225,10 @@ impl LspInfo {
 
         let mut rng = WeakRng::from_u64(20230216);
         let node_pk = RootSeed::from_rng(&mut rng).derive_node_pk(&mut rng);
-        let addr = SocketAddr::from((Ipv6Addr::LOCALHOST, 42069));
+        let addr = LxSocketAddress::TcpIpv6 {
+            ip: Ipv6Addr::LOCALHOST,
+            port: 42069,
+        };
 
         Self {
             url: Some(test_utils::DUMMY_LSP_URL.to_owned()),
