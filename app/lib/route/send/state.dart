@@ -167,7 +167,7 @@ class SendState_NeedAmount implements SendState {
 
         final req = PreflightPayInvoiceRequest(
           invoice: invoice.string,
-          fallbackAmountSats: amountSats,
+          fallbackAmountSats: (invoice.amountSats == null) ? amountSats : null,
         );
 
         final result = await Result.tryFfiAsync(

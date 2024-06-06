@@ -561,12 +561,22 @@ pub struct PayInvoiceRequest {
 impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
     type Error = anyhow::Error;
     fn try_from(value: PayInvoiceRequest) -> Result<Self, Self::Error> {
+        let invoice = LxInvoice::from_str(&value.invoice)
+            .context("Failed to parse invoice")?;
+
         let fallback_amount = match value.fallback_amount_sats {
-            Some(amount) => Some(Amount::try_from_sats_u64(amount)?),
-            None => None,
+            Some(amount) => {
+                debug_assert!(invoice.amount().is_none());
+                Some(Amount::try_from_sats_u64(amount)?)
+            }
+            None => {
+                debug_assert!(invoice.amount().is_some());
+                None
+            }
         };
+
         Ok(Self {
-            invoice: LxInvoice::from_str(&value.invoice)?,
+            invoice,
             fallback_amount,
             note: value.note,
         })
@@ -584,12 +594,22 @@ impl TryFrom<PreflightPayInvoiceRequest> for PreflightPayInvoiceRequestRs {
     fn try_from(
         value: PreflightPayInvoiceRequest,
     ) -> Result<Self, Self::Error> {
+        let invoice = LxInvoice::from_str(&value.invoice)
+            .context("Failed to parse invoice")?;
+
         let fallback_amount = match value.fallback_amount_sats {
-            Some(amount) => Some(Amount::try_from_sats_u64(amount)?),
-            None => None,
+            Some(amount) => {
+                debug_assert!(invoice.amount().is_none());
+                Some(Amount::try_from_sats_u64(amount)?)
+            }
+            None => {
+                debug_assert!(invoice.amount().is_some());
+                None
+            }
         };
+
         Ok(Self {
-            invoice: LxInvoice::from_str(&value.invoice)?,
+            invoice,
             fallback_amount,
         })
     }
