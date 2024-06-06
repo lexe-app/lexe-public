@@ -12,8 +12,7 @@
 //! - Passed in via args, env, or read from a file
 //!
 //! Step 2: Into [`LxCertificateDer`] and [`LxPrivatePkcs8KeyDer`]
-//! - `impl From<Vec<u8>> for LxCertificateDer`
-//! - `impl From<Vec<u8>> for LxPrivatePkcs8KeyDer`
+//! - Wrap [`Vec<u8>`] with [`LxCertificateDer`] or [`LxPrivatePkcs8KeyDer`]
 //!
 //! Step 3: Into [`CertificateDer<'_>`] and [`PrivateKeyDer<'_>`]
 //! - [`CertWithKey::into_chain_and_key`]
@@ -97,7 +96,7 @@ pub struct CertWithKey {
     any(test, feature = "test-utils"),
     derive(Debug, Eq, PartialEq, Arbitrary)
 )]
-pub struct LxCertificateDer(#[serde(with = "hexstr_or_bytes")] Vec<u8>);
+pub struct LxCertificateDer(#[serde(with = "hexstr_or_bytes")] pub Vec<u8>);
 
 /// A [`PrivatePkcs8KeyDer`] which can be serialized and deserialized.
 /// Can be constructed from arbitrary bytes; does not enforce any invariants.
@@ -108,7 +107,7 @@ pub struct LxCertificateDer(#[serde(with = "hexstr_or_bytes")] Vec<u8>);
     any(test, feature = "test-utils"),
     derive(Debug, Eq, PartialEq, Arbitrary)
 )]
-pub struct LxPrivatePkcs8KeyDer(#[serde(with = "hexstr_or_bytes")] Vec<u8>);
+pub struct LxPrivatePkcs8KeyDer(#[serde(with = "hexstr_or_bytes")] pub Vec<u8>);
 
 // --- impl CertWithKey --- //
 
@@ -159,12 +158,6 @@ impl LxCertificateDer {
     }
 }
 
-impl From<Vec<u8>> for LxCertificateDer {
-    fn from(der_bytes: Vec<u8>) -> Self {
-        Self(der_bytes)
-    }
-}
-
 /// We intentionally avoid the reverse impls because they require re-allocation.
 impl From<LxCertificateDer> for CertificateDer<'static> {
     fn from(lx_cert: LxCertificateDer) -> Self {
@@ -182,12 +175,6 @@ impl<'der> From<&'der LxCertificateDer> for CertificateDer<'der> {
 impl LxPrivatePkcs8KeyDer {
     pub fn as_bytes(&self) -> &[u8] {
         self.0.as_slice()
-    }
-}
-
-impl From<Vec<u8>> for LxPrivatePkcs8KeyDer {
-    fn from(der_bytes: Vec<u8>) -> Self {
-        Self(der_bytes)
     }
 }
 

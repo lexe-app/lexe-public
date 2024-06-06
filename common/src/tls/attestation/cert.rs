@@ -92,12 +92,12 @@ impl AttestationCert {
     pub fn serialize_der_self_signed(
         &self,
     ) -> Result<LxCertificateDer, rcgen::Error> {
-        self.0.serialize_der().map(LxCertificateDer::from)
+        self.0.serialize_der().map(LxCertificateDer)
     }
 
     /// DER-encode the attestation cert's private key.
     pub fn serialize_key_der(&self) -> LxPrivatePkcs8KeyDer {
-        LxPrivatePkcs8KeyDer::from(self.0.serialize_private_key_der())
+        LxPrivatePkcs8KeyDer(self.0.serialize_private_key_der())
     }
 }
 
