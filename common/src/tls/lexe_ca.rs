@@ -105,12 +105,10 @@ pub fn dummy_lexe_ca_cert() -> CertWithKey {
             params.name_constraints = None;
         },
     );
-    let dummy_cert_der = dummy_cert
-        .serialize_der()
-        .map(LxCertificateDer::from)
-        .unwrap();
+    let dummy_cert_der =
+        dummy_cert.serialize_der().map(LxCertificateDer).unwrap();
     let dummy_cert_key_der =
-        LxPrivatePkcs8KeyDer::from(dummy_cert.serialize_private_key_der());
+        LxPrivatePkcs8KeyDer(dummy_cert.serialize_private_key_der());
 
     CertWithKey {
         cert_der: dummy_cert_der,
