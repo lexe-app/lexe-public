@@ -433,4 +433,22 @@ mod test {
         let invoice_str = invoice.to_string();
         dbg!(&invoice_str);
     }
+
+    #[ignore]
+    #[test]
+    fn invoice_print() {
+        let s = "lnbcrt280u1pnxywwgdqqpp52t2fd5p8kuqn370uae3f3vezj6mjlzsuynfgkd9533xqp3vyd44scqpcsp5truuwxdmk38t9zad3al685uw6a4yg0gncg8p8yzy69asy7rz3uyq9qyysgqxqrrssnp4qfjfnyxh2n3yh2d9fqt293lfahnzfllg4qj2cu9lz04e97u2njx6vrzjqdd8p4z7a3l0kfcrr8c3d2tggfg2ed809q4zd5scwjrculzs3rmnkqqqqyqqrasqq5qqqqqqqqqqhwqqfqkqddwf80knvfd5naznztzzfm9glx7v8lhchjljjxnhknre9rwd6y3qcjn92ewl9dquc60jxhh8e0d6pd9ejsskutyr6rp6xpc0ex36spnalh5l";
+        let invoice = LxInvoice::from_str(s).unwrap();
+
+        dbg!(&invoice);
+
+        println!("\nroute hints:");
+        for route in invoice.0.route_hints() {
+            println!("  route: ({} hops)", route.0.len());
+            for hop in route.0 {
+                let node_pk = NodePk(hop.src_node_id);
+                println!("  hop: src_node_pk: {node_pk}");
+            }
+        }
+    }
 }

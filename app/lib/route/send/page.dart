@@ -480,7 +480,9 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
       final PreflightedPayment_Invoice preflighted) async {
     final req = PayInvoiceRequest(
       invoice: preflighted.invoice.string,
-      fallbackAmountSats: preflighted.amountSats,
+      fallbackAmountSats: (preflighted.invoice.amountSats == null)
+          ? preflighted.amountSats
+          : null,
       note: this.note(),
     );
 
