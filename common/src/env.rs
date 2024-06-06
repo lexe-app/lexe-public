@@ -10,7 +10,7 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 use crate::{cli::Network, Apply};
 
 /// Represents a validated `DEPLOY_ENVIRONMENT` configuration.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(
     any(test, feature = "test-utils"),
