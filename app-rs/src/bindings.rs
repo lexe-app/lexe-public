@@ -584,6 +584,7 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
 }
 
 /// See [`common::api::command::PreflightPayInvoiceRequest`].
+#[frb(dart_metadata=("freezed"))]
 pub struct PreflightPayInvoiceRequest {
     pub invoice: String,
     pub fallback_amount_sats: Option<u64>,
@@ -616,6 +617,7 @@ impl TryFrom<PreflightPayInvoiceRequest> for PreflightPayInvoiceRequestRs {
 }
 
 /// See [`common::api::command::PreflightPayInvoiceResponse`].
+#[frb(dart_metadata=("freezed"))]
 pub struct PreflightPayInvoiceResponse {
     pub amount_sats: u64,
     pub fees_sats: u64,
@@ -721,6 +723,8 @@ fn validate_note(note: String) -> anyhow::Result<String> {
     }
 }
 
+/// See [`common::api::command::PayOnchainRequest`].
+#[frb(dart_metadata=("freezed"))]
 pub struct PayOnchainRequest {
     pub cid: ClientPaymentId,
     pub address: String,
@@ -747,6 +751,8 @@ impl TryFrom<PayOnchainRequest> for PayOnchainRequestRs {
     }
 }
 
+/// See [`common::api::command::PreflightPayOnchainRequest`].
+#[frb(dart_metadata=("freezed"))]
 pub struct PreflightPayOnchainRequest {
     pub address: String,
     pub amount_sats: u64,
@@ -764,6 +770,8 @@ impl TryFrom<PreflightPayOnchainRequest> for PreflightPayOnchainRequestRs {
     }
 }
 
+/// See [`common::api::command::PreflightPayOnchainResponse`].
+#[frb(dart_metadata=("freezed"))]
 pub struct PreflightPayOnchainResponse {
     pub high: Option<FeeEstimate>,
     pub normal: FeeEstimate,
@@ -780,6 +788,8 @@ impl From<PreflightPayOnchainResponseRs> for PreflightPayOnchainResponse {
     }
 }
 
+/// See [`common::api::command::FeeEstimate`].
+#[frb(dart_metadata=("freezed"))]
 pub struct FeeEstimate {
     pub amount_sats: u64,
 }
@@ -792,6 +802,8 @@ impl From<FeeEstimateRs> for FeeEstimate {
     }
 }
 
+/// See [`common::api::qs::UpdatePaymentNote`].
+#[frb(dart_metadata=("freezed"))]
 pub struct UpdatePaymentNote {
     pub index: String,
     pub note: Option<String>,
@@ -807,6 +819,8 @@ impl TryFrom<UpdatePaymentNote> for UpdatePaymentNoteRs {
     }
 }
 
+/// See [`common::api::command::CreateInvoiceRequest`].
+#[frb(dart_metadata=("freezed"))]
 pub struct CreateInvoiceRequest {
     pub expiry_secs: u32,
     pub amount_sats: Option<u64>,
@@ -827,6 +841,8 @@ impl TryFrom<CreateInvoiceRequest> for CreateInvoiceRequestRs {
     }
 }
 
+/// See [`common::api::command::CreateInvoiceResponse`].
+#[frb(dart_metadata=("freezed"))]
 pub struct CreateInvoiceResponse {
     pub invoice: Invoice,
 }

@@ -197,6 +197,140 @@ abstract class _Config implements Config {
 }
 
 /// @nodoc
+mixin _$CreateInvoiceRequest {
+  int get expirySecs => throw _privateConstructorUsedError;
+  int? get amountSats => throw _privateConstructorUsedError;
+  String? get description => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$CreateInvoiceRequestImpl implements _CreateInvoiceRequest {
+  const _$CreateInvoiceRequestImpl(
+      {required this.expirySecs, this.amountSats, this.description});
+
+  @override
+  final int expirySecs;
+  @override
+  final int? amountSats;
+  @override
+  final String? description;
+
+  @override
+  String toString() {
+    return 'CreateInvoiceRequest(expirySecs: $expirySecs, amountSats: $amountSats, description: $description)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CreateInvoiceRequestImpl &&
+            (identical(other.expirySecs, expirySecs) ||
+                other.expirySecs == expirySecs) &&
+            (identical(other.amountSats, amountSats) ||
+                other.amountSats == amountSats) &&
+            (identical(other.description, description) ||
+                other.description == description));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, expirySecs, amountSats, description);
+}
+
+abstract class _CreateInvoiceRequest implements CreateInvoiceRequest {
+  const factory _CreateInvoiceRequest(
+      {required final int expirySecs,
+      final int? amountSats,
+      final String? description}) = _$CreateInvoiceRequestImpl;
+
+  @override
+  int get expirySecs;
+  @override
+  int? get amountSats;
+  @override
+  String? get description;
+}
+
+/// @nodoc
+mixin _$CreateInvoiceResponse {
+  Invoice get invoice => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$CreateInvoiceResponseImpl implements _CreateInvoiceResponse {
+  const _$CreateInvoiceResponseImpl({required this.invoice});
+
+  @override
+  final Invoice invoice;
+
+  @override
+  String toString() {
+    return 'CreateInvoiceResponse(invoice: $invoice)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$CreateInvoiceResponseImpl &&
+            (identical(other.invoice, invoice) || other.invoice == invoice));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, invoice);
+}
+
+abstract class _CreateInvoiceResponse implements CreateInvoiceResponse {
+  const factory _CreateInvoiceResponse({required final Invoice invoice}) =
+      _$CreateInvoiceResponseImpl;
+
+  @override
+  Invoice get invoice;
+}
+
+/// @nodoc
+mixin _$FeeEstimate {
+  int get amountSats => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$FeeEstimateImpl implements _FeeEstimate {
+  const _$FeeEstimateImpl({required this.amountSats});
+
+  @override
+  final int amountSats;
+
+  @override
+  String toString() {
+    return 'FeeEstimate(amountSats: $amountSats)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$FeeEstimateImpl &&
+            (identical(other.amountSats, amountSats) ||
+                other.amountSats == amountSats));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, amountSats);
+}
+
+abstract class _FeeEstimate implements FeeEstimate {
+  const factory _FeeEstimate({required final int amountSats}) =
+      _$FeeEstimateImpl;
+
+  @override
+  int get amountSats;
+}
+
+/// @nodoc
 mixin _$FiatRate {
   String get fiat => throw _privateConstructorUsedError;
   double get rate => throw _privateConstructorUsedError;
@@ -563,6 +697,80 @@ abstract class _PayInvoiceRequest implements PayInvoiceRequest {
 }
 
 /// @nodoc
+mixin _$PayOnchainRequest {
+  ClientPaymentId get cid => throw _privateConstructorUsedError;
+  String get address => throw _privateConstructorUsedError;
+  int get amountSats => throw _privateConstructorUsedError;
+  ConfirmationPriority get priority => throw _privateConstructorUsedError;
+  String? get note => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PayOnchainRequestImpl implements _PayOnchainRequest {
+  const _$PayOnchainRequestImpl(
+      {required this.cid,
+      required this.address,
+      required this.amountSats,
+      required this.priority,
+      this.note});
+
+  @override
+  final ClientPaymentId cid;
+  @override
+  final String address;
+  @override
+  final int amountSats;
+  @override
+  final ConfirmationPriority priority;
+  @override
+  final String? note;
+
+  @override
+  String toString() {
+    return 'PayOnchainRequest(cid: $cid, address: $address, amountSats: $amountSats, priority: $priority, note: $note)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PayOnchainRequestImpl &&
+            (identical(other.cid, cid) || other.cid == cid) &&
+            (identical(other.address, address) || other.address == address) &&
+            (identical(other.amountSats, amountSats) ||
+                other.amountSats == amountSats) &&
+            (identical(other.priority, priority) ||
+                other.priority == priority) &&
+            (identical(other.note, note) || other.note == note));
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(runtimeType, cid, address, amountSats, priority, note);
+}
+
+abstract class _PayOnchainRequest implements PayOnchainRequest {
+  const factory _PayOnchainRequest(
+      {required final ClientPaymentId cid,
+      required final String address,
+      required final int amountSats,
+      required final ConfirmationPriority priority,
+      final String? note}) = _$PayOnchainRequestImpl;
+
+  @override
+  ClientPaymentId get cid;
+  @override
+  String get address;
+  @override
+  int get amountSats;
+  @override
+  ConfirmationPriority get priority;
+  @override
+  String? get note;
+}
+
+/// @nodoc
 mixin _$Payment {
   String get index => throw _privateConstructorUsedError;
   PaymentKind get kind => throw _privateConstructorUsedError;
@@ -801,6 +1009,209 @@ abstract class PaymentMethod_Offer implements PaymentMethod {
 }
 
 /// @nodoc
+mixin _$PreflightPayInvoiceRequest {
+  String get invoice => throw _privateConstructorUsedError;
+  int? get fallbackAmountSats => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PreflightPayInvoiceRequestImpl implements _PreflightPayInvoiceRequest {
+  const _$PreflightPayInvoiceRequestImpl(
+      {required this.invoice, this.fallbackAmountSats});
+
+  @override
+  final String invoice;
+  @override
+  final int? fallbackAmountSats;
+
+  @override
+  String toString() {
+    return 'PreflightPayInvoiceRequest(invoice: $invoice, fallbackAmountSats: $fallbackAmountSats)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PreflightPayInvoiceRequestImpl &&
+            (identical(other.invoice, invoice) || other.invoice == invoice) &&
+            (identical(other.fallbackAmountSats, fallbackAmountSats) ||
+                other.fallbackAmountSats == fallbackAmountSats));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, invoice, fallbackAmountSats);
+}
+
+abstract class _PreflightPayInvoiceRequest
+    implements PreflightPayInvoiceRequest {
+  const factory _PreflightPayInvoiceRequest(
+      {required final String invoice,
+      final int? fallbackAmountSats}) = _$PreflightPayInvoiceRequestImpl;
+
+  @override
+  String get invoice;
+  @override
+  int? get fallbackAmountSats;
+}
+
+/// @nodoc
+mixin _$PreflightPayInvoiceResponse {
+  int get amountSats => throw _privateConstructorUsedError;
+  int get feesSats => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PreflightPayInvoiceResponseImpl
+    implements _PreflightPayInvoiceResponse {
+  const _$PreflightPayInvoiceResponseImpl(
+      {required this.amountSats, required this.feesSats});
+
+  @override
+  final int amountSats;
+  @override
+  final int feesSats;
+
+  @override
+  String toString() {
+    return 'PreflightPayInvoiceResponse(amountSats: $amountSats, feesSats: $feesSats)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PreflightPayInvoiceResponseImpl &&
+            (identical(other.amountSats, amountSats) ||
+                other.amountSats == amountSats) &&
+            (identical(other.feesSats, feesSats) ||
+                other.feesSats == feesSats));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, amountSats, feesSats);
+}
+
+abstract class _PreflightPayInvoiceResponse
+    implements PreflightPayInvoiceResponse {
+  const factory _PreflightPayInvoiceResponse(
+      {required final int amountSats,
+      required final int feesSats}) = _$PreflightPayInvoiceResponseImpl;
+
+  @override
+  int get amountSats;
+  @override
+  int get feesSats;
+}
+
+/// @nodoc
+mixin _$PreflightPayOnchainRequest {
+  String get address => throw _privateConstructorUsedError;
+  int get amountSats => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PreflightPayOnchainRequestImpl implements _PreflightPayOnchainRequest {
+  const _$PreflightPayOnchainRequestImpl(
+      {required this.address, required this.amountSats});
+
+  @override
+  final String address;
+  @override
+  final int amountSats;
+
+  @override
+  String toString() {
+    return 'PreflightPayOnchainRequest(address: $address, amountSats: $amountSats)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PreflightPayOnchainRequestImpl &&
+            (identical(other.address, address) || other.address == address) &&
+            (identical(other.amountSats, amountSats) ||
+                other.amountSats == amountSats));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, address, amountSats);
+}
+
+abstract class _PreflightPayOnchainRequest
+    implements PreflightPayOnchainRequest {
+  const factory _PreflightPayOnchainRequest(
+      {required final String address,
+      required final int amountSats}) = _$PreflightPayOnchainRequestImpl;
+
+  @override
+  String get address;
+  @override
+  int get amountSats;
+}
+
+/// @nodoc
+mixin _$PreflightPayOnchainResponse {
+  FeeEstimate? get high => throw _privateConstructorUsedError;
+  FeeEstimate get normal => throw _privateConstructorUsedError;
+  FeeEstimate get background => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PreflightPayOnchainResponseImpl
+    implements _PreflightPayOnchainResponse {
+  const _$PreflightPayOnchainResponseImpl(
+      {this.high, required this.normal, required this.background});
+
+  @override
+  final FeeEstimate? high;
+  @override
+  final FeeEstimate normal;
+  @override
+  final FeeEstimate background;
+
+  @override
+  String toString() {
+    return 'PreflightPayOnchainResponse(high: $high, normal: $normal, background: $background)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PreflightPayOnchainResponseImpl &&
+            (identical(other.high, high) || other.high == high) &&
+            (identical(other.normal, normal) || other.normal == normal) &&
+            (identical(other.background, background) ||
+                other.background == background));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, high, normal, background);
+}
+
+abstract class _PreflightPayOnchainResponse
+    implements PreflightPayOnchainResponse {
+  const factory _PreflightPayOnchainResponse(
+          {final FeeEstimate? high,
+          required final FeeEstimate normal,
+          required final FeeEstimate background}) =
+      _$PreflightPayOnchainResponseImpl;
+
+  @override
+  FeeEstimate? get high;
+  @override
+  FeeEstimate get normal;
+  @override
+  FeeEstimate get background;
+}
+
+/// @nodoc
 mixin _$ShortPayment {
   String get index => throw _privateConstructorUsedError;
   PaymentKind get kind => throw _privateConstructorUsedError;
@@ -889,4 +1300,49 @@ abstract class _ShortPayment implements ShortPayment {
   String? get note;
   @override
   int get createdAt;
+}
+
+/// @nodoc
+mixin _$UpdatePaymentNote {
+  String get index => throw _privateConstructorUsedError;
+  String? get note => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$UpdatePaymentNoteImpl implements _UpdatePaymentNote {
+  const _$UpdatePaymentNoteImpl({required this.index, this.note});
+
+  @override
+  final String index;
+  @override
+  final String? note;
+
+  @override
+  String toString() {
+    return 'UpdatePaymentNote(index: $index, note: $note)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$UpdatePaymentNoteImpl &&
+            (identical(other.index, index) || other.index == index) &&
+            (identical(other.note, note) || other.note == note));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, index, note);
+}
+
+abstract class _UpdatePaymentNote implements UpdatePaymentNote {
+  const factory _UpdatePaymentNote(
+      {required final String index,
+      final String? note}) = _$UpdatePaymentNoteImpl;
+
+  @override
+  String get index;
+  @override
+  String? get note;
 }
