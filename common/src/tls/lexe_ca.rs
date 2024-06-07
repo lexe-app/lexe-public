@@ -14,7 +14,7 @@ use crate::{
     api::def::{AppBackendApi, AppGatewayApi, BearerAuthBackendApi},
     client::GatewayClient,
 };
-use crate::{ed25519, env::DeployEnv};
+use crate::{constants, ed25519, env::DeployEnv};
 
 /// Client-side TLS config for app->gateway APIs, i.e. the [`GatewayClient`].
 /// This TLS config covers:
@@ -42,13 +42,12 @@ pub fn app_gateway_client_config(
 pub fn lexe_ca_cert(deploy_env: DeployEnv) -> LxCertificateDer {
     match deploy_env {
         DeployEnv::Dev => dummy_lexe_ca_cert().cert_der,
-        DeployEnv::Prod => dummy_lexe_ca_cert().cert_der,
-        DeployEnv::Staging => dummy_lexe_ca_cert().cert_der,
-        // TODO(max): Switch to hard-coded certs in common::constants
-        // DeployEnv::Staging =>
-        //     CertificateDer::from(constants::LEXE_STAGING_CA_CERT_DER),
+        DeployEnv::Staging =>
+            LxCertificateDer(constants::LEXE_STAGING_CA_CERT_DER.to_vec()),
+        // TODO(max): Switch to hard-coded cert
         // DeployEnv::Prod =>
-        //     CertificateDer::from(constants::LEXE_PROD_CA_CERT_DER),
+        //     LxCertificateDer(constants::LEXE_PROD_CA_CERT_DER.to_vec()),
+        DeployEnv::Prod => dummy_lexe_ca_cert().cert_der,
     }
 }
 

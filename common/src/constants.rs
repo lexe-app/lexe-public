@@ -65,14 +65,14 @@ pub const NODE_PROVISION_DNS_SUFFIX: &str = ".provision.lexe.app";
 // --- Root CA certs --- //
 //
 // This section contains DER-encoded TLS certs for the root CAs used by various
-// websites that we make requests to. For security, we only allow using reqwest
-// with `rustls-tls-manual-roots`, which trusts 0 roots by default. Thus, it is
-// necessary to manually include a root CA cert in our TLS config whenever we
-// make a request to an external site. For additional security, once a
-// `reqwest::Client` has been configured to trust a CA root, it should not be
-// reused for requests to other sites with different roots.
+// websites that we make requests to, including Lexe itself. For security, we
+// only allow using reqwest with `rustls-tls-manual-roots`, which trusts 0 roots
+// by default. Thus, it is necessary to manually include a root CA cert in our
+// TLS config whenever we make a request to Lexe or an external site. For
+// extra security, once a `reqwest::Client` has been configured to trust a CA
+// root, it should not be reused for requests to sites with different roots.
 //
-// ### Instructions for adding or updating a root cert
+// ### Instructions for adding or updating an external root cert
 // (written for Brave / Chrome)
 //
 // - Visit the website in your browser via HTTPS.
@@ -83,6 +83,22 @@ pub const NODE_PROVISION_DNS_SUFFIX: &str = ".provision.lexe.app";
 // - Save it to "common/data/<root_ca_name>_root-ca-cert.der"
 // - Add a `include_bytes!()` entry below with a corresponding test.
 // - Tip: You can see the full human-readable cert info with macOS Quick Look.
+//
+// ### Inspecting a DER-encoded certificate
+//
+// macOS Finder's "Quick Look" works for some certificates.
+// Alternatively, view the cert from the command line:
+//
+// ```bash
+// openssl x509 -inform der -in <certificate-name>.der -text -noout
+// ```
+
+/// The Lexe CA responsible for "staging.lexe.app".
+// Serial Number: 27:22:84:c7:59:61:19:99:94:79:83:be:d8:bc:72:3d:07:ff:71:23
+// Not Before: May 31 01:04:46 2024 GMT
+// Not After : Jun  7 01:04:46 2034 GMT
+pub const LEXE_STAGING_CA_CERT_DER: &[u8] =
+    include_bytes!("../data/lexe-staging-root-ca-cert.der");
 
 /// The root CA cert for Google Trust Services Root R1, used by googleapis.com,
 /// blockstream.info, kuutamo.cloud, and coincap.io.
@@ -107,6 +123,7 @@ mod test {
 
     #[test]
     fn test_parse_ca_certs() {
+        Certificate::from_der(LEXE_STAGING_CA_CERT_DER).unwrap();
         Certificate::from_der(GTS_ROOT_R1_CA_CERT_DER).unwrap();
         Certificate::from_der(LETSENCRYPT_ROOT_CA_CERT_DER).unwrap();
     }
