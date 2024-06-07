@@ -477,24 +477,22 @@ enum ConfirmationPriority {
   Background,
 }
 
-class CreateInvoiceRequest {
-  final int expirySecs;
-  final int? amountSats;
-  final String? description;
-
-  const CreateInvoiceRequest({
-    required this.expirySecs,
-    this.amountSats,
-    this.description,
-  });
+/// See [`common::api::command::CreateInvoiceRequest`].
+@freezed
+class CreateInvoiceRequest with _$CreateInvoiceRequest {
+  const factory CreateInvoiceRequest({
+    required int expirySecs,
+    int? amountSats,
+    String? description,
+  }) = _CreateInvoiceRequest;
 }
 
-class CreateInvoiceResponse {
-  final Invoice invoice;
-
-  const CreateInvoiceResponse({
-    required this.invoice,
-  });
+/// See [`common::api::command::CreateInvoiceResponse`].
+@freezed
+class CreateInvoiceResponse with _$CreateInvoiceResponse {
+  const factory CreateInvoiceResponse({
+    required Invoice invoice,
+  }) = _CreateInvoiceResponse;
 }
 
 enum DeployEnv {
@@ -503,12 +501,12 @@ enum DeployEnv {
   Dev,
 }
 
-class FeeEstimate {
-  final int amountSats;
-
-  const FeeEstimate({
-    required this.amountSats,
-  });
+/// See [`common::api::command::FeeEstimate`].
+@freezed
+class FeeEstimate with _$FeeEstimate {
+  const factory FeeEstimate({
+    required int amountSats,
+  }) = _FeeEstimate;
 }
 
 @freezed
@@ -578,20 +576,16 @@ class PayInvoiceRequest with _$PayInvoiceRequest {
   }) = _PayInvoiceRequest;
 }
 
-class PayOnchainRequest {
-  final ClientPaymentId cid;
-  final String address;
-  final int amountSats;
-  final ConfirmationPriority priority;
-  final String? note;
-
-  const PayOnchainRequest({
-    required this.cid,
-    required this.address,
-    required this.amountSats,
-    required this.priority,
-    this.note,
-  });
+/// See [`common::api::command::PayOnchainRequest`].
+@freezed
+class PayOnchainRequest with _$PayOnchainRequest {
+  const factory PayOnchainRequest({
+    required ClientPaymentId cid,
+    required String address,
+    required int amountSats,
+    required ConfirmationPriority priority,
+    String? note,
+  }) = _PayOnchainRequest;
 }
 
 /// The complete payment info, used in the payment detail page. Mirrors the
@@ -643,47 +637,40 @@ enum PaymentStatus {
 }
 
 /// See [`common::api::command::PreflightPayInvoiceRequest`].
-class PreflightPayInvoiceRequest {
-  final String invoice;
-  final int? fallbackAmountSats;
-
-  const PreflightPayInvoiceRequest({
-    required this.invoice,
-    this.fallbackAmountSats,
-  });
+@freezed
+class PreflightPayInvoiceRequest with _$PreflightPayInvoiceRequest {
+  const factory PreflightPayInvoiceRequest({
+    required String invoice,
+    int? fallbackAmountSats,
+  }) = _PreflightPayInvoiceRequest;
 }
 
 /// See [`common::api::command::PreflightPayInvoiceResponse`].
-class PreflightPayInvoiceResponse {
-  final int amountSats;
-  final int feesSats;
-
-  const PreflightPayInvoiceResponse({
-    required this.amountSats,
-    required this.feesSats,
-  });
+@freezed
+class PreflightPayInvoiceResponse with _$PreflightPayInvoiceResponse {
+  const factory PreflightPayInvoiceResponse({
+    required int amountSats,
+    required int feesSats,
+  }) = _PreflightPayInvoiceResponse;
 }
 
-class PreflightPayOnchainRequest {
-  final String address;
-  final int amountSats;
-
-  const PreflightPayOnchainRequest({
-    required this.address,
-    required this.amountSats,
-  });
+/// See [`common::api::command::PreflightPayOnchainRequest`].
+@freezed
+class PreflightPayOnchainRequest with _$PreflightPayOnchainRequest {
+  const factory PreflightPayOnchainRequest({
+    required String address,
+    required int amountSats,
+  }) = _PreflightPayOnchainRequest;
 }
 
-class PreflightPayOnchainResponse {
-  final FeeEstimate? high;
-  final FeeEstimate normal;
-  final FeeEstimate background;
-
-  const PreflightPayOnchainResponse({
-    this.high,
-    required this.normal,
-    required this.background,
-  });
+/// See [`common::api::command::PreflightPayOnchainResponse`].
+@freezed
+class PreflightPayOnchainResponse with _$PreflightPayOnchainResponse {
+  const factory PreflightPayOnchainResponse({
+    FeeEstimate? high,
+    required FeeEstimate normal,
+    required FeeEstimate background,
+  }) = _PreflightPayOnchainResponse;
 }
 
 /// Just the info we need to display an entry in the payments list UI.
@@ -721,12 +708,11 @@ class U8Array32 extends NonGrowableListView<int> {
   U8Array32.init() : super(Uint8List(arraySize));
 }
 
-class UpdatePaymentNote {
-  final String index;
-  final String? note;
-
-  const UpdatePaymentNote({
-    required this.index,
-    this.note,
-  });
+/// See [`common::api::qs::UpdatePaymentNote`].
+@freezed
+class UpdatePaymentNote with _$UpdatePaymentNote {
+  const factory UpdatePaymentNote({
+    required String index,
+    String? note,
+  }) = _UpdatePaymentNote;
 }
