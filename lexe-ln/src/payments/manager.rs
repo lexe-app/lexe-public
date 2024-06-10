@@ -325,11 +325,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(payment-claimable)")]
     pub async fn payment_claimable(
         &self,
-        hash: impl Into<LxPaymentHash>,
+        hash: LxPaymentHash,
         amt_msat: u64,
         purpose: PaymentPurpose,
     ) -> anyhow::Result<()> {
-        let hash = hash.into();
         let amount = Amount::from_msat(amt_msat);
         info!(%amount, %hash, "Handling PaymentClaimable");
         let purpose = LxPaymentPurpose::try_from(purpose)
@@ -410,11 +409,10 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(payment-claimed)")]
     pub async fn payment_claimed(
         &self,
-        hash: impl Into<LxPaymentHash>,
+        hash: LxPaymentHash,
         amt_msat: u64,
         purpose: PaymentPurpose,
     ) -> anyhow::Result<()> {
-        let hash = hash.into();
         let amount = Amount::from_msat(amt_msat);
         info!(%amount, %hash, "Handling PaymentClaimed");
         let purpose = LxPaymentPurpose::try_from(purpose)?;
@@ -446,18 +444,17 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(payment-sent)")]
     pub async fn payment_sent(
         &self,
-        hash: impl Into<LxPaymentHash>,
-        preimage: impl Into<LxPaymentPreimage>,
+        hash: LxPaymentHash,
+        preimage: LxPaymentPreimage,
         maybe_fees_paid_msat: Option<u64>,
     ) -> anyhow::Result<()> {
-        let hash = hash.into();
         let maybe_fees_paid = maybe_fees_paid_msat.map(Amount::from_msat);
         info!(%hash, ?maybe_fees_paid, "Handling PaymentSent");
 
         // Check
         let mut locked_data = self.data.lock().await;
         let checked = locked_data
-            .check_payment_sent(hash, preimage.into(), maybe_fees_paid)
+            .check_payment_sent(hash, preimage, maybe_fees_paid)
             .context("Error validating PaymentSent")?;
 
         // Persist
@@ -487,9 +484,8 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     #[instrument(skip_all, name = "(payment-failed)")]
     pub async fn payment_failed(
         &self,
-        hash: impl Into<LxPaymentHash>,
+        hash: LxPaymentHash,
     ) -> anyhow::Result<()> {
-        let hash = hash.into();
         info!(%hash, "Handling PaymentFailed");
 
         // Check

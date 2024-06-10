@@ -282,7 +282,7 @@ async fn handle_event_fallible(
             claim_deadline: _,
         } => {
             payments_manager
-                .payment_claimable(payment_hash, amount_msat, purpose)
+                .payment_claimable(payment_hash.into(), amount_msat, purpose)
                 .await
                 .context("Error handling PaymentClaimable")
                 // Want to ensure we always claim funds
@@ -295,7 +295,7 @@ async fn handle_event_fallible(
             receiver_node_id: _,
         } => {
             payments_manager
-                .payment_claimed(payment_hash, amount_msat, purpose)
+                .payment_claimed(payment_hash.into(), amount_msat, purpose)
                 .await
                 .context("Error handling PaymentClaimed")
                 // Don't want to end up with a 'hung' payment state
@@ -308,7 +308,11 @@ async fn handle_event_fallible(
             fee_paid_msat,
         } => {
             payments_manager
-                .payment_sent(payment_hash, payment_preimage, fee_paid_msat)
+                .payment_sent(
+                    payment_hash.into(),
+                    payment_preimage.into(),
+                    fee_paid_msat,
+                )
                 .await
                 .context("Error handling PaymentSent")
                 // Don't want to end up with a 'hung' payment state
@@ -321,7 +325,7 @@ async fn handle_event_fallible(
         } => {
             warn!("Payment failed. Reason: {reason:?}");
             payments_manager
-                .payment_failed(payment_hash)
+                .payment_failed(payment_hash.into())
                 .await
                 .context("Error handling PaymentFailed")
                 // Don't want to end up with a 'hung' payment state
