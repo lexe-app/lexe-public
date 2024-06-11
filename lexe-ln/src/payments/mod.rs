@@ -321,8 +321,12 @@ impl Payment {
                 ..
             }) => status.as_str(),
             Self::OutboundInvoice(OutboundInvoicePayment {
-                status, ..
-            }) => status.as_str(),
+                status,
+                failure,
+                ..
+            }) => failure
+                .map(|f| f.as_str())
+                .unwrap_or_else(|| status.as_str()),
             Self::OutboundSpontaneous(OutboundSpontaneousPayment {
                 status,
                 ..

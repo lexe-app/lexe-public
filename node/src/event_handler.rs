@@ -12,12 +12,16 @@ use common::{
     shutdown::ShutdownChannel, task::LxTask, test_event::TestEvent,
 };
 use lexe_ln::{
-    alias::NetworkGraphType, esplora::LexeEsplora, event,
-    event::EventHandleError, keys_manager::LexeKeysManager,
-    test_event::TestEventSender, wallet::LexeWallet,
+    alias::NetworkGraphType,
+    esplora::LexeEsplora,
+    event::{self, EventHandleError},
+    keys_manager::LexeKeysManager,
+    payments::outbound::LxOutboundPaymentFailure,
+    test_event::TestEventSender,
+    wallet::LexeWallet,
 };
 use lightning::{
-    events::{Event, EventHandler},
+    events::{Event, EventHandler, PaymentFailureReason},
     routing::gossip::NodeId,
 };
 use tracing::{error, info, warn};
@@ -323,9 +327,12 @@ async fn handle_event_fallible(
             reason,
             payment_hash,
         } => {
-            warn!("Payment failed. Reason: {reason:?}");
+            let reason =
+                reason.unwrap_or(PaymentFailureReason::RetriesExhausted);
+            let failure = LxOutboundPaymentFailure::from(reason);
+            warn!("Payment failed: {failure:?}");
             payments_manager
-                .payment_failed(payment_hash.into())
+                .payment_failed(payment_hash.into(), failure)
                 .await
                 .context("Error handling PaymentFailed")
                 // Don't want to end up with a 'hung' payment state

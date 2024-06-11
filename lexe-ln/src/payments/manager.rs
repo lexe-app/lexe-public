@@ -25,6 +25,7 @@ use rust_decimal::Decimal;
 use tokio::sync::Mutex;
 use tracing::{debug, debug_span, error, info, instrument};
 
+use super::outbound::LxOutboundPaymentFailure;
 use crate::{
     esplora::{LexeEsplora, TxConfStatus},
     payments::{
@@ -485,13 +486,14 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
     pub async fn payment_failed(
         &self,
         hash: LxPaymentHash,
+        failure: LxOutboundPaymentFailure,
     ) -> anyhow::Result<()> {
         info!(%hash, "Handling PaymentFailed");
 
         // Check
         let mut locked_data = self.data.lock().await;
         let checked = locked_data
-            .check_payment_failed(hash)
+            .check_payment_failed(hash, failure)
             .context("Error validating PaymentFailed")?;
 
         // Persist
@@ -903,6 +905,7 @@ impl PaymentsData {
     fn check_payment_failed(
         &self,
         hash: LxPaymentHash,
+        failure: LxOutboundPaymentFailure,
     ) -> anyhow::Result<CheckedPayment> {
         let id = LxPaymentId::from(hash);
 
@@ -918,7 +921,7 @@ impl PaymentsData {
 
         let checked = match pending_payment {
             Payment::OutboundInvoice(oip) => oip
-                .check_payment_failed(hash)
+                .check_payment_failed(hash, failure)
                 .map(Payment::from)
                 .map(CheckedPayment)
                 .context("Error checking outbound invoice payment")?,
