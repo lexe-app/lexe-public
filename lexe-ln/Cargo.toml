@@ -72,6 +72,7 @@ common = { path = "../common", features = ["test-utils"] }
 
 proptest = { workspace = true, features = ["alloc"] }
 proptest-derive.workspace = true
+strum.workspace = true
 # Enable test-util feature in tests
 tokio = { workspace = true, features = [
     "io-util",

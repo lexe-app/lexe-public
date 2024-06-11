@@ -45,7 +45,7 @@ pub struct OnchainSend {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
 pub enum OnchainSendStatus {
     /// (Pending, not broadcasted) The tx has been created and signed but
     /// hasn't been broadcasted yet.
@@ -237,7 +237,7 @@ pub struct OnchainReceive {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
 pub enum OnchainReceiveStatus {
     /// (Pending, zeroconf) We detected the inbound tx, but it is still
     /// awaiting its first confirmation.
@@ -355,5 +355,21 @@ impl OnchainReceive {
                 .collect(),
             created_at: self.created_at.into(),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use common::test_utils::roundtrip::json_unit_enum_backwards_compat;
+
+    use super::*;
+
+    #[test]
+    fn status_json_backwards_compat() {
+        let expected_ser = r#"["Created","Broadcasted","ReplacementBroadcasted","PartiallyConfirmed","PartiallyReplaced","FullyConfirmed","FullyReplaced","Dropped"]"#;
+        json_unit_enum_backwards_compat::<OnchainSendStatus>(expected_ser);
+
+        let expected_ser = r#"["Zeroconf","PartiallyConfirmed","PartiallyReplaced","FullyConfirmed","FullyReplaced","Dropped"]"#;
+        json_unit_enum_backwards_compat::<OnchainReceiveStatus>(expected_ser);
     }
 }
