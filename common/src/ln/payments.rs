@@ -117,6 +117,7 @@ pub struct DbPayment {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[cfg_attr(test, derive(strum::VariantArray))]
 pub enum PaymentKind {
     Onchain,
     Invoice,
@@ -127,6 +128,7 @@ pub enum PaymentKind {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[cfg_attr(test, derive(strum::VariantArray))]
 pub enum PaymentDirection {
     Inbound,
     Outbound,
@@ -140,6 +142,7 @@ pub enum PaymentDirection {
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[cfg_attr(test, derive(strum::VariantArray))]
 pub enum PaymentStatus {
     Pending,
     Completed,
@@ -698,9 +701,17 @@ mod test {
 
     #[test]
     fn enums_roundtrips() {
-        roundtrip::json_string_roundtrip_proptest::<PaymentDirection>();
-        roundtrip::json_string_roundtrip_proptest::<PaymentStatus>();
-        roundtrip::json_string_roundtrip_proptest::<PaymentKind>();
+        let expected_ser = r#"["inbound","outbound"]"#;
+        roundtrip::json_unit_enum_backwards_compat::<PaymentDirection>(
+            expected_ser,
+        );
+        let expected_ser = r#"["pending","completed","failed"]"#;
+        roundtrip::json_unit_enum_backwards_compat::<PaymentStatus>(
+            expected_ser,
+        );
+        let expected_ser = r#"["onchain","invoice","spontaneous"]"#;
+        roundtrip::json_unit_enum_backwards_compat::<PaymentKind>(expected_ser);
+
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentDirection>();
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentStatus>();
         roundtrip::fromstr_display_roundtrip_proptest::<PaymentKind>();

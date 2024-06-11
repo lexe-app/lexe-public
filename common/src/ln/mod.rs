@@ -36,6 +36,7 @@ pub mod peer;
 /// A newtype for [`ConfirmationTarget`] with [`serde`] and proptest impls.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[cfg_attr(test, derive(strum::VariantArray))]
 pub enum ConfirmationPriority {
     High,
     Normal,
@@ -71,5 +72,17 @@ impl Display for ConfirmationPriority {
             Self::Normal => write!(f, "normal"),
             Self::Background => write!(f, "background"),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::test_utils::roundtrip::json_unit_enum_backwards_compat;
+
+    #[test]
+    fn conf_prio_json_backward_compat() {
+        let expected_ser = r#"["High","Normal","Background"]"#;
+        json_unit_enum_backwards_compat::<ConfirmationPriority>(expected_ser);
     }
 }

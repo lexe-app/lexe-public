@@ -12,7 +12,10 @@ use crate::{cli::Network, Apply};
 /// Represents a validated `DEPLOY_ENVIRONMENT` configuration.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(SerializeDisplay, DeserializeFromStr)]
-#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
+#[cfg_attr(
+    any(test, feature = "test-utils"),
+    derive(Arbitrary, strum::VariantArray)
+)]
 pub enum DeployEnv {
     /// "dev"
     Dev,
@@ -23,10 +26,6 @@ pub enum DeployEnv {
 }
 
 impl DeployEnv {
-    /// All possible [`DeployEnv`]s, useful to iterate over in tests.
-    #[cfg(any(test, feature = "test-utils"))]
-    pub const ALL: [DeployEnv; 3] = [Self::Dev, Self::Staging, Self::Prod];
-
     /// Read a [`DeployEnv`] from env, or err if it was invalid / didn't exist.
     pub fn from_env() -> anyhow::Result<Self> {
         env::var("DEPLOY_ENVIRONMENT")
@@ -128,8 +127,9 @@ mod test {
 
     #[test]
     fn deploy_env_roundtrip() {
+        let expected_ser = r#"["dev","staging","prod"]"#;
+        roundtrip::json_unit_enum_backwards_compat::<DeployEnv>(expected_ser);
         roundtrip::fromstr_display_roundtrip_proptest::<DeployEnv>();
-        roundtrip::json_string_roundtrip_proptest::<DeployEnv>();
     }
 
     #[test]
