@@ -39,7 +39,10 @@ use crate::{
     payments::{
         inbound::InboundInvoicePayment,
         manager::PaymentsManager,
-        outbound::{OutboundInvoicePayment, OUTBOUND_PAYMENT_RETRY_STRATEGY},
+        outbound::{
+            LxOutboundPaymentFailure, OutboundInvoicePayment,
+            OUTBOUND_PAYMENT_RETRY_STRATEGY,
+        },
     },
     traits::{LexeChannelManager, LexePeerManager, LexePersister},
     wallet::LexeWallet,
@@ -334,7 +337,7 @@ where
             // returned, LDK does not track the payment and thus will not emit a
             // PaymentFailed later, so we should fail the payment now.
             payments_manager
-                .payment_failed(payment_hash)
+                .payment_failed(payment_hash, LxOutboundPaymentFailure::Expired)
                 .await
                 .context("(PaymentExpired) Could not register failure")?;
             Err(anyhow!("LDK returned PaymentExpired (OIP {payment_hash})"))
@@ -345,7 +348,7 @@ where
             // If the user wants to retry, they'll need to ask the recipient to
             // generate a new invoice. TODO(max): Is this really what we want?
             payments_manager
-                .payment_failed(payment_hash)
+                .payment_failed(payment_hash, LxOutboundPaymentFailure::NoRoute)
                 .await
                 .context("(RouteNotFound) Could not register failure")?;
             Err(anyhow!("LDK returned RouteNotFound (OIP {payment_hash})"))

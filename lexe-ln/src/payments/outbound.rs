@@ -19,7 +19,10 @@ use lightning::{
     events::PaymentPurpose,
     ln::channelmanager::ChannelManager,
 };
-use lightning::{ln::channelmanager::Retry, routing::router::Route};
+use lightning::{
+    events::PaymentFailureReason, ln::channelmanager::Retry,
+    routing::router::Route,
+};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -59,6 +62,8 @@ pub struct OutboundInvoicePayment {
     pub fees: Amount,
     /// The current status of the payment.
     pub status: OutboundInvoicePaymentStatus,
+    /// For a failed payment, the reason why it failed.
+    pub failure: Option<LxOutboundPaymentFailure>,
     /// An optional personal note for this payment. Since the receiver sets the
     /// invoice description, which might just be an unhelpful 🍆 emoji, the
     /// user has the option to add this note at the time of invoice
@@ -108,6 +113,7 @@ impl OutboundInvoicePayment {
             amount: Amount::from_msat(route.get_total_amount()),
             fees: Amount::from_msat(route.get_total_fees()),
             status: OutboundInvoicePaymentStatus::Pending,
+            failure: None,
             note,
             created_at: TimestampMs::now(),
             finalized_at: None,
@@ -172,6 +178,7 @@ impl OutboundInvoicePayment {
     pub(crate) fn check_payment_failed(
         &self,
         hash: LxPaymentHash,
+        failure: LxOutboundPaymentFailure,
     ) -> anyhow::Result<Self> {
         use OutboundInvoicePaymentStatus::*;
 
@@ -184,6 +191,7 @@ impl OutboundInvoicePayment {
 
         let mut clone = self.clone();
         clone.status = Failed;
+        clone.failure = Some(failure);
         clone.finalized_at = Some(TimestampMs::now());
 
         Ok(clone)
@@ -271,4 +279,104 @@ pub enum OutboundSpontaneousPaymentStatus {
     Completed,
     /// We received a [`PaymentFailed`] event.
     Failed,
+}
+
+// --- Outbound Payment Failure --- //
+
+/// Contains a reason for why an outbound lightning payment failed.
+///
+/// Unfortunately, LDK's current error messages (via event handling) are not
+/// particularly helpful -- all the useful info is emitted via the LDK logger.
+/// But this is still better than just seeing "Failed failed" in the UI.
+///
+/// See: [`lightning::events::PaymentFailureReason`]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(Arbitrary))]
+pub enum LxOutboundPaymentFailure {
+    /// We exhausted all of our retry attempts.
+    NoRetries,
+    /// The intended recipient rejected our payment.
+    Rejected,
+    /// The user abandoned this payment via `ChannelManager::abandon_payment`.
+    Abandoned,
+    /// The payment expired while retrying.
+    Expired,
+    /// Failed to route the payment while retrying.
+    NoRoute,
+    /// API misuse error. Probably a bug in Lexe code.
+    LexeErr,
+    /// Any unrecognized variant we might deserialize. This variant is for
+    /// forwards compatibility (old node reads new state).
+    #[serde(other)]
+    Unknown,
+}
+
+impl LxOutboundPaymentFailure {
+    // TODO(phlip9): generate this programmatically
+    #[cfg(test)]
+    const VARIANTS: [Self; 7] = [
+        Self::NoRetries,
+        Self::Rejected,
+        Self::Abandoned,
+        Self::Expired,
+        Self::NoRoute,
+        Self::LexeErr,
+        Self::Unknown,
+    ];
+
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::NoRetries => "no successful payment after all retry attempts",
+            Self::Rejected => "the recipient rejected our payment",
+            Self::Abandoned => "the payment was canceled",
+            Self::Expired =>
+                "the invoice expired before we could complete the payment",
+            Self::NoRoute => "could not find usable route to send payment over",
+            Self::LexeErr => "probable bug in LEXE user node payment router",
+            Self::Unknown => "unknown error, app is likely out-of-date",
+        }
+    }
+}
+
+impl From<PaymentFailureReason> for LxOutboundPaymentFailure {
+    fn from(value: PaymentFailureReason) -> Self {
+        use PaymentFailureReason::*;
+        match value {
+            RecipientRejected => Self::Rejected,
+            UserAbandoned => Self::Abandoned,
+            RetriesExhausted => Self::NoRetries,
+            PaymentExpired => Self::Expired,
+            RouteNotFound => Self::NoRoute,
+            UnexpectedError => Self::LexeErr,
+        }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    // TODO(phlip9): if we can get a VariantArray trait or smth, then we can
+    // generalize this test.
+    #[test]
+    fn lx_outbound_payment_failure_json_backward_compat() {
+        // Pin the serialization for backward compatibility
+        let expected_de = LxOutboundPaymentFailure::VARIANTS.to_vec();
+        let expected_ser = "[\"NoRetries\",\"Rejected\",\"Abandoned\",\"Expired\",\"NoRoute\",\"LexeErr\",\"Unknown\"]";
+        let actual_ser = serde_json::to_string(&expected_de).unwrap();
+        let actual_de =
+            serde_json::from_str::<Vec<LxOutboundPaymentFailure>>(expected_ser)
+                .unwrap();
+        assert_eq!(actual_ser, expected_ser);
+        assert_eq!(actual_de, expected_de);
+    }
+
+    #[test]
+    fn lx_outbound_payment_failure_json_forward_compat() {
+        let s = "\"SomeNewVariant\"";
+        let expected_de = LxOutboundPaymentFailure::Unknown;
+        let actual_de =
+            serde_json::from_str::<LxOutboundPaymentFailure>(s).unwrap();
+        assert_eq!(actual_de, expected_de);
+    }
 }
