@@ -77,7 +77,7 @@ pub struct OutboundInvoicePayment {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
 pub enum OutboundInvoicePaymentStatus {
     /// We initiated the payment with [`pay_invoice`].
     Pending,
@@ -270,7 +270,7 @@ impl OutboundSpontaneousPayment {
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
 pub enum OutboundSpontaneousPaymentStatus {
     /// We initiated the payment with `send_spontaneous_payment`.
     // TODO(max): Actually implement sending spontaneous payments
@@ -291,7 +291,7 @@ pub enum OutboundSpontaneousPaymentStatus {
 ///
 /// See: [`lightning::events::PaymentFailureReason`]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
-#[cfg_attr(test, derive(Arbitrary))]
+#[cfg_attr(test, derive(Arbitrary, strum::VariantArray))]
 pub enum LxOutboundPaymentFailure {
     /// We exhausted all of our retry attempts.
     NoRetries,
@@ -312,18 +312,6 @@ pub enum LxOutboundPaymentFailure {
 }
 
 impl LxOutboundPaymentFailure {
-    // TODO(phlip9): generate this programmatically
-    #[cfg(test)]
-    const VARIANTS: [Self; 7] = [
-        Self::NoRetries,
-        Self::Rejected,
-        Self::Abandoned,
-        Self::Expired,
-        Self::NoRoute,
-        Self::LexeErr,
-        Self::Unknown,
-    ];
-
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::NoRetries => "no successful payment after all retry attempts",
@@ -354,23 +342,32 @@ impl From<PaymentFailureReason> for LxOutboundPaymentFailure {
 
 #[cfg(test)]
 mod test {
+    use common::test_utils::roundtrip::json_unit_enum_backwards_compat;
+
     use super::*;
 
-    // TODO(phlip9): if we can get a VariantArray trait or smth, then we can
-    // generalize this test.
     #[test]
-    fn lx_outbound_payment_failure_json_backward_compat() {
-        // Pin the serialization for backward compatibility
-        let expected_de = LxOutboundPaymentFailure::VARIANTS.to_vec();
-        let expected_ser = "[\"NoRetries\",\"Rejected\",\"Abandoned\",\"Expired\",\"NoRoute\",\"LexeErr\",\"Unknown\"]";
-        let actual_ser = serde_json::to_string(&expected_de).unwrap();
-        let actual_de =
-            serde_json::from_str::<Vec<LxOutboundPaymentFailure>>(expected_ser)
-                .unwrap();
-        assert_eq!(actual_ser, expected_ser);
-        assert_eq!(actual_de, expected_de);
+    fn status_json_backward_compat() {
+        let expected_ser = r#"["Pending","Abandoning","Completed","Failed"]"#;
+        json_unit_enum_backwards_compat::<OutboundInvoicePaymentStatus>(
+            expected_ser,
+        );
+
+        let expected_ser = r#"["Pending","Completed","Failed"]"#;
+        json_unit_enum_backwards_compat::<OutboundSpontaneousPaymentStatus>(
+            expected_ser,
+        );
     }
 
+    #[test]
+    fn lx_outbound_payment_failure_json_backwards_compat() {
+        let expected_ser = r#"["NoRetries","Rejected","Abandoned","Expired","NoRoute","LexeErr","Unknown"]"#;
+        json_unit_enum_backwards_compat::<LxOutboundPaymentFailure>(
+            expected_ser,
+        );
+    }
+
+    // Old nodes will deserialize unrecognized failure variants as `Unknown`
     #[test]
     fn lx_outbound_payment_failure_json_forward_compat() {
         let s = "\"SomeNewVariant\"";

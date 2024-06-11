@@ -271,3 +271,48 @@ where
         prop_assert_eq!(&value_json, &value);
     });
 }
+
+/// Exhaustively check that all enum variants have backwards-compatible
+/// JSON serialization.
+pub fn json_unit_enum_backwards_compat<T>(expected_ser: &str)
+where
+    T: Clone + PartialEq + Debug,
+    T: Serialize + DeserializeOwned,
+    T: strum::VariantArray,
+{
+    // Make bootstrapping the test easier by defaulting to an empty list.
+    let expected_ser = if expected_ser.is_empty() {
+        "[]"
+    } else {
+        expected_ser
+    };
+
+    let expected_de = T::VARIANTS.to_vec();
+    let actual_ser = serde_json::to_string(&expected_de).unwrap();
+    let actual_de = serde_json::from_str::<Vec<T>>(expected_ser).unwrap();
+
+    if actual_ser != expected_ser {
+        panic!(
+            "\n\
+             This enum's JSON serialization has changed or a new variant has \n\
+             been added/deleted: \n\
+             \n\
+                actual_ser: '{actual_ser}' \n\
+              expected_ser: '{expected_ser}' \n\
+             \n\
+             It is not safe to remove or rename a variant, as this breaks \n\
+             backwards compatibility! Our service won't be able to read data \n\
+             persisted in the past! You will need a data migration to do this \n\
+             safely. \n\
+             \n\
+             However, if you've just added a new variant, then this is OK. Just \n\
+             update `expected_ser` as below: \n\
+             \n\
+             ```\n\
+             let expected_ser = r#\"{actual_ser}\"#;\n\
+             ```\n\
+             "
+        );
+    }
+    assert_eq!(actual_de, expected_de);
+}
