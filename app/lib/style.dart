@@ -369,8 +369,18 @@ final class LxColors {
 final class Space {
   Space._();
 
-  /// 64 px
-  static const double appBarLeadingWidth = 64.0;
+  /// The width of the leading icon in the [AppBar]. This includes
+  /// [Space.leadingTweakLeftPadding] to account for the extra padding, so the
+  /// final icon appears square and not rectangular.
+  ///
+  /// 60 px = 56 px + 14 px
+  static const double appBarLeadingWidth = 56.0 + Space.leadingTweakLeftPadding;
+
+  /// Leading icons in the [AppBar] need some left-padding to align with the
+  /// page body.
+  ///
+  /// 14 px
+  static const double leadingTweakLeftPadding = 14.0;
 
   /// 16 px
   static const double appBarTrailingPadding = Space.s400;

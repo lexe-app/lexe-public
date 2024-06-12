@@ -832,7 +832,7 @@ class ButtonDesignPage extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           leadingWidth: Space.appBarLeadingWidth,
-          leading: const LxBackButton(),
+          leading: const LxBackButton(isLeading: true),
         ),
         body: ScrollableSinglePageBody(
           // padding: const EdgeInsets.symmetric(horizontal: Space.s900),
@@ -970,7 +970,7 @@ class MarkdownPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: const LxBackButton(),
+        leading: const LxBackButton(isLeading: true),
         leadingWidth: Space.appBarLeadingWidth,
       ),
       body: Theme(

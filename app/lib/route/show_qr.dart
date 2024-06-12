@@ -174,7 +174,7 @@ class ShowQrPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxCloseButton(),
+        leading: const LxCloseButton(isLeading: true),
       ),
       body: ScrollableSinglePageBody(
         body: [
