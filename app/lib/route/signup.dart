@@ -127,7 +127,7 @@ class _SignupGDriveAuthPageState extends State<SignupGDriveAuthPage> {
     return Scaffold(
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxBackButton(),
+        leading: const LxBackButton(isLeading: true),
       ),
       body: ScrollableSinglePageBody(
         body: const [
@@ -254,7 +254,7 @@ class _SignupBackupPasswordPageState extends State<SignupBackupPasswordPage> {
     return Scaffold(
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxBackButton(),
+        leading: const LxBackButton(isLeading: true),
         actions: const [
           LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
           SizedBox(width: Space.s400),

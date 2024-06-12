@@ -174,7 +174,8 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
     return Scaffold(
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
+        leading: const LxCloseButton(
+            isLeading: true, kind: LxCloseButtonKind.closeFromRoot),
         actions: [
           IconButton(
             onPressed: this.onScanPressed,
@@ -362,7 +363,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     return Scaffold(
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxBackButton(),
+        leading: const LxBackButton(isLeading: true),
         actions: const [
           LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
           SizedBox(width: Space.appBarTrailingPadding),
@@ -572,7 +573,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     return Scaffold(
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxBackButton(),
+        leading: const LxBackButton(isLeading: true),
         actions: const [
           LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
           SizedBox(width: Space.appBarTrailingPadding),

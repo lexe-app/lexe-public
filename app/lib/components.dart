@@ -318,9 +318,11 @@ class LxCloseButton extends StatelessWidget {
   const LxCloseButton({
     super.key,
     this.kind = LxCloseButtonKind.closeFromTop,
+    this.isLeading = false,
   });
 
   final LxCloseButtonKind kind;
+  final bool isLeading;
 
   void onTap(BuildContext context) {
     switch (this.kind) {
@@ -335,13 +337,21 @@ class LxCloseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
+    final button = IconButton(
       // This alignment positions the button correctly on both sides of the app
       // bar.
-      alignment: Alignment.centerRight,
+      // alignment: Alignment.centerRight,
       icon: const Icon(LxIcons.close),
       onPressed: () => this.onTap(context),
     );
+
+    if (this.isLeading) {
+      return Padding(
+          padding: const EdgeInsets.only(left: Space.leadingTweakLeftPadding),
+          child: button);
+    } else {
+      return button;
+    }
   }
 }
 
@@ -352,17 +362,30 @@ class LxCloseButton extends StatelessWidget {
 ///
 /// * Go back to the previous page In a multi-step form.
 class LxBackButton extends StatelessWidget {
-  const LxBackButton({super.key});
+  const LxBackButton({
+    super.key,
+    this.isLeading = false,
+  });
+
+  final bool isLeading;
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
+    final button = IconButton(
       // This alignment positions the button correctly on both sides of the app
       // bar.
-      alignment: Alignment.centerRight,
+      // alignment: Alignment.centerRight,
       icon: const Icon(LxIcons.back),
       onPressed: () => Navigator.of(context).pop(),
     );
+
+    if (this.isLeading) {
+      return Padding(
+          padding: const EdgeInsets.only(left: Space.leadingTweakLeftPadding),
+          child: button);
+    } else {
+      return button;
+    }
   }
 }
 

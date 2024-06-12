@@ -569,7 +569,7 @@ class ReceivePaymentPageInnerState extends State<ReceivePaymentPageInner> {
     return Scaffold(
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxBackButton(),
+        leading: const LxBackButton(isLeading: true),
         title: const Text(
           "Receive",
           // "Receive payment",
@@ -1314,7 +1314,7 @@ class _ReceivePaymentEditInvoicePageState
     return Scaffold(
       appBar: AppBar(
         leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxBackButton(),
+        leading: const LxBackButton(isLeading: true),
       ),
       body: ScrollableSinglePageBody(
         body: [

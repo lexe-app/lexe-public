@@ -98,7 +98,7 @@ class _ScanPageState extends State<ScanPage> {
 
         // X - quit scanning
         leadingWidth: Space.appBarLeadingWidth,
-        leading: const LxBackButton(),
+        leading: const LxBackButton(isLeading: true),
         actions: const [
           LxCloseButton(kind: LxCloseButtonKind.closeFromRoot),
           SizedBox(width: Space.appBarTrailingPadding),
