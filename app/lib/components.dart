@@ -77,7 +77,7 @@ class ScrollableSinglePageBody extends StatelessWidget {
 
       innerPadding = (width <= maxWidth)
           ? EdgeInsets.zero
-          : EdgeInsets.only(left: 0.5 * (width - maxWidth));
+          : EdgeInsets.symmetric(horizontal: 0.5 * (width - maxWidth));
     } else {
       innerPadding = EdgeInsets.zero;
     }
@@ -100,14 +100,6 @@ class ScrollableSinglePageBody extends StatelessWidget {
       child: CustomScrollView(
         primary: true,
         slivers: [
-          // TODO(phlip9): replace refresh buttons w/ pull-to-refresh?
-          // CupertinoSliverRefreshControl(
-          //   onRefresh: () async {
-          //     await Future.delayed(const Duration(seconds: 1));
-          //     print("Refresh!");
-          //   },
-          // ),
-
           // The primary body widgets.
           if (!this.useFullWidth)
             SliverPadding(
