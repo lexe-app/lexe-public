@@ -10,9 +10,12 @@ import 'package:lexeapp/bindings_generated_api.dart'
         AppHandle,
         Balance,
         ClientPaymentId,
+        ConfirmationPriority,
         Invoice,
         Network,
         Onchain,
+        PayInvoiceRequest,
+        PayOnchainRequest,
         PaymentKind,
         PaymentMethod,
         PaymentMethod_Invoice,
@@ -217,6 +220,53 @@ class SendState_Preflighted implements SendState {
 
   int balanceSats() =>
       this.balance.balanceByKind(this.preflightedPayment.kind());
+
+  /// The user is now confirming/sending this payment
+  Future<FfiResult<void>> pay(
+    final String? note,
+    // Only used for Onchain
+    final ConfirmationPriority? confPriority,
+  ) async {
+    final preflighted = this.preflightedPayment;
+    return switch (preflighted) {
+      PreflightedPayment_Onchain() =>
+        await this.payOnchain(preflighted, note, confPriority!),
+      PreflightedPayment_Invoice() => await this.payInvoice(preflighted, note),
+      PreflightedPayment_Offer() =>
+        throw UnimplementedError("BOLT12 offers are unsupported"),
+    };
+  }
+
+  Future<FfiResult<void>> payOnchain(
+    final PreflightedPayment_Onchain preflighted,
+    final String? note,
+    final ConfirmationPriority confPriority,
+  ) async {
+    final req = PayOnchainRequest(
+      cid: this.cid,
+      address: preflighted.onchain.address,
+      amountSats: preflighted.amountSats,
+      priority: confPriority,
+      note: note,
+    );
+
+    return Result.tryFfiAsync(() async => this.app.payOnchain(req: req));
+  }
+
+  Future<FfiResult<void>> payInvoice(
+    final PreflightedPayment_Invoice preflighted,
+    final String? note,
+  ) async {
+    final req = PayInvoiceRequest(
+      invoice: preflighted.invoice.string,
+      fallbackAmountSats: (preflighted.invoice.amountSats == null)
+          ? preflighted.amountSats
+          : null,
+      note: note,
+    );
+
+    return Result.tryFfiAsync(() async => this.app.payInvoice(req: req));
+  }
 }
 
 /// A preflighted [PaymentMethod] -- the user's node has made sure the payment

@@ -8,8 +8,6 @@ import 'package:lexeapp/bindings_generated_api.dart'
     show
         ConfirmationPriority,
         FeeEstimate,
-        PayInvoiceRequest,
-        PayOnchainRequest,
         PaymentKind,
         PreflightPayOnchainResponse;
 import 'package:lexeapp/bindings_generated_api_ext.dart';
@@ -461,35 +459,6 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     super.dispose();
   }
 
-  Future<FfiResult<void>> doPayOnchain(
-      final PreflightedPayment_Onchain preflighted) async {
-    final req = PayOnchainRequest(
-      cid: this.widget.sendCtx.cid,
-      address: preflighted.onchain.address,
-      amountSats: preflighted.amountSats,
-      priority: this.confPriority.value,
-      note: this.note(),
-    );
-
-    final app = this.widget.sendCtx.app;
-
-    return Result.tryFfiAsync(() async => app.payOnchain(req: req));
-  }
-
-  Future<FfiResult<void>> doPayInvoice(
-      final PreflightedPayment_Invoice preflighted) async {
-    final req = PayInvoiceRequest(
-      invoice: preflighted.invoice.string,
-      fallbackAmountSats: (preflighted.invoice.amountSats == null)
-          ? preflighted.amountSats
-          : null,
-      note: this.note(),
-    );
-
-    final app = this.widget.sendCtx.app;
-    return Result.tryFfiAsync(() async => app.payInvoice(req: req));
-  }
-
   Future<void> onConfirm() async {
     if (this.isSending.value) return;
 
@@ -497,12 +466,9 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     this.isSending.value = true;
     this.sendError.value = null;
 
-    final preflighted = this.widget.sendCtx.preflightedPayment;
-    final result = switch (preflighted) {
-      PreflightedPayment_Onchain() => await this.doPayOnchain(preflighted),
-      PreflightedPayment_Invoice() => await this.doPayInvoice(preflighted),
-      PreflightedPayment_Offer() => throw UnimplementedError(),
-    };
+    // Actually start the payment
+    final result =
+        await this.widget.sendCtx.pay(this.note(), this.confPriority.value);
 
     if (!this.mounted) return;
 
