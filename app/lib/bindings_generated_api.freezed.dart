@@ -698,7 +698,7 @@ abstract class _PayInvoiceRequest implements PayInvoiceRequest {
 
 /// @nodoc
 mixin _$PayInvoiceResponse {
-  String get index => throw _privateConstructorUsedError;
+  PaymentIndex get index => throw _privateConstructorUsedError;
 }
 
 /// @nodoc
@@ -707,7 +707,7 @@ class _$PayInvoiceResponseImpl implements _PayInvoiceResponse {
   const _$PayInvoiceResponseImpl({required this.index});
 
   @override
-  final String index;
+  final PaymentIndex index;
 
   @override
   String toString() {
@@ -727,11 +727,11 @@ class _$PayInvoiceResponseImpl implements _PayInvoiceResponse {
 }
 
 abstract class _PayInvoiceResponse implements PayInvoiceResponse {
-  const factory _PayInvoiceResponse({required final String index}) =
+  const factory _PayInvoiceResponse({required final PaymentIndex index}) =
       _$PayInvoiceResponseImpl;
 
   @override
-  String get index;
+  PaymentIndex get index;
 }
 
 /// @nodoc
@@ -810,7 +810,7 @@ abstract class _PayOnchainRequest implements PayOnchainRequest {
 
 /// @nodoc
 mixin _$PayOnchainResponse {
-  String get index => throw _privateConstructorUsedError;
+  PaymentIndex get index => throw _privateConstructorUsedError;
   String get txid => throw _privateConstructorUsedError;
 }
 
@@ -820,7 +820,7 @@ class _$PayOnchainResponseImpl implements _PayOnchainResponse {
   const _$PayOnchainResponseImpl({required this.index, required this.txid});
 
   @override
-  final String index;
+  final PaymentIndex index;
   @override
   final String txid;
 
@@ -844,18 +844,18 @@ class _$PayOnchainResponseImpl implements _PayOnchainResponse {
 
 abstract class _PayOnchainResponse implements PayOnchainResponse {
   const factory _PayOnchainResponse(
-      {required final String index,
+      {required final PaymentIndex index,
       required final String txid}) = _$PayOnchainResponseImpl;
 
   @override
-  String get index;
+  PaymentIndex get index;
   @override
   String get txid;
 }
 
 /// @nodoc
 mixin _$Payment {
-  String get index => throw _privateConstructorUsedError;
+  PaymentIndex get index => throw _privateConstructorUsedError;
   PaymentKind get kind => throw _privateConstructorUsedError;
   PaymentDirection get direction => throw _privateConstructorUsedError;
   Invoice? get invoice => throw _privateConstructorUsedError;
@@ -887,7 +887,7 @@ class _$PaymentImpl implements _Payment {
       this.finalizedAt});
 
   @override
-  final String index;
+  final PaymentIndex index;
   @override
   final PaymentKind kind;
   @override
@@ -960,7 +960,7 @@ class _$PaymentImpl implements _Payment {
 
 abstract class _Payment implements Payment {
   const factory _Payment(
-      {required final String index,
+      {required final PaymentIndex index,
       required final PaymentKind kind,
       required final PaymentDirection direction,
       final Invoice? invoice,
@@ -974,7 +974,7 @@ abstract class _Payment implements Payment {
       final int? finalizedAt}) = _$PaymentImpl;
 
   @override
-  String get index;
+  PaymentIndex get index;
   @override
   PaymentKind get kind;
   @override
@@ -997,6 +997,44 @@ abstract class _Payment implements Payment {
   int get createdAt;
   @override
   int? get finalizedAt;
+}
+
+/// @nodoc
+mixin _$PaymentIndex {
+  String get field0 => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PaymentIndexImpl implements _PaymentIndex {
+  const _$PaymentIndexImpl({required this.field0});
+
+  @override
+  final String field0;
+
+  @override
+  String toString() {
+    return 'PaymentIndex(field0: $field0)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PaymentIndexImpl &&
+            (identical(other.field0, field0) || other.field0 == field0));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, field0);
+}
+
+abstract class _PaymentIndex implements PaymentIndex {
+  const factory _PaymentIndex({required final String field0}) =
+      _$PaymentIndexImpl;
+
+  @override
+  String get field0;
 }
 
 /// @nodoc
@@ -1296,7 +1334,7 @@ abstract class _PreflightPayOnchainResponse
 
 /// @nodoc
 mixin _$ShortPayment {
-  String get index => throw _privateConstructorUsedError;
+  PaymentIndex get index => throw _privateConstructorUsedError;
   PaymentKind get kind => throw _privateConstructorUsedError;
   PaymentDirection get direction => throw _privateConstructorUsedError;
   int? get amountSat => throw _privateConstructorUsedError;
@@ -1318,7 +1356,7 @@ class _$ShortPaymentImpl implements _ShortPayment {
       required this.createdAt});
 
   @override
-  final String index;
+  final PaymentIndex index;
   @override
   final PaymentKind kind;
   @override
@@ -1361,7 +1399,7 @@ class _$ShortPaymentImpl implements _ShortPayment {
 
 abstract class _ShortPayment implements ShortPayment {
   const factory _ShortPayment(
-      {required final String index,
+      {required final PaymentIndex index,
       required final PaymentKind kind,
       required final PaymentDirection direction,
       final int? amountSat,
@@ -1370,7 +1408,7 @@ abstract class _ShortPayment implements ShortPayment {
       required final int createdAt}) = _$ShortPaymentImpl;
 
   @override
-  String get index;
+  PaymentIndex get index;
   @override
   PaymentKind get kind;
   @override
@@ -1387,7 +1425,7 @@ abstract class _ShortPayment implements ShortPayment {
 
 /// @nodoc
 mixin _$UpdatePaymentNote {
-  String get index => throw _privateConstructorUsedError;
+  PaymentIndex get index => throw _privateConstructorUsedError;
   String? get note => throw _privateConstructorUsedError;
 }
 
@@ -1397,7 +1435,7 @@ class _$UpdatePaymentNoteImpl implements _UpdatePaymentNote {
   const _$UpdatePaymentNoteImpl({required this.index, this.note});
 
   @override
-  final String index;
+  final PaymentIndex index;
   @override
   final String? note;
 
@@ -1421,11 +1459,11 @@ class _$UpdatePaymentNoteImpl implements _UpdatePaymentNote {
 
 abstract class _UpdatePaymentNote implements UpdatePaymentNote {
   const factory _UpdatePaymentNote(
-      {required final String index,
+      {required final PaymentIndex index,
       final String? note}) = _$UpdatePaymentNoteImpl;
 
   @override
-  String get index;
+  PaymentIndex get index;
   @override
   String? get note;
 }

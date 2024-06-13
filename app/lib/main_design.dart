@@ -35,6 +35,7 @@ import 'package:lexeapp/bindings_generated_api.dart'
         PayOnchainResponse,
         Payment,
         PaymentDirection,
+        PaymentIndex,
         PaymentKind,
         PaymentMethod,
         PaymentStatus,
@@ -411,7 +412,7 @@ class MockAppHandle extends AppHandle {
     dummyInvoiceInboundCompleted01,
     dummyInvoiceInboundFailed01,
     dummyOnchainOutboundCompleted01,
-  ].sortedBy((payment) => payment.index);
+  ].sortedBy((payment) => payment.index.field0);
 
   @override
   Future<NodeInfo> nodeInfo({dynamic hint}) =>
@@ -456,8 +457,9 @@ class MockAppHandle extends AppHandle {
       Future.delayed(
         const Duration(milliseconds: 1200),
         () => const PayOnchainResponse(
-          index:
-              "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+          index: PaymentIndex(
+              field0:
+                  "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68"),
           txid:
               "f5f119aca79fa3ff1c95793c87ecf7bcd84fa326dfedde3d3c2181a6c733e689",
         ),
@@ -515,8 +517,9 @@ class MockAppHandle extends AppHandle {
       Future.delayed(
         const Duration(milliseconds: 1200),
         () => const PayInvoiceResponse(
-          index:
-              "0000001686744442000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
+          index: PaymentIndex(
+              field0:
+                  "0000001686744442000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0"),
         ),
       );
 
@@ -681,8 +684,9 @@ class MockSignupApi implements SignupApi {
 // Dummy payments data
 
 const Payment dummyOnchainInboundPending01 = Payment(
-  index:
-      "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+  index: PaymentIndex(
+      field0:
+          "0000001687309696000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68"),
   kind: PaymentKind.Onchain,
   direction: PaymentDirection.Inbound,
   amountSat: 1469,
@@ -696,8 +700,9 @@ const Payment dummyOnchainInboundPending01 = Payment(
 );
 
 const Payment dummyOnchainInboundCompleted01 = Payment(
-  index:
-      "0000001670090492000-bc_551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66",
+  index: PaymentIndex(
+      field0:
+          "0000001670090492000-bc_551df4ef3b67b3f2ca53f3e668eb73c2a9b3a77dea84b340fd2407ec5542aa66"),
   kind: PaymentKind.Onchain,
   direction: PaymentDirection.Inbound,
   amountSat: 20000,
@@ -711,8 +716,9 @@ const Payment dummyOnchainInboundCompleted01 = Payment(
 );
 
 const Payment dummyOnchainOutboundCompleted01 = Payment(
-  index:
-      "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+  index: PaymentIndex(
+      field0:
+          "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68"),
   kind: PaymentKind.Onchain,
   direction: PaymentDirection.Outbound,
   amountSat: 77000,
@@ -725,8 +731,9 @@ const Payment dummyOnchainOutboundCompleted01 = Payment(
 );
 
 const Payment dummyOnchainOutboundFailed01 = Payment(
-  index:
-      "0000001671818392000-bc_46e52089b60b00de067c84ce58d34a75ffd71a106f720855bc099f20da11700c",
+  index: PaymentIndex(
+      field0:
+          "0000001671818392000-bc_46e52089b60b00de067c84ce58d34a75ffd71a106f720855bc099f20da11700c"),
   kind: PaymentKind.Onchain,
   direction: PaymentDirection.Outbound,
   amountSat: 95000000,
@@ -740,8 +747,9 @@ const Payment dummyOnchainOutboundFailed01 = Payment(
 );
 
 const Payment dummySpontaneousOutboundPending01 = Payment(
-  index:
-      "0000001686938392000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
+  index: PaymentIndex(
+      field0:
+          "0000001686938392000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0"),
   kind: PaymentKind.Spontaneous,
   direction: PaymentDirection.Outbound,
   amountSat: 123000,
@@ -753,8 +761,9 @@ const Payment dummySpontaneousOutboundPending01 = Payment(
 );
 
 const Payment dummyInvoiceOutboundPending01 = Payment(
-  index:
-      "0000001686744442000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
+  index: PaymentIndex(
+      field0:
+          "0000001686744442000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0"),
   kind: PaymentKind.Invoice,
   direction: PaymentDirection.Outbound,
   invoice: Invoice(
@@ -776,8 +785,9 @@ const Payment dummyInvoiceOutboundPending01 = Payment(
 );
 
 const Payment dummyInvoiceInboundPending01 = Payment(
-  index:
-      "0000001687140003000-ln_bbe27583bf7ee269387bbad48c48fcae10e41537d35e49b14d81cc7306f486cb",
+  index: PaymentIndex(
+      field0:
+          "0000001687140003000-ln_bbe27583bf7ee269387bbad48c48fcae10e41537d35e49b14d81cc7306f486cb"),
   kind: PaymentKind.Invoice,
   direction: PaymentDirection.Inbound,
   invoice: Invoice(
@@ -801,8 +811,9 @@ const Payment dummyInvoiceInboundPending01 = Payment(
 
 // Junk payment
 const Payment dummyInvoiceInboundPending02 = Payment(
-  index:
-      "0000001714432815000-ln_c6e5e46c59267114f91d64df0e069b0dae176f9a134656820bba1e6164318980",
+  index: PaymentIndex(
+      field0:
+          "0000001714432815000-ln_c6e5e46c59267114f91d64df0e069b0dae176f9a134656820bba1e6164318980"),
   kind: PaymentKind.Invoice,
   direction: PaymentDirection.Inbound,
   invoice: Invoice(
@@ -824,8 +835,9 @@ const Payment dummyInvoiceInboundPending02 = Payment(
 );
 
 const Payment dummyInvoiceInboundCompleted01 = Payment(
-  index:
-      "0000001687100002000-ln_801ffce9fbe74fecc7ec6fa72716d7de6167cc5607635062b24797b54f9ba4be",
+  index: PaymentIndex(
+      field0:
+          "0000001687100002000-ln_801ffce9fbe74fecc7ec6fa72716d7de6167cc5607635062b24797b54f9ba4be"),
   kind: PaymentKind.Invoice,
   direction: PaymentDirection.Inbound,
   invoice: Invoice(
@@ -849,8 +861,9 @@ const Payment dummyInvoiceInboundCompleted01 = Payment(
 
 // Junk payment (failed)
 const Payment dummyInvoiceInboundFailed01 = Payment(
-  index:
-      "0000001700222815000-ln_034a21eee2bea4288ec9582b10a4abd6bfdca83855b25257279e67dd02f77d43",
+  index: PaymentIndex(
+      field0:
+          "0000001700222815000-ln_034a21eee2bea4288ec9582b10a4abd6bfdca83855b25257279e67dd02f77d43"),
   kind: PaymentKind.Invoice,
   direction: PaymentDirection.Inbound,
   invoice: Invoice(

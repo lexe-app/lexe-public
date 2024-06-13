@@ -1005,7 +1005,7 @@ class AppRsImpl implements AppRs {
     if (arr.length != 1)
       throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
     return PayInvoiceResponse(
-      index: _wire2api_String(arr[0]),
+      index: _wire2api_payment_index(arr[0]),
     );
   }
 
@@ -1014,7 +1014,7 @@ class AppRsImpl implements AppRs {
     if (arr.length != 2)
       throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
     return PayOnchainResponse(
-      index: _wire2api_String(arr[0]),
+      index: _wire2api_payment_index(arr[0]),
       txid: _wire2api_String(arr[1]),
     );
   }
@@ -1024,7 +1024,7 @@ class AppRsImpl implements AppRs {
     if (arr.length != 12)
       throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
     return Payment(
-      index: _wire2api_String(arr[0]),
+      index: _wire2api_payment_index(arr[0]),
       kind: _wire2api_payment_kind(arr[1]),
       direction: _wire2api_payment_direction(arr[2]),
       invoice: _wire2api_opt_box_autoadd_invoice(arr[3]),
@@ -1041,6 +1041,15 @@ class AppRsImpl implements AppRs {
 
   PaymentDirection _wire2api_payment_direction(dynamic raw) {
     return PaymentDirection.values[raw as int];
+  }
+
+  PaymentIndex _wire2api_payment_index(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return PaymentIndex(
+      field0: _wire2api_String(arr[0]),
+    );
   }
 
   PaymentKind _wire2api_payment_kind(dynamic raw) {
@@ -1096,7 +1105,7 @@ class AppRsImpl implements AppRs {
     if (arr.length != 7)
       throw Exception('unexpected arr length: expect 7 but see ${arr.length}');
     return ShortPayment(
-      index: _wire2api_String(arr[0]),
+      index: _wire2api_payment_index(arr[0]),
       kind: _wire2api_payment_kind(arr[1]),
       direction: _wire2api_payment_direction(arr[2]),
       amountSat: _wire2api_opt_box_autoadd_u64(arr[3]),
@@ -1395,6 +1404,11 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
     wireObj.note = api2wire_opt_String(apiObj.note);
   }
 
+  void _api_fill_to_wire_payment_index(
+      PaymentIndex apiObj, wire_PaymentIndex wireObj) {
+    wireObj.field0 = api2wire_String(apiObj.field0);
+  }
+
   void _api_fill_to_wire_preflight_pay_invoice_request(
       PreflightPayInvoiceRequest apiObj,
       wire_PreflightPayInvoiceRequest wireObj) {
@@ -1412,7 +1426,7 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
 
   void _api_fill_to_wire_update_payment_note(
       UpdatePaymentNote apiObj, wire_UpdatePaymentNote wireObj) {
-    wireObj.index = api2wire_String(apiObj.index);
+    _api_fill_to_wire_payment_index(apiObj.index, wireObj.index);
     wireObj.note = api2wire_opt_String(apiObj.note);
   }
 }
@@ -2435,8 +2449,12 @@ final class wire_PayInvoiceRequest extends ffi.Struct {
   external ffi.Pointer<wire_uint_8_list> note;
 }
 
+final class wire_PaymentIndex extends ffi.Struct {
+  external ffi.Pointer<wire_uint_8_list> field0;
+}
+
 final class wire_UpdatePaymentNote extends ffi.Struct {
-  external ffi.Pointer<wire_uint_8_list> index;
+  external wire_PaymentIndex index;
 
   external ffi.Pointer<wire_uint_8_list> note;
 }

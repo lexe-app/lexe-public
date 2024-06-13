@@ -338,9 +338,6 @@ class LxCloseButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final button = IconButton(
-      // This alignment positions the button correctly on both sides of the app
-      // bar.
-      // alignment: Alignment.centerRight,
       icon: const Icon(LxIcons.close),
       onPressed: () => this.onTap(context),
     );
@@ -372,9 +369,6 @@ class LxBackButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final button = IconButton(
-      // This alignment positions the button correctly on both sides of the app
-      // bar.
-      // alignment: Alignment.centerRight,
       icon: const Icon(LxIcons.back),
       onPressed: () => Navigator.of(context).pop(),
     );

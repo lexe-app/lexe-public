@@ -8,9 +8,11 @@ import 'package:lexeapp/bindings_generated_api.dart'
         FiatRate,
         Payment,
         PaymentDirection,
+        PaymentIndex,
         PaymentKind,
         PaymentStatus,
         UpdatePaymentNote;
+import 'package:lexeapp/bindings_generated_api_ext.dart';
 import 'package:lexeapp/components.dart'
     show
         FilledPlaceholder,
@@ -153,15 +155,7 @@ class PaymentDetailPageInner extends StatelessWidget {
   final VoidCallback triggerRefresh;
 
   // HACK: parsing the serialized form like this is ugly af.
-  String paymentIdxBody() {
-    final paymentIdx = this.payment.value.index;
-    final splitIdx = paymentIdx.lastIndexOf('_');
-    if (splitIdx < 0) {
-      return paymentIdx;
-    } else {
-      return paymentIdx.substring(splitIdx + 1);
-    }
-  }
+  String paymentIdxBody() => this.payment.value.index.body();
 
   void openBottomSheet(BuildContext context) {
     unawaited(showModalBottomSheet(
@@ -318,16 +312,7 @@ class PaymentDetailBottomSheet extends StatelessWidget {
   final ValueListenable<Payment> payment;
   final ValueStream<FiatRate?> fiatRate;
 
-  // HACK: parsing the serialized form like this is ugly af.
-  String paymentIdxBody() {
-    final paymentIdx = this.payment.value.index;
-    final splitIdx = paymentIdx.lastIndexOf('_');
-    if (splitIdx < 0) {
-      return paymentIdx;
-    } else {
-      return paymentIdx.substring(splitIdx + 1);
-    }
-  }
+  String paymentIdxBody() => this.payment.value.index.body();
 
   @override
   Widget build(BuildContext context) {
@@ -766,7 +751,7 @@ class PaymentDetailNoteInput extends StatefulWidget {
   });
 
   final AppHandle app;
-  final String paymentIndex;
+  final PaymentIndex paymentIndex;
   final String? initialNote;
 
   @override

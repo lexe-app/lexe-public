@@ -74,8 +74,12 @@ typedef struct wire_PayInvoiceRequest {
   struct wire_uint_8_list *note;
 } wire_PayInvoiceRequest;
 
+typedef struct wire_PaymentIndex {
+  struct wire_uint_8_list *field0;
+} wire_PaymentIndex;
+
 typedef struct wire_UpdatePaymentNote {
-  struct wire_uint_8_list *index;
+  struct wire_PaymentIndex index;
   struct wire_uint_8_list *note;
 } wire_UpdatePaymentNote;
 
