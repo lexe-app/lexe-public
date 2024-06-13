@@ -540,6 +540,18 @@ class MockAppHandle extends AppHandle {
       Future.delayed(const Duration(milliseconds: 1500), () => true);
 
   @override
+  Future<int?> getVecIdxByPaymentIndex(
+      {required PaymentIndex paymentIndex, dynamic hint}) async {
+    final vecIdx =
+        this.payments.indexWhere((payment) => payment.index == paymentIndex);
+    if (vecIdx >= 0) {
+      return vecIdx;
+    } else {
+      return null;
+    }
+  }
+
+  @override
   Payment? getPaymentByVecIdx({required int vecIdx, dynamic hint}) =>
       this.payments[vecIdx];
 

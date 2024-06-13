@@ -159,6 +159,10 @@ void wire_delete_payment_db__method__AppHandle(int64_t port_, struct wire_AppHan
 
 void wire_sync_payments__method__AppHandle(int64_t port_, struct wire_AppHandle *that);
 
+void wire_get_vec_idx_by_payment_index__method__AppHandle(int64_t port_,
+                                                          struct wire_AppHandle *that,
+                                                          struct wire_PaymentIndex *payment_index);
+
 WireSyncReturn wire_get_payment_by_vec_idx__method__AppHandle(struct wire_AppHandle *that,
                                                               uintptr_t vec_idx);
 
@@ -203,6 +207,8 @@ struct wire_PayInvoiceRequest *new_box_autoadd_pay_invoice_request_0(void);
 
 struct wire_PayOnchainRequest *new_box_autoadd_pay_onchain_request_0(void);
 
+struct wire_PaymentIndex *new_box_autoadd_payment_index_0(void);
+
 struct wire_PreflightPayInvoiceRequest *new_box_autoadd_preflight_pay_invoice_request_0(void);
 
 struct wire_PreflightPayOnchainRequest *new_box_autoadd_preflight_pay_onchain_request_0(void);
@@ -245,6 +251,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) wire_pay_invoice__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_delete_payment_db__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_sync_payments__method__AppHandle);
+    dummy_var ^= ((int64_t) (void*) wire_get_vec_idx_by_payment_index__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_payment_by_vec_idx__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_short_payment_by_scroll_idx__method__AppHandle);
     dummy_var ^= ((int64_t) (void*) wire_get_pending_short_payment_by_scroll_idx__method__AppHandle);
@@ -263,6 +270,7 @@ static int64_t dummy_method_to_enforce_bundling(void) {
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_create_invoice_request_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_pay_invoice_request_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_pay_onchain_request_0);
+    dummy_var ^= ((int64_t) (void*) new_box_autoadd_payment_index_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_preflight_pay_invoice_request_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_preflight_pay_onchain_request_0);
     dummy_var ^= ((int64_t) (void*) new_box_autoadd_u64_0);

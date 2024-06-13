@@ -1130,6 +1130,15 @@ impl AppHandle {
             .map(|summary| summary.any_changes())
     }
 
+    pub fn get_vec_idx_by_payment_index(
+        &self,
+        payment_index: PaymentIndex,
+    ) -> Option<usize> {
+        let payment_index = PaymentIndexRs::try_from(payment_index).ok()?;
+        let db_lock = self.inner.payment_db().lock().unwrap();
+        db_lock.state().get_vec_idx_by_payment_index(&payment_index)
+    }
+
     pub fn get_payment_by_vec_idx(
         &self,
         vec_idx: usize,

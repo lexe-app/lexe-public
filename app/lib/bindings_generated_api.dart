@@ -183,6 +183,14 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kSyncPaymentsMethodAppHandleConstMeta;
 
+  Future<int?> getVecIdxByPaymentIndexMethodAppHandle(
+      {required AppHandle that,
+      required PaymentIndex paymentIndex,
+      dynamic hint});
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetVecIdxByPaymentIndexMethodAppHandleConstMeta;
+
   Payment? getPaymentByVecIdxMethodAppHandle(
       {required AppHandle that, required int vecIdx, dynamic hint});
 
@@ -367,6 +375,13 @@ class AppHandle {
   Future<bool> syncPayments({dynamic hint}) =>
       bridge.syncPaymentsMethodAppHandle(
         that: this,
+      );
+
+  Future<int?> getVecIdxByPaymentIndex(
+          {required PaymentIndex paymentIndex, dynamic hint}) =>
+      bridge.getVecIdxByPaymentIndexMethodAppHandle(
+        that: this,
+        paymentIndex: paymentIndex,
       );
 
   Payment? getPaymentByVecIdx({required int vecIdx, dynamic hint}) =>

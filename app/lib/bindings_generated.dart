@@ -509,6 +509,31 @@ class AppRsImpl implements AppRs {
         argNames: ["that"],
       );
 
+  Future<int?> getVecIdxByPaymentIndexMethodAppHandle(
+      {required AppHandle that,
+      required PaymentIndex paymentIndex,
+      dynamic hint}) {
+    var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
+    var arg1 = _platform.api2wire_box_autoadd_payment_index(paymentIndex);
+    return _platform.executeNormal(FlutterRustBridgeTask(
+      callFfi: (port_) => _platform.inner
+          .wire_get_vec_idx_by_payment_index__method__AppHandle(
+              port_, arg0, arg1),
+      parseSuccessData: _wire2api_opt_box_autoadd_usize,
+      parseErrorData: null,
+      constMeta: kGetVecIdxByPaymentIndexMethodAppHandleConstMeta,
+      argValues: [that, paymentIndex],
+      hint: hint,
+    ));
+  }
+
+  FlutterRustBridgeTaskConstMeta
+      get kGetVecIdxByPaymentIndexMethodAppHandleConstMeta =>
+          const FlutterRustBridgeTaskConstMeta(
+            debugName: "get_vec_idx_by_payment_index__method__AppHandle",
+            argNames: ["that", "paymentIndex"],
+          );
+
   Payment? getPaymentByVecIdxMethodAppHandle(
       {required AppHandle that, required int vecIdx, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
@@ -856,6 +881,10 @@ class AppRsImpl implements AppRs {
     return _wire2api_u64(raw);
   }
 
+  int _wire2api_box_autoadd_usize(dynamic raw) {
+    return _wire2api_usize(raw);
+  }
+
   ClientPaymentId _wire2api_client_payment_id(dynamic raw) {
     final arr = raw as List<dynamic>;
     if (arr.length != 1)
@@ -998,6 +1027,10 @@ class AppRsImpl implements AppRs {
 
   int? _wire2api_opt_box_autoadd_u64(dynamic raw) {
     return raw == null ? null : _wire2api_box_autoadd_u64(raw);
+  }
+
+  int? _wire2api_opt_box_autoadd_usize(dynamic raw) {
+    return raw == null ? null : _wire2api_box_autoadd_usize(raw);
   }
 
   PayInvoiceResponse _wire2api_pay_invoice_response(dynamic raw) {
@@ -1249,6 +1282,14 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   }
 
   @protected
+  ffi.Pointer<wire_PaymentIndex> api2wire_box_autoadd_payment_index(
+      PaymentIndex raw) {
+    final ptr = inner.new_box_autoadd_payment_index_0();
+    _api_fill_to_wire_payment_index(raw, ptr.ref);
+    return ptr;
+  }
+
+  @protected
   ffi.Pointer<wire_PreflightPayInvoiceRequest>
       api2wire_box_autoadd_preflight_pay_invoice_request(
           PreflightPayInvoiceRequest raw) {
@@ -1347,6 +1388,11 @@ class AppRsPlatform extends FlutterRustBridgeBase<AppRsWire> {
   void _api_fill_to_wire_box_autoadd_pay_onchain_request(
       PayOnchainRequest apiObj, ffi.Pointer<wire_PayOnchainRequest> wireObj) {
     _api_fill_to_wire_pay_onchain_request(apiObj, wireObj.ref);
+  }
+
+  void _api_fill_to_wire_box_autoadd_payment_index(
+      PaymentIndex apiObj, ffi.Pointer<wire_PaymentIndex> wireObj) {
+    _api_fill_to_wire_payment_index(apiObj, wireObj.ref);
   }
 
   void _api_fill_to_wire_box_autoadd_preflight_pay_invoice_request(
@@ -1963,6 +2009,28 @@ class AppRsWire implements FlutterRustBridgeWireBase {
       _wire_sync_payments__method__AppHandlePtr
           .asFunction<void Function(int, ffi.Pointer<wire_AppHandle>)>();
 
+  void wire_get_vec_idx_by_payment_index__method__AppHandle(
+    int port_,
+    ffi.Pointer<wire_AppHandle> that,
+    ffi.Pointer<wire_PaymentIndex> payment_index,
+  ) {
+    return _wire_get_vec_idx_by_payment_index__method__AppHandle(
+      port_,
+      that,
+      payment_index,
+    );
+  }
+
+  late final _wire_get_vec_idx_by_payment_index__method__AppHandlePtr = _lookup<
+          ffi.NativeFunction<
+              ffi.Void Function(ffi.Int64, ffi.Pointer<wire_AppHandle>,
+                  ffi.Pointer<wire_PaymentIndex>)>>(
+      'wire_get_vec_idx_by_payment_index__method__AppHandle');
+  late final _wire_get_vec_idx_by_payment_index__method__AppHandle =
+      _wire_get_vec_idx_by_payment_index__method__AppHandlePtr.asFunction<
+          void Function(int, ffi.Pointer<wire_AppHandle>,
+              ffi.Pointer<wire_PaymentIndex>)>();
+
   WireSyncReturn wire_get_payment_by_vec_idx__method__AppHandle(
     ffi.Pointer<wire_AppHandle> that,
     int vec_idx,
@@ -2255,6 +2323,17 @@ class AppRsWire implements FlutterRustBridgeWireBase {
   late final _new_box_autoadd_pay_onchain_request_0 =
       _new_box_autoadd_pay_onchain_request_0Ptr
           .asFunction<ffi.Pointer<wire_PayOnchainRequest> Function()>();
+
+  ffi.Pointer<wire_PaymentIndex> new_box_autoadd_payment_index_0() {
+    return _new_box_autoadd_payment_index_0();
+  }
+
+  late final _new_box_autoadd_payment_index_0Ptr =
+      _lookup<ffi.NativeFunction<ffi.Pointer<wire_PaymentIndex> Function()>>(
+          'new_box_autoadd_payment_index_0');
+  late final _new_box_autoadd_payment_index_0 =
+      _new_box_autoadd_payment_index_0Ptr
+          .asFunction<ffi.Pointer<wire_PaymentIndex> Function()>();
 
   ffi.Pointer<wire_PreflightPayInvoiceRequest>
       new_box_autoadd_preflight_pay_invoice_request_0() {
