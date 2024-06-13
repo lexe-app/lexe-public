@@ -18,6 +18,31 @@ pub mod types;
 /// Allow accessing [`rustls`] via `common::tls`
 pub use rustls;
 
+/// Whether the given DER-encoded cert bound to the given DNS name.
+/// Returns [`false`] if the certificate failed to parse.
+#[must_use]
+pub fn cert_contains_dns(cert_der: &[u8], expected_dns: &str) -> bool {
+    // Fake keypair which isn't actually used for validation
+    let fake_keypair = ed25519::KeyPair::from_seed(&[69; 32]).to_rcgen();
+
+    // This method is ostensibly for CA certs, but doesn't actually check if
+    // the cert is a CA cert, so it should be fine to reuse here
+    let cert_params = match rcgen::CertificateParams::from_ca_cert_der(
+        cert_der,
+        fake_keypair,
+    ) {
+        Ok(params) => params,
+        Err(_) => return false,
+    };
+
+    cert_params.subject_alt_names.iter().any(|san_type| {
+        matches!(
+            san_type,
+            rcgen::SanType::DnsName(bound_dns) if bound_dns == expected_dns
+        )
+    })
+}
+
 /// Our [`rustls::crypto::CryptoProvider`].
 /// Use this instead of [`rustls::crypto::ring::default_provider`].
 pub static LEXE_CRYPTO_PROVIDER: LazyLock<Arc<rustls::crypto::CryptoProvider>> =
