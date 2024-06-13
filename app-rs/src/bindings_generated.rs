@@ -966,6 +966,18 @@ impl rust2dart::IntoIntoDart<PaymentDirection> for PaymentDirection {
     }
 }
 
+impl support::IntoDart for PaymentIndex {
+    fn into_dart(self) -> support::DartAbi {
+        vec![self.0.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for PaymentIndex {}
+impl rust2dart::IntoIntoDart<PaymentIndex> for PaymentIndex {
+    fn into_into_dart(self) -> Self {
+        self
+    }
+}
+
 impl support::IntoDart for PaymentKind {
     fn into_dart(self) -> support::DartAbi {
         match self {
@@ -1608,6 +1620,11 @@ mod io {
             }
         }
     }
+    impl Wire2Api<PaymentIndex> for wire_PaymentIndex {
+        fn wire2api(self) -> PaymentIndex {
+            PaymentIndex(self.field0.wire2api())
+        }
+    }
     impl Wire2Api<PreflightPayInvoiceRequest> for wire_PreflightPayInvoiceRequest {
         fn wire2api(self) -> PreflightPayInvoiceRequest {
             PreflightPayInvoiceRequest {
@@ -1707,6 +1724,12 @@ mod io {
 
     #[repr(C)]
     #[derive(Clone)]
+    pub struct wire_PaymentIndex {
+        field0: *mut wire_uint_8_list,
+    }
+
+    #[repr(C)]
+    #[derive(Clone)]
     pub struct wire_PreflightPayInvoiceRequest {
         invoice: *mut wire_uint_8_list,
         fallback_amount_sats: *mut u64,
@@ -1729,7 +1752,7 @@ mod io {
     #[repr(C)]
     #[derive(Clone)]
     pub struct wire_UpdatePaymentNote {
-        index: *mut wire_uint_8_list,
+        index: wire_PaymentIndex,
         note: *mut wire_uint_8_list,
     }
 
@@ -1850,6 +1873,20 @@ mod io {
         }
     }
 
+    impl NewWithNullPtr for wire_PaymentIndex {
+        fn new_with_null_ptr() -> Self {
+            Self {
+                field0: core::ptr::null_mut(),
+            }
+        }
+    }
+
+    impl Default for wire_PaymentIndex {
+        fn default() -> Self {
+            Self::new_with_null_ptr()
+        }
+    }
+
     impl NewWithNullPtr for wire_PreflightPayInvoiceRequest {
         fn new_with_null_ptr() -> Self {
             Self {
@@ -1883,7 +1920,7 @@ mod io {
     impl NewWithNullPtr for wire_UpdatePaymentNote {
         fn new_with_null_ptr() -> Self {
             Self {
-                index: core::ptr::null_mut(),
+                index: Default::default(),
                 note: core::ptr::null_mut(),
             }
         }

@@ -10,6 +10,7 @@ import 'package:lexeapp/bindings_generated_api.dart'
         Invoice,
         Payment,
         PaymentDirection,
+        PaymentIndex,
         PaymentKind,
         PaymentMethod,
         PaymentMethod_Invoice,
@@ -17,6 +18,23 @@ import 'package:lexeapp/bindings_generated_api.dart'
         PaymentMethod_Onchain,
         PaymentStatus,
         ShortPayment;
+
+//
+// PaymentIndex
+//
+
+extension PaymentIndexExt on PaymentIndex {
+  // HACK: parsing the serialized form like this is ugly af.
+  String body() {
+    final paymentIndex = this.field0;
+    final splitIdx = paymentIndex.lastIndexOf('_');
+    if (splitIdx < 0) {
+      return paymentIndex;
+    } else {
+      return paymentIndex.substring(splitIdx + 1);
+    }
+  }
+}
 
 //
 // Payment
@@ -34,7 +52,7 @@ extension PaymentExt on Payment {
       );
 
   Payment copyWith({
-    String? index,
+    PaymentIndex? index,
     PaymentKind? kind,
     PaymentDirection? direction,
     Invoice? invoice,

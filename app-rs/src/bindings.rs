@@ -378,10 +378,27 @@ impl From<PaymentKindRs> for PaymentKind {
     }
 }
 
+/// See [`common::ln::payments::PaymentIndex`].
+#[frb(dart_metadata=("freezed"))]
+pub struct PaymentIndex(pub String);
+
+impl From<PaymentIndexRs> for PaymentIndex {
+    fn from(value: PaymentIndexRs) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl TryFrom<PaymentIndex> for PaymentIndexRs {
+    type Error = anyhow::Error;
+    fn try_from(value: PaymentIndex) -> Result<Self, Self::Error> {
+        PaymentIndexRs::from_str(&value.0)
+    }
+}
+
 /// Just the info we need to display an entry in the payments list UI.
 #[frb(dart_metadata=("freezed"))]
 pub struct ShortPayment {
-    pub index: String,
+    pub index: PaymentIndex,
 
     pub kind: PaymentKind,
     pub direction: PaymentDirection,
@@ -398,7 +415,7 @@ pub struct ShortPayment {
 impl From<&BasicPaymentRs> for ShortPayment {
     fn from(payment: &BasicPaymentRs) -> Self {
         Self {
-            index: payment.index().to_string(),
+            index: PaymentIndex::from(*payment.index()),
 
             kind: PaymentKind::from(payment.kind),
             direction: PaymentDirection::from(payment.direction),
@@ -426,7 +443,7 @@ pub struct ShortPaymentAndIndex {
 /// [`BasicPaymentRs`] type.
 #[frb(dart_metadata=("freezed"))]
 pub struct Payment {
-    pub index: String,
+    pub index: PaymentIndex,
 
     pub kind: PaymentKind,
     pub direction: PaymentDirection,
@@ -450,7 +467,7 @@ pub struct Payment {
 impl From<&BasicPaymentRs> for Payment {
     fn from(payment: &BasicPaymentRs) -> Self {
         Self {
-            index: payment.index().to_string(),
+            index: PaymentIndex::from(*payment.index()),
 
             kind: PaymentKind::from(payment.kind),
             direction: PaymentDirection::from(payment.direction),
@@ -589,7 +606,7 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
 /// the response so we get the full `PaymentIndex`.
 #[frb(dart_metadata=("freezed"))]
 pub struct PayInvoiceResponse {
-    pub index: String,
+    pub index: PaymentIndex,
 }
 
 impl PayInvoiceResponse {
@@ -602,7 +619,7 @@ impl PayInvoiceResponse {
             id,
         };
         Self {
-            index: index.to_string(),
+            index: PaymentIndex::from(index),
         }
     }
 }
@@ -778,7 +795,7 @@ impl TryFrom<PayOnchainRequest> for PayOnchainRequestRs {
 /// See [`common::api::command::PayOnchainResponse`].
 #[frb(dart_metadata=("freezed"))]
 pub struct PayOnchainResponse {
-    pub index: String,
+    pub index: PaymentIndex,
     pub txid: String,
 }
 
@@ -792,7 +809,7 @@ impl PayOnchainResponse {
             id: LxPaymentIdRs::OnchainSend(cid),
         };
         Self {
-            index: index.to_string(),
+            index: PaymentIndex::from(index),
             txid: resp.txid.to_string(),
         }
     }
@@ -852,7 +869,7 @@ impl From<FeeEstimateRs> for FeeEstimate {
 /// See [`common::api::qs::UpdatePaymentNote`].
 #[frb(dart_metadata=("freezed"))]
 pub struct UpdatePaymentNote {
-    pub index: String,
+    pub index: PaymentIndex,
     pub note: Option<String>,
 }
 
@@ -860,7 +877,7 @@ impl TryFrom<UpdatePaymentNote> for UpdatePaymentNoteRs {
     type Error = anyhow::Error;
     fn try_from(value: UpdatePaymentNote) -> Result<Self, Self::Error> {
         Ok(Self {
-            index: PaymentIndexRs::from_str(&value.index)?,
+            index: PaymentIndexRs::try_from(value.index)?,
             note: value.note,
         })
     }

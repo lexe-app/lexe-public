@@ -583,7 +583,7 @@ class PayInvoiceRequest with _$PayInvoiceRequest {
 @freezed
 class PayInvoiceResponse with _$PayInvoiceResponse {
   const factory PayInvoiceResponse({
-    required String index,
+    required PaymentIndex index,
   }) = _PayInvoiceResponse;
 }
 
@@ -603,7 +603,7 @@ class PayOnchainRequest with _$PayOnchainRequest {
 @freezed
 class PayOnchainResponse with _$PayOnchainResponse {
   const factory PayOnchainResponse({
-    required String index,
+    required PaymentIndex index,
     required String txid,
   }) = _PayOnchainResponse;
 }
@@ -613,7 +613,7 @@ class PayOnchainResponse with _$PayOnchainResponse {
 @freezed
 class Payment with _$Payment {
   const factory Payment({
-    required String index,
+    required PaymentIndex index,
     required PaymentKind kind,
     required PaymentDirection direction,
     Invoice? invoice,
@@ -631,6 +631,14 @@ class Payment with _$Payment {
 enum PaymentDirection {
   Inbound,
   Outbound,
+}
+
+/// See [`common::ln::payments::PaymentIndex`].
+@freezed
+class PaymentIndex with _$PaymentIndex {
+  const factory PaymentIndex({
+    required String field0,
+  }) = _PaymentIndex;
 }
 
 enum PaymentKind {
@@ -697,7 +705,7 @@ class PreflightPayOnchainResponse with _$PreflightPayOnchainResponse {
 @freezed
 class ShortPayment with _$ShortPayment {
   const factory ShortPayment({
-    required String index,
+    required PaymentIndex index,
     required PaymentKind kind,
     required PaymentDirection direction,
     int? amountSat,
@@ -732,7 +740,7 @@ class U8Array32 extends NonGrowableListView<int> {
 @freezed
 class UpdatePaymentNote with _$UpdatePaymentNote {
   const factory UpdatePaymentNote({
-    required String index,
+    required PaymentIndex index,
     String? note,
   }) = _UpdatePaymentNote;
 }
