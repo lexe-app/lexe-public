@@ -130,7 +130,7 @@ abstract class AppRs {
 
   FlutterRustBridgeTaskConstMeta get kFiatRatesMethodAppHandleConstMeta;
 
-  Future<void> payOnchainMethodAppHandle(
+  Future<PayOnchainResponse> payOnchainMethodAppHandle(
       {required AppHandle that, required PayOnchainRequest req, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kPayOnchainMethodAppHandleConstMeta;
@@ -163,7 +163,7 @@ abstract class AppRs {
   FlutterRustBridgeTaskConstMeta
       get kPreflightPayInvoiceMethodAppHandleConstMeta;
 
-  Future<void> payInvoiceMethodAppHandle(
+  Future<PayInvoiceResponse> payInvoiceMethodAppHandle(
       {required AppHandle that, required PayInvoiceRequest req, dynamic hint});
 
   FlutterRustBridgeTaskConstMeta get kPayInvoiceMethodAppHandleConstMeta;
@@ -315,7 +315,8 @@ class AppHandle {
         that: this,
       );
 
-  Future<void> payOnchain({required PayOnchainRequest req, dynamic hint}) =>
+  Future<PayOnchainResponse> payOnchain(
+          {required PayOnchainRequest req, dynamic hint}) =>
       bridge.payOnchainMethodAppHandle(
         that: this,
         req: req,
@@ -346,7 +347,8 @@ class AppHandle {
         req: req,
       );
 
-  Future<void> payInvoice({required PayInvoiceRequest req, dynamic hint}) =>
+  Future<PayInvoiceResponse> payInvoice(
+          {required PayInvoiceRequest req, dynamic hint}) =>
       bridge.payInvoiceMethodAppHandle(
         that: this,
         req: req,
@@ -576,6 +578,15 @@ class PayInvoiceRequest with _$PayInvoiceRequest {
   }) = _PayInvoiceRequest;
 }
 
+/// Mirrors [`common::api::command::PayInvoiceResponse`] the type, but enriches
+/// the response so we get the full `PaymentIndex`.
+@freezed
+class PayInvoiceResponse with _$PayInvoiceResponse {
+  const factory PayInvoiceResponse({
+    required String index,
+  }) = _PayInvoiceResponse;
+}
+
 /// See [`common::api::command::PayOnchainRequest`].
 @freezed
 class PayOnchainRequest with _$PayOnchainRequest {
@@ -588,8 +599,17 @@ class PayOnchainRequest with _$PayOnchainRequest {
   }) = _PayOnchainRequest;
 }
 
+/// See [`common::api::command::PayOnchainResponse`].
+@freezed
+class PayOnchainResponse with _$PayOnchainResponse {
+  const factory PayOnchainResponse({
+    required String index,
+    required String txid,
+  }) = _PayOnchainResponse;
+}
+
 /// The complete payment info, used in the payment detail page. Mirrors the
-/// [`BasicPayment`] type.
+/// [`BasicPaymentRs`] type.
 @freezed
 class Payment with _$Payment {
   const factory Payment({

@@ -697,6 +697,44 @@ abstract class _PayInvoiceRequest implements PayInvoiceRequest {
 }
 
 /// @nodoc
+mixin _$PayInvoiceResponse {
+  String get index => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PayInvoiceResponseImpl implements _PayInvoiceResponse {
+  const _$PayInvoiceResponseImpl({required this.index});
+
+  @override
+  final String index;
+
+  @override
+  String toString() {
+    return 'PayInvoiceResponse(index: $index)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PayInvoiceResponseImpl &&
+            (identical(other.index, index) || other.index == index));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, index);
+}
+
+abstract class _PayInvoiceResponse implements PayInvoiceResponse {
+  const factory _PayInvoiceResponse({required final String index}) =
+      _$PayInvoiceResponseImpl;
+
+  @override
+  String get index;
+}
+
+/// @nodoc
 mixin _$PayOnchainRequest {
   ClientPaymentId get cid => throw _privateConstructorUsedError;
   String get address => throw _privateConstructorUsedError;
@@ -768,6 +806,51 @@ abstract class _PayOnchainRequest implements PayOnchainRequest {
   ConfirmationPriority get priority;
   @override
   String? get note;
+}
+
+/// @nodoc
+mixin _$PayOnchainResponse {
+  String get index => throw _privateConstructorUsedError;
+  String get txid => throw _privateConstructorUsedError;
+}
+
+/// @nodoc
+
+class _$PayOnchainResponseImpl implements _PayOnchainResponse {
+  const _$PayOnchainResponseImpl({required this.index, required this.txid});
+
+  @override
+  final String index;
+  @override
+  final String txid;
+
+  @override
+  String toString() {
+    return 'PayOnchainResponse(index: $index, txid: $txid)';
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        (other.runtimeType == runtimeType &&
+            other is _$PayOnchainResponseImpl &&
+            (identical(other.index, index) || other.index == index) &&
+            (identical(other.txid, txid) || other.txid == txid));
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, index, txid);
+}
+
+abstract class _PayOnchainResponse implements PayOnchainResponse {
+  const factory _PayOnchainResponse(
+      {required final String index,
+      required final String txid}) = _$PayOnchainResponseImpl;
+
+  @override
+  String get index;
+  @override
+  String get txid;
 }
 
 /// @nodoc
