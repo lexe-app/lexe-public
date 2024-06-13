@@ -72,6 +72,10 @@ class WalletPageState extends State<WalletPage> {
   /// A stream controller to trigger refreshes of the wallet page contents.
   final StreamController<Null> refresh = StreamController.broadcast();
 
+  /// Listen to this stream to be notified of the next completed refresh.
+  final StreamController<Null> onCompletedRefresh =
+      StreamController.broadcast();
+
   /// True if there's currently an outstanding refresh.
   final ValueNotifier<bool> isRefreshing = ValueNotifier(false);
 
@@ -147,6 +151,7 @@ class WalletPageState extends State<WalletPage> {
     this.backgroundRefresh?.cancel();
     this.burstRefresh.close();
     this.refresh.close();
+    this.onCompletedRefresh.close();
     this.isRefreshing.dispose();
     this.paymentsUpdated.close();
     this.nodeInfos.close();
@@ -172,6 +177,8 @@ class WalletPageState extends State<WalletPage> {
     await (fetchNodeInfo(), fetchFiatRates(), syncPayments()).wait;
 
     if (!this.mounted) return;
+
+    this.onCompletedRefresh.addIfNotClosed(null);
     this.isRefreshing.value = false;
   }
 
@@ -203,9 +210,9 @@ class WalletPageState extends State<WalletPage> {
     this.isBurstRefreshing = true;
 
     const delays = [
-      Duration(seconds: 2),
-      Duration(seconds: 4),
-      Duration(seconds: 8)
+      Duration(seconds: 3),
+      Duration(seconds: 6),
+      Duration(seconds: 9)
     ];
 
     for (final delay in delays) {
@@ -314,14 +321,8 @@ class WalletPageState extends State<WalletPage> {
     // User canceled
     if (!this.mounted || flowResult == null) return;
 
-    // Refresh to pick up new payment
-    this.triggerRefresh();
-
-    // TODO(phlip9): burst refresh and open payment detail for new payment
-    // (1) get payment index from flow result
-    // (2) get payment from paymentdb
-    // (3) trigger burst refresh
-    // (4) open payment detail page for new payment
+    // Refresh and open new payment detail
+    await this.onSendFlowSuccess(flowResult);
   }
 
   /// Called when the "Scan" button is pressed. Pushes the QR scan page onto the
@@ -341,16 +342,17 @@ class WalletPageState extends State<WalletPage> {
         builder: (_context) => ScanPage(sendCtx: sendCtx),
       ),
     ));
-
     info("WalletPage: onScanPressed: flowResult: $flowResult");
 
     // User canceled
     if (!this.mounted || flowResult == null) return;
 
-    // Refresh to pick up new payment
-    this.triggerRefresh();
+    // Refresh and open new payment detail
+    await this.onSendFlowSuccess(flowResult);
   }
 
+  /// Collect up all the relevant context needed to support a new send payment
+  /// flow.
   SendState_NeedUri? tryCollectSendContext() {
     final maybeNodeInfo = this.nodeInfos.value;
     // Ignore Send/Scan button press, we haven't fetched the node info yet.
@@ -365,13 +367,53 @@ class WalletPageState extends State<WalletPage> {
     );
   }
 
-  void onDebugPressed() {
-    Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (context) => DebugPage(
-        config: this.widget.config,
-        app: this.widget.app,
-      ),
-    ));
+  /// Called after the user has successfully sent a new payment and the send
+  /// flow has popped back to the wallet page. We'll trigger a refresh, wait
+  /// for the next payments sync, then open the payment detail page for the
+  /// new page.
+  ///
+  /// For lightning payments, we'll also start burst refreshing, so we can
+  /// quickly pick up any status changes.
+  Future<void> onSendFlowSuccess(PaymentIndex index) async {
+    // Add a waiter for the next completed refresh tick, with a timeout.
+    final nextCompletedRefresh = Result.tryAsync<Null, Exception>(
+      () => this
+          .onCompletedRefresh
+          .stream
+          .first
+          .timeout(const Duration(seconds: 10)),
+    );
+
+    // Actually trigger a refresh. May be ignored, if throttled, in which case
+    // timeout should clean things up.
+    this.triggerRefresh();
+
+    // Wait for next completed refresh.
+    switch (await nextCompletedRefresh) {
+      case Ok():
+        info("WalletPage: onSendFlowSuccess: refresh completed");
+
+      case Err(:final err):
+        warn(
+            "WalletPage: onSendFlowSuccess: error waiting for next completed refresh: $err");
+        return;
+    }
+
+    // TODO(phlip9): start burst refresh after LN payment
+    // this.triggerBurstRefresh();
+
+    // Now lookup the new payment in our freshly synced local db.
+    final maybeVecIdx =
+        await this.widget.app.getVecIdxByPaymentIndex(paymentIndex: index);
+
+    if (maybeVecIdx == null) {
+      warn(
+          "WalletPage: onSendFlowSuccess: failed to find payment index after refresh: index: $index");
+      return;
+    }
+
+    // Open the payment detail page to this payment.
+    this.onPaymentTap(maybeVecIdx);
   }
 
   /// Called when one of the payments in the [SliverPaymentsList] is tapped.
@@ -384,6 +426,15 @@ class WalletPageState extends State<WalletPage> {
         fiatRate: this.fiatRate.stream,
         isRefreshing: this.isRefreshing,
         triggerRefresh: this.triggerRefresh,
+      ),
+    ));
+  }
+
+  void onDebugPressed() {
+    Navigator.of(this.context).push(MaterialPageRoute(
+      builder: (context) => DebugPage(
+        config: this.widget.config,
+        app: this.widget.app,
       ),
     ));
   }
