@@ -415,6 +415,29 @@ fn wire_sync_payments__method__AppHandle_impl(
         },
     )
 }
+fn wire_get_vec_idx_by_payment_index__method__AppHandle_impl(
+    port_: MessagePort,
+    that: impl Wire2Api<AppHandle> + UnwindSafe,
+    payment_index: impl Wire2Api<PaymentIndex> + UnwindSafe,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, Option<usize>, _>(
+        WrapInfo {
+            debug_name: "get_vec_idx_by_payment_index__method__AppHandle",
+            port: Some(port_),
+            mode: FfiCallMode::Normal,
+        },
+        move || {
+            let api_that = that.wire2api();
+            let api_payment_index = payment_index.wire2api();
+            move |task_callback| {
+                Result::<_, ()>::Ok(AppHandle::get_vec_idx_by_payment_index(
+                    &api_that,
+                    api_payment_index,
+                ))
+            }
+        },
+    )
+}
 fn wire_get_payment_by_vec_idx__method__AppHandle_impl(
     that: impl Wire2Api<AppHandle> + UnwindSafe,
     vec_idx: impl Wire2Api<usize> + UnwindSafe,
@@ -1307,6 +1330,19 @@ mod io {
     }
 
     #[no_mangle]
+    pub extern "C" fn wire_get_vec_idx_by_payment_index__method__AppHandle(
+        port_: i64,
+        that: *mut wire_AppHandle,
+        payment_index: *mut wire_PaymentIndex,
+    ) {
+        wire_get_vec_idx_by_payment_index__method__AppHandle_impl(
+            port_,
+            that,
+            payment_index,
+        )
+    }
+
+    #[no_mangle]
     pub extern "C" fn wire_get_payment_by_vec_idx__method__AppHandle(
         that: *mut wire_AppHandle,
         vec_idx: usize,
@@ -1440,6 +1476,12 @@ mod io {
     }
 
     #[no_mangle]
+    pub extern "C" fn new_box_autoadd_payment_index_0() -> *mut wire_PaymentIndex
+    {
+        support::new_leak_box_ptr(wire_PaymentIndex::new_with_null_ptr())
+    }
+
+    #[no_mangle]
     pub extern "C" fn new_box_autoadd_preflight_pay_invoice_request_0(
     ) -> *mut wire_PreflightPayInvoiceRequest {
         support::new_leak_box_ptr(
@@ -1541,6 +1583,12 @@ mod io {
         fn wire2api(self) -> PayOnchainRequest {
             let wrap = unsafe { support::box_from_leak_ptr(self) };
             Wire2Api::<PayOnchainRequest>::wire2api(*wrap).into()
+        }
+    }
+    impl Wire2Api<PaymentIndex> for *mut wire_PaymentIndex {
+        fn wire2api(self) -> PaymentIndex {
+            let wrap = unsafe { support::box_from_leak_ptr(self) };
+            Wire2Api::<PaymentIndex>::wire2api(*wrap).into()
         }
     }
     impl Wire2Api<PreflightPayInvoiceRequest>
