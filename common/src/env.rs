@@ -46,6 +46,16 @@ impl DeployEnv {
         matches!(self, Self::Staging | Self::Prod)
     }
 
+    /// Get a [`str`] containing "dev", "staging", or "prod"
+    #[inline]
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Dev => "dev",
+            Self::Staging => "staging",
+            Self::Prod => "prod",
+        }
+    }
+
     /// Validate the [`Network`] parameter for this deploy environment.
     pub fn validate_network(&self, network: Network) -> anyhow::Result<()> {
         match self {
@@ -109,12 +119,7 @@ impl FromStr for DeployEnv {
 
 impl Display for DeployEnv {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            Self::Dev => "dev",
-            Self::Staging => "staging",
-            Self::Prod => "prod",
-        };
-        write!(f, "{s}")
+        write!(f, "{}", self.as_str())
     }
 }
 
