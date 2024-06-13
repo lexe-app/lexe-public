@@ -14,7 +14,6 @@ import 'package:lexeapp/bindings_generated_api.dart'
         FiatRates,
         NodeInfo,
         PaymentDirection,
-        PaymentIndex,
         PaymentKind,
         PaymentStatus,
         ShortPayment,
@@ -37,7 +36,8 @@ import 'package:lexeapp/route/payment_detail.dart' show PaymentDetailPage;
 import 'package:lexeapp/route/receive.dart' show ReceivePaymentPage;
 import 'package:lexeapp/route/scan.dart';
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
-import 'package:lexeapp/route/send/state.dart' show SendState_NeedUri;
+import 'package:lexeapp/route/send/state.dart'
+    show SendFlowResult, SendState_NeedUri;
 import 'package:lexeapp/stream_ext.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 import 'package:rxdart_ext/rxdart_ext.dart';
@@ -310,7 +310,7 @@ class WalletPageState extends State<WalletPage> {
 
     // If the user successfully sent a payment, we'll get the new payment's
     // `PaymentIndex` from the flow. O/w canceling the flow will give us `null`.
-    final PaymentIndex? flowResult =
+    final SendFlowResult? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (context) =>
           SendPaymentPage(sendCtx: sendCtx, startNewFlow: true),
@@ -336,9 +336,9 @@ class WalletPageState extends State<WalletPage> {
     //
     // Note: this is inside a MultistepFlow so "back" goes back a step while
     // "close" exits the flow to this page again.
-    final PaymentIndex? flowResult =
+    final SendFlowResult? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (_context) => MultistepFlow<PaymentIndex>(
+      builder: (_context) => MultistepFlow<SendFlowResult>(
         builder: (_context) => ScanPage(sendCtx: sendCtx),
       ),
     ));
@@ -374,7 +374,7 @@ class WalletPageState extends State<WalletPage> {
   ///
   /// For lightning payments, we'll also start burst refreshing, so we can
   /// quickly pick up any status changes.
-  Future<void> onSendFlowSuccess(PaymentIndex index) async {
+  Future<void> onSendFlowSuccess(SendFlowResult flowResult) async {
     // Add a waiter for the next completed refresh tick, with a timeout.
     final nextCompletedRefresh = Result.tryAsync<Null, Exception>(
       () => this
@@ -399,16 +399,24 @@ class WalletPageState extends State<WalletPage> {
         return;
     }
 
-    // TODO(phlip9): start burst refresh after LN payment
-    // this.triggerBurstRefresh();
+    // Lightning payments actually have a chance to finalize in the next few
+    // seconds, so start a burst refresh.
+    switch (flowResult.kind) {
+      case PaymentKind.Invoice || PaymentKind.Spontaneous:
+        this.triggerBurstRefresh();
+      case PaymentKind.Onchain:
+      // do nothing.
+    }
 
     // Now lookup the new payment in our freshly synced local db.
-    final maybeVecIdx =
-        await this.widget.app.getVecIdxByPaymentIndex(paymentIndex: index);
+    final maybeVecIdx = await this
+        .widget
+        .app
+        .getVecIdxByPaymentIndex(paymentIndex: flowResult.index);
 
     if (maybeVecIdx == null) {
       warn(
-          "WalletPage: onSendFlowSuccess: failed to find payment index after refresh: index: $index");
+          "WalletPage: onSendFlowSuccess: failed to find payment index after refresh: index: $flowResult.index");
       return;
     }
 

@@ -3,14 +3,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart'
     show Code, FixedScannerOverlay, Format, ReaderWidget;
-import 'package:lexeapp/bindings_generated_api.dart' show PaymentIndex;
 import 'package:lexeapp/components.dart'
     show LxBackButton, LxCloseButton, LxCloseButtonKind;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
-    show SendState, SendState_NeedUri;
+    show SendFlowResult, SendState, SendState_NeedUri;
 import 'package:lexeapp/style.dart' show LxColors, LxRadius, LxTheme, Space;
 
 class ScanPage extends StatefulWidget {
@@ -72,7 +71,7 @@ class _ScanPageState extends State<ScanPage> {
     // If we still need an amount, then we have to collect that first.
     // Otherwise, a successful payment preflight means we can go directly to the
     // confirm page.
-    final PaymentIndex? flowResult =
+    final SendFlowResult? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SendPaymentPage(sendCtx: sendCtx, startNewFlow: false),
     ));

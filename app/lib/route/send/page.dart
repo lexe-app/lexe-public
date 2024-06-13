@@ -8,7 +8,6 @@ import 'package:lexeapp/bindings_generated_api.dart'
     show
         ConfirmationPriority,
         FeeEstimate,
-        PaymentIndex,
         PaymentKind,
         PreflightPayOnchainResponse;
 import 'package:lexeapp/bindings_generated_api_ext.dart';
@@ -38,6 +37,7 @@ import 'package:lexeapp/route/send/state.dart'
         PreflightedPayment_Invoice,
         PreflightedPayment_Offer,
         PreflightedPayment_Onchain,
+        SendFlowResult,
         SendState,
         SendState_NeedAmount,
         SendState_NeedUri,
@@ -69,7 +69,7 @@ class SendPaymentPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => (this.startNewFlow)
-      ? MultistepFlow<PaymentIndex>(builder: (_) => this.buildInnerSendPage())
+      ? MultistepFlow<SendFlowResult>(builder: (_) => this.buildInnerSendPage())
       : this.buildInnerSendPage();
 }
 
@@ -105,7 +105,7 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
   Future<void> onScanPressed() async {
     info("pressed QR scan button");
 
-    final PaymentIndex? flowResult =
+    final SendFlowResult? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_context) => ScanPage(sendCtx: this.widget.sendCtx),
     ));
@@ -153,7 +153,7 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
     // If we still need an amount, then we have to collect that first.
     // Otherwise, a successful payment preflight means we can go directly to the
     // confirm page.
-    final PaymentIndex? flowResult =
+    final SendFlowResult? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SendPaymentPage(sendCtx: sendCtx, startNewFlow: false),
     ));
@@ -318,7 +318,7 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     }
 
     // Everything looks good so far -- navigate to the confirmation page.
-    final PaymentIndex? flowResult =
+    final SendFlowResult? flowResult =
         // ignore: use_build_context_synchronously
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SendPaymentConfirmPage(sendCtx: nextSendCtx),
@@ -463,7 +463,7 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     this.sendError.value = null;
 
     // Actually start the payment
-    final FfiResult<PaymentIndex> result =
+    final FfiResult<SendFlowResult> result =
         await this.widget.sendCtx.pay(this.note(), this.confPriority.value);
 
     if (!this.mounted) return;
