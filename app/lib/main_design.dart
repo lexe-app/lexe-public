@@ -70,6 +70,7 @@ import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
     show
         PreflightedPayment_Onchain,
+        SendFlowResult,
         SendState_NeedAmount,
         SendState_NeedUri,
         SendState_Preflighted;
@@ -339,7 +340,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
             Component(
               "ScanPage",
-              (_) => MultistepFlow<PaymentIndex>(
+              (_) => MultistepFlow<SendFlowResult>(
                 builder: (_) => ScanPage(
                   sendCtx: SendState_NeedUri(
                     app: mockApp,

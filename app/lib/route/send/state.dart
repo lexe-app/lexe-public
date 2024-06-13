@@ -30,6 +30,18 @@ import 'package:lexeapp/bindings_generated_api_ext.dart';
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
 
+/// The outcome of a successful send flow.
+@immutable
+final class SendFlowResult {
+  const SendFlowResult({required this.kind, required this.index});
+
+  final PaymentKind kind;
+  final PaymentIndex index;
+
+  @override
+  String toString() => "($kind, $index)";
+}
+
 /// An enum containing all the different major states for the outbound send
 /// payment flow (see: `app/lib/route/send/page.dart`).
 @immutable
@@ -223,7 +235,7 @@ class SendState_Preflighted implements SendState {
       this.balance.balanceByKind(this.preflightedPayment.kind());
 
   /// The user is now confirming/sending this payment
-  Future<FfiResult<PaymentIndex>> pay(
+  Future<FfiResult<SendFlowResult>> pay(
     final String? note,
     // Only used for Onchain
     final ConfirmationPriority? confPriority,
@@ -238,7 +250,7 @@ class SendState_Preflighted implements SendState {
     };
   }
 
-  Future<FfiResult<PaymentIndex>> payOnchain(
+  Future<FfiResult<SendFlowResult>> payOnchain(
     final PreflightedPayment_Onchain preflighted,
     final String? note,
     final ConfirmationPriority confPriority,
@@ -252,10 +264,13 @@ class SendState_Preflighted implements SendState {
     );
 
     return (await Result.tryFfiAsync(() async => this.app.payOnchain(req: req)))
-        .map((resp) => resp.index);
+        .map((resp) => SendFlowResult(
+              kind: PaymentKind.Onchain,
+              index: resp.index,
+            ));
   }
 
-  Future<FfiResult<PaymentIndex>> payInvoice(
+  Future<FfiResult<SendFlowResult>> payInvoice(
     final PreflightedPayment_Invoice preflighted,
     final String? note,
   ) async {
@@ -268,7 +283,10 @@ class SendState_Preflighted implements SendState {
     );
 
     return (await Result.tryFfiAsync(() async => this.app.payInvoice(req: req)))
-        .map((resp) => resp.index);
+        .map((resp) => SendFlowResult(
+              kind: PaymentKind.Invoice,
+              index: resp.index,
+            ));
   }
 }
 
