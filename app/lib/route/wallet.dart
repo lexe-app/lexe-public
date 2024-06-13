@@ -57,6 +57,17 @@ class WalletPage extends StatefulWidget {
 class WalletPageState extends State<WalletPage> {
   final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey();
 
+  /// A timer calls `this.triggerRefresh` every ~1 min of _inactivity_, so the
+  /// balance, fiat rates, etc... stay somewhat up-to-date while the app is
+  /// open.
+  Timer? backgroundRefresh;
+
+  /// After just sending a Lightning payment, we'll burst refresh for a moment
+  /// to try and catch the payment completing. Bitcoin payments take a while
+  /// to confirm, so there's no point polling harder.
+  final StreamController<Null> burstRefresh = StreamController();
+  bool isBurstRefreshing = false;
+
   /// A stream controller to trigger refreshes of the wallet page contents.
   final StreamController<Null> refresh = StreamController.broadcast();
 
@@ -84,7 +95,7 @@ class WalletPageState extends State<WalletPage> {
   void initState() {
     super.initState();
 
-    // Call `this.onRefresh` when we get a new refresh (and always once at
+    // Calls `this.onRefresh` when we get a new refresh (and always once at
     // page open). Refreshes are also throttled and won't trigger while a
     // a previous refresh is pending.
     this
@@ -95,12 +106,26 @@ class WalletPageState extends State<WalletPage> {
         // but unconditionally start with an initial "refresh" to load node
         // state.
         .startWith(null)
-        // ignore multiple refreshes if the user triggers again within 3 secs.
+        // ignore multiple refreshes if the we trigger again within 3 secs.
         .throttleTime(const Duration(seconds: 3))
         .log(id: "refresh start")
         // ok we're actually refreshing for real this time! do some bookkeeping
         // and send some requests.
         .listen(this.onRefresh);
+
+    // Kick off the initial background refresh tick (happens every 1 min of
+    // inactivity).
+    this.resetBackgroundRefreshTimer();
+
+    // Burst refresher (2 sec, 6 sec, 15 sec) after e.g. sending a payment and
+    // polling for its status.
+    this
+        .burstRefresh
+        .stream
+        // TODO(phlip9): reset burst refresh instead of skipping?
+        .where((_) => !this.isBurstRefreshing)
+        .log(id: "burst refresh start")
+        .listen(this.onBurstRefresh);
 
     // A stream of `BalanceState`s that gets updated when `nodeInfos` or
     // `fiatRate` are updated. Since it's fed into a `StateSubject`, it also
@@ -118,6 +143,8 @@ class WalletPageState extends State<WalletPage> {
 
   @override
   void dispose() {
+    this.backgroundRefresh?.cancel();
+    this.burstRefresh.close();
     this.refresh.close();
     this.isRefreshing.dispose();
     this.paymentsUpdated.close();
@@ -129,17 +156,66 @@ class WalletPageState extends State<WalletPage> {
   }
 
   /// User triggers a refresh (fetch balance, fiat rates, payment sync).
-  /// NOTE: the refresh stream is throttled (on)
-  void triggerRefresh() => this.refresh.addNull();
+  /// NOTE: the refresh stream is throttled to max every 3 sec.
+  void triggerRefresh() => this.refresh.addIfNotClosed(null);
 
   /// On refresh, resync state from the node.
   Future<void> onRefresh(Null n) async {
     this.isRefreshing.value = true;
 
+    // First, let's reset the background timer. If e.g. the user just hit the
+    // refresh button, we won't needlessly background refresh early.
+    this.resetBackgroundRefreshTimer();
+
+    // Actually resync the state.
     await (fetchNodeInfo(), fetchFiatRates(), syncPayments()).wait;
 
     if (!this.mounted) return;
     this.isRefreshing.value = false;
+  }
+
+  /// Cancel the current background timer and set a new one a minute from now.
+  /// This way, if the user hits the refresh button or a burst refresh is
+  /// triggered, the background refresh will get delayed until the next period
+  /// of inactivity.
+  void resetBackgroundRefreshTimer() {
+    this.backgroundRefresh?.cancel();
+
+    // TODO(phlip9): once we get push notifications working, we can perhaps
+    // remove this or only background refresh for the first ~10 min. Then rely
+    // on push notification to tell us to start polling again.
+    this.backgroundRefresh = Timer(
+      const Duration(minutes: 1),
+      () {
+        info("background refresh timer tick");
+        this.triggerRefresh();
+      },
+    );
+  }
+
+  /// Start a new burst refresh.
+  void triggerBurstRefresh() => this.burstRefresh.addNull();
+
+  /// Call [this.triggerRefresh] in rapid succession after we e.g. send a
+  /// payment and want to quickly poll its status as it updates.
+  Future<void> onBurstRefresh(Null n) async {
+    this.isBurstRefreshing = true;
+
+    const delays = [
+      Duration(seconds: 2),
+      Duration(seconds: 4),
+      Duration(seconds: 8)
+    ];
+
+    for (final delay in delays) {
+      await Future.delayed(delay);
+      if (!this.mounted) return;
+
+      info("burst refresh timer tick");
+      this.triggerRefresh();
+    }
+
+    this.isBurstRefreshing = false;
   }
 
   Future<void> fetchNodeInfo() async {
