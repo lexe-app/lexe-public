@@ -569,110 +569,6 @@ impl From<LxInvoice> for Invoice {
     }
 }
 
-/// Mirrors the [`common::api::command::PayInvoiceRequest`] type.
-#[frb(dart_metadata=("freezed"))]
-pub struct PayInvoiceRequest {
-    pub invoice: String,
-    pub fallback_amount_sats: Option<u64>,
-    pub note: Option<String>,
-}
-
-impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
-    type Error = anyhow::Error;
-    fn try_from(value: PayInvoiceRequest) -> Result<Self, Self::Error> {
-        let invoice = LxInvoice::from_str(&value.invoice)
-            .context("Failed to parse invoice")?;
-
-        let fallback_amount = match value.fallback_amount_sats {
-            Some(amount) => {
-                debug_assert!(invoice.amount().is_none());
-                Some(Amount::try_from_sats_u64(amount)?)
-            }
-            None => {
-                debug_assert!(invoice.amount().is_some());
-                None
-            }
-        };
-
-        Ok(Self {
-            invoice,
-            fallback_amount,
-            note: value.note,
-        })
-    }
-}
-
-/// Mirrors [`common::api::command::PayInvoiceResponse`] the type, but enriches
-/// the response so we get the full `PaymentIndex`.
-#[frb(dart_metadata=("freezed"))]
-pub struct PayInvoiceResponse {
-    pub index: PaymentIndex,
-}
-
-impl PayInvoiceResponse {
-    fn from_id_and_response(
-        id: LxPaymentIdRs,
-        resp: PayInvoiceResponseRs,
-    ) -> Self {
-        let index = PaymentIndexRs {
-            created_at: resp.created_at,
-            id,
-        };
-        Self {
-            index: PaymentIndex::from(index),
-        }
-    }
-}
-
-/// See [`common::api::command::PreflightPayInvoiceRequest`].
-#[frb(dart_metadata=("freezed"))]
-pub struct PreflightPayInvoiceRequest {
-    pub invoice: String,
-    pub fallback_amount_sats: Option<u64>,
-}
-
-impl TryFrom<PreflightPayInvoiceRequest> for PreflightPayInvoiceRequestRs {
-    type Error = anyhow::Error;
-    fn try_from(
-        value: PreflightPayInvoiceRequest,
-    ) -> Result<Self, Self::Error> {
-        let invoice = LxInvoice::from_str(&value.invoice)
-            .context("Failed to parse invoice")?;
-
-        let fallback_amount = match value.fallback_amount_sats {
-            Some(amount) => {
-                debug_assert!(invoice.amount().is_none());
-                Some(Amount::try_from_sats_u64(amount)?)
-            }
-            None => {
-                debug_assert!(invoice.amount().is_some());
-                None
-            }
-        };
-
-        Ok(Self {
-            invoice,
-            fallback_amount,
-        })
-    }
-}
-
-/// See [`common::api::command::PreflightPayInvoiceResponse`].
-#[frb(dart_metadata=("freezed"))]
-pub struct PreflightPayInvoiceResponse {
-    pub amount_sats: u64,
-    pub fees_sats: u64,
-}
-
-impl From<PreflightPayInvoiceResponseRs> for PreflightPayInvoiceResponse {
-    fn from(value: PreflightPayInvoiceResponseRs) -> Self {
-        Self {
-            amount_sats: value.amount.sats_u64(),
-            fees_sats: value.fees.sats_u64(),
-        }
-    }
-}
-
 /// A unique, client-generated id for payment types (onchain send,
 /// ln spontaneous send) that need an extra id for idempotency.
 #[frb(dart_metadata=("freezed"))]
@@ -866,23 +762,6 @@ impl From<FeeEstimateRs> for FeeEstimate {
     }
 }
 
-/// See [`common::api::qs::UpdatePaymentNote`].
-#[frb(dart_metadata=("freezed"))]
-pub struct UpdatePaymentNote {
-    pub index: PaymentIndex,
-    pub note: Option<String>,
-}
-
-impl TryFrom<UpdatePaymentNote> for UpdatePaymentNoteRs {
-    type Error = anyhow::Error;
-    fn try_from(value: UpdatePaymentNote) -> Result<Self, Self::Error> {
-        Ok(Self {
-            index: PaymentIndexRs::try_from(value.index)?,
-            note: value.note,
-        })
-    }
-}
-
 /// See [`common::api::command::CreateInvoiceRequest`].
 #[frb(dart_metadata=("freezed"))]
 pub struct CreateInvoiceRequest {
@@ -916,6 +795,127 @@ impl From<CreateInvoiceResponseRs> for CreateInvoiceResponse {
         Self {
             invoice: Invoice::from(&value.invoice),
         }
+    }
+}
+
+/// Mirrors the [`common::api::command::PayInvoiceRequest`] type.
+#[frb(dart_metadata=("freezed"))]
+pub struct PayInvoiceRequest {
+    pub invoice: String,
+    pub fallback_amount_sats: Option<u64>,
+    pub note: Option<String>,
+}
+
+impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
+    type Error = anyhow::Error;
+    fn try_from(value: PayInvoiceRequest) -> Result<Self, Self::Error> {
+        let invoice = LxInvoice::from_str(&value.invoice)
+            .context("Failed to parse invoice")?;
+
+        let fallback_amount = match value.fallback_amount_sats {
+            Some(amount) => {
+                debug_assert!(invoice.amount().is_none());
+                Some(Amount::try_from_sats_u64(amount)?)
+            }
+            None => {
+                debug_assert!(invoice.amount().is_some());
+                None
+            }
+        };
+
+        Ok(Self {
+            invoice,
+            fallback_amount,
+            note: value.note,
+        })
+    }
+}
+
+/// Mirrors [`common::api::command::PayInvoiceResponse`] the type, but enriches
+/// the response so we get the full `PaymentIndex`.
+#[frb(dart_metadata=("freezed"))]
+pub struct PayInvoiceResponse {
+    pub index: PaymentIndex,
+}
+
+impl PayInvoiceResponse {
+    fn from_id_and_response(
+        id: LxPaymentIdRs,
+        resp: PayInvoiceResponseRs,
+    ) -> Self {
+        let index = PaymentIndexRs {
+            created_at: resp.created_at,
+            id,
+        };
+        Self {
+            index: PaymentIndex::from(index),
+        }
+    }
+}
+
+/// See [`common::api::command::PreflightPayInvoiceRequest`].
+#[frb(dart_metadata=("freezed"))]
+pub struct PreflightPayInvoiceRequest {
+    pub invoice: String,
+    pub fallback_amount_sats: Option<u64>,
+}
+
+impl TryFrom<PreflightPayInvoiceRequest> for PreflightPayInvoiceRequestRs {
+    type Error = anyhow::Error;
+    fn try_from(
+        value: PreflightPayInvoiceRequest,
+    ) -> Result<Self, Self::Error> {
+        let invoice = LxInvoice::from_str(&value.invoice)
+            .context("Failed to parse invoice")?;
+
+        let fallback_amount = match value.fallback_amount_sats {
+            Some(amount) => {
+                debug_assert!(invoice.amount().is_none());
+                Some(Amount::try_from_sats_u64(amount)?)
+            }
+            None => {
+                debug_assert!(invoice.amount().is_some());
+                None
+            }
+        };
+
+        Ok(Self {
+            invoice,
+            fallback_amount,
+        })
+    }
+}
+
+/// See [`common::api::command::PreflightPayInvoiceResponse`].
+#[frb(dart_metadata=("freezed"))]
+pub struct PreflightPayInvoiceResponse {
+    pub amount_sats: u64,
+    pub fees_sats: u64,
+}
+
+impl From<PreflightPayInvoiceResponseRs> for PreflightPayInvoiceResponse {
+    fn from(value: PreflightPayInvoiceResponseRs) -> Self {
+        Self {
+            amount_sats: value.amount.sats_u64(),
+            fees_sats: value.fees.sats_u64(),
+        }
+    }
+}
+
+/// See [`common::api::qs::UpdatePaymentNote`].
+#[frb(dart_metadata=("freezed"))]
+pub struct UpdatePaymentNote {
+    pub index: PaymentIndex,
+    pub note: Option<String>,
+}
+
+impl TryFrom<UpdatePaymentNote> for UpdatePaymentNoteRs {
+    type Error = anyhow::Error;
+    fn try_from(value: UpdatePaymentNote) -> Result<Self, Self::Error> {
+        Ok(Self {
+            index: PaymentIndexRs::try_from(value.index)?,
+            note: value.note,
+        })
     }
 }
 
