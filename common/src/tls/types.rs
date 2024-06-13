@@ -34,9 +34,9 @@ use proptest_derive::Arbitrary;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use serde::{Deserialize, Serialize};
 
+use crate::hexstr_or_bytes;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
-use crate::{ed25519, hexstr_or_bytes};
 
 /// Convenience struct to pass around a DER-encoded cert with its private key
 /// and the DNS name it was bound to.
@@ -122,31 +122,6 @@ impl CertWithKey {
             cert_chain.push(ca_cert_der.into());
         }
         (cert_chain, self.key_der.into())
-    }
-
-    /// Whether [`CertWithKey::cert_der`] is bound to the given DNS.
-    /// Returns [`false`] if the certificate failed to parse.
-    #[must_use]
-    pub fn contains_dns(&self, expected_dns: &str) -> bool {
-        // Fake keypair which isn't actually used for validation
-        let fake_keypair = ed25519::KeyPair::from_seed(&[69; 32]).to_rcgen();
-
-        // This method is ostensibly for CA certs, but doesn't actually check if
-        // the cert is a CA cert, so it should be fine to reuse here
-        let cert_params = match rcgen::CertificateParams::from_ca_cert_der(
-            self.cert_der.as_slice(),
-            fake_keypair,
-        ) {
-            Ok(params) => params,
-            Err(_) => return false,
-        };
-
-        cert_params.subject_alt_names.iter().any(|san_type| {
-            matches!(
-                san_type,
-                rcgen::SanType::DnsName(bound_dns) if bound_dns == expected_dns
-            )
-        })
     }
 }
 
