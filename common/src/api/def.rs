@@ -34,8 +34,8 @@ use crate::{
         },
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
-            OpenChannelRequest, PayInvoiceRequest, PayOnchainRequest,
-            PayOnchainResponse, PreflightPayInvoiceRequest,
+            OpenChannelRequest, PayInvoiceRequest, PayInvoiceResponse,
+            PayOnchainRequest, PayOnchainResponse, PreflightPayInvoiceRequest,
             PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
             PreflightPayOnchainResponse,
         },
@@ -347,11 +347,11 @@ pub trait AppNodeRunApi {
         req: CreateInvoiceRequest,
     ) -> Result<CreateInvoiceResponse, NodeApiError>;
 
-    /// POST /app/pay_invoice [`PayInvoiceRequest`] -> [`Empty`]
+    /// POST /app/pay_invoice [`PayInvoiceRequest`] -> [`PayInvoiceResponse`]
     async fn pay_invoice(
         &self,
         req: PayInvoiceRequest,
-    ) -> Result<Empty, NodeApiError>;
+    ) -> Result<PayInvoiceResponse, NodeApiError>;
 
     /// POST /app/preflight_pay_invoice [`PreflightPayInvoiceRequest`]
     ///                                 -> [`PreflightPayInvoiceResponse`]

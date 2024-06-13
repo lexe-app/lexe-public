@@ -25,9 +25,10 @@ use crate::{
         },
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
-            PayInvoiceRequest, PayOnchainRequest, PayOnchainResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
+            PayOnchainResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse,
         },
         def::{
             AppBackendApi, AppGatewayApi, AppNodeProvisionApi, AppNodeRunApi,
@@ -423,7 +424,7 @@ impl AppNodeRunApi for NodeClient {
     async fn pay_invoice(
         &self,
         req: PayInvoiceRequest,
-    ) -> Result<Empty, NodeApiError> {
+    ) -> Result<PayInvoiceResponse, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
         let url = format!("{run_url}/app/pay_invoice");

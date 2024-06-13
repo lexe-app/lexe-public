@@ -8,6 +8,7 @@ use crate::{
         amount::Amount, balance::Balance, channel::ChannelId, hashes::LxTxid,
         invoice::LxInvoice, payments::ClientPaymentId, ConfirmationPriority,
     },
+    time::TimestampMs,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -63,6 +64,14 @@ pub struct PayInvoiceRequest {
 }
 
 #[derive(Serialize, Deserialize)]
+pub struct PayInvoiceResponse {
+    /// When the node registered this payment. Used in the [`PaymentIndex`].
+    ///
+    /// [`PaymentIndex`]: crate::ln::payments::PaymentIndex
+    pub created_at: TimestampMs,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct PreflightPayInvoiceRequest {
     /// The invoice we want to pay.
     pub invoice: LxInvoice,
@@ -101,6 +110,10 @@ pub struct PayOnchainRequest {
 
 #[derive(Serialize, Deserialize)]
 pub struct PayOnchainResponse {
+    /// When the node registered this payment. Used in the [`PaymentIndex`].
+    ///
+    /// [`PaymentIndex`]: crate::ln::payments::PaymentIndex
+    pub created_at: TimestampMs,
     /// The Bitcoin txid for the transaction we just submitted to the mempool.
     pub txid: LxTxid,
 }

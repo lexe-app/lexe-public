@@ -942,9 +942,10 @@ mod test {
         api::{
             command::{
                 CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
-                PayInvoiceRequest, PayOnchainRequest, PayOnchainResponse,
-                PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-                PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+                PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
+                PayOnchainResponse, PreflightPayInvoiceRequest,
+                PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
+                PreflightPayOnchainResponse,
             },
             error::NodeApiError,
             Empty,
@@ -1084,7 +1085,7 @@ mod test {
         async fn pay_invoice(
             &self,
             _req: PayInvoiceRequest,
-        ) -> Result<Empty, NodeApiError> {
+        ) -> Result<PayInvoiceResponse, NodeApiError> {
             unimplemented!()
         }
         async fn preflight_pay_invoice(
