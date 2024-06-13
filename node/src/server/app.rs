@@ -5,9 +5,10 @@ use common::{
     api::{
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
-            PayInvoiceRequest, PayOnchainRequest, PayOnchainResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
+            PayOnchainResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse,
         },
         error::NodeApiError,
         qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
@@ -60,7 +61,7 @@ pub(super) async fn create_invoice(
 pub(super) async fn pay_invoice(
     State(state): State<Arc<AppRouterState>>,
     LxJson(req): LxJson<PayInvoiceRequest>,
-) -> Result<LxJson<Empty>, NodeApiError> {
+) -> Result<LxJson<PayInvoiceResponse>, NodeApiError> {
     lexe_ln::command::pay_invoice(
         req,
         state.router.clone(),

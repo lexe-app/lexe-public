@@ -1021,6 +1021,7 @@ impl AppHandle {
     ) -> anyhow::Result<CreateInvoiceResponse> {
         let req = CreateInvoiceRequestRs::try_from(req)?;
         block_on(self.inner.node_client().create_invoice(req))
+            // TODO(phlip9): return new PaymentIndex
             .map(CreateInvoiceResponse::from)
             .map_err(anyhow::Error::new)
     }
@@ -1038,7 +1039,8 @@ impl AppHandle {
     pub fn pay_invoice(&self, req: PayInvoiceRequest) -> anyhow::Result<()> {
         let req = PayInvoiceRequestRs::try_from(req)?;
         block_on(self.inner.node_client().pay_invoice(req))
-            .map(|Empty {}| ())
+            // TODO(phlip9): return new PaymentIndex
+            .map(|_| ())
             .map_err(anyhow::Error::new)
     }
 

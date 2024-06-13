@@ -7,9 +7,10 @@ use common::{
     api::{
         command::{
             CreateInvoiceRequest, CreateInvoiceResponse, NodeInfo,
-            PayInvoiceRequest, PayOnchainRequest, PayOnchainResponse,
-            PreflightPayInvoiceRequest, PreflightPayInvoiceResponse,
-            PreflightPayOnchainRequest, PreflightPayOnchainResponse,
+            PayInvoiceRequest, PayInvoiceResponse, PayOnchainRequest,
+            PayOnchainResponse, PreflightPayInvoiceRequest,
+            PreflightPayInvoiceResponse, PreflightPayOnchainRequest,
+            PreflightPayOnchainResponse,
         },
         Empty, NodePk, Scid,
     },
@@ -43,6 +44,7 @@ use crate::{
             LxOutboundPaymentFailure, OutboundInvoicePayment,
             OUTBOUND_PAYMENT_RETRY_STRATEGY,
         },
+        Payment,
     },
     traits::{LexeChannelManager, LexePeerManager, LexePersister},
     wallet::LexeWallet,
@@ -283,7 +285,7 @@ pub async fn pay_invoice<CM, PS>(
     router: Arc<RouterType>,
     channel_manager: CM,
     payments_manager: PaymentsManager<CM, PS>,
-) -> anyhow::Result<Empty>
+) -> anyhow::Result<PayInvoiceResponse>
 where
     CM: LexeChannelManager<PS>,
     PS: LexePersister,
@@ -302,10 +304,13 @@ where
     .await?;
     let payment_hash = payment.hash;
 
+    let payment = Payment::from(payment);
+    let created_at = payment.created_at();
+
     // Pre-flight looks good, now we can register this payment in the Lexe
     // payments manager.
     payments_manager
-        .new_payment(payment.into())
+        .new_payment(payment)
         .await
         .context("Already tried to pay this invoice")?;
 
@@ -320,7 +325,7 @@ where
     ) {
         Ok(()) => {
             info!(hash = %payment_hash, "Success: OIP initiated immediately");
-            Ok(Empty {})
+            Ok(PayInvoiceResponse { created_at })
         }
         Err(RetryableSendFailure::DuplicatePayment) => {
             // This should never happen because we should have already checked
@@ -406,9 +411,12 @@ where
     let id = onchain_send.id();
     let txid = onchain_send.txid;
 
+    let payment = Payment::from(onchain_send);
+    let created_at = payment.created_at();
+
     // Register the transaction.
     payments_manager
-        .new_payment(onchain_send.into())
+        .new_payment(payment)
         .await
         .context("Could not register new onchain send")?;
 
@@ -432,7 +440,7 @@ where
     // ensures that the txid is unique before we broadcast in case there is a
     // txid collision for some reason (e.g. duplicate requests)
 
-    Ok(PayOnchainResponse { txid })
+    Ok(PayOnchainResponse { created_at, txid })
 }
 
 #[instrument(skip_all, name = "(estimate-fee-send-onchain)")]
