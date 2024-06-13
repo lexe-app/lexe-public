@@ -8,6 +8,7 @@ import 'package:lexeapp/bindings_generated_api.dart'
     show
         ConfirmationPriority,
         FeeEstimate,
+        PaymentIndex,
         PaymentKind,
         PreflightPayOnchainResponse;
 import 'package:lexeapp/bindings_generated_api_ext.dart';
@@ -68,7 +69,7 @@ class SendPaymentPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => (this.startNewFlow)
-      ? MultistepFlow<bool?>(builder: (_) => this.buildInnerSendPage())
+      ? MultistepFlow<PaymentIndex>(builder: (_) => this.buildInnerSendPage())
       : this.buildInnerSendPage();
 }
 
@@ -104,17 +105,15 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
   Future<void> onScanPressed() async {
     info("pressed QR scan button");
 
-    final bool? flowResult =
+    final PaymentIndex? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_context) => ScanPage(sendCtx: this.widget.sendCtx),
     ));
-    if (!this.mounted) return;
+    if (!this.mounted || flowResult == null) return;
 
     // Successfully sent payment -- return result to parent page.
-    if (flowResult == true) {
-      // ignore: use_build_context_synchronously
-      await Navigator.of(this.context).maybePop(flowResult);
-    }
+    // ignore: use_build_context_synchronously
+    await Navigator.of(this.context).maybePop(flowResult);
   }
 
   Future<void> onNext() async {
@@ -154,19 +153,17 @@ class _SendPaymentNeedUriPageState extends State<SendPaymentNeedUriPage> {
     // If we still need an amount, then we have to collect that first.
     // Otherwise, a successful payment preflight means we can go directly to the
     // confirm page.
-    final bool? flowResult =
+    final PaymentIndex? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SendPaymentPage(sendCtx: sendCtx, startNewFlow: false),
     ));
 
-    info("SendPaymentNeedUriPage: flow result: $flowResult, mounted: $mounted");
-    if (!this.mounted) return;
+    info("SendPaymentNeedUriPage: flowResult: $flowResult, mounted: $mounted");
+    if (!this.mounted || flowResult == null) return;
 
     // Successfully sent payment -- return result to parent page.
-    if (flowResult == true) {
-      // ignore: use_build_context_synchronously
-      await Navigator.of(this.context).maybePop(flowResult);
-    }
+    // ignore: use_build_context_synchronously
+    await Navigator.of(this.context).maybePop(flowResult);
   }
 
   @override
@@ -321,21 +318,19 @@ class _SendPaymentAmountPageState extends State<SendPaymentAmountPage> {
     }
 
     // Everything looks good so far -- navigate to the confirmation page.
-    final bool? flowResult =
+    final PaymentIndex? flowResult =
         // ignore: use_build_context_synchronously
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SendPaymentConfirmPage(sendCtx: nextSendCtx),
     ));
 
     // Confirm page results:
-    info("SendPaymentAmountPage: flow result: $flowResult, mounted: $mounted");
+    info("SendPaymentAmountPage: flowResult: $flowResult, mounted: $mounted");
 
-    if (!this.mounted) return;
+    if (!this.mounted || flowResult == null) return;
 
-    if (flowResult == true) {
-      // ignore: use_build_context_synchronously
-      await Navigator.of(this.context).maybePop(flowResult);
-    }
+    // ignore: use_build_context_synchronously
+    await Navigator.of(this.context).maybePop(flowResult);
   }
 
   Result<(), String?> validateAmount(int amount) {
@@ -468,28 +463,26 @@ class _SendPaymentConfirmPageState extends State<SendPaymentConfirmPage> {
     this.sendError.value = null;
 
     // Actually start the payment
-    final result =
+    final FfiResult<PaymentIndex> result =
         await this.widget.sendCtx.pay(this.note(), this.confPriority.value);
 
     if (!this.mounted) return;
 
     switch (result) {
-      case Ok():
+      case Ok(:final ok):
         // The request succeeded and we're still mounted (the user hasn't
         // navigated away somehow). Let's pop ourselves off the nav stack and
         // notify our caller that we were successful.
-        info("SendPaymentConfirmPage: on-chain send success");
-        const flowResult = true;
+        final flowResult = ok;
+        info("SendPaymentConfirmPage: success: flowResult: $flowResult");
         // ignore: use_build_context_synchronously
         await Navigator.of(this.context).maybePop(flowResult);
-        return;
 
       case Err(:final err):
         // The request failed. Set the error message and unset loading.
         error("SendPaymentConfirmPage: error sending on-chain payment: $err");
         this.isSending.value = false;
         this.sendError.value = err.message;
-        return;
     }
   }
 

@@ -16,6 +16,7 @@ import 'package:lexeapp/bindings_generated_api.dart'
         Onchain,
         PayInvoiceRequest,
         PayOnchainRequest,
+        PaymentIndex,
         PaymentKind,
         PaymentMethod,
         PaymentMethod_Invoice,
@@ -222,7 +223,7 @@ class SendState_Preflighted implements SendState {
       this.balance.balanceByKind(this.preflightedPayment.kind());
 
   /// The user is now confirming/sending this payment
-  Future<FfiResult<void>> pay(
+  Future<FfiResult<PaymentIndex>> pay(
     final String? note,
     // Only used for Onchain
     final ConfirmationPriority? confPriority,
@@ -237,7 +238,7 @@ class SendState_Preflighted implements SendState {
     };
   }
 
-  Future<FfiResult<void>> payOnchain(
+  Future<FfiResult<PaymentIndex>> payOnchain(
     final PreflightedPayment_Onchain preflighted,
     final String? note,
     final ConfirmationPriority confPriority,
@@ -250,10 +251,11 @@ class SendState_Preflighted implements SendState {
       note: note,
     );
 
-    return Result.tryFfiAsync(() async => this.app.payOnchain(req: req));
+    return (await Result.tryFfiAsync(() async => this.app.payOnchain(req: req)))
+        .map((resp) => resp.index);
   }
 
-  Future<FfiResult<void>> payInvoice(
+  Future<FfiResult<PaymentIndex>> payInvoice(
     final PreflightedPayment_Invoice preflighted,
     final String? note,
   ) async {
@@ -265,7 +267,8 @@ class SendState_Preflighted implements SendState {
       note: note,
     );
 
-    return Result.tryFfiAsync(() async => this.app.payInvoice(req: req));
+    return (await Result.tryFfiAsync(() async => this.app.payInvoice(req: req)))
+        .map((resp) => resp.index);
   }
 }
 

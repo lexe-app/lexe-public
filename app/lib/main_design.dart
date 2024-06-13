@@ -339,7 +339,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
             Component(
               "ScanPage",
-              (_) => MultistepFlow<bool?>(
+              (_) => MultistepFlow<PaymentIndex>(
                 builder: (_) => ScanPage(
                   sendCtx: SendState_NeedUri(
                     app: mockApp,
