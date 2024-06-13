@@ -334,14 +334,14 @@ class AppRsImpl implements AppRs {
         argNames: ["that"],
       );
 
-  Future<void> payOnchainMethodAppHandle(
+  Future<PayOnchainResponse> payOnchainMethodAppHandle(
       {required AppHandle that, required PayOnchainRequest req, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     var arg1 = _platform.api2wire_box_autoadd_pay_onchain_request(req);
     return _platform.executeNormal(FlutterRustBridgeTask(
       callFfi: (port_) => _platform.inner
           .wire_pay_onchain__method__AppHandle(port_, arg0, arg1),
-      parseSuccessData: _wire2api_unit,
+      parseSuccessData: _wire2api_pay_onchain_response,
       parseErrorData: _wire2api_FrbAnyhowException,
       constMeta: kPayOnchainMethodAppHandleConstMeta,
       argValues: [that, req],
@@ -448,14 +448,14 @@ class AppRsImpl implements AppRs {
             argNames: ["that", "req"],
           );
 
-  Future<void> payInvoiceMethodAppHandle(
+  Future<PayInvoiceResponse> payInvoiceMethodAppHandle(
       {required AppHandle that, required PayInvoiceRequest req, dynamic hint}) {
     var arg0 = _platform.api2wire_box_autoadd_app_handle(that);
     var arg1 = _platform.api2wire_box_autoadd_pay_invoice_request(req);
     return _platform.executeNormal(FlutterRustBridgeTask(
       callFfi: (port_) => _platform.inner
           .wire_pay_invoice__method__AppHandle(port_, arg0, arg1),
-      parseSuccessData: _wire2api_unit,
+      parseSuccessData: _wire2api_pay_invoice_response,
       parseErrorData: _wire2api_FrbAnyhowException,
       constMeta: kPayInvoiceMethodAppHandleConstMeta,
       argValues: [that, req],
@@ -998,6 +998,25 @@ class AppRsImpl implements AppRs {
 
   int? _wire2api_opt_box_autoadd_u64(dynamic raw) {
     return raw == null ? null : _wire2api_box_autoadd_u64(raw);
+  }
+
+  PayInvoiceResponse _wire2api_pay_invoice_response(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 1)
+      throw Exception('unexpected arr length: expect 1 but see ${arr.length}');
+    return PayInvoiceResponse(
+      index: _wire2api_String(arr[0]),
+    );
+  }
+
+  PayOnchainResponse _wire2api_pay_onchain_response(dynamic raw) {
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return PayOnchainResponse(
+      index: _wire2api_String(arr[0]),
+      txid: _wire2api_String(arr[1]),
+    );
   }
 
   Payment _wire2api_payment(dynamic raw) {

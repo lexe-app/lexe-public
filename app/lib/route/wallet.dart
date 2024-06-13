@@ -312,6 +312,12 @@ class WalletPageState extends State<WalletPage> {
 
     // Refresh to pick up new payment
     this.triggerRefresh();
+
+    // TODO(phlip9): burst refresh and open payment detail for new payment
+    // (1) get payment index from flow result
+    // (2) get payment from paymentdb
+    // (3) trigger burst refresh
+    // (4) open payment detail page for new payment
   }
 
   /// Called when the "Scan" button is pressed. Pushes the QR scan page onto the

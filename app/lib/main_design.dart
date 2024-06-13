@@ -29,12 +29,17 @@ import 'package:lexeapp/bindings_generated_api.dart'
         Invoice,
         NodeInfo,
         Onchain,
+        PayInvoiceRequest,
+        PayInvoiceResponse,
         PayOnchainRequest,
+        PayOnchainResponse,
         Payment,
         PaymentDirection,
         PaymentKind,
         PaymentMethod,
         PaymentStatus,
+        PreflightPayInvoiceRequest,
+        PreflightPayInvoiceResponse,
         PreflightPayOnchainRequest,
         PreflightPayOnchainResponse,
         ShortPaymentAndIndex,
@@ -400,6 +405,7 @@ class MockAppHandle extends AppHandle {
     dummyOnchainInboundCompleted01,
     dummyOnchainOutboundFailed01,
     dummySpontaneousOutboundPending01,
+    dummyInvoiceOutboundPending01,
     dummyInvoiceInboundPending01,
     dummyInvoiceInboundPending02,
     dummyInvoiceInboundCompleted01,
@@ -443,11 +449,19 @@ class MockAppHandle extends AppHandle {
       );
 
   @override
-  Future<void> payOnchain({
+  Future<PayOnchainResponse> payOnchain({
     required PayOnchainRequest req,
     dynamic hint,
   }) =>
-      Future.delayed(const Duration(milliseconds: 1200), () {});
+      Future.delayed(
+        const Duration(milliseconds: 1200),
+        () => const PayOnchainResponse(
+          index:
+              "0000001687385080000-bc_238eb9f1b1db5e39877da642126783e2d6a043e047bbbe8872df3e7fdc3dca68",
+          txid:
+              "f5f119aca79fa3ff1c95793c87ecf7bcd84fa326dfedde3d3c2181a6c733e689",
+        ),
+      );
 
   @override
   Future<PreflightPayOnchainResponse> preflightPayOnchain(
@@ -492,6 +506,31 @@ class MockAppHandle extends AppHandle {
       ),
     );
   }
+
+  @override
+  Future<PayInvoiceResponse> payInvoice({
+    required PayInvoiceRequest req,
+    dynamic hint,
+  }) =>
+      Future.delayed(
+        const Duration(milliseconds: 1200),
+        () => const PayInvoiceResponse(
+          index:
+              "0000001686744442000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
+        ),
+      );
+
+  @override
+  Future<PreflightPayInvoiceResponse> preflightPayInvoice(
+          {required PreflightPayInvoiceRequest req, dynamic hint}) =>
+      Future.delayed(
+        const Duration(seconds: 1),
+        // () => throw FfiError("Request timed out").toFfi(),
+        () => const PreflightPayInvoiceResponse(
+          amountSats: 9999,
+          feesSats: 123,
+        ),
+      );
 
   @override
   Future<bool> syncPayments({dynamic hint}) =>
@@ -711,6 +750,29 @@ const Payment dummySpontaneousOutboundPending01 = Payment(
   statusStr: "pending",
   note: "🍑🍑🍑🍆🍆🍆😂😂😂",
   createdAt: 1686938392000,
+);
+
+const Payment dummyInvoiceOutboundPending01 = Payment(
+  index:
+      "0000001686744442000-ln_6973b3c58738403ceb3fccec470365a44361f34f4c2664ccae04f0f39fe71dc0",
+  kind: PaymentKind.Invoice,
+  direction: PaymentDirection.Outbound,
+  invoice: Invoice(
+    string:
+        "lnbcrt4693500n1pjgld4pxq8pjglhd3pp5h038tqal0m3xjwrmht2gcj8u4cgwg9fh6d0ynv2ds8x8xph5sm9ssp5d4jx76ttd4ek76tnv3hkv6tpdfekgenvdfkx76t2wdskg6nxda5s9qrsgqdp4wdhk6efqdehhgefqw35x2grfdemx76trv5sxxun9v96x7u3qwdjhgcqpcnp4qgywe59xssrqj004k24477svqtgynw4am39hz06hk4dlu4l0ssk8w2rpkgvpsusjrwde5qym0t9g42px0dahyh7jz9lvn5umk9gzqxtc8r0rdplu9psdewwqnw6t7uvdqtvn6heqfgxvn9a76kkl760cy4rqpewlfe6",
+    description: "wuhhh",
+    createdAt: 1686743442000,
+    expiresAt: 1686745442000,
+    amountSats: 55000,
+    payeePubkey:
+        "03fedbc6adf1a7175389d26b2896d10ef00fa71c81ba085a7c8cd34b6a4e0f7556",
+  ),
+  amountSat: 55000,
+  feesSat: 150,
+  status: PaymentStatus.Pending,
+  statusStr: "pending",
+  note: null,
+  createdAt: 1686744442000,
 );
 
 const Payment dummyInvoiceInboundPending01 = Payment(

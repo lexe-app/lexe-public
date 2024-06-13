@@ -278,7 +278,7 @@ fn wire_pay_onchain__method__AppHandle_impl(
     that: impl Wire2Api<AppHandle> + UnwindSafe,
     req: impl Wire2Api<PayOnchainRequest> + UnwindSafe,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, (), _>(
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, PayOnchainResponse, _>(
         WrapInfo {
             debug_name: "pay_onchain__method__AppHandle",
             port: Some(port_),
@@ -370,7 +370,7 @@ fn wire_pay_invoice__method__AppHandle_impl(
     that: impl Wire2Api<AppHandle> + UnwindSafe,
     req: impl Wire2Api<PayInvoiceRequest> + UnwindSafe,
 ) {
-    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, (), _>(
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap::<_, _, _, PayInvoiceResponse, _>(
         WrapInfo {
             debug_name: "pay_invoice__method__AppHandle",
             port: Some(port_),
@@ -891,6 +891,34 @@ impl support::IntoDart for Onchain {
 }
 impl support::IntoDartExceptPrimitive for Onchain {}
 impl rust2dart::IntoIntoDart<Onchain> for Onchain {
+    fn into_into_dart(self) -> Self {
+        self
+    }
+}
+
+impl support::IntoDart for PayInvoiceResponse {
+    fn into_dart(self) -> support::DartAbi {
+        vec![self.index.into_into_dart().into_dart()].into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for PayInvoiceResponse {}
+impl rust2dart::IntoIntoDart<PayInvoiceResponse> for PayInvoiceResponse {
+    fn into_into_dart(self) -> Self {
+        self
+    }
+}
+
+impl support::IntoDart for PayOnchainResponse {
+    fn into_dart(self) -> support::DartAbi {
+        vec![
+            self.index.into_into_dart().into_dart(),
+            self.txid.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl support::IntoDartExceptPrimitive for PayOnchainResponse {}
+impl rust2dart::IntoIntoDart<PayOnchainResponse> for PayOnchainResponse {
     fn into_into_dart(self) -> Self {
         self
     }

@@ -53,7 +53,6 @@
 use std::{future::Future, str::FromStr};
 
 use anyhow::{anyhow, Context};
-pub use common::ln::payments::BasicPayment;
 use common::{
     api::{
         command::{
@@ -61,7 +60,9 @@ use common::{
             CreateInvoiceResponse as CreateInvoiceResponseRs,
             FeeEstimate as FeeEstimateRs, NodeInfo as NodeInfoRs,
             PayInvoiceRequest as PayInvoiceRequestRs,
+            PayInvoiceResponse as PayInvoiceResponseRs,
             PayOnchainRequest as PayOnchainRequestRs,
+            PayOnchainResponse as PayOnchainResponseRs,
             PreflightPayInvoiceRequest as PreflightPayInvoiceRequestRs,
             PreflightPayInvoiceResponse as PreflightPayInvoiceResponseRs,
             PreflightPayOnchainRequest as PreflightPayOnchainRequestRs,
@@ -76,7 +77,8 @@ use common::{
         amount::Amount,
         invoice::LxInvoice,
         payments::{
-            ClientPaymentId as ClientPaymentIdRs,
+            BasicPayment as BasicPaymentRs,
+            ClientPaymentId as ClientPaymentIdRs, LxPaymentId as LxPaymentIdRs,
             PaymentDirection as PaymentDirectionRs,
             PaymentIndex as PaymentIndexRs, PaymentKind as PaymentKindRs,
             PaymentStatus as PaymentStatusRs,
@@ -393,8 +395,8 @@ pub struct ShortPayment {
     pub created_at: i64,
 }
 
-impl From<&BasicPayment> for ShortPayment {
-    fn from(payment: &BasicPayment) -> Self {
+impl From<&BasicPaymentRs> for ShortPayment {
+    fn from(payment: &BasicPaymentRs) -> Self {
         Self {
             index: payment.index().to_string(),
 
@@ -421,7 +423,7 @@ pub struct ShortPaymentAndIndex {
 }
 
 /// The complete payment info, used in the payment detail page. Mirrors the
-/// [`BasicPayment`] type.
+/// [`BasicPaymentRs`] type.
 #[frb(dart_metadata=("freezed"))]
 pub struct Payment {
     pub index: String,
@@ -445,8 +447,8 @@ pub struct Payment {
     pub finalized_at: Option<i64>,
 }
 
-impl From<&BasicPayment> for Payment {
-    fn from(payment: &BasicPayment) -> Self {
+impl From<&BasicPaymentRs> for Payment {
+    fn from(payment: &BasicPaymentRs) -> Self {
         Self {
             index: payment.index().to_string(),
 
@@ -580,6 +582,28 @@ impl TryFrom<PayInvoiceRequest> for PayInvoiceRequestRs {
             fallback_amount,
             note: value.note,
         })
+    }
+}
+
+/// Mirrors [`common::api::command::PayInvoiceResponse`] the type, but enriches
+/// the response so we get the full `PaymentIndex`.
+#[frb(dart_metadata=("freezed"))]
+pub struct PayInvoiceResponse {
+    pub index: String,
+}
+
+impl PayInvoiceResponse {
+    fn from_id_and_response(
+        id: LxPaymentIdRs,
+        resp: PayInvoiceResponseRs,
+    ) -> Self {
+        let index = PaymentIndexRs {
+            created_at: resp.created_at,
+            id,
+        };
+        Self {
+            index: index.to_string(),
+        }
     }
 }
 
@@ -748,6 +772,29 @@ impl TryFrom<PayOnchainRequest> for PayOnchainRequestRs {
             priority: req.priority.into(),
             note: req.note.map(validate_note).transpose()?,
         })
+    }
+}
+
+/// See [`common::api::command::PayOnchainResponse`].
+#[frb(dart_metadata=("freezed"))]
+pub struct PayOnchainResponse {
+    pub index: String,
+    pub txid: String,
+}
+
+impl PayOnchainResponse {
+    fn from_cid_and_response(
+        cid: ClientPaymentIdRs,
+        resp: PayOnchainResponseRs,
+    ) -> Self {
+        let index = PaymentIndexRs {
+            created_at: resp.created_at,
+            id: LxPaymentIdRs::OnchainSend(cid),
+        };
+        Self {
+            index: index.to_string(),
+            txid: resp.txid.to_string(),
+        }
     }
 }
 
@@ -992,10 +1039,14 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
-    pub fn pay_onchain(&self, req: PayOnchainRequest) -> anyhow::Result<()> {
+    pub fn pay_onchain(
+        &self,
+        req: PayOnchainRequest,
+    ) -> anyhow::Result<PayOnchainResponse> {
         let req = PayOnchainRequestRs::try_from(req)?;
+        let cid = req.cid;
         block_on(self.inner.node_client().pay_onchain(req))
-            .map(|_resp| ())
+            .map(|resp| PayOnchainResponse::from_cid_and_response(cid, resp))
             .map_err(anyhow::Error::new)
     }
 
@@ -1036,11 +1087,14 @@ impl AppHandle {
             .map_err(anyhow::Error::new)
     }
 
-    pub fn pay_invoice(&self, req: PayInvoiceRequest) -> anyhow::Result<()> {
+    pub fn pay_invoice(
+        &self,
+        req: PayInvoiceRequest,
+    ) -> anyhow::Result<PayInvoiceResponse> {
         let req = PayInvoiceRequestRs::try_from(req)?;
+        let id = req.invoice.payment_id();
         block_on(self.inner.node_client().pay_invoice(req))
-            // TODO(phlip9): return new PaymentIndex
-            .map(|_| ())
+            .map(|resp| PayInvoiceResponse::from_id_and_response(id, resp))
             .map_err(anyhow::Error::new)
     }
 
