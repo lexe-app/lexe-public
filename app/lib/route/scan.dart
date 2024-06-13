@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart'
     show Code, FixedScannerOverlay, Format, ReaderWidget;
+import 'package:lexeapp/bindings_generated_api.dart' show PaymentIndex;
 import 'package:lexeapp/components.dart'
     show LxBackButton, LxCloseButton, LxCloseButtonKind;
 import 'package:lexeapp/logger.dart';
@@ -71,19 +72,17 @@ class _ScanPageState extends State<ScanPage> {
     // If we still need an amount, then we have to collect that first.
     // Otherwise, a successful payment preflight means we can go directly to the
     // confirm page.
-    final bool? flowResult =
+    final PaymentIndex? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (_) => SendPaymentPage(sendCtx: sendCtx, startNewFlow: false),
     ));
 
     info("SendPaymentNeedUriPage: flow result: $flowResult, mounted: $mounted");
-    if (!this.mounted) return;
+    if (!this.mounted || flowResult == null) return;
 
     // Successfully sent payment -- return result to parent page.
-    if (flowResult == true) {
-      // ignore: use_build_context_synchronously
-      await Navigator.of(this.context).maybePop(flowResult);
-    }
+    // ignore: use_build_context_synchronously
+    await Navigator.of(this.context).maybePop(flowResult);
   }
 
   @override

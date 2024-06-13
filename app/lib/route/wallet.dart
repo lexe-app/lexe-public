@@ -14,6 +14,7 @@ import 'package:lexeapp/bindings_generated_api.dart'
         FiatRates,
         NodeInfo,
         PaymentDirection,
+        PaymentIndex,
         PaymentKind,
         PaymentStatus,
         ShortPayment,
@@ -300,15 +301,18 @@ class WalletPageState extends State<WalletPage> {
     final sendCtx = this.tryCollectSendContext();
     if (sendCtx == null) return;
 
-    final bool? flowResult =
+    // If the user successfully sent a payment, we'll get the new payment's
+    // `PaymentIndex` from the flow. O/w canceling the flow will give us `null`.
+    final PaymentIndex? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
       builder: (context) =>
           SendPaymentPage(sendCtx: sendCtx, startNewFlow: true),
     ));
 
+    info("WalletPage: onSendPressed: flowResult: $flowResult");
+
     // User canceled
-    if (flowResult == null || !flowResult) return;
-    if (!this.mounted) return;
+    if (!this.mounted || flowResult == null) return;
 
     // Refresh to pick up new payment
     this.triggerRefresh();
@@ -326,18 +330,22 @@ class WalletPageState extends State<WalletPage> {
     final sendCtx = this.tryCollectSendContext();
     if (sendCtx == null) return;
 
+    // If the user successfully sent a payment, we'll get the new payment's
+    // `PaymentIndex` from the flow. O/w canceling the flow will give us `null`.
+    //
     // Note: this is inside a MultistepFlow so "back" goes back a step while
     // "close" exits the flow to this page again.
-    final bool? flowResult =
+    final PaymentIndex? flowResult =
         await Navigator.of(this.context).push(MaterialPageRoute(
-      builder: (_context) => MultistepFlow<bool?>(
+      builder: (_context) => MultistepFlow<PaymentIndex>(
         builder: (_context) => ScanPage(sendCtx: sendCtx),
       ),
     ));
 
+    info("WalletPage: onScanPressed: flowResult: $flowResult");
+
     // User canceled
-    if (flowResult == null || !flowResult) return;
-    if (!this.mounted) return;
+    if (!this.mounted || flowResult == null) return;
 
     // Refresh to pick up new payment
     this.triggerRefresh();
@@ -345,9 +353,9 @@ class WalletPageState extends State<WalletPage> {
 
   SendState_NeedUri? tryCollectSendContext() {
     final maybeNodeInfo = this.nodeInfos.value;
-    if (maybeNodeInfo == null) {
-      return null;
-    }
+    // Ignore Send/Scan button press, we haven't fetched the node info yet.
+    if (maybeNodeInfo == null) return null;
+
     final balance = maybeNodeInfo.balance;
     return SendState_NeedUri(
       app: this.widget.app,
