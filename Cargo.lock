@@ -1119,7 +1119,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "webpki",
- "x509-parser 0.14.0",
+ "x509-parser",
  "yasna",
 ]
 
@@ -3190,7 +3190,7 @@ checksum = "48406db8ac1f3cbc7dcdb56ec355343817958a356ff430259bb07baf7607e1e1"
 dependencies = [
  "ring 0.17.8",
  "time 0.3.31",
- "x509-parser 0.15.1",
+ "x509-parser",
  "yasna",
  "zeroize",
 ]
@@ -4983,24 +4983,6 @@ checksum = "524e57b2c537c0f9b1e69f1965311ec12182b4122e45035b1508cd24d2adadb1"
 dependencies = [
  "cfg-if 1.0.0",
  "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "x509-parser"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0ecbeb7b67ce215e40e3cc7f2ff902f94a223acf44995934763467e7b1febc8"
-dependencies = [
- "asn1-rs",
- "base64 0.13.1",
- "data-encoding",
- "der-parser",
- "lazy_static",
- "nom",
- "oid-registry",
- "rusticata-macros",
- "thiserror",
- "time 0.3.31",
 ]
 
 [[package]]
