@@ -64,5 +64,35 @@ pub trait IteratorExt: Iterator {
     {
         self.map(f).is_strict_total_order()
     }
+
+    /// Return the minimum and maximum elements of an [`Iterator`], in one pass.
+    #[inline]
+    fn min_max(mut self) -> Option<(Self::Item, Self::Item)>
+    where
+        Self: Sized,
+        Self::Item: Copy + Ord,
+    {
+        let first = self.next()?;
+        let init = (first, first);
+        Some(self.fold(init, |acc, elt| (acc.0.min(elt), acc.1.max(elt))))
+    }
 }
 impl<I: Iterator> IteratorExt for I {}
+
+#[cfg(test)]
+mod test {
+    use proptest::{prop_assert_eq, proptest};
+
+    use super::*;
+
+    #[test]
+    fn test_iter_min_max() {
+        proptest!(|(xs: Vec<u8>)| {
+            let actual = xs.iter().copied().min_max();
+            let expected_min = xs.iter().copied().min();
+            let expected_max = xs.iter().copied().max();
+            let expected = expected_min.zip(expected_max);
+            prop_assert_eq!(actual, expected);
+        });
+    }
+}
