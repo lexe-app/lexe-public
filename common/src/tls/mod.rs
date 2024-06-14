@@ -8,8 +8,6 @@ use x509_parser::{
     certificate::X509Certificate, extensions::GeneralName, time::ASN1Time,
 };
 
-use crate::ed25519;
-
 /// (m)TLS based on SGX remote attestation.
 pub mod attestation;
 /// Certs and utilities related to Lexe's CA.
@@ -21,6 +19,8 @@ pub mod types;
 
 /// Allow accessing [`rustls`] via `common::tls`
 pub use rustls;
+
+use self::types::EdRcgenKeypair;
 
 /// Whether the given DER-encoded cert is bound to the given DNS name.
 /// Returns [`false`] if the cert failed to parse or is otherwise invalid.
@@ -170,33 +170,16 @@ pub fn server_config_builder(
 
 /// Build a [`rcgen::Certificate`] with Lexe presets and optional overrides.
 /// - This builder function helps ensure that important fields in the inner
-///   [`rcgen::CertificateParams`] struct are considered.
-/// - Specify any special fields or overrides with the `overrides` closure.
+///   [`rcgen::CertificateParams`] are considered. See struct for details.
+/// - Any special fields or overrides can be specified using the `overrides`
+///   closure. See usages for examples.
 /// - `key_pair` and `alg` cannot be overridden.
-///
-/// # Example
-///
-/// ```
-/// # use common::ed25519;
-/// # use rcgen::{IsCa, BasicConstraints};
-/// let key_pair = ed25519::KeyPair::from_seed(&[69; 32]);
-/// let cert = common::tls::build_rcgen_cert(
-///     "My Lexe cert common name",
-///     rcgen::date_time_ymd(1975, 1, 1),
-///     rcgen::date_time_ymd(4096, 1, 1),
-///     vec![rcgen::SanType::DnsName("localhost".to_owned())],
-///     &key_pair,
-///     |params: &mut rcgen::CertificateParams| {
-///         params.is_ca = IsCa::Ca(BasicConstraints::Constrained(0));
-///     },
-/// );
-/// ```
 pub fn build_rcgen_cert(
     common_name: &str,
     not_before: time::OffsetDateTime,
     not_after: time::OffsetDateTime,
     subject_alt_names: Vec<rcgen::SanType>,
-    key_pair: &ed25519::KeyPair,
+    key_pair: EdRcgenKeypair,
     overrides: impl FnOnce(&mut rcgen::CertificateParams),
 ) -> rcgen::Certificate {
     let mut params = rcgen::CertificateParams::default();
@@ -220,10 +203,10 @@ pub fn build_rcgen_cert(
 
     // Prevent these from being overridden to make panics impossible
     params.alg = &rcgen::PKCS_ED25519;
-    params.key_pair = Some(key_pair.to_rcgen());
+    params.key_pair = Some(key_pair.into_inner());
 
     rcgen::Certificate::from_params(params)
-        .expect("Can only panic if algorithm doesn't match keypair")
+        .expect("Can only panic if keypair doesn't match algorithm")
 }
 
 /// Build a Lexe Distinguished Name given a Common Name.

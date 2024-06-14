@@ -79,7 +79,7 @@ impl AttestationCert {
             not_before,
             not_after,
             subject_alt_names,
-            &key_pair,
+            key_pair.into(),
             |params: &mut rcgen::CertificateParams| {
                 params.custom_extensions = vec![cert_ext];
             },

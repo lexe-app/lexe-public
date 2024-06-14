@@ -293,7 +293,8 @@ impl KeyPair {
     pub fn to_rcgen(&self) -> rcgen::KeyPair {
         let pkcs8_bytes = self.serialize_pkcs8();
         rcgen::KeyPair::try_from(pkcs8_bytes.as_slice()).expect(
-            "Deserializing a freshly serialized ed25519 key pair should never fail",
+            "Deserializing a freshly serialized \
+                ed25519 key pair should never fail",
         )
     }
 
