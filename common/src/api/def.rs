@@ -24,8 +24,12 @@
 
 use async_trait::async_trait;
 
+use super::qs::GetPaymentsByIndexes;
 #[cfg(doc)]
-use crate::api::qs::{GetByMeasurement, GetByUserPk};
+use crate::{
+    api::qs::{GetByMeasurement, GetByUserPk},
+    ln::payments::PaymentIndex,
+};
 use crate::{
     api::{
         auth::{
@@ -47,10 +51,7 @@ use crate::{
         models::NodeRelease,
         ports::Ports,
         provision::{NodeProvisionRequest, SealedSeed, SealedSeedId},
-        qs::{
-            GetNewPayments, GetPaymentByIndex, GetPaymentsByIds,
-            UpdatePaymentNote,
-        },
+        qs::{GetNewPayments, GetPaymentByIndex, UpdatePaymentNote},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Empty, NodePk, Scid, User, UserPk,
     },
@@ -174,17 +175,19 @@ pub trait NodeBackendApi {
         auth: BearerAuthToken,
     ) -> Result<Empty, BackendApiError>;
 
-    /// POST /node/v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
+    /// POST /node/v1/payments/indexes [`GetPaymentsByIndexes`]
+    ///                             -> [`Vec<DbPayment>`]
     ///
-    /// Fetch a batch of payments by their [`LxPaymentId`]s. This is typically
+    /// Fetch a batch of payments by their [`PaymentIndex`]s. This is typically
     /// used by a mobile client to poll for updates on payments which it
     /// currently has stored locally as "pending"; the intention is to check
     /// if any of these payments have been updated.
-    // We use POST because there may be a lot of ids, which might be too large
+    //
+    // We use POST because there may be a lot of idxs, which might be too large
     // to fit inside query parameters.
-    async fn get_payments_by_ids(
+    async fn get_payments_by_indexes(
         &self,
-        req: GetPaymentsByIds,
+        req: GetPaymentsByIndexes,
         auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError>;
 
@@ -193,8 +196,6 @@ pub trait NodeBackendApi {
     /// Sync a batch of new payments to local storage, optionally starting from
     /// a known [`PaymentIndex`] (exclusive). Results are in ascending order, by
     /// `(created_at, payment_id)`. See [`GetNewPayments`] for more info.
-    ///
-    /// [`PaymentIndex`]: crate::ln::payments::PaymentIndex
     async fn get_new_payments(
         &self,
         req: GetNewPayments,
@@ -389,17 +390,18 @@ pub trait AppNodeRunApi {
     /// unless there is an incoming tx and BDK hasn't detected it yet.
     async fn get_address(&self) -> Result<bitcoin::Address, NodeApiError>;
 
-    /// POST /v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
+    /// POST /v1/payments/indexes [`GetPaymentsByIndexes`] -> [`Vec<DbPayment>`]
     ///
-    /// Fetch a batch of payments by their [`LxPaymentId`]s. This is typically
+    /// Fetch a batch of payments by their [`PaymentIndex`]s. This is typically
     /// used by a mobile client to poll for updates on payments which it
     /// currently has stored locally as "pending"; the intention is to check
     /// if any of these payments have been updated.
-    // We use POST because there may be a lot of ids, which might be too large
+    //
+    // We use POST because there may be a lot of idxs, which might be too large
     // to fit inside query parameters.
-    async fn get_payments_by_ids(
+    async fn get_payments_by_indexes(
         &self,
-        req: GetPaymentsByIds,
+        req: GetPaymentsByIndexes,
     ) -> Result<Vec<BasicPayment>, NodeApiError>;
 
     /// GET /app/payments/new [`GetNewPayments`] -> [`Vec<BasicPayment>`]

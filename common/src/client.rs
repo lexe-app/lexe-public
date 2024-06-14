@@ -40,7 +40,7 @@ use crate::{
         fiat_rates::FiatRates,
         models::NodeRelease,
         provision::NodeProvisionRequest,
-        qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
+        qs::{GetNewPayments, GetPaymentsByIndexes, UpdatePaymentNote},
         rest::{RequestBuilderExt, RestClient, GET, POST},
         Empty,
     },
@@ -473,13 +473,13 @@ impl AppNodeRunApi for NodeClient {
         self.run_rest.send(req).await
     }
 
-    async fn get_payments_by_ids(
+    async fn get_payments_by_indexes(
         &self,
-        req: GetPaymentsByIds,
+        req: GetPaymentsByIndexes,
     ) -> Result<Vec<BasicPayment>, NodeApiError> {
         self.ensure_authed().await?;
         let run_url = &self.run_url;
-        let url = format!("{run_url}/app/payments/ids");
+        let url = format!("{run_url}/app/payments/indexes");
         let req = self.run_rest.post(url, &req);
         self.run_rest.send(req).await
     }

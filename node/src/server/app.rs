@@ -11,7 +11,7 @@ use common::{
             PreflightPayOnchainResponse,
         },
         error::NodeApiError,
-        qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
+        qs::{GetNewPayments, GetPaymentsByIndexes, UpdatePaymentNote},
         server::{extract::LxQuery, LxJson},
         Empty,
     },
@@ -122,13 +122,13 @@ pub(super) async fn get_address(
         .map_err(NodeApiError::command)
 }
 
-pub(super) async fn get_payments_by_ids(
+pub(super) async fn get_payments_by_indexes(
     State(state): State<Arc<AppRouterState>>,
-    LxJson(req): LxJson<GetPaymentsByIds>,
+    LxJson(req): LxJson<GetPaymentsByIndexes>,
 ) -> Result<LxJson<Vec<BasicPayment>>, NodeApiError> {
     state
         .persister
-        .read_payments_by_ids(req)
+        .read_payments_by_indexes(req)
         .await
         .map(LxJson)
         .map_err(NodeApiError::command)
