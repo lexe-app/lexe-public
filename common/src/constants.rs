@@ -94,9 +94,9 @@ pub const NODE_PROVISION_DNS_SUFFIX: &str = ".provision.lexe.app";
 // ```
 
 /// The Lexe CA responsible for "staging.lexe.app".
-// Serial Number: 27:22:84:c7:59:61:19:99:94:79:83:be:d8:bc:72:3d:07:ff:71:23
-// Not Before: May 31 01:04:46 2024 GMT
-// Not After : Jun  7 01:04:46 2034 GMT
+// Serial Number: 30:ef:fb:a0:ba:ca:82:0b:7f:49:9a:46:b7:8d:05:18:23:91:62:17
+// Not Before: Jun  7 20:37:57 2024 GMT
+// Not After : Jun 14 20:37:57 2034 GMT
 pub const LEXE_STAGING_CA_CERT_DER: &[u8] =
     include_bytes!("../data/lexe-staging-root-ca-cert.der");
 
