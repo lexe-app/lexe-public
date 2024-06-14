@@ -4,7 +4,9 @@ use asn1_rs::FromDer;
 use lazy_lock::LazyLock;
 use rcgen::{DistinguishedName, DnType};
 use rustls::{crypto::WebPkiSupportedAlgorithms, ClientConfig, ServerConfig};
-use x509_parser::{certificate::X509Certificate, extensions::GeneralName};
+use x509_parser::{
+    certificate::X509Certificate, extensions::GeneralName, time::ASN1Time,
+};
 
 use crate::ed25519;
 
@@ -48,6 +50,44 @@ pub fn cert_contains_dns(cert_der: &[u8], expected_dns: &str) -> bool {
     }
 
     contains_dns(cert_der, expected_dns).is_some()
+}
+
+/// Whether the given DER-encoded cert is currently valid and will be valid for
+/// at least `buffer_days` more days. `buffer_days=0` can be used if you only
+/// wish to check whether the cert is currently valid. Does not validate
+/// anything other than expiry. Returns [`false`] if the cert failed to parse.
+#[must_use]
+pub fn cert_is_valid_for_at_least(cert_der: &[u8], buffer_days: u16) -> bool {
+    fn is_valid_for_at_least(cert_der: &[u8], buffer_days: i64) -> Option<()> {
+        use std::ops::Add;
+
+        let (_unparsed, cert) = X509Certificate::from_der(cert_der).ok()?;
+
+        let now = ASN1Time::now();
+        let validity = cert.validity();
+
+        if now < validity.not_before {
+            return None;
+        }
+        if now > validity.not_after {
+            return None;
+        }
+
+        let buffer_days_dur = time::Duration::days(buffer_days);
+
+        // Check the same conditions `buffer_days` later.
+        let now_plus_buffer = now.add(buffer_days_dur)?;
+        if now_plus_buffer < validity.not_before {
+            return None;
+        }
+        if now_plus_buffer > validity.not_after {
+            return None;
+        }
+
+        Some(())
+    }
+
+    is_valid_for_at_least(cert_der, i64::from(buffer_days)).is_some()
 }
 
 /// Our [`rustls::crypto::CryptoProvider`].
