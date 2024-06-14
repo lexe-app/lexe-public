@@ -44,7 +44,7 @@ impl SharedSeedCaCert {
             not_before,
             not_after,
             tls::DEFAULT_SUBJECT_ALT_NAMES.clone(),
-            &key_pair,
+            key_pair.into(),
             |params: &mut rcgen::CertificateParams| {
                 // This is a CA cert, and there should be 0 intermediate certs.
                 params.is_ca =
@@ -86,7 +86,7 @@ impl SharedSeedClientCert {
             not_after,
             // Client auth fails without a SAN, even though it is ignored..
             tls::DEFAULT_SUBJECT_ALT_NAMES.clone(),
-            &key_pair,
+            key_pair.into(),
             |_| (),
         ))
     }
@@ -131,7 +131,7 @@ impl SharedSeedServerCert {
             not_before,
             not_after,
             subject_alt_names,
-            &key_pair,
+            key_pair.into(),
             |_| (),
         ))
     }
