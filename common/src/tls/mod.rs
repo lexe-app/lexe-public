@@ -1,8 +1,10 @@
 use std::sync::Arc;
 
+use asn1_rs::FromDer;
 use lazy_lock::LazyLock;
 use rcgen::{DistinguishedName, DnType};
 use rustls::{crypto::WebPkiSupportedAlgorithms, ClientConfig, ServerConfig};
+use x509_parser::{certificate::X509Certificate, extensions::GeneralName};
 
 use crate::ed25519;
 
@@ -18,29 +20,34 @@ pub mod types;
 /// Allow accessing [`rustls`] via `common::tls`
 pub use rustls;
 
-/// Whether the given DER-encoded cert bound to the given DNS name.
-/// Returns [`false`] if the certificate failed to parse.
+/// Whether the given DER-encoded cert is bound to the given DNS name.
+/// Returns [`false`] if the cert failed to parse or is otherwise invalid.
 #[must_use]
 pub fn cert_contains_dns(cert_der: &[u8], expected_dns: &str) -> bool {
-    // Fake keypair which isn't actually used for validation
-    let fake_keypair = ed25519::KeyPair::from_seed(&[69; 32]).to_rcgen();
+    fn contains_dns(cert_der: &[u8], expected_dns: &str) -> Option<()> {
+        let (_unparsed, cert) = X509Certificate::from_der(cert_der).ok()?;
 
-    // This method is ostensibly for CA certs, but doesn't actually check if
-    // the cert is a CA cert, so it should be fine to reuse here
-    let cert_params = match rcgen::CertificateParams::from_ca_cert_der(
-        cert_der,
-        fake_keypair,
-    ) {
-        Ok(params) => params,
-        Err(_) => return false,
-    };
+        let contains_dns = cert
+            .subject_alternative_name()
+            .ok()??
+            .value
+            .general_names
+            .iter()
+            .any(|gen_name| {
+                matches!(
+                    gen_name,
+                    GeneralName::DNSName(dns) if *dns == expected_dns
+                )
+            });
 
-    cert_params.subject_alt_names.iter().any(|san_type| {
-        matches!(
-            san_type,
-            rcgen::SanType::DnsName(bound_dns) if bound_dns == expected_dns
-        )
-    })
+        if contains_dns {
+            Some(())
+        } else {
+            None
+        }
+    }
+
+    contains_dns(cert_der, expected_dns).is_some()
 }
 
 /// Our [`rustls::crypto::CryptoProvider`].

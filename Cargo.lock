@@ -3190,7 +3190,6 @@ checksum = "48406db8ac1f3cbc7dcdb56ec355343817958a356ff430259bb07baf7607e1e1"
 dependencies = [
  "ring 0.17.8",
  "time 0.3.31",
- "x509-parser",
  "yasna",
  "zeroize",
 ]
@@ -4997,7 +4996,6 @@ dependencies = [
  "lazy_static",
  "nom",
  "oid-registry",
- "ring 0.16.20",
  "rusticata-macros",
  "thiserror",
  "time 0.3.31",

@@ -58,7 +58,7 @@ lightning-invoice.workspace = true
 # lightning-transaction-sync.workspace = true
 rand.workspace = true
 rand_core.workspace = true
-rcgen = { workspace = true, features = ["x509-parser"] }
+rcgen.workspace = true
 reqwest = { workspace = true, features = ["http2", "json", "rustls-tls-manual-roots"] }
 rustls.workspace = true
 ring.workspace = true
