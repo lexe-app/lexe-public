@@ -70,16 +70,16 @@ pub struct GetNewPayments {
     pub limit: Option<u16>,
 }
 
-/// Struct for fetching payments by [`LxPaymentId`].
+/// Struct for fetching payments by [`PaymentIndex`].
 // NOTE: This struct isn't actually serialized into query parameters - this
 // struct is sent via `POST` instead (and so uses JSON).
 #[derive(Serialize, Deserialize)]
-pub struct GetPaymentsByIds {
-    /// The string-serialized [`LxPaymentId`]s of the payments to be fetched.
+pub struct GetPaymentsByIndexes {
+    /// The string-serialized [`PaymentIndex`]s of the payments to be fetched.
     /// Typically, the ids passed here correspond to payments that the mobile
     /// client currently has stored locally as "pending"; the intention is to
     /// check whether any of these payments have been updated.
-    pub ids: Vec<String>,
+    pub indexes: Vec<PaymentIndex>,
 }
 
 /// Struct for updating payment notes.

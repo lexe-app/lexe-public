@@ -14,7 +14,7 @@ use common::{
     aes::AesMasterKey,
     api::{
         auth::{BearerAuthToken, BearerAuthenticator},
-        qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIds},
+        qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIndexes},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Scid, User,
     },
@@ -389,14 +389,14 @@ impl NodePersister {
         Ok(wallet_db)
     }
 
-    pub(crate) async fn read_payments_by_ids(
+    pub(crate) async fn read_payments_by_indexes(
         &self,
-        req: GetPaymentsByIds,
+        req: GetPaymentsByIndexes,
     ) -> anyhow::Result<Vec<BasicPayment>> {
         let token = self.get_token().await?;
         self.backend_api
             // Fetch `DbPayment`s
-            .get_payments_by_ids(req, token)
+            .get_payments_by_indexes(req, token)
             .await
             .context("Could not fetch `DbPayment`s")?
             .into_iter()

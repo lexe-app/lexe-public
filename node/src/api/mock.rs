@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, HashMap},
     str::FromStr,
     sync::Mutex,
 };
@@ -20,7 +20,7 @@ use common::{
         },
         ports::Ports,
         provision::{SealedSeed, SealedSeedId},
-        qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIds},
+        qs::{GetNewPayments, GetPaymentByIndex, GetPaymentsByIndexes},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
         Empty, NodePk, Scid, User, UserPk,
     },
@@ -365,21 +365,17 @@ impl NodeBackendApi for MockBackendClient {
         Ok(Empty {})
     }
 
-    async fn get_payments_by_ids(
+    async fn get_payments_by_indexes(
         &self,
-        req: GetPaymentsByIds,
+        req: GetPaymentsByIndexes,
         _auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError> {
-        let ids = req.ids.into_iter().collect::<HashSet<_>>();
-        let payments = self
-            .payments
-            .lock()
-            .unwrap()
-            .values()
-            .filter(|p| ids.contains(&p.id))
-            .cloned()
+        let payments_lock = self.payments.lock().unwrap();
+        let payments = req
+            .indexes
+            .into_iter()
+            .filter_map(|idx| payments_lock.get(&idx).cloned())
             .collect::<Vec<_>>();
-
         Ok(payments)
     }
 

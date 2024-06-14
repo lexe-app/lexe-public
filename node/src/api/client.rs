@@ -11,7 +11,7 @@ use common::{
         provision::{SealedSeed, SealedSeedId},
         qs::{
             GetByMeasurement, GetByNodePk, GetByUserPk, GetNewPayments,
-            GetPaymentByIndex, GetPaymentsByIds,
+            GetPaymentByIndex, GetPaymentsByIndexes,
         },
         rest::{RequestBuilderExt, RestClient, POST},
         vfs::{VfsDirectory, VfsFile, VfsFileId},
@@ -329,15 +329,15 @@ impl NodeBackendApi for BackendClient {
         self.rest.send(req).await
     }
 
-    async fn get_payments_by_ids(
+    async fn get_payments_by_indexes(
         &self,
-        req: GetPaymentsByIds,
+        req: GetPaymentsByIndexes,
         auth: BearerAuthToken,
     ) -> Result<Vec<DbPayment>, BackendApiError> {
         let backend = &self.backend_url;
         let req = self
             .rest
-            .post(format!("{backend}/node/v1/payments/ids"), &req)
+            .post(format!("{backend}/node/v1/payments/indexes"), &req)
             .bearer_auth(&auth);
         self.rest.send(req).await
     }

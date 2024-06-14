@@ -31,10 +31,10 @@ use anyhow::{format_err, Context};
 use common::{
     api::{
         def::AppNodeRunApi,
-        qs::{GetNewPayments, GetPaymentsByIds, UpdatePaymentNote},
+        qs::{GetNewPayments, GetPaymentsByIndexes, UpdatePaymentNote},
     },
     iter::IteratorExt,
-    ln::payments::{BasicPayment, LxPaymentId, PaymentIndex},
+    ln::payments::{BasicPayment, PaymentIndex},
 };
 use roaring::RoaringBitmap;
 use tracing::{instrument, warn};
@@ -578,10 +578,10 @@ impl PaymentDbState {
         self.payments.last().map(|payment| payment.index())
     }
 
-    fn pending_ids(&self) -> Vec<LxPaymentId> {
+    fn pending_indexes(&self) -> Vec<PaymentIndex> {
         self.pending
             .iter()
-            .map(|vec_idx| self.payments[vec_idx as usize].index.id)
+            .map(|vec_idx| self.payments[vec_idx as usize].index)
             .collect()
     }
 
@@ -828,7 +828,7 @@ async fn sync_pending_payments<F: Ffs, N: AppNodeRunApi>(
     node: &N,
     batch_size: u16,
 ) -> anyhow::Result<usize> {
-    let pending_ids = {
+    let pending_idxs = {
         let lock = db.lock().unwrap();
 
         // No pending payments; nothing to do : )
@@ -836,23 +836,23 @@ async fn sync_pending_payments<F: Ffs, N: AppNodeRunApi>(
             return Ok(0);
         }
 
-        lock.state.pending_ids()
+        lock.state.pending_indexes()
     };
 
     let mut num_updated = 0;
 
-    for pending_ids_batch in pending_ids.chunks(usize::from(batch_size)) {
+    for pending_idxs_batch in pending_idxs.chunks(usize::from(batch_size)) {
         // Request the current state of all payments we believe are pending.
-        let req = GetPaymentsByIds {
-            ids: pending_ids_batch.iter().map(ToString::to_string).collect(),
+        let req = GetPaymentsByIndexes {
+            indexes: pending_idxs_batch.to_vec(),
         };
         let resp_payments = node
-            .get_payments_by_ids(req)
+            .get_payments_by_indexes(req)
             .await
             .context("Failed to request updated pending payments from node")?;
 
         // Sanity check response.
-        if resp_payments.len() > pending_ids_batch.len() {
+        if resp_payments.len() > pending_idxs_batch.len() {
             return Err(format_err!(
                 "Node returned more payments than we expected!"
             ));
@@ -1112,19 +1112,19 @@ mod test {
 
         // payment sync methods
 
-        /// POST /v1/payments/ids [`GetPaymentsByIds`] -> [`Vec<DbPayment>`]
-        async fn get_payments_by_ids(
+        /// POST /v1/payments/indexes [`GetPaymentsByIndexes`]
+        ///                        -> [`Vec<DbPayment>`]
+        async fn get_payments_by_indexes(
             &self,
-            req: GetPaymentsByIds,
+            req: GetPaymentsByIndexes,
         ) -> Result<Vec<BasicPayment>, NodeApiError> {
             Ok(req
-                .ids
-                .iter()
-                .filter_map(|id_str| {
-                    let id = LxPaymentId::from_str(id_str).unwrap();
+                .indexes
+                .into_iter()
+                .filter_map(|idx_i| {
                     self.payments
                         .iter()
-                        .find(|(idx, _p)| idx.id == id)
+                        .find(|(idx_j, _p)| &idx_i == *idx_j)
                         .map(|(_idx, p)| p)
                         .cloned()
                 })

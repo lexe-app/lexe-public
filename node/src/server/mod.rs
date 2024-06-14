@@ -70,7 +70,7 @@ pub(crate) fn app_router(state: Arc<AppRouterState>) -> Router<()> {
         .route("/app/pay_onchain", post(app::pay_onchain))
         .route("/app/preflight_pay_onchain", post(app::preflight_pay_onchain))
         .route("/app/get_address", post(app::get_address))
-        .route("/app/payments/ids", post(app::get_payments_by_ids))
+        .route("/app/payments/indexes", post(app::get_payments_by_indexes))
         .route("/app/payments/new", get(app::get_new_payments))
         .route("/app/payments/note", put(app::update_payment_note))
         .with_state(state)
