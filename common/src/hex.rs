@@ -28,9 +28,15 @@ pub enum DecodeError {
 /// Convert a byte slice to an owned hex string. If you simply need to display a
 /// byte slice as hex, use [`display`] instead, which avoids the allocation.
 pub fn encode(bytes: &[u8]) -> String {
-    let mut res = String::with_capacity(bytes.len() * 2);
-    write!(&mut res, "{}", display(bytes)).unwrap();
-    res
+    let mut out = vec![0u8; bytes.len() * 2];
+
+    for (src, dst) in bytes.iter().zip(out.chunks_exact_mut(2)) {
+        dst[0] = encode_nibble(src >> 4);
+        dst[1] = encode_nibble(src & 0x0f);
+    }
+
+    // SAFETY: hex characters ([0-9a-f]*) are always valid UTF-8.
+    unsafe { String::from_utf8_unchecked(out) }
 }
 
 /// Try to decode a hex string to owned bytes (`Vec<u8>`).
@@ -151,7 +157,8 @@ pub struct HexDisplay<'a>(&'a [u8]);
 impl<'a> fmt::Display for HexDisplay<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for byte in self.0 {
-            write!(f, "{byte:02x}")?
+            f.write_char(encode_nibble(byte >> 4) as char)?;
+            f.write_char(encode_nibble(byte & 0x0f) as char)?;
         }
         Ok(())
     }
@@ -192,6 +199,15 @@ fn decode_to_slice_inner(
     Ok(())
 }
 
+/// Encode a single nibble of hex. This encode fn is also designed to be
+/// constant time.
+#[inline(always)]
+const fn encode_nibble(nib: u8) -> u8 {
+    let mut hex = nib as i16 + (b'0' as i16);
+    hex += (((b'9' as i16) - hex) >> 8) & ((b'a' as i16) - 0x3a);
+    hex as u8
+}
+
 #[inline]
 const fn decode_nibble(x: u8) -> Result<u8, DecodeError> {
     match x {
@@ -205,7 +221,8 @@ const fn decode_nibble(x: u8) -> Result<u8, DecodeError> {
 #[cfg(test)]
 mod test {
     use proptest::{
-        arbitrary::any, char, collection::vec, proptest, strategy::Strategy,
+        arbitrary::any, char, collection::vec, prop_assert_eq, proptest,
+        strategy::Strategy,
     };
 
     use super::*;
@@ -260,5 +277,14 @@ mod test {
         proptest!(|(hex in hex_strs)| {
             assert_eq!(hex.to_ascii_lowercase(), encode(&decode(&hex).unwrap()));
         })
+    }
+
+    #[test]
+    fn test_encode_display_equiv() {
+        proptest!(|(bytes: Vec<u8>)| {
+            let out1 = encode(&bytes);
+            let out2 = display(&bytes).to_string();
+            prop_assert_eq!(out1, out2);
+        });
     }
 }
