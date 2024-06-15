@@ -14,7 +14,6 @@ test-utils = [
   "dep:proptest",
   "dep:proptest-derive",
   "dep:serde_urlencoded",
-  "dep:strum",
   "dep:tokio-rustls",
 ]
 
@@ -70,6 +69,7 @@ serde.workspace = true
 serde_with = { workspace = true, features = ["macros"] }
 serde_json.workspace = true
 sgx-isa.workspace = true
+strum.workspace = true
 thiserror.workspace = true
 time.workspace = true
 tokio = { workspace = true, features = [
@@ -119,8 +119,6 @@ proptest = { optional = true, workspace = true, features = ["alloc"] }
 proptest-derive = { optional = true, workspace = true }
 # This version should track the one that `axum` uses internally.
 serde_urlencoded = { optional = true, version = "0.7" }
-# Enum #[derive(..)] helpers
-strum = { optional = true, workspace = true }
 # Lower-level async TLS interface
 tokio-rustls = { optional = true, version = "0.25", default-features = false }
 
@@ -154,8 +152,6 @@ proptest-derive.workspace = true
 serde_json.workspace = true
 # This version should track the one that `axum` uses internally.
 serde_urlencoded = "0.7"
-# Enum #[derive(..)] helpers
-strum.workspace = true
 tokio = { workspace = true, features = [
     "io-util",
     "macros",
