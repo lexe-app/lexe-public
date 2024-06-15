@@ -281,7 +281,7 @@ impl FromStr for RootSeed {
 
     fn from_str(hex: &str) -> Result<Self, Self::Err> {
         let mut bytes = [0u8; Self::LENGTH];
-        hex::decode_to_slice_ct(hex, bytes.as_mut_slice())
+        hex::decode_to_slice(hex, bytes.as_mut_slice())
             .map(|()| Self::new(Secret::new(bytes)))
     }
 }

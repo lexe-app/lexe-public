@@ -1,17 +1,22 @@
-//! Utilities for encoding, decoding, and displaying hex-formatted data.
+//! Utilities for encoding, decoding, and displaying lowercase hex/base16
+//! formatted data.
+//!
+//! Encoding and decoding is also designed to be (likely) constant time
+//! (as much as we can without diving into manual assembly), which allows us to
+//! safely hex::encode and hex::decode secrets without potentially leaking bits
+//! via timing side channels.
 
 use std::{
     borrow::Cow,
     fmt::{self, Write},
 };
 
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::SliceExt;
 
 /// Errors which can be produced while decoding a hex string.
-#[derive(Copy, Clone, Debug, Error, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Error)]
 pub enum DecodeError {
     #[error("hex decode error: output buffer length != half input length")]
     BadOutputLength,
@@ -58,40 +63,28 @@ pub const fn decode_const<const N: usize>(hex: &[u8]) -> [u8; N] {
 
     let mut bytes = [0u8; N];
     let mut idx = 0;
+    let mut err = 0;
 
     while idx < N {
-        let hi = unwrap_const(decode_nibble(hex[2 * idx]));
-        let lo = unwrap_const(decode_nibble(hex[(2 * idx) + 1]));
-        let c = (hi << 4) | lo;
-        bytes[idx] = c;
+        let b_hi = decode_nibble(hex[2 * idx]);
+        let b_lo = decode_nibble(hex[(2 * idx) + 1]);
+        let byte = (b_hi << 4) | b_lo;
+        err |= byte >> 8;
+        bytes[idx] = byte as u8;
         idx += 1;
     }
 
-    const fn unwrap_const(res: Result<u8, DecodeError>) -> u8 {
-        match res {
-            Ok(x) => x,
-            Err(_) => panic!("invalid hex character"),
-        }
+    match err {
+        0 => bytes,
+        _ => panic!("invalid hex char"),
     }
-
-    bytes
 }
 
-/// Decodes a hex string into an output buffer.
+/// Decodes a hex string into an output buffer. This is also designed to be
+/// (likely) constant time.
 pub fn decode_to_slice(hex: &str, out: &mut [u8]) -> Result<(), DecodeError> {
     let hex_chunks = hex_str_to_chunks(hex)?;
     decode_to_slice_inner(hex_chunks, out)
-}
-
-/// Decode a hex string into an output buffer in constant time.
-/// This prevents leakage of e.g. # of digits vs # abcdef.
-pub fn decode_to_slice_ct(
-    hex: &str,
-    out: &mut [u8],
-) -> Result<(), DecodeError> {
-    // TODO(phlip9): make this actually constant time
-    // https://github.com/RustCrypto/formats/blob/master/base16ct/src/lib.rs#L97
-    decode_to_slice(hex, out)
 }
 
 /// Get a [`HexDisplay`] which provides a `Debug` and `Display` impl for the
@@ -190,13 +183,17 @@ fn decode_to_slice_inner(
         return Err(DecodeError::BadOutputLength);
     }
 
+    let mut err = 0;
     for (&[c_hi, c_lo], out_i) in hex_chunks.iter().zip(out) {
-        let b_hi = decode_nibble(c_hi)?;
-        let b_lo = decode_nibble(c_lo)?;
-        *out_i = (b_hi << 4) | b_lo;
+        let byte = (decode_nibble(c_hi) << 4) | decode_nibble(c_lo);
+        err |= byte >> 8;
+        *out_i = byte as u8;
     }
 
-    Ok(())
+    match err {
+        0 => Ok(()),
+        _ => Err(DecodeError::InvalidCharacter),
+    }
 }
 
 /// Encode a single nibble of hex. This encode fn is also designed to be
@@ -208,14 +205,22 @@ const fn encode_nibble(nib: u8) -> u8 {
     hex as u8
 }
 
-#[inline]
-const fn decode_nibble(x: u8) -> Result<u8, DecodeError> {
-    match x {
-        b'0'..=b'9' => Ok(x - b'0'),
-        b'a'..=b'f' => Ok(x - b'a' + 10),
-        b'A'..=b'F' => Ok(x - b'A' + 10),
-        _ => Err(DecodeError::InvalidCharacter),
-    }
+/// Decode a single nibble of lower hex
+#[inline(always)]
+const fn decode_nibble(src: u8) -> u16 {
+    // 0-9  0x30-0x39
+    // a-f  0x61-0x66
+    let byte = src as i16;
+    let mut ret: i16 = -1;
+
+    // 0-9  0x30-0x39
+    // if (byte > 0x2f && byte < 0x3a) ret += byte - 0x30 + 1; // -47
+    ret += (((0x2fi16 - byte) & (byte - 0x3a)) >> 8) & (byte - 47);
+    // a-f  0x61-0x66
+    // if (byte > 0x60 && byte < 0x67) ret += byte - 0x61 + 10 + 1; // -86
+    ret += (((0x60i16 - byte) & (byte - 0x67)) >> 8) & (byte - 86);
+
+    ret as u16
 }
 
 #[cfg(test)]
@@ -262,8 +267,7 @@ mod test {
         let hex = "01348900abff";
         assert_eq!(hex, encode(&decode(hex).unwrap()));
 
-        let hex_char =
-            char::ranges(['0'..='9', 'a'..='f', 'A'..='F'].as_slice().into());
+        let hex_char = char::ranges(['0'..='9', 'a'..='f'].as_slice().into());
         let hex_chars = vec(hex_char, 0..10);
         let hex_strs =
             hex_chars.prop_filter_map("no odd length hex strings", |chars| {
