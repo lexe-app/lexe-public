@@ -6,16 +6,14 @@ use proptest::strategy::Strategy;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde_with::{DeserializeFromStr, SerializeDisplay};
+use strum::VariantArray;
 
 use crate::{cli::Network, Apply};
 
 /// Represents a validated `DEPLOY_ENVIRONMENT` configuration.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-#[derive(SerializeDisplay, DeserializeFromStr)]
-#[cfg_attr(
-    any(test, feature = "test-utils"),
-    derive(Arbitrary, strum::VariantArray)
-)]
+#[derive(SerializeDisplay, DeserializeFromStr, VariantArray)]
+#[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum DeployEnv {
     /// "dev"
     Dev,
