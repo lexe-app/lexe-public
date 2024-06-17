@@ -23,7 +23,7 @@ import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
-import 'package:lexeapp/route/show_qr.dart' show QrImage;
+import 'package:lexeapp/route/show_qr.dart' show InteractiveQrImage;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxRadius, Space;
 import 'package:rxdart/rxdart.dart';
@@ -830,13 +830,19 @@ class PaymentOfferPage extends StatelessWidget {
                               decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(6.0)),
                               clipBehavior: Clip.hardEdge,
-                              child: QrImage(
+                              child: InteractiveQrImage(
                                 // `AnimatedSwitcher` should also run the switch
                                 // animation when the QR code contents change.
                                 key: key,
                                 value: uri,
                                 dimension: dim.toInt(),
                                 color: LxColors.foreground,
+
+                                // TODO(phlip9): open QR in full screen page
+                                onTap: () => info("tapped qr"),
+                                // TODO(phlip9): open dropdown menu w/ options
+                                // like (1) copy image, (2) save image
+                                onLongPress: () => info("long pressed qr"),
                               ),
                             )
                           : FilledPlaceholder(

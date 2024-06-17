@@ -192,6 +192,50 @@ class ShowQrPage extends StatelessWidget {
   }
 }
 
+/// A small helper that makes a QR image interactive with taps and long presses.
+///
+/// Normally, we just wrap a [QrImage] in an [InkWell] and call it a day, but
+/// since the image is opaque, the animated ink splash in the background doesn't
+/// show properly. This helper widget makes everything work as expected.
+class InteractiveQrImage extends StatelessWidget {
+  const InteractiveQrImage({
+    super.key,
+    required this.value,
+    required this.dimension,
+    this.color = LxColors.grey0,
+    this.onTap,
+    this.onLongPress,
+  });
+
+  final String value;
+  final Color color;
+  final int dimension;
+
+  final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    // Need to draw Material+Ink splasher on top of image, so splash animation
+    // doesn't get occluded by opaque image.
+    return Stack(
+      children: [
+        QrImage(value: this.value, dimension: this.dimension),
+        Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: this.onTap,
+            onLongPress: this.onLongPress,
+            enableFeedback: true,
+            splashColor: LxColors.clearW300,
+            child: SizedBox.square(dimension: this.dimension.toDouble()),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 /// Compute the "scrim" size (a.k.a. empty margin) around the QR image in `data`
 ///
 /// For example, in the below ASCII QR image:
