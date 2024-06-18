@@ -6,15 +6,17 @@
 ///   the image.
 library;
 
-import 'dart:async' show unawaited;
+import 'dart:async' show Completer, unawaited;
+import 'dart:developer' as dev;
+import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_zxing/flutter_zxing.dart'
-    show EccLevel, Encode, EncodeParams, Format, zx;
+import 'package:flutter_zxing/flutter_zxing.dart' as zx;
 
+import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/components.dart'
     show LxCloseButton, ScrollableSinglePageBody;
 import 'package:lexeapp/logger.dart';
@@ -28,11 +30,9 @@ class QrImage extends StatefulWidget {
     super.key,
     required this.value,
     required this.dimension,
-    this.color = LxColors.grey0,
   });
 
   final String value;
-  final Color color;
   final int dimension;
 
   @override
@@ -51,47 +51,19 @@ class _QrImageState extends State<QrImage> {
   @override
   void initState() {
     super.initState();
-    unawaited(encodeQrImage());
+    // TODO(phlip9): fix race
+    unawaited(this.initEncodeQrImage());
   }
 
-  Future<void> encodeQrImage() async {
+  Future<void> initEncodeQrImage() async {
     final value = this.widget.value;
     final dimension = this.widget.dimension;
 
-    final Encode encodeResult = zx.encodeBarcode(
-      contents: value,
-      params: EncodeParams(
-        width: dimension,
-        height: dimension,
-        // NOTE: even though margin is set to zero, we still get non-zero empty
-        // margin in the encoded image that we need to deal with.
-        margin: 0,
-        format: Format.qrCode,
-        eccLevel: EccLevel.medium,
-      ),
-    );
-
-    if (encodeResult.isValid) {
-      // The image data is in RGBA format. With a standard black-and-white QR
-      // code in mind, the colors here are "black" == 0x00000000 and
-      // "white" == 0xffffffff.
-      final data = encodeResult.data!.buffer.asUint8List();
-
-      // Compute the number of empty pixels until the QR image content actually
-      // starts.
-      final scrimSize = qrScrimSize(data, dimension);
-
-      ui.decodeImageFromPixels(
-        data,
-        dimension,
-        dimension,
-        ui.PixelFormat.rgba8888,
-        allowUpscaling: false,
-        (qrImage) => this.setQRImage(qrImage, scrimSize),
-      );
-    } else {
-      error(
-          "Failed to encode QR image: ${encodeResult.error}, dim: $dimension, value: '$value'");
+    switch (await QrImageEncoder.encode(value, dimension)) {
+      case Ok(:final ok):
+        this.setQRImage(ok.qrImage, ok.scrimSize);
+      case Err(:final err):
+        error("QrImage: $err");
     }
   }
 
@@ -125,10 +97,9 @@ class _QrImageState extends State<QrImage> {
   void didUpdateWidget(QrImage old) {
     super.didUpdateWidget(old);
     final QrImage new_ = this.widget;
-    if (new_.value != old.value ||
-        new_.dimension != old.dimension ||
-        new_.color != old.color) {
-      unawaited(encodeQrImage());
+    if (new_.value != old.value || new_.dimension != old.dimension) {
+      // TODO(phlip9): fix race
+      unawaited(this.initEncodeQrImage());
     }
   }
 
@@ -149,7 +120,6 @@ class _QrImageState extends State<QrImage> {
         image: qrImage,
         width: dimension,
         height: dimension,
-        color: this.widget.color,
         filterQuality: FilterQuality.none,
         isAntiAlias: true,
         // These three parameters work together to "cut off" the empty scrim
@@ -157,13 +127,7 @@ class _QrImageState extends State<QrImage> {
         scale: scale,
         fit: BoxFit.none,
         alignment: Alignment.center,
-        // * The normal black values in the QR image are actually
-        //   transparent black (0x00000000) while the white values are
-        //   opaque white (0xffffffff).
-        // * To show the black parts of the QR with our chosen `color` while
-        //   leaving the white parts transparent, we can use the `srcOut`
-        //   blend mode.
-        colorBlendMode: BlendMode.srcOut,
+        colorBlendMode: BlendMode.dst,
       );
     } else {
       return SizedBox.square(dimension: dimension);
@@ -190,7 +154,6 @@ class ShowQrPage extends StatelessWidget {
             child: QrImage(
               value: this.value,
               dimension: 300,
-              color: LxColors.foreground,
             ),
           )
         ],
@@ -214,11 +177,9 @@ class InteractiveQrImage extends StatefulWidget {
     super.key,
     required this.value,
     required this.dimension,
-    this.color = LxColors.grey0,
   });
 
   final String value;
-  final Color color;
   final int dimension;
 
   @override
@@ -346,6 +307,129 @@ class _InteractiveQrImageState extends State<InteractiveQrImage> {
         ],
       ),
     );
+  }
+}
+
+abstract final class QrImageEncoder {
+  /// Encode [value] as a QR code image with a width and height of [dimension]
+  /// pixels. Runs most of the encoding in a separate [Isolate] to avoid
+  /// blocking the main UI thread.
+  static Future<Result<EncodedQrImage, Exception>> encode(
+    final String value,
+    final int dimension,
+  ) async {
+    // In debug/profile mode, add timeline events.
+    dev.TimelineTask? dbgTask;
+    if (!cfg.release) {
+      dbgTask = dev.TimelineTask()..instant("QR encode");
+      dbgTask.start("ui -> isolate");
+    }
+
+    try {
+      // Run `zx.encodeBarcode` in a separate isolate to avoid blocking the UI
+      // isolate as much as possible.
+      // Sadly, we can't also `ui.decodeImageFromPixels` in the isolate, since
+      // that seems to crash for some reason.
+      final (data, scrimSize) = await Isolate.run(
+        debugName: "QR encode (isolate)",
+        () async {
+          dbgTask?.finish();
+
+          // Use `flutter_zxing` to do the code -> image encoding. We'll need to
+          // fix it up after though.
+          dbgTask?.start("zx.encodeBarcode");
+          final zx.Encode encodeResult = zx.zx.encodeBarcode(
+            contents: value,
+            params: zx.EncodeParams(
+              width: dimension,
+              height: dimension,
+              // NOTE: even though margin is set to zero, we still get non-zero empty
+              // margin in the encoded image that we need to deal with.
+              margin: 0,
+              format: zx.Format.qrCode,
+              eccLevel: zx.EccLevel.medium,
+            ),
+          );
+          dbgTask?.finish();
+
+          if (!encodeResult.isValid) {
+            throw Exception(
+                "Failed to encode QR image: ${encodeResult.error}, dim: $dimension, value: '$value'");
+          }
+
+          // The image data is in RGBA format. With a standard black-and-white QR
+          // code in mind, the colors here are "black" == 0x00000000 and
+          // "white" == 0xffffffff.
+          final data = encodeResult.data!.buffer;
+
+          // Compute the number of empty pixels until the QR image content actually
+          // starts.
+          final scrimSize = qrScrimSize(data.asUint8List(), dimension);
+
+          // Recolor the QR image so that colors are opaque and the black pixels
+          // are [LxColors.foreground] instead.
+          dbgTask?.start("recolorQrImage");
+          recolorQrImage(data.asUint32List());
+          dbgTask?.finish();
+
+          dbgTask?.start("isolate -> ui");
+          return (data, scrimSize);
+        },
+      );
+      dbgTask?.finish();
+
+      // Flutter needs a `ui.Image` decoded from our raw QR image bytes.
+      dbgTask?.start("ui.decodeImageFromPixels");
+      final completer = Completer<ui.Image>();
+      ui.decodeImageFromPixels(
+        data.asUint8List(),
+        dimension,
+        dimension,
+        ui.PixelFormat.rgba8888,
+        allowUpscaling: false,
+        completer.complete,
+      );
+      final qrImage = await completer.future;
+      dbgTask?.finish();
+
+      return Ok(
+          EncodedQrImage(data: data, qrImage: qrImage, scrimSize: scrimSize));
+    } on Exception catch (err) {
+      dbgTask?.finish();
+      return Err(err);
+    }
+  }
+}
+
+class EncodedQrImage {
+  const EncodedQrImage(
+      {required this.data, required this.qrImage, required this.scrimSize});
+
+  final ByteBuffer data;
+  final ui.Image qrImage;
+  final int scrimSize;
+}
+
+/// Modifies in-place the encoded QR image bytes from `zx.encodeBarcode` so that
+/// the image has opaque pixel values in RGBA format, and the "black" QR pixels
+/// are [LxColors.foreground].
+///
+/// It's really just this / transformation for each pixel:
+///
+/// (little endian)
+///                 AABBGGRR
+/// 0x00000000 => 0xff23211c
+/// 0xffffffff => 0xffffffff
+///
+/// (big endian)
+///                 RRGGBBAA
+/// 0x00000000 => 0x1c2123ff
+/// 0xffffffff => 0xffffffff
+void recolorQrImage(final Uint32List data) {
+  final int foreground =
+      (Endian.host == Endian.little) ? 0xff23211c : 0x1c2123ff;
+  for (int idx = 0; idx < data.length; idx += 1) {
+    data[idx] |= foreground;
   }
 }
 
