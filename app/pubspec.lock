@@ -125,18 +125,18 @@ packages:
     dependency: transitive
     description:
       name: camera
-      sha256: "2170a943dcb67be2af2c6bcda8775e74b41d4c02d6a4eb10bdc832ee185c4eea"
+      sha256: dfa8fc5a1adaeb95e7a54d86a5bd56f4bb0e035515354c8ac6d262e35cec2ec8
       url: "https://pub.dev"
     source: hosted
-    version: "0.11.0+1"
-  camera_android_camerax:
+    version: "0.10.6"
+  camera_android:
     dependency: transitive
     description:
-      name: camera_android_camerax
-      sha256: "7d84815edbb8304b51c10deba3c20f44eef80aa46ff156ec45428ed16600b49a"
+      name: camera_android
+      sha256: ca42d500c1b58c1ab90ef819909b4de769bcb388a643b692a639c36954a3dc78
       url: "https://pub.dev"
     source: hosted
-    version: "0.6.5+5"
+    version: "0.10.9+5"
   camera_avfoundation:
     dependency: transitive
     description:
@@ -387,11 +387,12 @@ packages:
   flutter_zxing:
     dependency: "direct main"
     description:
-      name: flutter_zxing
-      sha256: "39129e121e471f04fb6cfa11a9cdf45e990b8cc0346ab3d1fae49930871ff922"
-      url: "https://pub.dev"
-    source: hosted
-    version: "1.6.1"
+      path: "."
+      ref: "phlip9/revert-leak-fix-with-gitdep-hack"
+      resolved-ref: "6cd1989eaa8d4c2684641eed0bf370537731d380"
+      url: "https://github.com/phlip9/flutter_zxing.git"
+    source: git
+    version: "1.7.0"
   freezed:
     dependency: "direct dev"
     description:
