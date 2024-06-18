@@ -1,6 +1,8 @@
+# `gal` requires at least macOS 11.0
+# <https://pub.dev/packages/gal>
 # `flutter_zxing` requires at least macOS 10.15
 # <https://pub.dev/packages/flutter_zxing#supported-platforms>
-platform :osx, '10.15'
+platform :osx, '11.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
