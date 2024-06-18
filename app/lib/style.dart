@@ -710,6 +710,9 @@ final class LxIcons {
   /// Copy icon (stacked boxes)
   static const IconData copy = Symbols.content_copy_rounded;
 
+  /// Save icon (floppy disk)
+  static const IconData save = Symbols.save_rounded;
+
   /// Add icon (+ icon)
   static const IconData add = Symbols.add_rounded;
 
