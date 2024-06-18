@@ -1,4 +1,10 @@
-// Page for showing a QR code
+/// Pages for showing a QR code image.
+///
+/// + [QrImage] just shows a static image from a QR code string.
+/// + [InteractiveQrImage] wraps a [QrImage] and adds useful interactive things,
+///   like tap to open fullscreen, or long press/right-click to copy/save/share
+///   the image.
+library;
 
 import 'dart:async' show unawaited;
 import 'dart:math';
@@ -12,7 +18,8 @@ import 'package:flutter_zxing/flutter_zxing.dart'
 import 'package:lexeapp/components.dart'
     show LxCloseButton, ScrollableSinglePageBody;
 import 'package:lexeapp/logger.dart';
-import 'package:lexeapp/style.dart' show LxColors, Space;
+import 'package:lexeapp/result.dart';
+import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
 /// Encode `value` as a QR image and then display it in `dimension` pixels
 /// width and height.
@@ -192,46 +199,152 @@ class ShowQrPage extends StatelessWidget {
   }
 }
 
-/// A small helper that makes a QR image interactive with taps and long presses.
-///
-/// Normally, we just wrap a [QrImage] in an [InkWell] and call it a day, but
-/// since the image is opaque, the animated ink splash in the background doesn't
-/// show properly. This helper widget makes everything work as expected.
-class InteractiveQrImage extends StatelessWidget {
+/// An action selected by the user from the QR image dropdown menu.
+enum QrImageMenuAction {
+  copyImage,
+  saveImage,
+  shareImage,
+}
+
+/// A small helper that makes a QR image interactive. Tapping the QR image will
+/// open it in a fullscreen page. Long pressing or right-clicking will open a
+/// dropdown menu that lets the user copy, save, or share the QR image.
+class InteractiveQrImage extends StatefulWidget {
   const InteractiveQrImage({
     super.key,
     required this.value,
     required this.dimension,
     this.color = LxColors.grey0,
-    this.onTap,
-    this.onLongPress,
   });
 
   final String value;
   final Color color;
   final int dimension;
 
-  final VoidCallback? onTap;
-  final VoidCallback? onLongPress;
+  @override
+  State<InteractiveQrImage> createState() => _InteractiveQrImageState();
+}
+
+class _InteractiveQrImageState extends State<InteractiveQrImage> {
+  final MenuController menuController = MenuController();
+
+  /// Open the QR image in a new fullscreen page.
+  void openQrPage() {
+    // TODO(phlip9): impl
+  }
+
+  /// Open a popup/dropdown menu positioned at [tapOffset]. The menu lets the
+  /// user copy/save/share the QR image.
+  Future<void> openPopupMenu(Offset tapOffset) async {
+    final RenderBox imageBox = this.context.findRenderObject()! as RenderBox;
+    final RenderBox overlay =
+        Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
+
+    // The tap location, projected onto the navigator overlay.
+    final Offset tapOffsetOnOverlay =
+        imageBox.localToGlobal(tapOffset, ancestor: overlay);
+
+    // Open the menu at the tap location.
+    final RelativeRect position = RelativeRect.fromRect(
+      Rect.fromPoints(
+        tapOffsetOnOverlay,
+        tapOffsetOnOverlay,
+      ),
+
+      // A rect covering the modal overlay container.
+      Offset.zero & overlay.size,
+    );
+
+    final result = await showMenu<QrImageMenuAction?>(
+      context: this.context,
+      position: position,
+      color: LxColors.background,
+      elevation: 10.0,
+      // TODO(phlip9): figure out why the `ListTile`'s isn't picking up the
+      // right font weight from the global theme...
+      items: <PopupMenuEntry<QrImageMenuAction?>>[
+        // Copy the image to the clipboard
+        const PopupMenuItem(
+          value: QrImageMenuAction.copyImage,
+          child: ListTile(
+            title: Text(
+              "Copy Image",
+              style: TextStyle(fontVariations: [Fonts.weightMedium]),
+            ),
+            leading: Icon(LxIcons.copy, weight: LxIcons.weightMedium),
+          ),
+        ),
+
+        // Save the QR image (to gallery, file, ...)
+        const PopupMenuItem(
+          value: QrImageMenuAction.saveImage,
+          child: ListTile(
+            title: Text(
+              "Save Image",
+              style: TextStyle(fontVariations: [Fonts.weightMedium]),
+            ),
+            leading: Icon(LxIcons.save, weight: LxIcons.weightMedium),
+          ),
+        ),
+
+        // Share the QR image (e.g., to a group chat)
+        const PopupMenuItem(
+          value: QrImageMenuAction.shareImage,
+          child: ListTile(
+            title: Text(
+              "Share Image",
+              style: TextStyle(fontVariations: [Fonts.weightMedium]),
+            ),
+            leading: Icon(LxIcons.share, weight: LxIcons.weightMedium),
+          ),
+        ),
+      ],
+    );
+    if (!this.mounted || result == null) return;
+
+    // TODO(phlip9): impl
+    switch (result) {
+      case QrImageMenuAction.copyImage:
+        info("copy image");
+      case QrImageMenuAction.saveImage:
+        info("save image");
+      case QrImageMenuAction.shareImage:
+        info("share image");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     // Need to draw Material+Ink splasher on top of image, so splash animation
     // doesn't get occluded by opaque image.
-    return Stack(
-      children: [
-        QrImage(value: this.value, dimension: this.dimension),
-        Material(
-          type: MaterialType.transparency,
-          child: InkWell(
-            onTap: this.onTap,
-            onLongPress: this.onLongPress,
-            enableFeedback: true,
-            splashColor: LxColors.clearW300,
-            child: SizedBox.square(dimension: this.dimension.toDouble()),
+    return SizedBox.square(
+      dimension: this.widget.dimension.toDouble(),
+      child: Stack(
+        children: [
+          QrImage(value: this.widget.value, dimension: this.widget.dimension),
+          Material(
+            type: MaterialType.transparency,
+            child: InkWell(
+              onTap: this.openQrPage,
+              // ARgh... InkWell doesn't expose the inner GestureDetector's
+              // onLongPressUp, and this callback doesn't give us the
+              // TapUpDetails... so we have to hack around it and just give the
+              // center of the widget or something.
+              onLongPress: () {
+                final double dim = this.widget.dimension.toDouble();
+                unawaited(this.openPopupMenu(Offset(
+                  (0.5 * dim) - Space.s850,
+                  (0.5 * dim) - Space.s900,
+                )));
+              },
+              onSecondaryTapUp: (tap) =>
+                  unawaited(this.openPopupMenu(tap.localPosition)),
+              enableFeedback: true,
+              splashColor: LxColors.clearW300,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

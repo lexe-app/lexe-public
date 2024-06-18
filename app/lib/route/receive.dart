@@ -837,12 +837,6 @@ class PaymentOfferPage extends StatelessWidget {
                                 value: uri,
                                 dimension: dim.toInt(),
                                 color: LxColors.foreground,
-
-                                // TODO(phlip9): open QR in full screen page
-                                onTap: () => info("tapped qr"),
-                                // TODO(phlip9): open dropdown menu w/ options
-                                // like (1) copy image, (2) save image
-                                onLongPress: () => info("long pressed qr"),
                               ),
                             )
                           : FilledPlaceholder(
