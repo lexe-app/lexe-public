@@ -100,13 +100,16 @@ pub const NODE_PROVISION_DNS_SUFFIX: &str = ".provision.lexe.app";
 pub const LEXE_STAGING_CA_CERT_DER: &[u8] =
     include_bytes!("../data/lexe-staging-root-ca-cert.der");
 
-/// The root CA cert for Google Trust Services Root R1, used by googleapis.com,
-/// blockstream.info, kuutamo.cloud, and coincap.io.
+/// Google Trust Services Root R1, used by googleapis.com, blockstream.info,
+/// and kuutamo.cloud.
 // Serial Number=02:03:E5:93:6F:31:B0:13:49:88:6B:A2:17
 // Not Valid Before=Wednesday, June 22, 2016 at 8:00:00 AM China Standard Time
 // Not Valid After=Sunday, June 22, 2036 at 8:00:00 AM China Standard Time
 pub const GTS_ROOT_R1_CA_CERT_DER: &[u8] =
     include_bytes!("../data/google-trust-services-root-r1-ca-cert.der");
+/// Google Trust Services Root R4, used by coincap.io.
+pub const GTS_ROOT_R4_CA_CERT_DER: &[u8] =
+    include_bytes!("../data/google-trust-services-root-r4-ca-cert.der");
 
 /// The root CA cert for Amazon's Root CA 1, used by `ltbl.io`.
 // Serial Number=82:10:cf:b0:d2:40:e3:59:44:63:e0:bb:63:82:8b:00
