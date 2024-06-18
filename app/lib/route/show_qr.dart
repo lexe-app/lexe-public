@@ -23,6 +23,37 @@ import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 
+/// An encoded QR image ready to be displayed.
+///
+/// See [QrImageEncoder.encode].
+class EncodedQrImage {
+  const EncodedQrImage({
+    required this.value,
+    required this.dimension,
+    required this.image,
+    required this.scrimSize,
+  });
+
+  /// The string encoded in the QR image.
+  final String value;
+
+  /// The width and height of the QR image, in pixels.
+  final int dimension;
+
+  /// The encoded QR image, ready to be rendered. Must be `.dispose()`'d.
+  final ui.Image image;
+
+  /// The number of empty pixels in `qrImage` until the QR actually starts.
+  /// We'll expand the final rendered image so the image actually fits snugly
+  /// in `dimension` pixels.
+  final int scrimSize;
+
+  /// Holders must call [dispose] in order to free the inner [ui.Image].
+  void dispose() {
+    this.image.dispose();
+  }
+}
+
 /// Encode `value` as a QR image and then display it in `dimension` pixels
 /// width and height.
 class QrImage extends StatefulWidget {
@@ -40,18 +71,11 @@ class QrImage extends StatefulWidget {
 }
 
 class _QrImageState extends State<QrImage> {
-  /// The encoded QR image, ready to be rendered. Must be `.dispose()`'d.
-  ui.Image? qrImage;
-
-  /// The number of empty pixels in `qrImage` until the QR actually starts.
-  /// We'll expand the final rendered image so the image actually fits snugly
-  /// in `dimension` pixels.
-  int? scrimSize;
+  EncodedQrImage? qrImage;
 
   @override
   void initState() {
     super.initState();
-    // TODO(phlip9): fix race
     unawaited(this.initEncodeQrImage());
   }
 
@@ -61,14 +85,19 @@ class _QrImageState extends State<QrImage> {
 
     switch (await QrImageEncoder.encode(value, dimension)) {
       case Ok(:final ok):
-        this.setQRImage(ok.qrImage, ok.scrimSize);
+        this.setQRImage(ok);
       case Err(:final err):
         error("QrImage: $err");
     }
   }
 
-  void setQRImage(ui.Image qrImage, int scrimSize) {
-    if (!this.mounted) {
+  void setQRImage(final EncodedQrImage qrImage) {
+    // We could get a stale `initEncodeQrImage` result that resolves after the
+    // widget params have changed. Just ignore them (but remember to free!).
+    final isStaleResult = qrImage.value != this.widget.value ||
+        qrImage.dimension != this.widget.dimension;
+
+    if (!this.mounted || isStaleResult) {
       qrImage.dispose();
       return;
     }
@@ -76,7 +105,6 @@ class _QrImageState extends State<QrImage> {
     this.setState(() {
       this.maybeDisposeQRImage();
       this.qrImage = qrImage;
-      this.scrimSize = scrimSize;
     });
   }
 
@@ -112,12 +140,12 @@ class _QrImageState extends State<QrImage> {
     if (qrImage != null) {
       // Scale up the image by factor `scale` in order to make the QR image
       // fully fit inside `dimension` pixels without any extra margin pixels.
-      final scrimSize = this.scrimSize!;
+      final scrimSize = qrImage.scrimSize;
       final dimWithoutScrim = (dimensionInt - (scrimSize * 2)).toDouble();
       final scale = dimWithoutScrim / dimension;
 
       return RawImage(
-        image: qrImage,
+        image: qrImage.image,
         width: dimension,
         height: dimension,
         filterQuality: FilterQuality.none,
@@ -389,25 +417,20 @@ abstract final class QrImageEncoder {
         allowUpscaling: false,
         completer.complete,
       );
-      final qrImage = await completer.future;
+      final image = await completer.future;
       dbgTask?.finish();
 
-      return Ok(
-          EncodedQrImage(data: data, qrImage: qrImage, scrimSize: scrimSize));
+      return Ok(EncodedQrImage(
+        value: value,
+        dimension: dimension,
+        image: image,
+        scrimSize: scrimSize,
+      ));
     } on Exception catch (err) {
       dbgTask?.finish();
       return Err(err);
     }
   }
-}
-
-class EncodedQrImage {
-  const EncodedQrImage(
-      {required this.data, required this.qrImage, required this.scrimSize});
-
-  final ByteBuffer data;
-  final ui.Image qrImage;
-  final int scrimSize;
 }
 
 /// Modifies in-place the encoded QR image bytes from `zx.encodeBarcode` so that
