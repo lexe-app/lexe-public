@@ -10,7 +10,7 @@
 
 import 'dart:io' show Directory, Platform;
 
-import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
 import 'package:lexeapp/bindings.dart' show api;
 import 'package:lexeapp/bindings_generated_api.dart'
     show Config, DeployEnv, Network;
@@ -22,6 +22,9 @@ import 'package:path_provider/path_provider.dart' as path_provider;
 /// Since this is a constant, the dart compiler can eliminate unreachable,
 /// debug-only blocks.
 const bool debug = kDebugMode;
+
+/// `true` when the flutter is built for release (i.e., not debug or profile).
+const bool release = kReleaseMode;
 
 /// `true` only in unit tests. This env var is set by the flutter test runner.
 /// `false` in integration tests and run mode.

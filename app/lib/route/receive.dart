@@ -836,7 +836,6 @@ class PaymentOfferPage extends StatelessWidget {
                                 key: key,
                                 value: uri,
                                 dimension: dim.toInt(),
-                                color: LxColors.foreground,
                               ),
                             )
                           : FilledPlaceholder(
