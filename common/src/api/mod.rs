@@ -22,7 +22,6 @@ use crate::{
     ed25519::{self, Signable},
     hexstr_or_bytes,
     rng::Crng,
-    sha256,
 };
 
 // TODO(max): Consider extracting these into a `lexe-api` crate: `error`,

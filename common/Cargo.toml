@@ -34,6 +34,7 @@ threads = 8
 const-utils = { path = "../const-utils" }
 hex = { path = "../hex" }
 lazy-lock = { path = "../lazy-lock" }
+sha256 = { path = "../sha256" }
 
 # --- WORKSPACE --- #
 

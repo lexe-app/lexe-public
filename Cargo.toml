@@ -17,6 +17,7 @@ members = [
     "sgx-test",
     "sgx-toml",
     "sgxs-sign",
+    "sha256",
 ]
 
 [workspace.package]
@@ -98,6 +99,8 @@ rust_decimal = { version = "1", default-features = false, features = ["serde"] }
 rust_decimal_macros = { version = "1", default-features = false }
 # TLS library
 rustls = { version = "0.22", default-features = false }
+# Rust bindings to libsecp256k1. Implements ECDSA and BIP 340 signatures.
+secp256k1 = "0.24"
 # A wrapper type for carefully handling secrets
 secrecy = "0.8"
 # SemVer version newtype for parsing and precedence

@@ -31,7 +31,7 @@ use anyhow::{ensure, format_err};
 use common::{
     enclave,
     rng::{Crng, SysRng},
-    sha256, Secret,
+    Secret,
 };
 use rsa::{
     pkcs1v15::Pkcs1v15Sign,

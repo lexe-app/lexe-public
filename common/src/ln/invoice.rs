@@ -350,7 +350,6 @@ mod test {
     use crate::{
         rng::WeakRng,
         root_seed::RootSeed,
-        sha256,
         test_utils::{arbitrary, roundtrip},
     };
 
