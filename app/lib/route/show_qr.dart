@@ -52,6 +52,13 @@ class EncodedQrImage {
   void dispose() {
     this.image.dispose();
   }
+
+  /// Transcode the current QR [ui.Image] to png-encoded bytes.
+  Future<Result<ByteData, Exception>> toPngBytes() async =>
+      (await Result.tryAsync<ByteData?, Exception>(
+        () => this.image.toByteData(format: ui.ImageByteFormat.png),
+      ))
+          .map((data) => data!);
 }
 
 /// Encode `value` as a QR image and then display it in `dimension` pixels
@@ -215,7 +222,7 @@ class InteractiveQrImage extends StatefulWidget {
 }
 
 class _InteractiveQrImageState extends State<InteractiveQrImage> {
-  final MenuController menuController = MenuController();
+  final GlobalKey<_QrImageState> qrImageKey = GlobalKey();
 
   /// Open the QR image in a new fullscreen page.
   void openQrPage() {
@@ -297,9 +304,32 @@ class _InteractiveQrImageState extends State<InteractiveQrImage> {
         info("copy image");
       case QrImageMenuAction.saveImage:
         info("save image");
+        await this.doSaveImage();
       case QrImageMenuAction.shareImage:
         info("share image");
     }
+  }
+
+  Future<void> doSaveImage() async {
+    final qrImage = this.qrImageKey.currentState?.qrImage;
+    // Not encoded yet
+    if (qrImage == null) return;
+
+    final timer = Stopwatch()..start();
+
+    // Encode to png, so we can save it in a normal format.
+    final ByteData png;
+    switch (await qrImage.toPngBytes()) {
+      case Ok(:final ok):
+        png = ok;
+      case Err(:final err):
+        ScaffoldMessenger.of(this.context).showSnackBar(
+            SnackBar(content: Text("Failed to save QR image: $err")));
+        return;
+    }
+
+    info(
+        "encoded QR image as png: size: ${png.lengthInBytes} B, duration: ${timer.elapsedMicroseconds * 0.001}");
   }
 
   @override
@@ -310,7 +340,13 @@ class _InteractiveQrImageState extends State<InteractiveQrImage> {
       dimension: this.widget.dimension.toDouble(),
       child: Stack(
         children: [
-          QrImage(value: this.widget.value, dimension: this.widget.dimension),
+          // Draw the QR below the splasher
+          QrImage(
+            key: this.qrImageKey,
+            value: this.widget.value,
+            dimension: this.widget.dimension,
+          ),
+          // Interactive splasher material
           Material(
             type: MaterialType.transparency,
             child: InkWell(
