@@ -30,6 +30,8 @@ threads = 8
 [dependencies]
 
 # --- LEXE --- #
+
+hex = { path = "../hex" }
 lazy-lock = { path = "../lazy-lock" }
 
 # --- WORKSPACE --- #

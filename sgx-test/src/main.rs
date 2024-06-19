@@ -1,5 +1,5 @@
 use common::{
-    ed25519, enclave, hex,
+    ed25519, enclave,
     rng::SysRng,
     tls::attestation::{
         self,

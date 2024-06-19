@@ -320,7 +320,7 @@ mod arbitrary_impls {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{hex, test_utils::roundtrip};
+    use crate::test_utils::roundtrip;
 
     #[test]
     fn network_roundtrip() {

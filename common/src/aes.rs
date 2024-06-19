@@ -410,7 +410,7 @@ mod test {
     };
 
     use super::*;
-    use crate::{hex, rng::WeakRng, root_seed::RootSeed};
+    use crate::{rng::WeakRng, root_seed::RootSeed};
 
     #[test]
     fn test_aad_compat() {

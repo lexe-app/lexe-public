@@ -1,6 +1,7 @@
 use std::{fmt, str::FromStr};
 
 use bitcoin::{secp256k1, secp256k1::Secp256k1};
+use hex::FromHex;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest::{
     arbitrary::{any, Arbitrary},
@@ -19,7 +20,6 @@ use crate::root_seed::RootSeed;
 use crate::{
     array, const_ref_cast,
     ed25519::{self, Signable},
-    hex::{self, FromHex},
     hexstr_or_bytes,
     rng::Crng,
     sha256,

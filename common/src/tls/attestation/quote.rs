@@ -61,7 +61,6 @@ mod sgx {
 
     use super::*;
     use crate::{
-        hex,
         rng::{Crng, RngExt},
         sha256,
         tls::attestation::{

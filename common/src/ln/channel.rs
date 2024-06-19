@@ -4,6 +4,7 @@ use std::{
 };
 
 use anyhow::Context;
+use hex::FromHex;
 use lightning::{
     chain::transaction::OutPoint, ln::channelmanager::ChannelDetails,
 };
@@ -16,8 +17,6 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 
 use crate::{
     api::NodePk,
-    hex,
-    hex::FromHex,
     hexstr_or_bytes,
     ln::{amount::Amount, hashes::LxTxid},
     Apply,

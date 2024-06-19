@@ -29,7 +29,7 @@ use crate::{
     ed25519,
     enclave::{self, Measurement},
     env::DeployEnv,
-    hex, sha256,
+    sha256,
     tls::{self, attestation::cert::SgxAttestationExtension},
 };
 

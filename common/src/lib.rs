@@ -36,8 +36,6 @@ pub mod ed25519;
 pub mod enclave;
 /// `DeployEnv`.
 pub mod env;
-/// Hex utils
-pub mod hex;
 /// serde_with helper for bytes types.
 pub mod hexstr_or_bytes;
 /// `hex_str_or_bytes` but for [`Option`] bytes types.
@@ -190,48 +188,5 @@ where
     #[inline]
     fn apply(self, f: F) -> U {
         f(self)
-    }
-}
-
-/// Copies of nightly-only functions for `&[u8]`.
-// TODO(phlip9): remove functions as they stabilize.
-trait SliceExt {
-    //
-    // `<&[u8]>::as_chunks`
-    //
-
-    /// Splits the slice into a slice of `N`-element arrays,
-    /// starting at the beginning of the slice,
-    /// and a remainder slice with length strictly less than `N`.
-    fn as_chunks_stable<const N: usize>(&self) -> (&[[u8; N]], &[u8]);
-
-    unsafe fn as_chunks_unchecked_stable<const N: usize>(&self) -> &[[u8; N]];
-}
-
-impl SliceExt for [u8] {
-    //
-    // `<&[u8]>::as_chunks`
-    //
-
-    #[inline]
-    fn as_chunks_stable<const N: usize>(&self) -> (&[[u8; N]], &[u8]) {
-        assert!(N != 0, "chunk size must be non-zero");
-
-        let len = self.len() / N;
-        let (multiple_of_n, remainder) = self.split_at(len * N);
-        // SAFETY: We already panicked for zero, and ensured by construction
-        // that the length of the subslice is a multiple of N.
-        let array_slice = unsafe { multiple_of_n.as_chunks_unchecked_stable() };
-        (array_slice, remainder)
-    }
-
-    #[inline]
-    unsafe fn as_chunks_unchecked_stable<const N: usize>(&self) -> &[[u8; N]] {
-        // SAFETY: Caller must guarantee that `N` is nonzero and exactly divides
-        // the slice length
-        let new_len = self.len() / N;
-        // SAFETY: We cast a slice of `new_len * N` elements into
-        // a slice of `new_len` many `N` elements chunks.
-        unsafe { std::slice::from_raw_parts(self.as_ptr().cast(), new_len) }
     }
 }
