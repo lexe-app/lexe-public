@@ -303,6 +303,7 @@ class _InteractiveQrImageState extends State<InteractiveQrImage> {
     switch (result) {
       case QrImageMenuAction.copyImage:
         info("copy image");
+        await this.doCopyImage();
       case QrImageMenuAction.saveImage:
         info("save image");
         await this.doSaveImage();
@@ -311,12 +312,68 @@ class _InteractiveQrImageState extends State<InteractiveQrImage> {
     }
   }
 
+  /// Transcode the QR image to .png and display a snackbar if there's an issue.
+  Future<ByteData?> qrImageToPngBytes() async {
+    final qrImage = this.qrImageKey.currentState?.qrImage;
+    // Not encoded yet
+    if (qrImage == null) return null;
+
+    // Encode to png, so we can save it in a normal format.
+    final ByteData png;
+    final timer = Stopwatch()..start();
+    final result = await qrImage.toPngBytes();
+    if (!this.mounted) return null;
+
+    switch (result) {
+      case Ok(:final ok):
+        png = ok;
+      case Err(:final err):
+        ScaffoldMessenger.of(this.context).showSnackBar(
+            SnackBar(content: Text("Failed to encode QR image: $err")));
+        return null;
+    }
+
+    info(
+        "encoded QR image as png: size: ${png.lengthInBytes} B, duration: ${timer.elapsedMicroseconds * 0.001}");
+    timer.reset();
+    return png;
+  }
+
+  /// Copy the image to the user's clipboard.
+  Future<void> doCopyImage() async {
+    final png = await this.qrImageToPngBytes();
+    if (!this.mounted || png == null) return;
+
+    // final cb = clipboard.SystemClipboard.instance;
+    // if (cb == null) {
+    //   ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(
+    //       content: Text(
+    //           "Lexe doesn't support copying images on this platform yet.")));
+    //   return;
+    // }
+
+    final result = Ok((() => {})());
+    // final result = await Result.tryAsync<void, Exception>(() async {
+    //   final item = clipboard.DataWriterItem(suggestedName: "qrcode.png");
+    //   item.add(clipboard.Formats.png(png.buffer.asUint8List()));
+    //   await cb.write([item]);
+    // });
+    if (!this.mounted) return;
+
+    final message = switch (result) {
+      Ok() => "Copied!",
+      // Err(:final err) => "Copy failed: $err",
+    };
+
+    ScaffoldMessenger.of(this.context)
+        .showSnackBar(SnackBar(content: Text(message)));
+  }
+
   // TODO(phlip9): paint QR image on canvas with LEXE branch and some extra
   // metadata (i.e., "Lightning Invoice", amount).
   Future<void> doSaveImage() async {
-    final qrImage = this.qrImageKey.currentState?.qrImage;
-    // Not encoded yet
-    if (qrImage == null) return;
+    final png = await this.qrImageToPngBytes();
+    if (png == null) return;
 
     const String albumName = "LEXE";
 
@@ -327,25 +384,6 @@ class _InteractiveQrImageState extends State<InteractiveQrImage> {
       return;
     }
     if (!this.mounted) return;
-
-    // Encode to png, so we can save it in a normal format.
-    final ByteData png;
-    final timer = Stopwatch()..start();
-    final pngResult = await qrImage.toPngBytes();
-    if (!this.mounted) return;
-
-    switch (pngResult) {
-      case Ok(:final ok):
-        png = ok;
-      case Err(:final err):
-        ScaffoldMessenger.of(this.context).showSnackBar(
-            SnackBar(content: Text("Failed to encode QR image: $err")));
-        return;
-    }
-
-    info(
-        "encoded QR image as png: size: ${png.lengthInBytes} B, duration: ${timer.elapsedMicroseconds * 0.001}");
-    timer.reset();
 
     // Try to save QR png to the user's gallery.
     final saveResult = await Result.tryAsync<void, GalException>(() =>
