@@ -6,7 +6,12 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
+# --- LEXE --- #
+
 common = { path = "../common" }
+const-utils = { path = "../const-utils" }
+
+# --- WORKSPACE --- #
 
 anyhow.workspace = true
 futures.workspace = true
@@ -16,6 +21,8 @@ serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 tokio = { workspace = true, features = ["sync"] }
+
+# --- CRATE-SPECIFIC --- #
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }

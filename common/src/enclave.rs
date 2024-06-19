@@ -23,7 +23,7 @@ use thiserror::Error;
 
 use crate::{
     array::{self, ArrayExt},
-    const_assert_usize_eq, enclave,
+    enclave,
     env::DeployEnv,
     hexstr_or_bytes,
     rng::{Crng, RngExt},
@@ -663,7 +663,7 @@ impl fmt::Debug for Sealed<'_> {
 
 // --- impl LxKeyRequest and MockKeyRequest --- //
 
-const_assert_usize_eq!(
+const_utils::const_assert_usize_eq!(
     LxKeyRequest::TRUNCATED_SIZE,
     LxKeyRequest::KEYREQUEST_RESERVED_BYTES_START
 );

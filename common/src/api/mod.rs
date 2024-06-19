@@ -18,7 +18,7 @@ use crate::rng::WeakRng;
 #[cfg(any(test, feature = "test-utils"))]
 use crate::root_seed::RootSeed;
 use crate::{
-    array, const_ref_cast,
+    array,
     ed25519::{self, Signable},
     hexstr_or_bytes,
     rng::Crng,
@@ -148,7 +148,7 @@ impl UserPk {
     }
 
     pub const fn from_ref(inner: &[u8; 32]) -> &Self {
-        const_ref_cast(inner)
+        const_utils::const_ref_cast(inner)
     }
 
     pub fn inner(&self) -> [u8; 32] {

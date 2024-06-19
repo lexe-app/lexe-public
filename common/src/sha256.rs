@@ -6,8 +6,6 @@ use bitcoin::secp256k1;
 use hex::FromHex;
 use ref_cast::RefCast;
 
-use crate::const_ref_cast;
-
 pub const HASH_LEN: usize = 32;
 
 /// A SHA-256 Hash value.
@@ -42,7 +40,7 @@ impl Hash {
     }
 
     pub const fn from_ref(value: &[u8; 32]) -> &Self {
-        const_ref_cast(value)
+        const_utils::const_ref_cast(value)
     }
 
     pub const fn as_slice(&self) -> &[u8] {

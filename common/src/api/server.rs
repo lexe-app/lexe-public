@@ -77,7 +77,7 @@ use crate::{
         error::{CommonApiError, CommonErrorKind, ErrorResponse, ToHttpStatus},
         trace,
     },
-    const_assert, ed25519,
+    ed25519,
     shutdown::ShutdownChannel,
     task::LxTask,
 };
@@ -90,7 +90,7 @@ const HTTP_VERSION: Version = Version::HTTP_2;
 const SHUTDOWN_GRACE_PERIOD: Duration = Duration::from_secs(3);
 /// The maximum time we'll wait for a server to complete shutdown.
 pub const SERVER_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
-const_assert!(
+const_utils::const_assert!(
     SHUTDOWN_GRACE_PERIOD.as_secs() < SERVER_SHUTDOWN_TIMEOUT.as_secs()
 );
 
