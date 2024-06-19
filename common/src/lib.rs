@@ -54,8 +54,6 @@ pub mod password;
 pub mod rng;
 /// `RootSeed`.
 pub mod root_seed;
-/// sha256 convenience module.
-pub mod sha256;
 /// `ShutdownChannel`.
 pub mod shutdown;
 /// `LxTask`.

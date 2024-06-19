@@ -62,7 +62,6 @@ mod sgx {
     use super::*;
     use crate::{
         rng::{Crng, RngExt},
-        sha256,
         tls::attestation::{
             cert::SgxAttestationExtension, verifier::EnclavePolicy,
         },

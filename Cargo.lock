@@ -1110,6 +1110,7 @@ dependencies = [
  "serde_with",
  "sgx-isa",
  "sgx-panic-backtrace",
+ "sha256",
  "strum",
  "thiserror",
  "time 0.3.31",
@@ -3865,6 +3866,7 @@ dependencies = [
  "hex 0.1.0",
  "rsa",
  "sgxs",
+ "sha256",
 ]
 
 [[package]]
@@ -3887,6 +3889,17 @@ dependencies = [
  "cfg-if 1.0.0",
  "cpufeatures",
  "digest",
+]
+
+[[package]]
+name = "sha256"
+version = "0.1.0"
+dependencies = [
+ "const-utils",
+ "hex 0.1.0",
+ "ref-cast",
+ "ring 0.17.8",
+ "secp256k1",
 ]
 
 [[package]]

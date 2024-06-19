@@ -11,6 +11,7 @@ version.workspace = true
 
 common = { path = "../common" }
 hex = { path = "../hex" }
+sha256 = { path = "../sha256" }
 
 # --- WORKSPACE --- #
 

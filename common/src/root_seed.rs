@@ -411,7 +411,7 @@ mod test {
     };
 
     use super::*;
-    use crate::{rng::WeakRng, sha256};
+    use crate::rng::WeakRng;
 
     // simple implementations of some crypto functions for equivalence testing
 

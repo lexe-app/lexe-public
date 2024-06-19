@@ -27,7 +27,6 @@ use crate::{
     env::DeployEnv,
     hexstr_or_bytes,
     rng::{Crng, RngExt},
-    sha256,
 };
 
 // --- SGX 'Platform APIs' --- //

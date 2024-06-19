@@ -46,10 +46,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use x509_parser::x509::SubjectPublicKeyInfo;
 
-use crate::{
-    rng::{Crng, RngExt},
-    sha256,
-};
+use crate::rng::{Crng, RngExt};
 
 /// The standard PKCS OID for Ed25519
 #[rustfmt::skip]

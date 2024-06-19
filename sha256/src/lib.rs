@@ -1,8 +1,7 @@
-//! A convenience module for hasing things with SHA-256.
+//! A convenience crate for hasing things with SHA-256.
 
 use std::{fmt, io};
 
-use bitcoin::secp256k1;
 use hex::FromHex;
 use ref_cast::RefCast;
 
@@ -134,7 +133,7 @@ impl io::Write for Context {
 
 #[cfg(test)]
 mod test {
-    use crate::sha256;
+    use crate as sha256;
 
     // sanity check
     #[test]
