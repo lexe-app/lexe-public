@@ -23,6 +23,7 @@ crate-type = [
 # --- LEXE --- #
 
 common = { path = "../common" }
+hex = { path = "../hex" }
 lazy-lock = { path = "../lazy-lock" }
 payment-uri = { path = "../payment-uri" }
 

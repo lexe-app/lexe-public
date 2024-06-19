@@ -155,7 +155,7 @@ impl SharedSeedServerCert {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{hex, rng::WeakRng};
+    use crate::rng::WeakRng;
 
     #[test]
     fn test_certs_parse_successfully() {

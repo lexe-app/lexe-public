@@ -8,7 +8,7 @@ use std::{
 
 use anyhow::{anyhow, Context};
 use common::{
-    api::NodePk, cli::LspInfo, hex, ln::channel::ChannelId,
+    api::NodePk, cli::LspInfo, ln::channel::ChannelId,
     shutdown::ShutdownChannel, task::LxTask, test_event::TestEvent,
 };
 use lexe_ln::{

@@ -11,21 +11,26 @@ use std::{
     fmt::{self, Write},
 };
 
-use thiserror::Error;
-
-use crate::SliceExt;
-
 /// Errors which can be produced while decoding a hex string.
-#[derive(Copy, Clone, Debug, Error)]
+#[derive(Copy, Clone, Debug)]
 pub enum DecodeError {
-    #[error("hex decode error: output buffer length != half input length")]
     BadOutputLength,
-
-    #[error("hex decode error: input contains non-hex character")]
     InvalidCharacter,
-
-    #[error("hex decode error: input string length must be even")]
     OddInputLength,
+}
+
+impl std::error::Error for DecodeError {}
+
+impl fmt::Display for DecodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Self::BadOutputLength =>
+                "output buffer length != half input length",
+            Self::InvalidCharacter => "input contains non-hex character",
+            Self::OddInputLength => "input string length must be even",
+        };
+        write!(f, "hex decode error: {s}")
+    }
 }
 
 // --- Public functions --- //
@@ -221,6 +226,51 @@ const fn decode_nibble(src: u8) -> u16 {
     ret += (((0x60i16 - byte) & (byte - 0x67)) >> 8) & (byte - 86);
 
     ret as u16
+}
+
+// --- SliceExt --- //
+
+/// Copies of nightly-only functions for `&[u8]`.
+// TODO(phlip9): remove functions as they stabilize.
+trait SliceExt {
+    //
+    // `<&[u8]>::as_chunks`
+    //
+
+    /// Splits the slice into a slice of `N`-element arrays,
+    /// starting at the beginning of the slice,
+    /// and a remainder slice with length strictly less than `N`.
+    fn as_chunks_stable<const N: usize>(&self) -> (&[[u8; N]], &[u8]);
+
+    unsafe fn as_chunks_unchecked_stable<const N: usize>(&self) -> &[[u8; N]];
+}
+
+impl SliceExt for [u8] {
+    //
+    // `<&[u8]>::as_chunks`
+    //
+
+    #[inline]
+    fn as_chunks_stable<const N: usize>(&self) -> (&[[u8; N]], &[u8]) {
+        assert!(N != 0, "chunk size must be non-zero");
+
+        let len = self.len() / N;
+        let (multiple_of_n, remainder) = self.split_at(len * N);
+        // SAFETY: We already panicked for zero, and ensured by construction
+        // that the length of the subslice is a multiple of N.
+        let array_slice = unsafe { multiple_of_n.as_chunks_unchecked_stable() };
+        (array_slice, remainder)
+    }
+
+    #[inline]
+    unsafe fn as_chunks_unchecked_stable<const N: usize>(&self) -> &[[u8; N]] {
+        // SAFETY: Caller must guarantee that `N` is nonzero and exactly divides
+        // the slice length
+        let new_len = self.len() / N;
+        // SAFETY: We cast a slice of `new_len * N` elements into
+        // a slice of `new_len` many `N` elements chunks.
+        unsafe { std::slice::from_raw_parts(self.as_ptr().cast(), new_len) }
+    }
 }
 
 #[cfg(test)]

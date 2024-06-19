@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::{anyhow, bail, ensure, Context};
 use bitcoin_hashes::{sha256, Hash};
+use hex::FromHex;
 use lightning::ln::{
     channelmanager::PaymentId, PaymentHash, PaymentPreimage, PaymentSecret,
 };
@@ -17,7 +18,6 @@ use serde_with::{DeserializeFromStr, SerializeDisplay};
 #[cfg(any(test, feature = "test-utils"))]
 use crate::test_utils::arbitrary;
 use crate::{
-    hex::{self, FromHex},
     hexstr_or_bytes,
     ln::{amount::Amount, hashes::LxTxid, invoice::LxInvoice},
     rng::{RngCore, RngExt},

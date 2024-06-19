@@ -6,6 +6,7 @@ use std::{borrow::Cow, fmt, io, mem, str::FromStr};
 
 use bytes::{Buf, BufMut};
 use cfg_if::cfg_if;
+use hex::FromHex;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use ring::{
@@ -24,7 +25,6 @@ use crate::{
     array::{self, ArrayExt},
     const_assert_usize_eq, enclave,
     env::DeployEnv,
-    hex::{self, FromHex},
     hexstr_or_bytes,
     rng::{Crng, RngExt},
     sha256,

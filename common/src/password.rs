@@ -157,7 +157,7 @@ mod test {
     };
 
     use super::*;
-    use crate::{hex, rng::WeakRng};
+    use crate::rng::WeakRng;
 
     #[test]
     fn encryption_roundtrip() {

@@ -29,7 +29,7 @@ use std::fmt;
 
 use anyhow::{ensure, format_err};
 use common::{
-    enclave, hex,
+    enclave,
     rng::{Crng, SysRng},
     sha256, Secret,
 };

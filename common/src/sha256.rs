@@ -3,9 +3,10 @@
 use std::{fmt, io};
 
 use bitcoin::secp256k1;
+use hex::FromHex;
 use ref_cast::RefCast;
 
-use crate::{const_ref_cast, hex, hex::FromHex};
+use crate::const_ref_cast;
 
 pub const HASH_LEN: usize = 32;
 
@@ -135,7 +136,7 @@ impl io::Write for Context {
 
 #[cfg(test)]
 mod test {
-    use crate::{hex, sha256};
+    use crate::sha256;
 
     // sanity check
     #[test]

@@ -380,7 +380,6 @@ mod test {
 
     use super::*;
     use crate::{
-        hex,
         rng::WeakRng,
         test_utils::{arbitrary, roundtrip},
     };

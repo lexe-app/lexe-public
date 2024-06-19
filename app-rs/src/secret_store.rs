@@ -27,7 +27,7 @@ use std::{
 
 use anyhow::Context;
 use cfg_if::cfg_if;
-use common::{hex, root_seed::RootSeed};
+use common::root_seed::RootSeed;
 use keyring::credential::{CredentialApi, CredentialBuilderApi};
 use secrecy::ExposeSecret;
 

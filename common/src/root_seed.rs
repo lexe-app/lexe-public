@@ -14,7 +14,7 @@ use crate::{
     aes::{self, AesMasterKey},
     api::{NodePk, UserPk},
     array::{self, ArrayExt},
-    ed25519, hex, password,
+    ed25519, password,
     rng::{Crng, RngExt},
 };
 

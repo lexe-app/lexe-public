@@ -37,6 +37,7 @@ threads = 2
 
 common = { path = "../common" }
 gdrive = { path = "../gdrive" }
+hex = { path = "../hex" }
 lazy-lock = { path = "../lazy-lock" }
 lexe-ln = { path = "../lexe-ln" }
 

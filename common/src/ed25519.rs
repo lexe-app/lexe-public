@@ -39,6 +39,7 @@ use std::{fmt, str::FromStr};
 
 use asn1_rs::{oid, Oid};
 use bytes::{BufMut, Bytes, BytesMut};
+use hex::FromHex;
 use ref_cast::RefCast;
 use ring::signature::KeyPair as _;
 use serde::{Deserialize, Serialize};
@@ -47,7 +48,6 @@ use x509_parser::x509::SubjectPublicKeyInfo;
 
 use crate::{
     const_assert_usize_eq, const_ref_cast,
-    hex::{self, FromHex},
     rng::{Crng, RngExt},
     sha256,
 };

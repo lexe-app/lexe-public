@@ -8,7 +8,7 @@ use yasna::models::ObjectIdentifier;
 
 use super::quote::ReportData;
 use crate::{
-    ed25519, enclave, hex,
+    ed25519, enclave,
     rng::Crng,
     tls::{
         self,
