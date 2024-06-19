@@ -1,12 +1,10 @@
 use std::{cmp::min, time::Duration};
 
-use crate::const_assert;
-
 const INITIAL_WAIT_MS: u64 = 250;
 const MAXIMUM_WAIT_MS: u64 = 32_000;
 const EXP_BASE: u64 = 2;
 
-const_assert!(INITIAL_WAIT_MS != 0);
+const_utils::const_assert!(INITIAL_WAIT_MS != 0);
 
 /// Get a iterator of [`Duration`]s which can be passed into e.g.
 /// [`tokio::time::sleep`] to observe time-based exponential backoff.

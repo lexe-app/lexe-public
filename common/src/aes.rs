@@ -91,7 +91,7 @@ use serde::Serialize;
 use thiserror::Error;
 
 use crate::{
-    array, const_ref_cast,
+    array,
     rng::{Crng, RngExt},
 };
 
@@ -343,7 +343,7 @@ impl DecryptKey {
 impl KeyId {
     #[inline]
     const fn from_ref(arr: &[u8; 32]) -> &Self {
-        const_ref_cast(arr)
+        const_utils::const_ref_cast(arr)
     }
 
     #[inline]

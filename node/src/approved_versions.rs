@@ -9,7 +9,6 @@ use std::collections::{btree_map::Entry, BTreeMap};
 use anyhow::ensure;
 use common::{
     api::UserPk,
-    const_assert,
     constants::{YANKED_NODE_MEASUREMENTS, YANKED_NODE_VERSIONS},
     enclave::Measurement,
 };
@@ -52,7 +51,7 @@ pub(crate) struct ApprovedVersions {
 }
 
 // Implementation assumption
-const_assert!(ApprovedVersions::MAX_SIZE > 0);
+const_utils::const_assert!(ApprovedVersions::MAX_SIZE > 0);
 
 impl ApprovedVersions {
     /// The maximum number of approved versions.

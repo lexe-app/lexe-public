@@ -1,0 +1,10 @@
+[package]
+name = "const-utils"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+version.workspace = true
+
+[dependencies]
+# TODO(max): See if this can be crate-specific
+ref-cast.workspace = true

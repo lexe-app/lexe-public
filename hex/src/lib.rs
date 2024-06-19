@@ -98,7 +98,6 @@ pub fn decode_to_slice(hex: &str, out: &mut [u8]) -> Result<(), DecodeError> {
 /// Example:
 ///
 /// ```
-/// use common::hex;
 /// let bytes = [69u8; 32];
 /// println!("Bytes as hex: {}", hex::display(&bytes));
 /// ```
@@ -115,7 +114,7 @@ pub fn display(bytes: &[u8]) -> HexDisplay<'_> {
 ///
 /// ```
 /// # use std::borrow::Cow;
-/// use common::hex::FromHex;
+/// use hex::FromHex;
 /// let s = String::from("e7f51d925349a26f742e6eef3670f489aaf14fbbb5b5c3f209892f2f1baae1c9");
 ///
 /// <Vec<u8>>::from_hex(&s).unwrap();

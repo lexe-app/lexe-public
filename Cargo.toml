@@ -5,6 +5,7 @@ members = [
     "app-rs",
     "app-rs-codegen",
     "common",
+    "const-utils",
     "gdrive",
     "hex",
     "lazy-lock",
@@ -90,6 +91,8 @@ rand = { version = "0.8", default-features = false }
 rand_core = { version = "0.6", default-features = false, features = ["alloc"] }
 # Easily generate x509 certs with ring
 rcgen = { version = "0.12", default-features = false, features = ["ring", "zeroize"] }
+# Safely cast &T to &U when T is a single field new-type
+ref-cast = "1"
 # Decimal number representation suitable for financial calculations
 rust_decimal = { version = "1", default-features = false, features = ["serde"] }
 rust_decimal_macros = { version = "1", default-features = false }

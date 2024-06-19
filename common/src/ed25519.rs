@@ -47,7 +47,6 @@ use thiserror::Error;
 use x509_parser::x509::SubjectPublicKeyInfo;
 
 use crate::{
-    const_assert_usize_eq, const_ref_cast,
     rng::{Crng, RngExt},
     sha256,
 };
@@ -449,7 +448,7 @@ impl PublicKey {
     }
 
     pub const fn from_ref(bytes: &[u8; 32]) -> &Self {
-        const_ref_cast(bytes)
+        const_utils::const_ref_cast(bytes)
     }
 
     /// Verify some raw bytes were signed by this public key.
@@ -572,7 +571,7 @@ impl Signature {
     }
 
     pub const fn from_ref(sig: &[u8; 64]) -> &Self {
-        const_ref_cast(sig)
+        const_utils::const_ref_cast(sig)
     }
 
     pub const fn as_slice(&self) -> &[u8] {
@@ -738,7 +737,7 @@ const PKCS_LEN: usize = PKCS_TEMPLATE_PREFIX.len()
     + PUBLIC_KEY_LEN;
 
 // Ensure this doesn't accidentally change.
-const_assert_usize_eq!(PKCS_LEN, 85);
+const_utils::const_assert_usize_eq!(PKCS_LEN, 85);
 
 /// Formats a key pair as `prefix || key || middle || pk`, where `prefix`
 /// and `middle` are two pre-computed blobs.

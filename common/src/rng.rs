@@ -12,10 +12,9 @@ use rand_core::le::read_u32_into;
 pub use rand_core::{CryptoRng, RngCore, SeedableRng};
 use ring::rand::SecureRandom;
 
-use crate::const_option_unwrap;
-
-const RAND_ERROR_CODE: NonZeroU32 =
-    const_option_unwrap(NonZeroU32::new(rand_core::Error::CUSTOM_START));
+const RAND_ERROR_CODE: NonZeroU32 = const_utils::const_option_unwrap(
+    NonZeroU32::new(rand_core::Error::CUSTOM_START),
+);
 
 /// A succinct trait alias for a Cryptographically Secure PRNG. Includes a few
 /// utility methods for security-critical random value generation.

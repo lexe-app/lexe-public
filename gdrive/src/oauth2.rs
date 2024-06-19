@@ -6,9 +6,9 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use common::constants;
 #[cfg(test)]
 use common::test_utils::arbitrary;
-use common::{const_assert, constants};
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 use reqwest::StatusCode;
@@ -32,7 +32,7 @@ const TOKEN_TYPE: &str = "Bearer";
 /// `refresh_if_necessary` will refresh the token.
 pub const MINIMUM_TOKEN_LIFETIME: Duration = Duration::from_secs(60);
 // Newly refreshed access tokens usually live for only 3600 seconds
-const_assert!(MINIMUM_TOKEN_LIFETIME.as_secs() < 3600);
+const_utils::const_assert!(MINIMUM_TOKEN_LIFETIME.as_secs() < 3600);
 
 /// A newtype for [`reqwest::Client`] which ensures that any passed-in clients
 /// have TLS, timeouts etc configured correctly for Google Drive.

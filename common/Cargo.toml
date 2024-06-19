@@ -31,6 +31,7 @@ threads = 8
 
 # --- LEXE --- #
 
+const-utils = { path = "../const-utils" }
 hex = { path = "../hex" }
 lazy-lock = { path = "../lazy-lock" }
 
@@ -60,6 +61,7 @@ lightning-invoice.workspace = true
 rand.workspace = true
 rand_core.workspace = true
 rcgen.workspace = true
+ref-cast.workspace = true
 reqwest = { workspace = true, features = ["http2", "json", "rustls-tls-manual-roots"] }
 rustls.workspace = true
 ring.workspace = true
@@ -92,8 +94,6 @@ bcs = "0.1"
 bip39 = { version = "2", features = ["zeroize"] }
 # Small conversion from fixed ECDSA signature to ASN.1 format
 num-bigint = { version = "0.4", default-features = false, features = [] }
-# Safely cast &T to &U when T is a single field new-type
-ref-cast = "1"
 # Deserialize PEM certs
 rustls-pemfile = "1"
 # Required to name our signature algorithms.

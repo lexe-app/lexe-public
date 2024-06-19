@@ -26,7 +26,6 @@ use thiserror::Error;
 
 use crate::{
     aes::{self, AesMasterKey},
-    const_assert, const_option_unwrap,
     rng::Crng,
 };
 
@@ -36,7 +35,7 @@ static PBKDF2_ALGORITHM: pbkdf2::Algorithm = pbkdf2::PBKDF2_HMAC_SHA256;
 /// OWASP recommends 600K iterations for PBKDF2-HMAC-SHA256:
 /// <https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2>
 const PBKDF2_ITERATIONS: NonZeroU32 =
-    const_option_unwrap(NonZeroU32::new(600_000));
+    const_utils::const_option_unwrap(NonZeroU32::new(600_000));
 
 /// The byte length of the secret used to construct the [`AesMasterKey`].
 const AES_KEY_LEN: usize = ring::digest::SHA256_OUTPUT_LEN;
@@ -47,7 +46,7 @@ pub const MIN_PASSWORD_LENGTH: usize = 12;
 /// The maximum number of characters allowed in the password.
 /// This is NOT the # of bytes in password (i.e. the output of [`str::len`]).
 pub const MAX_PASSWORD_LENGTH: usize = 512;
-const_assert!(MIN_PASSWORD_LENGTH < MAX_PASSWORD_LENGTH);
+const_utils::const_assert!(MIN_PASSWORD_LENGTH < MAX_PASSWORD_LENGTH);
 
 #[derive(Clone, Debug, Error)]
 pub enum Error {
