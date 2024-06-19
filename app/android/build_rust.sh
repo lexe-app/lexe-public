@@ -50,5 +50,5 @@ fi
 cargo ndk \
   --target="$TARGET" \
   --output-dir="$SCRIPT_DIR/app/src/main/jniLibs" \
-  --platform=33 \
+  --platform=34 \
   -- build -p app-rs "$@"

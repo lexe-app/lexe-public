@@ -15,9 +15,31 @@ is accessible in one place.
 
 We'll install Java and the Android SDKs via CLI, as it's more repeatable.
 
+#### Install Java (via `home-manager` (nix)):
+
+Add this to your home-manager config somewhere and then `home-manager switch`:
+
+```nix
+programs.bash.initExtra = ''
+    export JAVA_HOME=${pkgs.jdk17_headless.home}
+'';
+```
+
+We only export it via `JAVA_HOME` to avoid polluting our `$PATH` with Java gunk.
+
+Sanity check:
+
+```bash
+$ $JAVA_HOME/bin/java --version
+openjdk 17.0.10 2024-01-16 LTS
+OpenJDK Runtime Environment Zulu17.48+15-CA (build 17.0.10+7-LTS)
+OpenJDK 64-Bit Server VM Zulu17.48+15-CA (build 17.0.10+7-LTS, mixed mode, sharing)
+```
+
 #### Install Java (via `sdkman`)
 
-`sdkman` is like `rustup` but for Java.
+If you don't have `home-manager`, you could use `sdkman`, which is like `rustup`
+but for Java.
 
 Download the `sdkman` install script:
 
@@ -63,23 +85,18 @@ $ rm sdkman-install.sh
 Install the JDK. Unfortunately, the Java ecosystem is a bit more... convoluted
 than the Rust ecosystem, so we have to choose a JDK "distribution" to install.
 
-I (philip) just went with what <https://whichjdk.com/> recommended, which is the
-Adoptium Eclipse Temurin java distribution and it seems to work.
-
-As of 2023-01-26, Android Studio only
-[supports](https://en.wikipedia.org/wiki/Android_Studio#Features) up to Java JDK
-version 12, so we'll go with `11.0.18-tem` (update to the latest `11.0.x` patch
-if applicable).
+As of 2024-06-19, Android `compileSdk` v34 requires JDK v17.
+See: <https://developer.android.com/build/jdks#compileSdk>.
 
 ```bash
 $ sdk list java
-$ sdk install java 11.0.18-tem
+$ sdk install java 17.0.10-zulu
 
 # Sanity check
 $ which javac
 ~/.local/sdkman/candidates/java/current/bin/javac
 $ javac --version
-javac 11.0.18
+javac 17.0.10
 ```
 
 #### Install Android `cmdline-tools`
@@ -121,11 +138,11 @@ $ rm commandlinetools.zip
 Ensure `.bashrc` contains these lines:
 
 ```bash
-# Android SDK
+# Most android tools rely on $ANDROID_HOME to find the SDK
 export ANDROID_HOME=$HOME/.local/android
-ANDROID_SDK_VERSION=33.0.1
+# sdkmanager, avdmanager, ...
 ANDROID_PATH=$ANDROID_HOME/cmdline-tools/latest/bin
-ANDROID_PATH=$ANDROID_PATH:$ANDROID_HOME/build-tools/$ANDROID_SDK_VERSION
+# adb, fastboot, ...
 ANDROID_PATH=$ANDROID_PATH:$ANDROID_HOME/platform-tools
 if [[ ! "$PATH" == *$ANDROID_PATH* ]]; then
     export PATH="$PATH:$ANDROID_PATH"
@@ -173,11 +190,11 @@ Install these. You may need to update the version #'s.
 
 ```bash
 $ sdkmanager --install \
-    "build-tools;33.0.1" \
+    "build-tools;34.0.0" \
+    "ndk;27.0.11902837" \
     "platform-tools" \
-    "platforms;android-33" \
-    "sources;android-33" \
-    "ndk;25.1.8937393"
+    "platforms;android-34" \
+    "sources;android-34"
 ```
 
 Sanity check
@@ -185,9 +202,19 @@ Sanity check
 ```bash
 $ adb version
 Android Debug Bridge version 1.0.41
-Version 33.0.3-8952118
-Installed as ~/.local/android/platform-tools/adb
+Version 35.0.1-11580240
+Installed as /home/phlip9/.local/android/platform-tools/adb
+Running on Linux 6.8.0-76060800daily20240311-generic (x86_64)
 ```
+
+#### Update android SDKs via `sdkmanager`
+
+```bash
+$ sdkmanager --update
+```
+
+You may also have to manually update some tools by selecting the newer versions
+from `sdkmanager --list --newer`.
 
 #### (linux only) USB debugging setup
 
