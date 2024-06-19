@@ -15,6 +15,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart' as zx;
+import 'package:gal/gal.dart' show Gal, GalException;
 
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/components.dart'
@@ -310,26 +311,61 @@ class _InteractiveQrImageState extends State<InteractiveQrImage> {
     }
   }
 
+  // TODO(phlip9): paint QR image on canvas with LEXE branch and some extra
+  // metadata (i.e., "Lightning Invoice", amount).
   Future<void> doSaveImage() async {
     final qrImage = this.qrImageKey.currentState?.qrImage;
     // Not encoded yet
     if (qrImage == null) return;
 
-    final timer = Stopwatch()..start();
+    const String albumName = "LEXE";
+
+    // Request access
+    final hasAccess = await Gal.requestAccess(toAlbum: true);
+    if (!hasAccess) {
+      warn("Can't save QR image: user did't give access");
+      return;
+    }
+    if (!this.mounted) return;
 
     // Encode to png, so we can save it in a normal format.
     final ByteData png;
-    switch (await qrImage.toPngBytes()) {
+    final timer = Stopwatch()..start();
+    final pngResult = await qrImage.toPngBytes();
+    if (!this.mounted) return;
+
+    switch (pngResult) {
       case Ok(:final ok):
         png = ok;
       case Err(:final err):
         ScaffoldMessenger.of(this.context).showSnackBar(
-            SnackBar(content: Text("Failed to save QR image: $err")));
+            SnackBar(content: Text("Failed to encode QR image: $err")));
         return;
     }
 
     info(
         "encoded QR image as png: size: ${png.lengthInBytes} B, duration: ${timer.elapsedMicroseconds * 0.001}");
+    timer.reset();
+
+    // Try to save QR png to the user's gallery.
+    final saveResult = await Result.tryAsync<void, GalException>(() =>
+        Gal.putImageBytes(png.buffer.asUint8List(),
+            album: albumName, name: "qrcode"));
+    if (!this.mounted) return;
+
+    if (saveResult case Err(:final err)) {
+      error("Failed to save QR image to gallery: $err");
+      return;
+    }
+
+    // Open Gallery ->
+    ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(
+      content: SizedBox(),
+      action: SnackBarAction(
+        label: "Open Gallery ->",
+        onPressed: Gal.open,
+      ),
+    ));
   }
 
   @override
