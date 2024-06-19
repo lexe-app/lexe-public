@@ -5,21 +5,21 @@ plugins {
 }
 
 def localProperties = new Properties()
-def localPropertiesFile = rootProject.file('local.properties')
+def localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
-    localPropertiesFile.withReader('UTF-8') { reader ->
+    localPropertiesFile.withReader("UTF-8") { reader ->
         localProperties.load(reader)
     }
 }
 
-def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+def flutterVersionCode = localProperties.getProperty("flutter.versionCode")
 if (flutterVersionCode == null) {
-    flutterVersionCode = '1'
+    flutterVersionCode = "1"
 }
 
-def flutterVersionName = localProperties.getProperty('flutter.versionName')
+def flutterVersionName = localProperties.getProperty("flutter.versionName")
 if (flutterVersionName == null) {
-    flutterVersionName = '1.0'
+    flutterVersionName = "1.0"
 }
 
 android {
@@ -32,14 +32,6 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
-    kotlinOptions {
-        jvmTarget = '1.8'
-    }
-
-    sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
-    }
-
     defaultConfig {
         applicationId "app.lexe.lexeapp"
         // The app name. ex: displayed under the icon on the user's home screen.
@@ -48,9 +40,12 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-gradle-build-configuration.
 
+        // `super_clipboard` requires at least Android 23
+        // <https://pub.dev/packages/super_clipboard#android-support>
+        //
         // `flutter_zxing` requires at least Android 21
         // <https://pub.dev/packages/flutter_zxing#supported-platforms>
-        minSdkVersion 21
+        minSdkVersion 23
         // minSdkVersion flutter.minSdkVersion
 
         targetSdkVersion flutter.targetSdkVersion
@@ -83,10 +78,8 @@ android {
 }
 
 flutter {
-    source '../..'
+    source "../.."
 }
-
-dependencies {}
 
 //
 // Setup Android gradle build x Rust `cargo ndk build` integration.
