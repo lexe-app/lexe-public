@@ -476,8 +476,9 @@ impl UserNode {
         // signal to the LSP that we are ready to receive messages.
         let initial_channel_peers = Vec::new();
 
-        // Spawn the task to regularly reconnect to channel peers
-        tasks.push(p2p::spawn_p2p_reconnector(
+        // Spawn the task to regularly reconnect to channel peers while running,
+        // and disconnect from all peers at shutdown.
+        tasks.push(p2p::spawn_p2p_connector(
             peer_manager.clone(),
             initial_channel_peers,
             channel_peer_rx,
@@ -771,10 +772,6 @@ impl UserNode {
         }
 
         // --- Shutdown --- //
-        info!("Received shutdown; disconnecting all peers");
-        // This ensures we don't continue updating our channel data after
-        // the background processor has stopped.
-        self.peer_manager.disconnect_all_peers();
 
         info!("Waiting on all tasks to finish");
         let timeout = tokio::time::sleep(SHUTDOWN_TIME_LIMIT);
