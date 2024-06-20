@@ -12,6 +12,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart' as zx;
 
@@ -69,10 +70,16 @@ class QrImage extends StatefulWidget {
     super.key,
     required this.value,
     required this.dimension,
+    this.withScrim = false,
   });
 
   final String value;
   final int dimension;
+
+  /// If true, include the built-in white margin around the image, called
+  /// "scrim". Can make it hard to visually align the image with nearby
+  /// elements.
+  final bool withScrim;
 
   @override
   State<QrImage> createState() => _QrImageState();
@@ -146,11 +153,21 @@ class _QrImageState extends State<QrImage> {
     final dimension = dimensionInt.toDouble();
 
     if (qrImage != null) {
-      // Scale up the image by factor `scale` in order to make the QR image
-      // fully fit inside `dimension` pixels without any extra margin pixels.
-      final scrimSize = qrImage.scrimSize;
-      final dimWithoutScrim = (dimensionInt - (scrimSize * 2)).toDouble();
-      final scale = dimWithoutScrim / dimension;
+      // If we're removing the scrim, then scale up the image by a factor in
+      // order to make the QR image fully fit inside `dimension` pixels without
+      // any extra margin pixels.
+      // final scale = switch (this.widget.withScrim) {
+      //   false => 1.0,
+      //   true => (dimensionInt - (qrImage.scrimSize * 2)).toDouble() / dimension,
+      // };
+      // final scale = 1.0;
+
+      double scale = 1.0;
+      if (!this.widget.withScrim) {
+        final scrimSize = qrImage.scrimSize;
+        final dimWithoutScrim = (dimensionInt - (scrimSize * 2)).toDouble();
+        scale = dimWithoutScrim / dimension;
+      }
 
       return RawImage(
         image: qrImage.image,
@@ -218,9 +235,12 @@ class InteractiveQrImage extends StatefulWidget {
 class _InteractiveQrImageState extends State<InteractiveQrImage> {
   final GlobalKey<_QrImageState> qrImageKey = GlobalKey();
 
-  /// Open the QR image in a new fullscreen page.
+  /// Open the QR image in a new fullscreen modal dialog.
   void openQrPage() {
-    // TODO(phlip9): impl
+    unawaited(showDialog(
+      context: this.context,
+      builder: (_) => FullscreenQrDialog(value: this.widget.value),
+    ));
   }
 
   @override
@@ -249,6 +269,32 @@ class _InteractiveQrImageState extends State<InteractiveQrImage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// A fullscreen modal QR image. Generally used with [showDialog].
+class FullscreenQrDialog extends StatelessWidget {
+  const FullscreenQrDialog({
+    super.key,
+    required this.value,
+  });
+
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: EdgeInsets.zero,
+      child: LayoutBuilder(
+        builder: (context, constraints) => QrImage(
+          value: this.value,
+          // The largest square QR image we can show, within reasonable constraints.
+          dimension: clampDouble(constraints.biggest.shortestSide, 200.0, 500.0)
+              .toInt(),
+          withScrim: true,
+        ),
       ),
     );
   }
