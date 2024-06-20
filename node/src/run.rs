@@ -1,7 +1,7 @@
 use std::{
     net::TcpListener,
     sync::{atomic::AtomicBool, Arc, Mutex},
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 use anyhow::{anyhow, bail, ensure, Context};
@@ -12,7 +12,7 @@ use common::{
         provision::SealedSeedId, server::LayerConfig, User, UserPk,
     },
     cli::{node::RunArgs, LspInfo, Network},
-    constants::{DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
+    constants::{self, DEFAULT_CHANNEL_SIZE, SMALLER_CHANNEL_SIZE},
     ed25519,
     enclave::{self, MachineId, Measurement, MinCpusvn},
     env::DeployEnv,
@@ -24,6 +24,7 @@ use common::{
     tls::{self, attestation::NodeMode},
     Apply,
 };
+use const_utils::const_assert;
 use futures::future::FutureExt;
 use gdrive::GoogleVfs;
 use lexe_ln::{
@@ -744,14 +745,15 @@ impl UserNode {
 
         // --- Run --- //
 
-        // The amount of time tasks have to finish after a graceful shutdown
-        // (or premature task finish) before the program exits.
-        const SHUTDOWN_TIME_LIMIT: Duration = Duration::from_secs(15);
+        const_assert!(
+            constants::USER_NODE_SHUTDOWN_TIMEOUT.as_secs()
+                > common::api::server::SERVER_SHUTDOWN_TIMEOUT.as_secs()
+        );
 
         task::try_join_tasks_and_shutdown(
             self.tasks,
             self.shutdown.clone(),
-            SHUTDOWN_TIME_LIMIT,
+            constants::USER_NODE_SHUTDOWN_TIMEOUT,
         )
         .await
         .context("Error awaiting tasks")?;
