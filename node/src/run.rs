@@ -20,7 +20,7 @@ use common::{
     rng::{Crng, SysRng},
     root_seed::RootSeed,
     shutdown::ShutdownChannel,
-    task::{self, LxTask},
+    task::LxTask,
     tls::{self, attestation::NodeMode},
     Apply,
 };
@@ -754,7 +754,7 @@ impl UserNode {
         let mut tasks = self
             .tasks
             .into_iter()
-            .map(|task| task.with_name())
+            .map(|task| task.logged())
             .collect::<FuturesUnordered<_>>();
 
         // Wait for a shutdown signal and poll all tasks so we can (1) propagate
@@ -764,8 +764,8 @@ impl UserNode {
             // Mitigate possible select! race after a shutdown signal is sent
             biased;
             () = self.shutdown.recv() => (),
-            Some(output) = tasks.next() => {
-                task::log_finished_task(&output, true);
+            Some(name) = tasks.next() => {
+                error!("Task {name} finished prematurely!");
                 self.shutdown.send();
             }
         }
@@ -789,12 +789,14 @@ impl UserNode {
 
                     // TODO(phlip9): is there some way to get a backtrace of a
                     //               stuck task?
+                    error!(
+                        "{stuck_len} tasks failed to finish: {stuck_tasks:?}",
+                        stuck_len = stuck_tasks.len()
+                    );
 
-                    error!("{} tasks failed to finish: {stuck_tasks:?}", stuck_tasks.len());
                     break;
                 }
-                Some(output) = tasks.next() =>
-                    task::log_finished_task(&output, false),
+                Some(_name) = tasks.next() => (),
             }
         }
 
