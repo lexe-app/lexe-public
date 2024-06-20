@@ -2,8 +2,7 @@
 ///
 /// + [QrImage] just shows a static image from a QR code string.
 /// + [InteractiveQrImage] wraps a [QrImage] and adds useful interactive things,
-///   like tap to open fullscreen, or long press/right-click to copy/save/share
-///   the image.
+///   like tap to open fullscreen, or long press to copy the code string.
 library;
 
 import 'dart:async' show Completer, unawaited;
@@ -15,14 +14,14 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart' as zx;
-import 'package:gal/gal.dart' show Gal, GalException;
 
 import 'package:lexeapp/cfg.dart' as cfg;
+import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show LxCloseButton, ScrollableSinglePageBody;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
-import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
+import 'package:lexeapp/style.dart' show LxColors, Space;
 
 /// An encoded QR image ready to be displayed.
 ///
@@ -54,12 +53,13 @@ class EncodedQrImage {
     this.image.dispose();
   }
 
-  /// Transcode the current QR [ui.Image] to png-encoded bytes.
-  Future<Result<ByteData, Exception>> toPngBytes() async =>
-      (await Result.tryAsync<ByteData?, Exception>(
-        () => this.image.toByteData(format: ui.ImageByteFormat.png),
-      ))
-          .map((data) => data!);
+  // TODO(phlip9): use this when we can finally copy images to the clipboard
+  // /// Transcode the current QR [ui.Image] to png-encoded bytes.
+  // Future<Result<ByteData, Exception>> toPngBytes() async =>
+  //     (await Result.tryAsync<ByteData?, Exception>(
+  //       () => this.image.toByteData(format: ui.ImageByteFormat.png),
+  //     ))
+  //         .map((data) => data!);
 }
 
 /// Encode `value` as a QR image and then display it in `dimension` pixels
@@ -198,16 +198,9 @@ class ShowQrPage extends StatelessWidget {
   }
 }
 
-/// An action selected by the user from the QR image dropdown menu.
-enum QrImageMenuAction {
-  copyImage,
-  saveImage,
-  shareImage,
-}
-
 /// A small helper that makes a QR image interactive. Tapping the QR image will
-/// open it in a fullscreen page. Long pressing or right-clicking will open a
-/// dropdown menu that lets the user copy, save, or share the QR image.
+/// open it in a fullscreen page. Long pressing will copy the code string to the
+/// clipboard.
 class InteractiveQrImage extends StatefulWidget {
   const InteractiveQrImage({
     super.key,
@@ -230,182 +223,6 @@ class _InteractiveQrImageState extends State<InteractiveQrImage> {
     // TODO(phlip9): impl
   }
 
-  /// Open a popup/dropdown menu positioned at [tapOffset]. The menu lets the
-  /// user copy/save/share the QR image.
-  Future<void> openPopupMenu(Offset tapOffset) async {
-    final RenderBox imageBox = this.context.findRenderObject()! as RenderBox;
-    final RenderBox overlay =
-        Navigator.of(context).overlay!.context.findRenderObject()! as RenderBox;
-
-    // The tap location, projected onto the navigator overlay.
-    final Offset tapOffsetOnOverlay =
-        imageBox.localToGlobal(tapOffset, ancestor: overlay);
-
-    // Open the menu at the tap location.
-    final RelativeRect position = RelativeRect.fromRect(
-      Rect.fromPoints(
-        tapOffsetOnOverlay,
-        tapOffsetOnOverlay,
-      ),
-
-      // A rect covering the modal overlay container.
-      Offset.zero & overlay.size,
-    );
-
-    final result = await showMenu<QrImageMenuAction?>(
-      context: this.context,
-      position: position,
-      color: LxColors.background,
-      elevation: 10.0,
-      // TODO(phlip9): figure out why the `ListTile`'s isn't picking up the
-      // right font weight from the global theme...
-      items: <PopupMenuEntry<QrImageMenuAction?>>[
-        // Copy the image to the clipboard
-        const PopupMenuItem(
-          value: QrImageMenuAction.copyImage,
-          child: ListTile(
-            title: Text(
-              "Copy Image",
-              style: TextStyle(fontVariations: [Fonts.weightMedium]),
-            ),
-            leading: Icon(LxIcons.copy, weight: LxIcons.weightMedium),
-          ),
-        ),
-
-        // Save the QR image (to gallery, file, ...)
-        const PopupMenuItem(
-          value: QrImageMenuAction.saveImage,
-          child: ListTile(
-            title: Text(
-              "Save Image",
-              style: TextStyle(fontVariations: [Fonts.weightMedium]),
-            ),
-            leading: Icon(LxIcons.save, weight: LxIcons.weightMedium),
-          ),
-        ),
-
-        // Share the QR image (e.g., to a group chat)
-        const PopupMenuItem(
-          value: QrImageMenuAction.shareImage,
-          child: ListTile(
-            title: Text(
-              "Share Image",
-              style: TextStyle(fontVariations: [Fonts.weightMedium]),
-            ),
-            leading: Icon(LxIcons.share, weight: LxIcons.weightMedium),
-          ),
-        ),
-      ],
-    );
-    if (!this.mounted || result == null) return;
-
-    // TODO(phlip9): impl
-    switch (result) {
-      case QrImageMenuAction.copyImage:
-        info("copy image");
-        await this.doCopyImage();
-      case QrImageMenuAction.saveImage:
-        info("save image");
-        await this.doSaveImage();
-      case QrImageMenuAction.shareImage:
-        info("share image");
-    }
-  }
-
-  /// Transcode the QR image to .png and display a snackbar if there's an issue.
-  Future<ByteData?> qrImageToPngBytes() async {
-    final qrImage = this.qrImageKey.currentState?.qrImage;
-    // Not encoded yet
-    if (qrImage == null) return null;
-
-    // Encode to png, so we can save it in a normal format.
-    final ByteData png;
-    final timer = Stopwatch()..start();
-    final result = await qrImage.toPngBytes();
-    if (!this.mounted) return null;
-
-    switch (result) {
-      case Ok(:final ok):
-        png = ok;
-      case Err(:final err):
-        ScaffoldMessenger.of(this.context).showSnackBar(
-            SnackBar(content: Text("Failed to encode QR image: $err")));
-        return null;
-    }
-
-    info(
-        "encoded QR image as png: size: ${png.lengthInBytes} B, duration: ${timer.elapsedMicroseconds * 0.001}");
-    timer.reset();
-    return png;
-  }
-
-  /// Copy the image to the user's clipboard.
-  Future<void> doCopyImage() async {
-    final png = await this.qrImageToPngBytes();
-    if (!this.mounted || png == null) return;
-
-    // final cb = clipboard.SystemClipboard.instance;
-    // if (cb == null) {
-    //   ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(
-    //       content: Text(
-    //           "Lexe doesn't support copying images on this platform yet.")));
-    //   return;
-    // }
-
-    final result = Ok((() => {})());
-    // final result = await Result.tryAsync<void, Exception>(() async {
-    //   final item = clipboard.DataWriterItem(suggestedName: "qrcode.png");
-    //   item.add(clipboard.Formats.png(png.buffer.asUint8List()));
-    //   await cb.write([item]);
-    // });
-    if (!this.mounted) return;
-
-    final message = switch (result) {
-      Ok() => "Copied!",
-      // Err(:final err) => "Copy failed: $err",
-    };
-
-    ScaffoldMessenger.of(this.context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
-
-  // TODO(phlip9): paint QR image on canvas with LEXE branch and some extra
-  // metadata (i.e., "Lightning Invoice", amount).
-  Future<void> doSaveImage() async {
-    final png = await this.qrImageToPngBytes();
-    if (png == null) return;
-
-    const String albumName = "LEXE";
-
-    // Request access
-    final hasAccess = await Gal.requestAccess(toAlbum: true);
-    if (!hasAccess) {
-      warn("Can't save QR image: user did't give access");
-      return;
-    }
-    if (!this.mounted) return;
-
-    // Try to save QR png to the user's gallery.
-    final saveResult = await Result.tryAsync<void, GalException>(() =>
-        Gal.putImageBytes(png.buffer.asUint8List(),
-            album: albumName, name: "qrcode"));
-    if (!this.mounted) return;
-
-    if (saveResult case Err(:final err)) {
-      error("Failed to save QR image to gallery: $err");
-      return;
-    }
-
-    // Open Gallery ->
-    ScaffoldMessenger.of(this.context).showSnackBar(const SnackBar(
-      content: SizedBox(),
-      action: SnackBarAction(
-        label: "Open Gallery ->",
-        onPressed: Gal.open,
-      ),
-    ));
-  }
-
   @override
   Widget build(BuildContext context) {
     // Need to draw Material+Ink splasher on top of image, so splash animation
@@ -425,19 +242,8 @@ class _InteractiveQrImageState extends State<InteractiveQrImage> {
             type: MaterialType.transparency,
             child: InkWell(
               onTap: this.openQrPage,
-              // ARgh... InkWell doesn't expose the inner GestureDetector's
-              // onLongPressUp, and this callback doesn't give us the
-              // TapUpDetails... so we have to hack around it and just give the
-              // center of the widget or something.
-              onLongPress: () {
-                final double dim = this.widget.dimension.toDouble();
-                unawaited(this.openPopupMenu(Offset(
-                  (0.5 * dim) - Space.s850,
-                  (0.5 * dim) - Space.s900,
-                )));
-              },
-              onSecondaryTapUp: (tap) =>
-                  unawaited(this.openPopupMenu(tap.localPosition)),
+              onLongPress: () =>
+                  LxClipboard.copyTextWithFeedback(context, this.widget.value),
               enableFeedback: true,
               splashColor: LxColors.clearW300,
             ),

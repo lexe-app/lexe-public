@@ -1,13 +1,12 @@
 import 'dart:async' show unawaited;
-import 'dart:io' show Platform;
 import 'dart:math' show max;
 
 import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import 'package:lexeapp/address_format.dart' as address_format;
 import 'package:lexeapp/bindings_generated_api.dart'
     show AppHandle, CreateInvoiceRequest, FiatRate, Invoice;
+import 'package:lexeapp/clipboard.dart' show LxClipboard;
 import 'package:lexeapp/components.dart'
     show
         CarouselIndicatorsAndButtons,
@@ -658,31 +657,11 @@ class PaymentOfferPage extends StatelessWidget {
     openSetAmountPage();
   }
 
-  void showSnackBarOnCopySuccess(BuildContext context) {
-    if (!context.mounted) return;
-
-    // Android platform automatically shows a bottom snackbar.
-    if (Platform.isAndroid) return;
-
-    ScaffoldMessenger.of(context)
-        .showSnackBar(const SnackBar(content: Text("Copied to clipboard")));
-  }
-
-  void showSnackBarOnCopyError(BuildContext context, Object err) {
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to copy to clipboard")));
-  }
-
   /// Copy the current page's offer code to the user clipboard.
   void onTapCopy(BuildContext context) {
     final code = this.paymentOffer.code;
     if (code == null) return;
-    unawaited(
-      Clipboard.setData(ClipboardData(text: code))
-          .then((_) => this.showSnackBarOnCopySuccess(context))
-          .catchError((err) => this.showSnackBarOnCopyError(context, err)),
-    );
+    unawaited(LxClipboard.copyTextWithFeedback(context, code));
   }
 
   @override
