@@ -1,4 +1,5 @@
 use std::{
+    fmt::{self, Display},
     future::Future,
     pin::Pin,
     task::{Context, Poll},
@@ -39,6 +40,14 @@ pub struct LxTask<T> {
 /// A [`Future`] that wraps [`LxTask`] so its result is logged when it finishes.
 /// The inner `T` is discarded and the [`Future::Output`] is mapped to its name.
 pub struct LoggedLxTask<T>(LxTask<T>);
+
+// Provides a [`Display`] impl for the result of a finished task.
+struct TaskOutputDisplay<'a> {
+    name: &'a str,
+    // Convert a task output to this using `result.as_ref().map(|_| ())`.
+    // Avoids some code bloat by removing the generic `T` in `LxTask<T>`.
+    result: Result<(), &'a tokio::task::JoinError>,
+}
 
 // --- impl LxTask --- //
 
@@ -353,40 +362,50 @@ impl<T> Future for LoggedLxTask<T> {
             let mut log_error = false;
             let mut log_warn = false;
 
-            let join_label = match &result {
-                Ok(_) => "finished",
-                Err(e) if e.is_cancelled() => {
-                    log_warn = true;
-                    "cancelled"
-                }
-                Err(e) if e.is_panic() => {
-                    log_error = true;
-                    "panicked"
-                }
-                _ => {
-                    log_warn = true;
-                    "(unknown join error)"
-                }
+            match &result {
+                Ok(_) => (),
+                Err(e) if e.is_cancelled() => log_warn = true,
+                Err(e) if e.is_panic() => log_error = true,
+                _ => log_warn = true,
             };
 
-            // "Task '<name>' <finished|cancelled|panicked>: [<error>]"
-            // TODO(max): Can use a `Display` struct to avoid this allocation
-            let name = self.name();
-            let mut msg = format!("Task '{name}' {join_label}");
-            if let Err(e) = result {
-                msg.push_str(": ");
-                msg.push_str(&format!("{e:#}"));
-            }
+            let msg = TaskOutputDisplay {
+                name: self.name(),
+                result: result.as_ref().map(|_| ()),
+            };
 
             if log_error {
-                error!("{msg}");
+                error!("{msg}")
             } else if log_warn {
-                warn!("{msg}");
+                warn!("{msg}")
             } else {
-                info!("{msg}");
+                info!("{msg}")
             }
 
             self.name().to_owned()
         })
+    }
+}
+
+// --- impl TaskOutputDisplay --- //
+
+impl Display for TaskOutputDisplay<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let join_label = match &self.result {
+            Ok(_) => "finished",
+            Err(e) if e.is_cancelled() => "cancelled",
+            Err(e) if e.is_panic() => "panicked",
+            _ => "(unknown join error)",
+        };
+
+        // "Task '<name>' <finished|cancelled|panicked>: [<error>]"
+        let name = self.name;
+        write!(f, "Task '{name}' {join_label}")?;
+
+        if let Err(e) = self.result {
+            write!(f, ": {e:#}")?;
+        }
+
+        Ok(())
     }
 }
