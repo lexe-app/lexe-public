@@ -20,12 +20,12 @@ const HANDSHAKE_TIMEOUT: Duration = Duration::from_secs(10);
 const P2P_RECONNECT_INTERVAL: Duration = Duration::from_secs(60);
 
 /// Every time a channel peer is added or removed, a [`ChannelPeerUpdate`] is
-/// generated and sent to the [p2p reconnector task] via an [`mpsc`] channel.
-/// The [p2p reconnector task] uses this information to update its view of the
+/// generated and sent to the [p2p connector task] via an [`mpsc`] channel.
+/// The [p2p connector task] uses this information to update its view of the
 /// current set of [`ChannelPeer`]s, obviating the need to repeatedly read the
 /// list of channel peers from the DB.
 ///
-/// [p2p reconnector task]: spawn_p2p_reconnector
+/// [p2p connector task]: spawn_p2p_connector
 #[derive(Debug)]
 pub enum ChannelPeerUpdate {
     /// We opened a channel and have a new channel peer.
@@ -174,6 +174,7 @@ where
 
 /// Spawns a task that regularly reconnects to the channel peers in this task's
 /// `channel_peers` map, which is initialized with `initial_channel_peers`.
+/// Upon shutdown, this task will also disconnect from all peers.
 ///
 /// To reconnect to a node, include it in `initial_channel_peers` during startup
 /// or send a [`ChannelPeerUpdate::Add`] anytime to have the task immediately
@@ -182,7 +183,7 @@ where
 /// If you do NOT wish to immediately reconnect to a given channel peer (e.g.
 /// LSP should not reconnect to user nodes which are still offline), simply do
 /// not send the [`ChannelPeerUpdate::Add`] until the peer (user node) is ready.
-pub fn spawn_p2p_reconnector<CM, PM, PS>(
+pub fn spawn_p2p_connector<CM, PM, PS>(
     peer_manager: PM,
     initial_channel_peers: Vec<ChannelPeer>,
     mut channel_peer_rx: mpsc::Receiver<ChannelPeerUpdate>,
@@ -193,8 +194,10 @@ where
     PM: LexePeerManager<CM, PS>,
     PS: LexePersister,
 {
-    LxTask::spawn_named(
-        "p2p reconnectooor",
+    const SPAN_NAME: &str = "(p2p-connector)";
+    LxTask::spawn_named_with_span(
+        SPAN_NAME,
+        info_span!(SPAN_NAME),
         async move {
             let mut interval = time::interval(P2P_RECONNECT_INTERVAL);
 
@@ -257,8 +260,12 @@ where
                 }
             }
 
-            info!("LN P2P reconnectooor task complete");
-        }
-        .instrument(info_span!("(p2p-reconnector)")),
+            info!("Received shutdown; disconnecting all peers");
+            // This ensures we don't continue updating our channel data after
+            // the background processor has stopped.
+            peer_manager.disconnect_all_peers();
+
+            info!("LN P2P connector task complete");
+        },
     )
 }
