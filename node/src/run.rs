@@ -20,14 +20,11 @@ use common::{
     rng::{Crng, SysRng},
     root_seed::RootSeed,
     shutdown::ShutdownChannel,
-    task::LxTask,
+    task::{self, LxTask},
     tls::{self, attestation::NodeMode},
     Apply,
 };
-use futures::{
-    future::FutureExt,
-    stream::{FuturesUnordered, StreamExt},
-};
+use futures::future::FutureExt;
 use gdrive::GoogleVfs;
 use lexe_ln::{
     alias::{
@@ -59,7 +56,7 @@ use lightning::{
 };
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, error, info, info_span, instrument, warn};
+use tracing::{debug, info, info_span, instrument, warn};
 
 use crate::{
     alias::{ChainMonitorType, NodePaymentsManagerType},
@@ -72,11 +69,6 @@ use crate::{
     server::{self, AppRouterState, LexeRouterState},
     DEV_VERSION, SEMVER_VERSION,
 };
-
-// TODO(max): Move this to common::constants
-/// The amount of time tasks have to finish after a graceful shutdown was
-/// initiated before the program exits.
-const SHUTDOWN_TIME_LIMIT: Duration = Duration::from_secs(15);
 
 /// A user's node.
 #[allow(dead_code)] // Many unread fields are used as type annotations
@@ -752,50 +744,17 @@ impl UserNode {
 
         // --- Run --- //
 
-        let mut tasks = self
-            .tasks
-            .into_iter()
-            .map(|task| task.logged())
-            .collect::<FuturesUnordered<_>>();
+        // The amount of time tasks have to finish after a graceful shutdown
+        // (or premature task finish) before the program exits.
+        const SHUTDOWN_TIME_LIMIT: Duration = Duration::from_secs(15);
 
-        // Wait for a shutdown signal and poll all tasks so we can (1) propagate
-        // panics and (2) detect if a task finished prematurely, in which case a
-        // [partial] failure occurred and we should shut down.
-        tokio::select! {
-            // Mitigate possible select! race after a shutdown signal is sent
-            biased;
-            () = self.shutdown.recv() => (),
-            Some(name) = tasks.next() => {
-                error!("Task {name} finished prematurely!");
-                self.shutdown.send();
-            }
-        }
-
-        // --- Shutdown --- //
-
-        info!("Waiting on all tasks to finish");
-        let timeout = tokio::time::sleep(SHUTDOWN_TIME_LIMIT);
-        tokio::pin!(timeout);
-        while !tasks.is_empty() {
-            tokio::select! {
-                () = &mut timeout => {
-                    let stuck_tasks = tasks
-                        .iter()
-                        .map(|task| task.name())
-                        .collect::<Vec<_>>();
-
-                    // TODO(phlip9): is there some way to get a backtrace of a
-                    //               stuck task?
-                    error!(
-                        "{stuck_len} tasks failed to finish: {stuck_tasks:?}",
-                        stuck_len = stuck_tasks.len()
-                    );
-
-                    break;
-                }
-                Some(_name) = tasks.next() => (),
-            }
-        }
+        task::try_join_tasks_and_shutdown(
+            self.tasks,
+            self.shutdown.clone(),
+            SHUTDOWN_TIME_LIMIT,
+        )
+        .await
+        .context("Error awaiting tasks")?;
 
         Ok(())
     }
