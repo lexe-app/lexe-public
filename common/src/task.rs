@@ -7,11 +7,13 @@ use std::{
 use tokio::task::{JoinError, JoinHandle};
 use tracing::{error, info, warn, Instrument, Span};
 
-/// A thin wrapper around [`tokio::task::JoinHandle`] that adds the
-/// `#[must_use]` lint to ensure that all spawned tasks are joined or explictly
-/// annotated that no joining is required. Use [`LxTask::detach`] to make it
-/// clear that the spawned task should be detached from the handle. Once
-/// detached, a task can't be joined.
+/// A thin wrapper around [`tokio::task::JoinHandle`] that:
+///
+/// (1) propagates panics instead of catching them
+/// (2) adds the `#[must_use]` lint to ensure that all spawned tasks are joined
+///     or explictly annotated that no joining is required. Use
+///     [`LxTask::detach`] to make it clear that the spawned task should be
+///     detached from the handle. Once detached, a task can't be joined.
 ///
 /// The main goal with `LxTask` is to encourage [Structured Concurrency] by
 /// joining all spawned tasks. This design pattern often leads to:
@@ -22,9 +24,10 @@ use tracing::{error, info, warn, Instrument, Span};
 ///
 /// Consequently, [`LxTask::detach`] should be used sparingly.
 ///
-/// `LxTask` also includes an optional task name for improved debuggability.
-/// [`LxTask::with_name`] will return a Future of the task result
-/// alongside the task name.
+/// [`LxTask`] also includes an optional task name for improved debuggability.
+/// - Use [`LxTask::name`] to get the name of a running task.
+/// - Use [`LxTask::logged`] to instrument the task so it logs its name and
+///   status when it finishes.
 ///
 /// [Structured Concurrency]: https://www.wikiwand.com/en/Structured_concurrency
 #[must_use]
@@ -32,6 +35,12 @@ pub struct LxTask<T> {
     task: JoinHandle<T>,
     name: String,
 }
+
+/// A [`Future`] that wraps [`LxTask`] so its result is logged when it finishes.
+/// The inner `T` is discarded and the [`Future::Output`] is mapped to its name.
+pub struct LoggedLxTask<T>(LxTask<T>);
+
+// --- impl LxTask --- //
 
 impl<T> LxTask<T> {
     /// Spawns a task without a name. Use this primarily for trivial tasks where
@@ -277,11 +286,11 @@ impl<T> LxTask<T> {
         self.task.is_finished()
     }
 
-    /// Make await'ing on an `LxTask` return the name along with the result:
-    /// `(Result<T, JoinError>, name)`
+    /// Instrument a [`LxTask`] so that its result is logged when it finishes.
+    /// The [`LxTask`]'s [`Future::Output`] is also mapped to the task name.
     #[inline]
-    pub fn with_name(self) -> LxTaskWithName<T> {
-        LxTaskWithName(self)
+    pub fn logged(self) -> LoggedLxTask<T> {
+        LoggedLxTask(self)
     }
 
     #[inline]
@@ -306,9 +315,9 @@ impl<T> Future for LxTask<T> {
             Ok(val) => Ok(val),
             Err(join_err) => match join_err.try_into_panic() {
                 // If the inner spawned task panicked, then propagate the panic
-                // to the current task.
+                // to the `LxTask` poller.
                 Ok(panic_reason) => {
-                    error!("'{}' task panicked!!!", self.name());
+                    error!("Task '{name}' panicked!", name = self.name());
                     std::panic::resume_unwind(panic_reason)
                 }
                 Err(join_err) => Err(join_err),
@@ -319,79 +328,65 @@ impl<T> Future for LxTask<T> {
     }
 }
 
-/// Helper to log the output of a finished [`LxTaskWithName<()>`]
-///
-/// Pass `ed = true` if the task finished prematurely.
-pub fn log_finished_task(output: &(Result<(), JoinError>, String), ed: bool) {
-    let (join_res, name) = output;
-    let join_label = join_result_label(join_res);
+// --- impl LoggedLxTask --- //
 
-    // "Task '<name>' <finished|cancelled|panicked> [prematurely]: [<error>]"
-    let mut msg = format!("Task '{name}' {join_label}");
-    if ed {
-        msg.push_str(" prematurely");
-    }
-    if let Err(e) = join_res {
-        msg.push_str(": ");
-        msg.push_str(&format!("{e:#}"));
-    }
-
-    if ed || join_res.is_err() {
-        warn!("{msg}");
-    } else {
-        info!("{msg}");
-    }
-}
-
-/// A small helper that gives a human-readable label for a joined task's
-/// resulting output.
-pub fn join_result_label(join_res: &Result<(), JoinError>) -> &'static str {
-    match join_res {
-        Ok(()) => "finished",
-        Err(err) if err.is_cancelled() => "cancelled",
-        Err(err) if err.is_panic() => "panicked",
-        _ => "(unknown join error)",
-    }
-}
-
-/// A small wrapper `Future` for `LxTask` that returns the task name alongside
-/// the task output.
-pub struct LxTaskWithName<T>(LxTask<T>);
-
-impl<T> LxTaskWithName<T> {
+impl<T> LoggedLxTask<T> {
     #[inline]
     pub fn name(&self) -> &str {
         self.0.name()
     }
 
-    /// Calls [`is_finished`] on the underlying [`LxTask`].
-    ///
-    /// [`is_finished`]: LxTask::is_finished
     #[inline]
     pub fn is_finished(&self) -> bool {
         self.0.is_finished()
     }
 }
 
-impl<T> Future for LxTaskWithName<T> {
-    type Output = (Result<T, JoinError>, String);
+impl<T> Future for LoggedLxTask<T> {
+    type Output = String;
 
     fn poll(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Self::Output> {
-        let result = match Pin::new(&mut self.0).poll(cx) {
-            Poll::Ready(result) => result,
-            Poll::Pending => return Poll::Pending,
-        };
+        Pin::new(&mut self.0).poll(cx).map(|result| {
+            let mut log_error = false;
+            let mut log_warn = false;
 
-        let name = self.name().to_string();
+            let join_label = match &result {
+                Ok(_) => "finished",
+                Err(e) if e.is_cancelled() => {
+                    log_warn = true;
+                    "cancelled"
+                }
+                Err(e) if e.is_panic() => {
+                    log_error = true;
+                    "panicked"
+                }
+                _ => {
+                    log_warn = true;
+                    "(unknown join error)"
+                }
+            };
 
-        let result = match result {
-            Ok(val) => (Ok(val), name),
-            Err(err) => (Err(err), name),
-        };
+            // "Task '<name>' <finished|cancelled|panicked>: [<error>]"
+            // TODO(max): Can use a `Display` struct to avoid this allocation
+            let name = self.name();
+            let mut msg = format!("Task '{name}' {join_label}");
+            if let Err(e) = result {
+                msg.push_str(": ");
+                msg.push_str(&format!("{e:#}"));
+            }
 
-        Poll::Ready(result)
+            if log_error {
+                error!("{msg}");
+            } else if log_warn {
+                warn!("{msg}");
+            } else {
+                info!("{msg}");
+            }
+
+            self.name().to_owned()
+        })
     }
 }
