@@ -1,4 +1,4 @@
-use std::include_bytes;
+use std::{include_bytes, time::Duration};
 
 use crate::{
     api::ports::Port,
@@ -16,6 +16,10 @@ pub const YANKED_NODE_MEASUREMENTS: [Measurement; 0] = [];
 const_utils::const_assert!(
     YANKED_NODE_VERSIONS.len() == YANKED_NODE_MEASUREMENTS.len()
 );
+
+/// The amount of time user node tasks have to finish after a graceful shutdown
+/// signal is received before the program is forced to exit.
+pub const USER_NODE_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// The default number of persist retries for important objects.
 pub const IMPORTANT_PERSIST_RETRIES: usize = 5;
