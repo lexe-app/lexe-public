@@ -13,6 +13,9 @@
 //!   JVM-only [`Android Keystore`](https://developer.android.com/training/articles/keystore)
 //!   is a huge pain). Fortunately, this isn't too awful, since app data is
 //!   sandboxed and inaccessible to other apps.
+//!   In the future, consider using something like:
+//!   <https://github.com/animo/secure-env/blob/main/src/android.rs> or
+//!   <https://gitlab.com/veilid/keyring-manager/-/blob/master/src/android.rs>
 //!
 //! [`RootSeed`]: common::root_seed::RootSeed
 
