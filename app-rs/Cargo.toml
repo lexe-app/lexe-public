@@ -56,8 +56,9 @@ keyring = { version = "2.0", default-features = false, features = [
 ] }
 roaring = "0.10"
 
-[target.'cfg(target_os = "android")'.dependencies]
-jni = "0.21"
+# TODO(phlip9): uncomment when I need this
+# [target.'cfg(target_os = "android")'.dependencies]
+# jni = "0.21"
 
 [dev-dependencies]
 common = { path = "../common", features = ["test-utils"] }

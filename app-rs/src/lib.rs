@@ -6,9 +6,11 @@
 // Allow this in generated code
 #![allow(clippy::not_unsafe_ptr_arg_deref)]
 
-/// Android Context and JVM handle.
-#[cfg(target_os = "android")]
-pub(crate) mod android;
+// TODO(phlip9): uncomment when I actually need this
+// /// Android Context and JVM handle.
+// #[cfg(target_os = "android")]
+// pub(crate) mod android;
+
 /// The top-level App state
 pub mod app;
 /// The high-level flutter/rust interface.
