@@ -80,9 +80,6 @@ dependencies:
   # Immutable record types and Rust-style enums in Dart.
   freezed_annotation: ^2.4.1
 
-  # Save images to the platform photo gallery.
-  gal: ^2.3.0
-
   # International number, currency, and date formatting
   google_sign_in: ^6.2.1
   intl: ^0.19.0
