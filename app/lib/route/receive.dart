@@ -163,30 +163,14 @@ class PaymentOffer {
 
   // TODO(phlip9): do this in rust, more robustly. Also uppercase for QR
   // encoding.
-  String? uri() {
+  Uri? uri() {
     final code = this.code;
     if (code == null) return null;
 
-    final amountSats = this.amountSats;
-    final description = this.description;
-
-    if (this.kind.isLightning()) {
-      return "lightning:$code";
-    } else {
-      final base = "bitcoin:$code";
-      final params = [
-        if (amountSats != null)
-          "amount=${currency_format.formatSatsToBtcForUri(amountSats)}",
-        if (description != null) "message=$description",
-      ];
-      final String paramsStr;
-      if (params.isNotEmpty) {
-        paramsStr = "?${params.join('&')}";
-      } else {
-        paramsStr = "";
-      }
-      return "$base$paramsStr";
-    }
+    return switch (this.kind) {
+      PaymentOfferKind.lightningInvoice => Uri(scheme: "lightning", path: code),
+      PaymentOfferKind.btcAddress => Uri(scheme: "bitcoin", path: code),
+    };
   }
 
   @override
@@ -813,7 +797,7 @@ class PaymentOfferPage extends StatelessWidget {
                                 // `AnimatedSwitcher` should also run the switch
                                 // animation when the QR code contents change.
                                 key: key,
-                                value: uri,
+                                value: uri.toString(),
                                 dimension: dim.toInt(),
                               ),
                             )
