@@ -102,6 +102,9 @@ dependencies:
   # Share button functionality.
   share_plus: ^9.0.0
 
+  # Open URLs and custom URIs (e.g., "bitcoin:" and "lightning:" URIs)
+  url_launcher: ^6.3.0
+
 dev_dependencies:
   # Used by freezed for codegen. app-rs-codegen runs this after generating the
   # flutter_rust_bridge bindings.

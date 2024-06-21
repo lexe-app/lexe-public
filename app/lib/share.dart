@@ -8,16 +8,42 @@ import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:share_plus/share_plus.dart'
     show Share, ShareResult, ShareResultStatus;
+import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 abstract final class LxShare {
+  /// Share/open a payment URI (i.e., "bitcoin:" or "lightning:" URI).
   ///
-  /// macOS and iPad need `context` so they can draw a popup bubble above that
-  /// widget.
+  /// Ideally, this would show a share bubble on-screen that asks what the user
+  /// would like to do with it. From this bubble, users should be able to
+  /// (1) open it in _another_ capable wallet app
+  /// (2) send it to a group chat
+  /// (3) share it to their X timeline
+  /// etc...
+  ///
+  /// Sadly the current flutter packages (`share_plus` and `url_launcher`) don't
+  /// quite support all of this in one bubble. We'd probably need to write our
+  /// own particular native handler for iOS and Android for this to work as
+  /// I want. Instead, we'll just try opening it in a wallet (if there is one)
+  /// and fallback to sharing as plaintext.
+  ///
+  /// The `context` parameter is for macOS and iPad, so they can draw the share
+  /// popup bubble above that widget.
   static Future<void> sharePaymentUri(
     BuildContext context,
     Uri uri,
   ) async {
-    // case Android: -> shareUri(uri)
+    // First try opening the payment URI in another app (if there are any that
+    // support it):
+    final openResult = await LxShare._tryOpenPaymentUriInOtherApp(uri);
+    if (!context.mounted) return;
+
+    switch (openResult) {
+      case ShareResultStatus.success || ShareResultStatus.dismissed:
+        return;
+      case ShareResultStatus.unavailable:
+    }
+
+    // Otherwise fallback to sharing as plaintext:
 
     // The box around the widget associated with `context`. `share_plus` uses
     // this on some platforms (macOS, iPad) to draw the share dialog above
@@ -25,22 +51,56 @@ abstract final class LxShare {
     final box = context.findRenderObject() as RenderBox?;
     final origin = box!.localToGlobal(Offset.zero) & box.size;
 
-    final result = await LxShare._sharePaymentUriInner(uri, origin);
+    final result = await LxShare._trySharePaymentUriAsPlaintext(uri, origin);
     if (!context.mounted) return;
 
     switch (result) {
       case ShareResultStatus.success || ShareResultStatus.dismissed:
         return;
       case ShareResultStatus.unavailable:
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text("Lexe doesn't support sharing on this platform yet!"),
-        ));
     }
 
+    // Tell the user we can't get anything to work
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+      content: Text("Lexe doesn't support sharing on this platform yet!"),
+    ));
     return;
   }
 
-  static Future<ShareResultStatus> _sharePaymentUriInner(
+  // TODO(phlip9): what happens when Lexe.app supports these deep links? Will we
+  // open ourselves to handle this payment?
+  static Future<ShareResultStatus> _tryOpenPaymentUriInOtherApp(
+    Uri uri,
+  ) async {
+    // Try to query if there's any apps that can handle it.
+    final canLaunch = await Result.tryAsync<bool, Exception>(
+      () => url_launcher.canLaunchUrl(uri),
+    );
+    info("LxShare: open payment uri: can launch: $canLaunch");
+    switch (canLaunch) {
+      case Ok(:final ok):
+        if (!ok) return ShareResultStatus.unavailable;
+      case Err():
+        return ShareResultStatus.unavailable;
+    }
+
+    // Try to actually open it.
+    final result = await Result.tryAsync<bool, Exception>(
+      () => url_launcher.launchUrl(
+        uri,
+        mode: url_launcher.LaunchMode.externalNonBrowserApplication,
+      ),
+    );
+    info("LxShare: open payment uri: launch result: $result");
+
+    return switch (result) {
+      Ok(:final ok) =>
+        (ok) ? ShareResultStatus.success : ShareResultStatus.unavailable,
+      Err() => ShareResultStatus.unavailable,
+    };
+  }
+
+  static Future<ShareResultStatus> _trySharePaymentUriAsPlaintext(
     Uri uri,
     Rect origin,
   ) async {
@@ -57,10 +117,10 @@ abstract final class LxShare {
 
     switch (result) {
       case Ok(:final ok):
-        info("share: payment uri: ok: $ok");
+        info("LxShare: share payment uri: ok: $ok");
         return ok.status;
       case Err(:final err):
-        warn("share: payment uri: err: $err");
+        warn("LxShare: share payment uri: err: $err");
         return ShareResultStatus.unavailable;
     }
   }
