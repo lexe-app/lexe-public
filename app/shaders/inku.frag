@@ -155,15 +155,15 @@ float fbm(vec2 p)
 
 float pattern(vec2 p)
 {
-	return fbm(p + fbm(p + fbm(p)));
+    return fbm(p + fbm(p + fbm(p)));
 }
 
 vec2 rotate(vec2 v, const vec2 around, float rad)
 {
-	float s = sin(rad);
-	float c = cos(rad);
-	mat2 m = mat2(c, -s, s, c);
-	return (m * (v - around)) + around;
+    float s = sin(rad);
+    float c = cos(rad);
+    mat2 m = mat2(c, -s, s, c);
+    return (m * (v - around)) + around;
 }
 
 void main() {
