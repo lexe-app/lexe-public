@@ -23,6 +23,7 @@ import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/show_qr.dart' show InteractiveQrImage;
+import 'package:lexeapp/share.dart' show LxShare;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxRadius, Space;
 import 'package:rxdart/rxdart.dart';
@@ -648,6 +649,14 @@ class PaymentOfferPage extends StatelessWidget {
     unawaited(LxClipboard.copyTextWithFeedback(context, code));
   }
 
+  /// Try sharing the payment URI.
+  Future<void> onTapShare(BuildContext context) async {
+    final uri = this.paymentOffer.uri();
+    if (uri == null) return;
+
+    await LxShare.sharePaymentUri(context, uri);
+  }
+
   @override
   Widget build(BuildContext context) {
     final code = this.paymentOffer.code;
@@ -1049,6 +1058,7 @@ class PaymentOfferPage extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                // Copy code
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: Space.s200),
                   child: FilledButton(
@@ -1056,13 +1066,21 @@ class PaymentOfferPage extends StatelessWidget {
                     child: const Icon(LxIcons.copy),
                   ),
                 ),
+
+                // Share payment URI (w/ share code fallback)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: Space.s200),
-                  child: FilledButton(
-                    onPressed: () {},
-                    child: const Icon(LxIcons.share),
+                  child: Builder(
+                    // Use an extra Builder layer so the `sharePositionOrigin`
+                    // is around just this button.
+                    builder: (context) => FilledButton(
+                      onPressed: () => this.onTapShare(context),
+                      child: const Icon(LxIcons.share),
+                    ),
                   ),
                 ),
+
+                // Refresh
                 if (isLightning)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: Space.s200),
