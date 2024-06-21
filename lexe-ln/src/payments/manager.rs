@@ -23,7 +23,7 @@ use common::{
 use lightning::{events::PaymentPurpose, ln::channelmanager::FailureCode};
 use rust_decimal::Decimal;
 use tokio::sync::Mutex;
-use tracing::{debug, debug_span, error, info, instrument};
+use tracing::{debug, error, info, info_span, instrument};
 
 use super::outbound::LxOutboundPaymentFailure;
 use crate::{
@@ -159,7 +159,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         let payments_manager = self.clone();
         LxTask::spawn_named_with_span(
             "invoice expiry checker",
-            debug_span!("(invoice-expiry-checker)"),
+            info_span!("(invoice-expiry-checker)"),
             async move {
                 let mut check_timer =
                     tokio::time::interval(INVOICE_EXPIRY_CHECK_INTERVAL);
@@ -191,7 +191,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
 
         LxTask::spawn_named_with_span(
             "onchain confs checker",
-            debug_span!("(onchain-confs-checker)"),
+            info_span!("(onchain-confs-checker)"),
             async move {
                 let mut check_timer =
                     tokio::time::interval(ONCHAIN_PAYMENT_CHECK_INTERVAL);
@@ -226,7 +226,7 @@ impl<CM: LexeChannelManager<PS>, PS: LexePersister> PaymentsManager<CM, PS> {
         let payments_manager = self.clone();
         LxTask::spawn_named_with_span(
             "onchain receive checker",
-            debug_span!("(onchain-recv-checker)"),
+            info_span!("(onchain-recv-checker)"),
             async move {
                 loop {
                     tokio::select! {

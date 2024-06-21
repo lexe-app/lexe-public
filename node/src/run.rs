@@ -57,7 +57,7 @@ use lightning::{
 };
 use lightning_transaction_sync::EsploraSyncClient;
 use tokio::sync::{mpsc, oneshot};
-use tracing::{debug, info, info_span, instrument, warn};
+use tracing::{debug, info, info_span, warn};
 
 use crate::{
     alias::{ChainMonitorType, NodePaymentsManagerType},
@@ -120,7 +120,6 @@ impl UserNode {
     // into two stages: (1) fetch and (2) deserialize. Optimistically fetch all
     // the data in ~one roundtrip to the API, and then deserialize the data in
     // the required order.
-    #[instrument(skip_all, name = "(node)")]
     pub async fn init(
         rng: &mut impl Crng,
         args: RunArgs,
@@ -554,7 +553,7 @@ impl UserNode {
                 LayerConfig::default(),
                 Some((Arc::new(app_tls_config), app_dns.as_str())),
                 APP_SERVER_SPAN_NAME,
-                info_span!(parent: None, APP_SERVER_SPAN_NAME),
+                info_span!(APP_SERVER_SPAN_NAME),
                 shutdown.clone(),
             )
             .context("Failed to spawn app node run server task")?;
@@ -585,7 +584,7 @@ impl UserNode {
                 LayerConfig::default(),
                 lexe_tls_and_dns,
                 LEXE_SERVER_SPAN_NAME,
-                info_span!(parent: None, LEXE_SERVER_SPAN_NAME),
+                info_span!(LEXE_SERVER_SPAN_NAME),
                 shutdown.clone(),
             )
             .context("Failed to spawn lexe node run server task")?;
@@ -666,7 +665,6 @@ impl UserNode {
         })
     }
 
-    #[instrument(skip_all, name = "(node)")]
     pub async fn sync(&mut self) -> anyhow::Result<()> {
         info!("Starting sync");
         let ctxt = self.sync.take().expect("sync() must be called only once");
@@ -731,7 +729,6 @@ impl UserNode {
         Ok(())
     }
 
-    #[instrument(skip_all, name = "(node)")]
     pub async fn run(mut self) -> anyhow::Result<()> {
         info!("Running...");
         assert!(self.sync.is_none(), "Must sync before run");
