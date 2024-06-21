@@ -18,18 +18,35 @@
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
     <string>$(FLUTTER_BUILD_NAME)</string>
+
     <key>CFBundleURLTypes</key>
     <array>
+      <!-- gDrive -->
       <dict>
         <key>CFBundleTypeRole</key>
         <string>Editor</string>
         <key>CFBundleURLSchemes</key>
         <array>
-          <!-- gDrive -->
           <string>com.googleusercontent.apps.495704988639-ook7rjckct44o668nt1f58sd3bharq2p</string>
           </array>
         </dict>
+
+      <!-- Register Lexe as a handler for "bitcoin:", "lightning:", etc... URIs -->
+      <dict>
+        <key>CFBundleTypeRole</key>
+        <string>Viewer</string>
+        <key>CFBundleURLName</key>
+        <string>$(PRODUCT_BUNDLE_IDENTIFIER).uri</string>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>BITCOIN</string>
+          <string>LIGHTNING</string>
+          <string>bitcoin</string>
+          <string>lightning</string>
+          </array>
+        </dict>
       </array>
+
     <key>CFBundleVersion</key>
     <string>$(FLUTTER_BUILD_NUMBER)</string>
 
