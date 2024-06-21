@@ -99,6 +99,9 @@ dependencies:
   # rxdart extensions
   rxdart_ext: ^0.2.9
 
+  # Share button functionality.
+  share_plus: ^9.0.0
+
 dev_dependencies:
   # Used by freezed for codegen. app-rs-codegen runs this after generating the
   # flutter_rust_bridge bindings.
