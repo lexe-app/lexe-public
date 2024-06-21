@@ -11,63 +11,64 @@
 -->
 
 <manifest
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    package="${applicationId}">
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  package="${applicationId}">
 
-    <application
-        android:label="@string/app_name"
-        android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher" >
+  <application
+    android:label="@string/app_name"
+    android:name="${applicationName}"
+    android:icon="@mipmap/ic_launcher" >
 
-        <activity
-            android:name=".MainActivity"
-            android:exported="true"
-            android:launchMode="singleTop"
-            android:taskAffinity=""
-            android:theme="@style/LaunchTheme"
-            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
-            android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize">
-            <!-- Specifies an Android theme to apply to this Activity as soon as
-                 the Android process has started. This theme is visible to the user
-                 while the Flutter UI initializes. After that, this theme continues
-                 to determine the Window background behind the Flutter UI. -->
-            <meta-data
-              android:name="io.flutter.embedding.android.NormalTheme"
-              android:resource="@style/NormalTheme"
-              />
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-        </activity>
-        <!-- Don't delete the meta-data below.
-             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
-        <meta-data
-            android:name="flutterEmbedding"
-            android:value="2" />
+    <activity
+      android:name=".MainActivity"
+      android:exported="true"
+      android:launchMode="singleTop"
+      android:taskAffinity=""
+      android:theme="@style/LaunchTheme"
+      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+      android:hardwareAccelerated="true"
+      android:windowSoftInputMode="adjustResize">
+      <!-- Specifies an Android theme to apply to this Activity as soon as
+           the Android process has started. This theme is visible to the user
+           while the Flutter UI initializes. After that, this theme continues
+           to determine the Window background behind the Flutter UI. -->
+      <meta-data
+        android:name="io.flutter.embedding.android.NormalTheme"
+        android:resource="@style/NormalTheme"
+        />
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+        </intent-filter>
+      </activity>
+    <!-- Don't delete the meta-data below.
+         This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+    <meta-data
+      android:name="flutterEmbedding"
+      android:value="2" />
+
     </application>
 
-    <queries>
-        <!-- Required to query activities that can process text, see:
-            https://developer.android.com/training/package-visibility?hl=en and
-            https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+  <queries>
+    <!-- Required to query activities that can process text, see:
+         https://developer.android.com/training/package-visibility?hl=en and
+         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
 
-            In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
-        </intent>
+         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
+    <intent>
+      <action android:name="android.intent.action.PROCESS_TEXT"/>
+      <data android:mimeType="text/plain"/>
+      </intent>
 
-        <!-- Required for `url_launcher` to query for other apps that can open
-             "bitcoin:" and "lightning:" payment URIs.
-             See: <app/lib/share.dart> -->
-        <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="BITCOIN"/> </intent>
-        <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="LIGHTNING"/> </intent>
-        <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="bitcoin"/> </intent>
-        <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="lightning"/> </intent>
+    <!-- Required for `url_launcher` to query for other apps that can open
+         "bitcoin:" and "lightning:" payment URIs.
+         See: <app/lib/share.dart> -->
+    <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="BITCOIN"/> </intent>
+    <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="LIGHTNING"/> </intent>
+    <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="bitcoin"/> </intent>
+    <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="lightning"/> </intent>
     </queries>
 
-    <!-- Need network access to talk to remote LEXE node -->
-    <uses-permission android:name="android.permission.INTERNET"/>
-</manifest>
+  <!-- Need network access to talk to remote LEXE node -->
+  <uses-permission android:name="android.permission.INTERNET"/>
+  </manifest>
