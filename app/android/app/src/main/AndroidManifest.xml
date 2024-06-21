@@ -48,16 +48,24 @@
             android:value="2" />
     </application>
 
-    <!-- Required to query activities that can process text, see:
-         https://developer.android.com/training/package-visibility?hl=en and
-         https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
-
-         In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
     <queries>
+        <!-- Required to query activities that can process text, see:
+            https://developer.android.com/training/package-visibility?hl=en and
+            https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
+
+            In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+
+        <!-- Required for `url_launcher` to query for other apps that can open
+             "bitcoin:" and "lightning:" payment URIs.
+             See: <app/lib/share.dart> -->
+        <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="BITCOIN"/> </intent>
+        <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="LIGHTNING"/> </intent>
+        <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="bitcoin"/> </intent>
+        <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="lightning"/> </intent>
     </queries>
 
     <!-- Need network access to talk to remote LEXE node -->

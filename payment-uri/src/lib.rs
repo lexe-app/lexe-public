@@ -70,6 +70,14 @@ pub enum PaymentUri {
     ///
     /// ex: "bitcoin:bc1qfj..."
     Bip21Uri(Bip21Uri),
+    //
+    //
+    // NOTE: adding support for a new URI scheme? Remember to add it in these
+    // places!
+    //
+    // app/ios/Runner/Info.plist
+    // app/macos/Runner/Info.plist
+    // app/android/app/src/main/AndroidManifest.xml
 }
 
 impl PaymentUri {

@@ -26,17 +26,32 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
-			<array>
+      <array>
+        <!-- gDrive -->
 				<string>com.googleusercontent.apps.495704988639-ook7rjckct44o668nt1f58sd3bharq2p</string>
 			</array>
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>$(FLUTTER_BUILD_NUMBER)</string>
+  <string>$(FLUTTER_BUILD_NUMBER)</string>
+
+  <!-- gDrive -->
 	<key>GIDClientID</key>
 	<string>495704988639-ook7rjckct44o668nt1f58sd3bharq2p.apps.googleusercontent.com</string>
 	<key>GIDServerClientID</key>
-	<string>495704988639-19bfg8k5f3runiio4apbicpounc10gh1.apps.googleusercontent.com</string>
+  <string>495704988639-19bfg8k5f3runiio4apbicpounc10gh1.apps.googleusercontent.com</string>
+
+  <!-- Required for `url_launcher` to query for other apps that can open
+       "bitcoin:" and "lightning:" payment URIs.
+       See: <app/lib/share.dart> -->
+  <key>LSApplicationQueriesSchemes</key>
+  <array>
+    <string>BITCOIN</string>
+    <string>LIGHTNING</string>
+    <string>bitcoin</string>
+    <string>lightning</string>
+  </array>
+
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
@@ -61,6 +76,6 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<false/>
+  <false/>
 </dict>
 </plist>
