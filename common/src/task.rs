@@ -162,7 +162,7 @@ impl<T> LxTask<T> {
         F: Future<Output = T> + Send + 'static,
         F::Output: Send + 'static,
     {
-        Self::spawn_named(String::new(), future)
+        Self::spawn_named(String::new(), future.in_current_span())
     }
 
     /// Spawns a named task which inherits the current span.

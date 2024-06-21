@@ -13,7 +13,7 @@ use electrsd::{
     electrum_client::ElectrumApi,
     ElectrsD,
 };
-use tracing::{debug, info};
+use tracing::{debug, info, instrument};
 
 /// A wrapper around [`BitcoinD`] and [`ElectrsD`] which exposes simple methods
 /// for launching a bitcoind regtest instance and esplora server, funding
@@ -35,6 +35,7 @@ impl Regtest {
     /// `data_dir`: if not None, data will be persisted _across_ runs in this
     ///             directory. Otherwise, both will save data into an ephemeral
     ///             temp. dir.
+    #[instrument(skip_all, name = "(regtest)")]
     pub async fn init(data_dir: Option<PathBuf>) -> Self {
         info!("Initializing regtest");
 

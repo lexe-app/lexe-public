@@ -42,7 +42,7 @@ use common::{
     tls::{self, attestation::NodeMode},
 };
 use gdrive::GoogleVfs;
-use tracing::{debug, info, info_span, instrument};
+use tracing::{debug, info, info_span};
 
 use crate::{
     api::client::{BackendClient, RunnerClient},
@@ -64,7 +64,6 @@ struct RequestContext {
 ///
 /// The `UserPk` is given by the runner so we know which user we should
 /// provision to and have a simple method to authenticate their connection.
-#[instrument(skip_all, parent = None, name = "(node-provision)")]
 pub async fn provision_node(
     rng: &mut impl Crng,
     args: ProvisionArgs,
