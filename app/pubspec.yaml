@@ -29,6 +29,9 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  # Register Lexe to handle payment URIs ("bitcoin:", "lightning:", ...)
+  app_links: ^6.1.1
+
   # Used by the generated flutter_rust_bridge FFI bindings.
   collection: ^1.18.0
 
