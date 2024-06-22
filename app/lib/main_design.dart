@@ -9,7 +9,7 @@ import 'dart:typed_data' show Uint8List;
 
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
+// import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:intl/intl.dart' show Intl;
 import 'package:lexeapp/bindings.dart' show api;
@@ -377,10 +377,10 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               "Buttons",
               (context) => const ButtonDesignPage(),
             ),
-            Component(
-              "Markdown",
-              (context) => const MarkdownPage(),
-            ),
+            // Component(
+            //   "Markdown",
+            //   (context) => const MarkdownPage(),
+            // ),
             const SizedBox(height: Space.s800),
           ],
         ),
@@ -1051,52 +1051,52 @@ class ButtonDesignPage extends StatelessWidget {
   }
 }
 
-class MarkdownPage extends StatelessWidget {
-  const MarkdownPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        leading: const LxBackButton(isLeading: true),
-        leadingWidth: Space.appBarLeadingWidth,
-      ),
-      body: Theme(
-        data: LxTheme.light(),
-        child: ScrollableSinglePageBody(
-          body: [
-            MarkdownBody(
-              data: '''
-# ACME protocol
-
-ACME is a protocol for automated provisioning of web PKI certificates, which are
-just certs bound to public domains and endorsed by web root CAs like Let's Encrypt.
-
-## Why
-
-Before ACME, web service operators had to manually update their web certs.
-This error prone and time-consuming process meant that many sites either:
-
-1. Didn't use HTTPS at all, reducing security.
-2. Used multi-year long cert expirations, increasing the danger when a cert was compromised.
-3. Forgot to renew their certs when they expired, leading to outages.
-
-At worst, they still serve as reasonable
-_approximations_ of the actual values.
-
-[Source](source)
-''',
-              styleSheet: MarkdownStyleSheet(
-                pPadding: const EdgeInsets.only(top: 0.0, bottom: Space.s200),
-                h1Padding:
-                    const EdgeInsets.only(top: Space.s400, bottom: Space.s200),
-                h2Padding:
-                    const EdgeInsets.only(top: Space.s400, bottom: Space.s200),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+// class MarkdownPage extends StatelessWidget {
+//   const MarkdownPage({super.key});
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       appBar: AppBar(
+//         leading: const LxBackButton(isLeading: true),
+//         leadingWidth: Space.appBarLeadingWidth,
+//       ),
+//       body: Theme(
+//         data: LxTheme.light(),
+//         child: ScrollableSinglePageBody(
+//           body: [
+//             MarkdownBody(
+//               data: '''
+// # ACME protocol
+//
+// ACME is a protocol for automated provisioning of web PKI certificates, which are
+// just certs bound to public domains and endorsed by web root CAs like Let's Encrypt.
+//
+// ## Why
+//
+// Before ACME, web service operators had to manually update their web certs.
+// This error prone and time-consuming process meant that many sites either:
+//
+// 1. Didn't use HTTPS at all, reducing security.
+// 2. Used multi-year long cert expirations, increasing the danger when a cert was compromised.
+// 3. Forgot to renew their certs when they expired, leading to outages.
+//
+// At worst, they still serve as reasonable
+// _approximations_ of the actual values.
+//
+// [Source](source)
+// ''',
+//               styleSheet: MarkdownStyleSheet(
+//                 pPadding: const EdgeInsets.only(top: 0.0, bottom: Space.s200),
+//                 h1Padding:
+//                     const EdgeInsets.only(top: Space.s400, bottom: Space.s200),
+//                 h2Padding:
+//                     const EdgeInsets.only(top: Space.s400, bottom: Space.s200),
+//               ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+// }
