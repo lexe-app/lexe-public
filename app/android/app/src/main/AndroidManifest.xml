@@ -19,10 +19,17 @@
     android:name="${applicationName}"
     android:icon="@mipmap/ic_launcher" >
 
+    <!-- The root activity for Lexe.
+
+         `launchMode=singleInstance`
+             This activity will be the sole instance for the whole process. We
+             use this to handle the user clicking on a "lightning:" URI
+             internally, without creating a new copy of the app to handle the
+             intent. -->
     <activity
       android:name=".MainActivity"
       android:exported="true"
-      android:launchMode="singleTop"
+      android:launchMode="singleInstance"
       android:taskAffinity=""
       android:theme="@style/LaunchTheme"
       android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"

@@ -15,6 +15,7 @@ import 'package:lexeapp/route/signup.dart' show SignupApi, SignupPage;
 import 'package:lexeapp/route/wallet.dart' show WalletPage;
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
+import 'package:lexeapp/uri_events.dart' show UriEvents;
 
 class LandingPage extends StatefulWidget {
   const LandingPage({
@@ -22,11 +23,13 @@ class LandingPage extends StatefulWidget {
     required this.config,
     required this.gdriveAuth,
     required this.signupApi,
+    required this.uriEvents,
   });
 
   final Config config;
   final GDriveAuth gdriveAuth;
   final SignupApi signupApi;
+  final UriEvents uriEvents;
 
   @override
   State<LandingPage> createState() => _LandingPageState();
@@ -79,6 +82,7 @@ class _LandingPageState extends State<LandingPage> {
       builder: (_) => WalletPage(
         config: this.widget.config,
         app: flowResult,
+        uriEvents: this.widget.uriEvents,
       ),
     )));
   }

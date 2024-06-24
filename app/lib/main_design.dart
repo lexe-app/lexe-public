@@ -81,6 +81,7 @@ import 'package:lexeapp/route/wallet.dart' show WalletPage;
 import 'package:lexeapp/stream_ext.dart';
 import 'package:lexeapp/style.dart'
     show Fonts, LxColors, LxIcons, LxTheme, Space;
+import 'package:lexeapp/uri_events.dart' show UriEvents;
 import 'package:rxdart_ext/rxdart_ext.dart';
 
 Future<void> main() async {
@@ -100,6 +101,9 @@ Future<void> main() async {
   final Config config = await cfg.buildTest();
   info("Test build config: $config");
 
+  final uriEvents = await UriEvents.prod();
+  info("UriEvents: initialUri: ${uriEvents.initialUri}");
+
   runApp(
     MaterialApp(
       title: "Lexe App - Design Mode",
@@ -107,15 +111,17 @@ Future<void> main() async {
       themeMode: ThemeMode.light,
       theme: LxTheme.light(),
       debugShowCheckedModeBanner: false,
-      home: LexeDesignPage(config: config),
+      home: LexeDesignPage(config: config, uriEvents: uriEvents),
     ),
   );
 }
 
 class LexeDesignPage extends StatefulWidget {
-  const LexeDesignPage({super.key, required this.config});
+  const LexeDesignPage(
+      {super.key, required this.config, required this.uriEvents});
 
   final Config config;
+  final UriEvents uriEvents;
 
   @override
   State<LexeDesignPage> createState() => _LexeDesignPageState();
@@ -208,6 +214,7 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
                 config: widget.config,
                 gdriveAuth: mockGDriveAuth,
                 signupApi: mockSignupApi,
+                uriEvents: this.widget.uriEvents,
               ),
             ),
             Component(
@@ -227,11 +234,13 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
               ),
             ),
             Component(
-                "WalletPage",
-                (_) => WalletPage(
-                      app: mockApp,
-                      config: widget.config,
-                    )),
+              "WalletPage",
+              (_) => WalletPage(
+                app: mockApp,
+                config: widget.config,
+                uriEvents: this.widget.uriEvents,
+              ),
+            ),
             Component(
               "SendPaymentNeedUriPage",
               (context) => SendPaymentPage(

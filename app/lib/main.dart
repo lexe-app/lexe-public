@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl_standalone.dart' as intl_standalone;
-
 import 'package:lexeapp/bindings.dart' show api;
 import 'package:lexeapp/bindings_generated_api.dart'
     show AppHandle, Config, DeployEnv;
@@ -12,6 +11,7 @@ import 'package:lexeapp/route/landing.dart' show LandingPage;
 import 'package:lexeapp/route/signup.dart' show SignupApi;
 import 'package:lexeapp/route/wallet.dart' show WalletPage;
 import 'package:lexeapp/style.dart' show LxColors, LxTheme;
+import 'package:lexeapp/uri_events.dart' show UriEvents;
 
 Future<void> main() async {
   // runZonedGuarded(
@@ -36,12 +36,19 @@ Future<void> main() async {
   final Config config = await cfg.build();
   info("Build config: $config");
 
+  final uriEvents = await UriEvents.prod();
+  info("UriEvents: initialUri: ${uriEvents.initialUri}");
+
   final maybeApp = await AppHandle.load(bridge: api, config: config);
 
   final Widget child;
   if (maybeApp != null) {
     // wallet already exists => show wallet page
-    child = WalletPage(config: config, app: maybeApp);
+    child = WalletPage(
+      config: config,
+      app: maybeApp,
+      uriEvents: uriEvents,
+    );
   } else {
     // Skip GDrive auth in local dev.
     final gdriveAuth = switch (config.deployEnv) {
@@ -54,6 +61,7 @@ Future<void> main() async {
       config: config,
       gdriveAuth: gdriveAuth,
       signupApi: SignupApi.prod,
+      uriEvents: uriEvents,
     );
   }
 
