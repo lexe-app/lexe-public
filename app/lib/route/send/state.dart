@@ -66,7 +66,7 @@ class SendState_NeedUri implements SendState {
   /// check that it's valid for our current network (mainnet, testnet, ...).
   /// Then, if the payment already has an amount attached, try to preflight it
   /// immediately.
-  Future<Result<SendState, String?>> resolveAndMaybePreflight(
+  Future<Result<SendState, String>> resolveAndMaybePreflight(
       String uriStr) async {
     // Try to parse and resolve the payment URI into a single "best" PaymentMethod.
     // TODO(phlip9): this API should return a bare error enum and flutter should

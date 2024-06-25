@@ -1,6 +1,12 @@
 // The primary wallet page.
 
-import 'dart:async' show StreamController, Timer, unawaited;
+import 'dart:async'
+    show
+        StreamController,
+        StreamSubscription,
+        TimeoutException,
+        Timer,
+        unawaited;
 
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' show freezed;
@@ -26,7 +32,8 @@ import 'package:lexeapp/components.dart'
         LxOutlinedButton,
         LxRefreshButton,
         MultistepFlow,
-        StateStreamBuilder;
+        StateStreamBuilder,
+        showModalAsyncFlow;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/logger.dart';
@@ -37,7 +44,7 @@ import 'package:lexeapp/route/receive.dart' show ReceivePaymentPage;
 import 'package:lexeapp/route/scan.dart';
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
 import 'package:lexeapp/route/send/state.dart'
-    show SendFlowResult, SendState_NeedUri;
+    show SendFlowResult, SendState, SendState_NeedUri;
 import 'package:lexeapp/stream_ext.dart';
 import 'package:lexeapp/style.dart' show Fonts, LxColors, LxIcons, Space;
 import 'package:lexeapp/uri_events.dart' show UriEvents;
@@ -99,6 +106,9 @@ class WalletPageState extends State<WalletPage> {
   final StateSubject<BalanceState> balanceStates =
       StateSubject(BalanceState.placeholder);
 
+  /// The wallet page listens to URI events.
+  late StreamSubscription<String> uriEventsListener;
+
   // TODO(phlip9): get from user preferences
   final String fiatPreference = "USD";
   // final String fiatPreference = "EUR";
@@ -151,6 +161,11 @@ class WalletPageState extends State<WalletPage> {
         fiatRate: fiatRate,
       ),
     ).listen(this.balanceStates.addIfNotClosed);
+
+    // Listen to platform URI events (e.g., user taps a "lightning:" URI in
+    // their browser).
+    this.uriEventsListener =
+        this.widget.uriEvents.uriStream.listen(this.onUriEvent);
   }
 
   @override
@@ -164,6 +179,7 @@ class WalletPageState extends State<WalletPage> {
     this.nodeInfos.close();
     this.fiatRate.close();
     this.balanceStates.close();
+    this.uriEventsListener.cancel();
 
     super.dispose();
   }
@@ -286,6 +302,79 @@ class WalletPageState extends State<WalletPage> {
     }
   }
 
+  /// When a user taps a payment URI (ex: "lightning:") in another app/browser,
+  /// and chooses Lexe to handle it, we'll try to open a new send flow to handle
+  /// it.
+  Future<void> onUriEvent(String uri) async {
+    // TODO(phlip9): one issue here is: what to do if we get _another_ payment
+    // URI while we're already mid send flow? Probably the right thing to do is
+    // ask the user if they want to interrupt their current flow, and then
+    // replace the current flow with a new flow if they agree.
+
+    // For now, just queue up events while we're already handling one.
+    this.uriEventsListener.pause();
+
+    try {
+      info("WalletPage: uriEvent: $uri");
+
+      // Wait for NodeInfo to be available (if not already) and try to preflight
+      // this send payment URI, showing a modal loading widget.
+      final result = await this._onUriEventPreflight(uri);
+      info("WalletPage: uriEvent: preflight result: $result");
+      if (!this.mounted || result == null || result.isErr) return;
+
+      // If the user successfully sent a payment, we'll get the new payment's
+      // `PaymentIndex` from the flow. O/w canceling the flow will give us `null`.
+      final SendFlowResult? flowResult =
+          await Navigator.of(this.context).push(MaterialPageRoute(
+        builder: (context) =>
+            SendPaymentPage(sendCtx: result.unwrap(), startNewFlow: true),
+      ));
+
+      info("WalletPage: uriEvent: flowResult: $flowResult");
+
+      // User canceled
+      if (!this.mounted || flowResult == null) return;
+
+      // Refresh and open new payment detail
+      await this.onSendFlowSuccess(flowResult);
+    } finally {
+      this.uriEventsListener.resume();
+    }
+  }
+
+  /// Try to preflight a send payment URI, showing a spinner while it's loading
+  /// and an error modal if it fails.
+  Future<Result<SendState, String>?> _onUriEventPreflight(String uri) async {
+    // We could be cold starting (the user wants Lexe to make a payment from
+    // another app, but Lexe isn't already running, so it needs to startup
+    // cold).
+    //
+    // In such a case, we'll need to wait (with a timeout) for our connection to
+    // the node to go through so we can get our balance.
+    final result = await this.collectSendContext();
+
+    // Canceled or timedout
+    if (!this.mounted || result.isErr) return null;
+
+    final sendCtx = result.unwrap();
+    return showModalAsyncFlow(
+      context: this.context,
+      future: sendCtx.resolveAndMaybePreflight(uri),
+      // TODO(phlip9): error messages need work
+      errorBuilder: (context, err) => AlertDialog(
+        title: const Text("Issue with payment"),
+        content: Text(err),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+
   void openScaffoldDrawer() {
     this.scaffoldKey.currentState?.openDrawer();
   }
@@ -356,6 +445,22 @@ class WalletPageState extends State<WalletPage> {
 
     // Refresh and open new payment detail
     await this.onSendFlowSuccess(flowResult);
+  }
+
+  /// Collect up all the relevant context needed to support a new send payment
+  /// flow, and wait until it's available if it's not already immediately
+  /// available.
+  Future<Result<SendState_NeedUri, TimeoutException>>
+      collectSendContext() async {
+    final result = await Result.tryAsync<NodeInfo, TimeoutException>(
+      () => this
+          .nodeInfos
+          .stream
+          .whereNotNull()
+          .first
+          .timeout(const Duration(seconds: 15)),
+    );
+    return result.map((_) => this.tryCollectSendContext()!);
   }
 
   /// Collect up all the relevant context needed to support a new send payment

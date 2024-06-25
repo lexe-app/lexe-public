@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart'
     show Code, FixedScannerOverlay, Format, ReaderWidget;
 import 'package:lexeapp/components.dart'
-    show LxBackButton, LxCloseButton, LxCloseButtonKind;
+    show LxBackButton, LxCloseButton, LxCloseButtonKind, showModalAsyncFlow;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/send/page.dart' show SendPaymentPage;
@@ -47,11 +47,30 @@ class _ScanPageState extends State<ScanPage> {
 
     // Try resolving the payment URI to a "best" payment method. Then try
     // immediately preflighting it if it already has an associated amount.
-    final result = await this.widget.sendCtx.resolveAndMaybePreflight(text);
+    // Show a spinner while this happens, and an error modal if something goes
+    // wrong.
+    final result = await showModalAsyncFlow(
+      context: this.context,
+      future: this.widget.sendCtx.resolveAndMaybePreflight(text),
+      // TODO(phlip9): error messages need work
+      errorBuilder: (context, err) => AlertDialog(
+        title: const Text("Issue with payment"),
+        content: Text(err),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
     if (!this.mounted) return;
 
     // Stop loading animation
     this.isProcessing.value = false;
+
+    // User canceled
+    if (result == null) return;
 
     // Check the results, or show an error on the page.
     final SendState sendCtx;
@@ -59,12 +78,7 @@ class _ScanPageState extends State<ScanPage> {
       case Ok(:final ok):
         sendCtx = ok;
       case Err(:final err):
-        // TODO(phlip9): could probably use a better error display
-        if (err != null) {
-          ScaffoldMessenger.of(this.context).showSnackBar(SnackBar(
-            content: Text(err),
-          ));
-        }
+        error("ScanPage: preflight error: $err");
         return;
     }
 
