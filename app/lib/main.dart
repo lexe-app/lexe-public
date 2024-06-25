@@ -36,10 +36,9 @@ Future<void> main() async {
   final Config config = await cfg.build();
   info("Build config: $config");
 
-  final uriEvents = await UriEvents.prod();
-  info("UriEvents: initialUri: ${uriEvents.initialUri}");
-
   final maybeApp = await AppHandle.load(bridge: api, config: config);
+
+  final uriEvents = await UriEvents.prod();
 
   final Widget child;
   if (maybeApp != null) {

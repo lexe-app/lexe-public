@@ -1,6 +1,7 @@
 /// Reusable flutter UI components
 library;
 
+import 'dart:async' show unawaited;
 import 'dart:math' show max;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -236,6 +237,7 @@ class _AnimatedFillButtonState extends State<AnimatedFillButton> {
                     child: CircularProgressIndicator(
                       strokeWidth: 2.0,
                       color: LxColors.clearB200,
+                      strokeCap: StrokeCap.round,
                     ),
                   ),
                 ),
@@ -418,6 +420,7 @@ class LxRefreshButton extends StatelessWidget {
                     child: CircularProgressIndicator(
                       strokeWidth: 3.0,
                       color: LxColors.fgTertiary,
+                      strokeCap: StrokeCap.round,
                     ),
                   ),
           ),
@@ -1142,4 +1145,87 @@ class SheetDragHandle extends StatelessWidget {
           ),
         ),
       );
+}
+
+typedef ErrorDialogBuilder<E> = Widget Function(BuildContext context, E err);
+
+/// Show a [LoadingSpinnerModal] while an async [Future] is pending. When it
+/// resolves, optionally construct an error dialog from the error and show it
+/// as another modal.
+///
+/// Returns [null] if the user canceled (gesture/HW back) during the loading,
+/// otherwise returns the [Future] output.
+Future<Result<T, E>?> showModalAsyncFlow<T, E>({
+  required BuildContext context,
+  required Future<Result<T, E>> future,
+  ErrorDialogBuilder<E>? errorBuilder,
+}) async {
+  final Result<T, E>? result = await showDialog(
+    context: context,
+    // Don't want loading spinner to be dismissable.
+    barrierDismissible: false,
+    builder: (_context) => FutureBuilder(
+      future: future,
+      builder: (context, result) {
+        if (result.hasData || result.hasError) {
+          unawaited(Navigator.of(context).maybePop(result.data));
+        }
+        return const LoadingSpinnerModal();
+      },
+    ),
+  );
+
+  // Canceled
+  if (!context.mounted) return null;
+
+  // If there was an error, show an error dialog
+  if (errorBuilder != null) {
+    if (result case Err(:final err)) {
+      final _ = await showDialog(
+        context: context,
+        builder: (context) => errorBuilder(context, err),
+      );
+      if (!context.mounted) return null;
+    }
+  }
+
+  return result;
+}
+
+class LoadingSpinnerModal extends StatelessWidget {
+  const LoadingSpinnerModal({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final DialogTheme dialogTheme = DialogTheme.of(context);
+
+    // Ideally we would use a [Dialog] here. Too bad it mandates a 280 min
+    // width, which looks ugly. So we're rolling our own...
+    return Center(
+      child: Material(
+        type: MaterialType.card,
+
+        // Inherit properties from the [DialogTheme]
+        color: dialogTheme.backgroundColor,
+        shape: dialogTheme.shape,
+        elevation: dialogTheme.elevation ?? 0.0,
+        shadowColor: dialogTheme.shadowColor,
+        surfaceTintColor: dialogTheme.surfaceTintColor,
+        textStyle: dialogTheme.contentTextStyle,
+
+        // The actual spinner
+        child: const Padding(
+          padding: EdgeInsets.all(Space.s600),
+          child: SizedBox.square(
+            dimension: Space.s700,
+            child: CircularProgressIndicator(
+              strokeWidth: 5.0,
+              color: LxColors.fgSecondary,
+              strokeCap: StrokeCap.round,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

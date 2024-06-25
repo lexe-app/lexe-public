@@ -224,6 +224,17 @@ final class LxTheme {
           fontSize: Fonts.size300,
         ),
       ),
+
+      // [Dialog]
+      dialogTheme: const DialogTheme(
+        backgroundColor: LxColors.background,
+        elevation: 0.0,
+        shape: RoundedRectangleBorder(
+          borderRadius:
+              BorderRadius.all(Radius.elliptical(LxRadius.r400, LxRadius.r400)),
+        ),
+        barrierColor: LxColors.clearB300,
+      ),
     );
   }
 }
