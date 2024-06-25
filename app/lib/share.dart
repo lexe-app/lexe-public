@@ -23,8 +23,7 @@ abstract final class LxShare {
   /// Sadly the current flutter packages (`share_plus` and `url_launcher`) don't
   /// quite support all of this in one bubble. We'd probably need to write our
   /// own particular native handler for iOS and Android for this to work as
-  /// I want. Instead, we'll just try opening it in a wallet (if there is one)
-  /// and fallback to sharing as plaintext.
+  /// I want. Instead, we'll just try sharing as plaintext.
   ///
   /// The `context` parameter is for macOS and iPad, so they can draw the share
   /// popup bubble above that widget.
@@ -32,16 +31,23 @@ abstract final class LxShare {
     BuildContext context,
     Uri uri,
   ) async {
-    // First try opening the payment URI in another app (if there are any that
-    // support it):
-    final openResult = await LxShare._tryOpenPaymentUriInOtherApp(uri);
-    if (!context.mounted) return;
+    // TODO(phlip9): if Lexe is the only wallet registered as a handler, tapping
+    // "share payment" in Lexe will immediately open... Lexe, again, to handle
+    // it... Definitely not what we want.
+    //
+    // Ideally, `url_launcher` would let us see _which_ apps can handle the URIs,
+    // so we can filter out Lexe as an option.
 
-    switch (openResult) {
-      case ShareResultStatus.success || ShareResultStatus.dismissed:
-        return;
-      case ShareResultStatus.unavailable:
-    }
+    // // First try opening the payment URI in another app (if there are any that
+    // // support it):
+    // final openResult = await LxShare._tryOpenPaymentUriInOtherApp(uri);
+    // if (!context.mounted) return;
+    //
+    // switch (openResult) {
+    //   case ShareResultStatus.success || ShareResultStatus.dismissed:
+    //     return;
+    //   case ShareResultStatus.unavailable:
+    // }
 
     // Otherwise fallback to sharing as plaintext:
 
@@ -67,8 +73,10 @@ abstract final class LxShare {
     return;
   }
 
-  // TODO(phlip9): what happens when Lexe.app supports these deep links? Will we
-  // open ourselves to handle this payment?
+  // TODO(phlip9): right now, this will show Lexe as an option to handle a
+  // payment URI, which is super confusing. We'll need to somehow filter
+  // ourselves out of the list of handlers.
+  // ignore: unused_element
   static Future<ShareResultStatus> _tryOpenPaymentUriInOtherApp(
     Uri uri,
   ) async {

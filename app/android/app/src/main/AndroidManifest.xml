@@ -83,10 +83,13 @@
     <!-- Required for `url_launcher` to query for other apps that can open
          "bitcoin:" and "lightning:" payment URIs.
          See: <app/lib/share.dart> -->
-    <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="BITCOIN"/> </intent>
-    <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="LIGHTNING"/> </intent>
-    <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="bitcoin"/> </intent>
-    <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="lightning"/> </intent>
+    <!-- TODO(phlip9): this doesn't work well when Lexe is registered as the
+         only handler for these URI schemes. Let's hold onto this for when we
+         figure out a more robust solution. -->
+    <!-- <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="BITCOIN"/> </intent> -->
+    <!-- <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="LIGHTNING"/> </intent> -->
+    <!-- <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="bitcoin"/> </intent> -->
+    <!-- <intent> <action android:name="android.intent.action.VIEW"/> <data android:scheme="lightning"/> </intent> -->
     </queries>
 
   <!-- Need network access to talk to remote LEXE node -->
