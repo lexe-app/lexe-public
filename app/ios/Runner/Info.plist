@@ -59,15 +59,18 @@
     <string>495704988639-19bfg8k5f3runiio4apbicpounc10gh1.apps.googleusercontent.com</string>
 
     <!-- Required for `url_launcher` to query for other apps that can open
-       "bitcoin:" and "lightning:" payment URIs.
-       See: <app/lib/share.dart> -->
-    <key>LSApplicationQueriesSchemes</key>
-    <array>
-      <string>BITCOIN</string>
-      <string>LIGHTNING</string>
-      <string>bitcoin</string>
-      <string>lightning</string>
-      </array>
+         "bitcoin:" and "lightning:" payment URIs.
+         See: <app/lib/share.dart> -->
+    <!-- TODO(phlip9): this doesn't work well when Lexe is registered as the
+         only handler for these URI schemes. Let's hold onto this for when we
+         figure out a more robust solution. -->
+    <!-- <key>LSApplicationQueriesSchemes</key> -->
+    <!-- <array> -->
+    <!--   <string>BITCOIN</string> -->
+    <!--   <string>LIGHTNING</string> -->
+    <!--   <string>bitcoin</string> -->
+    <!--   <string>lightning</string> -->
+    <!--   </array> -->
 
     <key>LSRequiresIPhoneOS</key>
     <true/>
