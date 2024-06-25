@@ -51,12 +51,14 @@ import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/components.dart'
     show
         HeadingText,
+        LoadingSpinnerModal,
         LxBackButton,
         LxFilledButton,
         LxOutlinedButton,
         MultistepFlow,
         ScrollableSinglePageBody,
-        SubheadingText;
+        SubheadingText,
+        showModalAsyncFlow;
 import 'package:lexeapp/date_format.dart' as date_format;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
 import 'package:lexeapp/logger.dart';
@@ -102,7 +104,6 @@ Future<void> main() async {
   info("Test build config: $config");
 
   final uriEvents = await UriEvents.prod();
-  info("UriEvents: initialUri: ${uriEvents.initialUri}");
 
   runApp(
     MaterialApp(
@@ -384,7 +385,11 @@ class _LexeDesignPageState extends State<LexeDesignPage> {
             ),
             Component(
               "Buttons",
-              (context) => const ButtonDesignPage(),
+              (_) => const ButtonDesignPage(),
+            ),
+            Component(
+              "ModalAsyncFlow",
+              (_) => const ModalAsyncFlowDesignPage(),
             ),
             // Component(
             //   "Markdown",
@@ -917,11 +922,6 @@ class ButtonDesignPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // info(
-    //     "OutlinedButtonThemeData: ${Theme.of(context).outlinedButtonTheme.style}");
-    // info(
-    //     "OutlinedButton.defaultStyleOf: ${OutlinedButton.defaultStyleOf(context)}");
-
     return Theme(
       // // Uncomment to view default material theme:
       // data: ThemeData.light(useMaterial3: true),
@@ -932,7 +932,6 @@ class ButtonDesignPage extends StatelessWidget {
           leading: const LxBackButton(isLeading: true),
         ),
         body: ScrollableSinglePageBody(
-          // padding: const EdgeInsets.symmetric(horizontal: Space.s900),
           body: [
             const HeadingText(text: "Button design page"),
             const SubheadingText(text: "Check button styling here"),
@@ -1054,6 +1053,91 @@ class ButtonDesignPage extends StatelessWidget {
 
             const SizedBox(height: Space.s1200),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class ModalAsyncFlowDesignPage extends StatelessWidget {
+  const ModalAsyncFlowDesignPage({super.key});
+
+  Future<void> openLoadingModal(BuildContext context) async {
+    await showDialog(
+      context: context,
+      builder: (_) => const LoadingSpinnerModal(),
+    );
+  }
+
+  Future<void> showModalAsyncFlowOk(BuildContext context) async {
+    final result = await showModalAsyncFlow(
+      context: context,
+      future: Future.delayed(
+        const Duration(milliseconds: 1500),
+        () => const Ok("success"),
+      ),
+    );
+    info("startModalAsyncFlowOk: result: $result");
+  }
+
+  Future<void> showModalAsyncFlowErr(BuildContext context) async {
+    final result = await showModalAsyncFlow(
+      context: context,
+      future: Future.delayed(
+        const Duration(milliseconds: 1500),
+        () => const Err(
+            "W/WindowOnBackDispatcher(26148): Set 'android:enableOnBackInvokedCallback=\"true\"' in the application manifest."),
+      ),
+      errorBuilder: (context, err) => AlertDialog(
+        title: const Text("Issue with payment"),
+        content: Text(err),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+    info("startModalAsyncFlowOk: result: $result");
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: LxTheme.light(),
+      child: Scaffold(
+        appBar: AppBar(
+          leadingWidth: Space.appBarLeadingWidth,
+          leading: const LxBackButton(isLeading: true),
+        ),
+        body: Builder(
+          builder: (context) => ScrollableSinglePageBody(
+            body: [
+              const SizedBox(height: Space.s800),
+
+              //
+              LxOutlinedButton(
+                onTap: () => this.openLoadingModal(context),
+                label: const Text("Open loading spinner modal"),
+              ),
+              const SizedBox(height: Space.s400),
+
+              //
+              LxOutlinedButton(
+                onTap: () => this.showModalAsyncFlowOk(context),
+                label: const Text("Modal async flow (ok)"),
+              ),
+              const SizedBox(height: Space.s400),
+
+              //
+              LxOutlinedButton(
+                onTap: () => this.showModalAsyncFlowErr(context),
+                label: const Text("Modal async flow (err)"),
+              ),
+              const SizedBox(height: Space.s400),
+            ],
+          ),
         ),
       ),
     );

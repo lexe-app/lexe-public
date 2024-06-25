@@ -287,6 +287,7 @@ class FullscreenQrDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       insetPadding: EdgeInsets.zero,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
       child: LayoutBuilder(
         builder: (context, constraints) => QrImage(
           value: this.value,
