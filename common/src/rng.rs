@@ -1,6 +1,6 @@
 //! Random number generation utilities
 
-use std::num::NonZeroU32;
+use std::{cell::Cell, num::NonZeroU32};
 
 use bitcoin::secp256k1::{All, Secp256k1, SignOnly};
 #[cfg(any(test, feature = "test-utils"))]
@@ -190,10 +190,9 @@ impl CryptoRng for WeakRng {}
 impl RngCore for WeakRng {
     #[inline]
     fn next_u32(&mut self) -> u32 {
-        let r = self.s0.wrapping_mul(0x9e3779bb);
-        self.s1 ^= self.s0;
-        self.s0 = self.s0.rotate_left(26) ^ self.s1 ^ (self.s1 << 9);
-        self.s1 = self.s1.rotate_left(13);
+        let (s0, s1, r) = xoroshiro64star_next_u32(self.s0, self.s1);
+        self.s0 = s0;
+        self.s1 = s1;
         r
     }
 
@@ -215,6 +214,17 @@ impl RngCore for WeakRng {
         self.fill_bytes(dest);
         Ok(())
     }
+}
+
+/// The core rng step that generates the next random output for [`WeakRng`] and
+/// [`ThreadWeakRng`].
+#[inline(always)]
+fn xoroshiro64star_next_u32(mut s0: u32, mut s1: u32) -> (u32, u32, u32) {
+    let r = s0.wrapping_mul(0x9e3779bb);
+    s1 ^= s0;
+    s0 = s0.rotate_left(26) ^ s1 ^ (s1 << 9);
+    s1 = s1.rotate_left(13);
+    (s0, s1, r)
 }
 
 impl SeedableRng for WeakRng {
@@ -256,6 +266,94 @@ impl Arbitrary for WeakRng {
             .no_shrink()
             .prop_map(WeakRng::from_seed)
             .boxed()
+    }
+}
+
+/// A thread-local [`WeakRng`] that is seeded from the global [`SysRng`] the
+/// first time a thread uses it.
+///
+/// Like `WeakRng`, it's a small, fast, and _non-cryptographic_ rng with decent
+/// statistical properties. Useful for sampling non-security sensitive data.
+///
+/// Shines in multithreaded/async scenarios where don't want to have to
+/// synchronize on a single `Mutex<WeakRng>` or deal with handing out `WeakRng`s
+/// to each thread. Instead we let thread-locals handle all the drudgery.
+pub struct ThreadWeakRng(());
+
+impl ThreadWeakRng {
+    #[inline]
+    pub fn new() -> Self {
+        Self(())
+    }
+}
+
+impl Default for ThreadWeakRng {
+    #[inline]
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Only enable [`CryptoRng`] for this rng when testing.
+#[cfg(any(test, feature = "test-utils"))]
+impl CryptoRng for ThreadWeakRng {}
+
+thread_local! {
+    // Can't put a `WeakRng` here directly, since it's not `Copy`
+    // (and shouldn't impl `Copy`).
+    //
+    // Using `const { .. }` with a noop-drop type (allegedly) lets us
+    // use a faster thread_local impl.
+    static THREAD_RNG_STATE: Cell<u64> = const { Cell::new(0) };
+}
+
+impl RngCore for ThreadWeakRng {
+    fn next_u32(&mut self) -> u32 {
+        let mut s01 = THREAD_RNG_STATE.get();
+
+        // Need to seed this thread-local rng
+        if s01 == 0 {
+            // Mark this branch cold to encourage better codegen, since
+            // seeding should only happen once per thread.
+            #[cold]
+            #[inline(never)]
+            fn reseed() -> u64 {
+                SysRng::new().gen_u64()
+            }
+            s01 = reseed();
+        }
+
+        // unpack state
+        let s0 = (s01 >> 32) as u32;
+        let s1 = s01 as u32;
+
+        // gen next state and output
+        let (s0, s1, r) = xoroshiro64star_next_u32(s0, s1);
+
+        // repack state and update
+        let s01 = ((s0 as u64) << 32) | (s1 as u64);
+        THREAD_RNG_STATE.set(s01);
+
+        r
+    }
+
+    #[inline]
+    fn next_u64(&mut self) -> u64 {
+        rand_core::impls::next_u64_via_u32(self)
+    }
+
+    #[inline]
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        rand_core::impls::fill_bytes_via_next(self, dest);
+    }
+
+    #[inline]
+    fn try_fill_bytes(
+        &mut self,
+        dest: &mut [u8],
+    ) -> Result<(), rand_core::Error> {
+        self.fill_bytes(dest);
+        Ok(())
     }
 }
 

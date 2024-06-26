@@ -2,7 +2,6 @@
 //! including constants and fns which help keep client and server consistent.
 
 use std::{
-    cell::RefCell,
     fmt::{self, Display},
     sync::OnceLock,
     time::Duration,
@@ -15,7 +14,7 @@ use tracing::{span, warn, Dispatch};
 
 #[cfg(doc)]
 use crate::api::rest::RestClient;
-use crate::rng::{RngExt, SysRng, WeakRng};
+use crate::rng::ThreadWeakRng;
 
 /// The `target` that should be used for request spans and events.
 // Short, greppable, low chance of collision in logs
@@ -58,29 +57,10 @@ impl TraceId {
     /// Byte length of a [`TraceId`].
     const LENGTH: usize = 16;
 
-    /// Convenience to generate a [`TraceId`] when a RNG isn't on hand.
+    /// Convenience to generate a [`TraceId`] using the thread-local
+    /// [`ThreadWeakRng`].
     pub fn generate() -> Self {
-        thread_local! {
-            /// A lazily-initialized thread-local [`WeakRng`] seeded by a
-            /// [`SysRng`]. We don't use [`SysRng`] directly because Linux
-            /// requires a syscall for each `fill()`.
-            static RNG: RefCell<Option<WeakRng>> = const { RefCell::new(None) };
-        }
-
-        RNG.with_borrow_mut(|maybe_rng: &mut Option<WeakRng>| {
-            // Initialize the rng if needed, and get a mutable reference to it.
-            let rng: &mut WeakRng = match maybe_rng.as_mut() {
-                Some(rng) => rng,
-                None => {
-                    let seed = SysRng::new().gen_u64();
-                    let rng = WeakRng::from_u64(seed);
-                    maybe_rng.insert(rng)
-                }
-            };
-
-            // Generate the TraceId.
-            Self::from_rng(rng)
-        })
+        Self::from_rng(&mut ThreadWeakRng::new())
     }
 
     /// Generate a [`TraceId`] from an existing rng.
@@ -288,6 +268,7 @@ mod arbitrary_impl {
     };
 
     use super::*;
+    use crate::rng::WeakRng;
 
     impl Arbitrary for TraceId {
         type Parameters = ();
