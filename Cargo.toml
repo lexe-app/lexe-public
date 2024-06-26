@@ -107,7 +107,7 @@ secrecy = "0.8"
 semver = "1"
 # Serialization / deserialization framework
 serde = { version = "1", features = ["derive"] }
-serde_with = { version = "3", default-features = false }
+serde_with = { version = "3", default-features = false, features = ["macros"] }
 serde_json = "1"
 # Enum #[derive(..)] helpers
 strum = { version = "0.26", features = ["derive"] }
