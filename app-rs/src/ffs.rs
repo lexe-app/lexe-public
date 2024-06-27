@@ -1,10 +1,12 @@
+//! Flat file system abstraction
+
 use std::{
     fs,
     io::{self, Read},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
-use anyhow::Context;
+use common::rng::{RngExt, ThreadWeakRng};
 
 /// Abstraction over a flat file system (no subdirs), suitable for mocking.
 pub trait Ffs {
@@ -40,51 +42,66 @@ pub trait Ffs {
 
 /// File system impl for [`Ffs`] that does real IO.
 pub struct FlatFileFs {
+    /// Files are stored flat (i.e., no subdirectories) in this directory.
     base_dir: PathBuf,
+
+    /// `{base_dir}/.write`
+    ///
+    /// Used to support atomic writes. We fully write files to this subdir
+    /// before moving them to their final destination in `base_dir`.
+    ///
+    /// We store these pending writes in a subdirectory of `base_dir` to avoid
+    /// crossing a filesystem boundary when moving them (which would make the
+    /// move definitely not atomic).
+    write_dir: PathBuf,
 }
 
 impl FlatFileFs {
-    /// Create a new [`FlatFileFs`] without ensuring that the directory exists.
-    pub fn new(base_dir: PathBuf) -> Self {
-        Self { base_dir }
-    }
-
     /// Create a new [`FlatFileFs`] ready for use.
     ///
     /// Normally, it's expected that this directory already exists. In case that
     /// directory doesn't exist, this fn will create `base_dir` and any parent
     /// directories.
     pub fn create_dir_all(base_dir: PathBuf) -> anyhow::Result<Self> {
-        fs::create_dir_all(&base_dir).with_context(|| {
-            format!("Failed to create directory ({})", base_dir.display())
-        })?;
-        Ok(Self::new(base_dir))
+        // Ensure the base_dir exists
+        fs::create_dir_all(base_dir.as_path())?;
+
+        // Clean up any write_dir from before. This could contain partially
+        // complete writes from just before a crash.
+        let write_dir = Self::write_dir_path(&base_dir);
+        fsext::remove_dir_all_idempotent(&write_dir)?;
+        fs::create_dir(write_dir.as_path())?;
+
+        Ok(Self {
+            base_dir,
+            write_dir,
+        })
     }
 
     /// Create a new [`FlatFileFs`] at `base_dir`, but clean any existing files
     /// first.
     pub fn create_clean_dir_all(base_dir: PathBuf) -> anyhow::Result<Self> {
         // Clean up any existing directory, if it exists.
-        if let Err(err) = fs::remove_dir_all(&base_dir) {
-            match err.kind() {
-                io::ErrorKind::NotFound => (),
-                _ => return Err(anyhow::Error::new(err))
-                    .with_context(|| {
-                        format!(
-                            "Something went wrong while trying to clean the directory ({})",
-                            base_dir.display(),
-                        )
-                    }),
-            }
-        }
+        fsext::remove_dir_all_idempotent(&base_dir)?;
+        fs::create_dir_all(base_dir.as_path())?;
 
-        Self::create_dir_all(base_dir)
+        let write_dir = Self::write_dir_path(&base_dir);
+        fs::create_dir(write_dir.as_path())?;
+
+        Ok(Self {
+            base_dir,
+            write_dir,
+        })
+    }
+
+    fn write_dir_path(base_dir: &Path) -> PathBuf {
+        base_dir.join(".write")
     }
 }
 
 impl Ffs for FlatFileFs {
     fn read_into(&self, filename: &str, buf: &mut Vec<u8>) -> io::Result<()> {
-        let mut file = fs::File::open(self.base_dir.join(filename))?;
+        let mut file = fs::File::open(self.base_dir.join(filename).as_path())?;
         file.read_to_end(buf)?;
         Ok(())
     }
@@ -108,22 +125,48 @@ impl Ffs for FlatFileFs {
     }
 
     fn write(&self, filename: &str, data: &[u8]) -> io::Result<()> {
-        // NOTE: could use `atomicwrites` crate to make this a little safer
-        // against random crashes. definitely not free though; costs at
-        // least 5 ms per write on Linux (while macOS just ignores fsyncs lol).
-        fs::write(self.base_dir.join(filename), data)?;
+        let final_dest_path = self.base_dir.join(filename);
+
+        // Sample a new random alphanumeric filename to use in the .write subdir
+        // ex: "{base_dir}/.write/z2l86yb3zYS6CT7C".
+        //
+        // This way multiple threads can't partially write to the same file.
+        // Only one will win, and the write will be atomic.
+        let tmp_write_path = {
+            let name: [u8; 16] = ThreadWeakRng::new().gen_alphanum_bytes();
+            let name_str = std::str::from_utf8(name.as_slice())
+                .expect("ASCII is all valid UTF-8");
+            self.write_dir.join(name_str)
+        };
+
+        // Low effort atomic write (sans fsync's).
+        fs::write(tmp_write_path.as_path(), data)?;
+        fs::rename(tmp_write_path.as_path(), final_dest_path)?;
         Ok(())
     }
 
     fn delete_all(&self) -> io::Result<()> {
-        fs::remove_dir_all(&self.base_dir)?;
-        fs::create_dir(&self.base_dir)?;
+        fs::remove_dir_all(self.base_dir.as_path())?;
+        fs::create_dir(self.base_dir.as_path())?;
         Ok(())
     }
 
     fn delete(&self, filename: &str) -> io::Result<()> {
-        fs::remove_file(self.base_dir.join(filename))?;
+        fs::remove_file(self.base_dir.join(filename).as_path())?;
         Ok(())
+    }
+}
+
+mod fsext {
+    use std::{fs, io, path::Path};
+
+    /// [`std::fs::remove_dir_all`] but does not error on file not found.
+    pub(crate) fn remove_dir_all_idempotent(dir: &Path) -> io::Result<()> {
+        match fs::remove_dir_all(dir) {
+            Ok(()) => Ok(()),
+            Err(ref err) if err.kind() == io::ErrorKind::NotFound => Ok(()),
+            Err(err) => Err(err),
+        }
     }
 }
 
@@ -139,6 +182,7 @@ pub(crate) mod test {
         io::Error::new(io::ErrorKind::NotFound, filename)
     }
 
+    /// An in-memory mock [`Ffs`] implementation.
     #[derive(Debug)]
     pub(crate) struct MockFfs {
         inner: RefCell<MockFfsInner>,
