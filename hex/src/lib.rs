@@ -200,13 +200,33 @@ fn decode_to_slice_inner(
     }
 }
 
-/// Encode a single nibble of hex. This encode fn is also designed to be
-/// constant time.
+/// Encode a single nibble to hex. This encode fn is also designed to be
+/// (likely) constant time (as far as we can guarantee w/o dropping into
+/// assembly).
 #[inline(always)]
+#[allow(non_upper_case_globals)]
 const fn encode_nibble(nib: u8) -> u8 {
-    let mut hex = nib as i16 + (b'0' as i16);
-    hex += (((b'9' as i16) - hex) >> 8) & ((b'a' as i16) - 0x3a);
-    hex as u8
+    // nib ∈ [0, 15]
+    //
+    //                     nib >= 10
+    //                         |
+    //                         v
+    // [         ] -- gap9a -- [         ]
+    // 0 1 2 ... 9 : ; ... _ ` a b ... e f
+
+    const b_0: i16 = b'0' as i16;
+    const b_9: i16 = b'9' as i16;
+    const b_a: i16 = b'a' as i16;
+
+    let nib = nib as i16;
+    let base = nib + b_0;
+    // `hex::encode` is used to encode secrets. Don't branch on secrets.
+    // Though, this branch version doesn't codegen to a branch on
+    // x86_64 + opt-level=3.
+    //
+    // equiv: let gap_9a = if nib >= 10 { b'a' - b'9' - 1 } else { 0 };
+    let gap_9a = ((b_9 - b_0 - nib) >> 8) & (b_a - b_9 - 1);
+    (base + gap_9a) as u8
 }
 
 /// Decode a single nibble of lower hex

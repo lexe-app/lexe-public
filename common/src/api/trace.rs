@@ -65,13 +65,10 @@ impl TraceId {
 
     /// Generate a [`TraceId`] from an existing rng.
     pub fn from_rng(rng: &mut impl RngCore) -> Self {
-        use rand::{distributions::Alphanumeric, Rng};
+        use crate::rng::RngExt;
 
-        // Fill a 16 byte array with alphanumeric characters
-        let mut buf = [0u8; Self::LENGTH];
-        for byte_mut_ref in buf.each_mut() {
-            *byte_mut_ref = rng.sample(Alphanumeric);
-        }
+        // Generate a 16 byte array with alphanumeric characters
+        let buf: [u8; Self::LENGTH] = rng.gen_alphanum_bytes();
 
         let header_value = HeaderValue::from_bytes(&buf).expect(
             "All alphanumeric bytes are in range (32..=255), \
