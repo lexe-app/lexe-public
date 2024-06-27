@@ -216,7 +216,7 @@ impl From<FiatRatesRs> for FiatRates {
                 .rates
                 .into_iter()
                 .map(|(fiat, rate)| FiatRate {
-                    fiat: fiat.0,
+                    fiat: fiat.as_str().to_owned(),
                     rate: rate.0,
                 })
                 .collect(),

@@ -1,21 +1,26 @@
 //! Data types returned from the fiat exchange rate API.
 
-use std::{borrow::Borrow, collections::BTreeMap, fmt};
+use std::{
+    borrow::Borrow, collections::BTreeMap, error::Error, fmt, str::FromStr,
+};
 
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
+use serde_with::DeserializeFromStr;
 
 use crate::time::TimestampMs;
 
-/// Fiat currency ISO 4217 code.
+/// Currency ISO 4217 code. Intended to _only_ cover fiat currencies. For our
+/// purposes, a fiat currency code is _always_ three uppercase ASCII characters
+/// (i.e., `[A-Z]{3}`).
 ///
 /// ### Examples
 ///
 /// `"USD", "EUR", "DKK", "CNY", ...`
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Deserialize, Serialize)]
-#[serde(transparent)]
-pub struct FiatCode(pub String);
+#[derive(PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(DeserializeFromStr)]
+pub struct IsoCurrencyCode([u8; 3]);
 
 /// The BTC price in a given fiat currency.
 ///
@@ -55,34 +60,110 @@ pub struct FiatRates {
     /// price in that fiat currency (e.g., "USD" => $28,401.98 per BTC).
     ///
     /// We store and serialize this map in sorted order so it's easier to scan.
-    pub rates: BTreeMap<FiatCode, FiatBtcPrice>,
+    pub rates: BTreeMap<IsoCurrencyCode, FiatBtcPrice>,
 }
+
+/// An error from parsing an [`IsoCurrencyCode`].
+#[derive(Copy, Clone, Debug)]
+pub enum ParseError {
+    BadLength,
+    BadCharacter,
+}
+
+// --- impl FiatRates --- //
 
 impl FiatRates {
     pub fn dummy() -> Self {
         Self {
             timestamp_ms: TimestampMs::now(),
             rates: BTreeMap::from_iter([
-                (FiatCode("USD".to_owned()), FiatBtcPrice(67086.56654977065)),
-                (FiatCode("EUR".to_owned()), FiatBtcPrice(62965.97545915064)),
+                (IsoCurrencyCode(*b"USD"), FiatBtcPrice(67086.56654977065)),
+                (IsoCurrencyCode(*b"EUR"), FiatBtcPrice(62965.97545915064)),
             ]),
         }
     }
 }
 
-// --- impl FiatCode --- //
+// --- impl IsoCurrencyCode --- //
 
-impl Borrow<str> for FiatCode {
+impl IsoCurrencyCode {
+    #[inline]
+    pub fn as_str(&self) -> &str {
+        // SAFETY: we guarantee that IsoCurrencyCode is always uppercase ASCII.
+        unsafe { std::str::from_utf8_unchecked(self.0.as_slice()) }
+    }
+
+    #[inline]
+    pub fn try_from_bytes(value: [u8; 3]) -> Result<Self, ParseError> {
+        let [c0, c1, c2] = value;
+        if c0.is_ascii_uppercase()
+            && c1.is_ascii_uppercase()
+            && c2.is_ascii_uppercase()
+        {
+            Ok(Self(value))
+        } else {
+            Err(ParseError::BadCharacter)
+        }
+    }
+}
+
+impl FromStr for IsoCurrencyCode {
+    type Err = ParseError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let inner = <[u8; 3]>::try_from(s.as_bytes())
+            .map_err(|_| ParseError::BadLength)?;
+        Self::try_from_bytes(inner)
+    }
+}
+
+impl Borrow<str> for IsoCurrencyCode {
+    #[inline]
     fn borrow(&self) -> &str {
-        self.0.as_str()
+        self.as_str()
     }
 }
 
-impl fmt::Debug for FiatCode {
+impl fmt::Display for IsoCurrencyCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        fmt::Display::fmt(self.as_str(), f)
     }
 }
+
+impl fmt::Debug for IsoCurrencyCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Debug::fmt(self.as_str(), f)
+    }
+}
+
+impl Serialize for IsoCurrencyCode {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.as_str().serialize(serializer)
+    }
+}
+
+// --- impl ParseError --- //
+
+impl ParseError {
+    fn as_str(&self) -> &'static str {
+        match *self {
+            Self::BadLength =>
+                "IsoCurrencyCode: must be exactly 3 characters long",
+            Self::BadCharacter =>
+                "IsoCurrencyCode: must be all uppercase ASCII",
+        }
+    }
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl Error for ParseError {}
 
 // --- impl FiatBtcPrice --- //
 
@@ -94,25 +175,21 @@ impl fmt::Debug for FiatBtcPrice {
 
 #[cfg(any(test, feature = "test-utils"))]
 mod arbitrary_impl {
-    use std::str;
-
     use proptest::{
         array::uniform3,
         prelude::Arbitrary,
         strategy::{BoxedStrategy, Strategy},
     };
 
-    use super::FiatCode;
+    use super::IsoCurrencyCode;
 
-    impl Arbitrary for FiatCode {
+    impl Arbitrary for IsoCurrencyCode {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
         fn arbitrary_with(_args: Self::Parameters) -> Self::Strategy {
             uniform3(b'A'..=b'Z')
-                .prop_map(|code| {
-                    FiatCode(str::from_utf8(&code).unwrap().to_owned())
-                })
+                .prop_map(|code| IsoCurrencyCode::try_from_bytes(code).unwrap())
                 .boxed()
         }
     }
@@ -120,11 +197,12 @@ mod arbitrary_impl {
 
 #[cfg(test)]
 mod test {
-    use super::FiatRates;
-    use crate::test_utils::roundtrip::json_value_roundtrip_proptest;
+    use super::*;
+    use crate::test_utils::roundtrip;
 
     #[test]
-    fn fiat_rates_roundtrip() {
-        json_value_roundtrip_proptest::<FiatRates>();
+    fn json_roundtrips() {
+        roundtrip::json_string_roundtrip_proptest::<IsoCurrencyCode>();
+        roundtrip::json_value_roundtrip_proptest::<FiatRates>();
     }
 }
