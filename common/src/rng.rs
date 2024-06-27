@@ -56,12 +56,22 @@ pub trait RngExt: RngCore {
     fn gen_u32(&mut self) -> u32;
     fn gen_u64(&mut self) -> u64;
     fn gen_u128(&mut self) -> u128;
+
+    /// Generate `N` (nearly uniformly random) alphanumeric (0-9, A-Z, a-z)
+    /// bytes.
+    fn gen_alphanum_bytes<const N: usize>(&mut self) -> [u8; N];
 }
 
 impl<R: RngCore> RngExt for R {
     fn gen_bytes<const N: usize>(&mut self) -> [u8; N] {
         let mut out = [0u8; N];
         self.fill_bytes(&mut out);
+        out
+    }
+
+    fn gen_alphanum_bytes<const N: usize>(&mut self) -> [u8; N] {
+        let mut out = self.gen_bytes();
+        encode_alphanum_bytes(&mut out);
         out
     }
 
@@ -94,6 +104,36 @@ impl<R: RngCore> RngExt for R {
     fn gen_u128(&mut self) -> u128 {
         u128::from_le_bytes(self.gen_bytes())
     }
+}
+
+#[inline(never)]
+fn encode_alphanum_bytes<const N: usize>(inout: &mut [u8; N]) {
+    for x in inout.iter_mut() {
+        *x = encode_alphanum_byte(*x);
+    }
+}
+
+/// "project" a full byte `x ∈ [0, 255]` into the alphanumeric ASCII character
+/// range `(['0','9'] ∪ ['A','Z'] ∪ ['a','z'])`.
+///
+/// The projection is slightly biased (e.g., P('0') = 5/256 vs P('1') = 4/256),
+/// to avoid a rejection sampling loop and improve codegen.
+#[inline(always)]
+#[allow(non_snake_case)]
+const fn encode_alphanum_byte(x: u8) -> u8 {
+    //                    idx >= 10               idx >= 10 + 26
+    //                         |                       |
+    //                         v                       v
+    // [         ] -- gap9A -- [         ] -- gapZa -- [         ]
+    // 0 1 2 ... 9 : ; ... ? @ A B ... Y Z ] \ ... _ ` a b ... y z
+
+    let idx = fastmap8(x, 10 + 26 + 26);
+
+    let base = idx + b'0';
+    let gap_9A = if idx >= 10 { b'A' - b'9' - 1 } else { 0 };
+    let gap_Za = if idx >= 10 + 26 { b'a' - b'Z' - 1 } else { 0 };
+
+    base + gap_9A + gap_Za
 }
 
 /// A compatibility wrapper so we can use `ring`'s PRG with `rand` traits.
@@ -364,8 +404,16 @@ impl RngCore for ThreadWeakRng {
 #[cfg(any(test, feature = "test-utils"))]
 #[inline(always)]
 const fn fastmap32(x: u32, n: u32) -> u32 {
-    let mul = (x as u64).wrapping_mul(n as u64);
-    (mul >> 32) as u32
+    ((x as u64).wrapping_mul(n as u64) >> 32) as u32
+}
+
+/// Map `x` uniformly into the range `[0, n)`. Has slight modulo bias for large
+/// ranges.
+///
+/// See: <https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/>
+#[inline(always)]
+const fn fastmap8(x: u8, n: u8) -> u8 {
+    ((x as u16).wrapping_mul(n as u16) >> 8) as u8
 }
 
 /// Shuffle a slice. Very fast, but has slight modulo bias so don't use for
@@ -382,5 +430,43 @@ where
         let n = (i as u32) + 1;
         let j = fastmap32(rng.next_u32(), n) as usize;
         xs.swap(i, j);
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use proptest::{prop_assert, proptest};
+
+    use super::*;
+
+    #[test]
+    fn test_encode_alphanum_byte() {
+        let mut mset = [0u8; 256];
+        for c in 0..=255 {
+            let o = encode_alphanum_byte(c);
+            mset[o as usize] += 1;
+        }
+
+        let actual_alphabet = mset
+            .as_slice()
+            .iter()
+            .enumerate()
+            .filter(|(_idx, count)| **count != 0)
+            .map(|(idx, _count)| (idx as u8) as char)
+            .collect::<String>();
+
+        let expected_alphabet =
+            "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+        assert_eq!(&actual_alphabet, expected_alphabet);
+        assert_eq!(actual_alphabet.len(), 10 + 26 + 26);
+    }
+
+    #[test]
+    fn test_gen_alphanum_bytes() {
+        proptest!(|(mut rng: WeakRng)| {
+            let alphanum = rng.gen_alphanum_bytes::<16>();
+            let alphanum_str = std::str::from_utf8(alphanum.as_slice()).unwrap();
+            prop_assert!(alphanum_str.chars().all(|c| c.is_ascii_alphanumeric()));
+        });
     }
 }
