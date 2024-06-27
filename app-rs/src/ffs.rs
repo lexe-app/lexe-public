@@ -41,6 +41,7 @@ pub trait Ffs {
 }
 
 /// File system impl for [`Ffs`] that does real IO.
+#[derive(Clone)]
 pub struct FlatFileFs {
     /// Files are stored flat (i.e., no subdirectories) in this directory.
     base_dir: PathBuf,

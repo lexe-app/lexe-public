@@ -168,6 +168,7 @@ dependencies = [
  "proptest-derive",
  "roaring",
  "secrecy",
+ "serde",
  "serde_json",
  "tempfile",
  "tokio",
