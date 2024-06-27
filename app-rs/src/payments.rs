@@ -934,7 +934,7 @@ async fn sync_new_payments<F: Ffs, N: AppNodeRunApi>(
 
 #[cfg(test)]
 mod test {
-    use std::{cell::RefCell, collections::BTreeMap};
+    use std::collections::BTreeMap;
 
     use async_trait::async_trait;
     use bitcoin::Address;
@@ -951,7 +951,7 @@ mod test {
             Empty,
         },
         ln::payments::PaymentStatus,
-        rng::{shuffle, RngExt, WeakRng},
+        rng::{RngExt, WeakRng},
     };
     use proptest::{
         arbitrary::any,
@@ -963,99 +963,7 @@ mod test {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::ffs::FlatFileFs;
-
-    fn io_err_not_found(filename: &str) -> io::Error {
-        io::Error::new(io::ErrorKind::NotFound, filename)
-    }
-
-    #[derive(Debug)]
-    struct MockFfs {
-        inner: RefCell<MockFfsInner>,
-    }
-
-    #[derive(Debug)]
-    struct MockFfsInner {
-        rng: WeakRng,
-        files: BTreeMap<String, Vec<u8>>,
-    }
-
-    impl MockFfs {
-        fn new() -> Self {
-            Self {
-                inner: RefCell::new(MockFfsInner {
-                    rng: WeakRng::new(),
-                    files: BTreeMap::new(),
-                }),
-            }
-        }
-
-        fn from_rng(rng: WeakRng) -> Self {
-            Self {
-                inner: RefCell::new(MockFfsInner {
-                    rng,
-                    files: BTreeMap::new(),
-                }),
-            }
-        }
-    }
-
-    impl Ffs for MockFfs {
-        fn read_into(
-            &self,
-            filename: &str,
-            buf: &mut Vec<u8>,
-        ) -> io::Result<()> {
-            match self.inner.borrow().files.get(filename) {
-                Some(data) => buf.extend_from_slice(data),
-                None => return Err(io_err_not_found(filename)),
-            }
-            Ok(())
-        }
-
-        fn read_dir_visitor(
-            &self,
-            mut dir_visitor: impl FnMut(&str) -> io::Result<()>,
-        ) -> io::Result<()> {
-            // shuffle the file order to ensure we don't rely on it.
-            let mut filenames = self
-                .inner
-                .borrow()
-                .files
-                .keys()
-                .cloned()
-                .collect::<Vec<_>>();
-            {
-                let rng = &mut self.inner.borrow_mut().rng;
-                shuffle(rng, &mut filenames);
-            }
-
-            for filename in &filenames {
-                dir_visitor(filename)?;
-            }
-            Ok(())
-        }
-
-        fn write(&self, filename: &str, data: &[u8]) -> io::Result<()> {
-            self.inner
-                .borrow_mut()
-                .files
-                .insert(filename.to_owned(), data.to_owned());
-            Ok(())
-        }
-
-        fn delete_all(&self) -> io::Result<()> {
-            self.inner.borrow_mut().files = BTreeMap::new();
-            Ok(())
-        }
-
-        fn delete(&self, filename: &str) -> io::Result<()> {
-            match self.inner.borrow_mut().files.remove(filename) {
-                Some(_) => Ok(()),
-                None => Err(io_err_not_found(filename)),
-            }
-        }
-    }
+    use crate::ffs::{test::MockFfs, FlatFileFs};
 
     struct MockNode {
         payments: BTreeMap<PaymentIndex, BasicPayment>,
@@ -1178,7 +1086,8 @@ mod test {
         assert!(mock_ffs_db.state.is_empty());
 
         let tempdir = tempdir().unwrap();
-        let temp_fs = FlatFileFs::new(tempdir.path().to_path_buf());
+        let temp_fs =
+            FlatFileFs::create_dir_all(tempdir.path().to_path_buf()).unwrap();
         let temp_fs_db = PaymentDb::read(temp_fs).unwrap();
         assert!(temp_fs_db.state.is_empty());
 
@@ -1255,7 +1164,7 @@ mod test {
             batch_sizes in vec(1_usize..20, 0..5),
         )| {
             let tempdir = tempdir().unwrap();
-            let temp_fs = FlatFileFs::new(tempdir.path().to_path_buf());
+            let temp_fs = FlatFileFs::create_dir_all(tempdir.path().to_path_buf()).unwrap();
             let mut temp_fs_db = PaymentDb::empty(temp_fs);
 
             let mock_ffs = MockFfs::from_rng(rng);

@@ -126,3 +126,104 @@ impl Ffs for FlatFileFs {
         Ok(())
     }
 }
+
+#[cfg(test)]
+pub(crate) mod test {
+    use std::{cell::RefCell, collections::BTreeMap};
+
+    use common::rng::{shuffle, WeakRng};
+
+    use super::*;
+
+    fn io_err_not_found(filename: &str) -> io::Error {
+        io::Error::new(io::ErrorKind::NotFound, filename)
+    }
+
+    #[derive(Debug)]
+    pub(crate) struct MockFfs {
+        inner: RefCell<MockFfsInner>,
+    }
+
+    #[derive(Debug)]
+    struct MockFfsInner {
+        rng: WeakRng,
+        files: BTreeMap<String, Vec<u8>>,
+    }
+
+    impl MockFfs {
+        pub(crate) fn new() -> Self {
+            Self {
+                inner: RefCell::new(MockFfsInner {
+                    rng: WeakRng::new(),
+                    files: BTreeMap::new(),
+                }),
+            }
+        }
+
+        pub(crate) fn from_rng(rng: WeakRng) -> Self {
+            Self {
+                inner: RefCell::new(MockFfsInner {
+                    rng,
+                    files: BTreeMap::new(),
+                }),
+            }
+        }
+    }
+
+    impl Ffs for MockFfs {
+        fn read_into(
+            &self,
+            filename: &str,
+            buf: &mut Vec<u8>,
+        ) -> io::Result<()> {
+            match self.inner.borrow().files.get(filename) {
+                Some(data) => buf.extend_from_slice(data),
+                None => return Err(io_err_not_found(filename)),
+            }
+            Ok(())
+        }
+
+        fn read_dir_visitor(
+            &self,
+            mut dir_visitor: impl FnMut(&str) -> io::Result<()>,
+        ) -> io::Result<()> {
+            // shuffle the file order to ensure we don't rely on it.
+            let mut filenames = self
+                .inner
+                .borrow()
+                .files
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>();
+            {
+                let rng = &mut self.inner.borrow_mut().rng;
+                shuffle(rng, &mut filenames);
+            }
+
+            for filename in &filenames {
+                dir_visitor(filename)?;
+            }
+            Ok(())
+        }
+
+        fn write(&self, filename: &str, data: &[u8]) -> io::Result<()> {
+            self.inner
+                .borrow_mut()
+                .files
+                .insert(filename.to_owned(), data.to_owned());
+            Ok(())
+        }
+
+        fn delete_all(&self) -> io::Result<()> {
+            self.inner.borrow_mut().files = BTreeMap::new();
+            Ok(())
+        }
+
+        fn delete(&self, filename: &str) -> io::Result<()> {
+            match self.inner.borrow_mut().files.remove(filename) {
+                Some(_) => Ok(()),
+                None => Err(io_err_not_found(filename)),
+            }
+        }
+    }
+}
