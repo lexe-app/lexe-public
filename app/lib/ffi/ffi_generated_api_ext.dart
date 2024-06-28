@@ -1,9 +1,9 @@
 /// Extension methods on Dart/Rust FFI types.
 library;
 
-import 'package:lexeapp/bindings.dart' show api;
+import 'package:lexeapp/ffi/ffi.dart' show api;
 
-import 'package:lexeapp/bindings_generated_api.dart'
+import 'package:lexeapp/ffi/ffi_generated_api.dart'
     show
         Balance,
         ClientPaymentId,

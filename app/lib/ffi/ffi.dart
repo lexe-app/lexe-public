@@ -1,15 +1,15 @@
-// The `bindings` module loads the native Rust API.
+// The `ffi` module loads the native Rust API.
 //
-// * The Rust API is defined in `app-rs/src/bindings.rs`.
+// * The Rust API is defined in `app-rs/src/ffi/ffi.rs`.
 //
 // * From the Dart side, see the available APIs in
-//   `app/lib/bindings_generated_api.dart`.
+//   `app/lib/ffi/ffi_generated_api.dart`.
 
 import 'dart:ffi' as ffi;
 import 'dart:io' as io;
 
-import 'package:lexeapp/bindings_generated.dart' show AppRsImpl;
 import 'package:lexeapp/cfg.dart' as cfg;
+import 'package:lexeapp/ffi/ffi_generated.dart' show AppRsImpl;
 
 /// Android only supports ffi via dynamically linked libraries.
 /// I couldn't figure out how to statically link against our lib on Linux.

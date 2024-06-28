@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart' show expect, test;
 
-import 'package:lexeapp/bindings_generated_api.dart' show PaymentDirection;
 import 'package:lexeapp/currency_format.dart' as currency_format;
+import 'package:lexeapp/ffi/ffi_generated_api.dart' show PaymentDirection;
 
 void assertApproxEq(double actual, double expected, {double eps = 1e-9}) {
   final absDiff = (actual - expected).abs();

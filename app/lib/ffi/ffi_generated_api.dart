@@ -9,7 +9,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 import 'package:collection/collection.dart';
 
-part 'bindings_generated_api.freezed.dart';
+part 'ffi_generated_api.freezed.dart';
 
 abstract class AppRs {
   DeployEnv deployEnvFromStr({required String s, dynamic hint});

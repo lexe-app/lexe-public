@@ -499,7 +499,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = app.lexe.lexeapp.design;
 				PRODUCT_NAME = "Lexe Design";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_OBJC_BRIDGING_HEADER = Runner/bindings_generated.h;
+				SWIFT_OBJC_BRIDGING_HEADER = Runner/ffi_generated.h;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
@@ -581,7 +581,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = app.lexe.lexeapp.design;
 				PRODUCT_NAME = "Lexe Design";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_OBJC_BRIDGING_HEADER = Runner/bindings_generated.h;
+				SWIFT_OBJC_BRIDGING_HEADER = Runner/ffi_generated.h;
 				SWIFT_VERSION = 5.0;
 			};
 			name = "Release-design";
@@ -662,7 +662,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = app.lexe.lexeapp.design;
 				PRODUCT_NAME = "Lexe Design";
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_OBJC_BRIDGING_HEADER = Runner/bindings_generated.h;
+				SWIFT_OBJC_BRIDGING_HEADER = Runner/ffi_generated.h;
 				SWIFT_VERSION = 5.0;
 			};
 			name = "Profile-design";
@@ -740,7 +740,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_OBJC_BRIDGING_HEADER = Runner/bindings_generated.h;
+				SWIFT_OBJC_BRIDGING_HEADER = Runner/ffi_generated.h;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Profile;
@@ -871,7 +871,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_OBJC_BRIDGING_HEADER = Runner/bindings_generated.h;
+				SWIFT_OBJC_BRIDGING_HEADER = Runner/ffi_generated.h;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 			};
@@ -896,7 +896,7 @@
 					"@executable_path/../Frameworks",
 				);
 				PROVISIONING_PROFILE_SPECIFIER = "";
-				SWIFT_OBJC_BRIDGING_HEADER = Runner/bindings_generated.h;
+				SWIFT_OBJC_BRIDGING_HEADER = Runner/ffi_generated.h;
 				SWIFT_VERSION = 5.0;
 			};
 			name = Release;

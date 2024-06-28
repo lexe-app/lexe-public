@@ -2,8 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:lexeapp/bindings.dart' show api;
-import 'package:lexeapp/bindings_generated_api.dart' show AppHandle, Config;
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
@@ -16,6 +14,8 @@ import 'package:lexeapp/components.dart'
         ScrollableSinglePageBody,
         SubheadingText,
         baseInputDecoration;
+import 'package:lexeapp/ffi/ffi.dart' show api;
+import 'package:lexeapp/ffi/ffi_generated_api.dart' show AppHandle, Config;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';

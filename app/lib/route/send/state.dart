@@ -4,8 +4,8 @@
 
 import 'package:flutter/material.dart' show immutable;
 import 'package:lexeapp/address_format.dart' as address_format;
-import 'package:lexeapp/bindings.dart' show api;
-import 'package:lexeapp/bindings_generated_api.dart'
+import 'package:lexeapp/ffi/ffi.dart' show api;
+import 'package:lexeapp/ffi/ffi_generated_api.dart'
     show
         AppHandle,
         Balance,
@@ -26,7 +26,7 @@ import 'package:lexeapp/bindings_generated_api.dart'
         PreflightPayInvoiceResponse,
         PreflightPayOnchainRequest,
         PreflightPayOnchainResponse;
-import 'package:lexeapp/bindings_generated_api_ext.dart';
+import 'package:lexeapp/ffi/ffi_generated_api_ext.dart';
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';
 

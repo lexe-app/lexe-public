@@ -6,9 +6,9 @@ import 'package:flutter/cupertino.dart' show CupertinoScrollBehavior;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
-import 'package:lexeapp/bindings_generated_api.dart' show AppHandle, Config;
 import 'package:lexeapp/components.dart'
     show CarouselIndicatorsAndButtons, LxFilledButton, LxOutlinedButton;
+import 'package:lexeapp/ffi/ffi_generated_api.dart' show AppHandle, Config;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/route/signup.dart' show SignupApi, SignupPage;

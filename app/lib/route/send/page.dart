@@ -4,13 +4,6 @@
 
 import 'package:flutter/material.dart';
 import 'package:lexeapp/address_format.dart' as address_format;
-import 'package:lexeapp/bindings_generated_api.dart'
-    show
-        ConfirmationPriority,
-        FeeEstimate,
-        PaymentKind,
-        PreflightPayOnchainResponse;
-import 'package:lexeapp/bindings_generated_api_ext.dart';
 import 'package:lexeapp/components.dart'
     show
         AnimatedFillButton,
@@ -28,6 +21,13 @@ import 'package:lexeapp/components.dart'
         baseInputDecoration;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
+import 'package:lexeapp/ffi/ffi_generated_api.dart'
+    show
+        ConfirmationPriority,
+        FeeEstimate,
+        PaymentKind,
+        PreflightPayOnchainResponse;
+import 'package:lexeapp/ffi/ffi_generated_api_ext.dart';
 import 'package:lexeapp/input_formatter.dart' show IntInputFormatter;
 import 'package:lexeapp/logger.dart' show error, info;
 import 'package:lexeapp/result.dart';

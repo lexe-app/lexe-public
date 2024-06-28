@@ -2,17 +2,6 @@ import 'dart:async' show Timer, unawaited;
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
-import 'package:lexeapp/bindings_generated_api.dart'
-    show
-        AppHandle,
-        FiatRate,
-        Payment,
-        PaymentDirection,
-        PaymentIndex,
-        PaymentKind,
-        PaymentStatus,
-        UpdatePaymentNote;
-import 'package:lexeapp/bindings_generated_api_ext.dart';
 import 'package:lexeapp/components.dart'
     show
         FilledPlaceholder,
@@ -27,6 +16,17 @@ import 'package:lexeapp/components.dart'
         ValueStreamBuilder;
 import 'package:lexeapp/currency_format.dart' as currency_format;
 import 'package:lexeapp/date_format.dart' as date_format;
+import 'package:lexeapp/ffi/ffi_generated_api.dart'
+    show
+        AppHandle,
+        FiatRate,
+        Payment,
+        PaymentDirection,
+        PaymentIndex,
+        PaymentKind,
+        PaymentStatus,
+        UpdatePaymentNote;
+import 'package:lexeapp/ffi/ffi_generated_api_ext.dart';
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/stream_ext.dart';
