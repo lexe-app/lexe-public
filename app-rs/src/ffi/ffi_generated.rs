@@ -16,7 +16,7 @@ use std::{ffi::c_void, sync::Arc};
 
 use flutter_rust_bridge::{rust2dart::IntoIntoDart, *};
 
-use crate::bindings::*;
+use crate::ffi::ffi::*;
 
 // Section: imports
 
