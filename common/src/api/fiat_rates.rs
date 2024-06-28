@@ -1,9 +1,8 @@
 //! Data types returned from the fiat exchange rate API.
 
-use std::{
-    borrow::Borrow, collections::BTreeMap, error::Error, fmt, str::FromStr,
-};
+use std::{collections::BTreeMap, error::Error, fmt, str::FromStr};
 
+use const_utils::const_result_unwrap;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
 use serde::{Deserialize, Serialize};
@@ -18,7 +17,7 @@ use crate::time::TimestampMs;
 /// ### Examples
 ///
 /// `"USD", "EUR", "DKK", "CNY", ...`
-#[derive(PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[derive(DeserializeFromStr)]
 pub struct IsoCurrencyCode([u8; 3]);
 
@@ -77,8 +76,8 @@ impl FiatRates {
         Self {
             timestamp_ms: TimestampMs::now(),
             rates: BTreeMap::from_iter([
-                (IsoCurrencyCode(*b"USD"), FiatBtcPrice(67086.56654977065)),
-                (IsoCurrencyCode(*b"EUR"), FiatBtcPrice(62965.97545915064)),
+                (IsoCurrencyCode::USD, FiatBtcPrice(67086.56654977065)),
+                (IsoCurrencyCode::EUR, FiatBtcPrice(62965.97545915064)),
             ]),
         }
     }
@@ -87,6 +86,11 @@ impl FiatRates {
 // --- impl IsoCurrencyCode --- //
 
 impl IsoCurrencyCode {
+    pub const USD: Self = const_result_unwrap(Self::try_from_bytes(*b"USD"));
+    pub const EUR: Self = const_result_unwrap(Self::try_from_bytes(*b"EUR"));
+    // technically not a fiat, but useful
+    pub const BTC: Self = const_result_unwrap(Self::try_from_bytes(*b"BTC"));
+
     #[inline]
     pub fn as_str(&self) -> &str {
         // SAFETY: we guarantee that IsoCurrencyCode is always uppercase ASCII.
@@ -94,8 +98,9 @@ impl IsoCurrencyCode {
     }
 
     #[inline]
-    pub fn try_from_bytes(value: [u8; 3]) -> Result<Self, ParseError> {
+    const fn try_from_bytes(value: [u8; 3]) -> Result<Self, ParseError> {
         let [c0, c1, c2] = value;
+        // Do it like this so we can use it in `const`
         if c0.is_ascii_uppercase()
             && c1.is_ascii_uppercase()
             && c2.is_ascii_uppercase()
@@ -116,12 +121,12 @@ impl FromStr for IsoCurrencyCode {
     }
 }
 
-impl Borrow<str> for IsoCurrencyCode {
-    #[inline]
-    fn borrow(&self) -> &str {
-        self.as_str()
-    }
-}
+// impl Borrow<str> for IsoCurrencyCode {
+//     #[inline]
+//     fn borrow(&self) -> &str {
+//         self.as_str()
+//     }
+// }
 
 impl fmt::Display for IsoCurrencyCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
