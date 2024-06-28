@@ -11,7 +11,17 @@ import 'dart:async'
 import 'package:flutter/material.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' show freezed;
 import 'package:intl/intl.dart' show NumberFormat;
-import 'package:lexeapp/bindings_generated_api.dart'
+import 'package:lexeapp/components.dart'
+    show
+        FilledPlaceholder,
+        LxOutlinedButton,
+        LxRefreshButton,
+        MultistepFlow,
+        StateStreamBuilder,
+        showModalAsyncFlow;
+import 'package:lexeapp/currency_format.dart' as currency_format;
+import 'package:lexeapp/date_format.dart' as date_format;
+import 'package:lexeapp/ffi/ffi_generated_api.dart'
     show
         AppHandle,
         Config,
@@ -24,18 +34,7 @@ import 'package:lexeapp/bindings_generated_api.dart'
         PaymentStatus,
         ShortPayment,
         ShortPaymentAndIndex;
-import 'package:lexeapp/bindings_generated_api_ext.dart'
-    show ClientPaymentIdExt;
-import 'package:lexeapp/components.dart'
-    show
-        FilledPlaceholder,
-        LxOutlinedButton,
-        LxRefreshButton,
-        MultistepFlow,
-        StateStreamBuilder,
-        showModalAsyncFlow;
-import 'package:lexeapp/currency_format.dart' as currency_format;
-import 'package:lexeapp/date_format.dart' as date_format;
+import 'package:lexeapp/ffi/ffi_generated_api_ext.dart' show ClientPaymentIdExt;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';
 import 'package:lexeapp/route/debug.dart' show DebugPage;

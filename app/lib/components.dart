@@ -7,7 +7,7 @@ import 'dart:math' show max;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show MaxLengthEnforcement;
-import 'package:lexeapp/bindings_generated.dart' show MAX_PAYMENT_NOTE_BYTES;
+import 'package:lexeapp/ffi/ffi_generated.dart' show MAX_PAYMENT_NOTE_BYTES;
 import 'package:lexeapp/input_formatter.dart'
     show IntInputFormatter, MaxUtf8BytesInputFormatter;
 import 'package:lexeapp/result.dart';

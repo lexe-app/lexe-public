@@ -5,7 +5,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge.dart'
     show PanicException;
 import 'package:flutter_test/flutter_test.dart' show expect, test;
 
-import 'package:lexeapp/bindings.dart' show api;
+import 'package:lexeapp/ffi/ffi.dart' show api;
 import 'package:lexeapp/result.dart';
 
 int conjure3() => 3;

@@ -5,8 +5,8 @@
 // import 'package:integration_test/integration_test.dart'
 //     show IntegrationTestWidgetsFlutterBinding;
 //
-// import 'package:lexeapp/bindings.dart' show api;
-// import 'package:lexeapp/bindings_generated_api.dart' show AppHandle, Config;
+// import 'package:lexeapp/ffi/ffi.dart' show api;
+// import 'package:lexeapp/ffi/ffi_generated_api.dart' show AppHandle, Config;
 // import 'package:lexeapp/cfg.dart' as cfg;
 //
 // void assertFfiExceptionMsgHasBacktrace(FfiException err) {

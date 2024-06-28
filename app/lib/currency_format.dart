@@ -2,7 +2,7 @@
 
 import 'package:intl/intl.dart' show NumberFormat;
 
-import 'package:lexeapp/bindings_generated_api.dart' show PaymentDirection;
+import 'package:lexeapp/ffi/ffi_generated_api.dart' show PaymentDirection;
 
 const int satsPerBtc = 100000000; // 1e8, 100 million sats
 

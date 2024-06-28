@@ -12,8 +12,21 @@ import 'package:flutter/material.dart';
 // import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge.dart';
 import 'package:intl/intl.dart' show Intl;
-import 'package:lexeapp/bindings.dart' show api;
-import 'package:lexeapp/bindings_generated_api.dart'
+import 'package:lexeapp/cfg.dart' as cfg;
+import 'package:lexeapp/components.dart'
+    show
+        HeadingText,
+        LoadingSpinnerModal,
+        LxBackButton,
+        LxFilledButton,
+        LxOutlinedButton,
+        MultistepFlow,
+        ScrollableSinglePageBody,
+        SubheadingText,
+        showModalAsyncFlow;
+import 'package:lexeapp/date_format.dart' as date_format;
+import 'package:lexeapp/ffi/ffi.dart' show api;
+import 'package:lexeapp/ffi/ffi_generated_api.dart'
     show
         App,
         AppHandle,
@@ -46,20 +59,7 @@ import 'package:lexeapp/bindings_generated_api.dart'
         ShortPaymentAndIndex,
         U8Array32,
         UpdatePaymentNote;
-import 'package:lexeapp/bindings_generated_api_ext.dart' show PaymentExt;
-import 'package:lexeapp/cfg.dart' as cfg;
-import 'package:lexeapp/components.dart'
-    show
-        HeadingText,
-        LoadingSpinnerModal,
-        LxBackButton,
-        LxFilledButton,
-        LxOutlinedButton,
-        MultistepFlow,
-        ScrollableSinglePageBody,
-        SubheadingText,
-        showModalAsyncFlow;
-import 'package:lexeapp/date_format.dart' as date_format;
+import 'package:lexeapp/ffi/ffi_generated_api_ext.dart' show PaymentExt;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth, GDriveAuthInfo;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/result.dart';

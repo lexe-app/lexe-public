@@ -1,4 +1,4 @@
-//! Runs the `flutter_rust_bridge` codegen on the `app-rs` crate.
+//! Runs `flutter_rust_bridge` codegen on the `app-rs` crate.
 //!
 //! We previously ran this logic in an `app-rs/build.rs` build script, but
 //! several issues with both `flutter_rust_bridge` and `flutter` itself made
@@ -57,27 +57,15 @@ impl Args {
         })?;
         let app_dir = app_rs_dir.parent().unwrap().join("app");
 
-        // dbg!(app_rs_dir.display());
-        // dbg!(app_dir.display());
-
         let ffi_rs = app_rs_dir.join("src/ffi/ffi.rs");
         let ffi_generated_rs = app_rs_dir.join("src/ffi/ffi_generated.rs");
-        let bindings_generated_dart =
-            app_dir.join("lib/bindings_generated.dart");
-        let bindings_generated_api_dart =
-            app_dir.join("lib/bindings_generated_api.dart");
-        let ios_bindings_generated_h =
-            app_dir.join("ios/Runner/bindings_generated.h");
+        let ffi_generated_dart = app_dir.join("lib/ffi/ffi_generated.dart");
+        let ffi_generated_api_dart =
+            app_dir.join("lib/ffi/ffi_generated_api.dart");
+        let ios_ffi_generated_h = app_dir.join("ios/Runner/ffi_generated.h");
         let macos_path = app_dir.join("macos/Runner/");
-        let macos_bindings_generated_h =
-            app_dir.join("macos/Runner/bindings_generated.h");
-
-        // dbg!(bindings_rs.display());
-        // dbg!(bindings_generated_rs.display());
-        // dbg!(bindings_generated_dart.display());
-        // dbg!(bindings_generated_api_dart.display());
-        // dbg!(ios_bindings_generated_h.display());
-        // dbg!(macos_path.display());
+        let macos_ffi_generated_h =
+            app_dir.join("macos/Runner/ffi_generated.h");
 
         // flutter_rust_bridge options
         let configs = frb::config_parse(frb::RawOpts {
@@ -89,19 +77,17 @@ impl Args {
             rust_output: Some(vec![path_to_string(&ffi_generated_rs)?]),
 
             // Path to output generated Dart code impls.
-            dart_output: vec![path_to_string(&bindings_generated_dart)?],
+            dart_output: vec![path_to_string(&ffi_generated_dart)?],
             // Path to output generated Dart API declarations (decls only, no
             // impls) so you can easily read what APIs are available
             // from the Dart side.
-            dart_decl_output: Some(path_to_string(
-                &bindings_generated_api_dart,
-            )?),
+            dart_decl_output: Some(path_to_string(&ffi_generated_api_dart)?),
 
             // These steps dump headers with all the emitted ffi symbols. We
             // also reference these symbols from a dummy method so
             // they don't get stripped by the over-aggressive
             // iOS/macOS symbol stripper.
-            c_output: Some(vec![path_to_string(&ios_bindings_generated_h)?]),
+            c_output: Some(vec![path_to_string(&ios_ffi_generated_h)?]),
             extra_c_output_path: Some(vec![path_to_string(macos_path)?]),
 
             // Other options
@@ -113,7 +99,7 @@ impl Args {
             ..Default::default()
         });
 
-        // read Rust symbols from `src/bindings.rs`.
+        // read Rust symbols from `src/ffi/ffi.rs`.
         let all_symbols = frb::get_symbols_if_no_duplicates(&configs)
             .with_context(|| {
                 format!(
@@ -134,21 +120,21 @@ impl Args {
             let mut cmd = Command::new("git");
             cmd.args(["diff", "--exit-code"]).args([
                 &ffi_generated_rs,
-                &bindings_generated_dart,
-                &bindings_generated_api_dart,
-                &ios_bindings_generated_h,
-                &macos_bindings_generated_h,
+                &ffi_generated_dart,
+                &ffi_generated_api_dart,
+                &ios_ffi_generated_h,
+                &macos_ffi_generated_h,
             ]);
 
             // dbg!(&cmd);
 
-            let status = cmd
-                .status()
-                .context("Failed to run `git diff` on generated bindings")?;
+            let status = cmd.status().context(
+                "Failed to run `git diff` on generated ffi bindings",
+            )?;
 
             if !status.success() {
                 return Err(format_err!(
-                    "generated bindings are not up-to-date"
+                    "generated ffi bindings are not up-to-date"
                 ));
             }
         }

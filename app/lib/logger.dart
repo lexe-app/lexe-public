@@ -2,8 +2,8 @@ import 'dart:async' show Stream;
 
 import 'package:flutter/foundation.dart' show debugPrint;
 
-import 'package:lexeapp/bindings.dart' show api;
 import 'package:lexeapp/cfg.dart' as cfg;
+import 'package:lexeapp/ffi/ffi.dart' show api;
 import 'package:lexeapp/result.dart';
 
 const int _levelTrace = 0;

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl_standalone.dart' as intl_standalone;
-import 'package:lexeapp/bindings.dart' show api;
-import 'package:lexeapp/bindings_generated_api.dart'
-    show AppHandle, Config, DeployEnv;
 import 'package:lexeapp/cfg.dart' as cfg;
 import 'package:lexeapp/date_format.dart' as date_format;
+import 'package:lexeapp/ffi/ffi.dart' show api;
+import 'package:lexeapp/ffi/ffi_generated_api.dart'
+    show AppHandle, Config, DeployEnv;
 import 'package:lexeapp/gdrive_auth.dart' show GDriveAuth;
 import 'package:lexeapp/logger.dart';
 import 'package:lexeapp/route/landing.dart' show LandingPage;

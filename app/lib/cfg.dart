@@ -11,8 +11,8 @@
 import 'dart:io' show Directory, Platform;
 
 import 'package:flutter/foundation.dart' show kDebugMode, kReleaseMode;
-import 'package:lexeapp/bindings.dart' show api;
-import 'package:lexeapp/bindings_generated_api.dart'
+import 'package:lexeapp/ffi/ffi.dart' show api;
+import 'package:lexeapp/ffi/ffi_generated_api.dart'
     show Config, DeployEnv, Network;
 import 'package:path_provider/path_provider.dart' as path_provider;
 

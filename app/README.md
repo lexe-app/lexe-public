@@ -512,14 +512,14 @@ us to share code between our backend services, lightning nodes, and mobile apps.
 
 The native code is made available to the Flutter app via
 [`flutter_rust_bridge`](https://github.com/fzyzcjy/flutter_rust_bridge) in
-[`app/lib/bindings.dart`](lib/bindings.dart)
+[`app/lib/ffi/ffi.dart`](lib/ffi/ffi.dart)
 
 [`app-rs`](../app-rs/README.md) is the Rust crate which contains the shared
 interface and code.
 
 ### Regenerate the FFI bindings code
 
-After making changes to [`app-rs/src/bindings.rs`](../app-rs/src/bindings.rs),
+After making changes to [`app-rs/src/ffi/ffi.rs`](../app-rs/src/ffi/ffi.rs),
 be sure to regenerate the Dart+Rust FFI bindings:
 
 ```bash
@@ -573,8 +573,8 @@ The current build process looks like this:
   exception as soon as we call any Rust ffi function.
 
   To get around this issue, the generated
-  [`ios/Runner/bindings_generated.h`](ios/Runner/bindings_generated.h) and
-  [`macos/Runner/bindings_generated.h`](macos/Runner/bindings_generated.h) have
+  [`ios/Runner/ffi_generated.h`](ios/Runner/ffi_generated.h) and
+  [`macos/Runner/ffi_generated.h`](macos/Runner/ffi_generated.h) have
   a `dummy_method_to_enforce_bundling()` function which does something a bit
   silly: it just returns the xor of all the ffi function pointers.
 
