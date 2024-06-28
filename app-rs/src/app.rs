@@ -17,8 +17,10 @@ use common::{
         provision::NodeProvisionRequest,
         NodePk, NodePkProof, UserPk,
     },
+    cli::Network,
     client::{GatewayClient, NodeClient},
     constants,
+    env::DeployEnv,
     rng::Crng,
     root_seed::RootSeed,
     Apply, Secret,
@@ -27,7 +29,6 @@ use secrecy::ExposeSecret;
 use tracing::{info, instrument, warn};
 
 use crate::{
-    bindings::{Config, DeployEnv, Network},
     ffs::{Ffs, FlatFileFs},
     payments::{self, PaymentDb, PaymentSyncSummary},
     secret_store::SecretStore,
@@ -71,16 +72,14 @@ impl App {
         let user_pk = *user_key_pair.public_key();
         let bearer_authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
-        let gateway_client = GatewayClient::new(
-            config.deploy_env.into(),
-            config.gateway_url.clone(),
-        )
-        .context("Failed to build GatewayClient")?;
+        let gateway_client =
+            GatewayClient::new(config.deploy_env, config.gateway_url.clone())
+                .context("Failed to build GatewayClient")?;
         let node_client = NodeClient::new(
             rng,
             config.use_sgx,
             &root_seed,
-            config.deploy_env.into(),
+            config.deploy_env,
             bearer_authenticator,
             gateway_client.clone(),
         )
@@ -236,16 +235,14 @@ impl App {
         // build NodeClient, GatewayClient
         let bearer_authenticator =
             Arc::new(BearerAuthenticator::new(user_key_pair, None));
-        let gateway_client = GatewayClient::new(
-            config.deploy_env.into(),
-            config.gateway_url.clone(),
-        )
-        .context("Failed to build GatewayClient")?;
+        let gateway_client =
+            GatewayClient::new(config.deploy_env, config.gateway_url.clone())
+                .context("Failed to build GatewayClient")?;
         let node_client = NodeClient::new(
             rng,
             config.use_sgx,
             &root_seed,
-            config.deploy_env.into(),
+            config.deploy_env,
             bearer_authenticator,
             gateway_client.clone(),
         )
@@ -381,7 +378,7 @@ impl App {
 
         let provision_req = NodeProvisionRequest {
             root_seed: root_seed_clone,
-            deploy_env: config.deploy_env.into(),
+            deploy_env: config.deploy_env,
             network: config.network,
             google_auth_code,
             allow_gvfs_access: true,
@@ -421,44 +418,44 @@ impl AppConfig {
             use_sgx: self.use_sgx,
         }
     }
-}
 
-impl From<Config> for AppConfig {
-    fn from(config: Config) -> Self {
-        use DeployEnv::*;
-        use Network::*;
-
-        let deploy_env = config.deploy_env;
-        let network = config.network;
-        let gateway_url = config.gateway_url;
-        let use_sgx = config.use_sgx;
+    pub(crate) fn from_dart_config(
+        deploy_env: DeployEnv,
+        network: Network,
+        gateway_url: String,
+        use_sgx: bool,
+        base_app_data_dir: String,
+        use_mock_secret_store: bool,
+    ) -> Self {
         let build = BuildFlavor {
             deploy_env,
-            network: network.into(),
+            network,
             use_sgx,
         };
 
         // The base app data directory.
         // See: dart fn [`path_provider.getApplicationSupportDirectory()`](https://pub.dev/documentation/path_provider/latest/path_provider/getApplicationSupportDirectory.html)
-        let base_app_data_dir = PathBuf::from(config.base_app_data_dir);
+        let base_app_data_dir = PathBuf::from(base_app_data_dir);
         // To make development easier and avoid mixing state across
         // environments, we'll shove everything into a disambiguated subdir for
         // each environment/network pair, e.g., "prod-mainnet-sgx",
         // "dev-regtest-dbg".
         let app_data_dir = base_app_data_dir.join(build.to_string());
 
-        let use_mock_secret_store = config.use_mock_secret_store;
-
-        match (&deploy_env, &network, use_sgx, use_mock_secret_store) {
-            (Prod, Mainnet, true, false) => (),
-            (Staging, Testnet, true, false) => (),
-            (Dev, Testnet, _, _) | (Dev, Regtest, _, _) => (),
-            _ => panic!("Unsupported app config combination: {build}"),
+        {
+            use DeployEnv::*;
+            match (deploy_env, network, use_sgx, use_mock_secret_store) {
+                (Prod, Network::MAINNET, true, false) => (),
+                (Staging, Network::TESTNET, true, false) => (),
+                (Dev, Network::TESTNET, _, _)
+                | (Dev, Network::REGTEST, _, _) => (),
+                _ => panic!("Unsupported app config combination: {build}"),
+            }
         }
 
         Self {
             deploy_env,
-            network: network.into(),
+            network,
             gateway_url,
             use_sgx,
             app_data_dir,
@@ -472,7 +469,7 @@ impl From<Config> for AppConfig {
 /// e.g. testnet vs regtest.
 #[derive(Copy, Clone)]
 pub struct BuildFlavor {
-    network: common::cli::Network,
+    network: Network,
     deploy_env: DeployEnv,
     use_sgx: bool,
 }

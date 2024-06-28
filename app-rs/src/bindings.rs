@@ -73,6 +73,8 @@ use common::{
         qs::UpdatePaymentNote as UpdatePaymentNoteRs,
         Empty,
     },
+    cli::Network as NetworkRs,
+    env::DeployEnv as DeployEnvRs,
     ln::{
         amount::Amount,
         invoice::LxInvoice,
@@ -224,55 +226,31 @@ impl From<FiatRatesRs> for FiatRates {
     }
 }
 
+/// See [`common::env::DeployEnv`]
 #[frb(dart_metadata=("freezed"))]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum DeployEnv {
-    Prod,
-    Staging,
     Dev,
+    Staging,
+    Prod,
 }
 
-impl DeployEnv {
-    pub(crate) fn as_str(&self) -> &'static str {
-        match self {
-            Self::Prod => "prod",
-            Self::Staging => "staging",
-            Self::Dev => "dev",
-        }
-    }
-}
-
-impl FromStr for DeployEnv {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> anyhow::Result<Self> {
-        match s {
-            "prod" => Ok(Self::Prod),
-            "staging" => Ok(Self::Staging),
-            "dev" => Ok(Self::Dev),
-            _ => Err(anyhow!("unrecognized DEPLOY_ENVIRONMENT: '{s}'")),
-        }
-    }
-}
-
-impl From<common::env::DeployEnv> for DeployEnv {
-    fn from(env: common::env::DeployEnv) -> Self {
-        use common::env::DeployEnv::*;
+impl From<DeployEnvRs> for DeployEnv {
+    fn from(env: DeployEnvRs) -> Self {
         match env {
-            Dev => Self::Dev,
-            Staging => Self::Staging,
-            Prod => Self::Prod,
+            DeployEnvRs::Dev => Self::Dev,
+            DeployEnvRs::Staging => Self::Staging,
+            DeployEnvRs::Prod => Self::Prod,
         }
     }
 }
 
-impl From<DeployEnv> for common::env::DeployEnv {
+impl From<DeployEnv> for DeployEnvRs {
     fn from(env: DeployEnv) -> Self {
-        use DeployEnv::*;
         match env {
-            Dev => Self::Dev,
-            Staging => Self::Staging,
-            Prod => Self::Prod,
+            DeployEnv::Dev => Self::Dev,
+            DeployEnv::Staging => Self::Staging,
+            DeployEnv::Prod => Self::Prod,
         }
     }
 }
@@ -282,9 +260,12 @@ impl From<DeployEnv> for common::env::DeployEnv {
 //
 // "enhanced" enums: <https://dart.dev/language/enums#declaring-enhanced-enums>
 pub fn deploy_env_from_str(s: String) -> anyhow::Result<SyncReturn<DeployEnv>> {
-    DeployEnv::from_str(&s).map(SyncReturn)
+    DeployEnvRs::from_str(&s)
+        .map(DeployEnv::from)
+        .map(SyncReturn)
 }
 
+/// See [`common::cli::Network`]
 #[derive(Copy, Clone, Debug)]
 pub enum Network {
     Mainnet,
@@ -292,31 +273,31 @@ pub enum Network {
     Regtest,
 }
 
-impl From<Network> for common::cli::Network {
+impl From<Network> for NetworkRs {
     fn from(network: Network) -> Self {
         match network {
-            Network::Mainnet => common::cli::Network::MAINNET,
-            Network::Testnet => common::cli::Network::TESTNET,
-            Network::Regtest => common::cli::Network::REGTEST,
+            Network::Mainnet => NetworkRs::MAINNET,
+            Network::Testnet => NetworkRs::TESTNET,
+            Network::Regtest => NetworkRs::REGTEST,
         }
     }
 }
 
-impl TryFrom<common::cli::Network> for Network {
+impl TryFrom<NetworkRs> for Network {
     type Error = anyhow::Error;
 
-    fn try_from(network: common::cli::Network) -> anyhow::Result<Self> {
+    fn try_from(network: NetworkRs) -> anyhow::Result<Self> {
         match network {
-            common::cli::Network::MAINNET => Ok(Self::Mainnet),
-            common::cli::Network::TESTNET => Ok(Self::Testnet),
-            common::cli::Network::REGTEST => Ok(Self::Regtest),
+            NetworkRs::MAINNET => Ok(Self::Mainnet),
+            NetworkRs::TESTNET => Ok(Self::Testnet),
+            NetworkRs::REGTEST => Ok(Self::Regtest),
             _ => Err(anyhow!("unsupported NETWORK: '{network}'")),
         }
     }
 }
 
 pub fn network_from_str(s: String) -> anyhow::Result<SyncReturn<Network>> {
-    common::cli::Network::from_str(&s)
+    NetworkRs::from_str(&s)
         .and_then(Network::try_from)
         .map(SyncReturn)
 }
@@ -330,6 +311,19 @@ pub struct Config {
     pub use_sgx: bool,
     pub base_app_data_dir: String,
     pub use_mock_secret_store: bool,
+}
+
+impl From<Config> for AppConfig {
+    fn from(c: Config) -> Self {
+        AppConfig::from_dart_config(
+            DeployEnvRs::from(c.deploy_env),
+            NetworkRs::from(c.network),
+            c.gateway_url,
+            c.use_sgx,
+            c.base_app_data_dir,
+            c.use_mock_secret_store,
+        )
+    }
 }
 
 pub enum PaymentDirection {
@@ -603,7 +597,7 @@ pub fn form_validate_bitcoin_address(
 ) -> SyncReturn<Option<String>> {
     let result = form::validate_bitcoin_address(
         &address_str,
-        common::cli::Network::from(current_network),
+        NetworkRs::from(current_network),
     );
     SyncReturn(match result {
         Ok(()) => None,
