@@ -85,7 +85,7 @@ mod test {
 
     #[test]
     fn test_hexstr_or_bytes_opt() {
-        #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+        #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
         struct Foo {
             #[serde(with = "hexstr_or_bytes_opt")]
             a1: Option<[u8; 32]>,

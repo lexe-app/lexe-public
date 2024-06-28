@@ -29,7 +29,7 @@ pub struct AttestationCert(rcgen::Certificate);
 /// ```
 ///
 /// [`quote_enclave`]: super::quote::quote_enclave
-#[derive(PartialEq, Eq)]
+#[derive(Eq, PartialEq)]
 pub struct SgxAttestationExtension<'quote> {
     pub quote: Cow<'quote, [u8]>,
     // We don't verify the QE_REPORT because it requires calling an Intel JSON

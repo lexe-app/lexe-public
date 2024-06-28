@@ -66,7 +66,7 @@ pub enum Error {
 /// [`NodePk`]: crate::api::NodePk
 /// [`RootSeed`]: crate::root_seed::RootSeed
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct UserSignupRequest {
     /// The lightning node pubkey in a Proof-of-Key-Possession
     pub node_pk_proof: NodePkProof,
@@ -81,14 +81,14 @@ pub struct UserSignupRequest {
 }
 
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub enum BearerAuthRequest {
     V1(BearerAuthRequestV1),
 }
 
 /// A user client's request for auth token with certain restrictions.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct BearerAuthRequestV1 {
     /// The timestamp of this auth request, in seconds since UTC Unix time,
     /// interpreted relative to the server clock. Used to prevent replaying old

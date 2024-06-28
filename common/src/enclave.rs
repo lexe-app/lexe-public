@@ -283,12 +283,12 @@ pub enum Error {
 /// Get the current enclave measurement with [`measurement`].
 /// Get the current signer measurement with [`signer`].
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Measurement(#[serde(with = "hexstr_or_bytes")] [u8; 32]);
 
 /// A [`Measurement`] shortened to its first four bytes (8 hex chars).
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Deserialize, Serialize)]
 pub struct MrShort(#[serde(with = "hexstr_or_bytes")] [u8; 4]);
 
 /// A unique identifier for a particular hardware enclave.
@@ -315,18 +315,18 @@ pub struct MrShort(#[serde(with = "hexstr_or_bytes")] [u8; 4]);
 /// [CPUSVN]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#security-version-number-svn
 /// [`OWNER_EPOCH`]: https://phlip9.com/notes/confidential%20computing/intel%20SGX/SGX%20lingo/#owner-epoch
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct MachineId(#[serde(with = "hexstr_or_bytes")] [u8; 16]);
 
 /// TODO(max): Needs docs
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Deserialize, Serialize)]
 pub struct MinCpusvn(#[serde(with = "hexstr_or_bytes")] [u8; 16]);
 
 /// Sealed and encrypted data
 // TODO(phlip9): use a real serialization format like CBOR or something
 // TODO(phlip9): additional authenticated data?
-#[derive(PartialEq, Eq)]
+#[derive(Eq, PartialEq)]
 pub struct Sealed<'a> {
     /// A truncated [`sgx_isa::Keyrequest`].
     ///
