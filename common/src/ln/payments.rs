@@ -115,7 +115,7 @@ pub struct DbPayment {
 
 /// Specifies whether this is an onchain payment, LN invoice payment, etc.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-#[derive(SerializeDisplay, DeserializeFromStr)]
+#[derive(DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[cfg_attr(test, derive(strum::VariantArray))]
 pub enum PaymentKind {
@@ -126,7 +126,7 @@ pub enum PaymentKind {
 
 /// Specifies whether a payment is inbound or outbound.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-#[derive(SerializeDisplay, DeserializeFromStr)]
+#[derive(DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[cfg_attr(test, derive(strum::VariantArray))]
 pub enum PaymentDirection {
@@ -140,7 +140,7 @@ pub enum PaymentDirection {
 /// - Not suitable for getting detailed information about a specific payment; in
 ///   this case, use the payment-specific status enum or `status_str()` instead.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-#[derive(SerializeDisplay, DeserializeFromStr)]
+#[derive(DeserializeFromStr)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 #[cfg_attr(test, derive(strum::VariantArray))]
 pub enum PaymentStatus {
@@ -469,8 +469,19 @@ impl From<LxPaymentHash> for PaymentId {
     }
 }
 
-// --- FromStr / Display for the simple enums --- //
+// --- FromStr / Display / Serialize for the simple enums --- //
 
+// --- impl PaymentKind --- //
+
+impl PaymentKind {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Onchain => "onchain",
+            Self::Invoice => "invoice",
+            Self::Spontaneous => "spontaneous",
+        }
+    }
+}
 impl FromStr for PaymentKind {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -484,14 +495,28 @@ impl FromStr for PaymentKind {
 }
 impl Display for PaymentKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Onchain => write!(f, "onchain"),
-            Self::Invoice => write!(f, "invoice"),
-            Self::Spontaneous => write!(f, "spontaneous"),
-        }
+        f.write_str(self.as_str())
+    }
+}
+impl Serialize for PaymentKind {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.as_str().serialize(serializer)
     }
 }
 
+// --- impl PaymentDirection --- //
+
+impl PaymentDirection {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Inbound => "inbound",
+            Self::Outbound => "outbound",
+        }
+    }
+}
 impl FromStr for PaymentDirection {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -504,13 +529,29 @@ impl FromStr for PaymentDirection {
 }
 impl Display for PaymentDirection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Inbound => write!(f, "inbound"),
-            Self::Outbound => write!(f, "outbound"),
-        }
+        f.write_str(self.as_str())
+    }
+}
+impl Serialize for PaymentDirection {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.as_str().serialize(serializer)
     }
 }
 
+// --- impl PaymentStatus --- //
+
+impl PaymentStatus {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::Pending => "pending",
+            Self::Completed => "completed",
+            Self::Failed => "failed",
+        }
+    }
+}
 impl FromStr for PaymentStatus {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -524,11 +565,15 @@ impl FromStr for PaymentStatus {
 }
 impl Display for PaymentStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Pending => write!(f, "pending"),
-            Self::Completed => write!(f, "completed"),
-            Self::Failed => write!(f, "failed"),
-        }
+        f.write_str(self.as_str())
+    }
+}
+impl Serialize for PaymentStatus {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.as_str().serialize(serializer)
     }
 }
 

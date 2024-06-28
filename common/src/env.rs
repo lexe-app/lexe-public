@@ -5,14 +5,15 @@ use anyhow::{anyhow, ensure, Context};
 use proptest::strategy::Strategy;
 #[cfg(any(test, feature = "test-utils"))]
 use proptest_derive::Arbitrary;
-use serde_with::{DeserializeFromStr, SerializeDisplay};
+use serde::Serialize;
+use serde_with::DeserializeFromStr;
 use strum::VariantArray;
 
 use crate::{cli::Network, Apply};
 
 /// Represents a validated `DEPLOY_ENVIRONMENT` configuration.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
-#[derive(SerializeDisplay, DeserializeFromStr, VariantArray)]
+#[derive(DeserializeFromStr, VariantArray)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub enum DeployEnv {
     /// "dev"
@@ -117,7 +118,16 @@ impl FromStr for DeployEnv {
 
 impl Display for DeployEnv {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.as_str())
+        f.write_str(self.as_str())
+    }
+}
+
+impl Serialize for DeployEnv {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.as_str().serialize(serializer)
     }
 }
 
