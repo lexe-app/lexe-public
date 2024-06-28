@@ -107,7 +107,7 @@ pub struct NodePk(pub secp256k1::PublicKey);
 /// attacks in the general case.
 ///
 /// [`UserSignupRequest`]: crate::api::auth::UserSignupRequest
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct NodePkProof {
     node_pk: NodePk,
@@ -126,13 +126,13 @@ pub struct User {
 
 /// A newtype for the `short_channel_id` (`scid`) used throughout LDK.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct Scid(pub u64);
 
 /// Represents an entry in the `node_scid` table.
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(Serialize, Deserialize)]
 pub struct NodeScid {
     pub node_pk: NodePk,

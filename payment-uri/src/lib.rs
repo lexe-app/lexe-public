@@ -34,7 +34,7 @@ use rust_decimal::Decimal;
 ///
 /// Many variants give multiple ways to pay, with e.g. BOLT11 invoices including
 /// an onchain fallback, or BIP21 URIs including an optional BOLT11 invoice.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub enum PaymentUri {
     /// A standalone onchain Bitcoin address.
@@ -280,7 +280,7 @@ impl PaymentMethod {
 
 /// An onchain payment method, usually parsed from a standalone BTC address or
 /// BIP21 URI.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct Onchain {
     #[cfg_attr(test, proptest(strategy = "arbitrary::any_mainnet_address()"))]
@@ -347,7 +347,7 @@ fn parse_onchain_btc_amount(s: &str) -> Option<Amount> {
 ///
 /// bitcoin:175tWpb8K1S7NmH4Zx6rewF9WQrcZv245W?somethingyoudontunderstand=50&somethingelseyoudontget=999
 /// ```
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, Eq, PartialEq)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct Bip21Uri {
     pub onchain: Option<Onchain>,
@@ -538,7 +538,7 @@ impl fmt::Display for Bip21Uri {
 /// // Long bolt12 offer
 /// lightning:lno1pt7srytwezar7l6w2ulj4uv932cu3w327zhmmys2fcqzvt6t9rct4d48tfy098avnujrcfx34rcm3y4pyhec8yyw9lcel8ydyhpt2g0352nf8m5vh8efp09nvf4y7agt726ft26u9megd0u37x6eh9n572464ynm7j9f9xln37uteayx37psmuyn3knj55f69a2rluyljk60r9dd3yer628n3kq2es49724g928zszhrc4mqc2zl8rv53ps3kleh6x50rdaxj3wzjf8nszr2z7734q9nv0wz4vq0p8u4knp2tuvchw50r85ls4zqqz0nkjng3u9usxuk3malhheepvu2xs40fz45hmeemy9t03nl9gyt3ynspsuau2q2u0gd7jqthytq9c94euv6h2njeuyljk6rluyljk683s497zmgtfcqu2cgduyljk6q6tl53zw6au484j5jlu90kw4dr2p9c2jnlc5q4mp222nq7wyfnt2z9qjwl0aapdw0p2vrnnceffagu2q2ac5q4mee4tvf84z8kf6x7xu6rwl34x5c5apw6x5qkempvnhmh0l3hz024s469gn0rw485cn0fq4usaw0p0uzjfvz2flnkk3m7lln5z8m22hs4x4tzukrkthmh0cqpcygqjlqvl3l000tzr7szgsrcc8my32l79fckr7nj63n4f4alqznxem3w0l2er4nd4q9mp7fkuysxv5mxwf0gkjawaz4kxdgdp0dt8uncu9xtmuwl6mrjrnh5jg0tgpdqvpmnqytlhs98r8xynazuqqf3w0f4ps7mchujfkn38nps73dcvrxxuqqxdu0w6z9uplpajgz6ujphevcrccrzav2euc7h9ydctaeg9j8es0e3an5c9js5vmqp6ukr6326ae5e0avhxjs82pepypgz5edrrpjgfhxhccmtq0nuljxdcjr5lxeyg9vqkgtr3e5qqejl7s98yzewt6avqfpscw7chgyty43cmp0vml2qm7uk6gg96tglm2ucqfwjkjsd5rd6smc45gtr3n87p9qxq5era4fcqty72z984af4cgw9pzr8f59908hntawk89k0695ycywtsqpqnfufqzscy7eg3rpgvvuwa0vgfgjl5q6u2sm72hch2eu7xu6t08j5j7cpuvyszuk9uu7hxflfpdds0ef384p7zw6dr367xxmdg8352hev2gdc2jlpwywhgav3wsmu2q2uhnx0qdhzghjkw7e2h8n52f2zwnm72qep9e0tysjutnl7wxmhw0nh6pcurwghg4rfuu5379zdu5ajja4xzfuf0cfl9d5p8p2tuyljk6r3s4yp5aqkwkghtceeqy6u2q2ugf00vh5sr00h77j25x34reehxdjc2jhlj969tcfl9d5u2q2as59a7amluujh7qxnuv24xprmuyljk69crw34rptwth3j6jftuyn3wxlpv5ak9au9f0jn6t2au5m3zgkpu49k7nphu4tnkc09r5u5t32dwpy9tnc9pkghfv4kxextte2nzvzvle6p0yttuh9duy5s2vl9tdkknema09wp8p22wkzhynv9ffucwdn7z0jh7ymhs49x4w08294s0ncmvfx7zsg9xcm9t3gptsmytege9dgytce3w4g9g3v9f0r4j73khzu7wrta0g2a7lmmu4xjk9u9tzs2u70rtv3hqmxsleedagpkfcq9mcfl9d56x50p8u4k33n4udtjk97l0aa7ztc82ef9lef4raj7x5m0fc2pfw08za9kyk0r9dn3yhwpg4r727edv7r5chq62fuptccdv5wrva8k93pqd56rmfv68psmvwzzhse6pj4xg7gu6jrzega4qvzs9f9f4wjvftxj
 /// ```
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq)]
 #[cfg_attr(test, derive(Arbitrary))]
 pub struct LightningUri {
     pub invoice: Option<LxInvoice>,

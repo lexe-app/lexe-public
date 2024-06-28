@@ -76,18 +76,18 @@ pub struct KeyPair {
 }
 
 /// An ed25519 public key.
-#[derive(Copy, Clone, PartialEq, Eq, RefCast)]
+#[derive(Copy, Clone, Eq, PartialEq, RefCast)]
 #[repr(transparent)]
 pub struct PublicKey([u8; 32]);
 
 /// An ed25519 signature.
-#[derive(Copy, Clone, PartialEq, Eq, RefCast)]
+#[derive(Copy, Clone, Eq, PartialEq, RefCast)]
 #[repr(transparent)]
 pub struct Signature([u8; 64]);
 
 /// `Signed<T>` is a "proof" that the signature `sig` on a [`Signable`] struct
 /// `T` was actually signed by `signer`.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Eq, PartialEq)]
 #[must_use]
 pub struct Signed<T: Signable> {
     signer: PublicKey,
@@ -980,7 +980,7 @@ mod test {
 
     #[test]
     fn test_sign_verify_struct() {
-        #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+        #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
         struct Foo(u32);
 
         impl Signable for Foo {

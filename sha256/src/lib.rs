@@ -8,7 +8,7 @@ use ref_cast::RefCast;
 pub const HASH_LEN: usize = 32;
 
 /// A SHA-256 Hash value.
-#[derive(Copy, Clone, Default, PartialEq, Eq, RefCast)]
+#[derive(Copy, Clone, Default, Eq, PartialEq, RefCast)]
 #[repr(transparent)]
 pub struct Hash([u8; 32]);
 

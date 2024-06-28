@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// Basically `bdk::Balance`, so that `common` doesn't need to depend on `bdk`.
 ///
 /// Partitions a wallet balance into different categories.
-#[derive(Serialize, Deserialize, Debug, PartialEq, Eq, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Eq, PartialEq, Clone, Default)]
 pub struct Balance {
     /// All coinbase outputs not yet matured
     pub immature_sat: u64,

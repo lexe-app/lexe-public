@@ -17,7 +17,7 @@ use crate::time::TimestampMs;
 /// ### Examples
 ///
 /// `"USD", "EUR", "DKK", "CNY", ...`
-#[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
 #[derive(DeserializeFromStr)]
 pub struct IsoCurrencyCode([u8; 3]);
 
@@ -26,7 +26,7 @@ pub struct IsoCurrencyCode([u8; 3]);
 /// We just return this as an `f64`, which is kind of haram but also super
 /// convenient. Fortunately, all our accounting is done using BTC and we only
 /// use these exchange rates for display purposes, so it's probably OK?
-#[derive(Clone, Copy, PartialEq, Deserialize, Serialize)]
+#[derive(Copy, Clone, PartialEq, Deserialize, Serialize)]
 #[serde(transparent)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct FiatBtcPrice(pub f64);

@@ -48,13 +48,13 @@ pub trait ToCommand {
 /// - Testnet <-> "testnet",
 /// - Signet <-> "signet",
 /// - Regtest <-> "regtest"
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct Network(pub bitcoin::Network);
 
 /// Information about the LSP which the user node needs to connect and to
 /// generate route hints when no channel exists.
 #[cfg_attr(test, derive(Arbitrary))]
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct LspInfo {
     /// The protocol://host:port of the LSP's HTTP server. The node will
     /// default to a mock client if not supplied, provided that

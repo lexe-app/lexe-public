@@ -70,7 +70,7 @@ mod test {
 
     #[test]
     fn test_hexstr_or_bytes() {
-        #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+        #[derive(Debug, Eq, PartialEq, Deserialize, Serialize)]
         struct Foo {
             #[serde(with = "hexstr_or_bytes")]
             a: [u8; 32],

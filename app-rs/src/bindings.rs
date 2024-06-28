@@ -225,7 +225,7 @@ impl From<FiatRatesRs> for FiatRates {
 }
 
 #[frb(dart_metadata=("freezed"))]
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum DeployEnv {
     Prod,
     Staging,
@@ -285,7 +285,7 @@ pub fn deploy_env_from_str(s: String) -> anyhow::Result<SyncReturn<DeployEnv>> {
     DeployEnv::from_str(&s).map(SyncReturn)
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum Network {
     Mainnet,
     Testnet,

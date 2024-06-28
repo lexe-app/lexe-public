@@ -31,7 +31,7 @@ use crate::{
 ///
 /// It is essentially the `Payment` type flattened out such that each field is
 /// the result of the corresponding `Payment` getter.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(any(test, feature = "test-utils"), derive(Arbitrary))]
 pub struct BasicPayment {
     pub index: PaymentIndex,

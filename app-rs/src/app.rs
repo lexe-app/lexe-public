@@ -470,7 +470,7 @@ impl From<Config> for AppConfig {
 /// An app build variant / flavor. We use this struct to disambiguate persisted
 /// state and secrets so we don't accidentally clobber state when testing across
 /// e.g. testnet vs regtest.
-#[derive(Clone, Copy)]
+#[derive(Copy, Clone)]
 pub struct BuildFlavor {
     network: common::cli::Network,
     deploy_env: DeployEnv,
