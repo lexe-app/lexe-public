@@ -686,9 +686,9 @@ impl Wire2Api<ConfirmationPriority> for i32 {
 impl Wire2Api<DeployEnv> for i32 {
     fn wire2api(self) -> DeployEnv {
         match self {
-            0 => DeployEnv::Prod,
+            0 => DeployEnv::Dev,
             1 => DeployEnv::Staging,
-            2 => DeployEnv::Dev,
+            2 => DeployEnv::Prod,
             _ => unreachable!("Invalid variant for DeployEnv: {}", self),
         }
     }
@@ -788,9 +788,9 @@ impl rust2dart::IntoIntoDart<CreateInvoiceResponse> for CreateInvoiceResponse {
 impl support::IntoDart for DeployEnv {
     fn into_dart(self) -> support::DartAbi {
         match self {
-            Self::Prod => 0,
+            Self::Dev => 0,
             Self::Staging => 1,
-            Self::Dev => 2,
+            Self::Prod => 2,
         }
         .into_dart()
     }

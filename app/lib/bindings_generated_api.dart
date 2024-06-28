@@ -512,10 +512,11 @@ class CreateInvoiceResponse with _$CreateInvoiceResponse {
   }) = _CreateInvoiceResponse;
 }
 
+/// See [`common::env::DeployEnv`]
 enum DeployEnv {
-  Prod,
-  Staging,
   Dev,
+  Staging,
+  Prod,
 }
 
 /// See [`common::api::command::FeeEstimate`].
@@ -556,6 +557,7 @@ class Invoice with _$Invoice {
   }) = _Invoice;
 }
 
+/// See [`common::cli::Network`]
 enum Network {
   Mainnet,
   Testnet,
