@@ -60,9 +60,8 @@ impl Args {
         // dbg!(app_rs_dir.display());
         // dbg!(app_dir.display());
 
-        let bindings_rs = app_rs_dir.join("src/bindings.rs");
-        let bindings_generated_rs =
-            app_rs_dir.join("src/bindings_generated.rs");
+        let ffi_rs = app_rs_dir.join("src/ffi/ffi.rs");
+        let ffi_generated_rs = app_rs_dir.join("src/ffi/ffi_generated.rs");
         let bindings_generated_dart =
             app_dir.join("lib/bindings_generated.dart");
         let bindings_generated_api_dart =
@@ -85,9 +84,9 @@ impl Args {
             verbose: true,
 
             // Path of input Rust code
-            rust_input: vec![path_to_string(&bindings_rs)?],
+            rust_input: vec![path_to_string(&ffi_rs)?],
             // Path to output generated Rust code.
-            rust_output: Some(vec![path_to_string(&bindings_generated_rs)?]),
+            rust_output: Some(vec![path_to_string(&ffi_generated_rs)?]),
 
             // Path to output generated Dart code impls.
             dart_output: vec![path_to_string(&bindings_generated_dart)?],
@@ -119,7 +118,7 @@ impl Args {
             .with_context(|| {
                 format!(
                     "flutter_rust_bridge: failed to read Rust symbols from '{}'",
-                    bindings_rs.display(),
+                    ffi_rs.display(),
                 )
             })?;
         // actually generate dart and rust ffi bindings.
@@ -134,7 +133,7 @@ impl Args {
         if self.check {
             let mut cmd = Command::new("git");
             cmd.args(["diff", "--exit-code"]).args([
-                &bindings_generated_rs,
+                &ffi_generated_rs,
                 &bindings_generated_dart,
                 &bindings_generated_api_dart,
                 &ios_bindings_generated_h,
