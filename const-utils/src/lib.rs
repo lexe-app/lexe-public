@@ -59,3 +59,12 @@ pub const fn const_option_unwrap<T: Copy>(option: Option<T>) -> T {
         None => panic!("unwrap on None"),
     }
 }
+
+/// [`Result::unwrap`] but works in `const fn`.
+// TODO(phlip9): remove this when const unwrap stabilizes
+pub const fn const_result_unwrap<T: Copy, E: Copy>(result: Result<T, E>) -> T {
+    match result {
+        Ok(result) => result,
+        Err(_) => panic!("unwrap on Err"),
+    }
+}
