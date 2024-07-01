@@ -134,13 +134,13 @@ tracing-subscriber = { version = "0.3", default-features = false, features = ["s
 #   leading to it becoming incompatible with our patch.
 
 # A client for the Intel AESM service. Used during attestation to get quoted.
-aesm-client = { version = "=0.5.4", default-features = false, features = ["sgxs"] }
+aesm-client = { version = "=0.6.0", default-features = false }
 # High level webserver based on axum, tokio, hyper, and tower
 axum-server = "=0.6.0"
 # SGX Quote types
-dcap-ql = { version = "=0.3.4", default-features = false }
+dcap-ql = { version = "=0.4.0", default-features = false }
 # Fortanix EDP crate for running SGX applications, includes usercall extensions
-enclave-runner = { version = "=0.5.1", default-features = false }
+enclave-runner = { version = "=0.6.0", default-features = false }
 # Hyper-related utilities
 hyper-util = { version = "=0.1.5", default-features = false, features = ["http2"] }
 # LDK (rust-lightning) libraries
@@ -149,7 +149,7 @@ lightning-invoice = { version = "=0.24" }
 lightning-net-tokio = { version = "=0.0.116" }
 lightning-transaction-sync = { version = "=0.0.116", features = ["esplora-async"] }
 # Required by tokio
-mio = "=0.8.4"
+mio = "=0.8.11"
 # High-level HTTP client
 reqwest = { version = "=0.12.1", default-features = false, features = ["http2"] }
 # TODO(max): Remove once esplora-client no longer needs it
@@ -158,29 +158,27 @@ reqwest11 = { version = "=0.11.26", package = "reqwest", default-features = fals
 ring = "=0.17.8"
 ring16 = { version = "=0.16.20", package = "ring" } # TODO(max): Remove
 # Core SGX types and platform intrinsics (for sealing, reports, etc...)
-sgx-isa = "=0.4.0"
-sgxs = "=0.7.3"
-sgxs-loaders = "=0.3.3"
+sgx-isa = "=0.4.1"
+sgxs = "=0.8.0"
+sgxs-loaders = "=0.4.0"
 # Asynchronous runtime
-tokio = { version = "=1.21.2", default-features = false }
+tokio = { version = "=1.36.0", default-features = false }
 
 [patch.crates-io]
 # NOTE: Make sure to duplicate any changes to the root Cargo.toml.
 
 # Fortanix EDP (rust-sgx) crates:
-# * Add async-usercalls
-# * Allow users to redirect enclave standard input/output
-# * update tokio from 0.2 to 1.15.0
-# * usecall-extension examples need more unique name to silence warns
-# * enclave-runner: just depend on tokio "1" vs. pinning exact version
-# * Support building just ftxsgx-elf2sgxs on non-x86 platforms
-aesm-client = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
-async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
-dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
-enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
-sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
-sgxs = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
-sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-2023_09_27" }
+# * rust-sgx: hide all fortanixvme crates
+# * ftx-sgx-tools: can build just `ftxsgx-elf2sgxs` on non-x86_64
+# * enclave-runner: allow redirecting enclave standard input/output
+# * enclave-runner: tighten tokio+futures features
+aesm-client = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b6f02626-2024_06_28" }
+async-usercalls = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b6f02626-2024_06_28" }
+dcap-ql = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b6f02626-2024_06_28" }
+enclave-runner = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b6f02626-2024_06_28" }
+sgx-isa = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b6f02626-2024_06_28" }
+sgxs = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b6f02626-2024_06_28" }
+sgxs-loaders = { git = "https://github.com/lexe-app/rust-sgx", branch = "lexe-b6f02626-2024_06_28" }
 
 # * server: Propagate current span across `tokio::spawn`
 # * fix: propagate graceful shutdown to inner hyper connection
@@ -204,8 +202,11 @@ hyper-util = { git = "https://github.com/lexe-app/hyper-util", branch = "lexe-v0
 # TODO(max): Remove this patch once everything updates to hyper 1.0
 hyper_old = { package = "hyper", git = "https://github.com/lexe-app/hyper", branch = "lexe-v0.14.28-2024_03_08" }
 
-# * sgx: update SGX port
-mio = { git = "https://github.com/lexe-app/mio", branch = "mio-sgx-0.8.4" }
+# * fortanix: SGX port
+# * test: fix testing script
+# * net: add `TcpStream::try_into_std`, used by our `tokio` SGX patchset
+# * Revert "Support compilers with stdlibs that don't have `Send` `User<T>` types"
+mio = { git = "https://github.com/lexe-app/mio", branch = "lexe-v0.8.11-2024_07_01" }
 
 # * proxy: Expose `ProxyScheme`, `set_custom_http_auth`
 # * lib: Fail compilation if using insecure TLS roots
@@ -218,11 +219,10 @@ reqwest11 = { package = "reqwest", git = "https://github.com/lexe-app/reqwest", 
 ring = { git = "https://github.com/lexe-app/ring", branch = "lexe-v0.17.8-2024_03_21" }
 ring16 = { package = "ring", git = "https://github.com/lexe-app/ring", branch = "lexe-v0.16.20-2023_09_26" }
 
-# * sgx: update tokio SGX port from 1.15.0 to 1.21.2
-# * features: remove fs compile error, since warp requires it. 
-#   (TODO(max): revisit now that warp is gone)
-# * rename: lexe-tech -> lexe-app
-tokio = { git = "https://github.com/lexe-app/tokio",  branch = "lexe-v1.21.2-2024_03_21" }
+# * fortanix: SGX port
+# * test: fix testing script
+# * net: add SGX `TcpStream::into_std` used by `lightning-net-tokio`
+tokio = { git = "https://github.com/lexe-app/tokio",  branch = "lexe-v1.36.0-2024_07_01" }
 
 # miniscript v0.9.1 nightly compiler backport fix
 #
