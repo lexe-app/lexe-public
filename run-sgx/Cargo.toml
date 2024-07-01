@@ -31,7 +31,7 @@ rustc-demangle = "0.1"
 common = { path = "../common" }
 sgxs-sign = { path = "../sgxs-sign" }
 
-aesm-client.workspace = true
+aesm-client = { workspace = true, features = ["sgxs"] }
 enclave-runner.workspace = true
 sgx-isa.workspace = true
 sgxs-loaders.workspace = true

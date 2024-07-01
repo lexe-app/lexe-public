@@ -129,7 +129,7 @@ tokio-rustls = { optional = true, version = "0.25", default-features = false }
 # For verifying SGX Report MACs
 aes = { version = "0.8", features = ["zeroize"] }
 # A client for the Intel AESM service. Used in the attestation process to get quoted.
-aesm-client = "=0.5.4"
+aesm-client.workspace = true
 # For casting byte buffers to/from the AESM client from/to actual structured data.
 bytemuck = { version = "1", default-features = false, features = ["derive", "min_const_generics"] }
 # For verifying SGX Report MACs
