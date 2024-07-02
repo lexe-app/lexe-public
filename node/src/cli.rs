@@ -28,7 +28,7 @@ impl NodeCommand {
                 let dev_version_str = DEV_VERSION.unwrap_or("None");
                 let measurement = enclave::measurement();
                 println!(
-                    "node-{SEMVER_VERSION} (Dev version: {dev_version_str})"
+                    "node-v{SEMVER_VERSION} (Dev version: v{dev_version_str})"
                 );
                 println!("Measurement: {measurement}");
                 Ok(None)
